@@ -77,7 +77,7 @@ export default function MenuAcciones({ onNavegar, onBloquear, onSalir, onPrefere
         </div>
       )}
 
-      <Modal open={cambiandoSucursal} onClose={() => setCambiandoSucursal(false)} title="Cambiar sucursal" className="max-w-md">
+      <Modal open={cambiandoSucursal} onClose={() => setCambiandoSucursal(false)} title="Cambiar sucursal" size="sm">
         {sucursales.length > 1 ? (
           <div className="space-y-1.5" role="radiogroup" aria-label="Sucursales disponibles">
             <p className="text-sm text-mute">Elegí con qué sucursal vas a operar. Aplica a ventas, stock y caja.</p>

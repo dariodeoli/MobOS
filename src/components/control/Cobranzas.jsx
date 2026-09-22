@@ -113,7 +113,7 @@ export default function Cobranzas() {
       {vencidas.length > 0 && <section><h3 className="text-xs font-bold uppercase tracking-wider text-bad">Vencidas ({vencidas.length})</h3><div className="mt-2 space-y-2">{vencidas.map((row) => <Fila key={row.id} row={row} />)}</div></section>}
       {proximas.length > 0 && <section><h3 className={ROTULO_SECCION}>Próximas ({proximas.length})</h3><div className="mt-2 space-y-2">{proximas.map((row) => <Fila key={row.id} row={row} />)}</div></section>}
       {detalle && (
-        <Modal open onClose={() => setDetalle(null)} title={`Mensaje para ${detalle.customerName || 'el cliente'}`} className="max-w-lg">
+        <Modal open onClose={() => setDetalle(null)} title={`Mensaje para ${detalle.customerName || 'el cliente'}`}>
           <div className="space-y-3">
             <p className="whitespace-pre-wrap rounded-xl border border-ink-600 bg-ink-800/50 p-3 text-sm">{detalle.message}</p>
             <p className="break-all text-xs text-mute">{detalle.whatsappUrl || 'El cliente no tiene teléfono cargado: no hay enlace.'}</p>

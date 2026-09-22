@@ -1792,7 +1792,7 @@ export default function FormularioVenta({
         open={Boolean(imeiPara)}
         onClose={() => setImeiPara(null)}
         title="Elegir IMEI de esta venta"
-        className="max-w-lg"
+       
       >
         {(() => {
           const fila = items.find(it => it.key === imeiPara)
@@ -1835,7 +1835,7 @@ export default function FormularioVenta({
         open={suspenderOpen}
         onClose={suspendiendo ? undefined : () => setSuspenderOpen(false)}
         title="Suspender venta"
-        className="max-w-md"
+        size="sm"
       >
         <div className="space-y-3">
           <p className="text-sm text-mute">
@@ -1879,7 +1879,7 @@ export default function FormularioVenta({
         open={suspendidasOpen}
         onClose={descartando ? undefined : () => setSuspendidasOpen(false)}
         title="Ventas suspendidas"
-        className="max-w-2xl"
+        size="xl"
       >
         <div className="space-y-3">
           <p className="text-sm text-mute">
@@ -2029,7 +2029,7 @@ export default function FormularioVenta({
         open={avisoDemoSuspendidas}
         onClose={() => setAvisoDemoSuspendidas(false)}
         title="Ventas suspendidas"
-        className="max-w-md"
+        size="sm"
       >
         <div className="space-y-4">
           <p className="text-sm text-mute">
@@ -2047,7 +2047,7 @@ export default function FormularioVenta({
       <AnalyticsPos open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} />
 
       {/* Código escaneado: se confirma antes de sumarlo a la venta. */}
-      <Modal open={Boolean(escaneado)} onClose={() => setEscaneado(null)} title="Producto escaneado" className="max-w-md">
+      <Modal open={Boolean(escaneado)} onClose={() => setEscaneado(null)} title="Producto escaneado" size="sm">
         {escaneado && (
           <div className="space-y-3">
             <div className="flex items-center gap-3">

@@ -232,7 +232,7 @@ export default function GlobalSearch({ open, onClose, onNavigate, vistas }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Búsqueda global" className="max-w-2xl">
+    <Modal open={open} onClose={onClose} title="Búsqueda global" size="xl">
       <div className="space-y-4">
         <div className="relative">
           <Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" />

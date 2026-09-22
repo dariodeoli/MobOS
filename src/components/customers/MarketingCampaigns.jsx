@@ -115,7 +115,7 @@ export default function MarketingCampaigns({ open, onClose, onContacted }) {
   const plantilla = plantillas.find((item) => item.key === templateKey)
 
   return (
-    <Modal open={open} onClose={() => !enviando && onClose?.()} title="Campañas de recompra" className="max-w-4xl">
+    <Modal open={open} onClose={() => !enviando && onClose?.()} title="Campañas de recompra" size="3xl">
       <div className="space-y-4" data-testid="marketing-panel">
         <Card className="space-y-3">
           <form onSubmit={segmentar} className="flex flex-wrap items-end gap-2">

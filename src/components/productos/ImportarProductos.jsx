@@ -166,7 +166,7 @@ export default function ImportarProductos({ onImportada }) {
         open={abierto}
         onClose={(importando || confirmarDeshacer) ? undefined : () => setAbierto(false)}
         title="Importar productos (CSV o Excel)"
-        className="max-w-5xl"
+        size="4xl"
       >
         <div className="space-y-4">
           <div className="rounded-xl border border-ink-600 bg-ink-700/40 p-4 text-xs leading-5 text-mute">

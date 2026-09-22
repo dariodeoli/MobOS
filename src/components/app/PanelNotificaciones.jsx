@@ -29,7 +29,7 @@ function hace(at) {
 // la persona, con acceso directo a la pantalla donde se resuelve.
 export default function PanelNotificaciones({ open, onClose, items, cargando, error, onRecargar, onAbrir, activas = true }) {
   return (
-    <Modal open={open} onClose={onClose} title="Notificaciones" className="max-w-lg">
+    <Modal open={open} onClose={onClose} title="Notificaciones">
       <div className="space-y-3" data-testid="notificaciones-panel">
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs text-mute">

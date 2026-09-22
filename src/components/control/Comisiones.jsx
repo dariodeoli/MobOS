@@ -352,7 +352,7 @@ export default function Comisiones() {
         )}
       </Card>
 
-      <Modal open={Boolean(comprobante)} onClose={() => setComprobante(null)} title={`Comprobante · ${comprobante?.sellerName || 'Vendedor'}`} className="max-w-lg">
+      <Modal open={Boolean(comprobante)} onClose={() => setComprobante(null)} title={`Comprobante · ${comprobante?.sellerName || 'Vendedor'}`}>
         {comprobante && (
           <div className="space-y-4">
             <div className="rounded-xl border border-ink-600 p-3 text-sm">

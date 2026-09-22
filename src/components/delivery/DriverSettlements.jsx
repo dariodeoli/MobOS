@@ -88,7 +88,7 @@ export default function DriverSettlements() {
         </div>
       </div>
 
-      <Modal open={abierto} onClose={() => !enviando && setAbierto(false)} title="Rendir lo cobrado" className="max-w-lg">
+      <Modal open={abierto} onClose={() => !enviando && setAbierto(false)} title="Rendir lo cobrado">
         <div className="space-y-3">
           <p className="text-sm text-mute">Entregás en la tienda estos cobros de la calle. La tienda los verifica y recién ahí quedan confirmados.</p>
           <ul className="max-h-64 space-y-2 overflow-auto rounded-xl border border-fore/10 bg-ink-700/30 p-3">

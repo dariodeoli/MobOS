@@ -1030,7 +1030,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   }
 
   return (
-    <Modal open={open} onClose={() => { if (!requestKind && !resolveTarget && !identityForm && !portal && !confirmarRegenerar) onClose() }} title={`Cliente: ${customer?.name || ''}`} className="max-w-2xl">
+    <Modal open={open} onClose={() => { if (!requestKind && !resolveTarget && !identityForm && !portal && !confirmarRegenerar) onClose() }} title={`Cliente: ${customer?.name || ''}`} size="xl">
       {loading && (
         <div className="space-y-4" aria-busy="true">
           <Skeleton className="h-10 w-2/3" />
@@ -1862,7 +1862,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
         </div>
       )}
 
-      <Modal open={Boolean(solicitud)} onClose={() => setSolicitud(null)} title={solicitud === 'WHOLESALE' ? 'Solicitar pasar a mayorista' : 'Solicitar crédito'} className="max-w-md">
+      <Modal open={Boolean(solicitud)} onClose={() => setSolicitud(null)} title={solicitud === 'WHOLESALE' ? 'Solicitar pasar a mayorista' : 'Solicitar crédito'} size="sm">
         <div className="space-y-3">
           <p className="text-sm text-mute">
             {solicitud === 'WHOLESALE'
@@ -1922,7 +1922,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
         open={Boolean(requestKind)}
         onClose={() => { if (!requestBusy) setRequestKind('') }}
         title={requestKind === 'CREDIT' ? 'Solicitar habilitación de crédito' : 'Solicitar días de crédito'}
-        className="max-w-lg"
+       
       >
         <form onSubmit={enviarSolicitud} className="space-y-4">
           {requestKind === 'CREDIT' && (
@@ -1967,7 +1967,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
         open={Boolean(resolveTarget)}
         onClose={() => { if (!resolveBusy) setResolveTarget(null) }}
         title={resolveAction === 'approve' ? 'Aprobar solicitud' : 'Rechazar solicitud'}
-        className="max-w-lg"
+       
       >
         {resolveTarget && (
           <div className="space-y-4">
@@ -2040,7 +2040,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
         open={Boolean(identityForm)}
         onClose={() => { if (!identityBusy) setIdentityForm(null) }}
         title={identityForm?.id ? 'Editar identidad' : 'Agregar identidad'}
-        className="max-w-lg"
+       
       >
         {identityForm && (
           <form onSubmit={guardarIdentidad} className="space-y-4">
@@ -2075,7 +2075,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
         open={Boolean(portal)}
         onClose={() => { if (!portalBusy) { setPortal(null); setPortalQr(''); setPortalMsg(''); setPortalError('') } }}
         title="Portal del cliente"
-        className="max-w-md"
+        size="sm"
       >
         <div className="space-y-4 text-center">
           <p className="text-sm text-mute">Compartí este enlace o QR con el cliente: ve su saldo, vencimientos y pedidos sin instalar nada.</p>
@@ -2115,7 +2115,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
         open={Boolean(direccionForm)}
         onClose={() => { if (!direccionBusy) setDireccionForm(null) }}
         title={direccionForm?.index >= 0 ? 'Editar dirección' : 'Agregar dirección'}
-        className="max-w-lg"
+       
       >
         {direccionForm && (
           <form onSubmit={guardarDireccion} className="space-y-4">
@@ -2164,7 +2164,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
         open={comercialAbierto}
         onClose={() => { if (!guardandoComercial) setComercialAbierto(false) }}
         title="Configuración comercial"
-        className="max-w-lg"
+       
       >
         <form onSubmit={guardarComercial} className="space-y-4">
           <FormField label="Tipo de cliente" htmlFor="comercial-tipo">
@@ -2209,7 +2209,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
         open={canjeAbierto}
         onClose={() => { if (!canjeBusy) setCanjeAbierto(false) }}
         title="Canjear puntos como saldo a favor"
-        className="max-w-md"
+        size="sm"
       >
         <form onSubmit={canjearPuntos} className="space-y-4">
           <p className="text-sm text-mute">Los puntos canjeados quedan como saldo a favor del cliente y se descuentan de su saldo de <b className="text-fore">{formatGs(puntos)}</b>. 1 punto = 1 Gs.</p>

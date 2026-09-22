@@ -243,7 +243,7 @@ export default function Precios() {
       </form>}
     </Card>
 
-    <Modal open={editor !== null} onClose={() => !busy && setEditor(null)} title={editor?.id ? 'Editar lista de precios' : 'Nueva lista de precios'} className="max-w-3xl">
+    <Modal open={editor !== null} onClose={() => !busy && setEditor(null)} title={editor?.id ? 'Editar lista de precios' : 'Nueva lista de precios'} size="2xl">
       {editor && <form onSubmit={guardarLista} className="space-y-4">
         <div className="max-w-md">
           <Label htmlFor="lista-nombre">Nombre</Label><Input id="lista-nombre" required value={editor.name} onChange={event => setEditor(current => ({ ...current, name: event.target.value }))} placeholder="Mayorista VIP, Empresas…" />
@@ -266,7 +266,7 @@ export default function Precios() {
       </form>}
     </Modal>
 
-    <Modal open={aBorrar !== null} onClose={() => !busy && setABorrar(null)} title={`¿Eliminar ${aBorrar?.name || 'la lista'}?`} className="max-w-md">
+    <Modal open={aBorrar !== null} onClose={() => !busy && setABorrar(null)} title={`¿Eliminar ${aBorrar?.name || 'la lista'}?`} size="sm">
       <p className="text-sm text-mute">Los clientes con esta lista asignada vuelven a su precio minorista o mayorista. La acción queda en la auditoría.</p>
       <div className="mt-4 flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setABorrar(null)} disabled={busy}>Cancelar</Button><Button type="button" className="border-bad/50 bg-bad/10 text-bad" onClick={borrarLista} disabled={busy}>{busy ? 'Eliminando…' : 'Eliminar lista'}</Button></div>
     </Modal>

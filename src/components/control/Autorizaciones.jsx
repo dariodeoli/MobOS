@@ -465,7 +465,7 @@ export default function Autorizaciones() {
           if (!busy) setApproveTarget(null)
         }}
         title={`Aprobar ${KINDS[approveTarget?.kind] || 'solicitud'}`}
-        className="max-w-lg"
+       
       >
         {approveTarget && (
           <div className="space-y-4">
@@ -601,7 +601,7 @@ export default function Autorizaciones() {
           if (!busy) setRejectTarget(null)
         }}
         title={`Rechazar ${KINDS[rejectTarget?.kind] || 'solicitud'}`}
-        className="max-w-lg"
+       
       >
         {rejectTarget && (
           <div className="space-y-4">

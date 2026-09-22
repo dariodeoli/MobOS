@@ -470,7 +470,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
         open={Boolean(stockAction)}
         onClose={() => { if (!stockBusy) setStockAction(null) }}
         title={stockAction === 'remove' ? 'Dar de baja la unidad' : unit.status === 'DEFECTIVE' ? 'Habilitar unidad' : 'Marcar en revisión'}
-        className="max-w-lg"
+       
       >
         <div className="space-y-3">
           <p className="text-sm text-mute">

@@ -857,7 +857,7 @@ export default function PanelVendedor() {
         open={cambiarAbierto}
         onClose={() => !cambiando && setCambiarAbierto(false)}
         title="Cambiar vendedor"
-        className="max-w-md"
+        size="sm"
       >
         <p className="mt-2 text-sm text-mute">
           Elegí quién registra la próxima venta y confirmá su PIN.
@@ -938,7 +938,7 @@ export default function PanelVendedor() {
         open={ayudaAbierto}
         onClose={() => setAyudaAbierto(false)}
         title="Atajos de teclado"
-        className="max-w-md"
+        size="sm"
       >
         <div className="space-y-2.5">
           {[

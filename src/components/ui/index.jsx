@@ -223,7 +223,12 @@ export function Card({ className, ...props }) {
 }
 
 // Popup estándar: Esc, clic afuera, botón cerrar y cierre opcional al guardar.
-export function Modal({ open, onClose, title, children, className }) {
+// Tamaños de modal (#237): corto → `sm`, formulario → `md` (default), listas →
+// `lg`/`xl`, tablas y contenido amplio → `2xl`+. El `className` del call site
+// sigue mandando cuando hace falta una excepción (twMerge resuelve el conflicto).
+const TAMANOS_MODAL = { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-xl', xl: 'max-w-2xl', '2xl': 'max-w-3xl', '3xl': 'max-w-4xl', '4xl': 'max-w-5xl' }
+
+export function Modal({ open, onClose, title, children, className, size = 'md' }) {
   const dialog = useRef(null)
   const close = useRef(onClose)
   close.current = onClose
@@ -249,7 +254,7 @@ export function Modal({ open, onClose, title, children, className }) {
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center sm:p-6" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
-      <div ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} className={cn('max-h-[min(90dvh,720px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-ink-600 bg-ink-800 p-4 shadow-2xl sm:p-6', className)}>
+      <div ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} className={cn('max-h-[min(90dvh,720px)] w-full overflow-y-auto rounded-2xl border border-ink-600 bg-ink-800 p-4 shadow-2xl sm:p-6', TAMANOS_MODAL[size] || TAMANOS_MODAL.md, className)}>
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 id={titleId} className="text-base font-bold text-fore">{title}</h2>
           <button type="button" onClick={onClose} className="rounded-lg p-2 text-mute hover:bg-ink-700 hover:text-fore" aria-label="Cerrar">×</button>
@@ -273,7 +278,7 @@ export function ConfirmDialog({
   busy = false,
 }) {
   return (
-    <Modal open={open} onClose={busy ? undefined : onCancel} title={title} className="max-w-md">
+    <Modal open={open} onClose={busy ? undefined : onCancel} title={title} size="sm">
       <div className="space-y-5">
         <div className={cn('flex h-11 w-11 items-center justify-center rounded-2xl', variant === 'danger' ? 'bg-bad/10 text-bad' : 'bg-fono/10 text-fono-light')}>
           <Icon name={variant === 'danger' ? 'alert' : 'check'} className="h-5 w-5" />

@@ -304,7 +304,7 @@ export default function SellerCustomers() {
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más clientes'}</button></div>}
     <CustomerProfile customer={profileCustomer} open={Boolean(profileCustomer)} onClose={cerrarPerfil} />
     {!templateData.loading && templateData.error && <Aviso tono="warn" className="p-3">No se pudieron cargar las plantillas. Podés seguir gestionando clientes.</Aviso>}
-    <Modal open={importAbierto} onClose={() => !importBusy && setImportAbierto(false)} title="Importar clientes" className="max-w-2xl">
+    <Modal open={importAbierto} onClose={() => !importBusy && setImportAbierto(false)} title="Importar clientes" size="xl">
       <form onSubmit={importar} className="space-y-3">
         <p className="text-sm text-mute">Pegá las filas del export (la primera línea son los encabezados). Se reconocen: Customer ID, First/Last Name, Email, Phone, Default Address (Company, Address1, Address2, City), Note y Tags. Los duplicados por RUC, teléfono o ID no se vuelven a crear.</p>
         <Textarea aria-label="Filas del export a importar" rows={10} className="font-mono text-xs" value={importTexto} onChange={(event) => setImportTexto(event.target.value)} placeholder={'Customer ID\tFirst Name\tLast Name\tEmail\t…'} />
@@ -314,7 +314,7 @@ export default function SellerCustomers() {
         <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="ghost" disabled={importBusy} onClick={() => setImportAbierto(false)}>Cerrar</Button><Button type="submit" disabled={importBusy || !filasImportadas.length}>{importBusy ? 'Importando…' : 'Importar clientes'}</Button></div>
       </form>
     </Modal>
-    <Modal open={crearAbierto} onClose={() => !saving && setCrearAbierto(false)} title="Crear cliente" className="max-w-2xl">
+    <Modal open={crearAbierto} onClose={() => !saving && setCrearAbierto(false)} title="Crear cliente" size="xl">
       <form onSubmit={create} className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block space-y-2"><span>Primer nombre</span><Input ref={nombreRef} required autoFocus maxLength={120} disabled={saving} value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} /></label>
