@@ -1,7 +1,7 @@
 {
   "base": "https://app.moboss.online",
   "version": "v1.0.136",
-  "fecha": "2026-09-22T00:31:06.119Z",
+  "fecha": "2026-09-22T00:37:53.470Z",
   "viewport": {
     "desktop": "1440x900",
     "movil": "390x844"
@@ -75,7 +75,7 @@
     {
       "paso": "split: parcial con dividir saldo y segundo medio",
       "estado": "fallo",
-      "detalle": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('option').filter({ hasText: /Caja/i }).first()\u001b[22m\n",
+      "detalle": "el monto quedó deshabilitado: la cuenta no se pudo elegir",
       "capturas": [
         "11-fallo-split-parcial-con-dividir-saldo-y-segundo-medio.jpg"
       ],
