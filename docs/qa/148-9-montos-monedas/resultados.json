@@ -1,0 +1,29 @@
+{
+  "resultados": [
+    {
+      "nombre": "API: un movimiento de 3.000 millones se rechaza con el tope explicado",
+      "ok": true,
+      "detalle": "status=400 · El monto convertido supera el máximo que el sistema puede guardar (Gs 2.147.483.647)."
+    },
+    {
+      "nombre": "API: un cheque de 2.000 millones se guarda y se puede anular",
+      "ok": true,
+      "detalle": "alta=201 · anulación=200"
+    },
+    {
+      "nombre": "API: una venta por encima del tope también se rechaza",
+      "ok": true,
+      "detalle": "el producto grande ya se rechaza: status=400 · Precio y stock deben ser enteros válidos."
+    },
+    {
+      "nombre": "Gastos: el campo no trunca y el guardado explica el tope",
+      "ok": true,
+      "detalle": "campo completo, marcado y bloqueado con mensaje"
+    },
+    {
+      "nombre": "Caja: el monto contado también avisa el tope",
+      "ok": true,
+      "detalle": "bloqueado con mensaje"
+    }
+  ]
+}

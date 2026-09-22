@@ -6,7 +6,7 @@ import { ventaDesdeApi, listVentas } from '@/lib/storage'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { construirDemoConciliacion, conciliarDemoLote } from '@/lib/demoConciliacion'
 import { gs } from '@/utils/calculos'
-import { formatMoney } from '@/utils/moneda'
+import { formatMoney, errorMonto } from '@/utils/moneda'
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import { fechaCorta } from '@/utils/fecha'
 import RangoFechas, { PRESETS, rangoDeParams, paramsDeRango } from '@/components/shared/RangoFechas'
@@ -237,6 +237,8 @@ export default function Conciliacion() {
 
   async function conciliar() {
     if (!seleccionados.length || conciliando) return
+    const errorRecibido = errorMonto(recibido)
+    if (errorRecibido) { setError(errorRecibido); return }
     setConciliando(true)
     setError('')
     try {

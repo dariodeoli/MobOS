@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
-import { formatGsInput, parseGsInput } from '@/utils/moneda'
+import { formatGsInput, errorMonto, parseGsInput } from '@/utils/moneda'
 import { getDemoCash, getDemoCashExpected, openDemoCash, closeDemoCash } from '@/lib/demoCash'
 import { listVentas } from '@/lib/storage'
 import { fechaHora } from '@/utils/fecha'
@@ -404,6 +404,8 @@ export default function Caja() {
     setCierreOpen(true)
   }
   async function abrir() {
+    const errorInicial = errorMonto(parseGsInput(opening))
+    if (errorInicial) { setError(errorInicial); return }
     setSaving(true)
     setError('')
     try {
@@ -423,6 +425,8 @@ export default function Caja() {
     }
   }
   async function cerrar() {
+    const errorContado = errorMonto(contado)
+    if (errorContado) { setError(errorContado); return }
     setSaving(true)
     setError('')
     const desglose = hayArqueo ? desglosePayload(arqueo) : null
@@ -453,6 +457,8 @@ export default function Caja() {
   }
   async function cerrarTurnoAjeno() {
     if (!turnoAjeno) return
+    const errorContado = errorMonto(contadoAjenoTotal)
+    if (errorContado) { setError(errorContado); return }
     setSaving(true)
     setError('')
     const desglose = hayArqueoAjeno ? desglosePayload(arqueoAjeno) : null

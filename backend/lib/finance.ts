@@ -13,7 +13,7 @@ export function frozenAmountPyg(originalAmount: unknown, currency: FinanceCurren
   if (!amount.isFinite() || amount.lte(0) || !rate.isFinite() || rate.lte(0)) throw new FinanceInputError('Monto o cotización inválidos.')
   if (currency === 'PYG' && !rate.eq(1)) throw new FinanceInputError('La cotización PYG debe ser 1.')
   const result = amount.mul(rate).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
-  if (result.lt(1) || result.gt(INT_MAX)) throw new FinanceInputError('Monto convertido fuera de rango.')
+  if (result.lt(1) || result.gt(INT_MAX)) throw new FinanceInputError('El monto convertido supera el máximo que el sistema puede guardar (Gs 2.147.483.647).')
   return result.toNumber()
 }
 

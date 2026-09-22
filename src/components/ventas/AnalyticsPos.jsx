@@ -5,7 +5,10 @@ import { gs } from '@/utils/calculos'
 import { tableroPos, comparacion } from '@/lib/posAnalytics'
 import { listVentas } from '@/lib/storage'
 import { isDemoRuntime } from '@/lib/demoMode'
+import { construirDemoCajas, getDemoCash } from '@/lib/demoCash'
+import { metodoDeMedio } from '@/lib/demoConciliacion'
 import { fechaClave } from '@/utils/calculos'
+import { fechaCorta } from '@/utils/fecha'
 import { cn } from '@/lib/utils'
 
 // Tablero del POS (#156): ventas de hoy contra ayer, pedidos, unidades por
@@ -70,6 +73,7 @@ const desdeDePeriodo = (periodo) => {
 
 export default function AnalyticsPos({ open, onClose }) {
   const [ordenes, setOrdenes] = useState(null)
+  const [sesiones, setSesiones] = useState([])
   const [error, setError] = useState('')
   const [periodo, setPeriodo] = useState('hoy')
 
@@ -88,10 +92,17 @@ export default function AnalyticsPos({ open, onClose }) {
         createdAt: venta.creadoEn || (venta.fecha ? `${venta.fecha}T12:00:00` : new Date().toISOString()),
         status: venta.estadoPago === 'Pagado' ? 'COMPLETED' : 'PENDING',
         fulfillmentStatus: venta.entrega === 'Delivery' ? 'IN_TRANSIT' : 'PROCESSING',
-        payments: (venta.pagos || []).map(pago => ({ amountPyg: Number(pago.monto || 0), method: 'CASH', status: 'CONFIRMED', paidAt: pago.fecha })),
+        // #148 §18: cada pago conserva su medio y su cuenta como en la tienda.
+        payments: (venta.pagos || []).map(pago => ({
+          amountPyg: Number(pago.monto || 0),
+          method: metodoDeMedio(pago.medioPago),
+          accountSnapshot: pago.cuenta ? { name: pago.cuenta } : null,
+          status: 'CONFIRMED',
+          paidAt: pago.fecha,
+        })),
         items: [{ quantity: 1, unitPricePyg: Number(venta.precio || 0), totalPyg: Number(venta.precio || 0) }],
-        seller: { name: venta.vendedorNombre || 'Vendedor demo' },
-        branch: { name: 'Tienda demo' },
+        seller: { name: venta.vendedorNombre || 'Hernán Acosta' },
+        branch: { name: 'Casa Central' },
       })))
       return () => { vivo = false }
     }
@@ -100,6 +111,23 @@ export default function AnalyticsPos({ open, onClose }) {
       .catch((cause) => { if (vivo) setError(cause?.message || 'No se pudieron cargar las ventas.') })
     return () => { vivo = false }
   }, [open])
+
+  // Ventas por caja (#148 §18): el mismo corte por sesión de Finanzas → Caja.
+  useEffect(() => {
+    if (!open) return undefined
+    let vivo = true
+    const desde = desdeDePeriodo(periodo)
+    const hasta = fechaClave()
+    if (isDemoRuntime) {
+      const enRango = (valor) => { const dia = String(valor || '').slice(0, 10); return dia >= desde && dia <= hasta }
+      setSesiones(construirDemoCajas({ cash: getDemoCash(), ventas: listVentas() }).filter((sesion) => enRango(sesion.openedAt)))
+      return () => { vivo = false }
+    }
+    api.get(`/api/cash?sesiones=1&from=${desde}&to=${hasta}`)
+      .then((data) => { if (vivo) setSesiones(Array.isArray(data?.sesiones) ? data.sesiones : []) })
+      .catch(() => { if (vivo) setSesiones([]) })
+    return () => { vivo = false }
+  }, [open, periodo])
 
   const tablero = useMemo(
     () => (ordenes ? tableroPos(ordenes, { desde: desdeDePeriodo(periodo) }) : null),
@@ -138,15 +166,26 @@ export default function AnalyticsPos({ open, onClose }) {
             <Metrica label="Ventas netas" valor={gs(tablero.hoy.neto)} extra={<span className="text-[11px] text-mute">bruto {gs(tablero.hoy.bruto)}</span>} />
             <Metrica label="Descuentos" valor={gs(tablero.hoy.descuentos)} />
             <Metrica label="Cobrado" valor={gs(tablero.hoy.cobrado)} />
+            <Metrica label="Efectivo" valor={gs(tablero.hoy.efectivo)} extra={tablero.hoy.reembolsado ? <span className="text-[11px] text-mute">reembolsos {gs(tablero.hoy.reembolsado)}</span> : null} />
             <Metrica label="Pendiente" valor={gs(tablero.hoy.pendiente)} />
+            <Metrica label="Reembolsos" valor={gs(tablero.hoy.reembolsado)} />
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Lista titulo="Top productos" filas={tablero.topProductos} valorDe={(fila) => fila.ventas} etiquetaDe={(fila) => `${fila.nombre} · ${fila.unidades} u.`} />
             <Lista titulo="Ventas por vendedor" filas={tablero.porVendedor} valorDe={(fila) => fila.ventas} etiquetaDe={(fila) => `${fila.etiqueta} · ${fila.pedidos} ped.`} />
             <Lista titulo="Ventas por sucursal" filas={tablero.porSucursal} valorDe={(fila) => fila.ventas} etiquetaDe={(fila) => fila.etiqueta} />
-            <Lista titulo={`Cobros por medio · ${periodo === 'hoy' ? 'hoy' : periodo === '7d' ? '7 días' : 'mes'}`} filas={tablero.pagos} valorDe={(fila) => fila.monto} etiquetaDe={(fila) => `${fila.etiqueta} · ${fila.pagos} pago(s)`} />
-            <Lista titulo="Cobros por cuenta" filas={tablero.pagosPorCuenta} valorDe={(fila) => fila.monto} etiquetaDe={(fila) => `${fila.etiqueta} · ${fila.pagos} pago(s)`} />
+            <Lista
+              titulo={`Cobros netos por tipo · ${periodo === 'hoy' ? 'hoy' : periodo === '7d' ? '7 días' : 'mes'}`}
+              filas={tablero.pagos}
+              valorDe={(fila) => fila.neto}
+              etiquetaDe={(fila) => `${fila.etiqueta} · ${fila.pagos} pago(s)${fila.reembolsado ? ` · reembolsado ${gs(fila.reembolsado)}` : ''}`}
+            />
+            <Lista titulo="Cobros netos por cuenta" filas={tablero.pagosPorCuenta} valorDe={(fila) => fila.neto} etiquetaDe={(fila) => `${fila.etiqueta} · ${fila.pagos} pago(s)`} />
+            <Lista titulo="Cobros netos por sucursal" filas={tablero.pagosPorSucursal} valorDe={(fila) => fila.neto} etiquetaDe={(fila) => `${fila.etiqueta} · ${fila.pagos} pago(s)`} />
+            {sesiones.length > 0 && (
+              <Lista titulo="Ventas por caja" filas={sesiones} valorDe={(fila) => fila.ventasPyg} etiquetaDe={(fila) => `${fila.openedByName} · ${fechaCorta(fila.openedAt)} · ${fila.pedidos} ped. · efectivo ${gs(fila.efectivoPyg)}`} />
+            )}
           </div>
 
           <div className="flex justify-end">

@@ -1,6 +1,6 @@
 import { createContext, forwardRef, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { formatGs, formatGsInput, parseGsInput, formatUsdInput, parseUsdInput, excedeMonto, LIMITE_MONTO_GENERAL, largoMaximoMonto } from '@/utils/moneda'
+import { formatGs, formatGsInput, parseGsInput, formatUsdInput, parseUsdInput, excedeMonto, limiteMonto, LIMITE_MONTO_GENERAL, largoMaximoMonto } from '@/utils/moneda'
 import { TAMANOS_CAMPO } from '@/utils/tamanos'
 import Icon from '@/components/shared/Icon'
 
@@ -109,14 +109,16 @@ export function PinInput({ value, onChange, onComplete, length = 4, autoFocus = 
 // número limpio al formulario padre. `symbol` sobreescribe el prefijo cuando
 // el campo muestra un importe en una moneda distinta a su etiqueta. `max` es
 // el tamaño máximo del monto (por defecto el general de #148; las ventas
-// pasan `LIMITE_MONTO_VENTAS`): el campo nunca trunca lo escrito, solo lo
-// marca con `aria-invalid` para que el formulario lo valide.
+// pasan `LIMITE_MONTO_VENTAS`): el campo nunca trunca lo escrito y se acota al
+// tope almacenable, marcándolo con `aria-invalid` para que el formulario lo
+// valide con `errorMonto`.
 const MONEY_SYMBOL = { PYG: 'Gs.', USD: 'US$', BRL: 'R$', EUR: '€', USDT: 'USDT' }
 export function MoneyInput({ currency = 'PYG', symbol, value, onValueChange, className, max = LIMITE_MONTO_GENERAL, maxLength, ...props }) {
   const isPyg = currency === 'PYG'
   const prefix = symbol || MONEY_SYMBOL[currency] || currency
   const display = isPyg ? formatGsInput(value) : formatUsdInput(value)
-  const excede = excedeMonto(value, max)
+  const limite = limiteMonto(max)
+  const excede = excedeMonto(value, limite)
   // Largo máximo del campo: el monto más grande documentado (con separadores)
   // entra completo y no se puede escribir de más; se puede pisar por prop.
   const topeLargo = maxLength ?? largoMaximoMonto(max, { decimales: !isPyg })
@@ -128,7 +130,7 @@ export function MoneyInput({ currency = 'PYG', symbol, value, onValueChange, cla
       <Input
         {...props}
         aria-invalid={excede || undefined}
-        title={excede ? `El monto supera el máximo permitido (${max.toLocaleString('es-PY')})` : props.title}
+        title={excede ? `El monto supera el máximo permitido (${limite.toLocaleString('es-PY')})` : props.title}
         inputMode={isPyg ? 'numeric' : 'decimal'}
         maxLength={topeLargo}
         value={display}

@@ -138,9 +138,12 @@ test('la biblioteca de objetos: búsquedas, toggles y segmentados compartidos', 
   assert.match(leer('components/control/ListaVentasDia.jsx'.replace('control', 'ventas')), /<SegmentedField/, 'ListaVentasDia: los filtros van con SegmentedField')
   assert.ok(leer('components/ui/index.jsx').includes('export function Subtabs'), 'Subtabs vive en la UI compartida')
   assert.ok(!/function Subtabs\(/.test(leer('pages/PanelVendedor.jsx')), 'PanelVendedor no redefine Subtabs')
-  // Estándar de tamaños de monto (#148 §9) en el campo compartido.
-  assert.match(leer('components/ui/index.jsx'), /excedeMonto\(value, max\)/, 'MoneyInput debe marcar el monto que supera el límite')
+  // Estándar de tamaños de monto (#148 §9) en el campo compartido: marca el
+  // monto que supera el límite del contexto, acotado al tope almacenable.
+  assert.match(leer('components/ui/index.jsx'), /excedeMonto\(value, limite\)/, 'MoneyInput debe marcar el monto que supera el límite efectivo')
+  assert.match(leer('components/ui/index.jsx'), /limiteMonto\(max\)/, 'el límite del campo se acota al tope almacenable')
   assert.match(leer('utils/moneda.js'), /LIMITE_MONTO_VENTAS = 99_000_000_000/, 'falta el límite de ventas')
+  assert.match(leer('utils/moneda.js'), /LIMITE_MONTO_ALMACENABLE = 2_147_483_647/, 'falta el tope real de almacenamiento')
 })
 
 test('el logo sigue al tema: fondo oscuro → logo claro y fondo claro → logo oscuro (#163)', () => {
