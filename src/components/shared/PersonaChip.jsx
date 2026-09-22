@@ -1,5 +1,5 @@
 import Avatar from '@/components/shared/Avatar'
-import { CELDA_DATO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
 import { identidadDeUsuario } from '@/lib/identidad'
 import { cn } from '@/lib/utils'
 
@@ -48,7 +48,7 @@ export default function PersonaChip({
         />
         {presencia ? <i aria-hidden className={cn('absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ring-1 ring-paper', presencia.punto)} /> : null}
       </span>
-      {nombre ? <span className={cn('min-w-0 truncate text-sm font-semibold', textoClassName)}>{visible}</span> : null}
+      {nombre ? <span className={cn('min-w-0', CELDA_IDENTIDAD_GRANDE, textoClassName)}>{visible}</span> : null}
       {children ? <span className={CELDA_DATO}>{children}</span> : null}
     </span>
   )

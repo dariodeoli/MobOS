@@ -8,7 +8,7 @@ import { codigoPedido, totalesPedido } from '@/utils/pedido'
 import { varianteDeTema } from '@/lib/tenantLogo'
 import SeccionColapsable from '@/components/shared/SeccionColapsable'
 import { Aviso, CeldaMoneda, FilaDato } from '@/components/ui'
-import { CELDA_DATO, ROTULO_SECCION } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } from '@/components/shared/tabla'
 import { ESTADO_ENTREGA, ESTADO_GARANTIA, ESTADO_PEDIDO } from '@/lib/estadosPedido'
 const LEVELS = { rapido: 'Comprobante rápido', completo: 'Comprobante completo', detallado: 'Comprobante detallado' }
 const PASOS = ['PROCESSING', 'IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP', 'DELIVERED']
@@ -259,7 +259,7 @@ export default function PedidoPublico() {
                   {garantias.map(warranty => (
                     <Link key={warranty.token} to={`/garantia/${warranty.token}`} className="flex items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-800/60 px-3 py-2.5 transition hover:border-fono">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold">{warranty.productName}</p>
+                        <p className={CELDA_IDENTIDAD_GRANDE}>{warranty.productName}</p>
                         <p className="mt-0.5 text-xs text-mute">{ESTADO_GARANTIA[warranty.status] || warranty.status}{warranty.daysRemaining != null ? ` · ${warranty.daysRemaining} días restantes` : ''}</p>
                       </div>
                       <span className="shrink-0 text-sm font-bold text-fono-light">Ver garantía →</span>

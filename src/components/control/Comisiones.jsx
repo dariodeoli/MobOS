@@ -12,6 +12,7 @@ import { printHtml, escapeHtml } from '@/utils/printHtml'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { configImpresora } from '@/lib/printing/agent'
 import { ticketLiquidacionComision } from '@/lib/printing/tickets'
+import { CELDA_IDENTIDAD } from '@/components/shared/tabla'
 
 // Reglas de comisión sobre el margen y liquidaciones por vendedor
 // (Finanzas → Comisiones). Mismo contrato que Configuración → Equipo usaba:
@@ -271,7 +272,7 @@ export default function Comisiones() {
             {reglas.map(regla => (
               <div key={regla.id} data-testid="regla-comision" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-2.5">
                 <div className="min-w-0">
-                  <div className="truncate text-[13px] font-semibold">{regla.userId ? (regla.user?.name || nombreUsuario(regla.userId)) : `Rol ${regla.role}`}</div>
+                  <div className={CELDA_IDENTIDAD}>{regla.userId ? (regla.user?.name || nombreUsuario(regla.userId)) : `Rol ${regla.role}`}</div>
                   <div className="mt-0.5 text-xs text-mute">{regla.userId ? 'Regla por usuario' : 'Regla por rol'}</div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
@@ -326,7 +327,7 @@ export default function Comisiones() {
               return (
                 <div key={item.id} data-testid="liquidacion-comision" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-2.5">
                   <div className="min-w-0">
-                    <div className="truncate text-[13px] font-semibold">{item.sellerName || 'Vendedor'} · {gs(item.totalPyg || 0)}</div>
+                    <div className={CELDA_IDENTIDAD}>{item.sellerName || 'Vendedor'} · {gs(item.totalPyg || 0)}</div>
                     <div className="mt-0.5 text-xs text-mute">
                       {item.periodFrom} al {item.periodTo}
                       {item.commissionPct !== null && item.commissionPct !== undefined ? ` · ${formatPercent(item.commissionPct)}%` : ''}

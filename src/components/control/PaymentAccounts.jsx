@@ -14,7 +14,7 @@ import { getAccountHolders, getPrivateCompanies } from '@/lib/accountParties'
 import { monedasExcluidas } from '@/lib/paymentAccountsReglas'
 import { nombreCompleto, nombreSugeridoDeCuenta, opcionesDePartes } from '@/lib/accountNames'
 import { cn } from '@/lib/utils'
-import { CELDA_DATO, CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
 // Tabla compacta: una fila por cuenta, con comisión, acreditación y descuento.
 const GRID_CUENTAS = 'grid min-w-[54rem] grid-cols-[minmax(0,1.3fr)_7rem_5rem_6.5rem_6.5rem_6.5rem_minmax(0,1fr)_9rem] items-center gap-x-2'
 
@@ -307,7 +307,7 @@ function AccountManager() {
           const banco = bancoConLogo(account)
           const medioCuenta = medioDe(account.kind)
           return <div key={account.id} data-testid="cuenta-fila" className={cn(GRID_CUENTAS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
-            <span className="min-w-0"><span className="flex min-w-0 items-center gap-1.5">{banco && <BancoLogo banco={banco} alto="h-4" soloCatalogo />}<b className="truncate text-[13px] font-semibold" title={account.name}>{account.name}</b></span><Badge color={account.isActive ? 'green' : 'slate'} className="mt-0.5 w-fit whitespace-nowrap px-1.5 py-0 text-[10px]">{account.isActive ? 'Activa' : 'Inactiva'}</Badge></span>
+            <span className="min-w-0"><span className="flex min-w-0 items-center gap-1.5">{banco && <BancoLogo banco={banco} alto="h-4" soloCatalogo />}<b className={CELDA_IDENTIDAD} title={account.name}>{account.name}</b></span><Badge color={account.isActive ? 'green' : 'slate'} className="mt-0.5 w-fit whitespace-nowrap px-1.5 py-0 text-[10px]">{account.isActive ? 'Activa' : 'Inactiva'}</Badge></span>
             <span className={CELDA_DATO}>{medioCuenta.label}</span>
             <span className={CELDA_DATO}>{account.currencyLabel || (account.currency === 'PYG' ? 'Gs' : account.currency)}</span>
             <span className="truncate text-xs tabular-nums text-mute">{porcentaje(account.feePercent)}</span>

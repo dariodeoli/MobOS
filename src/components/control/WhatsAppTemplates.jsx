@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { isDemoRuntime } from '@/lib/demoMode'
-import { Aviso, Badge, Button, Card, ConfirmDialog, FormField, Input, Modal, Select, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, FormField, Input, Modal, Select, Textarea, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { CATEGORIAS_PLANTILLA, VARIABLES_POR_CONTEXTO, VALORES_EJEMPLO, renderPlantilla } from '@/lib/whatsappPlantillas'
 import { cn } from '@/lib/utils'
-import { CELDA_DATO, CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
 // Tabla compacta: una fila por plantilla, con el mensaje recortado a una línea.
 const GRID_PLANTILLAS = 'grid min-w-[52rem] grid-cols-[minmax(10rem,1.1fr)_minmax(12rem,2fr)_6.5rem_9rem] items-center gap-x-2'
 
@@ -176,7 +176,7 @@ export default function WhatsAppTemplates() {
           {deCategoria.map((item) => (
             <div key={item.id} data-testid="plantilla-fila" className={cn(GRID_PLANTILLAS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
               <span className="flex min-w-0 items-center gap-2">
-                <b className="min-w-0 truncate text-[13px] font-semibold" title={item.name}>{item.name}</b>
+                <b className={cn('min-w-0', CELDA_IDENTIDAD)} title={item.name}>{item.name}</b>
                 {item.isDefault && <Badge color="blue" className="shrink-0 whitespace-nowrap px-1.5 py-0 text-[10px]"><Icon name="check" className="h-3 w-3" />Predeterminada</Badge>}
               </span>
               <span className={CELDA_DATO} title={item.body}>{item.body}</span>
@@ -210,7 +210,7 @@ export default function WhatsAppTemplates() {
               <span className="block text-[11px] font-medium uppercase tracking-wider text-mute">Mensaje</span>
               <span className={cn('text-[11px] tabular-nums', (editor?.body?.length || 0) > MAX_CUERPO ? 'text-bad' : 'text-mute')}>{(editor?.body?.length || 0)}/{MAX_CUERPO}</span>
             </div>
-            <textarea
+            <Textarea
               ref={cuerpoRef}
               aria-label="Mensaje de la plantilla"
               rows={4}

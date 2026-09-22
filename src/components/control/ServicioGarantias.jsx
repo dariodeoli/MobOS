@@ -7,7 +7,7 @@ import { getDemoServicio, saveDemoServicio, siguienteNumeroDemo } from '@/lib/de
 import { getDemoWarranties, saveDemoWarranties } from '@/lib/demoWarranties'
 import { useSesion } from '@/lib/sesion'
 import { cn } from '@/lib/utils'
-import { CELDA_DATO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
 import Garantias from './Garantias'
 import ServicioTecnico from './ServicioTecnico'
 
@@ -173,7 +173,7 @@ export default function ServicioGarantias({ vistaInicial = 'servicio' }) {
                       {fila.desdeGarantia && <span className="mt-1 block text-[10px] text-mute">Desde garantía</span>}
                       {fila.enServicio && <span className="mt-1 block text-[10px] font-semibold text-ok">En servicio</span>}
                     </span>
-                    <span className="truncate text-sm font-semibold" title={fila.cliente}>{fila.cliente}</span>
+                    <span className={CELDA_IDENTIDAD_GRANDE} title={fila.cliente}>{fila.cliente}</span>
                     <span className={cn('min-w-0', CELDA_DATO)} title={[fila.equipo, fila.serial].filter(Boolean).join(' · ')}>{fila.equipo || '—'}{fila.serial ? ` · ${fila.serial}` : ''}</span>
                     <span className={CELDA_DATO}>{fila.estado || '—'}</span>
                     <span className={CELDA_DATO}>{fecha(fila.createdAt)}</span>

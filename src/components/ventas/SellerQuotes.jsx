@@ -20,7 +20,7 @@ import { resources } from '@/lib/api'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { internationalPhone } from '@/utils/telefono'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
-import { CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
+import { CELDA_ENCABEZADO, CELDA_IDENTIDAD_GRANDE, ROTULO_DATO } from '@/components/shared/tabla'
 const STATUS = { DRAFT: ['Borrador', 'slate'], SENT: ['Enviada', 'blue'], ACCEPTED: ['Aceptada', 'orange'], REJECTED: ['Rechazada', 'red'], CONVERTED: ['Convertida', 'green'], EXPIRED: ['Vencida', 'red'], CANCELLED: ['Cancelada', 'slate'] }
 // Chips de estado resueltos en el servidor (mismo patrón que Pedidos).
 const ABIERTAS = ['DRAFT', 'SENT', 'ACCEPTED']
@@ -219,7 +219,7 @@ export default function SellerQuotes() {
           const abierta = !esDemo && ABIERTAS.includes(row.status)
           return <div key={row.id} data-testid="cotizacion-fila" className={cn(GRID, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
             <span className="truncate font-mono text-xs font-bold text-fono-light" title={row.number}>{row.number}</span>
-            <span className="truncate text-sm font-semibold" title={cliente}>{cliente}</span>
+            <span className={CELDA_IDENTIDAD_GRANDE} title={cliente}>{cliente}</span>
             <span className="truncate text-[11px] text-mute" title={articulos || undefined}>{articulos || '—'}</span>
             <span className={cn('truncate text-[11px]', vence.urgente ? 'font-semibold text-warn' : 'text-mute')} title={vence.titulo}>{vence.texto}</span>
             <Badge color={tone} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{label}</Badge>

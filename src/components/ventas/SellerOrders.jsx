@@ -16,7 +16,7 @@ import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import PedidoDetalle from './PedidoDetalle'
 import Icon from '@/components/shared/Icon'
 import { FULFILLMENT_LABELS as FULFILLMENT } from '@/lib/constants'
-import { ROTULO_DATO } from '@/components/shared/tabla'
+import { CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
 
 export const orderFields = (row) => {
   const pagos = row.payments || row.pagos || []
@@ -163,7 +163,7 @@ function FilaPedido({ row, onClick, onAcciones }) {
         <span className={cn('truncate font-mono text-xs font-bold text-fono-light', tachado)} title={row.number}>{codigoPedido(row.number)}</span>
         <span className={cn('truncate text-xs text-mute', tachado)}>{fechaLegible(row.date)}</span>
         <span className="flex min-w-0 items-center gap-1">
-          <span className={cn('truncate text-[13px] font-semibold', tachado)} title={row.customer}>{nombreCortoCliente(row.customer)}</span>
+          <span className={cn(CELDA_IDENTIDAD, tachado)} title={row.customer}>{nombreCortoCliente(row.customer)}</span>
           {row.isSpecialOrder && (
             <span
               className="shrink-0 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-warn"

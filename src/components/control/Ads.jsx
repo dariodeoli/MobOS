@@ -7,7 +7,7 @@ import { fechaClave, num, gs } from '@/utils/calculos'
 import { Aviso, Badge, Button, Card, EmptyState, Input, Label, MoneyInput, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
-import { CELDA_DATO, CELDA_ENCABEZADO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 // Tablas compactas: una fila por mes y por inversión.
 const GRID_ADS = 'grid min-w-[40rem] grid-cols-[minmax(10rem,1.4fr)_6rem_8rem_8rem_4rem] items-center gap-x-2'
 
@@ -147,7 +147,7 @@ export default function Ads() {
             <div className="space-y-1">
               {meses.map(([clave, { total: t, cant }]) => (
                 <div key={clave} data-testid="ads-mes-fila" className={cn(GRID_ADS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2')}>
-                  <span className="truncate text-[13px] font-semibold capitalize" title={mesLabel(clave)}>{mesLabel(clave)}</span>
+                  <span className={cn('capitalize', CELDA_IDENTIDAD)} title={mesLabel(clave)}>{mesLabel(clave)}</span>
                   <span className="truncate text-xs tabular-nums text-mute">{cant}</span>
                   <span className="truncate text-xs tabular-nums text-mute">{gs(Math.round(t / Math.max(1, cant)))}</span>
                   <span className="truncate text-right text-[13px] font-bold tabular-nums text-warn">{gs(t)}</span>
@@ -178,7 +178,7 @@ export default function Ads() {
             <div className="space-y-1">
               {ads.map((a) => (
                 <div key={a.id} data-testid="ad-fila" className={cn(GRID_ADS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2')}>
-                  <span className="truncate text-[13px] font-semibold">{a.plataforma}</span>
+                  <span className={CELDA_IDENTIDAD}>{a.plataforma}</span>
                   <span className={CELDA_DATO}>{a.fecha}</span>
                   <span className="truncate text-xs font-bold tabular-nums text-warn">{gs(a.monto)}</span>
                   <span className={cn('capitalize', CELDA_DATO)}>{a.fecha ? mesLabel(String(a.fecha).slice(0, 7)) : '—'}</span>

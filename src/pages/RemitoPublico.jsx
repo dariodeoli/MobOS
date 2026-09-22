@@ -4,7 +4,7 @@ import { API_URL } from '@/lib/api/client'
 import { pesoArchivo } from '@/components/shared/AttachmentList'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import Icon from '@/components/shared/Icon'
-import { Aviso } from '@/components/ui'
+import { Aviso, Textarea } from '@/components/ui'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 // Remito público de traslado: el destino abre el QR impreso, controla los
@@ -169,7 +169,7 @@ export default function RemitoPublico() {
             ) : (
               <section className="rounded-2xl border border-fono/30 bg-fono/5 p-5">
                 <label className="block text-xs text-mute">Nota de recepción (opcional)
-                  <textarea rows={2} maxLength={500} value={nota} onChange={event => setNota(event.target.value)} className="mt-1.5 w-full rounded-xl border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-fore outline-none transition focus:border-fono" placeholder="Ej: llegó completo, caja golpeada, falta un cargador…" />
+                  <Textarea rows={2} maxLength={500} value={nota} onChange={event => setNota(event.target.value)} className="mt-1.5 rounded-xl px-3 py-2 text-sm" placeholder="Ej: llegó completo, caja golpeada, falta un cargador…" />
                 </label>
                 <button type="button" disabled={busy || pendientes.length > 0} onClick={recibir} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-ok px-5 py-2.5 text-sm font-bold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
                   <Icon name="check" className="h-4 w-4" />{busy ? 'Registrando…' : 'Confirmar recepción'}

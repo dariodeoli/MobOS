@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 import BarraLote from '@/components/shared/BarraLote'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
 import { IconAction, useToast } from '@/components/ui'
-import { CELDA_DATO, CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD_GRANDE, ROTULO_DATO } from '@/components/shared/tabla'
 // Tabla de clientes alineada: una fila por persona, encabezados ordenables y
 // acciones compactas (perfil al hacer clic, WhatsApp con plantilla). Entra sin
 // scroll horizontal en desktop: todo trunca y el espacio se reparte con
@@ -106,7 +106,7 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
               <span className="flex items-center" onClick={(event) => event.stopPropagation()}>
                 <input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar a ${row.name || 'cliente'}`} checked={seleccionados.includes(row.id)} onChange={() => setSeleccionados((actuales) => alternarId(actuales, row.id))} />
               </span>
-              <span className="truncate text-sm font-semibold" title={row.name}>{row.name || 'Sin nombre'}</span>
+              <span className={CELDA_IDENTIDAD_GRANDE} title={row.name}>{row.name || 'Sin nombre'}</span>
               <span className={cn('inline-block w-fit max-w-full truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold', row.wholesale ? 'border-warn/30 bg-warn/10 text-warn' : 'border-ink-500 bg-ink-700/40 text-mute')}>
                 {row.wholesale ? 'Mayorista' : 'Cliente final'}
               </span>

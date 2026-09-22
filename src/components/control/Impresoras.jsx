@@ -15,7 +15,7 @@ import { useEstadoImpresoras } from '@/hooks/useEstadoImpresoras'
 import Avatar from '@/components/shared/Avatar'
 import ImpresionComparativa from './ImpresionComparativa'
 import ImpresionGraficos from './ImpresionGraficos'
-import { CELDA_DATO, ROTULO_SECCION } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 // Día y hora con segundos: la telemetría se mide en milisegundos y la columna
 // de actividad tiene que mostrar el segundo exacto, no solo el minuto.
@@ -881,7 +881,7 @@ export default function Impresoras() {
             </div>
             <div className="rounded-xl border border-ink-600 p-3">
               <p className="text-xs uppercase tracking-wider text-mute">Impresora predeterminada</p>
-              <p className="mt-1 truncate text-sm font-semibold" title={predeterminada?.nombre || undefined}>{predeterminada ? predeterminada.nombre : 'Sin configurar'}</p>
+              <p className={cn('mt-1', CELDA_IDENTIDAD_GRANDE)} title={predeterminada?.nombre || undefined}>{predeterminada ? predeterminada.nombre : 'Sin configurar'}</p>
               {predeterminada ? (
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   <Badge color={chipDe(predeterminada).color} title={verificacionDe(predeterminada)}>{chipDe(predeterminada).label}</Badge>
@@ -903,7 +903,7 @@ export default function Impresoras() {
             </div>
             <div className="rounded-xl border border-ink-600 p-3">
               <p className="text-xs uppercase tracking-wider text-mute">Mi equipo</p>
-              <p className="mt-1 truncate text-sm font-semibold">{estado?.cliente || '—'}</p>
+              <p className={cn('mt-1', CELDA_IDENTIDAD_GRANDE)}>{estado?.cliente || '—'}</p>
               <p className="mt-1 text-xs text-mute">{sesion?.correo || sesion?.nombre || 'Sin sesión'}</p>
             </div>
           </div>
@@ -1175,7 +1175,7 @@ export default function Impresoras() {
                 <div className="flex min-w-0 items-center gap-2">
                   <Avatar user={activa.user} picture={activa.user?.name === perfilEmpresa?.name || (!activa.user && String(activa.deviceId || '').startsWith('google:')) ? perfilEmpresa?.picture : undefined} size="md" />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold">{activa.user?.name || 'Acceso de empresa'}</p>
+                    <p className={CELDA_IDENTIDAD_GRANDE}>{activa.user?.name || 'Acceso de empresa'}</p>
                     <p className={cn('mt-0.5', CELDA_DATO)}>{activa.user?.role || activa.level} · {activa.deviceId || 'Dispositivo no identificado'}</p>
                   </div>
                 </div>

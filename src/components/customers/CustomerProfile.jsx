@@ -23,7 +23,7 @@ import Icon from '@/components/shared/Icon'
 import ActorAvatar from './ActorAvatar'
 import { DEMO_MESSAGE_TEMPLATES } from './customerMessaging'
 import { buildDemoAnalytics, buildDemoProfile, buildDemoTimeline } from '@/lib/demoClientes'
-import { CELDA_DATO, CELDA_ENCABEZADO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import {
   Aviso,
   Badge,
@@ -1323,7 +1323,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                     const serial = String(device.serial || '')
                     return (
                       <div key={`${device.serial}-${device.orderNumber}`} data-testid="perfil-dispositivo-fila" className={cn(GRID_DISPOSITIVOS, 'rounded-xl border border-ink-600 bg-ink-800 px-3.5 py-2')}>
-                        <span className="truncate text-[13px] font-semibold" title={device.model || undefined}>{device.model || 'Equipo'}</span>
+                        <span className={CELDA_IDENTIDAD} title={device.model || undefined}>{device.model || 'Equipo'}</span>
                         <span className="min-w-0 truncate font-mono text-[11px] text-mute" title={serial}><SerialTexto serial={serial} /></span>
                         <span className={CELDA_DATO}>{fecha(device.date)}</span>
                         <span className={CELDA_DATO}>{device.orderNumber ? codigoPedido(device.orderNumber) : '—'}</span>
@@ -1357,7 +1357,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                   <div className="space-y-1">
                   {warranties.map((item) => (
                     <div key={item.id} data-testid="perfil-garantia-fila" className={cn(GRID_GARANTIAS_CLI, 'rounded-xl border border-ink-600 bg-ink-800 px-3.5 py-2')}>
-                      <span className="truncate text-[13px] font-semibold" title={item.description || undefined}>{item.description || 'Garantía'}</span>
+                      <span className={CELDA_IDENTIDAD} title={item.description || undefined}>{item.description || 'Garantía'}</span>
                       <span className="min-w-0"><SerialTexto serial={item.serial} className="truncate text-[11px] text-mute" /></span>
                       <span className={CELDA_DATO}>{fecha(item.createdAt)}</span>
                       <span className="min-w-0">{STATUS_BADGE(WARRANTY_STATUS, item.status)}</span>
@@ -1785,7 +1785,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                     const uso = Number(identity.uses || 0)
                     return (
                       <div key={identity.id} data-testid="perfil-facturacion-fila" className={cn(GRID_FACTURACION, 'rounded-xl border border-ink-600 bg-ink-800 px-3.5 py-2')}>
-                        <span className="truncate text-[13px] font-semibold" title={identity.name || undefined}>{identity.name || 'Sin razón social'}</span>
+                        <span className={CELDA_IDENTIDAD} title={identity.name || undefined}>{identity.name || 'Sin razón social'}</span>
                         <span className="truncate text-xs tabular-nums text-mute">{identity.document || '—'}</span>
                         <span className={CELDA_DATO} title={uso ? `Utilizado en ${uso} ${uso === 1 ? 'pedido' : 'pedidos'}` : 'Todavía sin uso'}>{uso ? `${uso} ${uso === 1 ? 'pedido' : 'pedidos'}` : '—'}</span>
                         <span className="min-w-0">{actual ? <Badge color="green" className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">Actual</Badge> : <span className="text-xs text-mute">—</span>}</span>

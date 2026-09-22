@@ -162,8 +162,25 @@ test('escapeHtml se define una sola vez (plantillas de impresión)', () => {
   }
 })
 
-test('las celdas de dato y de número salen de shared/tabla', () => {
-  const culpables = archivosFuente()
+test('la celda de identidad y los textarea salen de los objetos', () => {
+  const identidad = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('components/shared/tabla.js') && /truncate text-(?:\[13px\]|sm) font-semibold/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(identidad, [])
+  const tabla = readFileSync(join(RAIZ, 'components/shared/tabla.js'), 'utf8')
+  for (const nombre of ['CELDA_IDENTIDAD', 'CELDA_IDENTIDAD_GRANDE']) {
+    assert.match(tabla, new RegExp(`export const ${nombre} =`), `falta ${nombre}`)
+  }
+  const textareas = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('components/ui/index.jsx') && /<textarea\b/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(textareas, [])
+  for (const ruta of ['components/ventas/PedidoDetalle.jsx', 'pages/RemitoPublico.jsx', 'pages/CotizacionPublica.jsx', 'components/shared/WhatsAppMenu.jsx', 'components/control/WhatsAppTemplates.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<Textarea\b/, `${ruta}: el texto largo va con Textarea`)
+  }
+})
+
+test('las celdas de dato y de número salen de shared/tabla', () => {  const culpables = archivosFuente()
     .filter(({ ruta, contenido }) => !ruta.endsWith('components/shared/tabla.js') && (contenido.includes('className="truncate text-xs text-mute"') || contenido.includes('className="truncate text-xs text-mute ') || contenido.includes('className="text-right tabular-nums"')))
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [])

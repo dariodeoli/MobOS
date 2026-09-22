@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { api } from '@/lib/api/client'
 import PagosPedido from './PagosPedido'
 import { serialEnmascarado } from '@/utils/serial'
+import { CELDA_IDENTIDAD } from '@/components/shared/tabla'
 
 // Agrupa por compra (compraId); las sueltas quedan como grupo de 1.
 function agruparCompras(ventas) {
@@ -202,7 +203,7 @@ export default function ListaVentasDia({
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <Dot color={pagado ? 'green' : 'red'} />
-                        <span className="truncate text-[13px] font-semibold">{v.cliente || '—'}</span>
+                        <span className={CELDA_IDENTIDAD}>{v.cliente || '—'}</span>
                       </div>
                       <div className="mt-1 space-y-0.5 pl-4 text-xs text-mute">
                         {g.items.map(it => (

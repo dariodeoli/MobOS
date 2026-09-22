@@ -20,6 +20,7 @@ import BarraLote from '@/components/shared/BarraLote'
 import EtiquetasProductoModal from '@/components/shared/EtiquetasProductoModal'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
 import { useToast } from '@/components/ui'
+import { CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
 
 export const productFields = (row) => ({ ...row, id: row.id, name: row.name || row.nombre || '', sku: row.sku || '', price: row.pricePyg ?? row.precioVenta, stock: row.stock })
 const demoProducts = () => getProductos().filter((row) => row.activo !== false)
@@ -49,7 +50,7 @@ function FilaProducto({ row, onClick, seleccionado = false, onAlternar }) {
       <span className="flex items-center" onClick={(event) => event.stopPropagation()}>
         <input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar ${row.name || 'producto'}`} checked={seleccionado} onChange={() => onAlternar?.()} />
       </span>
-      <span className="truncate text-sm font-semibold" title={row.name}>{row.name}</span>
+      <span className={CELDA_IDENTIDAD_GRANDE} title={row.name}>{row.name}</span>
       <span className="truncate text-[11px] text-mute" title={row.category || undefined}>{row.category || '—'}</span>
       <Badge color={CONDITION_TONE[row.condition] || 'slate'} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{CONDITION[row.condition] || 'Nuevo'}</Badge>
       <span className="truncate font-mono text-[11px] text-mute" title={row.sku || undefined}>{row.sku || 'Sin SKU'}</span>

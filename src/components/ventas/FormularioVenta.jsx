@@ -55,6 +55,7 @@ import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
 import PasoProductos from './venta/PasoProductos'
 import PasoCarrito from './venta/PasoCarrito'
 import PasoCobro from './venta/PasoCobro'
+import { CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
 
 // Recuerda el último vendedor elegido en esta compu, para no re-seleccionarlo
 // en cada venta (suelen ser ráfagas de la misma persona).
@@ -1880,7 +1881,7 @@ export default function FormularioVenta({
                 className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 px-3 py-2.5"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">
+                  <p className={CELDA_IDENTIDAD_GRANDE}>
                     {suspendida.label?.trim() || 'Sin etiqueta'}
                   </p>
                   <p className="mt-0.5 text-xs text-mute">

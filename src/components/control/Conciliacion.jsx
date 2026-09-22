@@ -16,7 +16,7 @@ import { leerUltimo, recordarUltimo } from '@/lib/ultimoUsado'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { CLAVES_FIN, filtrosConciliacionValidos, rangoDePreset } from '@/lib/finUltimoUsado'
 import { cn } from '@/lib/utils'
-import { CELDA_DATO, CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
 // Conciliación y trazabilidad (#144): ingresos por cuenta, medio y
 // procesadora; conciliación en lote de depósitos/transferencias recibidas
 // (esperado vs recibido + diferencia) y detalle pago por pago con acceso al
@@ -83,7 +83,7 @@ function Grupos({ titulo, filas, activo, onFiltrar }) {
               className={cn(GRID_GRUPOS, 'w-full rounded-xl border px-3.5 py-2 text-left transition hover:border-fono/40', activo(fila) ? 'border-fono/50 bg-fono/10' : 'border-ink-600 bg-ink-800/40')}
             >
               <span className="min-w-0">
-                <b className="block truncate text-[13px] font-semibold">{fila.label}</b>
+                <b className={cn('block', CELDA_IDENTIDAD)}>{fila.label}</b>
                 <span className="mt-0.5 block truncate text-[11px] text-mute">{[medioDe(fila.method), fila.processor, fila.secondary].filter(Boolean).join(' · ') || '—'}</span>
               </span>
               <span className="truncate text-xs tabular-nums text-mute">{fila.count}</span>

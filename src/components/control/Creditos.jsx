@@ -3,7 +3,7 @@ import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
 import { Aviso, Badge, BarraProgreso, Card, EmptyState, Money, Skeleton } from '@/components/ui'
 import { cn } from '@/lib/utils'
-import { CELDA_DATO, CELDA_ENCABEZADO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 // Tabla compacta: una fila por cliente, con el uso del límite en su columna.
 const GRID_CREDITOS = 'grid min-w-[56rem] grid-cols-[minmax(9rem,1.4fr)_5rem_6rem_minmax(7rem,0.9fr)_7rem_7rem_7rem] items-center gap-x-2'
 const fechaCorta = (value) => {
@@ -71,7 +71,7 @@ export default function Creditos() {
           <div className="space-y-1">
           {rows.map(row => (
             <div key={row.customerId} data-testid="credito-fila" className={cn(GRID_CREDITOS, 'rounded-xl border bg-ink-800/40 px-3.5 py-2', TONE(row) === 'bad' ? 'border-bad/30 bg-bad/5' : TONE(row) === 'warn' ? 'border-warn/30 bg-warn/5' : 'border-ink-600')}>
-              <span className="truncate text-[13px] font-semibold" title={row.name}>{row.name}{row.pricingTier === 'WHOLESALE' ? <Badge className="ml-2" color="blue">Mayorista</Badge> : null}</span>
+              <span className={CELDA_IDENTIDAD} title={row.name}>{row.name}{row.pricingTier === 'WHOLESALE' ? <Badge className="ml-2" color="blue">Mayorista</Badge> : null}</span>
               <span className="truncate text-xs tabular-nums text-mute">{row.pendingOrders}</span>
               <span className={CELDA_DATO}>{fechaCorta(row.oldestDueAt)}</span>
               <span className="truncate text-xs tabular-nums text-mute">{row.creditLimitPyg ? <Money value={row.creditLimitPyg} /> : 'sin límite'}</span>

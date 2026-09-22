@@ -7,6 +7,8 @@ import { printHtml } from '@/utils/printHtml'
 import { configImpresora, imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
 import { ticketEtiquetasProducto } from '@/lib/printing/tickets'
 import { buildProductLabelsHtml } from '@/components/shared/OrderReceipt'
+import { CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
+import { cn } from '@/lib/utils'
 
 // Etiquetas de producto/góndola: se eligen productos (o un rango por búsqueda),
 // se define cuántas etiquetas por producto y salen por la térmica configurada
@@ -90,7 +92,7 @@ export default function EtiquetasProductoModal({ open, onClose, productos = [], 
                 <label className="flex min-w-0 flex-1 items-center gap-2.5">
                   <input type="checkbox" className="h-4 w-4 shrink-0 accent-fono" checked={marcado} onChange={() => alternar(id)} aria-label={`Seleccionar ${nombreDe(product)}`} />
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold" title={nombreDe(product)}>{nombreDe(product)}</span>
+                    <span className={cn('block', CELDA_IDENTIDAD_GRANDE)} title={nombreDe(product)}>{nombreDe(product)}</span>
                     <span className="block truncate text-[11px] text-mute">{product?.sku ? `SKU ${product.sku}` : 'Sin SKU'} · {precio > 0 ? gs(precio) : 'sin precio'}</span>
                   </span>
                 </label>

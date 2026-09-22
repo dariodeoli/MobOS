@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
 import { codigoPedido } from '@/utils/pedido'
-import { CELDA_DATO, CELDA_ENCABEZADO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import {
   TRADE_IN_STATUSES, TRADE_IN_DESTINATIONS, TRADE_IN_TRANSITIONS,
   loadDemoTradeIns, updateDemoTradeIn, tradeInsApi, tradeInValuePyg, normalizeTradeInHistory,
@@ -48,7 +48,7 @@ function FilaDevice({ item, abierto, onClick }) {
       className={cn(GRID_TRADEIN, 'cursor-pointer rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40', abierto && 'border-fono/40')}
     >
       <span className="min-w-0">
-        <b className="block truncate text-[13px] font-semibold" title={item.model}>{item.model || 'Equipo'}</b>
+        <b className={cn('block', CELDA_IDENTIDAD)} title={item.model}>{item.model || 'Equipo'}</b>
         <span className="mt-0.5 block truncate font-mono text-[10px] text-mute" title={item.serial}>{item.serial || 'Sin serial'}</span>
       </span>
       <span className={CELDA_DATO} title={item.customerName || item.order?.customer?.name || undefined}>{item.customerName || item.order?.customer?.name || 'Sin cliente'}</span>
@@ -275,7 +275,7 @@ function Valuaciones({ esDemo }) {
         <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span>
       </div>
       <div className="space-y-1">{visibles.map(row => <div key={row.id} data-testid="valoracion-fila" className={cn(GRID_VALORACIONES, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
-        <span className="min-w-0 truncate text-[13px] font-semibold" title={row.model}>{row.model}</span>
+        <span className={cn('min-w-0', CELDA_IDENTIDAD)} title={row.model}>{row.model}</span>
         <span className={CELDA_DATO}>{row.storage || '—'}</span>
         <span><Badge color={row.condition === 'NEW' ? 'green' : row.condition === 'USED' ? 'orange' : 'slate'} className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">{CONDICIONES_VALUACION[row.condition] || row.condition}</Badge></span>
         <span className="truncate text-right text-xs tabular-nums text-fore">{gs(row.baseValuePyg)}</span>
