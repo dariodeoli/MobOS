@@ -29,6 +29,7 @@ const ACCION_AUDITORIA: Record<string, string> = {
   CUSTOMER_AUTHORIZATION_REQUESTED: 'Solicitud comercial registrada',
   CUSTOMER_AUTHORIZATION_APPROVED: 'Solicitud comercial aprobada',
   CUSTOMER_AUTHORIZATION_REJECTED: 'Solicitud comercial rechazada',
+  CUSTOMER_DEVICE_REPORT_SHARED: 'Informe del equipo compartido',
 }
 const AUDITORIAS_EXCLUIDAS = /^CUSTOMER_NOTE_/
 
@@ -58,6 +59,11 @@ function detalleMetadata(action: string, metadata: unknown) {
     const autorizado = resumenValorComercial(data.resolvedValue)
     const nota = typeof data.resolvedNote === 'string' && data.resolvedNote ? `Motivo: ${data.resolvedNote}` : ''
     return [tipo, autorizado ? `Autorizado: ${autorizado}` : '', nota].filter(Boolean).join(' · ')
+  }
+  if (action === 'CUSTOMER_DEVICE_REPORT_SHARED') {
+    const canal = data.canal === 'EMAIL' ? `por correo${typeof data.email === 'string' && data.email ? ` a ${data.email}` : ''}` : 'por WhatsApp'
+    const serial = typeof data.serial === 'string' ? data.serial : ''
+    return [canal, serial ? `serial ${serial.length > 6 ? `${serial.slice(0, 4)}…${serial.slice(-3)}` : serial}` : ''].filter(Boolean).join(' · ')
   }
   const campos = Array.isArray(data.fields) ? data.fields.map((campo) => CAMPOS_ES[String(campo)] || String(campo)) : []
   if (campos.length) return `Campos: ${campos.join(', ')}`

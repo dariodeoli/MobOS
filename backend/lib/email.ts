@@ -33,7 +33,7 @@ export function emailTransportConfigured() {
   return Boolean(relayUrl() && relayToken() && appUrl() && emailOutboxEncryptionConfigured())
 }
 
-export function logEmailOutcome(kind: 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation' | 'receipt' | 'payment-due' | 'payment-overdue' | 'warranty-update' | 'reservation-due', outcome: 'delivered-to-relay' | 'delivery-failed' | 'unconfigured') {
+export function logEmailOutcome(kind: 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation' | 'receipt' | 'payment-due' | 'payment-overdue' | 'warranty-update' | 'reservation-due' | 'device-report', outcome: 'delivered-to-relay' | 'delivery-failed' | 'unconfigured') {
   console.info(JSON.stringify({ event: 'mobos.transactional_email', kind, outcome }))
 }
 
@@ -147,6 +147,24 @@ export function receiptEmail(input: { to: string; customerName: string; orderNum
   const contentText = `${linesText}\nTotal: ${formatPyg(input.totalPyg)}`
   const content = template({ eyebrow: 'Comprobante de compra', title: `Comprobante ${input.orderNumber}`, lead: input.customerName.trim() ? `Hola ${input.customerName},` : undefined, body: `Gracias por tu compra en ${company}.`, contentHtml, contentText, action: { label: 'Seguí tu pedido', url: input.trackingUrl }, footer: 'MobOS nunca envía PIN ni contraseñas por este canal.' })
   return { to: input.to, subject: `Comprobante ${input.orderNumber}`, ...content }
+}
+
+// Informe de dispositivo (#240 ítem 3): el link público y su respaldo visible.
+export function deviceReportEmail(input: { to: string; customerName: string; model: string; link: string; companyName?: string }) {
+  if (!emailPattern.test(input.to) || !input.link.trim()) return null
+  const company = input.companyName?.trim() || 'MobOS'
+  const equipo = input.model.trim() || 'equipo'
+  const content = template({
+    eyebrow: 'Informe de dispositivo',
+    title: `Informe de tu ${equipo}`,
+    lead: input.customerName.trim() ? `Hola ${input.customerName},` : undefined,
+    body: `Acá tenés el informe del ${equipo} que verificamos en ${company}: modelo, estado, batería y garantía.`,
+    contentHtml: `<p style="margin:12px 0 0;font-size:13px;color:#3a465a;line-height:1.6">Si el botón no abre, copiá y pegá este enlace en el navegador:<br /><span style="word-break:break-all;color:#080e1a">${escapeHtml(input.link)}</span></p>`,
+    contentText: `Enlace del informe: ${input.link}`,
+    action: { label: 'Ver el informe', url: input.link },
+    footer: 'Informe informativo de la tienda; no es un certificado oficial.',
+  })
+  return { to: input.to, subject: `Informe de tu ${equipo} · ${company}`, ...content }
 }
 
 function formatDateEsPy(value: Date) {

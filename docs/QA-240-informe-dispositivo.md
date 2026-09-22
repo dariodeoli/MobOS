@@ -24,6 +24,26 @@ WhatsApp desde su **ficha** y el enlace en su **cuenta/portal**. Capturas en
 | `CustomerProfile` (Pedidos → dispositivos) | Dos accesos por equipo: **Ver informe** (copia el link y lo abre; en demo navega en la misma pestaña) y **Compartir por WhatsApp** (el mensaje lleva el link; sin teléfono, copia el enlace) |
 | Portal `/cuenta` (+ payload backend y demo) | Sección **“Informes de tus equipos”** con “Ver informe” por equipo comprado (`informes: [{ serial, model, orderNumber }]`) |
 
+## Compartir el informe: WhatsApp/email + registro en la cronología
+
+- **WhatsApp** (ya existía): abre el chat con el mensaje y el link; ahora además
+  **registra el envío** en la cronología del cliente.
+- **Email** (nuevo): acción “Enviar informe … por correo” → `POST
+  /api/customers/:id/device-report` con `canal: EMAIL` manda el correo
+  transaccional (`deviceReportEmail`, con el link y su **respaldo visible**) y
+  devuelve el correo destinatario; si el canal de correo no está configurado,
+  avisa con un error honesto y sugiere WhatsApp o el enlace.
+- **Cronología**: cada envío crea una entrada de auditoría
+  (`CUSTOMER_DEVICE_REPORT_SHARED`) que la ficha muestra como **“Informe del
+  equipo compartido · por WhatsApp/por correo · serial …”** (misma lógica que el
+  resto de la cronología; en demo se registra en el navegador).
+- El ícono `mail` se sumó al `Icon` compartido (aditivo, **anotado para
+  CMP/DSN** junto con `wrench`).
+
+Capturas nuevas: `04-cronologia-informe-compartido.png` (cuenta real: la
+cronología con el envío por WhatsApp) y `06-demo-cronologia-informe.png` (demo:
+envío por correo y su evento).
+
 ## Coordinación (contrato)
 
 - **INV:** exponer `grade` (A/B/C/D) y `checklist` (claves canónicas del módulo de
@@ -45,7 +65,9 @@ WhatsApp desde su **ficha** y el enlace en su **cuenta/portal**. Capturas en
 | `01-ficha-informe-acciones.png` | Ficha del cliente → Pedidos → equipo con **Ver informe**, **Compartir por WhatsApp** + Verificación IMEI y garantía |
 | `02-informe-publico.png` | **Informe público** (`/u/<serial>`) del equipo vendido: modelo, serial/IMEI enmascarados, verificación, compra y disclaimer |
 | `03-cuenta-informes.png` | **Cuenta del cliente**: sección “Informes de tus equipos” con “Ver informe” por equipo |
-| `04-informe-demo.png` | El mismo informe en la **demo** (Aurora Móviles), con datos del navegador |
+| `04-cronologia-informe-compartido.png` | **Cronología del cliente** (cuenta real): “Informe del equipo compartido · por WhatsApp · serial …” |
+| `05-informe-demo.png` | El mismo informe en la **demo** (Aurora Móviles), con datos del navegador |
+| `06-demo-cronologia-informe.png` | Demo: envío **por correo** (local) y su evento en la cronología |
 
 ## Verificación
 
@@ -53,7 +75,9 @@ WhatsApp desde su **ficha** y el enlace en su **cuenta/portal**. Capturas en
   los informes en la cuenta demo).
 - e2e `e2e/qa-240-informe.spec.js` **2 ✓**: (1) cuenta real — unidad + venta con
   serial → ficha → informe público en otra pestaña → WhatsApp con el link →
-  cuenta del cliente con la sección; (2) demo con datos del navegador.
+  **cronología con el envío registrado** (API + ficha) → cuenta del cliente con
+  la sección; (2) demo — informe desde el navegador y **envío por correo con su
+  evento** en la cronología.
 - `lint` 0 · `npm test` ✓ · backend `test:unit` ✓ y `tsc` ✓ · builds FE/BE con
   `BUILD_ID` · `prisma:validate` ✓ (sin cambios de schema) · sin marcadores ·
   `test:e2e:smoke` ✓.
