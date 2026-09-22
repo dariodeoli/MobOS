@@ -261,9 +261,10 @@ categorías en `src/lib/categorias.js`; los objetos son presentacionales.
   preview de comprobantes y el de reportes (antes cada uno copiaba el mapa de
   anchos y las clases del iframe).
 - El checklist, el tile de equipo, el stepper y los tokens del tema consola se
-  codificaron primero en la biblioteca (owncoding-ui **v0.11.0**, props en su
+  codificaron primero en la biblioteca (owncoding-ui **v0.14.6**, props en su
   `docs/REGLAS.md` §8 bis, tokens v2 en su `styles.css`) y se adoptan acá a
-  medida que los consume el piloto.
+  medida que los consume el piloto. Guía para migrar una pantalla al sistema v2
+  (para cualquier app del grupo): `owncoding-ui/docs/MIGRACION-V2.md`.
 
 ## 5. Diálogos, acciones y overlays
 - **Ancho por tipo, no por uso (#237):** el `Modal` compartido expone
