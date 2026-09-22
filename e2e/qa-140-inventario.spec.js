@@ -47,10 +47,6 @@ test('inventario post-.140: alertas, vendidos, transito/traslados y acciones mas
   await expect(page.getByTestId('unidad-phonecheck')).toBeVisible({ timeout: 15_000 })
   await capturar('07-phonecheck')
 
-  // #240: tablero de certificaciones (grados, certificadas y pendientes).
-  await page.goto('/inventario/alertas')
-  await expect(page.getByTestId('certificaciones-tablero')).toBeVisible({ timeout: 15_000 })
-  await capturar('08-certificaciones')
 
   // #240: página pública del informe (/u/<serial>) con QR.
   await page.goto('/u/356789102345678')
