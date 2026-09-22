@@ -86,3 +86,16 @@ export function payloadInformeInspection({ unit = {}, inspection = {}, verificac
     fuenteVerificacion: verificacion ? { proveedor: verificacion.provider || 'imeicheck.net', fecha: verificacion.resolvedAt || verificacion.requestedAt || null, etiqueta: verificacion.etiqueta || '' } : null,
   }
 }
+
+/** Tablero de certificaciones: grados, certificadas totales y pendientes. */
+export function resumenCertificaciones(units = []) {
+  const resumen = { total: units.length, A: 0, B: 0, C: 0, certificadas: 0, pendientes: 0, sinVerificacion: 0 }
+  for (const unit of units) {
+    const inspeccion = unit.inspection
+    const grado = inspeccion?.grado
+    if (grado && ['A', 'B', 'C'].includes(grado)) { resumen[grado] += 1; resumen.certificadas += 1 }
+    else resumen.pendientes += 1
+    if (!unit.lastVerifiedAt) resumen.sinVerificacion += 1
+  }
+  return resumen
+}

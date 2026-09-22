@@ -1,7 +1,7 @@
 // #240: puntaje y grado del PhoneCheck.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-const { COSMETICOS, INSPECCION_ITEMS, gradoInspection, locksDeVerificacion, payloadInformeInspection, puntajeInspection, resumenInspection } = await import('./phonecheck.js')
+const { COSMETICOS, INSPECCION_ITEMS, gradoInspection, locksDeVerificacion, payloadInformeInspection, puntajeInspection, resumenCertificaciones, resumenInspection } = await import('./phonecheck.js')
 
 test('puntaje: OK=1, observación=0,5, falla=0 y no aplica no cuenta', () => {
   const items = {}
@@ -45,4 +45,15 @@ test('locks y payload del informe quedan listos para DSN/PRN (#240)', () => {
   assert.equal(payload.locks.length, 4)
   assert.equal(payload.fuenteVerificacion.proveedor, 'imeicheck.net')
   assert.equal(payload.items.length, INSPECCION_ITEMS.length)
+})
+
+test('tablero de certificaciones: grados, certificadas y pendientes (#240)', () => {
+  const resumen = resumenCertificaciones([
+    { inspection: { grado: 'A' }, lastVerifiedAt: '2026-09-22T10:00:00.000Z' },
+    { inspection: { grado: 'B' }, lastVerifiedAt: '2026-09-22T10:00:00.000Z' },
+    { inspection: { grado: 'C' }, lastVerifiedAt: null },
+    { inspection: null, lastVerifiedAt: null },
+    { lastVerifiedAt: '2026-09-22T10:00:00.000Z' },
+  ])
+  assert.deepEqual(resumen, { total: 5, A: 1, B: 1, C: 1, certificadas: 3, pendientes: 2, sinVerificacion: 2 })
 })

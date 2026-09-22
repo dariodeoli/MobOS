@@ -8,7 +8,7 @@ export const CATEGORIAS_PRODUCTO = {
   WATCH: { label: 'Apple Watch', icon: 'clock' },
   AIRPODS: { label: 'AirPods', icon: 'pulse' },
   ACCESORIOS: { label: 'Accesorios', icon: 'package' },
-  SERVICIO: { label: 'Servicio', icon: 'report' },
+  SERVICIO: { label: 'Servicio', icon: 'wrench' },
   OTRO: { label: 'Otro', icon: 'box' },
 }
 export const CLAVES_CATEGORIA = Object.keys(CATEGORIAS_PRODUCTO)
