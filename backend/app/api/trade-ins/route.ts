@@ -87,6 +87,11 @@ export async function PATCH(request: Request) {
       if (increment && current.status !== 'REPAIR' && next !== 'REPAIR') throw new InputError('Los costos se registran durante reparación.', 409)
       const repairCostPyg = current.repairCostPyg + Number(increment)
       if (!Number.isSafeInteger(repairCostPyg) || repairCostPyg > INT_MAX) throw new InputError('Costo acumulado fuera de rango.')
+      // Costo real del equipo para margen y seguro (#148 §19): lo que se pagó
+      // por la valuación + las reparaciones acumuladas. Se congela en el
+      // producto al publicarlo; si no, la venta queda con costo pendiente.
+      const costoEquipoPyg = current.valuePyg + repairCostPyg
+      if (!Number.isSafeInteger(costoEquipoPyg) || costoEquipoPyg > INT_MAX) throw new InputError('El costo del equipo (valor + reparaciones) supera el máximo permitido.')
       if (next === 'SOLD_EXTERNAL' && !notes) throw new InputError('Indique destino y contraparte en notes para la salida externa.')
       if (next !== 'STOCK' && (body.pricePyg !== undefined || body.destination !== undefined)) throw new InputError('Precio y destino corresponden a la publicación STOCK.')
       let productId: string | undefined
@@ -98,7 +103,7 @@ export async function PATCH(request: Request) {
         const duplicate = await tx.product.findFirst({ where: { tenantId, imei: { equals: current.serial, mode: 'insensitive' } } })
         if (duplicate) throw new InputError('Ya existe un producto con ese serial.', 409)
         const product = await tx.product.create({ data: { tenantId, branchId: current.branchId, sku: `TRADE-IN-${current.id}`, name: current.model,
-          imei: current.serial, condition: 'USED', stock: 1, pricePyg: Number(body.pricePyg), destination: body.destination as ProductDestination } })
+          imei: current.serial, condition: 'USED', stock: 1, pricePyg: Number(body.pricePyg), costPyg: costoEquipoPyg, destination: body.destination as ProductDestination } })
         productId = product.id
       }
       const updated = await tx.tradeInDevice.update({ where: { id }, data: { status: next, notes, productId, ...(diagnosis !== undefined ? { diagnosis } : {}), ...(technicianName !== undefined ? { technicianName } : {}), ...(accessories !== undefined ? { accessories } : {}), ...(photos !== undefined ? { photos } : {}), ...(increment ? { repairCostPyg: { increment: Number(increment) } } : {}) }, include: includeRelations(admin) })
@@ -106,7 +111,7 @@ export async function PATCH(request: Request) {
         metadata: { incrementPyg: Number(increment), beforePyg: current.repairCostPyg, afterPyg: repairCostPyg, notes: notes ?? null } } })
       await tx.auditLog.create({ data: { tenantId, userId: session.user.id, action: next === 'STOCK' ? 'TRADE_IN_PUBLISHED' : next === 'SOLD_EXTERNAL' ? 'TRADE_IN_SOLD_EXTERNAL' : 'TRADE_IN_UPDATED', entity: 'TradeInDevice', entityId: id,
         metadata: { from: current.status, to: next, notes: notes ?? null, previousNotes: current.notes, productId: productId ?? null,
-          ...(next === 'STOCK' ? { pricePyg: Number(body.pricePyg), destination: body.destination as string } : {}), ...(diagnosis !== undefined ? { diagnosis } : {}), ...(technicianName !== undefined ? { technicianName } : {}), ...(accessories !== undefined ? { accessoriesCount: accessories.length } : {}), ...(photos !== undefined ? { photosCount: photos.length } : {}) } } })
+          ...(next === 'STOCK' ? { pricePyg: Number(body.pricePyg), destination: body.destination as string, costPyg: costoEquipoPyg } : {}), ...(diagnosis !== undefined ? { diagnosis } : {}), ...(technicianName !== undefined ? { technicianName } : {}), ...(accessories !== undefined ? { accessoriesCount: accessories.length } : {}), ...(photos !== undefined ? { photosCount: photos.length } : {}) } } })
       return updated
     })
     return json(result)
