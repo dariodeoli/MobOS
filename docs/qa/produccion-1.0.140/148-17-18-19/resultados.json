@@ -1,0 +1,46 @@
+{
+  "resultados": [
+    {
+      "nombre": "Demo: se entra como Dueño y se cierra la guía",
+      "ok": true,
+      "detalle": "/resumen"
+    },
+    {
+      "nombre": "§17: efectivo inicial, recibido, esperado y diferencias del rango",
+      "ok": true,
+      "detalle": "recibido por sesión y diferencias visibles"
+    },
+    {
+      "nombre": "§17: cada operación con fecha/hora, pedido, cliente, vendedor, monto y nota",
+      "ok": true,
+      "detalle": "22-sept. · 11:20 · AUR-0002 · Carlos Benítez · Hernán Acosta · +Gs 50.000 · Pendiente · Verificado · Pendiente · Con diferencia · Guardar"
+    },
+    {
+      "nombre": "§17: se marca \"Con diferencia\" con observación y la fila lo refleja",
+      "ok": true,
+      "detalle": "marca guardada con observación"
+    },
+    {
+      "nombre": "§18: el tablero muestra todos los cortes del POS",
+      "ok": true,
+      "detalle": "5/5 núcleo · cortes extra visibles 11/11 · medios: Efectivo"
+    },
+    {
+      "nombre": "§19: el seguro de la empresa se configura en Finanzas/empresa",
+      "ok": true,
+      "detalle": "porcentaje de empresa guardado (demo, en memoria de la pestaña)"
+    },
+    {
+      "nombre": "§19: el seguro impacta el margen (costo real = costo + seguro)",
+      "ok": true,
+      "detalle": "Incluye seguro 10% (demo)"
+    },
+    {
+      "nombre": "§19: el cliente tiene su seguro personalizado",
+      "ok": true,
+      "detalle": "Lucía Fernández · 12,5% personalizado (panel editable: sí)"
+    }
+  ],
+  "web": "https://app.moboss.online",
+  "fecha": "2026-09-22T13:11:41.783Z"
+}
