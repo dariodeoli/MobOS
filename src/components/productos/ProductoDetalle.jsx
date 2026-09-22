@@ -3,6 +3,7 @@ import { Aviso, Badge, Button, Drawer, Input, Label, Money, MoneyInput, Select, 
 import Icon from '@/components/shared/Icon'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import Cronologia from '@/components/shared/Cronologia'
+import MedidorBateria from '@/components/shared/MedidorBateria'
 import EtiquetasProductoModal from '@/components/shared/EtiquetasProductoModal'
 import KardexProducto from '@/components/productos/KardexProducto'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
@@ -178,7 +179,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
             <div className="mt-3 max-h-64 space-y-1.5 overflow-y-auto">
               {units.map(unit => <div key={unit.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-600 px-3 py-2 text-xs">
                 <SerialTexto serial={unit.serial} />
-                <span className="flex items-center gap-2 text-mute">{unit.batteryHealth ? `${unit.batteryHealth}% · ` : ''}{unit.location?.name || 'Sin ubicación'}<Badge color={UNIT_TONE[unit.status] || 'slate'}>{UNIT_STATUS[unit.status] || unit.status}</Badge></span>
+                <span className="flex items-center gap-2 text-mute">{unit.batteryHealth ? <MedidorBateria porcentaje={unit.batteryHealth} variante="chip" /> : null}{unit.location?.name || 'Sin ubicación'}<Badge color={UNIT_TONE[unit.status] || 'slate'}>{UNIT_STATUS[unit.status] || unit.status}</Badge></span>
               </div>)}
             </div>
           </>}
