@@ -11,6 +11,15 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.139 — 2026-09-21
+- **Caja / POS:** **ventas por caja y corte por sesión**: cada turno muestra lo vendido y se cierra con su corte. (#148 §18)
+- **Clientes:** la **venta del POS demo entra en la ficha del cliente** y se sumó la evidencia post-deploy del dominio. (#160 #187)
+- **Impresión:** **comprobante rápido desde Vendidos** sin salir de la lista, con recorrido de comprobantes/PDFs verificado en producción. (#215 §10 #185)
+- **Pantallas / Diseño:** la lista de precios y el comparador viven **dentro del panel** (se retira la página vieja de Trade-In), tooltips de una frase en las acciones y datos de la unidad, y colores a **tokens de tema** con modo oscuro/accesibilidad del POS verificados. (#180 #215 #176)
+- **Inventario / Demo:** el demo muestra el **catálogo y las alertas de reposición** al día (umbral simulado, sin API). (#195)
+- **Componentes:** **ciudad con departamento automático**, nombres SIFEN y tamaños de campo, con colores de pantalla a tokens. (#176)
+- **QA:** demo público consolidado v1.0.137 con dominios y claro/oscuro (#194 #196 #198) y recorridos de Finanzas y Clientes en producción. (#185 #187)
+
 ## v1.0.138 — 2026-09-21
 - **Tránsito / Inventario:** cada lote muestra cantidad, envío y llegada; se puede **recibir el lote completo** eligiendo el depósito destino (recién ahí suma stock) y **reimprimir las etiquetas del lote** desde la fila. Las **ubicaciones tienen color propio**. (#218)
 - **Demo:** Finanzas al día con 9 medios verosímiles, caja con turno del equipo ficticio, conciliación completa y pedidos con el prefijo de la empresa; la tienda demo pasa a **Aurora Móviles** y los datos ya no dicen "demo". (#190)
