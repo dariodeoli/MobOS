@@ -77,6 +77,10 @@ try {
     await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
     await page.waitForURL((url) => !url.pathname.startsWith('/demo'), { timeout: 30000 })
     await esperar(2500)
+    // La guía de la demo se abre sola la primera vez por pestaña (#201).
+    const guia = page.getByRole('dialog', { name: 'Cómo funciona la demo' })
+    if (await guia.count()) await page.getByRole('button', { name: 'Cerrar' }).last().click()
+    await esperar(800)
     await shot('panel-demo')
     const nav = await page.getByText('Finanzas', { exact: true }).first().isVisible()
     return `demo abierta como dueño · menú Finanzas visible: ${nav}`
@@ -286,10 +290,13 @@ try {
   // ── Conciliación ────────────────────────────────────────────────────
   await paso('conciliación en la demo', async () => {
     await ir('/finanzas/conciliacion')
-    await esperar(1500)
-    const cuerpo = (await page.locator('main').innerText().catch(() => '')).slice(0, 400)
+    await esperar(1800)
+    await page.getByRole('heading', { name: 'Conciliación y trazabilidad' }).waitFor({ timeout: 15000 })
+    const resumen = await Promise.all(['Ingresos conciliables', 'Conciliado', 'Por conciliar', 'Diferencia de lotes'].map((titulo) => page.getByText(titulo).count()))
+    const filas = await page.getByTestId('conciliacion-fila').count()
+    const lotes = await page.getByTestId('conciliacion-lote').count()
     await shot('conciliacion')
-    return `texto visible: ${cuerpo.replace(/\n+/g, ' · ').slice(0, 300)}`
+    return `resumen completo: ${resumen.every((n) => n > 0)} · pagos listados: ${filas} · lotes: ${lotes}`
   })
 
   // ── Caja y auditoría ────────────────────────────────────────────────
@@ -297,13 +304,15 @@ try {
     await ir('/finanzas/caja')
     await esperar(1800)
     const abrir = await page.getByRole('button', { name: /Abrir caja|Abrir turno/ }).count()
+    const abierta = await page.getByText('Abierta', { exact: true }).count()
+    const turno = (await page.getByText(/Turno de/).first().textContent().catch(() => '')) || ''
+    const medios = await page.getByText('Entradas por medio de pago').count()
     const auditoriaEfectivo = await page.getByText('Auditoría de efectivo').count()
-    const auditoriaMedios = await page.getByText('Auditoría de medios').count()
     await shot('caja')
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
     await esperar(600)
     await shot('caja-auditoria')
-    return `botón de apertura: ${abrir} · sección Auditoría de efectivo: ${auditoriaEfectivo} · Auditoría de medios: ${auditoriaMedios}`
+    return `turno abierto: ${abierta > 0} (${turno.trim()}) · botón de apertura: ${abrir} · medios: ${medios} · auditoría de efectivo: ${auditoriaEfectivo}`
   })
 
   // ── Seguro y margen ─────────────────────────────────────────────────

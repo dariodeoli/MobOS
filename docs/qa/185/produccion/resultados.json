@@ -1,0 +1,178 @@
+{
+  "base": "https://app.moboss.online",
+  "fecha": "2026-09-22T01:07:16.140Z",
+  "resultados": [
+    {
+      "paso": "entrada a la demo",
+      "estado": "ok",
+      "detalle": "demo abierta como dueño · menú Finanzas visible: true",
+      "capturas": [
+        "01-acceso-demo.jpg",
+        "02-panel-demo.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "bancos: estado inicial",
+      "estado": "ok",
+      "detalle": "9 cuentas demo: Caja · Guaraníes | Caja · Dólares | Banco Itaú · Comercio demo | Banco Continental · Comercio demo | ueno · Tarjeta demo | Dinelco · Tarjeta demo | Pix - Comercio demo | USDT - Comercio demo | Canje demo",
+      "capturas": [
+        "03-bancos-inicial.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "efectivo: campos contextuales y nombre automático (Gs/USD/otra)",
+      "estado": "ok",
+      "detalle": "campos visibles: {\"banco\":0,\"titular\":0,\"documento\":0,\"numeroCuenta\":0,\"comision\":0,\"acreditacion\":0,\"moneda\":1,\"monedaPersonalizada\":1} · nombres sugeridos: \"Efectivo Gs\" / \"Efectivo USD\" / \"Efectivo ARS\"",
+      "capturas": [
+        "04-efectivo-gs-contextual.jpg",
+        "05-efectivo-multimoneda.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "efectivo: guardar la cuenta",
+      "estado": "ok",
+      "detalle": "cuentas ahora: Caja · Guaraníes | Caja · Dólares | Banco Itaú · Comercio demo | Banco Continental · Comercio demo | ueno · Tarjeta demo | Dinelco · Tarjeta demo | Pix - Comercio demo | USDT - Comercio demo | Canje demo | Efectivo Gs",
+      "capturas": [
+        "06-efectivo-guardado.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "transferencia: banco, titular, documento, cuenta y nombre automático",
+      "estado": "ok",
+      "detalle": "campos: {\"banco\":1,\"titular\":1,\"documento\":1,\"numeroCuenta\":1,\"comision\":1,\"acreditacion\":1} · nombre: \"Banco Itaú Paraguay\" → \"Banco Itaú Paraguay - Darío Deoli\" → \"Banco Itaú Paraguay - Darío Deoli - Cuenta 1234\"",
+      "capturas": [
+        "07-transferencia-contextual.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "transferencia: guardar",
+      "estado": "ok",
+      "detalle": "fila con titular visible: 1",
+      "capturas": [
+        "08-transferencia-guardada.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "tarjeta: procesadoras, comisión y acreditación",
+      "estado": "ok",
+      "detalle": "procesadoras: Elegí la procesadora/Bancard/Dinelco/UPay/Pix/Otra… · elegida Bancard · comisión 3% · acredita 2 días · nombre \"Bancard\"",
+      "capturas": [
+        "09-tarjeta-contextual.jpg",
+        "10-tarjeta-guardada.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "Pix: moneda fija BRL y llave",
+      "estado": "ok",
+      "detalle": "selector de moneda: 0 (0 = fija) · etiqueta BRL visible: 1 · llave Pix: 1 · nombre \"Pix - Darío Deoli\"",
+      "capturas": [
+        "11-pix-contextual.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "USDT - Cripto: moneda fija USD y referencia",
+      "estado": "ok",
+      "detalle": "selector de moneda: 0 (0 = fija) · referencia: 1 · nombre \"USDT - Darío Deoli\"",
+      "capturas": [
+        "12-usdt-contextual.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "canje: referencia/valor y guardado",
+      "estado": "ok",
+      "detalle": "nombre \"Canje\" · filas finales: 15",
+      "capturas": [
+        "13-canje-contextual.jpg",
+        "14-bancos-final.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "bancos: tabla completa y edición de una cuenta",
+      "estado": "ok",
+      "detalle": "precargado: {\"procesadora\":\"Bancard\",\"comision\":\"3\",\"acreditacion\":\"2\"} · nombre manual conservado: true",
+      "capturas": [
+        "15-bancos-tabla-completa.jpg",
+        "16-bancos-edicion.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "bancos en móvil (390px) sin desborde",
+      "estado": "ok",
+      "detalle": "desborde horizontal: 0px",
+      "capturas": [
+        "17-bancos-mobile.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "conciliación en la demo",
+      "estado": "ok",
+      "detalle": "resumen completo: true · pagos listados: 21 · lotes: 1",
+      "capturas": [
+        "18-conciliacion.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "caja: turno, arqueo y auditoría en la demo",
+      "estado": "ok",
+      "detalle": "turno abierto: true (Turno de Dueño demo · 21/9/26, 00:00) · botón de apertura: 0 · medios: 1 · auditoría de efectivo: 1",
+      "capturas": [
+        "19-caja.jpg",
+        "20-caja-auditoria.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "seguro de ventas en Configuración (demo)",
+      "estado": "ok",
+      "detalle": "sección visible: 1 · toggle: 1 · % propuesto: \"25\" · ayuda de fórmula: 1 · guardar en demo → Modo demo: datos ficticios, no se guardan y se descartan al recargar.Cómo funciona | Seguro guardado en este navegador (demo).",
+      "capturas": [
+        "21-seguro-config.jpg",
+        "22-seguro-porcentaje.jpg",
+        "23-seguro-guardar-demo.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "resumen y ganancias en la demo",
+      "estado": "ok",
+      "detalle": "Resumen con Facturado: 1 · Ganancias con desglose: 1 · resultado mostrado: Gs 3.255.000",
+      "capturas": [
+        "24-resumen-demo.jpg",
+        "25-ganancias-demo.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    }
+  ],
+  "errores": [],
+  "fallosRed": [],
+  "pedidosFallidos": []
+}
