@@ -867,11 +867,19 @@ test('clientes → actividad, alta con dos nombres y seguro del cliente', async 
   await ficha.getByRole('tab', { name: /^Datos/ }).click()
   const toggle = ficha.getByRole('switch', { name: 'Seguro del cliente activo' })
   await expect(toggle).toHaveAttribute('aria-checked', 'false')
+  const patchSeguro = (r) => r.url().includes(`/api/customers/${alta.clienteId}`) && r.request().method() === 'PATCH' && r.status() === 200
+  const respuestaToggle = page.waitForResponse(patchSeguro)
   await toggle.click()
   await expect(toggle).toHaveAttribute('aria-checked', 'true')
+  await respuestaToggle
   await ficha.getByLabel('Porcentaje del cliente').fill('25')
+  // Se espera el PATCH del porcentaje antes de vender: el toast del toggle es
+  // el mismo texto y en CI la venta salía antes de que aterrizara el 25%.
+  const respuestaPorcentaje = page.waitForResponse(patchSeguro)
   await ficha.getByRole('button', { name: 'Guardar porcentaje' }).click()
-  await expect(page.getByText('Seguro del cliente activado.')).toBeVisible()
+  const guardadoSeguro = await (await respuestaPorcentaje).json().catch(() => null)
+  expect(Number(guardadoSeguro?.insuranceRatePct), 'el porcentaje del seguro quedó guardado').toBe(25)
+  await expect(page.getByText('Seguro del cliente activado.').first()).toBeVisible()
 
   // El seguro impacta la venta: la próxima orden suma el 25% al costo real.
   const impacto = await page.evaluate(async ({ api, clienteId }) => {
