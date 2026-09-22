@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { TIPOS_TICKET_PRUEBA, ticketComprobante, ticketEtiquetaProducto, ticketEtiquetasProducto, ticketEtiquetaUnidad, ticketNotaEntrega, ticketProforma, ticketPruebaTipo, ticketReciboInterno, ticketRemision, ticketVerificacionImei } from './tickets.js'
+import { TIPOS_TICKET_PRUEBA, ticketComprobante, ticketEtiquetaProducto, ticketEtiquetasProducto, ticketEtiquetaUnidad, ticketInformeDispositivo, ticketNotaEntrega, ticketProforma, ticketPruebaTipo, ticketReciboInterno, ticketRemision, ticketVerificacionImei } from './tickets.js'
+import { datosInformeDispositivo } from './informeDispositivo.js'
 import { digitoVerificadorEan, esEan13, formatoDeCodigo } from './codigos.js'
 
 const opciones = { ancho: 80, impresora: 'lan:192.168.1.23:9100', nombre: 'ZKP8008', equipo: 'mac-puente', copias: 1 }
@@ -442,4 +443,43 @@ test('la etiqueta de unidad separa modelo, identificador, IMEI, QR y barras (#22
   // En 80 mm el serial gana tamaño (doble ancho) sin cortarse.
   const ancho80 = ticketEtiquetaUnidad(unit, { ancho: 80, base: 'https://app.moboss.online' }).lineas().join('\n')
   assert.ok(ancho80.includes('356789012345678'), 'serial completo en 80 mm')
+})
+
+// #240: el informe de dispositivo imprime equipo, IMEI enmascarado,
+// verificación IMEI, inspección física, garantía y el QR al informe público.
+test('el informe de dispositivo imprime el equipo, el IMEI y el QR público (#240)', () => {
+  const datos = datosInformeDispositivo({
+    serial: '356789102345673',
+    condition: 'USED',
+    batteryHealth: 89,
+    location: { code: 'D2', name: 'Depósito 2' },
+    lastVerifiedBy: { name: 'Lucía' },
+    lastVerifiedAt: '2026-09-21T15:04:00Z',
+    verificationCount: 3,
+    warrantyUntil: '2026-10-21T00:00:00Z',
+    grade: 'A',
+    inspection: { puntaje: 92, aprobados: 8, total: 8 },
+    product: { name: 'iPhone 15 Pro 256GB Titanio', model: 'iPhone 15 Pro', capacity: '256GB', color: 'Titanio' },
+  }, {
+    base: 'https://app.moboss.online',
+    emisor: 'Móvil Center',
+    ahora: new Date('2026-09-22T10:00:00Z'),
+    consulta: { imei: '356789102345673', status: 'verificado', resolvedAt: '2026-09-21T15:04:00Z', normalized: [{ clave: 'blacklist', etiqueta: 'Blacklist actual', valor: 'Sin reportes actuales' }] },
+  })
+  const ticket = ticketInformeDispositivo(datos, { ancho: 80 })
+  const texto = ticket.lineas().join('\n')
+  assert.ok(texto.includes('INFORME DE DISPOSITIVO'), 'título')
+  assert.ok(texto.includes('iPhone 15 Pro · 256GB · Titanio'), 'modelo')
+  assert.ok(texto.includes('•••••••••••5673'), 'IMEI enmascarado')
+  assert.ok(!texto.includes('Serial'), 'un IMEI no imprime la fila Serial en claro')
+  assert.ok(texto.includes('Verificación IMEI') && texto.includes('Blacklist actual'), 'verificación IMEI')
+  assert.ok(texto.includes('Inspección física') && texto.includes('Lucía'), 'quién verificó')
+  assert.ok(texto.includes('Grado') && texto.includes('A'), 'grado (contrato INV)')
+  assert.ok(texto.includes('8/8'), 'checklist (contrato INV)')
+  assert.ok(texto.includes('Garantía vigente'), 'garantía de la tienda')
+  assert.ok(texto.includes('[QR]') && texto.includes('INFORME DEL DISPOSITIVO'), 'QR del informe público')
+  const bytes = atob(ticket.base64())
+  assert.ok(bytes.includes('https://app.moboss.online/u/356789102345673'), 'el QR lleva la URL completa')
+  assert.ok(!/USD|0\.06|provider|raw/i.test(texto), 'sin costos ni datos internos')
+  assert.equal(ticket.corteEnviado(), true, 'envía el corte')
 })

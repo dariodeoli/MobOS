@@ -20,6 +20,7 @@ export const TIPOS_DOCUMENTO = Object.freeze({
   'cierre-caja': 'Cierre de caja',
   'resumen-dia': 'Resumen del día',
   'imei-check': 'Verificación de IMEI',
+  'informe-dispositivo': 'Informe de dispositivo',
 })
 
 export const etiquetaTipoImpresion = (tipo) => TIPOS_DOCUMENTO[tipo] || String(tipo || '').replace(/-/g, ' ') || 'Impresión'

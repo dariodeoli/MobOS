@@ -1,0 +1,34 @@
+{
+  "base": "http://127.0.0.1:5279",
+  "fecha": "2026-09-22T13:20:51.556Z",
+  "resultados": [
+    {
+      "documento": "informe-a4",
+      "formato": "a4",
+      "tipo": "html",
+      "paginas": 1,
+      "estado": "ok"
+    },
+    {
+      "documento": "informe-thermal-80",
+      "formato": "thermal-80",
+      "tipo": "html",
+      "paginas": 1,
+      "estado": "ok"
+    },
+    {
+      "documento": "informe-termico-80",
+      "formato": "térmico 80 mm",
+      "tipo": "escpos",
+      "paginas": 1,
+      "estado": "ok"
+    },
+    {
+      "documento": "informe-termico-58",
+      "formato": "térmico 58 mm",
+      "tipo": "escpos",
+      "paginas": 1,
+      "estado": "ok"
+    }
+  ]
+}

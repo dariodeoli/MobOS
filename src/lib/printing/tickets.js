@@ -7,6 +7,7 @@ import { CHECKLISTS } from '../servicioChecklist.js'
 import { datosDeCodigo, formatoDeCodigo, ETIQUETA_FORMATO } from './codigos.js'
 import { bloqueFirma, crearTicket } from './escpos.js'
 import { contextoEtiquetaUnidad, datosEtiquetaUnidad } from './etiquetaUnidad.js'
+import { estadoGarantia, fechaVerificacionInforme } from './informeDispositivo.js'
 import { baseDeApp, qrProducto, qrPrueba } from './qr.js'
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
@@ -670,8 +671,69 @@ export function ticketRecepcionServicio(order, { ancho = 80 } = {}) {
 // Comprobante de verificación de IMEI (#203): la info mínima y honesta para el
 // cliente (estado, fecha y fuente). Nunca costos, respuestas crudas ni datos
 // internos; si la consulta fue simulada (demo) se imprime el aviso.
-export function ticketVerificacionImei(resumen, { ancho = 80 } = {}) {
+// Informe de dispositivo imprimible (#240): equipo, verificación IMEI,
+// inspección física, garantía y el QR al informe público. Mismo dato que el
+// HTML (`datosInformeDispositivo`), una columna con bloques separados.
+export function ticketInformeDispositivo(datos = {}, { ancho = 80 } = {}) {
   const t = crearTicket({ ancho }).iniciar()
+  const inspeccion = datos.inspeccion || {}
+  const garantia = estadoGarantia(datos)
+  // En 58 mm las etiquetas largas con valor al lado se cortan: van apiladas.
+  const estrecho = Number(ancho) <= 58
+  const par = (etiqueta, valor) => {
+    if (!valor) return
+    if (estrecho) { t.texto(etiqueta); t.par('  ', String(valor)) } else t.par(etiqueta, valor)
+  }
+  t.centrado(APP_NAME).negrita().centrado('INFORME DE DISPOSITIVO').negrita(false)
+  if (datos.sucursal) t.centrado(datos.sucursal)
+  t.centrado(`Emitido ${datos.fechaEmision || ''}`)
+  t.linea()
+
+  t.negrita().texto('Equipo').negrita(false)
+  t.texto(datos.modelo || 'Producto')
+  par('IMEI', datos.imei || '—')
+  par('Serial', datos.serialImpreso)
+  par('Condición', datos.condicion)
+  par('Batería', datos.bateria)
+  par('Ubicación', datos.ubicacion)
+  par('Proveedor', datos.proveedor)
+  t.linea()
+
+  t.negrita().texto('Verificación IMEI').negrita(false)
+  if (datos.verificacion) {
+    const v = datos.verificacion
+    par('Estado', `${v.etiqueta || 'No verificado'}${v.simulado ? ' (simulada)' : ''}`)
+    if (v.detalle) t.texto(v.detalle)
+    for (const campo of v.campos || []) par(campo.etiqueta, campo.valor)
+    if (v.fuente) t.texto(`Fuente ${v.fuente}${v.fechaTexto ? ` · ${v.fechaTexto}` : ''}`)
+  } else {
+    t.texto('Sin consulta de IMEI registrada.')
+  }
+  t.linea()
+
+  t.negrita().texto('Inspección física').negrita(false)
+  par('Verificado por', inspeccion.verificador)
+  par('Verificado el', fechaVerificacionInforme(datos))
+  par('Verificaciones', inspeccion.verificaciones ? String(inspeccion.verificaciones) : '')
+  par('Grado', inspeccion.grado || 'Sin grado asignado')
+  if (inspeccion.total) par('Checklist', `${inspeccion.aprobados}/${inspeccion.total}${inspeccion.puntaje ? ` · puntaje ${inspeccion.puntaje}` : ''}`)
+  if (!inspeccion.verificador && !inspeccion.grado) t.texto('Sin verificación física registrada.')
+  t.linea()
+
+  t.negrita().texto('Garantía de la tienda').negrita(false)
+  par('Estado', garantia.etiqueta)
+  par('Vence el', garantia.hasta)
+  t.linea()
+
+  if (datos.enlace) t.qr(datos.enlace, { tamano: 7, etiqueta: 'INFORME DEL DISPOSITIVO' })
+  if (datos.enlace) t.centrado(datos.enlace)
+  t.linea()
+  t.centrado('Documento informativo · no válido como factura')
+  t.centrado(`Generado por ${APP_NAME}${datos.emisor ? ` para ${datos.emisor}` : ''}`)
+  return t.avanza(2).corte()
+}
+
+export function ticketVerificacionImei(resumen, { ancho = 80 } = {}) {  const t = crearTicket({ ancho }).iniciar()
   const fechaTexto = resumen?.fecha ? new Date(resumen.fecha).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : ''
   t.centrado(APP_NAME).negrita().centrado('Verificación de IMEI').negrita(false)
   if (resumen?.simulado) t.centrado('(simulada)')

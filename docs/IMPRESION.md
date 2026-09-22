@@ -33,6 +33,7 @@ QR muerto: se omite el código.
 | --- | --- | --- |
 | Comprobante | `/pedidos/<token>` (`/p/<token>` redirige) | Seguimiento del pedido (token de impresión) |
 | Etiqueta de unidad | `/u/<serial>` | Ficha de la unidad (pide sesión) |
+| Informe de dispositivo (#240) | `/u/<serial>` | Informe público de la unidad (DSN) |
 | Etiqueta de precio | `/producto/<sku>` | Ficha del producto (pide sesión) |
 | Ticket de prueba | `/prueba?d=&v=&f=&t=` | Verificación física de la impresión |
 
@@ -315,6 +316,33 @@ estado se verifica en `/health.usb`.
   captura y valida el contenido (`docs/qa/220-etiquetas/`); el e2e
   `etiquetas-unidad.spec.js` cubre individual, seleccionadas y reimpresión por
   el camino directo.
+
+### Informe de dispositivo (#240, épica PhoneCheck)
+
+- **Qué es**: el informe imprimible de una unidad física, desde la ficha
+  (acción «Informe»). Reúne el equipo (modelo, condición, batería, ubicación,
+  proveedor), la última **verificación IMEI** (blacklist, Find My/iCloud, SIM
+  lock, MDM, garantía del proveedor), la **inspección física** (quién y cuándo
+  verificó, cantidad de verificaciones, grado y checklist) y la **garantía de la
+  tienda**, con el **QR al informe público**.
+- **Formatos**: 80 mm (y 58 mm si así está configurada la impresora) por
+  **impresión directa** ESC/POS (`ticketInformeDispositivo`), y **A4** o rollo
+  por el diálogo / «Descargar PDF» (`buildInformeDispositivoHtml`). La vista
+  previa del modal respeta el ancho real (302/219 px) y el formato elegido.
+- **Datos** (una sola definición en `src/lib/printing/informeDispositivo.js`):
+  la unidad de INV + `GET /api/imei?imei=<serial>&limit=1`. Contrato con INV
+  para cuando aterrice la inspección: `unit.grade` (A/B/C) y `unit.inspection`
+  `{ puntaje, aprobados, total }`; sin datos, el informe dice «Sin grado
+  asignado» / «Sin verificación física registrada.» en vez de inventar.
+- **Privacidad**: la fila del IMEI va **enmascarada** (solo los últimos 4) y un
+  serial que es IMEI (15 dígitos con Luhn) no se repite en claro. Sin costos ni
+  datos internos; leyenda «Documento informativo · no válido como factura».
+- **QR**: `/u/<serial>` (mismo contrato que la etiqueta #220); la página pública
+  del informe es de DSN. El enlace también queda impreso como texto.
+- Evidencia: `docs/qa/240-informe-dispositivo/` (PDFs A4, 80 mm HTML y ESC/POS
+  80/58 + capturas, con `scripts/qa-240-informe-dispositivo.mjs`); el e2e
+  `informe-dispositivo.spec.js` cubre la impresión directa por el agente y el
+  respaldo A4 para «Guardar como PDF» (capturas en `test-results/`).
 
 ## 8. Telemetría y comparativa de impresoras
 

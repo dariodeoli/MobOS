@@ -56,7 +56,7 @@ function FotoMini({ unitId, commentId, photo }) {
 
 // Detalle premium de una unidad de inventario: ficha completa, acciones y
 // cronología con comentarios y fotos (misma experiencia que los pedidos).
-export default function UnidadDetalle({ unit, busy, canManage, locations = [], onClose, onChanged, onSell, onReserve, onVerify, onArrive, onLabel, onRelease, onAdjust, onRemove, onMove }) {
+export default function UnidadDetalle({ unit, busy, canManage, locations = [], onClose, onChanged, onSell, onReserve, onVerify, onArrive, onLabel, onInforme, onRelease, onAdjust, onRemove, onMove }) {
   const toast = useToast()
   const { esDemo } = useSesion()
   // #193/#200: modo del adaptador visible ANTES de confirmar (real: simulado o vivo).
@@ -402,6 +402,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
             {unit.status === 'RESERVED' && <Button variant="outline" disabled={busy} title="Soltar la reserva y dejar la unidad disponible" onClick={() => ejecutar(() => onRelease(unit.serial))}>Liberar reserva</Button>}
             {unit.status !== 'SOLD' && <Button variant="outline" disabled={busy} title="Registrar la verificación física ahora" onClick={() => ejecutar(() => onVerify(unit))}>✓ Verificado</Button>}
             <Button variant="outline" title="Imprimir la etiqueta de esta unidad" onClick={() => onLabel(unit)}>Etiqueta</Button>
+            <Button variant="outline" title="Imprimir el informe del dispositivo (80 mm o A4) con el QR al informe público" onClick={() => onInforme?.(unit)}>Informe</Button>
             <Button variant="outline" disabled={busy || ['SOLD', 'RESERVED', 'IN_TRANSIT'].includes(unit.status)} title={unit.status === 'DEFECTIVE' ? 'Devolver la unidad al stock disponible' : 'Marcar la unidad en revisión con un motivo'} onClick={() => ejecutar(() => onAdjust(unit))}>{unit.status === 'DEFECTIVE' ? 'Habilitar' : 'Enviar a revisión'}</Button>
             <Button variant="outline" disabled={busy || unit.status !== 'AVAILABLE'} title="Sacar la unidad del stock (queda en Eliminados)" onClick={() => ejecutar(() => onRemove(unit))}>Dar de baja</Button>
           </div>
