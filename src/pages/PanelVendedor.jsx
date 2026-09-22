@@ -169,6 +169,7 @@ const TABS_FINANZAS = [
 ]
 const TABS_INVENTARIO = [
   ['unidades', 'Unidades'],
+  ['taller', 'Taller'],
   ['conteos', 'Conteos'],
   ['alertas', 'Alertas'],
   ['reservas', 'Reservas'],

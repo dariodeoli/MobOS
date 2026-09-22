@@ -6,6 +6,7 @@
 // unidades y (cuando hace falta) su cliente, y limpia al terminar. No depende
 // del seed ni del estado que dejaron otras corridas.
 import { test, expect } from '@playwright/test'
+import { mkdirSync } from 'node:fs'
 import { SEED } from './helpers/seed-data.js'
 
 const API = SEED.api
@@ -314,4 +315,44 @@ test('la solapa Alertas renderiza sin quedar en blanco', async ({ page }) => {
   await expect(page.getByRole('button', { name: /^Alertas \(/ })).toBeVisible()
   await expect(page.getByText(/Sin alertas de reposición|Bajo el umbral de reposición|Unidades sin costo/).first()).toBeVisible({ timeout: 15_000 })
   expect(errores, `errores de página: ${errores.join(' | ')}`).toEqual([])
+})
+
+// #240 §4: modo taller/rack — estados (por verificar → verificado → listo) y
+// acciones en serie (verificar/imprimir etiquetas).
+test('el modo taller agrupa por estado y verifica en serie', async ({ page }) => {
+  const datos = await preparar(page, marca())
+  try {
+    mkdirSync('docs/qa/240-taller', { recursive: true })
+    await page.goto('/inventario/unidades')
+    await expect(page.getByRole('heading', { name: 'Unidades' })).toBeVisible()
+    await page.screenshot({ path: 'docs/qa/240-taller/01-antes-inventario.jpg', type: 'jpeg', quality: 70 })
+
+    await page.goto('/inventario/taller')
+    const rack = page.getByTestId('rack-taller')
+    await expect(rack).toBeVisible()
+    for (const columna of ['por-verificar', 'verificado', 'listo']) {
+      await expect(page.getByTestId(`rack-columna-${columna}`)).toBeVisible()
+    }
+    for (const unidad of datos.unidades) {
+      await expect(page.getByTestId('rack-equipo').filter({ hasText: unidad.serial })).toBeVisible()
+    }
+    await page.screenshot({ path: 'docs/qa/240-taller/02-despues-rack.jpg', type: 'jpeg', quality: 70 })
+
+    // Selección de las unidades nuevas y verificación en serie.
+    for (const unidad of datos.unidades) await page.getByLabel(`Seleccionar ${unidad.serial}`).check()
+    await expect(page.getByTestId('rack-seleccionados')).toHaveText('3 seleccionados')
+    await expect(page.getByTestId('rack-imprimir-lote')).toBeEnabled()
+    await page.getByTestId('rack-verificar-lote').click()
+    await expect(page.getByText('3 unidades verificadas.')).toBeVisible({ timeout: 20000 })
+
+    // Las tres pasan a «verificado» (todavía sin costo).
+    for (const unidad of datos.unidades) {
+      await expect(
+        page.getByTestId('rack-columna-verificado').getByTestId('rack-equipo').filter({ hasText: unidad.serial }),
+      ).toBeVisible({ timeout: 20000 })
+    }
+    await page.screenshot({ path: 'docs/qa/240-taller/03-rack-verificado.jpg', type: 'jpeg', quality: 70 })
+  } finally {
+    await limpiar(page, datos)
+  }
 })
