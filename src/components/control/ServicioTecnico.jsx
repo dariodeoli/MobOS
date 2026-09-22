@@ -560,7 +560,7 @@ export default function ServicioTecnico() {
         </div>
       )}
 
-      <Modal open={Boolean(form)} onClose={busy || checklistOpen || catalogoOpen ? undefined : () => { setForm(null); setEditing(null) }} title={editing ? 'Editar orden de servicio' : 'Nueva orden de servicio'} className="max-w-2xl">
+      <Modal open={Boolean(form)} onClose={busy || checklistOpen || catalogoOpen ? undefined : () => { setForm(null); setEditing(null) }} title={editing ? 'Editar orden de servicio' : 'Nueva orden de servicio'} size="amplio">
         {form && (
           <form onSubmit={guardar} className="space-y-3">
             <div className={GRILLA_DOS_COLUMNAS}>
@@ -664,7 +664,7 @@ export default function ServicioTecnico() {
         )}
       </Modal>
 
-      <Modal open={catalogoOpen} onClose={() => setCatalogoOpen(false)} title="Catálogo de servicios" className="max-w-2xl">
+      <Modal open={catalogoOpen} onClose={() => setCatalogoOpen(false)} title="Catálogo de servicios" size="amplio">
         <div className="space-y-3">
           <p className="text-sm text-mute">Servicios por tipo de dispositivo con precio sugerido opcional. El precio de cada orden se puede cambiar a mano.</p>
           <form onSubmit={guardarServicio} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_7rem_auto]">
@@ -692,7 +692,7 @@ export default function ServicioTecnico() {
         </div>
       </Modal>
 
-      <Modal open={checklistOpen} onClose={() => setChecklistOpen(false)} title={`Checklist de recepción · ${form?.deviceType || 'iPhone'}`} className="max-w-xl">
+      <Modal open={checklistOpen} onClose={() => setChecklistOpen(false)} title={`Checklist de recepción · ${form?.deviceType || 'iPhone'}`} size="formulario">
         <div className="space-y-3">
           <p className="text-sm text-mute">Estos puntos se ofrecen al recibir un equipo de este tipo. Los que quites dejan de mostrarse, pero las órdenes viejas conservan lo marcado.</p>
           <div className="max-h-64 space-y-1 overflow-y-auto" data-testid="checklist-puntos">

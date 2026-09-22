@@ -81,7 +81,7 @@ export default defineConfig({
     {
       // No storage state: UI login flows and anonymous API tracking.
       name: 'core',
-      testMatch: /auth\.spec\.js|public-tracking\.spec\.js|cliente-portal-entrada\.spec\.js|demo-finanzas\.spec\.js|demo-finanzas-anonimo\.spec\.js|delivery\.spec\.js|shell-roles\.spec\.js|demo-anonimo\.spec\.js|pwa-version\.spec\.js|demo-crm\.spec\.js/,
+      testMatch: /auth\.spec\.js|public-tracking\.spec\.js|cliente-portal-entrada\.spec\.js|demo-finanzas\.spec\.js|demo-finanzas-anonimo\.spec\.js|delivery\.spec\.js|shell-roles\.spec\.js|demo-anonimo\.spec\.js|pwa-version\.spec\.js|demo-crm\.spec\.js/,|ruc-demo\\.spec\\.js
     },
     {
       // Seeded seller session (PIN 2468) for POS and permissions coverage.
@@ -92,7 +92,7 @@ export default defineConfig({
     {
       // Seeded owner session (PIN 1234) for control views.
       name: 'admin',
-      testMatch: /admin\.spec\.js|pos-resumen-fijo\.spec\.js|public-quote-transfer\.spec\.js|impresion-remota\.spec\.js|documentos-no-fiscales\.spec\.js|selector-sucursal\.spec\.js|invitar-persona\.spec\.js|auditoria\.spec\.js|equipo-integrantes\.spec\.js|equipo-invitaciones\.spec\.js|finanzas-comisiones\.spec\.js|finanzas-caja\.spec\.js|finanzas-conciliacion\.spec\.js|finanzas-ultimo-usado\.spec\.js|seguridad-cuenta\.spec\.js|precios-listas\.spec\.js|etiquetas-gondola\.spec\.js|etiquetas-unidad\.spec\.js|vendidos-comprobante-rapido\.spec\.js|traslados-etiquetas-lote\.spec\.js|qa-140-inventario\\.spec\\.js|campanas-recompra\.spec\.js|cobro-cuotas\.spec\.js|inventario-importacion\.spec\.js|kardex-producto\.spec\.js|inventario-unidades\.spec\.js|servicio-tecnico\.spec\.js|inventario-pos-sync\.spec\.js|notificaciones\.spec\.js|documentacion\.spec\.js|analisis\.spec\.js|configuracion-lote5\.spec\.js|compras-densidad\.spec\.js|pos-qa-173\.spec\.js|imei-mock\.spec\.js|demo-publico\.spec\.js|qa-160-perfil\.spec\.js/,|qa-236-clientes\\.spec\\.js
+      testMatch: /admin\.spec\.js|pos-resumen-fijo\.spec\.js|public-quote-transfer\.spec\.js|impresion-remota\.spec\.js|documentos-no-fiscales\.spec\.js|selector-sucursal\.spec\.js|invitar-persona\.spec\.js|auditoria\.spec\.js|equipo-integrantes\.spec\.js|equipo-invitaciones\.spec\.js|finanzas-comisiones\.spec\.js|finanzas-caja\.spec\.js|finanzas-conciliacion\.spec\.js|finanzas-ultimo-usado\.spec\.js|seguridad-cuenta\.spec\.js|precios-listas\.spec\.js|etiquetas-gondola\.spec\.js|etiquetas-unidad\.spec\.js|vendidos-comprobante-rapido\.spec\.js|traslados-etiquetas-lote\.spec\.js|qa-140-inventario\\.spec\\.js|campanas-recompra\.spec\.js|cobro-cuotas\.spec\.js|inventario-importacion\.spec\.js|kardex-producto\.spec\.js|inventario-unidades\.spec\.js|servicio-tecnico\.spec\.js|inventario-pos-sync\.spec\.js|notificaciones\.spec\.js|documentacion\.spec\.js|analisis\.spec\.js|configuracion-lote5\.spec\.js|compras-densidad\.spec\.js|pos-qa-173\.spec\.js|imei-mock\.spec\.js|demo-publico\.spec\.js|qa-160-perfil\.spec\.js/,|qa-236-clientes\\.spec\\.js|ruc-extraccion\\.spec\\.js|modales-tamanos\\.spec\\.js
       use: { storageState: 'e2e/.auth/admin.json' },
     },
   ],

@@ -8,7 +8,7 @@ import { Aviso, Badge, Button, Card, EmptyState, IconAction, Input, Label, Modal
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import Switch from '@/components/shared/Switch'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
-import { PIE_ACCIONES } from '@/components/shared/formulario'
+import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 
 // Gestión de precios: listas por cliente (con ítems por producto o categoría y
 // descuento/recargo) y precios por cantidad. El POS resuelve con la prioridad
@@ -244,12 +244,14 @@ export default function Precios() {
       </form>}
     </Card>
 
-    <Modal open={editor !== null} onClose={() => !busy && setEditor(null)} title={editor?.id ? 'Editar lista de precios' : 'Nueva lista de precios'} className="max-w-3xl">
+    <Modal open={editor !== null} onClose={() => !busy && setEditor(null)} title={editor?.id ? 'Editar lista de precios' : 'Nueva lista de precios'} size="amplio">
       {editor && <form onSubmit={guardarLista} className="space-y-4">
-        <div className="max-w-md">
-          <Label htmlFor="lista-nombre">Nombre</Label><Input id="lista-nombre" required value={editor.name} onChange={event => setEditor(current => ({ ...current, name: event.target.value }))} placeholder="Mayorista VIP, Empresas…" />
+        <div className={GRILLA_DOS_COLUMNAS}>
+          <div>
+            <Label htmlFor="lista-nombre">Nombre</Label><Input id="lista-nombre" required value={editor.name} onChange={event => setEditor(current => ({ ...current, name: event.target.value }))} placeholder="Mayorista VIP, Empresas…" />
+          </div>
+          <label className="flex items-center gap-2 self-end text-sm text-mute"><Switch checked={editor.isActive} onChange={event => setEditor(current => ({ ...current, isActive: event.target.checked }))} />Lista activa</label>
         </div>
-        <label className="flex items-center gap-2 text-sm text-mute"><Switch checked={editor.isActive} onChange={event => setEditor(current => ({ ...current, isActive: event.target.checked }))} />Lista activa</label>
         <div className="space-y-2">
           <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Ítems</p>
           {editor.items.map((item, index) => <div key={index} className="grid gap-2 rounded-xl border border-ink-600 p-2 sm:grid-cols-[7rem_minmax(10rem,1fr)_7rem_2.75rem] sm:items-center">
@@ -267,7 +269,7 @@ export default function Precios() {
       </form>}
     </Modal>
 
-    <Modal open={aBorrar !== null} onClose={() => !busy && setABorrar(null)} title={`¿Eliminar ${aBorrar?.name || 'la lista'}?`} className="max-w-md">
+    <Modal open={aBorrar !== null} onClose={() => !busy && setABorrar(null)} title={`¿Eliminar ${aBorrar?.name || 'la lista'}?`} size="corto">
       <p className="text-sm text-mute">Los clientes con esta lista asignada vuelven a su precio minorista o mayorista. La acción queda en la auditoría.</p>
       <div className="mt-4 flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setABorrar(null)} disabled={busy}>Cancelar</Button><Button type="button" className="border-bad/50 bg-bad/10 text-bad" onClick={borrarLista} disabled={busy}>{busy ? 'Eliminando…' : 'Eliminar lista'}</Button></div>
     </Modal>

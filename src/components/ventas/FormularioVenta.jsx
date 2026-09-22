@@ -1793,9 +1793,7 @@ export default function FormularioVenta({
       <Modal
         open={Boolean(imeiPara)}
         onClose={() => setImeiPara(null)}
-        title="Elegir IMEI de esta venta"
-        className="max-w-lg"
-      >
+        title="Elegir IMEI de esta venta" size="formulario">
         {(() => {
           const fila = items.find(it => it.key === imeiPara)
           const productoFila = fila ? productos.find(p => p.id === fila.productoId) : null
@@ -1836,9 +1834,7 @@ export default function FormularioVenta({
       <Modal
         open={suspenderOpen}
         onClose={suspendiendo ? undefined : () => setSuspenderOpen(false)}
-        title="Suspender venta"
-        className="max-w-md"
-      >
+        title="Suspender venta" size="corto">
         <div className="space-y-3">
           <p className="text-sm text-mute">
             El carrito queda guardado en el servidor para esta sucursal, con el cliente, la
@@ -1880,9 +1876,7 @@ export default function FormularioVenta({
       <Modal
         open={suspendidasOpen}
         onClose={descartando ? undefined : () => setSuspendidasOpen(false)}
-        title="Ventas suspendidas"
-        className="max-w-2xl"
-      >
+        title="Ventas suspendidas" size="amplio">
         <div className="space-y-3">
           <p className="text-sm text-mute">
             Carritos en espera de esta sucursal. Al recuperar uno, el carrito actual se reemplaza
@@ -2030,9 +2024,7 @@ export default function FormularioVenta({
       <Modal
         open={avisoDemoSuspendidas}
         onClose={() => setAvisoDemoSuspendidas(false)}
-        title="Ventas suspendidas"
-        className="max-w-md"
-      >
+        title="Ventas suspendidas" size="corto">
         <div className="space-y-4">
           <p className="text-sm text-mute">
             Las ventas suspendidas se guardan en el servidor de tu tienda y necesitan conexión.
@@ -2049,7 +2041,7 @@ export default function FormularioVenta({
       <AnalyticsPos open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} />
 
       {/* Código escaneado: se confirma antes de sumarlo a la venta. */}
-      <Modal open={Boolean(escaneado)} onClose={() => setEscaneado(null)} title="Producto escaneado" className="max-w-md">
+      <Modal open={Boolean(escaneado)} onClose={() => setEscaneado(null)} title="Producto escaneado" size="corto">
         {escaneado && (
           <div className="space-y-3">
             <div className="flex items-center gap-3">

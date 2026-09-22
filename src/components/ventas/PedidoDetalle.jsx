@@ -619,7 +619,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
           onClose={() => { setCobroAbierto(false); load(); onChanged?.() }}
         />
       )}
-      <Modal open={anularOpen} onClose={() => { if (!anularBusy) setAnularOpen(false) }} title="Anular pedido" className="max-w-lg">
+      <Modal open={anularOpen} onClose={() => { if (!anularBusy) setAnularOpen(false) }} title="Anular pedido" size="formulario">
         <div className="space-y-3">
           <p className="text-sm text-mute">
             {order.orderNumber ? `${codigoPedido(order.orderNumber)} · ` : ''}
@@ -651,7 +651,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
           </div>
         </div>
       </Modal>
-      <Modal open={entregaOpen} onClose={() => { if (!entregaBusy) setEntregaOpen(false) }} title="Entregar con saldo pendiente" className="max-w-lg">
+      <Modal open={entregaOpen} onClose={() => { if (!entregaBusy) setEntregaOpen(false) }} title="Entregar con saldo pendiente" size="formulario">
         <div className="space-y-3">
           <p className="text-sm text-mute">
             {order.orderNumber ? `${codigoPedido(order.orderNumber)} · ` : ''}

@@ -1,0 +1,37 @@
+{
+  "busqueda-global": {
+    "ancho": 768,
+    "tamano": "amplio",
+    "fase": "despues"
+  },
+  "notificaciones": {
+    "ancho": 576,
+    "tamano": "formulario",
+    "fase": "despues"
+  },
+  "nuevo-conteo": {
+    "ancho": 576,
+    "tamano": "formulario",
+    "fase": "despues"
+  },
+  "cambiar-sucursal": {
+    "ancho": 448,
+    "tamano": "corto",
+    "fase": "despues"
+  },
+  "proveedores": {
+    "ancho": 768,
+    "tamano": "amplio",
+    "fase": "despues"
+  },
+  "crear-cliente": {
+    "ancho": 768,
+    "tamano": "amplio",
+    "fase": "despues"
+  },
+  "ficha-cliente": {
+    "ancho": 768,
+    "tamano": "amplio",
+    "fase": "despues"
+  }
+}

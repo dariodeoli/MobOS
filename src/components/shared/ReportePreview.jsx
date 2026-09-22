@@ -67,7 +67,7 @@ export default function ReportePreview({ open, onClose, titulo = 'Reporte', form
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={titulo} className="max-w-4xl">
+    <Modal open={open} onClose={onClose} title={titulo} size="amplio">
       <div className="space-y-3">
         <div className="flex flex-wrap items-end gap-3">
           <label className="block space-y-1 text-xs text-mute">

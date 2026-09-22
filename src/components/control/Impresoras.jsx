@@ -1219,7 +1219,7 @@ export default function Impresoras() {
         />
       )}
 
-      <Modal open={puentesAbiertos} onClose={() => { setPuentesAbiertos(false); setPuenteNuevo(null); setCodigoVinculacion(null) }} title="Puentes de impresión" className="max-w-2xl">
+      <Modal open={puentesAbiertos} onClose={() => { setPuentesAbiertos(false); setPuenteNuevo(null); setCodigoVinculacion(null) }} title="Puentes de impresión" size="amplio">
         <div className="space-y-4">
           <p className="text-sm text-mute">Cada puente es una computadora con el agente instalado que reclama los trabajos del backend. Un código de vinculación se usa una sola vez, vence en 15 minutos y nunca se vuelve a mostrar.</p>
           {(store.bridges || []).length === 0 ? (
@@ -1280,7 +1280,7 @@ export default function Impresoras() {
         </div>
       </Modal>
 
-      <Modal open={guiaAbierta} onClose={() => setGuiaAbierta(false)} title="Guía de impresión" className="max-w-2xl">
+      <Modal open={guiaAbierta} onClose={() => setGuiaAbierta(false)} title="Guía de impresión" size="amplio">
         <GuiaImpresion />
       </Modal>
 
@@ -1304,7 +1304,7 @@ export default function Impresoras() {
         variant="danger"
       />
 
-      <Modal open={verColaAbierta} onClose={() => setVerColaAbierta(false)} title="Cola de impresión" className="max-w-2xl">
+      <Modal open={verColaAbierta} onClose={() => setVerColaAbierta(false)} title="Cola de impresión" size="amplio">
         <div className="space-y-4">
           {!pendientes.length && !fallidos.length && !remotosEnCurso.length ? (
             <EmptyState compact icon="check" title="La cola está vacía." description="Cuando un trabajo no sale, queda acá para reintentarlo o limpiarlo." />
@@ -1479,7 +1479,7 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
   }
 
   return (
-    <Modal open onClose={() => setFormulario(null)} title={f.id ? 'Editar impresora' : 'Agregar impresora'} className="max-w-xl">
+    <Modal open onClose={() => setFormulario(null)} title={f.id ? 'Editar impresora' : 'Agregar impresora'} size="formulario">
       <div className="space-y-5">
         <div>
           <h4 className={ROTULO_SECCION}>Identificación</h4>
@@ -1687,7 +1687,7 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
     [tipo, turno, impresora, equipo, metodo, puente, tokenPista, usuario],
   )
   return (
-    <Modal open onClose={enviando ? undefined : onCerrar} title={`Probar: ${impresora.nombre}`} className="max-w-xl">
+    <Modal open onClose={enviando ? undefined : onCerrar} title={`Probar: ${impresora.nombre}`} size="formulario">
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-600 p-3">
           <Badge color={chip.color} title={verificacion || undefined}>{chip.label}</Badge>

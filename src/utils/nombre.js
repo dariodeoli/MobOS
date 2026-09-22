@@ -13,6 +13,17 @@ const titulo = (palabra) => {
 
 const estaEnMayusculas = (texto) => texto === texto.toUpperCase() && /[A-ZÁÉÍÓÚÑ]/.test(texto)
 
+// Razones sociales (#234): el proveedor de RUC devuelve las empresas en el
+// mismo formato en mayúsculas que las personas ("DISTRIBUIDORA DEL SUR S.A.").
+// Se detectan por su tipo societario (S.A., S.R.L., LTDA, cooperativa…) y se
+// respetan tal cual: no se reordenan ni se capitalizan como un nombre de
+// persona.
+const TIPO_SOCIETARIO = /\b(S\.?A\.?|S\.?R\.?L\.?|S\.?A\.?C\.?I\.?|S\.?A\.?E\.?|S\.?A\.?S\.?|LTDA\.?|E\.?A\.?S\.?|C[IÍ]A\.?|SOCIEDAD|EMPRESA|COMPA[ÑN][IÍ]A|COOPERATIVA|FUNDACI[OÓ]N|ASOCIACI[OÓ]N|MUNICIPALIDAD|GOBERNACI[OÓ]N|MINISTERIO|UNIVERSIDAD|COLEGIO|CONSORCIO)\b/i
+
+export function esRazonSocial(texto) {
+  return TIPO_SOCIETARIO.test(String(texto || ''))
+}
+
 // Separa un nombre en partes, entendiendo la coma: "Perez, Juan" o
 // "PEREZ GOMEZ, JUAN CARLOS".
 export function nombrePartes(texto) {
@@ -38,6 +49,7 @@ export function nombrePartes(texto) {
 export function normalizarNombre(texto, { apellidosPrimero = 'auto' } = {}) {
   const original = String(texto ?? '').replace(/\s+/g, ' ').trim()
   if (!original) return ''
+  if (esRazonSocial(original)) return original
   const partes = nombrePartes(original)
   const mayusculas = estaEnMayusculas(original)
   const reordenar = !partes.conComa && (

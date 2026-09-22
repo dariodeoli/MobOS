@@ -194,7 +194,7 @@ export default function WhatsAppTemplates() {
           </div>
         </div>
       )}
-      <Modal open={editor !== null} onClose={() => !busy && setEditor(null)} title={editor?.id ? 'Editar plantilla' : 'Nueva plantilla'} className="max-w-2xl">
+      <Modal open={editor !== null} onClose={() => !busy && setEditor(null)} title={editor?.id ? 'Editar plantilla' : 'Nueva plantilla'} size="amplio">
         <form onSubmit={guardar} className="space-y-3">
           <div className={GRILLA_DOS_COLUMNAS}>
             <FormField label="Nombre" htmlFor="plantilla-nombre">
