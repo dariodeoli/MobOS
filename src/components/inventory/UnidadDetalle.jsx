@@ -21,7 +21,6 @@ import { montoTexto } from '@/utils/moneda'
 import { sinCostoUnitario } from '@/utils/inventario'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { temaV2Activo } from '@/lib/temaV2'
-import ChecklistInspeccion, { resumenChecklist, valorInicialChecklist } from '@/components/inventory/ChecklistInspeccion'
 import { cn } from '@/lib/utils'
 
 const statusLabel = { AVAILABLE: 'Disponible', RESERVED: 'Reservado', SOLD: 'Vendido', DEFECTIVE: 'En revisión', IN_TRANSIT: 'En tránsito' }
