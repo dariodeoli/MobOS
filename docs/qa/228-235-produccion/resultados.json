@@ -1,0 +1,78 @@
+{
+  "verificado": "2026-09-22T13:14:24.968Z",
+  "base": "https://app.moboss.online",
+  "version": "v1.0.141",
+  "llamadasApi": [],
+  "erroresConsola": [],
+  "resultados": [
+    {
+      "paso": "#235: entrada /demo sin guía duplicada y con PIN a la vista",
+      "estado": "ok",
+      "detalle": "entrada directa: PIN a la vista, sin guía duplicada y descripciones cortas",
+      "capturas": [
+        "01-demo-entrada.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "demo: entrar como Dueño con el PIN 3001",
+      "estado": "ok",
+      "detalle": "PIN 3001 abrió la demo (v1.0.141)",
+      "capturas": [
+        "02-demo-dentro.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#228: menú de tres puntos corto y sin duplicados",
+      "estado": "ok",
+      "detalle": "5 accesos de uso; sin destrucción, settings ni duplicados",
+      "capturas": [
+        "03-menu.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#228: Preferencias en Configuración → Sistema",
+      "estado": "ok",
+      "detalle": "bloqueo por inactividad y notificaciones; sin tema duplicado",
+      "capturas": [
+        "04-preferencias.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#148 §14: el aviso abre el panel de notificaciones",
+      "estado": "ok",
+      "detalle": "panel visible (Notificaciones × Últimos movimientos de tu operación (7 días). Actualizar Sin no…)",
+      "capturas": [
+        "05-notificaciones.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#232: auditoría de logs sin volcados de env/secrets",
+      "estado": "ok",
+      "detalle": "✓ Higiene de logs OK (1027 archivos auditados).",
+      "capturas": [],
+      "llamadasApi": []
+    },
+    {
+      "paso": "demo: 0 llamadas al API real",
+      "estado": "ok",
+      "detalle": "ninguna request a /api/ en todo el recorrido",
+      "capturas": [],
+      "llamadasApi": []
+    }
+  ],
+  "pendientesSinSesionReal": [
+    "Zona de peligro (Eliminar cuenta) en Configuración → Seguridad: en la demo se muestra como no disponible; cobertura local en e2e/admin.spec.js (#228) con reauth + palabra ELIMINAR.",
+    "Notificaciones con datos reales (pedidos, menciones, aprobaciones): la demo no comparte presencia/notificaciones; cobertura local en e2e/notificaciones.spec.js.",
+    "Restringir visibilidad de logs y rotar secretos en Coolify: pasos para Dario en docs/SEGURIDAD-LOGS.md y docs/ROTACION-TOKENS.md."
+  ],
+  "resumen": {
+    "pasos": 7,
+    "ok": 7,
+    "fallos": 0
+  }
+}
