@@ -18,6 +18,40 @@ logs de deploy de Coolify y los que conviene rotar por higiene. Acompaña a
 5. Rota primero lo **expuesto** (los tres primeros de la tabla) y luego el resto
    por higiene; después, una vez por trimestre.
 
+## Hallazgos de la revisión de Dario (22-09-2026)
+
+1. **2FA desactivado** en la cuenta **Owner (Freddy)** y en la **Admin (Dario)**
+   de Coolify → hay que **activarlo en las dos** antes de la rotación.
+2. Los **tokens de Coolify tienen permisos más amplios** que solo deploy → en la
+   rotación planificada se **reducen a lo imprescindible** (least privilege).
+3. **No hay tokens `read:sensitive` ni root** (verificado) → mantener ese
+   estado; igual conviene **rotar los que puedan haber quedado en logs**.
+
+## 0. Cuenta y permisos de Coolify (hacer primero)
+
+### 0.1 Activar 2FA en Owner y Admin
+
+1. Coolify → menú de la cuenta (avatar, arriba a la derecha) → **Security** →
+   **Two-Factor Authentication** → **Enable**.
+2. Escanear el QR con una app de autenticación (Google Authenticator, Authy,
+   1Password…), ingresar el código de 6 dígitos y **guardar los códigos de
+   recuperación** en el gestor de secretos (no en el repo).
+3. Repetir con la **otra cuenta** (Owner y Admin).
+4. Verificar: cerrar sesión y volver a entrar → el segundo factor se pide.
+
+### 0.2 Reducir los tokens de Coolify a least privilege
+
+1. Coolify → **Keys & Tokens** → listar los tokens de API existentes y anotar
+   quién los usa (el deploy del Hub, automatizaciones, etc.).
+2. Por cada token en uso: **editar sus permisos** y dejar solo lo que necesita
+   (para el deploy: **deploy**; nada de administración, escritura total ni
+   lectura de configuración). Si el token no permite limitar permisos:
+   **crear uno nuevo con el mínimo** y **revocar el amplio**.
+3. **Revocar** todo token sin uso o sin dueño claro. No crear `root` ni
+   `read:sensitive`.
+4. Verificar: un `MOBOS_INTEGRATOR=1 npm run release:prepare --check-deploy-config`
+   y un deploy de prueba con el token nuevo; recién ahí borrar el viejo.
+
 ## Runbook por secreto
 
 ### 1. `IMEICHECK_TOKEN` (expuesto)
@@ -49,7 +83,8 @@ logs de deploy de Coolify y los que conviene rotar por higiene. Acompaña a
   Verificar con `MOBOS_INTEGRATOR=1 npm run release:prepare --check-deploy-config`
   y un `release:publish` de prueba; después revocar el token viejo en el Hub.
 - **Token de API de Coolify:** Coolify → *Keys & Tokens* → revocar el que pudo
-  quedar expuesto y generar uno nuevo solo si alguna automatización lo usa.
+  quedar expuesto y generar uno nuevo **solo si** alguna automatización lo usa,
+  con permisos **mínimos** (deploy) según §0.2.
 - **GitHub PAT (si se usó en logs):** GitHub → Settings → Developer settings →
   revocar y generar otro; `gh auth login` en la Mac.
 
@@ -72,12 +107,14 @@ revocar viejo).
 
 | Cuándo | Qué |
 | --- | --- |
-| **Día 1 (expuesto)** | IMEICHECK_TOKEN · claves sandbox AEX · tokens de deploy |
+| **Día 1 (expuesto + cuenta)** | 2FA en Owner y Admin · tokens de Coolify a least privilege · IMEICHECK_TOKEN · claves sandbox AEX · tokens de deploy |
 | **Semana 1 (higiene)** | MOBOS_AUTH_SECRET (avisar del re-login) · MOBOS_MAINTENANCE_TOKEN · WEEM · RUC/SUN · Google · SIFEN · outbox |
 | **Trimestral** | Repaso completo + `npm run audit:logs` |
 
 ## Checklist de cierre
 
+- [ ] **2FA activo** en las cuentas Owner (Freddy) y Admin (Dario), con códigos de recuperación guardados.
+- [ ] Tokens de Coolify con permisos **mínimos** (deploy); sin tokens root ni `read:sensitive`; los sin uso, revocados.
 - [ ] Cada valor nuevo está en Coolify como **locked** (no visible en la UI).
 - [ ] Redeploy hecho y **logs revisados**: no aparece ningún valor.
 - [ ] Verificación funcional de la tabla (una por secreto).
