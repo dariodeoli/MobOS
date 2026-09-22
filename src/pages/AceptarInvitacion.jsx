@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { consumeActionToken } from '@/lib/actionToken'
 import { deviceId } from '@/lib/deviceId'
-import { Aviso, Badge, Button, Card, Label, PinInput } from '@/components/ui'
+import { Aviso, Badge, Button, Card, Label, Nota, PinInput } from '@/components/ui'
 import ProductFooter from '@/components/app/ProductFooter'
 import PegarEnlaceToken from '@/components/shared/PegarEnlaceToken'
 
@@ -77,12 +77,12 @@ export default function AceptarInvitacion() {
           {estado?.email && <p className="mt-2 text-sm text-mute">Invitación enviada a <b className="text-fore">{estado.email}</b>{estado.role ? ` · rol: ${estado.role}` : ''}.</p>}
           {estadoInfo && <div className="mt-3"><Badge color={estadoInfo.color}>{estadoInfo.label}</Badge></div>}
           {estado && !activa && (
-            <p className="mt-4 rounded-lg border border-warn/30 bg-warn/10 p-3 text-sm text-mute">
+            <Nota className="mt-4">
               {estado.status === 'EXPIRED' && 'Este enlace venció. Pedí que te reenvíen la invitación desde Configuración → Equipo.'}
               {estado.status === 'REVOKED' && 'Este enlace fue revocado. Pedí que te inviten de nuevo desde Configuración → Equipo.'}
               {estado.status === 'USED' && 'Este enlace ya fue utilizado. Si ya aceptaste, iniciá sesión con tu PIN.'}
               {estado.status === 'INVALID' && 'El enlace no es válido. Pedí que te reenvíen la invitación desde Configuración → Equipo.'}
-            </p>
+            </Nota>
           )}
           {!/^[a-f0-9]{64}$/i.test(token) && (
             <div className="mt-6">

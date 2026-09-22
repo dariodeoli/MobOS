@@ -83,8 +83,21 @@ warn y la celda de identidad de 13 px que espera a DSN).
 Duplicación pendiente medida: **6 → 1 usos** (queda solo el `Gs.` de una
 plantilla de impresión de PRN, que se coordina con ese slot).
 
-### Lote 9 — piezas de formulario e impresos de servicio (21-09)
+### Lote 10 — notas, estados con badge, barras y montos en frases (22-09)
 
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `Nota` (`ui/index.jsx`) | El `<p>` de nota con `border-warn/30 bg-warn/10 … text-mute` copiado **8 veces en 4 archivos** (Impresoras ×4, Estado del sistema ×2, Comparativa de impresión, Aceptar invitación) | 0 pendientes: `Nota` (warn/info/neutro, `compact`, `como`) y los tres avisos warn sueltos pasan a `Aviso tono="warn"` |
+| `EstadoBadge` + mapas con badge | `ORDER_STATUS`, `FULFILLMENT_STATUS` y `WARRANTY_STATUS` locales en la ficha; `ESTADO_GARANTIA` propio en Servicio y Garantías (**3 mapas en 2 archivos**) | `lib/estadosPedido.js` suma `ESTADO_PEDIDO_BADGE`, `ESTADO_ENTREGA_BADGE` y `ESTADO_GARANTIA_BADGE`; la etiqueta y el color se dibujan con `shared/EstadoBadge` |
+| `BarraProgreso` con `pista`/`relleno` | **5 barras armadas a mano** (Analytics del POS, Impresión, Resumen ×3) con `style={{ width: …% }}` y clases de relleno propias | Las 5 pasan por `BarraProgreso` (rol, aria y transición); `pista`/`relleno` cubren las barras de gráfico con tokens del tema y se suma el tono `onbrand` |
+| `montoTexto`/`formatGs` en frases | Montos dentro de textos con `toLocaleString('es-PY')` (Caja, cobro en la calle, rendición de reparto) | Los 3 usan el formateador compartido; el hex violeta viejo de SellerOrders pasa a `reserved` y la paleta default de POS/Landing/proveedores a tokens (`info`/`warn`/`bad`) |
+
+**Duplicación pendiente: 0 usos.** Quedan como "patrones a revisar" las
+superficies warn de sección (`bg-warn/5`, 20 usos en 10 archivos: bloques de
+alerta y tarjetas de deuda/crédito, no son avisos), y sigue pendiente la
+decisión de DSN sobre los colores del POS restantes en #176.
+
+### Lote 9 — piezas de formulario e impresos de servicio (21-09)
 | Objeto | Antes (evidencia) | Después |
 | --- | --- | --- |
 | `GRILLA_DOS_COLUMNAS` (+ `_COMPACTA`) | `grid gap-3 sm:grid-cols-2` copiada **48 veces en 24 archivos** (+14 con `gap-2`) | **62 usos** por el objeto; cero literales sueltos |

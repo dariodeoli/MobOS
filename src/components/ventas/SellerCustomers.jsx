@@ -303,7 +303,7 @@ export default function SellerCustomers() {
     {!data.loading && !data.error && vista === 'list' && <ClientesTabla rows={ordenados} templates={plantillasClientes} onPerfil={setProfileCustomer} />}
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más clientes'}</button></div>}
     <CustomerProfile customer={profileCustomer} open={Boolean(profileCustomer)} onClose={cerrarPerfil} />
-    {!templateData.loading && templateData.error && <p className="rounded-xl border border-amber-400/30 bg-amber-300/10 p-3 text-sm text-warn">No se pudieron cargar las plantillas. Podés seguir gestionando clientes.</p>}
+    {!templateData.loading && templateData.error && <Aviso tono="warn">No se pudieron cargar las plantillas. Podés seguir gestionando clientes.</Aviso>}
     <Modal open={importAbierto} onClose={() => !importBusy && setImportAbierto(false)} title="Importar clientes" size="amplio">
       <form onSubmit={importar} className="space-y-3">
         <p className="text-sm text-mute">Pegá las filas del export (la primera línea son los encabezados). Se reconocen: Customer ID, First/Last Name, Email, Phone, Default Address (Company, Address1, Address2, City), Note y Tags. Los duplicados por RUC, teléfono o ID no se vuelven a crear.</p>

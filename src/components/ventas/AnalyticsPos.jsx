@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Aviso, Button, Modal, Skeleton } from '@/components/ui'
+import { Aviso, BarraProgreso, Button, Modal, Skeleton } from '@/components/ui'
 import { api } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import { tableroPos, comparacion } from '@/lib/posAnalytics'
@@ -47,9 +47,7 @@ function Lista({ titulo, filas, valorDe, etiquetaDe }) {
               <span className="min-w-0 truncate text-fore">{etiquetaDe(fila)}</span>
               <span className="shrink-0 tabular-nums text-mute">{gs(valorDe(fila))}</span>
             </div>
-            <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-ink-700">
-              <div className="h-full rounded-full bg-fono/70" style={{ width: `${Math.round((valorDe(fila) / maximo) * 100)}%` }} />
-            </div>
+            <BarraProgreso className="mt-0.5" valor={valorDe(fila)} max={maximo} alto="sm" pista="bg-ink-700" etiqueta={`${etiquetaDe(fila)}: ${gs(valorDe(fila))}`} />
           </div>
         ))}
       </div>

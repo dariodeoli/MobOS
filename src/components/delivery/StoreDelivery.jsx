@@ -6,6 +6,7 @@ import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 import { fechaHoraCorta } from '@/utils/fecha'
 import { codigoPedido } from '@/utils/pedido'
+import { montoTexto } from '@/utils/moneda'
 import { useSellerData, SellerFeedback } from '@/components/ventas/SellerData'
 import { deliveryFields, settlementFields, ENTREGA_LABELS, MEDIO_LABELS, RENDICION_LABELS, SIN_DATOS } from './datos'
 
@@ -202,7 +203,7 @@ function Rendiciones() {
         onCancel={() => setConfirmar(null)}
         onConfirm={() => verificar(confirmar, 'VERIFIED')}
         title="¿Verificar la rendición?"
-        description={confirmar ? `Se confirman ${confirmar.cobros.length} cobros por ${confirmar.total.toLocaleString('es-PY')} Gs. Entran a caja/finanzas y el pedido cierra si quedó saldado.` : ''}
+        description={confirmar ? `Se confirman ${confirmar.cobros.length} cobros por ${montoTexto(confirmar.total)}. Entran a caja/finanzas y el pedido cierra si quedó saldado.` : ''}
         confirmLabel="Verificar"
         busy={ocupado}
       />

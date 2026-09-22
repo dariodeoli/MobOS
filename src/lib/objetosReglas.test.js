@@ -200,7 +200,8 @@ test('la celda de identidad y los textarea salen de los objetos', () => {
   }
 })
 
-test('las celdas de dato y de número salen de shared/tabla', () => {  const culpables = archivosFuente()
+test('las celdas de dato y de número salen de shared/tabla', () => {
+  const culpables = archivosFuente()
     .filter(({ ruta, contenido }) => !ruta.endsWith('components/shared/tabla.js') && (contenido.includes('className="truncate text-xs text-mute"') || contenido.includes('className="truncate text-xs text-mute ') || contenido.includes('className="text-right tabular-nums"')))
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [])
@@ -249,6 +250,54 @@ test('las barras de avance usan BarraProgreso', () => {
   for (const ruta of ['components/ventas/PagosPedido.jsx', 'components/control/Creditos.jsx', 'pages/GarantiaPublica.jsx']) {
     assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<BarraProgreso\b/, `${ruta}: el avance va con BarraProgreso`)
   }
+  // Lote 10: ninguna pantalla arma la barra a mano (ancho por estilo inline).
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('components/ui/index.jsx') && /style=\{\{ width: `\$\{[^}]*\}%` \}\}/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [])
+  for (const ruta of ['components/ventas/AnalyticsPos.jsx', 'components/control/ImpresionGraficos.jsx', 'components/control/Resumen.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<BarraProgreso\b/, `${ruta}: el avance va con BarraProgreso`)
+  }
+})
+
+test('las notas warn y los estados con badge salen de los objetos compartidos (lote 10)', () => {
+  const ui = readFileSync(join(RAIZ, 'components/ui/index.jsx'), 'utf8')
+  assert.match(ui, /export function Nota\(/, 'falta el objeto Nota')
+  assert.match(ui, /const NOTAS = \{/, 'los tonos de la nota viven en el objeto')
+
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('components/ui/index.jsx') && /(?:<p|<div)[^>]*border-warn\/(?:25|30)[^"]*text-mute/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [], 'las notas con borde warn van con <Nota>')
+
+  const conMapaPropio = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('lib/estadosPedido.js') && /const (ORDER_STATUS|FULFILLMENT_STATUS|WARRANTY_STATUS|ESTADO_GARANTIA) = \{/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(conMapaPropio, [], 'los mapas con badge salen de lib/estadosPedido')
+  const estados = readFileSync(join(RAIZ, 'lib/estadosPedido.js'), 'utf8')
+  for (const nombre of ['ESTADO_PEDIDO_BADGE', 'ESTADO_ENTREGA_BADGE', 'ESTADO_GARANTIA_BADGE']) {
+    assert.match(estados, new RegExp(`export const ${nombre} =`), `falta ${nombre}`)
+  }
+  assert.match(readFileSync(join(RAIZ, 'components/shared/EstadoBadge.jsx'), 'utf8'), /export default function EstadoBadge\(/, 'falta EstadoBadge')
+  assert.match(readFileSync(join(RAIZ, 'components/customers/CustomerProfile.jsx'), 'utf8'), /<EstadoBadge\b/, 'la ficha usa EstadoBadge')
+})
+
+test('los montos dentro de frases usan el formateador compartido (lote 10)', () => {
+  for (const ruta of ['components/control/Caja.jsx', 'components/delivery/DriverOrders.jsx', 'components/delivery/StoreDelivery.jsx']) {
+    const codigo = readFileSync(join(RAIZ, ruta), 'utf8')
+    assert.ok(!codigo.includes("toLocaleString('es-PY')"), `${ruta}: el monto va con montoTexto/formatGs`)
+  }
+  // Los impresos arman HTML autónomo (el color literal viaja en el documento) y
+  // `utils/colores.js` es el catálogo de colores de producto.
+  const HEX_PERMITIDOS = ['utils/colores.js', 'components/shared/OrderReceipt.jsx', 'components/shared/reporteEjecutivo.js', 'components/control/Comisiones.jsx', 'components/control/Inventario.jsx']
+  const hex = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.startsWith('lib/') && !HEX_PERMITIDOS.some((permitido) => ruta.endsWith(permitido)) && /#8b5cf6|#0c8876/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(hex, [], 'los hex viejos de marca salen de tokens')
+  const paleta = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('components/auth/GoogleButton.jsx') && /(text|bg|border|border-l|from|to)-(sky|amber|slate|red|blue|green|emerald|violet|purple|orange|yellow|pink|indigo)-[0-9]{2,3}/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(paleta, [], 'la paleta default sale de tokens (#176)')
 })
 
 test('el enlace de WhatsApp se arma una sola vez en utils/telefono', () => {

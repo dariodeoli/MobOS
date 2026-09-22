@@ -8,6 +8,7 @@ import { getDemoWarranties, saveDemoWarranties } from '@/lib/demoWarranties'
 import { useSesion } from '@/lib/sesion'
 import { cn } from '@/lib/utils'
 import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
+import { ESTADO_GARANTIA_BADGE } from '@/lib/estadosPedido'
 import Garantias from './Garantias'
 import ServicioTecnico from './ServicioTecnico'
 
@@ -18,7 +19,6 @@ import ServicioTecnico from './ServicioTecnico'
 // pantallas de detalle de siempre.
 const TABS = [['todo', 'Todo'], ['servicio', 'Servicio'], ['garantias', 'Garantías']]
 const ESTADO_SERVICIO = { RECIBIDO: 'Recibido', DIAGNOSTICO: 'Diagnóstico', CON_TECNICO: 'Con técnico', ESPERANDO_REPUESTO: 'Esperando repuesto', REPARADO: 'Reparado', LISTO: 'Listo para retirar', ENTREGADO: 'Entregado', CANCELADO: 'Cancelado' }
-const ESTADO_GARANTIA = { RECEIVED: 'Recibida', DIAGNOSIS: 'En diagnóstico', READY: 'Lista', DELIVERED: 'Entregada' }
 const GRID = 'grid min-w-[58rem] grid-cols-[6.5rem_minmax(0,1.4fr)_minmax(0,1.2fr)_7.5rem_6rem_11rem] items-center gap-x-2'
 const CELDA = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 const fecha = (valor) => (valor && !Number.isNaN(Date.parse(valor)) ? new Date(valor).toLocaleDateString('es-PY') : '—')
@@ -67,7 +67,7 @@ export default function ServicioGarantias({ vistaInicial = 'servicio' }) {
         cliente: item.customerName || 'Sin cliente',
         equipo: item.description || '',
         serial: item.serial || '',
-        estado: ESTADO_GARANTIA[item.status] || item.status || '',
+        estado: ESTADO_GARANTIA_BADGE[item.status]?.label || item.status || '',
         estadoTono: item.status === 'DELIVERED' ? 'green' : item.status === 'READY' ? 'orange' : 'slate',
         createdAt: item.createdAt,
       }))

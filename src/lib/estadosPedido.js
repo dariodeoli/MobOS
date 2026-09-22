@@ -13,3 +13,33 @@ export const ESTADO_GARANTIA = { RECEIVED: 'Recibido', DIAGNOSIS: 'En diagnósti
 export const tonoPedido = (estado) => (estado === 'COMPLETED' ? 'ok' : estado === 'CANCELLED' ? 'bad' : 'warn')
 
 export const tonoGarantia = (estado) => (estado === 'DELIVERED' ? 'neutro' : estado === 'READY' ? 'ok' : 'info')
+
+// Mapas con badge (`label` + `color`) de las pantallas de gestión: la misma
+// etiqueta y el mismo color en la ficha del cliente, el servicio técnico y los
+// listados. No se re-etiqueta un estado por pantalla.
+export const ESTADO_PEDIDO_BADGE = {
+  PENDING: { label: 'Pendiente', color: 'orange' },
+  REGISTERED: { label: 'Registrado', color: 'blue' },
+  COMPLETED: { label: 'Completado', color: 'green' },
+  CANCELLED: { label: 'Cancelado', color: 'red' },
+}
+
+export const ESTADO_ENTREGA_BADGE = {
+  PROCESSING: { label: 'Preparando', color: 'blue' },
+  PENDING: { label: 'Pendiente', color: 'slate' },
+  SHIPPED: { label: 'Enviado', color: 'blue' },
+  IN_TRANSIT: { label: 'En camino', color: 'orange' },
+  PICKED_UP: { label: 'Retirado', color: 'green' },
+  PARTIAL: { label: 'Entrega parcial', color: 'orange' },
+  NOT_DELIVERED: { label: 'No entregado', color: 'red' },
+  READY_TO_SHIP: { label: 'Listo p/ enviar', color: 'blue' },
+  READY_FOR_PICKUP: { label: 'Listo para retirar', color: 'green' },
+  DELIVERED: { label: 'Entregado', color: 'slate' },
+}
+
+export const ESTADO_GARANTIA_BADGE = {
+  RECEIVED: { label: 'Recibida', color: 'orange' },
+  DIAGNOSIS: { label: 'En diagnóstico', color: 'blue' },
+  READY: { label: 'Lista', color: 'green' },
+  DELIVERED: { label: 'Entregada', color: 'slate' },
+}

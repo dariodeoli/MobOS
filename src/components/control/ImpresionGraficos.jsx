@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Aviso, Badge, Button, Card, EmptyState, Select, Skeleton } from '@/components/ui'
+import { Aviso, Badge, BarraProgreso, Button, Card, EmptyState, Select, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { printingApi } from '@/lib/api/printing'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
@@ -187,9 +187,7 @@ export default function ImpresionGraficos({ impresoras = [] }) {
             <div className="rounded-xl border border-ink-600 p-3">
               <p className="text-xs uppercase tracking-wider text-mute">Tasa de éxito</p>
               <p className="mt-1 text-lg font-semibold tabular-nums">{tasa === null ? '—' : `${tasa}%`}</p>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-ink-600">
-                <div className={`h-full rounded-full ${tasa === null ? '' : tasa >= 90 ? 'bg-ok' : tasa >= 70 ? 'bg-warn' : 'bg-bad'}`} style={{ width: `${tasa ?? 0}%` }} />
-              </div>
+              <BarraProgreso className="mt-2" valor={tasa ?? 0} tono={tasa === null ? 'mute' : tasa >= 90 ? 'ok' : tasa >= 70 ? 'warn' : 'bad'} alto="lg" pista="bg-ink-600" etiqueta={`Tasa de éxito: ${tasa ?? 0}%`} />
             </div>
           </div>
 

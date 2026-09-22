@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Aviso, Badge, Button, Card, EmptyState } from '@/components/ui'
+import { Aviso, Badge, Button, Card, EmptyState, Nota } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { printingApi } from '@/lib/api/printing'
 import { esIdBackend } from '@/lib/printing/agent'
@@ -160,11 +160,11 @@ export default function ImpresionComparativa({ impresoras = [], onAgregar, onGes
           </div>
 
           {sinPuente.length > 0 && seleccion.length >= 2 && (
-            <p className="flex flex-wrap items-center gap-2 rounded-xl border border-warn/30 bg-warn/10 p-3 text-sm text-mute">
+            <Nota className="flex flex-wrap items-center gap-2">
               <Icon name="alert" className="h-4 w-4 text-warn" />
               <span>{sinPuente.length === 1 ? 'Una impresora elegida no está vinculada a un puente' : `${sinPuente.length} impresoras elegidas no están vinculadas a un puente`}: el trabajo no tendría quién lo reclame. Paso que falta: vincular la computadora puente.</span>
               <Button type="button" variant="outline" onClick={onGestionarPuentes}>Gestionar puentes</Button>
-            </p>
+            </Nota>
           )}
 
           {error && <Aviso tono="error" className="p-3 rounded-xl">{error}</Aviso>}

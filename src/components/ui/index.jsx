@@ -537,6 +537,28 @@ export function Aviso({ tono = 'error', como = 'p', compact = false, className, 
   )
 }
 
+// ── Nota (superficie informativa) ──────────────────────────────────
+// Nota neutra con borde de aviso: la misma caja en todas las pantallas para
+// aclaraciones que no son resultado (no anuncian con role). El borde y el fondo
+// salen de acá (docs/PLANTILLA-OBJETOS.md §4); `compact` achica la caja y
+// `como="div"` se usa cuando la nota lleva estructura.
+const NOTAS = {
+  warn: 'border-warn/30 bg-warn/10',
+  info: 'border-info/25 bg-info/10',
+  neutro: 'border-ink-600 bg-ink-800/40',
+}
+export function Nota({ tono = 'warn', como = 'p', compact = false, className, children, ...props }) {
+  const Etiqueta = como === 'div' ? 'div' : 'p'
+  return (
+    <Etiqueta
+      className={cn('border text-mute', compact ? 'rounded-lg p-2 text-xs' : 'rounded-xl p-3 text-sm', NOTAS[tono] || NOTAS.warn, className)}
+      {...props}
+    >
+      {children}
+    </Etiqueta>
+  )
+}
+
 // ── PageHeader ──────────────────────────────────────────────────────
 export function PageHeader({ title, subtitle, actions, backTo, eyebrow }) {
   return (
@@ -708,10 +730,13 @@ export function CeldaMoneda({ valor, tono = '', currency = 'PYG', className, chi
 // ── BarraProgreso ───────────────────────────────────────────────────
 // Barra de progreso accesible (role=progressbar) para avances, escaneos y
 // conciliaciones: tono semántico y altura chica/media/grande.
-const TONOS_BARRA = { fono: 'bg-fono', ok: 'bg-ok', warn: 'bg-warn', bad: 'bg-bad', mute: 'bg-mute' }
+const TONOS_BARRA = { fono: 'bg-fono', ok: 'bg-ok', warn: 'bg-warn', bad: 'bg-bad', mute: 'bg-mute', onbrand: 'bg-onbrand' }
 const ALTURAS_BARRA = { sm: 'h-1', md: 'h-1.5', lg: 'h-2.5' }
 
-export function BarraProgreso({ valor = 0, max = 100, tono = 'fono', alto = 'md', etiqueta, className }) {
+// `pista` y `relleno` existen para las barras de gráfico que usan tokens del
+// tema (fondo sobre color de marca, línea de series): todo sigue pasando por el
+// objeto (rol, aria y transición) sin copiar el markup.
+export function BarraProgreso({ valor = 0, max = 100, tono = 'fono', alto = 'md', etiqueta, pista, relleno, className }) {
   const total = Number(max) > 0 ? Number(max) : 100
   const porcentaje = Math.min(100, Math.max(0, ((Number(valor) || 0) / total) * 100))
   return (
@@ -721,9 +746,9 @@ export function BarraProgreso({ valor = 0, max = 100, tono = 'fono', alto = 'md'
       aria-valuemax={100}
       aria-valuenow={Math.round(porcentaje)}
       aria-label={etiqueta}
-      className={cn('overflow-hidden rounded-full bg-fore/10', ALTURAS_BARRA[alto] || ALTURAS_BARRA.md, className)}
+      className={cn('overflow-hidden rounded-full bg-fore/10', ALTURAS_BARRA[alto] || ALTURAS_BARRA.md, pista, className)}
     >
-      <span className={cn('block h-full rounded-full transition-[width] duration-500 ease-out', TONOS_BARRA[tono] || TONOS_BARRA.fono)} style={{ width: `${porcentaje}%` }} />
+      <span className={cn('block h-full rounded-full transition-[width] duration-500 ease-out', TONOS_BARRA[tono] || TONOS_BARRA.fono, relleno)} style={{ width: `${porcentaje}%` }} />
     </div>
   )
 }

@@ -101,7 +101,7 @@ function BadgePago({ row }) {
   const estado = estaCancelado(row) ? row.paymentStatus : pagoDe(row)
   const tono = estado === 'Pagado' ? 'border-ok/25 bg-ok/10 text-ok'
     : estado === 'Parcial' ? 'border-warn/25 bg-warn/10 text-warn'
-      : estado === 'A crédito' ? 'border-[#8b5cf6]/40 bg-[#8b5cf6]/10 text-reserved'
+      : estado === 'A crédito' ? 'border-reserved/40 bg-reserved/10 text-reserved'
         : 'border-bad/25 bg-bad/10 text-bad'
   return <span className={cn('w-fit justify-self-start whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[10px] font-bold', tono)}>{estado || 'Pendiente'}</span>
 }
@@ -109,7 +109,7 @@ function BadgePago({ row }) {
 function BadgeEstado({ row }) {
   if (estaCancelado(row)) return <span className="w-fit justify-self-start whitespace-nowrap rounded-md border border-bad/30 bg-bad/10 px-1.5 py-0.5 text-[10px] font-bold text-bad">Cancelado</span>
   const tono = ['DELIVERED', 'PICKED_UP'].includes(row.fulfillmentStatus) ? 'border-ok/25 bg-ok/10 text-ok'
-    : ['READY_TO_SHIP', 'SHIPPED', 'IN_TRANSIT'].includes(row.fulfillmentStatus) ? 'border-sky-400/25 bg-sky-400/10 text-sky-300'
+    : ['READY_TO_SHIP', 'SHIPPED', 'IN_TRANSIT'].includes(row.fulfillmentStatus) ? 'border-info/25 bg-info/10 text-info'
       : ['READY_FOR_PICKUP', 'PARTIAL'].includes(row.fulfillmentStatus) ? 'border-warn/25 bg-warn/10 text-warn'
         : row.fulfillmentStatus === 'NOT_DELIVERED' ? 'border-bad/30 bg-bad/10 text-bad'
           : 'border-ink-500 bg-ink-700/40 text-mute'
@@ -136,7 +136,7 @@ const ACENTO_PAGO = (row) => {
   const estado = pagoDe(row)
   if (estado === 'Pagado') return 'border-l-ok'
   if (estado === 'Parcial') return 'border-l-warn'
-  if (estado === 'A crédito') return 'border-l-[#8b5cf6]'
+  if (estado === 'A crédito') return 'border-l-reserved'
   return 'border-l-bad/60'
 }
 
