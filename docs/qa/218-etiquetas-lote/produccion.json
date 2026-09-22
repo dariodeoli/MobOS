@@ -1,0 +1,45 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "1.0.138",
+  "fecha": "2026-09-22T02:06:13.877Z",
+  "resultados": [
+    {
+      "paso": "demo: lotes en Traslados y reimpresión en el destino",
+      "estado": "ok",
+      "detalle": "v1.0.138 · lotes en demo: 0 (sin transferencias demo) · recepción con reimpresión disponible",
+      "capturas": [
+        "08-traslados-demo.jpg",
+        "09-transito-demo.jpg",
+        "10-recepcion-destino-demo.jpg"
+      ]
+    },
+    {
+      "paso": "producción: el bundle trae el lote completo (#218)",
+      "estado": "ok",
+      "detalle": "7 assets · 5 marcas del lote presentes",
+      "capturas": []
+    },
+    {
+      "paso": "el demo no llama al API real",
+      "estado": "ok",
+      "detalle": "0 llamadas de inventario · 0 al API general del shell",
+      "capturas": []
+    }
+  ],
+  "assets": [
+    "https://app.moboss.online/assets/index-BVNOom2x.js",
+    "https://app.moboss.online/assets/vendor-II1R7ODZ.js",
+    "https://app.moboss.online/assets/print-DAClbpyS.js",
+    "https://app.moboss.online/assets/VistaCargarVenta-Ddamh04-.js",
+    "https://app.moboss.online/assets/colores-Db6gufDX.js",
+    "https://app.moboss.online/assets/Inventario-CCnibQs7.js",
+    "https://app.moboss.online/assets/suppliers-BKdnUHlS.js"
+  ],
+  "llamadasApi": [],
+  "erroresConsola": [],
+  "veredicto": {
+    "pasosOk": 3,
+    "pasosTotal": 3,
+    "erroresConsola": 0
+  }
+}
