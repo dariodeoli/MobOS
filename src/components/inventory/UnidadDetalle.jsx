@@ -269,7 +269,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   }
 
   return (
-    <Drawer open onClose={onClose} title={unit.product?.name || 'Unidad'} className="w-full sm:max-w-xl">
+    <Drawer open onClose={onClose} title={unit.product?.name || 'Unidad'} className="v2-piloto w-full sm:max-w-xl">
       <div className="space-y-5">
         {/* Encabezado */}
         <section className="rounded-2xl border border-ink-600 bg-gradient-to-br from-ink-800 to-ink-800/40 p-4">
