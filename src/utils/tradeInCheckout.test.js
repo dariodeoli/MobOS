@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { normalizarModelo, tradeInDraftPayment, valorSugerido } from './tradeInCheckout.js'
+import { normalizarModelo, tradeInDraftPayment, valorSugerido, valorSugeridoDeCatalogo } from './tradeInCheckout.js'
 const accounts = [{ id: 'canje', isActive: true, kind: 'TRADE_IN', currency: 'PYG', name: 'Canje' }]
 const draft = { model: 'Equipo ficticio', imei: 'DEMO-123', conditionNotes: 'Pantalla rayada', value: 200000 }
 test('ficha conserva importe, modelo, serial y condición en el pago', () => {
@@ -37,4 +37,20 @@ test('sugiere solo la valuación exacta de modelo y condición cargados', () => 
   assert.equal(valorSugerido(valuations, 'iPhone 13 128GB', 'USED'), null)
   assert.equal(valorSugerido(valuations, 'iPhone 14', 'USED'), null)
   assert.equal(valorSugerido(null, 'iPhone 13', 'USED'), null)
+})
+
+// #240 ítem 7: la demo deriva la base del catálogo ficticio (sin API).
+test('el valor base de la demo sale del catálogo por modelo y condición', () => {
+  const productos = [
+    { id: 'p1', nombre: 'iPhone 15 Pro 256GB Titanio', precioVenta: 6850000 },
+    { id: 'p2', nombre: 'iPhone 13 128GB Blanco', precioVenta: 3050000 },
+  ]
+  const usada = valorSugeridoDeCatalogo(productos, 'iPhone 13 128GB', 'USED')
+  assert.equal(usada.baseValuePyg, 1530000)
+  assert.equal(usada.maxValuePyg, 1840000)
+  assert.equal(usada.demo, true)
+  assert.equal(valorSugeridoDeCatalogo(productos, 'iphone 13 128gb', 'REFURBISHED').baseValuePyg, 1280000)
+  assert.equal(valorSugeridoDeCatalogo(productos, 'iPhone 15 Pro 256GB Titanio', 'NEW').baseValuePyg, 4250000)
+  assert.equal(valorSugeridoDeCatalogo(productos, 'Galaxy S99', 'USED'), null)
+  assert.equal(valorSugeridoDeCatalogo(productos, '', 'USED'), null)
 })

@@ -1,0 +1,41 @@
+{
+  "url": "http://localhost:5216",
+  "fecha": "2026-09-22T13:52:13.849Z",
+  "version": "v1.0.141",
+  "pasos": [
+    {
+      "paso": "entrada a la demo y herramienta de trade-in",
+      "ok": true,
+      "detalle": "demo v1.0.141 · modelo iPhone 13 128GB"
+    },
+    {
+      "paso": "base del catálogo demo (sin API de valores)",
+      "ok": true,
+      "detalle": "Valor sugerido: Gs 1.530.000 · hasta Gs 1.840.000Usar"
+    },
+    {
+      "paso": "hallazgos y grado descuentan con su detalle",
+      "ok": true,
+      "detalle": "base Gs 1.530.000 → −35% → Gs 994.500"
+    },
+    {
+      "paso": "el grado se sugiere según los hallazgos",
+      "ok": true,
+      "detalle": "un hallazgo mayor → Gs 1.071.000 · sin hallazgos → Gs 1.530.000"
+    },
+    {
+      "paso": "«Usar» lleva el valor al acuerdo acordado",
+      "ok": true,
+      "detalle": "acordado 1.071.000"
+    }
+  ],
+  "capturas": [
+    "01-base-demo.png",
+    "02-con-grado-y-hallazgos.png",
+    "03-grado-sugerido.png",
+    "04-acuerdo-con-valuacion.png"
+  ],
+  "llamadasApi": [],
+  "hallazgos": [],
+  "base": 1530000
+}
