@@ -10,7 +10,7 @@ Documento de punto de entrada para retomar MobOS en otra computadora. El detalle
 - **Migraciones** aditivas, idempotentes y re-ejecutables (`ADD COLUMN IF NOT EXISTS`, `DROP CONSTRAINT IF EXISTS`, etc.). Seeds con guards por conteo + `ON CONFLICT`.
 - **Regla de oro de datos**: lo que el código guarda debe existir en la base y poder mostrarse. Tras cambiar el schema o agregar una migración: `npm run db:check` hasta que no haya diferencias.
 - Campos de formulario: `docs/CAMPOS.md` (invocable como **rdi**; skill `.claude/skills/rdi`; plantilla portable `docs/PLANTILLA-CAMPOS.md`).
-- Impresión, tokens, avatares, tablas: `docs/IMPRESION.md`, `docs/TOKENS.md`, `docs/AVATAR.md`, `docs/TABLAS.md`; inventario de objetos: `docs/PLANTILLA-OBJETOS.md`.
+- Impresión, tokens, avatares, tablas: `docs/IMPRESION.md`, `docs/TOKENS.md`, `docs/AVATAR.md`, `docs/TABLAS.md`; inventario de objetos: `docs/PLANTILLA-OBJETOS.md`; prueba física y aplicación de #17: `docs/IMPRESION-PRUEBA-FISICA.md` y `docs/IMPRESION-17-LAUNCHD.md`.
 
 ### Orquestador (coordinación)
 - Vive en `~/.herdr/worktrees/mobos/orquestador/` (sin repo): abre issues, elige slot, briefea, sigue handovers y ordena la integración; **no** mergea, no pushea, no despliega, no edita código. Topología: `docs/TOPOLOGIA.md`.
