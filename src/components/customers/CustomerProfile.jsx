@@ -21,7 +21,7 @@ import PercentField, { formatPercent, parsePercent } from '@/components/shared/P
 import RucField from '@/components/shared/RucField'
 import Icon from '@/components/shared/Icon'
 import ActorAvatar from './ActorAvatar'
-import { DEMO_CUSTOMER_TEMPLATES } from './customerMessaging'
+import { DEMO_CUSTOMER_TEMPLATES, ULTIMA_PLANTILLA_CLIENTES } from './customerMessaging'
 import { buildDemoAnalytics, buildDemoProfile, buildDemoTimeline } from '@/lib/demoClientes'
 import { CELDA_DATO, CELDA_ENCABEZADO } from '@/components/shared/tabla'
 import {
@@ -169,7 +169,7 @@ function Senales({ titulo, items, primario, secundario }) {
   )
 }
 
-export default function CustomerProfile({ customer, open, onClose }) {
+export default function CustomerProfile({ customer, open, onClose, tabInicial = 'resumen' }) {
   const toast = useToast()
   const { usuario, esDemo } = useSesion()
   // Modo demo (#189): nada de la ficha se guarda contra el API real. Los
@@ -594,10 +594,11 @@ export default function CustomerProfile({ customer, open, onClose }) {
     return () => { active = false }
   }, [open, customer?.id, customer, esDemo, revision])
 
-  // Cada apertura (u otro cliente) arranca en el resumen.
+  // Cada apertura (u otro cliente) arranca en la pestaña pedida (resumen por
+  // defecto; «datos» cuando se entra a editar desde el resumen rápido).
   useEffect(() => {
-    if (open) setTab('resumen')
-  }, [open, customer?.id, setTab])
+    if (open) setTab(tabInicial)
+  }, [open, customer?.id, tabInicial, setTab])
 
   // Solicitudes comerciales del cliente (mayorista, crédito, plazo).
   useEffect(() => {
@@ -1099,7 +1100,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                     telefono={phone}
                     countryCode={profile.customer?.countryCode || customer?.countryCode}
                     category="CUSTOMERS"
-                    storageKey="mobos:clientes:plantilla-wa"
+                    storageKey={ULTIMA_PLANTILLA_CLIENTES}
                     title={profile.customer?.name || customer?.name}
                     plantillas={esDemo ? DEMO_CUSTOMER_TEMPLATES : undefined}
                     contexto={{

@@ -5,19 +5,21 @@ import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { normalizarBusqueda } from '@/utils/cliente'
 import { telefonoVisible } from '@/utils/telefono'
 import { readCustomerMetadata } from './customerMessaging'
-import Icon from '@/components/shared/Icon'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import { cn } from '@/lib/utils'
 import BarraLote from '@/components/shared/BarraLote'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
-import { IconAction, useToast } from '@/components/ui'
-import { CELDA_DATO, CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
-// Tabla de clientes alineada: una fila por persona, encabezados ordenables y
-// acciones compactas (perfil al hacer clic, WhatsApp con plantilla). Entra sin
-// scroll horizontal en desktop: todo trunca y el espacio se reparte con
-// prioridad Cliente → Total gastado → Teléfono → Tipo → resto.
-const GRID = 'grid min-w-[58rem] grid-cols-[1.5rem_minmax(0,1.7fr)_minmax(0,0.75fr)_minmax(0,0.95fr)_2.5rem_minmax(0,0.7fr)_minmax(0,0.75fr)_minmax(0,0.4fr)_minmax(0,1.2fr)_2.5rem_6.5rem] items-center gap-x-2'
-const ULTIMA_PLANTILLA = 'mobos:clientes:plantilla-wa'
+import { CeldaMoneda, IconAction, useToast } from '@/components/ui'
+import { CELDA_DATO, ROTULO_DATO } from '@/components/shared/tabla'
+import { fechaCompacta, fechaLegible } from '@/utils/pedido'
+import { ULTIMA_PLANTILLA_CLIENTES } from './customerMessaging'
+// Tabla de clientes estilo Pedidos (#236): filas con aire y datos clave
+// (contacto, tipo, pedidos, total gastado, última compra y deuda) con DOS
+// accesos por cliente: el ojito abre el resumen rápido (popup) y el ícono de
+// detalle el perfil completo. Se mantienen el orden por columnas, la selección
+// por lote y el WhatsApp con plantilla.
+const GRID = 'grid min-w-[62rem] grid-cols-[1.5rem_minmax(0,1.4fr)_minmax(0,0.6fr)_3rem_minmax(0,0.95fr)_minmax(0,0.85fr)_minmax(0,0.75fr)_8rem] items-center gap-x-2'
+const ULTIMA_PLANTILLA = ULTIMA_PLANTILLA_CLIENTES
 
 const ciudadDe = (row) => row.addresses?.find(address => address.city)?.city || ''
 export const notaInterna = (notes) => {
@@ -26,7 +28,7 @@ export const notaInterna = (notes) => {
   return notes.trim()
 }
 
-export default function ClientesTabla({ rows, templates, onPerfil }) {
+export default function ClientesTabla({ rows, templates, onPerfil, onResumen }) {
   // Sin orden de columna, respeta el orden del servidor (actividad reciente).
   const [orden, setOrden] = useState(null)
   const toast = useToast()
@@ -47,6 +49,8 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
     if (orden.key === 'tipo') return (Number(Boolean(b.wholesale)) - Number(Boolean(a.wholesale))) * factor
     if (orden.key === 'pedidos') return ((a.stats?.orders || 0) - (b.stats?.orders || 0)) * factor
     if (orden.key === 'total') return ((a.stats?.totalSpentPyg || 0) - (b.stats?.totalSpentPyg || 0)) * factor
+    if (orden.key === 'ultima') return ((a.stats?.lastOrderAt || '') < (b.stats?.lastOrderAt || '') ? -1 : 1) * factor
+    if (orden.key === 'deuda') return ((a.stats?.pendingPyg || 0) - (b.stats?.pendingPyg || 0)) * factor
     return 0
   }) : rows
 
@@ -78,20 +82,18 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
         <input type="checkbox" className="h-4 w-4 accent-fono" aria-label="Seleccionar visibles" title="Seleccionar visibles" checked={filas.length > 0 && seleccionados.length === filas.length} onChange={() => setSeleccionados((actuales) => seleccionarTodos(filas, actuales))} />
         {encabezado('cliente', 'Cliente')}
         {encabezado('tipo', 'Tipo')}
-        <span className={CELDA_ENCABEZADO}>Teléfono</span>
-        <span className={cn('text-center', ROTULO_DATO)}>Email</span>
-        <span className={CELDA_ENCABEZADO}>RUC</span>
-        <span className={CELDA_ENCABEZADO}>Ciudad</span>
         {encabezado('pedidos', 'Pedidos', 'justify-center')}
         {encabezado('total', 'Total gastado', 'justify-end')}
-        <span className={cn('text-center', ROTULO_DATO)}>Nota</span>
+        {encabezado('ultima', 'Última compra')}
+        {encabezado('deuda', 'Deuda', 'justify-end')}
         <span className={cn('text-right', ROTULO_DATO)}>Acciones</span>
       </div>
       <div className="space-y-2">
         {filas.map(row => {
-          const nota = notaInterna(row.notes)
           const telefono = row.phones?.[0] || row.phone || ''
           const telefonoMostrado = telefonoVisible(telefono, row.countryCode)
+          const deuda = Number(row.stats?.pendingPyg || 0)
+          const ultima = row.stats?.lastOrderAt || null
           return (
             <div
               key={row.id}
@@ -101,31 +103,25 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
               tabIndex={0}
               onClick={() => onPerfil?.(row)}
               onKeyDown={event => { if (event.key === 'Enter') onPerfil?.(row) }}
-              className={cn(GRID, 'cursor-pointer rounded-xl border border-fore/10 bg-ink-800/40 px-3.5 py-2.5 transition hover:border-fono/40 hover:bg-ink-700/50')}
+              className={cn(GRID, 'cursor-pointer rounded-xl border border-fore/10 bg-ink-800/40 px-3.5 py-3 transition hover:border-fono/40 hover:bg-ink-700/50')}
             >
               <span className="flex items-center" onClick={(event) => event.stopPropagation()}>
                 <input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar a ${row.name || 'cliente'}`} checked={seleccionados.includes(row.id)} onChange={() => setSeleccionados((actuales) => alternarId(actuales, row.id))} />
               </span>
-              <span className="truncate text-sm font-semibold" title={row.name}>{row.name || 'Sin nombre'}</span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold" title={row.name}>{row.name || 'Sin nombre'}</span>
+                <span className="block truncate text-xs text-mute" title={[telefonoMostrado, row.email].filter(Boolean).join(' · ')}>
+                  {telefonoMostrado || 'Sin teléfono'}{row.email ? ` · ${row.email}` : ''}
+                </span>
+              </span>
               <span className={cn('inline-block w-fit max-w-full truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold', row.wholesale ? 'border-warn/30 bg-warn/10 text-warn' : 'border-ink-500 bg-ink-700/40 text-mute')}>
                 {row.wholesale ? 'Mayorista' : 'Cliente final'}
               </span>
-              <span className={cn('tabular-nums', CELDA_DATO)} title={telefono || undefined}>{telefonoMostrado || '—'}</span>
-              <span className="flex justify-center">
-                {row.email
-                  ? <Icon name="check" role="img" title="Con correo" aria-label="Con correo" aria-hidden={false} className="h-4 w-4 text-ok" />
-                  : <Icon name="close" role="img" title="Sin correo" aria-label="Sin correo" aria-hidden={false} className="h-3.5 w-3.5 text-mute" />}
-              </span>
-              <span className={cn('tabular-nums', CELDA_DATO)}>{row.document || '—'}</span>
-              <span className={CELDA_DATO}>{ciudadDe(row) || '—'}</span>
-              <span className="truncate text-center text-xs font-semibold tabular-nums">{row.stats?.orders || 0}</span>
-              <span className="truncate text-right text-sm font-bold tabular-nums text-fore">{gs(row.stats?.totalSpentPyg || 0)}</span>
-              <span className="flex justify-center">
-                {nota
-                  ? <Icon name="report" role="img" title={nota} aria-label={`Nota interna: ${nota}`} aria-hidden={false} className="h-4 w-4 cursor-help text-fono-light" />
-                  : <span className="text-xs text-mute">—</span>}
-              </span>
-              <span className="flex items-center justify-end gap-1">
+              <span className="truncate text-center text-sm font-semibold tabular-nums">{row.stats?.orders || 0}</span>
+              <span className="truncate text-right"><CeldaMoneda valor={row.stats?.totalSpentPyg || 0} className="text-sm text-fore" /></span>
+              <span className={cn('truncate', CELDA_DATO)} title={ultima ? fechaLegible(ultima) : undefined}>{ultima ? fechaCompacta(ultima) : '—'}</span>
+              <span className="truncate text-right">{deuda > 0 ? <CeldaMoneda valor={deuda} tono="warn" /> : <span className={CELDA_DATO}>Sin deuda</span>}</span>
+              <span className="flex items-center justify-end gap-1.5">
                 {telefono ? (
                   <WhatsAppMenu
                     telefono={telefono}
@@ -137,12 +133,16 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
                     contexto={{
                       cliente: row.name || '',
                       nombre: row.name || '',
-                      ultima_compra: row.stats?.lastOrderAt ? new Date(row.stats.lastOrderAt).toLocaleDateString('es-PY') : '',
+                      saldo_pendiente: deuda > 0 ? gs(deuda) : '',
+                      ultima_compra: ultima ? fechaLegible(ultima) : '',
                     }}
                   />
                 ) : <span className="text-xs text-mute">—</span>}
                 <span onClick={(event) => event.stopPropagation()}>
-                  <IconAction icon="eye" tone="fono" label={`Ver perfil de ${row.name || 'cliente'}`} onClick={() => onPerfil?.(row)} />
+                  <IconAction icon="eye" tone="fono" size="touch" label={`Resumen rápido de ${row.name || 'cliente'}`} onClick={() => onResumen?.(row)} />
+                </span>
+                <span onClick={(event) => event.stopPropagation()}>
+                  <IconAction icon="external" size="touch" label={`Ver detalle completo de ${row.name || 'cliente'}`} onClick={() => onPerfil?.(row)} />
                 </span>
               </span>
             </div>

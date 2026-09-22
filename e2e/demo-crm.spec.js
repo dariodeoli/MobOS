@@ -70,6 +70,21 @@ test('demo: la venta del POS actualiza la actividad y los agregados del cliente'
   await ficha.getByRole('tab', { name: /^Cronología/ }).click()
   await expect(ficha.getByText(/AUR-#0001/).first()).toBeVisible()
 
+  // #236: el ojito abre el resumen rápido del cliente (demo, datos locales).
+  // Se cierra la ficha que quedó abierta del tramo anterior.
+  await page.getByRole('button', { name: 'Cerrar', exact: true }).click()
+  const filaDemo = page.getByTestId('cliente-fila').filter({ hasText: 'Lucía Fernández' }).first()
+  await filaDemo.getByRole('button', { name: 'Resumen rápido de Lucía Fernández' }).click()
+  const resumen = page.getByRole('dialog', { name: 'Cliente: Lucía Fernández' })
+  await expect(resumen.getByText('Total gastado')).toBeVisible()
+  await expect(resumen.getByText('Últimas compras')).toBeVisible()
+  await expect(resumen.getByText(/MOB-?#?0008/).first()).toBeVisible()
+  await expect(resumen.getByRole('button', { name: 'Ver detalle completo' })).toBeVisible()
+  await page.screenshot({ path: '/tmp/qa160-demo-resumen-popup.png' })
+  await resumen.getByRole('button', { name: 'Ver detalle completo' }).click()
+  await expect(page.getByRole('tab', { name: /^Resumen/ })).toBeVisible({ timeout: 15000 })
+  await page.getByRole('button', { name: 'Cerrar', exact: true }).click()
+
   // §19 (#160): el perfil demo completa antigüedad, gastado, órdenes,
   // direcciones (con adicionales), tags, minorista/mayorista y paga impuestos.
   await page.goto('/clientes?cliente=demo-cliente-ramiro')
