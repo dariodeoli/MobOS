@@ -101,3 +101,12 @@ function numeroDe(value) {
   const amount = Number(value)
   return Number.isFinite(amount) ? amount : null
 }
+
+// Largo máximo del texto de un monto: dígitos del tope + separadores de miles
+// (+ 3 si la moneda lleva decimales). El campo lo usa como `maxLength`, así el
+// monto más grande documentado entra completo y no se puede escribir de más.
+export function largoMaximoMonto(max = LIMITE_MONTO_GENERAL, { decimales = false } = {}) {
+  const digitos = String(Math.trunc(Math.abs(Number(max) || 0))).length
+  const separadores = Math.floor((digitos - 1) / 3)
+  return digitos + separadores + (decimales ? 3 : 0)
+}

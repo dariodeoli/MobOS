@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { formatGs, formatGsInput, formatUsd, formatUsdInput, parseGsInput, parseUsdInput, excedeMonto, LIMITE_MONTO_VENTAS, montoGs, montoUsd, montoTexto } from './moneda.js'
+import { formatGs, formatGsInput, formatUsd, formatUsdInput, parseGsInput, parseUsdInput, excedeMonto, LIMITE_MONTO_VENTAS, montoGs, montoUsd, montoTexto, largoMaximoMonto } from './moneda.js'
 import { gs, gsInput } from './calculos.js'
 
 test('formatea guaraníes con separadores locales', () => {
@@ -62,4 +62,11 @@ test('los montos de pantalla usan la presentación dominante y no inventan datos
   assert.equal(montoUsd('nada'), '—')
   assert.equal(montoTexto(null), '—')
   assert.equal(montoGs(null, ''), '')
+})
+
+test('el largo máximo del monto sale del tope permitido', () => {
+  assert.equal(largoMaximoMonto(10_000_000_000), 14)
+  assert.equal(largoMaximoMonto(99_000_000_000), 14)
+  assert.equal(largoMaximoMonto(10_000_000_000, { decimales: true }), 17)
+  assert.equal(largoMaximoMonto(1000), 5)
 })
