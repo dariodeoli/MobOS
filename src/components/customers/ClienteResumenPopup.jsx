@@ -52,7 +52,7 @@ export default function ClienteResumenPopup({ row, open, onClose, onDetalle, onE
   const ordenes = [...(perfil?.orders || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 3)
 
   return (
-    <Modal open={open} onClose={onClose} title={`Cliente: ${row.name || 'Sin nombre'}`} className="max-w-2xl">
+    <Modal open={open} onClose={onClose} title={`Cliente: ${row.name || 'Sin nombre'}`} size="amplio">
       <div className="space-y-4">
         <header className="flex flex-wrap items-start gap-3">
           <Avatar user={{ name: row.name || 'Cliente', id: row.id }} size="lg" />

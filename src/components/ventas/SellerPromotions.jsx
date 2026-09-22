@@ -6,6 +6,7 @@ import { gs } from '@/utils/calculos'
 import { getProductos } from '@/lib/storage'
 import { Badge, Button, Input, MoneyInput, Select } from '@/components/ui'
 import ProductCombobox from '@/components/shared/ProductCombobox'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import { cn } from '@/lib/utils'
 import { SellerSection, SellerFeedback, useSellerData } from './SellerData'
@@ -77,7 +78,7 @@ export default function SellerPromotions() {
       <h2 className="font-semibold">Crear cupón</h2>
       {/* Grilla responsive (#238): 1 campo por fila en móvil, 2 en tablet y hasta
           4 en desktop; los campos cortos no se estiran (ancho máximo propio). */}
-      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={cn('mt-3 lg:grid-cols-4', GRILLA_DOS_COLUMNAS)}>
         {['code', 'name'].map(key => (
           <label className="block" key={key}>
             {{ code: 'Código', name: 'Nombre' }[key]}
