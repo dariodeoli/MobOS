@@ -50,6 +50,48 @@ los pendientes de decisión de DSN: dinero y textareas).
 Duplicación pendiente medida: **16 → 10 usos**. Quedan los `wa.me` (POS/CRM),
 un `Gs.` de impresión (PRN) y los `<textarea>` de DSN.
 
+### Lote 4 — celdas, WhatsApp y estados del cliente (21-09)
+
+| Objeto | Dónde vive | Antes (evidencia) | Después |
+| --- | --- | --- | --- |
+| `CELDA_DATO` y `CELDA_NUMERO` (antes `CELDA_MONTO`) | `src/components/shared/tabla.js` | `truncate text-xs text-mute` copiada **73 veces en 32 archivos** y `text-right tabular-nums` en 12 | **118 usos** por los objetos (con `cn(objeto, extras)` cuando la celda agrega color o `truncate`); cero literales sueltos |
+| `whatsappUrl` | `src/utils/telefono.js` | El enlace `wa.me` se armaba en **4 lugares** (uno en `customerMessaging`, dos inline en POS y uno en la página de garantía); el de POS no agregaba el código de país | Un solo armador con número internacional y mensaje escapado; adoptado en 7 archivos (CustomerCommunicationCard, Campañas, SellerCustomers, WhatsAppMenu, PagosPedido, FormularioVenta y Garantía pública) |
+| `src/lib/estadosPedido.js` | nuevo | Los mismos tres mapas de estado y dos `tono*` estaban en **4 páginas públicas** (PortalCliente, CuentaPublica, PedidoPublico y Garantía pública) con nombres distintos, más copias en `OrderReceipt` | Los estados de pedido/entrega/garantía del cliente y su tono salen de un módulo; las 4 páginas y el comprobante lo importan |
+
+Duplicación pendiente medida: **10 → 6 usos** (`Gs.` de impresión en PRN y los
+5 `<textarea>` de DSN). El resto del tablero quedó en cero.
+
+### Lote 5 — Aviso completo, skeletons y avisos que faltaban (21-09)
+
+| Objeto | Dónde vive | Antes (evidencia) | Después |
+| --- | --- | --- | --- |
+| `Aviso` (completado) | `src/components/ui/index.jsx` | Faltaba el tono **warn** (30 banners con `border-warn/30 bg-warn/10`, 9 con texto de tono) y el contenedor para el **aviso con estructura** (6 casos con ícono o botón de reintentar que no podían ser un `<p>`) | `tono="warn"` + `como="div"`; 12 sitios migrados (Login, SellerData, Campañas, Kardex, IMEIcheck, Pagos, Paso de cobro, importación CSV, Comprobante, Inventario, Compras, panel y landing); la confirmación post-venta del POS también |
+| `Skeleton` (adopción) | `src/components/ui/index.jsx` | **9 placeholders de carga** hechos a mano con `animate-pulse` + fondo propio (SellerData, PortalUI, Campañas, UnidadDetalle, PedidoDetalle) | Todos pasan por `Skeleton` conservando forma y color; quedan solo pulsos decorativos (ícono de éxito, punto de estado) |
+
+Duplicación pendiente medida: **6 usos** sin cambios (PRN + DSN), pero el
+tablero quedó sin los avisos y las cargas duplicadas. Los patrones que quedan
+para revisar están listados en el script (`bg-warn/5`, notas neutras con borde
+warn y la celda de identidad de 13 px que espera a DSN).
+
+### Lote 6 — reconciliación con los objetos de DSN (#211) (21-09)
+
+- **Rebase sobre la integración pendiente**: los conflictos contra el trabajo de
+  DSN (#211: `PersonaChip`, `FilaDato`, `CeldaMoneda`, `BarraProgreso` y sus
+  adopciones) se resolvieron conservando ambos lados en `PedidoPublico`,
+  la landing (`CapturaModulo`, `ImeiVerificador`) y la biblioteca de objetos.
+- **`CELDA_MONTO` → `CELDA_NUMERO`**: mi clase se llamaba como el objeto de DSN
+  y podía confundirse. Ahora la clase es solo para números y cantidades
+  (8 celdas) y el **dinero** usa `ui/CeldaMoneda` (5 celdas migradas en
+  CustomerProfile, ImportarProductos y Reportes).
+- **`CELDA_DATO` en `PersonaChip`**: el componente de DSN ahora usa la clase de
+  dato secundario en vez de copiarla.
+- **Tests**: la regla de celdas exige `CeldaMoneda` para montos; el contador
+  separa "mapas de estado con etiquetas propias" (variantes, no copias).
+- **`BarraProgreso` (3 adopciones)**: las barras de avance de `PagosPedido`,
+  `Creditos` y la garantía pública pasan al objeto de DSN (con su track original
+  vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
+  en el contador.
+
 ### Identidad (#211) — sin duplicar
 
 Tras los últimos merges, la identidad está repartida así: `Avatar` compartido
@@ -75,11 +117,11 @@ para DSN (#211), que ya tiene el inventario y los call sites.
    `17-sept., 15:30`) y `fechaCorta` (listas densas: `17-sept. · 15:30`) son
    dos variantes de la misma idea; DSN decide si convergen en una. Las horas ya
    van en 24 h por el helper y por `disenoReglas.test.js`.
-3. **Celda de dato e identidad.** `truncate text-xs text-mute` se repite **74
-   veces en 32 archivos** y `truncate text-[13px] font-semibold` **21 veces en
-   14**; `TABLAS.md` habla de `text-sm` para el nombre. Candidatos:
-   `CELDA_DATO` y `CELDA_IDENTIDAD` en `shared/tabla.js`, previa confirmación
-   del tamaño.
+3. **Celda de dato e identidad.** `CELDA_DATO` ✅ aplicado en el lote 4.
+   Queda **`CELDA_IDENTIDAD`**: `truncate text-[13px] font-semibold` (21 usos en
+   14 archivos) y `truncate text-sm font-semibold` (13 usos); `TABLAS.md` habla
+   de `text-sm` para el nombre. DSN decide el tamaño y, si corresponde, lo crea
+   junto con el objeto de identidad (#211).
 
 ### P2 — Objetos de plataforma (PLT) — ✅ resueltos en el lote 2
 
@@ -99,34 +141,32 @@ para DSN (#211), que ya tiene el inventario y los call sites.
 
 ### P2 bis — sigue pendiente
 
-1. **Enlace de WhatsApp**: `main` ya centralizó `whatsappUrl` en
-   `components/customers/customerMessaging.js` (Campañas lo usa). Quedan 3
-   copias: `ventas/PagosPedido.jsx:40`, `ventas/FormularioVenta.jsx:1917` y
-   `pages/GarantiaPublica.jsx:85`. Propuesta: mover `whatsappUrl` a
-   `utils/telefono.js` (junto a `internationalPhone`) y adoptarlo en los tres.
+1. ✅ **Enlace de WhatsApp**: ahora `whatsappUrl` vive en `utils/telefono.js`
+   (junto a `internationalPhone`) y lo usan los 7 call sites, incluidos
+   `PagosPedido`, `FormularioVenta` y `Garantía pública`; el enlace del carrito
+   suspendido ahora lleva el código de país.
 
 ### P3 — Patrones de UI por pantalla (DSN + slots de dominio)
 
-2. **Aviso con estructura** (ícono o botón "Reintentar"): 6 lugares repiten el
-   mismo contenedor con `role="alert"` y contenido hijo
-   (`ventas/SellerData.jsx:68`, `customers/CampanasClientes.jsx:118`,
-   `productos/KardexProducto.jsx:131`, `pages/Login.jsx:318/324`,
-   `control/DatosPrivados.jsx:84`, `control/PaymentAccounts.jsx:252`). Necesita
-   que `Aviso` acepte un elemento contenedor (`como="div"`); quedó fuera del
-   lote para no inventar API sin DSN.
-3. **Mapas de estado → etiqueta/tono duplicados** (dominio de cada slot):
-    - `pages/PortalCliente.jsx:10-15` y `pages/CuentaPublica.jsx:10-17` tienen
-      los **mismos tres mapas** (`ORDER_STATUS`, `FULFILLMENT`,
-      `WARRANTY_STATUS`) y las mismas `tonoPedido`/`tonoGarantia`.
+1. ✅ **Estados de pedido/entrega/garantía del cliente**: los mapas y tonos de
+   las páginas públicas viven en `lib/estadosPedido.js` (lote 4). Quedan los
+   mapas **internos con badge** (`CustomerProfile.jsx:45/63`, `label` + `color`
+   con más estados) y el `FULFILLMENT` de `lib/printing/tickets.js` (PRN).
+
+2. ✅ **Aviso con estructura** (ícono o botón "Reintentar"): resuelto en el lote
+   5 con `Aviso como="div"`; los 6 lugares migraron sin cambiar el diseño.
+3. **Mapas de estado internos → etiqueta/tono duplicados** (dominio de cada
+   slot; las páginas públicas ya se unificaron en `lib/estadosPedido.js`):
     - `lib/servicioChecklist.js` (ESTADOS), `control/ServicioTecnico.jsx:26-37`
       (ESTADOS + ESTADO_LABEL + ESTADO_TONE), `control/Compras.jsx:52`,
       `control/AuditoriaEfectivo.jsx:16`, `control/Conciliacion.jsx:21`,
-      `control/Auditoria.jsx:225`, `ventas/venta/entrega.js:18-21`.
-    - Tono de unidad: `control/Inventario.jsx:57` y
-      `inventory/UnidadDetalle.jsx:18` definen reglas distintas para el mismo
-      dato (una considera `condition === 'NEW'`).
+      `control/Auditoria.jsx:225`, `ventas/venta/entrega.js:18-21` y
+      `lib/printing/tickets.js:11` (PRN).
+    - Tono de unidad: `control/Inventario.jsx` y `inventory/UnidadDetalle.jsx`
+      definen reglas distintas para el mismo dato (una considera
+      `condition === 'NEW'`).
     Propuesta: `utils/estados.js` con `{ etiqueta, tono }` por estado y un
-    `tonoUnidad(unit)` en `utils/inventario.js`, coordinado con INV/CRM/POS.
+    `tonoUnidad(unit)` en `utils/inventario.js`, coordinado con INV/CRM/POS/PRN.
 4. **Campos crudos pendientes del barrido de #147** (DSN):
     - `pages/RemitoPublico.jsx:170` y `pages/CotizacionPublica.jsx:148`
       (`<textarea>` con las clases del sistema copiadas), `ventas/PedidoDetalle.jsx:568`

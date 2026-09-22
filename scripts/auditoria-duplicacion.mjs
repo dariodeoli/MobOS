@@ -43,13 +43,20 @@ const MEDICIONES = [
       contar('deviceId()', /\bdeviceId\(/g, { excluir: ['lib/deviceId.js'] }),
       contar('montoTexto/montoGs/montoUsd', /monto(Texto|Gs|Usd)\(/g, { excluir: ['utils/moneda.js'] }),
       contar('escapeHtml compartido', /\bescapeHtml\(/g, { excluir: ['utils/printHtml.js'] }),
+      contar('CELDA_DATO/CELDA_NUMERO', /CELDA_(DATO|NUMERO)/g, { excluir: ['components/shared/tabla.js'] }),
+      contar('CeldaMoneda/CeldaMoneda', /CeldaMoneda/g, { excluir: ['components/ui/index.jsx'] }),
+      contar('BarraProgreso', /<BarraProgreso\b/g, { excluir: ['components/ui/index.jsx'] }),
+      contar('whatsappUrl', /whatsappUrl\(/g, { excluir: ['utils/telefono.js'] }),
+      contar('estados de pedido del cliente', /(ESTADO_PEDIDO|ESTADO_ENTREGA|ESTADO_GARANTIA|tonoPedido|tonoGarantia)/g, { excluir: ['lib/estadosPedido.js'] }),
+      contar('<Skeleton>', /<Skeleton\b/g, { excluir: ['components/ui/index.jsx'] }),
     ],
   },
   // Duplicación pendiente (cuanto más bajo, mejor).
   {
     grupo: 'duplicación pendiente',
     filas: [
-      contar('avisos inline a mano', /<p[^>]*rounded-lg border border-(bad|ok)\/30 bg-(bad|ok)\/10/g),
+      contar('avisos inline a mano', /(?:<p|<div)[^>]*rounded-(?:lg|xl)[^>]*border-(?:bad|ok|warn)\/30 bg-(?:bad|ok|warn)\/10[^"]*text-(?:bad|ok|warn)/g, { excluir: ['components/ui/index.jsx'] }),
+      contar('skeletons a mano', /animate-pulse[^"]*rounded-(?:lg|xl|2xl)/g, { excluir: ['components/ui/index.jsx'] }),
       contar('clases de tabla copiadas', /className="[^"]*text-\[10px\] font-bold uppercase tracking-wider text-mute/g, { excluir: ['components/shared/tabla.js'] }),
       contar('rótulos de sección copiados', /className="[^"]*text-xs font-bold uppercase tracking-wider text-mute/g, { excluir: ['components/shared/tabla.js'] }),
       contar('formato de fecha duplicado', /dateStyle: 'short', timeStyle: 'short'/g, { excluir: ['utils/fecha.js', 'lib/printing/', 'lib/imeiComprobante.js', 'lib/customerReport.js'] }),
@@ -57,12 +64,26 @@ const MEDICIONES = [
       contar('descarga con Blob + <a>', /createObjectURL\(new Blob/g, { excluir: ['utils/descargarArchivo.js'] }),
       contar('escapeHtml propio', /(function|const) escapeHtml/g, { excluir: ['utils/printHtml.js'] }),
       contar('vacíos con caja propia', /text-center text-sm text-mute">(?:No hay|Sin )/g),
+      contar('celdas de dato sin objeto', /className="[^"]*truncate text-xs text-mute/g, { excluir: ['components/shared/tabla.js'] }),
+      contar('mapas de estado copiados', /const (ORDER_STATUS|FULFILLMENT|WARRANTY_STATUS|ESTADO_PEDIDO|ESTADO_ENTREGA|ESTADO_GARANTIA) = \{ (?:PENDING|PROCESSING|RECEIVED): '(?:Pendiente de pago|En preparación|Recibido)'/g, { excluir: ['lib/estadosPedido.js', 'lib/printing/'] }),
       contar('montos con US$ y toLocaleString', /US\$ \$\{[^}]*toLocaleString\('en-US'/g, { excluir: ['utils/moneda.js', 'components/ui/index.jsx'] }),
-      contar('wa.me a mano', /wa\.me\//g),
+      contar('wa.me a mano', /wa\.me\//g, { excluir: ['utils/telefono.js'] }),
       contar('device-id repetido', /mobos:device-id/g, { excluir: ['lib/deviceId.js'] }),
       contar('vista list/grid sin hook', /localStorage\.(getItem|setItem)\('mobos:[a-z-]*vista/g, { excluir: ['hooks/useVistaListaGrid.js'] }),
       contar('monto en Gs a mano', /Gs\.?[^`"']{0,40}toLocaleString\('es-PY'\)/g, { excluir: ['utils/moneda.js'] }),
       contar('textarea crudo', /<textarea/g, { excluir: ['components/ui/index.jsx'] }),
+    ],
+  },
+  // Patrones a revisar: no siempre son duplicación (pueden ser otra pieza
+  // visual), pero conviene que alguien los mire y decida si se unifican.
+  {
+    grupo: 'patrones a revisar',
+    filas: [
+      contar('notas con borde warn y texto neutro', /(?:<p|<div)[^>]*border-warn\/(?:25|30)[^"]*text-mute/g),
+      contar('superficies warn suaves (bg-warn/5)', /bg-warn\/5/g),
+      contar('nombre de persona en celda (13px o sm)', /truncate text-(?:\[13px\]|sm) font-semibold/g),
+      contar('mapas de estado con etiquetas propias', /const (ORDER_STATUS|FULFILLMENT|WARRANTY_STATUS|ESTADO_PEDIDO|ESTADO_ENTREGA|ESTADO_GARANTIA) = \{/g, { excluir: ['lib/estadosPedido.js', 'lib/printing/'] }),
+      contar('barras de avance a mano', /style=\{\{ width: `\$\{[^}]*\}%` \}\}/g, { excluir: ['components/ui/index.jsx'] }),
     ],
   },
 ]

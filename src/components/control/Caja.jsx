@@ -30,6 +30,7 @@ import { ticketCierreCaja } from '@/lib/printing/reportes'
 import { imprimirDocumento } from '@/lib/printing/agent'
 import { descargarCsv } from '@/utils/descargarCsv'
 import { parseDelimited } from '@/utils/csv'
+import { CELDA_DATO } from '@/components/shared/tabla'
 
 // Denominaciones del arqueo en guaraníes: son las mismas que acepta el backend
 // y el total contado se deriva de acá cuando hay desglose.
@@ -811,7 +812,7 @@ export default function Caja() {
                             <p className="text-sm font-semibold tabular-nums">
                               {fechaCorta(fila.row.date)} · <Money value={fila.row.amountPyg} />
                             </p>
-                            <p className="truncate text-xs text-mute">
+                            <p className={CELDA_DATO}>
                               {[fila.row.reference, fila.row.description]
                                 .filter(Boolean)
                                 .join(' · ') || 'Sin referencia'}

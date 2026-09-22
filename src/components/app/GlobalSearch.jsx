@@ -4,6 +4,8 @@ import { Aviso, Badge, EmptyState, Input, Modal, Skeleton } from '@/components/u
 import Icon from '@/components/shared/Icon'
 import { gs } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
+import { CELDA_DATO } from '@/components/shared/tabla'
+import { cn } from '@/lib/utils'
 
 const MAX_POR_GRUPO = 5
 const MIN_CARACTERES = 2
@@ -314,7 +316,7 @@ export default function GlobalSearch({ open, onClose, onNavigate, vistas }) {
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-medium text-fore">{fila.titulo}</span>
-                            <span className="block truncate text-xs text-mute">{fila.subtitulo}</span>
+                            <span className={cn('block', CELDA_DATO)}>{fila.subtitulo}</span>
                           </span>
                           <Icon name="chevron" className="h-4 w-4 shrink-0 text-mute" />
                         </li>

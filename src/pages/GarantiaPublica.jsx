@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
-import { internationalPhone } from '@/utils/telefono'
+import { whatsappUrl } from '@/utils/telefono'
+import { ESTADO_GARANTIA } from '@/lib/estadosPedido'
 import { codigoPedido } from '@/utils/pedido'
 import Icon from '@/components/shared/Icon'
 import { useParams } from 'react-router-dom'
 import { API_URL } from '@/lib/api/client'
-import { Aviso } from '@/components/ui'
+import { Aviso, BarraProgreso } from '@/components/ui'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
-
-const WARRANTY_STATUS = { RECEIVED: 'Recibido', DIAGNOSIS: 'En diagnóstico', READY: 'Listo', DELIVERED: 'Entregado' }
 
 function bulletList(text) {
   if (!text) return []
@@ -51,7 +50,7 @@ export default function GarantiaPublica() {
                 </div>
                 {pct !== null && (
                   <div className="w-28">
-                    <div className="h-2 overflow-hidden rounded-full bg-ink-700"><div className={`h-full rounded-full ${days === 0 ? 'bg-bad' : days <= 15 ? 'bg-warn' : 'bg-ok'}`} style={{ width: `${pct}%` }} /></div>
+                    <BarraProgreso valor={pct} tono={days === 0 ? 'bad' : days <= 15 ? 'warn' : 'ok'} etiqueta="Cobertura de la garantía" className="h-2 bg-ink-700" />
                     <p className="mt-1 text-right text-[10px] text-mute">{pct}% del período</p>
                   </div>
                 )}
@@ -60,7 +59,7 @@ export default function GarantiaPublica() {
                 <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Compra</p><p className="mt-1 font-semibold">{warranty.purchasedAt ? new Date(warranty.purchasedAt).toLocaleDateString('es-PY') : '—'}</p></div>
                 <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Vence</p><p className="mt-1 font-semibold">{warranty.expiresAt ? new Date(warranty.expiresAt).toLocaleDateString('es-PY') : '—'}</p></div>
                 <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Serial / IMEI</p><p className="mt-1 truncate font-mono text-xs font-semibold">{serial}</p></div>
-                <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Estado del caso</p><p className="mt-1 font-semibold">{WARRANTY_STATUS[warranty.status] || warranty.status}</p></div>
+                <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Estado del caso</p><p className="mt-1 font-semibold">{ESTADO_GARANTIA[warranty.status] || warranty.status}</p></div>
               </div>
             </section>
             <section className="rounded-2xl border border-ok/25 bg-ok/5 p-5">
@@ -84,7 +83,7 @@ export default function GarantiaPublica() {
                 <p className="font-bold">{warranty.store.name}</p>
                 {warranty.store.city && <p className="mt-1 text-mute">{warranty.store.city}</p>}
                 {warranty.store.phone && (
-                  <a className="mt-3 inline-block rounded-lg bg-ok px-4 py-2 font-semibold text-black" href={`https://wa.me/${internationalPhone(warranty.store.phone)}`} target="_blank" rel="noreferrer">
+                  <a className="mt-3 inline-block rounded-lg bg-ok px-4 py-2 font-semibold text-black" href={whatsappUrl(warranty.store.phone)} target="_blank" rel="noreferrer">
                     Contactar por WhatsApp
                   </a>
                 )}

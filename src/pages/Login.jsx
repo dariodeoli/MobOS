@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
-import { Button, Input, Label, PasswordInput, PinInput, Select } from '@/components/ui'
+import { Aviso, Button, Input, Label, PasswordInput, PinInput, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import EmailField from '@/components/shared/EmailField'
 import { publicUrls, rutaInterna } from '@/lib/urls'
@@ -10,6 +10,8 @@ import { deviceId } from '@/lib/deviceId'
 import AuthLayout from '@/components/auth/AuthLayout'
 import GoogleButton, { OAuthDivider } from '@/components/auth/GoogleButton'
 import ThemeLogo from '@/components/app/ThemeLogo'
+import { CELDA_DATO } from '@/components/shared/tabla'
+import { cn } from '@/lib/utils'
 
 export default function Login() {
   const { entrarEmpresa, entrarVendedor } = useSesion()
@@ -266,7 +268,7 @@ export default function Login() {
                 <button key={t.id} type="button" onClick={() => elegirTienda(t.id)} disabled={cargando} className="flex w-full items-center justify-between gap-3 rounded-xl border border-ink-500 bg-paper px-4 py-3 text-left transition hover:border-fono hover:bg-fono/5 disabled:cursor-not-allowed disabled:opacity-30">
                   <span className="min-w-0">
                     <strong className="block truncate text-sm text-fore">{t.name}</strong>
-                    <span className="block truncate text-xs text-mute">{t.slug}</span>
+                    <span className={cn('block', CELDA_DATO)}>{t.slug}</span>
                   </span>
                   <Icon name="chevron" className="h-4 w-4 shrink-0 -rotate-90 text-mute" />
                 </button>
@@ -314,16 +316,16 @@ export default function Login() {
           </>}
 
           {error && (
-            <div className="flex items-start gap-2 rounded-lg border border-bad/30 bg-bad/10 px-3.5 py-2.5 text-sm text-bad">
+            <Aviso como="div" className="flex items-start gap-2 px-3.5 py-2.5">
               <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{error}</span>
-            </div>
+            </Aviso>
           )}
           {ok && (
-            <div className="flex items-start gap-2 rounded-lg border border-ok/30 bg-ok/10 px-3.5 py-2.5 text-sm text-ok">
+            <Aviso tono="ok" como="div" className="flex items-start gap-2 px-3.5 py-2.5">
               <Icon name="check" className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{ok}</span>
-            </div>
+            </Aviso>
           )}
 
           {etapa !== 'tienda' && <Button type="submit" className="h-14 w-full rounded-xl text-base" disabled={cargando || (modo === 'entrar' && etapa === 'vendedor')}>

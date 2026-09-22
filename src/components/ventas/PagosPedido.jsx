@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Modal, Input, Select, Button, MoneyInput, Badge } from '@/components/ui'
+import { Aviso, Badge, BarraProgreso, Button, Input, Modal, MoneyInput, Select } from '@/components/ui'
 import { useSesion } from '@/lib/sesion'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { descargarArchivo } from '@/utils/descargarArchivo'
@@ -14,7 +14,7 @@ import NumericKeypad from '@/components/shared/NumericKeypad'
 import SerialField from '@/components/shared/SerialField'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import { trackingUrlFor } from '@/components/shared/OrderReceipt'
-import { internationalPhone } from '@/utils/telefono'
+import { whatsappUrl } from '@/utils/telefono'
 import { renderMessage } from '@/components/customers/customerMessaging'
 import { printInternalReceipt, printOrderReceipt } from '@/components/shared/OrderReceipt'
 import { configImpresora } from '@/lib/printing/agent'
@@ -29,8 +29,6 @@ import { ROTULO_SECCION } from '@/components/shared/tabla'
 export function whatsappTrackingLink(order, extra = '', template = null) {
   const tracking = trackingUrlFor(order)
   if (!tracking) return ''
-  const number = internationalPhone(order?.customer?.phone || order?.clienteTelefono, order?.customer?.countryCode)
-  if (!number) return ''
   const name = order?.customer?.name || order?.cliente || ''
   const mensajePlantilla = template?.body
     ? renderMessage(template, {
@@ -40,7 +38,7 @@ export function whatsappTrackingLink(order, extra = '', template = null) {
       })
     : ''
   const message = mensajePlantilla || `Hola${name ? ` ${name}` : ''}, podés seguir tu pedido ${order?.codigo || order?.orderNumber || ''} acá: ${tracking}${extra ? `\n${extra}` : ''}`
-  return `https://wa.me/${number}?text=${encodeURIComponent(message)}`
+  return whatsappUrl(order?.customer?.phone || order?.clienteTelefono, message, order?.customer?.countryCode)
 }
 
 const METODOS_PAGO = ['CASH', 'TRANSFER', 'CARD', 'CREDIT', 'PIX', 'STORE_CREDIT']
@@ -326,7 +324,12 @@ export default function PagosPedido({ venta, onClose }) {
     <div className="mb-5 grid grid-cols-2 gap-3">
       <div className="rounded-2xl border border-ok/25 bg-gradient-to-br from-ok/10 to-transparent p-4"><p className="text-xs text-mute">Pagado</p><strong className="mt-1 block text-xl tabular-nums text-ok">{gs(order.totalPagado)}</strong></div>
       <div className={`rounded-2xl border p-4 ${pending > 0 ? 'border-warn/25 bg-gradient-to-br from-warn/10 to-transparent' : 'border-ink-600'}`}><p className="text-xs text-mute">Pendiente</p><strong className={`mt-1 block text-xl tabular-nums ${pending > 0 ? 'text-warn' : ''}`}>{gs(pending)}</strong></div>
-      <div className="col-span-2 h-1.5 overflow-hidden rounded-full bg-ink-700"><div className="h-full rounded-full bg-ok transition-all" style={{ width: `${Number(order.precio || order.totalPyg || 0) > 0 ? Math.min(100, Math.round((Number(order.totalPagado || 0) / Number(order.precio || order.totalPyg || 1)) * 100)) : 0}%` }} /></div>
+      <BarraProgreso
+        valor={Number(order.precio || order.totalPyg || 0) > 0 ? Math.min(100, Math.round((Number(order.totalPagado || 0) / Number(order.precio || order.totalPyg || 1)) * 100)) : 0}
+        tono="ok"
+        etiqueta="Progreso de pago del pedido"
+        className="col-span-2 bg-ink-700"
+      />
       {saldoFavor?.availablePyg > 0 && <p className="col-span-2 text-xs text-ok">Saldo a favor disponible: {gs(saldoFavor.availablePyg)}</p>}
     </div>
     {canReturn && !postventaOpen && (
@@ -350,7 +353,7 @@ export default function PagosPedido({ venta, onClose }) {
               <button key={value} type="button" className={`rounded-lg border px-3 py-2 text-xs font-semibold ${postventa.refundMode === value ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute'}`} onClick={() => setPostventa(current => ({ ...current, refundMode: value }))}>{label}</button>
             ))}
           </div>
-          {postventa.refundMode === 'CREDIT' && !order.customer?.id && <p className="rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-xs text-warn">Este pedido no tiene cliente identificado: para dejar saldo a favor primero asignale un cliente.</p>}
+          {postventa.refundMode === 'CREDIT' && !order.customer?.id && <Aviso tono="warn" compact>Este pedido no tiene cliente identificado: para dejar saldo a favor primero asignale un cliente.</Aviso>}
           <label className="block text-xs text-mute">Monto — total cobrado {gs(cobrado)}<MoneyInput aria-label="Monto de reembolso" currency="PYG" value={postventa.refundPyg} onValueChange={next => setPostventa(current => ({ ...current, refundPyg: next === '' ? '' : String(next) }))} placeholder={String(cobrado)} /></label>
         </>}
         <label className="block text-xs text-mute">Stock devuelto

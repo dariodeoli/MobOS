@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
+import Switch from '@/components/shared/Switch'
 import PhotoCropper from '@/components/shared/PhotoCropper'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import { getLogoDataUrl, olvidarLogo } from '@/lib/tenantLogo'
@@ -12,7 +13,7 @@ import { getCompanyContext, sessionApi } from '@/lib/api/session'
 import { deviceId } from '@/lib/deviceId'
 import { comprimirImagen } from '@/utils/imagen'
 import { fechaHora as fmtDate } from '@/utils/fecha'
-import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, Eyebrow, FormField, Input, Label, Modal, MoneyInput, PasswordInput, PinInput, Toggle, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, Eyebrow, FormField, Input, Label, Modal, MoneyInput, PasswordInput, PinInput, useToast } from '@/components/ui'
 import { formatGs } from '@/utils/moneda'
 import Icon from '@/components/shared/Icon'
 import EmailField from '@/components/shared/EmailField'
@@ -28,6 +29,8 @@ import DatosPrivados from '@/components/control/DatosPrivados'
 import { ROLE_LABELS } from '@/lib/roles'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { descargarArchivo } from '@/utils/descargarArchivo'
+import { CELDA_DATO } from '@/components/shared/tabla'
+import { cn } from '@/lib/utils'
 
 async function copiarValor(toast, valor, etiqueta) {
   if (!valor) return
@@ -275,7 +278,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
             </FormField>
           </div>
           <div className="flex flex-wrap items-end gap-3 rounded-xl border border-ink-600/70 bg-ink-800/30 p-3">
-            <span className="flex items-center gap-2 text-sm"><Toggle id="seguro-toggle" checked={seguroPct.trim() !== '' && Number(seguroPct) > 0} onChange={(on) => setSeguroPct(on ? (seguroPct && Number(seguroPct) > 0 ? seguroPct : '25') : '')} ariaLabel="Aplica seguro" /><span>Seguro de ventas</span></span>
+            <span className="flex items-center gap-2 text-sm"><Switch id="seguro-toggle" checked={seguroPct.trim() !== '' && Number(seguroPct) > 0} onChange={(event) => setSeguroPct(event.target.checked ? (seguroPct && Number(seguroPct) > 0 ? seguroPct : '25') : '')} ariaLabel="Aplica seguro" /><span>Seguro de ventas</span></span>
             <FormField label="Porcentaje sobre el costo (%)" htmlFor="seguro-pct" hint="Costo real = costo + seguro. Ej.: costo 100.000 y 25% → 125.000; el margen baja en 25.000.">
               <PercentField id="seguro-pct" max={100} disabled={busy || seguroPct.trim() === ''} value={seguroPct} onChange={setSeguroPct} placeholder="25" />
             </FormField>
@@ -715,7 +718,7 @@ function SeccionTiendas({ account }) {
                   <b className="truncate text-sm">{store.name}</b>
                   {store.current && <Badge color="green">Actual</Badge>}
                 </div>
-                <p className="mt-1 truncate text-xs text-mute">ID: {store.id}</p>
+                <p className={cn('mt-1', CELDA_DATO)}>ID: {store.id}</p>
               </div>
               <Button type="button" variant="outline" onClick={() => copiarValor(toast, store.id, 'ID de la tienda')} disabled={!store.id}>Copiar ID</Button>
             </div>

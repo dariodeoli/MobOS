@@ -9,7 +9,7 @@ import { formatGs } from '@/utils/moneda'
 import { fechaCorta, fechaHora } from '@/utils/fecha'
 import { cn } from '@/lib/utils'
 import { Aviso, Badge, Button, Card, EmptyState, Input, Select } from '@/components/ui'
-import { CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
 // Auditoría de efectivo (#161): efectivo inicial y recibido por sesión, cada
 // operación (pedido, cliente, fecha/hora, monto, vendedor y nota) con su marca
 // verificada/pendiente/con diferencia y observación, sobre un rango de fechas.
@@ -134,12 +134,12 @@ export default function AuditoriaEfectivo() {
             const estado = ESTADOS[operacion.status] || ESTADOS.PENDING
             const pendienteDeGuardar = borrador.status !== operacion.status || (borrador.note || '') !== (operacion.notaAuditoria || '')
             return <div key={clave} data-testid="auditoria-fila" className="grid min-w-[52rem] grid-cols-[6.5rem_minmax(0,1fr)_8rem_7rem_11rem_minmax(0,1.1fr)] items-center gap-x-2 rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2">
-              <span className="truncate text-xs text-mute" title={fechaHora(operacion.fecha)}>{fechaCorta(operacion.fecha)}</span>
+              <span className={CELDA_DATO} title={fechaHora(operacion.fecha)}>{fechaCorta(operacion.fecha)}</span>
               <span className="min-w-0">
                 <b className="block truncate text-[13px]">{operacion.kind === 'PAYMENT' ? (operacion.pedido || 'Cobro en efectivo') : operacion.nota || 'Movimiento de caja'}</b>
                 <span className="mt-0.5 block truncate text-[11px] text-mute">{[operacion.kind === 'PAYMENT' ? operacion.cliente : operacion.nota, operacion.notaAuditoria, operacion.auditadoPor ? `auditó ${operacion.auditadoPor}` : ''].filter(Boolean).join(' · ') || '—'}</span>
               </span>
-              <span className="truncate text-xs text-mute">{operacion.vendedor || '—'}</span>
+              <span className={CELDA_DATO}>{operacion.vendedor || '—'}</span>
               <span className={cn('truncate text-xs tabular-nums', operacion.direction === 'OUT' ? 'text-bad' : 'text-ok')}>{operacion.direction === 'OUT' ? '−' : '+'}{formatGs(operacion.montoPyg)}</span>
               <span className="flex items-center gap-1.5">
                 <Badge color={estado.color} className="w-fit whitespace-nowrap">{estado.label}</Badge>

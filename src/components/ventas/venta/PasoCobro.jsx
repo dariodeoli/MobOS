@@ -1,4 +1,4 @@
-import { Button, Input, Label, MoneyInput, Select, Textarea } from '@/components/ui'
+import { Aviso, Button, Input, Label, MoneyInput, Select, Textarea } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import SelectorMedioPago from '@/components/shared/SelectorMedioPago'
 import NumericKeypad from '@/components/shared/NumericKeypad'
@@ -127,9 +127,9 @@ export default function PasoCobro({
                 Aplicar descuento por medio ({descuentoMedioPct}% = {gs(descuentoMedioGs)})
               </button>
             ) : (
-              <p className="rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-xs text-warn">
+              <Aviso tono="warn" compact>
                 El medio elegido sugiere un descuento del {descuentoMedioPct}% ({gs(descuentoMedioGs)}). Pedí autorización a gerencia para aplicarlo.
-              </p>
+              </Aviso>
             )
           )}
           <Button

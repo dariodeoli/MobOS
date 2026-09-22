@@ -5,8 +5,8 @@ import { Aviso, Badge, Button, Card, EmptyState, Input, Modal, Select, Skeleton,
 import Icon from '@/components/shared/Icon'
 import { gs } from '@/utils/calculos'
 import { telefonoVisible } from '@/utils/telefono'
-import { ROTULO_SECCION } from '@/components/shared/tabla'
-
+import { CELDA_DATO, ROTULO_SECCION } from '@/components/shared/tabla'
+import { cn } from '@/lib/utils'
 const plural = (n, singular, pluralTexto) => `${Number(n) || 0} ${Number(n) === 1 ? singular : pluralTexto}`
 
 // Campañas de recompra: segmento → selección → plantilla → enlaces wa.me.
@@ -180,7 +180,7 @@ export default function MarketingCampaigns({ open, onClose, onContacted }) {
             </Aviso>
             {resultado.recipients?.map((row) => (
               <div key={row.customerId} data-testid="marketing-destinatario" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-600 p-2.5">
-                <span className="min-w-0"><b className="text-sm">{row.name}</b><span className="mt-0.5 block truncate text-xs text-mute">{row.phone ? telefonoVisible(row.phone, row.countryCode) : 'sin teléfono'} · enlace wa.me listo</span></span>
+                <span className="min-w-0"><b className="text-sm">{row.name}</b><span className={cn('mt-0.5 block', CELDA_DATO)}>{row.phone ? telefonoVisible(row.phone, row.countryCode) : 'sin teléfono'} · enlace wa.me listo</span></span>
                 <span className="flex gap-2">
                   <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold" onClick={async () => { if (await copiarAlPortapapeles(row.whatsappUrl)) toast.success('Enlace copiado.'); else toast.error('No se pudo copiar el enlace.') }}><Icon name="copy" className="mr-1 inline h-3 w-3" />Copiar enlace</button>
                   <a className="rounded-lg bg-ok px-3 py-1.5 text-xs font-semibold text-black" href={row.whatsappUrl} target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a>

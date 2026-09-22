@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, apiFetch } from '@/lib/api/client'
-import { Badge, Button, EmptyState, Input, Label, Modal, Skeleton, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, EmptyState, Input, Label, Modal, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
-import { ROTULO_DATO } from '@/components/shared/tabla'
+import { CELDA_NUMERO, ROTULO_DATO } from '@/components/shared/tabla'
 import { descargarArchivo } from '@/utils/descargarArchivo'
 import { cn } from '@/lib/utils'
 import { FECHA_KARDEX, consultaKardex, extremosDelRango } from '@/utils/kardex'
@@ -122,18 +122,18 @@ export default function KardexProducto({ product, open, onClose, esDemo = false 
         )}
 
         {!esDemo && !loading && error && (
-          <div className="rounded-xl border border-bad/30 bg-bad/10 px-4 py-3 text-sm text-bad" role="alert">
+          <Aviso como="div" className="rounded-xl px-4 py-3">
             {error}
             <button type="button" onClick={cargar} className="ml-2 underline">Reintentar</button>
-          </div>
+          </Aviso>
         )}
 
         {!esDemo && !loading && !error && data && (
           <>
             {data.truncado && (
-              <p className="rounded-xl border border-warn/30 bg-warn/10 px-4 py-2.5 text-xs text-warn">
+              <Aviso tono="warn" compact className="rounded-xl px-4 py-2.5">
                 Se muestran los últimos {numero(data.movimientos.length)} movimientos de {numero(data.total)}. Acotá el rango para ver un período completo.
-              </p>
+              </Aviso>
             )}
             <div className="overflow-x-auto rounded-xl border border-ink-600" data-testid="kardex-tabla">
               <div className="max-h-[52vh] overflow-y-auto">
@@ -147,8 +147,8 @@ export default function KardexProducto({ product, open, onClose, esDemo = false 
                     {data.sinDocumentar ? `Incluye ${numero(Math.abs(data.sinDocumentar))} sin documento` : 'Inicio del historial'}
                   </span>
                   <span className="text-mute">—</span>
-                  <span className="text-right tabular-nums">{data.saldoInicial > 0 ? numero(data.saldoInicial) : ''}</span>
-                  <span className="text-right tabular-nums">{data.saldoInicial < 0 ? numero(-data.saldoInicial) : ''}</span>
+                  <span className={CELDA_NUMERO}>{data.saldoInicial > 0 ? numero(data.saldoInicial) : ''}</span>
+                  <span className={CELDA_NUMERO}>{data.saldoInicial < 0 ? numero(-data.saldoInicial) : ''}</span>
                   <span className="text-right font-semibold tabular-nums">{numero(data.saldoInicial)}</span>
                 </div>
                 {filas.length === 0 && (
@@ -164,8 +164,8 @@ export default function KardexProducto({ product, open, onClose, esDemo = false 
                         {movimiento.estimated ? '≈ ' : ''}{movimiento.label}{movimiento.detail ? ` · ${movimiento.detail}` : ''}
                       </span>
                       <span className="truncate text-mute" title={movimiento.user || undefined}>{movimiento.user || '—'}</span>
-                      <span className="text-right tabular-nums text-ok">{movimiento.delta > 0 ? numero(movimiento.delta) : ''}</span>
-                      <span className="text-right tabular-nums text-bad">{movimiento.delta < 0 ? numero(-movimiento.delta) : ''}</span>
+                      <span className={cn('text-ok', CELDA_NUMERO)}>{movimiento.delta > 0 ? numero(movimiento.delta) : ''}</span>
+                      <span className={cn('text-bad', CELDA_NUMERO)}>{movimiento.delta < 0 ? numero(-movimiento.delta) : ''}</span>
                       <span className="text-right font-semibold tabular-nums">{numero(movimiento.saldo)}</span>
                     </div>
                   )

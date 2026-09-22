@@ -7,6 +7,7 @@ import { getDemoServicio, saveDemoServicio, siguienteNumeroDemo } from '@/lib/de
 import { getDemoWarranties, saveDemoWarranties } from '@/lib/demoWarranties'
 import { useSesion } from '@/lib/sesion'
 import { cn } from '@/lib/utils'
+import { CELDA_DATO } from '@/components/shared/tabla'
 import Garantias from './Garantias'
 import ServicioTecnico from './ServicioTecnico'
 
@@ -173,9 +174,9 @@ export default function ServicioGarantias({ vistaInicial = 'servicio' }) {
                       {fila.enServicio && <span className="mt-1 block text-[10px] font-semibold text-ok">En servicio</span>}
                     </span>
                     <span className="truncate text-sm font-semibold" title={fila.cliente}>{fila.cliente}</span>
-                    <span className="min-w-0 truncate text-xs text-mute" title={[fila.equipo, fila.serial].filter(Boolean).join(' · ')}>{fila.equipo || '—'}{fila.serial ? ` · ${fila.serial}` : ''}</span>
-                    <span className="truncate text-xs text-mute">{fila.estado || '—'}</span>
-                    <span className="truncate text-xs text-mute">{fecha(fila.createdAt)}</span>
+                    <span className={cn('min-w-0', CELDA_DATO)} title={[fila.equipo, fila.serial].filter(Boolean).join(' · ')}>{fila.equipo || '—'}{fila.serial ? ` · ${fila.serial}` : ''}</span>
+                    <span className={CELDA_DATO}>{fila.estado || '—'}</span>
+                    <span className={CELDA_DATO}>{fecha(fila.createdAt)}</span>
                     <span className="flex items-center justify-end gap-2">
                       {fila.codigo && <span className="truncate text-[11px] font-semibold text-fono-light tabular-nums" title={fila.codigo}>{fila.codigo}</span>}
                       {fila.tipo === 'GARANTIA' && !fila.enServicio && (

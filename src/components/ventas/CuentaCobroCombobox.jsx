@@ -4,6 +4,7 @@ import Icon from '@/components/shared/Icon'
 import BancoLogo from '@/components/shared/BancoLogo'
 import { normalizarBusqueda } from '@/utils/cliente'
 import { cn } from '@/lib/utils'
+import { CELDA_DATO } from '@/components/shared/tabla'
 
 // Buscador contextual de cuentas de cobro: en vez de un desplegable que solo
 // muestra el nombre, se abre la lista completa y filtra al escribir por nombre,
@@ -111,7 +112,7 @@ export default function CuentaCobroCombobox({ value, onChange, accounts, disable
                 {account.bank ? <BancoLogo banco={account.bank} alto="h-4" /> : <Icon name="wallet" className="mt-0.5 h-4 w-4 shrink-0 text-fono-light" />}
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold text-fore">{account.name}</span>
-                  <span className="block truncate text-xs text-mute">
+                  <span className={cn('block', CELDA_DATO)}>
                     {[account.bank, account.holder].filter(Boolean).join(' · ') || ETIQUETA_MEDIO[account.kind] || account.kind}
                     {account.accountNumber ? ` · ${numeroParcial(account.accountNumber)}` : ''}
                   </span>

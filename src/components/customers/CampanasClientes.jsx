@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api/client'
 import Icon from '@/components/shared/Icon'
-import { Badge, Button, EmptyState, Select } from '@/components/ui'
+import { Aviso, Badge, Button, EmptyState, Select, Skeleton } from '@/components/ui'
 import { renderPlantilla } from '@/lib/whatsappPlantillas'
-import { whatsappUrl } from '@/components/customers/customerMessaging'
+import { telefonoVisible, whatsappUrl } from '@/utils/telefono'
 import { fechaDia } from '@/utils/fecha'
 import { montoGs } from '@/utils/moneda'
-import { telefonoVisible } from '@/utils/telefono'
-import { ROTULO_SECCION } from '@/components/shared/tabla'
-
+import { CELDA_DATO, ROTULO_SECCION } from '@/components/shared/tabla'
+import { cn } from '@/lib/utils'
 // Campañas de recompra (#82): segmentos calculados por el backend, selección
 // de destinatarios, vista previa de la plantilla de WhatsApp (categoría
 // CUSTOMERS) y envío de a uno con marca de contacto en la ficha.
@@ -116,8 +115,8 @@ export default function CampanasClientes({ templates = [], empresa, sucursal, ve
       {SEGMENTOS.map((item) => <button key={item.clave} type="button" aria-pressed={segmento === item.clave} title={item.descripcion} onClick={() => setSegmento(item.clave)} className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${segmento === item.clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{item.nombre}</button>)}
     </div>
 
-    {cargando && <div role="status" aria-busy="true" className="space-y-2 py-2"><span className="block h-12 animate-pulse rounded-xl bg-ink-700" /><span className="block h-12 animate-pulse rounded-xl bg-ink-700" /></div>}
-    {!cargando && error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-bad/30 bg-bad/10 px-4 py-3 text-sm text-bad"><p>{error}</p>{!error.includes('Solo administración') && <Button variant="outline" onClick={cargar}>Reintentar</Button>}</div>}
+    {cargando && <div role="status" aria-busy="true" className="space-y-2 py-2"><Skeleton className="h-12 w-full rounded-xl bg-ink-700" /><Skeleton className="h-12 w-full rounded-xl bg-ink-700" /></div>}
+    {!cargando && error && <Aviso como="div" className="flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3"><p>{error}</p>{!error.includes('Solo administración') && <Button variant="outline" onClick={cargar}>Reintentar</Button>}</Aviso>}
 
     {!cargando && !error && data && <>
       <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -149,7 +148,7 @@ export default function CampanasClientes({ templates = [], empresa, sucursal, ve
             <input type="checkbox" aria-label={`Seleccionar a ${row.name}`} className="h-4 w-4" checked={seleccion.has(row.id)} disabled={Boolean(motivo)} onChange={() => alternar(row.id)} />
             <div className="min-w-0 flex-1">
               <b className="block truncate text-sm">{row.name}</b>
-              <p className="mt-0.5 truncate text-xs text-mute">{row.phone ? telefonoVisible(row.phone, row.countryCode) : 'Sin teléfono'} · Última compra: {fecha(row.lastOrderAt) || 'sin pedidos'} · Total: {montoGs(row.totalSpentPyg || 0)}{row.pendingPyg ? ` · Saldo: ${montoGs(row.pendingPyg)}` : ''}</p>
+              <p className={cn('mt-0.5', CELDA_DATO)}>{row.phone ? telefonoVisible(row.phone, row.countryCode) : 'Sin teléfono'} · Última compra: {fecha(row.lastOrderAt) || 'sin pedidos'} · Total: {montoGs(row.totalSpentPyg || 0)}{row.pendingPyg ? ` · Saldo: ${montoGs(row.pendingPyg)}` : ''}</p>
             </div>
             {motivo && <Badge color={row.marketingContactedAt ? 'slate' : 'orange'}>{motivo}</Badge>}
             <Button type="button" variant="outline" className="h-8 px-2.5 text-xs" disabled={Boolean(motivo) || !plantilla} onClick={() => enviar(row)} title={motivo || `Abrir WhatsApp con ${row.name}`}><Icon name="send" className="h-3.5 w-3.5" />WhatsApp</Button>

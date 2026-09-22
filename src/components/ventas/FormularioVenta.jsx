@@ -50,7 +50,7 @@ import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import ColaOffline from './ColaOffline'
 import AnalyticsPos from './AnalyticsPos'
 import { whatsappTrackingLink } from './PagosPedido'
-import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
+import { telefonoValido, MENSAJE_TELEFONO, whatsappUrl } from '@/utils/telefono'
 import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
 import PasoProductos from './venta/PasoProductos'
 import PasoCarrito from './venta/PasoCarrito'
@@ -1534,11 +1534,7 @@ export default function FormularioVenta({
       </div>
 
       {ok && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-ok/30 bg-ok/10 p-4 text-ok"
-        >
+        <Aviso tono="ok" como="div" aria-live="polite" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl p-4">
           <span className="grid h-9 w-9 shrink-0 animate-pulse place-items-center rounded-full bg-ok/20">
             <Icon name="check" className="h-4 w-4" />
           </span>
@@ -1577,7 +1573,7 @@ export default function FormularioVenta({
               </Button>
             </>
           )}
-        </div>
+        </Aviso>
       )}
       {avisoSuspension && (
         <div
@@ -1933,7 +1929,7 @@ export default function FormularioVenta({
                       <Button type="button" variant="outline" onClick={() => copiarAlPortapapeles(enlacePublico.url).then((ok) => setAvisoEnlace(ok ? 'Enlace copiado: mandalo al cliente para que confirme.' : 'No se pudo copiar el enlace.'))}>Copiar</Button>
                       <a
                         className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore"
-                        href={`https://wa.me/${String(suspendida.customer?.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(`Hola${suspendida.customer?.name ? ` ${suspendida.customer.name}` : ''}, te comparto el carrito${suspendida.label ? ` "${suspendida.label}"` : ''}: ${enlacePublico.url}`)}`}
+                        href={whatsappUrl(suspendida.customer?.phone, `Hola${suspendida.customer?.name ? ` ${suspendida.customer.name}` : ''}, te comparto el carrito${suspendida.label ? ` "${suspendida.label}"` : ''}: ${enlacePublico.url}`, suspendida.customer?.countryCode)}
                         target="_blank"
                         rel="noopener noreferrer"
                       >

@@ -167,15 +167,19 @@ patrón de uso de cada familia y un ejemplo corto.
 - **Encabezados y rótulos de tabla (#147):** las clases de la grilla se escriben
   una sola vez en `src/components/shared/tabla.js`:
   `ROTULO_DATO` (etiqueta de dato, 10 px), `CELDA_ENCABEZADO` (encabezado de
-  grilla en una línea, `truncate` + `ROTULO_DATO`) y `ROTULO_SECCION` (título
-  de sección, 12 px). Lo que agrega layout va con `cn(…, objeto)`; prohibido
-  copiar las clases o crear alias locales (`CELDA_INV`, `celda`, …).
+  grilla en una línea, `truncate` + `ROTULO_DATO`), `ROTULO_SECCION` (título
+  de sección, 12 px), `CELDA_DATO` (dato secundario truncado) y `CELDA_NUMERO`
+  (número o cantidad: `text-right tabular-nums`). El **dinero** va con
+  `ui/CeldaMoneda` (renderiza `Money`), no con la clase. Lo que agrega layout va
+  con `cn(objeto, '…')`; prohibido copiar las clases o crear alias locales
+  (`CELDA_INV`, `celda`, …).
 
-> Referencia MobOS: `Badge`, `Dot`, `Stat`, `Card`, `ListGridToggle`,
 > Referencia MobOS: `Badge`, `Dot`, `Stat`, `Card`, `ListGridToggle`,
 > `SeccionColapsable`, `FilaDato`, `CeldaMoneda`, `BarraProgreso`,
 > `ComprobantePreview`, `Cronologia`, `src/components/shared/tabla.js`
-> (`ROTULO_DATO`, `CELDA_ENCABEZADO`, `ROTULO_SECCION`).
+> (`ROTULO_DATO`, `CELDA_ENCABEZADO`, `ROTULO_SECCION`, `CELDA_DATO`,
+> `CELDA_NUMERO`), `src/lib/estadosPedido.js`
+> (estados de pedido/entrega/garantía con su tono para las páginas del cliente).
 
 ## 4. Estados y avisos — únicos por concepto
 
@@ -183,10 +187,15 @@ patrón de uso de cada familia y un ejemplo corto.
   Los bloques de vacío van con `EmptyState` (`compact` dentro de tablas y
   paneles); no se arma la caja ni el texto centrado a mano.
 - **Aviso inline:** el mensaje de resultado pegado al flujo (error de un
-  formulario, confirmación de un guardado) va con `Aviso` (`ui/index.jsx`):
-  `tono="error"` (role `alert`, borde/fondo rojo) u `tono="ok"` (role `status`);
-  `compact` para el tamaño chico y `className` solo para espaciado o radio.
-  Prohibido copiar el `<p>` con `border-bad/30 bg-bad/10` por pantalla.
+  formulario, confirmación de un guardado, aviso preventivo) va con `Aviso`
+  (`ui/index.jsx`): `tono="error"` (role `alert`), `tono="ok"` o `tono="warn"`
+  (role `status`), `compact` para el tamaño chico y `como="div"` cuando el
+  contenido es estructurado (ícono, botón de reintentar); `className` solo para
+  espaciado, radio o layout. Prohibido copiar el `<p>`/`<div>` con
+  `border-bad/30 bg-bad/10` por pantalla.
+  - **Carga:** los placeholders de carga van con `Skeleton`; no se repite
+    `animate-pulse` + fondo en cada pantalla (las pulsaciones decorativas de un
+    ícono o un punto no son skeletons).
 - Avisos de modo (**test/demo/producción**) visibles y en un solo lugar.
 - Banners y avisos inline compartidos; prohibido repetir el mismo aviso por
   pantalla ni duplicar estados.
@@ -309,6 +318,9 @@ patrón de uso de cada familia y un ejemplo corto.
   armar el texto con `toLocaleString` o repetir la función local de precio.
 - **Escape de plantillas HTML:** `escapeHtml` (`utils/printHtml.js`) es la única
   definición para comprobantes, informes y tickets.
+- **Enlace de WhatsApp:** `whatsappUrl(telefono, mensaje, countryCode)`
+  (`utils/telefono.js`): número internacional + mensaje escapado, `''` si no
+  hay teléfono. Prohibido armar `https://wa.me/…` por pantalla.
 - Montos, fechas y códigos: `nowrap` + `tabular-nums`.
 
 ### Último usado como predeterminado (#209)
@@ -343,9 +355,10 @@ por el sistema.
 
 > Referencia MobOS: `src/lib/api/client.js`, `src/lib/roles.js`,
 > `src/lib/utils.js`, `src/lib/urls.js`, `src/lib/constants.js`,
-> `src/lib/ultimoUsado.js`, `src/lib/deviceId.js`, `src/utils/fecha.js`,
-> `src/utils/portapapeles.js`, `src/utils/descargarArchivo.js`,
-> `src/utils/moneda.js`, `src/utils/printHtml.js`,
+> `src/lib/ultimoUsado.js`, `src/lib/deviceId.js`, `src/lib/estadosPedido.js`,
+> `src/utils/fecha.js`, `src/utils/portapapeles.js`,
+> `src/utils/descargarArchivo.js`, `src/utils/moneda.js`,
+> `src/utils/telefono.js`, `src/utils/printHtml.js`,
 > `src/hooks/useVistaListaGrid.js`.
 > Implementado: timeout por pedido, caché corta solo-GET e invalidación
 > (`src/lib/api/client.js`, `requestCache.test.js`); “último usado” en

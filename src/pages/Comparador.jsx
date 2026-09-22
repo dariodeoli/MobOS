@@ -180,7 +180,7 @@ export default function Comparador() {
       </header>
 
       <main className="mx-auto max-w-5xl space-y-5 p-4">
-        {/* Toggle de condición */}
+        {/* Switch de condición */}
         <div className="inline-flex rounded-xl border border-ink-600 bg-ink-800 p-1">
           {CONDICIONES.map(([key, label]) => (
             <button

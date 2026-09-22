@@ -225,10 +225,10 @@ export default function ImportarProductosCSV({ onImportada }) {
           )}
 
           {superaTope && (
-            <p role="status" className="rounded-xl border border-warn/30 bg-warn/10 px-4 py-3 text-sm text-warn">
+            <Aviso tono="warn" className="rounded-xl px-4 py-3">
               El archivo tiene {filas.length} filas. Por seguridad se importarán solo las primeras{' '}
               {MAX_FILAS}.
-            </p>
+            </Aviso>
           )}
 
           {Boolean(filas?.length) && (

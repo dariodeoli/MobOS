@@ -5,7 +5,7 @@ import { Aviso, Badge, Button, Card, ConfirmDialog, FormField, Input, Modal, Sel
 import Icon from '@/components/shared/Icon'
 import { CATEGORIAS_PLANTILLA, VARIABLES_POR_CONTEXTO, VALORES_EJEMPLO, renderPlantilla } from '@/lib/whatsappPlantillas'
 import { cn } from '@/lib/utils'
-import { CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
 // Tabla compacta: una fila por plantilla, con el mensaje recortado a una línea.
 const GRID_PLANTILLAS = 'grid min-w-[52rem] grid-cols-[minmax(10rem,1.1fr)_minmax(12rem,2fr)_6.5rem_9rem] items-center gap-x-2'
 
@@ -179,7 +179,7 @@ export default function WhatsAppTemplates() {
                 <b className="min-w-0 truncate text-[13px] font-semibold" title={item.name}>{item.name}</b>
                 {item.isDefault && <Badge color="blue" className="shrink-0 whitespace-nowrap px-1.5 py-0 text-[10px]"><Icon name="check" className="h-3 w-3" />Predeterminada</Badge>}
               </span>
-              <span className="truncate text-xs text-mute" title={item.body}>{item.body}</span>
+              <span className={CELDA_DATO} title={item.body}>{item.body}</span>
               <span className={cn('inline-flex items-center gap-1 text-xs font-semibold', item.isActive !== false ? 'text-ok' : 'text-mute')}>
                 <Icon name={item.isActive !== false ? 'check' : 'close'} className="h-3.5 w-3.5" />{item.isActive !== false ? 'Activa' : 'Inactiva'}
               </span>

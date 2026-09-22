@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Badge, Button, Card, Input, Label, Textarea } from '@/components/ui'
+import { Aviso, Badge, Button, Card, Input, Label, Textarea } from '@/components/ui'
 import {
   createAccountHolder, createPrivateCompany, getAccountHolders, getPrivateCompanies,
   nombreCompleto, updateAccountHolder, updatePrivateCompany,
@@ -81,7 +81,7 @@ export default function DatosPrivados() {
 
   return (
     <div className="space-y-4">
-      {message && <p role={message.ok ? 'status' : 'alert'} className={`rounded-lg border px-3 py-2 text-sm ${message.ok ? 'border-ok/30 bg-ok/10 text-ok' : 'border-bad/30 bg-bad/10 text-bad'}`}>{message.text}</p>}
+      {message && <Aviso tono={message.ok ? 'ok' : 'error'}>{message.text}</Aviso>}
 
       <Card className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-2">

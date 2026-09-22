@@ -161,3 +161,86 @@ test('escapeHtml se define una sola vez (plantillas de impresión)', () => {
     assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /import \{ printHtml, escapeHtml \} from '@\/utils\/printHtml'/, `${ruta}: escapeHtml va del módulo compartido`)
   }
 })
+
+test('las celdas de dato y de número salen de shared/tabla', () => {
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('components/shared/tabla.js') && (contenido.includes('className="truncate text-xs text-mute"') || contenido.includes('className="truncate text-xs text-mute ') || contenido.includes('className="text-right tabular-nums"')))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [])
+  const tabla = readFileSync(join(RAIZ, 'components/shared/tabla.js'), 'utf8')
+  for (const nombre of ['CELDA_DATO', 'CELDA_NUMERO']) {
+    assert.match(tabla, new RegExp(`export const ${nombre} =`), `falta ${nombre}`)
+  }
+  for (const ruta of ['components/customers/ClientesTabla.jsx', 'components/control/Reportes.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /CELDA_(DATO|NUMERO)|CeldaMoneda/, `${ruta}: la celda va con el objeto compartido`)
+  }
+  // El dinero va con `CeldaMoneda` (el objeto de DSN), no con una clase.
+  for (const ruta of ['components/customers/CustomerProfile.jsx', 'components/control/Reportes.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<CeldaMoneda\b/, `${ruta}: el monto va con CeldaMoneda`)
+  }
+})
+
+test('el interruptor tiene un solo objeto: Switch (#186)', () => {
+  const ui = readFileSync(join(RAIZ, 'components/ui/index.jsx'), 'utf8')
+  assert.ok(!/function Toggle\(/.test(ui), 'ui no debe exportar Toggle: el canónico es shared/Switch')
+  const culpables = archivosFuente()
+    .filter(({ contenido }) => /import \{[^}]*\bToggle\b[^}]*\} from '@\/components\/ui'/.test(contenido) || /<Toggle\b/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [])
+  const config = readFileSync(join(RAIZ, 'components/control/Config.jsx'), 'utf8')
+  assert.match(config, /<Switch[\s\S]{0,80}seguro-toggle/, 'Config usa el interruptor canónico')
+})
+
+test('las barras de avance usan BarraProgreso', () => {
+  for (const ruta of ['components/ventas/PagosPedido.jsx', 'components/control/Creditos.jsx', 'pages/GarantiaPublica.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<BarraProgreso\b/, `${ruta}: el avance va con BarraProgreso`)
+  }
+})
+
+test('el enlace de WhatsApp se arma una sola vez en utils/telefono', () => {
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('utils/telefono.js') && contenido.includes('https://wa.me/'))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [])
+  assert.match(readFileSync(join(RAIZ, 'utils/telefono.js'), 'utf8'), /export function whatsappUrl\(/, 'falta whatsappUrl')
+  for (const ruta of ['components/ventas/PagosPedido.jsx', 'components/ventas/FormularioVenta.jsx', 'pages/GarantiaPublica.jsx', 'components/customers/CampanasClientes.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /whatsappUrl/, `${ruta}: el enlace va con whatsappUrl`)
+  }
+})
+
+test('los estados de pedido del cliente se definen una sola vez', () => {
+  const pagina = (ruta) => readFileSync(join(RAIZ, ruta), 'utf8')
+  for (const ruta of ['pages/PortalCliente.jsx', 'pages/CuentaPublica.jsx', 'pages/PedidoPublico.jsx', 'pages/GarantiaPublica.jsx']) {
+    const codigo = pagina(ruta)
+    assert.doesNotMatch(codigo, /const (ESTADO_PEDIDO|ORDER_STATUS|FULFILLMENT|WARRANTY_STATUS) = \{/, `${ruta}: los estados salen de lib/estadosPedido`)
+    assert.match(codigo, /from '@\/lib\/estadosPedido'/, `${ruta}: falta el módulo compartido`)
+  }
+  const estados = readFileSync(join(RAIZ, 'lib/estadosPedido.js'), 'utf8')
+  for (const nombre of ['ESTADO_PEDIDO', 'ESTADO_ENTREGA', 'ESTADO_GARANTIA', 'tonoPedido', 'tonoGarantia']) {
+    assert.match(estados, new RegExp(`export const ${nombre} =`), `falta ${nombre}`)
+  }
+})
+
+test('Aviso cubre warn y el aviso con estructura', () => {
+  const ui = readFileSync(join(RAIZ, 'components/ui/index.jsx'), 'utf8')
+  assert.match(ui, /warn: 'border-warn\/30 bg-warn\/10 text-warn'/, 'Aviso debe tener tono warn')
+  assert.match(ui, /como === 'div' \? 'div' : 'p'/, 'Aviso debe permitir contenedor para el aviso con acción')
+  // No queda ningún banner con las clases del aviso armado a mano.
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('components/ui/index.jsx') && /(?:<p|<div)[^>]*rounded-(?:lg|xl)[^>]*border-(?:bad|ok|warn)\/30 bg-(?:bad|ok|warn)\/10[^"]*text-(?:bad|ok|warn)/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [])
+  for (const ruta of ['pages/Login.jsx', 'components/ventas/SellerData.jsx', 'components/productos/KardexProducto.jsx', 'components/landing/ImeiVerificador.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<Aviso\b/, `${ruta}: el aviso va con Aviso`)
+  }
+})
+
+test('las cargas usan Skeleton en vez de bloques animate-pulse', () => {
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('components/ui/index.jsx') && /animate-pulse[^"]*rounded-(?:lg|xl|2xl)/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [])
+  for (const ruta of ['components/ventas/SellerData.jsx', 'components/customerPortal/PortalUI.jsx', 'components/customers/CampanasClientes.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<Skeleton\b/, `${ruta}: la carga va con Skeleton`)
+  }
+})

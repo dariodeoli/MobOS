@@ -1,5 +1,3 @@
-import { internationalPhone } from '@/utils/telefono'
-
 export const DEMO_MESSAGE_TEMPLATES = [
   { id: 'demo-ready', key: 'ready_for_pickup', name: 'Pedido listo para retirar', body: 'Hola, {{customer_name}}. Tu pedido {{order_number}} ya está listo para retirar en {{branch_name}}.' },
   { id: 'demo-arrived', key: 'arrived_from_depot', name: 'Pedido llegó a sucursal', body: 'Hola, {{customer_name}}. Tu pedido {{order_number}} ya llegó a {{branch_name}}.' },
@@ -7,15 +5,6 @@ export const DEMO_MESSAGE_TEMPLATES = [
 ]
 
 const META_PREFIX = 'mobos:customer-meta:'
-
-export function normalizeWhatsappNumber(value, countryCode = '+595') {
-  return internationalPhone(value, countryCode)
-}
-
-export function whatsappUrl(phone, message, countryCode = '+595') {
-  const normalized = normalizeWhatsappNumber(phone, countryCode)
-  return normalized ? `https://wa.me/${normalized}?text=${encodeURIComponent(message)}` : ''
-}
 
 export function renderMessage(template, customer) {
   const values = {

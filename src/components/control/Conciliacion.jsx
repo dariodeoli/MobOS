@@ -16,7 +16,7 @@ import { leerUltimo, recordarUltimo } from '@/lib/ultimoUsado'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { CLAVES_FIN, filtrosConciliacionValidos, rangoDePreset } from '@/lib/finUltimoUsado'
 import { cn } from '@/lib/utils'
-import { CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
 // Conciliación y trazabilidad (#144): ingresos por cuenta, medio y
 // procesadora; conciliación en lote de depósitos/transferencias recibidas
 // (esperado vs recibido + diferencia) y detalle pago por pago con acceso al
@@ -380,7 +380,7 @@ export default function Conciliacion() {
               return (
                 <div key={item.id} data-testid="conciliacion-fila" className={cn(GRID_ITEMS, 'rounded-xl border px-3.5 py-2', marcado ? 'border-fono/50 bg-fono/10' : 'border-ink-600 bg-ink-800/40')}>
                   <input type="checkbox" className="h-4 w-4 accent-fono" checked={marcado} disabled={!seleccionable} aria-label={`Conciliar pago ${item.orderNumber || item.id}`} onChange={() => alternar(item.id)} />
-                  <span className="truncate text-xs text-mute" title={fechaCorta(item.fecha)}>{fecha(item.fecha)}</span>
+                  <span className={CELDA_DATO} title={fechaCorta(item.fecha)}>{fecha(item.fecha)}</span>
                   <span className="min-w-0">
                     <b className="block truncate text-[13px]">{item.orderNumber || 'Cobro directo'}</b>
                     <span className="mt-0.5 block truncate text-[11px] text-mute">{[item.cliente, item.vendedor].filter(Boolean).join(' · ') || '—'}</span>
@@ -389,9 +389,9 @@ export default function Conciliacion() {
                     <b className="block truncate text-[12px] font-medium">{item.cuenta}</b>
                     <span className="mt-0.5 block truncate text-[11px] text-mute">{[item.titular, item.banco].filter(Boolean).join(' · ') || medioDe(item.method)}</span>
                   </span>
-                  <span className="truncate text-xs text-mute">{item.procesadora || '—'}</span>
+                  <span className={CELDA_DATO}>{item.procesadora || '—'}</span>
                   <span className="min-w-0">
-                    <span className="block truncate text-xs text-mute" title={item.reference}>{item.reference || '—'}</span>
+                    <span className={cn('block', CELDA_DATO)} title={item.reference}>{item.reference || '—'}</span>
                     {item.currency && item.currency !== 'PYG' && <span className="mt-0.5 block truncate text-[11px] text-mute">{formatMoney(item.originalAmount, item.currency)}</span>}
                     {item.settlesAt && <span className="mt-0.5 block truncate text-[11px] text-mute">acredita {fecha(item.settlesAt)}</span>}
                   </span>

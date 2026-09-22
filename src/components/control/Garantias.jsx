@@ -18,8 +18,7 @@ import { gs } from '@/utils/calculos'
 import { getDemoWarranties, saveDemoWarranties } from '@/lib/demoWarranties'
 import { cn } from '@/lib/utils'
 import SerialTexto from '@/components/shared/SerialTexto'
-import { CELDA_ENCABEZADO } from '@/components/shared/tabla'
-
+import { CELDA_DATO, CELDA_ENCABEZADO } from '@/components/shared/tabla'
 const STATES = [['RECEIVED', 'Recibido'], ['DIAGNOSIS', 'En diagnóstico'], ['READY', 'Listo'], ['DELIVERED', 'Entregado']]
 const label = Object.fromEntries(STATES)
 const blank = { customerName: '', serial: '', description: '', responsibleName: '', technicianName: '', diagnosis: '', resolution: '', repairCostPyg: '', partsText: '', photosText: '', branchId: '', warrantyDays: '', expiresAt: '', coverage: '', exclusions: '' }
@@ -165,8 +164,8 @@ export default function Garantias() {
           return <div key={item.id} data-testid="garantia-fila" className={cn(GRID_GARANTIAS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
             <span className="truncate text-sm font-semibold" title={item.customerName}>{item.customerName || 'Sin cliente'}</span>
             <SerialTexto serial={serial} className="truncate text-[11px] text-fono-light" />
-            <span className="truncate text-xs text-mute" title={[item.description, detalle].filter(Boolean).join(' · ')}>{item.description || '—'}{detalle ? <span className="text-mute/70"> · {detalle}</span> : null}</span>
-            <span className="truncate text-xs text-mute">{item.technicianName || '—'}</span>
+            <span className={CELDA_DATO} title={[item.description, detalle].filter(Boolean).join(' · ')}>{item.description || '—'}{detalle ? <span className="text-mute/70"> · {detalle}</span> : null}</span>
+            <span className={CELDA_DATO}>{item.technicianName || '—'}</span>
             <span className={cn('truncate text-xs', vence.urgente ? 'font-semibold text-warn' : 'text-mute')} title={vence.titulo}>{vence.texto}</span>
             <Badge color={item.status === 'DELIVERED' ? 'green' : item.status === 'READY' ? 'orange' : 'slate'} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{label[item.status]}</Badge>
             <span className="flex flex-wrap items-center justify-end gap-1">

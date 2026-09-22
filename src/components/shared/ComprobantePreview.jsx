@@ -230,14 +230,14 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
           </span>
         </div>
         {agente && Number(estado?.cola?.pendientes || 0) > 0 && (
-          <p role="status" className="rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-xs text-warn">
+          <Aviso tono="warn" compact className="px-3">
             El puente tiene {estado.cola.pendientes} trabajo(s) encolado(s): la impresora no respondió y reintenta solo.
             {jobEncColado && (
               <button type="button" onClick={marcarConfirmado} disabled={confirmando} className="ml-2 font-semibold text-warn underline underline-offset-2 hover:text-fore">
                 {confirmando ? 'Confirmando…' : 'Ya salió el papel'}
               </button>
             )}
-          </p>
+          </Aviso>
         )}
         {agente && Number(estado?.cola?.fallidos || 0) > 0 && !jobEncColado && (
           <Aviso tono="error" compact role="status">
@@ -245,9 +245,9 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
           </Aviso>
         )}
         {pendientesRemotos > 0 && (
-          <p role="status" className="rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-xs text-warn">
+          <Aviso tono="warn" compact className="px-3">
             La cola del puente tiene {pendientesRemotos} trabajo(s) pendiente(s) para {destino?.nombre || 'la impresora configurada'}. Si esta impresión ya se mandó, revisá y cancelá en Configuración → Estado del sistema antes de mandar otra.
-          </p>
+          </Aviso>
         )}
         <p className="text-[11px] text-mute">
           Cada nivel imprime su propio QR privado. Para PDF, elegí «Guardar como PDF» en el diálogo de impresión.

@@ -2,7 +2,6 @@ import { createContext, forwardRef, useCallback, useContext, useEffect, useId, u
 import { cn } from '@/lib/utils'
 import { formatGs, formatGsInput, parseGsInput, formatUsdInput, parseUsdInput, excedeMonto, LIMITE_MONTO_GENERAL } from '@/utils/moneda'
 import Icon from '@/components/shared/Icon'
-import Switch from '@/components/shared/Switch'
 
 // ── Button ──────────────────────────────────────────────────────────
 const VARIANTS = {
@@ -514,16 +513,20 @@ export function ErrorState({ title = 'Algo salió mal', description, onRetry }) 
 const AVISOS = {
   error: 'border-bad/30 bg-bad/10 text-bad',
   ok: 'border-ok/30 bg-ok/10 text-ok',
+  warn: 'border-warn/30 bg-warn/10 text-warn',
 }
-export function Aviso({ tono = 'error', compact = false, className, children, ...props }) {
+export function Aviso({ tono = 'error', como = 'p', compact = false, className, children, ...props }) {
+  // `como="div"` para el aviso con estructura (ícono, botón de reintentar):
+  // un <p> no admite bloques y el envoltorio lo elige la pantalla.
+  const Etiqueta = como === 'div' ? 'div' : 'p'
   return (
-    <p
+    <Etiqueta
       role={tono === 'error' ? 'alert' : 'status'}
       className={cn('rounded-lg border', compact ? 'px-2.5 py-2 text-xs' : 'px-3 py-2 text-sm', AVISOS[tono], className)}
       {...props}
     >
       {children}
-    </p>
+    </Etiqueta>
   )
 }
 
@@ -637,14 +640,6 @@ export function Stat({ label, valor, delta, sub, destacado = false, className })
       </div>
     </div>
   )
-}
-
-// Toggle: alias de compatibilidad del interruptor canónico (shared/Switch,
-// #147). Mantiene la firma histórica `onChange(next)` para las pantallas que
-// todavía lo usan (Config); las nuevas usan Switch directo. Una sola
-// implementación visual, sin duplicar el objeto.
-export function Toggle({ checked = false, onChange, ...props }) {
-  return <Switch checked={checked} onChange={(event) => onChange?.(event.target.checked)} {...props} />
 }
 
 // ── Subtabs ─────────────────────────────────────────────────────────

@@ -21,3 +21,6 @@ export const portalVitrinaUrlFor = (token) => {
   const base = publicBase()
   return token && base ? `${base}/portal/${encodeURIComponent(token)}` : ''
 }
+
+// Nivel del enlace del portal (la etiqueta la muestra la cuenta pública).
+export const NIVELES_PORTAL = { rapido: 'Resumen rápido', completo: 'Resumen completo' }

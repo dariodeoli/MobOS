@@ -1,5 +1,7 @@
 import Icon from '@/components/shared/Icon'
 import { Aviso, Button, EmptyState, Modal, Skeleton } from '@/components/ui'
+import { CELDA_DATO } from '@/components/shared/tabla'
+import { cn } from '@/lib/utils'
 
 const ICONO = {
   ENTREGA: 'truck',
@@ -67,7 +69,7 @@ export default function PanelNotificaciones({ open, onClose, items, cargando, er
                     <span className="truncate text-sm font-semibold">{item.title}</span>
                     <span className="shrink-0 text-[10px] text-mute">{hace(item.at)}</span>
                   </span>
-                  <span className="mt-0.5 block truncate text-xs text-mute">{item.detail}</span>
+                  <span className={cn('mt-0.5 block', CELDA_DATO)}>{item.detail}</span>
                 </span>
               </button>
             </li>

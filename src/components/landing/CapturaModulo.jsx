@@ -1,5 +1,5 @@
 import { AlertTriangle, Check, Printer, WifiOff } from 'lucide-react'
-import { BarraProgreso } from '@/components/ui'
+import { Aviso, BarraProgreso } from '@/components/ui'
 
 // «Capturas» de la landing (#202): miniaturas de UI hechas con HTML (no son
 // imágenes) para mostrar cada módulo sin depender de pantallas reales. Todas
@@ -116,10 +116,10 @@ const CAPTURAS = {
   ),
   offline: (
     <Marco titulo="Sin conexión" badge={<WifiOff size={13} className="text-warn" />}>
-      <div className="flex items-center gap-2 rounded-lg border border-warn/30 bg-warn/10 px-2.5 py-2 text-[11px] text-warn">
+      <Aviso tono="warn" como="div" compact className="flex items-center gap-2 px-2.5 py-2 text-[11px]">
         <AlertTriangle size={13} />
         <span>La venta se guarda en el equipo y se envía al reconectar.</span>
-      </div>
+      </Aviso>
       <Fila><span className="text-mute">Cola local</span><span className="font-semibold">1 venta esperando</span></Fila>
       <Fila><span className="text-mute">Catálogo y clientes</span><span>Disponibles offline</span></Fila>
       <Fila><span className="text-mute">PWA instalable</span><span className="font-semibold">Android · iOS</span></Fila>

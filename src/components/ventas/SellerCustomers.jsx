@@ -55,7 +55,8 @@ import CustomerCommunicationCard from '@/components/customers/CustomerCommunicat
 import ClientesTabla from '@/components/customers/ClientesTabla'
 import CustomerProfile from '@/components/customers/CustomerProfile'
 import CampanasClientes from '@/components/customers/CampanasClientes'
-import { customerMetadata, DEMO_MESSAGE_TEMPLATES, readCustomerMetadata, whatsappUrl } from '@/components/customers/customerMessaging'
+import { customerMetadata, DEMO_MESSAGE_TEMPLATES, readCustomerMetadata } from '@/components/customers/customerMessaging'
+import { whatsappUrl } from '@/utils/telefono'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 const emptyCustomer = { firstName: '', secondName: '', document: '', email: '', phones: [''], addresses: [{ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay' }], acceptsEmailMarketing: false, acceptsSmsMarketing: false, acceptsWhatsappMarketing: false, taxExempt: false, tags: '', pricingTier: 'RETAIL', priceListId: '', creditLimitPyg: '', creditDays: '' }

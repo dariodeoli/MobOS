@@ -22,8 +22,7 @@ import { gs } from '@/utils/calculos'
 import { coincideCliente } from '@/utils/cliente'
 import { cn } from '@/lib/utils'
 import SerialTexto from '@/components/shared/SerialTexto'
-import { CELDA_ENCABEZADO } from '@/components/shared/tabla'
-
+import { CELDA_DATO, CELDA_ENCABEZADO } from '@/components/shared/tabla'
 // Pipeline del taller: recepción → diagnóstico → reparación → entrega.
 const ESTADOS = [
   ['RECIBIDO', 'Recibido', 'slate'],
@@ -519,10 +518,10 @@ export default function ServicioTecnico() {
                   {row.serviceNumber && <span className="mt-0.5 block truncate text-[10px] font-semibold text-fono-light tabular-nums">{row.serviceNumber}</span>}
                   {serial && <SerialTexto serial={serial} className="mt-0.5 truncate text-[10px] text-mute" />}
                 </span>
-                <span className="truncate text-xs text-mute" title={row.customerName}>{row.customerName || 'Sin cliente'}</span>
-                <span className="truncate text-xs text-mute" title={row.reportedIssue || row.diagnosis || undefined}>{row.reportedIssue || row.diagnosis || 'Sin detalle'}</span>
-                <span className="truncate text-xs text-mute">{row.technicianName || 'Sin técnico'}</span>
-                <span className="truncate text-xs text-mute">{fecha(row.receivedAt)}</span>
+                <span className={CELDA_DATO} title={row.customerName}>{row.customerName || 'Sin cliente'}</span>
+                <span className={CELDA_DATO} title={row.reportedIssue || row.diagnosis || undefined}>{row.reportedIssue || row.diagnosis || 'Sin detalle'}</span>
+                <span className={CELDA_DATO}>{row.technicianName || 'Sin técnico'}</span>
+                <span className={CELDA_DATO}>{fecha(row.receivedAt)}</span>
                 <span className="truncate text-right text-xs tabular-nums text-mute">{gs(row.pricePyg || 0)}</span>
                 <span className={cn('truncate text-right text-xs font-semibold tabular-nums', ganancia >= 0 ? 'text-ok' : 'text-bad')}>{ganancia >= 0 ? '+' : ''}{gs(ganancia)}</span>
                 <Badge color={ESTADO_TONE[row.status] || 'slate'} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{ESTADO_LABEL[row.status] || row.status}</Badge>

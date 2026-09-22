@@ -10,6 +10,8 @@ import { APP_VERSION } from '@/lib/brand'
 import { fechaHora as fmt } from '@/utils/fecha'
 import { configImpresora, estadoAgente } from '@/lib/printing/agent'
 import { colorTrabajo, etiquetaTrabajo } from '@/lib/printing/estadoImpresoras'
+import { CELDA_DATO } from '@/components/shared/tabla'
+import { cn } from '@/lib/utils'
 
 // Estado del sistema: la misma lista de chequeos que se corre antes de entregar
 // una versión, dentro de la app, para ver de un vistazo qué configuración falta.
@@ -203,7 +205,7 @@ export default function EstadoSistema() {
               <div key={chequeo.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">{chequeo.label}</p>
-                  <p className="mt-0.5 truncate text-xs text-mute" title={chequeo.detalle}>{chequeo.detalle}</p>
+                  <p className={cn('mt-0.5', CELDA_DATO)} title={chequeo.detalle}>{chequeo.detalle}</p>
                 </div>
                 <Badge color={BADGE[chequeo.estado] || 'slate'}>{TEXTO[chequeo.estado] || chequeo.estado}</Badge>
               </div>

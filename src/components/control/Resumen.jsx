@@ -29,8 +29,7 @@ import MedioPago from '@/components/shared/MedioPago'
 import Icon from '@/components/shared/Icon'
 import { Card, Badge, Dot, EmptyState, Button } from '@/components/ui'
 import { cn } from '@/lib/utils'
-import { ROTULO_DATO } from '@/components/shared/tabla'
-
+import { CELDA_DATO, ROTULO_DATO } from '@/components/shared/tabla'
 // Products at or below this stock count are flagged in the low-stock widget.
 const UMBRAL_STOCK_BAJO = 3
 
@@ -88,7 +87,7 @@ function PendientesDeHoy({ pendientes, onIr }) {
             >
               {pendientes[item.clave]}
             </span>
-            <span className="min-w-0 flex-1 truncate text-xs text-mute">{item.texto}</span>
+            <span className={cn('min-w-0 flex-1', CELDA_DATO)}>{item.texto}</span>
             <Icon
               name="chevron"
               className="h-3.5 w-3.5 shrink-0 rotate-180 text-mute transition group-hover:text-fore"

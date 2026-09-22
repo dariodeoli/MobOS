@@ -5,6 +5,8 @@ import CheckoutCustomer from '../CheckoutCustomer'
 import { gs, num } from '@/utils/calculos'
 import { useSesion } from '@/lib/sesion'
 import EncabezadoBloque from './EncabezadoBloque'
+import { CELDA_DATO } from '@/components/shared/tabla'
+import { cn } from '@/lib/utils'
 
 // La venta en una sola pantalla: para quién es y qué se vende. El cliente
 // primero (define la lista de precios) y después el catálogo, que agrega al
@@ -324,7 +326,7 @@ export default function PasoProductos({
                     )}
                     <span className="min-w-0">
                       <strong className="block truncate text-sm">{fam.base}</strong>
-                      <span className="block truncate text-xs text-mute">
+                      <span className={cn('block', CELDA_DATO)}>
                         {fam.items.length > 1 ? fam.items.length + ' variantes · desde ' : ''}
                         {gs(Math.min(...fam.items.map(item => num(item.precioVenta))))}
                       </span>
