@@ -11,6 +11,11 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.136 — 2026-09-21
+- **Inventario:** tabla compacta con columnas reordenadas y **costo en USD editable en la fila** (con el formateador canónico), menú de acciones por unidad y estados visuales; **acciones masivas por lote** (verificar, reservar, dar de baja, enviar a revisión, cambiar ubicación, imprimir etiquetas, exportar CSV, copiar IMEIs) y **ordenamiento inteligente** (modelo 17→13, costos, etc.) con pestaña **Vendidos**. (#216 #217)
+- **IMEI:** el modo **simulado se avisa antes de confirmar** — la consulta muestra que es simulada y con costo 0 (sin llamadas ni cargos); el flujo real queda igual, con confirmación explícita. Sin LIVE. (#193 #200)
+- **Demo:** la verificación de IMEI funciona contra el mock del backend, la tienda ficticia pasa a **Aurora** (con prefijo de pedidos propio), los **pedidos quedan asociados a los clientes** con historial variado y el sweep de la palabra "demo" sigue avanzando. (#213 #215 #219)
+
 ## v1.0.135 — 2026-09-21
 - **Servicio y Garantías:** un solo módulo con pestañas (Todo/Servicio/Garantías) y etiqueta de tipo por registro; una **garantía puede convertirse en orden de servicio** conservando el historial y se ve en qué orden entró. (#224)
 - **Identidad de usuario:** un único objeto (`PersonaChip`) resuelve la foto (subida → Google → iniciales) y el primer nombre, adoptado en presencia, pantalla de bloqueo y pedidos; se suman objetos compartidos de biblioteca (celdas, montos, teléfono/WhatsApp y estados de pedido). (#211)
