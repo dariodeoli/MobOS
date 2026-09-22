@@ -1,0 +1,70 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "1.0.136",
+  "fecha": "2026-09-22T00:30:11.936Z",
+  "resultados": [
+    {
+      "paso": "demo: comprobante con 80 mm por defecto e iconos en los niveles",
+      "estado": "ok",
+      "detalle": "v1.0.136 · niveles con icono y 80 mm por defecto",
+      "capturas": [
+        "01-comprobante-modal-pos.jpg",
+        "02-comprobante-demo-80.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "demo: «último usado» recordado entre pantallas (#209)",
+      "estado": "ok",
+      "detalle": "nivel y formato recordados en otra pantalla",
+      "capturas": [
+        "03-comprobante-preferencia-guardada.jpg",
+        "04-pedido-comprobante-ultimo-usado.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "demo: etiqueta de unidad desde la ficha (#220)",
+      "estado": "ok",
+      "detalle": "ficha con acción de etiqueta y aviso de demo",
+      "capturas": [
+        "05-inventario-demo.jpg",
+        "06-etiqueta-demo-aviso.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "producción: contenido del dominio en los assets cargados",
+      "estado": "ok",
+      "detalle": "9 assets · 11 marcas del dominio presentes",
+      "capturas": [],
+      "llamadasApi": []
+    },
+    {
+      "paso": "el demo no llama al API de impresión",
+      "estado": "ok",
+      "detalle": "0 llamadas a impresión · 0 al API general",
+      "capturas": [],
+      "llamadasApi": []
+    }
+  ],
+  "assets": [
+    "https://app.moboss.online/assets/index-DMF3pAGE.js",
+    "https://app.moboss.online/assets/vendor-II1R7ODZ.js",
+    "https://app.moboss.online/assets/print-DAClbpyS.js",
+    "https://app.moboss.online/assets/VistaCargarVenta-CkxAdRyb.js",
+    "https://app.moboss.online/assets/colores-Db6gufDX.js",
+    "https://app.moboss.online/assets/Inventario-afMuWS5Z.js",
+    "https://app.moboss.online/assets/suppliers-a5IfonDd.js",
+    "https://app.moboss.online/assets/Impresoras-DhxejwED.js",
+    "https://app.moboss.online/assets/estadoImpresoras-DTu4j3Xs.js"
+  ],
+  "llamadasApi": [],
+  "erroresConsola": [],
+  "veredicto": {
+    "pasosOk": 5,
+    "pasosTotal": 5,
+    "llamadasImpresion": 0,
+    "erroresConsola": 0
+  }
+}
