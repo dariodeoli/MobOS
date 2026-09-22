@@ -8,7 +8,7 @@ import { datosDeCodigo, formatoDeCodigo, ETIQUETA_FORMATO } from './codigos.js'
 import { bloqueFirma, crearTicket } from './escpos.js'
 import { contextoEtiquetaUnidad, datosEtiquetaUnidad } from './etiquetaUnidad.js'
 import { estadoGarantia, fechaVerificacionInforme } from './informeDispositivo.js'
-import { AVISO_BLACKLIST, estadoChecklistCorto, fechaHoraDocumento } from './certificado.js'
+import { AVISO_BLACKLIST, estadoChecklistCorto, estadoControl, fechaHoraDocumento } from './certificado.js'
 import { baseDeApp, qrProducto, qrPrueba } from './qr.js'
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
@@ -708,8 +708,7 @@ export function ticketCertificado(datos = {}, { ancho = 80 } = {}) {
   t.negrita().texto('Controles').negrita(false)
   if ((datos.controles || []).length) {
     for (const control of datos.controles) {
-      const estado = control.estado === 'sin-dato' ? 'Sin dato' : control.ok ? 'OK' : 'FALLA'
-      par(control.label, `${estado}${control.valor ? ` · ${control.valor}` : ''}`)
+      par(control.label, `${estadoControl(control.estado)}${control.valor ? ` · ${control.valor}` : ''}`)
     }
   } else {
     t.texto('Sin verificación IMEI registrada.')

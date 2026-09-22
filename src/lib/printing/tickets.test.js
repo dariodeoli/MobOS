@@ -509,7 +509,7 @@ const CERTIFICADO_PUBLICO = {
   puntaje: 100,
   serial: '•••••••7518',
   bateria: { porcentaje: '89', ciclos: '310' },
-  controles: [{ label: 'iCloud', ok: true }, { label: 'ESN/Blacklist', ok: false, valor: 'Reportado' }],
+  controles: [{ clave: 'icloud', label: 'iCloud / Find My', ok: true, estado: 'libre' }, { clave: 'esn', label: 'ESN / lista negra', ok: false, estado: 'activo', valor: 'Reportado' }],
   items: [
     { grupo: 'Pantalla', label: 'Pantalla / táctil', estado: 'ok', nota: '' },
     { grupo: 'Audio', label: 'Altavoces y micrófono', estado: 'observacion', nota: 'Crujido al máximo' },
@@ -526,7 +526,7 @@ test('el certificado de inspección imprime grado, controles, checklist y el QR 
   assert.ok(texto.includes('CERTIFICADO PHONECHECK'), 'título del contrato de INV (rollo en mayúsculas)')
   assert.ok(ticket.lineas().some((linea) => linea.trim() === 'A'), 'el grado va grande')
   assert.ok(texto.includes('Puntaje 100/100 · 1/2 conformes'), 'puntaje y conformes')
-  assert.ok(texto.includes('iCloud') && texto.includes('ESN/Blacklist') && texto.includes('FALLA'), 'semáforo de controles')
+  assert.ok(texto.includes('iCloud / Find My') && texto.includes('ESN / lista negra') && texto.includes('Activo'), 'semáforo de controles con los rótulos compartidos')
   assert.ok(texto.includes('Pantalla / táctil') && texto.includes('Crujido al máximo'), 'checklist con notas')
   assert.ok(texto.includes('Lucía Fernández'), 'quién verificó')
   assert.ok(texto.includes('INFORME PÚBLICO') && texto.includes('[BARRA]'), 'QR + código en barras')
@@ -551,7 +551,7 @@ test('el certificado sin inspección sale «pendiente» y honesto (#240)', () =>
 test('en 58 mm el checklist del certificado no se corta (#240)', () => {
   const datos = datosCertificado(CERTIFICADO_UNIDAD, { informe: CERTIFICADO_PUBLICO, ahora: new Date('2026-09-22T10:00:00Z') })
   const texto = ticketCertificado(datos, { ancho: 58 }).lineas().join('\n')
-  for (const marca of ['Altavoces y micrófono', 'Obs.', 'ESN/Blacklist', 'Reportado', 'Crujido al máximo']) {
+  for (const marca of ['Altavoces y micrófono', 'Obs.', 'ESN / lista negra', 'Reportado', 'Crujido al máximo']) {
     assert.ok(texto.includes(marca), `no se corta «${marca}»`)
   }
 })
@@ -573,7 +573,7 @@ test('el informe imprime el checklist PhoneCheck con sus fallas y el aviso (#240
   assert.ok(texto.includes('Cosmético') && texto.includes('buen estado'), 'cosmético')
   assert.ok(texto.includes('Batería') && texto.includes('310 ciclos'), 'ciclos de batería')
   assert.ok(texto.includes('Puntaje') && texto.includes('50/100'), 'puntaje calculado (ok + falla)')
-  assert.ok(texto.includes('Pantalla / táctil') && texto.includes('Falla'), 'ítems con semáforo')
+  assert.ok(texto.includes('Pantalla / táctil') && texto.includes('Bien'), 'ítems con el rótulo compartido')
   assert.ok(texto.includes('Micrófono bajo'), 'nota de la falla')
   const plano = ticket.lineas().join(' ').replace(/\s+/g, ' ')
   assert.ok(plano.includes('iCloud/US Block clean no equivalen a blacklist mundial.'), 'aviso')

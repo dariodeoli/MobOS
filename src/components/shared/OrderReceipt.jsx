@@ -8,7 +8,7 @@ import { totalesPedido } from '@/utils/pedido'
 import { datosDeCodigo, formatoDeCodigo, ETIQUETA_FORMATO } from '@/lib/printing/codigos'
 import { contextoEtiquetaUnidad, datosEtiquetaUnidad } from '@/lib/printing/etiquetaUnidad'
 import { estadoGarantia, fechaVerificacionInforme } from '@/lib/printing/informeDispositivo'
-import { estadoChecklist, fechaCortaDocumento, fechaHoraDocumento } from '@/lib/printing/certificado'
+import { estadoChecklist, estadoControl, fechaCortaDocumento, fechaHoraDocumento } from '@/lib/printing/certificado'
 import QRCode from 'qrcode'
 import JsBarcode from 'jsbarcode'
 import { api } from '@/lib/api/client'
@@ -861,7 +861,7 @@ export async function buildCertificadoHtml(datos = {}, { format = 'a4' } = {}) {
   const tablaChecklist = format === 'a4' && items.length > 6
     ? `<div class="checklist-dos">${tablaItems(items.slice(0, mitadItems))}${tablaItems(items.slice(mitadItems))}</div>`
     : tablaItems(items)
-  const controles = (datos.controles || []).map((control) => `<span class="control ${control.estado === 'sin-dato' ? 'sin-dato' : control.ok ? 'ok' : 'no-ok'}">${escapeHtml(control.label)} · ${control.estado === 'sin-dato' ? 'Sin dato' : control.ok ? 'OK' : 'FALLA'}${control.valor ? ` · ${escapeHtml(control.valor)}` : ''}</span>`).join(' ')
+  const controles = (datos.controles || []).map((control) => `<span class="control ${control.estado === 'sin-dato' ? 'sin-dato' : control.ok ? 'ok' : 'no-ok'}">${escapeHtml(control.label)} · ${escapeHtml(estadoControl(control.estado))}${control.valor ? ` · ${escapeHtml(control.valor)}` : ''}</span>`).join(' ')
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(datos.titulo || 'Certificado de inspección')} ${escapeHtml(datos.serialEnmascarado || '')}</title><style>${styles(format)}
     .fila-informe{display:flex;justify-content:space-between;gap:10px;margin:2px 0}
     .fila-informe>span:first-child{color:#66707a}
