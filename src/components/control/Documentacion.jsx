@@ -177,6 +177,16 @@ const AYUDA = [
     ruta: '/finanzas/bancos',
   },
   {
+    modulo: 'Finanzas', titulo: 'Seguro de ventas y margen', ubicacion: 'Configuración → Negocio · Cliente → ficha → Seguro',
+    explicacion: 'Definí el porcentaje de la empresa y, si hace falta, uno distinto por cliente. El costo real de cada venta nueva es costo + seguro y así se ve el margen en Análisis → Ganancias.',
+    ruta: '/configuracion/negocio',
+  },
+  {
+    modulo: 'Finanzas', titulo: 'Gift cards y saldo a favor', ubicacion: 'POS → cobros · Análisis → cortes por tipo',
+    explicacion: 'El sistema no emite gift cards: el equivalente es el saldo a favor (STORE_CREDIT), que se cobra como un medio más y aparece con ese nombre en los cortes. Si se necesitan gift cards reales (código, saldo y vencimiento), pedirlo como función nueva.',
+    ruta: '/pos',
+  },
+  {
     modulo: 'Finanzas', titulo: 'Créditos y cuotas', ubicacion: 'Finanzas → Créditos / Cuotas',
     explicacion: 'Seguimiento de la deuda por cliente y pedido, con recordatorios de cuotas vencidas por WhatsApp y registro de cada cobro.',
     ruta: '/finanzas/creditos',

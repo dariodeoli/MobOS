@@ -33,6 +33,7 @@ test('la conciliación demo reconoce los medios del sistema nuevo (#190)', () =>
     { id: 'demo-venta-canje', fecha: clave(HOY), creadoEn: fechaHoy(9), cliente: 'Gloria Martínez', pagos: [{ id: 'pago-canje', medioPago: 'CANJE', cuenta: '', monto: 300000, fecha: fechaHoy(9) }] },
     { id: 'demo-venta-tarjeta', fecha: clave(HOY), creadoEn: fechaHoy(9), cliente: 'Juan Pereira', pagos: [{ id: 'pago-tarjeta', medioPago: 'TARJETA', cuenta: '', monto: 200000, fecha: fechaHoy(9) }] },
     { id: 'demo-venta-transfer', fecha: clave(HOY), creadoEn: fechaHoy(9), cliente: 'Estela Ramírez', pagos: [{ id: 'pago-transfer', medioPago: 'TRANSFERENCIA', cuenta: '', monto: 400000, fecha: fechaHoy(9) }] },
+    { id: 'demo-venta-saldo', fecha: clave(HOY), creadoEn: fechaHoy(9), cliente: 'Lucía Fernández', pagos: [{ id: 'pago-saldo', medioPago: 'SALDO A FAVOR', cuenta: 'Saldo a favor', monto: 250000, fecha: fechaHoy(9) }] },
   ]
   const data = construirDemoConciliacion({ ventas: ventasNuevas, cuentas, desde: '2000-01-01', hasta: '2100-01-01' })
   const metodos = Object.fromEntries(data.items.map((item) => [item.id, item.method]))
@@ -42,6 +43,7 @@ test('la conciliación demo reconoce los medios del sistema nuevo (#190)', () =>
     'pago-canje': 'TRADE_IN',
     'pago-tarjeta': 'CARD',
     'pago-transfer': 'TRANSFER',
+    'pago-saldo': 'STORE_CREDIT',
   })
   assert.equal(data.items.filter((item) => item.method === 'CASH').length, 0, 'ningún medio nuevo cae en efectivo')
   assert.equal(data.porMedio.find((fila) => fila.key === 'CRYPTO').label, 'USDT - Cripto')

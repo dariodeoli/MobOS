@@ -699,7 +699,7 @@ export function prepararDatosDemo() {
     'Distribuidora del Este S.A.': 'demo-cliente-distribuidora', 'Carlos Ramírez': 'demo-cliente-carlos',
   }
   const PAGOS_EXTRA = [
-    ['María González', 'demo-iphone-15-pro-max-256-titanio', 7250000, 'Retiro en tienda', 0, [['DINERO', '', 4000000], ['TRANSFERENCIA', 'Itaú · Cuenta corriente', 3250000]], 0],
+    ['María González', 'demo-iphone-15-pro-max-256-titanio', 7250000, 'Retiro en tienda', 0, [['DINERO', '', 3000000], ['SALDO A FAVOR', 'Saldo a favor', 1000000], ['TRANSFERENCIA', 'Itaú · Cuenta corriente', 3250000]], 0],
     ['Juan Pereira', 'demo-iphone-15-128-azul', 4850000, 'Delivery', 30000, [['DINERO', '', 2000000], ['TARJETA', 'ueno · Tarjeta', 2880000]], 1],
     ['Ana Villalba', 'demo-iphone-14-256-azul', 3950000, 'Retiro en tienda', 0, [['PIX', 'Pix · Itaú', 3950000]], 1],
     ['Ramiro Cáceres', 'demo-iphone-13-pro-max-256-grafito', 4450000, 'Retiro en tienda', 0, [['USDT - Cripto', 'USDT · Binance', 2225000], ['DINERO USD', 'Caja · Dólares', 2225000]], 2],
