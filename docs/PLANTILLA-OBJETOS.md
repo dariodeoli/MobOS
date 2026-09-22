@@ -245,8 +245,9 @@ categorías en `src/lib/categorias.js`; los objetos son presentacionales.
 - **`shared/IconoCategoria`** (#242): glifos mobile/laptop/tablet/watch/buds/
   cable; `categoria="MacBook Pro"` resuelve el icono con `iconoDeCategoria`.
 - El checklist, el tile de equipo, el stepper y los tokens del tema consola se
-  codificaron primero en la biblioteca (owncoding-ui **v0.10.0**, props en su
-  `docs/REGLAS.md` §8 bis) y se adoptan acá a medida que los consume el piloto.
+  codificaron primero en la biblioteca (owncoding-ui **v0.11.0**, props en su
+  `docs/REGLAS.md` §8 bis, tokens v2 en su `styles.css`) y se adoptan acá a
+  medida que los consume el piloto.
 
 ## 5. Diálogos, acciones y overlays
 - **Ancho por tipo, no por uso (#237):** el `Modal` compartido expone
@@ -432,6 +433,13 @@ por el sistema.
   Excepciones legítimas: plantillas de impresión (papel siempre claro), marcas
   de terceros (Google, bancos, medios de pago) y datos de color (catálogo de
   productos, diagramas).
+- **Tokens v2 del piloto (#241):** el lenguaje "device ops" (consola oscura,
+  verde pass `#22C55E`, azul acción `#4D7CFE`) vive en la biblioteca
+  `owncoding-ui` **v0.11.0** como scope `tema-v2` (alias `v2-piloto`) con
+  variante clara y oscura + `.v2-numero` para números grandes. El scope local
+  `.v2-piloto` de `src/index.css` (piloto de DSN) queda como puente hasta que
+  la app importe `owncoding-ui/styles.css`; después se borra y las pantallas
+  siguen usando la misma clase.
 - Tipografía: sans para UI; mono para importes, referencias y códigos.
 - Respetar `prefers-reduced-motion`; evitar animaciones que rompan el patrón.
 - **Un solo activo de marca** (logo, favicon, PWA, Apple touch, social): todo
