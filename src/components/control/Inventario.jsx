@@ -214,6 +214,7 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
       ? <span className="flex items-center" onClick={(event) => event.stopPropagation()}><input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar ${nombreProducto(unit.product || {})} ${serial}`} checked={seleccionado} onChange={() => onAlternar()} /></span>
       : <span />}
     <span className="flex min-w-0 items-center gap-1.5">
+      <span className="grid h-6 w-6 shrink-0 place-items-center overflow-hidden rounded-lg border border-ink-600 bg-ink-800 text-mute" title={`Categoría: ${categoriaMeta(unit.product || {}).label}`}>{categoriaMeta(unit.product || {}).icon ? <Icon name={categoriaMeta(unit.product || {}).icon} className="h-3.5 w-3.5" /> : null}</span>
       <b className="min-w-0 truncate text-[13px] leading-tight" title={nombreProducto(unit.product || {})}>{nombreProducto(unit.product || {})}</b>
       <SerialTexto serial={serial} className="shrink-0 text-[10px] text-mute" />
       <span
