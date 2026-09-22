@@ -4,9 +4,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 const {
+  ESTADOS_CHIP,
   ESTADOS_ITEM,
+  ESTADOS_LOCK,
   GRADOS_CONDICION,
   LOCKS_DISPOSITIVO,
+  TONOS,
   UMBRAL_BATERIA_ATENCION,
   UMBRAL_BATERIA_OK,
   colorBadge,
@@ -25,8 +28,8 @@ test('el semáforo del checklist tiene estados y tonos fijos', () => {
   assert.equal(estadoItem('cualquier-cosa').etiqueta, 'Sin verificar')
 })
 
-test('los locks conocidos son cuatro y el estado desconocido no alarma', () => {
-  assert.deepEqual(Object.keys(LOCKS_DISPOSITIVO), ['icloud', 'mdm', 'esn', 'carrier'])
+test('los locks conocidos son cinco y el estado desconocido no alarma', () => {
+  assert.deepEqual(Object.keys(LOCKS_DISPOSITIVO), ['icloud', 'mdm', 'esn', 'carrier', 'oem'])
   assert.equal(estadoLock('libre').tono, 'ok')
   assert.equal(estadoLock('activo').tono, 'bad')
   assert.equal(estadoLock('sin-dato').tono, 'mute')
@@ -53,4 +56,22 @@ test('los grados de condición son A/B/C y el color sale del tono', () => {
   assert.equal(colorBadge('warn'), 'orange')
   assert.equal(colorBadge('bad'), 'red')
   assert.equal(colorBadge('mute'), 'slate')
+})
+
+// Lote 16: el contrato de los objetos de inspección es el mismo que publica
+// owncoding-ui (mismas claves, mismos tonos y misma forma de TONOS). Si acá
+// cambia algo, la biblioteca tiene que cambiar primero.
+test('el contrato de inspección coincide con la biblioteca (#240/#241)', () => {
+  assert.deepEqual(Object.keys(ESTADOS_ITEM), ['ok', 'aviso', 'falla', 'sinVerificar'])
+  assert.deepEqual(Object.keys(ESTADOS_CHIP), ['pass', 'revision', 'pendiente', 'falla'])
+  assert.deepEqual(Object.keys(ESTADOS_LOCK), ['libre', 'activo', 'desconocido'])
+  assert.deepEqual(Object.keys(LOCKS_DISPOSITIVO), ['icloud', 'mdm', 'esn', 'carrier', 'oem'])
+  assert.deepEqual(Object.keys(GRADOS_CONDICION), ['A', 'B', 'C'])
+  assert.deepEqual(Object.keys(TONOS), ['punto', 'chip', 'texto'])
+  assert.deepEqual(Object.keys(TONOS.punto), ['ok', 'warn', 'bad', 'mute', 'info', 'pass'])
+  assert.equal(TONOS.chip.bad, 'border-bad/30 bg-bad/10 text-bad')
+  assert.equal(TONOS.punto.pass, 'bg-pass/15 text-pass')
+  assert.equal(TONOS.texto.info, 'text-info')
+  assert.equal(UMBRAL_BATERIA_OK, 90)
+  assert.equal(UMBRAL_BATERIA_ATENCION, 80)
 })
