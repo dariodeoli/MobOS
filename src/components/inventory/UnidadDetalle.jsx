@@ -20,6 +20,7 @@ import { gs } from '@/utils/calculos'
 import { montoTexto } from '@/utils/moneda'
 import { sinCostoUnitario } from '@/utils/inventario'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
+import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 
 const statusLabel = { AVAILABLE: 'Disponible', RESERVED: 'Reservado', SOLD: 'Vendido', DEFECTIVE: 'En revisión', IN_TRANSIT: 'En tránsito' }
@@ -300,7 +301,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   }
 
   return (
-    <Drawer open onClose={onClose} title={unit.product?.name || 'Unidad'} className="v2-piloto w-full sm:max-w-xl">
+    <Drawer open onClose={onClose} title={unit.product?.name || 'Unidad'} className={cn('w-full sm:max-w-xl', temaV2Activo() && 'tema-v2')}>
       <div className="space-y-5">
         {/* Encabezado */}
         <section className="rounded-2xl border border-ink-600 bg-gradient-to-br from-ink-800 to-ink-800/40 p-4">
