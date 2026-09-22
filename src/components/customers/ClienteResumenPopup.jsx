@@ -7,6 +7,7 @@ import { useSesion } from '@/lib/sesion'
 import { buildDemoProfile } from '@/lib/demoClientes'
 import { ESTADO_PEDIDO, tonoPedido } from '@/lib/estadosPedido'
 import { telefonoVisible } from '@/utils/telefono'
+import { formatPercent } from '@/components/shared/PercentField'
 import { codigoPedido, fechaCompacta, fechaLegible } from '@/utils/pedido'
 import { gs } from '@/utils/calculos'
 import { ULTIMA_PLANTILLA_CLIENTES } from './customerMessaging'
@@ -27,13 +28,8 @@ export default function ClienteResumenPopup({ row, open, onClose, onDetalle, onE
   const [cargando, setCargando] = useState(false)
 
   useEffect(() => {
-    if (!open || !row?.id) return undefined
+    if (!open || !row?.id || esDemo) return undefined
     let vigente = true
-    if (esDemo) {
-      setPerfil(buildDemoProfile(row))
-      setCargando(false)
-      return () => { vigente = false }
-    }
     setPerfil(null)
     setCargando(true)
     api.get(`/api/customers/${encodeURIComponent(row.id)}`)
@@ -42,14 +38,17 @@ export default function ClienteResumenPopup({ row, open, onClose, onDetalle, onE
     return () => { vigente = false }
   }, [open, row?.id, esDemo])
 
+  // En demo los datos viven en el navegador: se resuelven en el render.
+  const perfilDemo = esDemo && row ? buildDemoProfile(row) : null
+
   if (!row) return null
   const stats = row.stats || {}
   const contacto = row.phone || row.phones?.[0] || ''
   const telefono = telefonoVisible(contacto, row.countryCode)
   const deuda = Number(stats.pendingPyg || 0)
   const nota = notaInterna(row.notes)
-  const publica = row.publicNote || perfil?.customer?.publicNote || ''
-  const ordenes = [...(perfil?.orders || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 3)
+  const publica = row.publicNote || (perfilDemo || perfil)?.customer?.publicNote || ''
+  const ordenes = [...((perfilDemo || perfil)?.orders || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 3)
 
   return (
     <Modal open={open} onClose={onClose} title={`Cliente: ${row.name || 'Sin nombre'}`} size="amplio">
@@ -97,7 +96,7 @@ export default function ClienteResumenPopup({ row, open, onClose, onDetalle, onE
           <FilaDato etiqueta="Pedidos" valor={stats.orders || 0} />
           <FilaDato etiqueta="Última compra" valor={stats.lastOrderAt ? fechaCompacta(stats.lastOrderAt) : 'Sin compras'} />
           <FilaDato etiqueta="Deuda" valor={deuda > 0 ? gs(deuda) : 'Sin deuda'} tono={deuda > 0 ? 'warn' : ''} />
-          <FilaDato etiqueta="Seguro" valor={row.insuranceEnabled ? `Activo${row.insuranceRatePct ? ` · ${row.insuranceRatePct}%` : ' · % de la empresa'}` : 'Inactivo'} />
+          <FilaDato etiqueta="Seguro" valor={row.insuranceEnabled ? `Activo${row.insuranceRatePct !== null && row.insuranceRatePct !== undefined ? ` · ${formatPercent(row.insuranceRatePct)}%` : ' · % de la empresa'}` : 'Inactivo'} />
           <FilaDato etiqueta="Tipo" valor={row.wholesale ? 'Mayorista' : 'Cliente final'} />
         </section>
 

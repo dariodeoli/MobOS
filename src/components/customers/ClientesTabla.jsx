@@ -99,10 +99,9 @@ export default function ClientesTabla({ rows, templates, onPerfil, onResumen }) 
               key={row.id}
               data-testid="cliente-fila"
               data-id={row.id}
-              role="button"
-              tabIndex={0}
+              // El clic es un atajo (mouse/touch): los accesos accesibles por
+              // teclado/lector son los dos íconos con aria-label.
               onClick={() => onPerfil?.(row)}
-              onKeyDown={event => { if (event.key === 'Enter') onPerfil?.(row) }}
               className={cn(GRID, 'cursor-pointer rounded-xl border border-fore/10 bg-ink-800/40 px-3.5 py-3 transition hover:border-fono/40 hover:bg-ink-700/50')}
             >
               <span className="flex items-center" onClick={(event) => event.stopPropagation()}>
