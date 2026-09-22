@@ -9,7 +9,7 @@ import { resources } from '@/lib/api'
 import { fechaHora } from '@/utils/fecha'
 import { enmascararImei } from '@/lib/imeiComprobante'
 import { BarraProgreso } from '@/components/ui'
-import QRCode from 'qrcode'
+import { qrDataUrl } from '@/lib/qr'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 const CONDICION = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
@@ -34,7 +34,7 @@ function FichaUnidad({ unidad, serial, puedeVerInventario }) {
   const [qr, setQr] = useState('')
   useEffect(() => {
     const url = typeof window !== 'undefined' ? `${window.location.origin}/u/${encodeURIComponent(serial)}` : ''
-    if (url) QRCode.toDataURL(url, { errorCorrectionLevel: 'M', margin: 1, width: 200 }).then(setQr).catch(() => {})
+    if (url) qrDataUrl(url, { ancho: 200 }).then(setQr)
   }, [serial])
   return (
     <div className="space-y-4">

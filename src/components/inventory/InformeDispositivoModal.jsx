@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Button, Modal, Select } from '@/components/ui'
 import { buildInformeDispositivoHtml, printInformeDispositivo } from '@/components/shared/OrderReceipt'
+import VistaPreviaPapel from '@/components/shared/VistaPreviaPapel'
 import { datosInformeDispositivo } from '@/lib/printing/informeDispositivo'
 import { ticketInformeDispositivo } from '@/lib/printing/tickets'
 import { imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
@@ -12,7 +13,6 @@ import { api } from '@/lib/api/client'
 // QR al informe público. Toma los datos de la unidad (INV) y la última consulta
 // de IMEI; la impresión directa usa el ESC/POS y el diálogo queda de respaldo.
 const FORMATOS = [['thermal-80', '80 mm'], ['a4', 'A4'], ['thermal-58', '58 mm']]
-const ANCHO_VISTA = { 'thermal-80': 'max-w-[302px]', 'thermal-58': 'max-w-[219px]' }
 const anchoDeFormato = (formato) => {
   if (formato === 'a4') return 80
   return Number(String(formato).replace('thermal-', '')) || 80
@@ -81,11 +81,7 @@ export default function InformeDispositivoModal({ unit, open, onClose, onResult 
           </span>
         </div>
         <p className="text-[11px] text-mute">El QR abre el informe público de la unidad. La impresión directa sale por la impresora configurada (80 mm por defecto); «Descargar PDF» guarda la versión A4 o del rollo.</p>
-        <iframe
-          title="Vista previa del informe"
-          srcDoc={html}
-          className={`h-[60vh] w-full rounded-xl border border-ink-600 bg-white ${ANCHO_VISTA[formato] ? `mx-auto ${ANCHO_VISTA[formato]}` : ''}`}
-        />
+        <VistaPreviaPapel formato={formato} contenido={html} titulo="Vista previa del informe" />
       </div>
     </Modal>
   )
