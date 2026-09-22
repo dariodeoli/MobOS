@@ -73,7 +73,7 @@ test.describe('demo de Finanzas', () => {
 
     // Caja: turno propio con nombre real y el efectivo del día auditado.
     await page.goto('/finanzas/caja')
-    await expect(page.getByText('Abierta', { exact: true })).toBeVisible()
+    await expect(page.locator('strong').filter({ hasText: 'Abierta' }).first()).toBeVisible()
     await expect(page.getByText(/Turno de (Vos|Hernán Acosta)/)).toBeVisible()
     await expect(page.getByText('demo-user')).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'Auditoría de efectivo' })).toBeVisible()
@@ -111,7 +111,7 @@ test.describe('demo de Finanzas', () => {
     await entrarDemo(page)
     await page.goto('/finanzas/caja')
 
-    await expect(page.getByText('Abierta', { exact: true })).toBeVisible()
+    await expect(page.locator('strong').filter({ hasText: 'Abierta' }).first()).toBeVisible()
     await expect(page.getByText('Sin apertura')).toHaveCount(0)
     await expect(page.getByText('Entradas por medio de pago')).toBeVisible()
     await expect(page.getByText('Auditoría de efectivo')).toBeVisible()

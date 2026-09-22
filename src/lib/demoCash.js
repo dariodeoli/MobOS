@@ -67,6 +67,70 @@ function envelope(cash) {
 export function getDemoCash() {
   return envelope(read())
 }
+
+// #148 §18: corte por sesión para el panel «Ventas por caja» de la demo. La
+// sesión abierta sale de la caja local (apertura + movimientos + cobros en
+// efectivo del día); las cerradas se derivan de los días anteriores para que el
+// panel muestre el histórico con su diferencia. Mismo contrato que el endpoint.
+export function construirDemoCajas({ cash = read(), ventas = [], dias = 3 } = {}) {
+  const claveDeDia = (valor) => {
+    const texto = String(valor || '')
+    // Las ventas demo guardan la fecha como clave local `YYYY-MM-DD`: se
+    // respeta tal cual (parsearla como Date la correría un día en UTC-3).
+    if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) return texto
+    const fecha = new Date(valor)
+    if (Number.isNaN(fecha.getTime())) return ''
+    return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`
+  }
+  const porDia = new Map()
+  for (const venta of ventas) {
+    if (venta?.vendedorId !== 'demo-user') continue
+    const dia = claveDeDia(venta.fecha || venta.creadoEn)
+    if (!dia) continue
+    const fila = porDia.get(dia) || { efectivoPyg: 0, pagosEfectivo: 0, pedidos: 0, ventasPyg: 0 }
+    fila.pedidos += 1
+    fila.ventasPyg += Number(venta.precio) || 0
+    for (const pago of Array.isArray(venta.pagos) ? venta.pagos : []) {
+      if (String(pago.medioPago || '').toUpperCase() !== 'DINERO') continue
+      fila.efectivoPyg += Number(pago.monto) || 0
+      fila.pagosEfectivo += 1
+    }
+    porDia.set(dia, fila)
+  }
+  const movimientosPyg = (cash?.movements || []).reduce((suma, movimiento) => suma + (movimiento.kind === 'INGRESO' ? 1 : -1) * (Number(movimiento.amountPyg) || 0), 0)
+  const diferencias = [-15000, 8000, 0]
+  const sesiones = []
+  for (let i = 0; i < dias; i += 1) {
+    const fecha = new Date()
+    fecha.setDate(fecha.getDate() - i)
+    fecha.setHours(i === 0 ? 8 : 9, 30, 0, 0)
+    const dia = porDia.get(claveDeDia(fecha)) || { efectivoPyg: 0, pagosEfectivo: 0, pedidos: 0, ventasPyg: 0 }
+    const abierta = i === 0 && cash?.status === 'OPEN'
+    const abiertaEn = i === 0 && cash?.openedAt ? new Date(cash.openedAt) : fecha
+    const openingPyg = i === 0 ? Number(cash?.openingPyg ?? 500000) : 500000
+    const movimientos = i === 0 ? movimientosPyg : 0
+    const esperadoPyg = openingPyg + dia.efectivoPyg + movimientos
+    const contadoPyg = abierta ? null : esperadoPyg + diferencias[i % diferencias.length]
+    sesiones.push({
+      id: abierta ? (cash?.id || 'demo-cash-session') : `demo-cash-${claveDeDia(fecha)}`,
+      openedByName: 'Hernán Acosta',
+      openedAt: abiertaEn.toISOString(),
+      closedAt: abierta ? null : new Date(fecha.getTime() + 9 * 3600000).toISOString(),
+      status: abierta ? 'OPEN' : 'CLOSED',
+      openingPyg,
+      efectivoPyg: dia.efectivoPyg,
+      pagosEfectivo: dia.pagosEfectivo,
+      movimientosPyg: movimientos,
+      pedidos: dia.pedidos,
+      ventasPyg: dia.ventasPyg,
+      esperadoPyg,
+      contadoPyg,
+      diferenciaPyg: contadoPyg === null ? null : contadoPyg - esperadoPyg,
+      notes: abierta ? String(cash?.notes || '') : '',
+    })
+  }
+  return sesiones
+}
 export function getDemoCashExpected(cash = read(), until = new Date(), sales = []) {
   const openedAt = new Date(cash.openedAt || 0).getTime()
   const end = new Date(until).getTime()

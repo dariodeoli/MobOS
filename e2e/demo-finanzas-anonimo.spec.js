@@ -71,7 +71,7 @@ test.describe('demo anónimo · Finanzas', () => {
 
     // ── Caja: turno demo coherente (con apertura y arqueo).
     await page.goto(url('/finanzas/caja'))
-    await expect(page.getByText('Abierta', { exact: true })).toBeVisible()
+    await expect(page.locator('strong').filter({ hasText: 'Abierta' }).first()).toBeVisible()
     await expect(page.getByText('Sin apertura')).toHaveCount(0)
     await expect(page.getByText(/Turno de /)).toBeVisible()
 

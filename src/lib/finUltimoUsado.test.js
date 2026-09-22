@@ -7,6 +7,7 @@ import { CLAVES_FIN, ESTADOS_CONCILIACION, MONEDAS_DE_GASTO, cuentaDeGastoValida
 test('las claves van con el namespace del dominio fin', () => {
   assert.deepEqual(Object.values(CLAVES_FIN), [
     'fin:rango',
+    'fin:caja-rango',
     'fin:gastos-tipo',
     'fin:gastos-moneda',
     'fin:gastos-cuenta',

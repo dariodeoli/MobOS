@@ -70,9 +70,105 @@ async function expected(db: QueryDb, tenantId: string, branchId: string, openedA
   return Math.max(0, total + movements)
 }
 
+// Rango de sesiones del panel «Ventas por caja» (#148 §18): fechas locales de
+// Paraguay (UTC-3), `from`/`to` como el resto de los endpoints de Finanzas.
+const OFFSET_PY = '-03:00'
+function rangoDeSesiones(params: URLSearchParams) {
+  const hoy = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10)
+  const hasta = params.get('to') || params.get('hasta') || hoy
+  const desde = params.get('from') || params.get('desde') || new Date(Date.parse(`${hasta}T12:00:00${OFFSET_PY}`) - 29 * 86400000).toISOString().slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(desde) || !/^\d{4}-\d{2}-\d{2}$/.test(hasta)) return null
+  const start = new Date(`${desde}T00:00:00${OFFSET_PY}`)
+  const end = new Date(`${hasta}T00:00:00${OFFSET_PY}`)
+  end.setDate(end.getDate() + 1)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return null
+  if (end.getTime() - start.getTime() > 366 * 86400000) return null
+  return { from: desde, to: hasta, start, end }
+}
+
+// Corte por sesión: efectivo y pedidos del turno (misma base que el esperado),
+// más los movimientos de caja cobrados. El esperado de un turno cerrado es el
+// que quedó auditado al cerrar; el del turno abierto se calcula en vivo.
+async function sesionesResumen(tenant: string, branchId: string, start: Date, end: Date, ahora = new Date()) {
+  const filas = await prisma.$queryRaw<Array<Record<string, unknown>>>`
+    SELECT s."id", s."openedAt", s."closedAt", s."status", s."openingPyg", s."countedPyg", s."expectedPyg", s."notes",
+           u."name" AS "openedByName",
+           COALESCE(ef."efectivoPyg", 0)::bigint AS "efectivoPyg",
+           COALESCE(ef."pagos", 0)::int AS "pagosEfectivo",
+           COALESCE(ov."pedidos", 0)::int AS "pedidos",
+           COALESCE(ov."ventasPyg", 0)::bigint AS "ventasPyg",
+           COALESCE(mv."movimientosPyg", 0)::bigint AS "movimientosPyg"
+    FROM "CashSession" s
+    JOIN "User" u ON u."id" = s."openedById"
+    LEFT JOIN LATERAL (
+      SELECT SUM(p."amountPyg") AS "efectivoPyg", COUNT(*) AS "pagos"
+      FROM "Payment" p JOIN "Order" o ON o."id" = p."orderId"
+      WHERE p."tenantId" = s."tenantId" AND p."method" = 'CASH' AND p."status" = 'CONFIRMED'
+        AND COALESCE(p."currency"::text, 'PYG') = 'PYG'
+        AND o."tenantId" = s."tenantId" AND o."branchId" = s."branchId"
+        AND p."paidAt" >= s."openedAt" AND p."paidAt" < COALESCE(s."closedAt", ${ahora})
+        AND (p."userId" = s."openedById" OR p."createdById" = s."openedById")
+    ) ef ON TRUE
+    LEFT JOIN LATERAL (
+      SELECT COUNT(*) AS "pedidos", SUM(o."totalPyg") AS "ventasPyg"
+      FROM "Order" o
+      WHERE o."tenantId" = s."tenantId" AND o."branchId" = s."branchId" AND o.status <> 'CANCELLED'
+        AND o."createdAt" >= s."openedAt" AND o."createdAt" < COALESCE(s."closedAt", ${ahora})
+        AND o."sellerId" = s."openedById"
+    ) ov ON TRUE
+    LEFT JOIN LATERAL (
+      SELECT SUM(CASE WHEN m."direction" = 'IN' THEN m."amountPyg" ELSE -m."amountPyg" END) AS "movimientosPyg"
+      FROM "CashMovement" m
+      WHERE m."tenantId" = s."tenantId" AND m."branchId" = s."branchId"
+        AND COALESCE(m."currency"::text, 'PYG') = 'PYG' AND m."status" = 'CLEARED'
+        AND (m."accountId" IS NULL OR EXISTS (SELECT 1 FROM "PaymentAccount" a WHERE a."id" = m."accountId" AND a.kind = 'CASH'))
+        AND m."createdAt" >= s."openedAt" AND m."createdAt" < COALESCE(s."closedAt", ${ahora})
+        AND m."createdById" = s."openedById"
+    ) mv ON TRUE
+    WHERE s."tenantId" = ${tenant} AND s."branchId" = ${branchId}
+      AND s."openedAt" >= ${start} AND s."openedAt" < ${end}
+    ORDER BY s."openedAt" DESC
+    LIMIT 100`
+  return filas.map((fila) => {
+    const openingPyg = Number(fila.openingPyg || 0)
+    const efectivoPyg = Number(fila.efectivoPyg || 0)
+    const movimientosPyg = Number(fila.movimientosPyg || 0)
+    const abierta = String(fila.status) === 'OPEN'
+    const esperadoPyg = abierta || fila.expectedPyg === null || fila.expectedPyg === undefined
+      ? openingPyg + efectivoPyg + movimientosPyg
+      : Number(fila.expectedPyg)
+    const contadoPyg = fila.countedPyg === null || fila.countedPyg === undefined ? null : Number(fila.countedPyg)
+    return {
+      id: String(fila.id),
+      openedByName: String(fila.openedByName || ''),
+      openedAt: fila.openedAt,
+      closedAt: fila.closedAt,
+      status: String(fila.status),
+      openingPyg,
+      efectivoPyg,
+      pagosEfectivo: Number(fila.pagosEfectivo || 0),
+      movimientosPyg,
+      pedidos: Number(fila.pedidos || 0),
+      ventasPyg: Number(fila.ventasPyg || 0),
+      esperadoPyg,
+      contadoPyg,
+      diferenciaPyg: contadoPyg === null ? null : contadoPyg - esperadoPyg,
+      notes: fila.notes === null || fila.notes === undefined ? '' : String(fila.notes),
+    }
+  })
+}
+
 export async function GET(request: Request) {
   const ctx = await context(request); if ('error' in ctx) return error(ctx.error === 401 ? 'Falta sesión.' : 'No autorizado.', ctx.error)
   const tenant = ctx.session.user.tenantId
+  // Panel «Ventas por caja» (#148 §18): corte por sesión del período pedido.
+  const params = new URL(request.url).searchParams
+  if (['1', 'true'].includes((params.get('sesiones') || '').toLowerCase())) {
+    const rango = rangoDeSesiones(params)
+    if (!rango) return error('El rango de fechas es inválido.', 400)
+    const sesiones = await sesionesResumen(tenant, ctx.branchId, rango.start, rango.end)
+    return json({ sesiones, rango: { from: rango.from, to: rango.to, branchId: ctx.branchId } })
+  }
   // El turno del usuario manda: si tiene una caja abierta se muestra esa; si
   // no, se muestra la última sesión (para consultar el último cierre).
   const mine = await prisma.$queryRaw<Array<Record<string, unknown>>>`SELECT * FROM "CashSession" WHERE "tenantId" = ${tenant} AND "branchId" = ${ctx.branchId} AND "openedById" = ${ctx.session.user.id} AND "status" = 'OPEN' ORDER BY "openedAt" DESC LIMIT 1`
