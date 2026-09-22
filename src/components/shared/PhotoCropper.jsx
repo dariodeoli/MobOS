@@ -46,7 +46,11 @@ export default function PhotoCropper({ file, onCancel, onCropped, lado = LADO_FO
   }
 
   return (
+<<<<<<< HEAD
     <Modal open={Boolean(file)} onClose={onCancel} title="Recortar foto" size="corto">
+=======
+    <Modal open={Boolean(file)} onClose={onCancel} title="Recortar foto" size="sm">
+>>>>>>> origin/slot/diseno
       <div className="space-y-3">
         <p className="text-sm text-mute">Arrastrá para mover y usá el zoom para acercar. El recorte queda cuadrado, como se ve en la app.</p>
         <div

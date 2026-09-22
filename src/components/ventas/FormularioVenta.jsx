@@ -1793,7 +1793,13 @@ export default function FormularioVenta({
       <Modal
         open={Boolean(imeiPara)}
         onClose={() => setImeiPara(null)}
+<<<<<<< HEAD
         title="Elegir IMEI de esta venta" size="formulario">
+=======
+        title="Elegir IMEI de esta venta"
+       
+      >
+>>>>>>> origin/slot/diseno
         {(() => {
           const fila = items.find(it => it.key === imeiPara)
           const productoFila = fila ? productos.find(p => p.id === fila.productoId) : null
@@ -1834,7 +1840,13 @@ export default function FormularioVenta({
       <Modal
         open={suspenderOpen}
         onClose={suspendiendo ? undefined : () => setSuspenderOpen(false)}
+<<<<<<< HEAD
         title="Suspender venta" size="corto">
+=======
+        title="Suspender venta"
+        size="sm"
+      >
+>>>>>>> origin/slot/diseno
         <div className="space-y-3">
           <p className="text-sm text-mute">
             El carrito queda guardado en el servidor para esta sucursal, con el cliente, la
@@ -1876,7 +1888,13 @@ export default function FormularioVenta({
       <Modal
         open={suspendidasOpen}
         onClose={descartando ? undefined : () => setSuspendidasOpen(false)}
+<<<<<<< HEAD
         title="Ventas suspendidas" size="amplio">
+=======
+        title="Ventas suspendidas"
+        size="xl"
+      >
+>>>>>>> origin/slot/diseno
         <div className="space-y-3">
           <p className="text-sm text-mute">
             Carritos en espera de esta sucursal. Al recuperar uno, el carrito actual se reemplaza
@@ -2024,7 +2042,13 @@ export default function FormularioVenta({
       <Modal
         open={avisoDemoSuspendidas}
         onClose={() => setAvisoDemoSuspendidas(false)}
+<<<<<<< HEAD
         title="Ventas suspendidas" size="corto">
+=======
+        title="Ventas suspendidas"
+        size="sm"
+      >
+>>>>>>> origin/slot/diseno
         <div className="space-y-4">
           <p className="text-sm text-mute">
             Las ventas suspendidas se guardan en el servidor de tu tienda y necesitan conexión.
@@ -2041,7 +2065,11 @@ export default function FormularioVenta({
       <AnalyticsPos open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} />
 
       {/* Código escaneado: se confirma antes de sumarlo a la venta. */}
+<<<<<<< HEAD
       <Modal open={Boolean(escaneado)} onClose={() => setEscaneado(null)} title="Producto escaneado" size="corto">
+=======
+      <Modal open={Boolean(escaneado)} onClose={() => setEscaneado(null)} title="Producto escaneado" size="sm">
+>>>>>>> origin/slot/diseno
         {escaneado && (
           <div className="space-y-3">
             <div className="flex items-center gap-3">

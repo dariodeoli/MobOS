@@ -244,7 +244,11 @@ export default function Precios() {
       </form>}
     </Card>
 
+<<<<<<< HEAD
     <Modal open={editor !== null} onClose={() => !busy && setEditor(null)} title={editor?.id ? 'Editar lista de precios' : 'Nueva lista de precios'} size="amplio">
+=======
+    <Modal open={editor !== null} onClose={() => !busy && setEditor(null)} title={editor?.id ? 'Editar lista de precios' : 'Nueva lista de precios'} size="2xl">
+>>>>>>> origin/slot/diseno
       {editor && <form onSubmit={guardarLista} className="space-y-4">
         <div className={GRILLA_DOS_COLUMNAS}>
           <div>
@@ -269,7 +273,11 @@ export default function Precios() {
       </form>}
     </Modal>
 
+<<<<<<< HEAD
     <Modal open={aBorrar !== null} onClose={() => !busy && setABorrar(null)} title={`¿Eliminar ${aBorrar?.name || 'la lista'}?`} size="corto">
+=======
+    <Modal open={aBorrar !== null} onClose={() => !busy && setABorrar(null)} title={`¿Eliminar ${aBorrar?.name || 'la lista'}?`} size="sm">
+>>>>>>> origin/slot/diseno
       <p className="text-sm text-mute">Los clientes con esta lista asignada vuelven a su precio minorista o mayorista. La acción queda en la auditoría.</p>
       <div className="mt-4 flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setABorrar(null)} disabled={busy}>Cancelar</Button><Button type="button" className="border-bad/50 bg-bad/10 text-bad" onClick={borrarLista} disabled={busy}>{busy ? 'Eliminando…' : 'Eliminar lista'}</Button></div>
     </Modal>

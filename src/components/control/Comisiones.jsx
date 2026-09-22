@@ -354,7 +354,11 @@ export default function Comisiones() {
         )}
       </Card>
 
+<<<<<<< HEAD
       <Modal open={Boolean(comprobante)} onClose={() => setComprobante(null)} title={`Comprobante · ${comprobante?.sellerName || 'Vendedor'}`} size="formulario">
+=======
+      <Modal open={Boolean(comprobante)} onClose={() => setComprobante(null)} title={`Comprobante · ${comprobante?.sellerName || 'Vendedor'}`}>
+>>>>>>> origin/slot/diseno
         {comprobante && (
           <div className="space-y-4">
             <div className="rounded-xl border border-ink-600 p-3 text-sm">

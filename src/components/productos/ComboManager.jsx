@@ -51,7 +51,11 @@ export default function ComboManager({ open, onClose }) {
   }
 
   return (
+<<<<<<< HEAD
     <Modal open={open} onClose={() => !busy && onClose()} title="Combos" size="amplio">
+=======
+    <Modal open={open} onClose={() => !busy && onClose()} title="Combos" size="xl">
+>>>>>>> origin/slot/diseno
       <div className="space-y-4">
         <p className="text-sm text-mute">Un combo agrupa productos con precio fijo (ej. funda + lámina). El POS lo agrega como varias líneas repartiendo el precio, y descuenta el stock de cada componente.</p>
         {error && <Aviso tono="error">{error}</Aviso>}

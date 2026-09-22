@@ -143,7 +143,11 @@ export default function DriverOrders() {
         {data.rows.map(row => <PedidoReparto key={row.id} row={row} onCobrar={abrirCobro} onEstado={cambiarEstado} busy={ocupado === row.id} />)}
       </div>
 
+<<<<<<< HEAD
       <Modal open={Boolean(cobro)} onClose={() => !enviando && setCobro(null)} title="Registrar cobro en la calle" size="corto">
+=======
+      <Modal open={Boolean(cobro)} onClose={() => !enviando && setCobro(null)} title="Registrar cobro en la calle" size="sm">
+>>>>>>> origin/slot/diseno
         {cobro && (
           <div className="space-y-4">
             <p className="text-sm text-mute">

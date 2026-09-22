@@ -207,7 +207,11 @@ function Rendiciones() {
         busy={ocupado}
       />
 
+<<<<<<< HEAD
       <Modal open={Boolean(rechazar)} onClose={() => !ocupado && setRechazar(null)} title="Rechazar la rendición" size="corto">
+=======
+      <Modal open={Boolean(rechazar)} onClose={() => !ocupado && setRechazar(null)} title="Rechazar la rendición" size="sm">
+>>>>>>> origin/slot/diseno
         <p className="text-sm text-mute">Los cobros quedan sin efecto y el repartidor puede volver a registrarlos.</p>
         <label htmlFor="rendicion-motivo" className="mt-4 block text-sm font-semibold">Motivo</label>
         <Textarea id="rendicion-motivo" className="mt-2" rows={3} maxLength={500} value={motivo} onChange={event => setMotivo(event.target.value)} placeholder="Ej.: el efectivo entregado no coincide con lo rendido" />

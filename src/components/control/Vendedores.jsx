@@ -453,7 +453,11 @@ export default function Vendedores() {
     </Card>}
 
     </PanelDerecho>
+<<<<<<< HEAD
     <Modal open={permisosDe !== null} onClose={() => !permisosBusy && setPermisosDe(null)} title={`Permisos${permisosDe?.nombre ? ` · ${permisosDe.nombre}` : ''}`} size="formulario">
+=======
+    <Modal open={permisosDe !== null} onClose={() => !permisosBusy && setPermisosDe(null)} title={`Permisos${permisosDe?.nombre ? ` · ${permisosDe.nombre}` : ''}`}>
+>>>>>>> origin/slot/diseno
       <div className="space-y-3">
         <p className="text-sm text-mute">El rol define el máximo; acá podés recortarlo. Lo que desmarques se rechaza también en el servidor, no solo en la pantalla.</p>
         {(catalogo?.byRole?.[permisosDe?.role] || []).length === 0 && <p className="rounded-lg border border-ink-600 px-3 py-2 text-xs text-mute">Este rol no tiene permisos recortables.</p>}
@@ -474,7 +478,11 @@ export default function Vendedores() {
         </div>
       </div>
     </Modal>
+<<<<<<< HEAD
     <Modal open={horario !== null} onClose={() => !busy && setHorario(null)} title={`Horario de acceso${horario?.nombre ? ` · ${horario.nombre}` : ''}`} size="formulario">
+=======
+    <Modal open={horario !== null} onClose={() => !busy && setHorario(null)} title={`Horario de acceso${horario?.nombre ? ` · ${horario.nombre}` : ''}`}>
+>>>>>>> origin/slot/diseno
       <form onSubmit={guardarHorario} className="space-y-3">
         <p className="text-sm text-mute">Fuera de estos rangos el integrante no puede ingresar al sistema. Sin rangos, el acceso queda libre.</p>
         <div className={GRILLA_DOS_COLUMNAS}>
@@ -501,7 +509,11 @@ export default function Vendedores() {
       {historialDe && <Cronologia endpoint={`/api/users/${historialDe.id}/history`} active={historialDe !== null} vacio="Sin actividad" descripcionVacio="El alta, los cambios de rol, sucursal o PIN, las comisiones y las ventas de este funcionario aparecerán acá." />}
     </Modal>
 
+<<<<<<< HEAD
     <Modal open={pinDe !== null} onClose={() => !pinBusy && setPinDe(null)} title={`PIN de ${pinDe?.nombre || 'integrante'}`} size="corto">
+=======
+    <Modal open={pinDe !== null} onClose={() => !pinBusy && setPinDe(null)} title={`PIN de ${pinDe?.nombre || 'integrante'}`} size="sm">
+>>>>>>> origin/slot/diseno
       <div className="space-y-4">
         <p className="text-sm text-mute">
           El PIN se guarda cifrado y <b className="text-fore">nunca se puede ver</b>. Asigná uno nuevo para esta persona

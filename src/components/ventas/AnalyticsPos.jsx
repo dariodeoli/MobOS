@@ -137,7 +137,11 @@ export default function AnalyticsPos({ open, onClose }) {
   const cambioVentas = tablero ? comparacion(tablero.hoy.ventas, tablero.ayer.ventas) : 0
 
   return (
+<<<<<<< HEAD
     <Modal open={open} onClose={onClose} title="Analytics del POS" size="amplio">
+=======
+    <Modal open={open} onClose={onClose} title="Analytics del POS" size="2xl">
+>>>>>>> origin/slot/diseno
       {error && <Aviso tono="error" className="rounded-xl">{error}</Aviso>}
       {!tablero && !error && <div className="space-y-3"><Skeleton className="h-20 w-full" /><Skeleton className="h-40 w-full" /></div>}
       {tablero && (
