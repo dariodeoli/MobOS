@@ -1,0 +1,72 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "1.0.137",
+  "fecha": "2026-09-22T01:07:34.958Z",
+  "metodo": "Playwright headless (chromium) sobre la demo pública de producción",
+  "resultados": [
+    {
+      "paso": "entrada a la demo como dueño",
+      "estado": "ok",
+      "detalle": "versión 1.0.137 · perfiles demo: true",
+      "capturas": [
+        "01-acceso-demo.jpg",
+        "02-panel-demo.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "POS: comprobante con ítems en los 3 niveles × A4/80/58 (PDF por tamaño)",
+      "estado": "ok",
+      "detalle": "9 PDFs (3 niveles × 3 tamaños) con ítems, totales, QR y leyenda",
+      "capturas": [
+        "03-comprobante-completo-a4.jpg",
+        "04-comprobante-completo-thermal-80.jpg",
+        "05-comprobante-completo-thermal-58.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "POS: «Descargar PDF» llega al iframe imprimible (sin diálogo en headless)",
+      "estado": "ok",
+      "detalle": "iframe imprimible con MOBOS Comprobante de compra Pedido 21/9/2026, 10:07:08 p. m. Cliente QA Comproba…",
+      "capturas": [
+        "06-comprobante-descargar-pdf.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "pedido: comprobante desde la página del pedido",
+      "estado": "ok",
+      "detalle": "pedido con A4/80/58 y PDF 80 mm",
+      "capturas": [
+        "07-pedido-comprobante-modal.jpg",
+        "08-pedido-comprobante-80.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "finanzas: Resumen → Imprimir resumen (A4 ejecutivo + 58/80)",
+      "estado": "ok",
+      "detalle": "3 PDFs del resumen (A4 ejecutivo + 58/80)",
+      "capturas": [
+        "09-resumen-modal.jpg",
+        "10-resumen-a4.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "el demo no llama al API real",
+      "estado": "ok",
+      "detalle": "0 llamadas de impresión/datos · 0 al API general del shell",
+      "capturas": [],
+      "llamadasApi": []
+    }
+  ],
+  "llamadasApi": [],
+  "erroresConsola": [],
+  "veredicto": {
+    "pasosOk": 6,
+    "pasosTotal": 6,
+    "erroresConsola": 0
+  }
+}
