@@ -180,6 +180,17 @@ test('las celdas de dato y de número salen de shared/tabla', () => {
   }
 })
 
+test('el interruptor tiene un solo objeto: Switch (#186)', () => {
+  const ui = readFileSync(join(RAIZ, 'components/ui/index.jsx'), 'utf8')
+  assert.ok(!/function Toggle\(/.test(ui), 'ui no debe exportar Toggle: el canónico es shared/Switch')
+  const culpables = archivosFuente()
+    .filter(({ contenido }) => /import \{[^}]*\bToggle\b[^}]*\} from '@\/components\/ui'/.test(contenido) || /<Toggle\b/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [])
+  const config = readFileSync(join(RAIZ, 'components/control/Config.jsx'), 'utf8')
+  assert.match(config, /<Switch[\s\S]{0,80}seguro-toggle/, 'Config usa el interruptor canónico')
+})
+
 test('las barras de avance usan BarraProgreso', () => {
   for (const ruta of ['components/ventas/PagosPedido.jsx', 'components/control/Creditos.jsx', 'pages/GarantiaPublica.jsx']) {
     assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<BarraProgreso\b/, `${ruta}: el avance va con BarraProgreso`)

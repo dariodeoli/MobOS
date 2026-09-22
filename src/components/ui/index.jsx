@@ -2,7 +2,6 @@ import { createContext, forwardRef, useCallback, useContext, useEffect, useId, u
 import { cn } from '@/lib/utils'
 import { formatGs, formatGsInput, parseGsInput, formatUsdInput, parseUsdInput, excedeMonto, LIMITE_MONTO_GENERAL } from '@/utils/moneda'
 import Icon from '@/components/shared/Icon'
-import Switch from '@/components/shared/Switch'
 
 // ── Button ──────────────────────────────────────────────────────────
 const VARIANTS = {
@@ -641,14 +640,6 @@ export function Stat({ label, valor, delta, sub, destacado = false, className })
       </div>
     </div>
   )
-}
-
-// Toggle: alias de compatibilidad del interruptor canónico (shared/Switch,
-// #147). Mantiene la firma histórica `onChange(next)` para las pantallas que
-// todavía lo usan (Config); las nuevas usan Switch directo. Una sola
-// implementación visual, sin duplicar el objeto.
-export function Toggle({ checked = false, onChange, ...props }) {
-  return <Switch checked={checked} onChange={(event) => onChange?.(event.target.checked)} {...props} />
 }
 
 // ── Subtabs ─────────────────────────────────────────────────────────
