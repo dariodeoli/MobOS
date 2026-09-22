@@ -52,6 +52,12 @@ de unidad y carrito POS). Capturas en `docs/qa/tokens-v2-finanzas/1.0.142/`.
 - La ronda completa del dominio también dio verde en .142:
   `docs/qa/produccion-1.0.142/`.
 
+## Post-v1.0.143 — **8/8 OK**
+
+Repetición sobre producción **v1.0.143**: mismas ocho verificaciones en verde,
+sin cambios en Finanzas (capturas en `docs/qa/tokens-v2-finanzas/1.0.143/`).
+La ronda completa del dominio: `docs/qa/produccion-1.0.143/`.
+
 Reproducir:
 
 ```bash

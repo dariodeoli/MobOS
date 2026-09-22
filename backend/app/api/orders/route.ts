@@ -28,6 +28,13 @@ const orderDetail = Prisma.validator<Prisma.OrderInclude>()({
 
 const INT_MAX = 2147483647
 const safeInt = (value: unknown, minimum = 0): value is number => Number.isSafeInteger(value) && (value as number) >= minimum && (value as number) <= INT_MAX
+// Repuestos/arreglos detectados en la inspección PhoneCheck (#240): el costo
+// cargado en la unidad suma al costo real del equipo para margen y seguro
+// (#148 §19), junto con lo que ya tenía cargado la unidad.
+const costoRepuestosDeInspection = (inspection: unknown): number => {
+  const valor = Number((inspection as { costoRepuestosPyg?: unknown } | null)?.costoRepuestosPyg)
+  return Number.isSafeInteger(valor) && valor > 0 ? valor : 0
+}
 const cleanText = (value: unknown, field: string, max: number) => value === undefined ? undefined : textInput(value, field, max)
 
 
@@ -393,14 +400,18 @@ export async function POST(request: Request) {
           // Costo real por unidad (#148 §19): si la venta lleva el IMEI/serial
           // de cada equipo, la base es el costo de esas unidades —donde
           // Inventario carga reparaciones y repuestos (hoy a mano; el rediseño
-          // #240/#241 lo tomará del checklist no-OEM)—. La línea guarda un
-          // costo por unidad: si los costos difieren, se congela el promedio.
+          // #240/#241 lo tomará del checklist no-OEM)— más el costo de
+          // repuestos/arreglos que dejó la inspección PhoneCheck. La línea
+          // guarda un costo por unidad: si los costos difieren, se congela el
+          // promedio.
           if (serials.length && serials.length === quantity) {
-            const unidadesConCosto = await tx.inventoryUnit.findMany({ where: { tenantId: tenant, productId: product.id, serial: { in: serials }, costPyg: { not: null } }, select: { costPyg: true } })
-            if (unidadesConCosto.length === serials.length) {
-              const totalUnidades = unidadesConCosto.reduce((suma, unidad) => suma + Number(unidad.costPyg), 0)
+            const unidadesConCosto = await tx.inventoryUnit.findMany({ where: { tenantId: tenant, productId: product.id, serial: { in: serials } }, select: { costPyg: true, inspection: true } })
+            const completas = unidadesConCosto.length === serials.length && unidadesConCosto.every((unidad) => unidad.costPyg !== null && unidad.costPyg !== undefined)
+            if (completas) {
+              const totalUnidades = unidadesConCosto.reduce((suma, unidad) => suma + Number(unidad.costPyg) + costoRepuestosDeInspection(unidad.inspection), 0)
               const costoPorUnidad = Math.round(totalUnidades / unidadesConCosto.length)
-              if (Number.isSafeInteger(costoPorUnidad) && costoPorUnidad >= 0) baseUnitCostPyg = costoPorUnidad
+              if (!safeInt(costoPorUnidad)) throw new InputError('El costo real de la unidad (con repuestos) supera el máximo permitido.')
+              baseUnitCostPyg = costoPorUnidad
             }
           }
           // Precio de lista congelado: la lista del cliente (escalón/ítem),

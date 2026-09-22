@@ -56,8 +56,13 @@ export function resumenInspection(inspection = {}) {
   return { puntaje, grado: gradoInspection(puntaje) }
 }
 
-/** Chips de bloqueos a partir de la verificación IMEI (campos normalizados). */
-export function locksDeVerificacion(verificacion = {}) {
+/** Costo de repuestos/arreglos cargado en la inspección (#148 §19). */
+export function costoRepuestosInspection(inspection = {}) {
+  const valor = Number(inspection?.costoRepuestosPyg)
+  return Number.isSafeInteger(valor) && valor > 0 ? valor : 0
+}
+
+/** Chips de bloqueos a partir de la verificación IMEI (campos normalizados). */export function locksDeVerificacion(verificacion = {}) {
   const campos = Array.isArray(verificacion?.campos) ? verificacion.campos : Array.isArray(verificacion?.normalized) ? verificacion.normalized : []
   const porClave = Object.fromEntries(campos.map(campo => [campo.clave, campo.valor]))
   const chips = []

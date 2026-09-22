@@ -97,7 +97,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   const [costo, setCosto] = useState(costoInicial)
   const [guardandoCosto, setGuardandoCosto] = useState(false)
   // #240 PhoneCheck
-  const [inspeccion, setInspeccion] = useState(() => ({ items: unit.inspection?.items || {}, cosmetico: unit.inspection?.cosmetico || '', nota: unit.inspection?.nota || '', bateriaPct: unit.inspection?.bateriaPct ?? (unit.batteryHealth ?? ''), bateriaCiclos: unit.inspection?.bateriaCiclos ?? '', repuestosNoOem: unit.inspection?.repuestosNoOem || '' }))
+  const [inspeccion, setInspeccion] = useState(() => ({ items: unit.inspection?.items || {}, cosmetico: unit.inspection?.cosmetico || '', nota: unit.inspection?.nota || '', bateriaPct: unit.inspection?.bateriaPct ?? (unit.batteryHealth ?? ''), bateriaCiclos: unit.inspection?.bateriaCiclos ?? '', repuestosNoOem: unit.inspection?.repuestosNoOem || '', costoRepuestosPyg: unit.inspection?.costoRepuestosPyg ?? '' }))
   const [guardandoInspeccion, setGuardandoInspeccion] = useState(false)
   // Consulta de IMEI (#193/#200): precheck con costo visible, confirmación
   // explícita y resultado auditado. En demo solo SIMULA (sin llamadas).
@@ -434,10 +434,11 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
               </div>
             })}
           </div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-4">
+          <div className="mt-3 grid gap-2 sm:grid-cols-5">
             <Input aria-label="Batería %" inputMode="numeric" maxLength={3} placeholder="Batería %" value={inspeccion.bateriaPct} onChange={event => setInspeccion(actual => ({ ...actual, bateriaPct: event.target.value.replace(/\D/g, '') }))} />
             <Input aria-label="Ciclos de batería" inputMode="numeric" maxLength={5} placeholder="Ciclos" value={inspeccion.bateriaCiclos} onChange={event => setInspeccion(actual => ({ ...actual, bateriaCiclos: event.target.value.replace(/\D/g, '') }))} />
             <Input aria-label="Repuestos no OEM" placeholder="Repuestos no OEM / reparaciones" value={inspeccion.repuestosNoOem} onChange={event => setInspeccion(actual => ({ ...actual, repuestosNoOem: event.target.value }))} />
+            <MoneyInput aria-label="Costo de repuestos y arreglos" title="Lo que costó reparar o reponer los repuestos detectados: se suma al costo real del equipo para la ganancia y el seguro" placeholder="Costo de repuestos" value={inspeccion.costoRepuestosPyg} onValueChange={(valor) => setInspeccion(actual => ({ ...actual, costoRepuestosPyg: valor }))} />
             <Button type="button" variant="outline" disabled={imeiBusy} title="Corre la verificación de IMEI y trae los bloqueos al checklist" onClick={async () => { await imeiPrecheck(); await imeiConfirmar(); setInspeccion(actual => ({ ...actual, fuente: 'IMEIcheck' })) }}>{imeiBusy ? 'Verificando…' : 'Verificar y completar'}</Button>
           </div>
           {(() => { const chips = locksDeVerificacion(imeiDatos || {}); if (!chips.length) return null; return <div className="mt-2 flex flex-wrap items-center gap-1.5">{chips.map(chip => <span key={chip.clave} className={`rounded-lg border px-2 py-1 text-[10px] font-semibold ${chip.ok ? 'border-ok/40 text-ok' : 'border-bad/40 text-bad'}`} title={`${chip.label}: ${chip.valor}`}>{chip.label}: {chip.valor}</span>)}</div> })()}
