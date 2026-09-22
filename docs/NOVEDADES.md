@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.144 — 2026-09-22
+- **Finanzas / Inventario:** el **costo de repuestos no-OEM** cargado en la inspección entra al **costo real** de la venta por IMEI y a la base del seguro (ej.: costo 800.000 + repuestos 120.000 ⇒ costo real 920.000 y seguro 92.000); antes la ganancia quedaba inflada en silencio. Campo validado en servidor y con test del arnés. (#148 #240)
+- **Componentes:** los **tonos de inspección** quedan en una sola forma compartida con la biblioteca (`TONOS.punto/chip/texto`), se publica el lock `oem` (repuesto no OEM) y `VistaPreviaPapel`; contrato verificado por test (lote 16, owncoding-ui v0.14.5). (#240)
+- **Diseño:** plan **F4 por dominio** y switch de activación del default v2 (apagado). (#241)
+- **QA / cierres:** revisión final de brechas de la épica POS (#148), cierre de Clientes #236 y verificaciones post-v1.0.143 de impresión, taller e impresión en serie, con capturas y resultados en `docs/qa/`. (#148 #236 #240 #241)
+
 ## v1.0.143 — 2026-09-22
 - **Inventario — IMEI:** nueva **pantalla de consultas IMEI** (ADMIN/GERENTE) para buscar por IMEI, ver estado, costo y fecha, y **conciliar** contra el proveedor (estado, costo real, fecha del panel, orden y nota) desde la UI; el informe de dispositivo suma la **página pública `/u/<serial>`** con endpoint sin datos personales (grado, batería, controles y aviso de blacklist). (#233 #240)
 - **AEX:** la cédula viaja como **CIP** y el tipo de documento se normaliza (CI/Cédula/DNI → CIP, Pasaporte → PAS, RUC → RUC) con tests y harness actualizados; la confirmación ambigua queda **fail-closed** y se concilia por referencia (`--consulta`), sin reintentos a ciegas. (#231)
