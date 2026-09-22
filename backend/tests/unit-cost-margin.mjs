@@ -84,3 +84,28 @@ assert.equal(Number(lineaInsp.insurancePyg), seguroInsp, 'el seguro se calcula s
 assert.equal(Number(lineaInsp.unitCostPyg), costoRealInsp + seguroInsp, 'costo real = unidad + repuestos de inspección + seguro')
 
 console.log(`PASS: inspección no-OEM con repuestos ${costoRepuestosInsp} → costo real ${costoRealInsp} · seguro ${seguroInsp} · ${checks} chequeos`)
+
+// 5) Equipo en consignación (#33): no es de la tienda; al venderse se le paga
+//    al consignador el monto acordado. Ese monto es costo real de la venta.
+const serialConsig = `993${Date.now().toString().slice(-12)}`
+const precioConsig = 1800000
+const consignorPyg = 1500000
+const productoConsig = await req('/api/products', 'POST', { name: `Equipo consignado ${sufijo}`, sku: `CONS-${sufijo}`, pricePyg: precioConsig, stock: 1, imei: serialConsig, branchId: rama, condition: 'USED' }, 201)
+const unidadesConsig = await req(`/api/inventory-units?q=${serialConsig}&branchId=${rama}`)
+const listaConsig = Array.isArray(unidadesConsig) ? unidadesConsig : unidadesConsig.units || []
+const unidadConsig = listaConsig.find((fila) => fila.serial === serialConsig)
+assert.ok(unidadConsig, 'la unidad consignada aparece en Inventario')
+await req('/api/inventory-units', 'PATCH', { id: unidadConsig.id, action: 'details', consignorName: 'Tercero demo', consignorPyg })
+const ventaConsig = await req('/api/orders', 'POST', {
+  customerId: cliente.id,
+  branchId: rama,
+  items: [{ productId: productoConsig.id, description: productoConsig.name, quantity: 1, unitPricePyg: precioConsig, inventoryUnitSerials: [serialConsig] }],
+  payments: [{ method: 'TRANSFER', amountPyg: precioConsig, status: 'CONFIRMED' }],
+}, 201)
+const lineaConsig = ventaConsig.items?.[0]
+const seguroConsig = Math.round((consignorPyg * tasaSeguro) / 100)
+assert.equal(Number(lineaConsig.baseUnitCostPyg), consignorPyg, 'lo que se paga al consignador es el costo real de la venta')
+assert.equal(Number(lineaConsig.insurancePyg), seguroConsig, 'el seguro se calcula sobre ese costo')
+assert.equal(Number(lineaConsig.unitCostPyg), consignorPyg + seguroConsig, 'costo real = consignación + seguro')
+
+console.log(`PASS: consignación ${consignorPyg} → costo real ${consignorPyg} · seguro ${seguroConsig} · ${checks} chequeos`)

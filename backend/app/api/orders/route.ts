@@ -397,21 +397,26 @@ export async function POST(request: Request) {
           if ((branchId === null && product.branchId !== null) || (branchId && product.branchId !== null && product.branchId !== branchId)) throw new Error('El producto pertenece a otra sucursal.')
           // Foto del costo: la ganancia histórica no cambia si luego se actualiza el costo.
           if (product.costPyg !== null && product.costPyg !== undefined) baseUnitCostPyg = product.costPyg
-          // Costo real por unidad (#148 §19): si la venta lleva el IMEI/serial
-          // de cada equipo, la base es el costo de esas unidades —donde
-          // Inventario carga reparaciones y repuestos (hoy a mano; el rediseño
-          // #240/#241 lo tomará del checklist no-OEM)— más el costo de
-          // repuestos/arreglos que dejó la inspección PhoneCheck. La línea
-          // guarda un costo por unidad: si los costos difieren, se congela el
-          // promedio.
+          // Costo real por unidad (#148 §19): costo de la unidad + lo que se le
+          // paga al consignador al venderla (#33) + repuestos/arreglos de la
+          // inspección PhoneCheck (#240). Si la unidad no tiene costo propio ni
+          // consignación, vale el costo del producto; si no hay ninguno, la
+          // línea queda con costo pendiente (no se inventa un costo).
           if (serials.length && serials.length === quantity) {
-            const unidadesConCosto = await tx.inventoryUnit.findMany({ where: { tenantId: tenant, productId: product.id, serial: { in: serials } }, select: { costPyg: true, inspection: true } })
-            const completas = unidadesConCosto.length === serials.length && unidadesConCosto.every((unidad) => unidad.costPyg !== null && unidad.costPyg !== undefined)
-            if (completas) {
-              const totalUnidades = unidadesConCosto.reduce((suma, unidad) => suma + Number(unidad.costPyg) + costoRepuestosDeInspection(unidad.inspection), 0)
-              const costoPorUnidad = Math.round(totalUnidades / unidadesConCosto.length)
-              if (!safeInt(costoPorUnidad)) throw new InputError('El costo real de la unidad (con repuestos) supera el máximo permitido.')
-              baseUnitCostPyg = costoPorUnidad
+            const unidades = await tx.inventoryUnit.findMany({ where: { tenantId: tenant, productId: product.id, serial: { in: serials } }, select: { costPyg: true, consignorPyg: true, inspection: true } })
+            if (unidades.length === serials.length) {
+              const bases = unidades.map((unidad) => {
+                const repuestos = costoRepuestosDeInspection(unidad.inspection)
+                const consignacion = Number(unidad.consignorPyg ?? 0)
+                if (unidad.costPyg !== null && unidad.costPyg !== undefined) return Number(unidad.costPyg) + consignacion + repuestos
+                if (Number.isSafeInteger(consignacion) && consignacion > 0) return consignacion + repuestos
+                return product.costPyg === null || product.costPyg === undefined ? null : Number(product.costPyg) + repuestos
+              })
+              if (bases.every((valor) => valor !== null)) {
+                const costoPorUnidad = Math.round((bases as number[]).reduce((suma, valor) => suma + valor, 0) / bases.length)
+                if (!safeInt(costoPorUnidad)) throw new InputError('El costo real de la unidad (con consignación y repuestos) supera el máximo permitido.')
+                baseUnitCostPyg = costoPorUnidad
+              }
             }
           }
           // Precio de lista congelado: la lista del cliente (escalón/ítem),
