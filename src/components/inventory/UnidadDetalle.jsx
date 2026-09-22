@@ -470,13 +470,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
       <Modal
         open={Boolean(stockAction)}
         onClose={() => { if (!stockBusy) setStockAction(null) }}
-<<<<<<< HEAD
         title={stockAction === 'remove' ? 'Dar de baja la unidad' : unit.status === 'DEFECTIVE' ? 'Habilitar unidad' : 'Marcar en revisión'} size="formulario">
-=======
-        title={stockAction === 'remove' ? 'Dar de baja la unidad' : unit.status === 'DEFECTIVE' ? 'Habilitar unidad' : 'Marcar en revisión'}
-       
-      >
->>>>>>> origin/slot/diseno
         <div className="space-y-3">
           <p className="text-sm text-mute">
             IMEI {unit.serial} · {authStock ? 'Hay una autorización aprobada: al confirmar se ejecuta la acción.' : 'Se envía la solicitud a gerencia con este motivo.'}

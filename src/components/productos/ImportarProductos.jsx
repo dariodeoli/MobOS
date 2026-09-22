@@ -165,13 +165,7 @@ export default function ImportarProductos({ onImportada }) {
       <Modal
         open={abierto}
         onClose={(importando || confirmarDeshacer) ? undefined : () => setAbierto(false)}
-<<<<<<< HEAD
         title="Importar productos (CSV o Excel)" size="completo">
-=======
-        title="Importar productos (CSV o Excel)"
-        size="4xl"
-      >
->>>>>>> origin/slot/diseno
         <div className="space-y-4">
           <div className="rounded-xl border border-ink-600 bg-ink-700/40 p-4 text-xs leading-5 text-mute">
             <p className="font-semibold text-fore">Cómo preparar el archivo</p>

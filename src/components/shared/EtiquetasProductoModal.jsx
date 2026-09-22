@@ -79,11 +79,7 @@ export default function EtiquetasProductoModal({ open, onClose, productos = [], 
   }
 
   return (
-<<<<<<< HEAD
     <Modal open={open} onClose={onClose} title="Etiquetas de góndola" size="amplio">
-=======
-    <Modal open={open} onClose={onClose} title="Etiquetas de góndola" size="xl">
->>>>>>> origin/slot/diseno
       <div className="space-y-4">
         <p className="text-sm text-mute">Elegí los productos y cuántas etiquetas de cada uno. El código de barras sale sobre el SKU (EAN-13 si el SKU lo es; si no, CODE128) y el precio es el de venta del producto.</p>
         <SearchField ariaLabel="Buscar por nombre o SKU" placeholder="Buscar por nombre o SKU" value={query} onChange={(event) => setQuery(event.target.value)} />

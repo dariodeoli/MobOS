@@ -227,16 +227,7 @@ export function Card({ className, ...props }) {
 }
 
 // Popup estándar: Esc, clic afuera, botón cerrar y cierre opcional al guardar.
-<<<<<<< HEAD
 export function Modal({ open, onClose, title, children, className, size = TAMANO_MODAL_PREDETERMINADO }) {
-=======
-// Tamaños de modal (#237): corto → `sm`, formulario → `md` (default), listas →
-// `lg`/`xl`, tablas y contenido amplio → `2xl`+. El `className` del call site
-// sigue mandando cuando hace falta una excepción (twMerge resuelve el conflicto).
-const TAMANOS_MODAL = { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-xl', xl: 'max-w-2xl', '2xl': 'max-w-3xl', '3xl': 'max-w-4xl', '4xl': 'max-w-5xl' }
-
-export function Modal({ open, onClose, title, children, className, size = 'md' }) {
->>>>>>> origin/slot/diseno
   const dialog = useRef(null)
   const close = useRef(onClose)
   close.current = onClose
@@ -262,11 +253,7 @@ export function Modal({ open, onClose, title, children, className, size = 'md' }
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center sm:p-6" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
-<<<<<<< HEAD
       <div ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} className={cn('max-h-[min(90dvh,720px)] w-full overflow-y-auto rounded-2xl border border-ink-600 bg-ink-800 p-4 shadow-2xl sm:p-6', TAMANOS_MODAL[size] || TAMANOS_MODAL[TAMANO_MODAL_PREDETERMINADO], className)}>
-=======
-      <div ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} className={cn('max-h-[min(90dvh,720px)] w-full overflow-y-auto rounded-2xl border border-ink-600 bg-ink-800 p-4 shadow-2xl sm:p-6', TAMANOS_MODAL[size] || TAMANOS_MODAL.md, className)}>
->>>>>>> origin/slot/diseno
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 id={titleId} className="text-base font-bold text-fore">{title}</h2>
           <button type="button" onClick={onClose} className="rounded-lg p-2 text-mute hover:bg-ink-700 hover:text-fore" aria-label="Cerrar">×</button>
@@ -290,11 +277,7 @@ export function ConfirmDialog({
   busy = false,
 }) {
   return (
-<<<<<<< HEAD
     <Modal open={open} onClose={busy ? undefined : onCancel} title={title} size="corto">
-=======
-    <Modal open={open} onClose={busy ? undefined : onCancel} title={title} size="sm">
->>>>>>> origin/slot/diseno
       <div className="space-y-5">
         <div className={cn('flex h-11 w-11 items-center justify-center rounded-2xl', variant === 'danger' ? 'bg-bad/10 text-bad' : 'bg-fono/10 text-fono-light')}>
           <Icon name={variant === 'danger' ? 'alert' : 'check'} className="h-5 w-5" />

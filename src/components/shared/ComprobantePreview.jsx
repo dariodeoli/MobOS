@@ -180,11 +180,7 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
   }
 
   return (
-<<<<<<< HEAD
     <Modal open={open} onClose={onClose} title="Comprobante" size="amplio">
-=======
-    <Modal open={open} onClose={onClose} title="Comprobante" size="3xl">
->>>>>>> origin/slot/diseno
       <div className="space-y-3">
         <div className="flex flex-wrap items-end gap-3">
           <label className="block space-y-1 text-xs text-mute">

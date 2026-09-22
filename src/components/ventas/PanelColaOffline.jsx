@@ -49,11 +49,7 @@ export default function PanelColaOffline({ open, onClose }) {
   }
 
   return (
-<<<<<<< HEAD
     <Modal open={open} onClose={onClose} title="Ventas sin conexión" size="amplio">
-=======
-    <Modal open={open} onClose={onClose} title="Ventas sin conexión" size="2xl">
->>>>>>> origin/slot/diseno
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-mute">

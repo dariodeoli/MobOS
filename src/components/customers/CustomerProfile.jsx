@@ -1034,11 +1034,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   }
 
   return (
-<<<<<<< HEAD
     <Modal open={open} onClose={() => { if (!requestKind && !resolveTarget && !identityForm && !portal && !confirmarRegenerar) onClose() }} title={`Cliente: ${customer?.name || ''}`} size="amplio">
-=======
-    <Modal open={open} onClose={() => { if (!requestKind && !resolveTarget && !identityForm && !portal && !confirmarRegenerar) onClose() }} title={`Cliente: ${customer?.name || ''}`} size="xl">
->>>>>>> origin/slot/diseno
       {loading && (
         <div className="space-y-4" aria-busy="true">
           <Skeleton className="h-10 w-2/3" />
@@ -1870,11 +1866,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
         </div>
       )}
 
-<<<<<<< HEAD
       <Modal open={Boolean(solicitud)} onClose={() => setSolicitud(null)} title={solicitud === 'WHOLESALE' ? 'Solicitar pasar a mayorista' : 'Solicitar crédito'} size="corto">
-=======
-      <Modal open={Boolean(solicitud)} onClose={() => setSolicitud(null)} title={solicitud === 'WHOLESALE' ? 'Solicitar pasar a mayorista' : 'Solicitar crédito'} size="sm">
->>>>>>> origin/slot/diseno
         <div className="space-y-3">
           <p className="text-sm text-mute">
             {solicitud === 'WHOLESALE'
@@ -1933,13 +1925,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
       <Modal
         open={Boolean(requestKind)}
         onClose={() => { if (!requestBusy) setRequestKind('') }}
-<<<<<<< HEAD
         title={requestKind === 'CREDIT' ? 'Solicitar habilitación de crédito' : 'Solicitar días de crédito'} size="formulario">
-=======
-        title={requestKind === 'CREDIT' ? 'Solicitar habilitación de crédito' : 'Solicitar días de crédito'}
-       
-      >
->>>>>>> origin/slot/diseno
         <form onSubmit={enviarSolicitud} className="space-y-4">
           {requestKind === 'CREDIT' && (
             <FormField label="Límite de crédito solicitado (Gs.)" htmlFor="profile-request-limit">
@@ -1982,13 +1968,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
       <Modal
         open={Boolean(resolveTarget)}
         onClose={() => { if (!resolveBusy) setResolveTarget(null) }}
-<<<<<<< HEAD
         title={resolveAction === 'approve' ? 'Aprobar solicitud' : 'Rechazar solicitud'} size="formulario">
-=======
-        title={resolveAction === 'approve' ? 'Aprobar solicitud' : 'Rechazar solicitud'}
-       
-      >
->>>>>>> origin/slot/diseno
         {resolveTarget && (
           <div className="space-y-4">
             <p className="text-sm text-mute">
@@ -2059,13 +2039,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
       <Modal
         open={Boolean(identityForm)}
         onClose={() => { if (!identityBusy) setIdentityForm(null) }}
-<<<<<<< HEAD
         title={identityForm?.id ? 'Editar identidad' : 'Agregar identidad'} size="formulario">
-=======
-        title={identityForm?.id ? 'Editar identidad' : 'Agregar identidad'}
-       
-      >
->>>>>>> origin/slot/diseno
         {identityForm && (
           <form onSubmit={guardarIdentidad} className="space-y-4">
             <FormField label="Razón social" htmlFor="profile-identity-name">
@@ -2099,13 +2073,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
       <Modal
         open={Boolean(portal)}
         onClose={() => { if (!portalBusy) { setPortal(null); setPortalQr(''); setPortalMsg(''); setPortalError('') } }}
-<<<<<<< HEAD
         title="Portal del cliente" size="corto">
-=======
-        title="Portal del cliente"
-        size="sm"
-      >
->>>>>>> origin/slot/diseno
         <div className="space-y-4 text-center">
           <p className="text-sm text-mute">Compartí este enlace o QR con el cliente: ve su saldo, vencimientos y pedidos sin instalar nada.</p>
           <div className="flex justify-center gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
@@ -2143,13 +2111,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
       <Modal
         open={Boolean(direccionForm)}
         onClose={() => { if (!direccionBusy) setDireccionForm(null) }}
-<<<<<<< HEAD
         title={direccionForm?.index >= 0 ? 'Editar dirección' : 'Agregar dirección'} size="formulario">
-=======
-        title={direccionForm?.index >= 0 ? 'Editar dirección' : 'Agregar dirección'}
-       
-      >
->>>>>>> origin/slot/diseno
         {direccionForm && (
           <form onSubmit={guardarDireccion} className="space-y-4">
             <FormField label="Etiqueta" htmlFor="direccion-etiqueta" hint="Casa, oficina, depósito…">
@@ -2196,13 +2158,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
       <Modal
         open={comercialAbierto}
         onClose={() => { if (!guardandoComercial) setComercialAbierto(false) }}
-<<<<<<< HEAD
         title="Configuración comercial" size="formulario">
-=======
-        title="Configuración comercial"
-       
-      >
->>>>>>> origin/slot/diseno
         <form onSubmit={guardarComercial} className="space-y-4">
           <FormField label="Tipo de cliente" htmlFor="comercial-tipo">
             <Select id="comercial-tipo" disabled={guardandoComercial} value={comercialForm.pricingTier} onChange={(event) => setComercialForm((form) => ({ ...form, pricingTier: event.target.value }))}>
@@ -2245,13 +2201,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
       <Modal
         open={canjeAbierto}
         onClose={() => { if (!canjeBusy) setCanjeAbierto(false) }}
-<<<<<<< HEAD
         title="Canjear puntos como saldo a favor" size="corto">
-=======
-        title="Canjear puntos como saldo a favor"
-        size="sm"
-      >
->>>>>>> origin/slot/diseno
         <form onSubmit={canjearPuntos} className="space-y-4">
           <p className="text-sm text-mute">Los puntos canjeados quedan como saldo a favor del cliente y se descuentan de su saldo de <b className="text-fore">{formatGs(puntos)}</b>. 1 punto = 1 Gs.</p>
           <FormField label="Puntos a canjear" htmlFor="profile-canje-puntos" hint={`Máximo ${formatGs(puntos)}.`}>

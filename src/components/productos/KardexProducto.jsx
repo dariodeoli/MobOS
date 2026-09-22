@@ -77,11 +77,7 @@ export default function KardexProducto({ product, open, onClose, esDemo = false 
   const filas = data?.movimientos || []
 
   return (
-<<<<<<< HEAD
     <Modal open={open} onClose={onClose} title={`Kardex · ${product?.name || product?.sku || ''}`} size="completo">
-=======
-    <Modal open={open} onClose={onClose} title={`Kardex · ${product?.name || product?.sku || ''}`} size="4xl">
->>>>>>> origin/slot/diseno
       <div className="space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="flex flex-wrap items-end gap-2">

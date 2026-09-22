@@ -866,13 +866,7 @@ export default function PanelVendedor() {
       <Modal
         open={cambiarAbierto}
         onClose={() => !cambiando && setCambiarAbierto(false)}
-<<<<<<< HEAD
         title="Cambiar vendedor" size="corto">
-=======
-        title="Cambiar vendedor"
-        size="sm"
-      >
->>>>>>> origin/slot/diseno
         <p className="mt-2 text-sm text-mute">
           Elegí quién registra la próxima venta y confirmá su PIN.
         </p>
@@ -951,13 +945,7 @@ export default function PanelVendedor() {
       <Modal
         open={ayudaAbierto}
         onClose={() => setAyudaAbierto(false)}
-<<<<<<< HEAD
         title="Atajos de teclado" size="corto">
-=======
-        title="Atajos de teclado"
-        size="sm"
-      >
->>>>>>> origin/slot/diseno
         <div className="space-y-2.5">
           {[
             ['Ctrl+K', 'Búsqueda global'],

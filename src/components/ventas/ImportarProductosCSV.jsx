@@ -167,13 +167,7 @@ export default function ImportarProductosCSV({ onImportada }) {
       <Modal
         open={abierto}
         onClose={importando ? undefined : () => setAbierto(false)}
-<<<<<<< HEAD
         title="Importar productos por CSV" size="amplio">
-=======
-        title="Importar productos por CSV"
-        size="xl"
-      >
->>>>>>> origin/slot/diseno
         <div className="space-y-4">
           <div className="rounded-xl border border-ink-600 bg-ink-700/40 p-4 text-xs leading-5 text-mute">
             <p className="font-semibold text-fore">Columnas esperadas</p>

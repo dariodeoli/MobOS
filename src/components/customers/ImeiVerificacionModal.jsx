@@ -66,11 +66,7 @@ export default function ImeiVerificacionModal({ open, onClose, imei = '', client
   }
 
   return (
-<<<<<<< HEAD
     <Modal open={open} onClose={onClose} title="Verificación de IMEI" size="formulario">
-=======
-    <Modal open={open} onClose={onClose} title="Verificación de IMEI">
->>>>>>> origin/slot/diseno
       <div className="space-y-4" data-testid="imei-verificacion">
         <div className="rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm">
           <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Equipo</p>
