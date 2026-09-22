@@ -7,6 +7,9 @@ import LoadingScreen from '@/components/app/LoadingScreen'
 import { useSesion } from '@/lib/sesion'
 import { resources } from '@/lib/api'
 import { fechaHora } from '@/utils/fecha'
+import { enmascararImei } from '@/lib/imeiComprobante'
+import { BarraProgreso } from '@/components/ui'
+import QRCode from 'qrcode'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 const CONDICION = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
@@ -28,6 +31,11 @@ const Dato = ({ etiqueta, children }) => (
 function FichaUnidad({ unidad, serial, puedeVerInventario }) {
   const estado = ESTADO[unidad.status] || { label: unidad.status || 'Sin estado', color: 'slate' }
   const producto = unidad.product || {}
+  const [qr, setQr] = useState('')
+  useEffect(() => {
+    const url = typeof window !== 'undefined' ? `${window.location.origin}/u/${encodeURIComponent(serial)}` : ''
+    if (url) QRCode.toDataURL(url, { errorCorrectionLevel: 'M', margin: 1, width: 200 }).then(setQr).catch(() => {})
+  }, [serial])
   return (
     <div className="space-y-4">
       <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5">
@@ -54,8 +62,50 @@ function FichaUnidad({ unidad, serial, puedeVerInventario }) {
         {unidad.lastVerifiedAt && (
           <p className="mt-4 flex items-center gap-2 text-xs text-mute">
             <Icon name="check" className="h-4 w-4 text-ok" />
-            Última verificación física: {fechaHora(unidad.lastVerifiedAt)}
+            Verificado por {unidad.lastVerifiedBy?.name || 'el equipo'} · {fechaHora(unidad.lastVerifiedAt)}
+            {Number(unidad.verificationCount || 0) > 1 ? ` · ${unidad.verificationCount} veces` : ''}
+            {unidad.verifiedByCode ? ` · código ${unidad.verifiedByCode}` : ''}
           </p>
+        )}
+      </section>
+
+      {/* Informe del dispositivo (#240): grado, batería, locks, reparaciones y QR. */}
+      <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className={ROTULO_SECCION}>Informe del dispositivo</p>
+            <p className="mt-1 text-xs text-mute">
+              Estado, batería y bloqueos de esta unidad. El grado de inspección y el informe público se completan con el
+              checklist de INV (#240).
+            </p>
+          </div>
+          {qr && <img src={qr} alt="QR del informe" className="h-24 w-24 rounded-xl bg-white p-1.5" />}
+        </div>
+
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <Dato etiqueta="IMEI / Serial"><span className="break-all font-mono text-xs">{enmascararImei(serial)}</span></Dato>
+          <Dato etiqueta="Grado de condición">{CONDICION[unidad.condition] || unidad.condition || '—'}</Dato>
+          <Dato etiqueta="Batería">
+            {unidad.batteryHealth != null ? `${unidad.batteryHealth}%` : '—'}
+            {unidad.batteryHealth != null && (
+              <BarraProgreso valor={Number(unidad.batteryHealth)} tono={Number(unidad.batteryHealth) >= 85 ? 'ok' : 'warn'} alto="sm" etiqueta="Salud de la batería" className="mt-1.5" />
+            )}
+          </Dato>
+          <Dato etiqueta="Ciclos de batería">Pendiente (INV #240)</Dato>
+          <Dato etiqueta="iCloud / Find My">Sin verificar</Dato>
+          <Dato etiqueta="Lista negra">Sin verificar</Dato>
+          <Dato etiqueta="SIM lock / MDM">Sin verificar</Dato>
+          <Dato etiqueta="Reparaciones">Sin registros en la unidad</Dato>
+        </div>
+
+        <p className="mt-4 text-[11px] leading-5 text-mute">
+          Los estados de bloqueo salen de la consulta de IMEI de la ficha (fuente y hora incluidas) y quedan «Sin verificar»
+          cuando no hay consulta confirmada: nunca se informa «limpio» sin dato.
+        </p>
+        {typeof window !== 'undefined' && (
+          <button type="button" onClick={() => window.print()} className="mt-3 inline-flex h-10 items-center gap-2 rounded-lg border border-ink-500 px-4 text-sm font-semibold transition hover:border-fono">
+            <Icon name="printer" className="h-4 w-4" />Imprimir informe
+          </button>
         )}
       </section>
       <div className="text-center">
