@@ -1,8 +1,13 @@
-# Verificación post-deploy #221 — Clientes en demo (v1.0.136)
+# Verificación post-deploy #221 — Clientes en demo (v1.0.138)
 
-Producción **v1.0.136** (= `main`), corrida headless contra la **demo pública**
+Producción **v1.0.138** (= `main` en `fcf84fcb`), corrida headless contra la **demo pública**
 (`/demo` → Dueño) con `node scripts/qa-221-clientes-produccion.mjs`.
 Evidencia para **#221** (agregados de clientes en demo como la cuenta real).
+
+> **Nota de versión:** la corrida original fue sobre **v1.0.137**; cuando el
+> deploy **v1.0.138** quedó publicado se repitió completa sobre esa versión
+> (mismos 8/8). El script es repetible y sella la versión desplegada:
+> `node scripts/qa-221-clientes-produccion.mjs` (con `MOBOS_QA_URL`/`MOBOS_QA_OUT`).
 
 - Capturas: `docs/QA-221-demo-clientes-prod/01…09*.jpg`
 - Reporte crudo: `docs/QA-221-demo-clientes-prod/resultados.json`
@@ -14,7 +19,7 @@ Evidencia para **#221** (agregados de clientes en demo como la cuenta real).
 
 | Paso | Resultado | Evidencia |
 |---|---|---|
-| Entrada anónima a `/demo` sin login, perfiles Vendedor/Dueño, aviso de datos ficticios y versión desplegada | ✅ **v1.0.136** | `01-demo-entrada.jpg` |
+| Entrada anónima a `/demo` sin login, perfiles Vendedor/Dueño, aviso de datos ficticios y versión desplegada | ✅ **v1.0.138** | `01-demo-entrada.jpg` |
 | Panel del Dueño en modo demo con el banner “Modo demo: datos ficticios…” | ✅ | `02-panel-dueno-demo.jpg` |
 | **Listado de clientes con agregados**: Lucía con **5 pedidos** y **Gs 7.750.000** (la venta cancelada no cuenta) y teléfono `+595 981 123 456` | ✅ | `03-lista-clientes-agregados.jpg` |
 | **Ficha → Resumen**: Total gastado **Gs 7.750.000**, Saldo pendiente **Gs 1.500.000** (Deuda), Órdenes activas 1, Última compra 9/9/2026, “Cliente desde 22/8/24, 20:32”, últimas órdenes **MOB-#0008** y MOB-#0005 | ✅ | `04-ficha-resumen.jpg` |

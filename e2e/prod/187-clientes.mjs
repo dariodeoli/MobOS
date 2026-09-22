@@ -1,6 +1,7 @@
 // QA de producción (#187) — Clientes completo: ficha, deuda, cronología,
-// seguro, pedidos asociados, estadísticas (#221), WhatsApp y portal público
-// por token; más los públicos con token inválido y el rol Vendedor.
+// seguro, nota pública, pedidos asociados, estadísticas (#221), WhatsApp y
+// portal público por token; más los públicos con token inválido y el rol
+// Vendedor.
 //
 // Headless y sin sesión real: navega la demo pública (datos aislados en el
 // navegador) y los públicos de clientes.moboss.online. La garantía pública con
@@ -243,6 +244,23 @@ await paso('datos del cliente: seguro activo con porcentaje', async () => {
   return `seguro activo · ${pct}%`
 })
 
+await paso('nota pública del cliente (visible al cliente)', async () => {
+  const ficha = page.getByRole('dialog')
+  await ficha.getByRole('tab', { name: /^Datos/ }).click()
+  await page.waitForTimeout(600)
+  const publica = ficha.getByLabel('Nota pública')
+  const interna = ficha.getByLabel('Nota interna')
+  await publica.waitFor({ timeout: 15000 })
+  afirmar(/visible al cliente/i.test(await ficha.getByText(/Nota pública/).first().innerText()), 'la nota pública no aclara que es visible al cliente')
+  afirmar(!(await publica.isDisabled()), 'la nota pública debería poder editarse')
+  afirmar(await interna.isDisabled(), 'la nota interna debería estar bloqueada en demo')
+  afirmar(await ficha.getByRole('button', { name: 'Guardar notas' }).isDisabled(), 'el guardado de notas debería estar bloqueado en demo')
+  await publica.fill('Nota QA: información que el cliente ve en su portal.')
+  await shot(page, 'ficha-nota-publica')
+  resultado.observaciones.push('la nota pública se edita en la ficha pero el guardado (y el render de «Nota de la tienda» en el portal) requiere una cuenta real')
+  return 'campo «Nota pública (visible al cliente)» presente · guardado bloqueado en demo'
+})
+
 await paso('estadísticas calculadas (#221)', async () => {
   const ficha = page.getByRole('dialog')
   await ficha.getByRole('tab', { name: /^Estadísticas/ }).click()
@@ -297,7 +315,9 @@ await paso('portal del cliente por token demo (QR, cuenta y vitrina)', async () 
   await page.goto(`${PORTAL}/portal/demo-demo-cliente-lucia-completo`)
   await page.waitForTimeout(1200)
   await shot(page, 'portal-vitrina')
-  afirmar((await page.locator('body').innerText()).includes(ESPERADO.pedidos[0]), `la vitrina no lista ${ESPERADO.pedidos[0]}`)
+  const vitrina = await page.locator('body').innerText()
+  afirmar(vitrina.includes(ESPERADO.pedidos[0]), `la vitrina no lista ${ESPERADO.pedidos[0]}`)
+  if (!/Nota de la tienda/i.test(vitrina)) resultado.observaciones.push('la vitrina no muestra la «Nota de la tienda» porque ningún cliente demo tiene nota pública sembrada')
   await page.goto(`${PORTAL}/cuenta/demo-demo-cliente-lucia-completo`)
   await page.waitForTimeout(1200)
   await shot(page, 'portal-completo')

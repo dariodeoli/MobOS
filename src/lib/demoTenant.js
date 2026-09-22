@@ -54,6 +54,14 @@ export function setDemoLimits(limits = {}) {
   return next
 }
 
+/** Próximo número de pedido de la demo (AUR-#0001) y lo deja consumido. */
+export function tomarNumeroPedidoDemo() {
+  const actual = read()
+  const numero = `${actual.orderPrefix}-${String(actual.orderNextNumber).padStart(4, '0')}`
+  write({ ...actual, orderNextNumber: actual.orderNextNumber + 1 })
+  return numero
+}
+
 export function setDemoNumeracion({ prefix, start } = {}) {
   const next = read()
   if (typeof prefix === 'string') next.orderPrefix = prefix

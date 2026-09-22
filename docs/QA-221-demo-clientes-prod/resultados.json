@@ -1,8 +1,8 @@
 {
   "base": "https://app.moboss.online",
   "apiVigilada": "api.moboss.online",
-  "versionDesplegada": "v1.0.136",
-  "fecha": "2026-09-22T00:32:46.062Z",
+  "versionDesplegada": "v1.0.138",
+  "fecha": "2026-09-22T01:42:14.688Z",
   "esperado": {
     "totalGastado": "Gs 7.750.000",
     "saldo": "Gs 1.500.000",
@@ -30,7 +30,7 @@
     {
       "paso": "entrada anónima: /demo abre la entrada de perfiles sin login",
       "estado": "ok",
-      "detalle": "demo pública sin login · versión v1.0.136",
+      "detalle": "demo pública sin login · versión v1.0.138",
       "capturas": [
         "01-demo-entrada.jpg"
       ],
