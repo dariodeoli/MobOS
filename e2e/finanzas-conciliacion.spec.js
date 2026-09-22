@@ -47,6 +47,12 @@ test.describe('finanzas · conciliación', () => {
     await expect(fila.getByText('Bancard')).toBeVisible()
     await expect(fila.getByText('Por conciliar')).toBeVisible()
 
+    // Lote 6-C (#169): en desktop (1280) las tablas entran sin scroll horizontal.
+    for (const testid of ['conciliacion-grupos', 'conciliacion-tabla']) {
+      const medida = await page.getByTestId(testid).evaluate((nodo) => ({ scrollWidth: nodo.scrollWidth, clientWidth: nodo.clientWidth }))
+      expect(medida.scrollWidth, `${testid} no debe pedir scroll horizontal`).toBeLessThanOrEqual(medida.clientWidth + 1)
+    }
+
     // Diferencia sin observación: el botón queda bloqueado.
     await fila.getByRole('checkbox').check()
     await page.getByLabel('Monto recibido').fill('240000')
