@@ -43,7 +43,9 @@ export async function POST(request: Request) {
     }
     return json({ isSuccess: true })
   } catch (cause) {
-    console.error('[aex] no se pudo guardar el evento del webhook:', cause)
+    // Solo el mensaje: los objetos de error de Prisma pueden incluir metadatos
+    // del registro y no queremos volcar datos en los logs (#232).
+    console.error('[aex] no se pudo guardar el evento del webhook:', cause instanceof Error ? cause.message : String(cause))
     return json({ isSuccess: false }, { status: 400 })
   }
 }
