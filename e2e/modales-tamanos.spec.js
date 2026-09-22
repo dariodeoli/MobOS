@@ -9,7 +9,7 @@ import { SEED } from './helpers/seed-data.js'
 
 const API = SEED.api
 const FASE = process.env.QA237_FASE === 'antes' ? 'antes' : 'despues'
-const DIR = join('docs', 'qa', '237')
+const DIR = join('test-results', 'qa-237')
 mkdirSync(DIR, { recursive: true })
 const ANCHO_ESPERADO = { corto: 448, formulario: 576, amplio: 768, completo: 1024 }
 const medidos = {}

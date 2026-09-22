@@ -7,7 +7,7 @@ import { join } from 'node:path'
 
 const API_PORT = process.env.MOBOS_E2E_API_PORT || '3001'
 const esLlamadaApi = (url) => url.includes(`localhost:${API_PORT}`) || url.includes('api.moboss.online')
-const DIR = join('docs', 'qa', '234')
+const DIR = join('test-results', 'qa-234')
 mkdirSync(DIR, { recursive: true })
 
 // La guía "Cómo funciona la demo" se abre sola en la primera visita y tapa la
