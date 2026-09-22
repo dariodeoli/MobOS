@@ -124,16 +124,7 @@ export default function PasoCarrito({
           )}
         </div>
 
-        <div>
-          <Label htmlFor="fecha">Fecha</Label>
-          <Input
-            id="fecha"
-            type="date"
-            value={f.fecha}
-            onChange={e => setF(s => ({ ...s, fecha: e.target.value, fechaManual: true }))}
-          />
-        </div>
-
+        {/* Fecha: la venta siempre se registra con la fecha del día (#229). */}
         {!esDemo && !puedeDescontar && montoDescuento > 0 && (
           <AutorizacionDescuento
             monto={montoDescuento}
