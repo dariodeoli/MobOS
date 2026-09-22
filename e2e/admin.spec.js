@@ -622,6 +622,18 @@ test('inventario: marca y quita la consignación de un equipo', async ({ page })
   await detalle.getByRole('button', { name: 'Guardar consignación' }).click()
   await expect(page.getByText('Consignación guardada', { exact: false })).toBeVisible()
   await page.keyboard.press('Escape')
+  // El guardado persiste y la lista se refresca sola; en la suite larga el
+  // refresco puede demorar bajo carga, así que esperamos a que la API lo
+  // refleje y recargamos antes de exigir el badge en el listado.
+  await expect
+    .poll(async () => page.evaluate(async ({ api, serial }) => {
+      const respuesta = await fetch(`${api}/api/inventory-units?q=${encodeURIComponent(serial)}`, { credentials: 'include' })
+      const datos = await respuesta.json()
+      const unidades = Array.isArray(datos) ? datos : datos.rows || []
+      return unidades.find(item => item.serial === serial)?.consignorName || ''
+    }, { api: API, serial: SEED.products.iphone.imei }), { timeout: 15000 })
+    .toContain('Tercero E2E')
+  await page.reload()
   await expect(page.getByText('Consignado').first()).toBeVisible()
 
   // Limpieza determinista por API.
