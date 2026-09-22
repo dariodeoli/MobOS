@@ -11,6 +11,13 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.138 — 2026-09-21
+- **Tránsito / Inventario:** cada lote muestra cantidad, envío y llegada; se puede **recibir el lote completo** eligiendo el depósito destino (recién ahí suma stock) y **reimprimir las etiquetas del lote** desde la fila. Las **ubicaciones tienen color propio**. (#218)
+- **Demo:** Finanzas al día con 9 medios verosímiles, caja con turno del equipo ficticio, conciliación completa y pedidos con el prefijo de la empresa; la tienda demo pasa a **Aurora Móviles** y los datos ya no dicen "demo". (#190)
+- **Portal / Cotizaciones:** el logo respeta el tema (claro/oscuro) también con los enlaces nuevos, y la **página pública del pedido muestra quién atendió** sin abrir "Tus datos". (#186)
+- **Shell:** se retiró CSS muerto y la paleta "Ir a…" inalcanzable (Ctrl+K sigue abriendo la búsqueda global). (#180)
+- **QA:** verificación post-deploy del demo público v1.0.136 (0 llamadas al API real), barrido del demo por dominio y recorridos de Clientes/Inventario en producción. (#194 #196 #198 #187)
+
 ## v1.0.137 — 2026-09-21
 - **Finanzas y Reportes (Lote 6-C):** tablas y filas compactas alineadas a la biblioteca, **sin scroll horizontal** en las 8 vistas medidas (1280/1440), con estados vacíos coherentes y acciones a la vista. (#169)
 - **Inventario:** cada **ubicación tiene su color** (se elige al crearla/editar y se usa en la tabla y las etiquetas) y se puede **recibir un lote completo** de un traslado con depósito destino. (#218)
