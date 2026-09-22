@@ -97,7 +97,7 @@ try {
     await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
     await page.waitForURL((destino) => !destino.pathname.startsWith('/demo'), { timeout: 30000 })
     await esperar(1800)
-    const banner = await visible(page.getByText(/los datos son ficticios/))
+    const banner = await visible(page.getByText(/Modo demo: datos ficticios/))
     await shot('panel-demo')
     if (!banner) throw new Error('no se ve el banner de datos ficticios')
     return 'demo anónima abierta con banner de datos ficticios'
@@ -185,10 +185,18 @@ try {
       return pendiente('el seguro está deshabilitado con nota de demo (simulación de #194 pendiente de deploy)')
     }
     await page.locator('#seguro-toggle').check({ force: true })
+    // El interruptor tiene que quedar encendido (pct 25) antes de guardar: si no,
+    // el guardado deja el seguro apagado y el margen no lo refleja.
+    await page.waitForFunction(() => document.querySelector('#seguro-pct')?.value === '25', null, { timeout: 5000 }).catch(() => {})
+    const pctInterruptor = (await page.locator('#seguro-pct').inputValue()).trim()
+    if (pctInterruptor !== '25') throw new Error(`el interruptor del seguro no quedó encendido (pct=«${pctInterruptor}»)`)
     await guardar.click()
     await page.getByText('Seguro guardado en este navegador (demo).').waitFor({ timeout: 8000 })
     await shot('seguro-guardado')
-    await ir('/analisis/ganancias')
+    // El demo vive en memoria de la pestaña (#204): se navega dentro de la app,
+    // sin recargar, para que el seguro llegue al margen.
+    await page.getByRole('button', { name: 'Análisis', exact: true }).first().click()
+    await page.getByRole('tab', { name: 'Ganancias' }).click()
     const badge = await visible(page.getByText('Incluye seguro 25% (demo)'))
     await shot('ganancias-con-seguro')
     if (!badge) throw new Error('el margen no muestra el seguro aplicado')

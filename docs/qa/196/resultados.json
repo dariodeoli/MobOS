@@ -1,6 +1,6 @@
 {
   "base": "https://app.moboss.online",
-  "fecha": "2026-09-21T18:58:51.438Z",
+  "fecha": "2026-09-22T00:39:12.470Z",
   "resultados": [
     {
       "paso": "entrada anónima a la demo (Dueño)",
@@ -15,7 +15,7 @@
     {
       "paso": "cuentas y medios (efectivo multi-moneda, transferencia, tarjeta, Pix, USDT, canje)",
       "estado": "ok",
-      "detalle": "iniciales=5 → finales=11 · nombres: Efectivo USD | Banco Itaú Paraguay - Titular Demo - Cuenta 1234 | Bancard | Pix - Titular Demo | USDT - Titular Demo | Canje · Pix BRL fija=true · USDT USD fija=true",
+      "detalle": "iniciales=9 → finales=15 · nombres: Efectivo USD | Banco Itaú Paraguay - Titular Demo - Cuenta 1234 | Bancard | Pix - Titular Demo | USDT - Titular Demo | Canje · Pix BRL fija=true · USDT USD fija=true",
       "capturas": [
         "03-cuentas-medios.jpg"
       ],
@@ -34,7 +34,7 @@
     {
       "paso": "caja: auditoría de medios y de efectivo en demo",
       "estado": "ok",
-      "detalle": "auditoría visible con 2 operación(es) ficticias",
+      "detalle": "auditoría visible con 9 operación(es) ficticias",
       "capturas": [
         "06-caja-auditoria.jpg"
       ],
@@ -43,7 +43,7 @@
     {
       "paso": "conciliación con datos ficticios",
       "estado": "ok",
-      "detalle": "3 pagos ficticios · lotes=1",
+      "detalle": "21 pagos ficticios · lotes=2",
       "capturas": [
         "07-conciliacion-lote.jpg"
       ],

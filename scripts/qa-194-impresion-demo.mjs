@@ -82,8 +82,8 @@ await paso('Impresoras en demo: banner de ficticios y dos impresoras', async (ca
   await captura(shot('impresoras-demo'))
   const texto = await page.locator('body').innerText()
   const banner = /Datos ficticios de demostración/i.test(texto)
-  const mostrador = /Térmica mostrador \(demo\)/.test(texto)
-  const deposito = /Térmica depósito \(demo\)/.test(texto)
+  const mostrador = /Térmica mostrador/.test(texto)
+  const deposito = /Térmica depósito/.test(texto)
   if (!banner || !mostrador || !deposito) throw new Error(`faltan datos demo (banner=${banner} mostrador=${mostrador} deposito=${deposito})`)
   return 'banner de ficticios + 2 impresoras demo visibles'
 })
@@ -203,6 +203,10 @@ await paso('QR del comprobante en demo: token ficticio estable y por nivel (#204
   await esperar(1500)
   await page.getByRole('button', { name: 'Imprimir comprobante' }).click()
   await esperar(1200)
+  // #208: el nivel por defecto sin preferencia es «Rápido»; se fija «Completo»
+  // para comparar la reimpresión del mismo nivel.
+  await page.getByRole('radio', { name: /Comprobante Completo/ }).click()
+  await esperar(800)
   await captura(shot('qr-comprobante-demo'))
   const tokenCompleto = await tokenDelComprobante(page)
   if (!/^demo-/.test(tokenCompleto)) throw new Error(`el QR demo no usa un token ficticio: ${tokenCompleto || '(vacío)'}`)
@@ -210,13 +214,13 @@ await paso('QR del comprobante en demo: token ficticio estable y por nivel (#204
   if (/MOBOS:/.test(html)) throw new Error('el QR demo usa el esquema viejo MOBOS:')
   if (!/https?:\/\//.test(html)) throw new Error('el QR demo no apunta a una URL absoluta de la app')
   // Cambiar de nivel emite el token de ese nivel…
-  await page.getByLabel('Tipo de comprobante').selectOption('detallado')
+  await page.getByRole('radio', { name: /Comprobante Detallado/ }).click()
   await esperar(1200)
   const tokenDetallado = await tokenDelComprobante(page)
   if (!tokenDetallado || tokenDetallado === tokenCompleto) throw new Error(`el nivel detallado reutilizó el token de completo: ${tokenDetallado}`)
   await captura(shot('qr-demo-nivel-detallado'))
   // …y volver al nivel original reutiliza el mismo token (reimpresión).
-  await page.getByLabel('Tipo de comprobante').selectOption('completo')
+  await page.getByRole('radio', { name: /Comprobante Completo/ }).click()
   await esperar(1200)
   const tokenReimpreso = await tokenDelComprobante(page)
   if (tokenReimpreso !== tokenCompleto) throw new Error(`reimprimir el mismo nivel cambió el token: ${tokenReimpreso} vs ${tokenCompleto}`)

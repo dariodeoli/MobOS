@@ -1,15 +1,15 @@
 {
   "base": "https://app.moboss.online",
   "apiVigilada": "api.moboss.online",
-  "versionDesplegada": "v1.0.129",
-  "fecha": "2026-09-21T18:54:50.005Z",
+  "versionDesplegada": "v1.0.136",
+  "fecha": "2026-09-22T00:34:19.858Z",
   "llamadasApi": [],
   "demoNoTocaApi": true,
   "resultados": [
     {
       "paso": "entrada anónima: /demo abre la entrada de perfiles sin login",
       "estado": "ok",
-      "detalle": "perfiles visibles sin login · versión v1.0.129",
+      "detalle": "perfiles visibles sin login · versión v1.0.136",
       "capturas": [
         "01-demo-entrada.jpg"
       ],
