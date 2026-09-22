@@ -147,10 +147,10 @@ function EncabezadoUnidades({ seleccionado = false, onSeleccionar }) {
         : <span />}
       <span className={celda}>Producto</span>
       <span className={celda}>Modelo / variante</span>
-      <span className={celda} title="Proveedor (3 a 5 caracteres; pasá el mouse para verlo completo)">Proveedor</span>
+      <span className={celda} title="Proveedor (3 a 5 caracteres; pasá el mouse para verlo completo)">Prov</span>
       <span className={`${celda} text-right`}>Costo</span>
       <span className={celda} title="Ubicación: depósito o sucursal por código corto">Ubi</span>
-      <span className={celda}>Estado</span>
+      <span className={`${celda} text-center`}>Estado</span>
       <span className={celda} title="Quién verificó la unidad y cuándo">Verificado</span>
       <span className={`${celda} text-right`}>Acciones</span>
     </div>
@@ -213,9 +213,9 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
     {onAlternar
       ? <span className="flex items-center" onClick={(event) => event.stopPropagation()}><input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar ${nombreProducto(unit.product || {})} ${serial}`} checked={seleccionado} onChange={() => onAlternar()} /></span>
       : <span />}
-    <span className="flex min-w-0 flex-col">
-      <span className="flex min-w-0 items-center gap-1.5">
-      <b className="min-w-0 text-[13px] leading-tight" title={nombreProducto(unit.product || {})}>{nombreProducto(unit.product || {})}</b>
+    <span className="flex min-w-0 items-center gap-1.5">
+      <b className="min-w-0 truncate text-[13px] leading-tight" title={nombreProducto(unit.product || {})}>{nombreProducto(unit.product || {})}</b>
+      <SerialTexto serial={serial} className="shrink-0 text-[10px] text-mute" />
       <span
         className={`h-2 w-2 shrink-0 rounded-full ${unit.condition === 'NEW' ? 'bg-ok' : unit.condition === 'USED' ? 'bg-warn' : 'bg-mute'}`}
         title={`Condición: ${conditionLabel[unit.condition] || unit.condition}`}
@@ -224,8 +224,6 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
       {diasStock != null && diasStock >= 30 && (
         <span className={`shrink-0 rounded border px-1 text-[10px] font-semibold tabular-nums ${diasStock >= 90 ? 'border-bad/30 text-bad' : 'border-warn/30 text-warn'}`} title={`Ingresó a stock el ${ingreso} · ${diasStock} días`}>{diasStock} d</span>
       )}
-      </span>
-      <SerialTexto serial={serial} className="truncate text-[10px] text-mute" />
     </span>
     <span className="flex min-w-0 flex-wrap items-center gap-1 text-[11px] text-mute">
       <span className="truncate" title={`${conditionLabel[unit.condition] || unit.condition}${unit.product?.capacity ? ` · ${unit.product.capacity}` : ''}`}>{conditionLabel[unit.condition] || '—'}{unit.product?.capacity ? ` · ${unit.product.capacity}` : ''}</span>
@@ -247,7 +245,7 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
     <span className="flex min-w-0 items-center gap-1.5 text-xs text-mute" title={unit.location?.name ? `Ubicación: ${unit.location.name}${unit.location.code ? ` (${unit.location.code})` : ''}` : 'Sin ubicación asignada'}>
       {unit.location?.name ? <><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: locationTone(unit.location) }} /><span className={`truncate ${unit.location.code ? 'font-semibold text-fore/80' : ''}`}>{unit.location.code ? abrev(unit.location.code, 4) : unit.location.name}</span></> : '—'}
     </span>
-    <span className="min-w-0">
+    <span className="flex min-w-0 flex-col items-center text-center">
       <Badge color={estado.tone} className="max-w-full truncate" title={estado.label}>{estado.label}</Badge>
       {vencida !== null && <span className={`mt-0.5 block truncate text-[10px] font-semibold ${vencida ? 'text-bad' : 'text-ok'}`} title={vencida ? `Garantía vencida el ${new Date(unit.warrantyUntil).toLocaleDateString('es-PY')}` : `Garantía vigente hasta ${new Date(unit.warrantyUntil).toLocaleDateString('es-PY')}`}>Garantía {vencida ? 'vencida' : 'vigente'}</span>}
       {unit.reservationCustomer && <span className="mt-0.5 block truncate text-[10px] font-semibold text-reserved" title={`Reservado para ${unit.reservationCustomer}`}>{unit.reservationCustomer}</span>}
@@ -255,7 +253,7 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
       {fechaVenta && <span className="mt-0.5 block truncate text-[10px] text-mute" title={`Vendido el ${new Date(fechaVenta).toLocaleString('es-PY')}`}>{fechaReserva(fechaVenta)}</span>}
     </span>
     <span className={`flex min-w-0 items-center gap-1.5 rounded-lg px-1.5 py-0.5 text-[10px] ${v ? 'bg-ok/10 text-ok' : 'border border-ink-600 text-mute'}`} title={v ? `Verificó: ${v.quien} · ${fechaVerificacion(unit.lastVerifiedAt)}` : 'Todavía sin verificación física'}>
-      {v ? <Avatar user={v.usuario} size="xs" /> : <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-ink-700 text-[8px] font-bold text-fore">—</span>}
+      {v ? <Avatar user={v.usuario} hasAvatar={false} picture={unit.lastVerifiedBy?.picture} size="xs" /> : <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-ink-700 text-[8px] font-bold text-fore">—</span>}
       <span className="truncate">{v ? fechaVerificacion(unit.lastVerifiedAt) : 'Sin verificar'}</span>
       <button type="button" disabled={busy} aria-label="✓ Verificar" title={`Verificar ${serial} (un clic)`} onClick={(event) => { event.stopPropagation(); onVerify?.(unit) }} className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-ok/40 text-ok transition hover:bg-ok/10 disabled:opacity-50"><Icon name="check" className="h-3.5 w-3.5" /></button>
     </span>

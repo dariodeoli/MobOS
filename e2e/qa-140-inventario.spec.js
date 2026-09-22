@@ -36,4 +36,9 @@ test('inventario post-.140: alertas, vendidos, transito/traslados y acciones mas
   await expect(page.getByRole('button', { name: 'Verificar todos' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Reservar todos' })).toBeVisible()
   await capturar('05-acciones-masivas')
+
+  // #239: una sola fila por unidad (nombre + IMEI juntos), estado centrado.
+  await page.goto('/inventario/unidades')
+  await page.getByTestId('inventario-fila').first().waitFor({ timeout: 15_000 })
+  await capturar('06-fila-unidad')
 })
