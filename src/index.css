@@ -220,7 +220,8 @@ html.dark input[type='date']::-webkit-calendar-picker-indicator:hover {
    Se aplican solo dentro de `.v2-piloto` (tabla de inventario, ficha de
    unidad y carrito POS). El resto de la app sigue con la paleta actual
    hasta que CMP migre la biblioteca. */
-.v2-piloto {
+.v2-piloto,
+.tema-v2 {
   --c-paper: 246 248 251;
   --c-ink: 255 255 255;
   --c-ink-900: 255 255 255;
@@ -235,7 +236,8 @@ html.dark input[type='date']::-webkit-calendar-picker-indicator:hover {
   --c-warn: 217 119 6;
   --c-info: 77 124 254;
 }
-.dark .v2-piloto {
+.dark .v2-piloto,
+.dark .tema-v2 {
   --c-paper: 14 17 22;
   --c-ink: 31 36 48;
   --c-ink-950: 14 17 22;
@@ -251,4 +253,5 @@ html.dark input[type='date']::-webkit-calendar-picker-indicator:hover {
   --c-warn: 245 158 11;
   --c-info: 77 124 254;
 }
-.v2-piloto .v2-numero { font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+.v2-piloto .v2-numero,
+.tema-v2 .v2-numero { font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }

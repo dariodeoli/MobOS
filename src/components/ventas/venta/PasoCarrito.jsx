@@ -1,4 +1,6 @@
 import { Label, MoneyInput } from '@/components/ui'
+import { temaV2Activo } from '@/lib/temaV2'
+import { cn } from '@/lib/utils'
 import ListaVenta from './ListaVenta'
 import AutorizacionDescuento from './AutorizacionDescuento'
 import AutorizacionBloque from './AutorizacionBloque'
@@ -49,7 +51,7 @@ export default function PasoCarrito({
   return (
     <section
       id="pos-resumen-venta"
-      className="v2-piloto scroll-mt-32 overflow-hidden rounded-2xl border border-ink-600 bg-ink-800"
+      className={cn('scroll-mt-32 overflow-hidden rounded-2xl border border-ink-600 bg-ink-800', temaV2Activo() && 'tema-v2')}
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-600 bg-ink-700/50 px-3.5 py-2.5">
         <EncabezadoBloque
