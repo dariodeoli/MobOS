@@ -55,7 +55,7 @@ export default function InformePublico() {
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
         <div className="rounded-lg border border-ink-600 p-2"><p className={ROTULO_SECCION}>Batería</p><p className={`font-semibold text-${tonoBat === 'ok' ? 'ok' : tonoBat === 'warn' ? 'warn' : tonoBat === 'bad' ? 'bad' : 'fore'}`}>{bateria ? `${bateria}%` : '—'}{informe.bateria?.ciclos ? ` · ${informe.bateria.ciclos} ciclos` : ''}</p></div>
-        <div className="rounded-lg border border-ink-600 p-2"><p className={ROTULO_SECCION}>Cosmético</p><p className="font-semibold text-fore">{informe.cosmetico || '—'}</p></div>
+        <div className="rounded-lg border border-ink-600 p-2"><p className={ROTULO_SECCION}>Cosmético</p><p className="font-semibold text-fore">{informe.cosmetico || '—'}{informe.repuestosNoOem ? ` · Repuestos: ${informe.repuestosNoOem}${informe.repuestosNoOemNota ? ` (${informe.repuestosNoOemNota})` : ''}` : ''}</p></div>
         <div className="rounded-lg border border-ink-600 p-2"><p className={ROTULO_SECCION}>Verificado</p><p className="font-semibold text-fore">{informe.verificado ? new Date(informe.verificado).toLocaleDateString('es-PY') : '—'}{informe.verificadoPor ? ` · ${informe.verificadoPor}` : ''}</p></div>
       </div>
       {informe.controles?.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{informe.controles.map(control => { const estado = estadoLock(control.ok ? 'libre' : 'activo'); return <span key={control.label} className={`rounded-lg border px-2 py-1 text-[10px] font-semibold border-${estado.tono === 'ok' ? 'ok' : 'bad'}/40 text-${estado.tono === 'ok' ? 'ok' : 'bad'}`}>{control.label}: {estado.etiqueta}</span> })}</div>}
