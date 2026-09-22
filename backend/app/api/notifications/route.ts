@@ -3,6 +3,7 @@ import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
 import { canAccessAny, requireSession } from '../../../lib/auth'
 import { AUTHORIZATION_RESOLVERS } from '../../../lib/authorizations'
+import { mencionadosEn, variantesDeNombre } from '../../../lib/menciones'
 
 // Centro de notificaciones del panel: lista corta y accionable, sin tabla
 // propia. Se arma con lo que ya existe (pedidos, autorizaciones y comentarios
@@ -147,8 +148,9 @@ export async function GET(request: Request) {
     }
   }
 
-  // Comentarios internos: menciones (@nombre) y comentarios de otros en mis pedidos.
-  const propio = (user.name || '').split(/\s+/).filter(Boolean)[0]?.toLowerCase() || ''
+  // Comentarios internos: menciones (@nombre, misma regla que la UI) y
+  // comentarios de otros en mis pedidos.
+  const variantesPropias = variantesDeNombre(user.name)
   const comentarios = await prisma.orderComment.findMany({
     where: { tenantId: user.tenantId, createdAt: { gte: desde }, userId: { not: user.id } },
     orderBy: { createdAt: 'desc' },
@@ -156,7 +158,7 @@ export async function GET(request: Request) {
     select: { id: true, body: true, createdAt: true, orderId: true, order: { select: { orderNumber: true, sellerId: true } }, user: { select: { name: true } } },
   })
   for (const comentario of comentarios) {
-    const mencion = propio.length >= 3 && comentario.body.toLowerCase().includes(`@${propio}`)
+    const mencion = mencionadosEn(comentario.body, variantesPropias).length > 0
     const enMiPedido = comentario.order.sellerId === user.id
     if (!mencion && !enMiPedido) continue
     items.push({
