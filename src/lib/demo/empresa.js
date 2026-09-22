@@ -9,12 +9,12 @@ export const EMPRESA_DEMO = {
   telefono: '+595 21 000 000',
   email: '35800100@correo.com.py',
   logoIniciales: 'AM',
-  logoDescripcion: 'Logo placeholder de la demo',
+  logoDescripcion: 'Logo institucional',
   horarios: 'Lunes a viernes 08:00–18:00 · sábados 08:00–13:00',
 }
 
 export const SUCURSALES_DEMO = [
   { id: 'mobos-demo-central', name: 'Casa Central', city: 'Asunción', address: 'Av. Ficticia 1234', schedule: 'Lun a vie 08:00–18:00 · sáb 08:00–13:00' },
   { id: 'mobos-demo-villa-morra', name: 'Sucursal Villa Morra', city: 'Asunción', address: 'Calle Falsa 456', schedule: 'Lun a sáb 09:00–20:00' },
-  { id: 'mobos-demo-luque', name: 'Sucursal Luque', city: 'Luque', address: 'Av. del Demo 789', schedule: 'Lun a vie 08:30–18:30' },
+  { id: 'mobos-demo-luque', name: 'Sucursal Luque', city: 'Luque', address: 'Av. Gral. Aquino 789', schedule: 'Lun a vie 08:30–18:30' },
 ]

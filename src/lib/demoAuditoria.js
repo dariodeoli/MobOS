@@ -1,6 +1,7 @@
 import { metodoDeMedio } from './demoConciliacion.js'
 import { getDemoCashExpected } from './demoCash.js'
 import { leerDemo, guardarDemo } from './demoStorage.js'
+import { getDemoTenant } from './demoTenant.js'
 
 // Auditoría de caja ficticia de la demo (#194): arma el mismo contrato que
 // `/api/cash/audit` y `/api/cash/audit-operations` con las ventas demo y la
@@ -68,7 +69,7 @@ export function construirDemoAuditoriaEfectivo({ ventas = [], cash = null, desde
         fecha: pago.fecha || venta.creadoEn || venta.fecha,
         direction: 'IN',
         montoPyg: Number(pago.monto) || 0,
-        pedido: `DEMO-${String(indice + 1).padStart(4, '0')}`,
+        pedido: `${getDemoTenant().orderPrefix || 'AUR'}-${String(indice + 1).padStart(4, '0')}`,
         cliente: venta.cliente || '',
         vendedor: 'Hernán Acosta',
         nota: '',

@@ -25,7 +25,7 @@ function adaptarUsuario(user) {
   return { ...user, id: user?.id, email: user?.email || null, user_metadata: { nombre: user?.name || user?.user_metadata?.nombre || user?.email || '' } }
 }
 function adaptarEmpresa(user, tenant) {
-  if (user.tenantId === 'mobos-demo') return { id: 'mobos-demo', nombre: 'MobOS Tienda Demo', slug: 'demo', email: null, rol: user.role === 'ADMIN' ? 'dueno' : 'VENDEDOR' }
+  if (user.tenantId === 'mobos-demo') return { id: 'mobos-demo', nombre: EMPRESA_DEMO.razonSocial, slug: 'demo', email: null, rol: user.role === 'ADMIN' ? 'dueno' : 'VENDEDOR' }
   const context = getCompanyContext()
   // La identidad de /api/auth/me (tenant) manda sobre la copia local del login:
   // así una recarga no muestra "Mi tienda" cuando el servidor la conoce.
@@ -75,7 +75,7 @@ export function SesionProvider({ children }) {
     setUsuario(user); setEmpresa(emp); setEmpresas([emp]); setSucursal(sucursalActiva); setSucursales(listaSucursales); setVendedores(getCompanyContext()?.sellers || []); setPerfilEmpresa(perfil !== undefined ? perfil : getCompanyContext()?.profile || null); setEstado('dentro')
   }, [])
   const entrarDemo = useCallback(async (role = demoSessionRole()) => {
-    saveDemoSession(role); await activarSesion({ id: 'demo-user', email: 'demo@example.invalid', name: role === 'ADMIN' ? 'Dueño demo' : 'Vendedor demo', tenantId: 'mobos-demo', role, branchId: SUCURSALES_DEMO[0].id, branchName: SUCURSALES_DEMO[0].name }, { prepararLegacy: true, tenant: { name: EMPRESA_DEMO.razonSocial, slug: 'mobos-demo', email: EMPRESA_DEMO.email } }); prepararDatosDemo()
+    saveDemoSession(role); await activarSesion({ id: 'demo-user', email: 'demo@example.invalid', name: role === 'ADMIN' ? 'Hernán Acosta' : 'Diego López', tenantId: 'mobos-demo', role, branchId: SUCURSALES_DEMO[0].id, branchName: SUCURSALES_DEMO[0].name }, { prepararLegacy: true, tenant: { name: EMPRESA_DEMO.razonSocial, slug: 'mobos-demo', email: EMPRESA_DEMO.email } }); prepararDatosDemo()
   }, [activarSesion])
   useEffect(() => {
     let vivo = true

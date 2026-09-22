@@ -38,7 +38,7 @@ test('la demo arma la auditoría de efectivo con rango, caja y marcas', () => {
   assert.equal(data.operaciones[0].montoPyg, 50000, 'ordenadas de más reciente a más antigua')
   assert.equal(data.operaciones[1].status, 'VERIFIED')
   assert.equal(data.operaciones[1].auditadoPor, 'Dueño demo')
-  assert.equal(data.operaciones[0].pedido, 'DEMO-0002')
+  assert.equal(data.operaciones[0].pedido, 'AUR-0002')
   assert.equal(data.resumen.aperturaPyg, 500000)
   assert.equal(data.resumen.recibidoPyg, 6900000)
   assert.equal(data.resumen.esperadoPyg, 7400000)

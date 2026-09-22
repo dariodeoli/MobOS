@@ -54,7 +54,7 @@ function envelope(cash) {
             {
               id: cash.id,
               openedById: cash.openedById,
-              openedByName: cash.openedByName || 'demo-user',
+              openedByName: cash.openedByName || 'Hernán Acosta',
               openedAt: cash.openedAt,
               openingPyg: cash.openingPyg,
             },
