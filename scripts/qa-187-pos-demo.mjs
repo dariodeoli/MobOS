@@ -90,17 +90,31 @@ async function agregarProducto(nombre) {
 }
 // El cobro arranca sin bloques: se agrega uno y se elige la cuenta en el
 // buscador de cuentas (nombre, banco, titular o número).
-async function agregarPago(cuenta, monto) {
-  await page.getByRole('button', { name: /\+ Agregar pago/ }).first().click()
-  await esperar(1000)
-  const indice = (await page.getByLabel('Cuenta de cobro').count()) - 1
+// Elige la cuenta pedida en el bloque `indice`; si el combo ya viene con la
+// cuenta puesta (#209) no aparecen opciones y se sigue sin cambiar nada.
+async function elegirCuentaBloque(indice, cuenta) {
   const combo = page.getByLabel('Cuenta de cobro').nth(indice)
   await combo.click()
   await combo.fill(cuenta)
   await esperar(900)
-  await page.getByRole('option').filter({ hasText: new RegExp(cuenta.split(' ')[0], 'i') }).first().click()
-  await esperar(800)
-  await page.getByLabel('Monto original').nth(indice).fill(String(monto))
+  const opcion = page.getByRole('option').filter({ hasText: new RegExp(cuenta.split(' ')[0], 'i') }).first()
+  if (await opcion.count()) { await opcion.click(); await esperar(800); return true }
+  await page.keyboard.press('Escape')
+  await esperar(300)
+  return false
+}
+async function agregarPago(cuenta, monto) {
+  await page.getByRole('button', { name: /\+ Agregar pago/ }).first().click()
+  await esperar(1000)
+  const indice = (await page.getByLabel('Cuenta de cobro').count()) - 1
+  await elegirCuentaBloque(indice, cuenta)
+  const montoInput = page.getByLabel('Monto original').nth(indice)
+  for (let i = 0; i < 20 && (await montoInput.isDisabled()); i += 1) {
+    if (await elegirCuentaBloque(indice, cuenta)) break
+    await esperar(300)
+  }
+  if (await montoInput.isDisabled()) throw new Error('el monto quedó deshabilitado: la cuenta no se pudo elegir')
+  await montoInput.fill(String(monto))
   await esperar(900)
 }
 
@@ -213,12 +227,7 @@ try {
       await botonDividir.first().click()
       await esperar(1100)
       prefill = await page.getByLabel('Monto original').nth(1).inputValue()
-      const combo2 = page.getByLabel('Cuenta de cobro').nth(1)
-      await combo2.click()
-      await combo2.fill('Transferencia')
-      await esperar(900)
-      await page.getByRole('option').filter({ hasText: /Transferencia/i }).first().click()
-      await esperar(800)
+      await elegirCuentaBloque(1, 'Transferencia')
     }
     const bloques = await page.getByLabel('Monto original').count()
     await shot('split-dividido')
