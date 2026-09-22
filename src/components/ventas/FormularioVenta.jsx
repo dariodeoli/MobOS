@@ -19,6 +19,7 @@ import { leerCarrito, guardarCarrito, borrarCarrito, lineasParaResumen } from '@
 import { leerUltimo, recordarUltimo } from '@/lib/ultimoUsado'
 import { encolarVenta } from '@/lib/offline/ventas'
 import { preferenciaPos, recordarPos } from '@/lib/preferenciasPos'
+import { listarBorradoresDemo, guardarBorradorDemo } from '@/lib/borradoresDemo'
 import { descartarPreCliente } from '@/lib/preClientes'
 import { normalizarNombre } from '@/utils/nombre'
 import { codigoPedido } from '@/utils/pedido'
@@ -1297,8 +1298,13 @@ export default function FormularioVenta({
       return
     }
     setSuspendidasOpen(true)
-    setCargandoSuspendidas(true)
     setErrorSuspendidas('')
+    if (esDemo) {
+      setSuspendidas(listarBorradoresDemo())
+      setCargandoSuspendidas(false)
+      return
+    }
+    setCargandoSuspendidas(true)
     try {
       const { sucursalId } = contextoActual()
       const filas = await api.get(
@@ -1315,7 +1321,10 @@ export default function FormularioVenta({
   }
   function abrirSuspender() {
     if (esDemo) {
-      setAvisoDemoSuspendidas(true)
+      // En la demo el borrador se guarda en el navegador (#148 §20).
+      setLabelSuspender('')
+      setErrorSuspender('')
+      setSuspenderOpen(true)
       return
     }
     setLabelSuspender('')
@@ -1330,6 +1339,33 @@ export default function FormularioVenta({
     setErrorSuspender('')
     try {
       const { sucursalId } = contextoActual()
+      if (esDemo) {
+        guardarBorradorDemo({
+          id: `demo-${Date.now().toString(36)}`,
+          label: labelSuspender.trim(),
+          createdAt: new Date().toISOString(),
+          customer,
+          payload: {
+            items,
+            customer,
+            descuento,
+            pagos,
+            entrega: f.entrega,
+            montoDelivery: f.montoDelivery,
+            observacion: f.observacion,
+            billingTo,
+            venderACredito,
+            creditoDias,
+            specialOrder: f.specialOrder,
+            expectedAt: f.expectedAt,
+          },
+        })
+        setSuspenderOpen(false)
+        setLabelSuspender('')
+        limpiarCarrito()
+        setAvisoSuspension('Venta suspendida en la demo. Podés retomarla desde “Ventas suspendidas”.')
+        return
+      }
       await api.post('/api/suspended-sales', {
         ...(sucursalId ? { branchId: sucursalId } : {}),
         ...(customer.id ? { customerId: customer.id } : {}),
