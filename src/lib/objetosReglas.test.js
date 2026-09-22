@@ -191,6 +191,23 @@ test('el interruptor tiene un solo objeto: Switch (#186)', () => {
   assert.match(config, /<Switch[\s\S]{0,80}seguro-toggle/, 'Config usa el interruptor canónico')
 })
 
+test('los colores de pantalla salen de tokens (#176)', () => {
+  const paletaDefault = /(text|bg|border|border-l|from|to)-(sky|amber|slate|red|blue|green|emerald|violet|purple|orange|yellow|pink|indigo)-[0-9]{2,3}/
+  for (const ruta of [
+    'components/shared/CalendarioGanancias.jsx',
+    'pages/Status.jsx',
+    'pages/Celulares.jsx',
+    'components/app/PantallaBloqueada.jsx',
+    'pages/RemitoPublico.jsx',
+    'components/control/Inventario.jsx',
+    'components/inventory/UnidadDetalle.jsx',
+  ]) {
+    assert.doesNotMatch(readFileSync(join(RAIZ, ruta), 'utf8'), paletaDefault, `${ruta}: color de paleta default en vez de token`)
+  }
+  assert.ok(!/#0c8876/.test(readFileSync(join(RAIZ, 'pages/RemitoPublico.jsx'), 'utf8')), 'RemitoPublico no usa el verde viejo')
+  assert.match(readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /border-reserved\/30 bg-reserved\/10/, 'la reserva usa el token reserved')
+})
+
 test('las barras de avance usan BarraProgreso', () => {
   for (const ruta of ['components/ventas/PagosPedido.jsx', 'components/control/Creditos.jsx', 'pages/GarantiaPublica.jsx']) {
     assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<BarraProgreso\b/, `${ruta}: el avance va con BarraProgreso`)

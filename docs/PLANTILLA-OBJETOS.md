@@ -372,6 +372,12 @@ por el sistema.
   foco) y tokens locales derivados por sección que mapean a los globales.
 - Prohibido introducir colores sueltos o estilos inline salvo valores
   dinámicos; nada de colores residuales de etapas anteriores.
+- **Mapeo a tokens (#176):** `sky` → `info`, `amber` → `warn`, `red` → `bad`,
+  `emerald` → `ok`, `violet`/`purple` → `reserved`, `slate` → `ink-*`/`mute`.
+  Los hex viejos de marca (`#8b5cf6`, `#0c8876`) no vuelven a las pantallas.
+  Excepciones legítimas: plantillas de impresión (papel siempre claro), marcas
+  de terceros (Google, bancos, medios de pago) y datos de color (catálogo de
+  productos, diagramas).
 - Tipografía: sans para UI; mono para importes, referencias y códigos.
 - Respetar `prefers-reduced-motion`; evitar animaciones que rompan el patrón.
 - **Un solo activo de marca** (logo, favicon, PWA, Apple touch, social): todo
