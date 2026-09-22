@@ -1091,7 +1091,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
             <span className="flex flex-wrap items-center gap-2">
               <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={abrirPortal}>
                 <Icon name="external" className="h-4 w-4" />
-                Portal del cliente{esDemo ? ' (demo)' : ''}
+                Portal del cliente{esDemo ? '' : ''}
               </Button>
               {phone && (
                 <span className="inline-flex items-center gap-1 rounded-lg border border-ok/30 bg-ok/5 px-1.5 py-0.5">

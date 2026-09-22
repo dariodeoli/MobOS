@@ -2719,4 +2719,6 @@ model ImeiCheckQuery {
 
   @@index([tenantId, imei, requestedAt])
   @@index([tenantId, requestedAt])
+  conciliatedAt     DateTime?
+  conciliationNote  String?
 }

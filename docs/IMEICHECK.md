@@ -78,3 +78,25 @@ Pasos manuales equivalentes:
    registro.
 7. Nada que desactivar: sin `IMEICHECK_LIVE=1` no hay cargos; el token puede
    quedar cargado sin riesgo.
+
+
+## Incidente #233 — timeout en la consulta autorizada (21-09)
+
+Una de las consultas autorizadas (Apple Basic, US$ 0,06) devolvió **timeout a los 8 s**:
+el registro quedó `fallido` con **costo 0** y la UI mostró «No verificado · US$ 0,00»,
+pero **el saldo del proveedor bajó US$ 0,06** y la orden no aparecía en ese momento.
+
+Reglas actualizadas:
+
+- Un **timeout o error de red es ambiguo**: la consulta queda en estado
+  **`conciliar`** («A conciliar» en la UI) con el **costo estimado** del servicio
+  (US$ 0,06), nunca 0 a secas.
+- **Recuperación**: el registro guarda el `requestId` propio; administración puede
+  conciliar con `POST /api/imei` `{ "action": "conciliar", "requestId": "…",
+  "externalId": "…", "status": "verificado|parcial|conciliar|pendiente|fallido",
+  "costUsd": 0.06, "note": "…" }` (solo ADMIN/GERENTE) y así actualizar externalId,
+  resultado y costo real sin repetir la consulta.
+- **El harness live queda bloqueado** hasta que la conciliación esté resuelta: no
+  se habilita `IMEICHECK_LIVE=1` ni se repite una consulta paga a ciegas.
+- Errores con respuesta del proveedor (4xx/5xx) siguen siendo `fallido` con costo 0;
+  solo lo ambiguo (timeout/red) pasa a «a conciliar».

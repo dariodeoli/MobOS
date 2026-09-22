@@ -389,7 +389,7 @@ test('el comprobante de verificación de IMEI imprime la info mínima y honesta'
   }, { ancho: 80 })
   const texto = ticket.lineas().join('')
   assert.ok(texto.includes('Verificación de IMEI'), 'título claro')
-  assert.ok(texto.includes('(simulada en demo)'), 'avisa cuando el resultado es ficticio')
+  assert.ok(texto.includes('(simulada)'), 'avisa cuando el resultado es ficticio')
   assert.ok(texto.includes('•••••••••••1234'), 'el IMEI va enmascarado')
   assert.ok(texto.includes('IMEI verificado: sin reportes al 21/09/2026'), 'estado y fecha')
   assert.ok(texto.includes('IMEIcheck.net'), 'fuente visible')

@@ -127,7 +127,7 @@ test('los estados del proveedor se registran sin cobro y sin llamar al proveedor
   const casos = [
     { escenario: 'parcial', etiqueta: 'Parcial', costo: 0.06 },
     { escenario: 'pendiente', etiqueta: 'No verificado', costo: 0 },
-    { escenario: 'timeout', etiqueta: 'No verificado', costo: 0 },
+    { escenario: 'timeout', etiqueta: 'A conciliar', costo: 0.06 },
     { escenario: 'sin-saldo', etiqueta: 'No verificado', costo: 0 },
     { escenario: 'no-autorizado', etiqueta: 'No verificado', costo: 0 },
   ]
@@ -211,4 +211,27 @@ test('el mismo IMEI en dos tiendas queda aislado por tienda', async ({ page, bro
   } finally {
     await contexto.close()
   }
+})
+
+// #233: una consulta ambigua (timeout) queda «A conciliar» con costo estimado y
+// administración puede conciliarla asociando la orden del proveedor.
+test('el timeout queda a conciliar y administración lo concilia sin repetir la consulta', async ({ page }) => {
+  await page.goto('/inventario/unidades')
+  const IMEI_TIMEOUT = imeiValido()
+  const requestId = `qa-233-${Date.now()}`
+  const creada = await api(page, 'imei', { method: 'POST', body: JSON.stringify({ action: 'checks', imei: IMEI_TIMEOUT, servicio: 'APPLE_BASIC', confirm: true, requestId, escenario: 'timeout' }) })
+  expect(creada.status).toBe(201)
+  expect(creada.datos.etiqueta).toBe('A conciliar')
+  expect(creada.datos.costUsd).toBe(0.06)
+
+  const conciliada = await api(page, 'imei', { method: 'POST', body: JSON.stringify({ action: 'conciliar', requestId, externalId: 'ORD-233-DEMO', status: 'verificado', costUsd: 0.06, note: 'Orden recuperada del proveedor (demo).' }) })
+  expect(conciliada.status).toBe(200)
+  expect(conciliada.datos.externalId).toBe('ORD-233-DEMO')
+  expect(conciliada.datos.status).toBe('verificado')
+  expect(Number(conciliada.datos.costUsd)).toBe(0.06)
+
+  const historial = await api(page, `imei?imei=${IMEI_TIMEOUT}`, { method: 'GET' })
+  const fila = historial.datos.consultas.find(item => item.id === creada.datos.id)
+  expect(fila.externalId).toBe('ORD-233-DEMO')
+  expect(fila.etiqueta).toBe('Verificado')
 })

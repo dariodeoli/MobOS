@@ -365,8 +365,8 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
           {imeiFase === 'resultado' && imeiDatos && (
             <div className="mt-2 space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge color={imeiDatos.status === 'verificado' ? 'green' : imeiDatos.status === 'parcial' ? 'orange' : 'slate'}>{imeiDatos.etiqueta || (imeiDatos.status === 'verificado' ? 'Verificado' : 'No verificado')}</Badge>
-                {(imeiDatos.simulado || imeiDatos.esMock) ? <Badge color="blue">SIMULADO</Badge> : <span className="text-xs text-mute">Costo US$ {Number(imeiDatos.costUsd || 0).toFixed(2)} · {imeiDatos.serviceName || 'Apple Basic'}</span>}
+                <Badge color={imeiDatos.status === 'verificado' ? 'green' : imeiDatos.status === 'parcial' || imeiDatos.status === 'conciliar' ? 'orange' : 'slate'}>{imeiDatos.etiqueta || (imeiDatos.status === 'verificado' ? 'Verificado' : 'No verificado')}</Badge>
+                {(imeiDatos.simulado || imeiDatos.esMock) ? <Badge color="blue">SIMULADO</Badge> : <span className="text-xs text-mute">Costo {imeiDatos.status === 'conciliar' ? 'estimado ' : ''}US$ {Number(imeiDatos.costUsd || 0).toFixed(2)} · {imeiDatos.serviceName || 'Apple Basic'}</span>}
                 {(imeiDatos.simulado || imeiDatos.esMock) && <span className="text-xs text-mute">Sin cobro: respuesta simulada de la fase 1</span>}
               </div>
               {(imeiDatos.campos || imeiDatos.normalized || []).map(campo => (

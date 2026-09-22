@@ -674,7 +674,7 @@ export function ticketVerificacionImei(resumen, { ancho = 80 } = {}) {
   const t = crearTicket({ ancho }).iniciar()
   const fechaTexto = resumen?.fecha ? new Date(resumen.fecha).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : ''
   t.centrado(APP_NAME).negrita().centrado('Verificación de IMEI').negrita(false)
-  if (resumen?.simulado) t.centrado('(simulada en demo)')
+  if (resumen?.simulado) t.centrado('(simulada)')
   t.linea()
   t.par('IMEI', resumen?.imei || '—')
   t.par('Estado', resumen?.etiqueta || 'No verificado')

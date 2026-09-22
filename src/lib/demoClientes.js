@@ -15,13 +15,13 @@ const usuarioDemo = (nombre = 'Equipo demo') => ({ id: 'demo-user', name: nombre
 
 const EVENTOS = (customer) => [
   { id: 'demo-e1', type: 'customer', action: 'Cliente creado', createdAt: customer.createdAt, user: usuarioDemo('Dueño demo'), detail: 'Alta en el mostrador' },
-  { id: 'demo-e2', type: 'order', action: 'Pedido creado', createdAt: haceDias(12), user: usuarioDemo('Vendedor demo'), detail: 'Pedido MOB #0008 · Gs 3.000.000 · Pendiente' },
+  { id: 'demo-e2', type: 'order', action: 'Pedido creado', createdAt: haceDias(12), user: usuarioDemo('Diego López'), detail: 'Pedido MOB #0008 · Gs 3.000.000 · Pendiente' },
   { id: 'demo-e3', type: 'payment', action: 'Pago confirmado', createdAt: haceDias(10), user: usuarioDemo('Caja demo'), detail: 'Pedido MOB #0008 · Gs 1.500.000 · CASH' },
-  { id: 'demo-e4', type: 'note', action: 'Comentario del equipo', createdAt: haceDias(8), user: usuarioDemo('Vendedor demo'), detail: 'Prefiere retirar por la tarde.' },
-  { id: 'demo-e5', type: 'followUp', action: 'Seguimiento agendado', createdAt: haceDias(6), user: usuarioDemo('Vendedor demo'), detail: 'Llamada · para hoy · Confirmar retiro' },
-  { id: 'demo-e6', type: 'audit', action: 'Solicitud comercial aprobada', label: 'Solicitud comercial aprobada', createdAt: haceDias(4), user: usuarioDemo('Administración demo'), detail: 'Crédito · Autorizado: límite Gs 2.000.000 · 15 día(s)' },
+  { id: 'demo-e4', type: 'note', action: 'Comentario del equipo', createdAt: haceDias(8), user: usuarioDemo('Diego López'), detail: 'Prefiere retirar por la tarde.' },
+  { id: 'demo-e5', type: 'followUp', action: 'Seguimiento agendado', createdAt: haceDias(6), user: usuarioDemo('Diego López'), detail: 'Llamada · para hoy · Confirmar retiro' },
+  { id: 'demo-e6', type: 'audit', action: 'Solicitud comercial aprobada', label: 'Solicitud comercial aprobada', createdAt: haceDias(4), user: usuarioDemo('Ana Giménez'), detail: 'Crédito · Autorizado: límite Gs 2.000.000 · 15 día(s)' },
   { id: 'demo-e7', type: 'warranty', action: 'Garantía registrada', createdAt: haceDias(3), user: usuarioDemo('Taller demo'), detail: 'iPhone 15 · serial DEMO-FERNANDEZ · En diagnóstico' },
-  { id: 'demo-e8', type: 'audit', action: 'Tipo de cliente actualizado', label: 'Tipo de cliente actualizado', createdAt: haceDias(2), user: usuarioDemo('Administración demo'), detail: 'Campos: Tipo de cliente' },
+  { id: 'demo-e8', type: 'audit', action: 'Tipo de cliente actualizado', label: 'Tipo de cliente actualizado', createdAt: haceDias(2), user: usuarioDemo('Ana Giménez'), detail: 'Campos: Tipo de cliente' },
 ]
 
 const ANALITICA_VACIA = { ordersCount: 0, totalPyg: 0, avgTicketPyg: 0, purchasesPerMonth: 0, spendPerMonthPyg: 0, frequencyDays: null, antiguedadDias: 0, byMonth: [], topProducts: [], topModels: [], topCategories: [], topMonths: [], topWeekdays: [], statement: [] }
@@ -34,8 +34,8 @@ const pedido = ({ id, numero, total, pagado, estado = 'COMPLETED', dias, items =
   pendingPyg: Math.max(0, total - pagado),
   createdAt: haceDias(dias),
   status: estado,
-  branch: { id: 'mobos-demo-central', name: 'Tienda demo' },
-  seller: usuarioDemo('Vendedor demo'),
+  branch: { id: 'mobos-demo-central', name: 'Aurora Móviles' },
+  seller: usuarioDemo('Diego López'),
   serials: [],
   items,
 })
@@ -77,11 +77,11 @@ export const SEED_DEMO_CLIENTES = [
       ],
       warranties: [],
       notes: [
-        { id: 'demo-n-1', content: 'Prefiere retirar por la tarde.', createdAt: haceDias(8), user: usuarioDemo('Vendedor demo') },
-        { id: 'demo-n-2', content: 'Cliente frecuente: avisarle de promociones de accesorios.', createdAt: haceDias(30), user: usuarioDemo('Administración demo') },
+        { id: 'demo-n-1', content: 'Prefiere retirar por la tarde.', createdAt: haceDias(8), user: usuarioDemo('Diego López') },
+        { id: 'demo-n-2', content: 'Cliente frecuente: avisarle de promociones de accesorios.', createdAt: haceDias(30), user: usuarioDemo('Ana Giménez') },
       ],
       followUps: [
-        { id: 'demo-f-1', kind: 'CALL', note: 'Confirmar retiro del pedido MOB #0008.', dueAt: hoy().toISOString(), doneAt: null, createdAt: haceDias(6), user: usuarioDemo('Vendedor demo') },
+        { id: 'demo-f-1', kind: 'CALL', note: 'Confirmar retiro del pedido MOB #0008.', dueAt: hoy().toISOString(), doneAt: null, createdAt: haceDias(6), user: usuarioDemo('Diego López') },
       ],
       billingIdentities: [
         { id: 'demo-b-1', name: 'Fernández & Cía.', document: '80012345-6', uses: 3, lastUsedAt: haceDias(12) },
@@ -120,7 +120,7 @@ export const SEED_DEMO_CLIENTES = [
         pedido({ id: 'demo-p-19', numero: 'MOB-0019', total: 5500000, pagado: 5500000, dias: 250, items: [{ id: 'demo-i-19', description: 'MacBook Air M2', quantity: 1, model: 'MacBook Air M2', category: 'Mac', serials: [] }] }),
       ],
       warranties: [],
-      notes: [{ id: 'demo-n-3', content: 'Compra por volumen: coordinar entrega en depósito.', createdAt: haceDias(18), user: usuarioDemo('Administración demo') }],
+      notes: [{ id: 'demo-n-3', content: 'Compra por volumen: coordinar entrega en depósito.', createdAt: haceDias(18), user: usuarioDemo('Ana Giménez') }],
       followUps: [],
       billingIdentities: [{ id: 'demo-b-3', name: 'Distribuidora del Este S.A.', document: '80045678-9', uses: 2, lastUsedAt: haceDias(20) }],
     },
@@ -189,7 +189,7 @@ const clienteExtra = (id, nombres, documento, telefono, ciudad, opciones = {}) =
   demoProfile: {
     orders: opciones.pedidos || [],
     warranties: [],
-    notes: opciones.notas ? [{ id: `${id}-nota`, content: opciones.notas, createdAt: haceDias(10), user: usuarioDemo('Vendedor demo') }] : [],
+    notes: opciones.notas ? [{ id: `${id}-nota`, content: opciones.notas, createdAt: haceDias(10), user: usuarioDemo('Diego López') }] : [],
     followUps: [],
     billingIdentities: [],
   },
