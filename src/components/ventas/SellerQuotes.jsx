@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { qrDataUrl } from '@/lib/qr'
 import { useSearchParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
@@ -8,7 +9,6 @@ import { codigoPedido } from '@/utils/pedido'
 import { Aviso, Badge, Button, Input, Modal, MoneyInput, Textarea } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
-import QRCode from 'qrcode'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import Cronologia from '@/components/shared/Cronologia'
 import { printProformaReceipt, printQuoteReceipt, quoteUrlFor } from '@/components/shared/OrderReceipt'
@@ -142,7 +142,7 @@ export default function SellerQuotes() {
       if (!token) throw new Error('No se pudo preparar el enlace.')
       setEnlace(current => current && current.id === row.id ? { ...current, publicToken: token } : current)
       const url = quoteUrlFor(token)
-      if (url) setQr(await QRCode.toDataURL(url, { errorCorrectionLevel: 'M', margin: 1, width: 220 }))
+      if (url) setQr(await qrDataUrl(url))
     } catch (cause) {
       if (seq === enlaceSeq.current) setEnlaceError(cause?.message || 'No se pudo preparar el enlace.')
     } finally { if (seq === enlaceSeq.current) setEnlaceBusy(false) }
@@ -158,7 +158,7 @@ export default function SellerQuotes() {
       if (!token) throw new Error('No se pudo regenerar el enlace.')
       setEnlace(current => current ? { ...current, publicToken: token } : current)
       const url = quoteUrlFor(token)
-      if (url) setQr(await QRCode.toDataURL(url, { errorCorrectionLevel: 'M', margin: 1, width: 220 }))
+      if (url) setQr(await qrDataUrl(url))
       setNotice('Enlace regenerado: el anterior dejó de funcionar.')
     } catch (cause) {
       if (seq === enlaceSeq.current) setEnlaceError(cause?.message || 'No se pudo regenerar el enlace.')

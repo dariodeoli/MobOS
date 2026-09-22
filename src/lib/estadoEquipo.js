@@ -14,6 +14,36 @@ export const ESTADOS_ITEM = {
 
 export const estadoItem = (clave) => ESTADOS_ITEM[clave] || ESTADOS_ITEM.sinVerificar
 
+// Chips de estado del equipo en consola/rack: certificado, en revisión,
+// pendiente y con fallas. `pass` es el verde de certificado del tema consola.
+export const ESTADOS_CHIP = {
+  pass: { etiqueta: 'Certificado', tono: 'pass', icono: 'check' },
+  revision: { etiqueta: 'En revisión', tono: 'info', icono: 'refresh' },
+  pendiente: { etiqueta: 'Pendiente', tono: 'mute', icono: 'clock' },
+  falla: { etiqueta: 'Con fallas', tono: 'bad', icono: 'alert' },
+}
+
+export const estadoChip = (clave) => ESTADOS_CHIP[clave] || ESTADOS_CHIP.pendiente
+
+// Clases de los tonos por uso (el mismo tono en punto, chip y texto).
+export const TONOS_PUNTO = {
+  ok: 'bg-ok/15 text-ok',
+  warn: 'bg-warn/15 text-warn',
+  bad: 'bg-bad/15 text-bad',
+  mute: 'bg-ink-700 text-mute',
+  info: 'bg-info/15 text-info',
+  pass: 'bg-pass/15 text-pass',
+}
+export const TONOS_CHIP = {
+  ok: 'border-ok/30 bg-ok/10 text-ok',
+  warn: 'border-warn/30 bg-warn/10 text-warn',
+  bad: 'border-bad/30 bg-bad/10 text-bad',
+  mute: 'border-ink-600 bg-ink-800/40 text-mute',
+  info: 'border-info/30 bg-info/10 text-info',
+  pass: 'border-pass/30 bg-pass/10 text-pass',
+}
+export const TONOS_TEXTO = { ok: 'text-ok', warn: 'text-warn', bad: 'text-bad', mute: 'text-mute', info: 'text-info', pass: 'text-pass' }
+
 // 2) Locks del dispositivo: el nombre canónico de cada chip (el estado lo
 // aporta el diagnóstico: iCloud/Find My, MDM, ESN/lista negra, carrier/SIM).
 export const LOCKS_DISPOSITIVO = {
@@ -55,5 +85,5 @@ export const GRADOS_CONDICION = {
 export const gradoCondicion = (clave) => GRADOS_CONDICION[String(clave || '').trim().toUpperCase()] || null
 
 // Tono semántico → color del Badge compartido (el Badge usa nombres de color).
-export const COLOR_BADGE = { ok: 'green', warn: 'orange', bad: 'red', mute: 'slate' }
+export const COLOR_BADGE = { ok: 'green', warn: 'orange', bad: 'red', mute: 'slate', info: 'blue', pass: 'green' }
 export const colorBadge = (tono) => COLOR_BADGE[tono] || 'slate'

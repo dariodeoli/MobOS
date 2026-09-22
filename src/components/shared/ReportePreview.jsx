@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button, Modal, Select, useToast } from '@/components/ui'
 import { printHtml } from '@/utils/printHtml'
+import VistaPreviaPapel from '@/components/shared/VistaPreviaPapel'
 import { cargarImpresorasRemotas, configImpresora, estadoAgente, imprimirConDestino, impresoraPredeterminada, puedeCaerAlDialogo } from '@/lib/printing/agent'
 
 // Reportes imprimibles (cierre de caja, resumen): misma vista previa y misma
@@ -8,7 +9,6 @@ import { cargarImpresorasRemotas, configImpresora, estadoAgente, imprimirConDest
 // ESC/POS al agente con el ancho configurado; sin agente cae al diálogo del
 // navegador con el HTML. `construir(format)` arma el HTML y `directo({ ancho })`
 // el ticket térmico.
-const ANCHO_VISTA = { 'thermal-80': 'max-w-[302px]', 'thermal-58': 'max-w-[219px]' }
 export const FORMATOS_REPORTE = [['a4', 'A4'], ['thermal-80', '80 mm'], ['thermal-58', '58 mm']]
 const anchoDeFormato = (formato) => (formato === 'thermal-80' ? 80 : formato === 'thermal-58' ? 58 : null)
 
@@ -83,11 +83,7 @@ export default function ReportePreview({ open, onClose, titulo = 'Reporte', form
           </span>
         </div>
         <p className="text-[11px] text-mute">Para PDF, elegí «Guardar como PDF» en el diálogo de impresión.</p>
-        <iframe
-          title={`Vista previa · ${titulo}`}
-          srcDoc={html}
-          className={`h-[60vh] w-full rounded-xl border border-ink-600 bg-white ${ANCHO_VISTA[formato] ? 'mx-auto ' + ANCHO_VISTA[formato] : ''}`}
-        />
+        <VistaPreviaPapel formato={formato} contenido={html} titulo={`Vista previa · ${titulo}`} />
       </div>
     </Modal>
   )

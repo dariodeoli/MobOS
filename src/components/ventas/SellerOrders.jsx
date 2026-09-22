@@ -16,7 +16,7 @@ import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import PedidoDetalle from './PedidoDetalle'
 import Icon from '@/components/shared/Icon'
 import { FULFILLMENT_LABELS as FULFILLMENT } from '@/lib/constants'
-import { CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
 
 export const orderFields = (row) => {
   const pagos = row.payments || row.pagos || []
@@ -161,7 +161,7 @@ function FilaPedido({ row, onClick, onAcciones }) {
     >
       <div className={GRID}>
         <span className={cn('truncate font-mono text-xs font-bold text-fono-light', tachado)} title={row.number}>{codigoPedido(row.number)}</span>
-        <span className={cn('truncate text-xs text-mute', tachado)}>{fechaLegible(row.date)}</span>
+        <span className={cn(CELDA_DATO, tachado)}>{fechaLegible(row.date)}</span>
         <span className="flex min-w-0 items-center gap-1">
           <span className={cn(CELDA_IDENTIDAD, tachado)} title={row.customer}>{nombreCortoCliente(row.customer)}</span>
           {row.isSpecialOrder && (
@@ -181,13 +181,13 @@ function FilaPedido({ row, onClick, onAcciones }) {
             </span>
           )}
         </span>
-        <span className={cn('truncate text-xs text-mute', tachado)} title={articulos.completo || undefined}>
+        <span className={cn(CELDA_DATO, tachado)} title={articulos.completo || undefined}>
           {articulos.texto || '—'}
           {articulos.extra > 0 && <span className="ml-1 font-semibold text-fono-light">+{articulos.extra}</span>}
         </span>
         <CeldaSerial serial={ultimo} />
         <span className={cn('text-xs font-semibold tabular-nums', tachado)}>×{row.quantity || 1}</span>
-        <span className={cn('truncate text-xs text-mute', tachado)}>{ENTREGA[row.deliveryType] || row.deliveryType || 'Retiro'}</span>
+        <span className={cn(CELDA_DATO, tachado)}>{ENTREGA[row.deliveryType] || row.deliveryType || 'Retiro'}</span>
         <BadgePago row={row} />
         <BadgeEstado row={row} />
         {/* La info financiera no se tacha ni en los pedidos cancelados: el

@@ -396,3 +396,54 @@ test('los iconos de categoría salen del objeto compartido (#242)', () => {
     .map(({ ruta }) => ruta)
   assert.deepEqual(copiados, [], 'los glifos de categoría no se copian por pantalla')
 })
+
+// Lote 14: la vista previa del papel (ancho real por formato) es un objeto; las
+// pantallas no vuelven a copiar el mapa de anchos ni las clases del iframe.
+test('la vista previa del papel sale de shared/VistaPreviaPapel (#241)', () => {
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('components/shared/VistaPreviaPapel.jsx') && /ANCHO_VISTA|ANCHOS_PAPEL/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [], 'los anchos de papel viven en el objeto')
+  for (const ruta of ['components/shared/ComprobantePreview.jsx', 'components/shared/ReportePreview.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<VistaPreviaPapel\b/, `${ruta}: usa la vista previa compartida`)
+  }
+  const objeto = readFileSync(join(RAIZ, 'components/shared/VistaPreviaPapel.jsx'), 'utf8')
+  assert.match(objeto, /export const ANCHOS_PAPEL =/)
+  assert.match(objeto, /'thermal-80': 'max-w-\[302px\]'/)
+  assert.match(objeto, /a4: 'max-w-\[794px\]'/)
+})
+
+// Lote 13: el estado/condición de la unidad se lee igual en la lista y en la
+// ficha; ninguna pantalla vuelve a definir su mapa de tonos.
+test('el tono de la unidad vive en utils/inventario (#217)', () => {
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('utils/inventario.js') && /const badgeTone = \{|const statusLabel = \{/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [], 'el tono de estado sale de utils/inventario')
+  for (const ruta of ['components/control/Inventario.jsx', 'components/inventory/UnidadDetalle.jsx']) {
+    const codigo = readFileSync(join(RAIZ, ruta), 'utf8')
+    assert.match(codigo, /from '@\/utils\/inventario'/, `${ruta}: importa las reglas compartidas`)
+    assert.match(codigo, /estadoInventario\(unit\)\.tone/, `${ruta}: el badge usa el tono compartido`)
+  }
+  const inventario = readFileSync(join(RAIZ, 'utils/inventario.js'), 'utf8')
+  for (const nombre of ['tonoInventario', 'colorInventario', 'etiquetaCondicionUnidad', 'colorCondicionUnidad', 'puntoCondicionUnidad', 'CONDICION_UNIDAD']) {
+    assert.match(inventario, new RegExp(`export (const|function) ${nombre}`), `falta ${nombre}`)
+  }
+})
+
+// Lote 12: el QR y la ficha del informe público salen de los objetos; ninguna
+// pantalla vuelve a llamar a `qrcode` por su cuenta.
+test('el QR del informe sale de lib/qr y shared/CodigoQr (#240)', () => {
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('lib/qr.js') && /from 'qrcode'|QRCode\.toDataURL/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [], 'el QR se genera solo en lib/qr.js')
+  const qr = readFileSync(join(RAIZ, 'lib/qr.js'), 'utf8')
+  assert.match(qr, /export async function qrDataUrl\(/)
+  assert.match(qr, /export const QR_OPCIONES =/)
+  assert.match(readFileSync(join(RAIZ, 'components/shared/CodigoQr.jsx'), 'utf8'), /export default function CodigoQr\(/)
+  const ficha = readFileSync(join(RAIZ, 'components/shared/FichaCertificado.jsx'), 'utf8')
+  for (const objeto of ['ChipEstado', 'ChipsLocks', 'CodigoQr', 'GradoBadge', 'MedidorBateria']) {
+    assert.match(ficha, new RegExp(`<${objeto}\\b`), `la ficha de certificado compone ${objeto}`)
+  }
+})

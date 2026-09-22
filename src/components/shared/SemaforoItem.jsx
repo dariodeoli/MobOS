@@ -1,5 +1,6 @@
 import Icon from '@/components/shared/Icon'
 import { estadoItem } from '@/lib/estadoEquipo'
+import { CELDA_DATO } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 
 // Semáforo de un ítem del checklist (#240): bien / con observación / falla /
@@ -27,7 +28,7 @@ export default function SemaforoItem({ estado = 'sinVerificar', etiqueta, detall
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm">{etiqueta}</span>
-        {detalle && <span className="block truncate text-xs text-mute">{detalle}</span>}
+        {detalle && <span className={cn(CELDA_DATO, 'block')}>{detalle}</span>}
       </span>
     </Etiqueta>
   )

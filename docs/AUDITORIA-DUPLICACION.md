@@ -83,6 +83,49 @@ warn y la celda de identidad de 13 px que espera a DSN).
 Duplicación pendiente medida: **6 → 1 usos** (queda solo el `Gs.` de una
 plantilla de impresión de PRN, que se coordina con ese slot).
 
+### Lote 14 — preview del papel compartido (22-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `shared/VistaPreviaPapel` (+ `ANCHOS_PAPEL`) | El mapa `ANCHO_VISTA` (ancho real del papel: 302/219/208 px) y las clases del `<iframe>` estaban copiados en `ComprobantePreview.jsx` y `ReportePreview.jsx`; el informe de PRN repetía el mismo patrón | Un solo objeto: `formato` → ancho real (mm a 96 dpi) con `a4` incluido, centro automático y alto configurable; las dos vistas previas lo usan y el informe lo puede consumir igual |
+| Biblioteca | — | `owncoding-ui` rama **`cmp/preview-v2`**: `VistaPreviaPapel` + `ANCHOS_PAPEL` con props en `docs/REGLAS.md` §8 bis y entradas en CHANGELOG/README (el release lo ordena el integrador) |
+
+**Duplicación pendiente: 0 usos.**
+
+### Lote 13 — estado de la unidad con una sola regla (22-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `tonoInventario` / `colorInventario` / `estadoInventario` (`utils/inventario.js`) | La lista (`Inventario.jsx`) y la ficha (`UnidadDetalle.jsx`) tenían mapas propios: una unidad **disponible seminuevo** se veía naranja en la lista y verde en la ficha; `statusLabel`/`badgeTone` duplicados | Una sola regla: `AVAILABLE`+`NEW` → ok, `AVAILABLE`+usada → atención, `RESERVED` → atención, `IN_TRANSIT` → info, `DEFECTIVE` → neutro, `SOLD` → falla (y "listo p/ retirar"/"entregado" heredan la entrega del pedido) |
+| `CONDICION_UNIDAD`, `etiquetaCondicionUnidad`, `colorCondicionUnidad`, `puntoCondicionUnidad` | La etiqueta de condición estaba copiada en 2 archivos y el punto de la lista tenía la regla inline | Etiqueta, color y punto salen del mismo módulo; el `<Select>` de recepción arma sus opciones con `CONDICION_UNIDAD` |
+| `Dot` (ui) | Solo aceptaba `green/red/blue/slate/orange` | Suma los tonos semánticos (`ok/warn/bad/info/mute`) para que los puntos usen el mismo tono que el badge |
+
+**Duplicación pendiente: 0 usos.** Biblioteca: `owncoding-ui` **v0.12.0** +
+`docs/V2.md` §4 (ejemplo completo de migración de una pantalla).
+
+### Lote 12 — QR unificado y ficha del informe público (22-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `lib/qr.js` (`qrDataUrl`, `QR_OPCIONES`) + `shared/CodigoQr` | **16 llamadas a `QRCode.toDataURL`** repetidas en 7 archivos (ficha de cliente, cotizaciones, comprobantes, inventario, unidad, comisiones, cotización pública) con opciones parecidas pero no iguales (nivel M/H, margen 0/1/2, ancho 190/200/220/320) | Todas pasan por `qrDataUrl` (opciones por defecto: nivel M, margen 1, ancho 220; los casos que necesitan otra cosa las pisan explícitamente) y el objeto `CodigoQr` para mostrarlo |
+| `shared/FichaCertificado` | No existía: el informe imprimible (PRN) arma su propio layout y la página pública no existía | Tarjeta del informe público que compone `ChipEstado`, `GradoBadge`, `MedidorBateria`, `ChipsLocks` y `CodigoQr`; lista para la página `/u/<serial>` y la vista previa |
+| `shared/ChipEstado` + tonos | El chip de estado del equipo no existía en la app (solo en la biblioteca) | `ChipEstado` con `ESTADOS_CHIP`/`TONOS_CHIP` de `lib/estadoEquipo.js` |
+
+**Duplicación pendiente: 0 usos.** Biblioteca: `owncoding-ui` **v0.12.0**
+(`FichaCertificado`, `CodigoQr`, `qrDataUrl`).
+
+### Lote 11 — duplicaciones nuevas y categoría en el buscador de productos (22-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `CELDA_DATO` | 2 usos nuevos de `className="… truncate text-xs text-mute"` (Clientes) y 3 en SellerOrders con `cn('truncate text-xs text-mute', …)` | Los 5 pasan por `CELDA_DATO` (con `cn` para el layout/tachado); el detalle de `SemaforoItem` también |
+| `formatGs` | `demoInventory.js` armaba `Gs ${Number(...).toLocaleString('es-PY')}` a mano en el evento de venta demo | Usa `formatGs` compartido (import relativo para `node --test`) |
+| `IconoCategoria` en `ProductCombobox` | El buscador de productos mostraba solo el nombre (sin el icono de la categoría) | Cada sugerencia lleva el glifo de `IconoCategoria` (`product.category \|\| nombre`); POS, compras, combos y listas de precios lo heredan |
+
+**Duplicación pendiente: 3 → 0 usos** (las 3 eran nuevas, entradas con los
+merges de otros slots). Documentación de la biblioteca: `owncoding-ui/docs/V2.md`
+(guía de adopción de los tokens v2 y los iconos publicados en v0.11.0).
+
 ### Lote 10 — notas, estados con badge, barras y montos en frases (22-09)
 
 | Objeto | Antes (evidencia) | Después |

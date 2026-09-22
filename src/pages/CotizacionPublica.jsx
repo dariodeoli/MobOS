@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import { qrDataUrl } from '@/lib/qr'
 import { useParams } from 'react-router-dom'
-import QRCode from 'qrcode'
 import { API_URL } from '@/lib/api/client'
 import { varianteDeTema } from '@/lib/tenantLogo'
 import { gs } from '@/utils/calculos'
@@ -37,7 +37,7 @@ export default function CotizacionPublica() {
     if (!token) return
     let active = true
     const enlace = `${window.location.origin}/cotizacion/${encodeURIComponent(token)}`
-    QRCode.toDataURL(enlace, { errorCorrectionLevel: 'M', margin: 1, width: 220 }).then(data => { if (active) setQr(data) }).catch(() => {})
+    qrDataUrl(enlace).then(data => { if (active) setQr(data) }).catch(() => {})
     return () => { active = false }
   }, [token])
 

@@ -244,6 +244,22 @@ categorías en `src/lib/categorias.js`; los objetos son presentacionales.
   carrier/SIM lock (verde libre, rojo activo, gris sin dato).
 - **`shared/IconoCategoria`** (#242): glifos mobile/laptop/tablet/watch/buds/
   cable; `categoria="MacBook Pro"` resuelve el icono con `iconoDeCategoria`.
+  `shared/ProductCombobox` lo muestra en cada sugerencia (buscador de POS,
+  compras, combos y listas de precios).
+- **`shared/ChipEstado`** (#241): chip del estado del equipo (certificado /
+  en revisión / pendiente / con fallas), con los tonos de `lib/estadoEquipo.js`.
+- **`shared/CodigoQr` + `lib/qr.js`** (#240): el QR de la app se genera en un
+  solo lugar (`QR_OPCIONES`: nivel M, margen 1, ancho 220) y se muestra con el
+  objeto; las 16 llamadas sueltas a `qrcode` de 7 pantallas y de los impresos
+  pasaron por `qrDataUrl`.
+- **`shared/FichaCertificado`** (#240): tarjeta del informe público de la
+  unidad (empresa, modelo, IMEI enmascarado, grado, batería, "x de y pass",
+  locks, quién/cuándo verificó y QR al enlace `/u/<serial>`), para la página
+  pública y la vista previa del informe.
+- **`shared/VistaPreviaPapel`** (#241, preview v2): el documento impreso con el
+  ancho real del papel (`thermal-80`/`thermal-58`/`thermal-55`/`a4`); lo usan el
+  preview de comprobantes y el de reportes (antes cada uno copiaba el mapa de
+  anchos y las clases del iframe).
 - El checklist, el tile de equipo, el stepper y los tokens del tema consola se
   codificaron primero en la biblioteca (owncoding-ui **v0.11.0**, props en su
   `docs/REGLAS.md` §8 bis, tokens v2 en su `styles.css`) y se adoptan acá a
