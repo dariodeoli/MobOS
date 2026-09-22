@@ -41,6 +41,16 @@ sin el serial en la URL), se cambia un solo dato (`enlace`) y el QR y el texto
 impreso apuntan ahí; sin ruta pública el papel no imprime la URL con el serial:
 dice «Escaneá para abrir el informe público.»
 
+## Verificación
+
+- Local (código de esta rama): `scripts/verificar-informe-qr.mjs` genera los PDFs
+  A4/80 mm/ESC/POS y **decodifica el QR** de cada uno (8/8 apuntan a
+  `/u/<serial>`): `docs/qa/240-informe-dispositivo/verificacion-qr/`.
+- Producción: `scripts/qa-240-prod-impresion.mjs` recorre la demo y genera los
+  PDFs 80 mm y A4 con el HTML que manda la app desplegada, con el QR decodificado:
+  `docs/qa/240-impresion-prod/` (v1.0.142 ya imprime el informe; el certificado
+  entra en la próxima ronda).
+
 ## Cómo se imprime en la app
 
 Ficha de la unidad → **«Informe»** (o **«Certificado»**) → formato 80 mm / A4 /
