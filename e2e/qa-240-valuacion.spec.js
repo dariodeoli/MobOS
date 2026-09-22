@@ -31,6 +31,7 @@ test('trade-in: el grado y los hallazgos ajustan la valuación con su detalle', 
   const vendedor = await browser.newContext({ storageState: 'e2e/.auth/seller.json' })
   const herramienta = await vendedor.newPage()
   await herramienta.goto('/trade-in')
+  await expect(herramienta.getByLabel('Modelo y capacidad')).toBeVisible({ timeout: 30000 })
   await herramienta.getByLabel('Modelo y capacidad').fill(modelo)
   await herramienta.getByLabel('IMEI / serial').fill('356789102345678')
   await expect(herramienta.getByText(/Valor sugerido:/)).toContainText('Gs 1.500.000', { timeout: 15000 })

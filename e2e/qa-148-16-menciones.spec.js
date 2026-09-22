@@ -16,8 +16,12 @@ test('menciones: comentario interno, notificación al mencionado y nada para el 
   const seedOrder = JSON.parse(readFileSync('e2e/.auth/seed-order.json', 'utf8'))
 
   // (1) Comentario interno con mención en la cronología del pedido (admin).
+  // La lista puede quedar larga con la suite: se busca el pedido por número.
   await page.goto('/pedidos')
-  await page.getByTestId('pedido-fila').filter({ hasText: seedOrder.orderNumber }).first().click()
+  await page.getByLabel('Buscar pedidos').fill(seedOrder.orderNumber)
+  const filaSeed = page.getByTestId('pedido-fila').filter({ hasText: seedOrder.orderNumber }).first()
+  await expect(filaSeed).toBeVisible({ timeout: 15000 })
+  await filaSeed.click()
   await page.getByRole('button', { name: /Cronología/ }).click()
   const caja = page.getByLabel('Comentario del pedido')
   await expect(caja).toBeVisible()
