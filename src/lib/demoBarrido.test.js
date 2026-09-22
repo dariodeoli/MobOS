@@ -18,7 +18,8 @@ function visibles(valor, salida = []) {
   }
   return salida
 }
-const sucios = valor => visibles(valor).filter(texto => /demo/i.test(texto))
+// Palabra completa: evita falsos positivos como "responDEMOS" o "demostración".
+const sucios = valor => visibles(valor).filter(texto => /\bdemo\b/i.test(texto))
 
 test('equipo, catálogo, empresa y sucursales demo no dicen "demo"', () => {
   assert.deepEqual(sucios(EQUIPO_DEMO), [], 'equipo')
