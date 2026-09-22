@@ -1,0 +1,162 @@
+{
+  "verificado": "2026-09-22T01:30:01.668Z",
+  "base": "https://app.moboss.online",
+  "version": "v1.0.137",
+  "llamadasApi": [],
+  "erroresConsola": [
+    "ReferenceError: Cannot access 'es' before initialization\n    at Ko (https://app.moboss.online/assets/Inventario-9SPvafVh.js:1:50183)\n    at Gi (https://app.moboss.online/assets/vendor-II1R7ODZ.js:38:16958)\n    at Zo (https://app.moboss.online/assets/",
+    "pageerror: Cannot access 'es' before initialization"
+  ],
+  "resultados": [
+    {
+      "paso": "INV demo: unidades, costos y ficha de la unidad",
+      "estado": "ok",
+      "detalle": "23 unidades en la lista · costo visible (Cargado)",
+      "capturas": [
+        "01-inv-unidades.jpg",
+        "02-inv-detalle.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "INV demo: verificación IMEI simulada (sin cobro ni API)",
+      "estado": "ok",
+      "detalle": "precheck y resultado simulados (CONSULTA DE IMEI Demo: simulado Estado del equipo en IMEIcheck (blacklist, Find My/iCloud,…)",
+      "capturas": [
+        "03-inv-imei-precheck.jpg",
+        "04-inv-imei-resultado.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "INV demo: reservas y alertas visibles",
+      "estado": "fallo",
+      "detalle": "la vista de Alertas quedó en blanco (sin contenido)",
+      "capturas": [
+        "05-inv-reservas.jpg",
+        "06-inv-alertas.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "INV demo: 0 llamadas al API",
+      "estado": "ok",
+      "detalle": "ninguna request a /api/",
+      "capturas": [],
+      "llamadasApi": []
+    },
+    {
+      "paso": "claro: módulo pos",
+      "estado": "ok",
+      "detalle": "/pos · banner + marca + contenido",
+      "capturas": [
+        "07-claro-pos.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "claro: módulo pedidos",
+      "estado": "ok",
+      "detalle": "/pedidos · banner + marca + contenido",
+      "capturas": [
+        "08-claro-pedidos.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "claro: módulo clientes",
+      "estado": "ok",
+      "detalle": "/clientes · banner + marca + contenido",
+      "capturas": [
+        "09-claro-clientes.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "claro: módulo inventario",
+      "estado": "ok",
+      "detalle": "/inventario · banner + marca + contenido",
+      "capturas": [
+        "10-claro-inventario.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "claro: módulo finanzas",
+      "estado": "ok",
+      "detalle": "/finanzas · banner + marca + contenido",
+      "capturas": [
+        "11-claro-finanzas.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "claro: módulo impresion",
+      "estado": "ok",
+      "detalle": "/configuracion/impresoras · banner + marca + contenido",
+      "capturas": [
+        "12-claro-impresion.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "oscuro: módulo pos",
+      "estado": "ok",
+      "detalle": "/pos · banner + marca + contenido",
+      "capturas": [
+        "13-oscuro-pos.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "oscuro: módulo pedidos",
+      "estado": "ok",
+      "detalle": "/pedidos · banner + marca + contenido",
+      "capturas": [
+        "14-oscuro-pedidos.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "oscuro: módulo clientes",
+      "estado": "ok",
+      "detalle": "/clientes · banner + marca + contenido",
+      "capturas": [
+        "15-oscuro-clientes.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "oscuro: módulo inventario",
+      "estado": "ok",
+      "detalle": "/inventario · banner + marca + contenido",
+      "capturas": [
+        "16-oscuro-inventario.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "oscuro: módulo finanzas",
+      "estado": "ok",
+      "detalle": "/finanzas · banner + marca + contenido",
+      "capturas": [
+        "17-oscuro-finanzas.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "oscuro: módulo impresion",
+      "estado": "ok",
+      "detalle": "/configuracion/impresoras · banner + marca + contenido",
+      "capturas": [
+        "18-oscuro-impresion.jpg"
+      ],
+      "llamadasApi": []
+    }
+  ],
+  "resumen": {
+    "pasos": 16,
+    "ok": 15,
+    "fallos": 1
+  }
+}
