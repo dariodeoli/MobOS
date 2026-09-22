@@ -185,6 +185,9 @@ export function updateDemoUnit(data = {}) {
   else if (data.action === 'restore') { unit.removedAt = null; unit.removedReason = '' }
   else if (data.action === 'move') { unit.locationId = data.locationId || null }
   else if (data.action === 'adjust') { unit.status = data.status || unit.status; if (data.status === 'DEFECTIVE') unit.notes = data.reason || unit.notes }
+  else if (data.action === 'inspection') {
+    unit.inspection = { ...data.inspection, inspeccionadoAt: new Date().toISOString(), inspeccionadoPor: 'Hernán Acosta' }
+  }
   else if (data.action === 'details') {
     unit.costCurrency = data.costCurrency || 'PYG'
     unit.costPyg = data.costPyg === undefined ? unit.costPyg : data.costPyg

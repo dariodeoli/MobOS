@@ -163,7 +163,22 @@ export async function PATCH(request: Request) {
   const id = text(body.id, 128)
   if (!id) return error('Unidad obligatoria.')
   const action = body.action === undefined ? 'adjust' : body.action
-  if (!['adjust', 'details', 'remove', 'restore', 'move'].includes(action)) return error('Acción de inventario inválida.')
+  if (!['adjust', 'details', 'remove', 'restore', 'move', 'inspection'].includes(action)) return error('Acción de inventario inválida.')
+  // #240 PhoneCheck: checklist de inspección + grado calculado en el servidor.
+  if (action === 'inspection') {
+    const inspeccion = body?.inspection
+    if (!inspeccion || typeof inspeccion !== 'object' || Array.isArray(inspeccion)) return error('Inspección inválida.')
+    const items = Array.isArray(inspeccion.items) ? inspeccion.items : []
+    const estados: Record<string, number | null> = { ok: 1, observacion: 0.5, falla: 0, na: null }
+    let suma = 0
+    let cuenta = 0
+    for (const item of items) { const valor = estados[String(item?.estado || '')]; if (valor === null || valor === undefined) continue; suma += valor; cuenta += 1 }
+    const puntaje = cuenta ? Math.round((suma / cuenta) * 100) : null
+    const grado = puntaje === null ? null : puntaje >= 90 ? 'A' : puntaje >= 75 ? 'B' : 'C'
+    const actualizada = await prisma.inventoryUnit.update({ where: { id }, data: { inspection: { ...inspeccion, items, puntaje, grado, inspeccionadoAt: new Date().toISOString(), inspeccionadoPor: session.user.name } as any } })
+    return json(actualizada)
+  }
+
   const adjustmentReason = reason(body.reason)
   if (['remove', 'restore'].includes(action) && !adjustmentReason) return error('Indicá un motivo de entre 3 y 500 caracteres.')
   const unit = await prisma.inventoryUnit.findFirst({ where: { id, tenantId: tenant }, select: { id: true, branchId: true } })

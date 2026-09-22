@@ -11,6 +11,8 @@ import QRCode from 'qrcode'
 import { qrUnidad } from '@/lib/printing/qr'
 import { api, apiFetch } from '@/lib/api/client'
 import { postDemoImei } from '@/lib/demoImei'
+import { COSMETICOS, INSPECCION_ESTADOS, INSPECCION_ITEMS, resumenInspection } from '@/lib/phonecheck'
+import { resources } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
 import { cotizacionReferencia } from '@/lib/fx'
 import { gs } from '@/utils/calculos'
@@ -95,6 +97,9 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   const costoInicial = () => ({ currency: unit.costCurrency || 'PYG', monto: unit.originalCost !== null && unit.originalCost !== undefined ? String(unit.originalCost) : unit.costPyg !== null && unit.costPyg !== undefined ? String(unit.costPyg) : '', rate: unit.exchangeRatePyg !== null && unit.exchangeRatePyg !== undefined ? String(unit.exchangeRatePyg) : '' })
   const [costo, setCosto] = useState(costoInicial)
   const [guardandoCosto, setGuardandoCosto] = useState(false)
+  // #240 PhoneCheck
+  const [inspeccion, setInspeccion] = useState(() => ({ items: unit.inspection?.items || {}, cosmetico: unit.inspection?.cosmetico || '', nota: unit.inspection?.nota || '' }))
+  const [guardandoInspeccion, setGuardandoInspeccion] = useState(false)
   // Consulta de IMEI (#193/#200): precheck con costo visible, confirmación
   // explícita y resultado auditado. En demo solo SIMULA (sin llamadas).
   const [imeiFase, setImeiFase] = useState(null)
@@ -376,6 +381,34 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
               <Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={() => { setImeiFase(null); setImeiDatos(null) }}>Cerrar</Button>
             </div>
           )}
+        </section>
+
+                {/* #240 PhoneCheck: checklist de inspección con semáforo, puntaje y grado */}
+        <section className="rounded-2xl border border-ink-600 p-4" data-testid="unidad-phonecheck">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className={ROTULO_SECCION}>PhoneCheck · Inspección</h3>
+            {(() => { const { puntaje, grado } = resumenInspection(inspeccion); return puntaje === null
+              ? <Badge color="slate">Sin inspeccionar</Badge>
+              : <span className="flex items-center gap-2"><Badge color={grado === 'A' ? 'green' : grado === 'B' ? 'orange' : 'red'}>Grado {grado}</Badge><span className="text-xs text-mute">{puntaje}/100</span></span> })()}
+          </div>
+          <p className="mt-1 text-xs text-mute">Semáforo por ítem; si algo falla o queda con observación, agregá una nota. El grado A/B/C se calcula del checklist (A ≥ 90, B ≥ 75).</p>
+          <div className="mt-3 space-y-2">
+            {INSPECCION_ITEMS.map(item => {
+              const actual = inspeccion.items[item.clave] || {}
+              return <div key={item.clave} className="grid gap-2 rounded-xl border border-ink-600 p-2 sm:grid-cols-[minmax(11rem,1fr)_minmax(0,1.4fr)]" title={item.ayuda}>
+                <span className="flex items-center gap-2 text-sm"><span className={`h-2 w-2 shrink-0 rounded-full ${INSPECCION_ESTADOS[actual.estado]?.tone === 'green' ? 'bg-ok' : INSPECCION_ESTADOS[actual.estado]?.tone === 'orange' ? 'bg-warn' : INSPECCION_ESTADOS[actual.estado]?.tone === 'red' ? 'bg-bad' : 'bg-mute'}`} /><b className="font-semibold text-fore">{item.label}</b></span>
+                <span className="flex flex-wrap items-center gap-1">
+                  {Object.entries(INSPECCION_ESTADOS).map(([clave, estado]) => <button key={clave} type="button" onClick={() => setInspeccion(actual2 => ({ ...actual2, items: { ...actual2.items, [item.clave]: { ...actual2.items[item.clave], estado: clave } } }))} className={`rounded-lg border px-2 py-1 text-[10px] font-semibold transition ${actual.estado === clave ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:border-fono/40'}`}>{estado.label}</button>)}
+                  <input placeholder="Nota / evidencia" aria-label={`Nota de ${item.label}`} value={actual.nota || ''} onChange={event => setInspeccion(actual2 => ({ ...actual2, items: { ...actual2.items, [item.clave]: { ...actual2.items[item.clave], nota: event.target.value } } }))} className="min-w-[8rem] flex-1 rounded-lg border border-ink-600 bg-ink-800 px-2 py-1 text-xs text-fore outline-none focus:border-fono" />
+                </span>
+              </div>
+            })}
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+            <Select aria-label="Cosmético" value={inspeccion.cosmetico} onChange={event => setInspeccion(actual => ({ ...actual, cosmetico: event.target.value }))}><option value="">Cosmético…</option>{COSMETICOS.map(valor => <option key={valor} value={valor}>{valor}</option>)}</Select>
+            <Input aria-label="Nota general de inspección" placeholder="Nota general" value={inspeccion.nota} onChange={event => setInspeccion(actual => ({ ...actual, nota: event.target.value }))} />
+            <Button type="button" disabled={guardandoInspeccion || busy} data-testid="unidad-phonecheck-guardar" onClick={async () => { setGuardandoInspeccion(true); try { await resources.inventoryUnits.update({ id: unit.id, action: 'inspection', inspection: inspeccion }); toast.success('Inspección guardada.'); await load(); onChanged?.() } catch (cause) { toast.error(cause?.message || 'No se pudo guardar la inspección.') } finally { setGuardandoInspeccion(false) } }}>{guardandoInspeccion ? 'Guardando…' : 'Guardar inspección'}</Button>
+          </div>
         </section>
 
         {/* Códigos de esta unidad */}
