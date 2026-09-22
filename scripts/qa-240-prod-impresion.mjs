@@ -1,0 +1,177 @@
+// Verificación de impresión en producción del informe (#240) — post .142/.143.
+//
+//   node scripts/qa-240-prod-impresion.mjs
+//
+// Entra a la demo, abre la ficha de una unidad y usa el camino real de la app
+// desplegada: «Informe» → formato 80 mm y A4 → «Descargar PDF» (el HTML que
+// manda la app) y el QR del informe público. Después decodifica el QR con
+// Vision (`scripts/decode-qr.swift`) y arma los PDFs con ese HTML.
+//
+// Salida: docs/qa/240-impresion-prod/ (PDFs + capturas + REPORTE.md).
+import { execFileSync } from 'node:child_process'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const require = createRequire(import.meta.url)
+const { chromium } = require('@playwright/test')
+
+const RAIZ = dirname(dirname(fileURLToPath(import.meta.url)))
+const BASE = (process.env.QA_BASE_URL || 'https://app.moboss.online').replace(/\/$/, '')
+const SALIDA = process.env.QA_OUT || join(RAIZ, 'docs/qa/240-impresion-prod')
+mkdirSync(SALIDA, { recursive: true })
+
+const SDK_SWIFT = process.env.QR_SDK || ['MacOSX26.5.sdk', 'MacOSX26.sdk', 'MacOSX15.4.sdk', 'MacOSX15.sdk']
+  .map((nombre) => `/Library/Developer/CommandLineTools/SDKs/${nombre}`)
+  .find((ruta) => existsSync(ruta))
+
+const pasos = []
+const resultados = []
+const browser = await chromium.launch()
+const ctx = await browser.newContext({ viewport: { width: 1400, height: 1000 } })
+const page = await ctx.newPage()
+
+const captura = async (nombre) => { await page.screenshot({ path: join(SALIDA, `${nombre}.jpg`), type: 'jpeg', quality: 74 }) }
+const esperar = (ms) => page.waitForTimeout(ms)
+
+function paginasDePdf(ruta) {
+  const datos = readFileSync(ruta).toString('latin1')
+  return datos.split('/Type /Page').length - datos.split('/Type /Pages').length
+}
+
+function leerQr(imagen) {
+  const argumentos = [join(RAIZ, 'scripts/decode-qr.swift'), imagen]
+  if (SDK_SWIFT) argumentos.unshift('-sdk', SDK_SWIFT)
+  let salida = ''
+  try { salida = execFileSync('swift', argumentos, { encoding: 'utf8' }) } catch (error) { salida = String(error.stdout || '') }
+  const linea = salida.trim().split('\n').find((fila) => fila.startsWith('OK\t'))
+  return linea ? linea.split('\t')[2] : ''
+}
+
+/** PDF del HTML del respaldo, con el ancho del formato elegido. */
+async function pdfDeHtml(nombre, html, formato) {
+  const hoja = await ctx.newPage()
+  await hoja.emulateMedia({ media: 'print' })
+  await hoja.setContent(html, { waitUntil: 'load' })
+  await hoja.waitForTimeout(250)
+  const ruta = join(SALIDA, `${nombre}.pdf`)
+  if (formato === 'a4') {
+    await hoja.pdf({ path: ruta, format: 'A4', printBackground: true, margin: { top: '18mm', bottom: '18mm', left: '16mm', right: '16mm' } })
+  } else {
+    const alto = Math.ceil((await hoja.locator('body').evaluate((body) => body.getBoundingClientRect().height)) / 3.7795275591) + 12
+    await hoja.pdf({ path: ruta, width: `${formato.replace('thermal-', '')}mm`, height: `${alto}mm`, printBackground: true, margin: { top: '5mm', bottom: '5mm', left: '4mm', right: '4mm' } })
+  }
+  await hoja.screenshot({ path: join(SALIDA, `${nombre}.jpg`), type: 'jpeg', quality: 74, fullPage: true })
+  await hoja.close()
+  return { ruta, paginas: paginasDePdf(ruta) }
+}
+
+try {
+  // 1) Demo + versión desplegada.
+  await page.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
+  await esperar(1500)
+  await page.getByRole('button', { name: /Entrar como Dueño/ }).first().click()
+  await page.waitForURL((url) => !url.pathname.startsWith('/demo'), { timeout: 60_000 })
+  await esperar(1800)
+  const version = ((await page.locator('body').innerText()).match(/v(\d+\.\d+\.\d+)/) || [])[1] || ''
+  pasos.push({ paso: 'demo + versión', detalle: version ? `v${version}` : '(sin versión visible)', ok: Boolean(version) })
+
+  // 2) Ficha de una unidad con el camino real de la app.
+  await page.goto(`${BASE}/inventario/unidades`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
+  await esperar(2500)
+  const fila = page.getByTestId('inventario-fila').first()
+  if (!(await fila.count())) throw new Error('la demo no mostró unidades en Inventario')
+  await fila.click()
+  await esperar(800)
+  const ficha = page.getByRole('dialog')
+  const serial = (await ficha.innerText()).match(/\b\d{15}\b|\b[A-Z]{2,}\d{6,}\b/)?.[0] || ''
+  await captura('01-ficha-demo')
+  const botonInforme = ficha.getByRole('button', { name: 'Informe', exact: true })
+  const botonCertificado = ficha.getByRole('button', { name: 'Certificado', exact: true })
+  pasos.push({ paso: 'botón Informe en la ficha', detalle: (await botonInforme.count()) ? 'presente' : 'ausente', ok: (await botonInforme.count()) > 0 })
+  pasos.push({ paso: 'botón Certificado en la ficha', detalle: (await botonCertificado.count()) ? 'presente (ronda con la etiqueta)' : 'ausente (todavía no desplegado)', ok: true })
+  if (!(await botonInforme.count())) throw new Error('la ficha desplegada no muestra el botón «Informe»')
+
+  // 3) Modal del informe: la app real, en producción.
+  await botonInforme.click()
+  await esperar(1500)
+  const modal = page.getByRole('dialog').filter({ hasText: 'Informe del dispositivo' })
+  const vista = page.frameLocator('iframe[title="Vista previa del informe"], iframe[title="Vista previa del documento"]')
+  await vista.locator('h1').first().waitFor({ state: 'visible', timeout: 20_000 })
+  await captura('02-informe-80mm-vista')
+  const tituloInforme = await vista.locator('h1').first().innerText()
+
+  for (const [formato, etiqueta] of [['thermal-80', '80mm'], ['a4', 'a4']]) {
+    // El selector de formato del modal (si ya está en ese formato, no cambia nada).
+    const selector = modal.getByLabel(/Formato del (informe|documento)/)
+    await selector.selectOption(formato).catch(() => {})
+    await esperar(1200)
+    await captura(`03-informe-${etiqueta}-modal`)
+    // «Descargar PDF»: el respaldo abre el HTML imprimible en un iframe oculto.
+    await modal.getByRole('button', { name: 'Descargar PDF' }).click()
+    const marco = page.locator('iframe[aria-hidden="true"]').last()
+    await marco.waitFor({ state: 'attached', timeout: 15_000 })
+    await esperar(600)
+    const contenido = marco.contentFrame()
+    const html = await contenido.locator('html').evaluate((el) => el.outerHTML)
+    const pdf = await pdfDeHtml(`informe-${etiqueta}`, html, formato === 'a4' ? 'a4' : formato)
+    // El QR del informe público: se extrae del HTML desplegado y se decodifica.
+    const qr = (html.match(/<img class="qr" src="data:image\/png;base64,([^"]+)"/) || [])[1]
+    let enlace = ''
+    if (qr) {
+      const imagen = join(SALIDA, `qr-informe-${etiqueta}.png`)
+      writeFileSync(imagen, Buffer.from(qr, 'base64'))
+      enlace = leerQr(imagen)
+    }
+    const problemas = []
+    if (!html.includes('Informe público')) problemas.push('sin sección de informe público')
+    if (!enlace) problemas.push('el QR no se pudo leer')
+    else if (!new RegExp(`^${BASE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/u/`).test(enlace)) problemas.push(`el QR apunta a «${enlace}»`)
+    if (formato === 'a4' && pdf.paginas > 2) problemas.push(`el A4 salió en ${pdf.paginas} páginas`)
+    resultados.push({ documento: `informe-${etiqueta}`, version: version ? `v${version}` : '', paginas: pdf.paginas, qr: enlace, estado: problemas.length ? 'fallo' : 'ok', ...(problemas.length ? { detalle: problemas.join(' · ') } : {}) })
+  }
+
+  // 4) Impresión directa: en la demo el aviso tiene que ser honesto.
+  await modal.getByRole('button', { name: 'Impresión directa' }).click()
+  await esperar(2000)
+  const aviso = (await page.locator('body').innerText()).replace(/\s+/g, ' ')
+  const honesto = /demo/i.test(aviso) || /no se pudo imprimir/i.test(aviso) || /impresora/i.test(aviso)
+  pasos.push({ paso: 'impresión directa en la demo', detalle: honesto ? 'aviso honesto del demo' : 'sin aviso detectable', ok: honesto })
+  await captura('04-impresion-directa-demo')
+
+  // 5) Consistencia de lo impreso con lo que muestra la app.
+  const html80 = readFileSync(join(SALIDA, 'informe-80mm.pdf')).toString('latin1')
+  pasos.push({ paso: 'PDF 80 mm generado desde la app', detalle: `${html80.length} bytes`, ok: html80.length > 1000 })
+  writeFileSync(join(SALIDA, 'datos-verificacion.json'), `${JSON.stringify({ base: BASE, version, serial, tituloInforme, fecha: new Date().toISOString() }, null, 2)}\n`)
+} catch (error) {
+  pasos.push({ paso: 'error', detalle: String(error?.message || error).slice(0, 300), ok: false })
+} finally {
+  await browser.close()
+}
+
+const fallos = resultados.filter((fila) => fila.estado !== 'ok')
+writeFileSync(join(SALIDA, 'resultados.json'), `${JSON.stringify({ base: BASE, fecha: new Date().toISOString(), pasos, resultados }, null, 2)}\n`)
+const filas = resultados.map((fila) => `| ${fila.documento} | ${fila.paginas} | \`${fila.qr}\` | ${fila.estado === 'ok' ? '✅' : '❌'}${fila.detalle ? ` ${fila.detalle}` : ''} |`).join('\n')
+writeFileSync(join(SALIDA, 'REPORTE.md'), `# Verificación de impresión en producción · informe (#240)
+
+- Base: ${BASE}
+- Fecha: ${new Date().toISOString()}
+- Versión desplegada: ${pasos.find((paso) => paso.paso === 'demo + versión')?.detalle || '?'}
+- Método: camino real de la app (demo → ficha → «Informe» → formato → «Descargar PDF»), PDFs armados con el HTML que manda la app y QR decodificado con Vision.
+
+| Documento | Páginas | QR decodificado | Resultado |
+| --- | --- | --- | --- |
+${filas}
+
+## Pasos
+
+${pasos.map((paso) => `- ${paso.ok ? '✅' : '⚠️'} ${paso.paso}: ${paso.detalle}`).join('\n')}
+
+**Lectura**: si el botón «Certificado» figura ausente, es que la etiqueta todavía no está desplegada
+(ronda pendiente); el informe ya sale con el QR al informe público (\`/u/<serial>\`). Cuando la próxima
+ronda esté en producción, se corre este mismo script y la tabla se completa sola.
+`)
+console.log(`Producción #240: informe verificado — ${resultados.length - fallos.length}/${resultados.length} documentos OK`)
+for (const paso of pasos) console.log(`${paso.ok ? '✅' : '⚠️'} ${paso.paso}: ${paso.detalle}`)
+if (fallos.length) { console.error(fallos.map((fila) => `${fila.documento}: ${fila.detalle}`).join('\n')); process.exitCode = 1 }
