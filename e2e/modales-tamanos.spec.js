@@ -47,11 +47,15 @@ test('Nuevo conteo (formulario, antes sin ancho declarado)', async ({ page }) =>
   await capturar(page, page.getByRole('dialog', { name: 'Nuevo conteo' }), 'nuevo-conteo', 'formulario')
 })
 
-test('Cambiar sucursal (corto)', async ({ page }) => {
-  await page.goto('/pos')
-  await page.getByTestId('menu-acciones').click()
-  await page.getByTestId('menu-acciones-lista').getByRole('menuitem', { name: 'Cambiar sucursal' }).click()
-  await capturar(page, page.getByRole('dialog', { name: 'Cambiar sucursal' }), 'cambiar-sucursal', 'corto')
+// "Cambiar sucursal" salió del menú rápido en #228 (configuración va a
+// Configuración); el caso de modal corto se cubre con Preferencias.
+test('Preferencias (corto)', async ({ page }) => {
+  await page.goto('/configuracion')
+  const abrir = page.getByRole('button', { name: /Preferencias/ }).first()
+  if (await abrir.count()) {
+    await abrir.click()
+    await capturar(page, page.getByRole('dialog', { name: 'Preferencias' }), 'preferencias', 'corto')
+  }
 })
 
 test('Proveedores (amplio)', async ({ page }) => {
@@ -80,8 +84,9 @@ test('Crear cliente (amplio)', async ({ page }) => {
 
 test('Ficha del cliente (amplio)', async ({ page }) => {
   await page.goto('/clientes')
-  const verPerfil = page.getByRole('button', { name: /Ver perfil/ }).first()
-  await expect(verPerfil).toBeVisible()
-  await verPerfil.click()
+  // La tabla nueva (#236) abre la ficha al hacer clic en la fila.
+  const fila = page.getByTestId('cliente-fila').first()
+  await expect(fila).toBeVisible()
+  await fila.click()
   await capturar(page, page.getByRole('dialog', { name: /^Cliente: / }), 'ficha-cliente', 'amplio')
 })

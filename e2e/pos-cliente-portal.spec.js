@@ -47,7 +47,7 @@ test('el portal del cliente se abre desde la ficha y muestra el saldo pendiente'
   await expect(ficha.getByRole('heading', { name: cliente.body.name })).toBeVisible()
   await ficha.getByRole('button', { name: 'Portal del cliente' }).click()
   await expect(page.getByAltText('QR del portal del cliente')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Rápido' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('button', { name: 'Rápido', exact: true })).toHaveAttribute('aria-pressed', 'true')
   const enlace = await page.locator('p.break-all').textContent()
   expect(enlace).toContain('/cuenta/')
 

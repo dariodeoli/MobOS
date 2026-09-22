@@ -11,7 +11,9 @@ import { SEED } from './helpers/seed-data.js'
 
 const API = SEED.api
 const FASE = process.env.QA234_FASE === 'antes' ? 'antes' : 'despues'
-const DIR = join('docs', 'qa', '234')
+// Las evidencias versionadas viven en docs/qa/234 (commiteadas por el slot);
+// la corrida escribe en test-results/ (ignorado) para no ensuciar el árbol.
+const DIR = join('test-results', 'qa-234')
 mkdirSync(DIR, { recursive: true })
 
 const capturar = (raiz, nombre) => raiz.screenshot({ path: join(DIR, `234-${nombre}-${FASE}.png`) })
@@ -68,9 +70,10 @@ test('CRM: RUC o CI del nuevo cliente', async ({ page }) => {
 test('CRM: identidad fiscal de una ficha', async ({ page }) => {
   await page.goto('/clientes')
   await expect(page.getByRole('heading', { name: 'Clientes' })).toBeVisible()
-  const verPerfil = page.getByRole('button', { name: /Ver perfil/ }).first()
-  await expect(verPerfil).toBeVisible()
-  await verPerfil.click()
+  // La tabla nueva (#236) abre la ficha al hacer clic en la fila.
+  const fila = page.getByTestId('cliente-fila').first()
+  await expect(fila).toBeVisible()
+  await fila.click()
   const ficha = page.getByRole('dialog', { name: /^Cliente: / })
   await expect(ficha).toBeVisible()
   await ficha.getByRole('tab', { name: /^Datos/ }).click()
@@ -114,9 +117,21 @@ test('Compras: RUC del proveedor', async ({ page }) => {
 test('Config: RUC del negocio', async ({ page }) => {
   await page.goto('/configuracion/negocio')
   await expect(page.locator('h1')).toHaveText('Negocio')
+  // El negocio carga async y rellena el formulario: si se llena antes, la
+  // carga pisa el valor. Se espera a que el nombre cargado esté presente.
+  await expect(page.locator('#edit-nombre')).not.toHaveValue('', { timeout: 20000 })
   const ruc = page.locator('#edit-ruc')
-  await ruc.fill('80012345-6')
   const raiz = ruc.locator('xpath=../..')
+  const extraer = raiz.getByRole('button', { name: /Extraer los datos del RUC|Consultando/ })
+  // La carga del negocio puede rellenar el formulario después del primer
+  // tipeo: se reintenta hasta que el extractor quede habilitado con el RUC.
+  await expect.poll(async () => {
+    await ruc.fill('')
+    await ruc.pressSequentially('80012345-6')
+    return extraer.isEnabled()
+  }, { timeout: 20000, intervals: [300, 700, 1500] }).toBe(true)
+  // Deja asentar cualquier carga tardía antes de capturar y verificar.
+  await page.waitForTimeout(1500)
   await capturar(raiz, 'config-negocio')
   await verificarExtractor(raiz)
 })

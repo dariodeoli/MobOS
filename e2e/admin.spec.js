@@ -305,7 +305,7 @@ test.describe('owner panel', () => {
     const stamp = Date.now().toString(36)
     const cliente = `Taller ${stamp}`
     const equipo = `iPhone 13 Pro ${stamp} · 256 GB`
-    await page.getByRole('button', { name: '+ Nueva orden' }).click()
+    await page.getByRole('button', { name: '+ Nueva orden' }).first().click()
     await page.getByLabel('Cliente', { exact: true }).fill(cliente)
     await page.getByLabel('Dispositivo', { exact: true }).fill(equipo)
     await page.getByRole('button', { name: 'Crear orden' }).click()
@@ -1212,7 +1212,7 @@ test('servicio y garantías: la garantía pasa al taller con su historial', asyn
 // #228: el menú de tres puntos queda corto y sin duplicados; Preferencias y la
 // eliminación de la empresa viven en Configuración (nunca a un toque).
 test('el menú de tres puntos queda corto y lo destructivo vive en Configuración (#228)', async ({ page }) => {
-  mkdirSync('docs/qa/228', { recursive: true })
+  mkdirSync('test-results/qa-228', { recursive: true })
   await page.goto('/pos')
   await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
@@ -1224,7 +1224,7 @@ test('el menú de tres puntos queda corto y lo destructivo vive en Configuració
   for (const fuera of ['Eliminar cuenta', 'Cerrar sesión', 'Preferencias', 'Cambiar sucursal']) {
     await expect(menu.getByRole('menuitem', { name: fuera, exact: true })).toHaveCount(0)
   }
-  await page.screenshot({ path: 'docs/qa/228/02-despues.jpg', type: 'jpeg', quality: 70 })
+  await page.screenshot({ path: 'test-results/qa-228/02-despues.jpg', type: 'jpeg', quality: 70 })
   await page.keyboard.press('Escape')
 
   // Preferencias del dispositivo: Configuración → Sistema → Preferencias.
@@ -1232,7 +1232,7 @@ test('el menú de tres puntos queda corto y lo destructivo vive en Configuració
   await page.locator('main').getByRole('button', { name: 'Sistema', exact: true }).click()
   await page.locator('main').getByRole('tab', { name: 'Preferencias', exact: true }).click()
   await expect(page.locator('#pref-bloqueo')).toBeVisible()
-  await page.screenshot({ path: 'docs/qa/228/03-preferencias.jpg', type: 'jpeg', quality: 70 })
+  await page.screenshot({ path: 'test-results/qa-228/03-preferencias.jpg', type: 'jpeg', quality: 70 })
 
   // Eliminar empresa: Configuración → Seguridad, con reauth + palabra ELIMINAR.
   await page.locator('main').getByRole('button', { name: 'Seguridad', exact: true }).click()
@@ -1245,7 +1245,7 @@ test('el menú de tres puntos queda corto y lo destructivo vive en Configuració
   const dialogo = page.getByRole('dialog')
   await expect(dialogo.getByText('Escribí ELIMINAR para confirmar')).toBeVisible()
   await expect(dialogo.getByLabel('Contraseña de la empresa')).toBeVisible()
-  await page.screenshot({ path: 'docs/qa/228/04-peligro.jpg', type: 'jpeg', quality: 70 })
+  await page.screenshot({ path: 'test-results/qa-228/04-peligro.jpg', type: 'jpeg', quality: 70 })
   await dialogo.getByRole('button', { name: 'Cancelar' }).click()
   await expect(page.getByText('Escribí ELIMINAR para confirmar')).toHaveCount(0)
 })

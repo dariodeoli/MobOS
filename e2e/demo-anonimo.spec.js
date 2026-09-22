@@ -507,8 +507,8 @@ test('la entrada /demo no duplica la guía y el PIN está siempre a la vista (#2
   // "Ingresar otro PIN" está abierto: el campo se ve sin desplegar nada.
   const pin = page.locator('#demo-pin')
   await expect(pin).toBeVisible()
-  mkdirSync('docs/qa/235', { recursive: true })
-  await page.screenshot({ path: 'docs/qa/235/02-despues.jpg', type: 'jpeg', quality: 72 })
+  mkdirSync('test-results/qa-235', { recursive: true })
+  await page.screenshot({ path: 'test-results/qa-235/02-despues.jpg', type: 'jpeg', quality: 72 })
 
   // El flujo intacto: el PIN abre el perfil y entra a la demo.
   await pin.pressSequentially('2001')

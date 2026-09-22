@@ -10,7 +10,7 @@ import { mkdirSync } from 'node:fs'
 import { SEED } from './helpers/seed-data.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
-const SALIDA = 'docs/qa/218-etiquetas-lote'
+const SALIDA = 'test-results/qa-218-etiquetas-lote'
 mkdirSync(SALIDA, { recursive: true })
 
 async function apiPagina(page, ruta, opciones = {}) {
