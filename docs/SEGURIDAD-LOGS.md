@@ -110,6 +110,7 @@ Para cada uno: generar el valor nuevo en el proveedor → actualizarlo en Coolif
 
 ## Referencias
 
+- Runbook de rotación: `docs/ROTACION-TOKENS.md` (paso a paso por secreto).
 - Auditor: `scripts/audit-logs.mjs` · Guarda: `src/lib/logsReglas.test.js`.
 - Operación: `docs/STORAGE-Y-SCHEDULER.md` (tareas programadas),
   `docs/BACKUP.md`, `AGENTS.md` (checks de entrega).
