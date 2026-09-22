@@ -18,10 +18,10 @@ const SUCURSALES = [
 ]
 
 const UBICACIONES = [
-  { id: 'demo-ubic-deposito-1', branchId: DEMO_BRANCH, name: 'Depósito 1', code: 'D1', isActive: true },
-  { id: 'demo-ubic-deposito-2', branchId: DEMO_BRANCH, name: 'Depósito 2', code: 'D2', isActive: true },
-  { id: 'demo-ubic-piso', branchId: DEMO_BRANCH, name: 'Piso de venta', code: 'PV', isActive: true },
-  { id: 'demo-ubic-vm-deposito', branchId: DEMO_BRANCH_2, name: 'Depósito Villa Morra', code: 'VM', isActive: true },
+  { id: 'demo-ubic-deposito-1', branchId: DEMO_BRANCH, name: 'Depósito 1', code: 'D1', color: '#60a5fa', isActive: true },
+  { id: 'demo-ubic-deposito-2', branchId: DEMO_BRANCH, name: 'Depósito 2', code: 'D2', color: '#a78bfa', isActive: true },
+  { id: 'demo-ubic-piso', branchId: DEMO_BRANCH, name: 'Piso de venta', code: 'PV', color: '#34d399', isActive: true },
+  { id: 'demo-ubic-vm-deposito', branchId: DEMO_BRANCH_2, name: 'Depósito Villa Morra', code: 'VM', color: '#38bdf8', isActive: true },
 ]
 
 const PROVEEDORES = [
@@ -247,8 +247,8 @@ export function listDemoLocations(branchId = '') {
 export function saveDemoLocation(data = {}) {
   const state = read()
   const existente = state.locations.find(item => item.id === data.id)
-  if (existente) { Object.assign(existente, { name: data.name ?? existente.name, code: data.code ?? existente.code, isActive: data.isActive ?? existente.isActive }) }
-  else state.locations.push({ id: `demo-ubic-${Date.now().toString(36)}`, branchId: data.branchId || DEMO_BRANCH, name: data.name || 'Ubicación demo', code: data.code || '', isActive: true })
+  if (existente) { Object.assign(existente, { name: data.name ?? existente.name, code: data.code ?? existente.code, color: data.color ?? existente.color, isActive: data.isActive ?? existente.isActive }) }
+  else state.locations.push({ id: `demo-ubic-${Date.now().toString(36)}`, branchId: data.branchId || DEMO_BRANCH, name: data.name || 'Ubicación demo', code: data.code || '', color: /^#[0-9a-f]{6}$/i.test(data.color || '') ? data.color : '', isActive: true })
   write(state)
   return listDemoLocations()
 }

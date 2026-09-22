@@ -28,12 +28,14 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const branchId = text(body.branchId, 128), name = text(body.name), code = body.code === undefined || body.code === null || body.code === '' ? null : text(body.code, 32)?.toUpperCase()
+    const color = body.color === undefined || body.color === null || body.color === '' ? null : String(body.color).trim().toLowerCase()
+    if (color && !/^#[0-9a-f]{6}$/.test(color)) return error('El color debe ser un hex #rrggbb.')
     if (!branchId || !name || (body.code && !code)) return error('Sucursal, nombre y código válido son obligatorios cuando se informa un código.')
     if (!canManageBranch(session.user.role, session.user.branchId, branchId)) return error('No autorizado para esa sucursal.', 403)
     const location = await prisma.$transaction(async tx => {
       const branch = await tx.branch.findFirst({ where: { id: branchId, tenantId: session.user.tenantId, isActive: true }, select: { id: true } })
       if (!branch) throw new Error('Sucursal no encontrada.')
-      const created = await tx.stockLocation.create({ data: { tenantId: session.user.tenantId, branchId, name, code } })
+      const created = await tx.stockLocation.create({ data: { tenantId: session.user.tenantId, branchId, name, code, color } })
       await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'STOCK_LOCATION_CREATED', entity: 'StockLocation', entityId: created.id, metadata: { branchId, name, code } } })
       return created
     })
@@ -53,10 +55,12 @@ export async function PATCH(request: Request) {
     if (!canManageBranch(session.user.role, session.user.branchId, before.branchId)) return error('No autorizado para esa sucursal.', 403)
     const name = body.name === undefined ? undefined : text(body.name)
     const code = body.code === undefined ? undefined : body.code === null || body.code === '' ? null : text(body.code, 32)?.toUpperCase()
-    if ((body.name !== undefined && !name) || (body.code !== undefined && body.code && !code) || (body.isActive !== undefined && typeof body.isActive !== 'boolean')) return error('Datos de ubicación inválidos.')
-    const changes: { name?: string; code?: string | null; isActive?: boolean } = {}
+    const color = body.color === undefined ? undefined : body.color === null || body.color === '' ? null : String(body.color).trim().toLowerCase()
+    if ((body.name !== undefined && !name) || (body.code !== undefined && body.code && !code) || (color && !/^#[0-9a-f]{6}$/.test(color)) || (body.isActive !== undefined && typeof body.isActive !== 'boolean')) return error('Datos de ubicación inválidos.')
+    const changes: { name?: string; code?: string | null; color?: string | null; isActive?: boolean } = {}
     if (name) changes.name = name
     if (code !== undefined) changes.code = code
+    if (color !== undefined) changes.color = color
     if (typeof body.isActive === 'boolean') changes.isActive = body.isActive
     const updated = await prisma.$transaction(async tx => {
       const location = await tx.stockLocation.update({ where: { id }, data: changes })
