@@ -47,6 +47,15 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
   const completo = portal.level === 'completo'
   const now = Date.now()
 
+  // Informes de dispositivo (#240 ítem 3): seriales de los equipos comprados
+  // por el cliente para enlazar el informe público desde su cuenta.
+  const informes = await prisma.orderItemSerial.findMany({
+    where: { orderItem: { order: { tenantId: portal.tenantId, customerId: portal.customerId, archivedAt: null } } },
+    orderBy: { orderItem: { order: { createdAt: 'desc' } } },
+    take: 12,
+    select: { serial: true, orderItem: { select: { description: true, order: { select: { orderNumber: true } } } } },
+  })
+
   const [orders, saldo, dueOrders, warrantyRows] = await Promise.all([
     prisma.order.findMany({
       where: { tenantId: portal.tenantId, customerId: portal.customerId, archivedAt: null },
@@ -110,6 +119,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     },
     balancePyg: Number(saldo[0]?.pending || 0n),
     dueDates: vencimientos,
+    informes: informes.map((fila) => ({ serial: fila.serial, model: fila.orderItem.description, orderNumber: fila.orderItem.order.orderNumber })),
     orders: orders.map(order => {
       // #178: el pedido nuevo no guarda su token histórico en claro; el enlace
       // del comprobante sale del enlace vigente de nivel rápido (o del legacy).

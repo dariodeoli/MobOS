@@ -303,6 +303,7 @@ export function demoCuentaPayload(token) {
     balancePyg: saldoDeuda(cliente),
     dueDates: conSaldo,
     orders: orders.map((order) => ({ orderNumber: order.orderNumber, createdAt: order.createdAt, totalPyg: order.totalPyg, status: order.status, fulfillmentStatus: 'DELIVERED', pendingPyg: order.pendingPyg, dueAt: order.pendingPyg > 0 ? haceDias(-6) : null, ...(nivel === 'completo' ? { receiptToken: `demo-${order.id}` } : {}) })),
+    informes: orders.flatMap((order) => (order.items || []).flatMap((item) => (item.serials || []).map((serial) => ({ serial, model: item.description, orderNumber: order.orderNumber })))),
     ...(nivel === 'completo' ? { warranties: [], addresses: cliente.addresses || [] } : {}),
   }
 }
@@ -367,6 +368,27 @@ export function registrarPedidoDemoDeVenta(clienteId, venta = {}) {
   demo.timeline = [evento, ...(Array.isArray(demo.timeline) ? demo.timeline : EVENTOS(cliente))].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
   if (!SEED_DEMO_CLIENTES.some((row) => row.id === cliente.id)) actualizarClienteDemo(cliente)
   return pedido
+}
+
+/**
+ * Registra una interacción del equipo en la cronología del cliente demo
+ * (#240/#194): compartir el informe del equipo, etc. Solo en el navegador.
+ */
+export function registrarInteraccionDemo(clienteId, { accion, detalle, tipo = 'note' } = {}) {
+  const cliente = buscarClienteDemo(clienteId)
+  if (!cliente) return null
+  const demo = cliente.demoProfile || (cliente.demoProfile = {})
+  const evento = {
+    id: `demo-inter-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 4)}`,
+    type: tipo,
+    action: accion || 'Interacción',
+    createdAt: new Date().toISOString(),
+    user: { id: 'demo-user', name: 'Equipo demo' },
+    detail: detalle || '',
+  }
+  demo.timeline = [evento, ...(Array.isArray(demo.timeline) ? demo.timeline : EVENTOS(cliente))].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  if (!SEED_DEMO_CLIENTES.some((row) => row.id === cliente.id)) actualizarClienteDemo(cliente)
+  return evento
 }
 
 /** Forma canónica de un pedido demo (misma que los seeds). */

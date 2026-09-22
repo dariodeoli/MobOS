@@ -13,6 +13,36 @@ export function valorSugerido(valuations, model, condition) {
     && valuation.modelKey === key && (!condition || valuation.condition === condition)) || null
 }
 
+// Base de la demo (#240 ítem 7): sin tabla de valores del servidor, la demo
+// muestra la valuación con grado usando el catálogo ficticio — precio de venta
+// del modelo más parecido por un factor según la condición. Es una referencia
+// de demostración, nunca un dato de la tienda real.
+const FACTOR_DEMO = { NEW: 0.62, USED: 0.5, REFURBISHED: 0.42 }
+export function valorSugeridoDeCatalogo(productos, model, condition = 'USED') {
+  const key = normalizarModelo(model)
+  if (!key || !Array.isArray(productos)) return null
+  const candidatos = productos
+    .filter(producto => producto && producto.precioVenta > 0)
+    .map(producto => ({ producto, nombre: normalizarModelo(producto.nombre || producto.name) }))
+    .filter(({ nombre }) => nombre.includes(key) || key.includes(nombre))
+    .sort((a, b) => a.nombre.length - b.nombre.length)
+  const elegido = candidatos[0]
+  if (!elegido) return null
+  const factor = FACTOR_DEMO[String(condition || 'USED').toUpperCase()] ?? FACTOR_DEMO.USED
+  const base = Math.round((Number(elegido.producto.precioVenta) * factor) / 10000) * 10000
+  if (base <= 0) return null
+  return {
+    id: `demo-${elegido.producto.id || elegido.nombre}`,
+    model: elegido.producto.nombre || model,
+    modelKey: elegido.nombre,
+    condition,
+    baseValuePyg: base,
+    maxValuePyg: Math.round((base * 1.2) / 10000) * 10000,
+    isActive: true,
+    demo: true,
+  }
+}
+
 // Una ficha se convierte en un pago preparado; solo confirmar la venta lo registra.
 export function tradeInDraftPayment(draft, accounts, payments = []) {
   const account = accounts.find(a => a.isActive && a.kind === 'TRADE_IN' && a.currency === 'PYG')

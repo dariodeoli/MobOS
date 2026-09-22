@@ -14,6 +14,7 @@ import DemoAccess from '@/pages/DemoAccess'
 import PedidoPublico from '@/pages/PedidoPublico'
 import PanelDelivery from '@/pages/PanelDelivery'
 import CarritoPublico from '@/pages/CarritoPublico'
+import InformePublico from './pages/InformePublico'
 import GarantiaPublica from '@/pages/GarantiaPublica'
 import CotizacionPublica from '@/pages/CotizacionPublica'
 import CuentaPublica from '@/pages/CuentaPublica'
@@ -201,6 +202,7 @@ export default function App() {
             <Route path="/p/:token" element={<RedirigirPedidoPublico mismo />} />
             <Route path="/carrito/:token" element={<CarritoPublico />} />
             <Route path="/garantia/:token" element={<GarantiaPublica />} />
+            <Route path="/u/:serial" element={<InformePublico />} />
             <Route path="/cotizacion/:token" element={<CotizacionPublica />} />
             <Route path="/remito/:token" element={<RemitoPublico />} />
             <Route path="*" element={<Navigate to="/" replace />} />
@@ -226,6 +228,7 @@ export default function App() {
           <Route path="/p/:token" element={<RedirigirPedidoPublico externo={canonicoPedido} />} />
           <Route path="/carrito/:token" element={<CarritoPublico />} />
           <Route path="/garantia/:token" element={<GarantiaPublica />} />
+          <Route path="/u/:serial" element={<InformePublico />} />
           <Route path="/cotizacion/:token" element={<CotizacionPublica />} />
           <Route path="/cuenta/:token" element={<CuentaPublica />} />
           <Route path="/portal/:token" element={<PortalCliente />} />
