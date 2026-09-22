@@ -80,16 +80,18 @@ async function sembrarUnidadConConsulta(page, { marca, imei, branchId = 'e2e-bra
   expect(unidad.status, JSON.stringify(unidad.datos)).toBe(201)
 }
 
-async function abrirInforme(page, imei) {
+async function abrirDocumento(page, imei, { titulo = 'Informe del dispositivo', boton = 'Informe' } = {}) {
   await page.reload()
   await page.getByLabel('Buscar en inventario').fill(imei)
   const fila = page.getByTestId('inventario-fila').filter({ hasText: imei }).first()
   await expect(fila).toBeVisible({ timeout: 20_000 })
   await fila.click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Informe', exact: true }).click()
-  const modal = page.getByRole('dialog').filter({ hasText: 'Informe del dispositivo' })
+  await page.getByRole('dialog').getByRole('button', { name: boton, exact: true }).click()
+  const modal = page.getByRole('dialog').filter({ hasText: titulo })
   return { fila, modal }
 }
+
+const abrirInforme = (page, imei) => abrirDocumento(page, imei)
 
 test('el informe de la unidad sale directo por el agente con el QR al informe público', async ({ page }) => {
   const capturados = []
@@ -101,7 +103,7 @@ test('el informe de la unidad sale directo por el agente con el QR al informe p�
 
   const { modal } = await abrirInforme(page, imei)
   // La vista previa (80 mm por defecto) trae el IMEI enmascarado y el QR.
-  const vista = page.frameLocator('iframe[title="Vista previa del informe"]')
+  const vista = page.frameLocator('iframe[title="Vista previa del documento"]')
   await expect(vista.locator('h1')).toHaveText('Informe de dispositivo', { timeout: 15_000 })
   const filaImei = vista.locator('.fila-informe').filter({ hasText: 'IMEI' }).first()
   await expect(filaImei).toContainText(imei.slice(-4))
@@ -149,8 +151,8 @@ test('sin agente, el informe A4 queda listo para «Guardar como PDF»', async ({
   await sembrarUnidadConConsulta(page, { marca, imei })
 
   const { modal } = await abrirInforme(page, imei)
-  await modal.getByLabel('Formato del informe').selectOption('a4')
-  const vista = page.frameLocator('iframe[title="Vista previa del informe"]')
+  await modal.getByLabel('Formato del documento').selectOption('a4')
+  const vista = page.frameLocator('iframe[title="Vista previa del documento"]')
   await expect(vista.locator('h1')).toHaveText('Informe de dispositivo', { timeout: 15_000 })
   await expect(vista.locator('body')).toContainText('Verificación IMEI')
   await expect(vista.locator('body')).toContainText('Blacklist actual')
@@ -176,4 +178,47 @@ test('sin agente, el informe A4 queda listo para «Guardar como PDF»', async ({
   await hoja.pdf({ path: `${SALIDA}/informe-a4.pdf`, format: 'A4', printBackground: true, margin: { top: '18mm', bottom: '18mm', left: '16mm', right: '16mm' } })
   await hoja.screenshot({ path: `${SALIDA}/04-informe-a4.jpg`, type: 'jpeg', quality: 75, fullPage: true })
   await hoja.close()
+})
+
+// El certificado de inspección (#240) sale por el mismo camino que el informe:
+// directo por el agente y con el QR al informe público. Sin inspección guardada
+// (la base del arnés todavía no tiene la columna de INV) sale «pendiente» y
+// honesto en vez de inventar un grado.
+test('el certificado de inspección sale directo y sin inventar la inspección', async ({ page }) => {
+  const capturados = []
+  await agenteFalso(page, capturados)
+  const marca = Date.now()
+  const imei = imeiValido()
+  await page.goto('/inventario/unidades')
+  await sembrarUnidadConConsulta(page, { marca, imei })
+
+  const { modal } = await abrirDocumento(page, imei, { titulo: 'Certificado de inspección', boton: 'Certificado' })
+  const vista = page.frameLocator('iframe[title="Vista previa del documento"]')
+  await expect(vista.locator('h1')).toHaveText('Certificado de inspección', { timeout: 15_000 })
+  await expect(vista.locator('body')).toContainText('Pendiente de inspección')
+  await expect(vista.locator('body')).toContainText('iCloud/US Block clean no equivalen a blacklist mundial.')
+  const serialVisible = vista.locator('.fila-informe').filter({ hasText: 'Serial' }).first()
+  await expect(serialVisible).toContainText(imei.slice(-4))
+  await expect(serialVisible).not.toContainText(imei)
+  await page.screenshot({ path: `${SALIDA}/05-certificado-preview.jpg` })
+
+  await modal.getByRole('button', { name: 'Impresión directa' }).click()
+  await expect(page.getByText('Certificado enviado a la impresora.')).toBeVisible({ timeout: 15_000 })
+
+  expect(capturados).toHaveLength(1)
+  expect(capturados[0].tipo).toBe('certificado-phonecheck')
+  const texto = textoDelTicket(capturados[0])
+  expect(texto).toContain('CERTIFICADO DE INSPECCI')
+  expect(texto).toContain('Pendiente de inspecci')
+  // El QR y el código de barras llevan al informe público de la unidad.
+  expect(texto).toContain(`/u/${imei}`)
+  // Los rótulos del QR y del código interno viajan en CP850 (sin acentos al comparar).
+  expect(texto).toContain('INFORME P')
+  expect(texto).toContain('DIGO INTERNO')
+  expect(texto).toContain('CERT|')
+  const lineaSerial = texto.split('\n').find((linea) => linea.trim().startsWith('Serial')) || ''
+  expect(lineaSerial).not.toContain(imei)
+  expect(lineaSerial).toContain(imei.slice(-4))
+  await expect(page.locator('iframe[aria-hidden="true"]')).toHaveCount(0)
+  await page.screenshot({ path: `${SALIDA}/06-certificado-impreso.jpg` })
 })

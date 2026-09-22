@@ -2,6 +2,29 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { datosInformeDispositivo, estadoGarantia, verificacionFisica } from './informeDispositivo.js'
 
+// Payload público de INV (docs/PHONECHECK-INFORME.md) y consulta IMEI mock.
+const PUBLICO = {
+  titulo: 'Certificado PhoneCheck',
+  grado: 'A',
+  puntaje: 100,
+  cosmetico: 'buen estado',
+  serial: '•••••••••••5673',
+  bateria: { porcentaje: '89', ciclos: '310' },
+  controles: [{ label: 'iCloud', ok: true }],
+  repuestosNoOem: 'Pantalla no OEM',
+  items: [
+    { grupo: 'Pantalla', label: 'Pantalla / táctil', estado: 'ok', nota: '' },
+    { grupo: 'Audio', label: 'Altavoces y micrófono', estado: 'observacion', nota: 'Crujido al máximo' },
+    { grupo: 'Energía', label: 'Batería', estado: 'falla', nota: 'Salud 71%' },
+  ],
+  verificado: '2026-09-21T23:09:00.000Z',
+  aviso: 'iCloud/US Block clean no equivalen a blacklist mundial.',
+  enlace: 'https://app.moboss.online/informe/abc123',
+}
+
+// La consulta IMEI llega cruda (como la devuelve /api/imei).
+const CONSULTA_CRUDA = { imei: '356789102345673', status: 'verificado', resolvedAt: '2026-09-21T15:04:00Z', normalized: [{ clave: 'blacklist', etiqueta: 'Blacklist actual', valor: 'Sin reportes actuales' }] }
+
 const UNIDAD = {
   serial: '356789102345673',
   condition: 'USED',
@@ -75,4 +98,27 @@ test('un serial común (no IMEI) sí se imprime en el informe', () => {
   const datos = datosInformeDispositivo({ serial: 'SN-0001', product: { name: 'Cargador' } })
   assert.equal(datos.imei, '••••')
   assert.equal(datos.serialImpreso, 'SN-0001')
+})
+
+test('el informe toma el checklist, el grado y el enlace del payload de INV (#240)', () => {
+  const datos = datosInformeDispositivo(UNIDAD, { consulta: CONSULTA_CRUDA, informe: PUBLICO, base: 'https://app.moboss.online', ahora: new Date('2026-09-22T10:00:00Z') })
+  assert.equal(datos.inspeccion.grado, 'A')
+  assert.equal(datos.inspeccion.puntaje, 100)
+  assert.equal(datos.inspeccion.items.length, 3)
+  assert.equal(datos.inspeccion.noOk.length, 2)
+  assert.equal(datos.inspeccion.cosmetico, 'buen estado')
+  assert.deepEqual(datos.inspeccion.bateria, { porcentaje: '89', ciclos: '310' })
+  assert.equal(datos.inspeccion.verificado, '2026-09-21T23:09:00.000Z')
+  assert.equal(datos.bateria, '89% · 310 ciclos')
+  assert.equal(datos.enlace, 'https://app.moboss.online/informe/abc123', 'el enlace público de INV/DSN manda sobre /u/<serial>')
+  assert.equal(datos.inspeccion.verificador, 'Lucía', 'la verificación física queda como respaldo')
+})
+
+test('sin inspección PhoneCheck el informe no inventa checklist (#240)', () => {
+  const datos = datosInformeDispositivo({ serial: '356789102345673', product: { name: 'iPhone 15' } }, { ahora: new Date('2026-09-22T10:00:00Z') })
+  assert.equal(datos.inspeccion.hay, false)
+  assert.equal(datos.inspeccion.grado, '')
+  assert.equal(datos.inspeccion.puntaje, null)
+  assert.deepEqual(datos.inspeccion.items.filter((item) => item.estado), [])
+  assert.equal(datos.inspeccion.aviso.includes('blacklist mundial'), true)
 })

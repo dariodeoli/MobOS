@@ -1,0 +1,56 @@
+{
+  "base": "https://app.moboss.online",
+  "fecha": "2026-09-22T14:06:34.190Z",
+  "pasos": [
+    {
+      "paso": "versión desplegada",
+      "detalle": "v1.0.141",
+      "ok": true
+    },
+    {
+      "paso": "assets desplegados revisados",
+      "detalle": "3 assets",
+      "ok": true
+    },
+    {
+      "paso": "marca: informe",
+      "detalle": "ausente",
+      "ok": false
+    },
+    {
+      "paso": "marca: certificado",
+      "detalle": "ausente",
+      "ok": false
+    },
+    {
+      "paso": "marca: tipo de trabajo",
+      "detalle": "ausente",
+      "ok": false
+    },
+    {
+      "paso": "marca: invitación al informe",
+      "detalle": "ausente",
+      "ok": false
+    },
+    {
+      "paso": "marca: checklist de INV",
+      "detalle": "ausente",
+      "ok": false
+    },
+    {
+      "paso": "marca: aviso obligatorio",
+      "detalle": "ausente",
+      "ok": false
+    },
+    {
+      "paso": "demo: botón Informe en la ficha",
+      "detalle": "ausente",
+      "ok": false
+    },
+    {
+      "paso": "demo: botón Certificado en la ficha",
+      "detalle": "ausente",
+      "ok": false
+    }
+  ]
+}

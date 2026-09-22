@@ -8,6 +8,7 @@ import { totalesPedido } from '@/utils/pedido'
 import { datosDeCodigo, formatoDeCodigo, ETIQUETA_FORMATO } from '@/lib/printing/codigos'
 import { contextoEtiquetaUnidad, datosEtiquetaUnidad } from '@/lib/printing/etiquetaUnidad'
 import { estadoGarantia, fechaVerificacionInforme } from '@/lib/printing/informeDispositivo'
+import { estadoChecklist, fechaCortaDocumento, fechaHoraDocumento } from '@/lib/printing/certificado'
 import QRCode from 'qrcode'
 import JsBarcode from 'jsbarcode'
 import { api } from '@/lib/api/client'
@@ -764,21 +765,49 @@ export async function buildInformeDispositivoHtml(datos = {}, { format = 'a4' } 
        ${(datos.verificacion.campos || []).length ? `<div class="campos-informe">${datos.verificacion.campos.map((campo) => `<div class="fila-informe"><span>${escapeHtml(campo.etiqueta)}</span><span>${escapeHtml(campo.valor)}</span></div>`).join('')}</div>` : ''}
        <p class="small">Fuente ${escapeHtml(datos.verificacion.fuente || '')}${datos.verificacion.fechaTexto ? ` · ${escapeHtml(datos.verificacion.fechaTexto)}` : ''}</p>`
     : '<p class="muted">Sin consulta de IMEI registrada.</p>'
+  const itemsChecklist = (inspeccion.items || []).filter((item) => item.estado)
+  const tablaChecklist = (lista) => `<table class="checklist"><thead><tr><th>Ítem</th><th>Estado</th><th>Nota</th></tr></thead><tbody>${lista.map((item) => `<tr><td>${escapeHtml(item.label || item.clave || '')}</td><td class="${['ok', 'na'].includes(String(item.estado)) ? 'ok' : 'no-ok'}">${escapeHtml(estadoChecklist(item.estado))}</td><td>${escapeHtml(item.nota || '')}</td></tr>`).join('')}</tbody></table>`
+  // En A4 el checklist va en dos columnas: entra completo sin estirar el papel.
+  const mitad = Math.ceil(itemsChecklist.length / 2)
+  const tablas = format === 'a4' && itemsChecklist.length > 5
+    ? `<div class="checklist-dos">${tablaChecklist(itemsChecklist.slice(0, mitad))}${tablaChecklist(itemsChecklist.slice(mitad))}</div>`
+    : tablaChecklist(itemsChecklist)
+  const itemsHtml = itemsChecklist.length
+    ? `${tablas}
+       ${inspeccion.nota ? `<p class="muted">Nota: ${escapeHtml(inspeccion.nota)}</p>` : ''}
+       <p class="small">${escapeHtml(inspeccion.aviso || '')}</p>`
+    : ''
   const inspeccionHtml = `
     ${fila('Verificado por', inspeccion.verificador)}
     ${fila('Verificado el', fechaVerificacionInforme(datos))}
     ${fila('Verificaciones', inspeccion.verificaciones ? String(inspeccion.verificaciones) : '')}
     ${fila('Grado', inspeccion.grado || 'Sin grado asignado')}
-    ${fila('Checklist', inspeccion.total ? `${inspeccion.aprobados}/${inspeccion.total}${inspeccion.puntaje ? ` · puntaje ${inspeccion.puntaje}` : ''}` : '')}
-    ${!inspeccion.verificador && !inspeccion.grado ? '<p class="muted">Sin verificación física registrada.</p>' : ''}`
+    ${fila('Puntaje', inspeccion.puntaje === null || inspeccion.puntaje === undefined ? '' : `${inspeccion.puntaje}/100`)}
+    ${fila('Checklist', inspeccion.total ? `${inspeccion.aprobados}/${inspeccion.total} conformes` : '')}
+    ${fila('Cosmético', inspeccion.cosmetico)}
+    ${fila('Repuestos no OEM', inspeccion.repuestosNoOem)}
+    ${itemsHtml}
+    ${!itemsChecklist.length && !inspeccion.verificador && !inspeccion.grado ? '<p class="muted">Sin verificación física registrada.</p>' : ''}`
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Informe de dispositivo ${escapeHtml(datos.serial || '')}</title><style>${styles(format)}
     .fila-informe{display:flex;justify-content:space-between;gap:10px;margin:2px 0}
     .fila-informe>span:first-child{color:#66707a}
     .campos-informe{margin-top:6px;border-top:1px dashed #d5dbe0;padding-top:6px}
-    .qr{display:block;width:${format === 'a4' ? '26mm' : '28mm'};height:auto;margin:6px auto 3px}
-    ${format === 'a4' ? `.card{padding:8px 10px;margin:7px 0}.card .label{margin-bottom:2px}
-      .nofiscal{margin:8px 0;padding:5px 8px;font-size:10px}.brand{padding-bottom:6px;margin-bottom:8px}
-      h1{font-size:18px}body{font-size:12px;line-height:1.45}p{margin:4px 0}footer{margin-top:8px;padding-top:6px}` : ''}
+    .checklist{margin:5px 0 2px}
+    .checklist-dos{display:flex;gap:12px}.checklist-dos table{flex:1 1 0;min-width:0}
+    .checklist th,.checklist td{border-bottom:1px dashed #d5dbe0;padding:2px 4px 2px 0;text-align:left;font-size:9px}
+    .checklist th{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:#66707a}
+    .checklist td:first-child{width:44%}
+    .checklist td:last-child{width:40%;color:#66707a}
+    .checklist .ok{color:#0a7a68;font-weight:700}
+    .checklist .no-ok{color:#a33;font-weight:700}
+    .card{page-break-inside:avoid}
+    .qr{display:block;width:${format === 'a4' ? '24mm' : '28mm'};height:auto;margin:5px auto 2px}
+    .qr-fila{display:flex;align-items:center;gap:10px}
+    .qr-fila .qr{width:22mm;margin:0;flex:0 0 auto}
+    .qr-fila .small{text-align:left;margin:0}
+    ${format === 'a4' ? `@page{margin:12mm 14mm}.card{padding:7px 9px;margin:6px 0}.card .label{margin-bottom:2px}
+      .nofiscal{margin:7px 0;padding:5px 8px;font-size:10px}.brand{padding-bottom:6px;margin-bottom:7px}
+      h1{font-size:18px}body{font-size:11.5px;line-height:1.4}p{margin:3px 0}footer{margin-top:7px;padding-top:5px}` : ''}
     @media print{.fila-informe>span:first-child{color:#000}}
   </style></head><body>
     ${header('Informe de dispositivo', `${datos.sucursal || ''}${datos.sucursal ? ' · ' : ''}Emitido ${datos.fechaEmision || ''}`, logo)}
@@ -792,13 +821,92 @@ export async function buildInformeDispositivoHtml(datos = {}, { format = 'a4' } 
       ${fila('Proveedor', datos.proveedor)}
     </div></div>
     <div class="card"><div class="label">Verificación IMEI</div>${verificacion}</div>
+    ${format === 'a4' && datos.enlace ? `<div class="card"><div class="label">Informe público</div><div class="qr-fila">${qr ? `<img class="qr" src="${qr}" alt="QR del informe">` : ''}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el informe público.')}</p></div></div>` : ''}
     <div class="card"><div class="label">Inspección física</div>${inspeccionHtml}</div>
     <div class="card"><div class="label">Garantía de la tienda</div>${fila('Estado', garantia.etiqueta)}${fila('Vence el', garantia.hasta)}</div>
-    ${datos.enlace ? `<div class="card"><div class="label">Informe público</div>${qr ? `<img class="qr" src="${qr}" alt="QR del informe">` : ''}<p class="small">${escapeHtml(datos.enlace)}</p></div>` : ''}
+    ${format !== 'a4' && datos.enlace ? `<div class="card"><div class="label">Informe público</div>${qr ? `<img class="qr" src="${qr}" alt="QR del informe">` : ''}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el informe público.')}</p></div>` : ''}
     <footer>Documento informativo. Generado por ${escapeHtml(APP_NAME)}${datos.emisor ? ` para ${escapeHtml(datos.emisor)}` : ''} · ${escapeHtml(datos.fechaEmision || '')}</footer>
   </body></html>`
 }
 
 export async function printInformeDispositivo(datos, options = {}) {
   return printHtml(await buildInformeDispositivoHtml(datos, options))
+}
+
+// Certificado de inspección (#240): la constancia que se le da al comprador.
+// Grado y puntaje del PhoneCheck (INV), semáforo de controles, checklist y el QR
+// al informe público. Sin datos personales; el código `CERT|…` va en barras.
+export async function buildCertificadoHtml(datos = {}, { format = 'a4' } = {}) {
+  const logo = await getLogoDataUrl()
+  let qr = ''
+  try { if (datos.enlace) qr = await QRCode.toDataURL(datos.enlace, { errorCorrectionLevel: 'H', margin: 2, width: 320 }) } catch { /* queda el enlace impreso */ }
+  let barras = ''
+  try {
+    if (datos.codigoBarras && typeof document !== 'undefined') {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+      JsBarcode(svg, datos.codigoBarras, { format: 'CODE128', displayValue: false, margin: 0, height: 46, width: 1.4 })
+      barras = `<div class="barcode">${svg.outerHTML}<span class="small">${escapeHtml(datos.codigo || '')}</span></div>`
+    }
+  } catch { /* sin barras el certificado conserva el QR y el código en texto */ }
+  const fila = (etiqueta, valor) => (valor ? `<div class="fila-informe"><span>${escapeHtml(etiqueta)}</span><span>${escapeHtml(valor)}</span></div>` : '')
+  const bateria = [
+    datos.bateria?.porcentaje ? `${datos.bateria.porcentaje}%` : '',
+    datos.bateria?.ciclos ? `${datos.bateria.ciclos} ciclos` : '',
+  ].filter(Boolean).join(' · ')
+  const items = (datos.items || []).filter((item) => item.estado)
+  const controles = (datos.controles || []).map((control) => `<span class="control ${control.estado === 'sin-dato' ? 'sin-dato' : control.ok ? 'ok' : 'no-ok'}">${escapeHtml(control.label)} · ${control.estado === 'sin-dato' ? 'Sin dato' : control.ok ? 'OK' : 'FALLA'}${control.valor ? ` · ${escapeHtml(control.valor)}` : ''}</span>`).join(' ')
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(datos.titulo || 'Certificado de inspección')} ${escapeHtml(datos.serialEnmascarado || '')}</title><style>${styles(format)}
+    .fila-informe{display:flex;justify-content:space-between;gap:10px;margin:2px 0}
+    .fila-informe>span:first-child{color:#66707a}
+    .grado{text-align:center;margin:4px 0 0}
+    .grado .letra{font-size:${format === 'a4' ? '36px' : '34px'};font-weight:900;line-height:1;letter-spacing:.04em}
+    .grado .detalle{font-size:11px;color:#66707a;margin-top:2px}
+    .control{display:inline-block;border:1px solid #0a7a68;border-radius:999px;padding:1px 7px;margin:2px 3px 0 0;font-size:10px;font-weight:700;color:#0a7a68}
+    .control.no-ok{border-color:#a33;color:#a33}
+    .control.sin-dato{border-color:#9aa4ad;color:#66707a}
+    .checklist{margin:4px 0 0}
+    .checklist td,.checklist th{border-bottom:1px dashed #d5dbe0;padding:2px 4px 2px 0;text-align:left;font-size:9px}
+    .checklist th{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:#66707a}
+    .checklist td:first-child{width:44%}
+    .checklist td:last-child{width:40%;color:#66707a}
+    .checklist .ok{color:#0a7a68;font-weight:700}
+    .checklist .no-ok{color:#a33;font-weight:700}
+    .card{page-break-inside:avoid}
+    .qr{display:block;width:24mm;height:auto;margin:5px auto 2px}
+    .barcode{margin-top:2px}.barcode svg{width:100%;height:auto;max-height:12mm}
+    ${format === 'a4' ? `@page{margin:12mm 14mm}.card{padding:7px 9px;margin:6px 0}.card .label{margin-bottom:2px}
+      .nofiscal{margin:7px 0;padding:5px 8px;font-size:10px}.brand{padding-bottom:6px;margin-bottom:7px}
+      h1{font-size:18px}body{font-size:11.5px;line-height:1.4}p{margin:3px 0}footer{margin-top:7px;padding-top:5px}` : ''}
+    @media print{.fila-informe>span:first-child{color:#000}}
+  </style></head><body>
+    ${header(datos.titulo || 'Certificado de inspección', `${datos.sucursal || ''}${datos.sucursal ? ' · ' : ''}Emitido ${datos.fechaEmision || ''}`, logo)}
+    <div class="nofiscal">Constancia de inspección · documento informativo</div>
+    <div class="card grado"><div class="letra">${escapeHtml(datos.grado || 'P')}</div>
+      <div class="detalle">${datos.puntaje === null || datos.puntaje === undefined ? 'Pendiente de inspección' : `Puntaje ${escapeHtml(String(datos.puntaje))}/100 · ${escapeHtml(String(datos.ok))}/${escapeHtml(String(datos.evaluados))} conformes`}</div></div>
+    <div class="card"><div class="label">Equipo</div><div><strong>${escapeHtml(datos.modelo || datos.producto || 'Producto')}</strong>
+      ${fila('Serial', datos.serialImpreso || datos.serialEnmascarado)}
+      ${fila('Condición', datos.condicion)}
+      ${fila('Cosmético', datos.cosmetico)}
+      ${fila('Batería', bateria)}
+      ${fila('Ubicación', datos.ubicacion)}
+      ${fila('Repuestos no OEM', datos.repuestosNoOem)}
+    </div></div>
+    ${datos.enlace || controles ? `<div class="card"><div class="label">Controles</div>${controles || '<p class="muted">Sin verificación IMEI registrada.</p>'}</div>` : ''}
+    <div class="card"><div class="label">Checklist</div>
+      ${items.length ? `<table class="checklist"><thead><tr><th>Ítem</th><th>Estado</th><th>Nota</th></tr></thead><tbody>${items.map((item) => `<tr><td>${escapeHtml(item.label || item.clave || '')}</td><td class="${['ok', 'na'].includes(String(item.estado)) ? 'ok' : 'no-ok'}">${escapeHtml(estadoChecklist(item.estado))}</td><td>${escapeHtml(item.nota || '')}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">Pendiente de inspección.</p>'}
+      ${datos.nota ? `<p class="muted">Nota: ${escapeHtml(datos.nota)}</p>` : ''}
+      <p class="small">${escapeHtml(datos.aviso || '')}</p>
+    </div>
+    <div class="card"><div class="label">Verificación</div>
+      ${fila('Verificado por', datos.verificadoPor)}
+      ${fila('Verificado el', fechaHoraDocumento(datos.verificado))}
+      ${fila('Fuente', datos.fuente?.proveedor ? `${datos.fuente.proveedor}${datos.fuente.fecha ? ` · ${fechaCortaDocumento(datos.fuente.fecha)}` : ''}` : '')}
+    </div>
+    ${datos.enlace ? `<div class="card"><div class="label">Informe público</div><div class="qr-fila">${qr ? `<img class="qr" src="${qr}" alt="QR del informe">` : ''}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el informe público.')}</p></div>${barras}</div>` : ''}
+    <footer>Constancia de inspección. Generado por ${escapeHtml(APP_NAME)}${datos.emisor ? ` para ${escapeHtml(datos.emisor)}` : ''} · ${escapeHtml(datos.fechaEmision || '')}</footer>
+  </body></html>`
+}
+
+export async function printCertificado(datos, options = {}) {
+  return printHtml(await buildCertificadoHtml(datos, options))
 }
