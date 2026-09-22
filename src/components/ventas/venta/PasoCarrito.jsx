@@ -1,4 +1,4 @@
-import { Input, Label, MoneyInput } from '@/components/ui'
+import { Label, MoneyInput } from '@/components/ui'
 import ListaVenta from './ListaVenta'
 import AutorizacionDescuento from './AutorizacionDescuento'
 import AutorizacionBloque from './AutorizacionBloque'
@@ -35,7 +35,6 @@ export default function PasoCarrito({
   onAuthPrecio,
   tieneCupon,
   f,
-  setF,
   cliente,
   vendedor,
 }) {
