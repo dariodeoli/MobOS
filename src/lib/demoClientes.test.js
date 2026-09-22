@@ -2,7 +2,7 @@
 // CRM recalcula la actividad y los agregados (#221) como la cuenta real.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buscarClienteDemo, demoCuentaPayload, demoVitrinaPayload, listarClientesDemo, registrarPedidoDemoDeVenta } from './demoClientes.js'
+import { buscarClienteDemo, demoCuentaPayload, demoVitrinaPayload, listarClientesDemo, registrarInteraccionDemo, registrarPedidoDemoDeVenta } from './demoClientes.js'
 import { analiticaDePedidos, statsDePedidos } from './customerAggregates.js'
 
 const LUCIA = 'demo-cliente-lucia'
@@ -74,4 +74,13 @@ test('el portal demo sale como Aurora Móviles y con la nota pública', () => {
   const vitrina = demoVitrinaPayload('demo-demo-cliente-lucia-completo')
   assert.equal(vitrina.tienda.nombre, 'Aurora Móviles')
   assert.match(vitrina.cliente.notaPublica || '', /Aurora Móviles/)
+})
+
+test('la interacción demo queda en la cronología del cliente (#240)', () => {
+  const evento = registrarInteraccionDemo(LUCIA, { accion: 'Informe del equipo compartido', detalle: 'Por WhatsApp · serial 3567…678' })
+  assert.ok(evento?.id)
+  const timeline = buscarClienteDemo(LUCIA).demoProfile.timeline || []
+  assert.equal(timeline[0].action, 'Informe del equipo compartido')
+  assert.match(timeline[0].detail, /Por WhatsApp/)
+  assert.equal(registrarInteraccionDemo('demo-cliente-inexistente', { accion: 'x' }), null)
 })

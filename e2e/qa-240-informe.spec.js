@@ -83,6 +83,19 @@ test('informe del equipo: link público y WhatsApp desde la ficha, y en la cuent
   expect(/wa\.me|api\.whatsapp\.com/.test(url), url).toBe(true)
   expect(decodeURIComponent(url)).toContain(`/u/${serial}`)
 
+  // El envío queda registrado en la cronología del cliente (#240).
+  const registro = await api(page, `/api/customers/${encodeURIComponent(alta.body.id)}/device-report`, {
+    method: 'POST',
+    body: JSON.stringify({ serial, model: producto.name || producto.nombre, canal: 'WHATSAPP' }),
+  })
+  expect(registro.status, `registro del envío: ${JSON.stringify(registro.body)}`).toBe(200)
+  const linea = await api(page, `/api/customers/${encodeURIComponent(alta.body.id)}/timeline?limit=20`)
+  expect(JSON.stringify(linea.body), `timeline: ${JSON.stringify(linea.body).slice(0, 400)}`).toContain('Informe del equipo compartido')
+  await ficha.getByRole('tab', { name: /^Cronología/ }).click()
+  await expect(ficha.getByText('Informe del equipo compartido').first()).toBeVisible({ timeout: 15000 })
+  await expect(ficha.getByText(/por WhatsApp · serial/i).first()).toBeVisible()
+  await page.screenshot({ path: `${SALIDA}/04-cronologia-informe-compartido.png` })
+
   // Cuenta del cliente: la sección de informes enlaza el mismo informe.
   await ficha.getByRole('button', { name: /Portal del cliente/ }).click()
   await page.getByAltText('QR del portal del cliente').waitFor({ timeout: 15000 })
@@ -108,6 +121,18 @@ test('demo: el informe del equipo también funciona con datos del navegador', as
   await expect(page.getByText('Informe de dispositivo')).toBeVisible({ timeout: 20000 })
   await expect(page.getByText(/iPhone 15/).first()).toBeVisible()
   await expect(page.getByText('Aurora Móviles')).toBeVisible()
-  await page.screenshot({ path: `${SALIDA}/04-informe-demo.png`, fullPage: true })
+  await page.screenshot({ path: `${SALIDA}/05-informe-demo.png`, fullPage: true })
+
+  // Compartir por correo en demo: queda en la cronología del navegador.
+  await page.goto('/clientes?cliente=demo-cliente-lucia')
+  const fichaDemo = page.getByRole('dialog')
+  await fichaDemo.getByRole('tab', { name: /^Pedidos/ }).click()
+  const filaDemo = fichaDemo.getByTestId('perfil-dispositivo-fila').first()
+  await filaDemo.getByRole('button', { name: /Enviar informe del equipo .* por correo/ }).click()
+  await expect(page.getByText('Informe enviado').first()).toBeVisible({ timeout: 15000 })
+  await fichaDemo.getByRole('tab', { name: /^Cronología/ }).click()
+  await expect(fichaDemo.getByText('Informe del equipo compartido').first()).toBeVisible()
+  await expect(fichaDemo.getByText(/por correo · serial/i).first()).toBeVisible()
+  await page.screenshot({ path: `${SALIDA}/06-demo-cronologia-informe.png` })
   await contexto.close()
 })

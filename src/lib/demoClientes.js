@@ -370,6 +370,27 @@ export function registrarPedidoDemoDeVenta(clienteId, venta = {}) {
   return pedido
 }
 
+/**
+ * Registra una interacción del equipo en la cronología del cliente demo
+ * (#240/#194): compartir el informe del equipo, etc. Solo en el navegador.
+ */
+export function registrarInteraccionDemo(clienteId, { accion, detalle, tipo = 'note' } = {}) {
+  const cliente = buscarClienteDemo(clienteId)
+  if (!cliente) return null
+  const demo = cliente.demoProfile || (cliente.demoProfile = {})
+  const evento = {
+    id: `demo-inter-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 4)}`,
+    type: tipo,
+    action: accion || 'Interacción',
+    createdAt: new Date().toISOString(),
+    user: { id: 'demo-user', name: 'Equipo demo' },
+    detail: detalle || '',
+  }
+  demo.timeline = [evento, ...(Array.isArray(demo.timeline) ? demo.timeline : EVENTOS(cliente))].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  if (!SEED_DEMO_CLIENTES.some((row) => row.id === cliente.id)) actualizarClienteDemo(cliente)
+  return evento
+}
+
 /** Forma canónica de un pedido demo (misma que los seeds). */
 function pedidoDesdeVenta({ numero = '', total = 0, pagado = 0, fecha, items = [], vendedor = '', sucursal = '', estado } = {}) {
   const totalPyg = Math.max(0, Math.round(Number(total) || 0))
