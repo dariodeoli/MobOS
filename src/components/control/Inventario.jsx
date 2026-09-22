@@ -422,6 +422,13 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   const [searchParams] = useSearchParams()
   const qParam = searchParams.get('q') || ''
   const [products, setProducts] = useState([]), [branches, setBranches] = useState([]), [units, setUnits] = useState([]), [removedUnits, setRemovedUnits] = useState([]), [reservations, setReservations] = useState([]), [transfers, setTransfers] = useState([]), [locations, setLocations] = useState([])
+  const apiMode = modoDatosActual() === 'api'
+  const { sesion, sucursal, esDemo } = useSesion()
+  // #213: en demo el inventario usa los mismos recursos (store session-only).
+  const inventarioOperativo = apiMode || esDemo
+  const canViewAlerts = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE')
+  const canManageLocations = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE')
+  const canManageVisibility = Boolean(sesion?.esPropietario)
   const [tab, setTab] = useState(tabProp && INVENTARIO_TABS.includes(tabProp) && (tabProp !== 'alertas' || canViewAlerts) ? tabProp : 'unidades'), [query, setQuery] = useState(qParam), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [orden, recordarOrden] = useUltimoUsado('inventario:orden', 'recientes'), [exportando, setExportando] = useState(false)
   const [stockAlerts, setStockAlerts] = useState({ alerts: [], outOfStock: [] })
   const toast = useToast()
@@ -485,10 +492,6 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   const [grants, setGrants] = useState([])
   const [receivedStock, setReceivedStock] = useState([])
   const [visibilityError, setVisibilityError] = useState('')
-  const apiMode = modoDatosActual() === 'api'
-  const { sesion, sucursal, esDemo } = useSesion()
-  // #213: en demo el inventario usa los mismos recursos (store session-only).
-  const inventarioOperativo = apiMode || esDemo
   // Aviso del resultado de una etiqueta: el respaldo con diálogo se abre solo
   // (dentro de las funciones de impresión); acá se informa el resto.
   const avisarImpresion = (resultado, nombre = 'Etiqueta') => {
@@ -517,9 +520,6 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   const puedeTransferirSinAuth = sesion?.rol === 'dueno' || sesion?.rol === 'GERENTE'
   const transferSerials = transfer.serials.split(/[\n,;]+/).map(normalizeScan).filter(Boolean)
   useEffect(() => { setTransferAuth(null) }, [transfer.sourceBranchId, transfer.destinationBranchId, transfer.productId, transfer.serials])
-  const canViewAlerts = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE')
-  const canManageLocations = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE')
-  const canManageVisibility = Boolean(sesion?.esPropietario)
   // La pestaña activa vive en la URL (/inventario/<slug>). Sin slug válido o sin
   // permiso para Alertas, se cae en Unidades.
   const refresh = useCallback(async (search) => {

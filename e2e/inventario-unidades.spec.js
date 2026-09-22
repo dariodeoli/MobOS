@@ -305,3 +305,13 @@ test('la carga rápida recuerda la última sucursal y depósito', async ({ page 
     await expect(siguiente.getByText('Recordamos tu última sucursal y depósito')).toBeVisible()
   } finally { await limpiarSeriales(page, [serial]) }
 })
+
+// Regresión #226: /inventario/alertas quedaba en blanco por TDZ de canViewAlerts.
+test('la solapa Alertas renderiza sin quedar en blanco', async ({ page }) => {
+  const errores = []
+  page.on('pageerror', (error) => errores.push(error.message))
+  await page.goto('/inventario/alertas')
+  await expect(page.getByRole('button', { name: /^Alertas \(/ })).toBeVisible()
+  await expect(page.getByText(/Sin alertas de reposición|Bajo el umbral de reposición|Unidades sin costo/).first()).toBeVisible({ timeout: 15_000 })
+  expect(errores, `errores de página: ${errores.join(' | ')}`).toEqual([])
+})
