@@ -83,8 +83,11 @@ const STATUS_BADGE = (map, value) => {
   return item ? <Badge color={item.color}>{item.label}</Badge> : <Badge>{value || 'Sin estado'}</Badge>
 }
 const antiguedadTexto = (dias) => {
-  const total = Number(dias || 0)
-  if (!total) return '—'
+  if (dias === null || dias === undefined || dias === '') return '—'
+  const total = Number(dias)
+  if (!Number.isFinite(total) || total < 0) return '—'
+  // Un cliente creado hoy tiene antigüedad 0: se muestra «Hoy», no «—».
+  if (total === 0) return 'Hoy'
   if (total < 30) return `${total} ${total === 1 ? 'día' : 'días'}`
   const meses = Math.floor(total / 30)
   if (meses < 12) return `${meses} ${meses === 1 ? 'mes' : 'meses'}`
