@@ -41,4 +41,9 @@ test('inventario post-.140: alertas, vendidos, transito/traslados y acciones mas
   await page.goto('/inventario/unidades')
   await page.getByTestId('inventario-fila').first().waitFor({ timeout: 15_000 })
   await capturar('06-fila-unidad')
+
+  // #240 PhoneCheck: checklist de inspección en la ficha.
+  await page.getByTestId('inventario-fila').first().click()
+  await expect(page.getByTestId('unidad-phonecheck')).toBeVisible({ timeout: 15_000 })
+  await capturar('07-phonecheck')
 })
