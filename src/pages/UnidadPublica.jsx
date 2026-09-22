@@ -8,11 +8,10 @@ import { useSesion } from '@/lib/sesion'
 import { resources } from '@/lib/api'
 import { fechaHora } from '@/utils/fecha'
 import { enmascararImei } from '@/lib/imeiComprobante'
-import { BarraProgreso } from '@/components/ui'
 import { qrDataUrl } from '@/lib/qr'
+import MedidorBateria from '@/components/shared/MedidorBateria'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
-
-const CONDICION = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
+import { etiquetaCondicionUnidad } from '@/utils/inventario'
 const ESTADO = {
   AVAILABLE: { label: 'Disponible', color: 'green' },
   RESERVED: { label: 'Reservada', color: 'orange' },
@@ -49,7 +48,7 @@ function FichaUnidad({ unidad, serial, puedeVerInventario }) {
         <p className="mt-2 break-all font-mono text-xs text-mute">{serial}</p>
         <div className="mt-4 grid grid-cols-2 gap-3">
           <Dato etiqueta="IMEI / Serial"><span className="break-all font-mono text-xs">{serial}</span></Dato>
-          <Dato etiqueta="Condición">{CONDICION[unidad.condition] || unidad.condition || '—'}</Dato>
+          <Dato etiqueta="Condición">{etiquetaCondicionUnidad(unidad)}</Dato>
           <Dato etiqueta="SKU"><span className="font-mono text-xs">{producto.sku || '—'}</span></Dato>
           <Dato etiqueta="Precio de venta"><Money value={producto.pricePyg ?? 0} /></Dato>
           <Dato etiqueta="Sucursal">{unidad.branch?.name || '—'}</Dato>
@@ -84,13 +83,8 @@ function FichaUnidad({ unidad, serial, puedeVerInventario }) {
 
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           <Dato etiqueta="IMEI / Serial"><span className="break-all font-mono text-xs">{enmascararImei(serial)}</span></Dato>
-          <Dato etiqueta="Grado de condición">{CONDICION[unidad.condition] || unidad.condition || '—'}</Dato>
-          <Dato etiqueta="Batería">
-            {unidad.batteryHealth != null ? `${unidad.batteryHealth}%` : '—'}
-            {unidad.batteryHealth != null && (
-              <BarraProgreso valor={Number(unidad.batteryHealth)} tono={Number(unidad.batteryHealth) >= 85 ? 'ok' : 'warn'} alto="sm" etiqueta="Salud de la batería" className="mt-1.5" />
-            )}
-          </Dato>
+          <Dato etiqueta="Grado de condición">{etiquetaCondicionUnidad(unidad)}</Dato>
+          <MedidorBateria porcentaje={unidad.batteryHealth} etiqueta="Batería" />
           <Dato etiqueta="Ciclos de batería">Pendiente (INV #240)</Dato>
           <Dato etiqueta="iCloud / Find My">Sin verificar</Dato>
           <Dato etiqueta="Lista negra">Sin verificar</Dato>

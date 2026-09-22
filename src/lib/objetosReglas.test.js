@@ -431,6 +431,15 @@ test('el tono de la unidad vive en utils/inventario (#217)', () => {
   }
 })
 
+// Lote 17: la página pública del informe usa los objetos y reglas compartidas.
+test('el informe público usa MedidorBateria y la condición compartida (#240)', () => {
+  const pagina = readFileSync(join(RAIZ, 'pages/UnidadPublica.jsx'), 'utf8')
+  assert.match(pagina, /<MedidorBateria porcentaje=\{unidad\.batteryHealth\}/)
+  assert.match(pagina, /etiquetaCondicionUnidad\(unidad\)/)
+  assert.ok(!/const CONDICION = \{/.test(pagina), 'la condición sale de utils/inventario')
+  assert.ok(!/batteryHealth\) >= 85/.test(pagina), 'los umbrales de batería salen de MedidorBateria')
+})
+
 // Lote 15: el rack del piloto usa los objetos v2 para grado y batería.
 test('el modo taller usa GradoBadge y MedidorBateria (#240)', () => {
   const rack = readFileSync(join(RAIZ, 'components/inventory/TallerRack.jsx'), 'utf8')

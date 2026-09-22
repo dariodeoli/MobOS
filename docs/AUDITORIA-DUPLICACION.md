@@ -83,6 +83,17 @@ warn y la celda de identidad de 13 px que espera a DSN).
 Duplicación pendiente medida: **6 → 1 usos** (queda solo el `Gs.` de una
 plantilla de impresión de PRN, que se coordina con ese slot).
 
+### Lote 17 — informe público con los objetos v2 (22-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `shared/MedidorBateria` en `/u/<serial>` | La página pública dibujaba el `%` y una `BarraProgreso` con **umbral propio** (`>= 85 ? ok : warn`) | `MedidorBateria` con los umbrales canónicos (90/80) y la barra incluida |
+| Condición de la unidad | `UnidadPublica` tenía su mapa `CONDICION` local (el mismo de `Inventario`/`UnidadFicha`) | `etiquetaCondicionUnidad` de `utils/inventario` (una sola etiqueta para toda la app) |
+
+**Duplicación pendiente: 0 usos.** Pendiente declarado en la propia página: los
+locks y el grado de inspección se completan cuando INV persista el checklist
+(ahí entran `ChipsLocks` y `GradoBadge`).
+
 ### Lote 16 — paridad de los objetos de inspección con la biblioteca (22-09)
 
 | Objeto | Antes (evidencia) | Después |
