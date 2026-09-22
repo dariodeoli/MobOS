@@ -5,9 +5,11 @@ import {
   controlesDeVerificacion,
   datosCertificado,
   datosChecklist,
+  esChecklistDSN,
   gradoChecklist,
   itemsChecklist,
   puntajeChecklist,
+  resumenChecklistDSN,
   serialEnmascarado,
 } from './certificado.js'
 
@@ -181,4 +183,72 @@ test('sin payload el certificado queda «pendiente» y su QR apunta a la ficha p
   assert.deepEqual(datos.controles, [])
   assert.equal(serialEnmascarado('AUR00017518'), '•••••••7518')
   assert.equal(serialEnmascarado('123'), '123')
+})
+
+// --- Vocabulario de la UI de DSN (`inspeccionChecklist.js` en slot/diseno) ---
+const INSPECCION_DSN = {
+  items: {
+    tactil: 'pasa', imagen: 'pasa', brillo: 'pasa',
+    trasera: 'pasa', frontal: 'pasa', video: 'pasa',
+    biometria: 'pasa',
+    altavoz: 'falla', microfono: 'pasa', vibracion: 'pasa',
+    proximidad: 'pasa', giroscopio: 'pasa', brujula: 'pasa',
+    encendido: 'pasa', silencioso: 'pasa',
+    wifi: 'pasa', senal: 'pasa', carga: 'pasa',
+    bateria: 'pasa', carga_rapida: 'pasa',
+    carcasa: 'na', tapa: 'pasa', camaras_lente: 'pasa',
+  },
+  notas: { altavoz: 'Crujido al máximo volumen' },
+  bateriaSalud: '91',
+  bateriaCiclos: '312',
+}
+
+test('el checklist de DSN (pasa/falla/na + notas) se imprime con sus rótulos (#240)', () => {
+  const items = itemsChecklist(INSPECCION_DSN)
+  assert.equal(items.length, 23, 'los 23 ítems del catálogo de DSN')
+  assert.equal(items.find((item) => item.clave === 'tactil').label, 'Táctil y multitouch')
+  assert.equal(items.find((item) => item.clave === 'tactil').estado, 'ok')
+  assert.equal(items.find((item) => item.clave === 'altavoz').estado, 'falla')
+  assert.equal(items.find((item) => item.clave === 'altavoz').nota, 'Crujido al máximo volumen')
+  assert.equal(items.find((item) => item.clave === 'carcasa').estado, 'na')
+  assert.equal(esChecklistDSN(INSPECCION_DSN), true)
+  assert.equal(esChecklistDSN({ items: { pantalla: { estado: 'ok' } } }), false)
+})
+
+test('el puntaje y el grado de DSN siguen sus reglas (#240)', () => {
+  const items = itemsChecklist(INSPECCION_DSN)
+  const resumen = resumenChecklistDSN(items, { bateriaSalud: 91 })
+  assert.equal(resumen.revisados, 23)
+  assert.equal(resumen.porcentaje, 95, '22 pasa de 22 aplicables (carcasa es N/A)')
+  assert.equal(resumen.grado, 'B', 'una falla no clave deja B')
+
+  const critica = items.map((item) => (item.clave === 'imagen' ? { ...item, estado: 'falla' } : item))
+  assert.equal(resumenChecklistDSN(critica, { bateriaSalud: 91 }).grado, 'C', 'falla en ítem clave')
+
+  const saludBaja = items.map((item) => (item.clave === 'altavoz' ? { ...item, estado: 'ok' } : item))
+  assert.equal(resumenChecklistDSN(saludBaja, { bateriaSalud: 79 }).grado, 'C', 'batería < 85 %')
+
+  const completoOk = items.map((item) => ({ ...item, estado: 'ok' }))
+  assert.equal(resumenChecklistDSN(completoOk, { bateriaSalud: 91 }).grado, 'A')
+
+  const incompleto = items.map((item, indice) => (indice > 5 ? { ...item, estado: null } : item))
+  assert.equal(resumenChecklistDSN(incompleto, { bateriaSalud: 91 }).grado, '', 'sin revisar completo no hay grado')
+})
+
+test('el certificado con el checklist de DSN queda completo (grado B y batería salud)', () => {
+  const unidad = { serial: 'AUR0005000000000', condition: 'USED', product: { name: 'iPhone 15 Pro Max', capacity: '256GB' }, inspection: INSPECCION_DSN }
+  const datos = datosCertificado(unidad, { base: 'https://app.moboss.online', ahora: new Date('2026-09-22T10:00:00Z') })
+  assert.equal(datos.hay, true)
+  assert.equal(datos.completa, true)
+  assert.equal(datos.grado, 'B')
+  assert.equal(datos.puntaje, 95)
+  assert.equal(datos.ok, 21)
+  assert.equal(datos.evaluados, 22)
+  assert.deepEqual(datos.bateria, { porcentaje: '91', ciclos: '312' })
+  assert.equal(datos.noOk.length, 1)
+  assert.equal(datos.noOk[0].nota, 'Crujido al máximo volumen')
+
+  const incompleta = datosCertificado({ ...unidad, inspection: { ...INSPECCION_DSN, items: { tactil: 'pasa', imagen: 'falla' } } }, { ahora: new Date('2026-09-22T10:00:00Z') })
+  assert.equal(incompleta.completa, false, 'sin revisar completo el certificado queda pendiente')
+  assert.equal(incompleta.grado, 'P')
 })

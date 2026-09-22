@@ -1,12 +1,18 @@
 // Checklist PhoneCheck y etiqueta Certificado (#240): datos de la inspección
 // para el informe y la constancia imprimible.
 //
-// Fuente de verdad del puntaje/grado: INV (`src/lib/phonecheck.js` +
-// `docs/PHONECHECK-INFORME.md`). Este módulo consume su payload público
-// (`informePublicoInspection`: grado, puntaje, items, controles, batería,
-// cosmético, aviso) y, cuando todavía no está, arma lo mismo desde
-// `unit.inspection` (objeto por clave o lista) con las mismas reglas:
-//   OK=1 · observación=0,5 · falla=0 · no aplica no cuenta; A ≥ 90, B ≥ 75.
+// Fuente de verdad del puntaje/grado: lo que persista la inspección (INV) o lo
+// que calcule la UI (DSN). Este módulo consume, en este orden:
+//   1. el payload público de INV (`informePublicoInspection`: grado, puntaje,
+//      items, controles, batería, cosmético, aviso) — manda si viene;
+//   2. `unit.inspection` con el vocabulario de INV (`items` por clave con
+//      { estado, nota }: OK=1 · observación=0,5 · falla=0 · no aplica no cuenta;
+//      A ≥ 90, B ≥ 75);
+//   3. `unit.inspection` con el vocabulario de la UI de DSN
+//      (`src/lib/inspeccionChecklist.js`: `items` por id con 'pasa'|'falla'|'na',
+//      `notas`, `bateriaSalud`): puntaje = pasa/aplicables; una falla en un ítem
+//      clave o batería < 85 % baja a C; con fallas no clave es B; todo pasa es A.
+// Si la inspección ya trae `grado`/`puntaje` persistidos, esos mandan siempre.
 //
 // El QR de la etiqueta SIEMPRE es una URL de la app (regla de docs/IMPRESION.md):
 // el código compacto `CERT|…` de INV viaja como código de barras/texto, nunca
@@ -30,6 +36,46 @@ export const ITEMS_PHONECHECK = [
   { clave: 'bateria', grupo: 'Energía', label: 'Batería' },
   { clave: 'carcasa', grupo: 'Carcasa', label: 'Carcasa y chasis' },
 ]
+
+// Espejo del catálogo de la UI de DSN (`src/lib/inspeccionChecklist.js`, rama
+// `slot/diseno`): ids → rótulo y sección para imprimir la inspección cuando
+// llega con ese vocabulario. Cuando el módulo esté en main se importa y este
+// espejo queda solo como respaldo.
+export const ITEMS_DSN = [
+  { seccion: 'Pantalla', id: 'tactil', label: 'Táctil y multitouch' },
+  { seccion: 'Pantalla', id: 'imagen', label: 'Imagen: manchas o líneas' },
+  { seccion: 'Pantalla', id: 'brillo', label: 'Brillo y True Tone' },
+  { seccion: 'Cámaras', id: 'trasera', label: 'Cámara trasera y flash' },
+  { seccion: 'Cámaras', id: 'frontal', label: 'Cámara frontal' },
+  { seccion: 'Cámaras', id: 'video', label: 'Grabación de video' },
+  { seccion: 'Face ID / Touch ID', id: 'biometria', label: 'Reconocimiento funcionando' },
+  { seccion: 'Audio', id: 'altavoz', label: 'Altavoz y auricular' },
+  { seccion: 'Audio', id: 'microfono', label: 'Micrófonos' },
+  { seccion: 'Audio', id: 'vibracion', label: 'Vibración' },
+  { seccion: 'Sensores', id: 'proximidad', label: 'Proximidad y luz' },
+  { seccion: 'Sensores', id: 'giroscopio', label: 'Giroscopio y acelerómetro' },
+  { seccion: 'Sensores', id: 'brujula', label: 'Brújula y GPS' },
+  { seccion: 'Botones', id: 'encendido', label: 'Encendido y volumen' },
+  { seccion: 'Botones', id: 'silencioso', label: 'Silencioso / acción' },
+  { seccion: 'Conectividad', id: 'wifi', label: 'WiFi y Bluetooth' },
+  { seccion: 'Conectividad', id: 'senal', label: 'Señal celular y SIM' },
+  { seccion: 'Conectividad', id: 'carga', label: 'Puerto de carga' },
+  { seccion: 'Carga y batería', id: 'bateria', label: 'Salud de batería' },
+  { seccion: 'Carga y batería', id: 'carga_rapida', label: 'Carga y cable' },
+  { seccion: 'Carcasa', id: 'carcasa', label: 'Carcasa y marco' },
+  { seccion: 'Carcasa', id: 'tapa', label: 'Tapa y sellado' },
+  { seccion: 'Carcasa', id: 'camaras_lente', label: 'Lentes de cámara' },
+]
+// Ítems críticos de DSN: una falla acá baja el grado a C.
+export const PIEZAS_CLAVE_DSN = ['tactil', 'imagen', 'biometria', 'bateria', 'senal', 'trasera', 'carga']
+const ESTADO_DSN = { pasa: 'ok', falla: 'falla', na: 'na' }
+
+/** ¿La inspección viene con el vocabulario de DSN (estados como texto)? */
+export const esChecklistDSN = (inspection = {}) => {
+  const items = inspection?.items
+  if (!items || Array.isArray(items) || typeof items !== 'object') return false
+  return Object.values(items).some((valor) => typeof valor === 'string' && ['pasa', 'falla', 'na', ''].includes(valor))
+}
 
 const ESTADOS = { ok: 'OK', observacion: 'Con observación', falla: 'Falla', na: 'No aplica' }
 const ESTADOS_CORTOS = { ok: 'OK', observacion: 'Obs.', falla: 'Falla', na: 'N/A' }
@@ -61,6 +107,17 @@ export const itemConforme = (estado) => ['ok', 'na'].includes(String(estado || '
 /** Los ítems del checklist normalizados ([{clave, grupo, label, estado, nota}]). */
 export function itemsChecklist(inspection = {}) {
   const bruto = inspection?.items
+  // Vocabulario de DSN: items por id con 'pasa' | 'falla' | 'na' y `notas` aparte.
+  if (esChecklistDSN(inspection)) {
+    const notas = inspection?.notas && typeof inspection.notas === 'object' ? inspection.notas : {}
+    return ITEMS_DSN.map((item) => ({
+      clave: item.id,
+      grupo: item.seccion,
+      label: item.label,
+      estado: ESTADO_DSN[texto(bruto[item.id])] || null,
+      nota: texto(notas[item.id]),
+    }))
+  }
   // Lista ya normalizada por INV (`payloadInformeInspection`): sus rótulos mandan.
   if (Array.isArray(bruto) && bruto.some((fila) => fila && (fila.label || fila.grupo))) {
     return bruto.filter(Boolean).map((fila) => ({
@@ -98,6 +155,25 @@ export function puntajeChecklist(items = []) {
     cuenta += 1
   }
   return cuenta ? Math.round((suma / cuenta) * 100) : null
+}
+
+/**
+ * Resumen con las reglas de la UI de DSN: puntaje = pasa/aplicables; sin la
+ * inspección completa no hay grado; una falla en un ítem clave o batería < 85 %
+ * baja a C; con fallas no clave es B; todo pasa es A.
+ */
+export function resumenChecklistDSN(items = [], { bateriaSalud = null } = {}) {
+  const revisados = items.filter((item) => ['ok', 'falla', 'na'].includes(String(item?.estado || '')))
+  const aplicables = revisados.filter((item) => item.estado !== 'na')
+  const pasan = revisados.filter((item) => item.estado === 'ok').length
+  const fallan = revisados.filter((item) => item.estado === 'falla')
+  const porcentaje = aplicables.length ? Math.round((pasan / aplicables.length) * 100) : 0
+  const salud = Number(bateriaSalud)
+  const saludOk = Number.isFinite(salud) && salud > 0 ? salud >= 85 : null
+  const fallaClave = fallan.some((item) => PIEZAS_CLAVE_DSN.includes(item.clave))
+  const completa = revisados.length > 0 && revisados.length === items.length
+  const grado = !completa ? '' : fallaClave || saludOk === false ? 'C' : fallan.length ? 'B' : 'A'
+  return { porcentaje, grado, revisados: revisados.length, pasan, fallan: fallan.length }
 }
 
 /** Grado A/B/C por puntaje (A ≥ 90, B ≥ 75). */
@@ -141,14 +217,18 @@ export function datosChecklist(unit = {}, { informe = null, verificacion = null 
   const publico = informe && typeof informe === 'object' ? informe : null
   const cruda = unit.inspection || unit.inspeccion || {}
   const fuente = publico || cruda
-  const items = itemsChecklist({ items: publico ? publico.items : cruda.items })
-  const puntaje = Number.isFinite(Number(fuente.puntaje)) ? Number(fuente.puntaje) : puntajeChecklist(items)
-  const grado = texto(fuente.grado) || gradoChecklist(puntaje) || ''
+  const items = itemsChecklist({ items: publico ? publico.items : cruda.items, notas: cruda.notas })
+  // Sin payload, si el vocabulario es el de DSN se puntúa con sus reglas.
+  const dsn = !publico && esChecklistDSN(cruda)
+  const bateriaSalud = fuente.bateria && typeof fuente.bateria === 'object' ? fuente.bateria.porcentaje : null
+  const resumenDSN = dsn ? resumenChecklistDSN(items, { bateriaSalud: bateriaSalud ?? fuente.bateriaSalud ?? unit.batteryHealth }) : null
+  const puntaje = Number.isFinite(Number(fuente.puntaje)) ? Number(fuente.puntaje) : (resumenDSN ? resumenDSN.porcentaje : puntajeChecklist(items))
+  const grado = texto(fuente.grado) || (resumenDSN ? resumenDSN.grado : gradoChecklist(puntaje)) || ''
   const evaluados = items.filter((item) => item.estado && item.estado !== 'na')
   const noOk = items.filter((item) => ['observacion', 'falla'].includes(String(item.estado || '')))
   const bateria = fuente.bateria && typeof fuente.bateria === 'object'
     ? { porcentaje: fuente.bateria.porcentaje ?? null, ciclos: fuente.bateria.ciclos ?? null }
-    : { porcentaje: fuente.bateriaPct ?? unit.batteryHealth ?? null, ciclos: fuente.bateriaCiclos ?? null }
+    : { porcentaje: fuente.bateriaPct ?? fuente.bateriaSalud ?? unit.batteryHealth ?? null, ciclos: fuente.bateriaCiclos ?? null }
   const controles = Array.isArray(publico?.controles) && publico.controles.length
     ? publico.controles.map((fila) => ({ label: texto(fila.label), ok: Boolean(fila.ok), estado: fila.ok ? 'ok' : 'falla', valor: texto(fila.valor) }))
     : controlesDeVerificacion(verificacion)
@@ -203,6 +283,8 @@ export function datosCertificado(unit = {}, { informe = null, verificacion = nul
     grado: checklist.grado || 'P',
     puntaje: checklist.puntaje,
     hay: checklist.hay,
+    // Con la inspección incompleta no hay grado: el héroe dice «pendiente».
+    completa: Boolean(checklist.grado),
     ok: checklist.ok,
     evaluados: checklist.evaluados,
     total: checklist.total,

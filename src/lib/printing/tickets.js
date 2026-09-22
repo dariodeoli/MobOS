@@ -690,7 +690,7 @@ export function ticketCertificado(datos = {}, { ancho = 80 } = {}) {
   t.linea()
   t.negrita().centrado('GRADO').negrita(false)
   t.negrita().doble().centrado(datos.grado || 'P').doble(false).negrita(false)
-  t.centrado(datos.puntaje === null || datos.puntaje === undefined
+  t.centrado(!datos.completa
     ? 'Pendiente de inspección'
     : `Puntaje ${datos.puntaje}/100 · ${datos.ok}/${datos.evaluados} conformes`)
   t.linea()
