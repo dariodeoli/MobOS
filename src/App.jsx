@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
 import LoadingScreen from '@/components/app/LoadingScreen'
 import AvisoVersion from '@/components/app/AvisoVersion'
+import { flagsV2, rutaV2 } from '@/lib/flags'
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { publicUrls } from '@/lib/urls'
 import { SesionProvider, useSesion } from '@/lib/sesion'
@@ -178,10 +179,11 @@ export default function App() {
     return <RedireccionDominio destino={`${dominioAnterior}${ruta}`} />
   }
 
-  // Vista previa del mock F3 (#241): no está en el menú y solo se abre en
-  // desarrollo o con VITE_OPS_PREVIEW=1; se activa con la aprobación del piloto.
-  const opsPreview = window.location.pathname === '/ops-preview' && (import.meta.env.DEV || import.meta.env.VITE_OPS_PREVIEW === '1')
-  if (opsPreview) {
+  // Infraestructura F3 (#241): `/ops-preview` (dev o VITE_OPS_PREVIEW=1) y la
+  // ruta real `/ops` (solo con VITE_OPS_V2=1). Fuera del menú hasta la
+  // aprobación del piloto; la lógica vive en `lib/flags.js`.
+  const vistaOps = rutaV2(window.location.pathname, flagsV2({ dev: import.meta.env.DEV, env: import.meta.env }))
+  if (vistaOps) {
     return (
       <>
         <MetadatosPagina />
