@@ -29,6 +29,7 @@ const Status = lazy(() => import('@/pages/Status'))
 const RecuperarContrasena = lazy(() => import('@/pages/RecuperarContrasena'))
 const PortalClientesEntrada = lazy(() => import('@/pages/PortalClientesEntrada'))
 const RecuperarEmpresa = lazy(() => import('@/pages/RecuperarEmpresa'))
+const OpsPreview = lazy(() => import('@/pages/OpsPreview'))
 
 // El usuario existe pero nadie lo sumó todavía a una tienda. Pasa cuando el
 // dueño crea la cuenta y aún no la asignó a su empresa.
@@ -175,6 +176,18 @@ export default function App() {
   if (dominioAnterior) {
     const ruta = `${window.location.pathname}${window.location.search}${window.location.hash}`
     return <RedireccionDominio destino={`${dominioAnterior}${ruta}`} />
+  }
+
+  // Vista previa del mock F3 (#241): no está en el menú y solo se abre en
+  // desarrollo o con VITE_OPS_PREVIEW=1; se activa con la aprobación del piloto.
+  const opsPreview = window.location.pathname === '/ops-preview' && (import.meta.env.DEV || import.meta.env.VITE_OPS_PREVIEW === '1')
+  if (opsPreview) {
+    return (
+      <>
+        <MetadatosPagina />
+        <Suspense fallback={<PaginaCargando />}><OpsPreview /></Suspense>
+      </>
+    )
   }
 
   const landingPreview = import.meta.env.DEV && window.location.pathname === '/landing-preview'
