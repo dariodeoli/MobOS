@@ -47,6 +47,11 @@ test('inventario post-.140: alertas, vendidos, transito/traslados y acciones mas
   await expect(page.getByTestId('unidad-phonecheck')).toBeVisible({ timeout: 15_000 })
   await capturar('07-phonecheck')
 
+  // #240: tablero de certificaciones (grados, pendientes y export).
+  await page.goto('/inventario/alertas')
+  await expect(page.getByTestId('certificaciones-tablero')).toBeVisible({ timeout: 15_000 })
+  await capturar('08-certificaciones')
+
   // #240: historial del serial (verificaciones, consultas IMEI, reparaciones y movimientos).
   await expect(page.getByTestId('unidad-cronologia')).toBeVisible({ timeout: 15_000 })
   await capturar('11-historial-serial')
