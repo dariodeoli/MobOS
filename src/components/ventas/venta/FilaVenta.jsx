@@ -9,7 +9,7 @@ import { serialEnmascarado } from '@/utils/serial'
 import { LIMITE_MONTO_VENTAS, montoUsd } from '@/utils/moneda'
 import { ROTULO_DATO } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
-import { categoriaIcono } from '@/lib/categoriaIcono'
+import IconoCategoria from '@/components/shared/IconoCategoria'
 
 // Fila editable de la venta (#225): colapsada por defecto con lo esencial
 // (foto/modelo, cantidad, precio de venta y total) y el IMEI elegido visible
@@ -86,7 +86,7 @@ export default function FilaVenta({
         <img src={imagen} alt="" loading="lazy" className="h-12 w-12 shrink-0 rounded-lg object-cover" />
       ) : (
         <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-fono/10 text-fono-light">
-          <Icon name={categoriaIcono(producto)} className="h-6 w-6" />
+          <IconoCategoria categoria={producto?.category || producto?.categoria || producto?.name || producto?.nombre || ''} className="h-6 w-6" />
         </span>
       )}
       <div className="min-w-0 flex-1">

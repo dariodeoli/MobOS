@@ -1,9 +1,13 @@
 // PhoneCheck (#240): checklist de inspección por unidad + grado de condición.
 // Lógica pura y testeable; la UI y el backend comparten estas reglas.
+// Las etiquetas del semáforo salen del objeto compartido (#240); acá solo
+// vive el peso de cada estado para el puntaje del checklist.
+import { ESTADOS_ITEM } from './estadoEquipo.js'
+
 export const INSPECCION_ESTADOS = {
-  ok: { label: 'OK', tone: 'green', puntaje: 1 },
-  observacion: { label: 'Con observación', tone: 'orange', puntaje: 0.5 },
-  falla: { label: 'Falla', tone: 'red', puntaje: 0 },
+  ok: { label: ESTADOS_ITEM.ok.etiqueta, tone: 'green', puntaje: 1 },
+  observacion: { label: ESTADOS_ITEM.aviso.etiqueta, tone: 'orange', puntaje: 0.5 },
+  falla: { label: ESTADOS_ITEM.falla.etiqueta, tone: 'red', puntaje: 0 },
   na: { label: 'No aplica', tone: 'slate', puntaje: null },
 }
 

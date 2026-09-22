@@ -1,6 +1,6 @@
 import { Aviso, Button, Input, MoneyInput, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
-import { categoriaIcono } from '@/lib/categoriaIcono'
+import IconoCategoria from '@/components/shared/IconoCategoria'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import CheckoutCustomer from '../CheckoutCustomer'
 import { gs, num } from '@/utils/calculos'
@@ -323,7 +323,7 @@ export default function PasoProductos({
                       />
                     ) : (
                       <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-fono/10 text-fono-light">
-                        <Icon name={categoriaIcono(p)} className="h-6 w-6" />
+                        <IconoCategoria categoria={p?.category || p?.categoria || p?.name || p?.nombre || ''} className="h-6 w-6" />
                       </span>
                     )}
                     <span className="min-w-0">

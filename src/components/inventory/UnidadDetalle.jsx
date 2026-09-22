@@ -4,6 +4,7 @@ import Icon from '@/components/shared/Icon'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import Avatar from '@/components/shared/Avatar'
+import MedidorBateria from '@/components/shared/MedidorBateria'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import JsBarcode from 'jsbarcode'
@@ -300,7 +301,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
                   </Select>
                 : <p className="mt-1 font-semibold">{unit.location?.name || '—'}</p>}
             </div>
-            <div className="rounded-xl bg-ink-800/60 p-3" title="Salud de la batería informada al recibir la unidad"><p className="text-xs text-mute">Batería</p><p className="mt-1 font-semibold">{unit.batteryHealth ? `${unit.batteryHealth}%` : '—'}</p></div>
+            <div className="rounded-xl bg-ink-800/60 p-3"><MedidorBateria porcentaje={unit.batteryHealth} /></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Proveedor</p><p className="mt-1 font-semibold">{unit.supplier?.name || unit.supplierName || '—'}{unit.supplier?.name && unit.supplier?.code ? ' (' + unit.supplier.code + ')' : ''}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Costo</p><p className="mt-1 font-semibold">{sinCostoUnitario(unit) ? <span className="text-warn">Pendiente</span> : money(unit.originalCost, unit.costCurrency)}{!sinCostoUnitario(unit) && unit.costPyg ? ` · ${money(unit.costPyg, 'PYG')}` : ''}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Ingresó a stock</p><p className="mt-1 font-semibold">{ingreso ? ingreso.toLocaleDateString('es-PY') : '—'}{diasEnStock != null ? <span className="ml-2 text-xs font-normal text-mute">{diasEnStock} {diasEnStock === 1 ? 'día' : 'días'} en stock</span> : null}</p></div>
