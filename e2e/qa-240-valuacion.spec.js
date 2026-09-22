@@ -5,6 +5,19 @@ import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
 
 const API = SEED.api
+
+async function contextoVendedor(browser) {
+  // Réplica del sellerSession del harness: login de empresa -> PIN con Bearer.
+  const ctx = await browser.newContext()
+  const login = await ctx.request.post(`${API}/api/auth/login`, { data: { email: SEED.company.email, password: SEED.company.password, deviceId: SEED.company.deviceId } })
+  const setCookies = (await login.headersArray()).filter((h) => h.name.toLowerCase() === 'set-cookie').map((h) => h.value)
+  const company = setCookies.map((c) => c.match(/mobos_company_session=([^;]*)/)?.[1]).find(Boolean)
+  const sellers = (await login.json()).sellers || []
+  const seller = sellers.find((s) => s.name === SEED.sellers[0].name) || sellers[0]
+  await ctx.request.post(`${API}/api/auth/pin`, { headers: { Authorization: `Bearer ${company}` }, data: { sellerId: seller?.id, pin: SEED.sellers[0].pin } })
+  return ctx
+}
+
 const SALIDA = 'test-results/QA-240-7-valuacion-grado'
 
 async function api(page, path, options = {}) {
@@ -28,7 +41,8 @@ test('trade-in: el grado y los hallazgos ajustan la valuación con su detalle', 
   expect([200, 201], JSON.stringify(alta.body)).toContain(alta.status)
 
   // El vendedor abre la herramienta de trade-in.
-  const vendedor = await browser.newContext({ storageState: 'e2e/.auth/seller.json' })
+  // Sesión fresca del vendedor por API.
+  const vendedor = await contextoVendedor(browser)
   const herramienta = await vendedor.newPage()
   await herramienta.goto('/trade-in')
   await expect(herramienta.getByLabel('Modelo y capacidad')).toBeVisible({ timeout: 30000 })

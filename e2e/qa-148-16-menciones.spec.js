@@ -7,6 +7,19 @@ import { readFileSync } from 'node:fs'
 import { SEED } from './helpers/seed-data.js'
 
 const API = SEED.api
+
+async function contextoVendedor(browser) {
+  // Réplica del sellerSession del harness: login de empresa -> PIN con Bearer.
+  const ctx = await browser.newContext()
+  const login = await ctx.request.post(`${API}/api/auth/login`, { data: { email: SEED.company.email, password: SEED.company.password, deviceId: SEED.company.deviceId } })
+  const setCookies = (await login.headersArray()).filter((h) => h.name.toLowerCase() === 'set-cookie').map((h) => h.value)
+  const company = setCookies.map((c) => c.match(/mobos_company_session=([^;]*)/)?.[1]).find(Boolean)
+  const sellers = (await login.json()).sellers || []
+  const seller = sellers.find((s) => s.name === SEED.sellers[0].name) || sellers[0]
+  await ctx.request.post(`${API}/api/auth/pin`, { headers: { Authorization: `Bearer ${company}` }, data: { sellerId: seller?.id, pin: SEED.sellers[0].pin } })
+  return ctx
+}
+
 const SALIDA = 'test-results/QA-148-16-menciones'
 const MENCIONADO = SEED.sellers[0].name // Vendedor E2E Uno (sesión de seller.json)
 const marca = Date.now().toString(36).toUpperCase()
@@ -32,7 +45,8 @@ test('menciones: comentario interno, notificación al mencionado y nada para el 
   await page.screenshot({ path: `${SALIDA}/01-comentario-con-mencion.png` })
 
   // (2) El mencionado ve la novedad en su campana (sesión del vendedor).
-  const vendedor = await browser.newContext({ storageState: 'e2e/.auth/seller.json' })
+  // Sesión fresca del vendedor por API (sin cargar páginas antes de /pedidos).
+  const vendedor = await contextoVendedor(browser)
   const pagina = await vendedor.newPage()
   await pagina.goto('/pedidos')
   await expect(pagina.getByTestId('notificaciones-aviso')).toBeVisible({ timeout: 20000 })
