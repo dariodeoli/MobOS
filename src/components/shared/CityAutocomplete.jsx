@@ -37,10 +37,27 @@ export default function CityAutocomplete({ value = '', onSelect, placeholder = '
 
   function change(texto) {
     // Al escribir a mano se borra el departamento: solo se vuelve a completar
-    // cuando el usuario elige una sugerencia.
+    // cuando el usuario elige una sugerencia o al salir del campo si la ciudad
+    // existe en el catálogo (el departamento es dependiente de la ciudad).
     onSelect(texto, '')
     if (timer.current) clearTimeout(timer.current)
     timer.current = setTimeout(() => { if (!esDemo) buscar(texto) }, 250)
+  }
+
+  // Al salir del campo, si el texto coincide exacto con una ciudad del catálogo
+  // (de las sugerencias ya cargadas o de una consulta puntual), se completa el
+  // departamento aunque no se haya tocado la lista.
+  async function resolverDepartamento() {
+    const texto = String(value || '').trim()
+    if (!texto || esDemo) return
+    const norm = (valor) => String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+    const enSugerencias = suggestions.find((row) => norm(row.city) === norm(texto))
+    if (enSugerencias) { onSelect(texto, enSugerencias.department); return }
+    try {
+      const rows = await api.get(`/api/geo/cities?q=${encodeURIComponent(texto)}`)
+      const exacta = (rows || []).find((row) => norm(row.city) === norm(texto))
+      if (exacta) onSelect(texto, exacta.department)
+    } catch { /* sin conexión: queda el texto libre */ }
   }
 
   function elegir(city) {
@@ -58,6 +75,7 @@ export default function CityAutocomplete({ value = '', onSelect, placeholder = '
         value={value}
         onChange={(event) => change(event.target.value)}
         onFocus={() => { if (!esDemo && value.trim().length >= 2 && suggestions.length) setOpen(true) }}
+        onBlur={resolverDepartamento}
         placeholder={placeholder}
         autoComplete="off"
         aria-label="Ciudad"

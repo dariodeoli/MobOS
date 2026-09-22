@@ -69,7 +69,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   // RUC/CI consultado: se normaliza el nombre (nunca "Apellido, Nombre") y se
   // guarda el borrador por si la venta no se completa.
   function aplicarDocumento(datos) {
-    const nombre = normalizarNombre(datos?.name || value.name)
+    const nombre = normalizarNombre(datos?.name || value.name, { apellidosPrimero: 'sifen' })
     onChange({ ...value, name: nombre || value.name, document: datos?.fullRuc || value.document })
     if (!esDemo && empresaId && datos?.name)
       guardarPreCliente(empresaId, { document: datos.fullRuc || value.document, name: datos.name }, { dias: diasDeBorrador(empresa) })
@@ -133,7 +133,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
             <p className="mt-2 text-xs text-mute">Factura a nombre de otra persona o empresa (esposo/a, padre, RUC): buscá por RUC/cédula o escribí el nombre y los datos fiscales se completan solos.</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <label className="text-xs text-mute">Nombre y apellido del titular<Input aria-label="Nombre del titular de factura" value={billingTo?.name || ''} onChange={event => onBillingChange({ ...billingTo, name: normalizarNombre(event.target.value) })} placeholder="Nombre y apellido" /></label>
-              <div className="text-xs text-mute">RUC del titular<RucField ariaLabel="RUC del titular de factura" value={billingTo?.document || ''} onChange={(document) => onBillingChange({ ...billingTo, document })} onAplicar={(datos) => onBillingChange({ ...billingTo, name: normalizarNombre(datos.name || billingTo?.name), document: datos.fullRuc || billingTo?.document })} mostrarExtractor={!esDemo} /></div>
+              <div className="text-xs text-mute">RUC del titular<RucField ariaLabel="RUC del titular de factura" value={billingTo?.document || ''} onChange={(document) => onBillingChange({ ...billingTo, document })} onAplicar={(datos) => onBillingChange({ ...billingTo, name: normalizarNombre(datos.name || billingTo?.name, { apellidosPrimero: 'sifen' }), document: datos.fullRuc || billingTo?.document })} mostrarExtractor={!esDemo} /></div>
             </div>
           </>
         )}
