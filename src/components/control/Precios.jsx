@@ -8,6 +8,7 @@ import { Aviso, Badge, Button, Card, EmptyState, IconAction, Input, Label, Modal
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import Switch from '@/components/shared/Switch'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
+import { PIE_ACCIONES } from '@/components/shared/formulario'
 
 // Gestión de precios: listas por cliente (con ítems por producto o categoría y
 // descuento/recargo) y precios por cantidad. El POS resuelve con la prioridad
@@ -262,7 +263,7 @@ export default function Precios() {
           {!editor.items.length && <p className="text-sm text-mute">Sin ítems, la lista no cambia ningún precio.</p>}
           <Button type="button" variant="outline" onClick={() => setEditor(current => ({ ...current, items: [...current.items, itemVacio()] }))}>+ Ítem</Button>
         </div>
-        <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setEditor(null)} disabled={busy}>Cancelar</Button><Button type="submit" disabled={busy || !editor.name.trim()}>{busy ? 'Guardando…' : 'Guardar lista'}</Button></div>
+        <div className={PIE_ACCIONES}><Button type="button" variant="ghost" onClick={() => setEditor(null)} disabled={busy}>Cancelar</Button><Button type="submit" disabled={busy || !editor.name.trim()}>{busy ? 'Guardando…' : 'Guardar lista'}</Button></div>
       </form>}
     </Modal>
 

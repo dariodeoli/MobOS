@@ -3,10 +3,9 @@
 // comprobante de venta: quien las usa decide dónde imprimirlas.
 
 import { CHECKLISTS, ESTADO_FISICO, PRUEBAS_EJECUTADAS, TEXTO_LEGAL_CONFORMIDAD, TEXTO_LEGAL_DESLINDE, TEXTO_LEGAL_RECEPCION } from './servicioChecklist.js'
-
-const escapar = (valor) => String(valor ?? '').replace(/[&<>"']/g, (caracter) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[caracter]))
-const fecha = (valor) => (valor ? new Date(valor).toLocaleDateString('es-PY') : '—')
-const gs = (valor) => `Gs. ${Number(valor || 0).toLocaleString('es-PY')}`
+import { escapeHtml as escapar } from '../utils/printHtml.js'
+import { fechaDia as fecha } from '../utils/fecha.js'
+import { formatGs as gs } from '../utils/moneda.js'
 
 // Puntos numerados del esquema: los comparten la hoja impresa y la pantalla.
 export function puntosEsquema(tipo) {

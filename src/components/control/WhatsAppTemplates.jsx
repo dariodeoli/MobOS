@@ -6,6 +6,7 @@ import Icon from '@/components/shared/Icon'
 import { CATEGORIAS_PLANTILLA, VARIABLES_POR_CONTEXTO, VALORES_EJEMPLO, renderPlantilla } from '@/lib/whatsappPlantillas'
 import { cn } from '@/lib/utils'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
+import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 // Tabla compacta: una fila por plantilla, con el mensaje recortado a una línea.
 const GRID_PLANTILLAS = 'grid min-w-[52rem] grid-cols-[minmax(10rem,1.1fr)_minmax(12rem,2fr)_6.5rem_9rem] items-center gap-x-2'
 
@@ -195,7 +196,7 @@ export default function WhatsAppTemplates() {
       )}
       <Modal open={editor !== null} onClose={() => !busy && setEditor(null)} title={editor?.id ? 'Editar plantilla' : 'Nueva plantilla'} className="max-w-2xl">
         <form onSubmit={guardar} className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={GRILLA_DOS_COLUMNAS}>
             <FormField label="Nombre" htmlFor="plantilla-nombre">
               <Input id="plantilla-nombre" autoFocus maxLength={120} disabled={busy} value={editor?.name || ''} onChange={(event) => setEditor((current) => ({ ...current, name: event.target.value }))} placeholder="Ej. Pedido listo para retirar" />
             </FormField>
@@ -239,7 +240,7 @@ export default function WhatsAppTemplates() {
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={busy} checked={editor?.isDefault === true} onChange={(event) => setEditor((current) => ({ ...current, isDefault: event.target.checked }))} />Predeterminada de {NOMBRE_CATEGORIA[editor?.category] || 'la categoría'}</label>
           </div>
           {editorError && <Aviso tono="error">{editorError}</Aviso>}
-          <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="ghost" disabled={busy} onClick={() => setEditor(null)}>Cancelar</Button><Button type="submit" disabled={busy || !editor?.name?.trim() || !editor?.body?.trim()}>{busy ? 'Guardando…' : editor?.id ? 'Guardar cambios' : 'Crear plantilla'}</Button></div>
+          <div className={PIE_ACCIONES}><Button type="button" variant="ghost" disabled={busy} onClick={() => setEditor(null)}>Cancelar</Button><Button type="submit" disabled={busy || !editor?.name?.trim() || !editor?.body?.trim()}>{busy ? 'Guardando…' : editor?.id ? 'Guardar cambios' : 'Crear plantilla'}</Button></div>
         </form>
       </Modal>
       <ConfirmDialog

@@ -180,6 +180,7 @@ patrón de uso de cada familia y un ejemplo corto.
 > `ComprobantePreview`, `Cronologia`, `src/components/shared/tabla.js`
 > (`ROTULO_DATO`, `CELDA_ENCABEZADO`, `ROTULO_SECCION`, `CELDA_DATO`,
 > `CELDA_NUMERO`, `CELDA_IDENTIDAD`, `CELDA_IDENTIDAD_GRANDE`),
+> `src/components/shared/formulario.js` (`GRILLA_DOS_COLUMNAS`, `PIE_ACCIONES`),
 > `src/lib/estadosPedido.js`
 > (estados de pedido/entrega/garantía con su tono para las páginas del cliente).
 

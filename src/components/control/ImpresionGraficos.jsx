@@ -3,6 +3,8 @@ import { Aviso, Badge, Button, Card, EmptyState, Select, Skeleton } from '@/comp
 import Icon from '@/components/shared/Icon'
 import { printingApi } from '@/lib/api/printing'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+import { cn } from '@/lib/utils'
 
 // Panel de gráficos de impresión: SVG propio (sin librerías) para trabajos por
 // hora y latencia promedio por impresora, más contadores y tasa de éxito. Los
@@ -161,7 +163,7 @@ export default function ImpresionGraficos({ impresoras = [] }) {
         <div className="space-y-2"><Skeleton className="h-24 w-full" /><Skeleton className="h-40 w-full" /></div>
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className={cn('lg:grid-cols-5', GRILLA_DOS_COLUMNAS)}>
             <div className="rounded-xl border border-ink-600 p-3">
               <p className="text-xs uppercase tracking-wider text-mute">Trabajos</p>
               <p className="mt-1 text-lg font-semibold tabular-nums">{datos?.totales?.trabajos ?? 0}</p>

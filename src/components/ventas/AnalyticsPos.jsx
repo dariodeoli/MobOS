@@ -7,6 +7,7 @@ import { listVentas } from '@/lib/storage'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { fechaClave } from '@/utils/calculos'
 import { cn } from '@/lib/utils'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 
 // Tablero del POS (#156): ventas de hoy contra ayer, pedidos, unidades por
 // pedido, ticket promedio, ventas netas, top productos, ventas por vendedor y
@@ -141,7 +142,7 @@ export default function AnalyticsPos({ open, onClose }) {
             <Metrica label="Pendiente" valor={gs(tablero.hoy.pendiente)} />
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={GRILLA_DOS_COLUMNAS}>
             <Lista titulo="Top productos" filas={tablero.topProductos} valorDe={(fila) => fila.ventas} etiquetaDe={(fila) => `${fila.nombre} · ${fila.unidades} u.`} />
             <Lista titulo="Ventas por vendedor" filas={tablero.porVendedor} valorDe={(fila) => fila.ventas} etiquetaDe={(fila) => `${fila.etiqueta} · ${fila.pedidos} ped.`} />
             <Lista titulo="Ventas por sucursal" filas={tablero.porSucursal} valorDe={(fila) => fila.ventas} etiquetaDe={(fila) => fila.etiqueta} />

@@ -13,6 +13,7 @@ import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { configImpresora } from '@/lib/printing/agent'
 import { ticketLiquidacionComision } from '@/lib/printing/tickets'
 import { CELDA_IDENTIDAD } from '@/components/shared/tabla'
+import { PIE_ACCIONES } from '@/components/shared/formulario'
 
 // Reglas de comisión sobre el margen y liquidaciones por vendedor
 // (Finanzas → Comisiones). Mismo contrato que Configuración → Equipo usaba:
@@ -388,7 +389,7 @@ export default function Comisiones() {
             {comprobante.verificationTokenIssuedAt && (
               <p className="text-[11px] text-mute">Enlace emitido {fechaHora(comprobante.verificationTokenIssuedAt)}.</p>
             )}
-            <div className="flex flex-wrap justify-end gap-2">
+            <div className={PIE_ACCIONES}>
               <Button type="button" variant="outline" onClick={() => copiarEnlace(comprobante)}><Icon name="copy" className="h-4 w-4" />Copiar enlace</Button>
               <Button type="button" disabled={imprimiendoId === comprobante.id} onClick={() => imprimir(comprobante)}><Icon name="printer" className="h-4 w-4" />{imprimiendoId === comprobante.id ? 'Imprimiendo…' : 'Imprimir comprobante'}</Button>
             </div>

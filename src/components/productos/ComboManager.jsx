@@ -5,6 +5,7 @@ import ProductCombobox from '@/components/shared/ProductCombobox'
 import { resources } from '@/lib/api'
 import { getProductos } from '@/lib/storage'
 import { gs, num } from '@/utils/calculos'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 
 const emptyComponent = () => ({ productId: '', quantity: '1' })
 
@@ -59,7 +60,7 @@ export default function ComboManager({ open, onClose }) {
         {!loading && !combos.length && <p className="text-sm text-mute">Todavía no hay combos creados.</p>}
         <form onSubmit={crear} className="space-y-3 rounded-2xl border border-fono/25 bg-fono/[.05] p-4">
           <h3 className="text-sm font-bold">Nuevo combo</h3>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={GRILLA_DOS_COLUMNAS}>
             <label className="block space-y-1.5 text-xs text-mute">Nombre<Input required maxLength={200} value={form.name} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} placeholder="Ej. Funda + lámina" /></label>
             <label className="block space-y-1.5 text-xs text-mute">Precio del combo (Gs)<MoneyInput required value={form.pricePyg} onValueChange={value => setForm(current => ({ ...current, pricePyg: value === '' ? '' : String(value) }))} placeholder="0" /></label>
           </div>

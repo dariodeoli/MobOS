@@ -17,6 +17,7 @@ import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { CLAVES_FIN, filtrosConciliacionValidos, rangoDePreset } from '@/lib/finUltimoUsado'
 import { cn } from '@/lib/utils'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
+import { GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
 // Conciliación y trazabilidad (#144): ingresos por cuenta, medio y
 // procesadora; conciliación en lote de depósitos/transferencias recibidas
 // (esperado vs recibido + diferencia) y detalle pago por pago con acceso al
@@ -49,7 +50,7 @@ function Resumen({ resumen }) {
     { label: 'Diferencia de lotes', valor: resumen.differencePyg, sub: `${resumen.lotes} lote(s) en el período`, tono: resumen.differencePyg ? 'text-bad' : '' },
   ]
   return (
-    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+    <div className={cn('lg:grid-cols-4', GRILLA_DOS_COLUMNAS_COMPACTA)}>
       {tarjetas.map((tarjeta) => (
         <div key={tarjeta.label} className={cn('rounded-xl border border-ink-600 p-3', tarjeta.tono === 'text-warn' && 'border-warn/40 bg-warn/5')}>
           <p className={ROTULO_DATO}>{tarjeta.label}</p>

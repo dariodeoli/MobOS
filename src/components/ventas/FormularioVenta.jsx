@@ -56,6 +56,7 @@ import PasoProductos from './venta/PasoProductos'
 import PasoCarrito from './venta/PasoCarrito'
 import PasoCobro from './venta/PasoCobro'
 import { CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
+import { PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
 
 // Recuerda el último vendedor elegido en esta compu, para no re-seleccionarlo
 // en cada venta (suelen ser ráfagas de la misma persona).
@@ -1834,7 +1835,7 @@ export default function FormularioVenta({
               {errorSuspender}
             </Aviso>
           )}
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <div className={PIE_ACCIONES_REVERSO}>
             <Button
               type="button"
               variant="ghost"
@@ -2046,7 +2047,7 @@ export default function FormularioVenta({
                 </p>
               </div>
             </div>
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <div className={PIE_ACCIONES_REVERSO}>
               <Button type="button" variant="ghost" onClick={() => setEscaneado(null)}>Cancelar</Button>
               <Button
                 type="button"

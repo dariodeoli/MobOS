@@ -23,6 +23,7 @@ import { coincideCliente } from '@/utils/cliente'
 import { cn } from '@/lib/utils'
 import SerialTexto from '@/components/shared/SerialTexto'
 import { CELDA_DATO, CELDA_ENCABEZADO } from '@/components/shared/tabla'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 // Pipeline del taller: recepción → diagnóstico → reparación → entrega.
 const ESTADOS = [
   ['RECIBIDO', 'Recibido', 'slate'],
@@ -562,7 +563,7 @@ export default function ServicioTecnico() {
       <Modal open={Boolean(form)} onClose={busy || checklistOpen || catalogoOpen ? undefined : () => { setForm(null); setEditing(null) }} title={editing ? 'Editar orden de servicio' : 'Nueva orden de servicio'} className="max-w-2xl">
         {form && (
           <form onSubmit={guardar} className="space-y-3">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className={GRILLA_DOS_COLUMNAS}>
               <div className="relative">
                 <Label htmlFor="cliente">Cliente *</Label>
                 <Input id="cliente" aria-label="Cliente" value={form.customerName} onChange={set('customerName')} placeholder="Buscar cliente o escribir el nombre" autoCapitalize="words" />
@@ -620,7 +621,7 @@ export default function ServicioTecnico() {
             <div className="rounded-xl border border-ink-600 bg-ink-800/30 p-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-mute">Desbloqueo del equipo</p>
               <p className="mt-1 text-xs text-mute">Se guarda cifrado en la orden y solo lo ven el dueño, el gerente y el técnico.</p>
-              <div className="mt-2 grid gap-3 sm:grid-cols-2">
+              <div className={cn('mt-2', GRILLA_DOS_COLUMNAS)}>
                 <label className="block space-y-1 text-xs text-mute">PIN o código
                   <Input maxLength={40} value={form.unlockCode || ''} onChange={set('unlockCode')} placeholder="Ej. 1234" inputMode="numeric" />
                 </label>
@@ -631,7 +632,7 @@ export default function ServicioTecnico() {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className={GRILLA_DOS_COLUMNAS}>
               <div><Label htmlFor="estado">Estado</Label><Select id="estado" value={form.status} onChange={set('status')}>{ESTADOS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</Select></div>
               <div><Label htmlFor="precio-cobrado">Precio cobrado</Label><MoneyInput id="precio-cobrado" value={form.pricePyg} onValueChange={value => setForm(current => ({ ...current, pricePyg: value === '' ? '' : String(value) }))} placeholder="0" /></div>
             </div>
@@ -644,7 +645,7 @@ export default function ServicioTecnico() {
                 <div><Label htmlFor="costo-mano-obra">Mano de obra (Gs)</Label><MoneyInput id="costo-mano-obra" value={form.laborPyg} onValueChange={value => setForm(current => ({ ...current, laborPyg: value === '' ? '' : String(value) }))} placeholder="0" /></div>
                 <div><Label htmlFor="costo-otros">Otros (Gs)</Label><MoneyInput id="costo-otros" value={form.otherCostPyg} onValueChange={value => setForm(current => ({ ...current, otherCostPyg: value === '' ? '' : String(value) }))} placeholder="0" /></div>
               </div>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className={cn('mt-3', GRILLA_DOS_COLUMNAS)}>
                 <div><Label htmlFor="costo-total">Costo total directo (Gs)</Label><MoneyInput id="costo-total" value={form.costPyg} onValueChange={value => setForm(current => ({ ...current, costPyg: value === '' ? '' : String(value) }))} placeholder="0" disabled={hayDesgloseForm} />{hayDesgloseForm && <p className="mt-1 text-[11px] text-mute">Con el desglose cargado, el total se calcula solo.</p>}</div>
                 <div className="rounded-xl border border-ink-600 p-3 text-sm">
                   <p className="text-xs text-mute">Costo del trabajo</p>

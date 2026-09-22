@@ -21,6 +21,7 @@ import EtiquetasProductoModal from '@/components/shared/EtiquetasProductoModal'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
 import { useToast } from '@/components/ui'
 import { CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 
 export const productFields = (row) => ({ ...row, id: row.id, name: row.name || row.nombre || '', sku: row.sku || '', price: row.pricePyg ?? row.precioVenta, stock: row.stock })
 const demoProducts = () => getProductos().filter((row) => row.activo !== false)
@@ -211,7 +212,7 @@ export default function SellerCatalog() {
       </div>
       <div className="space-y-1">{ordenadas.map((row) => <FilaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} seleccionado={seleccionados.includes(row.id)} onAlternar={() => setSeleccionados((actuales) => alternarId(actuales, row.id))} />)}</div>
     </div>}
-    {!data.loading && !data.error && vista === 'grid' && <div className="grid gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-3">{rows.map((row) => <TarjetaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>}
+    {!data.loading && !data.error && vista === 'grid' && <div className={cn('min-[1200px]:grid-cols-3', GRILLA_DOS_COLUMNAS)}>{rows.map((row) => <TarjetaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>}
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más productos'}</button></div>}
     <ComboManager open={combosOpen} onClose={() => setCombosOpen(false)} />
     <EtiquetasProductoModal open={etiquetasOpen} onClose={() => setEtiquetasOpen(false)} productos={rows} seleccionInicial={seleccionados} />

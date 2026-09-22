@@ -26,6 +26,8 @@ import ImeiVerificador from "@/components/landing/ImeiVerificador";
 import ProductFooter from '@/components/app/ProductFooter'
 import ThemeLogo from '@/components/app/ThemeLogo'
 import ThemeToggle from '@/components/app/ThemeToggle'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+import { cn } from '@/lib/utils'
 
 const novedades = [
   ["POS completo", "Carrito, cobros combinados y venta sin conexión.", ReceiptText],
@@ -240,7 +242,7 @@ function Preview({ appDomain }) {
               ))}
             </div>
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className={cn('mt-4', GRILLA_DOS_COLUMNAS)}>
             <div className="flex gap-3 rounded-xl bg-fono/10 p-3">
               <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-fono text-onbrand">
                 <Package size={14} />
@@ -511,7 +513,7 @@ export default function Landing() {
         </section>
         <section id="impresion" className="scroll-mt-20 border-y border-fore/[.07] bg-ink-800/60">
           <div className="mx-auto grid max-w-7xl gap-12 px-5 py-24 lg:grid-cols-[1.05fr_.95fr] lg:items-center">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className={GRILLA_DOS_COLUMNAS}>
               <div className="sm:col-span-2"><CapturaModulo tipo="impresion" /></div>
               <CapturaModulo tipo="offline" />
               <CapturaModulo tipo="finanzas" />
@@ -572,7 +574,7 @@ export default function Landing() {
               su turno con su PIN de 4 dígitos: el sistema sabe quién vende, qué
               permisos tiene y deja todo auditado.
             </p>
-            <div className="mt-8 grid gap-3 sm:grid-cols-2">
+            <div className={cn('mt-8', GRILLA_DOS_COLUMNAS)}>
               <div className="rounded-2xl border border-fore/[.08] bg-ink p-4">
                 <span className="grid h-9 w-9 place-items-center rounded-xl bg-fono/10 text-fono-dark"><KeyRound size={17} /></span>
                 <b className="mt-3 block text-sm">Roles y matriz de permisos</b>

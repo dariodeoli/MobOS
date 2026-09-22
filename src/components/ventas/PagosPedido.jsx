@@ -22,6 +22,7 @@ import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { ticketReciboInterno } from '@/lib/printing/tickets'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 
 // Enlace de WhatsApp para compartir el seguimiento público del pedido. Usa la
 // plantilla predeterminada de Pedidos cuando existe (con {seguimiento}) y si no
@@ -376,7 +377,7 @@ export default function PagosPedido({ venta, onClose }) {
       <form onSubmit={crearPlanCuotas} className="mb-6 space-y-3 rounded-xl border border-fono/20 bg-fono/5 p-4">
         <h3 className="font-semibold">Plan de cuotas</h3>
         <p className="text-xs text-mute">Se reparte el saldo pendiente ({gs(pending)}) en cuotas mensuales a crédito, cada una con su vencimiento. Cada cuota se cobra con su botón «Cobrar cuota»: queda saldada, la deuda baja y el recordatorio se detiene.</p>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className={GRILLA_DOS_COLUMNAS}>
           <label className="block text-xs text-mute">Cantidad de cuotas (2 a 24)<Input inputMode="numeric" maxLength={2} value={cuotasForm.count} onChange={event => setCuotasForm(current => ({ ...current, count: event.target.value.replace(/\D/g, '').slice(0, 2) }))} placeholder="3" /></label>
           <label className="block text-xs text-mute">Vence la primera (opcional)<Input type="date" value={cuotasForm.firstDueAt} onChange={event => setCuotasForm(current => ({ ...current, firstDueAt: event.target.value }))} /></label>
         </div>

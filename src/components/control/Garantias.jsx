@@ -19,6 +19,7 @@ import { getDemoWarranties, saveDemoWarranties } from '@/lib/demoWarranties'
 import { cn } from '@/lib/utils'
 import SerialTexto from '@/components/shared/SerialTexto'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
+import { GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
 const STATES = [['RECEIVED', 'Recibido'], ['DIAGNOSIS', 'En diagnóstico'], ['READY', 'Listo'], ['DELIVERED', 'Entregado']]
 const label = Object.fromEntries(STATES)
 const blank = { customerName: '', serial: '', description: '', responsibleName: '', technicianName: '', diagnosis: '', resolution: '', repairCostPyg: '', partsText: '', photosText: '', branchId: '', warrantyDays: '', expiresAt: '', coverage: '', exclusions: '' }
@@ -191,7 +192,7 @@ export default function Garantias() {
         {fotosCargando && <div className="space-y-2"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>}
         {!fotosCargando && !fotos.length && <EmptyState compact icon="image" title="Sin fotos para este caso." description="Subí la primera foto para dejar evidencia del estado del equipo." />}
         {fotos.length > 0 && (
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className={GRILLA_DOS_COLUMNAS_COMPACTA}>
             {fotos.map(foto => (
               <a key={foto.id} href={`${API_URL}/api/warranties/${fotosDe.id}/photos/${foto.id}`} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-2 rounded-lg border border-ink-600 px-3 py-2 text-sm text-fore transition hover:border-fono hover:bg-fono/5">
                 <span className="min-w-0 truncate">{foto.label || foto.fileName}</span>

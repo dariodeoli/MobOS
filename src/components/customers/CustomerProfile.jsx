@@ -42,7 +42,7 @@ import {
   Textarea,
   useToast,
 } from '@/components/ui'
-
+import { GRILLA_DOS_COLUMNAS, GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
 const ORDER_STATUS = {
   PENDING: { label: 'Pendiente', color: 'orange' },
   REGISTERED: { label: 'Registrado', color: 'blue' },
@@ -1370,7 +1370,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
           )}
 
           {tab === 'datos' && (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className={GRILLA_DOS_COLUMNAS}>
               <div className="rounded-xl border border-warn/30 bg-warn/5 p-3">
                 <Label>Nota interna <span className="text-mute">(solo equipo, nunca visible al cliente)</span></Label>
                 <Textarea rows={3} aria-label="Nota interna" value={notaInterna} disabled={esDemo} onChange={event => setNotaInterna(event.target.value)} placeholder="Raya lateral, trato especial, observaciones…" autoCapitalize="sentences" />
@@ -1435,7 +1435,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                     <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Última compra</p><p className="mt-1 text-sm font-bold">{analitica.lastPurchaseAt ? fecha(analitica.lastPurchaseAt) : 'Sin compras'}</p></div>
                     <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Antigüedad</p><p className="mt-1 text-sm font-bold">{antiguedadTexto(analitica.antiguedadDias)}</p></div>
                   </div>
-                  <div className="grid gap-2 sm:grid-cols-2">
+                  <div className={GRILLA_DOS_COLUMNAS_COMPACTA}>
                     <Senales titulo="Productos que más compra" items={analitica.topProducts} primario={(item) => item.description} secundario={(item) => `${item.quantity} u. · ${formatGs(item.totalPyg)}`} />
                     <Senales titulo="Modelos favoritos" items={analitica.topModels} primario={(item) => item.model} secundario={(item) => `${item.quantity} u. · ${formatGs(item.totalPyg)}`} />
                     <Senales titulo="Categorías favoritas" items={analitica.topCategories} primario={(item) => item.category} secundario={(item) => `${item.quantity} u. · ${formatGs(item.totalPyg)}`} />
@@ -1871,7 +1871,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
             La solicitud queda pendiente de aprobación.
           </p>
           {solicitud === 'CREDIT' && (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className={GRILLA_DOS_COLUMNAS}>
               <FormField label="Días de plazo" hint="Por ejemplo 30">
                 <Input inputMode="numeric" value={solicitudDias} onChange={event => setSolicitudDias(event.target.value.replace(/\D/g, '').slice(0, 3))} autoCapitalize="none" />
               </FormField>
@@ -2125,7 +2125,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
             <FormField label="Dirección" htmlFor="direccion-detalle">
               <Input id="direccion-detalle" maxLength={400} disabled={direccionBusy} autoCapitalize="sentences" value={direccionForm.address} onChange={(event) => setDireccionForm((form) => ({ ...form, address: event.target.value }))} placeholder="Calle, número y referencia" />
             </FormField>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className={GRILLA_DOS_COLUMNAS}>
               <div>
                 <span className="block text-[11px] font-medium uppercase tracking-wider text-mute">Ciudad</span>
                 <div className="mt-1.5">
@@ -2178,7 +2178,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
             Habilitar venta a crédito
           </label>
           {comercialForm.creditHabilitado && (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className={GRILLA_DOS_COLUMNAS}>
               <FormField label="Límite de crédito (Gs.)" htmlFor="comercial-limite">
                 <MoneyInput id="comercial-limite" disabled={guardandoComercial} value={comercialForm.creditLimitPyg} onValueChange={(value) => setComercialForm((form) => ({ ...form, creditLimitPyg: value }))} placeholder="1.000.000" />
               </FormField>

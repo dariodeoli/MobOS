@@ -31,6 +31,7 @@ import { imprimirDocumento } from '@/lib/printing/agent'
 import { descargarCsv } from '@/utils/descargarCsv'
 import { parseDelimited } from '@/utils/csv'
 import { CELDA_DATO } from '@/components/shared/tabla'
+import { PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
 
 // Denominaciones del arqueo en guaraníes: son las mismas que acepta el backend
 // y el total contado se deriva de acá cuando hay desglose.
@@ -1003,7 +1004,7 @@ export default function Caja() {
               placeholder="Observación opcional"
             />
           </div>
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <div className={PIE_ACCIONES_REVERSO}>
             <Button
               type="button"
               variant="ghost"

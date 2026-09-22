@@ -21,6 +21,7 @@ import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { internationalPhone } from '@/utils/telefono'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import { CELDA_ENCABEZADO, CELDA_IDENTIDAD_GRANDE, ROTULO_DATO } from '@/components/shared/tabla'
+import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 const STATUS = { DRAFT: ['Borrador', 'slate'], SENT: ['Enviada', 'blue'], ACCEPTED: ['Aceptada', 'orange'], REJECTED: ['Rechazada', 'red'], CONVERTED: ['Convertida', 'green'], EXPIRED: ['Vencida', 'red'], CANCELLED: ['Cancelada', 'slate'] }
 // Chips de estado resueltos en el servidor (mismo patrón que Pedidos).
 const ABIERTAS = ['DRAFT', 'SENT', 'ACCEPTED']
@@ -242,7 +243,7 @@ export default function SellerQuotes() {
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más cotizaciones'}</button></div>}
     <Modal open={crearOpen} onClose={() => !busy && setCrearOpen(false)} title="Nueva cotización" className="max-w-2xl">
       <form onSubmit={crear} className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className={GRILLA_DOS_COLUMNAS}>
           <label className="block space-y-1.5 text-xs text-mute">Cliente
             <div className="relative">
               <Input required maxLength={200} autoComplete="off" value={form.customerName} onChange={event => buscarCliente(event.target.value)} placeholder="Nombre o empresa" />
@@ -266,12 +267,12 @@ export default function SellerQuotes() {
           </div>)}
           <Button type="button" variant="outline" onClick={() => setItems(list => [...list, emptyItem()])}>+ Agregar ítem</Button>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className={GRILLA_DOS_COLUMNAS}>
           <label className="block space-y-1.5 text-xs text-mute">Descuento (Gs)<MoneyInput value={form.discountPyg} onValueChange={value => setForm(current => ({ ...current, discountPyg: value === '' ? '' : String(value) }))} placeholder="0" /></label>
           <div className="rounded-xl border border-ink-600 bg-ink-800/60 px-3 py-2 text-sm">Total: <b className="tabular-nums text-fono-light">{gs(Math.max(0, total))}</b></div>
         </div>
         <label className="block space-y-1.5 text-xs text-mute">Notas<Textarea rows={2} maxLength={2000} value={form.notes} onChange={event => setForm(current => ({ ...current, notes: event.target.value }))} placeholder="Condiciones, validez, observaciones…" /></label>
-        <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="ghost" disabled={busy} onClick={() => setCrearOpen(false)}>Cancelar</Button><Button type="submit" disabled={busy || !form.customerName.trim() || !itemsValidos.length}>{busy ? 'Guardando…' : 'Crear cotización'}</Button></div>
+        <div className={PIE_ACCIONES}><Button type="button" variant="ghost" disabled={busy} onClick={() => setCrearOpen(false)}>Cancelar</Button><Button type="submit" disabled={busy || !form.customerName.trim() || !itemsValidos.length}>{busy ? 'Guardando…' : 'Crear cotización'}</Button></div>
       </form>
     </Modal>
     <Modal open={historial !== null} onClose={() => setHistorial(null)} title={`Historial de ${historial?.number || 'cotización'}`}>

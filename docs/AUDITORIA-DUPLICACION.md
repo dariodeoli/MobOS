@@ -83,6 +83,19 @@ warn y la celda de identidad de 13 px que espera a DSN).
 Duplicación pendiente medida: **6 → 1 usos** (queda solo el `Gs.` de una
 plantilla de impresión de PRN, que se coordina con ese slot).
 
+### Lote 9 — piezas de formulario e impresos de servicio (21-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `GRILLA_DOS_COLUMNAS` (+ `_COMPACTA`) | `grid gap-3 sm:grid-cols-2` copiada **48 veces en 24 archivos** (+14 con `gap-2`) | **62 usos** por el objeto; cero literales sueltos |
+| `PIE_ACCIONES` / `PIE_ACCIONES_REVERSO` | `flex flex-wrap justify-end gap-2` (**16 usos**) y su variante reversa (**12**) repetidas en 19 archivos | **28 usos** por los objetos |
+| `lib/servicioImpresion.js` | Tenía `escapar`, `fecha` y `gs` propios (con `Gs.`, distinto del resto de los impresos) | Usa `escapeHtml`, `fechaDia` y `formatGs` compartidos (imports relativos para poder testearse con `node --test`) |
+
+**Duplicación pendiente medida: 1 → 0 usos.** El tablero quedó en cero para
+todos los patrones medidos; lo que sigue son decisiones de diseño (los
+`bg-warn/5`, las notas neutras, los mapas de estado por dominio y los colores
+del POS en #176), listadas como "patrones a revisar".
+
 ### Lote 7 — tokens de tema en pantallas transversales (#176) (21-09)
 
 | Cambio | Antes (evidencia) | Después |

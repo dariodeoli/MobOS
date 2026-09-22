@@ -17,6 +17,7 @@ import ImpresionComparativa from './ImpresionComparativa'
 import ImpresionGraficos from './ImpresionGraficos'
 import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
+import { GRILLA_DOS_COLUMNAS, GRILLA_DOS_COLUMNAS_COMPACTA, PIE_ACCIONES, PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
 // Día y hora con segundos: la telemetría se mide en milisegundos y la columna
 // de actividad tiene que mostrar el segundo exacto, no solo el minuto.
 const fmtDia = (valor) => (valor ? new Date(valor).toLocaleDateString('es-PY', { dateStyle: 'short' }) : '—')
@@ -865,9 +866,9 @@ export default function Impresoras() {
           </div>
         </div>
         {cargando && !estado ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /></div>
+          <div className={cn('lg:grid-cols-4', GRILLA_DOS_COLUMNAS)}><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /></div>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className={cn('lg:grid-cols-4', GRILLA_DOS_COLUMNAS)}>
             <div className="rounded-xl border border-ink-600 p-3">
               <p className="text-xs uppercase tracking-wider text-mute">Computadora puente</p>
               <p className="mt-1 flex items-center gap-2 text-sm font-semibold"><span className={`h-2 w-2 rounded-full ${estado?.disponible ? 'bg-ok' : 'bg-bad'}`} />{estado?.disponible ? 'Encendida' : 'Apagada o sin agente'}</p>
@@ -944,7 +945,7 @@ export default function Impresoras() {
               <b className="text-warn">Sucursal sin puente activo:</b> {sucursalesSinPuente.map((sucursal) => sucursal.nombre).join(', ')} {sucursalesSinPuente.length === 1 ? 'tiene' : 'tienen'} ventas y ningún puente asignado. Sus impresiones se encolan al puente de la empresa.
             </p>
           )}
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className={cn('lg:grid-cols-3', GRILLA_DOS_COLUMNAS_COMPACTA)}>
             {cobertura.map((sucursal) => (
               <div key={sucursal.id} className="rounded-xl border border-ink-600 p-3">
                 <p className="flex items-center justify-between gap-2 text-sm font-semibold">
@@ -1137,7 +1138,7 @@ export default function Impresoras() {
                             ))}
                           </dl>
                           {(fila.resultado === 'fallido' || fila.resultado === 'incierto') && (
-                            <div className="mt-2 flex flex-wrap justify-end gap-2">
+                            <div className={cn('mt-2', PIE_ACCIONES)}>
                               <Button type="button" variant="ghost" className="text-bad" onClick={() => limpiar([fila.jobId])}>Limpiar este trabajo</Button>
                             </div>
                           )}
@@ -1335,7 +1336,7 @@ export default function Impresoras() {
               )}
             </div>
           )}
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className={PIE_ACCIONES}>
             {esDemo && pendientes.length > 0 && <Button type="button" variant="outline" className="border-bad/40 text-bad hover:bg-bad/10" onClick={() => cancelarDemo(pendientes.map((trabajo) => trabajo.id))}>Cancelar pendientes ({pendientes.length})</Button>}
             {fallidos.length > 0 && <Button type="button" variant="outline" onClick={() => reintentar()}>Reintentar fallidos</Button>}
             {fallidos.length > 0 && <Button type="button" variant="ghost" disabled={!seleccionados.length} onClick={() => limpiar(seleccionados)}>Limpiar seleccionados ({seleccionados.length})</Button>}
@@ -1482,7 +1483,7 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
       <div className="space-y-5">
         <div>
           <h4 className={ROTULO_SECCION}>Identificación</h4>
-          <div className="mt-2 grid gap-3 sm:grid-cols-2">
+          <div className={cn('mt-2', GRILLA_DOS_COLUMNAS)}>
             <FormField label="Nombre visible" htmlFor="imp-nombre">
               <Input id="imp-nombre" value={f.nombre} onChange={(event) => set({ nombre: event.target.value })} placeholder="Térmica mostrador" />
             </FormField>
@@ -1509,7 +1510,7 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
               <button key={valor} type="button" onClick={() => set({ conexion: valor })} className={`rounded-lg border px-3 py-2 text-sm font-semibold ${f.conexion === valor ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:text-fore'}`}>{etiqueta}</button>
             ))}
           </div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className={cn('mt-3', GRILLA_DOS_COLUMNAS)}>
             {f.conexion === 'cups' ? (
               <FormField label="Cola CUPS local" htmlFor="imp-usb" hint="Una cola CUPS puede salir por red (socket://) o por USB físico (usb://); la URI real la informa el agente.">
                 <Input id="imp-usb" list="impresoras-usb" value={f.destinoUsb} onChange={(event) => set({ destinoUsb: event.target.value })} placeholder="ZKP8008" autoCapitalize="off" spellCheck={false} />
@@ -1565,7 +1566,7 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
 
         <div>
           <h4 className={ROTULO_SECCION}>Agente</h4>
-          <div className="mt-2 grid gap-3 sm:grid-cols-2">
+          <div className={cn('mt-2', GRILLA_DOS_COLUMNAS)}>
             <FormField label="Sucursal" htmlFor="imp-sucursal" hint="Los documentos de esta sucursal prefieren esta impresora. Sin sucursal, sirve a toda la empresa.">
               <Select id="imp-sucursal" value={f.branchId || ''} onChange={(event) => set({ branchId: event.target.value })}>
                 <option value="">Toda la empresa</option>
@@ -1587,7 +1588,7 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
           <p className="mt-2 text-xs text-mute">Estado: <b className={estado?.disponible ? 'text-ok' : 'text-bad'}>{estado?.disponible ? `agente local conectado · v${estado.version || ''}` : 'esta computadora no tiene el agente local'}</b>{estado?.disponible ? ` · ${estado.host === '0.0.0.0' ? 'acceso: red local' : 'acceso: solo esta computadora'}` : ' · los trabajos se encolan al puente'}.</p>
         </div>
 
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <div className={PIE_ACCIONES_REVERSO}>
           <Button type="button" variant="ghost" onClick={() => setFormulario(null)}>Cancelar</Button>
           <Button type="button" onClick={() => onGuardar({ probar: false })}>Guardar impresora</Button>
           <Button type="button" variant="outline" onClick={() => onGuardar({ probar: true })}>Guardar y probar</Button>
@@ -1717,7 +1718,7 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
           </p>
         )}
         {enviando && <p role="status" className="rounded-lg border border-fono/25 bg-fono/10 p-2 text-xs text-fono-light">{progreso}</p>}
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <div className={PIE_ACCIONES_REVERSO}>
           <Button type="button" variant="ghost" onClick={onCerrar} disabled={enviando}>Cancelar</Button>
           <Button type="button" onClick={() => onEnviar({ tipo, copias: 1, ticket })} disabled={enviando}>{enviando ? 'Enviando…' : 'Imprimir prueba'}</Button>
         </div>

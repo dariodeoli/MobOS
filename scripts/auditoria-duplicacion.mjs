@@ -46,6 +46,7 @@ const MEDICIONES = [
       contar('CELDA_DATO/CELDA_NUMERO', /CELDA_(DATO|NUMERO)/g, { excluir: ['components/shared/tabla.js'] }),
       contar('CELDA_IDENTIDAD', /CELDA_IDENTIDAD(_GRANDE)?\b/g, { excluir: ['components/shared/tabla.js'] }),
       contar('<Textarea>', /<Textarea\b/g, { excluir: ['components/ui/index.jsx'] }),
+      contar('GRILLA_DOS_COLUMNAS/PIE_ACCIONES', /(GRILLA_DOS_COLUMNAS|PIE_ACCIONES)/g, { excluir: ['components/shared/formulario.js'] }),
       contar('CeldaMoneda/CeldaMoneda', /CeldaMoneda/g, { excluir: ['components/ui/index.jsx'] }),
       contar('BarraProgreso', /<BarraProgreso\b/g, { excluir: ['components/ui/index.jsx'] }),
       contar('whatsappUrl', /whatsappUrl\(/g, { excluir: ['utils/telefono.js'] }),
@@ -74,6 +75,9 @@ const MEDICIONES = [
       contar('vista list/grid sin hook', /localStorage\.(getItem|setItem)\('mobos:[a-z-]*vista/g, { excluir: ['hooks/useVistaListaGrid.js'] }),
       contar('monto en Gs a mano', /Gs\.?[^`"']{0,40}toLocaleString\('es-PY'\)/g, { excluir: ['utils/moneda.js'] }),
       contar('textarea crudo', /<textarea/g, { excluir: ['components/ui/index.jsx'] }),
+      contar('grillas de campo copiadas', /className="[^"]*grid gap-3 sm:grid-cols-2/g, { excluir: ['components/shared/formulario.js'] }),
+      contar('pies de acción copiados', /className="[^"]*flex flex-wrap justify-end gap-2/g, { excluir: ['components/shared/formulario.js'] }),
+      contar('pies de acción (reverso) copiados', /className="[^"]*flex flex-col-reverse gap-2 sm:flex-row sm:justify-end/g, { excluir: ['components/shared/formulario.js'] }),
     ],
   },
   // Patrones a revisar: no siempre son duplicación (pueden ser otra pieza

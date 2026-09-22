@@ -9,6 +9,7 @@ import { ENTREGA } from '@/lib/catalog'
 import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
 import PaymentAccountFields, { updateAccountPayment } from '../PaymentAccountFields'
 import EncabezadoBloque from './EncabezadoBloque'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 
 // Cómo se paga y cómo se entrega, en la misma pantalla que el resto de la
 // venta. Cierra con el botón que guarda, pegado al pie para no perderse al
@@ -284,7 +285,7 @@ export default function PasoCobro({
       </div>
 
       {/* Entrega + monto envío */}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className={GRILLA_DOS_COLUMNAS}>
         <div>
           <Label htmlFor="entrega">Entrega</Label>
           <Select id="entrega" value={f.entrega} onChange={set('entrega')}>

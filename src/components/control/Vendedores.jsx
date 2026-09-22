@@ -13,7 +13,7 @@ import PanelDerecho from '@/components/shared/PanelDerecho'
 import { ROLE_LABELS } from '@/lib/roles'
 import { cn } from '@/lib/utils'
 import { CELDA_DATO } from '@/components/shared/tabla'
-
+import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 // PIN aleatorio de 4 a 6 dígitos (crypto): se muestra una sola vez al
 // asignarlo y nunca se guarda en claro.
 function pinAleatorio() {
@@ -477,7 +477,7 @@ export default function Vendedores() {
     <Modal open={horario !== null} onClose={() => !busy && setHorario(null)} title={`Horario de acceso${horario?.nombre ? ` · ${horario.nombre}` : ''}`} className="max-w-lg">
       <form onSubmit={guardarHorario} className="space-y-3">
         <p className="text-sm text-mute">Fuera de estos rangos el integrante no puede ingresar al sistema. Sin rangos, el acceso queda libre.</p>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className={GRILLA_DOS_COLUMNAS}>
           <div><Label htmlFor="horario-tz">Zona horaria</Label><Input id="horario-tz" value={horario?.timezone || 'America/Asuncion'} onChange={event => setHorario(current => ({ ...current, timezone: event.target.value }))} placeholder="America/Asuncion" /></div>
           <div className="flex items-end"><Button type="button" variant="outline" onClick={() => setHorario(current => ({ ...current, windows: [...(current?.windows || []), { days: [1, 2, 3, 4, 5], start: '08:00', end: '18:00' }] }))}>+ Rango</Button></div>
         </div>
@@ -494,7 +494,7 @@ export default function Vendedores() {
             <button type="button" className="self-center text-xs text-bad hover:underline" onClick={() => setHorario(current => ({ ...current, windows: current.windows.filter((_, itemIndex) => itemIndex !== index) }))}>Quitar</button>
           </div>
         ))}
-        <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="ghost" disabled={busy} onClick={() => setHorario(null)}>Cancelar</Button><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar horario'}</Button></div>
+        <div className={PIE_ACCIONES}><Button type="button" variant="ghost" disabled={busy} onClick={() => setHorario(null)}>Cancelar</Button><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar horario'}</Button></div>
       </form>
     </Modal>
     <Modal open={historialDe !== null} onClose={() => setHistorialDe(null)} title={`Historial de ${historialDe?.nombre || 'funcionario'}`}>
