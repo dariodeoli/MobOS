@@ -307,7 +307,7 @@ export default function PagosPedido({ venta, onClose }) {
     if (!resultado.dialogo) setError(resultado.error || 'No se pudo imprimir el recibo interno.')
   }
 
-  return <Modal open onClose={() => !busy && onClose()} title={`Pagos · ${order.codigo || order.cliente || 'Pedido'}`} className="max-w-2xl">
+  return <Modal open onClose={() => !busy && onClose()} title={`Pagos · ${order.codigo || order.cliente || 'Pedido'}`} size="amplio">
     <p className="mb-5 text-sm text-mute">Cada cobro conserva su fecha y referencia. Un archivo adjunto no confirma una transferencia.</p>
     {trackingUrlFor(order) && !esDemo && (
       <div className="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-fono/25 bg-fono/5 p-3">

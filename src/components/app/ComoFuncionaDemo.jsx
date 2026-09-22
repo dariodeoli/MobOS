@@ -56,7 +56,7 @@ export function PuntosDemo({ className = '' }) {
 
 export default function ComoFuncionaDemo({ open, onClose }) {
   return (
-    <Modal open={open} onClose={onClose} title="Cómo funciona la demo" className="max-w-lg">
+    <Modal open={open} onClose={onClose} title="Cómo funciona la demo" size="formulario">
       <PuntosDemo />
       <p className="mt-4 text-xs text-mute">
         ¿Algo no cuadra? Recargá la página: la demo vuelve a su estado inicial.

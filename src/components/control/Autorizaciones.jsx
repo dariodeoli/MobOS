@@ -464,9 +464,7 @@ export default function Autorizaciones() {
         onClose={() => {
           if (!busy) setApproveTarget(null)
         }}
-        title={`Aprobar ${KINDS[approveTarget?.kind] || 'solicitud'}`}
-        className="max-w-lg"
-      >
+        title={`Aprobar ${KINDS[approveTarget?.kind] || 'solicitud'}`} size="formulario">
         {approveTarget && (
           <div className="space-y-4">
             <p className="text-sm text-mute">
@@ -600,9 +598,7 @@ export default function Autorizaciones() {
         onClose={() => {
           if (!busy) setRejectTarget(null)
         }}
-        title={`Rechazar ${KINDS[rejectTarget?.kind] || 'solicitud'}`}
-        className="max-w-lg"
-      >
+        title={`Rechazar ${KINDS[rejectTarget?.kind] || 'solicitud'}`} size="formulario">
         {rejectTarget && (
           <div className="space-y-4">
             <p className="text-sm text-mute">

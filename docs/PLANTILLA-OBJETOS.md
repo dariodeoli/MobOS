@@ -212,6 +212,18 @@ patrón de uso de cada familia y un ejemplo corto.
 
 ## 5. Diálogos, acciones y overlays
 
+- **Ancho por tipo, no por uso (#237):** el `Modal` compartido expone
+  `size` con cuatro tamaños y el ancho vive en `shared/modal.js`
+  (`corto` = `max-w-md`: avisos, confirmaciones y formularios de un campo;
+  `formulario` = `max-w-xl`, predeterminado: formularios de una columna;
+  `amplio` = `max-w-3xl`: formularios de dos columnas, tablas y contenido
+  amplio; `completo` = `max-w-5xl`: editores y pantallas grandes). Prohibido
+  pasar `max-w-*` en el `className` de un modal: el test de aserción
+  (`src/lib/modalReglas.test.js`) y `node scripts/auditoria-modales.mjs`
+  fallan si vuelve un ancho suelto.
+- **Sin franjas vacías:** el contenido de un modal `amplio`/`completo` se
+  acomoda en grillas (campos en `GRILLA_DOS_COLUMNAS`, filas de tabla),
+  nunca en una columna angosta con la mitad del modal vacía.
 - Trampa de foco obligatoria al abrir (`useDialogFocusTrap` o equivalente):
   bloquea scroll, enfoca al abrir, cicla Tab, cierra con `Esc`, devuelve el foco
   y cierra con clic en el backdrop.

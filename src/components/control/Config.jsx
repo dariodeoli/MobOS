@@ -807,7 +807,7 @@ function SeccionInvitaciones() {
           </div>
         ))}
       </div>
-      <Modal open={elegida !== null} onClose={() => !busy && setElegida(null)} title={`Unite a ${elegida?.companyName || 'la tienda'}`} className="max-w-sm">
+      <Modal open={elegida !== null} onClose={() => !busy && setElegida(null)} title={`Unite a ${elegida?.companyName || 'la tienda'}`} size="corto">
         <form onSubmit={aceptar} className="space-y-4">
           <p className="text-sm text-mute">Elegí tu PIN de 4 a 6 dígitos para entrar a esta tienda. Podés usar el mismo que en tu tienda actual.</p>
           <PinInput autoFocus length={6} value={pin} onChange={(next) => { setPin(next); setError('') }} />
@@ -825,7 +825,7 @@ function DialogoDestructivo({ open, title, description, palabra, necesitaClave =
   useEffect(() => { if (open) { setPalabraActual(''); setClave('') } }, [open])
   const lista = palabraActual.trim() === palabra && (!necesitaClave || clave)
   return (
-    <Modal open={open} onClose={busy ? undefined : onCancel} title={title} className="max-w-md">
+    <Modal open={open} onClose={busy ? undefined : onCancel} title={title} size="corto">
       <div className="space-y-4">
         <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-bad/10 text-bad"><Icon name="alert" className="h-5 w-5" /></div>
         <p className="text-sm leading-6 text-mute">{description}</p>

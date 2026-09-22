@@ -22,7 +22,7 @@ export default function Preferencias({ open, onClose, preferencias, onCambiar })
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Preferencias" className="max-w-md">
+    <Modal open={open} onClose={onClose} title="Preferencias" size="corto">
       <div className="space-y-5">
         <section>
           <h3 className="text-sm font-semibold">Tema</h3>
