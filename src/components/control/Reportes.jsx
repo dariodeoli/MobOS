@@ -384,7 +384,7 @@ export default function Reportes() {
           )}
 
           {grupo === 'product' && grupos.length > 0 && (
-            <Card className="overflow-x-auto p-0">
+            <Card className="overflow-x-auto p-0" data-testid="reportes-abc-tabla">
               <div className="flex items-center justify-between border-b border-ink-600 p-4">
                 <h3 className="font-semibold">Curva ABC y antigüedad</h3>
                 <span className="text-xs text-mute">A: 80% acumulado · B: 95% · C: resto</span>

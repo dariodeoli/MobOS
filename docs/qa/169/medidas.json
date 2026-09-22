@@ -1,0 +1,102 @@
+{
+  "web": "http://localhost:5215",
+  "medidas": [
+    {
+      "ancho": 1280,
+      "vista": "conciliacion",
+      "testid": "conciliacion-grupos",
+      "scrollWidth": 970,
+      "clientWidth": 970,
+      "desborde": 0
+    },
+    {
+      "ancho": 1280,
+      "vista": "conciliacion",
+      "testid": "conciliacion-tabla",
+      "scrollWidth": 970,
+      "clientWidth": 970,
+      "desborde": 0
+    },
+    {
+      "ancho": 1280,
+      "vista": "caja",
+      "testid": "auditoria-efectivo-tabla",
+      "scrollWidth": 970,
+      "clientWidth": 970,
+      "desborde": 0
+    },
+    {
+      "ancho": 1280,
+      "vista": "creditos",
+      "testid": "creditos-tabla",
+      "scrollWidth": 970,
+      "clientWidth": 970,
+      "desborde": 0
+    },
+    {
+      "ancho": 1280,
+      "vista": "reportes",
+      "testid": "reportes-abc-tabla",
+      "scrollWidth": 1010,
+      "clientWidth": 1010,
+      "desborde": 0
+    },
+    {
+      "ancho": 1280,
+      "vista": "resumen",
+      "testid": null,
+      "scrollWidth": 1010,
+      "clientWidth": 1010,
+      "desborde": 0
+    },
+    {
+      "ancho": 1440,
+      "vista": "conciliacion",
+      "testid": "conciliacion-grupos",
+      "scrollWidth": 1130,
+      "clientWidth": 1130,
+      "desborde": 0
+    },
+    {
+      "ancho": 1440,
+      "vista": "conciliacion",
+      "testid": "conciliacion-tabla",
+      "scrollWidth": 1130,
+      "clientWidth": 1130,
+      "desborde": 0
+    },
+    {
+      "ancho": 1440,
+      "vista": "caja",
+      "testid": "auditoria-efectivo-tabla",
+      "scrollWidth": 1130,
+      "clientWidth": 1130,
+      "desborde": 0
+    },
+    {
+      "ancho": 1440,
+      "vista": "creditos",
+      "testid": "creditos-tabla",
+      "scrollWidth": 1130,
+      "clientWidth": 1130,
+      "desborde": 0
+    },
+    {
+      "ancho": 1440,
+      "vista": "reportes",
+      "testid": "reportes-abc-tabla",
+      "scrollWidth": 1170,
+      "clientWidth": 1170,
+      "desborde": 0
+    },
+    {
+      "ancho": 1440,
+      "vista": "resumen",
+      "testid": null,
+      "scrollWidth": 1170,
+      "clientWidth": 1170,
+      "desborde": 0
+    }
+  ],
+  "desbordes": []
+}

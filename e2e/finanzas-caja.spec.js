@@ -48,6 +48,11 @@ test.describe('finanzas · caja', () => {
 
     const filaCobro = page.getByTestId('auditoria-fila').filter({ hasText: numero })
     await expect(filaCobro).toBeVisible()
+
+    // Lote 6-C (#169): la grilla de auditoría entra sin scroll horizontal.
+    const medidaAuditoria = await page.getByTestId('auditoria-efectivo-tabla').evaluate((nodo) => ({ scrollWidth: nodo.scrollWidth, clientWidth: nodo.clientWidth }))
+    expect(medidaAuditoria.scrollWidth, 'la auditoría no debe pedir scroll horizontal').toBeLessThanOrEqual(medidaAuditoria.clientWidth + 1)
+
     const estadoSelect = filaCobro.getByRole('combobox')
     await estadoSelect.selectOption('VERIFIED')
     await expect(estadoSelect).toHaveValue('VERIFIED')

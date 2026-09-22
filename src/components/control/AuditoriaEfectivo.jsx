@@ -123,7 +123,7 @@ export default function AuditoriaEfectivo() {
         <div className={cn('rounded-xl border p-3', (resumen.diferenciaPyg || 0) === 0 ? 'border-ink-600' : 'border-warn/40 bg-warn/10')}><p className={ROTULO_DATO}>Diferencias de cierre</p><strong className={cn('mt-1 block tabular-nums', (resumen.diferenciaPyg || 0) === 0 ? '' : 'text-warn')}>{formatGs(resumen.diferenciaPyg || 0)}</strong><p className="mt-0.5 text-[11px] text-mute">{resumen.verificadas || 0} verificadas · {resumen.pendientes || 0} pendientes · {resumen.conDiferencia || 0} con diferencia</p></div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" data-testid="auditoria-efectivo-tabla">
         <div className="grid min-w-[52rem] grid-cols-[6.5rem_minmax(0,1fr)_8rem_7rem_11rem_minmax(0,1.1fr)] items-center gap-x-2 px-3.5 pb-2 pt-1">
           {['Fecha', 'Operación', 'Vendedor', 'Monto', 'Estado', 'Observación'].map((titulo) => <span key={titulo} className={CELDA_ENCABEZADO}>{titulo}</span>)}
         </div>

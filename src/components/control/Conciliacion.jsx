@@ -37,7 +37,9 @@ const fecha = (valor) => {
 const rangoPorDefecto = () => ({ ...PRESETS.find((preset) => preset.id === '30d').calc(), preset: '30d' })
 
 const GRID_GRUPOS = 'grid min-w-[46rem] grid-cols-[minmax(0,1.5fr)_5rem_6.5rem_6.5rem_7rem_minmax(0,1fr)] items-center gap-x-2'
-const GRID_ITEMS = 'grid min-w-[64rem] grid-cols-[1.5rem_5.5rem_minmax(0,1.3fr)_minmax(0,1.2fr)_7rem_minmax(0,0.9fr)_7rem_6.5rem_5rem] items-center gap-x-2'
+// 60rem entra sin scroll a 1280 (viewport de desktop mínimo) y por debajo
+// scrollea dentro de su caja; columnas fijas medidas sobre el dato real.
+const GRID_ITEMS = 'grid min-w-[60rem] grid-cols-[1.5rem_5.5rem_minmax(0,1.3fr)_minmax(0,1.2fr)_7rem_minmax(0,0.9fr)_7rem_6.5rem_5rem] items-center gap-x-2'
 
 function Resumen({ resumen }) {
   const tarjetas = [
@@ -68,7 +70,7 @@ function Grupos({ titulo, filas, activo, onFiltrar }) {
         <h3 className="text-sm font-semibold">{titulo}</h3>
         <button type="button" aria-expanded={abierto} className="text-xs text-mute transition hover:text-fore" onClick={() => setAbierto((valor) => !valor)}>{abierto ? 'Ocultar' : 'Mostrar'}</button>
       </div>
-      {abierto && <div className="overflow-x-auto">
+      {abierto && <div className="overflow-x-auto" data-testid="conciliacion-grupos">
         <div className={cn(GRID_GRUPOS, 'px-3.5 pb-2 pt-1')}>
           {['Cuenta / procesadora', 'Pagos', 'Conciliado', 'Por conciliar', 'Diferencia', 'Detalle'].map((columna) => <span key={columna} className={CELDA_ENCABEZADO}>{columna}</span>)}
         </div>
@@ -367,7 +369,7 @@ export default function Conciliacion() {
             action={hayRecorte ? <Button type="button" variant="outline" className="h-8 px-3 text-xs" onClick={limpiarFiltros}>Limpiar filtros</Button> : null}
           />
         )}
-        {!loading && filtrados.length > 0 && <div className="overflow-x-auto">
+        {!loading && filtrados.length > 0 && <div className="overflow-x-auto" data-testid="conciliacion-tabla">
           <div className={cn(GRID_ITEMS, 'px-3.5 pb-2 pt-1')}>
             <span />
             {['Fecha', 'Pedido / cliente', 'Cuenta / titular', 'Procesadora', 'Referencia', 'Monto', 'Estado', 'Acciones'].map((columna) => <span key={columna} className={CELDA_ENCABEZADO}>{columna}</span>)}
