@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
+import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 import { Drawer, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -319,7 +320,7 @@ export default function AppShell({
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-paper text-sm text-fore lg:flex-row">
+    <div className={cn('flex min-h-dvh flex-col bg-paper text-sm text-fore lg:flex-row', temaV2Activo() && 'tema-v2')}>
       <aside
         data-testid="shell-lateral"
         className={cn(

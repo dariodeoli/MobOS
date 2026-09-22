@@ -54,3 +54,15 @@ se apaga el flag o se retira la línea.
 shared/formulario”), que marca mi cambio de clases de la vista previa. Es el
 primer arreglo del próximo pase: leer la guarda y ajustar el uso (o mover la
 clase a un wrapper fuera del alcance de la guarda). Sin impacto en la app.
+
+## Estado actualizado (segunda pasada)
+
+- **Shell**: ✅ detrás del flag. `AppShell` aplica `tema-v2` solo con la preview
+  activa (`cn('flex min-h-dvh …', temaV2Activo() && 'tema-v2')`); el default
+  queda igual.
+- **Tablero ops**: ✅ detrás del flag. `/rediseno-f3` solo muestra el tablero con
+  la preview activa; con el flag apagado explica cómo prenderlo.
+- **Capturas**: `docs/rediseno/c241f3p-shell-{off,on}.png` y
+  `c241f3p-tablero-{off,on}.png` (1280, claro).
+- **Sigue pendiente**: carrito POS (espera la guarda de CMP) y el arreglo de la
+  guarda `objetosReglas.test.js:165` (`npm test` 579/580).
