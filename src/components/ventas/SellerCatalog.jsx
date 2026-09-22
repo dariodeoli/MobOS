@@ -56,7 +56,7 @@ function FilaProducto({ row, onClick, seleccionado = false, onAlternar }) {
       <span className="truncate text-right text-[11px] tabular-nums text-mute">{mayorista(row) > 0 ? gs(mayorista(row)) : '—'}</span>
       <span className="truncate text-right text-[11px] tabular-nums text-mute">{usdTexto(row)}</span>
       <span className="truncate text-right text-sm font-bold tabular-nums text-fore">{precio(row) > 0 ? gs(precio(row)) : '—'}</span>
-      <span className={cn('justify-self-end rounded-md border px-1.5 py-0.5 text-[10px] font-bold tabular-nums', stock > 0 ? 'border-ok/25 bg-ok/10 text-ok' : 'border-ink-500 bg-ink-700/40 text-mute')}>{stock}</span>
+      <span className={cn('justify-self-end rounded-md border px-1.5 py-0.5 text-[10px] font-bold tabular-nums', stock > 0 ? 'border-ok/25 bg-ok/10 font-bold text-fore' : 'border-ink-500 bg-ink-700/40 text-mute')}>{stock}</span>
     </div>
   )
 }

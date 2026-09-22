@@ -33,12 +33,12 @@ body {
   --c-ink-500: 148 163 184;
   --c-mute: 58 70 90;
   --c-fono: 16 185 129;
-  --c-fono-dark: 5 150 105;
-  --c-fono-light: 5 150 105;
+  --c-fono-dark: 4 120 87;
+  --c-fono-light: 4 120 87;
   --c-fono-glow: 16 185 129;
-  --c-ok: 21 128 61;
+  --c-ok: 22 101 52;
   --c-bad: 185 28 28;
-  --c-warn: 180 83 9;
+  --c-warn: 146 64 14;
   --c-info: 3 105 161;
   --c-reserved: 109 40 217;
   --c-onbrand: 4 28 18;
