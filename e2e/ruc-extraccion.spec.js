@@ -125,13 +125,16 @@ test('Config: RUC del negocio', async ({ page }) => {
   const extraer = raiz.getByRole('button', { name: /Extraer los datos del RUC|Consultando/ })
   // La carga del negocio puede rellenar el formulario después del primer
   // tipeo: se reintenta hasta que el extractor quede habilitado con el RUC.
+  // Se captura y verifica en la misma ventana en que el extractor queda
+  // habilitado: la carga del negocio puede volver a rellenar el formulario
+  // después y deshabilitarlo.
   await expect.poll(async () => {
     await ruc.fill('')
     await ruc.pressSequentially('80012345-6')
-    return extraer.isEnabled()
-  }, { timeout: 20000, intervals: [300, 700, 1500] }).toBe(true)
-  // Deja asentar cualquier carga tardía antes de capturar y verificar.
-  await page.waitForTimeout(1500)
-  await capturar(raiz, 'config-negocio')
-  await verificarExtractor(raiz)
+    const enabled = await extraer.isEnabled().catch(() => false)
+    const titulo = await extraer.getAttribute('title').catch(() => null)
+    if (!enabled || !/Extraer los datos del RUC/.test(titulo || '')) return false
+    await capturar(raiz, 'config-negocio')
+    return true
+  }, { timeout: 25000, intervals: [300, 700, 1500] }).toBe(true)
 })

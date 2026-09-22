@@ -47,7 +47,7 @@ test('el portal del cliente se abre desde la ficha y muestra el saldo pendiente'
   await expect(ficha.getByRole('heading', { name: cliente.body.name })).toBeVisible()
   await ficha.getByRole('button', { name: 'Portal del cliente' }).click()
   await expect(page.getByAltText('QR del portal del cliente')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Rápido', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(ficha.getByRole('button', { name: 'Rápido', exact: true })).toHaveAttribute('aria-pressed', 'true')
   const enlace = await page.locator('p.break-all').textContent()
   expect(enlace).toContain('/cuenta/')
 
@@ -62,7 +62,7 @@ test('el portal del cliente se abre desde la ficha y muestra el saldo pendiente'
   await expect(portal.getByText(numeroPedido)).toBeVisible()
   await expect(portal.getByText('Al día')).toHaveCount(0)
 
-  // El selector de nivel cambia el alcance del portal.
-  await page.getByRole('button', { name: 'Completo' }).click()
+  // El selector de nivel cambia el alcance del portal (dentro de la ficha).
+  await ficha.getByRole('button', { name: 'Completo', exact: true }).click()
   await expect(page.getByText('Además garantías activas, direcciones y comprobantes.')).toBeVisible()
 })
