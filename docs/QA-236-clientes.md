@@ -51,18 +51,16 @@ Objetos de la biblioteca reusados: `Modal`, `Avatar`, `Badge`, `FilaDato`,
 - **6/6 pasos** y **0 llamadas** al API de clientes (todo sale del navegador).
 - Corrida local (harness, v1.0.139 con #236): `MOBOS_QA_URL=http://localhost:5216 node scripts/qa-236-clientes-demo.mjs`.
 
-### Post-deploy .140 en producción (pendiente de que salga)
+### Post-deploy en producción — ✅ verificado en v1.0.141
 
-Al cierre de esta entrega producción seguía en **v1.0.139** (main en `f3713a67`)
-y #236 viaja en la rama. Cuando el release impacte, se corre el mismo verificador
-contra la demo pública:
+Con el release publicado se corrió el mismo verificador contra la **demo
+pública** (22/9/2026, 13:17 UTC): **6/6 pasos OK** y **0 llamadas** al API de
+clientes. Las capturas y `resultados.json` de esta carpeta son de esa corrida
+(versión sellada: **v1.0.141**).
 
 ```bash
 node scripts/qa-236-clientes-demo.mjs        # https://app.moboss.online/demo
 ```
-
-Deja capturas + `resultados.json` (versión desplegada y resultado por paso) y
-sale 1 si algo falla o si la demo toca el API.
 
 ### Ajustes de la verificación
 
