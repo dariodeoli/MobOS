@@ -83,6 +83,15 @@ warn y la celda de identidad de 13 px que espera a DSN).
 Duplicación pendiente medida: **6 → 1 usos** (queda solo el `Gs.` de una
 plantilla de impresión de PRN, que se coordina con ese slot).
 
+### Lote 15 — el rack del piloto con los objetos v2 (22-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `shared/GradoBadge` en el modo taller | `TallerRack` tenía su propio `COLOR_GRADO` (`A` verde, `B` naranja, `C` gris) y un `Badge` armado a mano | `GradoBadge` del objeto; el grado C queda **rojo** como en la ficha y el informe (antes gris en el rack), una sola regla de color |
+| `shared/MedidorBateria` en el modo taller | El rack repetía los umbrales inline (`>= 90` verde, `>= 80` naranja, si no gris) | `MedidorBateria` con `variante="chip"` + `mostrarEtiqueta` (muestra «87% batería» como antes) y los umbrales del objeto (< 80 ahora **rojo**, antes gris) |
+
+**Duplicación pendiente: 0 usos.** Biblioteca: `owncoding-ui` **v0.14.4** (prop
+`mostrarEtiqueta` del medidor, en espejo).
 ### Lote 14 — preview del papel compartido (22-09)
 
 | Objeto | Antes (evidencia) | Después |

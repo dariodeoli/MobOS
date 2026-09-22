@@ -431,6 +431,9 @@ test('el tono de la unidad vive en utils/inventario (#217)', () => {
   }
 })
 
+  const medidor = readFileSync(join(RAIZ, 'components/shared/MedidorBateria.jsx'), 'utf8')
+  assert.match(medidor, /mostrarEtiqueta = false/, 'el chip puede mostrar la palabra (rack)')
+})
 // Lote 12: el QR y la ficha del informe público salen de los objetos; ninguna
 // pantalla vuelve a llamar a `qrcode` por su cuenta.
 test('el QR del informe sale de lib/qr y shared/CodigoQr (#240)', () => {

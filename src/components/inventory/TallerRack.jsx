@@ -5,9 +5,10 @@ import SearchField from '@/components/shared/SearchField'
 import { CELDA_DATO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import { PIE_ACCIONES } from '@/components/shared/formulario'
 import { cn } from '@/lib/utils'
+import GradoBadge from '@/components/shared/GradoBadge'
+import MedidorBateria from '@/components/shared/MedidorBateria'
 import { agruparRack, bateriaDe, conCosto, ESTACIONES, estadoEnRack, ETIQUETA_RACK, filtrarRack, gradoDe, ORDEN_RACK, TONO_RACK } from '@/lib/tallerRack'
 
-const COLOR_GRADO = { A: 'green', B: 'orange', C: 'slate' }
 
 function nombreUnidad(unit) {
   return unit?.product?.name || unit?.product?.nombre || 'Equipo'
@@ -238,8 +239,8 @@ export default function TallerRack({
                           <p className={CELDA_IDENTIDAD} title={nombreUnidad(unit)}>{nombreUnidad(unit)}</p>
                           <p className="mt-0.5 truncate font-mono text-[11px] text-fono-light" title={unit.serial}>{unit.serial}</p>
                           <p className="mt-1 flex flex-wrap items-center gap-1.5">
-                            {grado && <Badge color={COLOR_GRADO[grado]}>Grado {grado}</Badge>}
-                            {bateria !== null && <Badge color={bateria >= 90 ? 'green' : bateria >= 80 ? 'orange' : 'slate'}>{bateria}% batería</Badge>}
+                            {grado && <GradoBadge grado={grado} />}
+                            {bateria !== null && <MedidorBateria porcentaje={bateria} variante="chip" mostrarEtiqueta />}
                             {!conCosto(unit) && <Badge color="orange">Sin costo</Badge>}
                             {(unit.location?.name || unit.locationName) && <span className={CELDA_DATO}>{unit.location?.name || unit.locationName}</span>}
                           </p>
