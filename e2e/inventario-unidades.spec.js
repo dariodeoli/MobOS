@@ -355,13 +355,24 @@ test('el modo taller agrupa por estado y verifica en serie', async ({ page }) =>
     await expect(page.getByTestId('rack-equipo').filter({ hasText: datos.unidades[0].serial })).toBeVisible()
     await page.getByLabel('Filtrar por ubicación').selectOption('')
 
-    // Impresión en serie: la selección y el carril completo.
-    await expect(page.getByTestId('rack-imprimir-por-verificar')).toBeEnabled()
-
-    // Selección de las unidades nuevas y verificación en serie.
+    // Selección de las unidades nuevas.
     for (const unidad of datos.unidades) await page.getByLabel(`Seleccionar ${unidad.serial}`).check()
     await expect(page.getByTestId('rack-seleccionados')).toHaveText('3 seleccionados')
-    await expect(page.getByTestId('rack-imprimir-lote')).toBeEnabled()
+    await expect(page.getByTestId('rack-imprimir-por-verificar')).toBeEnabled()
+
+    // Impresión en serie: carril completo y modal con alcance (selección,
+    // estación o todo lo filtrado) + hoja de estación.
+    await page.getByTestId('rack-imprimir-serie').click()
+    const modalImpresion = page.getByRole('dialog', { name: 'Imprimir en serie' })
+    await expect(modalImpresion).toBeVisible()
+    await expect(page.getByTestId('rack-alcance-seleccion')).toHaveAttribute('aria-checked', 'true')
+    await expect(page.getByTestId('rack-alcance-filtrados')).toBeVisible()
+    await expect(page.getByTestId('rack-impresion-resumen')).toContainText('3 etiqueta')
+    await expect(page.getByTestId('rack-hoja-estacion')).toBeEnabled()
+    await page.screenshot({ path: 'docs/qa/240-taller/06-rack-imprimir-serie.jpg', type: 'jpeg', quality: 70 })
+    await page.keyboard.press('Escape')
+
+    // Verificación en serie.
     await page.getByTestId('rack-verificar-lote').click()
     await expect(page.getByText('3 unidades verificadas.')).toBeVisible({ timeout: 20000 })
 
