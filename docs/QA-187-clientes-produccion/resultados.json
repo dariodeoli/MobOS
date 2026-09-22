@@ -1,13 +1,13 @@
 {
   "app": "https://app.moboss.online",
   "portal": "https://clientes.moboss.online",
-  "fecha": "2026-09-22T01:06:39.703Z",
-  "version": "1.0.137",
+  "fecha": "2026-09-22T01:41:19.392Z",
+  "version": "1.0.138",
   "pasos": [
     {
       "paso": "entrada anónima a /demo",
       "ok": true,
-      "detalle": "versión v1.0.137"
+      "detalle": "versión v1.0.138"
     },
     {
       "paso": "lista de clientes con agregados reales (#221)",
@@ -22,7 +22,7 @@
     {
       "paso": "alta de cliente en demo (local, sin API)",
       "ok": true,
-      "detalle": "QAZ4KN0 creado en el navegador"
+      "detalle": "QA0D58Z creado en el navegador"
     },
     {
       "paso": "ficha → resumen con total, saldo y últimas órdenes",
@@ -112,7 +112,7 @@
   "rateLimit": {
     "pedido429": 29,
     "ultimoEstado": 429,
-    "retryAfter": "57"
+    "retryAfter": "56"
   },
   "apiReal": [],
   "observaciones": [

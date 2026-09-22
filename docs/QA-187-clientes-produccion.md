@@ -1,8 +1,8 @@
-# QA #187 — Clientes completo en PRODUCCIÓN (v1.0.137)
+# QA #187 — Clientes completo en PRODUCCIÓN (v1.0.138)
 
 Recorrido funcional headless (Playwright, Chromium) contra la demo pública
 (`/demo` → Dueño y Vendedor), los públicos de `clientes.moboss.online` y el API
-público. **Versión desplegada verificada: v1.0.137** (22/9/2026, 01:06 UTC).
+público. **Versión desplegada verificada: v1.0.138** (22/9/2026, 01:41 UTC).
 Incluye la evidencia de **#221** (agregados de clientes como la cuenta real).
 
 - Script: `e2e/prod/187-clientes.mjs` (`node e2e/prod/187-clientes.mjs`;
@@ -15,16 +15,17 @@ Incluye la evidencia de **#221** (agregados de clientes como la cuenta real).
 - Evidencia #221 en detalle: `docs/QA-221-demo-clientes-prod.md` y
   `docs/QA-221-demo-clientes-prod/` (script `scripts/qa-221-clientes-produccion.mjs`).
 
-> **Nota de versión:** el pedido mencionaba el deploy **.138**; al momento de
-> esta corrida la versión publicada era **v1.0.137** (`main` en `7a0e5ec0`).
-> Los dos scripts son repetibles sobre la versión que esté desplegada:
-> `node e2e/prod/187-clientes.mjs` y `node scripts/qa-221-clientes-produccion.mjs`.
+> **Nota de versión:** la corrida original fue sobre **v1.0.137**; cuando el
+> deploy **v1.0.138** (`main` en `fcf84fcb`) quedó publicado se repitió completa
+> sobre esa versión (mismos 17/17). Los scripts son repetibles y sellan la
+> versión que encuentren: `node e2e/prod/187-clientes.mjs` y
+> `node scripts/qa-221-clientes-produccion.mjs`.
 
 ## Verificado (17/17)
 
 | # | Área | Resultado | Captura |
 |---|---|---|---|
-| 1 | Entrada anónima a `/demo` + versión desplegada | **v1.0.137**, sin login, aviso de datos ficticios | `01-demo-entrada.png` |
+| 1 | Entrada anónima a `/demo` + versión desplegada | **v1.0.138**, sin login, aviso de datos ficticios | `01-demo-entrada.png` |
 | 2 | Listado de clientes con **agregados reales (#221)** | Lucía con **5 compras** y **Gs 7.750.000**; la cartera demo (12) con pedidos/totales | `02-clientes-agregados.png` |
 | 3 | Búsqueda instantánea y filtros | “Lucía” → 1 fila · sin resultados → 0 filas · chips Todos/Mayoristas/Con deuda/Con crédito | `03-clientes-busqueda.png` |
 | 4 | Alta de cliente en demo | `+ Crear cliente` → Guardar → queda en la lista (local, sin API) | `04-clientes-alta.png` |
