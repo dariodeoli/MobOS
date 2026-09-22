@@ -14,6 +14,7 @@ la impresora o por «Descargar PDF».
 | `informe-80mm.pdf` / `.jpg` | El mismo informe en rollo de 80 mm (el HTML que usa «Descargar PDF» en formato 80 mm). |
 | `informe-80mm-escpos.pdf` / `.jpg` | Lo que recibe la impresora térmica (ESC/POS, 42 columnas) en la impresión directa. |
 | `certificado-80mm.pdf` / `.jpg` · `certificado-a4.pdf` / `.jpg` | La constancia de inspección (etiqueta Certificado) del mismo equipo: grado, puntaje, controles y checklist. |
+| `hoja-estacion-a4.pdf` / `.jpg` | **Hoja de estación** del modo taller (A4): los equipos de un carril con modelo, IMEI/serial, estado, ubicación y el grado/batería cuando hay inspección, con firma/control. |
 | `qr-enlace.png` | El QR que va impreso, para escanearlo desde la pantalla. |
 | `datos-ejemplo.json` | La unidad, la inspección y el enlace usados. |
 

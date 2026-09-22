@@ -1,10 +1,10 @@
 {
   "base": "https://app.moboss.online",
-  "fecha": "2026-09-22T15:49:33.907Z",
+  "fecha": "2026-09-22T19:09:18.042Z",
   "pasos": [
     {
       "paso": "demo + versión",
-      "detalle": "v1.0.142",
+      "detalle": "v1.0.143",
       "ok": true
     },
     {
@@ -14,7 +14,7 @@
     },
     {
       "paso": "botón Certificado en la ficha",
-      "detalle": "ausente (todavía no desplegado)",
+      "detalle": "presente (ronda con la etiqueta)",
       "ok": true
     },
     {
@@ -23,22 +23,41 @@
       "ok": true
     },
     {
+      "paso": "hoja de estación (demo)",
+      "detalle": "aviso honesto del demo",
+      "ok": true
+    },
+    {
       "paso": "PDF 80 mm generado desde la app",
-      "detalle": "105036 bytes",
+      "detalle": "107205 bytes",
       "ok": true
     }
   ],
   "resultados": [
     {
       "documento": "informe-80mm",
-      "version": "v1.0.142",
+      "version": "v1.0.143",
       "paginas": 1,
       "qr": "https://app.moboss.online/u/AUR0001000000000",
       "estado": "ok"
     },
     {
       "documento": "informe-a4",
-      "version": "v1.0.142",
+      "version": "v1.0.143",
+      "paginas": 1,
+      "qr": "https://app.moboss.online/u/AUR0001000000000",
+      "estado": "ok"
+    },
+    {
+      "documento": "certificado-a4",
+      "version": "v1.0.143",
+      "paginas": 1,
+      "qr": "https://app.moboss.online/u/AUR0001000000000",
+      "estado": "ok"
+    },
+    {
+      "documento": "certificado-80mm",
+      "version": "v1.0.143",
       "paginas": 1,
       "qr": "https://app.moboss.online/u/AUR0001000000000",
       "estado": "ok"
