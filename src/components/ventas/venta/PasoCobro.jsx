@@ -110,6 +110,16 @@ export default function PasoCobro({
                     : x === 'Retiro en tienda'
                       ? 'Retiro en tienda'
                       : x}
+            <button
+              type="button"
+              className="grid h-9 w-9 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad"
+              title="Eliminar pago"
+              aria-label={`Eliminar pago ${i + 1}`}
+              disabled={guardando}
+              onClick={() => setPagos(a => a.filter((_, j) => j !== i))}
+            >
+              <Icon name="trash" className="h-4 w-4" />
+            </button>
               </option>
             ))}
           </Select>
