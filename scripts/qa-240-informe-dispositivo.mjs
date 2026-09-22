@@ -183,7 +183,7 @@ function validarInformeHtml(html) {
 function validarCertificadoHtml(html) {
   const problemas = []
   const texto = plano(html.replace(/<[^>]+>/g, ' '))
-  for (const marca of ['Certificado PhoneCheck', 'Puntaje 100/100', 'iCloud', 'ESN/Blacklist', 'FALLA', 'Pantalla / táctil', 'Carcasa', 'Verificado por', 'Lucía Fernández', 'imeicheck.net', 'iCloud/US Block clean no equivalen a blacklist mundial', 'Constancia de inspección', 'Informe público', 'Escaneá para abrir el informe público.']) {
+  for (const marca of ['Certificado PhoneCheck', 'Puntaje 100/100', 'iCloud', 'ESN/Blacklist', 'Activo', 'Pantalla / táctil', 'Carcasa', 'Verificado por', 'Lucía Fernández', 'imeicheck.net', 'iCloud/US Block clean no equivalen a blacklist mundial', 'Constancia de inspección', 'Informe público', 'Escaneá para abrir el informe público.']) {
     if (!texto.includes(marca)) problemas.push(`falta «${marca}»`)
   }
   if (!/img class="qr"/.test(html)) problemas.push('sin QR')
@@ -201,7 +201,7 @@ function validarTermico(lineas, marcas) {
 }
 
 const MARCAS_INFORME = ['INFORME DE DISPOSITIVO', 'iPhone 15 Pro', 'Grado', 'Puntaje', '100/100', 'Pantalla / táctil', 'Obs.', 'Crujido al máximo', 'iCloud/US Block clean no equivalen a blacklist mundial', 'INFORME DEL DISPOSITIVO']
-const MARCAS_CERTIFICADO = ['CERTIFICADO PHONECHECK', 'GRADO', 'Puntaje 100/100', 'iCloud', 'ESN/Blacklist', 'FALLA', 'Lucía Fernández', 'Constancia de inspección', '[QR]', '[BARRA]']
+const MARCAS_CERTIFICADO = ['CERTIFICADO PHONECHECK', 'GRADO', 'Puntaje 100/100', 'iCloud', 'ESN/Blacklist', 'Activo', 'Lucía Fernández', 'Constancia de inspección', '[QR]', '[BARRA]']
 
 try {
   // 1) Informe con checklist de INV (el `enlace` cae al contrato `/u/<serial>`).

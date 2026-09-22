@@ -143,14 +143,14 @@ test('sin payload, el resumen sale de la inspección cruda y de la consulta IMEI
   assert.deepEqual(resumen.bateria, { porcentaje: '89', ciclos: '310' })
   assert.equal(resumen.verificadoPor, 'Lucía Fernández')
   const labels = resumen.controles.map((control) => control.label)
-  assert.deepEqual(labels, ['iCloud', 'MDM', 'ESN/Blacklist', 'Carrier/SIM'])
+  assert.deepEqual(labels, ['iCloud / Find My', 'MDM', 'ESN / lista negra', 'Carrier / SIM lock'])
   assert.equal(resumen.controles[0].ok, true)
   assert.equal(resumen.controles[2].ok, true)
 })
 
 test('los controles se derivan de la verificación IMEI (iCloud/MDM/ESN/Carrier)', () => {
   const controles = controlesDeVerificacion(CONSULTA)
-  assert.deepEqual(controles.map((control) => [control.label, control.ok]), [['iCloud', true], ['MDM', true], ['ESN/Blacklist', true], ['Carrier/SIM', true]])
+  assert.deepEqual(controles.map((control) => [control.label, control.ok]), [['iCloud / Find My', true], ['MDM', true], ['ESN / lista negra', true], ['Carrier / SIM lock', true]])
   assert.deepEqual(controlesDeVerificacion(null), [])
   const reportado = controlesDeVerificacion({ normalized: [{ clave: 'findMy', etiqueta: 'Find My / iCloud', valor: 'On' }, { clave: 'blacklist', etiqueta: 'Blacklist actual', valor: 'Reportado' }] })
   assert.equal(reportado[0].ok, false)

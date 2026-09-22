@@ -1,6 +1,6 @@
 {
-  "base": "http://127.0.0.1:5281",
-  "fecha": "2026-09-22T14:03:47.156Z",
+  "base": "http://127.0.0.1:5283",
+  "fecha": "2026-09-22T15:01:13.590Z",
   "resultados": [
     {
       "documento": "informe-a4",
@@ -37,7 +37,7 @@
       "formato": "a4",
       "tipo": "html",
       "paginas": 1,
-      "contenidoMm": 266,
+      "contenidoMm": 251,
       "estado": "ok"
     },
     {
@@ -45,7 +45,7 @@
       "formato": "thermal-80",
       "tipo": "html",
       "paginas": 1,
-      "contenidoMm": 324,
+      "contenidoMm": 329,
       "estado": "ok"
     },
     {

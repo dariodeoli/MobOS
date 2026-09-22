@@ -20,22 +20,16 @@
 import { qrUnidad } from './qr.js'
 import { modeloDe } from './etiquetaUnidad.js'
 import { resumenImei } from '../imeiComprobante.js'
+// Rótulos canónicos (#240): los del checklist y los locks viven en un solo
+// objeto compartido (`src/lib/estadoEquipo.js` vía `phonecheck.js`) para que el
+// papel lea igual que la ficha y el informe publicado.
+import { INSPECCION_ESTADOS, INSPECCION_ITEMS } from '../phonecheck.js'
+import { ESTADOS_LOCK, LOCKS_DISPOSITIVO } from '../estadoEquipo.js'
 
 export const AVISO_BLACKLIST = 'iCloud/US Block clean no equivalen a blacklist mundial.'
 
-// Fallback de rótulos cuando la inspección viene cruda (sin el payload de INV).
-export const ITEMS_PHONECHECK = [
-  { clave: 'pantalla', grupo: 'Pantalla', label: 'Pantalla / táctil' },
-  { clave: 'camaras', grupo: 'Pantalla', label: 'Cámaras' },
-  { clave: 'faceId', grupo: 'Biometría', label: 'Face ID / Touch ID' },
-  { clave: 'audio', grupo: 'Audio', label: 'Altavoces y micrófono' },
-  { clave: 'sensores', grupo: 'Sensores', label: 'Sensores' },
-  { clave: 'botones', grupo: 'Controles', label: 'Botones y vibración' },
-  { clave: 'conexiones', grupo: 'Conectividad', label: 'WiFi / BT / GPS' },
-  { clave: 'carga', grupo: 'Energía', label: 'Carga y puerto' },
-  { clave: 'bateria', grupo: 'Energía', label: 'Batería' },
-  { clave: 'carcasa', grupo: 'Carcasa', label: 'Carcasa y chasis' },
-]
+// Ítems del checklist: el catálogo canónico de INV (`phonecheck.js`).
+export const ITEMS_PHONECHECK = INSPECCION_ITEMS
 
 // Espejo del catálogo de la UI de DSN (`src/lib/inspeccionChecklist.js`, rama
 // `slot/diseno`): ids → rótulo y sección para imprimir la inspección cuando
@@ -77,8 +71,16 @@ export const esChecklistDSN = (inspection = {}) => {
   return Object.values(items).some((valor) => typeof valor === 'string' && ['pasa', 'falla', 'na', ''].includes(valor))
 }
 
-const ESTADOS = { ok: 'OK', observacion: 'Con observación', falla: 'Falla', na: 'No aplica' }
-const ESTADOS_CORTOS = { ok: 'OK', observacion: 'Obs.', falla: 'Falla', na: 'N/A' }
+const ESTADOS = {
+  ok: INSPECCION_ESTADOS.ok.label,
+  observacion: INSPECCION_ESTADOS.observacion.label,
+  falla: INSPECCION_ESTADOS.falla.label,
+  na: INSPECCION_ESTADOS.na.label,
+}
+// Cortos para la columna derecha del rollo (el rótulo largo no entra en 58 mm).
+const ESTADOS_CORTOS = { ok: 'Bien', observacion: 'Obs.', falla: 'Falla', na: 'N/A' }
+// Estado del semáforo de un control (lock) con las etiquetas compartidas.
+const ESTADOS_CONTROL = { libre: ESTADOS_LOCK.libre.etiqueta, activo: ESTADOS_LOCK.activo.etiqueta, 'sin-dato': ESTADOS_LOCK.desconocido.etiqueta }
 const PUNTAJES = { ok: 1, observacion: 0.5, falla: 0 }
 
 const texto = (valor) => String(valor ?? '').trim()
@@ -101,6 +103,9 @@ export function fechaCortaDocumento(valor) {
 export const estadoChecklist = (estado) => ESTADOS[String(estado || '')] || ''
 /** Rótulo corto (para la columna de la derecha en el rollo). */
 export const estadoChecklistCorto = (estado) => ESTADOS_CORTOS[String(estado || '')] || '—'
+/** Rótulo del estado de un control del semáforo (Libre / Activo / Sin dato). */
+export const estadoControl = (estado) => ESTADOS_CONTROL[String(estado || '')] || ''
+
 /** Un ítem cuenta como conforme con OK o «no aplica». */
 export const itemConforme = (estado) => ['ok', 'na'].includes(String(estado || ''))
 
@@ -187,12 +192,12 @@ export function gradoChecklist(puntaje) {
 const SIN_DATO_CONTROL = /^(sin dato|sin datos|no verificado|sin verificar|desconocido|n\/a|—|-)$/i
 
 /** Un control del semáforo: ok, falla o sin dato (honesto, nunca inventa). */
-const control = (label, valor, estaOk) => {
+const control = (clave, valor, estaOk) => {
   const limpio = texto(valor)
   if (!limpio) return null
   const sinDato = SIN_DATO_CONTROL.test(limpio)
   const ok = sinDato ? false : Boolean(estaOk(limpio))
-  return { label, ok, estado: sinDato ? 'sin-dato' : ok ? 'ok' : 'falla', valor: limpio }
+  return { clave, label: LOCKS_DISPOSITIVO[clave] || clave, ok, estado: sinDato ? 'sin-dato' : ok ? 'libre' : 'activo', valor: limpio }
 }
 
 /** Controles (iCloud/MDM/ESN/Carrier) desde la consulta IMEI, como los chips de INV. */
@@ -202,10 +207,10 @@ export function controlesDeVerificacion(consulta = null) {
   const porClave = Object.fromEntries(campos.map((campo) => [texto(campo.etiqueta).toLowerCase(), texto(campo.valor)]))
   const buscar = (clave) => Object.entries(porClave).find(([etiqueta]) => etiqueta.includes(clave))?.[1] || ''
   return [
-    control('iCloud', buscar('icloud') || buscar('find my'), (valor) => /off|apagad|libre/i.test(valor)),
-    control('MDM', buscar('mdm'), (valor) => /apagad|off|inactiv|no activ/i.test(valor)),
-    control('ESN/Blacklist', buscar('blacklist'), (valor) => !/reportad|blocked/i.test(valor)),
-    control('Carrier/SIM', buscar('sim'), (valor) => /unlock|libre/i.test(valor)),
+    control('icloud', buscar('icloud') || buscar('find my'), (valor) => /off|apagad|libre/i.test(valor)),
+    control('mdm', buscar('mdm'), (valor) => /apagad|off|inactiv|no activ/i.test(valor)),
+    control('esn', buscar('blacklist'), (valor) => !/reportad|blocked/i.test(valor)),
+    control('carrier', buscar('sim'), (valor) => /unlock|libre/i.test(valor)),
   ].filter(Boolean)
 }
 
@@ -230,7 +235,7 @@ export function datosChecklist(unit = {}, { informe = null, verificacion = null 
     ? { porcentaje: fuente.bateria.porcentaje ?? null, ciclos: fuente.bateria.ciclos ?? null }
     : { porcentaje: fuente.bateriaPct ?? fuente.bateriaSalud ?? unit.batteryHealth ?? null, ciclos: fuente.bateriaCiclos ?? null }
   const controles = Array.isArray(publico?.controles) && publico.controles.length
-    ? publico.controles.map((fila) => ({ label: texto(fila.label), ok: Boolean(fila.ok), estado: fila.ok ? 'ok' : 'falla', valor: texto(fila.valor) }))
+    ? publico.controles.map((fila) => ({ clave: texto(fila.clave), label: texto(fila.label), ok: Boolean(fila.ok), estado: fila.ok ? 'libre' : 'activo', valor: texto(fila.valor) }))
     : controlesDeVerificacion(verificacion)
   // El payload público de INV omite el nombre de quien inspeccionó (es dato de
   // una persona): en el papel de la tienda sale del checklist crudo.
