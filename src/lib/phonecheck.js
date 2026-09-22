@@ -99,3 +99,24 @@ export function resumenCertificaciones(units = []) {
   }
   return resumen
 }
+
+/** Etiqueta "Certificado" (#240): grado + QR compacto que apunta al informe. */
+export function certificadoPhoneCheck(unit = {}, inspection = {}, { base = '' } = {}) {
+  const { puntaje, grado } = resumenInspection(inspection)
+  const serial = unit.serial || ''
+  const codigo = ['CERT', unit.id || '', serial, grado || 'P', puntaje ?? '', inspection.inspeccionadoAt || ''].join('|')
+  return {
+    titulo: 'CERTIFICADO PhoneCheck',
+    grado: grado || 'P',
+    puntaje,
+    producto: unit.product?.name || unit.product?.nombre || '',
+    serial,
+    condicion: unit.condition || '',
+    cosmetico: inspection.cosmetico || '',
+    bateria: { porcentaje: inspection.bateriaPct ?? unit.batteryHealth ?? null, ciclos: inspection.bateriaCiclos ?? null },
+    repuestosNoOem: inspection.repuestosNoOem || '',
+    fecha: inspection.inspeccionadoAt || null,
+    por: inspection.inspeccionadoPor || '',
+    qr: { contenido: codigo, enlace: base ? `${base}/inventario/unidad/${encodeURIComponent(unit.id || '')}` : '' },
+  }
+}

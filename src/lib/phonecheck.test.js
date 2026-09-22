@@ -1,7 +1,7 @@
 // #240: puntaje y grado del PhoneCheck.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-const { COSMETICOS, INSPECCION_ITEMS, gradoInspection, locksDeVerificacion, payloadInformeInspection, puntajeInspection, resumenCertificaciones, resumenInspection } = await import('./phonecheck.js')
+const { COSMETICOS, INSPECCION_ITEMS, certificadoPhoneCheck, gradoInspection, locksDeVerificacion, payloadInformeInspection, puntajeInspection, resumenCertificaciones, resumenInspection } = await import('./phonecheck.js')
 
 test('puntaje: OK=1, observación=0,5, falla=0 y no aplica no cuenta', () => {
   const items = {}
@@ -56,4 +56,14 @@ test('tablero de certificaciones: grados, certificadas y pendientes (#240)', () 
     { lastVerifiedAt: '2026-09-22T10:00:00.000Z' },
   ])
   assert.deepEqual(resumen, { total: 5, A: 1, B: 1, C: 1, certificadas: 3, pendientes: 2, sinVerificacion: 2 })
+})
+
+test('la etiqueta Certificado lleva grado, puntaje y QR del informe (#240)', () => {
+  const items = {}
+  for (const item of INSPECCION_ITEMS) items[item.clave] = { estado: 'ok' }
+  const cert = certificadoPhoneCheck({ id: 'u1', serial: 'AUR0001', batteryHealth: 90, product: { name: 'iPhone 15' } }, { items, cosmetico: 'buen estado', bateriaPct: '89', inspeccionadoAt: '2026-09-22T10:00:00.000Z', inspeccionadoPor: 'Hernán Acosta' }, { base: 'https://app.moboss.online' })
+  assert.equal(cert.grado, 'A')
+  assert.equal(cert.puntaje, 100)
+  assert.match(cert.qr.contenido, /^CERT\|u1\|AUR0001\|A\|100/)
+  assert.equal(cert.qr.enlace, 'https://app.moboss.online/inventario/unidad/u1')
 })
