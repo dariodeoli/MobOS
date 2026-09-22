@@ -83,6 +83,17 @@ warn y la celda de identidad de 13 px que espera a DSN).
 Duplicación pendiente medida: **6 → 1 usos** (queda solo el `Gs.` de una
 plantilla de impresión de PRN, que se coordina con ese slot).
 
+### Lote 16 — paridad de los objetos de inspección con la biblioteca (22-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `TONOS` (`lib/estadoEquipo.js`) | MobOS exportaba `TONOS_PUNTO` / `TONOS_CHIP` / `TONOS_TEXTO` y la biblioteca `TONOS.punto`/`TONOS.chip`/`TONOS.texto`: el mismo concepto con dos formas de API | Una sola forma (`TONOS.punto/chip/texto`) en las dos casas; los cuatro objetos (`SemaforoItem`, `ChipsLocks`, `ChipEstado`, `MedidorBateria`) la consumen |
+| Locks del dispositivo | MobOS tenía 4 (`icloud`/`mdm`/`esn`/`carrier`) y la biblioteca 5: faltaba **`oem`** (repuesto no OEM) | Los 5 en espejo; el test de contrato verifica claves, tonos y umbrales (90/80) contra lo publicado |
+| `VistaPreviaPapel` | Estaba en MobOS pero **no** en la biblioteca (`main`) | Publicada en `owncoding-ui` **v0.14.5** junto con el repaso de la línea v0.14 (auto-ht, GradoBadge, MedidorBateria, QR compartido, ficha y preview) |
+
+**Duplicación pendiente: 0 usos.** Test nuevo: «el contrato de inspección
+coincide con la biblioteca» (claves/tonos/umbrales).
+
 ### Lote 15 — el rack del piloto con los objetos v2 (22-09)
 
 | Objeto | Antes (evidencia) | Después |
