@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs'
 import { SEED } from './helpers/seed-data.js'
 
 const API = SEED.api
-const SALIDA = 'docs/QA-148-16-menciones'
+const SALIDA = 'test-results/QA-148-16-menciones'
 const MENCIONADO = SEED.sellers[0].name // Vendedor E2E Uno (sesión de seller.json)
 const marca = Date.now().toString(36).toUpperCase()
 const comentario = `Revisar stock ${marca} con @${MENCIONADO} antes de entregar`

@@ -357,7 +357,7 @@ test('la demo no persiste nada: guardados, recarga, salida y base intacta', asyn
   await expect(page.getByText('Plantilla creada.')).toBeVisible()
 
   await page.goto('/garantias')
-  await page.getByRole('button', { name: 'Nuevo caso' }).click()
+  await page.getByRole('button', { name: 'Nuevo caso' }).first().click()
   await page.getByPlaceholder('Nombre del cliente').fill(`Cliente cierre ${marca}`)
   await page.getByPlaceholder('Serial o IMEI').fill(`AUR-C201-${marca}`)
   await page.getByPlaceholder('Falla reportada, revisión solicitada…').fill('Caso ficticio de cierre.')
