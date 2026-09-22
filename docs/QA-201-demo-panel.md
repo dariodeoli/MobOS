@@ -26,9 +26,9 @@ visible de “cómo funciona la demo”.
 
 ## Formato visible “Cómo funciona la demo”
 
-- Entrada pública `/demo`: bloque desplegable “Cómo funciona la demo”.
 - Panel: botón **Cómo funciona** en el banner + guía automática la primera vez
-  por pestaña (una sola vez; se recuerda en `sessionStorage`).
+  por pestaña (una sola vez; se recuerda en `sessionStorage`). La entrada
+  pública `/demo` ya no repite el bloque (#235).
 - Contenido: `src/components/app/ComoFuncionaDemo.jsx` (perfiles, datos
   ficticios, nada se guarda, módulos, IMEI simulado).
 

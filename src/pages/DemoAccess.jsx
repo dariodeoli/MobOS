@@ -6,20 +6,18 @@ import { publicUrls } from '@/lib/urls'
 import { PinInput } from '@/components/ui'
 import ThemeLogo from '@/components/app/ThemeLogo'
 import ProductFooter from '@/components/app/ProductFooter'
-import Icon from '@/components/shared/Icon'
-import { PuntosDemo } from '@/components/app/ComoFuncionaDemo'
 
 const demoProfiles = [
   {
     name: 'Vendedor',
     pin: '2001',
-    description: 'Operá ventas y clientes desde la sucursal asignada.',
+    description: 'Ventas y clientes.',
     permissions: 'Ventas, productos, stock disponible y seguimiento de clientes.',
   },
   {
     name: 'Dueño',
     pin: '3001',
-    description: 'Revisá la operación completa de tu tienda demo.',
+    description: 'Operación completa.',
     permissions: 'Panel general, ventas, stock, caja, compras, garantías y usuarios.',
   },
 ]
@@ -96,7 +94,7 @@ export default function DemoAccess() {
             </p>
           </div>
 
-          <div className="p-5 sm:p-7 lg:p-6">
+          <div className="p-5 sm:p-7 lg:p-6 md:max-h-full md:overflow-y-auto">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-fono-dark/10 text-fono-dark">
                 <LockKeyhole size={19} />
@@ -136,17 +134,11 @@ export default function DemoAccess() {
               ))}
             </div>
 
-            <details className="mt-4 rounded-xl border border-fore/10 bg-paper/50 p-3">
-              <summary className="cursor-pointer list-none text-xs font-semibold text-mute marker:hidden">
-                <span className="inline-flex items-center gap-2"><Icon name="info" className="h-3.5 w-3.5 text-fono-dark" /> Cómo funciona la demo</span>
-              </summary>
-              <PuntosDemo className="mt-3" />
-            </details>
-
-            <details className="mt-4 rounded-xl border border-fore/10 bg-paper/50 p-3">
-              <summary className="cursor-pointer list-none text-xs font-semibold text-mute marker:hidden">
-                <span className="inline-flex items-center gap-2"><KeyRound size={14} className="text-fono-dark" /> Ingresar otro PIN</span>
-              </summary>
+            {/* Ingresar otro PIN: siempre visible, sin colapsar (#235). */}
+            <div className="mt-4 rounded-xl border border-fore/10 bg-paper/50 p-3">
+              <p className="inline-flex items-center gap-2 text-xs font-semibold text-mute">
+                <KeyRound size={14} className="text-fono-dark" /> Ingresar otro PIN
+              </p>
               <label htmlFor="demo-pin" className="mt-3 block text-xs font-semibold text-mute">PIN del perfil</label>
               <PinInput
                 id="demo-pin"
@@ -158,7 +150,7 @@ export default function DemoAccess() {
               <p id="demo-pin-status" role="status" className={`mt-2 min-h-4 text-center text-xs ${error ? 'text-bad' : 'text-mute'}`}>
                 {busy ? 'Abriendo tu tienda demo…' : error || '2001: Vendedor · 3001: Dueño. Con 4 dígitos entrás automáticamente.'}
               </p>
-            </details>
+            </div>
 
             <div className="mt-4 flex items-center gap-2 rounded-xl border border-fono-dark/20 bg-fono-dark/5 p-2.5 text-xs text-mute">
               <ShieldCheck size={16} className="text-fono-dark" />
