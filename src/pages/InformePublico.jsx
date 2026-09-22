@@ -8,6 +8,8 @@ import { demoInformePayload } from '@/lib/demoInforme'
 import { fechaCorta } from '@/utils/fecha'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+import MedidorBateria from '@/components/shared/MedidorBateria'
+import { colorBadge, gradoCondicion } from '@/lib/estadoEquipo'
 
 // Informe de dispositivo (#240 ítem 3): página pública por serial
 // (`/u/<serial>`), pensada para compartirse desde la ficha/portal del cliente
@@ -75,13 +77,18 @@ export default function InformePublico() {
           <p className="text-lg font-bold">{unit.model}</p>
           <div className="flex items-center gap-1.5">
             <Badge color="blue">{unit.condition}</Badge>
-            {unit.grade && <Badge color="green">Grado {unit.grade}</Badge>}
+            {gradoCondicion(unit.grade) && <Badge color={colorBadge(gradoCondicion(unit.grade).tono)}>{gradoCondicion(unit.grade).etiqueta}</Badge>}
           </div>
         </div>
         <div className="mt-3 text-sm">
           {dato('Serial', unit.serialMasked)}
           {dato('IMEI', unit.imeiMasked)}
-          {unit.batteryHealth !== null && unit.batteryHealth !== undefined && dato('Batería', `${unit.batteryHealth}%`)}
+          {unit.batteryHealth !== null && unit.batteryHealth !== undefined && (
+            <div className="flex items-center justify-between gap-3 border-b border-ink-600/60 py-2">
+              <span className="text-mute">Batería</span>
+              <MedidorBateria porcentaje={unit.batteryHealth} variante="chip" />
+            </div>
+          )}
           {dato('Verificación física', unit.verifiedAt ? `${fechaCorta(unit.verifiedAt)}${unit.verifiedBy ? ` · ${unit.verifiedBy}` : ''}${unit.verifiedByCode ? ` (${unit.verifiedByCode})` : ''}` : 'Sin verificar')}
           {unit.verificationCount > 0 && dato('Verificaciones registradas', unit.verificationCount)}
         </div>

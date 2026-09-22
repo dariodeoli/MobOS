@@ -19,7 +19,7 @@ WhatsApp desde su **ficha** y el enlace en su **cuenta/portal**. Capturas en
 | Archivo | Cambio |
 |---|---|
 | `backend/app/api/public/units/[serial]/route.ts` (nuevo) | **Público sin sesión** (rate limit 30/min como el resto de los públicos): resuelve la empresa que vendió/verificó el equipo, y devuelve modelo, serial e **IMEI enmascarados**, condición, batería, verificación física, venta (pedido/fecha/sucursal), garantía (estado/vencimiento) y la última consulta de IMEI. Placeholders `grade`/`checklist` para INV |
-| `src/pages/UnidadPublica.jsx` (nuevo) + ruta `/u/:serial` en los dos grupos públicos | La página del informe (encabezado de la tienda, secciones, **Copiar enlace** e **Imprimir**) con disclaimer “no es un certificado oficial” |
+| `src/pages/InformePublico.jsx` (nuevo; main tiene su propia `UnidadPublica.jsx`, que se conserva) + ruta `/u/:serial` en los dos grupos públicos | La página del informe (encabezado de la tienda, secciones, **Copiar enlace** e **Imprimir**) con `MedidorBateria` y `GradoBadge`/`lib/estadoEquipo` compartidos y disclaimer “no es un certificado oficial” |
 | `src/lib/demoInforme.js` (nuevo) | Paridad demo: el informe sale de los pedidos/unidades del navegador (Aurora Móviles) |
 | `CustomerProfile` (Pedidos → dispositivos) | Dos accesos por equipo: **Ver informe** (copia el link y lo abre; en demo navega en la misma pestaña) y **Compartir por WhatsApp** (el mensaje lleva el link; sin teléfono, copia el enlace) |
 | Portal `/cuenta` (+ payload backend y demo) | Sección **“Informes de tus equipos”** con “Ver informe” por equipo comprado (`informes: [{ serial, model, orderNumber }]`) |
