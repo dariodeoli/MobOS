@@ -1,13 +1,13 @@
 {
   "app": "https://app.moboss.online",
   "portal": "https://clientes.moboss.online",
-  "fecha": "2026-09-22T00:39:53.305Z",
-  "version": "1.0.136",
+  "fecha": "2026-09-22T01:06:39.703Z",
+  "version": "1.0.137",
   "pasos": [
     {
       "paso": "entrada anónima a /demo",
       "ok": true,
-      "detalle": "versión v1.0.136"
+      "detalle": "versión v1.0.137"
     },
     {
       "paso": "lista de clientes con agregados reales (#221)",
@@ -22,7 +22,7 @@
     {
       "paso": "alta de cliente en demo (local, sin API)",
       "ok": true,
-      "detalle": "QAY64X9 creado en el navegador"
+      "detalle": "QAZ4KN0 creado en el navegador"
     },
     {
       "paso": "ficha → resumen con total, saldo y últimas órdenes",
@@ -48,6 +48,11 @@
       "paso": "datos del cliente: seguro activo con porcentaje",
       "ok": true,
       "detalle": "seguro activo · 12,5%"
+    },
+    {
+      "paso": "nota pública del cliente (visible al cliente)",
+      "ok": true,
+      "detalle": "campo «Nota pública (visible al cliente)» presente · guardado bloqueado en demo"
     },
     {
       "paso": "estadísticas calculadas (#221)",
@@ -105,13 +110,15 @@
     "garantia": 404
   },
   "rateLimit": {
-    "pedido429": 17,
+    "pedido429": 29,
     "ultimoEstado": 429,
-    "retryAfter": "1"
+    "retryAfter": "57"
   },
   "apiReal": [],
   "observaciones": [
-    "la plantilla demo de Clientes deja «Tu pedido  ya está…» (la variable de pedido no aplica a la ficha)"
+    "la nota pública se edita en la ficha pero el guardado (y el render de «Nota de la tienda» en el portal) requiere una cuenta real",
+    "la plantilla demo de Clientes deja «Tu pedido  ya está…» (la variable de pedido no aplica a la ficha)",
+    "la vitrina no muestra la «Nota de la tienda» porque ningún cliente demo tiene nota pública sembrada"
   ],
   "hallazgos": [],
   "capturas": [
@@ -124,19 +131,20 @@
     "07-ficha-pedidos.png",
     "08-ficha-cronologia.png",
     "09-ficha-seguro.png",
-    "10-ficha-estadisticas.png",
-    "11-whatsapp-plantilla.png",
-    "12-portal-qr.png",
-    "13-portal-cuenta.png",
-    "14-portal-vitrina.png",
-    "15-portal-completo.png",
-    "16-cliente-por-url.png",
-    "17-servicio-demo.png",
-    "18-clientes-mobile.png",
-    "19-demo-vendedor.png",
-    "20-publico-cuenta.png",
-    "21-publico-vitrina.png",
-    "22-publico-garantia.png"
+    "10-ficha-nota-publica.png",
+    "11-ficha-estadisticas.png",
+    "12-whatsapp-plantilla.png",
+    "13-portal-qr.png",
+    "14-portal-cuenta.png",
+    "15-portal-vitrina.png",
+    "16-portal-completo.png",
+    "17-cliente-por-url.png",
+    "18-servicio-demo.png",
+    "19-clientes-mobile.png",
+    "20-demo-vendedor.png",
+    "21-publico-cuenta.png",
+    "22-publico-vitrina.png",
+    "23-publico-garantia.png"
   ],
   "demoNoTocaApi": true
 }
