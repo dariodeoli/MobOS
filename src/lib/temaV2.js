@@ -6,10 +6,21 @@ import { useEffect, useState } from 'react'
 // rollout real lo define la aprobación de Dario.
 
 const CLAVE = 'mobos:tema-v2'
+
+// Switch de activación del default v2 (#241). **Apagado**: el rediseño se ve
+// solo con la vista previa activada por dispositivo. Cuando Dario apruebe, se
+// pasa a `true` y el v2 queda por defecto para todos, con salida opt-out por
+// dispositivo (`localStorage['mobos:tema-v2'] = '0'`).
+export const TEMA_V2_POR_DEFECTO = false
 const EVENTO = 'mobos:tema-v2-cambio'
 
 export function temaV2Activo() {
-  try { return window.localStorage.getItem(CLAVE) === '1' } catch { return false }
+  try {
+    const guardado = window.localStorage.getItem(CLAVE)
+    if (guardado === '1') return true
+    if (guardado === '0') return false
+    return TEMA_V2_POR_DEFECTO
+  } catch { return TEMA_V2_POR_DEFECTO }
 }
 
 export function activarTemaV2(activo) {
