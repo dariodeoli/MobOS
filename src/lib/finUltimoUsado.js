@@ -11,6 +11,7 @@ export const ESTADOS_CONCILIACION = ['PENDING', 'VERIFIED', 'REJECTED']
 
 export const CLAVES_FIN = {
   rango: 'fin:rango',
+  cajaRango: 'fin:caja-rango',
   gastoTipo: 'fin:gastos-tipo',
   gastoMoneda: 'fin:gastos-moneda',
   gastoCuenta: 'fin:gastos-cuenta',

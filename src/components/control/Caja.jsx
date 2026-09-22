@@ -20,6 +20,7 @@ import {
 } from '@/components/ui'
 import AuditoriaMedios from './AuditoriaMedios'
 import AuditoriaEfectivo from './AuditoriaEfectivo'
+import VentasPorCaja from './VentasPorCaja'
 import AttachmentList from '@/components/shared/AttachmentList'
 import Cronologia from '@/components/shared/Cronologia'
 import Icon from '@/components/shared/Icon'
@@ -1046,6 +1047,7 @@ export default function Caja() {
       />
       <AuditoriaMedios />
       <AuditoriaEfectivo />
+      <VentasPorCaja />
     </div>
   )
 }

@@ -698,6 +698,9 @@ echo "Consistencia financiera: la base del arnés da verde y los casos sembrados
   echo "El chequeo de consistencia no volvió a dar verde tras la limpieza del autotest." >&2
   exit 1
 }
+echo "Corte por sesión de caja: efectivo, pedidos y diferencia (#148 §18)..."
+node "$BACKEND_ROOT/tests/cash-sessions.mjs" "$BASE_URL" "$ADMIN_TOKEN"
+
 echo "Seguridad pública: token de liquidaciones hasheado, rotación y límite de uso..."
 PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/commission-settlement-public.mjs"
 

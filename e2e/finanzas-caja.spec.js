@@ -40,7 +40,7 @@ test.describe('finanzas · caja', () => {
       await page.getByRole('button', { name: 'Abrir caja', exact: true }).click()
     }
     await expect(page.getByRole('heading', { name: 'Cerrar caja' })).toBeVisible()
-    await expect(page.getByText('Abierta', { exact: true })).toBeVisible()
+    await expect(page.locator('strong').filter({ hasText: 'Abierta' }).first()).toBeVisible()
 
     // El cobro entra en "Auditoría de medios" (efectivo) y en la auditoría del rango.
     await page.getByText('Entradas por medio de pago').scrollIntoViewIfNeeded()
@@ -68,6 +68,14 @@ test.describe('finanzas · caja', () => {
     const filaRecargada = page.getByTestId('auditoria-fila').filter({ hasText: numero })
     await expect(filaRecargada.locator('span').filter({ hasText: /^Verificado$/ }).first()).toBeVisible()
 
+    // #148 §18: corte por caja del período con la sesión del turno.
+    await expect(page.getByRole('heading', { name: 'Ventas por caja' })).toBeVisible()
+    const filaCaja = page.getByTestId('ventas-por-caja-fila').first()
+    await expect(filaCaja).toBeVisible()
+    await expect(filaCaja.getByText('Abierta', { exact: true })).toBeVisible()
+    const medidaCajas = await page.getByTestId('ventas-por-caja-tabla').evaluate((nodo) => ({ scrollWidth: nodo.scrollWidth, clientWidth: nodo.clientWidth }))
+    expect(medidaCajas.scrollWidth, 'el corte por caja no debe pedir scroll horizontal').toBeLessThanOrEqual(medidaCajas.clientWidth + 1)
+
     // Cierre con el esperado exacto: diferencia 0 y estado "Cerrada".
     const esperado = await page.evaluate(async (api) => {
       const respuesta = await fetch(`${api}/api/cash`, { credentials: 'include' })
@@ -77,12 +85,12 @@ test.describe('finanzas · caja', () => {
     expect(esperado).toBeGreaterThan(0)
     await page.locator('#counted').fill(String(esperado))
     await page.getByRole('button', { name: /Cerrar caja/ }).click()
-    await expect(page.getByText('Cerrada', { exact: true })).toBeVisible()
+    await expect(page.locator('strong').filter({ hasText: 'Cerrada' }).first()).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Abrir caja' })).toBeVisible()
 
     // Se restaura el estado que espera la suite: caja abierta con 100.000.
     await page.locator('#opening').fill('100000')
     await page.getByRole('button', { name: 'Abrir caja', exact: true }).click()
-    await expect(page.getByText('Abierta', { exact: true })).toBeVisible()
+    await expect(page.locator('strong').filter({ hasText: 'Abierta' }).first()).toBeVisible()
   })
 })
