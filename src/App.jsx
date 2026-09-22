@@ -17,6 +17,7 @@ import PanelDelivery from '@/pages/PanelDelivery'
 import CarritoPublico from '@/pages/CarritoPublico'
 import InformePublico from './pages/InformePublico'
 import GarantiaPublica from '@/pages/GarantiaPublica'
+import InformePublico from '@/pages/InformePublico'
 import CotizacionPublica from '@/pages/CotizacionPublica'
 import CuentaPublica from '@/pages/CuentaPublica'
 import PortalCliente from '@/pages/PortalCliente'
@@ -295,7 +296,8 @@ export default function App() {
           <Route path="/comparador" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           <Route path="/tradein" element={<Navigate to="/trade-in" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+                    <Route path="/u/:serial" element={<InformePublico />} />
+          </Routes>
         </Suspense>
       </ToastProvider>
     </SesionProvider>
