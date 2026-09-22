@@ -390,6 +390,19 @@ export async function POST(request: Request) {
           if ((branchId === null && product.branchId !== null) || (branchId && product.branchId !== null && product.branchId !== branchId)) throw new Error('El producto pertenece a otra sucursal.')
           // Foto del costo: la ganancia histórica no cambia si luego se actualiza el costo.
           if (product.costPyg !== null && product.costPyg !== undefined) baseUnitCostPyg = product.costPyg
+          // Costo real por unidad (#148 §19): si la venta lleva el IMEI/serial
+          // de cada equipo, la base es el costo de esas unidades —donde
+          // Inventario carga reparaciones y repuestos (hoy a mano; el rediseño
+          // #240/#241 lo tomará del checklist no-OEM)—. La línea guarda un
+          // costo por unidad: si los costos difieren, se congela el promedio.
+          if (serials.length && serials.length === quantity) {
+            const unidadesConCosto = await tx.inventoryUnit.findMany({ where: { tenantId: tenant, productId: product.id, serial: { in: serials }, costPyg: { not: null } }, select: { costPyg: true } })
+            if (unidadesConCosto.length === serials.length) {
+              const totalUnidades = unidadesConCosto.reduce((suma, unidad) => suma + Number(unidad.costPyg), 0)
+              const costoPorUnidad = Math.round(totalUnidades / unidadesConCosto.length)
+              if (Number.isSafeInteger(costoPorUnidad) && costoPorUnidad >= 0) baseUnitCostPyg = costoPorUnidad
+            }
+          }
           // Precio de lista congelado: la lista del cliente (escalón/ítem),
           // el mayorista o el minorista, con la misma autoridad que
           // /api/pricing. Un precio en USD no cotiza en guaraníes: la línea

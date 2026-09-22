@@ -1,0 +1,16 @@
+{
+  "resultados": [
+    {
+      "nombre": "detalle demo",
+      "detalle": [
+        "Hernán Acosta · Abierta 22-sept., 00:00 · Caja principal · Abierta · 3 · Gs 14.280.000 · Gs 10.900.000 · Gs 11.550.000 · — · —",
+        "Hernán Acosta · 21-sept. · 09:30 · cerró 21-sept., 18:30 · Cerrada · 1 · Gs 1.850.000 · Gs 0 · Gs 500.000 · Gs 508.000 · Gs 8.000",
+        "Hernán Acosta · 20-sept. · 09:30 · cerró 20-sept., 18:30 · Cerrada · 1 · Gs 4.450.000 · Gs 0 · Gs 500.000 · Gs 500.000 · Gs 0"
+      ]
+    },
+    {
+      "nombre": "Demo: el corte por caja muestra el histórico con diferencias",
+      "ok": true
+    }
+  ]
+}
