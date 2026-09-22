@@ -1,0 +1,14 @@
+{
+  "resultados": [
+    {
+      "nombre": "Sesión real: el tablero muestra los cortes netos y por caja",
+      "ok": true,
+      "detalle": "COBROS NETOS POR TIPO · 7 DÍAS · Efectivo · 117 pago(s) · Gs 19.790.000 · Transferencia · 102 pago(s) · Gs 12.180.000 · Tarjeta / POS · 40 pago(s) · Gs 10.750.000 · Pix · 5 pago(s) · Gs 700.000"
+    },
+    {
+      "nombre": "Demo: el tablero muestra el sistema completo (Pix, USDT, canje y cajas)",
+      "ok": true,
+      "detalle": "COBROS NETOS POR TIPO · HOY · Efectivo · 3 pago(s) · Gs 10.900.000 · Transferencia · 2 pago(s) · Gs 3.280.000"
+    }
+  ]
+}

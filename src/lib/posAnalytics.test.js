@@ -61,6 +61,29 @@ test('el período agrupa los desgloses y suma los cobros por cuenta', () => {
   assert.deepEqual(t.pagosPorCuenta.map((fila) => [fila.etiqueta, fila.monto]), [['Caja Central', 100000], ['Ueno', 50000]])
 })
 
+test('#148 §18: cobros netos por tipo, efectivo y pagos por sucursal', () => {
+  const ordenes = [
+    orden('2026-09-20', 100000, [
+      PAGO(60000, 'CASH'),
+      PAGO(30000, 'PIX'),
+      { status: 'REFUNDED', amountPyg: 10000, method: 'PIX' },
+    ], [{ productId: 'p1', description: 'iPhone', quantity: 1, unitPricePyg: 100000, totalPyg: 100000 }], { branch: { id: 's1', name: 'Central' } }),
+    orden('2026-09-20', 50000, [
+      PAGO(50000, 'CASH'),
+      { status: 'REFUNDED', amountPyg: 5000, method: 'CASH' },
+    ], [{ productId: 'p2', description: 'Funda', quantity: 1, unitPricePyg: 50000, totalPyg: 50000 }], { branch: { id: 's2', name: 'Villa Morra' } }),
+  ]
+  const t = tableroPos(ordenes, { hoy: '2026-09-20', ayer: '2026-09-19' })
+  assert.equal(t.hoy.efectivo, 105000, 'efectivo = cobros CASH − reembolsos CASH')
+  assert.equal(t.hoy.reembolsado, 15000)
+  const pix = t.pagos.find((fila) => fila.clave === 'PIX')
+  assert.equal(pix.monto, 30000, 'el reembolsado no suma cobro')
+  assert.equal(pix.reembolsado, 10000)
+  assert.equal(pix.neto, 20000, 'neto = cobrado − reembolsado')
+  assert.equal(t.pagos.find((fila) => fila.clave === 'CASH').neto, 105000)
+  assert.deepEqual(t.pagosPorSucursal.map((fila) => [fila.etiqueta, fila.neto]), [['Central', 80000], ['Villa Morra', 45000]])
+})
+
 test('un pedido viejo no entra en el día y los pagos no confirmados no cobran', () => {
   const ordenes = [
     orden('2026-08-01', 90000, [PAGO(90000)], []),

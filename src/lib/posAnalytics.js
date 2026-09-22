@@ -3,6 +3,7 @@
 // (con totalPyg, payments, items, seller, branch) y dos días, devuelve el
 // tablero del POS.
 import { fechaClave } from '../utils/calculos.js'
+import { paymentMethodLabel } from './constants.js'
 
 const totalDe = (orden) => Number(orden?.totalPyg ?? orden?.total ?? 0)
 const descuentoDe = (orden) => Number(orden?.discountPyg ?? orden?.descuento ?? 0)
@@ -14,6 +15,22 @@ const unidadesDe = (orden) =>
   (Array.isArray(orden?.items) ? orden.items : []).reduce((suma, item) => suma + (Number(item.quantity) || 1), 0)
 const vivo = (orden) => orden?.status !== 'CANCELLED'
 
+// Efectivo del período (#148 §18): cobros CASH confirmados menos reembolsados.
+const efectivoDe = (ordenes) =>
+  ordenes.filter(vivo).reduce((suma, orden) => suma + (Array.isArray(orden?.payments) ? orden.payments : []).reduce((parcial, pago) => {
+    if ((pago?.method || pago?.medioPago) !== 'CASH') return parcial
+    const monto = Number(pago.amountPyg ?? pago.monto ?? 0)
+    if (pago?.status === 'REFUNDED') return parcial - monto
+    if (pago?.status === 'CONFIRMED' || pago?.status === undefined) return parcial + monto
+    return parcial
+  }, 0), 0)
+
+// Reembolsos del período, de cualquier medio.
+const reembolsadoDe = (ordenes) =>
+  ordenes.filter(vivo).reduce((suma, orden) => suma + (Array.isArray(orden?.payments) ? orden.payments : [])
+    .filter((pago) => pago?.status === 'REFUNDED')
+    .reduce((parcial, pago) => parcial + Number(pago.amountPyg ?? pago.monto ?? 0), 0), 0)
+
 // Clave de día local (YYYY-MM-DD) de una fecha ISO.
 export const diaDe = (valor) => {
   if (!valor) return ''
@@ -21,7 +38,7 @@ export const diaDe = (valor) => {
   return Number.isNaN(fecha.getTime()) ? '' : fechaClave(fecha)
 }
 
-const vacio = () => ({ ventas: 0, pedidos: 0, unidades: 0, neto: 0, descuentos: 0, aov: 0, itemsPorPedido: 0, cobrado: 0, pendiente: 0 })
+const vacio = () => ({ ventas: 0, pedidos: 0, unidades: 0, neto: 0, descuentos: 0, aov: 0, itemsPorPedido: 0, cobrado: 0, pendiente: 0, efectivo: 0, reembolsado: 0 })
 
 function resumenDelDia(ordenes) {
   const filas = ordenes.filter(vivo)
@@ -44,6 +61,8 @@ function resumenDelDia(ordenes) {
     itemsPorPedido: pedidos ? Number((unidades / pedidos).toFixed(2)) : 0,
     cobrado,
     pendiente: Math.max(0, ventas - cobrado),
+    efectivo: efectivoDe(filas),
+    reembolsado: reembolsadoDe(filas),
   }
 }
 
@@ -73,24 +92,32 @@ function topProductos(ordenes, limite = 8) {
   return [...mapa.values()].sort((a, b) => b.ventas - a.ventas).slice(0, limite)
 }
 
-// Agrupa los cobros confirmados por una clave del pago (medio o cuenta).
+// Agrupa los cobros por una clave del pago (medio, cuenta o sucursal del
+// pedido). Cada fila trae bruto, reembolsado y **neto** (#148 §18: «pagos
+// netos por tipo»): los reembolsados no suman cobro, se informan aparte.
 function pagosAgrupados(ordenes, claveDe, etiquetaDe) {
   const mapa = new Map()
   for (const orden of ordenes.filter(vivo)) {
     for (const pago of Array.isArray(orden?.payments) ? orden.payments : []) {
-      if (!(pago?.status === 'CONFIRMED' || pago?.status === undefined)) continue
-      const clave = claveDe(pago)
-      const actual = mapa.get(clave) || { clave, etiqueta: etiquetaDe(pago, clave), monto: 0, pagos: 0 }
-      actual.monto += Number(pago.amountPyg ?? pago.monto ?? 0)
-      actual.pagos += 1
+      const reembolsado = pago?.status === 'REFUNDED'
+      if (!reembolsado && !(pago?.status === 'CONFIRMED' || pago?.status === undefined)) continue
+      const clave = claveDe(pago, orden)
+      const actual = mapa.get(clave) || { clave, etiqueta: etiquetaDe(pago, clave, orden), monto: 0, reembolsado: 0, neto: 0, pagos: 0 }
+      const monto = Number(pago.amountPyg ?? pago.monto ?? 0)
+      if (reembolsado) actual.reembolsado += monto
+      else {
+        actual.monto += monto
+        actual.pagos += 1
+      }
+      actual.neto = actual.monto - actual.reembolsado
       mapa.set(clave, actual)
     }
   }
-  return [...mapa.values()].sort((a, b) => b.monto - a.monto)
+  return [...mapa.values()].sort((a, b) => b.neto - a.neto)
 }
 
 const pagosPorTipo = (ordenes) =>
-  pagosAgrupados(ordenes, (pago) => pago.method || pago.medioPago || 'Otro', (pago) => pago.method || pago.medioPago || 'Otro')
+  pagosAgrupados(ordenes, (pago) => pago.method || pago.medioPago || 'Otro', (pago) => paymentMethodLabel(pago.method || pago.medioPago) || 'Otro')
 
 // Cobros por cuenta de cobro (con la cuenta congelada en el pago cuando existe).
 const pagosPorCuenta = (ordenes) =>
@@ -98,6 +125,14 @@ const pagosPorCuenta = (ordenes) =>
     ordenes,
     (pago) => pago.accountId || pago.accountSnapshot?.id || pago.accountSnapshot?.name || 'sin-cuenta',
     (pago) => pago.accountSnapshot?.name || pago.cuenta || 'Sin cuenta',
+  )
+
+// Cobros por sucursal del pedido (#148 §18: «pagos por cuenta y sucursal»).
+const pagosPorSucursal = (ordenes) =>
+  pagosAgrupados(
+    ordenes,
+    (pago, orden) => orden?.branch?.id || orden?.branchId || 'sin-sucursal',
+    (pago, clave, orden) => orden?.branch?.name || clave,
   )
 
 // Tablero del POS: hoy vs ayer + desgloses del día de hoy.
@@ -127,6 +162,7 @@ export function tableroPos(ordenes, { hoy = fechaClave(), ayer, desde } = {}) {
     porSucursal: agrupar(delPeriodo, (orden) => orden?.branch?.id || orden?.branchId, (orden, clave) => orden?.branch?.name || clave),
     pagos: pagosPorTipo(delPeriodo),
     pagosPorCuenta: pagosPorCuenta(delPeriodo),
+    pagosPorSucursal: pagosPorSucursal(delPeriodo),
   }
 }
 
