@@ -19,19 +19,19 @@ test('el tablero ops preview usa los tokens v2 y no llama al API', async ({ page
   await expect(page.getByRole('heading', { name: 'Tablero de operaciones' })).toBeVisible()
   await expect(page.getByText('Equipos en proceso')).toBeVisible()
   await expect(page.getByText('Up next')).toBeVisible()
-  await page.screenshot({ path: 'docs/qa/241-ops-preview/preview-claro.jpg', type: 'jpeg', quality: 72 })
+  await page.screenshot({ path: 'test-results/qa-241-ops-preview/preview-claro.jpg', type: 'jpeg', quality: 72 })
 
   // Tema oscuro: el mismo scope con la variante consola.
   await page.addInitScript(() => { try { localStorage.setItem('mobos:theme', 'dark') } catch { /* sin storage */ } })
   await page.reload()
   await expect(page.getByTestId('ops-preview')).toHaveClass(/v2-piloto/)
   await expect(page.getByRole('heading', { name: 'Tablero de operaciones' })).toBeVisible()
-  await page.screenshot({ path: 'docs/qa/241-ops-preview/preview-oscuro.jpg', type: 'jpeg', quality: 72 })
+  await page.screenshot({ path: 'test-results/qa-241-ops-preview/preview-oscuro.jpg', type: 'jpeg', quality: 72 })
 
   // Móvil.
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(page.getByText('Equipos en proceso')).toBeVisible()
-  await page.screenshot({ path: 'docs/qa/241-ops-preview/preview-movil.jpg', type: 'jpeg', quality: 72 })
+  await page.screenshot({ path: 'test-results/qa-241-ops-preview/preview-movil.jpg', type: 'jpeg', quality: 72 })
 
   expect(llamadas, `llamadas al API: ${llamadas.join(', ')}`).toEqual([])
 })
