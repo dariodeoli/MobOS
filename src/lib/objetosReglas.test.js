@@ -431,6 +431,13 @@ test('el tono de la unidad vive en utils/inventario (#217)', () => {
   }
 })
 
+// Lote 15: el rack del piloto usa los objetos v2 para grado y batería.
+test('el modo taller usa GradoBadge y MedidorBateria (#240)', () => {
+  const rack = readFileSync(join(RAIZ, 'components/inventory/TallerRack.jsx'), 'utf8')
+  assert.match(rack, /<GradoBadge grado=\{grado\} \/>/)
+  assert.match(rack, /<MedidorBateria porcentaje=\{bateria\} variante="chip" mostrarEtiqueta \/>/)
+  assert.ok(!rack.includes('COLOR_GRADO'), 'el color del grado sale del objeto')
+  assert.ok(!/bateria >= 90 \? 'green'/.test(rack), 'el tono de la batería sale del objeto')
   const medidor = readFileSync(join(RAIZ, 'components/shared/MedidorBateria.jsx'), 'utf8')
   assert.match(medidor, /mostrarEtiqueta = false/, 'el chip puede mostrar la palabra (rack)')
 })
