@@ -1,13 +1,13 @@
 {
-  "url": "http://localhost:5216",
-  "fecha": "2026-09-22T15:50:24.260Z",
-  "version": "v1.0.142",
+  "url": "https://app.moboss.online",
+  "fecha": "2026-09-22T19:05:42.856Z",
+  "version": "v1.0.143",
   "serial": "356789012345678",
   "pasos": [
     {
       "paso": "entrada a la demo y ficha del cliente con el equipo",
       "ok": true,
-      "detalle": "demo v1.0.142 · equipo con acciones de informe"
+      "detalle": "demo v1.0.143 · equipo con acciones de informe"
     },
     {
       "paso": "compartir por WhatsApp lleva el link público del informe",

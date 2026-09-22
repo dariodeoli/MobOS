@@ -41,16 +41,15 @@ MOBOS_QA_URL=http://localhost:5216 MOBOS_QA_OUT=/tmp/qa240p node scripts/qa-240-
 | `02-portal-informes.png` | **Portal del cliente**: “… · Informes de tus equipos · iPhone 15 · 128 GB · MOB-#0008 · serial 345678 · Ver informe” |
 | `03-informe-publico-desde-portal.png` | El informe público abierto desde el portal (tienda, serial enmascarado, aviso) |
 
-Resultado crudo: `docs/QA-240-informe-portal/resultados.json` (incluye la versión
-vista: **v1.0.142** en la corrida local).
+Resultado crudo: `docs/QA-240-informe-portal/resultados.json` (corrida final
+sobre **v1.0.143** en producción y corrida local previa sobre v1.0.142).
 
-## Post-deploy .143 (pendiente de que salga)
+## Post-deploy .143 — ✅ verificado en v1.0.143
 
-Al cierre de esta entrega producción y `main` seguían en **v1.0.142** (sondeo
-15:52–15:56 UTC) y las dos piezas viajan en la rama
-(`f3ee968c`/`016b00a7`/`148c7d47`). Cuando el release impacte, se corre el
-mismo comando contra la demo pública y las capturas + `resultados.json` quedan
-sellados con la versión desplegada:
+El release impactó y se corrió el guion contra la **demo pública**
+(22/9/2026, 19:05 UTC): **4/4 pasos OK** y **0 llamadas** al API de clientes.
+Las capturas de esta carpeta y `resultados.json` quedan sellados con la
+**v1.0.143**:
 
 ```bash
 node scripts/qa-240-informe-portal-demo.mjs
