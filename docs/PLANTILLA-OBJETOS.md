@@ -244,6 +244,8 @@ categorías en `src/lib/categorias.js`; los objetos son presentacionales.
   carrier/SIM lock (verde libre, rojo activo, gris sin dato).
 - **`shared/IconoCategoria`** (#242): glifos mobile/laptop/tablet/watch/buds/
   cable; `categoria="MacBook Pro"` resuelve el icono con `iconoDeCategoria`.
+  `shared/ProductCombobox` lo muestra en cada sugerencia (buscador de POS,
+  compras, combos y listas de precios).
 - El checklist, el tile de equipo, el stepper y los tokens del tema consola se
   codificaron primero en la biblioteca (owncoding-ui **v0.11.0**, props en su
   `docs/REGLAS.md` §8 bis, tokens v2 en su `styles.css`) y se adoptan acá a

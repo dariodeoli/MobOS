@@ -83,6 +83,18 @@ warn y la celda de identidad de 13 px que espera a DSN).
 Duplicación pendiente medida: **6 → 1 usos** (queda solo el `Gs.` de una
 plantilla de impresión de PRN, que se coordina con ese slot).
 
+### Lote 11 — duplicaciones nuevas y categoría en el buscador de productos (22-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `CELDA_DATO` | 2 usos nuevos de `className="… truncate text-xs text-mute"` (Clientes) y 3 en SellerOrders con `cn('truncate text-xs text-mute', …)` | Los 5 pasan por `CELDA_DATO` (con `cn` para el layout/tachado); el detalle de `SemaforoItem` también |
+| `formatGs` | `demoInventory.js` armaba `Gs ${Number(...).toLocaleString('es-PY')}` a mano en el evento de venta demo | Usa `formatGs` compartido (import relativo para `node --test`) |
+| `IconoCategoria` en `ProductCombobox` | El buscador de productos mostraba solo el nombre (sin el icono de la categoría) | Cada sugerencia lleva el glifo de `IconoCategoria` (`product.category \|\| nombre`); POS, compras, combos y listas de precios lo heredan |
+
+**Duplicación pendiente: 3 → 0 usos** (las 3 eran nuevas, entradas con los
+merges de otros slots). Documentación de la biblioteca: `owncoding-ui/docs/V2.md`
+(guía de adopción de los tokens v2 y los iconos publicados en v0.11.0).
+
 ### Lote 10 — notas, estados con badge, barras y montos en frases (22-09)
 
 | Objeto | Antes (evidencia) | Después |
