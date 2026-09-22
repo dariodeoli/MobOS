@@ -209,16 +209,22 @@ export async function GET(request: Request, { params }: RouteContext) {
       photos: comment.photos,
     })),
     // #240: historial del serial — consultas IMEI y reparaciones del taller.
-    ...(await prisma.imeiCheckQuery.findMany({ where: { tenantId: unit.tenantId, imei: unit.serial }, orderBy: { requestedAt: 'desc' }, take: 50 })).map(row => ({
-      id: row.id,
-      type: 'imei' as const,
-      action: 'IMEI_QUERY',
-      label: row.status === 'conciliar' ? 'Consulta IMEI (a conciliar)' : row.status === 'verificado' ? 'Consulta IMEI verificada' : 'Consulta IMEI',
-      createdAt: row.requestedAt,
-      user: row.userId ? { id: row.userId, name: (row as any).userName || 'Usuario' } : null,
-      detail: `${row.serviceName} · ${row.imeiMasked} · US$${Number(row.costUsd).toFixed(2)}${row.status === 'conciliar' ? ' · pudo cobrarse, conciliar' : ''}`,
-    })),
-    ...(await prisma.serviceOrder.findMany({ where: { tenantId: unit.tenantId, serial: unit.serial }, orderBy: { createdAt: 'desc' }, take: 50 })).map(row => ({
+    ...(await (async () => {
+      const filas = await prisma.imeiCheckQuery.findMany({ where: { tenantId: session.user.tenantId, imei: unit.serial }, orderBy: { requestedAt: 'desc' }, take: 50 })
+      const ids = [...new Set(filas.map(fila => fila.userId).filter(Boolean))] as string[]
+      const usuarios = ids.length ? await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } }) : []
+      const mapa = new Map(usuarios.map(usuario => [usuario.id, usuario.name]))
+      return filas.map(row => ({
+        id: row.id,
+        type: 'imei' as const,
+        action: 'IMEI_QUERY',
+        label: row.status === 'conciliar' ? 'Consulta IMEI (a conciliar)' : row.status === 'verificado' ? 'Consulta IMEI verificada' : 'Consulta IMEI',
+        createdAt: row.requestedAt,
+        user: row.userId ? { id: row.userId, name: mapa.get(row.userId) || 'Usuario' } : null,
+        detail: `${row.serviceName} · ${row.imeiMasked} · US$${Number(row.costUsd).toFixed(2)}${row.status === 'conciliar' ? ' · pudo cobrarse, conciliar' : ''}`,
+      }))
+    })()),
+    ...(await prisma.serviceOrder.findMany({ where: { tenantId: session.user.tenantId, serial: unit.serial }, orderBy: { createdAt: 'desc' }, take: 50 })).map(row => ({
       id: row.id,
       type: 'repair' as const,
       action: 'SERVICE_ORDER',
