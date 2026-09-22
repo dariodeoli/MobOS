@@ -11,6 +11,16 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.143 — 2026-09-22
+- **Inventario — IMEI:** nueva **pantalla de consultas IMEI** (ADMIN/GERENTE) para buscar por IMEI, ver estado, costo y fecha, y **conciliar** contra el proveedor (estado, costo real, fecha del panel, orden y nota) desde la UI; el informe de dispositivo suma la **página pública `/u/<serial>`** con endpoint sin datos personales (grado, batería, controles y aviso de blacklist). (#233 #240)
+- **AEX:** la cédula viaja como **CIP** y el tipo de documento se normaliza (CI/Cédula/DNI → CIP, Pasaporte → PAS, RUC → RUC) con tests y harness actualizados; la confirmación ambigua queda **fail-closed** y se concilia por referencia (`--consulta`), sin reintentos a ciegas. (#231)
+- **Inspección / impresión:** certificado de inspección y **informe del dispositivo con checklist PhoneCheck** (rótulos canónicos, QR verificado y ejemplo publicado), más la **hoja de estación** para imprimir en serie desde el taller. (#240 #241)
+- **Clientes / portal:** el informe del equipo se abre desde la ficha y el portal público, se comparte por **WhatsApp o correo** con registro en la cronología. (#240)
+- **Taller / F3:** **stepper del flujo** por unidad en el rack (por verificar → verificado → listo) y el **tablero de operaciones F3** detrás del flag de vista previa, con tokens v2 y capturas claro/oscuro/móvil. (#240 #241)
+- **Finanzas:** el margen usa el **costo real de la unidad** (IMEI, reparaciones y repuestos) y el equipo de Trade-In llega con su costo al margen y al seguro. (#148)
+- **POS:** se puede **eliminar un bloque de pago** del split sin romper el cobro. (#148 §11)
+- **Componentes:** lotes 11-15 — categorías con icono, celdas y montos unificados, **QR compartido**, vista previa de papel compartida, una sola regla para el estado de la unidad y el rack con `GradoBadge`/`MedidorBateria`. (#242)
+
 ## v1.0.142 — 2026-09-22
 - **Inventario — inspección (PhoneCheck):** checklist por unidad con puntaje y **grado A/B/C**, batería (% y ciclos), chips de locks (Find My/MDM/SIM), repuestos no-OEM y **certificado con QR**; informe del dispositivo en 80 mm y A4 con QR al informe público, y tablero de certificaciones. (#240 #242)
 - **Inventario — modo taller/rack:** vista de taller con estaciones, filtros y acciones/impresión **en serie** sobre las unidades. (#240 #241)
