@@ -12,6 +12,7 @@ import JsBarcode from 'jsbarcode'
 import { qrUnidad } from '@/lib/printing/qr'
 import { api, apiFetch } from '@/lib/api/client'
 import { conciliarDemoImei, consultasDemoImei, postDemoImei } from '@/lib/demoImei'
+import { getDemoServicio } from '@/lib/demoServicio'
 import { COSMETICOS, INSPECCION_ESTADOS, INSPECCION_ITEMS, locksDeVerificacion, resumenInspection } from '@/lib/phonecheck'
 import { resources } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
@@ -23,7 +24,7 @@ import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 
-const EVENT_LABEL = { audit: 'Auditoría', transfer: 'Traslado', comment: 'Comentario', sale: 'Venta' }
+const EVENT_LABEL = { audit: 'Auditoría', transfer: 'Traslado', comment: 'Comentario', sale: 'Venta', imei: 'Consulta IMEI', repair: 'Reparación' }
 
 const money = (value, currency) => {
   const amount = Number(value)
@@ -124,7 +125,14 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
     setLoading(true); setError('')
     try {
       // #227: en demo la cronología sale de la propia unidad (sin API).
-      const payload = esDemo ? { events: unit.events || [] } : await api.get(`/api/inventory-units/${encodeURIComponent(unit.id)}/history`)
+      // #240: historial del serial: verificaciones/movimientos + consultas IMEI + reparaciones.
+      const consultasDemo = esDemo ? consultasDemoImei(unit.serial).map(consulta => ({ id: consulta.id, type: 'imei', label: 'Consulta IMEI', createdAt: consulta.requestedAt, user: consulta.verificador ? { id: consulta.verificador.id, name: consulta.verificador.nombre } : null, detail: `${consulta.serviceName} · ${consulta.etiqueta} · US$${Number(consulta.costUsd || 0).toFixed(2)}` })) : []
+      const reparacionesDemo = esDemo ? (getDemoServicio().rows || []).filter(fila => String(fila.serial || '').toUpperCase() === String(unit.serial || '').toUpperCase()).map(fila => ({ id: fila.id, type: 'repair', label: `Reparación ${fila.serviceNumber || ''}`.trim(), createdAt: fila.receivedAt || fila.createdAt, user: fila.technicianName ? { id: '', name: fila.technicianName } : null, detail: `${fila.device || 'Equipo'} · ${fila.status}` })) : []
+      // Los eventos del demo usan `at`/`title`; la cronología de la cuenta real usa `createdAt`/`label`.
+      const eventosDemo = esDemo ? (unit.events || []).map(evento => ({ ...evento, label: evento.label || evento.title, createdAt: evento.createdAt || evento.at })) : []
+      const payload = esDemo
+        ? { events: [...eventosDemo, ...consultasDemo, ...reparacionesDemo].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()) }
+        : await api.get(`/api/inventory-units/${encodeURIComponent(unit.id)}/history`)
       setEvents(payload?.events || [])
     } catch (cause) { setError(cause?.message || 'No se pudo cargar la cronología.') } finally { setLoading(false) }
   }, [unit.id, canManage])

@@ -47,6 +47,10 @@ test('inventario post-.140: alertas, vendidos, transito/traslados y acciones mas
   await expect(page.getByTestId('unidad-phonecheck')).toBeVisible({ timeout: 15_000 })
   await capturar('07-phonecheck')
 
+  // #240: historial del serial (verificaciones, consultas IMEI, reparaciones y movimientos).
+  await expect(page.getByTestId('unidad-cronologia')).toBeVisible({ timeout: 15_000 })
+  await capturar('11-historial-serial')
+
 
   // #240: página pública del informe (/u/<serial>) con QR.
   await page.goto('/u/356789102345678')
