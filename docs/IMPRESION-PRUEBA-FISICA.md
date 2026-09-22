@@ -14,17 +14,48 @@ tiene que devolver y **qué mirar si falla**. Las reglas del módulo viven en
 
 ## 0. Preparación (2 minutos)
 
-En la Mac del puente (donde está instalado el agente):
+En la Mac del puente (donde está instalado el agente). **Un solo bloque** junta
+todo lo que hay que reportar de #17 y #96 sin cambiar nada (sólo lee y guarda
+`~/mobos-prueba-fisica.txt`):
 
 ```bash
-TOKEN=$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync(process.env.HOME+'/.mobos-print/config.json','utf8')).token)")
-salud() { curl -s http://127.0.0.1:17890/health -H "x-mobos-print-token: $TOKEN" | python3 -m json.tool; }
-salud | head -40
+CONFIG="$HOME/.mobos-print/config.json"
+TOKEN=""; [ -f "$CONFIG" ] && TOKEN=$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).token||'')" "$CONFIG" 2>/dev/null)
+salud() { curl -s --max-time 3 http://127.0.0.1:17890/health -H "x-mobos-print-token: $TOKEN"; }
+{
+  echo "## Prueba física de impresión · $(date)"
+  echo; echo "### agente"
+  salud | python3 -c 'import json,sys; d=json.load(sys.stdin); print("version:", d.get("version"), "· impresora:", d.get("impresora"), "· ancho:", d.get("ancho"), "· copias:", d.get("copias"))' 2>/dev/null || echo "  (el agente no responde en 127.0.0.1:17890)"
+  echo; echo "### launchd"
+  PID=$(launchctl list 2>/dev/null | awk '/com.mobos.print/{print $1}')
+  echo "  pid: ${PID:-(no aparece com.mobos.print)}"
+  [ -n "$PID" ] && ps -o command= -p "$PID" 2>/dev/null || echo "  (sin proceso del agente)"
+  echo; echo "### red"
+  ifconfig en0 2>/dev/null | grep -F 'inet 192.168.1.100' || echo "  (alias 192.168.1.100 ausente)"
+  route -n get 192.168.1.23 2>&1 | grep -E 'gateway|interface' || true
+  echo -n "  nc con bind (Terminal): "; nc -vz -s 192.168.1.100 192.168.1.23 9100 2>&1 | tail -1
+  echo; echo "### /health · red"
+  salud | python3 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps({k: d.get("red",{}).get(k) for k in ("tcp","cups","cupsUri","colaTipo","transporte","ultimoTransporte","autotest","alias")}, indent=2, ensure_ascii=False))' 2>/dev/null || echo "  (sin /health)"
+  echo; echo "### /health · usb"
+  salud | python3 -c 'import json,sys; d=json.load(sys.stdin); print(json.dumps(d.get("usb",{}), indent=2, ensure_ascii=False))' 2>/dev/null || echo "  (sin /health)"
+  echo; echo "### /diagnostico"
+  curl -s --max-time 5 "http://127.0.0.1:17890/diagnostico" -H "x-mobos-print-token: $TOKEN" | python3 -m json.tool 2>/dev/null || echo "  (sin /diagnostico)"
+  echo; echo "### colas CUPS"
+  lpstat -v 2>/dev/null | grep -i -E 'mobos|zkp|192\.168\.1\.23' || echo "  (sin cola CUPS para la impresora)"
+  echo; echo "### config (sin secretos)"
+  [ -f "$CONFIG" ] && python3 -c 'import json,sys; c=json.load(open(sys.argv[1])); print(json.dumps({k: c.get(k) for k in ("impresora","lan","ancho","copias","usb","usbVid","usbPid","alias","puerto")}, indent=2, ensure_ascii=False))' "$CONFIG" || echo "  (sin config)"
+  echo; echo "### módulo USB del agente"
+  ls "$HOME/Library/Application Support/MobOS Print/node_modules/usb/prebuilds/" 2>/dev/null || echo "  (sin prebuild de node-usb)"
+  echo; echo "### dispositivos USB vistos por macOS"
+  system_profiler SPUSBDataType 2>/dev/null | grep -E -i -B 1 -A 4 'zkp|printer|impresora|0483|5743' | head -30 || echo "  (sin coincidencias)"
+} | tee "$HOME/mobos-prueba-fisica.txt"
 ```
 
 - Si `curl` no responde: el agente no está corriendo (paso 1.2).
 - La **versión** tiene que ser la publicada en `backend/public/print-agent/manifest.json`
   (el instalador la muestra al final y la app la enseña en Configuración → Impresoras).
+- El archivo `~/mobos-prueba-fisica.txt` es lo que se pega en el issue al terminar
+  (§5): no incluye tokens ni contraseñas.
 
 ## 1. launchd + IP secundaria (#17)
 
@@ -119,9 +150,49 @@ salud | head -40
 | La prueba «no salió» pero el agente dice OK | Papel y `/health.transporte` | «Aceptado» no es «confirmado»: confirmar el número secreto en Actividad |
 | Error al vincular el puente | Configuración → Impresoras → Gestionar puentes | Regenerar el código; el token viejo deja de autenticar |
 
-## 5. Registro del resultado
+## 5. Cómo reportar (plantilla lista para pegar)
 
-- **#17**: pegar la salida de `/health` (`red.*`), el transporte real y el
-  resultado de la prueba de corte (¿cortó el rollo?).
-- **#96**: pegar `usb` de `/health` + `/diagnostico` y el resultado del ticket
-  por USB (o el motivo exacto del fallo y el `errno`).
+Al terminar, pegar `~/mobos-prueba-fisica.txt` junto con la plantilla del issue
+que corresponda. No hace falta explicar nada más si están completos los campos;
+si algo falló, el `errno`/`motivo` exacto es lo que permite ajustar el código
+sin adivinar.
+
+**En #17 (launchd + IP secundaria + cola CUPS):**
+
+```
+### Reporte de prueba física · #17
+- Versión del agente:
+- launchd: pid y comando (del bloque §0)
+- IP secundaria 192.168.1.100 presente: sí/no
+- `nc -vz -s 192.168.1.100 192.168.1.23 9100`: resultado
+- /health.red: tcp=… · cups=… · colaTipo=… · transporte=… · ultimoTransporte=… · autotest.ok=… (errno=…, origen=…)
+- Cola CUPS (`lpstat -v`): …
+- Prueba desde launchd: ¿salió el ticket? ¿completo (4 secciones)? ¿cortó el rollo?
+- Adjunto: ~/mobos-prueba-fisica.txt
+```
+
+**En #96 (USB directo con la ZKP8008):**
+
+```
+### Reporte de prueba física · #96
+- Bandera usb en config: true/false · usbVid/usbPid: …
+- /health.usb: activo=… · disponible=… · motivo=… · transporte=…
+- /diagnostico.usb: motivo (texto exacto)
+- macOS ve el dispositivo USB: sí/no (§0 «dispositivos USB»)
+- Prueba por USB: ¿salió el ticket? ¿cortó el rollo? ¿transporte=usb?
+- Si no salió: motivo exacto + errno
+- Adjunto: ~/mobos-prueba-fisica.txt
+```
+
+Criterio de cierre en ambos: **la prueba figura exitosa solo con entrega real y
+el ticket verificado en papel**. «Aceptado» en la cola no alcanza: hay que
+confirmar el papel (número secreto de Actividad) o el corte del rollo.
+
+### Qué NO hacer durante la prueba
+
+- **No cambiar IPs** (la ruta LAN con `192.168.1.100` está validada).
+- No insistir con CUPS *raw* si `lpadmin -m raw` falla: usar el alta por
+  Ajustes → Impresoras → IP (§2).
+- No editar el `sudoers` ni los plists a mano; el instalador y `red-mac.sh` ya
+  dejan todo reversible (`uninstall-macos.sh`).
+- No pegar tokens ni la contraseña en el issue: el bloque §0 los omite.
