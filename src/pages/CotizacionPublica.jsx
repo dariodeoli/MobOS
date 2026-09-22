@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import QRCode from 'qrcode'
 import { API_URL } from '@/lib/api/client'
+import { varianteDeTema } from '@/lib/tenantLogo'
 import { gs } from '@/utils/calculos'
 import Icon from '@/components/shared/Icon'
 import { Aviso } from '@/components/ui'
@@ -63,7 +64,7 @@ export default function CotizacionPublica() {
     }
   }
 
-  const logoUrl = `${API_URL}/api/quotes/public/${encodeURIComponent(token || '')}/logo`
+  const logoUrl = `${API_URL}/api/quotes/public/${encodeURIComponent(token || '')}/logo?variant=${varianteDeTema()}`
 
   return (
     <main className="min-h-screen bg-ink-950 px-4 py-10 text-fore">

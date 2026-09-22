@@ -85,6 +85,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
     customerName: order.customer?.name || null,
+    seller: order.seller?.name || null,
     company: { name: order.tenant?.name || null },
     items: order.items.map(item => ({
       description: item.description,
@@ -155,7 +156,6 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     billing: order.billingName || order.billingDocument
       ? { name: order.billingName, document: order.billingDocument }
       : null,
-    seller: order.seller?.name || null,
     deliveryNotes: order.deliveryNotes,
     credit: credito,
     payments: pagosConfirmados.map(pago => ({
