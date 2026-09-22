@@ -4,6 +4,8 @@ import { CELDA_DATO } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 
 const ICONO = {
+  ASIGNADO: 'truck',
+  TAREA: 'wrench',
   ENTREGA: 'truck',
   COBRO: 'money',
   PEDIDO: 'box',

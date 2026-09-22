@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
-import { requireSession } from '../../../lib/auth'
+import { canAccessAny, requireSession } from '../../../lib/auth'
 import { AUTHORIZATION_RESOLVERS } from '../../../lib/authorizations'
 
 // Centro de notificaciones del panel: lista corta y accionable, sin tabla
@@ -23,6 +23,16 @@ const ETIQUETA_KIND: Record<string, string> = {
   EXPENSE_OVER_LIMIT: 'Gasto sobre el límite',
   TRANSFER: 'Transferencia entre sucursales',
   PURCHASE_CREDIT: 'Compra a crédito',
+}
+
+// Estados del taller en lenguaje de pantalla (#148 §14: "tareas").
+const ETIQUETA_ESTADO_SERVICIO: Record<string, string> = {
+  RECIBIDO: 'Recibido',
+  DIAGNOSTICO: 'En diagnóstico',
+  CON_TECNICO: 'Con técnico',
+  ESPERANDO_REPUESTO: 'Esperando repuesto',
+  REPARADO: 'Reparado',
+  LISTO: 'Listo para entregar',
 }
 
 const gs = (valor: unknown) => `Gs. ${Number(valor || 0).toLocaleString('es-PY')}`
@@ -74,12 +84,42 @@ export async function GET(request: Request) {
       const cliente = pedido.customer?.name || 'Consumidor final'
       const comun = `${codigo} · ${cliente} · ${gs(pedido.totalPyg)}`
       if (pedido.fulfillmentStatus !== 'DELIVERED') {
-        items.push({ id: `entrega-${pedido.id}`, kind: 'ENTREGA', title: 'Entrega pendiente', detail: comun, at: pedido.createdAt, href: `/pedidos/${pedido.id}` })
+        // Para el repartidor el pedido está "asignado" (#148 §14); el resto ve la entrega.
+        const asignado = user.role === 'REPARTIDOR'
+        items.push({ id: `${asignado ? 'asignado' : 'entrega'}-${pedido.id}`, kind: asignado ? 'ASIGNADO' : 'ENTREGA', title: asignado ? 'Pedido asignado' : 'Entrega pendiente', detail: comun, at: pedido.createdAt, href: `/pedidos/${pedido.id}` })
       } else if (pedido.status === 'PENDING') {
         items.push({ id: `cobro-${pedido.id}`, kind: 'COBRO', title: 'Pedido sin cobrar', detail: comun, at: pedido.createdAt, href: `/pedidos/${pedido.id}` })
       } else if (pedido.createdAt.getTime() >= reciente) {
         items.push({ id: `pedido-${pedido.id}`, kind: 'PEDIDO', title: 'Pedido nuevo', detail: comun, at: pedido.createdAt, href: `/pedidos/${pedido.id}` })
       }
+    }
+  }
+
+  // Tareas del taller (#148 §14): lo asignado a la persona y, para jefaturas,
+  // las órdenes abiertas sin técnico para asignar.
+  if (canAccessAny(user, ['service:manage'])) {
+    const jefatura = user.role === 'ADMIN' || user.role === 'GERENTE'
+    const tareas = await prisma.serviceOrder.findMany({
+      where: {
+        tenantId: user.tenantId,
+        status: { notIn: ['ENTREGADO', 'CANCELADO'] },
+        updatedAt: { gte: desde },
+        ...(jefatura ? { technicianId: null } : { technicianId: user.id }),
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 15,
+      select: { id: true, serviceNumber: true, device: true, status: true, technicianId: true, technicianName: true, updatedAt: true },
+    })
+    for (const orden of tareas) {
+      const estado = ETIQUETA_ESTADO_SERVICIO[orden.status] || orden.status
+      items.push({
+        id: `tarea-${orden.id}`,
+        kind: 'TAREA',
+        title: orden.technicianId ? 'Tarea de taller asignada' : 'Orden de taller sin asignar',
+        detail: `${orden.serviceNumber || 'OS'} · ${recorte(orden.device, 40)} · ${estado}`,
+        at: orden.updatedAt,
+        href: '/servicio',
+      })
     }
   }
 
