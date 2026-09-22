@@ -4,6 +4,7 @@
 //
 // Uso: QA_BASE_URL=https://app.moboss.online node scripts/qa-finanzas-tokens-v2.mjs
 // Salida: docs/qa/tokens-v2-finanzas/<versión>/*.jpg + resultados.json
+/* global document, getComputedStyle */
 import { createRequire } from 'node:module'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
