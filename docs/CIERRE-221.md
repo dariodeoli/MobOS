@@ -34,7 +34,9 @@ integre la rama `slot/clientes`.
 | `docs/QA-187-clientes-produccion.md` + carpeta | Dominio clientes completo en producción (17/17 sobre v1.0.138), públicos e impresiones |
 | `docs/QA-160-demo-crm-actividad.md` + carpeta | La venta del POS demo entra en la ficha + §19 completo en la demo (9 capturas) |
 | `docs/QA-160-perfil-produccion.md` + carpeta | §19 en **cuenta real**: los 11 ítems del perfil + seguro (6 capturas) |
-| `e2e/demo-crm.spec.js` · `e2e/qa-160-perfil.spec.js` · `src/lib/customerAggregates.test.js` · `src/lib/demoClientes.test.js` | Suites que fijan el comportamiento |
+| `docs/QA-236-clientes.md` + `docs/QA-236-clientes-demo/` | **Demo verificada del ojito/popup y la vista estilo Pedidos (#236)**: 6/6 pasos, capturas de lista, resumen rápido (con los agregados de #221), detalle completo, editar y mobile; 0 llamadas al API |
+| `scripts/qa-236-clientes-demo.mjs` | Verificador reusable (harness o producción) de la demo de Clientes; post-.140 se corre en producción |
+| `e2e/demo-crm.spec.js` · `e2e/qa-160-perfil.spec.js` · `e2e/qa-236-clientes.spec.js` · `src/lib/customerAggregates.test.js` · `src/lib/demoClientes.test.js` | Suites que fijan el comportamiento |
 
 ## Comentario listo para pegar (cuando se integre la rama)
 
@@ -66,4 +68,5 @@ Verificado contra producción **v1.0.138** (`docs/QA-221-demo-clientes-prod.md`:
 - «RUC» en el Resumen usa el RUC de facturación: con solo CI cargado muestra
   «—» (el CI está en la cabecera de la ficha). Documentado.
 - **Corregido en el incremento**: la antigüedad de un cliente creado hoy
-  mostraba «—» (ahora «Hoy»).
+  mostraba «—» (ahora «Hoy»); el % del seguro del resumen rápido mostraba
+  «12.5%» (ahora «12,5%»).
