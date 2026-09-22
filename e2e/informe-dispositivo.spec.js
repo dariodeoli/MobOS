@@ -8,7 +8,7 @@
 // /health dice presente y /print guarda el cuerpo que mandó la app.
 
 import { test, expect } from '@playwright/test'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 const SALIDA = 'test-results/qa-240-informe-dispositivo'
@@ -250,4 +250,18 @@ test('la hoja de estación sale del taller con los equipos del carril', async ({
   expect(texto).toContain('Firma / control')
   expect(texto).toContain('Marcá cada uno al verificarlo')
   await page.screenshot({ path: `${SALIDA}/07-hoja-estacion.jpg`, type: 'jpeg', quality: 75 })
+
+  // Impresión A4: el mismo HTML que manda la app, en una hoja y sin cortes.
+  const html = await contenido.locator('html').evaluate((el) => el.outerHTML)
+  const hoja = await page.context().newPage()
+  await hoja.emulateMedia({ media: 'print' })
+  await hoja.setContent(html, { waitUntil: 'load' })
+  await hoja.waitForTimeout(250)
+  const ruta = `${SALIDA}/hoja-estacion-a4.pdf`
+  await hoja.pdf({ path: ruta, format: 'A4', printBackground: true, margin: { top: '14mm', bottom: '14mm', left: '14mm', right: '14mm' } })
+  await hoja.screenshot({ path: `${SALIDA}/08-hoja-estacion-a4.jpg`, type: 'jpeg', quality: 75, fullPage: true })
+  await hoja.close()
+  const pdf = readFileSync(ruta).toString('latin1')
+  expect(pdf.split('/Type /Page').length - pdf.split('/Type /Pages').length).toBe(1)
+  expect(pdf.length).toBeGreaterThan(1000)
 })
