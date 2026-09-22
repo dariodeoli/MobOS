@@ -214,3 +214,41 @@ html.dark input[type='date']::-webkit-calendar-picker-indicator:hover {
   background: rgb(var(--c-fono) / 0.25);
   color: transparent;
 }
+
+
+/* ── Tokens v2 · piloto PhoneCheck (#241) ──────────────────────────────
+   Se aplican solo dentro de `.v2-piloto` (tabla de inventario, ficha de
+   unidad y carrito POS). El resto de la app sigue con la paleta actual
+   hasta que CMP migre la biblioteca. */
+.v2-piloto {
+  --c-paper: 246 248 251;
+  --c-ink: 255 255 255;
+  --c-ink-900: 255 255 255;
+  --c-ink-800: 241 244 248;
+  --c-ink-700: 232 236 243;
+  --c-ink-600: 214 220 230;
+  --c-ink-500: 148 163 184;
+  --c-fore: 14 17 22;
+  --c-mute: 71 85 105;
+  --c-ok: 22 163 74;
+  --c-bad: 220 38 38;
+  --c-warn: 217 119 6;
+  --c-info: 77 124 254;
+}
+.dark .v2-piloto {
+  --c-paper: 14 17 22;
+  --c-ink: 31 36 48;
+  --c-ink-950: 14 17 22;
+  --c-ink-900: 31 36 48;
+  --c-ink-800: 31 36 48;
+  --c-ink-700: 41 48 63;
+  --c-ink-600: 55 63 81;
+  --c-ink-500: 90 100 120;
+  --c-fore: 244 246 250;
+  --c-mute: 154 163 178;
+  --c-ok: 34 197 94;
+  --c-bad: 239 68 68;
+  --c-warn: 245 158 11;
+  --c-info: 77 124 254;
+}
+.v2-piloto .v2-numero { font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
