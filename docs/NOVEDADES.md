@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.141 — 2026-09-22
+- **Demo:** al vender en el demo, la unidad pasa a **Vendidos**, **baja el stock** del modelo y queda la **cronología** de la unidad (#227, cierra la observación del barrido #195).
+- **Notificaciones:** el panel suma **tareas de taller y pedidos asignados** para el equipo (#148 §14).
+- **UI:** se consolidan los **anchos de modal por tipo** en todas las pantallas (migración de usos, #237) y el lote 10 de componentes (notas, estados con badge, barras y montos).
+- **QA:** recorridos de **Finanzas §17/§18/§19** y de **Clientes demo** sobre producción, más el estado del **§20 de POS** (borradores/envío).
+
 ## v1.0.140 — 2026-09-22
 - **POS:** el carrito arranca con **líneas colapsadas, IMEI en línea y flecha** para expandir (#225); se quitó el campo **Fecha** (la venta es del día) (#229); la **entrega va antes del cobro** con su costo a la vista (#230); **promociones en grilla** de hasta 4 campos por fila (#238).
 - **Inventario:** la tabla de unidades queda en **una sola fila** (producto + IMEI), con **foto del verificador** y **Estado centrado** (#239); la pantalla de **Alertas** vuelve a abrir en producción (#226); si el proveedor de IMEI **no responde**, la consulta queda **«a conciliar»** con su costo estimado (#233) y una confirmación AEX ambigua **se concilia sin reintentar** (#231); los datos del demo ya no dicen "demo" (**Aurora Móviles**, prefijo **AUR**) con guarda automática (#222).
