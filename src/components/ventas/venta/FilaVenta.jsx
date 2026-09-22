@@ -291,7 +291,7 @@ export default function FilaVenta({
             title={abierta ? 'Ver menos' : 'Ver detalle'}
             onClick={() => setAbierta(value => !value)}
           >
-            <Icon name="back" className={cn('h-4 w-4 rotate-90 transition', abierta && '-rotate-90')} />
+            <Icon name="back" className={cn('h-4 w-4 transition', abierta ? 'rotate-90' : '-rotate-90')} />
           </button>
         </div>
       </div>
