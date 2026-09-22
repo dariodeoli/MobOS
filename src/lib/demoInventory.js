@@ -81,6 +81,7 @@ function unidad(producto, indice) {
     createdAt: hace(30 - indice),
     lastVerifiedBy: indice % 4 === 0 ? verificadorDeDemo(indice) : null,
     verifiedAt: indice % 4 === 0 ? hace(indice % 10, 15) : null,
+    events: estado === 'SOLD' ? [{ id: `demo-evento-${indice}`, type: 'sale', title: 'Venta', detail: 'Vendida en la demo', at: hace(5) }] : [],
     sale: estado === 'SOLD' ? { fulfillmentStatus: indice === 19 ? 'DELIVERED' : indice === 20 ? 'READY_FOR_PICKUP' : 'PROCESSING', orderNumber: `MOB-00${40 + indice}` } : null,
   }
   if (estado === 'RESERVED') {
@@ -315,4 +316,25 @@ export function demoStockAlerts(productos = []) {
     alerts: conUmbral.filter(product => Number(product.stock) > 0 && Number(product.stock) <= Number(product.reorderPoint)).map(fila),
     outOfStock: conUmbral.filter(product => Number(product.stock) <= 0).map(fila),
   }
+}
+
+// #227/#195: al vender en la demo, la unidad pasa a SOLD y queda el evento en su
+// cronología (mismo resultado que la cuenta real, sin tocar el API).
+export function marcarUnidadesVendidasDemo({ serials = [], orderNumber = '', customerName = '', totalPyg = 0 } = {}) {
+  const state = read()
+  const vendidas = []
+  for (const serial of serials) {
+    const unit = porSerial(state, serial)
+    if (!unit) continue
+    const at = new Date().toISOString()
+    unit.status = 'SOLD'
+    unit.reservedUntil = null
+    unit.reservationCustomer = ''
+    unit.reservationCustomerRef = null
+    unit.sale = { orderNumber, fulfillmentStatus: 'PROCESSING', soldAt: at, customerName }
+    unit.events = [...(unit.events || []), { id: `demo-evento-${Date.now().toString(36)}-${vendidas.length}`, type: 'sale', title: 'Venta', detail: `Vendido en ${orderNumber || 'el pedido'}${customerName ? ` a ${customerName}` : ''}${totalPyg ? ` por Gs ${Number(totalPyg).toLocaleString('es-PY')}` : ''}`, at }]
+    vendidas.push(snapshot(state, unit))
+  }
+  write(state)
+  return vendidas
 }

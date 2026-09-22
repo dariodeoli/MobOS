@@ -108,7 +108,8 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
     if (!canManage) { setLoading(false); return }
     setLoading(true); setError('')
     try {
-      const payload = await api.get(`/api/inventory-units/${encodeURIComponent(unit.id)}/history`)
+      // #227: en demo la cronología sale de la propia unidad (sin API).
+      const payload = esDemo ? { events: unit.events || [] } : await api.get(`/api/inventory-units/${encodeURIComponent(unit.id)}/history`)
       setEvents(payload?.events || [])
     } catch (cause) { setError(cause?.message || 'No se pudo cargar la cronología.') } finally { setLoading(false) }
   }, [unit.id, canManage])

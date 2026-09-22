@@ -60,3 +60,13 @@ test('verificar una unidad deja usuario y fecha (sin datos reales)', () => {
   assert.ok(['Hernán Acosta', 'Ana Giménez', 'Diego López', 'María Benítez', 'Jorge Villalba', 'Sofía Cáceres'].includes(verificada.lastVerifiedBy.name), 'la firma un usuario demo del equipo')
   assert.ok(verificada.verifiedAt)
 })
+
+test('la venta demo marca la unidad como vendida y deja el evento (#227)', () => {
+  const libre = demo.listDemoUnits().find(unit => unit.status === 'AVAILABLE')
+  const [vendida] = demo.marcarUnidadesVendidasDemo({ serials: [libre.serial], orderNumber: 'MOB-0099', customerName: 'Cliente demo', totalPyg: 5000000 })
+  assert.equal(vendida.status, 'SOLD')
+  assert.equal(vendida.sale.orderNumber, 'MOB-0099')
+  assert.ok(vendida.events.some(evento => evento.type === 'sale'), 'deja el evento de venta en la cronología')
+  const enLista = demo.listDemoUnits().find(unit => unit.serial === libre.serial)
+  assert.equal(enLista.status, 'SOLD')
+})
