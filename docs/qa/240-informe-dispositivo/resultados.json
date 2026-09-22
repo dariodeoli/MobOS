@@ -1,12 +1,13 @@
 {
-  "base": "http://127.0.0.1:5279",
-  "fecha": "2026-09-22T13:20:51.556Z",
+  "base": "http://127.0.0.1:5283",
+  "fecha": "2026-09-22T15:01:13.590Z",
   "resultados": [
     {
       "documento": "informe-a4",
       "formato": "a4",
       "tipo": "html",
       "paginas": 1,
+      "contenidoMm": 270,
       "estado": "ok"
     },
     {
@@ -14,6 +15,7 @@
       "formato": "thermal-80",
       "tipo": "html",
       "paginas": 1,
+      "contenidoMm": 356,
       "estado": "ok"
     },
     {
@@ -28,6 +30,42 @@
       "formato": "térmico 58 mm",
       "tipo": "escpos",
       "paginas": 1,
+      "estado": "ok"
+    },
+    {
+      "documento": "certificado-a4",
+      "formato": "a4",
+      "tipo": "html",
+      "paginas": 1,
+      "contenidoMm": 251,
+      "estado": "ok"
+    },
+    {
+      "documento": "certificado-thermal-80",
+      "formato": "thermal-80",
+      "tipo": "html",
+      "paginas": 1,
+      "contenidoMm": 329,
+      "estado": "ok"
+    },
+    {
+      "documento": "certificado-termico-80",
+      "formato": "térmico 80 mm",
+      "tipo": "escpos",
+      "paginas": 1,
+      "estado": "ok"
+    },
+    {
+      "documento": "certificado-termico-58",
+      "formato": "térmico 58 mm",
+      "tipo": "escpos",
+      "paginas": 1,
+      "estado": "ok"
+    },
+    {
+      "documento": "certificado-pendiente",
+      "formato": "térmico 80 mm",
+      "tipo": "escpos",
       "estado": "ok"
     }
   ]

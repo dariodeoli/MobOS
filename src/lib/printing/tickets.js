@@ -8,6 +8,7 @@ import { datosDeCodigo, formatoDeCodigo, ETIQUETA_FORMATO } from './codigos.js'
 import { bloqueFirma, crearTicket } from './escpos.js'
 import { contextoEtiquetaUnidad, datosEtiquetaUnidad } from './etiquetaUnidad.js'
 import { estadoGarantia, fechaVerificacionInforme } from './informeDispositivo.js'
+import { AVISO_BLACKLIST, estadoChecklistCorto, estadoControl, fechaHoraDocumento } from './certificado.js'
 import { baseDeApp, qrProducto, qrPrueba } from './qr.js'
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
@@ -668,9 +669,74 @@ export function ticketRecepcionServicio(order, { ancho = 80 } = {}) {
   return t.avanza(2).corte()
 }
 
-// Comprobante de verificación de IMEI (#203): la info mínima y honesta para el
-// cliente (estado, fecha y fuente). Nunca costos, respuestas crudas ni datos
-// internos; si la consulta fue simulada (demo) se imprime el aviso.
+// Etiqueta Certificado (#240, contrato de INV `docs/PHONECHECK-INFORME.md`):
+// constancia de la inspección con grado, puntaje, semáforo de controles y el QR
+// al informe público. El código compacto `CERT|…` va en barras (el QR siempre
+// es una URL de la app, regla de docs/IMPRESION.md).
+export function ticketCertificado(datos = {}, { ancho = 80 } = {}) {
+  const t = crearTicket({ ancho }).iniciar()
+  const estrecho = Number(ancho) <= 58
+  const par = (etiqueta, valor) => {
+    if (!valor) return
+    if (estrecho) { t.texto(etiqueta); t.par('  ', String(valor)) } else t.par(etiqueta, valor)
+  }
+  const fecha = fechaHoraDocumento(datos.verificado)
+  const bateria = [
+    datos.bateria?.porcentaje ? `${datos.bateria.porcentaje}%` : '',
+    datos.bateria?.ciclos ? `${datos.bateria.ciclos} ciclos` : '',
+  ].filter(Boolean).join(' · ')
+  t.centrado(APP_NAME).negrita().centrado((datos.titulo || 'CERTIFICADO DE INSPECCIÓN').toUpperCase()).negrita(false)
+  if (datos.sucursal) t.centrado(datos.sucursal)
+  t.linea()
+  t.negrita().centrado('GRADO').negrita(false)
+  t.negrita().doble().centrado(datos.grado || 'P').doble(false).negrita(false)
+  t.centrado(!datos.completa
+    ? 'Pendiente de inspección'
+    : `Puntaje ${datos.puntaje}/100 · ${datos.ok}/${datos.evaluados} conformes`)
+  t.linea()
+
+  t.negrita().texto('Equipo').negrita(false)
+  t.texto(datos.modelo || datos.producto || 'Producto')
+  par('Serial', datos.serialImpreso || datos.serialEnmascarado)
+  par('Condición', datos.condicion)
+  par('Cosmético', datos.cosmetico)
+  par('Batería', bateria)
+  par('Ubicación', datos.ubicacion)
+  par('Repuestos no OEM', datos.repuestosNoOem)
+  t.linea()
+
+  t.negrita().texto('Controles').negrita(false)
+  if ((datos.controles || []).length) {
+    for (const control of datos.controles) {
+      par(control.label, `${estadoControl(control.estado)}${control.valor ? ` · ${control.valor}` : ''}`)
+    }
+  } else {
+    t.texto('Sin verificación IMEI registrada.')
+  }
+  t.linea()
+
+  t.negrita().texto('Checklist').negrita(false)
+  if (datos.hay) {
+    for (const item of datos.items || []) par(item.label, estadoChecklistCorto(item.estado))
+    for (const item of datos.noOk || []) if (item.nota) t.texto(`${item.label}: ${item.nota}`)
+    if (datos.nota) t.texto(`Nota: ${datos.nota}`)
+  } else {
+    t.texto('Pendiente de inspección.')
+  }
+  t.linea()
+
+  par('Verificado por', datos.verificadoPor)
+  par('Verificado el', fecha)
+  if (datos.enlace) t.qr(datos.enlace, { tamano: 7, etiqueta: 'INFORME PÚBLICO' })
+  if (datos.enlace) t.centrado(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el informe público.')
+  if (datos.codigo) t.barcode(datos.codigoBarras || datos.codigo, { etiqueta: 'CÓDIGO INTERNO' })
+  t.linea()
+  t.texto(datos.aviso || AVISO_BLACKLIST)
+  t.centrado('Constancia de inspección · documento informativo')
+  t.centrado(`Generado por ${APP_NAME}${datos.emisor ? ` para ${datos.emisor}` : ''} · ${datos.fechaEmision || ''}`)
+  return t.avanza(2).corte()
+}
+
 // Informe de dispositivo imprimible (#240): equipo, verificación IMEI,
 // inspección física, garantía y el QR al informe público. Mismo dato que el
 // HTML (`datosInformeDispositivo`), una columna con bloques separados.
@@ -716,8 +782,19 @@ export function ticketInformeDispositivo(datos = {}, { ancho = 80 } = {}) {
   par('Verificado el', fechaVerificacionInforme(datos))
   par('Verificaciones', inspeccion.verificaciones ? String(inspeccion.verificaciones) : '')
   par('Grado', inspeccion.grado || 'Sin grado asignado')
-  if (inspeccion.total) par('Checklist', `${inspeccion.aprobados}/${inspeccion.total}${inspeccion.puntaje ? ` · puntaje ${inspeccion.puntaje}` : ''}`)
-  if (!inspeccion.verificador && !inspeccion.grado) t.texto('Sin verificación física registrada.')
+  if (inspeccion.puntaje !== null && inspeccion.puntaje !== undefined) par('Puntaje', `${inspeccion.puntaje}/100`)
+  if (inspeccion.total) par('Checklist', `${inspeccion.aprobados}/${inspeccion.total} conformes`)
+  par('Cosmético', inspeccion.cosmetico)
+  par('Repuestos no OEM', inspeccion.repuestosNoOem)
+  const itemsCheck = (inspeccion.items || []).filter((item) => item.estado)
+  if (itemsCheck.length) {
+    for (const item of itemsCheck) par(item.label, estadoChecklistCorto(item.estado))
+    for (const item of inspeccion.noOk || []) if (item.nota) t.texto(`${item.label}: ${item.nota}`)
+    if (inspeccion.nota) t.texto(`Nota: ${inspeccion.nota}`)
+    t.texto(inspeccion.aviso || AVISO_BLACKLIST)
+  } else if (!inspeccion.verificador && !inspeccion.grado) {
+    t.texto('Sin verificación física registrada.')
+  }
   t.linea()
 
   t.negrita().texto('Garantía de la tienda').negrita(false)
@@ -726,14 +803,18 @@ export function ticketInformeDispositivo(datos = {}, { ancho = 80 } = {}) {
   t.linea()
 
   if (datos.enlace) t.qr(datos.enlace, { tamano: 7, etiqueta: 'INFORME DEL DISPOSITIVO' })
-  if (datos.enlace) t.centrado(datos.enlace)
+  if (datos.enlace) t.centrado(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el informe público.')
   t.linea()
   t.centrado('Documento informativo · no válido como factura')
   t.centrado(`Generado por ${APP_NAME}${datos.emisor ? ` para ${datos.emisor}` : ''}`)
   return t.avanza(2).corte()
 }
 
-export function ticketVerificacionImei(resumen, { ancho = 80 } = {}) {  const t = crearTicket({ ancho }).iniciar()
+// Comprobante de verificación de IMEI (#203): la info mínima y honesta para el
+// cliente (estado, fecha y fuente). Nunca costos, respuestas crudas ni datos
+// internos; si la consulta fue simulada (demo) se imprime el aviso.
+export function ticketVerificacionImei(resumen, { ancho = 80 } = {}) {
+  const t = crearTicket({ ancho }).iniciar()
   const fechaTexto = resumen?.fecha ? new Date(resumen.fecha).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : ''
   t.centrado(APP_NAME).negrita().centrado('Verificación de IMEI').negrita(false)
   if (resumen?.simulado) t.centrado('(simulada)')

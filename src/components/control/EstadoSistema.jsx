@@ -33,6 +33,7 @@ const TIPO_TRABAJO = {
   'etiquetas-stock': 'Etiquetas de unidades',
   'etiqueta-ubicacion': 'Etiqueta de ubicación',
   'informe-dispositivo': 'Informe de dispositivo',
+  'certificado-phonecheck': 'Certificado de inspección',
   prueba: 'Ticket de prueba',
   'prueba-corta': 'Prueba de corte',
 }

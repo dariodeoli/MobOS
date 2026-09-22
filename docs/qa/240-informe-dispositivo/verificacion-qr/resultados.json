@@ -1,0 +1,74 @@
+{
+  "base": "http://127.0.0.1:5283",
+  "fecha": "2026-09-22T15:01:32.922Z",
+  "enlace": "https://app.moboss.online/u/351500000000004",
+  "sdk": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk",
+  "resultados": [
+    {
+      "documento": "informe-inv-80mm-escpos",
+      "caso": "inv",
+      "tipo": "escpos",
+      "paginas": 1,
+      "qr": "https://app.moboss.online/u/351500000000004",
+      "estado": "ok",
+      "detalle": "enlace verificado en los bytes ESC/POS"
+    },
+    {
+      "documento": "informe-dsn-80mm-escpos",
+      "caso": "dsn",
+      "tipo": "escpos",
+      "paginas": 1,
+      "qr": "https://app.moboss.online/u/351500000000004",
+      "estado": "ok",
+      "detalle": "enlace verificado en los bytes ESC/POS"
+    },
+    {
+      "documento": "informe-inv-a4",
+      "caso": "inv",
+      "tipo": "informe",
+      "paginas": 1,
+      "qr": "https://app.moboss.online/u/351500000000004",
+      "estado": "ok"
+    },
+    {
+      "documento": "informe-inv-80mm",
+      "caso": "inv",
+      "tipo": "informe",
+      "paginas": 1,
+      "qr": "https://app.moboss.online/u/351500000000004",
+      "estado": "ok"
+    },
+    {
+      "documento": "certificado-inv-a4",
+      "caso": "inv",
+      "tipo": "certificado",
+      "paginas": 1,
+      "qr": "https://app.moboss.online/u/351500000000004",
+      "estado": "ok"
+    },
+    {
+      "documento": "informe-dsn-a4",
+      "caso": "dsn",
+      "tipo": "informe",
+      "paginas": 2,
+      "qr": "https://app.moboss.online/u/351500000000004",
+      "estado": "ok"
+    },
+    {
+      "documento": "informe-dsn-80mm",
+      "caso": "dsn",
+      "tipo": "informe",
+      "paginas": 1,
+      "qr": "https://app.moboss.online/u/351500000000004",
+      "estado": "ok"
+    },
+    {
+      "documento": "certificado-dsn-a4",
+      "caso": "dsn",
+      "tipo": "certificado",
+      "paginas": 1,
+      "qr": "https://app.moboss.online/u/351500000000004",
+      "estado": "ok"
+    }
+  ]
+}

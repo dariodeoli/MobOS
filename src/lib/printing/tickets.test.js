@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { TIPOS_TICKET_PRUEBA, ticketComprobante, ticketEtiquetaProducto, ticketEtiquetasProducto, ticketEtiquetaUnidad, ticketInformeDispositivo, ticketNotaEntrega, ticketProforma, ticketPruebaTipo, ticketReciboInterno, ticketRemision, ticketVerificacionImei } from './tickets.js'
+import { TIPOS_TICKET_PRUEBA, ticketCertificado, ticketComprobante, ticketEtiquetaProducto, ticketEtiquetasProducto, ticketEtiquetaUnidad, ticketInformeDispositivo, ticketNotaEntrega, ticketProforma, ticketPruebaTipo, ticketReciboInterno, ticketRemision, ticketVerificacionImei } from './tickets.js'
 import { datosInformeDispositivo } from './informeDispositivo.js'
+import { datosCertificado } from './certificado.js'
 import { digitoVerificadorEan, esEan13, formatoDeCodigo } from './codigos.js'
 
 const opciones = { ancho: 80, impresora: 'lan:192.168.1.23:9100', nombre: 'ZKP8008', equipo: 'mac-puente', copias: 1 }
@@ -482,4 +483,109 @@ test('el informe de dispositivo imprime el equipo, el IMEI y el QR público (#24
   assert.ok(bytes.includes('https://app.moboss.online/u/356789102345673'), 'el QR lleva la URL completa')
   assert.ok(!/USD|0\.06|provider|raw/i.test(texto), 'sin costos ni datos internos')
   assert.equal(ticket.corteEnviado(), true, 'envía el corte')
+})
+
+// #240 · certificado de inspección (contrato de INV `docs/PHONECHECK-INFORME.md`).
+const CERTIFICADO_UNIDAD = {
+  id: 'u1',
+  serial: 'AUR00017518',
+  condition: 'USED',
+  product: { name: 'iPhone 15', model: 'iPhone 15', capacity: '128GB' },
+  branch: { name: 'Casa Central' },
+  inspection: {
+    items: { pantalla: { estado: 'ok' }, audio: { estado: 'observacion', nota: 'Crujido al máximo' }, camaras: { estado: 'na' }, carcasa: { estado: 'falla', nota: 'Golpe en la esquina' } },
+    cosmetico: 'marcas de uso',
+    bateriaPct: '89',
+    bateriaCiclos: '310',
+    grado: 'B',
+    puntaje: 67,
+    inspeccionadoAt: '2026-09-21T23:09:00.000Z',
+    inspeccionadoPor: 'Lucía Fernández',
+  },
+}
+const CERTIFICADO_PUBLICO = {
+  titulo: 'Certificado PhoneCheck',
+  grado: 'A',
+  puntaje: 100,
+  serial: '•••••••7518',
+  bateria: { porcentaje: '89', ciclos: '310' },
+  controles: [{ clave: 'icloud', label: 'iCloud / Find My', ok: true, estado: 'libre' }, { clave: 'esn', label: 'ESN / lista negra', ok: false, estado: 'activo', valor: 'Reportado' }],
+  items: [
+    { grupo: 'Pantalla', label: 'Pantalla / táctil', estado: 'ok', nota: '' },
+    { grupo: 'Audio', label: 'Altavoces y micrófono', estado: 'observacion', nota: 'Crujido al máximo' },
+  ],
+  verificado: '2026-09-21T23:09:00.000Z',
+  enlace: 'https://app.moboss.online/informe/abc123',
+  aviso: 'iCloud/US Block clean no equivalen a blacklist mundial.',
+}
+
+test('el certificado de inspección imprime grado, controles, checklist y el QR (#240)', () => {
+  const datos = datosCertificado(CERTIFICADO_UNIDAD, { informe: CERTIFICADO_PUBLICO, emisor: 'Móvil Center', ahora: new Date('2026-09-22T10:00:00Z') })
+  const ticket = ticketCertificado(datos, { ancho: 80 })
+  const texto = ticket.lineas().join('\n')
+  assert.ok(texto.includes('CERTIFICADO PHONECHECK'), 'título del contrato de INV (rollo en mayúsculas)')
+  assert.ok(ticket.lineas().some((linea) => linea.trim() === 'A'), 'el grado va grande')
+  assert.ok(texto.includes('Puntaje 100/100 · 1/2 conformes'), 'puntaje y conformes')
+  assert.ok(texto.includes('iCloud / Find My') && texto.includes('ESN / lista negra') && texto.includes('Activo'), 'semáforo de controles con los rótulos compartidos')
+  assert.ok(texto.includes('Pantalla / táctil') && texto.includes('Crujido al máximo'), 'checklist con notas')
+  assert.ok(texto.includes('Lucía Fernández'), 'quién verificó')
+  assert.ok(texto.includes('INFORME PÚBLICO') && texto.includes('[BARRA]'), 'QR + código en barras')
+  const plano = ticket.lineas().join(' ').replace(/\s+/g, ' ')
+  assert.ok(plano.includes('iCloud/US Block clean no equivalen a blacklist mundial.'), 'aviso obligatorio')
+  assert.ok(!texto.includes('AUR00017518'), 'el serial completo no viaja al papel')
+  assert.ok(texto.includes('•••••••7518'), 'serial enmascarado')
+  const bytes = atob(ticket.base64())
+  assert.ok(bytes.includes('https://app.moboss.online/informe/abc123'), 'el QR lleva el informe público')
+  assert.ok(bytes.includes('CERT|'), 'el código interno viaja en barras')
+  assert.equal(ticket.corteEnviado(), true)
+})
+
+test('el certificado sin inspección sale «pendiente» y honesto (#240)', () => {
+  const datos = datosCertificado({ serial: 'AUR00017518', product: { name: 'iPhone 15' } }, { base: 'https://app.moboss.online', ahora: new Date('2026-09-22T10:00:00Z') })
+  const texto = ticketCertificado(datos, { ancho: 80 }).lineas().join('\n')
+  assert.ok(texto.includes('Pendiente de inspección'))
+  assert.ok(texto.includes('CERTIFICADO DE INSPECCIÓN'), 'sin contrato de INV el título es neutro')
+  assert.ok(texto.includes('/u/AUR00017518'), 'el QR cae a la ficha pública de la unidad')
+})
+
+test('en 58 mm el checklist del certificado no se corta (#240)', () => {
+  const datos = datosCertificado(CERTIFICADO_UNIDAD, { informe: CERTIFICADO_PUBLICO, ahora: new Date('2026-09-22T10:00:00Z') })
+  const texto = ticketCertificado(datos, { ancho: 58 }).lineas().join('\n')
+  for (const marca of ['Altavoces y micrófono', 'Obs.', 'ESN / lista negra', 'Reportado', 'Crujido al máximo']) {
+    assert.ok(texto.includes(marca), `no se corta «${marca}»`)
+  }
+})
+
+test('el informe imprime el checklist PhoneCheck con sus fallas y el aviso (#240)', () => {
+  const unit = {
+    serial: '356789102345673',
+    condition: 'USED',
+    batteryHealth: 89,
+    product: { name: 'iPhone 15 Pro 256GB Titanio', model: 'iPhone 15 Pro', capacity: '256GB', color: 'Titanio' },
+    lastVerifiedBy: { name: 'Lucía' },
+    lastVerifiedAt: '2026-09-21T15:04:00Z',
+    inspection: { items: { pantalla: { estado: 'ok' }, audio: { estado: 'falla', nota: 'Micrófono bajo' } }, cosmetico: 'buen estado', bateriaCiclos: '310' },
+  }
+  const datos = datosInformeDispositivo(unit, { ahora: new Date('2026-09-22T10:00:00Z'), base: 'https://app.moboss.online' })
+  const ticket = ticketInformeDispositivo(datos, { ancho: 80 })
+  const texto = ticket.lineas().join('\n')
+  assert.ok(texto.includes('Inspección física'), 'bloque de inspección')
+  assert.ok(texto.includes('Cosmético') && texto.includes('buen estado'), 'cosmético')
+  assert.ok(texto.includes('Batería') && texto.includes('310 ciclos'), 'ciclos de batería')
+  assert.ok(texto.includes('Puntaje') && texto.includes('50/100'), 'puntaje calculado (ok + falla)')
+  assert.ok(texto.includes('Pantalla / táctil') && texto.includes('Bien'), 'ítems con el rótulo compartido')
+  assert.ok(texto.includes('Micrófono bajo'), 'nota de la falla')
+  const plano = ticket.lineas().join(' ').replace(/\s+/g, ' ')
+  assert.ok(plano.includes('iCloud/US Block clean no equivalen a blacklist mundial.'), 'aviso')
+  const lineaDelImei = ticket.lineas().find((linea) => linea.trim().startsWith('IMEI')) || ''
+  assert.ok(!lineaDelImei.includes('356789102345673'), 'la fila del IMEI va enmascarada')
+})
+
+test('en 58 mm el checklist del informe no se corta (#240)', () => {
+  const unit = { serial: '356789102345673', product: { name: 'iPhone 15', model: 'iPhone 15' }, inspection: { items: { audio: { estado: 'observacion', nota: 'Crujido al máximo' }, camaras: { estado: 'na' } }, cosmetico: 'marcas de uso' } }
+  const datos = datosInformeDispositivo(unit, { ahora: new Date('2026-09-22T10:00:00Z') })
+  const texto = ticketInformeDispositivo(datos, { ancho: 58 }).lineas().join('\n')
+  for (const marca of ['Altavoces y micrófono', 'Obs.', 'Cámaras', 'N/A', 'Crujido al máximo']) {
+    assert.ok(texto.includes(marca), `no se corta «${marca}»`)
+  }
 })

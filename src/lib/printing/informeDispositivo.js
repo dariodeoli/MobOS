@@ -1,16 +1,17 @@
 // Informe de dispositivo imprimible (#240, inspiración PhoneCheck): datos del
-// equipo, su verificación IMEI, la inspección física y la garantía, con el QR
-// al informe público (`/u/<serial>`).
+// equipo, su verificación IMEI, la inspección PhoneCheck (checklist + grado) y
+// la garantía, con el QR al informe público (`/u/<serial>` o el `enlace` de
+// INV/DSN).
 //
 // Una sola definición alimenta el ticket ESC/POS y el HTML/PDF, como las
 // etiquetas (#220). Datos:
-//   - INV: `unit` (equipo, verificación física, garantía) y la consulta IMEI
-//     (`/api/imei`). Si INV agrega grado/checklist, se imprime el que venga en
-//     `unit.grade` y `unit.inspection` ({ puntaje, aprobados, total }).
-//   - DSN: el informe público vive en la misma URL que el QR (`/u/<serial>`).
+//   - INV: `unit` (equipo, verificación física, garantía), `unit.inspection`
+//     (checklist PhoneCheck) y, cuando está, su payload público (`informe`).
+//   - DSN: el informe público vive en la URL del QR (contrato de INV/DSN).
 import { qrUnidad } from './qr.js'
 import { identificadorDe, modeloDe } from './etiquetaUnidad.js'
 import { enmascararImei, imeiValido, resumenImei } from '../imeiComprobante.js'
+import { datosChecklist } from './certificado.js'
 
 export const CONDICIONES_INFORME = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
 
@@ -36,11 +37,28 @@ export function verificacionFisica(unit = {}) {
 }
 
 /** Datos normalizados del informe de una unidad física. */
-export function datosInformeDispositivo(unit = {}, { consulta = null, base = '', emisor = '', ahora = new Date() } = {}) {
+export function datosInformeDispositivo(unit = {}, { consulta = null, informe = null, base = '', emisor = '', ahora = new Date() } = {}) {
   const product = unit.product || {}
   const serial = String(unit.serial ?? '').trim()
-  const inspeccion = verificacionFisica(unit)
+  const legacy = verificacionFisica(unit)
+  const checklist = datosChecklist(unit, { informe, verificacion: consulta })
+  const crudo = unit.inspection || unit.inspeccion || {}
   const verificacion = consulta ? resumenImei(consulta) : null
+  // El primer contrato con INV ({ puntaje, aprobados, total }) sigue valiendo.
+  const inspeccion = {
+    ...legacy,
+    ...checklist,
+    puntaje: checklist.puntaje ?? (legacy.puntaje || null),
+    aprobados: Number(crudo.aprobados) || checklist.ok,
+    total: Number(crudo.total) || checklist.evaluados,
+    grado: legacy.grado || checklist.grado,
+    verificador: checklist.verificadoPor || legacy.verificador,
+    verificadoEl: checklist.verificado || legacy.verificadoEl,
+  }
+  const bateria = [
+    Number(unit.batteryHealth) > 0 ? `${Number(unit.batteryHealth)}%` : '',
+    checklist.bateria.ciclos ? `${checklist.bateria.ciclos} ciclos` : '',
+  ].filter(Boolean).join(' · ')
   return {
     modelo: modeloDe(product),
     nombre: String(product.name || product.nombre || '').trim(),
@@ -52,7 +70,7 @@ export function datosInformeDispositivo(unit = {}, { consulta = null, base = '',
     identificador: identificadorDe(serial),
     imei: verificacion?.imei || (serial ? enmascararImei(serial) : ''),
     condicion: CONDICIONES_INFORME[unit.condition] || String(unit.condition || ''),
-    bateria: Number(unit.batteryHealth) > 0 ? `${Number(unit.batteryHealth)}%` : '',
+    bateria,
     inspeccion,
     verificacion,
     garantia: unit.warrantyUntil || unit.garantiaHasta || null,
@@ -60,7 +78,10 @@ export function datosInformeDispositivo(unit = {}, { consulta = null, base = '',
     sucursal: String(unit.branch?.name || '').trim(),
     proveedor: String(unit.supplierName || unit.supplier?.name || '').trim(),
     emisor: String(emisor || '').trim(),
-    enlace: serial ? qrUnidad(serial, base) : '',
+    // `enlacePublico` distingue la ruta pública de DSN del fallback `/u/<serial>`
+    // (que expone el serial): el papel solo imprime la URL cuando es pública.
+    enlace: String(informe?.enlace || '').trim() || (serial ? qrUnidad(serial, base) : ''),
+    enlacePublico: Boolean(String(informe?.enlace || '').trim()),
     fechaEmision: fechaTexto(ahora, true),
     fechaEmisionCorta: fechaTexto(ahora),
   }

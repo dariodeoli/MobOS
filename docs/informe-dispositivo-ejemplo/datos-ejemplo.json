@@ -1,0 +1,59 @@
+{
+  "unidad": {
+    "id": "demo-unit-5",
+    "serial": "351500000000004",
+    "serialDemo": "AUR0005000000000",
+    "producto": "iPhone 15 Pro Max 256GB Titanio Natural",
+    "condicion": "USED",
+    "bateria": 85,
+    "sucursal": "Casa Central",
+    "ubicacion": "D1 · Depósito 1",
+    "proveedor": "Mayorista Apple PY "
+  },
+  "inspeccion": {
+    "items": {
+      "pantalla": {
+        "estado": "ok"
+      },
+      "camaras": {
+        "estado": "ok"
+      },
+      "faceId": {
+        "estado": "ok"
+      },
+      "audio": {
+        "estado": "observacion",
+        "nota": "Crujido al máximo volumen"
+      },
+      "sensores": {
+        "estado": "ok"
+      },
+      "botones": {
+        "estado": "ok"
+      },
+      "conexiones": {
+        "estado": "ok"
+      },
+      "carga": {
+        "estado": "ok"
+      },
+      "bateria": {
+        "estado": "ok"
+      },
+      "carcasa": {
+        "estado": "ok"
+      }
+    },
+    "cosmetico": "buen estado",
+    "bateriaPct": "85",
+    "bateriaCiclos": "312",
+    "repuestosNoOem": "",
+    "puntaje": 95,
+    "grado": "A",
+    "inspeccionadoAt": "2026-09-21T10:00:00.000Z",
+    "inspeccionadoPor": "Jorge Villalba",
+    "nota": "Equipo probado con chip de operador y carga inalámbrica."
+  },
+  "enlace": "https://app.moboss.online/u/351500000000004",
+  "generado": "2026-09-22T15:01:38.310Z"
+}
