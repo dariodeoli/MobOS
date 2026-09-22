@@ -1,0 +1,54 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "1.0.140",
+  "fecha": "2026-09-22T09:53:03.333Z",
+  "resultados": [
+    {
+      "paso": "demo: comprobante rápido en Vendidos (ícono + tooltip)",
+      "estado": "ok",
+      "detalle": "v1.0.140 · tooltip «Imprimir comprobante rápido (nivel Rápido, 80 mm) sin salir de la lista» · aviso honesto del demo",
+      "capturas": [
+        "01-panel-demo.jpg",
+        "02-vendidos-listado.jpg",
+        "03-comprobante-rapido-aviso.jpg"
+      ]
+    },
+    {
+      "paso": "demo: etiquetas del lote (Traslados + recepción en tránsito)",
+      "estado": "ok",
+      "detalle": "lotes en demo: 0 (sin transferencias demo) · recepción con reimpresión",
+      "capturas": [
+        "04-traslados-listado.jpg",
+        "05-transito-listado.jpg",
+        "06-recepcion-reimprimir.jpg"
+      ]
+    },
+    {
+      "paso": "producción: bundle con comprobante rápido y lote completo",
+      "estado": "ok",
+      "detalle": "6 assets · 7 marcas presentes",
+      "capturas": []
+    },
+    {
+      "paso": "el demo no llama al API real",
+      "estado": "ok",
+      "detalle": "0 llamadas de inventario/impresión · 0 al API general del shell",
+      "capturas": []
+    }
+  ],
+  "assets": [
+    "https://app.moboss.online/assets/index-dI02cI4e.js",
+    "https://app.moboss.online/assets/vendor-II1R7ODZ.js",
+    "https://app.moboss.online/assets/print-DAClbpyS.js",
+    "https://app.moboss.online/assets/VistaCargarVenta-BGsiThhl.js",
+    "https://app.moboss.online/assets/Inventario-BqEjQXhe.js",
+    "https://app.moboss.online/assets/suppliers-DtX2w5dN.js"
+  ],
+  "llamadasApi": [],
+  "erroresConsola": [],
+  "veredicto": {
+    "pasosOk": 4,
+    "pasosTotal": 4,
+    "erroresConsola": 0
+  }
+}
