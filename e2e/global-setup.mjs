@@ -322,7 +322,9 @@ async function ensurePaymentAccounts(ctx, adminToken) {
 
 async function ensureSeedOrder(ctx, companyToken, sellerId, adminToken) {
   const sellerToken = await sellerSession(ctx, companyToken, sellerId, SEED.sellers[0].pin)
-  const list = await ctx.get('/api/orders', { headers: bearer(adminToken) })
+  // La base persistente acumula pedidos: se busca el del seed por número para
+  // no quedar fuera de la ventana de la lista y evitar duplicados -timestamp.
+  const list = await ctx.get(`/api/orders?q=${encodeURIComponent(SEED.seedOrderNumber)}`, { headers: bearer(adminToken) })
   if (!list.ok()) throw new Error(`orders list failed: HTTP ${list.status()}`)
   const rows = await list.json()
   // The public tracking spec needs a customerName, so an older seed order
