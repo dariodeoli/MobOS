@@ -299,6 +299,16 @@ export default function PasoCobro({
             >
               <Icon name="trash" className="h-4 w-4" />
             </Button>
+            <button
+              type="button"
+              className="grid h-9 w-9 place-items-center self-end rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad"
+              title="Eliminar pago"
+              aria-label={`Eliminar pago ${i + 1}`}
+              disabled={guardando}
+              onClick={() => setPagos(a => a.filter((_, j) => j !== i))}
+            >
+              <Icon name="trash" className="h-4 w-4" />
+            </button>
           </div>
         ))}
         <div className="grid grid-cols-3 gap-2 border-t border-fono/20 pt-3 text-xs text-mute">
