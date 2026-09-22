@@ -5,6 +5,10 @@ CUPS) y **#96** (USB directo con la ZKP8008). Cada paso dice qué correr, qué
 tiene que devolver y **qué mirar si falla**. Las reglas del módulo viven en
 `docs/IMPRESION.md`; esto es la prueba en el papel.
 
+> Para #17 hay una guía de aplicación dedicada, con el diagnóstico y los pasos
+> exactos listos para aplicar (incluido el bloque que junta todo para pegar en
+> el issue): **`docs/IMPRESION-17-LAUNCHD.md`**.
+
 > Registrar el resultado en el issue correspondiente con: **versión del agente**,
 > `transporte` real, `errno` si hubo error y si el ticket salió por el papel.
 
