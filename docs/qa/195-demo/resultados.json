@@ -1,0 +1,96 @@
+{
+  "verificado": "2026-09-22T02:29:26.703Z",
+  "base": "https://app.moboss.online",
+  "version": "v1.0.139",
+  "llamadasApi": [],
+  "erroresConsola": [],
+  "resultados": [
+    {
+      "paso": "#195 demo: entrada anónima como Dueño",
+      "estado": "ok",
+      "detalle": "v1.0.139 · sesión demo activa",
+      "capturas": [
+        "01-demo-entrada.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#195 Inv: Productos en demo",
+      "estado": "ok",
+      "detalle": "catálogo demo con productos visibles (23 menciones de modelo)",
+      "capturas": [
+        "02-productos.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#195 Inv: Compras en demo",
+      "estado": "ok",
+      "detalle": "pantalla de compras navegable (con contenido)",
+      "capturas": [
+        "03-compras.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#195 Inv: Ubicaciones y Vendidos",
+      "estado": "ok",
+      "detalle": "ubicaciones y vendidos renderizan con datos demo",
+      "capturas": [
+        "04-ubicaciones.jpg",
+        "05-vendidos.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#195 Inv: Servicio Técnico en demo",
+      "estado": "ok",
+      "detalle": "órdenes demo visibles (OS-#…)",
+      "capturas": [
+        "06-servicio.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#195 Inv: carga rápida con costo diferido en USD",
+      "estado": "ok",
+      "detalle": "AURQA195MUC22J98 con costo US$ 100 · Gs. 750.000",
+      "capturas": [
+        "07-recibir-unidad-usd.jpg",
+        "08-unidad-costo-usd.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#195 Inv: kardex oculto en demo (por diseño)",
+      "estado": "ok",
+      "detalle": "sin botón Kardex en demo (cubierto con sesión real por e2e/kardex-producto.spec.js)",
+      "capturas": [
+        "09-productos-kardex.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#195 Inv: sync con POS (la venta demo descuenta unidades)",
+      "estado": "fallo",
+      "detalle": "la venta demo no descontó unidades (antes 23, después 23)",
+      "capturas": [
+        "10-pos-venta-demo.jpg",
+        "11-inventario-tras-venta.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#195 demo: 0 llamadas al API real",
+      "estado": "ok",
+      "detalle": "ninguna request a /api/",
+      "capturas": [],
+      "llamadasApi": []
+    }
+  ],
+  "resumen": {
+    "pasos": 9,
+    "ok": 8,
+    "fallos": 1
+  }
+}
