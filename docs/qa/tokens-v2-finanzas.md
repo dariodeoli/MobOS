@@ -37,12 +37,20 @@ rotura):
 Sin desbordes de página, sin recortes de montos ni fechas, sin columnas ocultas
 y contraste AA correcto en los montos habilitados.
 
-## Post-v1.0.142 (tokens v2)
+## Post-v1.0.142 (tokens v2) — **8/8 OK**
 
-Pendiente de deploy al escribir este informe: la corrida se hace apenas se
-publique **.142** y el resultado se agrega acá (misma sonda, con
-`QA_VERSION=1.0.142`). Si algo se rompe, el detalle indica pantalla, elemento y
-medida exacta.
+Corrida del 2026-09-22 sobre producción **v1.0.142** (`release:smoke` OK), la
+primera versión con el **piloto de tokens v2** (#241: tabla de inventario, ficha
+de unidad y carrito POS). Capturas en `docs/qa/tokens-v2-finanzas/1.0.142/`.
+
+- **Sin roturas en Finanzas**: ninguna página desborda (1440 y 390), ningún monto
+  ni fecha recortado, ninguna tabla con columnas ocultas y contraste AA correcto
+  en los montos habilitados.
+- Los avisos de alineación (montos sin `tabular-nums`) siguen **iguales** que la
+  línea base: Resumen (6), Ganancias (2) y Conciliación (2). El piloto no toca
+  esas pantallas; quedan para la fase de Finanzas del rediseño.
+- La ronda completa del dominio también dio verde en .142:
+  `docs/qa/produccion-1.0.142/`.
 
 Reproducir:
 
