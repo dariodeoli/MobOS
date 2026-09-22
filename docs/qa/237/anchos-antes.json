@@ -1,0 +1,12 @@
+{
+  "nuevo-conteo": {
+    "ancho": 512,
+    "tamano": "formulario",
+    "fase": "antes"
+  },
+  "cambiar-sucursal": {
+    "ancho": 448,
+    "tamano": "corto",
+    "fase": "antes"
+  }
+}
