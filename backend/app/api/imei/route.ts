@@ -88,7 +88,7 @@ export async function POST(request: Request) {
         error: status === 'conciliar' ? registro.error : null,
       },
     })
-    await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'IMEI_QUERY_CONCILIED', entity: 'ImeiCheckQuery', entityId: registro.id, metadata: { requestId: registro.requestId, status, costUsd, externalId: actualizado.externalId } } })
+    await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'IMEI_QUERY_CONCILIATED', entity: 'ImeiCheckQuery', entityId: registro.id, metadata: { requestId: registro.requestId, status, costUsd, externalId: actualizado.externalId } } })
     return json(expectativa(actualizado, true))
   }
   const clave = typeof body?.servicio === 'string' && SERVICIOS[body.servicio] ? body.servicio : 'APPLE_BASIC'
