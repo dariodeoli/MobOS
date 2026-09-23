@@ -228,6 +228,7 @@ export default function PasoCobro({
         {pagos.map((p, i) => (
           <div
             key={i}
+            data-testid={`pago-fila-${i}`}
             className={cn(
               'grid grid-cols-1 gap-2 items-end sm:grid-cols-[1.2fr_1fr_1fr_auto]',
               !usaCuentas && 'rounded-2xl border border-ink-600 bg-ink-800/30 p-3',
@@ -291,14 +292,6 @@ export default function PasoCobro({
                 </div>
               </>
             )}
-            <Button
-              type="button"
-              variant="ghost"
-              aria-label="Quitar este pago"
-              onClick={() => setPagos(a => a.filter((_, j) => j !== i))}
-            >
-              <Icon name="trash" className="h-4 w-4" />
-            </Button>
             <button
               type="button"
               className="grid h-9 w-9 place-items-center self-end rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad"
