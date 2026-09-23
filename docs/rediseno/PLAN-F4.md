@@ -75,3 +75,52 @@ verificación se hizo capturando cada dominio con el flag **apagado** y
 Lo que **falta por dominio** (patrones, no tokens): tiles/chips/stepper propios
 de cada pantalla, y el carrito POS (que espera la guarda de CMP). El ajuste de
 estructura del shell y de las vistas queda con PLT/CMP según corresponda.
+
+## F4 · accesibilidad AA del shell y modo oscuro completo
+
+Medición real en el navegador (no de tokens) sobre el shell v2 con el flag
+prendido, en claro/oscuro y 390/1280: `e2e/dsn-241-a11y.spec.js` recorre los
+textos del shell (barra lateral, topbar, cajón del menú, barra inferior,
+banners y pie), compone las alfas sobre el fondo real —los tokens usan /75,
+/15, /14— y falla por debajo de AA (4.5:1; 3:1 en texto grande). La guarda de
+tokens `src/lib/contrasteTokens.test.js` cubre la paleta base **y** el scope v2
+en ambos temas (el bloque oscuro no se estaba midiendo: el selector caía en
+`html.dark { color-scheme }`, que no tiene tokens).
+
+| Superficie | Antes | Después |
+|---|---|---|
+| Rótulos de grupo, claro (medido) | 3.20:1 | 4.97:1 |
+| Ítem activo, claro (medido) | 2.91:1 | 4.80:1 |
+| Ítem activo, oscuro (medido) | 3.49:1 | 5.93:1 |
+| `ok` claro sobre superficies v2 | 2.99–3.30 | 6.46+ |
+| `warn` claro | 2.89–3.19 | 6.43+ |
+| `info` claro | 3.38–3.73 | 5.89+ |
+| `bad` claro | 4.38 | 5.86+ |
+| `bad` oscuro | 4.12 | 5.61+ |
+| `info` oscuro | 4.16 | 7.96+ |
+
+Qué cambió (todo dentro del scope `.v2-piloto`/`.tema-v2`; el default sigue
+igual):
+- Tokens semánticos v2 con **tono de texto AA** por tema: los vivos de
+  PhoneCheck (`#16A34A`/`#22C55E`, `#DC2626`, `#D97706`, `#4D7CFE`) quedan para
+  rellenos e indicadores. Los bloques quedan completos en claro y oscuro
+  (fono, reserved, onbrand e ink-950 dejan de heredarse sueltos).
+- Rótulos de grupo del shell en verde **sólido** (al 75% sobre la barra clara
+  daban 3.2:1).
+- Ítem activo con azul de acción AA en cada tema (claro `#2059BE`; oscuro
+  `#9FB8FF`) sobre su tinte `/14`.
+- Aviso sin conexión y contador de notificaciones con texto legible en ambos
+  temas; foco visible con verde oscuro en claro (el de marca quedaba casi
+  blanco sobre blanco) y el de marca en oscuro.
+
+Capturas: `c241f4-shell-aa-{claro,oscuro}-{desktop,mobile}.png`,
+`c241f4-shell-aa-{claro,oscuro}-menu.png` (cajón abierto en móvil),
+`c241f4-shell-aa-inventario-oscuro.png` (el shell y el contenido del pilotaje
+en oscuro) y el par `c241f4-shell-aa-antes-{claro,oscuro}-desktop.png` con el
+estado medido antes del arreglo.
+
+Resultado: 38 textos de shell en desktop, 14 en mobile (+47 con el cajón
+abierto), todos ≥ AA; el aviso sin conexión también. El contenido del panel
+midió 0 bajos en los cuatro combos de `/resumen` y en la tabla de inventario en
+oscuro. Pendiente para CMP: portar estos tonos AA al scope `tema-v2` de
+`owncoding-ui`.

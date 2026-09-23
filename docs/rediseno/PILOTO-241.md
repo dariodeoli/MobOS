@@ -24,6 +24,13 @@ biblioteca (CMP). Las pantallas piloto se activan agregando la clase
 Tipografía: la del sistema; **mono** (`font-mono`) para IMEI/serial y números
 grandes con `v2-numero` (tabular + tracking apretado).
 
+> **Tonos de texto AA (#241 · F4):** en `src/index.css` los roles de TEXTO usan
+> los equivalentes que llegan a 4.5:1 sobre las superficies v2 —claro `ok`
+> `#166534`, `bad` `#B91C1C`, `warn` `#92400E`, `info` `#2059BE`; oscuro `ok`
+> `#4ADE80`, `bad` `#FCA5A5`, `warn` `#FCD34D`, `info` `#9FB8FF`—. Los colores
+> vivos de la tabla quedan para rellenos e indicadores. CMP los porta al scope
+> `tema-v2` de `owncoding-ui`.
+
 ## 2. Patrones
 
 | Patrón | Estado |
