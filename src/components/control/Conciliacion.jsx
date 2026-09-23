@@ -285,7 +285,8 @@ export default function Conciliacion() {
             <p className="mt-1 text-sm text-mute">Ingresos por cuenta, medio y procesadora. Conciliá en lote el depósito o la transferencia recibida contra los pagos que debería cubrir: esperado vs recibido, diferencia y detalle hasta el pedido.</p>
             {esDemo && <p className="mt-1 text-xs text-fono-light">Demo: cobros y cuentas ficticios; los lotes conciliados se guardan en este navegador.</p>}
           </div>
-          <RangoFechas valor={rango} onChange={cambiarRango} />
+          {/* #249 H3: mismo criterio táctil que Caja en mobile. */}
+          <RangoFechas valor={rango} onChange={cambiarRango} className="[&>button]:h-11 md:[&>button]:h-9" />
         </div>
         <div className="grid gap-2 sm:grid-cols-3">
           <label className="text-xs text-mute">Cuenta
@@ -406,7 +407,7 @@ export default function Conciliacion() {
                     {item.conciliacion.batchId && <span className="truncate text-[10px] text-mute" title="Forma parte de un lote conciliado">lote</span>}
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={!item.orderId} onClick={() => verPedido(item)}>Ver pedido</Button>
+                    <Button type="button" variant="outline" className="h-11 px-3 text-xs md:h-8 md:px-2" disabled={!item.orderId} onClick={() => verPedido(item)}>Ver pedido</Button>
                   </span>
                 </div>
               )

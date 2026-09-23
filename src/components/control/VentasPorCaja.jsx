@@ -62,7 +62,10 @@ export default function VentasPorCaja() {
           <h2 className="font-bold">Ventas por caja</h2>
           <p className="mt-1 text-sm text-mute">Corte por sesión: los pedidos del responsable, el efectivo cobrado y cómo cerró cada caja.</p>
         </div>
-        <RangoFechas valor={rango} onChange={cambiarRango} />
+        {/* #249 H3: el disparador del período llega a 44 px en mobile; en
+            desktop conserva los 36 px (el resto de las pantallas del dominio
+            usa el mismo criterio). */}
+        <RangoFechas valor={rango} onChange={cambiarRango} className="[&>button]:h-11 md:[&>button]:h-9" />
       </div>
       {error && <Aviso tono="error">{error}</Aviso>}
       {cargando && <div className="space-y-2" role="status">{[0, 1, 2].map((fila) => <Skeleton key={fila} className="h-10" />)}</div>}

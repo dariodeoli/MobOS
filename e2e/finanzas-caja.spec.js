@@ -93,4 +93,51 @@ test.describe('finanzas · caja', () => {
     await page.getByRole('button', { name: 'Abrir caja', exact: true }).click()
     await expect(page.locator('strong').filter({ hasText: 'Abierta' }).first()).toBeVisible()
   })
+
+  // #249 · Auditoría responsive mobile (H2/H3): en 390 px los controles de
+  // Finanzas que la auditoría midió llegan a 44 px de área táctil — solapas del
+  // dominio, selector de período y acciones por fila de la auditoría de
+  // efectivo/medios. Con MOBOS_QA_CAPTURAS=1 deja capturas y mediciones en
+  // docs/qa/249-finanzas/ (MOBOS_QA_FASE=antes|despues rotula los archivos).
+  test('responsive: los controles de finanzas llegan a 44 px en mobile', async ({ page }) => {
+    await page.goto('/resumen')
+    const sufijo = Date.now().toString(36).toUpperCase()
+    const cobro = await crearCobroEfectivo(page, sufijo)
+    expect(cobro.status, JSON.stringify(cobro.orden)).toBe(201)
+    const numero = cobro.orden.orderNumber
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/finanzas/caja')
+    await expect(page.getByRole('heading', { name: 'Caja', exact: true })).toBeVisible()
+    await expect(page.getByTestId('auditoria-fila').filter({ hasText: numero })).toBeVisible()
+
+    const controles = [
+      ['solapa de finanzas', page.getByRole('tab', { name: 'Caja', exact: true })],
+      ['selector de período', page.getByRole('button', { name: /30 días|7 días|Hoy|Ayer|Este mes|Mes pasado|Trimestre|Este año/ }).first()],
+      ['fila · Guardar', page.getByTestId('auditoria-fila').first().getByRole('button', { name: 'Guardar' })],
+      ['fila · casilla Coincide', page.locator('label:has-text("Coincide")').first()],
+    ]
+    const mediciones = {}
+    for (const [nombre, locator] of controles) {
+      await locator.scrollIntoViewIfNeeded()
+      const caja = await locator.boundingBox()
+      mediciones[nombre] = caja ? { ancho: Math.round(caja.width), alto: Math.round(caja.height) } : null
+    }
+
+    if (process.env.MOBOS_QA_CAPTURAS === '1') {
+      const fs = await import('node:fs/promises')
+      const fase = process.env.MOBOS_QA_FASE || 'actual'
+      await fs.mkdir('docs/qa/249-finanzas', { recursive: true })
+      await fs.writeFile(`docs/qa/249-finanzas/mediciones-${fase}.json`, JSON.stringify({ fecha: new Date().toISOString(), ancho: 390, mediciones }, null, 2))
+      await page.screenshot({ path: `docs/qa/249-finanzas/caja-390-${fase}.png`, fullPage: true })
+      await page.getByRole('tab', { name: 'Caja', exact: true }).locator('..').screenshot({ path: `docs/qa/249-finanzas/subtabs-390-${fase}.png` })
+      await page.getByTestId('auditoria-efectivo-tabla').screenshot({ path: `docs/qa/249-finanzas/auditoria-390-${fase}.png` })
+      await page.locator('article:has-text("Coincide")').first().screenshot({ path: `docs/qa/249-finanzas/medios-390-${fase}.png` })
+    }
+
+    for (const [nombre, medida] of Object.entries(mediciones)) {
+      expect(medida, `${nombre} visible`).not.toBeNull()
+      expect(medida.alto, `${nombre} · alto táctil`).toBeGreaterThanOrEqual(44)
+    }
+  })
 })
