@@ -33,7 +33,8 @@ const VARIANTES = [
   { nombre: 'movil-oscuro-v2-on', ancho: 390, alto: 844, tema: 'dark', v2: true },
 ]
 const filtro = (process.env.QA_VARIANTES || '').split(',').map(valor => valor.trim()).filter(Boolean)
-const variantes = filtro.length ? VARIANTES.filter(v => filtro.includes(v.nombre)) : VARIANTES
+const soloComparar = process.env.QA_SOLO_COMPARAR === '1'
+const variantes = soloComparar ? [] : (filtro.length ? VARIANTES.filter(v => filtro.includes(v.nombre)) : VARIANTES)
 
 const esperar = ms => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -72,6 +73,9 @@ const navegador = await chromium.launch()
 for (const variante of variantes) {
   const contexto = await navegador.newContext({
     viewport: { width: variante.ancho, height: variante.alto },
+    // Zoom 2x: las capturas de la fila y del encabezado dejan ver la flechita,
+    // el chip del IMEI y el descuento sin agrandar nada a mano.
+    deviceScaleFactor: 2,
   })
   await contexto.addInitScript(({ tema, v2 }) => {
     try {
@@ -95,7 +99,15 @@ for (const variante of variantes) {
   await carrito.scrollIntoViewIfNeeded()
   await esperar(400)
   const alturasColapsadas = await altoDeFilas(page)
-  await page.screenshot({ path: join(SALIDA, `carrito-${variante.nombre}-colapsado.jpg`), type: 'jpeg', quality: 74 })
+  await page.screenshot({ path: join(SALIDA, `carrito-${variante.nombre}-colapsado.jpg`), type: 'jpeg', quality: 68 })
+
+  // Evidencia por criterio (#243): la fila colapsada (sin cantidad/precio, con
+  // total y flechita abajo) y el encabezado del total, en zoom.
+  const fila = carrito.locator('.divide-y > div').first()
+  await fila.screenshot({ path: join(SALIDA, `fila-colapsada-${variante.nombre}.png`) })
+  await page.getByTestId('resumen-compra')
+    .screenshot({ path: join(SALIDA, `encabezado-${variante.nombre}.png`) })
+    .catch(() => {})
 
   // Expandir la línea del equipo (la primera) para ver el detalle.
   const detalle = page.getByRole('button', { name: /^Ver detalle de / }).first()
@@ -103,7 +115,8 @@ for (const variante of variantes) {
     await detalle.click()
     await esperar(500)
     await carrito.scrollIntoViewIfNeeded()
-    await page.screenshot({ path: join(SALIDA, `carrito-${variante.nombre}-expandido.jpg`), type: 'jpeg', quality: 74 })
+    await page.screenshot({ path: join(SALIDA, `carrito-${variante.nombre}-expandido.jpg`), type: 'jpeg', quality: 68 })
+    await fila.screenshot({ path: join(SALIDA, `fila-expandida-${variante.nombre}.png`) })
   }
   const alturasExpandidas = await altoDeFilas(page)
   const desborde = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
@@ -124,9 +137,44 @@ for (const variante of variantes) {
   await contexto.close()
 }
 
-await navegador.close()
 const resumen = { base: BASE, etiqueta: ETIQUETA, fecha: new Date().toISOString(), resultados }
 writeFileSync(join(SALIDA, `resultados-${ETIQUETA}.json`), JSON.stringify(resumen, null, 2))
+
+// Tira comparativa opcional "antes | después": QA_COMPARAR=<etiqueta-antes>,<etiqueta-despues>
+// Compone las capturas en zoom de la fila (colapsada/expandida) y del encabezado
+// en una sola imagen por criterio.
+const comparar = (process.env.QA_COMPARAR || '').split(',').map(valor => valor.trim()).filter(Boolean)
+if (comparar.length === 2) {
+  const [antes, despues] = comparar
+  const raiz = process.env.QA_OUT || 'docs/qa/243'
+  const { readFileSync } = await import('node:fs')
+  for (const [archivo, titulo] of [
+    ['fila-colapsada', 'Línea colapsada'],
+    ['fila-expandida', 'Línea expandida (cantidad y precio adentro)'],
+    ['encabezado', 'Encabezado “Total de esta venta”'],
+  ]) {
+    const sufijo = '-desktop-claro-v2-off.png'
+    const enData = base64 => `data:image/png;base64,${base64}`
+    const filas = [[antes, join(raiz, antes, `${archivo}${sufijo}`)], [despues, join(raiz, despues, `${archivo}${sufijo}`)]]
+    const html = `<!doctype html><html><body style="margin:0;background:#0b0f16;font-family:-apple-system,Segoe UI,Roboto,sans-serif;padding:22px;width:1080px">
+      <h1 style="color:#f4f6fa;font-size:17px;margin:0 0 14px">${titulo}</h1>
+      ${filas.map(([etiqueta, ruta]) => `
+        <div style="margin-bottom:16px">
+          <div style="color:#9aa3b2;font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">${etiqueta}</div>
+          <img src="${enData(readFileSync(ruta).toString('base64'))}" style="display:block;max-width:1036px;border-radius:10px;border:1px solid #333b48"/>
+        </div>`).join('')}
+    </body></html>`
+    const contextoCompositor = await navegador.newContext({ viewport: { width: 1080, height: 720 }, deviceScaleFactor: 1 })
+    const paginaCompositor = await contextoCompositor.newPage()
+    await paginaCompositor.setContent(html, { waitUntil: 'load' })
+    await paginaCompositor.screenshot({ path: join(raiz, `comparativa-${archivo}.png`), fullPage: true })
+    await contextoCompositor.close()
+  }
+  console.log('comparativa: docs/qa/243/comparativa-{fila-colapsada,fila-expandida,encabezado}.png')
+}
+
+await navegador.close()
+
 for (const fila of resultados) {
   console.log(
     `${fila.variante}: fila colapsada ${fila.altoFilaColapsada}px · v2 ${fila.scopeV2Aplicado ? 'on' : 'off'} · desborde ${fila.desbordeHorizontal}px · errores ${fila.erroresPagina.length}`,
