@@ -292,14 +292,20 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
-### Identidad (#211) — sin duplicar
+### Lote 22 — identidad de usuario unificada (#211) (23-09)
 
-Tras los últimos merges, la identidad está repartida así: `Avatar` compartido
-(14 usos), `PresencePill` del topbar y `PresenciaPedido` (POS) que consumen
-`lib/identidad.js`, un adaptador **preparado para el objeto unificado de DSN**.
-No hay fotos de persona a mano ni iniciales sueltas (los `charAt(0)` que quedan
-son de empresa, no de personas). MOS-CMP no crea el objeto de identidad: queda
-para DSN (#211), que ya tiene el inventario y los call sites.
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Identidad de usuario (`owncoding-ui` **v0.16.0**) | La cadena de foto (local → Google → iniciales) vivía repartida entre `Avatar`, el adaptador `lib/identidad.js` y cada pantalla | **`PersonaChip`** publicado como objeto único (envuelve al `Avatar`, resuelve la cadena y cae a la fuente siguiente si una imagen falla) con `user`/`foto`/`picture`/`size` (`xs`…`xl`)/`nombre`/**`nombreCorto`**/**`estado`**/`title`/`children`; más `identidadDeUsuario` y `ESTADOS_PRESENCIA` en el adaptador de la biblioteca |
+| `PresencePill` (PLT) | Armaba el avatar + el punto verde a mano, con el adaptador local | Usa `PersonaChip` (`nombre={false}` + `estado="en-linea"`): mismo dibujo, una sola resolución de identidad |
+| `PantallaBloqueada` (PLT) | `Avatar` + un párrafo con el nombre completo | `PersonaChip` con `size="xl" nombreCorto` (muestra el primer nombre) y la línea del PIN debajo |
+| `PedidoDetalle` (POS) | La cronología dibujaba **dos avatares por evento** (uno suelto y otro junto al nombre); las transacciones usaban `Avatar` a mano | Un solo `PersonaChip` por evento (`nombreCorto` + la fecha como children) y `PersonaChip nombre={false}` en las transacciones; desaparece el avatar duplicado |
+| Objetos nuevos del lote | `BarraLote` (4 archivos), `PeriodoTabs` (3) y `NumericKeypad` (2) eran copias locales | Publicados en la biblioteca v0.16.0 (`BarraLote`, `PeriodoTabs`, `NumericKeypad` + el glifo `backspace`) |
+
+**Duplicación pendiente: 0 usos.** El API de presencia sigue sin `picture` por
+persona, así que el puente por nombre (dueño → foto de Google) queda anotado en
+`PresencePill` hasta que el backend exponga el campo; el contrato del objeto ya
+lo cubre (`foto`/`picture`).
 
 ## 2. Backlog priorizado (con evidencia)
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import Avatar from '@/components/shared/Avatar'
 import Icon from '@/components/shared/Icon'
+import PersonaChip from '@/components/shared/PersonaChip'
 import ThemeLogo from '@/components/app/ThemeLogo'
 import { Button, Eyebrow, PinInput } from '@/components/ui'
 import { identidadDeUsuario } from '@/lib/identidad'
@@ -89,12 +89,16 @@ export default function PantallaBloqueada({
         </h2>
         <p className="mt-1 text-xs text-mute">{sucursal ? `Sucursal ${sucursal}` : 'Todas las sucursales'}</p>
 
-        <div className="mt-4 flex items-center justify-center gap-2.5">
-          <Avatar user={{ id: usuario?.id, name: identidad.nombre, hasAvatar: identidad.hasAvatar }} picture={identidad.picture} size="xl" title={identidad.nombre} />
-          <div className="text-left">
-            <p className="text-sm font-semibold">{identidad.nombre}</p>
-            <p className="text-[11px] text-mute">Ingresá tu PIN de {pinLength} dígitos</p>
-          </div>
+        <div className="mt-4 flex flex-col items-center gap-2">
+          <PersonaChip
+            user={{ id: usuario?.id, name: identidad.nombre, hasAvatar: identidad.hasAvatar }}
+            picture={identidad.picture}
+            size="xl"
+            nombreCorto
+            title={identidad.nombre}
+            className="justify-center"
+          />
+          <p className="text-[11px] text-mute">Ingresá tu PIN de {pinLength} dígitos</p>
         </div>
 
         {usuario?.id ? (

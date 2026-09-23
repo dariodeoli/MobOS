@@ -354,11 +354,15 @@ navegación propia por pantalla.
   pedido"). Los call sites no vuelven a pluckear `picture`, no dibujan la
   persona por su cuenta y **no fuerzan `hasAvatar={false}`** (eso apaga la foto
   real de la persona).
-  - **Adopción pendiente por dominio** (cada slot reporta el suyo): POS
-    (`PedidoDetalle` encabezado y cronología, #212), PLT (pantalla de bloqueo
-    #210 y `PresencePill`), CRM (`CustomerProfile`), PRN (`Impresoras`), INV
-    (`Inventario` y `UnidadDetalle`), PLT (`Vendedores`, `Config`) y shell
-    (`AppShell`). Ya migrado acá: `PresenciaPedido` (foto + primer nombre).
+  - **Publicado también en la biblioteca (`owncoding-ui` v0.16.0):**
+    `PersonaChip` + `identidadDeUsuario` + `ESTADOS_PRESENCIA`, con la cadena
+    de foto y caída a la fuente siguiente (`onError` del `Avatar`, tamaños
+    `xs`…`xl`).
+  - **Adopción:** ya migrados acá `PresenciaPedido`, `PresencePill` (PLT),
+    `PantallaBloqueada` (PLT) y la cronología/transacciones de `PedidoDetalle`
+    (POS, donde además desaparece un avatar duplicado por evento). Quedan por
+    dominio: CRM (`CustomerProfile`), PRN (`Impresoras`), INV (`Inventario` y
+    `UnidadDetalle`), PLT (`Vendedores`, `Config`) y shell (`AppShell`).
 - La foto externa se pasa **solo para quien corresponde** (nunca la del dueño a un
   tercero) y se sirve con sesión y `referrerPolicy="no-referrer"`.
 - **Formato de subida:** PNG/JPG/WebP hasta **1 MiB**, con validación de MIME y
