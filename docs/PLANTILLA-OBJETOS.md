@@ -315,7 +315,11 @@ navegación propia por pantalla.
   inferior (`ESPACIO_BARRA_INFERIOR` en el contenido, nunca espacio a mano).
 - Identidad de la sesión en el pie con `Avatar` (ver sección 6).
 - Con el sistema v2, el shell va dentro del scope `tema-v2` y sus tonos de
-  texto son los **AA** medidos (#241); los vivos quedan para relleno.
+  texto son los **AA** medidos (#241); los vivos quedan para relleno. Las
+  reglas de navegación (ítem activo, rótulos de grupo, foco por tema, chips
+  `.v2-chip`) **viajan en la biblioteca** desde `owncoding-ui` **v0.14.10**, con
+  los hooks de accesibilidad (`aria-current`, `aria-pressed`, `aria-expanded`)
+  y `.oc-rotulo-grupo`; la app no las repite.
 
 > Referencia MobOS: `src/components/app/AppShell.jsx` + `src/pages/PanelVendedor.jsx`
 > (POS y control comparten un solo shell). Guía portable completa (piezas,
@@ -482,13 +486,15 @@ por el sistema.
   productos, diagramas).
 - **Tokens v2 del piloto (#241):** el lenguaje "device ops" (consola oscura,
   verde pass `#22C55E`, azul acción `#4D7CFE`) vive en la biblioteca
-  `owncoding-ui` **v0.14.8** como scope `tema-v2` (alias `v2-piloto`) con
+  `owncoding-ui` **v0.14.10** como scope `tema-v2` (alias `v2-piloto`) con
   variante clara y oscura + `.v2-numero` para números grandes. Los roles
   semánticos del scope son **tonos de texto AA** (`ok`/`bad`/`warn`/`info` con
   los valores medidos sobre el shell v2: claro `#166534`/`#B91C1C`/`#92400E`/
   `#2059BE`, oscuro `#4ADE80`/`#FCA5A5`/`#FCD34D`/`#9FB8FF`) y los vivos quedan
-  para relleno e indicadores (`--c-pass`/`--c-accion`). El armado del shell
-  (piezas, breakpoints, reglas y checklist) está en
+  para relleno e indicadores (`--c-pass`/`--c-accion`). Con el scope,
+  `styles.css` ya trae las **reglas de navegación** (ítem activo, rótulos de
+  grupo, foco por tema, chips) y `NavLateral` soporta grupos plegables. El
+  armado del shell (piezas, breakpoints, reglas y checklist) está en
   `owncoding-ui/docs/SHELL.md`. El scope local `.v2-piloto` de `src/index.css`
   (piloto de DSN) queda como puente hasta que la app importe
   `owncoding-ui/styles.css`; después se borra y las pantallas siguen usando la
