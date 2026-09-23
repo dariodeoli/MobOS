@@ -26,18 +26,23 @@ Capturas del carrito tal como estaba desplegado (demo pública, desktop 1280):
 Datos crudos: `1.0.144-produccion/resultados-1.0.144-produccion.json`
 (sin desborde horizontal y sin errores de página).
 
-## Verificación por criterio (#243)
+## Verificación post-deploy real (v1.0.144 → v1.0.145)
 
-Comparativas “antes | después” en zoom (2x), sobre la misma demo y el mismo
-carrito (2 productos, 2 unidades):
+`#243` salió en **v1.0.145** (merges `a2db2150`, `3b74e55f` y `20b83248`; release
+`e5224a19`) y se verificó contra producción con la sonda, sobre la misma demo
+(2 productos, 2 unidades). Comparativas “antes | después” en zoom:
 
 | Criterio | Evidencia | Resultado |
 |---|---|---|
-| **Colapso máximo** (sin cantidad/precio) | [antes/después](comparativa-fila-colapsada.png) | ✅ la línea pasó de 248/249 px a **58 px** y solo muestra nombre, IMEI y total |
-| **Cantidad/precio adentro** | [fila expandida](rama-243/fila-expandida-desktop-claro-v2-off.png) | ✅ al desplegar aparecen cantidad, precio de venta, color, lista, descuento, cupón, stock y eliminar |
-| **Total llamativo** | [antes/después](comparativa-encabezado.png) | ✅ degradé y borde del acento + total en color de marca, siempre arriba |
-| **Flechita corregida** | [antes/después colapsada](comparativa-fila-colapsada.png) · [expandida](comparativa-fila-expandida.png) | ✅ abajo colapsada (desplegar) y arriba expandida (cerrar) |
-| **Rediseño del panel** | [antes](1.0.144-produccion/carrito-desktop-claro-v2-off-colapsado.jpg) · [después](rama-243/carrito-desktop-claro-v2-off-colapsado.jpg) | ✅ encabezado y ajustes compactos; el total queda en su bloque |
+| **Colapso máximo** (sin cantidad/precio) | [antes/después](comparativa-fila-colapsada-1.0.144-produccion-vs-1.0.145-produccion.png) | ✅ **248/249 px → 58 px**; solo nombre, IMEI y total |
+| **Cantidad/precio adentro** | [fila expandida](1.0.145-produccion/fila-expandida-desktop-claro-v2-off.png) | ✅ al desplegar aparecen cantidad, precio de venta, color, lista, descuento, cupón, stock y eliminar |
+| **Total llamativo** | [antes/después](comparativa-encabezado-1.0.144-produccion-vs-1.0.145-produccion.png) | ✅ degradé y borde del acento + total en color de marca, siempre arriba |
+| **Flechita corregida** | [colapsada](comparativa-fila-colapsada-1.0.144-produccion-vs-1.0.145-produccion.png) · [expandida](1.0.145-produccion/fila-expandida-desktop-claro-v2-off.png) | ✅ abajo colapsada (desplegar) y arriba expandida (cerrar) |
+| **Rediseño del panel** | [antes](1.0.144-produccion/carrito-desktop-claro-v2-off-colapsado.jpg) · [después](1.0.145-produccion/carrito-desktop-claro-v2-off-colapsado.jpg) | ✅ encabezado y ajustes compactos; el total queda en su bloque |
+
+Métricas de producción v1.0.145: **58 px en las 6 variantes** (claro/oscuro,
+desktop 1280 y mobile 390, flag v2 off/on), 0 desbordes y 0 errores de página
+(`1.0.145-produccion/resultados-1.0.145-produccion.json`).
 
 Declaración técnica del encabezado (`FormularioVenta.jsx`):
 
@@ -48,7 +53,7 @@ Declaración técnica del encabezado (`FormularioVenta.jsx`):
 + <span className="v2-numero text-2xl font-extrabold tracking-tight tabular-nums text-fono-light">
 ```
 
-## Después (rama `slot/pos`)
+## Capturas de la rama (por variante)
 
 Capturas con el colapso máximo y el preview v2 en las dos direcciones
 (claro/oscuro, desktop 1280 y mobile 390):
@@ -96,14 +101,21 @@ QA_SOLO_COMPARAR=1 QA_COMPARAR=1.0.144-produccion,rama-243 node scripts/qa-243-c
 Salida: `docs/qa/243/<etiqueta>/carrito-*.jpg` (pantalla completa) +
 `fila-colapsada|fila-expandida|encabezado-<variante>.png` (zoom 2x por
 criterio) + `resultados-<etiqueta>.json` (altos, desborde, scope v2 y errores).
-La comparativa compone `docs/qa/243/comparativa-{fila-colapsada,fila-expandida,encabezado}.png`.
+La comparativa compone `docs/qa/243/comparativa-<criterio>-<antes>-vs-<después>.png`.
 
 ## Checks de la pasada
 
-- `npm run lint` 0 errores · `npm test` 617/617 · build FE ✓ · `prisma validate` ✓
-- e2e (36/36): `pos-checkout` (seller, con la guarda nueva del colapso: la línea
-  esconde cantidad/precio y los muestra al desplegar), `pos-qa-173` (admin, con
-  la guarda del descuento individual visible colapsado) y `demo-anonimo`
-  (core, 12/12: la demo sigue igual y no toca el API).
+- `npm run lint` 0 errores · `npm test` **648/648** · build FE ✓ · `prisma validate` ✓.
+- e2e `pos-checkout` + `pos-qa-173`: **22/22** (incluye las guardas #243 y #148 §5).
+- Barrido ampliado sobre el código integrado (pos-checkout, pos-qa-173,
+  precios-listas, pos-resumen-fijo, inventario-unidades y demo-anonimo):
+  **51 pasan**, con 1 flaky que destapó una carrera real y quedó corregida:
+  - La **cotización automática del BCP** podía pisar la que el vendedor escribía
+    mientras la consulta estaba en vuelo (el split quedaba parcial). Ahora la
+    sugerencia viaja marcada (`updateAccountPayment(..., { automatico: true })`)
+    y nunca reemplaza una cotización ya cargada; la regla queda cubierta por
+    `src/utils/pagoCuenta.test.js` (la lógica de cobro salió a
+    `src/utils/pagoCuenta.js`, testable sin navegador).
 - `test:e2e:smoke` 7/7.
-- Capturas y métricas verificadas con la sonda (sin errores de página).
+- Verificación post-deploy en producción v1.0.145 (tabla de arriba): 58 px en las
+  6 variantes, sin desbordes ni errores.

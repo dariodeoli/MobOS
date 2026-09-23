@@ -167,10 +167,10 @@ if (comparar.length === 2) {
     const contextoCompositor = await navegador.newContext({ viewport: { width: 1080, height: 720 }, deviceScaleFactor: 1 })
     const paginaCompositor = await contextoCompositor.newPage()
     await paginaCompositor.setContent(html, { waitUntil: 'load' })
-    await paginaCompositor.screenshot({ path: join(raiz, `comparativa-${archivo}.png`), fullPage: true })
+    await paginaCompositor.screenshot({ path: join(raiz, `comparativa-${archivo}-${antes}-vs-${despues}.png`), fullPage: true })
     await contextoCompositor.close()
   }
-  console.log('comparativa: docs/qa/243/comparativa-{fila-colapsada,fila-expandida,encabezado}.png')
+  console.log(`comparativa: docs/qa/243/comparativa-{fila-colapsada,fila-expandida,encabezado}-${antes}-vs-${despues}.png`)
 }
 
 await navegador.close()
