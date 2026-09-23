@@ -1,5 +1,6 @@
 // #241 (F3): vista previa del tablero ops — mock sin activar, con los tokens v2
 // del piloto (claro/oscuro/móvil), sin API y fuera del menú hasta la aprobación.
+// El tablero real (flag VITE_OPS_V2) se cubre en `ops.spec.js`.
 import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 
@@ -36,7 +37,8 @@ test('el tablero ops preview usa los tokens v2 y no llama al API', async ({ page
   expect(llamadas, `llamadas al API: ${llamadas.join(', ')}`).toEqual([])
 })
 
-test('la ruta real /ops queda inactiva sin el flag', async ({ page }) => {
+test('la ruta real /ops responde con el flag activo (tablero real, no el mock)', async ({ page }) => {
   await page.goto('/ops')
+  await expect(page.getByTestId('ops-tablero')).toBeVisible()
   await expect(page.getByTestId('ops-preview')).toHaveCount(0)
 })
