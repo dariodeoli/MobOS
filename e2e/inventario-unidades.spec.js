@@ -238,8 +238,15 @@ test('vender todos deja el lote elegido en el POS con producto, cantidad e IMEI'
       await expect(fila).toBeVisible()
       await fila.getByRole('checkbox', { name: new RegExp(serial) }).check()
     }
-    await page.getByTestId('vender-todos').click()
-    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible({ timeout: 30_000 })
+    // «Vender todos» navega al POS con el lote armado. La barra se re-renderiza
+    // con el listado, así que el click puede caer en el medio y no hacer nada:
+    // se reintenta hasta ver el POS (visto 1/3 en local).
+    await expect(async () => {
+      if (!page.url().includes('/pos')) {
+        await page.getByTestId('vender-todos').click({ timeout: 5_000 })
+      }
+      await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible({ timeout: 5_000 })
+    }).toPass({ timeout: 30_000 })
     await expect(page).toHaveURL(/\/pos/)
     // La línea nace colapsada (#243): se despliega para ver cantidad e IMEI.
     await page.getByRole('button', { name: `Ver detalle de ${nombre}` }).click()
