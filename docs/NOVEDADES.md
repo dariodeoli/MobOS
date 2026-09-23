@@ -11,6 +11,14 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.150 — 2026-09-23
+- **POS (#243):** la **papelera de cada línea** queda siempre visible, con confirmación antes de borrar (menos toques para corregir el carrito).
+- **Finanzas (#148 #122):** las ventas con **costo pendiente** ya no suman ganancia hasta completarlo (reportes y Análisis coherentes con la caja).
+- **Clientes (#240):** la **cuenta del cliente sigue la entrega paso a paso** (recepción, preparación, en camino y entrega).
+- **Compras (#241):** resumen y **avance de recepción** con el lenguaje v2 (detrás del flag), con capturas por tema.
+- **Impresión/CI:** la **reimpresión de etiqueta** reintenta hasta confirmar el trabajo del agente en la suite automática.
+- **Componentes:** **lote 20** de objetos de campo y detalle sumado a la biblioteca (v0.15.0).
+
 ## v1.0.149 — 2026-09-23
 - **Estabilidad interna:** el flujo de recepción de equipos en tránsito (reimprimir etiqueta) queda robusto en la suite automática, sin cambios visibles para el usuario.
 
