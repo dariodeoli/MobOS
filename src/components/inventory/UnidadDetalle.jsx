@@ -551,18 +551,22 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
           </form>}
         </Modal>
 
-        {/* Códigos de esta unidad */}
-        {codigos && (
-          <section className="rounded-2xl border border-ink-600 p-4">
-            <h3 className={ROTULO_SECCION}>Códigos de esta unidad</h3>
-            <p className="mt-1 text-xs text-mute">El QR y el código de barras identifican esta unidad física (etiquetas, escaneo y verificación).</p>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-white p-3">
-              <span className="min-w-0 flex-1" dangerouslySetInnerHTML={{ __html: codigos.barcode }} />
-              <img src={codigos.qr} alt={"QR de " + unit.serial} className="h-24 w-24" />
-            </div>
-            <p className="mt-2 font-mono text-[11px] text-mute">{unit.serial}</p>
-          </section>
-        )}
+        {/* Códigos de esta unidad. El QR y el código de barras se generan async:
+            la sección se reserva desde el inicio para que el contenido de abajo
+            (Acciones) no se mueva cuando llegan y un clic no se pierda. */}
+        <section className="rounded-2xl border border-ink-600 p-4">
+          <h3 className={ROTULO_SECCION}>Códigos de esta unidad</h3>
+          <p className="mt-1 text-xs text-mute">El QR y el código de barras identifican esta unidad física (etiquetas, escaneo y verificación).</p>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-white p-3">
+            {codigos?.barcode
+              ? <span className="min-w-0 flex-1" dangerouslySetInnerHTML={{ __html: codigos.barcode }} />
+              : <span className="min-w-0 flex-1" aria-hidden="true" />}
+            {codigos?.qr
+              ? <img src={codigos.qr} alt={"QR de " + unit.serial} className="h-24 w-24" />
+              : <span className="h-24 w-24 shrink-0" aria-hidden="true" />}
+          </div>
+          <p className="mt-2 font-mono text-[11px] text-mute">{unit.serial}</p>
+        </section>
 
         {/* Acciones */}
         <section className="rounded-2xl border border-ink-600 p-4">
