@@ -1,5 +1,7 @@
 // Etiquetas canónicas de la interfaz. Evitan mapas duplicados (y divergentes)
 // de medios de pago entre comprobantes, paneles y listados.
+import { ESTADO_ENTREGA_BADGE } from './estadosPedido.js'
+
 export const PAYMENT_METHOD_LABELS = {
   CASH: 'Efectivo',
   TRANSFER: 'Transferencia',
@@ -13,17 +15,11 @@ export const PAYMENT_METHOD_LABELS = {
 
 export const paymentMethodLabel = (value) => PAYMENT_METHOD_LABELS[value] || value || ''
 
+// Etiquetas de entrega: salen del mapa con badge compartido (lote 18) para que
+// el listado, el POS, el comprobante y los impresos digan lo mismo; `CANCELLED`
+// es el único estado que no tiene badge propio.
 export const FULFILLMENT_LABELS = {
-  PENDING: 'Pendiente',
-  PROCESSING: 'Preparando',
-  READY_TO_SHIP: 'Listo p/ enviar',
-  SHIPPED: 'Enviado',
-  IN_TRANSIT: 'En camino',
-  READY_FOR_PICKUP: 'Listo para retirar',
-  PICKED_UP: 'Retirado',
-  PARTIAL: 'Entrega parcial',
-  DELIVERED: 'Entregado',
-  NOT_DELIVERED: 'No entregado',
+  ...Object.fromEntries(Object.entries(ESTADO_ENTREGA_BADGE).map(([clave, { label }]) => [clave, label])),
   CANCELLED: 'Cancelado',
 }
 

@@ -324,6 +324,24 @@ test('los estados de pedido del cliente se definen una sola vez', () => {
   }
 })
 
+// Lote 18: las etiquetas de entrega del listado, el POS y los impresos salen del
+// mapa con badge compartido; `constants.js` no las vuelve a copiar.
+test('las etiquetas de entrega salen del mapa con badge (lote 18)', async () => {
+  const constantes = readFileSync(join(RAIZ, 'lib/constants.js'), 'utf8')
+  assert.match(constantes, /import \{ ESTADO_ENTREGA_BADGE \} from '\.\/estadosPedido\.js'/, 'constants deriva del mapa compartido')
+  assert.ok(!/PENDING: 'Pendiente'/.test(constantes), 'las etiquetas de entrega no se copian a mano')
+
+  const { ESTADO_ENTREGA_BADGE } = await import('./estadosPedido.js')
+  const { FULFILLMENT_LABELS } = await import('./constants.js')
+  for (const [clave, { label }] of Object.entries(ESTADO_ENTREGA_BADGE)) {
+    assert.equal(FULFILLMENT_LABELS[clave], label, `${clave} tiene que decir lo mismo en las dos casas`)
+  }
+  assert.equal(FULFILLMENT_LABELS.CANCELLED, 'Cancelado', 'el único estado sin badge se conserva')
+
+  const entrega = readFileSync(join(RAIZ, 'components/ventas/venta/entrega.js'), 'utf8')
+  assert.match(entrega, /FULFILLMENT_LABELS/, 'el flujo de entrega usa las etiquetas compartidas')
+})
+
 test('Aviso cubre warn y el aviso con estructura', () => {
   const ui = readFileSync(join(RAIZ, 'components/ui/index.jsx'), 'utf8')
   assert.match(ui, /warn: 'border-warn\/30 bg-warn\/10 text-warn'/, 'Aviso debe tener tono warn')
@@ -429,6 +447,15 @@ test('el tono de la unidad vive en utils/inventario (#217)', () => {
   for (const nombre of ['tonoInventario', 'colorInventario', 'etiquetaCondicionUnidad', 'colorCondicionUnidad', 'puntoCondicionUnidad', 'CONDICION_UNIDAD']) {
     assert.match(inventario, new RegExp(`export (const|function) ${nombre}`), `falta ${nombre}`)
   }
+})
+
+// Lote 17: la página pública del informe usa los objetos y reglas compartidas.
+test('el informe público usa MedidorBateria y la condición compartida (#240)', () => {
+  const pagina = readFileSync(join(RAIZ, 'pages/UnidadPublica.jsx'), 'utf8')
+  assert.match(pagina, /<MedidorBateria porcentaje=\{unidad\.batteryHealth\}/)
+  assert.match(pagina, /etiquetaCondicionUnidad\(unidad\)/)
+  assert.ok(!/const CONDICION = \{/.test(pagina), 'la condición sale de utils/inventario')
+  assert.ok(!/batteryHealth\) >= 85/.test(pagina), 'los umbrales de batería salen de MedidorBateria')
 })
 
 // Lote 15: el rack del piloto usa los objetos v2 para grado y batería.
