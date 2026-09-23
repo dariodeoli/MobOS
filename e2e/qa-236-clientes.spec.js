@@ -62,8 +62,13 @@ test('clientes: fila estilo Pedidos con resumen rápido y detalle completo', asy
   await expect(fila.getByRole('button', { name: `Resumen rápido de ${nombre}` })).toBeVisible()
   await expect(fila.getByRole('button', { name: `Ver detalle completo de ${nombre}` })).toBeVisible()
   await expect(fila.getByRole('button', { name: `Enviar WhatsApp a ${nombre}` })).toBeVisible()
-  // La selección por lote sigue disponible.
-  await fila.getByRole('checkbox', { name: `Seleccionar a ${nombre}` }).check()
+  // La selección por lote sigue disponible: el check se reintenta si la tabla
+  // se re-renderiza al resolver la búsqueda (base fría del CI).
+  const casilla = fila.getByRole('checkbox', { name: `Seleccionar a ${nombre}` })
+  await expect(async () => {
+    await casilla.check()
+    await expect(casilla).toBeChecked({ timeout: 2000 })
+  }).toPass({ timeout: 20_000 })
   await expect(page.getByRole('button', { name: 'Copiar teléfonos' })).toBeVisible()
   await page.screenshot({ path: `${SALIDA}/02-despues-lista.png` })
   await fila.getByRole('checkbox', { name: `Seleccionar a ${nombre}` }).uncheck()

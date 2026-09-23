@@ -443,7 +443,11 @@ test('POS vende un equipo serializado con su IMEI y bloquea el sobre pedido con 
   await page.goto('/pos')
   await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente serial ${Date.now().toString(36)}`)
-  await page.getByPlaceholder('Buscar producto…').fill(SEED.products.iphone.name)
+  // El catalogo del POS hidrata async: se reintenta la busqueda hasta verlo.
+  await expect(async () => {
+    await page.getByPlaceholder('Buscar producto…').fill(SEED.products.iphone.name)
+    await expect(page.getByRole('button', { name: new RegExp(SEED.products.iphone.name) }).first()).toBeVisible({ timeout: 5000 })
+  }).toPass({ timeout: 60_000 })
   await page.getByRole('button', { name: new RegExp(SEED.products.iphone.name) }).first().click()
 
   await page.getByRole('button', { name: 'Elegir IMEI' }).click()
