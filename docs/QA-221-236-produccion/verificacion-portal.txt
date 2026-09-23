@@ -1,0 +1,18 @@
+# Verificación del portal y cierre de #221/#236 — 23/9/2026
+
+Versión desplegada: v1.0.144 (app.moboss.online)
+
+## Portal en el subdominio (clientes.moboss.online, #74)
+
+$ curl -sI https://clientes.moboss.online | head -3
+  HTTP/2 200 
+  accept-ranges: bytes
+  alt-svc: h3=":443"; ma=2592000
+
+$ curl -s -D - -o /dev/null -H 'Origin: https://clientes.moboss.online' https://api.moboss.online/api/portal/token-invalido-qa | grep -i access-control
+  access-control-allow-credentials: true
+  access-control-allow-headers: Content-Type, Authorization, x-tenant-id, Idempotency-Key
+  access-control-allow-methods: GET,POST,PATCH,PUT,DELETE,OPTIONS
+  access-control-allow-origin: https://clientes.moboss.online
+
+El API responde el origen del portal (CORS OK) sin enumerar tokens (404).

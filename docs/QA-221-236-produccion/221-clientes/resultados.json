@@ -1,0 +1,100 @@
+{
+  "base": "https://app.moboss.online",
+  "apiVigilada": "api.moboss.online",
+  "versionDesplegada": "v1.0.144",
+  "fecha": "2026-09-23T03:56:00.601Z",
+  "esperado": {
+    "totalGastado": "Gs 7.750.000",
+    "saldo": "Gs 1.500.000",
+    "ticket": "Gs 1.550.000",
+    "frecuencia": "Cada 172 días",
+    "favorito": "iPhone 15",
+    "pedidos": [
+      "MOB-#0008",
+      "MOB-#0005",
+      "MOB-#0002"
+    ],
+    "serial": "356789012345678"
+  },
+  "observaciones": [
+    "la ficha cuenta 6 pedidos (incluye la venta cancelada) y el listado/estadísticas cuentan 5 compras",
+    "los favoritos de la demo muestran los montos por producto en Gs 0 (los ítems demo no traen importe)"
+  ],
+  "llamadasApi": [],
+  "demoNoTocaApi": true,
+  "resultados": [
+    {
+      "paso": "entrada anónima: /demo abre la entrada de perfiles sin login",
+      "estado": "ok",
+      "detalle": "demo pública sin login · versión v1.0.144",
+      "capturas": [
+        "01-demo-entrada.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "panel del Dueño en modo demo",
+      "estado": "ok",
+      "detalle": "panel abierto en https://app.moboss.online/resumen",
+      "capturas": [
+        "02-panel-dueno-demo.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "lista de clientes con agregados (pedidos y total gastado)",
+      "estado": "ok",
+      "detalle": "fila con 5 compras y Gs 7.750.000",
+      "capturas": [
+        "03-lista-clientes-agregados.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "ficha: resumen con total gastado, saldo y últimas órdenes",
+      "estado": "ok",
+      "detalle": "total Gs 7.750.000 · saldo Gs 1.500.000 · MOB-#0008 · KPI pedidos 6",
+      "capturas": [
+        "04-ficha-resumen.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "pedidos asociados: historial con estados y equipos con serial",
+      "estado": "ok",
+      "detalle": "historial con MOB-#0008, MOB-#0005, MOB-#0002 + venta cancelada · serial 356789012345678",
+      "capturas": [
+        "05-pedidos-asociados.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "estadísticas calculadas (ticket, frecuencia, favoritos)",
+      "estado": "ok",
+      "detalle": "5 compras · ticket Gs 1.550.000 · Cada 172 días · favorito iPhone 15",
+      "capturas": [
+        "06-estadisticas.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "portal del cliente (QR y cuenta por token local)",
+      "estado": "ok",
+      "detalle": "https://clientes.moboss.online/cuenta/demo-demo-cliente-lucia-rapido · saldo Gs 1.500.000 · tienda «Aurora Móviles»",
+      "capturas": [
+        "07-portal-qr.jpg",
+        "08-portal-cliente.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "whatsapp con plantilla, mensaje y enlace al chat",
+      "estado": "ok",
+      "detalle": "wa.me/595981123456 · «Hola, Lucía Fernández. Te escribimos de Aurora Móviles S.A. …»",
+      "capturas": [
+        "09-whatsapp-plantilla.jpg"
+      ],
+      "llamadasApi": []
+    }
+  ]
+}

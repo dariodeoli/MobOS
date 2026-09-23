@@ -12,6 +12,10 @@ informe compartido visto/no visto** — la ficha demo muestra el chip Visto/Sin
 ver por equipo y la cronología la apertura del cliente, con la misma semántica
 que la cuenta real (`docs/QA-240-informe-visto.md`).
 
+Re-verificado en producción **v1.0.144** (23/9/2026):
+`scripts/qa-221-clientes-produccion.mjs` **8/8** y 0 llamadas al API
+(`docs/QA-221-236-produccion/`).
+
 ## Qué pedía #221 (contra `origin/main`)
 
 | Pedido | Dónde vive | Estado |
