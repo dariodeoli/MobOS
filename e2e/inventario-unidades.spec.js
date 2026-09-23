@@ -8,6 +8,11 @@
 import { test, expect } from '@playwright/test'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { SEED } from './helpers/seed-data.js'
+import { habilitarRetrySiCuarentena } from './helpers/cuarentena.mjs'
+
+// Cuarentena de flaky (#CI): el retry lo habilita el workflow solo si este spec
+// está en MOBOS_E2E_CUARENTENA (ver `.github/workflows/ci.yml`).
+habilitarRetrySiCuarentena('inventario-unidades')
 
 const API = SEED.api
 const marca = () => `${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`.toUpperCase()

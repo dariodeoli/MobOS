@@ -36,7 +36,8 @@ jobs:
   backend:
     name: Backend (typecheck + build)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Actual ~1m40 · margen amplio sin colgar un runner 20 min si algo se traba.
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -67,12 +68,15 @@ jobs:
   integration:
     name: Integration (backend harness, isolated Postgres)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # Actual ~3m10 (incluye build del backend) · margen ~4x.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
       - name: Install PostgreSQL binaries
         run: |
           sudo apt-get update
@@ -109,14 +113,25 @@ jobs:
         run: bash tests/integration-http.sh
 
   e2e:
-    name: E2E (Playwright + self-hosted backend/Postgres)
+    # Shards en paralelo (#CI): la suite completa tarda ~20+ min en un runner;
+    # con 3 shards cada job baja a ~8-10 min. Cada shard tiene su propio runner,
+    # cluster de Postgres y WebServer (arnés aislado), así que no comparten nada.
+    name: E2E (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
       - name: Install PostgreSQL binaries
         run: |
           sudo apt-get update
@@ -142,6 +157,11 @@ jobs:
         env:
           DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/mobos
         run: npx prisma generate
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
       - name: Build backend (prod-mode E2E server)
@@ -149,18 +169,26 @@ jobs:
         env:
           DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/mobos
         run: npm run build
-      - name: Run E2E suite
+      - name: Run E2E suite (shard ${{ matrix.shard }}/3)
         env:
           # El harness arranca el backend con `next start` sobre este build: sin
           # compilación por ruta no hay requests cortadas durante el compile ni
           # timeouts por primeros hits lentos (flakiness de CI).
           MOBOS_E2E_BACKEND: prod
-        run: npm run test:e2e
-      - name: Upload Playwright report
+          # Cuarentena de flaky (#CI): SOLO estos specs habilitan 1 retry (los
+          # lee `e2e/helpers/cuarentena.mjs`). El reporter de flakiness deja el
+          # registro de los que reintentaron para vaciar la lista: lista vacía o
+          # variable ausente = cero retries.
+          MOBOS_E2E_CUARENTENA: documentos-no-fiscales,etiquetas-unidad,finanzas-conciliacion,inventario-unidades,pos-qa-173,vendidos-comprobante-rapido
+        run: npx playwright test --shard=${{ matrix.shard }}/3
+      - name: Upload Playwright report (shard ${{ matrix.shard }})
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
-          path: playwright-report/
+          name: playwright-report-${{ matrix.shard }}
+          path: |
+            playwright-report/
+            test-results/reporte-flaky.md
+            test-results/reporte-flaky.json
           if-no-files-found: ignore
           retention-days: 14
