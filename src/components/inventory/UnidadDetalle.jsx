@@ -342,8 +342,9 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
               <div className="mt-2 grid gap-2 sm:grid-cols-3">
                 <Input aria-label="Consignador" maxLength={160} value={consignador} onChange={event => setConsignador(event.target.value)} placeholder="Nombre de quien lo dejó" className="min-h-9" autoCapitalize="words" />
                 <Input aria-label="Teléfono del consignador" maxLength={40} value={consignadorTel} onChange={event => setConsignadorTel(event.target.value)} placeholder="Teléfono" className="min-h-9" autoCapitalize="none" />
-                <MoneyInput aria-label="Monto a pagar al consignador" value={consignadorMonto} onValueChange={value => setConsignadorMonto(value === '' ? '' : String(value))} placeholder="A pagar (Gs)" className="min-h-9" />
+                <MoneyInput aria-label="Monto a pagar al consignador" title="Al venderse se le paga al consignador y suma al costo real del equipo para la ganancia y el seguro" value={consignadorMonto} onValueChange={value => setConsignadorMonto(value === '' ? '' : String(value))} placeholder="A pagar (Gs)" className="min-h-9" />
               </div>
+              <p className="mt-1 text-[11px] text-mute">Al vender el equipo, este monto se le paga al consignador y suma al costo real (ganancia y seguro).</p>
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs text-mute">{unit.consignorName ? `En consignación de ${unit.consignorName}${unit.consignorPyg ? ` · a pagar ${money(unit.consignorPyg, 'PYG')}` : ''}` : 'Sin consignación'}</span>
                 <Button type="button" variant="outline" disabled={guardandoConsignacion || (consignador.trim() === (unit.consignorName || '') && consignadorTel.trim() === (unit.consignorPhone || '') && consignadorMonto.trim() === (unit.consignorPyg === null || unit.consignorPyg === undefined ? '' : String(unit.consignorPyg)))} onClick={guardarConsignacion}>{guardandoConsignacion ? 'Guardando…' : 'Guardar consignación'}</Button>

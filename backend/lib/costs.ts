@@ -88,3 +88,11 @@ export function normalizarCosto(entrada: CostoEntrada, actual: Partial<CostoNorm
 /** La unidad todavía no tiene costo cargado (costo diferido). */
 export const sinCosto = (unit: { costPyg?: unknown; originalCost?: unknown } | null | undefined) =>
   Boolean(unit) && (unit!.costPyg === null || unit!.costPyg === undefined) && (unit!.originalCost === null || unit!.originalCost === undefined)
+
+/** Costo de repuestos/arreglos detectados en la inspección PhoneCheck (#240):
+ *  lo que costó dejar el equipo en condiciones. Suma al costo real del equipo
+ *  (margen y seguro) y al valor del stock (#148 §19). */
+export function costoRepuestosDeInspection(inspection: unknown): number {
+  const valor = Number((inspection as { costoRepuestosPyg?: unknown } | null)?.costoRepuestosPyg)
+  return Number.isSafeInteger(valor) && valor > 0 ? valor : 0
+}

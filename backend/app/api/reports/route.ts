@@ -1,6 +1,7 @@
 import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
 import { canAccessAny, requireSession } from '../../../lib/auth'
+import { costoRepuestosDeInspection } from '../../../lib/costs'
 import {
   MAX_REPORT_ORDERS,
   ReportInputError,
@@ -251,10 +252,35 @@ export async function GET(request: Request) {
     const onHand = productStock.reduce((sum, product) => sum + product.stock, 0)
     const soldUnits = [...soldByProduct.values()].reduce((sum, quantity) => sum + quantity, 0)
     const shortages = productStock.filter(product => product.stock <= 0).map(product => ({ id: product.id, name: product.name, sku: product.sku, stock: product.stock }))
-    // Valor del stock a costo (sin inventar costos ausentes) y rotación
-    // expresada en días de stock: unidades disponibles ÷ venta diaria promedio.
-    const stockValuePyg = productStock.reduce((sum, product) => sum + Math.max(0, product.stock) * Math.max(0, product.costPyg ?? 0), 0)
-    const stockWithoutCost = productStock.filter(product => product.stock > 0 && product.costPyg === null).length
+    // Valor del stock a costo real por unidad (#148 §19): cada unidad valuada
+    // con su costo (y sus reparaciones/repuestos de la inspección), cayendo al
+    // costo del producto cuando la unidad no tiene costo propio o el stock no
+    // está serializado. No se inventan costos ausentes.
+    const unidadesStock = productStock.length
+      ? await prisma.inventoryUnit.findMany({
+          where: { tenantId: session.user.tenantId, productId: { in: productStock.map((product) => product.id) }, status: { in: ['AVAILABLE', 'RESERVED'] }, ...(branchId ? { branchId } : {}) },
+          select: { productId: true, costPyg: true, inspection: true },
+        })
+      : []
+    const unidadesPorProducto = new Map<string, Array<{ costPyg: number | null; inspection: unknown }>>()
+    for (const unidad of unidadesStock) {
+      const fila = unidadesPorProducto.get(unidad.productId) || []
+      fila.push({ costPyg: unidad.costPyg, inspection: unidad.inspection })
+      unidadesPorProducto.set(unidad.productId, fila)
+    }
+    const valorDeProducto = (product: (typeof productStock)[number]) => {
+      const unidades = unidadesPorProducto.get(product.id)
+      if (unidades?.length) return unidades.reduce((suma, unidad) => suma + (unidad.costPyg ?? product.costPyg ?? 0) + costoRepuestosDeInspection(unidad.inspection), 0)
+      return Math.max(0, product.stock) * Math.max(0, product.costPyg ?? 0)
+    }
+    const sinCostoDeProducto = (product: (typeof productStock)[number]) => {
+      if (product.stock <= 0) return false
+      const unidades = unidadesPorProducto.get(product.id)
+      if (unidades?.length) return unidades.every((unidad) => (unidad.costPyg ?? product.costPyg) === null || (unidad.costPyg ?? product.costPyg) === undefined)
+      return product.costPyg === null
+    }
+    const stockValuePyg = productStock.reduce((sum, product) => sum + valorDeProducto(product), 0)
+    const stockWithoutCost = productStock.filter(sinCostoDeProducto).length
     const ventaDiaria = soldUnits / Math.max(1, diasDelRango(from, to))
     const daysOfStock = ventaDiaria > 0 ? Math.round((onHand / ventaDiaria) * 10) / 10 : null
 
