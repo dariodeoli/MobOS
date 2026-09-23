@@ -1,0 +1,330 @@
+[
+  {
+    "pantalla": "inventario",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 64,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Inventario (10)",
+        "ancho": 107,
+        "alto": 32,
+        "dibujo": "107x32",
+        "clase": "shrink-0 rounded-md px-3 py-2 text-xs font-semibold bg-fono/15 text-fo",
+        "veces": 11
+      },
+      {
+        "que": "input",
+        "texto": "Seleccionar visibles",
+        "ancho": 16,
+        "alto": 16,
+        "dibujo": "16x16",
+        "clase": "h-4 min-h-0 w-4 accent-fono",
+        "veces": 11
+      },
+      {
+        "que": "button",
+        "texto": "Editar el costo de E2EE2EIPHON",
+        "ancho": 14,
+        "alto": 14,
+        "dibujo": "14x14",
+        "clase": "text-mute transition hover:text-fono",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "✓ Verificar",
+        "ancho": 24,
+        "alto": 24,
+        "dibujo": "24x24",
+        "clase": "grid h-6 w-6 shrink-0 place-items-center rounded-full border border-ok",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Editar",
+        "ancho": 47,
+        "alto": 30,
+        "dibujo": "47x30",
+        "clase": "whitespace-nowrap rounded-lg border border-ink-600 px-2 py-1 text-[10p",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Acciones de E2EE2EIPHONE15MUDJ",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "grid h-7 w-7 place-items-center rounded-lg border border-ink-600 text-",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Exportar CSV",
+        "ancho": 126,
+        "alto": 36,
+        "dibujo": "126x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "pantalla": "inventario",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 64,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Inventario (10)",
+        "ancho": 107,
+        "alto": 32,
+        "dibujo": "107x32",
+        "clase": "shrink-0 rounded-md px-3 py-2 text-xs font-semibold bg-fono/15 text-fo",
+        "veces": 11
+      },
+      {
+        "que": "input",
+        "texto": "Seleccionar visibles",
+        "ancho": 16,
+        "alto": 16,
+        "dibujo": "16x16",
+        "clase": "h-4 min-h-0 w-4 accent-fono",
+        "veces": 11
+      },
+      {
+        "que": "button",
+        "texto": "Editar el costo de E2EE2EIPHON",
+        "ancho": 14,
+        "alto": 14,
+        "dibujo": "14x14",
+        "clase": "text-mute transition hover:text-fono",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "✓ Verificar",
+        "ancho": 24,
+        "alto": 24,
+        "dibujo": "24x24",
+        "clase": "grid h-6 w-6 shrink-0 place-items-center rounded-full border border-ok",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Editar",
+        "ancho": 47,
+        "alto": 30,
+        "dibujo": "47x30",
+        "clase": "whitespace-nowrap rounded-lg border border-ink-600 px-2 py-1 text-[10p",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Acciones de E2EE2EIPHONE15MUDJ",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "grid h-7 w-7 place-items-center rounded-lg border border-ink-600 text-",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Exportar CSV",
+        "ancho": 126,
+        "alto": 36,
+        "dibujo": "126x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "pantalla": "inventario",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 64,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Inventario (10)",
+        "ancho": 107,
+        "alto": 32,
+        "dibujo": "107x32",
+        "clase": "shrink-0 rounded-md px-3 py-2 text-xs font-semibold bg-fono/15 text-fo",
+        "veces": 11
+      },
+      {
+        "que": "input",
+        "texto": "Seleccionar visibles",
+        "ancho": 16,
+        "alto": 16,
+        "dibujo": "16x16",
+        "clase": "h-4 min-h-0 w-4 accent-fono",
+        "veces": 11
+      },
+      {
+        "que": "button",
+        "texto": "Editar el costo de E2EE2EIPHON",
+        "ancho": 14,
+        "alto": 14,
+        "dibujo": "14x14",
+        "clase": "text-mute transition hover:text-fono",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "✓ Verificar",
+        "ancho": 24,
+        "alto": 24,
+        "dibujo": "24x24",
+        "clase": "grid h-6 w-6 shrink-0 place-items-center rounded-full border border-ok",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Editar",
+        "ancho": 47,
+        "alto": 30,
+        "dibujo": "47x30",
+        "clase": "whitespace-nowrap rounded-lg border border-ink-600 px-2 py-1 text-[10p",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Acciones de E2EE2EIPHONE15MUDJ",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "grid h-7 w-7 place-items-center rounded-lg border border-ink-600 text-",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Exportar CSV",
+        "ancho": 126,
+        "alto": 36,
+        "dibujo": "126x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 231,
+        "alto": 34,
+        "dibujo": "231x34",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "pantalla": "inventario",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 71,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Inventario (10)",
+        "ancho": 107,
+        "alto": 32,
+        "dibujo": "107x32",
+        "clase": "shrink-0 rounded-md px-3 py-2 text-xs font-semibold bg-fono/15 text-fo",
+        "veces": 11
+      },
+      {
+        "que": "input",
+        "texto": "Seleccionar visibles",
+        "ancho": 16,
+        "alto": 16,
+        "dibujo": "16x16",
+        "clase": "h-4 min-h-0 w-4 accent-fono",
+        "veces": 11
+      },
+      {
+        "que": "button",
+        "texto": "Editar el costo de E2EE2EIPHON",
+        "ancho": 14,
+        "alto": 14,
+        "dibujo": "14x14",
+        "clase": "text-mute transition hover:text-fono",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "✓ Verificar",
+        "ancho": 24,
+        "alto": 24,
+        "dibujo": "24x24",
+        "clase": "grid h-6 w-6 shrink-0 place-items-center rounded-full border border-ok",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Editar",
+        "ancho": 47,
+        "alto": 30,
+        "dibujo": "47x30",
+        "clase": "whitespace-nowrap rounded-lg border border-ink-600 px-2 py-1 text-[10p",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Acciones de E2EE2EIPHONE15MUDJ",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "grid h-7 w-7 place-items-center rounded-lg border border-ink-600 text-",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "+ Recibir unidad",
+        "ancho": 141,
+        "alto": 36,
+        "dibujo": "141x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-4 font-sem",
+        "veces": 8
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ]
+  }
+]
