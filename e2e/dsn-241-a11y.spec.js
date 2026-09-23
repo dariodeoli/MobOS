@@ -60,16 +60,15 @@ test('banner sin conexión: el shell sigue cumpliendo AA en ambos temas', async 
     await preparar(page, modo)
     await page.goto('/resumen')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 })
-    await page.context().setOffline(true)
-    // El evento se dispara además a mano: la emulación de red no lo emite de
-    // forma determinista y acá se mide el aviso, no el emulador.
+    // Solo el evento: la emulación de red del navegador corta el WebSocket de
+    // Vite y la app se recarga sin shell en el harness; acá se mide el aviso.
     await page.evaluate(() => window.dispatchEvent(new Event('offline')))
     const banner = page.locator('[role="status"].bg-bad')
     await expect(banner).toBeVisible({ timeout: 10_000 })
     const medicion = await auditarContraste(page, ['[role="status"].bg-bad'])
     informar(`shell-conexion-${tema}`, medicion)
     expect(medicion.bajos, `AA del aviso sin conexión (${tema})`).toEqual([])
-    await page.context().setOffline(false)
+    await page.evaluate(() => window.dispatchEvent(new Event('online')))
   }
 })
 

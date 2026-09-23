@@ -182,11 +182,11 @@ test('vender todos deja el lote elegido en el POS con producto, cantidad e IMEI'
       await fila.getByRole('checkbox', { name: new RegExp(serial) }).check()
     }
     await page.getByTestId('vender-todos').click()
+    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible({ timeout: 30_000 })
     await expect(page).toHaveURL(/\/pos/)
-    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible({ timeout: 15_000 })
-    // Llega una sola línea (mismo producto) con las dos unidades y sus IMEI.
-    await expect(page.getByLabel(`Cantidad de ${nombre}`)).toHaveValue('2')
+    // La línea nace colapsada (#243): se despliega para ver cantidad e IMEI.
     await page.getByRole('button', { name: `Ver detalle de ${nombre}` }).click()
+    await expect(page.getByLabel(`Cantidad de ${nombre}`)).toHaveValue('2')
     // El orden de los IMEI es el del listado (más recientes primero): se piden ambos.
     const linea = page.getByText(/^IMEI ZZINV/)
     await expect(linea).toContainText(seriales[0])
