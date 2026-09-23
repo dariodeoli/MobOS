@@ -83,6 +83,24 @@ warn y la celda de identidad de 13 px que espera a DSN).
 Duplicación pendiente medida: **6 → 1 usos** (queda solo el `Gs.` de una
 plantilla de impresión de PRN, que se coordina con ese slot).
 
+### Lote 20 — paridad de objetos de campo y detalle con la biblioteca (23-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `shared/ProductCombobox` | Vivía solo en MobOS aunque la biblioteca lo declaraba pendiente (README fase 2); POS, compras, combos y listas de precios lo usan en 6 archivos | Publicado en `owncoding-ui` **v0.15.0** con las mismas props (`products`, `selectedId`, `onSelect`, `onCreate`, `onQueryChange`), sugerencias en flujo y ARIA de combobox |
+| `shared/RucField` + `utils/ruc.js` | El campo canónico de `docs/CAMPOS.md` y sus helpers (`extraerRuc`/`esRuc`) no existían en la biblioteca | Publicados en v0.15.0; la consulta entra por `consultar` (async) — la librería no llama APIs — y el resultado se aplica solo al confirmar |
+| `shared/SerialTexto` | La regla de «últimos 4 siempre visibles» se repetía en las pantallas (7 archivos) | Publicado con `partirSerial` de la biblioteca (`utils/serial.js`), vacío explícito |
+| `shared/EstadoBadge` | Badge de estado por mapa local en 2 archivos | Publicado; un valor fuera del mapa se muestra crudo y el vacío es explícito (nunca un badge en blanco) |
+| `shared/SeccionColapsable` | Detalle plegable con memoria propia en `sessionStorage` en 3 archivos | Publicado con `clave` (la app decide la clave) y `aria-expanded`/`aria-controls`; el contenido queda en el DOM con `hidden` |
+| `shared/ComprobantePreview` | Estaba en la lista de pendientes de la biblioteca | Se queda en MobOS a propósito: compone la impresión de la app (agente, cola, plantillas y logo); las piezas portables (`VistaPreviaPapel`, `DocumentoImpresion`) ya estaban publicadas |
+
+**Biblioteca:** `owncoding-ui` **v0.15.0** (tag + CI), con tipos y props en su
+`docs/REGLAS.md` §1/§3/§4. La adopción en MobOS sigue pendiente (paquete +
+`owncoding-ui/styles.css`); hasta entonces estas piezas siguen duplicadas por
+diseño y quedan anotadas para el lote de adopción.
+
+**Duplicación pendiente: 0 usos.**
+
 ### Lote 19 — shell v2: tonos AA y paridad de la biblioteca (23-09)
 
 | Objeto | Antes (evidencia) | Después |
