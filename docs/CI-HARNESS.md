@@ -20,6 +20,25 @@ su propio runner, cluster de Postgres, backend y frontend, así que no comparten
 estado. El balanceo lo hace Playwright (~88/86/84 tests) y un shard tarda lo que
 la suite completa / 3.
 
+### 1.1 Workflow paso a paso (job E2E)
+
+Ambos shards corren la misma receta (timeout 20 min por job):
+
+| Paso | Qué hace |
+| --- | --- |
+| `checkout` + `setup-node` | Node 22 con cache de npm de **ambos** lockfiles (raíz y backend). |
+| PostgreSQL | instala el server y expone los binarios donde los busca el harness (`/opt/homebrew/bin`). |
+| `npm ci` (raíz + backend) + `prisma generate` | dependencias y cliente Prisma. |
+| Cache + instalación de Chromium | `~/.cache/ms-playwright` cacheado por lockfile; `--with-deps` deja las libs. |
+| `npm --prefix backend run build` | build prod del backend: el harness lo arranca con `next start`. |
+| `npx playwright test --shard=n/3` | la suite del shard con `MOBOS_E2E_BACKEND=prod` y `MOBOS_E2E_CUARENTENA=<lista>`. |
+| Upload de artifacts | `playwright-report/` + `test-results/reporte-flaky.{md,json}` por shard (14 días). |
+
+Los otros jobs no cambiaron de forma: Frontend (lint + unit + build, 15 min),
+Backend (typecheck + unit + build, 12 min) e Integration (harness HTTP con
+Postgres efímero, 15 min). Los timeouts salen de medir las corridas reales y
+dejan margen ~2-4x.
+
 ## 2. Backend del arnés: `dev` local, `prod` en CI
 
 `e2e/bin/start-backend.sh` arranca el backend de dos maneras:
@@ -90,10 +109,13 @@ Los retries **no** son globales: por defecto son 0.
   nombre; con el catálogo e2e de cientos de productos, un spec que buscaba su
   fila con `.find()` podía no verla (falló `public-quote-transfer`). Los specs
   buscan por `?q=<sku>` (único) y esperan el efecto con `expect.poll`.
-- **Botones que se re-renderizan:** las acciones de lote (p. ej. «Vender todos»)
-  viven en una barra que se re-renderiza con el listado y el click podía caer en
-  el medio sin efecto (~1/3 en local). El spec reintenta el click y espera el
-  resultado con `expect.toPass`.
+- **Botones que se re-renderizan:** las acciones que abren modales o disparan
+  impresión viven en paneles que se re-renderizan y el click podía caer en el
+  medio sin efecto: «Vender todos» (~1/3 en local), el modal de recepción y la
+  reimpresión de etiqueta (`etiquetas-unidad`, modal abierto, sin aviso y sin
+  trabajo en el agente). Los specs reintentan el click con `toPass` y esperan el
+  **efecto real** (navegación, aviso o trabajo capturado por el agente falso),
+  no solo que el click no tire error.
 - **Unit tests del print-agent (dominio PRN):** el flake de
   `la cola lista, reintenta fallidos...` quedó resuelto en v1.0.146 con el tick
   de seguridad de la cola del agente (`fix(impresion): tick de seguridad…`);
