@@ -29,7 +29,6 @@ import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { ticketEtiquetasUnidad, ticketEtiquetaUbicacion, ticketEtiquetaUnidad, ticketRemision, ticketComprobante } from '@/lib/printing/tickets'
 import { leerEtiqueta } from '@/lib/printing/qr'
 
-import TableroCertificaciones from '@/components/inventory/TableroCertificaciones'
 import UnidadDetalle from '@/components/inventory/UnidadDetalle'
 import DocumentoUnidadModal from '@/components/inventory/DocumentoUnidadModal'
 import EtiquetasProductoModal from '@/components/shared/EtiquetasProductoModal'
