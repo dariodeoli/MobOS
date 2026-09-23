@@ -1,19 +1,19 @@
 {
-  "base": "http://localhost:5216",
-  "etiqueta": "rama-243",
-  "fecha": "2026-09-23T16:47:08.916Z",
+  "base": "https://app.moboss.online",
+  "etiqueta": "1.0.149-produccion",
+  "fecha": "2026-09-23T16:44:15.630Z",
   "resultados": [
     {
       "variante": "desktop-claro-v2-off",
       "ancho": 1280,
-      "altoFilaColapsada": 66,
+      "altoFilaColapsada": 58,
       "alturasColapsadas": [
-        66,
-        67
+        58,
+        59
       ],
       "alturasExpandidas": [
-        363,
-        67
+        389,
+        59
       ],
       "desbordeHorizontal": 0,
       "scopeV2Aplicado": false,
@@ -23,14 +23,14 @@
     {
       "variante": "desktop-claro-v2-on",
       "ancho": 1280,
-      "altoFilaColapsada": 66,
+      "altoFilaColapsada": 58,
       "alturasColapsadas": [
-        66,
-        67
+        58,
+        59
       ],
       "alturasExpandidas": [
-        363,
-        67
+        389,
+        59
       ],
       "desbordeHorizontal": 0,
       "scopeV2Aplicado": true,
@@ -40,14 +40,14 @@
     {
       "variante": "desktop-oscuro-v2-on",
       "ancho": 1280,
-      "altoFilaColapsada": 66,
+      "altoFilaColapsada": 58,
       "alturasColapsadas": [
-        66,
-        67
+        58,
+        59
       ],
       "alturasExpandidas": [
-        363,
-        67
+        389,
+        59
       ],
       "desbordeHorizontal": 0,
       "scopeV2Aplicado": true,
@@ -57,14 +57,14 @@
     {
       "variante": "movil-claro-v2-off",
       "ancho": 390,
-      "altoFilaColapsada": 66,
+      "altoFilaColapsada": 58,
       "alturasColapsadas": [
-        66,
-        67
+        58,
+        59
       ],
       "alturasExpandidas": [
-        363,
-        67
+        389,
+        59
       ],
       "desbordeHorizontal": 0,
       "scopeV2Aplicado": false,
@@ -74,14 +74,14 @@
     {
       "variante": "movil-claro-v2-on",
       "ancho": 390,
-      "altoFilaColapsada": 66,
+      "altoFilaColapsada": 58,
       "alturasColapsadas": [
-        66,
-        67
+        58,
+        59
       ],
       "alturasExpandidas": [
-        363,
-        67
+        389,
+        59
       ],
       "desbordeHorizontal": 0,
       "scopeV2Aplicado": true,
@@ -91,14 +91,14 @@
     {
       "variante": "movil-oscuro-v2-on",
       "ancho": 390,
-      "altoFilaColapsada": 66,
+      "altoFilaColapsada": 58,
       "alturasColapsadas": [
-        66,
-        67
+        58,
+        59
       ],
       "alturasExpandidas": [
-        363,
-        67
+        389,
+        59
       ],
       "desbordeHorizontal": 0,
       "scopeV2Aplicado": true,
