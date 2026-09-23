@@ -178,10 +178,16 @@ test('al llegar a otra sucursal se reimprime la etiqueta desde la recepción', a
     await ficha.getByRole('button', { name: 'Recibir en sucursal' }).click()
     await expect(llegada).toBeVisible({ timeout: 4000 })
   }).toPass({ timeout: 30_000 })
-  await llegada.getByRole('button', { name: 'Reimprimir etiqueta' }).click()
-  await expect(page.getByText('Etiqueta enviada a la impresora.')).toBeVisible({ timeout: 15_000 })
-
-  expect(capturados).toHaveLength(1)
+  // El click de reimpresión también puede perderse si el modal se re-renderiza
+  // al abrir (visto en CI y 1/6 en local: modal abierto, sin aviso ni trabajo).
+  // Se reintenta solo si el agente todavía no recibió nada, y se exige 1 trabajo.
+  await expect(async () => {
+    if (!capturados.length) {
+      await llegada.getByRole('button', { name: 'Reimprimir etiqueta' }).click({ timeout: 5_000 })
+    }
+    expect(capturados.length).toBe(1)
+    await expect(page.getByText('Etiqueta enviada a la impresora.')).toBeVisible({ timeout: 5_000 })
+  }).toPass({ timeout: 30_000 })
   expect(capturados[0].tipo).toBe('etiqueta-stock')
   const texto = textoDelTicket(capturados[0])
   expect(texto).toContain('ETIQUETA DE UNIDAD')
