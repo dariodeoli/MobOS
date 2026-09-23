@@ -40,7 +40,8 @@ export function puntajeDe(unit) {
 }
 
 export function bateriaDe(unit) {
-  const valor = Number(unit?.inspection?.bateriaSalud)
+  // El checklist canónico persiste `bateriaPct`; `bateriaSalud` es del piloto.
+  const valor = Number(unit?.inspection?.bateriaSalud ?? unit?.inspection?.bateriaPct)
   return Number.isFinite(valor) && valor > 0 ? Math.min(100, Math.round(valor)) : null
 }
 

@@ -690,6 +690,7 @@ export function ticketCertificado(datos = {}, { ancho = 80 } = {}) {
   t.linea()
   t.negrita().centrado('GRADO').negrita(false)
   t.negrita().doble().centrado(datos.grado || 'P').doble(false).negrita(false)
+  if (datos.gradoDescripcion) t.centrado(datos.gradoDescripcion)
   t.centrado(!datos.completa
     ? 'Pendiente de inspección'
     : `Puntaje ${datos.puntaje}/100 · ${datos.ok}/${datos.evaluados} conformes`)
@@ -732,6 +733,8 @@ export function ticketCertificado(datos = {}, { ancho = 80 } = {}) {
   if (datos.codigo) t.barcode(datos.codigoBarras || datos.codigo, { etiqueta: 'CÓDIGO INTERNO' })
   t.linea()
   t.texto(datos.aviso || AVISO_BLACKLIST)
+  t.avanza(1)
+  t.par('Firma / control', '________________')
   t.centrado('Constancia de inspección · documento informativo')
   t.centrado(`Generado por ${APP_NAME}${datos.emisor ? ` para ${datos.emisor}` : ''} · ${datos.fechaEmision || ''}`)
   return t.avanza(2).corte()
