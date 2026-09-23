@@ -37,6 +37,7 @@ export const ACCIONES_AUDITORIA: Record<string, string> = {
   INVENTORY_RESTORED: 'Unidad restaurada',
   INVENTORY_UNIT_COMMENTED: 'Comentario en la unidad',
   INVENTORY_RESERVATIONS_RELEASED_SCHEDULED: 'Reservas vencidas liberadas',
+  IMEI_QUERY_CONCILIATED: 'Consulta IMEI conciliada',
   CUSTOMER_NOTE_CREATED: 'Nota de cliente creada',
   CUSTOMER_NOTE_UPDATED: 'Nota de cliente editada',
   CUSTOMER_NOTE_DELETED: 'Nota de cliente eliminada',
@@ -146,6 +147,7 @@ export const ACCIONES_AUDITORIA: Record<string, string> = {
 export const AREAS_AUDITORIA: Record<string, string> = {
   Order: 'Pedidos',
   InventoryUnit: 'Inventario',
+  ImeiCheckQuery: 'IMEI',
   Product: 'Inventario',
   Promotion: 'Promociones',
   Customer: 'Clientes',

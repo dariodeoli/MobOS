@@ -38,6 +38,15 @@ export function fechaHoraCorta(value, vacio = '—') {
     : vacio
 }
 
+// Valor para un <input type="datetime-local">: "2026-09-17T15:30" (hora local
+// del equipo). Se usa al editar fechas de panel/vencimientos en formularios.
+export function paraInputFechaHora(value, vacio = '') {
+  const fecha = fechaValida(value)
+  if (!fecha) return vacio
+  const dos = (numero) => String(numero).padStart(2, '0')
+  return `${fecha.getFullYear()}-${dos(fecha.getMonth() + 1)}-${dos(fecha.getDate())}T${dos(fecha.getHours())}:${dos(fecha.getMinutes())}`
+}
+
 // Día y mes cortos con hora: "17 sep · 15:30". La fecha de las listas densas
 // (conciliación, auditoría) donde el año no aporta.
 export function fechaCorta(value, vacio = '—') {

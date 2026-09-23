@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { fechaHora, paraInputFechaHora } from '@/utils/fecha'
+import { serialEnmascarado } from '@/utils/serial'
 import { qrDataUrl } from '@/lib/qr'
 import { Aviso, Badge, Button, Drawer, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -25,6 +27,9 @@ import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 
 const EVENT_LABEL = { audit: 'Auditoría', transfer: 'Traslado', comment: 'Comentario', sale: 'Venta', imei: 'Consulta IMEI', repair: 'Reparación' }
+// #233: aclaración que acompaña toda conciliación (el panel del proveedor no
+// certifica el estado global del equipo con esos dos indicadores).
+const NOTA_CONCILIACION = 'Conciliado con el panel del proveedor. iCloud/US Block clean ≠ blacklist mundial: no certifican el estado global del equipo.'
 
 const money = (value, currency) => {
   const amount = Number(value)
@@ -60,7 +65,10 @@ function FotoMini({ unitId, commentId, photo }) {
 // cronología con comentarios y fotos (misma experiencia que los pedidos).
 export default function UnidadDetalle({ unit, busy, canManage, locations = [], onClose, onChanged, onSell, onReserve, onVerify, onArrive, onLabel, onInforme, onCertificado, onRelease, onAdjust, onRemove, onMove }) {
   const toast = useToast()
-  const { esDemo } = useSesion()
+  const { esDemo, sesion } = useSesion()
+  // #233: la conciliación de una consulta IMEI es una acción auditada de
+  // administración/gerencia (el backend valida el rol igual).
+  const puedeConciliar = Boolean(sesion?.esPropietario || ['ADMIN', 'GERENTE'].includes(sesion?.rol))
   // #193/#200: modo del adaptador visible ANTES de confirmar (real: simulado o vivo).
   const [imeiModo, setImeiModo] = useState('simulado')
   useEffect(() => {
@@ -216,14 +224,36 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
       if (!filas.length) setConsultaError('No hay consultas registradas para ese IMEI.')
     } catch (cause) { setConsultaError(cause?.message || 'No se pudieron cargar las consultas.') } finally { setConsultaBusy(false) }
   }
+  // #233: abre el modal de conciliación con los datos del panel ya cargados y
+  // la aclaración obligatoria en la nota (iCloud/US Block clean no son blacklist).
+  function abrirConciliacion(fila) {
+    setConsultaError('')
+    setConciliando({
+      ...fila,
+      status: ['verificado', 'parcial', 'fallido'].includes(fila.status) ? fila.status : 'verificado',
+      costUsd: fila.costUsd ?? 0.06,
+      resolvedAt: paraInputFechaHora(fila.resolvedAt || new Date()),
+      externalId: fila.externalId || '',
+      note: fila.conciliationNote || NOTA_CONCILIACION,
+    })
+  }
   async function guardarConciliacion(event) {
     event.preventDefault()
     if (!conciliando) return
     setConsultaBusy(true); setConsultaError('')
     try {
-      const cuerpo = { action: 'conciliar', ...(conciliando.requestId ? { requestId: conciliando.requestId } : { id: conciliando.id }), status: conciliando.status, costUsd: Number(conciliando.costUsd) || 0.06, ...(conciliando.resolvedAt ? { resolvedAt: conciliando.resolvedAt } : {}), ...(conciliando.externalId ? { externalId: conciliando.externalId } : {}), note: conciliando.note }
+      const cuerpo = {
+        action: 'conciliar',
+        ...(conciliando.requestId ? { requestId: conciliando.requestId } : { id: conciliando.id }),
+        status: conciliando.status,
+        costUsd: Number(conciliando.costUsd) || 0,
+        ...(conciliando.resolvedAt ? { resolvedAt: new Date(conciliando.resolvedAt).toISOString() } : {}),
+        ...(conciliando.externalId ? { externalId: conciliando.externalId } : {}),
+        ...(Array.isArray(conciliando.normalized) ? { normalized: conciliando.normalized } : {}),
+        note: conciliando.note,
+      }
       const actualizada = esDemo ? conciliarDemoImei(cuerpo) : await api.post('/api/imei', cuerpo)
-      setConsultasFilas(filas => filas.map(fila => (fila.id === actualizada.id ? actualizada : fila)))
+      setConsultasFilas(filas => filas.map(fila => (fila.id === actualizada.id ? { ...fila, ...actualizada } : fila)))
       setConciliando(null)
       toast.success('Consulta conciliada.')
     } catch (cause) { setConsultaError(cause?.message || 'No se pudo conciliar la consulta.') } finally { setConsultaBusy(false) }
@@ -498,18 +528,32 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
             {consultasFilas.map(fila => <article key={fila.id} className="rounded-xl border border-ink-600 p-2 text-xs">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="flex items-center gap-2"><Badge color={fila.status === 'verificado' ? 'green' : fila.status === 'conciliar' ? 'orange' : 'slate'}>{fila.etiqueta || fila.status}</Badge><span className="text-mute">{fila.imei || ''} · US$ {Number(fila.costUsd || 0).toFixed(2)} · {fila.requestedAt ? new Date(fila.requestedAt).toLocaleString('es-PY') : ''}</span></span>
-                {fila.status === 'conciliar' && <Button type="button" className="h-7 px-2 text-xs" data-testid={`imei-conciliar-${fila.id}`} onClick={() => setConciliando({ ...fila, status: 'verificado', costUsd: fila.costUsd || 0.06, resolvedAt: '', externalId: '', note: '' })}>Conciliar</Button>}
+                {puedeConciliar && <Button type="button" className="h-7 px-2 text-xs" title="Conciliar la consulta con el panel del proveedor (queda auditada)" data-testid={`imei-conciliar-${fila.id}`} onClick={() => abrirConciliacion(fila)}>Conciliar</Button>}
               </div>
-              {conciliando?.id === fila.id && <form onSubmit={guardarConciliacion} className="mt-2 grid gap-2 sm:grid-cols-2">
-                <Select aria-label="Estado conciliado" value={conciliando.status} onChange={event => setConciliando(actual => ({ ...actual, status: event.target.value }))}><option value="verificado">Verificado</option><option value="parcial">Parcial</option><option value="fallido">Fallido</option></Select>
-                <Input aria-label="Costo real USD" inputMode="decimal" value={conciliando.costUsd} onChange={event => setConciliando(actual => ({ ...actual, costUsd: event.target.value.replace(/[^0-9.]/g, '') }))} placeholder="Costo real US$" />
-                <Input aria-label="Fecha del panel" type="datetime-local" value={conciliando.resolvedAt} onChange={event => setConciliando(actual => ({ ...actual, resolvedAt: event.target.value }))} />
-                <Input aria-label="Orden del proveedor" value={conciliando.externalId} onChange={event => setConciliando(actual => ({ ...actual, externalId: event.target.value }))} placeholder="Orden del proveedor (opcional)" />
-                <Input aria-label="Nota de conciliación" value={conciliando.note} onChange={event => setConciliando(actual => ({ ...actual, note: event.target.value }))} placeholder="Nota (ej. iCloud/US Block clean ≠ blacklist mundial)" className="sm:col-span-2" />
-                <div className="flex gap-2 sm:col-span-2"><Button type="submit" disabled={consultaBusy} data-testid="imei-conciliar-guardar">{consultaBusy ? 'Guardando…' : 'Guardar conciliación'}</Button><Button type="button" variant="ghost" onClick={() => setConciliando(null)}>Cancelar</Button></div>
-              </form>}
+              {fila.status === 'conciliar' && fila.error ? <p className="mt-1 text-[11px] text-warn">{fila.error}</p> : null}
+              {fila.conciliatedAt ? <p className="mt-1 text-[11px] text-mute">Conciliada el {fechaHora(fila.conciliatedAt)}{fila.externalId ? ` · orden ${fila.externalId}` : ''}</p> : null}
             </article>)}
           </div>
+        </Modal>
+
+        {/* #233: conciliación de una consulta IMEI (acción auditada de admin/gerencia) */}
+        <Modal open={Boolean(conciliando)} onClose={() => { if (!consultaBusy) setConciliando(null) }} title="Conciliar consulta IMEI" size="formulario">
+          {conciliando && <form onSubmit={guardarConciliacion} className="space-y-3">
+            <p className="text-xs text-mute">IMEI {conciliando.imeiMasked || serialEnmascarado(conciliando.imei)} · {conciliando.serviceName || 'Apple Basic'} · registrada el {fechaHora(conciliando.requestedAt)}</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Select aria-label="Estado conciliado" value={conciliando.status} onChange={event => setConciliando(actual => ({ ...actual, status: event.target.value }))}><option value="verificado">Verificado</option><option value="parcial">Parcial</option><option value="fallido">Fallido</option></Select>
+              <Input aria-label="Costo real USD" inputMode="decimal" value={conciliando.costUsd} onChange={event => setConciliando(actual => ({ ...actual, costUsd: event.target.value.replace(/[^0-9.]/g, '') }))} placeholder="Costo real US$" />
+              <Input aria-label="Fecha del panel" type="datetime-local" value={conciliando.resolvedAt} onChange={event => setConciliando(actual => ({ ...actual, resolvedAt: event.target.value }))} />
+              <Input aria-label="Orden del proveedor" value={conciliando.externalId} onChange={event => setConciliando(actual => ({ ...actual, externalId: event.target.value }))} placeholder="Orden del proveedor (opcional)" />
+            </div>
+            <Textarea aria-label="Nota de conciliación" rows={3} maxLength={500} value={conciliando.note} onChange={event => setConciliando(actual => ({ ...actual, note: event.target.value }))} placeholder="Nota de la conciliación" />
+            <p className="text-[11px] text-mute">La nota incluye la aclaración obligatoria: <b className="text-fore">iCloud/US Block clean ≠ blacklist mundial</b>. Son señales parciales del panel y no certifican el estado global del equipo.</p>
+            {consultaError && <Aviso tono="error" compact>{consultaError}</Aviso>}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" disabled={consultaBusy} onClick={() => setConciliando(null)}>Cancelar</Button>
+              <Button type="submit" disabled={consultaBusy} data-testid="imei-conciliar-guardar">{consultaBusy ? 'Guardando…' : 'Guardar conciliación'}</Button>
+            </div>
+          </form>}
         </Modal>
 
         {/* Códigos de esta unidad */}

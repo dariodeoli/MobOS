@@ -48,6 +48,9 @@ export async function GET(request: Request) {
       normalized: fila.normalized,
       requestedAt: fila.requestedAt,
       resolvedAt: fila.resolvedAt,
+      // #233: la conciliación queda a la vista en el registro (fecha y nota).
+      conciliatedAt: fila.conciliatedAt,
+      conciliationNote: fila.conciliationNote,
       ...(verCrudo ? { responseRaw: fila.responseRaw } : {}),
     })),
   })
@@ -171,6 +174,9 @@ function expectativa(fila: any, verCrudo: boolean) {
     normalized: fila.normalized,
     requestedAt: fila.requestedAt,
     resolvedAt: fila.resolvedAt,
+    // #233: lo que se muestra en el registro una vez conciliada.
+    conciliatedAt: fila.conciliatedAt,
+    conciliationNote: fila.conciliationNote,
     ...(verCrudo ? { responseRaw: fila.responseRaw } : {}),
   }
 }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { fechaValida, fechaHora, fechaDia, fechaHoraCorta, fechaCorta } from './fecha.js'
+import { fechaValida, fechaHora, fechaDia, fechaHoraCorta, fechaCorta, paraInputFechaHora } from './fecha.js'
 
 // Los valores sin fecha no inventan texto: el vacío es explícito y se puede
 // cambiar (los comprobantes usan '').
@@ -43,4 +43,12 @@ test('fechaHoraCorta y fechaCorta conservan la hora en 24 h', () => {
 test('fechaValida acepta Date y texto parseable', () => {
   assert.ok(fechaValida(new Date()) instanceof Date)
   assert.ok(fechaValida('2026-09-17') instanceof Date)
+})
+
+test('paraInputFechaHora arma el valor de datetime-local en hora local', () => {
+  const fecha = new Date(2026, 8, 17, 15, 30)
+  assert.equal(paraInputFechaHora(fecha), '2026-09-17T15:30')
+  assert.equal(paraInputFechaHora(''), '')
+  assert.equal(paraInputFechaHora(null, ''), '')
+  assert.equal(paraInputFechaHora('no es fecha'), '')
 })
