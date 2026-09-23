@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { temaV2Activo } from '@/lib/temaV2'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { useVistaListaGrid } from '@/hooks/useVistaListaGrid'
 import { qrDataUrl } from '@/lib/qr'
-import { getProductos, modoDatosActual, updateProducto } from '@/lib/storage'
+import { getProductos, modoDatosActual, updateProducto, contextoActual, refrescar } from '@/lib/storage'
+import { prepararVentaDesdeInventario } from '@/lib/posCart'
 import { gs } from '@/utils/calculos'
 import { formatUsd } from '@/utils/moneda'
 import { montoTexto } from '@/utils/moneda'
@@ -50,6 +51,7 @@ import IconoCategoria from '@/components/shared/IconoCategoria'
 import { etiquetaDeCategoria } from '@/lib/categorias'
 import { GRILLA_DOS_COLUMNAS, GRILLA_DOS_COLUMNAS_COMPACTA, PIE_ACCIONES, PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
 import TallerRack from '@/components/inventory/TallerRack'
+import TableroCertificaciones from '@/components/inventory/TableroCertificaciones'
 import { printHtml } from '@/utils/printHtml'
 import { buildStationSheetHtml } from '@/lib/printing/hojaEstacion'
 const MOTIVOS_BAJA = ['Uso interno', 'Daño', 'Transferencia', 'Pérdida', 'Devolución a proveedor', 'Otro']
@@ -430,6 +432,7 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   const [products, setProducts] = useState([]), [branches, setBranches] = useState([]), [units, setUnits] = useState([]), [removedUnits, setRemovedUnits] = useState([]), [reservations, setReservations] = useState([]), [transfers, setTransfers] = useState([]), [locations, setLocations] = useState([])
   const apiMode = modoDatosActual() === 'api'
   const { sesion, sucursal, esDemo } = useSesion()
+  const navigate = useNavigate()
   // #213: en demo el inventario usa los mismos recursos (store session-only).
   const inventarioOperativo = apiMode || esDemo
   const canViewAlerts = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE')
@@ -444,6 +447,33 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   async function copiarImeis() {
     const texto = unidadesElegidas().map((unit) => `${nombreProducto(unit.product || {})} · IMEI ${unit.serial || ''}`).join('\n')
     if (await copiarAlPortapapeles(texto)) toast.success(`${unidadesElegidas().length} IMEI(s) copiados.`); else toast.error('No se pudieron copiar los IMEIs.')
+  }
+  // #217/§8: «Vender todos» deja la venta armada en el POS (producto, IMEI y
+  // precio de lista) y el vendedor solo revisa y cobra. Cada unidad vendible del
+  // lote viaja con su serial; las que no están disponibles quedan fuera.
+  async function venderTodos() {
+    const elegidas = unidadesElegidas()
+    const vendibles = elegidas.filter((unit) => unit.status === 'AVAILABLE' && (unit.productId || unit.product?.id))
+    if (!vendibles.length) { toast.error('No hay unidades disponibles en la selección para vender.'); return }
+    // El POS arma el carrito con el espejo del catálogo: se actualiza antes de
+    // navegar para que los productos recién ingresados aparezcan.
+    await refrescar().catch(() => {})
+    const porProducto = new Map()
+    for (const unit of vendibles) {
+      const productoId = unit.productId || unit.product.id
+      const linea = porProducto.get(productoId) || { productoId, quantity: 0, serials: [], precio: 0 }
+      linea.quantity += 1
+      if (unit.serial) linea.serials.push(unit.serial)
+      if (!linea.precio && Number(unit.product?.pricePyg) > 0) linea.precio = Number(unit.product.pricePyg)
+      porProducto.set(productoId, linea)
+    }
+    const { empresaId, sucursalId } = contextoActual()
+    const items = [...porProducto.values()].map(({ precio, ...linea }) => (precio > 0 ? { ...linea, precio } : linea))
+    if (!prepararVentaDesdeInventario({ empresaId, sucursalId, items })) { toast.error('No se pudo preparar la venta en el POS.'); return }
+    const sobrantes = elegidas.length - vendibles.length
+    toast.success(`${vendibles.length} unidad${vendibles.length === 1 ? '' : 'es'} para vender en el POS${sobrantes > 0 ? ` (${sobrantes} quedaron fuera por no estar disponibles)` : ''}.`)
+    setSeleccionados([])
+    navigate('/pos')
   }
   function exportarUnidadesSeleccionadas() {
     const lista = unidadesElegidas()
@@ -1065,6 +1095,7 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   if (!inventarioOperativo) return <Card><h2 className="font-bold">Inventario operativo</h2><p className="mt-2 text-sm text-mute">Ingresá con una cuenta real para controlar IMEI, reservas, ubicaciones y transferencias. La demo conserva sus datos aislados.</p></Card>
   return <div className={cn('space-y-4', temaV2Activo() && 'tema-v2')}><Card className="p-4 md:p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-mute">Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría.</p><div className="flex shrink-0 flex-wrap items-center gap-2"><Button onClick={abrirReceive}>+ Recibir unidad</Button><Button variant="outline" onClick={() => setReserveOpen(true)}>Reservar</Button><Button variant="outline" onClick={() => setTransferOpen(true)}>Transferir</Button></div></div><form onSubmit={search} className="mt-4 flex flex-wrap gap-2"><SearchField value={query} onChange={event => setQuery(event.target.value)} placeholder="Escanear IMEI, SKU o buscar modelo" ariaLabel="Buscar en inventario" className="min-w-0 flex-1" /><Select value={orden} onChange={event => recordarOrden(event.target.value)} className="w-auto" aria-label="Orden del inventario" title="Se recuerda tu último orden"><option value="recientes">Recientes</option><option value="modelo-az">Modelo A→Z</option><option value="modelo-za">Modelo Z→A</option><option value="nuevos">Nuevos primero</option><option value="semis">Seminuevos primero</option><option value="modelo-natural">Modelo (17→13)</option><option value="mezclado">Modelos mezclados</option><option value="costo-mayor">Costo mayor</option><option value="costo-menor">Costo menor</option></Select><Button type="button" variant="outline" onClick={() => setScannerOpen(true)}>Escanear</Button><Button type="button" variant="outline" onClick={startCount}>Conteo rápido</Button><ListGridToggle value={vistaUnidades} onChange={cambiarVistaUnidades} />{disponibles.length > 0 && <Button type="button" variant="outline" onClick={() => printLabels(disponibles).then(avisarImpresion)}>Etiquetas ({disponibles.length})</Button>}<Button type="button" variant="outline" onClick={() => setGondolaOpen(true)}>Etiquetas de góndola</Button>{tab === 'unidades' && <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={exportando || busy} onClick={exportarUnidades}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}</form><div className="mt-4 flex gap-1 overflow-x-auto rounded-lg border border-ink-600 bg-ink-800 p-1">{[['unidades', `Inventario (${disponibles.length})`], ['taller', 'Taller'], ...(canViewAlerts ? [['alertas', `Alertas (${(stockAlerts.alerts?.length || 0) + (stockAlerts.outOfStock?.length || 0)})`]] : []), ['reservas', `Reservas (${reservations.length})`], ['traslados', `Traslados (${transfers.length})`], ['vendidos', `Vendidos (${vendidosFiltrados.length})`], ['transito', `En tránsito (${enTransito.length})`], ['ubicaciones', `Ubicaciones (${locations.length})`], ['compartido', 'Compartido'], ['eliminados', `Eliminados (${removedUnits.length})`], ['conteos', 'Conteos']].map(([key, label]) => <button key={key} onClick={() => cambiarTab(key)} className={`shrink-0 rounded-md px-3 py-2 text-xs font-semibold ${tab === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>)}</div>{notice && <Aviso tono="ok" className="mt-3">{notice}</Aviso>}{error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
     <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
+      <button type="button" disabled={busy} data-testid="vender-todos" title="Cargar la venta de todas las seleccionadas en el POS" onClick={venderTodos} className="rounded-lg border border-fono/50 bg-fono/10 px-2 py-1 text-xs font-semibold text-fono-light transition hover:bg-fono/20 disabled:opacity-50">Vender todos</button>
       <button type="button" disabled={busy} title="Registrar la verificación física de todas las seleccionadas" onClick={() => Promise.all(unidadesElegidas().map(unidad => verify(unidad)))} className="rounded-lg border border-ok/40 px-2 py-1 text-xs font-semibold text-ok transition hover:bg-ok/10 disabled:opacity-50">Verificar todos</button>
       <button type="button" disabled={busy} title="Apartar todas las seleccionadas para un cliente" onClick={() => { setReserve(data => ({ ...data, serials: unidadesElegidas().map(unidad => unidad.serial).join(', ') })); setReserveOpen(true) }} className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore disabled:opacity-50">Reservar todos</button>
       <button type="button" disabled={busy} title="Marcar en revisión con un motivo (queda auditado)" onClick={() => requestReason('adjust', unidadesElegidas())} className="rounded-lg border border-warn/40 px-2 py-1 text-xs font-semibold text-warn transition hover:bg-warn/10 disabled:opacity-50">Enviar a revisión</button>
