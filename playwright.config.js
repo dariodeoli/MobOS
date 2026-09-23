@@ -43,6 +43,9 @@ const E2E_ENV = {
   MOBOS_E2E_PGDATA: PG_DATA,
   MOBOS_E2E_DB: DB_NAME,
   MOBOS_APP_URL: `http://localhost:${WEB_PORT}`,
+  // `prod` arranca el backend con `next start` (build previo): lo usa CI para
+  // no depender de la compilación por ruta de `next dev`. Local queda `dev`.
+  MOBOS_E2E_BACKEND: process.env.MOBOS_E2E_BACKEND || 'dev',
 }
 
 const CI = Boolean(process.env.CI)

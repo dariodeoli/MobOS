@@ -92,9 +92,33 @@ fi
 echo "[e2e] Applying Prisma migrations…"
 (cd "$BACKEND_ROOT" && DATABASE_URL="$DATABASE_URL" npx prisma migrate deploy --schema prisma/schema.prisma)
 
-# ── Next.js dev server on 3001 ────────────────────────────────────────────
+# ── Next.js server on 3001 ────────────────────────────────────────────────
+#
+# Dos modos:
+# - `dev` (default, local): `next dev` compila por ruta. El log pasa por el
+#   filtro del harness porque `next dev` reporta como `uncaughtException` el
+#   stack de Node (abortIncoming/ECONNRESET) cada vez que el navegador corta
+#   una request en vuelo (cierre de contexto, navegación); el filtro lo resume
+#   (scripts/filtro-log-web.mjs; ruido conocido: vercel/next.js#84649).
+# - `prod` (`MOBOS_E2E_BACKEND=prod`, lo usa CI): `next start` sobre el build de
+#   `npm --prefix backend run build`. Sin compilación perezosa no hay requests
+#   cortadas durante el compile ni primeros hits lentos que revienten timeouts
+#   (causa real de flakiness en CI). Requiere `backend/.next/BUILD_ID`.
 echo "[e2e] Starting backend (Next.js) on port ${API_PORT}…"
 cd "$BACKEND_ROOT"
 export DATABASE_URL
 export MOBOS_APP_URL="http://localhost:$WEB_PORT"
-exec ./node_modules/.bin/next dev -p "$API_PORT"
+FILTRO="$REPO_ROOT/scripts/filtro-log-web.mjs"
+if [[ "${MOBOS_E2E_BACKEND:-dev}" == "prod" ]]; then
+  if [[ ! -f "$BACKEND_ROOT/.next/BUILD_ID" ]]; then
+    echo "[e2e] Falta backend/.next/BUILD_ID: corré 'npm --prefix backend run build' (o quitá MOBOS_E2E_BACKEND=prod)." >&2
+    exit 1
+  fi
+  echo "[e2e] Backend en modo producción (next start, sin compilación por ruta)…"
+  # El arnés corre la app sobre http://localhost con NODE_ENV=production: el
+  # origen local tiene que ser confiable (sameOrigin) y la cookie de sesión no
+  # puede ser Secure (el navegador la descarta y el login no queda).
+  export MOBOS_E2E_LOCAL_ORIGIN=1
+  exec bash -c './node_modules/.bin/next start -p "$1" 2>&1 | node "$2"' _ "$API_PORT" "$FILTRO"
+fi
+exec bash -c './node_modules/.bin/next dev -p "$1" 2>&1 | node "$2"' _ "$API_PORT" "$FILTRO"

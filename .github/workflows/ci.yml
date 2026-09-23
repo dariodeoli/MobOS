@@ -137,9 +137,24 @@ jobs:
       - name: Install backend dependencies
         working-directory: backend
         run: npm ci
+      - name: Generate Prisma client
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/mobos
+        run: npx prisma generate
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
+      - name: Build backend (prod-mode E2E server)
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/mobos
+        run: npm run build
       - name: Run E2E suite
+        env:
+          # El harness arranca el backend con `next start` sobre este build: sin
+          # compilación por ruta no hay requests cortadas durante el compile ni
+          # timeouts por primeros hits lentos (flakiness de CI).
+          MOBOS_E2E_BACKEND: prod
         run: npm run test:e2e
       - name: Upload Playwright report
         if: always()
