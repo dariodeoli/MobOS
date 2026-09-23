@@ -1,0 +1,22 @@
+{
+  "fecha": "2026-09-23T20:09:52.216Z",
+  "ancho": 390,
+  "mediciones": {
+    "solapa de finanzas": {
+      "ancho": 53,
+      "alto": 36
+    },
+    "selector de período": {
+      "ancho": 123,
+      "alto": 36
+    },
+    "fila · Guardar": {
+      "ancho": 64,
+      "alto": 32
+    },
+    "fila · casilla Coincide": {
+      "ancho": 92,
+      "alto": 54
+    }
+  }
+}

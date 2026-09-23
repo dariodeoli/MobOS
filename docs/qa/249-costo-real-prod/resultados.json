@@ -1,0 +1,43 @@
+{
+  "api": "http://127.0.0.1:3115",
+  "cuando": "2026-09-23T20:18:23.961Z",
+  "modo": "sandbox con escenario sembrado",
+  "checks": 18,
+  "verificado": true,
+  "unidades": {
+    "revisadas": 28,
+    "vendidasConRepuestos": 0,
+    "enStockConRepuestos": 0
+  },
+  "sembrado": {
+    "serial": "994790194704345",
+    "productoId": "cmuejpege000401jhgtllyz3x",
+    "sku": "QACR-MUEJPEC9",
+    "orderId": "cmuejpep8000801jh3ycjlxq9",
+    "orderNumber": "MOB-#0270",
+    "costoBase": 1000000,
+    "repuestos": 120000,
+    "precio": 2200000,
+    "baseEsperada": 1120000
+  },
+  "venta": {
+    "orderNumber": "MOB-#0270",
+    "serial": "994790194704345",
+    "precio": 2200000,
+    "baseUnitCostPyg": 1120000,
+    "repuestos": 120000,
+    "insurancePyg": 0,
+    "extraCostPyg": 0,
+    "unitCostPyg": 1120000,
+    "baseEsperada": 1120000,
+    "margenLinea": 1080000
+  },
+  "reporte": {
+    "dia": "2026-09-23",
+    "productId": "cmuejpege000401jhgtllyz3x",
+    "totalPyg": 2200000,
+    "costPyg": 1120000,
+    "profitPyg": 1080000,
+    "linesWithoutCost": 0
+  }
+}

@@ -144,13 +144,13 @@ export default function AuditoriaEfectivo() {
               <span className={cn('truncate text-xs tabular-nums', operacion.direction === 'OUT' ? 'text-bad' : 'text-ok')}>{operacion.direction === 'OUT' ? '−' : '+'}{formatGs(operacion.montoPyg)}</span>
               <span className="flex items-center gap-1.5">
                 <Badge color={estado.color} className="w-fit whitespace-nowrap">{estado.label}</Badge>
-                <Select aria-label={`Estado de ${operacion.pedido || operacion.nota || 'la operación'}`} className="h-8 w-[7.5rem] text-xs" value={borrador.status} disabled={busy} onChange={(event) => setBorradores(current => ({ ...current, [clave]: { ...borrador, status: event.target.value } }))}>
+                <Select aria-label={`Estado de ${operacion.pedido || operacion.nota || 'la operación'}`} className="h-11 w-[7.5rem] text-xs md:h-8" value={borrador.status} disabled={busy} onChange={(event) => setBorradores(current => ({ ...current, [clave]: { ...borrador, status: event.target.value } }))}>
                   {Object.entries(ESTADOS).map(([value, meta]) => <option key={value} value={value}>{meta.label}</option>)}
                 </Select>
               </span>
               <span className="flex min-w-0 items-center gap-1.5">
-                <Input aria-label="Observación" className="h-8 min-w-0 flex-1 text-xs" maxLength={500} placeholder={borrador.status === 'DIFFERENCE' ? 'Explicá la diferencia' : 'Observación (opcional)'} value={borrador.note || ''} disabled={busy} onChange={(event) => setBorradores(current => ({ ...current, [clave]: { ...borrador, note: event.target.value } }))} />
-                <Button type="button" variant={pendienteDeGuardar ? 'primary' : 'outline'} className="h-8 shrink-0 px-2 text-xs" disabled={busy || !pendienteDeGuardar} onClick={() => guardar(operacion)}>Guardar</Button>
+                <Input aria-label="Observación" className="h-11 min-w-0 flex-1 text-xs md:h-8" maxLength={500} placeholder={borrador.status === 'DIFFERENCE' ? 'Explicá la diferencia' : 'Observación (opcional)'} value={borrador.note || ''} disabled={busy} onChange={(event) => setBorradores(current => ({ ...current, [clave]: { ...borrador, note: event.target.value } }))} />
+                <Button type="button" variant={pendienteDeGuardar ? 'primary' : 'outline'} className="h-11 shrink-0 px-3 text-xs md:h-8 md:px-2" disabled={busy || !pendienteDeGuardar} onClick={() => guardar(operacion)}>Guardar</Button>
               </span>
             </div>
           })}

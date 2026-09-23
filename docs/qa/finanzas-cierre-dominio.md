@@ -2,12 +2,12 @@
 
 - **Rama:** `slot/finanzas` · **Verificación definitiva:** producción
   **v1.0.141** (`release:smoke` OK) · **Fecha:** 2026-09-22
-- **Última revisión:** 2026-09-23 (v1.0.149) — verificación de márgenes con
+- **Última revisión:** 2026-09-23 (v1.0.152) — verificación de márgenes con
   costo real: el **descuento del carrito**, la **pérdida de una línea bajo
   costo** y las **ventas con costo pendiente** ya no inflan la ganancia ni la
-  comisión, y el arnés **recalcula reportes y comisiones desde la base**
-  (`148-19-descuento-margen.md`, `148-19-margen-por-venta.md`,
-  `148-19-ganancia-sin-costo.md`, `148-19-verificacion-reportes-db.md`).
+  comisión; el arnés **recalcula reportes y comisiones desde la base**; y se
+  suman el **responsive mobile de Finanzas (#249)** y la **sonda de la cadena de
+  costo real** para producción (`148-19-*.md`, `249-finanzas.md`).
 - Índice de todo lo entregado y verificado en el dominio, con la evidencia y la
   versión en la que quedó integrado. Sirve de punto de entrada para auditoría.
 
@@ -69,6 +69,8 @@ vendedor/día ni la comisión liquidada**—, ya corregido y con evidencia en
 | #148 §19 · #83 (2026-09-23) | Una sola fórmula de margen por venta (reporte = comisiones = liquidación) | `148-19-margen-por-venta.md` |
 | #148 §19 · #122 (2026-09-23) | Ventas con costo pendiente fuera de la ganancia (Ganancias = Reportes) | `148-19-ganancia-sin-costo.md` |
 | #148 §19 · #83 (2026-09-23) | Verificación independiente: reportes y comisiones recalculados contra la base (sonda en CI) | `148-19-verificacion-reportes-db.md` |
+| #249 (2026-09-23) | Responsive mobile de Finanzas (H2/H3) con capturas y gate e2e | `249-finanzas.md` + `249-finanzas/` |
+| #249 (2026-09-23) | Sonda de la cadena de costo real (repuestos → margen/seguro) para producción | `249-finanzas.md` + `249-costo-real-prod/` |
 | #185 Recorrido de Finanzas en producción | 16/16 pasos, 4 corridas (v1.0.137, v1.0.139, v1.0.140 y v1.0.141) | `185/produccion/reporte.md`, `185/produccion-1.0.139/`, `185/produccion-1.0.140/`, `185/produccion-1.0.141/` |
 
 ## Sondas re-ejecutables (producción)

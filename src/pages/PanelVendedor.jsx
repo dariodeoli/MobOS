@@ -801,7 +801,10 @@ export default function PanelVendedor() {
           )}
           {esOwner && subpadre === 'finanzas' && (
             <div>
-              <Subtabs value={vista} onChange={irASubtab} items={tabsRuta} />
+              {/* #249 H3: en mobile las solapas del dominio llegan a 44 px
+                  táctiles (el alto por defecto del objeto compartido queda
+                  para DSN); en desktop conservan los 36 px. */}
+              <Subtabs value={vista} onChange={irASubtab} items={tabsRuta} className="[&>button]:min-h-11 md:[&>button]:min-h-9" />
               {vista === 'caja' && <Caja />}
               {vista === 'gastos' && <Gastos />}
               {vista === 'bancos' && <PaymentAccounts />}

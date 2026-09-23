@@ -717,6 +717,9 @@ node "$BACKEND_ROOT/tests/reports-costos-comisiones.mjs" "$BASE_URL" "$ADMIN_TOK
 echo "Verificación independiente: reportes y comisiones recalculados contra la base (#148 §19)..."
 PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/reports-margen-db.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$REPORTS_FROM" "$REPORTS_TO"
 
+echo "Cadena de costo real (repuestos/inspección → margen/seguro) sobre una unidad vendida (#249 §19)..."
+MOBOS_QA_API_URL="$BASE_URL" MOBOS_QA_TOKEN="$ADMIN_TOKEN" MOBOS_QA_SEMBRAR=1 MOBOS_QA_OUT="$RUN_ROOT/costo-real" node "$REPO_ROOT/scripts/qa-249-costo-real-produccion.mjs"
+
 echo "Seguridad pública: token de liquidaciones hasheado, rotación y límite de uso..."
 PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/commission-settlement-public.mjs"
 
