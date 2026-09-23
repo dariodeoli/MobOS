@@ -6,14 +6,8 @@ import Icon from '@/components/shared/Icon'
 import SerialField from '@/components/shared/SerialField'
 import { api } from '@/lib/api/client'
 import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
+import { decimal, FOREIGN } from '@/utils/pagoCuenta'
 import { useEffect, useRef } from 'react'
-
-const decimal = (value) => {
-  const text = String(value ?? '').trim().replace(',', '.')
-  return /^\d+(\.\d+)?$/.test(text) ? Number(text) : NaN
-}
-
-const FOREIGN = (currency) => currency === 'USD' || currency === 'BRL'
 
 // Cotización referencial del dólar (misma fuente que Pagos): se pide una sola
 // vez y se reutiliza; si el servicio no responde, la cotización queda manual.
@@ -29,51 +23,19 @@ export function cotizacionReferencial() {
   }
   return cotizacionEnCurso
 }
-export function accountPayment(payment, accounts) {
-  const account = accounts.find((a) => a.id === payment.accountId && a.isActive)
-  if (!account) throw new Error('Elegí una cuenta activa para cada pago.')
-  if (!['USD', 'PYG', 'BRL'].includes(account.currency)) throw new Error('La cuenta debe estar en USD, PYG o BRL.')
-  const originalAmount = account.currency === 'PYG'
-    ? (/^\d+$/.test(String(payment.originalAmount)) ? Number(payment.originalAmount) : NaN)
-    : decimal(payment.originalAmount)
-  const exchangeRatePyg = FOREIGN(account.currency) ? decimal(payment.exchangeRatePyg) : 1
-  if (!Number.isFinite(originalAmount) || originalAmount <= 0 ||
-      (account.currency === 'PYG' ? !Number.isSafeInteger(originalAmount) : !/^\d+(\.\d{1,2})?$/.test(String(payment.originalAmount).trim().replace(',', '.')))) {
-    throw new Error('Ingresá un monto positivo: USD/BRL admite hasta 2 decimales y PYG solo enteros.')
-  }
-  if (!Number.isFinite(exchangeRatePyg) || exchangeRatePyg <= 0) throw new Error('Ingresá una cotización manual mayor a cero.')
-  const amountPyg = Math.round(originalAmount * exchangeRatePyg)
-  if (!Number.isSafeInteger(amountPyg) || amountPyg <= 0) throw new Error('El monto convertido en PYG no es válido.')
-  const tradeIn = account.kind === 'TRADE_IN' ? {
-    serial: (payment.tradeIn?.serial || '').trim(),
-    model: (payment.tradeIn?.model || '').trim(),
-    conditionNotes: (payment.tradeIn?.conditionNotes || '').trim(),
-  } : undefined
-  if (tradeIn && (!tradeIn.serial || !tradeIn.model || !tradeIn.conditionNotes)) throw new Error('El canje requiere serial, modelo y condición del equipo recibido.')
-  return { accountId: account.id, originalAmount, exchangeRatePyg, amountPyg, method: account.kind, status: 'CONFIRMED', ...(tradeIn ? { tradeIn } : {}) }
-}
-
-// El campo legacy monto siempre representa guaraníes, incluso al ingresar USD/BRL.
-export function updateAccountPayment(payment, change, accounts) {
-  const next = { ...payment, ...change }
-  const account = accounts.find((a) => a.id === next.accountId && a.isActive)
-  const original = decimal(next.originalAmount)
-  const rate = FOREIGN(account?.currency) ? decimal(next.exchangeRatePyg) : 1
-  const amount = Math.round(original * rate)
-  return { ...next, medioPago: account?.name || '', cuenta: account?.name || '', monto: account && original > 0 && rate > 0 && Number.isSafeInteger(amount) ? String(amount) : '' }
-}
-
 export default function PaymentAccountFields({ payment, accounts, onChange, pendientePyg = 0 }) {
   const account = accounts.find((a) => a.id === payment.accountId)
   const onChangeRef = useRef(onChange)
   useEffect(() => { onChangeRef.current = onChange })
   // Cotización automática para cuentas en USD: se pide una vez (con caché de la
-  // API) y queda editable: es la sugerencia, no una obligación.
+  // API) y queda editable: es la sugerencia, no una obligación. Viaja marcada
+  // como `automatico` para no pisar una cotización cargada a mano mientras la
+  // consulta estaba en vuelo.
   useEffect(() => {
     if (account?.currency !== 'USD' || Number(payment.exchangeRatePyg) > 0) return undefined
     let vivo = true
     cotizacionReferencial().then((rate) => {
-      if (vivo && rate > 0) onChangeRef.current({ exchangeRatePyg: String(rate) })
+      if (vivo && rate > 0) onChangeRef.current({ exchangeRatePyg: String(rate), automatico: true })
     })
     return () => { vivo = false }
   }, [account?.currency, payment.exchangeRatePyg])
