@@ -83,6 +83,21 @@ warn y la celda de identidad de 13 px que espera a DSN).
 Duplicación pendiente medida: **6 → 1 usos** (queda solo el `Gs.` de una
 plantilla de impresión de PRN, que se coordina con ese slot).
 
+### Lote 21 — alto táctil de 44 px en los controles compartidos (23-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `SegmentedField` / `Subtabs` (`owncoding-ui`) | 28–36 px de alto: la auditoría responsive de DSN (#249, H3) midió pedidos **28**, inventario **32**, clientes **32** y finanzas **36** | `min-h-11` (44 px) en la biblioteca **v0.15.1**; el dibujo no cambia |
+| `ListGridToggle` | Botones de 36×36 | 36 px de dibujo + área de toque de 44 con `.toque-44` |
+| `IconAction size="touch"` | 36×36 desde #236, por debajo del criterio nuevo | 36 px de dibujo + `.toque-44` (44 de toque); el default `sm` no cambia |
+| Barra inferior (`BarraInferior`) | Ítems ~43 px sin mínimo explícito | `min-h-11` por ítem |
+| Utilidad `.toque-44` | El patrón vivía en `src/index.css` de MobOS (DSN lo aplicó al topbar) | Portado a `base.css` de la biblioteca: pseudo-elemento centrado de `max(100%, 44px)`; documentado en `REGLAS.md` §2 y `SHELL.md` §4 para que POS/INV/CRM/FIN lo apliquen con el mismo criterio (H2/H4) |
+| `FichaCertificado` (certificado embebible, #240) | El chip de la cabecera estaba fijo en `pass` | Suma `estado` (por defecto `pass`): INV puede embeber la ficha con el estado real del equipo (con el QR de `CodigoQr`, ya portable) |
+
+**Duplicación pendiente: 0 usos.** Biblioteca: **v0.15.1** (tag + CI); la
+medición y los hallazgos completos, en `docs/QA-RESPONSIVE-MOBILE.md` de DSN
+(#249).
+
 ### Lote 20 — paridad de objetos de campo y detalle con la biblioteca (23-09)
 
 | Objeto | Antes (evidencia) | Después |
@@ -277,14 +292,20 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
-### Identidad (#211) — sin duplicar
+### Lote 22 — identidad de usuario unificada (#211) (23-09)
 
-Tras los últimos merges, la identidad está repartida así: `Avatar` compartido
-(14 usos), `PresencePill` del topbar y `PresenciaPedido` (POS) que consumen
-`lib/identidad.js`, un adaptador **preparado para el objeto unificado de DSN**.
-No hay fotos de persona a mano ni iniciales sueltas (los `charAt(0)` que quedan
-son de empresa, no de personas). MOS-CMP no crea el objeto de identidad: queda
-para DSN (#211), que ya tiene el inventario y los call sites.
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Identidad de usuario (`owncoding-ui` **v0.16.0**) | La cadena de foto (local → Google → iniciales) vivía repartida entre `Avatar`, el adaptador `lib/identidad.js` y cada pantalla | **`PersonaChip`** publicado como objeto único (envuelve al `Avatar`, resuelve la cadena y cae a la fuente siguiente si una imagen falla) con `user`/`foto`/`picture`/`size` (`xs`…`xl`)/`nombre`/**`nombreCorto`**/**`estado`**/`title`/`children`; más `identidadDeUsuario` y `ESTADOS_PRESENCIA` en el adaptador de la biblioteca |
+| `PresencePill` (PLT) | Armaba el avatar + el punto verde a mano, con el adaptador local | Usa `PersonaChip` (`nombre={false}` + `estado="en-linea"`): mismo dibujo, una sola resolución de identidad |
+| `PantallaBloqueada` (PLT) | `Avatar` + un párrafo con el nombre completo | `PersonaChip` con `size="xl" nombreCorto` (muestra el primer nombre) y la línea del PIN debajo |
+| `PedidoDetalle` (POS) | La cronología dibujaba **dos avatares por evento** (uno suelto y otro junto al nombre); las transacciones usaban `Avatar` a mano | Un solo `PersonaChip` por evento (`nombreCorto` + la fecha como children) y `PersonaChip nombre={false}` en las transacciones; desaparece el avatar duplicado |
+| Objetos nuevos del lote | `BarraLote` (4 archivos), `PeriodoTabs` (3) y `NumericKeypad` (2) eran copias locales | Publicados en la biblioteca v0.16.0 (`BarraLote`, `PeriodoTabs`, `NumericKeypad` + el glifo `backspace`) |
+
+**Duplicación pendiente: 0 usos.** El API de presencia sigue sin `picture` por
+persona, así que el puente por nombre (dueño → foto de Google) queda anotado en
+`PresencePill` hasta que el backend exponga el campo; el contrato del objeto ya
+lo cubre (`foto`/`picture`).
 
 ## 2. Backlog priorizado (con evidencia)
 

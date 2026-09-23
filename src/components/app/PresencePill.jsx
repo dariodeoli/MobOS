@@ -3,11 +3,13 @@ import { useSesion } from '@/lib/sesion'
 import { etiquetaPresencia } from '@/lib/presence'
 import { identidadDeUsuario } from '@/lib/identidad'
 import { cn } from '@/lib/utils'
-import Avatar from '@/components/shared/Avatar'
+import PersonaChip from '@/components/shared/PersonaChip'
 
 // Foto de Google: el API de presencia todavía no expone `picture` por persona,
 // así que se usa la del payload y, como puente, la del perfil de empresa cuando
-// la persona es el dueño. Cuando #211 defina el contrato por persona, sale.
+// la persona es el dueño. El objeto unificado (#211) ya define el contrato
+// (`identidadDeUsuario`); cuando el API devuelva `picture`/`foto` por persona,
+// el puente sale.
 function pictureDe(persona, identidad, perfilEmpresa) {
   if (identidad.picture) return identidad.picture
   const esDueno = Boolean(perfilEmpresa?.name) && persona?.name === perfilEmpresa.name
@@ -33,16 +35,16 @@ export default function PresencePill({ className }) {
       <div className="flex items-center gap-2 rounded-full border border-fore/10 bg-ink-700/60 px-2.5 py-1" title={etiqueta} aria-label={etiqueta}>
         <span className="flex -space-x-2">
           {visibles.map(({ persona, identidad }) => (
-            <span key={persona.id} className="relative inline-flex">
-              <Avatar
-                user={{ id: persona.id, name: identidad.nombre, hasAvatar: identidad.hasAvatar }}
-                picture={pictureDe(persona, identidad, perfilEmpresa)}
-                size="md"
-                className="border-paper"
-                title={`${identidad.nombre}${persona.scope ? ` · ${persona.scope}` : ''}`}
-              />
-              {persona.active && <i className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-ok ring-1 ring-paper" aria-hidden="true" />}
-            </span>
+            <PersonaChip
+              key={persona.id}
+              user={{ id: persona.id, name: identidad.nombre, hasAvatar: identidad.hasAvatar, scope: persona.scope }}
+              picture={pictureDe(persona, identidad, perfilEmpresa)}
+              size="md"
+              nombre={false}
+              estado={persona.active ? 'en-linea' : undefined}
+              avatarClassName="border-paper"
+              title={`${identidad.nombre}${persona.scope ? ` · ${persona.scope}` : ''}`}
+            />
           ))}
         </span>
         <span className="whitespace-nowrap text-xs font-semibold text-mute">{resumen}</span>

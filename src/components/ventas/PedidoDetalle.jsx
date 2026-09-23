@@ -6,6 +6,7 @@ import { descargarArchivo } from '@/utils/descargarArchivo'
 import Icon from '@/components/shared/Icon'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import Avatar from '@/components/shared/Avatar'
+import PersonaChip from '@/components/shared/PersonaChip'
 import SeccionColapsable from '@/components/shared/SeccionColapsable'
 import { cn, primerNombre } from '@/lib/utils'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
@@ -494,7 +495,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Transacciones ({payments.length})</p>
               {payments.map(pago => <div key={pago.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span className="text-mute">{ETIQUETAS_MEDIO_PAGO[pago.method] || pago.method}{pago.accountSnapshot?.name ? ` · ${pago.accountSnapshot.name}` : ''}{pago.reference ? ` · ${pago.reference}` : ''}</span>
-                <span className="flex flex-wrap items-center gap-2"><span className="flex items-center gap-1.5 text-[10px] text-mute"><Avatar user={pago.user || { name: nombrePago(pago, order) }} hasAvatar={pago.user?.hasAvatar} size="sm" />Registrado por {nombreActor(nombrePago(pago, order))}</span><span className="tabular-nums font-semibold"><Money value={Number(pago.amountPyg || 0)} /></span><Badge color={pago.status === 'CONFIRMED' ? 'green' : pago.status === 'PENDING' ? 'orange' : 'slate'}>{PAYMENT_STATUS[pago.status] || pago.status}</Badge>{pago.settlesAt && <span className="text-[10px] text-mute">acredita {new Date(pago.settlesAt).toLocaleDateString('es-PY')}</span>}</span>
+                <span className="flex flex-wrap items-center gap-2"><span className="flex items-center gap-1.5 text-[10px] text-mute"><PersonaChip user={pago.user || { name: nombrePago(pago, order) }} size="sm" nombre={false} />Registrado por {nombreActor(nombrePago(pago, order))}</span><span className="tabular-nums font-semibold"><Money value={Number(pago.amountPyg || 0)} /></span><Badge color={pago.status === 'CONFIRMED' ? 'green' : pago.status === 'PENDING' ? 'orange' : 'slate'}>{PAYMENT_STATUS[pago.status] || pago.status}</Badge>{pago.settlesAt && <span className="text-[10px] text-mute">acredita {new Date(pago.settlesAt).toLocaleDateString('es-PY')}</span>}</span>
               </div>)}
             </div>}
           </SeccionColapsable>
@@ -593,9 +594,10 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                 </form>
                 <div className="mt-3 space-y-3">
                   {events.map(event => <article key={`${event.type}-${event.id}`} className="flex gap-3">
-                    <Avatar user={event.user || { name: 'Sistema' }} hasAvatar={event.user?.hasAvatar} picture={event.user?.picture} size="sm" />
+                    <PersonaChip user={event.user || { name: 'Sistema' }} picture={event.user?.picture} size="sm" nombreCorto textoClassName="text-xs" title={event.user?.name || 'Sistema'}>
+                      · {relativeDate(event.at)}
+                    </PersonaChip>
                     <div className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2"><Avatar user={event.user} hasAvatar={event.user?.hasAvatar} size="sm" /><p className="text-xs text-mute" title={event.user?.name || 'Sistema'}><span className="font-semibold text-fore">{primerNombre(event.user?.name) || 'Sistema'}</span> · {relativeDate(event.at)}</p></span>
                       {event.type === 'comment' && <>
                         <p className="mt-1 whitespace-pre-wrap text-sm">{tramosDeMencion(event.body, nombresEquipo).map((tramo, indice) => tramo.mencion ? <span key={indice} className="font-semibold text-fono-light">{tramo.texto}</span> : <span key={indice}>{tramo.texto}</span>)}</p>
                         {(event.photos || []).length > 0 && <div className="mt-2 flex flex-wrap gap-2">{event.photos.map(photo => <PhotoThumb key={photo.id} orderId={order.id} commentId={event.id} photo={photo} />)}</div>}
