@@ -1,6 +1,7 @@
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
+import { detalleAperturaInforme } from '../../../../../lib/device-report'
 
 type RouteContext = { params: { id: string } }
 
@@ -30,6 +31,7 @@ const ACCION_AUDITORIA: Record<string, string> = {
   CUSTOMER_AUTHORIZATION_APPROVED: 'Solicitud comercial aprobada',
   CUSTOMER_AUTHORIZATION_REJECTED: 'Solicitud comercial rechazada',
   CUSTOMER_DEVICE_REPORT_SHARED: 'Informe del equipo compartido',
+  CUSTOMER_DEVICE_REPORT_VIEWED: 'Informe del equipo visto por el cliente',
 }
 const AUDITORIAS_EXCLUIDAS = /^CUSTOMER_NOTE_/
 
@@ -60,6 +62,7 @@ function detalleMetadata(action: string, metadata: unknown) {
     const nota = typeof data.resolvedNote === 'string' && data.resolvedNote ? `Motivo: ${data.resolvedNote}` : ''
     return [tipo, autorizado ? `Autorizado: ${autorizado}` : '', nota].filter(Boolean).join(' · ')
   }
+  if (action === 'CUSTOMER_DEVICE_REPORT_VIEWED') return detalleAperturaInforme(data)
   if (action === 'CUSTOMER_DEVICE_REPORT_SHARED') {
     const canal = data.canal === 'EMAIL' ? `por correo${typeof data.email === 'string' && data.email ? ` a ${data.email}` : ''}` : 'por WhatsApp'
     const serial = typeof data.serial === 'string' ? data.serial : ''

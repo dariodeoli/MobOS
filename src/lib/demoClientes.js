@@ -232,6 +232,116 @@ for (const cliente of SEED_DEMO_CLIENTES) {
   if (!cliente.demoProfile?.orders?.length) cliente.demoProfile.orders = historial(cliente.id, 3 + (cliente.id.length % 4))
 }
 
+// ── Seguimiento del informe compartido (#240 ítem 3) ─────────────────────────
+// Misma semántica que la cuenta real: una fila por serial con el último envío
+// desde la ficha y las aperturas del link público. Las filas viven en memoria
+// de la pestaña (mismo criterio que el resto de la demo: al recargar se vuelve
+// al seed); los seeds son el ejemplo visible.
+const informesVistos = new Map()
+
+const claveSerial = (serial) => String(serial || '').trim().toUpperCase()
+const mascaraSerial = (serial) => {
+  const texto = String(serial || '').trim()
+  return texto.length > 6 ? `${texto.slice(0, 4)}…${texto.slice(-3)}` : texto
+}
+
+const SEED_INFORMES_DEMO = (() => {
+  const filas = {}
+  const primerSerial = (clienteId) => {
+    const cliente = SEED_DEMO_CLIENTES.find((row) => row.id === clienteId)
+    const pedidos = cliente?.demoProfile?.orders || []
+    return pedidos.flatMap((order) => (order.items || []).flatMap((item) => item.serials || []))[0] || ''
+  }
+  const yaVisto = primerSerial('demo-cliente-lucia')
+  if (yaVisto) filas[claveSerial(yaVisto)] = { serial: claveSerial(yaVisto), customerId: 'demo-cliente-lucia', channel: 'WHATSAPP', viewChannel: 'WHATSAPP', sharedAt: haceDias(2), firstViewedAt: haceDias(1), lastViewedAt: haceDias(1), viewCount: 2 }
+  const sinVer = primerSerial('demo-cliente-ana')
+  if (sinVer) filas[claveSerial(sinVer)] = { serial: claveSerial(sinVer), customerId: 'demo-cliente-ana', channel: 'EMAIL', sharedAt: haceDias(3), firstViewedAt: null, lastViewedAt: null, viewCount: 0 }
+  return filas
+})()
+
+/** Fila de seguimiento demo (lo de la sesión manda sobre el ejemplo del seed). */
+export function filaInformeDemo(serial) {
+  const clave = claveSerial(serial)
+  return informesVistos.get(clave) || SEED_INFORMES_DEMO[clave] || null
+}
+
+/** Filas de seguimiento de un cliente (la ficha las mapea por serial). */
+export function filasInformeDemo(clienteId) {
+  const claves = new Set([...Object.keys(SEED_INFORMES_DEMO), ...informesVistos.keys()])
+  return [...claves].map((clave) => filaInformeDemo(clave)).filter((fila) => fila && String(fila.customerId) === String(clienteId))
+}
+
+/** Envío desde la ficha: canal + fecha (la ficha muestra «Sin ver»). */
+export function registrarInformeDemo(clienteId, { serial, canal = 'WHATSAPP' } = {}) {
+  const clave = claveSerial(serial)
+  if (!clienteId || !clave) return null
+  const fila = {
+    firstViewedAt: null,
+    lastViewedAt: null,
+    viewCount: 0,
+    ...(filaInformeDemo(clave) || {}),
+    serial: clave,
+    customerId: clienteId,
+    channel: canal,
+    sharedAt: new Date().toISOString(),
+  }
+  informesVistos.set(clave, fila)
+  return fila
+}
+
+/** Apertura del informe: la primera vez deja el «visto» (cuenta las veces).
+ *  `viewChannel` congela el origen de la primera apertura, igual que el evento
+ *  de auditoría real (un reenvío posterior no cambia de dónde se abrió). */
+export function registrarVistoInformeDemo(clienteId, serial) {
+  const clave = claveSerial(serial)
+  if (!clave) return null
+  const actual = filaInformeDemo(clave)
+  if (!actual && !clienteId) return null
+  const ahora = new Date().toISOString()
+  const fila = {
+    ...(actual || {}),
+    serial: clave,
+    customerId: actual?.customerId || clienteId,
+    channel: actual?.channel ?? null,
+    viewChannel: actual?.viewChannel ?? actual?.channel ?? null,
+    sharedAt: actual?.sharedAt ?? null,
+    firstViewedAt: actual?.firstViewedAt || ahora,
+    lastViewedAt: ahora,
+    viewCount: Number(actual?.viewCount || 0) + 1,
+  }
+  informesVistos.set(clave, fila)
+  return fila
+}
+
+/** Eventos de cronología del informe, derivados de las filas de seguimiento:
+ *  el envío y la apertura se reconstruyen al abrir la ficha (no dependen de
+ *  una interacción registrada en memoria). */
+export function eventosInformeDemo(clienteId) {
+  return filasInformeDemo(clienteId).flatMap((fila) => {
+    const eventos = []
+    const canalVisto = fila.viewChannel ?? fila.channel
+    if (fila.sharedAt) eventos.push({
+      id: `demo-informe-${fila.serial}-envio`,
+      type: 'audit',
+      action: 'Informe del equipo compartido',
+      label: 'Informe del equipo compartido',
+      createdAt: fila.sharedAt,
+      user: usuarioDemo('Equipo demo'),
+      detail: `Por ${fila.channel === 'EMAIL' ? 'correo' : 'WhatsApp'} · serial ${mascaraSerial(fila.serial)}`,
+    })
+    if (fila.firstViewedAt) eventos.push({
+      id: `demo-informe-${fila.serial}-visto`,
+      type: 'audit',
+      action: 'Informe del equipo visto por el cliente',
+      label: 'Informe del equipo visto por el cliente',
+      createdAt: fila.firstViewedAt,
+      user: null,
+      detail: `${canalVisto === 'EMAIL' ? 'Abierto desde el enlace del correo' : canalVisto === 'WHATSAPP' ? 'Abierto desde el enlace de WhatsApp' : 'Abierto desde el portal del cliente'} · serial ${mascaraSerial(fila.serial)}`,
+    })
+    return eventos
+  })
+}
+
 export function clientesDemoGuardados() {
   try {
     const stored = JSON.parse(leerDemo(KEY) || '[]')
@@ -259,14 +369,16 @@ export function buildDemoProfile(customer = {}) {
     notes: Array.isArray(demo.notes) ? demo.notes : [],
     followUps: Array.isArray(demo.followUps) ? demo.followUps : [],
     billingIdentities: Array.isArray(demo.billingIdentities) ? demo.billingIdentities : [],
+    // Seguimiento del informe compartido (#240 ítem 3): mismo shape que el API.
+    deviceReportShares: filasInformeDemo(customer.id),
     debtPyg: orders.reduce((suma, order) => suma + Number(order.pendingPyg || 0), 0),
     demo: true,
   }
 }
 
 export function buildDemoTimeline(customer = {}) {
-  if (Array.isArray(customer.demoProfile?.timeline)) return customer.demoProfile.timeline
-  return EVENTOS(customer).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  const base = Array.isArray(customer.demoProfile?.timeline) ? customer.demoProfile.timeline : EVENTOS(customer)
+  return [...base, ...eventosInformeDemo(customer.id)].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 }
 
 export function buildDemoAnalytics(customer = {}) {

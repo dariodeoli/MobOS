@@ -25,7 +25,7 @@ import RucField from '@/components/shared/RucField'
 import Icon from '@/components/shared/Icon'
 import ActorAvatar from './ActorAvatar'
 import { DEMO_CUSTOMER_TEMPLATES, ULTIMA_PLANTILLA_CLIENTES } from './customerMessaging'
-import { buildDemoAnalytics, buildDemoProfile, buildDemoTimeline, registrarInteraccionDemo } from '@/lib/demoClientes'
+import { buildDemoAnalytics, buildDemoProfile, buildDemoTimeline, registrarInformeDemo } from '@/lib/demoClientes'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import {
   Aviso,
@@ -526,24 +526,29 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   // enlace viaja con `?demo=1`: el portal demo vive en su subdominio y no
   // comparte la sesión de `/demo`, así el link resuelve solo.
   const origen = typeof window !== 'undefined' ? window.location.origin : ''
-  const enlaceInforme = (serial) => `${origen}/u/${encodeURIComponent(String(serial || '').trim())}${esDemo ? '?demo=1' : ''}`
+  const enlaceInforme = (serial, { preview = false } = {}) => {
+    const base = `${origen}/u/${encodeURIComponent(String(serial || '').trim())}`
+    const parametros = [esDemo ? 'demo=1' : '', preview ? 'preview=1' : ''].filter(Boolean)
+    return parametros.length ? `${base}?${parametros.join('&')}` : base
+  }
   function nombreDelCliente() {
     const completo = profile?.customer?.name || customer?.name || ''
     return String(completo).trim().split(/\s+/)[0] || ''
   }
   function abrirInforme(device) {
-    const url = enlaceInforme(device.serial)
-    if (esDemo) { window.location.href = url; return }
-    copiarAlPortapapeles(url).then((ok) => toast.success(ok ? 'Informe: enlace copiado y abriéndolo en otra pestaña.' : 'Abriendo el informe del equipo.'))
-    window.open(url, '_blank', 'noopener')
+    // La vista previa desde la ficha no cuenta como apertura del cliente
+    // (#240 ítem 3): se abre con `?preview=1` y el enlace que se copia queda
+    // limpio para reenviarlo.
+    if (esDemo) { window.location.href = enlaceInforme(device.serial, { preview: true }); return }
+    copiarAlPortapapeles(enlaceInforme(device.serial)).then((ok) => toast.success(ok ? 'Informe: enlace copiado y abriéndolo en otra pestaña.' : 'Abriendo el informe del equipo.'))
+    window.open(enlaceInforme(device.serial, { preview: true }), '_blank', 'noopener')
   }
   // Registra el envío en la cronología del cliente (auditoría) o, en demo, en
   // la del navegador (#240 ítem 3).
   async function registrarInforme(device, canal) {
     const serial = String(device.serial || '')
-    const detalle = `${canal === 'EMAIL' ? 'Por correo' : 'Por WhatsApp'} · serial ${serial.length > 6 ? `${serial.slice(0, 4)}…${serial.slice(-3)}` : serial}`
     if (esDemo) {
-      registrarInteraccionDemo(customer?.id, { accion: 'Informe del equipo compartido', detalle })
+      registrarInformeDemo(customer?.id, { serial, canal })
       refresh()
       return true
     }
@@ -792,6 +797,9 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   const puedeCanjearPuntos = Boolean(usuario && (usuario.permissions?.includes('*') || ['ADMIN', 'GERENTE'].includes(usuario.role) || usuario.permissions?.includes('orders:manage') || usuario.permissions?.includes('payments:manage')))
 
   const dispositivos = orders.flatMap(order => (order.items || []).flatMap(item => (item.serials || []).map(serial => ({ serial, model: item.description, date: order.createdAt, orderNumber: order.orderNumber, warranty: warranties.find(warranty => warranty.serial === serial) || null }))))
+  // Seguimiento del informe compartido (#240 ítem 3): fila por serial con el
+  // último envío y las aperturas del link público.
+  const seguimientoInforme = new Map((profile?.deviceReportShares || []).map((fila) => [String(fila.serial || '').trim().toUpperCase(), fila]))
   const ordenesActivas = orders.filter((order) => order.status === 'PENDING' || order.status === 'REGISTERED').length
   const ciudadCliente = (profile?.customer?.addresses || []).find((address) => address.city)?.city || profile?.customer?.addresses?.[0]?.city || ''
   // Ficha completa (#160): antigüedad, RUC, impuestos, dirección y seguro.
@@ -1352,6 +1360,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                     const vence = device.warranty?.expiresAt ? new Date(device.warranty.expiresAt) : null
                     const dias = vence ? Math.max(0, Math.ceil((vence.getTime() - Date.now()) / 86400000)) : null
                     const serial = String(device.serial || '')
+                    const informe = serial ? seguimientoInforme.get(serial.trim().toUpperCase()) : null
                     return (
                       <div key={`${device.serial}-${device.orderNumber}`} data-testid="perfil-dispositivo-fila" className={cn(GRID_DISPOSITIVOS, 'rounded-xl border border-ink-600 bg-ink-800 px-3.5 py-2')}>
                         <span className={CELDA_IDENTIDAD} title={device.model || undefined}>{device.model || 'Equipo'}</span>
@@ -1360,6 +1369,8 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                         <span className={CELDA_DATO}>{device.orderNumber ? codigoPedido(device.orderNumber) : '—'}</span>
                         <span className="min-w-0">{vence ? <Badge color={dias === 0 ? 'red' : dias <= 15 ? 'orange' : 'green'} className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">{dias === 0 ? 'Vencida' : `${dias} días`}</Badge> : <Badge color="slate" className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">Sin garantía</Badge>}</span>
                         <span className="flex items-center justify-end gap-1.5">
+                          {informe?.firstViewedAt && <Badge color="green" data-testid="informe-seguimiento" data-estado="visto" className="whitespace-nowrap px-1.5 py-0.5 text-[10px]" title={`Visto ${fechaHora(informe.firstViewedAt)}${Number(informe.viewCount) > 1 ? ` · ${informe.viewCount} aperturas` : ''}${informe.sharedAt ? ` · compartido ${fecha(informe.sharedAt)}` : ' · desde el portal'}`}>Visto</Badge>}
+                          {!informe?.firstViewedAt && informe?.sharedAt && <Badge color="slate" data-testid="informe-seguimiento" data-estado="sin-ver" className="whitespace-nowrap px-1.5 py-0.5 text-[10px]" title={`Compartido ${fechaHora(informe.sharedAt)} por ${informe.channel === 'EMAIL' ? 'correo' : 'WhatsApp'} · todavía no lo abrió`}>Sin ver</Badge>}
                           {device.serial && <button type="button" className="whitespace-nowrap rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light transition hover:bg-fono/10" onClick={() => setImeiDe(device)}>Verificación IMEI</button>}
                           {device.serial && <IconAction icon="external" tone="fono" label={`Ver informe del equipo ${device.serial}`} onClick={() => abrirInforme(device)} />}
                           {device.serial && <IconAction icon="send" tone="ok" label={`Compartir informe del equipo ${device.serial} por WhatsApp`} onClick={() => compartirInforme(device)} />}

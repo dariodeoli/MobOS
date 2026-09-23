@@ -4,7 +4,7 @@ import { Badge, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { API_URL } from '@/lib/api'
 import { isDemoRuntime } from '@/lib/demoMode'
-import { demoInformePayload } from '@/lib/demoInforme'
+import { demoInformePayload, marcarInformeVistoDemo } from '@/lib/demoInforme'
 import { fechaCorta } from '@/utils/fecha'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
@@ -28,6 +28,10 @@ export default function InformePublico() {
   // informe con los datos ficticios del navegador (mismo criterio que el token
   // `demo-…` de la cuenta). Un serial real nunca necesita el parámetro.
   const demoDelEnlace = searchParams.get('demo') === '1'
+  // Seguimiento del informe compartido (#240 ítem 3): la vista previa del
+  // equipo desde la app viaja con `?preview=1` y no cuenta como apertura del
+  // cliente (ni en la cuenta real ni en la demo).
+  const preview = searchParams.get('preview') === '1'
 
   useEffect(() => {
     let vigente = true
@@ -36,10 +40,11 @@ export default function InformePublico() {
       if (vigente) {
         setInforme(demo)
         setEstado(demo ? 'listo' : 'sin')
+        if (demo && !preview) marcarInformeVistoDemo(serial)
       }
       return () => { vigente = false }
     }
-    fetch(`${API_URL}/api/public/units/${encodeURIComponent(serial || '')}`)
+    fetch(`${API_URL}/api/public/units/${encodeURIComponent(serial || '')}${preview ? '?preview=1' : ''}`)
       .then(async (respuesta) => {
         const cuerpo = await respuesta.json().catch(() => null)
         if (!vigente) return
@@ -49,10 +54,14 @@ export default function InformePublico() {
       })
       .catch(() => { if (vigente) setEstado('error') })
     return () => { vigente = false }
-  }, [serial, demoDelEnlace])
+  }, [serial, demoDelEnlace, preview])
 
   async function copiarEnlace() {
-    const ok = await copiarAlPortapapeles(window.location.href)
+    // Se copia sin `preview`: ese parámetro es solo para la vista previa del
+    // equipo desde la app y no debe viajar a un enlace reenviado.
+    const url = new URL(window.location.href)
+    url.searchParams.delete('preview')
+    const ok = await copiarAlPortapapeles(url.toString())
     if (!ok) return
     setCopiado(true)
     setTimeout(() => setCopiado(false), 2000)

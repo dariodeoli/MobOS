@@ -1,6 +1,7 @@
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'
+import { serialSeguimiento } from '../../../../../lib/device-report'
 
 // Informe de dispositivo público (#240 ítem 3, acceso CRM #236+): la tienda que
 // vendió/verificó el equipo muestra un informe informativo por serial, con el
@@ -40,7 +41,7 @@ export async function GET(request: Request, context: { params: Promise<{ serial:
 
   const ventas = await prisma.orderItemSerial.findMany({
     where: { serial: { in: unidades.map((unidad) => unidad.serial) } },
-    include: { orderItem: { include: { order: { select: { tenantId: true, orderNumber: true, createdAt: true, branch: { select: { name: true } } } } } } },
+    include: { orderItem: { include: { order: { select: { tenantId: true, orderNumber: true, createdAt: true, customerId: true, branch: { select: { name: true } } } } } } },
     orderBy: { orderItem: { order: { createdAt: 'desc' } } },
     take: 10,
   })
@@ -54,6 +55,17 @@ export async function GET(request: Request, context: { params: Promise<{ serial:
   ])
 
   const venceGarantia = garantia?.warrantyDays ? new Date(new Date(garantia.createdAt).getTime() + garantia.warrantyDays * 86400000) : null
+
+  // Seguimiento del informe compartido (#240 ítem 3): la apertura del link
+  // público marca «visto» en la ficha del cliente. La vista previa de la app
+  // viaja con `?preview=1` y no cuenta; tampoco los equipos sin cliente.
+  if (new URL(request.url).searchParams.get('preview') !== '1') {
+    await marcarInformeVisto({
+      tenantId: elegida.tenantId,
+      serial: elegida.serial,
+      customerId: venta?.orderItem.order.customerId || null,
+    })
+  }
 
   return json({
     store: { name: elegida.tenant?.name || 'Tienda', branch: elegida.branch?.name || venta?.orderItem.order.branch?.name || null },
@@ -76,4 +88,44 @@ export async function GET(request: Request, context: { params: Promise<{ serial:
     check: check ? { provider: check.provider, status: check.status, date: check.requestedAt } : null,
     disclaimer: 'Informe informativo de la tienda que verificó el equipo. No es un certificado oficial ni reemplaza la garantía del fabricante.',
   }, { headers: { 'Cache-Control': 'no-store' } })
+}
+
+// Registra la apertura del informe (#240 ítem 3): la primera vez agrega el
+// evento a la cronología del cliente; siempre actualiza contador y última
+// apertura de la fila de seguimiento. Un equipo nunca compartido ni vendido no
+// deja rastro (la ruta es pública y no se escribe por cualquier consulta).
+async function marcarInformeVisto({ tenantId, serial, customerId }: { tenantId: string; serial: string; customerId: string | null }) {
+  const clave = serialSeguimiento(serial)
+  const ahora = new Date()
+  const anotarEvento = (customerIdFila: string, canal: string | null) => prisma.auditLog.create({
+    data: {
+      tenantId,
+      action: 'CUSTOMER_DEVICE_REPORT_VIEWED',
+      entity: 'Customer',
+      entityId: customerIdFila,
+      metadata: { serial: clave, canal: canal || 'PORTAL' },
+    },
+  })
+
+  const fila = await prisma.deviceReportShare.findUnique({ where: { tenantId_serial: { tenantId, serial: clave } } })
+  if (fila) {
+    const primera = !fila.firstViewedAt
+    await prisma.deviceReportShare.update({
+      where: { id: fila.id },
+      data: { firstViewedAt: fila.firstViewedAt || ahora, lastViewedAt: ahora, viewCount: { increment: 1 } },
+    })
+    if (primera) await anotarEvento(fila.customerId, fila.channel)
+    return
+  }
+
+  if (!customerId) return
+  try {
+    await prisma.deviceReportShare.create({
+      data: { tenantId, customerId, serial: clave, firstViewedAt: ahora, lastViewedAt: ahora, viewCount: 1 },
+    })
+    await anotarEvento(customerId, null)
+  } catch {
+    // Carrera con otra apertura simultánea: la fila ya quedó creada y el
+    // evento lo anota el request que ganó.
+  }
 }

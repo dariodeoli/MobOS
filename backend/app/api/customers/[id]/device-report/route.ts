@@ -2,6 +2,7 @@ import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { actionLink, deviceReportEmail, emailTransportConfigured, logEmailOutcome, sendTransactionalEmail } from '../../../../../lib/email'
+import { serialSeguimiento } from '../../../../../lib/device-report'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -52,6 +53,21 @@ export async function POST(request: Request, context: RouteContext) {
       entityId: customer.id,
       metadata: { serial, canal, link, ...(emailEnviado && customer.email ? { email: customer.email } : {}) },
     },
+  })
+
+  // Seguimiento (#240 ítem 3): el envío queda como fila del equipo para que la
+  // ficha muestre visto/no visto cuando el cliente abra el link público. El
+  // serial se guarda normalizado: la apertura lo busca sin distinguir caja.
+  await prisma.deviceReportShare.upsert({
+    where: { tenantId_serial: { tenantId: session.user.tenantId, serial: serialSeguimiento(serial) } },
+    create: {
+      tenantId: session.user.tenantId,
+      customerId: customer.id,
+      serial: serialSeguimiento(serial),
+      channel: canal,
+      sharedAt: new Date(),
+    },
+    update: { customerId: customer.id, channel: canal, sharedAt: new Date() },
   })
 
   return json({ link, canal, emailEnviado })

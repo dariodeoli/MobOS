@@ -74,7 +74,7 @@ export async function GET(request: Request, { params }: RouteContext) {
     take: 50,
   })
 
-  const [notes, billingIdentities, followUps] = await Promise.all([
+  const [notes, billingIdentities, followUps, deviceReportShares] = await Promise.all([
     prisma.customerNote.findMany({
       where: { tenantId: session.user.tenantId, customerId: customer.id },
       select: { id: true, content: true, createdAt: true, user: { select: { id: true, name: true } } },
@@ -93,6 +93,14 @@ export async function GET(request: Request, { params }: RouteContext) {
       orderBy: [{ doneAt: 'asc' }, { dueAt: 'asc' }, { createdAt: 'desc' }],
       take: 100,
     }),
+    // Seguimiento del informe compartido (#240 ítem 3): la ficha muestra
+    // visto/no visto por equipo.
+    prisma.deviceReportShare.findMany({
+      where: { tenantId: session.user.tenantId, customerId: customer.id },
+      select: { serial: true, channel: true, sharedAt: true, firstViewedAt: true, lastViewedAt: true, viewCount: true },
+      orderBy: { updatedAt: 'desc' },
+      take: 200,
+    }),
   ])
 
   return json({
@@ -103,6 +111,7 @@ export async function GET(request: Request, { params }: RouteContext) {
     notes,
     followUps,
     billingIdentities,
+    deviceReportShares,
   })
 }
 
