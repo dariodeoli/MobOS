@@ -1,57 +1,27 @@
 import { useEffect, useRef, useState } from 'react'
-import { fechaClave } from '@/utils/calculos'
+import { fechaClave, fechaClaveParaguay, presetParaguay } from '@/utils/calculos'
 import { cn } from '@/lib/utils'
 import Icon from './Icon'
 
 // Selector de período: atajos rápidos (día, semana, mes, trimestre, año) más
 // un rango personalizado "desde / hasta". Devuelve { desde, hasta } en
 // formato YYYY-MM-DD, ambos inclusive.
-
-const d0 = (d) => fechaClave(d)
-const hoy = () => new Date()
-const sumarDias = (n) => {
-  const x = hoy()
-  x.setDate(x.getDate() + n)
-  return x
-}
-const inicioMes = (m = 0) => {
-  const x = hoy()
-  return new Date(x.getFullYear(), x.getMonth() + m, 1)
-}
-const finMes = (m = 0) => {
-  const x = hoy()
-  return new Date(x.getFullYear(), x.getMonth() + m + 1, 0)
-}
+//
+// Los atajos se calculan sobre el día de Paraguay (UTC-3 fijo, `presetParaguay`
+// en utils/calculos), no sobre el reloj del navegador: la API interpreta
+// desde/hasta como fechas paraguayas (reportes y el resto de Finanzas) y un
+// equipo en otra zona horaria (p. ej. un runner de CI en UTC) pedía «Hoy» con
+// un día distinto, dejando afuera los cobros recién hechos.
 
 export const PRESETS = [
-  { id: 'hoy', label: 'Hoy', calc: () => ({ desde: d0(hoy()), hasta: d0(hoy()) }) },
-  {
-    id: 'ayer',
-    label: 'Ayer',
-    calc: () => ({ desde: d0(sumarDias(-1)), hasta: d0(sumarDias(-1)) }),
-  },
-  { id: '7d', label: '7 días', calc: () => ({ desde: d0(sumarDias(-6)), hasta: d0(hoy()) }) },
-  { id: '30d', label: '30 días', calc: () => ({ desde: d0(sumarDias(-29)), hasta: d0(hoy()) }) },
-  { id: 'mes', label: 'Este mes', calc: () => ({ desde: d0(inicioMes()), hasta: d0(hoy()) }) },
-  {
-    id: 'mesAnt',
-    label: 'Mes pasado',
-    calc: () => ({ desde: d0(inicioMes(-1)), hasta: d0(finMes(-1)) }),
-  },
-  {
-    id: 'trim',
-    label: 'Trimestre',
-    calc: () => {
-      const x = hoy()
-      const q = Math.floor(x.getMonth() / 3) * 3
-      return { desde: d0(new Date(x.getFullYear(), q, 1)), hasta: d0(hoy()) }
-    },
-  },
-  {
-    id: 'anio',
-    label: 'Este año',
-    calc: () => ({ desde: d0(new Date(hoy().getFullYear(), 0, 1)), hasta: d0(hoy()) }),
-  },
+  { id: 'hoy', label: 'Hoy', calc: () => presetParaguay('hoy') },
+  { id: 'ayer', label: 'Ayer', calc: () => presetParaguay('ayer') },
+  { id: '7d', label: '7 días', calc: () => presetParaguay('7d') },
+  { id: '30d', label: '30 días', calc: () => presetParaguay('30d') },
+  { id: 'mes', label: 'Este mes', calc: () => presetParaguay('mes') },
+  { id: 'mesAnt', label: 'Mes pasado', calc: () => presetParaguay('mesAnt') },
+  { id: 'trim', label: 'Trimestre', calc: () => presetParaguay('trim') },
+  { id: 'anio', label: 'Este año', calc: () => presetParaguay('anio') },
 ]
 
 export const rangoPorDefecto = () => ({ ...PRESETS[0].calc(), preset: 'hoy' })
@@ -109,7 +79,7 @@ export function rangoAnterior(r) {
   hasta.setDate(hasta.getDate() - 1)
   const desde = new Date(hasta)
   desde.setDate(desde.getDate() - (n - 1))
-  return { desde: d0(desde), hasta: d0(hasta) }
+  return { desde: fechaClave(desde), hasta: fechaClave(hasta) }
 }
 
 export default function RangoFechas({ valor, onChange, className }) {
@@ -184,7 +154,7 @@ export default function RangoFechas({ valor, onChange, className }) {
               <input
                 type="date"
                 value={valor.desde}
-                max={fechaClave()}
+                max={fechaClaveParaguay()}
                 onChange={(e) => setManual('desde', e.target.value)}
                 className="h-9 w-full rounded-lg border border-ink-500 bg-paper px-2 text-sm text-fore outline-none focus:border-fono"
               />
@@ -192,7 +162,7 @@ export default function RangoFechas({ valor, onChange, className }) {
               <input
                 type="date"
                 value={valor.hasta}
-                max={fechaClave()}
+                max={fechaClaveParaguay()}
                 onChange={(e) => setManual('hasta', e.target.value)}
                 className="h-9 w-full rounded-lg border border-ink-500 bg-paper px-2 text-sm text-fore outline-none focus:border-fono"
               />
