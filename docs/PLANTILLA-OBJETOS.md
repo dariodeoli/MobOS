@@ -317,7 +317,7 @@ navegación propia por pantalla.
 - Con el sistema v2, el shell va dentro del scope `tema-v2` y sus tonos de
   texto son los **AA** medidos (#241); los vivos quedan para relleno. Las
   reglas de navegación (ítem activo, rótulos de grupo, foco por tema, chips
-  `.v2-chip`) **viajan en la biblioteca** desde `owncoding-ui` **v0.14.9**, con
+  `.v2-chip`) **viajan en la biblioteca** desde `owncoding-ui` **v0.14.10**, con
   los hooks de accesibilidad (`aria-current`, `aria-pressed`, `aria-expanded`)
   y `.oc-rotulo-grupo`; la app no las repite.
 
@@ -486,7 +486,7 @@ por el sistema.
   productos, diagramas).
 - **Tokens v2 del piloto (#241):** el lenguaje "device ops" (consola oscura,
   verde pass `#22C55E`, azul acción `#4D7CFE`) vive en la biblioteca
-  `owncoding-ui` **v0.14.9** como scope `tema-v2` (alias `v2-piloto`) con
+  `owncoding-ui` **v0.14.10** como scope `tema-v2` (alias `v2-piloto`) con
   variante clara y oscura + `.v2-numero` para números grandes. Los roles
   semánticos del scope son **tonos de texto AA** (`ok`/`bad`/`warn`/`info` con
   los valores medidos sobre el shell v2: claro `#166534`/`#B91C1C`/`#92400E`/
