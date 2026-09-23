@@ -44,12 +44,13 @@ export async function GET(request: Request) {
   const [movements, accounts, orders, purchases, salePayments, reconciliations] = await Promise.all([
     prisma.cashMovement.findMany({ where: { tenantId, ...branchFilter }, include: { account: { select: { id: true, name: true, currency: true } } }, orderBy: { createdAt: 'desc' }, take: 150 }),
     prisma.paymentAccount.findMany({ where: { tenantId }, select: { id: true, name: true, currency: true, kind: true, feePercent: true, isActive: true } }),
-    prisma.order.findMany({ where: { tenantId, ...branchFilter, status: { not: 'CANCELLED' } }, select: { id: true, totalPyg: true, payments: { select: { amountPyg: true, status: true } }, items: { select: { quantity: true, totalPyg: true, unitCostPyg: true, insurancePyg: true, extraCostPyg: true } } }, take: 5000 }),
+    prisma.order.findMany({ where: { tenantId, ...branchFilter, status: { not: 'CANCELLED' } }, select: { id: true, totalPyg: true, discountPyg: true, payments: { select: { amountPyg: true, status: true } }, items: { select: { quantity: true, totalPyg: true, unitCostPyg: true, insurancePyg: true, extraCostPyg: true } } }, take: 5000 }),
     prisma.purchaseOrder.findMany({ where: { tenantId, ...branchFilter }, select: { id: true, supplierName: true, lines: { select: { quantity: true, unitCostPyg: true, finalTotalCostPyg: true } }, payments: { select: { amountPyg: true, accountId: true, originalAmount: true } } }, take: 5000 }),
     prisma.payment.findMany({ where: { tenantId, status: 'CONFIRMED', order: branchFilter }, select: { accountId: true, originalAmount: true, amountPyg: true, currency: true } }),
     prisma.paymentReconciliation.findMany({ where: { tenantId, state: 'PENDING' }, select: { id: true, paymentId: true, createdAt: true, payment: { select: { amountPyg: true, currency: true, originalAmount: true, order: { select: { branchId: true, orderNumber: true } } } } }, take: 100 }),
   ])
-  const margin = realMargin(orders.flatMap(order => order.items))
+  const descuentosPyg = orders.reduce((total, order) => total + Math.max(0, order.discountPyg ?? 0), 0)
+  const margin = realMargin(orders.flatMap(order => order.items), { discountPyg: descuentosPyg })
   const receivables = orders.map(order => ({ id: order.id, totalPyg: order.totalPyg, paidPyg: order.payments.filter(payment => payment.status === 'CONFIRMED').reduce((total, payment) => total + payment.amountPyg, 0) })).map(row => ({ ...row, pendingPyg: Math.max(0, row.totalPyg - row.paidPyg) })).filter(row => row.pendingPyg > 0)
   const payables = purchases.map(purchasePayable).filter(row => row.pendingPyg > 0)
   const balances = new Map(accounts.map(account => [account.id, { ...account, balance: 0 }]))

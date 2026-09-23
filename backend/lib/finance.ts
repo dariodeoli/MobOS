@@ -19,8 +19,13 @@ export function frozenAmountPyg(originalAmount: unknown, currency: FinanceCurren
 
 export type MarginLine = { quantity: number; totalPyg: number; unitCostPyg: number | null; insurancePyg?: number; extraCostPyg?: number }
 
-/** Costo ya congelado al vender: base + seguro + extras, sin reinterpretar la venta. */
-export function realMargin(lines: MarginLine[]) {
+/**
+ * Costo ya congelado al vender: base + seguro + extras, sin reinterpretar la
+ * venta. `discountPyg` es el descuento del carrito (nivel orden): la venta
+ * reconocida para el margen es la neta de ese descuento.
+ */
+export function realMargin(lines: MarginLine[], { discountPyg = 0 }: { discountPyg?: number } = {}) {
+  if (!Number.isSafeInteger(discountPyg) || discountPyg < 0) throw new FinanceInputError('Descuento inválido.')
   let revenuePyg = 0
   let costPyg = 0
   let unknownCostLines = 0
@@ -31,7 +36,8 @@ export function realMargin(lines: MarginLine[]) {
     if (!Number.isSafeInteger(line.unitCostPyg) || line.unitCostPyg < 0) throw new FinanceInputError('Costo de línea inválido.')
     costPyg += line.unitCostPyg * line.quantity
   }
-  return { revenuePyg, costPyg, profitPyg: revenuePyg - costPyg, marginPct: revenuePyg ? Number((((revenuePyg - costPyg) / revenuePyg) * 100).toFixed(2)) : null, unknownCostLines }
+  const netoPyg = Math.max(0, revenuePyg - discountPyg)
+  return { revenuePyg: netoPyg, costPyg, profitPyg: netoPyg - costPyg, marginPct: netoPyg ? Number((((netoPyg - costPyg) / netoPyg) * 100).toFixed(2)) : null, unknownCostLines }
 }
 
 export function balanceDirection(direction: 'IN' | 'OUT', amount: number) {
