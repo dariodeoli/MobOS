@@ -83,6 +83,34 @@ warn y la celda de identidad de 13 px que espera a DSN).
 Duplicación pendiente medida: **6 → 1 usos** (queda solo el `Gs.` de una
 plantilla de impresión de PRN, que se coordina con ese slot).
 
+### Lote 19 — shell v2: tonos AA y paridad de la biblioteca (23-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Tonos semánticos del scope `.tema-v2`/`.v2-piloto` (`owncoding-ui`) | La biblioteca tenía los vivos del piloto (`ok` #16A34A, `bad` #DC2626, `warn` #D97706, `info` #4D7CFE); usados como texto sobre las superficies v2 quedaban en 2.89–4.38:1 (DSN midió el shell: rótulos de grupo 3.20:1 e ítem activo 2.91:1 en claro / 3.49:1 en oscuro) | Los tonos de **texto AA** que DSN midió en MobOS (`ok` #166534/#4ADE80, `bad` #B91C1C/#FCA5A5, `warn` #92400E/#FCD34D, `info` #2059BE/#9FB8FF) y el bloque completo por tema (fono, reserved, onbrand e ink-950 dejan de heredarse); los vivos siguen en `--c-pass`/`--c-accion` para relleno e indicadores |
+| `IconAction size="touch"` | MobOS lo estrenó en la lista de Clientes (#236) y quedó anotado para CMP/DSN | Paridad en la biblioteca con el mismo contrato (`aria-label`, `title`, tonos); el default `sm` no cambia |
+| Docs del shell v2 | No había guía de armado del shell en la biblioteca | `owncoding-ui/docs/SHELL.md` (piezas, props, breakpoints, reglas AA y checklist), más la tabla de tonos de texto AA en su `docs/V2.md` y las referencias en `docs/REGLAS.md` §8/§10 |
+| Guarda de contraste | Sin test | `owncoding-ui/test/contraste-tokens.test.js`: mide los tonos de texto del scope contra sus superficies en claro y oscuro (4.5:1), ítem activo sobre su tinte incluido |
+
+**Coordinación con DSN (#241):** los números salen de su medición del shell v2
+y del pendiente que dejó declarado en `docs/rediseno/PLAN-F4.md` («portar los
+tonos AA al scope `tema-v2` de owncoding-ui»); quedan publicados en la
+biblioteca **v0.14.8**. La revisión cruzada con DSN confirmó los valores («no veo
+nada que ajustar en números») y dejó el plan del próximo lote: el CSS de
+navegación va a la biblioteca (rótulos sólidos, ítem activo azul AA, foco por
+tema y superficies rojas resueltas en los objetos de aviso/contador), `NavLateral`
+suma grupos plegables + contador y activo azul, y se porta la capa de contenido
+del v2 (`v2-chip`, `tabular-nums` del scope, `strong.text-xl` y el activo de
+botones/pestañas). El detalle quedó en `owncoding-ui/docs/SHELL.md` §7.
+
+Lo que sigue del lado de la app (no lo toqué): el bloque local `.v2-piloto` de
+`src/index.css` queda como puente hasta que MobOS importe
+`owncoding-ui/styles.css` (paso 1 del plan F3/F4) y las reglas de navegación
+(rótulos sólidos, ítem activo, foco) siguen en MobOS porque dependen de su
+markup.
+
+**Duplicación pendiente: 0 usos.**
+
 ### Lote 18 — etiquetas de entrega con una sola fuente (22-09)
 
 | Objeto | Antes (evidencia) | Después |
