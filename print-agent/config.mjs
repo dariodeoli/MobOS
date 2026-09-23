@@ -13,7 +13,13 @@ export const RUTA_COLA = join(DIR, 'cola.json')
 export const RUTA_HISTORIAL = join(DIR, 'historial.json')
 
 // Intervalo base del poll remoto (decisión 5): 2 s, con backoff a 30 s.
-export const POLL_MS = 2000
+export // Piso configurable de la espera entre reintentos (0 en pruebas deterministas).
+const pisoEsperaMs = () => {
+  const valor = Number(process.env.MOBOS_PRINT_ESPERA_MIN_MS)
+  return Number.isFinite(valor) && valor >= 0 ? valor : 1000
+}
+
+const POLL_MS = 2000
 
 export function cargarConfig() {
   let guardado = {}
@@ -28,7 +34,9 @@ export function cargarConfig() {
     ancho: Number(guardado.ancho) === 80 ? 80 : 58, // sin configurar, 58 mm (el rollo del local)
     copias: Math.min(5, Math.max(1, Number(guardado.copias) || 1)),
     reintentos: Math.min(20, Math.max(1, Number(guardado.reintentos) || 5)),
-    esperaMs: Math.min(300000, Math.max(1000, Number(guardado.esperaMs) || 15000)),
+    // El piso de 1 s es de uso real; MOBOS_PRINT_ESPERA_MIN_MS permite a las
+    // pruebas fijar esperas cortas sin depender del reloj real (documentado).
+    esperaMs: Math.min(300000, Math.max(pisoEsperaMs(), Number(guardado.esperaMs) || 15000)),
     lan: Array.isArray(guardado.lan) ? guardado.lan.filter(Boolean) : [],
     // Cola CUPS de red (fallback cuando macOS bloquea la salida directa) e IP
     // secundaria del puente (red de la impresora).

@@ -50,7 +50,7 @@ async function esperar(condicion, { intentos = 40, espera = 150 } = {}) {
 
 async function arrancarAgente(dir, { impresora, puerto, extra = {} }) {
   writeFileSync(join(dir, 'config.json'), JSON.stringify({ puerto, token: TOKEN, impresora, ancho: 58, copias: 1, reintentos: 3, esperaMs: 500, lan: [impresora], ...extra }))
-  const proceso = spawn(process.execPath, [join(RAIZ, 'server.mjs')], { env: { ...process.env, MOBOS_PRINT_DIR: dir }, stdio: ['ignore', 'pipe', 'pipe'] })
+  const proceso = spawn(process.execPath, [join(RAIZ, 'server.mjs')], { env: { ...process.env, MOBOS_PRINT_DIR: dir, MOBOS_PRINT_ESPERA_MIN_MS: '0' }, stdio: ['ignore', 'pipe', 'pipe'] })
   let salida = ''
   proceso.stdout.on('data', (parte) => { salida += parte })
   proceso.stderr.on('data', (parte) => process.stderr.write(`[agente] ${parte}`))
@@ -272,7 +272,9 @@ test('la app local (loopback + origen permitido) imprime sin token', async (t) =
   const base = `http://127.0.0.1:${puertoAgente}`
   const impresora = await impresoraFalsa(puertoImpresora)
   t.after(() => impresora.cerrar())
-  const agente = await arrancarAgente(dir, { impresora: `lan:127.0.0.1:${puertoImpresora}`, puerto: puertoAgente })
+  // Espera de reintento en milisegundos (piso liberado por env): el estado
+  // «fallido» llega sin depender del reloj real y el test es determinista.
+  const agente = await arrancarAgente(dir, { impresora: `lan:127.0.0.1:${puertoImpresora}`, puerto: puertoAgente, extra: { esperaMs: 50 } })
   t.after(() => agente.kill('SIGKILL'))
 
   const app = await fetch(`${base}/health`, { headers: { Origin: 'https://app.moboss.online' } }).then((r) => r.json())
@@ -335,7 +337,9 @@ test('el agente imprime al toque cuando la impresora está disponible', async (t
   const puertoImpresora = await puertoLibre()
   const impresora = await impresoraFalsa(puertoImpresora)
   t.after(() => impresora.cerrar())
-  const agente = await arrancarAgente(dir, { impresora: `lan:127.0.0.1:${puertoImpresora}`, puerto: puertoAgente })
+  // Espera de reintento en milisegundos (piso liberado por env): el estado
+  // «fallido» llega sin depender del reloj real y el test es determinista.
+  const agente = await arrancarAgente(dir, { impresora: `lan:127.0.0.1:${puertoImpresora}`, puerto: puertoAgente, extra: { esperaMs: 50 } })
   t.after(() => agente.kill('SIGKILL'))
 
   const ticket = Buffer.from('TICKET').toString('base64')
@@ -419,7 +423,9 @@ test('la cola lista, reintenta fallidos y guarda el usuario que imprimió', asyn
   const ticket = Buffer.from('TICKET-USUARIO').toString('base64')
 
   // La impresora está apagada y el agente reintenta una sola vez antes de fallar.
-  const agente = await arrancarAgente(dir, { impresora: `lan:127.0.0.1:${puertoImpresora}`, puerto: puertoAgente })
+  // Espera de reintento en milisegundos (piso liberado por env): el estado
+  // «fallido» llega sin depender del reloj real y el test es determinista.
+  const agente = await arrancarAgente(dir, { impresora: `lan:127.0.0.1:${puertoImpresora}`, puerto: puertoAgente, extra: { esperaMs: 50 } })
   t.after(() => agente.kill('SIGKILL'))
 
   const encolado = await fetch(`${base}/print`, { method: 'POST', headers: cabeceras, body: JSON.stringify({ impresora: `lan:127.0.0.1:${puertoImpresora}`, data: ticket, usuario: 'Edgar (VPE)' }) })
