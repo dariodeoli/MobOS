@@ -8,21 +8,9 @@ import { SesionProvider, useSesion } from '@/lib/sesion'
 import { Button, ToastProvider } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import Login from '@/pages/Login'
-import PanelVendedor from '@/pages/PanelVendedor'
 import { applyPageMetadata } from '@/lib/seo'
 import { isDemoRuntime } from '@/lib/demoMode'
 import DemoAccess from '@/pages/DemoAccess'
-import PedidoPublico from '@/pages/PedidoPublico'
-import PanelDelivery from '@/pages/PanelDelivery'
-import CarritoPublico from '@/pages/CarritoPublico'
-import InformePublico from '@/pages/InformePublico'
-import GarantiaPublica from '@/pages/GarantiaPublica'
-import CotizacionPublica from '@/pages/CotizacionPublica'
-import CuentaPublica from '@/pages/CuentaPublica'
-import PortalCliente from '@/pages/PortalCliente'
-import RemitoPublico from '@/pages/RemitoPublico'
-import AceptarInvitacion from '@/pages/AceptarInvitacion'
-import VerificarCorreo from '@/pages/VerificarCorreo'
 import { DESTINO_LEGADO } from '@/lib/rutas'
 
 // Rutas secundarias en lazy: su código baja solo cuando se navega a ellas.
@@ -34,6 +22,21 @@ const PortalClientesEntrada = lazy(() => import('@/pages/PortalClientesEntrada')
 const RecuperarEmpresa = lazy(() => import('@/pages/RecuperarEmpresa'))
 const OpsPreview = lazy(() => import('@/pages/OpsPreview'))
 const Ops = lazy(() => import('@/pages/Ops'))
+// #247: rutas pesadas fuera del arranque. El panel (todas las secciones), el
+// reparto y las páginas públicas cargan su chunk recién al entrar; el login y
+// la demo quedan en el chunk de entrada.
+const PanelVendedor = lazy(() => import('@/pages/PanelVendedor'))
+const PanelDelivery = lazy(() => import('@/pages/PanelDelivery'))
+const PedidoPublico = lazy(() => import('@/pages/PedidoPublico'))
+const CarritoPublico = lazy(() => import('@/pages/CarritoPublico'))
+const InformePublico = lazy(() => import('@/pages/InformePublico'))
+const GarantiaPublica = lazy(() => import('@/pages/GarantiaPublica'))
+const CotizacionPublica = lazy(() => import('@/pages/CotizacionPublica'))
+const CuentaPublica = lazy(() => import('@/pages/CuentaPublica'))
+const PortalCliente = lazy(() => import('@/pages/PortalCliente'))
+const RemitoPublico = lazy(() => import('@/pages/RemitoPublico'))
+const AceptarInvitacion = lazy(() => import('@/pages/AceptarInvitacion'))
+const VerificarCorreo = lazy(() => import('@/pages/VerificarCorreo'))
 
 // El usuario existe pero nadie lo sumó todavía a una tienda. Pasa cuando el
 // dueño crea la cuenta y aún no la asignó a su empresa.

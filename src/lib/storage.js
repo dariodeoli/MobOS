@@ -192,6 +192,11 @@ function entDelete(collection, id) {
   avisarGuardadoDemo()
 }
 let apiHydrationVersion = 0
+// #247: identidades ya hidratadas en esta carga de la app. La PRIMERA usa la
+// foto local (si hay) para pintar al instante y refresca en segundo plano; las
+// siguientes (mutaciones, refresco periódico) esperan al API como siempre.
+const identidadesHidratadas = new Set()
+let primeraIdentidad = null
 
 // El catálogo puede superar la página del API (200): el POS necesita el
 // espejo completo para buscar y vender, así que se recorren todas las páginas.
@@ -208,10 +213,25 @@ async function todosLosProductos() {
   return todos
 }
 
-async function hydrateApi() {
-  if (!apiMode()) return
-  const version = apiHydrationVersion
-  const identity = `${ctx.empresaId}:${ctx.userId}:${ctx.rol}:${ctx.sucursalId}`
+const identidadActual = () => `${ctx.empresaId}:${ctx.userId}:${ctx.rol}:${ctx.sucursalId}`
+
+function aplicarHidratacion({ products, orders, users, finance }) {
+  cache.productos = (products || []).map(mapProductoApi)
+  cache.ventas = (orders || []).map(mapOrdenApi)
+  cache.vendedores = (users || []).map(u => ({
+    ...u,
+    nombre: u.name,
+    activo: u.status === 'ACTIVE',
+    metaDiaria: u.dailyGoalPyg ?? 0,
+  }))
+  cache.gastos = mapGastosApi(finance)
+  cache.ads = []
+  cache.auditoria = []
+  cache.config = { nombreTienda: getCompanyName() }
+  notify()
+}
+
+async function hydrateDesdeApi(version, identity) {
   const puedeVerFinanzas = ['dueno', 'GERENTE', 'CAJERA'].includes(ctx.rol)
   let products; let orders; let users; let finance
   try {
@@ -231,24 +251,32 @@ async function hydrateApi() {
   if (
     !apiMode() ||
     version !== apiHydrationVersion ||
-    identity !== `${ctx.empresaId}:${ctx.userId}:${ctx.rol}:${ctx.sucursalId}`
+    identity !== identidadActual()
   )
     return
-  cache.productos = (products || []).map(mapProductoApi)
-  cache.ventas = (orders || []).map(mapOrdenApi)
-  cache.vendedores = (users || []).map(u => ({
-    ...u,
-    nombre: u.name,
-    activo: u.status === 'ACTIVE',
-    metaDiaria: u.dailyGoalPyg ?? 0,
-  }))
-  cache.gastos = mapGastosApi(finance)
-  cache.ads = []
-  cache.auditoria = []
-  cache.config = { nombreTienda: getCompanyName() }
-  notify()
+  aplicarHidratacion({ products, orders, users, finance })
   // Foto para el próximo arranque sin conexión (no bloquea la UI).
   guardarSnapshotCatalogo(ctx.empresaId, { products, orders, users, finance })
+}
+
+async function hydrateApi() {
+  if (!apiMode()) return
+  const identity = identidadActual()
+  const version = apiHydrationVersion
+  // #247: en la primera hidratación de la sesión, si hay foto local se pinta
+  // al instante y el API refresca atrás (la pantalla no espera al catálogo).
+  const esArranque = primeraIdentidad === null || primeraIdentidad === identity
+  if (esArranque) primeraIdentidad = identity
+  if (esArranque && !identidadesHidratadas.has(identity)) {
+    identidadesHidratadas.add(identity)
+    const foto = await leerSnapshotCatalogo(ctx.empresaId)
+    if (foto) {
+      if (version === apiHydrationVersion && identity === identidadActual()) aplicarHidratacion(foto)
+      hydrateDesdeApi(version, identity).catch(() => { /* la foto ya quedó pintada */ })
+      return
+    }
+  }
+  await hydrateDesdeApi(version, identity)
 }
 
 // El costo del producto vive en la API como `costPyg`. Sin este mapeo la

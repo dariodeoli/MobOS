@@ -25,8 +25,18 @@ if [[ ! -f "$ENV_FILE" ]] || ! grep -q "^VITE_API_URL=http://localhost:${API_POR
   fi
 fi
 
-echo "[e2e] Starting frontend (Vite) on port ${WEB_PORT}…"
+echo "[e2e] Starting frontend on port ${WEB_PORT}…"
 cd "$REPO_ROOT"
+# Modo del frontend:
+# - `dev` (default): Vite dev server; es lo que usan los tests (sin build).
+# - `preview` (MOBOS_E2E_FRONTEND=preview): build de producción + `vite preview`.
+#   La auditoría de performance (#247) mide con el bundle real; el modo dev
+#   sirve cientos de módulos sueltos y no representa la carga de producción.
+if [[ "${MOBOS_E2E_FRONTEND:-dev}" == "preview" ]]; then
+  echo "[e2e] Frontend en modo preview (build de producción)…"
+  VITE_API_URL="http://localhost:${API_PORT}" ./node_modules/.bin/vite build --logLevel warn
+  exec ./node_modules/.bin/vite preview --port "$WEB_PORT" --strictPort --host 127.0.0.1
+fi
 # Binario directo (sin el wrapper de npm): al terminar la suite Playwright mata
 # este proceso y no queda un Vite huérfano ocupando el puerto.
 exec ./node_modules/.bin/vite --port "$WEB_PORT" --strictPort --host 127.0.0.1

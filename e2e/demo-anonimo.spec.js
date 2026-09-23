@@ -205,6 +205,8 @@ test('dueño: el inventario demo muestra unidades ficticias sin tocar el API', a
   await page.goto('/demo')
   await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
   await expect(page).toHaveURL(/\/resumen$/)
+  // El panel carga diferido (#247): la guía se cierra cuando el panel monta.
+  await cerrarGuia(page)
   await page.goto('/inventario/unidades')
   await expect(page.getByText(/Ingresá con una cuenta real/)).toHaveCount(0)
 
@@ -517,6 +519,8 @@ test('demo: el checklist PhoneCheck se completa y deja grado', async ({ page }) 
   await page.goto('/demo')
   await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
   await expect(page).toHaveURL(/\/resumen$/)
+  // El panel carga diferido (#247): la guía se cierra cuando el panel monta.
+  await cerrarGuia(page)
   await page.goto('/inventario/unidades')
   await page.getByTestId('inventario-fila').first().waitFor({ timeout: 15_000 })
   await page.getByTestId('inventario-fila').first().click()

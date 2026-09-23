@@ -50,26 +50,52 @@ async function readBody(response) {
   return text ? { message: text } : null
 }
 
+// Consultas GET en vuelo: dos componentes que piden lo mismo al mismo tiempo
+// comparten una sola llamada (los duplicados de la carga inicial, #247). La
+// caché corta de `requestCache` cubre los pedidos seguidos; esto cubre los
+// simultáneos.
+const consultasEnVuelo = new Map()
+
 /** Cliente fetch aislado. No reemplaza ni conoce la implementación de storage.js. */
-export async function request(path, options = {}) {
+export function request(path, options = {}) {
   // Demo pública (#192): el panel funciona con datos locales y ninguna llamada
   // puede salir al API real. Los componentes que necesitan datos usan el modo
   // demo de storage.js; acá queda la barrera central.
   if (isDemoRuntime) {
-    throw new ApiError('Modo demo: la acción quedó simulada en este navegador.', { code: 'DEMO_MODE' })
+    return Promise.reject(new ApiError('Modo demo: la acción quedó simulada en este navegador.', { code: 'DEMO_MODE' }))
   }
   if (!API_URL) {
-    throw new ApiError('VITE_API_URL no está configurada.', { code: 'API_NOT_CONFIGURED' })
+    return Promise.reject(new ApiError('VITE_API_URL no está configurada.', { code: 'API_NOT_CONFIGURED' }))
   }
 
   const { body, headers, cacheMs, signal, timeoutMs, ...init } = options
   const metodo = String(init.method || 'GET').toUpperCase()
   const clave = `${metodo} ${path}`
   const ventana = cacheMs ?? CACHE_GET_MS
-  if (metodo === 'GET' && ventana > 0) {
+  // Solo se comparten consultas sin `signal`: abortar una (unmount) no puede
+  // abortar la de otro componente.
+  const compartible = metodo === 'GET' && ventana > 0 && !signal
+  if (compartible) {
     const guardado = cacheDeConsultas.leer(clave)
-    if (guardado !== undefined) return guardado
+    if (guardado !== undefined) return Promise.resolve(guardado)
+    const enVuelo = consultasEnVuelo.get(clave)
+    if (enVuelo) return enVuelo
+  } else if (metodo === 'GET' && ventana > 0) {
+    const guardado = cacheDeConsultas.leer(clave)
+    if (guardado !== undefined) return Promise.resolve(guardado)
   }
+
+  const promesa = ejecutarConsulta({ path, init, body, headers, metodo, clave, ventana, signal, timeoutMs })
+  if (compartible) {
+    consultasEnVuelo.set(clave, promesa)
+    // Limpieza sin propagar el rechazo a nadie: cada llamador recibe la suya.
+    const limpiar = () => consultasEnVuelo.delete(clave)
+    promesa.then(limpiar, limpiar)
+  }
+  return promesa
+}
+
+async function ejecutarConsulta({ path, init, body, headers, metodo, clave, ventana, signal, timeoutMs }) {
   const espera = controlDeEspera(signal, timeoutMs)
   const multipart = typeof FormData !== 'undefined' && body instanceof FormData
   let response
