@@ -488,7 +488,7 @@ export default function ServicioTecnico() {
 
       {error && <Aviso tono="error" className="p-3">{error}</Aviso>}
       {loading && <div className="space-y-2"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>}
-      {!loading && !visibles.length && <EmptyState icon="refresh" title={q ? 'Ninguna orden coincide con la búsqueda.' : 'Todavía no hay órdenes de servicio.'} description={q ? undefined : 'Cargá la primera orden para seguir el taller de punta a punta.'} action={q ? undefined : <Button onClick={() => { setEditing(null); setForm({ ...FORM_VACIO }) }}>+ Nueva orden</Button>} />}
+      {!loading && !visibles.length && <EmptyState icon="refresh" title={q ? 'Ninguna orden coincide con la búsqueda.' : 'Todavía no hay órdenes de servicio.'} description={q ? undefined : 'Cargá la primera orden para seguir el taller de punta a punta.'} /* El alta vive en el header: duplicarla acá rompía el nombre accesible único. */ />}
       {!loading && visibles.length > 0 && (
         <div className="grid grid-cols-3 divide-ink-600 rounded-xl border border-ink-600 bg-ink-800/60 text-center sm:divide-x">
           <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Facturado</p><p className={cn('mt-1 text-lg font-semibold tabular-nums', v2 && 'v2-numero sm:text-2xl')}>{gs(totales.facturado)}</p></div>
