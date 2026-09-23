@@ -1,12 +1,12 @@
 {
-  "url": "http://localhost:5216",
-  "fecha": "2026-09-22T13:52:13.849Z",
-  "version": "v1.0.141",
+  "url": "https://app.moboss.online",
+  "fecha": "2026-09-23T01:02:04.455Z",
+  "version": "v1.0.143",
   "pasos": [
     {
       "paso": "entrada a la demo y herramienta de trade-in",
       "ok": true,
-      "detalle": "demo v1.0.141 · modelo iPhone 13 128GB"
+      "detalle": "demo v1.0.143 · modelo iPhone 13 128GB"
     },
     {
       "paso": "base del catálogo demo (sin API de valores)",
