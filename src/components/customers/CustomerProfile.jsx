@@ -522,9 +522,11 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   const [identityForm, setIdentityForm] = useState(null)
   const [identityBusy, setIdentityBusy] = useState(false)
   // Informe de dispositivo (#240 ítem 3): link público por serial + WhatsApp.
-  // En demo se navega en la misma pestaña (el modo demo vive por pestaña).
+  // En demo se navega en la misma pestaña (el modo demo vive por pestaña) y el
+  // enlace viaja con `?demo=1`: el portal demo vive en su subdominio y no
+  // comparte la sesión de `/demo`, así el link resuelve solo.
   const origen = typeof window !== 'undefined' ? window.location.origin : ''
-  const enlaceInforme = (serial) => `${origen}/u/${encodeURIComponent(String(serial || '').trim())}`
+  const enlaceInforme = (serial) => `${origen}/u/${encodeURIComponent(String(serial || '').trim())}${esDemo ? '?demo=1' : ''}`
   function nombreDelCliente() {
     const completo = profile?.customer?.name || customer?.name || ''
     return String(completo).trim().split(/\s+/)[0] || ''

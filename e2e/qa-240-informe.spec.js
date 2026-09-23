@@ -137,3 +137,20 @@ test('demo: el informe del equipo también funciona con datos del navegador', as
   await page.screenshot({ path: `${SALIDA}/06-demo-cronologia-informe.png` })
   await contexto.close()
 })
+
+test('demo: el portal abre el informe sin haber pasado por /demo (link del subdominio)', async ({ browser }) => {
+  // El portal real vive en clientes.moboss.online: otra pestaña y otro origen,
+  // sin la sesión de `/demo`. El token `demo-…` resuelve la cuenta y el enlace
+  // del informe viaja con `?demo=1` para que el informe también resuelva.
+  const contexto = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+  const page = await contexto.newPage()
+  await page.goto('/cuenta/demo-demo-cliente-lucia-rapido')
+  await expect(page.getByText('Informes de tus equipos')).toBeVisible({ timeout: 20000 })
+  const enlace = page.getByRole('link', { name: 'Ver informe' }).first()
+  await expect(enlace).toHaveAttribute('href', /\?demo=1/)
+  await enlace.click()
+  await expect(page.getByText('Aurora Móviles')).toBeVisible({ timeout: 20000 })
+  await expect(page.getByText(/iPhone 15/).first()).toBeVisible()
+  await expect(page.getByText(/No es un certificado oficial/)).toBeVisible()
+  await contexto.close()
+})
