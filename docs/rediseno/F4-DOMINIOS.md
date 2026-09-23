@@ -1,10 +1,11 @@
-# F4 · dominios v2: pedidos, clientes, finanzas, servicio/garantías y resumen/análisis (#241)
+# F4 · dominios v2: pedidos, clientes, finanzas, servicio/garantías, resumen/análisis y compras (#241)
 
 Pasos del rollout F4, detrás del flag `preview v2`: además de heredar los
 tokens del shell (paso anterior), las pantallas suman los patrones del mock F3
 —chips tipo pill, números de consola, azul de acción en los activos internos,
-stepper del taller y tiles de KPI—. **El default no cambia**
-(`TEMA_V2_POR_DEFECTO = false`): con el flag apagado todo queda como está hoy.
+stepper del taller, tiles de KPI y el "x de y" de recepción—. **El default no
+cambia** (`TEMA_V2_POR_DEFECTO = false`): con el flag apagado todo queda como
+está hoy.
 
 ## Qué cambia (solo con el flag)
 
@@ -16,6 +17,7 @@ stepper del taller y tiles de KPI—. **El default no cambia**
 | Badges | caja redondeada | pill (el chip neutro en oscuro usa texto de primer nivel: el gris quedaba en 4.14:1) | finanzas (caja, conciliación, reportes) |
 | Stepper del taller | — | flujo Recepción → Diagnóstico → Reparación → Listo → Entrega con la carga por etapa | servicio |
 | Tile de KPI | borde verde de marca | superficie de consola (borde propio, esquina 1rem) y número un escalón más | resumen y análisis |
+| Resumen de compras | — | unidades por recibir, costo comprado y saldo por pagar con número de consola; "x de y" de recepción con barra en la fila | compras |
 
 En pedidos la grilla es fija y «Listo para retirar» en mayúsculas desbordaría su
 columna: ahí el chip queda pill sin mayúscula; en clientes, con micro-rótulo.
@@ -38,6 +40,7 @@ Con el flag prendido, claro/oscuro en 1280 y 390:
 | Resumen | [claro](c241f4b-resumen-on-claro-desktop.png) | [oscuro](c241f4b-resumen-on-oscuro-desktop.png) | [claro](c241f4b-resumen-on-claro-mobile.png) | [oscuro](c241f4b-resumen-on-oscuro-mobile.png) |
 | Análisis · Reportes | [claro](c241f4b-analisis-reportes-on-claro-desktop.png) | [oscuro](c241f4b-analisis-reportes-on-oscuro-desktop.png) | [claro](c241f4b-analisis-reportes-on-claro-mobile.png) | [oscuro](c241f4b-analisis-reportes-on-oscuro-mobile.png) |
 | Análisis · Ganancias | [claro](c241f4b-analisis-ganancias-on-claro-desktop.png) | [oscuro](c241f4b-analisis-ganancias-on-oscuro-desktop.png) | [claro](c241f4b-analisis-ganancias-on-claro-mobile.png) | [oscuro](c241f4b-analisis-ganancias-on-oscuro-mobile.png) |
+| Compras | [claro](c241f4b-compras-on-claro-desktop.png) | [oscuro](c241f4b-compras-on-oscuro-desktop.png) | [claro](c241f4b-compras-on-claro-mobile.png) | [oscuro](c241f4b-compras-on-oscuro-mobile.png) |
 
 Muestra con el flag **apagado** (default intacto, mismo estado de datos):
 [pedidos](c241f4b-pedidos-off-claro-desktop.png) ·
@@ -47,7 +50,8 @@ Muestra con el flag **apagado** (default intacto, mismo estado de datos):
 [garantías](c241f4b-garantias-off-claro-desktop.png) ·
 [resumen](c241f4b-resumen-off-claro-desktop.png) ·
 [reportes](c241f4b-analisis-reportes-off-claro-desktop.png) ·
-[ganancias](c241f4b-analisis-ganancias-off-claro-desktop.png).
+[ganancias](c241f4b-analisis-ganancias-off-claro-desktop.png) ·
+[compras](c241f4b-compras-off-claro-desktop.png).
 
 ## Servicio técnico y Garantías (lote E)
 
@@ -77,12 +81,20 @@ claro, porque el degradado arranca en el verde oscuro). En v2 los rótulos van a
 plena opacidad y la superficie usa el verde de marca con una caída suave: AA en
 los dos temas. El default queda igual (se reporta como hallazgo).
 
+## Compras (lote C)
+
+La pantalla de compras suma el **resumen en tiles** —unidades por recibir, costo
+comprado y saldo por pagar— con los números de consola, y en la fila expandida
+el avance de recepción pasa a un **"x de y" con barra** (recibido / falta)
+cuando la compra está parcial. Los chips de estado y los importes ya venían del
+lenguaje común. Todo con el flag: sin la vista previa la pantalla queda igual.
+
 ## Medición
 
-`e2e/dsn-241-dominios.spec.js` recorre las **ocho pantallas** con el flag
+`e2e/dsn-241-dominios.spec.js` recorre las **nueve pantallas** con el flag
 prendido en los cuatro combos: **0 textos de shell por debajo de AA** y **0
-bajos de contenido**. La medición ahora entiende **degradados** (mide contra la
-peor parada del fondo) y de ahí salieron los tres ajustes del lote: el chip
+bajos de contenido**. La medición entiende **degradados** (mide contra la peor
+parada del fondo) y de ahí salieron los ajustes de los lotes anteriores: el chip
 neutro en oscuro (4.14:1), los tintes de los chips de estado (verde 4.25:1 y
 rojo 4.12:1 en oscuro) y los rótulos del hero verde (4.33:1 en oscuro, 3.2:1 en
 claro). `e2e/dsn-241-a11y.spec.js` sigue cubriendo el shell, el cajón móvil y el
@@ -97,7 +109,9 @@ con `MOBOS_CAPTURAS=docs/rediseno`.
 - Pedido abierto y ficha de cliente (detalle): heredan tokens y chips; su
   propio paso de patrones queda para el siguiente lote.
 - Carrito POS: espera la guarda de CMP (declarado en el plan F4).
-- Dominios que faltan: Compras, Configuración, Públicas y Prints (lotes C, F, G
-  y H del plan); el hallazgo del hero verde queda para una pasada del default.
+- Lote C completo: los **tiles de equipo** del inventario (la tabla y la ficha
+  ya tienen los tokens del piloto).
+- Dominios que faltan: Configuración, Públicas y Prints (lotes F, G y H del
+  plan); el hallazgo del hero verde queda para una pasada del default.
 - Promover este bloque y los tonos AA al scope `tema-v2` de `owncoding-ui`
   (CMP) y retirar el scope local.
