@@ -32,7 +32,7 @@ Documento de punto de entrada para retomar MobOS en otra computadora. El detalle
 
 ### Implementador (integrador)
 1. Único que toca `main`: `MOBOS_INTEGRATOR=1 git push origin main`.
-2. `hd` (rápido) y `hdd`/`ht` (completo): ciclos de integración + deploy; el detalle de cada modo está en `owncoding-ui/docs/COMANDOS.md`. En ambos, preámbulo: matar servidores zombies del repo y verificar que no haya otro merge en curso.
+2. `hd` (rápido) y `hdd`/`ht` (completo): ciclos de integración + deploy; el detalle de cada modo está en `owncoding-ui/docs/COMANDOS.md` (v0.14.11, con el **glosario en simple** para el dueño). En ambos, preámbulo: matar servidores zombies del repo y verificar que no haya otro merge en curso.
 3. Integrar de a una rama por vez (backend antes que frontend), verificando siempre: lint · builds con `BUILD_ID` · `npm test` + `test:unit` · `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` · los specs afectados del dominio (`npm run test:e2e:smoke` o el subset que corresponda). El `hdd` suma la suite e2e completa (gate de release).
 4. Deploy: `MOBOS_INTEGRATOR=1 npm run release:publish` (bump patch + push + webhook Coolify) y, en el modo completo, `npm run release:smoke` para verificar producción.
 5. Conflictos de merge: **parar y consultar**, nunca resolver en silencio. Rama superseded: resolver del lado de main y verificar diff neto vacío.

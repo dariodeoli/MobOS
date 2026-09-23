@@ -7,7 +7,7 @@ reemplazá los placeholders `<APP>`, `<PUERTO_APP>`, `<PUERTO_API>` y
 ## Comandos abreviados del dueño
 
 Los comandos con los que Dario ordena el trabajo (detalle en
-`owncoding-ui/docs/COMANDOS.md`, que es la fuente portable y tiene el
+`owncoding-ui/docs/COMANDOS.md` — **biblioteca v0.14.11**: modos de deploy y
 **glosario en simple** para el dueño):
 
 | Comando | Qué hace |

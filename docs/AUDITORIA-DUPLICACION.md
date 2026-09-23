@@ -95,9 +95,11 @@ plantilla de impresión de PRN, que se coordina con ese slot).
 | `shared/ComprobantePreview` | Estaba en la lista de pendientes de la biblioteca | Se queda en MobOS a propósito: compone la impresión de la app (agente, cola, plantillas y logo); las piezas portables (`VistaPreviaPapel`, `DocumentoImpresion`) ya estaban publicadas |
 
 **Biblioteca:** `owncoding-ui` **v0.15.0** (tag + CI), con tipos y props en su
-`docs/REGLAS.md` §1/§3/§4. La adopción en MobOS sigue pendiente (paquete +
-`owncoding-ui/styles.css`); hasta entonces estas piezas siguen duplicadas por
-diseño y quedan anotadas para el lote de adopción.
+`docs/REGLAS.md` §1/§3/§4; en la misma ronda quedaron publicados los **dos modos
+de deploy y el glosario en simple** (`v0.14.11`, `docs/COMANDOS.md`). La
+adopción en MobOS sigue pendiente (paquete + `owncoding-ui/styles.css`); hasta
+entonces estas piezas siguen duplicadas por diseño y quedan anotadas para el
+lote de adopción.
 
 **Duplicación pendiente: 0 usos.**
 

@@ -44,7 +44,8 @@ Versión publicada en `main`: **v1.0.110**. El deploy lo hace el integrador con
 - Estado raro de git (refs rotas, fetch que falla): **parar y avisar**; no
   “arreglar” refs por cuenta propia.
 - `hd` (rápido), `hdd` (completo) y `ht` (alias del completo) son comandos de
-  Dario y son **exclusivos del integrador**.
+  Dario y son **exclusivos del integrador**; los modos y el **glosario en
+  simple** están en `owncoding-ui/docs/COMANDOS.md` (v0.14.11).
 
 ### 2.2 Integrador (único que toca `main`)
 
