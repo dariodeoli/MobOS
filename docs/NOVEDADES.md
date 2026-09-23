@@ -11,6 +11,15 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.151 — 2026-09-23
+- **POS (#243):** la **papelera de cada línea** del carrito queda siempre visible, con confirmación antes de borrar.
+- **Informe del equipo (#240):** el informe público suma los **controles del dispositivo** (bloqueos de iCloud/MDM/ESN/OEM) junto al checklist de inspección.
+- **Inventario (#246 #239):** la tabla de unidades usa **una sola fila** por equipo (nombre + IMEI) y se quitó la columna de variante duplicada; el bloque de códigos de la ficha reserva su espacio.
+- **Clientes (#240):** la **cuenta del cliente** muestra **avisos accionables** (pagos, entregas y garantías por resolver).
+- **Configuración (#241):** **tiles de rol y de equipo** con el lenguaje v2 (detrás del flag).
+- **Acceso (#248):** sin sesión, la **raíz y las rutas protegidas van a /login** (ya no caen en la demo).
+- **CI:** la reimpresión de etiqueta reintenta hasta confirmar el trabajo del agente.
+
 ## v1.0.150 — 2026-09-23
 - **POS (#243):** la **papelera de cada línea** queda siempre visible, con confirmación antes de borrar (menos toques para corregir el carrito).
 - **Finanzas (#148 #122):** las ventas con **costo pendiente** ya no suman ganancia hasta completarlo (reportes y Análisis coherentes con la caja).
