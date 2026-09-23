@@ -11,6 +11,15 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.147 — 2026-09-23
+- **POS (#173):** la **cotización** que escribe el vendedor ya no se pisa con la automática; queda la suya.
+- **Inventario (#240):** el **informe público** del equipo ahora muestra el **checklist de la inspección** (con el puntaje y el grado), y la búsqueda de consultas IMEI acepta los seriales de la demo.
+- **Clientes (#240):** la **garantía se sigue desde el portal**: el cliente ve el estado y las fechas de su equipo sin escribir a la tienda.
+- **Finanzas (#148):** **una sola fórmula de margen por venta** para reportes, comisiones y liquidación (se terminaron las diferencias entre pantallas).
+- **Resumen y Análisis (#241):** **tiles de KPI** y números con el lenguaje v2 (detrás del flag).
+- **Impresión (#240):** la **cola del agente** es determinista en pruebas (piso de espera configurable) y se verificó la impresión del **certificado final** con sus PDFs de ejemplo.
+- **Estabilidad CI:** la suite e2e corre en **3 shards** con **cuarentena explícita** para los specs flaky y artifacts por shard.
+
 ## v1.0.146 — 2026-09-23
 - **Impresión:** la cola del agente de impresión ya no se traba si un reintento queda varado (tick de seguridad); el agente pasa a **1.7.3** con su instalador actualizado.
 - **CI:** el pipeline vuelve a verde de punta a punta (backend, frontend, integración y la suite e2e completa), con reintentos acotados para la variabilidad del runner.
