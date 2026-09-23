@@ -1,7 +1,7 @@
 // Informe de dispositivo en modo demo (#240 ítem 3/#194): arma el payload del
 // informe desde los datos del navegador — los pedidos demo (seriales de los
 // equipos vendidos) y las unidades del inventario demo. Nada sale del navegador.
-import { SEED_DEMO_CLIENTES, clientesDemoGuardados } from './demoClientes.js'
+import { SEED_DEMO_CLIENTES, clientesDemoGuardados, registrarVistoInformeDemo } from './demoClientes.js'
 import { listDemoUnits } from './demoInventory.js'
 import { resumenInspection } from './phonecheck.js'
 import { ESTADO_GARANTIA } from './estadosPedido.js'
@@ -65,4 +65,16 @@ export function demoInformePayload(serial) {
     disclaimer: 'Informe de demostración: datos ficticios del navegador. No es un certificado oficial ni reemplaza la garantía del fabricante.',
     demo: true,
   }
+}
+
+/**
+ * Apertura del informe demo (#240 ítem 3): marca «visto» en la fila del serial
+ * con el mismo criterio que el API público — solo equipos vendidos o ya
+ * compartidos desde la ficha; nada sale del navegador.
+ */
+export function marcarInformeVistoDemo(serial) {
+  const venta = pedidoDelSerial(serial)
+  const unidad = listDemoUnits(serial).find((fila) => mismoSerial(fila.serial, serial)) || null
+  if (!venta && !unidad) return null
+  return registrarVistoInformeDemo(venta?.cliente?.id || null, serial)
 }

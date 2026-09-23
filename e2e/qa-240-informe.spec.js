@@ -97,8 +97,50 @@ test('informe del equipo: link público y WhatsApp desde la ficha, y en la cuent
   await expect(ficha.getByText(/por WhatsApp · serial/i).first()).toBeVisible()
   await page.screenshot({ path: `${SALIDA}/04-cronologia-informe-compartido.png` })
 
+  // Seguimiento visto/no visto (#240 ítem 3): recién compartido queda «Sin ver».
+  await page.goto(`/clientes?cliente=${encodeURIComponent(alta.body.id)}`)
+  const fichaSeguimiento = page.getByRole('dialog')
+  await fichaSeguimiento.getByRole('tab', { name: /^Pedidos/ }).click()
+  const filaSeguimiento = fichaSeguimiento.getByTestId('perfil-dispositivo-fila').filter({ hasText: serial.slice(-6) }).first()
+  await expect(filaSeguimiento.getByTestId('informe-seguimiento')).toHaveText('Sin ver', { timeout: 15000 })
+  await page.screenshot({ path: `${SALIDA}/07-seguimiento-sin-ver.png` })
+
+  // La vista previa de la app (`?preview=1`) no cuenta; la apertura del cliente
+  // sí, y deja el evento en la cronología.
+  const clientePage = await context.newPage()
+  await clientePage.goto(`/u/${encodeURIComponent(serial)}?preview=1`)
+  await expect(clientePage.getByText('Informe de dispositivo')).toBeVisible({ timeout: 20000 })
+  const perfilPreview = await api(page, `/api/customers/${encodeURIComponent(alta.body.id)}`)
+  const filaPreview = (perfilPreview.body?.deviceReportShares || []).find((fila) => fila.serial === serial.toUpperCase())
+  expect(filaPreview?.firstViewedAt, JSON.stringify(perfilPreview.body?.deviceReportShares)).toBeNull()
+  await clientePage.goto(`/u/${encodeURIComponent(serial)}`)
+  await expect(clientePage.getByText('Informe de dispositivo')).toBeVisible({ timeout: 20000 })
+  await clientePage.screenshot({ path: `${SALIDA}/08-informe-abierto-por-el-cliente.png`, fullPage: true })
+  await clientePage.close()
+
+  const perfilVisto = await api(page, `/api/customers/${encodeURIComponent(alta.body.id)}`)
+  const filaVista = (perfilVisto.body?.deviceReportShares || []).find((fila) => fila.serial === serial.toUpperCase())
+  expect(filaVista?.firstViewedAt, JSON.stringify(perfilVisto.body?.deviceReportShares)).toBeTruthy()
+  expect(Number(filaVista?.viewCount || 0)).toBeGreaterThan(0)
+
+  await page.goto(`/clientes?cliente=${encodeURIComponent(alta.body.id)}`)
+  const fichaVisto = page.getByRole('dialog')
+  await fichaVisto.getByRole('tab', { name: /^Pedidos/ }).click()
+  const filaVisto = fichaVisto.getByTestId('perfil-dispositivo-fila').filter({ hasText: serial.slice(-6) }).first()
+  await expect(filaVisto.getByTestId('informe-seguimiento')).toHaveText('Visto', { timeout: 15000 })
+  await page.screenshot({ path: `${SALIDA}/09-seguimiento-visto.png` })
+  await fichaVisto.getByRole('tab', { name: /^Cronología/ }).click()
+  const eventoVisto = fichaVisto.getByText('Informe del equipo visto por el cliente').first()
+  await expect(eventoVisto).toBeVisible({ timeout: 15000 })
+  await expect(fichaVisto.getByText(/abierto desde el enlace de WhatsApp · serial/i).first()).toBeVisible()
+  await eventoVisto.scrollIntoViewIfNeeded()
+  await page.waitForTimeout(300)
+  await page.screenshot({ path: `${SALIDA}/10-cronologia-informe-visto.png` })
+
   // Cuenta del cliente: la sección de informes enlaza el mismo informe.
-  await ficha.getByRole('button', { name: /Portal del cliente/ }).click()
+  await page.goto(`/clientes?cliente=${encodeURIComponent(alta.body.id)}`)
+  const fichaPortal = page.getByRole('dialog')
+  await fichaPortal.getByRole('button', { name: /Portal del cliente/ }).click()
   await page.getByAltText('QR del portal del cliente').waitFor({ timeout: 15000 })
   const enlace = await page.locator('p.break-all').textContent()
   await page.goto(enlace.trim())
@@ -118,23 +160,39 @@ test('demo: el informe del equipo también funciona con datos del navegador', as
   await ficha.getByRole('tab', { name: /^Pedidos/ }).click()
   const fila = ficha.getByTestId('perfil-dispositivo-fila').first()
   await expect(fila).toBeVisible({ timeout: 15000 })
+  // Seguimiento (#240 ítem 3): el seed de Lucía ya está visto.
+  await expect(fila.getByTestId('informe-seguimiento')).toHaveText('Visto')
   await fila.getByRole('button', { name: /Ver informe del equipo/ }).click()
   await expect(page.getByText('Informe de dispositivo')).toBeVisible({ timeout: 20000 })
   await expect(page.getByText(/iPhone 15/).first()).toBeVisible()
   await expect(page.getByText('Aurora Móviles')).toBeVisible()
   await page.screenshot({ path: `${SALIDA}/05-informe-demo.png`, fullPage: true })
 
-  // Compartir por correo en demo: queda en la cronología del navegador.
+  // Compartir por correo en demo: queda en la cronología del navegador y el
+  // equipo sigue visto (ya lo había abierto el cliente).
   await page.goto('/clientes?cliente=demo-cliente-lucia')
   const fichaDemo = page.getByRole('dialog')
   await fichaDemo.getByRole('tab', { name: /^Pedidos/ }).click()
   const filaDemo = fichaDemo.getByTestId('perfil-dispositivo-fila').first()
   await filaDemo.getByRole('button', { name: /Enviar informe del equipo .* por correo/ }).click()
   await expect(page.getByText('Informe enviado').first()).toBeVisible({ timeout: 15000 })
+  await expect(filaDemo.getByTestId('informe-seguimiento')).toHaveText('Visto')
   await fichaDemo.getByRole('tab', { name: /^Cronología/ }).click()
   await expect(fichaDemo.getByText('Informe del equipo compartido').first()).toBeVisible()
   await expect(fichaDemo.getByText(/por correo · serial/i).first()).toBeVisible()
+  const eventoVistoDemo = fichaDemo.getByText('Informe del equipo visto por el cliente').first()
+  await expect(eventoVistoDemo).toBeVisible()
+  await eventoVistoDemo.scrollIntoViewIfNeeded()
+  await page.waitForTimeout(300)
   await page.screenshot({ path: `${SALIDA}/06-demo-cronologia-informe.png` })
+
+  // El otro ejemplo de la demo: un informe compartido que el cliente no abrió.
+  await page.goto('/clientes?cliente=demo-cliente-ana')
+  const fichaSinVer = page.getByRole('dialog')
+  await fichaSinVer.getByRole('tab', { name: /^Pedidos/ }).click()
+  const filaSinVer = fichaSinVer.getByTestId('perfil-dispositivo-fila').first()
+  await expect(filaSinVer.getByTestId('informe-seguimiento')).toHaveText('Sin ver', { timeout: 15000 })
+  await page.screenshot({ path: `${SALIDA}/07-demo-seguimiento-sin-ver.png` })
   await contexto.close()
 })
 

@@ -1,8 +1,14 @@
 # Cierre de #236 — Clientes estilo Pedidos: ojito + popup + detalle completo
 
-Material listo para el cierre del issue (lo publica el integrador). **El issue
-sigue abierto** y todo lo pedido está integrado en `main` y **verificado en
-producción v1.0.143**.
+Material listo para el cierre del issue (lo publica el integrador). **Estado:
+#236 cerrado en GitHub** (22/9/2026 23:56 UTC) con el comentario de cierre del
+integrador; la evidencia final (post-deploy v1.0.143) viajó en el merge
+`0553d1da` de la ola **v1.0.144**. Este dossier queda como registro del cierre.
+
+Incremento posterior de la rama `slot/clientes`: **seguimiento del informe
+compartido visto/no visto** (#240 ítem 3) sobre la misma ficha de dispositivos
+de #236 — chip Visto/Sin ver por equipo + evento de apertura en la cronología
+(`docs/QA-240-informe-visto.md`).
 
 ## Qué pedía #236 (contra `origin/main`)
 

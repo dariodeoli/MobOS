@@ -2,7 +2,7 @@
 // CRM recalcula la actividad y los agregados (#221) como la cuenta real.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buscarClienteDemo, demoCuentaPayload, demoVitrinaPayload, listarClientesDemo, registrarInteraccionDemo, registrarPedidoDemoDeVenta } from './demoClientes.js'
+import { buildDemoProfile, buildDemoTimeline, buscarClienteDemo, demoCuentaPayload, demoVitrinaPayload, eventosInformeDemo, filaInformeDemo, filasInformeDemo, listarClientesDemo, registrarInformeDemo, registrarInteraccionDemo, registrarPedidoDemoDeVenta, registrarVistoInformeDemo } from './demoClientes.js'
 import { analiticaDePedidos, statsDePedidos } from './customerAggregates.js'
 
 const LUCIA = 'demo-cliente-lucia'
@@ -83,4 +83,57 @@ test('la interacción demo queda en la cronología del cliente (#240)', () => {
   assert.equal(timeline[0].action, 'Informe del equipo compartido')
   assert.match(timeline[0].detail, /Por WhatsApp/)
   assert.equal(registrarInteraccionDemo('demo-cliente-inexistente', { accion: 'x' }), null)
+})
+
+test('el informe compartido en la demo muestra visto/no visto y su cronología (#240)', () => {
+  // Seed visible: Lucía ya abrió el informe de su iPhone; la cronología lo
+  // deriva de la fila de seguimiento (sobrevive a re-renderizar la ficha).
+  const fila = filaInformeDemo('356789012345678')
+  assert.equal(fila.customerId, LUCIA)
+  assert.ok(fila.sharedAt && fila.firstViewedAt, 'el seed de Lucía ya está visto')
+  const eventos = eventosInformeDemo(LUCIA)
+  assert.ok(eventos.some((evento) => evento.action === 'Informe del equipo compartido' && /Por WhatsApp/.test(evento.detail)))
+  assert.ok(eventos.some((evento) => evento.action === 'Informe del equipo visto por el cliente' && /Abierto desde el enlace de WhatsApp/.test(evento.detail)))
+  const timeline = buildDemoTimeline(buscarClienteDemo(LUCIA))
+  assert.ok(timeline.some((evento) => evento.action === 'Informe del equipo visto por el cliente'))
+  // Y el ejemplo de «sin ver»: Ana tiene un informe compartido sin abrir.
+  const sinVer = filasInformeDemo('demo-cliente-ana').find((row) => row.firstViewedAt === null && row.sharedAt)
+  assert.ok(sinVer, 'falta el ejemplo de informe sin ver')
+  const perfil = buildDemoProfile(buscarClienteDemo('demo-cliente-ana'))
+  assert.ok(perfil.deviceReportShares.some((row) => row.serial === sinVer.serial))
+})
+
+test('compartir y abrir el informe en la demo mueve la fila de sin ver a visto (#240)', () => {
+  const SERIAL = 'demo-serial-seguimiento-1'
+  const sinFila = 'demo-serial-seguimiento-0'
+  assert.equal(filaInformeDemo(SERIAL), null)
+  const compartido = registrarInformeDemo('demo-cliente-ana', { serial: SERIAL.toLowerCase(), canal: 'EMAIL' })
+  assert.equal(compartido.serial, SERIAL.toUpperCase(), 'el serial se normaliza a mayúsculas')
+  assert.ok(compartido.sharedAt)
+  assert.equal(compartido.firstViewedAt, null)
+  assert.equal(filaInformeDemo(SERIAL).channel, 'EMAIL')
+  assert.ok(eventosInformeDemo('demo-cliente-ana').some((evento) => evento.action === 'Informe del equipo compartido' && /Por correo/.test(evento.detail)))
+  // Primera apertura: visto + evento; la segunda solo suma al contador.
+  const visto = registrarVistoInformeDemo(null, SERIAL)
+  assert.ok(visto.firstViewedAt && visto.lastViewedAt)
+  assert.equal(visto.viewCount, 1)
+  assert.ok(eventosInformeDemo('demo-cliente-ana').some((evento) => evento.action === 'Informe del equipo visto por el cliente' && /Abierto desde el enlace del correo/.test(evento.detail)))
+  const repetido = registrarVistoInformeDemo(null, SERIAL)
+  assert.equal(repetido.firstViewedAt, visto.firstViewedAt)
+  assert.equal(repetido.viewCount, 2)
+  // Un reenvío posterior no cambia de dónde se abrió (origen congelado).
+  registrarInformeDemo('demo-cliente-ana', { serial: SERIAL, canal: 'WHATSAPP' })
+  const eventos = eventosInformeDemo('demo-cliente-ana')
+  assert.ok(eventos.some((evento) => evento.action === 'Informe del equipo compartido' && /Por WhatsApp/.test(evento.detail)))
+  assert.ok(eventos.some((evento) => /Abierto desde el enlace del correo/.test(evento.detail)))
+  assert.ok(!eventos.some((evento) => /Abierto desde el enlace de WhatsApp/.test(evento.detail)))
+  // Un serial sin dueño no se marca (mismo criterio que el API público).
+  assert.equal(registrarVistoInformeDemo(null, sinFila), null)
+  assert.equal(filaInformeDemo(sinFila), null)
+  // Abrir un equipo del portal sin envío previo deja el canal vacío.
+  const segundoSerial = buscarClienteDemo('demo-cliente-ana').demoProfile.orders.flatMap((order) => (order.items || []).flatMap((item) => item.serials || []))[1]
+  assert.ok(segundoSerial, 'Ana tiene más de un equipo con serial')
+  const portal = registrarVistoInformeDemo('demo-cliente-ana', segundoSerial)
+  assert.equal(portal.channel, null)
+  assert.ok(eventosInformeDemo('demo-cliente-ana').some((evento) => /Abierto desde el portal del cliente/.test(evento.detail)))
 })

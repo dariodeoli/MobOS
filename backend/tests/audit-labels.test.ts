@@ -24,6 +24,12 @@ assert.equal(ACCIONES_AUDITORIA.TENANT_PROFILE_UPDATED, 'Perfil de la tienda')
 assert.equal(AREAS_AUDITORIA.Branch, 'Sucursales')
 assert.equal(AREAS_AUDITORIA.Tenant, 'Configuración')
 
+// #240 ítem 3: el informe compartido y su apertura se leen sin códigos crudos.
+assert.equal(ACCIONES_AUDITORIA.CUSTOMER_DEVICE_REPORT_SHARED, 'Informe de equipo compartido')
+assert.equal(ACCIONES_AUDITORIA.CUSTOMER_DEVICE_REPORT_VIEWED, 'Informe de equipo visto por el cliente')
+assert.equal(AREAS_AUDITORIA.Customer, 'Clientes')
+assert.ok(detalleAuditoria({ serial: '356789012345678', canal: 'WHATSAPP' }).includes('Canal: WHATSAPP'))
+
 // El CSV del cambio de predeterminada se lee sin claves técnicas.
 const detalle = detalleAuditoria(
   { printerId: 'p-1', name: 'Mostrador', previousDefaultId: 'p-0', previousDefaultName: 'Depósito' },

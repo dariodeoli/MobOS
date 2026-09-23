@@ -1,8 +1,8 @@
 // #240 ítem 3 (acceso CRM): el informe demo sale de los pedidos del navegador.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { demoInformePayload } from './demoInforme.js'
-import { demoCuentaPayload } from './demoClientes.js'
+import { demoInformePayload, marcarInformeVistoDemo } from './demoInforme.js'
+import { demoCuentaPayload, filaInformeDemo } from './demoClientes.js'
 
 test('el informe demo arma el equipo vendido con serial enmascarado y su venta', () => {
   const informe = demoInformePayload('356789012345678')
@@ -24,4 +24,14 @@ test('un serial que no existe no devuelve informe', () => {
 test('la cuenta demo lista los informes de los equipos comprados', () => {
   const cuenta = demoCuentaPayload('demo-demo-cliente-lucia-rapido')
   assert.ok(cuenta.informes.some((informe) => informe.serial === '356789012345678' && informe.orderNumber === 'MOB-0008'))
+})
+
+test('abrir el informe demo marca visto en la fila del serial (#240 ítem 3)', () => {
+  const antes = filaInformeDemo('356789012345678')
+  const fila = marcarInformeVistoDemo('356789012345678')
+  assert.ok(fila.firstViewedAt, 'el serial vendido queda visto')
+  assert.equal(fila.viewCount, Number(antes.viewCount || 0) + 1)
+  // Un serial que no es de ningún equipo no marca nada.
+  assert.equal(marcarInformeVistoDemo('999999999999999'), null)
+  assert.equal(marcarInformeVistoDemo(''), null)
 })

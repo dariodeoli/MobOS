@@ -1,10 +1,16 @@
 # Cierre de #221 — [Demo] Clientes y pedidos como la cuenta real
 
 Material listo para el cierre/registro del issue (lo publica el integrador).
-**Estado actual: #221 ya está cerrado** (22/9 00:28 UTC) con la verificación del
-merge `9d650da` (commits `07fd5d4`/`b4209cb`, v1.0.136). Este dossier consolida
-**todo** lo entregado y deja el incremento posterior listo para citar cuando se
-integre la rama `slot/clientes`.
+**Estado actual: #221 cerrado** (22/9 00:28 UTC) con la verificación del
+merge `9d650da` (commits `07fd5d4`/`b4209cb`, v1.0.136). El incremento posterior
+de la rama `slot/clientes` quedó integrado por `52836152` (22/9 05:34) y salió en
+**v1.0.140**; el issue **no** lleva todavía el addendum con ese incremento (queda
+listo para pegar más abajo). Este dossier consolida todo lo entregado.
+
+Incremento posterior de la rama `slot/clientes` (#236/#240): **seguimiento del
+informe compartido visto/no visto** — la ficha demo muestra el chip Visto/Sin
+ver por equipo y la cronología la apertura del cliente, con la misma semántica
+que la cuenta real (`docs/QA-240-informe-visto.md`).
 
 ## Qué pedía #221 (contra `origin/main`)
 

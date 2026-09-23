@@ -104,6 +104,7 @@ model Tenant {
   warrantyPhotos          WarrantyPhoto[]
   customerAuthorizations  CustomerAuthorization[]
   customerBillingIdentities CustomerBillingIdentity[]
+  deviceReportShares      DeviceReportShare[]
   printBridges            PrintBridge[]
   printers                PrintPrinter[]
   printJobs               PrintJob[]
@@ -786,6 +787,7 @@ model Customer {
   loyaltyMovements  LoyaltyMovement[]
   suspendedSales    SuspendedSale[]
   marketingRecipients MarketingRecipient[]
+  deviceReportShares DeviceReportShare[]
 
   @@index([tenantId])
   @@index([tenantId, phone])
@@ -892,6 +894,30 @@ model CustomerFollowUp {
   @@index([tenantId, customerId, createdAt])
   @@index([tenantId, dueAt])
   @@index([userId])
+}
+
+// Seguimiento del informe de dispositivo compartido (#240 ítem 3): una fila
+// por equipo (empresa + serial) con el último envío desde la ficha y las
+// aperturas del link público. `channel`/`sharedAt` quedan null cuando el
+// cliente lo abrió desde el portal sin un envío previo; `firstViewedAt` es el
+// «visto» que muestra la ficha.
+model DeviceReportShare {
+  id            String    @id @default(cuid())
+  tenantId      String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerId    String
+  customer      Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  serial        String
+  channel       String?
+  sharedAt      DateTime?
+  firstViewedAt DateTime?
+  lastViewedAt  DateTime?
+  viewCount     Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([tenantId, serial])
+  @@index([customerId, updatedAt])
 }
 
 // Regla de comisión por usuario específico o por rol (uno de los dos, nunca
