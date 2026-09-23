@@ -44,6 +44,12 @@ patrón de uso de cada familia y un ejemplo corto.
 | Opciones excluyentes (2–5) | `shared/SegmentedField` | barra segmentada con `aria-pressed`; `options` = `[id, etiqueta, icono?, contador?]` | `<SegmentedField value={periodo} onChange={setPeriodo} options={[['dia','Día'],['mes','Mes']]} />` |
 | Subnavegación de sección | `ui/Subtabs` | pestañas anchas de una subpágina (misma fuente para todas) | `<Subtabs value={tab} onChange={irASubtab} items={tabs} />` |
 | Lista/cuadrícula | `shared/ListGridToggle` | solo íconos, `aria-pressed` | `<ListGridToggle value={vista} onChange={…} />` |
+
+> **Publicados también en la biblioteca (`owncoding-ui` v0.15.0):**
+> `ProductCombobox`, `RucField` (+`extraerRuc`/`esRuc`), `SerialTexto`,
+> `EstadoBadge` y `SeccionColapsable` (props en su `docs/REGLAS.md`
+> §1/§3/§4). MobOS los mantiene en espejo hasta el lote de adopción del
+> paquete.
 | Tema | `app/ThemeToggle` | claro/oscuro con tokens | `<ThemeToggle />` |
 
 ### 1.2 Patrón de uso por familia
