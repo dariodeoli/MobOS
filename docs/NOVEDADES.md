@@ -11,6 +11,10 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.146 — 2026-09-23
+- **Impresión:** la cola del agente de impresión ya no se traba si un reintento queda varado (tick de seguridad); el agente pasa a **1.7.3** con su instalador actualizado.
+- **CI:** el pipeline vuelve a verde de punta a punta (backend, frontend, integración y la suite e2e completa), con reintentos acotados para la variabilidad del runner.
+
 ## v1.0.145 — 2026-09-23
 - **Carrito del POS (#243 #148):** la línea colapsada muestra solo lo esencial (nombre, estado del IMEI, total y descuento); al desplegarla aparecen cantidad, precio, cupón y stock. El **descuento de la línea** baja también la **ganancia, la comisión y la liquidación** del vendedor. El **split con cuenta en dólares** toma la cotización de su fila.
 - **Inventario (#217 #240):** **«Vender todos»** carga el lote elegido en el POS con sus IMEI; la ficha suma el **historial del serial** (verificaciones, consultas IMEI, reparaciones y movimientos) y el **tablero de certificaciones** con filtros y **export CSV**; los **repuestos no-OEM** se registran con nota y **foto de evidencia**.
