@@ -138,9 +138,12 @@ test('desde la recepción del destino se reimprime la etiqueta de una unidad', a
   await expect(fila).toBeVisible({ timeout: 20_000 })
   await fila.click()
   const ficha = page.getByRole('dialog')
-  await ficha.getByRole('button', { name: 'Recibir en sucursal' }).click()
   const llegada = page.getByRole('dialog', { name: 'Recibir equipo en tránsito' })
-  await expect(llegada).toBeVisible()
+  // El click puede perderse si la ficha se re-renderiza al abrir: se reintenta.
+  await expect(async () => {
+    await ficha.getByRole('button', { name: 'Recibir en sucursal' }).click()
+    await expect(llegada).toBeVisible({ timeout: 4000 })
+  }).toPass({ timeout: 30_000 })
   await page.screenshot({ path: `${SALIDA}/03-recepcion-destino.jpg` })
   await llegada.getByRole('button', { name: 'Reimprimir etiqueta' }).click()
   await expect(page.getByText(/enviada a la impresora/)).toBeVisible({ timeout: 15_000 })

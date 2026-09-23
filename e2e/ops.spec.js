@@ -98,6 +98,9 @@ test('el tablero F3 cuenta una unidad real recibida en el taller', async ({ page
   const key = clave()
   await page.goto('/ops')
   const valorTaller = page.getByTestId('ops-valor-taller')
+  // El tablero pinta 0 antes de que lleguen los datos: se espera el sello con
+  // la hora para que «antes» sea el valor real (base fresca del CI).
+  await expect(page.getByTestId('ops-actualizado')).toContainText('·', { timeout: 30_000 })
   await expect(valorTaller).toHaveText(/^\d+$/)
   const antes = Number(await valorTaller.textContent())
 
