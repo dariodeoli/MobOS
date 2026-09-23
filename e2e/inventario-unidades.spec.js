@@ -170,7 +170,7 @@ test('vender todos deja el lote elegido en el POS con producto, cantidad e IMEI'
     await expect(page.getByTestId('resumen-compra')).toContainText('6.000.000')
   } finally {
     // El carrito queda persistido por empresa/sucursal: no debe contaminar otros specs.
-    await page.evaluate(() => { Object.keys(localStorage).filter((clave) => clave.startsWith('mobos:pos-cart:v1')).forEach((clave) => localStorage.removeItem(clave)) })
+    await page.evaluate(() => { Object.keys(localStorage).filter((clave) => clave.startsWith('mobos:pos-cart:v1')).forEach((clave) => localStorage.removeItem(clave)) }).catch(() => {})
     await limpiar(page, datos)
   }
 })
