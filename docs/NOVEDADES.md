@@ -11,6 +11,9 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.152 — 2026-09-23
+- **Estabilidad interna:** la reserva de una unidad desde su ficha queda robusta en la suite automática (mismo cuidado que recepción de traslados y etiquetas), sin cambios visibles para el usuario.
+
 ## v1.0.151 — 2026-09-23
 - **POS (#243):** la **papelera de cada línea** del carrito queda siempre visible, con confirmación antes de borrar.
 - **Informe del equipo (#240):** el informe público suma los **controles del dispositivo** (bloqueos de iCloud/MDM/ESN/OEM) junto al checklist de inspección.
