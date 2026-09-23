@@ -464,6 +464,7 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
       const linea = porProducto.get(productoId) || { productoId, quantity: 0, serials: [], precio: 0 }
       linea.quantity += 1
       if (unit.serial) linea.serials.push(unit.serial)
+      if (!linea.nombre) linea.nombre = nombreProducto(unit.product || {})
       if (!linea.precio && Number(unit.product?.pricePyg) > 0) linea.precio = Number(unit.product.pricePyg)
       porProducto.set(productoId, linea)
     }

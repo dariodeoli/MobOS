@@ -114,10 +114,10 @@ function leerCarritoInicial() {
     const prods = productosById()
     const items = Array.isArray(guardado.items)
       ? guardado.items
-          .filter(it => it && prods[it.productoId])
+          .filter(it => it && (prods[it.productoId] || it.nombre || it.productoId))
           .map(it => ({
             ...it,
-            nombre: prods[it.productoId].nombre,
+            nombre: prods[it.productoId]?.nombre || it.nombre || 'Producto',
             quantity: Number.isInteger(it.quantity) && it.quantity > 0 ? it.quantity : 1,
             serials: Array.isArray(it.serials) ? it.serials : [],
           }))
