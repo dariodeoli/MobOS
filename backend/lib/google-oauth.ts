@@ -6,10 +6,17 @@ import { INTERNAL_COOKIE_HEADER, INTERNAL_PASS_HEADER, INTERNAL_PASS_VALUE } fro
 export class AuthFlowError extends Error {
   constructor(public code: string, message: string, public status = 400) { super(message) }
 }
+// El arnés e2e corre el build de producción sobre http://localhost
+// (MOBOS_E2E_BACKEND=prod): ese origen local es confiable para la app (cookies
+// sin Secure y `sameOrigin` válido). En producción real la variable no existe.
+function arnesLocal() {
+  return process.env.MOBOS_E2E_LOCAL_ORIGIN === '1'
+}
+
 function appOrigin() {
   try {
     const app = new URL(process.env.MOBOS_APP_URL || MOBOS_LOCAL_APP_ORIGIN)
-    const local = process.env.NODE_ENV !== 'production' && app.protocol === 'http:' && app.hostname === 'localhost'
+    const local = (process.env.NODE_ENV !== 'production' || arnesLocal()) && app.protocol === 'http:' && app.hostname === 'localhost'
     if (app.username || app.password || app.search || app.hash || (app.protocol !== 'https:' && !local)) return null
     return app
   } catch { return null }
@@ -33,8 +40,12 @@ export const COOKIE_IDENTITY = 'mobos_google_identity'
 // cookies HttpOnly. El navegador nunca necesita leer ni persistir el token.
 export const COOKIE_COMPANY = 'mobos_company_session'
 export const COOKIE_SELLER = 'mobos_seller_session'
+
 function sessionCookieSecure() {
-  return appOrigin()?.protocol === 'https:' || process.env.NODE_ENV === 'production'
+  // Con el arnés local en producción, la app es http://localhost: la cookie no
+  // puede ser Secure o el navegador la descarta y el login no queda. En
+  // producción real (https u otro host) la cookie sigue siendo Secure.
+  return appOrigin()?.protocol === 'https:' || (process.env.NODE_ENV === 'production' && !arnesLocal())
 }
 export function sessionCookieOptions(maxAge = 600) {
   return { httpOnly: true, secure: sessionCookieSecure(), sameSite: 'lax' as const, path: '/', maxAge }

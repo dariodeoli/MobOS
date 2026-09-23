@@ -22,6 +22,7 @@ Documento de punto de entrada para retomar MobOS en otra computadora. El detalle
 4. **Checks de entrega** (si falla uno, no se entrega): lint 0 · build front y backend con `backend/.next/BUILD_ID` · `npm --prefix backend run prisma:validate` · `npm test` + `npm --prefix backend run test:unit` · `rg "<<<<<<<" src backend e2e` sin resultados · reglas de rutas API (solo handlers, sin slugs duplicados, toda columna/modelo nuevo con migración) · `db:check` si se tocó el esquema · `npm run test:e2e:smoke` aislado.
 5. **e2e aislado por worktree** (la base y los puertos se comparten):
    `MOBOS_E2E_PGDATA=/tmp/mobos-e2e-pg-<rama>`, `MOBOS_E2E_PGPORT=<55xx>`, `MOBOS_E2E_API_PORT=<31xx>`, `MOBOS_E2E_WEB_PORT=<52xx>`. Nunca dos worktrees con los mismos valores.
+   El backend arranca con `next dev`; con `MOBOS_E2E_BACKEND=prod` (lo usa CI) arranca con `next start` sobre `backend/.next/BUILD_ID` y evita la compilación por ruta (menos timeouts en corridas lentas).
 6. Gate rápido durante el trabajo: `npm run test:e2e:smoke` (~20 s). Suite completa: del implementador antes del release.
 7. Nunca matar procesos por puerto (pueden ser de otro agente). Limpiar solo los restos propios (`pg_ctl -D /tmp/mobos-e2e-pg-<rama> stop` y sus puertos).
 8. Si quedan servidores propios, matarlos al terminar: `lsof -ti :<api> :<web> | xargs kill -9`.

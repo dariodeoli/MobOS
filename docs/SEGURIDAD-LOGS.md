@@ -99,7 +99,9 @@ Para cada uno: generar el valor nuevo en el proveedor → actualizarlo en Coolif
 | `MOBOS_EMAIL_OUTBOX_ENCRYPTION_KEYS_JSON` | `openssl rand -hex 32` por clave | Correo transaccional sale (el outbox drena) |
 
 5. Agendar la rotación con Dario (los tres primeros, ya expuestos, **cuanto
-   antes**; el resto, por higiene y luego 1 vez por trimestre).
+   antes**; el resto, por higiene y luego 1 vez por trimestre). El recorrido
+   guiado y el registro están en `docs/ROTACION-TOKENS.md`:
+   `npm run rotacion:tokens` (no imprime valores).
 
 ### 3.4 Verificación posterior
 

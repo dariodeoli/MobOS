@@ -80,7 +80,7 @@ export default function TableroOps({
             : kpis.map((kpi) => (
               <article key={kpi.clave} data-testid={`ops-kpi-${kpi.clave}`} className={cn('rounded-2xl border p-4', TONOS[kpi.tono])}>
                 <p className={ROTULO_SECCION}>{kpi.label}</p>
-                <p className="v2-numero mt-2 text-2xl font-bold">{kpi.valor}</p>
+                <p className="v2-numero mt-2 text-2xl font-bold" data-testid={`ops-valor-${kpi.clave}`}>{kpi.valor}</p>
                 <p className={cn(CELDA_DATO, 'mt-1')}>{kpi.detalle}</p>
               </article>
             ))}
