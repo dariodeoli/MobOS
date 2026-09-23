@@ -65,7 +65,8 @@ integrar **una rama por vez**, backend antes que frontend; verificar con lint,
 builds, tests e integración **+ los specs afectados**; pushear `main` con
 `MOBOS_INTEGRATOR=1` y releasear) o `hdd`/`ht` (completo: lo anterior + suite
 e2e completa, CI verde, `npm run release:smoke` y cierre de issues **solo
-después de verificar por contenido**).
+después de verificar por contenido**). El detalle de cada modo —y el glosario en
+simple para el dueño— está en `owncoding-ui/docs/COMANDOS.md` (v0.14.11).
 **No hace**: resolver conflictos en silencio, integrar sin verificar, tocar ramas
 de otros sin avisar.
 
