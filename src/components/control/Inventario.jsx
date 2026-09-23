@@ -281,7 +281,10 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
 function TarjetaUnidad({ unit, onClick }) {
   const v = verifiedLabel(unit)
   const serial = String(unit.serial || '')
-  return <button type="button" onClick={onClick} className={`group flex w-full flex-col rounded-2xl border border-ink-600 p-3 text-left transition hover:border-fono/40 ${rowTone(unit)}`}>
+  // Vista previa v2 (#241, lote C): el tile de equipo del mock — superficie de
+  // consola, números de consola y chips tipo pill. Se apaga con el flag.
+  const v2 = temaV2Activo()
+  return <button type="button" data-testid="inventario-tarjeta" onClick={onClick} className={cn('group flex w-full flex-col rounded-2xl border border-ink-600 p-3 text-left transition hover:border-fono/40', v2 && 'v2-tile', rowTone(unit))}>
     <span className="flex items-start justify-between gap-2">
       <b className="min-w-0 truncate text-[13px]" title={nombreProducto(unit.product || {})}>{nombreProducto(unit.product || {})}</b>
       <Badge color={estadoInventario(unit).tone}>{estadoInventario(unit).label}</Badge>
@@ -289,15 +292,15 @@ function TarjetaUnidad({ unit, onClick }) {
     <SerialTexto serial={serial} className="mt-1 truncate text-[11px] text-mute" />
     <span className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-mute">
       {unit.batteryHealth ? <MedidorBateria porcentaje={unit.batteryHealth} variante="chip" /> : null}
-      {unit.location?.name ? <span className="truncate rounded border border-ink-500 px-1.5 py-0.5">{unit.location.name}</span> : null}
-      {unit.supplierName ? <span className="rounded border border-ink-500 px-1.5 py-0.5">{unit.supplierName}</span> : null}
-      {unit.consignorName ? <span className="rounded border border-fono/40 px-1.5 py-0.5 text-fono-light" title={`En consignación de ${unit.consignorName}`}>Consignado</span> : null}
+      {unit.location?.name ? <span className={cn('truncate rounded border border-ink-500 px-1.5 py-0.5', v2 && 'v2-chip')}>{unit.location.name}</span> : null}
+      {unit.supplierName ? <span className={cn('rounded border border-ink-500 px-1.5 py-0.5', v2 && 'v2-chip')}>{unit.supplierName}</span> : null}
+      {unit.consignorName ? <span className={cn('rounded border border-fono/40 px-1.5 py-0.5 text-fono-light', v2 && 'v2-chip')} title={`En consignación de ${unit.consignorName}`}>Consignado</span> : null}
     </span>
     <span className="mt-2 flex items-center justify-between gap-2 text-[11px] text-mute">
       <span className="flex min-w-0 items-center gap-1.5" title={v ? `Verificó ${v.quien} · ${fechaVerificacion(unit.lastVerifiedAt)}` : undefined}>
         {v ? <><Avatar user={v.usuario} size="xs" /><span className="truncate">{fechaVerificacion(unit.lastVerifiedAt)}</span></> : <span className="truncate">Sin verificación</span>}
       </span>
-      <span className="shrink-0 font-semibold text-fore">{unit.originalCost ? formatCost(unit) : ''}</span>
+      <span className={cn('shrink-0 font-semibold text-fore', v2 && 'v2-numero')}>{unit.originalCost ? formatCost(unit) : ''}</span>
     </span>
     {unit.reservationCustomer ? <span className="mt-1 truncate text-[11px] font-semibold text-reserved">Atajado por {unit.reservationCustomer}</span> : null}
   </button>
