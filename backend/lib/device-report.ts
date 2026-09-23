@@ -8,12 +8,14 @@ export const serialEnmascarado = (valor: unknown): string => {
   return serial.length > 6 ? `${serial.slice(0, 4)}…${serial.slice(-3)}` : serial
 }
 
-// Origen de la apertura: el canal del envío previo desde la ficha o el portal
-// del cliente cuando el equipo se abrió sin un envío registrado.
+// Origen de la apertura: el canal del envío previo desde la ficha, el portal
+// del cliente cuando el equipo se abrió sin un envío registrado, o el
+// certificado embebible de #240 (coordinado con INV).
 export const ORIGEN_APERTURA: Record<string, string> = {
   EMAIL: 'enlace del correo',
   WHATSAPP: 'enlace de WhatsApp',
   PORTAL: 'portal del cliente',
+  EMBED: 'certificado embebido',
 }
 
 export function detalleAperturaInforme(metadata: unknown): string {

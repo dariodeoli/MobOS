@@ -33,8 +33,10 @@ export default function InformePublico() {
   const demoDelEnlace = searchParams.get('demo') === '1'
   // Seguimiento del informe compartido (#240 ítem 3): la vista previa del
   // equipo desde la app viaja con `?preview=1` y no cuenta como apertura del
-  // cliente (ni en la cuenta real ni en la demo).
+  // cliente (ni en la cuenta real ni en la demo). El certificado embebible
+  // ([#240] §3, con INV) viaja con `?embed=1` y queda registrado con ese origen.
   const preview = searchParams.get('preview') === '1'
+  const embed = searchParams.get('embed') === '1'
 
   useEffect(() => {
     let vigente = true
@@ -43,11 +45,12 @@ export default function InformePublico() {
       if (vigente) {
         setInforme(demo)
         setEstado(demo ? 'listo' : 'sin')
-        if (demo && !preview) marcarInformeVistoDemo(serial)
+        if (demo && !preview) marcarInformeVistoDemo(serial, { canal: embed ? 'EMBED' : null })
       }
       return () => { vigente = false }
     }
-    fetch(`${API_URL}/api/public/units/${encodeURIComponent(serial || '')}${preview ? '?preview=1' : ''}`)
+    const busqueda = [preview ? 'preview=1' : '', embed ? 'embed=1' : ''].filter(Boolean)
+    fetch(`${API_URL}/api/public/units/${encodeURIComponent(serial || '')}${busqueda.length ? `?${busqueda.join('&')}` : ''}`)
       .then(async (respuesta) => {
         const cuerpo = await respuesta.json().catch(() => null)
         if (!vigente) return
@@ -57,7 +60,7 @@ export default function InformePublico() {
       })
       .catch(() => { if (vigente) setEstado('error') })
     return () => { vigente = false }
-  }, [serial, demoDelEnlace, preview])
+  }, [serial, demoDelEnlace, preview, embed])
 
   async function copiarEnlace() {
     // Se copia sin `preview`: ese parámetro es solo para la vista previa del
