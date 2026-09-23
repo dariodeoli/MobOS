@@ -358,3 +358,25 @@ html.dark :focus-visible { outline-color: var(--mobos-brand); }
    mock con texto AA en cada tema (el azul claro del oscuro pide texto oscuro). */
 .tema-v2 .v2-paso-activo { background: rgb(var(--c-info)); color: #fff; }
 .dark .tema-v2 .v2-paso-activo { color: rgb(var(--c-onbrand)); }
+/* Tile de KPI del lenguaje v2 (mock F3): superficie de consola con borde
+   propio en lugar del borde verde de marca, para los tableros de Resumen y
+   Análisis. Solo dentro del scope. */
+.tema-v2 .v2-tile {
+  border-color: rgb(var(--c-ink-600));
+  background: rgb(var(--c-ink-900));
+  border-radius: 1rem;
+}
+/* Rótulos sobre el verde de marca (hero de Resumen y del POS, KPI destacado):
+   al 70/75% sobre la parada más oscura del degradado quedaban en 4.33:1 en
+   oscuro; a plena opacidad el texto vuelve a AA. */
+.tema-v2 .text-onbrand\/75,
+.tema-v2 .text-onbrand\/70 {
+  color: rgb(var(--c-onbrand));
+}
+/* Superficies verdes de marca con texto oscuro (hero de Resumen, del POS y KPI
+   destacado): el degradado arranca en el verde oscuro y sobre esa esquina el
+   texto no llega a AA (3.2:1 en claro). En v2 la superficie va sobre el verde
+   de marca con una caída suave, que sostiene el contraste en los dos temas. */
+.tema-v2 .from-fono-dark.via-fono.to-fono {
+  background-image: linear-gradient(to bottom right, rgb(var(--c-fono)), rgb(var(--c-fono) / .92));
+}

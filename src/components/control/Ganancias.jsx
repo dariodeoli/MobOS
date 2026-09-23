@@ -57,7 +57,7 @@ export default function Ganancias() {
         <div
           data-testid="ganancia-resultado"
           className={
-            'text-4xl font-extrabold mt-1 tracking-tight ' +
+            'text-4xl font-extrabold mt-1 tracking-tight v2-numero ' +
             (positivo ? 'text-ok' : negativo ? 'text-bad' : 'text-fore')
           }
         >

@@ -30,7 +30,7 @@ test.describe('shell v2 · contraste AA', () => {
         await page.setViewportSize({ width: ancho, height: alto })
         await preparar(page, modo)
         await page.goto('/resumen')
-        await expect(page.locator('.tema-v2')).toHaveCount(1)
+        await expect(page.locator('.tema-v2').first()).toBeVisible({ timeout: 30_000 })
         await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 })
         // Que el contenido esté cargado: la captura es evidencia del shell, no
         // de los esqueletos de carga.

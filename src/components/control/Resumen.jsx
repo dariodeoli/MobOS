@@ -29,6 +29,7 @@ import MedioPago from '@/components/shared/MedioPago'
 import Icon from '@/components/shared/Icon'
 import { BarraProgreso, Card, Badge, Dot, EmptyState, Button } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { temaV2Activo } from '@/lib/temaV2'
 import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE, ROTULO_DATO } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
 // Products at or below this stock count are flagged in the low-stock widget.
@@ -66,6 +67,7 @@ function PendientesDeHoy({ pendientes, onIr }) {
       </Card>
     )
   }
+  const v2 = temaV2Activo()
   return (
     <Card className="border-warn/30 bg-warn/5 p-4">
       <div className="flex items-center gap-2">
@@ -83,6 +85,7 @@ function PendientesDeHoy({ pendientes, onIr }) {
             <span
               className={cn(
                 'text-xl font-bold tabular-nums',
+                v2 && 'v2-numero',
                 item.tono === 'bad' ? 'text-bad' : 'text-warn',
               )}
             >
@@ -106,6 +109,7 @@ function PendientesDeHoy({ pendientes, onIr }) {
 function CardFacturado({ total, totalAnt, cobrado, pendiente, pagadas, sinPagar, pctCobrado, etiqueta, onPendientes }) {
   const delta = variacion(total, totalAnt)
   const sube = typeof delta === 'number' && delta >= 0
+  const v2 = temaV2Activo()
   return (
     <div className="overflow-hidden rounded-[14px] border border-fono/40 bg-gradient-to-br from-fono-dark via-fono to-fono p-[18px]">
       <div className="flex items-center justify-between gap-2">
@@ -121,7 +125,7 @@ function CardFacturado({ total, totalAnt, cobrado, pendiente, pagadas, sinPagar,
           <Icon name="chart" className="h-4 w-4 text-onbrand/80" />
         </span>
       </div>
-      <div className="mt-1.5 text-[30px] font-semibold leading-none tracking-tight tabular-nums text-onbrand">
+      <div className={cn('mt-1.5 text-[30px] font-semibold leading-none tracking-tight tabular-nums text-onbrand', v2 && 'v2-numero')}>
         {gs(total)}
       </div>
       <div className="mt-2 text-[11.5px] text-onbrand/75">
@@ -191,15 +195,19 @@ function AccesosRapidos({ onIr, onImprimir }) {
 function Metrica({ label, valor, delta, sub, tono = 'blue' }) {
   const sube = typeof delta === 'number' && delta >= 0
   const barra = { blue: 'bg-fono', green: 'bg-ok', red: 'bg-bad' }[tono]
+  // Vista previa v2 (#241): tile de consola y números grandes; el chip de
+  // tendencia va con el objeto de chips (pill y tinte AA). Sin el flag, igual.
+  const v2 = temaV2Activo()
   return (
-    <Card className="p-4">
+    <Card className={cn('p-4', v2 && 'v2-tile')}>
       <div className="text-[11px] font-medium uppercase tracking-wider text-mute">{label}</div>
       <div className="mt-1.5 flex flex-wrap items-center gap-2">
-        <span className="text-2xl font-semibold tracking-tight tabular-nums">{valor}</span>
+        <span className={cn('text-2xl font-semibold tracking-tight tabular-nums', v2 && 'v2-numero sm:text-3xl')}>{valor}</span>
         {typeof delta === 'number' ? (
           <span
             className={cn(
               'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium',
+              v2 && 'v2-chip',
               sube ? 'bg-ok/15 text-ok' : 'bg-bad/15 text-bad',
             )}
           >
