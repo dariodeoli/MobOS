@@ -274,8 +274,14 @@ export default function FilaVenta({
         )}
 
         <div className="mt-2 flex items-center justify-between gap-2">
-          <span className="text-[11px] text-mute">
-            {abierta ? 'Detalle de la línea' : `${cantidad} × ${gs(precio)}`}
+          <span className="flex items-center gap-2 text-[11px] text-mute">
+            <span>{abierta ? 'Detalle de la línea' : `${cantidad} × ${gs(precio)}`}</span>
+            {/* Descuento individual visible también colapsado (#148 §5). */}
+            {descuentoLinea > 0 && (
+              <span className="rounded-md border border-warn/30 bg-warn/10 px-1.5 py-0.5 font-semibold text-warn">
+                descuento − {gs(descuentoLinea)}
+              </span>
+            )}
           </span>
           <button
             type="button"
@@ -285,7 +291,7 @@ export default function FilaVenta({
             title={abierta ? 'Ver menos' : 'Ver detalle'}
             onClick={() => setAbierta(value => !value)}
           >
-            <Icon name="back" className={cn('h-4 w-4 rotate-90 transition', abierta && '-rotate-90')} />
+            <Icon name="back" className={cn('h-4 w-4 transition', abierta ? 'rotate-90' : '-rotate-90')} />
           </button>
         </div>
       </div>
