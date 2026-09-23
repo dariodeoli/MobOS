@@ -106,6 +106,8 @@ const PANTALLAS = [
     const parcial = page.getByTestId('compra-fila').filter({ hasText: 'Parcial' }).first()
     if (await parcial.count()) await parcial.click()
   }],
+  ['equipo', '/configuracion/equipo', (page) => page.getByTestId('integrante-fila').first()],
+  ['roles', '/configuracion/roles', (page) => page.getByText('Matriz de capacidades')],
 ]
 
 const preparar = (page, { modo, v2 = true }) =>

@@ -11,6 +11,7 @@ import EmailField from '@/components/shared/EmailField'
 import Cronologia from '@/components/shared/Cronologia'
 import PanelDerecho from '@/components/shared/PanelDerecho'
 import { ROLE_LABELS } from '@/lib/roles'
+import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 import { CELDA_DATO } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
@@ -52,6 +53,9 @@ function MetaDiaria({ vendor, esDemo, onGuardar }) {
 export default function Vendedores() {
   const navigate = useNavigate()
   const { esDemo, sesion } = useSesion()
+  // Vista previa v2 (#241): las fichas del equipo van como tiles de consola y
+  // los importes con el número del lenguaje nuevo. Se apaga con el flag.
+  const v2 = temaV2Activo()
   const vendedores = getVendedores()
   const ventas = listVentas()
   const prods = productosById()
@@ -363,7 +367,7 @@ export default function Vendedores() {
       </div>
       <div className="space-y-2.5">
         {integrantesDeTab.map(v => { const t = totalesVendedor(ventas, v.id); const com = comisionDeVentas(ventasDelDia(ventas, fechaClave(), v.id), prods); return (
-          <div key={v.id} data-testid="integrante-fila" className="rounded-2xl border border-ink-600 p-3 transition hover:border-fono/40">
+          <div key={v.id} data-testid="integrante-fila" className={cn('rounded-2xl border border-ink-600 p-3 transition hover:border-fono/40', v2 && 'v2-tile')}>
             <span className="sr-only">{v.nombre}</span>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2.5">
@@ -569,4 +573,4 @@ export default function Vendedores() {
   </div>
 }
 
-function Mini({ label, valor }) { return <div className="rounded-lg bg-ink-700 py-2 text-center"><div className="text-[10px] font-bold uppercase text-mute">{label}</div><div className="text-sm font-bold text-fono">{gs(valor)}</div></div> }
+function Mini({ label, valor }) { return <div className="rounded-lg bg-ink-700 py-2 text-center"><div className="text-[10px] font-bold uppercase text-mute">{label}</div><div className="v2-numero text-sm font-bold text-fono">{gs(valor)}</div></div> }

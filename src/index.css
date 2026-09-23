@@ -373,6 +373,17 @@ html.dark :focus-visible { outline-color: var(--mobos-brand); }
 .tema-v2 .text-onbrand\/70 {
   color: rgb(var(--c-onbrand));
 }
+/* Encabezados de tabla y números en verde vivo: el gris fijo del `thead`
+   (#A6BAC6) da 1.69:1 sobre la fila de encabezado y el verde de marca
+   (#10B981) 2.14–2.3:1 sobre ink-700/800 en claro. En v2 el texto verde usa el
+   tono de texto del scope (los íconos y los hover no se tocan). */
+.tema-v2 thead { color: rgb(var(--c-mute)); }
+.tema-v2 .v2-numero.text-fono,
+.tema-v2 strong.text-fono,
+.tema-v2 .font-bold.text-fono,
+.tema-v2 .font-semibold.text-fono {
+  color: rgb(var(--c-fono-light));
+}
 /* Superficies verdes de marca con texto oscuro (hero de Resumen, del POS y KPI
    destacado): el degradado arranca en el verde oscuro y sobre esa esquina el
    texto no llega a AA (3.2:1 en claro). En v2 la superficie va sobre el verde

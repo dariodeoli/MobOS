@@ -1,6 +1,7 @@
 import { Badge, Card } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
+import { temaV2Activo } from '@/lib/temaV2'
 import {
   CAPACIDADES,
   ROLE_DESCRIPTIONS,
@@ -10,6 +11,40 @@ import {
   capacidadesNegadas,
   capacidadesPorDominio,
 } from '@/lib/roles'
+
+// Tiles de rol con el acceso por dominio (vista previa v2, #241): un vistazo
+// de qué puede tocar cada rol, con el "x de y" de capacidades y los dominios
+// habilitados como chips. Solo lectura de los datos existentes; se apaga con
+// el flag.
+function TilesRoles() {
+  const grupos = capacidadesPorDominio()
+  return (
+    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+      {ROLE_ORDER.map(rol => {
+        const permitidas = capacidadesDe(rol)
+        return (
+          <div key={rol} className="v2-tile rounded-2xl border p-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <b className="block truncate text-sm">{ROLE_LABELS[rol]}</b>
+                <p className="mt-0.5 text-[11px] leading-4 text-mute">{ROLE_DESCRIPTIONS[rol]}</p>
+              </div>
+              <span className="v2-numero shrink-0 text-2xl font-bold">
+                {permitidas.length}<span className="text-sm font-semibold text-mute">/{CAPACIDADES.length}</span>
+              </span>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1">
+              {grupos.map(grupo => {
+                const tiene = grupo.capacidades.some(capacidad => capacidad.roles.includes(rol))
+                return <Badge key={grupo.dominio} color={tiene ? 'green' : 'slate'}>{grupo.dominio}</Badge>
+              })}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 function ListaCapacidades({ capacidades, vacio }) {
   if (!capacidades.length) return <p className="text-xs text-mute">{vacio}</p>
@@ -130,6 +165,9 @@ function Matriz() {
 }
 
 export default function RolesPermisos() {
+  // Vista previa v2 (#241): los roles se resumen en tiles con su acceso por
+  // dominio; la ficha y la matriz siguen igual. Sin el flag, nada cambia.
+  const v2 = temaV2Activo()
   return (
     <div className="space-y-4">
       <Card>
@@ -137,6 +175,7 @@ export default function RolesPermisos() {
           Qué puede hacer y ver cada rol del equipo. El Dueño conserva todos los permisos y los
           cambios de rol quedan auditados.
         </p>
+        {v2 && <div className="mt-4"><TilesRoles /></div>}
         <div className="mt-4 space-y-2">
           {ROLE_ORDER.map(rol => (
             <FichaRol key={rol} rol={rol} />
