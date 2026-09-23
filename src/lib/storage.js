@@ -193,6 +193,21 @@ function entDelete(collection, id) {
 }
 let apiHydrationVersion = 0
 
+// El catálogo puede superar la página del API (200): el POS necesita el
+// espejo completo para buscar y vender, así que se recorren todas las páginas.
+async function todosLosProductos() {
+  const todos = []
+  let cursor = null
+  for (let pagina = 0; pagina < 50; pagina += 1) {
+    const lote = await api.get(`/api/products?limit=200${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`)
+    const filas = Array.isArray(lote) ? lote : []
+    todos.push(...filas)
+    if (filas.length < 200) break
+    cursor = filas[filas.length - 1].id
+  }
+  return todos
+}
+
 async function hydrateApi() {
   if (!apiMode()) return
   const version = apiHydrationVersion
@@ -201,7 +216,7 @@ async function hydrateApi() {
   let products; let orders; let users; let finance
   try {
     ;[products, orders, users, finance] = await Promise.all([
-      api.get('/api/products'),
+      todosLosProductos(),
       api.get('/api/orders?filtro=todos'),
       ctx.rol === 'dueno' ? api.get('/api/users') : Promise.resolve([]),
       puedeVerFinanzas ? api.get('/api/finance').catch(() => null) : Promise.resolve(null),
