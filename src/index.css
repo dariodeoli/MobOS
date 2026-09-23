@@ -305,3 +305,41 @@ html.dark input[type='date']::-webkit-calendar-picker-indicator:hover {
    verde de marca queda casi blanco sobre las superficies claras. */
 :focus-visible { outline-color: rgb(var(--c-fono-dark)); }
 html.dark :focus-visible { outline-color: var(--mobos-brand); }
+
+/* ── F4 · dominios v2: pedidos, clientes y finanzas (#241) ─────────────
+   Patrones del mock F3 sobre el contenido real, solo con el flag `preview v2`:
+   chips tipo pill con micro-rótulo, números de consola y el azul de acción en
+   los activos de la navegación interna. Es forma y tipografía: no cambia
+   colores semánticos, estados ni datos. Se apaga con el flag. */
+.tema-v2 .v2-chip,
+.tema-v2 [data-testid="pedido-fila"] span.rounded-md.border,
+.tema-v2 [data-testid="pedido-fila"] span.rounded.border,
+.tema-v2 [data-testid="cliente-fila"] span.rounded-md.border {
+  border-radius: 9999px;
+  letter-spacing: .04em;
+}
+/* Los chips cortos de estado van con micro-rótulo, como el mock. En pedidos la
+   grilla es fija y "Listo para retirar" en mayúsculas desbordaría su columna:
+   ahí queda solo el pill; en clientes (columna flexible) sí lleva mayúscula. */
+.tema-v2 [data-testid="cliente-fila"] span.rounded-md.border {
+  text-transform: uppercase;
+}
+/* Números: tabulares y apretados (patrón "número grande" de la consola); los
+   importes principales de las tarjetas de finanzas suben un escalón. */
+.tema-v2 .tabular-nums { letter-spacing: -.02em; }
+.tema-v2 strong.text-xl.tabular-nums { font-size: 1.5rem; line-height: 2rem; }
+/* Activos de la navegación interna (filtros, pestañas y pasos): el mismo azul
+   del ítem activo del shell, legible en los dos temas. */
+.tema-v2 button.bg-fono\/15.text-fono-light,
+.tema-v2 button[role="tab"][aria-selected="true"] {
+  background: rgb(var(--c-info) / .14);
+  color: rgb(var(--c-info));
+}
+.dark .tema-v2 button.bg-fono\/15.text-fono-light,
+.dark .tema-v2 button[role="tab"][aria-selected="true"] {
+  background: rgb(var(--c-info) / .2);
+  color: rgb(var(--c-fore));
+}
+/* El chip neutro mantiene su gris en claro; en oscuro el mute sobre ink-600
+   queda en 4.14:1 y usa el texto de primer nivel (9.8:1). */
+.dark .tema-v2 .v2-chip.text-mute { color: rgb(var(--c-fore)); }
