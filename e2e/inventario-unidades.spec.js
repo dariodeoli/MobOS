@@ -143,9 +143,12 @@ test('la reserva desde el detalle usa la ficha existente y deja la cronología',
     await fila.click()
     const detalle = page.getByRole('dialog')
     // La reserva se abre sobre el inventario: el detalle se cierra al abrirla.
-    await detalle.getByRole('button', { name: 'Reservar', exact: true }).click()
+    // El click puede perderse si la ficha se re-renderiza: se reintenta.
     const modal = page.getByRole('dialog', { name: 'Reservar unidad' })
-    await expect(modal).toBeVisible()
+    await expect(async () => {
+      await detalle.getByRole('button', { name: 'Reservar', exact: true }).click()
+      await expect(modal).toBeVisible({ timeout: 4000 })
+    }).toPass({ timeout: 30_000 })
     await modal.getByPlaceholder('Buscar cliente o reservar sin cliente').fill(datos.cliente.name)
     // Elegir la ficha de la lista y confirmar que quedó seleccionada antes de enviar.
     await modal.getByRole('button', { name: new RegExp(datos.cliente.name) }).first().click()
