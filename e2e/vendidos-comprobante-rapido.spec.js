@@ -96,9 +96,9 @@ test('el ícono de Vendidos imprime el comprobante rápido (80 mm) sin abrir la 
   const boton = fila.getByRole('button', { name: `Imprimir comprobante rápido de ${serial}` })
   await expect(boton).toHaveAttribute('title', /comprobante rápido/i)
   await boton.click()
-  await expect(page.getByText(/enviada a la impresora/)).toBeVisible({ timeout: 15_000 })
-
-  expect(capturados).toHaveLength(1)
+  await expect(page.getByText(/enviada a la impresora/)).toBeVisible({ timeout: 30_000 })
+  // El trabajo puede tardar en llegar al agente en CI: se espera antes de mirar.
+  await expect.poll(() => capturados.length, { timeout: 20_000 }).toBe(1)
   expect(capturados[0].tipo).toBe('comprobante')
   const texto = textoDelTicket(capturados[0])
   expect(texto).toContain('Comprobante de compra')

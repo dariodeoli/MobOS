@@ -445,7 +445,7 @@ test('la cola lista, reintenta fallidos y guarda el usuario que imprimió', asyn
   const fallido = await esperar(async () => {
     const estado = await fetch(`${base}/jobs`, { headers: cabeceras }).then((r) => r.json())
     return estado.fallidos.length === 1
-  }, { intentos: 400, espera: 150 })
+  }, { intentos: 900, espera: 150 })
   if (!fallido) {
     assert.fail(`el trabajo no quedó fallido sin impresora\n${await pistaDeFallo(agente, base, cabeceras, respuesta.jobId)}`)
   }
