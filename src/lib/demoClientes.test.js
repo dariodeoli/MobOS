@@ -175,3 +175,28 @@ test('el portal demo muestra la garantía con su credencial y la etapa del talle
   const rapido = demoCuentaPayload('demo-demo-cliente-fernando-rapido')
   assert.equal(rapido.warranties, undefined)
 })
+
+test('el portal demo sigue la entrega con sus pasos (#240 → portal)', () => {
+  const cuenta = demoCuentaPayload('demo-demo-cliente-lucia-rapido')
+  const pedido = cuenta.orders.find((row) => row.orderNumber === 'MOB-0008')
+  assert.ok(pedido, 'Lucía tiene su pedido en la cuenta')
+  assert.equal(pedido.fulfillmentStatus, 'IN_TRANSIT')
+  assert.equal(pedido.tracking.encabezado, 'Seguimiento de envío')
+  assert.equal(pedido.tracking.pasos.length, 5)
+  const actual = pedido.tracking.pasos.find((paso) => paso.actual)
+  assert.equal(actual.key, 'IN_TRANSIT')
+  assert.equal(actual.label, 'En camino al cliente')
+  assert.ok(actual.at, 'el paso actual trae fecha')
+  assert.equal(pedido.tracking.pasos.filter((paso) => paso.hecho).length, 4)
+  // El otro flujo: un retiro listo para retirar en el local.
+  const carlos = demoCuentaPayload('demo-demo-cliente-carlos-rapido')
+  const retiro = carlos.orders.find((row) => row.orderNumber === 'MOB-0004')
+  assert.equal(retiro.tracking.encabezado, 'Seguimiento de retiro')
+  assert.equal(retiro.tracking.pasos.find((paso) => paso.actual).label, 'Listo para retirar')
+  // Una venta del mostrador sale entregada: no le quedan pasos pendientes.
+  const venta = registrarPedidoDemoDeVenta(LUCIA, { numero: `AUR-${Date.now().toString(36).toUpperCase()}`, total: 500000, pagado: 500000, items: [{ description: 'Funda demo', quantity: 1 }] })
+  const cuentaVenta = demoCuentaPayload('demo-demo-cliente-lucia-rapido')
+  const pedidoVenta = cuentaVenta.orders.find((row) => row.orderNumber === venta.orderNumber)
+  assert.equal(pedidoVenta.fulfillmentStatus, 'PICKED_UP')
+  assert.equal(pedidoVenta.tracking.pasos.every((paso) => paso.hecho), true)
+})
