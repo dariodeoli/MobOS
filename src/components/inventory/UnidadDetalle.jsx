@@ -135,7 +135,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
         : await api.get(`/api/inventory-units/${encodeURIComponent(unit.id)}/history`)
       setEvents(payload?.events || [])
     } catch (cause) { setError(cause?.message || 'No se pudo cargar la cronología.') } finally { setLoading(false) }
-  }, [unit.id, canManage])
+  }, [unit.id, canManage]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [load])
   useEffect(() => { setNota(unit.notes || '') }, [unit.notes])
 
