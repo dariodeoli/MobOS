@@ -37,8 +37,10 @@ test.describe('análisis', () => {
     await expect(page.getByRole('heading', { name: 'Cómo se calcula' })).toBeVisible()
     const totalesGanancias = (await respuestaGanancias.json())?.totals
     // La vista muestra primero el cálculo local y después el del backend (#171):
-    // se espera a que la cifra de ventas venga del reporte para comparar los
-    // mismos números (sin esto, la lectura puede caer en el cálculo local).
+    // se espera a que el héroe declare la fuente del reporte (y a la cifra de
+    // ventas). El conteo local puede coincidir con el del reporte, así que sin
+    // esta espera la lectura podía caer en el cálculo sin costos congelados.
+    await expect(page.getByTestId('ganancia-resultado')).toHaveAttribute('data-fuente', 'api', { timeout: 15_000 })
     await expect(page.getByText(`${totalesGanancias.orders} ventas en el período`)).toBeVisible({ timeout: 15_000 })
     const resultadoGanancias = (await page.getByTestId('ganancia-resultado').textContent())?.trim()
 

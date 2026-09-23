@@ -41,6 +41,33 @@ test('con API, ingresos y costo salen del reporte y gastos/publicidad de Finanza
   assert.equal(gananciaDelPeriodo('dia', { ...datos, gastos: [], ads: [] }, { totalPyg: 0, costPyg: 0, orders: 0 }).estado, 'empate')
 })
 
+// Las ventas con costo pendiente no suman ganancia: el backend informa cuánto
+// se vendió sin costo conocido (`salesWithoutCostPyg`) y el resultado lo
+// excluye, igual que el motor de reportes y la tarjeta «Margen real»; antes se
+// contaba como ganancia pura e inflaba el tablero.
+test('las ventas con costo pendiente no inventan ganancia', () => {
+  const totales = { totalPyg: 315000, costPyg: 140000, salesWithoutCostPyg: 50000, linesWithoutCost: 2, orders: 7 }
+  const g = gananciaDelPeriodo('dia', datos, totales)
+  assert.equal(g.sinCostoPyg, 50000)
+  assert.equal(g.lineasSinCosto, 2)
+  // 315.000 − 50.000 sin costo − 140.000 de costo − 30.000 gastos − 10.000 ads.
+  assert.equal(g.ganancia, 85000)
+  assert.deepEqual(lineasDeGanancia(g).map((l) => l.label), [
+    'Ingresos por ventas',
+    'Costo de mercadería vendida',
+    'Ventas con costo pendiente (2 líneas)',
+    'Gastos',
+    'Meta Ads',
+  ])
+  // Con una sola línea el rótulo va en singular; sin ventas sin costo no aparece.
+  assert.equal(lineasDeGanancia({ ...g, lineasSinCosto: 1 })[2].label, 'Ventas con costo pendiente')
+  assert.equal(lineasDeGanancia({ ...g, sinCostoPyg: 0 }).some((l) => l.label.startsWith('Ventas con costo pendiente')), false)
+  // El día y el rango usan la misma regla.
+  const serie = { desde: hoy, hasta: hoy, porDia: new Map([[hoy, { key: hoy, totalPyg: 315000, costPyg: 140000, salesWithoutCostPyg: 50000, linesWithoutCost: 2, orders: 7 }]]) }
+  assert.equal(gananciaDelDia(hoy, datos, serie).ganancia, 85000)
+  assert.equal(gananciaDeRango({ desde: hoy, hasta: hoy }, datos, totales).ganancia, 85000)
+})
+
 test('el día consulta el reporte dentro del rango y la caché fuera de él', () => {
   const serieApi = { desde: hoy, hasta: hoy, porDia: new Map([[hoy, { key: hoy, totalPyg: 315000, costPyg: 140000, orders: 7 }]]) }
   const enRango = gananciaDelDia(hoy, datos, serieApi)

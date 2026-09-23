@@ -56,6 +56,7 @@ export default function Ganancias() {
         </div>
         <div
           data-testid="ganancia-resultado"
+          data-fuente={serieApi ? 'api' : 'local'}
           className={
             'text-4xl font-extrabold mt-1 tracking-tight v2-numero ' +
             (positivo ? 'text-ok' : negativo ? 'text-bad' : 'text-fore')
@@ -64,6 +65,14 @@ export default function Ganancias() {
           {gs(g.ganancia)}
         </div>
         <div className="text-sm text-mute mt-1">{g.cantVentas} ventas en el período</div>
+        {g.sinCostoPyg > 0 && (
+          <div className="mt-2">
+            <Badge color="orange">
+              Costo pendiente: {gs(g.sinCostoPyg)}
+              {g.lineasSinCosto > 0 ? ` en ${g.lineasSinCosto} ${g.lineasSinCosto === 1 ? 'línea' : 'líneas'}` : ''} — no suman ganancia
+            </Badge>
+          </div>
+        )}
       </Card>
 
       {/* Calendario de resultados por día */}
