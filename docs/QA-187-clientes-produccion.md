@@ -81,6 +81,10 @@ Incluye la evidencia de **#221** (agregados de clientes como la cuenta real).
    y la vitrina del cliente.
 3. **Garantía pública con token válido**: la página `/garantia/<token>` no tiene
    modo demo; requiere sesión (Garantías → fila → copiar el enlace del QR).
+   **Resuelto en la rama `slot/clientes`**: la garantía demo abre desde el
+   portal con `?demo=1` y el flujo real (token válido → credencial) queda
+   cubierto por `e2e/qa-240-garantia-portal.spec.js`
+   (`docs/QA-240-garantia-portal.md`).
 4. **Seguro del cliente afectando una venta real** (rol ADMIN/GERENTE): Datos →
    Seguro → encender y cargar % → la venta siguiente lo suma al costo.
 
