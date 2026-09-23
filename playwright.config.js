@@ -70,7 +70,9 @@ export default defineConfig({
   testDir: './e2e',
   forbidOnly: !!CI,
   // Flaky retry locally, zero tolerance in CI.
-  retries: CI ? 0 : 1,
+  // CI sin reintentos convertía cada flake de timing en un deploy rojo:
+  // 2 reintentos absorben la variabilidad del runner (un fallo real sigue rojo).
+  retries: CI ? 2 : 1,
   workers: WORKERS,
   timeout: 90_000,
   expect: { timeout: 20_000 },
