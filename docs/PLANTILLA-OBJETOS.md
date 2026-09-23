@@ -132,9 +132,13 @@ patrón de uso de cada familia y un ejemplo corto.
 - Foco visible (outline/ring) con offset.
 - Altura táctil estándar (≥44px) y radios por contexto (pill para acciones,
   radio medio dentro de paneles).
+- **Alto táctil 44 px (#249, H3):** los controles agrupados usan `min-h-11`
+  (segmentados, solapas, barra inferior) y los que no cambian su dibujo suman
+  **`.toque-44`** (área centrada de 44×44): acciones de ícono del shell,
+  `ListGridToggle` y `IconAction size="touch"`.
 - Botón solo-icono: siempre `aria-label` + `title`.
-- Acción de fila en móvil: `IconAction size="touch"` (área táctil de 36 px);
-  el default compacto (`sm`) no cambia en escritorio.
+- Acción de fila en móvil: `IconAction size="touch"` (36 px de dibujo + 44 de
+  toque); el default compacto (`sm`) no cambia en escritorio.
 - Un componente de acción por contexto; prohibido inventar familias nuevas.
 - El pie de acciones vive **asociado al formulario** (ver sección 5).
 
@@ -263,7 +267,8 @@ categorías en `src/lib/categorias.js`; los objetos son presentacionales.
 - **`shared/FichaCertificado`** (#240): tarjeta del informe público de la
   unidad (empresa, modelo, IMEI enmascarado, grado, batería, "x de y pass",
   locks, quién/cuándo verificó y QR al enlace `/u/<serial>`), para la página
-  pública y la vista previa del informe.
+  pública y la vista previa del informe; el chip de la cabecera entra por
+  `estado` (por defecto `pass`, certificado) para el **certificado embebible**.
 - **`shared/VistaPreviaPapel`** (#241, preview v2): el documento impreso con el
   ancho real del papel (`thermal-80`/`thermal-58`/`thermal-55`/`a4`); lo usan el
   preview de comprobantes y el de reportes (antes cada uno copiaba el mapa de

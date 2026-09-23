@@ -83,6 +83,21 @@ warn y la celda de identidad de 13 px que espera a DSN).
 Duplicación pendiente medida: **6 → 1 usos** (queda solo el `Gs.` de una
 plantilla de impresión de PRN, que se coordina con ese slot).
 
+### Lote 21 — alto táctil de 44 px en los controles compartidos (23-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `SegmentedField` / `Subtabs` (`owncoding-ui`) | 28–36 px de alto: la auditoría responsive de DSN (#249, H3) midió pedidos **28**, inventario **32**, clientes **32** y finanzas **36** | `min-h-11` (44 px) en la biblioteca **v0.15.1**; el dibujo no cambia |
+| `ListGridToggle` | Botones de 36×36 | 36 px de dibujo + área de toque de 44 con `.toque-44` |
+| `IconAction size="touch"` | 36×36 desde #236, por debajo del criterio nuevo | 36 px de dibujo + `.toque-44` (44 de toque); el default `sm` no cambia |
+| Barra inferior (`BarraInferior`) | Ítems ~43 px sin mínimo explícito | `min-h-11` por ítem |
+| Utilidad `.toque-44` | El patrón vivía en `src/index.css` de MobOS (DSN lo aplicó al topbar) | Portado a `base.css` de la biblioteca: pseudo-elemento centrado de `max(100%, 44px)`; documentado en `REGLAS.md` §2 y `SHELL.md` §4 para que POS/INV/CRM/FIN lo apliquen con el mismo criterio (H2/H4) |
+| `FichaCertificado` (certificado embebible, #240) | El chip de la cabecera estaba fijo en `pass` | Suma `estado` (por defecto `pass`): INV puede embeber la ficha con el estado real del equipo (con el QR de `CodigoQr`, ya portable) |
+
+**Duplicación pendiente: 0 usos.** Biblioteca: **v0.15.1** (tag + CI); la
+medición y los hallazgos completos, en `docs/QA-RESPONSIVE-MOBILE.md` de DSN
+(#249).
+
 ### Lote 20 — paridad de objetos de campo y detalle con la biblioteca (23-09)
 
 | Objeto | Antes (evidencia) | Después |
