@@ -26,6 +26,28 @@ Capturas del carrito tal como estaba desplegado (demo pública, desktop 1280):
 Datos crudos: `1.0.144-produccion/resultados-1.0.144-produccion.json`
 (sin desborde horizontal y sin errores de página).
 
+## Verificación por criterio (#243)
+
+Comparativas “antes | después” en zoom (2x), sobre la misma demo y el mismo
+carrito (2 productos, 2 unidades):
+
+| Criterio | Evidencia | Resultado |
+|---|---|---|
+| **Colapso máximo** (sin cantidad/precio) | [antes/después](comparativa-fila-colapsada.png) | ✅ la línea pasó de 248/249 px a **58 px** y solo muestra nombre, IMEI y total |
+| **Cantidad/precio adentro** | [fila expandida](rama-243/fila-expandida-desktop-claro-v2-off.png) | ✅ al desplegar aparecen cantidad, precio de venta, color, lista, descuento, cupón, stock y eliminar |
+| **Total llamativo** | [antes/después](comparativa-encabezado.png) | ✅ degradé y borde del acento + total en color de marca, siempre arriba |
+| **Flechita corregida** | [antes/después colapsada](comparativa-fila-colapsada.png) · [expandida](comparativa-fila-expandida.png) | ✅ abajo colapsada (desplegar) y arriba expandida (cerrar) |
+| **Rediseño del panel** | [antes](1.0.144-produccion/carrito-desktop-claro-v2-off-colapsado.jpg) · [después](rama-243/carrito-desktop-claro-v2-off-colapsado.jpg) | ✅ encabezado y ajustes compactos; el total queda en su bloque |
+
+Declaración técnica del encabezado (`FormularioVenta.jsx`):
+
+```diff
+- className="… border border-fono/30 bg-ink-800 … shadow-black/10"
++ className="… border border-fono/50 bg-gradient-to-r from-fono/15 via-ink-800 to-ink-800 … shadow-fono/10"
+- <span className="text-2xl font-extrabold tracking-tight tabular-nums text-fore">
++ <span className="v2-numero text-2xl font-extrabold tracking-tight tabular-nums text-fono-light">
+```
+
 ## Después (rama `slot/pos`)
 
 Capturas con el colapso máximo y el preview v2 en las dos direcciones
@@ -66,10 +88,15 @@ QA_BASE_URL=http://localhost:5216 QA_ETIQUETA=local node scripts/qa-243-carrito-
 
 # Una sola variante
 QA_VARIANTES=desktop-claro-v2-on QA_BASE_URL=... QA_ETIQUETA=... node scripts/qa-243-carrito-colapso.mjs
+
+# Tira comparativa "antes | después" (usa las capturas en zoom ya generadas)
+QA_SOLO_COMPARAR=1 QA_COMPARAR=1.0.144-produccion,rama-243 node scripts/qa-243-carrito-colapso.mjs
 ```
 
-Salida: `docs/qa/243/<etiqueta>/carrito-*.jpg` +
-`resultados-<etiqueta>.json` (altos, desborde, scope v2 y errores).
+Salida: `docs/qa/243/<etiqueta>/carrito-*.jpg` (pantalla completa) +
+`fila-colapsada|fila-expandida|encabezado-<variante>.png` (zoom 2x por
+criterio) + `resultados-<etiqueta>.json` (altos, desborde, scope v2 y errores).
+La comparativa compone `docs/qa/243/comparativa-{fila-colapsada,fila-expandida,encabezado}.png`.
 
 ## Checks de la pasada
 
