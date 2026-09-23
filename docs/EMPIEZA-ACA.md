@@ -60,11 +60,12 @@ están enlazados al final de cada sección.
 
 ## 3. El integrador (dueño del release)
 
-**Hace**: correr `ht` (matar zombies del repo, `fetch --prune`, integrar **una
-rama por vez**, backend antes que frontend; verificar con lint, builds, tests e
-integración; suite e2e completa como gate), pushear `main` con
-`MOBOS_INTEGRATOR=1`, deployar con `npm run release:publish` y verificar con
-`npm run release:smoke`; cerrar issues **solo después de verificar por contenido**.
+**Hace**: correr `hd` (rápido: matar zombies del repo, `fetch --prune`,
+integrar **una rama por vez**, backend antes que frontend; verificar con lint,
+builds, tests e integración **+ los specs afectados**; pushear `main` con
+`MOBOS_INTEGRATOR=1` y releasear) o `hdd`/`ht` (completo: lo anterior + suite
+e2e completa, CI verde, `npm run release:smoke` y cierre de issues **solo
+después de verificar por contenido**).
 **No hace**: resolver conflictos en silencio, integrar sin verificar, tocar ramas
 de otros sin avisar.
 

@@ -28,18 +28,18 @@ Documento de punto de entrada para retomar MobOS en otra computadora. El detalle
 7. Nunca matar procesos por puerto (pueden ser de otro agente). Limpiar solo los restos propios (`pg_ctl -D /tmp/mobos-e2e-pg-<rama> stop` y sus puertos).
 8. Si quedan servidores propios, matarlos al terminar: `lsof -ti :<api> :<web> | xargs kill -9`.
 9. Estado raro de git (refs rotas, fetch que falla, merge ajeno en curso): **parar y avisar**, no “arreglar” por cuenta propia.
-10. No se deploya. `ht` es exclusivo del implementador.
+10. No se deploya. `hd`/`hdd`/`ht` son exclusivos del implementador.
 
 ### Implementador (integrador)
 1. Único que toca `main`: `MOBOS_INTEGRATOR=1 git push origin main`.
-2. `ht`: ciclo de integración + deploy (preámbulo: matar servidores zombies del repo y verificar que no haya otro merge en curso).
-3. Integrar de a una rama por vez (backend antes que frontend), verificando siempre: lint · builds con `BUILD_ID` · `npm test` + `test:unit` · `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` · `npm run test:e2e:smoke`. Con todo integrado: suite e2e completa (gate de release).
-4. Deploy: `MOBOS_INTEGRATOR=1 npm run release:publish` (bump patch + push + webhook Coolify) y `npm run release:smoke` para verificar producción.
+2. `hd` (rápido) y `hdd`/`ht` (completo): ciclos de integración + deploy; el detalle de cada modo está en `owncoding-ui/docs/COMANDOS.md`. En ambos, preámbulo: matar servidores zombies del repo y verificar que no haya otro merge en curso.
+3. Integrar de a una rama por vez (backend antes que frontend), verificando siempre: lint · builds con `BUILD_ID` · `npm test` + `test:unit` · `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` · los specs afectados del dominio (`npm run test:e2e:smoke` o el subset que corresponda). El `hdd` suma la suite e2e completa (gate de release).
+4. Deploy: `MOBOS_INTEGRATOR=1 npm run release:publish` (bump patch + push + webhook Coolify) y, en el modo completo, `npm run release:smoke` para verificar producción.
 5. Conflictos de merge: **parar y consultar**, nunca resolver en silencio. Rama superseded: resolver del lado de main y verificar diff neto vacío.
 6. `npm run db:check` contra la base de producción antes de cerrar un deploy.
 7. Sincronizar checkouts locales de `main` (ff-only) después del push. Cerrar issues solo verificando por contenido contra `origin/main` (citando el commit).
 8. Refs rotas: backup a `/tmp` antes de tocar y reportar todo.
-9. Sin `ht` no hay deploy, salvo pedido explícito de Dario.
+9. Sin `hd`/`hdd` (`ht`) no hay deploy, salvo pedido explícito de Dario.
 
 ## 2. Objetos predeterminados (reutilizar, no reinventar)
 

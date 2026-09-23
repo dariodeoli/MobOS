@@ -63,4 +63,4 @@ Los checks obligatorios están en `AGENTS.md` (lint · builds FE/BE con `BUILD_I
 
 - Versión versionada (esta): `docs/TOPOLOGIA.md`.
 - Operación diaria: `~/.herdr/worktrees/mobos/orquestador/` — `PLAYBOOK.md` (ciclo, brief, checks, integración, deploy), `SLOTS.md` (dominios), `BRIEF.md` (brief estándar), `ESTADO.md` (tablero).
-- `ht` es el nombre conceptual del ciclo de deploy del integrador (hoy: `release:publish` + `release:smoke`).
+- `hd` (rápido) y `hdd`/`ht` (completo) son los ciclos de deploy del integrador: el rápido integra con los specs afectados y publica; el completo suma suite, CI verde, smoke de producción y cierres (ver `owncoding-ui/docs/COMANDOS.md`).
