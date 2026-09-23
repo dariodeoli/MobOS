@@ -11,6 +11,9 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.149 — 2026-09-23
+- **Estabilidad interna:** el flujo de recepción de equipos en tránsito (reimprimir etiqueta) queda robusto en la suite automática, sin cambios visibles para el usuario.
+
 ## v1.0.148 — 2026-09-23
 - **Servicio Técnico:** con la lista vacía había **dos botones «+ Nueva orden»** (el del encabezado y el del estado vacío); queda uno solo, siempre en el encabezado.
 
