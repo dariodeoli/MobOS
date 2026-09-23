@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { IDS_SANDBOX, NO_VERIFICADO, SERVICIOS, consultarImei, enmascararImei, estadoDeConsulta, etiquetaEstado, modoImeicheck, normalizarRespuesta, validarImei } from '../lib/imeicheck'
+import { IDS_SANDBOX, NO_VERIFICADO, SERVICIOS, consultarImei, controlesPublicos, enmascararImei, estadoDeConsulta, etiquetaEstado, modoImeicheck, normalizarRespuesta, validarImei } from '../lib/imeicheck'
 
 // ── Validación de IMEI antes de llamar ─────────────────────────────────────
 assert.equal(validarImei('490154203237518').ok, true)
@@ -105,3 +105,26 @@ for (const servicio of Object.values(SERVICIOS)) assert.ok(!IDS_SANDBOX.includes
     console.log('imeicheck.test.ts: ok')
 }
 pruebasMock()
+
+// ── Controles del informe público (#240): solo los locks conocidos ──────────
+{
+  const controles = controlesPublicos([
+    { clave: 'blacklist', etiqueta: 'Blacklist actual', valor: 'Sin reportes actuales' },
+    { clave: 'findMy', etiqueta: 'Find My / iCloud', valor: 'Off' },
+    { clave: 'simLock', etiqueta: 'SIM lock', valor: 'Unlocked' },
+    { clave: 'garantia', etiqueta: 'Garantía', valor: 'Expired' },
+    { clave: 'modelo', etiqueta: 'Modelo', valor: 'iPhone 16 Pro Max' },
+  ])
+  assert.deepEqual(controles.map((control) => control.label), ['iCloud', 'ESN/Blacklist', 'Carrier/SIM'])
+  assert.ok(controles.every((control) => control.ok), 'Off / sin reportes / unlocked son verdes')
+  const conProblemas = controlesPublicos([
+    { clave: 'findMy', valor: 'On' },
+    { clave: 'mdm', valor: 'Activado' },
+    { clave: 'blacklist', valor: 'Reportado' },
+    { clave: 'simLock', valor: 'Locked' },
+  ])
+  assert.deepEqual(conProblemas.map((control) => [control.clave, control.ok]), [['icloud', false], ['mdm', false], ['esn', false], ['carrier', false]])
+  assert.deepEqual(controlesPublicos(null), [], 'sin consulta no hay controles')
+  assert.deepEqual(controlesPublicos([{ clave: 'garantia', valor: 'Vigente' }]), [], 'los campos que no son locks no se publican')
+  assert.deepEqual(controlesPublicos([{ clave: 'findMy', valor: null }]), [], 'sin valor no hay chip')
+}

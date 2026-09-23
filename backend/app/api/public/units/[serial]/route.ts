@@ -3,6 +3,7 @@ import { error, json } from '../../../../../lib/http'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'
 import { serialSeguimiento } from '../../../../../lib/device-report'
 import { checklistPublico, normalizarInspectionItems } from '../../../../../lib/inspection'
+import { controlesPublicos } from '../../../../../lib/imeicheck'
 
 // Informe de dispositivo público (#240 ítem 3, acceso CRM #236+): la tienda que
 // vendió/verificó el equipo muestra un informe informativo por serial, con el
@@ -52,7 +53,7 @@ export async function GET(request: Request, context: { params: Promise<{ serial:
   const inspeccion = (elegida.inspection || {}) as Record<string, any>
 
   const [check, garantia] = await Promise.all([
-    prisma.imeiCheckQuery.findFirst({ where: { tenantId: elegida.tenantId, imei: elegida.serial }, orderBy: { requestedAt: 'desc' }, select: { imeiMasked: true, provider: true, status: true, requestedAt: true } }),
+    prisma.imeiCheckQuery.findFirst({ where: { tenantId: elegida.tenantId, imei: elegida.serial }, orderBy: { requestedAt: 'desc' }, select: { imeiMasked: true, provider: true, status: true, requestedAt: true, normalized: true } }),
     prisma.warrantyCase.findFirst({ where: { tenantId: elegida.tenantId, serial: elegida.serial }, orderBy: { createdAt: 'desc' }, select: { status: true, warrantyDays: true, description: true, createdAt: true } }),
   ])
 
@@ -87,6 +88,8 @@ export async function GET(request: Request, context: { params: Promise<{ serial:
       checklist: checklistPublico(normalizarInspectionItems(inspeccion.items)),
       repuestosNoOem: String(inspeccion.repuestosNoOem || ''),
       repuestosNoOemNota: String(inspeccion.repuestosNoOemNota || ''),
+      // #240: semáforo de los locks de la última consulta (iCloud/MDM/ESN/carrier).
+      controles: controlesPublicos(check?.normalized),
     },
     sale: venta ? { orderNumber: venta.orderItem.order.orderNumber, date: venta.orderItem.order.createdAt, branch: venta.orderItem.order.branch?.name || null } : null,
     warranty: garantia ? { status: ESTADO_GARANTIA[garantia.status] || garantia.status, description: garantia.description, expiresAt: venceGarantia } : null,

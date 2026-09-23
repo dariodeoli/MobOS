@@ -129,7 +129,10 @@ const fechaVerificacion = (value) => {
 // Anchos medidos sobre el contenido real de cada columna: las compactas
 // (batería, proveedor, costo, estado) ceden el ancho a producto, serial y
 // verificación, que son los datos que se leen de un vistazo.
-const UNIDADES_GRID = 'grid min-w-[66rem] grid-cols-[1.5rem_minmax(11rem,2fr)_6.5rem_4.5rem_6.5rem_5.5rem_6.5rem_6rem_8.5rem] items-center gap-x-2'
+// #246: una sola línea por fila. La variante (capacidad) ya viaja en el nombre
+// del producto, así que no tiene columna propia; la condición queda en el punto
+// de color y la batería como chip compacto en la celda de producto.
+const UNIDADES_GRID = 'grid min-w-[55rem] grid-cols-[1.5rem_minmax(11rem,2.4fr)_4.5rem_6.5rem_5.5rem_9.5rem_6rem_11rem] items-center gap-x-2'
 const GRID_RESERVAS = 'grid min-w-[44rem] grid-cols-[minmax(8rem,1.4fr)_minmax(5rem,0.9fr)_minmax(6rem,1.1fr)_6rem_15rem] items-center gap-x-2'
 const GRID_ELIMINADOS = 'grid min-w-[42rem] grid-cols-[minmax(8rem,1.4fr)_minmax(5rem,0.9fr)_minmax(7rem,1.6fr)_7rem] items-center gap-x-2'
 const GRID_TRASLADOS = 'grid min-w-[60rem] grid-cols-[minmax(9rem,1.4fr)_minmax(8rem,1.5fr)_4rem_6rem_6rem_6rem_7rem_13rem] items-center gap-x-2'
@@ -151,14 +154,13 @@ function EncabezadoUnidades({ seleccionado = false, onSeleccionar }) {
   return (
     <div className={`${UNIDADES_GRID} px-2.5 pb-0.5`}>
       {onSeleccionar
-        ? <input type="checkbox" className="h-4 w-4 accent-fono" aria-label="Seleccionar visibles" title="Seleccionar visibles" checked={seleccionado} onChange={onSeleccionar} />
+        ? <input type="checkbox" className="h-4 min-h-0 w-4 accent-fono" aria-label="Seleccionar visibles" title="Seleccionar visibles" checked={seleccionado} onChange={onSeleccionar} />
         : <span />}
       <span className={celda}>Producto</span>
-      <span className={celda}>Modelo / variante</span>
       <span className={celda} title="Proveedor (3 a 5 caracteres; pasá el mouse para verlo completo)">Prov</span>
       <span className={`${celda} text-right`}>Costo</span>
       <span className={celda} title="Ubicación: depósito o sucursal por código corto">Ubi</span>
-      <span className={`${celda} text-center`}>Estado</span>
+      <span className={celda}>Estado</span>
       <span className={celda} title="Quién verificó la unidad y cuándo">Verificado</span>
       <span className={`${celda} text-right`}>Acciones</span>
     </div>
@@ -219,7 +221,7 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
   ]
   return <div role="button" tabIndex={0} data-testid="inventario-fila" onClick={onClick} onKeyDown={event => { if (event.key === 'Enter') onClick() }} className={`${UNIDADES_GRID} cursor-pointer rounded-lg border border-ink-600 px-3 py-1.5 transition hover:border-fono/40 ${rowTone(unit)}`}>
     {onAlternar
-      ? <span className="flex items-center" onClick={(event) => event.stopPropagation()}><input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar ${nombreProducto(unit.product || {})} ${serial}`} checked={seleccionado} onChange={() => onAlternar()} /></span>
+      ? <span className="flex items-center" onClick={(event) => event.stopPropagation()}><input type="checkbox" className="h-4 min-h-0 w-4 accent-fono" aria-label={`Seleccionar ${nombreProducto(unit.product || {})} ${serial}`} checked={seleccionado} onChange={() => onAlternar()} /></span>
       : <span />}
     <span className="flex min-w-0 items-center gap-1.5">
       <span className="grid h-5 w-5 shrink-0 place-items-center overflow-hidden rounded-md border border-ink-600 bg-ink-800 text-mute" title={`Categoría: ${etiquetaDeCategoria(nombreProducto(unit.product || {}))}`}><IconoCategoria categoria={nombreProducto(unit.product || {})} className="h-3.5 w-3.5" /></span>
@@ -230,13 +232,10 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
         title={`Condición: ${etiquetaCondicionUnidad(unit)}`}
         aria-label={`Condición: ${etiquetaCondicionUnidad(unit)}`}
       />
+      {unit.batteryHealth ? <MedidorBateria porcentaje={unit.batteryHealth} variante="chip" className="shrink-0" /> : null}
       {diasStock != null && diasStock >= 30 && (
         <span className={`shrink-0 rounded border px-1 text-[10px] font-semibold tabular-nums ${diasStock >= 90 ? 'border-bad/30 text-bad' : 'border-warn/30 text-warn'}`} title={`Ingresó a stock el ${ingreso} · ${diasStock} días`}>{diasStock} d</span>
       )}
-    </span>
-    <span className="flex min-w-0 flex-wrap items-center gap-1 text-[11px] text-mute">
-      <span className="truncate" title={`${etiquetaCondicionUnidad(unit)}${unit.product?.capacity ? ` · ${unit.product.capacity}` : ''}`}>{unit.condition ? etiquetaCondicionUnidad(unit) : '—'}{unit.product?.capacity ? ` · ${unit.product.capacity}` : ''}</span>
-      {unit.batteryHealth ? <MedidorBateria porcentaje={unit.batteryHealth} variante="chip" className="shrink-0" /> : null}
     </span>
     <span className={CELDA_DATO} title={unit.supplierName || undefined}>{abrev(unit.supplierName, 5)}</span>
     <span className="flex items-center justify-end gap-1 text-right text-xs font-semibold tabular-nums text-fore">
@@ -254,21 +253,25 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
     <span className="flex min-w-0 items-center gap-1.5 text-xs text-mute" title={unit.location?.name ? `Ubicación: ${unit.location.name}${unit.location.code ? ` (${unit.location.code})` : ''}` : 'Sin ubicación asignada'}>
       {unit.location?.name ? <><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: locationTone(unit.location) }} /><span className={`truncate ${unit.location.code ? 'font-semibold text-fore/80' : ''}`}>{unit.location.code ? abrev(unit.location.code, 4) : unit.location.name}</span></> : '—'}
     </span>
-    <span className="flex min-w-0 flex-col items-center text-center">
-      <Badge color={estado.tone} className="max-w-full truncate" title={estado.label}>{estado.label}</Badge>
-      {vencida !== null && <span className={`mt-0.5 block truncate text-[10px] font-semibold ${vencida ? 'text-bad' : 'text-ok'}`} title={vencida ? `Garantía vencida el ${new Date(unit.warrantyUntil).toLocaleDateString('es-PY')}` : `Garantía vigente hasta ${new Date(unit.warrantyUntil).toLocaleDateString('es-PY')}`}>Garantía {vencida ? 'vencida' : 'vigente'}</span>}
-      {unit.reservationCustomer && <span className="mt-0.5 block truncate text-[10px] font-semibold text-reserved" title={`Reservado para ${unit.reservationCustomer}`}>{unit.reservationCustomer}</span>}
-      {unit.consignorName && <span className="mt-0.5 block truncate text-[10px] font-semibold text-fono-light" title={`En consignación de ${unit.consignorName}`}>Consignado</span>}
-      {fechaVenta && <span className="mt-0.5 block truncate text-[10px] text-mute" title={`Vendido el ${new Date(fechaVenta).toLocaleString('es-PY')}`}>{fechaReserva(fechaVenta)}</span>}
+    {/* #246: el estado y sus avisos van en una sola línea (con tooltip para el
+        detalle completo), así todas las filas tienen la misma altura. */}
+    <span className="flex min-w-0 items-center gap-1.5 overflow-hidden text-[10px]">
+      <Badge color={estado.tone} className="shrink-0 max-w-full truncate" title={estado.label}>{estado.label}</Badge>
+      {vencida !== null && <span className={`shrink-0 truncate font-semibold ${vencida ? 'text-bad' : 'text-ok'}`} title={vencida ? `Garantía vencida el ${new Date(unit.warrantyUntil).toLocaleDateString('es-PY')}` : `Garantía vigente hasta ${new Date(unit.warrantyUntil).toLocaleDateString('es-PY')}`}>Garantía {vencida ? 'vencida' : 'vigente'}</span>}
+      {unit.reservationCustomer && <span className="truncate font-semibold text-reserved" title={`Reservado para ${unit.reservationCustomer}`}>{unit.reservationCustomer}</span>}
+      {unit.consignorName && <span className="shrink-0 font-semibold text-fono-light" title={`En consignación de ${unit.consignorName}`}>Consignado</span>}
+      {fechaVenta && <span className="shrink-0 text-mute" title={`Vendido el ${new Date(fechaVenta).toLocaleString('es-PY')}`}>{fechaReserva(fechaVenta)}</span>}
     </span>
     <span className={`flex min-w-0 items-center gap-1.5 rounded-lg px-1.5 py-0.5 text-[10px] ${v ? 'bg-ok/10 text-ok' : 'border border-ink-600 text-mute'}`} title={v ? `Verificó: ${v.quien} · ${fechaVerificacion(unit.lastVerifiedAt)}` : 'Todavía sin verificación física'}>
       {v ? <Avatar user={v.usuario} hasAvatar={false} picture={unit.lastVerifiedBy?.picture} size="xs" /> : <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-ink-700 text-[8px] font-bold text-fore">—</span>}
       <span className="truncate">{v ? fechaVerificacion(unit.lastVerifiedAt) : 'Sin verificar'}</span>
       <button type="button" disabled={busy} aria-label="✓ Verificar" title={`Verificar ${serial} (un clic)`} onClick={(event) => { event.stopPropagation(); onVerify?.(unit) }} className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-ok/40 text-ok transition hover:bg-ok/10 disabled:opacity-50"><Icon name="check" className="h-3.5 w-3.5" /></button>
     </span>
-    <span className="flex flex-wrap items-center justify-end gap-1">
+    <span className="flex min-w-0 items-center justify-end gap-1">
+      {/* En reservadas la acción primaria es finalizar la venta: el acceso a
+          editar queda en la ficha (clic en la fila) para que entre en una línea. */}
       {unit.status === 'RESERVED' && <button type="button" disabled={busy} title="Cerrar la reserva y cargar la venta" onClick={event => { event.stopPropagation(); onSell?.(unit) }} className="whitespace-nowrap rounded-lg border border-fono/40 px-2 py-1 text-[10px] font-bold text-fono-light transition hover:bg-fono/10 disabled:opacity-50">Finalizar venta</button>}
-      <button type="button" disabled={busy} title="Editar los datos de la unidad" onClick={event => { event.stopPropagation(); onEdit?.(unit) }} className="whitespace-nowrap rounded-lg border border-ink-600 px-2 py-1 text-[10px] font-semibold text-fore transition hover:border-fono/40">Editar</button>
+      {unit.status !== 'RESERVED' && <button type="button" disabled={busy} title="Editar los datos de la unidad" onClick={event => { event.stopPropagation(); onEdit?.(unit) }} className="whitespace-nowrap rounded-lg border border-ink-600 px-2 py-1 text-[10px] font-semibold text-fore transition hover:border-fono/40">Editar</button>}
       {unit.status === 'SOLD' && <button type="button" disabled={busy} aria-label={`Imprimir comprobante rápido de ${serial}`} title="Imprimir comprobante rápido (nivel Rápido, 80 mm) sin salir de la lista" onClick={event => { event.stopPropagation(); onComprobante?.(unit) }} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-ink-600 text-mute transition hover:border-fono/40 hover:text-fore disabled:opacity-50"><Icon name="receipt" className="h-3.5 w-3.5" /></button>}
       <MenuAcciones unit={unit} busy={busy} acciones={acciones} />
     </span>

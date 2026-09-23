@@ -110,6 +110,41 @@ export function normalizarRespuesta(payload: unknown, { fuente = PROVEEDOR, hora
   return campos
 }
 
+export type ControlPublico = { clave: string; label: string; valor: string; ok: boolean }
+
+/**
+ * Controles del dispositivo para el informe público (#240): el semáforo de los
+ * locks de la última consulta, con el mismo criterio y rótulos que la UI
+ * (`locksDeVerificacion` en src/lib/phonecheck.js) y el certificado impreso.
+ * Solo se exponen los cuatro locks conocidos; el resto del `normalized` no
+ * viaja al enlace público.
+ */
+export function controlesPublicos(normalized: unknown): ControlPublico[] {
+  const campos = Array.isArray(normalized) ? normalized : []
+  const porClave = new Map<string, string>()
+  for (const campo of campos) {
+    if (!campo || typeof campo !== 'object') continue
+    const fila = campo as Record<string, unknown>
+    if (typeof fila.clave !== 'string') continue
+    porClave.set(fila.clave, fila.valor === null || fila.valor === undefined ? '' : String(fila.valor))
+  }
+  // Solo se publican los locks que el panel informó con valor: un «—» verde no
+  // aporta nada al comprador (el papel ya lo dice como «Sin dato»).
+  const definiciones: { campo: string; clave: string; label: string; ok: (valor: string) => boolean }[] = [
+    { campo: 'findMy', clave: 'icloud', label: 'iCloud', ok: (valor) => String(valor).toLowerCase() === 'off' },
+    { campo: 'mdm', clave: 'mdm', label: 'MDM', ok: (valor) => !/on|s[ií]|activ/i.test(String(valor)) },
+    { campo: 'blacklist', clave: 'esn', label: 'ESN/Blacklist', ok: (valor) => !/reportad/i.test(String(valor)) },
+    { campo: 'simLock', clave: 'carrier', label: 'Carrier/SIM', ok: (valor) => /unlock|libre/i.test(String(valor)) },
+  ]
+  const controles: ControlPublico[] = []
+  for (const definicion of definiciones) {
+    const valor = porClave.get(definicion.campo)
+    if (valor === undefined || valor === '') continue
+    controles.push({ clave: definicion.clave, label: definicion.label, valor, ok: definicion.ok(valor) })
+  }
+  return controles
+}
+
 // Respuestas simuladas, deterministas por escenario (sin red).
 function mock(escenario: EscenarioMock, imei: string) {
   const base = { id: `mock-${imei.slice(-6)}`, service: 'Apple Basic (mock)', amount: '0.06', imei }
