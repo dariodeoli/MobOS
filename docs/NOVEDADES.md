@@ -11,6 +11,17 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.145 — 2026-09-23
+- **Carrito del POS (#243 #148):** la línea colapsada muestra solo lo esencial (nombre, estado del IMEI, total y descuento); al desplegarla aparecen cantidad, precio, cupón y stock. El **descuento de la línea** baja también la **ganancia, la comisión y la liquidación** del vendedor. El **split con cuenta en dólares** toma la cotización de su fila.
+- **Inventario (#217 #240):** **«Vender todos»** carga el lote elegido en el POS con sus IMEI; la ficha suma el **historial del serial** (verificaciones, consultas IMEI, reparaciones y movimientos) y el **tablero de certificaciones** con filtros y **export CSV**; los **repuestos no-OEM** se registran con nota y **foto de evidencia**.
+- **Taller y garantías (#240):** el **cliente ve su equipo en el taller** desde su cuenta, con el **stepper del servicio** y los patrones v2 en Servicio y Garantías.
+- **Informe del equipo (#240):** se ve si el cliente **abrió el informe** que le compartiste (visto/no visto, con conteo y fecha); se comparte por **WhatsApp o correo** desde la ficha y el portal, con registro en la cronología.
+- **Finanzas (#244 #148):** la **conciliación del día** usa el día paraguayo (los cobros recién hechos ya no quedan fuera de «Hoy»); el **valor del stock** y las comisiones se calculan con el **costo real por unidad** y el **monto del consignador** entra a ese costo.
+- **Operaciones (#241):** el **tablero F3** usa datos reales detrás del flag, con **checklist ejecutable de rotación de tokens** para seguridad.
+- **Rediseño (#241):** **F4** lleva los patrones v2 a pedidos, clientes, finanzas, servicio y garantías, con el shell v2 **accesible AA** en claro y oscuro (detrás del flag, con capturas por dominio).
+- **Impresión (#240):** **hoja de estación** verificada en serie, **certificado pulido** (A4/80 mm) y esperas robustas del agente para CI; verificación post-v1.0.144 del informe y certificado con QR.
+- **Estabilidad CI (#244):** se arreglaron los 5 rojos del CI (impresión print-agent, documentos, conciliación FIN, split POS y comprobante rápido) y se estabilizaron los e2e.
+
 ## v1.0.144 — 2026-09-22
 - **Finanzas / Inventario:** el **costo de repuestos no-OEM** cargado en la inspección entra al **costo real** de la venta por IMEI y a la base del seguro (ej.: costo 800.000 + repuestos 120.000 ⇒ costo real 920.000 y seguro 92.000); antes la ganancia quedaba inflada en silencio. Campo validado en servidor y con test del arnés. (#148 #240)
 - **Componentes:** los **tonos de inspección** quedan en una sola forma compartida con la biblioteca (`TONOS.punto/chip/texto`), se publica el lock `oem` (repuesto no OEM) y `VistaPreviaPapel`; contrato verificado por test (lote 16, owncoding-ui v0.14.5). (#240)
