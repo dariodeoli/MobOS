@@ -57,25 +57,30 @@ test('cobrar una cuota la salda, baja la deuda y deja de reclamarla', async ({ p
   await expect(modal.getByText('Gs 120.000').first()).toBeVisible()
 
   // Cobrar una cuota: el monto queda fijado por la cuota misma y el cobro se
-  // registra sobre ella (no nace un pago paralelo).
-  const cobrar = async () => {
-    await modal.getByRole('button', { name: 'Cobrar cuota' }).first().click()
+  // registra sobre ella (no nace un pago paralelo). Se busca por referencia
+  // porque la cronología no garantiza el orden de las cuotas y `first()` podía
+  // cobrar la 3/3 (visto en CI: la 1/3 quedaba pendiente y seguía reclamada).
+  const cobrar = async (cuota) => {
+    const bloque = modal.locator('article').filter({ hasText: cuota.reference })
+    await bloque.getByRole('button', { name: 'Cobrar cuota' }).click()
     const form = page.locator('form').filter({ has: page.getByTestId('cuota-en-cobro') })
-    await expect(form.getByTestId('cuota-en-cobro')).toContainText('Gs 40.000')
+    await expect(form.getByTestId('cuota-en-cobro')).toContainText(cuota.reference)
     await form.getByLabel('Método').selectOption('CASH')
     await form.getByRole('button', { name: 'Cobrar cuota' }).click()
     await expect(page.getByText('Cuota cobrada y conciliada: la deuda bajó y ya no se reclama.')).toBeVisible()
   }
-  await cobrar()
+  await cobrar(cuotas[0])
   // La deuda del pedido bajó en el mismo movimiento.
   await expect(modal.getByText('Gs 80.000').first()).toBeVisible()
-  let cobranzas = await api(page, '/api/collections/reminders')
-  expect((cobranzas.body?.rows || []).some((row) => row.id === cuotas[0].id)).toBe(false)
+  await expect.poll(async () => {
+    const recordatorios = await api(page, '/api/collections/reminders')
+    return (recordatorios.body?.rows || []).some((row) => row.id === cuotas[0].id)
+  }, { message: 'la cuota cobrada no debe seguir en recordatorios' }).toBe(false)
 
   // Saldar el resto del plan desde el mismo listado de cuotas del pedido.
-  await cobrar()
+  await cobrar(cuotas[1])
   await expect(modal.getByText('Gs 40.000').first()).toBeVisible()
-  await cobrar()
+  await cobrar(cuotas[2])
   await expect(modal.getByText('Gs 0', { exact: true }).first()).toBeVisible()
 
   const detalle = await api(page, `/api/orders/${encodeURIComponent(pedido.body.id)}`)
@@ -94,6 +99,8 @@ test('cobrar una cuota la salda, baja la deuda y deja de reclamarla', async ({ p
   await page.keyboard.press('Escape')
   await page.goto('/finanzas/cuotas')
   await expect(page.getByTestId('cuota-fila').filter({ hasText: `Cliente Cuota ${marca}` })).toHaveCount(0)
-  cobranzas = await api(page, '/api/collections/reminders')
-  expect((cobranzas.body?.rows || []).some((row) => row.customerName === `Cliente Cuota ${marca}`)).toBe(false)
+  await expect.poll(async () => {
+    const recordatorios = await api(page, '/api/collections/reminders')
+    return (recordatorios.body?.rows || []).some((row) => row.customerName === `Cliente Cuota ${marca}`)
+  }, { message: 'Cobranzas no debe reclamar nada de este cliente' }).toBe(false)
 })

@@ -21,7 +21,7 @@ test('el portal del cliente se abre desde la ficha y muestra el saldo pendiente'
   await page.goto('/clientes')
   const marca = Date.now()
 
-  const productos = await api(page, '/api/products')
+  const productos = await api(page, '/api/products?q=E2E-CABLE')
   expect(productos.status).toBe(200)
   const cable = (productos.body || []).find((row) => row.sku === 'E2E-CABLE')
   expect(cable?.id, 'El producto sembrado E2E-CABLE debe existir.').toBeTruthy()

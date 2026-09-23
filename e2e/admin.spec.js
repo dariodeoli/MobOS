@@ -5,6 +5,7 @@ import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { SEED } from './helpers/seed-data.js'
 import { loginAsSeller } from './helpers/login.js'
+import { agregarIntegranteDirecto } from './helpers/integrantes.mjs'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
@@ -147,15 +148,11 @@ test.describe('owner panel', () => {
     await expect(page.getByRole('heading', { name: 'Funcionarios y metas' })).toBeVisible()
 
     const name = `Vendedor E2E ${Date.now().toString(36)}`
-    const pin = String(1000 + Math.floor(Math.random() * 9000))
-    // El alta vive en el panel derecho (agregar directamente).
-    const panel = page.locator('#equipo-form')
-    await panel.getByRole('button', { name: 'Agregar directamente' }).click()
-    await panel.locator('#direct-name').fill(name)
-    await panel.locator('#direct-pin').fill(pin)
-    await panel.getByRole('button', { name: 'Agregar', exact: true }).click()
+    // El alta vive en el panel derecho (agregar directamente) y reintenta con
+    // otro PIN si el backend lo rechaza por duplicado (PIN único por empresa).
+    const pin = await agregarIntegranteDirecto(page, { nombre: name })
+    expect(pin).toMatch(/^\d{6}$/)
 
-    await expect(page.getByText('Integrante agregado correctamente.')).toBeVisible()
     await expect(page.getByLabel(`Nombre de ${name}`)).toBeVisible()
   })
 
@@ -707,7 +704,7 @@ test.describe('mini CRM de clientes', () => {
     expect(alta.status).toBe(201)
     const clienteId = alta.body.id
 
-    const productos = await crmApi(page, '/api/products')
+    const productos = await crmApi(page, `/api/products?q=${encodeURIComponent(SEED.products.cable.sku)}`)
     const cable = (productos.body || []).find((row) => row.sku === SEED.products.cable.sku)
     expect(cable?.id, 'el producto sembrado E2E-CABLE debe existir').toBeTruthy()
     const numeroPedido = `E2E-CRM-${marca}`
@@ -975,7 +972,7 @@ test('portal del cliente → QA 360/768/1440 con nota pública, pedidos y compro
   const ficha = await crmApi(page, `/api/customers/${clienteId}`)
   expect(ficha.body?.customer?.publicNote).toBe(nota)
 
-  const productos = await crmApi(page, '/api/products')
+  const productos = await crmApi(page, `/api/products?q=${encodeURIComponent(SEED.products.cable.sku)}`)
   const cable = (productos.body || []).find((row) => row.sku === SEED.products.cable.sku)
   expect(cable?.id).toBeTruthy()
   const numeroPedido = `E2E-PORTALQA-${marca}`

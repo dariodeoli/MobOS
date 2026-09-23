@@ -8,6 +8,11 @@
 import { test, expect } from '@playwright/test'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { SEED } from './helpers/seed-data.js'
+import { habilitarRetrySiCuarentena } from './helpers/cuarentena.mjs'
+
+// Cuarentena de flaky (#CI): el retry lo habilita el workflow solo si este spec
+// está en MOBOS_E2E_CUARENTENA (ver `.github/workflows/ci.yml`).
+habilitarRetrySiCuarentena('inventario-unidades')
 
 const API = SEED.api
 const marca = () => `${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`.toUpperCase()
@@ -233,8 +238,15 @@ test('vender todos deja el lote elegido en el POS con producto, cantidad e IMEI'
       await expect(fila).toBeVisible()
       await fila.getByRole('checkbox', { name: new RegExp(serial) }).check()
     }
-    await page.getByTestId('vender-todos').click()
-    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible({ timeout: 30_000 })
+    // «Vender todos» navega al POS con el lote armado. La barra se re-renderiza
+    // con el listado, así que el click puede caer en el medio y no hacer nada:
+    // se reintenta hasta ver el POS (visto 1/3 en local).
+    await expect(async () => {
+      if (!page.url().includes('/pos')) {
+        await page.getByTestId('vender-todos').click({ timeout: 5_000 })
+      }
+      await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible({ timeout: 5_000 })
+    }).toPass({ timeout: 30_000 })
     await expect(page).toHaveURL(/\/pos/)
     // La línea nace colapsada (#243): se despliega para ver cantidad e IMEI.
     await page.getByRole('button', { name: `Ver detalle de ${nombre}` }).click()

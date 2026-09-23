@@ -23,6 +23,7 @@ Documento de punto de entrada para retomar MobOS en otra computadora. El detalle
 5. **e2e aislado por worktree** (la base y los puertos se comparten):
    `MOBOS_E2E_PGDATA=/tmp/mobos-e2e-pg-<rama>`, `MOBOS_E2E_PGPORT=<55xx>`, `MOBOS_E2E_API_PORT=<31xx>`, `MOBOS_E2E_WEB_PORT=<52xx>`. Nunca dos worktrees con los mismos valores.
    El backend arranca con `next dev`; con `MOBOS_E2E_BACKEND=prod` (lo usa CI) arranca con `next start` sobre `backend/.next/BUILD_ID` y evita la compilación por ruta (menos timeouts en corridas lentas).
+   En CI la suite corre en **3 shards** (`npx playwright test --shard=n/3`, matriz del workflow): cada shard baja a ~8-10 min. Los retries están limitados a la **cuarentena de flaky**: el workflow declara la lista en `MOBOS_E2E_CUARENTENA` y `e2e/helpers/cuarentena.mjs` habilita 1 retry solo a esos specs; el reporter deja `test-results/reporte-flaky.md|json` con los tests que reintentaron o fallaron.
 6. Gate rápido durante el trabajo: `npm run test:e2e:smoke` (~20 s). Suite completa: del implementador antes del release.
 7. Nunca matar procesos por puerto (pueden ser de otro agente). Limpiar solo los restos propios (`pg_ctl -D /tmp/mobos-e2e-pg-<rama> stop` y sus puertos).
 8. Si quedan servidores propios, matarlos al terminar: `lsof -ti :<api> :<web> | xargs kill -9`.

@@ -48,6 +48,11 @@ const E2E_ENV = {
   MOBOS_E2E_BACKEND: process.env.MOBOS_E2E_BACKEND || 'dev',
 }
 
+// Retries: por defecto 0 en todos lados (mismo número en local y CI). La
+// cuarentena de flaky vive en el workflow (`MOBOS_E2E_CUARENTENA`) y SOLO esos
+// specs habilitan 1 retry con `e2e/helpers/cuarentena.mjs`; el reporter
+// `e2e/reporters/flaky.mjs` deja el registro de los que reintentaron para
+// vaciar la lista cuando la causa esté resuelta.
 const CI = Boolean(process.env.CI)
 // Las specs comparten tenant y contadores de stock: por defecto un worker para
 // no correr carreras de checkout. Subilo solo si tus specs no tocan stock
@@ -69,14 +74,16 @@ export const SMOKE_GREP = [
 export default defineConfig({
   testDir: './e2e',
   forbidOnly: !!CI,
-  // Flaky retry locally, zero tolerance in CI.
-  // CI sin reintentos convertía cada flake de timing en un deploy rojo:
-  // 2 reintentos absorben la variabilidad del runner (un fallo real sigue rojo).
-  retries: CI ? 2 : 1,
+  // Retries: 0 por defecto (mismo número en local y CI). Reemplaza a la
+  // política anterior de 2 reintentos globales en CI: ahora SOLO los specs de
+  // la cuarentena (MOBOS_E2E_CUARENTENA, lista explícita en el workflow)
+  // habilitan 1 retry con `e2e/helpers/cuarentena.mjs` y el reporter deja el
+  // registro para vaciar la lista. Un fallo real sigue siendo rojo.
+  retries: 0,
   workers: WORKERS,
   timeout: 90_000,
   expect: { timeout: 20_000 },
-  reporter: [['list'], ['html', { open: 'never' }]],
+  reporter: [['list'], ['html', { open: 'never' }], ['./e2e/reporters/flaky.mjs']],
   use: {
     baseURL: `http://localhost:${WEB_PORT}`,
     trace: 'retain-on-failure',
