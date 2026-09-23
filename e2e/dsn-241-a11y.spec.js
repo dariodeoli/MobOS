@@ -80,7 +80,8 @@ test('oscuro completo: el shell v2 sobre una pantalla del pilotaje', async ({ pa
   await page.setViewportSize({ width: 1280, height: 900 })
   await preparar(page, 'dark')
   await page.goto('/inventario/unidades')
-  await expect(page.locator('.tema-v2')).toHaveCount(1)
+  // La pantalla del piloto también lleva el scope v2: se exige el del shell.
+  await expect(page.locator('.tema-v2').filter({ has: page.getByTestId('shell-lateral') })).toHaveCount(1)
   await expect(page.getByTestId('inventario-fila').first()).toBeVisible({ timeout: 30_000 })
   const medicion = await auditarContraste(page, SHELL, ['.tema-v2'])
   informar('shell-inventario-oscuro', medicion)
