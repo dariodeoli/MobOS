@@ -65,4 +65,30 @@ assert.deepEqual(
   { revenuePyg: 90000, costPyg: 60000, profitPyg: 30000, marginPct: 33.33, unknownCostLines: 0 },
 )
 
-console.log('reporting-margen.test.ts: descuento del carrito en ganancia, comisión y margen real: ok')
+// ── Una sola fórmula de margen por venta ───────────────────────────────────
+// Una línea vendida bajo costo (liquidación) no puede pagar comisión sobre un
+// margen que la venta no dejó: el reporte y las comisiones comparten la misma
+// cuenta por venta, con la pérdida descontada una sola vez.
+const ventaConPerdida = {
+  id: 'venta-perdida',
+  status: 'COMPLETED',
+  subtotalPyg: 600,
+  discountPyg: 0,
+  deliveryPyg: 0,
+  totalPyg: 600,
+  sellerId: 'v1',
+  sellerName: 'Vendedor Uno',
+  createdAt: '2026-09-10T15:00:00.000Z',
+  items: [
+    { productId: 'p1', description: 'Liquidación bajo costo', quantity: 1, unitCostPyg: 200, totalPyg: 100 },
+    { productId: 'p2', description: 'Línea rentable', quantity: 1, unitCostPyg: 100, totalPyg: 500 },
+  ],
+  payments: [{ status: 'CONFIRMED', amountPyg: 600 }],
+}
+const reporteConPerdida = aggregateReport([ventaConPerdida], { groupBy: 'seller', offsetMinutes: -180 })
+assert.equal(reporteConPerdida.totals.profitPyg, 300, 'el margen de la venta es 600 − 300')
+const comisionesConPerdida = aggregateCommissions([ventaConPerdida], [{ userId: 'v1', percentPyg: 10 }])
+assert.equal(comisionesConPerdida.sellers[0].marginPyg, 300, 'la comisión usa el mismo margen que el reporte')
+assert.equal(comisionesConPerdida.sellers[0].commissionPyg, 30)
+
+console.log('reporting-margen.test.ts: descuento del carrito y margen único por venta: ok')

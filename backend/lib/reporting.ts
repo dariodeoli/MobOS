@@ -188,23 +188,12 @@ export function aggregateCommissions(
     const acumulador = acumular(sellerId, orden.sellerName?.trim() || profile?.name?.trim() || 'Sin vendedor', profile?.role ?? null)
     acumulador.orders += 1
     acumulador.totalPyg = suma(acumulador.totalPyg, entero(orden.totalPyg) ?? 0)
-    const items = Array.isArray(orden.items) ? orden.items : []
-    let marginOrden = 0
-    for (const item of items) {
-      const cantidad = entero(item.quantity, 1) ?? 0
-      const totalLinea = entero(item.totalPyg) ?? 0
-      const costoUnitario = item.unitCostPyg === null || item.unitCostPyg === undefined ? null : entero(item.unitCostPyg)
-      if (costoUnitario === null) {
-        acumulador.linesWithoutCost += 1
-        acumulador.salesWithoutCostPyg = suma(acumulador.salesWithoutCostPyg, totalLinea)
-        continue
-      }
-      marginOrden = suma(marginOrden, Math.max(0, totalLinea - costoUnitario * cantidad))
-    }
-    // El descuento del carrito (nivel orden) baja el margen sobre el que se
-    // liquida la comisión; sin esto el vendedor cobraba sobre un margen inflado.
-    marginOrden = Math.max(0, marginOrden - Math.max(0, entero(orden.discountPyg) ?? 0))
-    acumulador.marginPyg = suma(acumulador.marginPyg, marginOrden)
+    // Misma cuenta de margen por venta que el reporte: la comisión no puede
+    // pagar más margen del que la venta dejó (ni pisar línea por línea).
+    const costos = costosDeOrden(orden)
+    acumulador.linesWithoutCost += costos.lineasSinCosto
+    acumulador.salesWithoutCostPyg = suma(acumulador.salesWithoutCostPyg, costos.sinCosto)
+    acumulador.marginPyg = suma(acumulador.marginPyg, margenDeOrden(costos))
   }
 
   const sellersRows: CommissionSellerRow[] = [...acumulados.values()].map(acumulador => {
@@ -476,10 +465,18 @@ type HechoOrden = {
   comision: number
 }
 
-function analizarOrden(orden: OrderLike): HechoOrden {
-  const items = Array.isArray(orden.items) ? orden.items : []
-  const payments = Array.isArray(orden.payments) ? orden.payments : []
+type CostosDeOrden = { unidades: number; costo: number; conCosto: number; sinCosto: number; lineasSinCosto: number }
 
+/**
+ * Costos de una venta con los costos congelados de sus líneas. Es la única
+ * cuenta de margen por venta: la comparten el reporte (por vendedor/día/… y los
+ * totales) y las comisiones (reporte y liquidación del vendedor), para que
+ * nadie cobre sobre un margen distinto al que muestra el reporte. El descuento
+ * del carrito (nivel orden) baja la venta con costo y las líneas sin costo no
+ * aportan margen: quedan informadas aparte.
+ */
+function costosDeOrden(orden: OrderLike): CostosDeOrden {
+  const items = Array.isArray(orden.items) ? orden.items : []
   let unidades = 0
   let costo = 0
   let conCosto = 0
@@ -498,12 +495,22 @@ function analizarOrden(orden: OrderLike): HechoOrden {
     costo = suma(costo, costoUnitario * cantidad)
     conCosto = suma(conCosto, totalLinea)
   }
-  // El descuento del carrito es a nivel orden: baja la venta sobre la que se
-  // calcula el margen (`totalPyg` ya viene neto). Se aplica entero sobre la
-  // porción con costo —las líneas sin costo no aportan margen— y nunca deja la
-  // ganancia en negativo: el descuento real no puede inflar el resultado.
-  const descuento = Math.max(0, entero(orden.discountPyg) ?? 0)
-  conCosto = Math.max(0, conCosto - descuento)
+  conCosto = Math.max(0, conCosto - Math.max(0, entero(orden.discountPyg) ?? 0))
+  return { unidades, costo, conCosto, sinCosto, lineasSinCosto }
+}
+
+/**
+ * Margen real de la venta con costos conocidos: la venta con costo menos el
+ * costo, pisado una sola vez por venta. Así una línea vendida bajo costo
+ * descuenta el margen de ESA venta (y su comisión) sin dejar la ganancia en
+ * negativo; no se pisan las líneas una por una, que inflaba el margen.
+ */
+const margenDeOrden = (costos: CostosDeOrden) => Math.max(0, costos.conCosto - costos.costo)
+
+function analizarOrden(orden: OrderLike): HechoOrden {
+  const items = Array.isArray(orden.items) ? orden.items : []
+  const payments = Array.isArray(orden.payments) ? orden.payments : []
+  const costos = costosDeOrden(orden)
 
   // Solo los pagos confirmados son cobro real.
   let cobrado = 0
@@ -518,7 +525,7 @@ function analizarOrden(orden: OrderLike): HechoOrden {
     comision = suma(comision, fee)
   }
 
-  return { orden, items, unidades, cobrado, costo, conCosto, sinCosto, lineasSinCosto, comision }
+  return { orden, items, ...costos, cobrado, comision }
 }
 
 function acumularOrden(acumulador: Acumulador, hecho: HechoOrden) {
@@ -531,7 +538,7 @@ function acumularOrden(acumulador: Acumulador, hecho: HechoOrden) {
   acumulador.totalPyg = suma(acumulador.totalPyg, entero(orden.totalPyg) ?? 0)
   acumulador.collectedPyg = suma(acumulador.collectedPyg, hecho.cobrado)
   acumulador.costPyg = suma(acumulador.costPyg, hecho.costo)
-  acumulador.profitPyg = suma(acumulador.profitPyg, Math.max(0, hecho.conCosto - hecho.costo))
+  acumulador.profitPyg = suma(acumulador.profitPyg, margenDeOrden(hecho))
   acumulador.salesWithCostPyg = suma(acumulador.salesWithCostPyg, hecho.conCosto)
   acumulador.salesWithoutCostPyg = suma(acumulador.salesWithoutCostPyg, hecho.sinCosto)
   acumulador.linesWithoutCost += hecho.lineasSinCosto

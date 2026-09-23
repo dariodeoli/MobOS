@@ -257,6 +257,27 @@ test('el descuento no inventa ganancia: por encima del margen queda en cero', ()
   assert.equal(comisiones.sellers[0].commissionPyg, 0)
 })
 
+// Una sola fórmula de margen por venta: el reporte y las comisiones no pueden
+// pisar la ganancia distinto. Con una línea bajo costo, la pérdida descuenta el
+// margen de ESA venta (600 − 300 = 300); antes las comisiones pisaban línea por
+// línea y pagaban sobre 400.
+test('el margen por venta es el mismo en el reporte y en las comisiones', () => {
+  const mixta = orden({
+    subtotalPyg: 600,
+    totalPyg: 600,
+    items: [
+      { productId: 'p1', description: 'Bajo costo', quantity: 1, unitCostPyg: 200, totalPyg: 100 },
+      { productId: 'p2', description: 'Rentable', quantity: 1, unitCostPyg: 100, totalPyg: 500 },
+    ],
+    payments: [{ status: 'CONFIRMED', amountPyg: 600 }],
+  })
+  const reporte = aggregateReport([mixta], { groupBy: 'seller', offsetMinutes: DEFAULT_OFFSET_MINUTES })
+  assert.equal(reporte.totals.profitPyg, 300)
+  const comisiones = aggregateCommissions([mixta], [{ userId: 'v1', percentPyg: 10 }])
+  assert.equal(comisiones.sellers[0].marginPyg, 300)
+  assert.equal(comisiones.sellers[0].commissionPyg, 30)
+})
+
 test('avisa cuando los importes exceden el rango permitido', () => {
   assert.throws(
     () => aggregateReport([orden({ subtotalPyg: 2147483647, totalPyg: 2147483647 }), orden({ id: 'b', subtotalPyg: 2147483647, totalPyg: 2147483647 })], { groupBy: 'day', offsetMinutes: DEFAULT_OFFSET_MINUTES }),
