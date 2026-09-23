@@ -11,7 +11,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ser
   if (!unit) return error('No hay un certificado para ese serial.', 404)
   const inspeccion = (unit.inspection || {}) as Record<string, any>
   const oculto = buscado.length > 4 ? `${'•'.repeat(buscado.length - 4)}${buscado.slice(-4)}` : buscado
-  const items = Array.isArray(inspeccion.items) ? inspeccion.items : []
+  // #240: el checklist persistido es un objeto por clave con su lista derivada
+  // (`itemsLista`); se acepta también la lista histórica en `items`.
+  const items = Array.isArray(inspeccion.itemsLista) ? inspeccion.itemsLista : Array.isArray(inspeccion.items) ? inspeccion.items : []
   const locks = Array.isArray(inspeccion.locks) ? inspeccion.locks : []
   return json({
     tipo: 'certificado-phonecheck',

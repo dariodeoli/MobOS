@@ -1,9 +1,12 @@
 // Consulta de IMEI (#193) — FASE 1 con mocks: precheck sin cargo, confirmación
 // explícita, idempotencia por requestId y estados honestos. Sin llamadas pagas.
 import { test, expect } from '@playwright/test'
+import { mkdirSync } from 'node:fs'
 import { SEED } from './helpers/seed-data.js'
 
 const API = SEED.api
+// Capturas del QA: viven en test-results para no ensuciar el árbol del release.
+const SALIDA = 'test-results/imei-conciliacion'
 
 // IMEI ficticio con checksum Luhn válido, único por corrida: las aserciones no
 // dependen de registros que hayan dejado corridas anteriores.
@@ -238,8 +241,10 @@ test('el timeout queda a conciliar y administración lo concilia sin repetir la 
   expect(fila.etiqueta).toBe('Verificado')
 })
 
-// #233: conciliación desde la UI (acción auditada, sin storage state ni consola).
-test('la ficha permite conciliar una consulta pendiente desde la UI', async ({ page }) => {
+// #233: conciliación desde la UI (acción funcional y auditada): el botón está
+// para ADMIN/GERENTE en el registro, abre el modal con los datos del panel y al
+// guardar actualiza la consulta y deja la auditoría.
+test('la ficha permite conciliar una consulta desde el modal y deja la auditoría', async ({ page }) => {
   const IMEI_UI = imeiValido()
   await page.goto('/inventario/unidades')
   const requestId = `qa-233ui-${Date.now()}`
@@ -251,11 +256,35 @@ test('la ficha permite conciliar una consulta pendiente desde la UI', async ({ p
   await page.getByLabel('IMEI a consultar').fill(IMEI_UI)
   await page.getByTestId('imei-consultas-buscar').click()
   await page.getByTestId(`imei-conciliar-${creada.datos.id}`).click()
-  await page.getByLabel('Costo real USD').fill('0.06')
-  await page.getByLabel('Nota de conciliación').fill('iCloud/US Block clean ≠ blacklist mundial')
+
+  // El modal llega con los datos del panel y la aclaración obligatoria.
+  const modal = page.getByRole('dialog', { name: 'Conciliar consulta IMEI' })
+  await expect(modal).toBeVisible()
+  await expect(modal.getByText('iCloud/US Block clean ≠ blacklist mundial', { exact: true })).toBeVisible()
+  await expect(modal.getByLabel('Nota de conciliación')).toHaveValue(/iCloud\/US Block clean ≠ blacklist mundial/)
+  await modal.getByLabel('Costo real USD').fill('0.06')
+  await modal.getByLabel('Orden del proveedor').fill('ORD-233-UI')
+  await modal.getByLabel('Nota de conciliación').fill('Conciliado con el panel del proveedor. iCloud/US Block clean ≠ blacklist mundial.')
+  mkdirSync(SALIDA, { recursive: true })
+  await page.screenshot({ path: `${SALIDA}/01-modal-conciliar.png`, fullPage: true })
   await page.getByTestId('imei-conciliar-guardar').click()
   await expect(page.getByText('Consulta conciliada.')).toBeVisible({ timeout: 15_000 })
+  // El registro queda conciliado y el botón sigue disponible (la ventana no es solo lectura).
+  await expect(page.getByTestId(`imei-conciliar-${creada.datos.id}`)).toBeVisible()
+  await expect(page.getByText(/Conciliada el/)).toBeVisible()
+  await page.screenshot({ path: `${SALIDA}/02-consulta-conciliada.png`, fullPage: true })
+
   const historial = await api(page, `imei?imei=${IMEI_UI}`, { method: 'GET' })
-  expect(historial.datos.consultas.find(fila => fila.id === creada.datos.id).etiqueta).toBe('Verificado')
-  if (process.env.MOBOS_QA_140) await page.screenshot({ path: `${process.env.MOBOS_QA_140}/09-conciliar.png` })
+  const fila = historial.datos.consultas.find(item => item.id === creada.datos.id)
+  expect(fila.etiqueta).toBe('Verificado')
+  expect(fila.externalId).toBe('ORD-233-UI')
+  expect(Number(fila.costUsd)).toBe(0.06)
+  expect(fila.conciliationNote).toMatch(/blacklist mundial/)
+  expect(fila.conciliatedAt).toBeTruthy()
+
+  // La acción queda en la auditoría como IMEI_QUERY_CONCILIATED.
+  const auditoria = await api(page, 'audit?action=IMEI_QUERY_CONCILIATED&entity=ImeiCheckQuery&limit=50', { method: 'GET' })
+  expect(auditoria.status).toBe(200)
+  const entradas = Array.isArray(auditoria.datos) ? auditoria.datos : (auditoria.datos?.entradas || [])
+  expect(entradas.some(entrada => entrada.entityId === creada.datos.id)).toBe(true)
 })

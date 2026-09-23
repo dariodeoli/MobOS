@@ -5,6 +5,7 @@ import { requireSession } from '../../../lib/auth'
 import { InventoryUnitStatus, PaymentCurrency, ProductCondition } from '@prisma/client'
 import { INVENTORY_REMOVED, INVENTORY_RESTORED, removedInventoryUnitIds } from '../../../lib/inventory'
 import { normalizarCosto } from '../../../lib/costs'
+import { itemsLista, normalizarInspectionItems, resumenInspection } from '../../../lib/inspection'
 import { INT_MAX } from '../../../lib/payment-input'
 import { serialKey } from '../../../lib/validation'
 import { changeStock } from '../../../lib/stock'
@@ -169,19 +170,17 @@ export async function PATCH(request: Request) {
   if (action === 'inspection') {
     const inspeccion = body?.inspection
     if (!inspeccion || typeof inspeccion !== 'object' || Array.isArray(inspeccion)) return error('Inspección inválida.')
-    const items = Array.isArray(inspeccion.items) ? inspeccion.items : []
-    const estados: Record<string, number | null> = { ok: 1, observacion: 0.5, falla: 0, na: null }
-    let suma = 0
-    let cuenta = 0
-    for (const item of items) { const valor = estados[String(item?.estado || '')]; if (valor === null || valor === undefined) continue; suma += valor; cuenta += 1 }
-    const puntaje = cuenta ? Math.round((suma / cuenta) * 100) : null
-    const grado = puntaje === null ? null : puntaje >= 90 ? 'A' : puntaje >= 75 ? 'B' : 'C'
+    // #240: la ficha manda el checklist por clave y el histórico por lista; se
+    // persiste una sola forma (objeto por clave) con su lista derivada y el
+    // puntaje/grado calculados en el servidor.
+    const items = normalizarInspectionItems(inspeccion.items)
+    const { puntaje, grado } = resumenInspection(items)
     // Costo de repuestos/arreglos detectados en la inspección (#240): lo que
     // costó dejar el equipo en condiciones. Suma al costo real del equipo para
     // el margen y el seguro (#148 §19), así que se valida y normaliza acá.
     const costoRepuestos = inspeccion.costoRepuestosPyg === undefined || inspeccion.costoRepuestosPyg === '' || inspeccion.costoRepuestosPyg === null ? null : Number(inspeccion.costoRepuestosPyg)
     if (costoRepuestos !== null && (!Number.isSafeInteger(costoRepuestos) || costoRepuestos < 0 || costoRepuestos > INT_MAX)) return error('El costo de repuestos debe ser un entero entre 0 y 2.147.483.647.')
-    const actualizada = await prisma.inventoryUnit.update({ where: { id }, data: { inspection: { ...inspeccion, items, puntaje, grado, costoRepuestosPyg: costoRepuestos, inspeccionadoAt: new Date().toISOString(), inspeccionadoPor: session.user.name } as any } })
+    const actualizada = await prisma.inventoryUnit.update({ where: { id }, data: { inspection: { ...inspeccion, items, itemsLista: itemsLista(items), puntaje, grado, costoRepuestosPyg: costoRepuestos, inspeccionadoAt: new Date().toISOString(), inspeccionadoPor: session.user.name } as any } })
     return json(actualizada)
   }
 

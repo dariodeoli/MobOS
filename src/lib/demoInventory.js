@@ -6,6 +6,7 @@
 // costos vienen en USD (con cotización) o en Gs, como en la app real.
 import { EQUIPO_DEMO, IMEIS_DEMO_FICTICIOS, IPHONES_DEMO, serialDemo } from './demo/iphones.js'
 import { guardarDemo, leerDemo } from './demoStorage.js'
+import { resumenInspection } from './phonecheck.js'
 import { formatGs } from '../utils/moneda.js'
 
 const KEY = 'mobos:demo-inventory:v1'
@@ -187,7 +188,11 @@ export function updateDemoUnit(data = {}) {
   else if (data.action === 'move') { unit.locationId = data.locationId || null }
   else if (data.action === 'adjust') { unit.status = data.status || unit.status; if (data.status === 'DEFECTIVE') unit.notes = data.reason || unit.notes }
   else if (data.action === 'inspection') {
-    unit.inspection = { ...data.inspection, inspeccionadoAt: new Date().toISOString(), inspeccionadoPor: 'Hernán Acosta' }
+    // #240: el demo guarda la inspección como el servidor (puntaje y grado
+    // calculados), así el tablero de certificaciones y el informe la leen igual.
+    const inspection = data.inspection || {}
+    const { puntaje, grado } = resumenInspection(inspection)
+    unit.inspection = { ...inspection, puntaje, grado, inspeccionadoAt: new Date().toISOString(), inspeccionadoPor: 'Hernán Acosta' }
   }
   else if (data.action === 'details') {
     unit.costCurrency = data.costCurrency || 'PYG'
