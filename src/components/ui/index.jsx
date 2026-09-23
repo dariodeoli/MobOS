@@ -344,7 +344,8 @@ const ICON_ACTION_TONE = {
   bad: 'border-bad/30 text-bad hover:bg-bad/10',
   mute: 'border-transparent text-mute hover:bg-ink-700 hover:text-fore',
 }
-// `size="touch"` agranda el área táctil (móvil): mismo ícono y tono.
+// `size="touch"` agranda el área táctil a 44 px (móvil y tablet): mismo ícono
+// y tono, y el target cumple el criterio de la auditoría responsive (#249 H2).
 export function IconAction({ icon, label, tone = 'mute', onClick, disabled = false, size = 'sm' }) {
   return (
     <button
@@ -355,7 +356,7 @@ export function IconAction({ icon, label, tone = 'mute', onClick, disabled = fal
       onClick={onClick}
       className={cn(
         'inline-flex items-center justify-center rounded-lg border transition active:scale-95 disabled:pointer-events-none disabled:opacity-40',
-        size === 'touch' ? 'h-9 w-9' : 'h-7 w-7',
+        size === 'touch' ? 'h-11 w-11' : 'h-7 w-7',
         ICON_ACTION_TONE[tone],
       )}
     >

@@ -150,7 +150,7 @@ export default function WhatsAppMenu({
         aria-label={title ? `Enviar WhatsApp a ${title}` : 'Enviar WhatsApp'}
         title={disabled ? 'No disponible' : 'Abrir WhatsApp con la última plantilla'}
         onClick={(event) => { event.stopPropagation(); abrirDirecto() }}
-        className={cn('grid h-8 w-8 place-items-center rounded-lg transition', disabled || enviando ? 'cursor-not-allowed text-mute' : 'text-ok hover:bg-ok/10')}
+        className={cn('grid h-11 w-11 place-items-center rounded-lg transition', disabled || enviando ? 'cursor-not-allowed text-mute' : 'text-ok hover:bg-ok/10')}
       >
         <Icon name="send" className="h-4 w-4" />
       </button>
@@ -161,7 +161,7 @@ export default function WhatsAppMenu({
         aria-expanded={abierto}
         title="Elegir plantilla, editar y previsualizar"
         onClick={(event) => { event.stopPropagation(); setAbierto((current) => !current) }}
-        className={cn('grid h-5 w-4 place-items-center rounded transition', disabled || enviando ? 'cursor-not-allowed text-mute' : 'text-mute hover:text-ok')}
+        className={cn('grid h-11 w-11 place-items-center rounded transition', disabled || enviando ? 'cursor-not-allowed text-mute' : 'text-mute hover:text-ok')}
       >
         <Icon name="chevron" className="h-3 w-3" />
       </button>

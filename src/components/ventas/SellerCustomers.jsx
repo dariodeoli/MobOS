@@ -264,13 +264,16 @@ export default function SellerCustomers() {
 
   return <SellerSection title="Clientes" description={esDemo ? 'Demo local: ingresá únicamente datos ficticios.' : 'Buscá al instante por nombre, apellido, teléfono, RUC/CI, correo, ciudad, dirección, etiquetas, notas o datos de facturación.'}>
     {puedeCampanas && <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
-      {[['clientes', 'Clientes'], ['campanas', 'Campañas']].map(([clave, label]) => <button key={clave} type="button" aria-pressed={seccion === clave} onClick={() => setSeccion(clave)} className={cn('rounded-lg px-2.5 py-1.5 text-xs font-semibold transition', seccion === clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}
+      {[['clientes', 'Clientes'], ['campanas', 'Campañas']].map(([clave, label]) => <button key={clave} type="button" aria-pressed={seccion === clave} onClick={() => setSeccion(clave)} className={cn('inline-flex min-h-11 items-center rounded-lg px-3 py-1.5 text-xs font-semibold transition', seccion === clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}
     </div>}
     {puedeCampanas && seccion === 'campanas' ? <CampanasClientes templates={plantillasClientes} empresa={empresa} sucursal={sucursal} vendedor={sesion?.nombre} /> : <>
     <div className="flex flex-wrap items-center gap-2">
       <SegmentedField
         value={filtro}
         onChange={setFiltro}
+        // Chips a 44 px de alto (#249 H3): el patrón compartido llega con
+        // DSN/CMP; acá se aplica al uso de Clientes sin tocar el objeto común.
+        className="[&>button]:min-h-11"
         ariaLabel="Filtrar clientes"
         options={FILTROS_CLIENTES.map(([key, label]) => [key, label])}
       />
