@@ -20,17 +20,27 @@ export function serieDeReporte(data) {
   }
 }
 
+// Ventas con líneas sin costo conocido. El reporte las informa aparte
+// (`salesWithoutCostPyg`/`linesWithoutCost`) y no se les inventa un costo: la
+// ganancia se calcula solo sobre las líneas con costo.
+function sinCostoDeTotales(totales) {
+  return { sinCostoPyg: num(totales?.salesWithoutCostPyg), lineasSinCosto: num(totales?.linesWithoutCost) }
+}
+
 /** Resultado del período elegido (día/semana/mes/año). */
 export function gananciaDelPeriodo(periodo, datos, totalesApi) {
   const local = calcularGanancia(periodo, datos)
   if (!totalesApi) return local
   const ingresos = num(totalesApi.totalPyg)
   const costoMercaderia = num(totalesApi.costPyg)
-  const ganancia = ingresos - costoMercaderia - local.totalGastos - local.totalAds
+  const { sinCostoPyg, lineasSinCosto } = sinCostoDeTotales(totalesApi)
+  const ganancia = ingresos - sinCostoPyg - costoMercaderia - local.totalGastos - local.totalAds
   return {
     ...local,
     ingresos,
     costoMercaderia,
+    sinCostoPyg,
+    lineasSinCosto,
     ganancia,
     estado: estadoDeGanancia(ganancia),
     cantVentas: num(totalesApi.orders),
@@ -46,12 +56,15 @@ export function gananciaDelDia(clave, datos, serieApi) {
   const grupo = serieApi.porDia.get(clave)
   const ingresos = grupo ? num(grupo.totalPyg) : 0
   const costoMercaderia = grupo ? num(grupo.costPyg) : 0
-  const ganancia = ingresos - costoMercaderia - local.totalGastos - local.totalAds
+  const { sinCostoPyg, lineasSinCosto } = sinCostoDeTotales(grupo)
+  const ganancia = ingresos - sinCostoPyg - costoMercaderia - local.totalGastos - local.totalAds
   const sinDatos = !grupo && local.totalGastos === 0 && local.totalAds === 0
   return {
     ...local,
     ingresos,
     costoMercaderia,
+    sinCostoPyg,
+    lineasSinCosto,
     ganancia,
     estado: sinDatos ? 'vacio' : estadoDeGanancia(ganancia),
     cantVentas: grupo ? num(grupo.orders) : 0,
@@ -72,19 +85,34 @@ export function gananciaDeRango(rango, datos, totalesApi) {
   const totalAds = (Array.isArray(datos?.ads) ? datos.ads : []).filter(enRango).reduce((suma, ad) => suma + num(ad.monto), 0)
   const ingresos = num(totalesApi.totalPyg)
   const costoMercaderia = num(totalesApi.costPyg)
-  const ganancia = ingresos - costoMercaderia - totalGastos - totalAds
-  return { ingresos, costoMercaderia, totalGastos, totalAds, ganancia, estado: estadoDeGanancia(ganancia), cantVentas: num(totalesApi.orders) }
+  const { sinCostoPyg, lineasSinCosto } = sinCostoDeTotales(totalesApi)
+  const ganancia = ingresos - sinCostoPyg - costoMercaderia - totalGastos - totalAds
+  return { ingresos, costoMercaderia, sinCostoPyg, lineasSinCosto, totalGastos, totalAds, ganancia, estado: estadoDeGanancia(ganancia), cantVentas: num(totalesApi.orders) }
 }
 
 /** Filas del desglose "Cómo se calcula", con las etiquetas de siempre. */
 export function lineasDeGanancia(ganancia, { costo = 'Costo de mercadería vendida' } = {}) {
   if (!ganancia) return []
-  return [
+  const filas = [
     { label: 'Ingresos por ventas', valor: ganancia.ingresos, signo: '+', color: 'text-ok' },
     { label: costo, valor: ganancia.costoMercaderia, signo: '−', color: 'text-mute' },
+  ]
+  // Ventas con líneas sin costo conocido: no suman ganancia (no se inventa el
+  // costo). Se muestran como línea propia para que el desglose cierre.
+  if (num(ganancia.sinCostoPyg) > 0) {
+    const lineas = num(ganancia.lineasSinCosto)
+    filas.push({
+      label: `Ventas con costo pendiente${lineas > 1 ? ` (${lineas} líneas)` : ''}`,
+      valor: ganancia.sinCostoPyg,
+      signo: '−',
+      color: 'text-warn',
+    })
+  }
+  filas.push(
     { label: 'Gastos', valor: ganancia.totalGastos, signo: '−', color: 'text-mute' },
     { label: 'Meta Ads', valor: ganancia.totalAds, signo: '−', color: 'text-mute' },
-  ]
+  )
+  return filas
 }
 
 /**
@@ -96,7 +124,7 @@ export function aplicarSeguro(ganancia, pct) {
   const porcentaje = Number(pct) || 0
   if (!ganancia || porcentaje <= 0) return ganancia
   const costoMercaderia = Math.round(num(ganancia.costoMercaderia) * (1 + porcentaje / 100))
-  const gananciaReal = num(ganancia.ingresos) - costoMercaderia - num(ganancia.totalGastos) - num(ganancia.totalAds)
+  const gananciaReal = num(ganancia.ingresos) - num(ganancia.sinCostoPyg) - costoMercaderia - num(ganancia.totalGastos) - num(ganancia.totalAds)
   return { ...ganancia, costoMercaderia, ganancia: gananciaReal, estado: estadoDeGanancia(gananciaReal), seguroPct: porcentaje }
 }
 
