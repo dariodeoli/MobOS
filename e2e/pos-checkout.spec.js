@@ -260,6 +260,45 @@ test('POS keeps every clicked product in the sale list', async ({ page }) => {
   await expect(page.getByText(`Gs ${total.toLocaleString('es-PY')}`).first()).toBeVisible()
 })
 
+// #243: el carrito arranca ultra-colapsado (solo nombre, IMEI y total de la
+// línea) y el detalle (cantidad, precio) se despliega con el chevron.
+test('POS: la linea del carrito arranca ultra-colapsada y el detalle se despliega', async ({ page }) => {
+  const cable = SEED.products.cable
+  await page.goto('/pos')
+  await page
+    .getByLabel('Nombre, teléfono, CI o RUC del cliente')
+    .fill(`${SEED.checkoutCustomer} colapso ${Date.now().toString(36)}`)
+  await page.getByPlaceholder('Buscar producto…').fill('Cable')
+  await page.getByRole('button', { name: new RegExp(cable.name) }).click()
+  await expect(page.getByText('Productos de esta venta')).toBeVisible()
+
+  const carrito = page.locator('#pos-resumen-venta')
+  const fila = carrito.locator('.divide-y > div').first()
+  const cantidad = fila.getByLabel(`Cantidad de ${cable.name}`)
+  const precio = fila.getByLabel(`Precio de venta de ${cable.name}`)
+  const verDetalle = fila.getByRole('button', { name: `Ver detalle de ${cable.name}` })
+
+  // Colapsada: sin cantidad ni precio; con el nombre, el total y el chevron.
+  await expect(fila.getByText(cable.name)).toBeVisible()
+  await expect(fila.getByText(`Gs ${cable.pricePyg.toLocaleString('es-PY')}`)).toBeVisible()
+  await expect(cantidad).toHaveCount(0)
+  await expect(precio).toHaveCount(0)
+  await expect(verDetalle).toHaveAttribute('aria-expanded', 'false')
+
+  // Desplegada: cantidad y precio a la vista; el chevron queda marcado.
+  await verDetalle.click()
+  await expect(cantidad).toBeVisible()
+  await expect(precio).toHaveValue(cable.pricePyg.toLocaleString('es-PY'))
+  await expect(fila.getByRole('button', { name: `Ver menos detalle de ${cable.name}` }))
+    .toHaveAttribute('aria-expanded', 'true')
+
+  // Se vuelve a colapsar: el detalle desaparece y queda el total de la línea.
+  await fila.getByRole('button', { name: `Ver menos detalle de ${cable.name}` }).click()
+  await expect(cantidad).toHaveCount(0)
+  await expect(precio).toHaveCount(0)
+  await expect(verDetalle).toHaveAttribute('aria-expanded', 'false')
+})
+
 // Cliente: búsqueda por razón social de facturación, selección con marca
 // visible, precarga de la factura y "Quitar cliente" sin recargar la página.
 test('POS finds a customer by billing name, shows the selection and clears it', async ({
