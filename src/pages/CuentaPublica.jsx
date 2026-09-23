@@ -7,6 +7,7 @@ import { fechaDia as fecha, fechaHora } from '@/utils/fecha'
 import { codigoPedido } from '@/utils/pedido'
 import Icon from '@/components/shared/Icon'
 import { PortalCargando, PortalEncabezado, PortalEstado, PortalFallo, PortalPie, PortalSeccion } from '@/components/customerPortal/PortalUI'
+import PasosEntrega from '@/components/customerPortal/PasosEntrega'
 import { demoCuentaPayload, esTokenDemo } from '@/lib/demoClientes'
 import { NIVELES_PORTAL } from '@/lib/customerPortal'
 import { ESTADO_ENTREGA, ESTADO_GARANTIA, ESTADO_PEDIDO, tonoGarantia, tonoPedido } from '@/lib/estadosPedido'
@@ -122,10 +123,15 @@ export default function CuentaPublica() {
                         </div>
                         <div className="mt-2 flex flex-wrap items-center gap-1.5">
                           <PortalEstado tono={tonoPedido(order.status)}>{ESTADO_PEDIDO[order.status] || order.status}</PortalEstado>
-                          {ESTADO_ENTREGA[order.fulfillmentStatus] && <PortalEstado tono="neutro">{ESTADO_ENTREGA[order.fulfillmentStatus]}</PortalEstado>}
+                          {(order.tracking?.estadoLabel || ESTADO_ENTREGA[order.fulfillmentStatus]) && <PortalEstado tono="neutro">{order.tracking?.estadoLabel || ESTADO_ENTREGA[order.fulfillmentStatus]}</PortalEstado>}
                           {pendiente > 0 && <PortalEstado tono="warn">Pendiente {gs(pendiente)}</PortalEstado>}
                         </div>
                         {pendiente > 0 && order.dueAt && <p className="mt-1.5 text-xs text-mute">Vence el {fecha(order.dueAt)}</p>}
+                        {/* Seguimiento del envío/retiro (#240 → portal): los
+                            pasos con su fecha mientras el pedido está en curso. */}
+                        {order.status !== 'CANCELLED' && !['DELIVERED', 'PICKED_UP'].includes(order.fulfillmentStatus) && order.tracking?.pasos?.length > 1 && (
+                          <PasosEntrega tracking={order.tracking} data-testid="portal-pasos-entrega" className="mt-3 border-t border-ink-600/60 pt-2.5" />
+                        )}
                         {order.receiptToken && (
                           <Link
                             to={`/pedido/${encodeURIComponent(order.receiptToken)}`}
