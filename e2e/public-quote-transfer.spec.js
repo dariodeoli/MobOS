@@ -72,9 +72,14 @@ test('el remito público confirma la recepción y suma el stock de destino', asy
   const doble = await api(page, `/api/transfers/public/${token}`, { method: 'POST', body: JSON.stringify({ action: 'receive' }) })
   expect(doble.status).toBe(409)
 
-  const productos = await api(page, '/api/products')
-  const enDestino = productos.body.find(row => row.sku === sku && row.branchId === destino.body.id)
-  expect(enDestino?.stock).toBe(1)
+  // El catálogo viene paginado (200) y ordenado por nombre: con cientos de
+  // productos de corridas previas la fila podía quedar fuera de la página y el
+  // test era inestable. Se busca por SKU (único) y se espera el stock.
+  await expect.poll(async () => {
+    const productos = await api(page, `/api/products?q=${encodeURIComponent(sku)}`)
+    const enDestino = (productos.body || []).find((row) => row.sku === sku && row.branchId === destino.body.id)
+    return enDestino?.stock
+  }, { message: 'la sucursal destino tiene que sumar el stock del remito', timeout: 15_000 }).toBe(1)
 
   // El panel ofrece el QR del remito para imprimirlo o compartirlo.
   await page.goto('/inventario/traslados')

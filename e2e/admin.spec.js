@@ -704,7 +704,7 @@ test.describe('mini CRM de clientes', () => {
     expect(alta.status).toBe(201)
     const clienteId = alta.body.id
 
-    const productos = await crmApi(page, '/api/products')
+    const productos = await crmApi(page, `/api/products?q=${encodeURIComponent(SEED.products.cable.sku)}`)
     const cable = (productos.body || []).find((row) => row.sku === SEED.products.cable.sku)
     expect(cable?.id, 'el producto sembrado E2E-CABLE debe existir').toBeTruthy()
     const numeroPedido = `E2E-CRM-${marca}`
@@ -972,7 +972,7 @@ test('portal del cliente → QA 360/768/1440 con nota pública, pedidos y compro
   const ficha = await crmApi(page, `/api/customers/${clienteId}`)
   expect(ficha.body?.customer?.publicNote).toBe(nota)
 
-  const productos = await crmApi(page, '/api/products')
+  const productos = await crmApi(page, `/api/products?q=${encodeURIComponent(SEED.products.cable.sku)}`)
   const cable = (productos.body || []).find((row) => row.sku === SEED.products.cable.sku)
   expect(cable?.id).toBeTruthy()
   const numeroPedido = `E2E-PORTALQA-${marca}`
