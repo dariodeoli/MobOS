@@ -46,6 +46,59 @@ export function claveAyer() {
   return fechaClave(d)
 }
 
+// ── Día operativo de Paraguay ───────────────────────────────────────
+// La API interpreta desde/hasta como días de Paraguay (UTC-3 fijo desde
+// octubre de 2024, igual que reportes y el resto de Finanzas). Los atajos de
+// período salen de ese día y no del reloj del navegador: un equipo en otra
+// zona horaria (p. ej. un runner de CI en UTC) pedía «Hoy» con un día distinto
+// y dejaba afuera los cobros recién hechos.
+export const OFFSET_PARAGUAY_MINUTOS = -180
+
+// Instante corrido al reloj paraguayo: se lee y se opera en UTC para que la
+// zona horaria del navegador no se meta en la cuenta.
+function relojParaguay(instante = new Date()) {
+  return new Date(new Date(instante).getTime() + OFFSET_PARAGUAY_MINUTOS * 60_000)
+}
+
+// Clave YYYY-MM-DD del día paraguayo que corresponde al instante.
+export function fechaClaveParaguay(instante = new Date()) {
+  return relojParaguay(instante).toISOString().slice(0, 10)
+}
+
+// Rango {desde, hasta} de un atajo de período sobre el día paraguayo.
+// `instante` permite fijar el «ahora» en tests.
+export function presetParaguay(id, instante = new Date()) {
+  const hoy = relojParaguay(instante)
+  const clave = (fecha) => fecha.toISOString().slice(0, 10)
+  const sumarDias = (n) => {
+    const fecha = new Date(hoy)
+    fecha.setUTCDate(fecha.getUTCDate() + n)
+    return fecha
+  }
+  const inicioMes = (m = 0) => new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth() + m, 1))
+  const finMes = (m = 0) => new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth() + m + 1, 0))
+  switch (id) {
+    case 'hoy':
+      return { desde: clave(hoy), hasta: clave(hoy) }
+    case 'ayer':
+      return { desde: clave(sumarDias(-1)), hasta: clave(sumarDias(-1)) }
+    case '7d':
+      return { desde: clave(sumarDias(-6)), hasta: clave(hoy) }
+    case '30d':
+      return { desde: clave(sumarDias(-29)), hasta: clave(hoy) }
+    case 'mes':
+      return { desde: clave(inicioMes()), hasta: clave(hoy) }
+    case 'mesAnt':
+      return { desde: clave(inicioMes(-1)), hasta: clave(finMes(-1)) }
+    case 'trim':
+      return { desde: clave(new Date(Date.UTC(hoy.getUTCFullYear(), Math.floor(hoy.getUTCMonth() / 3) * 3, 1))), hasta: clave(hoy) }
+    case 'anio':
+      return { desde: clave(new Date(Date.UTC(hoy.getUTCFullYear(), 0, 1))), hasta: clave(hoy) }
+    default:
+      return null
+  }
+}
+
 function lunesDeEstaSemana() {
   const d = new Date()
   const dow = (d.getDay() + 6) % 7 // 0 = lunes

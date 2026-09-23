@@ -28,9 +28,13 @@ const MAX_DIAS = 366
 const MAX_PAGOS = 5000
 const MAX_ITEMS = 1000
 const MAX_LOTE = 200
-const OFFSET = '-04:00'
+// Paraguay opera en UTC-3 fijo desde octubre de 2024, el mismo criterio que
+// reportes y el resto de Finanzas (`cash/route.ts`, `reporting.ts`). Con el
+// -04 heredado, «Hoy» arrancaba a las 04:00Z y los cobros de 00:00–01:00
+// (hora paraguaya) quedaban afuera de la conciliación del día.
+const OFFSET = '-03:00'
 
-const diaParaguay = (fecha: Date) => new Date(fecha.getTime() - 4 * 3_600_000).toISOString().slice(0, 10)
+const diaParaguay = (fecha: Date) => new Date(fecha.getTime() - 3 * 3_600_000).toISOString().slice(0, 10)
 
 function rangoDe(params: URLSearchParams) {
   const to = params.get('to') || diaParaguay(new Date())
