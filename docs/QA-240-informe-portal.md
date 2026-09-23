@@ -42,13 +42,14 @@ MOBOS_QA_URL=http://localhost:5246 MOBOS_QA_API_HOST=api.moboss.online \
 6 pasos y 6 capturas, 0 llamadas al API. Incluye el informe demo abierto desde
 el portal cuando el enlace lleva `?demo=1` (fix de esta entrega).
 
-### Producción — **v1.0.143 · 6/6 ✅** (5 capturas + 1 hallazgo)
+### Producción — **v1.0.144 · 6/6 ✅** (5 capturas + 1 hallazgo)
 
-Corrida del 22/9/2026 22:01 local contra `app.moboss.online` + `clientes.moboss.online`:
+Corrida del 22/9/2026 22:24 local contra `app.moboss.online` + `clientes.moboss.online`:
 WhatsApp con el link, **cronología con el envío** y el informe abierto desde el
 portal, todo verde y sin llamadas al API. El paso del subdominio verifica la
-cuenta demo y deja el hallazgo del fix pendiente de deploy (el build .143 no lo
-trae). Evidencia sellada en `resultados.json`.
+cuenta demo y deja el hallazgo del fix pendiente de deploy (el build .144 no lo
+trae; el fix viaja en esta rama). Evidencia sellada en `resultados.json`.
+Corrida previa: v1.0.143 (22:01 local), mismo resultado de los 5 pasos.
 
 ## Observación cerrada — el informe demo no abría desde el portal del subdominio (#74)
 
@@ -85,7 +86,7 @@ cambian.
 | `local-informe-publico-subdominio.png` | **Pre-deploy (harness local)**: el informe demo abriendo desde el portal con el fix `?demo=1` (la corrida de producción lo completa cuando el fix se despliegue) |
 
 Resultado crudo: `docs/QA-240-informe-portal/resultados.json` (sellado con
-**v1.0.143**).
+**v1.0.144**).
 
 ## Pendientes
 
@@ -105,7 +106,7 @@ Resultado crudo: `docs/QA-240-informe-portal/resultados.json` (sellado con
 ## Checks de esta entrega
 
 - `scripts/qa-240-informe-portal-demo.mjs` **6/6 local** y **6/6 producción
-  v1.0.143** (5 capturas + 1 hallazgo del fix pendiente de deploy).
+  v1.0.143 y v1.0.144** (5 capturas + 1 hallazgo del fix pendiente de deploy).
 - `npx playwright test e2e/qa-240-informe.spec.js`: 3/3 verdes (uno re-intentado
   por lentitud del harness).
 - `npm run lint` 0 errores · `npm test` **617 ✓** · backend `test:unit` **71 ✓** ·

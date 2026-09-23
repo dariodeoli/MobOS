@@ -67,16 +67,17 @@ demo pública sin sesión: **5/5 pasos** con capturas en
 | Grado sugerido según hallazgos | un hallazgo mayor → **Gs 1.071.000** (−30%); sin hallazgos → vuelve a la base |
 | «Usar» lleva el valor al acuerdo | acordado **Gs 1.071.000** |
 
-### Post-deploy en producción — ✅ verificado en v1.0.143
+### Post-deploy en producción — ✅ verificado en v1.0.144
 
-Corrida del 22/9/2026 22:02 local contra la **demo pública de producción**:
+Corrida del 22/9/2026 22:25 local contra la **demo pública de producción**
+(primera pasada en v1.0.143, 22:02 local; el mismo resultado):
 
 ```bash
 node scripts/qa-240-valuacion-demo.mjs        # https://app.moboss.online/demo
 ```
 
 **5/5 pasos OK** y **0 llamadas** al API, con capturas y `resultados.json`
-sellados con la **v1.0.143** (los mismos valores de la tabla de arriba: base
+sellados con la **v1.0.144** (los mismos valores de la tabla de arriba: base
 Gs 1.530.000, hallazgos → Gs 994.500, grado sugerido → Gs 1.071.000 y “Usar”
 lleva el valor al acuerdo). Con esto queda cerrada la observación “Post-deploy
 .142 (pendiente de que salga)”: la corrida vigente es de producción y sella la
