@@ -218,12 +218,16 @@ html.dark input[type='date']::-webkit-calendar-picker-indicator:hover {
 
 /* ── Tokens v2 · piloto PhoneCheck (#241) ──────────────────────────────
    Se aplican solo dentro de `.v2-piloto` (tabla de inventario, ficha de
-   unidad y carrito POS). El resto de la app sigue con la paleta actual
-   hasta que CMP migre la biblioteca. */
+   unidad y carrito POS) y `.tema-v2` (shell con la vista previa). El resto de
+   la app sigue con la paleta actual hasta que CMP migre la biblioteca.
+   Los tonos SEMÁNTICOS son los de TEXTO AA (F4): los vivos de PhoneCheck
+   (#16A34A, #DC2626, #D97706, #4D7CFE) no llegan a 4.5:1 sobre las
+   superficies v2 y quedan solo para rellenos e indicadores. */
 .v2-piloto,
 .tema-v2 {
   --c-paper: 246 248 251;
   --c-ink: 255 255 255;
+  --c-ink-950: 246 248 251;
   --c-ink-900: 255 255 255;
   --c-ink-800: 241 244 248;
   --c-ink-700: 232 236 243;
@@ -231,10 +235,16 @@ html.dark input[type='date']::-webkit-calendar-picker-indicator:hover {
   --c-ink-500: 148 163 184;
   --c-fore: 14 17 22;
   --c-mute: 71 85 105;
-  --c-ok: 22 163 74;
-  --c-bad: 220 38 38;
-  --c-warn: 217 119 6;
-  --c-info: 77 124 254;
+  --c-fono: 16 185 129;
+  --c-fono-dark: 4 120 87;
+  --c-fono-light: 4 120 87;
+  --c-fono-glow: 16 185 129;
+  --c-ok: 22 101 52;
+  --c-bad: 185 28 28;
+  --c-warn: 146 64 14;
+  --c-info: 32 89 190;
+  --c-reserved: 109 40 217;
+  --c-onbrand: 4 28 18;
 }
 .dark .v2-piloto,
 .dark .tema-v2 {
@@ -248,17 +258,24 @@ html.dark input[type='date']::-webkit-calendar-picker-indicator:hover {
   --c-ink-500: 90 100 120;
   --c-fore: 244 246 250;
   --c-mute: 154 163 178;
-  --c-ok: 34 197 94;
-  --c-bad: 239 68 68;
-  --c-warn: 245 158 11;
-  --c-info: 77 124 254;
+  --c-fono: 5 241 156;
+  --c-fono-dark: 4 185 120;
+  --c-fono-light: 124 255 201;
+  --c-fono-glow: 5 241 156;
+  --c-ok: 74 222 128;
+  --c-bad: 252 165 165;
+  --c-warn: 252 211 77;
+  --c-info: 159 184 255;
+  --c-reserved: 196 181 253;
+  --c-onbrand: 6 30 20;
 }
 .v2-piloto .v2-numero,
 .tema-v2 .v2-numero { font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
 
-/* ── F4 · shell v2: navegación (#241) ──────────────────────────────────
+/* ── F4 · shell v2: navegación accesible (#241) ────────────────────────
    Solo dentro del scope del flag `preview v2`: el ítem activo usa el azul de
-   acción y los rótulos de grupo más marcados. Reversible con el flag. */
+   acción (tono AA en cada tema) y los rótulos de grupo van en verde sólido
+   —al 75% quedaban en 3.2:1 sobre la barra clara—. Reversible con el flag. */
 .tema-v2 nav a,
 .tema-v2 nav button {
   border-radius: 10px;
@@ -274,8 +291,17 @@ html.dark input[type='date']::-webkit-calendar-picker-indicator:hover {
   color: rgb(var(--c-info));
   font-weight: 600;
 }
-.tema-v2 nav b,
-.tema-v2 nav h3 {
-  letter-spacing: .08em;
-  color: rgb(var(--c-mute));
+/* Rótulos de grupo (barra y cajón) y el de "Acciones" del cajón. */
+.tema-v2 nav button[aria-expanded] > span,
+.tema-v2 [data-testid="shell-drawer-acciones"] > span {
+  color: rgb(var(--c-fono-light));
 }
+/* Superficies rojas del shell (aviso sin conexión, contador de
+   notificaciones): blanco en claro; en oscuro el rojo es claro y pide texto
+   oscuro. */
+.tema-v2 .bg-bad { color: #fff; }
+.dark .tema-v2 .bg-bad { color: rgb(var(--c-onbrand)); }
+/* El foco visible tiene que verse sobre el fondo de cada tema (#241): el
+   verde de marca queda casi blanco sobre las superficies claras. */
+:focus-visible { outline-color: rgb(var(--c-fono-dark)); }
+html.dark :focus-visible { outline-color: var(--mobos-brand); }
