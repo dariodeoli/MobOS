@@ -8,7 +8,7 @@ import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { SHELL, auditarContraste, informar } from './helpers/contraste.js'
 
-const SHOTS = 'test-results/rediseno'
+const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/rediseno'
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 const MARCA = 'F4V2'
 
@@ -70,6 +70,9 @@ const PANTALLAS = [
   ['finanzas', '/finanzas/caja', (page) => page.getByText('Saldo esperado').first()],
   ['servicio', '/servicio', (page) => page.getByTestId('servicio-fila').first(), prepararTaller],
   ['garantias', '/garantias', (page) => page.getByTestId('garantia-fila').first(), prepararGarantias],
+  ['resumen', '/resumen', (page) => page.getByText('Facturado').first()],
+  ['analisis-reportes', '/analisis/reportes', (page) => page.locator('[data-testid="reportes-abc-tabla"]').or(page.getByText('Cómo se calcula el resultado')).first()],
+  ['analisis-ganancias', '/analisis/ganancias', (page) => page.getByTestId('ganancia-resultado')],
 ]
 
 const preparar = (page, { modo, v2 = true }) =>
@@ -91,7 +94,7 @@ test.describe('dominios v2 · capturas y contraste', () => {
           await page.goto(ruta)
           if (prepararDatos) await prepararDatos(page)
           await page.goto(ruta)
-          await expect(page.locator('.tema-v2')).toHaveCount(1)
+          await expect(page.locator('.tema-v2').first()).toBeVisible({ timeout: 30_000 })
           await expect(listo(page)).toBeVisible({ timeout: 30_000 })
           const medicion = await auditarContraste(page, SHELL, ['.tema-v2'])
           informar(`${dominio}-on-${vista}-${tema}`, medicion)

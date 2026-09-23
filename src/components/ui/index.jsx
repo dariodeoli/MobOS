@@ -661,7 +661,7 @@ export function Stat({ label, valor, delta, sub, destacado = false, className })
       )}
     >
       <div className={cn('text-[11px] font-medium uppercase tracking-wider', destacado ? 'text-onbrand/75' : 'text-mute')}>{label}</div>
-      <div className={cn('mt-1.5 text-2xl font-semibold tracking-tight md:text-3xl', destacado ? 'text-onbrand' : 'text-fore')}>
+      <div className={cn('mt-1.5 text-2xl font-semibold tracking-tight tabular-nums md:text-3xl v2-numero', destacado ? 'text-onbrand' : 'text-fore')}>
         {valor}
       </div>
       <div className="mt-1.5 flex items-center gap-2 text-xs">

@@ -28,17 +28,34 @@ export async function auditarContraste(page, raices, contenedores = []) {
       const [alto, bajo] = [lum(a), lum(b)].sort((x, y) => y - x)
       return (alto + 0.05) / (bajo + 0.05)
     }
-    // Fondo real: compone desde la raíz del documento hasta el elemento.
-    const fondoDe = (el) => {
+    // Fondos candidatos: compone desde la raíz del documento hasta el elemento.
+    // Una misma caja puede apoyarse sobre un degradado (hero verde, avisos), así
+    // que se devuelven los tonos posibles y el contraste se mide contra el peor.
+    const paradasDeDegradado = (imagen) => {
+      if (!imagen || imagen === 'none' || !String(imagen).includes('gradient(')) return []
+      const paradas = []
+      for (const m of String(imagen).matchAll(/rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)/g)) {
+        paradas.push({ rgb: [+m[1], +m[2], +m[3]], a: m[4] === undefined ? 1 : +m[4] })
+      }
+      return paradas
+    }
+    const fondosDe = (el) => {
       const cadena = []
       for (let n = el; n; n = n.parentElement) cadena.push(n)
-      let fondo = [255, 255, 255]
+      let fondos = [[255, 255, 255]]
       for (let i = cadena.length - 1; i >= 0; i--) {
-        const bg = parse(getComputedStyle(cadena[i]).backgroundColor)
-        if (bg && bg.a > 0) fondo = sobre(bg, fondo)
+        const estilo = getComputedStyle(cadena[i])
+        const bg = parse(estilo.backgroundColor)
+        if (bg && bg.a > 0) fondos = fondos.map((fondo) => sobre(bg, fondo))
+        const paradas = paradasDeDegradado(estilo.backgroundImage)
+        if (paradas.length) fondos = fondos.flatMap((fondo) => paradas.map((parada) => sobre(parada, fondo))).slice(0, 8)
       }
-      return fondo
+      return fondos
     }
+    // Peor caso: el candidato que deja menos contraste contra el color del texto.
+    const peorFondo = (color, fondos) => fondos.reduce((peor, fondo) => (
+      ratio(sobre(color, fondo), fondo) < ratio(sobre(color, peor), peor) ? fondo : peor
+    ), fondos[0])
     const raices = selectores.flatMap((s) => Array.from(document.querySelectorAll(s)))
     const visible = (el) => el.offsetParent !== null && !el.closest('[aria-hidden="true"]')
     // Se miden NODOS de texto (no elementos): hay textos que viven sueltos
@@ -65,7 +82,7 @@ export async function auditarContraste(page, raices, contenedores = []) {
       const esRaiz = raices.some((raiz) => raiz.contains(el))
       const esContexto = contenedores.some((s) => el.closest(s))
       if (!esRaiz && !esContexto) continue
-      const fondo = fondoDe(el)
+      const fondo = peorFondo(color, fondosDe(el))
       const mezclado = sobre(color, fondo)
       const r = ratio(mezclado, fondo)
       const tam = parseFloat(cs.fontSize)
