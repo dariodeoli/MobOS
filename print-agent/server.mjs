@@ -8,7 +8,7 @@ import { aplicarConfigRemota, crearRemoto } from './remoto.mjs'
 import { aliasSecundario, colaLanDeCups, colaUri, comandoColaLan, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle, tipoDeCola, usbAplicaA } from './transportes.mjs'
 import { estadoUsb, enviarUsbDirecto } from './usb.mjs'
 
-const VERSION = '1.7.2'
+const VERSION = '1.7.3'
 const config = cargarConfig()
 // `--usb` enciende el USB directo en esta corrida sin tocar config.json.
 if (process.argv.includes('--usb')) config.usb = true

@@ -130,6 +130,12 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
     if (timer.unref) timer.unref()
   }
 
+  // Red de seguridad: si un timer de reintento se pierde (runners cargados,
+  // suspensiones), la cola igual avanza. Es no-op mientras haya timer
+  // programado o nada pendiente, y se apaga con el proceso.
+  const latido = setInterval(() => { if (!timer) procesar() }, Math.max(250, Math.min(esperaMs, 2000)))
+  if (latido.unref) latido.unref()
+
   return {
     // Intenta imprimir ya; si falla, el trabajo queda en la cola.
     async encolar({ impresora, data, cliente = '', usuario = '', ref = '', tipo = '', validacion = '', sufijo = '', puente = '', tokenPista = '', modo = '', ancho = 0 }) {
