@@ -127,6 +127,8 @@ patrón de uso de cada familia y un ejemplo corto.
 - Altura táctil estándar (≥44px) y radios por contexto (pill para acciones,
   radio medio dentro de paneles).
 - Botón solo-icono: siempre `aria-label` + `title`.
+- Acción de fila en móvil: `IconAction size="touch"` (área táctil de 36 px);
+  el default compacto (`sm`) no cambia en escritorio.
 - Un componente de acción por contexto; prohibido inventar familias nuevas.
 - El pie de acciones vive **asociado al formulario** (ver sección 5).
 
@@ -298,6 +300,27 @@ categorías en `src/lib/categorias.js`; los objetos son presentacionales.
 > `lg` (contenido a la izquierda, formulario fijo a la derecha con `sticky`) y
 > apilado compacto en móvil (`<PanelDerecho panel={…}>…contenido…</PanelDerecho>`).
 
+## 5 bis. Navegación y shell
+
+El shell se arma con los objetos de la biblioteca (barra lateral, menú, cajón,
+paleta de comandos, ayuda del módulo, barra inferior y avisos), nunca con
+navegación propia por pantalla.
+
+- Barra lateral (`NavLateral`) colapsable, con grupos plegables: el ítem activo
+  lleva `aria-current="page"` y los grupos `aria-expanded`; el contador se
+  anuncia también con el menú colapsado.
+- **Un solo buscador global** (`PaletaComandos`) en el topbar; el filtro de una
+  pantalla no es navegación.
+- En móvil la navegación va al cajón y los destinos frecuentes a la barra
+  inferior (`ESPACIO_BARRA_INFERIOR` en el contenido, nunca espacio a mano).
+- Identidad de la sesión en el pie con `Avatar` (ver sección 6).
+- Con el sistema v2, el shell va dentro del scope `tema-v2` y sus tonos de
+  texto son los **AA** medidos (#241); los vivos quedan para relleno.
+
+> Referencia MobOS: `src/components/app/AppShell.jsx` + `src/pages/PanelVendedor.jsx`
+> (POS y control comparten un solo shell). Guía portable completa (piezas,
+> props, breakpoints, contrastes y checklist): `owncoding-ui/docs/SHELL.md`.
+
 ## 6. Identidad, fotos y archivos
 
 - Identidad **por ID**, nunca por coincidencia de nombre o correo.
@@ -459,11 +482,17 @@ por el sistema.
   productos, diagramas).
 - **Tokens v2 del piloto (#241):** el lenguaje "device ops" (consola oscura,
   verde pass `#22C55E`, azul acción `#4D7CFE`) vive en la biblioteca
-  `owncoding-ui` **v0.11.0** como scope `tema-v2` (alias `v2-piloto`) con
-  variante clara y oscura + `.v2-numero` para números grandes. El scope local
-  `.v2-piloto` de `src/index.css` (piloto de DSN) queda como puente hasta que
-  la app importe `owncoding-ui/styles.css`; después se borra y las pantallas
-  siguen usando la misma clase.
+  `owncoding-ui` **v0.14.8** como scope `tema-v2` (alias `v2-piloto`) con
+  variante clara y oscura + `.v2-numero` para números grandes. Los roles
+  semánticos del scope son **tonos de texto AA** (`ok`/`bad`/`warn`/`info` con
+  los valores medidos sobre el shell v2: claro `#166534`/`#B91C1C`/`#92400E`/
+  `#2059BE`, oscuro `#4ADE80`/`#FCA5A5`/`#FCD34D`/`#9FB8FF`) y los vivos quedan
+  para relleno e indicadores (`--c-pass`/`--c-accion`). El armado del shell
+  (piezas, breakpoints, reglas y checklist) está en
+  `owncoding-ui/docs/SHELL.md`. El scope local `.v2-piloto` de `src/index.css`
+  (piloto de DSN) queda como puente hasta que la app importe
+  `owncoding-ui/styles.css`; después se borra y las pantallas siguen usando la
+  misma clase.
 - Tipografía: sans para UI; mono para importes, referencias y códigos.
 - Respetar `prefers-reduced-motion`; evitar animaciones que rompan el patrón.
 - **Un solo activo de marca** (logo, favicon, PWA, Apple touch, social): todo
