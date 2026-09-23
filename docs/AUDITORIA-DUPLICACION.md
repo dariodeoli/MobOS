@@ -83,6 +83,15 @@ warn y la celda de identidad de 13 px que espera a DSN).
 Duplicación pendiente medida: **6 → 1 usos** (queda solo el `Gs.` de una
 plantilla de impresión de PRN, que se coordina con ese slot).
 
+### Lote 18 — etiquetas de entrega con una sola fuente (22-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `FULFILLMENT_LABELS` (`lib/constants.js`) | Las 11 etiquetas de entrega (`Pendiente`, `Preparando`, `Listo p/ enviar`, `Entregado`, «No entregado»…) estaban **copiadas a mano** y duplicaban `ESTADO_ENTREGA_BADGE` (`lib/estadosPedido.js`) | Se derivan del mapa con badge (label + color) y solo se conserva `CANCELLED` (el único estado sin badge); el flujo de entrega (`venta/entrega.js`), el listado y los impresos dicen exactamente lo mismo |
+| Test | — | Aserción de fuente + paridad en runtime: cada clave del badge tiene la misma etiqueta en `FULFILLMENT_LABELS` y `CANCELLED` sigue existiendo |
+
+**Duplicación pendiente: 0 usos.**
+
 ### Lote 17 — informe público con los objetos v2 (22-09)
 
 | Objeto | Antes (evidencia) | Después |
