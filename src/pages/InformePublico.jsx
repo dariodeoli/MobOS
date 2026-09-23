@@ -11,6 +11,9 @@ import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import MedidorBateria from '@/components/shared/MedidorBateria'
 import { colorBadge, gradoCondicion } from '@/lib/estadoEquipo'
 
+// Semáforo del checklist en el informe público (mismos tonos que la ficha).
+const SEMAFORO_CHECKLIST = { ok: 'bg-ok', observacion: 'bg-warn', falla: 'bg-bad', na: 'bg-mute' }
+
 // Informe de dispositivo (#240 ítem 3): página pública por serial
 // (`/u/<serial>`), pensada para compartirse desde la ficha/portal del cliente
 // (link + WhatsApp). Muestra los datos que la tienda ya tiene: modelo, serial e
@@ -126,6 +129,21 @@ export default function InformePublico() {
           </div>}
         </section>
       )}
+
+      {/* #240: checklist de la inspección con semáforo (notas solo de lo no-OK). */}
+      {unit.checklist?.items?.length ? <section className="rounded-2xl border border-ink-600 bg-ink-800/40 p-4 text-sm">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Checklist de inspección</p>
+        <p className="mt-1 text-xs text-mute">
+          {unit.checklist.aprobados} de {unit.checklist.evaluados} conformes
+          {unit.checklist.puntaje !== null && unit.checklist.puntaje !== undefined ? ` · ${unit.checklist.puntaje}/100` : ''}
+        </p>
+        <ul className="mt-2 space-y-1">
+          {unit.checklist.items.map((item) => <li key={`${item.label}-${item.estado}`} className="flex items-start gap-2">
+            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${SEMAFORO_CHECKLIST[item.estado] || 'bg-mute'}`} />
+            <span className="text-mute"><b className="text-fore">{item.label}</b>{item.nota ? ` — ${item.nota}` : ''}</span>
+          </li>)}
+        </ul>
+      </section> : null}
 
       {/* #240: repuestos no-OEM detectados en la inspección (sin datos personales). */}
       {unit.repuestosNoOem && <section className="rounded-2xl border border-ink-600 bg-ink-800/40 p-4 text-sm">

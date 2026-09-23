@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { gradoInspection, itemsLista, normalizarInspectionItems, puntajeInspection, resumenInspection } from '../lib/inspection'
+import { ETIQUETAS_ITEMS, checklistPublico, gradoInspection, itemConforme, itemsLista, normalizarInspectionItems, puntajeInspection, resumenInspection } from '../lib/inspection'
 
 // ── La UI manda el checklist por clave: se conserva tal cual ────────────────
 const ui = normalizarInspectionItems({ pantalla: { estado: 'ok', nota: 'impecable' }, camaras: { estado: 'observacion' } })
@@ -37,3 +37,27 @@ assert.equal(gradoInspection(null), null)
 // ── Lista derivada para el informe impreso ──────────────────────────────────
 assert.deepEqual(itemsLista({ pantalla: { estado: 'ok', nota: '' } }), [{ clave: 'pantalla', estado: 'ok', nota: '' }])
 assert.deepEqual(itemsLista({ carga: {} }), [{ clave: 'carga', estado: '', nota: '' }])
+
+// ── Checklist del informe público (#240): rótulos y notas solo de lo no-OK ──
+assert.ok(ETIQUETAS_ITEMS.pantalla && ETIQUETAS_ITEMS.bateria, 'el catálogo cubre las claves de la ficha')
+assert.equal(itemConforme('ok'), true)
+assert.equal(itemConforme('na'), true, '«no aplica» cuenta como conforme')
+assert.equal(itemConforme('observacion'), false)
+assert.equal(itemConforme('falla'), false)
+assert.equal(checklistPublico({}), null, 'sin ítems marcados no hay checklist')
+
+const publico = checklistPublico({
+  pantalla: { estado: 'ok', nota: 'no debería viajar' },
+  camaras: { estado: 'observacion', nota: 'Mancha en el lente' },
+})
+assert.deepEqual(publico, {
+  puntaje: 75,
+  aprobados: 1,
+  evaluados: 2,
+  items: [
+    { label: 'Pantalla / táctil', estado: 'ok', nota: '' },
+    { label: 'Cámaras (frontal y traseras)', estado: 'observacion', nota: 'Mancha en el lente' },
+  ],
+})
+assert.equal(checklistPublico({ pantalla: { estado: 'na' } })?.aprobados, 1, 'N/A no baja el puntaje pero cuenta como conforme')
+assert.equal(checklistPublico({ pantalla: { estado: 'na' } })?.puntaje, null, 'sin ítems puntuables no hay puntaje')

@@ -2,6 +2,7 @@ import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'
 import { serialSeguimiento } from '../../../../../lib/device-report'
+import { checklistPublico, normalizarInspectionItems } from '../../../../../lib/inspection'
 
 // Informe de dispositivo público (#240 ítem 3, acceso CRM #236+): la tienda que
 // vendió/verificó el equipo muestra un informe informativo por serial, con el
@@ -80,9 +81,10 @@ export async function GET(request: Request, context: { params: Promise<{ serial:
       verifiedBy: elegida.lastVerifiedBy?.name || null,
       verifiedByCode: elegida.verifiedByCode || null,
       verificationCount: elegida.verificationCount || 0,
-      // La inspección de INV (#240): grado y repuestos no-OEM detectados.
+      // La inspección de INV (#240): grado, checklist con semáforo (notas solo
+      // de lo no-OK) y repuestos no-OEM detectados.
       grade: inspeccion.grado || null,
-      checklist: null,
+      checklist: checklistPublico(normalizarInspectionItems(inspeccion.items)),
       repuestosNoOem: String(inspeccion.repuestosNoOem || ''),
       repuestosNoOemNota: String(inspeccion.repuestosNoOemNota || ''),
     },
