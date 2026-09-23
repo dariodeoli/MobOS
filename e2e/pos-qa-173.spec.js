@@ -51,13 +51,20 @@ async function pagarEnPos(page, { cliente, producto, pagos }) {
   const pagosSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
   for (const [indice, pago] of pagos.entries()) {
     await page.getByRole('button', { name: '+ Agregar pago' }).click()
-    await pagosSection.getByLabel('Cuenta de cobro').nth(indice).click()
+    // Cada fila se busca por su test id: «Cuenta de cobro», «Monto original» y
+    // «Cotización» se repiten en todas las filas, así que el índice del pago no
+    // alcanza para ubicar el campo correcto (el hallazgo 173-A nació así).
+    const fila = pagosSection.getByTestId(`pago-fila-${indice}`)
+    await fila.getByLabel('Cuenta de cobro').click()
     await page.getByRole('option', { name: new RegExp(pago.cuenta) }).click()
-    await pagosSection.getByLabel('Monto original').nth(indice).fill(pago.monto)
+    await fila.getByLabel('Monto original').fill(pago.monto)
     if (pago.cotizacion) {
-      const cotizacion = pagosSection.getByLabel('Cotización').nth(indice)
-      if (await cotizacion.count()) await cotizacion.fill(pago.cotizacion)
+      // La cotización vive en la misma fila y solo aparece en cuentas USD/BRL.
+      await fila.getByLabel('Cotización').fill(pago.cotizacion)
     }
+    // El equivalente confirma que la fila se convirtió con la cotización tipeada
+    // antes de enviar (si la conversión quedara vacía, el cobro no cierra).
+    if (pago.equivalente) await expect(fila.getByText(`Equivalente: ${pago.equivalente}`)).toBeVisible()
   }
   await expect(page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ })).toBeVisible()
   await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
@@ -70,7 +77,7 @@ test('venta completa desde inventario: el POS vende el producto y descuenta stoc
   const cliente = `Cliente QA ${id}`
   const { productId } = await crearProducto(page, { nombre, stock: 2 })
   try {
-    await pagarEnPos(page, { cliente, producto: nombre, pagos: [{ cuenta: 'Caja E2E', monto: '100000' }] })
+    await pagarEnPos(page, { cliente, producto: nombre, pagos: [{ cuenta: 'Caja E2E', monto: '100000', equivalente: 'Gs 100.000' }] })
     const orden = await pedidoDe(page, cliente)
     expect(orden, 'el pedido queda registrado').toBeTruthy()
     expect(Number(orden.totalPyg)).toBe(100000)
@@ -83,11 +90,10 @@ test('venta completa desde inventario: el POS vende el producto y descuenta stoc
 })
 
 test('split con cotización: parte en guaraníes y parte en dólares', async ({ page }) => {
-  // Hallazgo 173-A (POS): con una cuenta USD y su cotización, el POS deja un
-  // pendiente en Gs que no corresponde (100.000 − 25.000 − 10 USD @7500 dio
-  // Pendiente Gs 15.440 y no dejó confirmar). Se corre como falla esperada
-  // hasta que POS lo corrija; si pasa, hay que quitar el test.fail.
-  test.fail(true, 'Hallazgo 173-A: el split con cuenta USD y cotización deja pendiente y no confirma')
+  // Hallazgo 173-A (POS), corregido: el split con una cuenta USD y su
+  // cotización quedaba «Pendiente» porque la cotización tipeada no se aplicaba
+  // a la fila. Ahora cada fila del cobro se edita por separado y el equivalente
+  // en Gs se calcula con la cotización de esa fila.
   const id = clave()
   const nombre = `Equipo split QA ${id}`
   const cliente = `Cliente split QA ${id}`
@@ -99,8 +105,8 @@ test('split con cotización: parte en guaraníes y parte en dólares', async ({ 
   }, { api: API, id })
   try {
     await pagarEnPos(page, { cliente, producto: nombre, pagos: [
-      { cuenta: 'Caja E2E', monto: '25000' },
-      { cuenta: `Cuenta USD QA ${id}`, monto: '10', cotizacion: '7500' },
+      { cuenta: 'Caja E2E', monto: '25000', equivalente: 'Gs 25.000' },
+      { cuenta: `Cuenta USD QA ${id}`, monto: '10', cotizacion: '7500', equivalente: 'Gs 75.000' },
     ] })
     const orden = await pedidoDe(page, cliente)
     expect(orden, 'el pedido queda registrado').toBeTruthy()
