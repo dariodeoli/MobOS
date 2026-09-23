@@ -11,6 +11,9 @@
 - **Encabezado “Total de esta venta”** con color de marca, siempre arriba.
 - **Rediseño** del carrito más limpio y menos alto, alineado al lenguaje v2
   cuando el preview está activo (#241).
+- **Papelera por línea** (agregado de Dario): visible también en la línea
+  colapsada, con tooltip; si la línea tiene descuento/cupón o IMEI elegido, pide
+  confirmación.
 - Criterios: la línea colapsada ocupa **la mitad o menos** que antes; capturas
   antes/después; e2e del flujo de venta; demo igual.
 
@@ -44,6 +47,20 @@ Métricas de producción v1.0.145: **58 px en las 6 variantes** (claro/oscuro,
 desktop 1280 y mobile 390, flag v2 off/on), 0 desbordes y 0 errores de página
 (`1.0.145-produccion/resultados-1.0.145-produccion.json`).
 
+## Papelera por línea (agregado de Dario)
+
+Implementada en el pase del carrito; **va en el próximo release** (la v1.0.145
+desplegada todavía no la tiene):
+
+- **Visible también colapsada**, por línea, con tooltip “Eliminar línea”
+  (`rama-243/fila-colapsada-*.png`).
+- **Con descuento/cupón o IMEI elegido pide confirmación** y explica el motivo
+  (“… tiene un descuento y un IMEI elegido: si la quitás, se pierde ese dato.”).
+  Captura del diálogo: `rama-243/confirmacion-desktop-claro-v2-off.png`.
+- La línea sin descuento ni IMEI se quita de un toque, sin diálogo.
+- Guardas e2e: borrado simple + tooltip (seller), confirmación con IMEI elegido
+  y cancelar (seller) y confirmación con descuento, cancelar y eliminar (admin).
+
 Declaración técnica del encabezado (`FormularioVenta.jsx`):
 
 ```diff
@@ -60,14 +77,15 @@ Capturas con el colapso máximo y el preview v2 en las dos direcciones
 
 | Variante | Colapsado | Expandido | Alto colapsado |
 |---|---|---|---|
-| Desktop claro (v2 off) | [jpg](rama-243/carrito-desktop-claro-v2-off-colapsado.jpg) | [jpg](rama-243/carrito-desktop-claro-v2-off-expandido.jpg) | **58 px** |
-| Desktop claro (v2 on) | [jpg](rama-243/carrito-desktop-claro-v2-on-colapsado.jpg) | [jpg](rama-243/carrito-desktop-claro-v2-on-expandido.jpg) | 58 px |
-| Desktop oscuro (v2 on) | [jpg](rama-243/carrito-desktop-oscuro-v2-on-colapsado.jpg) | [jpg](rama-243/carrito-desktop-oscuro-v2-on-expandido.jpg) | 58 px |
-| Mobile claro (v2 off) | [jpg](rama-243/carrito-movil-claro-v2-off-colapsado.jpg) | [jpg](rama-243/carrito-movil-claro-v2-off-expandido.jpg) | 58 px |
-| Mobile claro (v2 on) | [jpg](rama-243/carrito-movil-claro-v2-on-colapsado.jpg) | [jpg](rama-243/carrito-movil-claro-v2-on-expandido.jpg) | 58 px |
-| Mobile oscuro (v2 on) | [jpg](rama-243/carrito-movil-oscuro-v2-on-colapsado.jpg) | [jpg](rama-243/carrito-movil-oscuro-v2-on-expandido.jpg) | 58 px |
+| Desktop claro (v2 off) | [jpg](rama-243/carrito-desktop-claro-v2-off-colapsado.jpg) | [jpg](rama-243/carrito-desktop-claro-v2-off-expandido.jpg) | **66 px** |
+| Desktop claro (v2 on) | [jpg](rama-243/carrito-desktop-claro-v2-on-colapsado.jpg) | [jpg](rama-243/carrito-desktop-claro-v2-on-expandido.jpg) | 66 px |
+| Desktop oscuro (v2 on) | [jpg](rama-243/carrito-desktop-oscuro-v2-on-colapsado.jpg) | [jpg](rama-243/carrito-desktop-oscuro-v2-on-expandido.jpg) | 66 px |
+| Mobile claro (v2 off) | [jpg](rama-243/carrito-movil-claro-v2-off-colapsado.jpg) | [jpg](rama-243/carrito-movil-claro-v2-off-expandido.jpg) | 66 px |
+| Mobile claro (v2 on) | [jpg](rama-243/carrito-movil-claro-v2-on-colapsado.jpg) | [jpg](rama-243/carrito-movil-claro-v2-on-expandido.jpg) | 66 px |
+| Mobile oscuro (v2 on) | [jpg](rama-243/carrito-movil-oscuro-v2-on-colapsado.jpg) | [jpg](rama-243/carrito-movil-oscuro-v2-on-expandido.jpg) | 66 px |
 
-- **La línea colapsada pasó de 248 px a 58 px** (23% del alto anterior).
+- **La línea colapsada pasó de 248 px a 66 px** (27% del alto original) con la
+  papelera visible; sin la papelera quedaba en 58 px (la v1.0.145 desplegada).
 - Sin desborde horizontal (desktop y 390) y sin errores de página en las 6 variantes.
 - El scope v2 se aplica solo con el flag `mobos:tema-v2` (verificado en las capturas
   `-v2-on` y en `resultados-rama-243.json`).
@@ -106,7 +124,9 @@ La comparativa compone `docs/qa/243/comparativa-<criterio>-<antes>-vs-<después>
 ## Checks de la pasada
 
 - `npm run lint` 0 errores · `npm test` **648/648** · build FE ✓ · `prisma validate` ✓.
-- e2e `pos-checkout` + `pos-qa-173`: **22/22** (incluye las guardas #243 y #148 §5).
+- e2e `pos-checkout` + `pos-qa-173`: **22/22** (incluye las guardas #243 del
+  colapso, del descuento visible y de la papelera: sin diálogo cuando no hay
+  nada que perder, con confirmación ante descuento o IMEI, cancelar y eliminar).
 - Barrido ampliado sobre el código integrado (pos-checkout, pos-qa-173,
   precios-listas, pos-resumen-fijo, inventario-unidades y demo-anonimo):
   **51 pasan**, con 1 flaky que destapó una carrera real y quedó corregida:
