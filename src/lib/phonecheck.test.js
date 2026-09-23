@@ -43,6 +43,7 @@ test('locks y payload del informe quedan listos para DSN/PRN (#240)', () => {
   assert.equal(payload.bateria.porcentaje, '87')
   assert.equal(payload.bateria.ciclos, '310')
   assert.equal(payload.locks.length, 4)
+  assert.equal(payload.repuestosNoOemNota, '', 'la nota de repuestos viaja en el payload')
   assert.equal(payload.fuenteVerificacion.proveedor, 'imeicheck.net')
   assert.equal(payload.items.length, INSPECCION_ITEMS.length)
 })

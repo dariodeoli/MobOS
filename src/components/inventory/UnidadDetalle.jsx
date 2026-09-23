@@ -12,6 +12,7 @@ import JsBarcode from 'jsbarcode'
 import { qrUnidad } from '@/lib/printing/qr'
 import { api, apiFetch } from '@/lib/api/client'
 import { conciliarDemoImei, consultasDemoImei, postDemoImei } from '@/lib/demoImei'
+import { getDemoServicio } from '@/lib/demoServicio'
 import { COSMETICOS, INSPECCION_ESTADOS, INSPECCION_ITEMS, locksDeVerificacion, resumenInspection } from '@/lib/phonecheck'
 import { resources } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
@@ -23,7 +24,7 @@ import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 
-const EVENT_LABEL = { audit: 'Auditoría', transfer: 'Traslado', comment: 'Comentario', sale: 'Venta' }
+const EVENT_LABEL = { audit: 'Auditoría', transfer: 'Traslado', comment: 'Comentario', sale: 'Venta', imei: 'Consulta IMEI', repair: 'Reparación' }
 
 const money = (value, currency) => {
   const amount = Number(value)
@@ -97,8 +98,12 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   const [costo, setCosto] = useState(costoInicial)
   const [guardandoCosto, setGuardandoCosto] = useState(false)
   // #240 PhoneCheck
-  const [inspeccion, setInspeccion] = useState(() => ({ items: unit.inspection?.items || {}, cosmetico: unit.inspection?.cosmetico || '', nota: unit.inspection?.nota || '', bateriaPct: unit.inspection?.bateriaPct ?? (unit.batteryHealth ?? ''), bateriaCiclos: unit.inspection?.bateriaCiclos ?? '', repuestosNoOem: unit.inspection?.repuestosNoOem || '', costoRepuestosPyg: unit.inspection?.costoRepuestosPyg ?? '' }))
+  const [inspeccion, setInspeccion] = useState(() => ({ items: unit.inspection?.items || {}, cosmetico: unit.inspection?.cosmetico || '', nota: unit.inspection?.nota || '', bateriaPct: unit.inspection?.bateriaPct ?? (unit.batteryHealth ?? ''), bateriaCiclos: unit.inspection?.bateriaCiclos ?? '', repuestosNoOem: unit.inspection?.repuestosNoOem || '', repuestosNoOemNota: unit.inspection?.repuestosNoOemNota || '', costoRepuestosPyg: unit.inspection?.costoRepuestosPyg ?? '' }))
   const [guardandoInspeccion, setGuardandoInspeccion] = useState(false)
+  // #240: evidencia (foto) de repuestos no-OEM: se adjunta como comentario de la unidad.
+  const [repuestosEvidencia, setRepuestosEvidencia] = useState(null)
+  const [subiendoEvidencia, setSubiendoEvidencia] = useState(false)
+  const repuestosEvidenciaRef = useRef(null)
   // Consulta de IMEI (#193/#200): precheck con costo visible, confirmación
   // explícita y resultado auditado. En demo solo SIMULA (sin llamadas).
   const [imeiFase, setImeiFase] = useState(null)
@@ -120,7 +125,12 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
     setLoading(true); setError('')
     try {
       // #227: en demo la cronología sale de la propia unidad (sin API).
-      const payload = esDemo ? { events: unit.events || [] } : await api.get(`/api/inventory-units/${encodeURIComponent(unit.id)}/history`)
+      // #240: historial del serial: verificaciones/movimientos + consultas IMEI + reparaciones.
+      const consultasDemo = esDemo ? consultasDemoImei(unit.serial).map(consulta => ({ id: consulta.id, type: 'imei', label: 'Consulta IMEI', createdAt: consulta.requestedAt, user: consulta.verificador ? { id: consulta.verificador.id, name: consulta.verificador.nombre } : null, detail: `${consulta.serviceName} · ${consulta.etiqueta} · US$${Number(consulta.costUsd || 0).toFixed(2)}` })) : []
+      const reparacionesDemo = esDemo ? (getDemoServicio().rows || []).filter(fila => String(fila.serial || '').toUpperCase() === String(unit.serial || '').toUpperCase()).map(fila => ({ id: fila.id, type: 'repair', label: `Reparación ${fila.serviceNumber || ''}`.trim(), createdAt: fila.receivedAt || fila.createdAt, user: fila.technicianName ? { id: '', name: fila.technicianName } : null, detail: `${fila.device || 'Equipo'} · ${fila.status}` })) : []
+      const payload = esDemo
+        ? { events: [...(unit.events || []), ...consultasDemo, ...reparacionesDemo].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()) }
+        : await api.get(`/api/inventory-units/${encodeURIComponent(unit.id)}/history`)
       setEvents(payload?.events || [])
     } catch (cause) { setError(cause?.message || 'No se pudo cargar la cronología.') } finally { setLoading(false) }
   }, [unit.id, canManage])
@@ -175,6 +185,22 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
       toast.success(monto ? 'Costo guardado.' : 'Costo quitado: queda pendiente.')
       await load(); onChanged?.()
     } catch (cause) { toast.error(cause?.message || 'No se pudo guardar el costo.') } finally { setGuardandoCosto(false) }
+  }
+
+  async function subirEvidenciaRepuestos() {
+    if (subiendoEvidencia || !repuestosEvidencia) return
+    if (esDemo) { toast.error('En el demo no se suben archivos: queda la nota.'); return }
+    setSubiendoEvidencia(true)
+    try {
+      const form = new FormData()
+      form.append('body', `Evidencia de repuestos no-OEM${inspeccion.repuestosNoOem ? `: ${inspeccion.repuestosNoOem}` : ''}${inspeccion.repuestosNoOemNota ? ` — ${inspeccion.repuestosNoOemNota}` : ''}`)
+      form.append('file', repuestosEvidencia)
+      await api.post(`/api/inventory-units/${encodeURIComponent(unit.id)}/comments`, form)
+      toast.success('Evidencia adjuntada a la cronología.')
+      setRepuestosEvidencia(null)
+      if (repuestosEvidenciaRef.current) repuestosEvidenciaRef.current.value = ''
+      await load(); onChanged?.()
+    } catch (cause) { toast.error(cause?.message || 'No se pudo adjuntar la evidencia.') } finally { setSubiendoEvidencia(false) }
   }
 
   async function buscarConsultasImei(event) {
@@ -438,8 +464,9 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
           <div className="mt-3 grid gap-2 sm:grid-cols-5">
             <Input aria-label="Batería %" inputMode="numeric" maxLength={3} placeholder="Batería %" value={inspeccion.bateriaPct} onChange={event => setInspeccion(actual => ({ ...actual, bateriaPct: event.target.value.replace(/\D/g, '') }))} />
             <Input aria-label="Ciclos de batería" inputMode="numeric" maxLength={5} placeholder="Ciclos" value={inspeccion.bateriaCiclos} onChange={event => setInspeccion(actual => ({ ...actual, bateriaCiclos: event.target.value.replace(/\D/g, '') }))} />
-            <Input aria-label="Repuestos no OEM" placeholder="Repuestos no OEM / reparaciones" value={inspeccion.repuestosNoOem} onChange={event => setInspeccion(actual => ({ ...actual, repuestosNoOem: event.target.value }))} />
-            <MoneyInput aria-label="Costo de repuestos y arreglos" title="Lo que costó reparar o reponer los repuestos detectados: se suma al costo real del equipo para la ganancia y el seguro" placeholder="Costo de repuestos" value={inspeccion.costoRepuestosPyg} onValueChange={(valor) => setInspeccion(actual => ({ ...actual, costoRepuestosPyg: valor }))} />
+            <div className="grid gap-2 sm:col-span-2 sm:grid-cols-2"><Input aria-label="Repuestos no OEM" placeholder="Repuestos no OEM / reparaciones" value={inspeccion.repuestosNoOem} onChange={event => setInspeccion(actual => ({ ...actual, repuestosNoOem: event.target.value }))} /><Input aria-label="Nota de repuestos no OEM" placeholder="Nota / detalle de la reparación" value={inspeccion.repuestosNoOemNota} onChange={event => setInspeccion(actual => ({ ...actual, repuestosNoOemNota: event.target.value }))} /></div>
+              <MoneyInput aria-label="Costo de repuestos y arreglos" title="Lo que costó reparar o reponer los repuestos detectados: se suma al costo real del equipo para la ganancia y el seguro" placeholder="Costo de repuestos" value={inspeccion.costoRepuestosPyg} onValueChange={(valor) => setInspeccion(actual => ({ ...actual, costoRepuestosPyg: valor }))} />
+              <div className="flex flex-wrap items-center gap-2 sm:col-span-2"><AttachmentInput inputRef={repuestosEvidenciaRef} className="hidden" onSelect={file => setRepuestosEvidencia(file)} onError={message => toast.error(message)} /><button type="button" onClick={() => repuestosEvidenciaRef.current?.click()} className="rounded-lg border border-ink-600 px-2 py-1 text-[10px] font-semibold text-mute transition hover:border-fono/40"><Icon name="image" className="mr-1 inline h-3 w-3" />{repuestosEvidencia ? repuestosEvidencia.name : 'Adjuntar foto de la reparación'}</button>{repuestosEvidencia && <Button type="button" variant="outline" className="h-7 px-2 text-xs" disabled={subiendoEvidencia} onClick={subirEvidenciaRepuestos}>{subiendoEvidencia ? 'Subiendo…' : 'Guardar evidencia'}</Button>}</div>
             <Button type="button" variant="outline" disabled={imeiBusy} title="Corre la verificación de IMEI y trae los bloqueos al checklist" onClick={async () => { await imeiPrecheck(); await imeiConfirmar(); setInspeccion(actual => ({ ...actual, fuente: 'IMEIcheck' })) }}>{imeiBusy ? 'Verificando…' : 'Verificar y completar'}</Button>
           </div>
           {(() => { const chips = locksDeVerificacion(imeiDatos || {}); if (!chips.length) return null; return <div className="mt-2 flex flex-wrap items-center gap-1.5">{chips.map(chip => <span key={chip.clave} className={`rounded-lg border px-2 py-1 text-[10px] font-semibold ${chip.ok ? 'border-ok/40 text-ok' : 'border-bad/40 text-bad'}`} title={`${chip.label}: ${chip.valor}`}>{chip.label}: {chip.valor}</span>)}</div> })()}
