@@ -13,6 +13,47 @@ export type InspectionListItem = { clave: string; estado: string; nota: string }
 
 const ESTADOS: Record<string, number | null> = { ok: 1, observacion: 0.5, falla: 0, na: null }
 
+// Rótulos del checklist (mismo catálogo que la ficha: src/lib/phonecheck.js).
+// El informe público y el certificado necesitan el nombre legible de cada clave.
+export const ETIQUETAS_ITEMS: Record<string, string> = {
+  pantalla: 'Pantalla / táctil',
+  camaras: 'Cámaras (frontal y traseras)',
+  faceId: 'Face ID / Touch ID',
+  audio: 'Altavoces y micrófono',
+  sensores: 'Sensores',
+  botones: 'Botones y vibración',
+  conexiones: 'WiFi / Bluetooth / GPS',
+  carga: 'Carga y puerto',
+  bateria: 'Batería',
+  carcasa: 'Carcasa y chasis',
+}
+
+/** Un ítem cuenta como conforme con OK o «no aplica» (igual que la UI). */
+export function itemConforme(estado: unknown): boolean {
+  return ['ok', 'na'].includes(String(estado || ''))
+}
+
+/**
+ * Checklist listo para el informe público: ítems marcados con su rótulo, el
+ * resumen de conformes y las notas **solo de los ítems no OK** (contrato de
+ * privacidad del informe: el resto viaja sin texto).
+ */
+export function checklistPublico(items: InspectionItems): { puntaje: number | null; aprobados: number; evaluados: number; items: { label: string; estado: string; nota: string }[] } | null {
+  const marcados = itemsLista(items).filter((item) => item.estado)
+  if (!marcados.length) return null
+  const { puntaje } = resumenInspection(items)
+  return {
+    puntaje,
+    aprobados: marcados.filter((item) => itemConforme(item.estado)).length,
+    evaluados: marcados.length,
+    items: marcados.map((item) => ({
+      label: ETIQUETAS_ITEMS[item.clave] || item.clave,
+      estado: item.estado,
+      nota: itemConforme(item.estado) ? '' : item.nota,
+    })),
+  }
+}
+
 function limpiarItem(fila: unknown): InspectionItem {
   const valor = fila && typeof fila === 'object' && !Array.isArray(fila) ? (fila as Record<string, unknown>) : {}
   const item: InspectionItem = {}

@@ -13,7 +13,7 @@ import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import JsBarcode from 'jsbarcode'
 import { qrUnidad } from '@/lib/printing/qr'
 import { api, apiFetch } from '@/lib/api/client'
-import { conciliarDemoImei, consultasDemoImei, postDemoImei } from '@/lib/demoImei'
+import { conciliarDemoImei, consultasDemoImei, postDemoImei, validarImeiDemo } from '@/lib/demoImei'
 import { getDemoServicio } from '@/lib/demoServicio'
 import { COSMETICOS, INSPECCION_ESTADOS, INSPECCION_ITEMS, locksDeVerificacion, resumenInspection } from '@/lib/phonecheck'
 import { resources } from '@/lib/api'
@@ -215,8 +215,12 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
 
   async function buscarConsultasImei(event) {
     event.preventDefault()
-    const imei = consultasImei.replace(/\D/g, '')
-    if (imei.length !== 15) { setConsultaError('Ingresá el IMEI completo de 15 dígitos.'); return }
+    // #233/#219: en la demo los seriales son ficticios (AUR…, 16 caracteres);
+    // en la cuenta real el IMEI es de 15 dígitos.
+    const validacionDemo = esDemo ? validarImeiDemo(consultasImei) : null
+    if (esDemo && !validacionDemo.ok) { setConsultaError(validacionDemo.error); return }
+    const imei = esDemo ? validacionDemo.imei : consultasImei.replace(/\D/g, '')
+    if (!esDemo && imei.length !== 15) { setConsultaError('Ingresá el IMEI completo de 15 dígitos.'); return }
     setConsultaBusy(true); setConsultaError('')
     try {
       const filas = esDemo ? consultasDemoImei(imei) : await api.get(`/api/imei?imei=${encodeURIComponent(imei)}`).then(datos => datos?.consultas || [])
@@ -511,7 +515,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
 
                 <Modal open={consultasOpen} onClose={() => setConsultasOpen(false)} title="Consultas IMEI · Conciliar" size="corto">
           <form onSubmit={buscarConsultasImei} className="flex flex-wrap items-end gap-2">
-            <Input aria-label="IMEI a consultar" inputMode="numeric" maxLength={15} value={consultasImei} onChange={event => setConsultasImei(event.target.value.replace(/\D/g, ''))} placeholder="IMEI de 15 dígitos" className="min-w-[10rem] flex-1" />
+            <Input aria-label="IMEI a consultar" inputMode={esDemo ? 'text' : 'numeric'} maxLength={esDemo ? 16 : 15} value={consultasImei} onChange={event => setConsultasImei(esDemo ? event.target.value.toUpperCase().slice(0, 16) : event.target.value.replace(/\D/g, ''))} placeholder={esDemo ? 'IMEI o serial del demo' : 'IMEI de 15 dígitos'} autoCapitalize="characters" className="min-w-[10rem] flex-1" />
             <Button type="submit" disabled={consultaBusy} data-testid="imei-consultas-buscar">{consultaBusy ? 'Buscando…' : 'Buscar'}</Button>
           </form>
           {consultaError && <Aviso tono="error" className="mt-2">{consultaError}</Aviso>}

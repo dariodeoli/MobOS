@@ -3,7 +3,7 @@
 // equipos vendidos) y las unidades del inventario demo. Nada sale del navegador.
 import { SEED_DEMO_CLIENTES, clientesDemoGuardados, registrarVistoInformeDemo } from './demoClientes.js'
 import { listDemoUnits } from './demoInventory.js'
-import { resumenInspection } from './phonecheck.js'
+import { INSPECCION_ITEMS, resumenInspection } from './phonecheck.js'
 import { ESTADO_GARANTIA } from './estadosPedido.js'
 
 const enmascarar = (valor) => {
@@ -17,6 +17,23 @@ const TIENDA = 'Aurora Móviles'
 const SUCURSAL = 'Casa Central'
 
 const mismoSerial = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase()
+
+// Checklist público del demo (#240): mismo contrato que el backend — ítems
+// marcados con su rótulo, resumen de conformes y notas solo de lo no-OK.
+const ETIQUETAS_ITEMS = Object.fromEntries(INSPECCION_ITEMS.map((item) => [item.clave, item.label]))
+const CONFORMES = ['ok', 'na']
+function checklistDemo(inspection) {
+  const items = INSPECCION_ITEMS
+    .map((item) => ({ clave: item.clave, estado: inspection?.items?.[item.clave]?.estado || '', nota: inspection?.items?.[item.clave]?.nota || '' }))
+    .filter((item) => item.estado)
+  if (!items.length) return null
+  return {
+    puntaje: resumenInspection(inspection).puntaje ?? null,
+    aprobados: items.filter((item) => CONFORMES.includes(item.estado)).length,
+    evaluados: items.length,
+    items: items.map((item) => ({ label: ETIQUETAS_ITEMS[item.clave] || item.clave, estado: item.estado, nota: CONFORMES.includes(item.estado) ? '' : item.nota })),
+  }
+}
 
 /** Pedido demo que vendió ese serial (seeds + clientes creados en la pestaña). */
 function pedidoDelSerial(serial) {
@@ -54,7 +71,7 @@ export function demoInformePayload(serial) {
       verifiedByCode: unidad?.verifiedByCode || null,
       verificationCount: unidad?.verificationCount || 0,
       grade: grado,
-      checklist: null,
+      checklist: checklistDemo(inspeccion),
       // #240: repuestos no-OEM de la inspección (sin datos personales).
       repuestosNoOem: inspeccion?.repuestosNoOem || '',
       repuestosNoOemNota: inspeccion?.repuestosNoOemNota || '',

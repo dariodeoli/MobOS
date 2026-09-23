@@ -48,6 +48,18 @@ page.on('request', (peticion) => {
 })
 
 const esperar = (ms) => page.waitForTimeout(ms)
+// La vista previa arma el papel con el QR en un render posterior: se espera a
+// que el contenido pedido esté antes de leerlo (evita falsos negativos).
+async function textoPreview(preview, requeridos = [], timeout = 15000) {
+  const inicio = Date.now()
+  let texto = ''
+  while (Date.now() - inicio < timeout) {
+    texto = await preview.locator('body').innerText().catch(() => '')
+    if (requeridos.every((marca) => texto.includes(marca))) return texto
+    await esperar(400)
+  }
+  return texto
+}
 let contador = 0
 async function captura(nombre) {
   contador += 1
@@ -143,9 +155,9 @@ await paso('demo: certificado 80 mm (grado, puntaje, checklist y repuestos)', as
   await modal.waitFor({ state: 'visible', timeout: 15000 })
   const preview = modal.frameLocator('iframe[title="Vista previa del documento"]')
   await preview.locator('body').waitFor({ state: 'visible', timeout: 15000 })
-  await esperar(1200)
-  const papel = await preview.locator('body').innerText()
-  for (const esperado of ['Grado', 'B', 'Puntaje 75/100', '1/2 conformes', 'Repuestos no OEM', REPUESTO, 'Checklist', 'Pantalla / táctil', 'Con observación']) {
+  // Las etiquetas del papel van en mayúsculas por CSS: se compara sin distinguir.
+  const papel = (await textoPreview(preview, ['grado', '75/100', REPUESTO, 'pantalla / táctil'])).toLowerCase()
+  for (const esperado of ['grado', 'puntaje 75/100', '1/2 conformes', 'repuestos no oem', REPUESTO.toLowerCase(), 'checklist', 'pantalla / táctil', 'con observación']) {
     if (!papel.includes(esperado)) throw new Error(`el certificado no muestra «${esperado}»`)
   }
   // Privacidad: el serial completo no viaja al papel; sí el enmascarado.
@@ -159,9 +171,9 @@ await paso('demo: certificado 80 mm (grado, puntaje, checklist y repuestos)', as
 await paso('demo: certificado A4 (dos columnas de checklist)', async (shot) => {
   const modal = page.getByRole('dialog', { name: 'Certificado de inspección' })
   await modal.getByLabel('Formato del documento').selectOption('a4')
-  await esperar(1500)
+  await esperar(800)
   const preview = modal.frameLocator('iframe[title="Vista previa del documento"]')
-  const papel = await preview.locator('body').innerText()
+  const papel = await textoPreview(preview, ['Puntaje 75/100', REPUESTO])
   if (!papel.includes(REPUESTO)) throw new Error('el certificado A4 perdió los repuestos')
   if (!papel.includes('Puntaje 75/100')) throw new Error('el certificado A4 perdió el puntaje')
   await shot('certificado-a4')

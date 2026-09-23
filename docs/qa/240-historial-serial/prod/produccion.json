@@ -1,7 +1,7 @@
 {
   "base": "https://app.moboss.online",
-  "version": "1.0.144",
-  "fecha": "2026-09-23T03:25:38.666Z",
+  "version": "1.0.145",
+  "fecha": "2026-09-23T06:14:43.625Z",
   "marcas": {
     "Cronología": {
       "tipo": "base",
@@ -21,29 +21,29 @@
     "Consulta IMEI": {
       "tipo": "extension",
       "que": "evento de consulta IMEI en la cronología",
-      "presente": false
+      "presente": true
     },
     "Reparación": {
       "tipo": "extension",
       "que": "evento de reparación en la cronología",
-      "presente": false
+      "presente": true
     },
     "Certificaciones PhoneCheck": {
       "tipo": "extension",
       "que": "el tablero de certificaciones",
-      "presente": false
+      "presente": true
     },
     "Repuestos no-OEM": {
       "tipo": "extension",
       "que": "los repuestos en el informe público",
-      "presente": false
+      "presente": true
     }
   },
   "resultados": [
     {
       "paso": "demo: entrar y leer la versión desplegada",
       "estado": "ok",
-      "detalle": "v1.0.144",
+      "detalle": "v1.0.145",
       "capturas": [
         "01-demo-panel.jpg"
       ]
@@ -51,13 +51,13 @@
     {
       "paso": "producción: marcas del historial del serial en los assets",
       "estado": "ok",
-      "detalle": "6 assets · base presente · extensión pendiente de integrar (ronda sin desplegar)",
+      "detalle": "9 assets · base presente · extensión presente: Consulta IMEI, Reparación, Certificaciones PhoneCheck, Repuestos no-OEM",
       "capturas": []
     },
     {
       "paso": "demo: cronología del serial en la ficha de la unidad",
       "estado": "ok",
-      "detalle": "serial AUR0020000000000 · 1 evento(s): S · —Venta · Vendida en la demo",
+      "detalle": "serial AUR0020000000000 · 1 evento(s): S · 18-sept. 10:30 a. m.Venta · Vendida en la demo",
       "capturas": [
         "02-cronologia-serial.jpg",
         "03-cronologia-eventos.jpg"
@@ -81,19 +81,22 @@
     }
   ],
   "assets": [
-    "https://app.moboss.online/assets/index-9I_GJ6vQ.js",
+    "https://app.moboss.online/assets/index-CMk3_2TB.js",
     "https://app.moboss.online/assets/vendor-II1R7ODZ.js",
     "https://app.moboss.online/assets/print-DAClbpyS.js",
-    "https://app.moboss.online/assets/VistaCargarVenta-BM0nheAV.js",
-    "https://app.moboss.online/assets/Inventario-_cujqPhB.js",
-    "https://app.moboss.online/assets/suppliers-CUnXajku.js"
+    "https://app.moboss.online/assets/VistaCargarVenta-DWi1QltG.js",
+    "https://app.moboss.online/assets/posCart-DhyeC_IE.js",
+    "https://app.moboss.online/assets/Inventario-7QSKJyZh.js",
+    "https://app.moboss.online/assets/demoServicio-DdxqT-JL.js",
+    "https://app.moboss.online/assets/PasosEquipo-CZxjUFuN.js",
+    "https://app.moboss.online/assets/suppliers-Dm5vo5K4.js"
   ],
   "llamadasApi": [],
   "erroresConsola": [],
   "veredicto": {
     "pasosOk": 5,
     "pasosTotal": 5,
-    "extensionDesplegada": false,
+    "extensionDesplegada": true,
     "erroresConsola": 0
   }
 }
