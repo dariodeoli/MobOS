@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Badge, Input, MoneyInput, Select } from '@/components/ui'
+import { Badge, ConfirmDialog, Input, MoneyInput, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import PercentField from '@/components/shared/PercentField'
 import { api } from '@/lib/api/client'
@@ -33,6 +33,7 @@ export default function FilaVenta({
   const [cupon, setCupon] = useState('')
   const [cuponBusy, setCuponBusy] = useState(false)
   const [cuponError, setCuponError] = useState('')
+  const [confirmarQuitar, setConfirmarQuitar] = useState(false)
 
   // Imagen/modelo/capacidad/stock de la ficha viva del producto (el nombre, el
   // precio y los seriales vienen congelados en la línea).
@@ -81,6 +82,18 @@ export default function FilaVenta({
     })
   }
 
+  // Motivos por los que la línea pide confirmación antes de eliminarse (#243):
+  // perder un descuento/cupón o el IMEI ya elegido no puede ser un clic solo.
+  const motivosQuitar = [
+    descuentoLinea > 0 || item.couponCode ? 'un descuento' : null,
+    tieneImei ? 'un IMEI elegido' : null,
+  ].filter(Boolean)
+
+  function pedirQuitar() {
+    if (motivosQuitar.length) setConfirmarQuitar(true)
+    else onQuitar()
+  }
+
   return (
     <div className="px-3 py-2">
       <div className="flex items-center gap-2.5">
@@ -100,29 +113,42 @@ export default function FilaVenta({
             {agotado && <Badge color="red">Agotado</Badge>}
             {item.soldWithoutInsurance && <Badge color="slate">Sin seguro</Badge>}
           </div>
-          {/* IMEI en la línea, visible también colapsada (#225): enmascarado al
-              colapsar y completo al expandir; se toca para elegir o cambiar. */}
-          <button
-            type="button"
-            aria-label={tieneImei ? `Cambiar IMEI de ${item.nombre}` : `Elegir IMEI de ${item.nombre} (pendiente)`}
-            title={tieneImei ? 'Cambiar IMEI' : 'Falta elegir IMEI'}
-            disabled={guardando}
-            onClick={onImei}
-            className={cn(
-              'mt-0.5 flex max-w-full items-center gap-1 truncate text-left font-mono text-[11px] transition hover:underline disabled:opacity-60',
-              tieneImei ? 'text-mute' : 'font-semibold text-warn',
-            )}
-          >
-            <Icon name="box" className={cn('h-3.5 w-3.5 shrink-0', tieneImei ? 'text-ok' : 'text-warn')} />
-            <span className="truncate">
-              {tieneImei
-                ? `IMEI ${abierta ? item.serials.join(' · ') : serialEnmascarado(item.serials[0])}`
-                : 'Falta elegir IMEI'}
-            </span>
-          </button>
+          {/* Segunda línea: el IMEI (se toca para elegir/cambiar) y la papelera,
+              visible también colapsada (#243): si la línea tiene descuento,
+              cupón o IMEI elegido, pide confirmación antes de eliminarla. */}
+          <div className="mt-0.5 flex items-center justify-between gap-1">
+            <button
+              type="button"
+              aria-label={tieneImei ? `Cambiar IMEI de ${item.nombre}` : `Elegir IMEI de ${item.nombre} (pendiente)`}
+              title={tieneImei ? 'Cambiar IMEI' : 'Falta elegir IMEI'}
+              disabled={guardando}
+              onClick={onImei}
+              className={cn(
+                'flex min-w-0 items-center gap-1 truncate text-left font-mono text-[11px] transition hover:underline disabled:opacity-60',
+                tieneImei ? 'text-mute' : 'font-semibold text-warn',
+              )}
+            >
+              <Icon name="box" className={cn('h-3.5 w-3.5 shrink-0', tieneImei ? 'text-ok' : 'text-warn')} />
+              <span className="truncate">
+                {tieneImei
+                  ? `IMEI ${abierta ? item.serials.join(' · ') : serialEnmascarado(item.serials[0])}`
+                  : 'Falta elegir IMEI'}
+              </span>
+            </button>
+            <button
+              type="button"
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad disabled:opacity-50"
+              title="Eliminar línea"
+              aria-label={`Eliminar ${item.nombre}`}
+              disabled={guardando}
+              onClick={pedirQuitar}
+            >
+              <Icon name="trash" className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1">
           <div className="text-right">
             <span className="v2-numero block text-sm font-extrabold tabular-nums text-fono-light">{gs(total)}</span>
             {descuentoLinea > 0 && (
@@ -131,7 +157,7 @@ export default function FilaVenta({
           </div>
           <button
             type="button"
-            className="grid h-9 w-9 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore"
+            className="grid h-8 w-8 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore"
             aria-expanded={abierta}
             aria-label={abierta ? `Ver menos detalle de ${item.nombre}` : `Ver detalle de ${item.nombre}`}
             title={abierta ? 'Ver menos' : 'Ver detalle'}
@@ -271,8 +297,8 @@ export default function FilaVenta({
             {cuponError && <span role="alert" className="text-bad">{cuponError}</span>}
           </div>
 
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-            {tieneImei ? (
+          {tieneImei && (
+            <div className="mt-2">
               <button
                 type="button"
                 className="text-[11px] text-mute hover:text-bad"
@@ -280,20 +306,23 @@ export default function FilaVenta({
               >
                 Quitar IMEI
               </button>
-            ) : <span />}
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-ink-500 px-2.5 py-1 text-xs font-semibold text-mute transition hover:border-bad hover:text-bad disabled:opacity-50"
-              aria-label={`Eliminar ${item.nombre}`}
-              disabled={guardando}
-              onClick={onQuitar}
-            >
-              <Icon name="trash" className="h-3.5 w-3.5" />
-              Eliminar
-            </button>
-          </div>
+            </div>
+          )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmarQuitar}
+        onCancel={() => setConfirmarQuitar(false)}
+        onConfirm={() => {
+          setConfirmarQuitar(false)
+          onQuitar()
+        }}
+        title="¿Eliminar la línea?"
+        description={`${item.nombre} tiene ${motivosQuitar.join(' y ')}: si la quitás, se pierde ese dato.`}
+        confirmLabel="Eliminar línea"
+        variant="danger"
+      />
     </div>
   )
 }

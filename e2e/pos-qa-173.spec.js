@@ -187,6 +187,20 @@ test('carrito ultra-colapsado: el descuento individual se ve sin desplegar (#148
     await expect(fila.getByText('Gs 90.000')).toBeVisible()
     await expect(fila.getByLabel(`Cantidad de ${nombre}`)).toHaveCount(0)
     await expect(fila.getByLabel(`Precio de venta de ${nombre}`)).toHaveCount(0)
+
+    // Con descuento, la papelera pide confirmación (#243): cancelar conserva la
+    // línea; confirmar la elimina junto con la venta.
+    const papelera = fila.getByRole('button', { name: `Eliminar ${nombre}` })
+    await expect(papelera).toHaveAttribute('title', 'Eliminar línea')
+    await papelera.click()
+    const confirmar = page.getByRole('dialog')
+    await expect(confirmar).toContainText('un descuento')
+    await confirmar.getByRole('button', { name: 'Cancelar' }).click()
+    await expect(fila.getByText('descuento − Gs 10.000')).toBeVisible()
+
+    await papelera.click()
+    await confirmar.getByRole('button', { name: 'Eliminar línea' }).click()
+    await expect(page.getByText('Todavía no agregaste productos.')).toBeVisible()
   } finally {
     await page.evaluate(async ({ api, productId }) => {
       await fetch(`${api}/api/products?id=${encodeURIComponent(productId)}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})

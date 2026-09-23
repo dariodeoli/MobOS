@@ -1,19 +1,19 @@
 {
   "base": "http://localhost:5216",
   "etiqueta": "rama-243",
-  "fecha": "2026-09-23T03:54:54.733Z",
+  "fecha": "2026-09-23T15:59:09.040Z",
   "resultados": [
     {
       "variante": "desktop-claro-v2-off",
       "ancho": 1280,
-      "altoFilaColapsada": 58,
+      "altoFilaColapsada": 66,
       "alturasColapsadas": [
-        58,
-        59
+        66,
+        67
       ],
       "alturasExpandidas": [
-        389,
-        59
+        363,
+        67
       ],
       "desbordeHorizontal": 0,
       "scopeV2Aplicado": false,
@@ -23,14 +23,14 @@
     {
       "variante": "desktop-claro-v2-on",
       "ancho": 1280,
-      "altoFilaColapsada": 58,
+      "altoFilaColapsada": 66,
       "alturasColapsadas": [
-        58,
-        59
+        66,
+        67
       ],
       "alturasExpandidas": [
-        389,
-        59
+        363,
+        67
       ],
       "desbordeHorizontal": 0,
       "scopeV2Aplicado": true,
@@ -40,14 +40,14 @@
     {
       "variante": "desktop-oscuro-v2-on",
       "ancho": 1280,
-      "altoFilaColapsada": 58,
+      "altoFilaColapsada": 66,
       "alturasColapsadas": [
-        58,
-        59
+        66,
+        67
       ],
       "alturasExpandidas": [
-        389,
-        59
+        363,
+        67
       ],
       "desbordeHorizontal": 0,
       "scopeV2Aplicado": true,
@@ -57,14 +57,14 @@
     {
       "variante": "movil-claro-v2-off",
       "ancho": 390,
-      "altoFilaColapsada": 58,
+      "altoFilaColapsada": 66,
       "alturasColapsadas": [
-        58,
-        59
+        66,
+        67
       ],
       "alturasExpandidas": [
-        389,
-        59
+        363,
+        67
       ],
       "desbordeHorizontal": 0,
       "scopeV2Aplicado": false,
@@ -74,14 +74,14 @@
     {
       "variante": "movil-claro-v2-on",
       "ancho": 390,
-      "altoFilaColapsada": 58,
+      "altoFilaColapsada": 66,
       "alturasColapsadas": [
-        58,
-        59
+        66,
+        67
       ],
       "alturasExpandidas": [
-        389,
-        59
+        363,
+        67
       ],
       "desbordeHorizontal": 0,
       "scopeV2Aplicado": true,
@@ -91,14 +91,14 @@
     {
       "variante": "movil-oscuro-v2-on",
       "ancho": 390,
-      "altoFilaColapsada": 58,
+      "altoFilaColapsada": 66,
       "alturasColapsadas": [
-        58,
-        59
+        66,
+        67
       ],
       "alturasExpandidas": [
-        389,
-        59
+        363,
+        67
       ],
       "desbordeHorizontal": 0,
       "scopeV2Aplicado": true,
