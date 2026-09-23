@@ -9,7 +9,7 @@ import { suppliersApi } from '@/lib/api/suppliers'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { loadDemoPurchases, createDemoPurchase, receiveDemoPurchase, updateDemoPurchaseCosts } from '@/lib/demoPurchases'
 import { gs } from '@/utils/calculos'
-import { Aviso, Badge, Button, Card, EmptyState, IconAction, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import { Aviso, Badge, BarraProgreso, Button, Card, EmptyState, IconAction, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import { useSesion } from '@/lib/sesion'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import SearchField from '@/components/shared/SearchField'
@@ -22,6 +22,7 @@ import ProductCombobox from '@/components/shared/ProductCombobox'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import { cn } from '@/lib/utils'
+import { temaV2Activo } from '@/lib/temaV2'
 import { normalizarBusqueda } from '@/utils/cliente'
 
 // Tabla compacta: una fila por compra y el detalle de líneas se despliega en
@@ -388,6 +389,18 @@ export default function Compras() {
     return ordenadas.filter(purchase => `${purchase.supplierName} ${purchase.supplierReference || ''} ${purchase.id}`.toLowerCase().includes(q))
   }, [ordenadas, busqueda, demo])
 
+  // Vista previa v2 (#241): resumen de compras en tiles y el avance de
+  // recepción en la fila expandida. Se apaga solo con el flag.
+  const v2 = temaV2Activo()
+  const resumenCompras = useMemo(() => filtradas.reduce((acumulado, purchase) => {
+    const pendientes = (purchase.lines || []).reduce((suma, item) => suma + pendienteDeLinea(purchase, item), 0)
+    return {
+      pendientes: acumulado.pendientes + pendientes,
+      costo: acumulado.costo + Number(purchase.finalCostPyg || 0),
+      saldo: acumulado.saldo + Number(purchase.outstandingPyg || 0),
+    }
+  }, { pendientes: 0, costo: 0, saldo: 0 }), [filtradas])
+
   return <div className="space-y-4">
     <Card><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="mb-4 text-sm text-mute">Anticipos, crédito y costos finales auditables por equipo o lote.</p></div><div className="flex flex-wrap gap-2">{!demo && <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={exportando} onClick={exportar}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}<Button type="button" variant="outline" onClick={() => setSuppliersOpen(true)}>Proveedores</Button></div></div>
       <SearchField value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar proveedor, referencia o número…" ariaLabel="Buscar compras" className="mb-4 max-w-md" />
@@ -415,6 +428,13 @@ export default function Compras() {
       </form>{error && <Aviso tono="error" className="mt-3">{error}</Aviso>}{message && <Aviso tono="ok" className="mt-3">{message}</Aviso>}
     </Card>
     <div className="space-y-3">
+      {v2 && filtradas.length > 0 && (
+        <div className="grid grid-cols-3 divide-ink-600 rounded-xl border border-ink-600 bg-ink-800/60 text-center sm:divide-x">
+          <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Por recibir</p><p className={cn('mt-1 text-lg font-semibold tabular-nums', 'v2-numero sm:text-2xl', resumenCompras.pendientes > 0 ? 'text-warn' : 'text-ok')}>{resumenCompras.pendientes}</p><p className="text-[11px] text-mute">unidades pendientes</p></div>
+          <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Comprado</p><p className={cn('mt-1 text-lg font-semibold tabular-nums', 'v2-numero sm:text-2xl')}>{gs(resumenCompras.costo)}</p><p className="text-[11px] text-mute">costo final de las compras listadas</p></div>
+          <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Saldo por pagar</p><p className={cn('mt-1 text-lg font-semibold tabular-nums', 'v2-numero sm:text-2xl', resumenCompras.saldo > 0 ? 'text-warn' : 'text-ok')}>{gs(resumenCompras.saldo)}</p><p className="text-[11px] text-mute">anticipos y créditos incluidos</p></div>
+        </div>
+      )}
       {busy && purchases.length === 0 && <div className="space-y-2" aria-busy="true"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div>}
       {!busy && purchases.length === 0 && <EmptyState icon="box" title="Sin compras registradas." description="Creá la primera orden de compra o importación." />}
       {!busy && purchases.length > 0 && filtradas.length === 0 && <EmptyState compact icon="search" title="Ninguna compra coincide con la búsqueda." />}
@@ -454,8 +474,8 @@ export default function Compras() {
                 <span className="truncate text-xs tabular-nums text-mute">{lineas.length}</span>
                 <span className={CELDA_DATO}>{fechaCompra(purchase.createdAt)}</span>
                 <span className={cn('truncate text-xs', vencimiento.urgente ? 'font-semibold text-warn' : 'text-mute')} title={vencimiento.titulo}>{vencimiento.texto}</span>
-                <span className="truncate text-right text-sm font-semibold tabular-nums text-fore">{gs(purchase.finalCostPyg ?? 0)}</span>
-                <span className={cn('truncate text-right text-sm font-semibold tabular-nums', saldo > 0 ? 'text-warn' : 'text-ok')}>{gs(saldo)}</span>
+                <span className={cn('truncate text-right text-sm font-semibold tabular-nums text-fore', v2 && 'v2-numero')}>{gs(purchase.finalCostPyg ?? 0)}</span>
+                <span className={cn('truncate text-right text-sm font-semibold tabular-nums', v2 && 'v2-numero', saldo > 0 ? 'text-warn' : 'text-ok')}>{gs(saldo)}</span>
                 <span className="flex flex-wrap items-center justify-end gap-1">
                   {!demo && <IconAction icon="receipt" label="Adjuntos de la compra" disabled={busy} onClick={event => { event.stopPropagation(); setAdjuntosDe(purchase) }} />}
                   {!demo && <IconAction icon="clock" label="Historial de la compra" disabled={busy} onClick={event => { event.stopPropagation(); setHistorialDe(purchase) }} />}
@@ -472,6 +492,19 @@ export default function Compras() {
                   {purchase.receivedAt && <span className="text-[11px] text-mute">Recibida el {fechaRecepcion(purchase.receivedAt)}</span>}
                   {pendientes > 0 && <span className="text-[11px] text-warn">Pendiente de recibir: {pendientes}</span>}
                 </div>
+                {v2 && pendientes > 0 && (() => {
+                  const unidades = lineas.reduce((suma, item) => suma + Number(item.quantity || 0), 0)
+                  const recibidas = Math.max(0, unidades - pendientes)
+                  return (
+                    <div className="max-w-md space-y-1">
+                      <div className="flex items-center justify-between text-[11px] text-mute">
+                        <span>Recibido {recibidas} de {unidades}</span>
+                        <span className="text-warn">Faltan {pendientes}</span>
+                      </div>
+                      <BarraProgreso valor={recibidas} max={unidades} tono={recibidas > 0 ? 'ok' : 'warn'} alto="sm" etiqueta={`Recepción de la compra: ${recibidas} de ${unidades}`} />
+                    </div>
+                  )
+                })()}
                 {purchase.status === 'DRAFT'
                   ? <div className="space-y-1">{lineas.map(item => <div key={item.id} className="flex items-center gap-2"><span className="min-w-0 flex-1 truncate text-sm">{item.productName || item.productId} × {item.quantity}{item.lotReference ? ` · ${item.lotReference}` : ''}</span><MoneyInput aria-label={`Costo unitario de ${item.productName || item.productId}`} value={lineCostValue(purchase, item)} onValueChange={(value) => setLineCost(purchase.id, item.id, value)} className="w-36 shrink-0" placeholder="Costo ₲" /></div>)}</div>
                   : <div className="space-y-1 text-sm">{lineas.map(item => { const pendiente = pendienteDeLinea(purchase, item); return <div key={item.id} className="flex justify-between gap-3"><span className="min-w-0 truncate">{item.productName || item.productId} × {item.quantity}{item.lotReference ? ` · ${item.lotReference}` : ''}{pendiente > 0 ? ` · recibido ${recibidoDeLinea(purchase, item)} · quedan ${pendiente}` : ''}</span><span className="shrink-0 tabular-nums">{gs(item.finalTotalCostPyg ?? Number(item.quantity) * Number(item.unitCostPyg))}</span></div> })}</div>}
