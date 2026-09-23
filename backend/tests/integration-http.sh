@@ -707,6 +707,9 @@ node "$BACKEND_ROOT/tests/trade-in-cost.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 echo "Venta por IMEI: costo real de la unidad (reparaciones/repuestos) y seguro (#148 §19)..."
 node "$BACKEND_ROOT/tests/unit-cost-margin.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 
+echo "Reportes con costo real por unidad y comisiones al día (#148 §19)..."
+node "$BACKEND_ROOT/tests/reports-costos-comisiones.mjs" "$BASE_URL" "$ADMIN_TOKEN"
+
 echo "Seguridad pública: token de liquidaciones hasheado, rotación y límite de uso..."
 PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/commission-settlement-public.mjs"
 

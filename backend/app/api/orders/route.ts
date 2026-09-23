@@ -5,6 +5,7 @@ import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { InputError, normalizePayment, objectInput, receiveTradeIn, textInput } from '../../../lib/payment-input'
 import { resolveInsuranceRate } from '../../../lib/insurance'
+import { costoRepuestosDeInspection } from '../../../lib/costs'
 import { quotePromotion } from '../../../lib/promotions'
 import { canApproveOrderDiscount } from '../../../lib/orders'
 import { consumeAuthorization, usableAuthorization, DEFAULT_BELOW_LIST_PCT } from '../../../lib/authorizations'
@@ -28,13 +29,6 @@ const orderDetail = Prisma.validator<Prisma.OrderInclude>()({
 
 const INT_MAX = 2147483647
 const safeInt = (value: unknown, minimum = 0): value is number => Number.isSafeInteger(value) && (value as number) >= minimum && (value as number) <= INT_MAX
-// Repuestos/arreglos detectados en la inspección PhoneCheck (#240): el costo
-// cargado en la unidad suma al costo real del equipo para margen y seguro
-// (#148 §19), junto con lo que ya tenía cargado la unidad.
-const costoRepuestosDeInspection = (inspection: unknown): number => {
-  const valor = Number((inspection as { costoRepuestosPyg?: unknown } | null)?.costoRepuestosPyg)
-  return Number.isSafeInteger(valor) && valor > 0 ? valor : 0
-}
 const cleanText = (value: unknown, field: string, max: number) => value === undefined ? undefined : textInput(value, field, max)
 
 
@@ -408,8 +402,11 @@ export async function POST(request: Request) {
               const bases = unidades.map((unidad) => {
                 const repuestos = costoRepuestosDeInspection(unidad.inspection)
                 const consignacion = Number(unidad.consignorPyg ?? 0)
-                if (unidad.costPyg !== null && unidad.costPyg !== undefined) return Number(unidad.costPyg) + consignacion + repuestos
+                // En consignación el equipo no es de la tienda: el costo de venta
+                // es lo que se le paga al consignador (más repuestos), no el
+                // costo de compra del producto (evita contarlo dos veces).
                 if (Number.isSafeInteger(consignacion) && consignacion > 0) return consignacion + repuestos
+                if (unidad.costPyg !== null && unidad.costPyg !== undefined) return Number(unidad.costPyg) + repuestos
                 return product.costPyg === null || product.costPyg === undefined ? null : Number(product.costPyg) + repuestos
               })
               if (bases.every((valor) => valor !== null)) {
