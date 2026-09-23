@@ -95,8 +95,16 @@ plantilla de impresión de PRN, que se coordina con ese slot).
 **Coordinación con DSN (#241):** los números salen de su medición del shell v2
 y del pendiente que dejó declarado en `docs/rediseno/PLAN-F4.md` («portar los
 tonos AA al scope `tema-v2` de owncoding-ui»); quedan publicados en la
-biblioteca **v0.14.8**. Lo que sigue del lado de la app (no lo toqué): el bloque
-local `.v2-piloto` de `src/index.css` queda como puente hasta que MobOS importe
+biblioteca **v0.14.8**. La revisión cruzada con DSN confirmó los valores («no veo
+nada que ajustar en números») y dejó el plan del próximo lote: el CSS de
+navegación va a la biblioteca (rótulos sólidos, ítem activo azul AA, foco por
+tema y superficies rojas resueltas en los objetos de aviso/contador), `NavLateral`
+suma grupos plegables + contador y activo azul, y se porta la capa de contenido
+del v2 (`v2-chip`, `tabular-nums` del scope, `strong.text-xl` y el activo de
+botones/pestañas). El detalle quedó en `owncoding-ui/docs/SHELL.md` §7.
+
+Lo que sigue del lado de la app (no lo toqué): el bloque local `.v2-piloto` de
+`src/index.css` queda como puente hasta que MobOS importe
 `owncoding-ui/styles.css` (paso 1 del plan F3/F4) y las reglas de navegación
 (rótulos sólidos, ítem activo, foco) siguen en MobOS porque dependen de su
 markup.
