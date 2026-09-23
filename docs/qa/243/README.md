@@ -29,27 +29,28 @@ Capturas del carrito tal como estaba desplegado (demo pública, desktop 1280):
 Datos crudos: `1.0.144-produccion/resultados-1.0.144-produccion.json`
 (sin desborde horizontal y sin errores de página).
 
-## Verificación post-deploy real (v1.0.144 → v1.0.145)
+## Verificación post-deploy real (v1.0.144 → v1.0.149)
 
 `#243` salió en **v1.0.145** (merges `a2db2150`, `3b74e55f` y `20b83248`; release
-`e5224a19`) y se verificó contra producción con la sonda, sobre la misma demo
-(2 productos, 2 unidades). Comparativas “antes | después” en zoom:
+`e5224a19`) y se re-verificó en la **v1.0.149** desplegada (la que ya trae la
+cotización corregida del split), con la sonda sobre la misma demo (2 productos,
+2 unidades). Comparativas “antes | después” en zoom:
 
 | Criterio | Evidencia | Resultado |
 |---|---|---|
-| **Colapso máximo** (sin cantidad/precio) | [antes/después](comparativa-fila-colapsada-1.0.144-produccion-vs-1.0.145-produccion.png) | ✅ **248/249 px → 58 px**; solo nombre, IMEI y total |
-| **Cantidad/precio adentro** | [fila expandida](1.0.145-produccion/fila-expandida-desktop-claro-v2-off.png) | ✅ al desplegar aparecen cantidad, precio de venta, color, lista, descuento, cupón, stock y eliminar |
-| **Total llamativo** | [antes/después](comparativa-encabezado-1.0.144-produccion-vs-1.0.145-produccion.png) | ✅ degradé y borde del acento + total en color de marca, siempre arriba |
-| **Flechita corregida** | [colapsada](comparativa-fila-colapsada-1.0.144-produccion-vs-1.0.145-produccion.png) · [expandida](1.0.145-produccion/fila-expandida-desktop-claro-v2-off.png) | ✅ abajo colapsada (desplegar) y arriba expandida (cerrar) |
-| **Rediseño del panel** | [antes](1.0.144-produccion/carrito-desktop-claro-v2-off-colapsado.jpg) · [después](1.0.145-produccion/carrito-desktop-claro-v2-off-colapsado.jpg) | ✅ encabezado y ajustes compactos; el total queda en su bloque |
+| **Colapso máximo** (sin cantidad/precio) | [antes/después](comparativa-fila-colapsada-1.0.144-produccion-vs-1.0.149-produccion.png) | ✅ **248/249 px → 58 px**; solo nombre, IMEI y total |
+| **Cantidad/precio adentro** | [fila expandida](1.0.149-produccion/fila-expandida-desktop-claro-v2-off.png) | ✅ al desplegar aparecen cantidad, precio de venta, color, lista, descuento, cupón, stock y eliminar |
+| **Total llamativo** | [antes/después](comparativa-encabezado-1.0.144-produccion-vs-1.0.149-produccion.png) | ✅ degradé y borde del acento + total en color de marca, siempre arriba |
+| **Flechita corregida** | [colapsada](comparativa-fila-colapsada-1.0.144-produccion-vs-1.0.149-produccion.png) · [expandida](1.0.149-produccion/fila-expandida-desktop-claro-v2-off.png) | ✅ abajo colapsada (desplegar) y arriba expandida (cerrar) |
+| **Rediseño del panel** | [antes](1.0.144-produccion/carrito-desktop-claro-v2-off-colapsado.jpg) · [después](1.0.149-produccion/carrito-desktop-claro-v2-off-colapsado.jpg) | ✅ encabezado y ajustes compactos; el total queda en su bloque |
 
-Métricas de producción v1.0.145: **58 px en las 6 variantes** (claro/oscuro,
+Métricas de producción v1.0.149: **58 px en las 6 variantes** (claro/oscuro,
 desktop 1280 y mobile 390, flag v2 off/on), 0 desbordes y 0 errores de página
-(`1.0.145-produccion/resultados-1.0.145-produccion.json`).
+(`1.0.149-produccion/resultados-1.0.149-produccion.json`).
 
 ## Papelera por línea (agregado de Dario)
 
-Implementada en el pase del carrito; **va en el próximo release** (la v1.0.145
+Implementada en el pase del carrito; **va en el próximo release** (la v1.0.149
 desplegada todavía no la tiene):
 
 - **Visible también colapsada**, por línea, con tooltip “Eliminar línea”
@@ -85,7 +86,7 @@ Capturas con el colapso máximo y el preview v2 en las dos direcciones
 | Mobile oscuro (v2 on) | [jpg](rama-243/carrito-movil-oscuro-v2-on-colapsado.jpg) | [jpg](rama-243/carrito-movil-oscuro-v2-on-expandido.jpg) | 66 px |
 
 - **La línea colapsada pasó de 248 px a 66 px** (27% del alto original) con la
-  papelera visible; sin la papelera quedaba en 58 px (la v1.0.145 desplegada).
+  papelera visible; sin la papelera queda en 58 px (así está en producción).
 - Sin desborde horizontal (desktop y 390) y sin errores de página en las 6 variantes.
 - El scope v2 se aplica solo con el flag `mobos:tema-v2` (verificado en las capturas
   `-v2-on` y en `resultados-rama-243.json`).
@@ -104,7 +105,7 @@ Capturas con el colapso máximo y el preview v2 en las dos direcciones
 
 ```bash
 # Post-deploy en producción (demo pública, sin tocar datos reales)
-QA_BASE_URL=https://app.moboss.online QA_ETIQUETA=1.0.145 node scripts/qa-243-carrito-colapso.mjs
+QA_BASE_URL=https://app.moboss.online QA_ETIQUETA=<versión> node scripts/qa-243-carrito-colapso.mjs
 
 # Contra un entorno local (worktree con el harness e2e levantado)
 QA_BASE_URL=http://localhost:5216 QA_ETIQUETA=local node scripts/qa-243-carrito-colapso.mjs
@@ -137,5 +138,5 @@ La comparativa compone `docs/qa/243/comparativa-<criterio>-<antes>-vs-<después>
     `src/utils/pagoCuenta.test.js` (la lógica de cobro salió a
     `src/utils/pagoCuenta.js`, testable sin navegador).
 - `test:e2e:smoke` 7/7.
-- Verificación post-deploy en producción v1.0.145 (tabla de arriba): 58 px en las
+- Verificación post-deploy en producción v1.0.149 (tabla de arriba): 58 px en las
   6 variantes, sin desbordes ni errores.
