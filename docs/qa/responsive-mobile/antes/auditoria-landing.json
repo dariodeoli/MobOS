@@ -1,0 +1,306 @@
+[
+  {
+    "pantalla": "landing",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 9,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Ver caso pendiente",
+        "ancho": 102,
+        "alto": 17,
+        "clase": "font-semibold text-mute transition hover:text-fore",
+        "veces": 2
+      },
+      {
+        "que": "a",
+        "texto": "MobOS",
+        "ancho": 111,
+        "alto": 36,
+        "clase": "",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Cambiar a tema oscuro",
+        "ancho": 36,
+        "alto": 44,
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Probar demo",
+        "ancho": 120,
+        "alto": 36,
+        "clase": "rounded-xl bg-fono px-4 py-2 text-sm font-bold text-onbrand shadow-glo",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Otro ejemplo",
+        "ancho": 84,
+        "alto": 17,
+        "clase": "inline-flex items-center gap-1 font-semibold text-fono-dark transition",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Ver cómo funciona",
+        "ancho": 278,
+        "alto": 20,
+        "clase": "mt-4 inline-flex items-center gap-1 text-sm font-bold text-fono-dark t",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Configurar mi tienda",
+        "ancho": 185,
+        "alto": 24,
+        "clase": "mt-8 inline-block font-bold text-fono-dark transition hover:text-fono",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 164,
+        "alto": 16,
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "pantalla": "landing",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 9,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Ver caso pendiente",
+        "ancho": 102,
+        "alto": 17,
+        "clase": "font-semibold text-mute transition hover:text-fore",
+        "veces": 2
+      },
+      {
+        "que": "a",
+        "texto": "MobOS",
+        "ancho": 111,
+        "alto": 36,
+        "clase": "",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Cambiar a tema oscuro",
+        "ancho": 36,
+        "alto": 44,
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Probar demo",
+        "ancho": 120,
+        "alto": 36,
+        "clase": "rounded-xl bg-fono px-4 py-2 text-sm font-bold text-onbrand shadow-glo",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Otro ejemplo",
+        "ancho": 84,
+        "alto": 17,
+        "clase": "inline-flex items-center gap-1 font-semibold text-fono-dark transition",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Ver cómo funciona",
+        "ancho": 308,
+        "alto": 20,
+        "clase": "mt-4 inline-flex items-center gap-1 text-sm font-bold text-fono-dark t",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Configurar mi tienda",
+        "ancho": 185,
+        "alto": 24,
+        "clase": "mt-8 inline-block font-bold text-fono-dark transition hover:text-fono",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 164,
+        "alto": 16,
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "pantalla": "landing",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 9,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Ver caso pendiente",
+        "ancho": 102,
+        "alto": 17,
+        "clase": "font-semibold text-mute transition hover:text-fore",
+        "veces": 2
+      },
+      {
+        "que": "a",
+        "texto": "MobOS",
+        "ancho": 111,
+        "alto": 36,
+        "clase": "",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Cambiar a tema oscuro",
+        "ancho": 36,
+        "alto": 44,
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Probar demo",
+        "ancho": 120,
+        "alto": 36,
+        "clase": "rounded-xl bg-fono px-4 py-2 text-sm font-bold text-onbrand shadow-glo",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Otro ejemplo",
+        "ancho": 84,
+        "alto": 17,
+        "clase": "inline-flex items-center gap-1 font-semibold text-fono-dark transition",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Ver cómo funciona",
+        "ancho": 332,
+        "alto": 20,
+        "clase": "mt-4 inline-flex items-center gap-1 text-sm font-bold text-fono-dark t",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Configurar mi tienda",
+        "ancho": 185,
+        "alto": 24,
+        "clase": "mt-8 inline-block font-bold text-fono-dark transition hover:text-fono",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 164,
+        "alto": 16,
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "pantalla": "landing",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 11,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Cambiar a tema oscuro",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Ver caso pendiente",
+        "ancho": 102,
+        "alto": 17,
+        "clase": "font-semibold text-mute transition hover:text-fore",
+        "veces": 2
+      },
+      {
+        "que": "a",
+        "texto": "MobOS",
+        "ancho": 111,
+        "alto": 36,
+        "clase": "",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Estado",
+        "ancho": 46,
+        "alto": 20,
+        "clase": "hidden text-sm font-semibold text-mute transition hover:text-fono-dark",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Probar demo",
+        "ancho": 120,
+        "alto": 36,
+        "clase": "rounded-xl bg-fono px-4 py-2 text-sm font-bold text-onbrand shadow-glo",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Otro ejemplo",
+        "ancho": 84,
+        "alto": 17,
+        "clase": "inline-flex items-center gap-1 font-semibold text-fono-dark transition",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Ver cómo funciona",
+        "ancho": 314,
+        "alto": 20,
+        "clase": "mt-4 inline-flex items-center gap-1 text-sm font-bold text-fono-dark t",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Configurar mi tienda",
+        "ancho": 185,
+        "alto": 24,
+        "clase": "mt-8 inline-block font-bold text-fono-dark transition hover:text-fono",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 164,
+        "alto": 16,
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ]
+  }
+]

@@ -1,0 +1,330 @@
+[
+  {
+    "pantalla": "clientes",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 56,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Resumen rápido de Cliente E2E ",
+        "ancho": 36,
+        "alto": 36,
+        "dibujo": "36x36",
+        "clase": "inline-flex items-center justify-center rounded-lg border transition a",
+        "veces": 26
+      },
+      {
+        "que": "input",
+        "texto": "Seleccionar visibles",
+        "ancho": 16,
+        "alto": 44,
+        "dibujo": "16x44",
+        "clase": "h-4 w-4 accent-fono",
+        "veces": 14
+      },
+      {
+        "que": "button",
+        "texto": "Cliente",
+        "ancho": 218,
+        "alto": 20,
+        "dibujo": "218x20",
+        "clase": "flex items-center gap-1 truncate text-left text-[10px] font-bold upper",
+        "veces": 6
+      },
+      {
+        "que": "button",
+        "texto": "Enviar WhatsApp a Cliente Gara",
+        "ancho": 32,
+        "alto": 32,
+        "dibujo": "32x32",
+        "clase": "grid h-8 w-8 place-items-center rounded-lg transition text-ok hover:bg",
+        "veces": 3
+      },
+      {
+        "que": "button",
+        "texto": "Elegir plantilla de WhatsApp p",
+        "ancho": 16,
+        "alto": 20,
+        "dibujo": "16x20",
+        "clase": "grid h-5 w-4 place-items-center rounded transition text-mute hover:tex",
+        "veces": 3
+      },
+      {
+        "que": "button",
+        "texto": "Clientes",
+        "ancho": 67,
+        "alto": 28,
+        "dibujo": "67x28",
+        "clase": "rounded-lg px-2.5 py-1.5 text-xs font-semibold transition bg-fono/15 t",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Exportar CSV",
+        "ancho": 126,
+        "alto": 36,
+        "dibujo": "126x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "pantalla": "clientes",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 56,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Resumen rápido de Cliente E2E ",
+        "ancho": 36,
+        "alto": 36,
+        "dibujo": "36x36",
+        "clase": "inline-flex items-center justify-center rounded-lg border transition a",
+        "veces": 26
+      },
+      {
+        "que": "input",
+        "texto": "Seleccionar visibles",
+        "ancho": 16,
+        "alto": 44,
+        "dibujo": "16x44",
+        "clase": "h-4 w-4 accent-fono",
+        "veces": 14
+      },
+      {
+        "que": "button",
+        "texto": "Cliente",
+        "ancho": 218,
+        "alto": 20,
+        "dibujo": "218x20",
+        "clase": "flex items-center gap-1 truncate text-left text-[10px] font-bold upper",
+        "veces": 6
+      },
+      {
+        "que": "button",
+        "texto": "Enviar WhatsApp a Cliente Gara",
+        "ancho": 32,
+        "alto": 32,
+        "dibujo": "32x32",
+        "clase": "grid h-8 w-8 place-items-center rounded-lg transition text-ok hover:bg",
+        "veces": 3
+      },
+      {
+        "que": "button",
+        "texto": "Elegir plantilla de WhatsApp p",
+        "ancho": 16,
+        "alto": 20,
+        "dibujo": "16x20",
+        "clase": "grid h-5 w-4 place-items-center rounded transition text-mute hover:tex",
+        "veces": 3
+      },
+      {
+        "que": "button",
+        "texto": "Clientes",
+        "ancho": 67,
+        "alto": 28,
+        "dibujo": "67x28",
+        "clase": "rounded-lg px-2.5 py-1.5 text-xs font-semibold transition bg-fono/15 t",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Exportar CSV",
+        "ancho": 126,
+        "alto": 36,
+        "dibujo": "126x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "pantalla": "clientes",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 56,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Resumen rápido de Cliente E2E ",
+        "ancho": 36,
+        "alto": 36,
+        "dibujo": "36x36",
+        "clase": "inline-flex items-center justify-center rounded-lg border transition a",
+        "veces": 26
+      },
+      {
+        "que": "input",
+        "texto": "Seleccionar visibles",
+        "ancho": 16,
+        "alto": 44,
+        "dibujo": "16x44",
+        "clase": "h-4 w-4 accent-fono",
+        "veces": 14
+      },
+      {
+        "que": "button",
+        "texto": "Cliente",
+        "ancho": 218,
+        "alto": 20,
+        "dibujo": "218x20",
+        "clase": "flex items-center gap-1 truncate text-left text-[10px] font-bold upper",
+        "veces": 6
+      },
+      {
+        "que": "button",
+        "texto": "Enviar WhatsApp a Cliente Gara",
+        "ancho": 32,
+        "alto": 32,
+        "dibujo": "32x32",
+        "clase": "grid h-8 w-8 place-items-center rounded-lg transition text-ok hover:bg",
+        "veces": 3
+      },
+      {
+        "que": "button",
+        "texto": "Elegir plantilla de WhatsApp p",
+        "ancho": 16,
+        "alto": 20,
+        "dibujo": "16x20",
+        "clase": "grid h-5 w-4 place-items-center rounded transition text-mute hover:tex",
+        "veces": 3
+      },
+      {
+        "que": "button",
+        "texto": "Clientes",
+        "ancho": 67,
+        "alto": 28,
+        "dibujo": "67x28",
+        "clase": "rounded-lg px-2.5 py-1.5 text-xs font-semibold transition bg-fono/15 t",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Exportar CSV",
+        "ancho": 126,
+        "alto": 36,
+        "dibujo": "126x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 231,
+        "alto": 34,
+        "dibujo": "231x34",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "pantalla": "clientes",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 58,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Resumen rápido de Cliente E2E ",
+        "ancho": 36,
+        "alto": 36,
+        "dibujo": "36x36",
+        "clase": "inline-flex items-center justify-center rounded-lg border transition a",
+        "veces": 26
+      },
+      {
+        "que": "input",
+        "texto": "Seleccionar visibles",
+        "ancho": 16,
+        "alto": 44,
+        "dibujo": "16x44",
+        "clase": "h-4 w-4 accent-fono",
+        "veces": 14
+      },
+      {
+        "que": "button",
+        "texto": "Cliente",
+        "ancho": 218,
+        "alto": 20,
+        "dibujo": "218x20",
+        "clase": "flex items-center gap-1 truncate text-left text-[10px] font-bold upper",
+        "veces": 6
+      },
+      {
+        "que": "button",
+        "texto": "+ Crear cliente",
+        "ancho": 130,
+        "alto": 36,
+        "dibujo": "130x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-4 font-sem",
+        "veces": 3
+      },
+      {
+        "que": "button",
+        "texto": "Enviar WhatsApp a Cliente Gara",
+        "ancho": 32,
+        "alto": 32,
+        "dibujo": "32x32",
+        "clase": "grid h-8 w-8 place-items-center rounded-lg transition text-ok hover:bg",
+        "veces": 3
+      },
+      {
+        "que": "button",
+        "texto": "Elegir plantilla de WhatsApp p",
+        "ancho": 16,
+        "alto": 20,
+        "dibujo": "16x20",
+        "clase": "grid h-5 w-4 place-items-center rounded transition text-mute hover:tex",
+        "veces": 3
+      },
+      {
+        "que": "button",
+        "texto": "Clientes",
+        "ancho": 67,
+        "alto": 28,
+        "dibujo": "67x28",
+        "clase": "rounded-lg px-2.5 py-1.5 text-xs font-semibold transition bg-fono/15 t",
+        "veces": 2
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ]
+  }
+]

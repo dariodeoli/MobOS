@@ -3,7 +3,7 @@ import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 import { Drawer, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
-import Avatar from '@/components/shared/Avatar'
+import PersonaChip from '@/components/shared/PersonaChip'
 import ThemeToggle from '@/components/app/ThemeToggle'
 import PresencePill from '@/components/app/PresencePill'
 import ProductFooter from '@/components/app/ProductFooter'
@@ -207,13 +207,21 @@ function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onSwitch
           title={nombreUsuario}
           aria-label={`Cambiar de vendedor (${nombreUsuario})`}
         >
-          <Avatar user={{ id: usuario?.id, name: nombreUsuario }} picture={fotoGoogle} size="lg" title={nombreUsuario} />
-          <span className={cn('flex min-w-0 flex-1 flex-col gap-0.5', collapsed && 'lg:hidden')}>
-            <strong className="truncate text-[13px] font-medium leading-snug text-fore">{nombreUsuario}</strong>
-            <small className="truncate text-[10px] uppercase leading-snug tracking-wider text-mute">
-              {esOwner ? 'Dueño' : roleLabel}
-            </small>
-          </span>
+          <PersonaChip
+            user={{ id: usuario?.id, name: nombreUsuario }}
+            picture={fotoGoogle}
+            size="lg"
+            nombre={false}
+            title={nombreUsuario}
+            className={cn('min-w-0 flex-1', collapsed && 'lg:flex-none')}
+          >
+            <span className={cn('flex min-w-0 flex-1 flex-col gap-0.5', collapsed && 'lg:hidden')}>
+              <strong className="truncate text-[13px] font-medium leading-snug text-fore">{nombreUsuario}</strong>
+              <small className="truncate text-[10px] uppercase leading-snug tracking-wider text-mute">
+                {esOwner ? 'Dueño' : roleLabel}
+              </small>
+            </span>
+          </PersonaChip>
           <Icon name="refresh" className={cn('ml-auto h-3 w-3 shrink-0 text-mute', collapsed && 'lg:hidden')} />
         </button>
       </div>
@@ -446,7 +454,7 @@ export default function AppShell({
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
             {onSearch && (
               <button
                 type="button"

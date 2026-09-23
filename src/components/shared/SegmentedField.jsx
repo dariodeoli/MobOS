@@ -20,7 +20,7 @@ export default function SegmentedField({ value, onChange, options = [], ariaLabe
             title={label}
             onClick={() => onChange(id)}
             className={cn(
-              'inline-flex min-h-8 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition',
+              'inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition',
               activo ? 'bg-fono/15 text-fono-light' : 'text-mute hover:bg-fore/5 hover:text-fore',
             )}
           >

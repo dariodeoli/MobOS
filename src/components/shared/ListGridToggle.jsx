@@ -18,7 +18,7 @@ export default function ListGridToggle({ value, onChange, className }) {
           aria-label={option.label}
           aria-pressed={value === option.key}
           onClick={() => onChange(option.key)}
-          className={cn('grid h-9 w-9 place-items-center transition', value === option.key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}
+          className={cn('grid h-11 w-11 place-items-center transition', value === option.key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}
         >
           <Icon name={option.icon} className="h-4 w-4" />
         </button>

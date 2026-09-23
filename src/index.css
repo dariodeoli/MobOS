@@ -272,6 +272,26 @@ html.dark input[type='date']::-webkit-calendar-picker-indicator:hover {
 .v2-piloto .v2-numero,
 .tema-v2 .v2-numero { font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
 
+/* ── Área táctil de 44 px (#249) ───────────────────────────────────────
+   Expande la zona de TOQUE de un control sin cambiar su dibujo ni el layout:
+   un pseudo-elemento centrado mide al menos 44×44 y captura el toque. Es el
+   patrón para acciones de ícono (topbar del shell, herramientas densas) y el
+   que pueden adoptar POS/INV/CRM/FIN y la biblioteca (CMP).
+   El topbar del shell lo aplica a todos sus botones (menú, notificaciones,
+   acciones, tema, ayuda, salir, sucursal y buscar). */
+.toque-44,
+header button { position: relative; }
+.toque-44::after,
+header button::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100%, 44px);
+  height: max(100%, 44px);
+  transform: translate(-50%, -50%);
+}
+
 /* ── F4 · shell v2: navegación accesible (#241) ────────────────────────
    Solo dentro del scope del flag `preview v2`: el ítem activo usa el azul de
    acción (tono AA en cada tema) y los rótulos de grupo van en verde sólido

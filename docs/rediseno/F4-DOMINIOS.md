@@ -1,11 +1,11 @@
-# F4 · dominios v2: pedidos, clientes, finanzas, servicio/garantías, resumen/análisis, compras y configuración (#241)
+# F4 · dominios v2: pedidos, clientes, finanzas, servicio/garantías, resumen/análisis, compras, configuración e inventario (#241)
 
 Pasos del rollout F4, detrás del flag `preview v2`: además de heredar los
 tokens del shell (paso anterior), las pantallas suman los patrones del mock F3
 —chips tipo pill, números de consola, azul de acción en los activos internos,
-stepper del taller, tiles de KPI, el "x de y" de recepción y los tiles de
-rol/acceso—. **El default no cambia** (`TEMA_V2_POR_DEFECTO = false`): con el
-flag apagado todo queda como está hoy.
+stepper del taller, tiles de KPI, el "x de y" de recepción, los tiles de
+rol/acceso y los **tiles de equipo** del inventario—. **El default no cambia**
+(`TEMA_V2_POR_DEFECTO = false`): con el flag apagado todo queda como está hoy.
 
 ## Qué cambia (solo con el flag)
 
@@ -19,6 +19,7 @@ flag apagado todo queda como está hoy.
 | Tile de KPI | borde verde de marca | superficie de consola (borde propio, esquina 1rem) y número un escalón más | resumen y análisis |
 | Resumen de compras | — | unidades por recibir, costo comprado y saldo por pagar con número de consola; "x de y" de recepción con barra en la fila | compras |
 | Tiles de rol y equipo | borde verde de marca | **tiles de rol/acceso** (x de y de capacidades + dominios como chips) y fichas del equipo como tiles con importes de consola | configuración (equipo y roles) |
+| Tiles de equipo | tarjeta con borde de marca | **tile de consola** (superficie propia, IMEI mono, chips pill de batería/ubicación/proveedor y costo con número de consola) en la vista cuadrícula | inventario |
 
 En pedidos la grilla es fija y «Listo para retirar» en mayúsculas desbordaría su
 columna: ahí el chip queda pill sin mayúscula; en clientes, con micro-rótulo.
@@ -44,6 +45,7 @@ Con el flag prendido, claro/oscuro en 1280 y 390:
 | Compras | [claro](c241f4b-compras-on-claro-desktop.png) | [oscuro](c241f4b-compras-on-oscuro-desktop.png) | [claro](c241f4b-compras-on-claro-mobile.png) | [oscuro](c241f4b-compras-on-oscuro-mobile.png) |
 | Config · Equipo | [claro](c241f4b-equipo-on-claro-desktop.png) | [oscuro](c241f4b-equipo-on-oscuro-desktop.png) | [claro](c241f4b-equipo-on-claro-mobile.png) | [oscuro](c241f4b-equipo-on-oscuro-mobile.png) |
 | Config · Roles y permisos | [claro](c241f4b-roles-on-claro-desktop.png) | [oscuro](c241f4b-roles-on-oscuro-desktop.png) | [claro](c241f4b-roles-on-claro-mobile.png) | [oscuro](c241f4b-roles-on-oscuro-mobile.png) |
+| Inventario · Tiles de equipo | [claro](c241f4b-inventario-tiles-on-claro-desktop.png) | [oscuro](c241f4b-inventario-tiles-on-oscuro-desktop.png) | [claro](c241f4b-inventario-tiles-on-claro-mobile.png) | [oscuro](c241f4b-inventario-tiles-on-oscuro-mobile.png) |
 
 Muestra con el flag **apagado** (default intacto, mismo estado de datos):
 [pedidos](c241f4b-pedidos-off-claro-desktop.png) ·
@@ -56,7 +58,8 @@ Muestra con el flag **apagado** (default intacto, mismo estado de datos):
 [ganancias](c241f4b-analisis-ganancias-off-claro-desktop.png) ·
 [compras](c241f4b-compras-off-claro-desktop.png) ·
 [equipo](c241f4b-equipo-off-claro-desktop.png) ·
-[roles](c241f4b-roles-off-claro-desktop.png).
+[roles](c241f4b-roles-off-claro-desktop.png) ·
+[tiles de equipo](c241f4b-inventario-tiles-off-claro-desktop.png).
 
 ## Servicio técnico y Garantías (lote E)
 
@@ -105,9 +108,19 @@ capacidades quedan igual. La medición dejó dos hallazgos del tema claro que en
 v2 quedan AA: el gris fijo de los encabezados de tabla (1.69:1) y el verde vivo
 en los importes de las mini-tarjetas del equipo (2.14:1).
 
+## Inventario: tiles de equipo (cierre del lote C)
+
+La vista cuadrícula del inventario pasa sus tarjetas al **tile de equipo** del
+mock: superficie de consola, estado como chip pill, IMEI en mono, batería,
+ubicación y proveedor como chips y el costo con número de consola. La
+verificación (avatar y fecha) queda como estaba. Se prende con el flag y la
+vista se captura con la cuadrícula activada (`mobos:inventario-vista`).
+Queda pendiente para cuando INV cierre los datos de la inspección (#240): el
+**grado** grande y los **chips de locks** (iCloud/MDM) en el tile.
+
 ## Medición
 
-`e2e/dsn-241-dominios.spec.js` recorre las **once pantallas** con el flag
+`e2e/dsn-241-dominios.spec.js` recorre las **doce pantallas** con el flag
 prendido en los cuatro combos: **0 textos de shell por debajo de AA** y **0
 bajos de contenido**. La medición entiende **degradados** (mide contra la peor
 parada del fondo) y de ahí salieron los ajustes de los lotes anteriores: el chip
@@ -126,10 +139,8 @@ con `MOBOS_CAPTURAS=docs/rediseno`.
 - Pedido abierto y ficha de cliente (detalle): heredan tokens y chips; su
   propio paso de patrones queda para el siguiente lote.
 - Carrito POS: espera la guarda de CMP (declarado en el plan F4).
-- Lote C completo: los **tiles de equipo** del inventario (la tabla y la ficha
-  ya tienen los tokens del piloto).
 - Dominios que faltan: Públicas y Prints (lotes G y H del plan); los hallazgos
   de contraste del default (hero verde y encabezados de tabla) quedan para una
-  pasada del default.
+  pasada del default, y el grado/locks del tile esperan los datos de #240.
 - Promover este bloque y los tonos AA al scope `tema-v2` de `owncoding-ui`
   (CMP) y retirar el scope local.

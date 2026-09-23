@@ -28,9 +28,13 @@ test('el shell dibuja un solo h1 y expone la miga de sección', () => {
   assert.match(codigo, /data-testid="shell-breadcrumb"/, 'la cabecera debe exponer la miga de sección')
 })
 
-test('las personas del shell se muestran con el Avatar compartido', () => {
+test('las personas del shell se muestran con el objeto de identidad compartido', () => {
+  // #211: la identidad es un solo objeto (PersonaChip, que envuelve al Avatar
+  // y resuelve la foto subida → Google → iniciales). El shell no dibuja fotos
+  // ni iniciales a mano.
   const codigo = leer(SHELL)
-  assert.match(codigo, /<Avatar\b/, 'la persona de la barra lateral usa el Avatar compartido')
+  assert.match(codigo, /<PersonaChip\b/, 'la persona de la barra lateral usa PersonaChip')
+  assert.match(codigo, /from '@\/components\/shared\/PersonaChip'/, 'el objeto viene de la biblioteca compartida')
   assert.ok(!/<img[^>]*rounded-full/.test(codigo), 'sin fotos de personas a mano')
   assert.ok(!/charAt\(0\)\.toUpperCase\(\)/.test(codigo), 'sin iniciales a mano')
 })

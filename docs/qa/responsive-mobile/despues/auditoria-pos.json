@@ -1,0 +1,294 @@
+[
+  {
+    "pantalla": "pos",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 5,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Analytics",
+        "ancho": 104,
+        "alto": 36,
+        "dibujo": "104x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 2
+      },
+      {
+        "que": "input",
+        "texto": "",
+        "ancho": 14,
+        "alto": 44,
+        "dibujo": "14x44",
+        "clase": "h-4 w-4 accent-fono",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Nuevo producto",
+        "ancho": 135,
+        "alto": 30,
+        "dibujo": "135x30",
+        "clase": "inline-flex items-center gap-1.5 rounded-lg border border-fono/30 px-2",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "pantalla": "pos",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 10,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Analytics",
+        "ancho": 104,
+        "alto": 36,
+        "dibujo": "104x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 3
+      },
+      {
+        "que": "input",
+        "texto": "",
+        "ancho": 16,
+        "alto": 44,
+        "dibujo": "16x44",
+        "clase": "h-4 w-4 accent-fono",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Nuevo producto",
+        "ancho": 135,
+        "alto": 30,
+        "dibujo": "135x30",
+        "clase": "inline-flex items-center gap-1.5 rounded-lg border border-fono/30 px-2",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Vaciar carrito",
+        "ancho": 100,
+        "alto": 26,
+        "dibujo": "100x26",
+        "clase": "rounded-lg border border-ink-500 px-2.5 py-1 text-xs font-semibold tex",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Falta elegir IMEI",
+        "ancho": 99,
+        "alto": 20,
+        "dibujo": "99x20",
+        "clase": "flex min-w-0 items-center gap-1 truncate text-left font-mono text-[11p",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Eliminar Cable USB-C E2E",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "grid h-7 w-7 shrink-0 place-items-center rounded-lg text-mute transiti",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Ver detalle de Cable USB-C E2E",
+        "ancho": 32,
+        "alto": 32,
+        "dibujo": "32x32",
+        "clase": "grid h-8 w-8 place-items-center rounded-lg text-mute transition hover:",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "pantalla": "pos",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 10,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Analytics",
+        "ancho": 104,
+        "alto": 36,
+        "dibujo": "104x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 3
+      },
+      {
+        "que": "input",
+        "texto": "",
+        "ancho": 16,
+        "alto": 44,
+        "dibujo": "16x44",
+        "clase": "h-4 w-4 accent-fono",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Nuevo producto",
+        "ancho": 135,
+        "alto": 30,
+        "dibujo": "135x30",
+        "clase": "inline-flex items-center gap-1.5 rounded-lg border border-fono/30 px-2",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Vaciar carrito",
+        "ancho": 100,
+        "alto": 26,
+        "dibujo": "100x26",
+        "clase": "rounded-lg border border-ink-500 px-2.5 py-1 text-xs font-semibold tex",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Falta elegir IMEI",
+        "ancho": 123,
+        "alto": 20,
+        "dibujo": "123x20",
+        "clase": "flex min-w-0 items-center gap-1 truncate text-left font-mono text-[11p",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Eliminar Cable USB-C E2E",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "grid h-7 w-7 shrink-0 place-items-center rounded-lg text-mute transiti",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Ver detalle de Cable USB-C E2E",
+        "ancho": 32,
+        "alto": 32,
+        "dibujo": "32x32",
+        "clase": "grid h-8 w-8 place-items-center rounded-lg text-mute transition hover:",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 231,
+        "alto": 34,
+        "dibujo": "231x34",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "pantalla": "pos",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 12,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Analytics",
+        "ancho": 104,
+        "alto": 36,
+        "dibujo": "104x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 5
+      },
+      {
+        "que": "input",
+        "texto": "",
+        "ancho": 16,
+        "alto": 44,
+        "dibujo": "16x44",
+        "clase": "h-4 w-4 accent-fono",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Nuevo producto",
+        "ancho": 135,
+        "alto": 30,
+        "dibujo": "135x30",
+        "clase": "inline-flex items-center gap-1.5 rounded-lg border border-fono/30 px-2",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Vaciar carrito",
+        "ancho": 100,
+        "alto": 26,
+        "dibujo": "100x26",
+        "clase": "rounded-lg border border-ink-500 px-2.5 py-1 text-xs font-semibold tex",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Falta elegir IMEI",
+        "ancho": 131,
+        "alto": 20,
+        "dibujo": "131x20",
+        "clase": "flex min-w-0 items-center gap-1 truncate text-left font-mono text-[11p",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Eliminar Cable USB-C E2E",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "grid h-7 w-7 shrink-0 place-items-center rounded-lg text-mute transiti",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Ver detalle de Cable USB-C E2E",
+        "ancho": 32,
+        "alto": 32,
+        "dibujo": "32x32",
+        "clase": "grid h-8 w-8 place-items-center rounded-lg text-mute transition hover:",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ]
+  }
+]

@@ -693,7 +693,7 @@ export function Subtabs({ value, onChange, items = [], className }) {
           aria-selected={value === id}
           onClick={() => onChange(id)}
           className={cn(
-            'rounded-xl px-3 py-2 text-sm font-medium transition',
+            'rounded-xl px-3 py-2 text-sm font-medium transition min-h-11',
             value === id ? 'bg-fono text-onbrand' : 'text-mute hover:bg-fore/5 hover:text-fore',
           )}
         >

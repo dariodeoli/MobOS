@@ -108,6 +108,10 @@ const PANTALLAS = [
   }],
   ['equipo', '/configuracion/equipo', (page) => page.getByTestId('integrante-fila').first()],
   ['roles', '/configuracion/roles', (page) => page.getByText('Matriz de capacidades')],
+  ['inventario-tiles', '/inventario/unidades', (page) => page.getByTestId('inventario-tarjeta').first(), async (page) => {
+    // Tiles de equipo (lote C): la vista lista/cuadrícula se recuerda por pantalla.
+    await page.evaluate(() => { try { localStorage.setItem('mobos:inventario-vista', 'grid') } catch { /* sin storage */ } })
+  }],
 ]
 
 const preparar = (page, { modo, v2 = true }) =>
@@ -144,6 +148,10 @@ test.describe('dominios v2 · capturas y contraste', () => {
       mkdirSync(SHOTS, { recursive: true })
       await page.setViewportSize({ width: 1280, height: 900 })
       await preparar(page, { modo: 'light', v2: false })
+      await page.goto(ruta)
+      // La preparación de datos también deja la pantalla en su estado capturable
+      // (p. ej. la vista cuadrícula del inventario) y sin el flag no cambia nada.
+      if (prepararDatos) await prepararDatos(page, 1280)
       await page.goto(ruta)
       await expect(page.locator('.tema-v2')).toHaveCount(0)
       await expect(listo(page)).toBeVisible({ timeout: 30_000 })
