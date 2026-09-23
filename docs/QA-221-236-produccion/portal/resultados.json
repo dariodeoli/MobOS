@@ -1,0 +1,36 @@
+{
+  "url": "https://app.moboss.online",
+  "fecha": "2026-09-23T03:56:27.165Z",
+  "version": "v1.0.144",
+  "serial": "356789012345678",
+  "pasos": [
+    {
+      "paso": "entrada a la demo y ficha del cliente con el equipo",
+      "ok": true,
+      "detalle": "demo v1.0.144 · equipo con acciones de informe"
+    },
+    {
+      "paso": "compartir por WhatsApp lleva el link público del informe",
+      "ok": true,
+      "detalle": "WhatsApp con el link /u/356789012345678"
+    },
+    {
+      "paso": "el portal del cliente lista los informes de sus equipos",
+      "ok": true,
+      "detalle": "sección en el portal · enlace /u/356789012345678"
+    },
+    {
+      "paso": "el informe público abre desde el portal",
+      "ok": true,
+      "detalle": "el informe abre con los datos del equipo y su aviso"
+    }
+  ],
+  "capturas": [
+    "01-ficha-equipo-acciones.png",
+    "02-portal-informes.png",
+    "03-informe-publico-desde-portal.png"
+  ],
+  "llamadasApi": [],
+  "hallazgos": [],
+  "demoNoTocaApi": true
+}

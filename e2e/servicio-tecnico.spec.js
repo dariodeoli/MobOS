@@ -5,6 +5,7 @@ import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
 
 const API = SEED.api
+const SALIDA = 'docs/QA-240-taller-cliente'
 
 test('la orden se carga con costos desglosados y la utilidad se calcula sola', async ({ page }) => {
   const marca = Date.now().toString(36).toUpperCase()
@@ -126,6 +127,71 @@ test('el WhatsApp de la orden usa la plantilla del estado con sus variables', as
   await page.keyboard.press('Escape')
 
   // Limpieza determinista: la orden de prueba queda cancelada.
+  await page.evaluate(async ({ api, ordenId }) => {
+    await fetch(`${api}/api/service-orders`, {
+      method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: ordenId, status: 'CANCELADO' }),
+    })
+  }, { api: API, ordenId: datos.ordenId })
+})
+
+// #240 §4 — del taller al cliente: la ficha muestra la orden de servicio, la
+// cronología el ingreso y los cambios de estado, y el portal el estado con sus
+// fechas (sin costos ni datos internos).
+test('el cliente ve su equipo en el taller: ficha, cronología y portal', async ({ page }) => {
+  const marca = Date.now().toString(36).toUpperCase()
+  await page.goto('/clientes')
+  const datos = await page.evaluate(async ({ api, marca }) => {
+    const cliente = await fetch(`${api}/api/customers`, {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: `Cliente Taller Portal ${marca}`, firstName: 'Taller', phone: `0981${String(Date.now()).slice(-6)}` }),
+    }).then((respuesta) => respuesta.json())
+    const orden = await fetch(`${api}/api/service-orders`, {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ customerId: cliente.id, customerName: cliente.name, device: `iPhone 12 · 128 GB ${marca}`, serial: `TP-${marca}`, serviceName: 'Cambio de batería', reportedIssue: 'Batería dura poco', pricePyg: 450000, costPyg: 180000 }),
+    }).then((respuesta) => respuesta.json())
+    await fetch(`${api}/api/service-orders`, {
+      method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: orden.id, status: 'LISTO' }),
+    })
+    return { clienteId: cliente.id, ordenId: orden.id, serviceNumber: orden.serviceNumber }
+  }, { api: API, marca })
+  expect(datos.clienteId, JSON.stringify(datos)).toBeTruthy()
+
+  // Ficha → Pedidos: bloque Servicio técnico con el estado del taller.
+  await page.goto(`/clientes?cliente=${encodeURIComponent(datos.clienteId)}`)
+  const ficha = page.getByRole('dialog')
+  await ficha.getByRole('tab', { name: /^Pedidos/ }).click()
+  const fila = ficha.getByTestId('perfil-servicio-fila').filter({ hasText: marca }).first()
+  await expect(fila).toBeVisible({ timeout: 15000 })
+  await expect(fila.getByText('Cambio de batería')).toBeVisible()
+  await expect(fila.getByText('Listo para retirar')).toBeVisible()
+  await fila.scrollIntoViewIfNeeded()
+  await page.waitForTimeout(300)
+  await page.screenshot({ path: `${SALIDA}/01-ficha-servicio.png` })
+
+  // Cronología: ingreso y recorrido del estado en lenguaje de cliente.
+  await ficha.getByRole('tab', { name: /^Cronología/ }).click()
+  await expect(ficha.getByText('Equipo en taller').first()).toBeVisible({ timeout: 15000 })
+  const cambio = ficha.getByText('Estado del taller').first()
+  await expect(cambio).toBeVisible()
+  await expect(ficha.getByText(/Recibido → Listo para retirar/).first()).toBeVisible()
+  await cambio.scrollIntoViewIfNeeded()
+  await page.waitForTimeout(300)
+  await page.screenshot({ path: `${SALIDA}/02-cronologia-taller.png` })
+
+  // Portal del cliente: estado y fechas del equipo en el taller.
+  await ficha.getByRole('button', { name: /Portal del cliente/ }).click()
+  await page.getByAltText('QR del portal del cliente').waitFor({ timeout: 15000 })
+  const enlace = await page.locator('p.break-all').textContent()
+  await page.goto(enlace.trim())
+  await expect(page.getByText('Servicio técnico')).toBeVisible({ timeout: 20000 })
+  await expect(page.getByText('Listo para retirar').first()).toBeVisible()
+  await expect(page.getByText(new RegExp(`iPhone 12 · 128 GB ${marca}`)).first()).toBeVisible()
+  await expect(page.getByText(new RegExp(datos.serviceNumber)).first()).toBeVisible()
+  await page.screenshot({ path: `${SALIDA}/03-portal-servicio.png`, fullPage: true })
+
+  // Limpieza: la orden de prueba queda cancelada.
   await page.evaluate(async ({ api, ordenId }) => {
     await fetch(`${api}/api/service-orders`, {
       method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },

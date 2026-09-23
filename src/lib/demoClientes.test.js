@@ -137,3 +137,24 @@ test('compartir y abrir el informe en la demo mueve la fila de sin ver a visto (
   assert.equal(portal.channel, null)
   assert.ok(eventosInformeDemo('demo-cliente-ana').some((evento) => /Abierto desde el portal del cliente/.test(evento.detail)))
 })
+
+test('el servicio técnico demo llega a la ficha, la cronología y el portal (#240 §4)', () => {
+  // Ficha: las órdenes del taller del cliente con su estado.
+  const perfil = buildDemoProfile(buscarClienteDemo(LUCIA))
+  const servicio = perfil.serviceOrders.find((row) => row.id === 'demo-os-1')
+  assert.ok(servicio, 'la ficha demo trae la orden del taller')
+  assert.equal(servicio.status, 'LISTO')
+  assert.ok(servicio.receivedAt)
+  // Cronología: ingreso y entrega derivados de la orden.
+  const eventosLucia = buildDemoTimeline(buscarClienteDemo(LUCIA)).filter((evento) => evento.type === 'service')
+  assert.ok(eventosLucia.some((evento) => evento.action === 'Equipo en taller' && /iPhone 12/.test(evento.detail)))
+  const entregado = buildDemoTimeline(buscarClienteDemo('demo-cliente-carlos')).find((evento) => evento.action === 'Equipo entregado')
+  assert.ok(entregado, 'la orden entregada deja su evento de entrega')
+  // Portal: estado y fechas, sin costos ni datos internos.
+  const cuenta = demoCuentaPayload('demo-demo-cliente-lucia-rapido')
+  const enPortal = cuenta.servicios.find((row) => row.serviceNumber === 'OS-0004')
+  assert.ok(enPortal, 'el portal demo lista el servicio')
+  assert.equal(enPortal.statusLabel, 'Listo para retirar')
+  assert.equal(enPortal.device, 'iPhone 12 · 128 GB')
+  assert.ok(!('pricePyg' in enPortal) && !('costPyg' in enPortal) && !('notes' in enPortal), 'el portal no expone datos internos')
+})

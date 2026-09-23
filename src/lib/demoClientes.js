@@ -1,6 +1,7 @@
 import { leerDemo, guardarDemo } from './demoStorage.js'
 import { formatGs } from '../utils/moneda.js'
 import { codigoPedido } from '../utils/pedido.js'
+import { etiquetaServicio } from './estadosServicio.js'
 import { IMEIS_DEMO_FICTICIOS as AUR_SERIALES } from './demo/iphones.js'
 import { analiticaDePedidos } from './customerAggregates.js'
 // Datos ficticios del modo demo para Clientes (#189/#194). Nada de esto sale
@@ -87,6 +88,9 @@ export const SEED_DEMO_CLIENTES = [
         { id: 'demo-b-1', name: 'Fernández & Cía.', document: '80012345-6', uses: 3, lastUsedAt: haceDias(12) },
         { id: 'demo-b-2', name: 'Lucía Fernández', document: '3.456.789', uses: 1, lastUsedAt: haceDias(95) },
       ],
+      services: [
+        { id: 'demo-os-1', serviceNumber: 'OS-0004', device: 'iPhone 12 · 128 GB', serviceName: 'Cambio de batería', serial: 'AUR002100000000', status: 'LISTO', receivedAt: haceDias(5), deliveredAt: null },
+      ],
     },
   },
   {
@@ -155,6 +159,9 @@ export const SEED_DEMO_CLIENTES = [
       notes: [],
       followUps: [],
       billingIdentities: [],
+      services: [
+        { id: 'demo-os-2', serviceNumber: 'OS-0003', device: 'iPhone 13 · 128 GB', serviceName: 'Cambio de módulo de carga', serial: 'AUR002200000000', status: 'ENTREGADO', receivedAt: haceDias(40), deliveredAt: haceDias(30) },
+      ],
     },
   },
 ]
@@ -189,6 +196,7 @@ const clienteExtra = (id, nombres, documento, telefono, ciudad, opciones = {}) =
   demoProfile: {
     orders: opciones.pedidos || [],
     warranties: [],
+    services: opciones.servicios || [],
     notes: opciones.notas ? [{ id: `${id}-nota`, content: opciones.notas, createdAt: haceDias(10), user: usuarioDemo('Diego López') }] : [],
     followUps: [],
     billingIdentities: [],
@@ -202,7 +210,7 @@ SEED_DEMO_CLIENTES.push(
   clienteExtra('demo-cliente-ramiro', 'Ramiro Cáceres', '4.222.333', '0985666999', 'Capiatá', { tags: ['reventa'], tier: 'WHOLESALE', credito: 8000000, dias: 30, facturaA: 'Ramiro Import', facturaDoc: '80098765-4', extraDirecciones: [{ label: 'Depósito', address: 'Ruta 1 Km 20' }], pedidos: [pedidoDemo('demo-p-11', 'MOB-0011', 12500000, 12500000, 30, 'iPhone 14 Pro · 256 GB × 3')] }),
   clienteExtra('demo-cliente-estela', 'Estela Ramírez', '3.222.111', '0987999111', 'Asunción', { tags: ['prioridad'], notes: 'Factura a nombre de la empresa del esposo.' }),
   clienteExtra('demo-cliente-distribuidora-luque', 'Distribuidora Luque S.A.', '80077777-1', '0982111000', 'Luque', { tags: ['volumen', 'factura'], tier: 'WHOLESALE', credito: 15000000, dias: 30, facturaA: 'Distribuidora Luque S.A.', facturaDoc: '80077777-1', pedidos: [pedidoDemo('demo-p-12', 'MOB-0012', 9600000, 5000000, 14, 'iPhone 13 · 128 GB × 4')] }),
-  clienteExtra('demo-cliente-fernando', 'Fernando Ortellado', '2.888.999', '0973111444', 'Mariano Roque Alonso', { tags: ['frecuente'] }),
+  clienteExtra('demo-cliente-fernando', 'Fernando Ortellado', '2.888.999', '0973111444', 'Mariano Roque Alonso', { tags: ['frecuente'], servicios: [{ id: 'demo-os-3', serviceNumber: 'OS-0005', device: 'iPhone 11 · 64 GB', serviceName: 'No enciende', serial: 'AUR002300000000', status: 'DIAGNOSTICO', receivedAt: haceDias(2), deliveredAt: null }] }),
   clienteExtra('demo-cliente-gloria', 'Gloria Martínez', '6.123.456', '0981222777', 'Lambaré', { tags: ['trade-in'], seguro: true, notes: 'Cambió de equipo con trade-in.' }),
   clienteExtra('demo-cliente-hugo', 'Hugo Benítez', '4.999.888', '0986555222', 'Itauguá', { tags: ['moroso'], credito: 1000000, dias: 7, pedidos: [pedidoDemo('demo-p-13', 'MOB-0013', 2350000, 500000, 40, 'iPhone 12 · 128 GB')] }),
 )
@@ -342,6 +350,32 @@ export function eventosInformeDemo(clienteId) {
   })
 }
 
+/** Eventos de cronología del taller, derivados de las órdenes demo (#240 §4):
+ *  el ingreso y la entrega se reconstruyen al abrir la ficha. */
+export function eventosServicioDemo(cliente) {
+  return (cliente?.demoProfile?.services || []).flatMap((servicio) => {
+    const eventos = [{
+      id: `demo-servicio-${servicio.id}-recibido`,
+      type: 'service',
+      action: 'Equipo en taller',
+      label: 'Equipo en taller',
+      createdAt: servicio.receivedAt,
+      user: usuarioDemo('Taller demo'),
+      detail: [servicio.device, servicio.serial ? `serial ${mascaraSerial(servicio.serial)}` : '', 'Recibido'].filter(Boolean).join(' · '),
+    }]
+    if (servicio.deliveredAt) eventos.push({
+      id: `demo-servicio-${servicio.id}-entregado`,
+      type: 'service',
+      action: 'Equipo entregado',
+      label: 'Equipo entregado',
+      createdAt: servicio.deliveredAt,
+      user: usuarioDemo('Taller demo'),
+      detail: servicio.device || '',
+    })
+    return eventos
+  })
+}
+
 export function clientesDemoGuardados() {
   try {
     const stored = JSON.parse(leerDemo(KEY) || '[]')
@@ -371,6 +405,8 @@ export function buildDemoProfile(customer = {}) {
     billingIdentities: Array.isArray(demo.billingIdentities) ? demo.billingIdentities : [],
     // Seguimiento del informe compartido (#240 ítem 3): mismo shape que el API.
     deviceReportShares: filasInformeDemo(customer.id),
+    // Servicio técnico (#240 §4): mismas órdenes que muestra el taller.
+    serviceOrders: Array.isArray(demo.services) ? demo.services : [],
     debtPyg: orders.reduce((suma, order) => suma + Number(order.pendingPyg || 0), 0),
     demo: true,
   }
@@ -378,7 +414,7 @@ export function buildDemoProfile(customer = {}) {
 
 export function buildDemoTimeline(customer = {}) {
   const base = Array.isArray(customer.demoProfile?.timeline) ? customer.demoProfile.timeline : EVENTOS(customer)
-  return [...base, ...eventosInformeDemo(customer.id)].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  return [...base, ...eventosInformeDemo(customer.id), ...eventosServicioDemo(customer)].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 }
 
 export function buildDemoAnalytics(customer = {}) {
@@ -416,6 +452,18 @@ export function demoCuentaPayload(token) {
     dueDates: conSaldo,
     orders: orders.map((order) => ({ orderNumber: order.orderNumber, createdAt: order.createdAt, totalPyg: order.totalPyg, status: order.status, fulfillmentStatus: 'DELIVERED', pendingPyg: order.pendingPyg, dueAt: order.pendingPyg > 0 ? haceDias(-6) : null, ...(nivel === 'completo' ? { receiptToken: `demo-${order.id}` } : {}) })),
     informes: orders.flatMap((order) => (order.items || []).flatMap((item) => (item.serials || []).map((serial) => ({ serial, model: item.description, orderNumber: order.orderNumber })))),
+    // Servicio técnico (#240 §4): el portal muestra estado y fechas, sin
+    // costos ni datos internos (mismo contrato que /api/portal).
+    servicios: (cliente.demoProfile?.services || []).map((servicio) => ({
+      serviceNumber: servicio.serviceNumber,
+      device: servicio.device,
+      serviceName: servicio.serviceName,
+      serial: servicio.serial,
+      status: servicio.status,
+      statusLabel: etiquetaServicio(servicio.status),
+      receivedAt: servicio.receivedAt,
+      deliveredAt: servicio.deliveredAt,
+    })),
     ...(nivel === 'completo' ? { warranties: [], addresses: cliente.addresses || [] } : {}),
   }
 }

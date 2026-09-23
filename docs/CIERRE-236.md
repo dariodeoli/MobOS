@@ -10,6 +10,10 @@ compartido visto/no visto** (#240 ítem 3) sobre la misma ficha de dispositivos
 de #236 — chip Visto/Sin ver por equipo + evento de apertura en la cronología
 (`docs/QA-240-informe-visto.md`).
 
+Re-verificado en producción **v1.0.144** (23/9/2026):
+`scripts/qa-236-clientes-demo.mjs` **6/6** sin llamadas al API de clientes
+(`docs/QA-221-236-produccion/`).
+
 ## Qué pedía #236 (contra `origin/main`)
 
 | Pedido | Dónde vive | Estado |
