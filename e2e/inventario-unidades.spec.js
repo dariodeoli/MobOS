@@ -6,11 +6,36 @@
 // unidades y (cuando hace falta) su cliente, y limpia al terminar. No depende
 // del seed ni del estado que dejaron otras corridas.
 import { test, expect } from '@playwright/test'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { SEED } from './helpers/seed-data.js'
 
 const API = SEED.api
 const marca = () => `${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`.toUpperCase()
+
+// Agente de impresión falso (mismo patrón que etiquetas-unidad.spec.js): sin
+// impresora real, /health dice presente y /print guarda el trabajo que mandó la
+// app, para verificar el contenido y que no se abra el diálogo de respaldo.
+async function agenteFalso(page, capturados) {
+  const cors = {
+    'access-control-allow-origin': '*',
+    'access-control-allow-headers': 'content-type,x-mobos-print-token',
+    'access-control-allow-methods': 'GET,POST,OPTIONS',
+  }
+  await page.route('http://127.0.0.1:17890/**', (ruta) => {
+    const peticion = ruta.request()
+    if (peticion.method() === 'OPTIONS') return ruta.fulfill({ status: 204, headers: cors })
+    if (peticion.url().includes('/health')) {
+      return ruta.fulfill({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, version: '1.6.3', equipo: 'e2e' }) })
+    }
+    if (peticion.method() === 'POST' && peticion.url().endsWith('/print')) {
+      capturados.push(JSON.parse(peticion.postData() || '{}'))
+      return ruta.fulfill({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, estado: 'impreso', transporte: 'lan' }) })
+    }
+    return ruta.fulfill({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify({ ok: true }) })
+  })
+}
+
+const textoDelTicket = (capturado) => Buffer.from(String(capturado?.data || ''), 'base64').toString('latin1')
 
 // Crea (o reutiliza) una ubicación propia del spec para no depender del seed.
 async function preparar(page, marca) {
@@ -318,8 +343,12 @@ test('la solapa Alertas renderiza sin quedar en blanco', async ({ page }) => {
 })
 
 // #240 §4: modo taller/rack — estados (por verificar → verificado → listo) y
-// acciones en serie (verificar/imprimir etiquetas).
-test('el modo taller agrupa por estado y verifica en serie', async ({ page }) => {
+// acciones en serie (verificar/imprimir etiquetas) con la impresión de punta a
+// punta por un agente falso: etiquetas por estación, por selección y hoja de
+// estación A4, sin impresora real.
+test('el modo taller agrupa por estado y verifica e imprime en serie', async ({ page }) => {
+  const capturados = []
+  await agenteFalso(page, capturados)
   const datos = await preparar(page, marca())
   try {
     mkdirSync('test-results/qa-240-taller', { recursive: true })
@@ -361,7 +390,15 @@ test('el modo taller agrupa por estado y verifica en serie', async ({ page }) =>
     // Selección de las unidades nuevas.
     for (const unidad of datos.unidades) await page.getByLabel(`Seleccionar ${unidad.serial}`).check()
     await expect(page.getByTestId('rack-seleccionados')).toHaveText('3 seleccionados')
-    await expect(page.getByTestId('rack-imprimir-por-verificar')).toBeEnabled()
+
+    // Impresión por estación: el «Imprimir (3)» del carril manda el trabajo
+    // directo (sin modal ni diálogo) con las etiquetas de toda la estación.
+    await page.getByTestId('rack-imprimir-por-verificar').click()
+    await expect(page.getByText('Etiqueta enviada a la impresora.')).toBeVisible({ timeout: 15_000 })
+    expect(capturados).toHaveLength(1)
+    expect(capturados[0].tipo).toBe('etiquetas-stock')
+    const textoEstacion = textoDelTicket(capturados[0])
+    for (const unidad of datos.unidades) expect(textoEstacion).toContain(unidad.serial)
 
     // Impresión en serie: carril completo y modal con alcance (selección,
     // estación o todo lo filtrado) + hoja de estación.
@@ -373,9 +410,41 @@ test('el modo taller agrupa por estado y verifica en serie', async ({ page }) =>
     await expect(page.getByTestId('rack-impresion-resumen')).toContainText('3 etiqueta')
     await expect(page.getByTestId('rack-hoja-estacion')).toBeEnabled()
     await page.screenshot({ path: 'test-results/qa-240-taller/06-rack-imprimir-serie.jpg', type: 'jpeg', quality: 70 })
-    await page.keyboard.press('Escape')
 
-    // Verificación en serie.
+    // Hoja de estación: el A4 del alcance elegido sale con los 3 equipos
+    // (mismo camino que usa la app: printHtml sobre el iframe oculto).
+    await page.getByTestId('rack-hoja-estacion').click()
+    await expect(modalImpresion).toHaveCount(0)
+    const marco = page.locator('iframe[aria-hidden="true"]')
+    await expect(marco).toHaveCount(1)
+    const hoja = await marco.evaluate((frame) => frame.contentDocument?.documentElement?.outerHTML || '')
+    expect(hoja).toContain('Hoja de estación')
+    expect(hoja).toContain('Equipos en preparación')
+    expect(hoja).toContain('Taller')
+    for (const unidad of datos.unidades) expect(hoja).toContain(unidad.serial)
+    writeFileSync('test-results/qa-240-taller/07-hoja-estacion.html', hoja)
+    await marco.evaluate((frame) => frame.remove())
+
+    // Etiquetas en serie de la selección: un solo trabajo directo con las 3.
+    await expect(page.getByTestId('rack-seleccionados')).toHaveText('3 seleccionados')
+    await page.getByTestId('rack-imprimir-serie').click()
+    await expect(modalImpresion).toBeVisible()
+    await expect(page.getByTestId('rack-impresion-resumen')).toContainText('3 etiqueta')
+    await page.getByTestId('rack-imprimir-serie-confirmar').click()
+    await expect.poll(() => capturados.length).toBe(2)
+    expect(capturados[1].tipo).toBe('etiquetas-stock')
+    const textoLote = textoDelTicket(capturados[1])
+    for (const unidad of datos.unidades) {
+      expect(textoLote).toContain(unidad.serial)
+      expect(textoLote).toContain(`MOBOS:${unidad.serial}`)
+    }
+    // La impresión directa no deja el respaldo del diálogo abierto.
+    await expect(marco).toHaveCount(0)
+    await page.screenshot({ path: 'test-results/qa-240-taller/08-rack-etiquetas-enviadas.jpg', type: 'jpeg', quality: 70 })
+
+    // Verificación en serie de las 3 unidades (la impresión limpió la selección).
+    for (const unidad of datos.unidades) await page.getByLabel(`Seleccionar ${unidad.serial}`).check()
+    await expect(page.getByTestId('rack-seleccionados')).toHaveText('3 seleccionados')
     await page.getByTestId('rack-verificar-lote').click()
     await expect(page.getByText('3 unidades verificadas.')).toBeVisible({ timeout: 20000 })
 

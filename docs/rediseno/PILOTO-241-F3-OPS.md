@@ -54,6 +54,9 @@ La lógica vive en `src/lib/flags.js` (probada en `flags.test.js`):
 En la demo solo se lee el inventario de práctica (los pedidos reales quedan
 fuera con un aviso en el tablero). Capturas del tablero real:
 [`docs/qa/241-ops-tablero/`](../qa/241-ops-tablero/) (claro, oscuro y móvil).
+Verificación e2e con datos reales (base y API del harness sembrado, incluida
+una unidad recibida desde la UI que el tablero cuenta):
+[`docs/QA-240-241-taller-f3-e2e.md`](../QA-240-241-taller-f3-e2e.md).
 
 ## 4. Estado de la construcción del F3 real (post-aprobación)
 
