@@ -1,0 +1,50 @@
+{
+  "url": "http://localhost:5210",
+  "fecha": "2026-09-23T03:25:47.476Z",
+  "version": "v1.0.144",
+  "serial": "356789012345678",
+  "pasos": [
+    {
+      "paso": "entrada a la demo y ficha del cliente con el equipo",
+      "ok": true,
+      "detalle": "demo v1.0.144 · equipo con acciones de informe"
+    },
+    {
+      "paso": "compartir por WhatsApp lleva el link público del informe",
+      "ok": true,
+      "detalle": "WhatsApp con el link /u/356789012345678"
+    },
+    {
+      "paso": "la cronología del cliente registra el envío del informe",
+      "ok": true,
+      "detalle": "cronología con “Informe del equipo compartido · Por WhatsApp · serial 3567…678”"
+    },
+    {
+      "paso": "el seguimiento del informe muestra visto/no visto y su apertura",
+      "ok": true,
+      "detalle": "Lucía: informe visto con su apertura en la cronología · Ana: informe compartido sin ver"
+    },
+    {
+      "paso": "el portal del cliente lista los informes de sus equipos",
+      "ok": true,
+      "detalle": "sección en el portal · enlace /u/356789012345678?demo=1"
+    },
+    {
+      "paso": "el informe público abre desde el portal",
+      "ok": true,
+      "detalle": "el informe abre con los datos del equipo y su aviso"
+    }
+  ],
+  "capturas": [
+    "01-ficha-equipo-acciones.png",
+    "02-cronologia-informe-compartido.png",
+    "03-ficha-informe-visto.png",
+    "04-cronologia-informe-visto.png",
+    "05-ficha-informe-sin-ver.png",
+    "06-portal-informes.png",
+    "07-informe-publico-desde-portal.png"
+  ],
+  "llamadasApi": [],
+  "hallazgos": [],
+  "demoNoTocaApi": true
+}

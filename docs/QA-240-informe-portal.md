@@ -12,6 +12,10 @@ dispositivo:
 3. **Cronología del cliente**: el envío queda registrado como “Informe del
    equipo compartido · Por WhatsApp · serial …” (demo en el navegador; cuenta
    real vía `CUSTOMER_DEVICE_REPORT_SHARED`).
+4. **Seguimiento visto/no visto** (#240 ítem 3): la ficha muestra el chip
+   **Visto**/`Sin ver` por equipo y la cronología la apertura del cliente
+   (“Informe del equipo visto por el cliente · abierto desde … · serial …”).
+   Ver `docs/QA-240-informe-visto.md`.
 
 ## Cómo se verifica
 
@@ -25,10 +29,11 @@ MOBOS_QA_URL=http://localhost:5246 MOBOS_QA_API_HOST=api.moboss.online \
   MOBOS_QA_PORTAL_URL=http://localhost:5246 node scripts/qa-240-informe-portal-demo.mjs
 ```
 
-- **Pasos 1-5:** `/demo` → ficha de Lucía → Pedidos → WhatsApp con el link →
-  Cronología con el envío → `/cuenta/<token>` con “Informes de tus equipos” →
-  informe público desde el portal.
-- **Paso 6 (solo producción):** la cuenta demo en `clientes.moboss.online` y el
+- **Pasos 1-6:** `/demo` → ficha de Lucía → Pedidos → WhatsApp con el link →
+  Cronología con el envío → **seguimiento visto/no visto** (Lucía visto, Ana
+  sin ver) → `/cuenta/<token>` con “Informes de tus equipos” → informe público
+  desde el portal.
+- **Paso 7 (solo producción):** la cuenta demo en `clientes.moboss.online` y el
   informe abriéndose desde ahí. Si el build desplegado todavía no trae el fix
   del informe demo (ver abajo), el paso queda como **hallazgo documentado** en
   `resultados.json` y no como fallo de la verificación del portal.
@@ -37,10 +42,13 @@ MOBOS_QA_URL=http://localhost:5246 MOBOS_QA_API_HOST=api.moboss.online \
 
 ## Corridas
 
-### Local (harness, rama `slot/clientes`) — **6/6 ✅**
+### Local (harness, rama `slot/clientes`) — **6/6 ✅** (7 capturas)
 
-6 pasos y 6 capturas, 0 llamadas al API. Incluye el informe demo abierto desde
-el portal cuando el enlace lleva `?demo=1` (fix de esta entrega).
+6 pasos y 7 capturas, 0 llamadas al API. Incluye el informe demo abierto desde
+el portal cuando el enlace lleva `?demo=1` (fix de esta entrega) y el paso nuevo
+de **seguimiento visto/no visto** (Lucía visto con su apertura en la cronología ·
+Ana compartido sin ver). Evidencia: `docs/QA-240-informe-visto/` +
+`resultados.json`.
 
 ### Producción — **v1.0.144 · 6/6 ✅** (5 capturas + 1 hallazgo)
 
@@ -50,6 +58,10 @@ portal, todo verde y sin llamadas al API. El paso del subdominio verifica la
 cuenta demo y deja el hallazgo del fix pendiente de deploy (el build .144 no lo
 trae; el fix viaja en esta rama). Evidencia sellada en `resultados.json`.
 Corrida previa: v1.0.143 (22:01 local), mismo resultado de los 5 pasos.
+
+> El paso de **seguimiento visto/no visto** se incorpora con el release que
+> incluya esta rama; se re-corre con `node scripts/qa-240-informe-portal-demo.mjs`
+> (ver `docs/QA-240-informe-visto.md`).
 
 ## Observación cerrada — el informe demo no abría desde el portal del subdominio (#74)
 
