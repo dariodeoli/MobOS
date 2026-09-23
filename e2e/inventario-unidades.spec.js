@@ -163,6 +163,58 @@ test('la reserva desde el detalle usa la ficha existente y deja la cronología',
   } finally { await limpiar(page, datos) }
 })
 
+// #240: la inspección de la ficha (checklist por clave) queda persistida con
+// sus ítems, la lista derivada y el puntaje/grado calculados por el servidor.
+test('la inspección guarda el checklist por clave con puntaje y grado', async ({ page }) => {
+  const datos = await preparar(page, marca())
+  const serial = datos.unidades[0].serial
+  try {
+    const fila = await buscarUnidad(page, serial)
+    await fila.click()
+    const detalle = page.getByRole('dialog')
+    const checklist = detalle.getByTestId('unidad-phonecheck')
+    await checklist.getByRole('button', { name: 'Bien', exact: true }).nth(0).click()
+    await checklist.getByRole('button', { name: 'Con observación', exact: true }).nth(1).click()
+    await detalle.getByLabel('Repuestos no OEM', { exact: true }).fill('Pantalla no original')
+    await detalle.getByLabel('Nota de repuestos no OEM', { exact: true }).fill('Cambio hecho en taller')
+    // El guardado refresca el listado: se espera ese GET (no el de la cronología)
+    // para reabrir la ficha con el dato ya persistido.
+    const listado = page.waitForResponse((respuesta) => {
+      if (respuesta.request().method() !== 'GET') return false
+      return new URL(respuesta.url()).pathname.endsWith('/api/inventory-units')
+    }, { timeout: 15_000 })
+    await detalle.getByTestId('unidad-phonecheck-guardar').click()
+    await expect(page.getByText('Inspección guardada.')).toBeVisible({ timeout: 15_000 })
+    await listado
+
+    // El servidor persiste el objeto por clave, su lista y el 75 ⇒ grado B.
+    const inspection = await page.evaluate(async ({ api, serial }) => {
+      const filas = await fetch(`${api}/api/inventory-units?q=${encodeURIComponent(serial)}`, { credentials: 'include' }).then((r) => r.json()).catch(() => [])
+      const unidad = (Array.isArray(filas) ? filas : []).find((item) => item.serial === serial)
+      return unidad?.inspection || null
+    }, { api: API, serial })
+    expect(inspection).not.toBeNull()
+    expect(inspection.items).toEqual({ pantalla: { estado: 'ok' }, camaras: { estado: 'observacion' } })
+    expect(inspection.itemsLista).toEqual([
+      { clave: 'pantalla', estado: 'ok', nota: '' },
+      { clave: 'camaras', estado: 'observacion', nota: '' },
+    ])
+    expect(inspection.puntaje).toBe(75)
+    expect(inspection.grado).toBe('B')
+    expect(inspection.repuestosNoOem).toBe('Pantalla no original')
+    expect(inspection.repuestosNoOemNota).toBe('Cambio hecho en taller')
+
+    // Al recargar y reabrir la ficha, el checklist y el grado salen de lo persistido.
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    const filaReabierta = await buscarUnidad(page, serial)
+    await filaReabierta.click()
+    const detalle2 = page.getByRole('dialog')
+    const checklist2 = detalle2.getByTestId('unidad-phonecheck')
+    await expect(checklist2.getByText('Grado B')).toBeVisible()
+    await expect(checklist2.getByText('75/100')).toBeVisible()
+  } finally { await limpiar(page, datos) }
+})
+
 // #217/§8: «Vender todos» deja la venta armada en el POS: producto, cantidad,
 // IMEI elegidos y precio de lista; el vendedor solo revisa y cobra.
 test('vender todos deja el lote elegido en el POS con producto, cantidad e IMEI', async ({ page }) => {
