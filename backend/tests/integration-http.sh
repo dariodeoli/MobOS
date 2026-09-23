@@ -714,6 +714,9 @@ node "$BACKEND_ROOT/tests/unit-cost-margin.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 echo "Reportes con costo real por unidad y comisiones al día (#148 §19)..."
 node "$BACKEND_ROOT/tests/reports-costos-comisiones.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 
+echo "Verificación independiente: reportes y comisiones recalculados contra la base (#148 §19)..."
+PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/reports-margen-db.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$REPORTS_FROM" "$REPORTS_TO"
+
 echo "Seguridad pública: token de liquidaciones hasheado, rotación y límite de uso..."
 PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/commission-settlement-public.mjs"
 

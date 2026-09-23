@@ -2,11 +2,12 @@
 
 - **Rama:** `slot/finanzas` · **Verificación definitiva:** producción
   **v1.0.141** (`release:smoke` OK) · **Fecha:** 2026-09-22
-- **Última revisión:** 2026-09-23 (v1.0.145) — verificación de márgenes con
+- **Última revisión:** 2026-09-23 (v1.0.149) — verificación de márgenes con
   costo real: el **descuento del carrito**, la **pérdida de una línea bajo
   costo** y las **ventas con costo pendiente** ya no inflan la ganancia ni la
-  comisión (`148-19-descuento-margen.md`, `148-19-margen-por-venta.md`,
-  `148-19-ganancia-sin-costo.md`).
+  comisión, y el arnés **recalcula reportes y comisiones desde la base**
+  (`148-19-descuento-margen.md`, `148-19-margen-por-venta.md`,
+  `148-19-ganancia-sin-costo.md`, `148-19-verificacion-reportes-db.md`).
 - Índice de todo lo entregado y verificado en el dominio, con la evidencia y la
   versión en la que quedó integrado. Sirve de punto de entrada para auditoría.
 
@@ -67,6 +68,7 @@ vendedor/día ni la comisión liquidada**—, ya corregido y con evidencia en
 | #148 §19 · #83 (2026-09-23) | Descuento del carrito en la ganancia, la comisión y la liquidación | `148-19-descuento-margen.md` |
 | #148 §19 · #83 (2026-09-23) | Una sola fórmula de margen por venta (reporte = comisiones = liquidación) | `148-19-margen-por-venta.md` |
 | #148 §19 · #122 (2026-09-23) | Ventas con costo pendiente fuera de la ganancia (Ganancias = Reportes) | `148-19-ganancia-sin-costo.md` |
+| #148 §19 · #83 (2026-09-23) | Verificación independiente: reportes y comisiones recalculados contra la base (sonda en CI) | `148-19-verificacion-reportes-db.md` |
 | #185 Recorrido de Finanzas en producción | 16/16 pasos, 4 corridas (v1.0.137, v1.0.139, v1.0.140 y v1.0.141) | `185/produccion/reporte.md`, `185/produccion-1.0.139/`, `185/produccion-1.0.140/`, `185/produccion-1.0.141/` |
 
 ## Sondas re-ejecutables (producción)
@@ -80,6 +82,11 @@ QA_SOLO_DEMO=1 QA_BASE_URL=https://app.moboss.online node scripts/qa-148-ventas-
 QA_SOLO_DEMO=1 QA_BASE_URL=https://app.moboss.online node scripts/qa-148-analytics-pos.mjs
 QA_BASE_URL=https://app.moboss.online node scripts/qa-185-finanzas-demo.mjs
 ```
+
+Verificación independiente (no producción, con seed propio): el arnés de
+integración recalcula reportes y comisiones contra la base —
+`MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` termina con
+`reports-margen-db.mjs` (evidencia: `148-19-verificacion-reportes-db.md`).
 
 Comparativos antes/después: `produccion-1.0.139/` (línea base) y
 `produccion-1.0.140/` (post-deploy).
