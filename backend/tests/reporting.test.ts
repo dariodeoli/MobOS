@@ -4,6 +4,7 @@ import {
   DEFAULT_OFFSET_MINUTES,
   MAX_REPORT_ORDERS,
   ReportInputError,
+  aggregateCommissions,
   aggregateReport,
   curvaAbc,
   dayBounds,
@@ -216,6 +217,44 @@ test('un período sin ventas devuelve totales en cero y sin grupos', () => {
   assert.equal(reporte.totals.totalPyg, 0)
   assert.equal(reporte.totals.marginPct, null)
   assert.deepEqual(reporte.groups, [])
+})
+
+// El descuento del carrito es a nivel orden: sin descontarlo, la ganancia por
+// vendedor/día quedaba por encima de `Total − Costo` y la comisión del vendedor
+// se calculaba (y se liquidaba) sobre un margen inflado.
+test('el descuento del carrito baja la ganancia y la comisión del vendedor', () => {
+  const conDescuento = orden({ discountPyg: 10000, subtotalPyg: 100000, totalPyg: 90000 })
+  const porVendedor = aggregateReport([conDescuento], { groupBy: 'seller', offsetMinutes: DEFAULT_OFFSET_MINUTES })
+  assert.equal(porVendedor.totals.totalPyg, 90000)
+  assert.equal(porVendedor.totals.costPyg, 60000)
+  // Ganancia real: 90.000 − 60.000 = 30.000 (antes daba 40.000).
+  assert.equal(porVendedor.totals.profitPyg, 30000)
+  assert.equal(porVendedor.totals.salesWithCostPyg, 90000)
+  assert.equal(porVendedor.totals.marginPct, 33.3)
+  assert.equal(porVendedor.groups[0].profitPyg, 30000)
+  assert.equal(porVendedor.groups[0].netProfitPyg, 30000)
+
+  // Por producto el descuento del carrito sigue perteneciendo a la orden: la
+  // fila muestra el margen de la línea y el total del período ya es neto.
+  const porProducto = aggregateReport([conDescuento], { groupBy: 'product', offsetMinutes: DEFAULT_OFFSET_MINUTES })
+  assert.equal(porProducto.groups[0].profitPyg, 40000)
+  assert.equal(porProducto.totals.profitPyg, 30000)
+
+  // Comisión 10%: sobre 30.000 de margen real, no sobre 40.000.
+  const comisiones = aggregateCommissions([conDescuento], [{ userId: 'v1', percentPyg: 10 }])
+  assert.equal(comisiones.sellers[0].marginPyg, 30000)
+  assert.equal(comisiones.sellers[0].commissionPyg, 3000)
+  assert.equal(comisiones.totals.commissionPyg, 3000)
+})
+
+test('el descuento no inventa ganancia: por encima del margen queda en cero', () => {
+  const venta = orden({ discountPyg: 95000, subtotalPyg: 100000, totalPyg: 5000 })
+  const reporte = aggregateReport([venta], { groupBy: 'seller', offsetMinutes: DEFAULT_OFFSET_MINUTES })
+  assert.equal(reporte.totals.profitPyg, 0)
+  assert.equal(reporte.totals.marginPct, 0)
+  const comisiones = aggregateCommissions([venta], [{ userId: 'v1', percentPyg: 10 }])
+  assert.equal(comisiones.sellers[0].marginPyg, 0)
+  assert.equal(comisiones.sellers[0].commissionPyg, 0)
 })
 
 test('avisa cuando los importes exceden el rango permitido', () => {

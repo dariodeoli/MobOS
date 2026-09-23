@@ -201,6 +201,9 @@ export function aggregateCommissions(
       }
       marginOrden = suma(marginOrden, Math.max(0, totalLinea - costoUnitario * cantidad))
     }
+    // El descuento del carrito (nivel orden) baja el margen sobre el que se
+    // liquida la comisión; sin esto el vendedor cobraba sobre un margen inflado.
+    marginOrden = Math.max(0, marginOrden - Math.max(0, entero(orden.discountPyg) ?? 0))
     acumulador.marginPyg = suma(acumulador.marginPyg, marginOrden)
   }
 
@@ -495,6 +498,12 @@ function analizarOrden(orden: OrderLike): HechoOrden {
     costo = suma(costo, costoUnitario * cantidad)
     conCosto = suma(conCosto, totalLinea)
   }
+  // El descuento del carrito es a nivel orden: baja la venta sobre la que se
+  // calcula el margen (`totalPyg` ya viene neto). Se aplica entero sobre la
+  // porción con costo —las líneas sin costo no aportan margen— y nunca deja la
+  // ganancia en negativo: el descuento real no puede inflar el resultado.
+  const descuento = Math.max(0, entero(orden.discountPyg) ?? 0)
+  conCosto = Math.max(0, conCosto - descuento)
 
   // Solo los pagos confirmados son cobro real.
   let cobrado = 0

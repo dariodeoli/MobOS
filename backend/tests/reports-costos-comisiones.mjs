@@ -74,16 +74,44 @@ const comisionEsperada = Math.round((margenReal * 10) / 100)
 const comisionDespues = await comisionDe()
 assert.equal(comisionDespues - comisionAntes, comisionEsperada, 'la comisión del día usa el margen real')
 
+// ── 2b) El descuento del carrito baja la ganancia y la comisión ─────────────
+// Venta de 1.000.000 con 100.000 de descuento a nivel orden y costo 600.000:
+// la ganancia del reporte tiene que ser 300.000 (Total − Costo), no 400.000, y
+// la comisión 10% se liquida sobre ese margen neto.
+const gananciaDelVendedor = async () => {
+  const reporte = await req(`/api/reports?from=${hoy}&to=${hoy}&groupBy=seller`)
+  const fila = (reporte.groups || []).find((row) => row.key === adminId)
+  return Number(fila?.profitPyg ?? 0)
+}
+const gananciaAntes = await gananciaDelVendedor()
+const comisionAntesDescuento = await comisionDe()
+const precioDescuento = 1000000
+const costoDescuento = 600000
+const descuentoCarrito = 100000
+const productoDescuento = await req('/api/products', 'POST', { name: `Producto descuento ${sufijo}`, sku: `DSC-${sufijo}`, pricePyg: precioDescuento, costPyg: costoDescuento, stock: 2, branchId: rama }, 201)
+const ventaDescuento = await req('/api/orders', 'POST', {
+  branchId: rama,
+  items: [{ productId: productoDescuento.id, description: productoDescuento.name, quantity: 1, unitPricePyg: precioDescuento }],
+  discountPyg: descuentoCarrito,
+  payments: [{ method: 'TRANSFER', amountPyg: precioDescuento - descuentoCarrito, status: 'CONFIRMED' }],
+}, 201)
+assert.equal(Number(ventaDescuento.discountPyg), descuentoCarrito, 'el descuento del carrito queda en la orden')
+assert.equal(Number(ventaDescuento.totalPyg), precioDescuento - descuentoCarrito, 'el total ya viene neto del descuento')
+const margenDescuento = (precioDescuento - descuentoCarrito) - costoDescuento
+assert.equal((await gananciaDelVendedor()) - gananciaAntes, margenDescuento, 'la ganancia del reporte es Total − Costo, con el descuento del carrito')
+const comisionVigente = await comisionDe()
+assert.equal(comisionVigente - comisionAntesDescuento, Math.round((margenDescuento * 10) / 100), 'la comisión usa el margen neto del descuento')
+
 // ── 3) La liquidación coincide con el reporte (sin duplicar) ───────────────
 const respuesta = await fetch(`${base}/api/commission-settlements`, { method: 'POST', headers: { Authorization: `Bearer ${admin}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ sellerId: adminId, from: hoy, to: hoy }) })
 const liquidacion = await respuesta.json()
 if (respuesta.status === 201) {
   const total = Number(liquidacion.totalPyg ?? liquidacion.commissionPyg ?? 0)
-  assert.equal(total, comisionDespues, 'la liquidación coincide con la comisión del reporte')
+  assert.equal(total, comisionVigente, 'la liquidación coincide con la comisión del reporte')
   checks++
 } else {
   assert.equal(respuesta.status, 409, `liquidación inesperada: ${JSON.stringify(liquidacion)}`)
   console.log('NOTA: ya existía una liquidación del vendedor para hoy; no se duplicó.')
 }
 
-console.log(`PASS: stock con costo real (+${costoBase + repuestos}) y comisión ${comisionEsperada} sobre margen real ${margenReal} · ${checks} chequeos`)
+console.log(`PASS: stock con costo real (+${costoBase + repuestos}) · comisión ${comisionEsperada} sobre margen real ${margenReal} · descuento de carrito ${descuentoCarrito} → ganancia ${margenDescuento} y comisión ${Math.round((margenDescuento * 10) / 100)} · ${checks} chequeos`)
