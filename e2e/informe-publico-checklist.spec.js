@@ -70,8 +70,14 @@ test('el informe público muestra el checklist con notas solo de lo no conforme'
     await expect(tarjeta).toContainText('Mancha en el lente')
     // Privacidad: la nota del ítem conforme no viaja al informe compartido.
     await expect(tarjeta).not.toContainText('nota interna que no se comparte')
-    // El grado de la inspección acompaña al checklist.
-    await expect(page.getByText('Grado B')).toBeVisible()
+    // El grado de la inspección acompaña al checklist (en la ficha y en el certificado).
+    await expect(page.getByText('Grado B').first()).toBeVisible()
+
+    // #240: el certificado compartido (FichaCertificado + CodigoQr) resume la
+    // inspección: «x de y pass» y el QR al informe.
+    await expect(page.getByText('1 de 2 pass')).toBeVisible()
+    await expect(page.getByAltText('QR del informe del dispositivo')).toBeVisible()
+    await expect(page.getByText('Certificado', { exact: true })).toBeVisible()
 
     mkdirSync(SALIDA, { recursive: true })
     await page.screenshot({ path: `${SALIDA}/01-informe-publico-checklist.png`, fullPage: true })

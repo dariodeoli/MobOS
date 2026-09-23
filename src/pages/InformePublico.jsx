@@ -9,7 +9,9 @@ import { fechaCorta } from '@/utils/fecha'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import MedidorBateria from '@/components/shared/MedidorBateria'
+import FichaCertificado from '@/components/shared/FichaCertificado'
 import { colorBadge, gradoCondicion } from '@/lib/estadoEquipo'
+import { etiquetaCondicionUnidad } from '@/utils/inventario'
 
 // Semáforo del checklist en el informe público (mismos tonos que la ficha).
 const SEMAFORO_CHECKLIST = { ok: 'bg-ok', observacion: 'bg-warn', falla: 'bg-bad', na: 'bg-mute' }
@@ -82,6 +84,25 @@ export default function InformePublico() {
 
   const { store, unit, sale, warranty, check, disclaimer } = informe
   const dato = (etiqueta, valor) => <div className="flex items-center justify-between gap-3 border-b border-ink-600/60 py-2 last:border-0"><span className="text-mute">{etiqueta}</span><b className="shrink-0 tabular-nums text-right">{valor}</b></div>
+  // #240: el certificado se muestra cuando la unidad tiene inspección (grado o
+  // checklist); reusa los objetos compartidos (FichaCertificado + CodigoQr) con
+  // los datos que la ruta ya publica: grado, checklist, controles y verificación.
+  const certificado = Boolean(unit.grade || unit.checklist?.items?.length)
+  // Chip de cabecera del certificado (prop `estado` de la ficha, v0.15.1):
+  // falla > revisión (observaciones o grado C) > pendiente (sin checklist) > pass.
+  const estadoCertificado = (() => {
+    const items = unit.checklist?.items || []
+    if (!items.length) return 'pendiente'
+    if (items.some((item) => item.estado === 'falla')) return 'falla'
+    if (items.some((item) => item.estado === 'observacion') || unit.grade === 'C') return 'revision'
+    return 'pass'
+  })()
+  const enlaceInforme = (() => {
+    const url = new URL(window.location.href)
+    url.searchParams.delete('preview')
+    return url.toString()
+  })()
+  const locksCertificado = (unit.controles || []).map((control) => ({ clave: control.clave, estado: control.ok ? 'libre' : 'activo', detalle: `${control.label}: ${control.valor}` }))
 
   return (
     <main className={`${marco} space-y-4 pt-8`}>
@@ -90,6 +111,30 @@ export default function InformePublico() {
         <h1 className="mt-1 text-2xl font-bold">{store.name}</h1>
         {store.branch && <p className="text-sm text-mute">{store.branch}</p>}
       </header>
+
+      {/* #240: certificado del dispositivo con los objetos compartidos (DSN/CMP). */}
+      {/* `estado`, `puntaje`, `condicion` y `repuestos*` llegan con owncoding-ui
+          v0.15.1 (contrato acordado con CMP en #240): el componente actual los
+          ignora sin romper y la ficha los muestra cuando la biblioteca entre. */}
+      {certificado && <FichaCertificado
+        empresa={store.name}
+        modelo={unit.model}
+        imei={unit.imeiMasked}
+        estado={estadoCertificado}
+        grado={unit.grade}
+        puntaje={unit.checklist?.puntaje}
+        condicion={etiquetaCondicionUnidad(unit)}
+        bateria={unit.batteryHealth}
+        ciclos={unit.batteryCycles}
+        locks={locksCertificado}
+        aprobados={unit.checklist?.aprobados}
+        total={unit.checklist?.evaluados}
+        repuestosNoOem={unit.repuestosNoOem}
+        repuestosNoOemNota={unit.repuestosNoOemNota}
+        verificadoPor={unit.verifiedBy ? `${unit.verifiedBy}${unit.verifiedByCode ? ` (${unit.verifiedByCode})` : ''}` : null}
+        verificadoAt={unit.verifiedAt ? fechaCorta(unit.verifiedAt) : null}
+        enlace={enlaceInforme}
+      />}
 
       <section className="rounded-2xl border border-ink-600 bg-ink-800/40 p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">

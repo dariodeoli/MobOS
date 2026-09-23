@@ -77,7 +77,9 @@ export async function GET(request: Request, context: { params: Promise<{ serial:
       serialMasked: enmascarar(elegida.serial),
       imeiMasked: check?.imeiMasked || enmascarar(elegida.serial),
       condition: CONDICION[elegida.condition] || elegida.condition,
-      batteryHealth: elegida.batteryHealth ?? null,
+      // La inspección manda sobre el dato cargado al recibir (igual que el papel).
+      batteryHealth: inspeccion.bateriaPct ?? elegida.batteryHealth ?? null,
+      batteryCycles: inspeccion.bateriaCiclos ?? null,
       verifiedAt: elegida.lastVerifiedAt,
       verifiedBy: elegida.lastVerifiedBy?.name || null,
       verifiedByCode: elegida.verifiedByCode || null,
