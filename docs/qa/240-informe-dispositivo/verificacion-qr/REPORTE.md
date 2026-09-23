@@ -1,6 +1,6 @@
 # Verificación de PDFs y QR · informe y certificado (#240)
 
-- Fecha: 2026-09-22T15:01:32.922Z
+- Fecha: 2026-09-23T03:52:59.205Z
 - Enlace esperado del informe público: `https://app.moboss.online/u/351500000000004`
 - Unidad: demo `demo-unit-5` (iPhone 15 Pro Max, seminuevo) con IMEI ficticio válido `351500000000004`
 - Método: PDFs generados con el código de impresión de la app → PNG (sips) → QR decodificado con Vision (`scripts/decode-qr.swift`).
