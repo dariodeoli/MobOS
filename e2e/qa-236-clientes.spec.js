@@ -65,11 +65,14 @@ test('clientes: fila estilo Pedidos con resumen rápido y detalle completo', asy
   // La selección por lote sigue disponible: el check se reintenta si la tabla
   // se re-renderiza al resolver la búsqueda (base fría del CI).
   const casilla = fila.getByRole('checkbox', { name: `Seleccionar a ${nombre}` })
+  const barra = page.getByRole('button', { name: 'Copiar teléfonos' })
+  // Si la tabla se re-monta al resolver la búsqueda, la selección se pierde:
+  // se reintenta el check CON la barra como condición.
   await expect(async () => {
     await casilla.check()
     await expect(casilla).toBeChecked({ timeout: 2000 })
-  }).toPass({ timeout: 20_000 })
-  await expect(page.getByRole('button', { name: 'Copiar teléfonos' })).toBeVisible()
+    await expect(barra).toBeVisible({ timeout: 3000 })
+  }).toPass({ timeout: 30_000 })
   await page.screenshot({ path: `${SALIDA}/02-despues-lista.png` })
   await fila.getByRole('checkbox', { name: `Seleccionar a ${nombre}` }).uncheck()
 
