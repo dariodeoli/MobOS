@@ -46,11 +46,11 @@ const regla = listaReglas.find((fila) => (fila.userId ?? fila.user?.id) === admi
 if (regla) await req('/api/commission-rules', 'PATCH', { id: regla.id, percentPyg: 10 })
 else await req('/api/commission-rules', 'POST', { userId: adminId, percentPyg: 10 }, 201)
 
-const comisionDe = async () => {
+const filaComision = async () => {
   const reporte = await req(`/api/reports?type=commissions&from=${hoy}&to=${hoy}`)
-  const fila = (reporte.sellers || []).find((row) => row.sellerId === adminId)
-  return Number(fila?.commissionPyg ?? 0)
+  return (reporte.sellers || []).find((row) => row.sellerId === adminId) || {}
 }
+const comisionDe = async () => Number((await filaComision()).commissionPyg ?? 0)
 const comisionAntes = await comisionDe()
 
 // El equipo queda en consignación y se vende a un cliente con seguro 10%: el
@@ -99,8 +99,34 @@ assert.equal(Number(ventaDescuento.discountPyg), descuentoCarrito, 'el descuento
 assert.equal(Number(ventaDescuento.totalPyg), precioDescuento - descuentoCarrito, 'el total ya viene neto del descuento')
 const margenDescuento = (precioDescuento - descuentoCarrito) - costoDescuento
 assert.equal((await gananciaDelVendedor()) - gananciaAntes, margenDescuento, 'la ganancia del reporte es Total − Costo, con el descuento del carrito')
-const comisionVigente = await comisionDe()
+let comisionVigente = await comisionDe()
 assert.equal(comisionVigente - comisionAntesDescuento, Math.round((margenDescuento * 10) / 100), 'la comisión usa el margen neto del descuento')
+
+// ── 2c) Una línea bajo costo no infla la comisión ──────────────────────────
+// Venta mixta: línea A con costo 200.000 y 100.000 de descuento (queda en
+// 100.000, pierde 100.000) + línea B con costo 100.000 vendida a 500.000. El
+// margen de la venta es 600.000 − 300.000 = 300.000: el reporte y la comisión
+// 10% (30.000) tienen que usar esa cuenta. Antes la comisión pisaba línea por
+// línea y pagaba 40.000 porque la pérdida de A no descontaba.
+const filaComisionAntes = await filaComision()
+const gananciaAntesMixta = await gananciaDelVendedor()
+const productoPerdida = await req('/api/products', 'POST', { name: `Liquidación ${sufijo}`, sku: `LIQ-${sufijo}`, pricePyg: 200000, costPyg: 200000, stock: 2, branchId: rama }, 201)
+const productoRentable = await req('/api/products', 'POST', { name: `Rentable ${sufijo}`, sku: `REN-${sufijo}`, pricePyg: 500000, costPyg: 100000, stock: 2, branchId: rama }, 201)
+const ventaMixta = await req('/api/orders', 'POST', {
+  branchId: rama,
+  items: [
+    { productId: productoPerdida.id, description: productoPerdida.name, quantity: 1, unitPricePyg: 200000, discountPyg: 100000 },
+    { productId: productoRentable.id, description: productoRentable.name, quantity: 1, unitPricePyg: 500000 },
+  ],
+  payments: [{ method: 'TRANSFER', amountPyg: 600000, status: 'CONFIRMED' }],
+}, 201)
+assert.equal(Number(ventaMixta.totalPyg), 600000, 'la venta mixta queda en 600.000')
+const margenMixto = 300000
+assert.equal((await gananciaDelVendedor()) - gananciaAntesMixta, margenMixto, 'la ganancia se pisa una sola vez por venta')
+const filaComisionDespues = await filaComision()
+assert.equal(Number(filaComisionDespues.marginPyg ?? 0) - Number(filaComisionAntes.marginPyg ?? 0), margenMixto, 'la comisión usa el mismo margen por venta que el reporte')
+assert.equal(Number(filaComisionDespues.commissionPyg ?? 0) - Number(filaComisionAntes.commissionPyg ?? 0), Math.round((margenMixto * 10) / 100), 'ni un peso más de comisión por la línea bajo costo')
+comisionVigente = await comisionDe()
 
 // ── 3) La liquidación coincide con el reporte (sin duplicar) ───────────────
 const respuesta = await fetch(`${base}/api/commission-settlements`, { method: 'POST', headers: { Authorization: `Bearer ${admin}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ sellerId: adminId, from: hoy, to: hoy }) })
@@ -114,4 +140,4 @@ if (respuesta.status === 201) {
   console.log('NOTA: ya existía una liquidación del vendedor para hoy; no se duplicó.')
 }
 
-console.log(`PASS: stock con costo real (+${costoBase + repuestos}) · comisión ${comisionEsperada} sobre margen real ${margenReal} · descuento de carrito ${descuentoCarrito} → ganancia ${margenDescuento} y comisión ${Math.round((margenDescuento * 10) / 100)} · ${checks} chequeos`)
+console.log(`PASS: stock con costo real (+${costoBase + repuestos}) · comisión ${comisionEsperada} sobre margen real ${margenReal} · descuento de carrito ${descuentoCarrito} → ganancia ${margenDescuento} y comisión ${Math.round((margenDescuento * 10) / 100)} · línea bajo costo → margen ${margenMixto} y comisión ${Math.round((margenMixto * 10) / 100)} · ${checks} chequeos`)

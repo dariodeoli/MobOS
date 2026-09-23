@@ -2,9 +2,10 @@
 
 - **Rama:** `slot/finanzas` · **Verificación definitiva:** producción
   **v1.0.141** (`release:smoke` OK) · **Fecha:** 2026-09-22
-- **Última revisión:** 2026-09-23 (v1.0.144) — gap real encontrado y corregido:
-  el **descuento del carrito** no bajaba la ganancia por vendedor/día ni la
-  comisión (`148-19-descuento-margen.md`).
+- **Última revisión:** 2026-09-23 (v1.0.145) — verificación de márgenes con
+  costo real: el **descuento del carrito** y la **pérdida de una línea bajo
+  costo** no inflan más la ganancia ni la comisión
+  (`148-19-descuento-margen.md`, `148-19-margen-por-venta.md`).
 - Índice de todo lo entregado y verificado en el dominio, con la evidencia y la
   versión en la que quedó integrado. Sirve de punto de entrada para auditoría.
 
@@ -63,6 +64,7 @@ vendedor/día ni la comisión liquidada**—, ya corregido y con evidencia en
 | #209 Último usado | Último medio/cuenta en Gastos, Conciliación y período | `209/` |
 | #204 / #205 | Seguro persistente, lotes no reasignables, pulido de caja | `204/`, `205/` |
 | #148 §19 · #83 (2026-09-23) | Descuento del carrito en la ganancia, la comisión y la liquidación | `148-19-descuento-margen.md` |
+| #148 §19 · #83 (2026-09-23) | Una sola fórmula de margen por venta (reporte = comisiones = liquidación) | `148-19-margen-por-venta.md` |
 | #185 Recorrido de Finanzas en producción | 16/16 pasos, 4 corridas (v1.0.137, v1.0.139, v1.0.140 y v1.0.141) | `185/produccion/reporte.md`, `185/produccion-1.0.139/`, `185/produccion-1.0.140/`, `185/produccion-1.0.141/` |
 
 ## Sondas re-ejecutables (producción)
