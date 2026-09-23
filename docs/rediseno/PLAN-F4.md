@@ -125,8 +125,9 @@ midió 0 bajos en los cuatro combos de `/resumen` y en la tabla de inventario en
 oscuro. Pendiente para CMP: portar estos tonos AA al scope `tema-v2` de
 `owncoding-ui`.
 
-## F4 · dominios: pedidos, clientes y finanzas
+## F4 · dominios: pedidos, clientes, finanzas y servicio/garantías
 
-Segundo paso del rollout (contenido, no solo tokens), también detrás del flag:
-chips pill, números de consola y el azul de acción en los activos internos.
-Detalle, capturas y medición en [`F4-DOMINIOS.md`](F4-DOMINIOS.md).
+Pasos del rollout por dominio (contenido, no solo tokens), también detrás del
+flag: chips pill, números de consola, azul de acción en los activos internos y
+el stepper del taller en servicio. Detalle, capturas y medición en
+[`F4-DOMINIOS.md`](F4-DOMINIOS.md).
