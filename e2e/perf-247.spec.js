@@ -39,6 +39,14 @@ const PANTALLAS = [
     },
   },
   {
+    id: 'pedidos',
+    ruta: '/pedidos',
+    listo: async (page) => {
+      await expect(page.getByTestId('pedidos-tabla')).toBeVisible()
+      await expect(page.getByTestId('pedido-fila').first()).toBeVisible()
+    },
+  },
+  {
     id: 'clientes',
     ruta: '/clientes',
     listo: async (page) => {

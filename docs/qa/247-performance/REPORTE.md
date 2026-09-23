@@ -52,6 +52,60 @@ conclusión honesta: la ganancia **estructural** (chunk de entrada −85% y pane
 diferido) es determinista; las mejoras de tiempo aparecen en las cargas con
 caché/segunda visita de POS y clientes y quedan dentro del ruido en el resto.
 
+## Pendientes (#247, segunda tanda): pedidos, finanzas y chunk del panel
+
+Corrida con `MOBOS_PERF_REPS=2` y la pantalla `/pedidos` sumada a la auditoría;
+evidencia cruda en [`pendientes/perf-247.json`](pendientes/perf-247.json).
+
+### Chunk del panel (POS)
+
+| Chunk | Antes | Después |
+| --- | --- | --- |
+| `PanelVendedor` (shell) | **791 KB** | **47 KB** |
+| `VistaCargarVenta` (POS) | (dentro del panel) | 129 KB, bajo demanda |
+| `SellerOrders` (pedidos) | (dentro del panel) | 51 KB, bajo demanda |
+| `SellerCustomers` (clientes) | (dentro del panel) | 142 KB, bajo demanda |
+| `Inventario` | 168 KB | 168 KB (ya era diferido) |
+
+Cada sección del panel se descarga al entrar y queda cacheada; el POS ya no
+arrastra el código de finanzas, configuración, servicio, etc.
+
+### Finanzas fuera de la hidratación
+
+`/api/finance` se pedía en **todas** las pantallas para llenar el espejo de
+gastos. Ahora se hidrata al entrar a finanzas, análisis o resumen (que son las
+que lo usan) y, desde ahí, sigue incluida en los refrescos siguientes:
+
+| Pantalla | `/api/finance` antes | después | API total antes → después |
+| --- | --- | --- | --- |
+| Inventario | 1 | **0** | 22 → 20 |
+| POS | 1 | **0** | 13 → 11 |
+| Clientes | 1 | **0** | 18 → 16 |
+| Pedidos | 1 | **0** | 12 |
+| Finanzas | 2 | 2 | 21 → 20 |
+
+### Pedidos: solapas y sync
+
+- La pantalla de pedidos **ya consultaba por solapa** (`filtro` + `limit=50` con
+  cursor al servidor); se verificó y ahora además es su propio chunk (51 KB).
+- El sync del catálogo pasó de páginas de 200 a **500** por consulta: en la base
+  e2e (más de 500 productos) baja de 3 a **2** requests y en catálogos de hasta
+  500 productos entra en **1** (antes: 2-3 siempre).
+
+### Tiempos de la tanda (mediana de 2, ms)
+
+| Pantalla | fría | caliente | segunda |
+| --- | --- | --- | --- |
+| Inventario | 2191 | 2414 | 1592 |
+| POS | 1481 | 657 | 836 |
+| Pedidos | 1082 | 672 | 798 |
+| Clientes | 973 | 646 | 805 |
+| Finanzas | 997 | 519 | 620 |
+
+Sigue siendo una máquina muy cargada (varios agentes): los valores absolutos
+varían entre corridas; lo determinista son los pedidos menos por pantalla, el
+tamaño de los chunks y que cada sección/pantalla carga solo lo suyo.
+
 ## Qué se cambió (dominio PLT)
 
 1. **Rutas diferidas** (`src/App.jsx`): el panel, el reparto y todas las páginas

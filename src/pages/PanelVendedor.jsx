@@ -5,7 +5,7 @@ import { useLive } from '@/hooks/useLive'
 import { useAutoRefrescar } from '@/hooks/useAutoRefrescar'
 import { useReloj } from '@/hooks/useReloj'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
-import { listVentas } from '@/lib/storage'
+import { listVentas, hidratarFinanzas } from '@/lib/storage'
 import { sessionApi } from '@/lib/api'
 import { ventasDelDia, fechaClave, num, gs } from '@/utils/calculos'
 import SelectorSucursal from '@/components/shared/SelectorSucursal'
@@ -21,29 +21,6 @@ import { usePreferencias } from '@/hooks/usePreferencias'
 import { PreferenciasContenido } from '@/components/app/Preferencias'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { useBloqueoInactividad } from '@/hooks/useBloqueoInactividad'
-import SellerCustomers from '@/components/ventas/SellerCustomers'
-import SellerCatalog from '@/components/ventas/SellerCatalog'
-import SellerOrders from '@/components/ventas/SellerOrders'
-import StoreDelivery from '@/components/delivery/StoreDelivery'
-import SellerQuotes from '@/components/ventas/SellerQuotes'
-import SellerTools from '@/components/ventas/SellerTools'
-import ResumenControl from '@/components/control/Resumen'
-import Ganancias from '@/components/control/Ganancias'
-import Gastos from '@/components/control/Gastos'
-import Ads from '@/components/control/Ads'
-import Ganadores from '@/components/control/Ganadores'
-import Asistente from '@/components/control/Asistente'
-import Historial from '@/components/control/Historial'
-import Auditoria from '@/components/control/Auditoria'
-import Caja from '@/components/control/Caja'
-import PaymentAccounts from '@/components/control/PaymentAccounts'
-import Conciliacion from '@/components/control/Conciliacion'
-import Creditos from '@/components/control/Creditos'
-import Cobranzas from '@/components/control/Cobranzas'
-import Comisiones from '@/components/control/Comisiones'
-import RolesPermisos from '@/components/control/RolesPermisos'
-import Celulares from '@/pages/Celulares'
-import Comparador from '@/pages/Comparador'
 
 // Vistas pesadas en lazy: su código se descarga recién cuando se navega a ellas.
 const VistaCargarVenta = lazy(() => import('@/components/ventas/VistaCargarVenta'))
@@ -60,6 +37,31 @@ const Impresoras = lazy(() => import('@/components/control/Impresoras'))
 const EstadoSistema = lazy(() => import('@/components/control/EstadoSistema'))
 const WhatsAppTemplates = lazy(() => import('@/components/control/WhatsAppTemplates'))
 const Precios = lazy(() => import('@/components/control/Precios'))
+// #247: las secciones del panel se cargan por sección (el chunk del panel baja
+// fuerte); el `Suspense` que las envuelve ya existía para las que eran lazy.
+const SellerCustomers = lazy(() => import('@/components/ventas/SellerCustomers'))
+const SellerCatalog = lazy(() => import('@/components/ventas/SellerCatalog'))
+const SellerOrders = lazy(() => import('@/components/ventas/SellerOrders'))
+const StoreDelivery = lazy(() => import('@/components/delivery/StoreDelivery'))
+const SellerQuotes = lazy(() => import('@/components/ventas/SellerQuotes'))
+const SellerTools = lazy(() => import('@/components/ventas/SellerTools'))
+const ResumenControl = lazy(() => import('@/components/control/Resumen'))
+const Ganancias = lazy(() => import('@/components/control/Ganancias'))
+const Gastos = lazy(() => import('@/components/control/Gastos'))
+const Ads = lazy(() => import('@/components/control/Ads'))
+const Ganadores = lazy(() => import('@/components/control/Ganadores'))
+const Asistente = lazy(() => import('@/components/control/Asistente'))
+const Historial = lazy(() => import('@/components/control/Historial'))
+const Auditoria = lazy(() => import('@/components/control/Auditoria'))
+const Caja = lazy(() => import('@/components/control/Caja'))
+const PaymentAccounts = lazy(() => import('@/components/control/PaymentAccounts'))
+const Conciliacion = lazy(() => import('@/components/control/Conciliacion'))
+const Creditos = lazy(() => import('@/components/control/Creditos'))
+const Cobranzas = lazy(() => import('@/components/control/Cobranzas'))
+const Comisiones = lazy(() => import('@/components/control/Comisiones'))
+const RolesPermisos = lazy(() => import('@/components/control/RolesPermisos'))
+const Celulares = lazy(() => import('@/pages/Celulares'))
+const Comparador = lazy(() => import('@/pages/Comparador'))
 const Documentacion = lazy(() => import('@/components/control/Documentacion'))
 
 // Navegación por flujo de trabajo: primero la operación del día, después el
@@ -410,6 +412,11 @@ export default function PanelVendedor() {
     const primera = tabsDeSubpagina(destino, esDemo)[0][0]
     navigate(`/${destino}/${SUBPAGINA_DE_TAB[routeVista] ? routeVista : primera}`, { replace: true })
   }, [subpadre, routeVista, accesibles, esDemo, navigate])
+  // #247: las finanzas se hidratan al entrar a su pantalla, a análisis o al
+  // resumen (usan los mismos gastos/publicidad) y quedan en los refrescos.
+  useEffect(() => {
+    if (esOwner && (vista === 'resumen' || subpadre === 'finanzas' || subpadre === 'analisis')) hidratarFinanzas()
+  }, [esOwner, vista, subpadre, identidad])
   // La ruta vieja /configuracion/impresion se unificó en /configuracion/impresoras.
   useEffect(() => {
     if (subpadre === 'configuracion' && routeSeccion === 'impresion') navigate('/configuracion/impresoras', { replace: true })

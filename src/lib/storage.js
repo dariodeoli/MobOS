@@ -198,22 +198,30 @@ let apiHydrationVersion = 0
 const identidadesHidratadas = new Set()
 let primeraIdentidad = null
 
-// El catálogo puede superar la página del API (200): el POS necesita el
-// espejo completo para buscar y vender, así que se recorren todas las páginas.
+// El catálogo puede superar la página del API: el POS necesita el espejo
+// completo para buscar y vender, así que se recorren las páginas con el tope
+// de 500 (#247: con el catálogo típico entra en una sola consulta; el bucle
+// sigue cubriendo catálogos más grandes).
 async function todosLosProductos() {
   const todos = []
   let cursor = null
   for (let pagina = 0; pagina < 50; pagina += 1) {
-    const lote = await api.get(`/api/products?limit=200${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`)
+    const lote = await api.get(`/api/products?limit=500${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`)
     const filas = Array.isArray(lote) ? lote : []
     todos.push(...filas)
-    if (filas.length < 200) break
+    if (filas.length < 500) break
     cursor = filas[filas.length - 1].id
   }
   return todos
 }
 
 const identidadActual = () => `${ctx.empresaId}:${ctx.userId}:${ctx.rol}:${ctx.sucursalId}`
+
+// #247: las finanzas dejaron de viajar en la hidratación global (se pedían en
+// todas las pantallas). Se hidratan al entrar a finanzas/análisis y, desde ahí,
+// siguen incluidas en los refrescos siguientes.
+const identidadesFinanzas = new Set()
+const rutaFinanciera = () => typeof window !== 'undefined' && /^\/(finanzas|analisis|resumen)(\/|$)/.test(window.location.pathname)
 
 function aplicarHidratacion({ products, orders, users, finance }) {
   cache.productos = (products || []).map(mapProductoApi)
@@ -224,7 +232,8 @@ function aplicarHidratacion({ products, orders, users, finance }) {
     activo: u.status === 'ACTIVE',
     metaDiaria: u.dailyGoalPyg ?? 0,
   }))
-  cache.gastos = mapGastosApi(finance)
+  // Si las finanzas no vinieron en este pedido, se conserva lo que ya había.
+  if (finance !== null && finance !== undefined) cache.gastos = mapGastosApi(finance)
   cache.ads = []
   cache.auditoria = []
   cache.config = { nombreTienda: getCompanyName() }
@@ -233,13 +242,14 @@ function aplicarHidratacion({ products, orders, users, finance }) {
 
 async function hydrateDesdeApi(version, identity) {
   const puedeVerFinanzas = ['dueno', 'GERENTE', 'CAJERA'].includes(ctx.rol)
+  const conFinanzas = puedeVerFinanzas && (rutaFinanciera() || identidadesFinanzas.has(identity))
   let products; let orders; let users; let finance
   try {
     ;[products, orders, users, finance] = await Promise.all([
       todosLosProductos(),
       api.get('/api/orders?filtro=todos'),
       ctx.rol === 'dueno' ? api.get('/api/users') : Promise.resolve([]),
-      puedeVerFinanzas ? api.get('/api/finance').catch(() => null) : Promise.resolve(null),
+      conFinanzas ? api.get('/api/finance').catch(() => null) : Promise.resolve(null),
     ])
   } catch (error) {
     // Sin conexión al arrancar (POS offline-first): se hidrata con la última
@@ -254,9 +264,26 @@ async function hydrateDesdeApi(version, identity) {
     identity !== identidadActual()
   )
     return
+  if (conFinanzas) identidadesFinanzas.add(identity)
   aplicarHidratacion({ products, orders, users, finance })
   // Foto para el próximo arranque sin conexión (no bloquea la UI).
   guardarSnapshotCatalogo(ctx.empresaId, { products, orders, users, finance })
+}
+
+// Hidrata las finanzas al entrar a su pantalla (una sola consulta) y las deja
+// incluidas en los refrescos siguientes (#247).
+export async function hidratarFinanzas() {
+  if (!ctx.empresaId || !apiMode()) return
+  const identity = identidadActual()
+  if (identidadesFinanzas.has(identity) && cache.gastos.length) return
+  identidadesFinanzas.add(identity)
+  const version = apiHydrationVersion
+  const finance = await api.get('/api/finance').catch(() => null)
+  if (!apiMode() || version !== apiHydrationVersion || identity !== identidadActual()) return
+  if (finance !== null && finance !== undefined) {
+    cache.gastos = mapGastosApi(finance)
+    notify()
+  }
 }
 
 async function hydrateApi() {
