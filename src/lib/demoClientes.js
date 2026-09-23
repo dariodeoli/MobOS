@@ -27,7 +27,7 @@ const EVENTOS = (customer) => [
 
 const ANALITICA_VACIA = { ordersCount: 0, totalPyg: 0, avgTicketPyg: 0, purchasesPerMonth: 0, spendPerMonthPyg: 0, frequencyDays: null, antiguedadDias: 0, byMonth: [], topProducts: [], topModels: [], topCategories: [], topMonths: [], topWeekdays: [], statement: [] }
 
-const pedido = ({ id, numero, total, pagado, estado = 'COMPLETED', dias, items = [] }) => ({
+const pedido = ({ id, numero, total, pagado, estado = 'COMPLETED', dias, items = [], entrega = 'DELIVERY', estadoEntrega = 'DELIVERED' }) => ({
   id,
   orderNumber: numero,
   totalPyg: total,
@@ -35,6 +35,10 @@ const pedido = ({ id, numero, total, pagado, estado = 'COMPLETED', dias, items =
   pendingPyg: Math.max(0, total - pagado),
   createdAt: haceDias(dias),
   status: estado,
+  // Entrega (#240 → portal): el portal demo muestra el mismo paso a paso que
+  // la cuenta real (método y estado del fulfillment).
+  deliveryType: entrega,
+  fulfillmentStatus: estadoEntrega,
   branch: { id: 'mobos-demo-central', name: 'Aurora Móviles' },
   seller: usuarioDemo('Diego López'),
   serials: [],
@@ -69,7 +73,7 @@ export const SEED_DEMO_CLIENTES = [
     ],
     demoProfile: {
       orders: [
-        pedido({ id: 'demo-p-8', numero: 'MOB-0008', total: 3000000, pagado: 1500000, estado: 'PENDING', dias: 12, items: [{ id: 'demo-i-8', description: 'iPhone 15 · 128 GB', quantity: 1, model: 'iPhone 15', category: 'Celulares', serials: ['356789012345678'] }] }),
+        pedido({ id: 'demo-p-8', numero: 'MOB-0008', total: 3000000, pagado: 1500000, estado: 'PENDING', dias: 12, entrega: 'DELIVERY', estadoEntrega: 'IN_TRANSIT', items: [{ id: 'demo-i-8', description: 'iPhone 15 · 128 GB', quantity: 1, model: 'iPhone 15', category: 'Celulares', serials: ['356789012345678'] }] }),
         pedido({ id: 'demo-p-5', numero: 'MOB-0005', total: 1800000, pagado: 1800000, dias: 45, items: [{ id: 'demo-i-5', description: 'Apple Watch SE', quantity: 1, model: 'Apple Watch SE', category: 'Apple Watch', serials: [] }] }),
         pedido({ id: 'demo-p-2', numero: 'MOB-0002', total: 900000, pagado: 900000, dias: 95, items: [{ id: 'demo-i-2', description: 'AirPods 3', quantity: 1, model: 'AirPods 3', category: 'Accesorios', serials: [] }] }),
         pedido({ id: 'demo-p-31', numero: 'MOB-0031', total: 2400000, pagado: 2400000, estado: 'CANCELLED', dias: 200, items: [{ id: 'demo-i-31', description: 'iPhone 14 · 128 GB', quantity: 1, model: 'iPhone 14', category: 'Celulares', serials: [] }] }),
@@ -155,7 +159,7 @@ export const SEED_DEMO_CLIENTES = [
     demoProfile: {
       orders: [
         pedido({ id: 'demo-p-1', numero: 'MOB-0001', total: 450000, pagado: 450000, dias: 35, items: [{ id: 'demo-i-1', description: 'Cargador USB-C', quantity: 1, model: 'Cargador USB-C', category: 'Accesorios', serials: [] }] }),
-        pedido({ id: 'demo-p-4', numero: 'MOB-0004', total: 320000, pagado: 320000, dias: 8, items: [{ id: 'demo-i-4', description: 'Funda + vidrio templado', quantity: 2, model: 'Funda', category: 'Accesorios', serials: [] }] }),
+        pedido({ id: 'demo-p-4', numero: 'MOB-0004', total: 320000, pagado: 320000, dias: 8, entrega: 'RETIRO', estadoEntrega: 'READY_FOR_PICKUP', items: [{ id: 'demo-i-4', description: 'Funda + vidrio templado', quantity: 2, model: 'Funda', category: 'Accesorios', serials: [] }] }),
       ],
       warranties: [],
       notes: [],
@@ -440,6 +444,46 @@ export function clienteDeTokenDemo(token) {
 
 const saldoDeuda = (cliente) => (cliente.demoProfile?.orders || []).reduce((suma, order) => suma + Number(order.pendingPyg || 0), 0)
 
+// Pasos de entrega del portal demo (#240 → portal): mismo shape que
+// `seguimientoDeEntrega` del backend, con fechas ficticias espaciadas por paso.
+const FLUJOS_ENTREGA_DEMO = {
+  DELIVERY: ['PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'IN_TRANSIT', 'DELIVERED'],
+  RETIRO: ['PROCESSING', 'READY_FOR_PICKUP', 'PICKED_UP'],
+}
+const ENCABEZADOS_ENTREGA_DEMO = { DELIVERY: 'Seguimiento de envío', RETIRO: 'Seguimiento de retiro' }
+// Etiquetas espejo de `ETIQUETAS_FLUJO` del backend: la demo dice lo mismo que
+// la cuenta real (y el chip del portal usa `tracking.estadoLabel`).
+const ETIQUETAS_ENTREGA_DEMO = {
+  PROCESSING: 'En preparación',
+  READY_TO_SHIP: 'Listo para enviar',
+  READY_FOR_PICKUP: 'Listo para retirar',
+  IN_TRANSIT: 'En camino al cliente',
+  SHIPPED: 'Enviado',
+  DELIVERED: 'Entregado',
+  PICKED_UP: 'Retirado',
+}
+
+function trackingDemo(order) {
+  const metodo = String(order.deliveryType || '').toLowerCase().includes('retiro') ? 'RETIRO' : 'DELIVERY'
+  const flujo = FLUJOS_ENTREGA_DEMO[metodo]
+  const actual = order.fulfillmentStatus === 'PENDING' ? 'PROCESSING' : String(order.fulfillmentStatus || 'DELIVERED')
+  const indice = flujo.indexOf(actual)
+  const base = new Date(order.createdAt).getTime()
+  return {
+    metodo,
+    encabezado: ENCABEZADOS_ENTREGA_DEMO[metodo],
+    estado: actual,
+    estadoLabel: ETIQUETAS_ENTREGA_DEMO[actual] || actual,
+    pasos: flujo.map((key, posicion) => ({
+      key,
+      label: ETIQUETAS_ENTREGA_DEMO[key] || key,
+      hecho: indice >= 0 && posicion <= indice,
+      actual: key === actual,
+      at: indice >= 0 && posicion <= indice ? new Date(base + posicion * 86400000).toISOString() : null,
+    })),
+  }
+}
+
 // Payload con la forma de /api/portal/:token (cuenta por QR).
 export function demoCuentaPayload(token) {
   const { cliente, nivel } = clienteDeTokenDemo(token)
@@ -452,7 +496,18 @@ export function demoCuentaPayload(token) {
     customer: { name: cliente.name, ...(cliente.publicNote ? { publicNote: cliente.publicNote } : {}) },
     balancePyg: saldoDeuda(cliente),
     dueDates: conSaldo,
-    orders: orders.map((order) => ({ orderNumber: order.orderNumber, createdAt: order.createdAt, totalPyg: order.totalPyg, status: order.status, fulfillmentStatus: 'DELIVERED', pendingPyg: order.pendingPyg, dueAt: order.pendingPyg > 0 ? haceDias(-6) : null, ...(nivel === 'completo' ? { receiptToken: `demo-${order.id}` } : {}) })),
+    orders: orders.map((order) => ({
+      orderNumber: order.orderNumber,
+      createdAt: order.createdAt,
+      totalPyg: order.totalPyg,
+      status: order.status,
+      fulfillmentStatus: order.fulfillmentStatus || 'DELIVERED',
+      // Seguimiento de la entrega (#240 → portal): los pasos del método.
+      tracking: trackingDemo(order),
+      pendingPyg: order.pendingPyg,
+      dueAt: order.pendingPyg > 0 ? haceDias(-6) : null,
+      ...(nivel === 'completo' ? { receiptToken: `demo-${order.id}` } : {}),
+    })),
     informes: orders.flatMap((order) => (order.items || []).flatMap((item) => (item.serials || []).map((serial) => ({ serial, model: item.description, orderNumber: order.orderNumber })))),
     // Servicio técnico (#240 §4): el portal muestra estado y fechas, sin
     // costos ni datos internos (mismo contrato que /api/portal).
@@ -499,7 +554,7 @@ export function demoVitrinaPayload(token) {
     cliente: { nombre: cliente.name, ...(cliente.publicNote ? { notaPublica: cliente.publicNote } : {}) },
     saldoFavorPyg: 0,
     puntosPyg: 0,
-    pedidos: orders.map((order) => ({ numero: order.orderNumber, fecha: order.createdAt, estado: order.status, fulfillmentStatus: 'DELIVERED', totalPyg: order.totalPyg, saldoPyg: order.pendingPyg })),
+    pedidos: orders.map((order) => ({ numero: order.orderNumber, fecha: order.createdAt, estado: order.status, fulfillmentStatus: order.fulfillmentStatus || 'DELIVERED', totalPyg: order.totalPyg, saldoPyg: order.pendingPyg })),
     garantias: [],
   }
 }
@@ -592,6 +647,9 @@ function pedidoDesdeVenta({ numero = '', total = 0, pagado = 0, fecha, items = [
     pendingPyg,
     createdAt: fecha || new Date().toISOString(),
     status: estado || (pendingPyg > 0 ? 'PENDING' : 'COMPLETED'),
+    // Una venta del mostrador se retira en el acto (#240 → portal).
+    deliveryType: 'RETIRO',
+    fulfillmentStatus: 'PICKED_UP',
     branch: { id: 'mobos-demo-central', name: sucursal || 'Casa Central' },
     seller: { id: 'demo-user', name: vendedor || 'Equipo demo' },
     serials: normalizados.flatMap((item) => item.serials),

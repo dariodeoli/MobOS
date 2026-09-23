@@ -127,6 +127,12 @@ assert.equal(pedidoPortal.totalPyg, 100000)
 assert.equal(pedidoPortal.pendingPyg, 60000)
 assert.equal(pedidoPortal.status, 'PENDING')
 assert.equal(pedidoPortal.fulfillmentStatus, 'PROCESSING')
+// Seguimiento de la entrega (#240 → portal): los pasos del método con su
+// fecha, en el nivel rápido (es estado de entrega, no comprobante).
+assert.ok(pedidoPortal.tracking?.pasos?.length >= 3, 'El portal debe traer los pasos de la entrega.')
+assert.equal(pedidoPortal.tracking.pasos.filter(paso => paso.actual).length, 1, 'Un solo paso actual.')
+assert.equal(pedidoPortal.tracking.estadoLabel, 'En preparación', 'El paso actual trae su etiqueta de cliente.')
+assert.ok(pedidoPortal.tracking.pasos[0].hecho, 'El primer paso está cumplido.')
 assert.equal(rapido.orders.some(order => order.orderNumber === numeroPedidoAjeno), false, 'No deben aparecer pedidos de otro cliente.')
 assert.equal('warranties' in rapido, false, 'El nivel rápido no expone garantías.')
 assert.equal('addresses' in rapido, false, 'El nivel rápido no expone direcciones.')
@@ -178,6 +184,7 @@ assert.equal(garantiaConTaller.taller?.statusLabel, 'Recibido', 'La garantía de
 assert.equal((completo.addresses || []).some(address => address.address === `Av. Portal ${ts}`), true, 'El nivel completo debe listar las direcciones.')
 const pedidoCompleto = completo.orders.find(order => order.orderNumber === numeroPedido)
 assert.equal(pedidoCompleto.receiptToken, pedido.publicToken, 'El pedido debe enlazar a su comprobante público.')
+assert.ok(pedidoCompleto.tracking?.pasos?.length >= 3, 'El nivel completo también sigue la entrega.')
 const serializadoCompleto = JSON.stringify(completo)
 for (const campo of FORBIDDEN) {
   assert.equal(serializadoCompleto.includes(campo), false, `El portal completo no debe exponer ${campo}.`)

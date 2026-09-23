@@ -3,6 +3,7 @@ import { error, json } from '../../../../lib/http'
 import { enforceRateLimit } from '../../../../lib/rate-limit'
 import { buscarPorTokenPublico } from '../../../../lib/public-token'
 import { etiquetaServicio } from '../../../../lib/service-order'
+import { seguimientoDeEntrega } from '../../../../lib/orders'
 
 // Resumen de cuenta público del cliente. El token es aleatorio y no
 // enumerable, y el nivel acota lo que se muestra:
@@ -77,6 +78,8 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
         totalPyg: true,
         status: true,
         fulfillmentStatus: true,
+        deliveryType: true,
+        updatedAt: true,
         dueAt: true,
         publicToken: true,
         // #178: los pedidos nuevos ya no guardan su token histórico en claro;
@@ -108,9 +111,27 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
       : Promise.resolve([]),
   ])
 
+  // Seguimiento de la entrega (#240 → portal): los pasos del método con sus
+  // fechas, con el mismo armado que la página pública del pedido. Viaja en los
+  // dos niveles: es el estado de la entrega, no un comprobante ni datos internos.
+  const eventosEntrega = orders.length
+    ? await prisma.auditLog.findMany({
+        where: { tenantId: portal.tenantId, entity: 'Order', entityId: { in: orders.map((order) => order.id) }, action: 'ORDER_FULFILLMENT_UPDATED' },
+        orderBy: { createdAt: 'asc' },
+        select: { entityId: true, createdAt: true, metadata: true },
+      })
+    : []
+  const fechasPorPedido = new Map<string, Record<string, string>>()
+  for (const evento of eventosEntrega) {
+    const actual = (evento.metadata as { current?: unknown } | null)?.current
+    if (typeof actual !== 'string' || !evento.entityId) continue
+    const fechas = fechasPorPedido.get(evento.entityId) || {}
+    if (!fechas[actual]) fechas[actual] = evento.createdAt.toISOString()
+    fechasPorPedido.set(evento.entityId, fechas)
+  }
+
   const pendienteDe = (totalPyg: number, pagos: Array<{ amountPyg: number }>) =>
     Math.max(0, Number(totalPyg) - pagos.reduce((sum, pago) => sum + Number(pago.amountPyg || 0), 0))
-
   const vencimientos = dueOrders
     .map(order => ({
       orderNumber: order.orderNumber,
@@ -145,12 +166,17 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
       // #178: el pedido nuevo no guarda su token histórico en claro; el enlace
       // del comprobante sale del enlace vigente de nivel rápido (o del legacy).
       const receiptToken = order.publicToken || order.accessTokens[0]?.token
+      // Fechas por paso: las actualizaciones de entrega (#191) y, si falta la
+      // del estado actual, la última modificación del pedido.
+      const fechas = { ...(fechasPorPedido.get(order.id) || {}) }
+      if (!fechas[order.fulfillmentStatus]) fechas[order.fulfillmentStatus] = order.updatedAt.toISOString()
       return {
         orderNumber: order.orderNumber,
         createdAt: order.createdAt,
         totalPyg: order.totalPyg,
         status: order.status,
         fulfillmentStatus: order.fulfillmentStatus,
+        tracking: seguimientoDeEntrega(order.deliveryType, order.fulfillmentStatus, fechas),
         pendingPyg: pendienteDe(order.totalPyg, order.payments),
         dueAt: order.dueAt,
         ...(completo && receiptToken ? { receiptToken } : {}),
