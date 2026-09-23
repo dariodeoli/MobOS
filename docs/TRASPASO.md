@@ -43,14 +43,16 @@ Versión publicada en `main`: **v1.0.110**. El deploy lo hace el integrador con
 - **Nunca matar procesos por puerto** (pueden ser de otro agente).
 - Estado raro de git (refs rotas, fetch que falla): **parar y avisar**; no
   “arreglar” refs por cuenta propia.
-- `ht` es el comando de Dario y es **exclusivo del integrador**.
+- `hd` (rápido), `hdd` (completo) y `ht` (alias del completo) son comandos de
+  Dario y son **exclusivos del integrador**.
 
 ### 2.2 Integrador (único que toca `main`)
 
 - Mergea de a una rama, con verificación; pushea con `MOBOS_INTEGRATOR=1`.
-- Ciclo `ht`: fetch → relevar ramas → integrar + lint/builds/tests/smoke →
-  suite completa → push → `MOBOS_INTEGRATOR=1 npm run release:publish` →
-  `npm run release:smoke`.
+- `hd` (rápido): fetch → relevar ramas → integrar + lint/builds/tests/smoke del
+  dominio tocado → push → release. Sin suite completa ni smoke de producción.
+- `hdd`/`ht` (completo): lo anterior + suite completa + CI verde →
+  `npm run release:publish` → `npm run release:smoke` → cierres.
 - Conflictos: **parar y consultar** con Dario, nunca resolver en silencio.
 - Issues: cierra solo tras verificar por contenido contra `origin/main`, citando
   el commit que lo implementa.

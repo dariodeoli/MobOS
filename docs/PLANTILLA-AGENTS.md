@@ -7,24 +7,29 @@ reemplazá los placeholders `<APP>`, `<PUERTO_APP>`, `<PUERTO_API>` y
 ## Comandos abreviados del dueño
 
 Los comandos con los que Dario ordena el trabajo (detalle en
-`owncoding-ui/docs/COMANDOS.md`, que es la fuente portable):
+`owncoding-ui/docs/COMANDOS.md`, que es la fuente portable y tiene el
+**glosario en simple** para el dueño):
 
 | Comando | Qué hace |
 | --- | --- |
 | `pp` | Resumen de pendientes: producción, ramas, agentes, issues y pendientes de Dario. |
 | `pd` | Pendiente de deploy: tabla commit → qué cambia con su tipo (`feature`/`fix`/`test`/`docs`). |
 | `al` | Agentes libres y cómo repartir el trabajo. |
-| `ht` / `hd` | Ciclo completo de integración + deploy (ver abajo). |
+| `hd` | **Deploy rápido**: merge + specs afectados en verde + push + release (sin suite completa ni smoke). |
+| `hdd` | **Deploy completo**: `hd` + suite completa + CI verde + smoke + cierres (alias histórico: `ht`). |
 
-Reglas: **nada se mergea, pushea ni despliega sin `ht` o una ronda ordenada**;
-los conflictos se resuelven en el worktree del slot que rebasea (nunca en main);
-el orquestador no toca código. **Política automática:** con ≥ 15 commits nuevos
-sin integrar y el integrador libre, el orquestador dispara un `hd` automático
-(cooldown 20 min, un ciclo a la vez). Script de referencia para copiar:
-`owncoding-ui/tools/auto-ht.sh`.
+Reglas: **nada se mergea, pushea ni despliega sin un ciclo (`hd`/`hdd`, o `ht`)
+o una ronda ordenada**; los conflictos se resuelven en el worktree del slot que
+rebasea (nunca en main); el orquestador no toca código. **Política automática:**
+con ≥ 15 commits nuevos sin integrar y el integrador libre, el orquestador
+dispara un `hd` automático — el modo rápido (cooldown 20 min, un ciclo a la
+vez); el `hdd` completo lo pide el dueño para la ronda con smoke y cierres.
+Script de referencia para copiar: `owncoding-ui/tools/auto-ht.sh`.
 
-## Comando abreviado `ht` (integrar y desplegar)
-- Cuando Dario escribe solo `ht`, ejecutar el ciclo completo sin preguntar: (0) preámbulo: matar servidores zombies (`lsof -ti :<PUERTO_APP> :<PUERTO_API> | xargs kill -9` y procesos de dev de worktrees) y verificar que no haya otro merge en curso (`.git/MERGE_HEAD` ajeno); (1) `git fetch origin --prune` en cada repo y relevar ramas con trabajo pendiente; (2) integrar a main una rama por vez (API antes que frontend), verificando el árbol mergeado (API y frontend con sus suites + build); (3) conflictos: si la rama quedó superseded por main, resolver del lado de main y verificar diff neto vacío; si hay trabajo real en conflicto, parar y preguntar; (4) pushear con `<APP>_INTEGRATOR=1`; (5) desplegar solo con el comando de release del proyecto y validar el smoke (reintentar hasta que producción sirva la versión nueva). Reportar al final qué ramas integraron y la versión desplegada.
+## Comandos `hd` (rápido) y `hdd` (completo) — integrar y desplegar
+
+- **`hd` (rápido, rutina):** (0) preámbulo: matar servidores zombies (`lsof -ti :<PUERTO_APP> :<PUERTO_API> | xargs kill -9` y procesos de dev de worktrees) y verificar que no haya otro merge en curso (`.git/MERGE_HEAD` ajeno); (1) `git fetch origin --prune` en cada repo y relevar ramas con trabajo pendiente; (2) integrar a main una rama por vez (API antes que frontend), verificando el árbol mergeado (lint, builds con `BUILD_ID` y tests del proyecto) y corriendo los **specs afectados** por lo que entró (unitarios y e2e del dominio tocado), todos en verde; (3) conflictos: si la rama quedó superseded por main, resolver del lado de main y verificar diff neto vacío; si hay trabajo real en conflicto, parar y preguntar; (4) pushear con `<APP>_INTEGRATOR=1`; (5) release: bump + `NOVEDADES.md` + push/tag (y el deploy del proyecto si corresponde). Reportar qué ramas integró y la versión publicada. **No** corre la suite completa, **no** espera el CI y **no** hace smoke ni cierres.
+- **`hdd` (completo, ronda de release):** todo lo del `hd` y además: **suite completa** en verde; **CI verde** en GitHub para el push; **smoke de producción** reintentando hasta que sirva la versión nueva; y **cierre de issues** verificando por contenido contra `origin/main` (citando el commit) con el bloque «Novedades para el dueño». Cuando Dario escribe solo `ht`, ejecutar este ciclo completo sin preguntar.
 
 ## Hook y protección de main (regla obligatoria)
 - Nadie pushea ni mergea a `main` salvo el integrador. El hook local `pre-push` bloquea pushes a main sin `<APP>_INTEGRATOR=1`; instalar en cada checkout con `bash scripts/setup-hooks.sh` (deja `core.hooksPath = .githooks`).

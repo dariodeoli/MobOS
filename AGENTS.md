@@ -47,7 +47,7 @@ Reglas organizadas por rol. **Worktrees = agentes. Orquestador coordina; Integra
 6. **Gate rápido:** usá `npm run test:e2e:smoke` (~20 s) durante el trabajo. La suite completa (`npm run test:e2e`, ~1.5 min) es del implementador antes del release.
 7. **Nunca matar procesos por puerto** (`lsof -ti :3001 :5175 | xargs kill -9`): en un worktree esos puertos pueden ser de otro agente. Si abortás una corrida, limpiá solo tus restos (tu cluster `pg_ctl -D /tmp/mobos-e2e-pg-<tu-rama> stop` y tus puertos).
 8. **No deployás.** El deploy es exclusivo del implementador con `npm run release:publish`.
-9. **El comando `ht` NO es para vos.** `ht` es exclusivo del implementador: si lo ves, NO lo ejecutes ni lo interpretes (no integrás, no mergeás, no deployás). Solo el implementador responde a `ht`.
+9. **Los comandos `hd`/`hdd`/`ht` NO son para vos.** Son exclusivos del implementador: si los ves, NO los ejecutes ni los interpretes (no integrás, no mergeás, no deployás). Solo el implementador responde a ellos.
 10. **Estado raro de git** (refs rotas, fetch que falla, merge ajeno en curso): PARÁS y avisás. No borres ni "arregles" refs por tu cuenta.
 
 ---
@@ -55,21 +55,21 @@ Reglas organizadas por rol. **Worktrees = agentes. Orquestador coordina; Integra
 ## Reglas para el IMPLEMENTADOR (integrador)
 
 1. **Sos el único que toca `main`.** Pusheás con `MOBOS_INTEGRATOR=1 git push origin main`. Nadie más mergea ni pushea a main. La orden de integración la da el orquestador; la coordinación (issues, briefs, tablero) no es de este rol.
-2. **`ht` (comando de Dario, exclusivo de este rol):** ciclo completo de integración + deploy. Los worktrees nunca lo ejecutan ni responden a él.
-3. **Preámbulo obligatorio del `ht`:**
+2. **`hd` / `hdd` / `ht` (comandos de Dario, exclusivos de este rol):** `hd` es el **deploy rápido** (merge + specs afectados en verde + push + release, sin suite completa ni smoke) y `hdd` el **completo** (lo de `hd` + suite completa + CI verde + smoke de producción + cierres); `ht` es el alias histórico del completo. Detalle: `owncoding-ui/docs/COMANDOS.md`. Los worktrees nunca los ejecutan ni responden a ellos.
+3. **Preámbulo obligatorio (en cualquier modo):**
    - Matar servidores zombies del repo (no de otros proyectos): `next-server` de worktrees de MobOS y, en el checkout principal, `lsof -ti :3001 :5175 | xargs kill -9`.
    - Verificar que no haya otro merge en curso: `.git/MERGE_HEAD` no debe existir. Si existe, PARAR y consultar.
-4. **Ciclo `ht`:**
+4. **Ciclos:**
    1. `git fetch origin --prune` y relevar ramas con trabajo pendiente.
    2. Verificar e integrar **de a una rama por vez** (backend antes que frontend cuando aplique). Nunca mergear algo sin verificación.
-   3. Por integración: `npm run lint` · builds FE/BE (con `BUILD_ID`) · `npm test` + `test:unit` · `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` · `npm run test:e2e:smoke`.
-   4. Con todo integrado: **suite completa** `npm run test:e2e` (gate de release).
+   3. Por integración: `npm run lint` · builds FE/BE (con `BUILD_ID`) · `npm test` + `test:unit` · `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` · y los **specs afectados** por lo que entró (`npm run test:e2e:smoke` o el subset del dominio tocado).
+   4. **`hd` corta acá**: push a main con `MOBOS_INTEGRATOR=1` + release (paso 6). **`hdd`/`ht` sigue** con la suite completa `npm run test:e2e` (gate de release).
    5. Push a main con `MOBOS_INTEGRATOR=1`.
    6. Release + deploy: actualizá `docs/NOVEDADES.md` con la sección `## vX — fecha` (novedades en lenguaje de producto, por módulo) y recién después `MOBOS_INTEGRATOR=1 npm run release:publish` (bump de patch + push + webhook de Coolify).
-   7. Verificar producción: `npm run release:smoke` (esperar el deploy con reintentos).
+   7. **`hdd`/`ht`**: verificar que el CI quede verde y que producción sirva lo nuevo (`npm run release:smoke`, con reintentos), y cerrar los issues verificando por contenido contra `origin/main` con el bloque «Novedades para el dueño».
 5. **Conflictos de merge → PARÁS y consultás con Dario; nunca resolvés en silencio.** Si una rama quedó superseded por main: resolver del lado de main y verificar diff neto vacío; si hay trabajo real en conflicto, se para y se avisa.
 6. **Velocidad (implementado):**
-   - Smoke subset como gate del ht (`test:e2e:smoke`, ~20 s); suite completa solo antes del release (gate).
+   - `hd` (rápido): specs afectados del dominio + push + release; `hdd` (`ht`, completo) suma la suite completa, el CI verde, el smoke de producción y los cierres.
    - Reset por snapshot de la base e2e (`/tmp/mobos-e2e-snapshot-*.dump`, automático en `global-setup`; se invalida solo si cambian las migraciones).
    - Aislamiento por worktree con `MOBOS_E2E_*` (también para tus corridas si usás worktrees).
 7. **Sincronizar checkouts locales de `main` (ff-only)** después del push.
@@ -98,5 +98,5 @@ Reglas organizadas por rol. **Worktrees = agentes. Orquestador coordina; Integra
 ## Deploy (invariante)
 
 - **El deploy a producción es exclusivo de `npm run release:publish`** (bump de patch + push + webhook de Coolify).
-- **Sin `ht` no hay deploy** salvo pedido explícito de Dario.
+- **Sin `hd`/`hdd` (`ht`) no hay deploy** salvo pedido explícito de Dario.
 - Los agentes nunca deployan por cuenta propia.
