@@ -253,14 +253,12 @@ test('dueño: recorrido demo con datos ficticios y capturas opcionales', async (
   expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
 })
 
-test('sin sesión demo, la navegación directa vuelve a /demo', async ({ page }) => {
-  await page.goto('/resumen')
+test('la demo se entra a propósito y el acceso real sigue disponible', async ({ page }) => {
+  // #248: sin sesión, la raíz y las rutas del panel van a /login (lo cubre
+  // `redireccion-248.spec.js`); /demo queda solo para entrada explícita.
+  await page.goto('/demo')
   await expect(page).toHaveURL(/\/demo$/)
   await expect(page.getByRole('button', { name: /Entrar como Dueño/ })).toBeVisible()
-
-  // La raíz también entra por la demo para anónimos.
-  await page.goto('/')
-  await expect(page).toHaveURL(/\/demo$/)
 
   // Y el acceso real sigue disponible desde la demo.
   await page.getByRole('link', { name: 'Ingresar con mi cuenta' }).click()

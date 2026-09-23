@@ -70,29 +70,46 @@ function PaginaCargando() {
   return <LoadingScreen mensaje="Cargando…" />
 }
 
+// Ruta de vuelta post-login (#248): la arma el redirect de las áreas
+// protegidas y solo se aceptan rutas internas ("/…", nunca "//host").
+function volverSeguro(valor) {
+  return typeof valor === 'string' && valor.startsWith('/') && !valor.startsWith('//') ? valor : ''
+}
+
+function rutaLogin(ubicacion) {
+  if (ubicacion.pathname === '/login') return '/login'
+  const destino = `${ubicacion.pathname}${ubicacion.search}${ubicacion.hash}`
+  // La raíz no necesita vuelta: al entrar se resuelve por rol.
+  if (destino === '/') return '/login'
+  return `/login?volver=${encodeURIComponent(destino)}`
+}
+
 // El login solo tiene sentido si NO hay sesión; si ya entraste, al panel.
 function SoloFuera() {
   const { estado } = useSesion()
+  const { search } = useLocation()
   if (estado === 'cargando') return <Cargando />
-  if (estado === 'dentro') return <Navigate to="/" replace />
+  if (estado === 'dentro') return <Navigate to={volverSeguro(new URLSearchParams(search).get('volver')) || '/'} replace />
   if (estado === 'sinEmpresa') return <SinEmpresa />
   return <Login />
 }
 
 function Protegida({ children }) {
   const { estado } = useSesion()
+  const ubicacion = useLocation()
   if (estado === 'cargando') return <Cargando />
-  // Sin sesión, el panel es la demo pública (#192): se entra por perfiles en
-  // /demo en lugar de mandar al login. El acceso real vive en /login.
-  if (estado === 'fuera') return <Navigate to="/demo" replace />
+  // Sin sesión, al login con la vuelta post-login (#248). La demo pública
+  // (#192) se entra solo a propósito, desde /demo.
+  if (estado === 'fuera') return <Navigate to={rutaLogin(ubicacion)} replace />
   if (estado === 'sinEmpresa') return <SinEmpresa />
   return children
 }
 
 function SoloPropietario({ children }) {
   const { estado, sesion } = useSesion()
+  const ubicacion = useLocation()
   if (estado === 'cargando') return <Cargando />
-  if (estado === 'fuera') return <Navigate to="/demo" replace />
+  if (estado === 'fuera') return <Navigate to={rutaLogin(ubicacion)} replace />
   if (estado === 'sinEmpresa') return <SinEmpresa />
   if (!sesion?.esPropietario) return <Navigate to="/" replace />
   return children
