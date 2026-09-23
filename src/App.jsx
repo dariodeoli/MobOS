@@ -33,6 +33,7 @@ const RecuperarContrasena = lazy(() => import('@/pages/RecuperarContrasena'))
 const PortalClientesEntrada = lazy(() => import('@/pages/PortalClientesEntrada'))
 const RecuperarEmpresa = lazy(() => import('@/pages/RecuperarEmpresa'))
 const OpsPreview = lazy(() => import('@/pages/OpsPreview'))
+const Ops = lazy(() => import('@/pages/Ops'))
 
 // El usuario existe pero nadie lo sumó todavía a una tienda. Pasa cuando el
 // dueño crea la cuenta y aún no la asignó a su empresa.
@@ -182,14 +183,15 @@ export default function App() {
   }
 
   // Infraestructura F3 (#241): `/ops-preview` (dev o VITE_OPS_PREVIEW=1) y la
-  // ruta real `/ops` (solo con VITE_OPS_V2=1). Fuera del menú hasta la
-  // aprobación del piloto; la lógica vive en `lib/flags.js`.
+  // ruta real `/ops` (solo con VITE_OPS_V2=1, ya con datos reales). Fuera del
+  // menú hasta la aprobación del piloto; la lógica vive en `lib/flags.js`.
   const vistaOps = rutaV2(window.location.pathname, flagsV2({ dev: import.meta.env.DEV, env: import.meta.env }))
   if (vistaOps) {
+    const PaginaOps = vistaOps === 'activo' ? Ops : OpsPreview
     return (
       <>
         <MetadatosPagina />
-        <Suspense fallback={<PaginaCargando />}><OpsPreview /></Suspense>
+        <Suspense fallback={<PaginaCargando />}><PaginaOps /></Suspense>
       </>
     )
   }
