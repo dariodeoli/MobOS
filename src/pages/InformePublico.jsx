@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { Badge, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { API_URL } from '@/lib/api'
@@ -18,13 +18,20 @@ import { colorBadge, gradoCondicion } from '@/lib/estadoEquipo'
 // El grado/checklist de la inspección de INV se suman cuando estén disponibles.
 export default function InformePublico() {
   const { serial } = useParams()
+  const [searchParams] = useSearchParams()
   const [informe, setInforme] = useState(null)
   const [estado, setEstado] = useState('cargando')
   const [copiado, setCopiado] = useState(false)
 
+  // El portal demo vive en su subdominio y no comparte la sesión de /demo del
+  // host de la app: el enlace del portal trae `?demo=1` para resolver el
+  // informe con los datos ficticios del navegador (mismo criterio que el token
+  // `demo-…` de la cuenta). Un serial real nunca necesita el parámetro.
+  const demoDelEnlace = searchParams.get('demo') === '1'
+
   useEffect(() => {
     let vigente = true
-    if (isDemoRuntime) {
+    if (isDemoRuntime || demoDelEnlace) {
       const demo = demoInformePayload(serial)
       if (vigente) {
         setInforme(demo)
@@ -42,7 +49,7 @@ export default function InformePublico() {
       })
       .catch(() => { if (vigente) setEstado('error') })
     return () => { vigente = false }
-  }, [serial])
+  }, [serial, demoDelEnlace])
 
   async function copiarEnlace() {
     const ok = await copiarAlPortapapeles(window.location.href)

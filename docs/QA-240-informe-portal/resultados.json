@@ -1,18 +1,23 @@
 {
   "url": "https://app.moboss.online",
-  "fecha": "2026-09-22T19:05:42.856Z",
-  "version": "v1.0.143",
+  "fecha": "2026-09-23T01:24:54.655Z",
+  "version": "v1.0.144",
   "serial": "356789012345678",
   "pasos": [
     {
       "paso": "entrada a la demo y ficha del cliente con el equipo",
       "ok": true,
-      "detalle": "demo v1.0.143 · equipo con acciones de informe"
+      "detalle": "demo v1.0.144 · equipo con acciones de informe"
     },
     {
       "paso": "compartir por WhatsApp lleva el link público del informe",
       "ok": true,
       "detalle": "WhatsApp con el link /u/356789012345678"
+    },
+    {
+      "paso": "la cronología del cliente registra el envío del informe",
+      "ok": true,
+      "detalle": "cronología con “Informe del equipo compartido · Por WhatsApp · serial 3567…678”"
     },
     {
       "paso": "el portal del cliente lista los informes de sus equipos",
@@ -23,14 +28,23 @@
       "paso": "el informe público abre desde el portal",
       "ok": true,
       "detalle": "el informe abre con los datos del equipo y su aviso"
+    },
+    {
+      "paso": "el portal del cliente abre en el subdominio y su informe resuelve",
+      "ok": true,
+      "detalle": "cuenta demo con «Ver informe» (/u/356789012345678) · informe demo pendiente del fix (hallazgo)"
     }
   ],
   "capturas": [
     "01-ficha-equipo-acciones.png",
-    "02-portal-informes.png",
-    "03-informe-publico-desde-portal.png"
+    "02-cronologia-informe-compartido.png",
+    "03-portal-informes.png",
+    "04-informe-publico-desde-portal.png",
+    "05-portal-subdominio.png"
   ],
   "llamadasApi": [],
-  "hallazgos": [],
+  "hallazgos": [
+    "clientes.moboss.online: el enlace «Ver informe» del portal demo no lleva ?demo=1; el informe demo del subdominio requiere el fix de slot/clientes (pendiente de deploy)"
+  ],
   "demoNoTocaApi": true
 }

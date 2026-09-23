@@ -154,7 +154,7 @@ export default function CuentaPublica() {
                         <p className="mt-0.5 text-xs text-mute">{codigoPedido(informe.orderNumber) || 'Pedido'} · serial {String(informe.serial || '').slice(-6)}</p>
                       </div>
                       <Link
-                        to={`/u/${encodeURIComponent(informe.serial)}`}
+                        to={`/u/${encodeURIComponent(informe.serial)}${esTokenDemo(token) ? '?demo=1' : ''}`}
                         className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-fono/40 px-3 py-2 text-xs font-bold text-fono-light transition hover:bg-fono/10"
                       >
                         <Icon name="external" className="h-4 w-4" />
