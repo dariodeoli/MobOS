@@ -8,7 +8,7 @@ import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { SHELL, auditarContraste, informar } from './helpers/contraste.js'
 
-const SHOTS = 'docs/rediseno'
+const SHOTS = 'test-results/rediseno'
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 const MARCA = 'F4V2'
 

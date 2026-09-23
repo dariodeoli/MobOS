@@ -9,7 +9,7 @@ import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { SHELL, auditarContraste, informar } from './helpers/contraste.js'
 
-const SHOTS = 'docs/rediseno'
+const SHOTS = 'test-results/rediseno'
 // Textos fuera del shell que se informan (avisos, diálogos y pie): si bajan de
 // AA no rompen este spec, pero quedan a la vista en el log del QA.
 const CONTEXTO = ['[role="dialog"]', '[role="status"]', 'footer']

@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
 
 const API = SEED.api
-const SALIDA = 'docs/QA-240-taller-cliente'
+const SALIDA = 'test-results/QA-240-taller-cliente'
 
 test('la orden se carga con costos desglosados y la utilidad se calcula sola', async ({ page }) => {
   const marca = Date.now().toString(36).toUpperCase()

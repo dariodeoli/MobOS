@@ -5,7 +5,7 @@ import { SEED } from './helpers/seed-data.js'
 import { cerrarGuiaDemo } from './helpers/demo.js'
 
 const API = SEED.api
-const SALIDA = 'docs/QA-240-informe-dispositivo'
+const SALIDA = 'test-results/QA-240-informe-dispositivo'
 
 async function api(page, path, options = {}) {
   return page.evaluate(async ({ api, path, options }) => {

@@ -10,7 +10,7 @@ const esLlamadaApi = (url) => url.includes(`localhost:${API_PORT}`) || url.inclu
 test('el tablero ops preview usa los tokens v2 y no llama al API', async ({ page }) => {
   const llamadas = []
   page.on('request', (req) => { if (esLlamadaApi(req.url())) llamadas.push(req.url()) })
-  mkdirSync('docs/qa/241-ops-preview', { recursive: true })
+  mkdirSync('test-results/qa-241-ops-preview', { recursive: true })
 
   await page.goto('/ops-preview')
   const preview = page.getByTestId('ops-preview')
