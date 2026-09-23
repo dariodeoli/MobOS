@@ -343,3 +343,18 @@ html.dark :focus-visible { outline-color: var(--mobos-brand); }
 /* El chip neutro mantiene su gris en claro; en oscuro el mute sobre ink-600
    queda en 4.14:1 y usa el texto de primer nivel (9.8:1). */
 .dark .tema-v2 .v2-chip.text-mute { color: rgb(var(--c-fore)); }
+/* Chips de estado en v2 (Badge): el tinte /15 dejaba al verde en 4.25:1 y al
+   rojo en 4.12:1 en oscuro; el mock usa /10. El tono "azul" pasa al azul de
+   acción (era verde de marca) y también queda AA sobre su tinte. */
+.tema-v2 .v2-chip.bg-ok\/15 { background-color: rgb(var(--c-ok) / .1); }
+.tema-v2 .v2-chip.bg-bad\/15 { background-color: rgb(var(--c-bad) / .1); }
+.tema-v2 .v2-chip.bg-warn\/15 { background-color: rgb(var(--c-warn) / .1); }
+.tema-v2 .v2-chip.bg-fono\/15 {
+  background-color: rgb(var(--c-info) / .1);
+  border-color: rgb(var(--c-info) / .3);
+  color: rgb(var(--c-info));
+}
+/* Paso activo del flujo del taller (stepper de servicio): el círculo azul del
+   mock con texto AA en cada tema (el azul claro del oscuro pide texto oscuro). */
+.tema-v2 .v2-paso-activo { background: rgb(var(--c-info)); color: #fff; }
+.dark .tema-v2 .v2-paso-activo { color: rgb(var(--c-onbrand)); }

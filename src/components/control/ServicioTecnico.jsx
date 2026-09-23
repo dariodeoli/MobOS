@@ -9,6 +9,7 @@ import Icon from '@/components/shared/Icon'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import SerialField from '@/components/shared/SerialField'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
+import { temaV2Activo } from '@/lib/temaV2'
 import { fechaHora } from '@/utils/fecha'
 import { ticketRecepcionServicio } from '@/lib/printing/tickets'
 import { imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
@@ -61,6 +62,16 @@ const numeroDe = (valor) => Number(String(valor || '').replace(/\D/g, '')) || 0
 const GRID_SERVICIO = 'grid min-w-[65rem] grid-cols-[1.75rem_minmax(8rem,1.3fr)_minmax(6rem,1fr)_minmax(7rem,1.5fr)_5.5rem_5rem_5.5rem_5.5rem_6.5rem_8.5rem] items-center gap-x-2'
 // Última plantilla elegida para el taller: se recuerda entre órdenes.
 const ULTIMA_PLANTILLA_SERVICIO = 'mobos:plantilla:servicio'
+// Flujo del taller para la vista previa v2 (#241): agrupa los estados reales
+// del pipeline en los pasos que muestra el stepper. Solo se dibuja con el flag
+// `preview v2`; sin él la pantalla queda igual.
+const PASOS_FLUJO = [
+  ['Recepción', ['RECIBIDO']],
+  ['Diagnóstico', ['DIAGNOSTICO', 'CON_TECNICO', 'ESPERANDO_REPUESTO']],
+  ['Reparación', ['REPARADO']],
+  ['Listo para retirar', ['LISTO']],
+  ['Entrega', ['ENTREGADO']],
+]
 
 export default function ServicioTecnico() {
   const toast = useToast()
@@ -147,6 +158,11 @@ export default function ServicioTecnico() {
     }
     return base
   }, [rows])
+
+  // Vista previa v2 (#241): el flujo suma un stepper y los importes suben un
+  // escalón. Se apaga solo con el flag; sin él todo queda como estaba.
+  const v2 = temaV2Activo()
+  const primerPasoFlujo = PASOS_FLUJO.findIndex(([, estados]) => estados.some((estado) => (conteos[estado] || 0) > 0))
 
   const ordenarPor = (key) => setOrden(current => current.key === key
     ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
@@ -486,10 +502,27 @@ export default function ServicioTecnico() {
       {!loading && !visibles.length && <EmptyState icon="refresh" title={q ? 'Ninguna orden coincide con la búsqueda.' : 'Todavía no hay órdenes de servicio.'} description={q ? undefined : 'Cargá la primera orden para seguir el taller de punta a punta.'} action={q ? undefined : <Button onClick={() => { setEditing(null); setForm({ ...FORM_VACIO }) }}>+ Nueva orden</Button>} />}
       {!loading && visibles.length > 0 && (
         <div className="grid grid-cols-3 divide-ink-600 rounded-xl border border-ink-600 bg-ink-800/60 text-center sm:divide-x">
-          <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Facturado</p><p className="mt-1 text-lg font-semibold tabular-nums">{gs(totales.facturado)}</p></div>
-          <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Costos</p><p className="mt-1 text-lg font-semibold tabular-nums text-warn">{gs(totales.costos)}</p></div>
-          <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Utilidad</p><p className={cn('mt-1 text-lg font-semibold tabular-nums', totales.facturado - totales.costos >= 0 ? 'text-ok' : 'text-bad')}>{gs(totales.facturado - totales.costos)}</p></div>
+          <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Facturado</p><p className={cn('mt-1 text-lg font-semibold tabular-nums', v2 && 'v2-numero sm:text-2xl')}>{gs(totales.facturado)}</p></div>
+          <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Costos</p><p className={cn('mt-1 text-lg font-semibold tabular-nums text-warn', v2 && 'v2-numero sm:text-2xl')}>{gs(totales.costos)}</p></div>
+          <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Utilidad</p><p className={cn('mt-1 text-lg font-semibold tabular-nums', totales.facturado - totales.costos >= 0 ? 'text-ok' : 'text-bad', v2 && 'v2-numero sm:text-2xl')}>{gs(totales.facturado - totales.costos)}</p></div>
         </div>
+      )}
+      {v2 && !loading && visibles.length > 0 && (
+        <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" aria-label="Flujo del taller">
+          {PASOS_FLUJO.map(([paso, estados], indice) => {
+            const cantidad = estados.reduce((suma, estado) => suma + (conteos[estado] || 0), 0)
+            const activo = indice === primerPasoFlujo
+            return (
+              <li key={paso} className={cn('flex items-center gap-3 rounded-xl border p-3', activo ? 'border-info/40 bg-info/5' : 'border-ink-600')}>
+                <span className={cn('v2-numero grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold', activo ? 'v2-paso-activo' : 'bg-ink-700 text-mute')} aria-hidden>{indice + 1}</span>
+                <span className="min-w-0">
+                  <b className="block truncate text-sm">{paso}</b>
+                  <span className="text-xs text-mute">{cantidad} {cantidad === 1 ? 'equipo' : 'equipos'}</span>
+                </span>
+              </li>
+            )
+          })}
+        </ol>
       )}
       <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
         <Button variant="outline" className="h-8 px-2 text-xs" onClick={avanzarSeleccionadas}>Avanzar estado</Button>
