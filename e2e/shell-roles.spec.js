@@ -5,6 +5,7 @@
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
 import { loginCompany, completeSellerPin } from './helpers/login.js'
+import { crearIntegranteConPinLibre } from './helpers/integrantes.mjs'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
@@ -36,17 +37,13 @@ test('el técnico entra a su taller, sin CTA de POS y sin rebotes', async ({ pag
   expect(adminId).toBeTruthy()
 
   const stamp = Date.now().toString(36)
-  const tecnico = await api(page, '/api/users', {
-    method: 'POST',
-    body: JSON.stringify({ name: `Técnico Shell ${stamp}`, pin: '4826', role: 'TECNICO' }),
-  })
-  expect(tecnico.status).toBe(201)
-  const tecnicoId = tecnico.body?.id
+  const tecnico = await crearIntegranteConPinLibre(page, { api: API, nombre: `Técnico Shell ${stamp}`, rol: 'TECNICO' })
+  const tecnicoId = tecnico.id
   expect(tecnicoId).toBeTruthy()
 
   try {
     // Cambiar el operador al técnico (mismo mecanismo que el panel).
-    const ingreso = await api(page, '/api/auth/pin', { method: 'POST', body: JSON.stringify({ sellerId: tecnicoId, pin: '4826' }) })
+    const ingreso = await api(page, '/api/auth/pin', { method: 'POST', body: JSON.stringify({ sellerId: tecnicoId, pin: tecnico.pin }) })
     expect(ingreso.status).toBe(200)
 
     await page.goto('/')

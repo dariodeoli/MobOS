@@ -2,26 +2,15 @@
 // Configuración → Equipo; se pueden crear, editar y eliminar desde ahí (#56).
 
 import { test, expect } from '@playwright/test'
+import { crearIntegranteConPinLibre } from './helpers/integrantes.mjs'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
 test.describe('reglas de comisión en Finanzas', () => {
   test('Configuración ya no las muestra y Finanzas → Comisiones permite editarlas', async ({ page }) => {
     const nombre = `Integrante Comisiones ${Date.now().toString(36)}`
-    const pin = String(1000 + Math.floor(Math.random() * 9000))
     await page.goto('/configuracion/equipo')
-    const creado = await page.evaluate(
-      async ({ api, nombre, pin }) => {
-        const response = await fetch(`${api}/api/users`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ name: nombre, pin, role: 'VENDEDOR' }),
-        })
-        return response.json()
-      },
-      { api: API, nombre, pin },
-    )
+    const creado = await crearIntegranteConPinLibre(page, { api: API, nombre })
     expect(creado?.id).toBeTruthy()
     // El usuario se creó con un fetch directo (no invalida la caché corta del
     // cliente). Recargamos para que Comisiones lea /api/users fresco y el

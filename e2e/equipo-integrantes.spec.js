@@ -4,23 +4,9 @@
 
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
+import { crearIntegranteConPinLibre } from './helpers/integrantes.mjs'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
-
-async function crearIntegrante(page, nombre, pin, extra = {}) {
-  return page.evaluate(
-    async ({ api, nombre, pin, extra }) => {
-      const response = await fetch(`${api}/api/users`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name: nombre, pin, role: 'VENDEDOR', ...extra }),
-      })
-      return response.json()
-    },
-    { api: API, nombre, pin, extra },
-  )
-}
 
 test.describe('ficha del integrante en Equipo', () => {
   test('cada integrante muestra iniciales, correo, rol e historial', async ({ page }) => {
@@ -38,7 +24,6 @@ test.describe('ficha del integrante en Equipo', () => {
   test('la ficha usa el Avatar compartido y muestra la sucursal del integrante', async ({ page }) => {
     const stamp = Date.now().toString(36)
     const nombre = `Avatar E2E ${stamp}`
-    const pin = String(1000 + Math.floor(Math.random() * 9000))
     const nombreSucursal = `Sucursal avatar ${stamp}`
     await page.goto('/configuracion/equipo')
 
@@ -56,7 +41,7 @@ test.describe('ficha del integrante en Equipo', () => {
     )
     expect(sucursal?.id).toBeTruthy()
 
-    const creado = await crearIntegrante(page, nombre, pin, { branchId: sucursal.id })
+    const creado = await crearIntegranteConPinLibre(page, { api: API, nombre, extra: { branchId: sucursal.id } })
     expect(creado?.id).toBeTruthy()
     await page.reload()
 
@@ -101,9 +86,8 @@ test.describe('ficha del integrante en Equipo', () => {
 
   test('cambiar el rol se refleja, queda auditado y desactivar/reactivar conserva el historial', async ({ page }) => {
     const nombre = `Integrante E2E ${Date.now().toString(36)}`
-    const pin = String(1000 + Math.floor(Math.random() * 9000))
     await page.goto('/configuracion/equipo')
-    const creado = await crearIntegrante(page, nombre, pin)
+    const creado = await crearIntegranteConPinLibre(page, { api: API, nombre })
     expect(creado?.id).toBeTruthy()
     await page.reload()
 
@@ -157,10 +141,10 @@ test.describe('ficha del integrante en Equipo', () => {
   // guardado nunca se muestra y el nuevo PIN sirve para entrar al POS.
   test('el PIN del integrante se genera, se asigna y sirve para entrar', async ({ page, browser }) => {
     const nombre = `PIN E2E ${Date.now().toString(36)}`
-    const pinViejo = String(1000 + Math.floor(Math.random() * 9000))
     await page.goto('/configuracion/equipo')
-    const creado = await crearIntegrante(page, nombre, pinViejo)
+    const creado = await crearIntegranteConPinLibre(page, { api: API, nombre })
     expect(creado?.id).toBeTruthy()
+    const pinViejo = creado.pin
     await page.reload()
 
     const fila = page.getByTestId('integrante-fila').filter({ hasText: nombre }).first()
