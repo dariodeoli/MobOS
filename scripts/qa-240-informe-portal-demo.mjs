@@ -1,10 +1,13 @@
 #!/usr/bin/env node
-// Verificación post-deploy (#240 ítem 3): el INFORME EN EL PORTAL del cliente y
-// el COMPARTIR POR WHATSAPP con el link público. Corre contra la demo pública
-// (sin sesión) y sirve para el harness local y para producción post-.143:
+// Verificación post-deploy (#240 ítem 3): el INFORME EN EL PORTAL del cliente,
+// el COMPARTIR POR WHATSAPP con el link público y la CRONOLOGÍA del cliente con
+// el envío registrado. Corre contra la demo pública (sin sesión) y sirve para el
+// harness local y para producción post-.143/.144. Contra producción verifica
+// también el portal en su subdominio (clientes.moboss.online, #74).
 //
 //   node scripts/qa-240-informe-portal-demo.mjs
-//   MOBOS_QA_URL=http://localhost:5216 MOBOS_QA_OUT=/tmp/qa240p node scripts/qa-240-informe-portal-demo.mjs
+//   MOBOS_QA_URL=http://localhost:5246 MOBOS_QA_OUT=/tmp/qa240p node scripts/qa-240-informe-portal-demo.mjs
+//   MOBOS_QA_PORTAL_URL=http://localhost:5246 node scripts/qa-240-informe-portal-demo.mjs  # portal local
 //
 // Salida: <QA_OUT>/*.png + resultados.json (versión desplegada y resultado por
 // paso). Sale 1 si algún paso falla o si la demo toca el API de clientes.
@@ -101,6 +104,22 @@ await paso('compartir por WhatsApp lleva el link público del informe', async ()
   return `WhatsApp con el link /u/${SERIAL}`
 })
 
+await paso('la cronología del cliente registra el envío del informe', async () => {
+  const ficha = page.getByRole('dialog')
+  await ficha.getByRole('tab', { name: /^Cronología/ }).click()
+  const evento = ficha.locator('li', { hasText: 'Informe del equipo compartido' }).first()
+  await evento.waitFor({ timeout: 20000 })
+  const texto = plano(await evento.innerText())
+  afirmar(/por WhatsApp · serial/i.test(texto), `el evento no dice el canal: ${texto.slice(0, 160)}`)
+  afirmar(/3567…678/.test(texto), `el evento no trae el serial enmascarado: ${texto.slice(0, 160)}`)
+  // La cronología tiene secciones arriba (comentarios/seguimientos): se lleva
+  // el evento a la vista para que la captura lo muestre.
+  await evento.scrollIntoViewIfNeeded()
+  await page.waitForTimeout(300)
+  await shot(page, 'cronologia-informe-compartido', false)
+  return `cronología con “Informe del equipo compartido · Por WhatsApp · serial 3567…678”`
+})
+
 await paso('el portal del cliente lista los informes de sus equipos', async () => {
   await page.goto(`${BASE}/cuenta/demo-demo-cliente-lucia-rapido`, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1500)
@@ -125,6 +144,41 @@ await paso('el informe público abre desde el portal', async () => {
   await shot(page, 'informe-publico-desde-portal')
   return 'el informe abre con los datos del equipo y su aviso'
 })
+
+// El portal real vive en su subdominio (#74): mismo recorrido en
+// clientes.moboss.online cuando la corrida es contra producción.
+const PORTAL = process.env.MOBOS_QA_PORTAL_URL
+  || (/^https:\/\/app\.moboss\.online/.test(BASE) ? BASE.replace('app.moboss.online', 'clientes.moboss.online') : '')
+if (PORTAL) {
+  await paso('el portal del cliente abre en el subdominio y su informe resuelve', async () => {
+    const pagePortal = await contexto.newPage()
+    const llamadas = []
+    pagePortal.on('request', (req) => { const url = req.url(); if (url.includes(API_HOST) && url.includes('/api/')) llamadas.push(url.slice(0, 160)) })
+    await pagePortal.goto(`${PORTAL}/cuenta/demo-demo-cliente-lucia-rapido`, { waitUntil: 'domcontentloaded', timeout: 60000 })
+    await pagePortal.getByText('Informes de tus equipos').waitFor({ timeout: 20000 })
+    const enlace = pagePortal.getByRole('link', { name: 'Ver informe' }).first()
+    afirmar(await enlace.count(), 'no aparece el enlace «Ver informe» en el subdominio')
+    const href = await enlace.getAttribute('href')
+    afirmar(href && href.includes('/u/'), `el enlace del subdominio no apunta al informe público: ${href}`)
+    await shot(pagePortal, 'portal-subdominio')
+    afirmar(llamadas.length === 0, `el portal demo del subdominio llamó al API: ${llamadas.join(', ')}`)
+    // El informe demo fuera de `/demo` necesita `?demo=1` (el subdominio no
+    // comparte la sesión de demo del host de la app). Sin el fix desplegado
+    // queda como hallazgo, no como fallo de la verificación del portal.
+    if (!href.includes('demo=1')) {
+      resultado.hallazgos.push('clientes.moboss.online: el enlace «Ver informe» del portal demo no lleva ?demo=1; el informe demo del subdominio requiere el fix de slot/clientes (pendiente de deploy)')
+      await pagePortal.close()
+      return `cuenta demo con «Ver informe» (${href}) · informe demo pendiente del fix (hallazgo)`
+    }
+    await enlace.click()
+    await pagePortal.getByText('Informe de dispositivo').first().waitFor({ timeout: 20000 })
+    const texto = plano(await pagePortal.locator('body').innerText())
+    afirmar(/Aurora Móviles/.test(texto) && /No es un certificado oficial/.test(texto), 'el informe no abre en el subdominio del portal')
+    await shot(pagePortal, 'informe-publico-subdominio')
+    await pagePortal.close()
+    return `${PORTAL.replace(/^https?:\/\//, '')} · cuenta demo con «Ver informe» (${href}) y el informe abierto`
+  })
+}
 
 await contexto.close()
 await browser.close()
