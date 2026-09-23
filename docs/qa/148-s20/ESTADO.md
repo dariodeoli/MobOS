@@ -13,22 +13,18 @@
 - **Evidencia**: `e2e/pos-qa-173.spec.js` (3 passed, incluye «el borrador con enlace
   público se abre sin sesión y muestra el carrito») y el pase del carrito (22 passed + smoke 7).
 
-## Próximo paso mínimo (demo): simular borradores
+## Demo: borradores simulados ✅ (cerrado en rama)
 
-En la demo los borradores se avisan pero no se simulan. Implementación propuesta (aislada,
-sin tocar el camino API):
+Los borradores de la demo viven en el navegador (`src/lib/borradoresDemo.js`,
+`localStorage`), con el mismo payload que arma el POS para el servidor. En la
+demo se puede **suspender, listar, retomar y descartar** sin tocar el API:
 
-1. `src/lib/borradoresDemo.js`: store en `localStorage` (`listar`, `guardar`, `borrar`) con
-   el mismo payload que `suspenderVenta` ya arma (`items`, `customer`, `descuento`, `pagos`,
-   `entrega`, `montoDelivery`, `observacion`).
-2. `FormularioVenta`:
-   - `abrirSuspender` (L1314): quitar el aviso y abrir el diálogo también en demo.
-   - `suspenderVenta` (L1325): rama `esDemo` → guardar local + limpiar carrito + `setAvisoSuspension`.
-   - `abrirSuspendidas` (L1292) y el listado del modal: rama `esDemo` → `listar()` local.
-   - Retomar/descartar del modal: ramas `esDemo` → `borrar()` local (mismo payload de retome).
-3. Panel de enlace: en demo, mostrar la nota «En la demo el enlace público no se genera»
-   (el resto del panel ya es genérico).
-4. e2e: un test en `pos-checkout`/`pos-qa-173` que en demo cree, liste, retome y descarte.
-
-**Riesgo controlado**: los cuatro puntos son ramas `esDemo` sobre código existente; se corre
-`npm run build` + `pos-checkout` + smoke antes de commitear.
+- `FormularioVenta`: `abrirSuspendidas` lista el store local; `suspenderVenta`
+  guarda local (con dueño `userId`), limpia el carrito y avisa; `recuperar` y
+  `descartar` trabajan sobre el store; el aviso de "no se simulan" se retiró.
+- El panel del enlace público avisa «En la demo el enlace público no se genera».
+- Los textos del diálogo y de la lista distinguen demo (navegador) de producción
+  (servidor de la sucursal).
+- **Evidencia**: e2e `demo-anonimo` «demo: el borrador del POS se suspende, se
+  lista, se retoma y se descarta» (sin llamadas al API), corrida completa de
+  demo + POS en verde (37) y smoke 7.

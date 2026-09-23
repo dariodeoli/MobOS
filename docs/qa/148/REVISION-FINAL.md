@@ -20,7 +20,7 @@ dominio o de decisión.
 | 17 | Caja y auditoría de efectivo | ✅ otro dominio | `cash_audit_marks` + `backend/app/api/cash` |
 | 18 | Analytics del POS (período, top, por vendedor/cuenta) | ✅ | Captura `docs/qa/187b/15` · «por caja» y gift cards (no existen) → **FIN** |
 | 19 | Vista de clientes y seguro | ✅ otro dominio | `insuranceRate/Pct` en schema |
-| 20 | Borradores + envío + enlace público con Checkout | ✅ | `docs/qa/148-s20/ESTADO.md`; e2e `pos-qa-173` (borrador sin sesión con Checkout); demo: crear/listar ✅, retomar/descartar ⏳ demo |
+| 20 | Borradores + envío + enlace público con Checkout | ✅ | `docs/qa/148-s20/ESTADO.md`; e2e `pos-qa-173` (borrador sin sesión con Checkout); demo: crear/listar/retomar/descartar ✅ (e2e `demo-anonimo`) |
 | 21 | Detalle del pedido: acciones + animación | ✅ | `docs/qa/148-s21/ESTADO.md`; e2e `pos-pedidos` |
 | 22 | Lista de pedidos Hoy/Ayer/Anteayer | ✅ | e2e `pos-pedidos` + capturas `docs/qa/187b` |
 | 23 | Documentación interna | ✅ otro dominio | spec `documentacion` en main |
@@ -30,7 +30,6 @@ dominio o de decisión.
 
 1. **Decisión de producto**: «marcar como no pagado» por bloque (§11).
 2. **Deploy**: eliminar bloque de pago (§11) ya está en la rama.
-3. **Demo**: retomar/descartar borradores simulados (§20) — plan en `docs/qa/148-s20/ESTADO.md`.
 4. **PLT**: notificación in-app de cambios de entrega y menciones.
 5. **INV/FIN**: sync inventario→POS (§6), estándar de montos (§9), «por caja»/gift cards (§18).
 6. **DSN**: piloto del carrito/seguimiento (§12) y captura del modal del escáner (§6).
