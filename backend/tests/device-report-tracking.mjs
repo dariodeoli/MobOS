@@ -119,6 +119,27 @@ if (databaseUrl && pgBin) {
   assert.equal(psql(`SELECT COUNT(*) FROM "AuditLog" WHERE action = 'CUSTOMER_DEVICE_REPORT_VIEWED' AND metadata->>'serial' = '${serialSinVenta.toUpperCase()}'`), '0', 'tampoco deja evento')
 }
 
+// ── Certificado embebible (#240 §3, con INV): la primera apertura desde el
+//    embed queda con ese origen en la cronología ─────────────────────────────
+const serialEmbed = `996${Date.now().toString().slice(-12)}`
+const productoEmbed = await req('/api/products', 'POST', { name: `Equipo embebible ${marca}`, sku: `SEGE-${marca}`, pricePyg: 1200000, costPyg: 700000, stock: 1, imei: serialEmbed, branchId: rama, condition: 'USED' }, undefined, 201)
+const clienteEmbed = await req('/api/customers', 'POST', { name: `Cliente embebible ${marca}`, firstName: 'Embed' }, undefined, 201)
+await req('/api/orders', 'POST', {
+  customerId: clienteEmbed.id,
+  branchId: rama,
+  items: [{ productId: productoEmbed.id, description: productoEmbed.name, quantity: 1, unitPricePyg: 1200000, inventoryUnitSerials: [serialEmbed] }],
+  payments: [{ method: 'CASH', amountPyg: 1200000, status: 'CONFIRMED' }],
+}, undefined, 201)
+const embebido = await req(`/api/public/units/${encodeURIComponent(serialEmbed)}?embed=1`)
+assert.ok(embebido.unit?.serialMasked, 'el certificado embebible devuelve el informe igual')
+const perfilEmbed = await req(`/api/customers/${encodeURIComponent(clienteEmbed.id)}`)
+const filaEmbed = filaDe(perfilEmbed, serialEmbed)
+assert.ok(filaEmbed?.firstViewedAt, 'la apertura embebible marca visto')
+const cronologiaEmbed = await req(`/api/customers/${encodeURIComponent(clienteEmbed.id)}/timeline?limit=50`)
+const eventoEmbed = cronologiaEmbed.events.find((event) => event.action === 'CUSTOMER_DEVICE_REPORT_VIEWED')
+assert.ok(eventoEmbed, 'el embebible anota el evento en la cronología')
+assert.match(eventoEmbed.detail, /abierto desde el certificado embebido/)
+
 // ── Aislamiento: el seguimiento no se mezcla entre clientes ─────────────────
 assert.equal(filaDe(perfilPortal, serial), null, 'cada cliente ve solo su equipo')
 assert.equal(filaDe(perfil, serialPortal), null, 'el cliente original no ve el equipo del otro')

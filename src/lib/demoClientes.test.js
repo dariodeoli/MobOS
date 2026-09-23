@@ -130,6 +130,10 @@ test('compartir y abrir el informe en la demo mueve la fila de sin ver a visto (
   // Un serial sin dueño no se marca (mismo criterio que el API público).
   assert.equal(registrarVistoInformeDemo(null, sinFila), null)
   assert.equal(filaInformeDemo(sinFila), null)
+  // El certificado embebible (#240 §3, con INV) deja su propio origen.
+  const embebido = registrarVistoInformeDemo('demo-cliente-ana', 'demo-serial-embebible', { canal: 'EMBED' })
+  assert.equal(embebido.viewChannel, 'EMBED')
+  assert.ok(eventosInformeDemo('demo-cliente-ana').some((evento) => /certificado embebido/.test(evento.detail)))
   // Abrir un equipo del portal sin envío previo deja el canal vacío.
   const segundoSerial = buscarClienteDemo('demo-cliente-ana').demoProfile.orders.flatMap((order) => (order.items || []).flatMap((item) => item.serials || []))[1]
   assert.ok(segundoSerial, 'Ana tiene más de un equipo con serial')
