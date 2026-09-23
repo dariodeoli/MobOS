@@ -1,0 +1,362 @@
+[
+  {
+    "pantalla": "inventario",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 71,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Inventario (10)",
+        "ancho": 107,
+        "alto": 32,
+        "clase": "shrink-0 rounded-md px-3 py-2 text-xs font-semibold bg-fono/15 text-fo",
+        "veces": 11
+      },
+      {
+        "que": "input",
+        "texto": "Seleccionar visibles",
+        "ancho": 16,
+        "alto": 16,
+        "clase": "h-4 min-h-0 w-4 accent-fono",
+        "veces": 11
+      },
+      {
+        "que": "button",
+        "texto": "Editar el costo de E2EE2EIPHON",
+        "ancho": 14,
+        "alto": 14,
+        "clase": "text-mute transition hover:text-fono",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "✓ Verificar",
+        "ancho": 24,
+        "alto": 24,
+        "clase": "grid h-6 w-6 shrink-0 place-items-center rounded-full border border-ok",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Editar",
+        "ancho": 47,
+        "alto": 30,
+        "clase": "whitespace-nowrap rounded-lg border border-ink-600 px-2 py-1 text-[10p",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Acciones de E2EE2EIPHONE15MUDJ",
+        "ancho": 28,
+        "alto": 28,
+        "clase": "grid h-7 w-7 place-items-center rounded-lg border border-ink-600 text-",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Menú",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "-ml-1 shrink-0 rounded-lg p-2 text-mute transition hover:bg-ink-700 ho",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Sucursal E2E",
+        "ancho": 120,
+        "alto": 34,
+        "clase": "flex h-[34px] min-w-0 max-w-[160px] cursor-pointer items-center gap-2 ",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "POS",
+        "ancho": 43,
+        "alto": 34,
+        "clase": "inline-flex h-[34px] shrink-0 items-center gap-2 rounded-[9px] bg-fono",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "9+",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "relative grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "pantalla": "inventario",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 71,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Inventario (10)",
+        "ancho": 107,
+        "alto": 32,
+        "clase": "shrink-0 rounded-md px-3 py-2 text-xs font-semibold bg-fono/15 text-fo",
+        "veces": 11
+      },
+      {
+        "que": "input",
+        "texto": "Seleccionar visibles",
+        "ancho": 16,
+        "alto": 16,
+        "clase": "h-4 min-h-0 w-4 accent-fono",
+        "veces": 11
+      },
+      {
+        "que": "button",
+        "texto": "Editar el costo de E2EE2EIPHON",
+        "ancho": 14,
+        "alto": 14,
+        "clase": "text-mute transition hover:text-fono",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "✓ Verificar",
+        "ancho": 24,
+        "alto": 24,
+        "clase": "grid h-6 w-6 shrink-0 place-items-center rounded-full border border-ok",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Editar",
+        "ancho": 47,
+        "alto": 30,
+        "clase": "whitespace-nowrap rounded-lg border border-ink-600 px-2 py-1 text-[10p",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Acciones de E2EE2EIPHONE15MUDJ",
+        "ancho": 28,
+        "alto": 28,
+        "clase": "grid h-7 w-7 place-items-center rounded-lg border border-ink-600 text-",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Menú",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "-ml-1 shrink-0 rounded-lg p-2 text-mute transition hover:bg-ink-700 ho",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Sucursal E2E",
+        "ancho": 120,
+        "alto": 34,
+        "clase": "flex h-[34px] min-w-0 max-w-[160px] cursor-pointer items-center gap-2 ",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "POS",
+        "ancho": 43,
+        "alto": 34,
+        "clase": "inline-flex h-[34px] shrink-0 items-center gap-2 rounded-[9px] bg-fono",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "9+",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "relative grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "pantalla": "inventario",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 71,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Inventario (10)",
+        "ancho": 107,
+        "alto": 32,
+        "clase": "shrink-0 rounded-md px-3 py-2 text-xs font-semibold bg-fono/15 text-fo",
+        "veces": 11
+      },
+      {
+        "que": "input",
+        "texto": "Seleccionar visibles",
+        "ancho": 16,
+        "alto": 16,
+        "clase": "h-4 min-h-0 w-4 accent-fono",
+        "veces": 11
+      },
+      {
+        "que": "button",
+        "texto": "Editar el costo de E2EE2EIPHON",
+        "ancho": 14,
+        "alto": 14,
+        "clase": "text-mute transition hover:text-fono",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "✓ Verificar",
+        "ancho": 24,
+        "alto": 24,
+        "clase": "grid h-6 w-6 shrink-0 place-items-center rounded-full border border-ok",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Editar",
+        "ancho": 47,
+        "alto": 30,
+        "clase": "whitespace-nowrap rounded-lg border border-ink-600 px-2 py-1 text-[10p",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Acciones de E2EE2EIPHONE15MUDJ",
+        "ancho": 28,
+        "alto": 28,
+        "clase": "grid h-7 w-7 place-items-center rounded-lg border border-ink-600 text-",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Menú",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "-ml-1 shrink-0 rounded-lg p-2 text-mute transition hover:bg-ink-700 ho",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Sucursal E2E",
+        "ancho": 120,
+        "alto": 34,
+        "clase": "flex h-[34px] min-w-0 max-w-[160px] cursor-pointer items-center gap-2 ",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "POS",
+        "ancho": 43,
+        "alto": 34,
+        "clase": "inline-flex h-[34px] shrink-0 items-center gap-2 rounded-[9px] bg-fono",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "9+",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "relative grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "pantalla": "inventario",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 81,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Inventario (10)",
+        "ancho": 107,
+        "alto": 32,
+        "clase": "shrink-0 rounded-md px-3 py-2 text-xs font-semibold bg-fono/15 text-fo",
+        "veces": 11
+      },
+      {
+        "que": "input",
+        "texto": "Seleccionar visibles",
+        "ancho": 16,
+        "alto": 16,
+        "clase": "h-4 min-h-0 w-4 accent-fono",
+        "veces": 11
+      },
+      {
+        "que": "button",
+        "texto": "Editar el costo de E2EE2EIPHON",
+        "ancho": 14,
+        "alto": 14,
+        "clase": "text-mute transition hover:text-fono",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "✓ Verificar",
+        "ancho": 24,
+        "alto": 24,
+        "clase": "grid h-6 w-6 shrink-0 place-items-center rounded-full border border-ok",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Editar",
+        "ancho": 47,
+        "alto": 30,
+        "clase": "whitespace-nowrap rounded-lg border border-ink-600 px-2 py-1 text-[10p",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Acciones de E2EE2EIPHONE15MUDJ",
+        "ancho": 28,
+        "alto": 28,
+        "clase": "grid h-7 w-7 place-items-center rounded-lg border border-ink-600 text-",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Cambiar a tema oscuro",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 9
+      },
+      {
+        "que": "button",
+        "texto": "?",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "hidden h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transi",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Menú",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "-ml-1 shrink-0 rounded-lg p-2 text-mute transition hover:bg-ink-700 ho",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Sucursal E2E",
+        "ancho": 144,
+        "alto": 34,
+        "clase": "flex h-[34px] min-w-0 max-w-[160px] cursor-pointer items-center gap-2 ",
+        "veces": 1
+      }
+    ]
+  }
+]

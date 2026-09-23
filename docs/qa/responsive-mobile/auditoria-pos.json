@@ -1,0 +1,346 @@
+[
+  {
+    "pantalla": "pos",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 9,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Analytics",
+        "ancho": 103,
+        "alto": 36,
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Menú",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "-ml-1 shrink-0 rounded-lg p-2 text-mute transition hover:bg-ink-700 ho",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Sucursal E2E",
+        "ancho": 120,
+        "alto": 34,
+        "clase": "flex h-[34px] min-w-0 max-w-[160px] cursor-pointer items-center gap-2 ",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "9+",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "relative grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Más acciones",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transiti",
+        "veces": 1
+      },
+      {
+        "que": "input",
+        "texto": "",
+        "ancho": 16,
+        "alto": 44,
+        "clase": "h-4 w-4 accent-fono",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Nuevo producto",
+        "ancho": 134,
+        "alto": 30,
+        "clase": "inline-flex items-center gap-1.5 rounded-lg border border-fono/30 px-2",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 153,
+        "alto": 13,
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "pantalla": "pos",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 14,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Analytics",
+        "ancho": 104,
+        "alto": 36,
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 3
+      },
+      {
+        "que": "button",
+        "texto": "Menú",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "-ml-1 shrink-0 rounded-lg p-2 text-mute transition hover:bg-ink-700 ho",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Sucursal E2E",
+        "ancho": 120,
+        "alto": 34,
+        "clase": "flex h-[34px] min-w-0 max-w-[160px] cursor-pointer items-center gap-2 ",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "9+",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "relative grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Más acciones",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transiti",
+        "veces": 1
+      },
+      {
+        "que": "input",
+        "texto": "",
+        "ancho": 16,
+        "alto": 44,
+        "clase": "h-4 w-4 accent-fono",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Nuevo producto",
+        "ancho": 135,
+        "alto": 30,
+        "clase": "inline-flex items-center gap-1.5 rounded-lg border border-fono/30 px-2",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Vaciar carrito",
+        "ancho": 100,
+        "alto": 26,
+        "clase": "rounded-lg border border-ink-500 px-2.5 py-1 text-xs font-semibold tex",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Falta elegir IMEI",
+        "ancho": 99,
+        "alto": 20,
+        "clase": "flex min-w-0 items-center gap-1 truncate text-left font-mono text-[11p",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Eliminar Cable USB-C E2E",
+        "ancho": 28,
+        "alto": 28,
+        "clase": "grid h-7 w-7 shrink-0 place-items-center rounded-lg text-mute transiti",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "pantalla": "pos",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 14,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Analytics",
+        "ancho": 104,
+        "alto": 36,
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 3
+      },
+      {
+        "que": "button",
+        "texto": "Menú",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "-ml-1 shrink-0 rounded-lg p-2 text-mute transition hover:bg-ink-700 ho",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Sucursal E2E",
+        "ancho": 120,
+        "alto": 34,
+        "clase": "flex h-[34px] min-w-0 max-w-[160px] cursor-pointer items-center gap-2 ",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Notificaciones",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "relative grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Más acciones",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transiti",
+        "veces": 1
+      },
+      {
+        "que": "input",
+        "texto": "",
+        "ancho": 16,
+        "alto": 44,
+        "clase": "h-4 w-4 accent-fono",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Nuevo producto",
+        "ancho": 135,
+        "alto": 30,
+        "clase": "inline-flex items-center gap-1.5 rounded-lg border border-fono/30 px-2",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Vaciar carrito",
+        "ancho": 100,
+        "alto": 26,
+        "clase": "rounded-lg border border-ink-500 px-2.5 py-1 text-xs font-semibold tex",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Falta elegir IMEI",
+        "ancho": 123,
+        "alto": 20,
+        "clase": "flex min-w-0 items-center gap-1 truncate text-left font-mono text-[11p",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Eliminar Cable USB-C E2E",
+        "ancho": 28,
+        "alto": 28,
+        "clase": "grid h-7 w-7 shrink-0 place-items-center rounded-lg text-mute transiti",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "pantalla": "pos",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 19,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Cambiar a tema oscuro",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 6
+      },
+      {
+        "que": "button",
+        "texto": "?",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "hidden h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transi",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Menú",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "-ml-1 shrink-0 rounded-lg p-2 text-mute transition hover:bg-ink-700 ho",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Sucursal E2E",
+        "ancho": 144,
+        "alto": 34,
+        "clase": "flex h-[34px] min-w-0 max-w-[160px] cursor-pointer items-center gap-2 ",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Notificaciones",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "relative grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Más acciones",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transiti",
+        "veces": 1
+      },
+      {
+        "que": "input",
+        "texto": "",
+        "ancho": 16,
+        "alto": 44,
+        "clase": "h-4 w-4 accent-fono",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Nuevo producto",
+        "ancho": 135,
+        "alto": 30,
+        "clase": "inline-flex items-center gap-1.5 rounded-lg border border-fono/30 px-2",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Vaciar carrito",
+        "ancho": 100,
+        "alto": 26,
+        "clase": "rounded-lg border border-ink-500 px-2.5 py-1 text-xs font-semibold tex",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Falta elegir IMEI",
+        "ancho": 131,
+        "alto": 20,
+        "clase": "flex min-w-0 items-center gap-1 truncate text-left font-mono text-[11p",
+        "veces": 1
+      }
+    ]
+  }
+]

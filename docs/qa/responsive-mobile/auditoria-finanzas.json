@@ -1,0 +1,346 @@
+[
+  {
+    "pantalla": "finanzas",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 30,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Caja",
+        "ancho": 53,
+        "alto": 36,
+        "clase": "rounded-xl px-3 py-2 text-sm font-medium transition bg-fono text-onbra",
+        "veces": 8
+      },
+      {
+        "que": "button",
+        "texto": "Guardar",
+        "ancho": 64,
+        "alto": 32,
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 8
+      },
+      {
+        "que": "input",
+        "texto": "",
+        "ancho": 16,
+        "alto": 44,
+        "clase": "h-4 w-4 accent-ok",
+        "veces": 7
+      },
+      {
+        "que": "button",
+        "texto": "Menú",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "-ml-1 shrink-0 rounded-lg p-2 text-mute transition hover:bg-ink-700 ho",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Sucursal E2E",
+        "ancho": 120,
+        "alto": 34,
+        "clase": "flex h-[34px] min-w-0 max-w-[160px] cursor-pointer items-center gap-2 ",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "POS",
+        "ancho": 43,
+        "alto": 34,
+        "clase": "inline-flex h-[34px] shrink-0 items-center gap-2 rounded-[9px] bg-fono",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "9+",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "relative grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Más acciones",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transiti",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "30 días",
+        "ancho": 123,
+        "alto": 36,
+        "clase": "inline-flex h-9 items-center gap-2 rounded-lg border border-ink-500 bg",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "pantalla": "finanzas",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 15,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Caja",
+        "ancho": 53,
+        "alto": 36,
+        "clase": "rounded-xl px-3 py-2 text-sm font-medium transition bg-fono text-onbra",
+        "veces": 8
+      },
+      {
+        "que": "button",
+        "texto": "Menú",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "-ml-1 shrink-0 rounded-lg p-2 text-mute transition hover:bg-ink-700 ho",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Sucursal E2E",
+        "ancho": 120,
+        "alto": 34,
+        "clase": "flex h-[34px] min-w-0 max-w-[160px] cursor-pointer items-center gap-2 ",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "POS",
+        "ancho": 43,
+        "alto": 34,
+        "clase": "inline-flex h-[34px] shrink-0 items-center gap-2 rounded-[9px] bg-fono",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "9+",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "relative grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Más acciones",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transiti",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "30 días",
+        "ancho": 123,
+        "alto": 36,
+        "clase": "inline-flex h-9 items-center gap-2 rounded-lg border border-ink-500 bg",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "pantalla": "finanzas",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 30,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Caja",
+        "ancho": 53,
+        "alto": 36,
+        "clase": "rounded-xl px-3 py-2 text-sm font-medium transition bg-fono text-onbra",
+        "veces": 8
+      },
+      {
+        "que": "button",
+        "texto": "Guardar",
+        "ancho": 64,
+        "alto": 32,
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 8
+      },
+      {
+        "que": "input",
+        "texto": "",
+        "ancho": 16,
+        "alto": 44,
+        "clase": "h-4 w-4 accent-ok",
+        "veces": 7
+      },
+      {
+        "que": "button",
+        "texto": "Menú",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "-ml-1 shrink-0 rounded-lg p-2 text-mute transition hover:bg-ink-700 ho",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Sucursal E2E",
+        "ancho": 120,
+        "alto": 34,
+        "clase": "flex h-[34px] min-w-0 max-w-[160px] cursor-pointer items-center gap-2 ",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "POS",
+        "ancho": 43,
+        "alto": 34,
+        "clase": "inline-flex h-[34px] shrink-0 items-center gap-2 rounded-[9px] bg-fono",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "9+",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "relative grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Más acciones",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transiti",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "30 días",
+        "ancho": 123,
+        "alto": 36,
+        "clase": "inline-flex h-9 items-center gap-2 rounded-lg border border-ink-500 bg",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 231,
+        "alto": 34,
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "pantalla": "finanzas",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 37,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Cambiar a tema oscuro",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 13
+      },
+      {
+        "que": "button",
+        "texto": "Caja",
+        "ancho": 53,
+        "alto": 36,
+        "clase": "rounded-xl px-3 py-2 text-sm font-medium transition bg-fono text-onbra",
+        "veces": 8
+      },
+      {
+        "que": "input",
+        "texto": "",
+        "ancho": 16,
+        "alto": 44,
+        "clase": "h-4 w-4 accent-ok",
+        "veces": 7
+      },
+      {
+        "que": "button",
+        "texto": "?",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "hidden h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transi",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Menú",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "-ml-1 shrink-0 rounded-lg p-2 text-mute transition hover:bg-ink-700 ho",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Sucursal E2E",
+        "ancho": 144,
+        "alto": 34,
+        "clase": "flex h-[34px] min-w-0 max-w-[160px] cursor-pointer items-center gap-2 ",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "POS",
+        "ancho": 76,
+        "alto": 34,
+        "clase": "inline-flex h-[34px] shrink-0 items-center gap-2 rounded-[9px] bg-fono",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "9+",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "relative grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Más acciones",
+        "ancho": 36,
+        "alto": 36,
+        "clase": "grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transiti",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "30 días",
+        "ancho": 123,
+        "alto": 36,
+        "clase": "inline-flex h-9 items-center gap-2 rounded-lg border border-ink-500 bg",
+        "veces": 1
+      }
+    ]
+  }
+]
