@@ -35,9 +35,24 @@ En demo la acción se resuelve con el mismo contrato (`conciliarDemoImei`).
     crea el caso *timeout* (estado A conciliar), abre la ventana, entra al modal,
     verifica la aclaración precargada, guarda orden + costo + nota, comprueba el
     registro por API y la entrada de auditoría `IMEI_QUERY_CONCILIATED`.
-    Capturas: `docs/qa/233-conciliacion-imei/` (y `test-results/imei-conciliacion/`).
-- El flujo completo corrido en local con el harness (`npx playwright test
-  e2e/imei-mock.spec.js --project=admin`): 7/7.
+    Capturas: `docs/qa/233-conciliacion-imei/01-modal-conciliar.png` y
+    `02-consulta-conciliada.png` (harness, backend real).
+- e2e `e2e/demo-imei-conciliacion.spec.js` (demo anónima, sin backend): consulta
+  simulada → registro → modal → guardado, con capturas
+  `demo-03-modal-conciliar.png` y `demo-04-consulta-conciliada.png`.
+- Producción: `node scripts/qa-233-conciliacion-prod.mjs` (lee la versión, busca
+  las marcas en los assets y recorre el flujo en la demo con capturas en
+  `docs/qa/233-conciliacion-imei/prod/`).
+
+### Hallazgo del deploy v1.0.145 (importante)
+
+La búsqueda de la ventana exigía **15 dígitos**, pero los seriales de la demo son
+`AUR…` (16): en la demo la consulta registrada **nunca aparecía** y la ventana
+parecía de solo lectura. El fix (usar `validarImeiDemo` y permitir alfanuméricos
+en el campo cuando `esDemo`) quedó fuera del merge de `main` (`9db98228`): está
+re-aplicado en esta rama y cubierto por el e2e de la demo. En la **cuenta real**
+(IMEIs de 15 dígitos) el flujo de v1.0.145 funciona; en la **demo** entra con la
+próxima ronda.
 
 ## Notas
 

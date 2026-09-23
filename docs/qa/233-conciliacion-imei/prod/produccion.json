@@ -1,0 +1,56 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "1.0.145",
+  "fecha": "2026-09-23T06:13:29.119Z",
+  "serial": "AUR0001000000000",
+  "resultados": [
+    {
+      "paso": "demo: entrar y leer la versión desplegada",
+      "estado": "ok",
+      "detalle": "v1.0.145",
+      "capturas": [
+        "01-demo-panel.jpg"
+      ]
+    },
+    {
+      "paso": "producción: marcas de la conciliación en los assets",
+      "estado": "ok",
+      "detalle": "9 assets · 3 marcas presentes",
+      "capturas": []
+    },
+    {
+      "paso": "demo: consulta simulada en la unidad",
+      "estado": "ok",
+      "detalle": "serial AUR0001000000000 · consulta simulada registrada",
+      "capturas": [
+        "02-consulta-simulada.jpg"
+      ]
+    },
+    {
+      "paso": "demo: conciliar desde el registro (modal + guardado)",
+      "estado": "fallo",
+      "detalle": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('dialog', { name: 'Consultas IMEI · Conciliar' }).getByTestId('imei-consultas-lista').locator('article').first() to be visible\u001b[22m\n",
+      "capturas": [
+        "03-fallo-demo-conciliar-desde-el-registro-modal-guardado-.jpg"
+      ]
+    }
+  ],
+  "assets": [
+    "https://app.moboss.online/assets/index-CMk3_2TB.js",
+    "https://app.moboss.online/assets/vendor-II1R7ODZ.js",
+    "https://app.moboss.online/assets/print-DAClbpyS.js",
+    "https://app.moboss.online/assets/VistaCargarVenta-DWi1QltG.js",
+    "https://app.moboss.online/assets/posCart-DhyeC_IE.js",
+    "https://app.moboss.online/assets/Inventario-7QSKJyZh.js",
+    "https://app.moboss.online/assets/demoServicio-DdxqT-JL.js",
+    "https://app.moboss.online/assets/PasosEquipo-CZxjUFuN.js",
+    "https://app.moboss.online/assets/suppliers-Dm5vo5K4.js"
+  ],
+  "erroresConsola": [],
+  "veredicto": {
+    "pasosOk": 3,
+    "pasosTotal": 4,
+    "rondaDesplegada": true,
+    "erroresConsola": 0
+  }
+}
