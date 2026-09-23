@@ -7,8 +7,8 @@ import { gs } from '@/utils/calculos'
 import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
 
 // Lo que se está vendiendo: lista editable, ajustes de la venta (descuento
-// extra y fecha) y autorizaciones pendientes. Es la única lista de la venta:
-// el total final vive en el resumen fijo de la columna.
+// extra) y autorizaciones pendientes. Es la única lista de la venta: el total
+// final vive en el resumen fijo de la columna.
 export default function PasoCarrito({
   items,
   productos,
@@ -51,7 +51,7 @@ export default function PasoCarrito({
       id="pos-resumen-venta"
       className="scroll-mt-32 overflow-hidden rounded-2xl border border-ink-600 bg-ink-800"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-600 bg-ink-700/50 px-3.5 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-600 bg-ink-700/50 px-3.5 py-2">
         <EncabezadoBloque
           titulo="Productos de esta venta"
           descripcion={[cliente ? `Cliente: ${cliente}` : 'Consumidor final', vendedor, f?.entrega].filter(Boolean).join(' · ')}
@@ -87,70 +87,73 @@ export default function PasoCarrito({
         onImei={onImei}
       />
 
-      <div className="space-y-3.5 border-t border-ink-600 px-3.5 py-2.5">
-        <div>
-          <div className="flex items-end gap-2">
-            <div className="min-w-0 flex-1">
-              <Label htmlFor="descuento-extra-gs">Descuento extra (Gs)</Label>
-              <MoneyInput
-                id="descuento-extra-gs"
-                max={LIMITE_MONTO_VENTAS}
-                value={descuento}
-                onValueChange={setDescuento}
-                placeholder="0"
-              />
-            </div>
+      {/* Ajuste de la venta: el descuento extra se escribe al lado de su rótulo
+          para que el carrito gane altura. */}
+      {items.length > 0 && (
+        <div className="space-y-2 border-t border-ink-600 px-3.5 py-2.5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <Label htmlFor="descuento-extra-gs" className="mb-0 shrink-0">
+              Descuento extra (Gs)
+            </Label>
+            <MoneyInput
+              id="descuento-extra-gs"
+              max={LIMITE_MONTO_VENTAS}
+              value={descuento}
+              onValueChange={setDescuento}
+              placeholder="0"
+              className="h-9 w-36"
+            />
             {(Number(montoDescuento || 0) > 0 || items.some(it => it.descuento || it.descuentoPct)) && (
               <button
                 type="button"
                 onClick={onBorrarDescuentos}
-                className="rounded-lg border border-ink-500 px-2.5 py-2 text-xs font-semibold text-mute transition hover:border-warn hover:text-warn"
+                className="rounded-lg border border-ink-500 px-2.5 py-1.5 text-xs font-semibold text-mute transition hover:border-warn hover:text-warn"
               >
                 Borrar descuento
               </button>
             )}
           </div>
           {!puedeDescontar && (
-            <p className="mt-1 text-xs text-mute">
+            <p className="text-xs text-mute">
               El descuento necesita autorización de gerencia: pedila acá y seguí cuando esté
               aprobada.
             </p>
           )}
           {tieneCupon && (
-            <p className="mt-1 text-xs text-fono-light">
+            <p className="text-xs text-fono-light">
               Esta venta tiene cupón: el descuento extra debe quedar en cero.
             </p>
           )}
+
+          {/* La venta siempre se registra con la fecha del día (#229). */}
+          {!esDemo && !puedeDescontar && montoDescuento > 0 && (
+            <AutorizacionDescuento
+              monto={montoDescuento}
+              customerId={customer?.id || null}
+              onSelect={onAuthDescuento}
+              bloqueado={guardando}
+            />
+          )}
+
+          {!esDemo && !puedeDescontar && montoPrecioBajo > 0 && (
+            <AutorizacionBloque
+              kind="BELOW_LIST_PRICE"
+              titulo="Precio por debajo de lista"
+              descripcion="El precio manual de una línea está por debajo del precio de lista: gerencia tiene que autorizarlo."
+              requestedValue={{
+                discountPyg: montoPrecioBajo,
+                ...(productoBajoId ? { productId: productoBajoId } : {}),
+              }}
+              entity={productoBajoId ? 'PRODUCT' : undefined}
+              entityId={productoBajoId || undefined}
+              customerId={customer?.id || null}
+              monto={montoPrecioBajo}
+              onSelect={onAuthPrecio}
+              bloqueado={guardando}
+            />
+          )}
         </div>
-
-        {/* Fecha: la venta siempre se registra con la fecha del día (#229). */}
-        {!esDemo && !puedeDescontar && montoDescuento > 0 && (
-          <AutorizacionDescuento
-            monto={montoDescuento}
-            customerId={customer?.id || null}
-            onSelect={onAuthDescuento}
-            bloqueado={guardando}
-          />
-        )}
-
-        {!esDemo && !puedeDescontar && montoPrecioBajo > 0 && (
-          <AutorizacionBloque
-            kind="BELOW_LIST_PRICE"
-            titulo="Precio por debajo de lista"
-            descripcion="El precio manual de una línea está por debajo del precio de lista: gerencia tiene que autorizarlo."
-            requestedValue={{
-              discountPyg: montoPrecioBajo,
-              ...(productoBajoId ? { productId: productoBajoId } : {}),
-            }}
-            entity={productoBajoId ? 'PRODUCT' : undefined}
-            entityId={productoBajoId || undefined}
-            customerId={customer?.id || null}
-            monto={montoPrecioBajo}
-            onSelect={onAuthPrecio}
-            bloqueado={guardando}
-          />
-        )}
-      </div>
+      )}
 
       <div className="border-t border-ink-600 bg-ink-700 px-3.5 py-2.5">
         <div className="flex items-center justify-between text-xs text-mute">
@@ -171,7 +174,7 @@ export default function PasoCarrito({
         )}
         <div className="mt-1 flex items-baseline justify-between border-t border-fono/20 pt-1.5">
           <span className="text-[11px] font-bold uppercase tracking-wider text-mute">Total</span>
-          <span className="text-2xl font-extrabold tracking-tight tabular-nums text-fore">
+          <span className="v2-numero text-2xl font-extrabold tracking-tight tabular-nums text-fore">
             {gs(totalGeneral ?? totalCarrito)}
           </span>
         </div>

@@ -74,6 +74,8 @@ test('POS: un cliente con lista ve el precio de lista y su escalón por cantidad
 
     await page.getByPlaceholder('Buscar producto…').fill('Cable')
     await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
+    // La línea arranca ultra-colapsada (#243): el detalle se despliega.
+    await page.getByRole('button', { name: `Ver detalle de ${SEED.products.cable.name}` }).click()
 
     const precio = page.getByLabel(`Precio de venta de ${SEED.products.cable.name}`)
     await expect(precio).toHaveValue('39.000')

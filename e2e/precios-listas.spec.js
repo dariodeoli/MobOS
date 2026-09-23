@@ -90,6 +90,8 @@ test('gestión de listas y venta con escalón aplica el precio por cantidad', as
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(nombreCliente)
   await page.getByPlaceholder('Buscar producto…').fill(nombreProducto)
   await page.getByRole('button', { name: new RegExp(nombreProducto) }).first().click()
+  // La línea arranca ultra-colapsada (#243): el detalle se despliega.
+  await page.getByRole('button', { name: `Ver detalle de ${nombreProducto}` }).click()
   await page.getByLabel(`Cantidad de ${nombreProducto}`).fill('3')
   await expect(page.getByLabel(`Precio de venta de ${nombreProducto}`)).toHaveValue('70.000')
 

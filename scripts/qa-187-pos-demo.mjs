@@ -167,6 +167,8 @@ try {
   // ── Carrito: segundo producto, cantidad y descuento ──────────────────
   await paso('carrito: segundo producto, cantidad 2 y descuento', async () => {
     await agregarProducto('Funda MagSafe Transparente')
+    // La línea arranca ultra-colapsada (#243): se despliega para editar cantidad.
+    await page.getByRole('button', { name: 'Ver detalle de iPhone 15 Pro 256GB Titanio' }).click()
     await page.getByLabel('Cantidad de iPhone 15 Pro 256GB Titanio').fill('2')
     await esperar(700)
     const conCantidad = await totalVenta()

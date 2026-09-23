@@ -307,13 +307,13 @@ export default function PasoCobro({
         <div className="grid grid-cols-3 gap-2 border-t border-fono/20 pt-3 text-xs text-mute">
           <span className="rounded-xl border border-ink-600 px-3 py-2">
             Total
-            <strong className="mt-0.5 block text-base tabular-nums text-fore">
+            <strong className="v2-numero mt-0.5 block text-base tabular-nums text-fore">
               {gs(totalGeneral)}
             </strong>
           </span>
           <span className="rounded-xl border border-ok/25 bg-ok/10 px-3 py-2">
             Pagado
-            <strong className="mt-0.5 block text-base tabular-nums text-ok">
+            <strong className="v2-numero mt-0.5 block text-base tabular-nums text-ok">
               {gs(totalPagado)}
             </strong>
           </span>
@@ -326,7 +326,7 @@ export default function PasoCobro({
             Pendiente
             <strong
               className={cn(
-                'mt-0.5 block text-base tabular-nums',
+                'v2-numero mt-0.5 block text-base tabular-nums',
                 pendiente ? 'text-warn' : 'text-ok',
               )}
             >

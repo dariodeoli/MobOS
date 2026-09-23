@@ -27,7 +27,7 @@ function BarraTotal({ carrito, totalCompra, unidadesCarrito }) {
               ? 'Sin productos'
               : `${carrito.items.length} ${carrito.items.length === 1 ? 'producto' : 'productos'} · ${unidadesCarrito} ${unidadesCarrito === 1 ? 'unidad' : 'unidades'}`}
           </div>
-          <div className="text-xl font-semibold tracking-tight tabular-nums text-onbrand">
+          <div className="v2-numero text-xl font-semibold tracking-tight tabular-nums text-onbrand">
             {gs(totalCompra)}
           </div>
         </div>

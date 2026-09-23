@@ -19,7 +19,7 @@
 | **Inventario** (tabla de unidades) | ✅ tokens v2 con el flag |
 | **Ficha de unidad** (drawer, con checklist #240) | ✅ tokens v2 con el flag |
 | Tablero ops (contenido del mock F3) | 📄 especificado en `F3-SHELL-TABLERO.md`; falta cablear datos |
-| Carrito POS | ⏸️ revertido (espera la guarda de CMP) |
+| Carrito POS | ✅ tokens v2 con el flag + colapso máximo (#243, POS) |
 
 ## Shell: parche exacto (cuando PLT lo tome)
 
@@ -47,13 +47,12 @@ se apaga el flag o se retira la línea.
 4. QA por paso: capturas antes/después (claro/oscuro, mobile), contraste AA y
    smoke, como el piloto.
 
-## Bloqueo actual (declarado)
+## Bloqueo resuelto (guarda de CMP)
 
-`npm test` queda **579/580** por la guarda de CMP
-`src/lib/objetosReglas.test.js:165` (“las piezas de formulario salen de
-shared/formulario”), que marca mi cambio de clases de la vista previa. Es el
-primer arreglo del próximo pase: leer la guarda y ajustar el uso (o mover la
-clase a un wrapper fuera del alcance de la guarda). Sin impacto en la app.
+`npm test` volvió a verde (**617/617**): el pase de POS (#243) hace el colapso
+máximo del carrito y el detalle vive dentro de las piezas del carrito, así que
+la guarda `src/lib/objetosReglas.test.js:165` (“las piezas de formulario salen de
+`shared/formulario`”) ya no marca el cambio. El carrito v2 queda cubierto.
 
 ## Estado actualizado (segunda pasada)
 
@@ -62,7 +61,8 @@ clase a un wrapper fuera del alcance de la guarda). Sin impacto en la app.
   queda igual.
 - **Tablero ops**: ✅ detrás del flag. `/rediseno-f3` solo muestra el tablero con
   la preview activa; con el flag apagado explica cómo prenderlo.
+- **Carrito POS**: ✅ colapso máximo (#243) + patrones v2 (`v2-numero` en los
+  totales de venta, carrito, línea y cobro). Capturas y métricas en
+  `docs/qa/243/README.md` (claro/oscuro, desktop/mobile, flag on/off).
 - **Capturas**: `docs/rediseno/c241f3p-shell-{off,on}.png` y
-  `c241f3p-tablero-{off,on}.png` (1280, claro).
-- **Sigue pendiente**: carrito POS (espera la guarda de CMP) y el arreglo de la
-  guarda `objetosReglas.test.js:165` (`npm test` 579/580).
+  `c241f3p-tablero-{off,on}.png` (1280, claro) + las de `docs/qa/243/`.
