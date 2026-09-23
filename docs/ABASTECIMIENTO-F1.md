@@ -1,0 +1,121 @@
+# Centro de Abastecimiento · Fase 1 (demanda y tablero) — spec técnica
+
+Baja a la arquitectura de MobOS el plan de #250 (flujo venta/reserva sin stock →
+necesidad → compra → lote → recepción → depósito → stock). **Esta entrega es la
+base de F1**: modelo + migración aditiva + API mínima «Por comprar» con
+consolidación y tests. **Sin UI y sin activar** (nada la llama todavía) para
+revisión de Dario.
+
+## 1. Alcance de esta entrega
+
+| Incluye | No incluye (fases siguientes) |
+|---|---|
+| Tabla `SupplyNeed` (migración aditiva e idempotente) | UI del panel y de la tarjeta de compra |
+| Carga manual de necesidades (`POST`) | Generación automática al vender/reservar (F2) |
+| Vista «Por comprar» consolidada (`GET`) | Compra, proveedor/costo, stock adicional (F2) |
+| Asignación a comprador y cancelación auditadas (`PATCH`) | IMEI/etiquetas (F3), lotes (F4), recepción (F5) |
+
+Reglas no negociables que ya respeta la base: **no se crea stock** (solo la
+recepción lo hará), toda necesidad conserva su vínculo con la venta/reserva, y
+toda corrección deja **auditoría**.
+
+## 2. Modelo `SupplyNeed`
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `tenantId` / `branchId` | text | el destino final de las unidades |
+| `productId` | text | producto del catálogo |
+| `condition` | `ProductCondition` | variante a comprar; **nunca se mezcla** en la consolidación |
+| `quantity` | int | 1..9999 |
+| `source` | text | `SALE_NO_STOCK` · `RESERVATION_NO_STOCK` · `QUANTITY_OVER_STOCK` · `BELOW_REORDER` · `ORDER_COMMITTED` · `MANUAL` |
+| `priority` | text | `BAJA` · `NORMAL` · `ALTA` · `URGENTE` (default `NORMAL`) |
+| `status` | text | `ABIERTA` · `ASIGNADA` · `COMPRADA` · `RECIBIDA` · `CANCELADA` (hoy solo se usan ABIERTA/ASIGNADA/CANCELADA) |
+| `promisedAt` | datetime? | fecha prometida al cliente (prioriza la compra) |
+| `orderId` / `orderItemId` | text? | vínculo con la venta o reserva original |
+| `customerId` | text? | cliente (el nombre viaja solo a ADMIN/GERENTE) |
+| `assignedToId` | text? | comprador asignado |
+| `notes`, `createdById`, `createdAt`, `updatedAt` | | auditoría básica |
+| `dedupeKey` | text? | clave única por tenant para las automáticas (repetir la misma demanda no duplica la fila) |
+
+Índices: `(tenantId, status, priority, createdAt)` para el panel,
+`(tenantId, productId, condition, status)` para la consolidación y
+`(tenantId, branchId, status)` por sucursal. `source`, `priority` y `status` son
+texto (no enums de Postgres) para poder sumar orígenes/estados sin migración; los
+valores válidos viven en `backend/lib/supply.ts`.
+
+## 3. Consolidación (#250 §5)
+
+`consolidarNecesidades()` (pura, en `backend/lib/supply.ts`):
+
+- Agrupa por **producto + condición** (jamás mezcla color/capacidad/condición).
+- Suma cantidades, deja la **prioridad más alta** y la **fecha prometida más
+  próxima**.
+- **Conserva los destinos**: cada necesidad aporta su pedido (con cliente) o su
+  reposición por sucursal; las del mismo pedido/sucursal se fusionan sumando.
+  Ejemplo del plan: 6 iguales → `1 pedido A · 2 pedido B · 3 stock`.
+- Orden del panel: prioridad ↓, fecha prometida ↑, cantidad ↓.
+
+## 4. API (mínima, gateada por `stock:manage`)
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| `GET` | `/api/supply/needs` | lista consolidada. Filtros: `status`, `branchId`, `productId`, `assignedToId`, `limit`. Por defecto solo pendientes (ABIERTA/ASIGNADA/COMPRADA) |
+| `POST` | `/api/supply/needs` | carga manual (`MANUAL`): `{ productId, quantity, branchId?, condition?, priority?, promisedAt?, notes? }` |
+| `PATCH` | `/api/supply/needs` | `{ id, action: 'assign', assignedToId }` o `{ id, action: 'cancel', reason }` |
+
+Respuesta del listado:
+
+```json
+{
+  "fecha": "2026-09-24T12:00:00.000Z",
+  "totales": { "necesidades": 6, "grupos": 2, "unidades": 9 },
+  "grupos": [{
+    "productoId": "p1", "producto": "iPhone 15", "condicion": "NEW", "cantidad": 6,
+    "prioridad": "URGENTE", "prometidaEl": "2026-10-01T10:00:00.000Z",
+    "origenes": ["SALE_NO_STOCK", "BELOW_REORDER"],
+    "destinos": [
+      { "tipo": "PEDIDO", "etiqueta": "Pedido MOB-0048 · Juan Pérez", "cantidad": 1, "pedidoId": "o1", "clienteId": "c1", "prometidaEl": "…" },
+      { "tipo": "STOCK", "etiqueta": "Reposición · Casa Central", "cantidad": 3, "sucursalId": "b1", "prometidaEl": null }
+    ],
+    "necesidades": ["n1", "n2", "n3"]
+  }]
+}
+```
+
+Permisos: `stock:manage` para leer y escribir (vendedor → 403; sin sesión → 401).
+El **nombre del cliente** solo se incluye para ADMIN/GERENTE (el resto ve el id).
+La cancelación exige motivo (≥3 caracteres) y la asignación valida que el
+comprador sea de la empresa. Cada alta/asignación/cancelación escribe su
+`auditLog` (`SUPPLY_NEED_CREATED` · `SUPPLY_NEED_ASSIGNED` ·
+`SUPPLY_NEED_CANCELLED`, área **Abastecimiento**).
+
+## 5. Dónde se enganchará la demanda automática (F2)
+
+Sin tocar nada todavía; puntos de enganche previstos:
+
+- **Venta sin stock / cantidad > stock**: en el checkout (`POST /api/orders`),
+  cuando la línea no tiene unidad/serial y el stock no alcanza.
+- **Reserva sin unidad**: al crear la reserva; una reserva de una unidad
+  existente **no** genera necesidad (solo la diferencia faltante).
+- **Bajo punto de reposición**: el mismo barrido que arma las alertas de stock
+  (`reorderPoint`), agrupando por producto + sucursal.
+- **Pedido comprometido con fecha**: `ORDER_COMMITTED` con `promisedAt`.
+
+Todas usarán `dedupeKey` (p. ej. `SALE_NO_STOCK:<orderItemId>`) para no repetir
+la fila si el evento se procesa dos veces.
+
+## 6. Tests
+
+- Unit `backend/tests/supply.test.ts`: consolidación (agrupación, prioridad,
+  fecha más próxima, destinos fusionados y orden) y validaciones de la carga
+  manual. Registrado en `run-unit.cjs`.
+- API `backend/tests/supply-needs.mjs` (arnés HTTP, `MOBOS_IT_EXECUTE=1`): alta
+  manual (3 para el mismo producto, 1 con otra condición), consolidación, filtro
+  por producto, asignación/cancelación auditadas, y 400/401/403.
+- `npm run db:check`: la migración aplicada coincide con el modelo.
+
+## 7. Estado y rollback
+
+- **No activado**: ninguna pantalla ni automatismo llama a la API (no hay UI).
+- La migración es aditiva: si se descarta, la tabla queda sin uso y se puede
+  borrar sin afectar datos existentes.

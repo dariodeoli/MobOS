@@ -666,6 +666,9 @@ if [[ "$?" != "0" ]]; then echo "GET /api/errors no listó los reportes sin stac
 echo "11/13 Restauración de backup en cluster nuevo..."
 node "$BACKEND_ROOT/tests/backup-restore.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$PG_BIN" "$DATABASE_URL" "$RUN_ROOT/backups"
 
+echo "Centro de Abastecimiento F1: necesidades manuales y consolidación «Por comprar» (#250)..."
+node "$BACKEND_ROOT/tests/supply-needs.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
+
 echo "12/13 Bloqueo de login empresarial después de cinco intentos..."
 out="$(response_file)"; request POST /api/auth/pin 200 '{"sellerId":"user-lock-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''
 for _ in 1 2 3 4 5; do
@@ -720,4 +723,4 @@ PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/reports-margen-db.mjs" "$BASE_URL" "$
 echo "Seguridad pública: token de liquidaciones hasheado, rotación y límite de uso..."
 PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/commission-settlement-public.mjs"
 
-echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración, consistencia y logout."
+echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración, consistencia, abastecimiento y logout."
