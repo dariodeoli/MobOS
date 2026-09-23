@@ -123,6 +123,25 @@ for (const variante of variantes) {
   const flagV2 = await page.evaluate(() => document.documentElement.querySelector('.tema-v2') !== null)
   const totalVisible = (await carrito.innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 160)
 
+  // Papelera por línea + confirmación (#243): con la línea desplegada se aplica
+  // un descuento en la demo y se captura el diálogo; se cancela para no romper
+  // el resto de la corrida.
+  const papelera = fila.getByRole('button', { name: /^Eliminar / }).first()
+  if (await papelera.count()) {
+    const descuento = fila.getByLabel(/^Descuento % de /)
+    if (await descuento.count()) {
+      await descuento.fill('10')
+      await esperar(400)
+    }
+    await papelera.click()
+    await esperar(400)
+    const dialogo = page.getByRole('dialog')
+    if (await dialogo.count()) {
+      await dialogo.screenshot({ path: join(SALIDA, `confirmacion-${variante.nombre}.png`) })
+      await dialogo.getByRole('button', { name: 'Cancelar' }).click()
+    }
+  }
+
   resultados.push({
     variante: variante.nombre,
     ancho: variante.ancho,
