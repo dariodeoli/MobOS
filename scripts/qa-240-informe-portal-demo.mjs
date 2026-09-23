@@ -120,6 +120,40 @@ await paso('la cronología del cliente registra el envío del informe', async ()
   return `cronología con “Informe del equipo compartido · Por WhatsApp · serial 3567…678”`
 })
 
+await paso('el seguimiento del informe muestra visto/no visto y su apertura', async () => {
+  const ficha = page.getByRole('dialog')
+  await ficha.getByRole('tab', { name: /^Pedidos/ }).click()
+  const fila = ficha.getByTestId('perfil-dispositivo-fila').first()
+  const chip = fila.getByTestId('informe-seguimiento')
+  await chip.waitFor({ timeout: 20000 })
+  const estado = (await chip.innerText()).trim()
+  afirmar(estado === 'Visto', `el informe de Lucía ya debería estar visto: ${estado}`)
+  await chip.scrollIntoViewIfNeeded()
+  await page.waitForTimeout(300)
+  await shot(page, 'ficha-informe-visto', false)
+  // La cronología derivada del seguimiento muestra la apertura del cliente.
+  await ficha.getByRole('tab', { name: /^Cronología/ }).click()
+  const evento = ficha.locator('li', { hasText: 'Informe del equipo visto por el cliente' }).first()
+  await evento.waitFor({ timeout: 20000 })
+  const texto = plano(await evento.innerText())
+  afirmar(/Abierto desde el enlace de WhatsApp/.test(texto), `el evento no trae el origen de la apertura: ${texto.slice(0, 160)}`)
+  await evento.scrollIntoViewIfNeeded()
+  await page.waitForTimeout(300)
+  await shot(page, 'cronologia-informe-visto', false)
+  // El otro ejemplo: un informe compartido que el cliente todavía no abrió.
+  await page.goto(`${BASE}/clientes?cliente=demo-cliente-ana`, { waitUntil: 'domcontentloaded' })
+  const fichaAna = page.getByRole('dialog')
+  await fichaAna.getByRole('tab', { name: /^Pedidos/ }).click()
+  const chipAna = fichaAna.getByTestId('perfil-dispositivo-fila').first().getByTestId('informe-seguimiento')
+  await chipAna.waitFor({ timeout: 20000 })
+  const estadoAna = (await chipAna.innerText()).trim()
+  afirmar(estadoAna === 'Sin ver', `el informe de Ana todavía no debería estar visto: ${estadoAna}`)
+  await chipAna.scrollIntoViewIfNeeded()
+  await page.waitForTimeout(300)
+  await shot(page, 'ficha-informe-sin-ver', false)
+  return 'Lucía: informe visto con su apertura en la cronología · Ana: informe compartido sin ver'
+})
+
 await paso('el portal del cliente lista los informes de sus equipos', async () => {
   await page.goto(`${BASE}/cuenta/demo-demo-cliente-lucia-rapido`, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1500)
