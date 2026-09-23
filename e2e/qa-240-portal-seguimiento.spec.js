@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
 
 const API = SEED.api
-const SALIDA = 'docs/QA-240-portal-seguimiento'
+const SALIDA = 'test-results/QA-240-portal-seguimiento'
 
 async function api(page, path, options = {}) {
   return page.evaluate(async ({ api, path, options }) => {
