@@ -284,6 +284,10 @@ test('POS: la linea del carrito arranca ultra-colapsada y el detalle se desplieg
   await expect(cantidad).toHaveCount(0)
   await expect(precio).toHaveCount(0)
   await expect(verDetalle).toHaveAttribute('aria-expanded', 'false')
+  // La papelera vive también en la línea colapsada, con su tooltip (#243).
+  const papelera = fila.getByRole('button', { name: `Eliminar ${cable.name}` })
+  await expect(papelera).toBeVisible()
+  await expect(papelera).toHaveAttribute('title', 'Eliminar línea')
 
   // Desplegada: cantidad y precio a la vista; el chevron queda marcado.
   await verDetalle.click()
@@ -297,6 +301,11 @@ test('POS: la linea del carrito arranca ultra-colapsada y el detalle se desplieg
   await expect(cantidad).toHaveCount(0)
   await expect(precio).toHaveCount(0)
   await expect(verDetalle).toHaveAttribute('aria-expanded', 'false')
+
+  // Sin descuento ni IMEI, la papelera quita la línea sin preguntar.
+  await papelera.click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByText('Todavía no agregaste productos.')).toBeVisible()
 })
 
 // Cliente: búsqueda por razón social de facturación, selección con marca
@@ -458,6 +467,14 @@ test('POS vende un equipo serializado con su IMEI y bloquea el sobre pedido con 
   await expect(dialogo.getByText(/Con stock no se vende sin IMEI/)).toBeVisible()
   await dialogo.getByRole('button', { name: 'Reservar este' }).first().click()
   await dialogo.getByRole('button', { name: 'Listo' }).click()
+  await expect(page.getByRole('button', { name: 'Cambiar IMEI' })).toBeVisible()
+
+  // Con IMEI elegido, la papelera pide confirmación: cancelar conserva la línea
+  // con su unidad reservada (#243).
+  await page.getByRole('button', { name: `Eliminar ${SEED.products.iphone.name}` }).click()
+  const confirmarQuitar = page.getByRole('dialog')
+  await expect(confirmarQuitar).toContainText('un IMEI elegido')
+  await confirmarQuitar.getByRole('button', { name: 'Cancelar' }).click()
   await expect(page.getByRole('button', { name: 'Cambiar IMEI' })).toBeVisible()
 
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
