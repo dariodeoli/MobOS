@@ -264,7 +264,9 @@ categorías en `src/lib/categorias.js`; los objetos son presentacionales.
   codificaron primero en la biblioteca (owncoding-ui **v0.14.6**, props en su
   `docs/REGLAS.md` §8 bis, tokens v2 en su `styles.css`) y se adoptan acá a
   medida que los consume el piloto. Guía para migrar una pantalla al sistema v2
-  (para cualquier app del grupo): `owncoding-ui/docs/MIGRACION-V2.md`.
+  (para cualquier app del grupo): `owncoding-ui/docs/MIGRACION-V2.md`; para
+  sumar la biblioteca a otra app: `owncoding-ui/docs/ADOPCION.md` (también hay
+  que fijar la versión publicada allí).
 
 ## 5. Diálogos, acciones y overlays
 - **Ancho por tipo, no por uso (#237):** el `Modal` compartido expone
