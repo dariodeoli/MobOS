@@ -138,7 +138,7 @@ for (const variante of variantes) {
 }
 
 const resumen = { base: BASE, etiqueta: ETIQUETA, fecha: new Date().toISOString(), resultados }
-writeFileSync(join(SALIDA, `resultados-${ETIQUETA}.json`), JSON.stringify(resumen, null, 2))
+if (!soloComparar) writeFileSync(join(SALIDA, `resultados-${ETIQUETA}.json`), JSON.stringify(resumen, null, 2))
 
 // Tira comparativa opcional "antes | después": QA_COMPARAR=<etiqueta-antes>,<etiqueta-despues>
 // Compone las capturas en zoom de la fila (colapsada/expandida) y del encabezado
