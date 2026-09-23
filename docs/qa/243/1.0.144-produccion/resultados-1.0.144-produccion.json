@@ -1,0 +1,24 @@
+{
+  "base": "https://app.moboss.online",
+  "etiqueta": "1.0.144-produccion",
+  "fecha": "2026-09-23T03:24:32.046Z",
+  "resultados": [
+    {
+      "variante": "desktop-claro-v2-off",
+      "ancho": 1280,
+      "altoFilaColapsada": 248,
+      "alturasColapsadas": [
+        248,
+        249
+      ],
+      "alturasExpandidas": [
+        456,
+        249
+      ],
+      "desbordeHorizontal": 0,
+      "scopeV2Aplicado": false,
+      "totalVisible": "Productos de esta venta Cliente: Cliente QA 243 · Diego López · Retiro en tienda 2 productos · 2 unidades Vaciar carrito iPhone 15 Pro 256GB Titanio Falta elegi",
+      "erroresPagina": []
+    }
+  ]
+}
