@@ -62,7 +62,7 @@ test('la nota de entrega de un pedido sale por el agente con leyenda no fiscal',
   await page.getByRole('button', { name: 'Nota de entrega' }).click()
   await expect(page.getByText('Nota de entrega enviada a la impresora')).toBeVisible({ timeout: 15_000 })
 
-  expect(capturados).toHaveLength(1)
+  await expect.poll(() => capturados.length, { timeout: 20_000 }).toBe(1)
   expect(capturados[0].tipo).toBe('nota-entrega')
   const texto = textoDelTicket(capturados[0])
   expect(texto).toContain('Nota de entrega')
@@ -89,7 +89,7 @@ test('la remisión interna de un traslado sale por el agente con firmas', async 
   await fila.getByRole('button', { name: 'Remisión' }).click()
   await expect(page.getByText('Remisión enviada a la impresora.')).toBeVisible({ timeout: 15_000 })
 
-  expect(capturados).toHaveLength(1)
+  await expect.poll(() => capturados.length, { timeout: 20_000 }).toBe(1)
   expect(capturados[0].tipo).toBe('remision')
   const texto = textoDelTicket(capturados[0])
   expect(texto).toMatch(/Remisi.n interna/)
@@ -125,7 +125,7 @@ test('el recibo interno de un cobro sale por el agente con el monto', async ({ p
   await dialogo.getByRole('button', { name: 'Recibo interno' }).first().click()
   await expect(page.getByText('Recibo interno enviado a la impresora.')).toBeVisible({ timeout: 15_000 })
 
-  expect(capturados).toHaveLength(1)
+  await expect.poll(() => capturados.length, { timeout: 20_000 }).toBe(1)
   expect(capturados[0].tipo).toBe('recibo-interno')
   const texto = textoDelTicket(capturados[0])
   expect(texto).toContain('Recibo interno')
@@ -154,7 +154,7 @@ test('la proforma de una cotización sale por el agente sin validez fiscal', asy
   await dialogo.getByRole('button', { name: 'Proforma' }).click()
   await expect(page.getByText('Proforma enviada a la impresora.')).toBeVisible({ timeout: 15_000 })
 
-  expect(capturados).toHaveLength(1)
+  await expect.poll(() => capturados.length, { timeout: 20_000 }).toBe(1)
   expect(capturados[0].tipo).toBe('proforma')
   const texto = textoDelTicket(capturados[0])
   expect(texto).toContain('Factura proforma')
