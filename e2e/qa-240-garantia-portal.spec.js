@@ -5,7 +5,8 @@ import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
 
 const API = SEED.api
-const SALIDA = 'docs/QA-240-garantia-portal'
+// Las capturas del QA viven en test-results (árbol limpio para el release).
+const SALIDA = 'test-results/QA-240-garantia-portal'
 
 async function api(page, path, options = {}) {
   return page.evaluate(async ({ api, path, options }) => {
