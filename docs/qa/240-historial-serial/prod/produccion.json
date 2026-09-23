@@ -1,0 +1,99 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "1.0.144",
+  "fecha": "2026-09-23T03:25:38.666Z",
+  "marcas": {
+    "Cronología": {
+      "tipo": "base",
+      "que": "la ficha de la unidad",
+      "presente": true
+    },
+    "Consultas IMEI": {
+      "tipo": "base",
+      "que": "el modal de consultas del serial",
+      "presente": true
+    },
+    "Informe de dispositivo": {
+      "tipo": "base",
+      "que": "el informe público",
+      "presente": true
+    },
+    "Consulta IMEI": {
+      "tipo": "extension",
+      "que": "evento de consulta IMEI en la cronología",
+      "presente": false
+    },
+    "Reparación": {
+      "tipo": "extension",
+      "que": "evento de reparación en la cronología",
+      "presente": false
+    },
+    "Certificaciones PhoneCheck": {
+      "tipo": "extension",
+      "que": "el tablero de certificaciones",
+      "presente": false
+    },
+    "Repuestos no-OEM": {
+      "tipo": "extension",
+      "que": "los repuestos en el informe público",
+      "presente": false
+    }
+  },
+  "resultados": [
+    {
+      "paso": "demo: entrar y leer la versión desplegada",
+      "estado": "ok",
+      "detalle": "v1.0.144",
+      "capturas": [
+        "01-demo-panel.jpg"
+      ]
+    },
+    {
+      "paso": "producción: marcas del historial del serial en los assets",
+      "estado": "ok",
+      "detalle": "6 assets · base presente · extensión pendiente de integrar (ronda sin desplegar)",
+      "capturas": []
+    },
+    {
+      "paso": "demo: cronología del serial en la ficha de la unidad",
+      "estado": "ok",
+      "detalle": "serial AUR0020000000000 · 1 evento(s): S · —Venta · Vendida en la demo",
+      "capturas": [
+        "02-cronologia-serial.jpg",
+        "03-cronologia-eventos.jpg"
+      ]
+    },
+    {
+      "paso": "demo: consultas IMEI del serial (historial de consultas)",
+      "estado": "ok",
+      "detalle": "modal disponible (sin consultas del serial en la demo)",
+      "capturas": [
+        "04-consultas-imei.jpg"
+      ]
+    },
+    {
+      "paso": "demo: informe público por serial (/u/<serial>)",
+      "estado": "ok",
+      "detalle": "HTTP 200 · AUR0020000000000",
+      "capturas": [
+        "05-informe-publico.jpg"
+      ]
+    }
+  ],
+  "assets": [
+    "https://app.moboss.online/assets/index-9I_GJ6vQ.js",
+    "https://app.moboss.online/assets/vendor-II1R7ODZ.js",
+    "https://app.moboss.online/assets/print-DAClbpyS.js",
+    "https://app.moboss.online/assets/VistaCargarVenta-BM0nheAV.js",
+    "https://app.moboss.online/assets/Inventario-_cujqPhB.js",
+    "https://app.moboss.online/assets/suppliers-CUnXajku.js"
+  ],
+  "llamadasApi": [],
+  "erroresConsola": [],
+  "veredicto": {
+    "pasosOk": 5,
+    "pasosTotal": 5,
+    "extensionDesplegada": false,
+    "erroresConsola": 0
+  }
+}

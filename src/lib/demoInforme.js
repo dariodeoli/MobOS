@@ -3,6 +3,7 @@
 // equipos vendidos) y las unidades del inventario demo. Nada sale del navegador.
 import { SEED_DEMO_CLIENTES, clientesDemoGuardados } from './demoClientes.js'
 import { listDemoUnits } from './demoInventory.js'
+import { resumenInspection } from './phonecheck.js'
 import { ESTADO_GARANTIA } from './estadosPedido.js'
 
 const enmascarar = (valor) => {
@@ -38,6 +39,8 @@ export function demoInformePayload(serial) {
   const condicion = CONDICION[unidad?.condition] || (venta ? 'Seminuevo' : '—')
   const garantia = venta?.cliente?.demoProfile?.warranties?.find((item) => mismoSerial(item.serial, serial)) || null
   const vence = garantia?.expiresAt || null
+  const inspeccion = unidad?.inspection || null
+  const grado = inspeccion ? resumenInspection(inspeccion).grado : null
   return {
     store: { name: TIENDA, branch: SUCURSAL },
     unit: {
@@ -50,8 +53,11 @@ export function demoInformePayload(serial) {
       verifiedBy: unidad?.lastVerifiedBy?.name || null,
       verifiedByCode: unidad?.verifiedByCode || null,
       verificationCount: unidad?.verificationCount || 0,
-      grade: null,
+      grade: grado,
       checklist: null,
+      // #240: repuestos no-OEM de la inspección (sin datos personales).
+      repuestosNoOem: inspeccion?.repuestosNoOem || '',
+      repuestosNoOemNota: inspeccion?.repuestosNoOemNota || '',
     },
     sale: venta ? { orderNumber: venta.pedido.orderNumber, date: venta.pedido.createdAt, branch: SUCURSAL } : null,
     warranty: garantia ? { status: ESTADO_GARANTIA[garantia.status] || garantia.status, description: garantia.description || '', expiresAt: vence } : null,

@@ -138,6 +138,43 @@ test('la reserva desde el detalle usa la ficha existente y deja la cronología',
   } finally { await limpiar(page, datos) }
 })
 
+// #217/§8: «Vender todos» deja la venta armada en el POS: producto, cantidad,
+// IMEI elegidos y precio de lista; el vendedor solo revisa y cobra.
+test('vender todos deja el lote elegido en el POS con producto, cantidad e IMEI', async ({ page }) => {
+  const clave = marca()
+  const datos = await preparar(page, clave)
+  const seriales = datos.unidades.slice(0, 2).map((unidad) => unidad.serial)
+  const nombre = `iPhone QA ${clave} · 256 GB`
+  try {
+    await page.goto('/inventario/unidades')
+    const campo = page.getByPlaceholder('Escanear IMEI, SKU o buscar modelo')
+    // Los seriales del lote comparten el prefijo del spec: filtra las 3 unidades.
+    await campo.fill(`ZZINV${clave}`)
+    await campo.press('Enter')
+    for (const serial of seriales) {
+      const fila = page.getByTestId('inventario-fila').filter({ hasText: serial }).first()
+      await expect(fila).toBeVisible()
+      await fila.getByRole('checkbox', { name: new RegExp(serial) }).check()
+    }
+    await page.getByTestId('vender-todos').click()
+    await expect(page).toHaveURL(/\/pos/)
+    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible({ timeout: 15_000 })
+    // Llega una sola línea (mismo producto) con las dos unidades y sus IMEI.
+    await expect(page.getByLabel(`Cantidad de ${nombre}`)).toHaveValue('2')
+    await page.getByRole('button', { name: `Ver detalle de ${nombre}` }).click()
+    // El orden de los IMEI es el del listado (más recientes primero): se piden ambos.
+    const linea = page.getByText(/^IMEI ZZINV/)
+    await expect(linea).toContainText(seriales[0])
+    await expect(linea).toContainText(seriales[1])
+    // El precio de lista viajó en la línea: 2 × 3.000.000.
+    await expect(page.getByTestId('resumen-compra')).toContainText('6.000.000')
+  } finally {
+    // El carrito queda persistido por empresa/sucursal: no debe contaminar otros specs.
+    await page.evaluate(() => { Object.keys(localStorage).filter((clave) => clave.startsWith('mobos:pos-cart:v1')).forEach((clave) => localStorage.removeItem(clave)) }).catch(() => {})
+    await limpiar(page, datos)
+  }
+})
+
 // Crea solo el producto (sin unidades) para los tests de costo.
 async function crearProducto(page, marca) {
   await page.goto('/inventario/unidades')

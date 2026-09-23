@@ -118,6 +118,13 @@ export default function InformePublico() {
         </section>
       )}
 
+      {/* #240: repuestos no-OEM detectados en la inspección (sin datos personales). */}
+      {unit.repuestosNoOem && <section className="rounded-2xl border border-ink-600 bg-ink-800/40 p-4 text-sm">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Repuestos no-OEM</p>
+        <p className="mt-1 font-semibold text-fore">{unit.repuestosNoOem}</p>
+        {unit.repuestosNoOemNota && <p className="mt-1 text-xs text-mute">{unit.repuestosNoOemNota}</p>}
+      </section>}
+
       <p className="text-center text-xs text-mute">{disclaimer}</p>
 
       <div className="flex flex-wrap justify-center gap-2">

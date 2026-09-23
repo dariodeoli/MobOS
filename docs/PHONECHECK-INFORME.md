@@ -15,6 +15,7 @@ la etiqueta **Certificado**.
   "bateria": { "porcentaje": "89", "ciclos": "310" },
   "controles": [{ "label": "iCloud", "ok": true }],
   "repuestosNoOem": "",
+  "repuestosNoOemNota": "Cambio de módulo no original en el servicio",
   "items": [{ "grupo": "Pantalla", "label": "Pantalla / táctil", "estado": "falla", "nota": "Rayón profundo" }],
   "verificado": "2026-09-21T23:09:00.000Z",
   "fuente": { "proveedor": "imeicheck.net", "fecha": "…", "etiqueta": "Verificado" },
@@ -27,6 +28,8 @@ la etiqueta **Certificado**.
 - **Serial enmascarado** (últimos 4) y **sin cliente, teléfono ni RUC**: apto para
   compartir con el comprador.
 - Las **notas solo se incluyen en ítems no OK**; el resto viaja sin texto.
+- **`repuestosNoOemNota`** acompaña a `repuestosNoOem` (detalle de la reparación);
+  el informe público de la app también los muestra cuando la inspección los tiene.
 - El **QR** usa la cadena compacta `CERT|serial|grado|puntaje|fecha` (o el `enlace`
   cuando exista una ruta pública del informe).
 - El aviso de blacklist mundial es obligatorio en el render.
