@@ -531,3 +531,59 @@ test('demo: el checklist PhoneCheck se completa y deja grado', async ({ page }) 
   await expect(bloque.getByText('Grado A')).toBeVisible()
   if (salida) await page.screenshot({ path: `${salida}/02-phonecheck-grado.png` })
 })
+
+// #148 §20: en la demo el borrador del POS vive en el navegador: se crea, se
+// lista, se retoma y se descarta, sin tocar el API.
+test('demo: el borrador del POS se suspende, se lista, se retoma y se descarta', async ({ page }) => {
+  const llamadas = []
+  page.on('request', (req) => { if (esLlamadaApi(req.url())) llamadas.push(req.url()) })
+
+  await page.goto('/demo')
+  await page.getByRole('button', { name: /Entrar como Vendedor/ }).click()
+  await expect(page).toHaveURL(/\/pos$/)
+  await cerrarGuia(page)
+
+  // Carrito con un producto y una etiqueta.
+  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill('Cliente borrador demo')
+  await page.getByPlaceholder('Buscar producto…').fill('iPhone 15 Pro')
+  await expect(page.getByRole('button', { name: /iPhone 15 Pro 256GB/ }).first()).toBeVisible({ timeout: 20_000 })
+  await page.getByRole('button', { name: /iPhone 15 Pro 256GB/ }).first().click()
+  await expect(page.getByRole('button', { name: /^Ver detalle de iPhone 15 Pro/ })).toBeVisible()
+
+  // Suspender: el carrito queda en el navegador y el formulario se limpia.
+  await page.getByRole('button', { name: 'Suspender venta' }).click()
+  const suspender = page.getByRole('dialog', { name: 'Suspender venta' })
+  await suspender.getByLabel('Etiqueta (opcional)').fill('Borrador demo QA')
+  await suspender.getByRole('button', { name: 'Suspender venta' }).click()
+  await expect(page.getByText(/Venta suspendida en la demo/)).toBeVisible()
+  await expect(page.getByText('Todavía no agregaste productos.')).toBeVisible()
+
+  // La lista muestra etiqueta, cliente y vendedor del borrador.
+  await page.getByRole('button', { name: 'Ventas suspendidas' }).click()
+  const lista = page.getByRole('dialog', { name: 'Ventas suspendidas' })
+  await expect(lista.getByText('Borrador demo QA')).toBeVisible()
+  await expect(lista.getByText(/Cliente borrador demo/)).toBeVisible()
+  await expect(lista.getByText(/Diego López/)).toBeVisible()
+
+  // El enlace público avisa que en la demo no se genera.
+  await lista.getByRole('button', { name: 'Enlace público' }).click()
+  await expect(lista.getByText('En la demo el enlace público no se genera.')).toBeVisible()
+
+  // Retomar devuelve el carrito completo y quita el borrador de la lista.
+  await lista.getByRole('button', { name: 'Recuperar' }).click()
+  await expect(page.getByText(/Venta recuperada/)).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Ver detalle de iPhone 15 Pro/ })).toBeVisible()
+  await expect(lista).toHaveCount(0)
+
+  // Un segundo borrador se descarta desde la lista (el vendedor es su dueño).
+  await page.getByRole('button', { name: 'Suspender venta' }).click()
+  await page.getByRole('dialog', { name: 'Suspender venta' }).getByRole('button', { name: 'Suspender venta' }).click()
+  await expect(page.getByText(/Venta suspendida en la demo/)).toBeVisible()
+  await page.getByRole('button', { name: 'Ventas suspendidas' }).click()
+  const lista2 = page.getByRole('dialog', { name: 'Ventas suspendidas' })
+  await lista2.getByRole('button', { name: 'Descartar' }).click()
+  await page.getByRole('dialog', { name: 'Descartar venta suspendida' }).getByRole('button', { name: 'Descartar' }).click()
+  await expect(lista2.getByText('No hay borradores guardados en este navegador.')).toBeVisible()
+
+  expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
+})

@@ -19,7 +19,7 @@ import { leerCarrito, guardarCarrito, borrarCarrito, lineasParaResumen } from '@
 import { leerUltimo, recordarUltimo } from '@/lib/ultimoUsado'
 import { encolarVenta } from '@/lib/offline/ventas'
 import { preferenciaPos, recordarPos } from '@/lib/preferenciasPos'
-import { listarBorradoresDemo, guardarBorradorDemo } from '@/lib/borradoresDemo'
+import { listarBorradoresDemo, guardarBorradorDemo, borrarBorradorDemo } from '@/lib/borradoresDemo'
 import { descartarPreCliente } from '@/lib/preClientes'
 import { normalizarNombre } from '@/utils/nombre'
 import { codigoPedido } from '@/utils/pedido'
@@ -133,7 +133,6 @@ function leerCarritoInicial() {
             countryCode: '+595',
             email: '',
             document: '',
-            addresses: [],
             ...customer,
             addresses: Array.isArray(customer.addresses) ? customer.addresses : [],
           }
@@ -343,7 +342,7 @@ export default function FormularioVenta({
   const [avisoSuspension, setAvisoSuspension] = useState('')
   // Aviso de la última venta que quedó en la cola local por falta de conexión.
   const [avisoOffline, setAvisoOffline] = useState('')
-  const [avisoDemoSuspendidas, setAvisoDemoSuspendidas] = useState(false)
+  const [avisoEnlaceDemo, setAvisoEnlaceDemo] = useState(null)
 
   useEffect(() => {
     if (!tradeInDraft || !cuentas || appliedTradeIn.current === tradeInDraft.id) return
@@ -1293,13 +1292,10 @@ export default function FormularioVenta({
     setF(VACIO(f.vendedorId))
   }
   async function abrirSuspendidas() {
-    if (esDemo) {
-      setAvisoDemoSuspendidas(true)
-      return
-    }
     setSuspendidasOpen(true)
     setErrorSuspendidas('')
     if (esDemo) {
+      // En la demo los borradores viven en el navegador (#148 §20).
       setSuspendidas(listarBorradoresDemo())
       setCargandoSuspendidas(false)
       return
@@ -1320,13 +1316,6 @@ export default function FormularioVenta({
     }
   }
   function abrirSuspender() {
-    if (esDemo) {
-      // En la demo el borrador se guarda en el navegador (#148 §20).
-      setLabelSuspender('')
-      setErrorSuspender('')
-      setSuspenderOpen(true)
-      return
-    }
     setLabelSuspender('')
     setErrorSuspender('')
     setSuspenderOpen(true)
@@ -1345,6 +1334,8 @@ export default function FormularioVenta({
           label: labelSuspender.trim(),
           createdAt: new Date().toISOString(),
           customer,
+          userId: sesion?.vendedorId,
+          user: { id: sesion?.vendedorId, name: sesion?.nombre || 'Equipo demo' },
           payload: {
             items,
             customer,
@@ -1482,6 +1473,11 @@ export default function FormularioVenta({
     })
     setSuspendidas(list => list.filter(item => item.id !== suspendida.id))
     setAvisoSuspension('Venta recuperada. Revisá el carrito antes de cobrar.')
+    if (esDemo) {
+      borrarBorradorDemo(suspendida.id)
+      setSuspendidasOpen(false)
+      return
+    }
     try {
       await api.delete(`/api/suspended-sales?id=${encodeURIComponent(suspendida.id)}`)
       setSuspendidasOpen(false)
@@ -1496,6 +1492,13 @@ export default function FormularioVenta({
     if (!descartarPendiente || descartando) return
     setDescartando(true)
     setErrorSuspendidas('')
+    if (esDemo) {
+      borrarBorradorDemo(descartarPendiente.id)
+      setSuspendidas(list => list.filter(item => item.id !== descartarPendiente.id))
+      setDescartarPendiente(null)
+      setDescartando(false)
+      return
+    }
     try {
       await api.delete(`/api/suspended-sales?id=${encodeURIComponent(descartarPendiente.id)}`)
       setSuspendidas(list => list.filter(item => item.id !== descartarPendiente.id))
@@ -1873,9 +1876,9 @@ export default function FormularioVenta({
         title="Suspender venta" size="corto">
         <div className="space-y-3">
           <p className="text-sm text-mute">
-            El carrito queda guardado en el servidor para esta sucursal, con el cliente, la
-            entrega, la facturación, los pagos y el descuento cargados. Cualquier persona con
-            permiso de venta puede retomarlo.
+            {esDemo
+              ? 'El carrito queda guardado en este navegador, con el cliente, la entrega, la facturación, los pagos y el descuento cargados. Podés retomarlo desde “Ventas suspendidas”.'
+              : 'El carrito queda guardado en el servidor para esta sucursal, con el cliente, la entrega, la facturación, los pagos y el descuento cargados. Cualquier persona con permiso de venta puede retomarlo.'}
           </p>
           <div>
             <Label htmlFor="etiqueta-suspendida">Etiqueta (opcional)</Label>
@@ -1915,8 +1918,9 @@ export default function FormularioVenta({
         title="Ventas suspendidas" size="amplio">
         <div className="space-y-3">
           <p className="text-sm text-mute">
-            Carritos en espera de esta sucursal. Al recuperar uno, el carrito actual se reemplaza
-            y la venta suspendida se quita de la lista.
+            {esDemo
+              ? 'Carritos en espera guardados en este navegador. Al recuperar uno, el carrito actual se reemplaza y el borrador se quita de la lista.'
+              : 'Carritos en espera de esta sucursal. Al recuperar uno, el carrito actual se reemplaza y la venta suspendida se quita de la lista.'}
           </p>
           {cargandoSuspendidas && (
             <p role="status" className="text-sm text-mute">
@@ -1929,7 +1933,13 @@ export default function FormularioVenta({
             </Aviso>
           )}
           {!cargandoSuspendidas && !suspendidas.length && !errorSuspendidas && (
-            <EmptyState compact icon="cart" title="No hay ventas suspendidas en esta sucursal." />
+            <EmptyState
+              compact
+              icon="cart"
+              title={esDemo
+                ? 'No hay borradores guardados en este navegador.'
+                : 'No hay ventas suspendidas en esta sucursal.'}
+            />
           )}
           <div className="space-y-2">
             {suspendidas.map(suspendida => (
@@ -1951,7 +1961,13 @@ export default function FormularioVenta({
                     type="button"
                     variant="outline"
                     disabled={descartando}
-                    onClick={() => generarEnlacePublico(suspendida)}
+                    onClick={() => {
+                      if (esDemo) {
+                        setAvisoEnlaceDemo({ id: suspendida.id, texto: 'En la demo el enlace público no se genera.' })
+                        return
+                      }
+                      generarEnlacePublico(suspendida)
+                    }}
                   >
                     Enlace público
                   </Button>
@@ -1978,6 +1994,9 @@ export default function FormularioVenta({
                     </Button>
                   )}
                 </div>
+                {avisoEnlaceDemo?.id === suspendida.id && (
+                  <p role="status" className="w-full text-xs text-mute">{avisoEnlaceDemo.texto}</p>
+                )}
                 {enlacePublico?.id === suspendida.id && (
                   <div className="w-full space-y-2 rounded-xl border border-fono/30 bg-fono/[.06] p-3">
                     <p className="text-xs text-mute">Enlace público del carrito (sin sesión). Se muestra una sola vez: copialo o compartilo ahora.</p>
@@ -2056,23 +2075,6 @@ export default function FormularioVenta({
         variant="danger"
         busy={descartando}
       />
-
-      <Modal
-        open={avisoDemoSuspendidas}
-        onClose={() => setAvisoDemoSuspendidas(false)}
-        title="Ventas suspendidas" size="corto">
-        <div className="space-y-4">
-          <p className="text-sm text-mute">
-            Las ventas suspendidas se guardan en el servidor de tu tienda y necesitan conexión.
-            En la demo no se guardan ni se simulan.
-          </p>
-          <div className="flex justify-end">
-            <Button type="button" onClick={() => setAvisoDemoSuspendidas(false)}>
-              Entendido
-            </Button>
-          </div>
-        </div>
-      </Modal>
 
       <AnalyticsPos open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} />
 
