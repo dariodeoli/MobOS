@@ -812,6 +812,7 @@ export async function buildInformeDispositivoHtml(datos = {}, { format = 'a4' } 
   </style></head><body>
     ${header('Informe de dispositivo', `${datos.sucursal || ''}${datos.sucursal ? ' · ' : ''}Emitido ${datos.fechaEmision || ''}`, logo)}
     <div class="nofiscal">Documento informativo · no válido como factura</div>
+    ${datos.esConstancia ? `<div class="card"><div class="label">Declaración de preparación</div><p>${escapeHtml(datos.resumen || '')}</p>${(datos.declaraciones || []).length ? `<div class="campos-informe">${datos.declaraciones.map((fila) => `<div class="fila-informe"><span>${escapeHtml(fila.label)}</span><span>${escapeHtml(fila.ok ? 'Sin bloqueo' : 'Revisar')}${fila.valor ? ` · ${escapeHtml(fila.valor)}` : ''}</span></div>`).join('')}</div>` : ''}</div>` : ''}
     <div class="card"><div class="label">Equipo</div><div><strong>${escapeHtml(datos.modelo || 'Producto')}</strong>${datos.sku ? ` · ${escapeHtml(datos.sku)}` : ''}
       ${fila('IMEI', datos.imei || '—')}
       ${fila('Serial', datos.serialImpreso)}

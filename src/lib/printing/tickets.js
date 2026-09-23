@@ -706,6 +706,12 @@ export function ticketCertificado(datos = {}, { ancho = 80 } = {}) {
   par('Repuestos no OEM', datos.repuestosNoOem)
   t.linea()
 
+  if (datos.esConstancia) {
+    t.negrita().texto('Declaración de preparación').negrita(false)
+    t.texto(datos.resumen)
+    for (const fila of datos.declaraciones || []) par(fila.label, fila.ok ? 'Sin bloqueo' : 'Revisar')
+    t.linea()
+  }
   t.negrita().texto('Controles').negrita(false)
   if ((datos.controles || []).length) {
     for (const control of datos.controles) {

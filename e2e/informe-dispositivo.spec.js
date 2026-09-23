@@ -265,3 +265,4 @@ test('la hoja de estación sale del taller con los equipos del carril', async ({
   expect(pdf.split('/Type /Page').length - pdf.split('/Type /Pages').length).toBe(1)
   expect(pdf.length).toBeGreaterThan(1000)
 })
+
