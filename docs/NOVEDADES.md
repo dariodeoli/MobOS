@@ -11,6 +11,9 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.148 — 2026-09-23
+- **Servicio Técnico:** con la lista vacía había **dos botones «+ Nueva orden»** (el del encabezado y el del estado vacío); queda uno solo, siempre en el encabezado.
+
 ## v1.0.147 — 2026-09-23
 - **POS (#173):** la **cotización** que escribe el vendedor ya no se pisa con la automática; queda la suya.
 - **Inventario (#240):** el **informe público** del equipo ahora muestra el **checklist de la inspección** (con el puntaje y el grado), y la búsqueda de consultas IMEI acepta los seriales de la demo.
