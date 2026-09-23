@@ -1,6 +1,6 @@
 {
   "base": "http://127.0.0.1:5283",
-  "fecha": "2026-09-23T20:03:14.979Z",
+  "fecha": "2026-09-23T20:22:53.554Z",
   "pasos": [
     {
       "documento": "informe-80mm",
@@ -36,7 +36,7 @@
       "documento": "constancia-a4",
       "archivo": "constancia-a4.pdf",
       "formato": "a4",
-      "paginas": 3
+      "paginas": 4
     },
     {
       "documento": "constancia-80mm",

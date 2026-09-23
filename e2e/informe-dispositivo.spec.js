@@ -266,3 +266,33 @@ test('la hoja de estación sale del taller con los equipos del carril', async ({
   expect(pdf.length).toBeGreaterThan(1000)
 })
 
+
+// Constancia de preparación (#240 §6): mismo camino directo, tipo propio. Las
+// aserciones no dependen de qué campos traiga la verificación del arnés: se
+// comprueba la declaración y su resumen (afirme o advierta), que es lo que el
+// papel tiene que decir siempre.
+test('la constancia de preparación sale directo con la declaración del checklist', async ({ page }) => {
+  const capturados = []
+  await agenteFalso(page, capturados)
+  const marca = Date.now()
+  const imei = imeiValido()
+  await page.goto('/inventario/unidades')
+  await sembrarUnidadConConsulta(page, { marca, imei })
+
+  const { modal } = await abrirDocumento(page, imei, { titulo: 'Constancia de preparación', boton: 'Constancia' })
+  const vista = page.frameLocator('iframe[title="Vista previa del documento"]')
+  await expect(vista.locator('h1')).toHaveText('Constancia de preparación', { timeout: 15_000 })
+  await expect(vista.locator('body')).toContainText('Declaración de preparación')
+  await expect(vista.locator('body')).toContainText(/formateado y desvinculado|No se puede afirmar/)
+
+  await modal.getByRole('button', { name: 'Impresión directa' }).click()
+  await expect(page.getByText(/Constancia enviada a la impresora/)).toBeVisible({ timeout: 30_000 })
+  await expect.poll(() => capturados.length, { timeout: 20_000 }).toBe(1)
+  expect(capturados[0].tipo).toBe('constancia-preparacion')
+  const texto = textoDelTicket(capturados[0])
+  // El rollo va en CP850: se compara sin acentos y con la capitalización real.
+  expect(texto).toContain('Declaraci')
+  expect(texto).toMatch(/formateado y desvinculado|No se puede afirmar/)
+  expect(texto).toContain('Firma / control')
+  await page.screenshot({ path: `${SALIDA}/09-constancia.jpg`, type: 'jpeg', quality: 75 })
+})

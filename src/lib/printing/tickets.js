@@ -741,7 +741,7 @@ export function ticketCertificado(datos = {}, { ancho = 80 } = {}) {
   t.texto(datos.aviso || AVISO_BLACKLIST)
   t.avanza(1)
   t.par('Firma / control', '________________')
-  t.centrado('Constancia de inspección · documento informativo')
+  t.centrado(datos.esConstancia ? 'Constancia de preparación · documento informativo' : 'Constancia de inspección · documento informativo')
   t.centrado(`Generado por ${APP_NAME}${datos.emisor ? ` para ${datos.emisor}` : ''} · ${datos.fechaEmision || ''}`)
   return t.avanza(2).corte()
 }

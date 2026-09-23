@@ -132,6 +132,47 @@ try {
     resultados.push({ documento: `informe-${etiqueta}`, version: version ? `v${version}` : '', paginas: pdf.paginas, qr: enlace, estado: problemas.length ? 'fallo' : 'ok', ...(problemas.length ? { detalle: problemas.join(' · ') } : {}) })
   }
 
+  // 3 ter) Constancia de preparación (#240 §6): botón + PDFs + QR.
+  const botonConstancia = page.getByRole('dialog').getByRole('button', { name: 'Constancia', exact: true })
+  if (await botonConstancia.count()) {
+    await page.getByRole('dialog').getByRole('button', { name: 'Cerrar' }).click().catch(() => {})
+    await esperar(700)
+    await page.getByRole('dialog').getByRole('button', { name: 'Constancia', exact: true }).click().catch(async () => {
+      await page.reload({ waitUntil: 'domcontentloaded' }); await esperar(2200)
+      await page.getByTestId('inventario-fila').first().click(); await esperar(900)
+      await page.getByRole('dialog').getByRole('button', { name: 'Constancia', exact: true }).click()
+    })
+    await esperar(1500)
+    const modalConstancia = page.getByRole('dialog').filter({ hasText: 'Constancia de preparación' })
+    await captura('09-constancia-modal')
+    for (const [formato, etiqueta] of [['a4', 'a4'], ['thermal-80', '80mm']]) {
+      await modalConstancia.getByLabel(/Formato del (documento|informe)/).selectOption(formato).catch(() => {})
+      await esperar(1200)
+      await modalConstancia.getByRole('button', { name: 'Descargar PDF' }).click()
+      const marco = page.locator('iframe[aria-hidden="true"]').last()
+      await marco.waitFor({ state: 'attached', timeout: 15_000 })
+      await esperar(600)
+      const html = await marco.contentFrame().locator('html').evaluate((el) => el.outerHTML)
+      const pdf = await pdfDeHtml(`constancia-${etiqueta}`, html, formato === 'a4' ? 'a4' : formato)
+      const qr = (html.match(/<img class="qr" src="data:image\/png;base64,([^"]+)"/) || [])[1]
+      let enlace = ''
+      if (qr) {
+        const imagen = join(SALIDA, `qr-constancia-${etiqueta}.png`)
+        writeFileSync(imagen, Buffer.from(qr, 'base64'))
+        enlace = leerQr(imagen)
+      }
+      const problemas = []
+      if (!/Constancia de preparaci/i.test(html)) problemas.push('sin título de constancia')
+      if (!/Declaraci/i.test(html)) problemas.push('sin declaración de preparación')
+      if (!/formateado y desvinculado|No se puede afirmar/.test(html)) problemas.push('sin resumen de preparación')
+      if (!enlace) problemas.push('el QR no se pudo leer')
+      else if (!new RegExp(`^${BASE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/u/`).test(enlace)) problemas.push(`el QR apunta a «${enlace}»`)
+      resultados.push({ documento: `constancia-${etiqueta}`, version: version ? `v${version}` : '', paginas: pdf.paginas, qr: enlace, estado: problemas.length ? 'fallo' : 'ok', ...(problemas.length ? { detalle: problemas.join(' · ') } : {}) })
+    }
+  } else {
+    resultados.push({ documento: 'constancia', version: version ? `v${version}` : '', paginas: '—', qr: '', estado: 'ok', detalle: 'todavía no desplegada (ronda pendiente)' })
+  }
+
   // 4) Impresión directa: en la demo el aviso tiene que ser honesto.
   await modal.getByRole('button', { name: 'Impresión directa' }).click()
   await esperar(2000)

@@ -812,7 +812,6 @@ export async function buildInformeDispositivoHtml(datos = {}, { format = 'a4' } 
   </style></head><body>
     ${header('Informe de dispositivo', `${datos.sucursal || ''}${datos.sucursal ? ' · ' : ''}Emitido ${datos.fechaEmision || ''}`, logo)}
     <div class="nofiscal">Documento informativo · no válido como factura</div>
-    ${datos.esConstancia ? `<div class="card"><div class="label">Declaración de preparación</div><p>${escapeHtml(datos.resumen || '')}</p>${(datos.declaraciones || []).length ? `<div class="campos-informe">${datos.declaraciones.map((fila) => `<div class="fila-informe"><span>${escapeHtml(fila.label)}</span><span>${escapeHtml(fila.ok ? 'Sin bloqueo' : 'Revisar')}${fila.valor ? ` · ${escapeHtml(fila.valor)}` : ''}</span></div>`).join('')}</div>` : ''}</div>` : ''}
     <div class="card"><div class="label">Equipo</div><div><strong>${escapeHtml(datos.modelo || 'Producto')}</strong>${datos.sku ? ` · ${escapeHtml(datos.sku)}` : ''}
       ${fila('IMEI', datos.imei || '—')}
       ${fila('Serial', datos.serialImpreso)}
@@ -889,9 +888,10 @@ export async function buildCertificadoHtml(datos = {}, { format = 'a4' } = {}) {
     @media print{.fila-informe>span:first-child{color:#000}}
   </style></head><body>
     ${header(datos.titulo || 'Certificado de inspección', `${datos.sucursal || ''}${datos.sucursal ? ' · ' : ''}Emitido ${datos.fechaEmision || ''}`, logo)}
-    <div class="nofiscal">Constancia de inspección · documento informativo</div>
+    <div class="nofiscal">${datos.esConstancia ? 'Constancia de preparación · documento informativo' : 'Constancia de inspección · documento informativo'}</div>
     <div class="card grado"><div class="label">Grado</div><div class="letra">${escapeHtml(datos.grado || 'P')}</div>
       <div class="detalle">${datos.gradoDescripcion ? `${escapeHtml(datos.gradoDescripcion)} · ` : ''}${datos.completa ? `Puntaje ${escapeHtml(String(datos.puntaje))}/100 · ${escapeHtml(String(datos.ok))}/${escapeHtml(String(datos.evaluados))} conformes` : 'Pendiente de inspección'}</div></div>
+    ${datos.esConstancia ? `<div class="card"><div class="label">Declaración de preparación</div><p>${escapeHtml(datos.resumen || '')}</p>${(datos.declaraciones || []).length ? `<div class="campos-informe">${datos.declaraciones.map((fila) => `<div class="fila-informe"><span>${escapeHtml(fila.label)}</span><span>${escapeHtml(fila.ok ? 'Sin bloqueo' : 'Revisar')}${fila.valor ? ` · ${escapeHtml(fila.valor)}` : ''}</span></div>`).join('')}</div>` : ''}</div>` : ''}
     <div class="card"><div class="label">Equipo</div><div><strong>${escapeHtml(datos.modelo || datos.producto || 'Producto')}</strong>
       ${fila('Serial', datos.serialImpreso || datos.serialEnmascarado)}
       ${fila('Condición', datos.condicion)}
