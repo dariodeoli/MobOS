@@ -253,7 +253,7 @@ test('POS keeps every clicked product in the sale list', async ({ page }) => {
   for (const producto of elegidos) {
     await search.fill(producto.name)
     await page.getByRole('button', { name: new RegExp(producto.name) }).click()
-    await expect(page.getByLabel(`Cantidad de ${producto.name}`)).toBeVisible()
+    await expect(page.getByRole('button', { name: `Ver detalle de ${producto.name}` })).toBeVisible()
   }
 
   const total = elegidos.reduce((sum, producto) => sum + producto.pricePyg, 0)
@@ -321,10 +321,10 @@ test('POS manual price below list stores the list price for the receipt', async 
     await page.getByPlaceholder('Buscar producto…').fill('Cable')
     await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
 
-    // Precio manual 40.000 sobre lista 45.000: la fila marca el descuento
-    // (con el carrito colapsado, el detalle se despliega con el chevron #225).
-    await page.getByLabel(`Precio de venta de ${SEED.products.cable.name}`).fill('40000')
+    // Precio manual 40.000 sobre lista 45.000: primero se despliega el detalle
+    // (la línea arranca ultra-colapsada, #243) y la fila marca el descuento.
     await page.getByRole('button', { name: `Ver detalle de ${SEED.products.cable.name}` }).click()
+    await page.getByLabel(`Precio de venta de ${SEED.products.cable.name}`).fill('40000')
     await expect(page.getByText('descuento − Gs 5.000')).toBeVisible()
 
 
@@ -359,6 +359,7 @@ test('POS shows the price authorization block for a below-list price', async ({ 
     .fill(`${SEED.checkoutCustomer} autorización ${Date.now().toString(36)}`)
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
+  await page.getByRole('button', { name: `Ver detalle de ${SEED.products.cable.name}` }).click()
   await page.getByLabel(`Precio de venta de ${SEED.products.cable.name}`).fill('40000')
   await expect(page.getByText('Precio por debajo de lista')).toBeVisible()
   const solicitar = page.getByRole('button', { name: 'Solicitar autorización' })
@@ -675,6 +676,6 @@ test('POS: el producto escaneado pide confirmación antes de entrar a la venta',
   await page.getByPlaceholder('Buscar producto…').fill('')
   await page.getByPlaceholder('Buscar producto…').fill(`MOBOS:PROD:${SEED.products.cable.sku}`)
   await page.getByRole('dialog').getByRole('button', { name: 'Agregar a la venta' }).click()
-  await expect(page.getByLabel(`Cantidad de ${SEED.products.cable.name}`)).toBeVisible()
+  await expect(page.getByRole('button', { name: `Ver detalle de ${SEED.products.cable.name}` })).toBeVisible()
 })
 
