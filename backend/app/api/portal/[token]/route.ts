@@ -2,6 +2,7 @@ import { prisma } from '../../../../lib/prisma'
 import { error, json } from '../../../../lib/http'
 import { enforceRateLimit } from '../../../../lib/rate-limit'
 import { buscarPorTokenPublico } from '../../../../lib/public-token'
+import { etiquetaServicio } from '../../../../lib/service-order'
 
 // Resumen de cuenta público del cliente. El token es aleatorio y no
 // enumerable, y el nivel acota lo que se muestra:
@@ -54,6 +55,16 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     orderBy: { orderItem: { order: { createdAt: 'desc' } } },
     take: 12,
     select: { serial: true, orderItem: { select: { description: true, order: { select: { orderNumber: true } } } } },
+  })
+
+  // Servicio técnico (#240 §4 → cliente): el dueño del equipo ve en qué etapa
+  // está su reparación. Solo estado y fechas: nunca costos, notas internas,
+  // técnico ni el secreto de desbloqueo.
+  const servicios = await prisma.serviceOrder.findMany({
+    where: { tenantId: portal.tenantId, customerId: portal.customerId },
+    select: { serviceNumber: true, device: true, serviceName: true, serial: true, status: true, receivedAt: true, deliveredAt: true },
+    orderBy: { receivedAt: 'desc' },
+    take: 10,
   })
 
   const [orders, saldo, dueOrders, warrantyRows] = await Promise.all([
@@ -120,6 +131,16 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     balancePyg: Number(saldo[0]?.pending || 0n),
     dueDates: vencimientos,
     informes: informes.map((fila) => ({ serial: fila.serial, model: fila.orderItem.description, orderNumber: fila.orderItem.order.orderNumber })),
+    servicios: servicios.map((orden) => ({
+      serviceNumber: orden.serviceNumber,
+      device: orden.device,
+      serviceName: orden.serviceName,
+      serial: orden.serial,
+      status: orden.status,
+      statusLabel: etiquetaServicio(orden.status),
+      receivedAt: orden.receivedAt,
+      deliveredAt: orden.deliveredAt,
+    })),
     orders: orders.map(order => {
       // #178: el pedido nuevo no guarda su token histórico en claro; el enlace
       // del comprobante sale del enlace vigente de nivel rápido (o del legacy).

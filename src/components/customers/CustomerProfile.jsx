@@ -14,6 +14,7 @@ import { primerNombre } from '@/lib/utils'
 import { portalUrlFor, portalVitrinaUrlFor } from '@/lib/customerPortal'
 import EstadoBadge from '@/components/shared/EstadoBadge'
 import { ESTADO_ENTREGA_BADGE, ESTADO_GARANTIA_BADGE, ESTADO_PEDIDO_BADGE } from '@/lib/estadosPedido'
+import { ESTADO_SERVICIO_LABEL, ESTADO_SERVICIO_TONO } from '@/lib/estadosServicio'
 import { PERIODOS_INFORME, rangoPeriodo, seccionesInforme, informeCsv, nombreArchivoInforme } from '@/lib/customerReport'
 import SerialTexto from '@/components/shared/SerialTexto'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
@@ -101,6 +102,7 @@ const pagadoOrden = (order) => Number(order?.collectedPyg ?? order?.paidPyg ?? 0
 // Grillas de las pestañas: una fila por registro, datos en columnas fijas.
 const GRID_DISPOSITIVOS = 'grid min-w-[59rem] grid-cols-[minmax(8rem,1.2fr)_minmax(7rem,0.9fr)_6rem_6rem_8rem_11rem] items-center gap-x-2'
 const GRID_GARANTIAS_CLI = 'grid min-w-[46rem] grid-cols-[minmax(9rem,1.5fr)_minmax(7rem,1fr)_6rem_7rem] items-center gap-x-2'
+const GRID_SERVICIOS_CLI = 'grid min-w-[54rem] grid-cols-[minmax(9rem,1.4fr)_6rem_minmax(8rem,1fr)_9rem_6rem_6rem_6rem] items-center gap-x-2'
 const GRID_SEGUIMIENTOS = 'grid min-w-[54rem] grid-cols-[7rem_minmax(10rem,1.8fr)_7rem_7rem_6rem_8rem] items-center gap-x-2'
 const GRID_FACTURACION = 'grid min-w-[50rem] grid-cols-[minmax(10rem,1.5fr)_minmax(7rem,1fr)_minmax(8rem,1fr)_7rem_7rem] items-center gap-x-2'
 const GRID_DEUDA = 'grid min-w-[34rem] grid-cols-[7rem_6rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-center gap-x-2'
@@ -121,6 +123,7 @@ const EVENTOS = {
   note: { icon: 'report', tono: 'bg-warn/10 text-warn' },
   followUp: { icon: 'clock', tono: 'bg-ink-700 text-mute' },
   warranty: { icon: 'package', tono: 'bg-fono/10 text-fono-light' },
+  service: { icon: 'wrench', tono: 'bg-warn/10 text-warn' },
   audit: { icon: 'edit', tono: 'bg-ink-700 text-mute' },
 }
 const conCodigos = (texto) => String(texto || '').replace(/MOB-(\d+)/g, 'MOB #$1')
@@ -800,6 +803,8 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   // Seguimiento del informe compartido (#240 ítem 3): fila por serial con el
   // último envío y las aperturas del link público.
   const seguimientoInforme = new Map((profile?.deviceReportShares || []).map((fila) => [String(fila.serial || '').trim().toUpperCase(), fila]))
+  // Servicio técnico (#240 §4): órdenes del taller del cliente.
+  const servicios = profile?.serviceOrders || []
   const ordenesActivas = orders.filter((order) => order.status === 'PENDING' || order.status === 'REGISTERED').length
   const ciudadCliente = (profile?.customer?.addresses || []).find((address) => address.city)?.city || profile?.customer?.addresses?.[0]?.city || ''
   // Ficha completa (#160): antigüedad, RUC, impuestos, dirección y seguro.
@@ -1406,6 +1411,40 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                       <span className="min-w-0"><SerialTexto serial={item.serial} className="truncate text-[11px] text-mute" /></span>
                       <span className={CELDA_DATO}>{fecha(item.createdAt)}</span>
                       <span className="min-w-0"><EstadoBadge mapa={ESTADO_GARANTIA_BADGE} valor={item.status} /></span>
+                    </div>
+                  ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {tab === 'pedidos' && (
+            <>
+              <p className="text-sm font-semibold">Servicio técnico</p>
+              {!servicios.length ? (
+                <EmptyState compact icon="wrench" title="Sin órdenes de servicio" description="Los equipos de este cliente que están en el taller aparecen acá." />
+              ) : (
+                <div className="overflow-x-auto" data-testid="perfil-servicios">
+                  <div className={cn(GRID_SERVICIOS_CLI, 'px-3.5 pb-2 pt-1')}>
+                    <span className={CELDA_ENCABEZADO}>Equipo</span>
+                    <span className={CELDA_ENCABEZADO}>N.º</span>
+                    <span className={CELDA_ENCABEZADO}>Servicio</span>
+                    <span className={CELDA_ENCABEZADO}>Estado</span>
+                    <span className={CELDA_ENCABEZADO}>Recibido</span>
+                    <span className={CELDA_ENCABEZADO}>Entregado</span>
+                    <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Precio</span>
+                  </div>
+                  <div className="space-y-1">
+                  {servicios.map((item) => (
+                    <div key={item.id} data-testid="perfil-servicio-fila" className={cn(GRID_SERVICIOS_CLI, 'rounded-xl border border-ink-600 bg-ink-800 px-3.5 py-2')}>
+                      <span className={CELDA_IDENTIDAD} title={item.device || undefined}>{item.device || 'Equipo'}</span>
+                      <span className={CELDA_DATO}>{item.serviceNumber || '—'}</span>
+                      <span className="min-w-0 truncate text-mute" title={item.serviceName || undefined}>{item.serviceName || '—'}</span>
+                      <span className="min-w-0"><Badge color={ESTADO_SERVICIO_TONO[item.status] || 'slate'} className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">{ESTADO_SERVICIO_LABEL[item.status] || item.status}</Badge></span>
+                      <span className={CELDA_DATO}>{fecha(item.receivedAt)}</span>
+                      <span className={CELDA_DATO}>{item.deliveredAt ? fecha(item.deliveredAt) : '—'}</span>
+                      <span className={cn(CELDA_DATO, 'text-right')}>{formatGs(item.pricePyg)}</span>
                     </div>
                   ))}
                   </div>

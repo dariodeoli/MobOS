@@ -24,19 +24,8 @@ import { cn } from '@/lib/utils'
 import SerialTexto from '@/components/shared/SerialTexto'
 import { CELDA_DATO, CELDA_ENCABEZADO } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+import { ESTADOS_SERVICIO as ESTADOS, ESTADO_SERVICIO_LABEL as ESTADO_LABEL, ESTADO_SERVICIO_TONO as ESTADO_TONE } from '@/lib/estadosServicio'
 // Pipeline del taller: recepción → diagnóstico → reparación → entrega.
-const ESTADOS = [
-  ['RECIBIDO', 'Recibido', 'slate'],
-  ['DIAGNOSTICO', 'Diagnóstico', 'blue'],
-  ['CON_TECNICO', 'Con técnico', 'blue'],
-  ['ESPERANDO_REPUESTO', 'Esperando repuesto', 'orange'],
-  ['REPARADO', 'Reparado', 'green'],
-  ['LISTO', 'Listo para retirar', 'green'],
-  ['ENTREGADO', 'Entregado', 'slate'],
-  ['CANCELADO', 'Cancelado', 'red'],
-]
-const ESTADO_LABEL = Object.fromEntries(ESTADOS.map(([id, label]) => [id, label]))
-const ESTADO_TONE = Object.fromEntries(ESTADOS.map(([id, , tone]) => [id, tone]))
 const SIGUIENTE = { RECIBIDO: 'DIAGNOSTICO', DIAGNOSTICO: 'CON_TECNICO', CON_TECNICO: 'ESPERANDO_REPUESTO', ESPERANDO_REPUESTO: 'REPARADO', REPARADO: 'LISTO', LISTO: 'ENTREGADO' }
 // Plantilla sugerida del menú central por estado del pipeline (#134): al abrir
 // WhatsApp desde la fila, el mensaje ya sale con el contexto del taller.

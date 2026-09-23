@@ -125,11 +125,14 @@ export async function POST(request: Request) {
     const conDesglose = usaDesglose(partsPyg, laborPyg, otherCostPyg)
     const costoTotal = conDesglose ? (partsPyg ?? 0) + (laborPyg ?? 0) + (otherCostPyg ?? 0) : costPyg
     if (!safeInt(costoTotal)) throw new InputError('El costo total supera el máximo permitido.')
+    // El vínculo con la ficha del cliente (#240 §4): con `customerId` la
+    // cronología del cliente muestra la orden sin exponer datos internos.
+    const customerId = garantia?.customerId || await resolveCustomerId(prisma, tenant, body.customerId, customerName)
     const created = await prisma.serviceOrder.create({
       data: {
         tenantId: tenant,
         branchId: session.user.branchId || null,
-        customerId: garantia?.customerId || await resolveCustomerId(prisma, tenant, body.customerId, customerName),
+        customerId,
         customerName,
         device,
         serviceName: clean(body.serviceName, 200),
@@ -150,7 +153,7 @@ export async function POST(request: Request) {
         notes: clean(body.notes, 2000),
       },
     })
-    await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: garantia ? 'SERVICE_ORDER_FROM_WARRANTY' : 'SERVICE_ORDER_CREATED', entity: 'ServiceOrder', entityId: created.id, metadata: { device, customerName, status, pricePyg, costPyg: costoTotal, ...(garantia ? { warrantyCaseId: garantia.id } : {}), desglose: conDesglose ? { partsPyg: partsPyg ?? 0, laborPyg: laborPyg ?? 0, otherCostPyg: otherCostPyg ?? 0 } : null } } })
+    await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: garantia ? 'SERVICE_ORDER_FROM_WARRANTY' : 'SERVICE_ORDER_CREATED', entity: 'ServiceOrder', entityId: created.id, metadata: { device, customerName, status, pricePyg, costPyg: costoTotal, ...(customerId ? { customerId } : {}), serial: created.serial, ...(garantia ? { warrantyCaseId: garantia.id } : {}), desglose: conDesglose ? { partsPyg: partsPyg ?? 0, laborPyg: laborPyg ?? 0, otherCostPyg: otherCostPyg ?? 0 } : null } } })
     const desbloqueo = leerDesbloqueo(body)
     if (desbloqueo) {
       const secreto = cifrarSecreto(desbloqueo, { uso: USO_DESBLOQUEO, referencia: created.id })
@@ -215,7 +218,7 @@ export async function PATCH(request: Request) {
       },
     })
     if (status !== undefined && status !== existing.status) {
-      await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SERVICE_ORDER_STATUS', entity: 'ServiceOrder', entityId: updated.id, metadata: { previous: existing.status, current: status } } })
+      await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SERVICE_ORDER_STATUS', entity: 'ServiceOrder', entityId: updated.id, metadata: { previous: existing.status, current: status, device: existing.device, serial: existing.serial, ...(existing.customerId ? { customerId: existing.customerId } : {}) } } })
     }
     return json(conDesbloqueo(updated, session.user.role))
   } catch (cause) {

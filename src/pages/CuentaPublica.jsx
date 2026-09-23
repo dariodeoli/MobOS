@@ -10,6 +10,7 @@ import { PortalCargando, PortalEncabezado, PortalEstado, PortalFallo, PortalPie,
 import { demoCuentaPayload, esTokenDemo } from '@/lib/demoClientes'
 import { NIVELES_PORTAL } from '@/lib/customerPortal'
 import { ESTADO_ENTREGA, ESTADO_GARANTIA, ESTADO_PEDIDO, tonoGarantia, tonoPedido } from '@/lib/estadosPedido'
+import { tonoServicioPortal } from '@/lib/estadosServicio'
 
 // Resumen de cuenta público del cliente: saldo, vencimientos, pedidos y —según
 // el nivel del enlace— garantías activas, direcciones y comprobantes. No
@@ -160,6 +161,35 @@ export default function CuentaPublica() {
                         <Icon name="external" className="h-4 w-4" />
                         Ver informe
                       </Link>
+                    </article>
+                  ))}
+                </div>
+              </PortalSeccion>
+            )}
+
+            {/* Servicio técnico (#240 §4): el cliente sigue su equipo en el
+                taller con estado y fechas, sin costos ni datos internos. */}
+            {cuenta.servicios?.length > 0 && (
+              <PortalSeccion titulo="Servicio técnico" icono="wrench">
+                <p className="mt-2 text-sm text-mute">Seguí el estado del equipo que dejaste en el taller.</p>
+                <div className="mt-3 space-y-2">
+                  {cuenta.servicios.map((servicio, index) => (
+                    <article key={`${servicio.serviceNumber || 'servicio'}-${index}`} className="rounded-xl bg-ink-800/60 px-3 py-3 text-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold">{servicio.device || 'Equipo'}</p>
+                          <p className="mt-0.5 text-xs text-mute">
+                            {servicio.serviceNumber || 'Orden de servicio'}
+                            {servicio.serial ? ` · serial ${String(servicio.serial).slice(-6)}` : ''}
+                          </p>
+                        </div>
+                        <PortalEstado tono={tonoServicioPortal(servicio.status)}>{servicio.statusLabel || servicio.status}</PortalEstado>
+                      </div>
+                      {servicio.serviceName && <p className="mt-1.5 text-xs text-mute">{servicio.serviceName}</p>}
+                      <p className="mt-1.5 text-xs text-mute">
+                        Recibido {fecha(servicio.receivedAt)}
+                        {servicio.deliveredAt ? ` · Entregado ${fecha(servicio.deliveredAt)}` : ''}
+                      </p>
                     </article>
                   ))}
                 </div>

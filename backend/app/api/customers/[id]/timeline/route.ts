@@ -1,7 +1,8 @@
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
-import { detalleAperturaInforme } from '../../../../../lib/device-report'
+import { detalleAperturaInforme, serialEnmascarado } from '../../../../../lib/device-report'
+import { etiquetaServicio } from '../../../../../lib/service-order'
 
 type RouteContext = { params: { id: string } }
 
@@ -32,7 +33,12 @@ const ACCION_AUDITORIA: Record<string, string> = {
   CUSTOMER_AUTHORIZATION_REJECTED: 'Solicitud comercial rechazada',
   CUSTOMER_DEVICE_REPORT_SHARED: 'Informe del equipo compartido',
   CUSTOMER_DEVICE_REPORT_VIEWED: 'Informe del equipo visto por el cliente',
+  SERVICE_ORDER_CREATED: 'Equipo en taller',
+  SERVICE_ORDER_FROM_WARRANTY: 'Equipo en taller (garantía)',
+  SERVICE_ORDER_STATUS: 'Estado del taller',
 }
+// Acciones del taller que se dibujan con el ícono de servicio en la ficha.
+const ACCIONES_SERVICIO = new Set(['SERVICE_ORDER_CREATED', 'SERVICE_ORDER_FROM_WARRANTY', 'SERVICE_ORDER_STATUS'])
 const AUDITORIAS_EXCLUIDAS = /^CUSTOMER_NOTE_/
 
 const formatoGs = (value: unknown) => `Gs ${Number(value || 0).toLocaleString('es-PY')}`
@@ -63,6 +69,16 @@ function detalleMetadata(action: string, metadata: unknown) {
     return [tipo, autorizado ? `Autorizado: ${autorizado}` : '', nota].filter(Boolean).join(' · ')
   }
   if (action === 'CUSTOMER_DEVICE_REPORT_VIEWED') return detalleAperturaInforme(data)
+  if (action === 'SERVICE_ORDER_CREATED' || action === 'SERVICE_ORDER_FROM_WARRANTY') {
+    const equipo = typeof data.device === 'string' ? data.device : ''
+    const serial = serialEnmascarado(data.serial)
+    return [equipo, serial ? `serial ${serial}` : '', etiquetaServicio(data.status)].filter(Boolean).join(' · ')
+  }
+  if (action === 'SERVICE_ORDER_STATUS') {
+    const equipo = typeof data.device === 'string' ? data.device : ''
+    const cambio = `${etiquetaServicio(data.previous)} → ${etiquetaServicio(data.current)}`
+    return [equipo, cambio].filter(Boolean).join(' · ')
+  }
   if (action === 'CUSTOMER_DEVICE_REPORT_SHARED') {
     const canal = data.canal === 'EMAIL' ? `por correo${typeof data.email === 'string' && data.email ? ` a ${data.email}` : ''}` : 'por WhatsApp'
     const serial = typeof data.serial === 'string' ? data.serial : ''
@@ -251,7 +267,7 @@ export async function GET(request: Request, { params }: RouteContext) {
         : ACCION_AUDITORIA[audit.action]
       return {
         id: `audit-${audit.id}`,
-        type: 'audit',
+        type: ACCIONES_SERVICIO.has(audit.action) ? 'service' : 'audit',
         action: audit.action,
         ...(label ? { label } : {}),
         createdAt: audit.createdAt,

@@ -74,7 +74,7 @@ export async function GET(request: Request, { params }: RouteContext) {
     take: 50,
   })
 
-  const [notes, billingIdentities, followUps, deviceReportShares] = await Promise.all([
+  const [notes, billingIdentities, followUps, deviceReportShares, serviceOrders] = await Promise.all([
     prisma.customerNote.findMany({
       where: { tenantId: session.user.tenantId, customerId: customer.id },
       select: { id: true, content: true, createdAt: true, user: { select: { id: true, name: true } } },
@@ -101,6 +101,14 @@ export async function GET(request: Request, { params }: RouteContext) {
       orderBy: { updatedAt: 'desc' },
       take: 200,
     }),
+    // Servicio técnico (#240 §4): la ficha muestra las órdenes del taller del
+    // cliente (estado, fechas y precio acordado).
+    prisma.serviceOrder.findMany({
+      where: { tenantId: session.user.tenantId, customerId: customer.id },
+      select: { id: true, serviceNumber: true, device: true, serial: true, serviceName: true, status: true, receivedAt: true, deliveredAt: true, pricePyg: true, warrantyCaseId: true },
+      orderBy: { receivedAt: 'desc' },
+      take: 20,
+    }),
   ])
 
   return json({
@@ -112,6 +120,7 @@ export async function GET(request: Request, { params }: RouteContext) {
     followUps,
     billingIdentities,
     deviceReportShares,
+    serviceOrders,
   })
 }
 
