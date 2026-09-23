@@ -74,6 +74,9 @@ Salida: `docs/qa/243/<etiqueta>/carrito-*.jpg` +
 ## Checks de la pasada
 
 - `npm run lint` 0 errores · `npm test` 617/617 · build FE ✓ · `prisma validate` ✓
-- e2e: `pos-checkout` (seller), `pos-qa-173` y `precios-listas` (admin) en verde;
-  smoke del harness en verde.
-- La demo pública se verificó con la sonda (sin errores de página).
+- e2e (36/36): `pos-checkout` (seller, con la guarda nueva del colapso: la línea
+  esconde cantidad/precio y los muestra al desplegar), `pos-qa-173` (admin, con
+  la guarda del descuento individual visible colapsado) y `demo-anonimo`
+  (core, 12/12: la demo sigue igual y no toca el API).
+- `test:e2e:smoke` 7/7.
+- Capturas y métricas verificadas con la sonda (sin errores de página).

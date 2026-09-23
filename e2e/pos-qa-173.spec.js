@@ -156,3 +156,35 @@ test('el borrador con enlace público se abre sin sesión y muestra el carrito',
     }, { api: API, productId })
   }
 })
+
+test('carrito ultra-colapsado: el descuento individual se ve sin desplegar (#148 §5, #243)', async ({ page }) => {
+  const id = clave()
+  const nombre = `Equipo descuento QA ${id}`
+  const cliente = `Cliente descuento QA ${id}`
+  const { productId } = await crearProducto(page, { nombre, precio: 100000, stock: 1 })
+  try {
+    await page.goto('/pos')
+    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+    await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(cliente)
+    await page.getByPlaceholder('Buscar producto…').fill(nombre)
+    await page.getByRole('button', { name: new RegExp(nombre) }).click()
+    await expect(page.getByText('Productos de esta venta')).toBeVisible()
+
+    const fila = page.locator('#pos-resumen-venta .divide-y > div').first()
+    // Con el detalle abierto se aplica el 10% de descuento de la línea.
+    await fila.getByRole('button', { name: `Ver detalle de ${nombre}` }).click()
+    await fila.getByLabel(`Descuento % de ${nombre}`).fill('10')
+
+    // Colapsada: el descuento y el total de la línea siguen a la vista y la
+    // cantidad/precio quedan guardados en el detalle.
+    await fila.getByRole('button', { name: `Ver menos detalle de ${nombre}` }).click()
+    await expect(fila.getByText('descuento − Gs 10.000')).toBeVisible()
+    await expect(fila.getByText('Gs 90.000')).toBeVisible()
+    await expect(fila.getByLabel(`Cantidad de ${nombre}`)).toHaveCount(0)
+    await expect(fila.getByLabel(`Precio de venta de ${nombre}`)).toHaveCount(0)
+  } finally {
+    await page.evaluate(async ({ api, productId }) => {
+      await fetch(`${api}/api/products?id=${encodeURIComponent(productId)}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
+    }, { api: API, productId })
+  }
+})
