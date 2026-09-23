@@ -4,8 +4,9 @@ import { expect } from '@playwright/test'
 import { SEED } from './seed-data.js'
 
 // Company email/password step of /login.
-export async function loginCompany(page, { email = SEED.company.email, password = SEED.company.password } = {}) {
-  await page.goto('/login')
+export async function loginCompany(page, { email = SEED.company.email, password = SEED.company.password, navegar = true } = {}) {
+  // `navegar: false` conserva la URL actual (p. ej. /login?volver=… del #248).
+  if (navegar) await page.goto('/login')
   await page.getByLabel('Correo', { exact: true }).fill(email)
   await page.getByLabel('Contraseña', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Continuar', exact: true }).click()
@@ -14,14 +15,14 @@ export async function loginCompany(page, { email = SEED.company.email, password 
   await expect(page.locator('#seller-pin')).toBeVisible()
 }
 
-// Complete the seller PIN step and wait for the role-based landing page.
+// Complete the seller PIN step and wait for the landing page.
 // The PIN alone identifies the seller (PINs are unique per company).
-export async function completeSellerPin(page, { pin = SEED.sellers[0].pin } = {}) {
+export async function completeSellerPin(page, { pin = SEED.sellers[0].pin, destino = /\/pos$/ } = {}) {
   // pressSequentially: el PinInput controlado transforma y auto-envía en el
   // 4.º dígito; fill() pelea contra esos re-renders y queda colgado.
   await page.locator('#seller-pin').pressSequentially(pin)
-  // The form auto-submits on the 4th digit; the seller lands on /pos.
-  await expect(page).toHaveURL(/\/pos$/)
+  // The form auto-submits on the 4th digit; by default the seller lands on /pos.
+  await expect(page).toHaveURL(destino)
 }
 
 // Full login as a seller through the UI.
