@@ -203,7 +203,7 @@ function ResumenVenta({ totalGeneral, items, unidades, montoDescuento, montoDeli
         <span className="text-[11px] font-bold uppercase tracking-wider text-mute">
           Total de esta venta
         </span>
-        <span className="text-2xl font-extrabold tracking-tight tabular-nums text-fono-light">
+        <span className="v2-numero text-2xl font-extrabold tracking-tight tabular-nums text-fono-light">
           {gs(totalGeneral)}
         </span>
         <span className="text-xs text-mute">

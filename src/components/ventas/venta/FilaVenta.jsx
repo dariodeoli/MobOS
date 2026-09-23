@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Badge, Button, Input, MoneyInput, Select } from '@/components/ui'
+import { Badge, Input, MoneyInput, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import PercentField from '@/components/shared/PercentField'
 import { api } from '@/lib/api/client'
@@ -11,10 +11,11 @@ import { ROTULO_DATO } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 import IconoCategoria from '@/components/shared/IconoCategoria'
 
-// Fila editable de la venta (#225): colapsada por defecto con lo esencial
-// (foto/modelo, cantidad, precio de venta y total) y el IMEI elegido visible
-// en la línea; el chevron despliega el detalle (color, precio de lista,
-// descuento de línea, cupón, stock y cambiar/quitar IMEI).
+// Fila editable de la venta (#225, colapso máximo #243): la línea colapsada
+// muestra solo lo esencial — foto/ícono, nombre, estado del IMEI y total de la
+// línea (con el descuento individual visible, #148 §5) —; cantidad, precio de
+// venta, variantes, descuento, cupón, stock y las acciones (quitar IMEI,
+// eliminar) viven detrás del chevron.
 export default function FilaVenta({
   item,
   producto,
@@ -81,37 +82,78 @@ export default function FilaVenta({
   }
 
   return (
-    <div className="flex gap-3 px-3 py-3">
-      {imagen ? (
-        <img src={imagen} alt="" loading="lazy" className="h-12 w-12 shrink-0 rounded-lg object-cover" />
-      ) : (
-        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-fono/10 text-fono-light">
-          <IconoCategoria categoria={producto?.category || producto?.categoria || producto?.name || producto?.nombre || ''} className="h-6 w-6" />
-        </span>
-      )}
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <b className="truncate text-sm">{item.nombre}</b>
+    <div className="px-3 py-2">
+      <div className="flex items-center gap-2.5">
+        {imagen ? (
+          <img src={imagen} alt="" loading="lazy" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+        ) : (
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-fono/10 text-fono-light">
+            <IconoCategoria categoria={producto?.category || producto?.categoria || producto?.name || producto?.nombre || ''} className="h-5 w-5" />
+          </span>
+        )}
+
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <b className="truncate text-sm" title={item.nombre}>{item.nombre}</b>
+            {/* Avisos que no pueden esperar al detalle. */}
+            {item.sobrePedido && <Badge color="orange">Sobre pedido</Badge>}
+            {agotado && <Badge color="red">Agotado</Badge>}
+            {item.soldWithoutInsurance && <Badge color="slate">Sin seguro</Badge>}
+          </div>
+          {/* IMEI en la línea, visible también colapsada (#225): enmascarado al
+              colapsar y completo al expandir; se toca para elegir o cambiar. */}
+          <button
+            type="button"
+            aria-label={tieneImei ? `Cambiar IMEI de ${item.nombre}` : `Elegir IMEI de ${item.nombre} (pendiente)`}
+            title={tieneImei ? 'Cambiar IMEI' : 'Falta elegir IMEI'}
+            disabled={guardando}
+            onClick={onImei}
+            className={cn(
+              'mt-0.5 flex max-w-full items-center gap-1 truncate text-left font-mono text-[11px] transition hover:underline disabled:opacity-60',
+              tieneImei ? 'text-mute' : 'font-semibold text-warn',
+            )}
+          >
+            <Icon name="box" className={cn('h-3.5 w-3.5 shrink-0', tieneImei ? 'text-ok' : 'text-warn')} />
+            <span className="truncate">
+              {tieneImei
+                ? `IMEI ${abierta ? item.serials.join(' · ') : serialEnmascarado(item.serials[0])}`
+                : 'Falta elegir IMEI'}
+            </span>
+          </button>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1.5">
+          <div className="text-right">
+            <span className="v2-numero block text-sm font-extrabold tabular-nums text-fono-light">{gs(total)}</span>
+            {descuentoLinea > 0 && (
+              <span className="block text-[10px] font-semibold text-warn">descuento − {gs(descuentoLinea)}</span>
+            )}
+          </div>
+          <button
+            type="button"
+            className="grid h-9 w-9 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore"
+            aria-expanded={abierta}
+            aria-label={abierta ? `Ver menos detalle de ${item.nombre}` : `Ver detalle de ${item.nombre}`}
+            title={abierta ? 'Ver menos' : 'Ver detalle'}
+            onClick={() => setAbierta(value => !value)}
+          >
+            <Icon name="back" className={cn('h-4 w-4 transition', abierta ? 'rotate-90' : '-rotate-90')} />
+          </button>
+        </div>
+      </div>
+
+      {abierta && (
+        <div className="mt-2.5 border-t border-ink-600/70 pt-2.5">
+          {/* Origen del precio y cupón: el detalle que explica el total. */}
+          {(item.couponCode || ['LIST', 'TIER', 'WHOLESALE', 'USD'].includes(item.precioOrigen)) && (
+            <div className="mb-2 flex flex-wrap items-center gap-1.5">
               {item.couponCode && <Badge color="green">Cupón {item.couponCode}</Badge>}
               {item.precioOrigen === 'LIST' && <Badge color="blue">{item.precioLista ? `Lista ${item.precioLista}` : 'Precio de lista'}</Badge>}
               {item.precioOrigen === 'TIER' && <Badge color="green">{item.precioMinQty}+ unidades</Badge>}
               {item.precioOrigen === 'WHOLESALE' && <Badge color="orange">Mayorista</Badge>}
               {item.precioOrigen === 'USD' && <Badge color="slate">{`Precio en ${montoUsd(item.precioUsd)}`}</Badge>}
-              {item.sobrePedido && <Badge color="orange">Sobre pedido</Badge>}
-              {item.soldWithoutInsurance && <Badge color="slate">Sin seguro</Badge>}
             </div>
-            {/* IMEI en la línea, visible también colapsada (#225): enmascarado al
-                colapsar y completo al expandir. Sin IMEI queda el aviso pendiente. */}
-            <p className="mt-1 font-mono text-[11px]" aria-live="polite">
-              {tieneImei ? (
-                <span className="text-mute">IMEI {abierta ? item.serials.join(' · ') : serialEnmascarado(item.serials[0])}</span>
-              ) : (
-                <span className="font-semibold text-warn">Falta elegir IMEI</span>
-              )}
-            </p>
-          </div>
+          )}
 
           <div className="flex flex-wrap items-end gap-2">
             <label className="block">
@@ -137,57 +179,12 @@ export default function FilaVenta({
                 onValueChange={value => onEditar({ precio: value === '' ? 0 : Number(value) })}
               />
             </label>
-            <div className="w-28 text-right">
-              <span className={cn('mb-1 block', ROTULO_DATO)}>Total</span>
-              <span className="block h-9 truncate pt-1.5 text-sm font-extrabold tabular-nums text-fono-light">{gs(total)}</span>
-            </div>
-            {puedeDescontar && (
-              <button
-                type="button"
-                className="grid h-9 w-9 place-items-center rounded-lg text-mute transition hover:bg-fono/10 hover:text-fono-light"
-                title="Descuento de la línea"
-                aria-label={`Descuento de ${item.nombre}`}
-                disabled={guardando}
-                onClick={() => setAbierta(true)}
-              >
-                <Icon name="tag" className="h-4 w-4" />
-              </button>
-            )}
-            <button
-              type="button"
-              className={cn(
-                'relative grid h-9 w-9 place-items-center rounded-lg transition hover:bg-fono/10',
-                tieneImei ? 'text-ok' : 'text-warn',
-              )}
-              title={tieneImei ? 'Cambiar IMEI' : 'Falta elegir IMEI'}
-              aria-label={tieneImei ? `Cambiar IMEI de ${item.nombre}` : `Elegir IMEI de ${item.nombre} (pendiente)`}
-              disabled={guardando}
-              onClick={onImei}
-            >
-              <Icon name="box" className="h-4 w-4" />
-              {!tieneImei && <span aria-hidden="true" className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-warn" />}
-            </button>
-            <button
-              type="button"
-              className="grid h-9 w-9 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad"
-              title="Eliminar producto"
-              aria-label={`Eliminar ${item.nombre}`}
-              disabled={guardando}
-              onClick={onQuitar}
-            >
-              <Icon name="trash" className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
-        {abierta && (
-          <>
             {variantes.length > 1 && (
-              <label className="mt-2 block">
+              <label className="block">
                 <span className={cn('mb-1 block', ROTULO_DATO)}>Color</span>
                 <Select
                   aria-label={`Color de ${item.nombre}`}
-                  className="h-9 w-40"
+                  className="h-9 w-36"
                   value={item.productoId}
                   disabled={guardando}
                   onChange={event => cambiarVariante(event.target.value)}
@@ -198,103 +195,105 @@ export default function FilaVenta({
                 </Select>
               </label>
             )}
-            <p className="mt-2 text-[11px] text-mute">
-              {lista > 0 ? <>Precio de lista {gs(lista)}</> : 'Sin precio de lista: definí el precio de venta'}
-              {ahorroLista > 0 && <span className="ml-2 font-semibold text-warn">descuento − {gs(ahorroLista)}</span>}
+          </div>
+
+          <p className="mt-2 text-[11px] text-mute">
+            {lista > 0 ? <>Precio de lista {gs(lista)}</> : 'Sin precio de lista: definí el precio de venta'}
+            {ahorroLista > 0 && <span className="ml-2 font-semibold text-warn">descuento − {gs(ahorroLista)}</span>}
+          </p>
+          {(modelo || capacidad || Number.isFinite(stock)) && (
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[11px] text-mute">
+              {(modelo || capacidad) && <span>{[modelo, capacidad].filter(Boolean).join(' · ')}</span>}
+              {Number.isFinite(stock) && (agotado
+                ? <span className="font-semibold text-bad">Agotado</span>
+                : <span>{stock} en stock</span>)}
             </p>
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-mute">
-              {puedeDescontar && (
-                <span className="flex items-center gap-2">
-                  Descuento línea:
-                  <PercentField
-                    aria-label={`Descuento % de ${item.nombre}`}
-                    value={item.descuentoPct || ''}
-                    onChange={value => onEditar({ descuentoPct: value, descuento: '' })}
-                    placeholder="%"
-                    className="h-8 w-16 px-2 py-1 text-xs"
-                  />
-                  <MoneyInput
-                    aria-label={`Descuento fijo de ${item.nombre}`}
-                    max={LIMITE_MONTO_VENTAS}
-                    value={item.descuento || ''}
-                    onValueChange={value => onEditar({ descuento: value === '' ? '' : String(value), descuentoPct: '' })}
-                    placeholder="Gs 0"
-                    className="h-8 w-32"
-                  />
-                </span>
-              )}
+          )}
+
+          {puedeDescontar && (
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-mute">
+              <span>Descuento línea:</span>
+              <PercentField
+                aria-label={`Descuento % de ${item.nombre}`}
+                value={item.descuentoPct || ''}
+                onChange={value => onEditar({ descuentoPct: value, descuento: '' })}
+                placeholder="%"
+                className="h-8 w-16 px-2 py-1 text-xs"
+              />
+              <MoneyInput
+                aria-label={`Descuento fijo de ${item.nombre}`}
+                max={LIMITE_MONTO_VENTAS}
+                value={item.descuento || ''}
+                onValueChange={value => onEditar({ descuento: value === '' ? '' : String(value), descuentoPct: '' })}
+                placeholder="Gs 0"
+                className="h-8 w-32"
+              />
+            </div>
+          )}
+
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-mute">
+            <button
+              type="button"
+              className="font-semibold text-fono-light hover:underline"
+              onClick={() => setCuponAbierto(open => !open)}
+            >
+              {item.couponCode ? 'Cambiar cupón' : 'Aplicar cupón'}
+            </button>
+            {item.couponCode && (
               <button
                 type="button"
-                className="font-semibold text-fono-light hover:underline"
-                onClick={() => setCuponAbierto(open => !open)}
+                className="text-mute hover:text-bad"
+                onClick={() => onEditar({ couponCode: null, precio: lista || precio })}
               >
-                {item.couponCode ? 'Cambiar cupón' : 'Aplicar cupón'}
+                Quitar cupón
               </button>
-              {item.couponCode && (
+            )}
+            {cuponAbierto && (
+              <span className="flex flex-wrap items-center gap-2">
+                <Input
+                  aria-label={`Código de cupón de ${item.nombre}`}
+                  className="h-8 w-40"
+                  maxLength={40}
+                  value={cupon}
+                  onChange={event => setCupon(event.target.value)}
+                  placeholder="Código del cupón"
+                />
                 <button
                   type="button"
-                  className="text-mute hover:text-bad"
-                  onClick={() => onEditar({ couponCode: null, precio: lista || precio })}
+                  className="rounded-lg border border-fono/40 px-3 py-1.5 text-xs font-semibold text-fono-light transition hover:bg-fono/10 disabled:opacity-50"
+                  disabled={cuponBusy || !cupon.trim()}
+                  onClick={aplicarCupon}
                 >
-                  Quitar cupón
+                  {cuponBusy ? 'Validando…' : 'Aplicar'}
                 </button>
-              )}
-              {cuponAbierto && (
-                <span className="flex flex-wrap items-center gap-2">
-                  <Input
-                    aria-label={`Código de cupón de ${item.nombre}`}
-                    className="h-8 w-40"
-                    maxLength={40}
-                    value={cupon}
-                    onChange={event => setCupon(event.target.value)}
-                    placeholder="Código del cupón"
-                  />
-                  <Button type="button" variant="outline" className="h-8 px-3 text-xs" disabled={cuponBusy || !cupon.trim()} onClick={aplicarCupon}>
-                    {cuponBusy ? 'Validando…' : 'Aplicar'}
-                  </Button>
-                </span>
-              )}
-              {cuponError && <span role="alert" className="text-bad">{cuponError}</span>}
-            </div>
-            {(modelo || capacidad || Number.isFinite(stock)) && (
-              <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[11px] text-mute">
-                {(modelo || capacidad) && <span>{[modelo, capacidad].filter(Boolean).join(' · ')}</span>}
-                {Number.isFinite(stock) && (agotado
-                  ? <span className="font-semibold text-bad">Agotado</span>
-                  : <span>{stock} en stock</span>)}
-              </p>
-            )}
-            {tieneImei && (
-              <span className="mt-2 flex flex-wrap items-center gap-3 text-[11px]">
-                <button type="button" className="font-semibold text-fono-light hover:underline" onClick={onImei}>Cambiar IMEI</button>
-                <button type="button" className="text-mute hover:text-bad" onClick={() => onEditar({ serials: [] })}>Quitar IMEI</button>
               </span>
             )}
-          </>
-        )}
+            {cuponError && <span role="alert" className="text-bad">{cuponError}</span>}
+          </div>
 
-        <div className="mt-2 flex items-center justify-between gap-2">
-          <span className="flex items-center gap-2 text-[11px] text-mute">
-            <span>{abierta ? 'Detalle de la línea' : `${cantidad} × ${gs(precio)}`}</span>
-            {/* Descuento individual visible también colapsado (#148 §5). */}
-            {descuentoLinea > 0 && (
-              <span className="rounded-md border border-warn/30 bg-warn/10 px-1.5 py-0.5 font-semibold text-warn">
-                descuento − {gs(descuentoLinea)}
-              </span>
-            )}
-          </span>
-          <button
-            type="button"
-            className="grid h-7 w-7 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore"
-            aria-expanded={abierta}
-            aria-label={abierta ? `Ver menos detalle de ${item.nombre}` : `Ver detalle de ${item.nombre}`}
-            title={abierta ? 'Ver menos' : 'Ver detalle'}
-            onClick={() => setAbierta(value => !value)}
-          >
-            <Icon name="back" className={cn('h-4 w-4 transition', abierta ? 'rotate-90' : '-rotate-90')} />
-          </button>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+            {tieneImei ? (
+              <button
+                type="button"
+                className="text-[11px] text-mute hover:text-bad"
+                onClick={() => onEditar({ serials: [] })}
+              >
+                Quitar IMEI
+              </button>
+            ) : <span />}
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-ink-500 px-2.5 py-1 text-xs font-semibold text-mute transition hover:border-bad hover:text-bad disabled:opacity-50"
+              aria-label={`Eliminar ${item.nombre}`}
+              disabled={guardando}
+              onClick={onQuitar}
+            >
+              <Icon name="trash" className="h-3.5 w-3.5" />
+              Eliminar
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
