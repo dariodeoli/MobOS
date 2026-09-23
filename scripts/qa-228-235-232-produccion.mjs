@@ -187,13 +187,15 @@ await paso('#240 §4: impresión en serie con alcance y aviso de demo', async (c
 await paso('#241: F3 apagada — /ops y /ops-preview no responden sin flag', async (c) => {
   await page.goto(`${BASE}/ops`, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1500)
-  if (await page.getByTestId('ops-preview').count()) throw new Error('la ruta /ops sirvió el tablero sin VITE_OPS_V2')
+  if (await page.getByTestId('ops-preview').count()) throw new Error('la ruta /ops sirvió la vista previa sin flag')
+  if (await page.getByTestId('ops-tablero').count()) throw new Error('la ruta /ops sirvió el tablero real sin VITE_OPS_V2')
   const rutaOps = new URL(page.url()).pathname
   if (rutaOps === '/ops') throw new Error('/ops quedó servida (no redirigió a la app)')
   c.push(await shot(page, 'ops-apagada'))
   await page.goto(`${BASE}/ops-preview`, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1500)
   if (await page.getByTestId('ops-preview').count()) throw new Error('la vista previa se sirvió en producción sin flag')
+  if (await page.getByTestId('ops-tablero').count()) throw new Error('el tablero real se sirvió en producción sin flag')
   const rutaPreview = new URL(page.url()).pathname
   if (rutaPreview === '/ops-preview') throw new Error('/ops-preview quedó servida (no redirigió a la app)')
   return `sin VITE_OPS_V2 ni VITE_OPS_PREVIEW: /ops→${rutaOps} y /ops-preview→${rutaPreview}`
