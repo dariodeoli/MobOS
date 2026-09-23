@@ -37,8 +37,10 @@ export async function GET(request: Request) {
   const branchFilter = ['VENDEDOR', 'CAJERA'].includes(session.user.role) ? { OR: [{ branchId: session.user.branchId }, { branchId: null }] } : undefined
   const searchFilter = q ? { OR: [{ name: { contains: q, mode: 'insensitive' as const } }, { model: { contains: q, mode: 'insensitive' as const } }, { color: { contains: q, mode: 'insensitive' as const } }, { capacity: { contains: q, mode: 'insensitive' as const } }, { sku: { contains: q, mode: 'insensitive' as const } }, { imei: { contains: q } }] } : undefined
   // Paginado por cursor: el catálogo puede tener más de una pantalla y el
-  // orden necesita un desempate estable (nombre no es único).
-  const limit = Math.min(200, Math.max(1, Number(p.get('limit')) || 200))
+  // orden necesita un desempate estable (nombre no es único). El tope subió a
+  // 500 para que la sincronización del panel traiga el catálogo en una sola
+  // página (#247); el default sigue en 200 para el resto de los llamadores.
+  const limit = Math.min(500, Math.max(1, Number(p.get('limit')) || 200))
   const cursor = p.get('cursor')
   const data = await prisma.product.findMany({
     where: { AND: [{ tenantId: tenant, isActive: true }, ...(branchFilter ? [branchFilter] : []), ...(searchFilter ? [searchFilter] : [])] },

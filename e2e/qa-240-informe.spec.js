@@ -207,7 +207,9 @@ test('demo: el portal abre el informe sin haber pasado por /demo (link del subdo
   const enlace = page.getByRole('link', { name: 'Ver informe' }).first()
   await expect(enlace).toHaveAttribute('href', /\?demo=1/)
   await enlace.click()
-  await expect(page.getByText('Aurora Móviles')).toBeVisible({ timeout: 20000 })
+  // El informe repite el nombre de la tienda (título, cuerpo y pie): se apunta
+  // al encabezado para no caer en strict mode.
+  await expect(page.getByRole('heading', { name: 'Aurora Móviles' })).toBeVisible({ timeout: 20_000 })
   await expect(page.getByText(/iPhone 15/).first()).toBeVisible()
   await expect(page.getByText(/No es un certificado oficial/)).toBeVisible()
   await contexto.close()

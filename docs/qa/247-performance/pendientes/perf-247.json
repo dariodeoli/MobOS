@@ -1,0 +1,3333 @@
+{
+  "fecha": "2026-09-23T20:32:15.856Z",
+  "cpuThrottle": 4,
+  "repeticiones": 2,
+  "pantallas": [
+    {
+      "pantalla": "inventario",
+      "carga": "fria",
+      "rep": 1,
+      "listoMs": 2191,
+      "ttfbMs": 9,
+      "domContentLoadedMs": 304,
+      "loadMs": 325,
+      "pedidosApi": 20,
+      "apiMs": 1755,
+      "apiBytes": 0,
+      "scripts": 65,
+      "scriptsBytes": 384700,
+      "transferTotal": 408903,
+      "lentas": [
+        {
+          "url": "/api/fx",
+          "ms": 444,
+          "bytes": 0
+        },
+        {
+          "url": "/api/inventory-units?view=removed",
+          "ms": 125,
+          "bytes": 0
+        },
+        {
+          "url": "/api/stock-alerts?branchId=e2e-branch-1",
+          "ms": 124,
+          "bytes": 0
+        },
+        {
+          "url": "/api/suppliers",
+          "ms": 122,
+          "bytes": 0
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 122,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 11
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 34
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 46
+        },
+        {
+          "url": "/api/users",
+          "ms": 26
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 12
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 8
+        },
+        {
+          "url": "/api/presence",
+          "ms": 48
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 59
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 57
+        },
+        {
+          "url": "/api/combos",
+          "ms": 33
+        },
+        {
+          "url": "/api/inventory-units?",
+          "ms": 117
+        },
+        {
+          "url": "/api/inventory-units?view=removed",
+          "ms": 125
+        },
+        {
+          "url": "/api/inventory-reservations",
+          "ms": 86
+        },
+        {
+          "url": "/api/transfers",
+          "ms": 97
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 87
+        },
+        {
+          "url": "/api/stock-locations",
+          "ms": 97
+        },
+        {
+          "url": "/api/suppliers",
+          "ms": 122
+        },
+        {
+          "url": "/api/fx",
+          "ms": 444
+        },
+        {
+          "url": "/api/stock-alerts?branchId=e2e-branch-1",
+          "ms": 124
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 122
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        },
+        {
+          "ruta": "/api/inventory-branches",
+          "n": 2
+        },
+        {
+          "ruta": "/api/inventory-units",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "inventario",
+      "carga": "caliente",
+      "rep": 1,
+      "listoMs": 1697,
+      "ttfbMs": 3,
+      "domContentLoadedMs": 275,
+      "loadMs": 279,
+      "pedidosApi": 20,
+      "apiMs": 868,
+      "apiBytes": 0,
+      "scripts": 65,
+      "scriptsBytes": 19500,
+      "transferTotal": 28401,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 205,
+          "bytes": 0
+        },
+        {
+          "url": "/api/stock-alerts?branchId=e2e-branch-1",
+          "ms": 63,
+          "bytes": 0
+        },
+        {
+          "url": "/api/inventory-units?view=removed",
+          "ms": 62,
+          "bytes": 0
+        },
+        {
+          "url": "/api/inventory-units?",
+          "ms": 57,
+          "bytes": 0
+        },
+        {
+          "url": "/api/suppliers",
+          "ms": 54,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 8
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 205
+        },
+        {
+          "url": "/api/users",
+          "ms": 13
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 35
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 13
+        },
+        {
+          "url": "/api/presence",
+          "ms": 18
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 20
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 21
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 14
+        },
+        {
+          "url": "/api/combos",
+          "ms": 23
+        },
+        {
+          "url": "/api/inventory-units?",
+          "ms": 57
+        },
+        {
+          "url": "/api/inventory-units?view=removed",
+          "ms": 62
+        },
+        {
+          "url": "/api/inventory-reservations",
+          "ms": 41
+        },
+        {
+          "url": "/api/transfers",
+          "ms": 45
+        },
+        {
+          "url": "/api/stock-locations",
+          "ms": 30
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 47
+        },
+        {
+          "url": "/api/suppliers",
+          "ms": 54
+        },
+        {
+          "url": "/api/fx",
+          "ms": 53
+        },
+        {
+          "url": "/api/stock-alerts?branchId=e2e-branch-1",
+          "ms": 63
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 46
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        },
+        {
+          "ruta": "/api/inventory-branches",
+          "n": 2
+        },
+        {
+          "ruta": "/api/inventory-units",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "inventario",
+      "carga": "segunda",
+      "rep": 1,
+      "listoMs": 1538,
+      "ttfbMs": 3,
+      "domContentLoadedMs": 92,
+      "loadMs": 92,
+      "pedidosApi": 20,
+      "apiMs": 829,
+      "apiBytes": 0,
+      "scripts": 65,
+      "scriptsBytes": 19500,
+      "transferTotal": 28401,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 150,
+          "bytes": 0
+        },
+        {
+          "url": "/api/inventory-units?",
+          "ms": 65,
+          "bytes": 0
+        },
+        {
+          "url": "/api/stock-alerts?branchId=e2e-branch-1",
+          "ms": 62,
+          "bytes": 0
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 62,
+          "bytes": 0
+        },
+        {
+          "url": "/api/inventory-units?view=removed",
+          "ms": 61,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 8
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 150
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 29
+        },
+        {
+          "url": "/api/users",
+          "ms": 12
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 12
+        },
+        {
+          "url": "/api/presence",
+          "ms": 17
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 21
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 19
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 7
+        },
+        {
+          "url": "/api/combos",
+          "ms": 21
+        },
+        {
+          "url": "/api/inventory-units?",
+          "ms": 65
+        },
+        {
+          "url": "/api/inventory-units?view=removed",
+          "ms": 61
+        },
+        {
+          "url": "/api/inventory-reservations",
+          "ms": 48
+        },
+        {
+          "url": "/api/transfers",
+          "ms": 47
+        },
+        {
+          "url": "/api/stock-locations",
+          "ms": 21
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 54
+        },
+        {
+          "url": "/api/suppliers",
+          "ms": 55
+        },
+        {
+          "url": "/api/fx",
+          "ms": 58
+        },
+        {
+          "url": "/api/stock-alerts?branchId=e2e-branch-1",
+          "ms": 62
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 62
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        },
+        {
+          "ruta": "/api/inventory-branches",
+          "n": 2
+        },
+        {
+          "ruta": "/api/inventory-units",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "inventario",
+      "carga": "fria",
+      "rep": 2,
+      "listoMs": 1943,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 271,
+      "loadMs": 276,
+      "pedidosApi": 20,
+      "apiMs": 590,
+      "apiBytes": 0,
+      "scripts": 65,
+      "scriptsBytes": 384700,
+      "transferTotal": 408903,
+      "lentas": [
+        {
+          "url": "/api/inventory-units?",
+          "ms": 48,
+          "bytes": 0
+        },
+        {
+          "url": "/api/inventory-units?view=removed",
+          "ms": 48,
+          "bytes": 0
+        },
+        {
+          "url": "/api/stock-alerts?branchId=e2e-branch-1",
+          "ms": 48,
+          "bytes": 0
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 47,
+          "bytes": 0
+        },
+        {
+          "url": "/api/suppliers",
+          "ms": 46,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 8
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 33
+        },
+        {
+          "url": "/api/users",
+          "ms": 11
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 32
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 9
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 5
+        },
+        {
+          "url": "/api/presence",
+          "ms": 15
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 18
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 17
+        },
+        {
+          "url": "/api/combos",
+          "ms": 17
+        },
+        {
+          "url": "/api/inventory-units?",
+          "ms": 48
+        },
+        {
+          "url": "/api/inventory-units?view=removed",
+          "ms": 48
+        },
+        {
+          "url": "/api/inventory-reservations",
+          "ms": 35
+        },
+        {
+          "url": "/api/transfers",
+          "ms": 39
+        },
+        {
+          "url": "/api/stock-locations",
+          "ms": 34
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 38
+        },
+        {
+          "url": "/api/fx",
+          "ms": 42
+        },
+        {
+          "url": "/api/suppliers",
+          "ms": 46
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 47
+        },
+        {
+          "url": "/api/stock-alerts?branchId=e2e-branch-1",
+          "ms": 48
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        },
+        {
+          "ruta": "/api/inventory-branches",
+          "n": 2
+        },
+        {
+          "ruta": "/api/inventory-units",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "inventario",
+      "carga": "caliente",
+      "rep": 2,
+      "listoMs": 3131,
+      "ttfbMs": 5,
+      "domContentLoadedMs": 80,
+      "loadMs": 80,
+      "pedidosApi": 20,
+      "apiMs": 712,
+      "apiBytes": 0,
+      "scripts": 65,
+      "scriptsBytes": 19500,
+      "transferTotal": 28401,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 139,
+          "bytes": 0
+        },
+        {
+          "url": "/api/suppliers",
+          "ms": 53,
+          "bytes": 0
+        },
+        {
+          "url": "/api/stock-alerts?branchId=e2e-branch-1",
+          "ms": 53,
+          "bytes": 0
+        },
+        {
+          "url": "/api/inventory-units?view=removed",
+          "ms": 52,
+          "bytes": 0
+        },
+        {
+          "url": "/api/inventory-units?",
+          "ms": 48,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 7
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 139
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 29
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 9
+        },
+        {
+          "url": "/api/users",
+          "ms": 9
+        },
+        {
+          "url": "/api/presence",
+          "ms": 19
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 22
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 20
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 8
+        },
+        {
+          "url": "/api/combos",
+          "ms": 25
+        },
+        {
+          "url": "/api/inventory-units?",
+          "ms": 48
+        },
+        {
+          "url": "/api/inventory-units?view=removed",
+          "ms": 52
+        },
+        {
+          "url": "/api/inventory-reservations",
+          "ms": 35
+        },
+        {
+          "url": "/api/transfers",
+          "ms": 37
+        },
+        {
+          "url": "/api/stock-locations",
+          "ms": 24
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 43
+        },
+        {
+          "url": "/api/suppliers",
+          "ms": 53
+        },
+        {
+          "url": "/api/fx",
+          "ms": 42
+        },
+        {
+          "url": "/api/stock-alerts?branchId=e2e-branch-1",
+          "ms": 53
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 38
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        },
+        {
+          "ruta": "/api/inventory-branches",
+          "n": 2
+        },
+        {
+          "ruta": "/api/inventory-units",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "inventario",
+      "carga": "segunda",
+      "rep": 2,
+      "listoMs": 1646,
+      "ttfbMs": 3,
+      "domContentLoadedMs": 94,
+      "loadMs": 95,
+      "pedidosApi": 20,
+      "apiMs": 959,
+      "apiBytes": 0,
+      "scripts": 65,
+      "scriptsBytes": 19500,
+      "transferTotal": 28401,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 210,
+          "bytes": 0
+        },
+        {
+          "url": "/api/stock-alerts?branchId=e2e-branch-1",
+          "ms": 79,
+          "bytes": 0
+        },
+        {
+          "url": "/api/inventory-units?",
+          "ms": 73,
+          "bytes": 0
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 72,
+          "bytes": 0
+        },
+        {
+          "url": "/api/inventory-units?view=removed",
+          "ms": 69,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 13
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 210
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 34
+        },
+        {
+          "url": "/api/users",
+          "ms": 13
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 12
+        },
+        {
+          "url": "/api/presence",
+          "ms": 12
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 16
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 15
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 20
+        },
+        {
+          "url": "/api/combos",
+          "ms": 26
+        },
+        {
+          "url": "/api/inventory-units?",
+          "ms": 73
+        },
+        {
+          "url": "/api/inventory-units?view=removed",
+          "ms": 69
+        },
+        {
+          "url": "/api/inventory-reservations",
+          "ms": 40
+        },
+        {
+          "url": "/api/stock-locations",
+          "ms": 22
+        },
+        {
+          "url": "/api/transfers",
+          "ms": 49
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 50
+        },
+        {
+          "url": "/api/suppliers",
+          "ms": 68
+        },
+        {
+          "url": "/api/fx",
+          "ms": 66
+        },
+        {
+          "url": "/api/stock-alerts?branchId=e2e-branch-1",
+          "ms": 79
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 72
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        },
+        {
+          "ruta": "/api/inventory-branches",
+          "n": 2
+        },
+        {
+          "ruta": "/api/inventory-units",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "pos",
+      "carga": "fria",
+      "rep": 1,
+      "listoMs": 1481,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 527,
+      "loadMs": 527,
+      "pedidosApi": 11,
+      "apiMs": 166,
+      "apiBytes": 0,
+      "scripts": 51,
+      "scriptsBytes": 320971,
+      "transferTotal": 345174,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 32,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 32,
+          "bytes": 0
+        },
+        {
+          "url": "/api/users",
+          "ms": 19,
+          "bytes": 0
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 14,
+          "bytes": 0
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 14,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 10
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 32
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 32
+        },
+        {
+          "url": "/api/users",
+          "ms": 19
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 12
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 7
+        },
+        {
+          "url": "/api/presence",
+          "ms": 11
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 14
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 14
+        },
+        {
+          "url": "/api/combos",
+          "ms": 6
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 9
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "pos",
+      "carga": "caliente",
+      "rep": 1,
+      "listoMs": 655,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 67,
+      "loadMs": 67,
+      "pedidosApi": 11,
+      "apiMs": 317,
+      "apiBytes": 0,
+      "scripts": 51,
+      "scriptsBytes": 15300,
+      "transferTotal": 24201,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 156,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 30,
+          "bytes": 0
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 25,
+          "bytes": 0
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 24,
+          "bytes": 0
+        },
+        {
+          "url": "/api/presence",
+          "ms": 20,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 9
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 30
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 156
+        },
+        {
+          "url": "/api/users",
+          "ms": 19
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 13
+        },
+        {
+          "url": "/api/presence",
+          "ms": 20
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 25
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 24
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 8
+        },
+        {
+          "url": "/api/combos",
+          "ms": 6
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 7
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "pos",
+      "carga": "segunda",
+      "rep": 1,
+      "listoMs": 791,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 88,
+      "loadMs": 88,
+      "pedidosApi": 11,
+      "apiMs": 311,
+      "apiBytes": 0,
+      "scripts": 51,
+      "scriptsBytes": 15300,
+      "transferTotal": 24201,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 137,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 32,
+          "bytes": 0
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 21,
+          "bytes": 0
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 20,
+          "bytes": 0
+        },
+        {
+          "url": "/api/combos",
+          "ms": 20,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 7
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 32
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 137
+        },
+        {
+          "url": "/api/users",
+          "ms": 14
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 13
+        },
+        {
+          "url": "/api/presence",
+          "ms": 18
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 21
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 20
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 10
+        },
+        {
+          "url": "/api/combos",
+          "ms": 20
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 19
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "pos",
+      "carga": "fria",
+      "rep": 2,
+      "listoMs": 1088,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 407,
+      "loadMs": 412,
+      "pedidosApi": 11,
+      "apiMs": 149,
+      "apiBytes": 0,
+      "scripts": 51,
+      "scriptsBytes": 320971,
+      "transferTotal": 345174,
+      "lentas": [
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 26,
+          "bytes": 0
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 24,
+          "bytes": 0
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 16,
+          "bytes": 0
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 14,
+          "bytes": 0
+        },
+        {
+          "url": "/api/users",
+          "ms": 12,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 6
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 24
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 26
+        },
+        {
+          "url": "/api/users",
+          "ms": 12
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 16
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 7
+        },
+        {
+          "url": "/api/presence",
+          "ms": 11
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 14
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 12
+        },
+        {
+          "url": "/api/combos",
+          "ms": 11
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 10
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "pos",
+      "carga": "caliente",
+      "rep": 2,
+      "listoMs": 658,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 65,
+      "loadMs": 65,
+      "pedidosApi": 11,
+      "apiMs": 277,
+      "apiBytes": 0,
+      "scripts": 51,
+      "scriptsBytes": 15300,
+      "transferTotal": 24201,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 116,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 31,
+          "bytes": 0
+        },
+        {
+          "url": "/api/users",
+          "ms": 21,
+          "bytes": 0
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 20,
+          "bytes": 0
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 19,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 8
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 116
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 15
+        },
+        {
+          "url": "/api/users",
+          "ms": 21
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 31
+        },
+        {
+          "url": "/api/presence",
+          "ms": 17
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 20
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 19
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 8
+        },
+        {
+          "url": "/api/combos",
+          "ms": 14
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 8
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "pos",
+      "carga": "segunda",
+      "rep": 2,
+      "listoMs": 881,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 97,
+      "loadMs": 98,
+      "pedidosApi": 11,
+      "apiMs": 286,
+      "apiBytes": 0,
+      "scripts": 51,
+      "scriptsBytes": 15300,
+      "transferTotal": 24201,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 80,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 47,
+          "bytes": 0
+        },
+        {
+          "url": "/api/auth/me",
+          "ms": 29,
+          "bytes": 0
+        },
+        {
+          "url": "/api/users",
+          "ms": 26,
+          "bytes": 0
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 26,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 29
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 80
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 47
+        },
+        {
+          "url": "/api/users",
+          "ms": 26
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 26
+        },
+        {
+          "url": "/api/presence",
+          "ms": 17
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 19
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 19
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 7
+        },
+        {
+          "url": "/api/combos",
+          "ms": 9
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 7
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "pedidos",
+      "carga": "fria",
+      "rep": 1,
+      "listoMs": 1082,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 269,
+      "loadMs": 270,
+      "pedidosApi": 12,
+      "apiMs": 195,
+      "apiBytes": 0,
+      "scripts": 58,
+      "scriptsBytes": 344463,
+      "transferTotal": 368666,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 32,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 25,
+          "bytes": 0
+        },
+        {
+          "url": "/api/users",
+          "ms": 21,
+          "bytes": 0
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 21,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=activos&limit=50",
+          "ms": 20,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 5
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 32
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 25
+        },
+        {
+          "url": "/api/users",
+          "ms": 21
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 21
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 5
+        },
+        {
+          "url": "/api/presence",
+          "ms": 13
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 15
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 14
+        },
+        {
+          "url": "/api/combos",
+          "ms": 13
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 11
+        },
+        {
+          "url": "/api/orders?filtro=activos&limit=50",
+          "ms": 20
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        },
+        {
+          "ruta": "/api/orders",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "pedidos",
+      "carga": "caliente",
+      "rep": 1,
+      "listoMs": 667,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 59,
+      "loadMs": 59,
+      "pedidosApi": 12,
+      "apiMs": 305,
+      "apiBytes": 0,
+      "scripts": 58,
+      "scriptsBytes": 17400,
+      "transferTotal": 26301,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 150,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 40,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=activos&limit=50",
+          "ms": 17,
+          "bytes": 0
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 14,
+          "bytes": 0
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 14,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 6
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 150
+        },
+        {
+          "url": "/api/users",
+          "ms": 13
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 40
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 13
+        },
+        {
+          "url": "/api/presence",
+          "ms": 12
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 14
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 14
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 7
+        },
+        {
+          "url": "/api/combos",
+          "ms": 10
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 9
+        },
+        {
+          "url": "/api/orders?filtro=activos&limit=50",
+          "ms": 17
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        },
+        {
+          "ruta": "/api/orders",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "pedidos",
+      "carga": "segunda",
+      "rep": 1,
+      "listoMs": 818,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 92,
+      "loadMs": 93,
+      "pedidosApi": 12,
+      "apiMs": 373,
+      "apiBytes": 0,
+      "scripts": 58,
+      "scriptsBytes": 17400,
+      "transferTotal": 26301,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 195,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 44,
+          "bytes": 0
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 23,
+          "bytes": 0
+        },
+        {
+          "url": "/api/users",
+          "ms": 22,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=activos&limit=50",
+          "ms": 17,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 8
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 195
+        },
+        {
+          "url": "/api/users",
+          "ms": 22
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 44
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 14
+        },
+        {
+          "url": "/api/presence",
+          "ms": 11
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 13
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 12
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 23
+        },
+        {
+          "url": "/api/combos",
+          "ms": 6
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 8
+        },
+        {
+          "url": "/api/orders?filtro=activos&limit=50",
+          "ms": 17
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        },
+        {
+          "ruta": "/api/orders",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "pedidos",
+      "carga": "fria",
+      "rep": 2,
+      "listoMs": 1109,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 187,
+      "loadMs": 192,
+      "pedidosApi": 12,
+      "apiMs": 185,
+      "apiBytes": 0,
+      "scripts": 58,
+      "scriptsBytes": 344463,
+      "transferTotal": 368666,
+      "lentas": [
+        {
+          "url": "/api/orders?filtro=activos&limit=50",
+          "ms": 31,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 26,
+          "bytes": 0
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 23,
+          "bytes": 0
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 17,
+          "bytes": 0
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 17,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 6
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 23
+        },
+        {
+          "url": "/api/users",
+          "ms": 9
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 26
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 13
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 6
+        },
+        {
+          "url": "/api/presence",
+          "ms": 15
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 17
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 17
+        },
+        {
+          "url": "/api/combos",
+          "ms": 9
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 13
+        },
+        {
+          "url": "/api/orders?filtro=activos&limit=50",
+          "ms": 31
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        },
+        {
+          "ruta": "/api/orders",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "pedidos",
+      "carga": "caliente",
+      "rep": 2,
+      "listoMs": 676,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 58,
+      "loadMs": 58,
+      "pedidosApi": 12,
+      "apiMs": 327,
+      "apiBytes": 0,
+      "scripts": 58,
+      "scriptsBytes": 17400,
+      "transferTotal": 26301,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 182,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 42,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=activos&limit=50",
+          "ms": 15,
+          "bytes": 0
+        },
+        {
+          "url": "/api/users",
+          "ms": 13,
+          "bytes": 0
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 13,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 8
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 182
+        },
+        {
+          "url": "/api/users",
+          "ms": 13
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 42
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 13
+        },
+        {
+          "url": "/api/presence",
+          "ms": 11
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 12
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 11
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 7
+        },
+        {
+          "url": "/api/combos",
+          "ms": 5
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 8
+        },
+        {
+          "url": "/api/orders?filtro=activos&limit=50",
+          "ms": 15
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        },
+        {
+          "ruta": "/api/orders",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "pedidos",
+      "carga": "segunda",
+      "rep": 2,
+      "listoMs": 778,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 85,
+      "loadMs": 85,
+      "pedidosApi": 12,
+      "apiMs": 251,
+      "apiBytes": 0,
+      "scripts": 58,
+      "scriptsBytes": 17400,
+      "transferTotal": 26301,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 109,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 33,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=activos&limit=50",
+          "ms": 18,
+          "bytes": 0
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 14,
+          "bytes": 0
+        },
+        {
+          "url": "/api/presence",
+          "ms": 12,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 5
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 33
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 109
+        },
+        {
+          "url": "/api/users",
+          "ms": 11
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 10
+        },
+        {
+          "url": "/api/presence",
+          "ms": 12
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 14
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 12
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 8
+        },
+        {
+          "url": "/api/combos",
+          "ms": 9
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 10
+        },
+        {
+          "url": "/api/orders?filtro=activos&limit=50",
+          "ms": 18
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/orders",
+          "n": 2
+        },
+        {
+          "ruta": "/api/products",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "clientes",
+      "carga": "fria",
+      "rep": 1,
+      "listoMs": 973,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 286,
+      "loadMs": 290,
+      "pedidosApi": 16,
+      "apiMs": 274,
+      "apiBytes": 0,
+      "scripts": 63,
+      "scriptsBytes": 370050,
+      "transferTotal": 394253,
+      "lentas": [
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 32,
+          "bytes": 0
+        },
+        {
+          "url": "/api/message-templates",
+          "ms": 26,
+          "bytes": 0
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 25,
+          "bytes": 0
+        },
+        {
+          "url": "/api/customers?orden=actividad&limit=50",
+          "ms": 25,
+          "bytes": 0
+        },
+        {
+          "url": "/api/users",
+          "ms": 20,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 6
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 25
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 32
+        },
+        {
+          "url": "/api/users",
+          "ms": 20
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 10
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 6
+        },
+        {
+          "url": "/api/presence",
+          "ms": 11
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 15
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 13
+        },
+        {
+          "url": "/api/combos",
+          "ms": 17
+        },
+        {
+          "url": "/api/follow-ups?due=today",
+          "ms": 16
+        },
+        {
+          "url": "/api/price-lists",
+          "ms": 18
+        },
+        {
+          "url": "/api/customers/summary",
+          "ms": 15
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 19
+        },
+        {
+          "url": "/api/customers?orden=actividad&limit=50",
+          "ms": 25
+        },
+        {
+          "url": "/api/message-templates",
+          "ms": 26
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "clientes",
+      "carga": "caliente",
+      "rep": 1,
+      "listoMs": 652,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 63,
+      "loadMs": 63,
+      "pedidosApi": 16,
+      "apiMs": 327,
+      "apiBytes": 0,
+      "scripts": 63,
+      "scriptsBytes": 18900,
+      "transferTotal": 27801,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 118,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 37,
+          "bytes": 0
+        },
+        {
+          "url": "/api/users",
+          "ms": 19,
+          "bytes": 0
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 16,
+          "bytes": 0
+        },
+        {
+          "url": "/api/message-templates",
+          "ms": 16,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 6
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 118
+        },
+        {
+          "url": "/api/users",
+          "ms": 19
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 37
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 16
+        },
+        {
+          "url": "/api/presence",
+          "ms": 11
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 13
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 12
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 9
+        },
+        {
+          "url": "/api/combos",
+          "ms": 12
+        },
+        {
+          "url": "/api/price-lists",
+          "ms": 11
+        },
+        {
+          "url": "/api/customers/summary",
+          "ms": 10
+        },
+        {
+          "url": "/api/follow-ups?due=today",
+          "ms": 11
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 10
+        },
+        {
+          "url": "/api/message-templates",
+          "ms": 16
+        },
+        {
+          "url": "/api/customers?orden=actividad&limit=50",
+          "ms": 16
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "clientes",
+      "carga": "segunda",
+      "rep": 1,
+      "listoMs": 807,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 85,
+      "loadMs": 86,
+      "pedidosApi": 16,
+      "apiMs": 467,
+      "apiBytes": 0,
+      "scripts": 63,
+      "scriptsBytes": 18900,
+      "transferTotal": 27801,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 199,
+          "bytes": 0
+        },
+        {
+          "url": "/api/customers?orden=actividad&limit=50",
+          "ms": 34,
+          "bytes": 0
+        },
+        {
+          "url": "/api/message-templates",
+          "ms": 30,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 29,
+          "bytes": 0
+        },
+        {
+          "url": "/api/follow-ups?due=today",
+          "ms": 22,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 6
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 199
+        },
+        {
+          "url": "/api/users",
+          "ms": 15
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 29
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 11
+        },
+        {
+          "url": "/api/presence",
+          "ms": 11
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 12
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 10
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 13
+        },
+        {
+          "url": "/api/combos",
+          "ms": 19
+        },
+        {
+          "url": "/api/price-lists",
+          "ms": 19
+        },
+        {
+          "url": "/api/follow-ups?due=today",
+          "ms": 22
+        },
+        {
+          "url": "/api/customers/summary",
+          "ms": 17
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 20
+        },
+        {
+          "url": "/api/customers?orden=actividad&limit=50",
+          "ms": 34
+        },
+        {
+          "url": "/api/message-templates",
+          "ms": 30
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "clientes",
+      "carga": "fria",
+      "rep": 2,
+      "listoMs": 1012,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 229,
+      "loadMs": 234,
+      "pedidosApi": 16,
+      "apiMs": 240,
+      "apiBytes": 0,
+      "scripts": 63,
+      "scriptsBytes": 370050,
+      "transferTotal": 394253,
+      "lentas": [
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 24,
+          "bytes": 0
+        },
+        {
+          "url": "/api/message-templates",
+          "ms": 23,
+          "bytes": 0
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 22,
+          "bytes": 0
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 20,
+          "bytes": 0
+        },
+        {
+          "url": "/api/customers?orden=actividad&limit=50",
+          "ms": 17,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 8
+        },
+        {
+          "url": "/api/users",
+          "ms": 16
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 22
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 24
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 20
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 11
+        },
+        {
+          "url": "/api/presence",
+          "ms": 11
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 13
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 13
+        },
+        {
+          "url": "/api/combos",
+          "ms": 12
+        },
+        {
+          "url": "/api/price-lists",
+          "ms": 15
+        },
+        {
+          "url": "/api/follow-ups?due=today",
+          "ms": 11
+        },
+        {
+          "url": "/api/customers/summary",
+          "ms": 10
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 14
+        },
+        {
+          "url": "/api/customers?orden=actividad&limit=50",
+          "ms": 17
+        },
+        {
+          "url": "/api/message-templates",
+          "ms": 23
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "clientes",
+      "carga": "caliente",
+      "rep": 2,
+      "listoMs": 639,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 59,
+      "loadMs": 59,
+      "pedidosApi": 16,
+      "apiMs": 259,
+      "apiBytes": 0,
+      "scripts": 63,
+      "scriptsBytes": 18900,
+      "transferTotal": 27801,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 37,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 32,
+          "bytes": 0
+        },
+        {
+          "url": "/api/customers?orden=actividad&limit=50",
+          "ms": 25,
+          "bytes": 0
+        },
+        {
+          "url": "/api/message-templates",
+          "ms": 25,
+          "bytes": 0
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 21,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 6
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 37
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 32
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 11
+        },
+        {
+          "url": "/api/users",
+          "ms": 11
+        },
+        {
+          "url": "/api/presence",
+          "ms": 11
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 13
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 12
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 8
+        },
+        {
+          "url": "/api/combos",
+          "ms": 13
+        },
+        {
+          "url": "/api/customers/summary",
+          "ms": 11
+        },
+        {
+          "url": "/api/follow-ups?due=today",
+          "ms": 11
+        },
+        {
+          "url": "/api/price-lists",
+          "ms": 12
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 21
+        },
+        {
+          "url": "/api/customers?orden=actividad&limit=50",
+          "ms": 25
+        },
+        {
+          "url": "/api/message-templates",
+          "ms": 25
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "clientes",
+      "carga": "segunda",
+      "rep": 2,
+      "listoMs": 802,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 94,
+      "loadMs": 95,
+      "pedidosApi": 16,
+      "apiMs": 406,
+      "apiBytes": 0,
+      "scripts": 63,
+      "scriptsBytes": 18900,
+      "transferTotal": 27801,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 204,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 27,
+          "bytes": 0
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 19,
+          "bytes": 0
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 18,
+          "bytes": 0
+        },
+        {
+          "url": "/api/customers?orden=actividad&limit=50",
+          "ms": 17,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 12
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 27
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 204
+        },
+        {
+          "url": "/api/users",
+          "ms": 11
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 10
+        },
+        {
+          "url": "/api/presence",
+          "ms": 16
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 19
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 18
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 9
+        },
+        {
+          "url": "/api/combos",
+          "ms": 8
+        },
+        {
+          "url": "/api/price-lists",
+          "ms": 10
+        },
+        {
+          "url": "/api/customers/summary",
+          "ms": 10
+        },
+        {
+          "url": "/api/follow-ups?due=today",
+          "ms": 10
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 8
+        },
+        {
+          "url": "/api/customers?orden=actividad&limit=50",
+          "ms": 17
+        },
+        {
+          "url": "/api/message-templates",
+          "ms": 17
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "finanzas",
+      "carga": "fria",
+      "rep": 1,
+      "listoMs": 997,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 181,
+      "loadMs": 185,
+      "pedidosApi": 20,
+      "apiMs": 1254,
+      "apiBytes": 0,
+      "scripts": 59,
+      "scriptsBytes": 345567,
+      "transferTotal": 369770,
+      "lentas": [
+        {
+          "url": "/api/cash/audit-operations?from=2026-09-16&to=2026-09-23&branchId=e2e-branch-1",
+          "ms": 162,
+          "bytes": 0
+        },
+        {
+          "url": "/api/print/printers",
+          "ms": 159,
+          "bytes": 0
+        },
+        {
+          "url": "/api/cash/audit?branchId=e2e-branch-1&date=2026-09-23",
+          "ms": 158,
+          "bytes": 0
+        },
+        {
+          "url": "/api/cash?sesiones=1&from=2026-08-25&to=2026-09-23&branchId=e2e-branch-1",
+          "ms": 151,
+          "bytes": 0
+        },
+        {
+          "url": "/api/attachments?entity=CASH_SESSION&entityId=7788fff0-ed75-40e7-80a1-87860a765cee",
+          "ms": 101,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 6
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 33
+        },
+        {
+          "url": "/api/users",
+          "ms": 23
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 37
+        },
+        {
+          "url": "/api/finance",
+          "ms": 31
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 10
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 8
+        },
+        {
+          "url": "/api/presence",
+          "ms": 10
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 14
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 13
+        },
+        {
+          "url": "/api/combos",
+          "ms": 56
+        },
+        {
+          "url": "/api/cash?branchId=e2e-branch-1",
+          "ms": 71
+        },
+        {
+          "url": "/api/finance?branchId=e2e-branch-1",
+          "ms": 85
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 35
+        },
+        {
+          "url": "/api/attachments?entity=CASH_SESSION&entityId=7788fff0-ed75-40e7-80a1-87860a765cee",
+          "ms": 101
+        },
+        {
+          "url": "/api/print/printers",
+          "ms": 159
+        },
+        {
+          "url": "/api/cash/audit?branchId=e2e-branch-1&date=2026-09-23",
+          "ms": 158
+        },
+        {
+          "url": "/api/cash/audit-operations?from=2026-09-16&to=2026-09-23&branchId=e2e-branch-1",
+          "ms": 162
+        },
+        {
+          "url": "/api/branches",
+          "ms": 91
+        },
+        {
+          "url": "/api/cash?sesiones=1&from=2026-08-25&to=2026-09-23&branchId=e2e-branch-1",
+          "ms": 151
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        },
+        {
+          "ruta": "/api/finance",
+          "n": 2
+        },
+        {
+          "ruta": "/api/cash",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "finanzas",
+      "carga": "caliente",
+      "rep": 1,
+      "listoMs": 419,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 92,
+      "loadMs": 92,
+      "pedidosApi": 9,
+      "apiMs": 365,
+      "apiBytes": 0,
+      "scripts": 59,
+      "scriptsBytes": 17700,
+      "transferTotal": 26601,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 195,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 38,
+          "bytes": 0
+        },
+        {
+          "url": "/api/users",
+          "ms": 29,
+          "bytes": 0
+        },
+        {
+          "url": "/api/finance",
+          "ms": 29,
+          "bytes": 0
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 20,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 10
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 195
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 38
+        },
+        {
+          "url": "/api/users",
+          "ms": 29
+        },
+        {
+          "url": "/api/finance",
+          "ms": 29
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 20
+        },
+        {
+          "url": "/api/presence",
+          "ms": 13
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 16
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 15
+        }
+      ],
+      "duplicadas": []
+    },
+    {
+      "pantalla": "finanzas",
+      "carga": "segunda",
+      "rep": 1,
+      "listoMs": 611,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 89,
+      "loadMs": 90,
+      "pedidosApi": 14,
+      "apiMs": 276,
+      "apiBytes": 0,
+      "scripts": 59,
+      "scriptsBytes": 17700,
+      "transferTotal": 26601,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 69,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 33,
+          "bytes": 0
+        },
+        {
+          "url": "/api/finance",
+          "ms": 27,
+          "bytes": 0
+        },
+        {
+          "url": "/api/users",
+          "ms": 25,
+          "bytes": 0
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 25,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 5
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 33
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 69
+        },
+        {
+          "url": "/api/users",
+          "ms": 25
+        },
+        {
+          "url": "/api/finance",
+          "ms": 27
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 25
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 8
+        },
+        {
+          "url": "/api/presence",
+          "ms": 10
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 13
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 13
+        },
+        {
+          "url": "/api/combos",
+          "ms": 13
+        },
+        {
+          "url": "/api/cash?branchId=e2e-branch-1",
+          "ms": 14
+        },
+        {
+          "url": "/api/finance?branchId=e2e-branch-1",
+          "ms": 14
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 7
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        },
+        {
+          "ruta": "/api/finance",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "finanzas",
+      "carga": "fria",
+      "rep": 2,
+      "listoMs": 1534,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 178,
+      "loadMs": 179,
+      "pedidosApi": 20,
+      "apiMs": 339,
+      "apiBytes": 0,
+      "scripts": 59,
+      "scriptsBytes": 345567,
+      "transferTotal": 369770,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 34,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 33,
+          "bytes": 0
+        },
+        {
+          "url": "/api/users",
+          "ms": 25,
+          "bytes": 0
+        },
+        {
+          "url": "/api/finance",
+          "ms": 25,
+          "bytes": 0
+        },
+        {
+          "url": "/api/cash/audit-operations?from=2026-09-16&to=2026-09-23&branchId=e2e-branch-1",
+          "ms": 22,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 8
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 34
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 33
+        },
+        {
+          "url": "/api/users",
+          "ms": 25
+        },
+        {
+          "url": "/api/finance",
+          "ms": 25
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 9
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 5
+        },
+        {
+          "url": "/api/presence",
+          "ms": 11
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 13
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 13
+        },
+        {
+          "url": "/api/combos",
+          "ms": 14
+        },
+        {
+          "url": "/api/cash?branchId=e2e-branch-1",
+          "ms": 18
+        },
+        {
+          "url": "/api/finance?branchId=e2e-branch-1",
+          "ms": 18
+        },
+        {
+          "url": "/api/payment-accounts",
+          "ms": 17
+        },
+        {
+          "url": "/api/attachments?entity=CASH_SESSION&entityId=7788fff0-ed75-40e7-80a1-87860a765cee",
+          "ms": 14
+        },
+        {
+          "url": "/api/print/printers",
+          "ms": 13
+        },
+        {
+          "url": "/api/cash/audit?branchId=e2e-branch-1&date=2026-09-23",
+          "ms": 15
+        },
+        {
+          "url": "/api/branches",
+          "ms": 13
+        },
+        {
+          "url": "/api/cash/audit-operations?from=2026-09-16&to=2026-09-23&branchId=e2e-branch-1",
+          "ms": 22
+        },
+        {
+          "url": "/api/cash?sesiones=1&from=2026-08-25&to=2026-09-23&branchId=e2e-branch-1",
+          "ms": 19
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        },
+        {
+          "ruta": "/api/finance",
+          "n": 2
+        },
+        {
+          "ruta": "/api/cash",
+          "n": 2
+        }
+      ]
+    },
+    {
+      "pantalla": "finanzas",
+      "carga": "caliente",
+      "rep": 2,
+      "listoMs": 498,
+      "ttfbMs": 2,
+      "domContentLoadedMs": 229,
+      "loadMs": 229,
+      "pedidosApi": 9,
+      "apiMs": 364,
+      "apiBytes": 0,
+      "scripts": 59,
+      "scriptsBytes": 17700,
+      "transferTotal": 26601,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 205,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 43,
+          "bytes": 0
+        },
+        {
+          "url": "/api/finance",
+          "ms": 34,
+          "bytes": 0
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 20,
+          "bytes": 0
+        },
+        {
+          "url": "/api/users",
+          "ms": 20,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 6
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 205
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 43
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 20
+        },
+        {
+          "url": "/api/users",
+          "ms": 20
+        },
+        {
+          "url": "/api/finance",
+          "ms": 34
+        },
+        {
+          "url": "/api/presence",
+          "ms": 11
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 12
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 13
+        }
+      ],
+      "duplicadas": []
+    },
+    {
+      "pantalla": "finanzas",
+      "carga": "segunda",
+      "rep": 2,
+      "listoMs": 387,
+      "ttfbMs": 3,
+      "domContentLoadedMs": 91,
+      "loadMs": 91,
+      "pedidosApi": 10,
+      "apiMs": 313,
+      "apiBytes": 0,
+      "scripts": 59,
+      "scriptsBytes": 17700,
+      "transferTotal": 26601,
+      "lentas": [
+        {
+          "url": "/api/products?limit=500",
+          "ms": 157,
+          "bytes": 0
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 36,
+          "bytes": 0
+        },
+        {
+          "url": "/api/finance",
+          "ms": 26,
+          "bytes": 0
+        },
+        {
+          "url": "/api/users",
+          "ms": 21,
+          "bytes": 0
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 20,
+          "bytes": 0
+        }
+      ],
+      "apiTodas": [
+        {
+          "url": "/api/auth/me",
+          "ms": 6
+        },
+        {
+          "url": "/api/products?limit=500",
+          "ms": 157
+        },
+        {
+          "url": "/api/orders?filtro=todos",
+          "ms": 36
+        },
+        {
+          "url": "/api/users",
+          "ms": 21
+        },
+        {
+          "url": "/api/finance",
+          "ms": 26
+        },
+        {
+          "url": "/api/inventory-branches",
+          "ms": 20
+        },
+        {
+          "url": "/api/presence",
+          "ms": 10
+        },
+        {
+          "url": "/api/notifications",
+          "ms": 14
+        },
+        {
+          "url": "/api/presence/heartbeat",
+          "ms": 13
+        },
+        {
+          "url": "/api/products?limit=500&cursor=cmudtndr9006k0jjhl4fd0n10",
+          "ms": 10
+        }
+      ],
+      "duplicadas": [
+        {
+          "ruta": "/api/products",
+          "n": 2
+        }
+      ]
+    }
+  ]
+}
