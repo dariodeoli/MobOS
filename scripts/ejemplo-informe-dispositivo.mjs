@@ -151,6 +151,13 @@ try {
   const htmlCertificadoA4 = await datosDe('/src/components/shared/OrderReceipt.jsx', 'buildCertificadoHtml', [datosCertificado, { format: 'a4' }])
   await pdfHtml('certificado-a4', htmlCertificadoA4, 'a4')
 
+  // Constancia de preparación (#240 §6): la declaración firmada del checklist.
+  const datosConstancia = await datosDe('/src/lib/printing/certificado.js', 'datosConstancia', [unidad, { verificacion: consulta, base: BASE_APP, emisor: 'Móvil Center (demo)', ahora: HOY }])
+  for (const formato of ['a4', 'thermal-80']) {
+    const html = await datosDe('/src/components/shared/OrderReceipt.jsx', 'buildCertificadoHtml', [datosConstancia, { format: formato }])
+    await pdfHtml(`constancia-${formato === 'a4' ? 'a4' : '80mm'}`, html, formato)
+  }
+
   // Hoja de estación (modo taller): la lista de equipos de un carril para el
   // depósito. Se arma con el builder real y tres unidades del inventario demo.
   const otrasDemo = listDemoUnits('', 'active').filter((fila) => fila.id !== demo.id).slice(0, 2)

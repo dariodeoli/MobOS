@@ -34,6 +34,7 @@ const TIPO_TRABAJO = {
   'etiqueta-ubicacion': 'Etiqueta de ubicación',
   'informe-dispositivo': 'Informe de dispositivo',
   'certificado-phonecheck': 'Certificado de inspección',
+  'constancia-preparacion': 'Constancia de preparación',
   prueba: 'Ticket de prueba',
   'prueba-corta': 'Prueba de corte',
 }

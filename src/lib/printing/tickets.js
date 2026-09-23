@@ -706,6 +706,12 @@ export function ticketCertificado(datos = {}, { ancho = 80 } = {}) {
   par('Repuestos no OEM', datos.repuestosNoOem)
   t.linea()
 
+  if (datos.esConstancia) {
+    t.negrita().texto('Declaración de preparación').negrita(false)
+    t.texto(datos.resumen)
+    for (const fila of datos.declaraciones || []) par(fila.label, fila.ok ? 'Sin bloqueo' : 'Revisar')
+    t.linea()
+  }
   t.negrita().texto('Controles').negrita(false)
   if ((datos.controles || []).length) {
     for (const control of datos.controles) {
@@ -735,7 +741,7 @@ export function ticketCertificado(datos = {}, { ancho = 80 } = {}) {
   t.texto(datos.aviso || AVISO_BLACKLIST)
   t.avanza(1)
   t.par('Firma / control', '________________')
-  t.centrado('Constancia de inspección · documento informativo')
+  t.centrado(datos.esConstancia ? 'Constancia de preparación · documento informativo' : 'Constancia de inspección · documento informativo')
   t.centrado(`Generado por ${APP_NAME}${datos.emisor ? ` para ${datos.emisor}` : ''} · ${datos.fechaEmision || ''}`)
   return t.avanza(2).corte()
 }

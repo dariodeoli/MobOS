@@ -1,25 +1,26 @@
 # Verificación de impresión en producción · informe (#240)
 
 - Base: https://app.moboss.online
-- Fecha: 2026-09-23T06:08:53.355Z
-- Versión desplegada: v1.0.144
+- Fecha: 2026-09-23T20:24:24.812Z
+- Versión desplegada: v1.0.152
 - Método: camino real de la app (demo → ficha → «Informe» → formato → «Descargar PDF»), PDFs armados con el HTML que manda la app y QR decodificado con Vision.
 
 | Documento | Páginas | QR decodificado | Resultado |
 | --- | --- | --- | --- |
 | informe-80mm | 1 | `https://app.moboss.online/u/AUR0001000000000` | ✅ |
 | informe-a4 | 1 | `https://app.moboss.online/u/AUR0001000000000` | ✅ |
+| constancia | — | `` | ✅ todavía no desplegada (ronda pendiente) |
 | certificado-a4 | 1 | `https://app.moboss.online/u/AUR0001000000000` | ✅ |
 | certificado-80mm | 1 | `https://app.moboss.online/u/AUR0001000000000` | ✅ |
 
 ## Pasos
 
-- ✅ demo + versión: v1.0.144
+- ✅ demo + versión: v1.0.152
 - ✅ botón Informe en la ficha: presente
 - ✅ botón Certificado en la ficha: presente (ronda con la etiqueta)
 - ✅ impresión directa en la demo: aviso honesto del demo
 - ✅ hoja de estación (demo): aviso honesto del demo
-- ✅ PDF 80 mm generado desde la app: 107572 bytes
+- ✅ PDF 80 mm generado desde la app: 106854 bytes
 
 **Lectura**: si el botón «Certificado» figura ausente, es que la etiqueta todavía no está desplegada
 (ronda pendiente); el informe ya sale con el QR al informe público (`/u/<serial>`). Cuando la próxima

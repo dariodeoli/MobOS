@@ -5,6 +5,7 @@ import {
   controlesDeVerificacion,
   datosCertificado,
   datosChecklist,
+  datosConstancia,
   esChecklistDSN,
   gradoChecklist,
   itemsChecklist,
@@ -251,4 +252,18 @@ test('el certificado con el checklist de DSN queda completo (grado B y batería 
   const incompleta = datosCertificado({ ...unidad, inspection: { ...INSPECCION_DSN, items: { tactil: 'pasa', imagen: 'falla' } } }, { ahora: new Date('2026-09-22T10:00:00Z') })
   assert.equal(incompleta.completa, false, 'sin revisar completo el certificado queda pendiente')
   assert.equal(incompleta.grado, 'P')
+})
+
+test('la constancia de preparación declara lo que los controles permiten (#240 §6)', () => {
+  const unidad = { serial: 'AUR0005000000000', condition: 'USED', product: { name: 'iPhone 15 Pro Max', capacity: '256GB' }, inspection: INSPECCION_DSN }
+  const constancia = datosConstancia(unidad, { verificacion: CONSULTA, ahora: new Date('2026-09-22T10:00:00Z') })
+  assert.equal(constancia.titulo, 'Constancia de preparación')
+  assert.equal(constancia.esConstancia, true)
+  assert.equal(constancia.preparado, true)
+  assert.equal(constancia.declaraciones.length, 4)
+  assert.ok(constancia.resumen.includes('formateado y desvinculado'))
+  // Con un control con bloqueo, la constancia no afirma la preparación.
+  const conBloqueo = datosConstancia(unidad, { verificacion: { normalized: [{ clave: 'findMy', etiqueta: 'Find My / iCloud', valor: 'On' }] }, ahora: new Date('2026-09-22T10:00:00Z') })
+  assert.equal(conBloqueo.preparado, false)
+  assert.ok(conBloqueo.resumen.includes('No se puede afirmar'))
 })

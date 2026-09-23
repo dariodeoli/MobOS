@@ -1,10 +1,10 @@
 {
   "base": "https://app.moboss.online",
-  "fecha": "2026-09-23T06:08:53.355Z",
+  "fecha": "2026-09-23T20:24:24.812Z",
   "pasos": [
     {
       "paso": "demo + versión",
-      "detalle": "v1.0.144",
+      "detalle": "v1.0.152",
       "ok": true
     },
     {
@@ -29,35 +29,43 @@
     },
     {
       "paso": "PDF 80 mm generado desde la app",
-      "detalle": "107572 bytes",
+      "detalle": "106854 bytes",
       "ok": true
     }
   ],
   "resultados": [
     {
       "documento": "informe-80mm",
-      "version": "v1.0.144",
+      "version": "v1.0.152",
       "paginas": 1,
       "qr": "https://app.moboss.online/u/AUR0001000000000",
       "estado": "ok"
     },
     {
       "documento": "informe-a4",
-      "version": "v1.0.144",
+      "version": "v1.0.152",
       "paginas": 1,
       "qr": "https://app.moboss.online/u/AUR0001000000000",
       "estado": "ok"
     },
     {
+      "documento": "constancia",
+      "version": "v1.0.152",
+      "paginas": "—",
+      "qr": "",
+      "estado": "ok",
+      "detalle": "todavía no desplegada (ronda pendiente)"
+    },
+    {
       "documento": "certificado-a4",
-      "version": "v1.0.144",
+      "version": "v1.0.152",
       "paginas": 1,
       "qr": "https://app.moboss.online/u/AUR0001000000000",
       "estado": "ok"
     },
     {
       "documento": "certificado-80mm",
-      "version": "v1.0.144",
+      "version": "v1.0.152",
       "paginas": 1,
       "qr": "https://app.moboss.online/u/AUR0001000000000",
       "estado": "ok"

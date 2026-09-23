@@ -63,7 +63,7 @@ function FotoMini({ unitId, commentId, photo }) {
 
 // Detalle premium de una unidad de inventario: ficha completa, acciones y
 // cronología con comentarios y fotos (misma experiencia que los pedidos).
-export default function UnidadDetalle({ unit, busy, canManage, locations = [], onClose, onChanged, onSell, onReserve, onVerify, onArrive, onLabel, onInforme, onCertificado, onRelease, onAdjust, onRemove, onMove }) {
+export default function UnidadDetalle({ unit, busy, canManage, locations = [], onClose, onChanged, onSell, onReserve, onVerify, onArrive, onLabel, onInforme, onCertificado, onConstancia, onRelease, onAdjust, onRemove, onMove }) {
   const toast = useToast()
   const { esDemo, sesion } = useSesion()
   // #233: la conciliación de una consulta IMEI es una acción auditada de
@@ -581,6 +581,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
             <Button variant="outline" title="Imprimir la etiqueta de esta unidad" onClick={() => onLabel(unit)}>Etiqueta</Button>
             <Button variant="outline" title="Imprimir el informe del dispositivo (80 mm o A4) con el QR al informe público" onClick={() => onInforme?.(unit)}>Informe</Button>
             <Button variant="outline" title="Imprimir el certificado de la inspección (grado, puntaje y checklist) con el QR al informe público" onClick={() => onCertificado?.(unit)}>Certificado</Button>
+            <Button variant="outline" title="Imprimir la constancia de preparación (formateo y desvinculación) firmada, con el QR al informe público" onClick={() => onConstancia?.(unit)}>Constancia</Button>
             <Button variant="outline" disabled={busy || ['SOLD', 'RESERVED', 'IN_TRANSIT'].includes(unit.status)} title={unit.status === 'DEFECTIVE' ? 'Devolver la unidad al stock disponible' : 'Marcar la unidad en revisión con un motivo'} onClick={() => ejecutar(() => onAdjust(unit))}>{unit.status === 'DEFECTIVE' ? 'Habilitar' : 'Enviar a revisión'}</Button>
             <Button variant="outline" disabled={busy || unit.status !== 'AVAILABLE'} title="Sacar la unidad del stock (queda en Eliminados)" onClick={() => ejecutar(() => onRemove(unit))}>Dar de baja</Button>
           </div>

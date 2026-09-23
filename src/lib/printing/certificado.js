@@ -272,6 +272,32 @@ export const serialEnmascarado = (serial) => {
 export const codigoCertificado = (datos = {}) => ['CERT', datos.serialEnmascarado || '', datos.grado || 'P', datos.puntaje ?? '', datos.verificado || ''].join('|')
 
 /**
+ * Constancia de preparación (#240 §6): el mismo checklist con la declaración de
+ * formateo/desvinculación (iCloud off, MDM off, ESN limpio, SIM libre), firmada.
+ */
+export function datosConstancia(unit = {}, opciones = {}) {
+  const datos = datosCertificado(unit, opciones)
+  const declaraciones = (datos.controles || []).map((control) => ({
+    label: control.label,
+    valor: control.valor,
+    ok: control.ok,
+    texto: `${control.label}: ${control.ok ? 'sin bloqueo' : 'revisar'}${control.valor ? ` (${control.valor})` : ''}`,
+  }))
+  const preparado = declaraciones.length > 0 && declaraciones.every((fila) => fila.ok)
+  return {
+    ...datos,
+    titulo: 'Constancia de preparación',
+    esConstancia: true,
+    declaraciones,
+    // La constancia solo afirma lo que los controles permiten afirmar.
+    preparado,
+    resumen: preparado
+      ? 'Equipo formateado y desvinculado: sin iCloud/Find My, sin MDM, sin reportes y con la SIM libre.'
+      : 'No se puede afirmar la preparación completa: hay controles sin verificar o con bloqueo.',
+  }
+}
+
+/**
  * Datos de la etiqueta Certificado: constancia de inspección para el comprador,
  * sin datos personales. El QR apunta al informe público (`enlace` de INV/DSN o
  * `/u/<serial>`); el código `CERT|…` va como barras.

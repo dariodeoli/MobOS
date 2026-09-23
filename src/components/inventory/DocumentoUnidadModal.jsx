@@ -3,7 +3,7 @@ import { Button, Modal, Select } from '@/components/ui'
 import { buildCertificadoHtml, buildInformeDispositivoHtml, printCertificado, printInformeDispositivo } from '@/components/shared/OrderReceipt'
 import VistaPreviaPapel from '@/components/shared/VistaPreviaPapel'
 import { datosInformeDispositivo } from '@/lib/printing/informeDispositivo'
-import { datosCertificado } from '@/lib/printing/certificado'
+import { datosCertificado, datosConstancia } from '@/lib/printing/certificado'
 import { ticketCertificado, ticketInformeDispositivo } from '@/lib/printing/tickets'
 import { imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
 import { demoConsultaImei } from '@/lib/imeiComprobante'
@@ -29,6 +29,15 @@ const TIPOS = {
     html: buildInformeDispositivoHtml,
     ticket: ticketInformeDispositivo,
     respaldo: printInformeDispositivo,
+  },
+  constancia: {
+    titulo: 'Constancia de preparación',
+    tipo: 'constancia-preparacion',
+    ayuda: 'La declaración de formateo/desvinculación (iCloud, MDM, reportes y SIM) firmada para adjuntar al informe; el QR abre el informe público.',
+    datos: (unit, consulta) => datosConstancia(unit, { verificacion: consulta }),
+    html: buildCertificadoHtml,
+    ticket: ticketCertificado,
+    respaldo: printCertificado,
   },
   certificado: {
     titulo: 'Certificado de inspección',
