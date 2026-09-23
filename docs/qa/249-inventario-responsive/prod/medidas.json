@@ -1,0 +1,31 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "1.0.152",
+  "fecha": "2026-09-23T22:53:13.223Z",
+  "medidas": {
+    "casilla": {
+      "ancho": 16,
+      "alto": 16
+    },
+    "lapizCosto": {
+      "ancho": 14,
+      "alto": 14
+    },
+    "verificar": {
+      "ancho": 24,
+      "alto": 24
+    },
+    "menuAcciones": {
+      "ancho": 28,
+      "alto": 28
+    },
+    "solapa": {
+      "ancho": 109,
+      "alto": 32
+    },
+    "estadoChecklist": {
+      "ancho": 39,
+      "alto": 30
+    }
+  }
+}
