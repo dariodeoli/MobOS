@@ -124,6 +124,7 @@ model Tenant {
   cashAuditMarks          CashAuditMark[]
 
   @@index([archivedAt])
+  supplyNeeds                 SupplyNeed[]
 }
 
 // Identidad de la PERSONA (cuenta Google). No pertenece a ninguna tienda:
@@ -262,6 +263,7 @@ model Branch {
   @@index([tenantId])
   printBridges   PrintBridge[]  @relation("PrintBridgeBranch")
   printPrinters  PrintPrinter[] @relation("PrintPrinterBranch")
+  supplyNeeds SupplyNeed[]
 }
 
 model User {
@@ -333,6 +335,8 @@ model User {
   @@index([tenantId])
   @@index([branchId])
   @@index([tenantId, status, lockedUntil])
+  supplyNeedsAssigned           SupplyNeed[] @relation("SupplyNeedAssignee")
+  supplyNeedsCreated            SupplyNeed[] @relation("SupplyNeedAuthor")
 }
 
 model UserInvitation {
@@ -488,6 +492,7 @@ model Product {
   @@index([capacity(ops: raw("gin_trgm_ops"))], map: "Product_capacity_trgm_idx", type: Gin)
   @@index([color(ops: raw("gin_trgm_ops"))], map: "Product_color_trgm_idx", type: Gin)
   @@index([imei(ops: raw("gin_trgm_ops"))], map: "Product_imei_trgm_idx", type: Gin)
+  supplyNeeds SupplyNeed[]
 }
 
 enum InventoryUnitStatus {
@@ -795,6 +800,7 @@ model Customer {
   @@index([priceListId])
   // Búsqueda difusa por nombre (pg_trgm, GIN): ILIKE '%texto%' sin escanear.
   @@index([name(ops: raw("gin_trgm_ops"))], map: "Customer_name_trgm_idx", type: Gin)
+  supplyNeeds SupplyNeed[]
 }
 
 // Solicitud de autorización comercial (mayorista, crédito, plazo o descuento).
@@ -1164,6 +1170,7 @@ model Order {
   @@index([orderNumber(ops: raw("gin_trgm_ops"))], map: "Order_orderNumber_trgm_idx", type: Gin)
   @@index([assignedToId])
   @@index([tenantId, assignedToId, fulfillmentStatus])
+  supplyNeeds SupplyNeed[]
 }
 
 // Acceso público del pedido por nivel de información. Cada token es aleatorio,
@@ -2151,6 +2158,53 @@ model PurchaseOrder {
   @@index([tenantId, createdAt])
   @@index([tenantId, status])
   @@index([tenantId, supplierId, createdAt])
+}
+
+// #250 Fase 1 (Centro de Abastecimiento): necesidad de abastecimiento — la
+// demanda que alimenta el panel «Por comprar». Se genera desde una venta o una
+// reserva sin stock, por bajo punto de reposición, o se carga a mano; la
+// compra/recepción (Fases 2-5) la resuelven. **No crea stock**: solo tras la
+// recepción la unidad queda disponible.
+model SupplyNeed {
+  id           String           @id @default(cuid())
+  tenantId     String
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // Destino final de las unidades (la sucursal que las necesita).
+  branchId     String?
+  branch       Branch?          @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  productId    String
+  product      Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // Variante exacta a comprar: nunca se mezclan condición/capacidad/color en la
+  // consolidación (#250 §5).
+  condition    ProductCondition @default(NEW)
+  quantity     Int
+  // SALE_NO_STOCK · RESERVATION_NO_STOCK · QUANTITY_OVER_STOCK · BELOW_REORDER ·
+  // ORDER_COMMITTED · MANUAL (ver backend/lib/supply.ts).
+  source       String
+  priority     String           @default("NORMAL")
+  status       String           @default("OPEN")
+  // Fecha prometida al cliente (prioriza la compra) y vínculo con el pedido.
+  promisedAt   DateTime?
+  orderId      String?
+  order        Order?           @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderItemId  String?
+  customerId   String?
+  customer     Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  assignedToId String?
+  assignedTo   User?            @relation("SupplyNeedAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  notes        String?
+  createdById  String
+  createdBy    User             @relation("SupplyNeedAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+  // Clave de deduplicación de las automáticas: repetir la misma demanda no crea
+  // otra fila (las manuales van sin clave y conviven).
+  dedupeKey    String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([tenantId, dedupeKey])
+  @@index([tenantId, status, priority, createdAt])
+  @@index([tenantId, productId, condition, status])
+  @@index([tenantId, branchId, status])
 }
 
 model Supplier {

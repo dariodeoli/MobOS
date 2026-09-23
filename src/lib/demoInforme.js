@@ -68,7 +68,9 @@ export function demoInformePayload(serial) {
       serialMasked: enmascarar(serial),
       imeiMasked: enmascarar(serial),
       condition: condicion,
-      batteryHealth: unidad?.batteryHealth ?? null,
+      // La inspección manda sobre el dato de recepción (igual que en la cuenta real).
+      batteryHealth: inspeccion?.bateriaPct ?? unidad?.batteryHealth ?? null,
+      batteryCycles: inspeccion?.bateriaCiclos ?? null,
       verifiedAt: unidad?.lastVerifiedAt || null,
       verifiedBy: unidad?.lastVerifiedBy?.name || null,
       verifiedByCode: unidad?.verifiedByCode || null,
@@ -78,12 +80,12 @@ export function demoInformePayload(serial) {
       // #240: repuestos no-OEM de la inspección (sin datos personales).
       repuestosNoOem: inspeccion?.repuestosNoOem || '',
       repuestosNoOemNota: inspeccion?.repuestosNoOemNota || '',
+      // Mismo criterio que el backend: solo los locks informados con valor.
+      controles: consulta ? locksDeVerificacion({ normalized: consulta.normalized }).filter((control) => control.valor && control.valor !== '—') : [],
     },
     sale: venta ? { orderNumber: venta.pedido.orderNumber, date: venta.pedido.createdAt, branch: SUCURSAL } : null,
     warranty: garantia ? { status: ESTADO_GARANTIA[garantia.status] || garantia.status, description: garantia.description || '', expiresAt: vence } : null,
     check: consulta ? { provider: consulta.provider, status: consulta.status, date: consulta.requestedAt } : null,
-    // Mismo criterio que el backend: solo los locks informados con valor.
-    controles: consulta ? locksDeVerificacion({ normalized: consulta.normalized }).filter((control) => control.valor && control.valor !== '—') : [],
     disclaimer: 'Informe de demostración: datos ficticios del navegador. No es un certificado oficial ni reemplaza la garantía del fabricante.',
     demo: true,
   }
