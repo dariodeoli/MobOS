@@ -158,3 +158,20 @@ test('el servicio técnico demo llega a la ficha, la cronología y el portal (#2
   assert.equal(enPortal.device, 'iPhone 12 · 128 GB')
   assert.ok(!('pricePyg' in enPortal) && !('costPyg' in enPortal) && !('notes' in enPortal), 'el portal no expone datos internos')
 })
+
+test('el portal demo muestra la garantía con su credencial y la etapa del taller (#240)', () => {
+  const cuenta = demoCuentaPayload('demo-demo-cliente-lucia-completo')
+  const garantia = (cuenta.warranties || []).find((row) => row.serial === '356789012345678')
+  assert.ok(garantia, 'el nivel completo lista la garantía de Lucía')
+  assert.equal(garantia.publicToken, 'demo-garantia-lucia', 'la garantía trae su credencial')
+  assert.ok(garantia.daysRemaining > 0)
+  // El caso de Fernando derivó en una orden de taller: la garantía muestra la
+  // etapa sin duplicar la sección de servicio.
+  const fer = demoCuentaPayload('demo-demo-cliente-fernando-completo')
+  const garantiaFer = (fer.warranties || []).find((row) => row.publicToken === 'demo-garantia-fernando')
+  assert.ok(garantiaFer, 'Fernando tiene su garantía')
+  assert.equal(garantiaFer.taller.statusLabel, 'Diagnóstico')
+  // El nivel rápido no expone garantías (mismo contrato que el API).
+  const rapido = demoCuentaPayload('demo-demo-cliente-fernando-rapido')
+  assert.equal(rapido.warranties, undefined)
+})

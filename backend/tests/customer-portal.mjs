@@ -154,6 +154,27 @@ const garantia = (completo.warranties || []).find(item => item.serial === serial
 assert.ok(garantia, 'El nivel completo debe listar las garantías activas.')
 assert.equal(garantia.description, 'Equipo con garantía portal')
 assert.equal(garantia.status, 'RECEIVED')
+// #240 → portal: la garantía enlaza su credencial pública (el mismo token del QR).
+assert.equal(garantia.publicToken, garantiaPortal.publicToken, 'La garantía del portal debe enlazar su credencial.')
+assert.equal(garantia.taller, undefined, 'Sin orden de taller no hay etapa de servicio.')
+const credencial = await publicRequest(`/api/public/warranty/${encodeURIComponent(garantiaPortal.publicToken)}`)
+assert.equal(credencial.response.status, 200, 'La credencial de la garantía debe abrir sin sesión.')
+assert.equal(credencial.payload.serial, serialGarantia)
+assert.match(credencial.payload.productName || '', /garantía portal/i)
+
+// ── La garantía en el taller: la orden que nace del caso se ve en el portal ──
+result = await request('/api/service-orders', 'POST', {
+  warrantyCaseId: garantiaPortal.id,
+  customerId: cliente.id,
+  customerName: cliente.name,
+  device: 'Equipo con garantía portal',
+  serial: serialGarantia,
+}, adminToken)
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+result = await publicRequest(`/api/portal/${encodeURIComponent(tokenCompleto)}`)
+assert.equal(result.response.status, 200)
+const garantiaConTaller = (result.payload.warranties || []).find(item => item.serial === serialGarantia)
+assert.equal(garantiaConTaller.taller?.statusLabel, 'Recibido', 'La garantía debe mostrar la etapa del taller.')
 assert.equal((completo.addresses || []).some(address => address.address === `Av. Portal ${ts}`), true, 'El nivel completo debe listar las direcciones.')
 const pedidoCompleto = completo.orders.find(order => order.orderNumber === numeroPedido)
 assert.equal(pedidoCompleto.receiptToken, pedido.publicToken, 'El pedido debe enlazar a su comprobante público.')

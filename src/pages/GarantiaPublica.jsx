@@ -3,8 +3,10 @@ import { whatsappUrl } from '@/utils/telefono'
 import { ESTADO_GARANTIA } from '@/lib/estadosPedido'
 import { codigoPedido } from '@/utils/pedido'
 import Icon from '@/components/shared/Icon'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { API_URL } from '@/lib/api/client'
+import { isDemoRuntime } from '@/lib/demoMode'
+import { demoGarantiaPayload } from '@/lib/demoGarantia'
 import { Aviso, BarraProgreso } from '@/components/ui'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 
@@ -15,16 +17,27 @@ function bulletList(text) {
 
 export default function GarantiaPublica() {
   const { token } = useParams()
+  const [searchParams] = useSearchParams()
   const [warranty, setWarranty] = useState(null)
   const [error, setError] = useState('')
+  // Garantía demo (#240 → portal): el enlace del portal viaja con `?demo=1`
+  // para resolverla con los datos del navegador, igual que el informe.
+  const demoDelEnlace = searchParams.get('demo') === '1'
+  const demo = isDemoRuntime || demoDelEnlace
   useEffect(() => {
     let active = true
     setError(''); setWarranty(null)
+    if (demo) {
+      const local = demoGarantiaPayload(token)
+      if (local) setWarranty(local)
+      else setError('Garantía no encontrada.')
+      return () => { active = false }
+    }
     fetch(`${API_URL}/api/public/warranty/${encodeURIComponent(token || '')}`)
       .then(async response => { const payload = await response.json().catch(() => null); if (!response.ok) throw new Error(payload?.message || payload?.error || 'Garantía no encontrada.'); if (active) setWarranty(payload) })
       .catch(cause => { if (active) setError(cause?.message || 'No se pudo cargar la garantía.') })
     return () => { active = false }
-  }, [token])
+  }, [token, demo])
   const days = warranty?.daysRemaining ?? null
   const total = warranty?.warrantyDays ?? null
   const pct = days != null && total ? Math.min(100, Math.max(0, Math.round((days / total) * 100))) : null

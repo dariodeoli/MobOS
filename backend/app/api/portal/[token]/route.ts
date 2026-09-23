@@ -101,7 +101,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     completo
       ? prisma.warrantyCase.findMany({
           where: { tenantId: portal.tenantId, customerId: portal.customerId, status: { not: 'DELIVERED' } },
-          select: { serial: true, description: true, status: true, expiresAt: true, warrantyDays: true },
+          select: { serial: true, description: true, status: true, expiresAt: true, warrantyDays: true, publicToken: true },
           orderBy: { createdAt: 'desc' },
           take: 50,
         })
@@ -165,14 +165,25 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
       orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
       take: 20,
     })
-    payload.warranties = warrantyRows.map(warranty => ({
-      serial: warranty.serial,
-      description: warranty.description,
-      status: warranty.status,
-      warrantyDays: warranty.warrantyDays,
-      expiresAt: warranty.expiresAt,
-      daysRemaining: warranty.expiresAt ? Math.max(0, Math.ceil((new Date(warranty.expiresAt).getTime() - now) / 86400000)) : null,
-    }))
+    // Si el caso está en el taller, la garantía muestra el estado del servicio
+    // que nació de ella (#224: la conversión comparte el serial).
+    const servicioPorSerial = new Map(servicios.map((orden) => [String(orden.serial || '').trim().toUpperCase(), orden]))
+    payload.warranties = warrantyRows.map(warranty => {
+      const servicio = servicioPorSerial.get(String(warranty.serial || '').trim().toUpperCase())
+      const enTaller = servicio && !['ENTREGADO', 'CANCELADO'].includes(servicio.status) ? servicio : null
+      return {
+        serial: warranty.serial,
+        description: warranty.description,
+        status: warranty.status,
+        warrantyDays: warranty.warrantyDays,
+        expiresAt: warranty.expiresAt,
+        daysRemaining: warranty.expiresAt ? Math.max(0, Math.ceil((new Date(warranty.expiresAt).getTime() - now) / 86400000)) : null,
+        // Credencial pública (#240 §3 → portal): el cliente abre su garantía con
+        // cobertura y vencimiento desde su cuenta (mismo token del QR).
+        ...(warranty.publicToken ? { publicToken: warranty.publicToken } : {}),
+        ...(enTaller ? { taller: { status: enTaller.status, statusLabel: etiquetaServicio(enTaller.status) } } : {}),
+      }
+    })
     payload.addresses = addresses.map(address => ({
       label: address.label,
       address: address.address,

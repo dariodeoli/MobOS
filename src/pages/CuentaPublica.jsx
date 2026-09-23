@@ -210,6 +210,23 @@ export default function CuentaPublica() {
                         <p className="mt-0.5 text-xs text-mute">
                           {warranty.expiresAt ? `Vence ${fecha(warranty.expiresAt)}${warranty.daysRemaining != null ? ` · ${warranty.daysRemaining} días restantes` : ''}` : 'Sin vencimiento registrado'}
                         </p>
+                        {/* Seguimiento de la garantía: si el caso derivó en una
+                            orden de taller, el cliente ve la etapa acá mismo. */}
+                        {warranty.taller && (
+                          <p className="mt-1 flex items-center gap-1.5 text-xs text-warn">
+                            <Icon name="wrench" className="h-3.5 w-3.5" />
+                            En el taller: {warranty.taller.statusLabel || warranty.taller.status}
+                          </p>
+                        )}
+                        {warranty.publicToken && (
+                          <Link
+                            to={`/garantia/${encodeURIComponent(warranty.publicToken)}${esTokenDemo(token) ? '?demo=1' : ''}`}
+                            className="mt-2.5 inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-fono/40 px-3 py-2 text-xs font-bold text-fono-light transition hover:bg-fono/10 sm:w-auto sm:min-h-9 sm:justify-start sm:border-0 sm:px-0"
+                          >
+                            <Icon name="shield" className="h-4 w-4" />
+                            Ver garantía
+                          </Link>
+                        )}
                       </div>
                     ))}
                   </div>

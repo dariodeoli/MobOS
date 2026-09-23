@@ -76,7 +76,9 @@ export const SEED_DEMO_CLIENTES = [
         pedido({ id: 'demo-p-12', numero: 'MOB-0012', total: 1200000, pagado: 1200000, dias: 400, items: [{ id: 'demo-i-12', description: 'iPad 10 · 64 GB', quantity: 1, model: 'iPad 10', category: 'Celulares', serials: [] }] }),
         pedido({ id: 'demo-p-3', numero: 'MOB-0003', total: 850000, pagado: 850000, dias: 700, items: [{ id: 'demo-i-3', description: 'Cargador USB-C y funda', quantity: 2, model: 'Cargador USB-C', category: 'Accesorios', serials: [] }] }),
       ],
-      warranties: [],
+      warranties: [
+        { id: 'demo-g-1', serial: '356789012345678', description: 'iPhone 15 · 128 GB', status: 'DIAGNOSIS', warrantyDays: 365, expiresAt: haceDias(-300), createdAt: haceDias(60), publicToken: 'demo-garantia-lucia', coverage: 'Fallas de fábrica del equipo\nBatería con salud por debajo del 80%\nDefectos de pantalla sin golpes', exclusions: 'Daños por golpes o líquidos\nIntervenciones de terceros\nDesgaste normal del uso' },
+      ],
       notes: [
         { id: 'demo-n-1', content: 'Prefiere retirar por la tarde.', createdAt: haceDias(8), user: usuarioDemo('Diego López') },
         { id: 'demo-n-2', content: 'Cliente frecuente: avisarle de promociones de accesorios.', createdAt: haceDias(30), user: usuarioDemo('Ana Giménez') },
@@ -195,7 +197,7 @@ const clienteExtra = (id, nombres, documento, telefono, ciudad, opciones = {}) =
   ],
   demoProfile: {
     orders: opciones.pedidos || [],
-    warranties: [],
+    warranties: opciones.garantias || [],
     services: opciones.servicios || [],
     notes: opciones.notas ? [{ id: `${id}-nota`, content: opciones.notas, createdAt: haceDias(10), user: usuarioDemo('Diego López') }] : [],
     followUps: [],
@@ -210,7 +212,7 @@ SEED_DEMO_CLIENTES.push(
   clienteExtra('demo-cliente-ramiro', 'Ramiro Cáceres', '4.222.333', '0985666999', 'Capiatá', { tags: ['reventa'], tier: 'WHOLESALE', credito: 8000000, dias: 30, facturaA: 'Ramiro Import', facturaDoc: '80098765-4', extraDirecciones: [{ label: 'Depósito', address: 'Ruta 1 Km 20' }], pedidos: [pedidoDemo('demo-p-11', 'MOB-0011', 12500000, 12500000, 30, 'iPhone 14 Pro · 256 GB × 3')] }),
   clienteExtra('demo-cliente-estela', 'Estela Ramírez', '3.222.111', '0987999111', 'Asunción', { tags: ['prioridad'], notes: 'Factura a nombre de la empresa del esposo.' }),
   clienteExtra('demo-cliente-distribuidora-luque', 'Distribuidora Luque S.A.', '80077777-1', '0982111000', 'Luque', { tags: ['volumen', 'factura'], tier: 'WHOLESALE', credito: 15000000, dias: 30, facturaA: 'Distribuidora Luque S.A.', facturaDoc: '80077777-1', pedidos: [pedidoDemo('demo-p-12', 'MOB-0012', 9600000, 5000000, 14, 'iPhone 13 · 128 GB × 4')] }),
-  clienteExtra('demo-cliente-fernando', 'Fernando Ortellado', '2.888.999', '0973111444', 'Mariano Roque Alonso', { tags: ['frecuente'], servicios: [{ id: 'demo-os-3', serviceNumber: 'OS-0005', device: 'iPhone 11 · 64 GB', serviceName: 'No enciende', serial: 'AUR002300000000', status: 'DIAGNOSTICO', receivedAt: haceDias(2), deliveredAt: null }] }),
+  clienteExtra('demo-cliente-fernando', 'Fernando Ortellado', '2.888.999', '0973111444', 'Mariano Roque Alonso', { tags: ['frecuente'], servicios: [{ id: 'demo-os-3', serviceNumber: 'OS-0005', device: 'iPhone 11 · 64 GB', serviceName: 'No enciende', serial: 'AUR002300000000', status: 'DIAGNOSTICO', receivedAt: haceDias(2), deliveredAt: null }], garantias: [{ id: 'demo-g-2', serial: 'AUR002300000000', description: 'iPhone 11 · 64 GB', status: 'RECEIVED', warrantyDays: 180, expiresAt: haceDias(-150), createdAt: haceDias(2), publicToken: 'demo-garantia-fernando', coverage: 'Fallas de fábrica del equipo\nBatería con salud por debajo del 80%', exclusions: 'Daños por golpes o líquidos\nIntervenciones de terceros' }] }),
   clienteExtra('demo-cliente-gloria', 'Gloria Martínez', '6.123.456', '0981222777', 'Lambaré', { tags: ['trade-in'], seguro: true, notes: 'Cambió de equipo con trade-in.' }),
   clienteExtra('demo-cliente-hugo', 'Hugo Benítez', '4.999.888', '0986555222', 'Itauguá', { tags: ['moroso'], credito: 1000000, dias: 7, pedidos: [pedidoDemo('demo-p-13', 'MOB-0013', 2350000, 500000, 40, 'iPhone 12 · 128 GB')] }),
 )
@@ -464,7 +466,25 @@ export function demoCuentaPayload(token) {
       receivedAt: servicio.receivedAt,
       deliveredAt: servicio.deliveredAt,
     })),
-    ...(nivel === 'completo' ? { warranties: [], addresses: cliente.addresses || [] } : {}),
+    ...(nivel === 'completo' ? {
+      // Garantías con su credencial pública (#240 §3 → portal) y el estado del
+      // taller cuando el caso derivó en una orden (mismo serial).
+      warranties: (cliente.demoProfile?.warranties || []).map((garantia) => {
+        const servicio = (cliente.demoProfile?.services || []).find((row) => String(row.serial || '').trim().toUpperCase() === String(garantia.serial || '').trim().toUpperCase())
+        const enTaller = servicio && !['ENTREGADO', 'CANCELADO'].includes(servicio.status) ? servicio : null
+        return {
+          serial: garantia.serial,
+          description: garantia.description,
+          status: garantia.status,
+          warrantyDays: garantia.warrantyDays ?? null,
+          expiresAt: garantia.expiresAt || null,
+          daysRemaining: garantia.expiresAt ? Math.max(0, Math.ceil((new Date(garantia.expiresAt).getTime() - Date.now()) / 86400000)) : null,
+          ...(garantia.publicToken ? { publicToken: garantia.publicToken } : {}),
+          ...(enTaller ? { taller: { status: enTaller.status, statusLabel: etiquetaServicio(enTaller.status) } } : {}),
+        }
+      }),
+      addresses: cliente.addresses || [],
+    } : {}),
   }
 }
 

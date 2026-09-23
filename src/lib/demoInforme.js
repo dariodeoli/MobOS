@@ -36,7 +36,7 @@ function checklistDemo(inspection) {
 }
 
 /** Pedido demo que vendió ese serial (seeds + clientes creados en la pestaña). */
-function pedidoDelSerial(serial) {
+export function pedidoDemoDelSerial(serial) {
   const clientes = [...SEED_DEMO_CLIENTES, ...clientesDemoGuardados()]
   for (const cliente of clientes) {
     for (const pedido of cliente.demoProfile?.orders || []) {
@@ -49,7 +49,7 @@ function pedidoDelSerial(serial) {
 
 export function demoInformePayload(serial) {
   if (!serial) return null
-  const venta = pedidoDelSerial(serial)
+  const venta = pedidoDemoDelSerial(serial)
   const unidad = listDemoUnits(serial).find((fila) => mismoSerial(fila.serial, serial)) || null
   if (!venta && !unidad) return null
   const modelo = venta?.item?.model || venta?.item?.description || unidad?.product?.nombre || unidad?.product?.name || 'Equipo'
@@ -90,7 +90,7 @@ export function demoInformePayload(serial) {
  * compartidos desde la ficha; nada sale del navegador.
  */
 export function marcarInformeVistoDemo(serial) {
-  const venta = pedidoDelSerial(serial)
+  const venta = pedidoDemoDelSerial(serial)
   const unidad = listDemoUnits(serial).find((fila) => mismoSerial(fila.serial, serial)) || null
   if (!venta && !unidad) return null
   return registrarVistoInformeDemo(venta?.cliente?.id || null, serial)
