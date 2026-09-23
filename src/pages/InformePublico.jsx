@@ -126,6 +126,10 @@ export default function InformePublico() {
           {check && <div className="rounded-2xl border border-ink-600 bg-ink-800/40 p-4 text-sm">
             <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Consulta de IMEI</p>
             <div className="mt-1">{dato('Fuente', check.provider)}{dato('Resultado', check.status)}{dato('Fecha', check.date ? fechaCorta(check.date) : '—')}</div>
+            {/* #240: controles del dispositivo (iCloud/MDM/ESN/carrier) con semáforo. */}
+            {unit.controles?.length ? <div className="mt-2 flex flex-wrap gap-1.5">
+              {unit.controles.map((control) => <span key={control.clave} className={`rounded-lg border px-2 py-1 text-[10px] font-semibold ${control.ok ? 'border-ok/40 text-ok' : 'border-bad/40 text-bad'}`} title={`${control.label}: ${control.valor}`}>{control.label}: {control.valor}</span>)}
+            </div> : null}
           </div>}
         </section>
       )}

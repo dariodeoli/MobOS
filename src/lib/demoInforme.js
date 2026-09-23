@@ -3,7 +3,8 @@
 // equipos vendidos) y las unidades del inventario demo. Nada sale del navegador.
 import { SEED_DEMO_CLIENTES, clientesDemoGuardados, registrarVistoInformeDemo } from './demoClientes.js'
 import { listDemoUnits } from './demoInventory.js'
-import { INSPECCION_ITEMS, resumenInspection } from './phonecheck.js'
+import { consultasDemoImei } from './demoImei.js'
+import { INSPECCION_ITEMS, locksDeVerificacion, resumenInspection } from './phonecheck.js'
 import { ESTADO_GARANTIA } from './estadosPedido.js'
 
 const enmascarar = (valor) => {
@@ -58,6 +59,8 @@ export function demoInformePayload(serial) {
   const vence = garantia?.expiresAt || null
   const inspeccion = unidad?.inspection || null
   const grado = inspeccion ? resumenInspection(inspeccion).grado : null
+  // Última consulta IMEI del demo: alimenta la tarjeta de controles del informe.
+  const consulta = consultasDemoImei(serial)[0] || null
   return {
     store: { name: TIENDA, branch: SUCURSAL },
     unit: {
@@ -78,7 +81,9 @@ export function demoInformePayload(serial) {
     },
     sale: venta ? { orderNumber: venta.pedido.orderNumber, date: venta.pedido.createdAt, branch: SUCURSAL } : null,
     warranty: garantia ? { status: ESTADO_GARANTIA[garantia.status] || garantia.status, description: garantia.description || '', expiresAt: vence } : null,
-    check: null,
+    check: consulta ? { provider: consulta.provider, status: consulta.status, date: consulta.requestedAt } : null,
+    // Mismo criterio que el backend: solo los locks informados con valor.
+    controles: consulta ? locksDeVerificacion({ normalized: consulta.normalized }).filter((control) => control.valor && control.valor !== '—') : [],
     disclaimer: 'Informe de demostración: datos ficticios del navegador. No es un certificado oficial ni reemplaza la garantía del fabricante.',
     demo: true,
   }
