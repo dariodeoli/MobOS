@@ -27,6 +27,9 @@ const PANTALLAS = [
   ['clientes', '/clientes', (page) => page.getByTestId('cliente-fila').first()],
   ['finanzas', '/finanzas/caja', (page) => page.getByText('Saldo esperado').first()],
   ['demo', '/demo', (page) => page.locator('h1:visible, h2:visible').first()],
+  // La landing se sirve en el host público: acá se audita su vista previa local
+  // (`/landing-preview`, solo en dev) y en producción con el script.
+  ['landing', '/landing-preview', (page) => page.locator('h1:visible').first()],
 ]
 
 // Modales principales por pantalla (criterio de Dario: usables en mobile). Se
@@ -68,17 +71,34 @@ async function auditar(page) {
         })
       }
     }
+    // Área táctil efectiva: si el control expande su zona con `::after`
+    // (patrón .toque-44), se mide esa área y no la caja dibujada.
+    const areaTactil = (el) => {
+      const rect = el.getBoundingClientRect()
+      let ancho = rect.width
+      let alto = rect.height
+      const after = getComputedStyle(el, '::after')
+      if (after && after.content && after.content !== 'none' && after.position === 'absolute') {
+        const anchoAfter = parseFloat(after.width)
+        const altoAfter = parseFloat(after.height)
+        if (Number.isFinite(anchoAfter)) ancho = Math.max(ancho, anchoAfter)
+        if (Number.isFinite(altoAfter)) alto = Math.max(alto, altoAfter)
+      }
+      return { ancho, alto }
+    }
     const chicos = []
     for (const el of document.querySelectorAll('button, a[href], input:not([type="hidden"]), select, textarea, [role="button"]')) {
       if (!visible(el) || el.closest('[aria-hidden="true"]')) continue
       const rect = el.getBoundingClientRect()
       if (rect.width === 0 || rect.height === 0) continue
-      if (rect.height < 44 || rect.width < 44) {
+      const area = areaTactil(el)
+      if (area.alto < 44 || area.ancho < 44) {
         chicos.push({
           que: el.tagName.toLowerCase(),
           texto: (el.textContent || el.getAttribute('aria-label') || el.getAttribute('placeholder') || '').trim().replace(/\s+/g, ' ').slice(0, 30),
-          ancho: Math.round(rect.width),
-          alto: Math.round(rect.height),
+          ancho: Math.round(area.ancho),
+          alto: Math.round(area.alto),
+          dibujo: `${Math.round(rect.width)}x${Math.round(rect.height)}`,
           clase: String(el.className).slice(0, 70),
         })
       }

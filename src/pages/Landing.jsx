@@ -332,7 +332,7 @@ export default function Landing() {
             <ThemeToggle />
             <a
               href={`${app}/demo`}
-              className="rounded-xl bg-fono px-4 py-2 text-sm font-bold text-onbrand shadow-glow transition hover:-translate-y-0.5"
+              className="inline-flex min-h-11 items-center rounded-xl bg-fono px-4 py-2 text-sm font-bold text-onbrand shadow-glow transition hover:-translate-y-0.5"
             >
               Probar demo
             </a>
