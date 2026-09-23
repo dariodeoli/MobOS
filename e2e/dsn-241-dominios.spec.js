@@ -7,6 +7,7 @@
 import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { SHELL, auditarContraste, informar } from './helpers/contraste.js'
+import { SEED } from './helpers/seed-data.js'
 
 const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/rediseno'
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
@@ -62,6 +63,33 @@ async function prepararGarantias(page) {
   }, { api: API, marca: MARCA })
 }
 
+// Compras: una recibida completa y una parcial (para ver el avance de
+// recepción). Idempotente por el nombre del proveedor.
+async function prepararCompras(page) {
+  await page.goto('/compras')
+  await page.evaluate(async ({ api, marca, branchId }) => {
+    const compras = await fetch(`${api}/api/purchases`, { credentials: 'include' }).then((r) => r.json()).catch(() => [])
+    if (Array.isArray(compras) && compras.some((compra) => String(compra.supplierName || '').includes(marca))) return
+    const producto = await fetch(`${api}/api/products`, {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sku: `ZZ-${marca}`, name: `Repuesto ${marca}`, category: 'Accesorios', pricePyg: 180000, costPyg: 120000, stock: 0, branchId }),
+    }).then((r) => r.json()).catch(() => null)
+    const crear = (supplierName, quantity) => fetch(`${api}/api/purchases`, {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ supplierName, branchId, lines: [{ productId: producto?.id, quantity, unitCostPyg: 120000 }] }),
+    }).then((r) => r.json())
+    const recibir = (compra, lines) => fetch(`${api}/api/purchases`, {
+      method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: compra?.id, action: 'receive', ...(lines ? { lines } : {}) }),
+    })
+    const completa = await crear(`Proveedor ${marca} Uno`, 3)
+    const parcial = await crear(`Proveedor ${marca} Dos`, 4)
+    await recibir(completa)
+    const linea = parcial?.lines?.[0]
+    if (linea) await recibir(parcial, [{ id: linea.id, quantity: 1 }])
+  }, { api: API, marca: MARCA, branchId: SEED.branchId })
+}
+
 // Nombre, ruta, señal de que el contenido real ya está pintado y, si hace
 // falta, la preparación de datos de la pantalla.
 const PANTALLAS = [
@@ -73,6 +101,11 @@ const PANTALLAS = [
   ['resumen', '/resumen', (page) => page.getByText('Facturado').first()],
   ['analisis-reportes', '/analisis/reportes', (page) => page.locator('[data-testid="reportes-abc-tabla"]').or(page.getByText('Cómo se calcula el resultado')).first()],
   ['analisis-ganancias', '/analisis/ganancias', (page) => page.getByTestId('ganancia-resultado')],
+  ['compras', '/compras', (page) => page.getByTestId('compra-fila').first(), prepararCompras, async (page) => {
+    // La compra parcial expandida es la que muestra el "x de y" de recepción.
+    const parcial = page.getByTestId('compra-fila').filter({ hasText: 'Parcial' }).first()
+    if (await parcial.count()) await parcial.click()
+  }],
 ]
 
 const preparar = (page, { modo, v2 = true }) =>
@@ -84,7 +117,7 @@ const preparar = (page, { modo, v2 = true }) =>
   }, { modo, v2 })
 
 test.describe('dominios v2 · capturas y contraste', () => {
-  for (const [dominio, ruta, listo, prepararDatos] of PANTALLAS) {
+  for (const [dominio, ruta, listo, prepararDatos, antesDeCapturar] of PANTALLAS) {
     test(`${dominio}: claro/oscuro en 390 y 1280 detrás del flag`, async ({ page }) => {
       mkdirSync(SHOTS, { recursive: true })
       for (const [tema, modo] of [['claro', 'light'], ['oscuro', 'dark']]) {
@@ -96,6 +129,7 @@ test.describe('dominios v2 · capturas y contraste', () => {
           await page.goto(ruta)
           await expect(page.locator('.tema-v2').first()).toBeVisible({ timeout: 30_000 })
           await expect(listo(page)).toBeVisible({ timeout: 30_000 })
+          if (antesDeCapturar) await antesDeCapturar(page)
           const medicion = await auditarContraste(page, SHELL, ['.tema-v2'])
           informar(`${dominio}-on-${vista}-${tema}`, medicion)
           await page.screenshot({ path: `${SHOTS}/c241f4b-${dominio}-on-${tema}-${vista}.png` })
