@@ -62,11 +62,15 @@ export async function GET(request: Request, context: { params: Promise<{ serial:
   // Seguimiento del informe compartido (#240 ítem 3): la apertura del link
   // público marca «visto» en la ficha del cliente. La vista previa de la app
   // viaja con `?preview=1` y no cuenta; tampoco los equipos sin cliente.
-  if (new URL(request.url).searchParams.get('preview') !== '1') {
+  // El certificado embebible ([#240] §3, con INV) viaja con `?embed=1` y queda
+  // registrado con ese origen para que la cronología diga de dónde se abrió.
+  const parametros = new URL(request.url).searchParams
+  if (parametros.get('preview') !== '1') {
     await marcarInformeVisto({
       tenantId: elegida.tenantId,
       serial: elegida.serial,
       customerId: venta?.orderItem.order.customerId || null,
+      origen: parametros.get('embed') === '1' ? 'EMBED' : null,
     })
   }
 
@@ -104,7 +108,7 @@ export async function GET(request: Request, context: { params: Promise<{ serial:
 // evento a la cronología del cliente; siempre actualiza contador y última
 // apertura de la fila de seguimiento. Un equipo nunca compartido ni vendido no
 // deja rastro (la ruta es pública y no se escribe por cualquier consulta).
-async function marcarInformeVisto({ tenantId, serial, customerId }: { tenantId: string; serial: string; customerId: string | null }) {
+async function marcarInformeVisto({ tenantId, serial, customerId, origen }: { tenantId: string; serial: string; customerId: string | null; origen?: string | null }) {
   const clave = serialSeguimiento(serial)
   const ahora = new Date()
   const anotarEvento = (customerIdFila: string, canal: string | null) => prisma.auditLog.create({
@@ -113,7 +117,7 @@ async function marcarInformeVisto({ tenantId, serial, customerId }: { tenantId: 
       action: 'CUSTOMER_DEVICE_REPORT_VIEWED',
       entity: 'Customer',
       entityId: customerIdFila,
-      metadata: { serial: clave, canal: canal || 'PORTAL' },
+      metadata: { serial: clave, canal: origen || canal || 'PORTAL' },
     },
   })
 

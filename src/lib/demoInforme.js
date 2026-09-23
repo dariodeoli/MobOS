@@ -94,11 +94,12 @@ export function demoInformePayload(serial) {
 /**
  * Apertura del informe demo (#240 ítem 3): marca «visto» en la fila del serial
  * con el mismo criterio que el API público — solo equipos vendidos o ya
- * compartidos desde la ficha; nada sale del navegador.
+ * compartidos desde la ficha; nada sale del navegador. `canal` permite marcar
+ * el origen (p. ej. `EMBED` para el certificado embebible, con INV).
  */
-export function marcarInformeVistoDemo(serial) {
+export function marcarInformeVistoDemo(serial, opciones = {}) {
   const venta = pedidoDemoDelSerial(serial)
   const unidad = listDemoUnits(serial).find((fila) => mismoSerial(fila.serial, serial)) || null
   if (!venta && !unidad) return null
-  return registrarVistoInformeDemo(venta?.cliente?.id || null, serial)
+  return registrarVistoInformeDemo(venta?.cliente?.id || null, serial, opciones)
 }

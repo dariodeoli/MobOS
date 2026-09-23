@@ -258,6 +258,14 @@ const mascaraSerial = (serial) => {
   const texto = String(serial || '').trim()
   return texto.length > 6 ? `${texto.slice(0, 4)}…${texto.slice(-3)}` : texto
 }
+// Origen congelado de la apertura del informe (mismo vocabulario que el
+// backend: correo, WhatsApp, portal y certificado embebible).
+const ORIGEN_APERTURA_DEMO = {
+  EMAIL: 'Abierto desde el enlace del correo',
+  WHATSAPP: 'Abierto desde el enlace de WhatsApp',
+  PORTAL: 'Abierto desde el portal del cliente',
+  EMBED: 'Abierto desde el certificado embebido',
+}
 
 const SEED_INFORMES_DEMO = (() => {
   const filas = {}
@@ -305,8 +313,9 @@ export function registrarInformeDemo(clienteId, { serial, canal = 'WHATSAPP' } =
 
 /** Apertura del informe: la primera vez deja el «visto» (cuenta las veces).
  *  `viewChannel` congela el origen de la primera apertura, igual que el evento
- *  de auditoría real (un reenvío posterior no cambia de dónde se abrió). */
-export function registrarVistoInformeDemo(clienteId, serial) {
+ *  de auditoría real (un reenvío posterior no cambia de dónde se abrió); el
+ *  parámetro `canal` permite marcar orígenes puntuales (certificado embebido). */
+export function registrarVistoInformeDemo(clienteId, serial, { canal } = {}) {
   const clave = claveSerial(serial)
   if (!clave) return null
   const actual = filaInformeDemo(clave)
@@ -317,7 +326,7 @@ export function registrarVistoInformeDemo(clienteId, serial) {
     serial: clave,
     customerId: actual?.customerId || clienteId,
     channel: actual?.channel ?? null,
-    viewChannel: actual?.viewChannel ?? actual?.channel ?? null,
+    viewChannel: actual?.viewChannel ?? canal ?? actual?.channel ?? null,
     sharedAt: actual?.sharedAt ?? null,
     firstViewedAt: actual?.firstViewedAt || ahora,
     lastViewedAt: ahora,
@@ -350,7 +359,7 @@ export function eventosInformeDemo(clienteId) {
       label: 'Informe del equipo visto por el cliente',
       createdAt: fila.firstViewedAt,
       user: null,
-      detail: `${canalVisto === 'EMAIL' ? 'Abierto desde el enlace del correo' : canalVisto === 'WHATSAPP' ? 'Abierto desde el enlace de WhatsApp' : 'Abierto desde el portal del cliente'} · serial ${mascaraSerial(fila.serial)}`,
+      detail: `${ORIGEN_APERTURA_DEMO[canalVisto] || ORIGEN_APERTURA_DEMO.PORTAL} · serial ${mascaraSerial(fila.serial)}`,
     })
     return eventos
   })
@@ -450,8 +459,7 @@ const FLUJOS_ENTREGA_DEMO = {
   DELIVERY: ['PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'IN_TRANSIT', 'DELIVERED'],
   RETIRO: ['PROCESSING', 'READY_FOR_PICKUP', 'PICKED_UP'],
 }
-const ENCABEZADOS_ENTREGA_DEMO = { DELIVERY: 'Seguimiento de envío', RETIRO: 'Seguimiento de retiro' }
-// Etiquetas espejo de `ETIQUETAS_FLUJO` del backend: la demo dice lo mismo que
+const ENCABEZADOS_ENTREGA_DEMO = { DELIVERY: 'Seguimiento de envío', RETIRO: 'Seguimiento de retiro' }// Etiquetas espejo de `ETIQUETAS_FLUJO` del backend: la demo dice lo mismo que
 // la cuenta real (y el chip del portal usa `tracking.estadoLabel`).
 const ETIQUETAS_ENTREGA_DEMO = {
   PROCESSING: 'En preparación',

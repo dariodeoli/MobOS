@@ -18,7 +18,7 @@ import { ULTIMA_PLANTILLA_CLIENTES } from './customerMessaging'
 // accesos por cliente: el ojito abre el resumen rápido (popup) y el ícono de
 // detalle el perfil completo. Se mantienen el orden por columnas, la selección
 // por lote y el WhatsApp con plantilla.
-const GRID = 'grid min-w-[62rem] grid-cols-[1.5rem_minmax(0,1.4fr)_minmax(0,0.6fr)_3rem_minmax(0,0.95fr)_minmax(0,0.85fr)_minmax(0,0.75fr)_8rem] items-center gap-x-2'
+const GRID = 'grid min-w-[62rem] grid-cols-[2.75rem_minmax(0,1.4fr)_minmax(0,0.6fr)_3rem_minmax(0,0.95fr)_minmax(0,0.85fr)_minmax(0,0.75fr)_8rem] items-center gap-x-2'
 const ULTIMA_PLANTILLA = ULTIMA_PLANTILLA_CLIENTES
 
 const ciudadDe = (row) => row.addresses?.find(address => address.city)?.city || ''
@@ -79,7 +79,11 @@ export default function ClientesTabla({ rows, templates, onPerfil, onResumen }) 
       </BarraLote>
     <div className="overflow-x-auto" data-testid="clientes-tabla">
       <div className={cn(GRID, 'px-3.5 pb-2 pt-1')}>
-        <input type="checkbox" className="h-4 w-4 accent-fono" aria-label="Seleccionar visibles" title="Seleccionar visibles" checked={filas.length > 0 && seleccionados.length === filas.length} onChange={() => setSeleccionados((actuales) => seleccionarTodos(filas, actuales))} />
+        {/* Selección por lote: el cuadradito de 16 px vive en un área táctil de
+            44 px (#249 H4); el clic de la fila queda como atajo aparte. */}
+        <label className="flex h-11 w-11 -my-2 cursor-pointer items-center justify-center" title="Seleccionar visibles">
+          <input type="checkbox" className="h-4 w-4 accent-fono" aria-label="Seleccionar visibles" checked={filas.length > 0 && seleccionados.length === filas.length} onChange={() => setSeleccionados((actuales) => seleccionarTodos(filas, actuales))} />
+        </label>
         {encabezado('cliente', 'Cliente')}
         {encabezado('tipo', 'Tipo')}
         {encabezado('pedidos', 'Pedidos', 'justify-center')}
@@ -104,9 +108,9 @@ export default function ClientesTabla({ rows, templates, onPerfil, onResumen }) 
               onClick={() => onPerfil?.(row)}
               className={cn(GRID, 'cursor-pointer rounded-xl border border-fore/10 bg-ink-800/40 px-3.5 py-3 transition hover:border-fono/40 hover:bg-ink-700/50')}
             >
-              <span className="flex items-center" onClick={(event) => event.stopPropagation()}>
+              <label className="flex h-11 w-11 -my-2 cursor-pointer items-center justify-center" onClick={(event) => event.stopPropagation()}>
                 <input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar a ${row.name || 'cliente'}`} checked={seleccionados.includes(row.id)} onChange={() => setSeleccionados((actuales) => alternarId(actuales, row.id))} />
-              </span>
+              </label>
               <span className="min-w-0">
                 <span className={cn('block', CELDA_IDENTIDAD_GRANDE)} title={row.name}>{row.name || 'Sin nombre'}</span>
                 <span className={cn(CELDA_DATO, 'block')} title={[telefonoMostrado, row.email].filter(Boolean).join(' · ')}>

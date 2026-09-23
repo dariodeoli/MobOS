@@ -31,6 +31,10 @@ test('abrir el informe demo marca visto en la fila del serial (#240 ítem 3)', (
   const fila = marcarInformeVistoDemo('356789012345678')
   assert.ok(fila.firstViewedAt, 'el serial vendido queda visto')
   assert.equal(fila.viewCount, Number(antes.viewCount || 0) + 1)
+  // El origen de la primera apertura queda congelado, aunque después se abra
+  // desde el certificado embebible (#240 §3, con INV).
+  const embebido = marcarInformeVistoDemo('356789012345678', { canal: 'EMBED' })
+  assert.equal(embebido.viewChannel, 'WHATSAPP')
   // Un serial que no es de ningún equipo no marca nada.
   assert.equal(marcarInformeVistoDemo('999999999999999'), null)
   assert.equal(marcarInformeVistoDemo(''), null)
