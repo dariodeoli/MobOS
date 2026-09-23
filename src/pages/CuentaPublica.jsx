@@ -8,10 +8,19 @@ import { codigoPedido } from '@/utils/pedido'
 import Icon from '@/components/shared/Icon'
 import { PortalCargando, PortalEncabezado, PortalEstado, PortalFallo, PortalPie, PortalSeccion } from '@/components/customerPortal/PortalUI'
 import PasosEntrega from '@/components/customerPortal/PasosEntrega'
+import { avisosDeCuenta } from '@/lib/portalAvisos'
 import { demoCuentaPayload, esTokenDemo } from '@/lib/demoClientes'
 import { NIVELES_PORTAL } from '@/lib/customerPortal'
 import { ESTADO_ENTREGA, ESTADO_GARANTIA, ESTADO_PEDIDO, tonoGarantia, tonoPedido } from '@/lib/estadosPedido'
 import { tonoServicioPortal } from '@/lib/estadosServicio'
+
+// Tonos de los avisos del portal (el mismo set que la cronología del CRM).
+const TONO_AVISO = {
+  ok: 'bg-ok/15 text-ok',
+  warn: 'bg-warn/15 text-warn',
+  bad: 'bg-bad/15 text-bad',
+  info: 'bg-fono/15 text-fono-light',
+}
 
 // Resumen de cuenta público del cliente: saldo, vencimientos, pedidos y —según
 // el nivel del enlace— garantías activas, direcciones y comprobantes. No
@@ -45,6 +54,9 @@ export default function CuentaPublica() {
 
   const saldo = Number(cuenta?.balancePyg || 0)
   const alDia = cuenta && saldo <= 0
+  // Avisos (#240 → portal): lo accionable del payload (pagos, retiros,
+  // entregas y garantías), en la misma lógica para la cuenta real y la demo.
+  const avisos = avisosDeCuenta(cuenta)
   const logoUrl = `${API_URL}/api/portal/${encodeURIComponent(token || '')}/logo?variant=${varianteDeTema()}`
 
   return (
@@ -80,6 +92,27 @@ export default function CuentaPublica() {
                 </>
               )}
             </section>
+
+            {/* Avisos (#240 → portal): lo que requiere atención, con atajo a la
+                sección que lo explica. Solo aparece cuando hay algo que avisar. */}
+            {avisos.length > 0 && (
+              <PortalSeccion titulo="Avisos" icono="bell" data-testid="portal-avisos">
+                <div className="mt-3 space-y-2">
+                  {avisos.map((aviso) => (
+                    <a key={aviso.id} href={aviso.destino} className="flex items-start gap-2.5 rounded-xl border border-ink-600 bg-ink-800/60 px-3 py-2.5 text-sm transition hover:border-fono/50">
+                      <span className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg ${TONO_AVISO[aviso.tono] || TONO_AVISO.info}`}>
+                        <Icon name={aviso.icono} className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-semibold">{aviso.titulo}</span>
+                        {aviso.detalle && <span className="mt-0.5 block text-xs text-mute">{aviso.detalle}</span>}
+                      </span>
+                      <Icon name="chevron" className="mt-1 h-4 w-4 shrink-0 text-mute" aria-hidden="true" />
+                    </a>
+                  ))}
+                </div>
+              </PortalSeccion>
+            )}
 
             {/* Nota pública de la tienda (#127): visible solo cuando existe. */}
             {cuenta.customer?.publicNote && (

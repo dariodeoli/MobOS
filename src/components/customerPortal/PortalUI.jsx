@@ -21,9 +21,9 @@ export function PortalEncabezado({ eyebrow = 'Mi cuenta', titulo, saludo, logoUr
   )
 }
 
-export function PortalSeccion({ titulo, icono, children, className }) {
+export function PortalSeccion({ titulo, icono, children, className, id, ...props }) {
   return (
-    <section className={cn('rounded-2xl border border-ink-600 bg-ink-900 p-4 sm:p-5', className)}>
+    <section id={id} className={cn('rounded-2xl border border-ink-600 bg-ink-900 p-4 sm:p-5', className)} {...props}>
       {titulo && (
         <h2 className="flex items-center gap-2 text-sm font-semibold sm:text-base">
           {icono && <Icon name={icono} className="h-4 w-4 shrink-0 text-fono-light" aria-hidden="true" />}
