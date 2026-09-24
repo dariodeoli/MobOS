@@ -124,8 +124,8 @@ assert.deepEqual(cuadrarSeriales({ seriales: 'aur-2', cantidad: 2, yaEnLinea: ['
 
 // Modelo detectado vs esperado (aviso, no bloquea).
 assert.deepEqual(compararModelo('iPhone 15 Pro Max', 'iPhone 15 Pro Max'), { coincide: true, esperado: 'iPhone 15 Pro Max', detectado: 'iPhone 15 Pro Max' })
-assert.equal(compararModelo('iPhone 15 Pro Max', 'IPHONE 15 PRO').coincide, true)
-assert.equal(compararModelo('iPhone 15', 'iPhone 16 Pro').coincide, false)
+assert.equal(compararModelo('iPhone 15 Pro Max', 'IPHONE 15 PRO')?.coincide, true)
+assert.equal(compararModelo('iPhone 15', 'iPhone 16 Pro')?.coincide, false)
 assert.equal(compararModelo('iPhone 15', null), null, 'sin dato del proveedor no hay aviso')
 
 // Etiquetas de la preparación: una por unidad, n de N, IMEI o pendiente.
