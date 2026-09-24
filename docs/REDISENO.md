@@ -135,6 +135,14 @@ propia fuera del shell.
 - **Sin cambios de lógica:** mismos endpoints, validaciones, permisos y datos;
   solo layout, etiquetas y reutilización de objetos.
 
+## F4 · Vista previa v2 (en curso)
+
+El rollout del lenguaje v2 por dominio —shell, pedidos, clientes, finanzas,
+servicio, resumen/análisis, compras, configuración, inventario y públicas— está
+**detrás del flag por dispositivo** (`preview v2`) y sin activar el default. El
+paquete de aprobación es [`rediseno/PAQUETE-F4.md`](rediseno/PAQUETE-F4.md) y el
+detalle con capturas y medición, [`rediseno/F4-DOMINIOS.md`](rediseno/F4-DOMINIOS.md).
+
 ## Criterios de aceptación por lote
 - Sin scroll horizontal en 360px/768px/1440px.
 - Sin acciones importantes fuera del viewport inicial.

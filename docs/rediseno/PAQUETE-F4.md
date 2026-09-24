@@ -1,0 +1,61 @@
+# Paquete de aprobación F4 (#241) — actualizado 2026-09-24
+
+El rediseño v2 ("device ops") ya está aplicado **detrás de la vista previa** por
+dominio. **Nada está activado por defecto** (`TEMA_V2_POR_DEFECTO = false`): el
+default se cambia en un solo paso cuando lo apruebes, y la activación queda
+pendiente de cerrar **#233** (verificación de la conciliación del IMEI).
+
+## Cómo verlo (y cómo apagarlo)
+
+1. En la app: menú de tres puntos (**⋮**, arriba a la derecha) → **Vista previa v2**.
+2. O en la consola del navegador:
+   `localStorage.setItem('mobos:tema-v2','1')` y recargar.
+   Para volver al default: `localStorage.setItem('mobos:tema-v2','0')`.
+
+La vista previa es **por dispositivo**: nadie más la ve hasta que se apruebe.
+
+## Qué cambia por dominio (con capturas claro/oscuro × 390/1280)
+
+Cada dominio tiene sus capturas **con la vista previa prendida** y una muestra
+**con el flag apagado** (el default de hoy, sin cambios). Todas viven en esta
+carpeta (`docs/rediseno/`).
+
+| Dominio | Qué se ve distinto | Capturas |
+|---|---|---|
+| **Shell** | Ítem activo en azul, rótulos de sección sólidos, foco visible por tema, sin restos del tema viejo | `c241f4-shell-aa-{claro,oscuro}-{desktop,mobile}`, `…-menu`, `…-inventario-oscuro`, y el par antes/después `c241f4-shell-aa-antes-*` |
+| **Pedidos** | Chips en píldora, filtros azules, **resumen en tiles** (activos / por cobrar / en reparto) y **stepper del flujo de entrega** en el pedido | `c241f4b-pedidos-on-*`, `c241f4b-pedido-detalle-on-*` |
+| **Clientes** | Chips y filtros del lenguaje nuevo, **resumen en tiles** (clientes / con deuda / por cobrar) y el resumen rápido | `c241f4b-clientes-on-*`, `c241f4b-clientes-resumen-on-*` |
+| **Finanzas** | **Caja en tiles**, **Conciliación** con tiles y **"x de y"** (conciliado sobre el total), solapas azules | `c241f4b-finanzas-on-*`, `c241f4b-finanzas-conciliacion-on-*` |
+| **Servicio y Garantías** | **Stepper del taller** (recepción → entrega) con la carga por etapa, importes grandes | `c241f4b-servicio-on-*`, `c241f4b-garantias-on-*` |
+| **Resumen / Análisis** | **Tiles de KPI** y números grandes; el hero verde con los rótulos legibles | `c241f4b-resumen-on-*`, `c241f4b-analisis-reportes-on-*`, `c241f4b-analisis-ganancias-on-*` |
+| **Inventario** | **Tiles de equipo** en la vista cuadrícula (IMEI, batería, ubicación, proveedor y costo) | `c241f4b-inventario-tiles-on-*` |
+| **Compras** | **Resumen en tiles** y **"x de y"** de recepción con barra | `c241f4b-compras-on-*` |
+| **Configuración** | **Tiles de rol/acceso** (x de y de permisos + dominios) y fichas del equipo | `c241f4b-equipo-on-*`, `c241f4b-roles-on-*` |
+| **Públicas** | Página del pedido y landing con el lenguaje v2 | `c241f4b-pedido-publico-on-*`, `c241f4b-landing-on-*` |
+
+## Accesibilidad (medida, no estimada)
+
+- Cada captura viene con **medición de contraste AA** en el navegador
+  (`e2e/dsn-a11y` + `e2e/dsn-241-dominios`): 0 textos por debajo de AA en las
+  pantallas y combos medidos, en claro y oscuro.
+- Las mediciones dejaron 5 hallazgos del tema claro que quedaron corregidos en
+  v2 (rótulos del hero verde, encabezados de tabla, verde vivo como texto, chip
+  neutro en oscuro y tintes de chips): el detalle está en
+  [`F4-DOMINIOS.md`](F4-DOMINIOS.md).
+- Los fixes de **mobile (#249)** (áreas táctiles de 44 px, sin scroll
+  horizontal) están en [`../QA-RESPONSIVE-MOBILE.md`](../QA-RESPONSIVE-MOBILE.md).
+
+## Qué queda antes del rollout completo
+
+- **Prints** (lote H): informe del dispositivo y etiquetas con el lenguaje v2.
+- **Datos (#240)**: grado y chips de locks en el tile de equipo y la ficha.
+- **Biblioteca (CMP)**: variante de Stepper y los patrones de dominio, para
+  retirar el scope local cuando MobOS importe `owncoding-ui`.
+
+## Qué se pide aprobar
+
+1. ¿El rumbo por dominio (tiles, steppers, chips y números) es el definitivo?
+2. ¿Se activa el default (`TEMA_V2_POR_DEFECTO = true`) al cerrar #233, con
+   salida opt-out por dispositivo?
+3. ¿Prints y los datos de #240 entran en el mismo rollout o en una segunda
+   vuelta?

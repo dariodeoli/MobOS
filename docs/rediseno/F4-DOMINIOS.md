@@ -49,6 +49,8 @@ Con el flag prendido, claro/oscuro en 1280 y 390:
 | Pedido (contenedor) | [claro](c241f4b-pedido-detalle-on-claro-desktop.png) | [oscuro](c241f4b-pedido-detalle-on-oscuro-desktop.png) | [claro](c241f4b-pedido-detalle-on-claro-mobile.png) | [oscuro](c241f4b-pedido-detalle-on-oscuro-mobile.png) |
 | Cliente · resumen rápido | [claro](c241f4b-clientes-resumen-on-claro-desktop.png) | [oscuro](c241f4b-clientes-resumen-on-oscuro-desktop.png) | [claro](c241f4b-clientes-resumen-on-claro-mobile.png) | [oscuro](c241f4b-clientes-resumen-on-oscuro-mobile.png) |
 | Finanzas · Conciliación | [claro](c241f4b-finanzas-conciliacion-on-claro-desktop.png) | [oscuro](c241f4b-finanzas-conciliacion-on-oscuro-desktop.png) | [claro](c241f4b-finanzas-conciliacion-on-claro-mobile.png) | [oscuro](c241f4b-finanzas-conciliacion-on-oscuro-mobile.png) |
+| Público · Pedido | [claro](c241f4b-pedido-publico-on-claro-desktop.png) | [oscuro](c241f4b-pedido-publico-on-oscuro-desktop.png) | [claro](c241f4b-pedido-publico-on-claro-mobile.png) | [oscuro](c241f4b-pedido-publico-on-oscuro-mobile.png) |
+| Público · Landing | [claro](c241f4b-landing-on-claro-desktop.png) | [oscuro](c241f4b-landing-on-oscuro-desktop.png) | [claro](c241f4b-landing-on-claro-mobile.png) | [oscuro](c241f4b-landing-on-oscuro-mobile.png) |
 
 Muestra con el flag **apagado** (default intacto, mismo estado de datos):
 [pedidos](c241f4b-pedidos-off-claro-desktop.png) ·
@@ -65,7 +67,9 @@ Muestra con el flag **apagado** (default intacto, mismo estado de datos):
 [tiles de equipo](c241f4b-inventario-tiles-off-claro-desktop.png) ·
 [pedido](c241f4b-pedido-detalle-off-claro-desktop.png) ·
 [resumen rápido](c241f4b-clientes-resumen-off-claro-desktop.png) ·
-[conciliación](c241f4b-finanzas-conciliacion-off-claro-desktop.png).
+[conciliación](c241f4b-finanzas-conciliacion-off-claro-desktop.png) ·
+[pedido público](c241f4b-pedido-publico-off-claro-desktop.png) ·
+[landing](c241f4b-landing-off-claro-desktop.png).
 
 ## Servicio técnico y Garantías (lote E)
 
@@ -153,9 +157,19 @@ del período (ámbar si falta alguno, verde si está al día). La captura dejó 
 un hallazgo preexistente que quedó corregido: los contadores del resumen
 mostraban "undefined" antes de que llegaran los datos (ahora se normalizan a 0).
 
+## Públicas: pedido público y landing (lote G)
+
+Las dos superficies públicas previsualizables entran al lenguaje v2 detrás del
+flag: la **página del pedido** (`/pedido/:token`) y la **landing** (en dev,
+`/landing-preview`), con el scope aplicado a su raíz (no heredan el del shell).
+La medición de la landing dejó ver los **chips y medallas del mock** con fondo
+de marca: al 10–15% y con los tonos de marca quedaban en 4.2–4.4:1 en claro; en
+v2 usan el verde de texto del scope (ok en claro, verde claro en oscuro) y
+vuelven a AA.
+
 ## Medición
 
-`e2e/dsn-241-dominios.spec.js` recorre las **quince pantallas** con el flag
+`e2e/dsn-241-dominios.spec.js` recorre las **diecisiete pantallas** con el flag
 prendido en los cuatro combos: **0 textos de shell por debajo de AA** y **0
 bajos de contenido**. La medición entiende **degradados** (mide contra la peor
 parada del fondo) y de ahí salieron los ajustes de los lotes anteriores: el chip
