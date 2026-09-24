@@ -116,6 +116,18 @@ await paso('#240 · el certificado embebible abre con ?embed=1', async () => {
   return `informe embebible de ${SERIAL} abierto en el subdominio de la app`
 })
 
+await paso('#240 · los mensajes de la tienda se ven en el portal demo', async () => {
+  await page.goto(`${BASE}/cuenta/demo-demo-cliente-lucia-rapido`, { waitUntil: 'domcontentloaded' })
+  const seccion = page.getByTestId('portal-mensajes')
+  await seccion.waitFor({ timeout: 20000 })
+  const texto = await seccion.innerText()
+  afirmar(/Mensajes de la tienda/.test(await page.locator('body').innerText()), 'falta la sección de mensajes')
+  afirmar(/listo para retirar/i.test(texto), `no aparece el mensaje sembrado: ${texto.slice(0, 120)}`)
+  afirmar(/Nuevo/.test(texto), 'el mensaje sin abrir no llega marcado como Nuevo')
+  await shot(page, 'portal-mensajes-demo', true)
+  return 'sección «Mensajes de la tienda» con el chip Nuevo'
+})
+
 await contexto.close()
 await browser.close()
 
