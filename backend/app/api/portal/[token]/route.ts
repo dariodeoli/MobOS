@@ -24,7 +24,7 @@ async function buscarPortal(token: string) {
     level: true,
     tenantId: true,
     customerId: true,
-    customer: { select: { name: true, publicNote: true } },
+    customer: { select: { name: true, publicNote: true, loyaltyPointsPyg: true } },
     tenant: { select: { name: true, logos: { select: { id: true }, take: 1 } } },
   } as const
   const { row, hash, legacy } = await buscarPorTokenPublico(
@@ -83,7 +83,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     await prisma.customerNotice.updateMany({ where: { id: { in: ids }, firstViewedAt: null }, data: { firstViewedAt: ahora } })
   }
 
-  const [orders, saldo, dueOrders, warrantyRows] = await Promise.all([
+  const [orders, saldo, dueOrders, warrantyRows, saldoFavor] = await Promise.all([
     prisma.order.findMany({
       where: { tenantId: portal.tenantId, customerId: portal.customerId, archivedAt: null },
       select: {
@@ -124,6 +124,12 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
           take: 50,
         })
       : Promise.resolve([]),
+    // Beneficios (#240 → portal): saldo a favor (crédito de tienda) para que el
+    // cliente sepa que lo tiene; los puntos vienen del cliente.
+    prisma.storeCredit.aggregate({
+      where: { tenantId: portal.tenantId, customerId: portal.customerId, remainingPyg: { gt: 0 } },
+      _sum: { remainingPyg: true },
+    }),
   ])
 
   // Seguimiento de la entrega (#240 → portal): los pasos del método con sus
@@ -165,6 +171,9 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
       ...(portal.customer?.publicNote ? { publicNote: portal.customer.publicNote } : {}),
     },
     balancePyg: Number(saldo[0]?.pending || 0n),
+    // Tus beneficios (#240 → portal): saldo a favor (1 punto = 1 Gs. canjeable).
+    saldoFavorPyg: Number(saldoFavor._sum.remainingPyg || 0),
+    puntosPyg: Number(portal.customer?.loyaltyPointsPyg || 0),
     dueDates: vencimientos,
     informes: informes.map((fila) => ({ serial: fila.serial, model: fila.orderItem.description, orderNumber: fila.orderItem.order.orderNumber })),
     servicios: servicios.map((orden) => ({
