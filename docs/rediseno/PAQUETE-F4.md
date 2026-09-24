@@ -1,18 +1,16 @@
 # Paquete de aprobación F4 (#241) — actualizado 2026-09-24
 
-El rediseño v2 ("device ops") ya está aplicado **detrás de la vista previa** por
-dominio. **Nada está activado por defecto** (`TEMA_V2_POR_DEFECTO = false`): el
-default se cambia en un solo paso cuando lo apruebes, y la activación queda
-pendiente de cerrar **#233** (verificación de la conciliación del IMEI).
+**Rollout aprobado.** El rediseño v2 ("device ops") es el **diseño por defecto**
+desde el 24-09 (`TEMA_V2_POR_DEFECTO = true`): el paso 2 activó el **shell**
+(barra lateral + superior, estados de navegación y densidad) con los tokens v2,
+con QA antes/después en claro, oscuro y mobile.
 
-## Cómo verlo (y cómo apagarlo)
+## Cómo volver al diseño anterior (opt-out por dispositivo)
 
-1. En la app: menú de tres puntos (**⋮**, arriba a la derecha) → **Vista previa v2**.
-2. O en la consola del navegador:
-   `localStorage.setItem('mobos:tema-v2','1')` y recargar.
-   Para volver al default: `localStorage.setItem('mobos:tema-v2','0')`.
-
-La vista previa es **por dispositivo**: nadie más la ve hasta que se apruebe.
+En la consola del navegador: `localStorage.setItem('mobos:tema-v2','0')` y
+recargar. Para volver al v2: `localStorage.removeItem('mobos:tema-v2')`.
+El par de capturas `c241f4b-shell-optout-antes-claro-desktop.png` (anterior) y
+`c241f4b-shell-default-despues-claro-desktop.png` (v2) documenta la activación.
 
 ## Qué cambia por dominio (con capturas claro/oscuro × 390/1280)
 
@@ -55,7 +53,6 @@ carpeta (`docs/rediseno/`).
 ## Qué se pide aprobar
 
 1. ¿El rumbo por dominio (tiles, steppers, chips y números) es el definitivo?
-2. ¿Se activa el default (`TEMA_V2_POR_DEFECTO = true`) al cerrar #233, con
-   salida opt-out por dispositivo?
-3. ¿Prints y los datos de #240 entran en el mismo rollout o en una segunda
+2. ¿Prints y los datos de #240 entran en el mismo rollout o en una segunda
    vuelta?
+3. ¿La densidad nueva del shell (barra superior de 64 px) queda como está?
