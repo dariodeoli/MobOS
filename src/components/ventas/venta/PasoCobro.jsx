@@ -295,7 +295,7 @@ export default function PasoCobro({
             )}
             <button
               type="button"
-              className="grid h-9 w-9 place-items-center self-end rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad"
+              className="grid h-11 w-11 place-items-center self-end rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad disabled:opacity-50 md:h-9 md:w-9"
               title="Eliminar pago"
               aria-label={`Eliminar pago ${i + 1}`}
               disabled={guardando}

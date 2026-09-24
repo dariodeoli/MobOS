@@ -67,7 +67,7 @@ export default function PasoCarrito({
             type="button"
             onClick={onVaciarCarrito}
             disabled={guardando}
-            className="rounded-lg border border-ink-500 px-2.5 py-1 text-xs font-semibold text-mute transition hover:border-bad hover:text-bad disabled:opacity-50"
+            className="inline-flex min-h-11 items-center rounded-lg border border-ink-500 px-2.5 py-1 text-xs font-semibold text-mute transition hover:border-bad hover:text-bad disabled:opacity-50 md:min-h-0"
           >
             Vaciar carrito
           </button>
@@ -107,7 +107,7 @@ export default function PasoCarrito({
               <button
                 type="button"
                 onClick={onBorrarDescuentos}
-                className="rounded-lg border border-ink-500 px-2.5 py-1.5 text-xs font-semibold text-mute transition hover:border-warn hover:text-warn"
+                className="inline-flex min-h-11 items-center rounded-lg border border-ink-500 px-2.5 py-1.5 text-xs font-semibold text-mute transition hover:border-warn hover:text-warn md:min-h-0"
               >
                 Borrar descuento
               </button>
