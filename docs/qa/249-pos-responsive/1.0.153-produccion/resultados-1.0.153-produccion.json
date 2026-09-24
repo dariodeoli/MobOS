@@ -1,0 +1,828 @@
+{
+  "base": "https://app.moboss.online",
+  "etiqueta": "1.0.153-produccion",
+  "fecha": "2026-09-24T05:56:14.489Z",
+  "toque": 44,
+  "resultados": [
+    {
+      "viewport": "360",
+      "ancho": 360,
+      "medidas": [
+        {
+          "etiqueta": "carrito · chevron de la línea",
+          "ancho": 32,
+          "alto": 32,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "carrito · IMEI de la línea",
+          "ancho": 60,
+          "alto": 20,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "carrito · papelera de la línea",
+          "ancho": 28,
+          "alto": 28,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "carrito · vaciar",
+          "ancho": 100,
+          "alto": 26,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · cantidad",
+          "ancho": 64,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · precio de venta",
+          "ancho": 160,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · color",
+          "estado": "no-visible"
+        },
+        {
+          "etiqueta": "línea · descuento %",
+          "ancho": 64,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · descuento fijo",
+          "ancho": 128,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · aplicar cupón",
+          "ancho": 73,
+          "alto": 20,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · quitar IMEI",
+          "estado": "no-visible"
+        },
+        {
+          "etiqueta": "carrito · borrar descuento",
+          "ancho": 123,
+          "alto": 30,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · dividir saldo",
+          "ancho": 203,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · cuenta de cobro",
+          "ancho": 208,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · monto original",
+          "ancho": 144,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · cotización",
+          "ancho": 144,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · agregar pago",
+          "ancho": 138,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · quitar pago",
+          "ancho": 36,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · botón principal",
+          "ancho": 264,
+          "alto": 48,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "entrega · selector",
+          "ancho": 264,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "entrega · monto delivery",
+          "ancho": 144,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "entrega · observación",
+          "ancho": 264,
+          "alto": 46,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · disparador",
+          "ancho": 36,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · ítem Configuración",
+          "ancho": 230,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · ítem Caja",
+          "ancho": 230,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · ítem Análisis",
+          "ancho": 230,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · ítem Clientes",
+          "ancho": 230,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · ítem Bloquear pantalla",
+          "ancho": 230,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "bloqueo · campo del PIN",
+          "ancho": 181,
+          "alto": 66,
+          "corto": false,
+          "estado": "medido"
+        }
+      ],
+      "cortos": 13,
+      "erroresPagina": []
+    },
+    {
+      "viewport": "390",
+      "ancho": 390,
+      "medidas": [
+        {
+          "etiqueta": "carrito · chevron de la línea",
+          "ancho": 32,
+          "alto": 32,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "carrito · IMEI de la línea",
+          "ancho": 90,
+          "alto": 20,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "carrito · papelera de la línea",
+          "ancho": 28,
+          "alto": 28,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "carrito · vaciar",
+          "ancho": 100,
+          "alto": 26,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · cantidad",
+          "ancho": 64,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · precio de venta",
+          "ancho": 160,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · color",
+          "estado": "no-visible"
+        },
+        {
+          "etiqueta": "línea · descuento %",
+          "ancho": 64,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · descuento fijo",
+          "ancho": 128,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · aplicar cupón",
+          "ancho": 73,
+          "alto": 20,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · quitar IMEI",
+          "estado": "no-visible"
+        },
+        {
+          "etiqueta": "carrito · borrar descuento",
+          "ancho": 123,
+          "alto": 30,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · dividir saldo",
+          "ancho": 203,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · cuenta de cobro",
+          "ancho": 238,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · monto original",
+          "ancho": 144,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · cotización",
+          "ancho": 144,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · agregar pago",
+          "ancho": 138,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · quitar pago",
+          "ancho": 36,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · botón principal",
+          "ancho": 294,
+          "alto": 48,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "entrega · selector",
+          "ancho": 294,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "entrega · monto delivery",
+          "ancho": 144,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "entrega · observación",
+          "ancho": 294,
+          "alto": 46,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · disparador",
+          "ancho": 36,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · ítem Configuración",
+          "ancho": 230,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · ítem Caja",
+          "ancho": 230,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · ítem Análisis",
+          "ancho": 230,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · ítem Clientes",
+          "ancho": 230,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · ítem Bloquear pantalla",
+          "ancho": 230,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "bloqueo · campo del PIN",
+          "ancho": 181,
+          "alto": 66,
+          "corto": false,
+          "estado": "medido"
+        }
+      ],
+      "cortos": 13,
+      "erroresPagina": []
+    },
+    {
+      "viewport": "414",
+      "ancho": 414,
+      "medidas": [
+        {
+          "etiqueta": "carrito · chevron de la línea",
+          "ancho": 32,
+          "alto": 32,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "carrito · IMEI de la línea",
+          "ancho": 114,
+          "alto": 20,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "carrito · papelera de la línea",
+          "ancho": 28,
+          "alto": 28,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "carrito · vaciar",
+          "ancho": 100,
+          "alto": 26,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · cantidad",
+          "ancho": 64,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · precio de venta",
+          "ancho": 160,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · color",
+          "estado": "no-visible"
+        },
+        {
+          "etiqueta": "línea · descuento %",
+          "ancho": 64,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · descuento fijo",
+          "ancho": 128,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · aplicar cupón",
+          "ancho": 73,
+          "alto": 20,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · quitar IMEI",
+          "estado": "no-visible"
+        },
+        {
+          "etiqueta": "carrito · borrar descuento",
+          "ancho": 123,
+          "alto": 30,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · dividir saldo",
+          "ancho": 203,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · cuenta de cobro",
+          "ancho": 262,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · monto original",
+          "ancho": 144,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · cotización",
+          "ancho": 144,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · agregar pago",
+          "ancho": 138,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · quitar pago",
+          "ancho": 36,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · botón principal",
+          "ancho": 318,
+          "alto": 48,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "entrega · selector",
+          "ancho": 318,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "entrega · monto delivery",
+          "ancho": 144,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "entrega · observación",
+          "ancho": 318,
+          "alto": 46,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · disparador",
+          "ancho": 36,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · ítem Configuración",
+          "ancho": 230,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · ítem Caja",
+          "ancho": 230,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · ítem Análisis",
+          "ancho": 230,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · ítem Clientes",
+          "ancho": 230,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · ítem Bloquear pantalla",
+          "ancho": 230,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "bloqueo · campo del PIN",
+          "ancho": 181,
+          "alto": 66,
+          "corto": false,
+          "estado": "medido"
+        }
+      ],
+      "cortos": 13,
+      "erroresPagina": []
+    },
+    {
+      "viewport": "768",
+      "ancho": 768,
+      "medidas": [
+        {
+          "etiqueta": "carrito · chevron de la línea",
+          "ancho": 32,
+          "alto": 32,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "carrito · IMEI de la línea",
+          "ancho": 131,
+          "alto": 20,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "carrito · papelera de la línea",
+          "ancho": 28,
+          "alto": 28,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "carrito · vaciar",
+          "ancho": 100,
+          "alto": 26,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · cantidad",
+          "ancho": 64,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · precio de venta",
+          "ancho": 160,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · color",
+          "estado": "no-visible"
+        },
+        {
+          "etiqueta": "línea · descuento %",
+          "ancho": 64,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · descuento fijo",
+          "ancho": 128,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · aplicar cupón",
+          "ancho": 73,
+          "alto": 20,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "línea · quitar IMEI",
+          "estado": "no-visible"
+        },
+        {
+          "etiqueta": "carrito · borrar descuento",
+          "ancho": 123,
+          "alto": 30,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · dividir saldo",
+          "ancho": 203,
+          "alto": 36,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · cuenta de cobro",
+          "ancho": 532,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · monto original",
+          "ancho": 144,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · cotización",
+          "ancho": 144,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · agregar pago",
+          "ancho": 138,
+          "alto": 36,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · quitar pago",
+          "ancho": 36,
+          "alto": 36,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "cobros · botón principal",
+          "ancho": 632,
+          "alto": 48,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "entrega · selector",
+          "ancho": 310,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "entrega · monto delivery",
+          "ancho": 144,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "entrega · observación",
+          "ancho": 632,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · disparador",
+          "ancho": 36,
+          "alto": 36,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · ítem Configuración",
+          "ancho": 230,
+          "alto": 36,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · ítem Caja",
+          "ancho": 230,
+          "alto": 36,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · ítem Análisis",
+          "ancho": 230,
+          "alto": 36,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · ítem Clientes",
+          "ancho": 230,
+          "alto": 36,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "menú · ítem Bloquear pantalla",
+          "ancho": 230,
+          "alto": 36,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "bloqueo · campo del PIN",
+          "ancho": 181,
+          "alto": 66,
+          "corto": false,
+          "estado": "medido"
+        }
+      ],
+      "cortos": 0,
+      "erroresPagina": []
+    }
+  ]
+}
