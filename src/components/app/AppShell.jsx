@@ -424,7 +424,7 @@ export default function AppShell({
       </Drawer>
 
       <div className="flex min-w-0 flex-1 flex-col pb-[72px] lg:pb-0">
-        <header className="sticky top-0 z-20 flex h-20 items-center justify-between gap-3 border-b border-fore/10 bg-paper/85 px-4 pt-safe backdrop-blur md:px-8">
+        <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-fore/10 bg-paper/85 px-4 pt-safe backdrop-blur md:px-8">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <button
               onClick={() => setMenuAbierto(true)}

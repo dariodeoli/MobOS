@@ -9,7 +9,7 @@ import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { SHELL, auditarContraste, informar } from './helpers/contraste.js'
 
-const SHOTS = 'test-results/rediseno'
+const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/rediseno'
 // Textos fuera del shell que se informan (avisos, diálogos y pie): si bajan de
 // AA no rompen este spec, pero quedan a la vista en el log del QA.
 const CONTEXTO = ['[role="dialog"]', '[role="status"]', 'footer']
@@ -70,6 +70,28 @@ test('banner sin conexión: el shell sigue cumpliendo AA en ambos temas', async 
     expect(medicion.bajos, `AA del aviso sin conexión (${tema})`).toEqual([])
     await page.evaluate(() => window.dispatchEvent(new Event('online')))
   }
+})
+
+// Activación del default (#241, rollout aprobado): la salida opt-out muestra el
+// diseño anterior y el default (sin clave) ya es v2. Deja el par antes/después.
+test('el default es v2 y la salida opt-out vuelve al diseño anterior', async ({ page }) => {
+  mkdirSync(SHOTS, { recursive: true })
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('mobos:theme', 'light')
+      localStorage.setItem('mobos:tema-v2', '0')
+    } catch { /* sin storage */ }
+  })
+  await page.goto('/resumen')
+  await expect(page.getByText('Facturado').first()).toBeVisible({ timeout: 30_000 })
+  await page.screenshot({ path: `${SHOTS}/c241f4b-shell-optout-antes-claro-desktop.png` })
+
+  await page.addInitScript(() => { try { localStorage.removeItem('mobos:tema-v2') } catch { /* sin storage */ } })
+  await page.goto('/resumen')
+  await expect(page.locator('.tema-v2').first()).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText('Facturado').first()).toBeVisible({ timeout: 30_000 })
+  await page.screenshot({ path: `${SHOTS}/c241f4b-shell-default-despues-claro-desktop.png` })
 })
 
 // El shell v2 vive sobre las pantallas: en oscuro se comprueba también el
