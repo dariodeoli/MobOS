@@ -10,7 +10,8 @@ import { formatMoney, errorMonto } from '@/utils/moneda'
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import { fechaCorta } from '@/utils/fecha'
 import RangoFechas, { PRESETS, rangoDeParams, paramsDeRango } from '@/components/shared/RangoFechas'
-import { Aviso, Badge, Button, Card, EmptyState, Input, MoneyInput, Select, Skeleton, useToast } from '@/components/ui'
+import { Aviso, BarraProgreso, Badge, Button, Card, EmptyState, Input, MoneyInput, Select, Skeleton, useToast } from '@/components/ui'
+import { temaV2Activo } from '@/lib/temaV2'
 import PagosPedido from '@/components/ventas/PagosPedido'
 import { leerUltimo, recordarUltimo } from '@/lib/ultimoUsado'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
@@ -43,21 +44,36 @@ const GRID_GRUPOS = 'grid min-w-[46rem] grid-cols-[minmax(0,1.5fr)_5rem_6.5rem_6
 const GRID_ITEMS = 'grid min-w-[60rem] grid-cols-[1.5rem_5.5rem_minmax(0,1.3fr)_minmax(0,1.2fr)_7rem_minmax(0,0.9fr)_7rem_6.5rem_5rem] items-center gap-x-2'
 
 function Resumen({ resumen }) {
+  // Vista previa v2 (#241): tiles de consola, números grandes y el "x de y" de
+  // la conciliación (pagos conciliados sobre el total del período).
+  const v2 = temaV2Activo()
+  // Los contadores llegan con la carga: sin el resumen completo, los textos
+  // mostraban "undefined" (hallazgo de la captura). Acá se normalizan a 0.
+  const n = (valor) => Number(valor || 0)
   const tarjetas = [
-    { label: 'Ingresos conciliables', valor: resumen.confirmedPyg, sub: `${resumen.count} pago(s) · ${gs(resumen.pendingPyg)} por conciliar`, tono: '' },
-    { label: 'Conciliado', valor: resumen.verifiedPyg, sub: `${resumen.verifiedCount} pago(s) conciliado(s)`, tono: 'text-ok' },
-    { label: 'Por conciliar', valor: resumen.unverifiedPyg, sub: `${resumen.pendingCount} pago(s) por conciliar`, tono: resumen.unverifiedPyg > 0 ? 'text-warn' : '' },
-    { label: 'Diferencia de lotes', valor: resumen.differencePyg, sub: `${resumen.lotes} lote(s) en el período`, tono: resumen.differencePyg ? 'text-bad' : '' },
+    { label: 'Ingresos conciliables', valor: n(resumen.confirmedPyg), sub: `${n(resumen.count)} pago(s) · ${gs(n(resumen.pendingPyg))} por conciliar`, tono: '' },
+    { label: 'Conciliado', valor: n(resumen.verifiedPyg), sub: `${n(resumen.verifiedCount)} pago(s) conciliado(s)`, tono: 'text-ok' },
+    { label: 'Por conciliar', valor: n(resumen.unverifiedPyg), sub: `${n(resumen.pendingCount)} pago(s) por conciliar`, tono: n(resumen.unverifiedPyg) > 0 ? 'text-warn' : '' },
+    { label: 'Diferencia de lotes', valor: n(resumen.differencePyg), sub: `${n(resumen.lotes)} lote(s) en el período`, tono: n(resumen.differencePyg) ? 'text-bad' : '' },
   ]
   return (
     <div className={cn('lg:grid-cols-4', GRILLA_DOS_COLUMNAS_COMPACTA)}>
       {tarjetas.map((tarjeta) => (
-        <div key={tarjeta.label} className={cn('rounded-xl border border-ink-600 p-3', tarjeta.tono === 'text-warn' && 'border-warn/40 bg-warn/5')}>
+        <div key={tarjeta.label} className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile', tarjeta.tono === 'text-warn' && 'border-warn/40 bg-warn/5')}>
           <p className={ROTULO_DATO}>{tarjeta.label}</p>
-          <strong className={cn('mt-1 block tabular-nums', tarjeta.tono)}>{gs(tarjeta.valor || 0)}</strong>
+          <strong className={cn('mt-1 block tabular-nums', v2 && 'v2-numero text-2xl', tarjeta.tono)}>{gs(tarjeta.valor || 0)}</strong>
           <p className="mt-0.5 text-[11px] text-mute">{tarjeta.sub}</p>
         </div>
       ))}
+      {v2 && n(resumen.count) > 0 && (
+        <div className="lg:col-span-4">
+          <div className="flex items-center justify-between text-[11px] text-mute">
+            <span>Conciliado {n(resumen.verifiedCount)} de {n(resumen.count)} pagos del período</span>
+            <span>{n(resumen.pendingCount) > 0 ? `Faltan ${n(resumen.pendingCount)}` : 'Al día'}</span>
+          </div>
+          <BarraProgreso className="mt-1" valor={n(resumen.verifiedCount)} max={n(resumen.count)} tono={n(resumen.pendingCount) > 0 ? 'warn' : 'ok'} alto="sm" etiqueta={`Conciliación: ${n(resumen.verifiedCount)} de ${n(resumen.count)} pagos`} />
+        </div>
+      )}
     </div>
   )
 }
