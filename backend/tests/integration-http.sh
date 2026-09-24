@@ -717,6 +717,9 @@ echo "Consistencia financiera: la base del arnés da verde y los casos sembrados
 echo "Corte por sesión de caja: efectivo, pedidos y diferencia (#148 §18)..."
 node "$BACKEND_ROOT/tests/cash-sessions.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 
+echo "Día operativo de la auditoría de caja en UTC-3 (#148 §17)..."
+PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/cash-audit-dia.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL"
+
 echo "Trade-in publicado: costo del equipo (valor + reparaciones) y seguro en el margen (#148 §19)..."
 node "$BACKEND_ROOT/tests/trade-in-cost.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 
