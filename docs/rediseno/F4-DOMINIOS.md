@@ -147,6 +147,20 @@ y saldo por cobrar— con los números de consola (saldo en ámbar cuando hay), 
 chips de la fila, los importes y los filtros ya venían del lenguaje común (pill,
 tinte AA, número de consola y el alto táctil de #249). Todo con el flag.
 
+### Lote B: ficha del cliente y filas (tercera pasada)
+
+La **ficha** entra al lenguaje: los KPI del Resumen pasan al **tile de consola**
+(`v2-tile`) con sus números en `v2-numero` (Total gastado, Saldo pendiente,
+Órdenes activas, Pedidos, Última compra y Garantías activas) y las filas de la
+lista suman el ancho de consola en Pedidos/Total/Deuda junto al chip de tipo en
+pill. Sin cambios de lógica: todo detrás de `temaV2Activo()`.
+
+QA antes/después (`e2e/qa-241-clientes-v2.spec.js`, 8/8): lista y ficha en
+claro/oscuro × desktop/mobile con el flag apagado y prendido, **0 textos bajo
+AA** en los 4 combos v2 y **sin scroll horizontal**; capturas
+`c241f4b-clientes-{lista,ficha}-{antes,despues}-{claro,oscuro}-{desktop,mobile}.png`.
+Detalle: `docs/QA-241-clientes-lote-b.md`.
+
 ## Finanzas: tiles de caja y "x de y" de conciliación (segunda pasada)
 
 La **Caja** pasa sus tarjetas neutras —saldo esperado, por cobrar, por pagar,
