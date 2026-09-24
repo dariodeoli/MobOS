@@ -67,6 +67,9 @@ export const SEED_DEMO_CLIENTES = [
     creditDays: 15,
     insuranceEnabled: true,
     insuranceRatePct: 12.5,
+    // Tus beneficios (#240 → portal): saldo a favor y puntos visibles en la cuenta.
+    saldoFavorPyg: 250000,
+    puntosPyg: 45000,
     addresses: [
       { id: 'demo-dir-1', label: 'Casa', address: 'Av. Mcal. López 1234', city: 'Asunción', department: 'Capital', country: 'Paraguay', isDefault: true },
       { id: 'demo-dir-1b', label: 'Trabajo', address: 'Av. España 500', city: 'Asunción', department: 'Capital', country: 'Paraguay', isDefault: false },
@@ -511,6 +514,9 @@ export function demoCuentaPayload(token) {
     company: { name: 'Aurora Móviles', logo: false },
     customer: { name: cliente.name, ...(cliente.publicNote ? { publicNote: cliente.publicNote } : {}) },
     balancePyg: saldoDeuda(cliente),
+    // Tus beneficios (#240 → portal): saldo a favor y puntos del cliente.
+    saldoFavorPyg: Number(cliente.saldoFavorPyg || 0),
+    puntosPyg: Number(cliente.puntosPyg || 0),
     dueDates: conSaldo,
     orders: orders.map((order) => ({
       orderNumber: order.orderNumber,

@@ -147,6 +147,28 @@ export default function CuentaPublica() {
               </PortalSeccion>
             )}
 
+            {/* Tus beneficios (#240 → portal): saldo a favor y puntos. */}
+            {(Number(cuenta.saldoFavorPyg || 0) > 0 || Number(cuenta.puntosPyg || 0) > 0) && (
+              <PortalSeccion titulo="Tus beneficios" icono="sparkles" data-testid="portal-beneficios">
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {Number(cuenta.saldoFavorPyg || 0) > 0 && (
+                    <div className="rounded-xl bg-ink-800/60 px-3 py-2.5">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Saldo a favor</p>
+                      <p className="mt-1 text-lg font-bold tabular-nums text-ok">{gs(cuenta.saldoFavorPyg)}</p>
+                      <p className="mt-0.5 text-xs text-mute">Podés usarlo en tu próxima compra.</p>
+                    </div>
+                  )}
+                  {Number(cuenta.puntosPyg || 0) > 0 && (
+                    <div className="rounded-xl bg-ink-800/60 px-3 py-2.5">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Puntos</p>
+                      <p className="mt-1 text-lg font-bold tabular-nums text-fono-light">{gs(cuenta.puntosPyg)}</p>
+                      <p className="mt-0.5 text-xs text-mute">Acumulados en tus compras (1 punto = Gs 1).</p>
+                    </div>
+                  )}
+                </div>
+              </PortalSeccion>
+            )}
+
             {/* Nota pública de la tienda (#127): visible solo cuando existe. */}
             {cuenta.customer?.publicNote && (
               <PortalSeccion titulo="Nota de la tienda" icono="megaphone" className="border-fono/25 bg-fono/5">

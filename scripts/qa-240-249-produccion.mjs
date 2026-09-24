@@ -128,6 +128,19 @@ await paso('#240 · los mensajes de la tienda se ven en el portal demo', async (
   return 'sección «Mensajes de la tienda» con el chip Nuevo'
 })
 
+await paso('#240 · los beneficios (saldo a favor y puntos) se ven en la cuenta demo', async () => {
+  await page.goto(`${BASE}/cuenta/demo-demo-cliente-lucia-rapido`, { waitUntil: 'domcontentloaded' })
+  const seccion = page.getByTestId('portal-beneficios')
+  await seccion.waitFor({ timeout: 20000 })
+  const texto = await seccion.innerText()
+  afirmar(/Saldo a favor/.test(texto), `no aparece el saldo a favor: ${texto.slice(0, 120)}`)
+  afirmar(/250\.000/.test(texto), 'no aparece el monto del saldo a favor')
+  afirmar(/Puntos/.test(texto), 'no aparecen los puntos')
+  afirmar(/45\.000/.test(texto), 'no aparece el monto de los puntos')
+  await shot(page, 'portal-beneficios-demo', true)
+  return 'saldo a favor Gs 250.000 · puntos Gs 45.000'
+})
+
 await contexto.close()
 await browser.close()
 

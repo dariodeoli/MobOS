@@ -1,7 +1,7 @@
 {
   "url": "https://app.moboss.online",
-  "fecha": "2026-09-24T06:26:09.529Z",
-  "version": "v1.0.154",
+  "fecha": "2026-09-24T15:17:51.584Z",
+  "version": "v1.0.156",
   "medidas": [
     {
       "control": "Resumen rápido",
@@ -64,6 +64,11 @@
       "paso": "#240 · los mensajes de la tienda se ven en el portal demo",
       "ok": true,
       "detalle": "sección «Mensajes de la tienda» con el chip Nuevo"
+    },
+    {
+      "paso": "#240 · los beneficios (saldo a favor y puntos) se ven en la cuenta demo",
+      "ok": false,
+      "detalle": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByTestId('portal-beneficios') to be visible\u001b[22m\n"
     }
   ],
   "capturas": [
