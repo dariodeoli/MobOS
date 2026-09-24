@@ -4,6 +4,8 @@ import AutorizacionDescuento from './AutorizacionDescuento'
 import AutorizacionBloque from './AutorizacionBloque'
 import EncabezadoBloque from './EncabezadoBloque'
 import { gs } from '@/utils/calculos'
+import { temaV2Activo } from '@/lib/temaV2'
+import { cn } from '@/lib/utils'
 import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
 
 // Lo que se está vendiendo: lista editable, ajustes de la venta (descuento
@@ -52,7 +54,11 @@ export default function PasoCarrito({
   return (
     <section
       id="pos-resumen-venta"
-      className="scroll-mt-32 overflow-hidden rounded-2xl border border-ink-600 bg-ink-800"
+      className={cn(
+        'scroll-mt-32 overflow-hidden rounded-2xl border border-ink-600 bg-ink-800',
+        // Lenguaje v2 (#241, paso 5): el carrito completo detrás del flag.
+        temaV2Activo() && 'tema-v2',
+      )}
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-600 bg-ink-700/50 px-3.5 py-2">
         <EncabezadoBloque
