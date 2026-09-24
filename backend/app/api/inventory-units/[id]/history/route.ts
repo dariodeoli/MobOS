@@ -121,6 +121,22 @@ export async function GET(request: Request, { params }: RouteContext) {
   if (!unit) return error('Unidad no encontrada.', 404)
   if (session.user.role === 'GERENTE' && unit.branchId !== session.user.branchId) return error('No autorizado para esa sucursal.', 403)
 
+  // #241 paso 6: la última consulta IMEI real del serial alimenta los chips de
+  // locks de la ficha (con proveedor y hora), sin exigir una consulta nueva.
+  const consultasImei = await prisma.imeiCheckQuery.findMany({ where: { tenantId: session.user.tenantId, imei: unit.serial }, orderBy: { requestedAt: 'desc' }, take: 50 })
+  const ultimaConsulta = consultasImei[0] || null
+  const verificacion = ultimaConsulta ? {
+    id: ultimaConsulta.id,
+    status: ultimaConsulta.status,
+    etiqueta: ultimaConsulta.status === 'verificado' ? 'Verificado' : ultimaConsulta.status === 'parcial' ? 'Parcial' : ultimaConsulta.status === 'conciliar' ? 'A conciliar' : 'No verificado',
+    provider: ultimaConsulta.provider,
+    serviceName: ultimaConsulta.serviceName,
+    imeiMasked: ultimaConsulta.imeiMasked,
+    requestedAt: ultimaConsulta.requestedAt,
+    resolvedAt: ultimaConsulta.resolvedAt,
+    campos: Array.isArray(ultimaConsulta.normalized) ? ultimaConsulta.normalized : [],
+  } : null
+
   const [auditEvents, transferRows, saleRows, commentRows, ubicaciones] = await Promise.all([
     prisma.auditLog.findMany({
       where: { tenantId: session.user.tenantId, entity: 'InventoryUnit', entityId: id },
@@ -210,11 +226,10 @@ export async function GET(request: Request, { params }: RouteContext) {
     })),
     // #240: historial del serial — consultas IMEI y reparaciones del taller.
     ...(await (async () => {
-      const filas = await prisma.imeiCheckQuery.findMany({ where: { tenantId: session.user.tenantId, imei: unit.serial }, orderBy: { requestedAt: 'desc' }, take: 50 })
-      const ids = [...new Set(filas.map(fila => fila.userId).filter(Boolean))] as string[]
+      const ids = [...new Set(consultasImei.map(fila => fila.userId).filter(Boolean))] as string[]
       const usuarios = ids.length ? await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } }) : []
       const mapa = new Map(usuarios.map(usuario => [usuario.id, usuario.name]))
-      return filas.map(row => ({
+      return consultasImei.map(row => ({
         id: row.id,
         type: 'imei' as const,
         action: 'IMEI_QUERY',
@@ -235,5 +250,5 @@ export async function GET(request: Request, { params }: RouteContext) {
     })),
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
-  return json({ unit, events })
+  return json({ unit, events, verificacion })
 }

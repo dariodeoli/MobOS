@@ -15,7 +15,7 @@ import { qrUnidad } from '@/lib/printing/qr'
 import { api, apiFetch } from '@/lib/api/client'
 import { conciliarDemoImei, consultasDemoImei, postDemoImei, validarImeiDemo } from '@/lib/demoImei'
 import { getDemoServicio } from '@/lib/demoServicio'
-import { COSMETICOS, INSPECCION_ESTADOS, INSPECCION_ITEMS, locksDeVerificacion, resumenInspection } from '@/lib/phonecheck'
+import { COSMETICOS, estadoInspeccion, INSPECCION_ESTADOS, INSPECCION_ITEMS, resumenVerificacion } from '@/lib/phonecheck'
 import { resources } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
 import { cotizacionReferencia } from '@/lib/fx'
@@ -108,6 +108,10 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   // #240 PhoneCheck
   const [inspeccion, setInspeccion] = useState(() => ({ items: unit.inspection?.items || {}, cosmetico: unit.inspection?.cosmetico || '', nota: unit.inspection?.nota || '', bateriaPct: unit.inspection?.bateriaPct ?? (unit.batteryHealth ?? ''), bateriaCiclos: unit.inspection?.bateriaCiclos ?? '', repuestosNoOem: unit.inspection?.repuestosNoOem || '', costoRepuestosPyg: unit.inspection?.costoRepuestosPyg ?? '', repuestosNoOemNota: unit.inspection?.repuestosNoOemNota || '' }))
   const [guardandoInspeccion, setGuardandoInspeccion] = useState(false)
+  // #241 paso 6: el grado oficial es el que quedó guardado en la unidad y la
+  // última verificación real del serial alimenta los chips de locks (fuente/hora).
+  const [inspeccionOficial, setInspeccionOficial] = useState(unit.inspection || null)
+  const [verificacion, setVerificacion] = useState(null)
   // #240: evidencia (foto) de repuestos no-OEM: se adjunta como comentario de la unidad.
   const [repuestosEvidencia, setRepuestosEvidencia] = useState(null)
   const [subiendoEvidencia, setSubiendoEvidencia] = useState(false)
@@ -142,10 +146,14 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
         ? { events: [...eventosDemo, ...consultasDemo, ...reparacionesDemo].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()) }
         : await api.get(`/api/inventory-units/${encodeURIComponent(unit.id)}/history`)
       setEvents(payload?.events || [])
+      // #241 paso 6: la última consulta IMEI guardada del serial (o la del demo)
+      // deja los locks reales con su fuente y hora sin repetir la consulta.
+      setVerificacion(esDemo ? (consultasDemoImei(unit.serial)[0] || null) : (payload?.verificacion || null))
     } catch (cause) { setError(cause?.message || 'No se pudo cargar la cronología.') } finally { setLoading(false) }
   }, [unit.id, canManage]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [load])
   useEffect(() => { setNota(unit.notes || '') }, [unit.notes])
+  useEffect(() => { setInspeccionOficial(unit.inspection || null) }, [unit.id, unit.inspection])
 
   // QR y código de barras de esta unidad (se generan al abrir el detalle). El
   // QR abre la unidad en la app; el código de barras conserva `MOBOS:<serial>`
@@ -480,18 +488,29 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
         <section className="rounded-2xl border border-ink-600 p-4" data-testid="unidad-phonecheck">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className={ROTULO_SECCION}>PhoneCheck · Inspección</h3>
-            {(() => { const { puntaje, grado } = resumenInspection(inspeccion); return puntaje === null
-              ? <Badge color="slate">Sin inspeccionar</Badge>
-              : <span className="flex items-center gap-2"><Badge color={grado === 'A' ? 'green' : grado === 'B' ? 'orange' : 'red'}>Grado {grado}</Badge><span className="text-xs text-mute">{puntaje}/100</span></span> })()}
+            {(() => {
+              const estado = estadoInspeccion({ inspection: inspeccionOficial, borrador: inspeccion })
+              const color = (grado) => grado === 'A' ? 'green' : grado === 'B' ? 'orange' : 'red'
+              if (!estado.oficial && estado.provisional.puntaje === null) return <Badge color="slate">Sin inspeccionar</Badge>
+              return <span className="flex flex-wrap items-center gap-1.5">
+                {estado.oficial
+                  ? <Badge color={color(estado.oficial.grado)} data-testid="unidad-phonecheck-oficial" title={`Grado oficial guardado en la unidad${estado.oficial.guardadoPor ? ` por ${estado.oficial.guardadoPor}` : ''}`}>Grado {estado.oficial.grado} · oficial</Badge>
+                  : <Badge color="slate" data-testid="unidad-phonecheck-provisional">Provisional {estado.provisional.grado}</Badge>}
+                {estado.oficial && <span className="text-xs text-mute">{estado.oficial.puntaje}/100{estado.oficial.guardadoEn ? ` · guardado el ${fechaHora(estado.oficial.guardadoEn)}${estado.oficial.guardadoPor ? ` por ${estado.oficial.guardadoPor}` : ''}` : ''}</span>}
+                {estado.sinGuardar
+                  ? <Badge color="orange" data-testid="unidad-phonecheck-sin-guardar" title="Hay cambios en el checklist que todavía no se guardaron">Cambios sin guardar{estado.provisional.grado && estado.oficial && estado.provisional.grado !== estado.oficial.grado ? ` · provisional ${estado.provisional.grado}` : ''}</Badge>
+                  : estado.oficial && <Badge color="slate" data-testid="unidad-phonecheck-guardado">Guardado</Badge>}
+              </span>
+            })()}
           </div>
-          <p className="mt-1 text-xs text-mute">Semáforo por ítem; si algo falla o queda con observación, agregá una nota. El grado A/B/C se calcula del checklist (A ≥ 90, B ≥ 75).</p>
+          <p className="mt-1 text-xs text-mute">Semáforo por ítem; si algo falla o queda con observación, agregá una nota. El grado A/B/C se calcula del checklist (A ≥ 90, B ≥ 75). <span data-testid="unidad-phonecheck-progreso">{(() => { const { marcados, total } = estadoInspeccion({ inspection: inspeccionOficial, borrador: inspeccion }); return `${marcados} de ${total} con resultado` })()}</span></p>
           <div className="mt-3 space-y-2">
             {INSPECCION_ITEMS.map(item => {
               const actual = inspeccion.items[item.clave] || {}
               return <div key={item.clave} className="grid gap-2 rounded-xl border border-ink-600 p-2 sm:grid-cols-[minmax(11rem,1fr)_minmax(0,1.4fr)]" title={item.ayuda}>
                 <span className="flex items-center gap-2 text-sm"><span className={`h-2 w-2 shrink-0 rounded-full ${INSPECCION_ESTADOS[actual.estado]?.tone === 'green' ? 'bg-ok' : INSPECCION_ESTADOS[actual.estado]?.tone === 'orange' ? 'bg-warn' : INSPECCION_ESTADOS[actual.estado]?.tone === 'red' ? 'bg-bad' : 'bg-mute'}`} /><b className="font-semibold text-fore">{item.label}</b></span>
                 <span className="flex flex-wrap items-center gap-1">
-                  {Object.entries(INSPECCION_ESTADOS).map(([clave, estado]) => <button key={clave} type="button" onClick={() => setInspeccion(actual2 => ({ ...actual2, items: { ...actual2.items, [item.clave]: { ...actual2.items[item.clave], estado: clave } } }))} className={`min-h-11 flex-1 rounded-lg border px-2 py-1 text-[10px] font-semibold transition md:min-h-0 md:flex-none ${actual.estado === clave ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:border-fono/40'}`}>{estado.label}</button>)}
+                  {Object.entries(INSPECCION_ESTADOS).map(([clave, estado]) => <button key={clave} type="button" aria-pressed={actual.estado === clave} onClick={() => setInspeccion(actual2 => ({ ...actual2, items: { ...actual2.items, [item.clave]: { ...actual2.items[item.clave], estado: clave } } }))} className={`min-h-11 flex-1 rounded-lg border px-2 py-1 text-[10px] font-semibold transition md:min-h-0 md:flex-none ${actual.estado === clave ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:border-fono/40'}`}>{estado.label}</button>)}
                   <input placeholder="Nota / evidencia" aria-label={`Nota de ${item.label}`} value={actual.nota || ''} onChange={event => setInspeccion(actual2 => ({ ...actual2, items: { ...actual2.items, [item.clave]: { ...actual2.items[item.clave], nota: event.target.value } } }))} className="min-w-[8rem] flex-1 rounded-lg border border-ink-600 bg-ink-800 px-2 py-1 text-xs text-fore outline-none focus:border-fono" />
                 </span>
               </div>
@@ -505,11 +524,21 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
               <div className="flex flex-wrap items-center gap-2 sm:col-span-2"><AttachmentInput inputRef={repuestosEvidenciaRef} className="hidden" onSelect={file => setRepuestosEvidencia(file)} onError={message => toast.error(message)} /><button type="button" onClick={() => repuestosEvidenciaRef.current?.click()} className="rounded-lg border border-ink-600 px-2 py-1 text-[10px] font-semibold text-mute transition hover:border-fono/40"><Icon name="image" className="mr-1 inline h-3 w-3" />{repuestosEvidencia ? repuestosEvidencia.name : 'Adjuntar foto de la reparación'}</button>{repuestosEvidencia && <Button type="button" variant="outline" className="h-7 px-2 text-xs" disabled={subiendoEvidencia} onClick={subirEvidenciaRepuestos}>{subiendoEvidencia ? 'Subiendo…' : 'Guardar evidencia'}</Button>}</div>
             <Button type="button" variant="outline" disabled={imeiBusy} title="Corre la verificación de IMEI y trae los bloqueos al checklist" onClick={async () => { await imeiPrecheck(); await imeiConfirmar(); setInspeccion(actual => ({ ...actual, fuente: 'IMEIcheck' })) }}>{imeiBusy ? 'Verificando…' : 'Verificar y completar'}</Button>
           </div>
-          {(() => { const chips = locksDeVerificacion(imeiDatos || {}); if (!chips.length) return null; return <div className="mt-2 flex flex-wrap items-center gap-1.5">{chips.map(chip => <span key={chip.clave} className={`rounded-lg border px-2 py-1 text-[10px] font-semibold ${chip.ok ? 'border-ok/40 text-ok' : 'border-bad/40 text-bad'}`} title={`${chip.label}: ${chip.valor}`}>{chip.label}: {chip.valor}</span>)}</div> })()}
+          {(() => {
+            // #241 paso 6: los chips salen de la verificación de esta sesión o, si
+            // no hay, de la última consulta real guardada del serial; siempre con
+            // fuente y hora (sin datos inventados).
+            const resumen = resumenVerificacion(imeiDatos || verificacion)
+            if (!resumen?.chips.length) return null
+            return <div className="mt-2" data-testid="unidad-locks">
+              <div className="flex flex-wrap items-center gap-1.5">{resumen.chips.map(chip => <span key={chip.clave} className={`rounded-lg border px-2 py-1 text-[10px] font-semibold ${chip.ok ? 'border-ok/40 text-ok' : 'border-bad/40 text-bad'}`} title={`${chip.label}: ${chip.valor}`}>{chip.label}: {chip.valor}</span>)}</div>
+              <p className="mt-1 text-[11px] text-mute" data-testid="unidad-locks-fuente">Fuente: {resumen.servicio}{resumen.fecha ? ` · ${fechaHora(resumen.fecha)}` : ''}{resumen.simulado ? ' · simulado' : ''} · {imeiDatos ? 'consulta de esta sesión' : 'última consulta guardada del serial'}</p>
+            </div>
+          })()}
           <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
             <Select aria-label="Cosmético" value={inspeccion.cosmetico} onChange={event => setInspeccion(actual => ({ ...actual, cosmetico: event.target.value }))}><option value="">Cosmético…</option>{COSMETICOS.map(valor => <option key={valor} value={valor}>{valor}</option>)}</Select>
             <Input aria-label="Nota general de inspección" placeholder="Nota general" value={inspeccion.nota} onChange={event => setInspeccion(actual => ({ ...actual, nota: event.target.value }))} />
-            <Button type="button" disabled={guardandoInspeccion || busy} data-testid="unidad-phonecheck-guardar" onClick={async () => { setGuardandoInspeccion(true); try { await resources.inventoryUnits.update({ id: unit.id, action: 'inspection', inspection: inspeccion }); toast.success('Inspección guardada.'); await load(); onChanged?.() } catch (cause) { toast.error(cause?.message || 'No se pudo guardar la inspección.') } finally { setGuardandoInspeccion(false) } }}>{guardandoInspeccion ? 'Guardando…' : 'Guardar inspección'}</Button>
+            <Button type="button" disabled={guardandoInspeccion || busy} data-testid="unidad-phonecheck-guardar" onClick={async () => { setGuardandoInspeccion(true); try { const actualizada = await resources.inventoryUnits.update({ id: unit.id, action: 'inspection', inspection: inspeccion }); if (actualizada?.inspection) setInspeccionOficial(actualizada.inspection); toast.success('Inspección guardada.'); await load(); onChanged?.() } catch (cause) { toast.error(cause?.message || 'No se pudo guardar la inspección.') } finally { setGuardandoInspeccion(false) } }}>{guardandoInspeccion ? 'Guardando…' : 'Guardar inspección'}</Button>
           </div>
         </section>
 
