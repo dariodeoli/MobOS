@@ -58,13 +58,19 @@ async function pagarEnPos(page, { cliente, producto, pagos }) {
     await fila.getByLabel('Cuenta de cobro').click()
     await page.getByRole('option', { name: new RegExp(pago.cuenta) }).click()
     await fila.getByLabel('Monto original').fill(pago.monto)
-    if (pago.cotizacion) {
-      // La cotización vive en la misma fila y solo aparece en cuentas USD/BRL.
-      await fila.getByLabel('Cotización').fill(pago.cotizacion)
-    }
     // El equivalente confirma que la fila se convirtió con la cotización tipeada
     // antes de enviar (si la conversión quedara vacía, el cobro no cierra).
-    if (pago.equivalente) await expect(fila.getByText(`Equivalente: ${pago.equivalente}`)).toBeVisible()
+    if (pago.cotizacion) {
+      // La cotización vive en la misma fila y solo aparece en cuentas USD/BRL.
+      // El fill puede perderse si la fila se re-renderiza al recalcular: se
+      // reintenta con el equivalente como condición.
+      await expect(async () => {
+        await fila.getByLabel('Cotización').fill(pago.cotizacion)
+        await expect(fila.getByText(`Equivalente: ${pago.equivalente}`)).toBeVisible({ timeout: 3000 })
+      }).toPass({ timeout: 20_000 })
+    } else if (pago.equivalente) {
+      await expect(fila.getByText(`Equivalente: ${pago.equivalente}`)).toBeVisible()
+    }
   }
   await expect(page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ })).toBeVisible()
   await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
