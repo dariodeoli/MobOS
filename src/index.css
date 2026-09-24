@@ -291,6 +291,19 @@ html.dark :focus-visible { outline-color: var(--mobos-brand); }
   border-color: rgb(var(--c-info) / .3);
   color: rgb(var(--c-info));
 }
+/* Las mismas reglas de chip para el tablero operativo (`/ops`), que es v2 por
+   diseño y no vive bajo `.tema-v2` (#241 paso 3): sin esto el chip verde del
+   tile quedaba en 4.46:1 en claro. */
+.v2-piloto .v2-chip { border-radius: 9999px; letter-spacing: .04em; }
+.dark .v2-piloto .v2-chip.text-mute { color: rgb(var(--c-fore)); }
+.v2-piloto .v2-chip.bg-ok\/15 { background-color: rgb(var(--c-ok) / .1); }
+.v2-piloto .v2-chip.bg-bad\/15 { background-color: rgb(var(--c-bad) / .1); }
+.v2-piloto .v2-chip.bg-warn\/15 { background-color: rgb(var(--c-warn) / .1); }
+.v2-piloto .v2-chip.bg-fono\/15 {
+  background-color: rgb(var(--c-info) / .1);
+  border-color: rgb(var(--c-info) / .3);
+  color: rgb(var(--c-info));
+}
 /* Paso activo del flujo del taller (stepper de servicio): el círculo azul del
    mock con texto AA en cada tema (el azul claro del oscuro pide texto oscuro). */
 .tema-v2 .v2-paso-activo { background: rgb(var(--c-info)); color: #fff; }

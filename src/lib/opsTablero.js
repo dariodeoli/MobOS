@@ -111,6 +111,31 @@ export function checklistDe(unit) {
 }
 
 /**
+ * ¿El serial se puede consultar en `/api/imei`? Solo los IMEI de 15 dígitos: el
+ * backend ignora el filtro cuando el IMEI no valida y devolvería las últimas
+ * consultas del negocio (de otros equipos).
+ */
+export function imeiConsultable(serial) {
+  return /^\d{15}$/.test(String(serial || ''))
+}
+
+/**
+ * Chips de locks del equipo (iCloud/Find My, MDM, ESN/blacklist y carrier) a
+ * partir de una consulta IMEI guardada (`/api/imei`). La máscara del registro
+ * conserva los últimos 4 dígitos: si no coinciden con el serial, la consulta es
+ * de otro equipo y no se muestra. Sin datos devuelve `null`: la UI muestra el
+ * estado honesto («sin verificar»), nunca «libre» de arriba.
+ */
+export function locksDeConsulta(consulta, serial = '') {
+  if (!consulta) return null
+  const ultimos4 = String(serial || '').replace(/\D/g, '').slice(-4)
+  if (ultimos4 && !String(consulta.imei || '').endsWith(ultimos4)) return null
+  const chips = locksDeVerificacion({ normalized: consulta.normalized })
+  if (!chips.length) return null
+  return chips.map((chip) => ({ clave: chip.clave, estado: chip.ok ? 'libre' : 'activo', detalle: `${chip.label}: ${chip.valor}` }))
+}
+
+/**
  * Chips de locks del equipo (iCloud/Find My, MDM, ESN/blacklist y carrier) desde
  * la consulta IMEI guardada en la inspección. Sin datos devuelve `null`: la UI
  * muestra el estado honesto («sin verificar»), nunca «libre» de arriba.
@@ -132,7 +157,15 @@ export function pasosDelLote(resumen) {
 /** Equipos en proceso (todavía no listos para vender), en orden del rack. */
 export function equiposEnProceso(unidades = [], limite = 6) {
   const grupos = agruparRack(unidades)
-  return [...grupos['por-verificar'], ...grupos.verificado].slice(0, limite).map((unit) => {
+  // Se alternan los equipos que esperan verificación con los ya verificados: el
+  // tablero muestra el taller en curso, no solo la fila de entrada.
+  const colas = [grupos['por-verificar'], grupos.verificado]
+  const mezcla = []
+  for (let i = 0; mezcla.length < limite && (colas[0].length || colas[1].length); i += 1) {
+    const cola = colas[i % 2]
+    if (cola.length) mezcla.push(cola.shift())
+  }
+  return mezcla.map((unit) => {
     const estado = estadoEnRack(unit)
     return {
       id: unit.id,

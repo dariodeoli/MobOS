@@ -143,7 +143,9 @@ export default function TableroOps({
                     )}
                     {equipo.locks
                       ? <ChipsLocks locks={equipo.locks} className="mt-1.5" />
-                      : <ul className="mt-1.5"><li className="inline-flex items-center gap-1.5 rounded-lg border border-ink-600 px-2 py-0.5 text-[11px] font-semibold text-mute">Locks sin verificar</li></ul>}
+                      // En el mock (preview) no se inventa el estado: el chip honesto
+                      // es solo para el tablero real, donde el dato puede faltar.
+                      : !esPreview && <ul className="mt-1.5"><li className="inline-flex items-center gap-1.5 rounded-lg border border-ink-600 px-2 py-0.5 text-[11px] font-semibold text-mute">Locks sin verificar</li></ul>}
                   </div>
                 </article>
               ))}

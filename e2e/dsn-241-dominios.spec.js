@@ -99,6 +99,70 @@ async function prepararCompras(page) {
   }, { api: API, marca: MARCA, branchId: SEED.branchId })
 }
 
+// Tablero operativo (paso 3): asegura un taller con carga real —un equipo con
+// la consulta IMEI guardada (chips de locks) y la inspección cargada («x de y»
+// del checklist, grado B, sigue en el taller) y dos equipos esperando
+// verificación—. El serial del inspeccionado es un IMEI de prueba que pasa Luhn.
+const IMEI_TABLERO = '490154203237518'
+const SERIALES_TABLERO = ['ZZTABLERO1', 'ZZTABLERO2']
+
+async function prepararTablero(page) {
+  await page.goto('/inventario/unidades')
+  await page.evaluate(async ({ api, marca, imei, seriales, branchId }) => {
+    const pedir = (url, opciones = {}) => fetch(url, { credentials: 'include', ...opciones }).then((r) => r.json().catch(() => null))
+    const json = { 'Content-Type': 'application/json' }
+    const buscar = async (serial) => {
+      const filas = await pedir(`${api}/api/inventory-units?q=${encodeURIComponent(serial)}`)
+      return (Array.isArray(filas) ? filas : []).find((fila) => String(fila.serial || '') === serial) || null
+    }
+    let producto = (await pedir(`${api}/api/products?limit=50`) || []).find((fila) => fila.isActive !== false)
+    const asegurarUnidad = async (serial) => {
+      const existente = await buscar(serial)
+      if (existente) return existente
+      if (!producto?.id) {
+        producto = await pedir(`${api}/api/products`, {
+          method: 'POST', headers: json,
+          body: JSON.stringify({ sku: `ZZ-TABLERO-${marca}`, name: `Equipo tablero ${marca}`, category: 'Celulares', pricePyg: 2500000, costPyg: 1800000, stock: 0, branchId }),
+        })
+      }
+      if (!producto?.id) return null
+      return pedir(`${api}/api/inventory-units`, {
+        method: 'POST', headers: json,
+        body: JSON.stringify({ productId: producto.id, branchId, serial, notes: `Tablero ${marca}` }),
+      })
+    }
+    const inspeccionada = await asegurarUnidad(imei)
+    for (const serial of seriales) await asegurarUnidad(serial)
+    if (!inspeccionada?.id) return
+    // Consulta IMEI guardada (modo simulado: sin cobro): alimenta los locks del
+    // tile. Es idempotente por requestId, igual que en la ficha.
+    await pedir(`${api}/api/imei`, {
+      method: 'POST', headers: json,
+      body: JSON.stringify({ action: 'checks', imei, servicio: 'APPLE_BASIC', confirm: true, requestId: `tablero-${marca}` }),
+    })
+    // Inspección con fallas reales: 8 de 10 pasan (grado B, no publicable).
+    await pedir(`${api}/api/inventory-units`, {
+      method: 'PATCH', headers: json,
+      body: JSON.stringify({
+        id: inspeccionada.id,
+        action: 'inspection',
+        inspection: {
+          cosmetico: 'Bueno',
+          bateriaPct: 87,
+          nota: `Preparado para el tablero ${marca}`,
+          items: {
+            pantalla: { estado: 'pasa' }, camaras: { estado: 'pasa' }, faceId: { estado: 'pasa' },
+            audio: { estado: 'pasa' }, sensores: { estado: 'pasa' }, conexiones: { estado: 'pasa' },
+            carga: { estado: 'pasa' }, bateria: { estado: 'pasa' },
+            botones: { estado: 'falla', nota: 'Botón de volumen duro' },
+            carcasa: { estado: 'falla', nota: 'Marca en el marco' },
+          },
+        },
+      }),
+    })
+  }, { api: API, marca: MARCA, imei: IMEI_TABLERO, seriales: SERIALES_TABLERO, branchId: SEED.branchId })
+}
+
 // Nombre, ruta, señal de que el contenido real ya está pintado y, si hace
 // falta, la preparación de datos de la pantalla.
 const PANTALLAS = [
@@ -133,7 +197,12 @@ const PANTALLAS = [
   ['pedido-publico', `/pedido/${PEDIDO_SEMILLA.publicToken}`, (page) => page.getByText(PEDIDO_SEMILLA.orderNumber).first()],
   ['landing', '/landing-preview', (page) => page.locator('h1:visible').first()],
   // Paso 3: el tablero operativo (pantalla completa, sin shell).
-  ['ops', '/ops', (page) => page.getByTestId('ops-tablero')],
+  ['ops', '/ops', (page) => page.getByTestId('ops-tablero'), prepararTablero, async (page) => {
+    // La medición y la captura esperan los datos: el sello con la hora confirma
+    // que el tablero terminó de leer, y el primer tile que el taller tiene carga.
+    await expect(page.getByTestId('ops-actualizado')).toContainText(/\d{1,2}[:.]\d{2}/, { timeout: 30_000 })
+    await expect(page.getByTestId('ops-equipo').first()).toBeVisible({ timeout: 30_000 })
+  }],
   ['inventario-tiles', '/inventario/unidades', (page) => page.getByTestId('inventario-tarjeta').first(), async (page) => {
     // Tiles de equipo (lote C): la vista lista/cuadrícula se recuerda por pantalla.
     await page.evaluate(() => { try { localStorage.setItem('mobos:inventario-vista', 'grid') } catch { /* sin storage */ } })

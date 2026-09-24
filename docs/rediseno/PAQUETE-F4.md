@@ -3,7 +3,8 @@
 **Rollout aprobado.** El rediseño v2 ("device ops") es el **diseño por defecto**
 desde el 24-09 (`TEMA_V2_POR_DEFECTO = true`): el paso 2 activó el **shell**
 (barra lateral + superior, estados de navegación y densidad) con los tokens v2,
-con QA antes/después en claro, oscuro y mobile.
+con QA antes/después en claro, oscuro y mobile. El paso 3 activó el **tablero
+operativo** (`/ops`), que ahora se abre sin flag y suma los patrones del mock.
 
 ## Cómo volver al diseño anterior (opt-out por dispositivo)
 
@@ -30,6 +31,7 @@ carpeta (`docs/rediseno/`).
 | **Compras** | **Resumen en tiles** y **"x de y"** de recepción con barra | `c241f4b-compras-on-*` |
 | **Configuración** | **Tiles de rol/acceso** (x de y de permisos + dominios) y fichas del equipo | `c241f4b-equipo-on-*`, `c241f4b-roles-on-*` |
 | **Públicas** | Página del pedido y landing con el lenguaje v2 | `c241f4b-pedido-publico-on-*`, `c241f4b-landing-on-*` |
+| **Tablero operativo** | Pantalla completa activa: KPIs grandes, stepper del lote con la carga por etapa, tiles de equipo con **«x de y» del checklist** y **chips de locks** (desde la consulta IMEI guardada) | `c241f4b-ops-on-*` (+ `c241f4b-ops-off-claro-desktop.png`) |
 
 ## Accesibilidad (medida, no estimada)
 
@@ -46,9 +48,14 @@ carpeta (`docs/rediseno/`).
 ## Qué queda antes del rollout completo
 
 - **Prints** (lote H): informe del dispositivo y etiquetas con el lenguaje v2.
-- **Datos (#240)**: grado y chips de locks en el tile de equipo y la ficha.
-- **Biblioteca (CMP)**: variante de Stepper y los patrones de dominio, para
-  retirar el scope local cuando MobOS importe `owncoding-ui`.
+- **Datos (#240)**: el tablero ya muestra el checklist y los locks de cada
+  consulta IMEI guardada; el grado/locks de los tiles del inventario quedan para
+  la próxima vuelta con el lote de INV.
+- **Biblioteca (CMP)**: owncoding-ui v0.22.0 ya trae `TileRol`, `PasosEquipo`,
+  `Stat` y `FichaCertificado` para los patrones de estos lotes; se adoptan cuando
+  PLT suba la dependencia (hoy v0.21.0).
+- **Entrada al menú del tablero**: hoy se llega por `/ops`; la entrada en el
+  panel es una decisión de producto/navegación (PLT).
 
 ## Qué se pide aprobar
 

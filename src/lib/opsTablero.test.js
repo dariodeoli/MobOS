@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { checklistDe, colasDelTaller, equiposEnProceso, kpisOps, locksDe, pasosDelLote, resumenOps } from './opsTablero.js'
+import { checklistDe, colasDelTaller, equiposEnProceso, imeiConsultable, kpisOps, locksDe, locksDeConsulta, pasosDelLote, resumenOps } from './opsTablero.js'
 
 // Fixtures del tablero F3 (#241): una unidad por estado del rack.
 const unidad = (id, extra = {}) => ({ id, serial: `AUR000${id}0000000`, product: { name: `Equipo ${id}` }, ...extra })
@@ -85,4 +85,31 @@ test('el stepper del lote lleva la carga de cada etapa', () => {
   const pasos = pasosDelLote({ porVerificar: 3, verificados: 2, listos: 1 })
   assert.deepEqual(pasos.map(({ clave, total }) => [clave, total]), [['por-verificar', 3], ['verificado', 2], ['listo', 1]])
   assert.deepEqual(pasosDelLote({}).map((paso) => paso.total), [0, 0, 0])
+})
+
+test('solo los IMEI de 15 dígitos se consultan (el backend ignora el filtro si no valida)', () => {
+  assert.equal(imeiConsultable('490154203237518'), true)
+  assert.equal(imeiConsultable('E2EE2E1IPHONE15MUDJ2R9X1'), false)
+  assert.equal(imeiConsultable('49015420323751'), false)
+  assert.equal(imeiConsultable(''), false)
+})
+
+test('los chips de locks salen de la consulta IMEI guardada y validan la máscara', () => {
+  const consulta = { imei: '•••••••••••7518', normalized: [{ clave: 'findMy', valor: 'off' }, { clave: 'mdm', valor: 'off' }, { clave: 'blacklist', valor: 'Sin reportes actuales' }, { clave: 'simLock', valor: 'Unlocked' }] }
+  const chips = locksDeConsulta(consulta, '490154203237518')
+  assert.equal(chips.length, 4)
+  assert.ok(chips.every((chip) => chip.estado === 'libre'), 'la consulta limpia deja los cuatro chips en verde')
+  assert.equal(locksDeConsulta(consulta, '490154203237999'), null, 'la máscara de otro equipo no se muestra')
+  assert.equal(locksDeConsulta({ imei: consulta.imei, normalized: [] }, '490154203237518'), null, 'sin campos normalizados no hay chips')
+  assert.equal(locksDeConsulta(null, '490154203237518'), null)
+})
+
+test('equiposEnProceso alterna por verificar y verificados (el taller en curso)', () => {
+  const equipos = equiposEnProceso([POR_VERIFICAR, OTRA_POR_VERIFICAR, VERIFICADA, unidad('5', {})], 4)
+  assert.deepEqual(equipos.map((equipo) => [equipo.id, equipo.estado]), [
+    ['3', 'por-verificar'], // primera de la fila de entrada
+    ['4', 'verificado'], // inspeccionada con grado B: ya está verificada
+    ['5', 'por-verificar'], // siguiente de la fila
+    ['2', 'verificado'], // verificada sin inspección
+  ])
 })

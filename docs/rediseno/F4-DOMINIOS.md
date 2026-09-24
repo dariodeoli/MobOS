@@ -193,3 +193,39 @@ con `MOBOS_CAPTURAS=docs/rediseno`.
   pasada del default, y el grado/locks del tile esperan los datos de #240.
 - Promover este bloque y los tonos AA al scope `tema-v2` de `owncoding-ui`
   (CMP) y retirar el scope local.
+
+## Paso 3 · tablero operativo (`/ops`)
+
+El tablero de operaciones es la pantalla completa del rediseño (sin shell) y ya
+está **activo**: `/ops` dejó de depender de `VITE_OPS_V2` con la aprobación del
+rollout y `VITE_OPS_V2=0` sigue siendo la salida de emergencia sin tocar código.
+Los patrones del paso 3, con datos reales (rack #240, pedidos y consultas IMEI):
+
+| Patrón | Cómo se ve | Datos |
+|---|---|---|
+| **KPIs grandes** | Números de consola en `text-3xl` con su detalle al pie | cobrado hoy, pedidos, en taller y listos (`resumenOps`) |
+| **Stepper del lote** | Tres tarjetas (por verificar → verificado → listo) con la carga de cada etapa; el paso con trabajo va en azul y los cumplidos con tilde | `pasosDelLote(resumen)` |
+| **Tiles de equipo en proceso** | Alterna los que esperan verificación con los ya verificados (no solo la fila de entrada), con estado del rack, grado y batería | `equiposEnProceso` |
+| **«x de y» del checklist** | «8 de 10 pasan» + barra y porcentaje por equipo (ámbar si hay fallas) | `checklistDe(unit)` sobre `inspection.items` |
+| **Chips de locks** | iCloud/Find My, MDM, ESN/blacklist y carrier en verde/rojo; sin consulta, chip gris «Locks sin verificar» | `locksDeConsulta` con la última consulta IMEI del equipo (`/api/imei`) |
+
+El tablero pide la última consulta IMEI solo de los equipos en proceso (hasta 6)
+y solo cuando el serial es un IMEI de 15 dígitos: el backend ignora el filtro si
+el IMEI no valida y devolvería consultas de otros equipos. La máscara del
+registro (últimos 4 dígitos) se contrasta con el serial antes de mostrar chips, y
+una consulta sucia pinta el chip en rojo (nunca «libre» sin dato).
+
+Capturas: `c241f4b-ops-on-{claro,oscuro}-{desktop,mobile}.png` y
+`c241f4b-ops-off-claro-desktop.png` (idéntica a la prendida: el tablero es v2 por
+diseño y no depende del opt-out del panel). Medición AA: 35 textos por combo, 0
+por debajo de AA en los cuatro combos.
+
+Guarda: `e2e/dsn-241-dominios.spec.js` (proyecto admin) prepara un equipo con
+consulta IMEI e inspección con fallas y mide el tablero; los helpers tienen tests
+en `src/lib/opsTablero.test.js`.
+
+La medición encontró un hallazgo: el chip verde del tile («Verificado») quedaba
+en **4.46:1** en claro porque el tablero no vive bajo `.tema-v2` y no recibía los
+tintes AA de los chips v2 (los tintes `/10`). Se aplicaron las mismas reglas a
+`.v2-piloto` en `src/index.css` y el chip quedó en 4.74:1; los cuatro combos
+vuelven a 0 textos por debajo de AA.

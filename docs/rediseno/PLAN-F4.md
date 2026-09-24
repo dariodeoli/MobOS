@@ -136,3 +136,16 @@ rol/acceso, los tiles de equipo del inventario, el resumen + stepper de entrega
 de pedidos, el resumen de clientes, los tiles + "x de y" de finanzas y las
 públicas (pedido y landing). Paquete de aprobación: [`PAQUETE-F4.md`](PAQUETE-F4.md).
 Detalle, capturas y medición en [`F4-DOMINIOS.md`](F4-DOMINIOS.md).
+
+## Paso 3 · tablero operativo (activo)
+
+El tablero de `/ops` (pantalla completa, sin shell) quedó **activo** con la
+aprobación del rollout: la ruta ya no depende de `VITE_OPS_V2` y `VITE_OPS_V2=0`
+es la salida de emergencia. Sumó los patrones del mock (KPIs grandes, stepper del
+lote con la carga por etapa, tiles de equipo alternando por verificar y
+verificados, «x de y» del checklist y chips de locks desde la consulta IMEI
+guardada) sobre los datos reales del rack #240, los pedidos y las consultas IMEI.
+Detalle, medición AA y capturas en [`F4-DOMINIOS.md`](F4-DOMINIOS.md#paso-3--tablero-operativo-ops).
+Pendiente de coordinación: la entrada al menú del panel (hoy se llega por URL) y
+la adopción de los objetos de owncoding-ui v0.22.0 cuando PLT suba la dependencia
+(`TileRol`, `PasosEquipo`, `Stat` y `FichaCertificado`).
