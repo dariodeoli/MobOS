@@ -1,4 +1,4 @@
-# QA #211 — identidad unificada en producción (v1.0.153)
+# QA #211 — identidad unificada en producción (v1.0.153 → v1.0.154)
 
 Verificación **post-deploy** del objeto único de identidad (`PersonaChip`) en
 las superficies adoptadas, sobre producción (`app.moboss.online`) y con el
@@ -8,13 +8,13 @@ las superficies adoptadas, sobre producción (`app.moboss.online`) y con el
   zona America/Asunción). Sale 1 si un paso falla.
 - Evidencia: `docs/qa/211-identidad-prod/` (capturas claro/oscuro +
   `resultados.json`).
-- Versión desplegada verificada: **v1.0.153** (incluye la adopción de #211).
+- Versiones verificadas: **v1.0.153** (deploy inicial) y **v1.0.154** (repetición del 24-09, mismo resultado 8/8; el mínimo del script se pasa por `QA211_VERSION_MINIMA` y hoy es 1.0.154).
 
 ## Resultado — 8/8 pasos
 
 | Paso | Resultado |
 | --- | --- |
-| La versión desplegada incluye la identidad unificada | ✅ v1.0.153 |
+| La versión desplegada incluye la identidad unificada | ✅ v1.0.153 y v1.0.154 |
 | Pedido: encabezado y superficies con chip (claro) | ✅ 3 chips · 0 imágenes rotas |
 | Pedido: bloque de transacciones con chip | ✅ chips presentes |
 | Pedido: oscuro sin imágenes rotas | ✅ 3 chips |

@@ -45,10 +45,12 @@ patrón de uso de cada familia y un ejemplo corto.
 | Subnavegación de sección | `ui/Subtabs` | pestañas anchas de una subpágina (misma fuente para todas) | `<Subtabs value={tab} onChange={irASubtab} items={tabs} />` |
 | Lista/cuadrícula | `shared/ListGridToggle` | solo íconos, `aria-pressed` | `<ListGridToggle value={vista} onChange={…} />` |
 
-> **Publicados también en la biblioteca (`owncoding-ui` v0.15.0):**
-> `ProductCombobox`, `RucField` (+`extraerRuc`/`esRuc`), `SerialTexto`,
-> `EstadoBadge` y `SeccionColapsable` (props en su `docs/REGLAS.md`
-> §1/§3/§4). MobOS los mantiene en espejo hasta el lote de adopción del
+> **Publicados también en la biblioteca:** `ProductCombobox`, `RucField`
+> (+`extraerRuc`/`esRuc`), `SerialTexto`, `EstadoBadge` y `SeccionColapsable`
+> (v0.15.0); `CampoSeriales` (+`imeiValido`/`separarSeriales`/
+> `normalizarSeriales`), `MedidorStock` y `Stepper variante="tarjetas"`
+> (v0.18.0, abastecimiento/entrega). Props en su `docs/REGLAS.md`
+> §1/§3/§4/§8 bis. MobOS los mantiene en espejo hasta el lote de adopción del
 > paquete.
 | Tema | `app/ThemeToggle` | claro/oscuro con tokens | `<ThemeToggle />` |
 

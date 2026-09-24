@@ -292,6 +292,19 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 24 — abastecimiento y entrega en la biblioteca (24-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `Stepper` `variante="tarjetas"` (`owncoding-ui` **v0.18.0**) | DSN armó el stepper de entrega a mano en `PedidoDetalle` (pasos por método, activo azul `v2-paso-activo`, cumplidos verdes, grilla 2/4) | Publicado como variante del `Stepper` único: `pasos` (etiquetas u objetos) + `actual`/`hechos`, `ariaLabel`; el mapeo de estados de `entrega.js` queda en la app |
+| `CampoSeriales` + serial utils | El pegado múltiple de IMEI (compra/recepción, #250 F3) y la validación Luhn no tenían objeto: `imeiValido` vivía en `lib/imeiComprobante.js` (app) | `CampoSeriales` (pegar/escanear con conteos de listos/repetidos/inválidos y solo los válidos únicos por callback) + `imeiValido`, `separarSeriales` y `normalizarSeriales` en `utils/serial.js` |
+| `MedidorStock` | Las alertas de reposición y el futuro panel de abastecimiento muestran «Stock X de Y» con badge a mano | Objeto con tonos agotado/reponer/en stock en variantes `texto`/`chip`/`barra`; sin dato dice «Sin dato» |
+| Verificación post-deploy (#211) | — | `e2e/prod/211-identidad.mjs` repetido con la **v1.0.154**: 8/8 (chips en pedido y bloqueo, sin imágenes rotas ni errores); reporte actualizado |
+
+**Duplicación pendiente: 0 usos.** Los objetos quedan para que DSN (stepper) e INV
+(abastecimiento, #250 F3/F5) los adopten cuando importen el paquete; el detalle
+de props está en `owncoding-ui/docs/REGLAS.md` §1/§4/§8 bis.
+
 ### Lote 23 — pila de personas y miga de sección (24-09)
 
 | Objeto | Antes (evidencia) | Después |

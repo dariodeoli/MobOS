@@ -1,12 +1,12 @@
 {
   "app": "https://app.moboss.online",
-  "fecha": "2026-09-24T05:51:20.734Z",
-  "version": "1.0.153",
+  "fecha": "2026-09-24T06:27:20.516Z",
+  "version": "1.0.154",
   "pasos": [
     {
       "nombre": "versión desplegada incluye la identidad unificada",
       "ok": true,
-      "detalle": "v1.0.153"
+      "detalle": "v1.0.154"
     },
     {
       "nombre": "pedido: cronología con un solo chip de identidad por evento (claro)",

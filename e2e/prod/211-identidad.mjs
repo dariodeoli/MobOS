@@ -17,7 +17,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 
 const APP = process.env.QA_APP || 'https://app.moboss.online'
 const SHOTS = process.env.QA211_SHOTS || 'docs/qa/211-identidad-prod'
-const VERSION_MINIMA = '1.0.153'
+const VERSION_MINIMA = process.env.QA211_VERSION_MINIMA || '1.0.154'
 mkdirSync(SHOTS, { recursive: true })
 
 const resultado = { app: APP, fecha: new Date().toISOString(), version: null, pasos: [], observaciones: [], hallazgos: [] }
