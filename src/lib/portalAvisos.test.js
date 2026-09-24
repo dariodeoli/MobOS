@@ -72,11 +72,13 @@ test('la garantía avisa si está vencida o vence dentro de 30 días', () => {
 })
 
 test('la cuenta demo muestra avisos con la misma lógica', () => {
-  const lucia = avisosDeCuenta(demoCuentaPayload('demo-demo-cliente-lucia-rapido'), AHORA)
+  // El demo arma sus fechas con el ahora real: se evalúa con ese mismo ahora
+  // (un AHORA fijo envejece y el aviso deja de corresponder).
+  const lucia = avisosDeCuenta(demoCuentaPayload('demo-demo-cliente-lucia-rapido'))
   assert.ok(lucia.some((aviso) => aviso.tipo === 'pago_por_vencer'), 'Lucía tiene un pago por vencer')
   assert.ok(lucia.some((aviso) => aviso.tipo === 'pedido_en_camino'), 'Lucía tiene el pedido en camino')
-  const carlos = avisosDeCuenta(demoCuentaPayload('demo-demo-cliente-carlos-rapido'), AHORA)
+  const carlos = avisosDeCuenta(demoCuentaPayload('demo-demo-cliente-carlos-rapido'))
   assert.ok(carlos.some((aviso) => aviso.tipo === 'listo_para_retirar'), 'Carlos tiene el pedido listo para retirar')
-  const maria = avisosDeCuenta(demoCuentaPayload('demo-demo-cliente-maria-completo'), AHORA)
+  const maria = avisosDeCuenta(demoCuentaPayload('demo-demo-cliente-maria-completo'))
   assert.ok(maria.some((aviso) => aviso.tipo === 'garantia_por_vencer'), 'María tiene la garantía por vencer')
 })
