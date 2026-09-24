@@ -3,6 +3,7 @@
 
 import { test, expect } from '@playwright/test'
 import { crearIntegranteConPinLibre } from './helpers/integrantes.mjs'
+import { periodoPendiente } from '../src/utils/comisionesPeriodo.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
@@ -57,5 +58,41 @@ test.describe('reglas de comisión en Finanzas', () => {
       },
       { api: API, id: creado.id },
     )
+  })
+
+  // #83 · Comisiones al día: el período de la liquidación arranca donde terminó
+  // el último corte vigente del vendedor (antes arrancaba al inicio del mes y
+  // chocaba con el corte anterior: el servidor rechaza superposiciones).
+  test('la liquidación arranca donde terminó el último corte del vendedor', async ({ page }) => {
+    await page.goto('/finanzas/comisiones')
+    await expect(page.getByRole('heading', { name: 'Comisiones', level: 2 })).toBeVisible()
+
+    const buscador = page.getByRole('combobox', { name: 'Vendedor de la liquidación' })
+    const usuarios = await page.evaluate(async (api) => (await fetch(`${api}/api/users`, { credentials: 'include' })).json(), API)
+    const vendedor = (usuarios || []).find((fila) => String(fila.name || '').startsWith('Administrador'))
+    expect(vendedor?.id, 'el seed trae al Administrador').toBeTruthy()
+    await buscador.fill(vendedor.name)
+    await page.getByRole('option', { name: new RegExp(vendedor.name) }).first().click()
+
+    // La expectativa sale de los cortes reales del vendedor, con el mismo
+    // cálculo puro que usa la pantalla.
+    const hoy = await page.evaluate(() => {
+      const fecha = new Date()
+      return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`
+    })
+    const cortes = await page.evaluate(
+      async ({ api, id }) => (await fetch(`${api}/api/commission-settlements?sellerId=${id}`, { credentials: 'include' })).json(),
+      { api: API, id: vendedor.id },
+    )
+    const esperado = periodoPendiente(cortes, { sellerId: vendedor.id, hoy, inicioMes: `${hoy.slice(0, 7)}-01` })
+
+    await expect(page.getByLabel('Desde')).toHaveValue(esperado.desde)
+    if (esperado.alDia) {
+      await expect(page.getByText(/Sin comisiones pendientes/)).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Cerrar liquidación' })).toBeDisabled()
+    } else {
+      await expect(page.getByText(/Se liquida desde el/)).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Cerrar liquidación' })).toBeEnabled()
+    }
   })
 })
