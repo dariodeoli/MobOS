@@ -324,7 +324,10 @@ navegación propia por pantalla.
   pantalla no es navegación.
 - En móvil la navegación va al cajón y los destinos frecuentes a la barra
   inferior (`ESPACIO_BARRA_INFERIOR` en el contenido, nunca espacio a mano).
-- Identidad de la sesión en el pie con `Avatar` (ver sección 6).
+- Identidad de la sesión en el pie con `PersonaChip` (ver sección 6) y
+  **presencia** en el topbar con `PilaPersonas` (pila con «+N» y
+  `resumenPresencia`); el encabezado de la vista lleva la **miga de sección**
+  (`PageHeader migas=[…]`, `aria-current="page"`).
 - Con el sistema v2, el shell va dentro del scope `tema-v2` y sus tonos de
   texto son los **AA** medidos (#241); los vivos quedan para relleno. Las
   reglas de navegación (ítem activo, rótulos de grupo, foco por tema, chips
@@ -354,10 +357,10 @@ navegación propia por pantalla.
   pedido"). Los call sites no vuelven a pluckear `picture`, no dibujan la
   persona por su cuenta y **no fuerzan `hasAvatar={false}`** (eso apaga la foto
   real de la persona).
-  - **Publicado también en la biblioteca (`owncoding-ui` v0.16.0):**
+  - **Publicado también en la biblioteca (`owncoding-ui` v0.16.0/v0.17.0):**
     `PersonaChip` + `identidadDeUsuario` + `ESTADOS_PRESENCIA`, con la cadena
     de foto y caída a la fuente siguiente (`onError` del `Avatar`, tamaños
-    `xs`…`xl`).
+    `xs`…`xl`); `PilaPersonas` (pila de presencia con «+N») desde v0.17.0.
   - **Adopción:** ya migrados acá `PresenciaPedido`, `PresencePill` (PLT),
     `PantallaBloqueada` (PLT) y la cronología/transacciones de `PedidoDetalle`
     (POS, donde además desaparece un avatar duplicado por evento). Quedan por
