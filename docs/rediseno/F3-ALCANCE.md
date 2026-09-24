@@ -64,8 +64,10 @@ la guarda `src/lib/objetosReglas.test.js:165` (“las piezas de formulario salen
 - **Carrito POS**: ✅ colapso máximo (#243) + patrones v2 (`v2-numero` en los
   totales de venta, carrito, línea y cobro). Capturas y métricas en
   `docs/qa/243/README.md` (claro/oscuro, desktop/mobile, flag on/off).
-- **Modales de venta del POS**: ✅ verificados con el flag (claro/oscuro) en
-  `docs/qa/249-pos-responsive/rama-249-modales/`; la × del modal compartido
-  queda para CMP (25×36, target 44) según la auditoría #249.
+- **Cobro y modales de venta del POS (paso 5)**: ✅ con el flag, contraste AA
+  medido (0 bajos en 40 mediciones) y capturas antes/después en
+  `docs/rediseno/c241f3p5-*` + `F3P5-POS-COBRO.md`; guarda e2e
+  `pos-241-v2.spec.js`. Pendiente de CMP: texto sobre ok/warn/bad de la
+  biblioteca y la × del `Modal` (25×36).
 - **Capturas**: `docs/rediseno/c241f3p-shell-{off,on}.png` y
   `c241f3p-tablero-{off,on}.png` (1280, claro) + las de `docs/qa/243/`.
