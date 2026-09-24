@@ -5,19 +5,21 @@ inventario + ficha). **F4** es llevarlo al resto de la app por dominio, con el
 mismo criterio del piloto: capturas antes/después, contraste AA, smoke y cero
 cambios de lógica.
 
-## Switch de activación (apagado hoy)
+## Switch de activación (prendido desde la aprobación del rollout)
 
 En `src/lib/temaV2.js`:
 
 ```js
-export const TEMA_V2_POR_DEFECTO = false   // pasar a true al aprobar
+export const TEMA_V2_POR_DEFECTO = true    // aprobado: v2 por defecto
 ```
 
-- `false` (hoy): el v2 se ve **solo** en los dispositivos con la vista previa.
-- `true` (al aprobar): el v2 queda **por defecto para todos**, y cada
-  dispositivo puede salir con `localStorage['mobos:tema-v2'] = '0'`.
-- La misma bandera gobierna shell, tablero y pantallas migradas: no hay builds
-  ni ramas distintas.
+- `true` (hoy): el v2 es el **diseño por defecto** para todos, y cada
+  dispositivo puede volver al anterior con `localStorage['mobos:tema-v2'] = '0'`
+  (salida opt-out, sin builds ni ramas distintas).
+- Paso 2 del rollout: el **shell** (barra lateral + superior, estados de
+  navegación y densidad) con los tokens v2 y QA antes/después; el par
+  `c241f4b-shell-optout-antes-*` vs `c241f4b-shell-default-despues-*` deja la
+  activación documentada.
 
 ## Orden por dominio
 
