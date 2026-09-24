@@ -106,6 +106,31 @@ Sigue siendo una máquina muy cargada (varios agentes): los valores absolutos
 varían entre corridas; lo determinista son los pedidos menos por pantalla, el
 tamaño de los chunks y que cada sección/pantalla carga solo lo suyo.
 
+## Producción v1.0.153 (medición después del deploy)
+
+`scripts/qa-247-produccion.mjs` → [`produccion/resultados.json`](produccion/resultados.json)
+y capturas `01-demo-inventario` … `05-demo-finanzas`.
+
+| Métrica | v1.0.152 (antes) | v1.0.153 (después) |
+| --- | --- | --- |
+| Chunk de entrada (`index-*.js`) | 1104 KB | **169 KB (−85%)** |
+| Chunks por sección | (dentro del entry) | `vendor` + panel/secciones bajo demanda |
+
+Carga de las pantallas en la demo de producción (datos ficticios locales, **0
+llamadas al API**):
+
+| Pantalla | Listo (ms) | JS decodificado del recorrido |
+| --- | --- | --- |
+| Inventario | 236 | 1101 KB |
+| POS | 113 | 911 KB |
+| Pedidos | 266 | 972 KB |
+| Clientes | 268 | 1066 KB |
+| Finanzas | 144 | 926 KB |
+
+El "JS decodificado" acumula los chunks que ya quedaron en la sesión de la
+pestaña; lo determinista es el entry (−85%) y que cada sección se trae al
+entrar.
+
 ## Qué se cambió (dominio PLT)
 
 1. **Rutas diferidas** (`src/App.jsx`): el panel, el reparto y todas las páginas
