@@ -14,7 +14,9 @@ import { getAccountHolders, getPrivateCompanies } from '@/lib/accountParties'
 import { monedasExcluidas } from '@/lib/paymentAccountsReglas'
 import { nombreCompleto, nombreSugeridoDeCuenta, opcionesDePartes } from '@/lib/accountNames'
 import { cn } from '@/lib/utils'
+import { temaV2Activo } from '@/lib/temaV2'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
+import { GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
 // Tabla compacta: una fila por cuenta, con comisión, acreditación y descuento.
 const GRID_CUENTAS = 'grid min-w-[54rem] grid-cols-[minmax(0,1.3fr)_7rem_5rem_6.5rem_6.5rem_6.5rem_minmax(0,1fr)_9rem] items-center gap-x-2'
 
@@ -97,6 +99,9 @@ export default function PaymentAccounts() {
 
 function AccountManager() {
   const [accounts, setAccounts] = useState([])
+  // Vista previa v2 (#241 · lote D): resumen en tiles de consola con números
+  // grandes. Es solo lectura de lo ya cargado: sin el flag no cambia nada.
+  const v2 = temaV2Activo()
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [reload, setReload] = useState(0)
@@ -131,8 +136,20 @@ function AccountManager() {
     return () => { cancelled = true }
   }, [reload])
 
-  function openForm(account = null) {
-    // Los opcionales vacíos llegan null desde la API: el formulario trabaja
+  // Resumen del lote D: se deriva de las cuentas ya cargadas (sin pedidos ni
+  // lógica nueva); los números van con el tamaño del scope en la vista previa.
+  const resumenCuentas = useMemo(() => {
+    const activas = accounts.filter(cuenta => cuenta.isActive)
+    const monedas = [...new Set(activas.map(cuenta => cuenta.currencyLabel || cuenta.currency).filter(Boolean))]
+    const inactivas = accounts.length - activas.length
+    return [
+      { label: 'Cuentas activas', valor: activas.length, sub: `de ${accounts.length} cuenta(s)`, tono: '' },
+      { label: 'Inactivas', valor: inactivas, sub: inactivas ? 'no se ofrecen al cobrar' : 'todas disponibles', tono: inactivas ? 'text-warn' : '' },
+      { label: 'Monedas', valor: monedas.length, sub: monedas.join(' · ') || '—', tono: '' },
+    ]
+  }, [accounts])
+
+  function openForm(account = null) {    // Los opcionales vacíos llegan null desde la API: el formulario trabaja
     // siempre con texto (evita inputs sin control y el error de validación).
     const values = { ...EMPTY, ...account }
     for (const key of ['bank', 'holder', 'accountNumber', 'document', 'processor', 'pixKey', 'reference', 'currencyLabel', 'holderId', 'companyId']) {
@@ -247,6 +264,17 @@ function AccountManager() {
         </div>
         <Button type="button" disabled={busy || loading || !!loadError || !!form} onClick={() => openForm()}>Añadir cuenta</Button>
       </div>
+      {v2 && accounts.length > 0 && (
+        <div className={cn('lg:grid-cols-3', GRILLA_DOS_COLUMNAS_COMPACTA)}>
+          {resumenCuentas.map((tarjeta) => (
+            <div key={tarjeta.label} className={cn('rounded-xl border border-ink-600 p-3', 'v2-tile', tarjeta.tono === 'text-warn' && 'border-warn/40 bg-warn/5')}>
+              <p className={ROTULO_DATO}>{tarjeta.label}</p>
+              <strong className={cn('mt-1 block tabular-nums v2-numero text-2xl', tarjeta.tono)}>{tarjeta.valor}</strong>
+              <p className="mt-0.5 text-[11px] text-mute">{tarjeta.sub}</p>
+            </div>
+          ))}
+        </div>
+      )}
       {isDemoRuntime && <p className="text-sm text-mute">Demo: cuentas ficticias guardadas en este navegador. No ingreses datos bancarios reales.</p>}
       {loading && <p role="status" className="text-sm text-mute">Cargando cuentas…</p>}
       {loadError && <div role="alert" className="space-y-2 text-sm text-bad"><p>{loadError}</p><Button type="button" variant="outline" onClick={() => setReload(value => value + 1)}>Reintentar</Button></div>}

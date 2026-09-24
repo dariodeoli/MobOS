@@ -117,6 +117,8 @@ const PANTALLAS = [
   }],
   ['finanzas', '/finanzas/caja', (page) => page.getByText('Saldo esperado').first()],
   ['finanzas-conciliacion', '/finanzas/conciliacion', (page) => page.getByText('Ingresos conciliables').first()],
+  // Lote D (FIN): Cuentas suma su resumen en tiles (activas / inactivas / monedas).
+  ['finanzas-cuentas', '/finanzas/bancos', (page) => page.getByTestId('cuenta-fila').first()],
   ['servicio', '/servicio', (page) => page.getByTestId('servicio-fila').first(), prepararTaller],
   ['garantias', '/garantias', (page) => page.getByTestId('garantia-fila').first(), prepararGarantias],
   ['resumen', '/resumen', (page) => page.getByText('Facturado').first()],
@@ -181,6 +183,24 @@ test.describe('dominios v2 · capturas y contraste', () => {
       await expect(listo(page)).toBeVisible({ timeout: 30_000 })
       if (antesDeCapturar) await antesDeCapturar(page)
       await page.screenshot({ path: `${SHOTS}/c241f4b-${dominio}-off-claro-desktop.png` })
+    })
+  }
+})
+
+// Lote D (FIN) · criterio del plan F4 #3: las tres pantallas de Finanzas entran
+// sin scroll horizontal del documento en los cuatro anchos del rollout.
+test.describe('lote D · finanzas sin scroll horizontal', () => {
+  const ANCHOS = [360, 390, 768, 1440]
+  for (const [dominio, ruta] of PANTALLAS.filter(([nombre]) => nombre === 'finanzas' || nombre === 'finanzas-conciliacion' || nombre === 'finanzas-cuentas')) {
+    test(`${dominio}: 360/390/768/1440 sin scroll del documento`, async ({ page }) => {
+      await preparar(page, { modo: 'light', v2: true })
+      for (const ancho of ANCHOS) {
+        await page.setViewportSize({ width: ancho, height: 900 })
+        await page.goto(ruta)
+        await expect(page.locator('.tema-v2').first()).toBeVisible({ timeout: 30_000 })
+        const medida = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth }))
+        expect(medida.scrollWidth, `${dominio} a ${ancho}px`).toBeLessThanOrEqual(medida.clientWidth + 1)
+      }
     })
   }
 })
