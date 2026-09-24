@@ -129,6 +129,8 @@ model Tenant {
   supplyPurchases             SupplyPurchase[]
   supplyPurchaseLines         SupplyPurchaseLine[]
   supplyPurchaseSerials       SupplyPurchaseSerial[]
+  supplyShipments             SupplyShipment[]
+  supplyShipmentItems         SupplyShipmentItem[]
 }
 
 // Identidad de la PERSONA (cuenta Google). No pertenece a ninguna tienda:
@@ -269,6 +271,7 @@ model Branch {
   printPrinters  PrintPrinter[] @relation("PrintPrinterBranch")
   supplyNeeds SupplyNeed[]
   supplyPurchases SupplyPurchase[]
+  supplyShipments SupplyShipment[] @relation("SupplyShipmentDestination")
 }
 
 model User {
@@ -344,6 +347,8 @@ model User {
   supplyNeedsAssigned           SupplyNeed[] @relation("SupplyNeedAssignee")
   supplyNeedsCreated            SupplyNeed[] @relation("SupplyNeedAuthor")
   supplyPurchasesCreated        SupplyPurchase[] @relation("SupplyPurchaseAuthor")
+  supplyShipmentsResponsible   SupplyShipment[] @relation("SupplyShipmentResponsible")
+  supplyShipmentsCreated       SupplyShipment[] @relation("SupplyShipmentAuthor")
 }
 
 model UserInvitation {
@@ -501,6 +506,7 @@ model Product {
   @@index([imei(ops: raw("gin_trgm_ops"))], map: "Product_imei_trgm_idx", type: Gin)
   supplyNeeds SupplyNeed[]
   supplyPurchaseLines SupplyPurchaseLine[]
+  supplyShipmentItems SupplyShipmentItem[]
 }
 
 enum InventoryUnitStatus {
@@ -2278,6 +2284,7 @@ model SupplyPurchase {
   @@unique([tenantId, code])
   @@index([tenantId, status, createdAt])
   @@index([tenantId, supplierId, createdAt])
+  shipments SupplyShipment[]
 }
 
 model SupplyPurchaseLine {
@@ -2299,6 +2306,7 @@ model SupplyPurchaseLine {
 
   @@index([tenantId, purchaseId])
   @@index([tenantId, needId])
+  shipmentItems SupplyShipmentItem[]
 }
 
 model SupplyPurchaseSerial {
@@ -2313,6 +2321,67 @@ model SupplyPurchaseSerial {
   createdAt DateTime           @default(now())
 
   @@unique([tenantId, serial])
+  @@index([tenantId, lineId])
+}
+
+// #250 Fase 4 (Centro de Abastecimiento): envíos entrantes (lotes) de una
+// compra. Una compra puede viajar en varios lotes con métodos distintos
+// (bus/transportadora/AEX/importación). El lote es un **envío entrante
+// externo**, nunca un traslado interno; la recepción (F5) es la que crea stock.
+model SupplyShipment {
+  id              String          @id @default(cuid())
+  tenantId        String
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // Identificador compartido (#250 §2): ENV-CDE-ASU-0021.
+  code            String
+  purchaseId      String
+  purchase        SupplyPurchase  @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  origin          String
+  destinationBranchId String?
+  destinationBranch Branch?       @relation("SupplyShipmentDestination", fields: [destinationBranchId], references: [id], onDelete: SetNull)
+  // BUS · TRANSPORTADORA · AEX · IMPORTACION (ver backend/lib/supply.ts).
+  method          String
+  company         String?
+  driver          String?
+  guide           String?
+  responsibleId   String?
+  responsible     User?           @relation("SupplyShipmentResponsible", fields: [responsibleId], references: [id], onDelete: SetNull)
+  status          String          @default("BORRADOR")
+  etaAt           DateTime?
+  sentAt          DateTime?
+  arrivedAt       DateTime?
+  notes           String?
+  // Acceso público del manifiesto: token no enumerable que viaja en el QR.
+  publicToken     String?         @unique @default(cuid())
+  createdById     String
+  createdBy       User            @relation("SupplyShipmentAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  items           SupplyShipmentItem[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, purchaseId])
+}
+
+model SupplyShipmentItem {
+  id         String         @id @default(cuid())
+  tenantId   String
+  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  shipmentId String
+  shipment   SupplyShipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  lineId     String
+  line       SupplyPurchaseLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // IMEI conocido al despachar; null = todavía pendiente (se completa antes o en
+  // la recepción, F5).
+  serial     String?
+  status     String         @default("EN_LOTE")
+  createdAt  DateTime       @default(now())
+
+  @@unique([tenantId, serial])
+  @@index([tenantId, shipmentId])
   @@index([tenantId, lineId])
 }
 

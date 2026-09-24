@@ -442,3 +442,141 @@ export function resumenPreparacion(lineas: Array<{ quantity: number; serials?: s
   const conImei = lineas.reduce((suma, linea) => suma + Math.min(Math.max(0, Math.round(Number(linea.quantity) || 0)), Array.isArray(linea.serials) ? linea.serials.length : 0), 0)
   return { unidades, conImei, pendientes: Math.max(0, unidades - conImei) }
 }
+
+// ── Fase 4 (#250 §8 y §11): lotes y tránsito ────────────────────────────────
+
+export const METODOS_ENVIO = ['BUS', 'TRANSPORTADORA', 'AEX', 'IMPORTACION'] as const
+export type MetodoEnvio = (typeof METODOS_ENVIO)[number]
+export const METODO_ENVIO_LABEL: Record<MetodoEnvio, string> = {
+  BUS: 'Bus',
+  TRANSPORTADORA: 'Transportadora',
+  AEX: 'AEX',
+  IMPORTACION: 'Importación',
+}
+
+// Máquina de estados de un envío entrante. Las compras externas se registran
+// como envío (nunca como traslado interno) y la recepción es de la Fase 5: acá
+// el lote llega hasta EN_TRANSITO (o incidencia/cancelado).
+export const ENVIO_ESTADOS = ['BORRADOR', 'PREPARANDO', 'DESPACHADO', 'EN_TRANSITO', 'RECEPCION_PARCIAL', 'RECIBIDO', 'CON_INCIDENCIA', 'CANCELADO'] as const
+export type EnvioEstado = (typeof ENVIO_ESTADOS)[number]
+export const TRANSICIONES_ENVIO: Record<string, string[]> = {
+  BORRADOR: ['PREPARANDO', 'CANCELADO'],
+  PREPARANDO: ['DESPACHADO', 'BORRADOR', 'CANCELADO'],
+  DESPACHADO: ['EN_TRANSITO', 'CON_INCIDENCIA', 'CANCELADO'],
+  EN_TRANSITO: ['RECEPCION_PARCIAL', 'RECIBIDO', 'CON_INCIDENCIA'],
+  RECEPCION_PARCIAL: ['RECIBIDO', 'CON_INCIDENCIA'],
+  CON_INCIDENCIA: ['EN_TRANSITO', 'RECEPCION_PARCIAL', 'RECIBIDO', 'CANCELADO'],
+  RECIBIDO: [],
+  CANCELADO: [],
+}
+/** Estados que resuelve la recepción (Fase 5), no esta fase. */
+export const ENVIO_ESTADOS_RECEPCION = ['RECEPCION_PARCIAL', 'RECIBIDO']
+
+export function transicionEnvioValida(desde: string, hacia: string): boolean {
+  return (TRANSICIONES_ENVIO[desde] || []).includes(hacia)
+}
+
+/** Código compartido del envío (#250 §2): `ENV-CDE-ASU-0021`. */
+export function codigoEnvio({ origen = 'CDE', destino = 'ASU', secuencia }: { origen?: string; destino?: string; secuencia: number }): string {
+  const tramo = (valor: string) => String(valor || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3) || 'XXX'
+  const numero = String(Math.max(1, Math.round(Number(secuencia) || 1))).padStart(4, '0')
+  return `ENV-${tramo(origen)}-${tramo(destino)}-${numero}`
+}
+
+export type ItemEnvio = { lineId: string; productId: string; serial: string | null }
+
+/**
+ * Expande las líneas de una compra a unidades del lote: una fila por unidad,
+ * con su IMEI si ya se conoce o `null` si queda pendiente. Respeta lo que ya
+ * viaja en otros lotes (no repite seriales) y no se pasa de la cantidad
+ * comprada.
+ */
+export function expandirItemsEnvio({ lineas, asignados = [] }: { lineas: Array<{ id: string; productId: string; quantity: number; serials?: string[] }>; asignados?: Array<{ lineId: string; serial?: string | null; cantidad?: number }> }): { ok: true; items: ItemEnvio[] } | { ok: false; error: string } {
+  const yaPorLinea = new Map<string, { seriales: Set<string>; cantidad: number }>()
+  for (const fila of asignados) {
+    const actual = yaPorLinea.get(fila.lineId) || { seriales: new Set<string>(), cantidad: 0 }
+    if (fila.serial) actual.seriales.add(String(fila.serial).toUpperCase())
+    actual.cantidad += Math.max(0, Math.round(Number(fila.cantidad) || 1))
+    yaPorLinea.set(fila.lineId, actual)
+  }
+  const items: ItemEnvio[] = []
+  const serialesEnLote = new Set<string>()
+  for (const linea of lineas) {
+    const previo = yaPorLinea.get(linea.id) || { seriales: new Set<string>(), cantidad: 0 }
+    const disponibles = linea.serials || []
+    const yaCargados = previo.cantidad
+    const libres = disponibles.filter((serial) => !previo.seriales.has(String(serial).toUpperCase()) && !serialesEnLote.has(String(serial).toUpperCase()))
+    const cantidadLinea = Math.max(0, Math.round(Number(linea.quantity) || 0))
+    const lugar = Math.max(0, cantidadLinea - yaCargados)
+    if (lugar === 0) continue
+    // Primero los IMEI conocidos que todavía no viajan, después las unidades pendientes.
+    for (const serial of libres.slice(0, lugar)) {
+      serialesEnLote.add(String(serial).toUpperCase())
+      items.push({ lineId: linea.id, productId: linea.productId, serial: String(serial).toUpperCase() })
+    }
+    const pendientes = lugar - Math.min(lugar, libres.length)
+    for (let i = 0; i < pendientes; i += 1) items.push({ lineId: linea.id, productId: linea.productId, serial: null })
+  }
+  if (!items.length) return { ok: false, error: 'El envío no lleva unidades: revisá lo que ya viaja en otros lotes.' }
+  return { ok: true, items }
+}
+
+export type ManifiestoEnvio = {
+  code: string
+  origen: string
+  destino: string | null
+  metodo: string
+  metodoLabel: string
+  empresa: string | null
+  conductor: string | null
+  guia: string | null
+  responsable: string | null
+  estado: string
+  salida: string | null
+  eta: string | null
+  llegada: string | null
+  compra: string | null
+  unidades: number
+  conImei: number
+  pendientes: number
+  lineas: Array<{ producto: string; capacidad: string; condicion: string; cantidad: number; imeis: string[]; pendientes: number }>
+  enlace: string | null
+  notas: string | null
+}
+
+/** Manifiesto del envío (#250 §11): datos del lote + IMEI conocidos/pendientes. */
+export function manifiestoEnvio({ envio, items = [], base = '' }: { envio: any; items?: any[]; base?: string }): ManifiestoEnvio {
+  const porLinea = new Map<string, { producto: string; capacidad: string; condicion: string; imeis: string[]; pendientes: number }>()
+  for (const item of items) {
+    const clave = item.lineId
+    const actual = porLinea.get(clave) || { producto: item.producto || '', capacidad: item.capacidad || '', condicion: item.condicion || 'NEW', imeis: [] as string[], pendientes: 0 }
+    if (item.serial) actual.imeis.push(String(item.serial).toUpperCase())
+    else actual.pendientes += 1
+    porLinea.set(clave, actual)
+  }
+  const lineas = [...porLinea.values()].map((linea) => ({ ...linea, cantidad: linea.imeis.length + linea.pendientes }))
+  const conImei = lineas.reduce((suma, linea) => suma + linea.imeis.length, 0)
+  const pendientes = lineas.reduce((suma, linea) => suma + linea.pendientes, 0)
+  return {
+    code: envio.code,
+    origen: envio.origin,
+    destino: envio.destinationBranch?.name || envio.destino || null,
+    metodo: envio.method,
+    metodoLabel: METODO_ENVIO_LABEL[envio.method as MetodoEnvio] || envio.method,
+    empresa: envio.company || null,
+    conductor: envio.driver || null,
+    guia: envio.guide || null,
+    responsable: envio.responsible?.name || envio.responsable || null,
+    estado: envio.status,
+    salida: envio.sentAt || null,
+    eta: envio.etaAt || null,
+    llegada: envio.arrivedAt || null,
+    compra: envio.purchase?.code || envio.compra || null,
+    unidades: conImei + pendientes,
+    conImei,
+    pendientes,
+    lineas,
+    enlace: envio.publicToken ? `${base}/envio/${envio.publicToken}` : null,
+    notas: envio.notes || null,
+  }
+}
