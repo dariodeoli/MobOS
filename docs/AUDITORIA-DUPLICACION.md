@@ -292,6 +292,21 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 28 — objetos para los lotes F4 A/C/E/F/G (24-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `TileRol` (`owncoding-ui` **v0.22.0**) | El lote F arma los tiles de rol/acceso a mano (`RolesPermisos`: título + descripción + «18/32» + chips de dominio) | Publicado: descripción, conteo en número grande y dominios como chips según el acceso; `onAbrir` lo vuelve botón |
+| `PasosEquipo` | El indicador compacto del servicio/rack vive solo en MobOS (`shared/PasosEquipo`, 2 usos) | Publicado en la biblioteca (puntos + paso actual, `actual` por id o índice) para el **lote E** y cualquier flujo de una línea |
+| `Stat` (lote A) | Los KPIs de consola se armaban a mano (`Resumen`: número `v2-numero` + chip de tendencia o barrita) | `Stat` suma `deltaComo="chip"` y `barra` (y el valor con `.v2-numero`): el mismo objeto para el resumen y el tablero |
+| `FichaCertificado` (lote G) | El informe público ya pasaba `puntaje`, `condicion`, `repuestosNoOem` y `repuestosNoOemNota` y el objeto los ignoraba (contrato de #240 pendiente en la biblioteca) | Publicados en v0.22.0: la ficha muestra puntaje, condición y los repuestos no OEM con su nota |
+
+**Duplicación pendiente: 0 usos.** Con el paquete ya adoptado en MobOS
+(`owncoding-ui` en `package.json` desde v0.21.0), estos objetos se pueden
+adoptar directo: el **informe público** gana la condición y los repuestos no OEM
+al subir la dependencia a v0.22.0, y el lote F puede reemplazar su `TilesRoles`
+local por `TileRol`.
+
 ### Lote 27 — tokens v2 globales en la biblioteca (24-09)
 
 | Objeto | Antes (evidencia) | Después |
