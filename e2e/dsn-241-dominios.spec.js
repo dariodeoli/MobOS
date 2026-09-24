@@ -101,6 +101,11 @@ const PANTALLAS = [
     await expect(page.getByRole('button', { name: /Imprimir comprobante/ })).toBeVisible({ timeout: 20_000 })
   }],
   ['clientes', '/clientes', (page) => page.getByTestId('cliente-fila').first()],
+  ['clientes-resumen', '/clientes', (page) => page.getByTestId('cliente-fila').first(), undefined, async (page) => {
+    // Resumen rápido del cliente (el ojito): popup de la fila.
+    await page.getByRole('button', { name: /Resumen rápido de/ }).first().click({ timeout: 10_000 })
+    await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 15_000 })
+  }],
   ['finanzas', '/finanzas/caja', (page) => page.getByText('Saldo esperado').first()],
   ['servicio', '/servicio', (page) => page.getByTestId('servicio-fila').first(), prepararTaller],
   ['garantias', '/garantias', (page) => page.getByTestId('garantia-fila').first(), prepararGarantias],
