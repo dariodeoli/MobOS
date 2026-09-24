@@ -205,6 +205,16 @@ test('el portal demo sigue la entrega con sus pasos (#240 → portal)', () => {
   assert.equal(pedidoVenta.tracking.pasos.every((paso) => paso.hecho), true)
 })
 
+test('la cuenta demo muestra el historial de pagos (#240)', () => {
+  const cuenta = demoCuentaPayload('demo-demo-cliente-lucia-rapido')
+  assert.ok(cuenta.pagos.length >= 3, 'Lucía tiene varios pagos en la demo')
+  const pago = cuenta.pagos[0]
+  assert.ok(pago.amountPyg > 0 && pago.orderNumber && pago.methodLabel && pago.paidAt)
+  assert.ok(cuenta.totalPagadoPyg >= cuenta.pagos.reduce((suma, item) => suma + item.amountPyg, 0))
+  const carlos = demoCuentaPayload('demo-demo-cliente-carlos-rapido')
+  assert.ok(carlos.pagos.length >= 1)
+})
+
 test('la cuenta demo muestra las reservas vigentes (#240)', () => {
   const carlos = demoCuentaPayload('demo-demo-cliente-carlos-rapido')
   assert.equal(carlos.reservas.length, 1)

@@ -234,6 +234,14 @@ assert.ok(reservaPortal, 'El portal debe listar la reserva del cliente.')
 assert.ok(reservaPortal.reservedUntil, 'La reserva trae su vencimiento.')
 assert.equal(reservaPortal.model, producto.name, 'La reserva trae el equipo.')
 
+// ── Pagos (#240 → portal): historial y total confirmado ─────────────────────
+const pagoPortal = (result.payload.pagos || []).find((pago) => pago.orderNumber === numeroPedido)
+assert.ok(pagoPortal, 'El portal debe listar el pago del pedido.')
+assert.equal(pagoPortal.amountPyg, 40000, 'El pago confirmado viaja con su monto.')
+assert.ok(pagoPortal.methodLabel, 'El pago viaja con su medio legible.')
+assert.ok(pagoPortal.paidAt, 'El pago viaja con su fecha.')
+assert.ok(result.payload.totalPagadoPyg >= 40000, 'El total pagado suma los pagos confirmados.')
+
 // ── Regeneración: el enlace anterior deja de funcionar ─────────────────────
 result = await request(`/api/customers/${encodeURIComponent(cliente.id)}/access-token`, 'POST', { level: 'rapido', regenerate: true }, sellerToken)
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
