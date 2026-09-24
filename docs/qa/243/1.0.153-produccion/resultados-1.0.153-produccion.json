@@ -1,0 +1,109 @@
+{
+  "base": "https://app.moboss.online",
+  "etiqueta": "1.0.153-produccion",
+  "fecha": "2026-09-24T06:03:51.149Z",
+  "resultados": [
+    {
+      "variante": "desktop-claro-v2-off",
+      "ancho": 1280,
+      "altoFilaColapsada": 66,
+      "alturasColapsadas": [
+        66,
+        67
+      ],
+      "alturasExpandidas": [
+        363,
+        67
+      ],
+      "desbordeHorizontal": 0,
+      "scopeV2Aplicado": false,
+      "totalVisible": "Productos de esta venta Cliente: Cliente QA 243 · Diego López · Retiro en tienda 2 productos · 2 unidades Vaciar carrito iPhone 15 Pro 256GB Titanio Falta elegi",
+      "erroresPagina": []
+    },
+    {
+      "variante": "desktop-claro-v2-on",
+      "ancho": 1280,
+      "altoFilaColapsada": 66,
+      "alturasColapsadas": [
+        66,
+        67
+      ],
+      "alturasExpandidas": [
+        363,
+        67
+      ],
+      "desbordeHorizontal": 0,
+      "scopeV2Aplicado": true,
+      "totalVisible": "Productos de esta venta Cliente: Cliente QA 243 · Diego López · Retiro en tienda 2 productos · 2 unidades Vaciar carrito iPhone 15 Pro 256GB Titanio Falta elegi",
+      "erroresPagina": []
+    },
+    {
+      "variante": "desktop-oscuro-v2-on",
+      "ancho": 1280,
+      "altoFilaColapsada": 66,
+      "alturasColapsadas": [
+        66,
+        67
+      ],
+      "alturasExpandidas": [
+        363,
+        67
+      ],
+      "desbordeHorizontal": 0,
+      "scopeV2Aplicado": true,
+      "totalVisible": "Productos de esta venta Cliente: Cliente QA 243 · Diego López · Retiro en tienda 2 productos · 2 unidades Vaciar carrito iPhone 15 Pro 256GB Titanio Falta elegi",
+      "erroresPagina": []
+    },
+    {
+      "variante": "movil-claro-v2-off",
+      "ancho": 390,
+      "altoFilaColapsada": 66,
+      "alturasColapsadas": [
+        66,
+        67
+      ],
+      "alturasExpandidas": [
+        363,
+        67
+      ],
+      "desbordeHorizontal": 0,
+      "scopeV2Aplicado": false,
+      "totalVisible": "Productos de esta venta Cliente: Cliente QA 243 · Diego López · Retiro en tienda 2 productos · 2 unidades Vaciar carrito iPhone 15 Pro 256GB Titanio Falta elegi",
+      "erroresPagina": []
+    },
+    {
+      "variante": "movil-claro-v2-on",
+      "ancho": 390,
+      "altoFilaColapsada": 66,
+      "alturasColapsadas": [
+        66,
+        67
+      ],
+      "alturasExpandidas": [
+        363,
+        67
+      ],
+      "desbordeHorizontal": 0,
+      "scopeV2Aplicado": true,
+      "totalVisible": "Productos de esta venta Cliente: Cliente QA 243 · Diego López · Retiro en tienda 2 productos · 2 unidades Vaciar carrito iPhone 15 Pro 256GB Titanio Falta elegi",
+      "erroresPagina": []
+    },
+    {
+      "variante": "movil-oscuro-v2-on",
+      "ancho": 390,
+      "altoFilaColapsada": 66,
+      "alturasColapsadas": [
+        66,
+        67
+      ],
+      "alturasExpandidas": [
+        363,
+        67
+      ],
+      "desbordeHorizontal": 0,
+      "scopeV2Aplicado": true,
+      "totalVisible": "Productos de esta venta Cliente: Cliente QA 243 · Diego López · Retiro en tienda 2 productos · 2 unidades Vaciar carrito iPhone 15 Pro 256GB Titanio Falta elegi",
+      "erroresPagina": []
+    }
+  ]
+}

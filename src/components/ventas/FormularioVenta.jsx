@@ -699,7 +699,9 @@ export default function FormularioVenta({
   const tieneCupon = items.some(it => it.couponCode)
   const subtotal = totalCarrito
   const totalGeneral = Math.max(0, subtotal - gsNum(descuento) + gsNum(f.montoDelivery))
-  const totalPagado = pagos.reduce((s, p) => s + gsNum(p.monto), 0)
+  // «No pagado» (#148 §11): un bloque marcado así no suma a lo cobrado y la
+  // venta queda con ese saldo pendiente (el pago viaja con estado PENDING).
+  const totalPagado = pagos.reduce((s, p) => s + (p.noPagado ? 0 : gsNum(p.monto)), 0)
   // Descuento sugerido por el medio elegido (ej. efectivo 5%).
   const descuentoMedioPct = Math.max(0, ...pagos.map(pago => Number(cuentas?.find(cuenta => cuenta.id === pago.accountId)?.discountPct || 0)), 0)
   const descuentoMedioGs = Math.round((subtotal * descuentoMedioPct) / 100)
@@ -901,8 +903,9 @@ export default function FormularioVenta({
       // Forma legacy (sin cuentas de cobro): solo método, monto en ₲ y estado.
       // Los campos de moneda (originalAmount/currency/exchangeRatePyg) se
       // rechazan sin accountId.
+      // «No pagado» (#148 §11): el bloque queda PENDING y no cuenta como cobrado.
       payments = usaCuentas
-        ? pagos.map(p => accountPayment(p, cuentas))
+        ? pagos.map(p => ({ ...accountPayment(p, cuentas), status: p.noPagado ? 'PENDING' : 'CONFIRMED' }))
         : pagos.map(p => ({
             method: /efectivo/i.test(p.medioPago)
               ? 'CASH'
@@ -910,7 +913,7 @@ export default function FormularioVenta({
                 ? 'CARD'
                 : 'TRANSFER',
             amountPyg: gsNum(p.monto),
-            status: 'CONFIRMED',
+            status: p.noPagado ? 'PENDING' : 'CONFIRMED',
             ...([p.medioPago, p.cuenta].filter(Boolean).join(' · ').trim()
               ? { reference: [p.medioPago, p.cuenta].filter(Boolean).join(' · ') }
               : {}),

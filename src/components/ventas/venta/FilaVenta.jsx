@@ -124,7 +124,7 @@ export default function FilaVenta({
               disabled={guardando}
               onClick={onImei}
               className={cn(
-                'flex min-w-0 items-center gap-1 truncate text-left font-mono text-[11px] transition hover:underline disabled:opacity-60',
+                'flex min-h-11 min-w-11 items-center gap-1 truncate text-left font-mono text-[11px] transition hover:underline disabled:opacity-60 md:min-h-0 md:min-w-0',
                 tieneImei ? 'text-mute' : 'font-semibold text-warn',
               )}
             >
@@ -137,7 +137,7 @@ export default function FilaVenta({
             </button>
             <button
               type="button"
-              className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad disabled:opacity-50"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad disabled:opacity-50 md:h-7 md:w-7"
               title="Eliminar línea"
               aria-label={`Eliminar ${item.nombre}`}
               disabled={guardando}
@@ -157,7 +157,7 @@ export default function FilaVenta({
           </div>
           <button
             type="button"
-            className="grid h-8 w-8 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore"
+            className="grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore md:h-8 md:w-8"
             aria-expanded={abierta}
             aria-label={abierta ? `Ver menos detalle de ${item.nombre}` : `Ver detalle de ${item.nombre}`}
             title={abierta ? 'Ver menos' : 'Ver detalle'}
@@ -260,7 +260,7 @@ export default function FilaVenta({
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-mute">
             <button
               type="button"
-              className="font-semibold text-fono-light hover:underline"
+              className="inline-flex min-h-11 items-center font-semibold text-fono-light hover:underline md:min-h-0"
               onClick={() => setCuponAbierto(open => !open)}
             >
               {item.couponCode ? 'Cambiar cupón' : 'Aplicar cupón'}
@@ -268,7 +268,7 @@ export default function FilaVenta({
             {item.couponCode && (
               <button
                 type="button"
-                className="text-mute hover:text-bad"
+                className="inline-flex min-h-11 items-center text-mute hover:text-bad md:min-h-0"
                 onClick={() => onEditar({ couponCode: null, precio: lista || precio })}
               >
                 Quitar cupón
@@ -286,7 +286,7 @@ export default function FilaVenta({
                 />
                 <button
                   type="button"
-                  className="rounded-lg border border-fono/40 px-3 py-1.5 text-xs font-semibold text-fono-light transition hover:bg-fono/10 disabled:opacity-50"
+                  className="rounded-lg border border-fono/40 px-3 py-1.5 text-xs font-semibold text-fono-light transition hover:bg-fono/10 disabled:opacity-50 min-h-11 md:min-h-0"
                   disabled={cuponBusy || !cupon.trim()}
                   onClick={aplicarCupon}
                 >
@@ -301,7 +301,7 @@ export default function FilaVenta({
             <div className="mt-2">
               <button
                 type="button"
-                className="text-[11px] text-mute hover:text-bad"
+                className="inline-flex min-h-11 items-center text-[11px] text-mute hover:text-bad md:min-h-0"
                 onClick={() => onEditar({ serials: [] })}
               >
                 Quitar IMEI
