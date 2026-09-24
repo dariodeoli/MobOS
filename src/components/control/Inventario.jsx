@@ -224,10 +224,13 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
     {onAlternar
       ? <span className="flex items-center" onClick={(event) => event.stopPropagation()}><label className="flex h-11 w-11 items-center justify-center md:h-5 md:w-5"><input type="checkbox" className="h-4 min-h-0 w-4 accent-fono" aria-label={`Seleccionar ${nombreProducto(unit.product || {})} ${serial}`} checked={seleccionado} onChange={() => onAlternar()} /></label></span>
       : <span />}
-    <span className="flex min-w-0 items-center gap-1.5">
+    <span className="flex min-w-0 items-center gap-1.5 overflow-hidden">
       <span className="grid h-5 w-5 shrink-0 place-items-center overflow-hidden rounded-md border border-ink-600 bg-ink-800 text-mute" title={`Categoría: ${etiquetaDeCategoria(nombreProducto(unit.product || {}))}`}><IconoCategoria categoria={nombreProducto(unit.product || {})} className="h-3.5 w-3.5" /></span>
-      <b className="min-w-0 truncate text-[13px] leading-tight" title={nombreProducto(unit.product || {})}>{nombreProducto(unit.product || {})}</b>
-      <SerialTexto serial={serial} className="shrink-0 text-[10px] text-mute" />
+      {/* #245: el modelo nunca se colapsa (mínimo legible) y el serial cede antes:
+          con seriales largos la fila perdía el nombre por completo. La cola del
+          serial y su título siguen identificando el equipo. */}
+      <b className="min-w-[3rem] truncate text-[13px] leading-tight" title={nombreProducto(unit.product || {})}>{nombreProducto(unit.product || {})}</b>
+      <SerialTexto serial={serial} className="text-[10px] text-mute" />
       <span
         className={`h-2 w-2 shrink-0 rounded-full ${puntoCondicionUnidad(unit)}`}
         title={`Condición: ${etiquetaCondicionUnidad(unit)}`}
