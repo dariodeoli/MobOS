@@ -17,6 +17,7 @@ import PedidoDetalle from './PedidoDetalle'
 import Icon from '@/components/shared/Icon'
 import { FULFILLMENT_LABELS as FULFILLMENT } from '@/lib/constants'
 import { CELDA_DATO, CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
+import { temaV2Activo } from '@/lib/temaV2'
 
 export const orderFields = (row) => {
   const pagos = row.payments || row.pagos || []
@@ -292,6 +293,19 @@ export default function SellerOrders() {
     })
   }, [todas, filtro, query, orden, esDemo])
 
+  // Vista previa v2 (#241): resumen de la lista en tiles (activos, por cobrar y
+  // en reparto) con los números de consola. Se apaga solo con el flag.
+  const v2 = temaV2Activo()
+  const resumen = useMemo(() => rows.reduce((acumulado, row) => {
+    const activo = !estaCompletado(row) && !estaCancelado(row)
+    const enReparto = ['READY_TO_SHIP', 'SHIPPED', 'IN_TRANSIT'].includes(row.fulfillmentStatus)
+    return {
+      activos: acumulado.activos + (activo ? 1 : 0),
+      porCobrar: acumulado.porCobrar + Number(row.pending || 0),
+      enReparto: acumulado.enReparto + (enReparto && activo ? 1 : 0),
+    }
+  }, { activos: 0, porCobrar: 0, enReparto: 0 }), [rows])
+
   // El pedido abierto sale de la fila ya cargada (pintado instantáneo); si se
   // entra por URL directa (recarga, enlace compartido, pedido fuera de la
   // página) el detalle se resuelve solo por su id interno contra la API. La
@@ -341,6 +355,13 @@ export default function SellerOrders() {
       <div className="min-w-[220px] flex-1"><SearchField ariaLabel="Buscar pedidos" placeholder="Pedido, cliente, RUC, teléfono, producto, IMEI o monto" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
       <button type="button" onClick={data.refresh} disabled={data.loading} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Actualizar</button>
     </div>
+    {v2 && rows.length > 0 && (
+      <div className="grid grid-cols-3 divide-ink-600 rounded-xl border border-ink-600 bg-ink-800/60 text-center sm:divide-x">
+        <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Activos</p><p className="v2-numero mt-1 text-lg font-semibold tabular-nums sm:text-2xl">{resumen.activos}</p><p className="text-[11px] text-mute">en la lista</p></div>
+        <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Por cobrar</p><p className={cn('v2-numero mt-1 text-lg font-semibold tabular-nums sm:text-2xl', resumen.porCobrar > 0 ? 'text-warn' : 'text-ok')}>{gs(resumen.porCobrar)}</p><p className="text-[11px] text-mute">saldo pendiente</p></div>
+        <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">En reparto</p><p className="v2-numero mt-1 text-lg font-semibold tabular-nums sm:text-2xl">{resumen.enReparto}</p><p className="text-[11px] text-mute">listos o en camino</p></div>
+      </div>
+    )}
     <SellerFeedback {...data} empty={!rows.length} />
     {!data.loading && !data.error && (
       <div className="overflow-x-auto" data-testid="pedidos-tabla">

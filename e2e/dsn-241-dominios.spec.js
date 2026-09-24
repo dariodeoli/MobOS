@@ -94,6 +94,12 @@ async function prepararCompras(page) {
 // falta, la preparación de datos de la pantalla.
 const PANTALLAS = [
   ['pedidos', '/pedidos', (page) => page.getByTestId('pedido-fila').first()],
+  ['pedido-detalle', '/pedidos', (page) => page.getByTestId('pedido-fila').first(), undefined, async (page) => {
+    // Contenedor del pedido: el stepper del flujo de entrega vive acá.
+    await page.getByTestId('pedido-fila').first().click()
+    await page.waitForURL(/\/pedidos\/[^/]+$/, { timeout: 20_000 })
+    await expect(page.getByRole('button', { name: /Imprimir comprobante/ })).toBeVisible({ timeout: 20_000 })
+  }],
   ['clientes', '/clientes', (page) => page.getByTestId('cliente-fila').first()],
   ['finanzas', '/finanzas/caja', (page) => page.getByText('Saldo esperado').first()],
   ['servicio', '/servicio', (page) => page.getByTestId('servicio-fila').first(), prepararTaller],
@@ -155,6 +161,7 @@ test.describe('dominios v2 · capturas y contraste', () => {
       await page.goto(ruta)
       await expect(page.locator('.tema-v2')).toHaveCount(0)
       await expect(listo(page)).toBeVisible({ timeout: 30_000 })
+      if (antesDeCapturar) await antesDeCapturar(page)
       await page.screenshot({ path: `${SHOTS}/c241f4b-${dominio}-off-claro-desktop.png` })
     })
   }
