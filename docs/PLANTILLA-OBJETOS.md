@@ -507,21 +507,19 @@ por el sistema.
   Excepciones legítimas: plantillas de impresión (papel siempre claro), marcas
   de terceros (Google, bancos, medios de pago) y datos de color (catálogo de
   productos, diagramas).
-- **Tokens v2 del piloto (#241):** el lenguaje "device ops" (consola oscura,
-  verde pass `#22C55E`, azul acción `#4D7CFE`) vive en la biblioteca
-  `owncoding-ui` **v0.14.10** como scope `tema-v2` (alias `v2-piloto`) con
-  variante clara y oscura + `.v2-numero` para números grandes. Los roles
-  semánticos del scope son **tonos de texto AA** (`ok`/`bad`/`warn`/`info` con
-  los valores medidos sobre el shell v2: claro `#166534`/`#B91C1C`/`#92400E`/
-  `#2059BE`, oscuro `#4ADE80`/`#FCA5A5`/`#FCD34D`/`#9FB8FF`) y los vivos quedan
-  para relleno e indicadores (`--c-pass`/`--c-accion`). Con el scope,
-  `styles.css` ya trae las **reglas de navegación** (ítem activo, rótulos de
-  grupo, foco por tema, chips) y `NavLateral` soporta grupos plegables. El
-  armado del shell (piezas, breakpoints, reglas y checklist) está en
-  `owncoding-ui/docs/SHELL.md`. El scope local `.v2-piloto` de `src/index.css`
-  (piloto de DSN) queda como puente hasta que la app importe
-  `owncoding-ui/styles.css`; después se borra y las pantallas siguen usando la
-  misma clase.
+- **Paleta global v2 (#241, rollout aprobado):** el lenguaje "device ops"
+  (consola clara/oscura, base oscura `#0E1116`/`#1F2430`, verde pass `#22C55E`,
+  azul acción `#4D7CFE`) es la **paleta global** de la biblioteca desde
+  `owncoding-ui` **v0.21.0**. Los roles semánticos son **tonos de texto AA**
+  (`ok`/`bad`/`warn`/`info`: claro `#166534`/`#B91C1C`/`#92400E`/`#2059BE`,
+  oscuro `#4ADE80`/`#FCA5A5`/`#FCD34D`/`#9FB8FF`) y los vivos quedan para
+  relleno e indicadores (`--c-pass`/`--c-accion`). `.tema-v2`/`.v2-piloto`
+  quedan como **alias temporal** (sin overrides de color) porque ahí viven las
+  reglas de navegación/contenido de `styles.css` (ítem activo, rótulos de
+  grupo, chips `.v2-chip`, foco por tema) y `NavLateral` con grupos plegables.
+  El armado del shell está en `owncoding-ui/docs/SHELL.md`. La migración de
+  MobOS (paquete + `styles.css`, borrar el bloque local de `src/index.css`)
+  queda en el lote de adopción con PLT/DSN.
 - Tipografía: sans para UI; mono para importes, referencias y códigos.
 - Respetar `prefers-reduced-motion`; evitar animaciones que rompan el patrón.
 - **Un solo activo de marca** (logo, favicon, PWA, Apple touch, social): todo

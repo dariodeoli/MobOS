@@ -292,6 +292,17 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 27 — tokens v2 globales en la biblioteca (24-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Paleta de la biblioteca (`owncoding-ui` **v0.21.0**) | El lenguaje "device ops" vivía en el scope `.tema-v2`/`.v2-piloto`, así que cada app mantenía su bloque local de tokens (MobOS: `src/index.css`) | Promovidos a **paleta global** (`:root`/`html.dark`): claro `#F6F8FB` con tonos de texto AA (`ok #166534`, `bad #B91C1C`, `warn #92400E`, `info #2059BE`) y oscuro `#0E1116`/`#1F2430` (`ok #4ADE80`, `bad #FCA5A5`, `warn #FCD34D`, `info #9FB8FF`); pass `#22C55E` y acción `#4D7CFE` en cualquier tema |
+| Scope `.tema-v2`/`.v2-piloto` | Contenía los tokens del piloto | Queda como **alias temporal sin overrides** (ahí viven las reglas del shell y de contenido); se retira cuando las apps terminen la migración |
+| Guardas | El contraste se medía en el scope | `test/contraste-tokens.test.js` mide **la paleta global** (claro y oscuro) y `tokens.test.js` fija que el alias no tenga overrides |
+| Coordinación | — | Avisados **DSN** (borrar el bloque de tokens del scope en `src/index.css` cuando migre; las reglas quedan) y **PLT** (adopción del paquete + `styles.css`, con el checklist de `docs/ADOPCION.md`) |
+
+**Duplicación pendiente: 0 usos.**
+
 ### Lote 26 — recepción e incidencias en la biblioteca (24-09)
 
 | Objeto | Antes (evidencia) | Después |
