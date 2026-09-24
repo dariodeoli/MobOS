@@ -235,6 +235,26 @@ export default function PasoCobro({
               !usaCuentas && 'rounded-2xl border border-ink-600 bg-ink-800/30 p-3',
             )}
           >
+            {/* Estado del bloque (#148 §11): un pago marcado «No pagado» no suma
+                al cobrado y deja ese saldo pendiente en la venta. */}
+            <div className="col-span-full flex flex-wrap items-center gap-2">
+              {pagos.length > 1 && <span className="text-[11px] font-semibold uppercase tracking-wider text-mute">Pago {i + 1}</span>}
+              <button
+                type="button"
+                aria-pressed={!p.noPagado}
+                title={p.noPagado ? 'Marcar como pagado' : 'Marcar como no pagado'}
+                disabled={guardando}
+                onClick={() => setPagos(a => a.map((x, j) => (j === i ? { ...x, noPagado: !x.noPagado } : x)))}
+                className={cn(
+                  'inline-flex min-h-11 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition disabled:opacity-50 md:min-h-0',
+                  p.noPagado ? 'border-warn/40 bg-warn/10 text-warn' : 'border-ok/30 bg-ok/10 text-ok',
+                )}
+              >
+                <Icon name={p.noPagado ? 'alert' : 'check'} className="h-3.5 w-3.5" />
+                {p.noPagado ? 'No pagado' : 'Pagado'}
+              </button>
+              {p.noPagado && <span className="text-[11px] text-warn">No suma al cobrado: el saldo queda pendiente.</span>}
+            </div>
             {usaCuentas ? (
               <PaymentAccountFields
                 payment={p}
@@ -306,19 +326,20 @@ export default function PasoCobro({
           </div>
         ))}
         <div className="grid grid-cols-3 gap-2 border-t border-fono/20 pt-3 text-xs text-mute">
-          <span className="rounded-xl border border-ink-600 px-3 py-2">
+          <span className="rounded-xl border border-ink-600 px-3 py-2" data-testid="cobro-total">
             Total
             <strong className="v2-numero mt-0.5 block text-base tabular-nums text-fore">
               {gs(totalGeneral)}
             </strong>
           </span>
-          <span className="rounded-xl border border-ok/25 bg-ok/10 px-3 py-2">
+          <span className="rounded-xl border border-ok/25 bg-ok/10 px-3 py-2" data-testid="cobro-pagado">
             Pagado
             <strong className="v2-numero mt-0.5 block text-base tabular-nums text-ok">
               {gs(totalPagado)}
             </strong>
           </span>
           <span
+            data-testid="cobro-pendiente"
             className={cn(
               'rounded-xl border px-3 py-2',
               pendiente ? 'border-warn/25 bg-warn/10' : 'border-ink-600',
