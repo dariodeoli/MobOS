@@ -51,7 +51,9 @@ patrón de uso de cada familia y un ejemplo corto.
 > `normalizarSeriales`), `MedidorStock` y `Stepper variante="tarjetas"`
 > (v0.18.0, abastecimiento/entrega) y `ContadorLote`/`ResumenDestinos`/
 > `ResumenIncidencias` + `IndicadorConexion variante="banner"` (v0.19.0,
-> envíos/recepción y shell). Props en su `docs/REGLAS.md` §1/§3/§4/§8 bis.
+> envíos/recepción y shell) y `FilaRevision`/`SelectorIncidencia`/
+> `DestinoRecepcion` + `utils/revision` (v0.20.0, F5 recepción). Props en su
+> `docs/REGLAS.md` §1/§3/§4/§8 bis.
 > MobOS los mantiene en espejo hasta el lote de adopción del paquete.
 | Tema | `app/ThemeToggle` | claro/oscuro con tokens | `<ThemeToggle />` |
 
