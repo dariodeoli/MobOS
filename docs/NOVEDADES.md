@@ -11,6 +11,9 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.158 — 2026-09-24
+- **Abastecimiento (#250):** el **QR del manifiesto** de un lote abre la **página pública del envío** (sin sesión: código, origen/destino, método, unidades e IMEI; **sin costos, proveedor ni cliente**), con rate limit.
+
 ## v1.0.157 — 2026-09-24
 - **POS (#148 #249):** el **pie del carrito** muestra **pagado y pendiente**; en la demo el **catálogo completa el SKU** para que el **escáner** encuentre todo.
 - **Abastecimiento (#250):** **Fase 4** — **lotes, tránsito y manifiesto con QR** para seguir la mercadería desde la compra hasta la góndola.
