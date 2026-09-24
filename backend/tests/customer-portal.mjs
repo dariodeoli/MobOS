@@ -196,6 +196,11 @@ assert.equal(serializadoCompleto.includes(notaPublica), true, 'La nota pública 
 result = await request(`/api/customers/${encodeURIComponent(cliente.id)}/notices`, 'POST', { content: `Mensaje IT ${ts}` }, sellerToken)
 assert.equal(result.response.status, 201, JSON.stringify(result.payload))
 const mensajeId = result.payload.id
+// Avisos internos (#240 → seguimiento): la lista marca lo que no se abrió.
+result = await request(`/api/customers?q=${encodeURIComponent(`Cliente Portal ${ts}`)}`)
+const filaLista = (result.payload || []).find((row) => row.id === cliente.id)
+assert.equal(filaLista?.stats?.sinVer?.mensajes, 1, 'La lista debe marcar el mensaje sin ver.')
+assert.equal(filaLista?.stats?.sinVer?.informes, 0, 'Sin informes compartidos no hay informes sin ver.')
 result = await publicRequest(`/api/portal/${encodeURIComponent(tokenCompleto)}`)
 assert.equal(result.response.status, 200)
 const mensajePortal = (result.payload.mensajes || []).find((item) => item.content === `Mensaje IT ${ts}`)
