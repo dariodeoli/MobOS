@@ -4,7 +4,7 @@
 // Deja capturas del antes/después en docs/QA-249-clientes-responsive/.
 import { test, expect } from '@playwright/test'
 
-const SALIDA = 'docs/QA-249-clientes-responsive'
+const SALIDA = 'test-results/QA-249-clientes-responsive'
 
 async function caja(locator) {
   const rect = await locator.boundingBox()
