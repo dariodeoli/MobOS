@@ -11,6 +11,14 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.157 — 2026-09-24
+- **POS (#148 #249):** el **pie del carrito** muestra **pagado y pendiente**; en la demo el **catálogo completa el SKU** para que el **escáner** encuentre todo.
+- **Abastecimiento (#250):** **Fase 4** — **lotes, tránsito y manifiesto con QR** para seguir la mercadería desde la compra hasta la góndola.
+- **Caja y auditoría (#148 #244):** el **día operativo usa UTC-3** (se eliminó el último resto de -04), así los cortes coinciden con la operación.
+- **Clientes (#240):** **«Tus beneficios»** en la cuenta del cliente (programa de recompra y ventajas).
+- **Finanzas (#241):** **tiles de finanzas** y el contador **«x de y»** en la conciliación con el lenguaje v2.
+- **Componentes:** **lote 25** (envíos/recepción y banner) a la biblioteca, con QA ampliado.
+
 ## v1.0.156 — 2026-09-24
 - **Estabilidad del pipeline:** se cierra la erradicación de tests intermitentes con **3 corridas de integración continua verdes consecutivas** y un **verificador de racha**; **0 tests en cuarentena**. No hay cambios visibles para el usuario (mismo producto que la v1.0.155).
 
