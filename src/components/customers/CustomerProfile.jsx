@@ -812,6 +812,9 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   const servicios = profile?.serviceOrders || []
   // Mensajes de la tienda al cliente (#240 → portal).
   const avisosCliente = profile?.customerNotices || []
+  // Avisos internos (#240 → seguimiento): lo que el cliente no abrió todavía.
+  const mensajesSinVer = avisosCliente.filter((aviso) => !aviso.firstViewedAt)
+  const informesSinVer = (profile?.deviceReportShares || []).filter((fila) => fila.sharedAt && !fila.firstViewedAt)
   const ordenesActivas = orders.filter((order) => order.status === 'PENDING' || order.status === 'REGISTERED').length
   const ciudadCliente = (profile?.customer?.addresses || []).find((address) => address.city)?.city || profile?.customer?.addresses?.[0]?.city || ''
   // Ficha completa (#160): antigüedad, RUC, impuestos, dirección y seguro.
@@ -1239,6 +1242,23 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
               </div>
             )}
           </div>
+
+          {/* Avisos internos (#240 → seguimiento): informe/mensajes que el
+              cliente todavía no abrió, con el detalle para hacer el seguimiento. */}
+          {(mensajesSinVer.length > 0 || informesSinVer.length > 0) && (
+            <div data-testid="perfil-seguimiento" className="rounded-xl border border-warn/30 bg-warn/5 p-3 text-sm">
+              <p className="flex items-center gap-2 font-semibold text-warn"><Icon name="alert" className="h-4 w-4" />Sin ver todavía</p>
+              <ul className="mt-2 space-y-1.5 text-xs text-mute">
+                {mensajesSinVer.slice(0, 2).map((aviso) => (
+                  <li key={aviso.id}>Mensaje del {fechaHora(aviso.createdAt)}: «{aviso.content.slice(0, 90)}{aviso.content.length > 90 ? '…' : ''}»</li>
+                ))}
+                {informesSinVer.slice(0, 2).map((fila) => (
+                  <li key={fila.serial}>Informe compartido{fila.sharedAt ? ` el ${fecha(fila.sharedAt)}` : ''}: equipo {fila.serial}</li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs text-mute">Podés avisarle por WhatsApp desde la cabecera de la ficha.</p>
+            </div>
+          )}
 
           <div className="grid gap-2 rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm sm:grid-cols-2 lg:grid-cols-4" data-testid="perfil-datos-clave">
             <p><span className="text-mute">Antigüedad:</span> <b>{antiguedadTexto(antiguedadDiasFicha)}</b></p>
