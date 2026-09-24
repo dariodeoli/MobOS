@@ -1,0 +1,11 @@
+{
+  "base": "https://app.moboss.online",
+  "etiqueta": "1.0.158-produccion",
+  "chipPagado": "true",
+  "pagado": "Pagado Gs 60.000",
+  "pendiente": "Pendiente Gs 120.000",
+  "carritoPagado": "Gs 60.000",
+  "carritoPendiente": "Gs 120.000",
+  "boton": "Crear pedido · Gs 180.000",
+  "errores": []
+}

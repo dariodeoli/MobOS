@@ -1,0 +1,189 @@
+{
+  "base": "https://app.moboss.online",
+  "etiqueta": "1.0.158-produccion-modales",
+  "toque": 44,
+  "resultados": [
+    {
+      "viewport": "390",
+      "medidas": [
+        {
+          "etiqueta": "imei · ×",
+          "ancho": 25,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "imei · Listo",
+          "ancho": 65,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "suspender · etiqueta",
+          "ancho": 332,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "suspender · cancelar",
+          "ancho": 332,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "suspender · confirmar",
+          "ancho": 332,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "suspendidas · enlace",
+          "ancho": 133,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "suspendidas · recuperar",
+          "ancho": 104,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "suspendidas · descartar",
+          "ancho": 123,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "suspendidas · cerrar",
+          "ancho": 25,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "analytics · cerrar",
+          "ancho": 25,
+          "alto": 36,
+          "corto": true,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "escaner · agregar",
+          "ancho": 332,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "escaner · cancelar",
+          "ancho": 332,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        }
+      ],
+      "cortos": 3,
+      "errores": []
+    },
+    {
+      "viewport": "768",
+      "medidas": [
+        {
+          "etiqueta": "imei · ×",
+          "ancho": 25,
+          "alto": 36,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "imei · Listo",
+          "ancho": 65,
+          "alto": 36,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "suspender · etiqueta",
+          "ancho": 398,
+          "alto": 44,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "suspender · cancelar",
+          "ancho": 91,
+          "alto": 36,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "suspender · confirmar",
+          "ancho": 147,
+          "alto": 36,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "suspendidas · enlace",
+          "ancho": 133,
+          "alto": 36,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "suspendidas · recuperar",
+          "ancho": 104,
+          "alto": 36,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "suspendidas · descartar",
+          "ancho": 123,
+          "alto": 36,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "suspendidas · cerrar",
+          "ancho": 25,
+          "alto": 36,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "analytics · cerrar",
+          "ancho": 25,
+          "alto": 36,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "escaner · agregar",
+          "ancho": 155,
+          "alto": 36,
+          "corto": false,
+          "estado": "medido"
+        },
+        {
+          "etiqueta": "escaner · cancelar",
+          "ancho": 91,
+          "alto": 36,
+          "corto": false,
+          "estado": "medido"
+        }
+      ],
+      "cortos": 0,
+      "errores": []
+    }
+  ]
+}

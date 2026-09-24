@@ -65,3 +65,35 @@ bloqueo (181×66).
   (suspender, listar, aviso del enlace, retomar y descartar, sin errores).
 - **Carrito #243**: sonda `scripts/qa-243-carrito-colapso.mjs` →
   `1.0.153-produccion/` (66 px por línea, 0 desbordes, 0 errores, con la papelera).
+
+## Modales del POS en pantalla chica
+
+Auditoría de los modales de venta (escáner, selector de IMEI, suspender venta,
+ventas suspendidas y analytics) con la sonda `scripts/qa-249-pos-modales.mjs`
+(390/768, capturas en `docs/qa/249-pos-responsive/<etiqueta>-modales/`):
+
+| Target | 390 | Resultado |
+|---|---|---|
+| Escáner · agregar / cancelar | 44 | ✅ |
+| IMEI · Listo (+ reservar cuando el demo tiene unidades) | 44 | ✅ |
+| Suspender · etiqueta / cancelar / confirmar | 44 | ✅ |
+| Suspendidas · enlace / recuperar / descartar / cerrar | 44 | ✅ |
+| Analytics · cerrar (botón del pie) | 44 | ✅ |
+| **× del Modal compartido** (imei, suspendidas, analytics) | **25×36** | ❌ **dominio CMP** (`ui/Modal`): pendiente de la biblioteca |
+
+- Guarda e2e: tercer caso de `qa-249-pos-touch.spec.js` (390: suspender,
+  suspendidas y escáner con targets de 44).
+- **v2 (#241 · paso “modales de venta”)**: capturas con el flag prendido en
+  claro y oscuro (`rama-249-modales/390|768-*-v2*.jpg`): los modales heredan el
+  scope del shell y se ven en la consola oscura sin retoques locales.
+
+## Hallazgo de CI: 5 specs corrían en el vacío
+
+El `testMatch` del proyecto admin tenía **patrones con doble escape**
+(`qa-249-pos-touch\.spec\.js` y otros 4): esos archivos no matcheaban ningún
+proyecto y no corrían en CI (ni `--list` ni la distribución de shards se
+quejaban). Se corrigieron los escapes y se regeneró `e2e/sharding.json`
+(338 tests en 3 shards, 113/113/112); los 5 specs (POS, clientes, DSN,
+perf y el informe embebible) pasan en verde (9/9). Guarda nueva en
+`src/lib/ciHarness.test.js`: todo `.spec.js` tiene que matchear un proyecto
+(6 specs históricos quedan en una lista explícita que no puede crecer).

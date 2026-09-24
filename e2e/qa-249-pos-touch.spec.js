@@ -84,3 +84,34 @@ test('768: el POS vuelve compacto y no pierde densidad', async ({ page }) => {
   const papelera = await caja(fila.getByRole('button', { name: `Eliminar ${cable}` }))
   expect(papelera.h, `papelera compacta (${papelera.h}px)`).toBeLessThanOrEqual(32)
 })
+
+test('mobile 390: los modales de la venta son usables (targets de 44)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await armarCarrito(page)
+
+  // Suspender venta.
+  await page.getByRole('button', { name: 'Suspender venta' }).click()
+  const suspender = page.getByRole('dialog', { name: 'Suspender venta' })
+  await toque(suspender.getByLabel('Etiqueta (opcional)'), 'suspender · etiqueta')
+  await toque(suspender.getByRole('button', { name: 'Cancelar' }), 'suspender · cancelar')
+  await toque(suspender.getByRole('button', { name: 'Suspender venta' }), 'suspender · confirmar')
+  await suspender.getByRole('button', { name: 'Suspender venta' }).click()
+  await expect(page.getByText(/Venta suspendida/)).toBeVisible({ timeout: 15_000 })
+
+  // Ventas suspendidas (la lista del borrador recién creado).
+  await page.getByRole('button', { name: 'Ventas suspendidas' }).click()
+  const suspendidas = page.getByRole('dialog', { name: 'Ventas suspendidas' })
+  await expect(suspendidas.getByRole('button', { name: 'Recuperar' }).first()).toBeVisible()
+  await toque(suspendidas.getByRole('button', { name: 'Enlace público' }), 'suspendidas · enlace')
+  await toque(suspendidas.getByRole('button', { name: 'Recuperar' }), 'suspendidas · recuperar')
+  await toque(suspendidas.getByRole('button', { name: 'Descartar' }), 'suspendidas · descartar')
+  await toque(suspendidas.getByRole('button', { name: 'Cerrar' }).last(), 'suspendidas · cerrar')
+  await page.keyboard.press('Escape')
+
+  // Producto escaneado.
+  await page.getByPlaceholder('Buscar producto…').fill(`MOBOS:PROD:${SEED.products.cable.sku}`)
+  const escaner = page.getByRole('dialog', { name: 'Producto escaneado' })
+  await expect(escaner).toBeVisible({ timeout: 10_000 })
+  await toque(escaner.getByRole('button', { name: 'Agregar a la venta' }), 'escáner · agregar')
+  await toque(escaner.getByRole('button', { name: 'Cancelar' }), 'escáner · cancelar')
+})

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { readFileSync, readdirSync } from 'node:fs'
 import test from 'node:test'
+import config from '../../playwright.config.js'
 
 // Guardas del contrato del harness/CI (#245): la suite corre sin reintentos ni
 // cuarentena y los shards están balanceados y completos. Si algo flapea, se
@@ -22,6 +23,28 @@ test('el workflow no tiene cuarentena ni reintentos por spec', () => {
   for (const archivo of readdirSync(new URL('e2e/', RAIZ)).filter((nombre) => nombre.endsWith('.spec.js'))) {
     assert.doesNotMatch(leer(`e2e/${archivo}`), /habilitarRetrySiCuarentena|retries:\s*[1-9]/, `${archivo} no puede habilitar retries propios`)
   }
+})
+
+// Specs históricos que nunca se cablearon a un proyecto (no corren). La lista
+// no puede crecer: cada spec nuevo tiene que matchear el testMatch de alguna
+// proyecto, si no queda corriendo en el vacío sin que nadie se entere.
+const SPECS_SIN_PROYECTO = [
+  'cobranzas-whatsapp.spec.js',
+  'dsn-176-prod.spec.js',
+  'dsn-modal-prod.spec.js',
+  'marketing-recompra.spec.js',
+  'pos-precios-lista.spec.js',
+  'qr-unificado.spec.js',
+]
+
+test('todos los specs del directorio matchean algún proyecto (#245)', () => {
+  const archivos = readdirSync(new URL('e2e/', RAIZ)).filter((nombre) => nombre.endsWith('.spec.js'))
+  const proyectos = (config.default || config).projects || []
+  const huerfanos = archivos.filter(
+    (archivo) => !proyectos.some((proyecto) => proyecto.testMatch && proyecto.testMatch.test(archivo))
+      && !SPECS_SIN_PROYECTO.includes(archivo),
+  )
+  assert.deepEqual(huerfanos, [], 'estos specs no matchean ningún proyecto')
 })
 
 test('la distribución de shards está completa y balanceada', () => {
