@@ -83,6 +83,15 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     await prisma.customerNotice.updateMany({ where: { id: { in: ids }, firstViewedAt: null }, data: { firstViewedAt: ahora } })
   }
 
+  // Reservas (#240 → portal): los equipos guardados a nombre del cliente, con
+  // su vencimiento (si no los retira, se liberan solos).
+  const reservas = await prisma.inventoryUnit.findMany({
+    where: { tenantId: portal.tenantId, reservationCustomerId: portal.customerId, status: 'RESERVED' },
+    select: { serial: true, reservedUntil: true, product: { select: { name: true, capacity: true } }, branch: { select: { name: true } } },
+    orderBy: { reservedUntil: 'asc' },
+    take: 5,
+  })
+
   const [orders, saldo, dueOrders, warrantyRows, saldoFavor] = await Promise.all([
     prisma.order.findMany({
       where: { tenantId: portal.tenantId, customerId: portal.customerId, archivedAt: null },
@@ -188,6 +197,14 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     })),
     // Mensajes de la tienda: contenido y fecha; `nuevo` en el primer render.
     mensajes: mensajes.map(({ content, createdAt, firstViewedAt }) => ({ content, createdAt, nuevo: !firstViewedAt })),
+    // Reservas: equipo, sucursal y hasta cuándo está guardado.
+    reservas: reservas.map(({ serial, reservedUntil, product, branch }) => ({
+      serial,
+      model: product?.name || 'Equipo',
+      capacity: product?.capacity || null,
+      branch: branch?.name || null,
+      reservedUntil,
+    })),
     orders: orders.map(order => {
       // #178: el pedido nuevo no guarda su token histórico en claro; el enlace
       // del comprobante sale del enlace vigente de nivel rápido (o del legacy).

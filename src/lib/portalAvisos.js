@@ -8,7 +8,7 @@ import { fechaDia } from '../utils/fecha.js'
 
 const DIA = 86400000
 // Prioridad de los avisos: primero lo urgente y accionable.
-const ORDEN = { pago_vencido: 0, listo_para_retirar: 1, pago_por_vencer: 2, pedido_en_camino: 3, garantia_por_vencer: 4 }
+const ORDEN = { pago_vencido: 0, reserva_por_vencer: 1, listo_para_retirar: 2, pago_por_vencer: 3, pedido_en_camino: 4, garantia_por_vencer: 5 }
 const DIAS_PAGO_POR_VENCER = 7
 const DIAS_GARANTIA_POR_VENCER = 30
 const MAX_AVISOS = 5
@@ -85,6 +85,24 @@ export function avisosDeCuenta(cuenta, ahora = Date.now()) {
         destino: '#pedidos',
       })
     }
+  }
+
+  // Reservas: por vencer (3 días o menos) o vencidas.
+  for (const reserva of cuenta.reservas || []) {
+    const vence = Date.parse(reserva.reservedUntil || '')
+    if (Number.isNaN(vence)) continue
+    const dias = Math.ceil((vence - ahora) / DIA)
+    if (dias > 3) continue
+    const equipo = reserva.model || 'equipo'
+    avisos.push({
+      id: `reserva-${reserva.serial || equipo}`,
+      tipo: 'reserva_por_vencer',
+      tono: dias <= 0 ? 'bad' : 'warn',
+      icono: 'box',
+      titulo: dias <= 0 ? `Tu reserva de ${equipo} vence hoy` : `Tu reserva de ${equipo} vence en ${dias} día${dias === 1 ? '' : 's'}`,
+      detalle: 'Si no la retirás, se libera sola.',
+      destino: '#reservas',
+    })
   }
 
   // Garantías: vencida o por vencer.

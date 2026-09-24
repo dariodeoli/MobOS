@@ -169,6 +169,39 @@ export default function CuentaPublica() {
               </PortalSeccion>
             )}
 
+            {/* Tus reservas (#240 → portal): equipos guardados a nombre del
+                cliente con su vencimiento. */}
+            {cuenta.reservas?.length > 0 && (
+              <PortalSeccion id="reservas" titulo="Tus reservas" icono="box" data-testid="portal-reservas">
+                <p className="mt-2 text-sm text-mute">Estos equipos están guardados a tu nombre. Si no los retirás antes del vencimiento, se liberan solos.</p>
+                <div className="mt-3 space-y-2">
+                  {cuenta.reservas.map((reserva, index) => {
+                    const vence = reserva.reservedUntil ? Date.parse(reserva.reservedUntil) : null
+                    const dias = vence !== null && !Number.isNaN(vence) ? Math.ceil((vence - Date.now()) / 86400000) : null
+                    return (
+                      <article key={`${reserva.serial || reserva.model}-${index}`} className="rounded-xl bg-ink-800/60 px-3 py-2.5 text-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold">{reserva.model || 'Equipo'}{reserva.capacity ? ` · ${reserva.capacity}` : ''}</p>
+                            <p className="mt-0.5 text-xs text-mute">
+                              {reserva.serial ? `serial ${String(reserva.serial).slice(-6)}` : ''}
+                              {reserva.serial && reserva.branch ? ' · ' : ''}
+                              {reserva.branch || ''}
+                            </p>
+                          </div>
+                          {dias !== null && (
+                            <PortalEstado tono={dias <= 2 ? 'warn' : 'info'}>
+                              {dias <= 0 ? 'Vence hoy' : `Hasta ${fecha(reserva.reservedUntil)}`}
+                            </PortalEstado>
+                          )}
+                        </div>
+                      </article>
+                    )
+                  })}
+                </div>
+              </PortalSeccion>
+            )}
+
             {/* Nota pública de la tienda (#127): visible solo cuando existe. */}
             {cuenta.customer?.publicNote && (
               <PortalSeccion titulo="Nota de la tienda" icono="megaphone" className="border-fono/25 bg-fono/5">

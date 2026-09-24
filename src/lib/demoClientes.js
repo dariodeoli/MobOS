@@ -164,6 +164,8 @@ export const SEED_DEMO_CLIENTES = [
     insuranceEnabled: false,
     insuranceRatePct: null,
     addresses: [{ id: 'demo-dir-3', label: 'Casa', address: 'Calle Palma 456', city: 'Luque', department: 'Central', country: 'Paraguay', isDefault: true }],
+    // Reserva vigente (#240 → portal): vence en 2 días.
+    reservas: [{ serial: 'AUR002500000000', model: 'iPhone 13', capacity: '128 GB', branch: 'Casa Central', reservedUntil: haceDias(-2) }],
     demoProfile: {
       orders: [
         pedido({ id: 'demo-p-1', numero: 'MOB-0001', total: 450000, pagado: 450000, dias: 35, items: [{ id: 'demo-i-1', description: 'Cargador USB-C', quantity: 1, model: 'Cargador USB-C', category: 'Accesorios', serials: [] }] }),
@@ -517,6 +519,14 @@ export function demoCuentaPayload(token) {
     // Tus beneficios (#240 → portal): saldo a favor y puntos del cliente.
     saldoFavorPyg: Number(cliente.saldoFavorPyg || 0),
     puntosPyg: Number(cliente.puntosPyg || 0),
+    // Reservas (#240 → portal): equipos guardados a nombre del cliente.
+    reservas: (cliente.reservas || []).map((reserva) => ({
+      serial: reserva.serial || '',
+      model: reserva.model || 'Equipo',
+      capacity: reserva.capacity || null,
+      branch: reserva.branch || null,
+      reservedUntil: reserva.reservedUntil || null,
+    })),
     dueDates: conSaldo,
     orders: orders.map((order) => ({
       orderNumber: order.orderNumber,
