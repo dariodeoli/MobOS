@@ -1,7 +1,7 @@
 import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
-import { codigoCompra, normalizarCompra, normalizarSeriales } from '../../../../lib/supply'
+import { codigoCompra, compararModelo, cuadrarSeriales, normalizarCompra, resumenPreparacion } from '../../../../lib/supply'
 
 // #250 Fase 2 (Centro de Abastecimiento): compra rápida y stock adicional.
 //
@@ -65,15 +65,25 @@ export async function GET(request: Request) {
       lines: { select: { id: true, productId: true, condition: true, quantity: true, unitCostPyg: true, needId: true, serials: { select: { serial: true } } } },
     },
   })
+  const conPreparacion = compras.map((compra) => ({
+    ...compra,
+    originalCost: compra.originalCost === null ? null : Number(compra.originalCost),
+    exchangeRatePyg: compra.exchangeRatePyg === null ? null : Number(compra.exchangeRatePyg),
+    unidades: compra.lines.reduce((total, linea) => total + linea.quantity, 0),
+    lines: compra.lines.map((linea) => ({ ...linea, faltan: Math.max(0, linea.quantity - linea.serials.length) })),
+  }))
+  // `?pendientes=1` deja solo las compras con IMEI por completar (preparación).
+  const filtradas = params.get('pendientes') === '1'
+    ? conPreparacion.filter((compra) => compra.lines.some((linea) => linea.faltan > 0))
+    : conPreparacion
   return json({
     fecha: new Date().toISOString(),
-    totales: { compras: compras.length, unidades: compras.reduce((suma, compra) => suma + compra.lines.reduce((total, linea) => total + linea.quantity, 0), 0) },
-    compras: compras.map((compra) => ({
-      ...compra,
-      originalCost: compra.originalCost === null ? null : Number(compra.originalCost),
-      exchangeRatePyg: compra.exchangeRatePyg === null ? null : Number(compra.exchangeRatePyg),
-      unidades: compra.lines.reduce((total, linea) => total + linea.quantity, 0),
-    })),
+    totales: {
+      compras: filtradas.length,
+      unidades: filtradas.reduce((suma, compra) => suma + compra.unidades, 0),
+      pendientes: filtradas.reduce((suma, compra) => suma + resumenPreparacion(compra.lines.map((linea) => ({ quantity: linea.quantity, serials: linea.serials.map((fila) => fila.serial) }))).pendientes, 0),
+    },
+    compras: filtradas,
   })
 }
 
@@ -232,27 +242,49 @@ export async function PATCH(request: Request) {
     return json(await compraConDetalle(actualizada.id, tenant))
   }
 
-  if (body?.action === 'serials') {
-    const lineId = typeof body?.lineId === 'string' ? body.lineId.trim() : ''
-    if (!lineId) return error('Indicá la línea.')
-    const linea = await prisma.supplyPurchaseLine.findFirst({ where: { id: lineId, purchaseId: compra.id, tenantId: tenant }, include: { serials: { select: { serial: true } } } })
-    if (!linea) return error('Línea no encontrada.', 404)
-    const seriales = normalizarSeriales(body?.serials)
+  // IMEI: carga múltiple (pegado) o escaneo de a uno (mobile). Ambos comparten
+  // el cuadre: Luhn, repetidos en el lote, duplicados globales y cantidad vs
+  // comprada. Si la línea queda incompleta, el IMEI queda diferido (#250 §7).
+  if (body?.action === 'serials' || body?.action === 'scan') {
+    const escaneo = body?.action === 'scan'
+    const lineIdPedido = typeof body?.lineId === 'string' ? body.lineId.trim() : ''
+    const productIdPedido = typeof body?.productId === 'string' ? body.productId.trim() : ''
+    let linea = lineIdPedido
+      ? await prisma.supplyPurchaseLine.findFirst({ where: { id: lineIdPedido, purchaseId: compra.id, tenantId: tenant }, include: { serials: { select: { serial: true } } } })
+      : null
+    if (!linea && productIdPedido) {
+      const candidatas = await prisma.supplyPurchaseLine.findMany({ where: { purchaseId: compra.id, tenantId: tenant, productId: productIdPedido }, include: { serials: { select: { serial: true } } }, orderBy: { createdAt: 'asc' } })
+      linea = candidatas.find((fila) => fila.serials.length < fila.quantity) || candidatas[0] || null
+    }
+    if (!linea) {
+      if (!lineIdPedido && !productIdPedido) return error('Indicá la línea o el producto del IMEI.')
+      return error('Línea no encontrada.', 404)
+    }
+
+    const seriales = cuadrarSeriales({ seriales: escaneo ? [body?.serial] : body?.serials, cantidad: linea.quantity, yaEnLinea: linea.serials.map((fila) => fila.serial) })
     if (!seriales.ok) return error(seriales.error)
-    if (!seriales.seriales.length) return error('Indicá al menos un IMEI/serial.')
-    if (linea.serials.length + seriales.seriales.length > linea.quantity) return error(`La línea admite ${linea.quantity} IMEI/serial (ya tiene ${linea.serials.length}).`)
-    const yaEnLinea = new Set(linea.serials.map((fila) => fila.serial))
-    if (seriales.seriales.some((serial) => yaEnLinea.has(serial))) return error('Hay un IMEI repetido en la línea.')
-    const duplicado = await prisma.supplyPurchaseSerial.findFirst({ where: { tenantId: tenant, serial: { in: seriales.seriales } }, select: { serial: true } })
+    const duplicado = await prisma.supplyPurchaseSerial.findFirst({ where: { tenantId: tenant, serial: { in: seriales.nuevos } }, select: { serial: true } })
     if (duplicado) return error(`El IMEI ${duplicado.serial} ya está cargado en otra compra.`, 409)
-    const enStock = await prisma.inventoryUnit.findFirst({ where: { tenantId: tenant, serial: { in: seriales.seriales } }, select: { serial: true } })
+    const enStock = await prisma.inventoryUnit.findFirst({ where: { tenantId: tenant, serial: { in: seriales.nuevos } }, select: { serial: true } })
     if (enStock) return error(`El IMEI ${enStock.serial} ya está en el inventario.`, 409)
+
+    // Aviso (no bloquea): el modelo del panel no coincide con el producto esperado.
+    let aviso: string | null = null
+    if (escaneo) {
+      const consulta = await prisma.imeiCheckQuery.findFirst({ where: { tenantId: tenant, imei: seriales.nuevos[0] }, orderBy: { requestedAt: 'desc' }, select: { normalized: true } })
+      const detectado = Array.isArray(consulta?.normalized) ? (consulta.normalized as any[]).find((campo) => campo?.clave === 'modelo')?.valor : null
+      const producto = await prisma.product.findFirst({ where: { id: linea.productId, tenantId: tenant }, select: { name: true, model: true } })
+      const comparacion = compararModelo(producto?.model || producto?.name, detectado)
+      if (comparacion && !comparacion.coincide) aviso = `El IMEI figura como ${comparacion.detectado} y la línea espera ${producto?.model || producto?.name}.`
+    }
+
     await prisma.$transaction(async (tx) => {
-      await tx.supplyPurchaseSerial.createMany({ data: seriales.seriales.map((serial) => ({ tenantId: tenant, lineId: linea.id, serial })) })
-      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SUPPLY_PURCHASE_SERIALS_ADDED', entity: 'SupplyPurchase', entityId: compra.id, metadata: { code: compra.code, lineId: linea.id, seriales: seriales.seriales.length } } })
+      await tx.supplyPurchaseSerial.createMany({ data: seriales.nuevos.map((serial) => ({ tenantId: tenant, lineId: linea!.id, serial })) })
+      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SUPPLY_PURCHASE_SERIALS_ADDED', entity: 'SupplyPurchase', entityId: compra.id, metadata: { code: compra.code, lineId: linea!.id, seriales: seriales.nuevos.length, via: escaneo ? 'scan' : 'bulk' } } })
     })
-    return json(await compraConDetalle(compra.id, tenant))
+    const detalle = await compraConDetalle(compra.id, tenant)
+    return json(escaneo ? { ...detalle, linea: linea.id, agregados: seriales.nuevos.length, aviso } : detalle)
   }
 
-  return error('Acción inválida: usá cancel o serials.')
+  return error('Acción inválida: usá cancel, serials o scan.')
 }

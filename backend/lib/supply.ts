@@ -336,3 +336,109 @@ export function normalizarCompra(body: unknown): { ok: true; data: CompraNormali
     },
   }
 }
+
+// ── Fase 3 (#250 §7 y §11): IMEI y preparación ──────────────────────────────
+
+/**
+ * Cuadre de los seriales de una línea: normaliza (Luhn y repetidos dentro del
+ * lote), descarta los ya cargados y valida que no se pase de la cantidad
+ * comprada. Es el mismo camino para el pegado múltiple y para el escaneo de a
+ * uno (escaneo móvil).
+ */
+export function cuadrarSeriales({ seriales, cantidad, yaEnLinea = [] }: { seriales: unknown; cantidad: number; yaEnLinea?: string[] }): { ok: true; nuevos: string[] } | { ok: false; error: string } {
+  const normalizados = normalizarSeriales(seriales)
+  if (!normalizados.ok) return { ok: false, error: normalizados.error }
+  if (!normalizados.seriales.length) return { ok: false, error: 'Indicá al menos un IMEI/serial.' }
+  const cargados = new Set(yaEnLinea.map((serial) => String(serial).toUpperCase()))
+  const nuevos: string[] = []
+  for (const serial of normalizados.seriales) {
+    if (cargados.has(serial) || nuevos.includes(serial)) return { ok: false, error: `El IMEI ${serial} ya está cargado en esta línea.` }
+    nuevos.push(serial)
+  }
+  const total = Math.round(Number(cantidad) || 0)
+  if (cargados.size + nuevos.length > total) {
+    return { ok: false, error: `La línea admite ${total} IMEI/serial (ya tiene ${cargados.size}).` }
+  }
+  return { ok: true, nuevos }
+}
+
+const normalizarTexto = (valor: unknown) => String(valor ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '')
+
+/**
+ * Producto esperado vs detectado (#250 §7): comparación tolerante — el modelo
+ * del panel (`iPhone 15 Pro Max`) tiene que estar contenido en el nombre del
+ * producto de la línea (o al revés). Sin dato del proveedor no hay aviso.
+ */
+export function compararModelo(esperado: unknown, detectado: unknown): { coincide: boolean; esperado: string; detectado: string } | null {
+  const linea = normalizarTexto(esperado)
+  const imei = normalizarTexto(detectado)
+  if (!linea || !imei) return null
+  return { coincide: linea.includes(imei) || imei.includes(linea), esperado: String(esperado), detectado: String(detectado) }
+}
+
+export type EtiquetaPreparacion = {
+  n: number
+  total: number
+  producto: string
+  capacidad: string
+  condicion: string
+  imei: string | null
+  pendiente: boolean
+  compra: string
+  referencia: string | null
+  pedido: string | null
+  destino: string | null
+  lote: string | null
+}
+
+export type LineaParaEtiquetas = {
+  productId: string
+  producto?: string | null
+  capacidad?: string | null
+  condicion?: string | null
+  quantity: number
+  serials?: string[]
+  pedidoNumero?: string | null
+}
+
+/**
+ * Etiquetas de la preparación (#250 §11): una por unidad comprada, con
+ * `PRODUCTO n DE N`, variante, el IMEI (o «pendiente» si todavía no se cargó),
+ * la compra, el pedido vinculado y el destino. PRN pone el layout impreso; este
+ * contrato es el que consume.
+ */
+export function etiquetasPreparacion({ compra, lineas = [], destino = null, lote = null }: { compra: string; lineas?: LineaParaEtiquetas[]; destino?: string | null; lote?: string | null }): EtiquetaPreparacion[] {
+  const total = lineas.reduce((suma, linea) => suma + Math.max(0, Math.round(Number(linea.quantity) || 0)), 0)
+  const etiquetas: EtiquetaPreparacion[] = []
+  let n = 0
+  for (const linea of lineas) {
+    const cantidad = Math.max(0, Math.round(Number(linea.quantity) || 0))
+    const seriales = Array.isArray(linea.serials) ? linea.serials : []
+    for (let i = 0; i < cantidad; i += 1) {
+      n += 1
+      const imei = seriales[i] ? String(seriales[i]).toUpperCase() : null
+      etiquetas.push({
+        n,
+        total,
+        producto: String(linea.producto || ''),
+        capacidad: String(linea.capacidad || ''),
+        condicion: String(linea.condicion || 'NEW'),
+        imei,
+        pendiente: !imei,
+        compra,
+        referencia: null,
+        pedido: linea.pedidoNumero || null,
+        destino,
+        lote,
+      })
+    }
+  }
+  return etiquetas
+}
+
+/** Resumen de preparación: cuántas unidades tienen IMEI y cuántas faltan. */
+export function resumenPreparacion(lineas: Array<{ quantity: number; serials?: string[] }> = []): { unidades: number; conImei: number; pendientes: number } {
+  const unidades = lineas.reduce((suma, linea) => suma + Math.max(0, Math.round(Number(linea.quantity) || 0)), 0)
+  const conImei = lineas.reduce((suma, linea) => suma + Math.min(Math.max(0, Math.round(Number(linea.quantity) || 0)), Array.isArray(linea.serials) ? linea.serials.length : 0), 0)
+  return { unidades, conImei, pendientes: Math.max(0, unidades - conImei) }
+}
