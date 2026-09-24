@@ -1,16 +1,19 @@
-# Verificación en producción — v1.0.153 (#240 certificado embebible · #249 clientes)
+# Verificación en producción — v1.0.154 (#240 · #249)
 
-`node scripts/qa-240-249-produccion.mjs` contra `app.moboss.online` (23/9/2026,
-versión desplegada **v1.0.153**): **3/3 pasos OK**.
+`node scripts/qa-240-249-produccion.mjs` contra `app.moboss.online`
+(24/9/2026, versión desplegada **v1.0.154**): **4/4 pasos OK**.
 
 | Paso | Resultado | Captura |
 |---|---|---|
 | #249 · clientes a 390: acciones, chips y lote ≥44 px | **ojito 44×44 · WhatsApp 44×44**; elegir plantilla, chip «Todos» y el área de la casilla de lote también ≥44 | `01-clientes-390.png`, `02-clientes-acciones-390.png` |
 | #249 · clientes a 768 | ojito **44×44**; WhatsApp y chip «Con deuda» ≥44 | `03-clientes-768.png` |
 | #240 · certificado embebible con `?embed=1` | el informe abre con tienda, serial enmascarado y aviso (la superficie que embebe INV) | `04-certificado-embebible-390.png` |
+| #240 · mensajes de la tienda en el portal demo | sección «Mensajes de la tienda» con el mensaje sembrado y el chip **Nuevo** | `05-portal-mensajes-demo.png` |
 
 Resultado crudo: `docs/QA-240-249-produccion/resultados.json` (sellado con la
 versión y cada medida).
+
+> Corrida anterior: **v1.0.153, 3/3** (sin el paso de mensajes).
 
 ## Alcance de lo verificado
 
@@ -26,6 +29,9 @@ versión y cada medida).
   «abierto desde el certificado embebido». En el **demo** el visto vive en
   memoria de la pestaña (limitación conocida), por eso la verificación de
   producción del origen se apoya en el código desplegado + arnés.
+- **Mensajes de la tienda (#240)**: el portal demo lista el mensaje y lo marca
+  «Nuevo» (el visto/no visto de la cuenta real se cubre en el arnés:
+  `customer-portal.mjs` y `e2e/qa-240-mensajes-tienda.spec.js`).
 
 ## Reproducir
 
@@ -34,3 +40,4 @@ node scripts/qa-240-249-produccion.mjs
 # harness local (mismo script):
 MOBOS_QA_URL=http://localhost:5210 MOBOS_QA_OUT=/tmp/qa240249 node scripts/qa-240-249-produccion.mjs
 ```
+

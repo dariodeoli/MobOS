@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Badge, Button, FilaDato, Modal, Skeleton } from '@/components/ui'
 import Avatar from '@/components/shared/Avatar'
+import Icon from '@/components/shared/Icon'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
@@ -49,10 +50,24 @@ export default function ClienteResumenPopup({ row, open, onClose, onDetalle, onE
   const nota = notaInterna(row.notes)
   const publica = row.publicNote || (perfilDemo || perfil)?.customer?.publicNote || ''
   const ordenes = [...((perfilDemo || perfil)?.orders || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 3)
+  // Avisos internos (#240 → seguimiento): lo que el cliente no abrió todavía.
+  const sinVer = stats.sinVer || null
 
   return (
     <Modal open={open} onClose={onClose} title={`Cliente: ${row.name || 'Sin nombre'}`} size="amplio">
       <div className="space-y-4">
+        {(sinVer?.mensajes > 0 || sinVer?.informes > 0) && (
+          <p data-testid="popup-sin-ver" className="flex flex-wrap items-center gap-1.5 rounded-xl border border-warn/30 bg-warn/5 px-3 py-2 text-xs font-semibold text-warn">
+            <Icon name="alert" className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>
+              Sin ver:
+              {sinVer.mensajes > 0 ? ` ${sinVer.mensajes} mensaje${sinVer.mensajes === 1 ? '' : 's'}` : ''}
+              {sinVer.mensajes > 0 && sinVer.informes > 0 ? ' y' : ''}
+              {sinVer.informes > 0 ? ` ${sinVer.informes} informe${sinVer.informes === 1 ? '' : 's'}` : ''}
+              {' '}de la tienda
+            </span>
+          </p>
+        )}
         <header className="flex flex-wrap items-start gap-3">
           <Avatar user={{ name: row.name || 'Cliente', id: row.id }} size="lg" />
           <div className="min-w-0 flex-1">

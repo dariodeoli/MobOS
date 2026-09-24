@@ -116,8 +116,27 @@ export async function GET(request: Request) {
       `
     : []
   const deudaPorCliente = new Map(deudas.filter((fila) => fila.customerId).map((fila) => [String(fila.customerId), Number(fila.pendingPyg) || 0]))
-  const statsPorCliente = new Map(stats.map((fila) => [fila.customerId, { orders: fila._count._all, totalSpentPyg: fila._sum.totalPyg ?? 0, lastOrderAt: fila._max.createdAt, pendingPyg: fila.customerId ? deudaPorCliente.get(fila.customerId) || 0 : 0 }]))
-  return json(ordenados.map((customer) => ({ ...customer, wholesale: esMayorista(customer), stats: statsPorCliente.get(customer.id) || { orders: 0, totalSpentPyg: 0, lastOrderAt: null, pendingPyg: 0 } })))
+  // Avisos internos (#240 → seguimiento): lo que el cliente todavía no abrió
+  // (mensajes de la tienda e informes compartidos). La lista y el resumen
+  // rápido lo muestran para que el equipo haga el seguimiento.
+  const [mensajesSinVer, informesSinVer] = await Promise.all([
+    prisma.customerNotice.groupBy({
+      by: ['customerId'],
+      where: { tenantId: tenant, customerId: { in: idsOrdenados }, firstViewedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+      _count: { _all: true },
+    }),
+    prisma.deviceReportShare.groupBy({
+      by: ['customerId'],
+      where: { tenantId: tenant, customerId: { in: idsOrdenados }, sharedAt: { not: null }, firstViewedAt: null },
+      _count: { _all: true },
+    }),
+  ])
+  const conteoPorCliente = (filas: Array<{ customerId: string; _count: { _all: number } }>) => new Map(filas.map((fila) => [fila.customerId, fila._count._all]))
+  const mensajesPorCliente = conteoPorCliente(mensajesSinVer)
+  const informesPorCliente = conteoPorCliente(informesSinVer)
+  const sinVerDe = (customerId: string) => ({ mensajes: mensajesPorCliente.get(customerId) || 0, informes: informesPorCliente.get(customerId) || 0 })
+  const statsPorCliente = new Map(stats.map((fila) => [fila.customerId, { orders: fila._count._all, totalSpentPyg: fila._sum.totalPyg ?? 0, lastOrderAt: fila._max.createdAt, pendingPyg: fila.customerId ? deudaPorCliente.get(fila.customerId) || 0 : 0, sinVer: fila.customerId ? sinVerDe(fila.customerId) : { mensajes: 0, informes: 0 } }]))
+  return json(ordenados.map((customer) => ({ ...customer, wholesale: esMayorista(customer), stats: statsPorCliente.get(customer.id) || { orders: 0, totalSpentPyg: 0, lastOrderAt: null, pendingPyg: 0, sinVer: sinVerDe(customer.id) } })))
 }
 
 export async function POST(request: Request) {

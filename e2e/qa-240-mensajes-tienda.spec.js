@@ -36,6 +36,22 @@ test('el mensaje de la tienda llega al portal y la ficha ve el visto', async ({ 
   await expect(fila.getByTestId('mensaje-sin-ver')).toBeVisible({ timeout: 15000 })
   await page.screenshot({ path: `${SALIDA}/01-ficha-mensaje.png` })
 
+  // Avisos internos (#240 → seguimiento): el Resumen y el ojito marcan lo que
+  // el cliente todavía no abrió.
+  await ficha.getByRole('tab', { name: /^Resumen/ }).click()
+  await expect(ficha.getByTestId('perfil-seguimiento')).toBeVisible({ timeout: 15000 })
+  await expect(ficha.getByTestId('perfil-seguimiento').getByText(/Sin ver todavía/)).toBeVisible()
+  await page.screenshot({ path: `${SALIDA}/05-ficha-seguimiento.png` })
+
+  await page.goto('/clientes')
+  const filaLista = page.getByTestId('cliente-fila').filter({ hasText: marca }).first()
+  await filaLista.getByRole('button', { name: /Resumen rápido de/ }).click()
+  const popup = page.getByRole('dialog', { name: /Cliente:/ })
+  await expect(popup.getByTestId('popup-sin-ver')).toBeVisible({ timeout: 15000 })
+  await expect(popup.getByTestId('popup-sin-ver').getByText(/mensaje/)).toBeVisible()
+  await page.screenshot({ path: `${SALIDA}/06-popup-sin-ver.png` })
+  await page.keyboard.press('Escape')
+
   // El portal lo muestra y lo marca como nuevo en la primera apertura.
   const portal = await api(page, `/api/customers/${encodeURIComponent(cliente.body.id)}/access-token`, {
     method: 'POST',
@@ -61,6 +77,14 @@ test('el mensaje de la tienda llega al portal y la ficha ve el visto', async ({ 
   const filaVisto = fichaVisto.getByTestId('perfil-mensajes').locator('li').filter({ hasText: marca }).first()
   await expect(filaVisto.getByTestId('mensaje-visto')).toBeVisible({ timeout: 15000 })
   await expect(fichaVisto.getByText('Mensaje visto por el cliente').first()).toBeVisible()
+
+  // El aviso interno se apaga cuando el cliente lo vio.
+  await page.goto('/clientes')
+  const filaApagada = page.getByTestId('cliente-fila').filter({ hasText: marca }).first()
+  await filaApagada.getByRole('button', { name: /Resumen rápido de/ }).click()
+  const popupApagado = page.getByRole('dialog', { name: /Cliente:/ })
+  await expect(popupApagado).toBeVisible({ timeout: 15000 })
+  await expect(popupApagado.getByTestId('popup-sin-ver')).toHaveCount(0)
   await page.screenshot({ path: `${SALIDA}/03-ficha-visto.png` })
 })
 
