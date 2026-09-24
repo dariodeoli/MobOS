@@ -187,6 +187,31 @@ se reproduce aislado (con el shard de `e2e/sharding.json` si es e2e), se corrige
 la raíz y se vuelve a empezar la cuenta. No hay reintentos ni lista de
 excepciones.
 
+### Paquete de cierre de #245
+
+Causas raíz corregidas en `main` (sin cuarentena ni reintentos). Cuando
+`qa-ci-racha.mjs` marque 3 o más, el cierre cita esta tabla y las corridas de la
+racha:
+
+| Rojo | Causa raíz | Fix |
+| --- | --- | --- |
+| E2E de la noche 23/09 (`analisis`, `demo-finanzas*`) | lectura inestable de Análisis, toast perdido en un re-render, conciliación frágil y reloj del navegador en UTC contra el día paraguayo | `6725e032` · `90072e6b` · `11c44b8b` |
+| .155 Backend (typecheck) | `supply.test.ts` no cubría el `null` de `compararModelo()` | `d4ccd478` |
+| .156 Frontend (unit) | `portalAvisos.test.js` evaluaba con un "ahora" fijo que envejecía | `8d106814` |
+| .157 Integration | el test del manifiesto (F4) pedía `/api/public/supply/shipments/:token` antes de que la ruta existiera en esa release (404 HTML → JSON inválido) | `c339047d` |
+
+Evidencia mínima del cierre:
+
+1. **Racha:** las 3 corridas completas verdes consecutivas (ID · SHA · duración),
+   con `node scripts/qa-ci-racha.mjs` (sale 0 con 3).
+2. **Sin cuarentena:** el workflow sin la variable de cuarentena ni reintentos por
+   spec, `e2e/` sin `.skip(`/`.fixme(` y `retries: 0`; lo exige
+   `src/lib/ciHarness.test.js`.
+3. **Local:** los specs de la noche 23/09, 5/5 vueltas aisladas sin reintentos;
+   ronda completa de los 3 shards en verde; `npm test` en verde.
+4. **#247 en producción:** entry 1104 → 169 KB (medido en v1.0.154) —
+   `docs/qa/247-performance/`.
+
 ## 7. Pendientes conocidos
 
 - Ninguno de estabilidad: la suite corre sin cuarentena y con shards balanceados
