@@ -11,6 +11,9 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.161 — 2026-09-24
+- **Estabilidad de la suite (sin cambios de producto):** se corrigieron tres causas raíz de rojos de CI — la **cuenta USD del POS** se crea antes de que el POS hidrate sus listas, la **ficha de inventario** se abre clickeando la fila (el texto interno podía quedar inestable) y el **listado de specs** no depende del seed del arnés. Mismo producto que la v1.0.160 (v2 por defecto).
+
 ## v1.0.160 — 2026-09-24
 - **Nuevo look por defecto (#241):** el **lenguaje visual v2 (device ops)** queda **activo por defecto** en toda la app —paleta global desde la biblioteca, shell con más densidad— con accesibilidad AA y opción de volver al tema anterior desde Configuración.
 - **POS (#241 paso 5):** el **cobro completo y los modales de venta** ya usan el v2, con contraste AA en claro y oscuro.
