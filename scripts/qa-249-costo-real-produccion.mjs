@@ -149,8 +149,11 @@ evidencia.venta.margenLinea = margenLinea
 evidencia.verificado = true
 
 // ── 3) El reporte de márgenes usa ese costo congelado ───────────────────────
-const dia = new Date(orden.createdAt).toISOString().slice(0, 10)
-const reporte = await api(`/api/reports?from=${dia}&to=${dia}&groupBy=product`)
+// El reporte usa el día paraguayo (UTC-3): el día se calcula con ese corrimiento
+// para que la venta caiga adentro del rango a cualquier hora local.
+const OFFSET_PY = -180
+const dia = new Date(new Date(orden.createdAt).getTime() + OFFSET_PY * 60_000).toISOString().slice(0, 10)
+const reporte = await api(`/api/reports?from=${dia}&to=${dia}&groupBy=product&offsetMinutes=${OFFSET_PY}`)
 const grupo = (reporte.groups || []).find((fila) => fila.key === (linea.productId || objetivo.productId))
 assert.ok(grupo, 'el producto de la unidad aparece en el reporte del día')
 checks += 1

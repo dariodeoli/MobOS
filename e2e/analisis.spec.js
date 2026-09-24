@@ -42,6 +42,14 @@ test.describe('análisis', () => {
     // esta espera la lectura podía caer en el cálculo sin costos congelados.
     await expect(page.getByTestId('ganancia-resultado')).toHaveAttribute('data-fuente', 'api', { timeout: 15_000 })
     await expect(page.getByText(`${totalesGanancias.orders} ventas en el período`)).toBeVisible({ timeout: 15_000 })
+    // El héroe ya declara la fuente API, pero el texto puede cambiar un render
+    // después: se espera a que se estabilice antes de capturarlo.
+    await expect(async () => {
+      const primera = (await page.getByTestId('ganancia-resultado').textContent())?.trim()
+      await page.waitForTimeout(400)
+      const segunda = (await page.getByTestId('ganancia-resultado').textContent())?.trim()
+      expect(segunda).toBe(primera)
+    }).toPass({ timeout: 15_000 })
     const resultadoGanancias = (await page.getByTestId('ganancia-resultado').textContent())?.trim()
 
     await Promise.all([esperarReporteDiario(), page.goto('/analisis/reportes?rango=hoy')])

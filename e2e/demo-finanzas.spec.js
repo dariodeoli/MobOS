@@ -96,8 +96,11 @@ test.describe('demo de Finanzas', () => {
     // Un lote cubre una sola cuenta: se eligen dos cobros de efectivo (sin cuenta).
     await filas.nth(0).getByRole('checkbox').check()
     await filas.nth(1).getByRole('checkbox').check()
-    await page.getByRole('button', { name: 'Conciliar lote' }).click()
-    await expect(page.getByText(/Lote conciliado \(demo\)/)).toBeVisible()
+    // El toast es transitorio: si el click se pierde, se reintenta con el aviso.
+    await expect(async () => {
+      await page.getByRole('button', { name: 'Conciliar lote' }).click()
+      await expect(page.getByText(/Lote conciliado \(demo\)/)).toBeVisible({ timeout: 4000 })
+    }).toPass({ timeout: 30_000 })
     await expect(page.getByTestId('conciliacion-lote').first()).toBeVisible()
     await expect(page.getByText('Falta sesión')).toHaveCount(0)
   })
