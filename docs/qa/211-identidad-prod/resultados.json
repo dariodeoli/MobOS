@@ -1,0 +1,52 @@
+{
+  "app": "https://app.moboss.online",
+  "fecha": "2026-09-24T05:51:20.734Z",
+  "version": "1.0.153",
+  "pasos": [
+    {
+      "nombre": "versión desplegada incluye la identidad unificada",
+      "ok": true,
+      "detalle": "v1.0.153"
+    },
+    {
+      "nombre": "pedido: cronología con un solo chip de identidad por evento (claro)",
+      "ok": true,
+      "detalle": "chips 3 · avatares 0 · eventos 0"
+    },
+    {
+      "nombre": "pedido: transacciones con chip de identidad",
+      "ok": true,
+      "detalle": "chips totales 3"
+    },
+    {
+      "nombre": "pedido: oscuro sin imágenes rotas",
+      "ok": true,
+      "detalle": "chips 3"
+    },
+    {
+      "nombre": "pantalla de bloqueo: chip con primer nombre y PIN",
+      "ok": true,
+      "detalle": "chips 4"
+    },
+    {
+      "nombre": "pantalla de bloqueo: oscuro",
+      "ok": true,
+      "detalle": "chips 4"
+    },
+    {
+      "nombre": "píldora de presencia del topbar",
+      "ok": true,
+      "detalle": "sin personas en línea en el demo"
+    },
+    {
+      "nombre": "sin errores de runtime en el recorrido",
+      "ok": true,
+      "detalle": "0 errores"
+    }
+  ],
+  "observaciones": [
+    "El pedido del demo no tiene eventos de cronología: la regla de un chip por evento queda cubierta por los eventos de pedidos reales (el encabezado y las transacciones sí se verifican acá).",
+    "La píldora de presencia no aparece en el demo anónimo (no hay otras personas en línea): no verificable sin dos sesiones reales."
+  ],
+  "hallazgos": []
+}

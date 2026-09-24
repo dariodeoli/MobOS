@@ -292,6 +292,18 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 23 — pila de personas y miga de sección (24-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `PilaPersonas` (`owncoding-ui` **v0.17.0**) | La píldora de presencia del shell apilaba avatares y armaba el texto a mano (`PresencePill` de PLT, adopción pendiente) | Publicada como objeto: avatares superpuestos con punto de presencia, contador «+N», `onMas` y `resumenPresencia` («Ana en línea» / «3 en línea»); usa `PersonaChip` y no hace fetch |
+| `PageHeader` con migas | La miga de sección («Subpágina / Pestaña») vivía solo en el shell de MobOS | `PageHeader` suma `migas=[{ etiqueta, href? }]` con `aria-current="page"` (v0.17.0) |
+| Verificación post-deploy (#211) | — | `e2e/prod/211-identidad.mjs` recorre producción (demo anónimo): versión ≥ v1.0.153, chips en pedido/bloqueo, sin imágenes rotas ni errores — **8/8** con capturas en `docs/qa/211-identidad-prod/` y reporte en `docs/QA-211-identidad-produccion.md` |
+
+**Duplicación pendiente: 0 usos.** Con esto el pendiente de presencia de
+`SHELL.md` §7 queda cerrado; siguen app-side el alternador de tema y el banner
+ancho de sin conexión.
+
 ### Lote 22 — identidad de usuario unificada (#211) (23-09)
 
 | Objeto | Antes (evidencia) | Después |
