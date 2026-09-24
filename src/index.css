@@ -1,5 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 
+/* Biblioteca compartida (owncoding-ui): tokens v2 globales + base + reglas de
+   navegación. Vite exige que los @import precedan al resto (spec CSS), así que
+   va acá; las reglas propias de abajo siguen ganando. La paleta --c-* no se
+   define más en la app: un rol semántico que necesite ajuste va a la
+   biblioteca (docs/ALIMENTAR.md). */
+@import 'owncoding-ui/styles.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -19,53 +26,10 @@ body {
 }
 
 /* ── Paleta del tema ──────────────────────────────────────────────────
-   Tema claro por defecto (:root). El tema oscuro se activa con la clase
-   .dark en <html> y conserva los valores exactos del diseño actual. */
-:root {
-  --c-paper: 244 247 250;
-  --c-fore: 8 14 26;
-  --c-ink: 255 255 255;
-  --c-ink-950: 244 247 250;
-  --c-ink-900: 233 238 246;
-  --c-ink-800: 233 238 246;
-  --c-ink-700: 224 231 240;
-  --c-ink-600: 203 213 226;
-  --c-ink-500: 148 163 184;
-  --c-mute: 58 70 90;
-  --c-fono: 16 185 129;
-  --c-fono-dark: 4 120 87;
-  --c-fono-light: 4 120 87;
-  --c-fono-glow: 16 185 129;
-  --c-ok: 22 101 52;
-  --c-bad: 185 28 28;
-  --c-warn: 146 64 14;
-  --c-info: 3 105 161;
-  --c-reserved: 109 40 217;
-  --c-onbrand: 4 28 18;
-}
-
-html.dark {
-  --c-paper: 9 13 22;
-  --c-fore: 255 255 255;
-  --c-ink: 16 23 34;
-  --c-ink-950: 9 13 22;
-  --c-ink-900: 16 23 34;
-  --c-ink-800: 16 23 34;
-  --c-ink-700: 23 33 49;
-  --c-ink-600: 38 52 72;
-  --c-ink-500: 58 77 103;
-  --c-mute: 138 147 163;
-  --c-fono: 5 241 156;
-  --c-fono-dark: 4 185 120;
-  --c-fono-light: 124 255 201;
-  --c-fono-glow: 5 241 156;
-  --c-ok: 34 197 94;
-  --c-bad: 239 68 68;
-  --c-warn: 245 158 11;
-  --c-info: 125 211 252;
-  --c-reserved: 196 181 253;
-  --c-onbrand: 6 30 20;
-}
+   La paleta (--c-*) es la global de la biblioteca `owncoding-ui` (lenguaje
+   v2 "device ops", promovida en v0.21.0) y llega con el `styles.css` de
+   arriba. Acá quedan solo los tokens derivados de MobOS; el tema oscuro se
+   activa con la clase .dark en <html>. */
 
 /* Tokens compartidos: landing, acceso, POS y administración. */
 :root {
@@ -216,59 +180,12 @@ html.dark input[type='date']::-webkit-calendar-picker-indicator:hover {
 }
 
 
-/* ── Tokens v2 · piloto PhoneCheck (#241) ──────────────────────────────
-   Se aplican solo dentro de `.v2-piloto` (tabla de inventario, ficha de
-   unidad y carrito POS) y `.tema-v2` (shell con la vista previa). El resto de
-   la app sigue con la paleta actual hasta que CMP migre la biblioteca.
-   Los tonos SEMÁNTICOS son los de TEXTO AA (F4): los vivos de PhoneCheck
-   (#16A34A, #DC2626, #D97706, #4D7CFE) no llegan a 4.5:1 sobre las
-   superficies v2 y quedan solo para rellenos e indicadores. */
-.v2-piloto,
-.tema-v2 {
-  --c-paper: 246 248 251;
-  --c-ink: 255 255 255;
-  --c-ink-950: 246 248 251;
-  --c-ink-900: 255 255 255;
-  --c-ink-800: 241 244 248;
-  --c-ink-700: 232 236 243;
-  --c-ink-600: 214 220 230;
-  --c-ink-500: 148 163 184;
-  --c-fore: 14 17 22;
-  --c-mute: 71 85 105;
-  --c-fono: 16 185 129;
-  --c-fono-dark: 4 120 87;
-  --c-fono-light: 4 120 87;
-  --c-fono-glow: 16 185 129;
-  --c-ok: 22 101 52;
-  --c-bad: 185 28 28;
-  --c-warn: 146 64 14;
-  --c-info: 32 89 190;
-  --c-reserved: 109 40 217;
-  --c-onbrand: 4 28 18;
-}
-.dark .v2-piloto,
-.dark .tema-v2 {
-  --c-paper: 14 17 22;
-  --c-ink: 31 36 48;
-  --c-ink-950: 14 17 22;
-  --c-ink-900: 31 36 48;
-  --c-ink-800: 31 36 48;
-  --c-ink-700: 41 48 63;
-  --c-ink-600: 55 63 81;
-  --c-ink-500: 90 100 120;
-  --c-fore: 244 246 250;
-  --c-mute: 154 163 178;
-  --c-fono: 5 241 156;
-  --c-fono-dark: 4 185 120;
-  --c-fono-light: 124 255 201;
-  --c-fono-glow: 5 241 156;
-  --c-ok: 74 222 128;
-  --c-bad: 252 165 165;
-  --c-warn: 252 211 77;
-  --c-info: 159 184 255;
-  --c-reserved: 196 181 253;
-  --c-onbrand: 6 30 20;
-}
+/* ── Scope v2 · shell y pantallas migradas (#241) ──────────────────────
+   `.tema-v2`/`.v2-piloto` son un **alias temporal** de la biblioteca
+   (owncoding-ui v0.21.0): la paleta v2 ya es global y acá solo viven las
+   reglas de navegación/contenido mientras DSN migra el shell. No volver a
+   definir tokens --c-* acá: un rol semántico que necesite ajuste va a la
+   biblioteca (docs/ALIMENTAR.md). */
 .v2-piloto .v2-numero,
 .tema-v2 .v2-numero { font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
 

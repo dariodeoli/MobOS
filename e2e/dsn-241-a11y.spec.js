@@ -110,3 +110,24 @@ test('oscuro completo: el shell v2 sobre una pantalla del pilotaje', async ({ pa
   await page.screenshot({ path: `${SHOTS}/c241f4-shell-aa-inventario-oscuro.png` })
   expect(medicion.bajos, 'AA del shell v2 en la pantalla de inventario').toEqual([])
 })
+
+// Adopción de la biblioteca (#241, paso 1): la paleta v2 es la global de
+// `owncoding-ui`. Si el `styles.css` no entra en el bundle, los --c-* quedan
+// vacíos y este test lo frena (el resto de la suite es funcional y no lo vería).
+test('la paleta global es la de la biblioteca (owncoding-ui v0.21)', async ({ page }) => {
+  const leerToken = (nombre) => page.evaluate(
+    (token) => getComputedStyle(document.documentElement).getPropertyValue(token).trim(),
+    nombre,
+  )
+  await preparar(page, 'light')
+  await page.goto('/resumen')
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 })
+  expect(await leerToken('--c-paper'), 'claro: papel de la paleta global').toBe('246 248 251')
+  expect(await leerToken('--c-fono'), 'acento de marca (fono)').toBe('16 185 129')
+
+  // Oscuro: la misma comprobación con el tema de consola.
+  await preparar(page, 'dark')
+  await page.reload()
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 })
+  expect(await leerToken('--c-paper'), 'oscuro: papel de la paleta global').toBe('14 17 22')
+})
