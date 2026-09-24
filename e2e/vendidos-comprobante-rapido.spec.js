@@ -6,11 +6,6 @@
 import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { SEED } from './helpers/seed-data.js'
-import { habilitarRetrySiCuarentena } from './helpers/cuarentena.mjs'
-
-// Cuarentena de flaky (#CI): el retry lo habilita el workflow solo si este spec
-// está en MOBOS_E2E_CUARENTENA (ver `.github/workflows/ci.yml`).
-habilitarRetrySiCuarentena('vendidos-comprobante-rapido')
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 // Las evidencias versionadas viven en docs/qa/215-comprobante-rapido (commiteadas

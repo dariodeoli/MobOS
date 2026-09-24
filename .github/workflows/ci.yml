@@ -175,12 +175,10 @@ jobs:
           # compilación por ruta no hay requests cortadas durante el compile ni
           # timeouts por primeros hits lentos (flakiness de CI).
           MOBOS_E2E_BACKEND: prod
-          # Cuarentena de flaky (#CI): SOLO estos specs habilitan 1 retry (los
-          # lee `e2e/helpers/cuarentena.mjs`). El reporter de flakiness deja el
-          # registro de los que reintentaron para vaciar la lista: lista vacía o
-          # variable ausente = cero retries.
-          MOBOS_E2E_CUARENTENA: documentos-no-fiscales,etiquetas-unidad,finanzas-conciliacion,inventario-unidades,pos-qa-173,vendidos-comprobante-rapido
-        run: npx playwright test --shard=${{ matrix.shard }}/3
+        # Shards balanceados por archivo (e2e/sharding.json → 103/102/102):
+        # la heurística de Playwright dejaba 135/73/99. Nada de reintentos:
+        # un flake se aísla y se corrige la raíz (#245).
+        run: npx playwright test $(node scripts/e2e-shards.mjs --shard ${{ matrix.shard }})
       - name: Upload Playwright report (shard ${{ matrix.shard }})
         if: always()
         uses: actions/upload-artifact@v4

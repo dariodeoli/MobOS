@@ -1,9 +1,9 @@
 # Arnés E2E y CI (#CI)
 
-Cómo queda el arnés de pruebas de punta a punta y el workflow de CI después del
-rediseño: **rápido** (shards en paralelo), **determinista** (backend prod, datos
-con PIN libre, sin ruido de abortos) y **honesto** (retries solo en cuarentena y
-con reporte). Los comandos del día a día siguen siendo los de siempre:
+Cómo queda el arnés de pruebas de punta a punta y el workflow de CI: **rápido**
+(shards balanceados en paralelo), **determinista** (backend prod, datos con PIN
+libre, sin ruido de abortos) y **sin reintentos**: si algo flapea, se aísla y se
+corrige la raíz (#245). Los comandos del día a día siguen siendo los de siempre:
 `npm run test:e2e:smoke` y `npm run test:e2e`.
 
 ## 1. Jobs de CI y duraciones
@@ -13,16 +13,17 @@ con reporte). Los comandos del día a día siguen siendo los de siempre:
 | Frontend (lint + build) | `npm run lint` · `npm test` · `npm run build` | ~1m35 | 15 min |
 | Backend (typecheck + build) | `tsc --noEmit` · `test:unit` · `build` | ~1m40 | 12 min |
 | Integration | `backend/tests/integration-http.sh` (Postgres efímero) | ~3m10 | 15 min |
-| **E2E (3 shards)** | `playwright test --shard=n/3` sobre backend prod | **~2-3 min de tests + setup por shard** | 20 min |
+| **E2E (3 shards)** | archivos de `e2e/sharding.json` sobre backend prod | **~103 tests por shard** | 20 min |
 
 El job E2E corre en **matriz de 3 shards** (`fail-fast: false`): cada shard tiene
 su propio runner, cluster de Postgres, backend y frontend, así que no comparten
-estado. El balanceo lo hace Playwright (~88/86/84 tests) y un shard tarda lo que
-la suite completa / 3.
+estado. La distribución es **explícita y balanceada** (`e2e/sharding.json`,
+generada con `node scripts/e2e-shards.mjs --generar`: 103/102/102 tests); la
+heurística de Playwright dejaba 135/73/99.
 
 ### 1.1 Workflow paso a paso (job E2E)
 
-Ambos shards corren la misma receta (timeout 20 min por job):
+Los tres shards corren la misma receta (timeout 20 min por job):
 
 | Paso | Qué hace |
 | --- | --- |
@@ -31,7 +32,7 @@ Ambos shards corren la misma receta (timeout 20 min por job):
 | `npm ci` (raíz + backend) + `prisma generate` | dependencias y cliente Prisma. |
 | Cache + instalación de Chromium | `~/.cache/ms-playwright` cacheado por lockfile; `--with-deps` deja las libs. |
 | `npm --prefix backend run build` | build prod del backend: el harness lo arranca con `next start`. |
-| `npx playwright test --shard=n/3` | la suite del shard con `MOBOS_E2E_BACKEND=prod` y `MOBOS_E2E_CUARENTENA=<lista>`. |
+| `npx playwright test $(node scripts/e2e-shards.mjs --shard N)` | la suite del shard con `MOBOS_E2E_BACKEND=prod`, sin reintentos. |
 | Upload de artifacts | `playwright-report/` + `test-results/reporte-flaky.{md,json}` por shard (14 días). |
 
 Los otros jobs no cambiaron de forma: Frontend (lint + unit + build, 15 min),
@@ -71,23 +72,21 @@ servidor inestable.
    (incluido un `Error: aborted` con stack propio de la app). Tiene test en
    `src/lib/filtroLogWeb.test.js`.
 
-## 4. Cuarentena de flaky (retries)
+## 4. Sin reintentos: un flake se corrige en la raíz
 
-Los retries **no** son globales: por defecto son 0.
+La suite corre con **`retries: 0` en local y CI** (no hay cuarentena ni retries
+por spec: lo prohíbe la guarda de `src/lib/ciHarness.test.js`).
 
-- La lista vive en el workflow (`.github/workflows/ci.yml`) como
-  `MOBOS_E2E_CUARENTENA: spec-a,spec-b,...` (hoy: `documentos-no-fiscales`,
+- Cuando algo flapea, se **aísla** (spec solo, con el shard/orden en el que
+  apareció) y se corrige la causa: datos con PIN libre, clicks que se pierden en
+  re-renders, listados paginados, guías que montan tarde, etc. Ver §5.
+- `e2e/reporters/flaky.mjs` deja `test-results/reporte-flaky.md|json` con lo que
+  falló (o necesitó más de un intento) y emite anotaciones en GitHub; el
+  workflow sube un artifact por shard. Es la herramienta para investigar, no
+  para tapar.
+- Los specs de la cuarentena anterior (`documentos-no-fiscales`,
   `etiquetas-unidad`, `finanzas-conciliacion`, `inventario-unidades`,
-  `pos-qa-173`, `vendidos-comprobante-rapido`).
-- `e2e/helpers/cuarentena.mjs` habilita `retries: 1` **solo** a los specs de esa
-  lista (`habilitarRetrySiCuarentena('nombre')` al inicio del archivo). Sin la
-  variable no hay retries en ningún lado.
-- `e2e/reporters/flaky.mjs` deja `test-results/reporte-flaky.md|json` con los
-  tests que reintentaron (o fallaron) y emite anotaciones en GitHub. El workflow
-  sube un artifact por shard.
-- **Vaciar la cuarentena:** si el reporte muestra que un spec ya no reintenta en
-  varias corridas, se saca de la lista del workflow (y del hook del archivo). La
-  guarda `src/lib/ciHarness.test.js` exige que ambos lados coincidan.
+  `pos-qa-173`, `vendidos-comprobante-rapido`) corren sin retry desde #245.
 
 ## 5. Datos deterministas en specs
 
@@ -116,6 +115,10 @@ Los retries **no** son globales: por defecto son 0.
   trabajo en el agente). Los specs reintentan el click con `toPass` y esperan el
   **efecto real** (navegación, aviso o trabajo capturado por el agente falso),
   no solo que el click no tire error.
+- **Puentes de impresión:** `global-setup` revoca todos los puentes activos de
+  la empresa sembrada antes de correr. Los specs de impresión crean puentes y no
+  todos los revocan: el tope de 20 activos hacía fallar la creación con **429**
+  en la corrida siguiente (#245).
 - **Unit tests del print-agent (dominio PRN):** el flake de
   `la cola lista, reintenta fallidos...` quedó resuelto en v1.0.146 con el tick
   de seguridad de la cola del agente (`fix(impresion): tick de seguridad…`);
@@ -130,29 +133,28 @@ npm run test:e2e:smoke
 # Suite completa local (dev)
 npm run test:e2e
 
-# Igual que CI: backend prod + un shard
+# Igual que CI: backend prod + un shard (distribución versionada)
 npm --prefix backend run build
-MOBOS_E2E_BACKEND=prod npx playwright test --shard=1/3
+MOBOS_E2E_BACKEND=prod npx playwright test $(node scripts/e2e-shards.mjs --shard 1)
 
-# Cuarentena explícita (qué specs pueden reintentar)
-MOBOS_E2E_CUARENTENA=inventario-unidades,pos-qa-173 npm run test:e2e
+# Recalcular la distribución si cambian los specs (y validarla)
+node scripts/e2e-shards.mjs --generar
+node scripts/e2e-shards.mjs --check
 ```
 
 ## Validación
 
-Con el rediseño completo (sobre v1.0.146): **3 rondas consecutivas × 3 shards en
-verde (9/9)** — 279-280 passed por ronda, **0 fallos inesperados**, 2.4-4.6 min
-de tests por shard y **0 ruido** de abortos en los logs del backend.
-
-La cuarentena absorbió 2 reintentos reales durante las rondas
-(`inventario-unidades › el motivo de baja recuerda el último usado` y
-`etiquetas-unidad › al llegar a otra sucursal se reimprime la etiqueta`), que es
-exactamente su propósito: la corrida queda verde, el reporter deja el registro y
-el spec sale de la lista cuando se corrige la causa de fondo.
+- **#245 (sin cuarentena):** 3 rondas × 3 shards en verde con la distribución
+  balanceada (103/102/102) y `retries: 0`; los dos flaky históricos
+  (`inventario-unidades › el motivo de baja…` y `etiquetas-unidad › al llegar a
+  otra sucursal…`) quedaron corregidos en la raíz (clicks que se perdían en
+  re-renders) y corren sin retry.
+- **Rediseño previo (sobre v1.0.146):** 3 rondas consecutivas × 3 shards en
+  verde (9/9) — 279-280 passed por ronda, **0 ruido** de abortos en los logs del
+  backend.
 
 ## 7. Pendientes conocidos
 
-- **Cuarentena:** los 6 specs deberían dejar de reintentar con el backend prod;
-  cuando el reporte lo confirme, se vacía la lista (`MOBOS_E2E_CUARENTENA` en el
-  workflow) y se sacan los hooks `habilitarRetrySiCuarentena` de los archivos.
-  La guarda `src/lib/ciHarness.test.js` mantiene ambos lados sincronizados.
+- Ninguno de estabilidad: la suite corre sin cuarentena y con shards balanceados
+  (#245). Si aparece un flake, se aísla y se corrige la raíz (no se habilita un
+  re-run ciego).

@@ -2,11 +2,6 @@
 // depósito contra los pagos que cubre, diferencia con observación y
 // trazabilidad hasta el pedido, contra datos reales del arnés.
 import { test, expect } from '@playwright/test'
-import { habilitarRetrySiCuarentena } from './helpers/cuarentena.mjs'
-
-// Cuarentena de flaky (#CI): el retry lo habilita el workflow solo si este spec
-// está en MOBOS_E2E_CUARENTENA (ver `.github/workflows/ci.yml`).
-habilitarRetrySiCuarentena('finanzas-conciliacion')
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 

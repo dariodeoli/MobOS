@@ -1,9 +1,8 @@
-// Reporte de flakiness del arnés e2e (#CI).
+// Reporte de flakiness del arnés e2e (#245).
 //
-// Deja `test-results/reporte-flaky.md|json` con los tests que necesitaron retry
-// (o que fallaron) para decidir si siguen en la lista de specs con retry y para
-// ver de un vistazo si una corrida quedó verde o no. No cambia el resultado de
-// la corrida: Playwright ya decide por el estado de los tests.
+// Deja `test-results/reporte-flaky.md|json` con los tests que fallaron o que
+// necesitaron más de un intento, para aislar el flake y corregir la raíz (no
+// hay reintentos: `retries: 0`). No cambia el resultado de la corrida.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { relative } from 'node:path'
 
@@ -52,7 +51,7 @@ export default class ReporteFlaky {
       '',
     ]
     if (flaky.length) {
-      lineas.push('## Flaky (revisar si siguen en la lista de retry)', ...flaky.map((t) => `- ${t.titulo} (${t.intentos} intentos)`), '')
+      lineas.push('## Pasaron con más de un intento (aislar el flake)', ...flaky.map((t) => `- ${t.titulo} (${t.intentos} intentos)`), '')
     }
     if (fallos.length) lineas.push('## Fallos inesperados', ...fallos.map((t) => `- ${t.titulo}`), '')
     if (esperados.length) lineas.push('## Fallos esperados (test.fail)', ...esperados.map((t) => `- ${t.titulo}`), '')

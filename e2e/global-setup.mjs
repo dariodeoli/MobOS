@@ -414,6 +414,17 @@ export default async function globalSetup() {
   } catch {
     // Si el prune falla, la suite sigue: el seed propio no depende de esto.
   }
+  // Los specs de impresión crean puentes E2E y no todos los revocan: el tope
+  // por empresa (20 activos) hacía fallar la creación con 429 en la corrida
+  // siguiente (visto sin retries, #245). Se revocan todos antes de sembrar.
+  try {
+    execFileSync(`${PG_BIN}/psql`, [
+      '-h', '127.0.0.1', '-p', process.env.MOBOS_E2E_PGPORT || '5439', '-U', 'postgres', '-d', process.env.MOBOS_E2E_DB || 'mobos_e2e',
+      '-c', `UPDATE "PrintBridge" SET "revokedAt" = CURRENT_TIMESTAMP WHERE "revokedAt" IS NULL AND "tenantId" = (SELECT "id" FROM "Tenant" WHERE "email" = '${SEED.company.email}' LIMIT 1);`,
+    ], { stdio: 'ignore' })
+  } catch {
+    // Si el prune falla, la suite sigue: el seed propio no depende de esto.
+  }
   const alreadySeeded = await access(MARKER).then(() => true).catch(() => false)
   const ctx = await pwRequest.newContext({ baseURL: API })
   try {
