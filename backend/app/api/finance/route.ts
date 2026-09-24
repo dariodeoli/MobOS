@@ -1,10 +1,10 @@
-import type { CashDirection, CashMovementKind, PaymentCurrency } from '@prisma/client'
+import { Prisma, type CashDirection, type CashMovementKind, type PaymentCurrency } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { requireSession } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
 import { InputError } from '../../../lib/payment-input'
 import { ensureStoreBranch } from '../../../lib/store-branch'
-import { FINANCE_CURRENCIES, FinanceInputError, frozenAmountPyg, purchasePayable, realMargin } from '../../../lib/finance'
+import { FINANCE_CURRENCIES, FinanceInputError, frozenAmountPyg, purchasePayable } from '../../../lib/finance'
 import { createCashMovement } from '../../../lib/cash-movements'
 import { DEFAULT_EXPENSE_LIMIT_PYG, authorizedAmountOf, consumeAuthorization, usableAuthorization } from '../../../lib/authorizations'
 
@@ -49,19 +49,54 @@ export async function GET(request: Request) {
     prisma.payment.findMany({ where: { tenantId, status: 'CONFIRMED', order: branchFilter }, select: { accountId: true, originalAmount: true, amountPyg: true, currency: true } }),
     prisma.paymentReconciliation.findMany({ where: { tenantId, state: 'PENDING' }, select: { id: true, paymentId: true, createdAt: true, payment: { select: { amountPyg: true, currency: true, originalAmount: true, order: { select: { branchId: true, orderNumber: true } } } } }, take: 100 }),
   ])
-  const descuentosPyg = orders.reduce((total, order) => total + Math.max(0, order.discountPyg ?? 0), 0)
-  const margin = realMargin(orders.flatMap(order => order.items), { discountPyg: descuentosPyg })
   const receivables = orders.map(order => ({ id: order.id, totalPyg: order.totalPyg, paidPyg: order.payments.filter(payment => payment.status === 'CONFIRMED').reduce((total, payment) => total + payment.amountPyg, 0) })).map(row => ({ ...row, pendingPyg: Math.max(0, row.totalPyg - row.paidPyg) })).filter(row => row.pendingPyg > 0)
   const payables = purchases.map(purchasePayable).filter(row => row.pendingPyg > 0)
+  // Los KPI de la tarjeta (por cobrar, por pagar y margen real) se calculan
+  // sobre TODO el historial: las listas de abajo se cortan en 5.000 filas y sus
+  // totales no pueden depender de ese tope (#83, misma regla que créditos).
+  const branchOrden = ctx.branchId ? Prisma.sql`AND o."branchId" = ${ctx.branchId}` : Prisma.empty
+  const branchCompra = ctx.branchId ? Prisma.sql`AND po."branchId" = ${ctx.branchId}` : Prisma.empty
+  const [receivablesTotales, payablesTotales, margenTotales] = await Promise.all([
+    prisma.$queryRaw<Array<{ totalPyg: bigint; orders: number }>>`SELECT
+      COALESCE(SUM(t.pendiente) FILTER (WHERE t.pendiente > 0), 0)::bigint AS "totalPyg",
+      COUNT(*) FILTER (WHERE t.pendiente > 0)::int AS "orders"
+      FROM (SELECT GREATEST(0, o."totalPyg" - COALESCE(p.confirmed, 0)) AS pendiente
+        FROM "Order" o
+        LEFT JOIN (SELECT "orderId", SUM("amountPyg") AS confirmed FROM "Payment" WHERE "tenantId" = ${tenantId} AND status = 'CONFIRMED' GROUP BY "orderId") p ON p."orderId" = o."id"
+        WHERE o."tenantId" = ${tenantId} AND o.status <> 'CANCELLED' ${branchOrden}) t`,
+    prisma.$queryRaw<Array<{ totalPyg: bigint; purchases: number }>>`SELECT
+      COALESCE(SUM(t.pendiente) FILTER (WHERE t.pendiente > 0), 0)::bigint AS "totalPyg",
+      COUNT(*) FILTER (WHERE t.pendiente > 0)::int AS "purchases"
+      FROM (SELECT GREATEST(0, c."totalPyg" - COALESCE(p."paidPyg", 0)) AS pendiente
+        FROM (SELECT po."id", COALESCE(SUM(pl."finalTotalCostPyg"), 0) AS "totalPyg" FROM "PurchaseOrder" po
+          LEFT JOIN "PurchaseLine" pl ON pl."purchaseId" = po."id"
+          WHERE po."tenantId" = ${tenantId} ${branchCompra} GROUP BY po."id") c
+        LEFT JOIN (SELECT "purchaseId", SUM("amountPyg") AS "paidPyg" FROM "PurchasePayment" WHERE "tenantId" = ${tenantId} GROUP BY "purchaseId") p ON p."purchaseId" = c."id") t`,
+    prisma.$queryRaw<Array<{ revenuePyg: bigint; discountPyg: bigint; costPyg: bigint; unknownCostLines: number }>>`SELECT
+      (SELECT COALESCE(SUM(i."totalPyg"), 0)::bigint FROM "OrderItem" i JOIN "Order" o ON o."id" = i."orderId" WHERE o."tenantId" = ${tenantId} AND o.status <> 'CANCELLED' ${branchOrden}) AS "revenuePyg",
+      (SELECT COALESCE(SUM(o."discountPyg"), 0)::bigint FROM "Order" o WHERE o."tenantId" = ${tenantId} AND o.status <> 'CANCELLED' ${branchOrden}) AS "discountPyg",
+      (SELECT COALESCE(SUM(i."unitCostPyg"::bigint * i.quantity), 0)::bigint FROM "OrderItem" i JOIN "Order" o ON o."id" = i."orderId" WHERE o."tenantId" = ${tenantId} AND o.status <> 'CANCELLED' AND i."unitCostPyg" IS NOT NULL ${branchOrden}) AS "costPyg",
+      (SELECT COUNT(*)::int FROM "OrderItem" i JOIN "Order" o ON o."id" = i."orderId" WHERE o."tenantId" = ${tenantId} AND o.status <> 'CANCELLED' AND i."unitCostPyg" IS NULL ${branchOrden}) AS "unknownCostLines"`,
+  ])
+  const margen = margenTotales[0] || { revenuePyg: 0n, discountPyg: 0n, costPyg: 0n, unknownCostLines: 0 }
+  const margenNeto = Math.max(0, Number(margen.revenuePyg) - Number(margen.discountPyg))
+  const margenCosto = Number(margen.costPyg)
+  const marginTotal = {
+    revenuePyg: margenNeto,
+    costPyg: margenCosto,
+    profitPyg: margenNeto - margenCosto,
+    marginPct: margenNeto ? Number((((margenNeto - margenCosto) / margenNeto) * 100).toFixed(2)) : null,
+    unknownCostLines: Number(margen.unknownCostLines),
+  }
   const balances = new Map(accounts.map(account => [account.id, { ...account, balance: 0 }]))
   for (const movement of movements) if (movement.status === 'CLEARED' && movement.accountId && balances.has(movement.accountId)) balances.get(movement.accountId)!.balance += (movement.direction === 'IN' ? 1 : -1) * Number(movement.originalAmount)
   for (const payment of salePayments) if (payment.accountId && balances.has(payment.accountId)) balances.get(payment.accountId)!.balance += Number(payment.originalAmount ?? payment.amountPyg)
   for (const purchase of purchases) for (const payment of purchase.payments) if (payment.accountId && balances.has(payment.accountId)) balances.get(payment.accountId)!.balance -= Number(payment.originalAmount ?? payment.amountPyg)
   return json({
     movements, accounts: [...balances.values()],
-    receivables: { rows: receivables, totalPyg: receivables.reduce((total, row) => total + row.pendingPyg, 0) },
-    payables: { rows: payables, totalPyg: payables.reduce((total, row) => total + row.pendingPyg, 0) },
-    margin,
+    receivables: { rows: receivables, totalPyg: Number(receivablesTotales[0]?.totalPyg ?? 0), orders: Number(receivablesTotales[0]?.orders ?? 0) },
+    payables: { rows: payables, totalPyg: Number(payablesTotales[0]?.totalPyg ?? 0), purchases: Number(payablesTotales[0]?.purchases ?? 0) },
+    margin: marginTotal,
     reconciliations: reconciliations.filter(row => !ctx.branchId || row.payment.order.branchId === ctx.branchId),
   })
 }
