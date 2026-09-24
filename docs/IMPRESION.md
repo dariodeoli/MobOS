@@ -496,3 +496,23 @@ con `force: true` responde 201 y audita `PRINT_JOB_ENQUEUED` con
 **Cubierto por** (#170): arnés HTTP (bloqueo, trae el pendiente, `force` crea y
 audita la reimpresión) y e2e del comprobante repetido («Reimprimir igual» encola
 un trabajo nuevo).
+
+## 12. Abastecimiento (#250 §11)
+
+Pendiente de implementar en PRN (fases 1–5 ya en main). Contrato extraído del
+código para que la implementación sea directa:
+
+- **Lista de compra · 80 mm** (ESC/POS + respaldo HTML A4/rollo): `code` (`COM-…`),
+  recorrido/origen, comprador, proveedor, **productos agrupados con cantidades y
+  prioridades**, total de líneas y **QR del panel**.
+- **Etiqueta producto/paquete · 80 mm**: lo devuelve
+  `GET /api/supply/purchases/[id]/labels` (`etiquetasPreparacion` en
+  `backend/lib/supply.ts`): `{ n, total, producto, capacidad, condicion, imei,
+  pendiente, compra, referencia, pedido, destino, lote }` → `PRODUCTO n DE N`,
+  variante, **IMEI o «pendiente»**, compra, pedido y destino, con código de
+  barras del identificador.
+- **QR**: falta cerrar la **ruta pública del panel/manifiesto** (path + token y si
+  abre sin sesión). Candidatas a confirmar con INV/DSN: `/m/<token>` (manifiesto
+  de lote) o `/abastecimiento/compras/<id>` (panel, pide sesión). Mientras no esté
+  definida, el papel imprime el identificador como barras y el texto
+  «Escaneá para abrir el panel de la compra.» (misma regla que el informe).
