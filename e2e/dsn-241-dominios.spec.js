@@ -132,11 +132,17 @@ const PANTALLAS = [
   // Públicas (lote G): la página del pedido y la vista previa de la landing.
   ['pedido-publico', `/pedido/${PEDIDO_SEMILLA.publicToken}`, (page) => page.getByText(PEDIDO_SEMILLA.orderNumber).first()],
   ['landing', '/landing-preview', (page) => page.locator('h1:visible').first()],
+  // Paso 3: el tablero operativo (pantalla completa, sin shell).
+  ['ops', '/ops', (page) => page.getByTestId('ops-tablero')],
   ['inventario-tiles', '/inventario/unidades', (page) => page.getByTestId('inventario-tarjeta').first(), async (page) => {
     // Tiles de equipo (lote C): la vista lista/cuadrícula se recuerda por pantalla.
     await page.evaluate(() => { try { localStorage.setItem('mobos:inventario-vista', 'grid') } catch { /* sin storage */ } })
   }],
 ]
+
+// Raíces v2 de las pantallas: el panel usa `.tema-v2`; las vistas propias del
+// rediseño (tablero operativo) traen `.v2-piloto` y no dependen del opt-out.
+const RAICES_V2 = ['.tema-v2', '.v2-piloto']
 
 const preparar = (page, { modo, v2 = true }) =>
   page.addInitScript(({ modo, v2 }) => {
@@ -157,10 +163,10 @@ test.describe('dominios v2 · capturas y contraste', () => {
           await page.goto(ruta)
           if (prepararDatos) await prepararDatos(page)
           await page.goto(ruta)
-          await expect(page.locator('.tema-v2').first()).toBeVisible({ timeout: 30_000 })
+          await expect(page.locator(RAICES_V2.join(', ')).first()).toBeVisible({ timeout: 30_000 })
           await expect(listo(page)).toBeVisible({ timeout: 30_000 })
           if (antesDeCapturar) await antesDeCapturar(page)
-          const medicion = await auditarContraste(page, SHELL, ['.tema-v2'])
+          const medicion = await auditarContraste(page, SHELL, RAICES_V2)
           informar(`${dominio}-on-${vista}-${tema}`, medicion)
           await page.screenshot({ path: `${SHOTS}/c241f4b-${dominio}-on-${tema}-${vista}.png` })
           expect(medicion.bajos, `AA del shell en ${dominio} (${vista} ${tema})`).toEqual([])

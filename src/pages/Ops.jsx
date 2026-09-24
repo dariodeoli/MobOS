@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import TableroOps from '@/components/ops/TableroOps'
 import { api, resources } from '@/lib/api'
 import { demoSessionActive } from '@/lib/demoMode'
-import { colasDelTaller, equiposEnProceso, kpisOps, resumenOps } from '@/lib/opsTablero'
+import { colasDelTaller, equiposEnProceso, kpisOps, pasosDelLote, resumenOps } from '@/lib/opsTablero'
 
 // F3 real (#241): el tablero de operaciones con DATOS REALES de la empresa,
 // detrás del flag VITE_OPS_V2=1 (ruta /ops, sin entrada en el menú hasta la
@@ -79,7 +79,9 @@ export default function Ops() {
     return () => clearInterval(id)
   }, [cargar])
 
-  const kpis = useMemo(() => kpisOps(resumenOps({ unidades, pedidos, ahora: actualizado || new Date() })), [unidades, pedidos, actualizado])
+  const resumen = useMemo(() => resumenOps({ unidades, pedidos, ahora: actualizado || new Date() }), [unidades, pedidos, actualizado])
+  const kpis = useMemo(() => kpisOps(resumen), [resumen])
+  const pasos = useMemo(() => pasosDelLote(resumen), [resumen])
   const equipos = useMemo(() => equiposEnProceso(unidades), [unidades])
   const colas = useMemo(() => colasDelTaller(unidades), [unidades])
 
@@ -89,6 +91,7 @@ export default function Ops() {
       kpis={kpis}
       equipos={equipos}
       colas={colas}
+      pasos={pasos}
       // Esqueletos solo en la primera carga: después se refresca sin parpadear.
       cargando={cargando && !actualizado}
       error={error || avisos.join(' ')}

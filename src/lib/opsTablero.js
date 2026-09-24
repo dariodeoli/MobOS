@@ -1,5 +1,6 @@
 import { fechaClave, gs } from '../utils/calculos.js'
-import { ETIQUETA_RACK, agruparRack, bateriaDe, estadoEnRack, gradoDe } from './tallerRack.js'
+import { locksDeVerificacion } from './phonecheck.js'
+import { ETIQUETA_RACK, ORDEN_RACK, agruparRack, bateriaDe, estadoEnRack, gradoDe } from './tallerRack.js'
 
 // Tablero F3 (#241): arma los datos reales de `/ops` (detrás de VITE_OPS_V2)
 // desde el inventario del rack del taller (#240) y los pedidos recientes. Las
@@ -94,6 +95,40 @@ export function kpisOps(resumen) {
   ]
 }
 
+/** «x de y» del checklist de la inspección (#240): pasan, fallan y porcentaje. */
+export function checklistDe(unit) {
+  const items = Object.values(unit?.inspection?.items || {})
+  if (!items.length) return null
+  const pasan = items.filter((fila) => fila?.estado === 'pasa').length
+  const fallan = items.filter((fila) => fila?.estado === 'falla').length
+  return {
+    pasan,
+    fallan,
+    revisados: pasan + fallan,
+    total: items.length,
+    porcentaje: Math.round((pasan / items.length) * 100),
+  }
+}
+
+/**
+ * Chips de locks del equipo (iCloud/Find My, MDM, ESN/blacklist y carrier) desde
+ * la consulta IMEI guardada en la inspección. Sin datos devuelve `null`: la UI
+ * muestra el estado honesto («sin verificar»), nunca «libre» de arriba.
+ */
+export function locksDe(unit) {
+  const crudo = unit?.inspection?.verificacion || unit?.inspection?.verificacionImei || unit?.imeiVerification || null
+  if (!crudo) return null
+  const verificacion = crudo?.campos || crudo?.normalized ? crudo : (crudo?.data || {})
+  const chips = locksDeVerificacion(verificacion)
+  if (!chips.length) return null
+  return chips.map((chip) => ({ clave: chip.clave, estado: chip.ok ? 'libre' : 'activo', detalle: `${chip.label}: ${chip.valor}` }))
+}
+
+/** Pasos del lote del taller con la carga de cada etapa (stepper del tablero). */
+export function pasosDelLote(resumen) {
+  return ORDEN_RACK.map((clave) => ({ clave, label: ETIQUETA_RACK[clave], total: resumen?.[clave === 'por-verificar' ? 'porVerificar' : clave === 'verificado' ? 'verificados' : 'listos'] || 0 }))
+}
+
 /** Equipos en proceso (todavía no listos para vender), en orden del rack. */
 export function equiposEnProceso(unidades = [], limite = 6) {
   const grupos = agruparRack(unidades)
@@ -107,6 +142,8 @@ export function equiposEnProceso(unidades = [], limite = 6) {
       tono: TONO_ESTADO[estado],
       grado: gradoDe(unit),
       bateria: bateriaDe(unit),
+      checklist: checklistDe(unit),
+      locks: locksDe(unit),
       ubicacion: unit.location?.name || unit.locationName || null,
     }
   })
