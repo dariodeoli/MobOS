@@ -46,6 +46,7 @@ Con el flag prendido, claro/oscuro en 1280 y 390:
 | Config · Equipo | [claro](c241f4b-equipo-on-claro-desktop.png) | [oscuro](c241f4b-equipo-on-oscuro-desktop.png) | [claro](c241f4b-equipo-on-claro-mobile.png) | [oscuro](c241f4b-equipo-on-oscuro-mobile.png) |
 | Config · Roles y permisos | [claro](c241f4b-roles-on-claro-desktop.png) | [oscuro](c241f4b-roles-on-oscuro-desktop.png) | [claro](c241f4b-roles-on-claro-mobile.png) | [oscuro](c241f4b-roles-on-oscuro-mobile.png) |
 | Inventario · Tiles de equipo | [claro](c241f4b-inventario-tiles-on-claro-desktop.png) | [oscuro](c241f4b-inventario-tiles-on-oscuro-desktop.png) | [claro](c241f4b-inventario-tiles-on-claro-mobile.png) | [oscuro](c241f4b-inventario-tiles-on-oscuro-mobile.png) |
+| Pedido (contenedor) | [claro](c241f4b-pedido-detalle-on-claro-desktop.png) | [oscuro](c241f4b-pedido-detalle-on-oscuro-desktop.png) | [claro](c241f4b-pedido-detalle-on-claro-mobile.png) | [oscuro](c241f4b-pedido-detalle-on-oscuro-mobile.png) |
 
 Muestra con el flag **apagado** (default intacto, mismo estado de datos):
 [pedidos](c241f4b-pedidos-off-claro-desktop.png) ·
@@ -59,7 +60,8 @@ Muestra con el flag **apagado** (default intacto, mismo estado de datos):
 [compras](c241f4b-compras-off-claro-desktop.png) ·
 [equipo](c241f4b-equipo-off-claro-desktop.png) ·
 [roles](c241f4b-roles-off-claro-desktop.png) ·
-[tiles de equipo](c241f4b-inventario-tiles-off-claro-desktop.png).
+[tiles de equipo](c241f4b-inventario-tiles-off-claro-desktop.png) ·
+[pedido](c241f4b-pedido-detalle-off-claro-desktop.png).
 
 ## Servicio técnico y Garantías (lote E)
 
@@ -118,9 +120,20 @@ vista se captura con la cuadrícula activada (`mobos:inventario-vista`).
 Queda pendiente para cuando INV cierre los datos de la inspección (#240): el
 **grado** grande y los **chips de locks** (iCloud/MDM) en el tile.
 
+## Pedidos: resumen y stepper de entrega (segunda pasada)
+
+La lista de pedidos suma el **resumen en tiles** —activos, por cobrar y en
+reparto— con los números de consola, y el **contenedor del pedido** estrena el
+**stepper del flujo de entrega** del mock: cuatro pasos por método (delivery:
+Pendiente → Preparando → En camino → Entregado; retiro: Pendiente → Preparando →
+Lista para retirar → Retirado), con el paso actual en azul y los ya cumplidos en
+verde. Los pasos agrupan los estados reales de `entrega.js` (el mismo grafo que
+valida el backend), así el stepper no inventa pasos que no aplican al método.
+Las capturas son de la lista y del contenedor (claro/oscuro en 390/1280).
+
 ## Medición
 
-`e2e/dsn-241-dominios.spec.js` recorre las **doce pantallas** con el flag
+`e2e/dsn-241-dominios.spec.js` recorre las **trece pantallas** con el flag
 prendido en los cuatro combos: **0 textos de shell por debajo de AA** y **0
 bajos de contenido**. La medición entiende **degradados** (mide contra la peor
 parada del fondo) y de ahí salieron los ajustes de los lotes anteriores: el chip

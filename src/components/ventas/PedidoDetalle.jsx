@@ -13,7 +13,7 @@ import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import { api, apiFetch } from '@/lib/api/client'
 import { FULFILLMENT_LABELS } from '@/lib/constants'
-import { opcionesDeEntrega, tonoEntrega } from './venta/entrega'
+import { metodoEntrega, opcionesDeEntrega, tonoEntrega } from './venta/entrega'
 import { accessUrlFor, FORMATOS_PEDIDO, printDeliveryNote } from '@/components/shared/OrderReceipt'
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
@@ -28,8 +28,24 @@ import { getVendedores, ventaDesdeApi } from '@/lib/storage'
 import PagosPedido from './PagosPedido'
 import { consultaDeMencion, insertarMencion, tramosDeMencion } from '@/utils/menciones'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
+import { temaV2Activo } from '@/lib/temaV2'
 
 const FULFILLMENT = FULFILLMENT_LABELS
+// Pasos del flujo de entrega para la vista previa v2 (#241): agrupa los estados
+// reales de `entrega.js` en cuatro pasos visibles por método.
+const PASOS_ENTREGA = (deliveryType) => (metodoEntrega(deliveryType) === 'DELIVERY'
+  ? [
+      ['Pendiente', ['PENDING']],
+      ['Preparando', ['PROCESSING', 'READY_TO_SHIP']],
+      ['En camino', ['SHIPPED', 'IN_TRANSIT', 'PARTIAL']],
+      ['Entregado', ['DELIVERED']],
+    ]
+  : [
+      ['Pendiente', ['PENDING']],
+      ['Preparando', ['PROCESSING', 'READY_TO_SHIP']],
+      ['Listo para retirar', ['IN_TRANSIT', 'READY_FOR_PICKUP', 'PARTIAL']],
+      ['Retirado', ['PICKED_UP']],
+    ])
 const PAYMENT_TONE = (status) => status === 'Pagado' ? 'green' : status === 'Parcial' ? 'orange' : status === 'Anulado' ? 'slate' : 'red'
 const PAYMENT_STATUS = { CONFIRMED: 'Confirmado', PENDING: 'Pendiente', REFUNDED: 'Reembolsado', REJECTED: 'Rechazado' }
 const AUDIT_LABELS = {
@@ -189,6 +205,8 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const clienteConCredito = Number(order.customer?.creditLimitPyg || 0) > 0 && Number(order.customer?.creditDays || 0) > 0
   const anulado = order.status === 'CANCELLED'
   const estadoPago = anulado ? 'Anulado' : (paid >= total && total > 0 ? 'Pagado' : (Number(order.creditDays || 0) > 0 && pendiente > 0 ? 'A crédito' : paid > 0 ? 'Parcial' : 'Pendiente'))
+  // Vista previa v2 (#241): el detalle suma el stepper del flujo de entrega.
+  const v2 = temaV2Activo()
   const tags = Array.isArray(order.tags) ? order.tags : []
   const archivado = Boolean(order.archivedAt)
   // Cronología para el comprobante detallado: el mismo timeline que se ve en la
@@ -395,6 +413,24 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               {order.offlineSyncedAt && <Badge color="orange">Sincronizada sin conexión · revisar stock</Badge>}
               {order.billingName && <Badge color="blue">Factura: {order.billingName}</Badge>}
             </div>
+            {v2 && !anulado && (() => {
+              const pasos = PASOS_ENTREGA(order.deliveryType)
+              const actual = pasos.findIndex(([, estados]) => estados.includes(order.fulfillmentStatus || 'PENDING'))
+              return (
+                <ol className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Flujo de entrega">
+                  {pasos.map(([paso], indice) => {
+                    const activo = indice === actual
+                    const hecho = actual > -1 && indice < actual
+                    return (
+                      <li key={paso} className={cn('flex items-center gap-2.5 rounded-xl border p-2.5', activo ? 'border-info/40 bg-info/5' : 'border-ink-600')}>
+                        <span className={cn('v2-numero grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-bold', activo ? 'v2-paso-activo' : hecho ? 'bg-ok/15 text-ok' : 'bg-ink-700 text-mute')} aria-hidden>{hecho ? '✓' : indice + 1}</span>
+                        <span className="min-w-0 truncate text-xs font-semibold">{paso}</span>
+                      </li>
+                    )
+                  })}
+                </ol>
+              )
+            })()}
             <p className="mt-3 text-xs text-mute">
               {order.seller?.name ? `${order.seller.name} · ` : ''}{order.branch?.name || 'Sucursal'}{order.date || order.createdAt ? ` · ${relativeDate(order.createdAt || order.date)}` : ''}
             </p>
