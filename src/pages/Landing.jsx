@@ -28,6 +28,7 @@ import ThemeLogo from '@/components/app/ThemeLogo'
 import ThemeToggle from '@/components/app/ThemeToggle'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { cn } from '@/lib/utils'
+import { temaV2Activo } from '@/lib/temaV2'
 
 const novedades = [
   ["POS completo", "Carrito, cobros combinados y venta sin conexión.", ReceiptText],
@@ -314,7 +315,7 @@ export default function Landing() {
   const [open, setOpen] = useState(0);
   const { app } = publicUrls;
   return (
-    <div className="min-h-dvh overflow-hidden bg-paper text-fore selection:bg-fono selection:text-onbrand">
+    <div className={cn('min-h-dvh overflow-hidden bg-paper text-fore selection:bg-fono selection:text-onbrand', temaV2Activo() && 'tema-v2')}>
       <header className="sticky top-0 z-30 border-b border-fore/[.07] bg-paper/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3.5">
           <a href="#inicio" aria-label="MobOS">

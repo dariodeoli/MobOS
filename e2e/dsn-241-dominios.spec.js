@@ -5,9 +5,13 @@
 // flag apagado, para dejar documentado que el default no cambia) y medición de
 // contraste de cada pantalla: el shell se exige en AA, el contenido se informa.
 import { test, expect } from '@playwright/test'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { SHELL, auditarContraste, informar } from './helpers/contraste.js'
 import { SEED } from './helpers/seed-data.js'
+// Token del pedido semilla (lo escribe el global-setup): la página pública se
+// audita con el mismo pedido que usa el tracking.
+const PEDIDO_SEMILLA = JSON.parse(readFileSync(new URL('./.auth/seed-order.json', import.meta.url), 'utf8'))
+
 
 const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/rediseno'
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
@@ -120,6 +124,9 @@ const PANTALLAS = [
   }],
   ['equipo', '/configuracion/equipo', (page) => page.getByTestId('integrante-fila').first()],
   ['roles', '/configuracion/roles', (page) => page.getByText('Matriz de capacidades')],
+  // Públicas (lote G): la página del pedido y la vista previa de la landing.
+  ['pedido-publico', `/pedido/${PEDIDO_SEMILLA.publicToken}`, (page) => page.getByText(PEDIDO_SEMILLA.orderNumber).first()],
+  ['landing', '/landing-preview', (page) => page.locator('h1:visible').first()],
   ['inventario-tiles', '/inventario/unidades', (page) => page.getByTestId('inventario-tarjeta').first(), async (page) => {
     // Tiles de equipo (lote C): la vista lista/cuadrícula se recuerda por pantalla.
     await page.evaluate(() => { try { localStorage.setItem('mobos:inventario-vista', 'grid') } catch { /* sin storage */ } })

@@ -131,5 +131,6 @@ Pasos del rollout por dominio (contenido, no solo tokens), también detrás del
 flag: chips pill, números de consola, azul de acción en los activos internos,
 stepper del taller, tiles de KPI, el "x de y" de recepción, los tiles de
 rol/acceso, los tiles de equipo del inventario, el resumen + stepper de entrega
-de pedidos, el resumen de clientes y los tiles + "x de y" de finanzas. Detalle,
-capturas y medición en [`F4-DOMINIOS.md`](F4-DOMINIOS.md).
+de pedidos, el resumen de clientes, los tiles + "x de y" de finanzas y las
+públicas (pedido y landing). Paquete de aprobación: [`PAQUETE-F4.md`](PAQUETE-F4.md).
+Detalle, capturas y medición en [`F4-DOMINIOS.md`](F4-DOMINIOS.md).
