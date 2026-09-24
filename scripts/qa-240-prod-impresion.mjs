@@ -174,7 +174,16 @@ try {
   }
 
   // 4) Impresión directa: en la demo el aviso tiene que ser honesto.
-  await modal.getByRole('button', { name: 'Impresión directa' }).click()
+  // Reabre la ficha y el informe: para acá los modales de certificado/constancia
+  // ya se cerraron.
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await esperar(2200)
+  await page.getByTestId('inventario-fila').first().click()
+  await esperar(900)
+  await page.getByRole('dialog').getByRole('button', { name: 'Informe', exact: true }).click()
+  await esperar(1500)
+  const modalInforme = page.getByRole('dialog').filter({ hasText: 'Informe del dispositivo' })
+  await modalInforme.getByRole('button', { name: 'Impresión directa' }).click()
   await esperar(2000)
   const aviso = (await page.locator('body').innerText()).replace(/\s+/g, ' ')
   const honesto = /demo/i.test(aviso) || /no se pudo imprimir/i.test(aviso) || /impresora/i.test(aviso)
