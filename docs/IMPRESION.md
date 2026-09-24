@@ -516,3 +516,21 @@ código para que la implementación sea directa:
   de lote) o `/abastecimiento/compras/<id>` (panel, pide sesión). Mientras no esté
   definida, el papel imprime el identificador como barras y el texto
   «Escaneá para abrir el panel de la compra.» (misma regla que el informe).
+
+## 13. Tokens v2 en los impresos (#241 · Lote H)
+
+Los documentos impresos (informe de dispositivo, certificado, constancia,
+etiquetas de unidad y del abastecimiento) son parte del rediseño: la tipografía,
+los grises y los acentos salen del **lenguaje v2** (`docs/REDISENO.md`, tokens
+v2), no de valores sueltos por builder.
+
+Reglas del lote:
+- Un solo origen de color/tipografía por documento: los builders de
+  `OrderReceipt.jsx` y `tickets.js` toman los tokens v2 (verde de marca, grises
+  de texto, bordes) y no declaran hex nuevos.
+- Los estados (Bien / Con observación / Falla) usan los tonos semánticos v2
+  (`estadoEquipo.js`) también en el papel.
+- El rollo (ESC/POS) mantiene su naturaleza: tipografía monoespaciada y negrita
+  del equipo; la coherencia con v2 es de **jerarquía y color de marca**, no de
+  fuentes.
+- Evidencia obligatoria: PDFs de ejemplo A4/80 regenerados + QR decodificado.
