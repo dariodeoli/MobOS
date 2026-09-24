@@ -205,6 +205,15 @@ test('el portal demo sigue la entrega con sus pasos (#240 → portal)', () => {
   assert.equal(pedidoVenta.tracking.pasos.every((paso) => paso.hecho), true)
 })
 
+test('la cuenta demo muestra los beneficios (saldo a favor y puntos) (#240)', () => {
+  const cuenta = demoCuentaPayload('demo-demo-cliente-lucia-rapido')
+  assert.equal(cuenta.saldoFavorPyg, 250000)
+  assert.equal(cuenta.puntosPyg, 45000)
+  const carlos = demoCuentaPayload('demo-demo-cliente-carlos-rapido')
+  assert.equal(carlos.saldoFavorPyg, 0)
+  assert.equal(carlos.puntosPyg, 0)
+})
+
 test('la demo muestra los mensajes de la tienda y marca el visto (#240)', () => {
   const aviso = buscarClienteDemo(LUCIA).demoProfile.notices.find((item) => item.id === 'demo-av-2')
   aviso.firstViewedAt = null
