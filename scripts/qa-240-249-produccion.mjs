@@ -133,12 +133,24 @@ await paso('#240 · los beneficios (saldo a favor y puntos) se ven en la cuenta 
   const seccion = page.getByTestId('portal-beneficios')
   await seccion.waitFor({ timeout: 20000 })
   const texto = await seccion.innerText()
-  afirmar(/Saldo a favor/.test(texto), `no aparece el saldo a favor: ${texto.slice(0, 120)}`)
+  afirmar(/saldo a favor/i.test(texto), `no aparece el saldo a favor: ${texto.slice(0, 120)}`)
   afirmar(/250\.000/.test(texto), 'no aparece el monto del saldo a favor')
-  afirmar(/Puntos/.test(texto), 'no aparecen los puntos')
+  afirmar(/puntos/i.test(texto), 'no aparecen los puntos')
   afirmar(/45\.000/.test(texto), 'no aparece el monto de los puntos')
   await shot(page, 'portal-beneficios-demo', true)
   return 'saldo a favor Gs 250.000 · puntos Gs 45.000'
+})
+
+await paso('#240 · las reservas vigentes se ven en la cuenta demo', async () => {
+  await page.goto(`${BASE}/cuenta/demo-demo-cliente-carlos-rapido`, { waitUntil: 'domcontentloaded' })
+  const seccion = page.getByTestId('portal-reservas')
+  await seccion.waitFor({ timeout: 20000 })
+  const texto = await seccion.innerText()
+  afirmar(/tus reservas/i.test(texto), `no aparece la sección de reservas: ${texto.slice(0, 120)}`)
+  afirmar(/iPhone 13/.test(texto), 'no aparece el equipo reservado')
+  afirmar(/Hasta|Vence hoy/.test(texto), 'no aparece el vencimiento de la reserva')
+  await shot(page, 'portal-reservas-demo', true)
+  return 'reserva de iPhone 13 con su vencimiento'
 })
 
 await contexto.close()

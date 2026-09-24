@@ -205,6 +205,18 @@ test('el portal demo sigue la entrega con sus pasos (#240 → portal)', () => {
   assert.equal(pedidoVenta.tracking.pasos.every((paso) => paso.hecho), true)
 })
 
+test('la cuenta demo muestra las reservas vigentes (#240)', () => {
+  const carlos = demoCuentaPayload('demo-demo-cliente-carlos-rapido')
+  assert.equal(carlos.reservas.length, 1)
+  const reserva = carlos.reservas[0]
+  assert.equal(reserva.model, 'iPhone 13')
+  assert.equal(reserva.capacity, '128 GB')
+  assert.equal(reserva.branch, 'Casa Central')
+  assert.ok(new Date(reserva.reservedUntil).getTime() > Date.now(), 'la reserva demo está vigente')
+  const lucia = demoCuentaPayload('demo-demo-cliente-lucia-rapido')
+  assert.equal(lucia.reservas.length, 0)
+})
+
 test('la cuenta demo muestra los beneficios (saldo a favor y puntos) (#240)', () => {
   const cuenta = demoCuentaPayload('demo-demo-cliente-lucia-rapido')
   assert.equal(cuenta.saldoFavorPyg, 250000)
