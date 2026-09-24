@@ -1,0 +1,45 @@
+{
+  "base": "https://app.moboss.online",
+  "etiqueta": "1.0.156-produccion",
+  "sku": "IP15PM-256-NAT",
+  "resultados": [
+    {
+      "viewport": "390",
+      "producto": "Producto escaneado × iPhone 15 Pro Max 256GB Titanio Natural IP15PM-256-NAT Gs 7.250.000 · Agotado Cancelar Agregar a la venta",
+      "medidas": [
+        {
+          "etiqueta": "modal · cancelar",
+          "ancho": 332,
+          "alto": 44,
+          "corto": false
+        },
+        {
+          "etiqueta": "modal · agregar a la venta",
+          "ancho": 332,
+          "alto": 44,
+          "corto": false
+        }
+      ],
+      "errores": []
+    },
+    {
+      "viewport": "1280",
+      "producto": "Producto escaneado × iPhone 15 Pro Max 256GB Titanio Natural IP15PM-256-NAT Gs 7.250.000 · Agotado Cancelar Agregar a la venta",
+      "medidas": [
+        {
+          "etiqueta": "modal · cancelar",
+          "ancho": 91,
+          "alto": 36,
+          "corto": false
+        },
+        {
+          "etiqueta": "modal · agregar a la venta",
+          "ancho": 155,
+          "alto": 36,
+          "corto": false
+        }
+      ],
+      "errores": []
+    }
+  ]
+}

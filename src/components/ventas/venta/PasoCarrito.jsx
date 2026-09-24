@@ -19,6 +19,9 @@ export default function PasoCarrito({
   precioDe,
   totalCarrito,
   totalGeneral,
+  totalPagado = 0,
+  pendiente = 0,
+  conPagos = false,
   montoDelivery = 0,
   quitarItem,
   editarItem,
@@ -178,6 +181,22 @@ export default function PasoCarrito({
             {gs(totalGeneral ?? totalCarrito)}
           </span>
         </div>
+        {/* Al pie de la épica (#148 §5): lo pagado y lo pendiente de la venta,
+            para leer el estado sin bajar al bloque de cobro. */}
+        {conPagos && (
+          <div className="mt-1.5 space-y-0.5 border-t border-ink-600/60 pt-1.5 text-[11px]">
+            <div className="flex items-center justify-between">
+              <span className="text-mute">Pagado</span>
+              <span className="tabular-nums font-semibold text-ok" data-testid="carrito-pagado">{gs(totalPagado)}</span>
+            </div>
+            {pendiente > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-warn">Pendiente</span>
+                <span className="tabular-nums font-semibold text-warn" data-testid="carrito-pendiente">{gs(pendiente)}</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </section>
   )
