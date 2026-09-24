@@ -292,6 +292,19 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 25 — envíos, recepción y banner de conexión (24-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `ContadorLote` (`owncoding-ui` **v0.19.0**) | El «3 de 12» de lotes/etiquetas/recepción (#250 §2) no tenía objeto | Publicado con variantes `texto`/`chip`/`barra` (progressbar accesible), tono por avance y `mostrarFaltan` |
+| `ResumenDestinos` | La consolidación de una compra (#250 §5) se mostraría a mano | Publicado: «1 pedido A · 3 stock», conserva los destinos y avisa por callback al elegir |
+| `ResumenIncidencias` | La recepción (#250 §9/§10) mostraría los conteos a mano | Publicado: faltantes/sobrantes/dañadas/incorrectas/sin IMEI con conteos reales; sin incidencias lo dice en verde |
+| `IndicadorConexion variante="banner"` | El aviso ancho de sin conexión del shell era app-side (pendiente de `SHELL.md` §7) | Franja ancha con la superficie roja y texto legible por tema + `mensaje` propio; el chip de la cola no cambia |
+| Verificación en la app (#211/#241) | — | `e2e/prod/211-identidad.mjs` ampliado: **10/10 en v1.0.156**, incluido el stepper v2 del pedido con el flag y la identidad en pedido/bloqueo; **hallazgo**: en los pedidos del demo el stepper no marca el paso actual (el `fulfillmentStatus` de las ventas demo es el texto de `entrega`; reportado para POS/DSN) |
+
+**Duplicación pendiente: 0 usos.** Con el banner, `SHELL.md` §7 solo deja
+app-side el alternador de tema (la cosecha del ramal `lib` lo trae).
+
 ### Lote 24 — abastecimiento y entrega en la biblioteca (24-09)
 
 | Objeto | Antes (evidencia) | Después |
