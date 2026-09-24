@@ -48,6 +48,11 @@ export default function Creditos() {
           <button type="button" className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light" onClick={load} disabled={busy}>{busy ? 'Cargando…' : 'Actualizar'}</button>
         </div>
         {error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
+        {data?.truncado && (
+          <p className="mt-3 text-xs text-mute">
+            <Badge color="orange">Mostrando los primeros 200 clientes con deuda</Badge> Los totales de arriba incluyen a todos.
+          </p>
+        )}
         <div className="mt-4 grid gap-3 sm:grid-cols-4">
           <div className="rounded-xl border border-ink-600 p-3"><p className="text-xs text-mute">Total por cobrar</p><strong className="mt-1 block text-lg tabular-nums"><Money value={totals.outstandingPyg} /></strong></div>
           <div className="rounded-xl border border-bad/25 bg-bad/5 p-3"><p className="text-xs text-mute">En mora</p><strong className="mt-1 block text-lg tabular-nums text-bad"><Money value={totals.overduePyg} /></strong></div>

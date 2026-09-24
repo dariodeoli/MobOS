@@ -741,4 +741,7 @@ MOBOS_QA_API_URL="$BASE_URL" MOBOS_QA_TOKEN="$ADMIN_TOKEN" MOBOS_QA_SEMBRAR=1 MO
 echo "Seguridad pública: token de liquidaciones hasheado, rotación y límite de uso..."
 PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/commission-settlement-public.mjs"
 
-echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración, consistencia, abastecimiento (necesidades, compras, preparación, lotes y recepción) y logout."
+echo "Créditos: la lista se corta y los totales incluyen a todos los deudores (#83)..."
+PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/credits-totales.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL"
+
+echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración, consistencia, abastecimiento (necesidades, compras, preparación y lotes) y logout."
