@@ -202,6 +202,27 @@ export default function CuentaPublica() {
               </PortalSeccion>
             )}
 
+            {/* Tus pagos (#240 → portal): el historial con su medio y el total
+                confirmado de toda la historia del cliente. */}
+            {cuenta.pagos?.length > 0 && (
+              <PortalSeccion id="pagos" titulo="Tus pagos" icono="wallet" data-testid="portal-pagos">
+                {Number(cuenta.totalPagadoPyg || 0) > 0 && (
+                  <p className="mt-2 text-sm text-mute">Total pagado <b className="text-ok tabular-nums">{gs(cuenta.totalPagadoPyg)}</b></p>
+                )}
+                <div className="mt-3 space-y-2">
+                  {cuenta.pagos.map((pago, index) => (
+                    <article key={`${pago.orderNumber}-${pago.paidAt}-${index}`} className="flex items-center justify-between gap-3 rounded-xl bg-ink-800/60 px-3 py-2.5 text-sm">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{codigoPedido(pago.orderNumber) || 'Pedido'}</p>
+                        <p className="mt-0.5 text-xs text-mute">{pago.methodLabel}{pago.paidAt ? ` · ${fecha(pago.paidAt)}` : ''}</p>
+                      </div>
+                      <span className="shrink-0 font-semibold tabular-nums text-ok">{gs(pago.amountPyg)}</span>
+                    </article>
+                  ))}
+                </div>
+              </PortalSeccion>
+            )}
+
             {/* Nota pública de la tienda (#127): visible solo cuando existe. */}
             {cuenta.customer?.publicNote && (
               <PortalSeccion titulo="Nota de la tienda" icono="megaphone" className="border-fono/25 bg-fono/5">

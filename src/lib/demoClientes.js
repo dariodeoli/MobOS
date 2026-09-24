@@ -511,6 +511,12 @@ export function demoCuentaPayload(token) {
   if (!cliente) return null
   const orders = cliente.demoProfile?.orders || []
   const conSaldo = orders.filter((order) => Number(order.pendingPyg || 0) > 0).map((order) => ({ orderNumber: order.orderNumber, dueAt: haceDias(-6), pendingPyg: order.pendingPyg }))
+  // Pagos (#240 → portal): historial derivado de los pedidos demo (el método se
+  // reparte para que la lista sea creíble; nada sale del navegador).
+  const METODOS_DEMO = ['Efectivo', 'Transferencia', 'Tarjeta / POS']
+  const pagosDemo = orders
+    .filter((order) => Number(order.collectedPyg || 0) > 0)
+    .map((order, indice) => ({ amountPyg: Number(order.collectedPyg || 0), methodLabel: METODOS_DEMO[indice % METODOS_DEMO.length], paidAt: order.createdAt, orderNumber: order.orderNumber }))
   return {
     level: nivel,
     company: { name: 'Aurora Móviles', logo: false },
@@ -527,6 +533,9 @@ export function demoCuentaPayload(token) {
       branch: reserva.branch || null,
       reservedUntil: reserva.reservedUntil || null,
     })),
+    // Pagos (#240 → portal): historial y total pagado de la demo.
+    pagos: pagosDemo.slice(0, 8),
+    totalPagadoPyg: orders.reduce((suma, order) => suma + Number(order.collectedPyg || 0), 0),
     dueDates: conSaldo,
     orders: orders.map((order) => ({
       orderNumber: order.orderNumber,
