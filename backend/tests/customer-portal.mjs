@@ -220,6 +220,20 @@ const cronoMensaje = await request(`/api/customers/${encodeURIComponent(cliente.
 assert.ok(cronoMensaje.payload.events.some((event) => event.action === 'Mensaje al cliente'), 'La cronología registra el envío.')
 assert.ok(cronoMensaje.payload.events.some((event) => event.action === 'Mensaje visto por el cliente'), 'La cronología registra el visto.')
 
+// ── Reservas (#240 → portal): el equipo reservado se ve con su vencimiento ──
+result = await request('/api/inventory-units', 'POST', { productId: producto.id, serial: `IT-PORTAL-RES-${ts}`, condition: 'USED', branchId: 'branch-a-it' }, adminToken)
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+// El serial se normaliza al crear la unidad: se usa el devuelto para reservar.
+const serialReserva = result.payload.serial
+result = await request('/api/inventory-reservations', 'POST', { customerId: cliente.id, minutes: 120, serials: [serialReserva] }, sellerToken)
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+result = await publicRequest(`/api/portal/${encodeURIComponent(tokenCompleto)}`)
+assert.equal(result.response.status, 200)
+const reservaPortal = (result.payload.reservas || []).find((item) => item.serial === serialReserva)
+assert.ok(reservaPortal, 'El portal debe listar la reserva del cliente.')
+assert.ok(reservaPortal.reservedUntil, 'La reserva trae su vencimiento.')
+assert.equal(reservaPortal.model, producto.name, 'La reserva trae el equipo.')
+
 // ── Regeneración: el enlace anterior deja de funcionar ─────────────────────
 result = await request(`/api/customers/${encodeURIComponent(cliente.id)}/access-token`, 'POST', { level: 'rapido', regenerate: true }, sellerToken)
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))

@@ -59,6 +59,22 @@ test('el taller y los pedidos listos para retirar avisan con atajo a su sección
   assert.match(avisos[1].titulo, /MOB-#0004/)
 })
 
+test('la reserva por vencer entra como aviso accionable', () => {
+  const porVencer = avisosDeCuenta(base({ reservas: [{ serial: 'A1', model: 'iPhone 13', reservedUntil: enDias(2) }] }), AHORA)
+  assert.equal(porVencer[0].tipo, 'reserva_por_vencer')
+  assert.equal(porVencer[0].tono, 'warn')
+  assert.match(porVencer[0].titulo, /vence en 2 días/)
+  assert.equal(porVencer[0].destino, '#reservas')
+  const vencida = avisosDeCuenta(base({ reservas: [{ serial: 'A1', model: 'iPhone 13', reservedUntil: enDias(0) }] }), AHORA)
+  assert.equal(vencida[0].tono, 'bad')
+  assert.match(vencida[0].titulo, /vence hoy/)
+  const lejos = avisosDeCuenta(base({ reservas: [{ serial: 'A1', model: 'iPhone 13', reservedUntil: enDias(10) }] }), AHORA)
+  assert.equal(lejos.length, 0)
+  // La reserva va antes que los pedidos en camino (accionable).
+  const orden = avisosDeCuenta(base({ reservas: [{ serial: 'A1', model: 'iPhone 13', reservedUntil: enDias(1) }], orders: [{ orderNumber: 'MOB-0003', fulfillmentStatus: 'IN_TRANSIT' }] }), AHORA)
+  assert.equal(orden[0].tipo, 'reserva_por_vencer')
+})
+
 test('la garantía avisa si está vencida o vence dentro de 30 días', () => {
   const porVencer = avisosDeCuenta(base({ warranties: [{ serial: 'A1', description: 'iPhone 15', daysRemaining: 12 }] }), AHORA)
   assert.equal(porVencer[0].tipo, 'garantia_por_vencer')
