@@ -59,7 +59,9 @@ test('el portal del cliente se abre desde la ficha y muestra el saldo pendiente'
   await expect(portal.getByRole('heading', { name: 'Tienda E2E' })).toBeVisible()
   await expect(portal.getByText('Saldo pendiente')).toBeVisible()
   await expect(portal.getByText('Gs 60.000').first()).toBeVisible()
-  await expect(portal.getByText(numeroPedido)).toBeVisible()
+  // El código aparece en la lista de pagos y en el resumen del pedido: alcanza
+  // con que se vea (el portal nuevo lo repite a propósito).
+  await expect(portal.getByText(numeroPedido).first()).toBeVisible()
   await expect(portal.getByText('Al día')).toHaveCount(0)
 
   // El selector de nivel cambia el alcance del portal (dentro de la ficha).
