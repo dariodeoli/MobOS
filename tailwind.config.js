@@ -1,6 +1,12 @@
+import preset, { owncodingContent } from 'owncoding-ui/tailwind-preset'
+
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./index.html', './src/**/*.{js,jsx}'],
+  // Biblioteca compartida (#241): el preset trae los colores y `owncodingContent`
+  // el bundle de la librería; Tailwind 3.4 ignora el content del preset, así que
+  // las rutas tienen que vivir acá (si no, purga las clases de los objetos).
+  presets: [preset],
+  content: [...owncodingContent, './index.html', './src/**/*.{js,jsx}'],
   darkMode: 'class',
   theme: {
     extend: {

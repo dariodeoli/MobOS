@@ -4,18 +4,18 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 
-// Guarda de contraste de la paleta (#176/#241): los tokens que se usan como
-// TEXTO tienen que cumplir AA (4.5:1) sobre las superficies del tema. Cubre la
-// paleta base y el scope v2 (`.v2-piloto` / `.tema-v2`) en ambos temas. Si
-// alguien toca la paleta y un token deja de ser legible, este test lo frena.
+// Guarda de contraste y adopción de la paleta (#176/#241): los tokens que se
+// usan como TEXTO tienen que cumplir AA (4.5:1) sobre las superficies del
+// tema. Desde la adopción de #241 la paleta v2 es **global** y vive en la
+// biblioteca (`owncoding-ui`, importada con `styles.css`); este test la mide
+// donde realmente está y frena si la app vuelve a pisar tokens a mano.
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url))
-const css = readFileSync(join(RAIZ, 'index.css'), 'utf8')
-const lineas = css.split('\n')
+const cssApp = readFileSync(join(RAIZ, 'index.css'), 'utf8')
+const cssLib = readFileSync(join(RAIZ, '../node_modules/owncoding-ui/dist/styles.css'), 'utf8')
+const lineas = cssLib.split('\n')
 
 // Devuelve el bloque que ABRE con el selector pedido y contiene tokens `--c-*`.
-// (Un `css.indexOf` a secas puede caer en un bloque sin tokens, como el
-// `html.dark { color-scheme: dark }` que precede a la paleta.)
 function bloqueDe(apertura) {
   const inicios = lineas
     .map((linea, indice) => (linea.trim().startsWith(apertura) ? indice : -1))
@@ -26,7 +26,7 @@ function bloqueDe(apertura) {
     const bloque = lineas.slice(inicio, fin + 1).join('\n')
     if (bloque.includes('--c-')) return bloque
   }
-  assert.fail(`falta el bloque de tokens que abre con ${apertura}`)
+  assert.fail(`la biblioteca no define el bloque de tokens que abre con ${apertura}`)
 }
 
 function tokensDe(apertura) {
@@ -37,12 +37,11 @@ function tokensDe(apertura) {
   return tokens
 }
 
-// Paleta efectiva: la base del tema y encima los overrides del scope v2.
+// Paleta efectiva de la app: la global de la biblioteca (los scopes v2 ya no
+// traen overrides; `.tema-v2`/`.v2-piloto` son alias).
 const PALETAS = {
-  'claro (base)': [':root {'],
-  'oscuro (base)': ['html.dark {'],
-  'claro (v2)': [':root {', '.v2-piloto,'],
-  'oscuro (v2)': ['html.dark {', '.dark .v2-piloto,'],
+  claro: [':root {'],
+  oscuro: ['html.dark {'],
 }
 
 function efectiva(bloques) {
@@ -64,7 +63,31 @@ const sobre = (color, alfa, fondo) => color.map((valor, indice) => valor * alfa 
 const TEXTO = ['fore', 'mute', 'fono-dark', 'fono-light', 'ok', 'warn', 'bad', 'info']
 const SUPERFICIES = ['paper', 'ink', 'ink-900', 'ink-800']
 
-test('los tokens de texto de la paleta cumplen contraste AA en claro y oscuro (base y v2)', () => {
+test('la app adopta la paleta de la biblioteca y no vuelve a pisarla', () => {
+  // Estructura de la adopción (#241): paquete fijado a un tag, preset de
+  // Tailwind con el content del bundle y styles.css después de Tailwind.
+  const pkg = JSON.parse(readFileSync(join(RAIZ, '../package.json'), 'utf8'))
+  const spec = String(pkg.dependencies?.['owncoding-ui'] || '')
+  assert.match(spec, /owncoding-ui/, 'falta la dependencia owncoding-ui')
+  assert.match(spec, /v\d+\.\d+\.\d+/, 'la biblioteca se fija a un tag (no a una rama)')
+  const tailwind = readFileSync(join(RAIZ, '../tailwind.config.js'), 'utf8')
+  assert.match(tailwind, /presets:\s*\[preset\]/, 'el preset de la biblioteca va en tailwind.config')
+  assert.match(tailwind, /owncodingContent/, 'el content del bundle tiene que estar (Tailwind 3.4 lo ignora del preset)')
+  const posTailwind = cssApp.indexOf('@tailwind utilities;')
+  const posImport = cssApp.indexOf("@import 'owncoding-ui/styles.css'")
+  assert.ok(posImport > 0, 'falta el import de styles.css en el CSS principal')
+  // Vite exige que los @import precedan al resto (spec CSS): va antes de las
+  // directivas de Tailwind y las reglas propias quedan después (y ganan).
+  assert.ok(posImport < posTailwind, 'styles.css va antes de las directivas de Tailwind (Vite)')
+  // Sin bloques locales de paleta: el ajuste de un rol va a la biblioteca.
+  assert.doesNotMatch(
+    cssApp,
+    /--c-(paper|fore|ink|ink-\d|mute|fono|fono-dark|fono-light|fono-glow|ok|bad|warn|info|reserved|onbrand|pass|pass-dark|pass-soft|accion)\s*:/,
+    'la app no puede redefinir la paleta --c-*',
+  )
+})
+
+test('los tokens de texto de la paleta cumplen contraste AA en claro y oscuro', () => {
   for (const [tema, bloques] of Object.entries(PALETAS)) {
     const tokens = efectiva(bloques)
     for (const rol of TEXTO) {
@@ -81,14 +104,14 @@ test('los tokens de texto de la paleta cumplen contraste AA en claro y oscuro (b
 
 test('el ítem activo del shell v2 cumple AA sobre su propio tinte (#241)', () => {
   // Claro: azul de acción como texto sobre `rgb(var(--c-info) / .14)`.
-  const claro = efectiva(PALETAS['claro (v2)'])
+  const claro = efectiva(PALETAS.claro)
   const fondoClaro = sobre(claro.info, 0.14, claro['ink-800'])
   assert.ok(
     contraste(claro.info, fondoClaro) >= 4.5,
     `claro: texto activo sobre su tinte da ${contraste(claro.info, fondoClaro).toFixed(2)}:1`,
   )
   // Oscuro: texto de primer nivel sobre `rgb(var(--c-info) / .20)`.
-  const oscuro = efectiva(PALETAS['oscuro (v2)'])
+  const oscuro = efectiva(PALETAS.oscuro)
   const fondoOscuro = sobre(oscuro.info, 0.2, oscuro['ink-800'])
   assert.ok(
     contraste(oscuro.fore, fondoOscuro) >= 4.5,
