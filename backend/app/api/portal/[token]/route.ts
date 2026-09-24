@@ -68,6 +68,21 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     take: 10,
   })
 
+  // Mensajes de la tienda al cliente (#240 → portal): los activos (sin vencer),
+  // con el visto marcado al abrir la cuenta: `nuevo` es el primer render.
+  const mensajes = await prisma.customerNotice.findMany({
+    where: { tenantId: portal.tenantId, customerId: portal.customerId, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+    select: { id: true, content: true, createdAt: true, firstViewedAt: true },
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+  })
+  if (mensajes.length) {
+    const ahora = new Date()
+    const ids = mensajes.map((mensaje) => mensaje.id)
+    await prisma.customerNotice.updateMany({ where: { id: { in: ids } }, data: { lastViewedAt: ahora } })
+    await prisma.customerNotice.updateMany({ where: { id: { in: ids }, firstViewedAt: null }, data: { firstViewedAt: ahora } })
+  }
+
   const [orders, saldo, dueOrders, warrantyRows] = await Promise.all([
     prisma.order.findMany({
       where: { tenantId: portal.tenantId, customerId: portal.customerId, archivedAt: null },
@@ -162,6 +177,8 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
       receivedAt: orden.receivedAt,
       deliveredAt: orden.deliveredAt,
     })),
+    // Mensajes de la tienda: contenido y fecha; `nuevo` en el primer render.
+    mensajes: mensajes.map(({ content, createdAt, firstViewedAt }) => ({ content, createdAt, nuevo: !firstViewedAt })),
     orders: orders.map(order => {
       // #178: el pedido nuevo no guarda su token histórico en claro; el enlace
       // del comprobante sale del enlace vigente de nivel rápido (o del legacy).

@@ -53,6 +53,8 @@ export const ACCIONES_AUDITORIA: Record<string, string> = {
   CUSTOMER_BILLING_UPDATED: 'Facturación del cliente',
   CUSTOMER_DEVICE_REPORT_SHARED: 'Informe de equipo compartido',
   CUSTOMER_DEVICE_REPORT_VIEWED: 'Informe de equipo visto por el cliente',
+  CUSTOMER_NOTICE_CREATED: 'Mensaje al cliente',
+  CUSTOMER_NOTICE_DELETED: 'Mensaje al cliente eliminado',
   CASH_OPENED: 'Caja abierta',
   CASH_CLOSED: 'Caja cerrada',
   CASH_MOVEMENT_RECORDED: 'Movimiento de caja',

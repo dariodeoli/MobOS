@@ -74,7 +74,7 @@ export async function GET(request: Request, { params }: RouteContext) {
     take: 50,
   })
 
-  const [notes, billingIdentities, followUps, deviceReportShares, serviceOrders] = await Promise.all([
+  const [notes, billingIdentities, followUps, deviceReportShares, serviceOrders, customerNotices] = await Promise.all([
     prisma.customerNote.findMany({
       where: { tenantId: session.user.tenantId, customerId: customer.id },
       select: { id: true, content: true, createdAt: true, user: { select: { id: true, name: true } } },
@@ -109,6 +109,13 @@ export async function GET(request: Request, { params }: RouteContext) {
       orderBy: { receivedAt: 'desc' },
       take: 20,
     }),
+    // Mensajes de la tienda al cliente (#240 → portal) con su visto/no visto.
+    prisma.customerNotice.findMany({
+      where: { tenantId: session.user.tenantId, customerId: customer.id },
+      select: { id: true, content: true, expiresAt: true, firstViewedAt: true, lastViewedAt: true, createdAt: true, user: { select: { id: true, name: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+    }),
   ])
 
   return json({
@@ -121,6 +128,7 @@ export async function GET(request: Request, { params }: RouteContext) {
     billingIdentities,
     deviceReportShares,
     serviceOrders,
+    customerNotices,
   })
 }
 

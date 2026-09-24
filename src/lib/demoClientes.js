@@ -97,6 +97,11 @@ export const SEED_DEMO_CLIENTES = [
       services: [
         { id: 'demo-os-1', serviceNumber: 'OS-0004', device: 'iPhone 12 · 128 GB', serviceName: 'Cambio de batería', serial: 'AUR002100000000', status: 'LISTO', receivedAt: haceDias(5), deliveredAt: null },
       ],
+      // Mensajes de la tienda (#240 → portal): uno visto y uno nuevo.
+      notices: [
+        { id: 'demo-av-2', content: 'Tu equipo ya está listo para retirar: te esperamos de 9 a 19 h.', createdAt: haceDias(1), firstViewedAt: null, user: { id: 'demo-user', name: 'Diego López' } },
+        { id: 'demo-av-1', content: '¡Gracias por tu compra! Cualquier consulta sobre el equipo, escribinos.', createdAt: haceDias(6), firstViewedAt: haceDias(5), user: { id: 'demo-user', name: 'Ana Giménez' } },
+      ],
     },
   },
   {
@@ -203,6 +208,7 @@ const clienteExtra = (id, nombres, documento, telefono, ciudad, opciones = {}) =
     orders: opciones.pedidos || [],
     warranties: opciones.garantias || [],
     services: opciones.servicios || [],
+    notices: opciones.avisos || [],
     notes: opciones.notas ? [{ id: `${id}-nota`, content: opciones.notas, createdAt: haceDias(10), user: usuarioDemo('Diego López') }] : [],
     followUps: [],
     billingIdentities: [],
@@ -422,6 +428,8 @@ export function buildDemoProfile(customer = {}) {
     deviceReportShares: filasInformeDemo(customer.id),
     // Servicio técnico (#240 §4): mismas órdenes que muestra el taller.
     serviceOrders: Array.isArray(demo.services) ? demo.services : [],
+    // Mensajes de la tienda al cliente (#240 → portal) con su visto/no visto.
+    customerNotices: Array.isArray(demo.notices) ? demo.notices : [],
     debtPyg: orders.reduce((suma, order) => suma + Number(order.pendingPyg || 0), 0),
     demo: true,
   }
@@ -516,6 +524,13 @@ export function demoCuentaPayload(token) {
       dueAt: order.pendingPyg > 0 ? haceDias(-6) : null,
       ...(nivel === 'completo' ? { receiptToken: `demo-${order.id}` } : {}),
     })),
+    // Mensajes de la tienda (#240 → portal): mismo contrato que /api/portal;
+    // el visto se marca al abrir la cuenta (en memoria, como el resto de demo).
+    mensajes: (cliente.demoProfile?.notices || []).map((aviso) => {
+      const nuevo = !aviso.firstViewedAt
+      if (nuevo) aviso.firstViewedAt = new Date().toISOString()
+      return { content: aviso.content, createdAt: aviso.createdAt, nuevo }
+    }),
     informes: orders.flatMap((order) => (order.items || []).flatMap((item) => (item.serials || []).map((serial) => ({ serial, model: item.description, orderNumber: order.orderNumber })))),
     // Servicio técnico (#240 §4): el portal muestra estado y fechas, sin
     // costos ni datos internos (mismo contrato que /api/portal).

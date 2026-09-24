@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { API_URL } from '@/lib/api/client'
 import { varianteDeTema } from '@/lib/tenantLogo'
@@ -30,6 +30,18 @@ export default function CuentaPublica() {
   const [cuenta, setCuenta] = useState(null)
   const [error, setError] = useState('')
   const [logoOk, setLogoOk] = useState(true)
+  // El chip «Nuevo» de los mensajes se mantiene durante la carga aunque la
+  // página repita el fetch (StrictMode en dev): el visto se marca en el primer
+  // request, así que la respuesta repetida llegaría sin el chip.
+  const nuevosRef = useRef(new Set())
+  const conNuevos = (payload) => {
+    const clave = (mensaje) => `${mensaje.createdAt}|${mensaje.content}`
+    for (const mensaje of payload?.mensajes || []) if (mensaje.nuevo) nuevosRef.current.add(clave(mensaje))
+    return {
+      ...payload,
+      mensajes: (payload?.mensajes || []).map((mensaje) => ({ ...mensaje, nuevo: mensaje.nuevo || nuevosRef.current.has(clave(mensaje)) })),
+    }
+  }
 
   useEffect(() => {
     let active = true
@@ -38,7 +50,7 @@ export default function CuentaPublica() {
     // ficticios, sin llamar al API.
     if (esTokenDemo(token)) {
       const payload = demoCuentaPayload(token)
-      if (payload) setCuenta(payload)
+      if (payload) setCuenta(conNuevos(payload))
       else setError('Cuenta no encontrada.')
       return () => { active = false }
     }
@@ -46,7 +58,10 @@ export default function CuentaPublica() {
       .then(async response => {
         const payload = await response.json().catch(() => null)
         if (!response.ok) throw new Error(payload?.message || payload?.error || 'Cuenta no encontrada.')
-        if (active) setCuenta(payload)
+        // El «Nuevo» se registra aunque el fetch quede viejo (StrictMode): el
+        // visto ya se marcó en ese request.
+        const normalizado = conNuevos(payload)
+        if (active) setCuenta(normalizado)
       })
       .catch(cause => { if (active) setError(cause?.message || 'No se pudo cargar la cuenta.') })
     return () => { active = false }
@@ -109,6 +124,24 @@ export default function CuentaPublica() {
                       </span>
                       <Icon name="chevron" className="mt-1 h-4 w-4 shrink-0 text-mute" aria-hidden="true" />
                     </a>
+                  ))}
+                </div>
+              </PortalSeccion>
+            )}
+
+            {/* Mensajes de la tienda (#240 → portal): lo que el equipo publicó
+                desde la ficha; el primer render sin ver llega como «Nuevo». */}
+            {cuenta.mensajes?.length > 0 && (
+              <PortalSeccion titulo="Mensajes de la tienda" icono="megaphone" data-testid="portal-mensajes">
+                <div className="mt-3 space-y-2">
+                  {cuenta.mensajes.map((mensaje, index) => (
+                    <article key={`${mensaje.createdAt}-${index}`} className="rounded-xl bg-ink-800/60 px-3 py-2.5 text-sm">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="min-w-0 whitespace-pre-wrap break-words">{mensaje.content}</p>
+                        {mensaje.nuevo && <PortalEstado tono="info">Nuevo</PortalEstado>}
+                      </div>
+                      <p className="mt-1 text-[11px] text-mute">{fechaHora(mensaje.createdAt)}</p>
+                    </article>
                   ))}
                 </div>
               </PortalSeccion>
