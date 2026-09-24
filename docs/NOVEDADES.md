@@ -11,6 +11,14 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.160 — 2026-09-24
+- **Nuevo look por defecto (#241):** el **lenguaje visual v2 (device ops)** queda **activo por defecto** en toda la app —paleta global desde la biblioteca, shell con más densidad— con accesibilidad AA y opción de volver al tema anterior desde Configuración.
+- **POS (#241 paso 5):** el **cobro completo y los modales de venta** ya usan el v2, con contraste AA en claro y oscuro.
+- **Abastecimiento (#250 F6 y §11):** **automatización de reposición**, métricas del centro y **AEX**; contrato e **impresiones** del abastecimiento (etiquetas y comprobantes).
+- **Caja (#83):** los **KPI de Caja se calculan sobre todo el historial** (ya no solo el período visible).
+- **Clientes (#240):** **«Tus pagos»** en la cuenta del cliente (historial de pagos con su estado).
+- **Componentes:** **lote 27** — tokens v2 globales (**biblioteca v0.21.0**) y migración coordinada.
+
 ## v1.0.159 — 2026-09-24
 - **Abastecimiento (#250):** **Fase 5** — la **recepción del envío** da de alta las unidades en **stock** del destino (cierra el ciclo compra → lote → tránsito → góndola).
 - **Créditos (#83):** la lista se corta en 200 filas pero los **totales incluyen a todos los deudores** (ya no subestiman la cartera).
