@@ -3,6 +3,7 @@ import Icon from '@/components/shared/Icon'
 import SelectorMedioPago from '@/components/shared/SelectorMedioPago'
 import NumericKeypad from '@/components/shared/NumericKeypad'
 import { cn } from '@/lib/utils'
+import { temaV2Activo } from '@/lib/temaV2'
 import { gs } from '@/utils/calculos'
 import { capitalizarPrimera } from '@/utils/texto'
 import { ENTREGA } from '@/lib/catalog'
@@ -50,7 +51,14 @@ export default function PasoCobro({
   const pagoCompleto = totalGeneral > 0 && totalPagado >= totalGeneral
   const sinPago = totalPagado <= 0
   return (
-    <section className="space-y-3.5 rounded-2xl border border-ink-600 bg-ink-800 p-3.5">
+    <section
+      data-testid="pos-cobro"
+      className={cn(
+        'space-y-3.5 rounded-2xl border border-ink-600 bg-ink-800 p-3.5',
+        // Lenguaje v2 (#241, paso 5): el bloque de cobro detrás del flag.
+        temaV2Activo() && 'tema-v2',
+      )}
+    >
       <EncabezadoBloque
         titulo="Cobro y entrega"
         descripcion="Dividí el cobro entre cuentas, elegí la entrega y guardá la venta."
@@ -332,7 +340,7 @@ export default function PasoCobro({
               {gs(totalGeneral)}
             </strong>
           </span>
-          <span className="rounded-xl border border-ok/25 bg-ok/10 px-3 py-2" data-testid="cobro-pagado">
+          <span className="rounded-xl border border-ok/25 bg-ok/10 px-3 py-2 text-ok" data-testid="cobro-pagado">
             Pagado
             <strong className="v2-numero mt-0.5 block text-base tabular-nums text-ok">
               {gs(totalPagado)}
@@ -342,7 +350,7 @@ export default function PasoCobro({
             data-testid="cobro-pendiente"
             className={cn(
               'rounded-xl border px-3 py-2',
-              pendiente ? 'border-warn/25 bg-warn/10' : 'border-ink-600',
+              pendiente ? 'border-warn/25 bg-warn/10 text-warn' : 'border-ink-600 text-mute',
             )}
           >
             Pendiente
@@ -362,7 +370,15 @@ export default function PasoCobro({
         <Button
           type="submit"
           variant={pagoCompleto ? 'success' : sinPago ? 'danger' : 'primary'}
-          className={`sticky bottom-20 min-h-12 flex-1 text-base shadow-lg shadow-fono/10 lg:bottom-3 ${!pagoCompleto && !sinPago ? 'bg-warn text-black hover:brightness-110' : ''}`}
+          className={cn(
+            'sticky bottom-20 min-h-12 flex-1 text-base shadow-lg shadow-fono/10 lg:bottom-3',
+            // AA (#241): sobre ok/bad/warn el texto sigue el tema (blanco sobre
+            // el verde/rojo/ámbar oscuro del claro; negro sobre los tonos
+            // claros del oscuro).
+            pagoCompleto && 'text-white dark:text-black',
+            sinPago && 'text-white dark:text-black',
+            !pagoCompleto && !sinPago && 'bg-warn text-white dark:text-black hover:brightness-110',
+          )}
           disabled={!valido || guardando || !cuentas || Boolean(errorCuentas) || guardadoIncompleto}
         >
           {guardando
