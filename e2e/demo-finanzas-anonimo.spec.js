@@ -78,10 +78,15 @@ test.describe('demo anónimo · Finanzas', () => {
     if (notaConciliacion) {
       const filas = page.getByTestId('conciliacion-fila')
       await expect(filas.first()).toBeVisible()
-      await filas.nth(0).getByRole('checkbox').check()
-      await filas.nth(1).getByRole('checkbox').check()
-      await page.getByRole('button', { name: 'Conciliar lote' }).click()
-      await expect(page.getByText(/Lote conciliado \(demo\)/)).toBeVisible()
+      // Filas por contenido: el orden del demo no es estable entre corridas.
+      const efectivo = filas.filter({ hasText: /Efectivo\s*Efectivo/ })
+      await expect(efectivo.nth(1)).toBeVisible()
+      await efectivo.nth(0).getByRole('checkbox').check()
+      await efectivo.nth(1).getByRole('checkbox').check()
+      await expect(async () => {
+        await page.getByRole('button', { name: 'Conciliar lote' }).click()
+        await expect(page.getByText(/Lote conciliado \(demo\)/)).toBeVisible({ timeout: 4000 })
+      }).toPass({ timeout: 30_000 })
       await expect(page.getByTestId('conciliacion-lote').first()).toBeVisible()
     }
 

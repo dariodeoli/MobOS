@@ -93,9 +93,13 @@ test.describe('demo de Finanzas', () => {
     const filas = page.getByTestId('conciliacion-fila')
     await expect(filas.first()).toBeVisible()
 
-    // Un lote cubre una sola cuenta: se eligen dos cobros de efectivo (sin cuenta).
-    await filas.nth(0).getByRole('checkbox').check()
-    await filas.nth(1).getByRole('checkbox').check()
+    // Un lote cubre una sola cuenta: se eligen dos cobros de efectivo (mismo
+    // medio y cuenta «Efectivo»). El orden de las filas no es estable entre
+    // corridas (los ids del demo son nuevos), así que se eligen por contenido.
+    const efectivo = filas.filter({ hasText: /Efectivo\s*Efectivo/ })
+    await expect(efectivo.nth(1)).toBeVisible()
+    await efectivo.nth(0).getByRole('checkbox').check()
+    await efectivo.nth(1).getByRole('checkbox').check()
     // El toast es transitorio: si el click se pierde, se reintenta con el aviso.
     await expect(async () => {
       await page.getByRole('button', { name: 'Conciliar lote' }).click()
