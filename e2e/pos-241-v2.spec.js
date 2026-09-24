@@ -99,9 +99,13 @@ for (const [vista, ancho, alto] of [['desktop', 1280, 900], ['mobile', 390, 844]
 
         // Pago completo: el botón «Confirmar venta» (variante success) también
         // tiene que cumplir AA en los dos temas.
-        const filaDosChip = page.getByTestId('pago-fila-1').getByRole('button', { name: 'No pagado' })
-        if (await filaDosChip.count()) await filaDosChip.click()
-        await expect(page.getByRole('button', { name: /^Confirmar venta/ })).toBeVisible()
+        // El chip puede no estar renderizado todavía (la fila se asienta tras
+        // los fills): se reintenta clickearlo hasta que aparezca el botón.
+        await expect(async () => {
+          const chip = page.getByTestId('pago-fila-1').getByRole('button', { name: 'No pagado' })
+          if (await chip.count()) await chip.click()
+          await expect(page.getByRole('button', { name: /^Confirmar venta/ })).toBeVisible({ timeout: 3000 })
+        }).toPass({ timeout: 20_000 })
         await page.screenshot({ path: `${SHOTS}/c241f3p5-${sufijo}-cobro-completo.png` })
         const cobroCompleto = await auditarContraste(page, RAICES_POS, RAICES_MODAL)
         informar(`pos-${sufijo}-cobro-completo`, cobroCompleto)
