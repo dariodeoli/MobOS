@@ -11,6 +11,15 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.159 — 2026-09-24
+- **Abastecimiento (#250):** **Fase 5** — la **recepción del envío** da de alta las unidades en **stock** del destino (cierra el ciclo compra → lote → tránsito → góndola).
+- **Créditos (#83):** la lista se corta en 200 filas pero los **totales incluyen a todos los deudores** (ya no subestiman la cartera).
+- **Clientes (#240):** **«Tus reservas»** en la cuenta del cliente (qué está apartado, con fecha y sucursal).
+- **Páginas públicas (#241):** el **pedido público y la landing** usan el lenguaje v2, con el paquete de aprobación **F4** y capturas.
+- **POS (#249 #241):** los **modales de venta** quedan medidos con el flag v2 y guarda táctil.
+- **Calidad (#245):** se recuperaron **5 specs que corrían en el vacío** por patrones mal escapados (+17 tests reales en el gate) y se documentó el cierre de la racha.
+- **Componentes:** **lote 26** (recepción e incidencias) a la biblioteca (v0.20.0).
+
 ## v1.0.158 — 2026-09-24
 - **Abastecimiento (#250):** el **QR del manifiesto** de un lote abre la **página pública del envío** (sin sesión: código, origen/destino, método, unidades e IMEI; **sin costos, proveedor ni cliente**), con rate limit.
 
