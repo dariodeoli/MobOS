@@ -11,6 +11,9 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.156 — 2026-09-24
+- **Estabilidad del pipeline:** se cierra la erradicación de tests intermitentes con **3 corridas de integración continua verdes consecutivas** y un **verificador de racha**; **0 tests en cuarentena**. No hay cambios visibles para el usuario (mismo producto que la v1.0.155).
+
 ## v1.0.155 — 2026-09-24
 - **POS (#148 #249):** el **split** muestra el **estado por bloque** de cada parte y suma **«marcar como no pagado»**; el carrito y el cobro tienen **targets táctiles de 44 px** en mobile, y el **barrido responsive** de la suite entra al gate.
 - **Abastecimiento (#250):** **Fase 2 y 3** — compra rápida con **IMEI** y stock adicional, y preparación de la compra desde el centro de abastecimiento.
