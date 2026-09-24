@@ -10,7 +10,12 @@ import { SHELL, auditarContraste, informar } from './helpers/contraste.js'
 import { SEED } from './helpers/seed-data.js'
 // Token del pedido semilla (lo escribe el global-setup): la página pública se
 // audita con el mismo pedido que usa el tracking.
-const PEDIDO_SEMILLA = JSON.parse(readFileSync(new URL('./.auth/seed-order.json', import.meta.url), 'utf8'))
+// El archivo lo crea el global-setup del harness: tolerar su ausencia deja que
+// `playwright --list` (y el guardián de shards en CI) funcione sin setup.
+let PEDIDO_SEMILLA = { publicToken: '', orderNumber: '' }
+try {
+  PEDIDO_SEMILLA = JSON.parse(readFileSync(new URL('./.auth/seed-order.json', import.meta.url), 'utf8'))
+} catch { /* sin setup: el listado no lo necesita */ }
 
 
 const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/rediseno'
