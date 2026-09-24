@@ -106,10 +106,10 @@ Sigue siendo una máquina muy cargada (varios agentes): los valores absolutos
 varían entre corridas; lo determinista son los pedidos menos por pantalla, el
 tamaño de los chunks y que cada sección/pantalla carga solo lo suyo.
 
-## Producción v1.0.153 (medición después del deploy)
+## Producción (v1.0.153 y re-verificado en v1.0.154)
 
 `scripts/qa-247-produccion.mjs` → [`produccion/resultados.json`](produccion/resultados.json)
-y capturas `01-demo-inventario` … `05-demo-finanzas`.
+(registra la versión medida) y capturas `01-demo-inventario` … `05-demo-finanzas`.
 
 | Métrica | v1.0.152 (antes) | v1.0.153 (después) |
 | --- | --- | --- |

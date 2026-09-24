@@ -65,6 +65,8 @@ resultados.push({
 await page.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded' })
 await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
 await page.waitForURL(/\/resumen$/, { timeout: 20000 })
+const pie = (await page.getByText(/v\d+\.\d+\.\d+/).first().textContent().catch(() => '')) || ''
+const version = (pie.match(/v\d+\.\d+\.\d+/) || [])[0] || ''
 await page.getByRole('dialog', { name: 'Cómo funciona la demo' }).getByRole('button', { name: 'Cerrar' }).click({ timeout: 4000 }).catch(() => {})
 
 for (const pantalla of PANTALLAS) {
@@ -88,12 +90,13 @@ for (const pantalla of PANTALLAS) {
 const resumen = {
   verificado: new Date().toISOString(),
   base: BASE,
+  version,
   entryKB,
   baselineKB,
   llamadasApi: [...new Set(llamadasApi)],
   resultados,
 }
 writeFileSync(join(SALIDA, 'resultados.json'), `${JSON.stringify(resumen, null, 2)}\n`)
-console.log(`\nEntry: ${entryKB} KB${baselineKB ? ` (antes ${baselineKB} KB)` : ''} · pantallas: ${resultados.length - 1} · llamadas al API en la demo: ${resumen.llamadasApi.length}`)
+console.log(`\n${version || '(versión sin detectar)'} · entry: ${entryKB} KB${baselineKB ? ` (antes ${baselineKB} KB)` : ''} · pantallas: ${resultados.length - 1} · llamadas al API en la demo: ${resumen.llamadasApi.length}`)
 
 await browser.close()
