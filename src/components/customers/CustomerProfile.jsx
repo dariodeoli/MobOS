@@ -15,6 +15,7 @@ import { portalUrlFor, portalVitrinaUrlFor } from '@/lib/customerPortal'
 import EstadoBadge from '@/components/shared/EstadoBadge'
 import { ESTADO_ENTREGA_BADGE, ESTADO_GARANTIA_BADGE, ESTADO_PEDIDO_BADGE } from '@/lib/estadosPedido'
 import { ESTADO_SERVICIO_LABEL, ESTADO_SERVICIO_TONO } from '@/lib/estadosServicio'
+import { temaV2Activo } from '@/lib/temaV2'
 import { PERIODOS_INFORME, rangoPeriodo, seccionesInforme, informeCsv, nombreArchivoInforme } from '@/lib/customerReport'
 import SerialTexto from '@/components/shared/SerialTexto'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
@@ -808,6 +809,8 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   // Seguimiento del informe compartido (#240 ítem 3): fila por serial con el
   // último envío y las aperturas del link público.
   const seguimientoInforme = new Map((profile?.deviceReportShares || []).map((fila) => [String(fila.serial || '').trim().toUpperCase(), fila]))
+  // Vista previa v2 (#241 lote B): tiles de cliente y números de consola.
+  const v2Ficha = temaV2Activo()
   // Servicio técnico (#240 §4): órdenes del taller del cliente.
   const servicios = profile?.serviceOrders || []
   // Mensajes de la tienda al cliente (#240 → portal).
@@ -1212,33 +1215,33 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
           {tab === 'resumen' && (
           <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
+            <div className={cn('rounded-xl border p-3', v2Ficha ? 'v2-tile' : 'border-ink-600 bg-ink-800')}>
               <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Total gastado</p>
-              <p className="mt-1 text-lg font-semibold text-fore">{formatGs(totalComprado)}</p>
+              <p className={cn('mt-1 text-lg font-semibold text-fore', v2Ficha && 'v2-numero')}>{formatGs(totalComprado)}</p>
             </div>
-            <div className={cn('rounded-xl border p-3', deuda > 0 ? 'border-warn/40 bg-warn/5' : 'border-ink-600 bg-ink-800')}>
+            <div className={cn('rounded-xl border p-3', deuda > 0 ? 'border-warn/40 bg-warn/5' : v2Ficha ? 'v2-tile' : 'border-ink-600 bg-ink-800')}>
               <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Saldo pendiente</p>
               <div className="mt-1 flex items-center gap-2">
-                <p className={cn('text-lg font-semibold', deuda > 0 ? 'text-warn' : 'text-fore')}>{formatGs(deuda)}</p>
+                <p className={cn('text-lg font-semibold', deuda > 0 ? 'text-warn' : 'text-fore', v2Ficha && 'v2-numero')}>{formatGs(deuda)}</p>
                 <Badge color={deuda > 0 ? 'red' : 'green'}>{deuda > 0 ? 'Deuda' : 'Al día'}</Badge>
               </div>
             </div>
-            <div className={cn('rounded-xl border p-3', ordenesActivas > 0 ? 'border-fono/40 bg-fono/5' : 'border-ink-600 bg-ink-800')}>
+            <div className={cn('rounded-xl border p-3', ordenesActivas > 0 ? 'border-fono/40 bg-fono/5' : v2Ficha ? 'v2-tile' : 'border-ink-600 bg-ink-800')}>
               <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Órdenes activas</p>
-              <p className="mt-1 text-lg font-semibold text-fore">{ordenesActivas}</p>
+              <p className={cn('mt-1 text-lg font-semibold text-fore', v2Ficha && 'v2-numero')}>{ordenesActivas}</p>
             </div>
             <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
               <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Pedidos</p>
-              <p className="mt-1 text-lg font-semibold text-fore">{orders.length}</p>
+              <p className={cn('mt-1 text-lg font-semibold text-fore', v2Ficha && 'v2-numero')}>{orders.length}</p>
             </div>
             <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
               <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Última compra</p>
               <p className="mt-1 text-sm font-semibold text-fore">{ultimaCompra ? fecha(ultimaCompra) : 'Sin compras'}</p>
             </div>
             {warranties.length > 0 && (
-              <div className={cn('rounded-xl border p-3', garantiasActivas > 0 ? 'border-fono/40 bg-fono/5' : 'border-ink-600 bg-ink-800')}>
+              <div className={cn('rounded-xl border p-3', garantiasActivas > 0 ? 'border-fono/40 bg-fono/5' : v2Ficha ? 'v2-tile' : 'border-ink-600 bg-ink-800')}>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Garantías activas</p>
-                <p className="mt-1 text-lg font-semibold text-fore">{garantiasActivas}</p>
+                <p className={cn('mt-1 text-lg font-semibold text-fore', v2Ficha && 'v2-numero')}>{garantiasActivas}</p>
               </div>
             )}
           </div>
