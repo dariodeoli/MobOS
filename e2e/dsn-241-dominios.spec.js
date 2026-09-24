@@ -107,6 +107,7 @@ const PANTALLAS = [
     await expect(page.locator('[role="dialog"]').first()).toBeVisible({ timeout: 15_000 })
   }],
   ['finanzas', '/finanzas/caja', (page) => page.getByText('Saldo esperado').first()],
+  ['finanzas-conciliacion', '/finanzas/conciliacion', (page) => page.getByText('Ingresos conciliables').first()],
   ['servicio', '/servicio', (page) => page.getByTestId('servicio-fila').first(), prepararTaller],
   ['garantias', '/garantias', (page) => page.getByTestId('garantia-fila').first(), prepararGarantias],
   ['resumen', '/resumen', (page) => page.getByText('Facturado').first()],

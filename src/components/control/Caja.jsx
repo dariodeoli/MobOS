@@ -32,6 +32,7 @@ import { imprimirDocumento } from '@/lib/printing/agent'
 import { descargarCsv } from '@/utils/descargarCsv'
 import { parseDelimited } from '@/utils/csv'
 import { CELDA_DATO } from '@/components/shared/tabla'
+import { temaV2Activo } from '@/lib/temaV2'
 import { PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
 
 // Denominaciones del arqueo en guaraníes: son las mismas que acepta el backend
@@ -267,6 +268,9 @@ function fechaPagoLocal(paidAt) {
 }
 
 export default function Caja() {
+  // Vista previa v2 (#241): las tarjetas neutras de la caja usan el tile de
+  // consola (los números ya llevan el tamaño grande del scope).
+  const v2 = temaV2Activo()
   const { esDemo, sucursal, sesion: usuarioSesion, empresa, usuario } = useSesion()
   const [cash, setCash] = useState(null)
   const [finance, setFinance] = useState(null)
@@ -588,7 +592,7 @@ export default function Caja() {
               : 'Sin apertura'}
           </p>
         </Card>
-        <Card>
+        <Card className={v2 ? 'v2-tile' : undefined}>
           <Label>Saldo esperado</Label>
           <strong className="text-xl tabular-nums">
             <Money value={expected} />
@@ -609,19 +613,19 @@ export default function Caja() {
       </div>
       {finance && (
         <div className="grid gap-4 md:grid-cols-4">
-          <Card>
+          <Card className={v2 ? 'v2-tile' : undefined}>
             <Label>Por cobrar</Label>
             <strong>
               <Money value={finance.receivables?.totalPyg || 0} />
             </strong>
           </Card>
-          <Card>
+          <Card className={v2 ? 'v2-tile' : undefined}>
             <Label>Por pagar</Label>
             <strong>
               <Money value={finance.payables?.totalPyg || 0} />
             </strong>
           </Card>
-          <Card>
+          <Card className={v2 ? 'v2-tile' : undefined}>
             <Label>Margen real</Label>
             <strong>
               <Money value={finance.margin?.profitPyg || 0} />
@@ -630,7 +634,7 @@ export default function Caja() {
               {finance.margin?.marginPct ?? '—'}% · seguro y extras incluidos
             </p>
           </Card>
-          <Card>
+          <Card className={v2 ? 'v2-tile' : undefined}>
             <Label>Cheques pendientes</Label>
             <strong>
               {finance.movements?.filter(m => m.kind === 'CHEQUE' && m.status === 'PENDING')
