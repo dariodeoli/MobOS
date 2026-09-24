@@ -9,6 +9,7 @@ import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import { cn } from '@/lib/utils'
 import BarraLote from '@/components/shared/BarraLote'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
+import { temaV2Activo } from '@/lib/temaV2'
 import { CeldaMoneda, IconAction, useToast } from '@/components/ui'
 import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE, ROTULO_DATO } from '@/components/shared/tabla'
 import { fechaCompacta, fechaLegible } from '@/utils/pedido'
@@ -29,6 +30,8 @@ export const notaInterna = (notes) => {
 }
 
 export default function ClientesTabla({ rows, templates, onPerfil, onResumen }) {
+  // Vista previa v2 (#241 lote B): números de consola y chips pill en la fila.
+  const v2 = temaV2Activo()
   // Sin orden de columna, respeta el orden del servidor (actividad reciente).
   const [orden, setOrden] = useState(null)
   const toast = useToast()
@@ -117,13 +120,13 @@ export default function ClientesTabla({ rows, templates, onPerfil, onResumen }) 
                   {telefonoMostrado || 'Sin teléfono'}{row.email ? ` · ${row.email}` : ''}
                 </span>
               </span>
-              <span className={cn('inline-block w-fit max-w-full truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold', row.wholesale ? 'border-warn/30 bg-warn/10 text-warn' : 'border-ink-500 bg-ink-700/40 text-mute')}>
+              <span className={cn('inline-block w-fit max-w-full truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold', v2 && 'v2-chip', row.wholesale ? 'border-warn/30 bg-warn/10 text-warn' : 'border-ink-500 bg-ink-700/40 text-mute')}>
                 {row.wholesale ? 'Mayorista' : 'Cliente final'}
               </span>
-              <span className="truncate text-center text-sm font-semibold tabular-nums">{row.stats?.orders || 0}</span>
-              <span className="truncate text-right"><CeldaMoneda valor={row.stats?.totalSpentPyg || 0} className="text-sm text-fore" /></span>
+              <span className={cn('truncate text-center text-sm font-semibold tabular-nums', v2 && 'v2-numero')}>{row.stats?.orders || 0}</span>
+              <span className="truncate text-right"><CeldaMoneda valor={row.stats?.totalSpentPyg || 0} className={cn('text-sm text-fore', v2 && 'v2-numero')} /></span>
               <span className={cn('truncate', CELDA_DATO)} title={ultima ? fechaLegible(ultima) : undefined}>{ultima ? fechaCompacta(ultima) : '—'}</span>
-              <span className="truncate text-right">{deuda > 0 ? <CeldaMoneda valor={deuda} tono="warn" /> : <span className={CELDA_DATO}>Sin deuda</span>}</span>
+              <span className="truncate text-right">{deuda > 0 ? <CeldaMoneda valor={deuda} tono="warn" className={v2 ? 'v2-numero' : undefined} /> : <span className={CELDA_DATO}>Sin deuda</span>}</span>
               <span className="flex items-center justify-end gap-1.5">
                 {telefono ? (
                   <WhatsAppMenu

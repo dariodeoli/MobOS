@@ -311,7 +311,7 @@ export default function SellerCustomers() {
     {exportError && <p role="alert" className="text-sm text-bad">{exportError}</p>}
     {resumenMostrar && <div className="flex flex-wrap items-center gap-2 text-sm"><Badge color="blue">{resumenMostrar.total} clientes</Badge><Badge color="orange">{resumenMostrar.wholesalers} mayoristas</Badge><Badge color="slate">{resumenMostrar.retail} cliente final</Badge></div>}
     {v2 && rows.length > 0 && (
-      <div className="grid grid-cols-3 divide-ink-600 rounded-xl border border-ink-600 bg-ink-800/60 text-center sm:divide-x">
+      <div data-testid="resumen-clientes" className="grid grid-cols-3 divide-ink-600 rounded-xl border border-ink-600 bg-ink-800/60 text-center sm:divide-x">
         <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Clientes</p><p className="v2-numero mt-1 text-lg font-semibold tabular-nums sm:text-2xl">{rows.length}</p><p className="text-[11px] text-mute">en la lista</p></div>
         <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Con deuda</p><p className={cn('v2-numero mt-1 text-lg font-semibold tabular-nums sm:text-2xl', resumenV2.conDeuda > 0 ? 'text-warn' : 'text-ok')}>{resumenV2.conDeuda}</p><p className="text-[11px] text-mute">de los listados</p></div>
         <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Por cobrar</p><p className={cn('v2-numero mt-1 text-lg font-semibold tabular-nums sm:text-2xl', resumenV2.porCobrar > 0 ? 'text-warn' : 'text-ok')}>{gs(resumenV2.porCobrar)}</p><p className="text-[11px] text-mute">saldo pendiente</p></div>
