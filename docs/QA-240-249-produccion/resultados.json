@@ -1,0 +1,70 @@
+{
+  "url": "https://app.moboss.online",
+  "fecha": "2026-09-24T05:49:15.734Z",
+  "version": "v1.0.153",
+  "medidas": [
+    {
+      "control": "Resumen rápido",
+      "ancho": 44,
+      "alto": 44
+    },
+    {
+      "control": "WhatsApp",
+      "ancho": 44,
+      "alto": 44
+    },
+    {
+      "control": "Elegir plantilla",
+      "ancho": 44,
+      "alto": 44
+    },
+    {
+      "control": "Chip Todos",
+      "ancho": 113,
+      "alto": 44
+    },
+    {
+      "control": "Área de la casilla de lote",
+      "ancho": 44,
+      "alto": 44
+    },
+    {
+      "control": "Tablet · Resumen rápido",
+      "ancho": 44,
+      "alto": 44
+    },
+    {
+      "control": "Tablet · WhatsApp",
+      "ancho": 44,
+      "alto": 44
+    },
+    {
+      "control": "Tablet · chip Con deuda",
+      "ancho": 97,
+      "alto": 44
+    }
+  ],
+  "pasos": [
+    {
+      "paso": "#249 · clientes a 390: acciones, chips y lote ≥44 px",
+      "ok": true,
+      "detalle": "ojito 44×44 · WhatsApp 44×44 · resto ≥44"
+    },
+    {
+      "paso": "#249 · clientes a 768: los mismos targets ≥44 px",
+      "ok": true,
+      "detalle": "ojito 44×44"
+    },
+    {
+      "paso": "#240 · el certificado embebible abre con ?embed=1",
+      "ok": true,
+      "detalle": "informe embebible de 356789012345678 abierto en el subdominio de la app"
+    }
+  ],
+  "capturas": [
+    "01-clientes-390.png",
+    "02-clientes-acciones-390.png",
+    "03-clientes-768.png",
+    "04-certificado-embebible-390.png"
+  ]
+}
