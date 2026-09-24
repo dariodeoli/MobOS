@@ -14,7 +14,9 @@ import { consolidarNecesidades, normalizarNecesidadManual, NECESIDAD_ESTADOS, ty
 // Sin UI y sin automatismos todavía: nada llama a esta ruta y ninguna venta o
 // reserva genera necesidades por sí sola (Fase 2). Tampoco crea stock: eso pasa
 // recién en la recepción (Fase 5).
-const ESTADOS_PENDIENTES = ['ABIERTA', 'ASIGNADA', 'COMPRADA']
+// «Por comprar» = lo que falta comprar: sin asignar y con comprador asignado.
+// Lo COMPRADO vive en su propia pestaña (`?status=COMPRADA`).
+const ESTADOS_PENDIENTES = ['ABIERTA', 'ASIGNADA']
 
 export async function GET(request: Request) {
   const tenant = await tenantId(request)

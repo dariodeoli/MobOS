@@ -59,7 +59,7 @@ valores válidos viven en `backend/lib/supply.ts`.
 
 | Método | Ruta | Qué hace |
 |---|---|---|
-| `GET` | `/api/supply/needs` | lista consolidada. Filtros: `status`, `branchId`, `productId`, `assignedToId`, `limit`. Por defecto solo pendientes (ABIERTA/ASIGNADA/COMPRADA) |
+| `GET` | `/api/supply/needs` | lista consolidada. Filtros: `status`, `branchId`, `productId`, `assignedToId`, `limit`. Por defecto solo lo que falta comprar (ABIERTA/ASIGNADA); lo COMPRADO se pide con `?status=COMPRADA` |
 | `POST` | `/api/supply/needs` | carga manual (`MANUAL`): `{ productId, quantity, branchId?, condition?, priority?, promisedAt?, notes? }` |
 | `PATCH` | `/api/supply/needs` | `{ id, action: 'assign', assignedToId }` o `{ id, action: 'cancel', reason }` |
 

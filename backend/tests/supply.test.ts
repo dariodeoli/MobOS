@@ -62,3 +62,90 @@ assert.equal(normalizarNecesidadManual({ productId: 'p1', quantity: 1, promisedA
 const manual = normalizarNecesidadManual({ productId: ' p1 ', quantity: 2, condition: 'used', priority: 'urgente', promisedAt: '2026-10-05T12:00:00.000Z', notes: '  Reposición preventiva  ' })
 assert.equal(manual.ok, true)
 assert.deepEqual(manual.ok && manual.data, { productId: 'p1', branchId: null, quantity: 2, condition: 'USED', priority: 'URGENTE', promisedAt: '2026-10-05T12:00:00.000Z', notes: 'Reposición preventiva' })
+
+// ── Fase 2: compra rápida (#250 §6) ─────────────────────────────────────────
+import { codigoCompra, normalizarCompra, normalizarSeriales } from '../lib/supply'
+
+assert.equal(codigoCompra({ origen: 'cde', secuencia: 48 }), 'COM-CDE-0048')
+assert.equal(codigoCompra({ origen: 'CDE', destino: 'ASU', secuencia: 21 }), 'COM-CDE-ASU-0021')
+assert.equal(codigoCompra({ secuencia: 0 }), 'COM-CDE-0001', 'la secuencia mínima es 1')
+assert.equal(codigoCompra({ origen: 'c d e!!', secuencia: 7 }), 'COM-CDE-0007')
+
+// Seriales: texto pegado, mayúsculas, repetidos, Luhn y seriales de producto.
+assert.deepEqual(normalizarSeriales('490154203237518, aur-0001\n490154203237518'), { ok: false, error: 'El serial 490154203237518 está repetido en la compra.' })
+assert.deepEqual(normalizarSeriales('490154203237518, aur-0001'), { ok: true, seriales: ['490154203237518', 'AUR-0001'] })
+assert.equal(normalizarSeriales('490154203237519').ok, false, 'IMEI con dígito control inválido')
+assert.equal(normalizarSeriales('xx').ok, false, 'serial demasiado corto')
+assert.deepEqual(normalizarSeriales([]), { ok: true, seriales: [] })
+
+// Compra: proveedor, costo/moneda y líneas con IMEI o pendientes.
+const compraBase = {
+  supplierName: '  Proveedor Test  ',
+  currency: 'USD',
+  originalCost: 350.5,
+  exchangeRatePyg: 7500,
+  reference: 'FAC-001-002',
+  lines: [{ productId: 'p1', quantity: 2, serials: '490154203237518 490154203237526' }, { productId: 'p2', quantity: 1 }],
+}
+const normalizada = normalizarCompra(compraBase)
+assert.equal(normalizada.ok, true)
+if (normalizada.ok) {
+  assert.equal(normalizada.data.supplierName, 'Proveedor Test')
+  assert.equal(normalizada.data.costPyg, Math.round(350.5 * 7500), 'convierte el total a guaraníes')
+  assert.equal(normalizada.data.originalCost, 350.5)
+  assert.equal(normalizada.data.lines.length, 2)
+  assert.deepEqual(normalizada.data.lines[0].serials, ['490154203237518', '490154203237526'])
+  assert.deepEqual(normalizada.data.lines[1].serials, [], 'IMEI pendiente: la línea puede ir sin seriales')
+  assert.equal(normalizada.data.code, null, 'sin código se genera después')
+}
+assert.equal(normalizarCompra({ ...compraBase, supplierName: '', supplierId: null }).ok, false, 'sin proveedor')
+assert.equal(normalizarCompra({ ...compraBase, lines: [] }).ok, false, 'sin líneas')
+assert.equal(normalizarCompra({ ...compraBase, originalCost: 350.555 }).ok, false, 'USD con más de 2 decimales')
+assert.equal(normalizarCompra({ ...compraBase, exchangeRatePyg: undefined }).ok, false, 'USD sin cotización')
+assert.equal(normalizarCompra({ ...compraBase, lines: [{ productId: 'p1', quantity: 1, serials: ['a', 'b'] }] }).ok, false, 'más seriales que unidades')
+assert.equal(normalizarCompra({ ...compraBase, lines: [{ productId: 'p1', quantity: 1, condition: 'ROTO' }] }).ok, false, 'condición inválida')
+assert.equal(normalizarCompra({ ...compraBase, code: 'com' }).ok, false, 'código demasiado corto')
+const sinMonto = normalizarCompra({ supplierName: 'Proveedor', lines: [{ productId: 'p1', quantity: 1 }] })
+assert.equal(sinMonto.ok && sinMonto.data.costPyg, null, 'la compra puede registrarse sin costo')
+const enGs = normalizarCompra({ supplierName: 'Proveedor', currency: 'PYG', originalCost: 1500000, lines: [{ productId: 'p1', quantity: 1, unitCostPyg: 1500000 }] })
+assert.equal(enGs.ok && enGs.data.costPyg, 1500000)
+assert.equal(enGs.ok && enGs.data.lines[0].unitCostPyg, 1500000)
+
+// ── Fase 3: IMEI y preparación (#250 §7 y §11) ──────────────────────────────
+import { compararModelo, cuadrarSeriales, etiquetasPreparacion, resumenPreparacion } from '../lib/supply'
+
+// Cuadre del lote: Luhn, repetidos, ya cargados y cantidad comprada.
+assert.deepEqual(cuadrarSeriales({ seriales: '490154203237518 490154203237526', cantidad: 2 }), { ok: true, nuevos: ['490154203237518', '490154203237526'] })
+assert.equal(cuadrarSeriales({ seriales: '490154203237519', cantidad: 1 }).ok, false, 'Luhn inválido')
+assert.equal(cuadrarSeriales({ seriales: '490154203237518 490154203237518', cantidad: 2 }).ok, false, 'repetido en el lote')
+assert.equal(cuadrarSeriales({ seriales: 'AUR-0001', cantidad: 1, yaEnLinea: ['AUR-0001'] }).ok, false, 'ya cargado en la línea')
+assert.equal(cuadrarSeriales({ seriales: '490154203237518 490154203237526', cantidad: 1 }).ok, false, 'más IMEI que unidades')
+assert.deepEqual(cuadrarSeriales({ seriales: 'aur-2', cantidad: 2, yaEnLinea: ['aur-1'] }), { ok: true, nuevos: ['AUR-2'] })
+
+// Modelo detectado vs esperado (aviso, no bloquea).
+assert.deepEqual(compararModelo('iPhone 15 Pro Max', 'iPhone 15 Pro Max'), { coincide: true, esperado: 'iPhone 15 Pro Max', detectado: 'iPhone 15 Pro Max' })
+assert.equal(compararModelo('iPhone 15 Pro Max', 'IPHONE 15 PRO').coincide, true)
+assert.equal(compararModelo('iPhone 15', 'iPhone 16 Pro').coincide, false)
+assert.equal(compararModelo('iPhone 15', null), null, 'sin dato del proveedor no hay aviso')
+
+// Etiquetas de la preparación: una por unidad, n de N, IMEI o pendiente.
+const etiquetas = etiquetasPreparacion({
+  compra: 'COM-CDE-0001',
+  destino: 'Casa Central',
+  lineas: [
+    { productId: 'p1', producto: 'iPhone 15', capacidad: '128GB', condicion: 'NEW', quantity: 2, serials: ['490154203237518'], pedidoNumero: 'MOB-0048' },
+    { productId: 'p2', producto: 'iPhone 14', condicion: 'USED', quantity: 1 },
+  ],
+})
+assert.equal(etiquetas.length, 3)
+assert.deepEqual(etiquetas.map((etiqueta) => `${etiqueta.n} de ${etiqueta.total}`), ['1 de 3', '2 de 3', '3 de 3'])
+assert.equal(etiquetas[0].imei, '490154203237518')
+assert.equal(etiquetas[0].pendiente, false)
+assert.equal(etiquetas[0].pedido, 'MOB-0048')
+assert.equal(etiquetas[0].destino, 'Casa Central')
+assert.equal(etiquetas[1].pendiente, true, 'la unidad sin IMEI sale como pendiente')
+assert.equal(etiquetas[2].condicion, 'USED')
+assert.equal(etiquetas[0].compra, 'COM-CDE-0001')
+
+assert.deepEqual(resumenPreparacion([{ quantity: 2, serials: ['a'] }, { quantity: 1, serials: [] }]), { unidades: 3, conImei: 1, pendientes: 2 })
+assert.deepEqual(resumenPreparacion([]), { unidades: 0, conImei: 0, pendientes: 0 })
