@@ -3,6 +3,7 @@ import { error, json } from '../../../../lib/http'
 import { enforceRateLimit } from '../../../../lib/rate-limit'
 import { buscarPorTokenPublico } from '../../../../lib/public-token'
 import { etiquetaServicio } from '../../../../lib/service-order'
+import { etiquetaPago } from '../../../../lib/payments'
 import { seguimientoDeEntrega } from '../../../../lib/orders'
 
 // Resumen de cuenta público del cliente. El token es aleatorio y no
@@ -90,6 +91,19 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     select: { serial: true, reservedUntil: true, product: { select: { name: true, capacity: true } }, branch: { select: { name: true } } },
     orderBy: { reservedUntil: 'asc' },
     take: 5,
+  })
+
+  // Pagos (#240 → portal): lo que el cliente ya pagó, con su medio y fecha, y
+  // el total confirmado de toda su historia.
+  const pagos = await prisma.payment.findMany({
+    where: { tenantId: portal.tenantId, status: 'CONFIRMED', order: { customerId: portal.customerId, archivedAt: null } },
+    select: { amountPyg: true, method: true, paidAt: true, order: { select: { orderNumber: true } } },
+    orderBy: { paidAt: 'desc' },
+    take: 8,
+  })
+  const totalPagado = await prisma.payment.aggregate({
+    where: { tenantId: portal.tenantId, status: 'CONFIRMED', order: { customerId: portal.customerId, archivedAt: null } },
+    _sum: { amountPyg: true },
   })
 
   const [orders, saldo, dueOrders, warrantyRows, saldoFavor] = await Promise.all([
@@ -205,6 +219,14 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
       branch: branch?.name || null,
       reservedUntil,
     })),
+    // Pagos: últimos 8 con su medio y el total confirmado de la historia.
+    pagos: pagos.map(({ order, ...pago }) => ({
+      amountPyg: pago.amountPyg,
+      methodLabel: etiquetaPago(pago.method),
+      paidAt: pago.paidAt,
+      orderNumber: order.orderNumber,
+    })),
+    totalPagadoPyg: Number(totalPagado._sum.amountPyg || 0),
     orders: orders.map(order => {
       // #178: el pedido nuevo no guarda su token histórico en claro; el enlace
       // del comprobante sale del enlace vigente de nivel rápido (o del legacy).

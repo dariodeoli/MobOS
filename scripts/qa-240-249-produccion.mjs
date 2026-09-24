@@ -153,6 +153,18 @@ await paso('#240 · las reservas vigentes se ven en la cuenta demo', async () =>
   return 'reserva de iPhone 13 con su vencimiento'
 })
 
+await paso('#240 · el historial de pagos se ve en la cuenta demo', async () => {
+  await page.goto(`${BASE}/cuenta/demo-demo-cliente-lucia-rapido`, { waitUntil: 'domcontentloaded' })
+  const seccion = page.getByTestId('portal-pagos')
+  await seccion.waitFor({ timeout: 20000 })
+  const texto = await seccion.innerText()
+  afirmar(/total pagado/i.test(texto), `no aparece el total pagado: ${texto.slice(0, 120)}`)
+  afirmar(/MOB-#0008|MOB-#0005/.test(texto), 'no aparecen los pedidos del historial')
+  afirmar(/Efectivo|Transferencia|Tarjeta/.test(texto), 'no aparece el medio de pago')
+  await shot(page, 'portal-pagos-demo', true)
+  return 'historial con total pagado y medios legibles'
+})
+
 await contexto.close()
 await browser.close()
 

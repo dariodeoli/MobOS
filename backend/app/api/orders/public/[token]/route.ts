@@ -2,16 +2,13 @@ import { prisma } from '../../../../../lib/prisma'
 import { createHash } from 'node:crypto'
 import { error, json } from '../../../../../lib/http'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'
+import { PAYMENT_LABELS } from '../../../../../lib/payments'
 import { seguimientoDeEntrega } from '../../../../../lib/orders'
 
 // Vista pública del pedido. El token es aleatorio y no enumerable: autoriza una
 // sola vista según su nivel (rapido | completo | detallado). El token histórico
 // `Order.publicToken` sigue funcionando como nivel rápido para no romper los QR
 // ya entregados. Nunca expone costos, márgenes ni comentarios internos.
-const PAYMENT_LABELS: Record<string, string> = {
-  CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta / POS',
-  CREDIT: 'Crédito', TRADE_IN: 'Canje', PIX: 'Pix',
-}
 
 export async function GET(request: Request, context: { params: Promise<{ token: string }> }) {
   // Superficie pública sin sesión: se limita por IP como el portal y las

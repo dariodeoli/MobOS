@@ -1,7 +1,7 @@
 {
   "url": "https://app.moboss.online",
-  "fecha": "2026-09-24T20:00:17.204Z",
-  "version": "v1.0.158",
+  "fecha": "2026-09-24T21:37:19.890Z",
+  "version": "v1.0.159",
   "medidas": [
     {
       "control": "Resumen rápido",
@@ -69,6 +69,11 @@
       "paso": "#240 · los beneficios (saldo a favor y puntos) se ven en la cuenta demo",
       "ok": true,
       "detalle": "saldo a favor Gs 250.000 · puntos Gs 45.000"
+    },
+    {
+      "paso": "#240 · las reservas vigentes se ven en la cuenta demo",
+      "ok": true,
+      "detalle": "reserva de iPhone 13 con su vencimiento"
     }
   ],
   "capturas": [
@@ -77,6 +82,7 @@
     "03-clientes-768.png",
     "04-certificado-embebible-390.png",
     "05-portal-mensajes-demo.png",
-    "06-portal-beneficios-demo.png"
+    "06-portal-beneficios-demo.png",
+    "07-portal-reservas-demo.png"
   ]
 }
