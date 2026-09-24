@@ -130,5 +130,6 @@ oscuro. Pendiente para CMP: portar estos tonos AA al scope `tema-v2` de
 Pasos del rollout por dominio (contenido, no solo tokens), también detrás del
 flag: chips pill, números de consola, azul de acción en los activos internos,
 stepper del taller, tiles de KPI, el "x de y" de recepción, los tiles de
-rol/acceso, los tiles de equipo del inventario y el resumen + stepper de entrega
-de pedidos. Detalle, capturas y medición en [`F4-DOMINIOS.md`](F4-DOMINIOS.md).
+rol/acceso, los tiles de equipo del inventario, el resumen + stepper de entrega
+de pedidos y el resumen de clientes. Detalle, capturas y medición en
+[`F4-DOMINIOS.md`](F4-DOMINIOS.md).
