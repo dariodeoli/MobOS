@@ -2,6 +2,7 @@ import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
 import { codigoEnvio, ENVIO_ESTADOS, ENVIO_ESTADOS_RECEPCION, expandirItemsEnvio, METODOS_ENVIO, transicionEnvioValida } from '../../../../lib/supply'
+import { aexQuote, aexWebTrackingUrl } from '../../../../lib/aex'
 
 // #250 Fase 4 (Centro de Abastecimiento): lotes/envíos entrantes de una compra.
 //
@@ -174,8 +175,32 @@ export async function PATCH(request: Request) {
   const envio = await prisma.supplyShipment.findFirst({ where: { id, tenantId: tenant } })
   if (!envio) return error('Envío no encontrado.', 404)
 
-  const accion = ['prepare', 'dispatch', 'transit', 'incidencia', 'cancel', 'status'].includes(body?.action) ? body.action : null
-  if (!accion) return error('Acción inválida: usá prepare, dispatch, transit, incidencia, cancel o status.')
+  const accion = ['prepare', 'dispatch', 'transit', 'incidencia', 'cancel', 'status', 'aex-quote', 'aex-guide'].includes(body?.action) ? body.action : null
+  if (!accion) return error('Acción inválida: usá prepare, dispatch, transit, incidencia, cancel, status, aex-quote o aex-guide.')
+
+  // #250 Fase 6: AEX ampliado — cotización del lote y guía, con los mismos
+  // servicios de los traslados. La confirmación del envío sigue bloqueada hasta
+  // contar con los datos reales del remitente y destinatario.
+  if (accion === 'aex-quote' || accion === 'aex-guide') {
+    const destino = await prisma.branch.findFirst({ where: { id: envio.destinationBranchId || '' }, select: { name: true, city: true } })
+    const ciudadDestino = destino?.city || destino?.name || envio.origin
+    if (accion === 'aex-quote') {
+      const pesoKg = body?.pesoKg === undefined || body?.pesoKg === null || body?.pesoKg === '' ? 1 : Number(body.pesoKg)
+      if (!Number.isFinite(pesoKg) || pesoKg <= 0 || pesoKg > 500) return error('Indicá un peso válido en kg (hasta 500).')
+      const cotizaciones = await aexQuote(envio.origin, ciudadDestino, pesoKg)
+      if (cotizaciones === null) return json({ unconfigured: true, webUrl: aexWebTrackingUrl(''), origen: envio.origin, destino: ciudadDestino, quotes: [] })
+      return json({ unconfigured: false, origen: envio.origin, destino: ciudadDestino, quotes: cotizaciones })
+    }
+    const guia = typeof body?.guide === 'string' ? body.guide.trim().slice(0, 120) : ''
+    if (guia.length < 3) return error('Indicá el número de guía AEX.')
+    if (['CANCELADO', 'RECIBIDO'].includes(envio.status)) return error('El envío ya está cerrado.', 409)
+    const conGuia = await prisma.$transaction(async (tx) => {
+      const fila = await tx.supplyShipment.update({ where: { id: envio.id }, data: { guide: guia, company: 'AEX', method: 'AEX' } })
+      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SUPPLY_SHIPMENT_AEX_GUIDE', entity: 'SupplyShipment', entityId: fila.id, metadata: { code: fila.code, guide: guia, origen: envio.origin, destino: ciudadDestino } } })
+      return fila
+    })
+    return json(await prisma.supplyShipment.findFirst({ where: { id: conGuia.id, tenantId: tenant }, include: INCLUDE_ENVIO }))
+  }
   let hacia = accion === 'prepare' ? 'PREPARANDO' : accion === 'dispatch' ? 'DESPACHADO' : accion === 'transit' ? 'EN_TRANSITO' : accion === 'incidencia' ? 'CON_INCIDENCIA' : accion === 'cancel' ? 'CANCELADO' : ''
   if (accion === 'status') {
     hacia = String(body?.status || '').trim().toUpperCase()
