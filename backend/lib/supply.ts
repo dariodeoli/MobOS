@@ -580,3 +580,88 @@ export function manifiestoEnvio({ envio, items = [], base = '' }: { envio: any; 
     notas: envio.notes || null,
   }
 }
+
+// ── Fase 5 (#250 §9 y §10): recepción ───────────────────────────────────────
+
+// Resultado por unidad recibida. `DANADO`/`INCORRECTO`/`SOBRANTE` son
+// incidencias: quedan fuera del stock vendible hasta resolverse.
+export const RESULTADOS_RECEPCION = ['RECIBIDO', 'FALTANTE', 'SOBRANTE', 'DANADO', 'INCORRECTO'] as const
+export type ResultadoRecepcion = (typeof RESULTADOS_RECEPCION)[number]
+export const RESULTADO_RECEPCION_LABEL: Record<ResultadoRecepcion, string> = {
+  RECIBIDO: 'Recibido',
+  FALTANTE: 'Faltante',
+  SOBRANTE: 'Sobrante',
+  DANADO: 'Dañado',
+  INCORRECTO: 'Incorrecto',
+}
+/** Los que entran al stock al confirmar. */
+export const RESULTADOS_A_STOCK: ResultadoRecepcion[] = ['RECIBIDO']
+/** Los que se consideran incidencia (#250 §10). */
+export const RESULTADOS_INCIDENCIA: ResultadoRecepcion[] = ['SOBRANTE', 'DANADO', 'INCORRECTO']
+
+/**
+ * Compara lo escaneado con lo esperado del manifiesto: los IMEI conocidos que
+ * coinciden, los que completan unidades con IMEI diferido (el escaneo asigna el
+ * serial a esa unidad) y los sobrantes (no estaban en el lote).
+ */
+export function compararEscaneo({ esperados = [], escaneados = [] }: { esperados?: Array<{ shipmentItemId: string; serial?: string | null }>; escaneados?: string[] }): { recibidos: Array<{ shipmentItemId: string | null; serial: string }>; sobrantes: string[] } {
+  const pendientes = esperados.filter((item) => !item.serial)
+  const recibidos: Array<{ shipmentItemId: string | null; serial: string }> = []
+  const sobrantes: string[] = []
+  let pendienteIndice = 0
+  for (const crudo of escaneados) {
+    const serial = String(crudo || '').trim().toUpperCase()
+    if (!serial) continue
+    const conocido = esperados.find((item) => String(item.serial || '').toUpperCase() === serial)
+    if (conocido) {
+      recibidos.push({ shipmentItemId: conocido.shipmentItemId, serial })
+      continue
+    }
+    if (pendientes[pendienteIndice]) {
+      recibidos.push({ shipmentItemId: pendientes[pendienteIndice].shipmentItemId, serial })
+      pendienteIndice += 1
+      continue
+    }
+    sobrantes.push(serial)
+  }
+  return { recibidos, sobrantes }
+}
+
+/** Estado final del lote según lo recibido (#250 §9). */
+export function estadoLoteRecepcion({ unidades, recibidas, incidencias }: { unidades: number; recibidas: number; incidencias: number }): 'RECIBIDO' | 'RECEPCION_PARCIAL' | 'CON_INCIDENCIA' {
+  if (incidencias > 0) return 'CON_INCIDENCIA'
+  if (unidades > 0 && recibidas >= unidades) return 'RECIBIDO'
+  return 'RECEPCION_PARCIAL'
+}
+
+/**
+ * Costo por unidad recibida: el costo unitario de la línea si está cargado y,
+ * si no, la parte proporcional del total de la compra (mismo reparto para el
+ * monto original en su moneda).
+ */
+export function costoPorUnidad({ totalCostPyg = null, totalOriginal = null, currency = 'PYG', rate = null, unidades, unitCostPyg = null }: { totalCostPyg?: number | null; totalOriginal?: number | null; currency?: string; rate?: number | null; unidades: number; unitCostPyg?: number | null }): { costPyg: number | null; originalCost: number | null; costCurrency: string; exchangeRatePyg: number | null } {
+  const cuantas = Math.max(1, Math.round(Number(unidades) || 1))
+  if (unitCostPyg !== null && unitCostPyg !== undefined && Number(unitCostPyg) > 0) {
+    const unitario = Math.round(Number(unitCostPyg))
+    return {
+      costPyg: unitario,
+      originalCost: currency === 'PYG' ? unitario : (rate && Number(rate) > 0 ? Number((unitario / Number(rate)).toFixed(2)) : null),
+      costCurrency: currency,
+      exchangeRatePyg: currency === 'PYG' ? null : (rate ?? null),
+    }
+  }
+  if (totalCostPyg === null || totalCostPyg === undefined || !Number.isFinite(Number(totalCostPyg))) return { costPyg: null, originalCost: null, costCurrency: currency, exchangeRatePyg: currency === 'PYG' ? null : (rate ?? null) }
+  const costPyg = Math.round(Number(totalCostPyg) / cuantas)
+  const originalCost = totalOriginal === null || totalOriginal === undefined ? (currency === 'PYG' ? costPyg : (rate && Number(rate) > 0 ? Number((costPyg / Number(rate)).toFixed(2)) : null)) : Number((Number(totalOriginal) / cuantas).toFixed(currency === 'PYG' ? 0 : 2))
+  return { costPyg, originalCost, costCurrency: currency, exchangeRatePyg: currency === 'PYG' ? null : (rate ?? null) }
+}
+
+/** Resumen por resultado (para el panel y el comprobante de recepción). */
+export function resumenRecepcion(items: Array<{ resultado: string }> = []): Record<ResultadoRecepcion, number> {
+  const base = { RECIBIDO: 0, FALTANTE: 0, SOBRANTE: 0, DANADO: 0, INCORRECTO: 0 } as Record<ResultadoRecepcion, number>
+  for (const item of items) {
+    const clave = String(item?.resultado || '') as ResultadoRecepcion
+    if (clave in base) base[clave] += 1
+  }
+  return base
+}

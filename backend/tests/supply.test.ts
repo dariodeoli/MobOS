@@ -189,3 +189,29 @@ assert.deepEqual(manifiesto.lineas[0].imeis, ['A1'])
 assert.equal(manifiesto.destino, 'Casa Central')
 assert.equal(manifiesto.compra, 'COM-CDE-0001')
 assert.equal(manifiesto.enlace, 'https://app.moboss.online/envio/tok-123')
+
+// ── Fase 5: recepción (#250 §9 y §10) ───────────────────────────────────────
+import { compararEscaneo, costoPorUnidad, estadoLoteRecepcion, RESULTADOS_RECEPCION, resumenRecepcion } from '../lib/supply'
+
+// Escaneo contra lo esperado: conocidos, unidades con IMEI diferido y sobrantes.
+const escaneo = compararEscaneo({
+  esperados: [{ shipmentItemId: 'i1', serial: 'A1' }, { shipmentItemId: 'i2', serial: null }, { shipmentItemId: 'i3', serial: 'A3' }],
+  escaneados: ['a1', 'a2', 'x9', 'a3'],
+})
+assert.deepEqual(escaneo.recibidos, [{ shipmentItemId: 'i1', serial: 'A1' }, { shipmentItemId: 'i2', serial: 'A2' }, { shipmentItemId: 'i3', serial: 'A3' }])
+assert.deepEqual(escaneo.sobrantes, ['X9'], 'lo que no estaba en el manifiesto es sobrante')
+
+// Estado final del lote.
+assert.equal(estadoLoteRecepcion({ unidades: 3, recibidas: 3, incidencias: 0 }), 'RECIBIDO')
+assert.equal(estadoLoteRecepcion({ unidades: 3, recibidas: 2, incidencias: 0 }), 'RECEPCION_PARCIAL')
+assert.equal(estadoLoteRecepcion({ unidades: 3, recibidas: 3, incidencias: 1 }), 'CON_INCIDENCIA')
+
+// Costo por unidad: unitario de la línea o parte proporcional de la compra.
+assert.deepEqual(costoPorUnidad({ totalCostPyg: 3000000, currency: 'PYG', unidades: 3 }), { costPyg: 1000000, originalCost: 1000000, costCurrency: 'PYG', exchangeRatePyg: null })
+assert.deepEqual(costoPorUnidad({ totalCostPyg: 2628750, totalOriginal: 350.5, currency: 'USD', rate: 7500, unidades: 2 }), { costPyg: 1314375, originalCost: 175.25, costCurrency: 'USD', exchangeRatePyg: 7500 })
+assert.equal(costoPorUnidad({ totalCostPyg: 1000000, currency: 'PYG', unidades: 2, unitCostPyg: 400000 }).costPyg, 400000, 'el costo unitario de la línea manda')
+assert.equal(costoPorUnidad({ totalCostPyg: null, currency: 'PYG', unidades: 2 }).costPyg, null, 'sin costo queda pendiente')
+
+assert.deepEqual(resumenRecepcion([{ resultado: 'RECIBIDO' }, { resultado: 'DANADO' }, { resultado: 'RECIBIDO' }]), { RECIBIDO: 2, FALTANTE: 0, SOBRANTE: 0, DANADO: 1, INCORRECTO: 0 })
+assert.deepEqual(resumenRecepcion([]), { RECIBIDO: 0, FALTANTE: 0, SOBRANTE: 0, DANADO: 0, INCORRECTO: 0 })
+assert.ok(RESULTADOS_RECEPCION.includes('SOBRANTE'))
