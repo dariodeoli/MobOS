@@ -3,8 +3,9 @@ import ProductFooter from '@/components/app/ProductFooter'
 import Icon from '@/components/shared/Icon'
 import GradoBadge from '@/components/shared/GradoBadge'
 import MedidorBateria from '@/components/shared/MedidorBateria'
+import ChipsLocks from '@/components/shared/ChipsLocks'
 import PasosEquipo from '@/components/shared/PasosEquipo'
-import { Aviso, Badge, Button, Skeleton } from '@/components/ui'
+import { Aviso, Badge, BarraProgreso, Button, Skeleton } from '@/components/ui'
 import { CELDA_DATO, CELDA_IDENTIDAD, ROTULO_SECCION } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { ETIQUETA_RACK, ORDEN_RACK } from '@/lib/tallerRack'
@@ -35,6 +36,7 @@ export default function TableroOps({
   kpis = [],
   equipos = [],
   colas = [],
+  pasos = [],
   cargando = false,
   error = '',
   actualizado = null,
@@ -80,11 +82,32 @@ export default function TableroOps({
             : kpis.map((kpi) => (
               <article key={kpi.clave} data-testid={`ops-kpi-${kpi.clave}`} className={cn('rounded-2xl border p-4', TONOS[kpi.tono])}>
                 <p className={ROTULO_SECCION}>{kpi.label}</p>
-                <p className="v2-numero mt-2 text-2xl font-bold" data-testid={`ops-valor-${kpi.clave}`}>{kpi.valor}</p>
+                <p className="v2-numero mt-2 text-3xl font-bold" data-testid={`ops-valor-${kpi.clave}`}>{kpi.valor}</p>
                 <p className={cn(CELDA_DATO, 'mt-1')}>{kpi.detalle}</p>
               </article>
             ))}
         </section>
+
+        {!vacio && !esPreview && pasos.length > 0 && (() => {
+          const activo = pasos.findIndex((paso) => paso.total > 0)
+          return (
+            <ol className="grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="Flujo del lote">
+              {pasos.map((paso, indice) => {
+                const esActivo = indice === activo
+                const hecho = activo > -1 && indice < activo
+                return (
+                  <li key={paso.clave} className={cn('flex items-center gap-3 rounded-xl border p-3', esActivo ? 'border-info/40 bg-info/5' : 'border-ink-600')}>
+                    <span className={cn('v2-numero grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold', esActivo ? 'v2-paso-activo' : hecho ? 'bg-ok/15 text-ok' : 'bg-ink-700 text-mute')} aria-hidden>{hecho ? '✓' : paso.total}</span>
+                    <span className="min-w-0">
+                      <b className="block truncate text-sm">{paso.label}</b>
+                      <span className="text-xs text-mute">{paso.total === 1 ? '1 equipo' : `${paso.total} equipos`}</span>
+                    </span>
+                  </li>
+                )
+              })}
+            </ol>
+          )
+        })()}
 
         <section className="rounded-2xl border border-ink-600 bg-ink p-4" aria-label="Equipos en proceso">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -109,6 +132,20 @@ export default function TableroOps({
                       {equipo.ubicacion && <span className={CELDA_DATO}>{equipo.ubicacion}</span>}
                     </p>
                     {ORDEN_RACK.includes(equipo.estado) && <PasosEquipo estado={equipo.estado} testId="ops-pasos" className="mt-1.5" />}
+                    {equipo.checklist && (
+                      <div className="mt-1.5 max-w-[16rem]">
+                        <div className="flex items-center justify-between gap-2 text-[11px] text-mute">
+                          <span><b className="v2-numero text-fore">{equipo.checklist.pasan}</b> de {equipo.checklist.total} pasan</span>
+                          <span className="v2-numero">{equipo.checklist.porcentaje}%</span>
+                        </div>
+                        <BarraProgreso className="mt-1" valor={equipo.checklist.pasan} max={equipo.checklist.total} tono={equipo.checklist.fallan > 0 ? 'warn' : 'ok'} alto="sm" etiqueta={`Checklist de ${equipo.modelo}: ${equipo.checklist.pasan} de ${equipo.checklist.total} pasan`} />
+                      </div>
+                    )}
+                    {equipo.locks
+                      ? <ChipsLocks locks={equipo.locks} className="mt-1.5" />
+                      // En el mock (preview) no se inventa el estado: el chip honesto
+                      // es solo para el tablero real, donde el dato puede faltar.
+                      : !esPreview && <ul className="mt-1.5"><li className="inline-flex items-center gap-1.5 rounded-lg border border-ink-600 px-2 py-0.5 text-[11px] font-semibold text-mute">Locks sin verificar</li></ul>}
                   </div>
                 </article>
               ))}

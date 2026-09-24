@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { colasDelTaller, equiposEnProceso, kpisOps, resumenOps } from './opsTablero.js'
+import { checklistDe, colasDelTaller, equiposEnProceso, imeiConsultable, kpisOps, locksDe, locksDeConsulta, pasosDelLote, resumenOps } from './opsTablero.js'
 
 // Fixtures del tablero F3 (#241): una unidad por estado del rack.
 const unidad = (id, extra = {}) => ({ id, serial: `AUR000${id}0000000`, product: { name: `Equipo ${id}` }, ...extra })
@@ -63,4 +63,53 @@ test('colasDelTaller agrupa por estado con totales y textos cortos', () => {
   assert.match(colas[0].items[0].texto, /^Equipo \d · \d{4}$/)
   assert.equal(colas[1].total, 2)
   assert.equal(colas[2].total, 1)
+})
+
+test('el «x de y» del checklist sale de la inspección y sin ítems queda null', () => {
+  const conItems = unidad('9', { inspection: { items: { a: { estado: 'pasa' }, b: { estado: 'pasa' }, c: { estado: 'falla' }, d: { estado: '' } } } })
+  assert.deepEqual(checklistDe(conItems), { pasan: 2, fallan: 1, revisados: 3, total: 4, porcentaje: 50 })
+  assert.equal(checklistDe(unidad('10', {})), null, 'sin inspección no hay checklist')
+})
+
+test('los locks se arman desde la consulta IMEI guardada y sin datos quedan null', () => {
+  const conConsulta = unidad('11', { inspection: { verificacion: { normalized: [{ clave: 'findMy', valor: 'off' }, { clave: 'mdm', valor: 'off' }, { clave: 'blacklist', valor: 'clean' }, { clave: 'simLock', valor: 'unlocked' }] } } })
+  const chips = locksDe(conConsulta)
+  assert.equal(chips.length, 4)
+  assert.ok(chips.every((chip) => chip.estado === 'libre'))
+  const conActivo = unidad('12', { inspection: { verificacion: { campos: [{ clave: 'findMy', valor: 'on' }] } } })
+  assert.deepEqual(locksDe(conActivo), [{ clave: 'icloud', estado: 'activo', detalle: 'iCloud: on' }])
+  assert.equal(locksDe(unidad('13', {})), null, 'sin consulta no se inventan locks')
+})
+
+test('el stepper del lote lleva la carga de cada etapa', () => {
+  const pasos = pasosDelLote({ porVerificar: 3, verificados: 2, listos: 1 })
+  assert.deepEqual(pasos.map(({ clave, total }) => [clave, total]), [['por-verificar', 3], ['verificado', 2], ['listo', 1]])
+  assert.deepEqual(pasosDelLote({}).map((paso) => paso.total), [0, 0, 0])
+})
+
+test('solo los IMEI de 15 dígitos se consultan (el backend ignora el filtro si no valida)', () => {
+  assert.equal(imeiConsultable('490154203237518'), true)
+  assert.equal(imeiConsultable('E2EE2E1IPHONE15MUDJ2R9X1'), false)
+  assert.equal(imeiConsultable('49015420323751'), false)
+  assert.equal(imeiConsultable(''), false)
+})
+
+test('los chips de locks salen de la consulta IMEI guardada y validan la máscara', () => {
+  const consulta = { imei: '•••••••••••7518', normalized: [{ clave: 'findMy', valor: 'off' }, { clave: 'mdm', valor: 'off' }, { clave: 'blacklist', valor: 'Sin reportes actuales' }, { clave: 'simLock', valor: 'Unlocked' }] }
+  const chips = locksDeConsulta(consulta, '490154203237518')
+  assert.equal(chips.length, 4)
+  assert.ok(chips.every((chip) => chip.estado === 'libre'), 'la consulta limpia deja los cuatro chips en verde')
+  assert.equal(locksDeConsulta(consulta, '490154203237999'), null, 'la máscara de otro equipo no se muestra')
+  assert.equal(locksDeConsulta({ imei: consulta.imei, normalized: [] }, '490154203237518'), null, 'sin campos normalizados no hay chips')
+  assert.equal(locksDeConsulta(null, '490154203237518'), null)
+})
+
+test('equiposEnProceso alterna por verificar y verificados (el taller en curso)', () => {
+  const equipos = equiposEnProceso([POR_VERIFICAR, OTRA_POR_VERIFICAR, VERIFICADA, unidad('5', {})], 4)
+  assert.deepEqual(equipos.map((equipo) => [equipo.id, equipo.estado]), [
+    ['3', 'por-verificar'], // primera de la fila de entrada
+    ['4', 'verificado'], // inspeccionada con grado B: ya está verificada
+    ['5', 'por-verificar'], // siguiente de la fila
+    ['2', 'verificado'], // verificada sin inspección
+  ])
 })

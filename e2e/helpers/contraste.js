@@ -11,6 +11,9 @@ export const SHELL = [
   'nav[aria-label="Accesos rápidos"]',
   '[data-testid="shell-drawer-acciones"]',
   'footer',
+  // El tablero operativo es una pantalla completa sin shell: sus textos se
+  // exigen AA igual que los del chrome.
+  '[data-testid="ops-tablero"]',
 ]
 
 export async function auditarContraste(page, raices, contenedores = []) {
