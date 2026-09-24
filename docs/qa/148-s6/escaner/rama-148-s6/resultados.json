@@ -1,0 +1,45 @@
+{
+  "base": "http://localhost:5216",
+  "etiqueta": "rama-148-s6",
+  "sku": "DEMO-FUNDA-MAGSAFE-TRANS",
+  "resultados": [
+    {
+      "viewport": "390",
+      "producto": "Producto escaneado × Funda MagSafe Transparente DEMO-FUNDA-MAGSAFE-TRANS Gs 180.000 · 23 en stock Cancelar Agregar a la venta",
+      "medidas": [
+        {
+          "etiqueta": "modal · cancelar",
+          "ancho": 332,
+          "alto": 44,
+          "corto": false
+        },
+        {
+          "etiqueta": "modal · agregar a la venta",
+          "ancho": 332,
+          "alto": 44,
+          "corto": false
+        }
+      ],
+      "errores": []
+    },
+    {
+      "viewport": "1280",
+      "producto": "Producto escaneado × Funda MagSafe Transparente DEMO-FUNDA-MAGSAFE-TRANS Gs 180.000 · 23 en stock Cancelar Agregar a la venta",
+      "medidas": [
+        {
+          "etiqueta": "modal · cancelar",
+          "ancho": 91,
+          "alto": 36,
+          "corto": false
+        },
+        {
+          "etiqueta": "modal · agregar a la venta",
+          "ancho": 155,
+          "alto": 36,
+          "corto": false
+        }
+      ],
+      "errores": []
+    }
+  ]
+}

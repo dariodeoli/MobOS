@@ -8,7 +8,7 @@ dominio o de decisión.
 | 1–3 | Nombre/ruta `/pos`, layout y carrito siempre visible | ✅ | Capturas `docs/qa/225/03-04` (carrito v2 en producción v1.0.142) |
 | 4 | Cliente: búsqueda global, pre-clientes, normalización, facturar a otro | ✅ | `src/lib/preClientes.js` + e2e `pos-busqueda-global`, `pos-campos` |
 | 5 | Carrito: modelo/capacidad/stock/descuentos/totales | ✅ | Capturas `docs/qa/225/03-04`, captura `docs/qa/187b/06` |
-| 6 | Buscador de productos + escáner con confirmación | ✅ | e2e `pos-checkout` «producto escaneado pide confirmación» (1 passed) · captura pendiente del modal (requiere simular la pistola) |
+| 6 | Buscador de productos + escáner con confirmación | ✅ | e2e `pos-checkout` «producto escaneado pide confirmación» · capturas del modal en `docs/qa/148-s6/escaner/` (sonda `qa-148-s6-escaner.mjs`) · el catálogo demo completa el SKU para poder escanear en la demo (`docs/qa/148-s6/ESTADO.md`) |
 | 7 | Vendedor automático + métricas del día | ✅ | Barra «TU DÍA» en capturas `docs/qa/187b/03` |
 | 8 | Cuentas de cobro con buscador | ✅ | `CuentaCobroCombobox` + capturas `docs/qa/204/01` |
 | 9 | Montos de venta 99.000 millones + moneda extranjera | ✅ POS | `docs/qa/204/01` (USD 100 → Gs 730.000) · estándar de 10 mM en Gastos/Pagos/Cuentas/Reportes/Comisiones → **FIN/INV** |
@@ -30,4 +30,4 @@ dominio o de decisión.
 
 1. **PLT**: notificación in-app de cambios de entrega y menciones.
 2. **INV/FIN**: sync inventario→POS (§6), estándar de montos (§9), «por caja»/gift cards (§18).
-3. **DSN**: piloto del carrito/seguimiento (§12) y captura del modal del escáner (§6).
+3. **DSN**: piloto del carrito/seguimiento (§12).

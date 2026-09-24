@@ -71,11 +71,17 @@ try {
   await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido|Guardar pedido)/ }).scrollIntoViewIfNeeded().catch(() => {})
   await esperar(300)
   await page.screenshot({ path: join(SALIDA, '03-parcial.jpg'), type: 'jpeg', quality: 72 })
+  // Cuarta toma: el pie del carrito con pagado y pendiente (#148 §5).
+  await page.locator('#pos-resumen-venta').scrollIntoViewIfNeeded().catch(() => {})
+  await esperar(300)
+  await page.screenshot({ path: join(SALIDA, '04-carrito-pagado-pendiente.jpg'), type: 'jpeg', quality: 72 })
+  const carritoPagado = (await page.getByTestId('carrito-pagado').innerText().catch(() => '')).replace(/\s+/g, ' ')
+  const carritoPendiente = (await page.getByTestId('carrito-pendiente').innerText().catch(() => '')).replace(/\s+/g, ' ')
   const pendiente = (await pagos.getByTestId('cobro-pendiente').innerText().catch(() => '')).replace(/\s+/g, ' ')
   const pagado = (await pagos.getByTestId('cobro-pagado').innerText().catch(() => '')).replace(/\s+/g, ' ')
   const boton = (await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido|Guardar pedido)/ }).innerText().catch(() => '')).replace(/\s+/g, ' ')
 
-  writeFileSync(join(SALIDA, 'resultados.json'), JSON.stringify({ base: BASE, etiqueta: ETIQUETA, chipPagado, pagado, pendiente, boton, errores }, null, 2))
+  writeFileSync(join(SALIDA, 'resultados.json'), JSON.stringify({ base: BASE, etiqueta: ETIQUETA, chipPagado, pagado, pendiente, carritoPagado, carritoPendiente, boton, errores }, null, 2))
 } catch (error) {
   errores.push(String(error.message).slice(0, 300))
 }

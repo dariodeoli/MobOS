@@ -234,6 +234,10 @@ test('split: un bloque marcado como no pagado deja el saldo pendiente y el pedid
     await expect(filaDos.getByRole('button', { name: 'No pagado' })).toBeVisible()
     await expect(pagos.getByTestId('cobro-pendiente')).toContainText('Gs 60.000')
     await expect(pagos.getByTestId('cobro-pagado')).toContainText('Gs 40.000')
+    // El pie del carrito refleja el estado (#148 §5): pagado y pendiente.
+    const carrito = page.locator('#pos-resumen-venta')
+    await expect(carrito.getByTestId('carrito-pagado')).toHaveText('Gs 40.000')
+    await expect(carrito.getByTestId('carrito-pendiente')).toHaveText('Gs 60.000')
 
     // La venta queda parcial: se guarda como pedido (no «Confirmar venta»).
     const boton = page.getByRole('button', { name: /^Crear pedido/ })

@@ -591,3 +591,27 @@ test('demo: el borrador del POS se suspende, se lista, se retoma y se descarta',
 
   expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
 })
+
+// #148 §6: el escáner del POS encuentra el producto escaneado (los productos
+// del catálogo demo completan su SKU derivado del id) y pide confirmación.
+test('demo: el escáner del POS encuentra el producto y pide confirmación', async ({ page }) => {
+  const llamadas = []
+  page.on('request', (req) => { if (esLlamadaApi(req.url())) llamadas.push(req.url()) })
+
+  await page.goto('/demo')
+  await page.getByRole('button', { name: /Entrar como Vendedor/ }).click()
+  await expect(page).toHaveURL(/\/pos$/)
+  await cerrarGuia(page)
+
+  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill('Cliente escáner demo')
+  // El lector USB escribe el código como teclado (SKU derivado del id).
+  await page.getByPlaceholder('Buscar producto…').fill('MOBOS:PROD:DEMO-FUNDA-MAGSAFE-TRANS')
+  const dialogo = page.getByRole('dialog', { name: 'Producto escaneado' })
+  await expect(dialogo).toBeVisible({ timeout: 10_000 })
+  await expect(dialogo.getByText('Funda MagSafe Transparente')).toBeVisible()
+
+  // Recién al confirmar entra a la venta.
+  await dialogo.getByRole('button', { name: 'Agregar a la venta' }).click()
+  await expect(page.getByRole('button', { name: /^Ver detalle de Funda MagSafe/ })).toBeVisible()
+  expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
+})
