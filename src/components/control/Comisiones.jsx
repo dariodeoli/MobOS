@@ -6,6 +6,8 @@ import Icon from '@/components/shared/Icon'
 import ComboBuscador from '@/components/shared/ComboBuscador'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import { gs } from '@/utils/calculos'
+import { periodoPendiente } from '@/utils/comisionesPeriodo'
+import { fmtCorto } from '@/components/shared/RangoFechas'
 import { fechaHora } from '@/utils/fecha'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { printHtml, escapeHtml } from '@/utils/printHtml'
@@ -79,6 +81,9 @@ export default function Comisiones() {
 
   const [liquidaciones, setLiquidaciones] = useState(null)
   const [periodo, setPeriodo] = useState(() => ({ sellerId: '', from: inicioDeMes(), to: hoy() }))
+  // #83 · Comisiones al día: al elegir el vendedor, el período arranca donde
+  // terminó su último corte vigente (el servidor rechaza superposiciones).
+  const [pendiente, setPendiente] = useState(null)
   const [cerrando, setCerrando] = useState(false)
   const [actualizandoId, setActualizandoId] = useState(null)
   const [anulando, setAnulando] = useState(null)
@@ -110,6 +115,21 @@ export default function Comisiones() {
     catch (cause) { setError(cause?.message || 'No se pudieron cargar las liquidaciones.'); setLiquidaciones([]) }
   }, [])
   useEffect(() => { cargar(); cargarLiquidaciones() }, [cargar, cargarLiquidaciones])
+
+  // El período pendiente se calcula con los cortes del vendedor elegido (no con
+  // la lista global, que tiene tope y muestra otros vendedores).
+  const elegirVendedorLiquidacion = useCallback(async (opcion) => {
+    setBusquedaLiquidacion(opcion.label)
+    const contexto = { sellerId: opcion.value, hoy: hoy(), inicioMes: inicioDeMes() }
+    setPeriodo({ sellerId: opcion.value, from: contexto.inicioMes, to: contexto.hoy })
+    setPendiente(null)
+    try {
+      const cortes = await api.get(`/api/commission-settlements?sellerId=${encodeURIComponent(opcion.value)}`) || []
+      const calculado = periodoPendiente(cortes, contexto)
+      setPendiente(calculado)
+      setPeriodo({ sellerId: opcion.value, from: calculado.desde, to: calculado.hasta })
+    } catch { /* sin cortes disponibles queda el inicio del mes */ }
+  }, [])
 
   async function crear(event) {
     event.preventDefault()
@@ -189,6 +209,7 @@ export default function Comisiones() {
       if (creada.verificationToken) setTokens(actual => ({ ...actual, [creada.id]: creada.verificationToken }))
       setLiquidaciones(actual => [creada, ...(actual || [])])
       setPeriodo(actual => ({ ...actual, sellerId: '' }))
+      setPendiente(null)
       toast.success('Liquidación cerrada', `${creada.sellerName || 'Vendedor'}: ${gs(creada.totalPyg || 0)} en comisiones.`)
       abrirComprobante(creada, creada.verificationToken)
     } catch (cause) { setError(cause?.message || 'No se pudo cerrar la liquidación.') } finally { setCerrando(false) }
@@ -305,7 +326,7 @@ export default function Comisiones() {
         <form onSubmit={cerrarLiquidacion} className="flex flex-col gap-3 mb-4 lg:flex-row lg:items-end">
           <div className="flex-1">
             <span className="block text-[10px] font-bold uppercase text-mute mb-1">Vendedor</span>
-            <ComboBuscador id="liquidacion-vendedor" ariaLabel="Vendedor de la liquidación" value={busquedaLiquidacion} options={opcionesVendedores} onChange={(texto) => { setBusquedaLiquidacion(texto); if (periodo.sellerId) setPeriodo({ ...periodo, sellerId: '' }) }} onSelect={opcion => { setBusquedaLiquidacion(opcion.label); setPeriodo({ ...periodo, sellerId: opcion.value }) }} placeholder="Buscá por nombre, correo o rol" required emptyLabel="Sin vendedores con esa búsqueda." />
+            <ComboBuscador id="liquidacion-vendedor" ariaLabel="Vendedor de la liquidación" value={busquedaLiquidacion} options={opcionesVendedores} onChange={(texto) => { setBusquedaLiquidacion(texto); if (periodo.sellerId) { setPeriodo({ ...periodo, sellerId: '' }); setPendiente(null) } }} onSelect={elegirVendedorLiquidacion} placeholder="Buscá por nombre, correo o rol" required emptyLabel="Sin vendedores con esa búsqueda." />
           </div>
           <div className="lg:w-40">
             <span className="block text-[10px] font-bold uppercase text-mute mb-1">Desde</span>
@@ -315,8 +336,16 @@ export default function Comisiones() {
             <span className="block text-[10px] font-bold uppercase text-mute mb-1">Hasta</span>
             <Input type="date" aria-label="Hasta" value={periodo.to} onChange={event => setPeriodo({ ...periodo, to: event.target.value })} required />
           </div>
-          <Button type="submit" disabled={cerrando || !periodo.sellerId}>{cerrando ? 'Cerrando…' : 'Cerrar liquidación'}</Button>
+          <Button type="submit" disabled={cerrando || !periodo.sellerId || pendiente?.alDia}>{cerrando ? 'Cerrando…' : 'Cerrar liquidación'}</Button>
         </form>
+        {periodo.sellerId && pendiente && (pendiente.alDia ? (
+          <Aviso tono="ok" compact className="mb-4">Sin comisiones pendientes: el último corte llega al {fmtCorto(pendiente.ultimo.to)}.</Aviso>
+        ) : (
+          <p className="mb-4 text-xs text-mute">
+            Se liquida desde el {fmtCorto(pendiente.desde)}
+            {pendiente.ultimo ? ` — el último corte fue del ${fmtCorto(pendiente.ultimo.desde)} al ${fmtCorto(pendiente.ultimo.to)}` : ' (sin cortes previos de este vendedor)'}.
+          </p>
+        ))}
         {liquidaciones === null ? (
           <div className="space-y-2" aria-busy="true"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
         ) : liquidaciones.length === 0 ? (
