@@ -11,6 +11,14 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.155 — 2026-09-24
+- **POS (#148 #249):** el **split** muestra el **estado por bloque** de cada parte y suma **«marcar como no pagado»**; el carrito y el cobro tienen **targets táctiles de 44 px** en mobile, y el **barrido responsive** de la suite entra al gate.
+- **Abastecimiento (#250):** **Fase 2 y 3** — compra rápida con **IMEI** y stock adicional, y preparación de la compra desde el centro de abastecimiento.
+- **Clientes (#240):** **avisos internos** del informe y de los mensajes sin ver en la ficha del cliente.
+- **Clientes (#241):** **resumen v2** en la lista y el stepper de entrega expone `aria-current` (accesible), con capturas por tema.
+- **Rendimiento (#247):** verificación en producción de las cargas más rápidas, con la **versión medida** registrada y guarda del **día paraguayo**.
+- **Componentes (#211):** **lote 24** (abastecimiento y entrega) a la biblioteca (v0.18.0) y QA de identidad.
+
 ## v1.0.154 — 2026-09-24
 - **Comisiones (#83 #148):** la **liquidación arranca donde terminó el último corte** (no se pisan ni se repiten períodos) y el comprobante queda al día.
 - **Clientes (#240):** **mensajes de la tienda al cliente** con visto/no visto, en la cuenta y el portal.
