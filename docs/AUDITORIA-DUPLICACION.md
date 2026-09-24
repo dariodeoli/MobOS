@@ -292,6 +292,19 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 29 — taller/rack y servicio/garantías en la biblioteca (24-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `ColumnaLote` (`owncoding-ui` **v0.23.0**) | El rack del taller y los tableros repiten el encabezado de columna (chip del estado + conteo + «Seleccionar todos»/«Imprimir (n)») y la lista con su vacío | Publicada: columna con `etiqueta`/`tono`/`contador`, `acciones` y `vacio`; las tarjetas van como children |
+| `Vencimiento` (+`estadoVencimiento`) | `Garantias` arma a mano el semáforo de vencimiento («venció» / «en 3 d» / fecha, con urgencia) y cada dominio lo reimplementa | Publicado: el helper devuelve texto/tono/vencido/días y el objeto lo dibuja en texto o chip, con vacío explícito (sirve también a cuotas y cobranzas) |
+| `Stepper` `tarjetas` con `detalle` | El pipeline del taller (`ServicioTecnico`, v2) dibuja su propio `<ol>` con el conteo por paso («2 equipos») | El `Stepper` en tarjetas acepta `detalle` por paso: el flujo del taller y el de entrega comparten objeto |
+| `PasosEquipo` | Ya publicado en el lote 28 (v0.22.0) | El rack puede reemplazar su copia local (`shared/PasosEquipo`) por el de la biblioteca |
+
+**Duplicación pendiente: 0 usos.** Con el paquete adoptado en MobOS, estos
+objetos se usan al subir la dependencia a **v0.23.0** (PLT) y adoptar en el
+taller/rack (PLT/INV) y en servicio/garantías (CRM/FIN según pantalla).
+
 ### Lote 28 — objetos para los lotes F4 A/C/E/F/G (24-09)
 
 | Objeto | Antes (evidencia) | Después |

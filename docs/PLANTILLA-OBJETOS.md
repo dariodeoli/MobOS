@@ -54,7 +54,8 @@ patrón de uso de cada familia y un ejemplo corto.
 > envíos/recepción y shell) y `FilaRevision`/`SelectorIncidencia`/
 > `DestinoRecepcion` + `utils/revision` (v0.20.0, F5 recepción) y `TileRol`/
 > `PasosEquipo` + `Stat` de consola y `FichaCertificado` con puntaje/condición/
-> repuestos (v0.22.0, lotes F4). Props en su `docs/REGLAS.md` §1/§3/§4/§8 bis.
+> repuestos (v0.22.0, lotes F4) y `ColumnaLote`/`Vencimiento` + `Stepper` con
+> detalle (v0.23.0, taller/rack y servicio). Props en su `docs/REGLAS.md` §1/§3/§4/§8 bis.
 > MobOS los mantiene en espejo hasta el lote de adopción del paquete.
 | Tema | `app/ThemeToggle` | claro/oscuro con tokens | `<ThemeToggle />` |
 
