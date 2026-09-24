@@ -40,3 +40,11 @@ test('la documentación del harness existe y describe los shards', () => {
   assert.match(doc, /--shard|--shards/)
   assert.doesNotMatch(doc, /MOBOS_E2E_CUARENTENA/)
 })
+
+test('el navegador del harness corre en el día paraguayo', () => {
+  // Causa raíz de la noche del 23/09: el reloj del navegador en UTC hacía que
+  // "hoy" no coincidiera con el día comercial (Asunción) y specs de días
+  // fallaran de noche. El harness fija la zona.
+  const config = leer('playwright.config.js')
+  assert.match(config, /timezoneId:\s*'America\/Asuncion'/, 'el harness tiene que fijar America/Asuncion')
+})

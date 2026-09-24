@@ -115,6 +115,10 @@ por spec: lo prohíbe la guarda de `src/lib/ciHarness.test.js`).
   trabajo en el agente). Los specs reintentan el click con `toPass` y esperan el
   **efecto real** (navegación, aviso o trabajo capturado por el agente falso),
   no solo que el click no tire error.
+- **Día paraguayo:** el navegador del harness corre con
+  `timezoneId: 'America/Asuncion'`. Sin eso, de noche el reloj del navegador
+  (UTC) cruzaba el día comercial y specs de "hoy" fallaban (noche del 23/09);
+  la guarda de `src/lib/ciHarness.test.js` lo exige.
 - **Puentes de impresión:** `global-setup` revoca todos los puentes activos de
   la empresa sembrada antes de correr. Los specs de impresión crean puentes y no
   todos los revocan: el tope de 20 activos hacía fallar la creación con **429**
@@ -152,6 +156,26 @@ node scripts/e2e-shards.mjs --check
 - **Rediseño previo (sobre v1.0.146):** 3 rondas consecutivas × 3 shards en
   verde (9/9) — 279-280 passed por ronda, **0 ruido** de abortos en los logs del
   backend.
+- **Noche del 23/09 (3 rojas en main):** las causas raíz quedaron cerradas
+  (tiempo paraguayo en el navegador, lectura estabilizada de Análisis, toast de
+  la demo y conciliación por contenido). Los specs afectados
+  (`analisis.spec.js`, `demo-finanzas*.spec.js`) corren **5/5 vueltas en verde**
+  aislados y sin reintentos.
+- **Producción #247 (v1.0.153):** entry **1104 KB → 169 KB**; pantallas de la
+  demo (sin API) en 113-268 ms. Ver
+  [`docs/qa/247-performance/produccion/`](../qa/247-performance/produccion/).
+
+## 8. Racha de CI
+
+El objetivo es **3 corridas consecutivas verdes** en `main`. Para mirar la racha:
+
+```bash
+gh run list --repo dariodeoli/MobOS --branch main --limit 5
+```
+
+Si una corrida queda roja: se lee el spec, se reproduce aislado (con el shard de
+`e2e/sharding.json`), se corrige la raíz y se vuelve a empezar la cuenta. No hay
+reintentos ni lista de excepciones.
 
 ## 7. Pendientes conocidos
 
