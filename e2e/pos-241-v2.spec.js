@@ -40,6 +40,10 @@ async function cuentaUsd(page) {
 
 async function armarCobro(page, sufijo) {
   await page.goto('/pos')
+  // La lista de cuentas del POS se hidrata al montar: la cuenta USD se crea
+  // antes de armar la venta y se recarga para que el desplegable la tenga.
+  const usd = await cuentaUsd(page)
+  await page.reload()
   await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente V2 ${sufijo}`)
   await page.getByPlaceholder('Buscar producto…').fill('Funda')
@@ -48,7 +52,6 @@ async function armarCobro(page, sufijo) {
 
   // Split: 25.000 cobrados y 10 USD @ 5.500 (55.000) que cubren la funda de
   // 80.000; el bloque en dólares se marca «No pagado».
-  const usd = await cuentaUsd(page)
   const pagos = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
   const filaUno = pagos.getByTestId('pago-fila-0')

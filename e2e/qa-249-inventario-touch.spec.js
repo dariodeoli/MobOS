@@ -45,7 +45,7 @@ test('mobile 390: los targets de la fila y la ficha llegan a 44', async ({ page 
 
   // Ficha con checklist en mobile: los estados del PhoneCheck a 44.
   await fila.locator('input[type=checkbox]').first().uncheck()
-  await fila.locator('b').first().click()
+  await fila.click()
   const ficha = page.getByRole('dialog')
   const checklist = ficha.getByTestId('unidad-phonecheck')
   await checklist.scrollIntoViewIfNeeded()
