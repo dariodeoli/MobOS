@@ -207,3 +207,54 @@ test('carrito ultra-colapsado: el descuento individual se ve sin desplegar (#148
     }, { api: API, productId })
   }
 })
+
+test('split: un bloque marcado como no pagado deja el saldo pendiente y el pedido parcial (#148 §11)', async ({ page }) => {
+  const id = clave()
+  const nombre = `Equipo no pagado QA ${id}`
+  const cliente = `Cliente no pagado QA ${id}`
+  const { productId } = await crearProducto(page, { nombre, precio: 100000, stock: 1 })
+  try {
+    await page.goto('/pos')
+    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+    await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(cliente)
+    await page.getByPlaceholder('Buscar producto…').fill(nombre)
+    await page.getByRole('button', { name: new RegExp(nombre) }).click()
+    await expect(page.getByText('Productos de esta venta')).toBeVisible()
+
+    // Dos bloques: 40.000 cobrados y 60.000 que no se cobran.
+    const pagos = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
+    for (const [indice, monto] of [['0', '40000'], ['1', '60000']]) {
+      await page.getByRole('button', { name: '+ Agregar pago' }).click()
+      const fila = pagos.getByTestId(`pago-fila-${indice}`)
+      await fila.getByLabel('Cuenta de cobro').click()
+      await page.getByRole('option', { name: /Caja E2E/ }).first().click()
+      await fila.getByLabel('Monto original').fill(monto)
+    }
+
+    // El bloque 2 se marca «No pagado»: no suma al cobrado y el pendiente vuelve.
+    const filaDos = pagos.getByTestId('pago-fila-1')
+    const chip = filaDos.getByRole('button', { name: 'Pagado' })
+    await expect(chip).toHaveAttribute('aria-pressed', 'true')
+    await chip.click()
+    await expect(filaDos.getByRole('button', { name: 'No pagado' })).toBeVisible()
+    await expect(pagos.getByTestId('cobro-pendiente')).toContainText('Gs 60.000')
+    await expect(pagos.getByTestId('cobro-pagado')).toContainText('Gs 40.000')
+
+    // La venta queda parcial: se guarda como pedido (no «Confirmar venta»).
+    const boton = page.getByRole('button', { name: /^Crear pedido/ })
+    await expect(boton).toBeVisible()
+    await boton.click()
+    await expect(page.getByText(/Venta registrada correctamente/)).toBeVisible({ timeout: 20_000 })
+
+    const orden = await pedidoDe(page, cliente)
+    expect(orden, 'el pedido queda registrado').toBeTruthy()
+    const pagosOrden = orden.payments || []
+    expect(pagosOrden.filter(p => p.status === 'CONFIRMED').reduce((s, p) => s + Number(p.amountPyg), 0)).toBe(40000)
+    expect(pagosOrden.filter(p => p.status === 'PENDING').reduce((s, p) => s + Number(p.amountPyg), 0)).toBe(60000)
+    expect(orden.status).toBe('PENDING')
+  } finally {
+    await page.evaluate(async ({ api, productId }) => {
+      await fetch(`${api}/api/products?id=${encodeURIComponent(productId)}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
+    }, { api: API, productId })
+  }
+})

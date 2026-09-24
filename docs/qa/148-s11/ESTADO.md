@@ -14,16 +14,17 @@
   exacto, «Dividir saldo» con saldo precargado y venta cerrada) y `e2e/pos-checkout` +
   `e2e/pos-qa-173` en verde.
 
-## Brechas detectadas (no implementadas)
+## Brechas cerradas
 
-1. **Eliminar un bloque de pago** (§11: «cada bloque … eliminar»): el bloque no tiene botón
-   para quitarlo; hoy se corrige vaciando el monto. **Punto:** `PasoCobro.jsx`, el `pagos.map`
-   de bloques (agregar un botón trash por índice → `setPagos(a => a.filter((_, j) => j !== i))`).
-2. **Estado por bloque y «marcar como no pagado»**: el POS registra cada bloque como
-   `CONFIRMED` al vender (`PaymentAccountFields` L53). El estado `PENDING` existe en el modelo
-   y se usa en postventa (detalle del pedido), pero el POS no ofrece marcarlo. Requiere
-   decisión de producto: marcar un bloque como no pagado al cargar (p. ej. tarjeta rechazada)
-   y que el backend lo acepte en `payments[].status`.
+1. **Eliminar un bloque de pago** (§11: «cada bloque … eliminar»): ✅ cada bloque tiene su
+   papelera (`PasoCobro.jsx`, `Eliminar pago N`), con target de 44 en mobile (#249).
+2. **Estado por bloque y «marcar como no pagado»** (§11): ✅ cada bloque muestra su estado
+   (`Pagado` / `No pagado`, `aria-pressed`) y se puede alternar al cargar. Un bloque marcado
+   como no pagado **no suma al cobrado**, deja ese saldo en «Pendiente», la venta se guarda
+   como **parcial** (`Crear pedido`) y el pago viaja con `status: 'PENDING'` (el backend ya lo
+   validaba). Implementado con el mismo carril de validación de cada bloque; sin decisión de
+   producto pendiente porque la épica ya define la acción.
 
-**Capturas:** el split y sus estados quedaron capturados en `docs/qa/204/`; las capturas de
-las dos brechas se toman cuando se implementen (requieren decisión en el punto 2).
+**Evidencia**: `e2e/pos-qa-173` «split: un bloque marcado como no pagado deja el saldo
+pendiente y el pedido parcial» (pago CONFIRMED 40.000 + PENDING 60.000 y pedido PENDING),
+capturas en `docs/qa/148-s11/no-pagado/` (sonda `scripts/qa-148-s11-no-pagado.mjs`).

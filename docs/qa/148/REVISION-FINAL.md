@@ -13,7 +13,7 @@ dominio o de decisión.
 | 8 | Cuentas de cobro con buscador | ✅ | `CuentaCobroCombobox` + capturas `docs/qa/204/01` |
 | 9 | Montos de venta 99.000 millones + moneda extranjera | ✅ POS | `docs/qa/204/01` (USD 100 → Gs 730.000) · estándar de 10 mM en Gastos/Pagos/Cuentas/Reportes/Comisiones → **FIN/INV** |
 | 10 | Botón principal por estado | ✅ | Capturas `docs/qa/204/01-02` (Crear pedido → Confirmar venta) |
-| 11 | Pagos divididos (bloques, agregar, dividir, eliminar) | ✅ + 🟡 | Split `docs/qa/204`; **eliminar bloque** cerrado en rama (`379a14e3`, captura `docs/qa/148-s11/capturas/01-split-usd.jpg`) pendiente de deploy; **estado por bloque / marcar no pagado** → decisión de producto |
+| 11 | Pagos divididos (bloques, agregar, dividir, eliminar, estado) | ✅ | Split `docs/qa/204`; eliminar bloque y **estado por bloque / marcar como no pagado** (`docs/qa/148-s11/ESTADO.md`, e2e `pos-qa-173`, capturas `docs/qa/148-s11/no-pagado/`) |
 | 12 | Estados de entrega sincronizados | ✅ | `docs/qa/148-s12/ESTADO.md`; e2e `public-tracking` + arnés `order-fulfillment` · coordinación **PLT** (notificación in-app) y **DSN** (piloto) |
 | 13–15 | Bloqueo de sesión, tres puntos, staff/PIN | ✅ otro dominio | specs `sesion-bloqueo`, `notificaciones`, `seller-pin` en main |
 | 16 | Comentarios internos y menciones | ✅ | e2e de menciones (#156) · notificación de menciones → **PLT** |
@@ -28,8 +28,6 @@ dominio o de decisión.
 
 ## Pendientes abiertos (con responsable)
 
-1. **Decisión de producto**: «marcar como no pagado» por bloque (§11).
-2. **Deploy**: eliminar bloque de pago (§11) ya está en la rama.
-4. **PLT**: notificación in-app de cambios de entrega y menciones.
-5. **INV/FIN**: sync inventario→POS (§6), estándar de montos (§9), «por caja»/gift cards (§18).
-6. **DSN**: piloto del carrito/seguimiento (§12) y captura del modal del escáner (§6).
+1. **PLT**: notificación in-app de cambios de entrega y menciones.
+2. **INV/FIN**: sync inventario→POS (§6), estándar de montos (§9), «por caja»/gift cards (§18).
+3. **DSN**: piloto del carrito/seguimiento (§12) y captura del modal del escáner (§6).
