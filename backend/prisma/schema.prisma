@@ -133,6 +133,7 @@ model Tenant {
   supplyShipmentItems         SupplyShipmentItem[]
   supplyReceptions            SupplyReception[]
   supplyReceptionItems        SupplyReceptionItem[]
+  supplyPolicies              SupplyPolicy[]
 }
 
 // Identidad de la PERSONA (cuenta Google). No pertenece a ninguna tienda:
@@ -274,6 +275,7 @@ model Branch {
   supplyNeeds SupplyNeed[]
   supplyPurchases SupplyPurchase[]
   supplyShipments SupplyShipment[] @relation("SupplyShipmentDestination")
+  supplyPolicies SupplyPolicy[]
 }
 
 model User {
@@ -353,6 +355,7 @@ model User {
   supplyShipmentsCreated       SupplyShipment[] @relation("SupplyShipmentAuthor")
   supplyReceptionsReceived     SupplyReception[] @relation("SupplyReceptionReceiver")
   supplyReceptionsCreated      SupplyReception[] @relation("SupplyReceptionAuthor")
+  supplyPoliciesUpdated        SupplyPolicy[] @relation("SupplyPolicyUpdater")
 }
 
 model UserInvitation {
@@ -512,6 +515,7 @@ model Product {
   supplyPurchaseLines SupplyPurchaseLine[]
   supplyShipmentItems SupplyShipmentItem[]
   supplyReceptionItems SupplyReceptionItem[]
+  supplyPolicies SupplyPolicy[]
 }
 
 enum InventoryUnitStatus {
@@ -2441,6 +2445,29 @@ model SupplyReceptionItem {
 
   @@index([tenantId, receptionId])
   @@index([tenantId, shipmentItemId])
+}
+
+// #250 Fase 6 (Centro de Abastecimiento): política de reposición por producto y
+// sucursal — **stock de seguridad** y plazo de entrega — para la reposición
+// sugerida y las alertas.
+model SupplyPolicy {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  branchId     String
+  branch       Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  // Colchón mínimo y días que tarda reponer (compra → llegada).
+  safetyStock  Int      @default(0)
+  leadTimeDays Int      @default(7)
+  updatedById  String?
+  updatedBy    User?    @relation("SupplyPolicyUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([tenantId, productId, branchId])
+  @@index([tenantId, branchId])
 }
 
 model Supplier {

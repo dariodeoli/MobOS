@@ -49,6 +49,8 @@ export const ACCIONES_AUDITORIA: Record<string, string> = {
   SUPPLY_SHIPMENT_DISPATCHED: 'Envío entrante despachado',
   SUPPLY_SHIPMENT_INCIDENT: 'Incidencia en un envío entrante',
   SUPPLY_SHIPMENT_CANCELLED: 'Envío entrante cancelado',
+  SUPPLY_SHIPMENT_AEX_GUIDE: 'Guía AEX del envío entrante',
+  SUPPLY_POLICY_UPDATED: 'Política de reposición actualizada',
   SUPPLY_RECEPTION_STARTED: 'Recepción iniciada',
   SUPPLY_RECEPTION_SCANNED: 'IMEI escaneado en una recepción',
   SUPPLY_RECEPTION_INCIDENT: 'Incidencia en una recepción',
