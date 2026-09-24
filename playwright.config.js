@@ -84,6 +84,9 @@ export default defineConfig({
   expect: { timeout: 20_000 },
   reporter: [['list'], ['html', { open: 'never' }], ['./e2e/reporters/flaky.mjs']],
   use: {
+    // El negocio opera en Paraguay: el navegador del harness corre en ese huso
+    // (en CI el default es UTC y el día de Ganancias/Reportes no coincidía).
+    timezoneId: 'America/Asuncion',
     baseURL: `http://localhost:${WEB_PORT}`,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
