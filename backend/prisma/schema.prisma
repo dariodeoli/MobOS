@@ -131,6 +131,8 @@ model Tenant {
   supplyPurchaseSerials       SupplyPurchaseSerial[]
   supplyShipments             SupplyShipment[]
   supplyShipmentItems         SupplyShipmentItem[]
+  supplyReceptions            SupplyReception[]
+  supplyReceptionItems        SupplyReceptionItem[]
 }
 
 // Identidad de la PERSONA (cuenta Google). No pertenece a ninguna tienda:
@@ -349,6 +351,8 @@ model User {
   supplyPurchasesCreated        SupplyPurchase[] @relation("SupplyPurchaseAuthor")
   supplyShipmentsResponsible   SupplyShipment[] @relation("SupplyShipmentResponsible")
   supplyShipmentsCreated       SupplyShipment[] @relation("SupplyShipmentAuthor")
+  supplyReceptionsReceived     SupplyReception[] @relation("SupplyReceptionReceiver")
+  supplyReceptionsCreated      SupplyReception[] @relation("SupplyReceptionAuthor")
 }
 
 model UserInvitation {
@@ -507,6 +511,7 @@ model Product {
   supplyNeeds SupplyNeed[]
   supplyPurchaseLines SupplyPurchaseLine[]
   supplyShipmentItems SupplyShipmentItem[]
+  supplyReceptionItems SupplyReceptionItem[]
 }
 
 enum InventoryUnitStatus {
@@ -643,6 +648,7 @@ model StockLocation {
   @@unique([branchId, name])
   @@unique([branchId, code])
   @@index([tenantId, branchId, isActive])
+  supplyReceptions SupplyReception[]
 }
 
 // Permiso explícito y solo de lectura: el receptor ve disponibilidad, nunca
@@ -2362,6 +2368,7 @@ model SupplyShipment {
   @@unique([tenantId, code])
   @@index([tenantId, status, createdAt])
   @@index([tenantId, purchaseId])
+  receptions SupplyReception[]
 }
 
 model SupplyShipmentItem {
@@ -2383,6 +2390,57 @@ model SupplyShipmentItem {
   @@unique([tenantId, serial])
   @@index([tenantId, shipmentId])
   @@index([tenantId, lineId])
+  receptionItems SupplyReceptionItem[]
+}
+
+// #250 Fase 5 (Centro de Abastecimiento): recepción de un envío entrante. Se
+// abre desde el QR del manifiesto o desde «Llegadas pendientes», se escanea
+// contra lo esperado (IMEI conocido o pendiente) y **recién al confirmar** se
+// crean las unidades en stock; los faltantes/sobrantes/dañados/incorrectos
+// quedan como incidencia y no entran al stock vendible.
+model SupplyReception {
+  id           String                @id @default(cuid())
+  tenantId     String
+  tenant       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  shipmentId   String
+  shipment     SupplyShipment        @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  // Depósito destino (el predeterminado de la sucursal o el que elija depósito).
+  locationId   String?
+  location     StockLocation?        @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  status       String                @default("BORRADOR")
+  receivedById String?
+  receivedBy   User?                 @relation("SupplyReceptionReceiver", fields: [receivedById], references: [id], onDelete: SetNull)
+  receivedAt   DateTime?
+  notes        String?
+  createdById  String
+  createdBy    User                  @relation("SupplyReceptionAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  items        SupplyReceptionItem[]
+
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, shipmentId])
+}
+
+model SupplyReceptionItem {
+  id             String           @id @default(cuid())
+  tenantId       String
+  tenant         Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  receptionId    String
+  reception      SupplyReception  @relation(fields: [receptionId], references: [id], onDelete: Cascade)
+  // Unidad esperada del manifiesto (null en los sobrantes que no estaban).
+  shipmentItemId String?
+  shipmentItem   SupplyShipmentItem? @relation(fields: [shipmentItemId], references: [id], onDelete: SetNull)
+  serial         String?
+  productId      String
+  product        Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // RECIBIDO · FALTANTE · SOBRANTE · DANADO · INCORRECTO (ver backend/lib/supply.ts).
+  resultado      String
+  nota           String?
+  createdAt      DateTime         @default(now())
+
+  @@index([tenantId, receptionId])
+  @@index([tenantId, shipmentItemId])
 }
 
 model Supplier {

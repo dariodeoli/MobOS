@@ -6,7 +6,7 @@ import { ensureStoreBranch } from './store-branch'
 // identificado por `entity` + `entityId`. La visibilidad replica la del módulo
 // dueño para no abrir una puerta lateral a los mismos datos.
 
-export const ATTACHMENT_ENTITIES = ['EXPENSE', 'PURCHASE', 'SUPPLIER_PAYMENT', 'CASH_SESSION', 'STOCK_TRANSFER', 'SUPPLY_PURCHASE', 'SUPPLY_SHIPMENT'] as const
+export const ATTACHMENT_ENTITIES = ['EXPENSE', 'PURCHASE', 'SUPPLIER_PAYMENT', 'CASH_SESSION', 'STOCK_TRANSFER', 'SUPPLY_PURCHASE', 'SUPPLY_SHIPMENT', 'SUPPLY_RECEPTION'] as const
 export type AttachmentEntity = (typeof ATTACHMENT_ENTITIES)[number]
 
 const ROLES = ['ADMIN', 'GERENTE', 'VENDEDOR', 'CAJERA'] as const
@@ -54,6 +54,14 @@ export async function checkAttachmentTarget(entity: AttachmentEntity, entityId: 
     const purchase = await prisma.purchaseOrder.findFirst({ where: { id: entityId, tenantId }, select: { branchId: true } })
     if (!purchase) return { ok: false, status: 404 }
     return branchAllowed(role, branchId, purchase.branchId) ? { ok: true } : { ok: false, status: 403 }
+  }
+
+  // #250 Fase 5: fotos de la recepción (faltantes, dañados, incorrectos).
+  if (entity === 'SUPPLY_RECEPTION') {
+    if (!(PURCHASE_ROLES as readonly string[]).includes(role)) return { ok: false, status: 403 }
+    const item = await prisma.supplyReceptionItem.findFirst({ where: { id: entityId, tenantId }, select: { reception: { select: { shipment: { select: { destinationBranchId: true } } } } } })
+    if (!item) return { ok: false, status: 404 }
+    return branchAllowed(role, branchId, item.reception.shipment.destinationBranchId) ? { ok: true } : { ok: false, status: 403 }
   }
 
   // #250 Fase 4: fotos del lote/envío entrante (carga, despacho, llegada).
