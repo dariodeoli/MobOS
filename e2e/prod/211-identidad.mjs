@@ -144,6 +144,28 @@ try {
     return `chips ${estado.chips}`
   })
 
+  await paso('v2: stepper de entrega del pedido con el flag de vista previa', async () => {
+    await page.evaluate(() => { try { localStorage.setItem('mobos:tema-v2', '1') } catch {} })
+    await page.goto(`${APP}/pos/pedidos`)
+    const fila = page.locator('[data-testid="pedido-fila"]').first()
+    await fila.waitFor({ timeout: 25_000 })
+    await fila.click()
+    await page.getByText('Artículos preparados').waitFor({ timeout: 25_000 })
+    const stepper = page.getByLabel('Flujo de entrega')
+    afirmar(await stepper.count() > 0, 'el stepper de entrega no aparece con el flag v2')
+    const texto = (await stepper.first().innerText()).replace(/\s+/g, ' ')
+    afirmar(/Pendiente/.test(texto) && /Preparando/.test(texto), `los pasos no se dibujan: ${texto}`)
+    const estado = await estadoIdentidad(page)
+    afirmar(estado.rotas.length === 0, `imágenes rotas con el flag v2: ${estado.rotas.join(' | ')}`)
+    await shot(page, 'pedido-v2-stepper')
+    return texto.slice(0, 80)
+  })
+
+  await paso('v2: el flag se apaga sin dejar restos', async () => {
+    await page.evaluate(() => { try { localStorage.removeItem('mobos:tema-v2') } catch {} })
+    return 'flag limpio'
+  })
+
   await paso('pantalla de bloqueo: chip con primer nombre y PIN', async () => {
     // Vuelve a claro de verdad (clase + preferencia) antes de capturar.
     await page.evaluate(() => { try { localStorage.setItem('mobos:theme', 'light') } catch {}; document.documentElement.classList.remove('dark') })

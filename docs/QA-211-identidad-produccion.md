@@ -1,4 +1,4 @@
-# QA #211 — identidad unificada en producción (v1.0.153 → v1.0.154)
+# QA #211 — identidad y stepper v2 en producción (v1.0.153 → v1.0.156)
 
 Verificación **post-deploy** del objeto único de identidad (`PersonaChip`) en
 las superficies adoptadas, sobre producción (`app.moboss.online`) y con el
@@ -8,9 +8,9 @@ las superficies adoptadas, sobre producción (`app.moboss.online`) y con el
   zona America/Asunción). Sale 1 si un paso falla.
 - Evidencia: `docs/qa/211-identidad-prod/` (capturas claro/oscuro +
   `resultados.json`).
-- Versiones verificadas: **v1.0.153** (deploy inicial) y **v1.0.154** (repetición del 24-09, mismo resultado 8/8; el mínimo del script se pasa por `QA211_VERSION_MINIMA` y hoy es 1.0.154).
+- Versiones verificadas: **v1.0.153**, **v1.0.154** y **v1.0.156** (repetición del 24-09; el mínimo del script se pasa por `QA211_VERSION_MINIMA`, hoy 1.0.154).
 
-## Resultado — 8/8 pasos
+## Resultado — 10/10 pasos
 
 | Paso | Resultado |
 | --- | --- |
@@ -20,14 +20,28 @@ las superficies adoptadas, sobre producción (`app.moboss.online`) y con el
 | Pedido: oscuro sin imágenes rotas | ✅ 3 chips |
 | Pantalla de bloqueo: chip con **primer nombre** + PIN | ✅ “Hernán” + “Ingresá tu PIN de 4 dígitos” |
 | Pantalla de bloqueo: oscuro | ✅ |
+| v2: stepper de entrega del pedido con el flag `preview v2` | ✅ 4 pasos («Pendiente · Preparando · Listo para retirar · Retirado») sin imágenes rotas |
+| v2: el flag se apaga sin dejar restos | ✅ |
 | Píldora de presencia del topbar | ⚠️ no visible en el demo anónimo (no hay otras personas en línea) |
 | Errores de runtime en el recorrido | ✅ 0 |
 
 Capturas: `01-pedido-cronologia-claro.png` · `02-pedido-cronologia-oscuro.png`
-· `03-bloqueo-claro.png` · `04-bloqueo-oscuro.png`.
+· `03-pedido-v2-stepper.png` · `04-bloqueo-claro.png` · `05-bloqueo-oscuro.png`.
 
 En la captura del pedido se ve además la **identidad de la sesión en el pie
 del menú** (avatar + nombre + rol) usando el mismo objeto.
+
+## Hallazgo (no bloquea, para POS/DSN)
+
+Con el flag `preview v2`, el **stepper de entrega no marca ningún paso como
+actual** en los pedidos del **demo**: las 4 tarjetas quedan grises. Causa: las
+ventas del demo entran a la lista con `fulfillmentStatus` = el texto de
+`entrega` («Retiro en tienda» / «Delivery»), que no es una clave de estado
+(`sellerOrders` los mapea así para la demo), y el stepper no encuentra el paso.
+En pedidos con estados reales de la API no se reproduce (no hay pedidos así en
+el demo anónimo para verificarlo). Sugerencia: normalizar ese mapeo de demo a
+una clave (`PENDING`/`PROCESSING`) o hacer que el stepper caiga al primer paso
+cuando el estado es desconocido.
 
 ## Observaciones (no bloquean)
 
