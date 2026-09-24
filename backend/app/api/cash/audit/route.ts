@@ -5,8 +5,10 @@ import { ensureStoreBranch } from '../../../../lib/store-branch'
 
 const ROLES = ['ADMIN', 'GERENTE', 'CAJERA']
 const METHODS = ['CASH', 'TRANSFER', 'CARD', 'PIX', 'CRYPTO', 'CREDIT', 'TRADE_IN'] as const
-// Paraguay usa UTC-4: el "día" operativo de la sucursal se delimita así.
-const OFFSET = '-04:00'
+// Paraguay opera en UTC-3 fijo (mismo criterio que reportes y el resto de
+// Finanzas: `cash/route.ts`, `reporting.ts`). Con el -04 heredado, los cobros
+// de 00:00–01:00 (hora paraguaya) caían en la auditoría del día anterior.
+const OFFSET = '-03:00'
 
 // Control de cierre por método de pago: cuánto entró en efectivo, por
 // transferencia, tarjeta o PIX en la sucursal y el día indicados, para
@@ -36,7 +38,9 @@ export async function GET(request: Request) {
     const entries = rows.filter(row => row.method === method)
     const confirmed = entries.find(row => row.status === 'CONFIRMED')
     const pending = entries.find(row => row.status === 'PENDING')
-    const refunded = entries.find(row => row.status === 'REJECTED') || entries.find(row => row.status === 'REFUNDED')
+    // Un pago rechazado nunca entró a la caja: el reembolsado es el REFUNDED
+    // (antes, si había un REJECTED, se mostraba ese monto como reembolsado).
+    const refunded = entries.find(row => row.status === 'REFUNDED')
     return {
       method,
       amountPyg: Number(confirmed?.total || 0n),

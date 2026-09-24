@@ -12,8 +12,9 @@ import { InputError, objectInput, textInput } from '../../../../lib/payment-inpu
 const ROLES = ['ADMIN', 'GERENTE', 'CAJERA']
 const KINDS = ['PAYMENT', 'MOVEMENT']
 const STATUSES = ['VERIFIED', 'PENDING', 'DIFFERENCE']
-// Paraguay usa UTC-4: el día operativo de la sucursal se delimita así.
-const OFFSET = '-04:00'
+// Paraguay opera en UTC-3 fijo (mismo criterio que el resto de Finanzas): el
+// día operativo de la sucursal se delimita así.
+const OFFSET = '-03:00'
 const MAX_DIAS = 366
 
 function rangoDe(params: URLSearchParams) {

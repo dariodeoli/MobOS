@@ -72,6 +72,7 @@ vendedor/día ni la comisión liquidada**—, ya corregido y con evidencia en
 | #249 (2026-09-23) | Responsive mobile de Finanzas (H2/H3) con capturas y gate e2e | `249-finanzas.md` + `249-finanzas/` |
 | #249 (2026-09-23) | Sonda de la cadena de costo real (repuestos → margen/seguro) para producción | `249-finanzas.md` + `249-costo-real-prod/` |
 | #83 (2026-09-24) | Comisiones al día: la liquidación arranca donde terminó el último corte | `83-comisiones-al-dia.md` |
+| #148 §17 · #244 (2026-09-24) | Día operativo de la auditoría de caja en UTC-3 (último `-04` del backend) + reembolsos | `148-17-auditoria-dia-utc3.md` |
 | #185 Recorrido de Finanzas en producción | 16/16 pasos, 4 corridas (v1.0.137, v1.0.139, v1.0.140 y v1.0.141) | `185/produccion/reporte.md`, `185/produccion-1.0.139/`, `185/produccion-1.0.140/`, `185/produccion-1.0.141/` |
 
 ## Sondas re-ejecutables (producción)
