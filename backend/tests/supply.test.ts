@@ -149,3 +149,43 @@ assert.equal(etiquetas[0].compra, 'COM-CDE-0001')
 
 assert.deepEqual(resumenPreparacion([{ quantity: 2, serials: ['a'] }, { quantity: 1, serials: [] }]), { unidades: 3, conImei: 1, pendientes: 2 })
 assert.deepEqual(resumenPreparacion([]), { unidades: 0, conImei: 0, pendientes: 0 })
+
+// ── Fase 4: lotes y tránsito (#250 §8 y §11) ────────────────────────────────
+import { codigoEnvio, expandirItemsEnvio, manifiestoEnvio, transicionEnvioValida } from '../lib/supply'
+
+assert.equal(codigoEnvio({ origen: 'cde', destino: 'asu', secuencia: 21 }), 'ENV-CDE-ASU-0021')
+assert.equal(codigoEnvio({ secuencia: 1 }), 'ENV-CDE-ASU-0001')
+
+// Máquina de estados: solo las transiciones válidas.
+assert.equal(transicionEnvioValida('BORRADOR', 'PREPARANDO'), true)
+assert.equal(transicionEnvioValida('PREPARANDO', 'DESPACHADO'), true)
+assert.equal(transicionEnvioValida('DESPACHADO', 'EN_TRANSITO'), true)
+assert.equal(transicionEnvioValida('EN_TRANSITO', 'CON_INCIDENCIA'), true)
+assert.equal(transicionEnvioValida('BORRADOR', 'EN_TRANSITO'), false)
+assert.equal(transicionEnvioValida('RECIBIDO', 'EN_TRANSITO'), false)
+assert.equal(transicionEnvioValida('CANCELADO', 'PREPARANDO'), false)
+
+// Unidades del lote: IMEI conocido primero y pendientes después.
+const lote = expandirItemsEnvio({ lineas: [{ id: 'l1', productId: 'p1', quantity: 3, serials: ['a1', 'a2'] }] })
+assert.deepEqual(lote.ok && lote.items.map((item) => item.serial), ['A1', 'A2', null])
+const segundo = expandirItemsEnvio({ lineas: [{ id: 'l1', productId: 'p1', quantity: 3, serials: ['A1', 'A2'] }], asignados: [{ lineId: 'l1', serial: 'A1', cantidad: 1 }] })
+assert.deepEqual(segundo.ok && segundo.items.map((item) => item.serial), ['A2', null])
+assert.equal(expandirItemsEnvio({ lineas: [{ id: 'l1', productId: 'p1', quantity: 1, serials: ['A1'] }], asignados: [{ lineId: 'l1', cantidad: 1 }] }).ok, false, 'sin lugar no hay envío')
+
+const manifiesto = manifiestoEnvio({
+  envio: { code: 'ENV-CDE-ASU-0001', origin: 'CDE', method: 'BUS', status: 'EN_TRANSITO', publicToken: 'tok-123', purchase: { code: 'COM-CDE-0001' }, destinationBranch: { name: 'Casa Central' }, responsible: { name: 'Ana' }, sentAt: '2026-09-24T10:00:00.000Z', etaAt: null, arrivedAt: null, company: 'Bus SA', driver: 'Juan', guide: 'G-1', notes: null },
+  items: [
+    { lineId: 'l1', producto: 'iPhone 15', capacidad: '128GB', condicion: 'NEW', serial: 'A1' },
+    { lineId: 'l1', producto: 'iPhone 15', capacidad: '128GB', condicion: 'NEW', serial: null },
+  ],
+  base: 'https://app.moboss.online',
+})
+assert.equal(manifiesto.metodoLabel, 'Bus')
+assert.equal(manifiesto.unidades, 2)
+assert.equal(manifiesto.conImei, 1)
+assert.equal(manifiesto.pendientes, 1)
+assert.equal(manifiesto.lineas[0].cantidad, 2)
+assert.deepEqual(manifiesto.lineas[0].imeis, ['A1'])
+assert.equal(manifiesto.destino, 'Casa Central')
+assert.equal(manifiesto.compra, 'COM-CDE-0001')
+assert.equal(manifiesto.enlace, 'https://app.moboss.online/envio/tok-123')

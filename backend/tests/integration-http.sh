@@ -675,6 +675,9 @@ node "$BACKEND_ROOT/tests/supply-purchases.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOK
 echo "Centro de Abastecimiento F3: IMEI y preparación (escaneo, lote y etiquetas) (#250)..."
 node "$BACKEND_ROOT/tests/supply-preparation.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 
+echo "Centro de Abastecimiento F4: lotes, tránsito y manifiesto (#250)..."
+node "$BACKEND_ROOT/tests/supply-shipments.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
+
 echo "12/13 Bloqueo de login empresarial después de cinco intentos..."
 out="$(response_file)"; request POST /api/auth/pin 200 '{"sellerId":"user-lock-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''
 for _ in 1 2 3 4 5; do
@@ -732,4 +735,4 @@ MOBOS_QA_API_URL="$BASE_URL" MOBOS_QA_TOKEN="$ADMIN_TOKEN" MOBOS_QA_SEMBRAR=1 MO
 echo "Seguridad pública: token de liquidaciones hasheado, rotación y límite de uso..."
 PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/commission-settlement-public.mjs"
 
-echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración, consistencia, abastecimiento (necesidades, compras y preparación) y logout."
+echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración, consistencia, abastecimiento (necesidades, compras, preparación y lotes) y logout."
