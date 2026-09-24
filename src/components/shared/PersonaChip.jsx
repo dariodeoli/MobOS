@@ -38,13 +38,13 @@ export default function PersonaChip({
   return (
     <span data-testid="persona-chip" className={cn('inline-flex min-w-0 items-center gap-2', className)} title={etiqueta}>
       <span className="relative inline-flex shrink-0">
+        {/* El tooltip vive solo en el chip (evita dos nodos con el mismo title). */}
         <Avatar
           user={fuente}
           picture={picture ?? identidad.picture}
           hasAvatar={identidad.hasAvatar}
           size={size}
           className={avatarClassName}
-          title={etiqueta}
         />
         {presencia ? <i aria-hidden className={cn('absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ring-1 ring-paper', presencia.punto)} /> : null}
       </span>
