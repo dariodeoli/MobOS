@@ -39,7 +39,7 @@ const ACCION_AUDITORIA: Record<string, string> = {
 }
 // Acciones del taller que se dibujan con el ícono de servicio en la ficha.
 const ACCIONES_SERVICIO = new Set(['SERVICE_ORDER_CREATED', 'SERVICE_ORDER_FROM_WARRANTY', 'SERVICE_ORDER_STATUS'])
-const AUDITORIAS_EXCLUIDAS = /^CUSTOMER_NOTE_/
+const AUDITORIAS_EXCLUIDAS = /^CUSTOMER_(NOTE|NOTICE)_/
 
 const formatoGs = (value: unknown) => `Gs ${Number(value || 0).toLocaleString('es-PY')}`
 const resumenValorComercial = (value: unknown) => {
@@ -131,7 +131,7 @@ export async function GET(request: Request, { params }: RouteContext) {
   const sellerBranchId = session.user.role === 'VENDEDOR' ? session.user.branchId : null
   const branchId = session.user.role === 'GERENTE' ? null : sellerBranchId
 
-  const [orders, notes, followUps, audits] = await Promise.all([
+  const [orders, notes, followUps, notices, audits] = await Promise.all([
     prisma.order.findMany({
       where: { tenantId: tenant, customerId: customer.id, ...(branchId ? { branchId } : {}) },
       select: {
@@ -154,6 +154,13 @@ export async function GET(request: Request, { params }: RouteContext) {
       select: { id: true, kind: true, note: true, dueAt: true, doneAt: true, createdAt: true, user: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'desc' },
       take: 300,
+    }),
+    // Mensajes de la tienda al cliente (#240 → portal): el envío y su visto.
+    prisma.customerNotice.findMany({
+      where: { tenantId: tenant, customerId: customer.id },
+      select: { id: true, content: true, createdAt: true, firstViewedAt: true, user: { select: { id: true, name: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
     }),
     prisma.auditLog.findMany({
       where: {
@@ -229,6 +236,22 @@ export async function GET(request: Request, { params }: RouteContext) {
       createdAt: note.createdAt,
       user: note.user,
       detail: note.content,
+    })),
+    ...notices.map(notice => ({
+      id: `notice-${notice.id}`,
+      type: 'notice',
+      action: 'Mensaje al cliente',
+      createdAt: notice.createdAt,
+      user: notice.user,
+      detail: notice.content,
+    })),
+    ...notices.filter(notice => notice.firstViewedAt).map(notice => ({
+      id: `notice-${notice.id}-visto`,
+      type: 'notice',
+      action: 'Mensaje visto por el cliente',
+      createdAt: notice.firstViewedAt as Date,
+      user: null,
+      detail: notice.content,
     })),
     ...followUps.flatMap(item => {
       const creado: TimelineEvent = {

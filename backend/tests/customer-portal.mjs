@@ -192,6 +192,25 @@ for (const campo of FORBIDDEN) {
 assert.equal(serializadoCompleto.includes(notaInterna), false, 'La nota interna nunca viaja al portal completo.')
 assert.equal(serializadoCompleto.includes(notaPublica), true, 'La nota pública debe viajar al portal completo.')
 
+// ── Mensajes de la tienda (#240 → portal): se ven al abrir la cuenta ────────
+result = await request(`/api/customers/${encodeURIComponent(cliente.id)}/notices`, 'POST', { content: `Mensaje IT ${ts}` }, sellerToken)
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const mensajeId = result.payload.id
+result = await publicRequest(`/api/portal/${encodeURIComponent(tokenCompleto)}`)
+assert.equal(result.response.status, 200)
+const mensajePortal = (result.payload.mensajes || []).find((item) => item.content === `Mensaje IT ${ts}`)
+assert.ok(mensajePortal, 'El portal debe listar el mensaje de la tienda.')
+assert.equal(mensajePortal.nuevo, true, 'La primera apertura lo marca como nuevo.')
+result = await publicRequest(`/api/portal/${encodeURIComponent(tokenCompleto)}`)
+assert.equal(result.payload.mensajes.find((item) => item.content === `Mensaje IT ${ts}`).nuevo, false, 'La segunda apertura ya no es nueva.')
+result = await request(`/api/customers/${encodeURIComponent(cliente.id)}`)
+const avisoFicha = (result.payload.customerNotices || []).find((item) => item.id === mensajeId)
+assert.ok(avisoFicha?.firstViewedAt, 'La ficha ve el visto del mensaje.')
+assert.equal((result.payload.customerNotices || []).some((item) => item.content === `Mensaje IT ${ts}`), true)
+const cronoMensaje = await request(`/api/customers/${encodeURIComponent(cliente.id)}/timeline?limit=50`)
+assert.ok(cronoMensaje.payload.events.some((event) => event.action === 'Mensaje al cliente'), 'La cronología registra el envío.')
+assert.ok(cronoMensaje.payload.events.some((event) => event.action === 'Mensaje visto por el cliente'), 'La cronología registra el visto.')
+
 // ── Regeneración: el enlace anterior deja de funcionar ─────────────────────
 result = await request(`/api/customers/${encodeURIComponent(cliente.id)}/access-token`, 'POST', { level: 'rapido', regenerate: true }, sellerToken)
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))

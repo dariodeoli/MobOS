@@ -204,3 +204,16 @@ test('el portal demo sigue la entrega con sus pasos (#240 → portal)', () => {
   assert.equal(pedidoVenta.fulfillmentStatus, 'PICKED_UP')
   assert.equal(pedidoVenta.tracking.pasos.every((paso) => paso.hecho), true)
 })
+
+test('la demo muestra los mensajes de la tienda y marca el visto (#240)', () => {
+  const aviso = buscarClienteDemo(LUCIA).demoProfile.notices.find((item) => item.id === 'demo-av-2')
+  aviso.firstViewedAt = null
+  const cuenta = demoCuentaPayload('demo-demo-cliente-lucia-rapido')
+  assert.equal(cuenta.mensajes.length, 2)
+  assert.equal(cuenta.mensajes[0].nuevo, true, 'el más reciente llega como nuevo')
+  assert.ok(aviso.firstViewedAt, 'el visto queda marcado al abrir la cuenta')
+  const segunda = demoCuentaPayload('demo-demo-cliente-lucia-rapido')
+  assert.equal(segunda.mensajes[0].nuevo, false, 'la segunda apertura ya no es nueva')
+  const perfil = buildDemoProfile(buscarClienteDemo(LUCIA))
+  assert.ok(perfil.customerNotices.some((item) => item.firstViewedAt), 'la ficha ve el visto')
+})

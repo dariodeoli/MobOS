@@ -124,6 +124,7 @@ const EVENTOS = {
   followUp: { icon: 'clock', tono: 'bg-ink-700 text-mute' },
   warranty: { icon: 'package', tono: 'bg-fono/10 text-fono-light' },
   service: { icon: 'wrench', tono: 'bg-warn/10 text-warn' },
+  notice: { icon: 'megaphone', tono: 'bg-fono/10 text-fono-light' },
   audit: { icon: 'edit', tono: 'bg-ink-700 text-mute' },
 }
 const conCodigos = (texto) => String(texto || '').replace(/MOB-(\d+)/g, 'MOB #$1')
@@ -495,6 +496,10 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   const [newNote, setNewNote] = useState('')
   const [editingNote, setEditingNote] = useState(null)
   const [noteBusy, setNoteBusy] = useState(false)
+  // Mensajes de la tienda al cliente (#240 → portal): se publican en su cuenta
+  // y la ficha muestra el visto/no visto; en demo viven en la pestaña.
+  const [avisoTexto, setAvisoTexto] = useState('')
+  const [avisoBusy, setAvisoBusy] = useState(false)
   const [followForm, setFollowForm] = useState({ kind: 'CALL', dueAt: '', note: '' })
   const [followBusy, setFollowBusy] = useState(false)
   const [followDoneId, setFollowDoneId] = useState('')
@@ -805,6 +810,8 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   const seguimientoInforme = new Map((profile?.deviceReportShares || []).map((fila) => [String(fila.serial || '').trim().toUpperCase(), fila]))
   // Servicio técnico (#240 §4): órdenes del taller del cliente.
   const servicios = profile?.serviceOrders || []
+  // Mensajes de la tienda al cliente (#240 → portal).
+  const avisosCliente = profile?.customerNotices || []
   const ordenesActivas = orders.filter((order) => order.status === 'PENDING' || order.status === 'REGISTERED').length
   const ciudadCliente = (profile?.customer?.addresses || []).find((address) => address.city)?.city || profile?.customer?.addresses?.[0]?.city || ''
   // Ficha completa (#160): antigüedad, RUC, impuestos, dirección y seguro.
@@ -837,6 +844,49 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
       toast.error('No se pudo guardar la nota', cause?.message)
     } finally {
       setNoteBusy(false)
+    }
+  }
+
+  // Mensajes de la tienda al cliente (#240 → portal): en demo se guardan en la
+  // pestaña (como la venta del POS); en la cuenta real van a la API.
+  async function publicarAviso(event) {
+    event.preventDefault()
+    const contenido = avisoTexto.trim()
+    if (!contenido || avisoBusy) return
+    if (esDemo) {
+      const demo = customer.demoProfile || (customer.demoProfile = {})
+      demo.notices = [{ id: `demo-aviso-${Date.now().toString(36)}`, content: contenido, createdAt: new Date().toISOString(), firstViewedAt: null, user: { id: 'demo-user', name: 'Equipo demo' } }, ...(demo.notices || [])]
+      setAvisoTexto('')
+      refresh()
+      toast.success('Mensaje publicado.')
+      return
+    }
+    setAvisoBusy(true)
+    try {
+      await api.post(`/api/customers/${encodeURIComponent(customer.id)}/notices`, { content: contenido })
+      setAvisoTexto('')
+      refresh()
+      toast.success('Mensaje publicado.')
+    } catch (cause) {
+      toast.error('No se pudo publicar el mensaje', cause?.message)
+    } finally {
+      setAvisoBusy(false)
+    }
+  }
+
+  async function eliminarAviso(id) {
+    if (esDemo) {
+      const demo = customer.demoProfile || {}
+      demo.notices = (demo.notices || []).filter((item) => item.id !== id)
+      refresh()
+      return
+    }
+    try {
+      await api.delete(`/api/customers/${encodeURIComponent(customer.id)}/notices`, { id })
+      refresh()
+      toast.success('Mensaje eliminado.')
+    } catch (cause) {
+      toast.error('No se pudo eliminar el mensaje', cause?.message)
     }
   }
 
@@ -1499,6 +1549,40 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                   ))}
                 </ul>
               )}
+
+              {/* Mensajes de la tienda al cliente (#240 → portal): visibles en su
+                  cuenta; la ficha muestra el visto/no visto. */}
+              <div className="space-y-3 border-t border-ink-600 pt-4">
+                <p className="text-sm font-semibold">Mensajes al cliente <span className="font-normal text-mute">(visibles en su cuenta)</span></p>
+                <form onSubmit={publicarAviso} className="space-y-3">
+                  <FormField label="Nuevo mensaje" htmlFor="profile-aviso">
+                    <Textarea id="profile-aviso" rows={2} maxLength={2000} placeholder="Ej.: Tu equipo ya está listo para retirar." value={avisoTexto} onChange={(event) => setAvisoTexto(event.target.value)} />
+                  </FormField>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button type="submit" disabled={avisoBusy || !avisoTexto.trim()}>{avisoBusy ? 'Publicando…' : 'Publicar mensaje'}</Button>
+                  </div>
+                </form>
+                {!avisosCliente.length ? (
+                  <EmptyState compact icon="megaphone" title="Sin mensajes" description="Los mensajes que publiques acá aparecen en la cuenta del cliente." />
+                ) : (
+                  <ul className="space-y-2" data-testid="perfil-mensajes">
+                    {avisosCliente.map((item) => (
+                      <li key={item.id} className="rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm">
+                        <p className="whitespace-pre-wrap break-words">{item.content}</p>
+                        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-xs text-mute">{item.user?.name || 'Equipo'} · {fechaHora(item.createdAt)}</p>
+                          <div className="flex items-center gap-2">
+                            {item.firstViewedAt
+                              ? <Badge color="green" data-testid="mensaje-visto" className="px-1.5 py-0.5 text-[10px]" title={`Visto ${fechaHora(item.firstViewedAt)}`}>Visto</Badge>
+                              : <Badge color="slate" data-testid="mensaje-sin-ver" className="px-1.5 py-0.5 text-[10px]">Sin ver</Badge>}
+                            <button type="button" className="text-xs font-semibold text-bad" onClick={() => eliminarAviso(item.id)}>Eliminar</button>
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           )}
 

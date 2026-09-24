@@ -100,6 +100,7 @@ model Tenant {
   errorReports            ErrorReport[]
   customerNotes           CustomerNote[]
   customerFollowUps       CustomerFollowUp[]
+  customerNotices         CustomerNotice[]
   commissionRules         CommissionRule[]
   warrantyPhotos          WarrantyPhoto[]
   customerAuthorizations  CustomerAuthorization[]
@@ -313,6 +314,7 @@ model User {
   createdTransfers StockTransfer[]
   customerNotes    CustomerNote[]
   customerFollowUps CustomerFollowUp[]
+  customerNotices  CustomerNotice[]
   customersCreated Customer[]      @relation("CustomerCreatedBy")
   paymentsCreated Payment[]        @relation("PaymentCreatedBy")
   customerAuthorizationsRequested CustomerAuthorization[] @relation("CustomerAuthorizationRequestedBy")
@@ -784,6 +786,7 @@ model Customer {
   addresses     CustomerAddress[]
   customerNotes CustomerNote[]
   followUps     CustomerFollowUp[]
+  customerNotices CustomerNotice[]
   createdBy     User?             @relation("CustomerCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   authorizations    CustomerAuthorization[]
   billingIdentities CustomerBillingIdentity[]
@@ -899,6 +902,29 @@ model CustomerFollowUp {
 
   @@index([tenantId, customerId, createdAt])
   @@index([tenantId, dueAt])
+  @@index([userId])
+}
+
+// Mensaje de la tienda al cliente (#240 → portal): lo escribe el equipo desde
+// la ficha y el cliente lo ve en su cuenta. `firstViewedAt` es el visto/no visto
+// que la ficha muestra (se marca al abrir la cuenta, como el informe).
+model CustomerNotice {
+  id            String    @id @default(cuid())
+  tenantId      String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerId    String
+  customer      Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  userId        String?
+  user          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  content       String
+  // Vencimiento opcional: los vencidos dejan de mostrarse en el portal.
+  expiresAt     DateTime?
+  firstViewedAt DateTime?
+  lastViewedAt  DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([tenantId, customerId, createdAt])
+  @@index([customerId, firstViewedAt])
   @@index([userId])
 }
 
