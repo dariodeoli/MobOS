@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { API_URL } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
-import { primerNombre } from '@/lib/utils'
+import { cn, primerNombre } from '@/lib/utils'
 import { fechaHora } from '@/utils/fecha'
 import { codigoPedido, totalesPedido } from '@/utils/pedido'
 import { varianteDeTema } from '@/lib/tenantLogo'
@@ -10,6 +10,7 @@ import SeccionColapsable from '@/components/shared/SeccionColapsable'
 import { Aviso, CeldaMoneda, FilaDato } from '@/components/ui'
 import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } from '@/components/shared/tabla'
 import { ESTADO_ENTREGA, ESTADO_GARANTIA, ESTADO_PEDIDO } from '@/lib/estadosPedido'
+import { temaV2Activo } from '@/lib/temaV2'
 const LEVELS = { rapido: 'Comprobante rápido', completo: 'Comprobante completo', detallado: 'Comprobante detallado' }
 const PASOS = ['PROCESSING', 'IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP', 'DELIVERED']
 
@@ -60,7 +61,7 @@ export default function PedidoPublico() {
   const ultimoMovimiento = movimientos[0]?.at ? fechaHora(movimientos[0].at) : ''
 
   return (
-    <main className="min-h-screen bg-ink-950 px-3 py-6 text-fore sm:px-4 sm:py-10">
+    <main className={cn('min-h-screen bg-ink-950 px-3 py-6 text-fore sm:px-4 sm:py-10', temaV2Activo() && 'tema-v2')}>
       <style>{`@media print{body,main{background:#fff!important}main,main *{color:#000!important}section{background:#fff!important;border-color:#cbd5e1!important}section>div[hidden]{display:block!important}button[aria-expanded] svg{display:none!important}}`}</style>
       <div className="mx-auto max-w-xl space-y-3">
         {error && <Aviso tono="error" className="px-4 py-3 text-sm rounded-xl text-center">{error}</Aviso>}
