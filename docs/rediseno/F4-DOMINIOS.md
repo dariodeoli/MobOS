@@ -47,6 +47,7 @@ Con el flag prendido, claro/oscuro en 1280 y 390:
 | Config · Roles y permisos | [claro](c241f4b-roles-on-claro-desktop.png) | [oscuro](c241f4b-roles-on-oscuro-desktop.png) | [claro](c241f4b-roles-on-claro-mobile.png) | [oscuro](c241f4b-roles-on-oscuro-mobile.png) |
 | Inventario · Tiles de equipo | [claro](c241f4b-inventario-tiles-on-claro-desktop.png) | [oscuro](c241f4b-inventario-tiles-on-oscuro-desktop.png) | [claro](c241f4b-inventario-tiles-on-claro-mobile.png) | [oscuro](c241f4b-inventario-tiles-on-oscuro-mobile.png) |
 | Pedido (contenedor) | [claro](c241f4b-pedido-detalle-on-claro-desktop.png) | [oscuro](c241f4b-pedido-detalle-on-oscuro-desktop.png) | [claro](c241f4b-pedido-detalle-on-claro-mobile.png) | [oscuro](c241f4b-pedido-detalle-on-oscuro-mobile.png) |
+| Cliente · resumen rápido | [claro](c241f4b-clientes-resumen-on-claro-desktop.png) | [oscuro](c241f4b-clientes-resumen-on-oscuro-desktop.png) | [claro](c241f4b-clientes-resumen-on-claro-mobile.png) | [oscuro](c241f4b-clientes-resumen-on-oscuro-mobile.png) |
 
 Muestra con el flag **apagado** (default intacto, mismo estado de datos):
 [pedidos](c241f4b-pedidos-off-claro-desktop.png) ·
@@ -61,7 +62,8 @@ Muestra con el flag **apagado** (default intacto, mismo estado de datos):
 [equipo](c241f4b-equipo-off-claro-desktop.png) ·
 [roles](c241f4b-roles-off-claro-desktop.png) ·
 [tiles de equipo](c241f4b-inventario-tiles-off-claro-desktop.png) ·
-[pedido](c241f4b-pedido-detalle-off-claro-desktop.png).
+[pedido](c241f4b-pedido-detalle-off-claro-desktop.png) ·
+[resumen rápido](c241f4b-clientes-resumen-off-claro-desktop.png).
 
 ## Servicio técnico y Garantías (lote E)
 
@@ -131,9 +133,17 @@ verde. Los pasos agrupan los estados reales de `entrega.js` (el mismo grafo que
 valida el backend), así el stepper no inventa pasos que no aplican al método.
 Las capturas son de la lista y del contenedor (claro/oscuro en 390/1280).
 
+## Clientes: resumen de la lista y resumen rápido (segunda pasada)
+
+La lista de clientes suma el **resumen en tiles** —clientes listados, con deuda
+y saldo por cobrar— con los números de consola (saldo en ámbar cuando hay), y la
+**captura del resumen rápido** de la fila (el ojito) queda en la evidencia. Los
+chips de la fila, los importes y los filtros ya venían del lenguaje común (pill,
+tinte AA, número de consola y el alto táctil de #249). Todo con el flag.
+
 ## Medición
 
-`e2e/dsn-241-dominios.spec.js` recorre las **trece pantallas** con el flag
+`e2e/dsn-241-dominios.spec.js` recorre las **catorce pantallas** con el flag
 prendido en los cuatro combos: **0 textos de shell por debajo de AA** y **0
 bajos de contenido**. La medición entiende **degradados** (mide contra la peor
 parada del fondo) y de ahí salieron los ajustes de los lotes anteriores: el chip
