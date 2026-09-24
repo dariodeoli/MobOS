@@ -170,12 +170,15 @@ node scripts/e2e-shards.mjs --check
 El objetivo es **3 corridas consecutivas verdes** en `main`. Para mirar la racha:
 
 ```bash
+node scripts/qa-ci-racha.mjs            # sale 0 cuando hay 3 verdes completas
 gh run list --repo dariodeoli/MobOS --branch main --limit 5
 ```
 
-Si una corrida queda roja: se lee el spec, se reproduce aislado (con el shard de
-`e2e/sharding.json`), se corrige la raíz y se vuelve a empezar la cuenta. No hay
-reintentos ni lista de excepciones.
+Cuentan las corridas **completas**: las canceladas (superseded por un push
+nuevo) no cortan ni suman. Si una corrida queda roja: se lee el job que falló,
+se reproduce aislado (con el shard de `e2e/sharding.json` si es e2e), se corrige
+la raíz y se vuelve a empezar la cuenta. No hay reintentos ni lista de
+excepciones.
 
 ## 7. Pendientes conocidos
 
