@@ -14,6 +14,23 @@ function mensajeDeError(error) {
   return String(error?.message || error || 'No pudimos leer los datos del tablero.')
 }
 
+// El API devuelve las unidades de a 500: el tablero cuenta el rack completo, así
+// que se recorren las páginas con el cursor (#245). En la demo se lee el
+// inventario local de práctica.
+async function todasLasUnidades() {
+  if (demoSessionActive()) return resources.inventoryUnits.list()
+  const todas = []
+  let cursor = null
+  for (let pagina = 0; pagina < 20; pagina += 1) {
+    const lote = await api.get(`/api/inventory-units?limit=500${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`)
+    const filas = Array.isArray(lote) ? lote : []
+    todas.push(...filas)
+    if (filas.length < 500) break
+    cursor = filas[filas.length - 1].id
+  }
+  return todas
+}
+
 export default function Ops() {
   const [unidades, setUnidades] = useState([])
   const [pedidos, setPedidos] = useState([])
@@ -28,7 +45,7 @@ export default function Ops() {
     let siguienteUnidades = []
     let siguientesPedidos = []
     try {
-      siguienteUnidades = await resources.inventoryUnits.list()
+      siguienteUnidades = await todasLasUnidades()
     } catch (fallo) {
       setError(mensajeDeError(fallo))
       setAvisos([])

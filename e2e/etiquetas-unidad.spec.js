@@ -9,11 +9,6 @@
 import { test, expect } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
 import { SEED } from './helpers/seed-data.js'
-import { habilitarRetrySiCuarentena } from './helpers/cuarentena.mjs'
-
-// Cuarentena de flaky (#CI): el retry lo habilita el workflow solo si este spec
-// está en MOBOS_E2E_CUARENTENA (ver `.github/workflows/ci.yml`).
-habilitarRetrySiCuarentena('etiquetas-unidad')
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
