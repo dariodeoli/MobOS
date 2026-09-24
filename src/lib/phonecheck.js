@@ -56,6 +56,73 @@ export function resumenInspection(inspection = {}) {
   return { puntaje, grado: gradoInspection(puntaje) }
 }
 
+// ── #241 paso 6: ficha completa — inspección oficial vs borrador y locks reales
+
+/** Campos del checklist que definen si hay cambios sin guardar. */
+const CAMPOS_INSPECCION = ['items', 'cosmetico', 'nota', 'bateriaPct', 'bateriaCiclos', 'repuestosNoOem', 'repuestosNoOemNota', 'costoRepuestosPyg']
+
+/** Huella estable de una inspección (compara el borrador en pantalla con lo guardado). */
+export function huellaInspeccion(inspection = {}) {
+  const items = inspection?.items || {}
+  const normalizado = { items: {} }
+  for (const clave of Object.keys(items).sort()) {
+    normalizado.items[clave] = { estado: items[clave]?.estado || '', nota: String(items[clave]?.nota || '').trim() }
+  }
+  for (const campo of CAMPOS_INSPECCION) {
+    if (campo === 'items') continue
+    if (campo === 'costoRepuestosPyg') {
+      const valor = Number(inspection?.[campo])
+      normalizado[campo] = Number.isSafeInteger(valor) && valor > 0 ? valor : null
+      continue
+    }
+    normalizado[campo] = String(inspection?.[campo] ?? '')
+  }
+  return JSON.stringify(normalizado)
+}
+
+/**
+ * Inspección de la ficha: el **grado oficial** es el que quedó guardado en la
+ * unidad (puntaje/grado, fecha y autor); el borrador en pantalla es provisional y
+ * `sinGuardar` avisa si difiere de lo persistido. `marcados` da el «x de y» del
+ * checklist.
+ */
+export function estadoInspeccion({ inspection = null, borrador = null } = {}) {
+  const guardado = inspection && typeof inspection === 'object' ? inspection : null
+  const resumenGuardado = guardado ? { puntaje: guardado.puntaje ?? resumenInspection(guardado).puntaje, grado: guardado.grado ?? resumenInspection(guardado).grado } : { puntaje: null, grado: null }
+  const oficial = resumenGuardado.puntaje === null && resumenGuardado.grado === null
+    ? null
+    : { ...resumenGuardado, guardadoEn: guardado?.inspeccionadoAt || null, guardadoPor: guardado?.inspeccionadoPor || '' }
+  const provisional = borrador ? resumenInspection(borrador) : { puntaje: null, grado: null }
+  return {
+    oficial,
+    provisional,
+    sinGuardar: Boolean(borrador) && huellaInspeccion(borrador) !== huellaInspeccion(guardado || {}),
+    marcados: borrador ? INSPECCION_ITEMS.filter((item) => borrador?.items?.[item.clave]?.estado).length : 0,
+    total: INSPECCION_ITEMS.length,
+  }
+}
+
+/**
+ * Verificación IMEI lista para los chips: campos normalizados y **fuente/hora**
+ * (servicio y cuándo se resolvió), sea la última consulta real guardada del
+ * serial o una consulta hecha en esta sesión.
+ */
+export function resumenVerificacion(verificacion = null) {
+  if (!verificacion || typeof verificacion !== 'object') return null
+  const campos = Array.isArray(verificacion.campos) ? verificacion.campos : Array.isArray(verificacion.normalized) ? verificacion.normalized : []
+  if (!campos.length) return null
+  return {
+    estado: verificacion.status || '',
+    etiqueta: verificacion.etiqueta || '',
+    servicio: verificacion.serviceName || verificacion.provider || 'Verificación IMEI',
+    proveedor: verificacion.provider || '',
+    fecha: verificacion.resolvedAt || verificacion.requestedAt || null,
+    simulado: Boolean(verificacion.simulado || verificacion.esMock),
+    imeiMasked: verificacion.imeiMasked || '',
+    chips: locksDeVerificacion({ ...verificacion, campos }),
+  }
+}
+
 /** Costo de repuestos/arreglos cargado en la inspección (#148 §19). */
 export function costoRepuestosInspection(inspection = {}) {
   const valor = Number(inspection?.costoRepuestosPyg)
@@ -73,8 +140,7 @@ export function costoRepuestosInspection(inspection = {}) {
   return chips
 }
 
-/** Payload listo para el informe (DSN/PRN): todo lo que la unidad inspeccionada muestra. */
-export function payloadInformeInspection({ unit = {}, inspection = {}, verificacion = null } = {}) {
+/** Payload listo para el informe (DSN/PRN): todo lo que la unidad inspeccionada muestra. */export function payloadInformeInspection({ unit = {}, inspection = {}, verificacion = null } = {}) {
   const { puntaje, grado } = resumenInspection(inspection)
   return {
     unitId: unit.id,

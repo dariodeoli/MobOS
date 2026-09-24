@@ -88,3 +88,58 @@ test('el informe publico sale sin PII y con QR (#240 DSN/PRN)', () => {
   assert.match(informe.qr, /^CERT\|/)
   assert.ok(!JSON.stringify(informe).includes('AUR0001'), 'no filtra el serial completo')
 })
+
+// ── #241 paso 6: ficha completa (oficial vs borrador y locks con fuente) ─────
+
+test('la ficha distingue el grado oficial del borrador y avisa si hay cambios', async () => {
+  const { estadoInspeccion, huellaInspeccion } = await import('./phonecheck.js')
+  const items = {}
+  for (const item of INSPECCION_ITEMS) items[item.clave] = { estado: 'ok' }
+  const guardada = { items, cosmetico: 'buen estado', nota: '', puntaje: 100, grado: 'A', inspeccionadoAt: '2026-09-23T10:00:00.000Z', inspeccionadoPor: 'Hernán Acosta', itemsLista: [1, 2] }
+
+  const sinCambios = estadoInspeccion({ inspection: guardada, borrador: { items, cosmetico: 'buen estado', nota: '' } })
+  assert.equal(sinCambios.oficial.grado, 'A')
+  assert.equal(sinCambios.oficial.guardadoPor, 'Hernán Acosta')
+  assert.equal(sinCambios.oficial.guardadoEn, '2026-09-23T10:00:00.000Z')
+  assert.equal(sinCambios.sinGuardar, false, 'un borrador igual a lo guardado no ensucia')
+  assert.equal(sinCambios.marcados, INSPECCION_ITEMS.length)
+  assert.equal(sinCambios.total, INSPECCION_ITEMS.length)
+
+  const cambiada = estadoInspeccion({
+    inspection: guardada,
+    borrador: { items: { ...items, pantalla: { estado: 'falla' }, camaras: { estado: 'observacion' } }, cosmetico: 'buen estado', nota: '' },
+  })
+  assert.equal(cambiada.sinGuardar, true)
+  assert.equal(cambiada.provisional.grado, 'B', 'el provisional baja a B con una falla y una observación')
+  assert.equal(cambiada.oficial.grado, 'A', 'el oficial sigue siendo el guardado')
+
+  const sinOficial = estadoInspeccion({ inspection: null, borrador: { items } })
+  assert.equal(sinOficial.oficial, null)
+  assert.equal(sinOficial.sinGuardar, true)
+  assert.equal(estadoInspeccion({ inspection: guardada, borrador: null }).sinGuardar, false, 'sin borrador no hay nada sin guardar')
+  assert.equal(huellaInspeccion({ items: { b: { estado: 'ok' }, a: { estado: 'ok' } } }), huellaInspeccion({ items: { a: { estado: 'ok' }, b: { estado: 'ok' } } }), 'la huella no depende del orden')
+  assert.notEqual(huellaInspeccion({ items, nota: 'x' }), huellaInspeccion({ items, nota: '' }))
+})
+
+test('los chips de locks muestran la fuente y la hora de la verificación (#241 paso 6)', async () => {
+  const { resumenVerificacion } = await import('./phonecheck.js')
+  const verificacion = resumenVerificacion({
+    status: 'verificado', serviceName: 'Apple Basic', provider: 'imeicheck.net', resolvedAt: '2026-09-23T15:04:00.000Z', imeiMasked: '••••5678',
+    campos: [{ clave: 'findMy', valor: 'Off' }, { clave: 'blacklist', valor: 'Sin reportes actuales' }],
+  })
+  assert.equal(verificacion.servicio, 'Apple Basic')
+  assert.equal(verificacion.proveedor, 'imeicheck.net')
+  assert.match(verificacion.fecha, /2026-09-23T15:04/)
+  assert.equal(verificacion.chips.length, 2)
+  assert.equal(verificacion.chips[0].ok, true)
+  // Acepta el formato `normalized` del backend y avisa si es simulada.
+  const simulada = resumenVerificacion({ provider: 'imeicheck.net (demo)', esMock: true, normalized: [{ clave: 'mdm', valor: 'On' }] })
+  assert.equal(simulada.simulado, true)
+  assert.equal(simulada.servicio, 'imeicheck.net (demo)')
+  assert.equal(simulada.chips[0].clave, 'mdm')
+  assert.equal(simulada.fecha, null, 'sin fecha no inventa una')
+  // Sin campos no hay chips (estado honesto).
+  assert.equal(resumenVerificacion(null), null)
+  assert.equal(resumenVerificacion({}), null)
+  assert.equal(resumenVerificacion({ campos: [] }), null)
+})
