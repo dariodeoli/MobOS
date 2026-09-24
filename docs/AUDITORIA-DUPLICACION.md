@@ -292,6 +292,20 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 26 — recepción e incidencias en la biblioteca (24-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `FilaRevision` (`owncoding-ui` **v0.20.0**) | La recepción (#250 F5) armaría a mano la fila «esperado vs encontrado» con su chip de estado y acciones | Publicada: lo esperado + serial (últimos 4) o «IMEI pendiente», chip del estado y acciones; las incidencias usan la superficie suave del tono |
+| `SelectorIncidencia` | Elegir/quitar el tipo de incidencia por unidad no tenía objeto | Publicado: botones cortos con el tono del tipo (por prop); tocar el activo lo quita |
+| `DestinoRecepcion` | «Recibir en depósito predeterminado (un clic) o elegir otro» no tenía objeto | Publicado: depósito por defecto, alternativa en `Select` y aviso de unidades sin IMEI |
+| Mapa de revisión | Cada pieza iba a repetir etiquetas y tonos | `utils/revision.js` con `ESTADOS_REVISION`/`INCIDENCIAS` (singular, plural y tono en un solo lugar), compartido por la fila, el selector y `ResumenIncidencias` |
+| Verificación en la app | — | QA de producción repetido: **10/10 en v1.0.158** (identidad + stepper v2 con el flag); el hallazgo del estado de demo sigue anotado para POS/DSN |
+
+**Duplicación pendiente: 0 usos.** Los objetos quedan para que INV los adopte
+cuando construya la pantalla de recepción (F5); props en
+`owncoding-ui/docs/REGLAS.md` §4.
+
 ### Lote 25 — envíos, recepción y banner de conexión (24-09)
 
 | Objeto | Antes (evidencia) | Después |

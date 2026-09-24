@@ -1,4 +1,4 @@
-# QA #211 — identidad y stepper v2 en producción (v1.0.153 → v1.0.156)
+# QA #211 — identidad y stepper v2 en producción (v1.0.153 → v1.0.158)
 
 Verificación **post-deploy** del objeto único de identidad (`PersonaChip`) en
 las superficies adoptadas, sobre producción (`app.moboss.online`) y con el
@@ -8,13 +8,13 @@ las superficies adoptadas, sobre producción (`app.moboss.online`) y con el
   zona America/Asunción). Sale 1 si un paso falla.
 - Evidencia: `docs/qa/211-identidad-prod/` (capturas claro/oscuro +
   `resultados.json`).
-- Versiones verificadas: **v1.0.153**, **v1.0.154** y **v1.0.156** (repetición del 24-09; el mínimo del script se pasa por `QA211_VERSION_MINIMA`, hoy 1.0.154).
+- Versiones verificadas: **v1.0.153**, **v1.0.154**, **v1.0.156** y **v1.0.158** (repeticiones del 24-09, siempre 10/10; el mínimo del script se pasa por `QA211_VERSION_MINIMA`, hoy 1.0.154).
 
 ## Resultado — 10/10 pasos
 
 | Paso | Resultado |
 | --- | --- |
-| La versión desplegada incluye la identidad unificada | ✅ v1.0.153 y v1.0.154 |
+| La versión desplegada incluye la identidad unificada | ✅ v1.0.153 · v1.0.154 · v1.0.156 · v1.0.158 |
 | Pedido: encabezado y superficies con chip (claro) | ✅ 3 chips · 0 imágenes rotas |
 | Pedido: bloque de transacciones con chip | ✅ chips presentes |
 | Pedido: oscuro sin imágenes rotas | ✅ 3 chips |
