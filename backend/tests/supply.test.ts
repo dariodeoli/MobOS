@@ -62,3 +62,51 @@ assert.equal(normalizarNecesidadManual({ productId: 'p1', quantity: 1, promisedA
 const manual = normalizarNecesidadManual({ productId: ' p1 ', quantity: 2, condition: 'used', priority: 'urgente', promisedAt: '2026-10-05T12:00:00.000Z', notes: '  Reposición preventiva  ' })
 assert.equal(manual.ok, true)
 assert.deepEqual(manual.ok && manual.data, { productId: 'p1', branchId: null, quantity: 2, condition: 'USED', priority: 'URGENTE', promisedAt: '2026-10-05T12:00:00.000Z', notes: 'Reposición preventiva' })
+
+// ── Fase 2: compra rápida (#250 §6) ─────────────────────────────────────────
+import { codigoCompra, normalizarCompra, normalizarSeriales } from '../lib/supply'
+
+assert.equal(codigoCompra({ origen: 'cde', secuencia: 48 }), 'COM-CDE-0048')
+assert.equal(codigoCompra({ origen: 'CDE', destino: 'ASU', secuencia: 21 }), 'COM-CDE-ASU-0021')
+assert.equal(codigoCompra({ secuencia: 0 }), 'COM-CDE-0001', 'la secuencia mínima es 1')
+assert.equal(codigoCompra({ origen: 'c d e!!', secuencia: 7 }), 'COM-CDE-0007')
+
+// Seriales: texto pegado, mayúsculas, repetidos, Luhn y seriales de producto.
+assert.deepEqual(normalizarSeriales('490154203237518, aur-0001\n490154203237518'), { ok: false, error: 'El serial 490154203237518 está repetido en la compra.' })
+assert.deepEqual(normalizarSeriales('490154203237518, aur-0001'), { ok: true, seriales: ['490154203237518', 'AUR-0001'] })
+assert.equal(normalizarSeriales('490154203237519').ok, false, 'IMEI con dígito control inválido')
+assert.equal(normalizarSeriales('xx').ok, false, 'serial demasiado corto')
+assert.deepEqual(normalizarSeriales([]), { ok: true, seriales: [] })
+
+// Compra: proveedor, costo/moneda y líneas con IMEI o pendientes.
+const compraBase = {
+  supplierName: '  Proveedor Test  ',
+  currency: 'USD',
+  originalCost: 350.5,
+  exchangeRatePyg: 7500,
+  reference: 'FAC-001-002',
+  lines: [{ productId: 'p1', quantity: 2, serials: '490154203237518 490154203237526' }, { productId: 'p2', quantity: 1 }],
+}
+const normalizada = normalizarCompra(compraBase)
+assert.equal(normalizada.ok, true)
+if (normalizada.ok) {
+  assert.equal(normalizada.data.supplierName, 'Proveedor Test')
+  assert.equal(normalizada.data.costPyg, Math.round(350.5 * 7500), 'convierte el total a guaraníes')
+  assert.equal(normalizada.data.originalCost, 350.5)
+  assert.equal(normalizada.data.lines.length, 2)
+  assert.deepEqual(normalizada.data.lines[0].serials, ['490154203237518', '490154203237526'])
+  assert.deepEqual(normalizada.data.lines[1].serials, [], 'IMEI pendiente: la línea puede ir sin seriales')
+  assert.equal(normalizada.data.code, null, 'sin código se genera después')
+}
+assert.equal(normalizarCompra({ ...compraBase, supplierName: '', supplierId: null }).ok, false, 'sin proveedor')
+assert.equal(normalizarCompra({ ...compraBase, lines: [] }).ok, false, 'sin líneas')
+assert.equal(normalizarCompra({ ...compraBase, originalCost: 350.555 }).ok, false, 'USD con más de 2 decimales')
+assert.equal(normalizarCompra({ ...compraBase, exchangeRatePyg: undefined }).ok, false, 'USD sin cotización')
+assert.equal(normalizarCompra({ ...compraBase, lines: [{ productId: 'p1', quantity: 1, serials: ['a', 'b'] }] }).ok, false, 'más seriales que unidades')
+assert.equal(normalizarCompra({ ...compraBase, lines: [{ productId: 'p1', quantity: 1, condition: 'ROTO' }] }).ok, false, 'condición inválida')
+assert.equal(normalizarCompra({ ...compraBase, code: 'com' }).ok, false, 'código demasiado corto')
+const sinMonto = normalizarCompra({ supplierName: 'Proveedor', lines: [{ productId: 'p1', quantity: 1 }] })
+assert.equal(sinMonto.ok && sinMonto.data.costPyg, null, 'la compra puede registrarse sin costo')
+const enGs = normalizarCompra({ supplierName: 'Proveedor', currency: 'PYG', originalCost: 1500000, lines: [{ productId: 'p1', quantity: 1, unitCostPyg: 1500000 }] })
+assert.equal(enGs.ok && enGs.data.costPyg, 1500000)
+assert.equal(enGs.ok && enGs.data.lines[0].unitCostPyg, 1500000)

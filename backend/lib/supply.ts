@@ -5,6 +5,9 @@
 // (agrupa solicitudes idénticas para comprar conservando los destinos — pedido,
 // reserva o reposición — y sin mezclar condición, que es la variante a comprar).
 
+import { normalizarCosto } from './costs'
+import { validarImei } from './imeicheck'
+
 export const NECESIDAD_ORIGENES = ['SALE_NO_STOCK', 'RESERVATION_NO_STOCK', 'QUANTITY_OVER_STOCK', 'BELOW_REORDER', 'ORDER_COMMITTED', 'MANUAL'] as const
 export type NecesidadOrigen = (typeof NECESIDAD_ORIGENES)[number]
 
@@ -186,4 +189,150 @@ export function normalizarNecesidadManual(body: unknown): { ok: true; data: Nece
   const notes = typeof fila.notes === 'string' && fila.notes.trim() ? fila.notes.trim().slice(0, 500) : null
   const branchId = typeof fila.branchId === 'string' && fila.branchId.trim() ? fila.branchId.trim().slice(0, 128) : null
   return { ok: true, data: { productId, branchId, quantity, condition, priority, promisedAt, notes } }
+}
+
+// ── Fase 2 (#250 §6): compra rápida y stock adicional ───────────────────────
+
+// Estados de la compra: F2 usa COMPRADA/CANCELADA; F4 (lotes) suma PREPARANDO/
+// EN_TRANSITO y F5 (recepción) RECIBIDA. El stock no se mueve en ningún estado
+// de esta fase.
+export const COMPRA_ESTADOS = ['COMPRADA', 'CANCELADA'] as const
+export type CompraEstado = (typeof COMPRA_ESTADOS)[number]
+
+/**
+ * Identificador compartido (#250 §2): el mismo número viaja al panel, al
+ * ticket, a la etiqueta y a la recepción (`COM-CDE-0048`).
+ */
+export function codigoCompra({ origen = 'CDE', destino = '', secuencia }: { origen?: string; destino?: string; secuencia: number }): string {
+  const tramo = (valor: string) => String(valor || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3) || 'CDE'
+  const numero = String(Math.max(1, Math.round(Number(secuencia) || 1))).padStart(4, '0')
+  return `COM-${tramo(origen)}${destino ? `-${tramo(destino)}` : ''}-${numero}`
+}
+
+const SERIAL_MAX = 64
+
+/**
+ * Limpia los IMEI/seriales de una línea: acepta lista o texto pegado (comas,
+ * espacios o saltos), sube a mayúsculas, descarta repetidos y valida el dígito
+ * verificador (Luhn) de los IMEI de 15 dígitos. Los seriales de producto que no
+ * son IMEI viajan tal cual (mismo criterio que el resto de la app).
+ */
+export function normalizarSeriales(valor: unknown): { ok: true; seriales: string[] } | { ok: false; error: string } {
+  const crudos = Array.isArray(valor) ? valor : typeof valor === 'string' ? valor.split(/[\s,;]+/) : []
+  const seriales: string[] = []
+  const vistos = new Set<string>()
+  for (const crudo of crudos) {
+    const serial = String(crudo ?? '').trim().toUpperCase().slice(0, SERIAL_MAX)
+    if (!serial) continue
+    if (vistos.has(serial)) return { ok: false, error: `El serial ${serial} está repetido en la compra.` }
+    if (/^\d{15}$/.test(serial)) {
+      const valido = validarImei(serial)
+      if (!valido.ok) return { ok: false, error: `El IMEI ${serial} no pasa la verificación de dígito control (Luhn).` }
+    } else if (!/^[A-Z0-9-]{4,}$/.test(serial)) {
+      return { ok: false, error: `El serial ${serial} no parece válido.` }
+    }
+    vistos.add(serial)
+    seriales.push(serial)
+  }
+  return { ok: true, seriales }
+}
+
+export type LineaCompra = {
+  needId: string | null
+  productId: string
+  condition: string
+  quantity: number
+  unitCostPyg: number | null
+  serials: string[]
+}
+
+export type CompraNormalizada = {
+  code: string | null
+  branchId: string | null
+  supplierId: string | null
+  supplierName: string
+  currency: string
+  originalCost: number | null
+  exchangeRatePyg: number | null
+  costPyg: number | null
+  reference: string | null
+  notes: string | null
+  lines: LineaCompra[]
+}
+
+/**
+ * Normaliza la compra rápida: proveedor (ficha o nombre), costo/moneda con las
+ * reglas compartidas (`normalizarCosto`), referencia/factura, líneas con
+ * cantidad y —si ya se conocen— los IMEI. La foto de la factura se adjunta
+ * después con la API de adjuntos (`entity=SUPPLY_PURCHASE`).
+ */
+export function normalizarCompra(body: unknown): { ok: true; data: CompraNormalizada } | { ok: false; error: string } {
+  const fila = body && typeof body === 'object' && !Array.isArray(body) ? (body as Record<string, unknown>) : {}
+  const supplierId = typeof fila.supplierId === 'string' && fila.supplierId.trim() ? fila.supplierId.trim().slice(0, 128) : null
+  const supplierName = typeof fila.supplierName === 'string' && fila.supplierName.trim() ? fila.supplierName.trim().slice(0, 160) : ''
+  if (!supplierId && !supplierName) return { ok: false, error: 'Indicá el proveedor de la compra.' }
+
+  const currency = typeof fila.currency === 'string' && fila.currency.trim() ? fila.currency.trim().toUpperCase() : 'PYG'
+  if (!['PYG', 'USD'].includes(currency)) return { ok: false, error: 'Moneda inválida: usá PYG o USD.' }
+  // El costo es opcional: una compra puede registrarse sin monto (se completa
+  // al recibir la factura).
+  const sinCosto = [fila.originalCost, fila.exchangeRatePyg].every((valor) => valor === undefined || valor === null || valor === '')
+  let costo: { costPyg: number | null; originalCost: number | null; exchangeRatePyg: number | null } = { costPyg: null, originalCost: null, exchangeRatePyg: null }
+  if (!sinCosto) {
+    try {
+      costo = normalizarCosto({ costCurrency: currency as never, originalCost: fila.originalCost === undefined ? undefined : Number(fila.originalCost), exchangeRatePyg: fila.exchangeRatePyg === undefined ? undefined : Number(fila.exchangeRatePyg) })
+    } catch (cause) {
+      return { ok: false, error: cause instanceof Error ? cause.message : 'Costo inválido.' }
+    }
+  }
+
+  const lineasCrudas = Array.isArray(fila.lines) ? fila.lines : []
+  if (!lineasCrudas.length) return { ok: false, error: 'La compra necesita al menos una línea.' }
+  if (lineasCrudas.length > 100) return { ok: false, error: 'Demasiadas líneas en la compra (máximo 100).' }
+  const lines: LineaCompra[] = []
+  for (const cruda of lineasCrudas) {
+    const linea = cruda && typeof cruda === 'object' && !Array.isArray(cruda) ? (cruda as Record<string, unknown>) : {}
+    const productId = typeof linea.productId === 'string' && linea.productId.trim() ? linea.productId.trim().slice(0, 128) : ''
+    if (!productId) return { ok: false, error: 'Cada línea necesita un producto.' }
+    const quantity = Number(linea.quantity)
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 9999) return { ok: false, error: 'La cantidad de cada línea debe ser un entero entre 1 y 9999.' }
+    const condition = typeof linea.condition === 'string' && linea.condition.trim() ? linea.condition.trim().toUpperCase() : 'NEW'
+    if (!['NEW', 'USED', 'REFURBISHED'].includes(condition)) return { ok: false, error: 'Condición inválida en una línea.' }
+    const seriales = normalizarSeriales(linea.serials)
+    if (!seriales.ok) return { ok: false, error: seriales.error }
+    if (seriales.seriales.length > quantity) return { ok: false, error: `La línea trae ${seriales.seriales.length} seriales para ${quantity} unidad(es).` }
+    const unitCostPyg = linea.unitCostPyg === undefined || linea.unitCostPyg === null || linea.unitCostPyg === '' ? null : Number(linea.unitCostPyg)
+    if (unitCostPyg !== null && (!Number.isSafeInteger(unitCostPyg) || unitCostPyg < 0)) return { ok: false, error: 'El costo unitario debe ser un entero en guaraníes.' }
+    lines.push({
+      needId: typeof linea.needId === 'string' && linea.needId.trim() ? linea.needId.trim().slice(0, 128) : null,
+      productId,
+      condition,
+      quantity,
+      unitCostPyg,
+      serials: seriales.seriales,
+    })
+  }
+
+  const codeCrudo = typeof fila.code === 'string' ? fila.code.trim().toUpperCase() : ''
+  if (codeCrudo && !/^[A-Z0-9-]{4,32}$/.test(codeCrudo)) return { ok: false, error: 'El código de la compra no es válido.' }
+  const reference = typeof fila.reference === 'string' && fila.reference.trim() ? fila.reference.trim().slice(0, 120) : null
+  const notes = typeof fila.notes === 'string' && fila.notes.trim() ? fila.notes.trim().slice(0, 500) : null
+  const branchId = typeof fila.branchId === 'string' && fila.branchId.trim() ? fila.branchId.trim().slice(0, 128) : null
+
+  return {
+    ok: true,
+    data: {
+      code: codeCrudo || null,
+      branchId,
+      supplierId,
+      supplierName,
+      currency,
+      originalCost: costo.originalCost,
+      exchangeRatePyg: costo.exchangeRatePyg,
+      costPyg: costo.costPyg,
+      reference,
+      notes,
+      lines,
+    },
+  }
 }
