@@ -17,6 +17,7 @@ import { marcarUnidadesVendidasDemo } from './demoInventory.js'
 import { guardarDemo } from './demoStorage.js'
 import { MEDIOS_PAGO } from './catalog'
 import { guardarSnapshotCatalogo, leerSnapshotCatalogo } from './offline/snapshot'
+import { skuDemo } from './demo/sku.js'
 import {
   prod,
   PRODUCTOS_DEFAULT,
@@ -581,6 +582,7 @@ export function prepararDatosDemo() {
   const producto = (id, nombre, categoria, precioVenta, precioCosto, stock, atributos = {}) => ({
     ...prod(nombre, categoria),
     id,
+    sku: skuDemo(id),
     precioVenta,
     precioCosto,
     comision: Math.round(precioVenta * 0.01),
@@ -817,7 +819,7 @@ export function prepararDatosDemo() {
     // carga rápida los necesitan (los productos viejos se completan acá).
     cache.productos = [...cache.productos, ...nuevosProductos].map(item =>
       item.categoria === 'Celulares'
-        ? { ...item, branchId: item.branchId || 'mobos-demo-central', sku: item.sku || item.id.toUpperCase().replace(/[^A-Z0-9]+/g, '-').slice(0, 24) }
+        ? { ...item, branchId: item.branchId || 'mobos-demo-central', sku: item.sku || skuDemo(item.id) }
         : item,
     )
     // #195: catálogo demo al día (SKU, sucursal, mayorista) y umbrales para que
@@ -829,7 +831,7 @@ export function prepararDatosDemo() {
       if (!demo) return item
       return {
         ...item,
-        sku: item.sku || item.id.toUpperCase().replace(/[^A-Z0-9]+/g, '-').slice(0, 24),
+        sku: item.sku || skuDemo(item.id),
         branchId: item.branchId || 'mobos-demo-central',
         precioMayorista: item.precioMayorista || Math.round(Number(item.precioVenta || 0) * 0.93),
         ...(umbrales[item.id] ? { reorderPoint: item.reorderPoint || umbrales[item.id] } : {}),
@@ -841,10 +843,16 @@ export function prepararDatosDemo() {
     // Idempotente por id: los pedidos nuevos entran una sola vez.
     cache.ventas = [...ventasDemo.filter(item => !cache.ventas.some(actual => actual.id === item.id)), ...cache.ventas]
   }
+  if (version < 6) {
+    // #148 §6: el catálogo demo completa el SKU de todos los productos (los
+    // seeds base no lo traían y el escáner del POS no los encontraba). Es
+    // idempotente: solo toca los que no tienen SKU.
+    cache.productos = cache.productos.map(item => (item.sku ? item : { ...item, sku: skuDemo(item.id) }))
+  }
   cache.config = {
     ...cache.config,
     nombreTienda: cache.config.nombreTienda || 'Aurora Móviles',
-    demoSeedVersion: 5,
+    demoSeedVersion: 6,
   }
   persistMirror()
   notify()
