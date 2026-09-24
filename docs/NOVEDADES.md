@@ -11,6 +11,15 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.153 — 2026-09-23
+- **Informe del equipo (#240):** la página pública abre con el **certificado compartido** (checklist, controles y grado) y se sumó la **constancia de preparación** imprimible en 80 mm y A4.
+- **Abastecimiento (#250):** primera fase de **necesidades de compra** con su API «Por comprar» (base para el centro de abastecimiento).
+- **Mobile / táctil (#249):** **targets de 44 px** en Inventario y la biblioteca, checklist usable en la ficha, correcciones responsive en Clientes y Finanzas (H2/H3) y gate propio de Clientes.
+- **Velocidad (#247):** **arranque instantáneo** y **rutas diferidas** (chunks del panel, finanzas y sync) con evidencia antes/después.
+- **Diseño v2 (#241 #211):** **tiles de equipo** en Inventario y la **identidad del usuario unificada** (`PersonaChip`) también en el pie, presencia, bloqueo y pedidos.
+- **POS (#148):** los **borradores de la demo** se retoman y se descartan.
+- **Componentes:** lotes 20 y 21 a la biblioteca (identidad única y alto táctil de 44 px).
+
 ## v1.0.152 — 2026-09-23
 - **Estabilidad interna:** la reserva de una unidad desde su ficha queda robusta en la suite automática (mismo cuidado que recepción de traslados y etiquetas), sin cambios visibles para el usuario.
 
