@@ -115,6 +115,10 @@ por spec: lo prohíbe la guarda de `src/lib/ciHarness.test.js`).
   trabajo en el agente). Los specs reintentan el click con `toPass` y esperan el
   **efecto real** (navegación, aviso o trabajo capturado por el agente falso),
   no solo que el click no tire error.
+- **Fixtures con fecha fija:** un test que compara contra un "ahora" congelado
+  (`AHORA`) mientras el productor arma las fechas con el ahora real **envejece**
+  y falla horas después (caso `portalAvisos.test.js`, release .156: el aviso
+  "pago por vencer" dejó de corresponder). Se evalúa con el ahora del productor.
 - **Día paraguayo:** el navegador del harness corre con
   `timezoneId: 'America/Asuncion'`. Sin eso, de noche el reloj del navegador
   (UTC) cruzaba el día comercial y specs de "hoy" fallaban (noche del 23/09);
@@ -161,6 +165,9 @@ node scripts/e2e-shards.mjs --check
   la demo y conciliación por contenido). Los specs afectados
   (`analisis.spec.js`, `demo-finanzas*.spec.js`) corren **5/5 vueltas en verde**
   aislados y sin reintentos.
+- **Release .156 (roja unitaria):** `portalAvisos.test.js` usaba un "ahora" fijo
+  que envejecía; corregido en `8d106814` (con el ahora real) y verificado local
+  (6/6). La racha se sigue desde ahí.
 - **Producción #247 (v1.0.153):** entry **1104 KB → 169 KB**; pantallas de la
   demo (sin API) en 113-268 ms. Ver
   [`docs/qa/247-performance/produccion/`](../qa/247-performance/produccion/).
