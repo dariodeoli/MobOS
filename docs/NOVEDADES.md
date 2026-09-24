@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.154 — 2026-09-24
+- **Comisiones (#83 #148):** la **liquidación arranca donde terminó el último corte** (no se pisan ni se repiten períodos) y el comprobante queda al día.
+- **Clientes (#240):** **mensajes de la tienda al cliente** con visto/no visto, en la cuenta y el portal.
+- **Pedidos (#241):** **resumen y stepper de entrega v2** en el detalle del pedido (detrás del flag), con capturas por tema.
+- **Verificaciones post-deploy (v1.0.153):** impresión (informe, certificado y constancia) e identidad (#211) con su lote 23 de la biblioteca.
+
 ## v1.0.153 — 2026-09-23
 - **Informe del equipo (#240):** la página pública abre con el **certificado compartido** (checklist, controles y grado) y se sumó la **constancia de preparación** imprimible en 80 mm y A4.
 - **Abastecimiento (#250):** primera fase de **necesidades de compra** con su API «Por comprar» (base para el centro de abastecimiento).
