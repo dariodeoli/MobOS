@@ -637,7 +637,9 @@ export function demoVitrinaPayload(token) {
     cliente: { nombre: cliente.name, ...(cliente.publicNote ? { notaPublica: cliente.publicNote } : {}) },
     saldoFavorPyg: 0,
     puntosPyg: 0,
-    pedidos: orders.map((order) => ({ numero: order.orderNumber, fecha: order.createdAt, estado: order.status, fulfillmentStatus: order.fulfillmentStatus || 'DELIVERED', totalPyg: order.totalPyg, saldoPyg: order.pendingPyg })),
+    // Seguimiento de la entrega (#240 → portal): los pasos del método, igual
+    // que la cuenta completa.
+    pedidos: orders.map((order) => ({ numero: order.orderNumber, fecha: order.createdAt, estado: order.status, fulfillmentStatus: order.fulfillmentStatus || 'DELIVERED', tracking: trackingDemo(order), totalPyg: order.totalPyg, saldoPyg: order.pendingPyg })),
     garantias: [],
   }
 }

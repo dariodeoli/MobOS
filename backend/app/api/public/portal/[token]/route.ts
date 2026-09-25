@@ -2,6 +2,7 @@ import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'
 import { buscarPorTokenPublico, hashTokenPublico } from '../../../../../lib/public-token'
+import { seguimientoDeEntrega } from '../../../../../lib/orders'
 
 // Vitrina pública del cliente: una página de solo lectura por token donde ve
 // sus pedidos, su saldo a favor, sus puntos de fidelización y —si el enlace es
@@ -57,11 +58,14 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     prisma.order.findMany({
       where: { tenantId: portal.tenantId, customerId: portal.customerId, archivedAt: null },
       select: {
+        id: true,
         orderNumber: true,
         createdAt: true,
+        updatedAt: true,
         totalPyg: true,
         status: true,
         fulfillmentStatus: true,
+        deliveryType: true,
         payments: { where: { status: 'CONFIRMED' }, select: { amountPyg: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -81,6 +85,24 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
       : Promise.resolve([]),
   ])
 
+  // Seguimiento de la entrega (#240 → portal): los pasos del método con sus
+  // fechas, con el mismo armado que la cuenta y la página pública del pedido.
+  const eventosEntrega = pedidos.length
+    ? await prisma.auditLog.findMany({
+        where: { tenantId: portal.tenantId, entity: 'Order', entityId: { in: pedidos.map((pedido) => pedido.id) }, action: 'ORDER_FULFILLMENT_UPDATED' },
+        orderBy: { createdAt: 'asc' },
+        select: { entityId: true, createdAt: true, metadata: true },
+      })
+    : []
+  const fechasPorPedido = new Map<string, Record<string, string>>()
+  for (const evento of eventosEntrega) {
+    const actual = (evento.metadata as { current?: unknown } | null)?.current
+    if (typeof actual !== 'string' || !evento.entityId) continue
+    const fechas = fechasPorPedido.get(evento.entityId) || {}
+    if (!fechas[actual]) fechas[actual] = evento.createdAt.toISOString()
+    fechasPorPedido.set(evento.entityId, fechas)
+  }
+
   return json({
     nivel: portal.level,
     tienda: { nombre: portal.tenant?.name || null, tieneLogo: Boolean(portal.tenant?.logos?.length) },
@@ -95,11 +117,16 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     puntosPyg: Number(portal.customer?.loyaltyPointsPyg || 0),
     pedidos: pedidos.map((pedido) => {
       const cobrado = pedido.payments.reduce((sum, pago) => sum + Number(pago.amountPyg || 0), 0)
+      // Fechas por paso: las actualizaciones de entrega y, si falta la del
+      // estado actual, la última modificación del pedido.
+      const fechas = { ...(fechasPorPedido.get(pedido.id) || {}) }
+      if (!fechas[pedido.fulfillmentStatus]) fechas[pedido.fulfillmentStatus] = pedido.updatedAt.toISOString()
       return {
         numero: pedido.orderNumber,
         fecha: pedido.createdAt,
         estado: pedido.status,
         fulfillmentStatus: pedido.fulfillmentStatus,
+        tracking: seguimientoDeEntrega(pedido.deliveryType, pedido.fulfillmentStatus, fechas),
         totalPyg: pedido.totalPyg,
         // Un pedido cancelado no deja deuda pendiente aunque no tenga pagos.
         saldoPyg: pedido.status === 'CANCELLED' ? 0 : Math.max(0, Number(pedido.totalPyg) - cobrado),
