@@ -140,7 +140,8 @@ export function listDemoUnits(q = '', view = 'active') {
     ? state.units.filter(unit => unit.removedAt)
     : activos(state).map(unit => snapshot(state, unit))
   if (!buscar) return filas
-  return filas.filter(unit => [unit.serial, unit.product?.nombre, unit.product?.name, unit.reservationCustomer, unit.supplierName, unit.notes].some(valor => String(valor || '').toLowerCase().includes(buscar)))
+  // Mismo criterio que la API real: serial, SKU o nombre del producto (#148 §6).
+  return filas.filter(unit => [unit.serial, unit.product?.sku, unit.product?.nombre, unit.product?.name, unit.reservationCustomer, unit.supplierName, unit.notes].some(valor => String(valor || '').toLowerCase().includes(buscar)))
 }
 
 export function createDemoUnit(data = {}) {
