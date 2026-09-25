@@ -288,6 +288,40 @@ function auditarSuperficies(registro) {
   })
 }
 
+// #253: la Configuración reorganizada en 7 grupos entra al barrido, con la
+// navegación interna como control clave (44 px en todos los anchos).
+const GRUPOS_CONFIG_AUDIT = [
+  ['mi-cuenta', 'Mi cuenta'],
+  ['organizacion', 'Organización'],
+  ['equipo', 'Equipo y acceso'],
+  ['comercial', 'Comercial'],
+  ['seguridad', 'Seguridad y auditoría'],
+  ['dispositivos', 'Dispositivos'],
+  ['sistema', 'Sistema'],
+]
+
+function auditarConfiguracion(registro) {
+  test('configuración: los 7 grupos a 360/390/414/768', async ({ page }) => {
+    test.slow()
+    mkdirSync(SHOTS, { recursive: true })
+    const clave = [{ nombre: 'grupos de Configuración', selector: '[data-testid="config-grupos"] [role="tab"]' }]
+    for (const [slug, label] of GRUPOS_CONFIG_AUDIT) {
+      for (const [ancho, alto] of ANCHOS) {
+        await page.setViewportSize({ width: ancho, height: alto })
+        await page.goto(`/configuracion/${slug}`)
+        await expect(page.locator('h1')).toHaveText(label, { timeout: 30_000 })
+        const medicion = await auditar(page, clave)
+        registro.push({ pantalla: `config-${slug}`, ancho, ...medicion })
+        console.log(`[config-${slug}-${ancho}] scroll=${medicion.overflowH}px cortados=${medicion.totalCortados} chicos=${medicion.totalChicos}`)
+        exigirMedicion(medicion, `config-${slug} ${ancho}`)
+        if (ancho === 390) await page.screenshot({ path: `${SHOTS}/config-${slug}-390.png` })
+      }
+    }
+    writeFileSync(`${SHOTS}/auditoria-config.json`, JSON.stringify(registro.filter((fila) => fila.pantalla.startsWith('config-')), null, 2))
+    expect(registro.filter((fila) => fila.pantalla.startsWith('config-'))).toHaveLength(GRUPOS_CONFIG_AUDIT.length * ANCHOS.length)
+  })
+}
+
 test.describe('auditoría responsive mobile', () => {
   // La corrida toca 4 anchos + modal + oscuro por pantalla: más lenta que un spec normal.
   test.slow()
@@ -295,4 +329,5 @@ test.describe('auditoría responsive mobile', () => {
   // cae al acceso. Se audita en producción con `scripts/qa-responsive-landing.mjs`.
   auditarPantallas([], PANTALLAS)
   auditarSuperficies([])
+  auditarConfiguracion([])
 })
