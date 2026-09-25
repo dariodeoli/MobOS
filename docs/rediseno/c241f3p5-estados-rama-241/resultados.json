@@ -1,0 +1,82 @@
+{
+  "base": "http://localhost:5216",
+  "etiqueta": "rama-241",
+  "resultados": [
+    {
+      "variante": "desktop-claro",
+      "pasos": [
+        "reserva: sí"
+      ],
+      "estadosFilas": [
+        "listo",
+        "reservado"
+      ],
+      "estadosPagos": [
+        "pagado",
+        "no-pagado"
+      ],
+      "chips": [
+        "linea-descuento:− Gs 18.000",
+        "linea-cupon:DEMO10"
+      ],
+      "errores": []
+    },
+    {
+      "variante": "desktop-oscuro",
+      "pasos": [
+        "reserva: sí"
+      ],
+      "estadosFilas": [
+        "listo",
+        "reservado"
+      ],
+      "estadosPagos": [
+        "pagado",
+        "no-pagado"
+      ],
+      "chips": [
+        "linea-descuento:− Gs 18.000",
+        "linea-cupon:DEMO10"
+      ],
+      "errores": []
+    },
+    {
+      "variante": "movil-claro",
+      "pasos": [
+        "reserva: sí"
+      ],
+      "estadosFilas": [
+        "listo",
+        "reservado"
+      ],
+      "estadosPagos": [
+        "pagado",
+        "no-pagado"
+      ],
+      "chips": [
+        "linea-descuento:− Gs 18.000",
+        "linea-cupon:DEMO10"
+      ],
+      "errores": []
+    },
+    {
+      "variante": "movil-oscuro",
+      "pasos": [
+        "reserva: sí"
+      ],
+      "estadosFilas": [
+        "listo",
+        "reservado"
+      ],
+      "estadosPagos": [
+        "pagado",
+        "no-pagado"
+      ],
+      "chips": [
+        "linea-descuento:− Gs 18.000",
+        "linea-cupon:DEMO10"
+      ],
+      "errores": []
+    }
+  ]
+}

@@ -48,7 +48,7 @@ assert.match(compras[1].detail, /Gs 500 c\/u/)
 
 // ── Ventas ──────────────────────────────────────────────────────────────────
 const pedido = (extra: Record<string, unknown> = {}) => ({
-  id: 'o1', quantity: 3, serials: [], serialsPending: 0, unitPricePyg: 100000,
+  id: 'o1', quantity: 3, serials: [], serialsPending: 0, stockPending: 0, unitPricePyg: 100000,
   order: { id: 'o1', orderNumber: 'P-1', status: 'COMPLETED', createdAt: fecha('2026-09-02'), customer: { name: 'Cliente' }, seller: { name: 'Vera' } }, ...extra,
 })
 const ventas = eventosDeVentas([pedido({ id: 'i1', quantity: 2, serials: ['AAA', 'BBB'], serialsPending: 0 })], new Map(), new Map(), { precios: true })
@@ -60,6 +60,14 @@ assert.match(ventas[0].detail, /Cliente · 2 unidades · Gs 100\.000/)
 // Pedido "sobre pedido": lo pendiente no descontó stock todavía.
 const pendiente = eventosDeVentas([pedido({ id: 'i2', quantity: 3, serials: [], serialsPending: 3 })], new Map(), new Map())
 assert.equal(pendiente.length, 0)
+
+// Sobre pedido sin serial: la cantidad pendiente tampoco descontó stock.
+const pendienteSinSerial = eventosDeVentas([pedido({ id: 'i7', quantity: 2, serials: [], serialsPending: 0, stockPending: 2 })], new Map(), new Map())
+assert.equal(pendienteSinSerial.length, 0)
+
+// Anular un sobre pedido sin serial no repone nada: nunca salió stock.
+const anuladoSinSerial = eventosDeVentas([pedido({ id: 'i8', quantity: 2, serials: [], serialsPending: 0, stockPending: 2 })], new Map(), new Map([['o1', [{ orderId: 'o1', at: fecha('2026-09-07'), action: 'ORDER_VOIDED', restock: null, reference: null, user: 'Dueño' }]]]))
+assert.deepEqual(anuladoSinSerial.map(movimiento => movimiento.delta), [])
 
 // Entrega posterior de un IMEI: descuenta recién ahí.
 const adjuntos = new Map([['i3', [{ itemId: 'i3', at: fecha('2026-09-04'), cantidad: 1, user: 'Vera' }]]])

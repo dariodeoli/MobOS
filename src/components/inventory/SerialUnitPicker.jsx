@@ -17,7 +17,7 @@ export default function SerialUnitPicker({ product, customerName, selectedSerial
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
-    if (!product?.id) { setUnits([]); onRequiresSerial?.(false); return }
+    if (!product?.id) { setUnits([]); onRequiresSerial?.(false, 0); return }
     setLoading(true); setError('')
     try {
       const query = product.sku || product.nombre || product.name || ''
@@ -28,7 +28,8 @@ export default function SerialUnitPicker({ product, customerName, selectedSerial
       const matched = (rows || []).filter(unit => unit.productId === product.id
         && (!product.branchId || !unit.branchId || unit.branchId === product.branchId))
       setUnits(matched)
-      onRequiresSerial?.(matched.length > 0)
+      // Segundo argumento: cuántas unidades hay (guía inline del POS).
+      onRequiresSerial?.(matched.length > 0, matched.length)
     } catch (cause) { setError(cause?.message || 'No se pudieron cargar los IMEI de este modelo.') } finally { setLoading(false) }
   }, [product, onRequiresSerial])
 

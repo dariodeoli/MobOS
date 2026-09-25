@@ -504,7 +504,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                       <p className="truncate text-sm font-medium">{item.description}</p>
                       <p className="mt-0.5 text-xs text-mute">{FULFILLMENT[order.fulfillmentStatus] || 'En tienda'} · {relativeDate(item.createdAt || order.createdAt || order.date)}</p>
                       {serials.length > 0 && <p className="mt-1 flex flex-wrap gap-1">{serials.map(serial => <span key={serial} className="rounded border border-fono/25 bg-fono/10 px-1.5 py-0.5 font-mono text-[10px] text-fono-light">IMEI {serial}</span>)}</p>}
-                      {(item.costPending || Number(item.serialsPending || 0) > 0) && <p className="mt-1 flex gap-2 text-[11px] text-warn">{Number(item.serialsPending || 0) > 0 && <span>{item.serialsPending} sin IMEI (sobre pedido)</span>}{item.costPending && <span>costo pendiente</span>}</p>}
+                      {(item.costPending || Number(item.serialsPending || 0) > 0 || Number(item.stockPending || 0) > 0) && <p className="mt-1 flex flex-wrap gap-2 text-[11px] text-warn">{Number(item.serialsPending || 0) > 0 && <span>{item.serialsPending} sin IMEI (sobre pedido)</span>}{Number(item.stockPending || 0) > 0 && <span>{item.stockPending} sobre pedido</span>}{item.costPending && <span>costo pendiente</span>}</p>}
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="text-sm font-semibold"><Money value={Number(item.totalPyg ?? 0)} /></p>

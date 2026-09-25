@@ -659,13 +659,13 @@ export default function FormularioVenta({
 
   // Los productos con unidades serializadas piden IMEI en su fila.
   function detectarUnidades(producto, key) {
-    if (esDemo) return
     const query = producto.sku || producto.nombre || ''
-    api
-      .get(`/api/inventory-units?q=${encodeURIComponent(query)}`)
+    // `resources` respeta la demo: las unidades ficticias también piden IMEI.
+    resources.inventoryUnits.list(query)
       .then(rows => {
-        if (!(rows || []).some(unit => unit.productId === producto.id)) return
-        setItems(arr => arr.map(it => (it.key === key ? { ...it, requiereSerie: true } : it)))
+        const unidades = (rows || []).filter(unit => unit.productId === producto.id).length
+        if (!unidades) return
+        setItems(arr => arr.map(it => (it.key === key ? { ...it, requiereSerie: true, unidades } : it)))
       })
       .catch(() => {})
   }
@@ -706,6 +706,23 @@ export default function FormularioVenta({
   const descuentoMedioPct = Math.max(0, ...pagos.map(pago => Number(cuentas?.find(cuenta => cuenta.id === pago.accountId)?.discountPct || 0)), 0)
   const descuentoMedioGs = Math.round((subtotal * descuentoMedioPct) / 100)
   const pendiente = Math.max(0, totalGeneral - totalPagado)
+
+  // Guía inline (#148 §11): líneas que hoy bloquean el guardado — sin IMEI
+  // elegido o sin stock y sin marcar «sobre pedido» — con su acción para
+  // resolverlas desde el cobro.
+  const pendientesVenta = items.flatMap(it => {
+    const producto = productos.find(p => p.id === it.productoId)
+    const sinImei = Boolean(it.requiereSerie) && !(it.serials?.length) && !it.sobrePedido
+    // Serializadas: manda el selector de unidades, no el contador (#148 §11).
+    const sinStock = !it.sobrePedido && !it.requiereSerie && Boolean(producto) && num(producto.stock) < (it.quantity || 1)
+    if (!sinImei && !sinStock) return []
+    return [{
+      key: it.key,
+      nombre: it.nombre || 'Producto',
+      motivo: sinImei ? 'imei' : 'stock',
+      unidades: Number(it.unidades) || 0,
+    }]
+  })
 
   const cantTotal = items.reduce((a, it) => a + (it.quantity || 1), 0)
   const valido =
@@ -831,6 +848,8 @@ export default function FormularioVenta({
         quantity: it.quantity || 1,
         unitPricePyg: it.precio,
         soldWithoutInsurance: Boolean(it.soldWithoutInsurance),
+        // Venta sin unidad/stock decidida por el vendedor (#148 §11).
+        ...(it.sobrePedido ? { backorder: true } : {}),
         ...(it.serials?.length ? { inventoryUnitSerials: it.serials } : {}),
         ...(it.couponCode ? { couponCode: it.couponCode } : {}),
         ...(it.comboId ? { comboId: it.comboId } : it.combo ? { comboName: it.combo } : {}),
@@ -855,7 +874,7 @@ export default function FormularioVenta({
       const sinImei = lista.filter(it => it.requiereSerie && !it.serials?.length && !it.sobrePedido)
       if (sinImei.length && !sinRed)
         throw new Error(
-          `Elegí el IMEI de ${sinImei.map(it => it.nombre).join(', ')} o marcalo como sobre pedido.`,
+          `Seleccioná el IMEI/serial exacto de cada equipo antes de vender (${sinImei.map(it => it.nombre).join(', ')}), o marcalo como «sobre pedido».`,
         )
       if (tieneCupon && gsNum(descuento) > 0)
         throw new Error('Quitá el descuento extra para utilizar un cupón. No son acumulables.')
@@ -934,19 +953,25 @@ export default function FormularioVenta({
               : {}),
           }
         })
+      // Solo se exige stock a las líneas que no van marcadas «sobre pedido» y a
+      // las no serializadas (#148 §11): las marcadas se crean como pedido sin
+      // descontar existencia y las serializadas las gobierna el selector de
+      // unidades (el backend valida la unidad exacta).
       const cantidades = new Map()
-      for (const item of lista)
+      for (const item of lista) {
+        if (item.sobrePedido || item.requiereSerie) continue
         cantidades.set(
           item.productoId,
           (cantidades.get(item.productoId) || 0) + (item.quantity || 1),
         )
+      }
       for (const [id, cantidad] of cantidades) {
         const producto = productos.find(p => p.id === id)
-        if (!producto) throw new Error(`Stock insuficiente: producto.`)
+        if (!producto) throw new Error('No encontramos uno de los productos de la venta.')
         // Sin conexión el stock local puede estar viejo: se permite la venta
         // (stock laxo) y el backend la marca para revisión.
         if (!sinRed && num(producto.stock) < cantidad)
-          throw new Error(`Stock insuficiente: ${producto?.nombre || 'producto'}.`)
+          throw new Error(`Sin stock de ${producto?.nombre || 'un producto'}: marcalo como «sobre pedido» para crear el pedido igual.`)
       }
       lineas = allocateCheckout(
         listaDemo,
@@ -1830,6 +1855,9 @@ export default function FormularioVenta({
               valido={valido}
               cantTotal={cantTotal}
               ok={ok}
+              pendientes={pendientesVenta}
+              onElegirUnidad={setImeiPara}
+              onSobrePedido={key => editarItem(key, { sobrePedido: true, serials: [], reservado: false })}
             />
           </div>
         </div>
@@ -1852,7 +1880,11 @@ export default function FormularioVenta({
                 product={productoFila}
                 customerName={customer.name || f.cliente}
                 selectedSerials={fila.serials || []}
-                onChange={serials => editarItem(fila.key, { serials })}
+                // Elegir unidad en el picker crea la reserva: la línea lo muestra.
+                onChange={serials => editarItem(fila.key, { serials, reservado: serials.length > 0 })}
+                onRequiresSerial={(requiere, unidades) => {
+                  if (requiere) editarItem(fila.key, { requiereSerie: true, unidades })
+                }}
                 disabled={guardando}
               />
               <label className={`flex items-start gap-2 rounded-xl border p-3 text-sm ${unidadesDeImei > 0 ? 'border-ink-600 bg-ink-800/40 text-mute/70' : 'border-warn/30 bg-warn/5 text-mute'}`}>
@@ -1861,7 +1893,7 @@ export default function FormularioVenta({
                   className="mt-0.5 h-4 w-4 accent-warn disabled:opacity-40"
                   disabled={unidadesDeImei > 0}
                   checked={Boolean(fila.sobrePedido)}
-                  onChange={event => editarItem(fila.key, { sobrePedido: event.target.checked, serials: event.target.checked ? [] : fila.serials || [] })}
+                  onChange={event => editarItem(fila.key, { sobrePedido: event.target.checked, serials: event.target.checked ? [] : fila.serials || [], ...(event.target.checked ? { reservado: false } : {}) })}
                 />
                 <span>
                   {unidadesDeImei > 0

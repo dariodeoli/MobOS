@@ -8,6 +8,7 @@ import { gs } from '@/utils/calculos'
 import { serialEnmascarado } from '@/utils/serial'
 import { LIMITE_MONTO_VENTAS, montoUsd } from '@/utils/moneda'
 import { ROTULO_DATO } from '@/components/shared/tabla'
+import { TONOS } from '@/lib/estadoEquipo'
 import { cn } from '@/lib/utils'
 import IconoCategoria from '@/components/shared/IconoCategoria'
 
@@ -41,7 +42,9 @@ export default function FilaVenta({
   const modelo = producto?.model || producto?.modelo || ''
   const capacidad = producto?.capacity || producto?.capacidad || ''
   const stock = Number(producto?.stock)
-  const agotado = Number.isFinite(stock) && stock <= 0 && !item.sobrePedido
+  // El stock contador no aplica a los equipos serializados: su disponibilidad
+  // es la de las unidades del picker (si no hay, se marca «sobre pedido»).
+  const agotado = Number.isFinite(stock) && stock <= 0 && !item.sobrePedido && !item.requiereSerie
   const cantidad = Math.max(1, Number(item.quantity) || 1)
   const precio = Number(item.precio) || 0
   const lista = Number(item.precioListaValor ?? producto?.precioVenta) || 0
@@ -52,6 +55,28 @@ export default function FilaVenta({
   const ahorroLista = lista > precio ? (lista - precio) * cantidad : 0
   const total = precio * cantidad - descuentoLinea
   const tieneImei = (item.serials?.length || 0) > 0
+  // Estado de la línea (#241): el acento izquierdo y los chips dicen de un
+  // vistazo qué necesita. Tonos de `lib/estadoEquipo` (los mismos del chip),
+  // sin colores nuevos.
+  const estadoFila = agotado
+    ? 'agotado'
+    : item.sobrePedido
+      ? 'sobre-pedido'
+      : item.requiereSerie && !tieneImei
+        ? 'falta-imei'
+        : tieneImei && item.reservado
+          ? 'reservado'
+          : 'listo'
+  const ACENTO = {
+    listo: 'border-l-ok/60',
+    'falta-imei': 'border-l-warn/70',
+    reservado: 'border-l-info/70',
+    agotado: 'border-l-bad/70',
+    'sobre-pedido': 'border-l-info/40',
+  }
+  const ESTADO_IMEI = tieneImei
+    ? (item.reservado ? { tono: 'info', icono: 'clock', title: 'Reservado · cambiá o quitá el IMEI' } : { tono: 'ok', icono: 'box', title: 'Cambiar IMEI' })
+    : { tono: 'warn', icono: 'box', title: 'Falta elegir IMEI' }
 
   async function aplicarCupon() {
     const code = cupon.trim()
@@ -95,7 +120,10 @@ export default function FilaVenta({
   }
 
   return (
-    <div className="px-3 py-2">
+    <div
+      data-estado={estadoFila}
+      className={cn('mobos-aparece border-l-2 px-3 py-2', ACENTO[estadoFila])}
+    >
       <div className="flex items-center gap-2.5">
         {imagen ? (
           <img src={imagen} alt="" loading="lazy" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
@@ -116,25 +144,40 @@ export default function FilaVenta({
           {/* Segunda línea: el IMEI (se toca para elegir/cambiar) y la papelera,
               visible también colapsada (#243): si la línea tiene descuento,
               cupón o IMEI elegido, pide confirmación antes de eliminarla. */}
-          <div className="mt-0.5 flex items-center justify-between gap-1">
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            {(item.requiereSerie || tieneImei) && (
             <button
               type="button"
               aria-label={tieneImei ? `Cambiar IMEI de ${item.nombre}` : `Elegir IMEI de ${item.nombre} (pendiente)`}
-              title={tieneImei ? 'Cambiar IMEI' : 'Falta elegir IMEI'}
+              title={ESTADO_IMEI.title}
               disabled={guardando}
               onClick={onImei}
               className={cn(
-                'flex min-h-11 min-w-11 items-center gap-1 truncate text-left font-mono text-[11px] transition hover:underline disabled:opacity-60 md:min-h-0 md:min-w-0',
-                tieneImei ? 'text-mute' : 'font-semibold text-warn',
+                'inline-flex min-h-11 min-w-11 items-center gap-1.5 truncate rounded-lg border px-1.5 text-left font-mono text-[11px] font-semibold transition hover:brightness-105 disabled:opacity-60 md:min-h-0 md:min-w-0',
+                TONOS.chip[ESTADO_IMEI.tono],
               )}
             >
-              <Icon name="box" className={cn('h-3.5 w-3.5 shrink-0', tieneImei ? 'text-ok' : 'text-warn')} />
+              <Icon name={ESTADO_IMEI.icono} className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               <span className="truncate">
                 {tieneImei
                   ? `IMEI ${abierta ? item.serials.join(' · ') : serialEnmascarado(item.serials[0])}`
                   : 'Falta elegir IMEI'}
               </span>
             </button>
+            )}
+            {item.couponCode && (
+              <span data-testid="linea-cupon" className={cn('inline-flex items-center gap-1 rounded-lg border px-1.5 py-0.5 text-[11px] font-semibold', TONOS.chip.ok)} title={`Cupón ${item.couponCode}`}>
+                <Icon name="tag" className="h-3 w-3" aria-hidden="true" />
+                {item.couponCode}
+              </span>
+            )}
+            {descuentoLinea > 0 && (
+              <span data-testid="linea-descuento" className={cn('inline-flex items-center gap-1 rounded-lg border px-1.5 py-0.5 text-[11px] font-semibold', TONOS.chip.warn)} title="Descuento de la línea">
+                <Icon name="tag" className="h-3 w-3" aria-hidden="true" />
+                − {gs(descuentoLinea)}
+              </span>
+            )}
+            <span className="ml-auto" />
             <button
               type="button"
               className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad disabled:opacity-50 md:h-7 md:w-7"
@@ -151,9 +194,6 @@ export default function FilaVenta({
         <div className="flex shrink-0 items-center gap-1">
           <div className="text-right">
             <span className="v2-numero block text-sm font-extrabold tabular-nums text-fono-light">{gs(total)}</span>
-            {descuentoLinea > 0 && (
-              <span className="block text-[10px] font-semibold text-warn">descuento − {gs(descuentoLinea)}</span>
-            )}
           </div>
           <button
             type="button"
@@ -169,11 +209,10 @@ export default function FilaVenta({
       </div>
 
       {abierta && (
-        <div className="mt-2.5 border-t border-ink-600/70 pt-2.5">
+        <div className="mobos-aparece mt-2.5 border-t border-ink-600/70 pt-2.5">
           {/* Origen del precio y cupón: el detalle que explica el total. */}
           {(item.couponCode || ['LIST', 'TIER', 'WHOLESALE', 'USD'].includes(item.precioOrigen)) && (
             <div className="mb-2 flex flex-wrap items-center gap-1.5">
-              {item.couponCode && <Badge color="green">Cupón {item.couponCode}</Badge>}
               {item.precioOrigen === 'LIST' && <Badge color="blue">{item.precioLista ? `Lista ${item.precioLista}` : 'Precio de lista'}</Badge>}
               {item.precioOrigen === 'TIER' && <Badge color="green">{item.precioMinQty}+ unidades</Badge>}
               {item.precioOrigen === 'WHOLESALE' && <Badge color="orange">Mayorista</Badge>}
@@ -302,7 +341,7 @@ export default function FilaVenta({
               <button
                 type="button"
                 className="inline-flex min-h-11 items-center text-[11px] text-mute hover:text-bad md:min-h-0"
-                onClick={() => onEditar({ serials: [] })}
+                onClick={() => onEditar({ serials: [], reservado: false })}
               >
                 Quitar IMEI
               </button>

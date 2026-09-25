@@ -1424,6 +1424,9 @@ model OrderItem {
   serials              Json           @default("[]")
   // Equipos vendidos sobre pedido sin IMEI: se completan al entregar.
   serialsPending       Int            @default(0)
+  // Unidades sobre pedido de productos sin serial (sin stock al vender): no
+  // descuentan stock y se entregan cuando llegue el pedido (#148 §11).
+  stockPending         Int            @default(0)
   // La línea se vendió sin costo conocido: falta cargar el costo del producto.
   costPending          Boolean        @default(false)
   // Descuento por línea: fijo en guaraníes o porcentual (uno de los dos).

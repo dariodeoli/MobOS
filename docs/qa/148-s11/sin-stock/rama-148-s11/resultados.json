@@ -1,0 +1,166 @@
+{
+  "base": "http://localhost:5216",
+  "etiqueta": "rama-148-s11",
+  "resultados": [
+    {
+      "variante": "desktop-claro",
+      "escenas": {
+        "sinStock": {
+          "pasos": [
+            "aviso: Sin stock de Protector de vidrio 17 Pro: marcalo como «sobre pedido» para crear el pedido igual.",
+            "guía: sí",
+            "marcado sobre pedido: sí",
+            "resultado: Pedido AUR-#0001 creadoVenta registrada correctamente. Ya podés cargar la siguiente.Modo demo: la venta queda guardada solo en este navegador, no en una tienda "
+          ],
+          "alerta": "Sin stock de Protector de vidrio 17 Pro: marcalo como «sobre pedido» para crear el pedido igual.",
+          "guia": "Hay líneas sin stock: marcalas como «sobre pedido» para crear el pedido igual. Protector de vidrio 17 Pro Sobre pedido «Crear pedido» la registra sin unidad y se completa al entregar.",
+          "estados": [
+            "agotado"
+          ],
+          "estadosMarcado": [
+            "sobre-pedido"
+          ],
+          "exito": "Pedido AUR-#0001 creadoVenta registrada correctamente. Ya podés cargar la siguiente.Modo demo: la venta queda guardada solo en este navegador, no en una tienda "
+        },
+        "sinImei": {
+          "pasos": [
+            "aviso: Seleccioná el IMEI/serial exacto de cada equipo antes de vender (iPhone 15 Pro Max 256GB Titanio Natural), o marcalo como «sobre pedido».",
+            "guía: sí",
+            "unidad elegida: sí",
+            "resultado: Pedido AUR-#0001 creadoVenta registrada correctamente. Ya podés cargar la siguiente.Modo demo: la venta queda guardada solo en este navegador, no en una tienda "
+          ],
+          "alerta": "Seleccioná el IMEI/serial exacto de cada equipo antes de vender (iPhone 15 Pro Max 256GB Titanio Natural), o marcalo como «sobre pedido».",
+          "guia": "Seleccioná el IMEI/serial exacto de cada equipo antes de vender. iPhone 15 Pro Max 256GB Titanio Natural Elegir unidad (2) «Crear pedido» la registra sin unidad y se completa al entregar.",
+          "estados": [
+            "falta-imei"
+          ],
+          "estadosResuelto": [
+            "reservado"
+          ],
+          "exito": "Pedido AUR-#0001 creadoVenta registrada correctamente. Ya podés cargar la siguiente.Modo demo: la venta queda guardada solo en este navegador, no en una tienda "
+        }
+      },
+      "errores": []
+    },
+    {
+      "variante": "desktop-oscuro",
+      "escenas": {
+        "sinStock": {
+          "pasos": [
+            "aviso: Sin stock de Protector de vidrio 17 Pro: marcalo como «sobre pedido» para crear el pedido igual.",
+            "guía: sí",
+            "marcado sobre pedido: sí",
+            "resultado: Pedido AUR-#0001 creadoVenta registrada correctamente. Ya podés cargar la siguiente.Modo demo: la venta queda guardada solo en este navegador, no en una tienda "
+          ],
+          "alerta": "Sin stock de Protector de vidrio 17 Pro: marcalo como «sobre pedido» para crear el pedido igual.",
+          "guia": "Hay líneas sin stock: marcalas como «sobre pedido» para crear el pedido igual. Protector de vidrio 17 Pro Sobre pedido «Crear pedido» la registra sin unidad y se completa al entregar.",
+          "estados": [
+            "agotado"
+          ],
+          "estadosMarcado": [
+            "sobre-pedido"
+          ],
+          "exito": "Pedido AUR-#0001 creadoVenta registrada correctamente. Ya podés cargar la siguiente.Modo demo: la venta queda guardada solo en este navegador, no en una tienda "
+        },
+        "sinImei": {
+          "pasos": [
+            "aviso: Seleccioná el IMEI/serial exacto de cada equipo antes de vender (iPhone 15 Pro Max 256GB Titanio Natural), o marcalo como «sobre pedido».",
+            "guía: sí",
+            "unidad elegida: sí",
+            "resultado: Pedido AUR-#0001 creadoVenta registrada correctamente. Ya podés cargar la siguiente.Modo demo: la venta queda guardada solo en este navegador, no en una tienda "
+          ],
+          "alerta": "Seleccioná el IMEI/serial exacto de cada equipo antes de vender (iPhone 15 Pro Max 256GB Titanio Natural), o marcalo como «sobre pedido».",
+          "guia": "Seleccioná el IMEI/serial exacto de cada equipo antes de vender. iPhone 15 Pro Max 256GB Titanio Natural Elegir unidad (2) «Crear pedido» la registra sin unidad y se completa al entregar.",
+          "estados": [
+            "falta-imei"
+          ],
+          "estadosResuelto": [
+            "reservado"
+          ],
+          "exito": "Pedido AUR-#0001 creadoVenta registrada correctamente. Ya podés cargar la siguiente.Modo demo: la venta queda guardada solo en este navegador, no en una tienda "
+        }
+      },
+      "errores": []
+    },
+    {
+      "variante": "movil-claro",
+      "escenas": {
+        "sinStock": {
+          "pasos": [
+            "aviso: Sin stock de Protector de vidrio 17 Pro: marcalo como «sobre pedido» para crear el pedido igual.",
+            "guía: sí",
+            "marcado sobre pedido: sí",
+            "resultado: Pedido AUR-#0001 creadoVenta registrada correctamente. Ya podés cargar la siguiente.Modo demo: la venta queda guardada solo en este navegador, no en una tienda "
+          ],
+          "alerta": "Sin stock de Protector de vidrio 17 Pro: marcalo como «sobre pedido» para crear el pedido igual.",
+          "guia": "Hay líneas sin stock: marcalas como «sobre pedido» para crear el pedido igual. Protector de vidrio 17 Pro Sobre pedido «Crear pedido» la registra sin unidad y se completa al entregar.",
+          "estados": [
+            "agotado"
+          ],
+          "estadosMarcado": [
+            "sobre-pedido"
+          ],
+          "exito": "Pedido AUR-#0001 creadoVenta registrada correctamente. Ya podés cargar la siguiente.Modo demo: la venta queda guardada solo en este navegador, no en una tienda "
+        },
+        "sinImei": {
+          "pasos": [
+            "aviso: Seleccioná el IMEI/serial exacto de cada equipo antes de vender (iPhone 15 Pro Max 256GB Titanio Natural), o marcalo como «sobre pedido».",
+            "guía: sí",
+            "unidad elegida: sí",
+            "resultado: Pedido AUR-#0001 creadoVenta registrada correctamente. Ya podés cargar la siguiente.Modo demo: la venta queda guardada solo en este navegador, no en una tienda "
+          ],
+          "alerta": "Seleccioná el IMEI/serial exacto de cada equipo antes de vender (iPhone 15 Pro Max 256GB Titanio Natural), o marcalo como «sobre pedido».",
+          "guia": "Seleccioná el IMEI/serial exacto de cada equipo antes de vender. iPhone 15 Pro Max 256GB Titanio Natural Elegir unidad (2) «Crear pedido» la registra sin unidad y se completa al entregar.",
+          "estados": [
+            "falta-imei"
+          ],
+          "estadosResuelto": [
+            "reservado"
+          ],
+          "exito": "Pedido AUR-#0001 creadoVenta registrada correctamente. Ya podés cargar la siguiente.Modo demo: la venta queda guardada solo en este navegador, no en una tienda "
+        }
+      },
+      "errores": []
+    },
+    {
+      "variante": "movil-oscuro",
+      "escenas": {
+        "sinStock": {
+          "pasos": [
+            "aviso: Sin stock de Protector de vidrio 17 Pro: marcalo como «sobre pedido» para crear el pedido igual.",
+            "guía: sí",
+            "marcado sobre pedido: sí",
+            "resultado: Pedido AUR-#0001 creadoVenta registrada correctamente. Ya podés cargar la siguiente.Modo demo: la venta queda guardada solo en este navegador, no en una tienda "
+          ],
+          "alerta": "Sin stock de Protector de vidrio 17 Pro: marcalo como «sobre pedido» para crear el pedido igual.",
+          "guia": "Hay líneas sin stock: marcalas como «sobre pedido» para crear el pedido igual. Protector de vidrio 17 Pro Sobre pedido «Crear pedido» la registra sin unidad y se completa al entregar.",
+          "estados": [
+            "agotado"
+          ],
+          "estadosMarcado": [
+            "sobre-pedido"
+          ],
+          "exito": "Pedido AUR-#0001 creadoVenta registrada correctamente. Ya podés cargar la siguiente.Modo demo: la venta queda guardada solo en este navegador, no en una tienda "
+        },
+        "sinImei": {
+          "pasos": [
+            "aviso: Seleccioná el IMEI/serial exacto de cada equipo antes de vender (iPhone 15 Pro Max 256GB Titanio Natural), o marcalo como «sobre pedido».",
+            "guía: sí",
+            "unidad elegida: sí",
+            "resultado: Pedido AUR-#0001 creadoVenta registrada correctamente. Ya podés cargar la siguiente.Modo demo: la venta queda guardada solo en este navegador, no en una tienda "
+          ],
+          "alerta": "Seleccioná el IMEI/serial exacto de cada equipo antes de vender (iPhone 15 Pro Max 256GB Titanio Natural), o marcalo como «sobre pedido».",
+          "guia": "Seleccioná el IMEI/serial exacto de cada equipo antes de vender. iPhone 15 Pro Max 256GB Titanio Natural Elegir unidad (2) «Crear pedido» la registra sin unidad y se completa al entregar.",
+          "estados": [
+            "falta-imei"
+          ],
+          "estadosResuelto": [
+            "reservado"
+          ],
+          "exito": "Pedido AUR-#0001 creadoVenta registrada correctamente. Ya podés cargar la siguiente.Modo demo: la venta queda guardada solo en este navegador, no en una tienda "
+        }
+      },
+      "errores": []
+    }
+  ]
+}

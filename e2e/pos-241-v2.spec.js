@@ -160,7 +160,7 @@ for (const [vista, ancho, alto] of [['desktop', 1280, 900], ['mobile', 390, 844]
         await carrito.getByRole('button', { name: /^Ver detalle de / }).first().click()
         await carrito.getByLabel(/^Descuento % de /).first().fill('10')
         // La línea queda con su descuento (chip visible también colapsada).
-        await expect(carrito.getByText(/descuento − Gs /).first()).toBeVisible()
+        await expect(carrito.getByTestId('linea-descuento')).toBeVisible()
         await carrito.getByRole('button', { name: /^Ver menos detalle de / }).first().click()
         await carrito.getByRole('button', { name: /^Eliminar / }).first().click()
         const confirmacion = page.getByRole('dialog', { name: '¿Eliminar la línea?' })

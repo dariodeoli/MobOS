@@ -1,0 +1,126 @@
+{
+  "base": "https://app.moboss.online",
+  "etiqueta": "produccion-antes",
+  "resultados": [
+    {
+      "variante": "desktop-claro",
+      "escenas": {
+        "sinStock": {
+          "pasos": [
+            "aviso: Stock insuficiente: Protector de vidrio 17 Pro.",
+            "guía: no",
+            "resultado: sin confirmación"
+          ],
+          "alerta": "Stock insuficiente: Protector de vidrio 17 Pro.",
+          "guia": null,
+          "estados": [],
+          "estadosMarcado": [],
+          "exito": ""
+        },
+        "sinImei": {
+          "pasos": [
+            "aviso: Stock insuficiente: iPhone 15 Pro Max 256GB Titanio Natural.",
+            "guía: no",
+            "resultado: sin confirmación"
+          ],
+          "alerta": "Stock insuficiente: iPhone 15 Pro Max 256GB Titanio Natural.",
+          "guia": null,
+          "estados": [],
+          "estadosResuelto": [],
+          "exito": ""
+        }
+      },
+      "errores": []
+    },
+    {
+      "variante": "desktop-oscuro",
+      "escenas": {
+        "sinStock": {
+          "pasos": [
+            "aviso: Stock insuficiente: Protector de vidrio 17 Pro.",
+            "guía: no",
+            "resultado: sin confirmación"
+          ],
+          "alerta": "Stock insuficiente: Protector de vidrio 17 Pro.",
+          "guia": null,
+          "estados": [],
+          "estadosMarcado": [],
+          "exito": ""
+        },
+        "sinImei": {
+          "pasos": [
+            "aviso: Stock insuficiente: iPhone 15 Pro Max 256GB Titanio Natural.",
+            "guía: no",
+            "resultado: sin confirmación"
+          ],
+          "alerta": "Stock insuficiente: iPhone 15 Pro Max 256GB Titanio Natural.",
+          "guia": null,
+          "estados": [],
+          "estadosResuelto": [],
+          "exito": ""
+        }
+      },
+      "errores": []
+    },
+    {
+      "variante": "movil-claro",
+      "escenas": {
+        "sinStock": {
+          "pasos": [
+            "aviso: Stock insuficiente: Protector de vidrio 17 Pro.",
+            "guía: no",
+            "resultado: sin confirmación"
+          ],
+          "alerta": "Stock insuficiente: Protector de vidrio 17 Pro.",
+          "guia": null,
+          "estados": [],
+          "estadosMarcado": [],
+          "exito": ""
+        },
+        "sinImei": {
+          "pasos": [
+            "aviso: Stock insuficiente: iPhone 15 Pro Max 256GB Titanio Natural.",
+            "guía: no",
+            "resultado: sin confirmación"
+          ],
+          "alerta": "Stock insuficiente: iPhone 15 Pro Max 256GB Titanio Natural.",
+          "guia": null,
+          "estados": [],
+          "estadosResuelto": [],
+          "exito": ""
+        }
+      },
+      "errores": []
+    },
+    {
+      "variante": "movil-oscuro",
+      "escenas": {
+        "sinStock": {
+          "pasos": [
+            "aviso: Stock insuficiente: Protector de vidrio 17 Pro.",
+            "guía: no",
+            "resultado: sin confirmación"
+          ],
+          "alerta": "Stock insuficiente: Protector de vidrio 17 Pro.",
+          "guia": null,
+          "estados": [],
+          "estadosMarcado": [],
+          "exito": ""
+        },
+        "sinImei": {
+          "pasos": [
+            "aviso: Stock insuficiente: iPhone 15 Pro Max 256GB Titanio Natural.",
+            "guía: no",
+            "resultado: sin confirmación"
+          ],
+          "alerta": "Stock insuficiente: iPhone 15 Pro Max 256GB Titanio Natural.",
+          "guia": null,
+          "estados": [],
+          "estadosResuelto": [],
+          "exito": ""
+        }
+      },
+      "errores": []
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { Aviso, Button, Input, Label, MoneyInput, Select, Textarea } from '@/components/ui'
+import { Aviso, Button, Input, Label, MoneyInput, Nota, Select, Textarea } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import SelectorMedioPago from '@/components/shared/SelectorMedioPago'
 import NumericKeypad from '@/components/shared/NumericKeypad'
@@ -45,6 +45,9 @@ export default function PasoCobro({
   valido,
   cantTotal,
   ok,
+  pendientes = [],
+  onElegirUnidad,
+  onSobrePedido,
 }) {
   // El botón principal dice qué se está por crear según lo cobrado: verde si
   // está pago, naranja si es parcial y rojo si queda pendiente/a crédito.
@@ -238,8 +241,10 @@ export default function PasoCobro({
           <div
             key={i}
             data-testid={`pago-fila-${i}`}
+            data-estado={p.noPagado ? 'no-pagado' : 'pagado'}
             className={cn(
-              'grid grid-cols-1 gap-2 items-end sm:grid-cols-[1.2fr_1fr_1fr_auto]',
+              'mobos-aparece grid grid-cols-1 items-end gap-2 border-l-2 pl-2 sm:grid-cols-[1.2fr_1fr_1fr_auto]',
+              p.noPagado ? 'border-l-warn/70' : 'border-l-ok/60',
               !usaCuentas && 'rounded-2xl border border-ink-600 bg-ink-800/30 p-3',
             )}
           >
@@ -335,13 +340,13 @@ export default function PasoCobro({
         ))}
         <div className="grid grid-cols-3 gap-2 border-t border-fono/20 pt-3 text-xs text-mute">
           <span className="rounded-xl border border-ink-600 px-3 py-2" data-testid="cobro-total">
-            Total
+            <Icon name="receipt" className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden="true" />Total
             <strong className="v2-numero mt-0.5 block text-base tabular-nums text-fore">
               {gs(totalGeneral)}
             </strong>
           </span>
           <span className="rounded-xl border border-ok/25 bg-ok/10 px-3 py-2 text-ok" data-testid="cobro-pagado">
-            Pagado
+            <Icon name="check" className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden="true" />Pagado
             <strong className="v2-numero mt-0.5 block text-base tabular-nums text-ok">
               {gs(totalPagado)}
             </strong>
@@ -353,7 +358,7 @@ export default function PasoCobro({
               pendiente ? 'border-warn/25 bg-warn/10 text-warn' : 'border-ink-600 text-mute',
             )}
           >
-            Pendiente
+            <Icon name={pendiente ? 'alert' : 'check'} className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden="true" />Pendiente
             <strong
               className={cn(
                 'v2-numero mt-0.5 block text-base tabular-nums',
@@ -365,6 +370,38 @@ export default function PasoCobro({
           </span>
         </div>
       </div>
+
+      {/* Guía inline (#148 §11): qué falta y cómo resolverlo, sin adivinar. */}
+      {pendientes.length > 0 && (
+        <Nota tono="warn" como="div" compact data-testid="guia-venta">
+          <p className="font-semibold text-warn">
+            {pendientes.some(p => p.motivo === 'imei')
+              ? 'Seleccioná el IMEI/serial exacto de cada equipo antes de vender.'
+              : 'Hay líneas sin stock: marcalas como «sobre pedido» para crear el pedido igual.'}
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {pendientes.map(pendiente => (
+              <li key={pendiente.key} className="flex flex-wrap items-center gap-2">
+                <span className="min-w-0 flex-1 truncate">{pendiente.nombre}</span>
+                {/* Con unidades disponibles la salida es elegir la unidad; sin
+                    unidades (o sin stock) el pedido se marca sobre pedido. */}
+                {pendiente.motivo === 'imei' && pendiente.unidades > 0 ? (
+                  <Button type="button" variant="outline" className="h-8 px-2.5 text-xs" disabled={guardando} onClick={() => onElegirUnidad?.(pendiente.key)}>
+                    Elegir unidad{pendiente.unidades > 1 ? ` (${pendiente.unidades})` : ''}
+                  </Button>
+                ) : (
+                  <Button type="button" variant="outline" className="h-8 px-2.5 text-xs" disabled={guardando} onClick={() => onSobrePedido?.(pendiente.key)}>
+                    {pendiente.motivo === 'imei' ? 'Vender sin IMEI' : 'Sobre pedido'}
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[11px]">
+            «Crear pedido» la registra sin unidad y se completa al entregar.
+          </p>
+        </Nota>
+      )}
 
       <div className="flex items-center gap-3">
         <Button

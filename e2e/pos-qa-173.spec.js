@@ -184,7 +184,7 @@ test('carrito ultra-colapsado: el descuento individual se ve sin desplegar (#148
     // Colapsada: el descuento y el total de la línea siguen a la vista y la
     // cantidad/precio quedan guardados en el detalle.
     await fila.getByRole('button', { name: `Ver menos detalle de ${nombre}` }).click()
-    await expect(fila.getByText('descuento − Gs 10.000')).toBeVisible()
+    await expect(fila.getByTestId('linea-descuento')).toHaveText('− Gs 10.000')
     await expect(fila.getByText('Gs 90.000')).toBeVisible()
     await expect(fila.getByLabel(`Cantidad de ${nombre}`)).toHaveCount(0)
     await expect(fila.getByLabel(`Precio de venta de ${nombre}`)).toHaveCount(0)
@@ -197,7 +197,7 @@ test('carrito ultra-colapsado: el descuento individual se ve sin desplegar (#148
     const confirmar = page.getByRole('dialog')
     await expect(confirmar).toContainText('un descuento')
     await confirmar.getByRole('button', { name: 'Cancelar' }).click()
-    await expect(fila.getByText('descuento − Gs 10.000')).toBeVisible()
+    await expect(fila.getByTestId('linea-descuento')).toHaveText('− Gs 10.000')
 
     await papelera.click()
     await confirmar.getByRole('button', { name: 'Eliminar línea' }).click()
