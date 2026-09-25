@@ -24,11 +24,11 @@
         "pos-fulfillment-borradores.spec.js",
         "public-quote-transfer.spec.js",
         "pwa-version.spec.js",
-        "qa-160-perfil.spec.js",
+        "qa-148-9-pos-montos.spec.js",
+        "qa-240-informe-embebible.spec.js",
         "qa-240-informe.spec.js",
         "qa-240-portal-avisos.spec.js",
         "qa-240-portal-vitrina.spec.js",
-        "qa-240-valuacion.spec.js",
         "qa-241-clientes-v2.spec.js",
         "qa-249-inventario-touch.spec.js",
         "responsive.spec.js",
@@ -64,12 +64,12 @@
         "pos-resumen-fijo.spec.js",
         "precios-listas.spec.js",
         "qa-140-inventario.spec.js",
-        "qa-236-clientes.spec.js",
+        "qa-160-perfil.spec.js",
         "qa-240-garantia-portal.spec.js",
         "qa-240-portal-cotizaciones.spec.js",
+        "qa-240-valuacion.spec.js",
         "qa-241-ficha-paso6.spec.js",
         "qa-241-servicio-pipeline.spec.js",
-        "qa-249-clientes-touch.spec.js",
         "qa-249-pos-touch.spec.js",
         "qa-250-buscador-dependiente.spec.js",
         "ruc-extraccion.spec.js",
@@ -105,19 +105,20 @@
         "public-levels.spec.js",
         "public-tracking.spec.js",
         "qa-148-16-menciones.spec.js",
+        "qa-236-clientes.spec.js",
         "qa-240-buscador-dispositivo.spec.js",
-        "qa-240-informe-embebible.spec.js",
         "qa-240-mensajes-tienda.spec.js",
         "qa-240-portal-seguimiento.spec.js",
         "qa-241-lote-c-tile.spec.js",
         "qa-241-servicio-v2.spec.js",
+        "qa-249-clientes-touch.spec.js",
         "redireccion-248.spec.js",
         "repuestos-proveedores.spec.js",
         "selector-sucursal.spec.js",
         "traslados-etiquetas-lote.spec.js"
       ],
-      "tests": 150
+      "tests": 151
     }
   ],
-  "generado": "2026-09-25T16:06:23.920Z"
+  "generado": "2026-09-25T16:13:43.086Z"
 }

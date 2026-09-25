@@ -25,6 +25,7 @@ import { normalizarNombre } from '@/utils/nombre'
 import { codigoPedido } from '@/utils/pedido'
 import { esErrorDeRed } from '@/lib/offline/queue'
 import { fechaClave, num, gs } from '@/utils/calculos'
+import { mensajeMontosFueraDeRango, montosFueraDeRango } from '@/utils/limitesVenta'
 import { allocateCheckout } from '@/utils/checkout'
 import { tradeInDraftPayment } from '@/utils/tradeInCheckout'
 import { validateDemoPromotionItems, recordDemoPromotionUsage } from '@/lib/demoPromotions'
@@ -297,6 +298,12 @@ export default function FormularioVenta({
     Array.isArray(cartInicial?.pagos) ? cartInicial.pagos : [],
   )
   const [errorVenta, setErrorVenta] = useState('')
+  // Los avisos de validación se traen a la vista: si el guardado se bloquea
+  // mientras el usuario está en el cobro, el error queda visible (#148 §9).
+  const avisoErrorRef = useRef(null)
+  useEffect(() => {
+    if (errorVenta) avisoErrorRef.current?.scrollIntoView({ block: 'center' })
+  }, [errorVenta])
   const [guardando, setGuardando] = useState(false)
   const [cuentas, setCuentas] = useState(null)
   const [errorCuentas, setErrorCuentas] = useState('')
@@ -871,6 +878,24 @@ export default function FormularioVenta({
     let lineas
     let payments
     try {
+      // #148 §9: los importes viven en columnas de 32 bits. Los campos ya acotan
+      // el tope real y lo marcan (MoneyInput), pero el guardado seguía de largo
+      // y el backend lo rechazaba sin decir qué monto era el problema: acá se
+      // bloquea con el detalle antes de armar el pedido.
+      const excesos = montosFueraDeRango({
+        lineas: lista.map(it => ({
+          nombre: it.nombre || nombreDe(it.productoId),
+          precio: gsNum(it.precio),
+          cantidad: it.quantity || 1,
+          descuento: descuentoItem(it),
+        })),
+        descuento: gsNum(descuento),
+        envio: gsNum(f.montoDelivery),
+        pagos: pagos.map(p => ({ monto: gsNum(p.monto) })),
+        totalGeneral,
+        totalPagado,
+      })
+      if (excesos.length) throw new Error(mensajeMontosFueraDeRango(excesos))
       const sinImei = lista.filter(it => it.requiereSerie && !it.serials?.length && !it.sobrePedido)
       if (sinImei.length && !sinRed)
         throw new Error(
@@ -1721,9 +1746,11 @@ export default function FormularioVenta({
         className="flex flex-col gap-4"
       >
         {errorVenta && (
-          <Aviso tono="error" className="px-3.5 py-2.5 text-sm rounded-xl">
-            {errorVenta}
-          </Aviso>
+          <div ref={avisoErrorRef}>
+            <Aviso tono="error" className="px-3.5 py-2.5 text-sm rounded-xl">
+              {errorVenta}
+            </Aviso>
+          </div>
         )}
 
         {/* Resumen fijo: cruza las dos columnas en desktop y queda al pie en
