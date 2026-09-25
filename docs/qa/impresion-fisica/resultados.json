@@ -1,0 +1,54 @@
+{
+  "base": "http://127.0.0.1:5276",
+  "fecha": "2026-09-25T20:00:23.458Z",
+  "pasos": [
+    {
+      "documento": "prueba-corta-80mm",
+      "archivo": "prueba-corta-80mm.pdf",
+      "formato": "ESC/POS 80 mm",
+      "bytes": 16059
+    },
+    {
+      "documento": "prueba-pedido-80mm",
+      "archivo": "prueba-pedido-80mm.pdf",
+      "formato": "ESC/POS 80 mm",
+      "bytes": 16473
+    },
+    {
+      "documento": "prueba-qr-80mm",
+      "archivo": "prueba-qr-80mm.pdf",
+      "formato": "ESC/POS 80 mm",
+      "bytes": 16131
+    },
+    {
+      "documento": "prueba-venta-80mm",
+      "archivo": "prueba-venta-80mm.pdf",
+      "formato": "ESC/POS 80 mm",
+      "bytes": 16538
+    },
+    {
+      "documento": "prueba-caracteres-80mm",
+      "archivo": "prueba-caracteres-80mm.pdf",
+      "formato": "ESC/POS 80 mm",
+      "bytes": 16528
+    },
+    {
+      "documento": "prueba-corte-80mm",
+      "archivo": "prueba-corte-80mm.pdf",
+      "formato": "ESC/POS 80 mm",
+      "bytes": 17304
+    },
+    {
+      "documento": "prueba-corta-58mm",
+      "archivo": "prueba-corta-58mm.pdf",
+      "formato": "ESC/POS 58 mm",
+      "bytes": 15615
+    },
+    {
+      "documento": "enlace-qr",
+      "archivo": "",
+      "formato": "QR",
+      "enlace": "https://app.moboss.online/prueba?d=lan%3A192.168.1.23%3A9100&v=1234&f=2026-09-25T15%3A00%3A00.000Z&t=corta"
+    }
+  ]
+}

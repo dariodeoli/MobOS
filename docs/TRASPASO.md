@@ -95,7 +95,7 @@ Versión publicada en `main`: **v1.0.110**. El deploy lo hace el integrador con
   `openspec/changes/archive/2026-09-19-print-bridge-remoto/`.
 - Instalación en la Mac del local (sin clonar el repo):
   `curl -fsSL https://api.moboss.online/print-agent/install.sh | bash -s -- --code ABCDE-FGHIJ`
-  (el código se genera en la app: Configuración → Impresoras → puentes).
+  (el código se genera en la app: Configuración → Dispositivos · Puentes).
 - macOS: si el agente corre por **launchd** y la impresora está en otra subred,
   hay que conceder **Red Local** (Ajustes → Privacidad y seguridad → Red local) y
   puede necesitar la IP secundaria/alias del puente.
