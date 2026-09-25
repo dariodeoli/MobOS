@@ -131,6 +131,129 @@ El "JS decodificado" acumula los chunks que ya quedaron en la sesión de la
 pestaña; lo determinista es el entry (−85%) y que cada sección se trae al
 entrar.
 
+## Re-verificación v1.0.168 (25/09/2026)
+
+Ronda nueva con el mismo método (bundle de producción, CPU 4x, 3 repeticiones
+por escenario) después del rollout v2 (#241), la estabilización de CI (#245) y
+los lotes de plataforma.
+
+- **Local:** [`reverificacion-v1.0.168/perf-247.json`](reverificacion-v1.0.168/perf-247.json)
+  · [`.md`](reverificacion-v1.0.168/perf-247.md)
+- **Producción:** [`produccion-v1.0.168/resultados.json`](produccion-v1.0.168/resultados.json)
+  + capturas `01-demo-inventario` … `05-demo-finanzas`.
+
+### Bundle (determinista)
+
+| Métrica | Línea base v1.0.152 | v1.0.154 | v1.0.168 |
+| --- | --- | --- | --- |
+| Chunk de entrada (`index-*.js`) | 1104 KB | 169 KB | **173 KB (−84%)** |
+
+### Tiempos hasta "listo" (ms, mediana de 3, CPU 4x) y pedidos de la carga fría
+
+| Pantalla | fría | caliente | segunda | API fría (ronda anterior → ahora) |
+| --- | --- | --- | --- | --- |
+| Inventario | 781 | 482 | 647 | 20 → **11** |
+| POS | 1034 | 416 | 548 | 11 → **10** |
+| Pedidos | 1000 | 389 | 491 | 12 → **11** |
+| Clientes | 1042 | 399 | 543 | 16 → **15** |
+| Finanzas | 927 | 272 | 387 | 20 → **18** |
+
+Lectura honesta: la máquina estaba **menos cargada** que en las rondas previas
+(los mismos escenarios de `pendientes` daban 1.5–3 s), así que los ms no se
+comparan 1:1; lo comparable es el método y el **recuento de pedidos**, que bajó
+en las cinco pantallas. En inventario, la primera visita y la segunda ya no
+repiten la sindicación del catálogo ni piden `/api/finance` (quedó fuera de las
+pantallas de operación).
+
+### Producción (demo, datos ficticios locales, 0 llamadas al API)
+
+| Pantalla | Listo (ms) | JS decodificado del recorrido |
+| --- | --- | --- |
+| Inventario | 1488 | 1156 KB |
+| POS | 208 | 925 KB |
+| Pedidos | 412 | 988 KB |
+| Clientes | 863 | 1086 KB |
+| Finanzas | 104 | 940 KB |
+
+### Pendiente vigente (INV)
+
+La primera visita a inventario baja de 20 a **11** pedidos, pero en la visita en
+caliente siguen entrando solapas que no están a la vista
+(`/api/inventory-reservations`, `/api/transfers`, `/api/suppliers`,
+`/api/inventory-units?view=removed`, `/api/stock-locations`): cargarlas por
+solapa recortaría otros ~5 pedidos. Es el único pendiente con datos de esta
+ronda; los de FIN (`/api/finance` en todas las pantallas) y POS (chunk del
+panel) quedaron resueltos en la segunda tanda.
+
+## Optimizaciones v1.0.168 (lazy diferido, POS a demanda y adelanto ocioso)
+
+Tanda sobre lo que quedaba abierto del alcance (#247: lazy loading, caché y
+preload de lo crítico), con evidencia antes/después de la misma medición.
+
+### 1. El POS deja de montarse en todas las pantallas
+
+El formulario de venta quedaba montado siempre (oculto) para no perder la venta
+en curso: cada pantalla pagaba su chunk, sus combos y sus cuentas de cobro.
+Ahora entra al árbol la primera vez que se visita el POS y desde ahí se mantiene
+(la venta en curso sigue viva al navegar y el handoff por `sessionStorage` se lee
+al montar, así que no se pierde nada).
+
+- JS decodificado en la carga fría (mediana): inventario **398 → 322 KB**,
+  pedidos **344 → 276 KB**, clientes **370 → 280 KB**, finanzas **347 → 250 KB**.
+  El POS queda igual (321 → 319 KB).
+- Pedidos al API en la carga fría: inventario **11 → 9**, pedidos **11 → 9**,
+  clientes **15 → 13**: `/api/combos` y `/api/payment-accounts` ya no viajan a
+  pantallas que no venden (el POS los sigue pidiendo, sin cambios).
+
+### 2. Búsqueda global diferida
+
+`GlobalSearch` baja junto con su modal (antes viajaba en el arranque del panel):
+chunk del panel **48.326 → 41.946 B (−13%)**.
+
+### 3. Adelanto ocioso de las secciones más usadas
+
+Con la pantalla pintada y el equipo ocioso (2,5 s + `requestIdleCallback`), el
+panel descarga los chunks de POS/Pedidos/Clientes (y de Inventario para el
+dueño), una sola vez por carga y solo si la conexión lo permite (nada de
+`saveData` ni 2G). Es el caso «segunda pantalla»: con red 3G simulada
+(150 ms, 200 KB/s) y CPU 4x, la navegación entre secciones queda casi
+instantánea.
+
+| Paso | Antes (ms) | Después (ms) | Δ |
+| --- | --- | --- | --- |
+| POS → Pedidos | 1132 | **462** | −59% |
+| POS → Clientes | 1002 | **254** | −75% |
+| → Inventario | 1141 | **490** | −57% |
+| → POS | 236 | **199** | −16% |
+
+Medición reproducible (antes = mismo spec sin el adelanto):
+`MOBOS_PERF_AUDIT=1 MOBOS_E2E_BACKEND=prod MOBOS_E2E_FRONTEND=preview npx playwright test e2e/perf-247.spec.js -g navegación --project=admin`.
+Evidencia: [`optimizaciones-v1.0.168/antes/perf-247-navegacion.json`](optimizaciones-v1.0.168/antes/perf-247-navegacion.json)
+y [`despues/perf-247-navegacion.json`](optimizaciones-v1.0.168/despues/perf-247-navegacion.json).
+
+### 4. Caché y paginación (estado)
+
+- La caché ya estaba cubierta y no se tocó: service worker (shell + catálogo con
+  fallback sin conexión) y la foto local del arranque (ÍndiceDB).
+- La paginación del catálogo y de pedidos ya es por cursor (`limit=500`); el
+  único pendiente con datos sigue siendo el de INV (solapas ocultas), abajo.
+
+Evidencia cruda de la ronda: [`optimizaciones-v1.0.168/despues/perf-247.json`](optimizaciones-v1.0.168/despues/perf-247.json)
+· [`.md`](optimizaciones-v1.0.168/despues/perf-247.md).
+
+## CI estable (#245)
+
+El release **v1.0.168** quedó rojo en `main` por un único test real (no flake,
+sin cuarentena): `e2e/dsn-241-a11y.spec.js` fijaba la paleta de `owncoding-ui`
+**v0.21** (`--c-paper` claro `246 248 251`) y la biblioteca vigente es **v0.25.0**
+(profundidad del tema #241: `241 244 248`). Se actualizó la expectativa y el
+título del test; el spec completo pasa **8/8** local.
+
+Racha de 3 corridas completas seguidas en modo CI sobre este código
+(`MOBOS_E2E_BACKEND=prod`, sin reintentos): ver
+[`../247-performance/racha/`](../247-performance/racha/) con el resumen y el
+reporte de flakiness de cada corrida (0 flaky, 0 cuarentena).
+
 ## Qué se cambió (dominio PLT)
 
 1. **Rutas diferidas** (`src/App.jsx`): el panel, el reparto y todas las páginas
@@ -146,6 +269,13 @@ entrar.
 4. **Preconnect** (`index.html`): handshake adelantado al API de producción.
 5. **Arnés**: modo `MOBOS_E2E_FRONTEND=preview` (build de producción) para medir
    como el usuario; los tests siguen en `dev`.
+6. **POS a demanda y búsqueda diferida** (`src/pages/PanelVendedor.jsx`): el
+   formulario de venta se monta en la primera visita (después queda oculto para
+   no perder la venta) y `GlobalSearch` baja con su modal; el panel queda en
+   41,9 KB.
+7. **Adelanto ocioso** (`src/hooks/usePrefetchSecciones.js`): con el equipo
+   ocioso se adelantan los chunks de las secciones más usadas, una vez por carga
+   y solo si la conexión lo permite.
 
 ## Pedidos a otros dominios (con datos)
 
@@ -162,6 +292,11 @@ entrar.
 - **POS — panel**: el chunk del panel son **791 KB**; dividir sus secciones
   cargadas de forma directa (finanzas, clientes, herramientas) con `lazy()`
   bajaría el tiempo de parseo al entrar al POS (hoy es el costo dominante).
+
+**Estado (re-verificación v1.0.168):** INV sigue abierto (los pedidos de sus
+solapas ocultas, ver arriba); FIN y POS quedaron resueltos en la segunda tanda
+y la re-verificación los confirma (panel 47 KB y `/api/finance` solo en las
+pantallas que lo usan).
 
 ## Cómo repetir
 
