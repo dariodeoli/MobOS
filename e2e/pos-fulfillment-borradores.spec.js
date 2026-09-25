@@ -2,6 +2,7 @@
 // enlace público (sin auth, con Checkout). Cubre lo que pos-qa-173 no toca.
 
 import { test, expect } from '@playwright/test'
+import { SEED } from './helpers/seed-data.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 const stamp = Date.now().toString(36)
@@ -19,9 +20,13 @@ async function api(page, path, options = {}) {
 }
 
 async function productoConStock(page) {
-  const filas = await api(page, '/api/products?limit=10')
-  const producto = (filas.body || []).find((fila) => Number(fila.stock) > 0)
-  expect(producto?.id).toBeTruthy()
+  // Accesorio del seed (sin unidades serializadas): el servidor exige los IMEI
+  // exactos cuando el producto tiene unidades serializadas. La sesión de este
+  // spec es de vendedor, así que no puede crear productos.
+  const sku = SEED.products.funda.sku
+  const filas = await api(page, `/api/products?q=${encodeURIComponent(sku)}`)
+  const producto = (filas.body || []).find((fila) => fila.sku === sku && Number(fila.stock) > 0)
+  expect(producto?.id, `el harness tiene ${sku} con stock`).toBeTruthy()
   return producto
 }
 
