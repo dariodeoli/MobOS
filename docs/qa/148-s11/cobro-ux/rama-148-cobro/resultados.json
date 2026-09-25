@@ -1,0 +1,106 @@
+{
+  "base": "http://localhost:5216",
+  "etiqueta": "rama-148-cobro",
+  "resultados": [
+    {
+      "variante": "desktop-claro",
+      "pasos": [
+        "producto: Funda MagSafe",
+        "producto: Cargador USB-C",
+        "cuenta: Itaú · Cuenta corriente",
+        "resumen: TOTAL DE ESTA VENTA Gs 400.000 2 productos · 2 unidades TU DÍA 3 ventas · 3 pedidos Facturación Gs 14.280.000",
+        "medida monto: 118px en 192px"
+      ],
+      "medicion": {
+        "capsula": "Itaú · Cuenta corriente Gs Transferencia Itaú · Titular Aurora Móviles · Nro 001-2456789 · CI/RUC 80012345-0",
+        "saldo": null,
+        "resumenFondo": "rgb(232, 236, 243)",
+        "resumenImagen": "none",
+        "boton": {
+          "texto": "Confirmar venta 2 productos · Gs 400.000",
+          "alto": 56,
+          "fondo": "rgb(22, 101, 52)"
+        },
+        "orden": "resumen arriba",
+        "scrollAncho": 1280,
+        "vista": 1280
+      },
+      "errores": []
+    },
+    {
+      "variante": "desktop-oscuro",
+      "pasos": [
+        "producto: Funda MagSafe",
+        "producto: Cargador USB-C",
+        "cuenta: Itaú · Cuenta corriente",
+        "resumen: TOTAL DE ESTA VENTA Gs 400.000 2 productos · 2 unidades TU DÍA 3 ventas · 3 pedidos Facturación Gs 14.280.000",
+        "medida monto: 118px en 192px"
+      ],
+      "medicion": {
+        "capsula": "Itaú · Cuenta corriente Gs Transferencia Itaú · Titular Aurora Móviles · Nro 001-2456789 · CI/RUC 80012345-0",
+        "saldo": null,
+        "resumenFondo": "rgb(41, 48, 63)",
+        "resumenImagen": "none",
+        "boton": {
+          "texto": "Confirmar venta 2 productos · Gs 400.000",
+          "alto": 56,
+          "fondo": "rgb(74, 222, 128)"
+        },
+        "orden": "resumen arriba",
+        "scrollAncho": 1280,
+        "vista": 1280
+      },
+      "errores": []
+    },
+    {
+      "variante": "movil-claro",
+      "pasos": [
+        "producto: Funda MagSafe",
+        "producto: Cargador USB-C",
+        "cuenta: Itaú · Cuenta corriente",
+        "resumen: TOTAL DE ESTA VENTA Gs 400.000 2 productos · 2 unidades TU DÍA 3 ventas · 3 pedidos Facturación Gs 14.280.000",
+        "medida monto: 135px en 180px"
+      ],
+      "medicion": {
+        "capsula": "Itaú · Cuenta corriente Gs Transferencia Itaú · Titular Aurora Móviles · Nro 001-2456789 · CI/RUC 80012345-0",
+        "saldo": null,
+        "resumenFondo": "rgb(232, 236, 243)",
+        "resumenImagen": "none",
+        "boton": {
+          "texto": "Confirmar venta 2 productos · Gs 400.000",
+          "alto": 61,
+          "fondo": "rgb(22, 101, 52)"
+        },
+        "orden": "botón arriba",
+        "scrollAncho": 390,
+        "vista": 390
+      },
+      "errores": []
+    },
+    {
+      "variante": "movil-oscuro",
+      "pasos": [
+        "producto: Funda MagSafe",
+        "producto: Cargador USB-C",
+        "cuenta: Itaú · Cuenta corriente",
+        "resumen: TOTAL DE ESTA VENTA Gs 400.000 2 productos · 2 unidades TU DÍA 3 ventas · 3 pedidos Facturación Gs 14.280.000",
+        "medida monto: 135px en 180px"
+      ],
+      "medicion": {
+        "capsula": "Itaú · Cuenta corriente Gs Transferencia Itaú · Titular Aurora Móviles · Nro 001-2456789 · CI/RUC 80012345-0",
+        "saldo": null,
+        "resumenFondo": "rgb(41, 48, 63)",
+        "resumenImagen": "none",
+        "boton": {
+          "texto": "Confirmar venta 2 productos · Gs 400.000",
+          "alto": 61,
+          "fondo": "rgb(74, 222, 128)"
+        },
+        "orden": "botón arriba",
+        "scrollAncho": 390,
+        "vista": 390
+      },
+      "errores": []
+    }
+  ]
+}
