@@ -14,7 +14,7 @@ test('la documentación busca por tema y lleva a la pantalla', async ({ page }) 
 
   await page.getByRole('button', { name: 'Ir a Staff, roles y PIN' }).click()
   await expect(page).toHaveURL(/\/configuracion\/equipo$/)
-  await expect(page.getByRole('heading', { name: 'Funcionarios y metas' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Integrantes' })).toBeVisible()
 })
 
 test('la documentación filtra por módulo y avisa cuando no hay resultados', async ({ page }) => {

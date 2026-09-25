@@ -28,6 +28,17 @@ const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', '
 const INVITE_STATUS = { PENDING: ['Pendiente', 'orange'], ACCEPTED: ['Aceptada', 'green'], EXPIRED: ['Vencida', 'slate'], REVOKED: ['Revocada', 'red'] }
 function mesLabel(clave) { const [y, m] = (clave || '').split('-'); return `${MESES[Number(m) - 1] || m} ${y}` }
 
+// Resumen corto del horario de acceso para la ficha del integrante: el detalle
+// completo se edita en el modal «Horario de acceso».
+const DIAS_CORTOS = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá']
+function resumenHorario(usuario) {
+  const ventanas = usuario?.accessSchedule?.windows || []
+  if (!ventanas.length) return ''
+  const [primera] = ventanas
+  const dias = [...(primera.days || [])].sort((a, b) => a - b).map(dia => DIAS_CORTOS[dia]).join(' ')
+  return `${dias || 'Sin días'} ${primera.start || ''}–${primera.end || ''}${ventanas.length > 1 ? ` +${ventanas.length - 1}` : ''}`
+}
+
 // Meta diaria con separador de miles mientras se escribe; se guarda al salir.
 // En modo API persiste en el backend (User.dailyGoalPyg); en demo queda local.
 function MetaDiaria({ vendor, esDemo, onGuardar }) {
@@ -35,6 +46,7 @@ function MetaDiaria({ vendor, esDemo, onGuardar }) {
   const [guardando, setGuardando] = useState(false)
   return (
     <MoneyInput
+      aria-label={`Meta diaria de ${vendor.nombre}`}
       value={value}
       onValueChange={next => setValue(next === '' ? '' : String(next))}
       onBlur={async () => {
@@ -280,6 +292,8 @@ export default function Vendedores() {
 
   const fechaCortaInv = (valor) => (valor ? new Date(valor).toLocaleDateString('es-PY', { day: '2-digit', month: 'short', year: 'numeric' }) : '—')
   const integrantesDeTab = tabIntegrantes === 'inactivos' ? vendedores.filter(v => !v.activo) : vendedores.filter(v => v.activo)
+  const activos = vendedores.filter(v => v.activo)
+  const mesActual = fechaClave().slice(0, 7)
 
   // Formulario de alta del equipo: en escritorio vive en el panel derecho;
   // en móvil queda apilado y el botón de arriba lleva hasta él.
@@ -356,8 +370,8 @@ export default function Vendedores() {
     <Card>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="font-bold mb-1">Funcionarios y metas</h2>
-          <p className="text-sm text-mute">Administrá el estado del equipo y la meta diaria de cada vendedor.</p>
+          <h2 className="font-bold mb-1">Integrantes</h2>
+          <p className="text-sm text-mute">Sumá personas, activá o desactivá su acceso y configurá su horario, PIN y permisos.</p>
         </div>
         <div role="tablist" className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
           {[['activos', 'Activos'], ['inactivos', 'Inactivos']].map(([clave, etiqueta]) => (
@@ -366,7 +380,7 @@ export default function Vendedores() {
         </div>
       </div>
       <div className="space-y-2.5">
-        {integrantesDeTab.map(v => { const t = totalesVendedor(ventas, v.id); const com = comisionDeVentas(ventasDelDia(ventas, fechaClave(), v.id), prods); return (
+        {integrantesDeTab.map(v => { const t = totalesVendedor(ventas, v.id); const com = comisionDeVentas(ventasDelDia(ventas, fechaClave(), v.id), prods); const meta = num(v.metaDiaria); const pct = meta > 0 ? Math.round((t.hoy / meta) * 100) : null; return (
           <div key={v.id} data-testid="integrante-fila" className={cn('rounded-2xl border border-ink-600 p-3 transition hover:border-fono/40', v2 && 'v2-tile')}>
             <span className="sr-only">{v.nombre}</span>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -387,7 +401,7 @@ export default function Vendedores() {
             </div>
             <div className="flex flex-wrap items-center gap-2 border-t border-ink-600/60 pt-2">
               <button type="button" onClick={() => setHistorialDe(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore" aria-label={`Historial de ${v.nombre}`}>Historial</button>
-              <button type="button" onClick={() => abrirHorario(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore" aria-label={`Horario de ${v.nombre}`}>Horario</button>
+              <button type="button" onClick={() => abrirHorario(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore" aria-label={`Horario de ${v.nombre}`} title={resumenHorario(v) ? `Horario: ${resumenHorario(v)}` : 'Sin horario: acceso libre'}>Horario{resumenHorario(v) ? ` · ${resumenHorario(v)}` : ''}</button>
               {!esDemo && <button type="button" onClick={() => abrirPin(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore" aria-label={`PIN de ${v.nombre}`} title="Asignar un PIN nuevo (nunca se muestra el actual)">PIN</button>}
               {!esDemo && v.role !== 'ADMIN' && <button type="button" onClick={() => abrirPermisos(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore" aria-label={`Permisos de ${v.nombre}`} title="Permisos por acción">Permisos</button>}
               {v.activo
@@ -395,7 +409,13 @@ export default function Vendedores() {
                 : <button type="button" onClick={() => reactivarUsuario(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-ok transition hover:bg-ok/10" aria-label={`Volver a activar a ${v.nombre}`}>Volver a activar</button>}
             </div>
             <div className="mt-1 grid grid-cols-2 items-end gap-2 border-t border-ink-600/60 pt-2 md:grid-cols-4">
-              <label className="col-span-2 block md:col-span-1"><span className="text-[10px] font-bold uppercase text-mute">Meta diaria Gs</span><MetaDiaria vendor={v} esDemo={esDemo} onGuardar={(meta) => actualizarUsuario(v.id, { dailyGoalPyg: meta })} /></label>
+              <div className="col-span-2 md:col-span-1">
+                <span className="text-[10px] font-bold uppercase text-mute">Meta diaria</span>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <span className="v2-numero text-sm font-bold">{meta > 0 ? gs(meta) : 'Sin meta'}</span>
+                  {pct !== null && <Badge color={pct >= 100 ? 'green' : pct > 0 ? 'orange' : 'slate'}>{pct}%</Badge>}
+                </div>
+              </div>
               <Mini label="Hoy" valor={t.hoy} /><Mini label="Comisión hoy" valor={com} /><Mini label="Mes" valor={t.mes} />
             </div>
           </div>
@@ -416,12 +436,59 @@ export default function Vendedores() {
       </div>
     </Card>
 
-    {meses.length > 0 && <Card><h2 className="font-bold mb-1">Historial mensual por vendedor</h2><div className="mt-4 space-y-4">{meses.map(mes => { const filas = Object.entries(porMes[mes]).map(([vid, lista]) => ({ vid, nombre: nombreById[vid] || 'Sin vendedor', total: lista.reduce((a, x) => a + num(x.precio), 0), com: comisionDeVentas(lista, prods), cant: lista.length })).sort((a, b) => b.total - a.total); const abierto = abiertos.has(mes); return <div key={mes} className="overflow-hidden rounded-xl border border-ink-600"><button type="button" onClick={() => toggleMes(mes)} className="flex min-h-11 w-full items-center justify-between gap-2 bg-ink-700 px-4 text-left"><span className="font-bold text-sm capitalize">{abierto ? '▼' : '▶'} {mesLabel(mes)}</span><Badge color="blue">Vendido {gs(filas.reduce((a, f) => a + f.total, 0))}</Badge></button>{abierto && <div className="divide-y divide-ink-600 border-t border-ink-600">{filas.map(f => <div key={f.vid} className="flex items-center justify-between gap-2 px-3 py-2.5"><div><div className="text-[13px] font-semibold">{f.nombre}</div><div className="text-xs text-mute">{f.cant} ventas</div></div><div className="text-right"><div className="font-bold text-fono">{gs(f.total)}</div><div className="text-xs text-ok">Comisión {gs(f.com)}</div></div></div>)}</div>}</div> })}</div></Card>}
-    {!esDemo && sesion?.esPropietario && <Card>
-      <h2 className="font-bold mb-1">Comisiones</h2>
-      <p className="text-sm text-mute">Las reglas de comisión se administran desde Finanzas → Comisiones.</p>
-      <Button type="button" variant="outline" className="mt-3" onClick={() => navigate('/finanzas/comisiones')}>Ir a Finanzas → Comisiones</Button>
-    </Card>}
+    <Card data-testid="equipo-metas-comisiones">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="font-bold mb-1">Metas y comisiones</h2>
+          <p className="text-sm text-mute">La meta diaria de cada integrante y cómo vienen el día y el mes. Las reglas y liquidaciones se administran en Finanzas → Comisiones.</p>
+        </div>
+        {!esDemo && sesion?.esPropietario && <Button type="button" variant="outline" onClick={() => navigate('/finanzas/comisiones')}>Reglas y liquidaciones →</Button>}
+      </div>
+      {activos.length > 0 ? (
+        <div className="space-y-2.5">
+          {activos.map(v => {
+            const t = totalesVendedor(ventas, v.id)
+            const com = comisionDeVentas(ventasDelDia(ventas, fechaClave(), v.id), prods)
+            const comMes = comisionDeVentas(ventas.filter(x => x.vendedorId === v.id && (x.fecha || '').startsWith(mesActual)), prods)
+            const meta = num(v.metaDiaria)
+            const pct = meta > 0 ? Math.round((t.hoy / meta) * 100) : null
+            return (
+              <div key={v.id} data-testid="meta-fila" className="rounded-2xl border border-ink-600 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate text-[13px] font-bold">{v.nombre}</div>
+                    <div className={CELDA_DATO}>{ROLE_LABELS[v.role] || v.role}</div>
+                  </div>
+                  <label className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase text-mute">Meta diaria</span>
+                    <span className="w-32"><MetaDiaria vendor={v} esDemo={esDemo} onGuardar={metaNueva => actualizarUsuario(v.id, { dailyGoalPyg: metaNueva })} /></span>
+                  </label>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
+                  <Mini label="Hoy" valor={t.hoy} />
+                  <div className="rounded-lg bg-ink-700 py-2 text-center">
+                    <div className="text-[10px] font-bold uppercase text-mute">Cumplimiento</div>
+                    <div className={cn('v2-numero text-sm font-bold', pct === null ? 'text-mute' : pct >= 100 ? 'text-ok' : 'text-warn')}>{pct === null ? '—' : `${pct}%`}</div>
+                  </div>
+                  <Mini label="Comisión hoy" valor={com} />
+                  <div className="rounded-lg bg-ink-700 py-2 text-center">
+                    <div className="text-[10px] font-bold uppercase text-mute">Mes</div>
+                    <div className="v2-numero text-sm font-bold text-fono">{gs(t.mes)}</div>
+                    <div className="text-[10px] text-ok">Comisión {gs(comMes)}</div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <EmptyState compact icon="users" title="Sin integrantes activos" description="Activá o sumá a alguien del equipo para seguir sus metas y comisiones." />
+      )}
+      {meses.length > 0 && <div className="mt-4 border-t border-ink-600/60 pt-4">
+        <h3 className="font-bold mb-1">Historial mensual por vendedor</h3>
+        <div className="mt-3 space-y-4">{meses.map(mes => { const filas = Object.entries(porMes[mes]).map(([vid, lista]) => ({ vid, nombre: nombreById[vid] || 'Sin vendedor', total: lista.reduce((a, x) => a + num(x.precio), 0), com: comisionDeVentas(lista, prods), cant: lista.length })).sort((a, b) => b.total - a.total); const abierto = abiertos.has(mes); return <div key={mes} className="overflow-hidden rounded-xl border border-ink-600"><button type="button" onClick={() => toggleMes(mes)} className="flex min-h-11 w-full items-center justify-between gap-2 bg-ink-700 px-4 text-left"><span className="font-bold text-sm capitalize">{abierto ? '▼' : '▶'} {mesLabel(mes)}</span><Badge color="blue">Vendido {gs(filas.reduce((a, f) => a + f.total, 0))}</Badge></button>{abierto && <div className="divide-y divide-ink-600 border-t border-ink-600">{filas.map(f => <div key={f.vid} className="flex items-center justify-between gap-2 px-3 py-2.5"><div><div className="text-[13px] font-semibold">{f.nombre}</div><div className="text-xs text-mute">{f.cant} ventas</div></div><div className="text-right"><div className="font-bold text-fono">{gs(f.total)}</div><div className="text-xs text-ok">Comisión {gs(f.com)}</div></div></div>)}</div>}</div> })}</div>
+      </div>}
+    </Card>
     </>
 
     {!esDemo && <Card>
