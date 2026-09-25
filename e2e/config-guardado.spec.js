@@ -93,17 +93,22 @@ test('Identificador de pedidos: Enter guarda y el error queda en la sección', a
   const prefijo = page.getByLabel('Prefijo de pedidos')
   await expect(prefijo).not.toHaveValue('', { timeout: 20_000 })
   const numero = page.getByLabel('Número inicial de pedidos')
-  // En una cuenta nueva el número todavía no existe y el campo queda vacío (el
-  // efectivo vive en el placeholder): se completa con ese valor para guardar.
-  if ((await numero.inputValue()) === '') await numero.fill((await numero.getAttribute('placeholder')) || '1')
-  await expect(numero).not.toHaveValue('', { timeout: 20_000 })
   const original = await prefijo.inputValue()
-  // Mismos valores: valida el guardado sin tocar la numeración de la suite.
-  await prefijo.press('Enter')
-  await page.waitForTimeout(700)
-  await capturar(page, 'numeracion-enter')
-  await confirmarPassword(page, 'numeracion')
-  await expect(page.getByTestId('numeracion-estado')).toContainText('Guardado', { timeout: 15_000 })
+  // En una cuenta nueva el número todavía no existe y el campo queda vacío (el
+  // efectivo vive en el placeholder). La sección se hidrata con la cuenta y una
+  // recarga de `load()` puede volver a pisar los campos, así que el número se
+  // completa justo antes de guardar y el guardado se reintenta —idempotente—
+  // hasta ver «Guardado» (mismos valores: no toca la numeración de la suite).
+  const guardar = async () => {
+    if ((await numero.inputValue()) === '') await numero.fill((await numero.getAttribute('placeholder')) || '1')
+    await expect(numero).toHaveValue(/^\d{1,8}$/, { timeout: 3_000 })
+    await prefijo.press('Enter')
+    await page.waitForTimeout(300)
+    await capturar(page, 'numeracion-enter')
+    await confirmarPassword(page, 'numeracion')
+    await expect(page.getByTestId('numeracion-estado')).toContainText('Guardado', { timeout: 8_000 })
+  }
+  await expect(guardar).toPass({ timeout: 45_000 })
   await capturar(page, 'numeracion-guardado')
   // Un prefijo inválido no se guarda y lo explica en la sección.
   await prefijo.fill('X')
