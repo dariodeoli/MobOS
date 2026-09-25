@@ -134,6 +134,13 @@ async function prepararTablero(page) {
     const inspeccionada = await asegurarUnidad(imei)
     for (const serial of seriales) await asegurarUnidad(serial)
     if (!inspeccionada?.id) return
+    // Un equipo listo para vender (verificado + costo) para que el carril
+    // «Listo para vender» del taller tenga carga; el otro queda por verificar.
+    const listo = await buscar(seriales[0])
+    if (listo?.id) {
+      await pedir(`${api}/api/inventory-units/verify`, { method: 'POST', headers: json, body: JSON.stringify({ serial: listo.serial }) })
+      await pedir(`${api}/api/inventory-units`, { method: 'PATCH', headers: json, body: JSON.stringify({ id: listo.id, action: 'details', costPyg: 1850000 }) })
+    }
     // Consulta IMEI guardada (modo simulado: sin cobro): alimenta los locks del
     // tile. Es idempotente por requestId, igual que en la ficha.
     await pedir(`${api}/api/imei`, {
@@ -203,6 +210,10 @@ const PANTALLAS = [
     await expect(page.getByTestId('ops-actualizado')).toContainText(/\d{1,2}[:.]\d{2}/, { timeout: 30_000 })
     await expect(page.getByTestId('ops-equipo').first()).toBeVisible({ timeout: 30_000 })
   }],
+  // Paso 4: el modo taller/rack (carriles por estación y acciones en serie).
+  ['taller', '/inventario/taller', (page) => page.getByTestId('rack-taller'), prepararTablero, async (page) => {
+    await expect(page.getByTestId('rack-equipo').first()).toBeVisible({ timeout: 30_000 })
+  }],
   ['inventario-tiles', '/inventario/unidades', (page) => page.getByTestId('inventario-tarjeta').first(), async (page) => {
     // Tiles de equipo (lote C): la vista lista/cuadrícula se recuerda por pantalla.
     await page.evaluate(() => { try { localStorage.setItem('mobos:inventario-vista', 'grid') } catch { /* sin storage */ } })
@@ -220,6 +231,31 @@ const preparar = (page, { modo, v2 = true }) =>
       localStorage.setItem('mobos:tema-v2', v2 ? '1' : '0')
     } catch { /* sin storage */ }
   }, { modo, v2 })
+
+test('taller: la impresión en serie muestra el rollo real de las etiquetas', async ({ page }) => {
+  mkdirSync(SHOTS, { recursive: true })
+  await page.setViewportSize({ width: 1280, height: 1000 })
+  await preparar(page, { modo: 'light', v2: true })
+  await page.goto('/inventario/taller')
+  await prepararTablero(page)
+  await page.goto('/inventario/taller')
+  const abrir = async () => {
+    await page.getByTestId('rack-imprimir-serie').click()
+    await expect(page.getByRole('dialog', { name: 'Imprimir en serie' })).toBeVisible()
+    await expect(page.getByTestId('rack-vista-previa')).toBeVisible({ timeout: 20_000 })
+  }
+  for (const [tema, modo] of [['claro', 'light'], ['oscuro', 'dark']]) {
+    await preparar(page, { modo, v2: true })
+    await page.reload()
+    await abrir()
+    // Lo que se ve es lo que sale: la etiqueta del rollo lleva el IMEI completo.
+    const marco = page.getByRole('dialog', { name: 'Imprimir en serie' }).locator('iframe[title="Vista previa de las etiquetas"]')
+    await expect(marco.contentFrame().getByText(IMEI_TABLERO).first()).toBeVisible({ timeout: 20_000 })
+    await page.screenshot({ path: `${SHOTS}/c241f4b-taller-impresion-on-${tema}-desktop.png` })
+    await page.getByRole('dialog', { name: 'Imprimir en serie' }).getByRole('button', { name: 'Cerrar' }).click().catch(() => {})
+    await page.keyboard.press('Escape')
+  }
+})
 
 test.describe('dominios v2 · capturas y contraste', () => {
   for (const [dominio, ruta, listo, prepararDatos, antesDeCapturar] of PANTALLAS) {

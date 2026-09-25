@@ -1,32 +1,31 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Badge, Button, Card, Modal, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
-import { CELDA_DATO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
-import { PIE_ACCIONES } from '@/components/shared/formulario'
-import { cn } from '@/lib/utils'
-import GradoBadge from '@/components/shared/GradoBadge'
-import MedidorBateria from '@/components/shared/MedidorBateria'
 import PasosEquipo from '@/components/shared/PasosEquipo'
-import { agruparRack, bateriaDe, conCosto, ESTACIONES, estadoEnRack, ETIQUETA_RACK, filtrarRack, gradoDe, ORDEN_RACK, TONO_RACK } from '@/lib/tallerRack'
-
+import { PIE_ACCIONES } from '@/components/shared/formulario'
+import { buildUnitLabelsHtml } from '@/components/shared/OrderReceipt'
+import { BarraLote, ConteoChecklist, ContadorLote, TileEquipo, VistaPreviaPapel } from 'owncoding-ui'
+import { cn } from '@/lib/utils'
+import { configImpresora } from '@/lib/printing/agent'
+import { agruparRack, bateriaDe, checklistDe, conCosto, ESTACIONES, estadoEnRack, ETIQUETA_RACK, filtrarRack, gradoDe, locksDe, ORDEN_RACK, TONO_RACK } from '@/lib/tallerRack'
 
 function nombreUnidad(unit) {
   return unit?.product?.name || unit?.product?.nombre || 'Equipo'
 }
 
-function tileTonos(estado) {
-  if (estado === 'listo') return 'border-ok/30 bg-ok/5'
-  if (estado === 'verificado') return 'border-info/25 bg-info/5'
-  return 'border-warn/25 bg-warn/5'
-}
+// Vista previa del rollo: no se generan los QR de un lote entero, alcanza con
+// las primeras etiquetas (lo impreso sale completo).
+const ETIQUETAS_EN_VISTA = 3
+const FORMATO_PAPEL = { 80: 'thermal-80', 58: 'thermal-58', 55: 'thermal-55' }
 
-// Modo taller/rack (#240 §4): varios equipos en preparación agrupados por
-// estación (por verificar → verificado → listo para vender), con filtros
-// (búsqueda/ubicación), impresión en serie (selección o carril completo) y
-// acciones por unidad. Reutiliza la verificación y las etiquetas del
-// inventario; cuando INV aterrice la inspección (#240 §1-2), cada tile muestra
-// el grado y la batería sin cambiar esta pantalla.
+// Modo taller/rack v2 (#240 §4, #241 paso 4): carriles por estación
+// (por verificar → verificado → listo para vender) con los objetos compartidos
+// de owncoding-ui — `TileEquipo`, `BarraLote`, `ContadorLote`,
+// `ConteoChecklist` y `VistaPreviaPapel` — más las acciones en serie
+// (verificar, etiquetas del alcance elegido y hoja de estación). La impresión
+// sigue saliendo por el camino de siempre (agente/puente, etiquetas 80/58 mm
+// con QR); la vista previa muestra el rollo real configurado.
 export default function TallerRack({
   unidades = [],
   ubicaciones = [],
@@ -43,7 +42,9 @@ export default function TallerRack({
   const [estacion, setEstacion] = useState('todas')
   const [busqueda, setBusqueda] = useState('')
   const [ubicacionId, setUbicacionId] = useState('')
+  const [vistaHtml, setVistaHtml] = useState('')
 
+  const ancho = configImpresora().ancho
   const filtradas = useMemo(() => filtrarRack(unidades, { busqueda, ubicacionId }), [unidades, busqueda, ubicacionId])
   const grupos = useMemo(() => agruparRack(filtradas), [filtradas])
   const porId = useMemo(() => new Map(unidades.map((unit) => [unit.id, unit])), [unidades])
@@ -55,6 +56,25 @@ export default function TallerRack({
     { id: 'filtrados', label: 'Todo lo filtrado', lista: filtradas },
   ]
   const objetivo = (opcionesImpresion.find((opcion) => opcion.id === alcance) || opcionesImpresion[0]).lista
+  const pedidas = Math.min(ETIQUETAS_EN_VISTA, objetivo.length)
+  // Clave estable del alcance: evita regenerar la vista en cada render.
+  const claveObjetivo = objetivo.map((unit) => unit.id).join(',')
+
+  // Vista previa de las etiquetas con el ancho real del rollo (#241): el mismo
+  // HTML que baja al diálogo de respaldo, para que «lo que se ve es lo que sale».
+  useEffect(() => {
+    if (!imprimirAbierto || !claveObjetivo) {
+      setVistaHtml('')
+      return undefined
+    }
+    let vivo = true
+    buildUnitLabelsHtml(objetivo.slice(0, ETIQUETAS_EN_VISTA), { ancho })
+      .then((html) => { if (vivo) setVistaHtml(html) })
+      .catch(() => { if (vivo) setVistaHtml('') })
+    return () => { vivo = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imprimirAbierto, claveObjetivo, ancho])
+
   const abrirImpresion = () => {
     setAlcance(elegidas.length ? 'seleccion' : estacion !== 'todas' ? 'estacion' : 'filtrados')
     setImprimirAbierto(true)
@@ -70,7 +90,6 @@ export default function TallerRack({
       return todos ? actuales.filter((id) => !ids.includes(id)) : [...new Set([...actuales, ...ids])]
     })
   }
-  const conteo = (id) => (id === 'todas' ? filtradas.length : grupos[id].length)
 
   return (
     <Card className="p-4 md:p-5" data-testid="rack-taller">
@@ -82,16 +101,16 @@ export default function TallerRack({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-mute" data-testid="rack-seleccionados">{elegidas.length} seleccionados</span>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy || elegidas.length === 0}
-            onClick={() => { onVerificarLote?.(elegidas); setSeleccionados([]) }}
-            data-testid="rack-verificar-lote"
-          >
-            <Icon name="check" className="h-4 w-4" /> Verificar
-          </Button>
+          {filtradas.length > 0 && (
+            <ContadorLote
+              recibidos={grupos.listo.length}
+              total={filtradas.length}
+              variante="chip"
+              sufijo="listos"
+              mostrarFaltan
+              className="tabular-nums"
+            />
+          )}
           <Button
             type="button"
             variant="outline"
@@ -101,15 +120,6 @@ export default function TallerRack({
           >
             <Icon name="printer" className="h-4 w-4" /> Imprimir en serie…
           </Button>
-          {elegidas.length > 0 && (
-            <button
-              type="button"
-              className="text-xs font-semibold text-mute hover:underline"
-              onClick={() => setSeleccionados([])}
-            >
-              Limpiar
-            </button>
-          )}
         </div>
       </div>
 
@@ -124,12 +134,14 @@ export default function TallerRack({
             data-testid={`rack-estacion-${id}`}
             onClick={() => setEstacion(id)}
             className={cn(
-              'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition',
+              'flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition md:min-h-0',
               estacion === id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore',
             )}
           >
             {label}
-            <span className="tabular-nums text-[10px] text-mute">{conteo(id)}</span>
+            {/* El contador hereda el color de la pestaña (AA): con `text-mute`
+                sobre el tinte del activo quedaba en 3.96:1 en oscuro. */}
+            <span className="tabular-nums text-[10px]">{id === 'todas' ? filtradas.length : grupos[id].length}</span>
           </button>
         ))}
       </div>
@@ -155,6 +167,32 @@ export default function TallerRack({
         </Select>
       </div>
 
+      {/* Acciones en serie (BarraLote): aparecen con la selección y dicen sobre
+          cuántos equipos se va a actuar. */}
+      <BarraLote
+        cantidad={elegidas.length}
+        etiqueta={<span className="text-xs text-mute" data-testid="rack-seleccionados">{elegidas.length} seleccionados</span>}
+        onLimpiar={() => setSeleccionados([])}
+        className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fono/30 bg-fono/5 px-3 py-2 text-sm"
+      >
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-11 md:min-h-0"
+          disabled={busy}
+          onClick={() => { onVerificarLote?.(elegidas); setSeleccionados([]) }}
+          data-testid="rack-verificar-lote"
+        >
+          <Icon name="check" className="h-4 w-4" /> Verificar
+        </Button>
+        <Button type="button" variant="outline" className="min-h-11 md:min-h-0" disabled={busy} onClick={abrirImpresion} data-testid="rack-imprimir-seleccion">
+          <Icon name="printer" className="h-4 w-4" /> Etiquetas…
+        </Button>
+        <Button type="button" variant="outline" className="min-h-11 md:min-h-0" disabled={busy} onClick={() => onHoja?.(elegidas, 'Selección')} data-testid="rack-hoja-seleccion">
+          <Icon name="report" className="h-4 w-4" /> Hoja de estación
+        </Button>
+      </BarraLote>
+
       <div className={cn('mt-4 grid gap-3', visibles.length > 1 ? 'lg:grid-cols-3' : '')}>
         {visibles.map((estado) => {
           const lista = grupos[estado]
@@ -168,14 +206,14 @@ export default function TallerRack({
               <header className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-2">
                   <Badge color={TONO_RACK[estado]}>{ETIQUETA_RACK[estado]}</Badge>
-                  <span className="text-xs tabular-nums text-mute">{lista.length}</span>
+                  <ContadorLote recibidos={lista.length} total={filtradas.length} variante="chip" className="tabular-nums" />
                 </span>
                 {lista.length > 0 && (
                   <span className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={() => alternarColumna(estado)}
-                      className="text-[11px] font-semibold text-fono-light hover:underline"
+                      className="toque-44 text-[11px] font-semibold text-fono-light hover:underline"
                       data-testid={`rack-seleccionar-${estado}`}
                     >
                       {todos ? 'Quitar todos' : 'Seleccionar todos'}
@@ -184,7 +222,7 @@ export default function TallerRack({
                       type="button"
                       disabled={busy}
                       onClick={() => onEtiquetasLote?.(lista)}
-                      className="text-[11px] font-semibold text-fono-light hover:underline disabled:opacity-50"
+                      className="toque-44 text-[11px] font-semibold text-fono-light hover:underline disabled:opacity-50"
                       title={`Imprimir las etiquetas de los ${lista.length} equipos de esta estación`}
                       data-testid={`rack-imprimir-${estado}`}
                     >
@@ -197,45 +235,66 @@ export default function TallerRack({
                 {lista.map((unit) => {
                   const grado = gradoDe(unit)
                   const bateria = bateriaDe(unit)
+                  const checklist = checklistDe(unit)
                   const estadoUnidad = estadoEnRack(unit)
+                  const seleccionado = seleccionados.includes(unit.id)
                   return (
-                    <article
+                    <div
                       key={unit.id}
                       data-testid="rack-equipo"
                       data-serial={unit.serial}
-                      className={cn('rounded-xl border p-2.5 transition', tileTonos(estadoUnidad), seleccionados.includes(unit.id) && 'ring-1 ring-fono/50')}
+                      className={cn('flex items-start gap-2 transition', seleccionado && 'rounded-2xl ring-2 ring-fono/50')}
                     >
-                      <div className="flex items-start gap-2.5">
-                        <input
-                          type="checkbox"
-                          className="mt-1"
-                          checked={seleccionados.includes(unit.id)}
-                          onChange={() => alternar(unit.id)}
-                          aria-label={`Seleccionar ${unit.serial}`}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className={CELDA_IDENTIDAD} title={nombreUnidad(unit)}>{nombreUnidad(unit)}</p>
-                          <p className="mt-0.5 truncate font-mono text-[11px] text-fono-light" title={unit.serial}>{unit.serial}</p>
-                          <p className="mt-1 flex flex-wrap items-center gap-1.5">
-                            {grado && <GradoBadge grado={grado} />}
-                            {bateria !== null && <MedidorBateria porcentaje={bateria} variante="chip" mostrarEtiqueta />}
-                            {!conCosto(unit) && <Badge color="orange">Sin costo</Badge>}
-                            {(unit.location?.name || unit.locationName) && <span className={CELDA_DATO}>{unit.location?.name || unit.locationName}</span>}
-                          </p>
-                          <PasosEquipo estado={estadoUnidad} testId="rack-pasos" className="mt-1.5" />
-                        </div>
-                        <div className="flex shrink-0 flex-col items-end gap-1">
-                          {estadoUnidad === 'por-verificar' && (
-                            <Button type="button" variant="outline" className="h-7 px-2 text-[11px]" disabled={busy} onClick={() => onVerificar?.(unit)}>
-                              Verificar
-                            </Button>
+                      <input
+                        type="checkbox"
+                        className="mt-4 ml-1 shrink-0"
+                        checked={seleccionado}
+                        onChange={() => alternar(unit.id)}
+                        aria-label={`Seleccionar ${unit.serial}`}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <TileEquipo
+                          modelo={nombreUnidad(unit)}
+                          imei={unit.serial}
+                          detalle={unit.location?.name || unit.locationName || undefined}
+                          // El chip solo avisa cuando hay algo que mirar (fallas del checklist).
+                          estado={checklist?.fallan > 0 ? 'falla' : undefined}
+                          grado={grado}
+                          bateria={bateria}
+                          locks={locksDe(unit)}
+                          acciones={(
+                            <>
+                              <PasosEquipo estado={estadoUnidad} testId="rack-pasos" className="mr-auto" />
+                              {checklist && (
+                                <ConteoChecklist pasan={checklist.pasan} total={checklist.total} fallas={checklist.fallan} />
+                              )}
+                              {!conCosto(unit) && <Badge color="orange">Sin costo</Badge>}
+                              {estadoUnidad === 'por-verificar' && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="toque-44 h-8 px-2 text-xs"
+                                  disabled={busy}
+                                  onClick={() => onVerificar?.(unit)}
+                                >
+                                  Verificar
+                                </Button>
+                              )}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                className="toque-44 h-8 px-2 text-xs"
+                                disabled={busy}
+                                onClick={() => onEtiqueta?.(unit)}
+                                title="Imprimir etiqueta"
+                              >
+                                Etiqueta
+                              </Button>
+                            </>
                           )}
-                          <Button type="button" variant="ghost" className="h-7 px-2 text-[11px]" disabled={busy} onClick={() => onEtiqueta?.(unit)} title="Imprimir etiqueta">
-                            Etiqueta
-                          </Button>
-                        </div>
+                        />
                       </div>
-                    </article>
+                    </div>
                   )
                 })}
                 {!lista.length && (
@@ -249,8 +308,8 @@ export default function TallerRack({
         })}
       </div>
 
-      {/* Impresión en serie (#240 §4): etiquetas del alcance elegido u hoja de
-          estación imprimible para el depósito. */}
+      {/* Impresión en serie (#240 §4): etiquetas del alcance elegido con la vista
+          previa del rollo real, u hoja de estación imprimible para el depósito. */}
       <Modal open={imprimirAbierto} onClose={() => setImprimirAbierto(false)} title="Imprimir en serie" size="corto">
         <p className="text-sm text-mute">Elegí qué equipos entran en la impresión.</p>
         <div className="mt-3 space-y-1.5" role="radiogroup" aria-label="Alcance de la impresión">
@@ -276,6 +335,21 @@ export default function TallerRack({
           {objetivo.length} etiqueta(s): {objetivo.slice(0, 6).map((unit) => `${nombreUnidad(unit)} ${String(unit.serial || '').slice(-4)}`).join(' · ')}
           {objetivo.length > 6 ? ` · +${objetivo.length - 6}` : ''}
         </p>
+        {vistaHtml && (
+          <div className="mt-4" data-testid="rack-vista-previa">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-mute">Vista previa · rollo de {ancho} mm</span>
+              <ContadorLote recibidos={pedidas} total={objetivo.length} variante="chip" sufijo="en la vista" />
+            </div>
+            <VistaPreviaPapel
+              formato={FORMATO_PAPEL[ancho] || 'thermal-80'}
+              contenido={vistaHtml}
+              titulo="Vista previa de las etiquetas"
+              alto="h-[34vh]"
+              className="mt-2"
+            />
+          </div>
+        )}
         <div className={cn(PIE_ACCIONES, 'mt-4')}>
           <Button type="button" variant="outline" disabled={!objetivo.length || busy} onClick={() => { onHoja?.(objetivo, estacion === 'todas' ? 'Taller' : ETIQUETA_RACK[estacion]); setImprimirAbierto(false) }} data-testid="rack-hoja-estacion">
             Hoja de estación

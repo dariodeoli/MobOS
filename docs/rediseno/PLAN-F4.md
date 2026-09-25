@@ -149,3 +149,13 @@ Detalle, medición AA y capturas en [`F4-DOMINIOS.md`](F4-DOMINIOS.md#paso-3--ta
 Pendiente de coordinación: la entrada al menú del panel (hoy se llega por URL) y
 la adopción de los objetos de owncoding-ui v0.22.0 cuando PLT suba la dependencia
 (`TileRol`, `PasosEquipo`, `Stat` y `FichaCertificado`).
+
+## Paso 4 · modo taller/rack (entregado)
+
+El modo taller (`/inventario/taller`) pasó a los objetos compartidos de
+owncoding-ui (`TileEquipo`, `BarraLote`, `ContadorLote`, `ConteoChecklist` y
+`VistaPreviaPapel`) con la impresión en serie y su vista previa del rollo real.
+Detalle en [`F4-DOMINIOS.md`](F4-DOMINIOS.md#paso-4--modo-tallerrack-inventariotaller).
+Queda como pendiente de la biblioteca la variante `PasosEquipo` (hoy sigue el
+objeto local; CMP la publica en v0.22.0) y el manifiesto/etiqueta de preparación
+del abastecimiento (PRN de F5) que no pasa por esta pantalla.

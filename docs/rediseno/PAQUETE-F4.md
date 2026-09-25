@@ -32,6 +32,7 @@ carpeta (`docs/rediseno/`).
 | **Configuración** | **Tiles de rol/acceso** (x de y de permisos + dominios) y fichas del equipo | `c241f4b-equipo-on-*`, `c241f4b-roles-on-*` |
 | **Públicas** | Página del pedido y landing con el lenguaje v2 | `c241f4b-pedido-publico-on-*`, `c241f4b-landing-on-*` |
 | **Tablero operativo** | Pantalla completa activa: KPIs grandes, stepper del lote con la carga por etapa, tiles de equipo con **«x de y» del checklist** y **chips de locks** (desde la consulta IMEI guardada) | `c241f4b-ops-on-*` (+ `c241f4b-ops-off-claro-desktop.png`) |
+| **Modo taller/rack** | Carriles por estación con **objetos de CMP** (tile de equipo, avance «N de M», acciones en serie) y **vista previa del rollo** en la impresión de etiquetas | `c241f4b-taller-on-*`, `c241f4b-taller-impresion-on-*` |
 
 ## Accesibilidad (medida, no estimada)
 
@@ -51,8 +52,9 @@ carpeta (`docs/rediseno/`).
 - **Datos (#240)**: el tablero ya muestra el checklist y los locks de cada
   consulta IMEI guardada; el grado/locks de los tiles del inventario quedan para
   la próxima vuelta con el lote de INV.
-- **Biblioteca (CMP)**: owncoding-ui v0.22.0 ya trae `TileRol`, `PasosEquipo`,
-  `Stat` y `FichaCertificado` para los patrones de estos lotes; se adoptan cuando
+- **Biblioteca (CMP)**: el taller ya usa `TileEquipo`, `BarraLote`,
+  `ContadorLote`, `ConteoChecklist` y `VistaPreviaPapel`; owncoding-ui v0.22.0
+  suma `TileRol`, `PasosEquipo`, `Stat` y `FichaCertificado` y se adoptan cuando
   PLT suba la dependencia (hoy v0.21.0).
 - **Entrada al menú del tablero**: hoy se llega por `/ops`; la entrada en el
   panel es una decisión de producto/navegación (PLT).

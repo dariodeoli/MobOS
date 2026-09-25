@@ -229,3 +229,33 @@ en **4.46:1** en claro porque el tablero no vive bajo `.tema-v2` y no recibía l
 tintes AA de los chips v2 (los tintes `/10`). Se aplicaron las mismas reglas a
 `.v2-piloto` en `src/index.css` y el chip quedó en 4.74:1; los cuatro combos
 vuelven a 0 textos por debajo de AA.
+
+## Paso 4 · modo taller/rack (`/inventario/taller`)
+
+La consola de preparación: carriles por estación (por verificar → verificado →
+listo para vender), selección por unidad y **acciones en serie** (verificar,
+etiquetas del alcance elegido y hoja de estación A4). El paso lo pasó a los
+**objetos compartidos de owncoding-ui** y sumó la vista previa del rollo real a
+la impresión en serie.
+
+| Patrón | Cómo se ve | Objeto |
+|---|---|---|
+| **Tile de equipo** | Icono de categoría, modelo, IMEI en mono, grado, batería, locks (cuando la unidad los tiene) y chip «Con fallas» si la inspección dejó fallas | `TileEquipo` |
+| **Checklist «x de y»** | «8 de 10 pass · 2 fallas» en el pie del tile | `ConteoChecklist` |
+| **Avance del taller** | «1 de 12 listos · faltan 11» en la cabecera y la participación de cada carril («3 de 12») | `ContadorLote` |
+| **Acciones en serie** | Franja con la selección: Verificar, Etiquetas…, Hoja de estación y Limpiar | `BarraLote` |
+| **Impresión (PRN)** | Vista previa con el **rollo real** (80/58 mm): el mismo HTML que baja al respaldo, con el IMEI completo, el QR y el código de barras | `VistaPreviaPapel` |
+
+La impresión sigue saliendo por el camino de siempre —agente/puente con ESC/POS
+(`etiquetas-stock`), respaldo por diálogo solo ante un fallo claro— y la vista
+previa no inventa: es el HTML de la etiqueta a la medida del rollo configurado
+(`configImpresora().ancho`), con un tope de 3 etiquetas para no generar los QR de
+un lote entero.
+
+Los contratos del rack no cambiaron (`rack-taller`, `rack-columna-*`,
+`rack-equipo` con el serial, `rack-pasos` con `data-paso`, los `rack-alcance-*`
+del modal y el checkbox «Seleccionar <serial>»), así que los specs del taller del
+inventario y del informe siguen verdes.
+
+Capturas: `c241f4b-taller-on-{claro,oscuro}-{desktop,mobile}.png` y
+`c241f4b-taller-impresion-on-{claro,oscuro}-desktop.png`.
