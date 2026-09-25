@@ -40,8 +40,10 @@ function resumenHorario(usuario) {
 }
 
 // Meta diaria con separador de miles mientras se escribe; se guarda al salir.
-// En modo API persiste en el backend (User.dailyGoalPyg); en demo queda local.
-function MetaDiaria({ vendor, esDemo, onGuardar }) {
+// Persiste en el backend (User.dailyGoalPyg) y en la demo queda local: en los
+// dos modos el guardado pasa por `onGuardar` para que las métricas de la ficha
+// se actualicen al instante.
+function MetaDiaria({ vendor, onGuardar }) {
   const [value, setValue] = useState(String(vendor.metaDiaria || ''))
   const [guardando, setGuardando] = useState(false)
   return (
@@ -51,7 +53,6 @@ function MetaDiaria({ vendor, esDemo, onGuardar }) {
       onValueChange={next => setValue(next === '' ? '' : String(next))}
       onBlur={async () => {
         if (!value.trim()) return
-        if (esDemo) { updateVendedor(vendor.id, { metaDiaria: num(value) }); return }
         setGuardando(true)
         try { await onGuardar(num(value)); setValue(String(num(value))) } finally { setGuardando(false) }
       }}
@@ -149,7 +150,14 @@ export default function Vendedores() {
 
   async function actualizarUsuario(id, changes) {
     setError('')
-    try { if (esDemo) updateVendedor(id, changes); else await api.patch('/api/users', { id, ...changes }); await refreshTeam(); notifySuccess('Integrante actualizado.') }
+    try {
+      // La demo guarda la meta en el campo local del vendedor (`metaDiaria`);
+      // el backend usa `dailyGoalPyg`. Se traduce para que la ficha y el
+      // cumplimiento se actualicen igual en los dos modos.
+      if (esDemo) updateVendedor(id, { ...changes, ...(changes.dailyGoalPyg !== undefined ? { metaDiaria: changes.dailyGoalPyg } : {}) })
+      else await api.patch('/api/users', { id, ...changes })
+      await refreshTeam(); notifySuccess('Integrante actualizado.')
+    }
     catch (cause) { setError(cause?.message || 'No se pudo actualizar el integrante.') }
   }
 
@@ -461,7 +469,7 @@ export default function Vendedores() {
                   </div>
                   <label className="flex items-center gap-2">
                     <span className="text-[10px] font-bold uppercase text-mute">Meta diaria</span>
-                    <span className="w-32"><MetaDiaria vendor={v} esDemo={esDemo} onGuardar={metaNueva => actualizarUsuario(v.id, { dailyGoalPyg: metaNueva })} /></span>
+                    <span className="w-32"><MetaDiaria vendor={v} onGuardar={metaNueva => actualizarUsuario(v.id, { dailyGoalPyg: metaNueva })} /></span>
                   </label>
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
