@@ -266,6 +266,16 @@ entry **175 KB** (−84% vs 1104 KB de base) y en la demo (datos locales,
 0 llamadas al API): inventario 387 ms · POS 264 · pedidos 373 · clientes 372 ·
 finanzas 102.
 
+### Integración #253 (8 ramas) — sin regresión
+
+La verificación del conjunto de Configuración (8 ramas de #253 integradas)
+corrió la auditoría completa en modo CI:
+[`integracion-253/perf-247.json`](integracion-253/perf-247.json). JS decodificado
+en frío por pantalla: inventario 331 KB · POS 325 · pedidos 282 · clientes 283 ·
+finanzas 253; panel integrado **48,9 KB**. Los tiempos absolutos siguen siendo
+ruidosos (máquina cargada), pero no hay regresión estructural: cada sección
+mantiene su chunk y el arranque sigue muy por debajo de la base (87 KB de panel).
+
 ## Qué se cambió (dominio PLT)
 
 1. **Rutas diferidas** (`src/App.jsx`): el panel, el reparto y todas las páginas
