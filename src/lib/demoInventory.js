@@ -209,10 +209,24 @@ export function verifyDemoUnit(data = {}) {
   const state = read()
   const unit = porSerial(state, data.serial)
   if (!unit) throw new Error('La unidad demo no existe.')
-  unit.status = unit.status === 'IN_TRANSIT' ? 'AVAILABLE' : unit.status
+  const llegabaEnTransito = unit.status === 'IN_TRANSIT'
+  unit.status = llegabaEnTransito ? 'AVAILABLE' : unit.status
   if (data.locationId) unit.locationId = data.locationId
   unit.lastVerifiedBy = verificadorDeDemo(semillaDe(unit.serial))
   unit.verifiedAt = new Date().toISOString()
+  // #218: al recibir la última unidad, el lote queda con llegada real y quién
+  // lo recibió, igual que en el flujo real.
+  if (llegabaEnTransito) {
+    for (const transfer of state.transfers || []) {
+      const delLote = (transfer.lines || []).flatMap(line => line.serials || [])
+      if (!delLote.includes(unit.serial) || transfer.receivedAt) continue
+      const pendientes = state.units.filter(item => delLote.includes(item.serial) && item.status === 'IN_TRANSIT' && !item.removedAt)
+      if (pendientes.length) continue
+      transfer.receivedAt = new Date().toISOString()
+      transfer.receivedById = 'demo-user'
+      transfer.receivedBy = { id: 'demo-user', name: 'Dueño demo' }
+    }
+  }
   write(state)
   return snapshot(state, unit)
 }
@@ -289,6 +303,11 @@ export function createDemoTransfer(data = {}) {
     sourceBranchId: data.sourceBranchId, destinationBranchId: data.destinationBranchId,
     destinationLocationId: data.destinationLocationId || null,
     notes: data.notes || '', aexGuide: '', createdAt: new Date().toISOString(), receivedAt: null,
+    // #218: quien registra el traslado queda como despachante y la ETA es la
+    // que se haya elegido al crearlo.
+    eta: data.eta || null,
+    dispatchedById: 'demo-user', dispatchedBy: { id: 'demo-user', name: 'Dueño demo' },
+    receivedById: null, receivedBy: null,
     publicToken: `demo-remito-${Date.now().toString(36)}`,
     lines: lineas,
   }
