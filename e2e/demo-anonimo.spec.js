@@ -615,3 +615,35 @@ test('demo: el escáner del POS encuentra el producto y pide confirmación', asy
   await expect(page.getByRole('button', { name: /^Ver detalle de Funda MagSafe/ })).toBeVisible()
   expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
 })
+
+// #148 §5/§6: en la demo el POS lista los IMEI ficticios del inventario y
+// reserva la unidad sin tocar el API.
+test('demo: el POS reserva un IMEI de la demo y la línea queda con el serial', async ({ page }) => {
+  const llamadas = []
+  page.on('request', (req) => { if (esLlamadaApi(req.url())) llamadas.push(req.url()) })
+
+  await page.goto('/demo')
+  await page.getByRole('button', { name: /Entrar como Vendedor/ }).click()
+  await expect(page).toHaveURL(/\/pos$/)
+  await cerrarGuia(page)
+
+  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill('Cliente IMEI demo')
+  await page.getByPlaceholder('Buscar producto…').fill('iPhone 15 Pro Max')
+  const tarjeta = page.getByRole('button', { name: /iPhone 15 Pro Max/ }).first()
+  await expect(tarjeta).toBeVisible({ timeout: 20_000 })
+  await tarjeta.click()
+
+  const carrito = page.locator('#pos-resumen-venta')
+  await carrito.getByRole('button', { name: /^(Elegir|Cambiar) IMEI de / }).first().click()
+  const dialogo = page.getByRole('dialog', { name: /Elegir IMEI/ })
+  await expect(dialogo.getByText('Equipo físico / IMEI')).toBeVisible()
+  const reservar = dialogo.getByRole('button', { name: 'Reservar este' }).first()
+  await expect(reservar).toBeVisible()
+  await reservar.click()
+
+  // La unidad queda reservada y la línea con su serial (enmascarado colapsada).
+  await expect(dialogo.getByRole('button', { name: 'Liberar' }).first()).toBeVisible()
+  await dialogo.getByRole('button', { name: 'Listo' }).click()
+  await expect(carrito.getByRole('button', { name: /^Cambiar IMEI de / })).toBeVisible()
+  expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
+})
