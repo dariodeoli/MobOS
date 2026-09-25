@@ -1,10 +1,10 @@
 {
   "base": "https://app.moboss.online",
-  "fecha": "2026-09-25T15:26:51.784Z",
+  "fecha": "2026-09-25T19:50:29.111Z",
   "pasos": [
     {
       "paso": "demo + versión",
-      "detalle": "v1.0.169",
+      "detalle": "v1.0.172",
       "ok": true
     },
     {
@@ -23,57 +23,76 @@
       "ok": true
     },
     {
+      "paso": "certificado como imagen",
+      "detalle": "179 KB · certificado-phonecheck-0000.png",
+      "ok": true
+    },
+    {
       "paso": "hoja de estación (demo)",
       "detalle": "aviso honesto del demo",
       "ok": true
     },
     {
       "paso": "PDF 80 mm generado desde la app",
-      "detalle": "105834 bytes",
+      "detalle": "106281 bytes",
       "ok": true
     }
   ],
   "resultados": [
     {
       "documento": "informe-80mm",
-      "version": "v1.0.169",
+      "version": "v1.0.172",
       "paginas": 1,
       "qr": "https://app.moboss.online/u/AUR0001000000000",
       "estado": "ok"
     },
     {
       "documento": "informe-a4",
-      "version": "v1.0.169",
+      "version": "v1.0.172",
       "paginas": 1,
       "qr": "https://app.moboss.online/u/AUR0001000000000",
       "estado": "ok"
     },
     {
       "documento": "constancia-a4",
-      "version": "v1.0.169",
+      "version": "v1.0.172",
       "paginas": 1,
       "qr": "https://app.moboss.online/u/AUR0001000000000",
       "estado": "ok"
     },
     {
       "documento": "constancia-80mm",
-      "version": "v1.0.169",
+      "version": "v1.0.172",
       "paginas": 1,
       "qr": "https://app.moboss.online/u/AUR0001000000000",
       "estado": "ok"
     },
     {
       "documento": "certificado-a4",
-      "version": "v1.0.169",
+      "version": "v1.0.172",
       "paginas": 1,
       "qr": "https://app.moboss.online/u/AUR0001000000000",
       "estado": "ok"
     },
     {
       "documento": "certificado-80mm",
-      "version": "v1.0.169",
+      "version": "v1.0.172",
       "paginas": 1,
       "qr": "https://app.moboss.online/u/AUR0001000000000",
+      "estado": "ok"
+    },
+    {
+      "documento": "certificado-png",
+      "version": "v1.0.172",
+      "paginas": "—",
+      "qr": "",
+      "estado": "ok"
+    },
+    {
+      "documento": "etiquetas-unidad-80mm",
+      "version": "v1.0.172",
+      "paginas": 3,
+      "qr": "",
       "estado": "ok"
     }
   ]

@@ -225,6 +225,29 @@ try {
       if (/\b[A-Z]{2,}\d{6,}\b/.test(html.replace(/<[^>]+>/g, ' '))) problemas.push('muestra el serial completo')
       resultados.push({ documento: `certificado-${etiqueta}`, version: version ? `v${version}` : '', paginas: pdf.paginas, qr: enlace, estado: problemas.length ? 'fallo' : 'ok', ...(problemas.length ? { detalle: problemas.join(' · ') } : {}) })
     }
+
+    // 3 ter) El certificado como imagen (#240/#220): si la ronda está desplegada,
+    // «Compartir imagen → PNG» descarga el archivo y se verifica de verdad.
+    if (await modalCertificado.getByTestId('descargar-png').count()) {
+      try {
+        const [descarga] = await Promise.all([
+          page.waitForEvent('download', { timeout: 20_000 }),
+          modalCertificado.getByTestId('descargar-png').click(),
+        ])
+        const png = readFileSync(await descarga.path())
+        writeFileSync(join(SALIDA, 'certificado-80mm.png'), png)
+        const problemas = []
+        if (!/\.png$/.test(descarga.suggestedFilename())) problemas.push(`nombre «${descarga.suggestedFilename()}»`)
+        if (png.length < 10_000) problemas.push(`PNG de ${png.length} bytes`)
+        if (png.subarray(1, 4).toString('latin1') !== 'PNG') problemas.push('sin firma PNG')
+        resultados.push({ documento: 'certificado-png', version: version ? `v${version}` : '', paginas: '—', qr: '', estado: problemas.length ? 'fallo' : 'ok', ...(problemas.length ? { detalle: problemas.join(' · ') } : {}) })
+        pasos.push({ paso: 'certificado como imagen', detalle: `${Math.round(png.length / 1024)} KB · ${descarga.suggestedFilename()}`, ok: problemas.length === 0 })
+      } catch (error) {
+        pasos.push({ paso: 'certificado como imagen', detalle: String(error?.message || error).slice(0, 140), ok: false })
+      }
+    } else {
+      pasos.push({ paso: 'certificado como imagen', detalle: 'todavía no desplegado (ronda pendiente)', ok: true })
+    }
     await modalCertificado.getByRole('button', { name: 'Cerrar' }).click().catch(() => page.keyboard.press('Escape'))
     await esperar(600)
   } else {
@@ -243,6 +266,23 @@ try {
     await botonImprimir.click()
     await esperar(900)
     await captura('07-taller-imprimir-serie')
+
+    // Etiquetas de unidad (#220): la vista previa del rollo trae el mismo HTML
+    // que sale por «Imprimir en serie»; se arma el PDF desplegado y se verifica.
+    try {
+      const htmlEtiquetas = await page.frameLocator('iframe[title="Vista previa de las etiquetas"]')
+        .locator('html').evaluate((el) => el.outerHTML)
+      const pdfEtiquetas = await pdfDeHtml('etiquetas-unidad-80mm', htmlEtiquetas, 'thermal-80')
+      const problemas = []
+      if (!/ETIQUETA/.test(htmlEtiquetas)) problemas.push('sin rótulo de etiqueta')
+      if (!/IMEI|Serial/i.test(htmlEtiquetas)) problemas.push('sin IMEI/serial')
+      if (!/class="barras"/.test(htmlEtiquetas)) problemas.push('sin código de barras')
+      if (!/class="qr"/.test(htmlEtiquetas)) problemas.push('sin QR')
+      resultados.push({ documento: 'etiquetas-unidad-80mm', version: version ? `v${version}` : '', paginas: pdfEtiquetas.paginas, qr: '', estado: problemas.length ? 'fallo' : 'ok', ...(problemas.length ? { detalle: problemas.join(' · ') } : {}) })
+    } catch (error) {
+      pasos.push({ paso: 'etiquetas de unidad (demo)', detalle: `sin vista previa: ${String(error?.message || error).slice(0, 120)}`, ok: false })
+    }
+
     const botonHoja = page.getByTestId('rack-hoja-estacion')
     if (await botonHoja.count()) {
       await botonHoja.click()
@@ -271,12 +311,12 @@ try {
 const fallos = resultados.filter((fila) => fila.estado !== 'ok')
 writeFileSync(join(SALIDA, 'resultados.json'), `${JSON.stringify({ base: BASE, fecha: new Date().toISOString(), pasos, resultados }, null, 2)}\n`)
 const filas = resultados.map((fila) => `| ${fila.documento} | ${fila.paginas} | \`${fila.qr}\` | ${fila.estado === 'ok' ? '✅' : '❌'}${fila.detalle ? ` ${fila.detalle}` : ''} |`).join('\n')
-writeFileSync(join(SALIDA, 'REPORTE.md'), `# Verificación de impresión en producción · informe (#240)
+writeFileSync(join(SALIDA, 'REPORTE.md'), `# Verificación de impresión en producción · informe, certificado, constancia y etiquetas (#240/#220)
 
 - Base: ${BASE}
 - Fecha: ${new Date().toISOString()}
 - Versión desplegada: ${pasos.find((paso) => paso.paso === 'demo + versión')?.detalle || '?'}
-- Método: camino real de la app (demo → ficha → «Informe» → formato → «Descargar PDF»), PDFs armados con el HTML que manda la app y QR decodificado con Vision.
+- Método: camino real de la app (demo → ficha → «Informe/Certificado/Constancia» → formato → «Descargar PDF»), el PNG del certificado por «Compartir imagen», las etiquetas desde el taller («Imprimir en serie»), PDFs armados con el HTML que manda la app y QR decodificado con Vision.
 
 | Documento | Páginas | QR decodificado | Resultado |
 | --- | --- | --- | --- |
@@ -286,10 +326,10 @@ ${filas}
 
 ${pasos.map((paso) => `- ${paso.ok ? '✅' : '⚠️'} ${paso.paso}: ${paso.detalle}`).join('\n')}
 
-**Lectura**: si el botón «Certificado» figura ausente, es que la etiqueta todavía no está desplegada
-(ronda pendiente); el informe ya sale con el QR al informe público (\`/u/<serial>\`). Cuando la próxima
-ronda esté en producción, se corre este mismo script y la tabla se completa sola.
+**Lectura**: la ronda desplegada ya trae informe, certificado, constancia, el **certificado como PNG**
+(«Compartir imagen») y las **etiquetas de unidad** del taller; si una fila figura ausente o en ❌, esa
+ronda no está desplegada o hay una regresión. Se re-corre con el mismo comando (demo, sin credenciales).
 `)
-console.log(`Producción #240: informe verificado — ${resultados.length - fallos.length}/${resultados.length} documentos OK`)
+console.log(`Producción #240/#220: informe, certificado, constancia y etiquetas — ${resultados.length - fallos.length}/${resultados.length} documentos OK`)
 for (const paso of pasos) console.log(`${paso.ok ? '✅' : '⚠️'} ${paso.paso}: ${paso.detalle}`)
 if (fallos.length) { console.error(fallos.map((fila) => `${fila.documento}: ${fila.detalle}`).join('\n')); process.exitCode = 1 }
