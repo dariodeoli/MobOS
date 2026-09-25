@@ -39,6 +39,23 @@ objeto que dibuja la navegación es
 - Sin regresiones en los e2e de Configuración de PLT:
   `configuracion-lote5.spec.js` + `ia-configuracion.spec.js` **12/12**.
 
+## Actualización 25/09 · capturas finales y barrido responsive
+
+- **Capturas finales** de los 7 grupos (estado actual, incluidos los fixes de
+  abajo): `docs/qa/253-config-grupos/finales/` — las 28 por grupo (claro/oscuro
+  × escritorio/mobile) más las 7 del barrido a 390 y su JSON. El antes/después
+  de la implementación queda en `antes/` y `despues/`.
+- **Configuración entra al gate de #249**: el barrido responsive suma
+  `configuración: los 7 grupos a 360/390/414/768` (sin scroll, sin cortes,
+  topbar y navegación de 44). Con eso, los grupos quedan cubiertos por el mismo
+  gate que POS y las páginas clave.
+- **Fixes táctiles que destapó el barrido** (el resto es el enlace de crédito,
+  H6 pendiente de decisión): “Editar nombre” (Mi cuenta) 28→44, “Copiar prompt”
+  (Organización/logo) 24→44 y “Actualizar” de Auditoría (Seguridad) 34→44.
+
+Verificación de esta pasada: barrido + estructura **14/14**, y en mobile cada
+grupo queda con un solo target < 44 (el enlace H6).
+
 ## Evidencia
 
 `docs/qa/253-config-grupos/antes/` (lista plana, 28 capturas: 7 grupos ×
