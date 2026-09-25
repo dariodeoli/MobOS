@@ -88,9 +88,12 @@ test.describe('Configuración IA', () => {
     await page.goto('/configuracion/dispositivos')
     await expect(page.locator('main').getByRole('tab')).toHaveCount(7)
 
-    // Dispositivos: impresoras y su monitoreo, sin el estado global.
+    // Dispositivos: impresoras y su diagnóstico local, sin el estado global.
     await expect(page.getByRole('tab', { name: 'Dispositivos', exact: true })).toHaveAttribute('aria-selected', 'true')
-    await expect(page.getByRole('heading', { name: 'Estado del sistema de impresión' })).toBeVisible()
+    await expect(page.getByTestId('paneles-impresion')).toBeVisible()
+    await page.getByTestId('panel-diagnostico').click()
+    await expect(page.getByRole('heading', { name: 'Diagnóstico de impresión (esta computadora)' })).toBeVisible()
+    await expect(page.getByTestId('monitoreo-global')).toBeVisible()
     await expect(page.getByRole('tab', { name: 'Sistema', exact: true })).toBeVisible()
 
     // Sistema: solo el monitoreo global (Estado del sistema).
@@ -101,6 +104,42 @@ test.describe('Configuración IA', () => {
     // Las preferencias del dispositivo viven en Mi cuenta, una sola vez.
     await page.locator('main').getByRole('tab', { name: 'Mi cuenta', exact: true }).click()
     await expect(page.locator('#pref-bloqueo')).toBeVisible()
+  })
+
+  // #253 · Dispositivos: la pantalla se ordena en secciones (impresoras,
+  // puentes, formatos, diagnóstico y cola/historial) y deja claro que el
+  // monitoreo de la empresa vive en Estado del sistema, sin repetirse.
+  test('Dispositivos ordena sus secciones sin duplicar el monitoreo de Sistema', async ({ page }) => {
+    await page.goto('/configuracion/dispositivos')
+    const paneles = page.getByTestId('paneles-impresion')
+    for (const label of ['Impresoras', 'Puentes', 'Formatos', 'Diagnóstico', 'Cola e historial']) {
+      await expect(paneles.getByRole('button', { name: label, exact: true })).toBeVisible()
+    }
+    await expect(paneles.getByRole('button', { name: 'Estado del sistema', exact: true })).toHaveCount(0)
+
+    // Puentes: la gestión es una sección (ya no un modal suelto).
+    await page.getByTestId('panel-puentes').click()
+    await expect(page.getByTestId('puentes-impresion')).toBeVisible()
+    await expect(page).toHaveURL(/panel=puentes/)
+    await expect(page.getByRole('button', { name: 'Agregar puente' })).toBeVisible()
+
+    // Diagnóstico: estado local y red, con el enlace al monitoreo global.
+    await page.getByTestId('panel-diagnostico').click()
+    await expect(page.getByTestId('diagnostico-impresion')).toBeVisible()
+    await expect(page.getByTestId('monitoreo-global')).toContainText('Estado del sistema')
+
+    // Cola e historial: la cola de esta computadora y la actividad.
+    await page.getByTestId('panel-cola').click()
+    await expect(page.getByTestId('cola-impresion')).toBeVisible()
+    await expect(page.getByText('Actividad de impresión')).toBeVisible()
+
+    // Formatos: la impresora recordada por tipo de documento.
+    await page.getByTestId('panel-formatos').click()
+    await expect(page.getByTestId('formatos-impresion')).toBeVisible()
+
+    // Sistema: el monitoreo enlaza a configurar/probar, sin duplicar la config.
+    await page.goto('/configuracion/sistema')
+    await expect(page.getByTestId('monitoreo-vs-impresoras')).toContainText('Dispositivos · Impresoras')
   })
 
   test('Documentación sale de Configuración: la ruta vieja redirige a Ayuda', async ({ page }) => {

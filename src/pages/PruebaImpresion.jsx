@@ -6,7 +6,8 @@ import { enlaceLogin } from '@/lib/urls'
 import { TIPOS_TICKET_PRUEBA } from '@/lib/printing/tickets'
 import { leerPrueba } from '@/lib/printing/qr'
 
-const IMPRESORAS = '/configuracion/impresoras'
+// #253: la sección de impresión vive en Dispositivos (el slug viejo redirige).
+const IMPRESORAS = '/configuracion/dispositivos'
 
 function fechaLegible(valor) {
   if (!valor) return ''

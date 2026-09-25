@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, Modal, Nota, Select, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { useSesion } from '@/lib/sesion'
@@ -45,6 +46,19 @@ const hace = (valor) => {
   if (horas < 24) return `hace ${horas} h`
   return `hace ${Math.floor(horas / 24)} d`
 }
+// #253 · Grupo Dispositivos: la pantalla se ordena en secciones con su URL
+// (`?panel=`), así el enlace sobrevive al refresh. Acá va la configuración y
+// las pruebas; el monitoreo global de la empresa (servicios, cola y correo)
+// vive en Estado del sistema, sin repetir lo mismo en los dos lados.
+const PANELES = [
+  { id: 'impresoras', label: 'Impresoras', icon: 'printer', detalle: 'Agregá, editá y probá cada impresora. La prueba imprime un número secreto que se confirma en Cola e historial.' },
+  { id: 'puentes', label: 'Puentes', icon: 'send', detalle: 'Computadoras con el agente que reclaman los trabajos en remoto; se vinculan con un código de un solo uso.' },
+  { id: 'formatos', label: 'Formatos', icon: 'list', detalle: 'Qué impresora recuerda cada tipo de documento (comprobante, etiquetas, informes…).' },
+  { id: 'diagnostico', label: 'Diagnóstico', icon: 'pulse', detalle: 'Estado del agente de esta computadora, red y cobertura por sucursal. El monitoreo global está en Estado del sistema.' },
+  { id: 'cola', label: 'Cola e historial', icon: 'clock', detalle: 'Trabajos pendientes y fallidos de esta computadora, y todo lo que ya salió por el papel.' },
+]
+const panelDeImpresion = (valor) => (PANELES.some(({ id }) => id === valor) ? valor : 'impresoras')
+
 // `usb:<cola>` es una cola CUPS local (puede salir por LAN o por USB físico):
 // se muestra como CUPS y su URI real la informa el agente.
 // Resultado honesto del trabajo: confirmado en papel, aceptado por el
@@ -168,7 +182,11 @@ export default function Impresoras() {
   const [filtroActividad, setFiltroActividad] = useState('')
   const [seleccionados, setSeleccionados] = useState([])
   const [reparando, setReparando] = useState(false)
-  const [puentesAbiertos, setPuentesAbiertos] = useState(false)
+  // Sección activa (#253): `?panel=` la deja en la URL, sin pestañas nuevas en
+  // Configuración (el grupo Dispositivos sigue siendo Impresoras · Preferencias).
+  const [parametros, setParametros] = useSearchParams()
+  const panel = panelDeImpresion(parametros.get('panel'))
+  const irAPanel = (id) => setParametros(panelDeImpresion(id) === 'impresoras' ? {} : { panel: panelDeImpresion(id) })
   const [guiaAbierta, setGuiaAbierta] = useState(false)
   const [puenteNuevo, setPuenteNuevo] = useState(null)
   const [creandoPuente, setCreandoPuente] = useState(false)
@@ -826,7 +844,7 @@ export default function Impresoras() {
       )}
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-sm text-mute">Configurá, probá y monitoreá tus impresoras térmicas.</p>
+          <p className="text-sm text-mute">Configurá y probá tus impresoras térmicas. El monitoreo de la empresa (servicios, cola y correo) vive en <b className="text-fore">Estado del sistema</b>.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={consultar} disabled={cargando}><Icon name="refresh" className="h-3.5 w-3.5" />Actualizar estado</Button>
@@ -835,8 +853,29 @@ export default function Impresoras() {
         </div>
       </div>
 
-      {Object.keys(memoriaImpresion).length > 0 && (
-        <Card className="space-y-3">
+      {/* Dispositivos (#253): secciones con URL (`?panel=`) para no mezclar la
+          configuración/pruebas con el monitoreo, la cola ni el historial. */}
+      <nav aria-label="Secciones de impresión" className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1" data-testid="paneles-impresion">
+        {PANELES.map(({ id, label, icon }) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={panel === id}
+            data-testid={`panel-${id}`}
+            onClick={() => irAPanel(id)}
+            className={cn(
+              'flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition md:min-h-0',
+              panel === id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore',
+            )}
+          >
+            <Icon name={icon} className="h-4 w-4" />{label}
+          </button>
+        ))}
+      </nav>
+      <p className="text-xs text-mute" data-testid="panel-detalle">{PANELES.find(({ id }) => id === panel)?.detalle}</p>
+
+      {panel === 'formatos' && (Object.keys(memoriaImpresion).length > 0 ? (
+        <Card className="space-y-3" data-testid="formatos-impresion">
           <div>
             <h3 className="flex items-center gap-2 text-sm font-semibold"><Icon name="printer" className="h-4 w-4 text-mute" />Impresora por tipo de documento</h3>
             <p className="mt-1 text-sm text-mute">Se recuerda la última impresora usada en cada tipo (siempre se puede cambiar eligiéndola al imprimir). «Olvidar» vuelve a la predeterminada de la empresa.</p>
@@ -854,11 +893,20 @@ export default function Impresoras() {
             ))}
           </ul>
         </Card>
-      )}
+      ) : (
+        <Card className="space-y-3" data-testid="formatos-impresion">
+          <div>
+            <h3 className="flex items-center gap-2 text-sm font-semibold"><Icon name="printer" className="h-4 w-4 text-mute" />Impresora por tipo de documento</h3>
+            <p className="mt-1 text-sm text-mute">Todavía no hay ninguna elección guardada: cuando imprimas un comprobante, una etiqueta o un informe, la impresora usada queda recordada acá (siempre podés cambiarla al imprimir).</p>
+          </div>
+          <p className="text-sm text-mute">La predeterminada de la empresa es <b className="text-fore">{predeterminada?.nombre || 'sin configurar'}</b>.</p>
+        </Card>
+      ))}
 
-      <Card className="space-y-3">
+      {panel === 'diagnostico' && (
+      <Card className="space-y-3" data-testid="diagnostico-impresion">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold">Estado del sistema de impresión</h3>
+          <h3 className="text-sm font-semibold">Diagnóstico de impresión (esta computadora)</h3>
           <div className="flex flex-wrap items-center gap-2">
             <Badge color={COLOR_TONO[agregado.tono]} title={agregado.detalle}>{agregado.label}</Badge>
             <Badge color={store.remoteEnabled === false ? 'orange' : 'blue'}>{store.remoteEnabled === false ? 'Remoto apagado' : `Remoto activo · ${(store.bridges || []).length} puente(s)`}</Badge>
@@ -866,9 +914,9 @@ export default function Impresoras() {
           </div>
         </div>
         {cargando && !estado ? (
-          <div className={cn('lg:grid-cols-4', GRILLA_DOS_COLUMNAS)}><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /></div>
+          <div className={cn('lg:grid-cols-3', GRILLA_DOS_COLUMNAS)}><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /></div>
         ) : (
-          <div className={cn('lg:grid-cols-4', GRILLA_DOS_COLUMNAS)}>
+          <div className={cn('lg:grid-cols-3', GRILLA_DOS_COLUMNAS)}>
             <div className="rounded-xl border border-ink-600 p-3">
               <p className="text-xs uppercase tracking-wider text-mute">Computadora puente</p>
               <p className="mt-1 flex items-center gap-2 text-sm font-semibold"><span className={`h-2 w-2 rounded-full ${estado?.disponible ? 'bg-ok' : 'bg-bad'}`} />{estado?.disponible ? 'Encendida' : 'Apagada o sin agente'}</p>
@@ -877,7 +925,7 @@ export default function Impresoras() {
                   ? (puentePrincipal.online ? 'en línea' : `último contacto ${hace(puentePrincipal.lastSeenAt)}`)
                   : puentePrincipal.url.includes('127.0.0.1') || puentePrincipal.url.includes('localhost') ? 'solo esta computadora' : puentePrincipal.url}
               </p>
-              <Button type="button" variant="ghost" className="mt-1 h-auto px-0 py-1 text-xs text-fono-light" onClick={() => setPuentesAbiertos(true)}>Gestionar puentes ({(store.bridges || []).length})</Button>
+              <Button type="button" variant="ghost" className="mt-1 h-auto px-0 py-1 text-xs text-fono-light" onClick={() => irAPanel('puentes')}>Gestionar puentes ({(store.bridges || []).length})</Button>
               {estado?.disponible && <p className="mt-1 text-xs text-mute">Dirección local {URL_AGENTE} · {estado.host === '0.0.0.0' ? 'acepta la red local' : 'solo local'}</p>}
             </div>
             <div className="rounded-xl border border-ink-600 p-3">
@@ -891,16 +939,6 @@ export default function Impresoras() {
               ) : (
                 <Button type="button" variant="ghost" className="mt-1 h-auto px-0 py-1 text-xs text-fono-light" onClick={() => abrirFormulario(null)}>Agregar impresora</Button>
               )}
-            </div>
-            <div className="rounded-xl border border-ink-600 p-3">
-              <p className="text-xs uppercase tracking-wider text-mute">Cola</p>
-              <p className="mt-1 text-sm font-semibold">{estado?.cola?.pendientes ?? cola?.resumen?.pendientes ?? 0} pendientes · {estado?.cola?.fallidos ?? cola?.resumen?.fallidos ?? 0} fallidos</p>
-              {remotosEnCurso.length > 0 && <p className="mt-1 text-xs text-mute">Remoto: {remotosEnCurso.length} en curso · {remotosAceptados.length} por confirmar</p>}
-              <div className="mt-1 flex flex-wrap gap-2">
-                <Button type="button" variant="ghost" className="h-auto px-0 py-1 text-xs text-fono-light" onClick={() => setVerColaAbierta(true)}>Ver cola</Button>
-                {(fallidos.length > 0) && <Button type="button" variant="ghost" className="h-auto px-0 py-1 text-xs text-warn" onClick={() => reintentar()}>Reintentar fallidos</Button>}
-                {(fallidos.length > 0) && <Button type="button" variant="ghost" className="h-auto px-0 py-1 text-xs text-bad" onClick={() => limpiar([])}>Limpiar fallidos</Button>}
-              </div>
             </div>
             <div className="rounded-xl border border-ink-600 p-3">
               <p className="text-xs uppercase tracking-wider text-mute">Mi equipo</p>
@@ -932,9 +970,13 @@ export default function Impresoras() {
             {diagnostico.ok && !diagnostico.sinDestino && <ExplicacionDiagnostico diagnostico={diagnostico} estado={estado} nombre={predeterminada?.nombre} />}
           </div>
         )}
+        <Nota data-testid="monitoreo-global">
+          El <b className="text-fore">monitoreo de la empresa</b> (servicios, puentes, cola global y correo saliente) vive en <Link to="/configuracion/sistema" className="font-semibold text-fono-light underline underline-offset-2">Estado del sistema</Link>. Acá se configura, prueba y diagnostica el papel de esta computadora.
+        </Nota>
       </Card>
+      )}
 
-      {sucursales.length > 0 && (
+      {panel === 'diagnostico' && sucursales.length > 0 && (
         <Card className="space-y-3" data-testid="cobertura-sucursales">
           <div>
             <h3 className="flex items-center gap-2 text-sm font-semibold"><Icon name="store" className="h-4 w-4 text-mute" />Cobertura por sucursal</h3>
@@ -962,7 +1004,7 @@ export default function Impresoras() {
         </Card>
       )}
 
-      {impresoras.length === 0 ? (
+      {panel === 'impresoras' && (impresoras.length === 0 ? (
         <Card>
           <EmptyState icon="receipt" title="Todavía no hay impresoras." description="Agregá la térmica con “Agregar impresora” y probala para dejarla lista." action={<Button type="button" onClick={() => abrirFormulario(null)}>Agregar impresora</Button>} />
         </Card>
@@ -1011,22 +1053,39 @@ export default function Impresoras() {
             )
           })}
         </div>
-      )}
+      ))}
 
       {/* La demo no tiene puentes ni backend real: comparativa y métricas solo
           con sesión real, para no mostrar errores que no existen. */}
-      {!esDemo && (
-        <>
-          <ImpresionComparativa
-            impresoras={impresoras}
-            usuario={sesion?.nombre || usuario?.name || ''}
-            equipo={estado?.equipo || 'navegador'}
-            onAgregar={() => abrirFormulario(null)}
-            onGestionarPuentes={() => setPuentesAbiertos(true)}
-          />
-          <ImpresionGraficos impresoras={impresorasActivas} />
-        </>
+      {!esDemo && panel === 'impresoras' && (
+        <ImpresionComparativa
+          impresoras={impresoras}
+          usuario={sesion?.nombre || usuario?.name || ''}
+          equipo={estado?.equipo || 'navegador'}
+          onAgregar={() => abrirFormulario(null)}
+          onGestionarPuentes={() => irAPanel('puentes')}
+        />
       )}
+      {!esDemo && panel === 'diagnostico' && <ImpresionGraficos impresoras={impresorasActivas} />}
+
+      {panel === 'cola' && (
+        <>
+      <Card className="space-y-3" data-testid="cola-impresion">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="flex items-center gap-2 text-sm font-semibold"><Icon name="clock" className="h-4 w-4 text-mute" />Cola de esta computadora</h3>
+            <p className="mt-1 text-sm text-mute">{estado?.cola?.pendientes ?? cola?.resumen?.pendientes ?? 0} pendientes · {estado?.cola?.fallidos ?? cola?.resumen?.fallidos ?? 0} fallidos{remotosEnCurso.length > 0 ? ` · remoto: ${remotosEnCurso.length} en curso · ${remotosAceptados.length} por confirmar` : ''}.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={() => setVerColaAbierta(true)}>Ver cola</Button>
+            {fallidos.length > 0 && <Button type="button" variant="outline" onClick={() => reintentar()}>Reintentar fallidos</Button>}
+            {fallidos.length > 0 && <Button type="button" variant="ghost" onClick={() => limpiar([])}>Limpiar fallidos</Button>}
+          </div>
+        </div>
+        <Nota data-testid="cola-global">
+          La <b className="text-fore">cola global de la empresa</b> (puentes y cancelación en lote) se monitorea en <Link to="/configuracion/sistema" className="font-semibold text-fono-light underline underline-offset-2">Estado del sistema</Link>. Acá se resuelve lo de esta computadora y queda el historial.
+        </Nota>
+      </Card>
 
       <Card className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
@@ -1153,7 +1212,10 @@ export default function Impresoras() {
         )}
         {pendientes.length > 0 && <p className="text-xs text-mute">{pendientes.length} trabajo(s) esperando impresión.</p>}
       </Card>
+        </>
+      )}
 
+      {panel === 'puentes' && (
       <Card className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -1189,6 +1251,7 @@ export default function Impresoras() {
           </div>
         ))}
       </Card>
+      )}
 
       {formulario && (
         <FormularioImpresora
@@ -1198,7 +1261,7 @@ export default function Impresoras() {
           bridges={store.bridges || []}
           sucursales={sucursales}
           onGuardar={guardarFormulario}
-          onGestionarPuentes={() => { setFormulario(null); setPuentesAbiertos(true) }}
+          onGestionarPuentes={() => { setFormulario(null); irAPanel('puentes') }}
         />
       )}
 
@@ -1219,9 +1282,13 @@ export default function Impresoras() {
         />
       )}
 
-      <Modal open={puentesAbiertos} onClose={() => { setPuentesAbiertos(false); setPuenteNuevo(null); setCodigoVinculacion(null) }} title="Puentes de impresión" size="amplio">
+      {panel === 'puentes' && (
+      <Card className="space-y-4" data-testid="puentes-impresion">
         <div className="space-y-4">
-          <p className="text-sm text-mute">Cada puente es una computadora con el agente instalado que reclama los trabajos del backend. Un código de vinculación se usa una sola vez, vence en 15 minutos y nunca se vuelve a mostrar.</p>
+          <div>
+            <h3 className="flex items-center gap-2 text-sm font-semibold"><Icon name="send" className="h-4 w-4 text-mute" />Puentes de impresión</h3>
+            <p className="mt-1 text-sm text-mute">Cada puente es una computadora con el agente instalado que reclama los trabajos del backend. Un código de vinculación se usa una sola vez, vence en 15 minutos y nunca se vuelve a mostrar.</p>
+          </div>
           {(store.bridges || []).length === 0 ? (
             <EmptyState compact icon="printer" title="Todavía no hay puentes." description="Creá uno y vinculá la computadora con el código." />
           ) : (
@@ -1278,7 +1345,8 @@ export default function Impresoras() {
             <Button type="button" variant="outline" onClick={() => setPuenteNuevo({ nombre: '', branchId: '' })}><Icon name="plus" className="h-3.5 w-3.5" />Agregar puente</Button>
           )}
         </div>
-      </Modal>
+      </Card>
+      )}
 
       <Modal open={guiaAbierta} onClose={() => setGuiaAbierta(false)} title="Guía de impresión" size="amplio">
         <GuiaImpresion />

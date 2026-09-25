@@ -575,3 +575,30 @@ desincronice.
   etiquetas de góndola y etiquetas del taller («Imprimir en serie»).
 - **Evidencia:** `docs/QA-240-compartir-imagen.md` y capturas en
   `docs/qa/240-compartir-imagen/`.
+
+## 15. Dispositivos: dónde vive cada cosa (#253)
+
+La sección **Dispositivos** de Configuración (`/configuracion/dispositivos`)
+tiene la pantalla de impresión ordenada en cinco paneles con URL (`?panel=`):
+
+| Sección | Qué resuelve |
+| --- | --- |
+| **Impresoras** | Alta/edición, predeterminada y **pruebas** de cada impresora; comparativa de impresoras. |
+| **Puentes** | Computadoras con el agente: vincular con código, sucursal que sirve, revocar; equipos con acceso. |
+| **Formatos** | Qué impresora recuerda cada tipo de documento («Olvidar» vuelve a la predeterminada). |
+| **Diagnóstico** | Agente de esta computadora, red (reparar/exportar), cobertura por sucursal y métricas de impresión. |
+| **Cola e historial** | Cola de esta computadora (reintentar/limpiar), actividad y confirmación en papel por número secreto. |
+
+**Impresoras vs Estado del sistema (sin duplicar):**
+
+- **Dispositivos** = **configurar, probar y diagnosticar** el papel.
+- **Sistema · Estado del sistema** (`/configuracion/sistema`) = **monitoreo
+  global de la empresa**: servicios, puentes/impresoras en línea, cola global
+  (ver y cancelar), correo saliente, webhooks y errores. Enlaza a Dispositivos
+  para configurar; las dos pantallas se referencian y no repiten los controles.
+- La cola de la empresa se **cancela** desde Estado del sistema (y su enlace
+  desde «Cola e historial» apunta ahí); la cola **local** del agente se resuelve
+  en Dispositivos.
+
+Evidencia: `docs/QA-253-dispositivos.md` y capturas antes/después en
+`docs/qa/253-dispositivos/`.

@@ -149,21 +149,22 @@ function leerCache(page) {
 // Crea el puente desde la UI (así se cubre el código visible para ADMIN) y
 // devuelve el código de vinculación que se usa para parear el puente falso.
 async function crearPuentePorUi(page, nombre) {
-  await page.goto('/configuracion/impresoras')
+  await page.goto('/configuracion/dispositivos')
   // El tope de puentes por empresa es 20: si la base se reutiliza entre
   // corridas, los E2E viejos lo agotan y el código de vinculación no aparece.
   const puentes = await apiImpresion(page, '/api/print/bridges')
   for (const puente of puentes.datos?.bridges || []) {
     if (/^Puente .*E2E/.test(String(puente.name || ''))) await apiImpresion(page, `/api/print/bridges/${puente.id}`, { method: 'DELETE' })
   }
-  await page.getByRole('button', { name: /Gestionar puentes/ }).click()
+  await page.getByTestId('panel-puentes').click()
   await page.getByRole('button', { name: 'Agregar puente' }).click()
   await page.getByLabel('Nombre del puente').fill(nombre)
   await page.getByRole('button', { name: 'Crear y vincular' }).click()
   const codigo = page.locator('p.font-mono.text-2xl')
   await expect(codigo).toBeVisible({ timeout: 20_000 })
   const valor = (await codigo.innerText()).trim()
-  await page.keyboard.press('Escape')
+  // Vuelve a la sección de impresoras: los llamadores siguen con las tarjetas.
+  await page.getByTestId('panel-impresoras').click()
   return valor
 }
 
@@ -208,7 +209,7 @@ async function asegurarImpresoraRemota(page, { nombre, destino, bridgeId, branch
 
 test.describe('impresión remota: configuración', () => {
   test('dos dispositivos ven la misma configuración del backend', async ({ page, browser }) => {
-    await page.goto('/configuracion/impresoras')
+    await page.goto('/configuracion/dispositivos')
     await asegurarImpresora(page)
     await page.reload()
     await expect(page.getByText(NOMBRE).first()).toBeVisible({ timeout: 20_000 })
@@ -220,13 +221,13 @@ test.describe('impresión remota: configuración', () => {
     // Segundo dispositivo: contexto nuevo, sin localStorage previo.
     const contexto = await browser.newContext({ storageState: 'e2e/.auth/admin.json' })
     const otra = await contexto.newPage()
-    await otra.goto('/configuracion/impresoras')
+    await otra.goto('/configuracion/dispositivos')
     await expect(otra.getByText(NOMBRE).first()).toBeVisible({ timeout: 20_000 })
     await contexto.close()
   })
 
   test('el backend pisa la caché vieja de localStorage', async ({ page }) => {
-    await page.goto('/configuracion/impresoras')
+    await page.goto('/configuracion/dispositivos')
     await asegurarImpresora(page)
     await page.reload()
     await expect(page.getByText(NOMBRE).first()).toBeVisible({ timeout: 20_000 })
@@ -259,7 +260,7 @@ test.describe('impresión remota: configuración', () => {
       }, { timeout: 15_000, intervals: [250, 250, 250, 250] }).toBe(true)
     }
 
-    await page.goto('/configuracion/impresoras')
+    await page.goto('/configuracion/dispositivos')
     await asegurarImpresora(page)
     await page.reload()
     await expect(page.getByText(NOMBRE).first()).toBeVisible({ timeout: 20_000 })
@@ -288,7 +289,7 @@ test.describe('impresión remota: configuración', () => {
   })
 
   test('editar una impresora por UI actualiza el backend y la caché', async ({ page }) => {
-    await page.goto('/configuracion/impresoras')
+    await page.goto('/configuracion/dispositivos')
     await asegurarImpresora(page)
     await page.reload()
     const tarjeta = tarjetaDe(page, NOMBRE)
@@ -309,7 +310,7 @@ test.describe('impresión remota: configuración', () => {
   })
 
   test('la comparativa lista dos impresoras y avisa que falta vincular el puente', async ({ page }) => {
-    await page.goto('/configuracion/impresoras')
+    await page.goto('/configuracion/dispositivos')
     await asegurarImpresoraSuelta(page, { nombre: NOMBRE_COMPARATIVA_A, destino: DESTINO_COMPARATIVA_A })
     await asegurarImpresoraSuelta(page, { nombre: NOMBRE_COMPARATIVA_B, destino: DESTINO_COMPARATIVA_B })
     await page.reload()
@@ -358,6 +359,7 @@ test.describe('impresión remota: cola con puente falso', () => {
       expect(detalle.datos?.job?.path).toBe('REMOTO')
       expect(detalle.datos?.job?.state).toBe('ACEPTADO')
 
+      await page.getByTestId('panel-cola').click()
       await page.reload()
       // Fila inequívoca: validación + nombre del puente de esta corrida.
       const fila = page.getByRole('row').filter({ hasText: trabajo.validation }).filter({ hasText: nombrePuente }).first()
@@ -422,7 +424,7 @@ test.describe('impresión remota: cola con puente falso', () => {
     })
     expect(reporte.ok()).toBeTruthy()
 
-    await page.goto('/configuracion/impresoras')
+    await page.goto('/configuracion/dispositivos?panel=cola')
     const fila = page.getByRole('row').filter({ hasText: validacion })
     await expect(fila).toBeVisible({ timeout: 20_000 })
     const entrada = fila.getByLabel(`Número secreto de la validación ${validacion}`)
@@ -490,7 +492,7 @@ test.describe('impresión remota: cola con puente falso', () => {
     // reclamando, así que el trabajo queda PENDIENTE y actúa el guarda.
     await page.route('http://127.0.0.1:17890/**', (ruta) => ruta.abort())
     // Navegar primero: el helper de API sale del origen de la app.
-    await page.goto('/configuracion/impresoras')
+    await page.goto('/configuracion/dispositivos')
     // Limpieza: pendientes viejos del mismo destino romperían la ventana del
     // guarda; se cancelan antes de empezar.
     const previos = await apiImpresion(page, '/api/print/jobs?state=PENDIENTE&limit=100')
@@ -708,7 +710,7 @@ test.describe('impresión remota: cola con puente falso', () => {
     expect(latido.ok).toBe(true)
 
     await page.reload()
-    await page.getByRole('button', { name: /Gestionar puentes/ }).click()
+    await page.getByTestId('panel-puentes').click()
     await expect(page.getByText(/en línea/).first()).toBeVisible({ timeout: 15_000 })
   })
 
@@ -739,7 +741,7 @@ test.describe('impresión remota: cola con puente falso', () => {
   })
 
   test('dos sucursales: cada trabajo sale por el puente de su sucursal', async ({ page }) => {
-    await page.goto('/configuracion/impresoras')
+    await page.goto('/configuracion/dispositivos')
     sembrarVentaSucursalDos()
     // Los E2E de impresión reusan la base: los puentes de esta prueba se
     // revocan antes de crear los nuevos para no agotar el tope de 20.
@@ -804,7 +806,7 @@ test.describe('impresión remota: cola con puente falso', () => {
         })
         expect(latido.ok).toBe(true)
       }
-      await page.goto('/configuracion/impresoras')
+      await page.goto('/configuracion/dispositivos?panel=diagnostico')
       const cobertura = page.getByTestId('cobertura-sucursales')
       await expect(cobertura).toBeVisible({ timeout: 20_000 })
       await expect(cobertura.getByText(SEED.branchName, { exact: true })).toBeVisible()
@@ -814,7 +816,7 @@ test.describe('impresión remota: cola con puente falso', () => {
       // Alerta: la sucursal B tiene ventas y queda sin puente activo.
       const bajaB = await apiImpresion(page, `/api/print/bridges/${puenteB.datos.bridge.id}`, { method: 'DELETE' })
       expect(bajaB.status).toBe(200)
-      await page.goto('/configuracion/impresoras')
+      await page.goto('/configuracion/dispositivos?panel=diagnostico')
       const alerta = page.getByTestId('alerta-sucursal-sin-puente')
       await expect(alerta).toBeVisible({ timeout: 20_000 })
       await expect(alerta).toContainText(SEED.branch2Name)
@@ -831,7 +833,7 @@ test.describe('impresión remota: cola con puente falso', () => {
     }
   })
 
-  test('con el agente local disponible la prueba no pasa por el backend', async ({ page }) => {    await page.goto('/configuracion/impresoras')
+  test('con el agente local disponible la prueba no pasa por el backend', async ({ page }) => {    await page.goto('/configuracion/dispositivos')
     await asegurarImpresora(page)
     await page.reload()
 
@@ -928,7 +930,7 @@ test.describe('estado vivo y popup de prueba', () => {
     // La e2e corre sin agente: se corta 127.0.0.1 para que ni una instalación
     // local de la máquina de turno pueda responder y falsear el estado.
     await page.route('http://127.0.0.1:17890/**', (ruta) => ruta.abort())
-    await page.goto('/configuracion/impresoras')
+    await page.goto('/configuracion/dispositivos')
     await asegurarImpresora(page)
     await page.reload()
 
