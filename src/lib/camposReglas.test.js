@@ -147,11 +147,16 @@ test('no aparecen copias locales nuevas de objetos publicados en la biblioteca (
 
 test('los objetos de Configuración (#253) están publicados en la biblioteca', () => {
   const indice = readFileSync(LIB_INDEX, 'utf8')
-  for (const objeto of ['TarjetaAjuste', 'PanelDerecho', 'Subtabs', 'PageHeader', 'SeccionColapsable', 'Eyebrow']) {
+  for (const objeto of ['TarjetaAjuste', 'PanelDerecho', 'Subtabs', 'PageHeader', 'SeccionColapsable', 'Eyebrow', 'EstadoGuardado', 'Checkbox']) {
     assert.ok(indice.includes(objeto), `owncoding-ui debe publicar ${objeto} para la pantalla de Configuración`)
   }
   // La tarjeta de ajuste cubre el encabezado y el tono de archivar/eliminar.
   const tarjeta = readFileSync(join(LIB_COMPONENTES, 'TarjetaAjuste.jsx'), 'utf8')
   assert.match(tarjeta, /tono = 'normal'/, 'el default de la tarjeta no cambia')
   assert.match(tarjeta, /peligro && 'border-bad\/30'/, 'el tono peligro viene en el objeto')
+  // El estado de guardado es de la biblioteca; la app conserva el hook con API.
+  const guardado = readFileSync(join(RAIZ, 'components/control/GuardadoCuenta.jsx'), 'utf8')
+  assert.match(guardado, /export \{ EstadoGuardado \} from 'owncoding-ui'/, 'el chip de guardado delega en la biblioteca')
+  assert.ok(!/function EstadoGuardado/.test(guardado), 'no se reimplementa el estado de guardado')
+  assert.match(guardado, /export function useGuardadoCuenta\(/, 'la app mantiene el hook de guardado con reautenticación')
 })

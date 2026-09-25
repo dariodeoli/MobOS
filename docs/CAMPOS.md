@@ -41,10 +41,12 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi`). Ant
 | `ventas/PaymentAccountFields` | Cuenta de cobro + monto + cotización | POS |
 | `CameraScan` | Escaneo por cámara de IMEI/código (hoy local en `Inventario.jsx`) | Inventario |
 | `shared/PegarEnlaceToken` | Entrada de enlace completo cuando el token de acción no llega por la URL (relays de correo); extrae el código de 64 hex con `extractTokenFromUrl` | Invitación, recuperación, verificación de correo |
+| `owncoding-ui/Checkbox` | Selección múltiple con `label` asociado + `descripcion`, variantes `simple` (listas) y `tarjeta` (preferencias), `tono="bad"` para lo destructivo y `ariaLabel` para el control pelado. Para booleanos de encendido/apagado va `Switch`; no se dibuja el par label + input a mano | Configuración (preferencias, permisos), impresoras y colas |
 
 ## 3. Patrones reutilizables
 
 - **Autocompletado** (`CityAutocomplete`, `EmailField`, `BancoCombobox`): sugerencias por iniciales sobre lo tipeado (ciudades con su departamento, dominios de correo frecuentes, bancos con su logo), texto libre permitido, teclado correcto y sin interferir con pegado, autocompletado del navegador ni `fill()`. Al elegir una sugerencia se completan los campos derivados.
+- **Estado de guardado** (`owncoding-ui/EstadoGuardado`): chip verde «Guardado…» o el aviso de error con `aria-live`, en el lugar donde iría el botón; el POST, los mensajes y la reautenticación viven en `control/GuardadoCuenta.jsx` (`useGuardadoCuenta`, #162).
 - **Extractor** (`RucField`): input con el botón adentro (trailing, objeto `BotonDentroCampo`, con `title` + `aria-label` y estado "Consultando…" con spinner; vacío → deshabilitado) que consulta `GET /api/ruc`. El resultado se muestra aparte y **se aplica solo al confirmar** (“Usar estos datos”); nunca pisa lo cargado. Si el proveedor falla o no hay cuota, el dato se completa a mano (el backend responde `manualEntryAllowed`) y el error se muestra con `role="alert"`. En la demo pública (#234) el mismo botón resuelve contra `lib/demoRuc.js` (razón social ficticia, badge "Simulada en demo", sin tocar el API) y se ve en los seis lugares con RUC.
 - Regla común: un solo objeto por patrón en `components/shared`; prohibido reimplementar la consulta o las sugerencias dentro de una pantalla.
 
