@@ -41,7 +41,6 @@ export default function PasoCobro({
   pendiente,
   f,
   setF,
-  set,
   valido,
   cantTotal,
   ok,
@@ -117,7 +116,12 @@ export default function PasoCobro({
       <div className={GRILLA_DOS_COLUMNAS}>
         <div>
           <Label htmlFor="entrega">Entrega</Label>
-          <Select id="entrega" value={f.entrega} onChange={set('entrega')}>
+          <Select id="entrega" value={f.entrega} onChange={event => {
+            const entrega = event.target.value
+            // Retiro en tienda no cobra envío: al elegirlo se limpia el monto
+            // para que el total y el cobro no arrastren un delivery viejo (#187).
+            setF(actual => ({ ...actual, entrega, ...(entrega === 'Retiro en tienda' ? { montoDelivery: '' } : {}) }))
+          }}>
             {ENTREGA.map(x => (
               <option key={x} value={x}>
                 {x === 'Delivery'

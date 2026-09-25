@@ -1,15 +1,71 @@
 # QA #187 — Recorrido funcional del POS en producción (`/demo`)
 
-**Superficie:** https://app.moboss.online/demo · **Versión desplegada:** v1.0.127 ·
-**Método:** Playwright headless (chromium, 1440×900 + 390×844), 12 pasos ·
-**Script:** `scripts/qa-187-pos-demo.mjs` · **Evidencia cruda:** `docs/qa/187/resultados.json`
-(+ 19 capturas en `docs/qa/187/`).
+**Superficie:** https://app.moboss.online/demo · **Última pasada: v1.0.172**
+(la pasada inicial fue sobre v1.0.127) · **Método:** Playwright headless (chromium,
+1440×900 + 390×844), 12 pasos · **Script:** `scripts/qa-187-pos-demo.mjs` ·
+**Evidencia cruda:** `docs/qa/187-1.0.172/` (25 capturas + `resultados.json`;
+históricas en `docs/qa/187/` y `docs/qa/187b/`).
 
 La demo es un modo aislado en el navegador (datos ficticios, sin API de la tienda):
 se recorrió el **flujo del vendedor** (PIN 2001) sin tocar datos reales.
 Resultado: **12/12 pasos ejecutados, sin fallos de script**.
 
-## ✅ Verificado en verde
+## Pasada v1.0.172 (25/09/2026) — POS/ventas
+
+**Superficie:** https://app.moboss.online/demo · **Método:** Playwright headless
+(`scripts/qa-187-pos-demo.mjs`, 12 pasos, 1440×900 + 390×844) · **Evidencia:**
+`docs/qa/187-1.0.172/` (25 capturas + `resultados.json`). **12/12 pasos, 0 errores
+de consola, 0 respuestas API ≥400, 0 pedidos fallidos.**
+
+### ✅ Verificado
+- **Entrada demo (vendedor)**: menú nuevo (`VENDER · CLIENTES · INVENTARIO · OPERACIÓN · Ayuda`), 2 perfiles.
+- **Una sola pantalla**: buscador visible (759/900 px) y total a la vista (296/900 px).
+- **Catálogo**: sugerencias con modelo/capacidad/SKU; un clic suma Gs 6.850.000.
+- **Carrito ultra-colapsado (#243)**: la fila cerrada muestra **solo nombre + total**
+  (sin cantidad ni precio); al desplegar aparecen cantidad, precio, color, lista, stock
+  y descuento. Cantidad 2 → Gs 13.880.000; descuento Gs 100.000 → 13.780.000 con su
+  leyenda; «Borrar descuento» vuelve a 13.880.000.
+- **Cliente**: la cartera demo aparece en el POS («Lucía Fernández» → ficha elegida con
+  lista/seguro) y el alta por nombre nuevo funciona. *(Corrige el hallazgo histórico #4.)*
+- **Borradores (#148 §20)**: suspender con etiqueta → aviso demo; listado con la fila;
+  «Enlace público» avisa honestamente que en la demo no se genera; **Recuperar** trae el
+  carrito completo (2 productos · 3 unidades).
+- **Split**: 2 bloques, «Dividir saldo (Gs 10.880.000)» con saldo precargado; el botón
+  pasa de naranja «Crear pedido» a verde «Confirmar venta».
+- **Entrega**: delivery + Gs 30.000; retiro deshabilita el monto.
+- **Cierre**: «Confirmar venta · 3 productos · Gs 13.910.000» → carrito vacío y toast
+  «Cambio simulado en la demo… no se guardó en la tienda real».
+- **Analytics**: modal completo en la demo (Hoy/7 días/Este mes, top productos, ventas
+  por vendedor/sucursal, cobros netos por tipo/cuenta/sucursal). *(Corrige el hallazgo
+  histórico #2.)*
+- **Móvil 390×844**: 0 px de desborde; buscador y carrito operativos.
+
+### 🔎 Hallazgos de esta pasada
+
+**1. (Real · corregido en `slot/pos`) «Retiro en tienda» seguía cobrando el envío.**
+Pasos: POS → producto → *Entrega: Delivery* + Gs 30.000 → cambiar a *Retiro en tienda*.
+Observado (v1.0.172): el campo se deshabilitaba pero **conservaba el monto**, y el total
+(el resumen y el botón) seguía en Gs 13.910.000: la venta cobraba un delivery
+inexistente. Corregido: al elegir Retiro se limpia el monto y el cálculo usa el envío
+efectivo (`montoDeliveryEfectivo`) en total, resumen, payload y reparto de pagos; quedó
+la regresión e2e en `pos-qa-173` («retiro en tienda no cobra el envío…») y el recorrido
+local cierra en **Gs 13.880.000** (`docs/qa/187-1.0.172-rama/`).
+
+**2. (Demo · menor, persiste) «TU DÍA» suma una venta/pedido por línea/unidad.**
+La venta de 3 unidades (2 líneas) sumó +3 ventas y +3 pedidos, y la facturación subió
+sin el costo de entrega (Gs 13.880.000). Con sesión real se guarda 1 pedido por venta.
+Impacto: solo métricas de la demo.
+
+**3. (Método) El cierre en la demo confirma con el toast «Cambio simulado…»** (no hay
+aviso «Venta registrada» ni acciones Imprimir/Ver pedido en la demo); para sesión real
+siguen los pasos del final del doc.
+
+### 📌 Para cerrar con sesión real
+1. Borradores en el servidor (compartir enlace público real y retomar en otra sesión).
+2. Analytics con datos reales y selector de períodos.
+3. Cierre real: número/comprobante y detalle del pedido (timeline, acciones).
+
+## Pasada v1.0.127 (histórica) — ✅ Verificado en verde
 
 - **Venta en una sola pantalla**: el buscador de productos y el total de la venta
   quedan visibles sin cambiar de pantalla (buscador a 773/900 px, total a 310/900 px);
