@@ -7,7 +7,7 @@ dominio o de decisión.
 |---|------|--------|---------------------|
 | 1–3 | Nombre/ruta `/pos`, layout y carrito siempre visible | ✅ | Capturas `docs/qa/225/03-04` (carrito v2 en producción v1.0.142) |
 | 4 | Cliente: búsqueda global, pre-clientes, normalización, facturar a otro | ✅ | `src/lib/preClientes.js` + e2e `pos-busqueda-global`, `pos-campos` |
-| 5 | Carrito: modelo/capacidad/stock/descuentos/totales | ✅ | Capturas `docs/qa/225/03-04`, captura `docs/qa/187b/06` |
+| 5 | Carrito: modelo/capacidad/stock/descuentos/totales | ✅ | Capturas `docs/qa/225/03-04`, captura `docs/qa/187b/06` · el selector de IMEI lista y reserva unidades en la demo (e2e `demo-anonimo`, `docs/qa/148-s6/ESTADO.md`) |
 | 6 | Buscador de productos + escáner con confirmación | ✅ | e2e `pos-checkout` «producto escaneado pide confirmación» · capturas del modal en `docs/qa/148-s6/escaner/` (sonda `qa-148-s6-escaner.mjs`) · el catálogo demo completa el SKU para poder escanear en la demo (`docs/qa/148-s6/ESTADO.md`) |
 | 7 | Vendedor automático + métricas del día | ✅ | Barra «TU DÍA» en capturas `docs/qa/187b/03` |
 | 8 | Cuentas de cobro con buscador | ✅ | `CuentaCobroCombobox` + capturas `docs/qa/204/01` |

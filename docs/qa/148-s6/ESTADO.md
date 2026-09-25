@@ -34,3 +34,14 @@ ahora el catálogo demo **completa el SKU de todos los productos** (mismo criter
   `docs/qa/148-s6/escaner/1.0.156-produccion/` (flujo del escáner en producción).
 - **Sonda**: `scripts/qa-148-s6-escaner.mjs` (`QA_BASE_URL`, `QA_ETIQUETA`, `QA_SKU`), mide
   los botones del modal en mobile (≥44, #249) y deja `resultados.json`.
+
+## Gap cerrado: el selector de IMEI del POS no funcionaba en la demo
+
+`SerialUnitPicker` hablaba con el API directo (`/api/inventory-units`), así que
+en la demo no listaba unidades y el flujo serializado quedaba solo con «vender
+sin IMEI». Ahora usa los recursos con rama demo
+(`resources.inventoryUnits.list` / `inventoryReservations.create|release`),
+filtra por la sucursal del producto (como la API real) y la búsqueda de la demo
+incluye el **SKU** (mismo criterio que el backend). Evidencia: e2e
+`demo-anonimo` «el POS reserva un IMEI de la demo y la línea queda con el
+serial», sin llamadas al API.
