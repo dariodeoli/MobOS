@@ -38,6 +38,7 @@ const protectedSections = {
   '/ops': 'Tablero de operaciones',
   '/configuracion': 'Configuración',
   '/configuracion/mi-cuenta': 'Mi cuenta',
+  '/mi-cuenta': 'Mi cuenta',
   '/configuracion/organizacion': 'Organización',
   '/configuracion/equipo': 'Equipo y acceso',
   '/configuracion/comercial': 'Comercial',

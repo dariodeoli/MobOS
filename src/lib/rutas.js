@@ -26,6 +26,7 @@ export const RUTA_DE_VISTA = {
   analisis: '/analisis',
   finanzas: '/finanzas',
   equipo: '/configuracion',
+  'mi-cuenta': '/mi-cuenta',
   celulares: '/celulares',
   comparador: '/comparador',
 }
@@ -81,6 +82,9 @@ export const DESTINO_LEGADO = {
   equipo: '/configuracion',
   config: '/configuracion',
   configuracion: '/configuracion',
+  // #253: Mi cuenta es personal y su URL canónica es /mi-cuenta (el dueño la
+  // sigue viendo como pestaña de Configuración).
+  'mi-cuenta': '/mi-cuenta',
   vendedores: '/configuracion',
   // Slugs planos de las pestañas que resolvía el panel viejo.
   seguridad: '/configuracion/seguridad',

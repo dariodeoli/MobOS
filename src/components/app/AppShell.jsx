@@ -207,7 +207,7 @@ function AvisoColaOffline({ texto, corto, urgente, onClick, pastilla = false, te
   )
 }
 
-function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onSwitchUser, onLockRequest, collapsed, perfilEmpresa, usuario }) {
+function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onSwitchUser, onMiCuenta, onLockRequest, collapsed, perfilEmpresa, usuario }) {
   const clicsRef = useRef([])
   const clicsTimer = useRef(null)
   useEffect(() => () => clearTimeout(clicsTimer.current), [])
@@ -264,6 +264,19 @@ function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onSwitch
           </PersonaChip>
           <Icon name="refresh" className={cn('ml-auto h-3 w-3 shrink-0 text-mute', collapsed && 'lg:hidden')} />
         </button>
+        <button
+          type="button"
+          data-testid="shell-mi-cuenta"
+          onClick={onMiCuenta}
+          title="Mi cuenta"
+          aria-label="Mi cuenta"
+          className={cn(
+            'grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore',
+            collapsed && 'lg:h-9 lg:w-9',
+          )}
+        >
+          <Icon name="user" className="h-4 w-4" />
+        </button>
       </div>
     </div>
   )
@@ -313,6 +326,7 @@ export default function AppShell({
   esOwner = false,
   usuario,
   onSwitchUser,
+  onMiCuenta,
   onLogout,
   onLockRequest,
   onSearch,
@@ -445,6 +459,7 @@ export default function AppShell({
           esOwner={esOwner}
           roleLabel={roleLabel}
           onSwitchUser={onSwitchUser}
+          onMiCuenta={onMiCuenta}
           onLockRequest={onLockRequest}
           collapsed={collapsed}
           perfilEmpresa={perfilEmpresa}
@@ -488,6 +503,7 @@ export default function AppShell({
             esOwner={esOwner}
             roleLabel={roleLabel}
             onSwitchUser={onSwitchUser}
+            onMiCuenta={onMiCuenta}
             onLockRequest={onLockRequest}
             collapsed={false}
             perfilEmpresa={perfilEmpresa}

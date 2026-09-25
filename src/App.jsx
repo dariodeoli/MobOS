@@ -320,6 +320,10 @@ export default function App() {
           {/* Ayuda (Documentación interna) sale del shell, no de Configuración:
               la ve todo el equipo (es la guía de la operación, no un ajuste). */}
           <Route path="/ayuda/:seccion?" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
+          {/* Mi cuenta (#253): la superficie personal de cualquier rol (perfil,
+              preferencias y sesiones propias). El dueño la ve además como
+              pestaña de Configuración (su lugar en la IA de 7 grupos). */}
+          <Route path="/mi-cuenta" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/analisis/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           <Route path="/finanzas/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           <Route path="/inventario/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
