@@ -292,6 +292,26 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 33 — buscador global del shell en la biblioteca (#241) (25-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `GlobalSearch` (`components/app/`) | 342 líneas propias: modal, input combobox, lista agrupada, teclado, debounce, estados y atajo — una reimplementación de `PaletaComandos` | La paleta del shell sale de la biblioteca (**v0.27.0**): la app solo aporta `buscar` (8 grupos de la API en paralelo, 403 silencioso y error únicamente si fallan todos) y `onElegir` (navega con `datos.vista/params`); el atajo Ctrl+K sigue en el shell (`conAtajo={false}`) y el ancho «amplio» del estándar de modales (#237) se conserva con `className="max-w-3xl"` |
+| Paridad del objeto | La paleta de la biblioteca no exponía `aria-activedescendant` ni el texto del vacío por props | `PaletaComandos` suma el contrato combobox completo (`aria-activedescendant` con ids por posición), `descripcionVacio` y los tipos de las props de textos; tests nuevos del objeto (agrupación con etiquetas/íconos, estados honestos, combobox y botón con atajo) |
+| Docs | — | `owncoding-ui/docs/SHELL.md` §3 con la adopción real; changelog y tag **v0.27.0** |
+| Tests | — | Guardas: `objetosReglas.test.js` (la app usa la paleta y no repite lista/teclado/debounce) y `disenoReglas.test.js` (el contrato combobox vive en la biblioteca) |
+
+Verificación del lote: `npm run lint` (0 errores), `npm run build` y
+`npm --prefix backend run build` (con `BUILD_ID`), `prisma:validate`,
+`npm test` (710 en verde), `test:unit` del backend (75),
+`npx playwright test e2e/pos-busqueda-global.spec.js e2e/modales-tamanos.spec.js`
+(8 en verde, incluido el ancho de 768 px) y `npm run test:e2e:smoke` (19 en
+verde, 0 flaky).
+
+**Coordinación:** la paleta ya estaba publicada desde la v0.13.x; esta ronda la
+deja como la única implementación del buscador del shell (SHELL.md §1/§3) y la
+ajusta con la paridad que la app había ganado en su versión local.
+
 ### Lote 32 — retiro del bloque local v2 del shell (#241) (25-09)
 
 | Objeto | Antes (evidencia) | Después |
