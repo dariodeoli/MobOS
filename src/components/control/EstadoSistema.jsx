@@ -337,7 +337,7 @@ export default function EstadoSistema() {
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <h3 className="flex items-center gap-2 text-sm font-semibold"><Icon name="printer" className="h-4 w-4 text-mute" />Cola de impresión</h3>
-            <p className="mt-1 text-sm text-mute">Trabajos remotos de la empresa: qué son, quién los mandó y a qué impresora. Cancelar sirve para lo que quedó esperando (por ejemplo, el puente apagado); no toca lo que ya salió.</p>
+            <p className="mt-1 text-sm text-mute">Trabajos remotos de la empresa: qué son, quién los mandó y a qué impresora. Cancelar sirve para lo que quedó esperando (por ejemplo, el puente apagado); no toca lo que ya salió. La configuración y las pruebas de cada impresora viven en <b className="text-fore">Dispositivos → Impresoras</b>; acá se monitorea la cola global.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {impresorasEnCola.length > 1 && (

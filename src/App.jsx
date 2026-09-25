@@ -303,6 +303,9 @@ export default function App() {
           <Route path="/productos" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/promociones" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/precios" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
+          {/* Perfil personal (#253): se abre desde el avatar; la ruta vieja
+              /configuracion/identidad redirige acá. */}
+          <Route path="/mi-perfil" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/cotizaciones" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/plantillas" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/trade-in" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />

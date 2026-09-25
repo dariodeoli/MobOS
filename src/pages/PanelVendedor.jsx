@@ -29,6 +29,9 @@ const Reportes = lazy(() => import('@/components/control/Reportes'))
 const Inventario = lazy(() => import('@/components/control/Inventario'))
 const Compras = lazy(() => import('@/components/control/Compras'))
 const Config = lazy(() => import('@/components/control/Config'))
+// #253: el perfil personal (foto y nombre) se edita en su propia pantalla,
+// accesible desde el avatar; reutiliza el objeto de identidad existente.
+const MiIdentidad = lazy(() => import('@/components/control/Config').then(modulo => ({ default: modulo.MiIdentidad })))
 const Vendedores = lazy(() => import('@/components/control/Vendedores'))
 const Autorizaciones = lazy(() => import('@/components/control/Autorizaciones'))
 const ServicioGarantias = lazy(() => import('@/components/control/ServicioGarantias'))
@@ -265,7 +268,9 @@ function tabsDeSubpagina(slug, esDemo) {
 // Configuración en siete secciones (#IA): los slugs viejos siguen funcionando
 // y redirigen a la sección nueva; Documentación sale del panel y vive en Ayuda.
 const REDIRECCIONES_CONFIG = {
-  identidad: '/configuracion/mi-cuenta',
+  // El perfil personal (foto y nombre) vive en su propia pantalla, accesible
+  // desde el avatar: la ruta vieja de Configuración cae ahí (#253).
+  identidad: '/mi-perfil',
   preferencias: '/configuracion/mi-cuenta',
   negocio: '/configuracion/organizacion',
   sucursales: '/configuracion/organizacion',
@@ -288,6 +293,7 @@ const LABELS = {
   productos: 'Productos',
   promociones: 'Promociones',
   precios: 'Precios',
+  'mi-perfil': 'Mi perfil',
   cotizaciones: 'Cotizaciones',
   plantillas: 'Plantillas de WhatsApp',
   cotizador: 'Trade-In',
@@ -443,11 +449,12 @@ export default function PanelVendedor() {
   }, [esOwner, esTecnico])
   const accesibles = useMemo(() => {
     const base = (esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV).flatMap(group => group.items).map(([id]) => id)
-    // Dos vistas no son ítems del menú pero su ruta tiene que ser válida:
+    // Tres vistas no son ítems del menú pero su ruta tiene que ser válida:
     // 'inventario' (la sección; sus ítems de menú son sus pestañas y las
-    // pantallas de catálogo) y 'garantias' (pestaña de «Taller» desde #224:
-    // los enlaces viejos siguen abriendo la sección).
-    return esOwner ? [...base, 'inventario', 'garantias'] : base
+    // pantallas de catálogo), 'garantias' (pestaña de «Taller» desde #224:
+    // los enlaces viejos siguen abriendo la sección) y 'mi-perfil' (#253: el
+    // perfil personal se abre desde el avatar, para todos los roles).
+    return esOwner ? [...base, 'inventario', 'garantias', 'mi-perfil'] : [...base, 'mi-perfil']
   }, [esOwner, esTecnico])
   // Un slug plano de pestaña (p. ej. /precios, que también es pestaña de
   // Configuración) se canoniza a /<padre>/<hijo> cuando el rol la tiene.
@@ -759,6 +766,7 @@ export default function PanelVendedor() {
         onSwitchUser={abrirCambio}
         onLogout={() => setSalirAbierto(true)}
         onLockRequest={pedirBloqueo}
+        onPerfil={() => ir('mi-perfil')}
         menuAcciones
         onAbrirNotificacion={(href) => navigate(href)}
         onSearch={() => setBusquedaAbierta(true)}
@@ -910,8 +918,9 @@ export default function PanelVendedor() {
               )}
               {vista === 'comercial' && (
                 <div className="space-y-3">
+                  {/* #253: las listas de precios viven en Inventario → Precios
+                      (única entrada visible); Comercial no las duplica. */}
                   <Config seccion="comercial" />
-                  <Precios />
                 </div>
               )}
               {vista === 'seguridad' && (esDemo ? (
@@ -930,6 +939,9 @@ export default function PanelVendedor() {
                 ? <DemoNoDisponible modulo="Estado del sistema" motivo="Consulta los servicios reales de MobOS (API, base e impresión)." />
                 : <EstadoSistema />)}
             </div>
+          )}
+          {vista === 'mi-perfil' && (
+            <div className="space-y-3"><MiIdentidad /></div>
           )}
           {subpadre === 'ayuda' && (
             <div className="space-y-3">
