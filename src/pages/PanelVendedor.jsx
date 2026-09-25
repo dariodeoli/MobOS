@@ -19,6 +19,7 @@ import PantallaBloqueada from '@/components/app/PantallaBloqueada'
 import DemoNoDisponible from '@/components/app/DemoNoDisponible'
 import { usePreferencias } from '@/hooks/usePreferencias'
 import { PreferenciasContenido } from '@/components/app/Preferencias'
+import CheatSheetAtajos from '@/components/app/CheatSheetAtajos'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { useBloqueoInactividad } from '@/hooks/useBloqueoInactividad'
 
@@ -957,29 +958,7 @@ export default function PanelVendedor() {
         open={ayudaAbierto}
         onClose={() => setAyudaAbierto(false)}
         title="Atajos de teclado" size="corto">
-        <div className="space-y-2.5">
-          {[
-            ['Ctrl+K', 'Búsqueda global'],
-            ['F1', 'Nueva venta'],
-            ['F2', 'Buscar producto'],
-            ['F3', 'Crear cliente'],
-            ['F4', 'Cotizar equipo (Trade-In)'],
-            ['Esc', 'Cerrar modales y diálogos'],
-          ].map(([tecla, descripcion]) => (
-            <div
-              key={tecla}
-              className="flex items-center justify-between gap-4 rounded-xl border border-fore/10 bg-fore/[.02] px-3.5 py-2.5"
-            >
-              <span className="text-sm text-fore">{descripcion}</span>
-              <kbd className="shrink-0 rounded-md border border-ink-500 bg-ink-700 px-2 py-0.5 text-xs font-semibold text-mute">
-                {tecla}
-              </kbd>
-            </div>
-          ))}
-        </div>
-        <p className="mt-4 text-xs text-mute">
-          Los atajos no funcionan mientras escribís en un campo o tenés un diálogo abierto.
-        </p>
+        <CheatSheetAtajos />
       </Modal>
 
       <ConfirmDialog

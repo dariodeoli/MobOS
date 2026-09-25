@@ -15,7 +15,6 @@ import { DESTINO_LEGADO } from '@/lib/rutas'
 
 // Rutas secundarias en lazy: su código baja solo cuando se navega a ellas.
 const Landing = lazy(() => import('@/pages/Landing'))
-const RedisenoF3 = lazy(() => import('@/pages/RedisenoF3'))
 const Status = lazy(() => import('@/pages/Status'))
 const RecuperarContrasena = lazy(() => import('@/pages/RecuperarContrasena'))
 const PortalClientesEntrada = lazy(() => import('@/pages/PortalClientesEntrada'))
@@ -244,7 +243,6 @@ export default function App() {
             <Route path="/cotizacion/:token" element={<CotizacionPublica />} />
             <Route path="/remito/:token" element={<RemitoPublico />} />
             <Route path="*" element={<Navigate to="/" replace />} />
-          <Route path="/rediseno-f3" element={<AreaProtegida owner><RedisenoF3 /></AreaProtegida>} />
         </Routes>
         </Suspense>
       </>
