@@ -292,6 +292,54 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 35 — retiro de 15 duplicados idénticos y paridad de categorías (#241/#253) (25-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| 15 objetos idénticos en `shared/` (`BotonDentroCampo`, `ChipsLocks`, `CodigoQr`, `CurrencySelect`, `EstadoBadge`, `GradoBadge`, `IconoCategoria`, `InstagramField`, `MedidorBateria`, `PercentField`, `SearchField`, `SegmentedField`, `SerialTexto`, `Switch`, `VistaPreviaPapel`) | La app mantenía la copia exacta del objeto publicado (cuerpo idéntico salvo imports/comentarios): 15 de los 37 duplicados del lote 34 | Pasan a **puentes** que re-exportan la biblioteca —incluidos los helpers `GLIFOS_CATEGORIA`, `normalizarInstagram`, `parsePercent`/`formatPercent`/`limpiarPercent` y `ANCHOS_PAPEL`—; los consumidores no cambian de ruta |
+| `categorias.js` de la biblioteca | No reconocía «auriculares genéricos» (la app sí): al puentear `IconoCategoria` la categoría cambiaba de accesorios a AirPods | Publicado **v0.28.1** con la palabra restaurada y test de los dos casos («auriculares» = AirPods, «genéricos» = accesorios); la app sube su dependencia |
+| Aserciones de fuente | `objetosReglas`/`disenoReglas` leían la implementación local de los objetos | Ahora leen la **biblioteca** como fuente canónica y exigen que el puente no implemente nada |
+| Control | Deuda declarada: 37 copias de `shared/` + 32 objetos del kit | **22 + 32**: el auditor y la guarda reflejan los puentes y siguen frenando nombres nuevos |
+
+Verificación del lote: `npm run lint` (0 errores), `npm run build` y
+`npm --prefix backend run build` (con `BUILD_ID`), `prisma:validate`,
+`npm test` (753 en verde), `test:unit` del backend (75),
+`npx playwright test e2e/configuracion-lote5.spec.js` (7 en verde) y
+`npm run test:e2e:smoke` (19 en verde, 0 flaky); biblioteca `owncoding-ui`
+build + 211 tests.
+
+**Nota:** la paridad de `categorias.js` se detectó justo al preparar los
+puentes (comparar dependencias antes de delegar); quedó como changelog y tag de
+la biblioteca. Los 22 duplicados restantes son divergentes (no idénticos) y
+quedan para un lote de migración con revisión de DSN.
+
+### Lote 34 — objetos de Configuración y control de duplicación con la biblioteca (#253) (25-09)
+
+Contexto: #253 reorganiza Configuración en 7 grupos y reparte la sección entre
+los slots pidiendo no duplicar cards, tabs, encabezados ni campos. Este lote
+deja los objetos publicados y el control que lo vigila.
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Tarjeta de ajuste | `TarjetaAjuste` no cubría archivar/eliminar; las secciones repetían el encabezado a mano (`<Card className="space-y-3"><div><h2…`, 2 usos vigentes) | `tono="peligro"` (borde y título rojos) en la biblioteca **v0.28.0**; las secciones usan el objeto (REGLAS §11) |
+| Layout y solapas | `PanelDerecho` y `Subtabs` ya estaban publicados, pero la app conservaba su copia local de `PanelDerecho` (idéntica) y dibujaba `role="tab"` a mano (5 usos en 4 archivos) | `components/shared/PanelDerecho.jsx` pasa a **puente** que re-exporta la biblioteca (sin tocar consumidores); las solapas van con `Subtabs` |
+| Tipos | `PanelDerecho` declaraba `formulario` (la prop real es `panel`); `TarjetaAjuste` no declaraba `icono`/`id`/`tono` | Tipos al día en `owncoding-ui` |
+| Control de campos duplicados | El auditor no medía la copia local de objetos publicados | `scripts/auditoria-duplicacion.mjs` suma el grupo **«duplicados con la biblioteca»** (37 componentes de `shared/` + 32 objetos del kit) y «tarjetas/solapas a mano» en patrones a revisar; la guarda `camposReglas.test.js` congela el inventario y falla si aparece un nombre nuevo duplicado |
+| Docs | — | `owncoding-ui/docs/REGLAS.md` §11 (cómo se arma una pantalla de Configuración); `docs/CAMPOS.md` §6 con el control |
+
+Verificación del lote: `npm run lint` (0 errores), `npm run build` y
+`npm --prefix backend run build` (con `BUILD_ID`), `prisma:validate`,
+`npm test` (753 en verde, rebasado sobre la v1.0.172), `test:unit` del backend
+(75), `npx playwright test e2e/configuracion-lote5.spec.js` y
+`npm run test:e2e:smoke` (19 en verde, 0 flaky); biblioteca `owncoding-ui`
+build + 211 tests.
+
+**Coordinación (#253):** los objetos para los 7 grupos quedan publicados
+(`TarjetaAjuste` con tono peligro, `Subtabs`, `PageHeader`/`Eyebrow`,
+`PanelDerecho`); el control marca lo pendiente en las secciones (2 encabezados a
+mano en `Config.jsx`, 5 solapas a mano) para que cada slot lo resuelva en su
+archivo. El inventario congelado (69 objetos) solo puede bajar.
+
 ### Lote 33 — buscador global del shell en la biblioteca (#241) (25-09)
 
 | Objeto | Antes (evidencia) | Después |

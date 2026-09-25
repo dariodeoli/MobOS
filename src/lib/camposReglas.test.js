@@ -96,3 +96,62 @@ test('las subidas de archivos pasan por el objeto compartido', () => {
 
   assert.deepEqual(culpables, [])
 })
+
+// #253 (lote 34): la biblioteca ya publica el kit de campos y los objetos
+// compuestos. La copia local es deuda de migración declarada (inventario en
+// docs/AUDITORIA-DUPLICACION.md, lote 34) y solo puede bajar: un nombre NUEVO
+// que duplique un componente publicado falla acá y obliga a decidir (usar el
+// objeto de `owncoding-ui` o publicarlo allí).
+const DEUDA_BIBLIOTECA = new Set([
+  'Avatar', 'BancoCombobox', 'BancoLogo', 'BarraLote', 'ChipEstado',
+  'CityAutocomplete', 'Cronologia', 'EmailField', 'FichaCertificado', 'Icon',
+  'ListGridToggle', 'NumericKeypad', 'PasosEquipo', 'PegarEnlaceToken',
+  'PeriodoTabs', 'PersonaChip', 'PhoneField', 'ProductCombobox', 'RucField',
+  'SeccionColapsable', 'SemaforoItem', 'SerialField',
+])
+
+const LIB_COMPONENTES = fileURLToPath(new URL('../../node_modules/owncoding-ui/src/components', import.meta.url))
+const LIB_INDEX = fileURLToPath(new URL('../../node_modules/owncoding-ui/src/index.js', import.meta.url))
+const esPuente = (codigo) => /export\s*\{[^}]*\bas\s+default\b[^}]*\}\s*from\s*'owncoding-ui'/.test(codigo)
+
+test('no aparecen copias locales nuevas de objetos publicados en la biblioteca (#253)', () => {
+  const publicados = new Set(
+    readdirSync(LIB_COMPONENTES)
+      .filter((nombre) => nombre.endsWith('.jsx'))
+      .map((nombre) => nombre.replace(/\.jsx$/, '')),
+  )
+  const locales = readdirSync(join(RAIZ, 'components/shared'))
+    .filter((nombre) => nombre.endsWith('.jsx'))
+    .map((nombre) => nombre.replace(/\.jsx$/, ''))
+  const copias = locales.filter((nombre) => {
+    if (!publicados.has(nombre)) return false
+    return !esPuente(readFileSync(join(RAIZ, 'components/shared', `${nombre}.jsx`), 'utf8'))
+  })
+  const nuevas = copias.filter((nombre) => !DEUDA_BIBLIOTECA.has(nombre))
+  assert.deepEqual(nuevas, [], 'un objeto nuevo no puede duplicar uno publicado en owncoding-ui')
+  assert.ok(copias.length <= DEUDA_BIBLIOTECA.size, 'la deuda de duplicados con la biblioteca no puede crecer')
+  // Lo ya migrado queda como puente sin implementación propia (lote 34 PanelDerecho
+  // y lote 35 los 15 objetos idénticos: campos, chips, QR y vista previa).
+  const puentes = [
+    'PanelDerecho', 'BotonDentroCampo', 'ChipsLocks', 'CodigoQr', 'CurrencySelect',
+    'EstadoBadge', 'GradoBadge', 'IconoCategoria', 'InstagramField', 'MedidorBateria',
+    'PercentField', 'SearchField', 'SegmentedField', 'SerialTexto', 'Switch',
+    'VistaPreviaPapel',
+  ]
+  for (const nombre of puentes) {
+    const puente = readFileSync(join(RAIZ, 'components/shared', `${nombre}.jsx`), 'utf8')
+    assert.match(puente, new RegExp(`${nombre} as default`), `${nombre} delega en la biblioteca`)
+    assert.ok(!/function |=>/.test(puente.replace(/\/\/[^\n]*/g, '')), `${nombre}: el puente no implementa nada`)
+  }
+})
+
+test('los objetos de Configuración (#253) están publicados en la biblioteca', () => {
+  const indice = readFileSync(LIB_INDEX, 'utf8')
+  for (const objeto of ['TarjetaAjuste', 'PanelDerecho', 'Subtabs', 'PageHeader', 'SeccionColapsable', 'Eyebrow']) {
+    assert.ok(indice.includes(objeto), `owncoding-ui debe publicar ${objeto} para la pantalla de Configuración`)
+  }
+  // La tarjeta de ajuste cubre el encabezado y el tono de archivar/eliminar.
+  const tarjeta = readFileSync(join(LIB_COMPONENTES, 'TarjetaAjuste.jsx'), 'utf8')
+  assert.match(tarjeta, /tono = 'normal'/, 'el default de la tarjeta no cambia')
+  assert.match(tarjeta, /peligro && 'border-bad\/30'/, 'el tono peligro viene en el objeto')
+})
