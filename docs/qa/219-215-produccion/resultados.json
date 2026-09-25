@@ -1,0 +1,68 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "1.0.172",
+  "fecha": "2026-09-25T20:02:36.452Z",
+  "metodo": "Playwright headless (chromium) sobre la demo pública de producción",
+  "serialTransito": "AUR0024000000000",
+  "serialChecklist": "AUR0001000000000",
+  "pasos": [
+    {
+      "paso": "entrada a la demo como dueño",
+      "estado": "ok",
+      "detalle": "versión 1.0.172",
+      "capturas": [
+        "01-acceso-demo.jpg"
+      ]
+    },
+    {
+      "paso": "tránsito: la unidad en tránsito abre su recepción",
+      "estado": "ok",
+      "detalle": "unidad AUR0024000000000 en tránsito · recepción con depósito (1) y reimpresión",
+      "capturas": [
+        "02-transito-listado.jpg",
+        "03-recepcion-transito.jpg"
+      ]
+    },
+    {
+      "paso": "recepción confirmada: la unidad sale del tránsito",
+      "estado": "ok",
+      "detalle": "aviso de recepción visible · AUR0024000000000 ya no está en la lista de tránsito",
+      "capturas": [
+        "04-recepcion-confirmada.jpg",
+        "05-transito-sin-la-unidad.jpg"
+      ]
+    },
+    {
+      "paso": "checklist: se marca, guarda y calcula grado/puntaje",
+      "estado": "ok",
+      "detalle": "checklist de AUR0001000000000 · Grado B · oficial · 2 de 10 con resultado",
+      "capturas": [
+        "06-checklist-guardado.jpg"
+      ]
+    },
+    {
+      "paso": "checklist: persiste al cerrar y reabrir la ficha",
+      "estado": "ok",
+      "detalle": "Grado B · oficial · repuestos no-OEM persistidos",
+      "capturas": [
+        "07-checklist-persistido.jpg"
+      ]
+    },
+    {
+      "paso": "verificación funcional: un usuario demo firma la unidad",
+      "estado": "ok",
+      "detalle": "firma demo registrada (venía sin verificar)",
+      "capturas": [
+        "08-verificacion-firmada.jpg"
+      ]
+    }
+  ],
+  "erroresConsola": [],
+  "hallazgos": [],
+  "veredicto": {
+    "pasosOk": 6,
+    "pasosTotal": 6,
+    "hallazgos": 0,
+    "erroresConsola": 0
+  }
+}
