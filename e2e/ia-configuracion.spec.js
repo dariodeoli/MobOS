@@ -78,7 +78,7 @@ test('Mi perfil se abre desde el avatar; Precios queda con una sola entrada', as
   await page.goto('/configuracion/mi-cuenta')
   await page.getByTestId('shell-mi-perfil').click()
   await expect(page).toHaveURL(/\/mi-perfil$/)
-  await expect(page.getByRole('heading', { name: 'Tu nombre de vendedor' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Tu perfil' })).toBeVisible()
   await capturar(page, 'mi-perfil')
 
   await page.goto('/configuracion/identidad')

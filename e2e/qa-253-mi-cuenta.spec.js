@@ -1,7 +1,8 @@
 // #253 → Mi cuenta: la superficie personal de cualquier rol (perfil/foto,
 // nombre y correo, preferencias del dispositivo y sesiones propias), accesible
-// desde el avatar. El dueño la ve además como pestaña de Configuración; el
-// resto del equipo entra a /mi-cuenta (sin permisos de administración).
+// desde el avatar (`/mi-perfil`, ruta del lead PLT). El dueño la ve además
+// como pestaña de Configuración (IA de 7 grupos); el resto del equipo entra
+// directo, sin permisos de administración.
 import { test, expect } from '@playwright/test'
 
 const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/QA-253-mi-cuenta'
@@ -10,8 +11,8 @@ test('el dueño abre Mi cuenta desde el avatar y ve perfil, preferencias y sesio
   test.skip(test.info().project.name !== 'admin', 'Flujo del dueño.')
 
   await page.goto('/clientes')
-  await page.getByTestId('shell-mi-cuenta').click()
-  await expect(page).toHaveURL(/\/configuracion\/mi-cuenta/)
+  await page.getByTestId('shell-mi-perfil').click()
+  await expect(page).toHaveURL(/\/mi-perfil$/)
 
   await expect(page.getByTestId('mi-cuenta-perfil')).toBeVisible({ timeout: 20000 })
   await expect(page.getByTestId('mi-cuenta-perfil').getByText('Correo de la cuenta')).toBeVisible()
@@ -31,9 +32,12 @@ test('el dueño abre Mi cuenta desde el avatar y ve perfil, preferencias y sesio
   await expect(sesiones.getByText('Sesión actual')).toBeVisible()
   await page.screenshot({ path: `${SHOTS}/02-despues-mi-cuenta.png`, fullPage: true })
 
-  // Deep link personal: para el dueño canoniza a su pestaña de Configuración.
-  await page.goto('/mi-cuenta')
-  await expect(page).toHaveURL(/\/configuracion\/mi-cuenta/)
+  // La pestaña del dueño en Configuración muestra el mismo contenido y la
+  // ruta vieja de identidad cae en el perfil personal.
+  await page.goto('/configuracion/mi-cuenta')
+  await expect(page.getByTestId('mi-cuenta-perfil')).toBeVisible()
+  await page.goto('/configuracion/identidad')
+  await expect(page).toHaveURL(/\/mi-perfil$/)
   await expect(page.getByTestId('mi-cuenta-perfil')).toBeVisible()
 })
 
@@ -41,8 +45,8 @@ test('el vendedor entra a su perfil personal desde el avatar', async ({ page }) 
   test.skip(test.info().project.name !== 'seller', 'Flujo del vendedor.')
 
   await page.goto('/clientes')
-  await page.getByTestId('shell-mi-cuenta').click()
-  await expect(page).toHaveURL(/\/mi-cuenta$/)
+  await page.getByTestId('shell-mi-perfil').click()
+  await expect(page).toHaveURL(/\/mi-perfil$/)
 
   const perfil = page.getByTestId('mi-cuenta-perfil')
   await expect(perfil).toBeVisible({ timeout: 20000 })
@@ -67,7 +71,7 @@ test('demo: Mi cuenta se arma con los datos de la pestaña', async ({ browser })
   const cerrarGuia = page.getByRole('button', { name: 'Cerrar', exact: true })
   if (await cerrarGuia.count()) await cerrarGuia.first().click().catch(() => {})
   await page.waitForTimeout(300)
-  await page.getByTestId('shell-mi-cuenta').click()
+  await page.getByTestId('shell-mi-perfil').click()
   await expect(page.getByTestId('mi-cuenta-perfil')).toBeVisible({ timeout: 20000 })
   await expect(page.getByTestId('mi-cuenta-perfil').getByText('Hernán Acosta')).toBeVisible()
   await expect(page.getByTestId('mi-cuenta-sesiones').getByText('Sesión actual')).toBeVisible()
@@ -82,7 +86,7 @@ test('mobile: Mi cuenta entra desde el menú lateral', async ({ browser }) => {
 
   await page.goto('/clientes')
   await page.getByRole('button', { name: 'Menú' }).first().click()
-  await page.getByRole('dialog').getByTestId('shell-mi-cuenta').click()
+  await page.getByRole('dialog').getByTestId('shell-mi-perfil').click()
   await expect(page.getByTestId('mi-cuenta-perfil')).toBeVisible({ timeout: 20000 })
   await page.screenshot({ path: `${SHOTS}/04-mobile-mi-cuenta.png`, fullPage: true })
   await contexto.close()

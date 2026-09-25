@@ -25,7 +25,7 @@ del dueño» aunque lo estuviera viendo otra persona.
 | `src/components/cuenta/MiCuenta.jsx` (nuevo) | Superficie personal: **perfil** (foto subida → Google → iniciales, nombre editable, correo e ID con copiar), **preferencias del dispositivo** (bloqueo por inactividad y notificaciones) y **sesiones personales** (sesión actual marcada, revocar, «cerrar las demás») |
 | `src/components/control/Config.jsx` | Se retiran `MiIdentidad` y el bloque `mi-cuenta`: la persona ya no vive en Configuración (sí queda la pestaña para el dueño, que reutiliza el mismo componente) |
 | `src/components/app/AppShell.jsx` | Botón **Mi cuenta** junto al avatar de la barra (y en el menú lateral de mobile), visible para todos los roles |
-| `src/pages/PanelVendedor.jsx` · `src/App.jsx` · `src/lib/rutas.js` | Vista personal `/mi-cuenta` para cualquier rol; el dueño canoniza a su pestaña de Configuración y las rutas viejas siguen redirigiendo |
+| `src/pages/PanelVendedor.jsx` | La vista personal `/mi-perfil` (ruta y entrada del avatar del lead PLT) renderiza el componente nuevo en lugar de la identidad vieja; la pestaña «Mi cuenta» de Configuración reutiliza el mismo componente |
 
 ## Decisiones (documentadas)
 
@@ -33,7 +33,7 @@ del dueño» aunque lo estuviera viendo otra persona.
   preferencias y sesiones); los datos de la tienda, el equipo y las sesiones del
   resto siguen en Configuración → Seguridad y auditoría (solo dueño).
 - **El dueño no pierde su lugar:** la IA de siete grupos conserva «Mi cuenta»;
-  el resto del equipo entra por `/mi-cuenta`, que no pide permisos.
+  el resto del equipo entra por `/mi-perfil`, que no pide permisos.
 - **Preferencias por navegador:** el bloqueo por inactividad y las
   notificaciones se guardan por persona y dispositivo (no viajan a la empresa).
 - **Sesiones con reglas claras:** la sesión actual no se revoca desde acá (se
@@ -42,6 +42,11 @@ del dueño» aunque lo estuviera viendo otra persona.
   administración; el correo se muestra (se gestiona desde Equipo y acceso).
 - **Demo funcional:** la cuenta demo se arma en la pestaña (nombre, correo,
   foto y una sesión local) sin llamar al API.
+- **Integración con el lead (PLT):** el shell y la ruta `/mi-perfil` son del
+  lead; esta rama se rebasó sobre `slot/plataforma` y reemplaza la identidad
+  por la superficie completa (perfil + preferencias + sesiones), sin duplicar
+  la entrada del avatar ni la vista. La pestaña «Mi cuenta» de Configuración
+  reutiliza el mismo componente.
 
 ## Verificación
 
@@ -60,7 +65,7 @@ MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh
 |---|---|
 | `docs/QA-253-mi-cuenta/01-antes-produccion.png` | **Antes** (producción v1.0.172): Mi cuenta dentro de Configuración, solo dueño, con «Correo del dueño» y sesiones vacías en la demo |
 | `docs/QA-253-mi-cuenta/02-despues-mi-cuenta.png` | **Después** (dueño): perfil, preferencias y sesiones personales en una sola superficie |
-| `docs/QA-253-mi-cuenta/03-vendedor-mi-cuenta.png` | **Después** (vendedor): la misma cuenta personal en `/mi-cuenta` desde el avatar |
+| `docs/QA-253-mi-cuenta/03-vendedor-mi-cuenta.png` | **Después** (vendedor): la misma cuenta personal en `/mi-perfil` desde el avatar |
 | `docs/QA-253-mi-cuenta/04-mobile-mi-cuenta.png` | Mobile: se entra desde el menú lateral |
 | `docs/QA-253-mi-cuenta/05-demo-mi-cuenta.png` | Demo: la cuenta se arma con los datos de la pestaña (Hernán Acosta, sesión local) |
 | `e2e/qa-253-mi-cuenta.spec.js` | 4/4: dueño (avatar, preferencias persistentes, sesión actual), vendedor, demo y mobile |
@@ -71,6 +76,7 @@ MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh
 
 `npm run lint` 0 errores (2 warnings preexistentes, ajenos) · `npm run build` y
 `backend run build` con `BUILD_ID` ✓ · `prisma:validate` ✓ (sin cambios de
-schema) · `npm test` **751 ✓** · backend `test:unit` **75 ✓** · integración HTTP
+schema) · `npm test` **752 ✓** · backend `test:unit` **75 ✓** · integración HTTP
 completa en verde · `e2e/qa-253-mi-cuenta.spec.js` **4/4** ·
-`test:e2e:smoke` **19/19** · sin marcadores de conflicto.
+`test:e2e:smoke` **19/19** · lote e2e de Configuración y portal (19 verdes con
+las specs de la sección) · sin marcadores de conflicto.
