@@ -38,6 +38,24 @@ async function cuentaUsd(page) {
   }, { api: API })
 }
 
+// Elige la cuenta del combobox de una fila: abre, espera la lista del propio
+// combobox (`aria-controls`, para no cruzar opciones con otra fila), filtra
+// escribiendo y elige la opción. Reintenta hasta ver el efecto: bajo carga el
+// primer clic puede perderse en el fetch de cuentas o en un re-render de la fila.
+async function elegirCuenta(page, fila, nombre, verificar) {
+  const combo = fila.getByLabel('Cuenta de cobro')
+  await expect(async () => {
+    await combo.click()
+    await expect(combo).toHaveAttribute('aria-expanded', 'true')
+    await combo.fill(nombre)
+    const listaId = await combo.getAttribute('aria-controls')
+    const opcion = page.locator(`[id="${listaId}"]`).getByRole('option', { name: new RegExp(nombre) })
+    await expect(opcion).toBeVisible({ timeout: 3_000 })
+    await opcion.click()
+    await verificar()
+  }).toPass({ timeout: 20_000 })
+}
+
 async function armarCobro(page, sufijo) {
   await page.goto('/pos')
   // La lista de cuentas del POS se hidrata al montar: la cuenta USD se crea
@@ -55,18 +73,20 @@ async function armarCobro(page, sufijo) {
   const pagos = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
   const filaUno = pagos.getByTestId('pago-fila-0')
-  await filaUno.getByLabel('Cuenta de cobro').click()
-  await page.getByRole('option', { name: /Caja E2E/ }).first().click()
+  await elegirCuenta(page, filaUno, 'Caja E2E', () => expect(filaUno.getByLabel('Cuenta de cobro')).toHaveValue(/Caja E2E/))
   await filaUno.getByLabel('Monto original').fill('25000')
   await page.getByRole('button', { name: /^Dividir saldo/ }).click()
   const filaDos = pagos.getByTestId('pago-fila-1')
-  await filaDos.getByLabel('Cuenta de cobro').click()
-  await page.getByRole('option', { name: new RegExp(usd) }).first().click()
-  await expect(filaDos.getByLabel(/^Cotización/)).toBeVisible()
+  await elegirCuenta(page, filaDos, usd, () => expect(filaDos.getByLabel(/^Cotización/)).toBeVisible())
   await filaDos.getByLabel(/^Cotización/).fill('5500')
   await filaDos.getByLabel('Monto original').fill('10')
-  await filaDos.getByRole('button', { name: 'Pagado' }).click()
-  await expect(filaDos.getByRole('button', { name: 'No pagado' })).toBeVisible()
+  // El chip pasa a «No pagado» (idempotente: si el clic se pierde en un
+  // re-render, reintenta sin volver a togglear).
+  await expect(async () => {
+    const chip = filaDos.getByRole('button', { name: 'Pagado' })
+    if (await chip.count()) await chip.click()
+    await expect(filaDos.getByRole('button', { name: 'No pagado' })).toBeVisible({ timeout: 3_000 })
+  }).toPass({ timeout: 20_000 })
   await page.getByTestId('pos-cobro').scrollIntoViewIfNeeded()
 }
 
@@ -110,9 +130,13 @@ for (const [vista, ancho, alto] of [['desktop', 1280, 900], ['mobile', 390, 844]
         const cobroCompleto = await auditarContraste(page, RAICES_POS, RAICES_MODAL)
         informar(`pos-${sufijo}-cobro-completo`, cobroCompleto)
         if (v2) expect(cobroCompleto.bajos, `AA del pago completo v2 (${tema} ${vista})`).toEqual([])
-        // Vuelve a «No pagado» para el resto del QA (chips y modales).
-        const filaDosChipVuelta = page.getByTestId('pago-fila-1').getByRole('button', { name: 'Pagado' })
-        if (await filaDosChipVuelta.count()) await filaDosChipVuelta.click()
+        // Vuelve a «No pagado» para el resto del QA (chips y modales); mismo
+        // reintento idempotente hasta ver el chip en su estado.
+        await expect(async () => {
+          const chip = page.getByTestId('pago-fila-1').getByRole('button', { name: 'Pagado' })
+          if (await chip.count()) await chip.click()
+          await expect(page.getByTestId('pago-fila-1').getByRole('button', { name: 'No pagado' })).toBeVisible({ timeout: 3_000 })
+        }).toPass({ timeout: 20_000 })
 
         // Confirmación compartida (ConfirmDialog al eliminar una línea con
         // descuento): se informa su contraste, no se exige (el botón y el modal

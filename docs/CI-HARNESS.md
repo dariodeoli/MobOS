@@ -115,6 +115,22 @@ por spec: lo prohíbe la guarda de `src/lib/ciHarness.test.js`).
   trabajo en el agente). Los specs reintentan el click con `toPass` y esperan el
   **efecto real** (navegación, aviso o trabajo capturado por el agente falso),
   no solo que el click no tire error.
+- **Combobox de cuentas del POS (#241 paso 5):** la opción se elige abriendo el
+  combobox propio y esperando su lista (`aria-controls`), filtrando por nombre y
+  con `toPass` hasta ver el efecto (el campo queda con la cuenta o aparece la
+  cotización). El `.first()` global podía caer en la lista de otra fila o en una
+  cerrada (roja .160: la cuenta USD no existía todavía al hidratar el POS).
+- **Chips «Pagado / No pagado» del cobro (#241 paso 5):** el toggle se reintenta
+  **sin volver a togglear** (`if (await chip.count()) click`) hasta ver el
+  efecto: el chip cambia de estado y el botón principal pasa a «Confirmar venta»
+  (con el cobro parcial dice «Crear pedido»). Un clic perdido bajo carga dejaba
+  la venta parcial y el spec buscaba un botón inexistente (roja .161; el mismo
+  criterio en el armado del cobro y en la vuelta a «No pagado»).
+- **Ficha de la unidad desde la fila (mobile, #249):** el táctil se abre tocando
+  el ícono de categoría (blanco fijo dentro de la primera columna; el clic
+  burbujea al `onClick` de la fila) y se esperan el diálogo y el checklist; la
+  selección va por la etiqueta de la casilla (44 px) y se exige que el nombre
+  del modelo no colapse (roja .160: el `b` de la fila quedaba no visible).
 - **Fixtures con fecha fija:** un test que compara contra un "ahora" congelado
   (`AHORA`) mientras el productor arma las fechas con el ahora real **envejece**
   y falla horas después (caso `portalAvisos.test.js`, release .156: el aviso
@@ -199,6 +215,9 @@ racha:
 | .155 Backend (typecheck) | `supply.test.ts` no cubría el `null` de `compararModelo()` | `d4ccd478` |
 | .156 Frontend (unit) | `portalAvisos.test.js` evaluaba con un "ahora" fijo que envejecía | `8d106814` |
 | .157 Integration | el test del manifiesto (F4) pedía `/api/public/supply/shipments/:token` antes de que la ruta existiera en esa release (404 HTML → JSON inválido) | `c339047d` |
+| .159 Frontend (unit) | la guarda de shards listaba specs sin `global-setup` y `dsn-241-dominios.spec.js` leía `seed-order.json` al importar | `960c102a` |
+| .160 E2E shard 3 (`pos-241-v2`, `qa-249-inventario-touch`) | combobox de cuentas sin la cuenta USD (fetch en vuelo) y `b` de la fila no visible en mobile | `2d680040` |
+| .161 E2E shard 3 (`pos-241-v2`) | clic perdido en el chip «No pagado»: la venta quedaba parcial y faltaba «Confirmar venta» | `1096ae41` (POS) + combobox determinista y vuelta del chip acá (§5) |
 
 Evidencia mínima del cierre:
 
@@ -208,7 +227,8 @@ Evidencia mínima del cierre:
    spec, `e2e/` sin `.skip(`/`.fixme(` y `retries: 0`; lo exige
    `src/lib/ciHarness.test.js`.
 3. **Local:** los specs de la noche 23/09, 5/5 vueltas aisladas sin reintentos;
-   ronda completa de los 3 shards en verde; `npm test` en verde.
+   ronda completa de los 3 shards en verde; **la suite completa, 3 veces seguidas**
+   (350 tests con `MOBOS_E2E_WORKERS=3`, 0 flaky); `npm test` en verde.
 4. **#247 en producción:** entry 1104 → 169 KB (medido en v1.0.154) —
    `docs/qa/247-performance/`.
 
