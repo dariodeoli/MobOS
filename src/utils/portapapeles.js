@@ -36,3 +36,12 @@ function copiaDeRespaldo(entorno, valor) {
     return false
   }
 }
+
+// Copia y avisa con el toast de la pantalla: el patrón que repetían Config y
+// otros listados (éxito con la etiqueta o error pidiendo copiar a mano).
+export async function copiarValor(toast, valor, etiqueta) {
+  if (!valor) return
+  const copiado = await copiarAlPortapapeles(valor)
+  if (copiado) toast.success('Copiado', `${etiqueta} quedó en el portapapeles.`)
+  else toast.error('No se pudo copiar', 'Seleccioná el valor y copialo manualmente.')
+}
