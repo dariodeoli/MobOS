@@ -11,6 +11,15 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.162 — 2026-09-24
+- **Ficha del equipo (#240):** muestra el **grado oficial**, el **checklist persistido** y los **locks reales** del dispositivo en un solo lugar.
+- **Tablero operativo (#241 paso 3):** estrena los **patrones v2** y lee los **locks reales**; el **taller alterna** entre vista y acciones.
+- **Finanzas (#241 lote D):** **Cuentas** con tiles y números estilo consola.
+- **Clientes (#241 lote B):** tokens v2 aplicados a la lista, el popup y el detalle.
+- **Impresos (#241 lote H):** los documentos impresos (remitos, etiquetas y comprobantes) adoptan el lenguaje v2.
+- **Estabilidad (#245):** táctil de inventario estabilizado (lote que alterna la selección y abre la ficha por el ícono de categoría) y guardián de specs al día.
+- **Componentes:** **lote 28** — objetos para los lotes A/C/E/F/G del rediseño (biblioteca **v0.22.0**).
+
 ## v1.0.161 — 2026-09-24
 - **Estabilidad de la suite (sin cambios de producto):** se corrigieron tres causas raíz de rojos de CI — la **cuenta USD del POS** se crea antes de que el POS hidrate sus listas, la **ficha de inventario** se abre clickeando la fila (el texto interno podía quedar inestable) y el **listado de specs** no depende del seed del arnés. Mismo producto que la v1.0.160 (v2 por defecto).
 
