@@ -106,6 +106,21 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     _sum: { amountPyg: true },
   })
 
+  // Cotizaciones (#240 → portal): las propuestas que la tienda ya compartió,
+  // con su validez y el enlace público para aceptarlas. El borrador (DRAFT) es
+  // interno y nunca viaja; sin token público no hay nada que abrir.
+  const cotizaciones = await prisma.quote.findMany({
+    where: {
+      tenantId: portal.tenantId,
+      customerId: portal.customerId,
+      status: { not: 'DRAFT' },
+      publicToken: { not: null },
+    },
+    select: { number: true, status: true, totalPyg: true, createdAt: true, validUntil: true, publicToken: true },
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+  })
+
   const [orders, saldo, dueOrders, warrantyRows, saldoFavor] = await Promise.all([
     prisma.order.findMany({
       where: { tenantId: portal.tenantId, customerId: portal.customerId, archivedAt: null },
@@ -227,6 +242,8 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
       orderNumber: order.orderNumber,
     })),
     totalPagadoPyg: Number(totalPagado._sum.amountPyg || 0),
+    // Cotizaciones: número, monto, validez y enlace público; la más nueva primero.
+    cotizaciones,
     orders: orders.map(order => {
       // #178: el pedido nuevo no guarda su token histórico en claro; el enlace
       // del comprobante sale del enlace vigente de nivel rápido (o del legacy).

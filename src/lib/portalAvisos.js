@@ -5,12 +5,14 @@
 import { codigoPedido } from '../utils/pedido.js'
 import { formatGs } from '../utils/moneda.js'
 import { fechaDia } from '../utils/fecha.js'
+import { diasParaVencer, estadoCotizacion } from './cotizaciones.js'
 
 const DIA = 86400000
 // Prioridad de los avisos: primero lo urgente y accionable.
-const ORDEN = { pago_vencido: 0, reserva_por_vencer: 1, listo_para_retirar: 2, pago_por_vencer: 3, pedido_en_camino: 4, garantia_por_vencer: 5 }
+const ORDEN = { pago_vencido: 0, reserva_por_vencer: 1, listo_para_retirar: 2, pago_por_vencer: 3, cotizacion_por_vencer: 4, pedido_en_camino: 5, garantia_por_vencer: 6 }
 const DIAS_PAGO_POR_VENCER = 7
 const DIAS_GARANTIA_POR_VENCER = 30
+const DIAS_COTIZACION_POR_VENCER = 3
 const MAX_AVISOS = 5
 
 export function avisosDeCuenta(cuenta, ahora = Date.now()) {
@@ -45,6 +47,24 @@ export function avisosDeCuenta(cuenta, ahora = Date.now()) {
         destino: '#vencimientos',
       })
     }
+  }
+
+  // Cotizaciones: las vigentes que están por vencer (se aceptan desde el
+  // enlace). Las vencidas no avisan: ya no hay nada que hacer con ellas.
+  for (const cotizacion of cuenta.cotizaciones || []) {
+    if (estadoCotizacion(cotizacion, ahora) !== 'SENT') continue
+    const dias = diasParaVencer(cotizacion, ahora)
+    if (dias === null || dias > DIAS_COTIZACION_POR_VENCER) continue
+    const numero = cotizacion.number || 'tu cotización'
+    avisos.push({
+      id: `cotizacion-${numero}`,
+      tipo: 'cotizacion_por_vencer',
+      tono: 'warn',
+      icono: 'tag',
+      titulo: dias <= 0 ? `Tu cotización ${numero} vence hoy` : `Tu cotización ${numero} vence en ${dias} día${dias === 1 ? '' : 's'}`,
+      detalle: `${formatGs(cotizacion.totalPyg)} · abrila para aceptarla`,
+      destino: '#cotizaciones',
+    })
   }
 
   // Taller: el equipo ya se puede retirar.
