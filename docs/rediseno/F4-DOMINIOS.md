@@ -212,6 +212,17 @@ Garantías en claro/oscuro × desktop/mobile con el flag apagado y prendido,
 `c241f4e-{servicio,todo,garantias}-{antes,despues}-{claro,oscuro}-{desktop,mobile}.png`.
 Detalle: `docs/QA-241-servicio-lote-e.md`.
 
+## Servicio y Garantías: tablero por etapas (#215/#241)
+
+El dominio suma la vista **Tablero** (pestaña en la pantalla unificada): una
+columna por etapa existente —las 8 del taller y las 4 de garantías—, con
+contador, tarjetas de cliente/equipo/IMEI y avance de etapa desde la tarjeta.
+Filtros por tipo y búsqueda; mobile apilado (sin scroll horizontal) y desktop
+con desplazamiento contenido. El avance sale de una fuente única
+(`SIGUIENTE_SERVICIO` y `SIGUIENTE_GARANTIA`), la misma que usa la tabla.
+QA **6/6** con AA y capturas `c241f4f-tablero-*`; detalle en
+`docs/QA-215-tablero-etapas.md`.
+
 ## Medición
 
 `e2e/dsn-241-dominios.spec.js` recorre las **diecisiete pantallas** con el flag
