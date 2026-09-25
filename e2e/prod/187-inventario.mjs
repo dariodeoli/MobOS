@@ -95,18 +95,21 @@ await paso('entrada a la demo como dueño', async (shot) => {
   return `versión ${resultado.version || '?'} · perfiles demo visibles: ${/Vendedor/.test(textoEntrada) && /Dueño/.test(textoEntrada)}`
 })
 
-await paso('inventario: listado compacto con modelo/variante, ubicación corta y costo', async (shot) => {
+await paso('inventario: listado compacto de una línea, sin variante duplicada y con costo', async (shot) => {
   await irA('/inventario/unidades')
-  const texto = await page.locator('body').innerText()
-  for (const columna of ['PRODUCTO', 'MODELO / VARIANTE', 'PROVEEDOR', 'COSTO', 'UBI', 'ESTADO', 'VERIFICADO', 'ACCIONES']) {
+  const texto = (await page.locator('body').innerText()).toUpperCase()
+  for (const columna of ['PRODUCTO', 'PROVEEDOR', 'COSTO', 'UBICACIÓN', 'ESTADO', 'VERIFICADO', 'ACCIONES']) {
     if (!texto.includes(columna)) throw new Error(`falta la columna ${columna}`)
   }
+  if (texto.includes('MODELO / VARIANTE')) throw new Error('la tabla todavía repite la variante en su propia columna')
   const filas = page.getByTestId('inventario-fila')
   if (!(await filas.count())) throw new Error('la lista no muestra unidades')
   const primera = (await filas.first().innerText()).replace(/\s+/g, ' ')
   if (!/AUR\d{4}/.test(primera)) throw new Error('la fila no muestra el IMEI de la unidad')
+  const alto = (await filas.evaluateAll((nodos) => nodos.slice(0, 8).map((nodo) => Math.round(nodo.getBoundingClientRect().height)))).reduce((a, b) => Math.max(a, b), 0)
+  if (alto > 52) throw new Error(`la fila mide ${alto} px: dejó de ser de una línea`)
   await shot('inventario-listado')
-  return `${await filas.count()} filas con las 8 columnas · primera: ${primera.slice(0, 90)}`
+  return `${await filas.count()} filas de ≤${alto} px con las 7 columnas · primera: ${primera.slice(0, 90)}`
 })
 
 await paso('inventario: búsqueda por IMEI y orden por modelo', async (shot) => {
@@ -152,17 +155,19 @@ await paso('carga rápida con costo diferido (USD/Gs) y proveedor', async (shot)
   await modal.waitFor({ state: 'visible', timeout: 10000 })
   await esperar(800)
   await shot('carga-rapida-form')
-  for (const campo of ['Modelo', 'IMEI o serial', 'Sucursal', 'Ubicación', 'Condición', 'Batería', 'Proveedor', 'Moneda del costo', 'Monto del costo']) {
+  for (const campo of ['IMEI o serial', 'Sucursal', 'Ubicación', 'Condición', 'Batería', 'Proveedor', 'Moneda del costo', 'Monto del costo']) {
     const control = modal.getByLabel(campo)
     if (!(await control.count())) throw new Error(`falta el campo ${campo}`)
   }
   const texto = (await modal.innerText()).replace(/\s+/g, ' ')
   if (!/Costo \(opcional\)|completalo después|Costo/.test(texto)) throw new Error('no se ve el bloque de costo diferido')
 
-  // Se carga una unidad de prueba en el demo (queda simulada en el navegador).
-  const opciones = modal.getByLabel('Modelo').locator('option')
-  const modelo = await opciones.nth(1).getAttribute('value')
-  await modal.getByLabel('Modelo').selectOption(modelo)
+  // #250: el modelo se elige con el buscador dependiente (nombre/SKU → capacidad
+  // → color), no con un `<select>`: se escribe y se toma la sugerencia.
+  const combo = modal.getByRole('combobox').first()
+  if (!(await combo.count())) throw new Error('falta el buscador de Modelo')
+  await combo.fill('iPhone 12')
+  await modal.getByRole('option').first().click()
   await modal.getByLabel('IMEI o serial').fill(`QA187-${Date.now()}`)
   const moneda = modal.getByLabel('Moneda del costo')
   const opcionesMoneda = await moneda.locator('option').evaluateAll((nodos) => nodos.map((nodo) => nodo.value))
