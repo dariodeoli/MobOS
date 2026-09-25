@@ -85,7 +85,7 @@ test('el portapapeles sale del objeto compartido', () => {
   assert.match(helper, /execCommand\('copy'\)/, 'el helper conserva el respaldo sin Clipboard API')
   // Las pantallas migradas lo importan en vez de copiar el bloque try/catch.
   for (const ruta of ['components/control/Config.jsx', 'components/control/Inventario.jsx', 'components/ventas/SellerQuotes.jsx']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /import \{ copiarAlPortapapeles \} from '@\/utils\/portapapeles'/, `${ruta}: falta el objeto de portapapeles`)
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /import \{[^}]*copiarAlPortapapeles[^}]*\} from '@\/utils\/portapapeles'/, `${ruta}: falta el objeto de portapapeles`)
   }
 })
 

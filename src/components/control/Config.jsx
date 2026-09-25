@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import Switch from '@/components/shared/Switch'
@@ -9,11 +8,11 @@ import { getLogoDataUrl, olvidarLogo } from '@/lib/tenantLogo'
 import { getAvatarDataUrl, olvidarAvatar } from '@/lib/userAvatar'
 import { getDemoTenant, setDemoInsurancePct, setDemoLimits, setDemoNumeracion } from '@/lib/demoTenant'
 import { promptLogo } from '@/lib/logoPrompt'
-import { getCompanyContext, sessionApi } from '@/lib/api/session'
+import { sessionApi } from '@/lib/api/session'
 import { deviceId } from '@/lib/deviceId'
 import { comprimirImagen } from '@/utils/imagen'
 import { fechaHora as fmtDate } from '@/utils/fecha'
-import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, Eyebrow, FormField, Input, Label, Modal, MoneyInput, PasswordInput, PinInput, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, Eyebrow, FormField, Input, Modal, MoneyInput, PasswordInput, PinInput, useToast } from '@/components/ui'
 import { formatGs } from '@/utils/moneda'
 import Icon from '@/components/shared/Icon'
 import EmailField from '@/components/shared/EmailField'
@@ -21,18 +20,18 @@ import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
 import RucField from '@/components/shared/RucField'
 import PercentField from '@/components/shared/PercentField'
-import InstagramField, { normalizarInstagram } from '@/components/shared/InstagramField'
 import PanelDerecho from '@/components/shared/PanelDerecho'
 import { PreferenciasContenido } from '@/components/app/Preferencias'
 import Avatar from '@/components/shared/Avatar'
 import UsoEquipo from '@/components/control/UsoEquipo'
 import DatosPrivados from '@/components/control/DatosPrivados'
 import { ROLE_LABELS } from '@/lib/roles'
-import { copiarAlPortapapeles } from '@/utils/portapapeles'
+import { copiarAlPortapapeles, copiarValor } from '@/utils/portapapeles'
+import TiendasSucursales from '@/components/config/TiendasSucursales'
+import DialogoDestructivo from '@/components/config/DialogoDestructivo'
 import { descargarArchivo } from '@/utils/descargarArchivo'
-import { CELDA_DATO } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
-import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES, PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
+import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 import { temaV2Activo } from '@/lib/temaV2'
 import { validarEnteroNoNegativo, validarPorcentajeDecimal, validarPorcentajeEntero } from '@/utils/limitesEmpresa'
 import { mensajeDeGuardado } from '@/utils/guardadoCuenta'
@@ -69,15 +68,6 @@ function ConfirmarLogo({ item, busy, onCancel, onConfirm }) {
     </Modal>
   )
 }
-
-async function copiarValor(toast, valor, etiqueta) {
-  if (!valor) return
-  const copiado = await copiarAlPortapapeles(valor)
-  if (copiado) toast.success('Copiado', `${etiqueta} quedó en el portapapeles.`)
-  else toast.error('No se pudo copiar', 'Seleccioná el valor y copialo manualmente.')
-}
-
-
 
 // El backend numera con MOB cuando la empresa no configuró prefijo
 // (`backend/lib/order-number.ts`): la pantalla muestra y edita el prefijo
@@ -348,24 +338,6 @@ export default function Config({ seccion = 'organizacion', preferencias, onCambi
       {failure && <Aviso tono="error" className="p-3 rounded-xl">{failure}</Aviso>}{notice && <Aviso tono="ok" className="p-3 rounded-xl">{notice}</Aviso>}
       {seccion === 'organizacion' && <>
         <IdentidadCuenta tenant={account?.tenant} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} onGuardado={(cambios) => setAccount(current => current ? { ...current, tenant: { ...current.tenant, ...cambios } } : current)} />
-        <Card className="space-y-3">
-          <div>
-            <h2 className="font-semibold">Identificador de pedidos</h2>
-            <p className="mt-1 text-sm text-mute">Formato visible de los pedidos: prefijo de 2 o 3 letras y número inicial. Ejemplo: <b className="text-fore">{prefijo || 'MOB'} #{inicio || '310840'}</b>.</p>
-            <p className="mt-1 text-xs text-mute">Ahora está configurado así: <b className="text-fono-light tabular-nums">{prefijoEfectivo(account?.tenant?.orderPrefix)}-#{String(account?.tenant?.orderNextNumber || 1).padStart(4, '0')}</b> (el próximo pedido sale con ese número; el prefijo solo admite 2 o 3 letras, así que el <b className="text-fore">#</b> no puede duplicarse).</p>
-          </div>
-          <form onSubmit={guardarNumeracion} className="space-y-3" data-testid="numeracion-form">
-            <div className="flex flex-wrap items-end gap-2">
-              <label className="block w-24 space-y-1 text-xs text-mute"><span>Prefijo</span><Input aria-label="Prefijo de pedidos" maxLength={3} disabled={busy} value={prefijo} onChange={event => setPrefijo(event.target.value.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3))} placeholder="MOB" /></label>
-              <label className="block w-32 space-y-1 text-xs text-mute"><span>Número inicial</span><Input aria-label="Número inicial de pedidos" inputMode="numeric" disabled={busy} value={inicio} onChange={event => setInicio(event.target.value.replace(/\D/g, '').slice(0, 8))} placeholder="310840" /></label>
-              <Button type="submit" disabled={busy}>Guardar numeración</Button>
-            </div>
-            <EstadoGuardado testId="numeracion-estado" estado={guardadoNumeracion.estado} />
-          </form>
-          {guardadoNumeracion.panel}
-          <p className="text-xs text-mute">Los pedidos ya creados conservan su número; los nuevos siguen esta secuencia.</p>
-        </Card>
-
         {esDueno && <Card className="space-y-3">
           <div>
             <h2 className="font-semibold">Logo de la empresa</h2>
@@ -406,8 +378,25 @@ export default function Config({ seccion = 'organizacion', preferencias, onCambi
           )}
         </Card>}
         {esDueno && <DatosPrivados />}
-        <SeccionTiendas account={account} />
-        {esDueno && <SeccionSucursales />}
+        <TiendasSucursales account={account} />
+
+        <Card className="space-y-3">
+          <div>
+            <h2 className="font-semibold">Identificador de pedidos</h2>
+            <p className="mt-1 text-sm text-mute">Formato visible de los pedidos: prefijo de 2 o 3 letras y número inicial. Ejemplo: <b className="text-fore">{prefijo || 'MOB'} #{inicio || '310840'}</b>.</p>
+            <p className="mt-1 text-xs text-mute">Ahora está configurado así: <b className="text-fono-light tabular-nums">{prefijoEfectivo(account?.tenant?.orderPrefix)}-#{String(account?.tenant?.orderNextNumber || 1).padStart(4, '0')}</b> (el próximo pedido sale con ese número; el prefijo solo admite 2 o 3 letras, así que el <b className="text-fore">#</b> no puede duplicarse).</p>
+          </div>
+          <form onSubmit={guardarNumeracion} className="space-y-3" data-testid="numeracion-form">
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="block w-24 space-y-1 text-xs text-mute"><span>Prefijo</span><Input aria-label="Prefijo de pedidos" maxLength={3} disabled={busy} value={prefijo} onChange={event => setPrefijo(event.target.value.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3))} placeholder="MOB" /></label>
+              <label className="block w-32 space-y-1 text-xs text-mute"><span>Número inicial</span><Input aria-label="Número inicial de pedidos" inputMode="numeric" disabled={busy} value={inicio} onChange={event => setInicio(event.target.value.replace(/\D/g, '').slice(0, 8))} placeholder="310840" /></label>
+              <Button type="submit" disabled={busy}>Guardar numeración</Button>
+            </div>
+            <EstadoGuardado testId="numeracion-estado" estado={guardadoNumeracion.estado} />
+          </form>
+          {guardadoNumeracion.panel}
+          <p className="text-xs text-mute">Los pedidos ya creados conservan su número; los nuevos siguen esta secuencia.</p>
+        </Card>
         <Card className="space-y-3 border-bad/30"><div><h2 className="font-semibold text-bad">Archivar empresa</h2><p className="mt-1 text-sm text-mute">No borra ventas ni historial. Cierra sesiones y bloquea el acceso hasta restaurarla con correo, contraseña y la confirmación RESTORE, durante los 30 días posteriores al archivado.</p></div><Input aria-label="Motivo de archivado" value={archiveReason} onChange={event => setArchiveReason(event.target.value)} placeholder="Motivo del archivado (mínimo 10 caracteres)" /><Button variant="outline" onClick={() => setConfirmar({ tipo: 'archivar' })} disabled={busy || archiveReason.trim().length < 10 || !account?.reauthValidUntil} className="border-bad/50 text-bad hover:bg-bad/10">Archivar empresa</Button></Card>
 
         {esDueno && <Card className="space-y-3 border-bad/30"><div><h2 className="font-semibold text-bad">Eliminar empresa definitivamente</h2><p className="mt-1 text-sm text-mute">Borra la empresa y todo su historial: ventas, clientes, pagos, stock, integrantes y auditoría. No se puede deshacer ni recuperar. Si solo querés dejar de usarla por un tiempo, usá <b className="text-fore">Archivar empresa</b>: se conserva todo y podés restaurarla.</p></div><Button variant="outline" onClick={() => { setFailure(''); setEliminarAbierto(true) }} disabled={busy || !account?.reauthValidUntil} className="border-bad/50 text-bad hover:bg-bad/10">Eliminar empresa</Button></Card>}
@@ -857,113 +846,6 @@ export function MiIdentidad() {
   )
 }
 
-function SeccionTiendas({ account }) {
-  const toast = useToast()
-  const { salir, esDemo } = useSesion()
-  const [dialogo, setDialogo] = useState(null) // 'abandonar' | 'eliminar'
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const delContexto = getCompanyContext()?.stores || []
-  const stores = Array.isArray(account?.stores) && account.stores.length ? account.stores : delContexto
-  const otras = stores.filter((store) => !store.current)
-  const hayOtra = otras.length > 0 || (stores.length > 1 && !stores.some((store) => store.current))
-
-  async function crearOtra() {
-    setError('')
-    try { await sessionApi.startGoogle(true) } catch (cause) { setError(cause?.message || 'No se pudo abrir el acceso con Google.') }
-  }
-
-  async function abandonar() {
-    if (busy) return
-    setBusy(true); setError('')
-    try {
-      await api.patch('/api/account', { action: 'leaveStore', confirm: 'ABANDONAR' })
-      setDialogo(null)
-      await salir()
-      window.location.assign('/login')
-    } catch (cause) { setError(cause?.message || 'No se pudo abandonar la tienda.') } finally { setBusy(false) }
-  }
-
-  async function archivar({ password }) {
-    if (busy) return
-    setBusy(true); setError('')
-    try {
-      // Archivar por defecto: conserva el historial y solo soporte restaura.
-      await api.patch('/api/account', { action: 'archiveStore', confirm: 'ARCHIVAR', password })
-      setDialogo(null)
-      await salir()
-      window.location.assign('/login')
-    } catch (cause) { setError(cause?.message || 'No se pudo archivar la tienda.') } finally { setBusy(false) }
-  }
-
-  // En demo no hay cuenta de Google: se explica en lugar de mostrar el error
-  // de carga (#205).
-  if (esDemo) {
-    return (
-      <Card>
-        <h2 className="font-semibold">Tiendas</h2>
-        <p className="mt-1 text-sm text-mute">Las tiendas de tu cuenta de Google se administran con una cuenta real.</p>
-      </Card>
-    )
-  }
-
-  return (
-    <Card className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="font-semibold">Tiendas</h2>
-          <p className="mt-1 text-sm text-mute">Las tiendas de las que sos dueño con esta cuenta de Google.</p>
-        </div>
-        <Button type="button" variant="outline" onClick={crearOtra}><Icon name="plus" className="h-3.5 w-3.5" />Crear otra tienda</Button>
-      </div>
-      {error && !dialogo && <Aviso tono="error">{error}</Aviso>}
-      {stores.length === 0 ? <p className="text-sm text-mute">Todavía no se pudieron cargar tus tiendas. Recargá la página para volver a intentarlo.</p> : (
-        <div className="space-y-2">
-          {stores.map((store) => (
-            <div key={store.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <b className="truncate text-sm">{store.name}</b>
-                  {store.current && <Badge color="green">Actual</Badge>}
-                </div>
-                <p className={cn('mt-1', CELDA_DATO)}>ID: {store.id}</p>
-              </div>
-              <Button type="button" variant="outline" onClick={() => copiarValor(toast, store.id, 'ID de la tienda')} disabled={!store.id}>Copiar ID</Button>
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="flex flex-wrap gap-2">
-        {hayOtra && <Button type="button" variant="outline" onClick={() => { setError(''); setDialogo('abandonar') }} disabled={busy}>Abandonar tienda</Button>}
-        <Button type="button" variant="outline" onClick={() => { setError(''); setDialogo('archivar') }} disabled={busy} className="border-bad/50 text-bad hover:bg-bad/10">Archivar tienda</Button>
-      </div>
-      <DialogoDestructivo
-        open={dialogo === 'abandonar'}
-        title="¿Abandonar esta tienda?"
-        description="Dejarás de ser dueño de esta tienda y no podrás volver a entrar con esta cuenta. La tienda necesita al menos otro administrador para seguir funcionando, y podés seguir usando tus otras tiendas. Esta acción no se puede deshacer desde la app."
-        palabra="ABANDONAR"
-        confirmLabel="Abandonar tienda"
-        busy={busy}
-        error={error}
-        onCancel={() => !busy && setDialogo(null)}
-        onConfirm={abandonar}
-      />
-      <DialogoDestructivo
-        open={dialogo === 'archivar'}
-        title="¿Archivar esta tienda?"
-        description="La tienda queda archivada y no se puede entrar hasta restaurarla durante los 30 días posteriores; se conserva toda su información (productos, ventas, clientes, pagos e integrantes). Para confirmar, escribí tu contraseña de empresa y la palabra ARCHIVAR."
-        palabra="ARCHIVAR"
-        necesitaClave
-        confirmLabel="Archivar tienda"
-        busy={busy}
-        error={error}
-        onCancel={() => !busy && setDialogo(null)}
-        onConfirm={archivar}
-      />
-    </Card>
-  )
-}
-
 function SeccionInvitaciones() {
   const toast = useToast()
   const { sesion, esDemo } = useSesion()
@@ -1026,189 +908,5 @@ function SeccionInvitaciones() {
         </form>
       </Modal>
     </Card>
-  )
-}
-
-function DialogoDestructivo({ open, title, description, palabra, necesitaClave = false, confirmLabel, busy, error, onCancel, onConfirm }) {
-  const [palabraActual, setPalabraActual] = useState('')
-  const [clave, setClave] = useState('')
-  useEffect(() => { if (open) { setPalabraActual(''); setClave('') } }, [open])
-  const lista = palabraActual.trim() === palabra && (!necesitaClave || clave)
-  return (
-    <Modal open={open} onClose={busy ? undefined : onCancel} title={title} size="corto">
-      <div className="space-y-4">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-bad/10 text-bad"><Icon name="alert" className="h-5 w-5" /></div>
-        <p className="text-sm leading-6 text-mute">{description}</p>
-        {necesitaClave && (
-          <div>
-            <Label htmlFor="dialogo-clave">Contraseña de la empresa</Label>
-            <PasswordInput id="dialogo-clave" autoFocus disabled={busy} value={clave} onChange={(event) => setClave(event.target.value)} placeholder="Para verificar tu identidad" autoComplete="current-password" />
-          </div>
-        )}
-        <div>
-          <Label htmlFor="dialogo-palabra">Escribí {palabra} para confirmar</Label>
-          <Input id="dialogo-palabra" autoFocus={!necesitaClave} disabled={busy} value={palabraActual} onChange={(event) => setPalabraActual(event.target.value)} placeholder={palabra} />
-        </div>
-        {error && <Aviso tono="error">{error}</Aviso>}
-        <div className={PIE_ACCIONES_REVERSO}>
-          <Button type="button" variant="ghost" onClick={onCancel} disabled={busy}>Cancelar</Button>
-          <Button type="button" variant="danger" onClick={() => onConfirm(necesitaClave ? { password: clave } : {})} disabled={busy || !lista}>{busy ? 'Procesando…' : confirmLabel}</Button>
-        </div>
-      </div>
-    </Modal>
-  )
-}
-
-function SeccionSucursales() {
-  const toast = useToast()
-  const { esDemo } = useSesion()
-  const guardado = useGuardadoCuenta({ id: 'sucursal' })
-  const [branches, setBranches] = useState(null)
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-  const formVacio = () => ({ id: null, name: '', address: '', city: '', department: '', countryCode: '+595', phone: '', instagram: '' })
-  const [form, setForm] = useState(formVacio)
-
-  const cargar = async () => {
-    setError('')
-    try { setBranches(await api.get('/api/branches')) } catch (cause) { setError(cause?.message || 'No se pudieron cargar las sucursales.') }
-  }
-  useEffect(() => {
-    // En demo no se consulta el API: la sección muestra un aviso claro en vez
-    // de quedarse en "Cargando sucursales…" (#205).
-    if (esDemo) { setBranches([]); return }
-    cargar()
-  }, [esDemo])
-
-  function irAlFormulario() {
-    document.getElementById('sucursal-form')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
-  }
-
-  function abrir(branch) {
-    // El teléfono se guarda como string único: al abrir se separa en código de
-    // país y número para editarlos con PhoneField.
-    const telefono = parseTelefono(branch?.phone)
-    setForm(branch
-      ? { id: branch.id, name: branch.name, address: branch.address || '', city: branch.city || '', department: branch.department || '', countryCode: telefono.countryCode, phone: telefono.phone, instagram: normalizarInstagram(branch.instagram) }
-      : formVacio())
-    setError('')
-    if (branch) irAlFormulario()
-  }
-
-  async function guardar(event) {
-    event.preventDefault()
-    if (busy) return
-    if (!form?.name?.trim()) { guardado.setEstado({ ok: false, texto: 'Poné el nombre de la sucursal.' }); return }
-    setBusy(true); setError('')
-    try {
-      const payload = {
-        name: form.name.trim(),
-        address: form.address?.trim() || null,
-        city: form.city?.trim() || null,
-        department: form.department?.trim() || null,
-        phone: componerTelefono({ countryCode: form.countryCode, phone: form.phone }),
-        instagram: form.instagram?.trim() || null,
-      }
-      const resultado = await guardado.ejecutar(
-        () => (form.id ? api.patch('/api/branches', { id: form.id, ...payload }) : api.post('/api/branches', payload)),
-        { etiqueta: 'la sucursal' },
-      )
-      if (resultado) {
-        setForm(formVacio())
-        toast.success(form.id ? 'Sucursal actualizada.' : 'Sucursal creada.')
-        await cargar()
-      }
-    } finally { setBusy(false) }
-  }
-
-  async function alternar(branch) {
-    setBusy(true); setError('')
-    try {
-      const resultado = await guardado.ejecutar(() => api.patch('/api/branches', { id: branch.id, isActive: !branch.isActive }), { etiqueta: 'la sucursal' })
-      if (resultado) {
-        toast.success(branch.isActive ? 'Sucursal desactivada.' : 'Sucursal reactivada.')
-        await cargar()
-      }
-    } finally { setBusy(false) }
-  }
-
-  // En demo las sucursales no se administran: la sesión ficticia usa "Tienda demo".
-  if (esDemo) {
-    return (
-      <Card>
-        <EmptyState
-          icon="store"
-          title="Las sucursales se administran con una cuenta real"
-          description="En la demo operás en Tienda demo; con tu cuenta podés crear sucursales, editarlas y activarlas."
-          action={<Link to="/login" className="inline-flex min-h-11 items-center rounded-lg border border-ink-600 px-4 text-sm font-semibold text-fono-light transition hover:border-fono/50">Ingresar con mi cuenta</Link>}
-        />
-      </Card>
-    )
-  }
-
-  return (
-    <PanelDerecho
-      id="sucursal-form"
-      panel={
-        <Card className="space-y-3">
-          <div>
-            <h2 className="font-semibold">{form?.id ? 'Editar sucursal' : 'Nueva sucursal'}</h2>
-            <p className="mt-1 text-sm text-mute">La ciudad completa el departamento automáticamente.</p>
-          </div>
-          <form onSubmit={guardar} className="space-y-3">
-            <FormField label="Nombre" htmlFor="sucursal-nombre">
-              <Input id="sucursal-nombre" required maxLength={100} disabled={busy} value={form?.name || ''} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} placeholder="Nombre de la sucursal" />
-            </FormField>
-            <div className={cn(GRILLA_DOS_COLUMNAS, 'lg:grid-cols-1')}>
-              <FormField label="Teléfono (opcional)">
-                <PhoneField disabled={busy} countryCode={form?.countryCode || '+595'} phone={form?.phone || ''} onCountryCodeChange={countryCode => setForm(current => ({ ...current, countryCode }))} onChange={phone => setForm(current => ({ ...current, phone }))} placeholder="Teléfono" />
-              </FormField>
-              <FormField label="Instagram (opcional)">
-                <InstagramField disabled={busy} value={form?.instagram || ''} onChange={instagram => setForm(current => ({ ...current, instagram }))} placeholder="Instagram" />
-              </FormField>
-            </div>
-            <FormField label="Ciudad" hint={form?.department ? `Departamento: ${form.department}` : undefined}>
-              <CityAutocomplete disabled={busy} value={form?.city || ''} onSelect={(city, department) => setForm(current => ({ ...current, city, department }))} placeholder="Ciudad" />
-            </FormField>
-            <FormField label="Dirección (opcional)" htmlFor="sucursal-direccion">
-              <Input id="sucursal-direccion" maxLength={200} disabled={busy} value={form?.address || ''} onChange={event => setForm(current => ({ ...current, address: event.target.value }))} placeholder="Dirección completa" />
-            </FormField>
-            {error && <Aviso tono="error">{error}</Aviso>}
-            <EstadoGuardado testId="sucursal-estado" estado={guardado.estado} />
-            <div className={PIE_ACCIONES}>
-              {form?.id && <Button type="button" variant="ghost" disabled={busy} onClick={() => abrir(null)}>Cancelar edición</Button>}
-              <Button type="submit" disabled={busy || !form?.name?.trim()}>{busy ? 'Guardando…' : form?.id ? 'Guardar cambios' : 'Crear sucursal'}</Button>
-            </div>
-          </form>
-          {guardado.panel}
-        </Card>
-      }
-    >
-      <Card className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm text-mute">Cada sucursal conserva su dirección, ciudad y datos de contacto.</p>
-          <Button type="button" onClick={() => { abrir(null); irAlFormulario() }}>+ Nueva sucursal</Button>
-        </div>
-        {branches === null ? <p className="text-sm text-mute">Cargando sucursales…</p> : branches.length === 0 ? <p className="text-sm text-mute">Todavía no hay sucursales. Creá la primera.</p> : (
-          <div className="space-y-2">
-            {branches.map(branch => (
-              <article key={branch.id} className="rounded-xl border border-ink-600 p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <b className="text-sm">{branch.name}</b>
-                    <p className="mt-1 text-xs text-mute">{[branch.city, branch.department].filter(Boolean).join(' · ')}{branch.address ? ` · ${branch.address}` : ''}{branch.phone ? ` · ${branch.phone}` : ''}{branch.instagram ? ` · @${branch.instagram}` : ''}</p>
-                  </div>
-                  <Badge color={branch.isActive ? 'green' : 'slate'}>{branch.isActive ? 'Activa' : 'Inactiva'}</Badge>
-                </div>
-                <div className="mt-2 flex gap-3">
-                  <button type="button" className="text-xs font-semibold text-fono-light hover:underline" disabled={busy} onClick={() => abrir(branch)}>Editar</button>
-                  <button type="button" className="text-xs font-semibold text-mute hover:underline" disabled={busy} onClick={() => alternar(branch)}>{branch.isActive ? 'Desactivar' : 'Reactivar'}</button>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-      </Card>
-    </PanelDerecho>
   )
 }

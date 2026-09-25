@@ -68,6 +68,22 @@ test('Configuración tiene siete secciones y ninguna duplica contenido', async (
   // El ID de tienda vive en el detalle de Tiendas (cuando la cuenta tiene
   // tiendas cargadas), nunca en la ficha de Datos de la tienda.
   await expect(page.getByRole('heading', { name: 'Tiendas', exact: true })).toBeVisible()
+  // #253: Tiendas y sucursales es una sola sección y el archivado no se repite
+  // (antes había «Archivar tienda» dentro de la lista y «Archivar empresa» al
+  // final; ahora queda solo el segundo, con motivo y reautenticación).
+  const unificada = page.getByTestId('tiendas-sucursales')
+  await expect(unificada).toBeVisible()
+  await expect(unificada.getByRole('heading', { name: 'Tiendas', exact: true })).toBeVisible()
+  await expect(unificada.getByRole('heading', { name: 'Sucursales', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Archivar tienda' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Archivar empresa' })).toHaveCount(1)
+  // Evidencia de la sección unificada (antes eran dos tarjetas separadas).
+  await expect(unificada.getByTestId('tiendas-bloque')).toBeVisible()
+  await expect(unificada.getByTestId('sucursales-bloque')).toBeVisible()
+  await page.getByTestId('tiendas-bloque').scrollIntoViewIfNeeded()
+  await page.screenshot({ path: join(DIR, 'ia-config-organizacion-tiendas.png') })
+  await page.getByTestId('sucursales-bloque').scrollIntoViewIfNeeded()
+  await page.screenshot({ path: join(DIR, 'ia-config-organizacion-sucursales.png') })
   await page.locator('main').getByRole('tab', { name: 'Mi cuenta', exact: true }).click()
   await expect(page.getByText('Mi foto')).toHaveCount(1)
 })
