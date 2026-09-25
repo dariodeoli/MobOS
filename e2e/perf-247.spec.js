@@ -261,13 +261,15 @@ test('navegación entre las secciones más usadas (#247)', async ({ browser }) =
     const pasos = [
       ['Pedidos', async () => expect(page.getByTestId('pedidos-tabla')).toBeVisible()],
       ['Clientes', async () => expect(page.getByTestId('cliente-fila').first()).toBeVisible()],
-      ['Inventario', async () => expect(page.getByTestId('inventario-fila').first()).toBeVisible()],
+      ['Unidades', async () => expect(page.getByTestId('inventario-fila').first()).toBeVisible()],
       ['POS', async () => expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()],
     ]
     const filas = []
     for (const [seccion, listo] of pasos) {
       const arranque = Date.now()
-      await page.locator('aside nav').getByRole('button', { name: seccion, exact: true }).click()
+      // El ítem puede compartir nombre con su grupo (p. ej. «Clientes»): el
+      // ítem es el último botón con ese nombre dentro del menú.
+      await page.locator('aside nav').getByRole('button', { name: seccion, exact: true }).last().click()
       await listo()
       filas.push({ seccion, listoMs: Date.now() - arranque })
     }

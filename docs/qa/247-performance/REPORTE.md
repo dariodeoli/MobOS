@@ -185,10 +185,10 @@ solapa recortaría otros ~5 pedidos. Es el único pendiente con datos de esta
 ronda; los de FIN (`/api/finance` en todas las pantallas) y POS (chunk del
 panel) quedaron resueltos en la segunda tanda.
 
-## Optimizaciones v1.0.168 (lazy diferido, POS a demanda y adelanto ocioso)
+## Optimizaciones (base v1.0.170): lazy diferido, POS a demanda y adelanto ocioso
 
 Tanda sobre lo que quedaba abierto del alcance (#247: lazy loading, caché y
-preload de lo crítico), con evidencia antes/después de la misma medición.
+preload de lo crítico), medida contra la misma base (v1.0.170) sin los cambios.
 
 ### 1. El POS deja de montarse en todas las pantallas
 
@@ -198,17 +198,20 @@ Ahora entra al árbol la primera vez que se visita el POS y desde ahí se mantie
 (la venta en curso sigue viva al navegar y el handoff por `sessionStorage` se lee
 al montar, así que no se pierde nada).
 
-- JS decodificado en la carga fría (mediana): inventario **398 → 322 KB**,
-  pedidos **344 → 276 KB**, clientes **370 → 280 KB**, finanzas **347 → 250 KB**.
-  El POS queda igual (321 → 319 KB).
+- JS decodificado en la carga fría (mediana): inventario **404 → 329 KB**,
+  pedidos **357 → 277 KB**, clientes **383 → 281 KB**, finanzas **360 → 251 KB**.
+  El POS queda igual (334 → 320 KB).
 - Pedidos al API en la carga fría: inventario **11 → 9**, pedidos **11 → 9**,
   clientes **15 → 13**: `/api/combos` y `/api/payment-accounts` ya no viajan a
   pantallas que no venden (el POS los sigue pidiendo, sin cambios).
 
 ### 2. Búsqueda global diferida
 
-`GlobalSearch` baja junto con su modal (antes viajaba en el arranque del panel):
-chunk del panel **48.326 → 41.946 B (−13%)**.
+`GlobalSearch` (que ahora usa `PaletaComandos` de la biblioteca) baja junto con
+su modal: chunk del panel **87.054 → 46.222 B (−47%)** sobre la base final
+(84.999 → 44.120 en la base v1.0.170), en un chunk lazy de ~4,6 KB que solo se
+descarga al abrir la búsqueda. El total de JS del build no cambia: el código se
+difiere, no se pierde.
 
 ### 3. Adelanto ocioso de las secciones más usadas
 
@@ -216,20 +219,20 @@ Con la pantalla pintada y el equipo ocioso (2,5 s + `requestIdleCallback`), el
 panel descarga los chunks de POS/Pedidos/Clientes (y de Inventario para el
 dueño), una sola vez por carga y solo si la conexión lo permite (nada de
 `saveData` ni 2G). Es el caso «segunda pantalla»: con red 3G simulada
-(150 ms, 200 KB/s) y CPU 4x, la navegación entre secciones queda casi
-instantánea.
+(150 ms, 200 KB/s) y CPU 4x, la navegación entre secciones se acorta a la mitad.
 
-| Paso | Antes (ms) | Después (ms) | Δ |
+| Paso (mediana de 3) | Antes (ms) | Después (ms) | Δ |
 | --- | --- | --- | --- |
-| POS → Pedidos | 1132 | **462** | −59% |
-| POS → Clientes | 1002 | **254** | −75% |
-| → Inventario | 1141 | **490** | −57% |
-| → POS | 236 | **199** | −16% |
+| POS → Pedidos | 956 | **472** | −51% |
+| POS → Clientes | 934 | **245** | −74% |
+| → Unidades (inventario) | 1551 | **648** | −58% |
+| → POS | 302 | 329 | +9% (vuelve a una pantalla ya montada: ruido) |
 
 Medición reproducible (antes = mismo spec sin el adelanto):
 `MOBOS_PERF_AUDIT=1 MOBOS_E2E_BACKEND=prod MOBOS_E2E_FRONTEND=preview npx playwright test e2e/perf-247.spec.js -g navegación --project=admin`.
-Evidencia: [`optimizaciones-v1.0.168/antes/perf-247-navegacion.json`](optimizaciones-v1.0.168/antes/perf-247-navegacion.json)
-y [`despues/perf-247-navegacion.json`](optimizaciones-v1.0.168/despues/perf-247-navegacion.json).
+Evidencia: [`optimizaciones-v1.0.170/antes/`](optimizaciones-v1.0.170/antes/)
+(el JSON de cada corrida + `navegacion-muestras.txt` con las 3 muestras) y
+[`despues/`](optimizaciones-v1.0.170/despues/).
 
 ### 4. Caché y paginación (estado)
 
@@ -238,21 +241,22 @@ y [`despues/perf-247-navegacion.json`](optimizaciones-v1.0.168/despues/perf-247-
 - La paginación del catálogo y de pedidos ya es por cursor (`limit=500`); el
   único pendiente con datos sigue siendo el de INV (solapas ocultas), abajo.
 
-Evidencia cruda de la ronda: [`optimizaciones-v1.0.168/despues/perf-247.json`](optimizaciones-v1.0.168/despues/perf-247.json)
-· [`.md`](optimizaciones-v1.0.168/despues/perf-247.md).
+Evidencia cruda de la ronda: [`optimizaciones-v1.0.170/despues/perf-247.json`](optimizaciones-v1.0.170/despues/perf-247.json)
+· [`.md`](optimizaciones-v1.0.170/despues/perf-247.md).
 
 ## CI estable (#245)
 
 El release **v1.0.168** quedó rojo en `main` por un único test real (no flake,
 sin cuarentena): `e2e/dsn-241-a11y.spec.js` fijaba la paleta de `owncoding-ui`
-**v0.21** (`--c-paper` claro `246 248 251`) y la biblioteca vigente es **v0.25.0**
-(profundidad del tema #241: `241 244 248`). Se actualizó la expectativa y el
-título del test; el spec completo pasa **8/8** local.
+**v0.21** (`--c-paper` claro `246 248 251`) mientras la biblioteca ya había
+cambiado la paleta con la profundidad del tema (#241). El fix aterrizó en `main`
+como `bbca135c` (el spec pasa a **v0.27**, la versión vigente); en esta rama el
+cambio equivalente quedó **superseded** por ese commit y se descartó al rebasar.
 
-Racha de 3 corridas completas seguidas en modo CI sobre este código
-(`MOBOS_E2E_BACKEND=prod`, sin reintentos): ver
-[`../247-performance/racha/`](../247-performance/racha/) con el resumen y el
-reporte de flakiness de cada corrida (0 flaky, 0 cuarentena).
+Racha de 3 corridas completas seguidas en modo CI sobre el código de esta
+entrega (`MOBOS_E2E_BACKEND=prod`, `retries: 0`, sin cuarentena): **447 passed
++ 6 skipped** en cada una, exit 0. Resumen y cierre textual de cada corrida en
+[`racha/`](racha/) (los `.log` completos quedan locales: `*.log` está ignorado).
 
 ## Qué se cambió (dominio PLT)
 
@@ -271,8 +275,8 @@ reporte de flakiness de cada corrida (0 flaky, 0 cuarentena).
    como el usuario; los tests siguen en `dev`.
 6. **POS a demanda y búsqueda diferida** (`src/pages/PanelVendedor.jsx`): el
    formulario de venta se monta en la primera visita (después queda oculto para
-   no perder la venta) y `GlobalSearch` baja con su modal; el panel queda en
-   41,9 KB.
+   no perder la venta) y `GlobalSearch` baja con su modal; el panel pasa de
+   84,9 KB a 44,1 KB (base v1.0.170).
 7. **Adelanto ocioso** (`src/hooks/usePrefetchSecciones.js`): con el equipo
    ocioso se adelantan los chunks de las secciones más usadas, una vez por carga
    y solo si la conexión lo permite.
