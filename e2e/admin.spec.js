@@ -1241,9 +1241,9 @@ test('el menú de tres puntos queda corto y lo destructivo vive en Configuració
   await page.screenshot({ path: 'test-results/qa-228/02-despues.jpg', type: 'jpeg', quality: 70 })
   await page.keyboard.press('Escape')
 
-  // Preferencias del dispositivo: Configuración → Sistema → Preferencias.
+  // Preferencias del dispositivo: Configuración → Dispositivos → Preferencias.
   await page.getByRole('button', { name: 'Configuración', exact: true }).click()
-  await page.locator('main').getByRole('button', { name: 'Sistema', exact: true }).click()
+  await page.locator('main').getByRole('button', { name: 'Dispositivos', exact: true }).click()
   await page.locator('main').getByRole('tab', { name: 'Preferencias', exact: true }).click()
   await expect(page.locator('#pref-bloqueo')).toBeVisible()
   await page.screenshot({ path: 'test-results/qa-228/03-preferencias.jpg', type: 'jpeg', quality: 70 })
@@ -1263,5 +1263,3 @@ test('el menú de tres puntos queda corto y lo destructivo vive en Configuració
   await dialogo.getByRole('button', { name: 'Cancelar' }).click()
   await expect(page.getByText('Escribí ELIMINAR para confirmar')).toHaveCount(0)
 })
-
-

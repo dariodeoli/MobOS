@@ -112,6 +112,7 @@ const MODULOS_VENDEDOR = [
   ['/precios', 'Precios'],
   ['/cotizaciones', 'Cotizaciones'],
   ['/trade-in', 'Trade-In'],
+  ['/ayuda/ayuda', 'Ayuda'],
 ]
 
 const MODULOS_OWNER = [
@@ -141,7 +142,7 @@ const MODULOS_OWNER = [
   ['/configuracion/seguridad', 'Seguridad'],
   ['/configuracion/historial', 'Auditoría'],
   ['/configuracion/impresoras', 'Impresoras'],
-  ['/configuracion/documentacion', 'Documentación'],
+  ['/ayuda/ayuda', 'Ayuda'],
   ['/configuracion/sistema', 'Estado del sistema'],
 ]
 
@@ -467,10 +468,8 @@ test('el último usado es el default y se puede cambiar (#209)', async ({ page }
   await cerrarGuia(page)
 
   const irADocumentacion = async () => {
-    await page.getByRole('button', { name: 'Configuración', exact: true }).click()
-    await page.locator('main').getByRole('button', { name: 'Sistema', exact: true }).click()
-    await page.locator('main').getByRole('tab', { name: 'Documentación', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Documentación', exact: true })).toBeVisible()
+    await page.locator('aside nav').getByRole('button', { name: 'Ayuda', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Ayuda', exact: true })).toBeVisible()
   }
 
   await irADocumentacion()
@@ -487,7 +486,7 @@ test('el último usado es el default y se puede cambiar (#209)', async ({ page }
 
   // En la demo, recargar descarta lo recordado y vuelve el default sensato.
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Documentación', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Ayuda', exact: true })).toBeVisible()
   await expect(page.locator('main').getByRole('button', { name: 'Todo', exact: true })).toHaveAttribute('aria-pressed', 'true')
 })
 

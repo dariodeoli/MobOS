@@ -254,6 +254,8 @@ estado se verifica en `/health.usb`.
   con «Reimprimir igual» y **validación en papel** (auto con 1 dígito, sufijo
   largo y botón como respaldo). Además `e2e/etiquetas-gondola.spec.js` (etiquetas)
   y `e2e/qr-unificado.spec.js` (QR con URL, `/prueba` y fichas sin sesión).
+  Las rutas públicas de esos QR (`/producto/:sku` y `/prueba`) tienen su
+  verificación viva en `e2e/ocultos-plataforma.spec.js`.
 - `npm run test:e2e:smoke` como gate rápido durante el trabajo (~20 s).
 - **Evidencia de imprimibles (#206):** `scripts/qa-206-imprimibles.mjs`
   renderiza cada documento a PDF por tamaño con su captura

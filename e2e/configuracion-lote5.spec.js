@@ -3,6 +3,7 @@
 // horizontal en 360/768/1440.
 
 import { test, expect } from '@playwright/test'
+import { mkdirSync } from 'node:fs'
 
 const SUBPAGINAS = [
   ['equipo', 'Equipo'],
@@ -14,7 +15,7 @@ const SUBPAGINAS = [
   ['seguridad', 'Seguridad'],
   ['historial', 'Auditoría'],
   ['impresoras', 'Impresoras'],
-  ['documentacion', 'Documentación'],
+  ['preferencias', 'Preferencias'],
   ['sistema', 'Estado del sistema'],
 ]
 
@@ -81,5 +82,60 @@ test.describe('Configuración Lote 5', () => {
     // En escritorio el botón no hace falta: el panel ya está a la vista.
     await page.setViewportSize({ width: 1440, height: 900 })
     await expect(boton).toBeHidden()
+  })
+})
+
+// IA de Configuración (#251): Dispositivos y Sistema como grupos propios, con
+// Documentación fuera de Configuración (entrada «Ayuda» del shell).
+test.describe('Configuración IA', () => {
+  test('los grupos separan Dispositivos y Sistema sin duplicar pestañas', async ({ page }) => {
+    await page.goto('/configuracion/impresoras')
+    const grupos = page.getByRole('tablist', { name: 'Grupos de configuración' })
+    for (const label of ['Personas', 'Negocio', 'Seguridad', 'Dispositivos', 'Sistema']) {
+      await expect(grupos.getByRole('button', { name: label, exact: true })).toBeVisible()
+    }
+
+    // Dispositivos: la configuración y las pruebas de impresión, más las
+    // preferencias del dispositivo (no la seguridad de la empresa).
+    await grupos.getByRole('button', { name: 'Dispositivos', exact: true }).click()
+    await expect(page).toHaveURL(/\/configuracion\/impresoras$/)
+    await expect(page.getByRole('tab', { name: 'Impresoras', exact: true })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Preferencias', exact: true })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Estado del sistema', exact: true })).toHaveCount(0)
+
+    // Sistema: solo el monitoreo global (Estado del sistema).
+    await grupos.getByRole('button', { name: 'Sistema', exact: true }).click()
+    await expect(page).toHaveURL(/\/configuracion\/sistema$/)
+    await expect(page.getByRole('tab', { name: 'Estado del sistema', exact: true })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Impresoras', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('tab', { name: 'Preferencias', exact: true })).toHaveCount(0)
+  })
+
+  test('Documentación sale de Configuración: la ruta vieja redirige a Ayuda', async ({ page }) => {
+    await page.goto('/configuracion/documentacion')
+    await expect(page).toHaveURL(/\/ayuda\/ayuda$/)
+    await expect(page.getByTestId('documentacion')).toBeVisible()
+    await expect(page.locator('h1')).toHaveText('Ayuda')
+  })
+
+  // Capturas del antes/después (#251), reproducibles:
+  //   MOBOS_CAPTURAS=docs/qa/config-ia/despues npx playwright test e2e/configuracion-lote5.spec.js -g capturas
+  // Sin variable escribe en test-results y CI no ensucia el repo.
+  test('capturas de los grupos y de Ayuda', async ({ page }) => {
+    test.setTimeout(120_000)
+    const salida = process.env.MOBOS_CAPTURAS || 'test-results/config-ia'
+    mkdirSync(salida, { recursive: true })
+    for (const [tema, modo] of [['claro', 'light'], ['oscuro', 'dark']]) {
+      for (const [vista, ancho, alto] of [['desktop', 1280, 900], ['mobile', 390, 844]]) {
+        await page.addInitScript(({ m }) => { try { localStorage.setItem('mobos:theme', m) } catch { /* sin storage */ } }, { m: modo })
+        await page.setViewportSize({ width: ancho, height: alto })
+        await page.goto('/configuracion/impresoras')
+        await expect(page.getByRole('button', { name: 'Dispositivos', exact: true })).toBeVisible({ timeout: 20_000 })
+        await page.screenshot({ path: `${salida}/config-grupos-${tema}-${vista}.png` })
+        await page.goto('/ayuda/ayuda')
+        await expect(page.getByTestId('documentacion')).toBeVisible({ timeout: 20_000 })
+        await page.screenshot({ path: `${salida}/ayuda-${tema}-${vista}.png` })
+      }
+    }
   })
 })

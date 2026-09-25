@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { temaV2Activo } from '@/lib/temaV2'
+import { useTemaV2 } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 import { Drawer, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -10,7 +10,9 @@ import ProductFooter from '@/components/app/ProductFooter'
 import MenuAcciones from '@/components/app/MenuAcciones'
 import PanelNotificaciones from '@/components/app/PanelNotificaciones'
 import ComoFuncionaDemo from '@/components/app/ComoFuncionaDemo'
+import PanelColaOffline from '@/components/ventas/PanelColaOffline'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
+import { useColaOffline } from '@/hooks/useColaOffline'
 import { usePresenceTracker } from '@/hooks/usePresence'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { usePreferencias } from '@/hooks/usePreferencias'
@@ -167,6 +169,44 @@ function DrawerActions({ onSearch, onHelp, onLogout, onClose, className }) {
   )
 }
 
+// ── Aviso del modo offline del POS ──────────────────────────────────
+// Con el navegador sin conexión o con ventas esperando sincronizarse, el shell
+// lo muestra en el menú (escritorio) y en la barra (móvil), y abre la cola con
+// su detalle. El POS ya tiene su indicador; esto lo lleva a todo el shell para
+// que un vendedor no tenga que estar en la pantalla de venta para enterarse.
+function textoColaOffline({ pendientes = 0, conflictos = 0, enLinea = true } = {}) {
+  if (conflictos > 0) return `${conflictos} venta${conflictos === 1 ? '' : 's'} con conflicto`
+  if (pendientes > 0) return `${pendientes} venta${pendientes === 1 ? '' : 's'} sin enviar`
+  if (!enLinea) return 'POS sin conexión'
+  return ''
+}
+
+function AvisoColaOffline({ texto, corto, urgente, onClick, pastilla = false, textoOcultoEnLg = false, testid, className }) {
+  if (!texto) return null
+  const tono = urgente
+    ? 'border-bad/40 bg-bad/10 text-bad hover:bg-bad/15'
+    : 'border-warn/40 bg-warn/10 text-warn hover:bg-warn/15'
+  return (
+    <button
+      type="button"
+      data-testid={testid}
+      onClick={onClick}
+      title={texto}
+      aria-label={texto}
+      className={cn(
+        pastilla
+          ? 'inline-flex h-[34px] shrink-0 items-center gap-1.5 rounded-[9px] border px-2.5 text-xs font-semibold transition lg:hidden'
+          : 'flex min-h-11 w-full items-center gap-2 rounded-xl border px-3 text-left text-xs font-semibold transition',
+        tono,
+        className,
+      )}
+    >
+      <Icon name="alert" className="h-3.5 w-3.5 shrink-0" />
+      <span className={cn('min-w-0 truncate', textoOcultoEnLg && 'lg:hidden')}>{pastilla ? corto : texto}</span>
+    </button>
+  )
+}
+
 function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onSwitchUser, onLockRequest, collapsed, perfilEmpresa, usuario }) {
   const clicsRef = useRef([])
   const clicsTimer = useRef(null)
@@ -304,6 +344,20 @@ export default function AppShell({
   const notificaciones = useNotificaciones(usuarioActual?.id, { activo: menuAcciones && !esDemo })
   const [notificacionesAbiertas, setNotificacionesAbiertas] = useState(false)
   const enLinea = useOnlineStatus()
+  // Modo offline del POS (#168): el shell muestra la cola pendiente en el menú
+  // (escritorio) y en la barra (móvil), y la abre con su detalle. Solo lectura:
+  // el POS sigue siendo quien sincroniza.
+  const colaOffline = useColaOffline({ autoSincronizar: false })
+  const [colaAbierta, setColaAbierta] = useState(false)
+  const avisoCola = textoColaOffline(colaOffline)
+  const avisoColaCorto = colaOffline.conflictos > 0
+    ? `${colaOffline.conflictos} conflicto${colaOffline.conflictos === 1 ? '' : 's'}`
+    : colaOffline.pendientes > 0
+      ? `${colaOffline.pendientes} sin enviar`
+      : 'Sin conexión'
+  const colaUrgente = colaOffline.conflictos > 0
+  // El rediseño es reactivo: el selector de Preferencias lo cambia al instante.
+  const temaV2 = useTemaV2()
   usePresenceTracker()
   const [statsCollapsedInterno, recordarStats] = useUltimoUsado('shell:stats-plegado', false)
   const statsCerrado = onStatsToggle ? Boolean(statsCollapsed) : statsCollapsedInterno
@@ -328,7 +382,11 @@ export default function AppShell({
   }
 
   return (
-    <div className={cn('flex min-h-dvh flex-col bg-paper text-sm text-fore lg:flex-row', temaV2Activo() && 'tema-v2')}>
+    <div
+      data-testid="shell"
+      data-tema-v2={temaV2 ? '1' : '0'}
+      className={cn('flex min-h-dvh flex-col bg-paper text-sm text-fore lg:flex-row', temaV2 && 'tema-v2')}
+    >
       <aside
         data-testid="shell-lateral"
         className={cn(
@@ -366,6 +424,14 @@ export default function AppShell({
             </>
           )}
         </div>
+        <AvisoColaOffline
+          testid="shell-cola-offline"
+          texto={avisoCola}
+          urgente={colaUrgente}
+          textoOcultoEnLg={collapsed}
+          onClick={() => setColaAbierta(true)}
+          className={cn('mx-2.5 mt-2', collapsed && 'lg:justify-center lg:px-0')}
+        />
         <NavGroup nav={nav} active={active} onNavigate={navegar} collapsed={collapsed} />
         {sidebarStats && (
           <div className={cn(collapsed && 'lg:hidden')}>
@@ -401,6 +467,13 @@ export default function AppShell({
             className="border-b border-ink-600"
           />
         </div>
+        <AvisoColaOffline
+          testid="shell-cola-offline-menu"
+          texto={avisoCola}
+          urgente={colaUrgente}
+          onClick={() => { setMenuAbierto(false); setColaAbierta(true) }}
+          className="mx-2.5 mb-1 mt-2"
+        />
         <NavGroup nav={nav} active={active} onNavigate={navegar} collapsed={false} scrollable={false} />
         {sidebarStats && (
           <div className="-mx-4 mt-4 border-t border-fono/20 sm:-mx-5">
@@ -471,6 +544,14 @@ export default function AppShell({
               </button>
             )}
             <PresencePill className="hidden lg:flex" />
+            <AvisoColaOffline
+              pastilla
+              testid="shell-cola-offline-pill"
+              texto={avisoCola}
+              corto={avisoColaCorto}
+              urgente={colaUrgente}
+              onClick={() => setColaAbierta(true)}
+            />
             {headerActions}
             {menuAcciones && (
               <>
@@ -569,6 +650,9 @@ export default function AppShell({
       />
 
       {esDemo && <ComoFuncionaDemo open={comoFunciona} onClose={() => setComoFunciona(false)} />}
+
+      {/* Detalle de la cola offline del POS, desde el aviso del shell. */}
+      {colaAbierta && <PanelColaOffline open onClose={() => setColaAbierta(false)} />}
 
       {menuAcciones && (
         <>

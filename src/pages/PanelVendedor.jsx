@@ -86,6 +86,7 @@ const SELLER_NAV = [
       ['precios', 'Precios', 'tag'],
       ['cotizador', 'Trade-In', 'refresh'],
       ['cotizaciones', 'Cotizaciones', 'report'],
+      ['ayuda', 'Ayuda', 'info'],
     ],
   },
 ]
@@ -121,6 +122,7 @@ const OWNER_NAV = [
       ['analisis', 'Análisis', 'report'],
       ['finanzas', 'Finanzas', 'receipt'],
       ['equipo', 'Configuración', 'settings'],
+      ['ayuda', 'Ayuda', 'info'],
     ],
   },
 ]
@@ -131,6 +133,7 @@ const TECNICO_NAV = [
     titulo: 'Taller',
     items: [
       ['servicio', 'Servicio y Garantías', 'wrench'],
+      ['ayuda', 'Ayuda', 'info'],
     ],
   },
 ]
@@ -187,8 +190,9 @@ const SUBPAGINAS = {
   configuracion: {
     vista: 'equipo',
     tabs: [
-      // Orden por grupo visible: Personas, Negocio, Seguridad, Sistema. El
-      // slug de cada pestaña es estable (/configuracion/<slug>).
+      // Orden por grupo visible: Personas, Negocio, Seguridad, Dispositivos y
+      // Sistema. El slug de cada pestaña es estable (/configuracion/<slug>).
+      // Documentación ya no vive acá: es «Ayuda» en el shell (#251).
       ['equipo', 'Equipo'],
       ['identidad', 'Mi identidad'],
       ['roles', 'Roles y permisos'],
@@ -198,11 +202,12 @@ const SUBPAGINAS = {
       ['seguridad', 'Seguridad'],
       ['historial', 'Auditoría'],
       ['impresoras', 'Impresoras'],
-      ['documentacion', 'Documentación'],
       ['preferencias', 'Preferencias'],
       ['sistema', 'Estado del sistema'],
     ],
   },
+  // Ayuda vive fuera de Configuración: se entra desde el shell (Documentación).
+  ayuda: { vista: 'ayuda', tabs: [['ayuda', 'Ayuda']] },
   analisis: { vista: 'analisis', tabs: TABS_ANALISIS },
   finanzas: { vista: 'finanzas', tabs: TABS_FINANZAS },
   inventario: { vista: 'inventario', tabs: TABS_INVENTARIO },
@@ -217,6 +222,7 @@ const MIGA_SUBPAGINA = {
   analisis: 'Análisis',
   finanzas: 'Finanzas',
   configuracion: 'Configuración',
+  ayuda: 'Ayuda',
 }
 // Pestañas visibles según el modo: créditos y cuotas solo fuera de la demo.
 function tabsDeSubpagina(slug, esDemo) {
@@ -227,13 +233,17 @@ function tabsDeSubpagina(slug, esDemo) {
   return tabs
 }
 
-// Configuración agrupada: cuatro íconos con su submenú para no saturar la barra.
+// Configuración agrupada: íconos con su submenú para no saturar la barra.
+// Dispositivos junta impresoras (configuración, puentes, formatos, diagnóstico,
+// cola e historial, todo dentro de la pantalla) y las preferencias del
+// dispositivo; Sistema queda para el monitoreo global (Estado del sistema).
 // Invitaciones vive dentro de Equipo (una sola vez, sin pestaña duplicada).
 const GRUPOS_CONFIG = [
   { id: 'personas', label: 'Personas', icon: 'users', tabs: ['equipo', 'identidad', 'roles'] },
   { id: 'negocio', label: 'Negocio', icon: 'store', tabs: ['negocio', 'precios', 'sucursales'] },
   { id: 'seguridad', label: 'Seguridad', icon: 'lock', tabs: ['seguridad', 'historial'] },
-  { id: 'sistema', label: 'Sistema', icon: 'settings', tabs: ['impresoras', 'documentacion', 'preferencias', 'sistema'] },
+  { id: 'dispositivos', label: 'Dispositivos', icon: 'printer', tabs: ['impresoras', 'preferencias'] },
+  { id: 'sistema', label: 'Sistema', icon: 'pulse', tabs: ['sistema'] },
 ]
 
 const SUBPAGINA_DE_TAB = Object.fromEntries(
@@ -422,10 +432,16 @@ export default function PanelVendedor() {
   useEffect(() => {
     if (subpadre === 'configuracion' && routeSeccion === 'impresion') navigate('/configuracion/impresoras', { replace: true })
   }, [subpadre, routeSeccion, navigate])
+  // Documentación salió de Configuración: ahora es «Ayuda» en el shell.
+  useEffect(() => {
+    if (subpadre === 'configuracion' && routeSeccion === 'documentacion') navigate('/ayuda/ayuda', { replace: true })
+  }, [subpadre, routeSeccion, navigate])
   // Apartado sin hijo (o con uno desconocido) entra por su primera pestaña.
   useEffect(() => {
+    // La ruta vieja /configuracion/documentacion se redirige a /ayuda aparte.
+    if (subpadre === 'configuracion' && routeSeccion === 'documentacion') return
     if (subpadre && !seccionRuta) navigate(`/${subpadre}/${tabsRuta[0][0]}`, { replace: true })
-  }, [subpadre, seccionRuta, tabsRuta, navigate])
+  }, [subpadre, seccionRuta, tabsRuta, routeSeccion, navigate])
   // El repartidor tiene su propio panel (/delivery/repartos): el panel de venta
   // no es su lugar y el backend tampoco lo autoriza a vender.
   useEffect(() => {
@@ -859,7 +875,6 @@ export default function PanelVendedor() {
                 ? <DemoNoDisponible modulo="Seguridad de la cuenta" motivo="Administra contraseñas, sesiones y acciones sensibles de tu tienda real." />
                 : <Config seccion="seguridad" />)}
               {vista === 'impresoras' && <Impresoras />}
-              {vista === 'documentacion' && <Documentacion />}
               {vista === 'preferencias' && (
                 <Card className="p-4 md:p-5">
                   <h2 className={ROTULO_SECCION}>Preferencias del dispositivo</h2>
@@ -870,6 +885,9 @@ export default function PanelVendedor() {
                 ? <DemoNoDisponible modulo="Estado del sistema" motivo="Consulta los servicios reales de MobOS (API, base e impresión)." />
                 : <EstadoSistema />)}
             </div>
+          )}
+          {subpadre === 'ayuda' && (
+            <div className="space-y-3">{vista === 'ayuda' && <Documentacion />}</div>
           )}
           </Suspense>
         </main>
