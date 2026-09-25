@@ -225,8 +225,9 @@ export default function ListaVentasDia({
                       </span>
                     </div>
                   </div>
-                  {(g.items.some(item => Number(item.serialsPending || 0) > 0) || g.items.some(item => item.costPending === true)) && <div className="mt-1.5 flex flex-wrap gap-1.5 pl-4">
+                  {(g.items.some(item => Number(item.serialsPending || 0) > 0) || g.items.some(item => Number(item.stockPending || 0) > 0) || g.items.some(item => item.costPending === true)) && <div className="mt-1.5 flex flex-wrap gap-1.5 pl-4">
                     {g.items.some(item => Number(item.serialsPending || 0) > 0) && <span className="rounded bg-warn/20 px-1.5 py-0.5 text-[10px] font-semibold text-warn">sin IMEI (sobre pedido)</span>}
+                    {g.items.some(item => Number(item.stockPending || 0) > 0) && <span className="rounded bg-warn/20 px-1.5 py-0.5 text-[10px] font-semibold text-warn">sobre pedido</span>}
                     {g.items.some(item => item.costPending === true) && <span className="rounded bg-info/15 px-1.5 py-0.5 text-[10px] font-semibold text-info">costo pendiente</span>}
                   </div>}
                   <div className="mt-2 flex flex-wrap items-center gap-2 pl-4">

@@ -1,4 +1,4 @@
-import { Aviso, Button, Input, Label, MoneyInput, Select, Textarea } from '@/components/ui'
+import { Aviso, Button, Input, Label, MoneyInput, Nota, Select, Textarea } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import SelectorMedioPago from '@/components/shared/SelectorMedioPago'
 import NumericKeypad from '@/components/shared/NumericKeypad'
@@ -45,6 +45,9 @@ export default function PasoCobro({
   valido,
   cantTotal,
   ok,
+  pendientes = [],
+  onElegirUnidad,
+  onSobrePedido,
 }) {
   // El botón principal dice qué se está por crear según lo cobrado: verde si
   // está pago, naranja si es parcial y rojo si queda pendiente/a crédito.
@@ -367,6 +370,38 @@ export default function PasoCobro({
           </span>
         </div>
       </div>
+
+      {/* Guía inline (#148 §11): qué falta y cómo resolverlo, sin adivinar. */}
+      {pendientes.length > 0 && (
+        <Nota tono="warn" como="div" compact data-testid="guia-venta">
+          <p className="font-semibold text-warn">
+            {pendientes.some(p => p.motivo === 'imei')
+              ? 'Seleccioná el IMEI/serial exacto de cada equipo antes de vender.'
+              : 'Hay líneas sin stock: marcalas como «sobre pedido» para crear el pedido igual.'}
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {pendientes.map(pendiente => (
+              <li key={pendiente.key} className="flex flex-wrap items-center gap-2">
+                <span className="min-w-0 flex-1 truncate">{pendiente.nombre}</span>
+                {/* Con unidades disponibles la salida es elegir la unidad; sin
+                    unidades (o sin stock) el pedido se marca sobre pedido. */}
+                {pendiente.motivo === 'imei' && pendiente.unidades > 0 ? (
+                  <Button type="button" variant="outline" className="h-8 px-2.5 text-xs" disabled={guardando} onClick={() => onElegirUnidad?.(pendiente.key)}>
+                    Elegir unidad{pendiente.unidades > 1 ? ` (${pendiente.unidades})` : ''}
+                  </Button>
+                ) : (
+                  <Button type="button" variant="outline" className="h-8 px-2.5 text-xs" disabled={guardando} onClick={() => onSobrePedido?.(pendiente.key)}>
+                    {pendiente.motivo === 'imei' ? 'Vender sin IMEI' : 'Sobre pedido'}
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[11px]">
+            «Crear pedido» la registra sin unidad y se completa al entregar.
+          </p>
+        </Nota>
+      )}
 
       <div className="flex items-center gap-3">
         <Button
