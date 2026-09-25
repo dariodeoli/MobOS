@@ -1,0 +1,58 @@
+{
+  "base": "http://127.0.0.1:5216",
+  "etiqueta": "verificacion-local",
+  "fecha": "2026-09-25T19:45:17.808Z",
+  "resultados": [
+    {
+      "variante": "desktop-claro",
+      "nombreEditado": "Hernán Acosta",
+      "filasIntegrantes": 6,
+      "filasMetas": 6,
+      "checks": {
+        "integrantes": true,
+        "metas": true,
+        "roles": true,
+        "unaFilaDeMetasPorIntegranteActivo": true,
+        "metaGuardadaEnFicha": true,
+        "cumplimientoVisible": true,
+        "horarioResumido": true
+      },
+      "desbordeHorizontal": 0,
+      "erroresPagina": []
+    },
+    {
+      "variante": "desktop-oscuro",
+      "nombreEditado": "Hernán Acosta",
+      "filasIntegrantes": 6,
+      "filasMetas": 6,
+      "checks": {
+        "integrantes": true,
+        "metas": true,
+        "roles": true,
+        "unaFilaDeMetasPorIntegranteActivo": true,
+        "metaGuardadaEnFicha": true,
+        "cumplimientoVisible": true,
+        "horarioResumido": true
+      },
+      "desbordeHorizontal": 0,
+      "erroresPagina": []
+    },
+    {
+      "variante": "movil-claro",
+      "nombreEditado": "Hernán Acosta",
+      "filasIntegrantes": 6,
+      "filasMetas": 6,
+      "checks": {
+        "integrantes": true,
+        "metas": true,
+        "roles": true,
+        "unaFilaDeMetasPorIntegranteActivo": true,
+        "metaGuardadaEnFicha": true,
+        "cumplimientoVisible": true,
+        "horarioResumido": true
+      },
+      "desbordeHorizontal": 0,
+      "erroresPagina": []
+    }
+  ]
+}
