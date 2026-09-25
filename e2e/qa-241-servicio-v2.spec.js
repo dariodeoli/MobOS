@@ -8,6 +8,7 @@
 // horizontal, y con el flag apagado solo se informa.
 import { test, expect } from '@playwright/test'
 import { auditarContraste, informar } from './helpers/contraste.js'
+import { cerrarGuiaDemo } from './helpers/demo.js'
 
 const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/rediseno'
 const TEMAS = [['claro', 'light'], ['oscuro', 'dark']]
@@ -28,10 +29,10 @@ async function abrirDemo(page) {
   await page.getByRole('button', { name: /Dueño/ }).first().click()
   await page.waitForURL((url) => !url.pathname.startsWith('/demo'), { timeout: 30000 })
   await page.waitForTimeout(800)
-  if (await page.getByRole('dialog', { name: 'Cómo funciona la demo' }).count()) {
-    await page.getByRole('button', { name: 'Cerrar', exact: true }).click()
-    await page.waitForTimeout(300)
-  }
+  // La guía se abre sola la primera vez por pestaña (#201) y monta un render
+  // después de entrar: el helper compartido espera a que aparezca (en CI la
+  // comprobación instantánea perdía la carrera y tapaba los clics).
+  await cerrarGuiaDemo(page)
 }
 
 for (const [tema, modo] of TEMAS) {
