@@ -13,13 +13,24 @@ test.describe('seller permissions', () => {
 
     const sidebarNav = page.locator('aside nav')
     // Seller nav (SELLER_NAV): these are visible.
-    for (const label of ['POS', 'Clientes', 'Mis pedidos', 'Productos', 'Promociones', 'Trade-In']) {
+    for (const label of ['POS', 'Clientes', 'Mis pedidos', 'Productos', 'Promociones', 'Trade-In', 'Ayuda']) {
       await expect(sidebarNav.getByRole('button', { name: label, exact: true })).toBeVisible()
     }
     // Owner-only nav (OWNER_NAV): not rendered for sellers.
     for (const label of ['Inventario', 'Compras', 'Garantías y servicio', 'Resumen', 'Análisis', 'Finanzas', 'Equipo y configuración']) {
       await expect(sidebarNav.getByRole('button', { name: label, exact: true })).toHaveCount(0)
     }
+  })
+
+  // La ayuda es de todo el equipo (#251): el vendedor la tiene en su menú y
+  // abre la misma documentación que el dueño.
+  test('la ayuda está disponible para el vendedor', async ({ page }) => {
+    await page.goto('/pos')
+    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+    await page.locator('aside nav').getByRole('button', { name: 'Ayuda', exact: true }).click()
+    await expect(page).toHaveURL(/\/ayuda\/ayuda$/)
+    await expect(page.getByTestId('documentacion')).toBeVisible()
+    await expect(page.locator('h1')).toHaveText('Ayuda')
   })
 
   // La auditoría incluye movimientos de equipo y de dinero: un vendedor no

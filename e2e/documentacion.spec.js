@@ -4,7 +4,8 @@
 import { test, expect } from '@playwright/test'
 
 test('la documentación busca por tema y lleva a la pantalla', async ({ page }) => {
-  await page.goto('/configuracion/documentacion')
+  // Documentación salió de Configuración: ahora es «Ayuda» en el shell.
+  await page.goto('/ayuda')
   await expect(page.getByTestId('documentacion')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Documentación interna' })).toBeVisible()
 
