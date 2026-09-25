@@ -11,6 +11,11 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.167 — 2026-09-25
+- **Cobro del POS (#148 §5/§11):** la **cápsula de la cuenta** muestra sus datos y el **saldo pendiente**; el **botón del cobro se ordena por estado** (primero lo que falta) con resumen sólido; el **prefijo del monto** (Gs/USD) ya no se come el ancho del número.
+- **Taller (#250):** el **stock del taller** lleva **tenencia y pago** de repuestos, **aparte del stock vendible** (no se mezcla con lo que se puede vender).
+- **QA:** e2e, capturas antes/después y documentación del cobro.
+
 ## v1.0.166 — 2026-09-25
 - **POS (#148 §11):** la **venta sin stock/sin IMEI** queda marcada **«sobre pedido»** con su **guía inline**, traza y kardex por línea; el **carrito dinámico** suma **estados por fila y bloque**, acentos y micro-animaciones (#241).
 - **Buscador dependiente (#250):** **modelo → capacidad → color** en **Stock y Compras**, y **recepción de equipos y repuestos** con el mismo buscador.
