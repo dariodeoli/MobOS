@@ -4,6 +4,7 @@ import SearchField from '@/components/shared/SearchField'
 import SegmentedField from '@/components/shared/SegmentedField'
 import { ESTADOS_SERVICIO, ESTADO_SERVICIO_LABEL, SIGUIENTE_SERVICIO } from '@/lib/estadosServicio'
 import { ESTADO_GARANTIA, SIGUIENTE_GARANTIA } from '@/lib/estadosPedido'
+import { partesDispositivo, varianteDispositivo } from '@/lib/dispositivos'
 import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } from '@/components/shared/tabla'
@@ -108,6 +109,8 @@ export default function TableroServicioGarantias({ filas, error, onReintentar, o
                 {!tarjetas.length && <p className={cn(CELDA_DATO, 'px-1 pb-1')}>Sin {nombreDe}.</p>}
                 {tarjetas.map((fila) => {
                   const siguiente = siguienteDe[fila.estadoCodigo]
+                  const partes = partesDispositivo(fila.equipo)
+                  const variante = varianteDispositivo(fila.equipo)
                   return (
                     <article
                       key={fila.key}
@@ -120,7 +123,7 @@ export default function TableroServicioGarantias({ filas, error, onReintentar, o
                         {fila.codigo || (esServicio ? 'Orden de servicio' : 'Garantía')}
                       </p>
                       <p className={cn(CELDA_IDENTIDAD_GRANDE, 'mt-1')} title={fila.cliente}>{fila.cliente}</p>
-                      <p className={CELDA_DATO} title={fila.equipo || undefined}>{fila.equipo || 'Sin equipo'}</p>
+                      <p className={CELDA_DATO} title={fila.equipo || undefined}><span className="font-medium text-fore">{partes.modelo || 'Sin equipo'}</span>{variante ? ` · ${variante}` : ''}</p>
                       <p className={CELDA_DATO} title={fila.serial || undefined}>{fila.serial ? `IMEI ${fila.serial}` : 'Sin IMEI'}</p>
                       {fila.enServicio && <p className="mt-1 truncate text-[11px] text-mute" title={`En taller: ${fila.enServicio}`}>En taller: {fila.enServicio}</p>}
                       {siguiente && (

@@ -26,6 +26,8 @@ import SerialTexto from '@/components/shared/SerialTexto'
 import { CELDA_DATO, CELDA_ENCABEZADO } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { ESTADOS_SERVICIO as ESTADOS, ESTADO_SERVICIO_LABEL as ESTADO_LABEL, ESTADO_SERVICIO_TONO as ESTADO_TONE, SIGUIENTE_SERVICIO as SIGUIENTE } from '@/lib/estadosServicio'
+import { partesDispositivo, tipoDeDispositivo } from '@/lib/dispositivos'
+import { BuscadorDispositivo, etiquetaDispositivo } from 'owncoding-ui'
 // Plantilla sugerida del menú central por estado del pipeline (#134): al abrir
 // WhatsApp desde la fila, el mensaje ya sale con el contexto del taller.
 const PLANTILLA_POR_ESTADO = {
@@ -83,6 +85,9 @@ export default function ServicioTecnico() {
   const [checklistOpen, setChecklistOpen] = useState(false)
   const [nuevoPunto, setNuevoPunto] = useState('')
   const [checklistBusy, setChecklistBusy] = useState(false)
+  // Recepción del equipo con el buscador dependiente (#250): el modelo manda
+  // y capacidad/color se despliegan después.
+  const [dispositivo, setDispositivo] = useState({})
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
@@ -411,6 +416,21 @@ export default function ServicioTecnico() {
     ventana.print()
   }
 
+  // El buscador de la biblioteca emite el valor completo; guardamos la etiqueta
+  // («iPhone 15 · 256 GB · Azul») en `device` —el formato de siempre— y, cuando
+  // cambia el modelo (elegido o escrito), sincronizamos el tipo del checklist.
+  const cambiarDispositivo = (valor) => {
+    const modeloPrevio = dispositivo?.modelo || ''
+    setDispositivo(valor)
+    const tipo = tipoDeDispositivo(valor?.modelo)
+    setForm((current) => {
+      if (!current) return current
+      const cambioModelo = Boolean(valor?.modelo) && valor.modelo !== modeloPrevio
+      const sincronizarTipo = cambioModelo && tipo !== current.deviceType
+      return { ...current, device: etiquetaDispositivo(valor), ...(sincronizarTipo ? { deviceType: tipo, serviceName: '' } : {}) }
+    })
+  }
+
   const alternar = (id) => setSeleccionados((actuales) => alternarId(actuales, id))
   const seleccionarVisibles = () => setSeleccionados((actuales) => seleccionarTodos(visibles, actuales))
   const avanzarSeleccionadas = async () => {
@@ -439,6 +459,7 @@ export default function ServicioTecnico() {
 
   function editar(row) {
     setEditing(row)
+    setDispositivo(partesDispositivo(row.device))
     setForm({
       customerName: row.customerName || '', customerId: row.customerId || '', device: row.device || '', serial: row.serial || '',
       reportedIssue: row.reportedIssue || '', diagnosis: row.diagnosis || '', technicianName: row.technicianName || '',
@@ -470,7 +491,7 @@ export default function ServicioTecnico() {
         <span className="flex flex-wrap items-center gap-2">
           {servicios.length === 0 && <Button variant="outline" onClick={cargarCatalogoSugerido}>Cargar catálogo sugerido</Button>}
           <Button variant="outline" onClick={() => setCatalogoOpen(true)}>Catálogo</Button>
-          <Button onClick={() => { setEditing(null); setForm({ ...FORM_VACIO }) }}>+ Nueva orden</Button>
+          <Button onClick={() => { setEditing(null); setForm({ ...FORM_VACIO }); setDispositivo({}) }}>+ Nueva orden</Button>
         </span>
       </div>
 
@@ -600,7 +621,13 @@ export default function ServicioTecnico() {
                   </ul>
                 )}
               </div>
-              <div><Label htmlFor="dispositivo">Dispositivo *</Label><Input id="dispositivo" aria-label="Dispositivo" value={form.device} onChange={set('device')} placeholder="iPhone 15 Pro · 256 GB" autoCapitalize="words" /></div>
+              <div className="rounded-xl border border-ink-600 bg-ink-800/30 p-3 sm:col-span-2" data-testid="recepcion-dispositivo">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Label>Dispositivo *</Label>
+                  <span className="text-[11px] text-mute">El modelo manda: capacidad y color se despliegan después.</span>
+                </div>
+                <div className="mt-1"><BuscadorDispositivo valor={dispositivo} onCambio={cambiarDispositivo} tipo="servicio" /></div>
+              </div>
               <div><Label htmlFor="tipo-de-dispositivo">Tipo de dispositivo</Label><Select id="tipo-de-dispositivo" aria-label="Tipo de dispositivo" value={form.deviceType} onChange={event => setForm(current => ({ ...current, deviceType: event.target.value, serviceName: '' }))}>{DEVICE_TYPES.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</Select></div>
               <div><Label htmlFor="imei-serial">IMEI / serial</Label><SerialField id="imei-serial" aria-label="IMEI o serial" value={form.serial} onChange={value => setForm(current => ({ ...current, serial: value }))} placeholder="Opcional" /></div>
               <div><Label htmlFor="tecnico">Técnico</Label><Input id="tecnico" aria-label="Técnico" value={form.technicianName} onChange={set('technicianName')} placeholder="Responsable del trabajo" autoCapitalize="words" /></div>
