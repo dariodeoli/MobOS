@@ -34,9 +34,14 @@ test('clientes: fila estilo Pedidos con resumen rápido y detalle completo', asy
   })
   expect([200, 201], JSON.stringify(alta.body)).toContain(alta.status)
   const clienteId = alta.body.id
-  const productos = await api(page, '/api/products')
-  const lista = Array.isArray(productos.body) ? productos.body : productos.body?.rows || []
-  const producto = lista.find((row) => row.stock > 0) || lista[0]
+  // Producto propio con stock simple: el servidor exige los seriales exactos
+  // cuando hay unidades serializadas y este spec vende por cantidad.
+  const altaProducto = await api(page, '/api/products', {
+    method: 'POST',
+    body: JSON.stringify({ name: `Producto recibo ${marca}`, sku: `QA236-${marca}`, pricePyg: 300000, stock: 3 }),
+  })
+  expect([200, 201], JSON.stringify(altaProducto.body)).toContain(altaProducto.status)
+  const producto = altaProducto.body
   const pedido = await api(page, '/api/orders', {
     method: 'POST',
     body: JSON.stringify({
