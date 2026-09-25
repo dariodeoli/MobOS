@@ -236,6 +236,16 @@ Garantías en claro/oscuro × desktop/mobile con el flag apagado y prendido,
 `c241f4e-{servicio,todo,garantias}-{antes,despues}-{claro,oscuro}-{desktop,mobile}.png`.
 Detalle: `docs/QA-241-servicio-lote-e.md`.
 
+## Servicio y Garantías: buscador dependiente en la recepción (#240/#250)
+
+La recepción de **equipos** (orden de servicio) y de **repuestos** (caso de
+garantía) adopta `BuscadorDispositivo` de la biblioteca **v0.24.0**: el modelo
+manda y capacidad/color se despliegan después (perfil `servicio`); en repuestos
+el perfil `accesorios` suma marca y categoría y lo elegido se agrega a la lista.
+El tipo del checklist se sincroniza con el modelo y, si el equipo no está en el
+catálogo, se guarda tal cual. QA **6/6** con AA y capturas `c241f4g-buscador-*`;
+detalle en `docs/QA-240-buscador-dispositivo.md`.
+
 ## Servicio y Garantías: tablero por etapas (#215/#241)
 
 El dominio suma la vista **Tablero** (pestaña en la pantalla unificada): una
