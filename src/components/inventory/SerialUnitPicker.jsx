@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { api } from '@/lib/api/client'
+import { resources } from '@/lib/api'
 import { Badge, Button, Skeleton } from '@/components/ui'
 import SerialTexto from '@/components/shared/SerialTexto'
 import MedidorBateria from '@/components/shared/MedidorBateria'
@@ -21,8 +21,12 @@ export default function SerialUnitPicker({ product, customerName, selectedSerial
     setLoading(true); setError('')
     try {
       const query = product.sku || product.nombre || product.name || ''
-      const rows = await api.get(`/api/inventory-units?q=${encodeURIComponent(query)}`)
-      const matched = (rows || []).filter(unit => unit.productId === product.id)
+      // `resources` respeta la demo (#213): en la demo las unidades salen del
+      // store ficticio, no del API. Se filtra por producto y sucursal, como la
+      // API real.
+      const rows = await resources.inventoryUnits.list(query)
+      const matched = (rows || []).filter(unit => unit.productId === product.id
+        && (!product.branchId || !unit.branchId || unit.branchId === product.branchId))
       setUnits(matched)
       onRequiresSerial?.(matched.length > 0)
     } catch (cause) { setError(cause?.message || 'No se pudieron cargar los IMEI de este modelo.') } finally { setLoading(false) }
@@ -40,12 +44,13 @@ export default function SerialUnitPicker({ product, customerName, selectedSerial
     setBusySerial(serial); setError('')
     try {
       if (selectedSerials.includes(serial)) {
-        await api.patch('/api/inventory-reservations', { action: 'release', serials: [serial] })
+        await resources.inventoryReservations.release([serial])
         onChange(selectedSerials.filter(value => value !== serial))
       } else {
         if (!customerName?.trim()) throw new Error('Indicá primero el cliente para reservar este equipo.')
         if (unit.status !== 'AVAILABLE') throw new Error('Ese equipo ya no está disponible.')
-        await api.post('/api/inventory-reservations', { customerName: customerName.trim(), minutes: 60, serials: [serial] })
+        // `minutes` manda en el API real; `hours` lo usa el store de la demo.
+        await resources.inventoryReservations.create({ customerName: customerName.trim(), minutes: 60, hours: 1, serials: [serial] })
         // Una línea representa una unidad; para vender otra, agregala como nueva línea.
         onChange([serial])
       }
