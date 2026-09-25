@@ -43,3 +43,24 @@ Capturas por variante (desktop claro/oscuro y mobile): `equipo-integrantes-*`,
   restaura al terminar.
 - Actualizados por el rename de la sección: `admin.spec.js` (3),
   `documentacion.spec.js` (1) e `ia-configuracion.spec.js` (1).
+
+## Verificación funcional en demo local (`verificacion-local/`)
+
+Sonda `scripts/qa-253-equipo-acceso-local.mjs` contra la demo en local
+(desktop claro/oscuro y mobile), 3/3 con **checks OK**, 0 desbordes y 0 errores:
+
+| Check | Resultado |
+|---|---|
+| Integrantes / Metas y comisiones / Matriz de capacidades en el grupo | ✅ |
+| Una fila de metas por integrante activo | ✅ 6/6 |
+| Meta editada en demo (`250.000`) reflejada en la ficha con **% de cumplimiento** | ✅ |
+| Horario de acceso: rango guardado y resumen `Horario · Lu Ma Mi Ju Vi 08:00–18:00` en la ficha | ✅ |
+| Roles y permisos visibles dentro del grupo | ✅ |
+
+Capturas por variante: `01-integrantes-*`, `02-metas-*`, `03-horario-*`,
+`04-roles-*`, `ficha-integrante-*`, `metas-tarjeta-*`, `modal-horario-*` y
+`resultados.json`.
+
+De la verificación salió una corrección de demo: `actualizarUsuario` traduce
+`dailyGoalPyg` → `metaDiaria`, así la ficha y el cumplimiento se actualizan
+igual que contra el backend (antes la meta editada no se reflejaba en la demo).

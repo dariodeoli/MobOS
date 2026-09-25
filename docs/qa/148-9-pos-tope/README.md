@@ -31,6 +31,7 @@ claro/oscuro y mobile claro), 0 errores de página:
 |---|---|---|---|---|
 | **Producción v1.0.170 (antes)** | ✅ `aria-invalid` | ❌ confirma la venta («Recibo confirmado») | sin aviso | `produccion-1.0.170/guardado-desktop-claro.jpg` |
 | **Rama (después)** | ✅ | ✅ no crea el pedido (`creacion: false`) | «No se puede guardar: el precio de … (Gs 5.000.000.000) supera el máximo que el sistema puede guardar (Gs 2.147.483.647). Bajá el monto para continuar. Revisá también 1 monto más.» | `rama-148-9/guardado-desktop-claro.jpg` |
+| **Producción v1.0.172 (post-deploy)** | ✅ | ✅ no crea el pedido | el mismo aviso, ya publicado | `1.0.172-produccion-postdeploy/guardado-desktop-claro.jpg` |
 
 Capturas por variante (`precio-sobre-tope-*`, `guardado-*`) y datos crudos en
 `resultados-<etiqueta>.json`.

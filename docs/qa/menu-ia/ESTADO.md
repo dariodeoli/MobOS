@@ -95,3 +95,18 @@
   decida; no se tocó `AppShell` en esta entrega.
 - **DSN (visual)**: rótulos de las pestañas del taller y la relación «Taller y
   garantías» (ítem) vs «Taller» (título), anotados en el issue.
+
+## Verificación post-deploy en producción v1.0.172
+
+Sonda `scripts/qa-menu-ia.mjs` contra `https://app.moboss.online` (demo pública,
+4 variantes: claro/oscuro, desktop 1280 y mobile 390), **0 errores de página**:
+
+| Criterio | Resultado en producción |
+|---|---|
+| Grupos del menú (dueño) | **Inicio · Vender · Clientes · Inventario · Operación · Finanzas · Análisis · Configuración** |
+| Taller | sección «Taller» con pestañas `Todo · Tablero · Servicio · Garantías` |
+| Tablero real | `/ops` abre «Tablero de operaciones» |
+| Menú del vendedor | `Vender · Clientes · Inventario · Operación` |
+| Rutas heredadas | siguen abriendo su pantalla (probadas por el e2e de la rama) |
+
+Capturas y datos crudos: [`1.0.172-produccion/`](1.0.172-produccion/).
