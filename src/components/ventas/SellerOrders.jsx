@@ -155,7 +155,7 @@ function FilaPedido({ row, onClick, onAcciones, v2 }) {
       onClick={onClick}
       onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick?.() } }}
       className={cn(
-        'w-full rounded-xl border border-l-4 border-fore/10 bg-ink-800/40 px-2.5 py-1.5 text-left transition hover:border-fono/40 hover:bg-ink-700/50',
+        'w-full min-h-11 rounded-xl border border-l-4 border-fore/10 bg-ink-800/40 px-2.5 py-1.5 text-left transition hover:border-fono/40 hover:bg-ink-700/50',
         ACENTO_PAGO(row),
         estaCompletado(row) && !cancelado && 'opacity-70 hover:opacity-100',
       )}
@@ -351,9 +351,9 @@ export default function SellerOrders() {
 
   return <SellerSection description="Una fila por pedido, alineada y ordenable: entrá para ver artículos, IMEIs, cliente y cronología.">
     <div className="flex flex-wrap items-center gap-2">
-      <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{FILTROS.map(([key, label]) => <button key={key} type="button" onClick={() => setFiltro(key)} className={cn('rounded-lg px-2.5 py-1.5 text-xs font-semibold transition', filtro === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>
+      <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{FILTROS.map(([key, label]) => <button key={key} type="button" onClick={() => setFiltro(key)} className={cn('min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition md:min-h-0', filtro === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>
       <div className="min-w-[220px] flex-1"><SearchField ariaLabel="Buscar pedidos" placeholder="Pedido, cliente, RUC, teléfono, producto, IMEI o monto" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
-      <button type="button" onClick={data.refresh} disabled={data.loading} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Actualizar</button>
+      <button type="button" onClick={data.refresh} disabled={data.loading} className="min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore md:min-h-0">Actualizar</button>
     </div>
     {v2 && rows.length > 0 && (
       <div className="grid grid-cols-3 divide-ink-600 rounded-xl border border-ink-600 bg-ink-800/60 text-center sm:divide-x">

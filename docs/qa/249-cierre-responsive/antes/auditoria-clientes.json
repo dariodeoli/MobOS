@@ -1,0 +1,158 @@
+[
+  {
+    "pantalla": "clientes",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 8,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Cliente",
+        "ancho": 212,
+        "alto": 20,
+        "dibujo": "212x20",
+        "clase": "flex items-center gap-1 truncate text-left text-[10px] font-bold upper",
+        "veces": 6
+      },
+      {
+        "que": "button",
+        "texto": "Exportar CSV",
+        "ancho": 126,
+        "alto": 36,
+        "dibujo": "126x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "clientes",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 8,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Cliente",
+        "ancho": 212,
+        "alto": 20,
+        "dibujo": "212x20",
+        "clase": "flex items-center gap-1 truncate text-left text-[10px] font-bold upper",
+        "veces": 6
+      },
+      {
+        "que": "button",
+        "texto": "Exportar CSV",
+        "ancho": 126,
+        "alto": 36,
+        "dibujo": "126x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "clientes",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 8,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Cliente",
+        "ancho": 212,
+        "alto": 20,
+        "dibujo": "212x20",
+        "clase": "flex items-center gap-1 truncate text-left text-[10px] font-bold upper",
+        "veces": 6
+      },
+      {
+        "que": "button",
+        "texto": "Exportar CSV",
+        "ancho": 126,
+        "alto": 36,
+        "dibujo": "126x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg font-semibold",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 231,
+        "alto": 34,
+        "dibujo": "231x34",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "clientes",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 10,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Cliente",
+        "ancho": 212,
+        "alto": 20,
+        "dibujo": "212x20",
+        "clase": "flex items-center gap-1 truncate text-left text-[10px] font-bold upper",
+        "veces": 6
+      },
+      {
+        "que": "button",
+        "texto": "+ Crear cliente",
+        "ancho": 130,
+        "alto": 36,
+        "dibujo": "130x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-4 font-sem",
+        "veces": 3
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  }
+]

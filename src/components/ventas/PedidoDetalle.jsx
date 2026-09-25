@@ -444,7 +444,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               <Button variant="outline" onClick={() => setComprobante(true)}>Imprimir comprobante</Button>
               <Button variant="outline" onClick={imprimirNotaEntrega}>Nota de entrega</Button>
               {!esDemo && !anulado && <Button variant="outline" onClick={abrirAnular}>Anular pedido</Button>}
-              {!esDemo && <button type="button" disabled={busy} onClick={alternarArchivado} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">{archivado ? 'Desarchivar' : 'Archivar'}</button>}
+              {!esDemo && <button type="button" disabled={busy} onClick={alternarArchivado} className="min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore md:min-h-0">{archivado ? 'Desarchivar' : 'Archivar'}</button>}
             </div>
           </section>
 
@@ -453,7 +453,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             <section className="rounded-2xl border border-ink-600 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className={cn('flex items-center gap-2', ROTULO_SECCION)}><Icon name="eye" className="h-3.5 w-3.5" /> Acceso del cliente</h3>
-                <button type="button" disabled={accesoBusy} onClick={regenerarAccesoQr} className="rounded-lg border border-ink-500 px-3 py-1.5 text-xs font-semibold text-mute transition hover:border-warn hover:text-warn disabled:opacity-60">Regenerar acceso QR</button>
+                <button type="button" disabled={accesoBusy} onClick={regenerarAccesoQr} className="min-h-11 rounded-lg border border-ink-500 px-3 py-1.5 text-xs font-semibold text-mute transition hover:border-warn hover:text-warn disabled:opacity-60 md:min-h-0">Regenerar acceso QR</button>
               </div>
               <p className="mt-1 text-xs text-mute">Cada nivel tiene su propio enlace privado. Regenerar uno invalida el anterior; «Regenerar acceso QR» invalida además los QR ya impresos y los enlaces compartidos.</p>
               <div className="mt-3 space-y-2">

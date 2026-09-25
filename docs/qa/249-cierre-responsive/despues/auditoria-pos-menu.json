@@ -1,0 +1,72 @@
+[
+  {
+    "pantalla": "pos-menu",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 153,
+        "alto": 13,
+        "dibujo": "153x13",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "menú · disparador",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Más acciones",
+            "ancho": 44,
+            "alto": 44,
+            "dibujo": "36x36"
+          }
+        ]
+      },
+      {
+        "nombre": "menú · ítems",
+        "dibujo": true,
+        "nodos": [
+          {
+            "texto": "Configuración",
+            "ancho": 230,
+            "alto": 44,
+            "dibujo": "230x44"
+          },
+          {
+            "texto": "Caja",
+            "ancho": 230,
+            "alto": 44,
+            "dibujo": "230x44"
+          },
+          {
+            "texto": "Análisis",
+            "ancho": 230,
+            "alto": 44,
+            "dibujo": "230x44"
+          },
+          {
+            "texto": "Clientes",
+            "ancho": 230,
+            "alto": 44,
+            "dibujo": "230x44"
+          },
+          {
+            "texto": "Bloquear pantalla",
+            "ancho": 230,
+            "alto": 44,
+            "dibujo": "230x44"
+          }
+        ]
+      }
+    ]
+  }
+]

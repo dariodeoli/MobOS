@@ -1,0 +1,140 @@
+[
+  {
+    "pantalla": "pedidos",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 9,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Activos",
+        "ancho": 63,
+        "alto": 28,
+        "dibujo": "63x28",
+        "clase": "rounded-lg px-2.5 py-1.5 text-xs font-semibold transition bg-fono/15 t",
+        "veces": 7
+      },
+      {
+        "que": "button",
+        "texto": "Actualizar",
+        "ancho": 83,
+        "alto": 34,
+        "dibujo": "83x34",
+        "clase": "rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 153,
+        "alto": 13,
+        "dibujo": "153x13",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "pedidos",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 9,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Activos",
+        "ancho": 63,
+        "alto": 28,
+        "dibujo": "63x28",
+        "clase": "rounded-lg px-2.5 py-1.5 text-xs font-semibold transition bg-fono/15 t",
+        "veces": 7
+      },
+      {
+        "que": "button",
+        "texto": "Actualizar",
+        "ancho": 84,
+        "alto": 34,
+        "dibujo": "84x34",
+        "clase": "rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "pedidos",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 231,
+        "alto": 34,
+        "dibujo": "231x34",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "pedidos",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 9,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Activos",
+        "ancho": 63,
+        "alto": 28,
+        "dibujo": "63x28",
+        "clase": "rounded-lg px-2.5 py-1.5 text-xs font-semibold transition bg-fono/15 t",
+        "veces": 7
+      },
+      {
+        "que": "button",
+        "texto": "Actualizar",
+        "ancho": 84,
+        "alto": 34,
+        "dibujo": "84x34",
+        "clase": "rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  }
+]

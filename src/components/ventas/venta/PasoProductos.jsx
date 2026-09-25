@@ -241,7 +241,7 @@ export default function PasoProductos({
                 <button
                   type="button"
                   onClick={() => setNuevoProd(true)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-fono/30 px-2.5 py-1.5 text-xs font-semibold text-fono-light transition hover:bg-fono/10"
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-fono/30 px-2.5 py-1.5 text-xs font-semibold text-fono-light transition hover:bg-fono/10 md:min-h-0"
                 >
                   <Icon name="plus" className="h-3.5 w-3.5" /> Nuevo producto
                 </button>

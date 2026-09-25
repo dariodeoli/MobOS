@@ -65,7 +65,7 @@ export default function MenuAcciones({ onNavegar, onBloquear }) {
               type="button"
               role="menuitem"
               onClick={() => accion(destino)}
-              className={cn('flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-ink-700', tono || 'text-fore')}
+              className={cn('flex min-h-11 w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-ink-700', tono || 'text-fore')}
             >
               <Icon name={icono} className="h-4 w-4 text-mute" />
               {etiqueta}

@@ -1,0 +1,46 @@
+[
+  {
+    "pantalla": "pedido-publico",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": [],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "pedido-publico",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": [],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "pedido-publico",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": [],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "pedido-publico",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": [],
+    "topbarChicos": [],
+    "clave": []
+  }
+]

@@ -318,7 +318,7 @@ export default function Landing() {
     <div className={cn('min-h-dvh overflow-hidden bg-paper text-fore selection:bg-fono selection:text-onbrand', temaV2Activo() && 'tema-v2')}>
       <header className="sticky top-0 z-30 border-b border-fore/[.07] bg-paper/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3.5">
-          <a href="#inicio" aria-label="MobOS">
+          <a href="#inicio" aria-label="MobOS" className="toque-44">
             <ThemeLogo className="h-9" />
           </a>
           <nav className="hidden gap-6 text-sm text-mute lg:flex">

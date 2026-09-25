@@ -1598,7 +1598,6 @@ export default function FormularioVenta({
           <Button
             type="button"
             variant="outline"
-            className="h-9 px-3 text-xs"
             onClick={() => setAnalyticsOpen(true)}
           >
             <Icon name="chart" className="h-4 w-4" />
@@ -1607,7 +1606,6 @@ export default function FormularioVenta({
           <Button
             type="button"
             variant="outline"
-            className="h-9 px-3 text-xs"
             onClick={abrirSuspendidas}
           >
             <Icon name="clock" className="h-4 w-4" />
@@ -1617,7 +1615,6 @@ export default function FormularioVenta({
             <Button
               type="button"
               variant="outline"
-              className="h-9 px-3 text-xs"
               onClick={abrirSuspender}
               disabled={guardando}
             >
