@@ -11,7 +11,6 @@ import { ventasDelDia, fechaClave, num, gs } from '@/utils/calculos'
 import SelectorSucursal from '@/components/shared/SelectorSucursal'
 import Icon from '@/components/shared/Icon'
 import AppShell from '@/components/app/AppShell'
-import GlobalSearch from '@/components/app/GlobalSearch'
 import { ConfirmDialog, Modal, PinInput, Select, Skeleton, Subtabs, useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { rutaDeVista, vistaDeRuta } from '@/lib/rutas'
@@ -20,6 +19,7 @@ import PantallaBloqueada from '@/components/app/PantallaBloqueada'
 import DemoNoDisponible from '@/components/app/DemoNoDisponible'
 import { usePreferencias } from '@/hooks/usePreferencias'
 import ComandosAtajos from '@/components/control/ComandosAtajos'
+import { usePrefetchSecciones } from '@/hooks/usePrefetchSecciones'
 import { useBloqueoInactividad } from '@/hooks/useBloqueoInactividad'
 import CheatSheetAtajos from '@/components/app/CheatSheetAtajos'
 
@@ -63,6 +63,9 @@ const RolesPermisos = lazy(() => import('@/components/control/RolesPermisos'))
 const Celulares = lazy(() => import('@/pages/Celulares'))
 const Comparador = lazy(() => import('@/pages/Comparador'))
 const Documentacion = lazy(() => import('@/components/control/Documentacion'))
+// #247: la búsqueda global baja recién al abrirla (no pesa en el chunk del
+// panel ni en el arranque del POS).
+const GlobalSearch = lazy(() => import('@/components/app/GlobalSearch'))
 
 // IA del menú (#251): Inicio · Vender · Clientes · Inventario · Operación ·
 // Finanzas · Análisis · Configuración. El vendedor ve el mismo esqueleto con
@@ -394,6 +397,9 @@ export default function PanelVendedor() {
   const seccionRuta = subpadre && tabsRuta.some(([id]) => id === routeSeccion) ? routeSeccion : null
   const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
   const esTecnico = !esOwner && (usuario?.role === 'TECNICO' || sesion?.rol === 'TECNICO')
+  // #247: adelanta los chunks de las secciones más usadas cuando el equipo está
+  // ocioso (una sola vez por carga y solo si la conexión lo permite).
+  usePrefetchSecciones(esOwner ? 'dueno' : esTecnico ? 'tecnico' : 'vendedor')
   // El slug plano de la URL define la vista (/pos, /pedidos, /trade-in…).
   const routeVista = subpadre ? null : vistaDeRuta(slugRuta, { esOwner })
   const [vista, setVista] = useState(seccionRuta || routeVista || (subpadre ? tabsRuta[0][0] : 'cargar'))
@@ -421,6 +427,10 @@ export default function PanelVendedor() {
   const [saliendo, setSaliendo] = useState(false)
   const [ayudaAbierto, setAyudaAbierto] = useState(false)
   const [busquedaAbierta, setBusquedaAbierta] = useState(false)
+  // #247: el POS se monta la primera vez que se entra (después queda oculto
+  // para no perder la venta en curso). Antes se montaba siempre y arrastraba
+  // combos, cuentas de cobro y su chunk a todas las pantallas.
+  const [posMontado, setPosMontado] = useState(vista === 'cargar')
   const cambioEnCurso = useRef(false)
   const lockEnCurso = useRef(false)
   const toast = useToast()
@@ -456,6 +466,10 @@ export default function PanelVendedor() {
   // Las URLs viejas de Configuración entran por su sección nueva (#IA):
   // /configuracion/negocio → organizacion, /configuracion/documentacion →
   // /ayuda/ayuda, etc.
+  // #247: el POS entra al árbol en cuanto se visita; después no se desmonta.
+  useEffect(() => {
+    if (vista === 'cargar' && !posMontado) setPosMontado(true)
+  }, [vista, posMontado])
   useEffect(() => {
     if (subpadre !== 'configuracion' || !routeSeccion) return
     const destino = REDIRECCIONES_CONFIG[routeSeccion]
@@ -796,6 +810,7 @@ export default function PanelVendedor() {
 
         <main className="flex-1 bg-gradient-to-b from-paper to-paper p-4 md:p-8">
           <Suspense fallback={<VistaCargando />}>
+          {posMontado && (
           <div key={`venta:${identidad}`} hidden={vista !== 'cargar'}>
             {tradeIn?.identidad === identidad && (
               <div
@@ -820,6 +835,7 @@ export default function PanelVendedor() {
               onTradeInConsumed={() => setTradeIn(null)}
             />
           </div>
+          )}
 
           <div key={identidad}>
             {vista === 'clientes' && <SellerCustomers />}
@@ -1037,12 +1053,16 @@ export default function PanelVendedor() {
         busy={saliendo}
       />
 
-      <GlobalSearch
-        open={busquedaAbierta}
-        onClose={() => setBusquedaAbierta(false)}
-        onNavigate={ir}
-        vistas={accesibles}
-      />
+      {busquedaAbierta && (
+        <Suspense fallback={null}>
+          <GlobalSearch
+            open
+            onClose={() => setBusquedaAbierta(false)}
+            onNavigate={ir}
+            vistas={accesibles}
+          />
+        </Suspense>
+      )}
     </>
   )
 }

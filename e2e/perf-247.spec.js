@@ -222,3 +222,67 @@ test('auditoría de carga de las pantallas más usadas (#247)', async ({ browser
   console.log(`[perf-247] evidencia en ${SALIDA}/perf-247.{json,md}`)
   expect(filas.length).toBe(PANTALLAS.length * 3 * REPS)
 })
+
+// Navegación entre secciones con la sesión caliente: es lo que la gente hace
+// todo el día (POS → Pedidos → Clientes → Inventario). Con #247 el panel
+// adelanta esos chunks cuando el equipo está ocioso; acá se mide el efecto.
+test('navegación entre las secciones más usadas (#247)', async ({ browser }) => {
+  test.setTimeout(5 * 60_000)
+  const storageState = test.info().project.use?.storageState || 'e2e/.auth/admin.json'
+  const fresco = await browser.newContext(storageState ? { storageState } : {})
+  try {
+    const page = await fresco.newPage()
+    const cdp = await page.context().newCDPSession(page).catch(() => null)
+    if (cdp) await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU_THROTTLE }).catch(() => {})
+    // Red lenta (3G): acá se ve el efecto del adelanto ocioso. Se apaga con
+    // MOBOS_PERF_NET=0 para medir en red local.
+    const redLenta = process.env.MOBOS_PERF_NET !== '0'
+    if (cdp && redLenta) {
+      await cdp.send('Network.enable').catch(() => {})
+      await cdp.send('Network.emulateNetworkConditions', {
+        offline: false,
+        latency: 150,
+        downloadThroughput: Math.round(200 * 1024),
+        uploadThroughput: Math.round(100 * 1024),
+      }).catch(() => {})
+    }
+
+    await page.goto('/pos', { waitUntil: 'commit' })
+    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+
+    // El adelanto ocioso avisa cuando terminó (y si algún chunk falla, el
+    // navegador lo carga igual al entrar: acá se registra si llegó a tiempo).
+    const prefetch = await page.evaluate(() => new Promise((resolve) => {
+      let listo = false
+      window.addEventListener('mobos:prefetch-listo', () => { listo = true; resolve('listo') }, { once: true })
+      window.setTimeout(() => resolve(listo ? 'listo' : 'sin-aviso'), 10_000)
+    }))
+
+    const pasos = [
+      ['Pedidos', async () => expect(page.getByTestId('pedidos-tabla')).toBeVisible()],
+      ['Clientes', async () => expect(page.getByTestId('cliente-fila').first()).toBeVisible()],
+      ['Unidades', async () => expect(page.getByTestId('inventario-fila').first()).toBeVisible()],
+      ['POS', async () => expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()],
+    ]
+    const filas = []
+    for (const [seccion, listo] of pasos) {
+      const arranque = Date.now()
+      // El ítem puede compartir nombre con su grupo (p. ej. «Clientes»): el
+      // ítem es el último botón con ese nombre dentro del menú.
+      await page.locator('aside nav').getByRole('button', { name: seccion, exact: true }).last().click()
+      await listo()
+      filas.push({ seccion, listoMs: Date.now() - arranque })
+    }
+
+    const salida = process.env.MOBOS_PERF_SALIDA || 'test-results/perf-247'
+    mkdirSync(salida, { recursive: true })
+    writeFileSync(
+      `${salida}/perf-247-navegacion.json`,
+      `${JSON.stringify({ fecha: new Date().toISOString(), cpuThrottle: CPU_THROTTLE, redLenta, prefetch, filas }, null, 2)}\n`,
+    )
+    console.log(`[perf-247] navegación (${prefetch}): ${filas.map((f) => `${f.seccion} ${f.listoMs} ms`).join(' · ')}`)
+    expect(filas.length).toBe(pasos.length)
+  } finally {
+    await fresco.close()
+  }
+})

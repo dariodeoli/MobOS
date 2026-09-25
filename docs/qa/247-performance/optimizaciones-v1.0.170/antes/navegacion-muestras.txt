@@ -1,0 +1,7 @@
+# Navegación entre secciones (red 3G simulada, CPU 4x) — SIN el adelanto ocioso
+# 3 corridas del mismo spec (muestras crudas; el JSON guarda la última).
+#   MOBOS_PERF_AUDIT=1 MOBOS_E2E_BACKEND=prod MOBOS_E2E_FRONTEND=preview \
+#   MOBOS_PERF_SALIDA=... npx playwright test e2e/perf-247.spec.js -g navegación --project=admin
+Pedidos 959 ms · Clientes 943 ms · Unidades 1551 ms · POS 320 ms
+Pedidos 956 ms · Clientes 933 ms · Unidades 1574 ms · POS 302 ms
+Pedidos 944 ms · Clientes 934 ms · Unidades 1544 ms · POS 270 ms

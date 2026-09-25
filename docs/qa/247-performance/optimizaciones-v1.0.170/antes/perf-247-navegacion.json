@@ -1,0 +1,24 @@
+{
+  "fecha": "2026-09-25T16:19:16.039Z",
+  "cpuThrottle": 4,
+  "redLenta": true,
+  "prefetch": "sin-aviso",
+  "filas": [
+    {
+      "seccion": "Pedidos",
+      "listoMs": 944
+    },
+    {
+      "seccion": "Clientes",
+      "listoMs": 934
+    },
+    {
+      "seccion": "Unidades",
+      "listoMs": 1544
+    },
+    {
+      "seccion": "POS",
+      "listoMs": 270
+    }
+  ]
+}
