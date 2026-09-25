@@ -26,7 +26,7 @@ const SECCIONES = [
 test('las rutas viejas de Configuración entran por su sección nueva', async ({ page }) => {
   // Slugs históricos (marcadores y enlaces enviados) → sección actual.
   const REDIRECCIONES = [
-    ['/configuracion/identidad', /\/configuracion\/mi-cuenta$/],
+    ['/configuracion/identidad', /\/mi-perfil$/],
     ['/configuracion/preferencias', /\/configuracion\/mi-cuenta$/],
     ['/configuracion/negocio', /\/configuracion\/organizacion$/],
     ['/configuracion/sucursales', /\/configuracion\/organizacion$/],
@@ -70,6 +70,28 @@ test('Configuración tiene siete secciones y ninguna duplica contenido', async (
   await expect(page.getByRole('heading', { name: 'Tiendas', exact: true })).toBeVisible()
   await page.locator('main').getByRole('tab', { name: 'Mi cuenta', exact: true }).click()
   await expect(page.getByText('Mi foto')).toHaveCount(1)
+})
+
+test('Mi perfil se abre desde el avatar; Precios queda con una sola entrada', async ({ page }) => {
+  // El perfil personal ya no es una pestaña de Configuración: se entra desde
+  // el avatar (pie del menú) y la ruta vieja de identidad cae acá.
+  await page.goto('/configuracion/mi-cuenta')
+  await page.getByTestId('shell-mi-perfil').click()
+  await expect(page).toHaveURL(/\/mi-perfil$/)
+  await expect(page.getByRole('heading', { name: 'Tu nombre de vendedor' })).toBeVisible()
+  await capturar(page, 'mi-perfil')
+
+  await page.goto('/configuracion/identidad')
+  await expect(page).toHaveURL(/\/mi-perfil$/)
+
+  // Precios: una sola entrada visible (Inventario → Precios). Comercial no lo
+  // duplica; la ruta propia de listas sigue viva.
+  await page.goto('/configuracion/comercial')
+  await expect(page.getByRole('heading', { name: 'Seguro y límites' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Listas de precios' })).toHaveCount(0)
+  await page.goto('/precios')
+  await expect(page.getByRole('heading', { name: 'Listas de precios' })).toBeVisible()
+  await capturar(page, 'precios')
 })
 
 test('Documentación vive en Ayuda con su buscador', async ({ page }) => {
