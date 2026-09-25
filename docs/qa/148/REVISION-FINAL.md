@@ -13,7 +13,7 @@ dominio o de decisión.
 | 8 | Cuentas de cobro con buscador | ✅ | `CuentaCobroCombobox` + capturas `docs/qa/204/01` |
 | 9 | Montos de venta 99.000 millones + moneda extranjera | ✅ POS | `docs/qa/204/01` (USD 100 → Gs 730.000) · estándar de 10 mM en Gastos/Pagos/Cuentas/Reportes/Comisiones → **FIN/INV** |
 | 10 | Botón principal por estado | ✅ | Capturas `docs/qa/204/01-02` (Crear pedido → Confirmar venta) |
-| 11 | Pagos divididos (bloques, agregar, dividir, eliminar, estado) | ✅ | Split `docs/qa/204`; eliminar bloque y **estado por bloque / marcar como no pagado** (`docs/qa/148-s11/ESTADO.md`, e2e `pos-qa-173`, capturas `docs/qa/148-s11/no-pagado/`) |
+| 11 | Pagos divididos (bloques, agregar, dividir, eliminar, estado) | ✅ | Split `docs/qa/204`; eliminar bloque y **estado por bloque / marcar como no pagado** (`docs/qa/148-s11/ESTADO.md`, e2e `pos-qa-173`, capturas `docs/qa/148-s11/no-pagado/`) · **venta sin stock / sin IMEI marcada «sobre pedido»** (guía inline con acciones y avisos claros en vez del genérico): `docs/qa/148-s11/SIN-STOCK.md`, e2e `pos-148-s11-sin-stock`, capturas `docs/qa/148-s11/sin-stock/` |
 | 12 | Estados de entrega sincronizados | ✅ | `docs/qa/148-s12/ESTADO.md`; e2e `public-tracking` + arnés `order-fulfillment` · coordinación **PLT** (notificación in-app) y **DSN** (piloto) |
 | 13–15 | Bloqueo de sesión, tres puntos, staff/PIN | ✅ otro dominio | specs `sesion-bloqueo`, `notificaciones`, `seller-pin` en main |
 | 16 | Comentarios internos y menciones | ✅ | e2e de menciones (#156) · notificación de menciones → **PLT** |
