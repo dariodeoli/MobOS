@@ -11,6 +11,10 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.168 — 2026-09-25
+- **Tema (#241):** **profundidad del tema v0.25.0** aplicada al **shell, el panel y el carrito** (superficies y contraste más parejos, con capturas antes/después).
+- **Calidad:** documentado el cierre de la **racha de 3 corridas verdes consecutivas** con la evidencia local.
+
 ## v1.0.167 — 2026-09-25
 - **Cobro del POS (#148 §5/§11):** la **cápsula de la cuenta** muestra sus datos y el **saldo pendiente**; el **botón del cobro se ordena por estado** (primero lo que falta) con resumen sólido; el **prefijo del monto** (Gs/USD) ya no se come el ancho del número.
 - **Taller (#250):** el **stock del taller** lleva **tenencia y pago** de repuestos, **aparte del stock vendible** (no se mezcla con lo que se puede vender).
