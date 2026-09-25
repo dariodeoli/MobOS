@@ -13,7 +13,7 @@ export default function AvisoVersion() {
     <div
       role="status"
       data-testid="aviso-version"
-      className="fixed inset-x-0 bottom-4 z-[60] mx-auto flex w-[min(92vw,26rem)] items-center gap-3 rounded-2xl border border-fono/40 bg-ink p-3 shadow-2xl"
+      className="fixed inset-x-0 bottom-4 z-[60] mx-auto flex w-[min(92vw,26rem)] items-center gap-3 rounded-2xl border border-fono/40 bg-ink p-3 shadow-float"
     >
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-fono/15 text-fono-light">
         <Icon name="refresh" className="h-4 w-4" />

@@ -221,14 +221,17 @@ racha:
 
 Evidencia mínima del cierre:
 
-1. **Racha:** las 3 corridas completas verdes consecutivas (ID · SHA · duración),
-   con `node scripts/qa-ci-racha.mjs` (sale 0 con 3).
+1. **Racha (cumplida el 25/09):** las 3 corridas completas verdes consecutivas
+   fueron `36089666759` (`9204563`, 9m36s) · `36101675980` (`499966a`, 11m14s) ·
+   `36103971417` (`ac5d2ae`, 10m46s); `node scripts/qa-ci-racha.mjs` sale 0.
+   Las rojas previas y sus fixes están en la tabla de arriba.
 2. **Sin cuarentena:** el workflow sin la variable de cuarentena ni reintentos por
    spec, `e2e/` sin `.skip(`/`.fixme(` y `retries: 0`; lo exige
-   `src/lib/ciHarness.test.js`.
+   `src/lib/ciHarness.test.js`. Shards balanceados (143/143/142 · 428 tests).
 3. **Local:** los specs de la noche 23/09, 5/5 vueltas aisladas sin reintentos;
-   ronda completa de los 3 shards en verde; **la suite completa, 3 veces seguidas**
-   (350 tests con `MOBOS_E2E_WORKERS=3`, 0 flaky); `npm test` en verde.
+   los flaky de los releases .160/.161 (POS y táctil) y el de config
+   (`config-guardado`, .162–.165) endurecidos y verificados (repeat 3/3 y
+   archivo 5/5); QA de shell/dominios/POS v2 con `bajos=0`; `npm test` en verde.
 4. **#247 en producción:** entry 1104 → 169 KB (medido en v1.0.154) —
    `docs/qa/247-performance/`.
 

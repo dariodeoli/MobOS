@@ -68,7 +68,7 @@ export default function PantallaBloqueada({
         aria-modal="true"
         aria-labelledby="lock-title"
         data-testid="pantalla-bloqueada"
-        className="w-full max-w-sm rounded-3xl border border-fore/10 bg-ink p-6 text-center shadow-2xl"
+        className="w-full max-w-sm rounded-3xl border border-ink-600 bg-ink p-6 text-center shadow-float"
       >
         <ThemeLogo className="mx-auto h-7 w-auto" />
 
