@@ -14,7 +14,7 @@ const capturar = (page, nombre) => page.screenshot({ path: join(DIR, `ia-config-
 
 // Sección nueva → contenido que la identifica (título o encabezado propio).
 const SECCIONES = [
-  ['Mi cuenta', 'Tu nombre de vendedor', 'mi-cuenta'],
+  ['Mi cuenta', 'Tu perfil', 'mi-cuenta'],
   ['Organización', 'Datos de la tienda', 'organizacion'],
   ['Equipo y acceso', 'Funcionarios y metas', 'equipo'],
   ['Comercial', 'Seguro y límites', 'comercial'],
