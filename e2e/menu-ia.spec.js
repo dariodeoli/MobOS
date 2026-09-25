@@ -95,7 +95,7 @@ test('las rutas heredadas siguen abriendo su pantalla sin figurar en el menú (#
   const heredadas = [
     ['/promociones', 'Promociones'],
     ['/precios', 'Precios'],
-    ['/configuracion/precios', 'Precios'],
+    ['/configuracion/precios', 'Comercial'],
     ['/plantillas', 'Plantillas de WhatsApp'],
     ['/autorizaciones', 'Autorizaciones'],
     ['/celulares', 'Lista por modelo'],
