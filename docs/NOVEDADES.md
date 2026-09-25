@@ -11,6 +11,14 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.169 — 2026-09-25
+- **Clientes (#240):** **«Tus cotizaciones»** en la cuenta del cliente (con su estado y detalle).
+- **Configuración (#251):** **Dispositivos** y **Sistema** quedan separados y **Documentación** pasa a la **Ayuda** del shell; los grupos tienen guía por rol.
+- **Ayuda y plataforma (#97 #168 #241):** los **QR de producto (`/producto/<sku>`) y de prueba (`/prueba`)** ya abren su ficha, la **Ayuda** enlaza al **estado de los servicios**, el shell muestra el **modo offline del POS** (y abre la cola) y **Preferencias** suma **«Volver al diseño anterior»** (por dispositivo y reversible).
+- **Diseño (#241):** **mapa de la app** y de Configuración, **cheat-sheet visual de atajos** para la Ayuda y limpieza de mocks del rediseño.
+- **Impresión (#240 #220 #250 §11):** **compartir documentos imprimibles como imagen** y **comprobante de recepción** imprimible del abastecimiento.
+- **Componentes (#241):** se retiró el bloque local v2 del shell — todo vive en la biblioteca (**v0.26.0**).
+
 ## v1.0.168 — 2026-09-25
 - **Tema (#241):** **profundidad del tema v0.25.0** aplicada al **shell, el panel y el carrito** (superficies y contraste más parejos, con capturas antes/después).
 - **Calidad:** documentado el cierre de la **racha de 3 corridas verdes consecutivas** con la evidencia local.
