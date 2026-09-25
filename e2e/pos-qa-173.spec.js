@@ -263,3 +263,41 @@ test('split: un bloque marcado como no pagado deja el saldo pendiente y el pedid
     }, { api: API, productId })
   }
 })
+
+// #187: cambiar a «Retiro en tienda» no puede seguir cobrando el envío. Antes
+// el monto quedaba cargado (el campo se deshabilitaba, pero el total y el cobro
+// lo seguían sumando) y la venta cobraba un delivery inexistente.
+test('retiro en tienda no cobra el envío aunque haya un monto cargado (#187)', async ({ page }) => {
+  const nombre = `QA 187 retiro ${clave()}`
+  const { productId } = await crearProducto(page, { nombre, precio: 100000, stock: 2 })
+
+  try {
+    await page.goto('/pos')
+    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+    await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente retiro ${clave()}`)
+    const buscar = page.getByPlaceholder('Buscar producto…')
+    await buscar.fill(nombre)
+    const tarjeta = page.getByRole('button', { name: new RegExp(nombre) }).first()
+    await expect(tarjeta).toBeVisible({ timeout: 15_000 })
+    await tarjeta.click()
+    await expect(page.getByText('Productos de esta venta')).toBeVisible()
+
+    // Delivery con costo: el resumen lo muestra.
+    await page.locator('#entrega').selectOption('Delivery')
+    await page.locator('#monto-entrega').fill('30000')
+    const carrito = page.getByTestId('resumen-compra')
+    await expect(carrito).toContainText('Entrega + Gs 30.000')
+
+    // Retiro: el monto se limpia y la venta vuelve al subtotal.
+    await page.locator('#entrega').selectOption('Retiro en tienda')
+    const monto = page.locator('#monto-entrega')
+    await expect(monto).toBeDisabled()
+    await expect(monto).toHaveValue('')
+    await expect(carrito).not.toContainText('Entrega +')
+    await expect(carrito).toContainText('Gs 100.000')
+  } finally {
+    await page.evaluate(async ({ api, productId }) => {
+      await fetch(`${api}/api/products?id=${encodeURIComponent(productId)}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
+    }, { api: API, productId })
+  }
+})

@@ -705,7 +705,10 @@ export default function FormularioVenta({
   const totalCarrito = items.reduce((a, it) => a + it.precio * (it.quantity || 1) - descuentoItem(it), 0)
   const tieneCupon = items.some(it => it.couponCode)
   const subtotal = totalCarrito
-  const totalGeneral = Math.max(0, subtotal - gsNum(descuento) + gsNum(f.montoDelivery))
+  // Retiro en tienda no cobra envío: si quedó un monto cargado (p. ej. un
+  // borrador viejo), la venta lo ignora y no lo manda al backend (#187).
+  const montoDeliveryEfectivo = f.entrega === 'Retiro en tienda' ? 0 : gsNum(f.montoDelivery)
+  const totalGeneral = Math.max(0, subtotal - gsNum(descuento) + montoDeliveryEfectivo)
   // «No pagado» (#148 §11): un bloque marcado así no suma a lo cobrado y la
   // venta queda con ese saldo pendiente (el pago viaja con estado PENDING).
   const totalPagado = pagos.reduce((s, p) => s + (p.noPagado ? 0 : gsNum(p.monto)), 0)
@@ -890,7 +893,7 @@ export default function FormularioVenta({
           descuento: descuentoItem(it),
         })),
         descuento: gsNum(descuento),
-        envio: gsNum(f.montoDelivery),
+        envio: montoDeliveryEfectivo,
         pagos: pagos.map(p => ({ monto: gsNum(p.monto) })),
         totalGeneral,
         totalPagado,
@@ -1001,7 +1004,7 @@ export default function FormularioVenta({
       lineas = allocateCheckout(
         listaDemo,
         gsNum(descuento),
-        gsNum(f.montoDelivery),
+        montoDeliveryEfectivo,
         usaCuentas
           ? pagos.map((p, i) => ({ ...p, ...payments[i], monto: payments[i].amountPyg }))
           : pagos.map((p, i) => ({ ...p, ...payments[i], monto: gsNum(p.monto) })),
@@ -1081,7 +1084,7 @@ export default function FormularioVenta({
             ...(!puedeDescontar && excedenteBajoLista > 0 && authPrecio
               ? { priceAuthorizationId: authPrecio.id }
               : {}),
-            deliveryPyg: gsNum(f.montoDelivery),
+            deliveryPyg: montoDeliveryEfectivo,
             // La API rechaza observaciones vacías: se omiten en vez de mandar ''.
             ...(f.observacion?.trim() ? { deliveryNotes: f.observacion } : {}),
             deliveryType: f.entrega,
@@ -1764,7 +1767,7 @@ export default function FormularioVenta({
             items={items}
             unidades={cantTotal}
             montoDescuento={gsNum(descuento)}
-            montoDelivery={gsNum(f.montoDelivery)}
+            montoDelivery={montoDeliveryEfectivo}
             dia={resumenDia}
           />
         </div>
@@ -1829,7 +1832,7 @@ export default function FormularioVenta({
               totalPagado={totalPagado}
               pendiente={pendiente}
               conPagos={pagos.length > 0}
-              montoDelivery={gsNum(f.montoDelivery)}
+              montoDelivery={montoDeliveryEfectivo}
               quitarItem={quitarItem}
               editarItem={editarItem}
               onImei={setImeiPara}
