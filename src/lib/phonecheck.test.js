@@ -143,3 +143,20 @@ test('los chips de locks muestran la fuente y la hora de la verificación (#241 
   assert.equal(resumenVerificacion({}), null)
   assert.equal(resumenVerificacion({ campos: [] }), null)
 })
+
+test('los locks del tile salen listos para ChipsLocks (#241 lote C)', async () => {
+  const { locksParaChips } = await import('./phonecheck.js')
+  const verificacion = {
+    serviceName: 'Apple Basic', resolvedAt: '2026-09-24T20:40:00.000Z',
+    campos: [{ clave: 'findMy', valor: 'Off' }, { clave: 'mdm', valor: 'On' }, { clave: 'blacklist', valor: 'Sin reportes actuales' }],
+  }
+  const locks = locksParaChips(verificacion)
+  assert.deepEqual(locks.map((lock) => lock.clave), ['icloud', 'mdm', 'esn'])
+  assert.equal(locks[0].estado, 'libre')
+  assert.equal(locks[1].estado, 'activo', 'MDM activo se pinta como incidencia')
+  assert.equal(locks[2].estado, 'libre')
+  assert.match(locks[1].detalle, /MDM: On · Apple Basic/)
+  assert.equal(locksParaChips(null).length, 0, 'sin verificación no hay chips')
+  assert.equal(locksParaChips({ campos: [] }).length, 0)
+  assert.equal(locksParaChips({ campos: [{ clave: 'marca', valor: 'Apple' }] }).length, 0, 'lo que no es lock no se muestra')
+})

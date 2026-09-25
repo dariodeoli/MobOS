@@ -107,9 +107,39 @@ export async function GET(request: Request) {
       `
     : []
   const ventaPorSerial = new Map(ventas.map(venta => [venta.serial, venta]))
-  return json(units.map(unit => unit.status === 'SOLD' && ventaPorSerial.has(unit.serial)
-    ? { ...unit, sale: ventaPorSerial.get(unit.serial) }
-    : unit))
+
+  // #241 lote C: la última consulta IMEI por serial (compacta: solo los locks)
+  // alimenta los chips del tile de equipo; mismo alcance que la ficha
+  // (administración/gerencia). Una sola consulta para toda la página.
+  const CLAVES_LOCK = ['findMy', 'mdm', 'blacklist', 'simLock']
+  const verificacionPorSerial = new Map<string, { serviceName: string; provider: string; status: string; requestedAt: Date; resolvedAt: Date | null; campos: Array<{ clave: string; valor: string; fuente: string | null; hora: string | null }> }>()
+  const seriales = [...new Set(units.map(unidad => unidad.serial).filter(Boolean))]
+  if (['ADMIN', 'GERENTE'].includes(session.user.role) && seriales.length) {
+    const consultas = await prisma.$queryRaw<Array<{ imei: string; serviceName: string; provider: string; status: string; requestedAt: Date; resolvedAt: Date | null; normalized: unknown }>>`
+      SELECT DISTINCT ON (imei) imei, "serviceName", provider, status, "requestedAt", "resolvedAt", normalized
+      FROM "ImeiCheckQuery"
+      WHERE "tenantId" = ${tenant} AND imei IN (${Prisma.join(seriales)})
+      ORDER BY imei, "requestedAt" DESC
+    `
+    for (const consulta of consultas) {
+      const filas = Array.isArray(consulta.normalized) ? consulta.normalized : []
+      const campos = filas
+        .filter((campo) => campo && typeof campo === 'object' && CLAVES_LOCK.includes(String((campo as Record<string, unknown>).clave)))
+        .map((campo) => {
+          const fila = campo as Record<string, unknown>
+          return { clave: String(fila.clave), valor: typeof fila.valor === 'string' ? fila.valor : '', fuente: typeof fila.fuente === 'string' ? fila.fuente : null, hora: typeof fila.hora === 'string' ? fila.hora : null }
+        })
+      if (campos.length) {
+        verificacionPorSerial.set(consulta.imei, { serviceName: consulta.serviceName, provider: consulta.provider, status: consulta.status, requestedAt: consulta.requestedAt, resolvedAt: consulta.resolvedAt, campos })
+      }
+    }
+  }
+
+  return json(units.map(unit => {
+    const conVenta = unit.status === 'SOLD' && ventaPorSerial.has(unit.serial) ? { ...unit, sale: ventaPorSerial.get(unit.serial) } : unit
+    const verificacion = verificacionPorSerial.get(unit.serial)
+    return verificacion ? { ...conVenta, verificacion } : conVenta
+  }))
 }
 
 // Agrega una o más unidades físicas a un modelo existente. El stock agregado
