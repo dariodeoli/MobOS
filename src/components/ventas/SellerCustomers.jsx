@@ -305,7 +305,7 @@ export default function SellerCustomers() {
       </Select>
       <ListGridToggle value={vista} onChange={cambiarVista} />
       <Button type="button" onClick={abrirCrear}>+ Crear cliente</Button>
-      {!esDemo && <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={exportando} onClick={exportar}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}
+      {!esDemo && <Button type="button" variant="outline" className="px-3 text-xs" disabled={exportando} onClick={exportar}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}
       {!esDemo && <Button type="button" variant="outline" onClick={() => { setImportAbierto(true); setImportError(''); setImportResultado(null) }}>Importar</Button>}
     </div>
     {exportError && <p role="alert" className="text-sm text-bad">{exportError}</p>}

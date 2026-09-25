@@ -262,7 +262,7 @@ export function Modal({ open, onClose, title, children, className, size = TAMANO
       <div ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} className={cn('max-h-[min(90dvh,720px)] w-full overflow-y-auto rounded-2xl border border-ink-600 bg-ink-800 p-4 shadow-float sm:p-6', TAMANOS_MODAL[size] || TAMANOS_MODAL[TAMANO_MODAL_PREDETERMINADO], className)}>
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 id={titleId} className="text-base font-bold text-fore">{title}</h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-2 text-mute hover:bg-ink-700 hover:text-fore" aria-label="Cerrar">×</button>
+          <button type="button" onClick={onClose} className="toque-44 rounded-lg p-2 text-mute hover:bg-ink-700 hover:text-fore" aria-label="Cerrar">×</button>
         </div>
         {children}
       </div>
@@ -414,7 +414,7 @@ export function Drawer({ open, onClose, title, children, side = 'right', classNa
       >
         <div className="flex items-center justify-between gap-3 border-b border-ink-600 p-4">
           <h2 id={titleId} className="text-base font-bold text-fore">{title}</h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-2 text-mute hover:bg-ink-700 hover:text-fore" aria-label="Cerrar">×</button>
+          <button type="button" onClick={onClose} className="toque-44 rounded-lg p-2 text-mute hover:bg-ink-700 hover:text-fore" aria-label="Cerrar">×</button>
         </div>
         <div className="flex-1 overflow-y-auto p-4 sm:p-5">{children}</div>
       </div>

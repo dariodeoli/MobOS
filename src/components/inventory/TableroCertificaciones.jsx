@@ -47,8 +47,8 @@ export default function TableroCertificaciones({ units = [], onAbrirUnidad }) {
       </div>
       <span className="flex flex-wrap items-center gap-2">
         <Select aria-label="Filtrar por grado" value={grado} onChange={event => setGrado(event.target.value)} className="w-auto"><option value="todos">Todos los grados</option><option value="A">Grado A</option><option value="B">Grado B</option><option value="C">Grado C</option></Select>
-        <Button type="button" variant={soloPendientes ? 'default' : 'outline'} className="h-8 px-2 text-xs" onClick={() => setSoloPendientes(actual => !actual)}>Solo pendientes</Button>
-        <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={!filas.length} onClick={exportar}>Exportar CSV</Button>
+        <Button type="button" variant={soloPendientes ? 'default' : 'outline'} className="px-2 text-xs" onClick={() => setSoloPendientes(actual => !actual)}>Solo pendientes</Button>
+        <Button type="button" variant="outline" className="px-2 text-xs" disabled={!filas.length} onClick={exportar}>Exportar CSV</Button>
       </span>
     </div>
     <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">

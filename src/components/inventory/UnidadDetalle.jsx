@@ -379,7 +379,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="font-mono text-sm font-bold tracking-wide">{unit.serial}</span>
-            <button type="button" className="rounded-md p-1 text-mute transition hover:bg-fore/5 hover:text-fore" title="Copiar IMEI/serial" aria-label="Copiar IMEI/serial" onClick={() => { copiarAlPortapapeles(unit.serial); toast.success('IMEI copiado.') }}><Icon name="copy" className="h-3.5 w-3.5" /></button>
+            <button type="button" className="toque-44 rounded-md p-1 text-mute transition hover:bg-fore/5 hover:text-fore" title="Copiar IMEI/serial" aria-label="Copiar IMEI/serial" onClick={() => { copiarAlPortapapeles(unit.serial); toast.success('IMEI copiado.') }}><Icon name="copy" className="h-3.5 w-3.5" /></button>
           </div>
           <p className="mt-1 text-xs text-mute">{unit.branch?.name || 'Sucursal'}{unit.location?.name ? ` · ${unit.location.name}` : ''}{unit.product?.sku ? ` · ${unit.product.sku}` : ''}</p>
           {verificador && unit.lastVerifiedAt && (
@@ -452,7 +452,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
         <section className="rounded-2xl border border-ink-600 p-4" data-testid="unidad-imei">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className={ROTULO_SECCION}>Consulta de IMEI</h3>
-            <span className="flex items-center gap-2">{esDemo ? <Badge color="blue">Demo: simulado</Badge> : imeiModo === 'vivo' ? <Badge color="slate">Función paga</Badge> : <Badge color="blue">SIMULADO · Sin cobro</Badge>}{canManage && <Button type="button" variant="outline" className="h-7 px-2 text-xs" data-testid="imei-consultas-abrir" onClick={() => { setConsultasOpen(true); setConsultaError(''); setConsultasFilas([]) }}>Consultas IMEI</Button>}</span>
+            <span className="flex items-center gap-2">{esDemo ? <Badge color="blue">Demo: simulado</Badge> : imeiModo === 'vivo' ? <Badge color="slate">Función paga</Badge> : <Badge color="blue">SIMULADO · Sin cobro</Badge>}{canManage && <Button type="button" variant="outline" className="px-2 text-xs" data-testid="imei-consultas-abrir" onClick={() => { setConsultasOpen(true); setConsultaError(''); setConsultasFilas([]) }}>Consultas IMEI</Button>}</span>
           </div>
           <p className="mt-1 text-xs text-mute">Estado del equipo en IMEIcheck (blacklist, Find My/iCloud, SIM lock, MDM, garantía). Se muestra el costo antes de confirmar y cada consulta queda auditada. Si no se puede verificar, se muestra como «No verificado», nunca «Limpio».</p>
           {!imeiFase && !imeiBusy && <Button type="button" variant="outline" className="mt-2" onClick={imeiPrecheck} data-testid="imei-precheck">Consultar IMEI (ver costo)</Button>}
@@ -479,7 +479,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
               {(imeiDatos.campos || imeiDatos.normalized || []).map(campo => (
                 <p key={campo.clave} className="text-xs"><span className="font-semibold text-fore">{campo.etiqueta}:</span> <span className={campo.valor ? 'text-fore/90' : 'text-mute'}>{campo.valor || 'No verificado'}</span> <span className="text-mute">· {campo.fuente}{campo.hora ? ` · ${new Date(campo.hora).toLocaleString('es-PY')}` : ''}</span></p>
               ))}
-              <Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={() => { setImeiFase(null); setImeiDatos(null) }}>Cerrar</Button>
+              <Button type="button" variant="ghost" className="px-2 text-xs" onClick={() => { setImeiFase(null); setImeiDatos(null) }}>Cerrar</Button>
             </div>
           )}
         </section>
@@ -521,7 +521,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
             <Input aria-label="Ciclos de batería" inputMode="numeric" maxLength={5} placeholder="Ciclos" value={inspeccion.bateriaCiclos} onChange={event => setInspeccion(actual => ({ ...actual, bateriaCiclos: event.target.value.replace(/\D/g, '') }))} />
             <div className="grid gap-2 sm:col-span-2 sm:grid-cols-2"><Input aria-label="Repuestos no OEM" placeholder="Repuestos no OEM / reparaciones" value={inspeccion.repuestosNoOem} onChange={event => setInspeccion(actual => ({ ...actual, repuestosNoOem: event.target.value }))} /><Input aria-label="Nota de repuestos no OEM" placeholder="Nota / detalle de la reparación" value={inspeccion.repuestosNoOemNota} onChange={event => setInspeccion(actual => ({ ...actual, repuestosNoOemNota: event.target.value }))} /></div>
               <MoneyInput aria-label="Costo de repuestos y arreglos" title="Lo que costó reparar o reponer los repuestos detectados: se suma al costo real del equipo para la ganancia y el seguro" placeholder="Costo de repuestos" value={inspeccion.costoRepuestosPyg} onValueChange={(valor) => setInspeccion(actual => ({ ...actual, costoRepuestosPyg: valor }))} />
-              <div className="flex flex-wrap items-center gap-2 sm:col-span-2"><AttachmentInput inputRef={repuestosEvidenciaRef} className="hidden" onSelect={file => setRepuestosEvidencia(file)} onError={message => toast.error(message)} /><button type="button" onClick={() => repuestosEvidenciaRef.current?.click()} className="rounded-lg border border-ink-600 px-2 py-1 text-[10px] font-semibold text-mute transition hover:border-fono/40"><Icon name="image" className="mr-1 inline h-3 w-3" />{repuestosEvidencia ? repuestosEvidencia.name : 'Adjuntar foto de la reparación'}</button>{repuestosEvidencia && <Button type="button" variant="outline" className="h-7 px-2 text-xs" disabled={subiendoEvidencia} onClick={subirEvidenciaRepuestos}>{subiendoEvidencia ? 'Subiendo…' : 'Guardar evidencia'}</Button>}</div>
+              <div className="flex flex-wrap items-center gap-2 sm:col-span-2"><AttachmentInput inputRef={repuestosEvidenciaRef} className="hidden" onSelect={file => setRepuestosEvidencia(file)} onError={message => toast.error(message)} /><button type="button" onClick={() => repuestosEvidenciaRef.current?.click()} className="min-h-11 rounded-lg border border-ink-600 px-2 py-1 text-[10px] font-semibold text-mute transition hover:border-fono/40 md:min-h-0"><Icon name="image" className="mr-1 inline h-3 w-3" />{repuestosEvidencia ? repuestosEvidencia.name : 'Adjuntar foto de la reparación'}</button>{repuestosEvidencia && <Button type="button" variant="outline" className="px-2 text-xs" disabled={subiendoEvidencia} onClick={subirEvidenciaRepuestos}>{subiendoEvidencia ? 'Subiendo…' : 'Guardar evidencia'}</Button>}</div>
             <Button type="button" variant="outline" disabled={imeiBusy} title="Corre la verificación de IMEI y trae los bloqueos al checklist" onClick={async () => { await imeiPrecheck(); await imeiConfirmar(); setInspeccion(actual => ({ ...actual, fuente: 'IMEIcheck' })) }}>{imeiBusy ? 'Verificando…' : 'Verificar y completar'}</Button>
           </div>
           {(() => {
@@ -552,7 +552,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
             {consultasFilas.map(fila => <article key={fila.id} className="rounded-xl border border-ink-600 p-2 text-xs">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="flex items-center gap-2"><Badge color={fila.status === 'verificado' ? 'green' : fila.status === 'conciliar' ? 'orange' : 'slate'}>{fila.etiqueta || fila.status}</Badge><span className="text-mute">{fila.imei || ''} · US$ {Number(fila.costUsd || 0).toFixed(2)} · {fila.requestedAt ? new Date(fila.requestedAt).toLocaleString('es-PY') : ''}</span></span>
-                {puedeConciliar && <Button type="button" className="h-7 px-2 text-xs" title="Conciliar la consulta con el panel del proveedor (queda auditada)" data-testid={`imei-conciliar-${fila.id}`} onClick={() => abrirConciliacion(fila)}>Conciliar</Button>}
+                {puedeConciliar && <Button type="button" className="px-2 text-xs" title="Conciliar la consulta con el panel del proveedor (queda auditada)" data-testid={`imei-conciliar-${fila.id}`} onClick={() => abrirConciliacion(fila)}>Conciliar</Button>}
               </div>
               {fila.status === 'conciliar' && fila.error ? <p className="mt-1 text-[11px] text-warn">{fila.error}</p> : null}
               {fila.conciliatedAt ? <p className="mt-1 text-[11px] text-mute">Conciliada el {fechaHora(fila.conciliatedAt)}{fila.externalId ? ` · orden ${fila.externalId}` : ''}</p> : null}
