@@ -659,10 +659,9 @@ export default function FormularioVenta({
 
   // Los productos con unidades serializadas piden IMEI en su fila.
   function detectarUnidades(producto, key) {
-    if (esDemo) return
     const query = producto.sku || producto.nombre || ''
-    api
-      .get(`/api/inventory-units?q=${encodeURIComponent(query)}`)
+    // `resources` respeta la demo: las unidades ficticias también piden IMEI.
+    resources.inventoryUnits.list(query)
       .then(rows => {
         if (!(rows || []).some(unit => unit.productId === producto.id)) return
         setItems(arr => arr.map(it => (it.key === key ? { ...it, requiereSerie: true } : it)))
@@ -1852,7 +1851,11 @@ export default function FormularioVenta({
                 product={productoFila}
                 customerName={customer.name || f.cliente}
                 selectedSerials={fila.serials || []}
-                onChange={serials => editarItem(fila.key, { serials })}
+                // Elegir unidad en el picker crea la reserva: la línea lo muestra.
+                onChange={serials => editarItem(fila.key, { serials, reservado: serials.length > 0 })}
+                onRequiresSerial={requiere => {
+                  if (requiere) editarItem(fila.key, { requiereSerie: true })
+                }}
                 disabled={guardando}
               />
               <label className={`flex items-start gap-2 rounded-xl border p-3 text-sm ${unidadesDeImei > 0 ? 'border-ink-600 bg-ink-800/40 text-mute/70' : 'border-warn/30 bg-warn/5 text-mute'}`}>
@@ -1861,7 +1864,7 @@ export default function FormularioVenta({
                   className="mt-0.5 h-4 w-4 accent-warn disabled:opacity-40"
                   disabled={unidadesDeImei > 0}
                   checked={Boolean(fila.sobrePedido)}
-                  onChange={event => editarItem(fila.key, { sobrePedido: event.target.checked, serials: event.target.checked ? [] : fila.serials || [] })}
+                  onChange={event => editarItem(fila.key, { sobrePedido: event.target.checked, serials: event.target.checked ? [] : fila.serials || [], ...(event.target.checked ? { reservado: false } : {}) })}
                 />
                 <span>
                   {unidadesDeImei > 0

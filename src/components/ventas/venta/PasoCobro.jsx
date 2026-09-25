@@ -238,8 +238,10 @@ export default function PasoCobro({
           <div
             key={i}
             data-testid={`pago-fila-${i}`}
+            data-estado={p.noPagado ? 'no-pagado' : 'pagado'}
             className={cn(
-              'grid grid-cols-1 gap-2 items-end sm:grid-cols-[1.2fr_1fr_1fr_auto]',
+              'mobos-aparece grid grid-cols-1 items-end gap-2 border-l-2 pl-2 sm:grid-cols-[1.2fr_1fr_1fr_auto]',
+              p.noPagado ? 'border-l-warn/70' : 'border-l-ok/60',
               !usaCuentas && 'rounded-2xl border border-ink-600 bg-ink-800/30 p-3',
             )}
           >
@@ -335,13 +337,13 @@ export default function PasoCobro({
         ))}
         <div className="grid grid-cols-3 gap-2 border-t border-fono/20 pt-3 text-xs text-mute">
           <span className="rounded-xl border border-ink-600 px-3 py-2" data-testid="cobro-total">
-            Total
+            <Icon name="receipt" className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden="true" />Total
             <strong className="v2-numero mt-0.5 block text-base tabular-nums text-fore">
               {gs(totalGeneral)}
             </strong>
           </span>
           <span className="rounded-xl border border-ok/25 bg-ok/10 px-3 py-2 text-ok" data-testid="cobro-pagado">
-            Pagado
+            <Icon name="check" className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden="true" />Pagado
             <strong className="v2-numero mt-0.5 block text-base tabular-nums text-ok">
               {gs(totalPagado)}
             </strong>
@@ -353,7 +355,7 @@ export default function PasoCobro({
               pendiente ? 'border-warn/25 bg-warn/10 text-warn' : 'border-ink-600 text-mute',
             )}
           >
-            Pendiente
+            <Icon name={pendiente ? 'alert' : 'check'} className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden="true" />Pendiente
             <strong
               className={cn(
                 'v2-numero mt-0.5 block text-base tabular-nums',
