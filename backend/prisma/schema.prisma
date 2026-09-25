@@ -626,6 +626,9 @@ model InventoryUnit {
   @@index([serial(ops: raw("gin_trgm_ops"))], map: "InventoryUnit_serial_trgm_idx", type: Gin)
   @@index([tenantId, branchId, status])
   @@index([tenantId, status, reservedUntil])
+  // #247: la lista de Unidades ordena por estado y luego por más reciente; este
+  // índice evita el orden en memoria (antes usaba reservedUntil y ordenaba).
+  @@index([tenantId, status, updatedAt(sort: Desc)])
   @@index([tenantId, branchId, locationId, status])
   @@index([tenantId, branchId, lastVerifiedAt])
   @@index([tenantId, supplierId])

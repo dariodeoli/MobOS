@@ -485,9 +485,13 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   // La búsqueda global abre Unidades con ?q=<serial> ya aplicado.
   const [searchParams] = useSearchParams()
   const qParam = searchParams.get('q') || ''
-  const [products, setProducts] = useState([]), [branches, setBranches] = useState([]), [units, setUnits] = useState([]), [removedUnits, setRemovedUnits] = useState([]), [reservations, setReservations] = useState([]), [transfers, setTransfers] = useState([]), [locations, setLocations] = useState([]), [cargandoUnidades, setCargandoUnidades] = useState(true)
+  const [products, setProducts] = useState([]), [units, setUnits] = useState([]), [removedUnits, setRemovedUnits] = useState([]), [reservations, setReservations] = useState([]), [transfers, setTransfers] = useState([]), [locations, setLocations] = useState([]), [cargandoUnidades, setCargandoUnidades] = useState(true)
   const apiMode = modoDatosActual() === 'api'
-  const { sesion, sucursal, esDemo } = useSesion()
+  const { sesion, sucursal, sucursales, esDemo } = useSesion()
+  // Las sucursales ya vienen hidratadas en la sesión (el selector del shell las
+  // consulta una sola vez): se reusan para los modales en lugar de repetir la
+  // consulta en cada carga del inventario (#247).
+  const branches = useMemo(() => (sucursales || []).map(item => ({ ...item, name: item.name || item.nombre })), [sucursales])
   const navigate = useNavigate()
   // #213: en demo el inventario usa los mismos recursos (store session-only).
   const inventarioOperativo = apiMode || esDemo
@@ -621,36 +625,6 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   useEffect(() => { setTransferAuth(null) }, [transfer.sourceBranchId, transfer.destinationBranchId, transfer.productId, transfer.serials])
   // La pestaña activa vive en la URL (/inventario/<slug>). Sin slug válido o sin
   // permiso para Alertas, se cae en Unidades.
-  const refresh = useCallback(async (search) => {
-    if (!inventarioOperativo) { setCargandoUnidades(false); return }
-    setBusy(true); setError('')
-    try {
-      const [nextUnits, nextRemoved, nextReservations, nextTransfers, nextLocations, nextBranches] = await Promise.all([resources.inventoryUnits.list(search), resources.inventoryUnits.list(search, 'removed'), resources.inventoryReservations.list(), resources.transfers.list(), resources.stockLocations.list(), resources.inventoryBranches.list()])
-      setUnits(nextUnits); setRemovedUnits(nextRemoved); setReservations(nextReservations); setTransfers(nextTransfers); setLocations(nextLocations); setBranches(nextBranches); setProducts(getProductos())
-    } catch (cause) { setError(cause?.message || 'No se pudo actualizar el inventario.') } finally { setBusy(false); setCargandoUnidades(false) }
-  }, [inventarioOperativo])
-  const busquedaDiferida = useBusquedaDiferida(query)
-  useEffect(() => { refresh(busquedaDiferida) }, [refresh, busquedaDiferida])
-  // Catálogo de proveedores (para sugerir al recibir) y cotización de hoy para
-  // precargar el costo en dólares. Los dos son opcionales: si fallan, se sigue a mano.
-  useEffect(() => {
-    if (!inventarioOperativo) return
-    let activo = true
-    suppliersApi.list().then(rows => { if (activo) setProveedores(Array.isArray(rows) ? rows : []) }).catch(() => { if (activo) setProveedores([]) })
-    Promise.resolve(cotizacionReferencia()).then(valor => { if (activo) setCotizacion(valor) }).catch(() => {})
-    return () => { activo = false }
-  }, [inventarioOperativo])
-  useEffect(() => { if (qParam) setQuery(qParam) }, [qParam])
-  useEffect(() => { if (detalleUnidad) setDetalleUnidad(current => units.find(unit => unit.id === current.id) || current) }, [units]) // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (!apiMode || tab !== 'compartido') return undefined
-    let active = true
-    setVisibilityError('')
-    Promise.all([resources.sharedStock.list().catch(() => []), canManageVisibility ? resources.sharedStock.mine().catch(() => []) : Promise.resolve([])])
-      .then(([received, mine]) => { if (active) { setReceivedStock(received); setGrants(mine) } })
-      .catch(() => { if (active) setVisibilityError('No se pudo cargar la disponibilidad compartida.') })
-    return () => { active = false }
-  }, [tab, apiMode, canManageVisibility])
   const loadAlerts = useCallback(async () => {
     if (!inventarioOperativo || !canViewAlerts) return
     setAlertsLoading(true); setAlertsError('')
@@ -662,10 +636,82 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
       setStockAlerts(payload || { alerts: [], outOfStock: [] })
     } catch (cause) { setAlertsError(cause?.message || 'No se pudieron cargar las alertas.') } finally { setAlertsLoading(false) }
   }, [inventarioOperativo, canViewAlerts, sucursal?.id])
-  useEffect(() => { loadAlerts() }, [loadAlerts])
+  // #247 (seguimiento): el primer pintado espera **solo** lo que la lista de
+  // Unidades usa (las unidades y el catálogo local). El resto —depósitos,
+  // proveedores, alertas y las pestañas de reservas/traslados/eliminados— se
+  // hidrata en cuanto el hilo queda libre (o al abrir esa pestaña), así la
+  // pantalla deja de pagar seis consultas antes de mostrar la primera fila.
+  const refresh = useCallback(async (search) => {
+    if (!inventarioOperativo) { setCargandoUnidades(false); return }
+    setBusy(true); setError('')
+    try {
+      const nextUnits = await resources.inventoryUnits.list(search)
+      setUnits(nextUnits); setProducts(getProductos())
+    } catch (cause) { setError(cause?.message || 'No se pudo actualizar el inventario.') } finally { setBusy(false); setCargandoUnidades(false) }
+  }, [inventarioOperativo])
+  // La cotización del día ya no bloquea el arranque (#247): entra con los
+  // secundarios y, si alguien guarda un costo antes de que llegue, se pide en
+  // el momento (ver `guardarCostoRapido`).
+  const cargarCotizacion = useCallback(async () => {
+    try {
+      const valor = await cotizacionReferencia()
+      if (valor) { setCotizacion(valor); return valor }
+    } catch { /* sin cotización se guarda el monto tal cual */ }
+    return null
+  }, [])
+  const secundariosListos = useRef(false)
+  const cargarSecundarios = useCallback(async () => {
+    if (!inventarioOperativo || secundariosListos.current) return
+    secundariosListos.current = true
+    const [nextRemoved, nextReservations, nextTransfers, nextLocations, nextProveedores] = await Promise.all([
+      resources.inventoryUnits.list('', 'removed').catch(() => []),
+      resources.inventoryReservations.list().catch(() => []),
+      resources.transfers.list().catch(() => []),
+      resources.stockLocations.list().catch(() => []),
+      suppliersApi.list().catch(() => []),
+      cargarCotizacion(),
+    ])
+    setRemovedUnits(nextRemoved); setReservations(nextReservations); setTransfers(nextTransfers); setLocations(nextLocations)
+    setProveedores(Array.isArray(nextProveedores) ? nextProveedores : [])
+    loadAlerts()
+  }, [inventarioOperativo, loadAlerts, cargarCotizacion])
+  useEffect(() => {
+    if (!inventarioOperativo) return undefined
+    const agendado = window.requestIdleCallback
+      ? window.requestIdleCallback(() => cargarSecundarios(), { timeout: 2500 })
+      : window.setTimeout(() => cargarSecundarios(), 800)
+    return () => {
+      if (window.cancelIdleCallback) window.cancelIdleCallback(agendado)
+      else window.clearTimeout(agendado)
+    }
+  }, [inventarioOperativo, cargarSecundarios])
+  const busquedaDiferida = useBusquedaDiferida(query)
+  useEffect(() => { refresh(busquedaDiferida) }, [refresh, busquedaDiferida])
+  // La búsqueda de la pestaña Eliminados filtra su propio listado.
+  useEffect(() => {
+    if (!inventarioOperativo || tab !== 'eliminados' || !secundariosListos.current) return
+    resources.inventoryUnits.list(busquedaDiferida, 'removed').then(setRemovedUnits).catch(() => {})
+  }, [tab, busquedaDiferida, inventarioOperativo]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (qParam) setQuery(qParam) }, [qParam])
+  useEffect(() => { if (detalleUnidad) setDetalleUnidad(current => units.find(unit => unit.id === current.id) || current) }, [units]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!apiMode || tab !== 'compartido') return undefined
+    let active = true
+    setVisibilityError('')
+    Promise.all([resources.sharedStock.list().catch(() => []), canManageVisibility ? resources.sharedStock.mine().catch(() => []) : Promise.resolve([])])
+      .then(([received, mine]) => { if (active) { setReceivedStock(received); setGrants(mine) } })
+      .catch(() => { if (active) setVisibilityError('No se pudo cargar la disponibilidad compartida.') })
+    return () => { active = false }
+  }, [tab, apiMode, canManageVisibility])
   const tabValido = (value) => INVENTARIO_TABS.includes(value)
   // La URL manda: si cambia por atrás/adelante o por un enlace profundo, la
   // pestaña activa sigue al prop.
+  // Abrir una pestaña que necesita datos secundarios los adelanta si el
+  // navegador todavía no llegó a hidratarlos en idle.
+  useEffect(() => {
+    if (['alertas', 'reservas', 'traslados', 'eliminados'].includes(tab)) cargarSecundarios()
+    if (tab === 'alertas' && secundariosListos.current && !stockAlerts.alerts?.length) loadAlerts()
+  }, [tab, cargarSecundarios, loadAlerts]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (tabValido && tabValido(tabProp) && tabProp !== tab) setTab(tabProp)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -727,6 +773,7 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   // Si los catálogos todavía no cargaron se confía en lo recordado (se validó
   // al guardarlo); cuando ya están, se valida que sigan existiendo.
   function abrirReceive() {
+    cargarSecundarios()
     const branchId = !branches.length || branches.some(branch => branch.id === altaSucursalRecordada) ? altaSucursalRecordada : ''
     const locationId = !locations.length || locations.some(location => location.id === altaDepositoRecordado && location.branchId === branchId && location.isActive) ? altaDepositoRecordado : ''
     setReceive(data => ({ ...data, branchId: data.branchId || branchId, locationId: data.locationId || locationId }))
@@ -777,7 +824,9 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   async function guardarCostoRapido(unit, valor) {
     const monto = Number(String(valor || '').replace(',', '.'))
     if (!Number.isFinite(monto) || monto <= 0) { setError('Indicá un costo en dólares mayor a cero.'); return }
-    const rate = Number(cotizacion) > 0 ? Number(cotizacion) : undefined
+    // #247: la cotización se carga diferida; si todavía no llegó, se pide acá.
+    const cotizacionActual = Number(cotizacion) > 0 ? Number(cotizacion) : Number(await cargarCotizacion()) || 0
+    const rate = cotizacionActual > 0 ? cotizacionActual : undefined
     await setAndRefresh(() => resources.inventoryUnits.update({ id: unit.id, action: 'details', costCurrency: 'USD', originalCost: monto, ...(rate ? { exchangeRatePyg: rate } : {}) }), 'Costo actualizado en dólares.')
   }
   function sellUnit(unit) {
