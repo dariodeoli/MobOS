@@ -292,6 +292,22 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 36 — estado de guardado y checkbox en la biblioteca (#253) (25-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Estado de guardado | Vivía en `control/GuardadoCuenta.jsx` (chip verde «Guardado…» o aviso rojo, con `aria-live`): el patrón transversal de guardado de Configuración (#162) | Publicado como **`EstadoGuardado`** (biblioteca **v0.29.0**); la app conserva el hook `useGuardadoCuenta` (API + reautenticación) y re-exporta el objeto sin tocar a los consumidores |
+| Checkbox | 41 usos de `<input type="checkbox">` a mano en 25 archivos (config, listas y colas) con tres formas distintas (simple, tarjeta y pelado) | **`Checkbox`** en la biblioteca: `label`/`descripcion`, variantes `simple`/`tarjeta`, `tono="bad"` y `ariaLabel` para el control pelado; `Switch` sigue para booleanos |
+| Control | El auditor no medía checkboxes ni el estado de guardado | «checkboxes nativos a mano» entra en patrones a revisar (41 usos · 25 archivos) y la guarda exige el re-export del estado de guardado |
+| Docs | — | REGLAS §11 (biblioteca), `CAMPOS.md` §2/§3 y `PLANTILLA-OBJETOS.md` |
+
+Verificación del lote: `npm run lint` (0 errores), `npm run build` y
+`npm --prefix backend run build` (con `BUILD_ID`), `prisma:validate`,
+`npm test` (753 en verde), `test:unit` del backend (75),
+`npx playwright test e2e/configuracion-lote5.spec.js` (7 en verde) y
+`npm run test:e2e:smoke` (19 en verde, 0 flaky); biblioteca `owncoding-ui`
+build + 217 tests.
+
 ### Lote 35 — retiro de 15 duplicados idénticos y paridad de categorías (#241/#253) (25-09)
 
 | Objeto | Antes (evidencia) | Después |

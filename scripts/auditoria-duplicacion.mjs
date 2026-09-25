@@ -89,6 +89,7 @@ const MEDICIONES = [
     filas: [
       contar('tarjetas de ajuste con encabezado a mano', /<Card className="space-y-3"><div><h2/g, { excluir: ['components/ui/index.jsx'] }),
       contar('solapas internas a mano (role="tab")', /role="tab"(?![a-z])/g, { excluir: ['components/ui/index.jsx'] }),
+      contar('checkboxes nativos a mano (usar <Checkbox>)', /type="checkbox"/g, { excluir: ['components/shared/', 'components/ui/index.jsx'] }),
       contar('notas con borde warn y texto neutro', /(?:<p|<div)[^>]*border-warn\/(?:25|30)[^"]*text-mute/g),
       contar('superficies warn suaves (bg-warn/5)', /bg-warn\/5/g),
       contar('nombre de persona en celda (13px o sm)', /truncate text-(?:\[13px\]|sm) font-semibold/g, { excluir: ['components/shared/tabla.js'] }),

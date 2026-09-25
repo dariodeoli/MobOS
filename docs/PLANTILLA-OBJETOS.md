@@ -535,11 +535,12 @@ por el sistema.
   `PaletaComandos` de la biblioteca (agrupado por tipo, teclado, debounce y
   estados honestos); la pantalla solo provee `buscar` y navega con `datos`. No
   reimplementar la lista ni el contrato combobox (SHELL.md §1/§3).
-- **Objetos de Configuración (#253, v0.28.0):** la pantalla se arma con
-  `TarjetaAjuste` (con `tono="peligro"` para archivar/eliminar), `Subtabs`,
-  `PageHeader`/`Eyebrow` y `PanelDerecho` de la biblioteca (REGLAS §11); el
-  mapa campo por campo está en `docs/MAPA-CONFIG.md` y el control de campos
-  duplicados en `docs/CAMPOS.md` §6.
+- **Objetos de Configuración (#253, v0.28.0/v0.29.0):** la pantalla se arma
+  con `TarjetaAjuste` (con `tono="peligro"` para archivar/eliminar), `Subtabs`,
+  `PageHeader`/`Eyebrow`, `PanelDerecho`, `EstadoGuardado` (estado del guardado
+  con `aria-live`) y `Checkbox` (selección múltiple; `Switch` para booleanos)
+  de la biblioteca (REGLAS §11); el mapa campo por campo está en
+  `docs/MAPA-CONFIG.md` y el control de campos duplicados en `docs/CAMPOS.md` §6.
 - **Puentes de migración (#241/#253):** cuando un objeto local ya es idéntico al
   publicado, `components/shared/<Objeto>.jsx` queda como
   `export { <Objeto> as default } from 'owncoding-ui'` (sin implementación); los

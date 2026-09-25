@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Aviso, Badge, Button, PasswordInput } from '@/components/ui'
+import { Aviso, Button, PasswordInput } from '@/components/ui'
 import { api } from '@/lib/api/client'
 import { esReautenticacionRequerida, mensajeDeErrorDeGuardado, mensajeDeGuardado } from '@/utils/guardadoCuenta'
 
@@ -75,14 +75,7 @@ export function useGuardadoCuenta({ id, onReauth } = {}) {
   return { estado, setEstado, ejecutar, panel }
 }
 
-// Estado del guardado: chip verde «Guardado…» o el error en rojo, en el lugar
-// donde el usuario apretó Guardar.
-export function EstadoGuardado({ testId, estado }) {
-  return (
-    <div data-testid={testId} aria-live="polite" className="min-w-0">
-      {estado && (estado.ok
-        ? <Badge color="green">{estado.texto}</Badge>
-        : <Aviso tono="error" compact className="max-w-xl">{estado.texto}</Aviso>)}
-    </div>
-  )
-}
+// Estado del guardado: el objeto visual vive en la biblioteca (#253, lote 36)
+// y acá queda el hook con la API y la reautenticación. El re-export mantiene la
+// ruta histórica para los consumidores.
+export { EstadoGuardado } from 'owncoding-ui'
