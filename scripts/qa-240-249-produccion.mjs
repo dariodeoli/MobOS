@@ -24,6 +24,7 @@ const SERIAL = process.env.MOBOS_QA_SERIAL || '356789012345678' // equipo demo d
 mkdirSync(SALIDA, { recursive: true })
 
 const resultado = { url: BASE, fecha: new Date().toISOString(), version: null, medidas: [], pasos: [], capturas: [] }
+const pendientes = []
 const afirmar = (condicion, mensaje) => { if (!condicion) throw new Error(mensaje) }
 
 let contador = 0
@@ -165,12 +166,66 @@ await paso('#240 · el historial de pagos se ve en la cuenta demo', async () => 
   return 'historial con total pagado y medios legibles'
 })
 
+await paso('#240 · el seguimiento de la entrega se ve en la cuenta demo', async () => {
+  await page.goto(`${BASE}/cuenta/demo-demo-cliente-lucia-rapido`, { waitUntil: 'domcontentloaded' })
+  const pasos = page.getByTestId('portal-pasos-entrega').first()
+  await pasos.waitFor({ timeout: 20000 })
+  const texto = await pasos.innerText()
+  afirmar(/seguimiento de envío/i.test(texto), `no aparece el encabezado del seguimiento: ${texto.slice(0, 120)}`)
+  afirmar(/En camino al cliente/.test(texto), 'no aparece el paso actual del envío')
+  afirmar(/En preparación/.test(texto), 'no aparece el primer paso del envío')
+  await shot(page, 'portal-seguimiento-demo', true)
+  return 'pasos del envío con el actual, su etiqueta y fecha'
+})
+
+await paso('#240 · las cotizaciones con su aviso se ven en la cuenta demo', async () => {
+  await page.goto(`${BASE}/cuenta/demo-demo-cliente-lucia-rapido`, { waitUntil: 'domcontentloaded' })
+  const seccion = page.getByTestId('portal-cotizaciones')
+  await seccion.waitFor({ timeout: 20000 })
+  const texto = await seccion.innerText()
+  afirmar(/COT-#0018/.test(texto), `no aparece la cotización: ${texto.slice(0, 120)}`)
+  afirmar(/Vence en 2 días/.test(texto), 'no aparece la validez de la cotización')
+  afirmar(/Ver cotización/.test(texto), 'no aparece el enlace para abrirla')
+  const avisos = await page.getByTestId('portal-avisos').innerText()
+  afirmar(/Tu cotización COT-#0018 vence en 2 días/.test(avisos), `falta el aviso de la cotización: ${avisos.slice(0, 160)}`)
+  await shot(page, 'portal-cotizaciones-demo', true)
+  return 'COT-#0018 vigente con aviso accionable'
+})
+
+await paso('#240 · el taller y la garantía se siguen en la cuenta demo', async () => {
+  await page.goto(`${BASE}/cuenta/demo-demo-cliente-fernando-completo`, { waitUntil: 'domcontentloaded' })
+  await page.getByText('Servicio técnico').first().waitFor({ timeout: 20000 })
+  const cuerpo = await page.locator('body').innerText()
+  afirmar(/OS-0005|iPhone 11/.test(cuerpo), 'no aparece la orden de servicio demo')
+  afirmar(/Diagnóstico/.test(cuerpo), 'no aparece el estado del taller')
+  afirmar(/Garantías activas/.test(cuerpo), 'no aparece la garantía activa')
+  await shot(page, 'portal-taller-garantia-demo', true)
+  return 'OS-0005 en diagnóstico + garantía activa'
+})
+
+await paso('#240 · la vitrina sigue la entrega (nuevo)', async () => {
+  await page.goto(`${BASE}/portal/demo-demo-cliente-lucia-completo`, { waitUntil: 'domcontentloaded' })
+  await page.getByText('Tus pedidos').first().waitFor({ timeout: 20000 })
+  if (!(await page.getByTestId('portal-pasos-entrega').count())) {
+    pendientes.push('seguimiento de la entrega en la vitrina (viaja en la próxima integración)')
+    return 'pendiente de deploy: la vitrina todavía no muestra los pasos'
+  }
+  const pasos = page.getByTestId('portal-pasos-entrega').first()
+  const texto = await pasos.innerText()
+  afirmar(/seguimiento de envío/i.test(texto), `no aparece el seguimiento en la vitrina: ${texto.slice(0, 120)}`)
+  afirmar(/En camino al cliente/.test(texto), 'no aparece el paso actual en la vitrina')
+  await shot(page, 'portal-vitrina-seguimiento-demo', true)
+  return 'pasos del envío también en la vitrina'
+})
+
 await contexto.close()
 await browser.close()
 
 const fallos = resultado.pasos.filter((item) => !item.ok)
+resultado.pendientes = pendientes
 writeFileSync(join(SALIDA, 'resultados.json'), JSON.stringify(resultado, null, 2))
 console.log(`\nVersión desplegada: ${resultado.version || 'desconocida'}`)
 console.log(`Pasos: ${resultado.pasos.length - fallos.length}/${resultado.pasos.length} OK · capturas: ${resultado.capturas.length}`)
+if (pendientes.length) console.log(`Pendientes de deploy: ${pendientes.join(' · ')}`)
 if (fallos.length) console.log(`Fallos: ${fallos.map((item) => `${item.paso} (${item.detalle})`).join(' · ')}`)
 process.exitCode = fallos.length ? 1 : 0

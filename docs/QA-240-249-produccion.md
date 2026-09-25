@@ -1,4 +1,27 @@
-# Verificación en producción — v1.0.159 (#240 · #249)
+# Verificación en producción — portal del cliente y Clientes (#240 · #249)
+
+## Corrida vigente — v1.0.169 (portal completo)
+
+`node scripts/qa-240-249-produccion.mjs` contra `app.moboss.online`
+(25/9/2026, versión desplegada **v1.0.169**): **11/11 pasos OK** y 1 paso nuevo
+**pendiente de deploy** (el seguimiento en la vitrina viaja en la próxima
+integración). Evidencia: `docs/QA-240-portal-produccion/` (11 capturas +
+`resultados.json` sellado con la versión).
+
+| Paso | Resultado | Captura |
+|---|---|---|
+| #249 · clientes a 390 y 768: acciones, chips y lote ≥44 px | ojito 44×44 · WhatsApp 44×44 · resto ≥44 | `01`–`03` |
+| #240 · certificado embebible con `?embed=1` | informe de la tienda con aviso y serial enmascarado | `04` |
+| #240 · mensajes de la tienda en la cuenta demo | «Mensajes de la tienda» con chip **Nuevo** | `05` |
+| #240 · beneficios (saldo a favor y puntos) | **Gs 250.000** a favor · **45.000 puntos** | `06` |
+| #240 · reservas vigentes | iPhone 13 con su vencimiento | `07` |
+| #240 · historial de pagos | «Tus pagos» con total pagado, pedidos y medios | `08` |
+| #240 · seguimiento de la entrega en la cuenta | pasos del envío con el actual, su etiqueta y fecha | `09` |
+| #240 · cotizaciones con su aviso | COT-#0018 vigente («Vence en 2 días») + aviso accionable | `10` |
+| #240 · taller y garantía | OS-0005 en diagnóstico + garantía activa | `11` |
+| #240 · seguimiento en la vitrina (nuevo) | **pendiente de deploy** (viaja en `slot/clientes`) | — |
+
+## Corrida anterior — v1.0.159
 
 `node scripts/qa-240-249-produccion.mjs` contra `app.moboss.online`
 (24/9/2026, versión desplegada **v1.0.159**): **6/6 pasos OK** + 1 paso nuevo

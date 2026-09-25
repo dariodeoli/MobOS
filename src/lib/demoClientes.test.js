@@ -97,6 +97,18 @@ test('la cuenta demo lleva las cotizaciones con su validez y estado (#240)', () 
   assert.equal(demoCotizacionPayload('demo-cot-inexistente'), null)
 })
 
+test('la vitrina demo lleva el seguimiento de la entrega (#240)', () => {
+  const lucia = demoVitrinaPayload('demo-demo-cliente-lucia-completo')
+  const envio = (lucia.pedidos || []).find((row) => row.numero === 'MOB-0008')
+  assert.ok(envio?.tracking?.pasos?.length >= 3, 'El pedido en camino trae sus pasos')
+  assert.equal(envio.tracking.pasos.filter((paso) => paso.actual).length, 1)
+  assert.equal(envio.tracking.estadoLabel, 'En camino al cliente')
+  const carlos = demoVitrinaPayload('demo-demo-cliente-carlos-completo')
+  const retiro = (carlos.pedidos || []).find((row) => row.numero === 'MOB-0004')
+  assert.ok(retiro?.tracking?.pasos?.length >= 3)
+  assert.equal(retiro.tracking.estadoLabel, 'Listo para retirar')
+})
+
 test('la interacción demo queda en la cronología del cliente (#240)', () => {
   const evento = registrarInteraccionDemo(LUCIA, { accion: 'Informe del equipo compartido', detalle: 'Por WhatsApp · serial 3567…678' })
   assert.ok(evento?.id)

@@ -1,0 +1,120 @@
+{
+  "url": "https://app.moboss.online",
+  "fecha": "2026-09-25T15:25:53.659Z",
+  "version": "v1.0.169",
+  "medidas": [
+    {
+      "control": "Resumen rápido",
+      "ancho": 44,
+      "alto": 44
+    },
+    {
+      "control": "WhatsApp",
+      "ancho": 44,
+      "alto": 44
+    },
+    {
+      "control": "Elegir plantilla",
+      "ancho": 44,
+      "alto": 44
+    },
+    {
+      "control": "Chip Todos",
+      "ancho": 113,
+      "alto": 44
+    },
+    {
+      "control": "Área de la casilla de lote",
+      "ancho": 44,
+      "alto": 44
+    },
+    {
+      "control": "Tablet · Resumen rápido",
+      "ancho": 44,
+      "alto": 44
+    },
+    {
+      "control": "Tablet · WhatsApp",
+      "ancho": 44,
+      "alto": 44
+    },
+    {
+      "control": "Tablet · chip Con deuda",
+      "ancho": 97,
+      "alto": 44
+    }
+  ],
+  "pasos": [
+    {
+      "paso": "#249 · clientes a 390: acciones, chips y lote ≥44 px",
+      "ok": true,
+      "detalle": "ojito 44×44 · WhatsApp 44×44 · resto ≥44"
+    },
+    {
+      "paso": "#249 · clientes a 768: los mismos targets ≥44 px",
+      "ok": true,
+      "detalle": "ojito 44×44"
+    },
+    {
+      "paso": "#240 · el certificado embebible abre con ?embed=1",
+      "ok": true,
+      "detalle": "informe embebible de 356789012345678 abierto en el subdominio de la app"
+    },
+    {
+      "paso": "#240 · los mensajes de la tienda se ven en el portal demo",
+      "ok": true,
+      "detalle": "sección «Mensajes de la tienda» con el chip Nuevo"
+    },
+    {
+      "paso": "#240 · los beneficios (saldo a favor y puntos) se ven en la cuenta demo",
+      "ok": true,
+      "detalle": "saldo a favor Gs 250.000 · puntos Gs 45.000"
+    },
+    {
+      "paso": "#240 · las reservas vigentes se ven en la cuenta demo",
+      "ok": true,
+      "detalle": "reserva de iPhone 13 con su vencimiento"
+    },
+    {
+      "paso": "#240 · el historial de pagos se ve en la cuenta demo",
+      "ok": true,
+      "detalle": "historial con total pagado y medios legibles"
+    },
+    {
+      "paso": "#240 · el seguimiento de la entrega se ve en la cuenta demo",
+      "ok": true,
+      "detalle": "pasos del envío con el actual, su etiqueta y fecha"
+    },
+    {
+      "paso": "#240 · las cotizaciones con su aviso se ven en la cuenta demo",
+      "ok": true,
+      "detalle": "COT-#0018 vigente con aviso accionable"
+    },
+    {
+      "paso": "#240 · el taller y la garantía se siguen en la cuenta demo",
+      "ok": true,
+      "detalle": "OS-0005 en diagnóstico + garantía activa"
+    },
+    {
+      "paso": "#240 · la vitrina sigue la entrega (nuevo)",
+      "ok": true,
+      "detalle": "pendiente de deploy: la vitrina todavía no muestra los pasos"
+    }
+  ],
+  "capturas": [
+    "01-clientes-390.png",
+    "02-clientes-acciones-390.png",
+    "03-clientes-768.png",
+    "04-certificado-embebible-390.png",
+    "05-portal-mensajes-demo.png",
+    "06-portal-beneficios-demo.png",
+    "07-portal-reservas-demo.png",
+    "08-portal-pagos-demo.png",
+    "09-portal-seguimiento-demo.png",
+    "10-portal-cotizaciones-demo.png",
+    "11-portal-taller-garantia-demo.png"
+  ],
+  "pendientes": [
+    "seguimiento de la entrega en la vitrina (viaja en la próxima integración)"
+  ]
+}

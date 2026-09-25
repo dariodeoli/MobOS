@@ -7,14 +7,15 @@ import { fechaDia as fecha } from '@/utils/fecha'
 import { codigoPedido } from '@/utils/pedido'
 import Icon from '@/components/shared/Icon'
 import { PortalCargando, PortalEncabezado, PortalEstado, PortalFallo, PortalPie, PortalSeccion } from '@/components/customerPortal/PortalUI'
+import PasosEntrega from '@/components/customerPortal/PasosEntrega'
 import { demoVitrinaPayload, esTokenDemo } from '@/lib/demoClientes'
 import { ESTADO_ENTREGA, ESTADO_GARANTIA, ESTADO_PEDIDO, tonoGarantia, tonoPedido } from '@/lib/estadosPedido'
 
 // Vitrina pública del cliente: solo lectura, por token. Muestra la marca de la
-// tienda, su saldo a favor, sus pedidos con estado y saldo, sus garantías
-// activas (nivel completo) y la nota pública de la tienda. No hay acciones de
-// escritura ni datos de otros clientes; el token inválido cae en un aviso
-// genérico.
+// tienda, su saldo a favor, sus pedidos con estado, saldo y seguimiento de
+// entrega, sus garantías activas (nivel completo) y la nota pública de la
+// tienda. No hay acciones de escritura ni datos de otros clientes; el token
+// inválido cae en un aviso genérico.
 export default function PortalCliente() {
   const { token } = useParams()
   const [portal, setPortal] = useState(null)
@@ -111,11 +112,17 @@ export default function PortalCliente() {
                         </div>
                         <div className="mt-2 flex flex-wrap items-center gap-1.5">
                           <PortalEstado tono={tonoPedido(pedido.estado)}>{ESTADO_PEDIDO[pedido.estado] || pedido.estado}</PortalEstado>
-                          {ESTADO_ENTREGA[pedido.fulfillmentStatus] && <PortalEstado tono="neutro">{ESTADO_ENTREGA[pedido.fulfillmentStatus]}</PortalEstado>}
+                          {(pedido.tracking?.estadoLabel || ESTADO_ENTREGA[pedido.fulfillmentStatus]) && <PortalEstado tono="neutro">{pedido.tracking?.estadoLabel || ESTADO_ENTREGA[pedido.fulfillmentStatus]}</PortalEstado>}
                           {saldo > 0
                             ? <PortalEstado tono="warn">Saldo {gs(saldo)}</PortalEstado>
                             : <PortalEstado tono="ok">Sin saldo pendiente</PortalEstado>}
                         </div>
+                        {/* Seguimiento del envío/retiro (#240 → portal): los
+                            pasos con su fecha mientras el pedido está en curso,
+                            igual que la cuenta completa. */}
+                        {pedido.estado !== 'CANCELLED' && !['DELIVERED', 'PICKED_UP'].includes(pedido.fulfillmentStatus) && pedido.tracking?.pasos?.length > 1 && (
+                          <PasosEntrega tracking={pedido.tracking} data-testid="portal-pasos-entrega" className="mt-3 border-t border-ink-600/60 pt-2.5" />
+                        )}
                       </article>
                     )
                   })}

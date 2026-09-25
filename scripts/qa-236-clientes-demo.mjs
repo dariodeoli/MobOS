@@ -91,8 +91,11 @@ await paso('entrada a la demo y lista estilo Pedidos', async () => {
   await fila.waitFor({ timeout: 20000 })
   const texto = await fila.innerText()
   await shot(page, 'lista-estilo-pedidos')
+  // El chip del tipo de cliente pasó a mayúsculas con el rediseño v2
+  // (`v2-chip uppercase`): la comparación del texto renderizado es sin caja.
+  const textoComparable = texto.toLowerCase()
   for (const esperado of ['Lucía Fernández', '+595 981 123 456', 'Cliente final', 'Gs 7.750.000', 'Gs 1.500.000']) {
-    afirmar(texto.includes(esperado), `la fila no muestra «${esperado}»: ${plano(texto)}`)
+    afirmar(textoComparable.includes(esperado.toLowerCase()), `la fila no muestra «${esperado}»: ${plano(texto)}`)
   }
   afirmar(/\d{1,2} [a-z]{3}/i.test(texto), `la fila no muestra la última compra compacta: ${plano(texto)}`)
   afirmar(texto.split('\n').map((linea) => linea.trim()).includes('5'), `la fila no cuenta 5 compras: ${plano(texto)}`)

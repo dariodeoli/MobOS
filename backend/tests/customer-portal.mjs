@@ -238,6 +238,22 @@ for (const campo of FORBIDDEN) {
 assert.equal(serializadoCompleto.includes(notaInterna), false, 'La nota interna nunca viaja al portal completo.')
 assert.equal(serializadoCompleto.includes(notaPublica), true, 'La nota pública debe viajar al portal completo.')
 
+// ── Vitrina (#240 → portal): los pedidos salen con el seguimiento de entrega ─
+result = await publicRequest(`/api/public/portal/${encodeURIComponent(tokenRapido)}`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+const vitrina = result.payload
+assert.equal(vitrina.nivel, 'rapido')
+const pedidoVitrina = (vitrina.pedidos || []).find((pedido) => pedido.numero === numeroPedido)
+assert.ok(pedidoVitrina, 'La vitrina debe listar el pedido del cliente.')
+assert.ok(pedidoVitrina.tracking?.pasos?.length >= 3, 'La vitrina debe traer los pasos de la entrega.')
+assert.equal(pedidoVitrina.tracking.pasos.filter((paso) => paso.actual).length, 1, 'Un solo paso actual en la vitrina.')
+assert.equal(pedidoVitrina.tracking.estadoLabel, 'En preparación', 'El paso actual de la vitrina trae su etiqueta de cliente.')
+assert.equal((vitrina.pedidos || []).some((pedido) => pedido.numero === numeroPedidoAjeno), false, 'La vitrina no debe mostrar pedidos de otro cliente.')
+const serializadoVitrina = JSON.stringify(vitrina)
+for (const campo of FORBIDDEN) {
+  assert.equal(serializadoVitrina.includes(campo), false, `La vitrina no debe exponer ${campo}.`)
+}
+
 // ── Mensajes de la tienda (#240 → portal): se ven al abrir la cuenta ────────
 result = await request(`/api/customers/${encodeURIComponent(cliente.id)}/notices`, 'POST', { content: `Mensaje IT ${ts}` }, sellerToken)
 assert.equal(result.response.status, 201, JSON.stringify(result.payload))
@@ -333,4 +349,4 @@ for (let intento = 0; intento < 40 && !garantiaLimitada; intento += 1) {
 }
 assert.equal(garantiaLimitada, true, 'La página pública de garantía debe limitar la tasa de pedidos (429).')
 
-console.log('customer-portal: 40 checks OK (token rápido con saldo/vencimientos/pedidos, completo con garantías/direcciones/comprobantes, regeneración 404, token inválido, límites por rol y sin campos internos).')
+console.log('customer-portal: contrato completo OK (token rápido con saldo/vencimientos/pedidos, completo con garantías/direcciones/comprobantes, vitrina con seguimiento de entrega, regeneración 404, token inválido, límites por rol y sin campos internos).')
