@@ -11,6 +11,11 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.163 — 2026-09-24
+- **Finanzas (#234):** el **RUC** se carga con el campo compartido (`RucField`) en la **empresa privada**, los **titulares** y las **cuentas** — mismo extractor y validación que el resto de la app.
+- **Impresos (#241 lote H):** verificación post-deploy y contrato del **comprobante de remito** con el lenguaje v2.
+- **Componentes:** lotes **28 y 29** a la biblioteca (**v0.23.0**) — objetos para taller/rack, servicio y garantías.
+
 ## v1.0.162 — 2026-09-24
 - **Ficha del equipo (#240):** muestra el **grado oficial**, el **checklist persistido** y los **locks reales** del dispositivo en un solo lugar.
 - **Tablero operativo (#241 paso 3):** estrena los **patrones v2** y lee los **locks reales**; el **taller alterna** entre vista y acciones.
