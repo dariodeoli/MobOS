@@ -134,6 +134,8 @@ model Tenant {
   supplyReceptions            SupplyReception[]
   supplyReceptionItems        SupplyReceptionItem[]
   supplyPolicies              SupplyPolicy[]
+  workshopParts               WorkshopPart[]
+  workshopPartMovements       WorkshopPartMovement[]
 }
 
 // Identidad de la PERSONA (cuenta Google). No pertenece a ninguna tienda:
@@ -276,6 +278,7 @@ model Branch {
   supplyPurchases SupplyPurchase[]
   supplyShipments SupplyShipment[] @relation("SupplyShipmentDestination")
   supplyPolicies SupplyPolicy[]
+  workshopParts WorkshopPart[]
 }
 
 model User {
@@ -356,6 +359,8 @@ model User {
   supplyReceptionsReceived     SupplyReception[] @relation("SupplyReceptionReceiver")
   supplyReceptionsCreated      SupplyReception[] @relation("SupplyReceptionAuthor")
   supplyPoliciesUpdated        SupplyPolicy[] @relation("SupplyPolicyUpdater")
+  workshopPartsCreated         WorkshopPart[] @relation("WorkshopPartAuthor")
+  workshopPartMovements        WorkshopPartMovement[] @relation("WorkshopPartMovementAuthor")
 }
 
 model UserInvitation {
@@ -516,6 +521,7 @@ model Product {
   supplyShipmentItems SupplyShipmentItem[]
   supplyReceptionItems SupplyReceptionItem[]
   supplyPolicies SupplyPolicy[]
+  workshopParts WorkshopPart[]
 }
 
 enum InventoryUnitStatus {
@@ -656,6 +662,7 @@ model StockLocation {
   @@unique([branchId, code])
   @@index([tenantId, branchId, isActive])
   supplyReceptions SupplyReception[]
+  workshopParts WorkshopPart[]
 }
 
 // Permiso explícito y solo de lectura: el receptor ve disponibilidad, nunca
@@ -2473,6 +2480,83 @@ model SupplyPolicy {
   @@index([tenantId, branchId])
 }
 
+// #250 · Repuestos del taller con **tenencia y pago**: propios (contados o a
+// crédito) o de proveedor (en depósito/consignación o a crédito). El dueño queda
+// explícito y el repuesto está disponible para el taller **sin mezclarse con el
+// stock vendible**: no toca Product.stock ni crea InventoryUnit.
+model WorkshopPart {
+  id              String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // Identificador del repuesto en el taller (REP-#0001).
+  code            String
+  // Referencia al catálogo cuando el repuesto ya es un producto; si no, vive
+  // con su nombre/SKU propios (repuestos del proveedor que no se venden).
+  productId       String?
+  product         Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  name            String
+  sku             String?
+  // Tenencia: de quién es lo que está en el depósito.
+  ownership       String   @default("PROPIO")
+  supplierId      String?
+  supplier        Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  // Pago: CONTADO (pagado), CREDITO (a pagar desde el alta) o CONSIGNACION
+  // (del proveedor; se paga lo que se usa y el resto se devuelve).
+  paymentMode     String   @default("CONTADO")
+  quantity        Int      @default(1)
+  usedQuantity    Int      @default(0)
+  unitCostPyg     Int?
+  totalCostPyg    Int?
+  // Deuda: vencimiento y pago (lo que FIN mira en cuentas por pagar).
+  dueAt           DateTime?
+  paidAt          DateTime?
+  locationId      String?
+  location        StockLocation? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  branchId        String?
+  branch          Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  // DISPONIBLE · AGOTADO · DEVUELTO · BAJA (ver backend/lib/workshop-parts.ts).
+  status          String   @default("DISPONIBLE")
+  serviceOrderId  String?
+  serviceOrder    ServiceOrder? @relation(fields: [serviceOrderId], references: [id], onDelete: SetNull)
+  notes           String?
+  createdById     String
+  createdBy       User     @relation("WorkshopPartAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  movements       WorkshopPartMovement[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, status, ownership])
+  @@index([tenantId, paymentMode, paidAt])
+  @@index([tenantId, supplierId, status])
+  @@index([tenantId, branchId, locationId])
+  @@index([tenantId, serviceOrderId])
+}
+
+// Movimiento de un repuesto del taller: alta, uso, devolución, pago o baja.
+// Es la trazabilidad del repuesto (además de la auditoría de cada acción).
+model WorkshopPartMovement {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  partId         String
+  part           WorkshopPart @relation(fields: [partId], references: [id], onDelete: Cascade)
+  // ALTA · USO · DEVOLUCION · PAGO · BAJA · AJUSTE (lib/workshop-parts.ts).
+  kind           String
+  quantity       Int      @default(0)
+  amountPyg      Int?
+  serviceOrderId String?
+  serviceOrder   ServiceOrder? @relation(fields: [serviceOrderId], references: [id], onDelete: SetNull)
+  note           String?
+  userId         String
+  user           User     @relation("WorkshopPartMovementAuthor", fields: [userId], references: [id], onDelete: Restrict)
+  createdAt      DateTime @default(now())
+
+  @@index([tenantId, partId, createdAt])
+  @@index([tenantId, kind, createdAt])
+  @@index([tenantId, serviceOrderId])
+}
+
 model Supplier {
   id           String         @id @default(cuid())
   tenantId     String
@@ -2501,6 +2585,7 @@ model Supplier {
   @@unique([tenantId, code])
   @@index([tenantId, isActive, name])
   supplyPurchases SupplyPurchase[]
+  workshopParts WorkshopPart[]
 }
 
 enum PurchaseCostAllocationMethod {
@@ -2720,6 +2805,8 @@ model ServiceOrder {
   @@index([tenantId, createdAt])
   @@index([customerId])
   @@index([warrantyCaseId])
+  workshopParts WorkshopPart[]
+  workshopPartMovements WorkshopPartMovement[]
 }
 
 // Catálogo de servicios técnicos: nombre, tipo de dispositivo y precio sugerido.

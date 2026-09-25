@@ -56,6 +56,12 @@ export const ACCIONES_AUDITORIA: Record<string, string> = {
   SUPPLY_RECEPTION_INCIDENT: 'Incidencia en una recepción',
   SUPPLY_RECEPTION_CONFIRMED: 'Recepción confirmada (stock creado)',
   SUPPLY_RECEPTION_CANCELLED: 'Recepción cancelada',
+  // #250: repuestos del taller (tenencia y pago).
+  WORKSHOP_PART_CREATED: 'Repuesto del taller dado de alta',
+  WORKSHOP_PART_USED: 'Repuesto del taller usado',
+  WORKSHOP_PART_RETURNED: 'Repuesto del taller devuelto al proveedor',
+  WORKSHOP_PART_PAID: 'Repuesto del taller pagado',
+  WORKSHOP_PART_DISCARDED: 'Repuesto del taller dado de baja',
   CUSTOMER_NOTE_CREATED: 'Nota de cliente creada',
   CUSTOMER_NOTE_UPDATED: 'Nota de cliente editada',
   CUSTOMER_NOTE_DELETED: 'Nota de cliente eliminada',
