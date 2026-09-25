@@ -3,10 +3,8 @@ import { Link } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import Switch from '@/components/shared/Switch'
-import PhotoCropper from '@/components/shared/PhotoCropper'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import { getLogoDataUrl, olvidarLogo } from '@/lib/tenantLogo'
-import { getAvatarDataUrl, olvidarAvatar } from '@/lib/userAvatar'
 import { getDemoTenant, setDemoInsurancePct, setDemoLimits, setDemoNumeracion } from '@/lib/demoTenant'
 import { promptLogo } from '@/lib/logoPrompt'
 import { getCompanyContext, sessionApi } from '@/lib/api/session'
@@ -23,8 +21,6 @@ import RucField from '@/components/shared/RucField'
 import PercentField from '@/components/shared/PercentField'
 import InstagramField, { normalizarInstagram } from '@/components/shared/InstagramField'
 import PanelDerecho from '@/components/shared/PanelDerecho'
-import { PreferenciasContenido } from '@/components/app/Preferencias'
-import Avatar from '@/components/shared/Avatar'
 import UsoEquipo from '@/components/control/UsoEquipo'
 import DatosPrivados from '@/components/control/DatosPrivados'
 import { ROLE_LABELS } from '@/lib/roles'
@@ -87,7 +83,7 @@ function prefijoEfectivo(valor) {
   return /^[A-Z]{2,3}$/.test(texto) ? texto : 'MOB'
 }
 
-export default function Config({ seccion = 'organizacion', preferencias, onCambiarPreferencias } = {}) {  const { sesion, empresa, sucursal, perfilEmpresa, actualizarEmpresa, esDemo } = useSesion()
+export default function Config({ seccion = 'organizacion' } = {}) {  const { sesion, empresa, sucursal, perfilEmpresa, actualizarEmpresa, esDemo } = useSesion()
   const toast = useToast()
   const esDueno = sesion?.esPropietario
   // En la demo no hay sesión real: los ajustes que van contra la API se
@@ -431,37 +427,6 @@ export default function Config({ seccion = 'organizacion', preferencias, onCambi
           </form>
         )}
       </>}
-      {seccion === 'mi-cuenta' && <>
-        <MiIdentidad />
-        {preferencias && (
-          <Card className="p-4 md:p-5">
-            <h2 className="font-semibold">Preferencias del dispositivo</h2>
-            <p className="mt-1 text-sm text-mute">Bloqueo por inactividad, notificaciones y atajos de esta computadora o teléfono.</p>
-            <div className="mt-3"><PreferenciasContenido preferencias={preferencias} onCambiar={onCambiarPreferencias} /></div>
-          </Card>
-        )}
-        {esDueno && (
-          <Card className="space-y-3" data-testid="mis-sesiones">
-            <div>
-              <h2 className="font-semibold">Sesiones personales</h2>
-              <p className="mt-1 text-sm text-mute">Tus accesos a MobOS. Para ver o revocar los del resto del equipo andá a <b className="text-fore">Seguridad y auditoría</b>.</p>
-            </div>
-            <div className="space-y-2">
-              {(account?.sessions || []).filter(activa => (activa.user?.email || '') === (sesion?.correo || '')).map(activa => (
-                <div key={activa.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
-                  <div>
-                    <p className="font-medium">{activa.deviceId || 'Este dispositivo'} {activa.id === account?.currentSessionId && <span className="ml-2 text-xs text-fono-light">Sesión actual</span>}</p>
-                    <p className="mt-1 text-xs text-mute">última actividad {fmtDate(activa.lastSeenAt)}</p>
-                  </div>
-                  <Button variant="outline" onClick={() => setConfirmar({ tipo: 'revocar', sessionId: activa.id })} disabled={busy}>Revocar</Button>
-                </div>
-              ))}
-            </div>
-            <EstadoGuardado testId="mis-sesiones-estado" estado={guardadoSesiones.estado} />
-            {guardadoSesiones.panel}
-          </Card>
-        )}
-      </>}
       {seccion === 'comercial' && <>
         {esDueno && <Card className="space-y-3" data-testid="seguro-limites">
           <div>
@@ -707,140 +672,6 @@ function IdentidadCuenta({ onReauthValid, onGuardado, tenant }) {
           </div>
           <Button type="button" variant="outline" className="lg:hidden" onClick={irAlFormulario}><Icon name="edit" className="h-3.5 w-3.5" />Editar</Button>
         </div>
-        <div className="space-y-2">
-          {valores.map(({ etiqueta, valor }) => (
-            <div key={etiqueta} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wider text-mute">{etiqueta}</p>
-                <p className="mt-0.5 truncate text-sm text-fore">{valor || '—'}</p>
-              </div>
-              <Button type="button" variant="outline" onClick={() => copiarValor(toast, valor, etiqueta)} disabled={!valor}>Copiar</Button>
-            </div>
-          ))}
-        </div>
-      </Card>
-    </PanelDerecho>
-  )
-}
-
-export function MiIdentidad() {
-  const toast = useToast()
-  const { usuario, empresa, perfilEmpresa, actualizarNombreUsuario } = useSesion()
-  const guardado = useGuardadoCuenta({ id: 'identidad' })
-  const [nuevoNombre, setNuevoNombre] = useState('')
-  const [guardandoNombre, setGuardandoNombre] = useState(false)
-  // Mi foto vive acá (y no en Organización): es la persona, no los datos de la
-  // tienda. El Avatar resuelve sola la prioridad foto subida → Google → iniciales.
-  const [foto, setFoto] = useState('')
-  const [fotoError, setFotoError] = useState('')
-  const [fotoBusy, setFotoBusy] = useState(false)
-  const [fotoAConfirmar, setFotoAConfirmar] = useState(null)
-  const nombreActual = perfilEmpresa?.name || usuario?.user_metadata?.nombre || 'Dueño de la tienda'
-  const valores = [
-    { etiqueta: 'Correo del dueño', valor: empresa?.email || null },
-    { etiqueta: 'ID del usuario', valor: usuario?.id || null },
-  ]
-  useEffect(() => { setNuevoNombre(nombreActual) }, [nombreActual])
-  useEffect(() => {
-    if (!usuario?.id) return
-    let vigente = true
-    getAvatarDataUrl(usuario.id).then(data => { if (vigente) setFoto(data) })
-    return () => { vigente = false }
-  }, [usuario?.id])
-
-  async function subirFoto(file) {
-    if (fotoBusy || !usuario?.id) return
-    setFotoBusy(true); setFotoError('')
-    try {
-      const form = new FormData()
-      form.append('avatar', file)
-      await api.post(`/api/users/${encodeURIComponent(usuario.id)}/avatar`, form)
-      olvidarAvatar(usuario.id)
-      setFoto(await getAvatarDataUrl(usuario.id))
-      toast.success('Foto actualizada.')
-    } catch (cause) { setFotoError(cause?.message || 'No se pudo guardar la foto.') } finally { setFotoBusy(false) }
-  }
-
-  async function quitarFoto() {
-    if (fotoBusy || !usuario?.id) return
-    setFotoBusy(true); setFotoError('')
-    try {
-      await api.delete(`/api/users/${encodeURIComponent(usuario.id)}/avatar`)
-      olvidarAvatar(usuario.id)
-      setFoto('')
-    } catch (cause) { setFotoError(cause?.message || 'No se pudo quitar la foto.') } finally { setFotoBusy(false) }
-  }
-
-  function irAlFormulario() {
-    document.getElementById('identidad-form')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
-  }
-
-  async function guardarNombre(event) {
-    event.preventDefault()
-    if (guardandoNombre) return
-    const nombre = nuevoNombre.trim()
-    if (nombre.length < 2 || nombre.length > 100) { guardado.setEstado({ ok: false, texto: 'El nombre debe tener entre 2 y 100 caracteres.' }); return }
-    setGuardandoNombre(true)
-    try {
-      const resultado = await guardado.ejecutar(() => api.patch('/api/users', { id: usuario.id, name: nombre }), { etiqueta: 'tu nombre' })
-      if (resultado) {
-        actualizarNombreUsuario(nombre)
-        toast.success('Nombre actualizado', 'Tu nombre ahora aparece en ventas, reportes y comprobantes.')
-      }
-    } finally { setGuardandoNombre(false) }
-  }
-
-  return (
-    <PanelDerecho
-      id="identidad-form"
-      panel={
-        <Card className="space-y-3">
-          <div>
-            <h2 className="font-semibold">Tu nombre de vendedor</h2>
-            <p className="mt-1 text-sm text-mute">Se usa en tus ventas, reportes y comprobantes.</p>
-          </div>
-          <form onSubmit={guardarNombre} className="space-y-3">
-            <FormField label="Nombre" htmlFor="identidad-nombre">
-              <Input id="identidad-nombre" value={nuevoNombre} onChange={(event) => setNuevoNombre(event.target.value)} placeholder="Tu nombre" minLength={2} maxLength={100} required />
-            </FormField>
-            <Button type="submit" className="w-full" disabled={guardandoNombre || nuevoNombre.trim().length < 2}>{guardandoNombre ? 'Guardando…' : 'Guardar nombre'}</Button>
-            <EstadoGuardado testId="identidad-estado" estado={guardado.estado} />
-          </form>
-          {guardado.panel}
-        </Card>
-      }
-    >
-      <Card className="space-y-3">
-        <div>
-          <p className="text-sm text-mute">Tu persona dentro de MobOS: la cuenta dueña de esta tienda.</p>
-        </div>
-        <div className="flex items-start gap-3">
-          <Avatar user={{ id: usuario?.id, name: nombreActual }} picture={perfilEmpresa?.picture} size="lg" />
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="font-semibold">{nombreActual}</h2>
-              <Button type="button" variant="outline" className="h-7 px-2 text-xs lg:hidden" onClick={irAlFormulario}>Editar nombre</Button>
-            </div>
-            {usuario?.email && <p className="mt-0.5 truncate text-sm text-mute">{usuario.email}</p>}
-          </div>
-        </div>
-        {usuario?.id && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
-          <div className="flex min-w-0 items-center gap-3">
-            {foto ? <img src={foto} alt="Mi foto" className="h-10 w-10 shrink-0 rounded-full border border-ink-600 object-cover" /> : <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-ink-600 bg-ink-700 text-xs font-semibold text-mute">{(usuario?.name || 'Yo').trim().split(/\s+/).slice(0, 2).map(parte => parte[0] || '').join('').toUpperCase()}</span>}
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wider text-mute">Mi foto</p>
-              <p className="mt-0.5 text-sm text-mute">Aparece en la cronología de clientes y pedidos.</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <AttachmentInput onSelect={(file) => setFotoAConfirmar(file)} onError={setFotoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={fotoBusy}>
-              <Button type="button" variant="outline" disabled={fotoBusy}>{foto ? 'Reemplazar foto' : 'Subir foto'}</Button>
-            </AttachmentInput>
-            {foto && <Button type="button" variant="ghost" disabled={fotoBusy} onClick={quitarFoto}>Quitar</Button>}
-          </div>
-        </div>}
-        {fotoError && <p role="alert" className="text-sm text-bad">{fotoError}</p>}
-        {fotoAConfirmar && <PhotoCropper file={fotoAConfirmar} onCancel={() => setFotoAConfirmar(null)} onCropped={async (recortada) => { setFotoAConfirmar(null); await subirFoto(recortada) }} />}
         <div className="space-y-2">
           {valores.map(({ etiqueta, valor }) => (
             <div key={etiqueta} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">

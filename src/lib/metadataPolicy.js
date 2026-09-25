@@ -38,6 +38,7 @@ const protectedSections = {
   '/ops': 'Tablero de operaciones',
   '/configuracion': 'Configuración',
   '/configuracion/mi-cuenta': 'Mi cuenta',
+  '/mi-cuenta': 'Mi cuenta',
   '/configuracion/organizacion': 'Organización',
   '/configuracion/equipo': 'Equipo y acceso',
   '/configuracion/comercial': 'Comercial',
@@ -53,7 +54,6 @@ const protectedSections = {
   '/configuracion/preferencias': 'Preferencias',
   '/configuracion/sistema': 'Estado del sistema',
   // Perfil personal (#253): vive fuera de Configuración, se abre del avatar.
-  '/mi-perfil': 'Mi perfil',
   '/ayuda': 'Ayuda',
   '/ayuda/ayuda': 'Ayuda',
   '/analisis': 'Análisis',

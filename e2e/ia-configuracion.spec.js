@@ -14,7 +14,7 @@ const capturar = (page, nombre) => page.screenshot({ path: join(DIR, `ia-config-
 
 // Sección nueva → contenido que la identifica (título o encabezado propio).
 const SECCIONES = [
-  ['Mi cuenta', 'Tu nombre de vendedor', 'mi-cuenta'],
+  ['Mi cuenta', 'Tu perfil', 'mi-cuenta'],
   ['Organización', 'Datos de la tienda', 'organizacion'],
   ['Equipo y acceso', 'Funcionarios y metas', 'equipo'],
   ['Comercial', 'Seguro y límites', 'comercial'],
@@ -26,7 +26,7 @@ const SECCIONES = [
 test('las rutas viejas de Configuración entran por su sección nueva', async ({ page }) => {
   // Slugs históricos (marcadores y enlaces enviados) → sección actual.
   const REDIRECCIONES = [
-    ['/configuracion/identidad', /\/mi-perfil$/],
+    ['/configuracion/identidad', /\/configuracion\/mi-cuenta$/],
     ['/configuracion/preferencias', /\/configuracion\/mi-cuenta$/],
     ['/configuracion/negocio', /\/configuracion\/organizacion$/],
     ['/configuracion/sucursales', /\/configuracion\/organizacion$/],
@@ -72,17 +72,17 @@ test('Configuración tiene siete secciones y ninguna duplica contenido', async (
   await expect(page.getByText('Mi foto')).toHaveCount(1)
 })
 
-test('Mi perfil se abre desde el avatar; Precios queda con una sola entrada', async ({ page }) => {
-  // El perfil personal ya no es una pestaña de Configuración: se entra desde
-  // el avatar (pie del menú) y la ruta vieja de identidad cae acá.
+test('Mi cuenta se abre desde el avatar; Precios queda con una sola entrada', async ({ page }) => {
+  // La superficie personal se entra desde el avatar (pie del menú); la ruta
+  // vieja de identidad cae en Mi cuenta (#253).
   await page.goto('/configuracion/mi-cuenta')
-  await page.getByTestId('shell-mi-perfil').click()
-  await expect(page).toHaveURL(/\/mi-perfil$/)
-  await expect(page.getByRole('heading', { name: 'Tu nombre de vendedor' })).toBeVisible()
-  await capturar(page, 'mi-perfil')
+  await page.getByTestId('shell-mi-cuenta').click()
+  await expect(page).toHaveURL(/\/configuracion\/mi-cuenta$/)
+  await expect(page.getByText('Tu perfil')).toBeVisible()
+  await capturar(page, 'mi-cuenta')
 
   await page.goto('/configuracion/identidad')
-  await expect(page).toHaveURL(/\/mi-perfil$/)
+  await expect(page).toHaveURL(/\/configuracion\/mi-cuenta$/)
 
   // Precios: una sola entrada visible (Inventario → Precios). Comercial no lo
   // duplica; la ruta propia de listas sigue viva.

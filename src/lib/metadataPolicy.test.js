@@ -75,7 +75,6 @@ test('configuration subpages keep their own child slug in the URL and the title'
     // Ayuda sale de Configuración (Documentación vive ahí).
     '/ayuda': 'Ayuda',
     // Perfil personal (#253): fuera de Configuración, se abre desde el avatar.
-    '/mi-perfil': 'Mi perfil',
     // Las URLs viejas siguen resolviendo su título: redirigen antes del render.
     '/configuracion/identidad': 'Mi identidad',
     '/configuracion/roles': 'Roles y permisos',

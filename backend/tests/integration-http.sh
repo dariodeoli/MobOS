@@ -521,6 +521,7 @@ node "$BACKEND_ROOT/tests/payment-account-defaults.mjs" "$BASE_URL" "$ADMIN_TOKE
 node "$BACKEND_ROOT/tests/account-parties.mjs" "$BASE_URL" "$ADMIN_TOKEN_C"
 node "$BACKEND_ROOT/tests/seller-pin.mjs" "$BASE_URL" "$COMPANY_TOKEN_A"
 node "$BACKEND_ROOT/tests/cookie-session.mjs" "$BASE_URL" "$ADMIN_TOKEN"
+node "$BACKEND_ROOT/tests/mi-cuenta.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A"
 MOBOS_MAINTENANCE_TOKEN="it-maintenance-token" node "$BACKEND_ROOT/tests/email-events.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL"
 MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/collections-marketing.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL"
 MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/payment-installments.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL"

@@ -29,9 +29,7 @@ const Reportes = lazy(() => import('@/components/control/Reportes'))
 const Inventario = lazy(() => import('@/components/control/Inventario'))
 const Compras = lazy(() => import('@/components/control/Compras'))
 const Config = lazy(() => import('@/components/control/Config'))
-// #253: el perfil personal (foto y nombre) se edita en su propia pantalla,
-// accesible desde el avatar; reutiliza el objeto de identidad existente.
-const MiIdentidad = lazy(() => import('@/components/control/Config').then(modulo => ({ default: modulo.MiIdentidad })))
+const MiCuenta = lazy(() => import('@/components/cuenta/MiCuenta'))
 const Vendedores = lazy(() => import('@/components/control/Vendedores'))
 const Autorizaciones = lazy(() => import('@/components/control/Autorizaciones'))
 const ServicioGarantias = lazy(() => import('@/components/control/ServicioGarantias'))
@@ -268,9 +266,8 @@ function tabsDeSubpagina(slug, esDemo) {
 // Configuración en siete secciones (#IA): los slugs viejos siguen funcionando
 // y redirigen a la sección nueva; Documentación sale del panel y vive en Ayuda.
 const REDIRECCIONES_CONFIG = {
-  // El perfil personal (foto y nombre) vive en su propia pantalla, accesible
-  // desde el avatar: la ruta vieja de Configuración cae ahí (#253).
-  identidad: '/mi-perfil',
+  // La ruta vieja de identidad cae en Mi cuenta, la superficie personal (#253).
+  identidad: '/configuracion/mi-cuenta',
   preferencias: '/configuracion/mi-cuenta',
   negocio: '/configuracion/organizacion',
   sucursales: '/configuracion/organizacion',
@@ -293,7 +290,6 @@ const LABELS = {
   productos: 'Productos',
   promociones: 'Promociones',
   precios: 'Precios',
-  'mi-perfil': 'Mi perfil',
   cotizaciones: 'Cotizaciones',
   plantillas: 'Plantillas de WhatsApp',
   cotizador: 'Trade-In',
@@ -451,10 +447,10 @@ export default function PanelVendedor() {
     const base = (esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV).flatMap(group => group.items).map(([id]) => id)
     // Tres vistas no son ítems del menú pero su ruta tiene que ser válida:
     // 'inventario' (la sección; sus ítems de menú son sus pestañas y las
-    // pantallas de catálogo), 'garantias' (pestaña de «Taller» desde #224:
-    // los enlaces viejos siguen abriendo la sección) y 'mi-perfil' (#253: el
-    // perfil personal se abre desde el avatar, para todos los roles).
-    return esOwner ? [...base, 'inventario', 'garantias', 'mi-perfil'] : [...base, 'mi-perfil']
+    // pantallas de catálogo) y 'garantias' (pestaña de «Taller» desde #224:
+    // los enlaces viejos siguen abriendo la sección). 'mi-cuenta' (#253) es
+    // personal: cualquier rol entra a su perfil desde el avatar.
+    return esOwner ? [...base, 'inventario', 'garantias', 'mi-cuenta'] : [...base, 'mi-cuenta']
   }, [esOwner, esTecnico])
   // Un slug plano de pestaña (p. ej. /precios, que también es pestaña de
   // Configuración) se canoniza a /<padre>/<hijo> cuando el rol la tiene.
@@ -527,6 +523,10 @@ export default function PanelVendedor() {
     // El tablero real (/ops) vive fuera del panel, con su propio shell: se
     // entra con una navegación completa, igual que abriendo la URL directa.
     if (id === 'ops') { window.location.assign('/ops'); return }
+    // Mi cuenta (#253): el dueño la ve como pestaña de Configuración (su lugar
+    // en la IA de siete grupos); el resto del equipo entra a la vista personal
+    // /mi-cuenta, que no pide permisos de administración.
+    if (id === 'mi-cuenta' && !esOwner) { setVista('mi-cuenta'); navigate('/mi-cuenta'); return }
     // Un ítem del menú puede ser una pestaña de una sección (p. ej. «Unidades»
     // dentro de Inventario, #251): se abre la sección en esa pestaña. Ojo: las
     // vistas de sección (inventario, equipo, finanzas, análisis) también son
@@ -764,9 +764,9 @@ export default function PanelVendedor() {
         usuario={usuario}
         perfilEmpresa={perfilEmpresa}
         onSwitchUser={abrirCambio}
+        onMiCuenta={() => ir('mi-cuenta')}
         onLogout={() => setSalirAbierto(true)}
         onLockRequest={pedirBloqueo}
-        onPerfil={() => ir('mi-perfil')}
         menuAcciones
         onAbrirNotificacion={(href) => navigate(href)}
         onSearch={() => setBusquedaAbierta(true)}
@@ -867,6 +867,7 @@ export default function PanelVendedor() {
           {esOwner && subpadre === 'inventario' && <Inventario tab={vista} onTabChange={irASubtab} />}
           {(esOwner && (vista === 'compras' || vista === 'productos')) && <div className="mb-3 flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{[['compras', 'Compras'], ['productos', 'Productos']].map(([id, label]) => <button key={id} type="button" aria-pressed={vista === id} onClick={() => ir(id)} className={cn('rounded-lg px-2.5 py-1.5 text-xs font-semibold transition', vista === id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>}
           {vista === 'plantillas' && <WhatsAppTemplates />}
+          {!subpadre && vista === 'mi-cuenta' && <MiCuenta preferencias={preferencias} onCambiarPreferencias={cambiarPreferencias} />}
           {esOwner && vista === 'celulares' && <Celulares />}
           {esOwner && vista === 'comparador' && <Comparador />}
           {esOwner && vista === 'compras' && <Compras />}
@@ -907,7 +908,7 @@ export default function PanelVendedor() {
                 onChange={irASubtab}
                 items={tabsConfig}
               />
-              {vista === 'mi-cuenta' && <Config seccion="mi-cuenta" preferencias={preferencias} onCambiarPreferencias={cambiarPreferencias} />}
+              {vista === 'mi-cuenta' && <MiCuenta preferencias={preferencias} onCambiarPreferencias={cambiarPreferencias} />}
               {vista === 'organizacion' && <Config seccion="organizacion" />}
               {vista === 'equipo' && (
                 <div className="space-y-3">
@@ -939,9 +940,6 @@ export default function PanelVendedor() {
                 ? <DemoNoDisponible modulo="Estado del sistema" motivo="Consulta los servicios reales de MobOS (API, base e impresión)." />
                 : <EstadoSistema />)}
             </div>
-          )}
-          {vista === 'mi-perfil' && (
-            <div className="space-y-3"><MiIdentidad /></div>
           )}
           {subpadre === 'ayuda' && (
             <div className="space-y-3">

@@ -22,12 +22,12 @@ export const RUTA_DE_VISTA = {
   garantias: '/garantias',
   autorizaciones: '/autorizaciones',
   // Perfil personal (#253): se abre desde el avatar, fuera de Configuración.
-  'mi-perfil': '/mi-perfil',
   resumen: '/resumen',
   ops: '/ops',
   analisis: '/analisis',
   finanzas: '/finanzas',
   equipo: '/configuracion',
+  'mi-cuenta': '/mi-cuenta',
   celulares: '/celulares',
   comparador: '/comparador',
 }
@@ -83,10 +83,13 @@ export const DESTINO_LEGADO = {
   equipo: '/configuracion',
   config: '/configuracion',
   configuracion: '/configuracion',
+  // #253: Mi cuenta es personal y su URL canónica es /mi-cuenta (el dueño la
+  // sigue viendo como pestaña de Configuración).
+  'mi-cuenta': '/mi-cuenta',
   vendedores: '/configuracion',
   // Slugs planos de las pestañas que resolvía el panel viejo.
   seguridad: '/configuracion/seguridad',
-  identidad: '/mi-perfil',
+  identidad: '/configuracion/mi-cuenta',
   roles: '/configuracion/roles',
   negocio: '/configuracion/negocio',
   sucursales: '/configuracion/sucursales',
@@ -108,7 +111,6 @@ export const DESTINO_LEGADO = {
   ads: '/finanzas',
   incompletos: '/productos',
   imagenes: '/productos',
-  'mi-perfil': '/mi-perfil',
   celulares: '/celulares',
   comparador: '/comparador',
 }

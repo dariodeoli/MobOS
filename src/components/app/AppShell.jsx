@@ -207,7 +207,7 @@ function AvisoColaOffline({ texto, corto, urgente, onClick, pastilla = false, te
   )
 }
 
-function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onSwitchUser, onLockRequest, onPerfil, collapsed, perfilEmpresa, usuario }) {
+function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onSwitchUser, onMiCuenta, onLockRequest, collapsed, perfilEmpresa, usuario }) {
   const clicsRef = useRef([])
   const clicsTimer = useRef(null)
   useEffect(() => () => clearTimeout(clicsTimer.current), [])
@@ -264,25 +264,20 @@ function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onSwitch
           </PersonaChip>
           <Icon name="refresh" className={cn('ml-auto h-3 w-3 shrink-0 text-mute', collapsed && 'lg:hidden')} />
         </button>
-      </div>
-      {/* Perfil personal (#253): la identidad de la persona se edita desde su
-          avatar (foto y nombre), no dentro de la Configuración de la tienda. */}
-      {onPerfil && (
         <button
           type="button"
-          data-testid="shell-mi-perfil"
-          onClick={onPerfil}
-          title="Mi perfil"
-          aria-label="Mi perfil"
+          data-testid="shell-mi-cuenta"
+          onClick={onMiCuenta}
+          title="Mi cuenta"
+          aria-label="Mi cuenta"
           className={cn(
-            'mt-1 flex min-h-9 w-full items-center gap-2 rounded-xl px-2.5 text-left text-[12px] font-semibold text-mute transition hover:bg-fore/5 hover:text-fore',
-            collapsed && 'lg:justify-center lg:px-0',
+            'grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore',
+            collapsed && 'lg:h-9 lg:w-9',
           )}
         >
-          <Icon name="user" className="h-[15px] w-[15px] shrink-0" />
-          <span className={cn('truncate', collapsed && 'lg:hidden')}>Mi perfil</span>
+          <Icon name="user" className="h-4 w-4" />
         </button>
-      )}
+      </div>
     </div>
   )
 }
@@ -331,9 +326,9 @@ export default function AppShell({
   esOwner = false,
   usuario,
   onSwitchUser,
+  onMiCuenta,
   onLogout,
   onLockRequest,
-  onPerfil,
   onSearch,
   onHelp,
   breadcrumb,
@@ -464,8 +459,8 @@ export default function AppShell({
           esOwner={esOwner}
           roleLabel={roleLabel}
           onSwitchUser={onSwitchUser}
+          onMiCuenta={onMiCuenta}
           onLockRequest={onLockRequest}
-          onPerfil={onPerfil}
           collapsed={collapsed}
           perfilEmpresa={perfilEmpresa}
           usuario={usuario}
@@ -508,8 +503,8 @@ export default function AppShell({
             esOwner={esOwner}
             roleLabel={roleLabel}
             onSwitchUser={onSwitchUser}
+            onMiCuenta={onMiCuenta}
             onLockRequest={onLockRequest}
-            onPerfil={onPerfil ? () => { setMenuAbierto(false); onPerfil() } : undefined}
             collapsed={false}
             perfilEmpresa={perfilEmpresa}
             usuario={usuario}

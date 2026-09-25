@@ -303,9 +303,6 @@ export default function App() {
           <Route path="/productos" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/promociones" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/precios" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
-          {/* Perfil personal (#253): se abre desde el avatar; la ruta vieja
-              /configuracion/identidad redirige acá. */}
-          <Route path="/mi-perfil" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/cotizaciones" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/plantillas" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/trade-in" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
@@ -323,6 +320,10 @@ export default function App() {
           {/* Ayuda (Documentación interna) sale del shell, no de Configuración:
               la ve todo el equipo (es la guía de la operación, no un ajuste). */}
           <Route path="/ayuda/:seccion?" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
+          {/* Mi cuenta (#253): la superficie personal de cualquier rol (perfil,
+              preferencias y sesiones propias). El dueño la ve además como
+              pestaña de Configuración (su lugar en la IA de 7 grupos). */}
+          <Route path="/mi-cuenta" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/analisis/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           <Route path="/finanzas/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           <Route path="/inventario/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
