@@ -50,9 +50,20 @@ Regla del reparto: cada dominio trabaja en **archivos propios** de su sección
 
 - Suite enfocada (`config-comercial`, `config-seguro-limites`, `precios-listas`,
   `ia-configuracion`, `configuracion-lote5`, `menu-ia`, `config-guardado`,
-  `admin`, `demo-anonimo`, `demo-finanzas*`): **88/88 verde** (5.0m).
-- `npm test` (**751/751**), `npm --prefix backend run test:unit` (**75/75**),
+  `admin`, `demo-anonimo`, `demo-finanzas*`): **88/88 verde** (5.9m).
+- `npm test` (**751/751**), `npm --prefix backend run test:unit` (**99/99**),
   `lint` 0 errores, builds FE/BE con `BUILD_ID` y `prisma:validate` en verde.
+
+## Verificación en producción (pendiente de deploy)
+
+`node scripts/qa-253-comercial-produccion.mjs` verifica el grupo sobre el demo
+público (bloques, campos, enlace a Autorizaciones, deep link y capturas). Hoy
+producción está en **v1.0.172** y todavía no trae esta entrega: **3/6** (el demo
+entra, el deep link `/configuracion/precios` cae en Comercial y la captura
+desktop sale); los tres checks del grupo quedan pendientes de integración y
+deploy. Resultado crudo: `produccion/resultados.json`; captura del estado
+actual: `produccion/comercial-produccion-desktop.png`. Correrlo de nuevo después
+del deploy debe dar 6/6.
 
 ## Coordinación
 
