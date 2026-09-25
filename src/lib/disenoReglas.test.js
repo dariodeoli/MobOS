@@ -47,10 +47,20 @@ test('las acciones secundarias viven en el menú del shell', () => {
   }
 })
 
-test('la búsqueda global conserva el contrato de combobox', () => {
+test('la búsqueda global delega el contrato de combobox en la paleta de la biblioteca', () => {
+  // Lote 33 (#241): la paleta del shell es `PaletaComandos`; la app solo aporta
+  // la consulta. El contrato combobox (rol, activedescendant, listbox) vive en
+  // la biblioteca y no se vuelve a dibujar acá.
   const codigo = leer('components/app/GlobalSearch.jsx')
-  for (const atributo of ['role="combobox"', 'aria-activedescendant', 'aria-controls="global-search-listbox"', 'role="listbox"', '<EmptyState']) {
-    assert.ok(codigo.includes(atributo), `falta ${atributo}`)
+  assert.match(codigo, /import \{ PaletaComandos \} from 'owncoding-ui'/, 'la paleta sale de la biblioteca')
+  assert.match(codigo, /ariaLabel="Buscar en toda la tienda"/, 'el campo conserva su etiqueta')
+  assert.match(codigo, /conAtajo=\{false\}/, 'el atajo Ctrl+K lo maneja el shell')
+  for (const atributo of ['role="combobox"', 'aria-activedescendant', 'role="listbox"', 'ArrowDown']) {
+    assert.ok(!codigo.includes(atributo), `la app no debe reimplementar ${atributo}`)
+  }
+  const paleta = readFileSync(join(RAIZ, '../node_modules/owncoding-ui/src/components/PaletaComandos.jsx'), 'utf8')
+  for (const atributo of ['role="combobox"', 'aria-activedescendant', 'role="listbox"', 'aria-autocomplete="list"']) {
+    assert.ok(paleta.includes(atributo), `la paleta de la biblioteca debe exponer ${atributo}`)
   }
 })
 

@@ -30,7 +30,7 @@
     "html-to-image": "^1.11.11",
     "jsbarcode": "^3.11.6",
     "lucide-react": "^0.456.0",
-    "owncoding-ui": "https://github.com/dariodeoli/owncoding-ui/archive/refs/tags/v0.26.0.tar.gz",
+    "owncoding-ui": "https://github.com/dariodeoli/owncoding-ui/archive/refs/tags/v0.27.0.tar.gz",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

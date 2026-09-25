@@ -508,3 +508,16 @@ test('el QR del informe sale de lib/qr y shared/CodigoQr (#240)', () => {
     assert.match(ficha, new RegExp(`<${objeto}\\b`), `la ficha de certificado compone ${objeto}`)
   }
 })
+
+// Lote 33 (#241): el buscador global del shell usa la paleta de la biblioteca
+// (`PaletaComandos`, docs/SHELL.md §3) y acá solo queda la consulta a la API
+// (los 8 grupos en paralelo). La lista, el teclado y el debounce no se repiten.
+test('el buscador global usa PaletaComandos y no reimplementa la paleta (#241)', () => {
+  const buscador = readFileSync(join(RAIZ, 'components/app/GlobalSearch.jsx'), 'utf8')
+  assert.match(buscador, /import \{ PaletaComandos \} from 'owncoding-ui'/, 'la paleta sale de la biblioteca')
+  assert.match(buscador, /<PaletaComandos[\s\S]*?buscar=\{buscar\}/, 'la consulta se provee por props')
+  assert.match(buscador, /onElegir=\{\(resultado\) => onNavigate\(resultado\.datos\.vista, resultado\.datos\.params\)\}/)
+  assert.ok(!/role="listbox"/.test(buscador), 'la lista no se reimplementa en la app')
+  assert.ok(!/ArrowDown/.test(buscador), 'el teclado lo maneja la paleta')
+  assert.ok(!/setTimeout\(/.test(buscador), 'el debounce vive en la paleta')
+})

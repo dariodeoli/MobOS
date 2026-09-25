@@ -522,6 +522,10 @@ por el sistema.
   `owncoding-ui/styles.css` para los scopes `tema-v2`/`v2-piloto`; la app no
   repite esas reglas (guía de retiro: `owncoding-ui/docs/SHELL.md` §8). Al
   crear una pantalla v2, usá las clases del mock y no copies CSS.
+- **Buscador global (#241, v0.27.0):** el campo ⌘/Ctrl+K del shell es
+  `PaletaComandos` de la biblioteca (agrupado por tipo, teclado, debounce y
+  estados honestos); la pantalla solo provee `buscar` y navega con `datos`. No
+  reimplementar la lista ni el contrato combobox (SHELL.md §1/§3).
 - **Paleta global v2 (#241, rollout aprobado):** el lenguaje "device ops"
   (consola clara/oscura, base oscura `#0E1116`/`#1F2430`, verde pass `#22C55E`,
   azul acción `#4D7CFE`) es la **paleta global** de la biblioteca desde
