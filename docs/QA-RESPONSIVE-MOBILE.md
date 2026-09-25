@@ -172,6 +172,10 @@ lleva las capturas por pantalla y el JSON crudo de la auditoría.
   detalle de pedido y ficha de unidad (capturas y JSON en la evidencia).
 - **Portal público** ✅ medido e incorporado al gate: la página del pedido que
   abre el cliente no tiene scroll, cortes ni targets chicos.
+- **Configuración (7 grupos)** ✅ incorporada al gate tras #253: los 7 grupos
+  miden 0 scroll y 0 cortes a 360/390/414/768, y el barrido destapó tres fixes
+  táctiles en las secciones (Editar nombre, Copiar prompt y Actualizar de
+  Auditoría), que quedaron en 44. En mobile solo queda el enlace H6 de crédito.
 
 ## Plan
 

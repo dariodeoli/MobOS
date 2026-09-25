@@ -575,3 +575,32 @@ test('el buscador global usa PaletaComandos y no reimplementa la paleta (#241)',
   assert.ok(!/ArrowDown/.test(buscador), 'el teclado lo maneja la paleta')
   assert.ok(!/setTimeout\(/.test(buscador), 'el debounce vive en la paleta')
 })
+
+// #253: la estructura visual de Configuración (7 grupos con icono y
+// descripción) vive en un solo módulo y la pantalla la reutiliza con la
+// semántica de pestañas que ya cubren los e2e.
+test('los 7 grupos de Configuración viven en config/gruposConfig (#253)', () => {
+  const meta = readFileSync(join(RAIZ, 'components/control/config/gruposConfig.js'), 'utf8')
+  const esperados = {
+    'mi-cuenta': 'user',
+    'organizacion': 'store',
+    'equipo': 'users',
+    'comercial': 'tag',
+    'seguridad': 'shield',
+    'dispositivos': 'printer',
+    'sistema': 'pulse',
+  }
+  for (const [id, icono] of Object.entries(esperados)) {
+    assert.ok(meta.includes(`'${id}': { icono: '${icono}'`), `falta ${id} con icono ${icono}`)
+  }
+  const iconos = readFileSync(join(RAIZ, 'components/shared/Icon.jsx'), 'utf8')
+  for (const icono of Object.values(esperados)) {
+    assert.match(iconos, new RegExp(`^  ${icono}:`, 'm'), `el icono ${icono} no existe en Icon`)
+  }
+  const nav = readFileSync(join(RAIZ, 'components/control/config/NavegacionConfig.jsx'), 'utf8')
+  assert.match(nav, /role="tablist"/, 'la navegación conserva la semántica de pestañas')
+  assert.match(nav, /aria-selected=\{esta\}/, 'la pestaña activa se anuncia')
+  const panel = readFileSync(join(RAIZ, 'pages/PanelVendedor.jsx'), 'utf8')
+  assert.match(panel, /<NavegacionConfig value=\{vista\} onChange=\{irASubtab\} items=\{tabsConfig\}>/, 'Configuración usa la navegación de los 7 grupos')
+  assert.ok(!/<Subtabs value=\{vista\} onChange=\{irASubtab\} items=\{tabsConfig\}/.test(panel), 'la lista plana no se repite en Configuración')
+})

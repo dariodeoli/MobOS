@@ -1,0 +1,1760 @@
+[
+  {
+    "pantalla": "config-mi-cuenta",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Mi cuenta",
+            "ancho": 113,
+            "alto": 44,
+            "dibujo": "113x44"
+          },
+          {
+            "texto": "Organización",
+            "ancho": 132,
+            "alto": 44,
+            "dibujo": "132x44"
+          },
+          {
+            "texto": "Equipo y acceso",
+            "ancho": 153,
+            "alto": 44,
+            "dibujo": "153x44"
+          },
+          {
+            "texto": "Comercial",
+            "ancho": 112,
+            "alto": 44,
+            "dibujo": "112x44"
+          },
+          {
+            "texto": "Seguridad y auditoría",
+            "ancho": 185,
+            "alto": 44,
+            "dibujo": "185x44"
+          },
+          {
+            "texto": "Dispositivos",
+            "ancho": 126,
+            "alto": 44,
+            "dibujo": "126x44"
+          },
+          {
+            "texto": "Sistema",
+            "ancho": 100,
+            "alto": 44,
+            "dibujo": "100x44"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "config-mi-cuenta",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Mi cuenta",
+            "ancho": 113,
+            "alto": 44,
+            "dibujo": "113x44"
+          },
+          {
+            "texto": "Organización",
+            "ancho": 132,
+            "alto": 44,
+            "dibujo": "132x44"
+          },
+          {
+            "texto": "Equipo y acceso",
+            "ancho": 153,
+            "alto": 44,
+            "dibujo": "153x44"
+          },
+          {
+            "texto": "Comercial",
+            "ancho": 112,
+            "alto": 44,
+            "dibujo": "112x44"
+          },
+          {
+            "texto": "Seguridad y auditoría",
+            "ancho": 185,
+            "alto": 44,
+            "dibujo": "185x44"
+          },
+          {
+            "texto": "Dispositivos",
+            "ancho": 126,
+            "alto": 44,
+            "dibujo": "126x44"
+          },
+          {
+            "texto": "Sistema",
+            "ancho": 100,
+            "alto": 44,
+            "dibujo": "100x44"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "config-mi-cuenta",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 231,
+        "alto": 34,
+        "dibujo": "231x34",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Mi cuenta",
+            "ancho": 113,
+            "alto": 44,
+            "dibujo": "113x44"
+          },
+          {
+            "texto": "Organización",
+            "ancho": 132,
+            "alto": 44,
+            "dibujo": "132x44"
+          },
+          {
+            "texto": "Equipo y acceso",
+            "ancho": 153,
+            "alto": 44,
+            "dibujo": "153x44"
+          },
+          {
+            "texto": "Comercial",
+            "ancho": 112,
+            "alto": 44,
+            "dibujo": "112x44"
+          },
+          {
+            "texto": "Seguridad y auditoría",
+            "ancho": 185,
+            "alto": 44,
+            "dibujo": "185x44"
+          },
+          {
+            "texto": "Dispositivos",
+            "ancho": 126,
+            "alto": 44,
+            "dibujo": "126x44"
+          },
+          {
+            "texto": "Sistema",
+            "ancho": 100,
+            "alto": 44,
+            "dibujo": "100x44"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "config-mi-cuenta",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 5,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Subir foto",
+        "ancho": 102,
+        "alto": 36,
+        "dibujo": "102x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-4 font-sem",
+        "veces": 4
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Mi cuenta",
+            "ancho": 113,
+            "alto": 44,
+            "dibujo": "113x44"
+          },
+          {
+            "texto": "Organización",
+            "ancho": 132,
+            "alto": 44,
+            "dibujo": "132x44"
+          },
+          {
+            "texto": "Equipo y acceso",
+            "ancho": 153,
+            "alto": 44,
+            "dibujo": "153x44"
+          },
+          {
+            "texto": "Comercial",
+            "ancho": 112,
+            "alto": 44,
+            "dibujo": "112x44"
+          },
+          {
+            "texto": "Seguridad y auditoría",
+            "ancho": 185,
+            "alto": 44,
+            "dibujo": "185x44"
+          },
+          {
+            "texto": "Dispositivos",
+            "ancho": 126,
+            "alto": 44,
+            "dibujo": "126x44"
+          },
+          {
+            "texto": "Sistema",
+            "ancho": 100,
+            "alto": 44,
+            "dibujo": "100x44"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "config-organizacion",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Mi cuenta",
+            "ancho": 113,
+            "alto": 44,
+            "dibujo": "113x44"
+          },
+          {
+            "texto": "Organización",
+            "ancho": 132,
+            "alto": 44,
+            "dibujo": "132x44"
+          },
+          {
+            "texto": "Equipo y acceso",
+            "ancho": 153,
+            "alto": 44,
+            "dibujo": "153x44"
+          },
+          {
+            "texto": "Comercial",
+            "ancho": 112,
+            "alto": 44,
+            "dibujo": "112x44"
+          },
+          {
+            "texto": "Seguridad y auditoría",
+            "ancho": 185,
+            "alto": 44,
+            "dibujo": "185x44"
+          },
+          {
+            "texto": "Dispositivos",
+            "ancho": 126,
+            "alto": 44,
+            "dibujo": "126x44"
+          },
+          {
+            "texto": "Sistema",
+            "ancho": 100,
+            "alto": 44,
+            "dibujo": "100x44"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "config-organizacion",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Mi cuenta",
+            "ancho": 113,
+            "alto": 44,
+            "dibujo": "113x44"
+          },
+          {
+            "texto": "Organización",
+            "ancho": 132,
+            "alto": 44,
+            "dibujo": "132x44"
+          },
+          {
+            "texto": "Equipo y acceso",
+            "ancho": 153,
+            "alto": 44,
+            "dibujo": "153x44"
+          },
+          {
+            "texto": "Comercial",
+            "ancho": 112,
+            "alto": 44,
+            "dibujo": "112x44"
+          },
+          {
+            "texto": "Seguridad y auditoría",
+            "ancho": 185,
+            "alto": 44,
+            "dibujo": "185x44"
+          },
+          {
+            "texto": "Dispositivos",
+            "ancho": 126,
+            "alto": 44,
+            "dibujo": "126x44"
+          },
+          {
+            "texto": "Sistema",
+            "ancho": 100,
+            "alto": 44,
+            "dibujo": "100x44"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "config-organizacion",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 231,
+        "alto": 34,
+        "dibujo": "231x34",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Mi cuenta",
+            "ancho": 113,
+            "alto": 44,
+            "dibujo": "113x44"
+          },
+          {
+            "texto": "Organización",
+            "ancho": 132,
+            "alto": 44,
+            "dibujo": "132x44"
+          },
+          {
+            "texto": "Equipo y acceso",
+            "ancho": 153,
+            "alto": 44,
+            "dibujo": "153x44"
+          },
+          {
+            "texto": "Comercial",
+            "ancho": 112,
+            "alto": 44,
+            "dibujo": "112x44"
+          },
+          {
+            "texto": "Seguridad y auditoría",
+            "ancho": 185,
+            "alto": 44,
+            "dibujo": "185x44"
+          },
+          {
+            "texto": "Dispositivos",
+            "ancho": 126,
+            "alto": 44,
+            "dibujo": "126x44"
+          },
+          {
+            "texto": "Sistema",
+            "ancho": 100,
+            "alto": 44,
+            "dibujo": "100x44"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "config-organizacion",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": []
+      }
+    ]
+  },
+  {
+    "pantalla": "config-equipo",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": []
+      }
+    ]
+  },
+  {
+    "pantalla": "config-equipo",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 26,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Historial",
+        "ancho": 64,
+        "alto": 24,
+        "dibujo": "64x24",
+        "clase": "rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:",
+        "veces": 19
+      },
+      {
+        "que": "input",
+        "texto": "Nombre de Administrador",
+        "ancho": 165,
+        "alto": 28,
+        "dibujo": "165x28",
+        "clase": "min-h-7 min-w-0 max-w-[15rem] bg-transparent text-[13px] font-bold out",
+        "veces": 4
+      },
+      {
+        "que": "button",
+        "texto": "Activos (4)",
+        "ancho": 87,
+        "alto": 28,
+        "dibujo": "87x28",
+        "clase": "rounded-lg px-3 py-1.5 text-xs font-semibold transition bg-fono/15 tex",
+        "veces": 2
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Mi cuenta",
+            "ancho": 113,
+            "alto": 44,
+            "dibujo": "113x44"
+          },
+          {
+            "texto": "Organización",
+            "ancho": 132,
+            "alto": 44,
+            "dibujo": "132x44"
+          },
+          {
+            "texto": "Equipo y acceso",
+            "ancho": 153,
+            "alto": 44,
+            "dibujo": "153x44"
+          },
+          {
+            "texto": "Comercial",
+            "ancho": 112,
+            "alto": 44,
+            "dibujo": "112x44"
+          },
+          {
+            "texto": "Seguridad y auditoría",
+            "ancho": 185,
+            "alto": 44,
+            "dibujo": "185x44"
+          },
+          {
+            "texto": "Dispositivos",
+            "ancho": 126,
+            "alto": 44,
+            "dibujo": "126x44"
+          },
+          {
+            "texto": "Sistema",
+            "ancho": 100,
+            "alto": 44,
+            "dibujo": "100x44"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "config-equipo",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 28,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Historial",
+        "ancho": 64,
+        "alto": 24,
+        "dibujo": "64x24",
+        "clase": "rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:",
+        "veces": 19
+      },
+      {
+        "que": "input",
+        "texto": "Nombre de Administrador",
+        "ancho": 165,
+        "alto": 28,
+        "dibujo": "165x28",
+        "clase": "min-h-7 min-w-0 max-w-[15rem] bg-transparent text-[13px] font-bold out",
+        "veces": 4
+      },
+      {
+        "que": "button",
+        "texto": "Activos (4)",
+        "ancho": 87,
+        "alto": 28,
+        "dibujo": "87x28",
+        "clase": "rounded-lg px-3 py-1.5 text-xs font-semibold transition bg-fono/15 tex",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Invitar por correo",
+        "ancho": 163,
+        "alto": 28,
+        "dibujo": "163x28",
+        "clase": "flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition bg-fono",
+        "veces": 2
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 231,
+        "alto": 34,
+        "dibujo": "231x34",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Mi cuenta",
+            "ancho": 113,
+            "alto": 44,
+            "dibujo": "113x44"
+          },
+          {
+            "texto": "Organización",
+            "ancho": 132,
+            "alto": 44,
+            "dibujo": "132x44"
+          },
+          {
+            "texto": "Equipo y acceso",
+            "ancho": 153,
+            "alto": 44,
+            "dibujo": "153x44"
+          },
+          {
+            "texto": "Comercial",
+            "ancho": 112,
+            "alto": 44,
+            "dibujo": "112x44"
+          },
+          {
+            "texto": "Seguridad y auditoría",
+            "ancho": 185,
+            "alto": 44,
+            "dibujo": "185x44"
+          },
+          {
+            "texto": "Dispositivos",
+            "ancho": 126,
+            "alto": 44,
+            "dibujo": "126x44"
+          },
+          {
+            "texto": "Sistema",
+            "ancho": 100,
+            "alto": 44,
+            "dibujo": "100x44"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "config-equipo",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": []
+      }
+    ]
+  },
+  {
+    "pantalla": "config-comercial",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": []
+      }
+    ]
+  },
+  {
+    "pantalla": "config-comercial",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Mi cuenta",
+            "ancho": 113,
+            "alto": 44,
+            "dibujo": "113x44"
+          },
+          {
+            "texto": "Organización",
+            "ancho": 132,
+            "alto": 44,
+            "dibujo": "132x44"
+          },
+          {
+            "texto": "Equipo y acceso",
+            "ancho": 153,
+            "alto": 44,
+            "dibujo": "153x44"
+          },
+          {
+            "texto": "Comercial",
+            "ancho": 112,
+            "alto": 44,
+            "dibujo": "112x44"
+          },
+          {
+            "texto": "Seguridad y auditoría",
+            "ancho": 185,
+            "alto": 44,
+            "dibujo": "185x44"
+          },
+          {
+            "texto": "Dispositivos",
+            "ancho": 126,
+            "alto": 44,
+            "dibujo": "126x44"
+          },
+          {
+            "texto": "Sistema",
+            "ancho": 100,
+            "alto": 44,
+            "dibujo": "100x44"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "config-comercial",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 231,
+        "alto": 34,
+        "dibujo": "231x34",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Mi cuenta",
+            "ancho": 113,
+            "alto": 44,
+            "dibujo": "113x44"
+          },
+          {
+            "texto": "Organización",
+            "ancho": 132,
+            "alto": 44,
+            "dibujo": "132x44"
+          },
+          {
+            "texto": "Equipo y acceso",
+            "ancho": 153,
+            "alto": 44,
+            "dibujo": "153x44"
+          },
+          {
+            "texto": "Comercial",
+            "ancho": 112,
+            "alto": 44,
+            "dibujo": "112x44"
+          },
+          {
+            "texto": "Seguridad y auditoría",
+            "ancho": 185,
+            "alto": 44,
+            "dibujo": "185x44"
+          },
+          {
+            "texto": "Dispositivos",
+            "ancho": 126,
+            "alto": 44,
+            "dibujo": "126x44"
+          },
+          {
+            "texto": "Sistema",
+            "ancho": 100,
+            "alto": 44,
+            "dibujo": "100x44"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "config-comercial",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": []
+      }
+    ]
+  },
+  {
+    "pantalla": "config-seguridad",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Mi cuenta",
+            "ancho": 113,
+            "alto": 44,
+            "dibujo": "113x44"
+          },
+          {
+            "texto": "Organización",
+            "ancho": 132,
+            "alto": 44,
+            "dibujo": "132x44"
+          },
+          {
+            "texto": "Equipo y acceso",
+            "ancho": 153,
+            "alto": 44,
+            "dibujo": "153x44"
+          },
+          {
+            "texto": "Comercial",
+            "ancho": 112,
+            "alto": 44,
+            "dibujo": "112x44"
+          },
+          {
+            "texto": "Seguridad y auditoría",
+            "ancho": 186,
+            "alto": 44,
+            "dibujo": "186x44"
+          },
+          {
+            "texto": "Dispositivos",
+            "ancho": 126,
+            "alto": 44,
+            "dibujo": "126x44"
+          },
+          {
+            "texto": "Sistema",
+            "ancho": 100,
+            "alto": 44,
+            "dibujo": "100x44"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "config-seguridad",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Mi cuenta",
+            "ancho": 113,
+            "alto": 44,
+            "dibujo": "113x44"
+          },
+          {
+            "texto": "Organización",
+            "ancho": 132,
+            "alto": 44,
+            "dibujo": "132x44"
+          },
+          {
+            "texto": "Equipo y acceso",
+            "ancho": 153,
+            "alto": 44,
+            "dibujo": "153x44"
+          },
+          {
+            "texto": "Comercial",
+            "ancho": 112,
+            "alto": 44,
+            "dibujo": "112x44"
+          },
+          {
+            "texto": "Seguridad y auditoría",
+            "ancho": 186,
+            "alto": 44,
+            "dibujo": "186x44"
+          },
+          {
+            "texto": "Dispositivos",
+            "ancho": 126,
+            "alto": 44,
+            "dibujo": "126x44"
+          },
+          {
+            "texto": "Sistema",
+            "ancho": 100,
+            "alto": 44,
+            "dibujo": "100x44"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "config-seguridad",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 231,
+        "alto": 34,
+        "dibujo": "231x34",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Mi cuenta",
+            "ancho": 113,
+            "alto": 44,
+            "dibujo": "113x44"
+          },
+          {
+            "texto": "Organización",
+            "ancho": 132,
+            "alto": 44,
+            "dibujo": "132x44"
+          },
+          {
+            "texto": "Equipo y acceso",
+            "ancho": 153,
+            "alto": 44,
+            "dibujo": "153x44"
+          },
+          {
+            "texto": "Comercial",
+            "ancho": 112,
+            "alto": 44,
+            "dibujo": "112x44"
+          },
+          {
+            "texto": "Seguridad y auditoría",
+            "ancho": 186,
+            "alto": 44,
+            "dibujo": "186x44"
+          },
+          {
+            "texto": "Dispositivos",
+            "ancho": 126,
+            "alto": 44,
+            "dibujo": "126x44"
+          },
+          {
+            "texto": "Sistema",
+            "ancho": 100,
+            "alto": 44,
+            "dibujo": "100x44"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "config-seguridad",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 6,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Verificar contraseña",
+        "ancho": 169,
+        "alto": 36,
+        "dibujo": "169x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-4 font-sem",
+        "veces": 5
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Mi cuenta",
+            "ancho": 113,
+            "alto": 44,
+            "dibujo": "113x44"
+          },
+          {
+            "texto": "Organización",
+            "ancho": 132,
+            "alto": 44,
+            "dibujo": "132x44"
+          },
+          {
+            "texto": "Equipo y acceso",
+            "ancho": 153,
+            "alto": 44,
+            "dibujo": "153x44"
+          },
+          {
+            "texto": "Comercial",
+            "ancho": 112,
+            "alto": 44,
+            "dibujo": "112x44"
+          },
+          {
+            "texto": "Seguridad y auditoría",
+            "ancho": 186,
+            "alto": 44,
+            "dibujo": "186x44"
+          },
+          {
+            "texto": "Dispositivos",
+            "ancho": 126,
+            "alto": 44,
+            "dibujo": "126x44"
+          },
+          {
+            "texto": "Sistema",
+            "ancho": 100,
+            "alto": 44,
+            "dibujo": "100x44"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "config-dispositivos",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": []
+      }
+    ]
+  },
+  {
+    "pantalla": "config-dispositivos",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Mi cuenta",
+            "ancho": 113,
+            "alto": 44,
+            "dibujo": "113x44"
+          },
+          {
+            "texto": "Organización",
+            "ancho": 132,
+            "alto": 44,
+            "dibujo": "132x44"
+          },
+          {
+            "texto": "Equipo y acceso",
+            "ancho": 153,
+            "alto": 44,
+            "dibujo": "153x44"
+          },
+          {
+            "texto": "Comercial",
+            "ancho": 112,
+            "alto": 44,
+            "dibujo": "112x44"
+          },
+          {
+            "texto": "Seguridad y auditoría",
+            "ancho": 185,
+            "alto": 44,
+            "dibujo": "185x44"
+          },
+          {
+            "texto": "Dispositivos",
+            "ancho": 126,
+            "alto": 44,
+            "dibujo": "126x44"
+          },
+          {
+            "texto": "Sistema",
+            "ancho": 100,
+            "alto": 44,
+            "dibujo": "100x44"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "config-dispositivos",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 231,
+        "alto": 34,
+        "dibujo": "231x34",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": []
+      }
+    ]
+  },
+  {
+    "pantalla": "config-dispositivos",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 13,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Actualizar estado",
+        "ancho": 175,
+        "alto": 36,
+        "dibujo": "175x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-4 font-sem",
+        "veces": 12
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Mi cuenta",
+            "ancho": 113,
+            "alto": 44,
+            "dibujo": "113x44"
+          },
+          {
+            "texto": "Organización",
+            "ancho": 132,
+            "alto": 44,
+            "dibujo": "132x44"
+          },
+          {
+            "texto": "Equipo y acceso",
+            "ancho": 153,
+            "alto": 44,
+            "dibujo": "153x44"
+          },
+          {
+            "texto": "Comercial",
+            "ancho": 112,
+            "alto": 44,
+            "dibujo": "112x44"
+          },
+          {
+            "texto": "Seguridad y auditoría",
+            "ancho": 185,
+            "alto": 44,
+            "dibujo": "185x44"
+          },
+          {
+            "texto": "Dispositivos",
+            "ancho": 126,
+            "alto": 44,
+            "dibujo": "126x44"
+          },
+          {
+            "texto": "Sistema",
+            "ancho": 100,
+            "alto": 44,
+            "dibujo": "100x44"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "config-sistema",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Mi cuenta",
+            "ancho": 113,
+            "alto": 44,
+            "dibujo": "113x44"
+          },
+          {
+            "texto": "Organización",
+            "ancho": 132,
+            "alto": 44,
+            "dibujo": "132x44"
+          },
+          {
+            "texto": "Equipo y acceso",
+            "ancho": 153,
+            "alto": 44,
+            "dibujo": "153x44"
+          },
+          {
+            "texto": "Comercial",
+            "ancho": 112,
+            "alto": 44,
+            "dibujo": "112x44"
+          },
+          {
+            "texto": "Seguridad y auditoría",
+            "ancho": 185,
+            "alto": 44,
+            "dibujo": "185x44"
+          },
+          {
+            "texto": "Dispositivos",
+            "ancho": 126,
+            "alto": 44,
+            "dibujo": "126x44"
+          },
+          {
+            "texto": "Sistema",
+            "ancho": 100,
+            "alto": 44,
+            "dibujo": "100x44"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "config-sistema",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Mi cuenta",
+            "ancho": 113,
+            "alto": 44,
+            "dibujo": "113x44"
+          },
+          {
+            "texto": "Organización",
+            "ancho": 132,
+            "alto": 44,
+            "dibujo": "132x44"
+          },
+          {
+            "texto": "Equipo y acceso",
+            "ancho": 153,
+            "alto": 44,
+            "dibujo": "153x44"
+          },
+          {
+            "texto": "Comercial",
+            "ancho": 112,
+            "alto": 44,
+            "dibujo": "112x44"
+          },
+          {
+            "texto": "Seguridad y auditoría",
+            "ancho": 185,
+            "alto": 44,
+            "dibujo": "185x44"
+          },
+          {
+            "texto": "Dispositivos",
+            "ancho": 126,
+            "alto": 44,
+            "dibujo": "126x44"
+          },
+          {
+            "texto": "Sistema",
+            "ancho": 100,
+            "alto": 44,
+            "dibujo": "100x44"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "config-sistema",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 231,
+        "alto": 34,
+        "dibujo": "231x34",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Mi cuenta",
+            "ancho": 113,
+            "alto": 44,
+            "dibujo": "113x44"
+          },
+          {
+            "texto": "Organización",
+            "ancho": 132,
+            "alto": 44,
+            "dibujo": "132x44"
+          },
+          {
+            "texto": "Equipo y acceso",
+            "ancho": 153,
+            "alto": 44,
+            "dibujo": "153x44"
+          },
+          {
+            "texto": "Comercial",
+            "ancho": 112,
+            "alto": 44,
+            "dibujo": "112x44"
+          },
+          {
+            "texto": "Seguridad y auditoría",
+            "ancho": 185,
+            "alto": 44,
+            "dibujo": "185x44"
+          },
+          {
+            "texto": "Dispositivos",
+            "ancho": 126,
+            "alto": 44,
+            "dibujo": "126x44"
+          },
+          {
+            "texto": "Sistema",
+            "ancho": 100,
+            "alto": 44,
+            "dibujo": "100x44"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "config-sistema",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 4,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Copiar informe",
+        "ancho": 155,
+        "alto": 36,
+        "dibujo": "155x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-4 font-sem",
+        "veces": 3
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "grupos de Configuración",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Mi cuenta",
+            "ancho": 113,
+            "alto": 44,
+            "dibujo": "113x44"
+          },
+          {
+            "texto": "Organización",
+            "ancho": 132,
+            "alto": 44,
+            "dibujo": "132x44"
+          },
+          {
+            "texto": "Equipo y acceso",
+            "ancho": 153,
+            "alto": 44,
+            "dibujo": "153x44"
+          },
+          {
+            "texto": "Comercial",
+            "ancho": 112,
+            "alto": 44,
+            "dibujo": "112x44"
+          },
+          {
+            "texto": "Seguridad y auditoría",
+            "ancho": 185,
+            "alto": 44,
+            "dibujo": "185x44"
+          },
+          {
+            "texto": "Dispositivos",
+            "ancho": 126,
+            "alto": 44,
+            "dibujo": "126x44"
+          },
+          {
+            "texto": "Sistema",
+            "ancho": 100,
+            "alto": 44,
+            "dibujo": "100x44"
+          }
+        ]
+      }
+    ]
+  }
+]
