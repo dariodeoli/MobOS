@@ -11,6 +11,11 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.172 — 2026-09-25
+- **Velocidad (#247):** el **POS se carga recién cuando lo abrís** y la **búsqueda global baja al abrirla**: el panel arranca más liviano y las pantallas aparecen antes.
+- **Velocidad (#247):** con el equipo ocioso se **adelantan las secciones más usadas** en segundo plano (con datos móviles restringidos no se adelanta nada).
+- **Calidad (#247/#248):** medición **antes/después** de arranque y navegación, evidencia en producción y verificación del **redireccionamiento al login** desde la raíz.
+
 ## v1.0.171 — 2026-09-25
 - **Configuración (#251):** la pantalla se ordena en **siete secciones** (Mi cuenta, Organización, Equipo y acceso, Comercial, Seguridad y auditoría, Dispositivos, Sistema) **sin duplicados**; las direcciones viejas redirigen a su sección nueva.
 - **Ayuda (#251):** nueva pantalla de **comandos y atajos** con su ubicación, notas para **Mac** y acceso a soporte; se abre desde la Ayuda y desde el menú de tres puntos.
