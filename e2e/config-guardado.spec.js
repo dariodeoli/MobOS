@@ -117,16 +117,23 @@ test('Identificador de pedidos: Enter guarda y el error queda en la sección', a
   await prefijo.fill(original)
 })
 
-test('Mi identidad: guardar el nombre avisa Guardado en el formulario', async ({ page }) => {
+test('Mi cuenta: guardar el nombre avisa en el perfil', async ({ page }) => {
   await entrarComoDueno(page)
-  // #IA: Mi identidad pasó a Mi cuenta.
+  // #IA/#253: Mi identidad pasó a Mi cuenta (perfil personal).
   await page.goto('/configuracion/mi-cuenta')
-  const campo = page.locator('#identidad-nombre')
+  const campo = page.locator('#mi-cuenta-nombre')
   await expect(campo).not.toHaveValue('', { timeout: 20_000 })
+  const original = await campo.inputValue()
+  await campo.fill(`${original} QA`)
   await campo.press('Enter')
-  await page.waitForTimeout(500)
-  await capturar(page, 'identidad')
-  await expect(page.getByTestId('identidad-estado')).toContainText('Guardado', { timeout: 15_000 })
+  await expect(page.getByText('Nombre actualizado').last()).toBeVisible({ timeout: 15_000 })
+  await capturar(page, 'mi-cuenta-nombre')
+  await page.reload()
+  await expect(page.locator('#mi-cuenta-nombre')).toHaveValue(`${original} QA`, { timeout: 20_000 })
+  // Restaura el nombre que comparte la suite.
+  await page.locator('#mi-cuenta-nombre').fill(original)
+  await page.locator('#mi-cuenta-nombre').press('Enter')
+  await expect(page.getByText('Nombre actualizado').last()).toBeVisible({ timeout: 15_000 })
 })
 
 test('Seguridad: descargar los datos pide la contraseña y reintenta la descarga', async ({ page }) => {
