@@ -4,10 +4,18 @@
 // pantalla. Además de informe, es GATE: falla si aparece scroll horizontal, un
 // elemento cortado o un control clave por debajo de 44 (mobile).
 import { test, expect } from '@playwright/test'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 
 const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/responsive-mobile'
 const ANCHOS = [[360, 740], [390, 844], [414, 896], [768, 1024]]
+
+// Token del pedido semilla (lo escribe el global-setup): el portal público se
+// audita con el mismo pedido del tracking. Tolerar su ausencia deja que
+// `playwright --list` (y el guardián de shards) funcione sin setup.
+let PEDIDO_SEMILLA = { publicToken: '', orderNumber: '' }
+try {
+  PEDIDO_SEMILLA = JSON.parse(readFileSync(new URL('./.auth/seed-order.json', import.meta.url), 'utf8'))
+} catch { /* sin setup: el listado no lo necesita */ }
 
 const PANTALLAS = [
   ['pos', '/pos', (page) => page.getByRole('heading', { name: 'Nueva venta' }), async (page, ancho) => {
@@ -31,6 +39,8 @@ const PANTALLAS = [
   ['clientes', '/clientes', (page) => page.getByTestId('cliente-fila').first()],
   ['finanzas', '/finanzas/caja', (page) => page.getByText('Saldo esperado').first()],
   ['demo', '/demo', (page) => page.locator('h1:visible, h2:visible').first()],
+  // Portal público: la página que el cliente abre desde el enlace/QR del pedido.
+  ['pedido-publico', `/pedido/${PEDIDO_SEMILLA.publicToken}`, (page) => page.getByText(PEDIDO_SEMILLA.orderNumber).first()],
   // La landing se sirve en el host público: acá se audita su vista previa local
   // (`/landing-preview`, solo en dev) y en producción con el script.
   ['landing', '/landing-preview', (page) => page.locator('h1:visible').first()],

@@ -64,7 +64,7 @@ informe a **gate**.
 `e2e/dsn-responsive-mobile.spec.js` ahora **falla** si aparece scroll
 horizontal, un elemento cortado, un botón del topbar del shell sin área de 44 o
 un **control clave** por debajo de 44 (menú de tres puntos y sus ítems). Corre
-en el proyecto `admin` y quedó **8/8 en verde** (7 pantallas × 4 anchos + modal
+en el proyecto `admin` y quedó **9/9 en verde** (8 pantallas × 4 anchos + modal
 + oscuro + las 4 superficies de la segunda vuelta).
 
 ```bash
@@ -83,7 +83,12 @@ MOBOS_E2E_PGDATA=/tmp/mobos-e2e-pg-MOS-DSN MOBOS_E2E_PGPORT=5503 \
 | Clientes | 8 → **1** | 8 → **1** | 8 → **1** | 10 → **4** |
 | Finanzas | 1 → **1** | 1 → **1** | 1 → **1** | 16 → 15 |
 | Demo | 3 → 3 | 3 → 3 | 3 → 3 | 3 → 1 |
+| Portal público (pedido) | 0 | 0 | 0 | 0 |
 | Landing | 7 → **6** | 7 → **6** | 7 → **6** | 9 → 8 |
+
+El **portal público** (la página que el cliente abre desde el enlace o el QR del
+pedido) entró al gate con esta pasada: 0 scroll, 0 cortados y 0 targets chicos
+en los cuatro anchos, sin fixes.
 
 Scroll horizontal y elementos cortados: **0 en todas las combinaciones**, antes
 y después. Lo que queda en mobile es el pie “Desarrollado por Owncoding” y los
@@ -165,6 +170,8 @@ lleva las capturas por pantalla y el JSON crudo de la auditoría.
   de texto de la landing. Hoy no se tocan.
 - **Superficies de la segunda vuelta** ✅ medidas: menú desplegado, bloqueo/PIN,
   detalle de pedido y ficha de unidad (capturas y JSON en la evidencia).
+- **Portal público** ✅ medido e incorporado al gate: la página del pedido que
+  abre el cliente no tiene scroll, cortes ni targets chicos.
 
 ## Plan
 

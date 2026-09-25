@@ -10,9 +10,9 @@
       {
         "que": "a",
         "texto": "Desarrollado por Owncoding",
-        "ancho": 151,
-        "alto": 14,
-        "dibujo": "151x14",
+        "ancho": 153,
+        "alto": 13,
+        "dibujo": "153x13",
         "clase": "font-medium text-fono-dark hover:underline",
         "veces": 1
       }
