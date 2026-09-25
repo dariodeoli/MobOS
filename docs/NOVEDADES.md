@@ -11,6 +11,14 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.173 — 2026-09-25
+- **Configuración (#253):** la sección se ordena en **siete grupos con navegación propia por iconos** — Mi cuenta · Organización · Equipo y acceso · Comercial · Seguridad y auditoría · Dispositivos · Sistema — sin duplicaciones ni pantallas repetidas.
+- **Mi cuenta (#253):** tu **perfil** (nombre, correo y foto), las **preferencias del dispositivo** y tus **sesiones** en una sola pantalla, para todos los roles, entrando desde tu avatar.
+- **Organización (#253):** **Tiendas y sucursales unificadas** con archivado en un solo lugar.
+- **Equipo y acceso (#253):** **integrantes, metas y comisiones** juntos; **Comercial** reúne seguro, límites, fidelización/mora y las **listas de precios** (una sola pantalla de precios); **Dispositivos** separa impresoras y pruebas del **estado del sistema**.
+- **Inventario (#240):** la **ficha del equipo** muestra las **reparaciones del taller** y su costo se suma al **costo real de la unidad**, con la **cronología del serial** y búsqueda en el taller por el IMEI escaneado.
+- **Demo/Mobile (#249):** la **demo** entra a la verificación **responsive** y el botón «Cómo funciona» llega a 44 px.
+
 ## v1.0.172 — 2026-09-25
 - **Velocidad (#247):** el **POS se carga recién cuando lo abrís** y la **búsqueda global baja al abrirla**: el panel arranca más liviano y las pantallas aparecen antes.
 - **Velocidad (#247):** con el equipo ocioso se **adelantan las secciones más usadas** en segundo plano (con datos móviles restringidos no se adelanta nada).
