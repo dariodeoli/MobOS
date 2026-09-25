@@ -1,0 +1,70 @@
+{
+  "verificado": "2026-09-25T19:30:10.249Z",
+  "base": "https://app.moboss.online",
+  "version": "v1.0.172",
+  "entryKB": 175,
+  "baselineKB": 1104,
+  "llamadasApi": [],
+  "resultados": [
+    {
+      "paso": "bundle desplegado",
+      "estado": "ok",
+      "detalle": "entry index-cGsM3oPY.js (175 KB) · antes 1104 KB · 2 chunks",
+      "chunks": {
+        "index-cGsM3oPY.js": 179507,
+        "vendor-8J2RSK3x.js": 200039
+      },
+      "panelChunks": []
+    },
+    {
+      "paso": "demo · inventario (/inventario/unidades)",
+      "estado": "ok",
+      "detalle": "listo 387 ms · JS decodificado 974 KB",
+      "listoMs": 387,
+      "jsKB": 974,
+      "capturas": [
+        "01-demo-inventario.jpg"
+      ]
+    },
+    {
+      "paso": "demo · pos (/pos)",
+      "estado": "ok",
+      "detalle": "listo 264 ms · JS decodificado 936 KB",
+      "listoMs": 264,
+      "jsKB": 936,
+      "capturas": [
+        "02-demo-pos.jpg"
+      ]
+    },
+    {
+      "paso": "demo · pedidos (/pedidos)",
+      "estado": "ok",
+      "detalle": "listo 373 ms · JS decodificado 816 KB",
+      "listoMs": 373,
+      "jsKB": 816,
+      "capturas": [
+        "03-demo-pedidos.jpg"
+      ]
+    },
+    {
+      "paso": "demo · clientes (/clientes)",
+      "estado": "ok",
+      "detalle": "listo 372 ms · JS decodificado 836 KB",
+      "listoMs": 372,
+      "jsKB": 836,
+      "capturas": [
+        "04-demo-clientes.jpg"
+      ]
+    },
+    {
+      "paso": "demo · finanzas (/finanzas/caja)",
+      "estado": "ok",
+      "detalle": "listo 102 ms · JS decodificado 692 KB",
+      "listoMs": 102,
+      "jsKB": 692,
+      "capturas": [
+        "05-demo-finanzas.jpg"
+      ]
+    }
+  ]
+}
