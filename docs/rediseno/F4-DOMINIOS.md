@@ -197,6 +197,21 @@ de marca: al 10–15% y con los tonos de marca quedaban en 4.2–4.4:1 en claro;
 v2 usan el verde de texto del scope (ok en claro, verde claro en oscuro) y
 vuelven a AA.
 
+## Servicio técnico y Garantías: lote E (tokens, stepper y chips)
+
+El **taller** ya tenía el stepper del flujo y los tiles de totales; el lote E
+suma `v2-numero` a precio/utilidad de la fila y lleva los **tiles** al listado
+unificado (**Todo**: registros, en taller, garantías abiertas y «desde
+garantía») y a **Garantías** (casos, en proceso, listos y por vencer). Los chips
+de estado ya eran v2 (`Badge`/`v2-chip`). De paso, el detalle de la fila de
+garantías pasa de `text-mute/70` a `text-mute` (en v2 quedaba en 3.44:1).
+
+QA antes/después (`e2e/qa-241-servicio-v2.spec.js`, 8/8): Servicio, Todo y
+Garantías en claro/oscuro × desktop/mobile con el flag apagado y prendido,
+**0 textos bajo AA** en los 4 combos v2 y sin scroll horizontal; capturas
+`c241f4e-{servicio,todo,garantias}-{antes,despues}-{claro,oscuro}-{desktop,mobile}.png`.
+Detalle: `docs/QA-241-servicio-lote-e.md`.
+
 ## Medición
 
 `e2e/dsn-241-dominios.spec.js` recorre las **diecisiete pantallas** con el flag
