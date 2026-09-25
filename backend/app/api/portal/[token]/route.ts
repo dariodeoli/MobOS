@@ -138,7 +138,10 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
         // #178: los pedidos nuevos ya no guardan su token histórico en claro;
         // el enlace del comprobante sale del enlace vigente de nivel rápido.
         accessTokens: { where: { revokedAt: null, level: 'rapido' }, orderBy: { createdAt: 'desc' }, take: 1, select: { token: true } },
-        payments: { where: { status: 'CONFIRMED' }, select: { amountPyg: true } },
+        // Detalle del pedido (#240 → portal): qué se compró y qué se pagó,
+        // sin costos ni datos internos (los precios son los del cliente).
+        items: { select: { description: true, quantity: true, totalPyg: true } },
+        payments: { where: { status: 'CONFIRMED' }, select: { amountPyg: true, method: true, paidAt: true }, orderBy: { paidAt: 'asc' } },
       },
       orderBy: { createdAt: 'desc' },
       take: 10,
@@ -261,6 +264,9 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
         tracking: seguimientoDeEntrega(order.deliveryType, order.fulfillmentStatus, fechas),
         pendingPyg: pendienteDe(order.totalPyg, order.payments),
         dueAt: order.dueAt,
+        // Detalle del pedido: líneas y pagos confirmados de ese pedido.
+        items: order.items.map(item => ({ description: item.description, quantity: item.quantity, totalPyg: item.totalPyg })),
+        pagos: order.payments.map(pago => ({ amountPyg: pago.amountPyg, methodLabel: etiquetaPago(pago.method), paidAt: pago.paidAt })),
         ...(completo && receiptToken ? { receiptToken } : {}),
       }
     }),
