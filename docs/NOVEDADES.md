@@ -11,6 +11,14 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.174 — 2026-09-25
+- **Cuenta del cliente (#240):** el **pedido en detalle** dentro de la cuenta: productos, pagos, entrega y seguimiento en un solo lugar.
+- **POS (#187):** el **retiro en tienda** ya no cobra el envío aunque quede un monto pendiente.
+- **Caja (#148):** la **diferencia del cierre** ya no anticipa un número cuando todavía no hay arqueo.
+- **Mobile (#249):** cerrados los últimos controles por debajo de **44 px** (finanzas, sistema y cuenta) y el **control automático** ahora exige cero targets chicos en mobile.
+- **Iconos (#241):** un **set único desde la biblioteca** (v0.30.0) con guía de adopción: los íconos nuevos no se reimplementan.
+- **Impresión (#96):** la **prueba física** de la impresora queda acompañada por la página `/prueba` y su modal, verificada en producción.
+
 ## v1.0.173 — 2026-09-25
 - **Configuración (#253):** la sección se ordena en **siete grupos con navegación propia por iconos** — Mi cuenta · Organización · Equipo y acceso · Comercial · Seguridad y auditoría · Dispositivos · Sistema — sin duplicaciones ni pantallas repetidas.
 - **Mi cuenta (#253):** tu **perfil** (nombre, correo y foto), las **preferencias del dispositivo** y tus **sesiones** en una sola pantalla, para todos los roles, entrando desde tu avatar.
