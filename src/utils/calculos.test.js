@@ -98,10 +98,29 @@ test('productosGanadores: agrupa por producto, ordena por cantidad y corta con e
   ]
   const top = productosGanadores('dia', ventas, { p1: { nombre: 'iPhone' }, p2: { nombre: 'Funda' } }, 5)
   assert.deepEqual(top, [
-    { id: 'p1', nombre: 'iPhone', cantidad: 2, monto: 220000 },
-    { id: 'p2', nombre: 'Funda', cantidad: 1, monto: 50000 },
+    { id: 'p1', nombre: 'iPhone', cantidad: 2, monto: 220000, ganancia: null, margenPct: null, sinCosto: 2 },
+    { id: 'p2', nombre: 'Funda', cantidad: 1, monto: 50000, ganancia: null, margenPct: null, sinCosto: 1 },
   ])
   assert.equal(productosGanadores('dia', ventas, {}, 1).length, 1)
+})
+
+test('productosGanadores: con foto de costo ordena por ganancia y no inventa margen', () => {
+  const hoy = fechaClave()
+  const ventas = [
+    { fecha: hoy, precio: 300000, precioCosto: 100000, productoId: 'p1' },
+    { fecha: hoy, precio: 200000, precioCosto: 180000, productoId: 'p1' },
+    { fecha: hoy, precio: 500000, precioCosto: 450000, productoId: 'p2' },
+    { fecha: hoy, precio: 400000, productoId: 'p3' },
+  ]
+  const top = productosGanadores('dia', ventas, {
+    p1: { nombre: 'iPhone' }, p2: { nombre: 'Funda' }, p3: { nombre: 'Cable' },
+  }, 5, { criterio: 'ganancia' })
+  assert.deepEqual(top.map((f) => [f.nombre, f.ganancia, f.margenPct]), [
+    ['iPhone', 220000, 44],
+    ['Funda', 50000, 10],
+    ['Cable', null, null],
+  ])
+  assert.equal(top[2].sinCosto, 1)
 })
 
 // La API interpreta desde/hasta como días de Paraguay (UTC-3): si el atajo

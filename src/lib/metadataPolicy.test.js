@@ -64,16 +64,25 @@ test('las vistas nuevas del panel tienen título propio y no se indexan', () => 
 test('configuration subpages keep their own child slug in the URL and the title', () => {
   const rutas = {
     '/configuracion': 'Configuración',
-    '/configuracion/equipo': 'Equipo',
+    // Secciones nuevas (#IA): siete, sin duplicar.
+    '/configuracion/mi-cuenta': 'Mi cuenta',
+    '/configuracion/organizacion': 'Organización',
+    '/configuracion/equipo': 'Equipo y acceso',
+    '/configuracion/comercial': 'Comercial',
+    '/configuracion/seguridad': 'Seguridad y auditoría',
+    '/configuracion/dispositivos': 'Dispositivos',
+    '/configuracion/sistema': 'Estado del sistema',
+    // Ayuda sale de Configuración (Documentación vive ahí).
+    '/ayuda': 'Ayuda',
+    // Las URLs viejas siguen resolviendo su título: redirigen antes del render.
     '/configuracion/identidad': 'Mi identidad',
     '/configuracion/roles': 'Roles y permisos',
     '/configuracion/historial': 'Historial',
     '/configuracion/negocio': 'Negocio',
     '/configuracion/sucursales': 'Sucursales',
-    '/configuracion/seguridad': 'Seguridad',
     '/configuracion/impresoras': 'Impresoras',
     '/configuracion/impresion': 'Estado de impresión',
-    '/configuracion/sistema': 'Estado del sistema',
+    '/configuracion/documentacion': 'Documentación',
   }
   for (const [pathname, label] of Object.entries(rutas)) {
     const metadata = resolvePageMetadata({ pathname })

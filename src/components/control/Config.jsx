@@ -23,6 +23,7 @@ import RucField from '@/components/shared/RucField'
 import PercentField from '@/components/shared/PercentField'
 import InstagramField, { normalizarInstagram } from '@/components/shared/InstagramField'
 import PanelDerecho from '@/components/shared/PanelDerecho'
+import { PreferenciasContenido } from '@/components/app/Preferencias'
 import Avatar from '@/components/shared/Avatar'
 import UsoEquipo from '@/components/control/UsoEquipo'
 import DatosPrivados from '@/components/control/DatosPrivados'
@@ -86,7 +87,7 @@ function prefijoEfectivo(valor) {
   return /^[A-Z]{2,3}$/.test(texto) ? texto : 'MOB'
 }
 
-export default function Config({ seccion = 'negocio' } = {}) {  const { sesion, empresa, sucursal, perfilEmpresa, actualizarEmpresa, esDemo } = useSesion()
+export default function Config({ seccion = 'organizacion', preferencias, onCambiarPreferencias } = {}) {  const { sesion, empresa, sucursal, perfilEmpresa, actualizarEmpresa, esDemo } = useSesion()
   const toast = useToast()
   const esDueno = sesion?.esPropietario
   // En la demo no hay sesión real: los ajustes que van contra la API se
@@ -345,24 +346,123 @@ export default function Config({ seccion = 'negocio' } = {}) {  const { sesion, 
   return (
     <div className="space-y-4">
       {failure && <Aviso tono="error" className="p-3 rounded-xl">{failure}</Aviso>}{notice && <Aviso tono="ok" className="p-3 rounded-xl">{notice}</Aviso>}
-      {seccion === 'negocio' && <>
-      <Card className="space-y-3">
-        <div>
-          <h2 className="font-semibold">Identificador de pedidos</h2>
-          <p className="mt-1 text-sm text-mute">Formato visible de los pedidos: prefijo de 2 o 3 letras y número inicial. Ejemplo: <b className="text-fore">{prefijo || 'MOB'} #{inicio || '310840'}</b>.</p>
-          <p className="mt-1 text-xs text-mute">Ahora está configurado así: <b className="text-fono-light tabular-nums">{prefijoEfectivo(account?.tenant?.orderPrefix)}-#{String(account?.tenant?.orderNextNumber || 1).padStart(4, '0')}</b> (el próximo pedido sale con ese número; el prefijo solo admite 2 o 3 letras, así que el <b className="text-fore">#</b> no puede duplicarse).</p>
-        </div>
-        <form onSubmit={guardarNumeracion} className="space-y-3" data-testid="numeracion-form">
-          <div className="flex flex-wrap items-end gap-2">
-            <label className="block w-24 space-y-1 text-xs text-mute"><span>Prefijo</span><Input aria-label="Prefijo de pedidos" maxLength={3} disabled={busy} value={prefijo} onChange={event => setPrefijo(event.target.value.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3))} placeholder="MOB" /></label>
-            <label className="block w-32 space-y-1 text-xs text-mute"><span>Número inicial</span><Input aria-label="Número inicial de pedidos" inputMode="numeric" disabled={busy} value={inicio} onChange={event => setInicio(event.target.value.replace(/\D/g, '').slice(0, 8))} placeholder="310840" /></label>
-            <Button type="submit" disabled={busy}>Guardar numeración</Button>
+      {seccion === 'organizacion' && <>
+        <IdentidadCuenta tenant={account?.tenant} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} onGuardado={(cambios) => setAccount(current => current ? { ...current, tenant: { ...current.tenant, ...cambios } } : current)} />
+        <Card className="space-y-3">
+          <div>
+            <h2 className="font-semibold">Identificador de pedidos</h2>
+            <p className="mt-1 text-sm text-mute">Formato visible de los pedidos: prefijo de 2 o 3 letras y número inicial. Ejemplo: <b className="text-fore">{prefijo || 'MOB'} #{inicio || '310840'}</b>.</p>
+            <p className="mt-1 text-xs text-mute">Ahora está configurado así: <b className="text-fono-light tabular-nums">{prefijoEfectivo(account?.tenant?.orderPrefix)}-#{String(account?.tenant?.orderNextNumber || 1).padStart(4, '0')}</b> (el próximo pedido sale con ese número; el prefijo solo admite 2 o 3 letras, así que el <b className="text-fore">#</b> no puede duplicarse).</p>
           </div>
-          <EstadoGuardado testId="numeracion-estado" estado={guardadoNumeracion.estado} />
-        </form>
-        {guardadoNumeracion.panel}
-        <p className="text-xs text-mute">Los pedidos ya creados conservan su número; los nuevos siguen esta secuencia.</p>
-      </Card>
+          <form onSubmit={guardarNumeracion} className="space-y-3" data-testid="numeracion-form">
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="block w-24 space-y-1 text-xs text-mute"><span>Prefijo</span><Input aria-label="Prefijo de pedidos" maxLength={3} disabled={busy} value={prefijo} onChange={event => setPrefijo(event.target.value.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3))} placeholder="MOB" /></label>
+              <label className="block w-32 space-y-1 text-xs text-mute"><span>Número inicial</span><Input aria-label="Número inicial de pedidos" inputMode="numeric" disabled={busy} value={inicio} onChange={event => setInicio(event.target.value.replace(/\D/g, '').slice(0, 8))} placeholder="310840" /></label>
+              <Button type="submit" disabled={busy}>Guardar numeración</Button>
+            </div>
+            <EstadoGuardado testId="numeracion-estado" estado={guardadoNumeracion.estado} />
+          </form>
+          {guardadoNumeracion.panel}
+          <p className="text-xs text-mute">Los pedidos ya creados conservan su número; los nuevos siguen esta secuencia.</p>
+        </Card>
+
+        {esDueno && <Card className="space-y-3">
+          <div>
+            <h2 className="font-semibold">Logo de la empresa</h2>
+            <p className="mt-1 text-sm text-mute">Un logo por modo, con la vista previa sobre el fondo donde se usa: <b className="text-fore">modo claro</b> = logo oscuro, <b className="text-fore">modo oscuro</b> = logo claro. Se muestra en el encabezado de los comprobantes. Recomendado: PNG con <b className="text-fore">fondo transparente</b>, 1024×1024 px (1600×600 si es horizontal) y hasta 1 MiB.</p>
+            <Button type="button" variant="ghost" className="mt-1 h-auto px-0 py-1 text-xs text-fono-light" onClick={copiarPrompt}><Icon name="copy" className="h-3.5 w-3.5" />Copiar prompt para generar el logo</Button>
+          </div>
+          <div className={GRILLA_DOS_COLUMNAS}>
+            {VARIANTES_LOGO.map(({ variant, titulo, ayuda, fondo }) => (
+              <div key={variant} className="rounded-xl border border-ink-600 p-3">
+                <p className="text-sm font-medium">{titulo}</p>
+                <p className="mt-0.5 text-xs text-mute">{ayuda}</p>
+                <div data-testid={`logo-preview-${variant}`} className={`mt-2 grid h-20 place-items-center overflow-hidden rounded-lg border border-ink-600 ${fondo}`}>
+                  {logos[variant]
+                    ? <img src={logos[variant]} alt={`Logo en ${titulo.toLowerCase()}`} className="max-h-16 max-w-[85%] object-contain" />
+                    : <span className="text-[10px] text-mute">Sin logo</span>}
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <AttachmentInput onSelect={(file) => setLogoAConfirmar({ file, variant })} onError={setLogoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={logoBusy}>
+                    <Button type="button" variant="outline" disabled={logoBusy}>{logos[variant] ? 'Reemplazar' : 'Subir logo'}</Button>
+                  </AttachmentInput>
+                  {logos[variant] && <Button type="button" variant="ghost" disabled={logoBusy} onClick={() => quitarLogo(variant)}>Quitar</Button>}
+                </div>
+              </div>
+            ))}
+          </div>
+          {logoError && <p role="alert" className="text-sm text-bad">{logoError}</p>}
+          {logoAConfirmar && (
+            <ConfirmarLogo
+              item={logoAConfirmar}
+              busy={logoBusy}
+              onCancel={() => setLogoAConfirmar(null)}
+              onConfirm={async () => {
+                const { file, variant } = logoAConfirmar
+                setLogoAConfirmar(null)
+                await subirLogo(file, variant)
+              }}
+            />
+          )}
+        </Card>}
+        {esDueno && <DatosPrivados />}
+        <SeccionTiendas account={account} />
+        {esDueno && <SeccionSucursales />}
+        <Card className="space-y-3 border-bad/30"><div><h2 className="font-semibold text-bad">Archivar empresa</h2><p className="mt-1 text-sm text-mute">No borra ventas ni historial. Cierra sesiones y bloquea el acceso hasta restaurarla con correo, contraseña y la confirmación RESTORE, durante los 30 días posteriores al archivado.</p></div><Input aria-label="Motivo de archivado" value={archiveReason} onChange={event => setArchiveReason(event.target.value)} placeholder="Motivo del archivado (mínimo 10 caracteres)" /><Button variant="outline" onClick={() => setConfirmar({ tipo: 'archivar' })} disabled={busy || archiveReason.trim().length < 10 || !account?.reauthValidUntil} className="border-bad/50 text-bad hover:bg-bad/10">Archivar empresa</Button></Card>
+
+        {esDueno && <Card className="space-y-3 border-bad/30"><div><h2 className="font-semibold text-bad">Eliminar empresa definitivamente</h2><p className="mt-1 text-sm text-mute">Borra la empresa y todo su historial: ventas, clientes, pagos, stock, integrantes y auditoría. No se puede deshacer ni recuperar. Si solo querés dejar de usarla por un tiempo, usá <b className="text-fore">Archivar empresa</b>: se conserva todo y podés restaurarla.</p></div><Button variant="outline" onClick={() => { setFailure(''); setEliminarAbierto(true) }} disabled={busy || !account?.reauthValidUntil} className="border-bad/50 text-bad hover:bg-bad/10">Eliminar empresa</Button></Card>}
+        {esDueno && (
+          <form
+            onSubmit={(event) => { event.preventDefault(); reauthenticate() }}
+            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3"
+          >
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wider text-mute">Confirmar identidad</p>
+              <p className="mt-0.5 text-sm text-mute">Archivar o eliminar la empresa pide tu contraseña. La autorización dura 10 minutos; también podés confirmarla en <b className="text-fore">Seguridad y auditoría</b>.</p>
+            </div>
+            {account?.reauthValidUntil ? (
+              <p className="text-xs text-ok">Acciones sensibles habilitadas hasta {fmtDate(account.reauthValidUntil)}.</p>
+            ) : (
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                <PasswordInput aria-label="Contraseña para reautenticar" value={password} onChange={event => setPassword(event.target.value)} placeholder="Contraseña de la empresa" className="min-w-0 sm:w-56" />
+                <Button type="submit" disabled={busy || !password}>Verificar contraseña</Button>
+              </div>
+            )}
+          </form>
+        )}
+      </>}
+      {seccion === 'mi-cuenta' && <>
+        <MiIdentidad />
+        {preferencias && (
+          <Card className="p-4 md:p-5">
+            <h2 className="font-semibold">Preferencias del dispositivo</h2>
+            <p className="mt-1 text-sm text-mute">Bloqueo por inactividad, notificaciones y atajos de esta computadora o teléfono.</p>
+            <div className="mt-3"><PreferenciasContenido preferencias={preferencias} onCambiar={onCambiarPreferencias} /></div>
+          </Card>
+        )}
+        {esDueno && (
+          <Card className="space-y-3" data-testid="mis-sesiones">
+            <div>
+              <h2 className="font-semibold">Sesiones personales</h2>
+              <p className="mt-1 text-sm text-mute">Tus accesos a MobOS. Para ver o revocar los del resto del equipo andá a <b className="text-fore">Seguridad y auditoría</b>.</p>
+            </div>
+            <div className="space-y-2">
+              {(account?.sessions || []).filter(activa => (activa.user?.email || '') === (sesion?.correo || '')).map(activa => (
+                <div key={activa.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
+                  <div>
+                    <p className="font-medium">{activa.deviceId || 'Este dispositivo'} {activa.id === account?.currentSessionId && <span className="ml-2 text-xs text-fono-light">Sesión actual</span>}</p>
+                    <p className="mt-1 text-xs text-mute">última actividad {fmtDate(activa.lastSeenAt)}</p>
+                  </div>
+                  <Button variant="outline" onClick={() => setConfirmar({ tipo: 'revocar', sessionId: activa.id })} disabled={busy}>Revocar</Button>
+                </div>
+              ))}
+            </div>
+            <EstadoGuardado testId="mis-sesiones-estado" estado={guardadoSesiones.estado} />
+            {guardadoSesiones.panel}
+          </Card>
+        )}
+      </>}
+      {seccion === 'comercial' && <>
         {esDueno && <Card className="space-y-3" data-testid="seguro-limites">
           <div>
             <h2 className="font-semibold">Seguro y límites</h2>
@@ -425,56 +525,12 @@ export default function Config({ seccion = 'negocio' } = {}) {  const { sesion, 
           </form>
           {guardadoLimites.panel}
         </Card>}
-        {esDueno && <Card className="space-y-3">
-          <div>
-            <h2 className="font-semibold">Logo de la empresa</h2>
-            <p className="mt-1 text-sm text-mute">Un logo por modo, con la vista previa sobre el fondo donde se usa: <b className="text-fore">modo claro</b> = logo oscuro, <b className="text-fore">modo oscuro</b> = logo claro. Se muestra en el encabezado de los comprobantes. Recomendado: PNG con <b className="text-fore">fondo transparente</b>, 1024×1024 px (1600×600 si es horizontal) y hasta 1 MiB.</p>
-            <Button type="button" variant="ghost" className="mt-1 h-auto px-0 py-1 text-xs text-fono-light" onClick={copiarPrompt}><Icon name="copy" className="h-3.5 w-3.5" />Copiar prompt para generar el logo</Button>
-          </div>
-          <div className={GRILLA_DOS_COLUMNAS}>
-            {VARIANTES_LOGO.map(({ variant, titulo, ayuda, fondo }) => (
-              <div key={variant} className="rounded-xl border border-ink-600 p-3">
-                <p className="text-sm font-medium">{titulo}</p>
-                <p className="mt-0.5 text-xs text-mute">{ayuda}</p>
-                <div data-testid={`logo-preview-${variant}`} className={`mt-2 grid h-20 place-items-center overflow-hidden rounded-lg border border-ink-600 ${fondo}`}>
-                  {logos[variant]
-                    ? <img src={logos[variant]} alt={`Logo en ${titulo.toLowerCase()}`} className="max-h-16 max-w-[85%] object-contain" />
-                    : <span className="text-[10px] text-mute">Sin logo</span>}
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <AttachmentInput onSelect={(file) => setLogoAConfirmar({ file, variant })} onError={setLogoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={logoBusy}>
-                    <Button type="button" variant="outline" disabled={logoBusy}>{logos[variant] ? 'Reemplazar' : 'Subir logo'}</Button>
-                  </AttachmentInput>
-                  {logos[variant] && <Button type="button" variant="ghost" disabled={logoBusy} onClick={() => quitarLogo(variant)}>Quitar</Button>}
-                </div>
-              </div>
-            ))}
-          </div>
-          {logoError && <p role="alert" className="text-sm text-bad">{logoError}</p>}
-          {logoAConfirmar && (
-            <ConfirmarLogo
-              item={logoAConfirmar}
-              busy={logoBusy}
-              onCancel={() => setLogoAConfirmar(null)}
-              onConfirm={async () => {
-                const { file, variant } = logoAConfirmar
-                setLogoAConfirmar(null)
-                await subirLogo(file, variant)
-              }}
-            />
-          )}
-        </Card>}
-        {esDueno && <DatosPrivados />}
-        <SeccionTiendas account={account} />
-        <SeccionInvitaciones />
-        <IdentidadCuenta tenant={account?.tenant} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} onGuardado={(cambios) => setAccount(current => current ? { ...current, tenant: { ...current.tenant, ...cambios } } : current)} />
       </>}
-      {seccion === 'sucursales' && <>
-        {esDueno && <SeccionSucursales />}
-        <SeccionTiendas account={account} />
+      {seccion === 'equipo' && <>
+        <SeccionInvitaciones />
       </>}
       {seccion === 'seguridad' && <>
-      <Card className="space-y-3"><div className="flex items-start gap-3">{perfilEmpresa?.picture ? <img src={perfilEmpresa.picture} referrerPolicy="no-referrer" alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" /> : <div className="rounded-lg bg-fono/10 p-2 text-fono"><Icon name="user" className="h-5 w-5" /></div>}<div className="min-w-0"><h2 className="font-semibold">Sesión activa</h2><p className="mt-0.5 truncate text-sm text-mute">{perfilEmpresa?.name || sesion?.correo || sesion?.nombre || 'Usuario de MobOS'}</p></div></div><div className="flex flex-wrap gap-2 text-sm"><Badge color="blue">{empresa?.nombre || 'Mi empresa'}</Badge>{sucursal?.nombre && <Badge color="slate">{sucursal.nombre}</Badge>}{sesion?.rol && <Badge color="slate">{sesion.rol}</Badge>}</div></Card>
+        <Card className="space-y-3"><div className="flex items-start gap-3">{perfilEmpresa?.picture ? <img src={perfilEmpresa.picture} referrerPolicy="no-referrer" alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" /> : <div className="rounded-lg bg-fono/10 p-2 text-fono"><Icon name="user" className="h-5 w-5" /></div>}<div className="min-w-0"><h2 className="font-semibold">Sesión activa</h2><p className="mt-0.5 truncate text-sm text-mute">{perfilEmpresa?.name || sesion?.correo || sesion?.nombre || 'Usuario de MobOS'}</p></div></div><div className="flex flex-wrap gap-2 text-sm"><Badge color="blue">{empresa?.nombre || 'Mi empresa'}</Badge>{sucursal?.nombre && <Badge color="slate">{sucursal.nombre}</Badge>}{sesion?.rol && <Badge color="slate">{sesion.rol}</Badge>}</div></Card>
         <Card className="space-y-3"><div><h2 className="font-semibold">Confirmar identidad</h2><p className="mt-1 text-sm text-mute">Pedimos tu contraseña antes de descargar datos, cerrar la empresa o revocar dispositivos. La autorización dura 10 minutos.</p></div><div className="flex flex-col gap-2 sm:flex-row"><PasswordInput aria-label="Contraseña para reautenticar" value={password} onChange={event => setPassword(event.target.value)} placeholder="Contraseña de la empresa" className="min-w-0 flex-1" /><Button onClick={reauthenticate} disabled={busy || !password}>Verificar contraseña</Button></div>{account?.reauthValidUntil && <p className="text-xs text-ok">Acciones sensibles habilitadas hasta {fmtDate(account.reauthValidUntil)}.</p>}</Card>
 
         <Card className="space-y-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><h2 className="font-semibold">Sesiones activas</h2><p className="mt-1 text-sm text-mute">Cada dispositivo se puede cerrar de forma remota.</p></div><span className="flex flex-wrap items-center gap-2"><Button variant="outline" onClick={load} disabled={busy}>Actualizar</Button><Button variant="outline" className="border-bad/50 text-bad hover:bg-bad/10" onClick={() => { setFailure(''); setCerrarCuentaAbierto(true) }} disabled={busy}>Cerrar mi cuenta</Button></span></div>{!account && !failure && <p className="text-sm text-mute">Cargando sesiones…</p>}{account?.sessions?.length === 0 && <p className="text-sm text-mute">No hay sesiones activas.</p>}<div className="space-y-2">{account?.sessions?.map(active => <div key={active.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3"><div><p className="font-medium">{active.user?.name || 'Acceso de empresa'} {active.id === account.currentSessionId && <span className="ml-2 text-xs text-fono-light">Este dispositivo</span>}</p><p className="mt-1 text-xs text-mute">{active.user?.role || active.level} · {active.deviceId || 'Dispositivo no identificado'} · última actividad {fmtDate(active.lastSeenAt)}</p></div><Button variant="outline" onClick={() => setConfirmar({ tipo: 'revocar', sessionId: active.id })} disabled={busy}>Revocar</Button></div>)}</div>
@@ -483,11 +539,6 @@ export default function Config({ seccion = 'negocio' } = {}) {  const { sesion, 
 
         {esDueno && <UsoEquipo />}
         <Card className="space-y-3"><div><h2 className="font-semibold">Exportación básica</h2><p className="mt-1 text-sm text-mute">Descarga JSON de empresa, sucursales, equipo, clientes, productos, órdenes y pagos. Excluye credenciales, tokens, PIN y archivos de comprobantes.</p></div><div className="flex flex-wrap items-center gap-3"><Button variant="outline" onClick={exportData} disabled={busy}>Descargar mis datos</Button><EstadoGuardado testId="exportar-estado" estado={guardadoExportar.estado} /></div>{guardadoExportar.panel}</Card>
-
-        <Card className="space-y-3 border-bad/30"><div><h2 className="font-semibold text-bad">Archivar empresa</h2><p className="mt-1 text-sm text-mute">No borra ventas ni historial. Cierra sesiones y bloquea el acceso hasta restaurarla con correo, contraseña y la confirmación RESTORE, durante los 30 días posteriores al archivado.</p></div><Input aria-label="Motivo de archivado" value={archiveReason} onChange={event => setArchiveReason(event.target.value)} placeholder="Motivo del archivado (mínimo 10 caracteres)" /><Button variant="outline" onClick={() => setConfirmar({ tipo: 'archivar' })} disabled={busy || archiveReason.trim().length < 10 || !account?.reauthValidUntil} className="border-bad/50 text-bad hover:bg-bad/10">Archivar empresa</Button></Card>
-
-        {esDueno && <Card className="space-y-3 border-bad/30"><div><h2 className="font-semibold text-bad">Eliminar empresa definitivamente</h2><p className="mt-1 text-sm text-mute">Borra la empresa y todo su historial: ventas, clientes, pagos, stock, integrantes y auditoría. No se puede deshacer ni recuperar. Si solo querés dejar de usarla por un tiempo, usá <b className="text-fore">Archivar empresa</b>: se conserva todo y podés restaurarla.</p></div><Button variant="outline" onClick={() => { setFailure(''); setEliminarAbierto(true) }} disabled={busy || !account?.reauthValidUntil} className="border-bad/50 text-bad hover:bg-bad/10">Eliminar empresa</Button></Card>}
-        {esDueno && !account?.reauthValidUntil && <p className="text-xs text-mute">Confirmá tu identidad arriba para habilitar el archivado y la eliminación de la empresa.</p>}
       </>}
       <DialogoDestructivo
         open={cerrarCuentaAbierto}
@@ -520,12 +571,8 @@ export default function Config({ seccion = 'negocio' } = {}) {  const { sesion, 
 
 function IdentidadCuenta({ onReauthValid, onGuardado, tenant }) {
   const toast = useToast()
-  const { empresa, actualizarEmpresa, usuario, esDemo } = useSesion()
+  const { empresa, actualizarEmpresa, esDemo } = useSesion()
   const guardado = useGuardadoCuenta({ id: 'datos-tienda', onReauth: onReauthValid })
-  const [foto, setFoto] = useState('')
-  const [fotoError, setFotoError] = useState('')
-  const [fotoBusy, setFotoBusy] = useState(false)
-  const [fotoAConfirmar, setFotoAConfirmar] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const formulario = () => ({
@@ -554,14 +601,7 @@ function IdentidadCuenta({ onReauthValid, onGuardado, tenant }) {
     { etiqueta: 'Ciudad', valor: [tenant?.city, tenant?.department].filter(Boolean).join(' · ') || null },
     { etiqueta: 'Teléfono', valor: tenant?.phone || null },
     { etiqueta: 'RUC', valor: tenant?.ruc || null },
-    { etiqueta: 'ID de la tienda', valor: empresa?.id || null },
   ]
-  useEffect(() => {
-    if (!usuario?.id) return
-    let vigente = true
-    getAvatarDataUrl(usuario.id).then(data => { if (vigente) setFoto(data) })
-    return () => { vigente = false }
-  }, [usuario?.id])
   // Los datos del panel siguen a la ficha (carga inicial y tras guardar) sin
   // pisar lo que la persona está escribiendo: solo se rellenan cuando cambian
   // los valores guardados.
@@ -570,29 +610,6 @@ function IdentidadCuenta({ onReauthValid, onGuardado, tenant }) {
     setForm(formulario())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant?.id, tenant?.address, tenant?.city, tenant?.department, tenant?.phone, tenant?.ruc, empresa?.nombre, empresa?.email])
-
-  async function subirFoto(file) {
-    if (fotoBusy || !usuario?.id) return
-    setFotoBusy(true); setFotoError('')
-    try {
-      const form = new FormData()
-      form.append('avatar', file)
-      await api.post(`/api/users/${encodeURIComponent(usuario.id)}/avatar`, form)
-      olvidarAvatar(usuario.id)
-      setFoto(await getAvatarDataUrl(usuario.id))
-      toast.success('Foto actualizada.')
-    } catch (cause) { setFotoError(cause?.message || 'No se pudo guardar la foto.') } finally { setFotoBusy(false) }
-  }
-
-  async function quitarFoto() {
-    if (fotoBusy || !usuario?.id) return
-    setFotoBusy(true); setFotoError('')
-    try {
-      await api.delete(`/api/users/${encodeURIComponent(usuario.id)}/avatar`)
-      olvidarAvatar(usuario.id)
-      setFoto('')
-    } catch (cause) { setFotoError(cause?.message || 'No se pudo quitar la foto.') } finally { setFotoBusy(false) }
-  }
 
   function irAlFormulario() {
     document.getElementById('cuenta-form')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
@@ -685,28 +702,11 @@ function IdentidadCuenta({ onReauthValid, onGuardado, tenant }) {
       <Card className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <Eyebrow>Identidad de la cuenta</Eyebrow>
-            <p className="mt-1 text-sm text-mute">Los datos que identifican tu tienda ante MobOS.</p>
+            <Eyebrow>Datos de la tienda</Eyebrow>
+            <p className="mt-1 text-sm text-mute">Lo que MobOS usa en comprobantes, portal y reportes.</p>
           </div>
           <Button type="button" variant="outline" className="lg:hidden" onClick={irAlFormulario}><Icon name="edit" className="h-3.5 w-3.5" />Editar</Button>
         </div>
-        {usuario?.id && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
-          <div className="flex min-w-0 items-center gap-3">
-            {foto ? <img src={foto} alt="Mi foto" className="h-10 w-10 shrink-0 rounded-full border border-ink-600 object-cover" /> : <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-ink-600 bg-ink-700 text-xs font-semibold text-mute">{(usuario?.name || 'Yo').trim().split(/\s+/).slice(0, 2).map(parte => parte[0] || '').join('').toUpperCase()}</span>}
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wider text-mute">Mi foto</p>
-              <p className="mt-0.5 text-sm text-mute">Aparece en la cronología de clientes y pedidos.</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <AttachmentInput onSelect={(file) => setFotoAConfirmar(file)} onError={setFotoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={fotoBusy}>
-              <Button type="button" variant="outline" disabled={fotoBusy}>{foto ? 'Reemplazar foto' : 'Subir foto'}</Button>
-            </AttachmentInput>
-            {foto && <Button type="button" variant="ghost" disabled={fotoBusy} onClick={quitarFoto}>Quitar</Button>}
-          </div>
-        </div>}
-        {fotoError && <p role="alert" className="text-sm text-bad">{fotoError}</p>}
-        {fotoAConfirmar && <PhotoCropper file={fotoAConfirmar} onCancel={() => setFotoAConfirmar(null)} onCropped={async (recortada) => { setFotoAConfirmar(null); await subirFoto(recortada) }} />}
         <div className="space-y-2">
           {valores.map(({ etiqueta, valor }) => (
             <div key={etiqueta} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
@@ -729,12 +729,47 @@ export function MiIdentidad() {
   const guardado = useGuardadoCuenta({ id: 'identidad' })
   const [nuevoNombre, setNuevoNombre] = useState('')
   const [guardandoNombre, setGuardandoNombre] = useState(false)
+  // Mi foto vive acá (y no en Organización): es la persona, no los datos de la
+  // tienda. El Avatar resuelve sola la prioridad foto subida → Google → iniciales.
+  const [foto, setFoto] = useState('')
+  const [fotoError, setFotoError] = useState('')
+  const [fotoBusy, setFotoBusy] = useState(false)
+  const [fotoAConfirmar, setFotoAConfirmar] = useState(null)
   const nombreActual = perfilEmpresa?.name || usuario?.user_metadata?.nombre || 'Dueño de la tienda'
   const valores = [
     { etiqueta: 'Correo del dueño', valor: empresa?.email || null },
     { etiqueta: 'ID del usuario', valor: usuario?.id || null },
   ]
   useEffect(() => { setNuevoNombre(nombreActual) }, [nombreActual])
+  useEffect(() => {
+    if (!usuario?.id) return
+    let vigente = true
+    getAvatarDataUrl(usuario.id).then(data => { if (vigente) setFoto(data) })
+    return () => { vigente = false }
+  }, [usuario?.id])
+
+  async function subirFoto(file) {
+    if (fotoBusy || !usuario?.id) return
+    setFotoBusy(true); setFotoError('')
+    try {
+      const form = new FormData()
+      form.append('avatar', file)
+      await api.post(`/api/users/${encodeURIComponent(usuario.id)}/avatar`, form)
+      olvidarAvatar(usuario.id)
+      setFoto(await getAvatarDataUrl(usuario.id))
+      toast.success('Foto actualizada.')
+    } catch (cause) { setFotoError(cause?.message || 'No se pudo guardar la foto.') } finally { setFotoBusy(false) }
+  }
+
+  async function quitarFoto() {
+    if (fotoBusy || !usuario?.id) return
+    setFotoBusy(true); setFotoError('')
+    try {
+      await api.delete(`/api/users/${encodeURIComponent(usuario.id)}/avatar`)
+      olvidarAvatar(usuario.id)
+      setFoto('')
+    } catch (cause) { setFotoError(cause?.message || 'No se pudo quitar la foto.') } finally { setFotoBusy(false) }
+  }
 
   function irAlFormulario() {
     document.getElementById('identidad-form')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
@@ -789,6 +824,23 @@ export function MiIdentidad() {
             {usuario?.email && <p className="mt-0.5 truncate text-sm text-mute">{usuario.email}</p>}
           </div>
         </div>
+        {usuario?.id && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
+          <div className="flex min-w-0 items-center gap-3">
+            {foto ? <img src={foto} alt="Mi foto" className="h-10 w-10 shrink-0 rounded-full border border-ink-600 object-cover" /> : <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-ink-600 bg-ink-700 text-xs font-semibold text-mute">{(usuario?.name || 'Yo').trim().split(/\s+/).slice(0, 2).map(parte => parte[0] || '').join('').toUpperCase()}</span>}
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wider text-mute">Mi foto</p>
+              <p className="mt-0.5 text-sm text-mute">Aparece en la cronología de clientes y pedidos.</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <AttachmentInput onSelect={(file) => setFotoAConfirmar(file)} onError={setFotoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={fotoBusy}>
+              <Button type="button" variant="outline" disabled={fotoBusy}>{foto ? 'Reemplazar foto' : 'Subir foto'}</Button>
+            </AttachmentInput>
+            {foto && <Button type="button" variant="ghost" disabled={fotoBusy} onClick={quitarFoto}>Quitar</Button>}
+          </div>
+        </div>}
+        {fotoError && <p role="alert" className="text-sm text-bad">{fotoError}</p>}
+        {fotoAConfirmar && <PhotoCropper file={fotoAConfirmar} onCancel={() => setFotoAConfirmar(null)} onCropped={async (recortada) => { setFotoAConfirmar(null); await subirFoto(recortada) }} />}
         <div className="space-y-2">
           {valores.map(({ etiqueta, valor }) => (
             <div key={etiqueta} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
@@ -914,7 +966,7 @@ function SeccionTiendas({ account }) {
 
 function SeccionInvitaciones() {
   const toast = useToast()
-  const { sesion } = useSesion()
+  const { sesion, esDemo } = useSesion()
   const [pendientes, setPendientes] = useState([])
   const [cargando, setCargando] = useState(true)
   const [elegida, setElegida] = useState(null)
@@ -923,10 +975,12 @@ function SeccionInvitaciones() {
   const [error, setError] = useState('')
 
   useEffect(() => {
+    // La demo no toca el API: no hay invitaciones reales que traer.
+    if (esDemo) { setCargando(false); return }
     let vivo = true
     api.get('/api/user-invitations/pending').then((lista) => { if (vivo) setPendientes(Array.isArray(lista) ? lista : []) }).catch(() => {}).finally(() => { if (vivo) setCargando(false) })
     return () => { vivo = false }
-  }, [])
+  }, [esDemo])
 
   async function aceptar(event) {
     event.preventDefault(); setError('')

@@ -6,16 +6,13 @@ import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 
 const SUBPAGINAS = [
-  ['equipo', 'Equipo'],
-  ['identidad', 'Mi identidad'],
-  ['roles', 'Roles y permisos'],
-  ['negocio', 'Negocio'],
-  ['sucursales', 'Sucursales'],
-  ['seguridad', 'Seguridad'],
-  ['historial', 'Auditoría'],
-  ['impresoras', 'Impresoras'],
-  ['preferencias', 'Preferencias'],
-  ['sistema', 'Estado del sistema'],
+  ['mi-cuenta', 'Mi cuenta'],
+  ['organizacion', 'Organización'],
+  ['equipo', 'Equipo y acceso'],
+  ['comercial', 'Comercial'],
+  ['seguridad', 'Seguridad y auditoría'],
+  ['dispositivos', 'Dispositivos'],
+  ['sistema', 'Sistema'],
 ]
 
 const ANCHOS = [
@@ -60,8 +57,8 @@ test.describe('Configuración Lote 5', () => {
     const cajaEquipo = await panelEquipo.boundingBox()
     expect(cajaEquipo.x).toBeGreaterThan(1440 * 0.5)
 
-    // Sucursales: el formulario queda a la derecha de la lista.
-    await page.goto('/configuracion/sucursales')
+    // Sucursales (dentro de Organización): el formulario queda a la derecha de la lista.
+    await page.goto('/configuracion/organizacion')
     const panelSucursal = page.locator('#sucursal-form')
     await expect(panelSucursal).toBeVisible()
     await expect(page.locator('#sucursal-nombre')).toBeVisible()
@@ -84,30 +81,26 @@ test.describe('Configuración Lote 5', () => {
   })
 })
 
-// IA de Configuración (#251): Dispositivos y Sistema como grupos propios, con
-// Documentación fuera de Configuración (entrada «Ayuda» del shell).
+// IA de Configuración (#251): siete secciones sin duplicar, con Documentación
+// fuera de Configuración (entrada «Ayuda» del shell).
 test.describe('Configuración IA', () => {
-  test('los grupos separan Dispositivos y Sistema sin duplicar pestañas', async ({ page }) => {
-    await page.goto('/configuracion/impresoras')
-    const grupos = page.getByRole('tablist', { name: 'Grupos de configuración' })
-    for (const label of ['Personas', 'Negocio', 'Seguridad', 'Dispositivos', 'Sistema']) {
-      await expect(grupos.getByRole('button', { name: label, exact: true })).toBeVisible()
-    }
+  test('las siete secciones no duplican Dispositivos, Sistema ni Preferencias', async ({ page }) => {
+    await page.goto('/configuracion/dispositivos')
+    await expect(page.locator('main').getByRole('tab')).toHaveCount(7)
 
-    // Dispositivos: la configuración y las pruebas de impresión, más las
-    // preferencias del dispositivo (no la seguridad de la empresa).
-    await grupos.getByRole('button', { name: 'Dispositivos', exact: true }).click()
-    await expect(page).toHaveURL(/\/configuracion\/impresoras$/)
-    await expect(page.getByRole('tab', { name: 'Impresoras', exact: true })).toBeVisible()
-    await expect(page.getByRole('tab', { name: 'Preferencias', exact: true })).toBeVisible()
-    await expect(page.getByRole('tab', { name: 'Estado del sistema', exact: true })).toHaveCount(0)
+    // Dispositivos: impresoras y su monitoreo, sin el estado global.
+    await expect(page.getByRole('tab', { name: 'Dispositivos', exact: true })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByRole('heading', { name: 'Estado del sistema de impresión' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Sistema', exact: true })).toBeVisible()
 
     // Sistema: solo el monitoreo global (Estado del sistema).
-    await grupos.getByRole('button', { name: 'Sistema', exact: true }).click()
+    await page.locator('main').getByRole('tab', { name: 'Sistema', exact: true }).click()
     await expect(page).toHaveURL(/\/configuracion\/sistema$/)
-    await expect(page.getByRole('tab', { name: 'Estado del sistema', exact: true })).toBeVisible()
-    await expect(page.getByRole('tab', { name: 'Impresoras', exact: true })).toHaveCount(0)
-    await expect(page.getByRole('tab', { name: 'Preferencias', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Sincronización' })).toBeVisible()
+
+    // Las preferencias del dispositivo viven en Mi cuenta, una sola vez.
+    await page.locator('main').getByRole('tab', { name: 'Mi cuenta', exact: true }).click()
+    await expect(page.locator('#pref-bloqueo')).toBeVisible()
   })
 
   test('Documentación sale de Configuración: la ruta vieja redirige a Ayuda', async ({ page }) => {
@@ -128,9 +121,9 @@ test.describe('Configuración IA', () => {
       for (const [vista, ancho, alto] of [['desktop', 1280, 900], ['mobile', 390, 844]]) {
         await page.addInitScript(({ m }) => { try { localStorage.setItem('mobos:theme', m) } catch { /* sin storage */ } }, { m: modo })
         await page.setViewportSize({ width: ancho, height: alto })
-        await page.goto('/configuracion/impresoras')
-        await expect(page.getByRole('button', { name: 'Dispositivos', exact: true })).toBeVisible({ timeout: 20_000 })
-        await page.screenshot({ path: `${salida}/config-grupos-${tema}-${vista}.png` })
+        await page.goto('/configuracion/dispositivos')
+        await expect(page.getByRole('tab', { name: 'Dispositivos', exact: true })).toBeVisible({ timeout: 20_000 })
+        await page.screenshot({ path: `${salida}/config-secciones-${tema}-${vista}.png` })
         await page.goto('/ayuda/ayuda')
         await expect(page.getByTestId('documentacion')).toBeVisible({ timeout: 20_000 })
         await page.screenshot({ path: `${salida}/ayuda-${tema}-${vista}.png` })

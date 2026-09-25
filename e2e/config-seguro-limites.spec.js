@@ -18,7 +18,7 @@ const DIR = process.env.QA_SEGURO_CAPTURAS || join('test-results', 'qa-seguro-li
 mkdirSync(DIR, { recursive: true })
 
 async function abrirNegocio(page) {
-  await page.goto('/configuracion/negocio')
+  await page.goto('/configuracion/comercial')
   // El formulario se hidrata con la cuenta: se espera a que llegue.
   await expect(page.locator('#limite-gasto')).not.toHaveValue('', { timeout: 20_000 })
   await page.locator('#seguro-pct').scrollIntoViewIfNeeded()

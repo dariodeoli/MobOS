@@ -143,14 +143,14 @@ const AYUDA = [
     ruta: '/servicio',
   },
   {
-    modulo: 'Configuración', titulo: 'Staff, roles y PIN', ubicacion: 'Configuración → Equipo → /configuracion/equipo',
+    modulo: 'Configuración', titulo: 'Staff, roles y PIN', ubicacion: 'Configuración → Equipo y acceso → /configuracion/equipo',
     explicacion: 'Cada integrante tiene nombre, correo, rol y sucursal. Desde la fila podés cambiar el rol y asignar un PIN nuevo de 4 a 6 dígitos (aleatorio o manual): el PIN nunca se muestra.',
     ruta: '/configuracion/equipo',
   },
   {
-    modulo: 'Configuración', titulo: 'Roles y permisos', ubicacion: 'Configuración → Roles y permisos',
+    modulo: 'Configuración', titulo: 'Roles y permisos', ubicacion: 'Configuración → Equipo y acceso → Roles y permisos',
     explicacion: 'El rol define el máximo de permisos; por integrante se pueden recortar acciones. El servidor aplica el recorte en cada endpoint.',
-    ruta: '/configuracion/roles',
+    ruta: '/configuracion/equipo',
   },
   {
     modulo: 'Inventario', titulo: 'Unidades, stock y reservas', ubicacion: 'Inventario → /inventario/unidades',
@@ -178,9 +178,9 @@ const AYUDA = [
     ruta: '/finanzas/bancos',
   },
   {
-    modulo: 'Finanzas', titulo: 'Seguro de ventas y margen', ubicacion: 'Configuración → Negocio · Cliente → ficha → Seguro',
+    modulo: 'Finanzas', titulo: 'Seguro de ventas y margen', ubicacion: 'Configuración → Comercial · Cliente → ficha → Seguro',
     explicacion: 'Definí el porcentaje de la empresa y, si hace falta, uno distinto por cliente. El costo real de cada venta nueva es costo + seguro y así se ve el margen en Análisis → Ganancias.',
-    ruta: '/configuracion/negocio',
+    ruta: '/configuracion/comercial',
   },
   {
     modulo: 'Finanzas', titulo: 'Gift cards y saldo a favor', ubicacion: 'Vender → POS · cobros · Análisis → cortes por tipo',
@@ -193,9 +193,9 @@ const AYUDA = [
     ruta: '/finanzas/creditos',
   },
   {
-    modulo: 'Impresión', titulo: 'Impresoras y puentes', ubicacion: 'Configuración → Impresoras → /configuracion/impresoras',
+    modulo: 'Impresión', titulo: 'Impresoras y puentes', ubicacion: 'Configuración → Dispositivos → /configuracion/dispositivos',
     explicacion: 'Vinculá el puente de la sucursal, elegí la impresora predeterminada y probá la impresión. Los comprobantes salen por el puente de cada sucursal.',
-    ruta: '/configuracion/impresoras',
+    ruta: '/configuracion/dispositivos',
   },
   {
     modulo: 'Impresión', titulo: 'Documentos y comprobantes', ubicacion: 'Pedido → Recibo / Nota de entrega',
@@ -203,29 +203,29 @@ const AYUDA = [
     ruta: '/pedidos',
   },
   {
-    modulo: 'Configuración', titulo: 'Perfil de la empresa', ubicacion: 'Configuración → Negocio → /configuracion/negocio',
+    modulo: 'Configuración', titulo: 'Perfil de la empresa', ubicacion: 'Configuración → Organización → /configuracion/organizacion',
     explicacion: 'Nombre, logo, dirección, RUC y datos que salen en los comprobantes y en el portal del cliente.',
-    ruta: '/configuracion/negocio',
+    ruta: '/configuracion/organizacion',
   },
   {
-    modulo: 'Configuración', titulo: 'Sucursales', ubicacion: 'Configuración → Sucursales',
+    modulo: 'Configuración', titulo: 'Sucursales', ubicacion: 'Configuración → Organización → Sucursales',
     explicacion: 'Cargá cada tienda con su dirección y datos. El selector de la barra superior cambia la sucursal activa y todo el panel respeta ese alcance.',
-    ruta: '/configuracion/sucursales',
+    ruta: '/configuracion/organizacion',
   },
   {
-    modulo: 'Inventario', titulo: 'Listas de precios', ubicacion: 'Inventario → Precios',
+    modulo: 'Inventario', titulo: 'Listas de precios', ubicacion: 'Inventario → Precios · Configuración → Comercial',
     explicacion: 'Definí precios por producto o categoría, con escalones por cantidad. Al vender, el cliente con lista asignada ve su precio y el origen queda visible.',
-    ruta: '/configuracion/precios',
+    ruta: '/configuracion/comercial',
   },
   {
-    modulo: 'Configuración', titulo: 'Seguridad de la cuenta', ubicacion: 'Configuración → Seguridad',
+    modulo: 'Configuración', titulo: 'Seguridad de la cuenta', ubicacion: 'Configuración → Seguridad y auditoría',
     explicacion: 'Contraseña, correo, sesiones activas y las acciones destructivas (archivar o eliminar la cuenta) con confirmación y auditoría.',
     ruta: '/configuracion/seguridad',
   },
   {
-    modulo: 'Configuración', titulo: 'Auditoría', ubicacion: 'Configuración → Auditoría',
+    modulo: 'Configuración', titulo: 'Auditoría', ubicacion: 'Configuración → Seguridad y auditoría → Auditoría',
     explicacion: 'Quién hizo qué y cuándo: ventas, caja, stock, equipo, impresiones y configuración. Se puede buscar por detalle y filtrar por persona y fecha.',
-    ruta: '/configuracion/historial',
+    ruta: '/configuracion/seguridad',
   },
   {
     modulo: 'Operación', titulo: 'Autorizaciones', ubicacion: 'Operación → Autorizaciones → /autorizaciones',

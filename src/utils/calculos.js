@@ -278,21 +278,35 @@ export function calcularGananciaDia(clave, { ventas, gastos, ads, prodsById }) {
 }
 
 // ── Productos ganadores por período ─────────────────────────────────
-export function productosGanadores(periodo, ventas, prodsById, limite = 5) {
+// Agrupa por producto con cantidad y venta; cuando la venta trae su foto de
+// costo (`precioCosto`, congelado al vender) agrega la ganancia real. Sin foto
+// de costo la ganancia queda en null: no se inventa margen.
+export function productosGanadores(periodo, ventas, prodsById, limite = 5, { criterio = 'cantidad' } = {}) {
   const desde = desdeDePeriodo(periodo)
   const vs = ventasDeRango(ventas, desde)
   const acc = {}
   vs.forEach(v => {
-    if (!acc[v.productoId]) acc[v.productoId] = { cantidad: 0, monto: 0 }
-    acc[v.productoId].cantidad += 1
-    acc[v.productoId].monto += num(v.precio)
+    const id = v.productoId
+    if (!acc[id]) acc[id] = { cantidad: 0, monto: 0, ganancia: 0, conCosto: 0, sinCosto: 0 }
+    acc[id].cantidad += 1
+    acc[id].monto += num(v.precio)
+    if (v.precioCosto === null || v.precioCosto === undefined) acc[id].sinCosto += 1
+    else { acc[id].ganancia += num(v.precio) - num(v.precioCosto); acc[id].conCosto += 1 }
   })
-  return Object.entries(acc)
-    .map(([id, d]) => ({
-      id,
-      nombre: prodsById[id]?.nombre || 'Producto',
-      ...d,
-    }))
-    .sort((a, b) => b.cantidad - a.cantidad || b.monto - a.monto)
-    .slice(0, limite)
+  const filas = Object.entries(acc).map(([id, d]) => ({
+    id,
+    nombre: prodsById[id]?.nombre || 'Producto',
+    cantidad: d.cantidad,
+    monto: d.monto,
+    ganancia: d.conCosto ? d.ganancia : null,
+    margenPct: d.conCosto && d.monto > 0 ? (d.ganancia / d.monto) * 100 : null,
+    sinCosto: d.sinCosto,
+  }))
+  if (criterio === 'ganancia') {
+    const ordenadas = [...filas].sort((a, b) => (
+      (b.ganancia ?? Number.NEGATIVE_INFINITY) - (a.ganancia ?? Number.NEGATIVE_INFINITY) || b.monto - a.monto
+    ))
+    return ordenadas.slice(0, limite)
+  }
+  return filas.sort((a, b) => b.cantidad - a.cantidad || b.monto - a.monto).slice(0, limite)
 }

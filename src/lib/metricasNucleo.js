@@ -43,18 +43,33 @@ export function resumenCurva(groups = []) {
   return clases
 }
 
-/** Top de productos por venta (por línea) con su clase ABC. */
-export function topProductos(groups = [], limite = 8) {
-  return (Array.isArray(groups) ? groups : [])
-    .map((grupo) => ({
+/** Filas del reporte por producto listas para las pantallas de ganadores.
+ *  `criterio` define el orden: 'venta' respeta el del backend (curva ABC por
+ *  venta) y 'ganancia' prioriza la plata que deja cada producto. */
+export function topProductos(groups = [], limite = 8, criterio = 'venta') {
+  const filas = (Array.isArray(groups) ? groups : []).map((grupo) => {
+    const monto = Number(grupo?.grossPyg || 0)
+    const ganancia = Number(grupo?.profitPyg || 0)
+    return {
       id: grupo?.key || grupo?.label || 'producto',
       nombre: grupo?.label || 'Producto sin nombre',
       cantidad: Number(grupo?.units || 0),
-      monto: Number(grupo?.grossPyg || 0),
+      monto,
+      ganancia,
+      // Sin venta no hay porcentaje: null evita un 0% engañoso.
+      margenPct: monto > 0 ? (ganancia / monto) * 100 : null,
+      sinCosto: Number(grupo?.salesWithoutCostPyg || 0),
       clase: grupo?.abcClass || 'C',
       acumuladoPct: Number(grupo?.accumulatedPct || 0),
-    }))
-    .slice(0, Math.max(0, limite))
+    }
+  })
+  if (criterio === 'ganancia') {
+    // Primero los que dejan más plata; el empate se resuelve por venta.
+    return [...filas]
+      .sort((a, b) => b.ganancia - a.ganancia || b.monto - a.monto)
+      .slice(0, Math.max(0, limite))
+  }
+  return filas.slice(0, Math.max(0, limite))
 }
 
 function numero(valor) {

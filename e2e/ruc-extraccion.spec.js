@@ -115,8 +115,9 @@ test('Compras: RUC del proveedor', async ({ page }) => {
 })
 
 test('Config: RUC del negocio', async ({ page }) => {
+  // #IA: Negocio pasó a Organización (la ruta vieja redirige igual).
   await page.goto('/configuracion/negocio')
-  await expect(page.locator('h1')).toHaveText('Negocio')
+  await expect(page.locator('h1')).toHaveText('Organización')
   // El negocio carga async y rellena el formulario: si se llena antes, la
   // carga pisa el valor. Se espera a que el nombre cargado esté presente.
   await expect(page.locator('#edit-nombre')).not.toHaveValue('', { timeout: 20000 })
