@@ -96,7 +96,7 @@ test('Mi cuenta se abre desde el avatar; Precios queda con una sola entrada', as
   await page.goto('/configuracion/mi-cuenta')
   await page.getByTestId('shell-mi-cuenta').click()
   await expect(page).toHaveURL(/\/configuracion\/mi-cuenta$/)
-  await expect(page.getByText('Tu perfil')).toBeVisible()
+  await expect(page.getByText('Tu perfil').first()).toBeVisible()
   await capturar(page, 'mi-cuenta')
 
   await page.goto('/configuracion/identidad')
@@ -105,7 +105,7 @@ test('Mi cuenta se abre desde el avatar; Precios queda con una sola entrada', as
   // Precios: una sola entrada visible (Inventario → Precios). Comercial no lo
   // duplica; la ruta propia de listas sigue viva.
   await page.goto('/configuracion/comercial')
-  await expect(page.getByRole('heading', { name: 'Seguro y límites' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Seguro de ventas' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Listas de precios' })).toHaveCount(0)
   await page.goto('/precios')
   await expect(page.getByRole('heading', { name: 'Listas de precios' })).toBeVisible()

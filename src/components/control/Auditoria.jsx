@@ -210,7 +210,7 @@ function desdeDelRango(rango) {
   return null
 }
 
-const GRID_AUDITORIA = 'grid min-w-[52rem] grid-cols-[minmax(9rem,1.1fr)_minmax(7rem,0.9fr)_minmax(6rem,0.7fr)_minmax(10rem,1.8fr)_8rem] items-center gap-x-2'
+const GRID_AUDITORIA = 'grid min-w-[42rem] grid-cols-[minmax(9rem,1.1fr)_minmax(7rem,0.9fr)_minmax(6rem,0.7fr)_minmax(10rem,1.8fr)_8rem] items-center gap-x-2'
 
 function fechaHora(value) {
   const date = new Date(value)
