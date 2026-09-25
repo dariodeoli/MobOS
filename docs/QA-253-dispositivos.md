@@ -46,8 +46,16 @@ npx playwright test e2e/configuracion-lote5.spec.js e2e/impresion-remota.spec.js
 
 ## Capturas
 
-`docs/qa/253-dispositivos/`: `antes-impresoras.png` y `antes-sistema.png` (main
-previo) vs `despues-impresoras.png`, `despues-puentes.png`,
-`despues-formatos.png`, `despues-diagnostico.png`, `despues-cola.png` y
-`despues-sistema.png`. Se tomaron con el arnés real (admin) y dos impresoras +
-un puente de ejemplo.
+`docs/qa/253-dispositivos/`: `antes-impresoras.png` y `antes-sistema.png` (los
+componentes de `origin/main` en la base v1.0.172) vs `despues-impresoras.png`,
+`despues-puentes.png`, `despues-formatos.png`, `despues-diagnostico.png`,
+`despues-cola.png` y `despues-sistema.png`. Se tomaron con el arnés real
+(admin), dos impresoras + un puente de ejemplo, y **antes/después sobre la misma
+base** (el único cambio es la sección de impresión), ya con el shell de 7
+secciones y el slug `dispositivos`.
+
+Reverificación del 25/09 sobre `origin/main` @ v1.0.172 (base `9d750790`):
+specs **32/32 ✓** (`configuracion-lote5`, `impresion-remota`, `ia-configuracion`)
+y capturas regeneradas. Coincide con la nota de PLT (lead): Dispositivos queda
+con **configuración y pruebas**, y la **cola global** se monitorea en Estado del
+sistema (sin duplicar).
