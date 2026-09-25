@@ -386,11 +386,20 @@ test('el costo se puede dejar pendiente y completar desde el detalle', async ({ 
 // #209: el motivo de baja arranca con el último usado y la pantalla lo avisa.
 test('el motivo de baja recuerda el último usado', async ({ page }) => {
   const datos = await preparar(page, marca())
+  // El modal de la unidad se re-renderiza cuando refresca el listado: si el
+  // primer clic se pierde, el diálogo de baja no abre. Se reintenta por condición.
+  const abrirBaja = async (detalle) => {
+    const baja = page.getByRole('dialog', { name: 'Dar de baja' })
+    await expect(async () => {
+      if (!(await baja.isVisible())) await detalle.getByRole('button', { name: 'Dar de baja' }).click()
+      await expect(baja).toBeVisible({ timeout: 1000 })
+    }).toPass({ timeout: 15000 })
+    return baja
+  }
   try {
     await (await buscarUnidad(page, datos.unidades[0].serial)).click()
     const detalle = page.getByRole('dialog')
-    await detalle.getByRole('button', { name: 'Dar de baja' }).click()
-    const baja = page.getByRole('dialog', { name: 'Dar de baja' })
+    const baja = await abrirBaja(detalle)
     await baja.getByLabel('Motivo').selectOption('Daño')
     await baja.getByPlaceholder('Indicá el motivo').fill('Pantalla rota (QA #209)')
     await baja.getByRole('button', { name: 'Dar de baja' }).click()
@@ -400,8 +409,7 @@ test('el motivo de baja recuerda el último usado', async ({ page }) => {
     await page.reload()
     await (await buscarUnidad(page, datos.unidades[1].serial)).click()
     const detalle2 = page.getByRole('dialog')
-    await detalle2.getByRole('button', { name: 'Dar de baja' }).click()
-    const baja2 = page.getByRole('dialog', { name: 'Dar de baja' })
+    const baja2 = await abrirBaja(detalle2)
     await expect(baja2.getByLabel('Motivo')).toHaveValue('Daño')
     await expect(baja2.getByText('Recordamos tu último motivo')).toBeVisible()
     const guardado = await page.evaluate(() => {
