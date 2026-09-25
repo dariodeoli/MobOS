@@ -36,11 +36,18 @@ test('mobile 390: carrito, cobros y entrega llegan al target de 44', async ({ pa
   const { carrito, fila } = await armarCarrito(page)
   const cable = SEED.products.cable.name
 
-  // Carrito ultra-colapsado: chevron, IMEI, papelera y vaciar.
+  // Carrito ultra-colapsado: chevron, papelera y vaciar.
   await toque(fila.getByRole('button', { name: `Ver detalle de ${cable}` }), 'chevron de la línea')
-  await toque(fila.getByRole('button', { name: `Elegir IMEI de ${cable} (pendiente)` }), 'IMEI de la línea')
   await toque(fila.getByRole('button', { name: `Eliminar ${cable}` }), 'papelera de la línea')
   await toque(carrito.getByRole('button', { name: 'Vaciar carrito' }), 'vaciar carrito')
+
+  // Equipo serializado: el chip de IMEI (que solo aparece cuando la línea lo
+  // pide) también llega a 44.
+  await page.getByPlaceholder('Buscar producto…').fill(SEED.products.iphone.name)
+  await expect(page.getByRole('button', { name: new RegExp(SEED.products.iphone.name) }).first()).toBeVisible({ timeout: 20_000 })
+  await page.getByRole('button', { name: new RegExp(SEED.products.iphone.name) }).first().click()
+  const filaIphone = page.locator('#pos-resumen-venta .divide-y > div').filter({ hasText: SEED.products.iphone.name })
+  await toque(filaIphone.getByRole('button', { name: `Elegir IMEI de ${SEED.products.iphone.name} (pendiente)` }), 'IMEI de la línea')
 
   // Línea expandida: cantidad, precio, color/descuento y cupón.
   await fila.getByRole('button', { name: `Ver detalle de ${cable}` }).click()
@@ -50,7 +57,7 @@ test('mobile 390: carrito, cobros y entrega llegan al target de 44', async ({ pa
   await toque(fila.getByLabel(`Descuento fijo de ${cable}`), 'descuento fijo')
   await toque(fila.getByRole('button', { name: 'Aplicar cupón' }), 'aplicar cupón')
   await fila.getByLabel(`Descuento % de ${cable}`).fill('10')
-  await expect(fila.getByText('descuento − Gs 4.500')).toBeVisible()
+  await expect(fila.getByTestId('linea-descuento')).toHaveText('− Gs 4.500')
   await toque(carrito.getByRole('button', { name: 'Borrar descuento' }), 'borrar descuento')
 
   // Cobros/split: agregar pago, cuenta, monto y la papelera de la fila.

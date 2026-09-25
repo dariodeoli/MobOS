@@ -1,0 +1,70 @@
+{
+  "base": "https://app.moboss.online",
+  "etiqueta": "1.0.163-produccion",
+  "resultados": [
+    {
+      "variante": "desktop-claro",
+      "pasos": [
+        "reserva: sí"
+      ],
+      "estadosFilas": [
+        "—",
+        "—"
+      ],
+      "estadosPagos": [
+        "—",
+        "—"
+      ],
+      "chips": [],
+      "errores": []
+    },
+    {
+      "variante": "desktop-oscuro",
+      "pasos": [
+        "reserva: sí"
+      ],
+      "estadosFilas": [
+        "—",
+        "—"
+      ],
+      "estadosPagos": [
+        "—",
+        "—"
+      ],
+      "chips": [],
+      "errores": []
+    },
+    {
+      "variante": "movil-claro",
+      "pasos": [
+        "reserva: sí"
+      ],
+      "estadosFilas": [
+        "—",
+        "—"
+      ],
+      "estadosPagos": [
+        "—",
+        "—"
+      ],
+      "chips": [],
+      "errores": []
+    },
+    {
+      "variante": "movil-oscuro",
+      "pasos": [
+        "reserva: sí"
+      ],
+      "estadosFilas": [
+        "—",
+        "—"
+      ],
+      "estadosPagos": [
+        "—",
+        "—"
+      ],
+      "chips": [],
+      "errores": []
+    }
+  ]
+}

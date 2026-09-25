@@ -53,3 +53,32 @@ modales, en claro/oscuro y 1280/390 (`pos-241-v2.spec.js`, 4/4).
   prendido, y deja las capturas con `MOBOS_CAPTURAS=docs/rediseno`.
 - Regresión POS: `pos-checkout` + `pos-qa-173` + `qa-249-pos-touch` + este spec
   = **30/30** (0 flaky); `npm test` 674; smoke 19.
+
+## Estados del carrito: más dinámico y con jerarquía (#241/#148)
+
+Cada fila y cada bloque de cobro dicen qué necesitan con un **acento izquierdo** y
+un **chip**, usando los tonos de la casa (`src/lib/estadoEquipo.js`, que espeja
+`TONOS` de la biblioteca) y la guía v2 (verde pass, azul acción, ámbar atención,
+rojo falla). Sin tokens ni hex nuevos por pantalla.
+
+| Superficie | Estado (`data-estado`) | Acento | Chip |
+|---|---|---|---|
+| Línea | lista (`listo`) | verde | — |
+| Línea | falta IMEI (`falta-imei`) | ámbar | «Falta elegir IMEI» (ámbar) |
+| Línea | IMEI reservado (`reservado`) | azul | «IMEI ••••» (azul, mono) |
+| Línea | agotada (`agotado`) | rojo | «Agotado» |
+| Línea | sobre pedido (`sobre-pedido`) | azul suave | «Sobre pedido» |
+| Línea | con descuento | — | «− Gs X» (ámbar) |
+| Línea | con cupón | — | «CÓDIGO» (verde) |
+| Bloque de cobro | pagado (`pagado`) | verde | «Pagado» |
+| Bloque de cobro | no pagado (`no-pagado`) | ámbar | «No pagado» + aviso |
+
+- **Micro-animaciones**: alta de línea y de bloque, y expansión del detalle
+  (`mobos-aparece`; se apagan con `prefers-reduced-motion`).
+- **Coherencia**: el chip de IMEI solo se dibuja cuando la línea pide serial (o ya
+  lo tiene) y la disponibilidad de los equipos la gobierna el picker de unidades
+  (el contador de stock ya no marca «Agotado» en serializados).
+- **QA**: e2e `pos-241-carrito-estados` (2/2: fila con cupón/descuento/reserva y
+  bloques pagado/no pagado), AA del paso 5 en 0 bajos y capturas antes/después en
+  `docs/rediseno/c241f3p5-estados-{1.0.163-produccion,rama-241}/` (sonda
+  `scripts/qa-241-carrito-estados.mjs`, claro/oscuro × desktop/mobile).
