@@ -11,6 +11,8 @@ export const INVENTORY_UNIT_MOVED = 'INVENTORY_UNIT_MOVED'
 export const INVENTORY_UNIT_ADJUSTED = 'INVENTORY_UNIT_ADJUSTED'
 export const INVENTORY_UNIT_DETAILS_UPDATED = 'INVENTORY_UNIT_DETAILS_UPDATED'
 export const INVENTORY_TRANSIT_RECEIVED = 'INVENTORY_TRANSIT_RECEIVED'
+// #240: el costo de una reparación del taller se pasó al costo real de la unidad.
+export const INVENTORY_REPAIR_APPLIED = 'INVENTORY_REPAIR_APPLIED'
 
 /**
  * Libera las reservas vencidas dejando rastro por unidad: la cronología de

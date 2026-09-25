@@ -247,6 +247,11 @@ export async function GET(request: Request, { params }: RouteContext) {
       createdAt: row.receivedAt || row.createdAt,
       user: row.technicianName ? { id: row.technicianId || '', name: row.technicianName } : null,
       detail: `${row.device || 'Equipo'} · ${row.status}${row.diagnosis ? ` · ${row.diagnosis}` : ''}`,
+      // #240: costo cargado en la orden y si ya se pasó al costo real de la unidad.
+      costPyg: row.costPyg,
+      serviceNumber: row.serviceNumber,
+      status: row.status,
+      repairsAppliedAt: row.repairsAppliedAt,
     })),
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 

@@ -218,6 +218,61 @@ test('la inspección guarda el checklist por clave con puntaje y grado', async (
   } finally { await limpiar(page, datos) }
 })
 
+// #240 · repuestos no-OEM: el costo de la orden de servicio se pasa al costo
+// real de la unidad (vínculo orden ↔ unidad) y se aplica una sola vez.
+test('la reparación del taller se pasa al costo real de la unidad', async ({ page }) => {
+  const datos = await preparar(page, marca())
+  const serial = datos.unidades[0].serial
+  try {
+    const orden = await page.evaluate(async ({ api, serial }) => {
+      const respuesta = await fetch(`${api}/api/service-orders`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerName: 'Cliente reparación E2E', device: 'Equipo reparado E2E', serial, status: 'ENTREGADO', partsPyg: 100000, laborPyg: 20000, otherCostPyg: 5000 }),
+      })
+      const cuerpo = await respuesta.json().catch(() => null)
+      if (!respuesta.ok) throw new Error(cuerpo?.message || `service-orders: ${respuesta.status}`)
+      return cuerpo
+    }, { api: API, serial })
+    expect(orden.costPyg).toBe(125000)
+
+    const fila = await buscarUnidad(page, serial)
+    await fila.click()
+    const detalle = page.getByRole('dialog')
+    const reparaciones = detalle.getByTestId('unidad-reparaciones')
+    await expect(reparaciones).toBeVisible()
+    await expect(reparaciones).toContainText(orden.serviceNumber)
+    await expect(reparaciones).toContainText(/125\.000/)
+    mkdirSync('test-results/qa-240-reparaciones-unidad', { recursive: true })
+    await reparaciones.scrollIntoViewIfNeeded()
+    await page.screenshot({ path: 'test-results/qa-240-reparaciones-unidad/01-reparacion-pendiente.jpg', type: 'jpeg', quality: 75 })
+    await reparaciones.getByRole('button', { name: 'Pasar al costo' }).click()
+    await expect(page.getByText(/Reparación aplicada: .*costo real del equipo/)).toBeVisible({ timeout: 15_000 })
+    await expect(reparaciones.getByText('Aplicada', { exact: true })).toBeVisible()
+    await expect(reparaciones.getByRole('button', { name: 'Pasar al costo' })).toHaveCount(0)
+    await reparaciones.scrollIntoViewIfNeeded()
+    await page.screenshot({ path: 'test-results/qa-240-reparaciones-unidad/02-reparacion-aplicada.jpg', type: 'jpeg', quality: 75 })
+
+    // El costo queda persistido en la inspección y la orden vinculada a la unidad.
+    const estado = await page.evaluate(async ({ api, serial, orderId }) => {
+      const unidades = await fetch(`${api}/api/inventory-units?q=${encodeURIComponent(serial)}`, { credentials: 'include' }).then((r) => r.json()).catch(() => [])
+      const unidad = (Array.isArray(unidades) ? unidades : []).find((item) => item.serial === serial)
+      const ordenes = await fetch(`${api}/api/service-orders?q=${encodeURIComponent(serial)}`, { credentials: 'include' }).then((r) => r.json()).catch(() => [])
+      const lista = Array.isArray(ordenes) ? ordenes : ordenes?.rows || []
+      return { inspection: unidad?.inspection || null, orden: lista.find((item) => item.id === orderId) || null }
+    }, { api: API, serial, orderId: orden.id })
+    expect(estado.inspection.costoRepuestosPyg).toBe(125000)
+    expect(String(estado.inspection.repuestosNoOem || '')).toContain(orden.serviceNumber)
+    expect(estado.orden?.inventoryUnitId).toBe(datos.unidades[0].id)
+
+    // Al reabrir la ficha sigue aplicada (no se puede repetir).
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    const filaReabierta = await buscarUnidad(page, serial)
+    await filaReabierta.click()
+    const reabierto = page.getByRole('dialog').getByTestId('unidad-reparaciones')
+    await expect(reabierto.getByText('Aplicada', { exact: true })).toBeVisible()
+  } finally { await limpiar(page, datos) }
+})
+
 // #217/§8: «Vender todos» deja la venta armada en el POS: producto, cantidad,
 // IMEI elegidos y precio de lista; el vendedor solo revisa y cobra.
 test('vender todos deja el lote elegido en el POS con producto, cantidad e IMEI', async ({ page }) => {

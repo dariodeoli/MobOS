@@ -108,6 +108,8 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   // #240 PhoneCheck
   const [inspeccion, setInspeccion] = useState(() => ({ items: unit.inspection?.items || {}, cosmetico: unit.inspection?.cosmetico || '', nota: unit.inspection?.nota || '', bateriaPct: unit.inspection?.bateriaPct ?? (unit.batteryHealth ?? ''), bateriaCiclos: unit.inspection?.bateriaCiclos ?? '', repuestosNoOem: unit.inspection?.repuestosNoOem || '', costoRepuestosPyg: unit.inspection?.costoRepuestosPyg ?? '', repuestosNoOemNota: unit.inspection?.repuestosNoOemNota || '' }))
   const [guardandoInspeccion, setGuardandoInspeccion] = useState(false)
+  // #240: reparación del taller que se está pasando al costo real del equipo.
+  const [aplicandoReparacion, setAplicandoReparacion] = useState(null)
   // #241 paso 6: el grado oficial es el que quedó guardado en la unidad y la
   // última verificación real del serial alimenta los chips de locks (fuente/hora).
   const [inspeccionOficial, setInspeccionOficial] = useState(unit.inspection || null)
@@ -139,7 +141,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
       // #227: en demo la cronología sale de la propia unidad (sin API).
       // #240: historial del serial: verificaciones/movimientos + consultas IMEI + reparaciones.
       const consultasDemo = esDemo ? consultasDemoImei(unit.serial).map(consulta => ({ id: consulta.id, type: 'imei', label: 'Consulta IMEI', createdAt: consulta.requestedAt, user: consulta.verificador ? { id: consulta.verificador.id, name: consulta.verificador.nombre } : null, detail: `${consulta.serviceName} · ${consulta.etiqueta} · US$${Number(consulta.costUsd || 0).toFixed(2)}` })) : []
-      const reparacionesDemo = esDemo ? (getDemoServicio().rows || []).filter(fila => String(fila.serial || '').toUpperCase() === String(unit.serial || '').toUpperCase()).map(fila => ({ id: fila.id, type: 'repair', label: `Reparación ${fila.serviceNumber || ''}`.trim(), createdAt: fila.receivedAt || fila.createdAt, user: fila.technicianName ? { id: '', name: fila.technicianName } : null, detail: `${fila.device || 'Equipo'} · ${fila.status}` })) : []
+      const reparacionesDemo = esDemo ? (getDemoServicio().rows || []).filter(fila => String(fila.serial || '').toUpperCase() === String(unit.serial || '').toUpperCase()).map(fila => ({ id: fila.id, type: 'repair', label: `Reparación ${fila.serviceNumber || ''}`.trim(), createdAt: fila.receivedAt || fila.createdAt, user: fila.technicianName ? { id: '', name: fila.technicianName } : null, detail: `${fila.device || 'Equipo'} · ${fila.status}`, costPyg: fila.costPyg, serviceNumber: fila.serviceNumber, status: fila.status, repairsAppliedAt: null })) : []
       // Los eventos del demo usan `at`/`title`; la cronología de la cuenta real usa `createdAt`/`label`.
       const eventosDemo = esDemo ? (unit.events || []).map(evento => ({ ...evento, label: evento.label || evento.title, createdAt: evento.createdAt || evento.at })) : []
       const payload = esDemo
@@ -219,6 +221,29 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
       if (repuestosEvidenciaRef.current) repuestosEvidenciaRef.current.value = ''
       await load(); onChanged?.()
     } catch (cause) { toast.error(cause?.message || 'No se pudo adjuntar la evidencia.') } finally { setSubiendoEvidencia(false) }
+  }
+
+  // #240 · repuestos no-OEM: pasa el costo de una reparación del taller al
+  // costo real de la unidad (base de ganancia y seguro). La orden queda
+  // vinculada y no se aplica dos veces; en la demo se simula en el navegador.
+  async function aplicarReparacion(reparacion) {
+    if (aplicandoReparacion) return
+    const monto = Number(reparacion?.costPyg) || 0
+    if (!reparacion?.id || monto <= 0) { toast.error('La orden no tiene costo cargado.'); return }
+    setAplicandoReparacion(reparacion.id)
+    try {
+      if (esDemo) {
+        const ahora = new Date().toISOString()
+        setEvents(actuales => actuales.map(evento => evento.id === reparacion.id ? { ...evento, repairsAppliedAt: ahora } : evento))
+        setInspeccion(actual => ({ ...actual, costoRepuestosPyg: Number(actual.costoRepuestosPyg || 0) + monto, repuestosNoOem: [actual.repuestosNoOem, [reparacion.serviceNumber, unit.product?.name].filter(Boolean).join(' · ')].filter(Boolean).join('\n') }))
+        toast.success('Costo aplicado al equipo (demo).')
+        return
+      }
+      const resultado = await api.post(`/api/inventory-units/${encodeURIComponent(unit.id)}/repairs`, { serviceOrderId: reparacion.id })
+      setInspeccion(actual => ({ ...actual, costoRepuestosPyg: resultado?.costoRepuestosPyg ?? actual.costoRepuestosPyg }))
+      toast.success(`Reparación aplicada: ${gs(monto)} suman al costo real del equipo.`)
+      await load(); onChanged?.()
+    } catch (cause) { toast.error(cause?.message || 'No se pudo aplicar la reparación.') } finally { setAplicandoReparacion(null) }
   }
 
   async function buscarConsultasImei(event) {
@@ -366,6 +391,10 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
       setStockError(cause?.message || 'No se pudo completar la operación.')
     } finally { setStockBusy(false) }
   }
+
+  // Reparaciones del taller con este serial (#240): la cronología ya trae las
+  // órdenes; acá se usan para ofrecer el vínculo de costo con la unidad.
+  const reparaciones = events.filter(evento => evento.type === 'repair')
 
   return (
     <Drawer open onClose={onClose} title={unit.product?.name || 'Unidad'} className={cn('w-full sm:max-w-xl', temaV2Activo() && 'tema-v2')}>
@@ -524,6 +553,28 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
               <div className="flex flex-wrap items-center gap-2 sm:col-span-2"><AttachmentInput inputRef={repuestosEvidenciaRef} className="hidden" onSelect={file => setRepuestosEvidencia(file)} onError={message => toast.error(message)} /><button type="button" onClick={() => repuestosEvidenciaRef.current?.click()} className="min-h-11 rounded-lg border border-ink-600 px-2 py-1 text-[10px] font-semibold text-mute transition hover:border-fono/40 md:min-h-0"><Icon name="image" className="mr-1 inline h-3 w-3" />{repuestosEvidencia ? repuestosEvidencia.name : 'Adjuntar foto de la reparación'}</button>{repuestosEvidencia && <Button type="button" variant="outline" className="px-2 text-xs" disabled={subiendoEvidencia} onClick={subirEvidenciaRepuestos}>{subiendoEvidencia ? 'Subiendo…' : 'Guardar evidencia'}</Button>}</div>
             <Button type="button" variant="outline" disabled={imeiBusy} title="Corre la verificación de IMEI y trae los bloqueos al checklist" onClick={async () => { await imeiPrecheck(); await imeiConfirmar(); setInspeccion(actual => ({ ...actual, fuente: 'IMEIcheck' })) }}>{imeiBusy ? 'Verificando…' : 'Verificar y completar'}</Button>
           </div>
+          {reparaciones.length > 0 && (
+            <div className="mt-3 rounded-xl border border-ink-600 p-3" data-testid="unidad-reparaciones">
+              <p className={ROTULO_SECCION}>Reparaciones del taller</p>
+              <p className="mt-1 text-xs text-mute">Órdenes con este serial. Al pasar el costo, suma al <b className="text-fore">costo real del equipo</b> (ganancia y seguro) y queda auditado; se aplica una sola vez por orden.</p>
+              <div className="mt-2 space-y-2">
+                {reparaciones.map(reparacion => {
+                  const monto = Number(reparacion.costPyg) || 0
+                  const aplicada = Boolean(reparacion.repairsAppliedAt)
+                  return <div key={reparacion.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-600/70 p-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-xs text-fore"><b>{reparacion.label}</b>{reparacion.detail ? ` · ${reparacion.detail}` : ''}</p>
+                      <p className="mt-0.5 text-[11px] text-mute">{monto > 0 ? gs(monto) : 'Sin costo cargado'}{aplicada ? ` · aplicada al costo el ${fechaHora(reparacion.repairsAppliedAt)}` : ''}</p>
+                    </div>
+                    {aplicada
+                      ? <Badge color="green" title="El costo ya está sumado al costo real de la unidad">Aplicada</Badge>
+                      : <Button type="button" variant="outline" disabled={Boolean(aplicandoReparacion) || monto <= 0} title={monto > 0 ? `Sumar ${gs(monto)} al costo real del equipo` : 'La orden no tiene costo cargado: completalo en el taller'} data-testid={`unidad-reparacion-aplicar-${reparacion.id}`} onClick={() => aplicarReparacion(reparacion)}>{aplicandoReparacion === reparacion.id ? 'Aplicando…' : 'Pasar al costo'}</Button>}
+                  </div>
+                })}
+              </div>
+              {esDemo && <p className="mt-2 text-[11px] text-mute">En la demo el vínculo se simula en este navegador.</p>}
+            </div>
+          )}
           {(() => {
             // #241 paso 6: los chips salen de la verificación de esta sesión o, si
             // no hay, de la última consulta real guardada del serial; siempre con

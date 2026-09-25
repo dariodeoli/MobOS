@@ -155,6 +155,28 @@ test('Ayuda lista todos los comandos y atajos con su pantalla', async ({ page })
   await capturar(page, 'ayuda-atajos')
 })
 
+test('Organización: capturas por bloque (#253)', async ({ page }) => {
+  // Evidencia del grupo completo, bloque por bloque: datos generales, identidad
+  // visual (logos), datos legales, tiendas y sucursales, numeración y archivar.
+  await page.goto('/configuracion/organizacion')
+  await expect(page.getByRole('heading', { name: 'Datos de la tienda', exact: true })).toBeVisible({ timeout: 20_000 })
+  await capturar(page, 'organizacion-datos-generales')
+
+  const bloques = [
+    ['organizacion-logos', 'Logo de la empresa'],
+    ['organizacion-legales', 'Empresas/personas jurídicas (privado)'],
+    ['organizacion-tiendas-sucursales', 'Tiendas y sucursales'],
+    ['organizacion-numeracion', 'Identificador de pedidos'],
+    ['organizacion-archivar', 'Archivar empresa'],
+  ]
+  for (const [nombre, titulo] of bloques) {
+    const encabezado = page.getByRole('heading', { name: titulo, exact: true }).first()
+    await encabezado.scrollIntoViewIfNeeded()
+    await expect(encabezado).toBeVisible()
+    await capturar(page, nombre)
+  }
+})
+
 test('las secciones nuevas se ven en mobile y en oscuro sin desborde', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/configuracion/organizacion')
