@@ -919,3 +919,104 @@ export async function buildCertificadoHtml(datos = {}, { format = 'a4' } = {}) {
 export async function printCertificado(datos, options = {}) {
   return printHtml(await buildCertificadoHtml(datos, options))
 }
+
+// Comprobante de recepción del abastecimiento (#250 Fase 5 §11): esperado vs
+// recibido por línea, faltantes/incidencias con serial y nota, depósito
+// destino, quién recibió y cuándo. Los datos vienen normalizados por
+// `datosComprobanteRecepcion`. El QR al panel sale solo con un `enlace` público;
+// sin ruta cerrada, el código del envío va en barras con la leyenda (§12).
+export async function buildComprobanteRecepcionHtml(datos = {}, { format = 'a4' } = {}) {
+  const logo = await getLogoDataUrl()
+  let qr = ''
+  try { if (datos.enlace) qr = await qrDataUrl(datos.enlace, { nivel: 'H', margen: 2, ancho: 320 }) } catch { /* queda la leyenda */ }
+  let barras = ''
+  try {
+    if (!datos.enlace && datos.envio && typeof document !== 'undefined') {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+      JsBarcode(svg, datos.envio, { format: formatoDeCodigo(datos.envio) === 'ean13' ? 'EAN13' : 'CODE128', displayValue: false, margin: 0, height: 46, width: 1.4 })
+      barras = `<div class="barcode">${svg.outerHTML}<span class="small">${escapeHtml(datos.envio)}</span></div>`
+    }
+  } catch { /* sin barras el código queda en texto */ }
+  const fila = (etiqueta, valor) => (valor ? `<div class="fila-informe"><span>${escapeHtml(etiqueta)}</span><span>${escapeHtml(valor)}</span></div>` : '')
+  const lineas = Array.isArray(datos.lineas) ? datos.lineas : []
+  const incidencias = Array.isArray(datos.incidencias) ? datos.incidencias : []
+  const a4 = format === 'a4'
+  const marcas = (linea) => [
+    linea.faltante ? `faltan ${linea.faltante}` : '',
+    linea.sobrante ? `de más ${linea.sobrante}` : '',
+    linea.danado ? `dañado ${linea.danado}` : '',
+    linea.incorrecto ? `incorrecto ${linea.incorrecto}` : '',
+  ].filter(Boolean)
+  const marcaHtml = (linea) => {
+    const lista = marcas(linea)
+    return lista.length ? `<span class="no-ok">${escapeHtml(lista.join(' · '))}</span>` : '<span class="ok">Completo</span>'
+  }
+  // A4: tabla de conciliación. Rollo: bloques apilados (sin scroll horizontal).
+  const tablaLineas = a4
+    ? `<table class="recepcion"><thead><tr><th>Producto</th><th class="num">Esperado</th><th class="num">Recibido</th><th>Diferencia</th></tr></thead><tbody>${lineas.map((linea) => `<tr><td><strong>${escapeHtml(linea.producto || 'Producto')}</strong>${linea.variante ? `<br><span class="muted">${escapeHtml(linea.variante)}</span>` : ''}${linea.condicion ? `<br><span class="muted">${escapeHtml(linea.condicion)}</span>` : ''}</td><td class="num">${escapeHtml(String(linea.esperado))}</td><td class="num">${escapeHtml(String(linea.recibido))}</td><td>${marcaHtml(linea)}</td></tr>`).join('') || '<tr><td class="muted">Sin unidades registradas en la recepción.</td><td class="num"></td><td class="num"></td><td></td></tr>'}</tbody></table>`
+    : `<div class="lineas-recepcion">${lineas.map((linea) => `<div class="linea-recepcion"><strong>${escapeHtml([linea.producto || 'Producto', linea.variante].filter(Boolean).join(' · '))}</strong>${linea.condicion ? ` · ${escapeHtml(linea.condicion)}` : ''}<div class="cuenta">Esperado ${escapeHtml(String(linea.esperado))} · Recibido ${escapeHtml(String(linea.recibido))} · ${marcaHtml(linea)}</div></div>`).join('') || '<p class="muted">Sin unidades registradas en la recepción.</p>'}</div>`
+  const tablaIncidencias = incidencias.length
+    ? (a4
+        ? `<table class="recepcion"><thead><tr><th>Producto</th><th>Resultado</th><th>Serial</th><th>Nota</th></tr></thead><tbody>${incidencias.map((incidencia) => `<tr><td>${escapeHtml(incidencia.producto || 'Producto')}</td><td class="no-ok">${escapeHtml(incidencia.etiqueta || incidencia.resultado || '')}</td><td>${escapeHtml(incidencia.serial || '—')}</td><td>${escapeHtml(incidencia.nota || '')}</td></tr>`).join('')}</tbody></table>`
+        : `<div class="lineas-recepcion">${incidencias.map((incidencia) => `<div class="linea-recepcion"><strong>${escapeHtml(`${incidencia.etiqueta || incidencia.resultado || 'Incidencia'} · ${incidencia.producto || 'Producto'}`)}</strong><div class="cuenta">${escapeHtml(incidencia.serial || '—')}${incidencia.nota ? `<br>${escapeHtml(incidencia.nota)}` : ''}</div></div>`).join('')}</div>`)
+    : ''
+  const resumen = datos.resumen || {}
+  const cardEnvio = `<div class="card"><div class="label">Envío</div><div>
+      ${fila('Estado', datos.estado?.etiquetaLote || datos.estado?.etiqueta)}
+      ${fila('Proveedor', datos.proveedor)}
+      ${fila('Recorrido', [datos.origen, datos.destino].filter(Boolean).join(' → ') + (datos.metodo ? ` · ${datos.metodo}` : ''))}
+      ${fila('Depósito', datos.deposito)}
+      ${fila('Recibió', datos.usuario)}
+      ${fila('Fecha y hora', datos.fecha)}
+      ${fila('Notas', datos.notas)}
+    </div></div>`
+  const cardPanel = (datos.enlace || barras)
+    ? `<div class="card"><div class="label">Panel de la compra</div>${qr ? `<img class="qr" src="${qr}" alt="QR del panel">` : ''}${barras}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el panel de la compra.')}</p></div>`
+    : ''
+  // En A4 el envío y el panel van lado a lado: el comprobante entra en una hoja.
+  const cabecera = a4 && cardPanel ? `<div class="dos-columnas">${cardEnvio}${cardPanel}</div>` : `${cardEnvio}${cardPanel}`
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante de recepción ${escapeHtml(datos.envio || '')}</title><style>${styles(format)}
+    .fila-informe{display:flex;justify-content:space-between;gap:10px;margin:2px 0}
+    .fila-informe>span:first-child{color:#66707a}
+    .recepcion td,.recepcion th{border-bottom:1px dashed #d5dbe0;padding:3px 4px 3px 0;text-align:left;font-size:10px}
+    .recepcion th{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:#66707a}
+    .recepcion .ok{color:#0a7a68;font-weight:700}
+    .recepcion .no-ok{color:#a33;font-weight:700}
+    .linea-recepcion{border-bottom:1px dashed #d5dbe0;padding:5px 0;font-size:10px}
+    .linea-recepcion:last-child{border-bottom:0}
+    .linea-recepcion .cuenta{color:#66707a;margin-top:1px}
+    .linea-recepcion .ok{color:#0a7a68;font-weight:700}
+    .linea-recepcion .no-ok{color:#a33;font-weight:700}
+    .barcode{margin-top:2px}.barcode svg{width:100%;height:auto;max-height:12mm}
+    .card{page-break-inside:avoid}
+    .dos-columnas{display:flex;gap:10px;align-items:flex-start}
+    .dos-columnas .card{flex:1 1 0;min-width:0}
+    .totales-recepcion{margin-top:4px;border-top:1px solid #0f1720}
+    .totales-recepcion td{border:0;padding:1px 0}
+    .totales-recepcion tr.saldo td{font-weight:800}
+    ${a4 ? `@page{margin:12mm 14mm}.card{padding:6px 9px;margin:4px 0}.card .label{margin-bottom:2px}
+      .nofiscal{margin:6px 0;padding:4px 8px;font-size:10px}.brand{padding-bottom:5px;margin-bottom:6px}
+      h1{font-size:18px}body{font-size:11.5px;line-height:1.35}p{margin:2px 0}footer{margin-top:6px;padding-top:4px}
+      .firmas{margin:14px 0 3px}` : ''}
+    @media print{.fila-informe>span:first-child{color:#000}}
+  </style></head><body>
+    ${header(datos.titulo || 'Comprobante de recepción', [datos.envio, datos.compra].filter(Boolean).join(' · ') || datos.fechaEmision || '', logo)}
+    ${avisoNoFiscal()}
+    ${cabecera}
+    <div class="card"><div class="label">Esperado vs recibido</div>${tablaLineas}<table class="totals totales-recepcion">
+      <tr><td>Unidades esperadas</td><td class="num">${escapeHtml(String(resumen.esperadas ?? 0))}</td></tr>
+      <tr><td>Unidades recibidas</td><td class="num">${escapeHtml(String(resumen.recibidas ?? 0))}</td></tr>
+      ${resumen.faltantes ? `<tr class="saldo"><td>Faltantes</td><td class="num">${escapeHtml(String(resumen.faltantes))}</td></tr>` : ''}
+      ${resumen.sobrantes ? `<tr><td>Sobrantes</td><td class="num">${escapeHtml(String(resumen.sobrantes))}</td></tr>` : ''}
+      ${resumen.danados ? `<tr><td>Dañados</td><td class="num">${escapeHtml(String(resumen.danados))}</td></tr>` : ''}
+      ${resumen.incorrectos ? `<tr><td>Incorrectos</td><td class="num">${escapeHtml(String(resumen.incorrectos))}</td></tr>` : ''}
+    </table></div>
+    ${incidencias.length ? `<div class="card"><div class="label">Incidencias (${incidencias.length})</div>${tablaIncidencias}</div>` : ''}
+    ${firmas([{ rol: 'Recibí conforme (depósito)' }, { rol: 'Control de stock' }], { observaciones: !a4, estrecho: Boolean(thermalWidth(format)) })}
+    <footer>Documento de control interno. No es comprobante fiscal. Generado por ${escapeHtml(APP_NAME)}${datos.emisor ? ` para ${escapeHtml(datos.emisor)}` : ''} · ${escapeHtml(datos.fechaEmision || '')}</footer>
+  </body></html>`
+}
+
+export async function printComprobanteRecepcion(datos, options = {}) {
+  return printHtml(await buildComprobanteRecepcionHtml(datos, options))
+}

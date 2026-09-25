@@ -56,6 +56,8 @@ Flujo completo por API: **venta/reserva sin stock → necesidad → compra → l
 recepción → stock disponible**, sin UI todavía y con la regla dura respetada: el
 stock nace **solo** en la recepción confirmada.
 
-Pendiente de producto: el **panel** (CMP ya tiene pedida la tanda de objetos),
-los **layouts de impresión** (PRN: manifiesto, etiqueta de preparación,
-comprobante de recepción) y F6 (automatización/reposición sugerida).
+Pendiente de producto: el **panel** (CMP ya tiene pedida la tanda de objetos) y
+los **layouts de impresión** que faltan de PRN (manifiesto y etiqueta de
+preparación; el **comprobante de recepción ya está implementado** —
+[COMPROBANTE-RECEPCION.md](COMPROBANTE-RECEPCION.md)) y F6
+(automatización/reposición sugerida).

@@ -1,0 +1,76 @@
+{
+  "compra": "COM-CDE-0048",
+  "envio": "ENV-CDE-ASU-0021",
+  "proveedor": "Mayorista Apple PY",
+  "recorrido": "CDE → Casa Central",
+  "metodo": "Bus",
+  "deposito": "D1 · Depósito 1",
+  "usuario": "Lucía Benítez",
+  "estadoLote": "Con incidencias",
+  "recibidoEl": "2026-09-24T18:40:00.000Z",
+  "resumen": {
+    "esperadas": 5,
+    "recibidas": 3,
+    "faltantes": 1,
+    "sobrantes": 1,
+    "danados": 1,
+    "incorrectos": 0
+  },
+  "lineas": [
+    {
+      "producto": "iPhone 15 Pro Max",
+      "variante": "256 GB · Titanio Natural",
+      "condicion": "Seminuevo",
+      "esperado": 2,
+      "recibido": 1,
+      "faltante": 0,
+      "sobrante": 0,
+      "danado": 1
+    },
+    {
+      "producto": "iPhone 15",
+      "variante": "128 GB · Azul",
+      "condicion": "Nuevo",
+      "esperado": 2,
+      "recibido": 1,
+      "faltante": 1,
+      "sobrante": 1,
+      "danado": 0
+    },
+    {
+      "producto": "AirPods Pro 2",
+      "variante": "Blanco",
+      "condicion": "Nuevo",
+      "esperado": 1,
+      "recibido": 1,
+      "faltante": 0,
+      "sobrante": 0,
+      "danado": 0
+    }
+  ],
+  "incidencias": [
+    {
+      "serial": "351500000000012",
+      "resultado": "DANADO",
+      "etiqueta": "Dañado",
+      "nota": "Pantalla rayada en el traslado",
+      "producto": "iPhone 15 Pro Max"
+    },
+    {
+      "serial": "351500000000038",
+      "resultado": "FALTANTE",
+      "etiqueta": "Faltante",
+      "nota": "Quedó en CDE, viaja en el próximo lote",
+      "producto": "iPhone 15"
+    },
+    {
+      "serial": "359999999999995",
+      "resultado": "SOBRANTE",
+      "etiqueta": "Sobrante",
+      "nota": "No figuraba en el manifiesto",
+      "producto": "iPhone 15"
+    }
+  ],
+  "enlaceDemo": "https://app.moboss.online/envio/ENV-CDE-ASU-0021",
+  "generado": "2026-09-25T14:49:36.689Z"
+}

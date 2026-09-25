@@ -543,6 +543,73 @@ export function ticketRemision(transfer, { ancho = 80 } = {}) {
   return t.avanza(2).corte()
 }
 
+// Comprobante de recepción del abastecimiento (#250 Fase 5 §11): esperado vs
+// recibido por línea, faltantes/incidencias con su serial y nota, el depósito
+// destino y quién/cuándo recibió. El QR al panel solo sale con un `enlace`
+// público; sin ruta cerrada, el código del envío va en barras con la leyenda
+// (misma regla que el manifiesto y el informe).
+export function ticketComprobanteRecepcion(datos = {}, { ancho = 80 } = {}) {
+  const t = crearTicket({ ancho }).iniciar()
+  const estrecho = Number(ancho) <= 58
+  const par = (etiqueta, valor) => {
+    if (valor === '' || valor === null || valor === undefined) return
+    if (estrecho) { t.texto(etiqueta); t.par('  ', String(valor)) } else t.par(etiqueta, valor)
+  }
+  t.centrado(datos.emisor || APP_NAME).negrita().centrado('COMPROBANTE DE RECEPCIÓN').negrita(false)
+  const referencia = [datos.envio, datos.compra].filter(Boolean).join(' · ')
+  if (referencia) t.centrado(referencia)
+  if (datos.fecha) t.centrado(datos.fecha)
+  t.linea()
+  par('Estado', datos.estado?.etiquetaLote || datos.estado?.etiqueta)
+  par('Proveedor', datos.proveedor)
+  if (datos.origen || datos.destino) t.texto(`${datos.origen || 'Origen'} -> ${datos.destino || 'Destino'}${datos.metodo ? ` · ${datos.metodo}` : ''}`)
+  par('Depósito', datos.deposito)
+  par('Recibió', datos.usuario)
+  par('Fecha y hora', datos.fecha)
+  if (datos.notas) t.texto(`Notas: ${datos.notas}`)
+  t.linea()
+
+  const lineas = Array.isArray(datos.lineas) ? datos.lineas : []
+  t.negrita().texto(`Esperado vs recibido (${lineas.length} línea${lineas.length === 1 ? '' : 's'})`).negrita(false)
+  for (const linea of lineas) {
+    t.negrita().texto([linea.producto || 'Producto', linea.variante].filter(Boolean).join(' · ')).negrita(false)
+    if (linea.condicion) t.texto(`  ${linea.condicion}`)
+    const cuenta = `  esperado ${linea.esperado} · recibido ${linea.recibido}`
+    const marcas = [
+      linea.faltante ? `faltan ${linea.faltante}` : '',
+      linea.sobrante ? `de más ${linea.sobrante}` : '',
+      linea.danado ? `dañado ${linea.danado}` : '',
+      linea.incorrecto ? `incorrecto ${linea.incorrecto}` : '',
+    ].filter(Boolean)
+    if (marcas.length) t.par(cuenta, marcas.join(' · '))
+    else t.texto(`${cuenta} · completo`)
+    for (const incidencia of linea.incidencias || []) {
+      t.texto(`  ${incidencia.etiqueta}: ${incidencia.serial || '—'}`)
+      if (incidencia.nota) t.texto(`    ${incidencia.nota}`)
+    }
+  }
+  if (!lineas.length) t.texto('Sin unidades registradas en la recepción.')
+  t.linea()
+  par('Unidades esperadas', datos.resumen?.esperadas)
+  par('Unidades recibidas', datos.resumen?.recibidas)
+  if (datos.resumen?.faltantes) par('Faltantes', datos.resumen.faltantes)
+  if (datos.resumen?.sobrantes) par('Sobrantes', datos.resumen.sobrantes)
+  if (datos.resumen?.danados) par('Dañados', datos.resumen.danados)
+  if (datos.resumen?.incorrectos) par('Incorrectos', datos.resumen.incorrectos)
+  t.linea()
+
+  if (datos.enlace) {
+    t.qr(datos.enlace, { tamano: 7, etiqueta: 'PANEL DE LA COMPRA' })
+    t.centrado(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el panel de la compra.')
+  } else if (datos.envio) {
+    t.barcode(datos.envio, { etiqueta: 'ENVÍO', formato: formatoDeCodigo(datos.envio) })
+    t.centrado('Escaneá para abrir el panel de la compra.')
+  }
+  bloqueFirma(t, ['Recibí conforme (depósito)'], { ancho, observaciones: true })
+  t.centrado(LEYENDA_NO_FISCAL)
+  return t.avanza(2).corte()
+}
+
 // Recibo interno de un cobro puntual (no fiscal): monto, medio y referencia,
 // con las firmas de quien recibe y quien entrega.
 export function ticketReciboInterno(payment = {}, order = {}, { ancho = 80 } = {}) {

@@ -506,6 +506,31 @@ test('la recepción usa el buscador dependiente de dispositivos (#240/#250)', ()
   assert.ok(!/const SEPARADOR/.test(servicio), 'el separador de la etiqueta vive en lib/dispositivos')
 })
 
+// Lote #240/#220: compartir un documento imprimible como imagen sale del objeto
+// compartido (`shared/CompartirImagen` + `lib/printing/compartirDocumento`); las
+// pantallas no repiten iframe/canvas/navigator.
+test('compartir documentos como imagen sale del objeto compartido (#240/#220)', () => {
+  const pantallas = [
+    'components/inventory/DocumentoUnidadModal.jsx',
+    'components/shared/EtiquetasProductoModal.jsx',
+    'components/inventory/TallerRack.jsx',
+  ]
+  for (const ruta of pantallas) {
+    assert.match(
+      readFileSync(join(RAIZ, ruta), 'utf8'),
+      /import CompartirImagen from '@\/components\/shared\/CompartirImagen'/,
+      `${ruta} comparte por el objeto`,
+    )
+  }
+  const modulo = readFileSync(join(RAIZ, 'lib/printing/compartirDocumento.js'), 'utf8')
+  for (const nombre of ['documentoAPng', 'compartirArchivo', 'copiarImagen', 'nombreImagenDocumento']) {
+    assert.match(modulo, new RegExp(`export (async )?function ${nombre}\\(`), `falta ${nombre}`)
+  }
+  const componente = readFileSync(join(RAIZ, 'components/shared/CompartirImagen.jsx'), 'utf8')
+  assert.ok(!/navigator\.|ClipboardItem/.test(componente), 'el navegador se toca solo en el módulo compartido')
+  assert.ok(!/toPng/.test(componente), 'el rasterizado vive en el módulo, no en la pantalla')
+})
+
 // Lote 12: el QR y la ficha del informe público salen de los objetos; ninguna
 // pantalla vuelve a llamar a `qrcode` por su cuenta.
 test('el QR del informe sale de lib/qr y shared/CodigoQr (#240)', () => {

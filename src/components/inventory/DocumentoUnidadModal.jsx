@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Button, Modal, Select } from '@/components/ui'
 import { buildCertificadoHtml, buildInformeDispositivoHtml, printCertificado, printInformeDispositivo } from '@/components/shared/OrderReceipt'
+import CompartirImagen from '@/components/shared/CompartirImagen'
 import VistaPreviaPapel from '@/components/shared/VistaPreviaPapel'
 import { datosInformeDispositivo } from '@/lib/printing/informeDispositivo'
 import { datosCertificado, datosConstancia } from '@/lib/printing/certificado'
@@ -112,6 +113,14 @@ export default function DocumentoUnidadModal({ unit, tipo = 'informe', open, onC
             </Select>
           </label>
           <span className="flex flex-wrap items-center justify-end gap-2">
+            <CompartirImagen
+              construirHtml={() => html}
+              nombre={`${config.tipo}-${datos?.identificador || ''}`}
+              titulo={config.titulo}
+              texto={datos?.modelo ? `${config.titulo} · ${datos.modelo}` : config.titulo}
+              formato={formato}
+              disabled={!html || cargando}
+            />
             <Button type="button" variant="outline" onClick={descargarPdf} disabled={!html || cargando}>Descargar PDF</Button>
             <Button type="button" onClick={imprimirDirecto} disabled={!datos || cargando || enviando}>{enviando ? 'Enviando…' : 'Impresión directa'}</Button>
           </span>
