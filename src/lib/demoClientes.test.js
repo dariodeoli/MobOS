@@ -109,6 +109,16 @@ test('la vitrina demo lleva el seguimiento de la entrega (#240)', () => {
   assert.equal(retiro.tracking.estadoLabel, 'Listo para retirar')
 })
 
+test('la cuenta demo lleva el detalle de cada pedido (#240)', () => {
+  const lucia = demoCuentaPayload('demo-demo-cliente-lucia-rapido')
+  const pedido = (lucia.orders || []).find((row) => row.orderNumber === 'MOB-0008')
+  assert.ok(pedido.items?.length >= 1, 'El pedido demo trae sus líneas')
+  assert.ok(pedido.items[0].description && pedido.items[0].quantity >= 1)
+  assert.equal(pedido.pagos?.length, 1, 'El pedido demo trae su pago confirmado')
+  assert.equal(pedido.pagos[0].amountPyg, 1500000)
+  assert.ok(pedido.pagos[0].methodLabel)
+})
+
 test('la interacción demo queda en la cronología del cliente (#240)', () => {
   const evento = registrarInteraccionDemo(LUCIA, { accion: 'Informe del equipo compartido', detalle: 'Por WhatsApp · serial 3567…678' })
   assert.ok(evento?.id)

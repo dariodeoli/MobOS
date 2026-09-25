@@ -168,6 +168,16 @@ assert.ok(pedidoPortal.tracking?.pasos?.length >= 3, 'El portal debe traer los p
 assert.equal(pedidoPortal.tracking.pasos.filter(paso => paso.actual).length, 1, 'Un solo paso actual.')
 assert.equal(pedidoPortal.tracking.estadoLabel, 'En preparación', 'El paso actual trae su etiqueta de cliente.')
 assert.ok(pedidoPortal.tracking.pasos[0].hecho, 'El primer paso está cumplido.')
+// Detalle del pedido (#240 → portal): las líneas y los pagos confirmados del
+// propio pedido, sin costos internos.
+assert.equal(pedidoPortal.items?.length, 1, 'El pedido debe traer sus líneas.')
+assert.equal(pedidoPortal.items[0].description, 'Producto portal')
+assert.equal(pedidoPortal.items[0].quantity, 1)
+assert.equal(pedidoPortal.items[0].totalPyg, 100000)
+assert.equal(pedidoPortal.pagos?.length, 1, 'El pedido debe traer sus pagos confirmados.')
+assert.equal(pedidoPortal.pagos[0].amountPyg, 40000)
+assert.ok(pedidoPortal.pagos[0].methodLabel, 'El pago trae su medio legible.')
+assert.ok(pedidoPortal.pagos[0].paidAt, 'El pago trae su fecha.')
 // Cotizaciones (#240 → portal): la compartida llega en los dos niveles con su
 // enlace; el borrador y la de otro cliente no.
 const cotizacionPortal = (rapido.cotizaciones || []).find(item => item.number === cotizacion.number)
@@ -230,6 +240,8 @@ assert.equal((completo.addresses || []).some(address => address.address === `Av.
 const pedidoCompleto = completo.orders.find(order => order.orderNumber === numeroPedido)
 assert.equal(pedidoCompleto.receiptToken, pedido.publicToken, 'El pedido debe enlazar a su comprobante público.')
 assert.ok(pedidoCompleto.tracking?.pasos?.length >= 3, 'El nivel completo también sigue la entrega.')
+assert.equal(pedidoCompleto.items?.length, 1, 'El nivel completo trae las líneas del pedido.')
+assert.equal(pedidoCompleto.pagos?.length, 1, 'El nivel completo trae los pagos del pedido.')
 assert.ok((completo.cotizaciones || []).some(item => item.number === cotizacion.number), 'El nivel completo también lista la cotización compartida.')
 const serializadoCompleto = JSON.stringify(completo)
 for (const campo of FORBIDDEN) {

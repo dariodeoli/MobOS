@@ -23,6 +23,59 @@ const TONO_AVISO = {
   info: 'bg-fono/15 text-fono-light',
 }
 
+// Detalle del pedido (#240 → portal): qué compró y qué pagó de ESE pedido, sin
+// costos ni datos internos. Plegado por defecto para no alargar la lista.
+function DetallePedido({ order }) {
+  const [abierto, setAbierto] = useState(false)
+  const items = order.items || []
+  const pagos = order.pagos || []
+  if (!items.length && !pagos.length) return null
+  return (
+    <div className="mt-2.5 border-t border-ink-600/60 pt-2.5">
+      <button
+        type="button"
+        aria-expanded={abierto}
+        onClick={() => setAbierto(valor => !valor)}
+        data-testid="pedido-detalle-boton"
+        className="inline-flex min-h-10 items-center gap-1.5 text-xs font-bold text-fono-light transition hover:underline"
+      >
+        <Icon name="receipt" className="h-4 w-4" />
+        {abierto ? 'Ocultar detalle' : 'Ver detalle'}
+      </button>
+      {abierto && (
+        <div className="mt-2 space-y-3" data-testid="pedido-detalle">
+          {items.length > 0 && (
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-mute">Qué compraste</p>
+              <ul className="mt-1.5 space-y-1">
+                {items.map((item, indice) => (
+                  <li key={`${item.description}-${indice}`} className="flex items-start justify-between gap-3 text-xs text-mute">
+                    <span className="min-w-0">{item.quantity} × {item.description}</span>
+                    <span className="shrink-0 tabular-nums text-fore">{gs(item.totalPyg)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {pagos.length > 0 && (
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-mute">Tus pagos de este pedido</p>
+              <ul className="mt-1.5 space-y-1">
+                {pagos.map((pago, indice) => (
+                  <li key={`${pago.paidAt}-${indice}`} className="flex items-start justify-between gap-3 text-xs text-mute">
+                    <span className="min-w-0">{pago.methodLabel}{pago.paidAt ? ` · ${fecha(pago.paidAt)}` : ''}</span>
+                    <span className="shrink-0 tabular-nums text-ok">{gs(pago.amountPyg)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Resumen de cuenta público del cliente: saldo, vencimientos, pedidos y —según
 // el nivel del enlace— garantías activas, direcciones y comprobantes. No
 // muestra costos, notas internas ni contactos de terceros.
@@ -317,6 +370,7 @@ export default function CuentaPublica() {
                         {order.status !== 'CANCELLED' && !['DELIVERED', 'PICKED_UP'].includes(order.fulfillmentStatus) && order.tracking?.pasos?.length > 1 && (
                           <PasosEntrega tracking={order.tracking} data-testid="portal-pasos-entrega" className="mt-3 border-t border-ink-600/60 pt-2.5" />
                         )}
+                        <DetallePedido order={order} />
                         {order.receiptToken && (
                           <Link
                             to={`/pedido/${encodeURIComponent(order.receiptToken)}`}

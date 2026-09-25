@@ -572,7 +572,7 @@ export function demoCuentaPayload(token) {
       publicToken: cotizacion.publicToken,
     })),
     dueDates: conSaldo,
-    orders: orders.map((order) => ({
+    orders: orders.map((order, indice) => ({
       orderNumber: order.orderNumber,
       createdAt: order.createdAt,
       totalPyg: order.totalPyg,
@@ -582,6 +582,15 @@ export function demoCuentaPayload(token) {
       tracking: trackingDemo(order),
       pendingPyg: order.pendingPyg,
       dueAt: order.pendingPyg > 0 ? haceDias(-6) : null,
+      // Detalle del pedido (#240 → portal): líneas y pagos confirmados.
+      items: (order.items || []).map((item) => ({
+        description: item.description,
+        quantity: item.quantity,
+        totalPyg: Math.round(Number(order.totalPyg || 0) / Math.max(1, (order.items || []).length)),
+      })),
+      pagos: Number(order.collectedPyg || 0) > 0
+        ? [{ amountPyg: Number(order.collectedPyg), methodLabel: METODOS_DEMO[indice % METODOS_DEMO.length], paidAt: order.createdAt }]
+        : [],
       ...(nivel === 'completo' ? { receiptToken: `demo-${order.id}` } : {}),
     })),
     // Mensajes de la tienda (#240 → portal): mismo contrato que /api/portal;
