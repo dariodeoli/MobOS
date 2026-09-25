@@ -42,8 +42,12 @@ async function abrirNegocio(page) {
 // Acción sensible sin reautenticación vigente: el formulario pide la contraseña
 // ahí mismo y, al verificarla, el guardado sigue solo.
 async function confirmarPassword(page, id) {
+  // La reautenticación se pide solo si pasaron más de 10 minutos desde la
+  // última verificación (una sesión fresca —como la del CI— guarda directo):
+  // se atiende si aparece y se sigue si no.
   const panel = page.getByTestId(`${id}-reauth`)
-  await expect(panel).toBeVisible({ timeout: 20_000 })
+  const aparece = await panel.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false)
+  if (!aparece) return
   await panel.scrollIntoViewIfNeeded()
   await capturar(page, `reauth-${id}`)
   await panel.getByLabel('Contraseña para guardar los cambios').fill(SEED.company.password)
