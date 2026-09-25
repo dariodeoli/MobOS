@@ -645,6 +645,10 @@ model InventoryUnit {
   @@index([tenantId, supplierId])
   @@index([reservationCustomerId])
   inspection Json?
+  // #240: órdenes de servicio del taller que repararon este equipo. El costo de
+  // la orden se puede pasar al costo real de la unidad (vínculo explícito y
+  // auditado) y queda visible en la cronología del serial.
+  serviceOrders     ServiceOrder[] @relation("ServiceOrderUnit")
 }
 
 // Ubicación física dentro de una sucursal: piso de venta, depósito, vitrina,
@@ -2848,6 +2852,13 @@ model ServiceOrder {
   unlockSecret   String?
   unlockUpdatedAt DateTime?
   notes          String?
+  // #240: vínculo con la unidad del stock cuando el serial coincide. Al pasar
+  // el costo de la reparación a la unidad (`repairsAppliedAt`) el gasto suma al
+  // costo real del equipo (margen y seguro, #148 §19) y queda trazado en ambas
+  // fichas. `inventoryUnitId` se completa en ese momento.
+  inventoryUnitId  String?
+  inventoryUnit    InventoryUnit? @relation("ServiceOrderUnit", fields: [inventoryUnitId], references: [id], onDelete: SetNull)
+  repairsAppliedAt DateTime?
   receivedAt     DateTime  @default(now())
   deliveredAt    DateTime?
   createdAt      DateTime  @default(now())
@@ -2858,6 +2869,7 @@ model ServiceOrder {
   @@index([tenantId, createdAt])
   @@index([customerId])
   @@index([warrantyCaseId])
+  @@index([tenantId, inventoryUnitId])
   workshopParts WorkshopPart[]
   workshopPartMovements WorkshopPartMovement[]
 }
