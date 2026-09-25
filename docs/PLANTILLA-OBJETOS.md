@@ -433,6 +433,11 @@ navegación propia por pantalla.
 - **Descargas:** `descargarArchivo(nombre, contenido, { tipo, bom })` y el atajo
   `descargarCsvCliente(nombre, csv)` (`src/utils/descargarArchivo.js`): un solo
   Blob + enlace + revocación; nunca armar el `<a download>` a mano.
+- **Compartir imagen:** `shared/CompartirImagen` +
+  `lib/printing/compartirDocumento.js` (`documentoAPng`, `compartirArchivo`,
+  `copiarImagen`, `nombreImagenDocumento`): un documento imprimible (el HTML de
+  A4/rollo) sale como PNG para compartir por Web Share, descargar o copiar; sin
+  rasterizar a mano por pantalla (regla en `src/lib/objetosReglas.test.js`).
 - **Vista lista/cuadrícula:** `useVistaListaGrid(clave, inicial)`
   (`src/hooks/useVistaListaGrid.js`): recuerda la vista de cada listado en
   `mobos:<clave>-vista` y se conecta directo al `ListGridToggle`.

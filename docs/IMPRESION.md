@@ -545,3 +545,27 @@ Reglas del lote:
   del equipo; la coherencia con v2 es de **jerarquía y color de marca**, no de
   fuentes.
 - Evidencia obligatoria: PDFs de ejemplo A4/80 regenerados + QR decodificado.
+
+## 14. Compartir un documento como imagen (#240/#220)
+
+Además de imprimir o descargar el PDF, los documentos imprimibles (informe,
+certificado, constancia y etiquetas) se pueden **compartir como PNG**. La imagen
+sale del **mismo HTML** de «Descargar PDF»: no hay un diseño aparte que se
+desincronice.
+
+- **Objeto compartido:** `shared/CompartirImagen` +
+  `lib/printing/compartirDocumento.js` (`documentoAPng`, `compartirArchivo`,
+  `copiarImagen`, `nombreImagenDocumento`). Las pantallas no rasterizan por su
+  cuenta (regla en `src/lib/objetosReglas.test.js`).
+- **Acciones:** *Compartir imagen* (Web Share; si el navegador no comparte
+  archivos, descarga el PNG y lo avisa), *PNG* (descargar) y *Copiar*
+  (portapapeles como imagen, `ClipboardItem`).
+- **Tamaño real del papel:** el HTML se renderiza en un iframe oculto con el
+  ancho del formato (A4 794 px · 80 mm 302 px · 58 mm 219 px) y densidad 2; el
+  marco lleva `data-png-documento` para no confundirse con el iframe del
+  respaldo de impresión. Sin soporte o sin permiso, la pantalla avisa y ofrece
+  el PDF.
+- **Dónde está integrado:** certificado/informe/constancia (modal de la unidad),
+  etiquetas de góndola y etiquetas del taller («Imprimir en serie»).
+- **Evidencia:** `docs/QA-240-compartir-imagen.md` y capturas en
+  `docs/qa/240-compartir-imagen/`.

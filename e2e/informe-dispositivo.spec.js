@@ -223,6 +223,80 @@ test('el certificado de inspección sale directo y sin inventar la inspección',
   await page.screenshot({ path: `${SALIDA}/06-certificado-impreso.jpg` })
 })
 
+// Compartir como imagen (#240/#220): el certificado se convierte en PNG con el
+// mismo HTML de la vista previa y sale por compartir (con respaldo de descarga),
+// descargar o copiar al portapapeles. El iframe oculto del rasterizado se limpia.
+const dimensionesPng = (buffer) => ({ ancho: buffer.readUInt32BE(16), alto: buffer.readUInt32BE(20) })
+
+test('el certificado se comparte como imagen PNG (descarga y portapapeles)', async ({ page, context }) => {
+  const marca = Date.now()
+  const imei = imeiValido()
+  await page.goto('/inventario/unidades')
+  await sembrarUnidadConConsulta(page, { marca, imei })
+
+  // Sin Web Share de archivos en el arnés: «Compartir imagen» cae a la descarga.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'canShare', { value: () => false, configurable: true })
+    Object.defineProperty(navigator, 'share', { value: undefined, configurable: true })
+  })
+  const { modal } = await abrirDocumento(page, imei, { titulo: 'Certificado de inspección', boton: 'Certificado' })
+  const vista = page.frameLocator('iframe[title="Vista previa del documento"]')
+  await expect(vista.locator('h1')).toHaveText('Certificado de inspección', { timeout: 15_000 })
+  await page.screenshot({ path: `${SALIDA}/10-certificado-compartir.jpg`, type: 'jpeg', quality: 75 })
+
+  const [descarga] = await Promise.all([
+    page.waitForEvent('download'),
+    modal.getByTestId('compartir-imagen').click(),
+  ])
+  expect(descarga.suggestedFilename()).toMatch(/^certificado-phonecheck-\d{4}\.png$/)
+  const png = readFileSync(await descarga.path())
+  expect(png.length).toBeGreaterThan(10_000)
+  expect(png.subarray(1, 4).toString('latin1')).toBe('PNG')
+  const { ancho, alto } = dimensionesPng(png)
+  expect(ancho).toBeGreaterThan(400)
+  expect(ancho).toBeLessThan(800)
+  expect(alto).toBeGreaterThan(ancho)
+  await expect(page.getByText('Imagen descargada')).toBeVisible({ timeout: 15_000 })
+  await expect(page.locator('iframe[data-png-documento]')).toHaveCount(0)
+
+  const [pngDirecto] = await Promise.all([
+    page.waitForEvent('download'),
+    modal.getByTestId('descargar-png').click(),
+  ])
+  expect(pngDirecto.suggestedFilename()).toMatch(/^certificado-phonecheck-\d{4}\.png$/)
+
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await modal.getByTestId('copiar-png').click()
+  await expect(page.getByText('Imagen copiada')).toBeVisible({ timeout: 20_000 })
+})
+
+// Etiquetas del taller (#220/#241): el diálogo «Imprimir en serie» también baja
+// el PNG de las etiquetas del alcance elegido (rollo real) para compartirlas.
+test('las etiquetas del taller se descargan como PNG', async ({ page }) => {
+  const marca = Date.now()
+  const imei = imeiValido()
+  await page.goto('/inventario/unidades')
+  await sembrarUnidadConConsulta(page, { marca, imei })
+
+  await page.goto('/inventario/taller', { waitUntil: 'domcontentloaded' })
+  const equipo = page.getByTestId('rack-equipo').filter({ hasText: imei })
+  await expect(equipo).toBeVisible({ timeout: 20_000 })
+  await page.getByLabel(`Seleccionar ${imei}`).check()
+  await page.getByTestId('rack-imprimir-serie').click()
+  await expect(page.getByTestId('rack-vista-previa')).toBeVisible({ timeout: 15_000 })
+
+  const [descarga] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('descargar-png').click(),
+  ])
+  expect(descarga.suggestedFilename()).toMatch(/^etiquetas-taller-\d+\.png$/)
+  const png = readFileSync(await descarga.path())
+  expect(png.length).toBeGreaterThan(5_000)
+  expect(png.subarray(1, 4).toString('latin1')).toBe('PNG')
+  await expect(page.locator('iframe[data-png-documento]')).toHaveCount(0)
+  await page.screenshot({ path: `${SALIDA}/11-etiquetas-taller-compartir.jpg`, type: 'jpeg', quality: 75 })
+})
+
 // Hoja de estación en serie (#240 §4): desde el taller, «Imprimir en serie» →
 // «Hoja de estación» deja la lista A4 del carril (el HTML imprimible, con los
 // equipos y la firma/control). En el demo la impresión se bloquea con un aviso
