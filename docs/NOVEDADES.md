@@ -11,6 +11,14 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.164 — 2026-09-24
+- **Servicio y garantías (#215):** **tablero por etapas** del taller con contadores, avance por orden y contraste AA.
+- **Ficha y tile del equipo (#241):** muestran el **grado oficial**, el **checklist persistido** y los **locks reales** (iCloud/MDM/ESN) con su fuente.
+- **Configuración (#241):** **un logo por modo** (claro/oscuro) con confirmación y **vista previa fiel**; QA del lote F (Equipo y Roles).
+- **POS (#148):** el **selector de IMEI** usa los recursos de la **rama demo** (reservas de demo cubiertas) y el QA v2 del carrito/cobro quedó endurecido con esperas deterministas.
+- **Taller (#241):** el **modo taller** estrena los objetos compartidos y la **vista previa del rollo**.
+- **Estabilidad (#245):** esperas deterministas y shards al día (**391 tests** en la suite).
+
 ## v1.0.163 — 2026-09-24
 - **Finanzas (#234):** el **RUC** se carga con el campo compartido (`RucField`) en la **empresa privada**, los **titulares** y las **cuentas** — mismo extractor y validación que el resto de la app.
 - **Impresos (#241 lote H):** verificación post-deploy y contrato del **comprobante de remito** con el lenguaje v2.
