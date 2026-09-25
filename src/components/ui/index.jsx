@@ -124,9 +124,15 @@ export function MoneyInput({ currency = 'PYG', symbol, value, onValueChange, cla
   // Largo máximo del campo: el monto más grande documentado (con separadores)
   // entra completo y no se puede escribir de más; se puede pisar por prop.
   const topeLargo = maxLength ?? largoMaximoMonto(max, { decimales: !isPyg })
+  // El prefijo es una ayuda visual, no parte del valor: va chico y claro para no
+  // comerse el ancho del número (montos grandes se cortaban con «Gs.» a 12px y
+  // pl-12; ahora pl-8/pl-11 con el prefijo a 9-10px). El valor conserva todo el espacio posible del campo. El color queda
+  // en `text-mute` (el auditor AA exige 4.5:1 en texto chico: atenuarlo más no
+  // pasa).
+  const prefijoLargo = prefix.length > 3
   return (
     <div className="relative">
-      <span className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-xs font-semibold text-mute">
+      <span className={cn('pointer-events-none absolute top-1/2 z-10 -translate-y-1/2 font-medium text-mute', prefijoLargo ? 'left-2 text-[9px]' : 'left-2.5 text-[10px]')}>
         {prefix}
       </span>
       <Input
@@ -140,7 +146,7 @@ export function MoneyInput({ currency = 'PYG', symbol, value, onValueChange, cla
           const next = event.target.value.replace(/[^\d.,]/g, '')
           onValueChange?.(isPyg ? (next.trim() ? parseGsInput(next) : '') : parseUsdInput(next))
         }}
-        className={cn(TAMANOS_CAMPO.moneda, prefix.length > 3 ? 'pl-14' : 'pl-12', 'tabular-nums', className)}
+        className={cn(TAMANOS_CAMPO.moneda, prefijoLargo ? 'pl-11' : 'pl-8', 'tabular-nums', className)}
       />
     </div>
   )

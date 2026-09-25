@@ -1,8 +1,8 @@
 import { Input, Label, MoneyInput, Textarea } from '@/components/ui'
 import { isDemoRuntime } from '@/lib/demoMode'
 import CuentaCobroCombobox from './CuentaCobroCombobox'
+import CapsulaCuentaCobro from './CapsulaCuentaCobro'
 import { gs } from '@/utils/calculos'
-import Icon from '@/components/shared/Icon'
 import SerialField from '@/components/shared/SerialField'
 import { api } from '@/lib/api/client'
 import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
@@ -39,7 +39,10 @@ export default function PaymentAccountFields({ payment, accounts, onChange, pend
     })
     return () => { vivo = false }
   }, [account?.currency, payment.exchangeRatePyg])
-  return <div className="grid gap-3 rounded-2xl border border-ink-600 bg-ink-800/40 p-3 sm:grid-cols-2 sm:col-span-3">
+  // `grid-cols-1` explícito: en mobile la pista implícita es `auto` y el texto
+  // largo de la cápsula ensancharía la tarjeta (el `w-full` del monto quedaba
+  // clipeado). Con minmax(0,1fr) todo se ajusta al ancho disponible.
+  return <div className="grid grid-cols-1 gap-3 rounded-2xl border border-ink-600 bg-ink-800/40 p-3 sm:grid-cols-2 sm:col-span-3">
     <div className="sm:col-span-2">
       <Label htmlFor="cuenta-de-cobro">Cuenta de cobro</Label>
       <CuentaCobroCombobox
@@ -57,10 +60,10 @@ export default function PaymentAccountFields({ payment, accounts, onChange, pend
           onChange({ accountId, originalAmount: propuesto, exchangeRatePyg: payment.exchangeRatePyg, tradeIn: undefined })
         }}
       />
-      {account && <p className="mt-1 flex items-center gap-1.5 text-xs text-mute"><Icon name="wallet" className="h-3.5 w-3.5" />{[account.bank, account.accountNumber, account.holder].filter(Boolean).join(' · ') || 'Sin datos bancarios'}{account.settlementDays > 0 ? ` · acredita en ${account.settlementDays} día${account.settlementDays === 1 ? '' : 's'}` : ''}</p>}
+      {account && <CapsulaCuentaCobro className="mt-2" account={account} pendientePyg={pendientePyg} cotizacionPyg={decimal(payment.exchangeRatePyg)} />}
     </div>
-    <div><Label htmlFor="monto-original">Monto original ({account?.currency || 'moneda de la cuenta'})</Label><MoneyInput id="monto-original" aria-label="Monto original" disabled={!account} max={LIMITE_MONTO_VENTAS} currency={account?.currency || 'PYG'} value={payment.originalAmount} onValueChange={(v) => onChange({ originalAmount: account?.currency === 'PYG' ? (v === '' ? '' : String(v)) : v })} placeholder={FOREIGN(account?.currency) ? '0,00' : '0'} /></div>
-    {FOREIGN(account?.currency) && <div><Label htmlFor="cotizacion-manual">Cotización (₲ por {account.currency}){account.currency === 'USD' ? ' · automática, editable' : ''}</Label><MoneyInput id="cotizacion-manual" aria-label={`Cotización manual ${account.currency} a PYG`} currency="USD" symbol="Gs." value={payment.exchangeRatePyg || ''} onValueChange={(v) => onChange({ exchangeRatePyg: v })} placeholder="Ingresar cotización" /></div>}
+    <div className="sm:col-span-2"><Label htmlFor="monto-original">Monto original ({account?.currency || 'moneda de la cuenta'})</Label><MoneyInput id="monto-original" aria-label="Monto original" className="w-full" disabled={!account} max={LIMITE_MONTO_VENTAS} currency={account?.currency || 'PYG'} value={payment.originalAmount} onValueChange={(v) => onChange({ originalAmount: account?.currency === 'PYG' ? (v === '' ? '' : String(v)) : v })} placeholder={FOREIGN(account?.currency) ? '0,00' : '0'} /></div>
+    {FOREIGN(account?.currency) && <div className="sm:col-span-2"><Label htmlFor="cotizacion-manual">Cotización (₲ por {account.currency}){account.currency === 'USD' ? ' · automática, editable' : ''}</Label><MoneyInput id="cotizacion-manual" aria-label={`Cotización manual ${account.currency} a PYG`} currency="USD" symbol="Gs." value={payment.exchangeRatePyg || ''} onValueChange={(v) => onChange({ exchangeRatePyg: v })} placeholder="Ingresar cotización" /></div>}
     <p className="rounded-lg border border-fono/20 bg-fono/5 px-3 py-2 text-sm sm:col-span-2">Equivalente: <b className="tabular-nums text-fore">{gs(Number(payment.monto) || 0)}</b></p>
     {account?.kind === 'TRADE_IN' && <>
       <div><Label htmlFor="serial-imei-del-canje">Serial / IMEI del canje *</Label><SerialField id="serial-imei-del-canje" aria-label="Serial del canje" value={payment.tradeIn?.serial || ''} onChange={(value) => onChange({ tradeIn: { ...payment.tradeIn, serial: value } })} /></div>
