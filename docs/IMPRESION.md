@@ -511,6 +511,10 @@ código para que la implementación sea directa:
   pendiente, compra, referencia, pedido, destino, lote }` → `PRODUCTO n DE N`,
   variante, **IMEI o «pendiente»**, compra, pedido y destino, con código de
   barras del identificador.
+- **Comprobante de recepción · 80 mm/A4** (fase 5): esperado vs recibido por
+  línea, faltantes/incidencias, depósito destino, usuario y fecha/hora. Se arma
+  con la respuesta de la recepción (`SupplyPurchase` + líneas + `SupplyPurchaseSerial`)
+  cuando la fase 5 publique su payload; el QR apunta al panel de la compra.
 - **QR**: falta cerrar la **ruta pública del panel/manifiesto** (path + token y si
   abre sin sesión). Candidatas a confirmar con INV/DSN: `/m/<token>` (manifiesto
   de lote) o `/abastecimiento/compras/<id>` (panel, pide sesión). Mientras no esté
