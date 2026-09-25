@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.165 — 2026-09-24
+- **Configuración (#234):** el **guardado es transversal** — seguro, límites y demás grupos guardan **con Enter**, muestran **estado por grupo** y piden **reautenticación en el lugar** cuando corresponde; anchos de datos alineados.
+- **Ficha y tile del equipo (#241):** **grado oficial**, **checklist persistido** y **locks reales** con su fuente, ahora también en el **tile del listado**; el **encabezado de la tabla** alinea con las celdas y titula todas las columnas.
+- **POS (#148):** el **selector de IMEI** usa los recursos con **rama demo** (la reserva de IMEI de la demo queda cubierta) y el QA v2 del carrito/cobro quedó endurecido con esperas deterministas.
+- **Estabilidad:** doble escape corregido en el testMatch (spec que corría en el vacío) y shards al día (**407 tests**).
+
 ## v1.0.164 — 2026-09-24
 - **Servicio y garantías (#215):** **tablero por etapas** del taller con contadores, avance por orden y contraste AA.
 - **Ficha y tile del equipo (#241):** muestran el **grado oficial**, el **checklist persistido** y los **locks reales** (iCloud/MDM/ESN) con su fuente.
