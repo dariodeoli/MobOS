@@ -53,6 +53,11 @@ export default function PasoCobro({
   // está pago, naranja si es parcial y rojo si queda pendiente/a crédito.
   const pagoCompleto = totalGeneral > 0 && totalPagado >= totalGeneral
   const sinPago = totalPagado <= 0
+  // Segundo renglón del botón: productos e importe (#148 §5/§11).
+  const detalleBoton = [
+    cantTotal > 1 ? `${cantTotal} productos` : '',
+    totalGeneral > 0 ? gs(totalGeneral) : '',
+  ].filter(Boolean).join(' · ')
   return (
     <section
       data-testid="pos-cobro"
@@ -408,27 +413,34 @@ export default function PasoCobro({
           type="submit"
           variant={pagoCompleto ? 'success' : sinPago ? 'danger' : 'primary'}
           className={cn(
-            'sticky bottom-20 min-h-12 flex-1 text-base shadow-lg shadow-fono/10 lg:bottom-3',
+            // Cabecera en su renglón y productos/importe abajo: el botón no
+            // parte el importe en dos líneas (#148 §5/§11). Más alto y con más
+            // aire arriba/abajo que el botón estándar.
+            'sticky bottom-20 h-auto min-h-14 min-w-0 flex-1 px-5 py-3 shadow-lg shadow-fono/10 lg:bottom-3',
             // AA (#241): sobre ok/bad/warn el texto sigue el tema (blanco sobre
             // el verde/rojo/ámbar oscuro del claro; negro sobre los tonos
             // claros del oscuro).
             pagoCompleto && 'text-white dark:text-black',
             sinPago && 'text-white dark:text-black',
+            // Parcial (#148 §5/§11): naranja de atención, no el azul primario.
             !pagoCompleto && !sinPago && 'bg-warn text-white dark:text-black hover:brightness-110',
           )}
           disabled={!valido || guardando || !cuentas || Boolean(errorCuentas) || guardadoIncompleto}
         >
-          {guardando
-            ? 'Guardando venta…'
-            : !valido
-              ? 'Guardar pedido'
-              : pagoCompleto
-                ? 'Confirmar venta'
-                : sinPago
-                  ? (venderACredito ? 'Crear pedido a crédito' : 'Crear pedido sin pago')
-                  : 'Crear pedido'}
-          {cantTotal > 1 ? ` · ${cantTotal} productos` : ''}
-          {totalGeneral > 0 ? ` · ${gs(totalGeneral)}` : ''}
+          <span className="flex flex-col items-center gap-0.5 leading-tight">
+            <span className="text-[15px] font-bold">
+              {guardando
+                ? 'Guardando venta…'
+                : !valido
+                  ? 'Guardar pedido'
+                  : pagoCompleto
+                    ? 'Confirmar venta'
+                    : sinPago
+                      ? (venderACredito ? 'Crear pedido a crédito' : 'Crear pedido sin pago')
+                      : 'Crear pedido'}
+            </span>
+            {detalleBoton && <span className="text-xs font-semibold tabular-nums opacity-95 whitespace-nowrap">{detalleBoton}</span>}
+          </span>
         </Button>
         {ok && (
           <span
