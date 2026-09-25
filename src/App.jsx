@@ -35,6 +35,11 @@ const CotizacionPublica = lazy(() => import('@/pages/CotizacionPublica'))
 const CuentaPublica = lazy(() => import('@/pages/CuentaPublica'))
 const PortalCliente = lazy(() => import('@/pages/PortalCliente'))
 const RemitoPublico = lazy(() => import('@/pages/RemitoPublico'))
+// QR impresos (#97/#203): la etiqueta de góndola abre /producto/<sku> y el
+// ticket de prueba, /prueba. Viven fuera del panel y caen al login si no hay
+// sesión (cada página lo avisa a su manera).
+const ProductoPublico = lazy(() => import('@/pages/ProductoPublico'))
+const PruebaImpresion = lazy(() => import('@/pages/PruebaImpresion'))
 const AceptarInvitacion = lazy(() => import('@/pages/AceptarInvitacion'))
 const VerificarCorreo = lazy(() => import('@/pages/VerificarCorreo'))
 
@@ -272,6 +277,11 @@ export default function App() {
           <Route path="/cuenta/:token" element={<CuentaPublica />} />
           <Route path="/portal/:token" element={<PortalCliente />} />
           <Route path="/remito/:token" element={<RemitoPublico />} />
+          {/* QR impresos (ver src/lib/printing/qr.js): la etiqueta de góndola
+              apunta a /producto/<sku> y el ticket de prueba a /prueba. Antes
+              caían al catch-all y terminaban en el login. */}
+          <Route path="/producto/:sku" element={<ProductoPublico />} />
+          <Route path="/prueba" element={<PruebaImpresion />} />
           <Route
             path="/"
             element={

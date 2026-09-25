@@ -4,6 +4,7 @@ import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { Badge, Card, EmptyState } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
+import { publicUrls } from '@/lib/urls'
 
 // Documentación interna: dónde se configura cada cosa y cómo funciona. Cada
 // resultado lleva la ubicación exacta, una explicación breve y un enlace
@@ -287,6 +288,25 @@ export default function Documentacion() {
           Dónde se configura cada cosa y cómo funciona la operación. Buscá por tema, pantalla o palabra clave.
         </p>
       </div>
+
+      {/* Estado público de los servicios (moboss.online/status): si algo no
+          anda, el primer dato es si es de MobOS o de la conexión local. */}
+      <a
+        data-testid="ayuda-estado-servicios"
+        href={`${publicUrls.landing}/status`}
+        target="_blank"
+        rel="noreferrer"
+        className="flex items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-800/40 px-4 py-3 transition hover:border-fono/40"
+      >
+        <span className="flex min-w-0 items-center gap-2.5">
+          <Icon name="pulse" className="h-4 w-4 shrink-0 text-fono-light" />
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold">Estado de los servicios</span>
+            <span className="block text-xs text-mute">API, base de datos e impresión en vivo · moboss.online/status</span>
+          </span>
+        </span>
+        <Icon name="external" className="h-4 w-4 shrink-0 text-mute" />
+      </a>
 
       <SearchField
         autoFocus
