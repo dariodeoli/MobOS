@@ -74,7 +74,7 @@ export async function GET(request: Request, { params }: RouteContext) {
     }),
     prisma.orderItem.findMany({
       where: { productId: id, order: { tenantId: tenant } },
-      select: { id: true, quantity: true, serials: true, serialsPending: true, unitPricePyg: true, order: { select: { id: true, orderNumber: true, status: true, createdAt: true, customer: { select: { name: true } }, seller: { select: { name: true } } } } },
+      select: { id: true, quantity: true, serials: true, serialsPending: true, stockPending: true, unitPricePyg: true, order: { select: { id: true, orderNumber: true, status: true, createdAt: true, customer: { select: { name: true } }, seller: { select: { name: true } } } } },
       orderBy: { order: { createdAt: 'asc' } },
       take: 1000,
     }),

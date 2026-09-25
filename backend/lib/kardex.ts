@@ -155,6 +155,8 @@ export type VentaKardex = {
   quantity: number
   serials: unknown
   serialsPending: number
+  // Unidades sin serial vendidas sobre pedido: tampoco descontaron stock.
+  stockPending: number
   unitPricePyg: number
   order: { id: string; orderNumber: string; status: string; createdAt: Date; customer: { name: string } | null; seller: { name: string } | null }
 }
@@ -172,7 +174,7 @@ function deltaDeRestitucion(item: VentaKardex, restock: string | null): number {
   const seriales = serialesDe(item.serials)
   if (restock === 'NONE') return 0
   if (seriales.length) return restock === 'AVAILABLE' ? seriales.length : 0
-  return numero(item.serialsPending) === 0 ? numero(item.quantity) : 0
+  return numero(item.serialsPending) === 0 && numero(item.stockPending) === 0 ? numero(item.quantity) : 0
 }
 
 export function eventosDeVentas(items: VentaKardex[], adjuntosPorItem: Map<string, AdjuntoSerialKardex[]>, restitucionesPorPedido: Map<string, RestitucionKardex[]>, opciones: { precios?: boolean } = {}): KardexEvento[] {
@@ -184,7 +186,7 @@ export function eventosDeVentas(items: VentaKardex[], adjuntosPorItem: Map<strin
     const adjuntado = adjuntos.reduce((suma, adjunto) => suma + numero(adjunto.cantidad), 0)
     // Lo que salió al crear el pedido: el total ya salido menos lo que se
     // entregó después (los IMEI que se adjuntan descuentan stock al asignarse).
-    const inicial = Math.max(0, cantidad - numero(item.serialsPending) - adjuntado)
+    const inicial = Math.max(0, cantidad - numero(item.serialsPending) - numero(item.stockPending) - adjuntado)
     const cliente = item.order.customer?.name ?? 'Consumidor final'
     if (inicial > 0) {
       eventos.push({

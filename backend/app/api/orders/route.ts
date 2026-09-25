@@ -349,7 +349,7 @@ export async function POST(request: Request) {
           create: { tenantId: tenant, customerId, name: billingName, document: billingDocument, createdById: session.user.id },
         })
       }
-      let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; listPricePyg?: number; priceSource?: string; priceListId?: string; totalPyg: number; discountPyg: number; discountPct?: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; costPending: boolean; promotionSnapshot?: any; comboId?: string; comboName?: string }> = []
+      let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; listPricePyg?: number; priceSource?: string; priceListId?: string; totalPyg: number; discountPyg: number; discountPct?: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; stockPending: number; costPending: boolean; promotionSnapshot?: any; comboId?: string; comboName?: string }> = []
       const soldUnits: Array<{ id: string; serial: string; productId: string }> = []
       const serialsInOrder = new Set<string>()
       // Diferencia acumulada entre precio de lista y precio cargado (venta bajo
@@ -378,7 +378,10 @@ export async function POST(request: Request) {
         } else if (item.comboName !== undefined && item.comboName !== null && item.comboName !== '') {
           comboName = textInput(item.comboName, 'comboName', 200)
         }
-        let unitCostPyg: number | undefined; let baseUnitCostPyg: number | undefined; let listPricePyg: number | undefined; let priceSource: string | undefined; let insurancePyg = 0; let extraCostPyg = 0; let costPending = false; let serialsPending = 0
+        let unitCostPyg: number | undefined; let baseUnitCostPyg: number | undefined; let listPricePyg: number | undefined; let priceSource: string | undefined; let insurancePyg = 0; let extraCostPyg = 0; let costPending = false; let serialsPending = 0; let stockPending = 0
+        // Venta marcada «sobre pedido» (#148 §11): el POS la manda cuando el
+        // vendedor decide vender sin unidad/stock. No descuenta existencia.
+        const backorder = item.backorder === true
         const soldWithoutInsurance = item.soldWithoutInsurance === true
         if (item.soldWithoutInsurance !== undefined && typeof item.soldWithoutInsurance !== 'boolean') throw new InputError('"Vendido sin seguro" debe ser verdadero o falso.')
         if (item.extraCostPyg !== undefined) {
@@ -456,7 +459,10 @@ export async function POST(request: Request) {
           if (trackedUnitCount === 0 && serials.length) throw new InputError('Este producto no tiene unidades serializadas en stock.')
           if (serials.length !== quantity) {
             if (trackedUnitCount === 0) {
-              // Producto sin unidades serializadas: se vende por cantidad, sin IMEI.
+              // Producto sin unidades serializadas: se vende por cantidad, sin
+              // IMEI. Si el vendedor lo marcó sobre pedido, la cantidad queda
+              // pendiente de stock (no hay existencia que descontar).
+              if (backorder) stockPending = quantity
             } else {
               // Venta sobre pedido: sin stock disponible, el cliente reserva y
               // el IMEI se completa al entregar.
@@ -479,7 +485,7 @@ export async function POST(request: Request) {
           }
           // Solo los equipos realmente entregados descuentan stock; el tramo
           // "sobre pedido" no tiene existencia física que descontar.
-          const decrementBy = quantity - serialsPending
+          const decrementBy = quantity - serialsPending - stockPending
           if (decrementBy > 0) {
             if (offlineSale) {
               // Stock laxo: se descuenta solo lo disponible (el contador nunca
@@ -489,7 +495,7 @@ export async function POST(request: Request) {
               if (aDescontar > 0) await changeStock(tx, { tenantId: tenant, productId: product.id, delta: -aDescontar, branchId, includeBranchless: true, message: 'Stock insuficiente o producto fuera de la sucursal.' })
               stockFaltante += decrementBy - aDescontar
             } else {
-              await changeStock(tx, { tenantId: tenant, productId: product.id, delta: -decrementBy, branchId, includeBranchless: true, message: 'Stock insuficiente o producto fuera de la sucursal.' })
+              await changeStock(tx, { tenantId: tenant, productId: product.id, delta: -decrementBy, branchId, includeBranchless: true, message: `Sin stock de ${product.name} en esta sucursal: marcala como «sobre pedido» para vender sin unidad.` })
             }
           }
         }
@@ -504,7 +510,7 @@ export async function POST(request: Request) {
         subtotal += lineTotal
         if (!Number.isSafeInteger(subtotal)) throw new Error('Total fuera de rango seguro.')
         normalized.push({ productId: item.productId || undefined, description: typeof item.description === 'string' && item.description.trim() ? item.description.trim() : 'Producto', quantity, unitPricePyg: price, ...(listPricePyg === undefined ? {} : { listPricePyg }),
-          ...(priceSource === undefined ? {} : { priceSource }), ...(priceListId ? { priceListId } : {}), ...(unitCostPyg === undefined ? {} : { unitCostPyg }), ...(baseUnitCostPyg === undefined ? {} : { baseUnitCostPyg }), insurancePyg, extraCostPyg, soldWithoutInsurance, serials, serialsPending, costPending, discountPyg: lineDiscount, ...(discountPct !== undefined ? { discountPct } : {}), totalPyg: lineTotal, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}), ...(comboId ? { comboId } : {}), ...(comboName ? { comboName } : {}) })
+          ...(priceSource === undefined ? {} : { priceSource }), ...(priceListId ? { priceListId } : {}), ...(unitCostPyg === undefined ? {} : { unitCostPyg }), ...(baseUnitCostPyg === undefined ? {} : { baseUnitCostPyg }), insurancePyg, extraCostPyg, soldWithoutInsurance, serials, serialsPending, stockPending, costPending, discountPyg: lineDiscount, ...(discountPct !== undefined ? { discountPct } : {}), totalPyg: lineTotal, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}), ...(comboId ? { comboId } : {}), ...(comboName ? { comboName } : {}) })
       }
       if (discount > subtotal) throw new Error('El descuento no puede superar el subtotal.')
       const total = subtotal - discount + delivery
