@@ -22,6 +22,7 @@ import ComandosAtajos from '@/components/control/ComandosAtajos'
 import { usePrefetchSecciones } from '@/hooks/usePrefetchSecciones'
 import { useBloqueoInactividad } from '@/hooks/useBloqueoInactividad'
 import CheatSheetAtajos from '@/components/app/CheatSheetAtajos'
+import NavegacionConfig from '@/components/control/config/NavegacionConfig'
 
 // Vistas pesadas en lazy: su código se descarga recién cuando se navega a ellas.
 const VistaCargarVenta = lazy(() => import('@/components/ventas/VistaCargarVenta'))
@@ -893,12 +894,7 @@ export default function PanelVendedor() {
           )}
           {vista === 'precios' && <Precios />}
           {esOwner && subpadre === 'configuracion' && (
-            <div className="space-y-3">
-              <Subtabs
-                value={vista}
-                onChange={irASubtab}
-                items={tabsConfig}
-              />
+            <NavegacionConfig value={vista} onChange={irASubtab} items={tabsConfig}>
               {vista === 'mi-cuenta' && <Config seccion="mi-cuenta" preferencias={preferencias} onCambiarPreferencias={cambiarPreferencias} />}
               {vista === 'organizacion' && <Config seccion="organizacion" />}
               {vista === 'equipo' && (
@@ -929,7 +925,7 @@ export default function PanelVendedor() {
               {vista === 'sistema' && (esDemo
                 ? <DemoNoDisponible modulo="Estado del sistema" motivo="Consulta los servicios reales de MobOS (API, base e impresión)." />
                 : <EstadoSistema />)}
-            </div>
+            </NavegacionConfig>
           )}
           {subpadre === 'ayuda' && (
             <div className="space-y-3">
