@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
@@ -19,6 +19,10 @@ import { cn } from '@/lib/utils'
 // por cantidad. Vive en su propio archivo para que cada dominio trabaje su
 // grupo sin tocar Config.jsx (reparto #253).
 //
+
+// Precios se descarga recién al entrar al grupo: no engorda el chunk de
+// Configuración ni el de las otras secciones.
+const Precios = lazy(() => import('@/components/control/Precios'))
 
 export default function Comercial({ account, onTenantChange, onReauth }) {
   const { actualizarEmpresa, esDemo } = useSesion()
@@ -199,6 +203,10 @@ export default function Comercial({ account, onTenantChange, onReauth }) {
           {guardadoLimites.panel}
         </Card>
       </form>
+
+      <Suspense fallback={null}>
+        <Precios />
+      </Suspense>
     </div>
   )
 }

@@ -90,7 +90,7 @@ test('Configuración tiene siete secciones y ninguna duplica contenido', async (
   await expect(page.getByText('Mi foto')).toHaveCount(1)
 })
 
-test('Mi cuenta se abre desde el avatar; Precios queda con una sola entrada', async ({ page }) => {
+test('Mi cuenta se abre desde el avatar; Precios vive en una sola pantalla', async ({ page }) => {
   // La superficie personal se entra desde el avatar (pie del menú); la ruta
   // vieja de identidad cae en Mi cuenta (#253).
   await page.goto('/configuracion/mi-cuenta')
@@ -102,11 +102,11 @@ test('Mi cuenta se abre desde el avatar; Precios queda con una sola entrada', as
   await page.goto('/configuracion/identidad')
   await expect(page).toHaveURL(/\/configuracion\/mi-cuenta$/)
 
-  // Precios: una sola entrada visible (Inventario → Precios). Comercial no lo
-  // duplica; la ruta propia de listas sigue viva.
+  // Precios: una sola pantalla (Inventario → Precios) que Comercial reúne con
+  // el resto de los ajustes comerciales; la ruta propia sigue viva.
   await page.goto('/configuracion/comercial')
   await expect(page.getByRole('heading', { name: 'Seguro de ventas' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Listas de precios' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Listas de precios' })).toBeVisible()
   await page.goto('/precios')
   await expect(page.getByRole('heading', { name: 'Listas de precios' })).toBeVisible()
   await capturar(page, 'precios')
