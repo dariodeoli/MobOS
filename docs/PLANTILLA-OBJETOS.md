@@ -333,6 +333,10 @@ navegación propia por pantalla.
   pantalla no es navegación.
 - En móvil la navegación va al cajón y los destinos frecuentes a la barra
   inferior (`ESPACIO_BARRA_INFERIOR` en el contenido, nunca espacio a mano).
+- **Ayuda de atajos: `app/CheatSheetAtajos` (#241).** Cheat-sheet visual único
+  (grupos Buscar/Vender/Ventanas, teclas como keycaps, gestos del chip de
+  usuario, nota de Mac y aviso de campos de texto) que alimenta el diálogo «?»
+  del shell y la Ayuda. No se copia la lista en otra pantalla.
 - Identidad de la sesión en el pie con `PersonaChip` (ver sección 6) y
   **presencia** en el topbar con `PilaPersonas` (pila con «+N» y
   `resumenPresencia`); el encabezado de la vista lleva la **miga de sección**

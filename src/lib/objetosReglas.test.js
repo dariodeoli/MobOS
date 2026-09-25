@@ -458,6 +458,20 @@ test('el informe público usa MedidorBateria y la condición compartida (#240)',
   assert.ok(!/batteryHealth\) >= 85/.test(pagina), 'los umbrales de batería salen de MedidorBateria')
 })
 
+// Ayuda: el cheat-sheet visual de atajos vive en un solo objeto; el diálogo
+// «?» del shell lo reutiliza y nadie vuelve a copiar la lista a mano.
+test('el cheat-sheet de atajos vive en app/CheatSheetAtajos (#241)', () => {
+  const hoja = readFileSync(join(RAIZ, 'components/app/CheatSheetAtajos.jsx'), 'utf8')
+  for (const accion of ['Búsqueda global', 'Nueva venta', 'Buscar producto', 'Crear cliente', 'Cotizar equipo (Trade-In)', 'Guardar venta', 'Cerrar diálogos', 'Cambiar vendedor', 'Bloquear pantalla']) {
+    assert.match(hoja, new RegExp(accion.replace(/[()]/g, '\\$&')), `falta «${accion}» en el cheat-sheet`)
+  }
+  assert.match(hoja, /Fn\+F1/, 'la nota de Mac explica Fn+F1…F4')
+  const panel = readFileSync(join(RAIZ, 'pages/PanelVendedor.jsx'), 'utf8')
+  assert.match(panel, /import CheatSheetAtajos from '@\/components\/app\/CheatSheetAtajos'/, 'el panel importa el objeto')
+  assert.match(panel, /<CheatSheetAtajos\b/, 'el diálogo de atajos usa el objeto compartido')
+  assert.ok(!panel.includes("'Ctrl+K', 'Búsqueda global'"), 'la lista de atajos no se copia en el panel')
+})
+
 // Lote 15 / paso 4 (#241): el rack del piloto delega el grado y la batería en
 // el objeto compartido `TileEquipo`, que compone GradoBadge y MedidorBateria.
 test('el modo taller usa el tile compartido para grado y batería (#240)', () => {
