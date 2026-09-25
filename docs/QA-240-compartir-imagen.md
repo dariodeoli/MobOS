@@ -49,6 +49,15 @@ el comprobante de compra se descarga como `comprobante-<código>.png` (>10 KB),
 deja *Imagen descargada*, limpia el iframe y muestra las acciones Compartir/PNG/
 Copiar en el modal.
 
+## Verificación en producción (v1.0.172)
+
+`scripts/qa-240-prod-impresion.mjs` (demo, sin credenciales) bajó el
+**certificado como PNG** desde la app desplegada: `certificado-phonecheck-0000.png`
+de **179 KB** con firma PNG, guardado en `docs/qa/240-impresion-prod/`. La misma
+corrida verificó informe, certificado y constancia en 80/A4 (1 página, QR
+decodificado) y las **etiquetas de unidad** del taller (3 páginas). Reporte:
+`docs/qa/240-impresion-prod/REPORTE.md`.
+
 Capturas: `01-certificado-modal.jpg`, `02-etiquetas-taller-modal.jpg`;
 muestras de salida: `certificado-80mm.png` (rollo, 194 KB) y el PDF que sigue
 saliendo por «Descargar PDF» sin cambios.
