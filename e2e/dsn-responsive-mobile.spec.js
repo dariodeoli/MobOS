@@ -5,6 +5,7 @@
 // elemento cortado o un control clave por debajo de 44 (mobile).
 import { test, expect } from '@playwright/test'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { cerrarGuiaDemo } from './helpers/demo.js'
 
 const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/responsive-mobile'
 const ANCHOS = [[360, 740], [390, 844], [414, 896], [768, 1024]]
@@ -330,4 +331,74 @@ test.describe('auditoría responsive mobile', () => {
   auditarPantallas([], PANTALLAS)
   auditarSuperficies([])
   auditarConfiguracion([])
+})
+
+// ── Demo (local) ──────────────────────────────────────────────────────────
+// La demo pública es una superficie propia: datos ficticios y sesión en
+// memoria, sin storageState. Se entra por /demo como dueño y se auditan el POS
+// con carrito y las páginas clave con el mismo criterio del barrido.
+test.describe('demo · POS y páginas clave', () => {
+  test.use({ storageState: undefined })
+
+  async function entrarDemoDueno(page) {
+    await page.goto('/demo')
+    await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
+    await page.waitForURL((url) => !url.pathname.startsWith('/demo'))
+    await cerrarGuiaDemo(page)
+  }
+
+  test('demo 360/390/414/768: sin scroll, sin cortes y targets clave en 44', async ({ page }) => {
+    test.slow()
+    mkdirSync(SHOTS, { recursive: true })
+    await entrarDemoDueno(page)
+
+    const claveDemo = [{ nombre: 'menú de acciones (POS)', selector: '[data-testid="menu-acciones"]' }]
+    const pantallas = [
+      ['demo-pos', '/pos', (page) => page.getByRole('heading', { name: 'Nueva venta' }), async (page, ancho) => {
+        if (ancho !== 390) return
+        await page.getByPlaceholder('Buscar producto…').fill('iPhone 15 Pro')
+        const producto = page.getByRole('button', { name: /iPhone 15 Pro 256GB/ }).first()
+        await expect(producto).toBeVisible({ timeout: 20_000 })
+        await producto.click()
+        await expect(page.getByRole('button', { name: /^Ver detalle de iPhone 15 Pro/ }).first()).toBeVisible({ timeout: 20_000 })
+      }],
+      ['demo-pedidos', '/pedidos', (page) => page.getByTestId('pedido-fila').first()],
+      ['demo-clientes', '/clientes', (page) => page.getByTestId('cliente-fila').first()],
+      ['demo-inventario', '/inventario/unidades', (page) => page.getByTestId('inventario-fila').first()],
+      ['demo-finanzas', '/finanzas/caja', (page) => page.getByText('Saldo esperado').first()],
+    ]
+    const registro = []
+    for (const [nombre, ruta, listo, preparar] of pantallas) {
+      for (const [ancho, alto] of ANCHOS) {
+        await page.setViewportSize({ width: ancho, height: alto })
+        await page.goto(ruta)
+        await expect(listo(page)).toBeVisible({ timeout: 30_000 })
+        if (preparar) await preparar(page, ancho)
+        const medicion = await auditar(page, nombre === 'demo-pos' ? claveDemo : [])
+        registro.push({ pantalla: nombre, ancho, ...medicion })
+        console.log(`[${nombre}-${ancho}] scroll=${medicion.overflowH}px cortados=${medicion.totalCortados} chicos=${medicion.totalChicos}`)
+        exigirMedicion(medicion, `${nombre} ${ancho}`)
+        if (ancho === 390) await page.screenshot({ path: `${SHOTS}/${nombre}-390.png` })
+      }
+    }
+    writeFileSync(`${SHOTS}/auditoria-demo-responsive.json`, JSON.stringify(registro, null, 2))
+    expect(registro).toHaveLength(pantallas.length * ANCHOS.length)
+  })
+
+  test('demo · menú de tres puntos desplegado en 390', async ({ page }) => {
+    mkdirSync(SHOTS, { recursive: true })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await entrarDemoDueno(page)
+    await page.goto('/pos')
+    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible({ timeout: 30_000 })
+    await page.getByTestId('menu-acciones').click()
+    await expect(page.getByTestId('menu-acciones-lista')).toBeVisible()
+    const medicion = await auditar(page, CLAVE['pos-menu'])
+    console.log(`[demo-pos-menu-390] scroll=${medicion.overflowH}px cortados=${medicion.totalCortados} chicos=${medicion.totalChicos}`)
+    exigirMedicion(medicion, 'demo pos-menu 390')
+    for (const grupo of medicion.clave) {
+      for (const nodo of grupo.nodos) console.log(`[demo-pos-menu-390] clave ${grupo.nombre}: ${nodo.texto} ${nodo.dibujo} → ${nodo.ancho}x${nodo.alto}`)
+    }
+    await page.screenshot({ path: `${SHOTS}/demo-pos-menu-390.png` })
+  })
 })
