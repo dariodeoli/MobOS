@@ -17,7 +17,7 @@ const SECCIONES = [
   ['Mi cuenta', 'Tu nombre de vendedor', 'mi-cuenta'],
   ['Organización', 'Datos de la tienda', 'organizacion'],
   ['Equipo y acceso', 'Funcionarios y metas', 'equipo'],
-  ['Comercial', 'Seguro y límites', 'comercial'],
+  ['Comercial', 'Seguro de ventas', 'comercial'],
   ['Seguridad y auditoría', 'Sesiones activas', 'seguridad'],
   ['Dispositivos', 'Estado del sistema de impresión', 'dispositivos'],
   ['Sistema', 'Sincronización', 'sistema'],
