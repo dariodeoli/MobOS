@@ -511,6 +511,11 @@ por el sistema.
   Excepciones legítimas: plantillas de impresión (papel siempre claro), marcas
   de terceros (Google, bancos, medios de pago) y datos de color (catálogo de
   productos, diagramas).
+- **Profundidad del tema (#241, v0.25.0):** el lienzo claro queda más profundo
+  (#F1F4F8) con tarjetas blancas y paneles en capas, bordes #D5DCE6 y sombras
+  por tema (`shadow-card` en tarjetas, `shadow-float` en modales/cajones/
+  popovers); el `Card` deja el borde de marca por borde neutro + sombra. En
+  oscuro: capas #181D27/#1F2430/#242A38 y bordes #3E475A.
 - **Paleta global v2 (#241, rollout aprobado):** el lenguaje "device ops"
   (consola clara/oscura, base oscura `#0E1116`/`#1F2430`, verde pass `#22C55E`,
   azul acción `#4D7CFE`) es la **paleta global** de la biblioteca desde
