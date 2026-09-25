@@ -64,8 +64,11 @@ informe a **gate**.
 `e2e/dsn-responsive-mobile.spec.js` ahora **falla** si aparece scroll
 horizontal, un elemento cortado, un botón del topbar del shell sin área de 44 o
 un **control clave** por debajo de 44 (menú de tres puntos y sus ítems). Corre
-en el proyecto `admin` y quedó **9/9 en verde** (8 pantallas × 4 anchos + modal
-+ oscuro + las 4 superficies de la segunda vuelta).
+en el proyecto `admin` y quedó **12/12 en verde** (8 pantallas × 4 anchos +
+modal + oscuro + las 4 superficies de la segunda vuelta + los 7 grupos de
+Configuración + la demo). En **mobile (≤ 414) la exigencia es total**: no puede
+quedar **ningún** target < 44 (no solo los clave); en 768 los conteos son
+informativos (densidad de escritorio).
 
 ```bash
 MOBOS_E2E_PGDATA=/tmp/mobos-e2e-pg-MOS-DSN MOBOS_E2E_PGPORT=5503 \
@@ -91,8 +94,9 @@ pedido) entró al gate con esta pasada: 0 scroll, 0 cortados y 0 targets chicos
 en los cuatro anchos, sin fixes.
 
 Scroll horizontal y elementos cortados: **0 en todas las combinaciones**, antes
-y después. Lo que queda en mobile es el pie “Desarrollado por Owncoding” y los
-enlaces de texto del demo/landing (**H6**, ver abajo): en los 768 conviven con
+y después. Con el cierre de H6 **en mobile no queda ningún target < 44**: los
+enlaces de texto (pie, demo, landing y “Copiar enlace”/“Regenerar” del pedido)
+sumaron área táctil de 44 sin cambiar el dibujo. En los 768 conviven con
 la densidad de escritorio de las tablas, que va dentro de un contenedor con
 scroll horizontal propio y por eso ya no se cuenta como target mobile.
 
@@ -165,9 +169,11 @@ lleva las capturas por pantalla y el JSON crudo de la auditoría.
   los mide por su label.
 - **H5 (P2) Landing** ✅ CTA del demo en 44; esta pasada sumó el logo del
   encabezado.
-- **H6 (P3) Links de texto** ⏳ **decisión de Dario**: crédito del pie, “Volver
-  a la landing”, “Copiar enlace”/“Regenerar” del detalle de pedido y los enlaces
-  de texto de la landing. Hoy no se tocan.
+- **H6 (P3) Links de texto** ✅ **cerrado**: el crédito del pie, “Volver a la
+  landing”, “Ingresar con mi cuenta”, los enlaces de la landing
+  (“Ver cómo funciona”, “Configurar mi tienda”) y “Copiar enlace”/“Regenerar”
+  del detalle de pedido sumaron área táctil de 44. Los que comparten fila con
+  otro control (ImeiVerificador) crecen dibujados para no solaparse.
 - **Superficies de la segunda vuelta** ✅ medidas: menú desplegado, bloqueo/PIN,
   detalle de pedido y ficha de unidad (capturas y JSON en la evidencia).
 - **Portal público** ✅ medido e incorporado al gate: la página del pedido que
@@ -175,12 +181,23 @@ lleva las capturas por pantalla y el JSON crudo de la auditoría.
 - **Configuración (7 grupos)** ✅ incorporada al gate tras #253: los 7 grupos
   miden 0 scroll y 0 cortes a 360/390/414/768, y el barrido destapó tres fixes
   táctiles en las secciones (Editar nombre, Copiar prompt y Actualizar de
-  Auditoría), que quedaron en 44. En mobile solo queda el enlace H6 de crédito.
+  Auditoría), que quedaron en 44.
+- **Equipo y acceso, Organización, Dispositivos y el historial de Seguridad**
+  sumaron sus propios ajustes al volver determinista la espera de contenido:
+  acciones de fila de integrantes (Historial/Horario/PIN/Permisos) con 44×44 en
+  mobile, solapas e inputs de la lista, “Editar/Desactivar” de sucursales, los
+  ghost de Impresoras (Gestionar puentes/Ver cola/Olvidar) y “Cargar más” /
+  “Exportar CSV” de Auditoría. En mobile **no queda ningún target < 44**.
 - **Demo (local)** ✅ verificada con los fixes aplicados: POS con carrito,
   Pedidos, Clientes, Inventario y Finanzas + el menú de tres puntos desplegado,
   a 360/390/414/768. 0 scroll y 0 cortes; el botón «Cómo funciona» del banner
-  demo pasó de 22 a 44 en esta pasada y mobile queda solo con el enlace H6.
+  demo pasó de 22 a 44 en esta pasada y mobile queda sin targets < 44.
   Evidencia: `docs/qa/249-cierre-responsive/demo-antes/` y `.../demo-despues/`.
+- **AA del shell v2 en producción** ✅ verificado contra `app.moboss.online`
+  (v1.0.172) entrando por la demo: claro/oscuro × desktop/mobile + menú
+  abierto, **0 bajos de AA** en los 6 estados. Script:
+  `scripts/qa-241-shell-produccion.mjs`; evidencia:
+  `docs/qa/241-shell-produccion/` y `docs/QA-241-shell-produccion.md`.
 
 ## Plan
 
