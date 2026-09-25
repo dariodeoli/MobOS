@@ -18,7 +18,7 @@ test('demo: la venta del POS actualiza la actividad y los agregados del cliente'
   await cerrarGuiaDemo(page)
 
   // Estado inicial de Lucía: 5 compras válidas y Gs 7.750.000 (#221).
-  await nav.getByRole('button', { name: 'Clientes', exact: true }).click()
+  await nav.locator('button[aria-label="Clientes"]').click()
   await page.getByLabel('Buscar clientes').fill('Lucía')
   const fila = page.getByTestId('cliente-fila').filter({ hasText: 'Lucía Fernández' }).first()
   await expect(fila).toContainText('Gs 7.750.000')
@@ -49,7 +49,7 @@ test('demo: la venta del POS actualiza la actividad y los agregados del cliente'
   // CRM: la fila sube por actividad reciente y suma la venta (se espera a que
   // el aviso de demo se desvanezca para que la captura salga limpia).
   await page.waitForTimeout(5000)
-  await nav.getByRole('button', { name: 'Clientes', exact: true }).click()
+  await nav.locator('button[aria-label="Clientes"]').click()
   await page.getByLabel('Buscar clientes').fill('Lucía')
   await expect(fila).toContainText('6')
   const esperado = `Gs ${(7750000 + monto).toLocaleString('es-PY')}`

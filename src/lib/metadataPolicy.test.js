@@ -47,10 +47,11 @@ test('las vistas nuevas del panel tienen título propio y no se indexan', () => 
     '/plantillas': 'Plantillas de WhatsApp',
     '/trade-in': 'Trade-In',
     '/compras': 'Compras',
-    '/servicio': 'Servicio posventa',
-    '/garantias': 'Garantías',
+    '/servicio': 'Taller',
+    '/garantias': 'Taller',
     '/autorizaciones': 'Autorizaciones',
-    '/resumen': 'Resumen',
+    '/resumen': 'Inicio',
+    '/ops': 'Tablero de operaciones',
   }
   for (const [pathname, label] of Object.entries(rutas)) {
     const metadata = resolvePageMetadata({ pathname })

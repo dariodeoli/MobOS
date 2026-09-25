@@ -15,8 +15,8 @@ import Garantias from './Garantias'
 import ServicioTecnico from './ServicioTecnico'
 import TableroServicioGarantias from './TableroServicioGarantias'
 
-// Módulo unificado “Servicio y Garantías” (#224): una garantía puede ingresar
-// al taller, así que viven juntos pero con distinción clara. La pestaña Todo
+// Sección «Taller» (#224/#251): una garantía puede ingresar al taller, así que
+// viven juntas como una sola sección con pestañas internas. La pestaña Todo
 // lista ambos orígenes con su badge y permite convertir una garantía en orden
 // de servicio conservando el historial; las otras pestañas son las pantallas
 // de detalle de siempre y el tablero por etapas (#215).
@@ -170,7 +170,7 @@ export default function ServicioGarantias({ vistaInicial = 'servicio' }) {
   return (
     <div className="space-y-4" data-testid="servicio-garantias">
       <div className="flex flex-wrap items-center gap-2">
-        <SegmentedField value={vista} onChange={setVista} ariaLabel="Ver servicio o garantías" options={TABS} />
+        <SegmentedField value={vista} onChange={setVista} ariaLabel="Ver taller o garantías" options={TABS} />
       </div>
 
       {vista === 'servicio' && <ServicioTecnico />}

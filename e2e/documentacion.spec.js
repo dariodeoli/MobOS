@@ -27,7 +27,7 @@ test('la documentación filtra por módulo y avisa cuando no hay resultados', as
   await expect(page.getByText('Sin resultados.')).toBeVisible()
 })
 
-// Secciones del CRM (#182): Clientes, Garantías y Servicio Técnico con
+// Secciones del CRM (#182): Clientes, Garantías y Taller con
 // ubicación exacta y enlace directo que funciona.
 test('la documentación cubre clientes, garantías y servicio técnico', async ({ page }) => {
   await page.goto('/configuracion/documentacion')
@@ -39,20 +39,20 @@ test('la documentación cubre clientes, garantías y servicio técnico', async (
   await page.getByRole('button', { name: 'Ir a Seguro del cliente (interruptor y %)' }).click()
   await expect(page).toHaveURL(/\/clientes$/)
 
-  // Garantías: el módulo filtra sus entradas y el enlace abre Garantías.
+  // Taller: el módulo filtra sus entradas y el enlace abre Garantías.
   await page.goto('/configuracion/documentacion')
   const pantalla = page.getByTestId('documentacion')
-  await pantalla.getByRole('button', { name: 'Garantías', exact: true }).click()
+  await pantalla.getByRole('button', { name: 'Taller', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Enlace público y QR del caso' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Estados y avance de la garantía' })).toBeVisible()
   await page.getByRole('button', { name: 'Ir a Enlace público y QR del caso' }).click()
   await expect(page).toHaveURL(/\/garantias$/)
 
-  // Servicio Técnico: WhatsApp por estado y enlace al taller.
+  // Taller: WhatsApp por estado y enlace al taller.
   // El módulo elegido queda como «último usado» (#209): se elige explícito
   // para no depender de lo recordado por el paso anterior.
   await page.goto('/configuracion/documentacion')
-  await pantalla.getByRole('button', { name: 'Servicio Técnico', exact: true }).click()
+  await pantalla.getByRole('button', { name: 'Taller', exact: true }).click()
   await page.getByLabel('Buscar en la documentación').fill('whatsapp por estado')
   await expect(page.getByRole('heading', { name: 'WhatsApp por estado de la orden' })).toBeVisible()
   await page.getByRole('button', { name: 'Ir a WhatsApp por estado de la orden' }).click()

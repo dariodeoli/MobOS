@@ -48,9 +48,9 @@ test('el técnico entra a su taller, sin CTA de POS y sin rebotes', async ({ pag
 
     await page.goto('/')
     await expect(page).toHaveURL(/\/servicio$/)
-    await expect(page.locator('h1')).toHaveText('Servicio y Garantías')
+    await expect(page.locator('h1')).toHaveText('Taller')
     // Su nav no ofrece vender y el CTA del POS no aparece.
-    await expect(page.locator('aside nav').getByRole('button', { name: 'Servicio y Garantías', exact: true })).toBeVisible()
+    await expect(page.locator('aside nav').getByRole('button', { name: 'Taller y garantías', exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'POS', exact: true })).toHaveCount(0)
 
     // La URL del POS no es su lugar: vuelve al taller, sin quedar en /pos.

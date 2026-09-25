@@ -98,7 +98,7 @@ test('demo: la ficha del cliente abre sin sesión y no consulta el API', async (
   await page.waitForURL((url) => !url.pathname.startsWith('/demo'))
   // La guía de la demo se abre sola la primera vez por pestaña (#201).
   await cerrarGuiaDemo(page)
-  await page.locator('aside nav, nav').first().getByRole('button', { name: 'Clientes', exact: true }).click()
+  await page.locator('aside nav, nav').first().locator('button[aria-label="Clientes"]').click()
   await expect(page.getByRole('button', { name: '+ Crear cliente' })).toBeVisible()
 
   const marca = `DEMOQA${Date.now().toString(36).toUpperCase()}`
@@ -163,7 +163,7 @@ test('demo: ficha con deuda, cronología, seguro, portal y servicio', async ({ p
   await page.waitForURL((url) => !url.pathname.startsWith('/demo'))
   // La guía de la demo se abre sola la primera vez por pestaña (#201).
   await cerrarGuiaDemo(page)
-  await page.locator('aside nav, nav').first().getByRole('button', { name: 'Clientes', exact: true }).click()
+  await page.locator('aside nav, nav').first().locator('button[aria-label="Clientes"]').click()
 
   await page.getByLabel('Buscar clientes').fill('Lucía')
   const fila = page.getByTestId('cliente-fila').filter({ hasText: 'Lucía Fernández' }).first()
@@ -244,7 +244,7 @@ test('demo: ficha con deuda, cronología, seguro, portal y servicio', async ({ p
 
   // Un solo módulo “Servicio y Garantías” (#224): en “Todo” cada registro
   // muestra su tipo y la garantía ya convertida conserva su vínculo.
-  await page.getByRole('group', { name: 'Ver servicio o garantías' }).getByRole('button', { name: 'Todo', exact: true }).click()
+  await page.getByRole('group', { name: 'Ver taller o garantías' }).getByRole('button', { name: 'Todo', exact: true }).click()
   const filasDemo = page.getByTestId('servicio-garantia-fila')
   await expect(filasDemo.filter({ hasText: 'OS-#0001' }).getByText('Desde garantía')).toBeVisible()
   await expect(page.locator('[data-testid="servicio-garantia-fila"][data-tipo="GARANTIA"]').filter({ hasText: 'Lucía Fernández' }).getByText('En servicio')).toBeVisible()

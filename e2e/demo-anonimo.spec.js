@@ -120,23 +120,22 @@ const MODULOS_OWNER = [
   ['/delivery', 'Delivery'],
   ['/clientes', 'Clientes'],
   ['/promociones', 'Promociones'],
-  ['/precios', 'Listas de precios'],
+  ['/precios', 'Precios'],
   ['/cotizaciones', 'Cotizaciones'],
   ['/plantillas', 'Plantillas de WhatsApp'],
   ['/inventario', 'Unidades'],
   ['/compras', 'Compras'],
   ['/trade-in', 'Trade-In'],
-  ['/servicio', 'Servicio y Garantías'],
-  ['/garantias', 'Servicio y Garantías'],
+  ['/servicio', 'Taller'],
+  ['/garantias', 'Taller'],
   ['/autorizaciones', 'Autorizaciones'],
-  ['/resumen', 'Resumen general'],
+  ['/resumen', 'Inicio'],
   ['/analisis', 'Reportes'],
   ['/finanzas', 'Caja'],
   ['/configuracion', 'Equipo'],
   ['/configuracion/identidad', 'Mi identidad'],
   ['/configuracion/roles', 'Roles y permisos'],
   ['/configuracion/negocio', 'Negocio'],
-  ['/configuracion/precios', 'Listas de precios'],
   ['/configuracion/sucursales', 'Sucursales'],
   ['/configuracion/seguridad', 'Seguridad'],
   ['/configuracion/historial', 'Auditoría'],
@@ -451,7 +450,8 @@ test('configuración en demo muestra avisos claros y sin cargas colgadas', async
   await page.goto('/configuracion/sucursales')
   await expect(page.getByText('Las sucursales se administran con una cuenta real')).toBeVisible()
   await expect(page.getByText('Cargando sucursales…')).toHaveCount(0)
-  await page.goto('/configuracion/precios')
+  // Precios vive en Inventario (#251).
+  await page.goto('/precios')
   await expect(page.getByText('Las listas de precios se configuran con una cuenta real')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Ingresar con mi cuenta' })).toBeVisible()
 
@@ -467,23 +467,21 @@ test('el último usado es el default y se puede cambiar (#209)', async ({ page }
   await cerrarGuia(page)
 
   const irADocumentacion = async () => {
-    await page.getByRole('button', { name: 'Configuración', exact: true }).click()
-    await page.locator('main').getByRole('button', { name: 'Sistema', exact: true }).click()
-    await page.locator('main').getByRole('tab', { name: 'Documentación', exact: true }).click()
+    await page.goto('/configuracion/documentacion')
     await expect(page.getByRole('heading', { name: 'Documentación', exact: true })).toBeVisible()
   }
 
   await irADocumentacion()
-  const filtroPOS = page.locator('main').getByRole('button', { name: 'POS', exact: true })
+  const filtroVender = page.locator('main').getByRole('button', { name: 'Vender', exact: true })
   await expect(page.locator('main').getByRole('button', { name: 'Todo', exact: true })).toHaveAttribute('aria-pressed', 'true')
 
   // Elegir POS se recuerda dentro de la sesión (navegación SPA).
-  await filtroPOS.click()
-  await expect(filtroPOS).toHaveAttribute('aria-pressed', 'true')
-  await page.getByRole('button', { name: 'Resumen', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Resumen general' })).toBeVisible()
+  await filtroVender.click()
+  await expect(filtroVender).toHaveAttribute('aria-pressed', 'true')
+  await page.locator('aside nav').getByRole('button', { name: 'Inicio', exact: true }).last().click()
+  await expect(page.getByRole('heading', { name: 'Inicio' })).toBeVisible()
   await irADocumentacion()
-  await expect(filtroPOS).toHaveAttribute('aria-pressed', 'true')
+  await expect(filtroVender).toHaveAttribute('aria-pressed', 'true')
 
   // En la demo, recargar descarta lo recordado y vuelve el default sensato.
   await page.reload()

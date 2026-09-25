@@ -12,12 +12,13 @@ test.describe('seller permissions', () => {
     await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
     const sidebarNav = page.locator('aside nav')
-    // Seller nav (SELLER_NAV): these are visible.
-    for (const label of ['POS', 'Clientes', 'Mis pedidos', 'Productos', 'Promociones', 'Trade-In']) {
+    // Menú del vendedor (IA #251): cuatro grupos y solo sus módulos.
+    await expect(sidebarNav.locator('button[aria-expanded]')).toHaveText(['Vender', 'Clientes', 'Inventario', 'Operación'])
+    for (const label of ['POS', 'Mis pedidos', 'Cotizaciones', 'Promociones', 'Plantillas', 'Productos', 'Precios', 'Delivery', 'Trade-In']) {
       await expect(sidebarNav.getByRole('button', { name: label, exact: true })).toBeVisible()
     }
-    // Owner-only nav (OWNER_NAV): not rendered for sellers.
-    for (const label of ['Inventario', 'Compras', 'Garantías y servicio', 'Resumen', 'Análisis', 'Finanzas', 'Equipo y configuración']) {
+    // Módulos del dueño que el vendedor no ve.
+    for (const label of ['Inicio', 'Pedidos', 'Unidades', 'Compras', 'Traslados y tránsito', 'Lista por modelo', 'Comparador', 'Taller y garantías', 'Autorizaciones', 'Tablero de operaciones', 'Finanzas', 'Análisis', 'Configuración']) {
       await expect(sidebarNav.getByRole('button', { name: label, exact: true })).toHaveCount(0)
     }
   })

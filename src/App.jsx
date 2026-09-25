@@ -303,6 +303,8 @@ export default function App() {
           <Route path="/garantias" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/autorizaciones" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/resumen" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
+          {/* #251: el menú dice «Inicio»; /inicio es alias de la ruta canónica. */}
+          <Route path="/inicio" element={<Navigate to="/resumen" replace />} />
           {/* Apartados con pestañas: cada subpágina es un slug hijo recuperable
               (/configuracion/negocio, /analisis/reportes, /finanzas/caja,
               /inventario/unidades…). */}

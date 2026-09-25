@@ -17,15 +17,17 @@ Públicas: `/demo`, `/login`, `/restablecer-contrasena`, `/aceptar-invitacion/:t
 `/comparar`, `/celulares`, `/status`, `/` (landing). Interna: `/pos/*`
 (PanelVendedor, con `/:vista` opcional y subpáginas de Configuración con slug).
 
-### Navegación (`src/pages/PanelVendedor.jsx`)
-- `OWNER_NAV`: Operación (cargar, pedidos, clientes, promociones, cotizaciones) ·
-  Stock y servicio (inventario, productos, compras, trade-in, servicio, garantías,
-  autorizaciones) · Negocio (resumen, análisis, finanzas, configuración).
-- `SELLER_NAV`: Vender (cargar, pedidos, clientes) · Herramientas (productos,
-  promociones, trade-in, cotizaciones).
-- `TECNICO_NAV`: Taller (servicio técnico).
+### Navegación (`src/pages/PanelVendedor.jsx`, IA #251)
+- `OWNER_NAV`: Inicio (resumen) · Vender (POS, pedidos, cotizaciones, promociones,
+  plantillas) · Clientes · Inventario (productos, unidades, compras, traslados y
+  tránsito, precios, lista por modelo, comparador) · Operación (delivery, taller y
+  garantías, trade-in, autorizaciones, tablero `/ops`) · Finanzas · Análisis ·
+  Configuración.
+- `SELLER_NAV`: Vender (POS, pedidos, cotizaciones, promociones, plantillas) ·
+  Clientes · Inventario (productos, precios) · Operación (delivery, trade-in).
+- `TECNICO_NAV`: Operación → Taller y garantías.
 - Barras inferiores móvil: `SELLER_BOTTOM` / `OWNER_BOTTOM`.
-- Pantalla inicial por rol ya resuelta: dueño → `/pos/resumen`, vendedor → `/pos/cargar`.
+- Pantalla inicial por rol ya resuelta: dueño → `/resumen`, vendedor → `/pos`.
 
 ### Componentes compartidos (`src/components/ui/index.jsx`)
 Shell (AppShell), primitivas (Card, Button, Modal, Input, Select, Badge,
