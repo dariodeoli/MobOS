@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { readFileSync } from 'node:fs'
 import { codigoPedido } from '../src/utils/pedido.js'
 import { SEED } from './helpers/seed-data.js'
 
@@ -103,6 +104,31 @@ test('pedidos: el comprobante ofrece 80 mm, A4 y 58 mm con diseño propio', asyn
 
   await formato.getByRole('radio', { name: 'Formato A4' }).click()
   await expect(frame).toHaveAttribute('srcdoc', /@page\{size:A4;margin:18mm 16mm\}/, { timeout: 15000 })
+})
+
+// Comprobante como imagen en MobOS (#240/#220, coordinado con POS): desde el
+// mismo modal del comprobante se baja el PNG (y se comparte/copia con los otros
+// botones del objeto compartido), sin depender del diálogo de impresión.
+test('pedidos: el comprobante se descarga como imagen PNG', async ({ page }) => {
+  await page.goto('/pedidos')
+  await page.getByTestId('pedido-fila').first().click()
+  await expect(page.getByText('Artículos preparados')).toBeVisible()
+  await page.getByRole('button', { name: 'Imprimir comprobante' }).click()
+  await expect(page.locator('iframe[title="Vista previa del comprobante"]')).toBeVisible()
+
+  const [descarga] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('descargar-png').click(),
+  ])
+  expect(descarga.suggestedFilename()).toMatch(/^comprobante-.*\.png$/)
+  const png = readFileSync(await descarga.path())
+  expect(png.length).toBeGreaterThan(10_000)
+  expect(png.subarray(1, 4).toString('latin1')).toBe('PNG')
+  await expect(page.getByText('Imagen descargada')).toBeVisible({ timeout: 15_000 })
+  // El iframe del rasterizado se limpia (no queda basura oculta en el DOM).
+  await expect(page.locator('iframe[data-png-documento]')).toHaveCount(0)
+  await expect(page.getByTestId('compartir-imagen')).toBeVisible()
+  await expect(page.getByTestId('copiar-png')).toBeVisible()
 })
 
 // La cronología tiene que mostrar a la persona real que creó el pedido, no un

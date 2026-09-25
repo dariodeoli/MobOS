@@ -514,6 +514,7 @@ test('compartir documentos como imagen sale del objeto compartido (#240/#220)', 
     'components/inventory/DocumentoUnidadModal.jsx',
     'components/shared/EtiquetasProductoModal.jsx',
     'components/inventory/TallerRack.jsx',
+    'components/shared/ComprobantePreview.jsx',
   ]
   for (const ruta of pantallas) {
     assert.match(
