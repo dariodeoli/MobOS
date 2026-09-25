@@ -121,23 +121,23 @@ const MODULOS_OWNER = [
   ['/delivery', 'Delivery'],
   ['/clientes', 'Clientes'],
   ['/promociones', 'Promociones'],
-  ['/precios', 'Listas de precios'],
+  ['/precios', 'Precios'],
   ['/cotizaciones', 'Cotizaciones'],
   ['/plantillas', 'Plantillas de WhatsApp'],
   ['/inventario', 'Unidades'],
   ['/compras', 'Compras'],
   ['/trade-in', 'Trade-In'],
-  ['/servicio', 'Servicio y Garantías'],
-  ['/garantias', 'Servicio y Garantías'],
+  ['/servicio', 'Taller'],
+  ['/garantias', 'Taller'],
   ['/autorizaciones', 'Autorizaciones'],
-  ['/resumen', 'Resumen general'],
+  ['/resumen', 'Inicio'],
   ['/analisis', 'Reportes'],
   ['/finanzas', 'Caja'],
   ['/configuracion', 'Equipo'],
   ['/configuracion/identidad', 'Mi identidad'],
   ['/configuracion/roles', 'Roles y permisos'],
   ['/configuracion/negocio', 'Negocio'],
-  ['/configuracion/precios', 'Listas de precios'],
+  ['/configuracion/precios', 'Precios'],
   ['/configuracion/sucursales', 'Sucursales'],
   ['/configuracion/seguridad', 'Seguridad'],
   ['/configuracion/historial', 'Auditoría'],
@@ -468,21 +468,24 @@ test('el último usado es el default y se puede cambiar (#209)', async ({ page }
   await cerrarGuia(page)
 
   const irADocumentacion = async () => {
-    await page.locator('aside nav').getByRole('button', { name: 'Ayuda', exact: true }).click()
+    const nav = page.locator('aside nav')
+    const ayuda = nav.getByRole('button', { name: 'Ayuda', exact: true })
+    if (!(await ayuda.isVisible())) await nav.getByRole('button', { name: 'Configuración', exact: true }).first().click()
+    await ayuda.click()
     await expect(page.getByRole('heading', { name: 'Ayuda', exact: true })).toBeVisible()
   }
 
   await irADocumentacion()
-  const filtroPOS = page.locator('main').getByRole('button', { name: 'POS', exact: true })
+  const filtroModulo = page.locator('main').getByRole('button', { name: 'Vender', exact: true })
   await expect(page.locator('main').getByRole('button', { name: 'Todo', exact: true })).toHaveAttribute('aria-pressed', 'true')
 
-  // Elegir POS se recuerda dentro de la sesión (navegación SPA).
-  await filtroPOS.click()
-  await expect(filtroPOS).toHaveAttribute('aria-pressed', 'true')
-  await page.getByRole('button', { name: 'Resumen', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Resumen general' })).toBeVisible()
+  // Elegir Vender se recuerda dentro de la sesión (navegación SPA).
+  await filtroModulo.click()
+  await expect(filtroModulo).toHaveAttribute('aria-pressed', 'true')
+  await page.locator('aside nav').getByRole('button', { name: 'Inicio', exact: true }).last().click()
+  await expect(page.getByRole('heading', { name: 'Inicio' })).toBeVisible()
   await irADocumentacion()
-  await expect(filtroPOS).toHaveAttribute('aria-pressed', 'true')
+  await expect(filtroModulo).toHaveAttribute('aria-pressed', 'true')
 
   // En la demo, recargar descarta lo recordado y vuelve el default sensato.
   await page.reload()

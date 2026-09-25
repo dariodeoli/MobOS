@@ -12,7 +12,7 @@ const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 test.describe('owner panel', () => {
   test('resumen shows the dashboard KPIs', async ({ page }) => {
     await page.goto('/resumen')
-    await expect(page.getByRole('heading', { name: 'Resumen general' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Inicio' })).toBeVisible()
     await expect(page.getByText('Facturado', { exact: true })).toBeVisible()
     await expect(page.getByText('Ventas', { exact: true })).toBeVisible()
   })
@@ -296,7 +296,7 @@ test.describe('owner panel', () => {
   test('servicio técnico → crea la orden y avanza el pipeline', async ({ page }) => {
     await page.goto('/servicio')
     // Sección unificada (#224): el taller es una de sus solapas.
-    await expect(page.getByRole('heading', { name: 'Servicio y Garantías' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Taller' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Servicio', exact: true })).toBeVisible()
 
     const stamp = Date.now().toString(36)
@@ -959,7 +959,7 @@ test('clientes → el vendedor ve la ficha pero no configura el seguro', async (
 
   // El menú del vendedor no ofrece Garantías y servicio.
   const sidebarNav = vendedor.locator('aside nav')
-  await expect(sidebarNav.getByRole('button', { name: 'Clientes', exact: true })).toBeVisible()
+  await expect(sidebarNav.getByRole('button', { name: 'Clientes', exact: true }).last()).toBeVisible()
   await expect(sidebarNav.getByRole('button', { name: 'Garantías y servicio', exact: true })).toHaveCount(0)
   await contexto.close()
 })
@@ -1195,7 +1195,7 @@ test('servicio y garantías: la garantía pasa al taller con su historial', asyn
   const garantiaId = Array.isArray(garantia.body) ? garantia.body[0]?.id : garantia.body?.id
 
   // Una sola sección con pestañas: Todo | Servicio | Garantías.
-  const tabs = page.getByRole('group', { name: 'Ver servicio o garantías' })
+  const tabs = page.getByRole('group', { name: /Ver taller o garantías/ })
   await expect(tabs).toBeVisible()
   await tabs.getByRole('button', { name: 'Todo', exact: true }).click()
 
@@ -1242,7 +1242,12 @@ test('el menú de tres puntos queda corto y lo destructivo vive en Configuració
   await page.keyboard.press('Escape')
 
   // Preferencias del dispositivo: Configuración → Dispositivos → Preferencias.
-  await page.getByRole('button', { name: 'Configuración', exact: true }).click()
+  {
+    const nav = page.locator('aside nav')
+    const item = nav.getByRole('button', { name: 'Configuración', exact: true })
+    if (!(await item.last().isVisible())) await item.first().click()
+    await item.last().click()
+  }
   await page.locator('main').getByRole('button', { name: 'Dispositivos', exact: true }).click()
   await page.locator('main').getByRole('tab', { name: 'Preferencias', exact: true }).click()
   await expect(page.locator('#pref-bloqueo')).toBeVisible()

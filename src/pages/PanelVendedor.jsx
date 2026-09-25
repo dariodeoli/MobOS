@@ -22,6 +22,7 @@ import { usePreferencias } from '@/hooks/usePreferencias'
 import { PreferenciasContenido } from '@/components/app/Preferencias'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { useBloqueoInactividad } from '@/hooks/useBloqueoInactividad'
+import CheatSheetAtajos from '@/components/app/CheatSheetAtajos'
 
 // Vistas pesadas en lazy: su código se descarga recién cuando se navega a ellas.
 const VistaCargarVenta = lazy(() => import('@/components/ventas/VistaCargarVenta'))
@@ -234,6 +235,8 @@ const SUBPAGINAS = {
       ['sistema', 'Estado del sistema'],
     ],
   },
+  // Ayuda vive fuera de Configuración: se entra desde el shell (Documentación).
+  ayuda: { vista: 'ayuda', tabs: [['ayuda', 'Ayuda']] },
   analisis: { vista: 'analisis', tabs: TABS_ANALISIS },
   finanzas: { vista: 'finanzas', tabs: TABS_FINANZAS },
   inventario: { vista: 'inventario', tabs: TABS_INVENTARIO },
@@ -248,6 +251,7 @@ const MIGA_SUBPAGINA = {
   analisis: 'Análisis',
   finanzas: 'Finanzas',
   configuracion: 'Configuración',
+  ayuda: 'Ayuda',
 }
 // Pestañas visibles según el modo: créditos y cuotas solo fuera de la demo.
 function tabsDeSubpagina(slug, esDemo) {
@@ -870,6 +874,9 @@ export default function PanelVendedor() {
             </div>
           )}
           {vista === 'precios' && <Precios />}
+          {subpadre === 'ayuda' && (
+            <div className="space-y-3">{vista === 'ayuda' && <Documentacion />}</div>
+          )}
           {esOwner && subpadre === 'configuracion' && (
             <div className="space-y-3">
               <div className="flex flex-wrap gap-2" role="tablist" aria-label="Grupos de configuración">
@@ -1004,30 +1011,11 @@ export default function PanelVendedor() {
         open={ayudaAbierto}
         onClose={() => setAyudaAbierto(false)}
         title="Atajos de teclado" size="corto">
-        <div className="space-y-2.5">
-          {[
-            ['Ctrl+K', 'Búsqueda global'],
-            ['F1', 'Nueva venta'],
-            ['F2', 'Buscar producto'],
-            ['F3', 'Crear cliente'],
-            ['F4', 'Cotizar equipo (Trade-In)'],
-            ['Esc', 'Cerrar modales y diálogos'],
-          ].map(([tecla, descripcion]) => (
-            <div
-              key={tecla}
-              className="flex items-center justify-between gap-4 rounded-xl border border-fore/10 bg-fore/[.02] px-3.5 py-2.5"
-            >
-              <span className="text-sm text-fore">{descripcion}</span>
-              <kbd className="shrink-0 rounded-md border border-ink-500 bg-ink-700 px-2 py-0.5 text-xs font-semibold text-mute">
-                {tecla}
-              </kbd>
-            </div>
-          ))}
-        </div>
         <p className="mt-4 text-xs text-mute">
           Los atajos no funcionan mientras escribís en un campo o tenés un diálogo abierto.
         </p>
-      </Modal>
+        <CheatSheetAtajos />
+        </Modal>
 
       <ConfirmDialog
         open={salirAbierto}
