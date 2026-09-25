@@ -5,6 +5,21 @@ Material listo para el cierre del issue (lo publica el integrador). **Estado:
 integrador; la evidencia final (post-deploy v1.0.143) viajó en el merge
 `0553d1da` de la ola **v1.0.144**. Este dossier queda como registro del cierre.
 
+## Re-verificación final — v1.0.169 (25/9/2026)
+
+`MOBOS_QA_OUT=docs/CIERRE-236-221-v169/236 node scripts/qa-236-clientes-demo.mjs`
+contra `app.moboss.online` (demo pública, sin sesión y **sin llamadas al API de
+clientes**): **6/6 pasos OK** — lista estilo Pedidos con contacto, tipo, 5
+compras, total gastado, última compra y deuda; ojito con KPIs y acciones;
+detalle completo; ícono directo; «Editar» por Datos; y mobile con accesos
+táctiles de 44×44. Evidencia: `docs/CIERRE-236-221-v169/236/` (5 capturas +
+`resultados.json`).
+
+- **Hallazgo corregido:** el chip del tipo pasó a mayúsculas con el rediseño v2
+  (`v2-chip uppercase`) y el verificador comparaba «Cliente final» sensible a
+  caja; se ajustó a comparación sin caja. El contenido es el mismo de #236.
+- Regresión funcional: ninguna.
+
 Incremento posterior de la rama `slot/clientes`: **seguimiento del informe
 compartido visto/no visto** (#240 ítem 3) sobre la misma ficha de dispositivos
 de #236 — chip Visto/Sin ver por equipo + evento de apertura en la cronología

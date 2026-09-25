@@ -7,6 +7,21 @@ de la rama `slot/clientes` quedó integrado por `52836152` (22/9 05:34) y salió
 **v1.0.140**; el issue **no** lleva todavía el addendum con ese incremento (queda
 listo para pegar más abajo). Este dossier consolida todo lo entregado.
 
+## Re-verificación final — v1.0.169 (25/9/2026)
+
+`MOBOS_QA_OUT=docs/CIERRE-236-221-v169/221 node scripts/qa-221-clientes-produccion.mjs`
+contra `app.moboss.online` (demo pública, sin sesión y con **0 llamadas a
+`api.moboss.online`**): **8/8 pasos OK** — panel del Dueño, lista con agregados
+(5 compras · Gs 7.750.000), ficha con total/saldo/últimas órdenes, historial con
+estados y seriales (incluida la venta cancelada que no suma), estadísticas
+(ticket Gs 1.550.000 · cada 172 días · favorito iPhone 15), portal del cliente y
+WhatsApp con plantilla. Evidencia: `docs/CIERRE-236-221-v169/221/` (9 capturas +
+`resultados.json`).
+
+- Regresión funcional: ninguna desde v1.0.138.
+- Los agregados y las fórmulas siguen siendo los de la cuenta real
+  (`src/lib/customerAggregates.js` + tests).
+
 Incremento posterior de la rama `slot/clientes` (#236/#240): **seguimiento del
 informe compartido visto/no visto** — la ficha demo muestra el chip Visto/Sin
 ver por equipo y la cronología la apertura del cliente, con la misma semántica

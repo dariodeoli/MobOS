@@ -1,0 +1,58 @@
+{
+  "url": "https://app.moboss.online",
+  "fecha": "2026-09-25T15:26:40.122Z",
+  "version": "v1.0.169",
+  "pasos": [
+    {
+      "paso": "entrada a la demo y lista estilo Pedidos",
+      "ok": true,
+      "detalle": "fila con contacto, tipo, 5 compras, Gs 7.750.000, última compra y deuda Gs 1.500.000"
+    },
+    {
+      "paso": "ojito: resumen rápido con acciones",
+      "ok": true,
+      "detalle": "resumen con KPIs, últimas compras, notas y acciones WhatsApp/Editar/detalle"
+    },
+    {
+      "paso": "«Ver detalle completo» abre el perfil (CustomerProfile)",
+      "ok": true,
+      "detalle": "el perfil completo abre en Resumen con sus cinco pestañas"
+    },
+    {
+      "paso": "ícono de detalle abre el perfil directo",
+      "ok": true,
+      "detalle": "abre sin pasar por el resumen rápido"
+    },
+    {
+      "paso": "«Editar» del resumen entra por la pestaña Datos",
+      "ok": true,
+      "detalle": "abre el perfil en Datos"
+    },
+    {
+      "paso": "mobile: accesos táctiles con aria",
+      "ok": true,
+      "detalle": "ojito 44×44 · detalle 44×44"
+    }
+  ],
+  "capturas": [
+    "01-lista-estilo-pedidos.png",
+    "02-resumen-rapido.png",
+    "03-detalle-completo.png",
+    "04-editar-datos.png",
+    "05-mobile-acciones.png"
+  ],
+  "observaciones": [],
+  "hallazgos": [],
+  "popup": {
+    "titulo": "Cliente: Lucía Fernández",
+    "kpis": [
+      "Total gastado",
+      "Pedidos",
+      "Última compra",
+      "Deuda",
+      "Seguro"
+    ]
+  },
+  "llamadasApi": [],
+  "demoNoTocaApi": true
+}
