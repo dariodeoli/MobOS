@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
-import { addProducto, addProductoApi, getProductos } from '@/lib/storage'
+import { getProductos, refrescar } from '@/lib/storage'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { api } from '@/lib/api/client'
 import { purchasesApi } from '@/lib/api/purchases'
@@ -19,6 +19,7 @@ import RucField from '@/components/shared/RucField'
 import Icon from '@/components/shared/Icon'
 import { descargarCsv } from '@/utils/descargarCsv'
 import ProductCombobox from '@/components/shared/ProductCombobox'
+import VarianteProducto from '@/components/shared/VarianteProducto'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import { cn } from '@/lib/utils'
@@ -99,12 +100,16 @@ function ProductLine({ products, line, currency, onChange, onSelectProduct, onCr
 }
 
 export default function Compras() {
-  const demo = isDemoRuntime; const products = getProductos(); const toast = useToast()
+  const demo = isDemoRuntime; const toast = useToast()
+  // #250: el catálogo se relee cuando el alta dependiente crea una variante.
+  const [catalogoVersion, setCatalogoVersion] = useState(0)
+  const products = useMemo(() => getProductos(), [catalogoVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   const { sucursal, sucursales, sesion, empresa } = useSesion()
   // La búsqueda global abre Compras con ?q= (proveedor, referencia o número).
   const [searchParams] = useSearchParams()
   const qParam = searchParams.get('q') || ''
   const [query, setQuery] = useState(qParam)
+  const [varianteNueva, setVarianteNueva] = useState(null)
   const busqueda = useBusquedaDiferida(query)
   const branchTouched = useRef(false)
   const branchOptions = sucursales.length > 0 ? sucursales : (sucursal ? [sucursal] : [])
@@ -175,11 +180,19 @@ export default function Compras() {
     return currency === 'PYG' ? total : Math.round(total * (Number(exchangeRatePyg) || 1))
   }, [costs, currency, exchangeRatePyg])
   const chooseProduct = (index, product) => setLines(items => items.map((item, itemIndex) => itemIndex === index ? { ...item, productId: product.id, sku: product.sku || '', nombre: product.nombre || product.name || '' } : item))
-  async function createProduct(text) {
-    try {
-      if (demo) return addProducto(text)
-      return await addProductoApi({ sku: text, name: text, pricePyg: 0, stock: 0, branchId: branchId || undefined })
-    } catch (err) { setError(err?.message || 'No se pudo crear el producto.'); return null }
+  // #250: el alta desde la línea abre la cascada dependiente (modelo →
+  // capacidad → color) que comparte Stock; el SKU único lo resuelve el servidor.
+  function createProduct(text, index = null) {
+    setVarianteNueva({ index, modelo: String(text || '') })
+    return Promise.resolve(null)
+  }
+  async function productoDeLinea(producto) {
+    const index = varianteNueva?.index
+    setVarianteNueva(null)
+    if (!producto) return
+    await refrescar()
+    setCatalogoVersion(version => version + 1)
+    if (Number.isInteger(index)) chooseProduct(index, producto)
   }
 
   async function create(e) {
@@ -406,7 +419,7 @@ export default function Compras() {
       <SearchField value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar proveedor, referencia o número…" ariaLabel="Buscar compras" className="mb-4 max-w-md" />
       <form onSubmit={create} className="space-y-3"><div className={GRILLA_DOS_COLUMNAS_COMPACTA}><Select aria-label="Proveedor" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}><option value="">Elegí un proveedor</option>{suppliers.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="new">＋ Nuevo proveedor</option></Select><div><Select aria-label="Sucursal de recepción" value={branchId} onChange={(e) => { branchTouched.current = true; setBranchId(e.target.value) }}>{branchOptions.length === 0 ? <option value="">Sin sucursal definida</option> : <><option value="">Sin sucursal (general)</option>{branchOptions.map(branch => <option key={branch.id} value={branch.id}>{branch.nombre || branch.name}</option>)}</>}</Select><p className="mt-1 px-1 text-xs text-mute">Es tu sucursal donde entra el stock, no la del proveedor.</p></div></div>
         {supplierId === 'new' && <div className={GRILLA_DOS_COLUMNAS_COMPACTA}><Input required value={newSupplier.name} onChange={(e) => setNewSupplier(s => ({ ...s, name: e.target.value }))} placeholder="Nombre del proveedor" /><PhoneField countryCode={newSupplier.countryCode || '+595'} phone={newSupplier.phone || ''} onCountryCodeChange={(countryCode) => setNewSupplier(s => ({ ...s, countryCode }))} onChange={(phone) => setNewSupplier(s => ({ ...s, phone }))} placeholder="Teléfono (opcional)" /><div className="space-y-1"><CityAutocomplete value={newSupplier.city} onSelect={(city, department) => setNewSupplier(s => ({ ...s, city, department }))} placeholder="Ciudad (opcional)" />{newSupplier.department && <p className="px-1 text-xs text-fono-light">Departamento: {newSupplier.department}</p>}</div><Input value={newSupplier.address} onChange={(e) => setNewSupplier(s => ({ ...s, address: e.target.value }))} placeholder="Dirección (opcional)" /></div>}
-        <div className="space-y-2">{lines.map((line, index) => <ProductLine key={index} products={products} line={line} currency={currency} onChange={(value) => updateLine(index, value)} onSelectProduct={(product) => chooseProduct(index, product)} onCreateProduct={createProduct} canRemove={lines.length > 1} onRemove={() => setLines(items => items.filter((_, itemIndex) => itemIndex !== index))} />)}<Button type="button" variant="outline" onClick={() => setLines(items => [...items, emptyLine()])}>+ Agregar línea / lote</Button>{!demo && <Button type="button" variant="outline" disabled={busy} onClick={sugerirReposicion}>Sugerir reposición</Button>}</div>
+        <div className="space-y-2">{lines.map((line, index) => <ProductLine key={index} products={products} line={line} currency={currency} onChange={(value) => updateLine(index, value)} onSelectProduct={(product) => chooseProduct(index, product)} onCreateProduct={(texto) => createProduct(texto, index)} canRemove={lines.length > 1} onRemove={() => setLines(items => items.filter((_, itemIndex) => itemIndex !== index))} />)}<Button type="button" variant="outline" onClick={() => setLines(items => [...items, emptyLine()])}>+ Agregar línea / lote</Button>{!demo && <Button type="button" variant="outline" disabled={busy} onClick={sugerirReposicion}>Sugerir reposición</Button>}</div>
         <details className="rounded-xl border border-ink-600/70 p-3"><summary className="cursor-pointer select-none text-sm font-semibold text-fore">Costos de importación (flete, aduana, seguro…) <span className="ml-1 text-xs font-normal text-mute">· {gs(costsTotalPyg)}</span></summary><div className={cn('mt-3 lg:grid-cols-3', GRILLA_DOS_COLUMNAS_COMPACTA)}>{COST_FIELDS.map(([key, label]) => <MoneyInput key={key} currency={currency} value={costs[key]} onValueChange={(value) => setCosts(current => ({ ...current, [key]: value }))} placeholder={label} />)}</div></details>
         <div className={cn('lg:grid-cols-3', GRILLA_DOS_COLUMNAS_COMPACTA)}><Select value={costAllocationMethod} onChange={(e) => setCostAllocationMethod(e.target.value)}><option value="PROPORTIONAL_VALUE">Distribuir por valor</option><option value="PROPORTIONAL_QUANTITY">Distribuir por cantidad</option></Select><CurrencySelect value={currency} onChange={(e) => setCurrency(e.target.value)} />{currency !== 'PYG' && <MoneyInput currency="USD" symbol="Gs." value={exchangeRatePyg} onValueChange={setExchangeRatePyg} placeholder="Cotización PYG" />}</div>
         <div className="grid gap-2 rounded-xl border border-ink-600/70 p-3 sm:grid-cols-3"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={creditEnabled} onChange={(e) => setCreditEnabled(e.target.checked)} /> Compra a crédito</label><Input type="date" disabled={!creditEnabled} value={dueAt} onChange={(e) => setDueAt(e.target.value)} aria-label="Vencimiento de crédito" /><Input value={supplierReference} onChange={(e) => setSupplierReference(e.target.value)} placeholder="Referencia proveedor" /></div>
@@ -515,6 +528,9 @@ export default function Compras() {
         </div>
       </div>}
     </div>
+<Modal open={varianteNueva !== null} onClose={() => setVarianteNueva(null)} title="Producto nuevo · modelo → capacidad → color">
+  {varianteNueva && <VarianteProducto productos={products} modeloInicial={varianteNueva.modelo} branchId={branchId} onCreado={productoDeLinea} onCancelar={() => setVarianteNueva(null)} />}
+</Modal>
 <Modal open={suppliersOpen} onClose={() => { setSuppliersOpen(false); setEditingSupplier(null); setSupplierForm(null); setHistorySupplier(null) }} title="Proveedores" size="amplio">
       {editingSupplier && supplierForm && <form onSubmit={saveSupplier} className="mb-4 space-y-3 rounded-xl border border-ink-600 p-3"><p className="text-sm font-semibold">Editar proveedor</p><div className={GRILLA_DOS_COLUMNAS_COMPACTA}>{SUPPLIER_FIELDS.map(([key, label]) => key === 'city' ? <div key={key}><Label>{label}</Label><CityAutocomplete value={supplierForm[key]} onSelect={(city, department) => setSupplierForm(current => ({ ...current, city, department }))} /></div> : key === 'phone' ? <div key={key}><Label>{label}</Label><PhoneField disabled={busy} countryCode={supplierForm.countryCode || '+595'} phone={supplierForm.phone || ''} onCountryCodeChange={(countryCode) => setSupplierForm(current => ({ ...current, countryCode }))} onChange={(phone) => setSupplierForm(current => ({ ...current, phone }))} /></div> : key === 'email' ? <div key={key}><Label>{label}</Label><EmailField disabled={busy} value={supplierForm.email || ''} onChange={(email) => setSupplierForm(current => ({ ...current, email }))} /></div> : key === 'document' ? <div key={key}><Label>{label}</Label><RucField ariaLabel="RUC del proveedor" disabled={busy} esDemo={demo} value={supplierForm.document || ''} onChange={(document) => setSupplierForm(current => ({ ...current, document }))} onAplicar={(datos) => setSupplierForm(current => ({ ...current, name: datos.name || current.name, document: datos.fullRuc || current.document }))} /></div> : <div key={key}><Label>{label}</Label><Input required={key === 'name'} value={supplierForm[key]} onChange={(e) => setSupplierForm(current => ({ ...current, [key]: e.target.value }))} /></div>)}</div><div className="flex flex-wrap gap-2"><Button type="submit" disabled={busy}>Guardar proveedor</Button><Button type="button" variant="ghost" onClick={() => { setEditingSupplier(null); setSupplierForm(null) }}>Cancelar</Button></div></form>}
       {suppliers.length === 0 ? <EmptyState compact icon="users" title="Sin proveedores registrados." /> : <div className="overflow-x-auto" data-testid="proveedores-tabla"><div className={cn(GRID_PROVEEDORES, 'px-3.5 pb-2 pt-1')}><span className={CELDA_ENCABEZADO}>Proveedor</span><span className={CELDA_ENCABEZADO}>Código</span><span className={CELDA_ENCABEZADO}>Ciudad</span><span className={CELDA_ENCABEZADO}>Teléfono</span><span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span></div><div className="space-y-1">{suppliers.map(item => <div key={item.id} data-testid="proveedor-fila" className={cn(GRID_PROVEEDORES, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2')}><span className={CELDA_IDENTIDAD} title={item.name}>{item.name}</span><span className="truncate font-mono text-[11px] text-fono-light">{item.code || '—'}</span><span className={CELDA_DATO} title={item.city || undefined}>{item.city || '—'}</span><span className="truncate text-xs tabular-nums text-mute">{item.phone || '—'}</span><span className="flex items-center justify-end gap-1"><IconAction icon="clock" label={`Historial de ${item.name}`} onClick={() => setHistorySupplier(item)} /><IconAction icon="edit" tone="fono" label={`Editar ${item.name}`} onClick={() => openSupplierEdit(item)} /></span></div>)}</div></div>}

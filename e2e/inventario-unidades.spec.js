@@ -263,6 +263,14 @@ test('vender todos deja el lote elegido en el POS con producto, cantidad e IMEI'
 })
 
 // Crea solo el producto (sin unidades) para los tests de costo.
+// El modal de recepción usa el buscador de productos (#250): se escribe el
+// modelo y se elige la sugerencia, igual que en el POS.
+async function elegirModelo(modal, nombre) {
+  const combo = modal.getByRole('combobox').first()
+  await combo.fill(nombre)
+  await modal.getByRole('option', { name: new RegExp(nombre) }).first().click()
+}
+
 async function crearProducto(page, marca) {
   await page.goto('/inventario/unidades')
   return page.evaluate(async ({ api, branchId, marca }) => {
@@ -272,7 +280,7 @@ async function crearProducto(page, marca) {
     })
     const datos = await respuesta.json().catch(() => null)
     if (!respuesta.ok) throw new Error(datos?.message || `products: ${respuesta.status}`)
-    return { productId: datos.id }
+    return { productId: datos.id, nombre: datos.name }
   }, { api: API, branchId: SEED.branchId, marca })
 }
 
@@ -295,14 +303,14 @@ test('la carga rápida guarda el costo en USD con su cotización y crea el prove
   const clave = marca()
   const serial = `ZZUSD${clave}`
   const proveedor = `Proveedor QA ${clave}`
-  const { productId } = await crearProducto(page, clave)
+  const { nombre } = await crearProducto(page, clave)
   try {
     await page.goto('/inventario/unidades')
     await page.getByRole('button', { name: '+ Recibir unidad' }).click()
     const modal = page.getByRole('dialog', { name: 'Carga rápida de unidad' })
     await expect(modal).toBeVisible()
     // Lo mínimo: modelo y IMEI; el proveedor y el costo son opcionales.
-    await modal.getByLabel('Modelo', { exact: true }).selectOption(productId)
+    await elegirModelo(modal, nombre)
     await modal.getByLabel('IMEI o serial', { exact: true }).fill(serial)
     await modal.getByLabel('Proveedor', { exact: true }).fill(proveedor)
     await modal.getByLabel('Moneda del costo', { exact: true }).selectOption('USD')
@@ -404,7 +412,7 @@ test('el motivo de baja recuerda el último usado', async ({ page }) => {
 test('la carga rápida recuerda la última sucursal y depósito', async ({ page }) => {
   const clave = marca()
   const serial = `ZZMEM${clave}`
-  const { productId } = await crearProducto(page, clave)
+  const { nombre } = await crearProducto(page, clave)
   const ubicacion = await page.evaluate(async ({ api, branchId, clave }) => {
     const respuesta = await fetch(`${api}/api/stock-locations`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ branchId, name: `Depósito memoria ${clave}` }) })
     const datos = await respuesta.json().catch(() => null)
@@ -415,7 +423,7 @@ test('la carga rápida recuerda la última sucursal y depósito', async ({ page 
     await page.goto('/inventario/unidades')
     await page.getByRole('button', { name: '+ Recibir unidad' }).click()
     const alta = page.getByRole('dialog', { name: 'Carga rápida de unidad' })
-    await alta.getByLabel('Modelo', { exact: true }).selectOption(productId)
+    await elegirModelo(alta, nombre)
     await alta.getByLabel('IMEI o serial', { exact: true }).fill(serial)
     await alta.getByLabel('Ubicación', { exact: true }).selectOption(ubicacion.id)
     await alta.getByRole('button', { name: 'Guardar unidad' }).click()
