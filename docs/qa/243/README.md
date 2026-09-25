@@ -140,3 +140,18 @@ La comparativa compone `docs/qa/243/comparativa-<criterio>-<antes>-vs-<después>
 - `test:e2e:smoke` 7/7.
 - Verificación post-deploy en producción v1.0.152 (tabla de arriba): 66 px en las
   6 variantes, sin desbordes ni errores.
+
+## Re-verificación en producción v1.0.170
+
+Pasada del **25/09** sobre `https://app.moboss.online` (demo pública, 2 productos
+y 2 unidades) con la sonda `scripts/qa-243-carrito-colapso.mjs`:
+
+| Criterio | Resultado |
+|---|---|
+| **Colapso máximo** | 68 px desktop (1280) y 84 px mobile (390) en las 6 variantes (claro/oscuro, v2 off/on) |
+| **Contenido colapsado** | nombre, total de la línea y papelera; sin cantidad ni precio |
+| **Detalle al expandir** | cantidad, precio de venta, color, precio de lista, stock, descuento, cupón |
+| **Papelera + confirmación** | visible colapsada y con diálogo ante descuento (`confirmacion-*.png`) |
+| **Estabilidad** | 0 desbordes horizontales y 0 errores de página |
+
+Capturas y datos crudos: [`1.0.170-produccion/`](1.0.170-produccion/).

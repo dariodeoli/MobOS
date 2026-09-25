@@ -1,0 +1,109 @@
+{
+  "base": "https://app.moboss.online",
+  "etiqueta": "1.0.170-produccion",
+  "fecha": "2026-09-25T16:22:43.941Z",
+  "resultados": [
+    {
+      "variante": "desktop-claro-v2-off",
+      "ancho": 1280,
+      "altoFilaColapsada": 68,
+      "alturasColapsadas": [
+        68,
+        69
+      ],
+      "alturasExpandidas": [
+        365,
+        69
+      ],
+      "desbordeHorizontal": 0,
+      "scopeV2Aplicado": false,
+      "totalVisible": "Productos de esta venta Cliente: Cliente QA 243 · Diego López · Retiro en tienda 2 productos · 2 unidades Vaciar carrito iPhone 15 Pro 256GB Titanio Gs 6.850.00",
+      "erroresPagina": []
+    },
+    {
+      "variante": "desktop-claro-v2-on",
+      "ancho": 1280,
+      "altoFilaColapsada": 68,
+      "alturasColapsadas": [
+        68,
+        69
+      ],
+      "alturasExpandidas": [
+        365,
+        69
+      ],
+      "desbordeHorizontal": 0,
+      "scopeV2Aplicado": true,
+      "totalVisible": "Productos de esta venta Cliente: Cliente QA 243 · Diego López · Retiro en tienda 2 productos · 2 unidades Vaciar carrito iPhone 15 Pro 256GB Titanio Gs 6.850.00",
+      "erroresPagina": []
+    },
+    {
+      "variante": "desktop-oscuro-v2-on",
+      "ancho": 1280,
+      "altoFilaColapsada": 68,
+      "alturasColapsadas": [
+        68,
+        69
+      ],
+      "alturasExpandidas": [
+        365,
+        69
+      ],
+      "desbordeHorizontal": 0,
+      "scopeV2Aplicado": true,
+      "totalVisible": "Productos de esta venta Cliente: Cliente QA 243 · Diego López · Retiro en tienda 2 productos · 2 unidades Vaciar carrito iPhone 15 Pro 256GB Titanio Gs 6.850.00",
+      "erroresPagina": []
+    },
+    {
+      "variante": "movil-claro-v2-off",
+      "ancho": 390,
+      "altoFilaColapsada": 84,
+      "alturasColapsadas": [
+        84,
+        85
+      ],
+      "alturasExpandidas": [
+        405,
+        85
+      ],
+      "desbordeHorizontal": 0,
+      "scopeV2Aplicado": false,
+      "totalVisible": "Productos de esta venta Cliente: Cliente QA 243 · Diego López · Retiro en tienda 2 productos · 2 unidades Vaciar carrito iPhone 15 Pro 256GB Titanio Gs 6.850.00",
+      "erroresPagina": []
+    },
+    {
+      "variante": "movil-claro-v2-on",
+      "ancho": 390,
+      "altoFilaColapsada": 84,
+      "alturasColapsadas": [
+        84,
+        85
+      ],
+      "alturasExpandidas": [
+        405,
+        85
+      ],
+      "desbordeHorizontal": 0,
+      "scopeV2Aplicado": true,
+      "totalVisible": "Productos de esta venta Cliente: Cliente QA 243 · Diego López · Retiro en tienda 2 productos · 2 unidades Vaciar carrito iPhone 15 Pro 256GB Titanio Gs 6.850.00",
+      "erroresPagina": []
+    },
+    {
+      "variante": "movil-oscuro-v2-on",
+      "ancho": 390,
+      "altoFilaColapsada": 84,
+      "alturasColapsadas": [
+        84,
+        85
+      ],
+      "alturasExpandidas": [
+        405,
+        85
+      ],
+      "desbordeHorizontal": 0,
+      "scopeV2Aplicado": true,
+      "totalVisible": "Productos de esta venta Cliente: Cliente QA 243 · Diego López · Retiro en tienda 2 productos · 2 unidades Vaciar carrito iPhone 15 Pro 256GB Titanio Gs 6.850.00",
+      "erroresPagina": []
+    }
+  ]
+}
