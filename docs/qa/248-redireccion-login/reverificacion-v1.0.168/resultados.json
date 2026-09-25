@@ -1,0 +1,66 @@
+{
+  "verificado": "2026-09-25T15:10:24.481Z",
+  "base": "https://app.moboss.online",
+  "version": "v1.0.168",
+  "erroresConsola": [
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 404 ()"
+  ],
+  "respuestasMalas": [
+    "401 https://api.moboss.online/api/auth/me",
+    "401 https://api.moboss.online/api/auth/me",
+    "401 https://api.moboss.online/api/auth/me",
+    "401 https://api.moboss.online/api/auth/me",
+    "401 https://api.moboss.online/api/auth/me",
+    "404 https://api.moboss.online/api/public/units/AUR0001000000000"
+  ],
+  "resultados": [
+    {
+      "paso": "estado: producción responde y se conoce la versión",
+      "estado": "ok",
+      "detalle": "entry index-DABCgpsU.js (173 KB)",
+      "capturas": []
+    },
+    {
+      "paso": "sin sesión, la raíz va a /login (no a /demo)",
+      "estado": "ok",
+      "detalle": "URL /login · v1.0.168",
+      "capturas": [
+        "01-raiz-login.jpg"
+      ]
+    },
+    {
+      "paso": "ruta protegida pide login y guarda la vuelta",
+      "estado": "ok",
+      "detalle": "volver=/inventario/unidades",
+      "capturas": [
+        "02-protegida-login-volver.jpg"
+      ]
+    },
+    {
+      "paso": "/demo sigue disponible solo por entrada explícita",
+      "estado": "ok",
+      "detalle": "entrada con perfiles visible",
+      "capturas": [
+        "03-demo-explicita.jpg"
+      ]
+    },
+    {
+      "paso": "enlace público sin sesión (informe /u/<serial>) no pide login",
+      "estado": "ok",
+      "detalle": "URL /u/AUR0001000000000",
+      "capturas": [
+        "04-informe-publico.jpg"
+      ]
+    }
+  ],
+  "resumen": {
+    "pasos": 5,
+    "ok": 5,
+    "fallos": 0
+  }
+}
