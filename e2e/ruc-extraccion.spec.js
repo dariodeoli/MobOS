@@ -138,3 +138,39 @@ test('Config: RUC del negocio', async ({ page }) => {
     return true
   }, { timeout: 25000, intervals: [300, 700, 1500] }).toBe(true)
 })
+
+// #234 · seguimiento: empresas/titulares privados (Config → Negocio) y el
+// documento de una cuenta de cobro entran al mismo objeto compartido.
+test('Config: RUC de la empresa privada (datos privados)', async ({ page }) => {
+  await page.goto('/configuracion/negocio')
+  await expect(page.getByRole('heading', { name: 'Empresas/personas jurídicas (privado)' })).toBeVisible({ timeout: 20_000 })
+  await page.getByRole('button', { name: 'Agregar empresa' }).click()
+  const ruc = page.locator('#priv-ruc')
+  await ruc.fill('80012345-6')
+  const raiz = ruc.locator('xpath=../..')
+  await capturar(raiz, 'privados-empresa')
+  await verificarExtractor(raiz)
+})
+
+test('Config: Cédula/RUC del titular privado', async ({ page }) => {
+  await page.goto('/configuracion/negocio')
+  await expect(page.getByRole('heading', { name: 'Titulares/socios (privado)' })).toBeVisible({ timeout: 20_000 })
+  await page.getByRole('button', { name: 'Agregar titular' }).click()
+  const doc = page.locator('#priv-doc')
+  await doc.fill('3456789-0')
+  const raiz = doc.locator('xpath=../..')
+  await capturar(raiz, 'privados-titular')
+  await verificarExtractor(raiz)
+})
+
+test('Cuentas: documento (cédula/RUC) de la cuenta', async ({ page }) => {
+  await page.goto('/finanzas/bancos')
+  const fila = page.getByTestId('cuenta-fila').filter({ hasText: 'Transferencia' }).first()
+  await expect(fila).toBeVisible({ timeout: 20_000 })
+  await fila.getByRole('button', { name: /^Editar / }).click()
+  const doc = page.locator('#pa-document')
+  await doc.fill('80012345-6')
+  const raiz = doc.locator('xpath=../..')
+  await capturar(raiz, 'cuentas-documento')
+  await verificarExtractor(raiz)
+})
