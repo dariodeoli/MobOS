@@ -204,7 +204,7 @@ export default function Reportes() {
           </Button>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" className="h-9 px-3 text-xs" onClick={exportar} disabled={exportando || (!datos && !datosComisiones)}>
+          <Button variant="outline" className="min-h-11 px-3 text-xs md:h-9 md:min-h-0" onClick={exportar} disabled={exportando || (!datos && !datosComisiones)}>
             <Icon name="download" />
             {exportando ? 'Exportando…' : 'Exportar CSV'}
           </Button>

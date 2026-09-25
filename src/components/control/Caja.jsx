@@ -1067,7 +1067,7 @@ export default function Caja() {
           <Button
             type="button"
             variant="outline"
-            className="h-9 w-full px-3 text-xs"
+            className="min-h-11 w-full px-3 text-xs md:h-9 md:min-h-0"
             disabled={exportando}
             onClick={exportarMovimientos}
           >

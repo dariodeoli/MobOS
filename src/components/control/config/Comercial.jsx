@@ -179,7 +179,7 @@ export default function Comercial({ account, onTenantChange, onReauth }) {
             </FormField>
           </div>
           <p className="text-xs text-mute">
-            Las operaciones fuera de política se piden y se aprueban en <Link to="/autorizaciones" className="font-semibold text-fono-light hover:underline">Operación → Autorizaciones</Link>, con trazabilidad en la cronología del cliente.
+            Las operaciones fuera de política se piden y se aprueban en <Link to="/autorizaciones" className="toque-44 font-semibold text-fono-light hover:underline">Operación → Autorizaciones</Link>, con trazabilidad en la cronología del cliente.
           </p>
         </Card>
 

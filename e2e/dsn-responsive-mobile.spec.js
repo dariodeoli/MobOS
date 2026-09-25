@@ -213,7 +213,7 @@ function exigirMedicion(medicion, etiqueta, esMobile = false) {
   expect(medicion.overflowH, `${etiqueta}: sin scroll horizontal`).toBe(0)
   expect(medicion.totalCortados, `${etiqueta}: sin elementos cortados`).toBe(0)
   expect(medicion.topbarChicos, `${etiqueta}: topbar del shell con área de 44`).toHaveLength(0)
-  if (esMobile) expect(medicion.totalChicos, `${etiqueta}: ningún target < 44 en mobile`).toBe(0)
+  if (esMobile) expect(medicion.totalChicos, `${etiqueta}: ningún target < 44 en mobile · ${JSON.stringify(medicion.chicos)}`).toBe(0)
   for (const grupo of medicion.clave || []) {
     for (const nodo of grupo.nodos) {
       expect(nodo.alto, `${etiqueta}: ${grupo.nombre} «${nodo.texto}» (${nodo.dibujo})`).toBeGreaterThanOrEqual(44)
@@ -294,14 +294,14 @@ function auditarSuperficies(registro) {
 // #253: la Configuración reorganizada en 7 grupos entra al barrido, con la
 // navegación interna como control clave (44 px en todos los anchos).
 const GRUPOS_CONFIG_AUDIT = [
-  ['mi-cuenta', 'Mi cuenta', (page) => page.getByText('Tu persona dentro de MobOS').first()],
+  ['mi-cuenta', 'Mi cuenta', (page) => page.getByText('Tu perfil, tus preferencias').first()],
   ['organizacion', 'Organización', (page) => page.getByText('Datos de la tienda').first()],
   // Equipo carga la lista de integrantes: esperarla deja la medición igual en
   // todos los anchos (si no, el contenido async entra después de la foto).
   ['equipo', 'Equipo y acceso', (page) => page.getByTestId('integrante-fila').first()],
   ['comercial', 'Comercial', (page) => page.getByText('Seguro de ventas').first()],
   ['seguridad', 'Seguridad y auditoría', (page) => page.getByTestId('auditoria-actualizar')],
-  ['dispositivos', 'Dispositivos', (page) => page.getByText('Estado del sistema de impresión').first()],
+  ['dispositivos', 'Dispositivos', (page) => page.getByText('Configurá y probá tus impresoras térmicas').first()],
   ['sistema', 'Sistema', (page) => page.getByText('Sincronización').first()],
 ]
 

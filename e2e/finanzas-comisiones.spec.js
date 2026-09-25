@@ -23,7 +23,7 @@ test.describe('reglas de comisión en Finanzas', () => {
     await expect(page.getByText(/Finanzas → Comisiones/).first()).toBeVisible()
     await expect(page.getByRole('button', { name: 'Agregar regla' })).toHaveCount(0)
 
-    await page.getByRole('button', { name: 'Ir a Finanzas → Comisiones' }).click()
+    await page.getByRole('button', { name: 'Reglas y liquidaciones →' }).click()
     await expect(page).toHaveURL(/\/finanzas\/comisiones$/)
     await expect(page.getByRole('heading', { name: 'Comisiones', level: 2 })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Agregar regla' })).toBeVisible()

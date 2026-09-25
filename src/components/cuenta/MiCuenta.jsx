@@ -228,7 +228,7 @@ export default function MiCuenta({ preferencias, onCambiarPreferencias }) {
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
               <h2 className="font-semibold">Sesiones personales</h2>
-              <p className="mt-1 text-sm text-mute">Tus accesos a MobOS.{sesion?.esPropietario ? <> Para ver o revocar los del resto del equipo andá a <Link to="/configuracion/seguridad" className="font-semibold text-fono-light hover:underline">Seguridad y auditoría</Link>.</> : ''}</p>
+              <p className="mt-1 text-sm text-mute">Tus accesos a MobOS.{sesion?.esPropietario ? <> Para ver o revocar los del resto del equipo andá a <Link to="/configuracion/seguridad" className="toque-44 font-semibold text-fono-light hover:underline">Seguridad y auditoría</Link>.</> : ''}</p>
             </div>
             {otrasSesiones.length > 0 && !esDemo && (
               <Button variant="outline" onClick={() => setARevocarDemas(true)} disabled={revocando}>Cerrar las demás</Button>
