@@ -41,6 +41,12 @@ test.describe('finanzas · caja', () => {
     }
     await expect(page.getByRole('heading', { name: 'Cerrar caja' })).toBeVisible()
     await expect(page.locator('strong').filter({ hasText: 'Abierta' }).first()).toBeVisible()
+    // #253: con la caja abierta y sin arqueo, la diferencia no anticipa un
+    // número (se calcula al cierre); recién aparece con el conteo cargado.
+    await expect(page.getByTestId('caja-diferencia')).toHaveText('—')
+    await page.locator('#counted').fill('1000')
+    await expect(page.getByTestId('caja-diferencia')).not.toHaveText('—')
+    await page.locator('#counted').fill('')
 
     // El cobro entra en "Auditoría de medios" (efectivo) y en la auditoría del rango.
     await page.getByText('Entradas por medio de pago').scrollIntoViewIfNeeded()

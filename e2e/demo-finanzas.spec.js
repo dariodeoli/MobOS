@@ -115,6 +115,9 @@ test.describe('demo de Finanzas', () => {
 
     await expect(page.locator('strong').filter({ hasText: 'Abierta' }).first()).toBeVisible()
     await expect(page.getByText('Sin apertura')).toHaveCount(0)
+    // #253 (hallazgo de la verificación en producción): con la caja abierta y
+    // sin arqueo, la diferencia no anticipa un número.
+    await expect(page.getByTestId('caja-diferencia')).toHaveText('—')
     await expect(page.getByText('Entradas por medio de pago')).toBeVisible()
     await expect(page.getByText('Auditoría de efectivo')).toBeVisible()
     await expect(page.getByText('Demo: cobros ficticios del rango')).toBeVisible()

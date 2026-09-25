@@ -425,12 +425,17 @@ export default function Caja() {
 
   const hayArqueo = desgloseItems(arqueo).length > 0
   const contado = hayArqueo ? totalArqueo(arqueo) : parseGsInput(counted)
+  // Con la caja abierta y sin arqueo no hay diferencia que mostrar: anticipar
+  // contado − esperado con el conteo vacío asusta con un número que no existe
+  // (el cierre todavía no se hizo). Igual criterio que «Ventas por caja».
+  const hayConteo = hayArqueo || String(counted ?? '').trim() !== ''
+  const sinConteo = abierta && !hayConteo
   const hayArqueoAjeno = desgloseItems(arqueoAjeno).length > 0
   const contadoAjenoTotal = hayArqueoAjeno ? totalArqueo(arqueoAjeno) : parseGsInput(contadoAjeno)
   const difference =
     turno?.status === 'CLOSED'
       ? Number(turno.countedPyg ?? 0) - Number(turno.expectedPyg ?? 0)
-      : abierta
+      : abierta && hayConteo
         ? contado - expected
         : 0
 
@@ -657,12 +662,15 @@ export default function Caja() {
         </Card>
         <Card
           className={
-            difference === 0 ? '' : 'border-warn/25 bg-gradient-to-br from-warn/10 to-transparent'
+            sinConteo || difference === 0 ? '' : 'border-warn/25 bg-gradient-to-br from-warn/10 to-transparent'
           }
         >
           <Label>Diferencia</Label>
-          <strong className={`text-xl tabular-nums ${difference === 0 ? 'text-ok' : 'text-warn'}`}>
-            <Money value={difference} />
+          <strong
+            data-testid="caja-diferencia"
+            className={`text-xl tabular-nums ${sinConteo ? 'text-mute' : difference === 0 ? 'text-ok' : 'text-warn'}`}
+          >
+            {sinConteo ? '—' : <Money value={difference} />}
           </strong>
           <p className="mt-2 text-xs text-mute">Se calcula al cierre</p>
         </Card>
@@ -839,13 +847,13 @@ export default function Caja() {
             </div>
             <p
               className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-3 py-2 text-sm ${
-                contado - expected === 0 ? 'bg-ok/10 text-ok' : 'bg-warn/10 text-warn'
+                sinConteo ? 'bg-ink-700/40 text-mute' : contado - expected === 0 ? 'bg-ok/10 text-ok' : 'bg-warn/10 text-warn'
               }`}
             >
               <span>
                 Contado{' '}
                 <strong className="tabular-nums">
-                  <Money value={contado} />
+                  {hayConteo ? <Money value={contado} /> : '—'}
                 </strong>
               </span>
               <span>
@@ -857,7 +865,7 @@ export default function Caja() {
               <span>
                 Diferencia{' '}
                 <strong className="tabular-nums">
-                  <Money value={contado - expected} />
+                  {hayConteo ? <Money value={contado - expected} /> : '—'}
                 </strong>
               </span>
             </p>
