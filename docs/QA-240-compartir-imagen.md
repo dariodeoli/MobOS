@@ -14,7 +14,8 @@ taller) reusando el mismo HTML de «Descargar PDF». Capturas en
   descarga si el navegador no comparte archivos), **PNG** y **Copiar**, con
   avisos por toast.
 - Integrado en el modal del certificado/informe/constancia, en las etiquetas de
-  góndola y en las etiquetas del taller («Imprimir en serie»).
+  góndola, en las etiquetas del taller («Imprimir en serie») y en el
+  **comprobante de compra** (`ComprobantePreview`, el modal compartido con POS).
 
 ## Unit
 
@@ -42,6 +43,11 @@ npx playwright test e2e/informe-dispositivo.spec.js
 | --- | --- |
 | `el certificado se comparte como imagen PNG (descarga y portapapeles)` | Sin Web Share en el arnés, *Compartir imagen* **descarga** `certificado-phonecheck-<4>.png` (>10 KB, firma PNG, ancho de rollo y alto > ancho); *PNG* descarga de nuevo; *Copiar* deja *Imagen copiada* con `clipboard-read/write`; el iframe de rasterizado se limpia (`iframe[data-png-documento]` = 0). |
 | `las etiquetas del taller se descargan como PNG` | En «Imprimir en serie», *PNG* descarga `etiquetas-taller-<n>.png` del alcance elegido (>5 KB, firma PNG) y limpia el iframe. |
+
+Además, `e2e/pos-pedidos.spec.js` (spec completo **6/6**, coordinado con POS):
+el comprobante de compra se descarga como `comprobante-<código>.png` (>10 KB),
+deja *Imagen descargada*, limpia el iframe y muestra las acciones Compartir/PNG/
+Copiar en el modal.
 
 Capturas: `01-certificado-modal.jpg`, `02-etiquetas-taller-modal.jpg`;
 muestras de salida: `certificado-80mm.png` (rollo, 194 KB) y el PDF que sigue

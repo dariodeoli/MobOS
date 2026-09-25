@@ -61,7 +61,9 @@ formas de carga:
 
 - Una etiqueta **por unidad** con `PRODUCTO n DE N`, modelo/variante, IMEI o
   «pendiente», la compra, el pedido vinculado y el destino.
-- **PRN**: el layout del papel (etiqueta térmica / 80 mm) es suyo; este payload
+- **PRN**: el layout del papel (etiqueta térmica / 80 mm) ya está implementado
+  (`datosEtiquetaLote` + `ticketEtiquetasLote` + `buildEtiquetasLoteHtml`;
+  contrato y adopción en [ETIQUETAS-LOTE.md](ETIQUETAS-LOTE.md)); este payload
   es el contrato (mismo criterio que el informe de dispositivo).
 
 ## 4. Tests

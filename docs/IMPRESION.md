@@ -501,20 +501,24 @@ un trabajo nuevo).
 
 ## 12. Abastecimiento (#250 §11)
 
-Estado: la **lista de compra · 80 mm** y la **etiqueta producto/paquete** siguen
-pendientes de implementar en PRN (fases 1–5 ya en main); el **comprobante de
-recepción · 80 mm/A4** (fase 5) ya está implementado — contrato completo en
+Estado: la **lista de compra · 80 mm** y el **manifiesto** siguen pendientes de
+implementar en PRN (fases 1–5 ya en main); la **etiqueta producto/paquete**
+(fase 3) y el **comprobante de recepción** (fase 5) ya están implementados —
+contratos en [ETIQUETAS-LOTE.md](ETIQUETAS-LOTE.md) y
 [COMPROBANTE-RECEPCION.md](COMPROBANTE-RECEPCION.md).
 
 - **Lista de compra · 80 mm** (ESC/POS + respaldo HTML A4/rollo): `code` (`COM-…`),
   recorrido/origen, comprador, proveedor, **productos agrupados con cantidades y
   prioridades**, total de líneas y **QR del panel**.
-- **Etiqueta producto/paquete · 80 mm**: lo devuelve
+- **Etiqueta producto/paquete · 80 mm** — implementado: lo devuelve
   `GET /api/supply/purchases/[id]/labels` (`etiquetasPreparacion` en
   `backend/lib/supply.ts`): `{ n, total, producto, capacidad, condicion, imei,
   pendiente, compra, referencia, pedido, destino, lote }` → `PRODUCTO n DE N`,
-  variante, **IMEI o «pendiente»**, compra, pedido y destino, con código de
-  barras del identificador.
+  variante, **IMEI o «pendiente»**, compra, pedido, destino y lote, con el código
+  de barras del IMEI (o del lote/compra si falta). Builders:
+  `datosEtiquetaLote` + `ticketEtiquetasLote` (ESC/POS) +
+  `buildEtiquetasLoteHtml` (rollo/compartir). Ensayo:
+  `docs/etiquetas-lote-ejemplo/`.
 - **Comprobante de recepción · 80 mm/A4** (fase 5) — implementado:
   `datosComprobanteRecepcion` (`comprobanteRecepcion.js`) alimenta
   `ticketComprobanteRecepcion` (ESC/POS) y `buildComprobanteRecepcionHtml` /
