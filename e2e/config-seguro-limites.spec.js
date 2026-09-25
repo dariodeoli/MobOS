@@ -31,7 +31,7 @@ const capturar = (page, nombre) => page.screenshot({ path: join(DIR, `seguro-lim
 // harness se comparte entre specs: si otra spec ya la verificó hace menos de
 // 10 minutos, el guardado va directo y el panel no aparece.
 async function confirmarPasswordSiHaceFalta(page, estadoTestId) {
-  const panel = page.getByTestId('reauth-cambios')
+  const panel = page.getByTestId(estadoTestId.replace(/-estado$/, '-reauth'))
   const estado = page.getByTestId(estadoTestId)
   await expect.poll(
     async () => (await panel.isVisible()) || /Guardado/.test((await estado.textContent()) || ''),
@@ -40,8 +40,8 @@ async function confirmarPasswordSiHaceFalta(page, estadoTestId) {
   if (!(await panel.isVisible())) return
   await panel.scrollIntoViewIfNeeded()
   await capturar(page, 'reauth')
-  await page.getByLabel('Contraseña para guardar los cambios').fill(SEED.company.password)
-  await page.getByRole('button', { name: 'Verificar y guardar' }).click()
+  await panel.getByLabel('Contraseña para guardar los cambios').fill(SEED.company.password)
+  await panel.getByRole('button', { name: 'Verificar y guardar' }).click()
 }
 
 test('el seguro se guarda con Enter y persiste', async ({ page }) => {
@@ -53,7 +53,7 @@ test('el seguro se guarda con Enter y persiste', async ({ page }) => {
   await capturar(page, 'seguro-enter')
   await confirmarPasswordSiHaceFalta(page, 'seguro-estado')
   await expect(page.getByTestId('seguro-estado')).toContainText('Guardado', { timeout: 15_000 })
-  await expect(page.getByTestId('reauth-cambios')).toBeHidden()
+  await expect(page.getByTestId('seguro-reauth')).toBeHidden()
   await page.reload()
   await expect(page.locator('#seguro-pct')).toHaveValue('25', { timeout: 20_000 })
   await expect(page.locator('#seguro-toggle')).toBeChecked()
@@ -100,7 +100,7 @@ test('un valor inválido deja el grupo en Error y no lo guarda', async ({ page }
   await page.waitForTimeout(500)
   await capturar(page, 'limites-error')
   await expect(page.getByTestId('limites-estado')).toContainText(/sin decimales/i, { timeout: 15_000 })
-  await expect(page.getByTestId('reauth-cambios')).toBeHidden()
+  await expect(page.getByTestId('limites-reauth')).toBeHidden()
   await page.reload()
   await expect(page.locator('#limite-bajo-lista')).toHaveValue(previo, { timeout: 20_000 })
 })
