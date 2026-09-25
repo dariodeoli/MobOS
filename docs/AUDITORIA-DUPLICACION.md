@@ -292,6 +292,21 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 37 — set de íconos único y guía de adopción v2 (#253) (25-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Íconos (`shared/Icon.jsx`) | Dos sets: la app con 57 glifos y la biblioteca con 78; `share` existía solo en la app y `mail` tenía trazos distintos | La biblioteca (**v0.30.0**) suma `share` y adopta el trazo de `mail` de producción; `shared/Icon.jsx` pasa a puente (`Icon` + `ICONOS`): **80 glifos, una sola fuente** |
+| Guía de adopción v2 | La biblioteca tenía las piezas por separado (V2, SHELL, REGLAS, MIGRACION) pero no el recorrido práctico completo | **`owncoding-ui/docs/ADOPCION-V2.md`**: de la paleta al shell, contraste AA, retiro del bloque local, puentes de migración, controles, caso real de MobOS (v0.24 → v0.30), checklist y errores comunes; enlazada desde el README |
+| Control | `Icon` figuraba en la deuda de duplicados | Pasa a la lista de puentes; la deuda baja a **21 + 32** |
+
+Verificación del lote: `npm run lint` (0 errores), `npm run build` y
+`npm --prefix backend run build` (con `BUILD_ID`), `prisma:validate`,
+`npm test` (753 en verde), `test:unit` del backend (75),
+`npx playwright test e2e/configuracion-lote5.spec.js` (7 en verde) y
+`npm run test:e2e:smoke` (19 en verde, 0 flaky); biblioteca `owncoding-ui`
+build + 218 tests.
+
 ### Lote 36 — estado de guardado y checkbox en la biblioteca (#253) (25-09)
 
 | Objeto | Antes (evidencia) | Después |

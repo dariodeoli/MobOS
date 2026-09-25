@@ -546,6 +546,9 @@ por el sistema.
   `export { <Objeto> as default } from 'owncoding-ui'` (sin implementación); los
   consumidores no cambian de ruta y el control `camposReglas.test.js` exige el
   puente. Los objetos divergentes siguen en la lista de deuda del lote 34/35.
+  El set de íconos es uno solo: `owncoding-ui/Icon` + `ICONOS` (v0.30.0, 80
+  glifos); no agregar glifos en la app — se publican en la biblioteca. Para
+  adoptar todo el lenguaje v2 en otra app: `owncoding-ui/docs/ADOPCION-V2.md`.
 - **Paleta global v2 (#241, rollout aprobado):** el lenguaje "device ops"
   (consola clara/oscura, base oscura `#0E1116`/`#1F2430`, verde pass `#22C55E`,
   azul acción `#4D7CFE`) es la **paleta global** de la biblioteca desde
