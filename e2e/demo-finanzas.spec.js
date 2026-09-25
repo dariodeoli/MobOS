@@ -36,7 +36,7 @@ test.describe('demo de Finanzas', () => {
     await expect(page.getByRole('heading', { name: 'Cómo se calcula' })).toBeVisible()
     const sinSeguro = (await page.getByTestId('ganancia-resultado').textContent())?.trim()
 
-    await page.goto('/configuracion/negocio')
+    await page.goto('/configuracion/comercial')
     await expect(page.getByText('Demo: los cambios se guardan solo en este navegador')).toBeVisible()
     await page.locator('#seguro-toggle').check({ force: true })
     await expect(page.locator('#seguro-pct')).toHaveValue('25')

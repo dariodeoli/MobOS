@@ -1,0 +1,32 @@
+IA de Configuración + Ayuda · verificación (2026-09-25, slot/finanzas)
+======================================================================
+
+e2e (Playwright, base/DB aisladas del worktree; 1 worker)
+  npx playwright test ia-configuracion documentacion ocultos-plataforma \
+    shell-roles admin config-guardado config-seguro-limites \
+    configuracion-lote5 precios-listas auditoria seguridad-cuenta \
+    dsn-241-dominios equipo-integrantes equipo-invitaciones invitar-persona \
+    finanzas-comisiones ruc-extraccion ruc-demo demo-anonimo demo-finanzas \
+    demo-finanzas-anonimo analisis permissions
+  → 181 passed (5.1m), 0 failed (sobre el rebase a v1.0.169, con los specs
+    nuevos de PLT/POS: ocultos-plataforma, shell-roles y Ayuda del shell).
+
+Unitarios
+  npm test                          → 733 passed / 0 failed
+  npm --prefix backend run test:unit → 75 passed / 0 failed
+
+Estático y builds
+  npm run lint                      → 0 errores (2 warnings preexistentes)
+  npm run build                     → OK
+  npm --prefix backend run build    → OK (backend/.next/BUILD_ID creado)
+  npm --prefix backend run prisma:validate → schema válido
+  marcadores de conflicto (src/backend/e2e, sin node_modules) → ninguno
+
+Capturas
+  ia-config-mi-cuenta.png        · ia-config-organizacion.png
+  ia-config-equipo.png           · ia-config-comercial.png
+  ia-config-seguridad.png        · ia-config-dispositivos.png
+  ia-config-sistema.png          · ia-config-ayuda.png
+  ia-config-ayuda-atajos.png     · ia-config-organizacion-mobile.png
+  ia-config-mi-cuenta-mobile.png · ia-config-organizacion-oscuro.png
+  (generadas por e2e/ia-configuracion.spec.js en test-results/qa-ia-config/)

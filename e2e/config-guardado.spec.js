@@ -31,11 +31,10 @@ async function entrarComoDueno(page) {
 
 async function abrirNegocio(page) {
   await entrarComoDueno(page)
-  await page.goto('/configuracion/negocio')
+  // #IA: Negocio pasó a Organización (la ruta vieja redirige igual).
+  await page.goto('/configuracion/organizacion')
   await expect(page.locator('#cuenta-form')).toBeVisible()
-  // El formulario se hidrata con la cuenta: se espera a que llegue (el monto de
-  // gasto solo existe cuando `GET /api/account` respondió).
-  await expect(page.locator('#limite-gasto')).not.toHaveValue('', { timeout: 20_000 })
+  // El formulario se hidrata con la cuenta: se espera a que llegue.
   await expect(page.locator('#edit-nombre')).not.toHaveValue('', { timeout: 20_000 })
 }
 
@@ -120,7 +119,8 @@ test('Identificador de pedidos: Enter guarda y el error queda en la sección', a
 
 test('Mi identidad: guardar el nombre avisa Guardado en el formulario', async ({ page }) => {
   await entrarComoDueno(page)
-  await page.goto('/configuracion/identidad')
+  // #IA: Mi identidad pasó a Mi cuenta.
+  await page.goto('/configuracion/mi-cuenta')
   const campo = page.locator('#identidad-nombre')
   await expect(campo).not.toHaveValue('', { timeout: 20_000 })
   await campo.press('Enter')
@@ -143,9 +143,11 @@ test('Seguridad: descargar los datos pide la contraseña y reintenta la descarga
 
 test('Sucursales: editar y guardar avisa Guardado', async ({ page }) => {
   await entrarComoDueno(page)
-  await page.goto('/configuracion/sucursales')
-  await expect(page.getByRole('heading', { name: 'Sucursales' })).toBeVisible({ timeout: 20_000 })
-  await page.getByRole('button', { name: 'Editar' }).first().click()
+  // #IA: las sucursales viven en Organización (la ruta vieja /configuracion/sucursales redirige).
+  await page.goto('/configuracion/organizacion')
+  const fila = page.locator('article').filter({ hasText: SEED.branchName }).first()
+  await expect(fila).toBeVisible({ timeout: 20_000 })
+  await fila.getByRole('button', { name: 'Editar' }).click()
   const panel = page.locator('#sucursal-form')
   await expect(panel.getByRole('heading', { name: 'Editar sucursal' })).toBeVisible()
   await capturar(panel, 'sucursal')

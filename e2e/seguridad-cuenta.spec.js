@@ -7,10 +7,19 @@
 
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
+import { loginCompany } from './helpers/login.js'
 
 test.describe('Seguridad de la cuenta', () => {
   test('archivar y eliminar exigen identidad, palabra y contraseña', async ({ page }) => {
-    await page.goto('/configuracion/seguridad')
+    // #IA: archivar/eliminar viven en Organización (la reautenticación se pide
+    // en el lugar y sigue disponible en Seguridad y auditoría). Sesión fresca:
+    // así la ventana de 10 min está vencida y el pedido de contraseña es
+    // determinista (la sesión del arnés se comparte entre specs).
+    await page.context().clearCookies()
+    await loginCompany(page)
+    await page.locator('#seller-pin').pressSequentially(SEED.admin.pin)
+    await expect(page).toHaveURL(/\/resumen$/)
+    await page.goto('/configuracion/organizacion')
 
     const confirmar = page.getByText('Confirmar identidad')
     await expect(confirmar).toBeVisible()
@@ -23,15 +32,15 @@ test.describe('Seguridad de la cuenta', () => {
     await expect(page.getByText(/No se puede deshacer ni recuperar/)).toBeVisible()
 
     // La identidad se verifica de verdad: con una contraseña incorrecta no se
-    // habilitan las acciones sensibles.
+    // habilitan las acciones sensibles. Enter verifica (el bloque es un form).
     await page.getByLabel('Contraseña para reautenticar').fill('contraseña-incorrecta')
-    await page.getByRole('button', { name: 'Verificar contraseña' }).click()
+    await page.getByLabel('Contraseña para reautenticar').press('Enter')
     await expect(page.getByRole('alert')).toContainText('reautenticar')
 
     // Con la contraseña correcta queda habilitada la ventana de 10 minutos.
     await page.getByLabel('Contraseña para reautenticar').fill(SEED.company.password)
-    await page.getByRole('button', { name: 'Verificar contraseña' }).click()
-    await expect(page.getByText(/Acciones sensibles habilitadas hasta/)).toBeVisible()
+    await page.getByLabel('Contraseña para reautenticar').press('Enter')
+    await expect(page.getByText(/Contraseña verificada durante 10 minutos/)).toBeVisible()
     await expect(eliminar).toBeEnabled()
 
     // Archivar: se explica que la historia se conserva y el plazo de 30 días.

@@ -2,6 +2,14 @@
 // e2e propia. Verifica la navegación por pestañas y que las vistas compartan
 // el mismo lenguaje de métricas (rango, períodos y resultados).
 import { test, expect } from '@playwright/test'
+import { mkdirSync } from 'node:fs'
+import { join } from 'node:path'
+
+// Capturas: `QA_GANADORES_CAPTURAS` (default test-results/qa-ganadores) — se
+// versionan en docs/qa/finanzas-ganadores/.
+const DIR = process.env.QA_GANADORES_CAPTURAS || join('test-results', 'qa-ganadores')
+mkdirSync(DIR, { recursive: true })
+const capturar = (page, nombre) => page.screenshot({ path: join(DIR, `ganadores-${nombre}.png`) })
 
 test.describe('análisis', () => {
   test('la vista extendida abre en Reportes y comparte el período con Ganancias', async ({ page }) => {
@@ -24,6 +32,34 @@ test.describe('análisis', () => {
     await page.getByRole('tab', { name: 'Asistente' }).click()
     await expect(page).toHaveURL(/\/analisis\/asistente$/)
     await expect(page.getByRole('heading', { name: 'Asistente de ganancias' })).toBeVisible()
+  })
+
+  // Márgenes (#148 §19 · #171): el ranking de ganadores usa la ganancia real
+  // (costos congelados del mismo reporte). Si la tienda no cargó costos, se
+  // ordena por venta y se avisa; nunca se inventa un margen.
+  test('Ganadores ordena por ganancia real y muestra el margen', async ({ page }) => {
+    const esperarReporte = () => page.waitForResponse(
+      (respuesta) => respuesta.url().includes('/api/reports') && respuesta.url().includes('groupBy=product') && respuesta.status() === 200,
+    )
+    const [respuesta] = await Promise.all([esperarReporte(), page.goto('/analisis/ganadores?periodo=mes')])
+    const datos = await respuesta.json()
+    const hayCostos = Number(datos?.totals?.costPyg || 0) > 0
+    await expect(page.getByRole('heading', { name: 'Productos ganadores' })).toBeVisible()
+
+    if (hayCostos) {
+      await expect(page.getByText('Ordenado por ganancia del período')).toBeVisible()
+      // La primera fila es la de mayor ganancia del reporte (desempata por venta).
+      const mejor = [...(datos.groups || [])].sort((a, b) => (
+        Number(b.profitPyg || 0) - Number(a.profitPyg || 0) || Number(b.grossPyg || 0) - Number(a.grossPyg || 0)
+      ))[0]
+      const fila = page.getByTestId('ganadores-fila').first()
+      await expect(fila).toContainText(mejor.label)
+      await expect(fila.getByText('Ganancia')).toBeVisible()
+      await expect(fila).toContainText('margen')
+    } else {
+      await expect(page.getByText('Sin costos cargados: ordenado por venta')).toBeVisible()
+    }
+    await capturar(page, 'mes')
   })
 
   // #181: Reportes reutiliza el calendario y el desglose de Ganancias; los

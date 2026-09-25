@@ -121,7 +121,9 @@ const MODULOS_OWNER = [
   ['/delivery', 'Delivery'],
   ['/clientes', 'Clientes'],
   ['/promociones', 'Promociones'],
-  ['/precios', 'Listas de precios'],
+  // /precios sigue abriendo la pantalla propia de listas (compat); en
+  // Configuración vive dentro de Comercial.
+  ['/precios', 'Precios'],
   ['/cotizaciones', 'Cotizaciones'],
   ['/plantillas', 'Plantillas de WhatsApp'],
   ['/inventario', 'Unidades'],
@@ -133,17 +135,14 @@ const MODULOS_OWNER = [
   ['/resumen', 'Resumen general'],
   ['/analisis', 'Reportes'],
   ['/finanzas', 'Caja'],
-  ['/configuracion', 'Equipo'],
-  ['/configuracion/identidad', 'Mi identidad'],
-  ['/configuracion/roles', 'Roles y permisos'],
-  ['/configuracion/negocio', 'Negocio'],
-  ['/configuracion/precios', 'Listas de precios'],
-  ['/configuracion/sucursales', 'Sucursales'],
-  ['/configuracion/seguridad', 'Seguridad'],
-  ['/configuracion/historial', 'Auditoría'],
-  ['/configuracion/impresoras', 'Impresoras'],
+  ['/configuracion', 'Mi cuenta'],
+  ['/configuracion/organizacion', 'Organización'],
+  ['/configuracion/equipo', 'Equipo y acceso'],
+  ['/configuracion/comercial', 'Comercial'],
+  ['/configuracion/seguridad', 'Seguridad y auditoría'],
+  ['/configuracion/dispositivos', 'Dispositivos'],
   ['/ayuda/ayuda', 'Ayuda'],
-  ['/configuracion/sistema', 'Estado del sistema'],
+  ['/configuracion/sistema', 'Sistema'],
 ]
 
 test('la demo entra sin login, navega con datos ficticios y no toca el API', async ({ page }) => {
@@ -245,7 +244,7 @@ test('dueño: recorrido demo con datos ficticios y capturas opcionales', async (
     ['/finanzas/conciliacion', /Conciliaci/i, '05-conciliacion'],
     ['/analisis/ganancias', /Ganancias/i, '06-ganancias'],
     ['/servicio-tecnico', /Servicio|Taller|Órdenes/i, '07-servicio'],
-    ['/configuracion/impresoras', /Impresoras/i, '08-impresoras'],
+    ['/configuracion/dispositivos', /Dispositivos|Impresi/i, '08-impresoras'],
   ]
   for (const [ruta, texto, nombre] of pantallas) {
     await page.goto(ruta)
@@ -448,16 +447,17 @@ test('configuración en demo muestra avisos claros y sin cargas colgadas', async
   await expect(page).toHaveURL(/\/resumen$/)
   await cerrarGuia(page)
 
-  // Sucursales y Precios explican que se administran con una cuenta real.
-  await page.goto('/configuracion/sucursales')
+  // Sucursales y Precios (dentro de Organización y Comercial) explican que se
+  // administran con una cuenta real.
+  await page.goto('/configuracion/organizacion')
   await expect(page.getByText('Las sucursales se administran con una cuenta real')).toBeVisible()
   await expect(page.getByText('Cargando sucursales…')).toHaveCount(0)
-  await page.goto('/configuracion/precios')
+  await page.goto('/configuracion/comercial')
   await expect(page.getByText('Las listas de precios se configuran con una cuenta real')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Ingresar con mi cuenta' })).toBeVisible()
 
   // El interruptor de seguro tiene nombre accesible y no expone atributos raros.
-  await page.goto('/configuracion/negocio')
+  await page.goto('/configuracion/comercial')
   await expect(page.getByRole('switch', { name: 'Aplica seguro' })).toBeVisible()
 })
 
@@ -467,6 +467,9 @@ test('el último usado es el default y se puede cambiar (#209)', async ({ page }
   await expect(page).toHaveURL(/\/resumen$/)
   await cerrarGuia(page)
 
+  // #IA: Documentación salió de Configuración: vive en /ayuda (con su propio
+  // enlace de vuelta). Para no perder lo recordado en la demo, la vuelta se
+  // hace por el enlace y el regreso con el historial (navegación SPA).
   const irADocumentacion = async () => {
     await page.locator('aside nav').getByRole('button', { name: 'Ayuda', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Ayuda', exact: true })).toBeVisible()

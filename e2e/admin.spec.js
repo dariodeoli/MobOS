@@ -4,7 +4,7 @@
 import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { SEED } from './helpers/seed-data.js'
-import { loginAsSeller } from './helpers/login.js'
+import { loginAsSeller, loginCompany } from './helpers/login.js'
 import { agregarIntegranteDirecto } from './helpers/integrantes.mjs'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
@@ -158,9 +158,7 @@ test.describe('owner panel', () => {
 
   test('equipo → Roles y permisos describes each role and its matrix', async ({ page }) => {
     await page.goto('/configuracion/equipo')
-    await page.getByRole('tab', { name: 'Roles y permisos' }).click()
-
-    await expect(page.getByRole('heading', { name: 'Roles y permisos' })).toBeVisible()
+    // #IA: Roles y permisos vive dentro de Equipo y acceso (sin pestaña propia).
     await expect(page.getByRole('heading', { name: 'Matriz de capacidades' })).toBeVisible()
     await expect(page.getByRole('columnheader', { name: 'Gerente' })).toBeVisible()
     await expect(page.getByRole('rowheader', { name: /Aplicar descuentos/ })).toBeVisible()
@@ -415,7 +413,9 @@ test.describe('owner panel', () => {
 
     // Un valor que solo existe en el metadato tiene que encontrar la fila.
     await page.getByLabel('Buscar en la auditoría').fill(creado.printerName)
-    await page.getByRole('button', { name: 'Actualizar' }).click()
+    // #IA: Seguridad y auditoría apila varias tarjetas con «Actualizar»; el
+    // botón de la auditoría tiene su propio testid.
+    await page.getByTestId('auditoria-actualizar').click()
     const fila = page.getByTestId('auditoria-fila').filter({ hasText: 'Trabajo en cola' }).first()
     await expect(fila).toBeVisible({ timeout: 20_000 })
 
@@ -459,8 +459,7 @@ test('configuración → sube el logo de la empresa y lo quita', async ({ page }
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==',
     'base64',
   )
-  await page.goto('/configuracion')
-  await page.getByRole('main').getByRole('button', { name: 'Negocio' }).click()
+  await page.goto('/configuracion/organizacion')
   await expect(page.getByRole('heading', { name: 'Logo de la empresa' })).toBeVisible()
   // UX Config → Logos: un preview por modo, cada uno sobre el fondo que le toca.
   await expect(page.getByTestId('logo-preview-light')).toHaveClass(/bg-white/)
@@ -497,15 +496,15 @@ test('pedidos → la búsqueda llega al servidor y encuentra por número', async
   await expect(page.getByText(SEED.seedOrderNumber).first()).toBeVisible()
 })
 
-// Foto del usuario: se sube desde Mi identidad y queda disponible para las
+// Foto del usuario: se sube desde Mi cuenta y queda disponible para las
 // cronologías (el avatar reemplaza a las iniciales).
 test('configuración → sube mi foto y la quita', async ({ page }) => {
   const png = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==',
     'base64',
   )
-  await page.goto('/configuracion')
-  await page.getByRole('main').getByRole('button', { name: 'Negocio' }).click()
+  // #IA: la foto es de la persona: vive en Configuración → Mi cuenta.
+  await page.goto('/configuracion/mi-cuenta')
   await expect(page.getByText('Mi foto')).toBeVisible()
   await page
     .locator('input[type="file"][accept*="image/png"]')
@@ -569,8 +568,8 @@ test('solicitudes → pedir mayorista desde la ficha y aprobarla en Autorizacion
   await expect(fila.getByText('Aprobada')).toBeVisible()
 
   // La bandeja es una sola: la tarjeta duplicada de Configuración se eliminó.
-  await page.goto('/configuracion')
-  await page.getByRole('main').getByRole('button', { name: 'Negocio' }).click()
+  // #IA: se revisa Organización (la sección que reúne negocio y datos).
+  await page.goto('/configuracion/organizacion')
   await expect(page.getByRole('heading', { name: 'Solicitudes del cliente' })).toHaveCount(0)
   // Las plantillas ya no viven dentro de Configuración: tienen vista propia.
   await page.goto('/plantillas')
@@ -1227,6 +1226,12 @@ test('servicio y garantías: la garantía pasa al taller con su historial', asyn
 // eliminación de la empresa viven en Configuración (nunca a un toque).
 test('el menú de tres puntos queda corto y lo destructivo vive en Configuración (#228)', async ({ page }) => {
   mkdirSync('test-results/qa-228', { recursive: true })
+  // Sesión fresca: la ventana de reautenticación vence y el flujo de
+  // confirmación es determinista (la sesión del arnés se comparte).
+  await page.context().clearCookies()
+  await loginCompany(page)
+  await page.locator('#seller-pin').pressSequentially(SEED.admin.pin)
+  await expect(page).toHaveURL(/\/resumen$/)
   await page.goto('/pos')
   await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
@@ -1241,20 +1246,18 @@ test('el menú de tres puntos queda corto y lo destructivo vive en Configuració
   await page.screenshot({ path: 'test-results/qa-228/02-despues.jpg', type: 'jpeg', quality: 70 })
   await page.keyboard.press('Escape')
 
-  // Preferencias del dispositivo: Configuración → Dispositivos → Preferencias.
+  // Preferencias del dispositivo: Configuración → Mi cuenta (sección #IA).
   await page.getByRole('button', { name: 'Configuración', exact: true }).click()
-  await page.locator('main').getByRole('button', { name: 'Dispositivos', exact: true }).click()
-  await page.locator('main').getByRole('tab', { name: 'Preferencias', exact: true }).click()
+  await page.locator('main').getByRole('tab', { name: 'Mi cuenta', exact: true }).click()
   await expect(page.locator('#pref-bloqueo')).toBeVisible()
   await page.screenshot({ path: 'test-results/qa-228/03-preferencias.jpg', type: 'jpeg', quality: 70 })
 
-  // Eliminar empresa: Configuración → Seguridad, con reauth + palabra ELIMINAR.
-  await page.locator('main').getByRole('button', { name: 'Seguridad', exact: true }).click()
-  await page.locator('main').getByRole('tab', { name: 'Seguridad', exact: true }).click()
+  // Eliminar empresa: Configuración → Organización, con reauth + palabra ELIMINAR.
+  await page.locator('main').getByRole('tab', { name: 'Organización', exact: true }).click()
   await expect(page.getByText('Eliminar empresa definitivamente')).toBeVisible()
   await page.getByLabel('Contraseña para reautenticar').fill(SEED.company.password)
-  await page.getByRole('button', { name: 'Verificar contraseña' }).click()
-  await expect(page.getByText(/Acciones sensibles habilitadas/)).toBeVisible()
+  await page.getByLabel('Contraseña para reautenticar').press('Enter')
+  await expect(page.getByText(/Contraseña verificada durante 10 minutos/)).toBeVisible()
   await page.getByRole('button', { name: 'Eliminar empresa' }).click()
   const dialogo = page.getByRole('dialog')
   await expect(dialogo.getByText('Escribí ELIMINAR para confirmar')).toBeVisible()
