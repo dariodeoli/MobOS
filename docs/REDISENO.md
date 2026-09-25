@@ -146,6 +146,10 @@ medición AA. La salida de emergencia por dispositivo sigue siendo
 paquete de aprobación es [`rediseno/PAQUETE-F4.md`](rediseno/PAQUETE-F4.md) y el
 detalle con capturas y medición, [`rediseno/F4-DOMINIOS.md`](rediseno/F4-DOMINIOS.md).
 
+**Actualización 25/09/2026:** el mock navegable `/rediseno-f3` se retiró —el v2
+es el diseño real— y el alcance/capturas de F3 quedan en `rediseno/` como
+historial.
+
 ## Criterios de aceptación por lote
 - Sin scroll horizontal en 360px/768px/1440px.
 - Sin acciones importantes fuera del viewport inicial.

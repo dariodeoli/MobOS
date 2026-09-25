@@ -451,9 +451,9 @@ test('el tono de la unidad vive en utils/inventario (#217)', () => {
 
 // Lote 17: la página pública del informe usa los objetos y reglas compartidas.
 test('el informe público usa MedidorBateria y la condición compartida (#240)', () => {
-  const pagina = readFileSync(join(RAIZ, 'pages/UnidadPublica.jsx'), 'utf8')
-  assert.match(pagina, /<MedidorBateria porcentaje=\{unidad\.batteryHealth\}/)
-  assert.match(pagina, /etiquetaCondicionUnidad\(unidad\)/)
+  const pagina = readFileSync(join(RAIZ, 'pages/InformePublico.jsx'), 'utf8')
+  assert.match(pagina, /<MedidorBateria porcentaje=\{unit\.batteryHealth\}/)
+  assert.match(pagina, /etiquetaCondicionUnidad\(unit\)/)
   assert.ok(!/const CONDICION = \{/.test(pagina), 'la condición sale de utils/inventario')
   assert.ok(!/batteryHealth\) >= 85/.test(pagina), 'los umbrales de batería salen de MedidorBateria')
 })
