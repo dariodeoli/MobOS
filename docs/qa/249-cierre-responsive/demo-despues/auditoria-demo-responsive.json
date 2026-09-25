@@ -1,0 +1,600 @@
+[
+  {
+    "pantalla": "demo-pos",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "menú de acciones (POS)",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Más acciones",
+            "ancho": 44,
+            "alto": 44,
+            "dibujo": "36x36"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "demo-pos",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "menú de acciones (POS)",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Más acciones",
+            "ancho": 44,
+            "alto": 44,
+            "dibujo": "36x36"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "demo-pos",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 231,
+        "alto": 34,
+        "dibujo": "231x34",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "menú de acciones (POS)",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Más acciones",
+            "ancho": 44,
+            "alto": 44,
+            "dibujo": "36x36"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "demo-pos",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 7,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Analytics",
+        "ancho": 121,
+        "alto": 36,
+        "dibujo": "121x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-4 font-sem",
+        "veces": 4
+      },
+      {
+        "que": "button",
+        "texto": "Cómo funciona",
+        "ancho": 106,
+        "alto": 22,
+        "dibujo": "106x22",
+        "clase": "min-h-11 rounded-lg border border-warn/40 px-2 py-0.5 text-xs font-sem",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Nuevo producto",
+        "ancho": 135,
+        "alto": 30,
+        "dibujo": "135x30",
+        "clase": "inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-fon",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "menú de acciones (POS)",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Más acciones",
+            "ancho": 44,
+            "alto": 44,
+            "dibujo": "36x36"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "demo-pedidos",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-pedidos",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-pedidos",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 231,
+        "alto": 34,
+        "dibujo": "231x34",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-pedidos",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 10,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Activos",
+        "ancho": 63,
+        "alto": 28,
+        "dibujo": "63x28",
+        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition md:",
+        "veces": 7
+      },
+      {
+        "que": "button",
+        "texto": "Cómo funciona",
+        "ancho": 106,
+        "alto": 22,
+        "dibujo": "106x22",
+        "clase": "min-h-11 rounded-lg border border-warn/40 px-2 py-0.5 text-xs font-sem",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Actualizar",
+        "ancho": 84,
+        "alto": 34,
+        "dibujo": "84x34",
+        "clase": "min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semib",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-clientes",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-clientes",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-clientes",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 231,
+        "alto": 34,
+        "dibujo": "231x34",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-clientes",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 3,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Cómo funciona",
+        "ancho": 106,
+        "alto": 22,
+        "dibujo": "106x22",
+        "clase": "min-h-11 rounded-lg border border-warn/40 px-2 py-0.5 text-xs font-sem",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "+ Crear cliente",
+        "ancho": 130,
+        "alto": 36,
+        "dibujo": "130x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-4 font-sem",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-inventario",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-inventario",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-inventario",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 231,
+        "alto": 34,
+        "dibujo": "231x34",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-inventario",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 10,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "+ Recibir unidad",
+        "ancho": 141,
+        "alto": 36,
+        "dibujo": "141x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-4 font-sem",
+        "veces": 8
+      },
+      {
+        "que": "button",
+        "texto": "Cómo funciona",
+        "ancho": 106,
+        "alto": 22,
+        "dibujo": "106x22",
+        "clase": "min-h-11 rounded-lg border border-warn/40 px-2 py-0.5 text-xs font-sem",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-finanzas",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-finanzas",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-finanzas",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 231,
+        "alto": 34,
+        "dibujo": "231x34",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-finanzas",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 11,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Caja",
+        "ancho": 53,
+        "alto": 36,
+        "dibujo": "53x36",
+        "clase": "rounded-xl px-3 py-2 text-sm font-medium transition min-h-11 bg-fono t",
+        "veces": 5
+      },
+      {
+        "que": "button",
+        "texto": "Cerrar caja · Gs 0",
+        "ancho": 149,
+        "alto": 36,
+        "dibujo": "149x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-4 font-sem",
+        "veces": 3
+      },
+      {
+        "que": "button",
+        "texto": "Cómo funciona",
+        "ancho": 106,
+        "alto": 22,
+        "dibujo": "106x22",
+        "clase": "min-h-11 rounded-lg border border-warn/40 px-2 py-0.5 text-xs font-sem",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "30 días",
+        "ancho": 123,
+        "alto": 36,
+        "dibujo": "123x36",
+        "clase": "inline-flex h-9 items-center gap-2 rounded-lg border border-ink-500 bg",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  }
+]
