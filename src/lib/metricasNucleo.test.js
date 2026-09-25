@@ -40,7 +40,24 @@ test('topProductos: corta el límite y conserva la clase ABC', () => {
     { key: 'p1', label: 'iPhone', units: 3, grossPyg: 900000, abcClass: 'A', accumulatedPct: 90 },
     { key: 'p2', label: 'Funda', units: 5, grossPyg: 100000, abcClass: 'B', accumulatedPct: 100 },
   ], 1)
-  assert.deepEqual(top, [{ id: 'p1', nombre: 'iPhone', cantidad: 3, monto: 900000, clase: 'A', acumuladoPct: 90 }])
+  assert.deepEqual(top, [{
+    id: 'p1', nombre: 'iPhone', cantidad: 3, monto: 900000, ganancia: 0, margenPct: 0,
+    sinCosto: 0, clase: 'A', acumuladoPct: 90,
+  }])
+})
+
+test('topProductos: con costos congelados ordena por ganancia y calcula el margen', () => {
+  const grupos = [
+    { key: 'p1', label: 'iPhone', units: 2, grossPyg: 1000000, profitPyg: 100000 },
+    { key: 'p2', label: 'Funda', units: 6, grossPyg: 300000, profitPyg: 150000 },
+    { key: 'p3', label: 'Sin costo', units: 1, grossPyg: 50000, profitPyg: 0, salesWithoutCostPyg: 50000 },
+  ]
+  const porGanancia = topProductos(grupos, 8, 'ganancia')
+  assert.deepEqual(porGanancia.map((f) => f.nombre), ['Funda', 'iPhone', 'Sin costo'])
+  assert.equal(porGanancia[0].margenPct, 50)
+  assert.equal(porGanancia[2].sinCosto, 50000)
+  // El criterio por venta conserva el orden del backend (curva ABC por venta).
+  assert.deepEqual(topProductos(grupos, 8, 'venta').map((f) => f.nombre), ['iPhone', 'Funda', 'Sin costo'])
 })
 
 test('normalizarMetricas: contrato estable de la portada ejecutiva', () => {
