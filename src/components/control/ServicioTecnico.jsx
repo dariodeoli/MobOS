@@ -25,9 +25,7 @@ import { cn } from '@/lib/utils'
 import SerialTexto from '@/components/shared/SerialTexto'
 import { CELDA_DATO, CELDA_ENCABEZADO } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
-import { ESTADOS_SERVICIO as ESTADOS, ESTADO_SERVICIO_LABEL as ESTADO_LABEL, ESTADO_SERVICIO_TONO as ESTADO_TONE } from '@/lib/estadosServicio'
-// Pipeline del taller: recepción → diagnóstico → reparación → entrega.
-const SIGUIENTE = { RECIBIDO: 'DIAGNOSTICO', DIAGNOSTICO: 'CON_TECNICO', CON_TECNICO: 'ESPERANDO_REPUESTO', ESPERANDO_REPUESTO: 'REPARADO', REPARADO: 'LISTO', LISTO: 'ENTREGADO' }
+import { ESTADOS_SERVICIO as ESTADOS, ESTADO_SERVICIO_LABEL as ESTADO_LABEL, ESTADO_SERVICIO_TONO as ESTADO_TONE, SIGUIENTE_SERVICIO as SIGUIENTE } from '@/lib/estadosServicio'
 // Plantilla sugerida del menú central por estado del pipeline (#134): al abrir
 // WhatsApp desde la fila, el mensaje ya sale con el contexto del taller.
 const PLANTILLA_POR_ESTADO = {

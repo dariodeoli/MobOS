@@ -9,16 +9,18 @@ import { useSesion } from '@/lib/sesion'
 import { cn } from '@/lib/utils'
 import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
 import { temaV2Activo } from '@/lib/temaV2'
-import { ESTADO_GARANTIA_BADGE } from '@/lib/estadosPedido'
+import { ESTADO_GARANTIA, ESTADO_GARANTIA_BADGE, SIGUIENTE_GARANTIA } from '@/lib/estadosPedido'
+import { SIGUIENTE_SERVICIO, etiquetaServicio } from '@/lib/estadosServicio'
 import Garantias from './Garantias'
 import ServicioTecnico from './ServicioTecnico'
+import TableroServicioGarantias from './TableroServicioGarantias'
 
 // Módulo unificado “Servicio y Garantías” (#224): una garantía puede ingresar
 // al taller, así que viven juntos pero con distinción clara. La pestaña Todo
 // lista ambos orígenes con su badge y permite convertir una garantía en orden
-// de servicio conservando el historial; las otras dos pestañas son las
-// pantallas de detalle de siempre.
-const TABS = [['todo', 'Todo'], ['servicio', 'Servicio'], ['garantias', 'Garantías']]
+// de servicio conservando el historial; las otras pestañas son las pantallas
+// de detalle de siempre y el tablero por etapas (#215).
+const TABS = [['todo', 'Todo'], ['tablero', 'Tablero'], ['servicio', 'Servicio'], ['garantias', 'Garantías']]
 const ESTADO_SERVICIO = { RECIBIDO: 'Recibido', DIAGNOSTICO: 'Diagnóstico', CON_TECNICO: 'Con técnico', ESPERANDO_REPUESTO: 'Esperando repuesto', REPARADO: 'Reparado', LISTO: 'Listo para retirar', ENTREGADO: 'Entregado', CANCELADO: 'Cancelado' }
 const GRID = 'grid min-w-[58rem] grid-cols-[6.5rem_minmax(0,1.4fr)_minmax(0,1.2fr)_7.5rem_6rem_11rem] items-center gap-x-2'
 const CELDA = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
@@ -35,11 +37,12 @@ export default function ServicioGarantias({ vistaInicial = 'servicio' }) {
   const [revision, setRevision] = useState(0)
   const [confirmar, setConfirmar] = useState(null)
   const [convirtiendo, setConvirtiendo] = useState(false)
+  const [procesandoId, setProcesandoId] = useState(null)
 
   useEffect(() => { if (TABS.some(([id]) => id === vistaInicial)) setVista(vistaInicial) }, [vistaInicial])
 
   useEffect(() => {
-    if (vista !== 'todo') return undefined
+    if (vista !== 'todo' && vista !== 'tablero') return undefined
     let vivo = true
     setFilas(null); setError('')
     const armar = (servicios, garantias) => {
@@ -54,6 +57,7 @@ export default function ServicioGarantias({ vistaInicial = 'servicio' }) {
         equipo: order.device || '',
         serial: order.serial || '',
         estado: ESTADO_SERVICIO[order.status] || order.status || '',
+        estadoCodigo: order.status || '',
         estadoTono: order.status === 'ENTREGADO' ? 'green' : order.status === 'CANCELADO' ? 'red' : 'slate',
         createdAt: order.createdAt || order.receivedAt,
       }))
@@ -71,6 +75,7 @@ export default function ServicioGarantias({ vistaInicial = 'servicio' }) {
         equipo: item.description || '',
         serial: item.serial || '',
         estado: ESTADO_GARANTIA_BADGE[item.status]?.label || item.status || '',
+        estadoCodigo: item.status || '',
         estadoTono: item.status === 'DELIVERED' ? 'green' : item.status === 'READY' ? 'orange' : 'slate',
         createdAt: item.createdAt,
       }))
@@ -139,6 +144,29 @@ export default function ServicioGarantias({ vistaInicial = 'servicio' }) {
     } finally { setConvirtiendo(false) }
   }
 
+  // Avance de etapa desde el tablero (#215/#241): la tarjeta pasa a la etapa
+  // siguiente de su propio pipeline (taller o garantía) y la lista se recarga.
+  async function avanzarFila(fila) {
+    const siguiente = fila.tipo === 'SERVICIO' ? SIGUIENTE_SERVICIO[fila.estadoCodigo] : SIGUIENTE_GARANTIA[fila.estadoCodigo]
+    if (!siguiente || procesandoId) return
+    setProcesandoId(fila.key)
+    try {
+      if (esDemo) {
+        if (fila.tipo === 'SERVICIO') saveDemoServicio({ rows: getDemoServicio().rows.map((actual) => (actual.id === fila.id ? { ...actual, status: siguiente } : actual)) })
+        else saveDemoWarranties(getDemoWarranties().map((actual) => (actual.id === fila.id ? { ...actual, status: siguiente, updatedAt: new Date().toISOString() } : actual)))
+      } else if (fila.tipo === 'SERVICIO') {
+        await api.patch('/api/service-orders', { id: fila.id, status: siguiente })
+      } else {
+        await api.patch('/api/warranties', { id: fila.id, status: siguiente })
+      }
+      const etiqueta = fila.tipo === 'SERVICIO' ? etiquetaServicio(siguiente) : ESTADO_GARANTIA[siguiente]
+      toast.success(`${fila.equipo || fila.codigo}: ${etiqueta}.`)
+      setRevision((valor) => valor + 1)
+    } catch (cause) {
+      toast.error(cause?.message || 'No se pudo avanzar la etapa.')
+    } finally { setProcesandoId(null) }
+  }
+
   return (
     <div className="space-y-4" data-testid="servicio-garantias">
       <div className="flex flex-wrap items-center gap-2">
@@ -147,6 +175,16 @@ export default function ServicioGarantias({ vistaInicial = 'servicio' }) {
 
       {vista === 'servicio' && <ServicioTecnico />}
       {vista === 'garantias' && <Garantias />}
+
+      {vista === 'tablero' && (
+        <TableroServicioGarantias
+          filas={filas}
+          error={error}
+          onReintentar={() => setRevision((valor) => valor + 1)}
+          onAvanzar={avanzarFila}
+          procesandoId={procesandoId}
+        />
+      )}
 
       {vista === 'todo' && (
         <div className="space-y-3">
