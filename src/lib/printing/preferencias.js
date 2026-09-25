@@ -23,6 +23,7 @@ export const TIPOS_DOCUMENTO = Object.freeze({
   'informe-dispositivo': 'Informe de dispositivo',
   'certificado-phonecheck': 'Certificado de inspección',
   'constancia-preparacion': 'Constancia de preparación',
+  'comprobante-recepcion': 'Comprobante de recepción',
 })
 
 export const etiquetaTipoImpresion = (tipo) => TIPOS_DOCUMENTO[tipo] || String(tipo || '').replace(/-/g, ' ') || 'Impresión'
