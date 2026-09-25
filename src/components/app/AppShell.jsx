@@ -636,7 +636,7 @@ export default function AppShell({
               type="button"
               data-testid="demo-como-funciona"
               onClick={() => setComoFunciona(true)}
-              className="rounded-lg border border-warn/40 px-2 py-0.5 text-xs font-semibold transition hover:bg-warn/10"
+              className="min-h-11 rounded-lg border border-warn/40 px-2 py-0.5 text-xs font-semibold transition hover:bg-warn/10 md:min-h-0"
             >
               Cómo funciona
             </button>

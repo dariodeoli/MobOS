@@ -176,6 +176,11 @@ lleva las capturas por pantalla y el JSON crudo de la auditoría.
   miden 0 scroll y 0 cortes a 360/390/414/768, y el barrido destapó tres fixes
   táctiles en las secciones (Editar nombre, Copiar prompt y Actualizar de
   Auditoría), que quedaron en 44. En mobile solo queda el enlace H6 de crédito.
+- **Demo (local)** ✅ verificada con los fixes aplicados: POS con carrito,
+  Pedidos, Clientes, Inventario y Finanzas + el menú de tres puntos desplegado,
+  a 360/390/414/768. 0 scroll y 0 cortes; el botón «Cómo funciona» del banner
+  demo pasó de 22 a 44 en esta pasada y mobile queda solo con el enlace H6.
+  Evidencia: `docs/qa/249-cierre-responsive/demo-antes/` y `.../demo-despues/`.
 
 ## Plan
 
