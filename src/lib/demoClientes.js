@@ -70,6 +70,20 @@ export const SEED_DEMO_CLIENTES = [
     // Tus beneficios (#240 → portal): saldo a favor y puntos visibles en la cuenta.
     saldoFavorPyg: 250000,
     puntosPyg: 45000,
+    // Cotización vigente (#240 → portal): vence en 2 días y se acepta desde el
+    // enlace público de la cotización.
+    cotizaciones: [{
+      number: 'COT-#0018',
+      status: 'SENT',
+      totalPyg: 4850000,
+      subtotalPyg: 5000000,
+      discountPyg: 150000,
+      createdAt: haceDias(5),
+      validUntil: haceDias(-2),
+      publicToken: 'demo-cot-lucia',
+      notes: 'Incluye funda y vidrio templado de regalo.',
+      items: [{ description: 'iPhone 15 · 128 GB', quantity: 1, unitPricePyg: 5000000, totalPyg: 5000000 }],
+    }],
     addresses: [
       { id: 'demo-dir-1', label: 'Casa', address: 'Av. Mcal. López 1234', city: 'Asunción', department: 'Capital', country: 'Paraguay', isDefault: true },
       { id: 'demo-dir-1b', label: 'Trabajo', address: 'Av. España 500', city: 'Asunción', department: 'Capital', country: 'Paraguay', isDefault: false },
@@ -166,6 +180,18 @@ export const SEED_DEMO_CLIENTES = [
     addresses: [{ id: 'demo-dir-3', label: 'Casa', address: 'Calle Palma 456', city: 'Luque', department: 'Central', country: 'Paraguay', isDefault: true }],
     // Reserva vigente (#240 → portal): vence en 2 días.
     reservas: [{ serial: 'AUR002500000000', model: 'iPhone 13', capacity: '128 GB', branch: 'Casa Central', reservedUntil: haceDias(-2) }],
+    // Cotización ya convertida (#240 → portal): la propuesta que terminó en su pedido.
+    cotizaciones: [{
+      number: 'COT-#0011',
+      status: 'CONVERTED',
+      totalPyg: 450000,
+      subtotalPyg: 450000,
+      discountPyg: 0,
+      createdAt: haceDias(35),
+      validUntil: haceDias(20),
+      publicToken: 'demo-cot-carlos',
+      items: [{ description: 'Cargador USB-C', quantity: 1, unitPricePyg: 450000, totalPyg: 450000 }],
+    }],
     demoProfile: {
       orders: [
         pedido({ id: 'demo-p-1', numero: 'MOB-0001', total: 450000, pagado: 450000, dias: 35, items: [{ id: 'demo-i-1', description: 'Cargador USB-C', quantity: 1, model: 'Cargador USB-C', category: 'Accesorios', serials: [] }] }),
@@ -536,6 +562,15 @@ export function demoCuentaPayload(token) {
     // Pagos (#240 → portal): historial y total pagado de la demo.
     pagos: pagosDemo.slice(0, 8),
     totalPagadoPyg: orders.reduce((suma, order) => suma + Number(order.collectedPyg || 0), 0),
+    // Cotizaciones (#240 → portal): las compartidas, con su validez y enlace.
+    cotizaciones: (cliente.cotizaciones || []).map((cotizacion) => ({
+      number: cotizacion.number,
+      status: cotizacion.status,
+      totalPyg: cotizacion.totalPyg,
+      createdAt: cotizacion.createdAt,
+      validUntil: cotizacion.validUntil || null,
+      publicToken: cotizacion.publicToken,
+    })),
     dueDates: conSaldo,
     orders: orders.map((order) => ({
       orderNumber: order.orderNumber,

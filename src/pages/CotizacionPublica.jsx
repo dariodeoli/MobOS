@@ -1,21 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
 import { qrDataUrl } from '@/lib/qr'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { API_URL } from '@/lib/api/client'
 import { varianteDeTema } from '@/lib/tenantLogo'
+import { isDemoRuntime } from '@/lib/demoMode'
+import { demoCotizacionPayload } from '@/lib/demoCotizacion'
 import { gs } from '@/utils/calculos'
 import Icon from '@/components/shared/Icon'
 import { Aviso, Textarea } from '@/components/ui'
 import { PIE_ACCIONES } from '@/components/shared/formulario'
-
-const ABIERTAS = ['DRAFT', 'SENT']
-const ESTADO = { DRAFT: 'Pendiente de confirmar', SENT: 'Pendiente de confirmar', ACCEPTED: 'Aceptada', REJECTED: 'Rechazada', CONVERTED: 'Convertida en pedido', EXPIRED: 'Vencida', CANCELLED: 'Cancelada' }
-const TONO = { ACCEPTED: 'border-ok/30 bg-ok/10 text-ok', REJECTED: 'border-bad/30 bg-bad/10 text-bad', EXPIRED: 'border-bad/30 bg-bad/10 text-bad', CANCELLED: 'border-bad/30 bg-bad/10 text-bad', CONVERTED: 'border-fono/30 bg-fono/10 text-fono-light' }
+import { ABIERTAS, ESTADO_COTIZACION as ESTADO, TONO_COTIZACION as TONO } from '@/lib/cotizaciones'
 
 // Cotización pública: el cliente abre el QR o el enlace, revisa el detalle y
 // acepta o rechaza (con motivo opcional) sin iniciar sesión. Una sola vez.
 export default function CotizacionPublica() {
   const { token } = useParams()
+  const [searchParams] = useSearchParams()
   const [quote, setQuote] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -23,23 +23,34 @@ export default function CotizacionPublica() {
   const [motivo, setMotivo] = useState('')
   const [qr, setQr] = useState('')
   const [logoOk, setLogoOk] = useState(true)
+  // Cotización demo (#240 → portal): el enlace de la cuenta viaja con
+  // `?demo=1` para resolverla con los datos del navegador, igual que la
+  // garantía y el informe.
+  const demoDelEnlace = searchParams.get('demo') === '1'
+  const demo = isDemoRuntime || demoDelEnlace
 
   useEffect(() => {
     let active = true
     setError(''); setQuote(null); setRechazando(false); setMotivo(''); setQr('')
+    if (demo) {
+      const local = demoCotizacionPayload(token)
+      if (local) setQuote(local)
+      else setError('Cotización no encontrada.')
+      return () => { active = false }
+    }
     fetch(`${API_URL}/api/quotes/public/${encodeURIComponent(token || '')}`)
       .then(async response => { const payload = await response.json().catch(() => null); if (!response.ok) throw new Error(payload?.message || payload?.error || 'Cotización no encontrada.'); if (active) setQuote(payload) })
       .catch(cause => { if (active) setError(cause?.message || 'No se pudo cargar la cotización.') })
     return () => { active = false }
-  }, [token])
+  }, [token, demo])
 
   useEffect(() => {
     if (!token) return
     let active = true
-    const enlace = `${window.location.origin}/cotizacion/${encodeURIComponent(token)}`
+    const enlace = `${window.location.origin}/cotizacion/${encodeURIComponent(token)}${demo ? '?demo=1' : ''}`
     qrDataUrl(enlace).then(data => { if (active) setQr(data) }).catch(() => {})
     return () => { active = false }
-  }, [token])
+  }, [token, demo])
 
   const abierta = quote && ABIERTAS.includes(quote.status)
   const estado = quote ? (quote.resolution?.status && ABIERTAS.includes(quote.status) ? quote.resolution.status : quote.status) : ''
@@ -141,7 +152,7 @@ export default function CotizacionPublica() {
               </section>
             )}
 
-            {abierta && (
+            {abierta && !demo && (
               <section className="rounded-2xl border border-fono/30 bg-fono/5 p-5">
                 <h2 className="text-center font-semibold">¿Aceptás esta cotización?</h2>
                 <p className="mt-1 text-center text-xs text-mute">Tu respuesta queda registrada y el vendedor la ve al instante.</p>

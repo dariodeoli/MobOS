@@ -3,6 +3,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { buildDemoProfile, buildDemoTimeline, buscarClienteDemo, demoCuentaPayload, demoVitrinaPayload, eventosInformeDemo, filaInformeDemo, filasInformeDemo, listarClientesDemo, registrarInformeDemo, registrarInteraccionDemo, registrarPedidoDemoDeVenta, registrarVistoInformeDemo } from './demoClientes.js'
+import { demoCotizacionPayload } from './demoCotizacion.js'
 import { analiticaDePedidos, statsDePedidos } from './customerAggregates.js'
 
 const LUCIA = 'demo-cliente-lucia'
@@ -74,6 +75,26 @@ test('el portal demo sale como Aurora Móviles y con la nota pública', () => {
   const vitrina = demoVitrinaPayload('demo-demo-cliente-lucia-completo')
   assert.equal(vitrina.tienda.nombre, 'Aurora Móviles')
   assert.match(vitrina.cliente.notaPublica || '', /Aurora Móviles/)
+})
+
+test('la cuenta demo lleva las cotizaciones con su validez y estado (#240)', () => {
+  const lucia = demoCuentaPayload('demo-demo-cliente-lucia-rapido')
+  const cotizacion = (lucia.cotizaciones || []).find((row) => row.publicToken === 'demo-cot-lucia')
+  assert.ok(cotizacion, 'Lucía muestra su cotización vigente')
+  assert.equal(cotizacion.number, 'COT-#0018')
+  assert.equal(cotizacion.status, 'SENT')
+  assert.equal(cotizacion.totalPyg, 4850000)
+  assert.ok(cotizacion.validUntil, 'La cotización demo trae su vencimiento')
+  const carlos = demoCuentaPayload('demo-demo-cliente-carlos-rapido')
+  assert.equal((carlos.cotizaciones || []).find((row) => row.publicToken === 'demo-cot-carlos')?.status, 'CONVERTED')
+  assert.equal((demoCuentaPayload('demo-demo-cliente-maria-rapido').cotizaciones || []).length, 0)
+  // La página pública demo se arma con el mismo token del enlace.
+  const publica = demoCotizacionPayload('demo-cot-lucia')
+  assert.equal(publica.number, 'COT-#0018')
+  assert.equal(publica.status, 'SENT')
+  assert.equal(publica.items.length, 1)
+  assert.equal(publica.totalPyg, 4850000)
+  assert.equal(demoCotizacionPayload('demo-cot-inexistente'), null)
 })
 
 test('la interacción demo queda en la cronología del cliente (#240)', () => {

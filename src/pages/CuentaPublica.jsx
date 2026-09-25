@@ -11,6 +11,7 @@ import PasosEntrega from '@/components/customerPortal/PasosEntrega'
 import { avisosDeCuenta } from '@/lib/portalAvisos'
 import { demoCuentaPayload, esTokenDemo } from '@/lib/demoClientes'
 import { NIVELES_PORTAL } from '@/lib/customerPortal'
+import { ESTADO_COTIZACION, cotizacionUrlFor, diasParaVencer, estadoCotizacion, tonoCotizacion } from '@/lib/cotizaciones'
 import { ESTADO_ENTREGA, ESTADO_GARANTIA, ESTADO_PEDIDO, tonoGarantia, tonoPedido } from '@/lib/estadosPedido'
 import { tonoServicioPortal } from '@/lib/estadosServicio'
 
@@ -243,6 +244,48 @@ export default function CuentaPublica() {
                         </div>
                         <span className={`shrink-0 font-semibold tabular-nums ${vencido ? 'text-bad' : 'text-warn'}`}>{gs(vencimiento.pendingPyg)}</span>
                       </div>
+                    )
+                  })}
+                </div>
+              </PortalSeccion>
+            )}
+
+            {/* Tus cotizaciones (#240 → portal): las propuestas que la tienda
+                ya compartió, con su validez y el enlace para aceptarlas. */}
+            {cuenta.cotizaciones?.length > 0 && (
+              <PortalSeccion id="cotizaciones" titulo="Tus cotizaciones" icono="tag" data-testid="portal-cotizaciones">
+                <p className="mt-2 text-sm text-mute">Estas propuestas tienen validez limitada: abrí la que te interese para aceptarla o rechazarla.</p>
+                <div className="mt-3 space-y-2">
+                  {cuenta.cotizaciones.map((cotizacion, index) => {
+                    const estado = estadoCotizacion(cotizacion)
+                    const dias = diasParaVencer(cotizacion)
+                    const url = cotizacionUrlFor(cotizacion, { demo: esTokenDemo(token) })
+                    return (
+                      <article key={`${cotizacion.number}-${index}`} className="rounded-xl bg-ink-800/60 px-3 py-2.5 text-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold">{cotizacion.number || 'Cotización'}</p>
+                            <p className="mt-0.5 text-xs text-mute">
+                              Emitida el {fecha(cotizacion.createdAt)}
+                              {estado === 'SENT' && dias !== null ? ` · ${dias <= 0 ? 'Vence hoy' : `Vence en ${dias} día${dias === 1 ? '' : 's'}`}` : ''}
+                              {estado === 'EXPIRED' && cotizacion.validUntil ? ` · Venció el ${fecha(cotizacion.validUntil)}` : ''}
+                            </p>
+                          </div>
+                          <span className="shrink-0 font-semibold tabular-nums">{gs(cotizacion.totalPyg)}</span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                          <PortalEstado tono={tonoCotizacion(estado)}>{ESTADO_COTIZACION[estado] || estado}</PortalEstado>
+                          {url && (
+                            <Link
+                              to={url}
+                              className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-fono/40 px-3 py-2 text-xs font-bold text-fono-light transition hover:bg-fono/10"
+                            >
+                              <Icon name="external" className="h-4 w-4" />
+                              Ver cotización
+                            </Link>
+                          )}
+                        </div>
+                      </article>
                     )
                   })}
                 </div>
