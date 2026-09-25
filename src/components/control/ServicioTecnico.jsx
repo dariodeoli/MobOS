@@ -545,8 +545,8 @@ export default function ServicioTecnico() {
                 <span className={CELDA_DATO} title={row.reportedIssue || row.diagnosis || undefined}>{row.reportedIssue || row.diagnosis || 'Sin detalle'}</span>
                 <span className={CELDA_DATO}>{row.technicianName || 'Sin técnico'}</span>
                 <span className={CELDA_DATO}>{fecha(row.receivedAt)}</span>
-                <span className="truncate text-right text-xs tabular-nums text-mute">{gs(row.pricePyg || 0)}</span>
-                <span className={cn('truncate text-right text-xs font-semibold tabular-nums', ganancia >= 0 ? 'text-ok' : 'text-bad')}>{ganancia >= 0 ? '+' : ''}{gs(ganancia)}</span>
+                <span className={cn('truncate text-right text-xs tabular-nums text-mute', v2 && 'v2-numero')}>{gs(row.pricePyg || 0)}</span>
+                <span className={cn('truncate text-right text-xs font-semibold tabular-nums', ganancia >= 0 ? 'text-ok' : 'text-bad', v2 && 'v2-numero')}>{ganancia >= 0 ? '+' : ''}{gs(ganancia)}</span>
                 <Badge color={ESTADO_TONE[row.status] || 'slate'} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{ESTADO_LABEL[row.status] || row.status}</Badge>
                 <span className="flex flex-wrap items-center justify-end gap-1">
                   {row.customerPhone && (

@@ -8,6 +8,7 @@ import { getDemoWarranties, saveDemoWarranties } from '@/lib/demoWarranties'
 import { useSesion } from '@/lib/sesion'
 import { cn } from '@/lib/utils'
 import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
+import { temaV2Activo } from '@/lib/temaV2'
 import { ESTADO_GARANTIA_BADGE } from '@/lib/estadosPedido'
 import Garantias from './Garantias'
 import ServicioTecnico from './ServicioTecnico'
@@ -24,6 +25,8 @@ const CELDA = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute
 const fecha = (valor) => (valor && !Number.isNaN(Date.parse(valor)) ? new Date(valor).toLocaleDateString('es-PY') : '—')
 
 export default function ServicioGarantias({ vistaInicial = 'servicio' }) {
+  // Vista previa v2 (#241 lote E): resumen en tiles del listado unificado.
+  const v2 = temaV2Activo()
   const toast = useToast()
   const { esDemo } = useSesion()
   const [vista, setVista] = useState(TABS.some(([id]) => id === vistaInicial) ? vistaInicial : 'servicio')
@@ -148,6 +151,14 @@ export default function ServicioGarantias({ vistaInicial = 'servicio' }) {
       {vista === 'todo' && (
         <div className="space-y-3">
           <p className="text-sm text-mute">Órdenes del taller y garantías en una sola lista, con su tipo a la vista. Una garantía puede pasar al taller conservando su historial.</p>
+          {v2 && filas && filas.length > 0 && (
+            <div data-testid="resumen-servicio-garantias" className="grid grid-cols-2 divide-ink-600 rounded-xl border border-ink-600 bg-ink-800/60 text-center sm:grid-cols-4 sm:divide-x">
+              <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Registros</p><p className="v2-numero mt-1 text-lg font-semibold tabular-nums sm:text-2xl">{filas.length}</p><p className="text-[11px] text-mute">en la lista</p></div>
+              <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">En taller</p><p className={cn('v2-numero mt-1 text-lg font-semibold tabular-nums', filas.some((fila) => fila.tipo === 'SERVICIO' && !['Entregado', 'Cancelado'].includes(fila.estado)) ? 'text-fore' : 'text-mute')}>{filas.filter((fila) => fila.tipo === 'SERVICIO' && !['Entregado', 'Cancelado'].includes(fila.estado)).length}</p><p className="text-[11px] text-mute">órdenes activas</p></div>
+              <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Garantías</p><p className={cn('v2-numero mt-1 text-lg font-semibold tabular-nums', filas.some((fila) => fila.tipo === 'GARANTIA' && fila.estado !== 'Entregado') ? 'text-fore' : 'text-mute')}>{filas.filter((fila) => fila.tipo === 'GARANTIA' && fila.estado !== 'Entregado').length}</p><p className="text-[11px] text-mute">casos abiertos</p></div>
+              <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Desde garantía</p><p className={cn('v2-numero mt-1 text-lg font-semibold tabular-nums', filas.some((fila) => fila.desdeGarantia) ? 'text-ok' : 'text-mute')}>{filas.filter((fila) => fila.desdeGarantia).length}</p><p className="text-[11px] text-mute">pasaron al taller</p></div>
+            </div>
+          )}
           {filas === null && <div className="space-y-2" aria-busy="true"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>}
           {filas !== null && error && <EmptyState compact icon="alert" title="No se pudieron cargar los registros" description={error} action={<Button onClick={() => setRevision((valor) => valor + 1)}>Reintentar</Button>} />}
           {filas !== null && !error && !filas.length && <EmptyState compact icon="wrench" title="Sin registros" description="Cargá una garantía o una orden de servicio para verlas acá." />}
