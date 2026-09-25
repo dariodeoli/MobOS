@@ -361,7 +361,7 @@ export default function Auditoria() {
           {actores.map((persona) => <option key={persona.id} value={persona.id}>{persona.name}</option>)}
         </Select>
         <div className="min-w-[200px] flex-1"><SearchField ariaLabel="Buscar en la auditoría" placeholder="Acción, IMEI, pedido, impresora…" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
-        <button type="button" onClick={exportar} disabled={exportando} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{exportando ? 'Exportando…' : 'Exportar CSV'}</button>
+        <button type="button" onClick={exportar} disabled={exportando} className="min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60 md:min-h-0">{exportando ? 'Exportando…' : 'Exportar CSV'}</button>
         <button type="button" data-testid="auditoria-actualizar" onClick={load} disabled={loading} className="min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore md:min-h-0">Actualizar</button>
       </div>
     </Card>
@@ -409,7 +409,7 @@ export default function Auditoria() {
           })}
         </div>
       </div>
-      {hayMas && <div className="flex justify-center pt-3"><button type="button" disabled={cargandoMas} onClick={cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{cargandoMas ? 'Cargando…' : 'Cargar más'}</button></div>}
+      {hayMas && <div className="flex justify-center pt-3"><button type="button" disabled={cargandoMas} onClick={cargarMas} className="min-h-11 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60 md:min-h-0">{cargandoMas ? 'Cargando…' : 'Cargar más'}</button></div>}
     </Card>}
   </div>
 }

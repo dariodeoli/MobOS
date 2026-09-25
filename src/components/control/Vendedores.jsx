@@ -314,7 +314,7 @@ export default function Vendedores() {
       {!esDemo && (
         <div className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
           {[['correo', 'Invitar por correo'], ['directo', 'Agregar directamente']].map(([key, label]) => (
-            <button key={key} type="button" aria-pressed={modoInvitacion === key} onClick={() => setModoInvitacion(key)} className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${modoInvitacion === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>
+            <button key={key} type="button" aria-pressed={modoInvitacion === key} onClick={() => setModoInvitacion(key)} className={`min-h-11 flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition md:min-h-0 ${modoInvitacion === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>
           ))}
         </div>
       )}
@@ -383,7 +383,7 @@ export default function Vendedores() {
         </div>
         <div role="tablist" className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
           {[['activos', 'Activos'], ['inactivos', 'Inactivos']].map(([clave, etiqueta]) => (
-            <button key={clave} role="tab" aria-selected={tabIntegrantes === clave} onClick={() => setTabIntegrantes(clave)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${tabIntegrantes === clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{etiqueta} ({clave === 'activos' ? vendedores.filter(v => v.activo).length : vendedores.filter(v => !v.activo).length})</button>
+            <button key={clave} role="tab" aria-selected={tabIntegrantes === clave} onClick={() => setTabIntegrantes(clave)} className={`min-h-11 rounded-lg px-3 py-1.5 text-xs font-semibold transition md:min-h-0 ${tabIntegrantes === clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{etiqueta} ({clave === 'activos' ? vendedores.filter(v => v.activo).length : vendedores.filter(v => !v.activo).length})</button>
           ))}
         </div>
       </div>
@@ -395,26 +395,26 @@ export default function Vendedores() {
               <div className="flex min-w-0 items-center gap-2.5">
                 <Avatar user={{ id: v.id, name: v.nombre, hasAvatar: esDemo ? false : v.hasAvatar }} size="lg" />
                 <div className="min-w-0">
-                  <input aria-label={`Nombre de ${v.nombre}`} defaultValue={v.nombre} onBlur={event => { const name = event.target.value.trim(); if (name && name !== v.nombre) actualizarUsuario(v.id, esDemo ? { nombre: name } : { name }) }} className="min-h-7 min-w-0 max-w-[15rem] bg-transparent text-[13px] font-bold outline-none border-b border-transparent focus:border-fono" />
+                  <input aria-label={`Nombre de ${v.nombre}`} defaultValue={v.nombre} onBlur={event => { const name = event.target.value.trim(); if (name && name !== v.nombre) actualizarUsuario(v.id, esDemo ? { nombre: name } : { name }) }} className="min-h-11 min-w-0 max-w-[15rem] bg-transparent text-[13px] font-bold outline-none border-b border-transparent focus:border-fono md:min-h-7" />
                   {v.email && <p className={CELDA_DATO}>{v.email}</p>}
                   <p className={CELDA_DATO}>{v.branchId ? (sucursales.find(s => s.id === v.branchId)?.name || 'Sucursal') : 'Sin sucursal'}</p>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge color={v.activo ? 'green' : 'slate'}>{v.activo ? 'Activo' : 'Inactivo'}</Badge>
-                <Select aria-label={`Rol de ${v.nombre}`} value={v.role || 'VENDEDOR'} onChange={event => setCambioRol({ usuario: v, nextRole: event.target.value })} className="h-8 w-auto py-0 text-xs">
+                <Select aria-label={`Rol de ${v.nombre}`} value={v.role || 'VENDEDOR'} onChange={event => setCambioRol({ usuario: v, nextRole: event.target.value })} className="min-h-11 w-auto py-0 text-xs md:h-8">
                   {Object.entries(ROLE_LABELS).map(([valor, etiqueta]) => <option key={valor} value={valor}>{etiqueta}</option>)}
                 </Select>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 border-t border-ink-600/60 pt-2">
-              <button type="button" onClick={() => setHistorialDe(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore" aria-label={`Historial de ${v.nombre}`}>Historial</button>
-              <button type="button" onClick={() => abrirHorario(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore" aria-label={`Horario de ${v.nombre}`} title={resumenHorario(v) ? `Horario: ${resumenHorario(v)}` : 'Sin horario: acceso libre'}>Horario{resumenHorario(v) ? ` · ${resumenHorario(v)}` : ''}</button>
-              {!esDemo && <button type="button" onClick={() => abrirPin(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore" aria-label={`PIN de ${v.nombre}`} title="Asignar un PIN nuevo (nunca se muestra el actual)">PIN</button>}
-              {!esDemo && v.role !== 'ADMIN' && <button type="button" onClick={() => abrirPermisos(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore" aria-label={`Permisos de ${v.nombre}`} title="Permisos por acción">Permisos</button>}
+              <button type="button" onClick={() => setHistorialDe(v)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore md:min-h-0 md:min-w-0" aria-label={`Historial de ${v.nombre}`}>Historial</button>
+              <button type="button" onClick={() => abrirHorario(v)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore md:min-h-0 md:min-w-0" aria-label={`Horario de ${v.nombre}`} title={resumenHorario(v) ? `Horario: ${resumenHorario(v)}` : 'Sin horario: acceso libre'}>Horario{resumenHorario(v) ? ` · ${resumenHorario(v)}` : ''}</button>
+              {!esDemo && <button type="button" onClick={() => abrirPin(v)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore md:min-h-0 md:min-w-0" aria-label={`PIN de ${v.nombre}`} title="Asignar un PIN nuevo (nunca se muestra el actual)">PIN</button>}
+              {!esDemo && v.role !== 'ADMIN' && <button type="button" onClick={() => abrirPermisos(v)} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore md:min-h-0 md:min-w-0" aria-label={`Permisos de ${v.nombre}`} title="Permisos por acción">Permisos</button>}
               {v.activo
-                ? <button type="button" onClick={() => setConfirmarEliminar(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-bad transition hover:bg-bad/10" aria-label={`Desactivar a ${v.nombre} (conserva el historial)`}>Desactivar</button>
-                : <button type="button" onClick={() => reactivarUsuario(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-ok transition hover:bg-ok/10" aria-label={`Volver a activar a ${v.nombre}`}>Volver a activar</button>}
+                ? <button type="button" onClick={() => setConfirmarEliminar(v)} className="min-h-11 rounded-lg px-2 py-1 text-xs font-semibold text-bad transition hover:bg-bad/10 md:min-h-0" aria-label={`Desactivar a ${v.nombre} (conserva el historial)`}>Desactivar</button>
+                : <button type="button" onClick={() => reactivarUsuario(v)} className="min-h-11 rounded-lg px-2 py-1 text-xs font-semibold text-ok transition hover:bg-ok/10 md:min-h-0" aria-label={`Volver a activar a ${v.nombre}`}>Volver a activar</button>}
             </div>
             <div className="mt-1 grid grid-cols-2 items-end gap-2 border-t border-ink-600/60 pt-2 md:grid-cols-4">
               <div className="col-span-2 md:col-span-1">
@@ -566,7 +566,7 @@ export default function Vendedores() {
             <div className="flex flex-wrap gap-1">{['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'].map((dia, day) => {
               const valor = day === 6 ? 0 : day + 1
               const activo = fila.days.includes(valor)
-              return <button key={dia} type="button" aria-pressed={activo} aria-label={dia} className={`rounded-lg border px-2 py-1 text-xs transition ${activo ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute'}`} onClick={() => setHorario(current => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, days: fila2.days.includes(valor) ? fila2.days.filter(d => d !== valor) : [...fila2.days, valor] } : fila2) }))}>{dia}</button>
+              return <button key={dia} type="button" aria-pressed={activo} aria-label={dia} className={`min-h-11 rounded-lg border px-2 py-1 text-xs transition md:min-h-0 ${activo ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute'}`} onClick={() => setHorario(current => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, days: fila2.days.includes(valor) ? fila2.days.filter(d => d !== valor) : [...fila2.days, valor] } : fila2) }))}>{dia}</button>
             })}</div>
             <Input type="time" value={fila.start} onChange={event => setHorario(current => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, start: event.target.value } : fila2) }))} aria-label="Desde" />
             <Input type="time" value={fila.end} onChange={event => setHorario(current => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, end: event.target.value } : fila2) }))} aria-label="Hasta" />
@@ -595,7 +595,7 @@ export default function Vendedores() {
               role="tab"
               aria-selected={pinModo === clave}
               onClick={() => { setPinModo(clave); setPinError('') }}
-              className={cn('flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition', pinModo === clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}
+              className={cn('min-h-11 flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition md:min-h-0', pinModo === clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}
             >
               {etiqueta}
             </button>

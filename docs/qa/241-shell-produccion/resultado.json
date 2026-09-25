@@ -1,0 +1,44 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "1.0.172",
+  "fecha": "2026-09-25T20:07:46.283Z",
+  "resultados": [
+    {
+      "estado": "desktop-claro",
+      "medidos": 51,
+      "bajos": 0,
+      "detalle": []
+    },
+    {
+      "estado": "mobile-claro",
+      "medidos": 16,
+      "bajos": 0,
+      "detalle": []
+    },
+    {
+      "estado": "mobile-claro-menu",
+      "medidos": 61,
+      "bajos": 0,
+      "detalle": []
+    },
+    {
+      "estado": "desktop-oscuro",
+      "medidos": 51,
+      "bajos": 0,
+      "detalle": []
+    },
+    {
+      "estado": "mobile-oscuro",
+      "medidos": 16,
+      "bajos": 0,
+      "detalle": []
+    },
+    {
+      "estado": "mobile-oscuro-menu",
+      "medidos": 61,
+      "bajos": 0,
+      "detalle": []
+    }
+  ],
+  "fallas": []
+}

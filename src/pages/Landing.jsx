@@ -478,7 +478,7 @@ export default function Landing() {
                   <h3 className="mt-4 font-bold">{titulo}</h3>
                   <p className="mt-2 flex-1 text-sm leading-6 text-mute">{detalle}</p>
                   {enlace && (
-                    <a href={enlace} className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-fono-dark transition hover:text-fono">
+                    <a href={enlace} className="toque-44 mt-4 inline-flex items-center gap-1 text-sm font-bold text-fono-dark transition hover:text-fono">
                       Ver cómo funciona <ArrowRight size={15} />
                     </a>
                   )}
@@ -589,7 +589,7 @@ export default function Landing() {
             </div>
             <a
               href={`${app}/login`}
-              className="mt-8 inline-block font-bold text-fono-dark transition hover:text-fono"
+              className="toque-44 mt-8 inline-block font-bold text-fono-dark transition hover:text-fono"
             >
               Configurar mi tienda{" "}
               <ArrowRight className="ml-1 inline" size={17} />

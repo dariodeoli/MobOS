@@ -593,9 +593,12 @@ test('los 7 grupos de Configuración viven en config/gruposConfig (#253)', () =>
   for (const [id, icono] of Object.entries(esperados)) {
     assert.ok(meta.includes(`'${id}': { icono: '${icono}'`), `falta ${id} con icono ${icono}`)
   }
-  const iconos = readFileSync(join(RAIZ, 'components/shared/Icon.jsx'), 'utf8')
+  // #253: el set de iconos vive en la biblioteca; Icon.jsx es un puente.
+  const puente = readFileSync(join(RAIZ, 'components/shared/Icon.jsx'), 'utf8')
+  assert.match(puente, /from 'owncoding-ui'/, 'Icon es el puente a la biblioteca')
+  const biblioteca = readFileSync(join(RAIZ, '../node_modules/owncoding-ui/dist/index.js'), 'utf8')
   for (const icono of Object.values(esperados)) {
-    assert.match(iconos, new RegExp(`^  ${icono}:`, 'm'), `el icono ${icono} no existe en Icon`)
+    assert.ok(biblioteca.includes(`${icono}:`), `el icono ${icono} no existe en la biblioteca`)
   }
   const nav = readFileSync(join(RAIZ, 'components/control/config/NavegacionConfig.jsx'), 'utf8')
   assert.match(nav, /role="tablist"/, 'la navegación conserva la semántica de pestañas')
