@@ -12,14 +12,15 @@ mkdirSync(DIR, { recursive: true })
 
 const capturar = (page, nombre) => page.screenshot({ path: join(DIR, `ia-config-${nombre}.png`) })
 
-// Sección nueva → contenido que la identifica (título o encabezado propio).
+// Sección nueva → contenido que la identifica: un encabezado propio o, cuando
+// la sección ordena su pantalla en paneles (#253 · Dispositivos), su navegación.
 const SECCIONES = [
   ['Mi cuenta', 'Tu nombre de vendedor', 'mi-cuenta'],
   ['Organización', 'Datos de la tienda', 'organizacion'],
   ['Equipo y acceso', 'Funcionarios y metas', 'equipo'],
   ['Comercial', 'Seguro y límites', 'comercial'],
   ['Seguridad y auditoría', 'Sesiones activas', 'seguridad'],
-  ['Dispositivos', 'Estado del sistema de impresión', 'dispositivos'],
+  ['Dispositivos', '', 'dispositivos', 'paneles-impresion'],
   ['Sistema', 'Sincronización', 'sistema'],
 ]
 
@@ -49,10 +50,11 @@ test('Configuración tiene siete secciones y ninguna duplica contenido', async (
   await expect(page).toHaveURL(/\/configuracion\/mi-cuenta$/)
   await expect(page.locator('main').getByRole('tab')).toHaveCount(SECCIONES.length)
 
-  for (const [nombre, contenido, slug] of SECCIONES) {
+  for (const [nombre, contenido, slug, testid] of SECCIONES) {
     await page.locator('main').getByRole('tab', { name: nombre, exact: true }).click()
     await expect(page).toHaveURL(new RegExp(`/configuracion/${slug}$`))
-    await expect(page.getByRole('heading', { name: contenido }).first()).toBeVisible()
+    if (contenido) await expect(page.getByRole('heading', { name: contenido }).first()).toBeVisible()
+    if (testid) await expect(page.getByTestId(testid)).toBeVisible()
     await capturar(page, slug)
   }
 

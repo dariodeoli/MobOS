@@ -231,7 +231,7 @@ export default function EstadoSistema() {
             <h3 className="flex items-center gap-2 text-sm font-semibold"><Icon name="pulse" className="h-4 w-4 text-mute" />Sincronización</h3>
             <p className="mt-1 text-sm text-mute">Monitoreo de la empresa: puentes e impresoras, cola de impresión, correo saliente, webhooks de AEX, errores recientes y reservas vencidas. Datos reales; se refresca con «Actualizar».</p>
             <p className="mt-1 text-xs text-mute" data-testid="monitoreo-vs-impresoras">
-              Para <b className="text-fore">agregar, probar o formatear</b> impresoras andá a <Link to="/configuracion/impresoras" className="font-semibold text-fono-light underline underline-offset-2">Dispositivos · Impresoras</Link>; acá solo se monitorea.
+              Para <b className="text-fore">agregar, probar o formatear</b> impresoras andá a <Link to="/configuracion/dispositivos" className="font-semibold text-fono-light underline underline-offset-2">Dispositivos · Impresoras</Link>; acá solo se monitorea.
             </p>
           </div>
           {sincronizacion && <span className="text-xs text-mute">Generado {fmt(sincronizacion.generadoEn)}</span>}
@@ -313,7 +313,7 @@ export default function EstadoSistema() {
               <div className="space-y-2">
                 {sincronizacion.trabajos.fallidos > 0 && (
                   <Aviso tono="error" className="p-3 rounded-xl text-mute">
-                    Hay <b className="text-fore">{sincronizacion.trabajos.fallidos}</b> trabajo(s) de impresión fallidos: revisalos en <Link to="/configuracion/impresoras?panel=cola" className="font-semibold text-fono-light underline underline-offset-2">Dispositivos · Cola e historial</Link>.
+                    Hay <b className="text-fore">{sincronizacion.trabajos.fallidos}</b> trabajo(s) de impresión fallidos: revisalos en <Link to="/configuracion/dispositivos?panel=cola" className="font-semibold text-fono-light underline underline-offset-2">Dispositivos · Cola e historial</Link>.
                   </Aviso>
                 )}
                 {sincronizacion.emails.fallidos > 0 && (

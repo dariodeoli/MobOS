@@ -1,6 +1,6 @@
 # Configuración de MobOS — detalle campo por campo
 
-> Relevado el 25/09/2026 sobre `origin/main`. Ruta base `/configuracion/:seccion?` (solo dueño). Grupos y orden: `Personas` (Equipo · Mi identidad · Roles y permisos) · `Negocio` (Negocio · Listas de precios · Sucursales) · `Seguridad` (Seguridad · Auditoría) · `Sistema` (Impresoras · Documentación · Preferencias · Estado del sistema).
+> Relevado el 25/09/2026 sobre `origin/main`. Ruta base `/configuracion/:seccion?` (solo dueño). Secciones y orden: `Mi cuenta` · `Organización` · `Equipo y acceso` · `Comercial` · `Seguridad y auditoría` · `Dispositivos` · `Sistema`. Los slugs viejos (`impresoras`, `negocio`, `identidad`…) redirigen a su sección.
 > Patrón transversal: chip «Guardado…» o error donde iría el botón; si el backend pide reautenticación (403) aparece «Confirmá tu contraseña para guardar» → «Contraseña de la empresa» + «Verificar y guardar» (autorización 10 min) y el guardado sigue solo. Aplica a numeración, seguro, límites, datos de tienda, sucursal, sesiones, exportación y permisos.
 
 ## 1. Equipo (`/configuracion/equipo`) — `control/Vendedores.jsx`
@@ -58,17 +58,15 @@
 - Real (`Auditoria.jsx`): filtros «Filtrar por área» (Pedidos, Inventario, Promociones, Clientes, Pagos, Caja y finanzas, Compras, Garantías, Servicio técnico, Cotizaciones, Trade-In, Equipo, Sesiones, Impresiones), «Filtrar por fecha» (Hoy/Esta semana/Este mes), «Filtrar por actor», buscador («Acción, IMEI, pedido, impresora…»), «Exportar CSV», «Actualizar»; tabla Acción/Actor/Área/Detalle/Fecha con detalle expandible y JSON crudo; «Cargar más» (50 por página).
 - Demo (`Historial.jsx`): buscador + chips «Todo / Cargas / Ediciones / Borrados» y lista local.
 
-## 9. Impresoras (`/configuracion/impresoras`) — `control/Impresoras.jsx`
+## 9. Dispositivos (`/configuracion/dispositivos`) — Impresoras · `control/Impresoras.jsx`
 - Encabezado: «Actualizar estado», «Guía de impresión», «Agregar impresora».
-- **Impresora por tipo de documento**: última usada por tipo (Comprobante, Nota de entrega, Remisión, Recibo, Proforma, Etiquetas, Cierre de caja, Resumen del día, Verificación IMEI, Informe, Certificado, Constancia…) + «Olvidar».
-- **Estado del sistema**: tiles «Computadora puente» (gestionar puentes, dirección local), «Impresora predeterminada», «Cola» (pendientes/fallidos; «Ver cola», «Reintentar fallidos», «Limpiar fallidos»), «Mi equipo»; «Diagnóstico de red», «Reparar conexión», «Exportar diagnóstico» y panel con método/IP/puerto/TCP/CUPS/transporte/error.
-- **Cobertura por sucursal**: alerta de sucursal sin puente; tile por sucursal con puente(s) e impresoras.
-- **Grilla**: por impresora nombre, badges (Predeterminada/Desactivada/estado vivo), método/ancho/copias/ubicación, última prueba; acciones «Imprimir prueba», «Editar», «Diagnóstico», «Ver actividad», «Predeterminada», «Duplicar», «Desactivar/Activar», «Eliminar».
-- **Comparar impresoras** (sesión real): hasta 3, «Enviar prueba a todas», tabla de tiempos + «Ganadora».
-- **Panel de impresiones** (sesión real): rango 24 h/7 d/30 d + impresora; gráficos por hora, latencia y éxito.
-- **Actividad de impresión**: filtros (rango, tipo, CSV), tabla con fecha/usuario/impresora/transporte/tiempos/puente/validación/resultado + «Confirmar en papel» (número secreto) y detalle expandible.
-- **Equipos con acceso**: sesiones activas en verde (últimos 15 min).
-- **Modales**: Agregar/Editar impresora (Identificación/Conexión CUPS·LAN/Formato/Agente), Probar (tipos de prueba + vista previa + número secreto), Puentes (crear/revocar, código de vinculación de un solo uso), Cola (pendientes del agente / en curso / fallidos), Guía de impresión (modos, instalación, problemas, mantenimiento).
+- **Secciones (#253)**: navegación interna con URL (`?panel=`) — **Impresoras** (configuración y pruebas) · **Puentes** · **Formatos** · **Diagnóstico** · **Cola e historial**; debajo de la barra, la ayuda de la sección activa.
+- **Impresoras (config y pruebas)**: por impresora nombre, badges (Predeterminada/Desactivada/estado vivo), método/ancho/copias/ubicación, última prueba; acciones «Imprimir prueba», «Editar», «Diagnóstico», «Ver actividad», «Predeterminada», «Duplicar», «Desactivar/Activar», «Eliminar». **Comparar impresoras** (sesión real): hasta 3, «Enviar prueba a todas», tabla de tiempos + «Ganadora».
+- **Puentes**: lista con estado (en línea/último contacto), sucursal que sirve, «Código» de vinculación de un solo uso, «Revocar», «Agregar puente»; **Equipos con acceso** (sesiones activas en verde, últimos 15 min).
+- **Formatos**: «Impresora por tipo de documento» (Comprobante, Nota de entrega, Remisión, Recibo, Proforma, Etiquetas, Cierre de caja, Resumen del día, Verificación IMEI, Informe, Certificado, Constancia…) + «Olvidar»; vacío explica que se recuerda al imprimir.
+- **Diagnóstico**: tiles «Computadora puente» (gestión de puentes, dirección local), «Impresora predeterminada», «Mi equipo»; «Diagnóstico de red», «Reparar conexión», «Exportar diagnóstico» con método/IP/puerto/TCP/CUPS/transporte/error; **Cobertura por sucursal** (alerta de sucursal sin puente; tile por sucursal con puente(s) e impresoras); **Panel de impresiones** (sesión real): rango 24 h/7 d/30 d + impresora, gráficos por hora, latencia y éxito. Enlaza al monitoreo global (Estado del sistema).
+- **Cola e historial**: cola de esta computadora (pendientes/fallidos; «Ver cola», «Reintentar fallidos», «Limpiar fallidos») y **Actividad de impresión** (filtros rango/tipo/CSV; tabla con fecha/usuario/impresora/transporte/tiempos/puente/validación/resultado + «Confirmar en papel» con número secreto y detalle expandible). La cola global de la empresa se cancela en Estado del sistema.
+- **Modales de acción**: Agregar/Editar impresora (Identificación/Conexión CUPS·LAN/Formato/Agente), Probar (tipos de prueba + vista previa + número secreto), Cola del agente y Guía de impresión.
 - En demo: todo ficticio, banner fijo, sin comparar/panel.
 
 ## 10. Documentación (`/configuracion/documentacion`)
@@ -81,6 +79,7 @@
 - Se guardan **en el navegador, por usuario** (`mobos:preferencias:<userId>`, o `:anon`), nunca viajan a la empresa; se aplican al instante (evento `mobos:preferencias`); el **tema claro/oscuro no está acá** (está en el topbar/menú lateral).
 
 ## 12. Estado del sistema (`/configuracion/sistema`) — `control/EstadoSistema.jsx`
+- **Alcance (#253)**: acá **se monitorea** (servicios, puentes/impresoras, cola global, correo, AEX, errores); para **agregar, probar o formatear** impresoras hay un enlace a Dispositivos · Impresoras. La configuración no se duplica.
 - **Chequeos**: «Copiar informe», «Actualizar», badges (versión, «n chequeos · fecha», «a revisar», «con error»); lista con «En orden» / «A revisar» / «Con error», incluye «Impresión (este equipo)».
 - **Sincronización**: tarjetas «Puentes», «Impresoras», «Cola de impresión», «Correo saliente»; paneles «Últimos webhooks de AEX» y «Errores recientes (N h)»; avisos por fallos de impresión, correos y reservas vencidas.
 - **Cola de impresión**: filtro por impresora; pendientes con tipo/referencia/estado/usuario/impresora/puente/fecha/intentos/error; «Cancelar seleccionados» / «Cancelar todos» (dueño/ADMIN/GERENTE); «Recientes con problema».
