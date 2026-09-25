@@ -292,6 +292,18 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 30 — buscador dependiente de dispositivos (25-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `BuscadorDispositivo` (`owncoding-ui` **v0.24.0**) | El modelo y su variante se cargaban como texto libre (el nombre del producto arrastra la capacidad, #246) y cada pantalla resolvía a mano capacidad/color; no había dependencia real | Publicado con el patrón «ciudad → departamento»: **el modelo manda** (búsqueda por nombre o **código**, tolerante a acentos) y despliega capacidad, color y conectividad (`mobile`), marca y categoría (`accesorios`) o capacidad y color (`servicio`); con catálogo propio por modelo, `permitirLibre` y limpieza automática de variantes al cambiar de modelo |
+| Helpers de catálogo | Sin fuente compartida para normalizar búsquedas | `PERFILES_DISPOSITIVO`, `buscarDispositivo`, `opcionesDependiente`, `limpiarDependientes`, `etiquetaDispositivo` y `normalizarBusqueda` (la usa también el catálogo de productos) |
+| Guía de adopción | — | `owncoding-ui/docs/DISPOSITIVOS.md`: quick start, perfiles por tipo de tienda, catálogo con códigos, helpers y recetas para **asistencia** (POS), **stock/recepción** y **compras/abastecimiento** (#250) |
+
+**Duplicación pendiente: 0 usos.** Se adopta al subir la dependencia a
+**v0.24.0** (PLT); las pantallas de asistencia (POS), stock (INV) y compras
+(INV) lo usan con su `tipo`/perfil.
+
 ### Lote 29 — taller/rack y servicio/garantías en la biblioteca (24-09)
 
 | Objeto | Antes (evidencia) | Después |

@@ -35,6 +35,7 @@ patrón de uso de cada familia y un ejemplo corto.
 | Acción dentro del campo | `shared/BotonDentroCampo` | botón trailing **adentro** del input (`relative` + `pr-11`): ícono con tooltip (`title`/`aria-label`) y estado ocupado "Consultando…" con spinner; vacío → `disabled` | `<BotonDentroCampo etiqueta="Extraer los datos del RUC" ocupado={consultando} onClick={consultar} />` |
 | Banco | `shared/BancoCombobox` (+`BancoLogo`) | catálogo BCP completo al abrir, filtra al instante, texto libre, logo por banco | `<BancoCombobox value={bank} onChange={setBank} />` |
 | Producto | `shared/ProductCombobox` | buscar/elegir y crear producto desde el campo | `<ProductCombobox products={prods} onSelect={…} onCreate={…} />` |
+| Dispositivo (modelo → variantes) | `owncoding-ui/BuscadorDispositivo` (v0.24.0) | el modelo manda (búsqueda por nombre o código) y despliega capacidad/color/conectividad (mobile), marca/categoría (accesorios) o capacidad/color (servicio); cambiar de modelo limpia lo que no aplica; guía `owncoding-ui/docs/DISPOSITIVOS.md` | `<BuscadorDispositivo valor={d} onCambio={setD} tipo="mobile" />` |
 | Ciudad | `shared/CityAutocomplete` | sugiere y completa el departamento | `<CityAutocomplete value={ciudad} onChange={…} />` |
 | RUC / CI | `shared/RucField` (+`utils/ruc.js`, `lib/demoRuc.js`) | botón **Extraer** adentro del input (trailing) con "Consultando…"; en demo, resultado simulado marcado; se aplica solo al confirmar | `<RucField value={ruc} onChange={…} esDemo={esDemo} />` |
 | Instagram / usuario | `shared/InstagramField` | `@` fijo, sin espacios, guarda el usuario pelado | `<InstagramField value={ig} onChange={…} />` |
@@ -54,8 +55,9 @@ patrón de uso de cada familia y un ejemplo corto.
 > envíos/recepción y shell) y `FilaRevision`/`SelectorIncidencia`/
 > `DestinoRecepcion` + `utils/revision` (v0.20.0, F5 recepción) y `TileRol`/
 > `PasosEquipo` + `Stat` de consola y `FichaCertificado` con puntaje/condición/
-> repuestos (v0.22.0, lotes F4) y `ColumnaLote`/`Vencimiento` + `Stepper` con
-> detalle (v0.23.0, taller/rack y servicio). Props en su `docs/REGLAS.md` §1/§3/§4/§8 bis.
+> repuestos (v0.22.0, lotes F4), `ColumnaLote`/`Vencimiento` + `Stepper` con
+> detalle (v0.23.0, taller/rack y servicio) y `BuscadorDispositivo` (v0.24.0,
+> modelo → variantes para asistencia, stock y compras). Props en su `docs/REGLAS.md` §1/§3/§4/§8 bis.
 > MobOS los mantiene en espejo hasta el lote de adopción del paquete.
 | Tema | `app/ThemeToggle` | claro/oscuro con tokens | `<ThemeToggle />` |
 
