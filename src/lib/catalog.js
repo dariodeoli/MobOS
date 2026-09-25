@@ -111,3 +111,72 @@ export const MEDIOS_PAGO = [
 export const ESTADOS_PAGO = ['Pagado', 'No pagado']
 
 export const ENTREGA = ['Retiro en tienda', 'Delivery', 'Encomienda', 'Retiro en otra sucursal', 'Envío entre sucursales']
+
+// ── Buscador dependiente (modelo → capacidad → color) · #250 ────────────────
+// Un solo lugar para el catálogo de variantes: el lineup (arriba) manda los
+// modelos y sus capacidades conocidas, y los productos ya cargados suman lo que
+// la tienda fue vendiendo/recibiendo. La UI (Stock y Compras) consume esto para
+// el alta dependiente; el SKU único lo sigue resolviendo el servidor.
+
+const normalizar = (valor) => String(valor ?? '').trim()
+
+/** Capacidades conocidas de un modelo: primero el lineup, después lo ya cargado. */
+export function capacidadesDeModelo({ productos = [], modelo = '', condicion = null } = {}) {
+  const nombre = normalizar(modelo)
+  if (!nombre) return []
+  const lineup = condicion === 'USED' ? LINEUP_SEMINUEVO : condicion === 'NEW' ? LINEUP_NUEVO : [...LINEUP_NUEVO, ...LINEUP_SEMINUEVO]
+  const fuente = new Map()
+  for (const [base, capacidades] of lineup) {
+    if (normalizar(base).toLowerCase() !== nombre.toLowerCase()) continue
+    for (const capacidad of capacidades) fuente.set(capacidad, true)
+  }
+  for (const producto of productos || []) {
+    const base = normalizar(producto?.model || producto?.name).toLowerCase()
+    if (base !== nombre.toLowerCase()) continue
+    const capacidad = normalizar(producto?.capacity)
+    if (capacidad) fuente.set(capacidad, true)
+  }
+  return [...fuente.keys()].sort((a, b) => rankCapacidad(a) - rankCapacidad(b) || a.localeCompare(b))
+}
+
+/** Modelos sugeridos: el lineup (nuevos y seminuevos) + lo ya cargado. */
+export function modelosDeCatalogo(productos = []) {
+  const fuente = new Map()
+  for (const [base] of [...LINEUP_NUEVO, ...LINEUP_SEMINUEVO]) fuente.set(base.toLowerCase(), normalizar(base))
+  for (const producto of productos || []) {
+    const base = normalizar(producto?.model || producto?.name)
+    if (base) fuente.set(base.toLowerCase(), base)
+  }
+  return [...fuente.values()].sort((a, b) => rankCelular(a) - rankCelular(b) || a.localeCompare(b))
+}
+
+/** Colores conocidos de la variante (modelo + capacidad) según lo ya cargado. */
+export function coloresDeVariante({ productos = [], modelo = '', capacidad = '' } = {}) {
+  const base = normalizar(modelo).toLowerCase()
+  const cap = normalizar(capacidad).toLowerCase()
+  if (!base) return []
+  const fuente = new Set()
+  for (const producto of productos || []) {
+    if (normalizar(producto?.model || producto?.name).toLowerCase() !== base) continue
+    if (cap && normalizar(producto?.capacity).toLowerCase() !== cap) continue
+    const color = normalizar(producto?.color)
+    if (color) fuente.add(color)
+  }
+  return [...fuente].sort((a, b) => a.localeCompare(b))
+}
+
+/** SKU base de la variante; el servidor lo hace único (`skuUnico`). */
+export function skuDeVariante({ modelo = '', capacidad = '', color = '' } = {}) {
+  const partes = [modelo, capacidad, color].map(normalizar).filter(Boolean)
+  return partes.join(' ').toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'PRODUCTO'
+}
+
+/** ¿La variante ya existe en el catálogo? (mismo modelo + capacidad + color) */
+export function varianteExistente({ productos = [], modelo = '', capacidad = '', color = '' } = {}) {
+  const base = normalizar(modelo).toLowerCase()
+  const cap = normalizar(capacidad).toLowerCase()
+  const tono = normalizar(color).toLowerCase()
+  return (productos || []).find((producto) => normalizar(producto?.model || producto?.name).toLowerCase() === base
+    && normalizar(producto?.capacity).toLowerCase() === cap
+    && normalizar(producto?.color).toLowerCase() === tono) || null
+}
