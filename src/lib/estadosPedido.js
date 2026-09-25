@@ -37,6 +37,11 @@ export const ESTADO_ENTREGA_BADGE = {
   DELIVERED: { label: 'Entregado', color: 'slate' },
 }
 
+// Avance del ciclo de una garantía (tablero por etapas, #215/#241): la etapa
+// siguiente de cada estado; la entregada no avanza.
+const CLAVES_GARANTIA = Object.keys(ESTADO_GARANTIA)
+export const SIGUIENTE_GARANTIA = Object.fromEntries(CLAVES_GARANTIA.slice(0, -1).map((clave, indice) => [clave, CLAVES_GARANTIA[indice + 1]]))
+
 export const ESTADO_GARANTIA_BADGE = {
   RECEIVED: { label: 'Recibida', color: 'orange' },
   DIAGNOSIS: { label: 'En diagnóstico', color: 'blue' },

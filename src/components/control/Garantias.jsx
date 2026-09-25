@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils'
 import SerialTexto from '@/components/shared/SerialTexto'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
+import { temaV2Activo } from '@/lib/temaV2'
 const STATES = [['RECEIVED', 'Recibido'], ['DIAGNOSIS', 'En diagnóstico'], ['READY', 'Listo'], ['DELIVERED', 'Entregado']]
 const label = Object.fromEntries(STATES)
 const blank = { customerName: '', serial: '', description: '', responsibleName: '', technicianName: '', diagnosis: '', resolution: '', repairCostPyg: '', partsText: '', photosText: '', branchId: '', warrantyDays: '', expiresAt: '', coverage: '', exclusions: '' }
@@ -47,6 +48,8 @@ const vencimientoGarantia = (item) => {
 }
 
 export default function Garantias() {
+  // Vista previa v2 (#241 lote E): resumen en tiles y números de consola.
+  const v2 = temaV2Activo()
   const { esDemo, sucursal } = useSesion()
   const toast = useToast()
   // La búsqueda global abre la sección con ?q= aplicado (serial, cliente o detalle).
@@ -100,6 +103,12 @@ export default function Garantias() {
       return (va - vb) * factor
     })
   }, [items, q, esDemo, orden, estadoFiltro])
+  // Resumen v2 (#241 lote E): conteos del listado con el mismo criterio visible.
+  const resumenV2 = useMemo(() => ({
+    enProceso: visible.filter((item) => item.status === 'RECEIVED' || item.status === 'DIAGNOSIS').length,
+    listos: visible.filter((item) => item.status === 'READY').length,
+    porVencer: visible.filter((item) => vencimientoGarantia(item).urgente).length,
+  }), [visible])
   const listInput = (value) => value.split('\n').map((item) => item.trim()).filter(Boolean)
   async function create(e) { e.preventDefault(); setSaving(true); setError(''); try { const { partsText, photosText, warrantyDays, repairCostPyg, expiresAt, ...base } = form; const data = { ...base, parts: listInput(partsText), photos: listInput(photosText), branchId: form.branchId || sucursal?.id, ...(expiresAt ? { expiresAt } : {}), ...(String(warrantyDays).trim() ? { warrantyDays: Number(warrantyDays) } : {}), ...(String(repairCostPyg).trim() ? { repairCostPyg: Number(repairCostPyg) } : {}) }; if (esDemo) setItems(saveDemoWarranties([{ ...data, id: `demo-${Date.now()}`, status: 'RECEIVED', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, ...items])); else { const saved = await api.post('/api/warranties', data); setItems([saved, ...items]); if (saved?.publicToken) { const url = qrGarantia(saved.publicToken); copiarAlPortapapeles(url); toast.success('Garantía creada. El enlace público quedó copiado.') } } setForm(blank); setCrearAbierto(false) } catch (e) { setError(e.message) } finally { setSaving(false) } }
   async function advance(item) { const next = STATES[STATES.findIndex(([s]) => s === item.status) + 1]?.[0]; if (!next || advancingId) return; setAdvancingId(item.id); setError(''); try { if (esDemo) { const nextItems = items.map((x) => x.id === item.id ? { ...x, status: next, updatedAt: new Date().toISOString() } : x); setItems(saveDemoWarranties(nextItems)) } else { const updated = await api.patch('/api/warranties', { id: item.id, status: next }); setItems(items.map((x) => x.id === item.id ? updated : x)) } } catch (e) { setError(e.message) } finally { setAdvancingId(null) } }
@@ -145,6 +154,14 @@ export default function Garantias() {
     {!esDemo && <Button type="button" variant="outline" className="h-9 shrink-0 px-3 text-xs" disabled={exportando} onClick={exportar}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}
     <Button type="button" className="h-9 shrink-0 px-3 text-xs" onClick={() => { setForm(blank); setError(''); setCrearAbierto(true) }}><Icon name="plus" className="h-4 w-4" />Nuevo caso</Button>
   </div>
+    {v2 && visible.length > 0 && (
+      <div data-testid="resumen-garantias" className="grid grid-cols-2 divide-ink-600 rounded-xl border border-ink-600 bg-ink-800/60 text-center sm:grid-cols-4 sm:divide-x">
+        <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Casos</p><p className="v2-numero mt-1 text-lg font-semibold tabular-nums sm:text-2xl">{visible.length}</p><p className="text-[11px] text-mute">en la lista</p></div>
+        <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">En proceso</p><p className={cn('v2-numero mt-1 text-lg font-semibold tabular-nums', resumenV2.enProceso > 0 ? 'text-fore' : 'text-mute')}>{resumenV2.enProceso}</p><p className="text-[11px] text-mute">recibidos o en diagnóstico</p></div>
+        <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Listos</p><p className={cn('v2-numero mt-1 text-lg font-semibold tabular-nums', resumenV2.listos > 0 ? 'text-ok' : 'text-mute')}>{resumenV2.listos}</p><p className="text-[11px] text-mute">para entregar</p></div>
+        <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Por vencer</p><p className={cn('v2-numero mt-1 text-lg font-semibold tabular-nums', resumenV2.porVencer > 0 ? 'text-warn' : 'text-ok')}>{resumenV2.porVencer}</p><p className="text-[11px] text-mute">en 7 días o menos</p></div>
+      </div>
+    )}
     <Modal open={crearAbierto} onClose={() => !saving && setCrearAbierto(false)} title="Nuevo caso de garantía" size="amplio"><form onSubmit={create} className="grid gap-3 md:grid-cols-2"><div><Label>Cliente</Label><Input required value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} placeholder="Nombre del cliente" /></div><div><Label>Serial / IMEI</Label><SerialField required value={form.serial} onChange={(value) => setForm({ ...form, serial: value })} placeholder="Serial o IMEI" /></div><div className="md:col-span-2"><Label>Descripción del caso</Label><Textarea required rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Falla reportada, revisión solicitada…" /></div><div><Label>Responsable</Label><Input value={form.responsibleName} onChange={(e) => setForm({ ...form, responsibleName: e.target.value })} placeholder="Persona responsable" /></div><div><Label>Costo de reparación (Gs)</Label><MoneyInput value={form.repairCostPyg} onValueChange={(value) => setForm({ ...form, repairCostPyg: value === '' ? '' : String(value) })} placeholder="0" /></div><div><Label>Técnico asignado</Label><Input value={form.technicianName} onChange={(e) => setForm({ ...form, technicianName: e.target.value })} placeholder="Técnico responsable" /></div><div className="md:col-span-2"><Label>Diagnóstico inicial</Label><Textarea rows={2} value={form.diagnosis} onChange={(e) => setForm({ ...form, diagnosis: e.target.value })} placeholder="Pruebas, causa probable y condición de recepción…" /></div><div className="md:col-span-2"><Label>Resolución</Label><Textarea rows={2} value={form.resolution} onChange={(e) => setForm({ ...form, resolution: e.target.value })} placeholder="Qué se hizo y cómo quedó el equipo…" /></div><div><Label>Repuestos (uno por línea)</Label><Textarea rows={2} value={form.partsText} onChange={(e) => setForm({ ...form, partsText: e.target.value })} placeholder="Pantalla OLED\nBatería" /></div><div><Label>Fotos / enlaces (uno por línea)</Label><Textarea rows={2} value={form.photosText} onChange={(e) => setForm({ ...form, photosText: e.target.value })} placeholder="https://…" /></div><div><Label>Días de garantía</Label><Input inputMode="numeric" value={form.warrantyDays} onChange={(e) => setForm({ ...form, warrantyDays: e.target.value.replace(/\D/g, '') })} placeholder="Ej. 90" /></div><div><Label>Vencimiento</Label><Input type="date" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} /></div><div className="md:col-span-2"><Label>Qué cubre (una por línea)</Label><Textarea rows={2} value={form.coverage} onChange={(e) => setForm({ ...form, coverage: e.target.value })} placeholder={'Defectos de fábrica\nPantalla y batería'} /></div><div className="md:col-span-2"><Label>Qué no cubre (una por línea)</Label><Textarea rows={2} value={form.exclusions} onChange={(e) => setForm({ ...form, exclusions: e.target.value })} placeholder={'Daños por agua\nReparaciones de terceros'} /></div><Button type="submit" disabled={saving} className="md:col-span-2 min-h-11">{saving ? 'Guardando…' : 'Registrar caso'}</Button></form></Modal>
     {error && <Aviso tono="error" className="px-4 py-3 text-sm rounded-xl">{error}</Aviso>}
     {visible.length > 0 && <div className="overflow-x-auto" data-testid="garantias-tabla">
@@ -165,7 +182,7 @@ export default function Garantias() {
           return <div key={item.id} data-testid="garantia-fila" className={cn(GRID_GARANTIAS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
             <span className={CELDA_IDENTIDAD_GRANDE} title={item.customerName}>{item.customerName || 'Sin cliente'}</span>
             <SerialTexto serial={serial} className="truncate text-[11px] text-fono-light" />
-            <span className={CELDA_DATO} title={[item.description, detalle].filter(Boolean).join(' · ')}>{item.description || '—'}{detalle ? <span className="text-mute/70"> · {detalle}</span> : null}</span>
+            <span className={CELDA_DATO} title={[item.description, detalle].filter(Boolean).join(' · ')}>{item.description || '—'}{detalle ? <span className="text-mute"> · {detalle}</span> : null}</span>
             <span className={CELDA_DATO}>{item.technicianName || '—'}</span>
             <span className={cn('truncate text-xs', vence.urgente ? 'font-semibold text-warn' : 'text-mute')} title={vence.titulo}>{vence.texto}</span>
             <Badge color={item.status === 'DELIVERED' ? 'green' : item.status === 'READY' ? 'orange' : 'slate'} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{label[item.status]}</Badge>

@@ -25,9 +25,7 @@ import { cn } from '@/lib/utils'
 import SerialTexto from '@/components/shared/SerialTexto'
 import { CELDA_DATO, CELDA_ENCABEZADO } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
-import { ESTADOS_SERVICIO as ESTADOS, ESTADO_SERVICIO_LABEL as ESTADO_LABEL, ESTADO_SERVICIO_TONO as ESTADO_TONE } from '@/lib/estadosServicio'
-// Pipeline del taller: recepción → diagnóstico → reparación → entrega.
-const SIGUIENTE = { RECIBIDO: 'DIAGNOSTICO', DIAGNOSTICO: 'CON_TECNICO', CON_TECNICO: 'ESPERANDO_REPUESTO', ESPERANDO_REPUESTO: 'REPARADO', REPARADO: 'LISTO', LISTO: 'ENTREGADO' }
+import { ESTADOS_SERVICIO as ESTADOS, ESTADO_SERVICIO_LABEL as ESTADO_LABEL, ESTADO_SERVICIO_TONO as ESTADO_TONE, SIGUIENTE_SERVICIO as SIGUIENTE } from '@/lib/estadosServicio'
 // Plantilla sugerida del menú central por estado del pipeline (#134): al abrir
 // WhatsApp desde la fila, el mensaje ya sale con el contexto del taller.
 const PLANTILLA_POR_ESTADO = {
@@ -545,8 +543,8 @@ export default function ServicioTecnico() {
                 <span className={CELDA_DATO} title={row.reportedIssue || row.diagnosis || undefined}>{row.reportedIssue || row.diagnosis || 'Sin detalle'}</span>
                 <span className={CELDA_DATO}>{row.technicianName || 'Sin técnico'}</span>
                 <span className={CELDA_DATO}>{fecha(row.receivedAt)}</span>
-                <span className="truncate text-right text-xs tabular-nums text-mute">{gs(row.pricePyg || 0)}</span>
-                <span className={cn('truncate text-right text-xs font-semibold tabular-nums', ganancia >= 0 ? 'text-ok' : 'text-bad')}>{ganancia >= 0 ? '+' : ''}{gs(ganancia)}</span>
+                <span className={cn('truncate text-right text-xs tabular-nums text-mute', v2 && 'v2-numero')}>{gs(row.pricePyg || 0)}</span>
+                <span className={cn('truncate text-right text-xs font-semibold tabular-nums', ganancia >= 0 ? 'text-ok' : 'text-bad', v2 && 'v2-numero')}>{ganancia >= 0 ? '+' : ''}{gs(ganancia)}</span>
                 <Badge color={ESTADO_TONE[row.status] || 'slate'} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{ESTADO_LABEL[row.status] || row.status}</Badge>
                 <span className="flex flex-wrap items-center justify-end gap-1">
                   {row.customerPhone && (
