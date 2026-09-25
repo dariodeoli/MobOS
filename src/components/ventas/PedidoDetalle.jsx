@@ -423,7 +423,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                     const hecho = actual > -1 && indice < actual
                     return (
                       <li key={paso} aria-current={activo ? 'step' : undefined} className={cn('flex items-center gap-2.5 rounded-xl border p-2.5', activo ? 'border-info/40 bg-info/5' : 'border-ink-600')}>
-                        <span className={cn('v2-numero grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-bold', activo ? 'v2-paso-activo' : hecho ? 'bg-ok/15 text-ok' : 'bg-ink-700 text-mute')} aria-hidden>{hecho ? '✓' : indice + 1}</span>
+                        <span className={cn('v2-numero grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-bold', activo ? 'oc-paso-activo' : hecho ? 'bg-ok/15 text-ok' : 'bg-ink-700 text-mute')} aria-hidden>{hecho ? '✓' : indice + 1}</span>
                         <span className="min-w-0 truncate text-xs font-semibold">{paso}</span>
                       </li>
                     )

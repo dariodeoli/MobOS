@@ -97,7 +97,7 @@ export default function TableroOps({
                 const hecho = activo > -1 && indice < activo
                 return (
                   <li key={paso.clave} className={cn('flex items-center gap-3 rounded-xl border p-3', esActivo ? 'border-info/40 bg-info/5' : 'border-ink-600')}>
-                    <span className={cn('v2-numero grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold', esActivo ? 'v2-paso-activo' : hecho ? 'bg-ok/15 text-ok' : 'bg-ink-700 text-mute')} aria-hidden>{hecho ? '✓' : paso.total}</span>
+                    <span className={cn('v2-numero grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold', esActivo ? 'oc-paso-activo' : hecho ? 'bg-ok/15 text-ok' : 'bg-ink-700 text-mute')} aria-hidden>{hecho ? '✓' : paso.total}</span>
                     <span className="min-w-0">
                       <b className="block truncate text-sm">{paso.label}</b>
                       <span className="text-xs text-mute">{paso.total === 1 ? '1 equipo' : `${paso.total} equipos`}</span>

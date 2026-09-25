@@ -292,6 +292,27 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 32 — retiro del bloque local v2 del shell (#241) (25-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Reglas v2 locales (`src/index.css`) | 187 líneas del shell y del contenido v2 (navegación, chips, stepper, números, tiles, medallas, encabezados y degradados), con selectores por `data-testid` para las filas | La biblioteca **v0.26.0** cubre todo eso en `styles.css` para los scopes `tema-v2`/`v2-piloto`; el bloque se retira completo y quedan solo las reglas propias de la app (superficies rojas y área táctil del topbar) |
+| Chips de las filas | `[data-testid="pedido-fila"] span.rounded-md.border` y `[data-testid="cliente-fila"] …` les daban el pill y la mayúscula desde el CSS | Las filas ponen la clase **`v2-chip`** (y `uppercase` en clientes), el mismo contrato del mock: sin selectores por markup |
+| Paso activo del stepper | `v2-paso-activo`, clase propia de la app | `oc-paso-activo`, el hook que ya emite `Stepper` de la biblioteca (el alias `v2-paso-activo` queda publicado para el código viejo) |
+| Foco visible | Regla local por tema en `index.css` | Lo define `base.css` de la biblioteca: verde oscuro en claro y marca en oscuro |
+| Docs | — | `owncoding-ui/docs/SHELL.md` §7 (migración cerrada) y nuevo **§8 — Retirar el bloque local**; `V2.md` paso 3; changelog y tag **v0.26.0** |
+| Tests | — | Guarda de la app en `contrasteTokens.test.js` (no vuelven las reglas v2 locales) + guarda de la biblioteca `test/shell-v2.test.js` (206 en verde) |
+
+Verificación del lote: `npm run lint` (0 errores), `npm run build` y
+`npm --prefix backend run build` (con `BUILD_ID`), `prisma:validate`,
+`npm test` (709 en verde), `test:unit` del backend (75) y
+`npm run test:e2e:smoke` (19 en verde, 0 flaky).
+
+**Coordinación:** cierra el pendiente declarado tras la revisión CMP ↔ DSN del
+shell v2 (`SHELL.md` §7) y deja la app sin reglas v2 propias más allá de las
+que le corresponden; la biblioteca queda como única fuente de la capa de
+contenido.
+
 ### Lote 31 — profundidad del tema en la biblioteca (25-09)
 
 | Objeto | Antes (evidencia) | Después |

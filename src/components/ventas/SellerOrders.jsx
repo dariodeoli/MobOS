@@ -98,23 +98,23 @@ const pagoDe = (row) => (row.creditDays > 0 && row.pending > 0 ? 'A crédito' : 
 const estaCompletado = (row) => Boolean(row.archivedAt) || (row.paymentStatus === 'Pagado' && row.fulfillmentStatus === 'DELIVERED')
 const estaCancelado = (row) => row.status === 'CANCELLED'
 
-function BadgePago({ row }) {
+function BadgePago({ row, v2 }) {
   const estado = estaCancelado(row) ? row.paymentStatus : pagoDe(row)
   const tono = estado === 'Pagado' ? 'border-ok/25 bg-ok/10 text-ok'
     : estado === 'Parcial' ? 'border-warn/25 bg-warn/10 text-warn'
       : estado === 'A crédito' ? 'border-reserved/40 bg-reserved/10 text-reserved'
         : 'border-bad/25 bg-bad/10 text-bad'
-  return <span className={cn('w-fit justify-self-start whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[10px] font-bold', tono)}>{estado || 'Pendiente'}</span>
+  return <span className={cn('w-fit justify-self-start whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[10px] font-bold', v2 && 'v2-chip', tono)}>{estado || 'Pendiente'}</span>
 }
 
-function BadgeEstado({ row }) {
-  if (estaCancelado(row)) return <span className="w-fit justify-self-start whitespace-nowrap rounded-md border border-bad/30 bg-bad/10 px-1.5 py-0.5 text-[10px] font-bold text-bad">Cancelado</span>
+function BadgeEstado({ row, v2 }) {
+  if (estaCancelado(row)) return <span className={cn('w-fit justify-self-start whitespace-nowrap rounded-md border border-bad/30 bg-bad/10 px-1.5 py-0.5 text-[10px] font-bold text-bad', v2 && 'v2-chip')}>Cancelado</span>
   const tono = ['DELIVERED', 'PICKED_UP'].includes(row.fulfillmentStatus) ? 'border-ok/25 bg-ok/10 text-ok'
     : ['READY_TO_SHIP', 'SHIPPED', 'IN_TRANSIT'].includes(row.fulfillmentStatus) ? 'border-info/25 bg-info/10 text-info'
       : ['READY_FOR_PICKUP', 'PARTIAL'].includes(row.fulfillmentStatus) ? 'border-warn/25 bg-warn/10 text-warn'
         : row.fulfillmentStatus === 'NOT_DELIVERED' ? 'border-bad/30 bg-bad/10 text-bad'
           : 'border-ink-500 bg-ink-700/40 text-mute'
-  return <span className={cn('w-fit justify-self-start whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[10px] font-bold', tono)}>{FULFILLMENT[row.fulfillmentStatus] || row.fulfillmentStatus || 'Preparando'}</span>
+  return <span className={cn('w-fit justify-self-start whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[10px] font-bold', v2 && 'v2-chip', tono)}>{FULFILLMENT[row.fulfillmentStatus] || row.fulfillmentStatus || 'Preparando'}</span>
 }
 
 // Serial/IMEI: completo cuando entra; si la columna queda corta se recorta la
@@ -141,7 +141,7 @@ const ACENTO_PAGO = (row) => {
   return 'border-l-bad/60'
 }
 
-function FilaPedido({ row, onClick, onAcciones }) {
+function FilaPedido({ row, onClick, onAcciones, v2 }) {
   const cancelado = estaCancelado(row)
   const tachado = cancelado ? 'line-through decoration-bad/70' : ''
   const ultimo = row.seriales.length ? String(row.seriales[row.seriales.length - 1]) : ''
@@ -167,7 +167,7 @@ function FilaPedido({ row, onClick, onAcciones }) {
           <span className={cn(CELDA_IDENTIDAD, tachado)} title={row.customer}>{nombreCortoCliente(row.customer)}</span>
           {row.isSpecialOrder && (
             <span
-              className="shrink-0 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-warn"
+              className={cn('shrink-0 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-warn', v2 && 'v2-chip')}
               title={row.expectedAt && !Number.isNaN(Date.parse(row.expectedAt)) ? `Pedido especial · esperado ${new Date(row.expectedAt).toLocaleDateString('es-PY')}` : 'Pedido especial'}
             >
               Especial
@@ -175,7 +175,7 @@ function FilaPedido({ row, onClick, onAcciones }) {
           )}
           {row.offlineSyncedAt && (
             <span
-              className="shrink-0 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-warn"
+              className={cn('shrink-0 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-warn', v2 && 'v2-chip')}
               title={`Venta cargada sin conexión el ${new Date(row.offlineSyncedAt).toLocaleString('es-PY')}: revisá el stock`}
             >
               Offline
@@ -189,8 +189,8 @@ function FilaPedido({ row, onClick, onAcciones }) {
         <CeldaSerial serial={ultimo} />
         <span className={cn('text-xs font-semibold tabular-nums', tachado)}>×{row.quantity || 1}</span>
         <span className={cn(CELDA_DATO, tachado)}>{ENTREGA[row.deliveryType] || row.deliveryType || 'Retiro'}</span>
-        <BadgePago row={row} />
-        <BadgeEstado row={row} />
+        <BadgePago row={row} v2={v2} />
+        <BadgeEstado row={row} v2={v2} />
         {/* La info financiera no se tacha ni en los pedidos cancelados: el
             importe sigue siendo el dato que se necesita ver. */}
         <span className="truncate text-right text-[13px] font-bold tabular-nums text-fore">
@@ -378,7 +378,7 @@ export default function SellerOrders() {
           {encabezado('total', 'Total', 'justify-end')}
           <span aria-hidden="true" />
         </div>
-        <div className="space-y-1">{rows.map((row) => <FilaPedido key={row.id} row={row} onClick={() => abrirPedido(row)} onAcciones={() => setPedidoPanel(row)} />)}</div>
+        <div className="space-y-1">{rows.map((row) => <FilaPedido key={row.id} row={row} v2={v2} onClick={() => abrirPedido(row)} onAcciones={() => setPedidoPanel(row)} />)}</div>
       </div>
     )}
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más pedidos'}</button></div>}
