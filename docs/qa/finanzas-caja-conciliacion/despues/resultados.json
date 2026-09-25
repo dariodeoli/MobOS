@@ -1,0 +1,58 @@
+{
+  "web": "http://localhost:5175",
+  "fecha": "2026-09-25T20:05:52.996Z",
+  "llamadasFinanzas": [],
+  "erroresConsola": [],
+  "resultados": [
+    {
+      "nombre": "Demo: se entra como Dueño",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Caja: turno abierto con medios y auditoría de efectivo",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Caja: captura desktop",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Caja: un cobro de efectivo se marca como verificado",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Caja: captura mobile",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Conciliación: resumen y filas por cuenta/procesadora",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Conciliación: un lote se concilia y queda con diferencia",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Conciliación: captura desktop",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Conciliación: captura mobile",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Demo: la caja y la conciliación no llaman al API ni ensucian la consola",
+      "ok": true,
+      "detalle": "sin llamadas ni errores"
+    }
+  ]
+}
