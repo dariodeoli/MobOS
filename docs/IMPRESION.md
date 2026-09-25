@@ -136,16 +136,16 @@ QR muerto: se omite el código.
 | `aceptado` | El transporte aceptó (TCP/CUPS), falta papel | Confirmar "Ya salió el papel" cuando salga. |
 | `confirmado` | El operador vio el papel | Nada: la cola queda limpia. |
 | `incierto` | No se sabe si salió (p. ej. reinicio en medio) | **No reintenta solo**: revisar y reimprimir a mano. |
-| `fallido` | Agotó intentos | Revisar impresora en Configuración → Impresoras. |
+| `fallido` | Agotó intentos | Revisar impresora en **Configuración → Dispositivos · Impresoras**. |
 | `cancelado` | Se canceló antes de salir (nadie lo reclamó) | Nada: **no sale al reconectar**. Lo reclamado/aceptado/incierto no se cancela. |
 
 - Aceptado **no** es confirmado: la UI lo dice y no inventa éxito.
 - Con trabajos encolados, abrir el diálogo avisa antes (puede duplicar el
   ticket cuando el reintento llegue).
-- El trabajo remoto se confirma desde Configuración → Impresoras (ahí está el
-  número secreto del puente).
+- El trabajo remoto se confirma desde **Configuración → Dispositivos · Cola e
+  historial** (ahí está el número secreto del puente).
 - **Cancelar** (individual o en lote): en la cola del monitor
-  (Configuración → Estado del sistema) se cancela lo que sigue `pendiente`, con
+  (**Configuración → Sistema · Estado del sistema**) se cancela lo que sigue `pendiente`, con
   confirmación; solo ADMIN/GERENTE y queda auditado con el usuario real. El
   detalle (API, lote, permisos) está en §10.
 - **Anti-duplicados**: un encolado idéntico (mismo documento + tipo +
@@ -205,8 +205,9 @@ ante cada error y qué registrar en cada issue). Resumen: la cola CUPS se crea
 con `sudo lpadmin -p MOBOS_LAN -E -v socket://192.168.1.23:9100 -m raw`, el
 agente tiene que correr **por `launchd`** con permiso de **Red local**, y la
 prueba de corte (4 secciones + corte GS V 0) se corre desde
-Configuración → Impresoras. El USB directo se enciende con `"usb": true` y su
-estado se verifica en `/health.usb`.
+**Configuración → Dispositivos · Impresoras**. El USB directo se enciende con `"usb": true` y su
+estado se verifica en `/health.usb`. Salidas esperadas para comparar el papel
+(tickets de prueba en PDF): `docs/qa/impresion-fisica/`.
 
 > Nota: `corte()` envía solo GS V más la alimentación de 4 líneas. El `ESC i`
 > que se probó al principio se retiró porque en la ZKP8008 ejecutaba un segundo
@@ -233,7 +234,7 @@ estado se verifica en `/health.usb`.
 | Al escanear el QR: "Seguimiento no encontrado" | Token revocado o de otro pedido | Reimprimir el comprobante; el papel viejo sigue sirviendo (el QR impreso no vence). Ver §2. |
 | "Imprimir con diálogo" sale clarito o lento | Contraste de impresión perdido o mucho contenido | Usar impresión directa; revisar §1 (color-adjust y texto negro). |
 | La vista previa 80 mm tiene franjas blancas | Ancho de vista desalineado | `ANCHO_VISTA` de `ComprobantePreview.jsx` debe ser 302/219 px. |
-| La impresora no responde | Apagada, sin red o IP cambiada | Configuración → Impresoras muestra el estado vivo y el motivo. |
+| La impresora no responde | Apagada, sin red o IP cambiada | **Configuración → Dispositivos · Impresoras** muestra el estado vivo y el motivo. |
 | "Sin verificar" en Impresoras | El agente no puede alcanzarla | Revisar Red Local (macOS), misma red que el local, o usar el puente. |
 | El puente no reclama trabajos | Token de puente vencido/revocado | Gestionar puentes y revalidar el código de vinculación. |
 | Salen dos tickets | Diálogo abierto con cola pendiente | Confirmar el papel y no reabrir el diálogo (el aviso ya existe). |
@@ -375,7 +376,7 @@ estado se verifica en `/health.usb`.
 
 ### Comparar hasta tres impresoras
 
-1. En **Configuración → Impresoras → Comparar impresoras**, elegí entre 2 y 3
+1. En **Configuración → Dispositivos · Impresoras → Comparar impresoras**, elegí entre 2 y 3
    impresoras activas y vinculadas a un puente (si falta el puente, la sección
    avisa el paso que falta y ofrece gestionarlos).
 2. **Enviar prueba a todas** encola el **mismo ticket** (marca
@@ -433,7 +434,7 @@ estado se verifica en `/health.usb`.
 
 Resumen operativo en **§3**; acá está el detalle y la API.
 
-La cola del monitor (**Configuración → Estado del sistema → Cola de impresión**)
+La cola del monitor (**Configuración → Sistema · Estado del sistema → Cola de impresión**)
 muestra los trabajos remotos de la empresa: tipo, pedido/comprobante
 (`reference`), impresora y puente/sucursal, **usuario real** (foto + nombre) que
 los mandó, estado, intentos y último error.

@@ -111,7 +111,7 @@ ifconfig en0 | grep -F 'inet 192.168.1.100' || bash print-agent/red-mac.sh agreg
   (`bash print-agent/red-mac.sh auto`, sin contraseña). Verificar con
   `sudo -n true`: si no da error, el permiso está.
 - Es normal que se pierda al cambiar de red; en ese caso, «Reparar conexión» en
-  Configuración → Impresoras hace lo mismo.
+  Configuración → Dispositivos · Diagnóstico hace lo mismo.
 
 ### 3.4 Crear la cola CUPS de respaldo (una sola vez)
 
@@ -137,12 +137,12 @@ Verificación: `lpstat -v | grep -i mobos` tiene que mostrar
 
 ### 3.5 Imprimir la prueba DESDE launchd (no desde Terminal)
 
-1. Configuración → Impresoras → **Reparar conexión** (crea el alias si falta,
+1. Configuración → Dispositivos · Diagnóstico → **Reparar conexión** (crea el alias si falta,
   reintenta el autotest y detecta la cola CUPS).
 2. **Imprimir prueba**.
 3. Confirmar en `/health` el `red.transporte` real (`directo` si el permiso de
   Red local quedó bien; `cups` si salió por el respaldo) y `red.ultimoTransporte`.
-4. En Configuración → Estado del sistema → Actividad:
+4. En Configuración → Dispositivos · Cola e historial:
    - `aceptado` → confirmar «Ya salió el papel» con el número del ticket.
    - `pendiente` → esperar el reintento (el agente reintenta solo).
    - `incierto` → revisar la impresora antes de reimprimir.
@@ -153,7 +153,7 @@ Verificación: `lpstat -v | grep -i mobos` tiene que mostrar
 - Sale el ticket de prueba completo (**4 secciones**) y el rollo se **corta**
   (GS V 0).
 - Si no corta o sale incompleto: probar las 4 variantes de la prueba de corte
-  (Configuración → Impresoras) y anotar en #17 qué sección falta antes de tocar
+  (Configuración → Dispositivos · Impresoras) y anotar en #17 qué sección falta antes de tocar
   código.
 
 ## 4. Cómo leer el resultado

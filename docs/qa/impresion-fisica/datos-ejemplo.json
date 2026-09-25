@@ -1,0 +1,26 @@
+{
+  "prueba": {
+    "impresora": "lan:192.168.1.23:9100",
+    "nombre": "Térmica mostrador",
+    "equipo": "Mac mostrador",
+    "copias": 1,
+    "metodo": "LAN (TCP directo)",
+    "conexion": "lan",
+    "puente": "Mac mostrador",
+    "tokenPista": "a1b2…c3d4",
+    "usuario": "Administrador",
+    "marca": "TEST-PRUEBA-FISICA",
+    "base": "https://app.moboss.online"
+  },
+  "tipos": {
+    "corta": "Prueba corta",
+    "pedido": "Ticket de pedido",
+    "qr": "Ticket con QR",
+    "venta": "Ticket completo de venta",
+    "caracteres": "Caracteres y formato",
+    "corte": "Prueba de corte"
+  },
+  "enlaceQr": "https://app.moboss.online/prueba?d=lan%3A192.168.1.23%3A9100&v=1234&f=2026-09-25T15%3A00%3A00.000Z&t=corta",
+  "protocolo": "docs/IMPRESION-PRUEBA-FISICA.md",
+  "generado": "2026-09-25T20:00:23.442Z"
+}

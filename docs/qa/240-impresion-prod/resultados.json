@@ -1,6 +1,6 @@
 {
   "base": "https://app.moboss.online",
-  "fecha": "2026-09-25T19:50:29.111Z",
+  "fecha": "2026-09-25T20:02:42.052Z",
   "pasos": [
     {
       "paso": "demo + versión",
@@ -33,8 +33,18 @@
       "ok": true
     },
     {
+      "paso": "página /prueba del QR (prueba física)",
+      "detalle": "destino, validación y tipo visibles",
+      "ok": true
+    },
+    {
+      "paso": "modal de prueba (tipos)",
+      "detalle": "6 tipo(s) disponibles",
+      "ok": true
+    },
+    {
       "paso": "PDF 80 mm generado desde la app",
-      "detalle": "106281 bytes",
+      "detalle": "106046 bytes",
       "ok": true
     }
   ],

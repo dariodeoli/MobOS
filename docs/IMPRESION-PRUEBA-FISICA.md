@@ -9,6 +9,18 @@ tiene que devolver y **qué mirar si falla**. Las reglas del módulo viven en
 > exactos listos para aplicar (incluido el bloque que junta todo para pegar en
 > el issue): **`docs/IMPRESION-17-LAUNCHD.md`**.
 
+## Mapa de la pantalla (IA #253)
+
+Todo se maneja desde **Configuración → Dispositivos** (la app avisa igual en cada paso):
+
+| Acción de la prueba | Dónde está |
+| --- | --- |
+| Imprimir la prueba / elegir tipo (6) | **Dispositivos · Impresoras** → «Imprimir prueba» |
+| Reparar conexión, diagnóstico de red, exportar diagnóstico | **Dispositivos · Diagnóstico** |
+| Vincular/revocar la Mac | **Dispositivos · Puentes** |
+| Confirmar el papel (número secreto) y ver la actividad | **Dispositivos · Cola e historial** |
+| Cola global de la empresa | **Sistema · Estado del sistema** |
+
 ## Orden de la prueba (seguir de arriba a abajo)
 
 1. **§0** — pegar el bloque: guarda `~/mobos-prueba-fisica.txt` con todo el estado.
@@ -64,7 +76,7 @@ salud() { curl -s --max-time 3 http://127.0.0.1:17890/health -H "x-mobos-print-t
 
 - Si `curl` no responde: el agente no está corriendo (paso 1.2).
 - La **versión** tiene que ser la publicada en `backend/public/print-agent/manifest.json`
-  (el instalador la muestra al final y la app la enseña en Configuración → Impresoras).
+  (el instalador la muestra al final y la app la enseña en Configuración → Dispositivos).
 - El archivo `~/mobos-prueba-fisica.txt` es lo que se pega en el issue al terminar
   (§5): no incluye tokens ni contraseñas.
 
@@ -75,7 +87,7 @@ salud() { curl -s --max-time 3 http://127.0.0.1:17890/health -H "x-mobos-print-t
    ifconfig en0 | grep -F 'inet 192.168.1.100'
    ```
    Si no aparece: `bash print-agent/red-mac.sh agregar` (o «Reparar conexión» en
-   Configuración → Impresoras). La app la recrea al arrancar, pero se pierde al
+   Configuración → Dispositivos · Diagnóstico). La app la recrea al arrancar, pero se pierde al
    reiniciar la Mac o cambiar de red.
 2. **El agente corre por launchd, no por Terminal** (es la única prueba que
    refleja lo que ve el agente automático). El pid sale de `launchctl`, así no se
@@ -95,7 +107,7 @@ salud() { curl -s --max-time 3 http://127.0.0.1:17890/health -H "x-mobos-print-t
 4. **Verificar en `/health`**: `red.alias.presente=true`, `red.tcp=true`,
    `red.transporte` (`directo`/`cups`/`usb`) y, después de imprimir,
    `red.ultimoTransporte`.
-5. **Prueba de corte** desde Configuración → Impresoras → «Imprimir prueba».
+5. **Prueba de corte** desde Configuración → Dispositivos · Impresoras → «Imprimir prueba» (los tickets esperados de cada tipo están en `docs/qa/impresion-fisica/`).
    Tiene que salir el ticket completo (**4 secciones**) y el rollo tiene que
    **cortarse** (GS V 0). Si no corta, probar las 4 variantes de la prueba de
    corte antes de tocar código.
@@ -158,15 +170,15 @@ salud() { curl -s --max-time 3 http://127.0.0.1:17890/health -H "x-mobos-print-t
 
 | Síntoma | Dónde mirar | Acción |
 | --- | --- | --- |
-| «Sin verificar» en Impresoras | `/health` → `impresoraOk` y `red.*` | Ver pasos 1 y 2; suele ser Red local o la cola CUPS |
+| «Sin verificar» en Dispositivos · Impresoras | `/health` → `impresoraOk` y `red.*` | Ver pasos 1 y 2; suele ser Red local o la cola CUPS |
 | `EHOSTUNREACH` desde launchd (y OK desde Terminal) | `/health` → `red.alias.presente`, `errno` en `/diagnostico` | Falta permiso de Red local (paso 1.3) o la IP secundaria (1.1) |
-| `ECONNREFUSED` | `/health` → `red.tcp` | La impresora está apagada o cambió de IP; Configuración → Impresoras muestra el estado vivo |
+| `ECONNREFUSED` | `/health` → `red.tcp` | La impresora está apagada o cambió de IP; Configuración → Dispositivos · Impresoras muestra el estado vivo |
 | El ticket sale cortado o incompleto | Prueba de corte (#17) | Anotar qué sección falta; revisar alimentación y `corte()` |
 | El QR no se lee | `docs/IMPRESION.md` §1 | El QA va con corrección H y módulo 7; reimprimir y escanear con el teléfono |
-| Salen dos tickets | Configuración → Impresoras → Actividad | Confirmar el papel y no reabrir el diálogo con cola pendiente |
-| Un trabajo quedó «pendiente» y no sale | Configuración → Estado del sistema → Cola | Cancelarlo si fue un click repetido; si el puente no reconecta, revisar `launchctl` |
-| La prueba «no salió» pero el agente dice OK | Papel y `/health.transporte` | «Aceptado» no es «confirmado»: confirmar el número secreto en Actividad |
-| Error al vincular el puente | Configuración → Impresoras → Gestionar puentes | Regenerar el código; el token viejo deja de autenticar |
+| Salen dos tickets | Configuración → Dispositivos · Cola e historial | Confirmar el papel y no reabrir el diálogo con cola pendiente |
+| Un trabajo quedó «pendiente» y no sale | Configuración → Sistema · Estado del sistema → Cola | Cancelarlo si fue un click repetido; si el puente no reconecta, revisar `launchctl` |
+| La prueba «no salió» pero el agente dice OK | Papel y `/health.transporte` | «Aceptado» no es «confirmado»: confirmar el número secreto en Cola e historial |
+| Error al vincular el puente | Configuración → Dispositivos · Puentes | Regenerar el código; el token viejo deja de autenticar |
 
 ## 5. Cómo reportar (plantilla lista para pegar)
 

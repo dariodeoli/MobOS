@@ -15,7 +15,7 @@ verifica y cómo se vuelve atrás.
 | Versión del agente | `print-agent/package.json` **y** `print-agent/server.mjs` (`const VERSION`) | Tienen que ser **idénticas**: `pack:agent` falla si difieren. |
 | Artefacto | `backend/public/print-agent/mobos-print-agent-<versión>.tgz` | Una versión = un tarball: publicar otra **borra** las anteriores. |
 | Manifest | `backend/public/print-agent/manifest.json` (y `GET /api/print-agent/manifest`) | `version`, `file`, `sha256`, `size`; el API agrega `installUrl` (apunta al origen que sirve el instalador, no a la app). |
-| Version en la app | Configuración → Impresoras | Muestra la que reporta `/health` del agente. |
+| Version en la app | Configuración → Dispositivos | Muestra la que reporta `/health` del agente. |
 
 **Publicar una versión nueva**:
 
@@ -37,7 +37,7 @@ brew install node            # Node 20 o superior, una sola vez
 curl -fsSL https://api.moboss.online/print-agent/install.sh | bash -s -- --code ABCDE-FGHIJ
 ```
 
-- El **código** sale de la app: *Configuración → Impresoras → Gestionar puentes*.
+- El **código** sale de la app: *Configuración → Dispositivos · Puentes*.
   Vence en 15 minutos, se usa una sola vez y no se vuelve a mostrar.
 - Flags: `--code ABCDE-FGHIJ`, `--api-url URL`, `--dir RUTA`, `--no-service`,
   `--from-repo` (desarrollo: usa `install-macos.sh` del clon).
@@ -75,7 +75,7 @@ los `.mjs` del clon: para USB ahí hace falta `npm install usb` en la carpeta.
 | Artefacto vs fuentes | `npm run pack:agent:check` (gate del repo; CI y entrega). |
 | Manifest vs tarball servido | Arnés HTTP (`backend/tests/integration-http.sh`): exige que `installUrl` apunte al instalador (no a la SPA), que esa URL devuelva `#!/usr/bin/env bash` con la allow-list y que el `sha256`/`size` del tarball servido coincidan con el manifest. |
 | A mano (sin clonar) | `curl -fsSL https://api.moboss.online/print-agent/manifest.json`; descargar el `file` y comparar `shasum -a 256` con `sha256`; `curl -fsSI <installUrl>` = 200 y `curl -fsSL <installUrl> \| head -1` = `#!/usr/bin/env bash`. |
-| En la Mac instalada | `/health` (versión, `transporte`, `usb`, `red`) y Configuración → Impresoras. |
+| En la Mac instalada | `/health` (versión, `transporte`, `usb`, `red`) y Configuración → Dispositivos. |
 
 ## 5. Rollback
 
@@ -83,7 +83,7 @@ El agente **no se auto-actualiza**: actualizar es volver a correr el one-liner
 (el manifest publica la versión vigente). Para volver atrás:
 
 1. **Cortar el modo remoto sin reinstalar** (lo más rápido): en la app,
-   *Configuración → Impresoras → Gestionar puentes* → **revocar** el puente (su
+   *Configuración → Dispositivos · Puentes* → **revocar** el puente (su
    token deja de autenticar), o en la Mac poner `"apiUrl": ""` en
    `~/.mobos-print/config.json` y reiniciar el servicio (`launchctl unload`/
    `load` del plist). El agente queda en modo **local** (sin reclamar trabajos

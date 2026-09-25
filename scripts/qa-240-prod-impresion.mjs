@@ -298,7 +298,36 @@ try {
     pasos.push({ paso: 'hoja de estación (demo)', detalle: 'el taller no mostró el botón de imprimir en serie', ok: false })
   }
 
-  // 5) Consistencia de lo impreso con lo que muestra la app.
+  // 5) Prueba física (#17/#96): el QR del ticket de prueba abre /prueba con los
+  // datos del papel; se verifica la página desplegada con datos de ejemplo.
+  await page.goto(`${BASE}/prueba?d=${encodeURIComponent('lan:192.168.1.23:9100')}&v=1234&f=2026-09-25T15%3A00%3A00.000Z&t=corta`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
+  await esperar(1200)
+  await captura('10-prueba-fisica-pagina')
+  const textoPrueba = (await page.locator('body').innerText()).replace(/\s+/g, ' ')
+  const problemasPrueba = []
+  if (!/Verificación física/i.test(textoPrueba)) problemasPrueba.push('sin título de verificación')
+  if (!textoPrueba.includes('lan:192.168.1.23:9100')) problemasPrueba.push('sin destino')
+  if (!textoPrueba.includes('1234')) problemasPrueba.push('sin validación')
+  if (!/Prueba corta/i.test(textoPrueba)) problemasPrueba.push('sin tipo de prueba')
+  pasos.push({ paso: 'página /prueba del QR (prueba física)', detalle: problemasPrueba.length ? problemasPrueba.join(' · ') : 'destino, validación y tipo visibles', ok: !problemasPrueba.length })
+
+  // 6) El modal de prueba de Dispositivos: los 6 tipos del protocolo.
+  await page.goto(`${BASE}/configuracion/dispositivos`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
+  await esperar(2500)
+  const botonPrueba = page.getByRole('button', { name: 'Imprimir prueba' }).first()
+  if (await botonPrueba.count()) {
+    await botonPrueba.click()
+    await esperar(1000)
+    await captura('11-prueba-fisica-modal')
+    const tipos = await page.getByLabel('Tipo de prueba').locator('option').count().catch(() => 0)
+    pasos.push({ paso: 'modal de prueba (tipos)', detalle: `${tipos} tipo(s) disponibles`, ok: tipos >= 6 })
+    await page.keyboard.press('Escape')
+    await esperar(400)
+  } else {
+    pasos.push({ paso: 'modal de prueba (tipos)', detalle: 'la demo no mostró impresoras para probar', ok: false })
+  }
+
+  // 7) Consistencia de lo impreso con lo que muestra la app.
   const html80 = readFileSync(join(SALIDA, 'informe-80mm.pdf')).toString('latin1')
   pasos.push({ paso: 'PDF 80 mm generado desde la app', detalle: `${html80.length} bytes`, ok: html80.length > 1000 })
   writeFileSync(join(SALIDA, 'datos-verificacion.json'), `${JSON.stringify({ base: BASE, version, serial, tituloInforme, fecha: new Date().toISOString() }, null, 2)}\n`)
@@ -316,7 +345,7 @@ writeFileSync(join(SALIDA, 'REPORTE.md'), `# Verificación de impresión en prod
 - Base: ${BASE}
 - Fecha: ${new Date().toISOString()}
 - Versión desplegada: ${pasos.find((paso) => paso.paso === 'demo + versión')?.detalle || '?'}
-- Método: camino real de la app (demo → ficha → «Informe/Certificado/Constancia» → formato → «Descargar PDF»), el PNG del certificado por «Compartir imagen», las etiquetas desde el taller («Imprimir en serie»), PDFs armados con el HTML que manda la app y QR decodificado con Vision.
+- Método: camino real de la app (demo → ficha → «Informe/Certificado/Constancia» → formato → «Descargar PDF»), el PNG del certificado por «Compartir imagen», las etiquetas desde el taller («Imprimir en serie»), la página /prueba del QR físico y el modal de prueba de Dispositivos; PDFs armados con el HTML que manda la app y QR decodificado con Vision.
 
 | Documento | Páginas | QR decodificado | Resultado |
 | --- | --- | --- | --- |
