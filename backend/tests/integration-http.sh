@@ -684,6 +684,9 @@ node "$BACKEND_ROOT/tests/supply-receptions.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TO
 echo "Centro de Abastecimiento F6: automatización (reposición, proveedores, atrasos y AEX) (#250)..."
 node "$BACKEND_ROOT/tests/supply-automation.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 
+echo "Centro de Abastecimiento: repuestos del taller con tenencia y pago (#250)..."
+node "$BACKEND_ROOT/tests/supply-workshop-parts.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
+
 echo "12/13 Bloqueo de login empresarial después de cinco intentos..."
 out="$(response_file)"; request POST /api/auth/pin 200 '{"sellerId":"user-lock-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''
 for _ in 1 2 3 4 5; do
