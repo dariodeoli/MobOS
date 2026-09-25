@@ -499,8 +499,10 @@ un trabajo nuevo).
 
 ## 12. Abastecimiento (#250 §11)
 
-Pendiente de implementar en PRN (fases 1–5 ya en main). Contrato extraído del
-código para que la implementación sea directa:
+Estado: la **lista de compra · 80 mm** y la **etiqueta producto/paquete** siguen
+pendientes de implementar en PRN (fases 1–5 ya en main); el **comprobante de
+recepción · 80 mm/A4** (fase 5) ya está implementado — contrato completo en
+[COMPROBANTE-RECEPCION.md](COMPROBANTE-RECEPCION.md).
 
 - **Lista de compra · 80 mm** (ESC/POS + respaldo HTML A4/rollo): `code` (`COM-…`),
   recorrido/origen, comprador, proveedor, **productos agrupados con cantidades y
@@ -511,15 +513,20 @@ código para que la implementación sea directa:
   pendiente, compra, referencia, pedido, destino, lote }` → `PRODUCTO n DE N`,
   variante, **IMEI o «pendiente»**, compra, pedido y destino, con código de
   barras del identificador.
-- **Comprobante de recepción · 80 mm/A4** (fase 5): esperado vs recibido por
-  línea, faltantes/incidencias, depósito destino, usuario y fecha/hora. Se arma
-  con la respuesta de la recepción (`SupplyPurchase` + líneas + `SupplyPurchaseSerial`)
-  cuando la fase 5 publique su payload; el QR apunta al panel de la compra.
+- **Comprobante de recepción · 80 mm/A4** (fase 5) — implementado:
+  `datosComprobanteRecepcion` (`comprobanteRecepcion.js`) alimenta
+  `ticketComprobanteRecepcion` (ESC/POS) y `buildComprobanteRecepcionHtml` /
+  `printComprobanteRecepcion` (A4/rollo), con el tipo `comprobante-recepcion`
+  para la impresora recordada. Esperado vs recibido por línea, faltantes,
+  sobrantes y dañados con serial y nota, depósito destino, usuario y fecha/hora.
+  Ensayo imprimible: `docs/comprobante-recepcion-ejemplo/` (A4, 80 mm y ESC/POS).
 - **QR**: falta cerrar la **ruta pública del panel/manifiesto** (path + token y si
   abre sin sesión). Candidatas a confirmar con INV/DSN: `/m/<token>` (manifiesto
   de lote) o `/abastecimiento/compras/<id>` (panel, pide sesión). Mientras no esté
   definida, el papel imprime el identificador como barras y el texto
-  «Escaneá para abrir el panel de la compra.» (misma regla que el informe).
+  «Escaneá para abrir el panel de la compra.» (misma regla que el informe). El
+  comprobante de recepción respeta la misma regla: el QR solo sale con un
+  `enlace` absoluto; el panel lo pasa cuando la ruta esté cerrada.
 
 ## 13. Tokens v2 en los impresos (#241 · Lote H)
 
