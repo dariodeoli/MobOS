@@ -207,7 +207,7 @@ function AvisoColaOffline({ texto, corto, urgente, onClick, pastilla = false, te
   )
 }
 
-function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onSwitchUser, onLockRequest, collapsed, perfilEmpresa, usuario }) {
+function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onSwitchUser, onLockRequest, onPerfil, collapsed, perfilEmpresa, usuario }) {
   const clicsRef = useRef([])
   const clicsTimer = useRef(null)
   useEffect(() => () => clearTimeout(clicsTimer.current), [])
@@ -265,6 +265,24 @@ function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onSwitch
           <Icon name="refresh" className={cn('ml-auto h-3 w-3 shrink-0 text-mute', collapsed && 'lg:hidden')} />
         </button>
       </div>
+      {/* Perfil personal (#253): la identidad de la persona se edita desde su
+          avatar (foto y nombre), no dentro de la Configuración de la tienda. */}
+      {onPerfil && (
+        <button
+          type="button"
+          data-testid="shell-mi-perfil"
+          onClick={onPerfil}
+          title="Mi perfil"
+          aria-label="Mi perfil"
+          className={cn(
+            'mt-1 flex min-h-9 w-full items-center gap-2 rounded-xl px-2.5 text-left text-[12px] font-semibold text-mute transition hover:bg-fore/5 hover:text-fore',
+            collapsed && 'lg:justify-center lg:px-0',
+          )}
+        >
+          <Icon name="user" className="h-[15px] w-[15px] shrink-0" />
+          <span className={cn('truncate', collapsed && 'lg:hidden')}>Mi perfil</span>
+        </button>
+      )}
     </div>
   )
 }
@@ -315,6 +333,7 @@ export default function AppShell({
   onSwitchUser,
   onLogout,
   onLockRequest,
+  onPerfil,
   onSearch,
   onHelp,
   breadcrumb,
@@ -446,6 +465,7 @@ export default function AppShell({
           roleLabel={roleLabel}
           onSwitchUser={onSwitchUser}
           onLockRequest={onLockRequest}
+          onPerfil={onPerfil}
           collapsed={collapsed}
           perfilEmpresa={perfilEmpresa}
           usuario={usuario}
@@ -489,6 +509,7 @@ export default function AppShell({
             roleLabel={roleLabel}
             onSwitchUser={onSwitchUser}
             onLockRequest={onLockRequest}
+            onPerfil={onPerfil ? () => { setMenuAbierto(false); onPerfil() } : undefined}
             collapsed={false}
             perfilEmpresa={perfilEmpresa}
             usuario={usuario}

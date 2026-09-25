@@ -21,6 +21,8 @@ export const RUTA_DE_VISTA = {
   servicio: '/servicio',
   garantias: '/garantias',
   autorizaciones: '/autorizaciones',
+  // Perfil personal (#253): se abre desde el avatar, fuera de Configuración.
+  'mi-perfil': '/mi-perfil',
   resumen: '/resumen',
   ops: '/ops',
   analisis: '/analisis',
@@ -84,7 +86,7 @@ export const DESTINO_LEGADO = {
   vendedores: '/configuracion',
   // Slugs planos de las pestañas que resolvía el panel viejo.
   seguridad: '/configuracion/seguridad',
-  identidad: '/configuracion/identidad',
+  identidad: '/mi-perfil',
   roles: '/configuracion/roles',
   negocio: '/configuracion/negocio',
   sucursales: '/configuracion/sucursales',
@@ -106,6 +108,7 @@ export const DESTINO_LEGADO = {
   ads: '/finanzas',
   incompletos: '/productos',
   imagenes: '/productos',
+  'mi-perfil': '/mi-perfil',
   celulares: '/celulares',
   comparador: '/comparador',
 }

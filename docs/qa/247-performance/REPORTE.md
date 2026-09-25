@@ -258,6 +258,14 @@ entrega (`MOBOS_E2E_BACKEND=prod`, `retries: 0`, sin cuarentena): **447 passed
 + 6 skipped** en cada una, exit 0. Resumen y cierre textual de cada corrida en
 [`racha/`](racha/) (los `.log` completos quedan locales: `*.log` está ignorado).
 
+### Producción v1.0.172 (seguimiento)
+
+`scripts/qa-247-produccion.mjs` sobre el release vigente
+([`produccion-v1.0.172/resultados.json`](produccion-v1.0.172/resultados.json)):
+entry **175 KB** (−84% vs 1104 KB de base) y en la demo (datos locales,
+0 llamadas al API): inventario 387 ms · POS 264 · pedidos 373 · clientes 372 ·
+finanzas 102.
+
 ## Qué se cambió (dominio PLT)
 
 1. **Rutas diferidas** (`src/App.jsx`): el panel, el reparto y todas las páginas

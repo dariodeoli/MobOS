@@ -74,6 +74,8 @@ test('configuration subpages keep their own child slug in the URL and the title'
     '/configuracion/sistema': 'Estado del sistema',
     // Ayuda sale de Configuración (Documentación vive ahí).
     '/ayuda': 'Ayuda',
+    // Perfil personal (#253): fuera de Configuración, se abre desde el avatar.
+    '/mi-perfil': 'Mi perfil',
     // Las URLs viejas siguen resolviendo su título: redirigen antes del render.
     '/configuracion/identidad': 'Mi identidad',
     '/configuracion/roles': 'Roles y permisos',
@@ -82,7 +84,6 @@ test('configuration subpages keep their own child slug in the URL and the title'
     '/configuracion/sucursales': 'Sucursales',
     '/configuracion/impresoras': 'Impresoras',
     '/configuracion/impresion': 'Estado de impresión',
-    '/configuracion/documentacion': 'Documentación',
   }
   for (const [pathname, label] of Object.entries(rutas)) {
     const metadata = resolvePageMetadata({ pathname })

@@ -51,8 +51,9 @@ const protectedSections = {
   '/configuracion/impresoras': 'Impresoras',
   '/configuracion/impresion': 'Estado de impresión',
   '/configuracion/preferencias': 'Preferencias',
-  '/configuracion/documentacion': 'Documentación',
   '/configuracion/sistema': 'Estado del sistema',
+  // Perfil personal (#253): vive fuera de Configuración, se abre del avatar.
+  '/mi-perfil': 'Mi perfil',
   '/ayuda': 'Ayuda',
   '/ayuda/ayuda': 'Ayuda',
   '/analisis': 'Análisis',
