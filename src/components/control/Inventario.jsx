@@ -38,6 +38,9 @@ import AttachmentList from '@/components/shared/AttachmentList'
 import { internationalPhone } from '@/utils/telefono'
 import { cn } from '@/lib/utils'
 import SerialTexto from '@/components/shared/SerialTexto'
+import GradoBadge from '@/components/shared/GradoBadge'
+import ChipsLocks from '@/components/shared/ChipsLocks'
+import { locksParaChips, resumenVerificacion } from '@/lib/phonecheck'
 import Avatar from '@/components/shared/Avatar'
 import SearchField from '@/components/shared/SearchField'
 import CurrencySelect from '@/components/shared/CurrencySelect'
@@ -288,12 +291,25 @@ function TarjetaUnidad({ unit, onClick }) {
   // Vista previa v2 (#241, lote C): el tile de equipo del mock — superficie de
   // consola, números de consola y chips tipo pill. Se apaga con el flag.
   const v2 = temaV2Activo()
+  // #241 lote C (cierre): con el flag, el tile suma el grado oficial (#240) y los
+  // chips de locks de la última consulta IMEI del serial (con su fuente y hora);
+  // sin el flag el tile queda como estaba.
+  const grado = v2 ? (unit.inspection?.grado || null) : null
+  const verificacion = v2 ? resumenVerificacion(unit.verificacion) : null
+  const locks = v2 ? locksParaChips(unit.verificacion) : []
   return <button type="button" data-testid="inventario-tarjeta" onClick={onClick} className={cn('group flex w-full flex-col rounded-2xl border border-ink-600 p-3 text-left transition hover:border-fono/40', v2 && 'v2-tile', rowTone(unit))}>
-    <span className="flex items-start justify-between gap-2">
+    <span className="flex min-w-0 items-start justify-between gap-2">
       <b className="min-w-0 truncate text-[13px]" title={nombreProducto(unit.product || {})}>{nombreProducto(unit.product || {})}</b>
-      <Badge color={estadoInventario(unit).tone}>{estadoInventario(unit).label}</Badge>
+      <span className="flex shrink-0 items-center gap-1.5">
+        {grado && <GradoBadge grado={grado} className="v2-grado" />}
+        <Badge color={estadoInventario(unit).tone}>{estadoInventario(unit).label}</Badge>
+      </span>
     </span>
     <SerialTexto serial={serial} className="mt-1 truncate text-[11px] text-mute" />
+    {locks.length > 0 && <span className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1" data-testid="tile-locks">
+      <ChipsLocks locks={locks} />
+      {verificacion?.servicio && <small className="text-[10px] text-mute" data-testid="tile-locks-fuente">{verificacion.servicio}{verificacion.fecha ? ` · ${fechaHora(verificacion.fecha)}` : ''}</small>}
+    </span>}
     <span className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-mute">
       {unit.batteryHealth ? <MedidorBateria porcentaje={unit.batteryHealth} variante="chip" /> : null}
       {unit.location?.name ? <span className={cn('truncate rounded border border-ink-500 px-1.5 py-0.5', v2 && 'v2-chip')}>{unit.location.name}</span> : null}

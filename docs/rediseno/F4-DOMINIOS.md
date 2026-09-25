@@ -125,8 +125,32 @@ mock: superficie de consola, estado como chip pill, IMEI en mono, batería,
 ubicación y proveedor como chips y el costo con número de consola. La
 verificación (avatar y fecha) queda como estaba. Se prende con el flag y la
 vista se captura con la cuadrícula activada (`mobos:inventario-vista`).
-Queda pendiente para cuando INV cierre los datos de la inspección (#240): el
-**grado** grande y los **chips de locks** (iCloud/MDM) en el tile.
+
+**Cierre del lote (con los datos de #240 ya cerrados)**: el tile suma el
+**grado oficial** un escalón más grande (`GradoBadge`, que ya venía de la ficha)
+y los **chips de locks** del dispositivo —iCloud / Find My, MDM, ESN / lista
+negra y carrier / SIM lock— con la **fuente y la hora** de la verificación
+(`Apple Basic · 24/9/26, 21:14`). Los chips usan el objeto compartido
+`ChipsLocks` y el estado sale de `lib/phonecheck.js` (`locksParaChips`, verde =
+libre, rojo = activo); sin consulta guardada del serial no se inventa ningún
+chip. El listado entrega la última verificación por serial en una sola consulta
+(`verificacion` en `GET /api/inventory-units`, solo administración/gerencia, el
+mismo alcance que la ficha).
+
+Capturas del cierre (flag prendido, claro/oscuro en 1280 y 390):
+[claro 1280](c241f4c-inventario-tiles-on-claro-desktop.png) ·
+[oscuro 1280](c241f4c-inventario-tiles-on-oscuro-desktop.png) ·
+[claro 390](c241f4c-inventario-tiles-on-claro-mobile.png) ·
+[oscuro 390](c241f4c-inventario-tiles-on-oscuro-mobile.png) ·
+[muestra sin flag](c241f4c-inventario-tiles-off-claro-desktop.png).
+El **antes** (tile sin grado ni locks) son las capturas del lote:
+[claro 1280](c241f4b-inventario-tiles-on-claro-desktop.png) ·
+[oscuro 1280](c241f4b-inventario-tiles-on-oscuro-desktop.png) ·
+[claro 390](c241f4b-inventario-tiles-on-claro-mobile.png) ·
+[oscuro 390](c241f4b-inventario-tiles-on-oscuro-mobile.png).
+Medición: **0 bajos de shell y 0 de contenido** en los cuatro combos, sin scroll
+horizontal en 390 con la cuadrícula (`e2e/qa-241-lote-c-tile.spec.js`).
+
 
 ## Pedidos: resumen y stepper de entrega (segunda pasada)
 
@@ -190,6 +214,7 @@ con `MOBOS_CAPTURAS=docs/rediseno`.
 - Carrito POS: espera la guarda de CMP (declarado en el plan F4).
 - Dominios que faltan: Públicas y Prints (lotes G y H del plan); los hallazgos
   de contraste del default (hero verde y encabezados de tabla) quedan para una
-  pasada del default, y el grado/locks del tile esperan los datos de #240.
+  pasada del default. El grado y los locks del tile de inventario quedaron
+  cerrados con los datos de #240 (arriba).
 - Promover este bloque y los tonos AA al scope `tema-v2` de `owncoding-ui`
   (CMP) y retirar el scope local.

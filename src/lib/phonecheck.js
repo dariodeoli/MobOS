@@ -103,6 +103,20 @@ export function estadoInspeccion({ inspection = null, borrador = null } = {}) {
 }
 
 /**
+ * Locks listos para el objeto compartido `ChipsLocks` (estado libre/activo): lo
+ * usa el tile de equipo y cualquier listado que muestre los chips del serial.
+ */
+export function locksParaChips(verificacion = null) {
+  const resumen = resumenVerificacion(verificacion)
+  if (!resumen) return []
+  return resumen.chips.map((chip) => ({
+    clave: chip.clave,
+    estado: chip.ok ? 'libre' : 'activo',
+    detalle: `${chip.label}: ${chip.valor || 'Sin dato'}${resumen.servicio ? ` · ${resumen.servicio}` : ''}${resumen.fecha ? ` · ${new Date(resumen.fecha).toLocaleString('es-PY')}` : ''}`,
+  }))
+}
+
+/**
  * Verificación IMEI lista para los chips: campos normalizados y **fuente/hora**
  * (servicio y cuándo se resolvió), sea la última consulta real guardada del
  * serial o una consulta hecha en esta sesión.
