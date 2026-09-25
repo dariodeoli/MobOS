@@ -9,6 +9,16 @@ import { authorizationValueOf, consumeAuthorization, usableAuthorization } from 
 const INT_MAX = 2147483647
 const text = (value: unknown, max = 160) => typeof value === 'string' && value.trim().length > 0 && value.trim().length <= max ? value.trim() : null
 
+// #218: la ETA del lote es opcional. Viaja como fecha ISO (`YYYY-MM-DD` o
+// completa); cadena vacía/null la borran y un valor inválido se rechaza en vez
+// de ignorarse en silencio.
+function etaOf(value: unknown): { ok: true; eta: Date | null } | { ok: false } {
+  if (value === undefined || value === null || value === '') return { ok: true, eta: null }
+  if (typeof value !== 'string' || value.length > 40) return { ok: false }
+  const fecha = new Date(value)
+  return Number.isNaN(fecha.getTime()) ? { ok: false } : { ok: true, eta: fecha }
+}
+
 // ADMIN y GERENTE transfieren por su rol; el resto de los roles necesita una
 // autorización de gerencia aprobada y de un solo uso. El permiso efectivo
 // permite además recortar el traslado a un gerente en particular.
@@ -26,6 +36,8 @@ export async function GET(request: Request) {  const tenant = await tenantId(req
       sourceBranch: { select: { id: true, name: true } },
       destinationBranch: { select: { id: true, name: true } },
       createdBy: { select: { id: true, name: true } },
+      dispatchedBy: { select: { id: true, name: true } },
+      receivedBy: { select: { id: true, name: true } },
       lines: { include: { sourceProduct: { select: { id: true, name: true, sku: true } }, destinationProduct: { select: { id: true, name: true, sku: true } } } },
     },
     orderBy: { createdAt: 'desc' },
@@ -43,6 +55,8 @@ export async function POST(request: Request) {
   const sourceBranchId = text(body?.sourceBranchId, 128); const destinationBranchId = text(body?.destinationBranchId, 128)
   const destinationLocationId = body?.destinationLocationId === undefined || body?.destinationLocationId === null || body?.destinationLocationId === '' ? null : text(body.destinationLocationId, 128)
   const notes = body?.notes === undefined || body?.notes === null || body?.notes === '' ? null : text(body.notes, 2000)
+  const etaInput = etaOf(body?.eta)
+  if (!etaInput.ok) return error('La fecha estimada de llegada no es válida.')
   const rawLines = Array.isArray(body?.lines) ? body.lines : []
   if (!sourceBranchId || !destinationBranchId || sourceBranchId === destinationBranchId || rawLines.length === 0 || rawLines.length > 200) return error('Origen, destino distintos y al menos una línea son obligatorios.')
   if (body?.notes !== undefined && body?.notes !== null && body?.notes !== '' && !notes) return error('Las observaciones no pueden superar 2000 caracteres.')
@@ -90,7 +104,7 @@ export async function POST(request: Request) {
         }
         autorizacion = { id: authorization!.id }
       }
-      const created = await tx.stockTransfer.create({ data: { tenantId: tenant, sourceBranchId, destinationBranchId, createdById: session.user.id, notes } })
+      const created = await tx.stockTransfer.create({ data: { tenantId: tenant, sourceBranchId, destinationBranchId, createdById: session.user.id, dispatchedById: session.user.id, eta: etaInput.eta, notes } })
       for (const line of lines) {
         const source = await tx.product.findFirst({ where: { id: line.productId, tenantId: tenant, branchId: sourceBranchId, isActive: true } })
         if (!source) throw new Error('Producto no encontrado en la sucursal de origen.')
@@ -121,7 +135,7 @@ export async function POST(request: Request) {
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'TRANSFER_AUTHORIZED', entity: 'StockTransfer', entityId: created.id, metadata: { authorizationId: autorizacion.id, sourceBranchId, destinationBranchId, lineCount: lines.length } } })
       }
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'STOCK_TRANSFERRED', entity: 'StockTransfer', entityId: created.id, metadata: { sourceBranchId, destinationBranchId, destinationLocationId, lineCount: lines.length } } })
-      return tx.stockTransfer.findUniqueOrThrow({ where: { id: created.id }, include: { sourceBranch: { select: { id: true, name: true } }, destinationBranch: { select: { id: true, name: true } }, lines: { include: { sourceProduct: { select: { id: true, name: true, sku: true } }, destinationProduct: { select: { id: true, name: true, sku: true } } } } } })
+      return tx.stockTransfer.findUniqueOrThrow({ where: { id: created.id }, include: { sourceBranch: { select: { id: true, name: true } }, destinationBranch: { select: { id: true, name: true } }, dispatchedBy: { select: { id: true, name: true } }, lines: { include: { sourceProduct: { select: { id: true, name: true, sku: true } }, destinationProduct: { select: { id: true, name: true, sku: true } } } } } })
     })
     return json(transfer, { status: 201 })
   } catch (e) {
@@ -130,8 +144,9 @@ export async function POST(request: Request) {
   }
 }
 
-// Adjunta la guía de envío AEX a un traslado ya registrado (se conoce recién
-// al despachar). Solo ADMIN/GERENTE de la empresa, gerente desde su sucursal.
+// Actualiza el traslado ya registrado: la guía de envío AEX (se conoce recién
+// al despachar) y/o la ETA del lote (#218). Solo ADMIN/GERENTE de la empresa,
+// gerente desde su sucursal.
 export async function PATCH(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
@@ -139,14 +154,24 @@ export async function PATCH(request: Request) {
   let body: any
   try { body = await request.json() } catch { return error('JSON inválido.') }
   const id = text(body?.id, 128)
-  if (!id || (body?.aexGuide !== null && body?.aexGuide !== '' && !text(body?.aexGuide, 100))) return error('Indicá el traslado y una guía válida de hasta 100 caracteres.')
-  const aexGuide = body.aexGuide === null || body.aexGuide === '' ? null : text(body.aexGuide, 100)
+  if (!id) return error('Indicá el traslado a actualizar.')
+  const quiereGuia = body?.aexGuide !== undefined
+  const quiereEta = body?.eta !== undefined
+  if (!quiereGuia && !quiereEta) return error('Indicá qué actualizar: la guía AEX o la ETA del lote.')
+  const aexGuide = quiereGuia ? (body.aexGuide === null || body.aexGuide === '' ? null : text(body.aexGuide, 100)) : null
+  if (quiereGuia && body.aexGuide !== null && body.aexGuide !== '' && !aexGuide) return error('La guía AEX debe tener hasta 100 caracteres.')
+  const etaInput = quiereEta ? etaOf(body.eta) : { ok: true as const, eta: null }
+  if (!etaInput.ok) return error('La fecha estimada de llegada no es válida.')
   try {
     const transfer = await prisma.stockTransfer.findFirst({ where: { id, tenantId: tenant } })
     if (!transfer) return error('Traslado no encontrado.', 404)
     if (session.user.role === 'GERENTE' && session.user.branchId !== transfer.sourceBranchId) return error('Solo podés editar traslados de tu sucursal.', 403)
-    const updated = await prisma.stockTransfer.update({ where: { id }, data: { aexGuide } })
-    await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'TRANSFER_AEX_GUIDE_ATTACHED', entity: 'StockTransfer', entityId: id, metadata: { aexGuide } } })
+    const data: { aexGuide?: string | null; eta?: Date | null } = {}
+    if (quiereGuia) data.aexGuide = aexGuide
+    if (quiereEta) data.eta = etaInput.eta
+    const updated = await prisma.stockTransfer.update({ where: { id }, data })
+    if (quiereGuia) await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'TRANSFER_AEX_GUIDE_ATTACHED', entity: 'StockTransfer', entityId: id, metadata: { aexGuide } } })
+    if (quiereEta) await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'TRANSFER_ETA_UPDATED', entity: 'StockTransfer', entityId: id, metadata: { eta: etaInput.eta?.toISOString() ?? null } } })
     return json(updated)
   } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo actualizar el traslado.', 409) }
 }

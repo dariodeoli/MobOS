@@ -18,6 +18,7 @@ async function porToken(token: string) {
       sourceBranch: { select: { name: true, address: true, city: true, department: true, phone: true } },
       destinationBranch: { select: { name: true, address: true, city: true, department: true, phone: true } },
       createdBy: { select: { name: true } },
+      dispatchedBy: { select: { name: true } },
       lines: { include: { sourceProduct: { select: { name: true, sku: true } } } },
     },
   })
@@ -40,6 +41,8 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
   return json({
     status: transfer.receivedAt ? 'RECEIVED' : 'IN_TRANSIT',
     createdAt: transfer.createdAt,
+    eta: transfer.eta,
+    dispatchedBy: transfer.dispatchedBy?.name || null,
     receivedAt: transfer.receivedAt,
     receivedBy: receivedBy?.name || null,
     receivedNote: transfer.receivedNote,

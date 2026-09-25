@@ -264,11 +264,15 @@ test('vender todos deja el lote elegido en el POS con producto, cantidad e IMEI'
 
 // Crea solo el producto (sin unidades) para los tests de costo.
 // El modal de recepción usa el buscador de productos (#250): se escribe el
-// modelo y se elige la sugerencia, igual que en el POS.
+// modelo y se elige la sugerencia, igual que en el POS. La lista de productos
+// llega async, así que se espera una sugerencia real antes de hacer clic (la
+// opción «Agregar … como producto nuevo» no cuenta).
 async function elegirModelo(modal, nombre) {
   const combo = modal.getByRole('combobox').first()
   await combo.fill(nombre)
-  await modal.getByRole('option', { name: new RegExp(nombre) }).first().click()
+  const sugerencia = modal.getByRole('option').filter({ hasNotText: 'Agregar' }).filter({ hasText: nombre }).first()
+  await expect(sugerencia).toBeVisible({ timeout: 15_000 })
+  await sugerencia.click()
 }
 
 async function crearProducto(page, marca) {

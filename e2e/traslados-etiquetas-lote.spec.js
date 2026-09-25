@@ -51,8 +51,9 @@ async function agenteFalso(page, capturados) {
 const textoDelTicket = (capturado) => Buffer.from(String(capturado?.data || ''), 'base64').toString('latin1')
 
 // Deja el lote "en destino": unidades EN_TRANSIT en la sucursal activa y el
-// traslado apuntando desde la sucursal 2, con los seriales en la línea.
-function marcarLoteEnDestino({ marca, seriales, productoId }) {
+// traslado apuntando desde la sucursal 2, con los seriales en la línea. El
+// admin del arnés queda como despachante (#218) y la ETA es opcional.
+function marcarLoteEnDestino({ marca, seriales, productoId, eta = null }) {
   const pgPort = process.env.MOBOS_E2E_PGPORT || '5439'
   const pgDb = process.env.MOBOS_E2E_DB || 'mobos_e2e'
   const jsonSeriales = JSON.stringify(seriales).replace(/'/g, "''")
@@ -64,8 +65,12 @@ function marcarLoteEnDestino({ marca, seriales, productoId }) {
      SELECT '${SEED.branch2Id}', t."id", '${SEED.branch2Name}', CURRENT_TIMESTAMP
      FROM "Tenant" t WHERE t."email" = '${SEED.company.email}'
      ON CONFLICT ("id") DO UPDATE SET "name" = EXCLUDED."name";
-     INSERT INTO "StockTransfer" ("id","tenantId","sourceBranchId","destinationBranchId","createdById","createdAt")
-     SELECT 'e2e-lote-${marca}', t."id", '${SEED.branch2Id}', '${SEED.branchId}', (SELECT u."id" FROM "User" u WHERE u."tenantId" = t."id" AND u."role" = 'ADMIN' LIMIT 1), CURRENT_TIMESTAMP
+     INSERT INTO "StockTransfer" ("id","tenantId","sourceBranchId","destinationBranchId","createdById","dispatchedById","eta","createdAt")
+     SELECT 'e2e-lote-${marca}', t."id", '${SEED.branch2Id}', '${SEED.branchId}',
+       (SELECT u."id" FROM "User" u WHERE u."tenantId" = t."id" AND u."role" = 'ADMIN' LIMIT 1),
+       (SELECT u."id" FROM "User" u WHERE u."tenantId" = t."id" AND u."role" = 'ADMIN' LIMIT 1),
+       ${eta ? `'${eta}'::timestamp` : 'NULL'},
+       CURRENT_TIMESTAMP
      FROM "Tenant" t WHERE t."email" = '${SEED.company.email}'
      ON CONFLICT ("id") DO NOTHING;
      INSERT INTO "StockTransferLine" ("id","transferId","sourceProductId","destinationProductId","quantity","serials")
@@ -190,6 +195,52 @@ test('la recepción del lote lo deja disponible en stock del destino', async ({ 
   await expect(unidad).toBeVisible({ timeout: 20_000 })
   await expect(unidad).toContainText('Disponible')
   await page.screenshot({ path: `${SALIDA}/07-lote-recibido.jpg` })
+})
+
+test('el lote muestra ETA y quién despachó/recibió, y la ETA se ajusta desde la tabla', async ({ page }) => {
+  const marca = Date.now()
+  const serial = `352800${String(marca).slice(-8)}`
+  await page.goto('/inventario/unidades')
+  await sembrarLote(page, { marca, seriales: [serial] })
+
+  // El alta del traslado ya ofrece la ETA (opcional) y el lote llega con el
+  // despachante registrado (quien lo cargó).
+  await page.getByRole('button', { name: 'Transferir' }).click()
+  const alta = page.getByRole('dialog', { name: 'Transferir IMEI entre sucursales' })
+  await expect(alta.getByLabel('ETA (opcional)')).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  const fila = await filaDelLote(page, marca)
+  const botonEta = fila.getByRole('button', { name: 'fijar ETA' })
+  await expect(botonEta).toBeVisible()
+  await expect(botonEta).toHaveAttribute('title', /Cargar la ETA del lote/i)
+  await expect(fila).toContainText('Administrador')
+
+  // La ETA se fija desde la misma fila y queda con su detalle en el tooltip.
+  const enCincoDias = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10)
+  await botonEta.click()
+  const modal = page.getByRole('dialog', { name: 'ETA del lote' })
+  await expect(modal).toBeVisible()
+  await modal.getByLabel('Día estimado').fill(enCincoDias)
+  await page.screenshot({ path: `${SALIDA}/08-eta-lote.jpg` })
+  await modal.getByRole('button', { name: 'Guardar ETA' }).click()
+  await expect(page.getByText('ETA del lote actualizada.')).toBeVisible({ timeout: 15_000 })
+
+  const filaConEta = await filaDelLote(page, marca)
+  const celdaEta = filaConEta.locator('button[title^="ETA:"]')
+  await expect(celdaEta).toBeVisible()
+  await expect(celdaEta).toHaveAttribute('title', /clic para ajustarla/i)
+
+  // Recepción interna: el lote queda con llegada real y quien recibió, por nombre.
+  const recibo = await apiPagina(page, '/api/inventory-units/verify', { method: 'POST', body: JSON.stringify({ serial }) })
+  expect(recibo.status, JSON.stringify(recibo.datos)).toBe(200)
+  await page.reload()
+  const filaRecibida = await filaDelLote(page, marca)
+  await expect(filaRecibida).toContainText('Recibido')
+  const despacho = filaRecibida.locator('span[title^="Despachó:"]')
+  await expect(despacho).toContainText('Administrador')
+  await expect(despacho).toHaveAttribute('title', /Recibió: Administrador/)
+  await page.screenshot({ path: `${SALIDA}/09-lote-eta-despacho.jpg` })
 })
 
 test('sin impresora, el lote deja el PDF de 80 mm con las dos etiquetas', async ({ page }) => {

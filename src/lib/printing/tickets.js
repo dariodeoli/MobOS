@@ -534,7 +534,11 @@ export function ticketRemision(transfer, { ancho = 80 } = {}) {
   }
   t.linea()
   if (transfer.aexGuide) t.par('Guía AEX', transfer.aexGuide)
-  if (transfer.createdBy?.name) t.par('Despachado por', transfer.createdBy.name)
+  // #218: despachante y receptor por nombre, con la ETA estimada si existe.
+  const despachadoPor = transfer.dispatchedBy?.name || transfer.createdBy?.name
+  if (despachadoPor) t.par('Despachado por', despachadoPor)
+  if (transfer.eta) t.par('ETA', new Date(transfer.eta).toLocaleDateString('es-PY'))
+  if (transfer.receivedAt) t.par('Recibido por', transfer.receivedBy?.name || 'sin cuenta (QR)')
   if (transfer.notes) t.texto(transfer.notes)
   if (transfer.destinationLocation?.name) t.texto(`Destino en depósito: ${transfer.destinationLocation.name}`)
   bloqueFirma(t, ['Entregué (despacho)', 'Recibí conforme (recepción)'], { ancho, observaciones: true })

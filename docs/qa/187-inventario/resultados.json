@@ -1,13 +1,13 @@
 {
   "base": "https://app.moboss.online",
-  "version": "1.0.136",
-  "fecha": "2026-09-22T00:40:56.759Z",
+  "version": "1.0.169",
+  "fecha": "2026-09-25T15:17:17.471Z",
   "metodo": "Playwright headless (chromium) sobre la demo pública de producción",
   "pasos": [
     {
       "paso": "entrada a la demo como dueño",
       "estado": "ok",
-      "detalle": "versión 1.0.136 · perfiles demo visibles: true",
+      "detalle": "versión 1.0.169 · perfiles demo visibles: true",
       "capturas": [
         "01-acceso-demo.jpg",
         "02-panel-demo.jpg"
@@ -15,9 +15,9 @@
       "llamadasApi": []
     },
     {
-      "paso": "inventario: listado compacto con modelo/variante, ubicación corta y costo",
+      "paso": "inventario: listado compacto de una línea, sin variante duplicada y con costo",
       "estado": "ok",
-      "detalle": "23 filas con las 8 columnas · primera: iPhone 15 Pro 256GB Titanio AUR000100000 0000 Nuevo · 256GB 100% Distr… USD 0,00 D1 Dispon",
+      "detalle": "23 filas de ≤44 px con las 7 columnas · primera: iPhone 15 Pro 256GB Titanio AUR000100000 0000 100% Distr… USD 0,00 D1 Disponible — Sin ver",
       "capturas": [
         "03-inventario-listado.jpg"
       ],
@@ -36,7 +36,7 @@
     {
       "paso": "sync con POS: el modelo de Inventario aparece igual en el catálogo",
       "estado": "ok",
-      "detalle": "inventario: iPhone 15 Pro 256GB Titanio AUR000100000 0000 Nuevo · 256GB  · POS: iPhone 15 Pro 256GB 2 variantes · desde Gs 6.750.000 6 en st",
+      "detalle": "inventario: iPhone 15 Pro 256GB Titanio AUR000100000 0000 100% Distr… US · POS: iPhone 15 Pro 256GB 2 variantes · desde Gs 6.750.000 6 en st",
       "capturas": [
         "06-inventario-modelo-base.jpg",
         "07-pos-catalogo-modelo.jpg"
@@ -83,7 +83,7 @@
     {
       "paso": "en tránsito: recepción con reimpresión de etiqueta (#220)",
       "estado": "ok",
-      "detalle": "unidad en tránsito: iPhone 12 128GB Verde AUR002400000 0000 Nuevo · 128GB 100% I · recepción con depósito y reimpresión",
+      "detalle": "unidad en tránsito: iPhone 12 128GB Verde AUR002400000 0000 100% Impor… USD 253, · recepción con depósito y reimpresión",
       "capturas": [
         "13-transito-listado.jpg",
         "14-recepcion-transito.jpg"

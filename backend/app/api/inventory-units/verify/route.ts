@@ -53,7 +53,7 @@ export async function POST(request: Request) {
           if (!delTraslado.length || !delTraslado.some(serial => serials.includes(serial))) continue
           const pendientes = await tx.inventoryUnit.count({ where: { tenantId: tenant, serial: { in: delTraslado }, status: 'IN_TRANSIT' } })
           if (pendientes > 0) continue
-          await tx.stockTransfer.update({ where: { id: transfer.id }, data: { receivedAt: now } })
+          await tx.stockTransfer.update({ where: { id: transfer.id }, data: { receivedAt: now, receivedById: session.user.id } })
           await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'STOCK_TRANSFER_RECEIVED', entity: 'StockTransfer', entityId: transfer.id, metadata: { serials: delTraslado } } })
         }
       }

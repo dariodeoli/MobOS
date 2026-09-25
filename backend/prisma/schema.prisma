@@ -329,6 +329,8 @@ model User {
 
   sessions         Session[]
   createdTransfers StockTransfer[]
+  dispatchedTransfers StockTransfer[] @relation("TransferDispatchedBy")
+  receivedTransfers   StockTransfer[] @relation("TransferReceivedBy")
   customerNotes    CustomerNote[]
   customerFollowUps CustomerFollowUp[]
   customerNotices  CustomerNotice[]
@@ -697,6 +699,12 @@ model StockTransfer {
   createdById         String
   createdBy           User                @relation(fields: [createdById], references: [id], onDelete: Restrict)
   notes               String?
+  // #218: quién despachó el lote y cuándo se espera en destino. El despachante
+  // es quien registra el traslado (ahí los equipos quedan en tránsito); la ETA
+  // es opcional y la puede ajustar el flujo de envío (AEX) o el remito manual.
+  eta                 DateTime?
+  dispatchedById      String?
+  dispatchedBy        User?               @relation("TransferDispatchedBy", fields: [dispatchedById], references: [id], onDelete: SetNull)
   // Guía de envío AEX cuando el traslado viaja con transportadora: se adjunta
   // al despachar y habilita el seguimiento por API.
   aexGuide            String?
@@ -707,6 +715,7 @@ model StockTransfer {
   receivedAt          DateTime?
   // Quién y con qué nota confirmó la recepción (null en el flujo público).
   receivedById        String?
+  receivedBy          User?               @relation("TransferReceivedBy", fields: [receivedById], references: [id], onDelete: SetNull)
   receivedNote        String?
   createdAt           DateTime            @default(now())
   lines               StockTransferLine[]

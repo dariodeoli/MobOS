@@ -1,0 +1,146 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "1.0.169",
+  "fecha": "2026-09-25T15:18:12.635Z",
+  "metodo": "Playwright headless (chromium) sobre la demo pública de producción",
+  "encabezados": [
+    "PRODUCTO",
+    "PROVEEDOR",
+    "COSTO",
+    "UBICACIÓN",
+    "ESTADO",
+    "VERIFICADO",
+    "ACCIONES"
+  ],
+  "filas": 23,
+  "alturas": [
+    44,
+    44,
+    44,
+    44,
+    44,
+    44,
+    44,
+    44,
+    44,
+    44,
+    44,
+    44
+  ],
+  "capacidadesPorFila": [
+    {
+      "nombre": "iPhone 15 Pro 256GB Titanio",
+      "capacidad": "256GB",
+      "veces": 1,
+      "condicion": "Condición: Nuevo"
+    },
+    {
+      "nombre": "iPhone 15 Pro 256GB Negro",
+      "capacidad": "256GB",
+      "veces": 1,
+      "condicion": "Condición: Nuevo"
+    },
+    {
+      "nombre": "iPhone 15 128GB Azul",
+      "capacidad": "128GB",
+      "veces": 1,
+      "condicion": "Condición: Nuevo"
+    },
+    {
+      "nombre": "iPhone 14 Pro 256GB Plata",
+      "capacidad": "256GB",
+      "veces": 1,
+      "condicion": "Condición: Nuevo"
+    },
+    {
+      "nombre": "iPhone 15 Pro Max 256GB Titanio Natural",
+      "capacidad": "256GB",
+      "veces": 1,
+      "condicion": "Condición: Seminuevo"
+    },
+    {
+      "nombre": "iPhone 15 Pro Max 512GB Azul",
+      "capacidad": "512GB",
+      "veces": 1,
+      "condicion": "Condición: Nuevo"
+    },
+    {
+      "nombre": "iPhone 15 256GB Rosa",
+      "capacidad": "256GB",
+      "veces": 1,
+      "condicion": "Condición: Reacondicionado"
+    },
+    {
+      "nombre": "iPhone 14 128GB Medianoche",
+      "capacidad": "128GB",
+      "veces": 1,
+      "condicion": "Condición: Nuevo"
+    },
+    {
+      "nombre": "iPhone 14 256GB Azul",
+      "capacidad": "256GB",
+      "veces": 1,
+      "condicion": "Condición: Nuevo"
+    },
+    {
+      "nombre": "iPhone 13 128GB Blanco",
+      "capacidad": "128GB",
+      "veces": 1,
+      "condicion": "Condición: Seminuevo"
+    },
+    {
+      "nombre": "iPhone 13 Pro Max 256GB Grafito",
+      "capacidad": "256GB",
+      "veces": 1,
+      "condicion": "Condición: Nuevo"
+    },
+    {
+      "nombre": "iPhone 12 128GB Verde",
+      "capacidad": "128GB",
+      "veces": 1,
+      "condicion": "Condición: Nuevo"
+    }
+  ],
+  "pasos": [
+    {
+      "paso": "entrada a la demo como dueño",
+      "estado": "ok",
+      "detalle": "versión 1.0.169",
+      "capturas": [
+        "01-acceso-demo.jpg"
+      ]
+    },
+    {
+      "paso": "encabezado sin la columna de variante duplicada",
+      "estado": "ok",
+      "detalle": "columnas: PRODUCTO · PROVEEDOR · COSTO · UBICACIÓN · ESTADO · VERIFICADO · ACCIONES",
+      "capturas": [
+        "02-encabezado-sin-variante.jpg"
+      ]
+    },
+    {
+      "paso": "filas de una sola línea y alto parejo",
+      "estado": "ok",
+      "detalle": "23 filas · 12 medidas: 44–44 px",
+      "capturas": [
+        "03-inventario-filas.jpg",
+        "04-fila-1.jpg"
+      ]
+    },
+    {
+      "paso": "la variante (capacidad) aparece una sola vez por fila",
+      "estado": "ok",
+      "detalle": "12 filas: capacidad 1 vez y condición presente (p. ej. 256GB · Condición: Nuevo)",
+      "capturas": [
+        "05-filas-variante-unica.jpg"
+      ]
+    }
+  ],
+  "erroresConsola": [],
+  "hallazgos": [],
+  "veredicto": {
+    "pasosOk": 4,
+    "pasosTotal": 4,
+    "hallazgos": 0
+  }
+}
