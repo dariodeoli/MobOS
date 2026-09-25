@@ -522,7 +522,7 @@ export default function ServicioTecnico() {
             const activo = indice === primerPasoFlujo
             return (
               <li key={paso} className={cn('flex items-center gap-3 rounded-xl border p-3', activo ? 'border-info/40 bg-info/5' : 'border-ink-600')}>
-                <span className={cn('v2-numero grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold', activo ? 'v2-paso-activo' : 'bg-ink-700 text-mute')} aria-hidden>{indice + 1}</span>
+                <span className={cn('v2-numero grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold', activo ? 'oc-paso-activo' : 'bg-ink-700 text-mute')} aria-hidden>{indice + 1}</span>
                 <span className="min-w-0">
                   <b className="block truncate text-sm">{paso}</b>
                   <span className="text-xs text-mute">{cantidad} {cantidad === 1 ? 'equipo' : 'equipos'}</span>

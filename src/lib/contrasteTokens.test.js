@@ -87,6 +87,34 @@ test('la app adopta la paleta de la biblioteca y no vuelve a pisarla', () => {
   )
 })
 
+test('la app no vuelve a duplicar las reglas v2 de la biblioteca (#241, lote 32)', () => {
+  // El bloque `.v2-piloto` propio se retiró: navegación, chips, stepper,
+  // números, tiles, medallas, encabezados y degradados viven en `styles.css`.
+  const prohibidas = [
+    /\.tema-v2 nav\b/,
+    /\.v2-piloto nav\b/,
+    /\.v2-chip\b/,
+    /\.v2-paso-activo\b/,
+    /\.v2-tile\b/,
+    /\.v2-grado\b/,
+    /\.v2-numero\b/,
+    /bg-fono\\\/15/,
+    /text-onbrand\\\//,
+    /from-fono-dark/,
+    /\.tema-v2 thead\b/,
+  ]
+  for (const regla of prohibidas) {
+    assert.doesNotMatch(cssApp, regla, `index.css no debe volver a declarar ${regla}`)
+  }
+  // Y la biblioteca tiene que seguir publicando lo que la app borró.
+  for (const regla of [/\.tema-v2 \.v2-tile/, /\.tema-v2 \.oc-paso-activo/, /\.v2-piloto \.v2-chip/, /\.tema-v2 \.v2-chip\.bg-ok/]) {
+    assert.match(cssLib, regla, `la biblioteca debe cubrir ${regla}`)
+  }
+  // Lo propio de la app sigue: superficies rojas y área táctil del topbar.
+  assert.match(cssApp, /\.tema-v2 \.bg-bad/, 'la app mantiene sus superficies rojas')
+  assert.match(cssApp, /header button::after/, 'el topbar mantiene el área táctil de 44 px')
+})
+
 test('los tokens de texto de la paleta cumplen contraste AA en claro y oscuro', () => {
   for (const [tema, bloques] of Object.entries(PALETAS)) {
     const tokens = efectiva(bloques)

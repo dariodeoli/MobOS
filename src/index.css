@@ -49,7 +49,8 @@ h1, h2, h3, nav, button, label { font-family: 'Space Grotesk', 'Inter', sans-ser
 h1, h2, h3 { letter-spacing: -.035em; text-wrap: balance; }
 input, td, [data-money] { font-variant-numeric: tabular-nums; }
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
-:focus-visible { outline: 2px solid var(--mobos-brand); outline-offset: 3px; }
+/* El foco visible (verde oscuro en claro, marca en oscuro) lo define el
+   `base.css` de la biblioteca: acá no se pisa. */
 input, select, textarea { min-height: 2.75rem; }
 input::placeholder, textarea::placeholder { color: #8197a5; }
 table { font-variant-numeric: tabular-nums; }
@@ -181,24 +182,20 @@ html.dark input[type='date']::-webkit-calendar-picker-indicator:hover {
 
 
 /* ── Scope v2 · shell y pantallas migradas (#241) ──────────────────────
-   `.tema-v2`/`.v2-piloto` son un **alias temporal** de la biblioteca
-   (owncoding-ui v0.21.0): la paleta v2 ya es global y acá solo viven las
-   reglas de navegación/contenido mientras DSN migra el shell. No volver a
-   definir tokens --c-* acá: un rol semántico que necesite ajuste va a la
-   biblioteca (docs/ALIMENTAR.md). */
-.v2-piloto .v2-numero,
-.tema-v2 .v2-numero { font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+   La biblioteca (owncoding-ui v0.26.0) cubre el shell y el contenido v2 en
+   los scopes `.tema-v2`/`.v2-piloto`: navegación, chips, stepper, números,
+   tiles, medallas, degradados y foco (docs/SHELL.md §4/§8). Acá quedan solo
+   las reglas propias de la app. No volver a definir tokens --c-*: un rol
+   semántico que necesite ajuste va a la biblioteca (docs/ALIMENTAR.md). */
 
 /* ── Área táctil de 44 px (#249) ───────────────────────────────────────
    Expande la zona de TOQUE de un control sin cambiar su dibujo ni el layout:
    un pseudo-elemento centrado mide al menos 44×44 y captura el toque. Es el
-   patrón para acciones de ícono (topbar del shell, herramientas densas) y el
-   que pueden adoptar POS/INV/CRM/FIN y la biblioteca (CMP).
-   El topbar del shell lo aplica a todos sus botones (menú, notificaciones,
-   acciones, tema, ayuda, salir, sucursal y buscar). */
-.toque-44,
+   patrón para acciones de ícono y la biblioteca lo publica como `.toque-44`;
+   el topbar de MobOS no marca cada botón, así que acá todos los del header
+   ganan la zona de toque (menú, notificaciones, acciones, tema, ayuda, salir,
+   sucursal y buscar). */
 header button { position: relative; }
-.toque-44::after,
 header button::after {
   content: '';
   position: absolute;
@@ -209,161 +206,15 @@ header button::after {
   transform: translate(-50%, -50%);
 }
 
-/* ── F4 · shell v2: navegación accesible (#241) ────────────────────────
-   Solo dentro del scope del flag `preview v2`: el ítem activo usa el azul de
-   acción (tono AA en cada tema) y los rótulos de grupo van en verde sólido
-   —al 75% quedaban en 3.2:1 sobre la barra clara—. Reversible con el flag. */
-.tema-v2 nav a,
-.tema-v2 nav button {
-  border-radius: 10px;
-  transition: background-color .15s ease, color .15s ease;
-}
-.tema-v2 nav a:hover,
-.tema-v2 nav button:hover {
-  background: rgb(var(--c-fore) / .05);
-}
-.tema-v2 nav [aria-current="page"],
-.tema-v2 nav [aria-pressed="true"] {
-  background: rgb(var(--c-info) / .14);
-  color: rgb(var(--c-info));
-  font-weight: 600;
-}
-/* Rótulos de grupo (barra y cajón) y el de "Acciones" del cajón. */
-.tema-v2 nav button[aria-expanded] > span,
+/* Superficies rojas propias (aviso sin conexión, contador de notificaciones,
+   botón de peligro): blanco en claro; en oscuro el rojo es claro y pide texto
+   oscuro. La biblioteca resuelve las suyas dentro de sus objetos
+   (SHELL.md §5); estas son del markup de MobOS. */
+.tema-v2 .bg-bad { color: #fff; }
+.dark .tema-v2 .bg-bad { color: rgb(var(--c-onbrand)); }
+/* Rótulo interno del cajón de MobOS: markup propio, no es de la biblioteca. */
 .tema-v2 [data-testid="shell-drawer-acciones"] > span {
   color: rgb(var(--c-fono-light));
 }
-/* Superficies rojas del shell (aviso sin conexión, contador de
-   notificaciones): blanco en claro; en oscuro el rojo es claro y pide texto
-   oscuro. */
-.tema-v2 .bg-bad { color: #fff; }
-.dark .tema-v2 .bg-bad { color: rgb(var(--c-onbrand)); }
-/* El foco visible tiene que verse sobre el fondo de cada tema (#241): el
-   verde de marca queda casi blanco sobre las superficies claras. */
-:focus-visible { outline-color: rgb(var(--c-fono-dark)); }
-html.dark :focus-visible { outline-color: var(--mobos-brand); }
 
-/* ── F4 · dominios v2: pedidos, clientes y finanzas (#241) ─────────────
-   Patrones del mock F3 sobre el contenido real, solo con el flag `preview v2`:
-   chips tipo pill con micro-rótulo, números de consola y el azul de acción en
-   los activos de la navegación interna. Es forma y tipografía: no cambia
-   colores semánticos, estados ni datos. Se apaga con el flag. */
-.tema-v2 .v2-chip,
-.tema-v2 [data-testid="pedido-fila"] span.rounded-md.border,
-.tema-v2 [data-testid="pedido-fila"] span.rounded.border,
-.tema-v2 [data-testid="cliente-fila"] span.rounded-md.border {
-  border-radius: 9999px;
-  letter-spacing: .04em;
-}
-/* Los chips cortos de estado van con micro-rótulo, como el mock. En pedidos la
-   grilla es fija y "Listo para retirar" en mayúsculas desbordaría su columna:
-   ahí queda solo el pill; en clientes (columna flexible) sí lleva mayúscula. */
-.tema-v2 [data-testid="cliente-fila"] span.rounded-md.border {
-  text-transform: uppercase;
-}
-/* Números: tabulares y apretados (patrón "número grande" de la consola); los
-   importes principales de las tarjetas de finanzas suben un escalón. */
-.tema-v2 .tabular-nums { letter-spacing: -.02em; }
-.tema-v2 strong.text-xl.tabular-nums { font-size: 1.5rem; line-height: 2rem; }
-/* Activos de la navegación interna (filtros, pestañas y pasos): el mismo azul
-   del ítem activo del shell, legible en los dos temas. */
-.tema-v2 button.bg-fono\/15.text-fono-light,
-.tema-v2 button[role="tab"][aria-selected="true"] {
-  background: rgb(var(--c-info) / .14);
-  color: rgb(var(--c-info));
-}
-.dark .tema-v2 button.bg-fono\/15.text-fono-light,
-.dark .tema-v2 button[role="tab"][aria-selected="true"] {
-  background: rgb(var(--c-info) / .2);
-  color: rgb(var(--c-fore));
-}
-/* El chip neutro mantiene su gris en claro; en oscuro el mute sobre ink-600
-   queda en 4.14:1 y usa el texto de primer nivel (9.8:1). */
-.dark .tema-v2 .v2-chip.text-mute { color: rgb(var(--c-fore)); }
-/* Chips de estado en v2 (Badge): el tinte /15 dejaba al verde en 4.25:1 y al
-   rojo en 4.12:1 en oscuro; el mock usa /10. El tono "azul" pasa al azul de
-   acción (era verde de marca) y también queda AA sobre su tinte. */
-.tema-v2 .v2-chip.bg-ok\/15 { background-color: rgb(var(--c-ok) / .1); }
-.tema-v2 .v2-chip.bg-bad\/15 { background-color: rgb(var(--c-bad) / .1); }
-.tema-v2 .v2-chip.bg-warn\/15 { background-color: rgb(var(--c-warn) / .1); }
-.tema-v2 .v2-chip.bg-fono\/15 {
-  background-color: rgb(var(--c-info) / .1);
-  border-color: rgb(var(--c-info) / .3);
-  color: rgb(var(--c-info));
-}
-/* Las mismas reglas de chip para el tablero operativo (`/ops`), que es v2 por
-   diseño y no vive bajo `.tema-v2` (#241 paso 3): sin esto el chip verde del
-   tile quedaba en 4.46:1 en claro. */
-.v2-piloto .v2-chip { border-radius: 9999px; letter-spacing: .04em; }
-.dark .v2-piloto .v2-chip.text-mute { color: rgb(var(--c-fore)); }
-.v2-piloto .v2-chip.bg-ok\/15 { background-color: rgb(var(--c-ok) / .1); }
-.v2-piloto .v2-chip.bg-bad\/15 { background-color: rgb(var(--c-bad) / .1); }
-.v2-piloto .v2-chip.bg-warn\/15 { background-color: rgb(var(--c-warn) / .1); }
-.v2-piloto .v2-chip.bg-fono\/15 {
-  background-color: rgb(var(--c-info) / .1);
-  border-color: rgb(var(--c-info) / .3);
-  color: rgb(var(--c-info));
-}
-/* Paso activo del flujo del taller (stepper de servicio): el círculo azul del
-   mock con texto AA en cada tema (el azul claro del oscuro pide texto oscuro). */
-.tema-v2 .v2-paso-activo { background: rgb(var(--c-info)); color: #fff; }
-.dark .tema-v2 .v2-paso-activo { color: rgb(var(--c-onbrand)); }
-/* Tile de KPI del lenguaje v2 (mock F3): superficie de consola con borde
-   propio en lugar del borde verde de marca, para los tableros de Resumen y
-   Análisis. Solo dentro del scope. */
-.tema-v2 .v2-tile {
-  border-color: rgb(var(--c-ink-600));
-  background: rgb(var(--c-ink-900));
-  border-radius: 1rem;
-}
-/* Grado del tile de equipo (#241 lote C): el mock lo muestra un escalón más
-   grande que el resto de los chips, siempre dentro del scope del flag. */
-.tema-v2 .v2-grado > :first-child {
-  font-size: 12px;
-  padding: 2px 8px;
-}
-/* Rótulos sobre el verde de marca (hero de Resumen y del POS, KPI destacado):
-   al 70/75% sobre la parada más oscura del degradado quedaban en 4.33:1 en
-   oscuro; a plena opacidad el texto vuelve a AA. */
-.tema-v2 .text-onbrand\/75,
-.tema-v2 .text-onbrand\/70 {
-  color: rgb(var(--c-onbrand));
-}
-/* Medallas y chips con fondo de marca al 15% (mock de la landing, solapas y
-   avisos): el tono de marca como texto queda en 4.2–4.4:1 sobre su propio
-   tinte; en v2 usan el verde de texto del scope (claro `ok`, oscuro el verde
-   claro) y vuelven a AA. */
-.tema-v2 .bg-fono\/15.text-fono-light,
-.tema-v2 .bg-fono\/15.text-fono-dark,
-.tema-v2 .bg-fono\/10.text-fono-light,
-.tema-v2 .bg-fono\/10.text-fono-dark {
-  color: rgb(var(--c-ok));
-}
-.dark .tema-v2 .bg-fono\/15.text-fono-light,
-.dark .tema-v2 .bg-fono\/15.text-fono-dark,
-.dark .tema-v2 .bg-fono\/10.text-fono-light,
-.dark .tema-v2 .bg-fono\/10.text-fono-dark {
-  color: rgb(var(--c-fono-light));
-}
-/* El tinte estático al 5% del texto de primer nivel deja al mute en 4.49:1 en
-   oscuro (barra de dominio del mock de la landing): en v2 el tinte baja al 3% y
-   el texto vuelve a AA. */
-.dark .tema-v2 .bg-fore\/5 { background-color: rgb(var(--c-fore) / .03); }
-/* Encabezados de tabla y números en verde vivo: el gris fijo del `thead`
-   (#A6BAC6) da 1.69:1 sobre la fila de encabezado y el verde de marca
-   (#10B981) 2.14–2.3:1 sobre ink-700/800 en claro. En v2 el texto verde usa el
-   tono de texto del scope (los íconos y los hover no se tocan). */
-.tema-v2 thead { color: rgb(var(--c-mute)); }
-.tema-v2 .v2-numero.text-fono,
-.tema-v2 strong.text-fono,
-.tema-v2 .font-bold.text-fono,
-.tema-v2 .font-semibold.text-fono {
-  color: rgb(var(--c-fono-light));
-}
-/* Superficies verdes de marca con texto oscuro (hero de Resumen, del POS y KPI
-   destacado): el degradado arranca en el verde oscuro y sobre esa esquina el
-   texto no llega a AA (3.2:1 en claro). En v2 la superficie va sobre el verde
-   de marca con una caída suave, que sostiene el contraste en los dos temas. */
-.tema-v2 .from-fono-dark.via-fono.to-fono {
-  background-image: linear-gradient(to bottom right, rgb(var(--c-fono)), rgb(var(--c-fono) / .92));
-}
+

@@ -120,7 +120,7 @@ export default function ClientesTabla({ rows, templates, onPerfil, onResumen }) 
                   {telefonoMostrado || 'Sin teléfono'}{row.email ? ` · ${row.email}` : ''}
                 </span>
               </span>
-              <span className={cn('inline-block w-fit max-w-full truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold', v2 && 'v2-chip', row.wholesale ? 'border-warn/30 bg-warn/10 text-warn' : 'border-ink-500 bg-ink-700/40 text-mute')}>
+              <span className={cn('inline-block w-fit max-w-full truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold', v2 && 'v2-chip uppercase', row.wholesale ? 'border-warn/30 bg-warn/10 text-warn' : 'border-ink-500 bg-ink-700/40 text-mute')}>
                 {row.wholesale ? 'Mayorista' : 'Cliente final'}
               </span>
               <span className={cn('truncate text-center text-sm font-semibold tabular-nums', v2 && 'v2-numero')}>{row.stats?.orders || 0}</span>

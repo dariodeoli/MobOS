@@ -516,6 +516,12 @@ por el sistema.
   por tema (`shadow-card` en tarjetas, `shadow-float` en modales/cajones/
   popovers); el `Card` deja el borde de marca por borde neutro + sombra. En
   oscuro: capas #181D27/#1F2430/#242A38 y bordes #3E475A.
+- **Capa v2 completa en la biblioteca (#241, v0.26.0):** el shell y el
+  contenido v2 (navegación, chips `v2-chip`, stepper `oc-paso-activo`, números,
+  tiles `v2-tile`, medallas y degradados) viven solo en
+  `owncoding-ui/styles.css` para los scopes `tema-v2`/`v2-piloto`; la app no
+  repite esas reglas (guía de retiro: `owncoding-ui/docs/SHELL.md` §8). Al
+  crear una pantalla v2, usá las clases del mock y no copies CSS.
 - **Paleta global v2 (#241, rollout aprobado):** el lenguaje "device ops"
   (consola clara/oscura, base oscura `#0E1116`/`#1F2430`, verde pass `#22C55E`,
   azul acción `#4D7CFE`) es la **paleta global** de la biblioteca desde
