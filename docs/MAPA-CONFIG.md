@@ -3,9 +3,10 @@
 > Relevado el 25/09/2026 sobre `origin/main`. Ruta base `/configuracion/:seccion?` (solo dueño). Grupos y orden: `Personas` (Equipo · Mi identidad · Roles y permisos) · `Negocio` (Negocio · Listas de precios · Sucursales) · `Seguridad` (Seguridad · Auditoría) · `Sistema` (Impresoras · Documentación · Preferencias · Estado del sistema).
 > Patrón transversal: chip «Guardado…» o error donde iría el botón; si el backend pide reautenticación (403) aparece «Confirmá tu contraseña para guardar» → «Contraseña de la empresa» + «Verificar y guardar» (autorización 10 min) y el guardado sigue solo. Aplica a numeración, seguro, límites, datos de tienda, sucursal, sesiones, exportación y permisos.
 
-## 1. Equipo (`/configuracion/equipo`) — `control/Vendedores.jsx`
+## 1. Equipo y acceso (`/configuracion/equipo`) — `control/Vendedores.jsx` + `control/RolesPermisos.jsx`
 - Encabezado: banners de aviso; «+ Invitar persona» (solo pantallas chicas).
-- **Funcionarios y metas**: pestañas «Activos (n)»/«Inactivos (n)»; por integrante: nombre editable en línea, correo, sucursal (o «Sin sucursal»), badge Activo/Inactivo, selector de rol, «Historial», «Horario», «PIN» (oculto en demo), «Permisos» (oculto en demo/ADMIN), «Desactivar»/«Volver a activar», «Meta diaria Gs», métricas «Hoy», «Comisión hoy», «Mes». Vacíos propios.
+- **Integrantes** (#253): pestañas «Activos (n)»/«Inactivos (n)»; por integrante: nombre editable en línea, correo, sucursal (o «Sin sucursal»), badge Activo/Inactivo, selector de rol, «Historial», «Horario» (con el resumen cargado en el `title` o «Sin horario: acceso libre»), «PIN» (oculto en demo), «Permisos» (oculto en demo/ADMIN), «Desactivar»/«Volver a activar», **meta diaria como chip** con % de cumplimiento, métricas «Hoy», «Comisión hoy», «Mes». Vacíos propios.
+- **Metas y comisiones** (#253): una fila por integrante activo con «Meta diaria» editable, «Hoy», «Cumplimiento (%)», «Comisión hoy» y «Mes» (vendido + comisión del mes); incluye el «Historial mensual por vendedor» y el acceso «Reglas y liquidaciones →» (Finanzas → Comisiones).
 - **Sumar integrante**: modos «Invitar por correo» / «Agregar directamente» (demo oculta modos); formulario: «Nombre», «Correo (opcional)», «Rol», «PIN temporal (4 a 6 dígitos)» + «Agregar», o «Enviar invitación». Aviso de invitación activa con «Reenviar invitación» / «Revocar invitación».
 - **Historial mensual por vendedor** (si hay ventas): mes colapsable con «Vendido {total}»; filas con ventas y «Comisión {monto}».
 - **Comisiones** (sesión real + dueño): «Ir a Finanzas → Comisiones».

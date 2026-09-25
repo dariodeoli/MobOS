@@ -1,0 +1,34 @@
+{
+  "base": "https://app.moboss.online",
+  "etiqueta": "produccion-1.0.172",
+  "fecha": "2026-09-25T19:15:51.644Z",
+  "resultados": [
+    {
+      "variante": "desktop-claro",
+      "tituloIntegrantes": "Funcionarios y metas",
+      "horarioVisible": "Horario",
+      "tieneMetas": false,
+      "filasMeta": 0,
+      "desbordeHorizontal": 0,
+      "erroresPagina": []
+    },
+    {
+      "variante": "desktop-oscuro",
+      "tituloIntegrantes": "Funcionarios y metas",
+      "horarioVisible": "Horario",
+      "tieneMetas": false,
+      "filasMeta": 0,
+      "desbordeHorizontal": 0,
+      "erroresPagina": []
+    },
+    {
+      "variante": "movil-claro",
+      "tituloIntegrantes": "Funcionarios y metas",
+      "horarioVisible": "Horario",
+      "tieneMetas": false,
+      "filasMeta": 0,
+      "desbordeHorizontal": 0,
+      "erroresPagina": []
+    }
+  ]
+}

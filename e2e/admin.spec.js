@@ -98,7 +98,7 @@ test.describe('owner panel', () => {
 
   test('equipo → Vendedores lists the seeded sellers', async ({ page }) => {
     await page.goto('/configuracion/equipo')
-    await expect(page.getByRole('heading', { name: 'Funcionarios y metas' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Integrantes' })).toBeVisible()
     for (const seller of SEED.sellers) {
       await expect(page.getByLabel(`Nombre de ${seller.name}`)).toBeVisible()
     }
@@ -115,7 +115,7 @@ test.describe('owner panel', () => {
   // sembrado no quede bloqueado en la próxima corrida.
   test('equipo → el horario del vendedor se configura y se quita', async ({ page }) => {
     await page.goto('/configuracion/equipo')
-    await expect(page.getByRole('heading', { name: 'Funcionarios y metas' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Integrantes' })).toBeVisible()
     const vendedor = SEED.sellers[0].name
     const botonHorario = () => page.getByLabel(new RegExp(`^Horario de ${vendedor}`))
 
@@ -145,7 +145,7 @@ test.describe('owner panel', () => {
 
   test('equipo → Vendedores creates a new seller with a PIN', async ({ page }) => {
     await page.goto('/configuracion/equipo')
-    await expect(page.getByRole('heading', { name: 'Funcionarios y metas' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Integrantes' })).toBeVisible()
 
     const name = `Vendedor E2E ${Date.now().toString(36)}`
     // El alta vive en el panel derecho (agregar directamente) y reintenta con
