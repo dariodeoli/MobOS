@@ -87,6 +87,8 @@ const MEDICIONES = [
   {
     grupo: 'patrones a revisar',
     filas: [
+      contar('tarjetas de ajuste con encabezado a mano', /<Card className="space-y-3"><div><h2/g, { excluir: ['components/ui/index.jsx'] }),
+      contar('solapas internas a mano (role="tab")', /role="tab"(?![a-z])/g, { excluir: ['components/ui/index.jsx'] }),
       contar('notas con borde warn y texto neutro', /(?:<p|<div)[^>]*border-warn\/(?:25|30)[^"]*text-mute/g),
       contar('superficies warn suaves (bg-warn/5)', /bg-warn\/5/g),
       contar('nombre de persona en celda (13px o sm)', /truncate text-(?:\[13px\]|sm) font-semibold/g, { excluir: ['components/shared/tabla.js'] }),
@@ -99,6 +101,35 @@ const MEDICIONES = [
     ],
   },
 ]
+
+// Duplicados con la biblioteca (owncoding-ui, #253): un componente local con
+// el mismo nombre que uno publicado es deuda de migración declarada en el lote
+// 34 (docs/AUDITORIA-DUPLICACION.md) y solo puede bajar. Los puentes
+// (`export { X as default } from 'owncoding-ui'`) no cuentan: ya delegan.
+const LIB_COMPONENTES = 'node_modules/owncoding-ui/src/components'
+function nombresJsx(dir) {
+  try {
+    return readdirSync(dir).filter((nombre) => nombre.endsWith('.jsx')).map((nombre) => nombre.replace(/\.jsx$/, ''))
+  } catch {
+    return []
+  }
+}
+const esPuente = (ruta) => /export\s*\{\s*\w+\s+as\s+default\s*\}\s*from\s*'owncoding-ui'/.test(readFileSync(ruta, 'utf8'))
+const publicadosComponentes = new Set(nombresJsx(LIB_COMPONENTES))
+const copiasComponentes = nombresJsx('src/components/shared')
+  .filter((nombre) => publicadosComponentes.has(nombre) && !esPuente(`src/components/shared/${nombre}.jsx`))
+const kitLocal = [...readFileSync('src/components/ui/index.jsx', 'utf8').matchAll(/^export (?:function|const) (\w+)/gm)].map((m) => m[1])
+const kitPublicado = new Set(
+  [...readFileSync(`${LIB_COMPONENTES}/ui.jsx`, 'utf8').matchAll(/^export (?:function|const) (\w+)/gm)].map((m) => m[1]),
+)
+const kitCopias = kitLocal.filter((nombre) => kitPublicado.has(nombre))
+MEDICIONES.push({
+  grupo: 'duplicados con la biblioteca (migrar)',
+  filas: [
+    { etiqueta: 'componentes de shared/ ya publicados', usos: copiasComponentes.length, archivos: copiasComponentes.length },
+    { etiqueta: 'objetos del kit (ui/index.jsx) ya publicados', usos: kitCopias.length, archivos: 1 },
+  ],
+})
 
 let totalPendiente = 0
 for (const { grupo, filas } of MEDICIONES) {

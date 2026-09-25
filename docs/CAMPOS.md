@@ -78,4 +78,4 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi`). Ant
 
 ## 6. Cobertura
 
-`npm test` (unitarios de frontend) · `npm run test:unit` (backend) · `npx playwright test` (e2e: batería, teléfono, límite de crédito, checkout, paneles). El test de aserción de fuente (`src/lib/camposReglas.test.js`) falla si un RUC se consulta fuera de `RucField` o si vuelve un input de correo/teléfono crudo.
+`npm test` (unitarios de frontend) · `npm run test:unit` (backend) · `npx playwright test` (e2e: batería, teléfono, límite de crédito, checkout, paneles). El test de aserción de fuente (`src/lib/camposReglas.test.js`) falla si un RUC se consulta fuera de `RucField`, si vuelve un input de correo/teléfono crudo, o si un objeto publicado en `owncoding-ui` se reimplementa localmente (#253, inventario congelado en el lote 34). El contador `node scripts/auditoria-duplicacion.mjs` (grupo «duplicados con la biblioteca») muestra la deuda vigente de migración.

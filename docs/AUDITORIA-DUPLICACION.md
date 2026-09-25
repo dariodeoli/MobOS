@@ -292,6 +292,33 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 34 — objetos de Configuración y control de duplicación con la biblioteca (#253) (25-09)
+
+Contexto: #253 reorganiza Configuración en 7 grupos y reparte la sección entre
+los slots pidiendo no duplicar cards, tabs, encabezados ni campos. Este lote
+deja los objetos publicados y el control que lo vigila.
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Tarjeta de ajuste | `TarjetaAjuste` no cubría archivar/eliminar; las secciones repetían el encabezado a mano (`<Card className="space-y-3"><div><h2…`, 2 usos vigentes) | `tono="peligro"` (borde y título rojos) en la biblioteca **v0.28.0**; las secciones usan el objeto (REGLAS §11) |
+| Layout y solapas | `PanelDerecho` y `Subtabs` ya estaban publicados, pero la app conservaba su copia local de `PanelDerecho` (idéntica) y dibujaba `role="tab"` a mano (5 usos en 4 archivos) | `components/shared/PanelDerecho.jsx` pasa a **puente** que re-exporta la biblioteca (sin tocar consumidores); las solapas van con `Subtabs` |
+| Tipos | `PanelDerecho` declaraba `formulario` (la prop real es `panel`); `TarjetaAjuste` no declaraba `icono`/`id`/`tono` | Tipos al día en `owncoding-ui` |
+| Control de campos duplicados | El auditor no medía la copia local de objetos publicados | `scripts/auditoria-duplicacion.mjs` suma el grupo **«duplicados con la biblioteca»** (37 componentes de `shared/` + 32 objetos del kit) y «tarjetas/solapas a mano» en patrones a revisar; la guarda `camposReglas.test.js` congela el inventario y falla si aparece un nombre nuevo duplicado |
+| Docs | — | `owncoding-ui/docs/REGLAS.md` §11 (cómo se arma una pantalla de Configuración); `docs/CAMPOS.md` §6 con el control |
+
+Verificación del lote: `npm run lint` (0 errores), `npm run build` y
+`npm --prefix backend run build` (con `BUILD_ID`), `prisma:validate`,
+`npm test` (753 en verde, rebasado sobre la v1.0.172), `test:unit` del backend
+(75), `npx playwright test e2e/configuracion-lote5.spec.js` y
+`npm run test:e2e:smoke` (19 en verde, 0 flaky); biblioteca `owncoding-ui`
+build + 211 tests.
+
+**Coordinación (#253):** los objetos para los 7 grupos quedan publicados
+(`TarjetaAjuste` con tono peligro, `Subtabs`, `PageHeader`/`Eyebrow`,
+`PanelDerecho`); el control marca lo pendiente en las secciones (2 encabezados a
+mano en `Config.jsx`, 5 solapas a mano) para que cada slot lo resuelva en su
+archivo. El inventario congelado (69 objetos) solo puede bajar.
+
 ### Lote 33 — buscador global del shell en la biblioteca (#241) (25-09)
 
 | Objeto | Antes (evidencia) | Después |

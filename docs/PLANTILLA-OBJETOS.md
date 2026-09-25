@@ -535,6 +535,11 @@ por el sistema.
   `PaletaComandos` de la biblioteca (agrupado por tipo, teclado, debounce y
   estados honestos); la pantalla solo provee `buscar` y navega con `datos`. No
   reimplementar la lista ni el contrato combobox (SHELL.md §1/§3).
+- **Objetos de Configuración (#253, v0.28.0):** la pantalla se arma con
+  `TarjetaAjuste` (con `tono="peligro"` para archivar/eliminar), `Subtabs`,
+  `PageHeader`/`Eyebrow` y `PanelDerecho` de la biblioteca (REGLAS §11); el
+  mapa campo por campo está en `docs/MAPA-CONFIG.md` y el control de campos
+  duplicados en `docs/CAMPOS.md` §6.
 - **Paleta global v2 (#241, rollout aprobado):** el lenguaje "device ops"
   (consola clara/oscura, base oscura `#0E1116`/`#1F2430`, verde pass `#22C55E`,
   azul acción `#4D7CFE`) es la **paleta global** de la biblioteca desde
