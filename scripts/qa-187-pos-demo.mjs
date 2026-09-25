@@ -165,9 +165,12 @@ try {
   })
 
   // ── Carrito: segundo producto, cantidad y descuento ──────────────────
-  await paso('carrito: segundo producto, cantidad 2 y descuento', async () => {
+  await paso('carrito: fila colapsada (#243), cantidad 2 y descuento', async () => {
     await agregarProducto('Funda MagSafe Transparente')
-    // La línea arranca ultra-colapsada (#243): se despliega para editar cantidad.
+    // La línea arranca ultra-colapsada (#243): solo nombre, total y papelera.
+    const filaColapsada = await texto(page.locator('#pos-resumen-venta .divide-y > div').first())
+    await shot('carrito-colapsado')
+    // Se despliega para editar cantidad y precio.
     await page.getByRole('button', { name: 'Ver detalle de iPhone 15 Pro 256GB Titanio' }).click()
     await page.getByLabel('Cantidad de iPhone 15 Pro 256GB Titanio').fill('2')
     await esperar(700)
@@ -180,45 +183,64 @@ try {
     await esperar(700)
     const sinDescuento = await totalVenta()
     await shot('carrito-sin-descuento')
-    return `2 u.: ${conCantidad.slice(0, 110)} · con descuento: ${conDescuento.slice(0, 110)} · borrado: ${sinDescuento.slice(0, 110)}`
+    return `colapsada: ${filaColapsada.slice(0, 110)} · 2 u.: ${conCantidad.slice(0, 100)} · con descuento: ${conDescuento.slice(0, 100)} · borrado: ${sinDescuento.slice(0, 100)}`
   })
 
-  // ── Cliente: buscador sin datos en la demo, alta por nombre nuevo ────
-  await paso('cliente: buscador y alta por nombre nuevo', async () => {
-    const campo = page.locator('input[placeholder="Buscar cliente o escribir un nombre nuevo"]')
-    await campo.fill('María')
-    await esperar(1000)
-    const opciones = await page.getByRole('option').allInnerTexts()
-    const hayClientes = opciones.some((opcion) => /González|Benítez|Franco/i.test(opcion))
-    await campo.fill('')
+  // ── Cliente: cartera demo + alta por nombre nuevo ────────────────────
+  await paso('cliente: buscador con la cartera demo y alta por nombre nuevo', async () => {
+    const campo = page.getByLabel('Nombre, teléfono, CI o RUC del cliente')
+    await campo.fill('Lucía')
+    await esperar(1100)
+    const sugerencia = page.getByRole('button', { name: /Lucía Fernández/ })
+    const hayClienteDemo = (await sugerencia.count()) > 0
+    await shot('cliente-demo-sugerencia')
+    let fichaElegida = false
+    if (hayClienteDemo) {
+      await sugerencia.first().click()
+      await esperar(700)
+      fichaElegida = (await page.getByText('Cliente seleccionado').count()) > 0
+      await page.getByRole('button', { name: /Quitar cliente/ }).click()
+      await esperar(400)
+    }
     await campo.fill('Cliente QA 187')
     await esperar(900)
     await shot('cliente-nuevo')
     const label = await texto(principal())
-    return `resultados de "María": ${opciones.map((o) => o.replace(/\s+/g, ' ').trim()).slice(0, 4).join(' | ') || '(ninguno)'} · clientes demo encontrados: ${hayClientes} · botón con cliente: "${label}"`
+    return `demo «Lucía Fernández» visible: ${hayClienteDemo} · ficha elegida: ${fichaElegida} · alta por nombre nuevo → botón: "${label}"`
   })
 
-  // ── Borradores: alta y listado (en demo avisan que no se guardan) ────
-  await paso('borradores: suspender y listar (aviso honesto de la demo)', async () => {
+  // ── Borradores: suspender, listar y retomar (#148 §20) ───────────────
+  await paso('borradores: suspender, listar y retomar (demo en el navegador)', async () => {
     await page.getByRole('button', { name: 'Suspender venta' }).click()
-    await esperar(900)
-    await page.getByText('Las ventas suspendidas se guardan').waitFor({ timeout: 8000 })
-    const aviso = await texto(page.getByText('Las ventas suspendidas se guardan'))
-    await shot('borrador-aviso-demo')
-    await page.getByRole('button', { name: 'Entendido' }).click()
-    await esperar(700)
+    const modal = page.getByRole('dialog', { name: 'Suspender venta' }).filter({ visible: true }).first()
+    await modal.waitFor({ timeout: 10000 })
+    await modal.getByLabel('Etiqueta (opcional)').fill('QA 187 borrador')
+    await shot('borrador-modal')
+    await modal.getByRole('button', { name: 'Suspender venta' }).click()
+    await page.getByText(/Venta suspendida en la demo/).waitFor({ timeout: 10000 })
+    const aviso = await texto(page.getByText(/Venta suspendida en la demo/))
+    await shot('borrador-aviso')
     await page.getByRole('button', { name: 'Ventas suspendidas' }).click()
-    await esperar(1000)
-    const avisoLista = await page.getByText('Las ventas suspendidas se guardan').count()
-    await shot('borradores-listado-demo')
-    if (await page.getByRole('button', { name: 'Entendido' }).count()) await page.getByRole('button', { name: 'Entendido' }).click()
-    await esperar(700)
-    return `alta: "${aviso.slice(0, 110)}" · listado: ${avisoLista ? 'mismo aviso de demo' : 'abre el listado'}`
+    const lista = page.getByRole('dialog', { name: 'Ventas suspendidas' }).filter({ visible: true }).first()
+    await lista.waitFor({ timeout: 10000 })
+    const filas = await lista.getByText('QA 187 borrador').count()
+    await shot('borradores-listado')
+    // Enlace público: en la demo avisa que no se genera (honesto).
+    await lista.getByRole('button', { name: 'Enlace público' }).first().click()
+    await esperar(600)
+    const enlaceDemo = await page.getByText('En la demo el enlace público no se genera.').count()
+    await shot('borrador-enlace-demo')
+    // Recuperar: el carrito vuelve completo y el borrador sale de la lista.
+    await lista.getByRole('button', { name: 'Recuperar' }).first().click()
+    await esperar(1400)
+    const trasRecuperar = await page.locator('[data-testid="resumen-compra"]').innerText().catch(() => '')
+    await shot('borrador-recuperado')
+    return `aviso: "${aviso.slice(0, 90)}" · filas con la etiqueta: ${filas} · enlace demo avisa: ${Boolean(enlaceDemo)} · carrito recuperado: ${trasRecuperar.replace(/\s+/g, ' ').slice(0, 120)}`
   })
 
   // ── Split: pago parcial + Dividir saldo ──────────────────────────────
   await paso('split: parcial con dividir saldo y segundo medio', async () => {
-    await agregarPago('Caja demo', 3000000)
+    await agregarPago('Caja · Guaraníes', 3000000)
     const botonDividir = page.getByRole('button', { name: /Dividir saldo/ })
     const hayDividir = await botonDividir.count()
     const textoDividir = hayDividir ? await texto(botonDividir) : ''
@@ -229,7 +251,7 @@ try {
       await botonDividir.first().click()
       await esperar(1100)
       prefill = await page.getByLabel('Monto original').nth(1).inputValue()
-      await elegirCuentaBloque(1, 'Transferencia')
+      await elegirCuentaBloque(1, 'Itaú')
     }
     const bloques = await page.getByLabel('Monto original').count()
     await shot('split-dividido')
@@ -265,42 +287,41 @@ try {
       }
     }
     const etiqueta = await texto(principal())
+    const diaAntes = ((await totalVenta()).match(/TU DÍA[^]*$/i) || [''])[0].replace(/\s+/g, ' ')
     await shot('venta-antes-de-confirmar')
     const boton = principal()
     for (let intento = 0; intento < 25 && (await boton.isDisabled()); intento += 1) await esperar(300)
     if (await boton.isDisabled()) throw new Error(`el botón principal quedó deshabilitado con el saldo cubierto ("${etiqueta}")`)
     await boton.click()
     await esperar(3200)
-    const confirmacion = await page.locator('[role="status"]').first().innerText().catch(() => '')
-    const acciones = await page.getByRole('button', { name: /Imprimir comprobante|Ver pedido/ }).allInnerTexts().catch(() => [])
-    const carrito = await totalVenta()
+    const cuerpo = await page.locator('body').innerText()
+    const confirmacion = (cuerpo.match(/Venta registrada[^\n]*/) || cuerpo.match(/Cambio simulado en la demo[^\n]*/) || [''])[0]
+    const notaDemo = /no se guardó en la tienda real/.test(cuerpo)
+    const diaDespues = ((await totalVenta()).match(/TU DÍA[^]*$/i) || [''])[0].replace(/\s+/g, ' ')
     await shot('venta-confirmada')
-    return `botón: "${etiqueta}" · confirmación: "${confirmacion.replace(/\s+/g, ' ').slice(0, 190)}" · acciones: ${acciones.join(' / ') || '(ninguna)'} · carrito tras vender: ${carrito.slice(0, 130)}`
+    return `botón: "${etiqueta}" · confirmación: "${confirmacion.replace(/\s+/g, ' ').slice(0, 120)}" · nota demo: ${Boolean(notaDemo)} · TU DÍA: "${diaAntes}" → "${diaDespues}"`
   })
 
-  // ── Analytics: métricas del POS (demo) ───────────────────────────────
+  // ── Analytics: métricas del POS (demo con datos locales) ─────────────
   await paso('analytics: métricas del POS y período', async () => {
     await page.getByRole('button', { name: 'Analytics' }).click()
-    await esperar(2200)
-    const cuerpo = await page.locator('body').innerText()
-    const faltaSesion = /Falta sesión/.test(cuerpo)
+    const modal = page.getByRole('dialog', { name: /Analytics del POS/ }).filter({ visible: true }).first()
+    await modal.waitFor({ timeout: 15000 })
+    await modal.getByText(/Ventas de hoy/i).first().waitFor({ timeout: 15000 }).catch(() => {})
+    await esperar(400)
+    const cuerpo = await modal.innerText()
     await shot('analytics-modal')
-    const tuDia = (await totalVenta()).match(/TU DÍA[^]*$/i)?.[0]?.replace(/\s+/g, ' ') || ''
-    if (faltaSesion) {
-      await page.keyboard.press('Escape')
-      await esperar(600)
-      return `demo sin API: el modal abre pero responde «Falta sesión.» (no calcula métricas); verificado en su lugar en el encabezado del POS: ${tuDia.slice(0, 150)}`
-    }
-    const boton7 = page.getByRole('button', { name: '7 días' })
-    const conPeriodos = (await boton7.count()) > 0
-    if (conPeriodos) {
+    let periodo7 = false
+    const boton7 = modal.getByRole('tab', { name: '7 días' })
+    if ((await boton7.count()) > 0) {
       await boton7.click()
-      await esperar(1000)
+      await esperar(1200)
+      periodo7 = true
       await shot('analytics-7-dias')
     }
     await page.keyboard.press('Escape')
     await esperar(600)
-    return `métricas completas · período 7 días: ${conPeriodos} · «Cobros por cuenta»: ${/Cobros por cuenta/.test(cuerpo)}`
+    return `7 días: ${periodo7} · top productos: ${/Top productos/i.test(cuerpo)} · ventas por vendedor: ${/Ventas por vendedor/i.test(cuerpo)} · cobros netos por tipo: ${/Cobros netos por tipo/i.test(cuerpo)} · cobros netos por cuenta: ${/Cobros netos por cuenta/i.test(cuerpo)}`
   })
 
   // ── Móvil: POS con carrito accesible a 390 px ────────────────────────
