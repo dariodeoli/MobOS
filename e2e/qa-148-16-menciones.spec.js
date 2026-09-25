@@ -39,7 +39,14 @@ test('menciones: comentario interno, notificación al mencionado y nada para el 
   const caja = page.getByLabel('Comentario del pedido')
   await expect(caja).toBeVisible()
   await caja.fill(comentario)
-  await page.getByRole('button', { name: 'Comentar' }).click()
+  const botonComentar = page.getByRole('button', { name: 'Comentar' })
+  // La cronología se refresca en vivo: si el formulario se re-monta con el
+  // borrador perdido, se vuelve a escribir hasta que el botón habilite.
+  await expect(async () => {
+    if (!(await botonComentar.isEnabled())) await caja.fill(comentario)
+    await expect(botonComentar).toBeEnabled({ timeout: 1000 })
+  }).toPass({ timeout: 15000 })
+  await botonComentar.click()
   await expect(page.getByText(comentario).first()).toBeVisible({ timeout: 15000 })
   await expect(page.getByText('Solo tú y otros empleados pueden ver los comentarios.')).toBeVisible()
   await page.screenshot({ path: `${SALIDA}/01-comentario-con-mencion.png` })
