@@ -29,9 +29,10 @@ const Reportes = lazy(() => import('@/components/control/Reportes'))
 const Inventario = lazy(() => import('@/components/control/Inventario'))
 const Compras = lazy(() => import('@/components/control/Compras'))
 const Config = lazy(() => import('@/components/control/Config'))
-// #253: el perfil personal (foto y nombre) se edita en su propia pantalla,
-// accesible desde el avatar; reutiliza el objeto de identidad existente.
-const MiIdentidad = lazy(() => import('@/components/control/Config').then(modulo => ({ default: modulo.MiIdentidad })))
+// #253: el perfil personal (perfil, preferencias del dispositivo y sesiones
+// propias) vive en su propia pantalla, accesible desde el avatar para todos
+// los roles; reemplaza a la identidad que vivía dentro de Configuración.
+const MiCuenta = lazy(() => import('@/components/cuenta/MiCuenta'))
 const Vendedores = lazy(() => import('@/components/control/Vendedores'))
 const Autorizaciones = lazy(() => import('@/components/control/Autorizaciones'))
 const ServicioGarantias = lazy(() => import('@/components/control/ServicioGarantias'))
@@ -907,7 +908,7 @@ export default function PanelVendedor() {
                 onChange={irASubtab}
                 items={tabsConfig}
               />
-              {vista === 'mi-cuenta' && <Config seccion="mi-cuenta" preferencias={preferencias} onCambiarPreferencias={cambiarPreferencias} />}
+              {vista === 'mi-cuenta' && <MiCuenta preferencias={preferencias} onCambiarPreferencias={cambiarPreferencias} />}
               {vista === 'organizacion' && <Config seccion="organizacion" />}
               {vista === 'equipo' && (
                 <div className="space-y-3">
@@ -941,7 +942,7 @@ export default function PanelVendedor() {
             </div>
           )}
           {vista === 'mi-perfil' && (
-            <div className="space-y-3"><MiIdentidad /></div>
+            <MiCuenta preferencias={preferencias} onCambiarPreferencias={cambiarPreferencias} />
           )}
           {subpadre === 'ayuda' && (
             <div className="space-y-3">
