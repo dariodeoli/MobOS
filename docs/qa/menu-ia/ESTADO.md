@@ -76,6 +76,16 @@
     vendedor (Vender · Clientes · Inventario · Operación), 0 errores de página.
   - Cada carpeta incluye `resultados.json` con la estructura leída del menú.
 
+| Medición (sonda, dueño) | Antes (producción v1.0.167) | Después (rama) |
+|---|---|---|
+| Grupos del menú | Operación · Stock y servicio · Negocio | **Inicio · Vender · Clientes · Inventario · Operación · Finanzas · Análisis · Configuración** |
+| Título del inicio | Resumen general | **Inicio** |
+| Nav/título del taller | Servicio y Garantías | **Taller y garantías / Taller** |
+| Menú del vendedor | Vender · Herramientas | **Vender · Clientes · Inventario · Operación** |
+| Promociones y Precios | entradas principales | dentro de **Vender** e **Inventario** (sin duplicar) |
+| Ocultos sumados | — | **Tablero de operaciones** (`/ops`, dueño), **Lista por modelo** (`/celulares`), **Comparador** |
+| `/garantias` | ítem propio | **pestaña de Taller** (sin entrada de menú) |
+
 ## Decisiones y coordinación (#251)
 
 - **PLT (shell)**: los grupos de un solo ítem repiten el texto en la cabecera;
