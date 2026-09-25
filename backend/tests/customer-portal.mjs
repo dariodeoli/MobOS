@@ -92,6 +92,37 @@ assert.equal(result.response.status, 201, JSON.stringify(result.payload))
 const garantiaPortal = Array.isArray(result.payload) ? result.payload[0] : result.payload
 assert.ok(garantiaPortal.publicToken, 'La garantía debe devolver su token público al crearse.')
 
+// ── Cotizaciones (#240 → portal): la enviada viaja a la cuenta con su enlace ─
+result = await request('/api/quotes', 'POST', {
+  customerId: cliente.id,
+  customerName: cliente.name,
+  validUntil: new Date(Date.now() + 7 * 86400000).toISOString(),
+  items: [{ description: 'Equipo cotizado', quantity: 1, unitPricePyg: 100000 }],
+}, sellerToken)
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const cotizacion = result.payload
+assert.ok(cotizacion.number && cotizacion.publicToken, 'La cotización debe traer número y token público.')
+result = await request('/api/quotes', 'PATCH', { id: cotizacion.id, status: 'SENT' }, sellerToken)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+
+// Borrador del mismo cliente y cotización de otro cliente: ninguna viaja.
+result = await request('/api/quotes', 'POST', {
+  customerId: cliente.id,
+  customerName: cliente.name,
+  items: [{ description: 'Borrador interno', quantity: 1, unitPricePyg: 5000 }],
+}, sellerToken)
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const borrador = result.payload
+result = await request('/api/quotes', 'POST', {
+  customerId: clienteAjeno.id,
+  customerName: clienteAjeno.name,
+  items: [{ description: 'Cotización ajena', quantity: 1, unitPricePyg: 5000 }],
+}, sellerToken)
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+result = await request('/api/quotes', 'PATCH', { id: result.payload.id, status: 'SENT' }, sellerToken)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+const cotizacionAjena = result.payload
+
 // ── Enlace rápido: saldo, vencimientos y pedidos, sin datos internos ───────
 result = await request(`/api/customers/${encodeURIComponent(cliente.id)}/access-token`, 'POST', { level: 'rapido' }, sellerToken)
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
@@ -137,6 +168,16 @@ assert.ok(pedidoPortal.tracking?.pasos?.length >= 3, 'El portal debe traer los p
 assert.equal(pedidoPortal.tracking.pasos.filter(paso => paso.actual).length, 1, 'Un solo paso actual.')
 assert.equal(pedidoPortal.tracking.estadoLabel, 'En preparación', 'El paso actual trae su etiqueta de cliente.')
 assert.ok(pedidoPortal.tracking.pasos[0].hecho, 'El primer paso está cumplido.')
+// Cotizaciones (#240 → portal): la compartida llega en los dos niveles con su
+// enlace; el borrador y la de otro cliente no.
+const cotizacionPortal = (rapido.cotizaciones || []).find(item => item.number === cotizacion.number)
+assert.ok(cotizacionPortal, 'El nivel rápido debe listar la cotización compartida.')
+assert.equal(cotizacionPortal.publicToken, cotizacion.publicToken, 'La cotización debe enlazar su token público.')
+assert.equal(cotizacionPortal.status, 'SENT')
+assert.equal(cotizacionPortal.totalPyg, 100000)
+assert.ok(cotizacionPortal.validUntil, 'La cotización del portal debe traer su validez.')
+assert.equal((rapido.cotizaciones || []).some(item => item.number === borrador.number), false, 'El borrador interno no viaja al portal.')
+assert.equal((rapido.cotizaciones || []).some(item => item.number === cotizacionAjena.number), false, 'La cotización de otro cliente no viaja al portal.')
 assert.equal(rapido.orders.some(order => order.orderNumber === numeroPedidoAjeno), false, 'No deben aparecer pedidos de otro cliente.')
 assert.equal('warranties' in rapido, false, 'El nivel rápido no expone garantías.')
 assert.equal('addresses' in rapido, false, 'El nivel rápido no expone direcciones.')
@@ -189,6 +230,7 @@ assert.equal((completo.addresses || []).some(address => address.address === `Av.
 const pedidoCompleto = completo.orders.find(order => order.orderNumber === numeroPedido)
 assert.equal(pedidoCompleto.receiptToken, pedido.publicToken, 'El pedido debe enlazar a su comprobante público.')
 assert.ok(pedidoCompleto.tracking?.pasos?.length >= 3, 'El nivel completo también sigue la entrega.')
+assert.ok((completo.cotizaciones || []).some(item => item.number === cotizacion.number), 'El nivel completo también lista la cotización compartida.')
 const serializadoCompleto = JSON.stringify(completo)
 for (const campo of FORBIDDEN) {
   assert.equal(serializadoCompleto.includes(campo), false, `El portal completo no debe exponer ${campo}.`)

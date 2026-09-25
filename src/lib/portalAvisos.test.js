@@ -75,6 +75,25 @@ test('la reserva por vencer entra como aviso accionable', () => {
   assert.equal(orden[0].tipo, 'reserva_por_vencer')
 })
 
+test('la cotización por vencer avisa y ofrece abrirla; la vencida no', () => {
+  const porVencer = avisosDeCuenta(base({ cotizaciones: [{ number: 'COT-#0018', status: 'SENT', totalPyg: 4850000, validUntil: enDias(2) }] }), AHORA)
+  assert.equal(porVencer[0].tipo, 'cotizacion_por_vencer')
+  assert.equal(porVencer[0].tono, 'warn')
+  assert.match(porVencer[0].titulo, /COT-#0018 vence en 2 días/)
+  assert.match(porVencer[0].detalle, /4\.850\.000/)
+  assert.equal(porVencer[0].destino, '#cotizaciones')
+  // En 4 días ya no entra; vencida tampoco (no es accionable).
+  assert.equal(avisosDeCuenta(base({ cotizaciones: [{ number: 'COT-#0018', status: 'SENT', totalPyg: 1000, validUntil: enDias(4) }] }), AHORA).length, 0)
+  assert.equal(avisosDeCuenta(base({ cotizaciones: [{ number: 'COT-#0018', status: 'SENT', totalPyg: 1000, validUntil: enDias(-1) }] }), AHORA).length, 0)
+  // Va después de un pago por vencer y antes de un pedido en camino.
+  const orden = avisosDeCuenta(base({
+    dueDates: [{ orderNumber: 'MOB-0001', dueAt: enDias(3), pendingPyg: 100000 }],
+    cotizaciones: [{ number: 'COT-#0018', status: 'SENT', totalPyg: 4850000, validUntil: enDias(2) }],
+    orders: [{ orderNumber: 'MOB-0008', fulfillmentStatus: 'IN_TRANSIT' }],
+  }), AHORA)
+  assert.deepEqual(orden.map((aviso) => aviso.tipo), ['pago_por_vencer', 'cotizacion_por_vencer', 'pedido_en_camino'])
+})
+
 test('la garantía avisa si está vencida o vence dentro de 30 días', () => {
   const porVencer = avisosDeCuenta(base({ warranties: [{ serial: 'A1', description: 'iPhone 15', daysRemaining: 12 }] }), AHORA)
   assert.equal(porVencer[0].tipo, 'garantia_por_vencer')
@@ -92,6 +111,7 @@ test('la cuenta demo muestra avisos con la misma lógica', () => {
   // (un AHORA fijo envejece y el aviso deja de corresponder).
   const lucia = avisosDeCuenta(demoCuentaPayload('demo-demo-cliente-lucia-rapido'))
   assert.ok(lucia.some((aviso) => aviso.tipo === 'pago_por_vencer'), 'Lucía tiene un pago por vencer')
+  assert.ok(lucia.some((aviso) => aviso.tipo === 'cotizacion_por_vencer'), 'Lucía tiene una cotización por vencer')
   assert.ok(lucia.some((aviso) => aviso.tipo === 'pedido_en_camino'), 'Lucía tiene el pedido en camino')
   const carlos = avisosDeCuenta(demoCuentaPayload('demo-demo-cliente-carlos-rapido'))
   assert.ok(carlos.some((aviso) => aviso.tipo === 'listo_para_retirar'), 'Carlos tiene el pedido listo para retirar')
