@@ -35,14 +35,29 @@ try { previos = JSON.parse(readFileSync(RUTA_RESULTADOS, 'utf8')).resultados || 
 const resultados = []
 const navegador = await chromium.launch()
 
-// El menú vive en el lateral del shell (`shell-lateral`); `aside nav` es el
-// fallback histórico.
-const navDe = (page) => page.locator('[data-testid="shell-lateral"]').first().or(page.locator('aside nav').first())
+// El menú vive en la barra lateral (escritorio) o en el cajón «Menú» (mobile).
+// Devuelve el nav visible con grupos o null si no hay menú a la vista.
+function menus(page) {
+  return page.locator('[data-testid="shell-lateral"] nav, [role="dialog"] nav')
+    .filter({ has: page.locator('button[aria-expanded]') })
+}
+async function abrirMenu(page) {
+  for (const nav of await menus(page).all()) {
+    if (await nav.isVisible().catch(() => false)) return nav
+  }
+  const abrir = page.getByRole('button', { name: 'Abrir menú completo' }).or(page.getByRole('button', { name: 'Menú', exact: true }))
+  if (!(await abrir.count())) return null
+  await abrir.first().click()
+  await ESPERA(700)
+  for (const nav of await menus(page).all()) {
+    if (await nav.isVisible().catch(() => false)) return nav
+  }
+  return null
+}
 
 // Lee el menú: títulos de grupo (toggles con aria-expanded) y sus ítems.
-async function leerMenu(page) {
-  const nav = navDe(page)
-  if (!(await nav.count())) return null
+async function leerMenu(page, nav) {
+  if (!nav || !(await nav.count())) return null
   const grupos = await nav.locator('> div').evaluateAll((divs) => divs.map((div) => {
     const toggle = div.querySelector('button[aria-expanded]')
     const items = Array.from(div.querySelectorAll('button[aria-label]'))
@@ -60,8 +75,12 @@ async function entrarDemo(page, rol) {
   await page.getByRole('button', { name: new RegExp(`Entrar como ${rol}`) }).first().click()
   await page.waitForURL((url) => !url.pathname.startsWith('/demo'), { timeout: 30_000 })
   await ESPERA(2000)
-  const entendido = page.getByRole('button', { name: 'Entendido' })
-  if (await entendido.count()) await entendido.click().catch(() => {})
+  // La guía "Cómo funciona la demo" (#201) se abre sola en la primera visita y
+  // tapa el menú: se espera a que monte y se cierra por su botón «Cerrar»
+  // (determinista en los dos casos, igual que e2e/helpers/demo.js).
+  const guia = page.getByRole('dialog', { name: 'Cómo funciona la demo' })
+  const aparecio = await guia.waitFor({ state: 'visible', timeout: 4000 }).then(() => true).catch(() => false)
+  if (aparecio) await guia.getByRole('button', { name: 'Cerrar' }).click().catch(() => {})
 }
 
 for (const variante of VARIANTES) {
@@ -81,13 +100,14 @@ for (const variante of VARIANTES) {
   try {
     // ── Dueño ──────────────────────────────────────────────────────────
     await entrarDemo(page, 'Dueño')
+    const navDueno = await abrirMenu(page)
     await captura('01-menu-dueno')
-    const menuDueno = await leerMenu(page)
-    pasos.push(`dueño en ${menuDueno?.url}: ${menuDueno?.h1}`)
+    const menuDueno = await leerMenu(page, navDueno)
+    pasos.push(`dueño en ${menuDueno?.url}: ${menuDueno?.h1} · grupos ${menuDueno?.grupos?.map((g) => g.titulo).join(' · ')}`)
 
     // Taller: sección única con pestañas internas.
-    const taller = navDe(page).locator('button[aria-label="Taller y garantías"], button[aria-label="Servicio y Garantías"]')
-    if (await taller.count()) {
+    const taller = navDueno?.getByRole('button', { name: /^(Taller y garantías|Servicio y Garantías)$/ })
+    if (taller && (await taller.count())) {
       await taller.first().click()
       await ESPERA(1200)
       await captura('02-taller')
@@ -114,7 +134,7 @@ for (const variante of VARIANTES) {
 
     // ── Vendedor (contexto nuevo) ──────────────────────────────────────
     const contextoVendedor = await navegador.newContext({
-      viewport: { width: variante.ancho, alto: variante.alto },
+      viewport: { width: variante.ancho, height: variante.alto },
       deviceScaleFactor: 2,
     })
     await contextoVendedor.addInitScript(({ tema }) => {
@@ -123,8 +143,9 @@ for (const variante of VARIANTES) {
     const pageVendedor = await contextoVendedor.newPage()
     pageVendedor.on('pageerror', (error) => errores.push(`vendedor: ${String(error.message).slice(0, 160)}`))
     await entrarDemo(pageVendedor, 'Vendedor')
+    const navVendedor = await abrirMenu(pageVendedor)
     await pageVendedor.screenshot({ path: join(SALIDA, `${variante.nombre}-04-menu-vendedor.jpg`), type: 'jpeg', quality: 74 })
-    const menuVendedor = await leerMenu(pageVendedor)
+    const menuVendedor = await leerMenu(pageVendedor, navVendedor)
     pasos.push(`vendedor: ${menuVendedor?.grupos?.map((g) => g.titulo).join(' · ')}`)
     await contextoVendedor.close()
 
