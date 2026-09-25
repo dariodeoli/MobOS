@@ -1,0 +1,36 @@
+{
+  "web": "https://app.moboss.online",
+  "fecha": "2026-09-25T19:50:52.379Z",
+  "resultados": [
+    {
+      "nombre": "Demo: se entra como Dueño",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Comercial: los cuatro bloques del grupo están en producción",
+      "ok": false,
+      "detalle": "expect(locator).toBeVisible() failed\n\nLocator: getByTestId('config-comercial')\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" getByTestId('config-comercial') with timeout 20000ms\n  - waiting for getByTestId('config-comercial')\n"
+    },
+    {
+      "nombre": "Comercial: captura desktop",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Comercial: enlace a Autorizaciones",
+      "ok": false,
+      "detalle": "expect(locator).toHaveAttribute(expected) failed\n\nLocator: getByRole('link', { name: /Operación → Autorizaciones/ })\nExpected: \"/autorizaciones\"\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toHaveAttribute\" getByRole('link', { name: /Operación → Autorizaciones/ }) with timeout "
+    },
+    {
+      "nombre": "Comercial: el deep link de precios entra a la sección",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Comercial: captura mobile",
+      "ok": false,
+      "detalle": "expect(locator).toBeVisible() failed\n\nLocator: getByTestId('config-comercial')\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" getByTestId('config-comercial') with timeout 20000ms\n  - waiting for getByTestId('config-comercial')\n"
+    }
+  ]
+}
