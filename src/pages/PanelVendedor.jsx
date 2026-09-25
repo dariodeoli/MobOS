@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { useLive } from '@/hooks/useLive'
 import { useAutoRefrescar } from '@/hooks/useAutoRefrescar'
@@ -12,15 +12,14 @@ import SelectorSucursal from '@/components/shared/SelectorSucursal'
 import Icon from '@/components/shared/Icon'
 import AppShell from '@/components/app/AppShell'
 import GlobalSearch from '@/components/app/GlobalSearch'
-import { Card, ConfirmDialog, Modal, PinInput, Select, Skeleton, Subtabs, useToast } from '@/components/ui'
+import { ConfirmDialog, Modal, PinInput, Select, Skeleton, Subtabs, useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { rutaDeVista, vistaDeRuta } from '@/lib/rutas'
 import PantallaBloqueada from '@/components/app/PantallaBloqueada'
 import DemoNoDisponible from '@/components/app/DemoNoDisponible'
 import { usePreferencias } from '@/hooks/usePreferencias'
-import { PreferenciasContenido } from '@/components/app/Preferencias'
 import CheatSheetAtajos from '@/components/app/CheatSheetAtajos'
-import { ROTULO_SECCION } from '@/components/shared/tabla'
+import ComandosAtajos from '@/components/control/ComandosAtajos'
 import { useBloqueoInactividad } from '@/hooks/useBloqueoInactividad'
 
 // Vistas pesadas en lazy: su código se descarga recién cuando se navega a ellas.
@@ -29,7 +28,6 @@ const Reportes = lazy(() => import('@/components/control/Reportes'))
 const Inventario = lazy(() => import('@/components/control/Inventario'))
 const Compras = lazy(() => import('@/components/control/Compras'))
 const Config = lazy(() => import('@/components/control/Config'))
-const MiIdentidad = lazy(() => import('@/components/control/Config').then(modulo => ({ default: modulo.MiIdentidad })))
 const Vendedores = lazy(() => import('@/components/control/Vendedores'))
 const Autorizaciones = lazy(() => import('@/components/control/Autorizaciones'))
 const ServicioGarantias = lazy(() => import('@/components/control/ServicioGarantias'))
@@ -188,22 +186,19 @@ const TABS_INVENTARIO = [
 ]
 const SUBPAGINAS = {
   configuracion: {
+    // `vista` es el id de navegación que habilita el acceso (OWNER_NAV);
+    // la pestaña por defecto sigue siendo la primera del listado (mi-cuenta).
     vista: 'equipo',
     tabs: [
-      // Orden por grupo visible: Personas, Negocio, Seguridad, Dispositivos y
-      // Sistema. El slug de cada pestaña es estable (/configuracion/<slug>).
-      // Documentación ya no vive acá: es «Ayuda» en el shell (#251).
-      ['equipo', 'Equipo'],
-      ['identidad', 'Mi identidad'],
-      ['roles', 'Roles y permisos'],
-      ['negocio', 'Negocio'],
-      ['precios', 'Listas de precios'],
-      ['sucursales', 'Sucursales'],
-      ['seguridad', 'Seguridad'],
-      ['historial', 'Auditoría'],
-      ['impresoras', 'Impresoras'],
-      ['preferencias', 'Preferencias'],
-      ['sistema', 'Estado del sistema'],
+      // IA (#251): siete secciones, sin duplicar. Los slugs viejos
+      // redirigen a su sección nueva (REDIRECCIONES_CONFIG).
+      ['mi-cuenta', 'Mi cuenta'],
+      ['organizacion', 'Organización'],
+      ['equipo', 'Equipo y acceso'],
+      ['comercial', 'Comercial'],
+      ['seguridad', 'Seguridad y auditoría'],
+      ['dispositivos', 'Dispositivos'],
+      ['sistema', 'Sistema'],
     ],
   },
   // Ayuda vive fuera de Configuración: se entra desde el shell (Documentación).
@@ -233,18 +228,20 @@ function tabsDeSubpagina(slug, esDemo) {
   return tabs
 }
 
-// Configuración agrupada: íconos con su submenú para no saturar la barra.
-// Dispositivos junta impresoras (configuración, puentes, formatos, diagnóstico,
-// cola e historial, todo dentro de la pantalla) y las preferencias del
-// dispositivo; Sistema queda para el monitoreo global (Estado del sistema).
-// Invitaciones vive dentro de Equipo (una sola vez, sin pestaña duplicada).
-const GRUPOS_CONFIG = [
-  { id: 'personas', label: 'Personas', icon: 'users', tabs: ['equipo', 'identidad', 'roles'] },
-  { id: 'negocio', label: 'Negocio', icon: 'store', tabs: ['negocio', 'precios', 'sucursales'] },
-  { id: 'seguridad', label: 'Seguridad', icon: 'lock', tabs: ['seguridad', 'historial'] },
-  { id: 'dispositivos', label: 'Dispositivos', icon: 'printer', tabs: ['impresoras', 'preferencias'] },
-  { id: 'sistema', label: 'Sistema', icon: 'pulse', tabs: ['sistema'] },
-]
+// Configuración en siete secciones (#IA): los slugs viejos siguen funcionando
+// y redirigen a la sección nueva; Documentación sale del panel y vive en Ayuda.
+const REDIRECCIONES_CONFIG = {
+  identidad: '/configuracion/mi-cuenta',
+  preferencias: '/configuracion/mi-cuenta',
+  negocio: '/configuracion/organizacion',
+  sucursales: '/configuracion/organizacion',
+  roles: '/configuracion/equipo',
+  precios: '/configuracion/comercial',
+  historial: '/configuracion/seguridad',
+  impresion: '/configuracion/dispositivos',
+  impresoras: '/configuracion/dispositivos',
+  documentacion: '/ayuda/ayuda',
+}
 
 const SUBPAGINA_DE_TAB = Object.fromEntries(
   Object.entries(SUBPAGINAS).flatMap(([slug, cfg]) => cfg.tabs.map(([id]) => [id, slug])),
@@ -265,15 +262,11 @@ const LABELS = {
   analisis: 'Análisis',
   finanzas: 'Finanzas',
   equipo: 'Configuración',
-  identidad: 'Mi identidad',
-  roles: 'Roles y permisos',
-  historial: 'Auditoría',
-  negocio: 'Negocio',
-  sucursales: 'Sucursales',
-  seguridad: 'Seguridad',
-  impresoras: 'Impresoras',
-  documentacion: 'Documentación',
-  preferencias: 'Preferencias',
+  'mi-cuenta': 'Mi cuenta',
+  organizacion: 'Organización',
+  comercial: 'Comercial',
+  seguridad: 'Seguridad y auditoría',
+  dispositivos: 'Dispositivos',
   sistema: 'Estado del sistema',
   reportes: 'Reportes',
   ganancias: 'Ganancias',
@@ -372,8 +365,7 @@ export default function PanelVendedor() {
   // El slug plano de la URL define la vista (/pos, /pedidos, /trade-in…).
   const routeVista = subpadre ? null : vistaDeRuta(slugRuta, { esOwner })
   const [vista, setVista] = useState(seccionRuta || routeVista || (subpadre ? tabsRuta[0][0] : 'cargar'))
-  const grupoConfig = GRUPOS_CONFIG.find((grupo) => grupo.tabs.includes(vista)) || GRUPOS_CONFIG[0]
-  const tabsConfig = tabsRuta.filter(([id]) => grupoConfig.tabs.includes(id))
+  const tabsConfig = tabsRuta
   // En las subpáginas el título es la pestaña activa (la sección va en la miga).
   const tituloVista = subpadre
     ? (tabsRuta.find(([id]) => id === vista) || [null, LABELS[vista] || MIGA_SUBPAGINA[subpadre]])[1]
@@ -428,19 +420,21 @@ export default function PanelVendedor() {
   useEffect(() => {
     if (esOwner && (vista === 'resumen' || subpadre === 'finanzas' || subpadre === 'analisis')) hidratarFinanzas()
   }, [esOwner, vista, subpadre, identidad])
-  // La ruta vieja /configuracion/impresion se unificó en /configuracion/impresoras.
+  // Las URLs viejas de Configuración entran por su sección nueva (#IA):
+  // /configuracion/negocio → organizacion, /configuracion/documentacion →
+  // /ayuda/ayuda, etc.
   useEffect(() => {
-    if (subpadre === 'configuracion' && routeSeccion === 'impresion') navigate('/configuracion/impresoras', { replace: true })
-  }, [subpadre, routeSeccion, navigate])
-  // Documentación salió de Configuración: ahora es «Ayuda» en el shell.
-  useEffect(() => {
-    if (subpadre === 'configuracion' && routeSeccion === 'documentacion') navigate('/ayuda/ayuda', { replace: true })
+    if (subpadre !== 'configuracion' || !routeSeccion) return
+    const destino = REDIRECCIONES_CONFIG[routeSeccion]
+    if (destino) navigate(destino, { replace: true })
   }, [subpadre, routeSeccion, navigate])
   // Apartado sin hijo (o con uno desconocido) entra por su primera pestaña.
+  // Los slugs viejos con redirección propia no pasan por acá: su destino puede
+  // salir del apartado (p. ej. /configuracion/documentacion → /ayuda/ayuda) y
+  // este efecto los devolvería a la primera pestaña.
   useEffect(() => {
-    // La ruta vieja /configuracion/documentacion se redirige a /ayuda aparte.
-    if (subpadre === 'configuracion' && routeSeccion === 'documentacion') return
-    if (subpadre && !seccionRuta) navigate(`/${subpadre}/${tabsRuta[0][0]}`, { replace: true })
+    if (!subpadre || seccionRuta || REDIRECCIONES_CONFIG[routeSeccion]) return
+    navigate(`/${subpadre}/${tabsRuta[0][0]}`, { replace: true })
   }, [subpadre, seccionRuta, tabsRuta, routeSeccion, navigate])
   // El repartidor tiene su propio panel (/delivery/repartos): el panel de venta
   // no es su lugar y el backend tampoco lo autoriza a vender.
@@ -841,53 +835,52 @@ export default function PanelVendedor() {
           )}
           {esOwner && subpadre === 'configuracion' && (
             <div className="space-y-3">
-              <div className="flex flex-wrap gap-2" role="tablist" aria-label="Grupos de configuración">
-                {GRUPOS_CONFIG.map((grupo) => {
-                  const primero = (tabsRuta.find(([id]) => grupo.tabs.includes(id)) || [grupo.tabs[0]])[0]
-                  const activo = grupo.id === grupoConfig.id
-                  return (
-                    <button
-                      key={grupo.id}
-                      type="button"
-                      aria-pressed={activo}
-                      onClick={() => irASubtab(primero)}
-                      className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${activo ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:border-fono/40 hover:text-fore'}`}
-                    >
-                      <Icon name={grupo.icon} className="h-4 w-4" />
-                      {grupo.label}
-                    </button>
-                  )
-                })}
-              </div>
               <Subtabs
                 value={vista}
                 onChange={irASubtab}
                 items={tabsConfig}
               />
-              {vista === 'equipo' && <Vendedores />}
-              {vista === 'identidad' && <MiIdentidad />}
-              {vista === 'roles' && <RolesPermisos />}
-              {vista === 'historial' && (esDemo ? <Historial /> : <Auditoria />)}
-              {vista === 'negocio' && <Config seccion="negocio" />}
-              {vista === 'precios' && <Precios />}
-              {vista === 'sucursales' && <Config seccion="sucursales" />}
-              {vista === 'seguridad' && (esDemo
-                ? <DemoNoDisponible modulo="Seguridad de la cuenta" motivo="Administra contraseñas, sesiones y acciones sensibles de tu tienda real." />
-                : <Config seccion="seguridad" />)}
-              {vista === 'impresoras' && <Impresoras />}
-              {vista === 'preferencias' && (
-                <Card className="p-4 md:p-5">
-                  <h2 className={ROTULO_SECCION}>Preferencias del dispositivo</h2>
-                  <div className="mt-3"><PreferenciasContenido preferencias={preferencias} onCambiar={cambiarPreferencias} /></div>
-                </Card>
+              {vista === 'mi-cuenta' && <Config seccion="mi-cuenta" preferencias={preferencias} onCambiarPreferencias={cambiarPreferencias} />}
+              {vista === 'organizacion' && <Config seccion="organizacion" />}
+              {vista === 'equipo' && (
+                <div className="space-y-3">
+                  <Vendedores />
+                  <Config seccion="equipo" />
+                  <RolesPermisos />
+                </div>
               )}
+              {vista === 'comercial' && (
+                <div className="space-y-3">
+                  <Config seccion="comercial" />
+                  <Precios />
+                </div>
+              )}
+              {vista === 'seguridad' && (esDemo ? (
+                <div className="space-y-3">
+                  <DemoNoDisponible modulo="Seguridad de la cuenta" motivo="Administra contraseñas, sesiones y acciones sensibles de tu tienda real." />
+                  <Historial />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <Config seccion="seguridad" />
+                  <Auditoria />
+                </div>
+              ))}
+              {vista === 'dispositivos' && <Impresoras />}
               {vista === 'sistema' && (esDemo
                 ? <DemoNoDisponible modulo="Estado del sistema" motivo="Consulta los servicios reales de MobOS (API, base e impresión)." />
                 : <EstadoSistema />)}
             </div>
           )}
           {subpadre === 'ayuda' && (
-            <div className="space-y-3">{vista === 'ayuda' && <Documentacion />}</div>
+            <div className="space-y-3">
+              {vista === 'ayuda' && (
+                <>
+                  <ComandosAtajos />
+                  <Documentacion />
+                </>
+              )}
+            </div>
           )}
           </Suspense>
         </main>
@@ -977,6 +970,14 @@ export default function PanelVendedor() {
         onClose={() => setAyudaAbierto(false)}
         title="Atajos de teclado" size="corto">
         <CheatSheetAtajos />
+        <Link
+          to="/ayuda/ayuda"
+          onClick={() => setAyudaAbierto(false)}
+          className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-fono-light hover:underline"
+        >
+          Ver todos los comandos y atajos en Ayuda
+          <Icon name="external" className="h-3.5 w-3.5" />
+        </Link>
       </Modal>
 
       <ConfirmDialog
