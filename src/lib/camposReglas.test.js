@@ -38,6 +38,8 @@ test('el extractor de RUC vive dentro del input y se ve en todos los lugares, ta
   const esperados = [
     'components/control/Compras.jsx',
     'components/control/Config.jsx',
+    'components/control/DatosPrivados.jsx',
+    'components/control/PaymentAccounts.jsx',
     'components/customers/CustomerProfile.jsx',
     'components/ventas/CheckoutCustomer.jsx',
     'components/ventas/SellerCustomers.jsx',

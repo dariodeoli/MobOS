@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { nombreCompleto, nombreOrdenable, nombreSugeridoDeCuenta, opcionesDePartes, textoBuscable } from './accountNames.js'
+import { nombreCompleto, nombreOrdenable, nombreSugeridoDeCuenta, opcionesDePartes, partesConocidas, partesDeNombreLegal, textoBuscable } from './accountNames.js'
 
 const ana = { id: 'h1', firstName: 'Ana', middleName: 'María', lastName: 'Pérez', secondLastName: 'Gómez', document: '1234567-8', isActive: true }
 const juan = { id: 'h2', firstName: 'Juan', otherName: 'Carlos', lastName: 'Ramírez', isActive: false }
@@ -34,8 +34,7 @@ test('las opciones del buscador de titulares separan titulares de empresas y sal
   assert.equal(opciones[1].detail, '80069563-1')
 })
 
-test('el nombre de la cuenta se arma solo con los ejemplos pedidos', () => {
-  assert.equal(nombreSugeridoDeCuenta({ kind: 'TRANSFER', bank: 'Banco Itaú', holder: 'Darío Deoli' }), 'Banco Itaú - Darío Deoli')
+test('el nombre de la cuenta se arma solo con los ejemplos pedidos', () => {  assert.equal(nombreSugeridoDeCuenta({ kind: 'TRANSFER', bank: 'Banco Itaú', holder: 'Darío Deoli' }), 'Banco Itaú - Darío Deoli')
   assert.equal(nombreSugeridoDeCuenta({ kind: 'TRANSFER', bank: 'Banco Itaú', company: 'Empresa XYZ', accountNumber: '1234' }), 'Banco Itaú - Empresa XYZ - Cuenta 1234')
   assert.equal(nombreSugeridoDeCuenta({ kind: 'PIX', holder: 'Darío Deoli' }), 'Pix - Darío Deoli')
   assert.equal(nombreSugeridoDeCuenta({ kind: 'CRYPTO', holder: 'Darío Deoli' }), 'USDT - Darío Deoli')
@@ -44,4 +43,20 @@ test('el nombre de la cuenta se arma solo con los ejemplos pedidos', () => {
   assert.equal(nombreSugeridoDeCuenta({ kind: 'CARD', processor: 'Bancard' }), 'Bancard')
   assert.equal(nombreSugeridoDeCuenta({ kind: 'TRADE_IN', holder: 'Darío Deoli' }), 'Canje - Darío Deoli')
   assert.equal(nombreSugeridoDeCuenta({}), 'Cuenta')
+})
+
+// #234: el nombre legal del proveedor llega como "APELLIDOS, NOMBRES" y se
+// reparte en las partes del titular; sin coma no se inventa el corte.
+test('las partes del nombre legal reparten apellidos y nombres por la coma', () => {
+  assert.deepEqual(partesDeNombreLegal('PÉREZ GÓMEZ, ANA MARÍA'), { lastName: 'PÉREZ', secondLastName: 'GÓMEZ', firstName: 'ANA', middleName: 'MARÍA', otherName: '' })
+  assert.deepEqual(partesDeNombreLegal('PÉREZ, JUAN'), { lastName: 'PÉREZ', secondLastName: '', firstName: 'JUAN', middleName: '', otherName: '' })
+  assert.deepEqual(partesDeNombreLegal('PÉREZ GÓMEZ SOTO, JUAN CARLOS LUIS'), { lastName: 'PÉREZ', secondLastName: 'GÓMEZ SOTO', firstName: 'JUAN', middleName: 'CARLOS', otherName: 'LUIS' })
+  assert.deepEqual(partesDeNombreLegal('  DISTRIBUIDORA   DEL SUR S.A.  '), { lastName: '', secondLastName: '', firstName: 'DISTRIBUIDORA', middleName: 'DEL', otherName: 'SUR S.A.' })
+  assert.equal(partesDeNombreLegal(''), null)
+  assert.equal(partesDeNombreLegal(null), null)
+})
+
+test('al aplicar un nombre legal no se vacían las partes que el proveedor no trae', () => {
+  assert.deepEqual(partesConocidas('PÉREZ, JUAN'), { lastName: 'PÉREZ', firstName: 'JUAN' })
+  assert.deepEqual(partesConocidas(''), {})
 })

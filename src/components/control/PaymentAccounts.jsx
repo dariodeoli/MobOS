@@ -7,6 +7,7 @@ import CurrencySelect from '@/components/shared/CurrencySelect'
 import Switch from '@/components/shared/Switch'
 import BancoCombobox from '@/components/shared/BancoCombobox'
 import BancoLogo from '@/components/shared/BancoLogo'
+import RucField from '@/components/shared/RucField'
 import ComboBuscador from '@/components/shared/ComboBuscador'
 import { marcaDeMedio } from '@/components/shared/MedioPago'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
@@ -102,6 +103,8 @@ function AccountManager() {
   // Vista previa v2 (#241 · lote D): resumen en tiles de consola con números
   // grandes. Es solo lectura de lo ya cargado: sin el flag no cambia nada.
   const v2 = temaV2Activo()
+  // #234: el documento de la cuenta usa el campo compartido de RUC (Extraer).
+  const esDemo = isDemoRuntime
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [reload, setReload] = useState(0)
@@ -295,7 +298,18 @@ function AccountManager() {
             : <div className="sm:col-span-2"><Label htmlFor="pa-currency">Moneda</Label><CurrencySelect id="pa-currency" value={form.currency} excluir={monedasExcluidas(form.kind)} onChange={event => change('currency', event.target.value)} /></div>}
           {medio.personalizada && <div className="sm:col-span-2"><Label htmlFor="pa-currency-label">Moneda personalizada</Label><Input id="pa-currency-label" maxLength={12} value={form.currencyLabel} onChange={event => change('currencyLabel', event.target.value.toUpperCase())} placeholder="ARS, PEN…" /></div>}
           {medio.titular && <div className="sm:col-span-3"><Label htmlFor="pa-holder">Titular {!transferNuevo && '(opcional)'}</Label><ComboBuscador id="pa-holder" value={form.holder} required={transferNuevo} options={opcionesTitulares} onChange={(texto) => setForm(current => conNombre({ ...current, holder: texto, holderId: '', companyId: '' }))} onSelect={elegirTitular} placeholder="Buscá titular, socio o empresa" />{(form.holderId || form.companyId) && <p className="mt-1 text-[11px] text-ok">{form.companyId ? 'Empresa registrada' : 'Titular registrado'} · se completa solo</p>}</div>}
-          {medio.documento && <div className="sm:col-span-3"><Label htmlFor="pa-document">Documento (cédula/RUC)</Label><Input id="pa-document" maxLength={200} value={form.document} onChange={event => change('document', event.target.value)} placeholder="Ej. 3.456.789-0" /></div>}
+          {medio.documento && <div className="sm:col-span-3"><Label htmlFor="pa-document">Documento (cédula/RUC)</Label>
+            <RucField
+              id="pa-document"
+              value={form.document}
+              onChange={(valor) => change('document', valor)}
+              esDemo={esDemo}
+              onAplicar={(datos) => {
+                if (datos.fullRuc) change('document', datos.fullRuc)
+                if (datos.name) change('holder', datos.name)
+              }}
+            />
+          </div>}
           {medio.cuenta && <div className="sm:col-span-2"><Label htmlFor="pa-number">Número de cuenta {!transferNuevo && '(opcional)'}</Label><Input id="pa-number" type="text" required={transferNuevo} maxLength={200} value={form.accountNumber} onChange={event => change('accountNumber', event.target.value)} /></div>}
           {medio.pixKey && <div className="sm:col-span-3"><Label htmlFor="pa-pix-key">Llave Pix</Label><Input id="pa-pix-key" maxLength={200} value={form.pixKey} onChange={event => change('pixKey', event.target.value)} placeholder="CPF/CNPJ, correo, teléfono o aleatoria" /></div>}
           {medio.referencia && <div className="sm:col-span-3"><Label htmlFor="pa-reference">{form.kind === 'CRYPTO' ? 'Referencia de la billetera' : form.kind === 'TRADE_IN' ? 'Valor de canje' : 'Referencia'}</Label><Input id="pa-reference" maxLength={200} value={form.reference} onChange={event => change('reference', event.target.value)} placeholder={form.kind === 'CRYPTO' ? 'Ej. TRC20 · TQn9…' : form.kind === 'TRADE_IN' ? 'Ej. equipo recibido, valor acordado' : 'Referencia'} /></div>}

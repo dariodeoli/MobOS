@@ -77,3 +77,33 @@ test('demo: un RUC inválido se rechaza con el mensaje del proveedor', async ({ 
   await raiz.getByRole('button', { name: 'Extraer los datos del RUC' }).click()
   await expect(raiz.getByRole('alert')).toHaveText(/RUC/)
 })
+
+// #234 · seguimiento: la empresa privada (Config → Negocio) también simula en
+// demo y aplica la razón social solo al confirmar.
+test('demo: la empresa privada extrae simulada y no pisa sin confirmar', async ({ page }) => {
+  const llamadas = []
+  page.on('request', (req) => { if (esLlamadaApi(req.url())) llamadas.push(req.url()) })
+
+  await page.goto('/demo')
+  await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
+  await cerrarGuia(page)
+  await page.goto('/configuracion/negocio')
+  await expect(page.getByRole('heading', { name: 'Empresas/personas jurídicas (privado)' })).toBeVisible({ timeout: 20_000 })
+  await page.getByRole('button', { name: 'Agregar empresa' }).click()
+  const nombre = page.locator('#priv-legal-name')
+  await nombre.fill('EMPRESA CARGADA A MANO')
+  const ruc = page.locator('#priv-ruc')
+  await ruc.fill('80012345-6')
+  const raiz = ruc.locator('xpath=../..')
+  await raiz.getByRole('button', { name: /Extraer los datos del RUC|Consultando/ }).click()
+  await expect(raiz.getByText('Simulada en demo')).toBeVisible()
+  const razonSimulada = (await raiz.locator('b').first().innerText()).trim()
+  expect(razonSimulada).toMatch(/S\.A\.|S\.R\.L\.|LTDA\./)
+  await raiz.screenshot({ path: join(DIR, '234-demo-privados-empresa-despues.png') })
+
+  // Sin confirmación el nombre cargado no se toca.
+  await expect(nombre).toHaveValue('EMPRESA CARGADA A MANO')
+  await raiz.getByRole('button', { name: 'Usar estos datos' }).click()
+  await expect(nombre).toHaveValue(razonSimulada)
+  expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
+})

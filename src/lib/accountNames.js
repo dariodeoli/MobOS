@@ -17,6 +17,36 @@ export function nombreOrdenable(holder) {
     .join(' ')
 }
 
+/**
+ * Partes del titular a partir del nombre legal del proveedor de RUC (#234).
+ * El registro usa "APELLIDOS, NOMBRES": la coma separa los apellidos de los
+ * nombres. Sin coma no se inventa el corte — el texto completo queda como
+ * primer nombre y la persona termina de completar la ficha.
+ */
+export function partesDeNombreLegal(nombre) {
+  const texto = String(nombre || '').trim().replace(/\s+/g, ' ')
+  if (!texto) return null
+  const [apellidosCrudo, nombresCrudo] = texto.includes(',') ? texto.split(',', 2) : ['', texto]
+  const apellidos = String(apellidosCrudo || '').trim().split(' ').filter(Boolean)
+  const nombres = String(nombresCrudo || '').trim().split(' ').filter(Boolean)
+  return {
+    lastName: apellidos[0] || '',
+    // Un tercer apellido (poco común) se conserva junto al segundo: el formulario
+    // tiene dos campos de apellido y no se pierde dato.
+    secondLastName: apellidos.slice(1).join(' '),
+    firstName: nombres[0] || '',
+    middleName: nombres[1] || '',
+    otherName: nombres.slice(2).join(' '),
+  }
+}
+
+/** Solo las partes conocidas: al aplicar un nombre no se vacían campos. */
+export function partesConocidas(nombre) {
+  const partes = partesDeNombreLegal(nombre)
+  if (!partes) return {}
+  return Object.fromEntries(Object.entries(partes).filter(([, valor]) => Boolean(valor)))
+}
+
 /** Texto buscable de una entidad: nombre, documento/RUC y razón social. */
 export function textoBuscable(entidad) {
   if (!entidad) return ''

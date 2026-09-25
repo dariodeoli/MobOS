@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Aviso, Badge, Button, Card, Input, Label, Textarea } from '@/components/ui'
+import RucField from '@/components/shared/RucField'
+import { useSesion } from '@/lib/sesion'
+import { partesConocidas } from '@/lib/accountNames'
 import {
   createAccountHolder, createPrivateCompany, getAccountHolders, getPrivateCompanies,
   nombreCompleto, updateAccountHolder, updatePrivateCompany,
@@ -8,9 +11,16 @@ import {
 // Datos privados de la tienda (#143): empresas/personas jurídicas y titulares
 // de cuentas. Viven separados del perfil público y solo los ve el dueño.
 // Se ofrecen como titulares al configurar cuentas de cobro.
+// #234: el RUC de la empresa y la cédula/RUC de los titulares usan el campo
+// compartido `RucField` (Extraer + «Usar estos datos»): nada se pisa hasta que
+// la persona confirma.
 
 const VACIO_TITULAR = { firstName: '', middleName: '', otherName: '', lastName: '', secondLastName: '', document: '', isActive: true }
 const VACIO_EMPRESA = { legalName: '', ruc: '', legalAddress: '', notes: '', isActive: true }
+
+// La dirección legal se completa solo si el proveedor la trae: hoy la consulta
+// de RUC no la expone (queda el gancho para cuando INV la sume, #234).
+const direccionLegalDelProveedor = (datos) => String(datos?.address || datos?.legalAddress || datos?.direccion || '').trim()
 
 function ListaVacia({ texto }) {
   return <p className="rounded-lg border border-dashed border-ink-600 px-3 py-4 text-center text-xs text-mute">{texto}</p>
@@ -35,6 +45,7 @@ function FilaEntidad({ titulo, detalle, activo, onEditar, onAlternar, busy, aria
 }
 
 export default function DatosPrivados() {
+  const { esDemo } = useSesion()
   const [holders, setHolders] = useState([])
   const [companies, setCompanies] = useState([])
   const [titular, setTitular] = useState(null)
@@ -93,7 +104,20 @@ export default function DatosPrivados() {
         </div>
         {empresa && <form onSubmit={guardarEmpresa} className="grid gap-3 rounded-lg border border-ink-600 p-3 sm:grid-cols-2">
           <div className="sm:col-span-2"><Label htmlFor="priv-legal-name">Nombre legal</Label><Input id="priv-legal-name" autoFocus required maxLength={200} value={empresa.legalName} onChange={(e) => setEmpresa({ ...empresa, legalName: e.target.value })} placeholder="Ej. Comercial XYZ S.A." /></div>
-          <div><Label htmlFor="priv-ruc">RUC</Label><Input id="priv-ruc" maxLength={32} value={empresa.ruc} onChange={(e) => setEmpresa({ ...empresa, ruc: e.target.value })} placeholder="Ej. 80012345-6" /></div>
+          <div><Label htmlFor="priv-ruc">RUC</Label>
+            <RucField
+              id="priv-ruc"
+              value={empresa.ruc}
+              onChange={(valor) => setEmpresa((actual) => ({ ...actual, ruc: valor }))}
+              esDemo={esDemo}
+              onAplicar={(datos) => setEmpresa((actual) => ({
+                ...actual,
+                ...(datos.name ? { legalName: datos.name } : {}),
+                ...(datos.fullRuc ? { ruc: datos.fullRuc } : {}),
+                ...(direccionLegalDelProveedor(datos) ? { legalAddress: direccionLegalDelProveedor(datos) } : {}),
+              }))}
+            />
+          </div>
           <div className="sm:col-span-2"><Label htmlFor="priv-address">Dirección legal</Label><Input id="priv-address" maxLength={400} value={empresa.legalAddress} onChange={(e) => setEmpresa({ ...empresa, legalAddress: e.target.value })} placeholder="Dirección que figura en los documentos" /></div>
           <div className="sm:col-span-2"><Label htmlFor="priv-notes">Notas</Label><Textarea id="priv-notes" rows={2} maxLength={1000} value={empresa.notes} onChange={(e) => setEmpresa({ ...empresa, notes: e.target.value })} placeholder="Datos internos de la sociedad (opcional)" /></div>
           <div className="flex flex-wrap gap-2 sm:col-span-2"><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar empresa'}</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => setEmpresa(null)}>Cancelar</Button></div>
@@ -122,7 +146,19 @@ export default function DatosPrivados() {
           <div><Label htmlFor="priv-other">Tercer nombre</Label><Input id="priv-other" maxLength={80} value={titular.otherName} onChange={(e) => setTitular({ ...titular, otherName: e.target.value })} /></div>
           <div><Label htmlFor="priv-last">Primer apellido</Label><Input id="priv-last" required maxLength={80} value={titular.lastName} onChange={(e) => setTitular({ ...titular, lastName: e.target.value })} /></div>
           <div><Label htmlFor="priv-second-last">Segundo apellido</Label><Input id="priv-second-last" maxLength={80} value={titular.secondLastName} onChange={(e) => setTitular({ ...titular, secondLastName: e.target.value })} /></div>
-          <div><Label htmlFor="priv-doc">Cédula/RUC</Label><Input id="priv-doc" maxLength={32} value={titular.document} onChange={(e) => setTitular({ ...titular, document: e.target.value })} placeholder="Ej. 3.456.789-0" /></div>
+          <div><Label htmlFor="priv-doc">Cédula/RUC</Label>
+            <RucField
+              id="priv-doc"
+              value={titular.document}
+              onChange={(valor) => setTitular((actual) => ({ ...actual, document: valor }))}
+              esDemo={esDemo}
+              onAplicar={(datos) => setTitular((actual) => ({
+                ...actual,
+                ...(datos.fullRuc ? { document: datos.fullRuc } : {}),
+                ...partesConocidas(datos.name),
+              }))}
+            />
+          </div>
           <p className="text-xs text-mute sm:col-span-3">Así se va a ver: <b className="text-fore">{nombreCompleto(titular) || '—'}</b></p>
           <div className="flex flex-wrap gap-2 sm:col-span-3"><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar titular'}</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => setTitular(null)}>Cancelar</Button></div>
         </form>}
