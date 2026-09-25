@@ -91,6 +91,12 @@ test('Datos de la tienda: Guardar persiste y la ficha lo refleja', async ({ page
 test('Identificador de pedidos: Enter guarda y el error queda en la sección', async ({ page }) => {
   await abrirNegocio(page)
   const prefijo = page.getByLabel('Prefijo de pedidos')
+  await expect(prefijo).not.toHaveValue('', { timeout: 20_000 })
+  const numero = page.getByLabel('Número inicial de pedidos')
+  // En una cuenta nueva el número todavía no existe y el campo queda vacío (el
+  // efectivo vive en el placeholder): se completa con ese valor para guardar.
+  if ((await numero.inputValue()) === '') await numero.fill((await numero.getAttribute('placeholder')) || '1')
+  await expect(numero).not.toHaveValue('', { timeout: 20_000 })
   const original = await prefijo.inputValue()
   // Mismos valores: valida el guardado sin tocar la numeración de la suite.
   await prefijo.press('Enter')
