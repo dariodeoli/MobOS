@@ -225,8 +225,8 @@ test('el interruptor tiene un solo objeto: Switch (#186)', () => {
     .filter(({ contenido }) => /import \{[^}]*\bToggle\b[^}]*\} from '@\/components\/ui'/.test(contenido) || /<Toggle\b/.test(contenido))
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [])
-  const config = readFileSync(join(RAIZ, 'components/control/Config.jsx'), 'utf8')
-  assert.match(config, /<Switch[\s\S]{0,80}seguro-toggle/, 'Config usa el interruptor canónico')
+  const config = readFileSync(join(RAIZ, 'components/control/config/Comercial.jsx'), 'utf8')
+  assert.match(config, /<Switch[\s\S]{0,80}seguro-toggle/, 'el grupo Comercial usa el interruptor canónico')
 })
 
 test('los colores de pantalla salen de tokens (#176)', () => {

@@ -908,12 +908,10 @@ export default function PanelVendedor() {
                   <RolesPermisos />
                 </div>
               )}
-              {vista === 'comercial' && (
-                <div className="space-y-3">
-                  <Config seccion="comercial" />
-                  <Precios />
-                </div>
-              )}
+              {/* Comercial (#253) es un grupo propio: vive en
+                  control/config/Comercial.jsx y ya incluye las listas de
+                  precios. */}
+              {vista === 'comercial' && <Config seccion="comercial" />}
               {vista === 'seguridad' && (esDemo ? (
                 <div className="space-y-3">
                   <DemoNoDisponible modulo="Seguridad de la cuenta" motivo="Administra contraseñas, sesiones y acciones sensibles de tu tienda real." />

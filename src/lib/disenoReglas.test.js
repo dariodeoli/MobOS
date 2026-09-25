@@ -100,8 +100,8 @@ test('los campos de dinero y porcentaje del barrido usan las primitivas', () => 
     ['components/control/Caja.jsx', 'setContadoAjeno(formatGsInput(e.target.value))'],
     ['components/customers/CustomerProfile.jsx', "setSolicitudLimite(event.target.value.replace(/\\D/g, '')"],
     ['components/inventory/UnidadDetalle.jsx', "setConsignadorMonto(event.target.value.replace(/\\D/g, '')"],
-    ['components/control/Config.jsx', "setLimiteBajoLista(event.target.value.replace(/\\D/g, '')"],
-    ['components/control/Config.jsx', "setLimiteFidelizacion(event.target.value.replace(/\\D/g, '')"],
+    ['components/control/config/Comercial.jsx', "setLimiteBajoLista(event.target.value.replace(/\\D/g, '')"],
+    ['components/control/config/Comercial.jsx', "setLimiteFidelizacion(event.target.value.replace(/\\D/g, '')"],
   ]
   for (const [ruta, patron] of crudos) {
     assert.ok(!leer(ruta).includes(patron), `${ruta} volvió al input crudo: ${patron}`)
@@ -111,7 +111,7 @@ test('los campos de dinero y porcentaje del barrido usan las primitivas', () => 
     ['components/control/Caja.jsx', /MoneyInput[\s\S]{0,200}id="counted"/],
     ['components/control/Caja.jsx', /MoneyInput[\s\S]{0,200}id="counted-ajeno"/],
     ['components/inventory/UnidadDetalle.jsx', /MoneyInput[\s\S]{0,160}consignadorMonto/],
-    ['components/control/Config.jsx', /PercentField[\s\S]{0,200}id="limite-fidelizacion"/],
+    ['components/control/config/Comercial.jsx', /PercentField[\s\S]{0,200}id="limite-fidelizacion"/],
   ]) {
     assert.match(leer(ruta), patron, `${ruta}: falta la primitiva en el campo`)
   }
@@ -184,6 +184,7 @@ test('finanzas: horas en 24 h, vacíos y estados con etiquetas (#205)', () => {
     'components/control/Reportes.jsx',
     'components/control/Comisiones.jsx',
     'components/control/Config.jsx',
+    'components/control/config/Comercial.jsx',
   ]
   for (const ruta of FINANZAS) {
     const codigo = leer(ruta)
