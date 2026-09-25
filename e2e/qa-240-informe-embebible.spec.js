@@ -25,9 +25,13 @@ test('la apertura del certificado embebible deja el visto con su origen', async 
     body: JSON.stringify({ firstName: 'Embed', secondName: `QA ${marca}`, phone: `0985${String(Date.now()).slice(-6)}`, countryCode: '+595' }),
   })
   expect([200, 201], JSON.stringify(alta.body)).toContain(alta.status)
-  const productos = await api(page, '/api/products')
-  const lista = Array.isArray(productos.body) ? productos.body : productos.body?.rows || []
-  const producto = lista.find((row) => row.stock > 0) || lista[0]
+  // Producto propio con stock simple (sin unidades serializadas).
+  const altaProducto = await api(page, '/api/products', {
+    method: 'POST',
+    body: JSON.stringify({ name: `Producto embebible ${marca}`, sku: `QA240E-${marca}`, pricePyg: 300000, stock: 3 }),
+  })
+  expect([200, 201], JSON.stringify(altaProducto.body)).toContain(altaProducto.status)
+  const producto = altaProducto.body
   const sucursales = await api(page, '/api/branches')
   const listaSucursales = Array.isArray(sucursales.body) ? sucursales.body : sucursales.body?.rows || []
   const sucursal = listaSucursales[0]?.id

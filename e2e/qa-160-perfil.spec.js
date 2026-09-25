@@ -43,9 +43,14 @@ test('§19: listado por actividad y perfil completo en cuenta real', async ({ pa
   expect([200, 201], `alta de cliente: ${JSON.stringify(alta.body)}`).toContain(alta.status)
   const clienteId = alta.body.id
 
-  const productos = await api(page, '/api/products')
-  const lista = Array.isArray(productos.body) ? productos.body : productos.body?.rows || []
-  const producto = lista.find((row) => row.stock > 0) || lista[0]
+  // Producto propio con stock simple: el servidor exige los seriales exactos
+  // cuando hay unidades serializadas y este spec vende por cantidad.
+  const altaProducto = await api(page, '/api/products', {
+    method: 'POST',
+    body: JSON.stringify({ name: `Producto perfil ${marca}`, sku: `QA160-${marca}`, pricePyg: 3000000, stock: 3 }),
+  })
+  expect([200, 201], JSON.stringify(altaProducto.body)).toContain(altaProducto.status)
+  const producto = altaProducto.body
   expect(producto?.id).toBeTruthy()
   for (const [numero, total, pago] of [['QA-1901', 3000000, 1000000], ['QA-1902', 1500000, 1500000]]) {
     const pedido = await api(page, '/api/orders', {

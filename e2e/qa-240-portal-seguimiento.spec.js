@@ -19,10 +19,14 @@ test('la cuenta muestra los pasos del envío con su fecha', async ({ page }) => 
   await page.goto('/clientes')
   const marca = Date.now().toString(36).toUpperCase()
 
-  const productos = await api(page, '/api/products')
-  const lista = Array.isArray(productos.body) ? productos.body : productos.body?.rows || []
-  const producto = lista.find((row) => row.stock > 0) || lista[0]
-  expect(producto?.id, 'el harness tiene un producto con stock').toBeTruthy()
+  // Producto propio con stock simple (sin unidades serializadas).
+  const altaProducto = await api(page, '/api/products', {
+    method: 'POST',
+    body: JSON.stringify({ name: `Producto seguimiento ${marca}`, sku: `QA240S-${marca}`, pricePyg: 300000, stock: 3 }),
+  })
+  expect([200, 201], JSON.stringify(altaProducto.body)).toContain(altaProducto.status)
+  const producto = altaProducto.body
+  expect(producto?.id, 'se creó el producto').toBeTruthy()
 
   const cliente = await api(page, '/api/customers', {
     method: 'POST',
