@@ -3,8 +3,9 @@
 // recalcula DESDE LA BASE los números que devuelve la API —costo congelado por
 // línea (unidad + reparaciones + repuestos + consignación + seguro + extras),
 // descuento del carrito, líneas sin costo, comisión de procesadora y comisión
-// del vendedor— y los compara uno a uno. Es la red que cubre la cadena de
-// costo real completa: si cualquier superficie se sale de la regla, esto falla.
+// del vendedor— y los compara uno a uno, también en los cortes por sucursal y
+// por cliente. Es la red que cubre la cadena de costo real completa: si
+// cualquier superficie se sale de la regla, esto falla.
 //
 // Uso: node reports-margen-db.mjs <BASE_URL> <ADMIN_TOKEN> <DATABASE_URL> <from> <to>
 import assert from 'node:assert/strict'
@@ -41,9 +42,9 @@ const end = new Date(inicioDeDia(to) + 86400000).toISOString()
 const rango = `o."createdAt" >= '${start}' AND o."createdAt" < '${end}' AND o."status" <> 'CANCELLED'`
 
 // ── Órdenes con sus líneas (sin fan-out: solo el join de items) ─────────────
-// [id, sellerId, subtotal, discount, delivery, total, conCosto, costo,
-//  sinCosto, lineasSinCosto, unidades]
-const filasItems = sql(`SELECT o."id", COALESCE(o."sellerId", ''), o."subtotalPyg", o."discountPyg", o."deliveryPyg", o."totalPyg",
+// [id, sellerId, branchId, customerId, subtotal, discount, delivery, total,
+//  conCosto, costo, sinCosto, lineasSinCosto, unidades]
+const filasItems = sql(`SELECT o."id", COALESCE(o."sellerId", ''), COALESCE(o."branchId", ''), COALESCE(o."customerId", ''), o."subtotalPyg", o."discountPyg", o."deliveryPyg", o."totalPyg",
   COALESCE(SUM(i."totalPyg") FILTER (WHERE i."unitCostPyg" IS NOT NULL), 0),
   COALESCE(SUM(i."unitCostPyg"::bigint * i."quantity") FILTER (WHERE i."unitCostPyg" IS NOT NULL), 0),
   COALESCE(SUM(i."totalPyg") FILTER (WHERE i."unitCostPyg" IS NULL), 0),
@@ -66,34 +67,43 @@ FROM "Order" o LEFT JOIN "Payment" p ON p."orderId" = o."id"
 WHERE o."tenantId" = '${TENANT}' AND ${rango}
 GROUP BY o."id"`).map(([id, cobrado, comision]) => [id, { cobrado: INT(cobrado), comision: INT(comision) }]))
 
-// ── Agregado por vendedor con la misma regla del reporte ───────────────────
+// ── Agregado por vendedor, sucursal y cliente con la misma regla ───────────
 const vacio = () => ({ orders: 0, units: 0, grossPyg: 0, discountPyg: 0, deliveryPyg: 0, totalPyg: 0, collectedPyg: 0, pendingPyg: 0, costPyg: 0, profitPyg: 0, salesWithCostPyg: 0, salesWithoutCostPyg: 0, linesWithoutCost: 0, commissionPyg: 0, paidOrders: 0, pendingOrders: 0 })
 const esperados = new Map()
+const esperadosSucursal = new Map()
+const esperadosCliente = new Map()
 const sumar = (fila, campo, valor) => { fila[campo] += valor }
-for (const [id, sellerIdRaw, subtotal, discount, delivery, total, conCosto, costo, sinCosto, lineasSinCosto, unidades] of filasItems) {
-  const sellerId = sellerIdRaw || 'sin-vendedor'
-  const fila = esperados.get(sellerId) || vacio()
-  const pago = filasPagos.get(id) || { cobrado: 0, comision: 0 }
+
+const registrar = (mapa, clave, datos, pago) => {
+  const fila = mapa.get(clave) || vacio()
   // Regla única por venta: la venta con costo es neta del descuento del
   // carrito y la ganancia se pisa una sola vez; las líneas sin costo no suman.
-  const base = Math.max(0, INT(conCosto) - INT(discount))
+  const base = Math.max(0, INT(datos.conCosto) - INT(datos.discount))
   fila.orders += 1
-  sumar(fila, 'units', INT(unidades))
-  sumar(fila, 'grossPyg', INT(subtotal))
-  sumar(fila, 'discountPyg', INT(discount))
-  sumar(fila, 'deliveryPyg', INT(delivery))
-  sumar(fila, 'totalPyg', INT(total))
+  sumar(fila, 'units', INT(datos.unidades))
+  sumar(fila, 'grossPyg', INT(datos.subtotal))
+  sumar(fila, 'discountPyg', INT(datos.discount))
+  sumar(fila, 'deliveryPyg', INT(datos.delivery))
+  sumar(fila, 'totalPyg', INT(datos.total))
   sumar(fila, 'collectedPyg', pago.cobrado)
-  sumar(fila, 'costPyg', INT(costo))
-  sumar(fila, 'profitPyg', Math.max(0, base - INT(costo)))
+  sumar(fila, 'costPyg', INT(datos.costo))
+  sumar(fila, 'profitPyg', Math.max(0, base - INT(datos.costo)))
   sumar(fila, 'salesWithCostPyg', base)
-  sumar(fila, 'salesWithoutCostPyg', INT(sinCosto))
-  sumar(fila, 'linesWithoutCost', INT(lineasSinCosto))
+  sumar(fila, 'salesWithoutCostPyg', INT(datos.sinCosto))
+  sumar(fila, 'linesWithoutCost', INT(datos.lineasSinCosto))
   sumar(fila, 'commissionPyg', pago.comision)
   fila.pendingPyg = Math.max(0, fila.totalPyg - fila.collectedPyg)
-  if (INT(total) - pago.cobrado > 0) fila.pendingOrders += 1
+  if (INT(datos.total) - pago.cobrado > 0) fila.pendingOrders += 1
   else fila.paidOrders += 1
-  esperados.set(sellerId, fila)
+  mapa.set(clave, fila)
+}
+
+for (const [id, sellerIdRaw, branchIdRaw, customerIdRaw, subtotal, discount, delivery, total, conCosto, costo, sinCosto, lineasSinCosto, unidades] of filasItems) {
+  const pago = filasPagos.get(id) || { cobrado: 0, comision: 0 }
+  const datos = { subtotal, discount, delivery, total, conCosto, costo, sinCosto, lineasSinCosto, unidades }
+  registrar(esperados, sellerIdRaw || 'sin-vendedor', datos, pago)
+  registrar(esperadosSucursal, branchIdRaw || 'sin-sucursal', datos, pago)
+  registrar(esperadosCliente, customerIdRaw || 'sin-cliente', datos, pago)
 }
 
 const CAMPOS_GRUPO = ['orders', 'units', 'grossPyg', 'discountPyg', 'deliveryPyg', 'totalPyg', 'collectedPyg', 'pendingPyg', 'costPyg', 'profitPyg', 'salesWithoutCostPyg', 'linesWithoutCost', 'commissionPyg']
@@ -123,6 +133,19 @@ const totalesBase = [...esperados.values()].reduce((total, fila) => {
   return total
 }, vacio())
 compararFila('totales del período', reporte.totals, totalesBase, CAMPOS_TOTALES)
+
+// ── Reportes por sucursal y por cliente: el mismo margen por venta ────────
+for (const [groupBy, mapa, etiqueta] of [['branch', esperadosSucursal, 'sucursal'], ['customers', esperadosCliente, 'cliente']]) {
+  const reporteGrupo = await api(`/api/reports?from=${from}&to=${to}&groupBy=${groupBy}`)
+  assert.equal(reporteGrupo.groups.length, mapa.size, `${etiqueta}s del período: API ${reporteGrupo.groups.length}, base ${mapa.size}`)
+  checks += 1
+  for (const grupo of reporteGrupo.groups) {
+    const esperado = mapa.get(grupo.key)
+    assert.ok(esperado, `la API trae un ${etiqueta} que la base no tiene: ${grupo.label}`)
+    compararFila(`${etiqueta} ${grupo.label}`, grupo, esperado, CAMPOS_GRUPO)
+  }
+  compararFila(`totales por ${etiqueta}`, reporteGrupo.totals, totalesBase, CAMPOS_TOTALES)
+}
 
 // ── Reporte de comisiones: mismo margen y mismo porcentaje ────────────────
 const roles = new Map(sql(`SELECT "id", "role"::text FROM "User" WHERE "tenantId" = '${TENANT}'`))
@@ -167,4 +190,4 @@ if (muestra) {
   checks += 2
 }
 
-console.log(`PASS: reportes y comisiones contra la base — ${ordenes} orden(es), ${esperados.size} vendedor(es), ${checks} comparaciones`)
+console.log(`PASS: reportes y comisiones contra la base — ${ordenes} orden(es), ${esperados.size} vendedor(es), ${esperadosSucursal.size} sucursal(es), ${esperadosCliente.size} cliente(s), ${checks} comparaciones`)
