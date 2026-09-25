@@ -750,4 +750,7 @@ PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/credits-totales.mjs" "$BASE_URL" "$AD
 echo "KPI de finanzas: por cobrar, por pagar y margen sobre todo el historial (#83)..."
 PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/finance-totales.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL"
 
-echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración, consistencia, abastecimiento (necesidades, compras, preparación y lotes) y logout."
+echo "Repuestos a crédito: cuenta a pagar al proveedor con condición y consumo (#250 · #83)..."
+PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/supplier-payables-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL"
+
+echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración, consistencia, abastecimiento (necesidades, compras, preparación y lotes), repuestos a crédito y logout."

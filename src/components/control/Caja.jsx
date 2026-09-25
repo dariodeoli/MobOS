@@ -10,11 +10,13 @@ import {
   Badge,
   Button,
   Card,
+  FormField,
   Input,
   Label,
   Modal,
   Money,
   MoneyInput,
+  Select,
   Skeleton,
   Textarea,
 } from '@/components/ui'
@@ -33,7 +35,7 @@ import { descargarCsv } from '@/utils/descargarCsv'
 import { parseDelimited } from '@/utils/csv'
 import { CELDA_DATO } from '@/components/shared/tabla'
 import { temaV2Activo } from '@/lib/temaV2'
-import { PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
+import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
 
 // Denominaciones del arqueo en guaraníes: son las mismas que acepta el backend
 // y el total contado se deriva de acá cuando hay desglose.
@@ -48,6 +50,10 @@ const DENOMINACIONES = [
   { valor: 500, tipo: 'Moneda' },
   { valor: 100, tipo: 'Moneda' },
 ]
+
+// Condiciones de pago de las compras de repuestos/insumos (#250 · #83): mismas
+// etiquetas que `backend/lib/supplier-payables.ts`.
+const CONDICION_PROVEEDOR = { CONTADO: 'Contado', CREDITO: 'Crédito', CONSIGNACION: 'En consignación' }
 
 // Fecha y hora locales en 24 h, sin segundos: mismo formato que las demás
 // pantallas de control (auditoría, inventario, impresión).
@@ -296,6 +302,17 @@ export default function Caja() {
   const [extractoAviso, setExtractoAviso] = useState('')
   const [conciliando, setConciliando] = useState('')
   const [conciliadas, setConciliadas] = useState({})
+  // Repuestos y proveedores (#250 · #83): alta de la compra y acciones de pago
+  // (baja el pendiente y deja el movimiento en Caja) y consumo (la consignación
+  // pasa a pagarse recién cuando el taller la usa).
+  const PROVEEDOR_VACIO = { supplierName: '', concept: '', condition: 'CREDITO', amountPyg: '', dueAt: '', accountId: '', reference: '' }
+  const [proveedorOpen, setProveedorOpen] = useState(false)
+  const [proveedorForm, setProveedorForm] = useState(PROVEEDOR_VACIO)
+  const [proveedorError, setProveedorError] = useState('')
+  const [proveedorBusy, setProveedorBusy] = useState(false)
+  const [proveedorAccion, setProveedorAccion] = useState(null)
+  const [proveedorMonto, setProveedorMonto] = useState('')
+  const [proveedorCuenta, setProveedorCuenta] = useState('')
 
   const load = useCallback(
     async ({ silencioso = false } = {}) => {
@@ -323,6 +340,45 @@ export default function Caja() {
   useEffect(() => {
     load()
   }, [load])
+
+  // Repuestos y proveedores (#250 · #83).
+  const proveedores = finance?.supplierPayables || null
+  async function registrarCompraProveedor(evento) {
+    evento.preventDefault()
+    if (proveedorBusy) return
+    setProveedorBusy(true); setProveedorError('')
+    try {
+      await api.post(`/api/finance${sucursal?.id ? `?branchId=${encodeURIComponent(sucursal.id)}` : ''}`, {
+        action: 'supplierPayable',
+        supplierName: proveedorForm.supplierName.trim(),
+        concept: proveedorForm.concept.trim(),
+        condition: proveedorForm.condition,
+        amountPyg: parseGsInput(proveedorForm.amountPyg),
+        dueAt: proveedorForm.condition === 'CREDITO' ? proveedorForm.dueAt : undefined,
+        accountId: proveedorForm.accountId || undefined,
+        reference: proveedorForm.reference.trim() || undefined,
+      })
+      setProveedorOpen(false)
+      setProveedorForm(PROVEEDOR_VACIO)
+      await load({ silencioso: true })
+    } catch (err) { setProveedorError(err?.message || 'No se pudo registrar la compra.') } finally { setProveedorBusy(false) }
+  }
+
+  async function confirmarAccionProveedor(evento) {
+    evento.preventDefault()
+    if (proveedorBusy || !proveedorAccion) return
+    setProveedorBusy(true); setProveedorError('')
+    try {
+      await api.post(`/api/finance${sucursal?.id ? `?branchId=${encodeURIComponent(sucursal.id)}` : ''}`, {
+        action: proveedorAccion.tipo === 'pagar' ? 'supplierPayment' : 'supplierConsumption',
+        id: proveedorAccion.fila.id,
+        amountPyg: parseGsInput(proveedorMonto),
+        ...(proveedorAccion.tipo === 'pagar' && proveedorCuenta ? { accountId: proveedorCuenta } : {}),
+      })
+      setProveedorAccion(null); setProveedorMonto(''); setProveedorCuenta('')
+      await load({ silencioso: true })
+    } catch (err) { setProveedorError(err?.message || 'No se pudo completar la acción.') } finally { setProveedorBusy(false) }
+  }
 
   // El turno que muestra la pantalla: el mío si tengo uno abierto; si no, el
   // último de la sucursal (contrato de GET /api/cash). `cash.session` puede ser
@@ -621,9 +677,12 @@ export default function Caja() {
           </Card>
           <Card className={v2 ? 'v2-tile' : undefined}>
             <Label>Por pagar</Label>
-            <strong>
-              <Money value={finance.payables?.totalPyg || 0} />
+            <strong data-testid="caja-por-pagar">
+              <Money value={(finance.payables?.totalPyg || 0) + (proveedores?.totalPyg || 0)} />
             </strong>
+            {proveedores?.totalPyg > 0 && (
+              <p className="mt-1 text-xs text-mute">incluye repuestos a crédito y consumo</p>
+            )}
           </Card>
           <Card className={v2 ? 'v2-tile' : undefined}>
             <Label>Margen real</Label>
@@ -642,6 +701,66 @@ export default function Caja() {
             </strong>
           </Card>
         </div>
+      )}
+      {proveedores && (
+        <Card className="space-y-3" data-testid="proveedores-repuestos">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="font-bold">Repuestos y proveedores</h3>
+              <p className="mt-1 text-sm text-mute">
+                Compras de repuestos e insumos: <b className="text-fore">contado</b> (pagada al recibir), <b className="text-fore">crédito</b> con vencimiento y <b className="text-fore">consignación/depósito</b> del proveedor, que no impacta en Finanzas hasta el consumo.
+              </p>
+            </div>
+            <Button type="button" variant="outline" onClick={() => { setProveedorError(''); setProveedorForm(PROVEEDOR_VACIO); setProveedorOpen(true) }}>Registrar compra</Button>
+          </div>
+          <div className={`${GRILLA_DOS_COLUMNAS} lg:grid-cols-4`}>
+            <div className="rounded-xl border border-ink-600 p-3">
+              <Label>Por pagar</Label>
+              <strong className="text-lg tabular-nums" data-testid="proveedores-por-pagar"><Money value={proveedores.totalPyg} /></strong>
+            </div>
+            <div className="rounded-xl border border-ink-600 p-3">
+              <Label>Vencidas</Label>
+              <strong className="text-lg tabular-nums text-bad" data-testid="proveedores-vencidas"><Money value={proveedores.vencidasPyg} /></strong>
+            </div>
+            <div className="rounded-xl border border-ink-600 p-3">
+              <Label>Por vencer (7 días)</Label>
+              <strong className="text-lg tabular-nums text-warn" data-testid="proveedores-por-vencer"><Money value={proveedores.porVencerPyg} /></strong>
+            </div>
+            <div className="rounded-xl border border-ink-600 p-3">
+              <Label>En depósito del proveedor</Label>
+              <strong className="text-lg tabular-nums" data-testid="proveedores-deposito"><Money value={proveedores.depositoPyg} /></strong>
+              <p className="mt-1 text-[11px] text-mute">Sin impacto hasta el consumo</p>
+            </div>
+          </div>
+          {proveedores.rows.length === 0 ? (
+            <p className="text-sm text-mute">Sin compras de repuestos registradas.</p>
+          ) : (
+            <div className="space-y-2">
+              {proveedores.rows.map(fila => (
+                <div key={fila.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3" data-testid={`proveedor-${fila.id}`}>
+                  <div className="min-w-0">
+                    <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                      {fila.supplierName}
+                      <Badge color={fila.condition === 'CREDITO' ? 'orange' : fila.condition === 'CONSIGNACION' ? 'blue' : 'slate'}>{CONDICION_PROVEEDOR[fila.condition] || fila.condition}</Badge>
+                      {fila.vencimiento === 'VENCIDA' && <Badge color="red">Vencida</Badge>}
+                      {fila.vencimiento === 'POR_VENCER' && <Badge color="orange">Por vencer</Badge>}
+                    </p>
+                    <p className="mt-0.5 text-xs text-mute">
+                      {fila.concept} · comprado {formatGs(fila.amountPyg)}
+                      {fila.dueAt ? ` · vence ${fechaHora(fila.dueAt)}` : ''}
+                      {fila.depositoPyg > 0 ? ` · en depósito ${formatGs(fila.depositoPyg)}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <strong className="tabular-nums" data-testid={`proveedor-pendiente-${fila.id}`}><Money value={fila.pendientePyg} /></strong>
+                    {fila.pendientePyg > 0 && <Button type="button" variant="outline" onClick={() => { setProveedorError(''); setProveedorAccion({ tipo: 'pagar', fila }); setProveedorMonto(''); setProveedorCuenta('') }}>Pagar</Button>}
+                    {fila.depositoPyg > 0 && <Button type="button" variant="outline" onClick={() => { setProveedorError(''); setProveedorAccion({ tipo: 'consumir', fila }); setProveedorMonto('') }}>Consumir</Button>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
       )}
       {!abierta ? (
         <Card>
@@ -1048,6 +1167,73 @@ export default function Caja() {
             descripcionVacio="La apertura, los movimientos, el cierre y el arqueo de esta sesión aparecerán acá."
           />
         )}
+      </Modal>
+      <Modal open={proveedorOpen} onClose={() => !proveedorBusy && setProveedorOpen(false)} title="Registrar compra de repuestos">
+        <form onSubmit={registrarCompraProveedor} className="space-y-3">
+          <FormField label="Proveedor" htmlFor="prov-proveedor">
+            <Input id="prov-proveedor" required maxLength={200} value={proveedorForm.supplierName} onChange={evento => setProveedorForm(actual => ({ ...actual, supplierName: evento.target.value }))} placeholder="Ej.: Depósito 2" />
+          </FormField>
+          <FormField label="Qué se compró" htmlFor="prov-concepto">
+            <Input id="prov-concepto" required maxLength={200} value={proveedorForm.concept} onChange={evento => setProveedorForm(actual => ({ ...actual, concept: evento.target.value }))} placeholder="Ej.: 10 baterías iPhone 13" />
+          </FormField>
+          <div className={GRILLA_DOS_COLUMNAS}>
+            <FormField label="Condición de pago" htmlFor="prov-condicion">
+              <Select id="prov-condicion" value={proveedorForm.condition} onChange={evento => setProveedorForm(actual => ({ ...actual, condition: evento.target.value }))}>
+                <option value="CONTADO">Contado (pagada al recibir)</option>
+                <option value="CREDITO">Crédito (con vencimiento)</option>
+                <option value="CONSIGNACION">Consignación/depósito (se paga al consumir)</option>
+              </Select>
+            </FormField>
+            <FormField label="Monto (Gs)" htmlFor="prov-monto">
+              <MoneyInput id="prov-monto" value={proveedorForm.amountPyg} onValueChange={valor => setProveedorForm(actual => ({ ...actual, amountPyg: valor }))} placeholder="0" />
+            </FormField>
+            {proveedorForm.condition === 'CREDITO' && (
+              <FormField label="Vencimiento" htmlFor="prov-vence">
+                <Input id="prov-vence" type="date" required value={proveedorForm.dueAt} onChange={evento => setProveedorForm(actual => ({ ...actual, dueAt: evento.target.value }))} />
+              </FormField>
+            )}
+            <FormField label={proveedorForm.condition === 'CONTADO' ? 'Cuenta de salida (opcional)' : 'Cuenta para el pago (opcional)'} htmlFor="prov-cuenta">
+              <Select id="prov-cuenta" value={proveedorForm.accountId} onChange={evento => setProveedorForm(actual => ({ ...actual, accountId: evento.target.value }))}>
+                <option value="">Sin movimiento de caja</option>
+                {(finance?.accounts || []).map(cuenta => <option key={cuenta.id} value={cuenta.id}>{cuenta.name} · {cuenta.currency}</option>)}
+              </Select>
+            </FormField>
+          </div>
+          <FormField label="Referencia (opcional)" htmlFor="prov-ref">
+            <Input id="prov-ref" maxLength={200} value={proveedorForm.reference} onChange={evento => setProveedorForm(actual => ({ ...actual, reference: evento.target.value }))} placeholder="Factura o remito del proveedor" />
+          </FormField>
+          {proveedorError && <Aviso tono="error">{proveedorError}</Aviso>}
+          <div className={PIE_ACCIONES_REVERSO}>
+            <Button type="button" variant="ghost" disabled={proveedorBusy} onClick={() => setProveedorOpen(false)}>Cancelar</Button>
+            <Button type="submit" disabled={proveedorBusy || !proveedorForm.supplierName.trim() || !proveedorForm.concept.trim() || !proveedorForm.amountPyg || (proveedorForm.condition === 'CREDITO' && !proveedorForm.dueAt)}>{proveedorBusy ? 'Guardando…' : 'Registrar compra'}</Button>
+          </div>
+        </form>
+      </Modal>
+      <Modal open={Boolean(proveedorAccion)} onClose={() => !proveedorBusy && setProveedorAccion(null)} title={proveedorAccion?.tipo === 'pagar' ? 'Pagar al proveedor' : 'Registrar consumo'}>
+        <form onSubmit={confirmarAccionProveedor} className="space-y-3">
+          <p className="text-sm text-mute">
+            {proveedorAccion?.fila.supplierName} · {proveedorAccion?.fila.concept}.{' '}
+            {proveedorAccion?.tipo === 'pagar'
+              ? `Pendiente ${formatGs(proveedorAccion?.fila.pendientePyg || 0)}.`
+              : `En depósito ${formatGs(proveedorAccion?.fila.depositoPyg || 0)}: lo consumido pasa a pagarse.`}
+          </p>
+          <FormField label="Monto (Gs)" htmlFor="prov-accion-monto">
+            <MoneyInput id="prov-accion-monto" value={proveedorMonto} onValueChange={setProveedorMonto} placeholder="0" />
+          </FormField>
+          {proveedorAccion?.tipo === 'pagar' && (
+            <FormField label="Cuenta de salida (opcional)" htmlFor="prov-accion-cuenta">
+              <Select id="prov-accion-cuenta" value={proveedorCuenta} onChange={evento => setProveedorCuenta(evento.target.value)}>
+                <option value="">Solo registrar el pago</option>
+                {(finance?.accounts || []).map(cuenta => <option key={cuenta.id} value={cuenta.id}>{cuenta.name} · {cuenta.currency}</option>)}
+              </Select>
+            </FormField>
+          )}
+          {proveedorError && <Aviso tono="error">{proveedorError}</Aviso>}
+          <div className={PIE_ACCIONES_REVERSO}>
+            <Button type="button" variant="ghost" disabled={proveedorBusy} onClick={() => setProveedorAccion(null)}>Cancelar</Button>
+            <Button type="submit" disabled={proveedorBusy || !proveedorMonto}>{proveedorBusy ? 'Guardando…' : proveedorAccion?.tipo === 'pagar' ? 'Registrar pago' : 'Registrar consumo'}</Button>
+          </div>
+        </form>
       </Modal>
       <ReportePreview
         open={cierreOpen}

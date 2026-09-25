@@ -5,6 +5,7 @@ import { error, json } from '../../../lib/http'
 import { InputError } from '../../../lib/payment-input'
 import { ensureStoreBranch } from '../../../lib/store-branch'
 import { FINANCE_CURRENCIES, FinanceInputError, frozenAmountPyg, purchasePayable } from '../../../lib/finance'
+import { CONDICION_PROVEEDOR_LABELS, SUPPLIER_PAYABLE_CONDITIONS, SupplierPayableInputError, enDepositoDeCompra, estadoDeVencimiento, pendienteDeCompra, payableDeCompra } from '../../../lib/supplier-payables'
 import { createCashMovement } from '../../../lib/cash-movements'
 import { DEFAULT_EXPENSE_LIMIT_PYG, authorizedAmountOf, consumeAuthorization, usableAuthorization } from '../../../lib/authorizations'
 
@@ -41,13 +42,16 @@ export async function GET(request: Request) {
   if ('status' in ctx) return error(ctx.status === 401 ? 'Falta sesión.' : 'No autorizado.', ctx.status)
   const tenantId = ctx.session.user.tenantId
   const branchFilter = ctx.branchId ? { branchId: ctx.branchId } : {}
-  const [movements, accounts, orders, purchases, salePayments, reconciliations] = await Promise.all([
+  const [movements, accounts, orders, purchases, salePayments, reconciliations, supplierPayablesRows] = await Promise.all([
     prisma.cashMovement.findMany({ where: { tenantId, ...branchFilter }, include: { account: { select: { id: true, name: true, currency: true } } }, orderBy: { createdAt: 'desc' }, take: 150 }),
     prisma.paymentAccount.findMany({ where: { tenantId }, select: { id: true, name: true, currency: true, kind: true, feePercent: true, isActive: true } }),
     prisma.order.findMany({ where: { tenantId, ...branchFilter, status: { not: 'CANCELLED' } }, select: { id: true, totalPyg: true, discountPyg: true, payments: { select: { amountPyg: true, status: true } }, items: { select: { quantity: true, totalPyg: true, unitCostPyg: true, insurancePyg: true, extraCostPyg: true } } }, take: 5000 }),
     prisma.purchaseOrder.findMany({ where: { tenantId, ...branchFilter }, select: { id: true, supplierName: true, lines: { select: { quantity: true, unitCostPyg: true, finalTotalCostPyg: true } }, payments: { select: { amountPyg: true, accountId: true, originalAmount: true } } }, take: 5000 }),
     prisma.payment.findMany({ where: { tenantId, status: 'CONFIRMED', order: branchFilter }, select: { accountId: true, originalAmount: true, amountPyg: true, currency: true } }),
     prisma.paymentReconciliation.findMany({ where: { tenantId, state: 'PENDING' }, select: { id: true, paymentId: true, createdAt: true, payment: { select: { amountPyg: true, currency: true, originalAmount: true, order: { select: { branchId: true, orderNumber: true } } } } }, take: 100 }),
+    // Cuenta a pagar al proveedor por repuestos/insumos (#250 · #83): contado,
+    // crédito con vencimiento y consignación (que recién impacta al consumirse).
+    prisma.supplierPayable.findMany({ where: { tenantId, ...branchFilter }, select: { id: true, supplierId: true, supplierName: true, concept: true, condition: true, amountPyg: true, paidPyg: true, consumedPyg: true, dueAt: true, reference: true, createdAt: true }, orderBy: [{ dueAt: 'asc' }, { createdAt: 'desc' }], take: 2000 }),
   ])
   const receivables = orders.map(order => ({ id: order.id, totalPyg: order.totalPyg, paidPyg: order.payments.filter(payment => payment.status === 'CONFIRMED').reduce((total, payment) => total + payment.amountPyg, 0) })).map(row => ({ ...row, pendingPyg: Math.max(0, row.totalPyg - row.paidPyg) })).filter(row => row.pendingPyg > 0)
   const payables = purchases.map(purchasePayable).filter(row => row.pendingPyg > 0)
@@ -56,7 +60,8 @@ export async function GET(request: Request) {
   // totales no pueden depender de ese tope (#83, misma regla que créditos).
   const branchOrden = ctx.branchId ? Prisma.sql`AND o."branchId" = ${ctx.branchId}` : Prisma.empty
   const branchCompra = ctx.branchId ? Prisma.sql`AND po."branchId" = ${ctx.branchId}` : Prisma.empty
-  const [receivablesTotales, payablesTotales, margenTotales] = await Promise.all([
+  const branchProveedor = ctx.branchId ? Prisma.sql`AND sp."branchId" = ${ctx.branchId}` : Prisma.empty
+  const [receivablesTotales, payablesTotales, margenTotales, proveedoresTotales] = await Promise.all([
     prisma.$queryRaw<Array<{ totalPyg: bigint; orders: number }>>`SELECT
       COALESCE(SUM(t.pendiente) FILTER (WHERE t.pendiente > 0), 0)::bigint AS "totalPyg",
       COUNT(*) FILTER (WHERE t.pendiente > 0)::int AS "orders"
@@ -77,6 +82,21 @@ export async function GET(request: Request) {
       (SELECT COALESCE(SUM(o."discountPyg"), 0)::bigint FROM "Order" o WHERE o."tenantId" = ${tenantId} AND o.status <> 'CANCELLED' ${branchOrden}) AS "discountPyg",
       (SELECT COALESCE(SUM(i."unitCostPyg"::bigint * i.quantity), 0)::bigint FROM "OrderItem" i JOIN "Order" o ON o."id" = i."orderId" WHERE o."tenantId" = ${tenantId} AND o.status <> 'CANCELLED' AND i."unitCostPyg" IS NOT NULL ${branchOrden}) AS "costPyg",
       (SELECT COUNT(*)::int FROM "OrderItem" i JOIN "Order" o ON o."id" = i."orderId" WHERE o."tenantId" = ${tenantId} AND o.status <> 'CANCELLED' AND i."unitCostPyg" IS NULL ${branchOrden}) AS "unknownCostLines"`,
+    // Proveedores: totales sobre todo el historial (no dependen del tope de la
+    // lista) y el reloj de Postgres decide qué está vencido o por vencer.
+    prisma.$queryRaw<Array<{ totalPyg: bigint; vencidasPyg: bigint; porVencerPyg: bigint; depositoPyg: bigint; compras: number }>>`SELECT
+      COALESCE(SUM(p.pendiente), 0)::bigint AS "totalPyg",
+      COALESCE(SUM(p.pendiente) FILTER (WHERE p."dueAt" IS NOT NULL AND p."dueAt" < NOW()), 0)::bigint AS "vencidasPyg",
+      COALESCE(SUM(p.pendiente) FILTER (WHERE p."dueAt" >= NOW() AND p."dueAt" < NOW() + INTERVAL '7 days'), 0)::bigint AS "porVencerPyg",
+      COALESCE(SUM(p.deposito), 0)::bigint AS "depositoPyg",
+      COUNT(*) FILTER (WHERE p.pendiente > 0 OR p.deposito > 0)::int AS "compras"
+      FROM (SELECT
+        sp."dueAt",
+        CASE WHEN sp."condition" = 'CREDITO' THEN GREATEST(0, sp."amountPyg" - sp."paidPyg")
+             WHEN sp."condition" = 'CONSIGNACION' THEN GREATEST(0, LEAST(sp."consumedPyg", sp."amountPyg") - sp."paidPyg")
+             ELSE 0 END AS pendiente,
+        CASE WHEN sp."condition" = 'CONSIGNACION' THEN GREATEST(0, sp."amountPyg" - LEAST(sp."consumedPyg", sp."amountPyg")) ELSE 0 END AS deposito
+        FROM "SupplierPayable" sp WHERE sp."tenantId" = ${tenantId} ${branchProveedor}) p`,
   ])
   const margen = margenTotales[0] || { revenuePyg: 0n, discountPyg: 0n, costPyg: 0n, unknownCostLines: 0 }
   const margenNeto = Math.max(0, Number(margen.revenuePyg) - Number(margen.discountPyg))
@@ -96,6 +116,19 @@ export async function GET(request: Request) {
     movements, accounts: [...balances.values()],
     receivables: { rows: receivables, totalPyg: Number(receivablesTotales[0]?.totalPyg ?? 0), orders: Number(receivablesTotales[0]?.orders ?? 0) },
     payables: { rows: payables, totalPyg: Number(payablesTotales[0]?.totalPyg ?? 0), purchases: Number(payablesTotales[0]?.purchases ?? 0) },
+    // Repuestos/insumos (#250 · #83): lo pagable según condición, con
+    // vencimientos; `depositoPyg` es la tenencia del proveedor que todavía no
+    // impacta (consignación sin consumir).
+    supplierPayables: {
+      rows: supplierPayablesRows
+        .map(fila => ({ ...fila, pendientePyg: pendienteDeCompra(fila), depositoPyg: enDepositoDeCompra(fila), vencimiento: estadoDeVencimiento(fila.dueAt) }))
+        .filter(fila => fila.pendientePyg > 0 || fila.depositoPyg > 0),
+      totalPyg: Number(proveedoresTotales[0]?.totalPyg ?? 0),
+      vencidasPyg: Number(proveedoresTotales[0]?.vencidasPyg ?? 0),
+      porVencerPyg: Number(proveedoresTotales[0]?.porVencerPyg ?? 0),
+      depositoPyg: Number(proveedoresTotales[0]?.depositoPyg ?? 0),
+      compras: Number(proveedoresTotales[0]?.compras ?? 0),
+    },
     margin: marginTotal,
     reconciliations: reconciliations.filter(row => !ctx.branchId || row.payment.order.branchId === ctx.branchId),
   })
@@ -161,9 +194,89 @@ export async function POST(request: Request) {
       await prisma.auditLog.create({ data: { tenantId: ctx.session.user.tenantId, userId: ctx.session.user.id, action: action === 'clear' ? 'CHEQUE_CLEARED' : 'FINANCE_MOVEMENT_VOIDED', entity: 'CashMovement', entityId: id, metadata: {} } })
       return json({ id, status: action === 'clear' ? 'CLEARED' : 'VOID' })
     }
+    // ── Proveedores de repuestos/insumos (#250 · #83) ─────────────────────
+    // La compra nace con su condición: contado (pagada al recibir), crédito
+    // (con vencimiento) o consignación/depósito (no impacta hasta el consumo).
+    if (action === 'supplierPayable') {
+      const supplierName = text(body.supplierName, 'Proveedor', 200, true)!
+      const supplierId = text(body.supplierId, 'Proveedor', 200)
+      const concept = text(body.concept, 'Concepto', 200, true)!
+      const condition = String(body.condition ?? 'CREDITO')
+      if (!(SUPPLIER_PAYABLE_CONDITIONS as readonly string[]).includes(condition)) throw new FinanceInputError('La condición de pago tiene que ser contado, crédito o consignación.')
+      const amountPyg = Number(body.amountPyg)
+      const dueAt = body.dueAt ? new Date(String(body.dueAt)) : null
+      if (dueAt && !Number.isFinite(dueAt.getTime())) throw new FinanceInputError('Vencimiento inválido.')
+      if (condition === 'CREDITO' && !dueAt) throw new FinanceInputError('Indicá el vencimiento de la compra a crédito.')
+      const paidPyg = condition === 'CONTADO' ? amountPyg : 0
+      const accountId = text(body.accountId, 'Cuenta', 200)
+      const creado = await prisma.$transaction(async tx => {
+        if (accountId) {
+          const account = await tx.paymentAccount.findFirst({ where: { id: accountId, tenantId: ctx.session.user.tenantId, isActive: true }, select: { id: true } })
+          if (!account) throw new FinanceInputError('La cuenta no existe o está inactiva.')
+        }
+        const fila = await tx.supplierPayable.create({
+          data: {
+            tenantId: ctx.session.user.tenantId, branchId: ctx.branchId, supplierId, supplierName, concept,
+            condition: condition as (typeof SUPPLIER_PAYABLE_CONDITIONS)[number], amountPyg, paidPyg, dueAt,
+            reference: text(body.reference, 'Referencia', 200), notes: text(body.notes, 'Nota', 500),
+            createdById: ctx.session.user.id,
+          },
+        })
+        if (paidPyg > 0 && accountId) {
+          await createCashMovement(tx, {
+            tenantId: ctx.session.user.tenantId, branchId: ctx.branchId, createdById: ctx.session.user.id,
+            kind: 'SUPPLIER_ADVANCE', direction: 'OUT', currency: 'PYG', originalAmount: String(paidPyg), exchangeRatePyg: '1',
+            counterparty: supplierName, reference: fila.reference, description: `Compra de repuestos al contado: ${concept}`, dueAt: null, accountId,
+          }, { auditAction: 'FINANCE_MOVEMENT_CREATED' })
+        }
+        await tx.auditLog.create({ data: { tenantId: ctx.session.user.tenantId, userId: ctx.session.user.id, action: 'SUPPLIER_PAYABLE_CREATED', entity: 'SupplierPayable', entityId: fila.id, metadata: { condition, amountPyg, paidPyg, dueAt: dueAt?.toISOString() ?? null, supplierName } } })
+        return fila
+      })
+      return json({ ...creado, pendientePyg: pendienteDeCompra(creado), depositoPyg: enDepositoDeCompra(creado), vencimiento: estadoDeVencimiento(creado.dueAt) }, { status: 201 })
+    }
+    if (action === 'supplierPayment') {
+      const id = text(body.id, 'Compra', 200, true)!
+      const amountPyg = Number(body.amountPyg)
+      const accountId = text(body.accountId, 'Cuenta', 200)
+      const actualizado = await prisma.$transaction(async tx => {
+        const compra = await tx.supplierPayable.findFirst({ where: { id, tenantId: ctx.session.user.tenantId, ...(ctx.branchId ? { branchId: ctx.branchId } : {}) } })
+        if (!compra) throw new FinanceInputError('La compra no existe.')
+        const pendiente = pendienteDeCompra(compra)
+        if (!Number.isSafeInteger(amountPyg) || amountPyg < 1 || amountPyg > pendiente) throw new FinanceInputError(pendiente > 0 ? `El pago tiene que estar entre 1 y ${pendiente} Gs.` : 'Esa compra no tiene saldo pendiente.')
+        if (accountId) {
+          const account = await tx.paymentAccount.findFirst({ where: { id: accountId, tenantId: ctx.session.user.tenantId, isActive: true }, select: { id: true } })
+          if (!account) throw new FinanceInputError('La cuenta no existe o está inactiva.')
+        }
+        const fila = await tx.supplierPayable.update({ where: { id: compra.id }, data: { paidPyg: { increment: amountPyg } } })
+        if (accountId) {
+          await createCashMovement(tx, {
+            tenantId: ctx.session.user.tenantId, branchId: compra.branchId, createdById: ctx.session.user.id,
+            kind: 'SUPPLIER_ADVANCE', direction: 'OUT', currency: 'PYG', originalAmount: String(amountPyg), exchangeRatePyg: '1',
+            counterparty: compra.supplierName, reference: compra.reference, description: `Pago a proveedor: ${compra.concept}`, dueAt: null, accountId,
+          }, { auditAction: 'FINANCE_MOVEMENT_CREATED' })
+        }
+        await tx.auditLog.create({ data: { tenantId: ctx.session.user.tenantId, userId: ctx.session.user.id, action: 'SUPPLIER_PAYABLE_PAID', entity: 'SupplierPayable', entityId: compra.id, metadata: { amountPyg, saldoAnteriorPyg: pendiente, conCuenta: Boolean(accountId) } } })
+        return fila
+      })
+      return json({ ...actualizado, pendientePyg: pendienteDeCompra(actualizado), depositoPyg: enDepositoDeCompra(actualizado), vencimiento: estadoDeVencimiento(actualizado.dueAt) })
+    }
+    if (action === 'supplierConsumption') {
+      const id = text(body.id, 'Compra', 200, true)!
+      const amountPyg = Number(body.amountPyg)
+      const actualizado = await prisma.$transaction(async tx => {
+        const compra = await tx.supplierPayable.findFirst({ where: { id, tenantId: ctx.session.user.tenantId, condition: 'CONSIGNACION', ...(ctx.branchId ? { branchId: ctx.branchId } : {}) } })
+        if (!compra) throw new FinanceInputError('La compra en consignación no existe.')
+        const enDeposito = enDepositoDeCompra(compra)
+        if (!Number.isSafeInteger(amountPyg) || amountPyg < 1 || amountPyg > enDeposito) throw new FinanceInputError(enDeposito > 0 ? `El consumo tiene que estar entre 1 y ${enDeposito} Gs.` : 'Esa consignación ya está consumida del todo.')
+        const fila = await tx.supplierPayable.update({ where: { id: compra.id }, data: { consumedPyg: { increment: amountPyg } } })
+        await tx.auditLog.create({ data: { tenantId: ctx.session.user.tenantId, userId: ctx.session.user.id, action: 'SUPPLIER_PAYABLE_CONSUMED', entity: 'SupplierPayable', entityId: compra.id, metadata: { amountPyg, enDepositoAnteriorPyg: enDeposito } } })
+        return fila
+      })
+      return json({ ...actualizado, pendientePyg: pendienteDeCompra(actualizado), depositoPyg: enDepositoDeCompra(actualizado), vencimiento: estadoDeVencimiento(actualizado.dueAt) })
+    }
     throw new FinanceInputError('Acción financiera inválida.')
   } catch (cause) {
     if (cause instanceof InputError) return error(cause.message, cause.status)
-    return error(cause instanceof Error ? cause.message : 'No se pudo guardar el movimiento.', cause instanceof FinanceInputError || cause instanceof SyntaxError ? 400 : 409)
+    return error(cause instanceof Error ? cause.message : 'No se pudo guardar el movimiento.', cause instanceof FinanceInputError || cause instanceof SupplierPayableInputError || cause instanceof SyntaxError ? 400 : 409)
   }
 }

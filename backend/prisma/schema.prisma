@@ -22,6 +22,7 @@ model Tenant {
   suppliers           Supplier[]
   warrantyCases       WarrantyCase[]
   cashMovements       CashMovement[]
+  supplierPayables    SupplierPayable[]
   id                  String           @id @default(cuid())
   name                String
   email               String?          @unique
@@ -241,6 +242,7 @@ model Branch {
   purchases      PurchaseOrder[]
   warrantyCases  WarrantyCase[]
   cashMovements  CashMovement[]
+  supplierPayables SupplierPayable[]
   id             String          @id @default(cuid())
   tenantId       String
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -320,6 +322,7 @@ model User {
   attachmentsCreated             Attachment[]            @relation("AttachmentCreatedBy")
   verifiedPaymentReconciliations PaymentReconciliation[] @relation("PaymentReconciliationVerifier")
   reconciliationBatchesCreated  ReconciliationBatch[]   @relation("ReconciliationBatchCreatedBy")
+  supplierPayables               SupplierPayable[]
 
   sessions         Session[]
   createdTransfers StockTransfer[]
@@ -2149,6 +2152,43 @@ model CashMovement {
   @@index([accountId, createdAt])
 }
 
+/// Cuenta a pagar al proveedor por repuestos/insumos (#250 · #83). La condición
+/// define el impacto en Finanzas: CONTADO se paga al recibir; CREDITO suma al
+/// «por pagar» con vencimiento; CONSIGNACION es tenencia del proveedor y recién
+/// se paga por lo consumido (`consumedPyg`).
+enum SupplierPayableCondition {
+  CONTADO
+  CREDITO
+  CONSIGNACION
+}
+
+model SupplierPayable {
+  id           String    @id @default(cuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId     String?
+  branch       Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  supplierId   String?
+  supplier     Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  // Snapshot: el documento no cambia si luego se edita la ficha del proveedor.
+  supplierName String
+  concept      String
+  condition    SupplierPayableCondition @default(CONTADO)
+  amountPyg    Int       @default(0)
+  paidPyg      Int       @default(0)
+  consumedPyg  Int       @default(0)
+  dueAt        DateTime?
+  reference    String?
+  notes        String?
+  createdById  String
+  createdBy    User      @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([tenantId, condition, dueAt])
+  @@index([tenantId, supplierId, createdAt])
+}
+
 enum CashMovementKind {
   EXPENSE
   TRANSFER
@@ -2496,6 +2536,7 @@ model Supplier {
   updatedAt    DateTime       @updatedAt
   purchases    PurchaseOrder[]
   inventoryUnits InventoryUnit[]
+  supplierPayables SupplierPayable[]
 
   @@unique([tenantId, name])
   @@unique([tenantId, code])
