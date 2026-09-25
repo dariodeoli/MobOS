@@ -11,6 +11,13 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.171 — 2026-09-25
+- **Configuración (#251):** la pantalla se ordena en **siete secciones** (Mi cuenta, Organización, Equipo y acceso, Comercial, Seguridad y auditoría, Dispositivos, Sistema) **sin duplicados**; las direcciones viejas redirigen a su sección nueva.
+- **Ayuda (#251):** nueva pantalla de **comandos y atajos** con su ubicación, notas para **Mac** y acceso a soporte; se abre desde la Ayuda y desde el menú de tres puntos.
+- **Finanzas (#148/#171):** **Ganadores por margen real** del período: el ranking sale del margen, no de la facturación.
+- **POS (#148 §9):** un **monto por encima del tope de venta** bloquea el guardado y explica qué precio revisar.
+- **Impresión (#250 §11 / #240/#220):** **etiqueta del lote** imprimible (80 mm y ESC/POS) y **comprobante de compra como imagen** para compartir.
+
 ## v1.0.170 — 2026-09-25
 - **Menú (#251):** nuevo menú principal por flujo de trabajo: **Inicio · Vender · Clientes · Inventario · Operación · Finanzas · Análisis · Configuración**. «Taller» es **una sola sección** con pestañas y **Promociones** y **Precios** viven dentro de Vender e Inventario; se suman **Tablero de operaciones**, **Lista por modelo** y **Comparador**.
 - **Inventario (#218):** los **traslados** muestran el **ETA del lote** y quién **despachó** y **recibió** cada envío.
