@@ -1,4 +1,5 @@
 import { sinCostoUnitario } from '../utils/inventario.js'
+import { locksDeVerificacion } from './phonecheck.js'
 
 // Modo taller/rack (#240 §4): agrupa las unidades activas por el flujo de
 // preparación y arma las acciones en serie (verificar/imprimir). La UI vive en
@@ -89,6 +90,38 @@ export const ESTACIONES = [
   { id: 'verificado', label: ETIQUETA_RACK.verificado },
   { id: 'listo', label: ETIQUETA_RACK.listo },
 ]
+
+/**
+ * «x de y» del checklist de la inspección (#240): pasan, fallan y porcentaje.
+ * Lo comparten el rack y el tablero operativo.
+ */
+export function checklistDe(unit) {
+  const items = Object.values(unit?.inspection?.items || {})
+  if (!items.length) return null
+  const pasan = items.filter((fila) => fila?.estado === 'pasa').length
+  const fallan = items.filter((fila) => fila?.estado === 'falla').length
+  return {
+    pasan,
+    fallan,
+    revisados: pasan + fallan,
+    total: items.length,
+    porcentaje: Math.round((pasan / items.length) * 100),
+  }
+}
+
+/**
+ * Chips de locks del equipo (iCloud/Find My, MDM, ESN/blacklist y carrier) desde
+ * la verificación guardada en la inspección. Sin datos devuelve `null`: la UI
+ * muestra el estado honesto («sin verificar»), nunca «libre» de arriba.
+ */
+export function locksDe(unit) {
+  const crudo = unit?.inspection?.verificacion || unit?.inspection?.verificacionImei || unit?.imeiVerification || null
+  if (!crudo) return null
+  const verificacion = crudo?.campos || crudo?.normalized ? crudo : (crudo?.data || {})
+  const chips = locksDeVerificacion(verificacion)
+  if (!chips.length) return null
+  return chips.map((chip) => ({ clave: chip.clave, estado: chip.ok ? 'libre' : 'activo', detalle: `${chip.label}: ${chip.valor}` }))
+}
 
 export function normalizarBusqueda(valor) {
   return String(valor || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()

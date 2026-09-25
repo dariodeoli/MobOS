@@ -458,15 +458,17 @@ test('el informe público usa MedidorBateria y la condición compartida (#240)',
   assert.ok(!/batteryHealth\) >= 85/.test(pagina), 'los umbrales de batería salen de MedidorBateria')
 })
 
-// Lote 15: el rack del piloto usa los objetos v2 para grado y batería.
-test('el modo taller usa GradoBadge y MedidorBateria (#240)', () => {
+// Lote 15 / paso 4 (#241): el rack del piloto delega el grado y la batería en
+// el objeto compartido `TileEquipo`, que compone GradoBadge y MedidorBateria.
+test('el modo taller usa el tile compartido para grado y batería (#240)', () => {
   const rack = readFileSync(join(RAIZ, 'components/inventory/TallerRack.jsx'), 'utf8')
-  assert.match(rack, /<GradoBadge grado=\{grado\} \/>/)
-  assert.match(rack, /<MedidorBateria porcentaje=\{bateria\} variante="chip" mostrarEtiqueta \/>/)
+  assert.match(rack, /from 'owncoding-ui'/, 'los objetos del taller salen de la biblioteca')
+  assert.match(rack, /<TileEquipo[\s\S]*?grado=\{grado\}[\s\S]*?bateria=\{bateria\}/)
   assert.ok(!rack.includes('COLOR_GRADO'), 'el color del grado sale del objeto')
   assert.ok(!/bateria >= 90 \? 'green'/.test(rack), 'el tono de la batería sale del objeto')
+  assert.ok(!/<MedidorBateria/.test(rack), 'la batería la dibuja el tile compartido')
   const medidor = readFileSync(join(RAIZ, 'components/shared/MedidorBateria.jsx'), 'utf8')
-  assert.match(medidor, /mostrarEtiqueta = false/, 'el chip puede mostrar la palabra (rack)')
+  assert.match(medidor, /mostrarEtiqueta = false/, 'el chip puede mostrar la palabra')
 })
 // Lote 12: el QR y la ficha del informe público salen de los objetos; ninguna
 // pantalla vuelve a llamar a `qrcode` por su cuenta.

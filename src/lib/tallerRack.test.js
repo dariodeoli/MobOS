@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { agruparRack, bateriaDe, conCosto, estadoEnRack, filtrarRack, gradoDe, normalizarBusqueda, sinVerificar, verificada } from './tallerRack.js'
+import { agruparRack, bateriaDe, checklistDe, conCosto, estadoEnRack, filtrarRack, gradoDe, locksDe, normalizarBusqueda, sinVerificar, verificada } from './tallerRack.js'
 
 // #240 §4: estados del modo taller/rack.
 
@@ -61,4 +61,18 @@ test('filtra por IMEI o modelo (sin acentos ni mayúsculas) y por ubicación', (
   assert.deepEqual(filtrarRack(units, { ubicacionId: 'loc-2' }).map((u) => u.id), ['u2'])
   assert.deepEqual(filtrarRack(units, { busqueda: 'samsung', ubicacionId: 'loc-1' }), [])
   assert.equal(normalizarBusqueda('  iPhone 15  '), 'iphone 15')
+})
+
+test('el «x de y» del checklist sale de la inspección y sin ítems queda null', () => {
+  const conItems = { id: 'u9', serial: 'AUR9', inspection: { items: { a: { estado: 'pasa' }, b: { estado: 'pasa' }, c: { estado: 'falla' }, d: { estado: '' } } } }
+  assert.deepEqual(checklistDe(conItems), { pasan: 2, fallan: 1, revisados: 3, total: 4, porcentaje: 50 })
+  assert.equal(checklistDe(base), null, 'sin inspección no hay checklist')
+})
+
+test('los locks se arman desde la verificación guardada y sin datos quedan null', () => {
+  const conConsulta = { ...base, inspection: { verificacion: { normalized: [{ clave: 'findMy', valor: 'off' }, { clave: 'mdm', valor: 'off' }] } } }
+  assert.deepEqual(locksDe(conConsulta).map((chip) => [chip.clave, chip.estado]), [['icloud', 'libre'], ['mdm', 'libre']])
+  const conActivo = { ...base, inspection: { verificacion: { campos: [{ clave: 'findMy', valor: 'on' }] } } }
+  assert.deepEqual(locksDe(conActivo), [{ clave: 'icloud', estado: 'activo', detalle: 'iCloud: on' }])
+  assert.equal(locksDe(base), null, 'sin consulta no se inventan locks')
 })

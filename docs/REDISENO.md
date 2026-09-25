@@ -138,9 +138,9 @@ propia fuera del shell.
 ## F4 · Vista previa v2 (en curso)
 
 El rollout del lenguaje v2 por dominio —shell, pedidos, clientes, finanzas,
-servicio, resumen/análisis, compras, configuración, inventario, públicas y el
-tablero operativo— está **activo**: el v2 es el diseño por defecto desde el
-24-09 y cada pantalla nueva se entrega con capturas claro/oscuro/mobile y
+servicio, resumen/análisis, compras, configuración, inventario, públicas, el
+tablero operativo y el modo taller/rack— está **activo**: el v2 es el diseño por
+defecto desde el 24-09 y cada pantalla nueva se entrega con capturas claro/oscuro/mobile y
 medición AA. La salida de emergencia por dispositivo sigue siendo
 `localStorage['mobos:tema-v2'] = '0'` (`VITE_OPS_V2=0` apaga el tablero). El
 paquete de aprobación es [`rediseno/PAQUETE-F4.md`](rediseno/PAQUETE-F4.md) y el

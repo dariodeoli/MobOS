@@ -1,6 +1,9 @@
 import { fechaClave, gs } from '../utils/calculos.js'
 import { locksDeVerificacion } from './phonecheck.js'
-import { ETIQUETA_RACK, ORDEN_RACK, agruparRack, bateriaDe, estadoEnRack, gradoDe } from './tallerRack.js'
+import { ETIQUETA_RACK, ORDEN_RACK, agruparRack, bateriaDe, checklistDe, estadoEnRack, gradoDe, locksDe } from './tallerRack.js'
+
+// El tablero comparte los helpers del checklist/locks con el rack (#240/#241).
+export { checklistDe, locksDe }
 
 // Tablero F3 (#241): arma los datos reales de `/ops` (detrás de VITE_OPS_V2)
 // desde el inventario del rack del taller (#240) y los pedidos recientes. Las
@@ -95,21 +98,6 @@ export function kpisOps(resumen) {
   ]
 }
 
-/** «x de y» del checklist de la inspección (#240): pasan, fallan y porcentaje. */
-export function checklistDe(unit) {
-  const items = Object.values(unit?.inspection?.items || {})
-  if (!items.length) return null
-  const pasan = items.filter((fila) => fila?.estado === 'pasa').length
-  const fallan = items.filter((fila) => fila?.estado === 'falla').length
-  return {
-    pasan,
-    fallan,
-    revisados: pasan + fallan,
-    total: items.length,
-    porcentaje: Math.round((pasan / items.length) * 100),
-  }
-}
-
 /**
  * ¿El serial se puede consultar en `/api/imei`? Solo los IMEI de 15 dígitos: el
  * backend ignora el filtro cuando el IMEI no valida y devolvería las últimas
@@ -131,20 +119,6 @@ export function locksDeConsulta(consulta, serial = '') {
   const ultimos4 = String(serial || '').replace(/\D/g, '').slice(-4)
   if (ultimos4 && !String(consulta.imei || '').endsWith(ultimos4)) return null
   const chips = locksDeVerificacion({ normalized: consulta.normalized })
-  if (!chips.length) return null
-  return chips.map((chip) => ({ clave: chip.clave, estado: chip.ok ? 'libre' : 'activo', detalle: `${chip.label}: ${chip.valor}` }))
-}
-
-/**
- * Chips de locks del equipo (iCloud/Find My, MDM, ESN/blacklist y carrier) desde
- * la consulta IMEI guardada en la inspección. Sin datos devuelve `null`: la UI
- * muestra el estado honesto («sin verificar»), nunca «libre» de arriba.
- */
-export function locksDe(unit) {
-  const crudo = unit?.inspection?.verificacion || unit?.inspection?.verificacionImei || unit?.imeiVerification || null
-  if (!crudo) return null
-  const verificacion = crudo?.campos || crudo?.normalized ? crudo : (crudo?.data || {})
-  const chips = locksDeVerificacion(verificacion)
   if (!chips.length) return null
   return chips.map((chip) => ({ clave: chip.clave, estado: chip.ok ? 'libre' : 'activo', detalle: `${chip.label}: ${chip.valor}` }))
 }
