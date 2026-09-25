@@ -24,7 +24,8 @@ mkdirSync(SALIDA, { recursive: true })
 
 const registro = { modo: MODO, capturadoEn: new Date().toISOString(), pasos: {} }
 let cookies = ''
-const dia = () => new Date(Date.now() - 4 * 3600 * 1000).toISOString().slice(0, 10)
+// Día paraguayo (UTC-3), el mismo criterio que el backend.
+const dia = () => new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10)
 
 async function api(path, { method = 'GET', body } = {}) {
   const respuesta = await fetch(`${API}${path}`, {

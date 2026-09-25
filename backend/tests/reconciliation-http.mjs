@@ -13,7 +13,9 @@ async function req(path, token, method = 'GET', body, expected = 200) {
   return data
 }
 
-const dia = () => new Date(Date.now() - 4 * 3600 * 1000).toISOString().slice(0, 10)
+// Día paraguayo (UTC-3): el mismo criterio que el backend (antes -04, que
+// quedaba fuera de la ventana entre las 00:00 y la 01:00 locales).
+const dia = () => new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10)
 const sufijo = Date.now().toString(36).toUpperCase()
 
 // Permisos: el vendedor no entra a conciliación.
