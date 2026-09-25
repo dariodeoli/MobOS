@@ -370,7 +370,7 @@ export default function Config({ seccion = 'organizacion', preferencias, onCambi
           <div>
             <h2 className="font-semibold">Logo de la empresa</h2>
             <p className="mt-1 text-sm text-mute">Un logo por modo, con la vista previa sobre el fondo donde se usa: <b className="text-fore">modo claro</b> = logo oscuro, <b className="text-fore">modo oscuro</b> = logo claro. Se muestra en el encabezado de los comprobantes. Recomendado: PNG con <b className="text-fore">fondo transparente</b>, 1024×1024 px (1600×600 si es horizontal) y hasta 1 MiB.</p>
-            <Button type="button" variant="ghost" className="mt-1 h-auto px-0 py-1 text-xs text-fono-light" onClick={copiarPrompt}><Icon name="copy" className="h-3.5 w-3.5" />Copiar prompt para generar el logo</Button>
+            <Button type="button" variant="ghost" className="mt-1 min-h-11 px-0 text-xs text-fono-light md:min-h-0" onClick={copiarPrompt}><Icon name="copy" className="h-3.5 w-3.5" />Copiar prompt para generar el logo</Button>
           </div>
           <div className={GRILLA_DOS_COLUMNAS}>
             {VARIANTES_LOGO.map(({ variant, titulo, ayuda, fondo }) => (
@@ -819,7 +819,7 @@ export function MiIdentidad() {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="font-semibold">{nombreActual}</h2>
-              <Button type="button" variant="outline" className="h-7 px-2 text-xs lg:hidden" onClick={irAlFormulario}>Editar nombre</Button>
+              <Button type="button" variant="outline" className="min-h-11 px-2 text-xs lg:hidden" onClick={irAlFormulario}>Editar nombre</Button>
             </div>
             {usuario?.email && <p className="mt-0.5 truncate text-sm text-mute">{usuario.email}</p>}
           </div>
