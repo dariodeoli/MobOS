@@ -206,12 +206,14 @@ async function auditar(page, claves = []) {
 }
 
 // Gate: sin scroll horizontal, sin elementos cortados, topbar del shell en 44
-// y controles clave en 44 (según CLAVE). Los conteos de `chicos` quedan como
-// informe: la app todavía tiene enlaces de texto y densidad de escritorio.
-function exigirMedicion(medicion, etiqueta) {
+// y controles clave en 44 (según CLAVE). En mobile (≤ 414) además no puede
+// quedar NINGÚN target < 44: es el cierre de #249. En 768 los conteos quedan
+// como informe (densidad de escritorio).
+function exigirMedicion(medicion, etiqueta, esMobile = false) {
   expect(medicion.overflowH, `${etiqueta}: sin scroll horizontal`).toBe(0)
   expect(medicion.totalCortados, `${etiqueta}: sin elementos cortados`).toBe(0)
   expect(medicion.topbarChicos, `${etiqueta}: topbar del shell con área de 44`).toHaveLength(0)
+  if (esMobile) expect(medicion.totalChicos, `${etiqueta}: ningún target < 44 en mobile`).toBe(0)
   for (const grupo of medicion.clave || []) {
     for (const nodo of grupo.nodos) {
       expect(nodo.alto, `${etiqueta}: ${grupo.nombre} «${nodo.texto}» (${nodo.dibujo})`).toBeGreaterThanOrEqual(44)
@@ -232,7 +234,7 @@ function auditarPantallas(registro, pantallas) {
         const medicion = await auditar(page, CLAVE[pantalla] || [])
         registro.push({ pantalla, ancho, ...medicion })
         console.log(`[${pantalla}-${ancho}] scroll=${medicion.overflowH}px cortados=${medicion.totalCortados} chicos=${medicion.totalChicos}`)
-        exigirMedicion(medicion, `${pantalla} ${ancho}`)
+        exigirMedicion(medicion, `${pantalla} ${ancho}`, ancho <= 414)
         await page.screenshot({ path: `${SHOTS}/${pantalla}-${ancho}.png` })
         if (ancho === 390) {
           const abrirModal = MODALES[pantalla]
@@ -243,7 +245,7 @@ function auditarPantallas(registro, pantallas) {
               const enModal = await auditar(page, CLAVE[`${pantalla}-modal`] || [])
               registro.push({ pantalla: `${pantalla}-modal`, ancho: 390, ...enModal })
               console.log(`[${pantalla}-390-modal] scroll=${enModal.overflowH}px cortados=${enModal.totalCortados} chicos=${enModal.totalChicos}`)
-              exigirMedicion(enModal, `${pantalla} 390 modal`)
+              exigirMedicion(enModal, `${pantalla} 390 modal`, true)
               await page.screenshot({ path: `${SHOTS}/${pantalla}-390-modal.png` })
               await page.keyboard.press('Escape')
             } catch (error) {
@@ -278,7 +280,7 @@ function auditarSuperficies(registro) {
       const medicion = await auditar(page, CLAVE[nombre] || [])
       registro.push({ pantalla: nombre, ancho: 390, ...medicion })
       console.log(`[${nombre}-390] scroll=${medicion.overflowH}px cortados=${medicion.totalCortados} chicos=${medicion.totalChicos}`)
-      exigirMedicion(medicion, `${nombre} 390`)
+      exigirMedicion(medicion, `${nombre} 390`, true)
       for (const grupo of medicion.clave) {
         for (const nodo of grupo.nodos) console.log(`[${nombre}-390] clave ${grupo.nombre}: ${nodo.texto} ${nodo.dibujo} → ${nodo.ancho}x${nodo.alto}`)
       }
@@ -292,13 +294,15 @@ function auditarSuperficies(registro) {
 // #253: la Configuración reorganizada en 7 grupos entra al barrido, con la
 // navegación interna como control clave (44 px en todos los anchos).
 const GRUPOS_CONFIG_AUDIT = [
-  ['mi-cuenta', 'Mi cuenta'],
-  ['organizacion', 'Organización'],
-  ['equipo', 'Equipo y acceso'],
-  ['comercial', 'Comercial'],
-  ['seguridad', 'Seguridad y auditoría'],
-  ['dispositivos', 'Dispositivos'],
-  ['sistema', 'Sistema'],
+  ['mi-cuenta', 'Mi cuenta', (page) => page.getByText('Tu persona dentro de MobOS').first()],
+  ['organizacion', 'Organización', (page) => page.getByText('Datos de la tienda').first()],
+  // Equipo carga la lista de integrantes: esperarla deja la medición igual en
+  // todos los anchos (si no, el contenido async entra después de la foto).
+  ['equipo', 'Equipo y acceso', (page) => page.getByTestId('integrante-fila').first()],
+  ['comercial', 'Comercial', (page) => page.getByText('Seguro de ventas').first()],
+  ['seguridad', 'Seguridad y auditoría', (page) => page.getByTestId('auditoria-actualizar')],
+  ['dispositivos', 'Dispositivos', (page) => page.getByText('Estado del sistema de impresión').first()],
+  ['sistema', 'Sistema', (page) => page.getByText('Sincronización').first()],
 ]
 
 function auditarConfiguracion(registro) {
@@ -306,15 +310,17 @@ function auditarConfiguracion(registro) {
     test.slow()
     mkdirSync(SHOTS, { recursive: true })
     const clave = [{ nombre: 'grupos de Configuración', selector: '[data-testid="config-grupos"] [role="tab"]' }]
-    for (const [slug, label] of GRUPOS_CONFIG_AUDIT) {
+    for (const [slug, label, listo] of GRUPOS_CONFIG_AUDIT) {
       for (const [ancho, alto] of ANCHOS) {
         await page.setViewportSize({ width: ancho, height: alto })
         await page.goto(`/configuracion/${slug}`)
         await expect(page.locator('h1')).toHaveText(label, { timeout: 30_000 })
+        if (listo) await expect(listo(page)).toBeVisible({ timeout: 30_000 })
         const medicion = await auditar(page, clave)
         registro.push({ pantalla: `config-${slug}`, ancho, ...medicion })
         console.log(`[config-${slug}-${ancho}] scroll=${medicion.overflowH}px cortados=${medicion.totalCortados} chicos=${medicion.totalChicos}`)
-        exigirMedicion(medicion, `config-${slug} ${ancho}`)
+        writeFileSync(`${SHOTS}/auditoria-config.json`, JSON.stringify(registro.filter((fila) => fila.pantalla.startsWith('config-')), null, 2))
+        exigirMedicion(medicion, `config-${slug} ${ancho}`, ancho <= 414)
         if (ancho === 390) await page.screenshot({ path: `${SHOTS}/config-${slug}-390.png` })
       }
     }
@@ -377,7 +383,7 @@ test.describe('demo · POS y páginas clave', () => {
         const medicion = await auditar(page, nombre === 'demo-pos' ? claveDemo : [])
         registro.push({ pantalla: nombre, ancho, ...medicion })
         console.log(`[${nombre}-${ancho}] scroll=${medicion.overflowH}px cortados=${medicion.totalCortados} chicos=${medicion.totalChicos}`)
-        exigirMedicion(medicion, `${nombre} ${ancho}`)
+        exigirMedicion(medicion, `${nombre} ${ancho}`, ancho <= 414)
         if (ancho === 390) await page.screenshot({ path: `${SHOTS}/${nombre}-390.png` })
       }
     }
@@ -395,7 +401,7 @@ test.describe('demo · POS y páginas clave', () => {
     await expect(page.getByTestId('menu-acciones-lista')).toBeVisible()
     const medicion = await auditar(page, CLAVE['pos-menu'])
     console.log(`[demo-pos-menu-390] scroll=${medicion.overflowH}px cortados=${medicion.totalCortados} chicos=${medicion.totalChicos}`)
-    exigirMedicion(medicion, 'demo pos-menu 390')
+    exigirMedicion(medicion, 'demo pos-menu 390', true)
     for (const grupo of medicion.clave) {
       for (const nodo of grupo.nodos) console.log(`[demo-pos-menu-390] clave ${grupo.nombre}: ${nodo.texto} ${nodo.dibujo} → ${nodo.ancho}x${nodo.alto}`)
     }
