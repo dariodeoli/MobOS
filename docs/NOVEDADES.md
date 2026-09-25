@@ -11,6 +11,14 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.166 — 2026-09-25
+- **POS (#148 §11):** la **venta sin stock/sin IMEI** queda marcada **«sobre pedido»** con su **guía inline**, traza y kardex por línea; el **carrito dinámico** suma **estados por fila y bloque**, acentos y micro-animaciones (#241).
+- **Buscador dependiente (#250):** **modelo → capacidad → color** en **Stock y Compras**, y **recepción de equipos y repuestos** con el mismo buscador.
+- **Inventario (#247):** la lista **pinta con una sola consulta** y el resto se **hidrata diferido** (carga más rápida).
+- **Finanzas (#250):** **cuenta a pagar al proveedor** por repuestos, con condición y consumo.
+- **Configuración (#245):** el **número inicial** se completa antes de guardar y el guardado se reintenta.
+- **Componentes:** lotes **30 y 31** de la biblioteca (**v0.24.0 / v0.25.0**): buscador dependiente de dispositivos y profundidad del tema.
+
 ## v1.0.165 — 2026-09-24
 - **Configuración (#234):** el **guardado es transversal** — seguro, límites y demás grupos guardan **con Enter**, muestran **estado por grupo** y piden **reautenticación en el lugar** cuando corresponde; anchos de datos alineados.
 - **Ficha y tile del equipo (#241):** **grado oficial**, **checklist persistido** y **locks reales** con su fuente, ahora también en el **tile del listado**; el **encabezado de la tabla** alinea con las celdas y titula todas las columnas.
