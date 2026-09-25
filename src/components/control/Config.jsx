@@ -1201,8 +1201,8 @@ function SeccionSucursales() {
                   <Badge color={branch.isActive ? 'green' : 'slate'}>{branch.isActive ? 'Activa' : 'Inactiva'}</Badge>
                 </div>
                 <div className="mt-2 flex gap-3">
-                  <button type="button" className="text-xs font-semibold text-fono-light hover:underline" disabled={busy} onClick={() => abrir(branch)}>Editar</button>
-                  <button type="button" className="text-xs font-semibold text-mute hover:underline" disabled={busy} onClick={() => alternar(branch)}>{branch.isActive ? 'Desactivar' : 'Reactivar'}</button>
+                  <button type="button" className="inline-flex min-h-11 min-w-11 items-center justify-center text-xs font-semibold text-fono-light hover:underline md:min-h-0 md:min-w-0" disabled={busy} onClick={() => abrir(branch)}>Editar</button>
+                  <button type="button" className="inline-flex min-h-11 min-w-11 items-center justify-center text-xs font-semibold text-mute hover:underline md:min-h-0 md:min-w-0" disabled={busy} onClick={() => alternar(branch)}>{branch.isActive ? 'Desactivar' : 'Reactivar'}</button>
                 </div>
               </article>
             ))}

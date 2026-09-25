@@ -153,13 +153,13 @@ export default function ImeiVerificador() {
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
             <p id="imei-ayuda" className="text-[11px] text-mute">Ejemplo precargado · {IMEI_EJEMPLO}</p>
             <div className="flex flex-wrap gap-3 text-[11px]">
-              <button type="button" onClick={otroEjemplo} className="inline-flex items-center gap-1 font-semibold text-fono-dark transition hover:text-fono">
+              <button type="button" onClick={otroEjemplo} className="inline-flex min-h-11 items-center gap-1 font-semibold text-fono-dark transition hover:text-fono">
                 <RefreshCw size={12} /> Otro ejemplo
               </button>
-              <button type="button" onClick={() => programar('pendiente')} className="font-semibold text-mute transition hover:text-fore">
+              <button type="button" onClick={() => programar('pendiente')} className="inline-flex min-h-11 items-center font-semibold text-mute transition hover:text-fore">
                 Ver caso pendiente
               </button>
-              <button type="button" onClick={() => programar('parcial')} className="font-semibold text-mute transition hover:text-fore">
+              <button type="button" onClick={() => programar('parcial')} className="inline-flex min-h-11 items-center font-semibold text-mute transition hover:text-fore">
                 Ver caso parcial
               </button>
             </div>

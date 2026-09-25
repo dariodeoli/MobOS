@@ -7,7 +7,7 @@ export function ProductFooter({ className, leading, children }) {
       {leading}
       <span>© 2026 {APP_NAME}. Todos los derechos reservados. · {APP_VERSION}</span>{' · '}
       {children}
-      <a href={APP_CREDIT_URL} target="_blank" rel="noreferrer" className="font-medium text-fono-dark hover:underline">{APP_CREDIT}</a>
+      <a href={APP_CREDIT_URL} target="_blank" rel="noreferrer" className="toque-44 font-medium text-fono-dark hover:underline">{APP_CREDIT}</a>
     </footer>
   )
 }

@@ -848,7 +848,7 @@ export default function Impresoras() {
                 <span className="flex items-center gap-2 text-xs text-mute">
                   <span className="truncate" title={datos.destino}>{impresoras.find((item) => item.destino === datos.destino)?.nombre || datos.destino}</span>
                   {datos.ancho ? <span>· {datos.ancho} mm</span> : null}
-                  <Button type="button" variant="ghost" className="h-auto px-1 py-0.5 text-xs text-fono-light" onClick={() => { olvidarTipoDeImpresion(tipo); setMemoriaImpresion(memoriaDeImpresion()) }}>Olvidar</Button>
+                  <Button type="button" variant="ghost" className="min-h-11 px-1 py-0.5 text-xs text-fono-light md:min-h-0" onClick={() => { olvidarTipoDeImpresion(tipo); setMemoriaImpresion(memoriaDeImpresion()) }}>Olvidar</Button>
                 </span>
               </li>
             ))}
@@ -877,7 +877,7 @@ export default function Impresoras() {
                   ? (puentePrincipal.online ? 'en línea' : `último contacto ${hace(puentePrincipal.lastSeenAt)}`)
                   : puentePrincipal.url.includes('127.0.0.1') || puentePrincipal.url.includes('localhost') ? 'solo esta computadora' : puentePrincipal.url}
               </p>
-              <Button type="button" variant="ghost" className="mt-1 h-auto px-0 py-1 text-xs text-fono-light" onClick={() => setPuentesAbiertos(true)}>Gestionar puentes ({(store.bridges || []).length})</Button>
+              <Button type="button" variant="ghost" className="min-h-11 mt-1 px-0 py-1 text-xs text-fono-light md:min-h-0" onClick={() => setPuentesAbiertos(true)}>Gestionar puentes ({(store.bridges || []).length})</Button>
               {estado?.disponible && <p className="mt-1 text-xs text-mute">Dirección local {URL_AGENTE} · {estado.host === '0.0.0.0' ? 'acepta la red local' : 'solo local'}</p>}
             </div>
             <div className="rounded-xl border border-ink-600 p-3">
@@ -886,10 +886,10 @@ export default function Impresoras() {
               {predeterminada ? (
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   <Badge color={chipDe(predeterminada).color} title={verificacionDe(predeterminada)}>{chipDe(predeterminada).label}</Badge>
-                  <Button type="button" variant="ghost" className="h-auto px-0 py-1 text-xs text-fono-light" onClick={() => abrirFormulario(predeterminada)}>Gestionar</Button>
+                  <Button type="button" variant="ghost" className="min-h-11 px-0 py-1 text-xs text-fono-light md:min-h-0" onClick={() => abrirFormulario(predeterminada)}>Gestionar</Button>
                 </div>
               ) : (
-                <Button type="button" variant="ghost" className="mt-1 h-auto px-0 py-1 text-xs text-fono-light" onClick={() => abrirFormulario(null)}>Agregar impresora</Button>
+                <Button type="button" variant="ghost" className="min-h-11 mt-1 px-0 py-1 text-xs text-fono-light md:min-h-0" onClick={() => abrirFormulario(null)}>Agregar impresora</Button>
               )}
             </div>
             <div className="rounded-xl border border-ink-600 p-3">
@@ -897,9 +897,9 @@ export default function Impresoras() {
               <p className="mt-1 text-sm font-semibold">{estado?.cola?.pendientes ?? cola?.resumen?.pendientes ?? 0} pendientes · {estado?.cola?.fallidos ?? cola?.resumen?.fallidos ?? 0} fallidos</p>
               {remotosEnCurso.length > 0 && <p className="mt-1 text-xs text-mute">Remoto: {remotosEnCurso.length} en curso · {remotosAceptados.length} por confirmar</p>}
               <div className="mt-1 flex flex-wrap gap-2">
-                <Button type="button" variant="ghost" className="h-auto px-0 py-1 text-xs text-fono-light" onClick={() => setVerColaAbierta(true)}>Ver cola</Button>
-                {(fallidos.length > 0) && <Button type="button" variant="ghost" className="h-auto px-0 py-1 text-xs text-warn" onClick={() => reintentar()}>Reintentar fallidos</Button>}
-                {(fallidos.length > 0) && <Button type="button" variant="ghost" className="h-auto px-0 py-1 text-xs text-bad" onClick={() => limpiar([])}>Limpiar fallidos</Button>}
+                <Button type="button" variant="ghost" className="min-h-11 px-0 py-1 text-xs text-fono-light md:min-h-0" onClick={() => setVerColaAbierta(true)}>Ver cola</Button>
+                {(fallidos.length > 0) && <Button type="button" variant="ghost" className="min-h-11 px-0 py-1 text-xs text-warn md:min-h-0" onClick={() => reintentar()}>Reintentar fallidos</Button>}
+                {(fallidos.length > 0) && <Button type="button" variant="ghost" className="min-h-11 px-0 py-1 text-xs text-bad md:min-h-0" onClick={() => limpiar([])}>Limpiar fallidos</Button>}
               </div>
             </div>
             <div className="rounded-xl border border-ink-600 p-3">
@@ -1107,7 +1107,7 @@ export default function Impresoras() {
                         <Badge color={colorTrabajo(fila.resultado)}>{etiquetaTrabajo(fila.resultado)}</Badge>
                       </td>
                       <td className="px-2 py-2 text-right">
-                        <Button type="button" variant="ghost" className="h-auto px-1 py-1" onClick={() => setDetalleAbierto(abierto ? '' : clave)} aria-expanded={abierto} aria-label={abierto ? 'Ocultar detalle' : 'Ver detalle'}>
+                        <Button type="button" variant="ghost" className="min-h-11 px-1 py-1 md:min-h-0" onClick={() => setDetalleAbierto(abierto ? '' : clave)} aria-expanded={abierto} aria-label={abierto ? 'Ocultar detalle' : 'Ver detalle'}>
                           <Icon name="chevron" className={`h-3.5 w-3.5 transition ${abierto ? 'rotate-180' : ''}`} />
                         </Button>
                       </td>

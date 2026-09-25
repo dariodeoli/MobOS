@@ -465,11 +465,11 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                       <span className="flex flex-wrap items-center gap-3">
                         {token ? (
                           <>
-                            <button type="button" className="font-semibold text-fono-light hover:underline" onClick={() => copiarAcceso(token, label)}>Copiar enlace</button>
-                            <button type="button" className="text-mute hover:text-warn" disabled={accesoBusy} onClick={() => generarAcceso(level, true)}>Regenerar</button>
+                            <button type="button" className="inline-flex min-h-11 -my-2 items-center font-semibold text-fono-light hover:underline" onClick={() => copiarAcceso(token, label)}>Copiar enlace</button>
+                            <button type="button" className="inline-flex min-h-11 -my-2 items-center text-mute hover:text-warn" disabled={accesoBusy} onClick={() => generarAcceso(level, true)}>Regenerar</button>
                           </>
                         ) : (
-                          <button type="button" className="font-semibold text-fono-light hover:underline" disabled={accesoBusy} onClick={() => generarAcceso(level, false)}>Generar enlace</button>
+                          <button type="button" className="inline-flex min-h-11 -my-2 items-center font-semibold text-fono-light hover:underline" disabled={accesoBusy} onClick={() => generarAcceso(level, false)}>Generar enlace</button>
                         )}
                       </span>
                     </div>

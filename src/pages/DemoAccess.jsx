@@ -161,14 +161,14 @@ export default function DemoAccess() {
 
             <a
               href={publicUrls.landing}
-              className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-fono-dark"
+              className="toque-44 mt-4 inline-flex items-center gap-2 text-sm font-semibold text-fono-dark"
             >
               Volver a la landing
               <ArrowRight size={15} />
             </a>
             <p className="mt-3 text-xs text-mute">
               ¿Ya tenés tu tienda?{' '}
-              <Link to="/login" className="font-semibold text-fono-dark hover:underline">
+              <Link to="/login" className="toque-44 font-semibold text-fono-dark hover:underline">
                 Ingresar con mi cuenta
               </Link>
             </p>
