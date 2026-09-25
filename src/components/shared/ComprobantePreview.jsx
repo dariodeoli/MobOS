@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Aviso, Button, ConfirmDialog, Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import CompartirImagen from '@/components/shared/CompartirImagen'
 import VistaPreviaPapel from '@/components/shared/VistaPreviaPapel'
 import {
   FORMATOS_COMPROBANTE,
@@ -224,6 +225,14 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
             </div>
           </label>
           <span className="flex flex-1 flex-wrap items-center justify-end gap-2">
+            <CompartirImagen
+              construirHtml={() => html}
+              nombre={`comprobante-${order?.orderNumber || order?.codigo || 'pedido'}`}
+              titulo="Comprobante de compra"
+              texto={`Comprobante ${order?.orderNumber || order?.codigo || ''}`.trim()}
+              formato={formato}
+              disabled={!html || cargando}
+            />
             <Button type="button" variant="outline" onClick={imprimir} disabled={!html || cargando}>Descargar PDF</Button>
             {(agente || hayImpresora) && <Button type="button" variant="outline" onClick={() => imprimirDirecto()} disabled={cargando || enviando}>{enviando ? 'Enviando…' : 'Impresión directa'}</Button>}
             <Button type="button" onClick={imprimirConDialogo} disabled={!html || cargando}>{cargando ? 'Preparando…' : 'Imprimir con diálogo'}</Button>

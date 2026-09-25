@@ -8,6 +8,7 @@ import { ahorroDeLinea } from '@/utils/precioLista'
 import { totalesPedido } from '@/utils/pedido'
 import { datosDeCodigo, formatoDeCodigo, ETIQUETA_FORMATO } from '@/lib/printing/codigos'
 import { contextoEtiquetaUnidad, datosEtiquetaUnidad } from '@/lib/printing/etiquetaUnidad'
+import { contextoEtiquetaLote, datosEtiquetaLote } from '@/lib/printing/etiquetaLote'
 import { estadoGarantia, fechaVerificacionInforme } from '@/lib/printing/informeDispositivo'
 import { estadoChecklist, estadoControl, fechaCortaDocumento, fechaHoraDocumento } from '@/lib/printing/certificado'
 import JsBarcode from 'jsbarcode'
@@ -137,6 +138,47 @@ export async function buildUnitLabelsHtml(units = [], { ancho = 58, base = '' } 
     </section>`)
   }
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas de unidades (${lista.length})</title><style>@page{size:${anchoMm}mm auto;margin:2mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0 auto;max-width:${anchoMm - 4}mm;font:10px/1.35 ui-sans-serif,system-ui,sans-serif;color:#0f1720}.etiqueta{page-break-after:always}.etiqueta:last-child{page-break-after:auto}.marca{display:flex;justify-content:space-between;gap:2mm;font-size:7px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#0c8876;border-bottom:1px solid #d5dbe0;padding-bottom:1mm;margin-bottom:1.5mm}.bloque{border:1px solid #cfd6db;border-radius:2mm;padding:1.6mm 2mm;margin-top:1.6mm;text-align:center}.rotulo{font-size:6.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#66707a}.modelo{font-size:12.5px;font-weight:800;line-height:1.2;margin-top:.6mm;text-align:left}.contexto{font-size:7.5px;color:#66707a;margin-top:.8mm;text-align:left}.identificador{font-size:26px;font-weight:900;letter-spacing:3px;font-variant-numeric:tabular-nums;line-height:1.1;margin-top:.4mm}.serial{font-size:${anchoMm === 80 ? 15 : 14}px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.06em;margin-top:.6mm;white-space:nowrap}.qr{width:${anchoMm === 80 ? 30 : 26}mm;height:${anchoMm === 80 ? 30 : 26}mm;margin:1mm auto .4mm;display:block}.barras{margin-top:.8mm}.barras svg{width:100%;height:auto;max-height:14mm}.valor{font-size:7.5px;font-family:Menlo,Consolas,monospace;word-break:break-all;color:#333;margin-top:.6mm}.sin-codigo{font-size:8px;color:#66707a;padding:2mm 0}.pie{margin-top:5mm;font-size:6.5px;color:#66707a;text-align:center}@media print{.etiqueta{margin:0}}</style></head><body>${etiquetas.join('')}</body></html>`
+  return html
+}
+
+// Etiquetas del lote del abastecimiento (#250 §11): una por unidad comprada,
+// con `PRODUCTO n DE N`, variante, el IMEI (o «pendiente»), la compra, el
+// pedido, el destino y el lote. El código de barras lleva el IMEI (o el
+// lote/compra) para escanear en la preparación. Es el respaldo del diálogo, la
+// fuente del PDF y lo que comparte `CompartirImagen`.
+export async function buildEtiquetasLoteHtml(etiquetas = [], { ancho = 80, compra = null } = {}) {
+  const lista = Array.isArray(etiquetas) ? etiquetas : []
+  const anchoMm = Number(ancho) === 80 ? 80 : 58
+  const partes = []
+  for (const etiqueta of lista) {
+    const datos = datosEtiquetaLote(etiqueta, { compra })
+    const contexto = contextoEtiquetaLote(datos)
+    let barras = ''
+    if (datos.codigo) {
+      try {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+        JsBarcode(svg, datos.codigo, { format: formatoDeCodigo(datos.codigo) === 'ean13' ? 'EAN13' : 'CODE128', displayValue: false, width: 1.6, height: 38, margin: 0 })
+        barras = svg.outerHTML
+      } catch { /* sin barras queda el código como texto */ }
+    }
+    const filas = [
+      datos.compra ? `<div class="fila"><span>Compra</span><span>${escapeHtml(datos.compra)}</span></div>` : '',
+      datos.referencia ? `<div class="fila"><span>Referencia</span><span>${escapeHtml(datos.referencia)}</span></div>` : '',
+      datos.pedido ? `<div class="fila"><span>Pedido</span><span>${escapeHtml(datos.pedido)}</span></div>` : '',
+      datos.destino ? `<div class="fila"><span>Destino</span><span>${escapeHtml(datos.destino)}</span></div>` : '',
+      datos.lote ? `<div class="fila"><span>Lote</span><span>${escapeHtml(datos.lote)}</span></div>` : '',
+    ].filter(Boolean).join('')
+    partes.push(`<section class="etiqueta">
+      <div class="marca"><span>${escapeHtml(APP_NAME)} · ETIQUETA DE LOTE</span><span>PREPARACIÓN</span></div>
+      <div class="bloque modelo"><div class="rotulo">Modelo</div><div class="modelo">${escapeHtml(datos.producto)}</div>${contexto ? `<div class="contexto">${escapeHtml(contexto)}</div>` : ''}</div>
+      <div class="bloque"><div class="rotulo">Producto</div><div class="posicion">${escapeHtml(datos.posicion)}</div></div>
+      <div class="bloque"><div class="rotulo">IMEI</div>${datos.pendiente ? '<div class="pendiente">Pendiente</div><div class="contexto">Se carga antes de despachar</div>' : `<div class="serial">${escapeHtml(datos.imei)}</div>`}</div>
+      ${filas ? `<div class="bloque datos">${filas}</div>` : ''}
+      <div class="bloque codigo"><div class="rotulo">${escapeHtml(datos.codigoRotulo)}</div>${barras ? `<div class="barras">${barras}</div>` : ''}<div class="valor">${escapeHtml(datos.codigo || '—')}</div></div>
+      <div class="pie">${datos.pendiente ? 'Unidad sin IMEI: completalo antes de despachar.' : 'Escaneá el código en la preparación y el despacho.'}</div>
+    </section>`)
+  }
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas del lote (${lista.length})</title><style>@page{size:${anchoMm}mm auto;margin:2mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0 auto;max-width:${anchoMm - 4}mm;font:10px/1.35 ui-sans-serif,system-ui,sans-serif;color:#0f1720}.etiqueta{page-break-after:always}.etiqueta:last-child{page-break-after:auto}.marca{display:flex;justify-content:space-between;gap:2mm;font-size:7px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#0c8876;border-bottom:1px solid #d5dbe0;padding-bottom:1mm;margin-bottom:1.5mm}.bloque{border:1px solid #cfd6db;border-radius:2mm;padding:1.6mm 2mm;margin-top:1.6mm;text-align:center}.rotulo{font-size:6.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#66707a}.modelo{font-size:12.5px;font-weight:800;line-height:1.2;margin-top:.6mm;text-align:left}.contexto{font-size:7.5px;color:#66707a;margin-top:.8mm}.posicion{font-size:26px;font-weight:900;letter-spacing:1px;font-variant-numeric:tabular-nums;line-height:1.1;margin-top:.4mm}.serial{font-size:${anchoMm === 80 ? 15 : 14}px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.06em;margin-top:.6mm;white-space:nowrap}.pendiente{font-size:18px;font-weight:800;color:#9a6a00;margin-top:.6mm;text-transform:uppercase}.datos{text-align:left}.fila{display:flex;justify-content:space-between;gap:2mm;font-size:8px;line-height:1.5}.fila span:first-child{color:#66707a}.barras{margin-top:.8mm}.barras svg{width:100%;height:auto;max-height:14mm}.valor{font-size:7.5px;font-family:Menlo,Consolas,monospace;word-break:break-all;color:#333;margin-top:.6mm}.pie{margin-top:5mm;font-size:6.5px;color:#66707a;text-align:center}@media print{.etiqueta{margin:0}}</style></head><body>${partes.join('')}</body></html>`
   return html
 }
 

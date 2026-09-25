@@ -7,6 +7,7 @@ import { CHECKLISTS } from '../servicioChecklist.js'
 import { datosDeCodigo, formatoDeCodigo, ETIQUETA_FORMATO } from './codigos.js'
 import { bloqueFirma, crearTicket } from './escpos.js'
 import { contextoEtiquetaUnidad, datosEtiquetaUnidad } from './etiquetaUnidad.js'
+import { contextoEtiquetaLote, datosEtiquetaLote } from './etiquetaLote.js'
 import { estadoGarantia, fechaVerificacionInforme } from './informeDispositivo.js'
 import { AVISO_BLACKLIST, estadoChecklistCorto, estadoControl, fechaHoraDocumento } from './certificado.js'
 import { baseDeApp, qrProducto, qrPrueba } from './qr.js'
@@ -231,6 +232,51 @@ export function ticketEtiquetasProducto(items = [], { ancho = 80 } = {}) {
       etiquetaProductoEn(t, item?.product || item, { precioPyg: item?.precioPyg, lista: item?.lista, indice, total })
     }
   }
+  return t
+}
+
+// Etiqueta producto/paquete del lote del abastecimiento (#250 Fase 3 §11): una
+// por unidad comprada, con `PRODUCTO n DE N`, variante, IMEI o «pendiente», la
+// compra, el pedido, el destino y el lote; el código de barras lleva el IMEI
+// (o el lote/compra) para el escaneo de la preparación.
+function etiquetaLoteEn(t, etiqueta, { compra = null } = {}) {
+  const datos = datosEtiquetaLote(etiqueta, { compra })
+  t.centrado(`${APP_NAME} · ETIQUETA DE LOTE`)
+  t.linea()
+  t.negrita().texto(datos.producto).negrita(false)
+  const contexto = contextoEtiquetaLote(datos)
+  if (contexto) t.texto(contexto)
+  t.linea()
+  t.centrado('PRODUCTO')
+  t.negrita().doble().centrado(datos.posicion).doble(false).negrita(false)
+  t.centrado('IMEI')
+  if (datos.pendiente) {
+    t.negrita().doble().centrado('PENDIENTE').doble(false).negrita(false)
+    t.centrado('Se carga antes de despachar')
+  } else if (t.columnas >= datos.imei.length * 2) {
+    t.doble().centrado(datos.imei).doble(false)
+  } else {
+    t.centrado(datos.imei)
+  }
+  t.linea()
+  if (datos.compra) t.par('Compra', datos.compra)
+  if (datos.referencia) t.par('Referencia', datos.referencia)
+  if (datos.pedido) t.par('Pedido', datos.pedido)
+  if (datos.destino) t.par('Destino', datos.destino)
+  if (datos.lote) t.par('Lote', datos.lote)
+  t.linea()
+  if (datos.codigo) {
+    t.barcode(datos.codigo, { etiqueta: datos.codigoRotulo, formato: formatoDeCodigo(datos.codigo) })
+    t.centrado(datos.codigo)
+  }
+  t.linea()
+  t.centrado(datos.pendiente ? 'Unidad sin IMEI: completalo antes de despachar.' : 'Escaneá el código para preparar y despachar esta unidad.')
+  return t.avanza(2).corte()
+}
+
+export function ticketEtiquetasLote(etiquetas = [], { ancho = 80, compra = null } = {}) {
+  const t = crearTicket({ ancho }).iniciar()
+  for (const etiqueta of Array.isArray(etiquetas) ? etiquetas : []) etiquetaLoteEn(t, etiqueta, { compra })
   return t
 }
 
