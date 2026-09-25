@@ -7,6 +7,7 @@ import { printHtml } from '@/utils/printHtml'
 import { configImpresora, imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
 import { ticketEtiquetasProducto } from '@/lib/printing/tickets'
 import { buildProductLabelsHtml } from '@/components/shared/OrderReceipt'
+import CompartirImagen from '@/components/shared/CompartirImagen'
 import { CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 import { PIE_ACCIONES } from '@/components/shared/formulario'
@@ -109,6 +110,14 @@ export default function EtiquetasProductoModal({ open, onClose, productos = [], 
         {items.length > 0 && <p className="text-xs text-mute">{items.length} producto(s) · {totalEtiquetas} etiqueta(s) en total.</p>}
         <div className={PIE_ACCIONES}>
           <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
+          <CompartirImagen
+            construirHtml={() => buildProductLabelsHtml(items, { format: formatosPorAncho(configImpresora().ancho) })}
+            nombre={`etiquetas-gondola-${totalEtiquetas}`}
+            titulo="Etiquetas de góndola"
+            texto={`${totalEtiquetas} etiqueta(s) · ${items.length} producto(s)`}
+            formato={formatosPorAncho(configImpresora().ancho)}
+            disabled={!items.length || enviando}
+          />
           <Button type="button" variant="outline" disabled={!items.length || enviando} onClick={conDialogo}><Icon name="download" className="h-4 w-4" />Descargar PDF</Button>
           <Button type="button" disabled={!items.length || enviando} onClick={imprimir}><Icon name="printer" className="h-4 w-4" />{enviando ? 'Enviando…' : 'Imprimir etiquetas'}</Button>
         </div>

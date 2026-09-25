@@ -5,6 +5,7 @@ import SearchField from '@/components/shared/SearchField'
 import PasosEquipo from '@/components/shared/PasosEquipo'
 import { PIE_ACCIONES } from '@/components/shared/formulario'
 import { buildUnitLabelsHtml } from '@/components/shared/OrderReceipt'
+import CompartirImagen from '@/components/shared/CompartirImagen'
 import { BarraLote, ConteoChecklist, ContadorLote, TileEquipo, VistaPreviaPapel } from 'owncoding-ui'
 import { cn } from '@/lib/utils'
 import { configImpresora } from '@/lib/printing/agent'
@@ -351,6 +352,14 @@ export default function TallerRack({
           </div>
         )}
         <div className={cn(PIE_ACCIONES, 'mt-4')}>
+          <CompartirImagen
+            construirHtml={() => buildUnitLabelsHtml(objetivo, { ancho })}
+            nombre={`etiquetas-taller-${objetivo.length}`}
+            titulo="Etiquetas del taller"
+            texto={`${objetivo.length} etiqueta(s) · rollo de ${ancho} mm`}
+            formato={FORMATO_PAPEL[ancho] || 'thermal-80'}
+            disabled={!objetivo.length || busy}
+          />
           <Button type="button" variant="outline" disabled={!objetivo.length || busy} onClick={() => { onHoja?.(objetivo, estacion === 'todas' ? 'Taller' : ETIQUETA_RACK[estacion]); setImprimirAbierto(false) }} data-testid="rack-hoja-estacion">
             Hoja de estación
           </Button>
