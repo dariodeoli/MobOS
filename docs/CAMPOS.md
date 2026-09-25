@@ -51,7 +51,7 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi`). Ant
 
 1. **Solo dígitos**: limpieza `.replace(/\D/g, '')` o `soloDigitos`; `inputMode="numeric"`; `maxLength` cuando aplica (PIN 4, batería 3). Campos: batería, días/plazos, cantidades, umbral de reposición, horas de reserva, PINs.
 2. **Porcentajes**: `PercentField` con coma decimal y hasta 2 decimales; la comisión del margen admite decimales 0–100 (ej. `0,2`) y se guarda con `parsePercent`; al mostrar, `formatPercent`. Si el dato es entero por diseño (cupones), validar el entero antes de enviar.
-3. **Moneda**: PYG se guarda numérico y se escribe con separador de miles (`MoneyInput`); monedas extranjeras con 2 decimales. El símbolo nunca se escribe dentro del valor.
+3. **Moneda**: PYG se guarda numérico y se escribe con separador de miles (`MoneyInput`); monedas extranjeras con 2 decimales. El símbolo nunca se escribe dentro del valor. El prefijo se dibuja chico y claro (10px, `text-mute/75`) con poco relleno (`pl-8`/`pl-11`): no debe comerse el ancho del número ni cortar cifras grandes (Gs 99.000.000.000); en filas de cobro/pago el campo puede ir `w-full` para ganar ancho.
 4. **IMEI/serial**: alfanumérico (no se restringe a dígitos), `autoCapitalize="characters"`; al guardar/buscar se normaliza `trim`, sin prefijo `MOBOS:`, sin espacios ni guiones, mayúsculas (`normalizeScan`); se aceptan varios separados por coma o salto de línea.
 5. **Teléfono**: ver `PhoneField`. Validación: Paraguay móvil `9` + 8 dígitos; otros países 6–12 dígitos. Clientes guardan `countryCode` + `phone`; sucursales y proveedores guardan `+<código> <número>`; los links wa.me usan `internationalPhone`.
 6. **Correo**: `EmailField` con sugerencias; `type="email"`, `autoComplete="email"`, máx 200.
