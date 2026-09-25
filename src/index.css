@@ -316,6 +316,12 @@ html.dark :focus-visible { outline-color: var(--mobos-brand); }
   background: rgb(var(--c-ink-900));
   border-radius: 1rem;
 }
+/* Grado del tile de equipo (#241 lote C): el mock lo muestra un escalón más
+   grande que el resto de los chips, siempre dentro del scope del flag. */
+.tema-v2 .v2-grado > :first-child {
+  font-size: 12px;
+  padding: 2px 8px;
+}
 /* Rótulos sobre el verde de marca (hero de Resumen y del POS, KPI destacado):
    al 70/75% sobre la parada más oscura del degradado quedaban en 4.33:1 en
    oscuro; a plena opacidad el texto vuelve a AA. */
