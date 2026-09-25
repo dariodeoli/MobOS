@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
@@ -20,7 +20,7 @@ import EmailField from '@/components/shared/EmailField'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
 import RucField from '@/components/shared/RucField'
-import PercentField, { parsePercent } from '@/components/shared/PercentField'
+import PercentField from '@/components/shared/PercentField'
 import InstagramField, { normalizarInstagram } from '@/components/shared/InstagramField'
 import PanelDerecho from '@/components/shared/PanelDerecho'
 import Avatar from '@/components/shared/Avatar'
@@ -32,6 +32,10 @@ import { descargarArchivo } from '@/utils/descargarArchivo'
 import { CELDA_DATO } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES, PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
+import { temaV2Activo } from '@/lib/temaV2'
+import { validarEnteroNoNegativo, validarPorcentajeDecimal, validarPorcentajeEntero } from '@/utils/limitesEmpresa'
+import { mensajeDeGuardado } from '@/utils/guardadoCuenta'
+import { EstadoGuardado, useGuardadoCuenta } from '@/components/control/GuardadoCuenta'
 
 // Un logo por modo (UX Config → Logos): el modo claro lleva el logo oscuro y
 // el modo oscuro el logo claro, y la vista previa se hace **sobre el fondo real
@@ -74,13 +78,21 @@ async function copiarValor(toast, valor, etiqueta) {
 
 
 
-export default function Config({ seccion = 'negocio' } = {}) {
-  const { sesion, empresa, sucursal, perfilEmpresa, actualizarEmpresa, esDemo } = useSesion()
+// El backend numera con MOB cuando la empresa no configuró prefijo
+// (`backend/lib/order-number.ts`): la pantalla muestra y edita el prefijo
+// efectivo, no un campo vacío que después no se puede guardar.
+function prefijoEfectivo(valor) {
+  const texto = String(valor || '').toUpperCase()
+  return /^[A-Z]{2,3}$/.test(texto) ? texto : 'MOB'
+}
+
+export default function Config({ seccion = 'negocio' } = {}) {  const { sesion, empresa, sucursal, perfilEmpresa, actualizarEmpresa, esDemo } = useSesion()
   const toast = useToast()
   const esDueno = sesion?.esPropietario
   // En la demo no hay sesión real: los ajustes que van contra la API se
   // deshabilitan con una nota en lugar de fallar con "Falta sesión" (#188).
   const demo = Boolean(esDemo)
+  const v2 = temaV2Activo()
   const [account, setAccount] = useState(null)
   const [logos, setLogos] = useState({ light: '', dark: '' })
   const [logoError, setLogoError] = useState('')
@@ -95,6 +107,17 @@ export default function Config({ seccion = 'negocio' } = {}) {
   const [limiteFidelizacion, setLimiteFidelizacion] = useState('')
   const [limiteMora, setLimiteMora] = useState('')
   const [seguroPct, setSeguroPct] = useState('')
+  // Guardado transversal (#162 · lote F): estado Guardado/Error por formulario
+  // y verificación de la contraseña en el lugar cuando el API la pide para una
+  // acción sensible (reauth de 10 minutos).
+  const anotarReautenticacion = useCallback((validUntil) => {
+    setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)
+  }, [])
+  const guardadoNumeracion = useGuardadoCuenta({ id: 'numeracion', onReauth: anotarReautenticacion })
+  const guardadoSeguro = useGuardadoCuenta({ id: 'seguro', onReauth: anotarReautenticacion })
+  const guardadoLimites = useGuardadoCuenta({ id: 'limites', onReauth: anotarReautenticacion })
+  const guardadoSesiones = useGuardadoCuenta({ id: 'sesiones', onReauth: anotarReautenticacion })
+  const guardadoExportar = useGuardadoCuenta({ id: 'exportar', onReauth: anotarReautenticacion })
   const [password, setPassword] = useState('')
   const [archiveReason, setArchiveReason] = useState('')
   const [busy, setBusy] = useState(false)
@@ -104,17 +127,38 @@ export default function Config({ seccion = 'negocio' } = {}) {
   const [cerrarCuentaAbierto, setCerrarCuentaAbierto] = useState(false)
   const [eliminarAbierto, setEliminarAbierto] = useState(false)
 
+  // El formulario se hidrata solo al cargar (y al recargar) la cuenta: los
+  // guardados parciales actualizan `account` sin pisar lo que el usuario está
+  // editando en el otro grupo.
+  const hidratarFormulario = useCallback((tenant) => {
+    if (!tenant) return
+    setPrefijo(prefijoEfectivo(tenant.orderPrefix))
+    setInicio(tenant.orderNextNumber ? String(tenant.orderNextNumber) : '')
+    setLimiteGasto(String(tenant.expenseLimitPyg ?? 1000000))
+    setLimiteCompra(String(tenant.purchaseCreditLimitPyg ?? 5000000))
+    setLimiteBajoLista(String(tenant.belowListPct ?? 10))
+    setLimiteFidelizacion(String(tenant.loyaltyPct ?? 0))
+    setLimiteMora(tenant.collectionLateFeeBpPerDay ? String(tenant.collectionLateFeeBpPerDay / 100).replace('.', ',') : '')
+    setSeguroPct(tenant.insurancePct ? String(tenant.insurancePct) : '')
+  }, [])
+
   const load = useCallback(async () => {
     if (!esDueno) return
     setFailure('')
     // En la demo no se consulta la API real (#194): se usa una empresa ficticia
     // con los ajustes guardados en este navegador.
     if (esDemo) {
-      setAccount({ tenant: { name: empresa?.nombre || 'Tienda demo', orderPrefix: 'DEMO', orderNextNumber: 1, ...getDemoTenant() } })
+      const tenant = { name: empresa?.nombre || 'Tienda demo', orderPrefix: 'DEMO', orderNextNumber: 1, ...getDemoTenant() }
+      setAccount({ tenant })
+      hidratarFormulario(tenant)
       return
     }
-    try { setAccount(await api.get('/api/account')) } catch (error) { setFailure(error.message || 'No se pudo cargar la seguridad de la cuenta.') }
-  }, [esDueno, esDemo, empresa?.nombre])
+    try {
+      const siguiente = await api.get('/api/account')
+      setAccount(siguiente)
+      hidratarFormulario(siguiente?.tenant)
+    } catch (error) { setFailure(error.message || 'No se pudo cargar la seguridad de la cuenta.') }
+  }, [esDueno, esDemo, empresa?.nombre, hidratarFormulario])
   useEffect(() => { load() }, [load])
   useEffect(() => {
     if (!account?.tenant?.logo?.updatedAt) { setLogos({ light: '', dark: '' }); return }
@@ -163,16 +207,29 @@ export default function Config({ seccion = 'negocio' } = {}) {
   async function revoke(sessionId) {
     if (busy) return
     setBusy(true); setFailure(''); setNotice('')
-    try { const result = await api.patch('/api/account', { action: 'revokeSession', sessionId }); setNotice('Sesión revocada.'); await load(); if (result.revokedSessionId === account?.currentSessionId) window.location.assign('/login') } catch (error) { setFailure(error.message || 'No se pudo revocar la sesión.') } finally { setBusy(false) }
+    try {
+      const result = await guardadoSesiones.ejecutar(
+        () => api.patch('/api/account', { action: 'revokeSession', sessionId }),
+        { etiqueta: 'la sesión' },
+      )
+      if (result) {
+        setNotice('Sesión revocada.')
+        await load()
+        if (result.revokedSessionId === account?.currentSessionId) window.location.assign('/login')
+      }
+    } finally { setBusy(false) }
   }
   async function exportData() {
     if (busy) return
     setBusy(true); setFailure(''); setNotice('')
     try {
-      const data = await api.get('/api/account/export')
-      descargarArchivo(`mobos-${account?.tenant?.slug || 'datos'}-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data, null, 2), { tipo: 'application/json' })
-      setNotice('Exportación descargada. No contiene claves, PIN, tokens ni archivos adjuntos.')
-    } catch (error) { setFailure(error.message || 'No se pudo exportar.') } finally { setBusy(false) }
+      const descargado = await guardadoExportar.ejecutar(async () => {
+        const data = await api.get('/api/account/export')
+        descargarArchivo(`mobos-${account?.tenant?.slug || 'datos'}-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data, null, 2), { tipo: 'application/json' })
+        return true
+      }, { etiqueta: 'la exportación' })
+      if (descargado) setNotice('Exportación descargada. No contiene claves, PIN, tokens ni archivos adjuntos.')
+    } finally { setBusy(false) }
   }
   async function cerrarCuenta({ password }) {
     if (busy) return
@@ -200,77 +257,90 @@ export default function Config({ seccion = 'negocio' } = {}) {
     try { await api.patch('/api/account', { action: 'archive', reason: archiveReason.trim() }); window.location.assign('/login') } catch (error) { setFailure(error.message || 'No se pudo archivar la empresa.') } finally { setBusy(false) }
   }
 
-  useEffect(() => {
-    if (!account?.tenant) return
-    setPrefijo(account.tenant.orderPrefix || '')
-    setInicio(account.tenant.orderNextNumber ? String(account.tenant.orderNextNumber) : '')
-    setLimiteGasto(String(account.tenant.expenseLimitPyg ?? 1000000))
-    setLimiteCompra(String(account.tenant.purchaseCreditLimitPyg ?? 5000000))
-    setLimiteBajoLista(String(account.tenant.belowListPct ?? 10))
-    setLimiteFidelizacion(String(account.tenant.loyaltyPct ?? 0))
-    setLimiteMora(account.tenant.collectionLateFeeBpPerDay ? String(account.tenant.collectionLateFeeBpPerDay / 100).replace('.', ',') : '')
-    setSeguroPct(account.tenant.insurancePct ? String(account.tenant.insurancePct) : '')
-  }, [account])
-
   // Seguro de ventas de la empresa (#162): % sobre el costo que se suma al
   // costo real de cada venta nueva y afecta el margen.
-  async function guardarSeguro() {
+  async function guardarSeguro(evento) {
+    evento?.preventDefault?.()
     if (busy) return
+    const validacion = validarPorcentajeEntero(seguroPct, 'El seguro')
+    if (!validacion.ok) { guardadoSeguro.setEstado({ ok: false, texto: validacion.error }); setFailure(''); setNotice(''); return }
+    const pct = validacion.valor === null || validacion.valor === 0 ? null : validacion.valor
     if (demo) {
-      const pct = setDemoInsurancePct(seguroPct.trim() === '' ? null : Number(seguroPct))
-      setAccount(current => current ? { ...current, tenant: { ...current.tenant, insurancePct: pct || null } } : current)
+      const guardado = setDemoInsurancePct(pct)
+      setAccount(current => current ? { ...current, tenant: { ...current.tenant, insurancePct: guardado || null } } : current)
+      guardadoSeguro.setEstado({ ok: true, texto: mensajeDeGuardado(guardado ? `${guardado}% del costo` : 'sin seguro') })
       setFailure(''); setNotice('Seguro guardado en este navegador (demo).')
       return
     }
     setBusy(true); setFailure(''); setNotice('')
     try {
-      const data = await api.patch('/api/account', { action: 'updateLimits', insurancePct: seguroPct.trim() === '' ? null : Number(seguroPct) })
-      setAccount(current => current ? { ...current, tenant: { ...current.tenant, insurancePct: data.insurancePct ?? null } } : current)
-      setNotice('Seguro de ventas guardado.')
-    } catch (error) { setFailure(error?.message || 'No se pudo guardar el seguro.') } finally { setBusy(false) }
+      const data = await guardadoSeguro.ejecutar(
+        () => api.patch('/api/account', { action: 'updateLimits', insurancePct: pct }),
+        { etiqueta: 'el seguro', exito: (fila) => (fila?.insurancePct ? `${fila.insurancePct}% del costo` : 'sin seguro') },
+      )
+      if (data) {
+        setAccount(current => current ? { ...current, tenant: { ...current.tenant, insurancePct: data.insurancePct ?? null } } : current)
+        setNotice('Seguro de ventas guardado.')
+      }
+    } finally { setBusy(false) }
   }
 
-  async function guardarNumeracion() {
+  async function guardarNumeracion(evento) {
+    evento?.preventDefault?.()
     if (busy) return
+    if (!/^[A-Z]{2,3}$/.test(prefijo)) { guardadoNumeracion.setEstado({ ok: false, texto: 'El prefijo debe tener 2 o 3 letras (ej.: MOB).' }); return }
+    if (!Number.isSafeInteger(Number(inicio)) || Number(inicio) < 1) { guardadoNumeracion.setEstado({ ok: false, texto: 'El número inicial debe ser un entero positivo.' }); return }
     if (demo) {
       const guardado = setDemoNumeracion({ prefix: prefijo, start: Number(inicio) })
       setAccount(current => current ? { ...current, tenant: { ...current.tenant, orderPrefix: guardado.orderPrefix, orderNextNumber: guardado.orderNextNumber } } : current)
-      setFailure(''); setNotice(`Numeración guardada en este navegador (demo): ${guardado.orderPrefix}-#${String(guardado.orderNextNumber).padStart(4, '0')}.`)
+      const detalle = `${guardado.orderPrefix}-#${String(guardado.orderNextNumber).padStart(4, '0')}`
+      guardadoNumeracion.setEstado({ ok: true, texto: mensajeDeGuardado(detalle) })
+      setFailure(''); setNotice(`Numeración guardada en este navegador (demo): ${detalle}.`)
       return
     }
     setBusy(true); setFailure(''); setNotice('')
     try {
-      const data = await api.patch('/api/account', { action: 'orderNumbering', prefix: prefijo, start: Number(inicio) })
-      setAccount(current => current ? { ...current, tenant: { ...current.tenant, orderPrefix: data.prefix, orderNextNumber: data.nextNumber } } : current)
-      setNotice(`Numeración guardada: ${data.preview}.`)
-    } catch (error) { setFailure(error?.message || 'No se pudo guardar la numeración.') } finally { setBusy(false) }
+      const data = await guardadoNumeracion.ejecutar(
+        () => api.patch('/api/account', { action: 'orderNumbering', prefix: prefijo, start: Number(inicio) }),
+        { etiqueta: 'la numeración', exito: (fila) => fila?.preview },
+      )
+      if (data) {
+        setAccount(current => current ? { ...current, tenant: { ...current.tenant, orderPrefix: data.prefix, orderNextNumber: data.nextNumber } } : current)
+        setNotice(`Numeración guardada: ${data.preview}.`)
+      }
+    } finally { setBusy(false) }
   }
 
-  async function guardarLimites() {
+  async function guardarLimites(evento) {
+    evento?.preventDefault?.()
     if (busy) return
-    const gasto = Number(limiteGasto)
-    const compra = Number(limiteCompra)
-    const bajoLista = parsePercent(limiteBajoLista)
-    const fidelizacion = parsePercent(limiteFidelizacion)
-    if (!Number.isSafeInteger(gasto) || gasto < 0 || !Number.isSafeInteger(compra) || compra < 0) { setFailure('Los límites deben ser enteros no negativos.'); return }
-    if (!Number.isSafeInteger(bajoLista) || bajoLista < 0 || bajoLista > 100) { setFailure('El porcentaje bajo lista debe ser un entero entre 0 y 100.'); return }
-    if (!Number.isSafeInteger(fidelizacion) || fidelizacion < 0 || fidelizacion > 100) { setFailure('El porcentaje de fidelización debe ser un entero entre 0 y 100.'); return }
-    const mora = limiteMora.trim() === '' ? null : Number(limiteMora.replace(',', '.'))
-    if (mora !== null && (!Number.isFinite(mora) || mora < 0 || mora > 100)) { setFailure('El recargo por mora debe ser un porcentaje entre 0 y 100.'); return }
-    const moraBp = mora === null || mora === 0 ? null : Math.round(mora * 100)
+    const gasto = validarEnteroNoNegativo(limiteGasto, 'El límite de gasto')
+    const compra = validarEnteroNoNegativo(limiteCompra, 'El límite de compra a crédito')
+    const bajoLista = validarPorcentajeEntero(limiteBajoLista, 'El porcentaje bajo lista')
+    const fidelizacion = validarPorcentajeEntero(limiteFidelizacion, 'El porcentaje de fidelización')
+    const mora = validarPorcentajeDecimal(limiteMora, 'El recargo por mora')
+    const invalido = [gasto, compra, bajoLista, fidelizacion, mora].find(resultado => !resultado.ok)
+    if (invalido) { guardadoLimites.setEstado({ ok: false, texto: invalido.error }); setFailure(''); setNotice(''); return }
+    const moraBp = mora.valor === null || mora.valor === 0 ? null : Math.round(mora.valor * 100)
     if (demo) {
-      setDemoLimits({ expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, loyaltyPct: fidelizacion, collectionLateFeeBpPerDay: moraBp })
-      setAccount(current => current ? { ...current, tenant: { ...current.tenant, expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, loyaltyPct: fidelizacion, collectionLateFeeBpPerDay: moraBp } } : current)
+      setDemoLimits({ expenseLimitPyg: gasto.valor, purchaseCreditLimitPyg: compra.valor, belowListPct: bajoLista.valor, loyaltyPct: fidelizacion.valor, collectionLateFeeBpPerDay: moraBp })
+      setAccount(current => current ? { ...current, tenant: { ...current.tenant, expenseLimitPyg: gasto.valor, purchaseCreditLimitPyg: compra.valor, belowListPct: bajoLista.valor, loyaltyPct: fidelizacion.valor, collectionLateFeeBpPerDay: moraBp } } : current)
+      guardadoLimites.setEstado({ ok: true, texto: mensajeDeGuardado() })
       setFailure(''); setNotice('Límites guardados en este navegador (demo).')
       return
     }
     setBusy(true); setFailure(''); setNotice('')
     try {
-      await api.patch('/api/account', { action: 'updateLimits', expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, loyaltyPct: fidelizacion, collectionLateFeeBpPerDay: limiteMora.trim() })
-      setAccount(current => current ? { ...current, tenant: { ...current.tenant, expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, loyaltyPct: fidelizacion, collectionLateFeeBpPerDay: moraBp } } : current)
-      actualizarEmpresa?.({ expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, loyaltyPct: fidelizacion })
-      setNotice('Límites de autorización guardados.')
-    } catch (error) { setFailure(error?.message || 'No se pudieron guardar los límites.') } finally { setBusy(false) }
+      const data = await guardadoLimites.ejecutar(
+        () => api.patch('/api/account', { action: 'updateLimits', expenseLimitPyg: gasto.valor, purchaseCreditLimitPyg: compra.valor, belowListPct: bajoLista.valor, loyaltyPct: fidelizacion.valor, collectionLateFeeBpPerDay: mora.valor }),
+        { etiqueta: 'los límites' },
+      )
+      if (data) {
+        setAccount(current => current ? { ...current, tenant: { ...current.tenant, expenseLimitPyg: gasto.valor, purchaseCreditLimitPyg: compra.valor, belowListPct: bajoLista.valor, loyaltyPct: fidelizacion.valor, collectionLateFeeBpPerDay: moraBp } } : current)
+        actualizarEmpresa?.({ expenseLimitPyg: gasto.valor, purchaseCreditLimitPyg: compra.valor, belowListPct: bajoLista.valor, loyaltyPct: fidelizacion.valor })
+        setNotice('Límites de autorización guardados.')
+      }
+    } finally { setBusy(false) }
   }
   return (
     <div className="space-y-4">
@@ -280,50 +350,80 @@ export default function Config({ seccion = 'negocio' } = {}) {
         <div>
           <h2 className="font-semibold">Identificador de pedidos</h2>
           <p className="mt-1 text-sm text-mute">Formato visible de los pedidos: prefijo de 2 o 3 letras y número inicial. Ejemplo: <b className="text-fore">{prefijo || 'MOB'} #{inicio || '310840'}</b>.</p>
-          <p className="mt-1 text-xs text-mute">Ahora está configurado así: <b className="text-fono-light tabular-nums">{account?.tenant?.orderPrefix || 'MOB'}-#{String(account?.tenant?.orderNextNumber || 1).padStart(4, '0')}</b> (el próximo pedido sale con ese número; el prefijo solo admite 2 o 3 letras, así que el <b className="text-fore">#</b> no puede duplicarse).</p>
+          <p className="mt-1 text-xs text-mute">Ahora está configurado así: <b className="text-fono-light tabular-nums">{prefijoEfectivo(account?.tenant?.orderPrefix)}-#{String(account?.tenant?.orderNextNumber || 1).padStart(4, '0')}</b> (el próximo pedido sale con ese número; el prefijo solo admite 2 o 3 letras, así que el <b className="text-fore">#</b> no puede duplicarse).</p>
         </div>
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="block w-24 space-y-1 text-xs text-mute"><span>Prefijo</span><Input aria-label="Prefijo de pedidos" maxLength={3} disabled={busy} value={prefijo} onChange={event => setPrefijo(event.target.value.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3))} placeholder="MOB" /></label>
-          <label className="block w-32 space-y-1 text-xs text-mute"><span>Número inicial</span><Input aria-label="Número inicial de pedidos" inputMode="numeric" disabled={busy} value={inicio} onChange={event => setInicio(event.target.value.replace(/\D/g, '').slice(0, 8))} placeholder="310840" /></label>
-          <Button type="button" disabled={busy || !/^[A-Z]{2,3}$/.test(prefijo) || !Number(inicio)} onClick={guardarNumeracion}>Guardar numeración</Button>
-        </div>
+        <form onSubmit={guardarNumeracion} className="space-y-3" data-testid="numeracion-form">
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="block w-24 space-y-1 text-xs text-mute"><span>Prefijo</span><Input aria-label="Prefijo de pedidos" maxLength={3} disabled={busy} value={prefijo} onChange={event => setPrefijo(event.target.value.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3))} placeholder="MOB" /></label>
+            <label className="block w-32 space-y-1 text-xs text-mute"><span>Número inicial</span><Input aria-label="Número inicial de pedidos" inputMode="numeric" disabled={busy} value={inicio} onChange={event => setInicio(event.target.value.replace(/\D/g, '').slice(0, 8))} placeholder="310840" /></label>
+            <Button type="submit" disabled={busy}>Guardar numeración</Button>
+          </div>
+          <EstadoGuardado testId="numeracion-estado" estado={guardadoNumeracion.estado} />
+        </form>
+        {guardadoNumeracion.panel}
         <p className="text-xs text-mute">Los pedidos ya creados conservan su número; los nuevos siguen esta secuencia.</p>
       </Card>
-        {esDueno && <Card className="space-y-3">
+        {esDueno && <Card className="space-y-3" data-testid="seguro-limites">
           <div>
-            <h2 className="font-semibold">Límites de autorización</h2>
+            <h2 className="font-semibold">Seguro y límites</h2>
             <p className="mt-1 text-sm text-mute">Por encima de estos montos, los roles operativos (cajera, vendedor) necesitan una autorización aprobada de gerencia para registrar un gasto o una compra a crédito. La venta bajo lista hasta el porcentaje indicado no pide autorización; más abajo, sí. El dueño y gerencia no la necesitan. La fidelización acredita al cliente, por cada venta, el porcentaje indicado del total como puntos canjeables por saldo a favor (1 punto = 1 Gs.); 0 la apaga.</p>
             {demo && <p className="mt-1 rounded-lg border border-fono/30 bg-fono/5 px-3 py-2 text-xs text-fono-light">Demo: los cambios se guardan solo en este navegador y el seguro se aplica al margen que ves en Análisis → Ganancias.</p>}
           </div>
-          <div className={GRILLA_DOS_COLUMNAS}>
-            <FormField label="Gasto sin autorización (Gs)" htmlFor="limite-gasto">
-              <MoneyInput id="limite-gasto" disabled={busy} value={limiteGasto} onValueChange={setLimiteGasto} placeholder="1.000.000" />
-            </FormField>
-            <FormField label="Compra a crédito sin autorización (Gs)" htmlFor="limite-compra">
-              <MoneyInput id="limite-compra" disabled={busy} value={limiteCompra} onValueChange={setLimiteCompra} placeholder="5.000.000" />
-            </FormField>
-            <FormField label="Bajo lista sin autorización (%)" htmlFor="limite-bajo-lista">
-              <PercentField id="limite-bajo-lista" max={100} disabled={busy} value={limiteBajoLista} onChange={setLimiteBajoLista} placeholder="10" />
-            </FormField>
-            <FormField label="Fidelización: puntos por venta (%)" hint="Porcentaje del total de cada venta que queda como puntos canjeables (1 punto = 1 Gs.). 0 la apaga." htmlFor="limite-fidelizacion">
-              <PercentField id="limite-fidelizacion" max={100} disabled={busy} value={limiteFidelizacion} onChange={setLimiteFidelizacion} placeholder="0" />
-            </FormField>
-            <FormField label="Recargo por mora (% diario)" htmlFor="limite-mora" hint="Vacío o 0 = sin recargo; solo se informan los días de atraso en Cobranzas.">
-              <PercentField id="limite-mora" disabled={busy} value={limiteMora} onChange={setLimiteMora} placeholder="0,5" />
-            </FormField>
-          </div>
-          <div className="flex flex-wrap items-end gap-3 rounded-xl border border-ink-600/70 bg-ink-800/30 p-3">
-            <span className="flex items-center gap-2 text-sm"><Switch id="seguro-toggle" checked={seguroPct.trim() !== '' && Number(seguroPct) > 0} onChange={(event) => setSeguroPct(event.target.checked ? (seguroPct && Number(seguroPct) > 0 ? seguroPct : '25') : '')} ariaLabel="Aplica seguro" /><span>Seguro de ventas</span></span>
-            <FormField label="Porcentaje sobre el costo (%)" htmlFor="seguro-pct" hint="Costo real = costo + seguro. Ej.: costo 100.000 y 25% → 125.000; el margen baja en 25.000.">
-              <PercentField id="seguro-pct" max={100} disabled={busy || seguroPct.trim() === ''} value={seguroPct} onChange={setSeguroPct} placeholder="25" />
-            </FormField>
-            <Button type="button" variant="outline" disabled={busy} onClick={guardarSeguro}>Guardar seguro</Button>
-            <p className="text-xs text-mute">Se aplica a las ventas nuevas; el producto o la categoría pueden tener su propio porcentaje.</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button type="button" disabled={busy || !limiteGasto || !limiteCompra || limiteBajoLista === '' || limiteFidelizacion === ''} onClick={guardarLimites}>Guardar límites</Button>
-            <p className="text-xs text-mute">Actual: gasto {formatGs(account?.tenant?.expenseLimitPyg ?? 1000000)} · compra a crédito {formatGs(account?.tenant?.purchaseCreditLimitPyg ?? 5000000)} · bajo lista {account?.tenant?.belowListPct ?? 10}% · fidelización {account?.tenant?.loyaltyPct ?? 0}% · mora {account?.tenant?.collectionLateFeeBpPerDay ? `${account.tenant.collectionLateFeeBpPerDay / 100}% diario` : 'sin recargo'}.</p>
-          </div>
+          <form
+            onSubmit={(evento) => { evento.preventDefault(); guardarSeguro() }}
+            className={cn('space-y-3 rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')}
+            data-testid="grupo-seguro"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold" htmlFor="seguro-toggle">
+                <Switch id="seguro-toggle" checked={seguroPct.trim() !== '' && Number(seguroPct) > 0} onChange={(event) => setSeguroPct(event.target.checked ? (seguroPct && Number(seguroPct) > 0 ? seguroPct : '25') : '')} ariaLabel="Aplica seguro" />
+                <span>Seguro de ventas</span>
+              </label>
+              <EstadoGuardado testId="seguro-estado" estado={guardadoSeguro.estado} />
+            </div>
+            <div className={GRILLA_DOS_COLUMNAS}>
+              <FormField label="Porcentaje sobre el costo (%)" htmlFor="seguro-pct" hint="Costo real = costo + seguro. Ej.: costo 100.000 y 25% → 125.000; el margen baja en 25.000. Se guarda como número entero (sin decimales).">
+                <PercentField id="seguro-pct" max={100} disabled={busy || seguroPct.trim() === ''} value={seguroPct} onChange={setSeguroPct} placeholder="25" />
+              </FormField>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="submit" variant="outline" disabled={busy}>Guardar seguro</Button>
+              <p className="text-xs text-mute">Se aplica a las ventas nuevas y se guarda con Enter; el producto o la categoría pueden tener su propio porcentaje.</p>
+            </div>
+          </form>
+          {guardadoSeguro.panel}
+          <form
+            onSubmit={guardarLimites}
+            className={cn('space-y-3 rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')}
+            data-testid="grupo-limites"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+              <h3 className="text-sm font-semibold">Montos y porcentajes</h3>
+              <EstadoGuardado testId="limites-estado" estado={guardadoLimites.estado} />
+            </div>
+            <div className={GRILLA_DOS_COLUMNAS}>
+              <FormField label="Gasto sin autorización (Gs)" htmlFor="limite-gasto">
+                <MoneyInput id="limite-gasto" disabled={busy} value={limiteGasto} onValueChange={setLimiteGasto} placeholder="1.000.000" />
+              </FormField>
+              <FormField label="Compra a crédito sin autorización (Gs)" htmlFor="limite-compra">
+                <MoneyInput id="limite-compra" disabled={busy} value={limiteCompra} onValueChange={setLimiteCompra} placeholder="5.000.000" />
+              </FormField>
+              <FormField label="Bajo lista sin autorización (%)" htmlFor="limite-bajo-lista">
+                <PercentField id="limite-bajo-lista" max={100} disabled={busy} value={limiteBajoLista} onChange={setLimiteBajoLista} placeholder="10" />
+              </FormField>
+              <FormField label="Fidelización: puntos por venta (%)" hint="Porcentaje del total de cada venta que queda como puntos canjeables (1 punto = 1 Gs.). 0 la apaga." htmlFor="limite-fidelizacion">
+                <PercentField id="limite-fidelizacion" max={100} disabled={busy} value={limiteFidelizacion} onChange={setLimiteFidelizacion} placeholder="0" />
+              </FormField>
+              <FormField label="Recargo por mora (% diario)" htmlFor="limite-mora" hint="Vacío o 0 = sin recargo; solo se informan los días de atraso en Cobranzas.">
+                <PercentField id="limite-mora" disabled={busy} value={limiteMora} onChange={setLimiteMora} placeholder="0,5" />
+              </FormField>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="submit" disabled={busy}>Guardar límites</Button>
+              <p className="text-xs text-mute">Se guarda con Enter. Actual: gasto {formatGs(account?.tenant?.expenseLimitPyg ?? 1000000)} · compra a crédito {formatGs(account?.tenant?.purchaseCreditLimitPyg ?? 5000000)} · bajo lista {account?.tenant?.belowListPct ?? 10}% · fidelización {account?.tenant?.loyaltyPct ?? 0}% · mora {account?.tenant?.collectionLateFeeBpPerDay ? `${account.tenant.collectionLateFeeBpPerDay / 100}% diario` : 'sin recargo'}.</p>
+            </div>
+          </form>
+          {guardadoLimites.panel}
         </Card>}
         {esDueno && <Card className="space-y-3">
           <div>
@@ -367,7 +467,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
         {esDueno && <DatosPrivados />}
         <SeccionTiendas account={account} />
         <SeccionInvitaciones />
-        <IdentidadCuenta tenant={account?.tenant} reauthValidUntil={account?.reauthValidUntil} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} />
+        <IdentidadCuenta tenant={account?.tenant} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} onGuardado={(cambios) => setAccount(current => current ? { ...current, tenant: { ...current.tenant, ...cambios } } : current)} />
       </>}
       {seccion === 'sucursales' && <>
         {esDueno && <SeccionSucursales />}
@@ -377,10 +477,12 @@ export default function Config({ seccion = 'negocio' } = {}) {
       <Card className="space-y-3"><div className="flex items-start gap-3">{perfilEmpresa?.picture ? <img src={perfilEmpresa.picture} referrerPolicy="no-referrer" alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" /> : <div className="rounded-lg bg-fono/10 p-2 text-fono"><Icon name="user" className="h-5 w-5" /></div>}<div className="min-w-0"><h2 className="font-semibold">Sesión activa</h2><p className="mt-0.5 truncate text-sm text-mute">{perfilEmpresa?.name || sesion?.correo || sesion?.nombre || 'Usuario de MobOS'}</p></div></div><div className="flex flex-wrap gap-2 text-sm"><Badge color="blue">{empresa?.nombre || 'Mi empresa'}</Badge>{sucursal?.nombre && <Badge color="slate">{sucursal.nombre}</Badge>}{sesion?.rol && <Badge color="slate">{sesion.rol}</Badge>}</div></Card>
         <Card className="space-y-3"><div><h2 className="font-semibold">Confirmar identidad</h2><p className="mt-1 text-sm text-mute">Pedimos tu contraseña antes de descargar datos, cerrar la empresa o revocar dispositivos. La autorización dura 10 minutos.</p></div><div className="flex flex-col gap-2 sm:flex-row"><PasswordInput aria-label="Contraseña para reautenticar" value={password} onChange={event => setPassword(event.target.value)} placeholder="Contraseña de la empresa" className="min-w-0 flex-1" /><Button onClick={reauthenticate} disabled={busy || !password}>Verificar contraseña</Button></div>{account?.reauthValidUntil && <p className="text-xs text-ok">Acciones sensibles habilitadas hasta {fmtDate(account.reauthValidUntil)}.</p>}</Card>
 
-        <Card className="space-y-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><h2 className="font-semibold">Sesiones activas</h2><p className="mt-1 text-sm text-mute">Cada dispositivo se puede cerrar de forma remota.</p></div><span className="flex flex-wrap items-center gap-2"><Button variant="outline" onClick={load} disabled={busy}>Actualizar</Button><Button variant="outline" className="border-bad/50 text-bad hover:bg-bad/10" onClick={() => { setFailure(''); setCerrarCuentaAbierto(true) }} disabled={busy}>Cerrar mi cuenta</Button></span></div>{!account && !failure && <p className="text-sm text-mute">Cargando sesiones…</p>}{account?.sessions?.length === 0 && <p className="text-sm text-mute">No hay sesiones activas.</p>}<div className="space-y-2">{account?.sessions?.map(active => <div key={active.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3"><div><p className="font-medium">{active.user?.name || 'Acceso de empresa'} {active.id === account.currentSessionId && <span className="ml-2 text-xs text-fono-light">Este dispositivo</span>}</p><p className="mt-1 text-xs text-mute">{active.user?.role || active.level} · {active.deviceId || 'Dispositivo no identificado'} · última actividad {fmtDate(active.lastSeenAt)}</p></div><Button variant="outline" onClick={() => setConfirmar({ tipo: 'revocar', sessionId: active.id })} disabled={busy}>Revocar</Button></div>)}</div></Card>
+        <Card className="space-y-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><h2 className="font-semibold">Sesiones activas</h2><p className="mt-1 text-sm text-mute">Cada dispositivo se puede cerrar de forma remota.</p></div><span className="flex flex-wrap items-center gap-2"><Button variant="outline" onClick={load} disabled={busy}>Actualizar</Button><Button variant="outline" className="border-bad/50 text-bad hover:bg-bad/10" onClick={() => { setFailure(''); setCerrarCuentaAbierto(true) }} disabled={busy}>Cerrar mi cuenta</Button></span></div>{!account && !failure && <p className="text-sm text-mute">Cargando sesiones…</p>}{account?.sessions?.length === 0 && <p className="text-sm text-mute">No hay sesiones activas.</p>}<div className="space-y-2">{account?.sessions?.map(active => <div key={active.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3"><div><p className="font-medium">{active.user?.name || 'Acceso de empresa'} {active.id === account.currentSessionId && <span className="ml-2 text-xs text-fono-light">Este dispositivo</span>}</p><p className="mt-1 text-xs text-mute">{active.user?.role || active.level} · {active.deviceId || 'Dispositivo no identificado'} · última actividad {fmtDate(active.lastSeenAt)}</p></div><Button variant="outline" onClick={() => setConfirmar({ tipo: 'revocar', sessionId: active.id })} disabled={busy}>Revocar</Button></div>)}</div>
+        <EstadoGuardado testId="sesiones-estado" estado={guardadoSesiones.estado} />
+        {guardadoSesiones.panel}</Card>
 
         {esDueno && <UsoEquipo />}
-        <Card className="space-y-3"><div><h2 className="font-semibold">Exportación básica</h2><p className="mt-1 text-sm text-mute">Descarga JSON de empresa, sucursales, equipo, clientes, productos, órdenes y pagos. Excluye credenciales, tokens, PIN y archivos de comprobantes.</p></div><Button variant="outline" onClick={exportData} disabled={busy}>Descargar mis datos</Button></Card>
+        <Card className="space-y-3"><div><h2 className="font-semibold">Exportación básica</h2><p className="mt-1 text-sm text-mute">Descarga JSON de empresa, sucursales, equipo, clientes, productos, órdenes y pagos. Excluye credenciales, tokens, PIN y archivos de comprobantes.</p></div><div className="flex flex-wrap items-center gap-3"><Button variant="outline" onClick={exportData} disabled={busy}>Descargar mis datos</Button><EstadoGuardado testId="exportar-estado" estado={guardadoExportar.estado} /></div>{guardadoExportar.panel}</Card>
 
         <Card className="space-y-3 border-bad/30"><div><h2 className="font-semibold text-bad">Archivar empresa</h2><p className="mt-1 text-sm text-mute">No borra ventas ni historial. Cierra sesiones y bloquea el acceso hasta restaurarla con correo, contraseña y la confirmación RESTORE, durante los 30 días posteriores al archivado.</p></div><Input aria-label="Motivo de archivado" value={archiveReason} onChange={event => setArchiveReason(event.target.value)} placeholder="Motivo del archivado (mínimo 10 caracteres)" /><Button variant="outline" onClick={() => setConfirmar({ tipo: 'archivar' })} disabled={busy || archiveReason.trim().length < 10 || !account?.reauthValidUntil} className="border-bad/50 text-bad hover:bg-bad/10">Archivar empresa</Button></Card>
 
@@ -416,9 +518,10 @@ export default function Config({ seccion = 'negocio' } = {}) {
   )
 }
 
-function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
+function IdentidadCuenta({ onReauthValid, onGuardado, tenant }) {
   const toast = useToast()
   const { empresa, actualizarEmpresa, usuario, esDemo } = useSesion()
+  const guardado = useGuardadoCuenta({ id: 'datos-tienda', onReauth: onReauthValid })
   const [foto, setFoto] = useState('')
   const [fotoError, setFotoError] = useState('')
   const [fotoBusy, setFotoBusy] = useState(false)
@@ -428,7 +531,6 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
   const formulario = () => ({
     name: empresa?.nombre || '',
     email: empresa?.email || '',
-    password: '',
     address: tenant?.address || '',
     city: tenant?.city || '',
     department: tenant?.department || '',
@@ -437,6 +539,14 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
     ruc: tenant?.ruc || '',
   })
   const [form, setForm] = useState(formulario)
+  // La hidratación no puede pisar lo que la persona ya escribió: el formulario
+  // se rellena con la cuenta solo mientras nadie lo tocó (el GET llega después
+  // del primer render y antes borraba los campos en silencio).
+  const tocado = useRef(false)
+  function editar(cambios) {
+    tocado.current = true
+    setForm(current => ({ ...current, ...cambios }))
+  }
   const valores = [
     { etiqueta: 'Nombre de la tienda', valor: empresa?.nombre || null },
     { etiqueta: 'Correo de la empresa', valor: empresa?.email || null },
@@ -446,7 +556,6 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
     { etiqueta: 'RUC', valor: tenant?.ruc || null },
     { etiqueta: 'ID de la tienda', valor: empresa?.id || null },
   ]
-  const reauthVigente = Boolean(reauthValidUntil && new Date(reauthValidUntil) > new Date())
   useEffect(() => {
     if (!usuario?.id) return
     let vigente = true
@@ -457,6 +566,7 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
   // pisar lo que la persona está escribiendo: solo se rellenan cuando cambian
   // los valores guardados.
   useEffect(() => {
+    if (tocado.current) return
     setForm(formulario())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant?.id, tenant?.address, tenant?.city, tenant?.department, tenant?.phone, tenant?.ruc, empresa?.nombre, empresa?.email])
@@ -489,6 +599,7 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
   }
 
   function restablecer() {
+    tocado.current = false
     setForm(formulario())
     setError('')
   }
@@ -499,7 +610,6 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
     const correo = form?.email?.trim() || ''
     if (nombre.length < 2 || nombre.length > 120) { setError('El nombre de la tienda debe tener entre 2 y 120 caracteres.'); return }
     if (!/^\S+@\S+\.\S+$/.test(correo)) { setError('Ingresá un correo de empresa válido.'); return }
-    if (!reauthVigente && !form?.password) { setError('Ingresá la contraseña de la empresa para confirmar el cambio.'); return }
     const cambios = {}
     if (nombre !== (empresa?.nombre || '')) cambios.name = nombre
     if (correo !== (empresa?.email || '')) cambios.email = correo
@@ -507,7 +617,7 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
       address: (form?.address || '').trim(),
       city: (form?.city || '').trim(),
       department: (form?.department || '').trim(),
-      phone: componerTelefono(form?.countryCode, form?.phone),
+      phone: componerTelefono({ countryCode: form?.countryCode, phone: form?.phone }),
       ruc: (form?.ruc || '').trim(),
     }
     if (perfil.address !== (tenant?.address || '')) cambios.address = perfil.address
@@ -517,15 +627,19 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
     if (perfil.ruc !== (tenant?.ruc || '')) cambios.ruc = perfil.ruc
     setBusy(true); setError('')
     try {
-      if (!reauthVigente) {
-        const auth = await api.post('/api/account', { password: form.password })
-        onReauthValid?.(auth.validUntil)
+      const resultado = await guardado.ejecutar(async () => {
+        if (Object.keys(cambios).length) await api.patch('/api/account', { action: 'updateProfile', ...cambios })
+        return cambios
+      }, { etiqueta: 'los datos de la tienda' })
+      if (resultado) {
+        actualizarEmpresa?.(resultado)
+        // La ficha del panel y los datos guardados se actualizan al instante:
+        // sin esto el formulario volvía a los valores viejos y parecía que no
+        // se había guardado nada.
+        onGuardado?.(resultado)
+        toast.success('Datos de la tienda actualizados.')
       }
-      if (Object.keys(cambios).length) await api.patch('/api/account', { action: 'updateProfile', ...cambios })
-      actualizarEmpresa?.(cambios)
-      setForm(formulario())
-      toast.success('Datos de la tienda actualizados.')
-    } catch (cause) { setError(cause?.message || 'No se pudieron actualizar los datos de la tienda.') } finally { setBusy(false) }
+    } finally { setBusy(false) }
   }
   return (
     <PanelDerecho
@@ -538,38 +652,33 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
           </div>
           <form onSubmit={guardar} className="space-y-3">
             <FormField label="Nombre de la tienda" htmlFor="edit-nombre">
-              <Input id="edit-nombre" disabled={busy} value={form?.name || ''} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} placeholder="Nombre de la tienda" />
+              <Input id="edit-nombre" disabled={busy} value={form?.name || ''} onChange={event => editar({ name: event.target.value })} placeholder="Nombre de la tienda" />
             </FormField>
             <FormField label="Correo de la empresa" htmlFor="edit-correo">
-              <EmailField id="edit-correo" disabled={busy} value={form?.email || ''} onChange={value => setForm(current => ({ ...current, email: value }))} placeholder="Correo de la empresa" />
+              <EmailField id="edit-correo" disabled={busy} value={form?.email || ''} onChange={value => editar({ email: value })} placeholder="Correo de la empresa" />
             </FormField>
             <FormField label="Dirección" htmlFor="edit-direccion">
-              <Input id="edit-direccion" maxLength={400} disabled={busy} value={form?.address || ''} onChange={event => setForm(current => ({ ...current, address: event.target.value }))} placeholder="Dirección del negocio (para el comprobante)" />
+              <Input id="edit-direccion" maxLength={400} disabled={busy} value={form?.address || ''} onChange={event => editar({ address: event.target.value })} placeholder="Dirección del negocio (para el comprobante)" />
             </FormField>
-            <div className={GRILLA_DOS_COLUMNAS}>
+            <div className={cn(GRILLA_DOS_COLUMNAS, 'lg:grid-cols-1')}>
               <FormField label="Ciudad" hint={form?.department ? `Departamento: ${form.department}` : undefined}>
-                <CityAutocomplete disabled={busy} value={form?.city || ''} onSelect={(city, department) => setForm(current => ({ ...current, city, department }))} placeholder="Ciudad del negocio" />
+                <CityAutocomplete disabled={busy} value={form?.city || ''} onSelect={(city, department) => editar({ city, department })} placeholder="Ciudad del negocio" />
               </FormField>
               <FormField label="Teléfono">
-                <PhoneField disabled={busy} countryCode={form?.countryCode || '+595'} phone={form?.phone || ''} onCountryCodeChange={countryCode => setForm(current => ({ ...current, countryCode }))} onChange={phone => setForm(current => ({ ...current, phone }))} placeholder="Teléfono del negocio" />
+                <PhoneField disabled={busy} countryCode={form?.countryCode || '+595'} phone={form?.phone || ''} onCountryCodeChange={countryCode => editar({ countryCode })} onChange={phone => editar({ phone })} placeholder="Teléfono del negocio" />
               </FormField>
             </div>
             <FormField label="RUC" htmlFor="edit-ruc">
-              <RucField id="edit-ruc" value={form?.ruc || ''} onChange={ruc => setForm(current => ({ ...current, ruc }))} onAplicar={(datos) => setForm(current => ({ ...current, name: datos.name || current.name, ruc: datos.fullRuc || current.ruc }))} disabled={busy} esDemo={esDemo} placeholder="RUC del negocio (opcional)" autoComplete="off" />
+              <RucField id="edit-ruc" value={form?.ruc || ''} onChange={ruc => editar({ ruc })} onAplicar={(datos) => { tocado.current = true; setForm(current => ({ ...current, name: datos.name || current.name, ruc: datos.fullRuc || current.ruc })) }} disabled={busy} esDemo={esDemo} placeholder="RUC del negocio (opcional)" autoComplete="off" />
             </FormField>
-            {reauthVigente ? (
-              <p className="text-xs text-ok">Tu contraseña fue verificada hace menos de 10 minutos: no hace falta escribirla de nuevo.</p>
-            ) : (
-              <FormField label="Contraseña de la empresa" htmlFor="edit-password">
-                <PasswordInput id="edit-password" autoComplete="current-password" disabled={busy} value={form?.password || ''} onChange={event => setForm(current => ({ ...current, password: event.target.value }))} placeholder="Para confirmar el cambio" />
-              </FormField>
-            )}
+            <EstadoGuardado testId="datos-tienda-estado" estado={guardado.estado} />
             {error && <Aviso tono="error">{error}</Aviso>}
             <div className={PIE_ACCIONES}>
               <Button type="button" variant="ghost" disabled={busy} onClick={restablecer}>Restablecer</Button>
               <Button type="submit" disabled={busy || !form?.name?.trim() || !form?.email?.trim()}>{busy ? 'Guardando…' : 'Guardar cambios'}</Button>
             </div>
           </form>
+          {guardado.panel}
         </Card>
       }
     >
@@ -617,6 +726,7 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
 export function MiIdentidad() {
   const toast = useToast()
   const { usuario, empresa, perfilEmpresa, actualizarNombreUsuario } = useSesion()
+  const guardado = useGuardadoCuenta({ id: 'identidad' })
   const [nuevoNombre, setNuevoNombre] = useState('')
   const [guardandoNombre, setGuardandoNombre] = useState(false)
   const nombreActual = perfilEmpresa?.name || usuario?.user_metadata?.nombre || 'Dueño de la tienda'
@@ -631,14 +741,18 @@ export function MiIdentidad() {
   }
 
   async function guardarNombre(event) {
-    event.preventDefault(); setGuardandoNombre(true)
+    event.preventDefault()
+    if (guardandoNombre) return
+    const nombre = nuevoNombre.trim()
+    if (nombre.length < 2 || nombre.length > 100) { guardado.setEstado({ ok: false, texto: 'El nombre debe tener entre 2 y 100 caracteres.' }); return }
+    setGuardandoNombre(true)
     try {
-      const nombre = nuevoNombre.trim()
-      if (nombre.length < 2 || nombre.length > 100) throw new Error('El nombre debe tener entre 2 y 100 caracteres.')
-      await api.patch('/api/users', { id: usuario.id, name: nombre })
-      actualizarNombreUsuario(nombre)
-      toast.success('Nombre actualizado', 'Tu nombre ahora aparece en ventas, reportes y comprobantes.')
-    } catch (cause) { toast.error(cause?.message || 'No se pudo actualizar el nombre.') } finally { setGuardandoNombre(false) }
+      const resultado = await guardado.ejecutar(() => api.patch('/api/users', { id: usuario.id, name: nombre }), { etiqueta: 'tu nombre' })
+      if (resultado) {
+        actualizarNombreUsuario(nombre)
+        toast.success('Nombre actualizado', 'Tu nombre ahora aparece en ventas, reportes y comprobantes.')
+      }
+    } finally { setGuardandoNombre(false) }
   }
 
   return (
@@ -655,7 +769,9 @@ export function MiIdentidad() {
               <Input id="identidad-nombre" value={nuevoNombre} onChange={(event) => setNuevoNombre(event.target.value)} placeholder="Tu nombre" minLength={2} maxLength={100} required />
             </FormField>
             <Button type="submit" className="w-full" disabled={guardandoNombre || nuevoNombre.trim().length < 2}>{guardandoNombre ? 'Guardando…' : 'Guardar nombre'}</Button>
+            <EstadoGuardado testId="identidad-estado" estado={guardado.estado} />
           </form>
+          {guardado.panel}
         </Card>
       }
     >
@@ -892,6 +1008,7 @@ function DialogoDestructivo({ open, title, description, palabra, necesitaClave =
 function SeccionSucursales() {
   const toast = useToast()
   const { esDemo } = useSesion()
+  const guardado = useGuardadoCuenta({ id: 'sucursal' })
   const [branches, setBranches] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -926,7 +1043,8 @@ function SeccionSucursales() {
 
   async function guardar(event) {
     event.preventDefault()
-    if (busy || !form?.name?.trim()) return
+    if (busy) return
+    if (!form?.name?.trim()) { guardado.setEstado({ ok: false, texto: 'Poné el nombre de la sucursal.' }); return }
     setBusy(true); setError('')
     try {
       const payload = {
@@ -937,21 +1055,27 @@ function SeccionSucursales() {
         phone: componerTelefono({ countryCode: form.countryCode, phone: form.phone }),
         instagram: form.instagram?.trim() || null,
       }
-      if (form.id) await api.patch('/api/branches', { id: form.id, ...payload })
-      else await api.post('/api/branches', payload)
-      setForm(formVacio())
-      toast.success(form.id ? 'Sucursal actualizada.' : 'Sucursal creada.')
-      await cargar()
-    } catch (cause) { setError(cause?.message || 'No se pudo guardar la sucursal.') } finally { setBusy(false) }
+      const resultado = await guardado.ejecutar(
+        () => (form.id ? api.patch('/api/branches', { id: form.id, ...payload }) : api.post('/api/branches', payload)),
+        { etiqueta: 'la sucursal' },
+      )
+      if (resultado) {
+        setForm(formVacio())
+        toast.success(form.id ? 'Sucursal actualizada.' : 'Sucursal creada.')
+        await cargar()
+      }
+    } finally { setBusy(false) }
   }
 
   async function alternar(branch) {
     setBusy(true); setError('')
     try {
-      await api.patch('/api/branches', { id: branch.id, isActive: !branch.isActive })
-      toast.success(branch.isActive ? 'Sucursal desactivada.' : 'Sucursal reactivada.')
-      await cargar()
-    } catch (cause) { setError(cause?.message || 'No se pudo actualizar la sucursal.') } finally { setBusy(false) }
+      const resultado = await guardado.ejecutar(() => api.patch('/api/branches', { id: branch.id, isActive: !branch.isActive }), { etiqueta: 'la sucursal' })
+      if (resultado) {
+        toast.success(branch.isActive ? 'Sucursal desactivada.' : 'Sucursal reactivada.')
+        await cargar()
+      }
+    } finally { setBusy(false) }
   }
 
   // En demo las sucursales no se administran: la sesión ficticia usa "Tienda demo".
@@ -981,7 +1105,7 @@ function SeccionSucursales() {
             <FormField label="Nombre" htmlFor="sucursal-nombre">
               <Input id="sucursal-nombre" required maxLength={100} disabled={busy} value={form?.name || ''} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} placeholder="Nombre de la sucursal" />
             </FormField>
-            <div className={GRILLA_DOS_COLUMNAS}>
+            <div className={cn(GRILLA_DOS_COLUMNAS, 'lg:grid-cols-1')}>
               <FormField label="Teléfono (opcional)">
                 <PhoneField disabled={busy} countryCode={form?.countryCode || '+595'} phone={form?.phone || ''} onCountryCodeChange={countryCode => setForm(current => ({ ...current, countryCode }))} onChange={phone => setForm(current => ({ ...current, phone }))} placeholder="Teléfono" />
               </FormField>
@@ -996,11 +1120,13 @@ function SeccionSucursales() {
               <Input id="sucursal-direccion" maxLength={200} disabled={busy} value={form?.address || ''} onChange={event => setForm(current => ({ ...current, address: event.target.value }))} placeholder="Dirección completa" />
             </FormField>
             {error && <Aviso tono="error">{error}</Aviso>}
+            <EstadoGuardado testId="sucursal-estado" estado={guardado.estado} />
             <div className={PIE_ACCIONES}>
               {form?.id && <Button type="button" variant="ghost" disabled={busy} onClick={() => abrir(null)}>Cancelar edición</Button>}
               <Button type="submit" disabled={busy || !form?.name?.trim()}>{busy ? 'Guardando…' : form?.id ? 'Guardar cambios' : 'Crear sucursal'}</Button>
             </div>
           </form>
+          {guardado.panel}
         </Card>
       }
     >
