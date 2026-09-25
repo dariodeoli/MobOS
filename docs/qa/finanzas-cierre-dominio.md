@@ -2,12 +2,12 @@
 
 - **Rama:** `slot/finanzas` · **Verificación definitiva:** producción
   **v1.0.141** (`release:smoke` OK) · **Fecha:** 2026-09-22
-- **Última revisión:** 2026-09-23 (v1.0.152) — verificación de márgenes con
-  costo real: el **descuento del carrito**, la **pérdida de una línea bajo
-  costo** y las **ventas con costo pendiente** ya no inflan la ganancia ni la
-  comisión; el arnés **recalcula reportes y comisiones desde la base**; y se
-  suman el **responsive mobile de Finanzas (#249)** y la **sonda de la cadena de
-  costo real** para producción (`148-19-*.md`, `249-finanzas.md`).
+- **Última revisión:** 2026-09-24 (post v1.0.163) — **Config → Seguro y
+  límites**: el seguro y los límites ya guardan con Enter, con estado
+  Guardado/Error por grupo y reautenticación resuelta en el lugar
+  (`seguro-limites/`). Antes: verificación de márgenes con costo real (v1.0.152
+  — descuento del carrito, líneas bajo costo y ventas sin costo), responsive
+  mobile de Finanzas (#249) y sonda de la cadena de costo real.
 - Índice de todo lo entregado y verificado en el dominio, con la evidencia y la
   versión en la que quedó integrado. Sirve de punto de entrada para auditoría.
 
@@ -76,6 +76,7 @@ vendedor/día ni la comisión liquidada**—, ya corregido y con evidencia en
 | #83 (2026-09-24) | Control de créditos: la lista se corta, los totales incluyen a todos los deudores | `83-creditos-totales.md` |
 | #83 (2026-09-24) | KPI de Finanzas (por cobrar, por pagar, margen) sobre todo el historial | `83-finanzas-kpi-exactos.md` |
 | #241 (2026-09-24) | Lote D v2 (Caja, Conciliación, Cuentas): tiles, números de consola y chips + QA antes/después | `rediseno/F4-DOMINIOS.md` + `rediseno/c241f4b-finanzas-cuentas-*` |
+| #162 · #241 (2026-09-24) | Config → Seguro y límites: guardar con Enter, estado Guardado/Error por grupo y reautenticación resuelta en el lugar (antes: Enter no guardaba, un guardado pisaba el otro grupo y el 403 de reautenticación quedaba fuera de la sección) | `seguro-limites/` |
 | #185 Recorrido de Finanzas en producción | 16/16 pasos, 4 corridas (v1.0.137, v1.0.139, v1.0.140 y v1.0.141) | `185/produccion/reporte.md`, `185/produccion-1.0.139/`, `185/produccion-1.0.140/`, `185/produccion-1.0.141/` |
 
 ## Sondas re-ejecutables (producción)

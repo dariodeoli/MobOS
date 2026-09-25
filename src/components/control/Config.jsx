@@ -20,7 +20,7 @@ import EmailField from '@/components/shared/EmailField'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
 import RucField from '@/components/shared/RucField'
-import PercentField, { parsePercent } from '@/components/shared/PercentField'
+import PercentField from '@/components/shared/PercentField'
 import InstagramField, { normalizarInstagram } from '@/components/shared/InstagramField'
 import PanelDerecho from '@/components/shared/PanelDerecho'
 import Avatar from '@/components/shared/Avatar'
@@ -32,6 +32,8 @@ import { descargarArchivo } from '@/utils/descargarArchivo'
 import { CELDA_DATO } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES, PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
+import { temaV2Activo } from '@/lib/temaV2'
+import { validarEnteroNoNegativo, validarPorcentajeDecimal, validarPorcentajeEntero } from '@/utils/limitesEmpresa'
 
 // Un logo por modo (UX Config → Logos): el modo claro lleva el logo oscuro y
 // el modo oscuro el logo claro, y la vista previa se hace **sobre el fondo real
@@ -74,6 +76,25 @@ async function copiarValor(toast, valor, etiqueta) {
 
 
 
+// Estado de guardado por grupo (Seguro / Límites): muestra "Guardado" o el
+// error del grupo, sin depender de los avisos globales de la pantalla.
+function EstadoGrupo({ testId, estado }) {
+  return (
+    <div data-testid={testId} aria-live="polite" className="min-w-0">
+      {estado && (estado.ok
+        ? <Badge color="green">{estado.texto}</Badge>
+        : <Aviso tono="error" compact className="max-w-xl">{estado.texto}</Aviso>)}
+    </div>
+  )
+}
+
+// El API pide reautenticación reciente (10 minutos) para las acciones sensibles
+// y estos límites están entre ellas. Se distingue por el 403 con el mensaje de
+// reautenticación para pedir la contraseña acá mismo y reintentar el guardado.
+function faltaVerificarPassword(error) {
+  return error?.status === 403 && /reautentic/i.test(error?.message || '')
+}
+
 export default function Config({ seccion = 'negocio' } = {}) {
   const { sesion, empresa, sucursal, perfilEmpresa, actualizarEmpresa, esDemo } = useSesion()
   const toast = useToast()
@@ -81,6 +102,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
   // En la demo no hay sesión real: los ajustes que van contra la API se
   // deshabilitan con una nota en lugar de fallar con "Falta sesión" (#188).
   const demo = Boolean(esDemo)
+  const v2 = temaV2Activo()
   const [account, setAccount] = useState(null)
   const [logos, setLogos] = useState({ light: '', dark: '' })
   const [logoError, setLogoError] = useState('')
@@ -95,6 +117,12 @@ export default function Config({ seccion = 'negocio' } = {}) {
   const [limiteFidelizacion, setLimiteFidelizacion] = useState('')
   const [limiteMora, setLimiteMora] = useState('')
   const [seguroPct, setSeguroPct] = useState('')
+  const [estadoSeguro, setEstadoSeguro] = useState(null)
+  const [estadoLimites, setEstadoLimites] = useState(null)
+  const [reauthPendiente, setReauthPendiente] = useState(null)
+  const [reauthPassword, setReauthPassword] = useState('')
+  const [reauthError, setReauthError] = useState('')
+  const [reauthBusy, setReauthBusy] = useState(false)
   const [password, setPassword] = useState('')
   const [archiveReason, setArchiveReason] = useState('')
   const [busy, setBusy] = useState(false)
@@ -104,17 +132,38 @@ export default function Config({ seccion = 'negocio' } = {}) {
   const [cerrarCuentaAbierto, setCerrarCuentaAbierto] = useState(false)
   const [eliminarAbierto, setEliminarAbierto] = useState(false)
 
+  // El formulario se hidrata solo al cargar (y al recargar) la cuenta: los
+  // guardados parciales actualizan `account` sin pisar lo que el usuario está
+  // editando en el otro grupo.
+  const hidratarFormulario = useCallback((tenant) => {
+    if (!tenant) return
+    setPrefijo(tenant.orderPrefix || '')
+    setInicio(tenant.orderNextNumber ? String(tenant.orderNextNumber) : '')
+    setLimiteGasto(String(tenant.expenseLimitPyg ?? 1000000))
+    setLimiteCompra(String(tenant.purchaseCreditLimitPyg ?? 5000000))
+    setLimiteBajoLista(String(tenant.belowListPct ?? 10))
+    setLimiteFidelizacion(String(tenant.loyaltyPct ?? 0))
+    setLimiteMora(tenant.collectionLateFeeBpPerDay ? String(tenant.collectionLateFeeBpPerDay / 100).replace('.', ',') : '')
+    setSeguroPct(tenant.insurancePct ? String(tenant.insurancePct) : '')
+  }, [])
+
   const load = useCallback(async () => {
     if (!esDueno) return
     setFailure('')
     // En la demo no se consulta la API real (#194): se usa una empresa ficticia
     // con los ajustes guardados en este navegador.
     if (esDemo) {
-      setAccount({ tenant: { name: empresa?.nombre || 'Tienda demo', orderPrefix: 'DEMO', orderNextNumber: 1, ...getDemoTenant() } })
+      const tenant = { name: empresa?.nombre || 'Tienda demo', orderPrefix: 'DEMO', orderNextNumber: 1, ...getDemoTenant() }
+      setAccount({ tenant })
+      hidratarFormulario(tenant)
       return
     }
-    try { setAccount(await api.get('/api/account')) } catch (error) { setFailure(error.message || 'No se pudo cargar la seguridad de la cuenta.') }
-  }, [esDueno, esDemo, empresa?.nombre])
+    try {
+      const siguiente = await api.get('/api/account')
+      setAccount(siguiente)
+      hidratarFormulario(siguiente?.tenant)
+    } catch (error) { setFailure(error.message || 'No se pudo cargar la seguridad de la cuenta.') }
+  }, [esDueno, esDemo, empresa?.nombre, hidratarFormulario])
   useEffect(() => { load() }, [load])
   useEffect(() => {
     if (!account?.tenant?.logo?.updatedAt) { setLogos({ light: '', dark: '' }); return }
@@ -200,34 +249,32 @@ export default function Config({ seccion = 'negocio' } = {}) {
     try { await api.patch('/api/account', { action: 'archive', reason: archiveReason.trim() }); window.location.assign('/login') } catch (error) { setFailure(error.message || 'No se pudo archivar la empresa.') } finally { setBusy(false) }
   }
 
-  useEffect(() => {
-    if (!account?.tenant) return
-    setPrefijo(account.tenant.orderPrefix || '')
-    setInicio(account.tenant.orderNextNumber ? String(account.tenant.orderNextNumber) : '')
-    setLimiteGasto(String(account.tenant.expenseLimitPyg ?? 1000000))
-    setLimiteCompra(String(account.tenant.purchaseCreditLimitPyg ?? 5000000))
-    setLimiteBajoLista(String(account.tenant.belowListPct ?? 10))
-    setLimiteFidelizacion(String(account.tenant.loyaltyPct ?? 0))
-    setLimiteMora(account.tenant.collectionLateFeeBpPerDay ? String(account.tenant.collectionLateFeeBpPerDay / 100).replace('.', ',') : '')
-    setSeguroPct(account.tenant.insurancePct ? String(account.tenant.insurancePct) : '')
-  }, [account])
-
   // Seguro de ventas de la empresa (#162): % sobre el costo que se suma al
   // costo real de cada venta nueva y afecta el margen.
   async function guardarSeguro() {
     if (busy) return
+    const validacion = validarPorcentajeEntero(seguroPct, 'El seguro')
+    if (!validacion.ok) { setEstadoSeguro({ ok: false, texto: validacion.error }); setFailure(''); setNotice(''); return }
+    const pct = validacion.valor === null || validacion.valor === 0 ? null : validacion.valor
     if (demo) {
-      const pct = setDemoInsurancePct(seguroPct.trim() === '' ? null : Number(seguroPct))
-      setAccount(current => current ? { ...current, tenant: { ...current.tenant, insurancePct: pct || null } } : current)
+      const guardado = setDemoInsurancePct(pct)
+      setAccount(current => current ? { ...current, tenant: { ...current.tenant, insurancePct: guardado || null } } : current)
+      setEstadoSeguro({ ok: true, texto: guardado ? `Guardado: ${guardado}% del costo.` : 'Guardado: sin seguro.' })
       setFailure(''); setNotice('Seguro guardado en este navegador (demo).')
       return
     }
-    setBusy(true); setFailure(''); setNotice('')
+    setBusy(true); setFailure(''); setNotice(''); setEstadoSeguro(null)
     try {
-      const data = await api.patch('/api/account', { action: 'updateLimits', insurancePct: seguroPct.trim() === '' ? null : Number(seguroPct) })
+      const data = await api.patch('/api/account', { action: 'updateLimits', insurancePct: pct })
       setAccount(current => current ? { ...current, tenant: { ...current.tenant, insurancePct: data.insurancePct ?? null } } : current)
+      setEstadoSeguro({ ok: true, texto: data.insurancePct ? `Guardado: ${data.insurancePct}% del costo.` : 'Guardado: sin seguro.' })
       setNotice('Seguro de ventas guardado.')
-    } catch (error) { setFailure(error?.message || 'No se pudo guardar el seguro.') } finally { setBusy(false) }
+    } catch (error) {
+      if (faltaVerificarPassword(error)) {
+        setReauthPendiente('seguro'); setReauthPassword(''); setReauthError('')
+        setEstadoSeguro({ ok: false, texto: 'Falta verificar tu contraseña: el seguro no se guardó.' })
+      } else setEstadoSeguro({ ok: false, texto: error?.message || 'No se pudo guardar el seguro.' })
+    } finally { setBusy(false) }
   }
 
   async function guardarNumeracion() {
@@ -248,29 +295,50 @@ export default function Config({ seccion = 'negocio' } = {}) {
 
   async function guardarLimites() {
     if (busy) return
-    const gasto = Number(limiteGasto)
-    const compra = Number(limiteCompra)
-    const bajoLista = parsePercent(limiteBajoLista)
-    const fidelizacion = parsePercent(limiteFidelizacion)
-    if (!Number.isSafeInteger(gasto) || gasto < 0 || !Number.isSafeInteger(compra) || compra < 0) { setFailure('Los límites deben ser enteros no negativos.'); return }
-    if (!Number.isSafeInteger(bajoLista) || bajoLista < 0 || bajoLista > 100) { setFailure('El porcentaje bajo lista debe ser un entero entre 0 y 100.'); return }
-    if (!Number.isSafeInteger(fidelizacion) || fidelizacion < 0 || fidelizacion > 100) { setFailure('El porcentaje de fidelización debe ser un entero entre 0 y 100.'); return }
-    const mora = limiteMora.trim() === '' ? null : Number(limiteMora.replace(',', '.'))
-    if (mora !== null && (!Number.isFinite(mora) || mora < 0 || mora > 100)) { setFailure('El recargo por mora debe ser un porcentaje entre 0 y 100.'); return }
-    const moraBp = mora === null || mora === 0 ? null : Math.round(mora * 100)
+    const gasto = validarEnteroNoNegativo(limiteGasto, 'El límite de gasto')
+    const compra = validarEnteroNoNegativo(limiteCompra, 'El límite de compra a crédito')
+    const bajoLista = validarPorcentajeEntero(limiteBajoLista, 'El porcentaje bajo lista')
+    const fidelizacion = validarPorcentajeEntero(limiteFidelizacion, 'El porcentaje de fidelización')
+    const mora = validarPorcentajeDecimal(limiteMora, 'El recargo por mora')
+    const invalido = [gasto, compra, bajoLista, fidelizacion, mora].find(resultado => !resultado.ok)
+    if (invalido) { setEstadoLimites({ ok: false, texto: invalido.error }); setFailure(''); setNotice(''); return }
+    const moraBp = mora.valor === null || mora.valor === 0 ? null : Math.round(mora.valor * 100)
     if (demo) {
-      setDemoLimits({ expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, loyaltyPct: fidelizacion, collectionLateFeeBpPerDay: moraBp })
-      setAccount(current => current ? { ...current, tenant: { ...current.tenant, expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, loyaltyPct: fidelizacion, collectionLateFeeBpPerDay: moraBp } } : current)
+      setDemoLimits({ expenseLimitPyg: gasto.valor, purchaseCreditLimitPyg: compra.valor, belowListPct: bajoLista.valor, loyaltyPct: fidelizacion.valor, collectionLateFeeBpPerDay: moraBp })
+      setAccount(current => current ? { ...current, tenant: { ...current.tenant, expenseLimitPyg: gasto.valor, purchaseCreditLimitPyg: compra.valor, belowListPct: bajoLista.valor, loyaltyPct: fidelizacion.valor, collectionLateFeeBpPerDay: moraBp } } : current)
+      setEstadoLimites({ ok: true, texto: 'Guardado.' })
       setFailure(''); setNotice('Límites guardados en este navegador (demo).')
       return
     }
-    setBusy(true); setFailure(''); setNotice('')
+    setBusy(true); setFailure(''); setNotice(''); setEstadoLimites(null)
     try {
-      await api.patch('/api/account', { action: 'updateLimits', expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, loyaltyPct: fidelizacion, collectionLateFeeBpPerDay: limiteMora.trim() })
-      setAccount(current => current ? { ...current, tenant: { ...current.tenant, expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, loyaltyPct: fidelizacion, collectionLateFeeBpPerDay: moraBp } } : current)
-      actualizarEmpresa?.({ expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, loyaltyPct: fidelizacion })
+      await api.patch('/api/account', { action: 'updateLimits', expenseLimitPyg: gasto.valor, purchaseCreditLimitPyg: compra.valor, belowListPct: bajoLista.valor, loyaltyPct: fidelizacion.valor, collectionLateFeeBpPerDay: mora.valor })
+      setAccount(current => current ? { ...current, tenant: { ...current.tenant, expenseLimitPyg: gasto.valor, purchaseCreditLimitPyg: compra.valor, belowListPct: bajoLista.valor, loyaltyPct: fidelizacion.valor, collectionLateFeeBpPerDay: moraBp } } : current)
+      actualizarEmpresa?.({ expenseLimitPyg: gasto.valor, purchaseCreditLimitPyg: compra.valor, belowListPct: bajoLista.valor, loyaltyPct: fidelizacion.valor })
+      setEstadoLimites({ ok: true, texto: 'Guardado.' })
       setNotice('Límites de autorización guardados.')
-    } catch (error) { setFailure(error?.message || 'No se pudieron guardar los límites.') } finally { setBusy(false) }
+    } catch (error) {
+      if (faltaVerificarPassword(error)) {
+        setReauthPendiente('limites'); setReauthPassword(''); setReauthError('')
+        setEstadoLimites({ ok: false, texto: 'Falta verificar tu contraseña: los límites no se guardaron.' })
+      } else setEstadoLimites({ ok: false, texto: error?.message || 'No se pudieron guardar los límites.' })
+    } finally { setBusy(false) }
+  }
+
+  // Verifica la contraseña y reintenta el guardado del grupo que la necesitaba:
+  // los cambios del usuario no se pierden.
+  async function reautenticarYGuardar(evento) {
+    evento.preventDefault()
+    if (reauthBusy || !reauthPassword) return
+    setReauthBusy(true); setReauthError('')
+    const pendiente = reauthPendiente
+    try {
+      const result = await api.post('/api/account', { password: reauthPassword })
+      setAccount(current => current ? { ...current, reauthValidUntil: result.validUntil } : current)
+      setReauthPassword(''); setReauthPendiente(null); setNotice('')
+      if (pendiente === 'seguro') await guardarSeguro()
+      else if (pendiente === 'limites') await guardarLimites()
+    } catch (error) { setReauthError(error?.message || 'No se pudo verificar la contraseña.') } finally { setReauthBusy(false) }
   }
   return (
     <div className="space-y-4">
@@ -289,41 +357,82 @@ export default function Config({ seccion = 'negocio' } = {}) {
         </div>
         <p className="text-xs text-mute">Los pedidos ya creados conservan su número; los nuevos siguen esta secuencia.</p>
       </Card>
-        {esDueno && <Card className="space-y-3">
+        {esDueno && <Card className="space-y-3" data-testid="seguro-limites">
           <div>
-            <h2 className="font-semibold">Límites de autorización</h2>
+            <h2 className="font-semibold">Seguro y límites</h2>
             <p className="mt-1 text-sm text-mute">Por encima de estos montos, los roles operativos (cajera, vendedor) necesitan una autorización aprobada de gerencia para registrar un gasto o una compra a crédito. La venta bajo lista hasta el porcentaje indicado no pide autorización; más abajo, sí. El dueño y gerencia no la necesitan. La fidelización acredita al cliente, por cada venta, el porcentaje indicado del total como puntos canjeables por saldo a favor (1 punto = 1 Gs.); 0 la apaga.</p>
             {demo && <p className="mt-1 rounded-lg border border-fono/30 bg-fono/5 px-3 py-2 text-xs text-fono-light">Demo: los cambios se guardan solo en este navegador y el seguro se aplica al margen que ves en Análisis → Ganancias.</p>}
           </div>
-          <div className={GRILLA_DOS_COLUMNAS}>
-            <FormField label="Gasto sin autorización (Gs)" htmlFor="limite-gasto">
-              <MoneyInput id="limite-gasto" disabled={busy} value={limiteGasto} onValueChange={setLimiteGasto} placeholder="1.000.000" />
-            </FormField>
-            <FormField label="Compra a crédito sin autorización (Gs)" htmlFor="limite-compra">
-              <MoneyInput id="limite-compra" disabled={busy} value={limiteCompra} onValueChange={setLimiteCompra} placeholder="5.000.000" />
-            </FormField>
-            <FormField label="Bajo lista sin autorización (%)" htmlFor="limite-bajo-lista">
-              <PercentField id="limite-bajo-lista" max={100} disabled={busy} value={limiteBajoLista} onChange={setLimiteBajoLista} placeholder="10" />
-            </FormField>
-            <FormField label="Fidelización: puntos por venta (%)" hint="Porcentaje del total de cada venta que queda como puntos canjeables (1 punto = 1 Gs.). 0 la apaga." htmlFor="limite-fidelizacion">
-              <PercentField id="limite-fidelizacion" max={100} disabled={busy} value={limiteFidelizacion} onChange={setLimiteFidelizacion} placeholder="0" />
-            </FormField>
-            <FormField label="Recargo por mora (% diario)" htmlFor="limite-mora" hint="Vacío o 0 = sin recargo; solo se informan los días de atraso en Cobranzas.">
-              <PercentField id="limite-mora" disabled={busy} value={limiteMora} onChange={setLimiteMora} placeholder="0,5" />
-            </FormField>
-          </div>
-          <div className="flex flex-wrap items-end gap-3 rounded-xl border border-ink-600/70 bg-ink-800/30 p-3">
-            <span className="flex items-center gap-2 text-sm"><Switch id="seguro-toggle" checked={seguroPct.trim() !== '' && Number(seguroPct) > 0} onChange={(event) => setSeguroPct(event.target.checked ? (seguroPct && Number(seguroPct) > 0 ? seguroPct : '25') : '')} ariaLabel="Aplica seguro" /><span>Seguro de ventas</span></span>
-            <FormField label="Porcentaje sobre el costo (%)" htmlFor="seguro-pct" hint="Costo real = costo + seguro. Ej.: costo 100.000 y 25% → 125.000; el margen baja en 25.000.">
-              <PercentField id="seguro-pct" max={100} disabled={busy || seguroPct.trim() === ''} value={seguroPct} onChange={setSeguroPct} placeholder="25" />
-            </FormField>
-            <Button type="button" variant="outline" disabled={busy} onClick={guardarSeguro}>Guardar seguro</Button>
-            <p className="text-xs text-mute">Se aplica a las ventas nuevas; el producto o la categoría pueden tener su propio porcentaje.</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button type="button" disabled={busy || !limiteGasto || !limiteCompra || limiteBajoLista === '' || limiteFidelizacion === ''} onClick={guardarLimites}>Guardar límites</Button>
-            <p className="text-xs text-mute">Actual: gasto {formatGs(account?.tenant?.expenseLimitPyg ?? 1000000)} · compra a crédito {formatGs(account?.tenant?.purchaseCreditLimitPyg ?? 5000000)} · bajo lista {account?.tenant?.belowListPct ?? 10}% · fidelización {account?.tenant?.loyaltyPct ?? 0}% · mora {account?.tenant?.collectionLateFeeBpPerDay ? `${account.tenant.collectionLateFeeBpPerDay / 100}% diario` : 'sin recargo'}.</p>
-          </div>
+          <form
+            onSubmit={(evento) => { evento.preventDefault(); guardarSeguro() }}
+            className={cn('space-y-3 rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')}
+            data-testid="grupo-seguro"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+              <label className="flex items-center gap-2 text-sm font-semibold" htmlFor="seguro-toggle">
+                <Switch id="seguro-toggle" checked={seguroPct.trim() !== '' && Number(seguroPct) > 0} onChange={(event) => setSeguroPct(event.target.checked ? (seguroPct && Number(seguroPct) > 0 ? seguroPct : '25') : '')} ariaLabel="Aplica seguro" />
+                <span>Seguro de ventas</span>
+              </label>
+              <EstadoGrupo testId="seguro-estado" estado={estadoSeguro} />
+            </div>
+            <div className={GRILLA_DOS_COLUMNAS}>
+              <FormField label="Porcentaje sobre el costo (%)" htmlFor="seguro-pct" hint="Costo real = costo + seguro. Ej.: costo 100.000 y 25% → 125.000; el margen baja en 25.000. Se guarda como número entero (sin decimales).">
+                <PercentField id="seguro-pct" max={100} disabled={busy || seguroPct.trim() === ''} value={seguroPct} onChange={setSeguroPct} placeholder="25" />
+              </FormField>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="submit" variant="outline" disabled={busy}>Guardar seguro</Button>
+              <p className="text-xs text-mute">Se aplica a las ventas nuevas y se guarda con Enter; el producto o la categoría pueden tener su propio porcentaje.</p>
+            </div>
+          </form>
+          <form
+            onSubmit={(evento) => { evento.preventDefault(); guardarLimites() }}
+            className={cn('space-y-3 rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')}
+            data-testid="grupo-limites"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+              <h3 className="text-sm font-semibold">Montos y porcentajes</h3>
+              <EstadoGrupo testId="limites-estado" estado={estadoLimites} />
+            </div>
+            <div className={GRILLA_DOS_COLUMNAS}>
+              <FormField label="Gasto sin autorización (Gs)" htmlFor="limite-gasto">
+                <MoneyInput id="limite-gasto" disabled={busy} value={limiteGasto} onValueChange={setLimiteGasto} placeholder="1.000.000" />
+              </FormField>
+              <FormField label="Compra a crédito sin autorización (Gs)" htmlFor="limite-compra">
+                <MoneyInput id="limite-compra" disabled={busy} value={limiteCompra} onValueChange={setLimiteCompra} placeholder="5.000.000" />
+              </FormField>
+              <FormField label="Bajo lista sin autorización (%)" htmlFor="limite-bajo-lista">
+                <PercentField id="limite-bajo-lista" max={100} disabled={busy} value={limiteBajoLista} onChange={setLimiteBajoLista} placeholder="10" />
+              </FormField>
+              <FormField label="Fidelización: puntos por venta (%)" hint="Porcentaje del total de cada venta que queda como puntos canjeables (1 punto = 1 Gs.). 0 la apaga." htmlFor="limite-fidelizacion">
+                <PercentField id="limite-fidelizacion" max={100} disabled={busy} value={limiteFidelizacion} onChange={setLimiteFidelizacion} placeholder="0" />
+              </FormField>
+              <FormField label="Recargo por mora (% diario)" htmlFor="limite-mora" hint="Vacío o 0 = sin recargo; solo se informan los días de atraso en Cobranzas.">
+                <PercentField id="limite-mora" disabled={busy} value={limiteMora} onChange={setLimiteMora} placeholder="0,5" />
+              </FormField>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="submit" disabled={busy}>Guardar límites</Button>
+              <p className="text-xs text-mute">Se guarda con Enter. Actual: gasto {formatGs(account?.tenant?.expenseLimitPyg ?? 1000000)} · compra a crédito {formatGs(account?.tenant?.purchaseCreditLimitPyg ?? 5000000)} · bajo lista {account?.tenant?.belowListPct ?? 10}% · fidelización {account?.tenant?.loyaltyPct ?? 0}% · mora {account?.tenant?.collectionLateFeeBpPerDay ? `${account.tenant.collectionLateFeeBpPerDay / 100}% diario` : 'sin recargo'}.</p>
+            </div>
+          </form>
+          {!demo && reauthPendiente && (
+            <form
+              onSubmit={reautenticarYGuardar}
+              className={cn('space-y-3 rounded-xl border border-warn/40 bg-warn/5 p-3', v2 && 'v2-tile')}
+              data-testid="reauth-cambios"
+            >
+              <div>
+                <p className="text-sm font-semibold">Confirmá tu contraseña para guardar</p>
+                <p className="mt-0.5 text-xs text-mute">Los cambios de {reauthPendiente === 'seguro' ? 'seguro' : 'límites'} son sensibles: al verificar tu contraseña el guardado sigue solo y la autorización queda habilitada por 10 minutos.</p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <PasswordInput aria-label="Contraseña para guardar los cambios" autoComplete="current-password" disabled={reauthBusy} value={reauthPassword} onChange={evento => setReauthPassword(evento.target.value)} placeholder="Contraseña de la empresa" className="min-w-0 flex-1" />
+                <Button type="submit" disabled={reauthBusy || !reauthPassword}>Verificar y guardar</Button>
+              </div>
+              {reauthError && <Aviso tono="error" compact>{reauthError}</Aviso>}
+            </form>
+          )}
         </Card>}
         {esDueno && <Card className="space-y-3">
           <div>
