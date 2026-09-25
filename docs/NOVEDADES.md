@@ -11,6 +11,13 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.170 — 2026-09-25
+- **Menú (#251):** nuevo menú principal por flujo de trabajo: **Inicio · Vender · Clientes · Inventario · Operación · Finanzas · Análisis · Configuración**. «Taller» es **una sola sección** con pestañas y **Promociones** y **Precios** viven dentro de Vender e Inventario; se suman **Tablero de operaciones**, **Lista por modelo** y **Comparador**.
+- **Inventario (#218):** los **traslados** muestran el **ETA del lote** y quién **despachó** y **recibió** cada envío.
+- **Clientes (#240):** el cliente sigue el **estado de su entrega** desde la vitrina de su cuenta.
+- **Mobile (#249):** segunda vuelta de la auditoría responsive: los botones y acciones llegan al **mínimo táctil de 44 px** (menú de tres puntos incluido) y el **portal público** entra en la auditoría.
+- **Componentes (#241):** el **buscador global** usa la **paleta de comandos** de la biblioteca compartida (**v0.27.0**) con el tema v2 más profundo.
+
 ## v1.0.169 — 2026-09-25
 - **Clientes (#240):** **«Tus cotizaciones»** en la cuenta del cliente (con su estado y detalle).
 - **Configuración (#251):** **Dispositivos** y **Sistema** quedan separados y **Documentación** pasa a la **Ayuda** del shell; los grupos tienen guía por rol.
