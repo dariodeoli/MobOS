@@ -470,6 +470,28 @@ test('el modo taller usa el tile compartido para grado y batería (#240)', () =>
   const medidor = readFileSync(join(RAIZ, 'components/shared/MedidorBateria.jsx'), 'utf8')
   assert.match(medidor, /mostrarEtiqueta = false/, 'el chip puede mostrar la palabra')
 })
+// Lote 30 (#240/#250): la recepción de equipos y repuestos usa el buscador
+// dependiente de la biblioteca (modelo → capacidad/color) y el puente de
+// etiquetas vive en lib/dispositivos.
+test('la recepción usa el buscador dependiente de dispositivos (#240/#250)', () => {
+  const servicio = readFileSync(join(RAIZ, 'components/control/ServicioTecnico.jsx'), 'utf8')
+  assert.match(servicio, /import \{ BuscadorDispositivo, etiquetaDispositivo \} from 'owncoding-ui'/)
+  assert.match(servicio, /<BuscadorDispositivo[^>]*tipo="servicio"/)
+  assert.match(servicio, /partesDispositivo\(row\.device\)/, 'al editar se reabre la etiqueta')
+  assert.ok(!/<Input id="dispositivo"/.test(servicio), 'el campo de equipo ya no es texto libre suelto')
+  const garantias = readFileSync(join(RAIZ, 'components/control/Garantias.jsx'), 'utf8')
+  assert.match(garantias, /<BuscadorDispositivo[^>]*tipo="accesorios"/)
+  assert.match(garantias, /agregarRepuesto/, 'lo elegido se suma a la lista de repuestos')
+  const tablero = readFileSync(join(RAIZ, 'components/control/TableroServicioGarantias.jsx'), 'utf8')
+  assert.match(tablero, /partesDispositivo\(fila\.equipo\)/)
+  // La etiqueta se arma y se abre en un solo módulo.
+  const puente = readFileSync(join(RAIZ, 'lib/dispositivos.js'), 'utf8')
+  for (const nombre of ['partesDispositivo', 'varianteDispositivo', 'tipoDeDispositivo']) {
+    assert.match(puente, new RegExp(`export function ${nombre}\\(`), `falta ${nombre}`)
+  }
+  assert.ok(!/const SEPARADOR/.test(servicio), 'el separador de la etiqueta vive en lib/dispositivos')
+})
+
 // Lote 12: el QR y la ficha del informe público salen de los objetos; ninguna
 // pantalla vuelve a llamar a `qrcode` por su cuenta.
 test('el QR del informe sale de lib/qr y shared/CodigoQr (#240)', () => {
