@@ -1,0 +1,113 @@
+[
+  {
+    "pantalla": "finanzas",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "finanzas",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "finanzas",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 231,
+        "alto": 34,
+        "dibujo": "231x34",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "finanzas",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 15,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Caja",
+        "ancho": 53,
+        "alto": 36,
+        "dibujo": "53x36",
+        "clase": "rounded-xl px-3 py-2 text-sm font-medium transition min-h-11 bg-fono t",
+        "veces": 8
+      },
+      {
+        "que": "button",
+        "texto": "Registrar compra",
+        "ancho": 151,
+        "alto": 36,
+        "dibujo": "151x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-4 font-sem",
+        "veces": 5
+      },
+      {
+        "que": "button",
+        "texto": "30 días",
+        "ancho": 123,
+        "alto": 36,
+        "dibujo": "123x36",
+        "clase": "inline-flex h-9 items-center gap-2 rounded-lg border border-ink-500 bg",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  }
+]

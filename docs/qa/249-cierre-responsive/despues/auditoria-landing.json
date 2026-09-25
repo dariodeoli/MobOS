@@ -1,0 +1,248 @@
+[
+  {
+    "pantalla": "landing",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 6,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Ver caso pendiente",
+        "ancho": 100,
+        "alto": 17,
+        "dibujo": "100x17",
+        "clase": "font-semibold text-mute transition hover:text-fore",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Otro ejemplo",
+        "ancho": 84,
+        "alto": 17,
+        "dibujo": "84x17",
+        "clase": "inline-flex items-center gap-1 font-semibold text-fono-dark transition",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Ver cómo funciona",
+        "ancho": 278,
+        "alto": 20,
+        "dibujo": "278x20",
+        "clase": "mt-4 inline-flex items-center gap-1 text-sm font-bold text-fono-dark t",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Configurar mi tienda",
+        "ancho": 184,
+        "alto": 24,
+        "dibujo": "184x24",
+        "clase": "mt-8 inline-block font-bold text-fono-dark transition hover:text-fono",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 165,
+        "alto": 16,
+        "dibujo": "165x16",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "landing",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 6,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Ver caso pendiente",
+        "ancho": 102,
+        "alto": 17,
+        "dibujo": "102x17",
+        "clase": "font-semibold text-mute transition hover:text-fore",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Otro ejemplo",
+        "ancho": 84,
+        "alto": 17,
+        "dibujo": "84x17",
+        "clase": "inline-flex items-center gap-1 font-semibold text-fono-dark transition",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Ver cómo funciona",
+        "ancho": 308,
+        "alto": 20,
+        "dibujo": "308x20",
+        "clase": "mt-4 inline-flex items-center gap-1 text-sm font-bold text-fono-dark t",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Configurar mi tienda",
+        "ancho": 185,
+        "alto": 24,
+        "dibujo": "185x24",
+        "clase": "mt-8 inline-block font-bold text-fono-dark transition hover:text-fono",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 164,
+        "alto": 16,
+        "dibujo": "164x16",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "landing",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 6,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Ver caso pendiente",
+        "ancho": 102,
+        "alto": 17,
+        "dibujo": "102x17",
+        "clase": "font-semibold text-mute transition hover:text-fore",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Otro ejemplo",
+        "ancho": 84,
+        "alto": 17,
+        "dibujo": "84x17",
+        "clase": "inline-flex items-center gap-1 font-semibold text-fono-dark transition",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Ver cómo funciona",
+        "ancho": 332,
+        "alto": 20,
+        "dibujo": "332x20",
+        "clase": "mt-4 inline-flex items-center gap-1 text-sm font-bold text-fono-dark t",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Configurar mi tienda",
+        "ancho": 185,
+        "alto": 24,
+        "dibujo": "185x24",
+        "clase": "mt-8 inline-block font-bold text-fono-dark transition hover:text-fono",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 164,
+        "alto": 16,
+        "dibujo": "164x16",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "landing",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 8,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Ver caso pendiente",
+        "ancho": 102,
+        "alto": 17,
+        "dibujo": "102x17",
+        "clase": "font-semibold text-mute transition hover:text-fore",
+        "veces": 2
+      },
+      {
+        "que": "a",
+        "texto": "Estado",
+        "ancho": 46,
+        "alto": 20,
+        "dibujo": "46x20",
+        "clase": "hidden text-sm font-semibold text-mute transition hover:text-fono-dark",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Verificar IMEI",
+        "ancho": 120,
+        "alto": 36,
+        "dibujo": "120x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-4 font-sem",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Otro ejemplo",
+        "ancho": 84,
+        "alto": 17,
+        "dibujo": "84x17",
+        "clase": "inline-flex items-center gap-1 font-semibold text-fono-dark transition",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Ver cómo funciona",
+        "ancho": 314,
+        "alto": 20,
+        "dibujo": "314x20",
+        "clase": "mt-4 inline-flex items-center gap-1 text-sm font-bold text-fono-dark t",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Configurar mi tienda",
+        "ancho": 185,
+        "alto": 24,
+        "dibujo": "185x24",
+        "clase": "mt-8 inline-block font-bold text-fono-dark transition hover:text-fono",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 164,
+        "alto": 16,
+        "dibujo": "164x16",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  }
+]

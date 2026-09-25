@@ -3,8 +3,8 @@
 Pedido de Dario (issue **#249**): verificar la responsividad mobile del POS y
 las páginas clave —inventario, pedidos, clientes, finanzas, demo y
 landing/portal— y corregir lo que falle, a **360 / 390 / 414 px** y tablet.
-Este documento es el registro de la auditoría **y de los fixes P1/P2 de la
-primera pasada**.
+Este documento es el registro de la auditoría, de los fixes P1/P2 de la primera
+pasada y del **cierre del 25/09/2026** (segunda vuelta + gate).
 
 ## Cómo se mide
 
@@ -26,7 +26,7 @@ primera pasada**.
   `docs/qa/responsive-mobile/despues/` (post-fix). Los conteos son indicativos:
   las secciones perezosas varían el total entre corridas.
 
-## Resultado (antes → después de esta pasada)
+## Resultado de la primera pasada (antes → después)
 
 | Pantalla | Scroll H | Cortados | Targets < 44 px (360/390/414/768) |
 |---|---|---|---|
@@ -51,6 +51,76 @@ sin cortes ni scroll propio, antes y después.
 
 Medición: el auditor ahora cuenta el **área táctil efectiva**, así el “después”
 refleja la zona real de toque y no la caja dibujada.
+
+## Cierre #249 — 25/09/2026
+
+Segunda pasada de DSN sobre lo que quedaba del issue, con las entregas de
+INV/CRM/POS ya en `main`: se midieron las **superficies que faltaban**, se
+aplicó el patrón a los controles que seguían por debajo de 44 y el spec pasó de
+informe a **gate**.
+
+### Gate
+
+`e2e/dsn-responsive-mobile.spec.js` ahora **falla** si aparece scroll
+horizontal, un elemento cortado, un botón del topbar del shell sin área de 44 o
+un **control clave** por debajo de 44 (menú de tres puntos y sus ítems). Corre
+en el proyecto `admin` y quedó **8/8 en verde** (7 pantallas × 4 anchos + modal
++ oscuro + las 4 superficies de la segunda vuelta).
+
+```bash
+MOBOS_E2E_PGDATA=/tmp/mobos-e2e-pg-MOS-DSN MOBOS_E2E_PGPORT=5503 \
+  MOBOS_E2E_API_PORT=3103 MOBOS_E2E_WEB_PORT=5203 \
+  npx playwright test e2e/dsn-responsive-mobile.spec.js --project=admin
+```
+
+### Resultado (mobile, targets < 44 px)
+
+| Pantalla | 360 | 390 | 414 | 768 |
+|---|---|---|---|---|
+| POS | 4 → **1** | 5 → **1** | 5 → **1** | 10 → 10 |
+| Inventario | 2 → **1** | 2 → **1** | 2 → **1** | 66 → **9** |
+| Pedidos | 9 → **1** | 9 → **1** | 1 → **1** | 9 → 9 |
+| Clientes | 8 → **1** | 8 → **1** | 8 → **1** | 10 → **4** |
+| Finanzas | 1 → **1** | 1 → **1** | 1 → **1** | 16 → 15 |
+| Demo | 3 → 3 | 3 → 3 | 3 → 3 | 3 → 1 |
+| Landing | 7 → **6** | 7 → **6** | 7 → **6** | 9 → 8 |
+
+Scroll horizontal y elementos cortados: **0 en todas las combinaciones**, antes
+y después. Lo que queda en mobile es el pie “Desarrollado por Owncoding” y los
+enlaces de texto del demo/landing (**H6**, ver abajo): en los 768 conviven con
+la densidad de escritorio de las tablas, que va dentro de un contenedor con
+scroll horizontal propio y por eso ya no se cuenta como target mobile.
+
+### Superficies de la segunda vuelta (390)
+
+| Superficie | Hallazgo | Ahora |
+|---|---|---|
+| Menú de tres puntos (shell) | ítems dibujados de **36** de alto | **230×44** dibujados (sin solapes; el disparador ya medía 44 efectivos) |
+| Bloqueo / PIN | ya cumplía (input de **181×66**) | sin cambios; capturas en la evidencia |
+| Detalle de pedido | Archivar 34 y Regenerar acceso QR 30 | **44 en mobile**, compacto desde 768 |
+| Ficha de unidad | cerrar × 36, copiar IMEI 22, Consultas IMEI 28, adjuntar foto 30 | **≥44** (×/copiar con `.toque-44`, el resto con el alto del `Button`) |
+
+### Fixes de esta pasada
+
+- **Shell / compartidos**: ítems del menú de tres puntos e íconos varios del
+  flujo (patrón `min-h-11` + `.toque-44`); botones **×** del `Modal` y el
+  `Drawer` compartidos con área efectiva de 44 (arregla todas las pantallas).
+- **POS**: “Analytics”, “Ventas suspendidas” y “Suspender venta” (el `h-9`
+  pisaba el alto mobile del `Button`), “Nuevo producto”.
+- **Pedidos**: chips de filtro, “Actualizar” y la **fila de pedido** (42 → 44).
+- **Clientes**: encabezados ordenables (20 → 44 mobile), “Copiar teléfonos”,
+  “Exportar CSV” de la barra de lote y del encabezado.
+- **Inventario**: “Exportar CSV”; **Certificaciones**: “Solo pendientes” y
+  “Exportar CSV”. **Productos**: “Exportar CSV”.
+- **Landing**: logo del encabezado con área efectiva de 44.
+- **Medición**: las casillas se miden por el `<label>` que las envuelve (el
+  target real del toque); los controles `sr-only` y los que viven dentro de una
+  tabla con scroll horizontal quedan fuera del conteo de targets, igual que el
+  criterio de “cortados”.
+
+Evidencia: `docs/qa/249-cierre-responsive/antes/` (medición previa a los fixes,
+incluido el menú con ítems de 36) y `.../despues/` (gate verde). Cada carpeta
+lleva las capturas por pantalla y el JSON crudo de la auditoría.
 
 ## Patrón para POS / INV / CRM / FIN (y la biblioteca)
 
@@ -77,30 +147,34 @@ refleja la zona real de toque y no la caja dibujada.
 - En grupos con botones adyacentes, **sin solape**: se agranda el control
   dibujado o se separa a ≥8 px.
 
-## Hallazgos que siguen abiertos
+## Estado de los hallazgos
 
-- **H2 (P1) Acciones por fila**: inventario (costo 14×14, verificar 24×24,
-  acciones 28×28, editar 47×30), clientes (resumen rápido 36×36 ×22, WhatsApp
-  32×32, plantilla 16×20) y carrito POS (“Nuevo producto” 30 px, “Vaciar
-  carrito” 26 px, fila IMEI 20 px, eliminar 28×28). Dueños: **POS / INV / CRM**
-  con el patrón de arriba.
-- **H4 (P2) Checkboxes** de inventario y clientes (16×16 sin área ampliada).
-  Dueños: **INV / CRM**.
-- **H6 (P3) Links de texto** (crédito del pie, “Volver a la landing”):
-  **confirmar con Dario** si el criterio de 44 px aplica al texto en línea.
-- Superficies del POS que faltan medir (segunda vuelta): cobros y split,
-  entrega, teclado, menú de tres puntos desplegado y pantalla de bloqueo/PIN;
-  más el detalle de pedido y la ficha de unidad con checklist en mobile.
+- **H1 (P1) Topbar** ✅ cerrado en la primera pasada; el gate lo cuida (todos
+  los botones del `header` con área efectiva de 44).
+- **H2 (P1) Acciones por fila** ✅ cerrado: INV y CRM en sus ramas, POS en la
+  suya (carrito y cobros) y esta pasada sumó “Nuevo producto”, la fila de
+  pedido, el menú de tres puntos y los controles de la ficha y el detalle.
+- **H3 (P2) Chips y segmentados** ✅ cerrado (`SegmentedField`/`Subtabs` con
+  `min-h-11` + usos locales de POS/CRM; esta pasada sumó los filtros de Pedidos).
+- **H4 (P2) Checkboxes** ✅ cerrado en INV/CRM (label de 44) y la medición ahora
+  los mide por su label.
+- **H5 (P2) Landing** ✅ CTA del demo en 44; esta pasada sumó el logo del
+  encabezado.
+- **H6 (P3) Links de texto** ⏳ **decisión de Dario**: crédito del pie, “Volver
+  a la landing”, “Copiar enlace”/“Regenerar” del detalle de pedido y los enlaces
+  de texto de la landing. Hoy no se tocan.
+- **Superficies de la segunda vuelta** ✅ medidas: menú desplegado, bloqueo/PIN,
+  detalle de pedido y ficha de unidad (capturas y JSON en la evidencia).
 
 ## Plan
 
-1. **POS / INV / CRM / FIN**: aplicar el patrón a acciones por fila y
-   checkboxes (H2/H4), con capturas antes/después por pantalla.
+1. ~~Pos/inv/crm/fin: patrón en acciones por fila y checkboxes.~~ ✅
 2. **CMP**: la utilidad `.toque-44` y el `min-h-11` de segmentados ya viajan a
    la biblioteca; falta la regla de “sin solape en grupos pegados”.
-3. **Assertions**: con los fixes de dominio, el spec pasa de informe a gate
-   (sin scroll, sin cortes y targets ≥44 en los flujos principales). Hoy la
-   única aserción es que la auditoría corra completa en cada combinación.
+3. ~~Assertions: el spec pasa de informe a gate.~~ ✅ Falla por scroll, cortes y
+   controles clave < 44.
+4. **Producción**: correr `scripts/qa-responsive-landing.mjs` después del
+   próximo deploy para dejar la verificación de la landing contra el host real.
 
 ## Lo que ya está bien (para no tocarlo)
 

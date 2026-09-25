@@ -1,0 +1,131 @@
+[
+  {
+    "pantalla": "pos",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 153,
+        "alto": 13,
+        "dibujo": "153x13",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "pos",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "pos",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 231,
+        "alto": 34,
+        "dibujo": "231x34",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "pos",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 10,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Analytics",
+        "ancho": 121,
+        "alto": 36,
+        "dibujo": "121x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-4 font-sem",
+        "veces": 5
+      },
+      {
+        "que": "button",
+        "texto": "Nuevo producto",
+        "ancho": 135,
+        "alto": 30,
+        "dibujo": "135x30",
+        "clase": "inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-fon",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Vaciar carrito",
+        "ancho": 100,
+        "alto": 26,
+        "dibujo": "100x26",
+        "clase": "inline-flex min-h-11 items-center rounded-lg border border-ink-500 px-",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Eliminar Cable USB-C E2E",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "grid h-11 w-11 shrink-0 place-items-center rounded-lg text-mute transi",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Ver detalle de Cable USB-C E2E",
+        "ancho": 32,
+        "alto": 32,
+        "dibujo": "32x32",
+        "clase": "grid h-11 w-11 place-items-center rounded-lg text-mute transition hove",
+        "veces": 1
+      },
+      {
+        "que": "a",
+        "texto": "Desarrollado por Owncoding",
+        "ancho": 151,
+        "alto": 14,
+        "dibujo": "151x14",
+        "clase": "font-medium text-fono-dark hover:underline",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  }
+]
