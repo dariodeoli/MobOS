@@ -239,7 +239,9 @@ export async function GET(request: Request, { params }: RouteContext) {
         detail: `${row.serviceName} · ${row.imeiMasked} · US$${Number(row.costUsd).toFixed(2)}${row.status === 'conciliar' ? ' · pudo cobrarse, conciliar' : ''}`,
       }))
     })()),
-    ...(await prisma.serviceOrder.findMany({ where: { tenantId: session.user.tenantId, serial: unit.serial }, orderBy: { createdAt: 'desc' }, take: 50 })).map(row => ({
+    // #240: la orden puede guardar el serial crudo y la unidad el normalizado;
+    // además del serial, se listan las órdenes ya vinculadas a la unidad.
+    ...(await prisma.serviceOrder.findMany({ where: { tenantId: session.user.tenantId, OR: [{ serial: unit.serial }, { inventoryUnitId: unit.id }] }, orderBy: { createdAt: 'desc' }, take: 50 })).map(row => ({
       id: row.id,
       type: 'repair' as const,
       action: 'SERVICE_ORDER',

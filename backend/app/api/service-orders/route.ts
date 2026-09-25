@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client'
+import { serialKey } from '../../../lib/validation'
 import { ROLES_CON_DESBLOQUEO, cifrarSecreto, descifrarSecreto } from '../../../lib/secret-crypto'
 import { nextServiceNumber } from '../../../lib/service-number'
 import { prisma } from '../../../lib/prisma'
@@ -66,6 +67,10 @@ export async function GET(request: Request) {
         { customerName: { contains: q, mode: 'insensitive' } },
         { device: { contains: q, mode: 'insensitive' } },
         { serial: { contains: q, mode: 'insensitive' } },
+        { serial: { contains: serialKey(q), mode: 'insensitive' } },
+        // #240: la unidad guarda el serial normalizado; la orden vinculada se
+        // encuentra escaneando el IMEI aunque el serial tenga guiones.
+        { inventoryUnit: { is: { serial: { contains: serialKey(q), mode: 'insensitive' } } } },
         { reportedIssue: { contains: q, mode: 'insensitive' } },
         { diagnosis: { contains: q, mode: 'insensitive' } },
         { technicianName: { contains: q, mode: 'insensitive' } },

@@ -1,4 +1,5 @@
 import { prisma } from '../../../../lib/prisma'
+import { serialKey } from '../../../../lib/validation'
 import { error, json } from '../../../../lib/http'
 import { enforceRateLimit } from '../../../../lib/rate-limit'
 import { buscarPorTokenPublico } from '../../../../lib/public-token'
@@ -275,9 +276,11 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     })
     // Si el caso está en el taller, la garantía muestra el estado del servicio
     // que nació de ella (#224: la conversión comparte el serial).
-    const servicioPorSerial = new Map(servicios.map((orden) => [String(orden.serial || '').trim().toUpperCase(), orden]))
+    // #240: el serial puede venir con guiones en la garantía y normalizado en la
+    // orden del taller: se compara por la clave normalizada.
+    const servicioPorSerial = new Map(servicios.map((orden) => [serialKey(orden.serial), orden]))
     payload.warranties = warrantyRows.map(warranty => {
-      const servicio = servicioPorSerial.get(String(warranty.serial || '').trim().toUpperCase())
+      const servicio = servicioPorSerial.get(serialKey(warranty.serial))
       const enTaller = servicio && !['ENTREGADO', 'CANCELADO'].includes(servicio.status) ? servicio : null
       return {
         serial: warranty.serial,
