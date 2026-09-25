@@ -57,7 +57,7 @@ export default function MenuAcciones({ onNavegar, onBloquear }) {
         <div
           role="menu"
           data-testid="menu-acciones-lista"
-          className="absolute right-0 z-30 mt-1 w-60 overflow-hidden rounded-xl border border-ink-600 bg-ink p-1 shadow-2xl"
+          className="absolute right-0 z-30 mt-1 w-60 overflow-hidden rounded-xl border border-ink-600 bg-ink p-1 shadow-float"
         >
           {ITEMS.map(([etiqueta, icono, destino, tono]) => (
             <button

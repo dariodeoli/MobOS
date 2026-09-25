@@ -228,7 +228,7 @@ export function Eyebrow({ className, ...props }) {
 // ── Card ────────────────────────────────────────────────────────────
 export function Card({ className, ...props }) {
   return (
-    <div className={cn('rounded-xl border border-fono/30 bg-ink-800 p-5', className)} {...props} />
+    <div className={cn('rounded-xl border border-ink-600 bg-ink p-5 shadow-card', className)} {...props} />
   )
 }
 
@@ -259,7 +259,7 @@ export function Modal({ open, onClose, title, children, className, size = TAMANO
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center sm:p-6" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
-      <div ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} className={cn('max-h-[min(90dvh,720px)] w-full overflow-y-auto rounded-2xl border border-ink-600 bg-ink-800 p-4 shadow-2xl sm:p-6', TAMANOS_MODAL[size] || TAMANOS_MODAL[TAMANO_MODAL_PREDETERMINADO], className)}>
+      <div ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} className={cn('max-h-[min(90dvh,720px)] w-full overflow-y-auto rounded-2xl border border-ink-600 bg-ink-800 p-4 shadow-float sm:p-6', TAMANOS_MODAL[size] || TAMANOS_MODAL[TAMANO_MODAL_PREDETERMINADO], className)}>
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 id={titleId} className="text-base font-bold text-fore">{title}</h2>
           <button type="button" onClick={onClose} className="rounded-lg p-2 text-mute hover:bg-ink-700 hover:text-fore" aria-label="Cerrar">×</button>
@@ -407,7 +407,7 @@ export function Drawer({ open, onClose, title, children, side = 'right', classNa
         aria-modal="true"
         aria-labelledby={titleId}
         className={cn(
-          'absolute inset-y-0 flex max-h-full w-full max-w-md flex-col overflow-hidden border-ink-600 bg-ink-800 shadow-2xl',
+          'absolute inset-y-0 flex max-h-full w-full max-w-md flex-col overflow-hidden border-ink-600 bg-ink-800 shadow-float',
           side === 'left' ? 'left-0 border-r' : 'right-0 border-l',
           className,
         )}

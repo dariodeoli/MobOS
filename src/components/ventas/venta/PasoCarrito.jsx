@@ -55,7 +55,7 @@ export default function PasoCarrito({
     <section
       id="pos-resumen-venta"
       className={cn(
-        'scroll-mt-32 overflow-hidden rounded-2xl border border-ink-600 bg-ink-800',
+        'scroll-mt-32 overflow-hidden rounded-2xl border border-ink-600 bg-ink-800 shadow-card',
         // Lenguaje v2 (#241, paso 5): el carrito completo detrás del flag.
         temaV2Activo() && 'tema-v2',
       )}

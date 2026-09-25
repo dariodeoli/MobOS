@@ -62,7 +62,7 @@ export default function PasoCobro({
     <section
       data-testid="pos-cobro"
       className={cn(
-        'space-y-3.5 rounded-2xl border border-ink-600 bg-ink-800 p-3.5',
+        'space-y-3.5 rounded-2xl border border-ink-600 bg-ink-800 p-3.5 shadow-card',
         // Lenguaje v2 (#241, paso 5): el bloque de cobro detrás del flag.
         temaV2Activo() && 'tema-v2',
       )}

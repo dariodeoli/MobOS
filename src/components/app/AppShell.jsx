@@ -99,7 +99,7 @@ function NavGroup({ nav, active, onNavigate, collapsed = false, scrollable = tru
 function BottomNav({ items, active, onNavigate, onOpenMenu, menuLabel }) {
   if (!items.length && !onOpenMenu) return null
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-fore/10 bg-ink-800/95 pb-safe backdrop-blur lg:hidden" aria-label="Accesos rápidos">
+    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-ink-600 bg-ink/95 pb-safe shadow-card backdrop-blur lg:hidden" aria-label="Accesos rápidos">
       <div className="mx-auto flex max-w-lg items-stretch justify-around">
         {items.map(([id, label, ico]) => {
           const activo = active === id
@@ -195,7 +195,7 @@ function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onSwitch
   const fotoGoogle = esOwner ? perfilEmpresa?.picture : undefined
 
   return (
-    <div className={cn('border-t border-fore/10 p-2.5 pb-safe', collapsed && 'lg:p-2')}>
+    <div className={cn('border-t border-ink-600 p-2.5 pb-safe', collapsed && 'lg:p-2')}>
       <div className={cn('mt-2 flex items-center gap-1.5', collapsed && 'lg:mt-1 lg:flex-col')}>
         <button
           type="button"
@@ -332,11 +332,11 @@ export default function AppShell({
       <aside
         data-testid="shell-lateral"
         className={cn(
-          'hidden w-[204px] shrink-0 flex-col border-r border-fore/10 bg-ink-800 transition-[width] duration-200 lg:sticky lg:top-0 lg:flex lg:h-dvh',
+          'hidden w-[204px] shrink-0 flex-col border-r border-ink-600 bg-ink shadow-card transition-[width] duration-200 lg:sticky lg:top-0 lg:flex lg:h-dvh',
           collapsed && 'lg:w-[60px]',
         )}
       >
-        <div className={cn('flex h-14 shrink-0 items-center gap-2.5 border-b border-fore/10 px-4 pt-safe', collapsed && 'lg:justify-center lg:px-2')}>
+        <div className={cn('flex h-14 shrink-0 items-center gap-2.5 border-b border-ink-600 px-4 pt-safe', collapsed && 'lg:justify-center lg:px-2')}>
           {collapsed ? (
             <button
               onClick={onToggleCollapsed}
@@ -398,7 +398,7 @@ export default function AppShell({
             onHelp={onHelp}
             onLogout={onLogout}
             onClose={() => setMenuAbierto(false)}
-            className="border-b border-fore/10"
+            className="border-b border-ink-600"
           />
         </div>
         <NavGroup nav={nav} active={active} onNavigate={navegar} collapsed={false} scrollable={false} />
@@ -424,7 +424,7 @@ export default function AppShell({
       </Drawer>
 
       <div className="flex min-w-0 flex-1 flex-col pb-[72px] lg:pb-0">
-        <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-fore/10 bg-paper/85 px-4 pt-safe backdrop-blur md:px-8">
+        <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-ink-600 bg-ink/85 px-4 pt-safe shadow-card backdrop-blur md:px-8">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <button
               onClick={() => setMenuAbierto(true)}
