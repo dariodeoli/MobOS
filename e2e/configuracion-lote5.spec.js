@@ -10,7 +10,6 @@ const SUBPAGINAS = [
   ['identidad', 'Mi identidad'],
   ['roles', 'Roles y permisos'],
   ['negocio', 'Negocio'],
-  ['precios', 'Listas de precios'],
   ['sucursales', 'Sucursales'],
   ['seguridad', 'Seguridad'],
   ['historial', 'Auditoría'],

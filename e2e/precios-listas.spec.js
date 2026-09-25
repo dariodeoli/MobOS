@@ -1,5 +1,5 @@
-// Listas de precios y precios por cantidad (#28): la gestión en Configuración
-// crea una lista con ítem y un escalón, la ficha del cliente asigna la lista y
+// Listas de precios y precios por cantidad (#28): la gestión en Inventario →
+// Precios (#251) crea una lista con ítem y un escalón, la ficha del cliente asigna la lista y
 // el POS vende aplicando el escalón (prioridad: escalón por cantidad > lista >
 // mayorista > minorista). Al final se limpia lo creado para no ensuciar el seed.
 import { test, expect } from '@playwright/test'
@@ -13,8 +13,9 @@ test('gestión de listas y venta con escalón aplica el precio por cantidad', as
   const nombreLista = `Lista E2E ${marca}`
   const nombreCliente = `Cliente lista ${marca}`
 
-  // La gestión vive en Configuración → Negocio → Listas de precios.
-  await page.goto('/configuracion/precios')
+  // La gestión vive en Inventario → Precios (#251); /configuracion/precios
+  // redirige.
+  await page.goto('/precios')
   await expect(page.getByRole('heading', { name: 'Listas de precios', level: 2 })).toBeVisible()
 
   // Producto de prueba con precio minorista y mayorista bien diferenciados.

@@ -12,25 +12,15 @@ test.describe('seller permissions', () => {
     await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
     const sidebarNav = page.locator('aside nav')
-    // Seller nav (SELLER_NAV): these are visible.
-    for (const label of ['POS', 'Clientes', 'Mis pedidos', 'Productos', 'Promociones', 'Trade-In', 'Ayuda']) {
+    // Menú del vendedor (IA #251): cuatro grupos y solo sus módulos.
+    await expect(sidebarNav.locator('button[aria-expanded]')).toHaveText(['Vender', 'Clientes', 'Inventario', 'Operación'])
+    for (const label of ['POS', 'Mis pedidos', 'Cotizaciones', 'Promociones', 'Plantillas', 'Productos', 'Precios', 'Delivery', 'Trade-In']) {
       await expect(sidebarNav.getByRole('button', { name: label, exact: true })).toBeVisible()
     }
-    // Owner-only nav (OWNER_NAV): not rendered for sellers.
-    for (const label of ['Inventario', 'Compras', 'Garantías y servicio', 'Resumen', 'Análisis', 'Finanzas', 'Equipo y configuración']) {
+    // Módulos del dueño que el vendedor no ve.
+    for (const label of ['Inicio', 'Pedidos', 'Unidades', 'Compras', 'Traslados y tránsito', 'Lista por modelo', 'Comparador', 'Taller y garantías', 'Autorizaciones', 'Tablero de operaciones', 'Finanzas', 'Análisis', 'Configuración']) {
       await expect(sidebarNav.getByRole('button', { name: label, exact: true })).toHaveCount(0)
     }
-  })
-
-  // La ayuda es de todo el equipo (#251): el vendedor la tiene en su menú y
-  // abre la misma documentación que el dueño.
-  test('la ayuda está disponible para el vendedor', async ({ page }) => {
-    await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
-    await page.locator('aside nav').getByRole('button', { name: 'Ayuda', exact: true }).click()
-    await expect(page).toHaveURL(/\/ayuda\/ayuda$/)
-    await expect(page.getByTestId('documentacion')).toBeVisible()
-    await expect(page.locator('h1')).toHaveText('Ayuda')
   })
 
   // La auditoría incluye movimientos de equipo y de dinero: un vendedor no

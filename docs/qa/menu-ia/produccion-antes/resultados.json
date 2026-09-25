@@ -1,0 +1,298 @@
+{
+  "base": "https://app.moboss.online",
+  "etiqueta": "produccion-antes",
+  "resultados": [
+    {
+      "variante": "desktop-claro",
+      "pasos": [
+        "dueño en /resumen: Resumen general · grupos Operación · Stock y servicio · Negocio",
+        "taller en /servicio: Servicio y Garantías · solapas Todo, Tablero, Servicio, Garantías",
+        "tablero: Tablero de operaciones",
+        "vendedor: Vender · Herramientas"
+      ],
+      "menuDueno": {
+        "grupos": [
+          {
+            "titulo": "Operación",
+            "items": [
+              "POS",
+              "Pedidos",
+              "Delivery",
+              "Clientes",
+              "Promociones",
+              "Precios",
+              "Cotizaciones",
+              "Plantillas"
+            ]
+          },
+          {
+            "titulo": "Stock y servicio",
+            "items": [
+              "Inventario",
+              "Compras",
+              "Trade-In",
+              "Servicio y Garantías",
+              "Autorizaciones"
+            ]
+          },
+          {
+            "titulo": "Negocio",
+            "items": [
+              "Resumen",
+              "Análisis",
+              "Finanzas",
+              "Configuración"
+            ]
+          }
+        ],
+        "h1": "Resumen general",
+        "url": "/resumen"
+      },
+      "menuVendedor": {
+        "grupos": [
+          {
+            "titulo": "Vender",
+            "items": [
+              "POS",
+              "Mis pedidos",
+              "Delivery",
+              "Clientes"
+            ]
+          },
+          {
+            "titulo": "Herramientas",
+            "items": [
+              "Productos",
+              "Promociones",
+              "Precios",
+              "Trade-In",
+              "Cotizaciones"
+            ]
+          }
+        ],
+        "h1": "POS",
+        "url": "/pos"
+      },
+      "errores": []
+    },
+    {
+      "variante": "desktop-oscuro",
+      "pasos": [
+        "dueño en /resumen: Resumen general · grupos Operación · Stock y servicio · Negocio",
+        "taller en /servicio: Servicio y Garantías · solapas Todo, Tablero, Servicio, Garantías",
+        "tablero: Tablero de operaciones",
+        "vendedor: Vender · Herramientas"
+      ],
+      "menuDueno": {
+        "grupos": [
+          {
+            "titulo": "Operación",
+            "items": [
+              "POS",
+              "Pedidos",
+              "Delivery",
+              "Clientes",
+              "Promociones",
+              "Precios",
+              "Cotizaciones",
+              "Plantillas"
+            ]
+          },
+          {
+            "titulo": "Stock y servicio",
+            "items": [
+              "Inventario",
+              "Compras",
+              "Trade-In",
+              "Servicio y Garantías",
+              "Autorizaciones"
+            ]
+          },
+          {
+            "titulo": "Negocio",
+            "items": [
+              "Resumen",
+              "Análisis",
+              "Finanzas",
+              "Configuración"
+            ]
+          }
+        ],
+        "h1": "Resumen general",
+        "url": "/resumen"
+      },
+      "menuVendedor": {
+        "grupos": [
+          {
+            "titulo": "Vender",
+            "items": [
+              "POS",
+              "Mis pedidos",
+              "Delivery",
+              "Clientes"
+            ]
+          },
+          {
+            "titulo": "Herramientas",
+            "items": [
+              "Productos",
+              "Promociones",
+              "Precios",
+              "Trade-In",
+              "Cotizaciones"
+            ]
+          }
+        ],
+        "h1": "POS",
+        "url": "/pos"
+      },
+      "errores": []
+    },
+    {
+      "variante": "movil-claro",
+      "pasos": [
+        "dueño en /resumen: Resumen general · grupos Operación · Stock y servicio · Negocio",
+        "taller en /servicio: Servicio y Garantías · solapas Todo, Tablero, Servicio, Garantías",
+        "tablero: Tablero de operaciones",
+        "vendedor: Vender · Herramientas"
+      ],
+      "menuDueno": {
+        "grupos": [
+          {
+            "titulo": "Operación",
+            "items": [
+              "POS",
+              "Pedidos",
+              "Delivery",
+              "Clientes",
+              "Promociones",
+              "Precios",
+              "Cotizaciones",
+              "Plantillas"
+            ]
+          },
+          {
+            "titulo": "Stock y servicio",
+            "items": [
+              "Inventario",
+              "Compras",
+              "Trade-In",
+              "Servicio y Garantías",
+              "Autorizaciones"
+            ]
+          },
+          {
+            "titulo": "Negocio",
+            "items": [
+              "Resumen",
+              "Análisis",
+              "Finanzas",
+              "Configuración"
+            ]
+          }
+        ],
+        "h1": "Resumen general",
+        "url": "/resumen"
+      },
+      "menuVendedor": {
+        "grupos": [
+          {
+            "titulo": "Vender",
+            "items": [
+              "POS",
+              "Mis pedidos",
+              "Delivery",
+              "Clientes"
+            ]
+          },
+          {
+            "titulo": "Herramientas",
+            "items": [
+              "Productos",
+              "Promociones",
+              "Precios",
+              "Trade-In",
+              "Cotizaciones"
+            ]
+          }
+        ],
+        "h1": "POS",
+        "url": "/pos"
+      },
+      "errores": []
+    },
+    {
+      "variante": "movil-oscuro",
+      "pasos": [
+        "dueño en /resumen: Resumen general · grupos Operación · Stock y servicio · Negocio",
+        "taller en /servicio: Servicio y Garantías · solapas Todo, Tablero, Servicio, Garantías",
+        "tablero: Tablero de operaciones",
+        "vendedor: Vender · Herramientas"
+      ],
+      "menuDueno": {
+        "grupos": [
+          {
+            "titulo": "Operación",
+            "items": [
+              "POS",
+              "Pedidos",
+              "Delivery",
+              "Clientes",
+              "Promociones",
+              "Precios",
+              "Cotizaciones",
+              "Plantillas"
+            ]
+          },
+          {
+            "titulo": "Stock y servicio",
+            "items": [
+              "Inventario",
+              "Compras",
+              "Trade-In",
+              "Servicio y Garantías",
+              "Autorizaciones"
+            ]
+          },
+          {
+            "titulo": "Negocio",
+            "items": [
+              "Resumen",
+              "Análisis",
+              "Finanzas",
+              "Configuración"
+            ]
+          }
+        ],
+        "h1": "Resumen general",
+        "url": "/resumen"
+      },
+      "menuVendedor": {
+        "grupos": [
+          {
+            "titulo": "Vender",
+            "items": [
+              "POS",
+              "Mis pedidos",
+              "Delivery",
+              "Clientes"
+            ]
+          },
+          {
+            "titulo": "Herramientas",
+            "items": [
+              "Productos",
+              "Promociones",
+              "Precios",
+              "Trade-In",
+              "Cotizaciones"
+            ]
+          }
+        ],
+        "h1": "POS",
+        "url": "/pos"
+      },
+      "errores": []
+    }
+  ]
+}

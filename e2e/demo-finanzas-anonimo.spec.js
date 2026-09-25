@@ -109,7 +109,7 @@ test.describe('demo anónimo · Finanzas', () => {
       await guardarSeguro.click()
       await expect(page.getByText('Seguro guardado en este navegador (demo).')).toBeVisible()
       // El demo vive en memoria de la pestaña (#204): navegación dentro de la app.
-      await page.getByRole('button', { name: 'Análisis', exact: true }).first().click()
+      await page.locator('aside nav button[aria-label="Análisis"]').click()
       await page.getByRole('tab', { name: 'Ganancias' }).click()
       await expect(page.getByText('Incluye seguro 25% (demo)')).toBeVisible()
     } else {

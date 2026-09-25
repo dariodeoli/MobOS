@@ -15,11 +15,11 @@ import GlobalSearch from '@/components/app/GlobalSearch'
 import { Card, ConfirmDialog, Modal, PinInput, Select, Skeleton, Subtabs, useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { rutaDeVista, vistaDeRuta } from '@/lib/rutas'
+import { flagsV2 } from '@/lib/flags'
 import PantallaBloqueada from '@/components/app/PantallaBloqueada'
 import DemoNoDisponible from '@/components/app/DemoNoDisponible'
 import { usePreferencias } from '@/hooks/usePreferencias'
 import { PreferenciasContenido } from '@/components/app/Preferencias'
-import CheatSheetAtajos from '@/components/app/CheatSheetAtajos'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { useBloqueoInactividad } from '@/hooks/useBloqueoInactividad'
 
@@ -65,76 +65,106 @@ const Celulares = lazy(() => import('@/pages/Celulares'))
 const Comparador = lazy(() => import('@/pages/Comparador'))
 const Documentacion = lazy(() => import('@/components/control/Documentacion'))
 
-// Navegación por flujo de trabajo: primero la operación del día, después el
-// catálogo/stock y al final las herramientas de gestión. Los permisos definen
-// qué módulos aparecen, no una segunda "zona" visual.
+// IA del menú (#251): Inicio · Vender · Clientes · Inventario · Operación ·
+// Finanzas · Análisis · Configuración. El vendedor ve el mismo esqueleto con
+// los módulos que su rol alcanza; Promociones y Precios viven dentro de Vender
+// e Inventario (no son entradas principales) y Taller es una sola sección.
 const SELLER_NAV = [
   {
     titulo: 'Vender',
     items: [
       ['cargar', 'POS', 'receipt'],
       ['pedidos', 'Mis pedidos', 'box'],
-      ['repartos', 'Delivery', 'truck'],
-      ['clientes', 'Clientes', 'users'],
+      ['cotizaciones', 'Cotizaciones', 'report'],
+      ['promociones', 'Promociones', 'store'],
+      ['plantillas', 'Plantillas', 'send'],
     ],
   },
   {
-    titulo: 'Herramientas',
+    titulo: 'Clientes',
+    items: [['clientes', 'Clientes', 'users']],
+  },
+  {
+    titulo: 'Inventario',
     items: [
       ['productos', 'Productos', 'phone'],
-      ['promociones', 'Promociones', 'store'],
       ['precios', 'Precios', 'tag'],
+    ],
+  },
+  {
+    titulo: 'Operación',
+    items: [
+      ['repartos', 'Delivery', 'truck'],
       ['cotizador', 'Trade-In', 'refresh'],
-      ['cotizaciones', 'Cotizaciones', 'report'],
       ['ayuda', 'Ayuda', 'info'],
     ],
   },
 ]
 
+// El tablero real (/ops) vive fuera del panel: se ofrece como entrada solo
+// cuando el rollout está activo (`VITE_OPS_V2`, ver lib/flags.js).
+const { opsV2 } = flagsV2({ dev: import.meta.env.DEV, env: import.meta.env })
+
 const OWNER_NAV = [
   {
-    titulo: 'Operación',
+    titulo: 'Inicio',
+    items: [['resumen', 'Inicio', 'chart']],
+  },
+  {
+    titulo: 'Vender',
     items: [
       ['cargar', 'POS', 'receipt'],
       ['pedidos', 'Pedidos', 'box'],
-      ['repartos', 'Delivery', 'truck'],
-      ['clientes', 'Clientes', 'users'],
-      ['promociones', 'Promociones', 'store'],
-      ['precios', 'Precios', 'tag'],
       ['cotizaciones', 'Cotizaciones', 'report'],
+      ['promociones', 'Promociones', 'store'],
       ['plantillas', 'Plantillas', 'send'],
     ],
   },
   {
-    titulo: 'Stock y servicio',
+    titulo: 'Clientes',
+    items: [['clientes', 'Clientes', 'users']],
+  },
+  {
+    titulo: 'Inventario',
     items: [
-      ['inventario', 'Inventario', 'box'],
+      ['productos', 'Productos', 'phone'],
+      ['unidades', 'Unidades', 'box'],
       ['compras', 'Compras', 'store'],
-      ['tradein-admin', 'Trade-In', 'refresh'],
-      ['servicio', 'Servicio y Garantías', 'wrench'],
-      ['autorizaciones', 'Autorizaciones', 'check'],
+      ['traslados', 'Traslados y tránsito', 'truck'],
+      ['precios', 'Precios', 'tag'],
+      ['celulares', 'Lista por modelo', 'tag'],
+      ['comparador', 'Comparador', 'report'],
     ],
   },
   {
-    titulo: 'Negocio',
+    titulo: 'Operación',
     items: [
-      ['resumen', 'Resumen', 'chart'],
-      ['analisis', 'Análisis', 'report'],
-      ['finanzas', 'Finanzas', 'receipt'],
-      ['equipo', 'Configuración', 'settings'],
-      ['ayuda', 'Ayuda', 'info'],
+      ['repartos', 'Delivery', 'truck'],
+      ['servicio', 'Taller y garantías', 'wrench'],
+      ['tradein-admin', 'Trade-In', 'refresh'],
+      ['autorizaciones', 'Autorizaciones', 'check'],
+      ...(opsV2 ? [['ops', 'Tablero de operaciones', 'chart']] : []),
     ],
+  },
+  {
+    titulo: 'Finanzas',
+    items: [['finanzas', 'Finanzas', 'receipt']],
+  },
+  {
+    titulo: 'Análisis',
+    items: [['analisis', 'Análisis', 'report']],
+  },
+  {
+    titulo: 'Configuración',
+    items: [['equipo', 'Configuración', 'settings'], ['ayuda', 'Ayuda', 'info']],
   },
 ]
 
 // Taller: el técnico entra directo a las órdenes de servicio.
 const TECNICO_NAV = [
   {
-    titulo: 'Taller',
-    items: [
-      ['servicio', 'Servicio y Garantías', 'wrench'],
-      ['ayuda', 'Ayuda', 'info'],
-    ],
+    titulo: 'Operación',
+    items: [['servicio', 'Taller y garantías', 'wrench']],
   },
 ]
 
@@ -149,7 +179,7 @@ const SELLER_BOTTOM = [
 ]
 
 const OWNER_BOTTOM = [
-  ['resumen', 'Resumen', 'chart'],
+  ['resumen', 'Inicio', 'chart'],
   ['cargar', 'Vender', 'receipt'],
   ['pedidos', 'Pedidos', 'box'],
   ['inventario', 'Inventario', 'box'],
@@ -190,14 +220,12 @@ const SUBPAGINAS = {
   configuracion: {
     vista: 'equipo',
     tabs: [
-      // Orden por grupo visible: Personas, Negocio, Seguridad, Dispositivos y
-      // Sistema. El slug de cada pestaña es estable (/configuracion/<slug>).
-      // Documentación ya no vive acá: es «Ayuda» en el shell (#251).
+      // Orden por grupo visible: Personas, Negocio, Seguridad, Sistema. El
+      // slug de cada pestaña es estable (/configuracion/<slug>).
       ['equipo', 'Equipo'],
       ['identidad', 'Mi identidad'],
       ['roles', 'Roles y permisos'],
       ['negocio', 'Negocio'],
-      ['precios', 'Listas de precios'],
       ['sucursales', 'Sucursales'],
       ['seguridad', 'Seguridad'],
       ['historial', 'Auditoría'],
@@ -206,8 +234,6 @@ const SUBPAGINAS = {
       ['sistema', 'Estado del sistema'],
     ],
   },
-  // Ayuda vive fuera de Configuración: se entra desde el shell (Documentación).
-  ayuda: { vista: 'ayuda', tabs: [['ayuda', 'Ayuda']] },
   analisis: { vista: 'analisis', tabs: TABS_ANALISIS },
   finanzas: { vista: 'finanzas', tabs: TABS_FINANZAS },
   inventario: { vista: 'inventario', tabs: TABS_INVENTARIO },
@@ -222,7 +248,6 @@ const MIGA_SUBPAGINA = {
   analisis: 'Análisis',
   finanzas: 'Finanzas',
   configuracion: 'Configuración',
-  ayuda: 'Ayuda',
 }
 // Pestañas visibles según el modo: créditos y cuotas solo fuera de la demo.
 function tabsDeSubpagina(slug, esDemo) {
@@ -233,14 +258,11 @@ function tabsDeSubpagina(slug, esDemo) {
   return tabs
 }
 
-// Configuración agrupada: íconos con su submenú para no saturar la barra.
-// Dispositivos junta impresoras (configuración, puentes, formatos, diagnóstico,
-// cola e historial, todo dentro de la pantalla) y las preferencias del
-// dispositivo; Sistema queda para el monitoreo global (Estado del sistema).
+// Configuración agrupada: cuatro íconos con su submenú para no saturar la barra.
 // Invitaciones vive dentro de Equipo (una sola vez, sin pestaña duplicada).
 const GRUPOS_CONFIG = [
   { id: 'personas', label: 'Personas', icon: 'users', tabs: ['equipo', 'identidad', 'roles'] },
-  { id: 'negocio', label: 'Negocio', icon: 'store', tabs: ['negocio', 'precios', 'sucursales'] },
+  { id: 'negocio', label: 'Negocio', icon: 'store', tabs: ['negocio', 'sucursales'] },
   { id: 'seguridad', label: 'Seguridad', icon: 'lock', tabs: ['seguridad', 'historial'] },
   { id: 'dispositivos', label: 'Dispositivos', icon: 'printer', tabs: ['impresoras', 'preferencias'] },
   { id: 'sistema', label: 'Sistema', icon: 'pulse', tabs: ['sistema'] },
@@ -261,7 +283,8 @@ const LABELS = {
   plantillas: 'Plantillas de WhatsApp',
   cotizador: 'Trade-In',
   cargar: 'POS',
-  resumen: 'Resumen general',
+  resumen: 'Inicio',
+  ops: 'Tablero de operaciones',
   analisis: 'Análisis',
   finanzas: 'Finanzas',
   equipo: 'Configuración',
@@ -280,7 +303,7 @@ const LABELS = {
   ganadores: 'Ganadores',
   asistente: 'Asistente',
   caja: 'Caja',
-  celulares: 'Lista de precios',
+  celulares: 'Lista por modelo',
   comparador: 'Comparador',
   gastos: 'Gastos',
   bancos: 'Bancos y cuentas',
@@ -298,12 +321,12 @@ const LABELS = {
   ubicaciones: 'Ubicaciones',
   compartido: 'Compartido',
   eliminados: 'Eliminados',
-  garantias: 'Servicio y Garantías',
+  garantias: 'Taller',
   autorizaciones: 'Autorizaciones',
   inventario: 'Inventario',
   compras: 'Compras',
   'tradein-admin': 'Trade-In',
-  servicio: 'Servicio y Garantías',
+  servicio: 'Taller',
 }
 
 const MESES = [
@@ -401,18 +424,19 @@ export default function PanelVendedor() {
   const lockEnCurso = useRef(false)
   const toast = useToast()
 
+  // Ids visibles en el menú según el rol: deciden qué ítem resalta cuando la
+  // vista es una pestaña de sección a la que se entra desde el menú (#251).
+  const idsDelMenu = useMemo(() => {
+    const nav = esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV
+    return new Set(nav.flatMap(group => group.items.map(([id]) => id)))
+  }, [esOwner, esTecnico])
   const accesibles = useMemo(() => {
     const base = (esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV).flatMap(group => group.items).map(([id]) => id)
-    // El catálogo ('productos') se abre desde la solapa Productos de Compras:
-    // no tiene ítem propio en el menú del dueño, pero la ruta tiene que ser
-    // válida o el guard la redirige al POS (importador incluido).
-    // 'garantias' es igual desde #224: vive como solapa dentro de "Servicio y
-    // Garantías" (un solo ítem de menú), pero los enlaces viejos (/garantias,
-    // documentación) tienen que seguir abriendo la sección.
-    // 'celulares' (lista de precios) y 'comparador' viven dentro del shell
-    // (#180) y se abren desde Precios y Productos: no tienen ítem de menú,
-    // pero su ruta tiene que ser válida o el guard la manda al POS.
-    return esOwner ? [...base, 'productos', 'garantias', 'celulares', 'comparador'] : base
+    // Dos vistas no son ítems del menú pero su ruta tiene que ser válida:
+    // 'inventario' (la sección; sus ítems de menú son sus pestañas y las
+    // pantallas de catálogo) y 'garantias' (pestaña de «Taller» desde #224:
+    // los enlaces viejos siguen abriendo la sección).
+    return esOwner ? [...base, 'inventario', 'garantias'] : base
   }, [esOwner, esTecnico])
   // Un slug plano de pestaña (p. ej. /precios, que también es pestaña de
   // Configuración) se canoniza a /<padre>/<hijo> cuando el rol la tiene.
@@ -428,19 +452,16 @@ export default function PanelVendedor() {
   useEffect(() => {
     if (esOwner && (vista === 'resumen' || subpadre === 'finanzas' || subpadre === 'analisis')) hidratarFinanzas()
   }, [esOwner, vista, subpadre, identidad])
-  // La ruta vieja /configuracion/impresion se unificó en /configuracion/impresoras.
-  useEffect(() => {
-    if (subpadre === 'configuracion' && routeSeccion === 'impresion') navigate('/configuracion/impresoras', { replace: true })
-  }, [subpadre, routeSeccion, navigate])
-  // Documentación salió de Configuración: ahora es «Ayuda» en el shell.
-  useEffect(() => {
-    if (subpadre === 'configuracion' && routeSeccion === 'documentacion') navigate('/ayuda/ayuda', { replace: true })
-  }, [subpadre, routeSeccion, navigate])
   // Apartado sin hijo (o con uno desconocido) entra por su primera pestaña.
+  // Antes de canonizar, dos URLs viejas salen a su lugar nuevo: la impresión
+  // (/configuracion/impresion → impresoras) y Precios, que vive en Inventario
+  // (#251) y ya no es pestaña de Configuración.
   useEffect(() => {
-    // La ruta vieja /configuracion/documentacion se redirige a /ayuda aparte.
-    if (subpadre === 'configuracion' && routeSeccion === 'documentacion') return
-    if (subpadre && !seccionRuta) navigate(`/${subpadre}/${tabsRuta[0][0]}`, { replace: true })
+    if (!subpadre) return
+    if (subpadre === 'configuracion' && routeSeccion === 'impresion') { navigate('/configuracion/impresoras', { replace: true }); return }
+    if (subpadre === 'configuracion' && routeSeccion === 'precios') { navigate('/precios', { replace: true }); return }
+    if (subpadre === 'configuracion' && routeSeccion === 'documentacion') { navigate('/ayuda/ayuda', { replace: true }); return }
+    if (!seccionRuta) navigate(`/${subpadre}/${tabsRuta[0][0]}`, { replace: true })
   }, [subpadre, seccionRuta, tabsRuta, routeSeccion, navigate])
   // El repartidor tiene su propio panel (/delivery/repartos): el panel de venta
   // no es su lugar y el backend tampoco lo autoriza a vender.
@@ -476,6 +497,15 @@ export default function PanelVendedor() {
   // `opciones` permite que la búsqueda global abra el destino con el filtro
   // aplicado (q), la ficha del cliente o el detalle del pedido.
   function ir(id, opciones = {}) {
+    // El tablero real (/ops) vive fuera del panel, con su propio shell: se
+    // entra con una navegación completa, igual que abriendo la URL directa.
+    if (id === 'ops') { window.location.assign('/ops'); return }
+    // Un ítem del menú puede ser una pestaña de una sección (p. ej. «Unidades»
+    // dentro de Inventario, #251): se abre la sección en esa pestaña. Ojo: las
+    // vistas de sección (inventario, equipo, finanzas, análisis) también son
+    // pestañas de su propia sección, así que no se resuelven acá.
+    const seccionDelTab = SUBPAGINA_DE_TAB[id]
+    if (seccionDelTab && !SUBPAGINA_DE_VISTA[id]) return ir(SUBPAGINAS[seccionDelTab].vista, { ...opciones, subtab: id })
     // Fuera del alcance del rol se va a la primera vista que sí puede abrir,
     // no siempre a "cargar" (un técnico no vende: su lugar es el taller).
     if (!esOwner && !accesibles.includes(id)) {
@@ -696,7 +726,7 @@ export default function PanelVendedor() {
         nav={esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV}
         bottomNav={esOwner ? OWNER_BOTTOM : esTecnico ? [] : SELLER_BOTTOM}
         onOpenMenuLabel="Menú"
-        active={subpadre ? SUBPAGINAS[subpadre].vista : vista === 'productos' ? 'compras' : vista}
+        active={subpadre ? (idsDelMenu.has(vista) ? vista : SUBPAGINAS[subpadre].vista) : vista}
         onNavigate={ir}
         collapsed={sidebarCollapsed}
         onToggleCollapsed={toggleSidebar}
@@ -839,6 +869,7 @@ export default function PanelVendedor() {
               {vista === 'publicidad' && <Ads />}
             </div>
           )}
+          {vista === 'precios' && <Precios />}
           {esOwner && subpadre === 'configuracion' && (
             <div className="space-y-3">
               <div className="flex flex-wrap gap-2" role="tablist" aria-label="Grupos de configuración">
@@ -869,12 +900,12 @@ export default function PanelVendedor() {
               {vista === 'roles' && <RolesPermisos />}
               {vista === 'historial' && (esDemo ? <Historial /> : <Auditoria />)}
               {vista === 'negocio' && <Config seccion="negocio" />}
-              {vista === 'precios' && <Precios />}
               {vista === 'sucursales' && <Config seccion="sucursales" />}
               {vista === 'seguridad' && (esDemo
                 ? <DemoNoDisponible modulo="Seguridad de la cuenta" motivo="Administra contraseñas, sesiones y acciones sensibles de tu tienda real." />
                 : <Config seccion="seguridad" />)}
               {vista === 'impresoras' && <Impresoras />}
+              {vista === 'documentacion' && <Documentacion />}
               {vista === 'preferencias' && (
                 <Card className="p-4 md:p-5">
                   <h2 className={ROTULO_SECCION}>Preferencias del dispositivo</h2>
@@ -885,9 +916,6 @@ export default function PanelVendedor() {
                 ? <DemoNoDisponible modulo="Estado del sistema" motivo="Consulta los servicios reales de MobOS (API, base e impresión)." />
                 : <EstadoSistema />)}
             </div>
-          )}
-          {subpadre === 'ayuda' && (
-            <div className="space-y-3">{vista === 'ayuda' && <Documentacion />}</div>
           )}
           </Suspense>
         </main>
@@ -976,7 +1004,29 @@ export default function PanelVendedor() {
         open={ayudaAbierto}
         onClose={() => setAyudaAbierto(false)}
         title="Atajos de teclado" size="corto">
-        <CheatSheetAtajos />
+        <div className="space-y-2.5">
+          {[
+            ['Ctrl+K', 'Búsqueda global'],
+            ['F1', 'Nueva venta'],
+            ['F2', 'Buscar producto'],
+            ['F3', 'Crear cliente'],
+            ['F4', 'Cotizar equipo (Trade-In)'],
+            ['Esc', 'Cerrar modales y diálogos'],
+          ].map(([tecla, descripcion]) => (
+            <div
+              key={tecla}
+              className="flex items-center justify-between gap-4 rounded-xl border border-fore/10 bg-fore/[.02] px-3.5 py-2.5"
+            >
+              <span className="text-sm text-fore">{descripcion}</span>
+              <kbd className="shrink-0 rounded-md border border-ink-500 bg-ink-700 px-2 py-0.5 text-xs font-semibold text-mute">
+                {tecla}
+              </kbd>
+            </div>
+          ))}
+        </div>
+        <p className="mt-4 text-xs text-mute">
+          Los atajos no funcionan mientras escribís en un campo o tenés un diálogo abierto.
+        </p>
       </Modal>
 
       <ConfirmDialog

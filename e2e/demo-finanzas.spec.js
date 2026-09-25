@@ -46,7 +46,7 @@ test.describe('demo de Finanzas', () => {
 
     // El demo vive en memoria de la pestaña (#204): se navega dentro de la app,
     // sin recargar, para ver el efecto del seguro en el margen.
-    await page.getByRole('button', { name: 'Análisis', exact: true }).first().click()
+    await page.locator('aside nav button[aria-label="Análisis"]').click()
     await page.getByRole('tab', { name: 'Ganancias' }).click()
     await expect(page.getByText('Incluye seguro 25% (demo)')).toBeVisible()
     const conSeguro = (await page.getByTestId('ganancia-resultado').textContent())?.trim()
