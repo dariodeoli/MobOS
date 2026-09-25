@@ -540,6 +540,11 @@ por el sistema.
   `PageHeader`/`Eyebrow` y `PanelDerecho` de la biblioteca (REGLAS §11); el
   mapa campo por campo está en `docs/MAPA-CONFIG.md` y el control de campos
   duplicados en `docs/CAMPOS.md` §6.
+- **Puentes de migración (#241/#253):** cuando un objeto local ya es idéntico al
+  publicado, `components/shared/<Objeto>.jsx` queda como
+  `export { <Objeto> as default } from 'owncoding-ui'` (sin implementación); los
+  consumidores no cambian de ruta y el control `camposReglas.test.js` exige el
+  puente. Los objetos divergentes siguen en la lista de deuda del lote 34/35.
 - **Paleta global v2 (#241, rollout aprobado):** el lenguaje "device ops"
   (consola clara/oscura, base oscura `#0E1116`/`#1F2430`, verde pass `#22C55E`,
   azul acción `#4D7CFE`) es la **paleta global** de la biblioteca desde

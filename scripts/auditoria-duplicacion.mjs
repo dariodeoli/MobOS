@@ -114,7 +114,7 @@ function nombresJsx(dir) {
     return []
   }
 }
-const esPuente = (ruta) => /export\s*\{\s*\w+\s+as\s+default\s*\}\s*from\s*'owncoding-ui'/.test(readFileSync(ruta, 'utf8'))
+const esPuente = (ruta) => /export\s*\{[^}]*\bas\s+default\b[^}]*\}\s*from\s*'owncoding-ui'/.test(readFileSync(ruta, 'utf8'))
 const publicadosComponentes = new Set(nombresJsx(LIB_COMPONENTES))
 const copiasComponentes = nombresJsx('src/components/shared')
   .filter((nombre) => publicadosComponentes.has(nombre) && !esPuente(`src/components/shared/${nombre}.jsx`))

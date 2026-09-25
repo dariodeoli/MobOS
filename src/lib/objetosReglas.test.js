@@ -11,6 +11,12 @@ import test from 'node:test'
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url))
 
+// Desde el lote 35 los objetos migrados viven en `owncoding-ui` y la app deja
+// un puente: las aserciones que miraban la implementación local leen la
+// biblioteca, que es la fuente canónica (docs/AUDITORIA-DUPLICACION.md).
+const LIB = fileURLToPath(new URL('../../node_modules/owncoding-ui/src/components', import.meta.url))
+const leerBiblioteca = (ruta) => readFileSync(join(LIB, ruta), 'utf8')
+
 function archivosFuente() {
   return readdirSync(RAIZ, { recursive: true })
     .filter((ruta) => /\.(jsx?|mjs)$/.test(ruta) && !/\.test\./.test(ruta))
@@ -278,7 +284,8 @@ test('las notas warn y los estados con badge salen de los objetos compartidos (l
   for (const nombre of ['ESTADO_PEDIDO_BADGE', 'ESTADO_ENTREGA_BADGE', 'ESTADO_GARANTIA_BADGE']) {
     assert.match(estados, new RegExp(`export const ${nombre} =`), `falta ${nombre}`)
   }
-  assert.match(readFileSync(join(RAIZ, 'components/shared/EstadoBadge.jsx'), 'utf8'), /export default function EstadoBadge\(/, 'falta EstadoBadge')
+  assert.match(readFileSync(join(RAIZ, 'components/shared/EstadoBadge.jsx'), 'utf8'), /EstadoBadge as default/, 'EstadoBadge delega en la biblioteca (lote 35)')
+  assert.match(leerBiblioteca('EstadoBadge.jsx'), /export default function EstadoBadge\(/, 'falta EstadoBadge en la biblioteca')
   assert.match(readFileSync(join(RAIZ, 'components/customers/CustomerProfile.jsx'), 'utf8'), /<EstadoBadge\b/, 'la ficha usa EstadoBadge')
 })
 
@@ -370,8 +377,12 @@ test('las cargas usan Skeleton en vez de bloques animate-pulse', () => {
 // en `shared/` y los estados en `lib/estadoEquipo.js`; ninguna pantalla copia
 // las etiquetas ni arma el % de batería por su cuenta.
 test('los objetos de inspección del equipo salen de shared/ y lib/estadoEquipo (#240)', () => {
-  for (const ruta of ['components/shared/SemaforoItem.jsx', 'components/shared/ChipsLocks.jsx', 'components/shared/MedidorBateria.jsx', 'components/shared/GradoBadge.jsx']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /export default function /, `falta ${ruta}`)
+  // SemaforoItem sigue local; ChipsLocks, MedidorBateria y GradoBadge son
+  // puentes de la biblioteca desde el lote 35.
+  assert.match(readFileSync(join(RAIZ, 'components/shared/SemaforoItem.jsx'), 'utf8'), /export default function /, 'falta SemaforoItem')
+  for (const nombre of ['ChipsLocks', 'MedidorBateria', 'GradoBadge']) {
+    assert.match(readFileSync(join(RAIZ, 'components/shared', `${nombre}.jsx`), 'utf8'), new RegExp(`${nombre} as default`), `${nombre} delega en la biblioteca`)
+    assert.match(leerBiblioteca(`${nombre}.jsx`), /export default function /, `falta ${nombre} en la biblioteca`)
   }
   const estado = readFileSync(join(RAIZ, 'lib/estadoEquipo.js'), 'utf8')
   for (const nombre of ['ESTADOS_ITEM', 'LOCKS_DISPOSITIVO', 'ESTADOS_LOCK', 'GRADOS_CONDICION', 'tonoBateria', 'gradoCondicion']) {
@@ -401,7 +412,8 @@ test('los objetos de inspección del equipo salen de shared/ y lib/estadoEquipo 
 // #242: los glifos de categoría (mobile/laptop/tablet/watch/buds/cable) y el
 // mapa categoría→icono viven en un solo objeto; el POS y el catálogo los usan.
 test('los iconos de categoría salen del objeto compartido (#242)', () => {
-  const objeto = readFileSync(join(RAIZ, 'components/shared/IconoCategoria.jsx'), 'utf8')
+  assert.match(readFileSync(join(RAIZ, 'components/shared/IconoCategoria.jsx'), 'utf8'), /IconoCategoria as default/, 'el puente delega en la biblioteca (lote 35)')
+  const objeto = leerBiblioteca('IconoCategoria.jsx')
   for (const glifo of ['mobile', 'laptop', 'tablet', 'watch', 'buds', 'cable']) {
     assert.match(objeto, new RegExp(`\\n  ${glifo}: 'M`), `falta el glifo ${glifo}`)
   }
@@ -425,7 +437,8 @@ test('la vista previa del papel sale de shared/VistaPreviaPapel (#241)', () => {
   for (const ruta of ['components/shared/ComprobantePreview.jsx', 'components/shared/ReportePreview.jsx']) {
     assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<VistaPreviaPapel\b/, `${ruta}: usa la vista previa compartida`)
   }
-  const objeto = readFileSync(join(RAIZ, 'components/shared/VistaPreviaPapel.jsx'), 'utf8')
+  assert.match(readFileSync(join(RAIZ, 'components/shared/VistaPreviaPapel.jsx'), 'utf8'), /VistaPreviaPapel as default/, 'el puente delega en la biblioteca (lote 35)')
+  const objeto = leerBiblioteca('VistaPreviaPapel.jsx')
   assert.match(objeto, /export const ANCHOS_PAPEL =/)
   assert.match(objeto, /'thermal-80': 'max-w-\[302px\]'/)
   assert.match(objeto, /a4: 'max-w-\[794px\]'/)
@@ -481,7 +494,7 @@ test('el modo taller usa el tile compartido para grado y batería (#240)', () =>
   assert.ok(!rack.includes('COLOR_GRADO'), 'el color del grado sale del objeto')
   assert.ok(!/bateria >= 90 \? 'green'/.test(rack), 'el tono de la batería sale del objeto')
   assert.ok(!/<MedidorBateria/.test(rack), 'la batería la dibuja el tile compartido')
-  const medidor = readFileSync(join(RAIZ, 'components/shared/MedidorBateria.jsx'), 'utf8')
+  const medidor = leerBiblioteca('MedidorBateria.jsx')
   assert.match(medidor, /mostrarEtiqueta = false/, 'el chip puede mostrar la palabra')
 })
 // Lote 30 (#240/#250): la recepción de equipos y repuestos usa el buscador
@@ -542,7 +555,8 @@ test('el QR del informe sale de lib/qr y shared/CodigoQr (#240)', () => {
   const qr = readFileSync(join(RAIZ, 'lib/qr.js'), 'utf8')
   assert.match(qr, /export async function qrDataUrl\(/)
   assert.match(qr, /export const QR_OPCIONES =/)
-  assert.match(readFileSync(join(RAIZ, 'components/shared/CodigoQr.jsx'), 'utf8'), /export default function CodigoQr\(/)
+  assert.match(readFileSync(join(RAIZ, 'components/shared/CodigoQr.jsx'), 'utf8'), /CodigoQr as default/, 'el puente delega en la biblioteca (lote 35)')
+  assert.match(leerBiblioteca('CodigoQr.jsx'), /export default function CodigoQr\(/)
   const ficha = readFileSync(join(RAIZ, 'components/shared/FichaCertificado.jsx'), 'utf8')
   for (const objeto of ['ChipEstado', 'ChipsLocks', 'CodigoQr', 'GradoBadge', 'MedidorBateria']) {
     assert.match(ficha, new RegExp(`<${objeto}\\b`), `la ficha de certificado compone ${objeto}`)
