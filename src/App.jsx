@@ -307,6 +307,9 @@ export default function App() {
               (/configuracion/negocio, /analisis/reportes, /finanzas/caja,
               /inventario/unidades…). */}
           <Route path="/configuracion/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
+          {/* Ayuda (Documentación interna) sale del shell, no de Configuración:
+              la ve todo el equipo (es la guía de la operación, no un ajuste). */}
+          <Route path="/ayuda/:seccion?" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/analisis/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           <Route path="/finanzas/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           <Route path="/inventario/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
