@@ -226,6 +226,12 @@ const PANTALLAS = [
 // rediseño (tablero operativo) traen `.v2-piloto` y no dependen del opt-out.
 const RAICES_V2 = ['.tema-v2', '.v2-piloto']
 
+// Lote F (Configuración · Equipo y Roles): el plan F4 pide AA en el contenido
+// de estas dos pantallas (los dos hallazgos del tema claro — el gris fijo de
+// los encabezados y el verde vivo de las mini-tarjetas — quedaron AA con los
+// tiles v2), así que acá no solo se informa: se exige.
+const CONTENIDO_AA = new Set(['equipo', 'roles'])
+
 const preparar = (page, { modo, v2 = true }) =>
   page.addInitScript(({ modo, v2 }) => {
     try {
@@ -277,6 +283,9 @@ test.describe('dominios v2 · capturas y contraste', () => {
           informar(`${dominio}-on-${vista}-${tema}`, medicion)
           await page.screenshot({ path: `${SHOTS}/c241f4b-${dominio}-on-${tema}-${vista}.png` })
           expect(medicion.bajos, `AA del shell en ${dominio} (${vista} ${tema})`).toEqual([])
+          if (CONTENIDO_AA.has(dominio)) {
+            expect(medicion.totalBajosContenido, `AA del contenido en ${dominio} (${vista} ${tema}) — el detalle queda en el log`).toBe(0)
+          }
         }
       }
     })
@@ -294,6 +303,24 @@ test.describe('dominios v2 · capturas y contraste', () => {
       await expect(listo(page)).toBeVisible({ timeout: 30_000 })
       if (antesDeCapturar) await antesDeCapturar(page)
       await page.screenshot({ path: `${SHOTS}/c241f4b-${dominio}-off-claro-desktop.png` })
+    })
+  }
+})
+
+// Lote F (Configuración) · criterio del plan F4 #3: Equipo y Roles entran sin
+// scroll horizontal del documento en los cuatro anchos del rollout.
+test.describe('lote F · configuración sin scroll horizontal', () => {
+  const ANCHOS = [360, 390, 768, 1440]
+  for (const [dominio, ruta] of PANTALLAS.filter(([nombre]) => nombre === 'equipo' || nombre === 'roles')) {
+    test(`${dominio}: 360/390/768/1440 sin scroll del documento`, async ({ page }) => {
+      await preparar(page, { modo: 'light', v2: true })
+      for (const ancho of ANCHOS) {
+        await page.setViewportSize({ width: ancho, height: 900 })
+        await page.goto(ruta)
+        await expect(page.locator('.tema-v2').first()).toBeVisible({ timeout: 30_000 })
+        const medida = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth }))
+        expect(medida.scrollWidth, `${dominio} a ${ancho}px`).toBeLessThanOrEqual(medida.clientWidth + 1)
+      }
     })
   }
 })

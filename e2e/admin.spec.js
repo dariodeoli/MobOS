@@ -459,14 +459,20 @@ test('configuración → sube el logo de la empresa y lo quita', async ({ page }
   await page.goto('/configuracion')
   await page.getByRole('main').getByRole('button', { name: 'Negocio' }).click()
   await expect(page.getByRole('heading', { name: 'Logo de la empresa' })).toBeVisible()
-  await expect(page.getByText('Fondo claro').first()).toBeVisible()
+  // UX Config → Logos: un preview por modo, cada uno sobre el fondo que le toca.
+  await expect(page.getByTestId('logo-preview-light')).toHaveClass(/bg-white/)
+  await expect(page.getByTestId('logo-preview-dark')).toHaveClass(/consola/)
   await page
     .locator('input[type="file"][accept*="image/png"]')
     .first()
     .setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: png })
-  await expect(page.getByAltText('Modo claro sobre fondo claro')).toBeVisible()
+  // Confirmación con la vista previa fiel antes de subir.
+  const confirmacion = page.getByRole('dialog', { name: 'Confirmar logo' })
+  await expect(confirmacion).toBeVisible()
+  await confirmacion.getByRole('button', { name: 'Usar este logo' }).click()
+  await expect(page.getByAltText('Logo en modo claro')).toBeVisible()
   await page.getByRole('button', { name: 'Quitar', exact: true }).first().click()
-  await expect(page.getByAltText('Modo claro sobre fondo claro')).toHaveCount(0)
+  await expect(page.getByAltText('Logo en modo claro')).toHaveCount(0)
 })
 
 // Búsqueda de pedidos: se resuelve en el servidor (número, cliente, RUC o
@@ -1254,3 +1260,5 @@ test('el menú de tres puntos queda corto y lo destructivo vive en Configuració
   await dialogo.getByRole('button', { name: 'Cancelar' }).click()
   await expect(page.getByText('Escribí ELIMINAR para confirmar')).toHaveCount(0)
 })
+
+

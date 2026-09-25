@@ -32,6 +32,39 @@ import { descargarArchivo } from '@/utils/descargarArchivo'
 import { CELDA_DATO } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES, PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
+
+// Un logo por modo (UX Config → Logos): el modo claro lleva el logo oscuro y
+// el modo oscuro el logo claro, y la vista previa se hace **sobre el fondo real
+// de cada modo** (blanco / consola), no sobre los dos fondos como antes.
+const VARIANTES_LOGO = [
+  { variant: 'light', titulo: 'Modo claro', ayuda: 'Logo oscuro, para fondos claros', fondo: 'bg-white' },
+  { variant: 'dark', titulo: 'Modo oscuro', ayuda: 'Logo claro, para fondos oscuros', fondo: 'consola bg-ink-950' },
+]
+
+// Confirmación con la vista previa fiel (sobre el fondo del modo) antes de subir.
+function ConfirmarLogo({ item, busy, onCancel, onConfirm }) {
+  const { file, variant } = item
+  const datos = VARIANTES_LOGO.find((v) => v.variant === variant) || VARIANTES_LOGO[0]
+  const [url, setUrl] = useState('')
+  useEffect(() => {
+    const objectUrl = URL.createObjectURL(file)
+    setUrl(objectUrl)
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [file])
+  return (
+    <Modal open onClose={onCancel} title="Confirmar logo" size="corto">
+      <p className="text-sm text-mute">Así se va a ver en {datos.titulo.toLowerCase()}:</p>
+      <div className={`mt-2 grid h-24 place-items-center overflow-hidden rounded-lg border border-ink-600 ${datos.fondo}`}>
+        {url && <img src={url} alt={`Vista previa del logo en ${datos.titulo.toLowerCase()}`} className="max-h-20 max-w-[85%] object-contain" />}
+      </div>
+      <div className="mt-4 flex justify-end gap-2">
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={busy}>Cancelar</Button>
+        <Button type="button" onClick={onConfirm} disabled={busy}>{busy ? 'Guardando…' : 'Usar este logo'}</Button>
+      </div>
+    </Modal>
+  )
+}
+
 async function copiarValor(toast, valor, etiqueta) {
   if (!valor) return
   const copiado = await copiarAlPortapapeles(valor)
@@ -52,6 +85,8 @@ export default function Config({ seccion = 'negocio' } = {}) {
   const [logos, setLogos] = useState({ light: '', dark: '' })
   const [logoError, setLogoError] = useState('')
   const [logoBusy, setLogoBusy] = useState(false)
+  // Archivo elegido esperando la confirmación con la vista previa fiel.
+  const [logoAConfirmar, setLogoAConfirmar] = useState(null)
   const [prefijo, setPrefijo] = useState('')
   const [inicio, setInicio] = useState('')
   const [limiteGasto, setLimiteGasto] = useState('')
@@ -293,36 +328,41 @@ export default function Config({ seccion = 'negocio' } = {}) {
         {esDueno && <Card className="space-y-3">
           <div>
             <h2 className="font-semibold">Logo de la empresa</h2>
-            <p className="mt-1 text-sm text-mute">Se muestra en el encabezado de los comprobantes. Recomendado: PNG con <b className="text-fore">fondo transparente</b>, 1024×1024 px (1600×600 si es horizontal) y hasta 1 MiB. Para modo claro y oscuro conviene el <b className="text-fore">logo oscuro</b> en fondo claro y el <b className="text-fore">logo claro</b> en fondo oscuro.</p>
+            <p className="mt-1 text-sm text-mute">Un logo por modo, con la vista previa sobre el fondo donde se usa: <b className="text-fore">modo claro</b> = logo oscuro, <b className="text-fore">modo oscuro</b> = logo claro. Se muestra en el encabezado de los comprobantes. Recomendado: PNG con <b className="text-fore">fondo transparente</b>, 1024×1024 px (1600×600 si es horizontal) y hasta 1 MiB.</p>
             <Button type="button" variant="ghost" className="mt-1 h-auto px-0 py-1 text-xs text-fono-light" onClick={copiarPrompt}><Icon name="copy" className="h-3.5 w-3.5" />Copiar prompt para generar el logo</Button>
           </div>
           <div className={GRILLA_DOS_COLUMNAS}>
-            {[['light', 'Modo claro', 'Logo oscuro, para fondos claros'], ['dark', 'Modo oscuro', 'Logo claro, para fondos oscuros']].map(([variant, titulo, ayuda]) => (
+            {VARIANTES_LOGO.map(({ variant, titulo, ayuda, fondo }) => (
               <div key={variant} className="rounded-xl border border-ink-600 p-3">
                 <p className="text-sm font-medium">{titulo}</p>
                 <p className="mt-0.5 text-xs text-mute">{ayuda}</p>
-                <div className="mt-2 flex flex-wrap items-center gap-3">
-                  <div className="flex gap-2">
-                    {[['Fondo claro', 'bg-white'], ['Fondo oscuro', 'bg-ink-950']].map(([etiqueta, fondo]) => (
-                      <div key={etiqueta} className="text-center">
-                        <div className={`grid h-14 w-20 place-items-center overflow-hidden rounded-lg border border-ink-600 ${fondo}`}>
-                          {logos[variant] ? <img src={logos[variant]} alt={`${titulo} sobre ${etiqueta.toLowerCase()}`} className="max-h-12 max-w-16 object-contain" /> : <span className="text-[10px] text-mute">—</span>}
-                        </div>
-                        <span className="mt-0.5 block text-[10px] text-mute">{etiqueta}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <AttachmentInput onSelect={(file) => subirLogo(file, variant)} onError={setLogoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={logoBusy}>
-                      <Button type="button" variant="outline" disabled={logoBusy}>{logos[variant] ? 'Reemplazar' : 'Subir logo'}</Button>
-                    </AttachmentInput>
-                    {logos[variant] && <Button type="button" variant="ghost" disabled={logoBusy} onClick={() => quitarLogo(variant)}>Quitar</Button>}
-                  </div>
+                <div data-testid={`logo-preview-${variant}`} className={`mt-2 grid h-20 place-items-center overflow-hidden rounded-lg border border-ink-600 ${fondo}`}>
+                  {logos[variant]
+                    ? <img src={logos[variant]} alt={`Logo en ${titulo.toLowerCase()}`} className="max-h-16 max-w-[85%] object-contain" />
+                    : <span className="text-[10px] text-mute">Sin logo</span>}
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <AttachmentInput onSelect={(file) => setLogoAConfirmar({ file, variant })} onError={setLogoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={logoBusy}>
+                    <Button type="button" variant="outline" disabled={logoBusy}>{logos[variant] ? 'Reemplazar' : 'Subir logo'}</Button>
+                  </AttachmentInput>
+                  {logos[variant] && <Button type="button" variant="ghost" disabled={logoBusy} onClick={() => quitarLogo(variant)}>Quitar</Button>}
                 </div>
               </div>
             ))}
           </div>
           {logoError && <p role="alert" className="text-sm text-bad">{logoError}</p>}
+          {logoAConfirmar && (
+            <ConfirmarLogo
+              item={logoAConfirmar}
+              busy={logoBusy}
+              onCancel={() => setLogoAConfirmar(null)}
+              onConfirm={async () => {
+                const { file, variant } = logoAConfirmar
+                setLogoAConfirmar(null)
+                await subirLogo(file, variant)
+              }}
+            />
+          )}
         </Card>}
         {esDueno && <DatosPrivados />}
         <SeccionTiendas account={account} />
