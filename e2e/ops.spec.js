@@ -110,7 +110,11 @@ test('el tablero F3 cuenta una unidad real recibida en el taller', async ({ page
     await page.goto('/inventario/unidades')
     await page.getByRole('button', { name: '+ Recibir unidad' }).click()
     const alta = page.getByRole('dialog', { name: 'Carga rápida de unidad' })
-    await alta.getByLabel('Modelo', { exact: true }).selectOption(datos.productId)
+    // #250: el alta es dependiente (modelo → capacidad → color) y crea el
+    // producto desde el buscador cuando no está en el catálogo.
+    const comboModelo = alta.getByRole('combobox').first()
+    await comboModelo.fill(`Equipo tablero ${key}`)
+    await alta.getByRole('option', { name: new RegExp(`Equipo tablero ${key}`) }).first().click()
     await alta.getByLabel('IMEI o serial', { exact: true }).fill(datos.serial)
     await alta.getByRole('button', { name: 'Guardar unidad' }).click()
     await expect(page.getByText(/1 unidad recibida/)).toBeVisible({ timeout: 15_000 })

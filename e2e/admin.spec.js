@@ -304,7 +304,10 @@ test.describe('owner panel', () => {
     const equipo = `iPhone 13 Pro ${stamp} · 256 GB`
     await page.getByRole('button', { name: '+ Nueva orden' }).first().click()
     await page.getByLabel('Cliente', { exact: true }).fill(cliente)
-    await page.getByLabel('Dispositivo', { exact: true }).fill(equipo)
+    // #250: dispositivo con el buscador dependiente (texto libre con Enter).
+    const buscadorDispositivo = page.getByTestId('recepcion-dispositivo').getByRole('combobox').first()
+    await buscadorDispositivo.fill(equipo)
+    await buscadorDispositivo.press('Enter')
     await page.getByRole('button', { name: 'Crear orden' }).click()
 
     await expect(page.getByText(equipo).first()).toBeVisible()

@@ -21,7 +21,10 @@ test('la orden se carga con costos desglosados y la utilidad se calcula sola', a
   await page.getByRole('button', { name: '+ Nueva orden' }).click()
   const modal = page.getByRole('dialog', { name: 'Nueva orden de servicio' })
   await modal.getByLabel('Cliente', { exact: true }).fill(cliente)
-  await modal.getByLabel('Dispositivo', { exact: true }).fill(`iPhone 14 Pro ${marca}`)
+  // #250: el dispositivo se carga con el buscador dependiente (acepta texto libre).
+  const buscadorDispositivo = modal.getByTestId('recepcion-dispositivo').getByRole('combobox').first()
+  await buscadorDispositivo.fill(`iPhone 14 Pro ${marca}`)
+  await buscadorDispositivo.press('Enter')
   // Buscador instantáneo del catálogo: solo quedan los servicios que coinciden.
   await modal.getByLabel('Buscar servicio', { exact: true }).fill('display')
   const selector = modal.getByLabel('Servicio del catálogo', { exact: true })
