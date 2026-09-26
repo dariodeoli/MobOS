@@ -1,6 +1,6 @@
-// Abastecimiento F1 (#250/#254) · panel «Por comprar»: la necesidad manual se
-// consolida en una tarjeta compacta, se asigna comprador y se cancela con
-// motivo (auditado). Capturas claro/oscuro × desktop/mobile.
+// Abastecimiento F1 (#250/#254) · panel «Por comprar» sobre los datos de INV:
+// contadores por estado, centro de compra, prioridad/fecha, costo/margen
+// estimados, filtros de cola (sin asignar / vencidas) y asignación en bloque.
 //
 // Capturas: `QA_254_CAPTURAS` (default test-results/qa-254) — se versionan en
 // docs/qa/254-por-comprar/.
@@ -23,13 +23,13 @@ const apiPagina = (page, ruta, opciones = {}) => page.evaluate(async ({ api, rut
   return { status: response.status, body }
 }, { api: API, ruta, opciones })
 
-// Producto único por corrida: las necesidades de otras pruebas o corridas no
-// se mezclan en la consolidación (mismo producto + condición).
-async function productoDePrueba(page, marca) {
+// Producto único por corrida: las necesidades de otras pruebas o corridas no se
+// mezclan en la consolidación (mismo producto + condición + centro).
+async function productoDePrueba(page, marca, extra = {}) {
   const sku = `E2E-254-${marca}`
   const { status, body } = await apiPagina(page, '/api/products', {
     method: 'POST',
-    body: JSON.stringify({ sku, name: `Producto 254 ${marca}`, category: 'Accesorios', pricePyg: 100000, stock: 0, branchId: SEED.branchId }),
+    body: JSON.stringify({ sku, name: `Producto 254 ${marca}`, category: 'Accesorios', pricePyg: 100000, costPyg: 60000, stock: 0, branchId: SEED.branchId, ...extra }),
   })
   expect([200, 201], `POST /api/products → ${status} ${JSON.stringify(body)}`).toContain(status)
   return body
@@ -51,40 +51,55 @@ const cancelarNecesidad = (page, id) => apiPagina(page, '/api/supply/needs', {
 
 const listarNecesidades = async (page) => (await apiPagina(page, '/api/supply/needs')).body
 
-test('Por comprar: la necesidad se consolida y se ve en la tarjeta compacta', async ({ page }) => {
+const numeroDeTab = async (page, nombre) => {
+  const texto = await page.getByRole('tab', { name: new RegExp(`^${nombre}`) }).innerText()
+  return Number((texto.match(/\((\d+)\)/) || [])[1] || 0)
+}
+
+test('Por comprar: contadores, tarjeta compacta (prioridad/fecha/costo) y filtros', async ({ page }) => {
   mkdirSync(DIR, { recursive: true })
   await page.goto('/abastecimiento')
   await expect(page.getByTestId('por-comprar')).toBeVisible()
+  const pendientesAntes = await numeroDeTab(page, 'Por comprar')
 
   const marca = Date.now().toString(36)
   const producto = await productoDePrueba(page, marca)
   const creada = await crearNecesidad(page, producto)
   await page.getByRole('button', { name: 'Actualizar' }).click()
 
-  // La búsqueda deja solo el producto de la prueba.
+  // Contador de la pestaña: sube exactamente uno.
+  await expect(page.getByRole('tab', { name: new RegExp(`^Por comprar \\(${pendientesAntes + 1}\\)`) })).toBeVisible()
+
+  // Tarjeta compacta con prioridad, condición, centro pendiente y costo estimado.
   await page.getByLabel('Buscar producto').fill(producto.name)
   const fila = page.getByTestId('por-comprar-fila').filter({ hasText: producto.name })
   await expect(fila).toBeVisible()
   await expect(fila.getByText('Urgente', { exact: true })).toBeVisible()
+  await expect(fila.getByText('Nuevo', { exact: true })).toBeVisible()
+  await expect(fila.getByText('Sin centro', { exact: true })).toBeVisible()
   await expect(fila.getByText('Faltan 2 unidades')).toBeVisible()
+  await expect(fila.getByText(/Gs\s?120\.000/)).toBeVisible() // 2 × costo 60.000
   await expect(fila.getByText('Manual', { exact: true })).toBeVisible()
+  await expect(fila.getByText(/Stock:/)).toBeVisible()
 
-  // Pestañas por estado: la necesidad abierta está en «Por comprar» y los
-  // estados posteriores explican su vacío.
-  const tabs = page.getByRole('tablist')
-  await expect(tabs.getByRole('tab', { name: /Por comprar/ })).toHaveAttribute('aria-selected', 'true')
+  // Pestañas por estado: los estados sin datos explican su vacío.
   for (const [tab, vacio] of [['Compradas', 'No hay compras registradas.'], ['Recibidas', 'Todavía no hay recepciones.'], ['Canceladas', 'No hay necesidades canceladas.']]) {
-    await tabs.getByRole('tab', { name: new RegExp(`^${tab}`) }).click()
+    await page.getByRole('tab', { name: new RegExp(`^${tab}`) }).click()
     await expect(page.getByText(vacio)).toBeVisible()
   }
-  await tabs.getByRole('tab', { name: /Por comprar/ }).click()
-  await expect(page.getByTestId('por-comprar-fila').filter({ hasText: producto.name })).toBeVisible()
+  await page.getByRole('tab', { name: /^Por comprar/ }).click()
+  await page.getByLabel('Buscar producto').fill(producto.name)
 
-  // Prioridad filtra y vuelve.
+  // Prioridades y centro filtran del lado del servidor.
   await page.getByLabel('Prioridad').selectOption('BAJA')
   await expect(page.getByTestId('por-comprar-fila').filter({ hasText: producto.name })).toHaveCount(0)
   await page.getByLabel('Prioridad').selectOption('URGENTE')
   await expect(page.getByTestId('por-comprar-fila').filter({ hasText: producto.name })).toBeVisible()
+  await page.getByLabel('Centro de compra').selectOption('CDE')
+  await expect(page.getByTestId('por-comprar-fila').filter({ hasText: producto.name })).toHaveCount(0)
+  await page.getByLabel('Centro de compra').selectOption('sin-centro')
+  await expect(page.getByTestId('por-comprar-fila').filter({ hasText: producto.name })).toBeVisible()
+  await page.getByLabel('Centro de compra').selectOption('todos')
 
   for (const [tema, modo] of [['claro', 'light'], ['oscuro', 'dark']]) {
     await page.addInitScript(({ m }) => { try { localStorage.setItem('mobos:theme', m) } catch { /* sin storage */ } }, { m: modo })
@@ -100,41 +115,40 @@ test('Por comprar: la necesidad se consolida y se ve en la tarjeta compacta', as
   await cancelarNecesidad(page, creada.id)
 })
 
-test('Por comprar: asignar comprador y cancelar con motivo quedan auditados', async ({ page }) => {
+test('Por comprar: asignar con centro de compra y cancelar con motivo', async ({ page }) => {
   await page.goto('/abastecimiento')
   await expect(page.getByTestId('por-comprar')).toBeVisible()
 
-  const marca = `b${Date.now().toString(36)}`
+  const marca = `c${Date.now().toString(36)}`
   const producto = await productoDePrueba(page, marca)
   const creada = await crearNecesidad(page, producto, { quantity: 1, priority: 'ALTA' })
   await page.getByRole('button', { name: 'Actualizar' }).click()
 
   const fila = page.getByTestId('por-comprar-fila').filter({ hasText: producto.name }).first()
   await expect(fila).toBeVisible()
-
-  // Asignar comprador: se elige de la lista real de usuarios.
   await fila.getByRole('button', { name: 'Asignar comprador' }).click()
   const dialogo = page.getByRole('dialog')
-  await expect(dialogo.getByRole('heading', { name: 'Asignar comprador' })).toBeVisible()
+  await expect(dialogo.getByRole('heading', { name: 'Asignar compra' })).toBeVisible()
   const opciones = dialogo.locator('#comprador option')
-  await expect(opciones.first()).toHaveText(/Elegí quién compra/)
   const compradorId = await opciones.nth(1).getAttribute('value')
   await dialogo.locator('#comprador').selectOption(compradorId)
+  await dialogo.locator('#centro-compra').fill('CDE')
   await dialogo.getByRole('button', { name: 'Asignar', exact: true }).click()
   await expect(page.getByText('Compra asignada')).toBeVisible()
 
-  const asignadas = await listarNecesidades(page)
-  const grupo = (asignadas.grupos || []).find((g) => g.producto === producto.name)
-  expect(grupo, 'el grupo sigue por comprar (asignado)').toBeTruthy()
-
-  // Sigue en «Por comprar» (falta comprar) y aparece en «Asignadas».
-  await page.getByRole('tab', { name: /Asignadas/ }).click()
+  // El centro entra en la consolidación: la tarjeta lo muestra y los filtros lo respetan.
+  await page.getByRole('tab', { name: /^Asignadas/ }).click()
+  await expect(page.getByRole('tab', { name: /^Asignadas \(\d+\)/ })).toBeVisible()
+  const filaAsignada = page.getByTestId('por-comprar-fila').filter({ hasText: producto.name }).first()
+  await expect(filaAsignada.getByText('CDE', { exact: true })).toBeVisible()
+  await page.getByLabel('Centro de compra').selectOption('sin-centro')
+  await expect(page.getByTestId('por-comprar-fila').filter({ hasText: producto.name })).toHaveCount(0)
+  await page.getByLabel('Centro de compra').selectOption('CDE')
   await expect(page.getByTestId('por-comprar-fila').filter({ hasText: producto.name })).toBeVisible()
-  mkdirSync(DIR, { recursive: true })
-  await page.screenshot({ path: join(DIR, 'por-comprar-asignadas-desktop.png') })
+  await page.getByLabel('Centro de compra').selectOption('todos')
 
-  // Cancelar con motivo: sale de la lista y queda auditado.
-  await page.getByRole('tab', { name: /Por comprar/ }).click()
+  // Cancelar con motivo: sale de «Por comprar» y queda en «Canceladas».
+  await page.getByRole('tab', { name: /^Por comprar/ }).click()
   const filaOtraVez = page.getByTestId('por-comprar-fila').filter({ hasText: producto.name }).first()
   await filaOtraVez.getByRole('button', { name: 'Cancelar', exact: true }).click()
   const dialogoCancelar = page.getByRole('dialog')
@@ -143,12 +157,43 @@ test('Por comprar: asignar comprador y cancelar con motivo quedan auditados', as
   await expect(page.getByText('Necesidad cancelada')).toBeVisible()
   await expect(page.getByTestId('por-comprar-fila').filter({ hasText: producto.name })).toHaveCount(0)
 
-  // La cancelada sale de «Por comprar» y queda en «Canceladas» (auditoría).
-  await page.getByRole('tab', { name: /Canceladas/ }).click()
+  await page.getByRole('tab', { name: /^Canceladas/ }).click()
   await expect(page.getByTestId('por-comprar-fila').filter({ hasText: producto.name })).toBeVisible()
-  await page.screenshot({ path: join(DIR, 'por-comprar-canceladas-desktop.png') })
 
   const despues = await listarNecesidades(page)
   expect((despues.grupos || []).some((g) => g.producto === producto.name), 'la cancelada no vuelve').toBe(false)
   void creada
+})
+
+test('Por comprar: asignación en bloque de varios grupos', async ({ page }) => {
+  await page.goto('/abastecimiento')
+  await expect(page.getByTestId('por-comprar')).toBeVisible()
+
+  const marca = Date.now().toString(36)
+  const productoA = await productoDePrueba(page, `b${marca}a`)
+  const productoB = await productoDePrueba(page, `b${marca}b`)
+  const creadaA = await crearNecesidad(page, productoA, { quantity: 1 })
+  const creadaB = await crearNecesidad(page, productoB, { quantity: 1 })
+  await page.getByRole('button', { name: 'Actualizar' }).click()
+
+  for (const producto of [productoA, productoB]) {
+    await page.getByLabel(`Seleccionar ${producto.name}`).check()
+  }
+  await expect(page.getByText('2 grupos seleccionados')).toBeVisible()
+  await page.getByRole('button', { name: 'Asignar seleccionados' }).click()
+  const dialogo = page.getByRole('dialog')
+  await expect(dialogo.getByText('2 grupos seleccionados')).toBeVisible()
+  await dialogo.locator('#comprador').selectOption(await dialogo.locator('#comprador option').nth(1).getAttribute('value'))
+  await dialogo.getByRole('button', { name: 'Asignar', exact: true }).click()
+  await expect(page.getByText('Compra asignada')).toBeVisible()
+  await expect(page.getByText('2 grupos seleccionados')).toHaveCount(0)
+
+  await page.getByRole('tab', { name: /^Asignadas/ }).click()
+  for (const producto of [productoA, productoB]) {
+    await expect(page.getByTestId('por-comprar-fila').filter({ hasText: producto.name })).toBeVisible()
+  }
+
+  // Limpieza: se cancelan las dos (de a una, con motivo).
+  await cancelarNecesidad(page, creadaA.id)
+  await cancelarNecesidad(page, creadaB.id)
 })
