@@ -21,7 +21,11 @@ import {
   useToast,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
+<<<<<<< HEAD
 import { demoAutorizacionesFiltradas } from '@/lib/demoAutorizaciones'
+=======
+import { DEMO_AUTORIZACIONES, demoAutorizacionesFiltradas } from '@/lib/demoAutorizaciones'
+>>>>>>> origin/slot/diseno
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } from '@/components/shared/tabla'
 // Tabla compacta: una fila por solicitud y las acciones de aprobación en la
 // misma línea. El detalle (autorizado, quién resolvió, notas) va en el title.
