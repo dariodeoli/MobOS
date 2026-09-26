@@ -51,10 +51,11 @@ efectivo (`montoDeliveryEfectivo`) en total, resumen, payload y reparto de pagos
 la regresión e2e en `pos-qa-173` («retiro en tienda no cobra el envío…») y el recorrido
 local cierra en **Gs 13.880.000** (`docs/qa/187-1.0.172-rama/`).
 
-**2. (Demo · menor, persiste) «TU DÍA» suma una venta/pedido por línea/unidad.**
-La venta de 3 unidades (2 líneas) sumó +3 ventas y +3 pedidos, y la facturación subió
-sin el costo de entrega (Gs 13.880.000). Con sesión real se guarda 1 pedido por venta.
-Impacto: solo métricas de la demo.
+**2. (Demo · corregido en `slot/pos`) «TU DÍA» sumaba una venta/pedido por unidad.**
+La venta de 3 unidades (2 líneas) sumaba +3 ventas y +3 pedidos. El demo guarda una
+fila por unidad (`compraId`); ahora las métricas del día se cuentan **por orden**
+(`src/utils/resumenVentasDia.js`, con unit tests) y el mismo flujo pasa de
+`6 ventas · 6 pedidos` a **`4 ventas · 4 pedidos`** (`docs/qa/187-1.0.175-rama/`).
 
 **3. (Método) El cierre en la demo confirma con el toast «Cambio simulado…»** (no hay
 aviso «Venta registrada» ni acciones Imprimir/Ver pedido en la demo); para sesión real

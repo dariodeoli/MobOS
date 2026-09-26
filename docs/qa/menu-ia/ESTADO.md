@@ -110,3 +110,9 @@ Sonda `scripts/qa-menu-ia.mjs` contra `https://app.moboss.online` (demo pública
 | Rutas heredadas | siguen abriendo su pantalla (probadas por el e2e de la rama) |
 
 Capturas y datos crudos: [`1.0.172-produccion/`](1.0.172-produccion/).
+
+## Re-verificación post-.175 (26/09)
+
+Misma sonda contra producción **v1.0.175** (4 variantes): los 8 grupos, Taller
+con pestañas, `/ops` y el menú del vendedor siguen igual, **0 errores de página**.
+Capturas y datos crudos: [`1.0.175-produccion/`](1.0.175-produccion/).
