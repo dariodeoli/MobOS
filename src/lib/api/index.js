@@ -38,6 +38,24 @@ export const resources = {
     create: data => api.post('/api/supply/needs', data),
     update: data => api.patch('/api/supply/needs', data),
   },
+  // F3 (#250 §7): preparación de la compra (IMEI por completar) — escaneo de a
+  // uno (`scan`) o pegado múltiple (`serials`).
+  supplyPurchases: {
+    list: (params = {}) => {
+      const query = new URLSearchParams(Object.entries(params).filter(([, valor]) => valor !== '' && valor != null).map(([clave, valor]) => [clave, String(valor)]))
+      return api.get(`/api/supply/purchases${query.toString() ? `?${query}` : ''}`, { cacheMs: 0 })
+    },
+    update: data => api.patch('/api/supply/purchases', data),
+  },
+  // F5 (#250 §11): llegadas pendientes y recepción contra el manifiesto.
+  supplyReceptions: {
+    list: (params = {}) => {
+      const query = new URLSearchParams(Object.entries(params).filter(([, valor]) => valor !== '' && valor != null).map(([clave, valor]) => [clave, String(valor)]))
+      return api.get(`/api/supply/receptions${query.toString() ? `?${query}` : ''}`, { cacheMs: 0 })
+    },
+    create: data => api.post('/api/supply/receptions', data),
+    update: data => api.patch('/api/supply/receptions', data),
+  },
   audit: { list: (params = {}) => api.get(`/api/audit?${new URLSearchParams(params)}`) },
   sessions: { list: () => api.get('/api/sessions'), revoke: sessionId => api.delete('/api/sessions', { body: { sessionId } }) },
 }
