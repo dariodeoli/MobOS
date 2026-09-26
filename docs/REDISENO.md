@@ -137,16 +137,19 @@ propia fuera del shell.
 - **Sin cambios de lógica:** mismos endpoints, validaciones, permisos y datos;
   solo layout, etiquetas y reutilización de objetos.
 
-## F4 · Vista previa v2 (en curso)
+## F4 · Rollout v2 (activo; switch listo)
 
 El rollout del lenguaje v2 por dominio —shell, pedidos, clientes, finanzas,
 servicio, resumen/análisis, compras, configuración, inventario, públicas, el
 tablero operativo y el modo taller/rack— está **activo**: el v2 es el diseño por
 defecto desde el 24-09 y cada pantalla nueva se entrega con capturas claro/oscuro/mobile y
-medición AA. La salida de emergencia por dispositivo sigue siendo
-`localStorage['mobos:tema-v2'] = '0'` (`VITE_OPS_V2=0` apaga el tablero). El
+medición AA. El **switch de activación** es `VITE_TEMA_V2` (sin definir o `1` =
+prendido; `0` = apagado, con el v2 accesible por dispositivo); además, cada
+dispositivo puede salir con `localStorage['mobos:tema-v2'] = '0'` o volver con
+`'1'`, y `VITE_OPS_V2=0` apaga el tablero. El
 paquete de aprobación es [`rediseno/PAQUETE-F4.md`](rediseno/PAQUETE-F4.md) y el
-detalle con capturas y medición, [`rediseno/F4-DOMINIOS.md`](rediseno/F4-DOMINIOS.md).
+detalle con capturas y medición, [`rediseno/F4-DOMINIOS.md`](rediseno/F4-DOMINIOS.md);
+el cierre de AA del shell está en [`QA-241-shell-aa.md`](QA-241-shell-aa.md).
 
 **Actualización 25/09/2026:** el mock navegable `/rediseno-f3` se retiró —el v2
 es el diseño real— y el alcance/capturas de F3 quedan en `rediseno/` como
