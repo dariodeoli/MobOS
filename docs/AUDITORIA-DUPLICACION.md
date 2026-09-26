@@ -292,6 +292,18 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 47 — nueva ola F3–F5: manifiesto del lote (#250) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Manifiesto del envío | El backend ya devuelve el contrato (`manifiestoEnvio`: código, ruta, método, empresa/conductor/guía, responsable, compra, fechas, líneas con IMEI conocidos y pendientes, totales y enlace público) y PRN aún no tenía layout | **`ManifiestoEnvio`**: el papel completo con `oc-print-*` (tabla por producto, IMEI o pendientes, totales y QR), listo para envolver con `DocumentoImpresion`; PRN solo aporta el layout |
+| Cobertura F3–F5 | — | F3: `CampoSeriales`/`SerialField`/`imeiValido`/`serial` + `EtiquetaLote` (el layout térmico es de PRN, ya implementado). F4: `TarjetaLote`, `ESTADOS_ENVIO`, `METODOS_ENVIO`, `PASOS_ENVIO`, `EtiquetaLote`, **`ManifiestoEnvio`**. F5: `TarjetaRecepcion`, `ResumenRecepcion`, `FilaRevision`, `SelectorIncidencia`, `ResumenIncidencias`, `DestinoRecepcion` y `claveRevision` |
+| Biblioteca | v0.38.0 | **v0.40.0** (sobre la v0.39.0 de cosechas de otras apps); REGLAS §13/README; **309** tests |
+
+**Coordinación:** PRN tiene el layout de la etiqueta térmica (`docs/ETIQUETAS-LOTE.md`) y ahora el contenido del manifiesto en `ManifiestoEnvio`; PLT puede armar «Preparar envío / En tránsito / Recepción» con las tarjetas y los mapas; el stock sigue naciendo solo en la recepción confirmada.
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con `BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y `test:e2e:smoke`; biblioteca `owncoding-ui` build + 309 tests.
+
 ### Lote 46 — objetos de recepción e incidencias F5 (#250) (26-09)
 
 | Objeto | Antes (evidencia) | Después |
