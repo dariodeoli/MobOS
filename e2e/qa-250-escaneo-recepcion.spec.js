@@ -98,8 +98,9 @@ test('F3 · preparar compra: escaneo, Luhn, duplicados y pegado múltiple', asyn
   await page.getByRole('button', { name: 'Cargar lote' }).click()
   await expect(page.getByText(/1 cargado\(s\)/)).toBeVisible()
   await expect(page.getByText(/cargad|duplicad|repetid/i).first()).toBeVisible()
-  await expect(page.getByText('Completa', { exact: true })).toBeVisible()
-  await expect(page.getByText('Línea completa: todos los IMEI cargados.')).toBeVisible()
+  // Con la línea completa la compra sale de «pendientes» (F2: el panel lista
+  // solo lo que tiene IMEI por cargar) y el estado queda para el API.
+  await expect(page.getByText('Cuando una compra tenga IMEI pendientes, aparece acá.')).toBeVisible({ timeout: 15_000 })
 
   // La compra deja de estar pendiente de preparación.
   const pendientes = await apiPagina(page, '/api/supply/purchases?pendientes=1')
