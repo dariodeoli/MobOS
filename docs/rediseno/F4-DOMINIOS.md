@@ -4,10 +4,11 @@ Pasos del rollout F4, detrás del flag `preview v2`: además de heredar los
 tokens del shell (paso anterior), las pantallas suman los patrones del mock F3
 —chips tipo pill, números de consola, azul de acción en los activos internos,
 stepper del taller, tiles de KPI, el "x de y" de recepción, los tiles de
-rol/acceso y los **tiles de equipo** del inventario—. **El default no cambia**
-(`TEMA_V2_POR_DEFECTO = false`): con el flag apagado todo queda como está hoy.
+rol/acceso y los **tiles de equipo** del inventario—. **F4 aprobado**: el v2 es
+el default (`VITE_TEMA_V2` sin definir o `1`); con `VITE_TEMA_V2=0` se sirve el
+diseño anterior y el v2 queda como prueba por dispositivo.
 
-## Qué cambia (solo con el flag)
+## Qué cambia con el v2 activo
 
 | Patrón | Default | Con `preview v2` | Dónde |
 |---|---|---|---|

@@ -17,7 +17,7 @@ tocar código:
   (Vite inyecta el valor en el build).
 - El **dispositivo siempre manda**: `localStorage['mobos:tema-v2'] = '0'`
   vuelve al diseño anterior y `'1'` regresa al v2; el selector visible está en
-  **Configuración → Sistema → Preferencias** («Volver al diseño anterior»).
+  **Configuración → Mi cuenta → Preferencias del dispositivo** («Volver al diseño anterior»).
 - Verificación después de activar (o de apagar):
   1. `node scripts/qa-241-shell-produccion.mjs` → AA del shell en producción
      (sale con código 1 si baja de AA).
