@@ -23,7 +23,7 @@ import { resources } from '@/lib/api'
 import { api, apiFetch } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { APP_NAME } from '@/lib/brand'
-import { printRemisionReceipt, printReservationReceipt, printTransferReceipt, transferReceiveUrlFor, buildUnitLabelsHtml, printOrderReceipt, tokenDeNivel, accessUrlFor } from '@/components/shared/OrderReceipt'
+import { printRemisionReceipt, printReservationReceipt, printTransferReceipt, transferReceiveUrlFor, buildUnitLabelsHtml, printOrderReceipt, tokenDeNivel, accessUrlFor, buildCertificadosHtml } from '@/components/shared/OrderReceipt'
 import { configImpresora, imprimirConDialogo, imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { ticketEtiquetasUnidad, ticketEtiquetaUbicacion, ticketEtiquetaUnidad, ticketRemision, ticketComprobante } from '@/lib/printing/tickets'
@@ -59,7 +59,8 @@ import { GRILLA_DOS_COLUMNAS, GRILLA_DOS_COLUMNAS_COMPACTA, PIE_ACCIONES, PIE_AC
 import TallerRack from '@/components/inventory/TallerRack'
 import TableroCertificaciones from '@/components/inventory/TableroCertificaciones'
 import { printHtml } from '@/utils/printHtml'
-import { buildStationSheetHtml } from '@/lib/printing/hojaEstacion'
+import { buildStationSheetHtml, buildStationSheetsHtml } from '@/lib/printing/hojaEstacion'
+import { datosCertificado } from '@/lib/printing/certificado'
 const MOTIVOS_BAJA = ['Uso interno', 'Daño', 'Transferencia', 'Pérdida', 'Devolución a proveedor', 'Otro']
 const MOTIVOS_REVISION = ['Revisión física', 'Falla detectada', 'Verificación vencida', 'Otro']
 // Formatos de impresión que acepta AEX (doc API v1.5.4, /envios/imprimir).
@@ -1238,6 +1239,15 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
           onHoja={(lista, titulo) => {
             if (esDemo) { toast.error('La impresión no está disponible en el demo.'); return }
             printHtml(buildStationSheetHtml(lista, { estacion: titulo }))
+          }}
+          onHojasPorEstacion={(grupos) => {
+            if (esDemo) { toast.error('La impresión no está disponible en el demo.'); return }
+            printHtml(buildStationSheetsHtml(grupos))
+          }}
+          onCertificados={(lista) => {
+            if (esDemo) { toast.error('La impresión no está disponible en el demo.'); return }
+            const certificados = lista.map(unit => datosCertificado(unit))
+            buildCertificadosHtml(certificados, { format: 'a4' }).then(html => printHtml(html))
           }}
         />
       </div>

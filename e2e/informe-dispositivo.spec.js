@@ -345,6 +345,53 @@ test('la hoja de estación sale del taller con los equipos del carril', async ({
 // aserciones no dependen de qué campos traiga la verificación del arnés: se
 // comprueba la declaración y su resumen (afirme o advierta), que es lo que el
 // papel tiene que decir siempre.
+// Impresos del taller en serie (#240): «Hojas por estación» saca una hoja por
+// carril (con las estaciones del alcance) y «Certificados» una página por
+// equipo, reusando los builders. En la demo la impresión se bloquea con aviso.
+test('el taller imprime las hojas por estación y los certificados en serie', async ({ page }) => {
+  const marca = Date.now()
+  const imeiA = imeiValido()
+  const imeiB = imeiValido()
+  await page.goto('/inventario/unidades')
+  await sembrarUnidadConConsulta(page, { marca, imei: imeiA })
+  await sembrarUnidadConConsulta(page, { marca: `${marca}b`, imei: imeiB })
+
+  await page.goto('/inventario/taller', { waitUntil: 'domcontentloaded' })
+  const equipoB = page.getByTestId('rack-equipo').filter({ hasText: imeiB })
+  await expect(equipoB).toBeVisible({ timeout: 20_000 })
+  // Una unidad verificada deja dos estaciones en el alcance: la serie tiene
+  // que sacar una hoja por carril, no una sola con todo mezclado.
+  await page.getByLabel(`Seleccionar ${imeiB}`).check()
+  await page.getByTestId('rack-verificar-lote').click()
+  await expect(page.getByText('unidad verificada')).toBeVisible({ timeout: 20_000 })
+  // Alcance = las dos unidades sembradas (una verificada y otra no): dos
+  // estaciones y dos certificados, sin depender del resto del arnés.
+  await page.getByLabel(`Seleccionar ${imeiA}`).check()
+  await page.getByLabel(`Seleccionar ${imeiB}`).check()
+
+  await page.getByTestId('rack-imprimir-serie').click()
+  await page.getByTestId('rack-hojas-estacion').click()
+  const marco = page.locator('iframe[aria-hidden="true"]').last()
+  await marco.waitFor({ state: 'attached', timeout: 10_000 })
+  const hojas = marco.contentFrame()
+  await expect(hojas.locator('section.hoja')).toHaveCount(2, { timeout: 15_000 })
+  const textoHojas = await hojas.locator('body').innerText()
+  expect(textoHojas).toMatch(/por verificar/i)
+  expect(textoHojas).toMatch(/verificado/i)
+  expect(textoHojas).toContain('Marcá cada uno al verificarlo')
+  await page.screenshot({ path: `${SALIDA}/12-hojas-por-estacion.jpg`, type: 'jpeg', quality: 75 })
+
+  await page.getByTestId('rack-imprimir-serie').click()
+  await page.getByTestId('rack-certificados').click()
+  const marcoCert = page.locator('iframe[aria-hidden="true"]').last()
+  await marcoCert.waitFor({ state: 'attached', timeout: 10_000 })
+  const certificados = marcoCert.contentFrame()
+  await expect(certificados.locator('section.certificado')).toHaveCount(2, { timeout: 20_000 })
+  const textoCert = await certificados.locator('body').innerText()
+  expect(textoCert).toContain('Certificado')
+  await page.screenshot({ path: `${SALIDA}/13-certificados-serie.jpg`, type: 'jpeg', quality: 75 })
+})
+
 test('la constancia de preparación sale directo con la declaración del checklist', async ({ page }) => {
   const capturados = []
   await agenteFalso(page, capturados)

@@ -962,6 +962,32 @@ export async function printCertificado(datos, options = {}) {
   return printHtml(await buildCertificadoHtml(datos, options))
 }
 
+// Certificados en serie (#240 · taller): una página por equipo, reusando el
+// builder validado (mismo diseño, QR y código de barras que la individual).
+// El taller los imprime al cerrar la verificación de un lote.
+const partesDeDocumento = (html) => ({
+  estilo: (String(html).match(/<style>([\s\S]*?)<\/style>/) || [])[1] || '',
+  cuerpo: (String(html).match(/<body[^>]*>([\s\S]*)<\/body>/) || [])[1] || '',
+})
+
+export async function buildCertificadosHtml(lista = [], { format = 'a4' } = {}) {
+  const paginas = []
+  let estilo = ''
+  for (const datos of Array.isArray(lista) ? lista : []) {
+    const partes = partesDeDocumento(await buildCertificadoHtml(datos, { format }))
+    if (!estilo) estilo = partes.estilo
+    if (partes.cuerpo) paginas.push(`<section class="certificado">${partes.cuerpo}</section>`)
+  }
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Certificados (${paginas.length})</title><style>${estilo}
+.certificado{page-break-after:always}
+.certificado:last-child{page-break-after:auto}
+</style></head><body>${paginas.join('')}</body></html>`
+}
+
+export async function printCertificados(lista, options = {}) {
+  return printHtml(await buildCertificadosHtml(lista, options))
+}
+
 // Comprobante de recepción del abastecimiento (#250 Fase 5 §11): esperado vs
 // recibido por línea, faltantes/incidencias con serial y nota, depósito
 // destino, quién recibió y cuándo. Los datos vienen normalizados por
