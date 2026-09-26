@@ -120,3 +120,9 @@ entradas que estaban ocultas**: los 8 grupos, Taller con pestañas, `/ops`
 errores de página**. Capturas y datos crudos:
 [`1.0.175-produccion/`](1.0.175-produccion/) (incluye `03-tablero`,
 `03b-celulares` y `03c-comparador`).
+
+## Re-verificación post-.178 (26/09)
+
+Producción **v1.0.178**, 4 variantes: los 8 grupos, Taller con pestañas, `/ops`,
+`/celulares` y `/comparador` desde el menú, y el menú del vendedor; **0 errores
+de página**. Capturas y datos crudos: [`1.0.178-produccion/`](1.0.178-produccion/).

@@ -15,6 +15,22 @@ Rama de esta entrega: `slot/pos`.
 | §22 | Lista y detalle del pedido | ✅ Cubierto por `pos-checkout`, `pos-qa-173` y `qa-241-*` en verde | e2e POS 31/31 |
 | #251 | Menú nuevo (verificación en producción) | ✅ 8 grupos, Taller, `/ops`, menú del vendedor | `docs/qa/menu-ia/1.0.175-produccion/` |
 
+## Verificación post-.178 en producción (26/09)
+
+Pasada completa sobre **v1.0.178** con las sondas (`qa-243`, `qa-menu-ia` y el
+recorrido POS `qa-187`), todo con capturas:
+
+| Resto POS | Verificación en producción .178 | Evidencia |
+|---|---|---|
+| §5/§7 carrito y métricas | Carrito 68/84 px (6 variantes) y **TU DÍA 3 → 4 ventas · 4 pedidos** para una venta de 3 unidades (cuenta por orden) | `docs/qa/243/1.0.178-produccion/` · `docs/qa/187-1.0.178-produccion/` |
+| §11/§12 entrega y split | Split con saldo precargado y **retiro no cobra envío**: el cierre queda en Gs 13.880.000 | `docs/qa/187-1.0.178-produccion/20-venta-antes-de-confirmar.jpg` |
+| §9 montos | Bloqueo con mensaje del tope (verificado en .172; el código no cambió) | `docs/qa/148-9-pos-tope/1.0.172-produccion-postdeploy/` |
+| §20 borradores | Suspender/listar/recuperar en la demo | `docs/qa/187-1.0.178-produccion/` |
+| Menú (#251) | 8 grupos, Taller, `/ops`, `/celulares` y `/comparador` desde el menú | `docs/qa/menu-ia/1.0.178-produccion/` |
+
+Recorrido POS completo en .178: **12/12 pasos, 0 errores de consola, 0 respuestas
+API ≥400, 0 pedidos fallidos**.
+
 ## Pendientes que NO son del POS (para la épica)
 
 - **§9 BigInt**: habilitar los 10B/99B de producto exige migrar las columnas de
