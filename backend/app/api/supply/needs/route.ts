@@ -32,6 +32,8 @@ export async function GET(request: Request) {
   const productId = (params.get('productId') || '').trim()
   const assignedToId = (params.get('assignedToId') || params.get('compradorId') || '').trim()
   const origin = (params.get('origin') || params.get('centro') || '').trim().toUpperCase()
+  const sinAsignar = params.get('sinAsignar') === '1' || params.get('sinAsignar') === 'true'
+  const sinCentro = params.get('sinCentro') === '1' || params.get('sinCentro') === 'true'
   const limite = Math.min(500, Math.max(1, Number(params.get('limit')) || 200))
 
   const filas = await prisma.supplyNeed.findMany({
@@ -41,7 +43,9 @@ export async function GET(request: Request) {
       ...(branchId ? { branchId } : {}),
       ...(productId ? { productId } : {}),
       ...(assignedToId ? { assignedToId } : {}),
+      ...(sinAsignar ? { assignedToId: null } : {}),
       ...(origin ? { origin } : {}),
+      ...(sinCentro ? { origin: null } : {}),
     },
     include: {
       product: { select: { name: true } },
@@ -149,40 +153,53 @@ export async function PATCH(request: Request) {
   let body: any
   try { body = await request.json() } catch { return error('JSON inválido.') }
   const id = typeof body?.id === 'string' ? body.id.trim() : ''
-  if (!id) return error('Indicá la necesidad.')
+  // Asignación masiva: el panel asigna un grupo consolidado (varias necesidades
+  // con la misma variante/centro) de una sola vez.
+  const ids = Array.isArray(body?.ids)
+    ? [...new Set(body.ids.filter((valor: unknown): valor is string => typeof valor === 'string' && valor.trim().length > 0).map((valor: string) => valor.trim()))].slice(0, 200)
+    : []
+  if (!id && !ids.length) return error('Indicá la necesidad o las necesidades.')
   const accion = body?.action === 'assign' ? 'assign' : body?.action === 'cancel' ? 'cancel' : null
   if (!accion) return error('Acción inválida: usá assign o cancel.')
+  if (accion === 'cancel' && ids.length) return error('La cancelación es de a una necesidad (con motivo).')
+  const claves = ids.length ? ids : [id]
 
-  const necesidad = await prisma.supplyNeed.findFirst({ where: { id, tenantId: tenant } })
-  if (!necesidad) return error('Necesidad no encontrada.', 404)
-  if (necesidad.status === 'CANCELADA' || necesidad.status === 'RECIBIDA') return error('La necesidad ya está cerrada.', 409)
+  const necesidades = await prisma.supplyNeed.findMany({ where: { id: { in: claves }, tenantId: tenant }, select: { id: true, status: true } })
+  if (necesidades.length !== claves.length) return error('Una o más necesidades no existen.', 404)
+  if (necesidades.some((fila) => fila.status === 'CANCELADA' || fila.status === 'RECIBIDA')) return error('Alguna necesidad ya está cerrada.', 409)
 
   if (accion === 'assign') {
-    const assignedToId = typeof body?.assignedToId === 'string' ? body.assignedToId.trim() : ''
-    const centro = normalizarCentro(body?.origin)
-    if (!centro.ok) return error(centro.error)
+    const quiereComprador = body?.assignedToId !== undefined
     const quiereCentro = body?.origin !== undefined
-    if (!assignedToId && !quiereCentro) return error('Indicá el comprador o el centro de compra.')
+    if (!quiereComprador && !quiereCentro) return error('Indicá el comprador o el centro de compra.')
+    const assignedToId = typeof body?.assignedToId === 'string' ? body.assignedToId.trim() : ''
     const comprador = assignedToId ? await prisma.user.findFirst({ where: { id: assignedToId, tenantId: tenant }, select: { id: true, name: true } }) : null
     if (assignedToId && !comprador) return error('Usuario no encontrado.', 404)
-    const actualizada = await prisma.$transaction(async (tx) => {
-      const fila = await tx.supplyNeed.update({
-        where: { id: necesidad.id },
-        data: {
-          ...(comprador ? { assignedToId: comprador.id, status: 'ASIGNADA' } : {}),
-          ...(quiereCentro ? { origin: centro.centro } : {}),
-        },
-      })
-      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SUPPLY_NEED_ASSIGNED', entity: 'SupplyNeed', entityId: fila.id, metadata: { assignedToId: comprador?.id ?? null, assignedTo: comprador?.name ?? null, ...(quiereCentro ? { origin: centro.centro } : {}) } } })
-      return fila
+    const centro = normalizarCentro(body?.origin)
+    if (!centro.ok) return error(centro.error)
+    const actualizadas = await prisma.$transaction(async (tx) => {
+      if (quiereComprador && !comprador) {
+        // Se libera el comprador: las que estaban asignadas vuelven a la cola.
+        await tx.supplyNeed.updateMany({ where: { id: { in: claves }, tenantId: tenant, status: 'ASIGNADA' }, data: { status: 'ABIERTA' } })
+      }
+      if (quiereComprador) {
+        await tx.supplyNeed.updateMany({ where: { id: { in: claves }, tenantId: tenant }, data: { assignedToId: comprador?.id ?? null } })
+        if (comprador) await tx.supplyNeed.updateMany({ where: { id: { in: claves }, tenantId: tenant }, data: { status: 'ASIGNADA' } })
+      }
+      if (quiereCentro) await tx.supplyNeed.updateMany({ where: { id: { in: claves }, tenantId: tenant }, data: { origin: centro.centro } })
+      const metadatos = { assignedToId: comprador?.id ?? null, assignedTo: comprador?.name ?? null, ...(quiereCentro ? { origin: centro.centro } : {}) }
+      for (const clave of claves) {
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SUPPLY_NEED_ASSIGNED', entity: 'SupplyNeed', entityId: clave, metadata: metadatos } })
+      }
+      return tx.supplyNeed.findMany({ where: { id: { in: claves }, tenantId: tenant } })
     })
-    return json(actualizada)
+    return json(ids.length ? { actualizadas: actualizadas.length, necesidades: actualizadas } : actualizadas[0])
   }
 
   const motivo = typeof body?.reason === 'string' ? body.reason.trim() : ''
   if (motivo.length < 3) return error('Indicá el motivo de la cancelación (mínimo 3 caracteres).')
   const actualizada = await prisma.$transaction(async (tx) => {
-    const fila = await tx.supplyNeed.update({ where: { id: necesidad.id }, data: { status: 'CANCELADA', notes: motivo.slice(0, 500) } })
+    const fila = await tx.supplyNeed.update({ where: { id: claves[0] }, data: { status: 'CANCELADA', notes: motivo.slice(0, 500) } })
     await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SUPPLY_NEED_CANCELLED', entity: 'SupplyNeed', entityId: fila.id, metadata: { reason: motivo.slice(0, 500) } } })
     return fila
   })

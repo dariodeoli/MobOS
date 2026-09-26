@@ -149,10 +149,18 @@ compra. Implementado en `backend/lib/supply-demand.ts` y enganchado en la venta
 
 - `SupplyNeed.origin`: `CDE · USA · LOCAL` + códigos nuevos de 2 a 8 letras o
   números (centros futuros). Migración `20261205000000_supply_need_origin`.
-- `GET /api/supply/needs?origin=USA` filtra por centro; los grupos exponen
-  `centros[]` y cada destino su `centro`.
-- `PATCH /api/supply/needs { id, action: 'assign', assignedToId?, origin? }`
-  asigna comprador y/o centro (audita ambos).
+- La consolidación **no mezcla centros**: agrupa por producto + condición +
+  `centro`, expone `centro` (null = sin asignar) y ordena los destinos con los
+  **pedidos primero** (por promesa más próxima) y las reposiciones al final.
+  Asignar un centro a una necesidad la separa del grupo sin centro.
+- `GET /api/supply/needs?origin=USA` filtra por centro; también
+  `?sinCentro=1` y `?sinAsignar=1` para las colas del panel.
+- `PATCH /api/supply/needs`:
+  - `{ id, action: 'assign', assignedToId?, origin? }` — de a una.
+  - `{ ids: [...], action: 'assign', assignedToId?, origin? }` — **en bloque**
+    (el grupo consolidado entero, hasta 200) y audita cada necesidad.
+  - `assignedToId: null` libera al comprador (vuelve a `ABIERTA`); `origin: null`
+    limpia el centro.
 
 ## 3. Entradas nuevas de la API
 

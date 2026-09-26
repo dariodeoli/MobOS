@@ -131,12 +131,38 @@ assert.equal(repetido.id, pedido.id, 'el pedido idempotente se reutiliza')
 const panelRepetido = await req(`/api/supply/needs?productId=${productoAuto.id}`)
 assert.equal(panelRepetido.grupos[0].necesidades.length, necesidadAuto, 'no se duplica la necesidad')
 
-// El origen/centro se asigna y filtra desde el panel.
-const asignadaOrigen = await req('/api/supply/needs', 'PATCH', { id: grupoAuto.necesidades[0], action: 'assign', origin: 'usa' })
-assert.equal(asignadaOrigen.origin, 'USA')
+// Asignación de comprador/origen: en bloque para un grupo consolidado, y de a
+// una; los centros no se mezclan en la consolidación y se pueden liberar.
+const [necesidadPedido, necesidadMinimo] = grupoAuto.necesidades
+const enBloque = await req('/api/supply/needs', 'PATCH', { ids: grupoAuto.necesidades, action: 'assign', assignedToId: compradorId, origin: 'usa' })
+assert.equal(enBloque.actualizadas, grupoAuto.necesidades.length, 'asigna el grupo entero')
 const porOrigen = await req('/api/supply/needs?origin=USA')
-assert.ok(porOrigen.grupos.some((grupo) => grupo.productoId === productoAuto.id), 'el filtro por centro devuelve la necesidad')
-const centroInvalido = await req('/api/supply/needs', 'PATCH', { id: grupoAuto.necesidades[0], action: 'assign', origin: 'C' }, 400)
+const grupoUsa = porOrigen.grupos.find((grupo) => grupo.productoId === productoAuto.id)
+assert.ok(grupoUsa, 'el filtro por centro devuelve la necesidad')
+assert.equal(grupoUsa.centro, 'USA', 'el grupo expone su centro')
+assert.equal(grupoUsa.destinos.length, 2, 'los destinos siguen conservados')
+assert.equal(grupoUsa.destinos[0].tipo, 'PEDIDO', 'el pedido va primero')
+
+// Liberar una necesidad: vuelve a la cola sin centro y el grupo se separa.
+const liberada = await req('/api/supply/needs', 'PATCH', { id: necesidadMinimo, action: 'assign', assignedToId: null, origin: null })
+assert.equal(liberada.assignedToId, null)
+assert.equal(liberada.origin, null)
+assert.equal(liberada.status, 'ABIERTA', 'sin comprador vuelve a la cola')
+const separados = (await req(`/api/supply/needs?productId=${productoAuto.id}`)).grupos.filter((grupo) => grupo.productoId === productoAuto.id)
+assert.equal(separados.length, 2, 'USA y sin centro no se consolidan juntos')
+assert.ok(separados.some((grupo) => grupo.centro === 'USA') && separados.some((grupo) => grupo.centro === null))
+const sinCentro = await req(`/api/supply/needs?productId=${productoAuto.id}&sinCentro=1`)
+assert.equal(sinCentro.grupos.length, 1, 'el filtro sinCentro deja solo la que no tiene centro')
+const sinAsignar = await req(`/api/supply/needs?productId=${productoAuto.id}&sinAsignar=1`)
+assert.equal(sinAsignar.grupos.length, 1, 'el filtro sinAsignar deja solo la liberada')
+
+// Reasignar la liberada a otro centro: dos grupos, cada uno con su comprador.
+const aCde = await req('/api/supply/needs', 'PATCH', { id: necesidadMinimo, action: 'assign', origin: 'CDE' })
+assert.equal(aCde.origin, 'CDE')
+const cde = (await req(`/api/supply/needs?productId=${productoAuto.id}&origin=CDE`)).grupos.find((grupo) => grupo.productoId === productoAuto.id)
+assert.ok(cde && cde.centro === 'CDE' && cde.cantidad === 4, 'el mínimo queda en CDE con su cantidad')
+await req('/api/supply/needs', 'PATCH', { id: necesidadPedido, action: 'assign', origin: 'C' }, 400)
+await req('/api/supply/needs', 'PATCH', { ids: [], action: 'assign', origin: 'USA' }, 400)
 
 // Venta con stock que cae bajo el punto de reposición → BELOW_REORDER sola.
 const productoMinimo = await req('/api/products', 'POST', { name: `Mínimo ${sufijo}`, sku: `MIN-${sufijo}`, pricePyg: 500000, costPyg: 300000, stock: 2, branchId: rama, reorderPoint: 3 }, 201)
