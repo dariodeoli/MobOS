@@ -292,6 +292,23 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 38 — 10 objetos más a la biblioteca y alias de sección (#253) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| 10 objetos con la biblioteca por delante (`PeriodoTabs`, `ChipEstado`, `BarraLote`, `SemaforoItem`, `ListGridToggle`, `PegarEnlaceToken`, `NumericKeypad`, `PhoneField`, `EmailField`, `SeccionColapsable`) | Copias locales con menos props que las publicadas (sin `tono`/`title` en `ChipEstado`, sin `etiqueta`/`className` en `BarraLote`, sin textos por props en `PegarEnlaceToken`, helpers sin exportar…) | Pasan a **puentes** —incluidos `parseTelefono`/`componerTelefono`/`CODIGOS_PAIS` y `DOMINIOS_EMAIL`/`sugerenciasDe`—; los consumidores no cambian de ruta. `ListGridToggle` adopta el alto táctil de 44 px (#249) y `NumericKeypad` deja de depender de `lucide-react` (usa el Icon de la biblioteca) |
+| `SeccionColapsable` | La biblioteca usaba `clave`; la app pasaba `id` | La biblioteca (**v0.31.0**) acepta `id` como alias de `clave`: el estado plegable de la sesión se conserva (la clave de sesión cambia de `mobos:seccion:<id>` a `<id>`: se reinicia una vez) |
+| Control | 21 duplicados de `shared/` | **11**: solo puede bajar |
+
+Quedan 11 objetos **divergentes a propósito** (`Avatar`, `BancoCombobox`, `BancoLogo`, `CityAutocomplete`, `Cronologia`, `FichaCertificado`, `PasosEquipo`, `PersonaChip`, `ProductCombobox`, `RucField`, `SerialField`): APIs distintas o lógica de app (fetch/demo/identidad) que necesita revisión de DSN antes de delegar.
+
+Verificación del lote: `npm run lint` (0 errores), `npm run build` y
+`npm --prefix backend run build` (con `BUILD_ID`), `prisma:validate`,
+`npm test` (753 en verde), `test:unit` del backend (75),
+`npx playwright test e2e/configuracion-lote5.spec.js` (7 en verde) y
+`npm run test:e2e:smoke` (19 en verde, 0 flaky); biblioteca `owncoding-ui`
+build + 218 tests.
+
 ### Lote 37 — set de íconos único y guía de adopción v2 (#253) (25-09)
 
 | Objeto | Antes (evidencia) | Después |

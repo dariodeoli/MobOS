@@ -377,10 +377,9 @@ test('las cargas usan Skeleton en vez de bloques animate-pulse', () => {
 // en `shared/` y los estados en `lib/estadoEquipo.js`; ninguna pantalla copia
 // las etiquetas ni arma el % de batería por su cuenta.
 test('los objetos de inspección del equipo salen de shared/ y lib/estadoEquipo (#240)', () => {
-  // SemaforoItem sigue local; ChipsLocks, MedidorBateria y GradoBadge son
-  // puentes de la biblioteca desde el lote 35.
-  assert.match(readFileSync(join(RAIZ, 'components/shared/SemaforoItem.jsx'), 'utf8'), /export default function /, 'falta SemaforoItem')
-  for (const nombre of ['ChipsLocks', 'MedidorBateria', 'GradoBadge']) {
+  // Los cinco objetos son puentes de la biblioteca (ChipsLocks/MedidorBateria/
+  // GradoBadge desde el lote 35; SemaforoItem/ChipEstado desde el lote 38).
+  for (const nombre of ['SemaforoItem', 'ChipEstado', 'ChipsLocks', 'MedidorBateria', 'GradoBadge']) {
     assert.match(readFileSync(join(RAIZ, 'components/shared', `${nombre}.jsx`), 'utf8'), new RegExp(`${nombre} as default`), `${nombre} delega en la biblioteca`)
     assert.match(leerBiblioteca(`${nombre}.jsx`), /export default function /, `falta ${nombre} en la biblioteca`)
   }
