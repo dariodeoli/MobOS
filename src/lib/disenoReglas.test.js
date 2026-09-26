@@ -14,6 +14,10 @@ const SHELL = 'components/app/AppShell.jsx'
 
 const leer = (ruta) => readFileSync(join(RAIZ, ruta), 'utf8')
 const sinComentarios = (codigo) => codigo.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')
+// Los objetos migrados viven en la biblioteca y la app deja un puente: las
+// aserciones de sus internals leen la fuente canónica (lote 38).
+const LIB = fileURLToPath(new URL('../../node_modules/owncoding-ui/src/components', import.meta.url))
+const leerBiblioteca = (ruta) => readFileSync(join(LIB, ruta), 'utf8')
 
 function archivosFuente() {
   return readdirSync(RAIZ, { recursive: true })
@@ -145,7 +149,8 @@ test('la biblioteca de objetos: búsquedas, toggles y segmentados compartidos', 
   // Segmentado y subtabs compartidos. El período vive en PeriodoTabs
   // (#171: un solo objeto para Ganancias/Ganadores) y por dentro usa
   // SegmentedField; las pantallas no reimplementan pestañas.
-  assert.match(leer('components/shared/PeriodoTabs.jsx'), /SegmentedField[\s\S]{0,120}options=\{PERIODOS\}/, 'PeriodoTabs: el período va con SegmentedField')
+  assert.match(leerBiblioteca('PeriodoTabs.jsx'), /SegmentedField[\s\S]{0,120}options=\{periodos\}/, 'PeriodoTabs: el período va con SegmentedField')
+  assert.match(leer('components/shared/PeriodoTabs.jsx'), /PeriodoTabs as default/, 'PeriodoTabs delega en la biblioteca (lote 38)')
   for (const ruta of ['components/control/Ganancias.jsx', 'components/control/Ganadores.jsx']) {
     assert.match(leer(ruta), /<PeriodoTabs[\s\S]{0,120}(periodo|setPeriodo)=/, `${ruta}: el período va con PeriodoTabs`)
   }
@@ -269,7 +274,8 @@ test('el patrón «último usado como predeterminado» está documentado con su 
 })
 
 test('el pedido: secciones plegables, avatar compartido y densidad (#164)', () => {
-  const colapsable = leer('components/shared/SeccionColapsable.jsx')
+  assert.match(leer('components/shared/SeccionColapsable.jsx'), /SeccionColapsable as default/, 'el puente delega en la biblioteca (lote 38)')
+  const colapsable = leerBiblioteca('SeccionColapsable.jsx')
   assert.match(colapsable, /aria-expanded/, 'la sección plegable expone su estado')
   assert.match(colapsable, /sessionStorage/, 'recuerda el estado durante la sesión')
   assert.match(colapsable, /hidden=\{!expandida\}/, 'el contenido se oculta sin desmontarse')

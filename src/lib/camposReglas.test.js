@@ -103,11 +103,9 @@ test('las subidas de archivos pasan por el objeto compartido', () => {
 // que duplique un componente publicado falla acá y obliga a decidir (usar el
 // objeto de `owncoding-ui` o publicarlo allí).
 const DEUDA_BIBLIOTECA = new Set([
-  'Avatar', 'BancoCombobox', 'BancoLogo', 'BarraLote', 'ChipEstado',
-  'CityAutocomplete', 'Cronologia', 'EmailField', 'FichaCertificado',
-  'ListGridToggle', 'NumericKeypad', 'PasosEquipo', 'PegarEnlaceToken',
-  'PeriodoTabs', 'PersonaChip', 'PhoneField', 'ProductCombobox', 'RucField',
-  'SeccionColapsable', 'SemaforoItem', 'SerialField',
+  'Avatar', 'BancoCombobox', 'BancoLogo', 'CityAutocomplete', 'Cronologia',
+  'FichaCertificado', 'PasosEquipo', 'PersonaChip', 'ProductCombobox',
+  'RucField', 'SerialField',
 ])
 
 const LIB_COMPONENTES = fileURLToPath(new URL('../../node_modules/owncoding-ui/src/components', import.meta.url))
@@ -133,10 +131,12 @@ test('no aparecen copias locales nuevas de objetos publicados en la biblioteca (
   // Lo ya migrado queda como puente sin implementación propia (lote 34 PanelDerecho
   // y lote 35 los 15 objetos idénticos: campos, chips, QR y vista previa).
   const puentes = [
-    'PanelDerecho', 'BotonDentroCampo', 'ChipsLocks', 'CodigoQr', 'CurrencySelect',
-    'EstadoBadge', 'GradoBadge', 'Icon', 'IconoCategoria', 'InstagramField',
-    'MedidorBateria', 'PercentField', 'SearchField', 'SegmentedField',
-    'SerialTexto', 'Switch', 'VistaPreviaPapel',
+    'BarraLote', 'BotonDentroCampo', 'ChipEstado', 'ChipsLocks', 'CodigoQr',
+    'CurrencySelect', 'EmailField', 'EstadoBadge', 'GradoBadge', 'Icon',
+    'IconoCategoria', 'InstagramField', 'ListGridToggle', 'MedidorBateria',
+    'NumericKeypad', 'PanelDerecho', 'PegarEnlaceToken', 'PercentField',
+    'PeriodoTabs', 'PhoneField', 'SearchField', 'SeccionColapsable',
+    'SegmentedField', 'SemaforoItem', 'SerialTexto', 'Switch', 'VistaPreviaPapel',
   ]
   for (const nombre of puentes) {
     const puente = readFileSync(join(RAIZ, 'components/shared', `${nombre}.jsx`), 'utf8')
