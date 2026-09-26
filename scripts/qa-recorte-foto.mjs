@@ -6,7 +6,7 @@
 //
 // Entra por la demo pública (sin credenciales) y sube la foto por el input de
 // «Subir foto» de Mi cuenta. Evidencia: docs/qa/recorte-perfil/<host>/.
-/* global document */
+/* global document, window */
 import { createRequire } from 'node:module'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
