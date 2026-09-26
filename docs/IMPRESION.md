@@ -290,6 +290,8 @@ estado se verifica en `/health.usb`. Salidas esperadas para comparar el papel
   **CODE128** (`GS k 73`) con módulo 2 y altura 80 puntos. El precio es
   `pricePyg`; si quien llama pasa `precioPyg`/`lista` (lista del cliente o
   escalón por cantidad), ese manda y la etiqueta aclara la lista.
+- **Ejemplo imprimible**: `docs/etiquetas-gondola-ejemplo/` (HTML 80/58 mm y
+  ESC/POS, con un EAN-13 y CODE128) y `scripts/ejemplo-etiquetas-gondola.mjs`.
 - **Verificación con el lector del local**: escaneá la etiqueta impresa; el
   valor leído debe ser exactamente el SKU (o el EAN-13 con su verificador) y el
   precio del papel debe coincidir con el de la venta. Si el lector no toma,
@@ -502,15 +504,19 @@ un trabajo nuevo).
 
 ## 12. Abastecimiento (#250 §11)
 
-Estado: la **lista de compra · 80 mm** y el **manifiesto** siguen pendientes de
-implementar en PRN (fases 1–5 ya en main); la **etiqueta producto/paquete**
-(fase 3) y el **comprobante de recepción** (fase 5) ya están implementados —
-contratos en [ETIQUETAS-LOTE.md](ETIQUETAS-LOTE.md) y
+Estado: solo el **manifiesto** sigue pendiente de implementar en PRN (fases 1–5
+ya en main); la **lista de compra**, la **etiqueta producto/paquete** y el
+**comprobante de recepción** ya están implementados — contratos en
+[LISTA-COMPRA.md](LISTA-COMPRA.md), [ETIQUETAS-LOTE.md](ETIQUETAS-LOTE.md) y
 [COMPROBANTE-RECEPCION.md](COMPROBANTE-RECEPCION.md).
 
-- **Lista de compra · 80 mm** (ESC/POS + respaldo HTML A4/rollo): `code` (`COM-…`),
-  recorrido/origen, comprador, proveedor, **productos agrupados con cantidades y
-  prioridades**, total de líneas y **QR del panel**.
+- **Lista de compra · 80 mm** (ESC/POS + respaldo HTML A4/rollo) — implementado:
+  `code` (`COM-…`), recorrido/origen, comprador, proveedor, **productos
+  agrupados con cantidades y prioridades** (con el origen de la necesidad),
+  IMEI cargados/pendientes, totales y el QR/barras del panel. Builders:
+  `datosListaCompra` (`listaCompra.js`) + `ticketListaCompra` (ESC/POS) +
+  `buildListaCompraHtml`/`printListaCompra` (A4/rollo). Ensayo:
+  `docs/lista-compra-ejemplo/`.
 - **Etiqueta producto/paquete · 80 mm** — implementado: lo devuelve
   `GET /api/supply/purchases/[id]/labels` (`etiquetasPreparacion` en
   `backend/lib/supply.ts`): `{ n, total, producto, capacidad, condicion, imei,
@@ -611,7 +617,7 @@ El **modo taller** imprime sus documentos en serie desde «Imprimir en serie…�
 
 | Documento | Builder | Salida |
 | --- | --- | --- |
-| **Hoja de estación** (una) | `buildStationSheetHtml` (`hojaEstacion.js`) | A4 con los equipos del alcance |
+| **Hoja de estación** (una) | `buildStationSheetHtml` (`hojaEstacion.js`) | A4 con los equipos del alcance (ejemplo: `docs/taller-impresos-ejemplo/hoja-estacion-por-verificar.pdf`) |
 | **Hojas por estación** | `buildStationSheetsHtml` (`hojaEstacion.js`) | A4, **una hoja por carril** (por verificar · verificado · listo) en un solo trabajo; aparece con más de un carril en el alcance |
 | **Certificados** | `datosCertificado` + `buildCertificadosHtml` (`OrderReceipt.jsx`) | A4, **un certificado por equipo** (grado, controles, checklist, QR y barras `CERT|…`), reusando el builder validado |
 | **Etiquetas** | `buildUnitLabelsHtml` / `ticketEtiquetasUnidad` | Rollo 58/80 mm y PNG para compartir (§14) |

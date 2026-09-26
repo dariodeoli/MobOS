@@ -9,6 +9,7 @@ mismos builders que la app (`src/lib/printing/hojaEstacion.js`,
 | Archivo | Qué es |
 | --- | --- |
 | `hoja-estacion-serie.pdf` / `.jpg` | **Hojas de estación en serie**: una página por carril (por verificar · verificado · listo para vender), con modelo, variante/grado/batería, IMEI, estado y ubicación, y el bloque de firma/control. |
+| `hoja-estacion-por-verificar.pdf` / `.jpg` | La **hoja individual** de un carril (el botón «Hoja de estación»), para comparar con la serie. |
 | `certificados-serie.pdf` / `.jpg` | **Certificados finales**: uno por equipo verificado (grado, controles iCloud/MDM/ESN/carrier, checklist, verificación y QR al informe público + código de barras `CERT|…`). |
 | `datos-ejemplo.json` | Las estaciones y los equipos usados. |
 

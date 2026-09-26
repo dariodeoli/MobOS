@@ -1,0 +1,24 @@
+{
+  "base": "http://127.0.0.1:5278",
+  "fecha": "2026-09-26T08:46:28.366Z",
+  "pasos": [
+    {
+      "documento": "etiquetas-gondola-80mm",
+      "archivo": "etiquetas-gondola-80mm.pdf",
+      "formato": "HTML 80 mm",
+      "bytes": 113548
+    },
+    {
+      "documento": "etiquetas-gondola-58mm",
+      "archivo": "etiquetas-gondola-58mm.pdf",
+      "formato": "HTML 58 mm",
+      "bytes": 119007
+    },
+    {
+      "documento": "etiquetas-gondola-80mm-escpos",
+      "archivo": "etiquetas-gondola-80mm-escpos.pdf",
+      "formato": "ESC/POS 80 mm",
+      "bytes": 11770
+    }
+  ]
+}
