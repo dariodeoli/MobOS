@@ -14,8 +14,9 @@ const base = (extra = {}) => ({ dueDates: [], orders: [], servicios: [], warrant
 test('sin nada pendiente no hay avisos', () => {
   assert.deepEqual(avisosDeCuenta(null), [])
   assert.deepEqual(avisosDeCuenta(base()), [])
-  // Se evalúa contra `AHORA` (no contra el reloj real): sin eso, el fixture de
-  // 10 días entra en la ventana de 7 cuando pasa el tiempo (#240).
+  // El reloj fijo es obligatorio acá: sin él, la fecha de la fixture (10 días
+  // desde AHORA) cae dentro de la ventana de 7 días según el día real y el
+  // test falla por calendario (bomba de tiempo detectada el 26/09).
   assert.deepEqual(avisosDeCuenta(base({ dueDates: [{ orderNumber: 'MOB-0001', dueAt: enDias(10), pendingPyg: 100000 }] }), AHORA), [])
 })
 
