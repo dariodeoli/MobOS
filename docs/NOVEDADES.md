@@ -11,6 +11,14 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.180 — 2026-09-26
+- **Abastecimiento (#250/#254):** el panel **«Por comprar»** suma **pestañas por estado**, **contadores** y **prioridad/fecha**; la **consolidación por centro** (CDE · USA · local) no mezcla orígenes y se puede **asignar en bloque**.
+- **Abastecimiento (#254):** **costo por línea en la moneda de la compra** con total derivado.
+- **Abastecimiento (#250 §11):** **lista de compra imprimible** desde el panel.
+- **Impresión (#97/#240):** los **tipos de etiquetas se nombran solos** en Formatos; etiquetas de góndola y hoja de estación con ejemplos y QA.
+- **Shell (#241):** **F4 aprobado por Dario y activado** (v2 por defecto) con toggle visible, verificado en producción.
+- **Componentes:** objetos F1 alineados al contrato de inventario y adaptadores con la UI en la biblioteca (**v0.35.0**).
+
 ## v1.0.179 — 2026-09-26
 - **Abastecimiento · Fase 1 (#250/#254):** el **Centro de compra «Por comprar»** ya funciona: las **ventas sin stock**, las **reservas faltantes** y los productos **bajo mínimo** generan necesidades, que se pueden **asignar, priorizar y cerrar** con **costo y margen estimados**.
 - **Abastecimiento (#254):** cada necesidad conserva **pedido, línea y cliente** (el nombre solo para quien gestiona clientes) y queda **auditada**; el panel **«Por comprar»** llega también al **móvil** con carga manual.
