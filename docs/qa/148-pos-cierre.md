@@ -24,7 +24,7 @@ recorrido POS `qa-187`), todo con capturas:
 |---|---|---|
 | §5/§7 carrito y métricas | Carrito 68/84 px (6 variantes) y **TU DÍA 3 → 4 ventas · 4 pedidos** para una venta de 3 unidades (cuenta por orden) | `docs/qa/243/1.0.178-produccion/` · `docs/qa/187-1.0.178-produccion/` |
 | §11/§12 entrega y split | Split con saldo precargado y **retiro no cobra envío**: el cierre queda en Gs 13.880.000 | `docs/qa/187-1.0.178-produccion/20-venta-antes-de-confirmar.jpg` |
-| §9 montos | Bloqueo con mensaje del tope (verificado en .172; el código no cambió) | `docs/qa/148-9-pos-tope/1.0.172-produccion-postdeploy/` |
+| §9 montos | Bloqueo con mensaje del tope, **re-verificado en .178** | `docs/qa/148-9-pos-tope/1.0.178-produccion-postdeploy/` (y `.172`) |
 | §20 borradores | Suspender/listar/recuperar en la demo | `docs/qa/187-1.0.178-produccion/` |
 | Menú (#251) | 8 grupos, Taller, `/ops`, `/celulares` y `/comparador` desde el menú | `docs/qa/menu-ia/1.0.178-produccion/` |
 
