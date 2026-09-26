@@ -59,3 +59,8 @@ specs **32/32 ✓** (`configuracion-lote5`, `impresion-remota`, `ia-configuracio
 y capturas regeneradas. Coincide con la nota de PLT (lead): Dispositivos queda
 con **configuración y pruebas**, y la **cola global** se monitorea en Estado del
 sistema (sin duplicar).
+
+**Integrado y en producción:** la sección viaja en `origin/main` y se verificó
+desplegada en **v1.0.175** — captura real (demo) en
+`docs/qa/240-impresion-prod/11-prueba-fisica-modal.jpg`, con el modal de prueba
+y los paneles detrás. Los e2e del grupo siguen corriendo en el CI.

@@ -1,8 +1,8 @@
 # Verificación de impresión en producción · informe, certificado, constancia y etiquetas (#240/#220)
 
 - Base: https://app.moboss.online
-- Fecha: 2026-09-25T20:02:42.052Z
-- Versión desplegada: v1.0.172
+- Fecha: 2026-09-26T03:51:57.264Z
+- Versión desplegada: v1.0.175
 - Método: camino real de la app (demo → ficha → «Informe/Certificado/Constancia» → formato → «Descargar PDF»), el PNG del certificado por «Compartir imagen», las etiquetas desde el taller («Imprimir en serie»), la página /prueba del QR físico y el modal de prueba de Dispositivos; PDFs armados con el HTML que manda la app y QR decodificado con Vision.
 
 | Documento | Páginas | QR decodificado | Resultado |
@@ -18,15 +18,15 @@
 
 ## Pasos
 
-- ✅ demo + versión: v1.0.172
+- ✅ demo + versión: v1.0.175
 - ✅ botón Informe en la ficha: presente
 - ✅ botón Certificado en la ficha: presente (ronda con la etiqueta)
 - ✅ impresión directa en la demo: aviso honesto del demo
-- ✅ certificado como imagen: 179 KB · certificado-phonecheck-0000.png
+- ✅ certificado como imagen: 180 KB · certificado-phonecheck-0000.png
 - ✅ hoja de estación (demo): aviso honesto del demo
 - ✅ página /prueba del QR (prueba física): destino, validación y tipo visibles
 - ✅ modal de prueba (tipos): 6 tipo(s) disponibles
-- ✅ PDF 80 mm generado desde la app: 106046 bytes
+- ✅ PDF 80 mm generado desde la app: 105838 bytes
 
 **Lectura**: la ronda desplegada ya trae informe, certificado, constancia, el **certificado como PNG**
 («Compartir imagen») y las **etiquetas de unidad** del taller; si una fila figura ausente o en ❌, esa
