@@ -1,5 +1,8 @@
 # Paquete de aprobación F4 (#241) — actualizado 2026-09-26
 
+> Para **activar y verificar** el rollout, el checklist por pantalla, el orden y
+> las capturas finales están en [`ACTIVACION-F4.md`](ACTIVACION-F4.md).
+
 ## Switch de activación (listo para Dario)
 
 El rollout v2 se prende o apaga desde el **entorno de build** del front, sin
@@ -81,10 +84,10 @@ carpeta (`docs/rediseno/`).
 - **Datos (#240)**: el tablero ya muestra el checklist y los locks de cada
   consulta IMEI guardada; el grado/locks de los tiles del inventario quedan para
   la próxima vuelta con el lote de INV.
-- **Biblioteca (CMP)**: el taller ya usa `TileEquipo`, `BarraLote`,
-  `ContadorLote`, `ConteoChecklist` y `VistaPreviaPapel`; owncoding-ui v0.22.0
-  suma `TileRol`, `PasosEquipo`, `Stat` y `FichaCertificado` y se adoptan cuando
-  PLT suba la dependencia (hoy v0.21.0).
+- **Biblioteca (CMP)**: la app ya usa owncoding-ui **v0.30.0** (TileEquipo,
+  BarraLote, ContadorLote, ConteoChecklist, VistaPreviaPapel, BuscadorDispositivo,
+  PaletaComandos, EstadoGuardado…); quedan copias locales de `PasosEquipo` y
+  `FichaCertificado` en `shared/` como adopción final pendiente.
 - **Entrada al menú del tablero**: hoy se llega por `/ops`; la entrada en el
   panel es una decisión de producto/navegación (PLT).
 

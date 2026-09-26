@@ -1,0 +1,29 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "1.0.175",
+  "fecha": "2026-09-26T04:02:25.779Z",
+  "capturas": [
+    "01-inventario-lista-desktop-claro.jpg",
+    "01-inventario-tiles-desktop-claro.jpg",
+    "01-inventario-taller-desktop-claro.jpg",
+    "01-inventario-lista-desktop-oscuro.jpg",
+    "01-inventario-ficha-mobile-claro.jpg",
+    "02-pos-inicio-desktop-claro.jpg",
+    "02-pos-carrito-desktop-claro.jpg",
+    "02-pos-cobro-desktop-claro.jpg",
+    "02-pos-inicio-desktop-oscuro.jpg",
+    "02-pos-carrito-mobile-claro.jpg",
+    "03-pedidos-lista-desktop-claro.jpg",
+    "03-pedidos-detalle-desktop-claro.jpg",
+    "03-pedidos-lista-desktop-oscuro.jpg",
+    "03-pedidos-lista-mobile-claro.jpg",
+    "04-clientes-lista-desktop-claro.jpg",
+    "04-clientes-resumen-desktop-claro.jpg",
+    "04-clientes-lista-desktop-oscuro.jpg",
+    "04-clientes-lista-mobile-claro.jpg",
+    "05-finanzas-caja-desktop-claro.jpg",
+    "05-finanzas-conciliacion-desktop-claro.jpg",
+    "05-finanzas-caja-desktop-oscuro.jpg",
+    "05-finanzas-caja-mobile-claro.jpg"
+  ]
+}
