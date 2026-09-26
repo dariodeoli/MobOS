@@ -80,6 +80,8 @@ export type DestinoConsolidado = {
   pedidoNumero: string | null
   clienteId: string | null
   cliente: string | null
+  // Hay cliente vinculado pero sin permiso para ver su nombre (#254).
+  clienteOculto?: boolean
   prometidaEl: string | null
 }
 
@@ -151,6 +153,7 @@ export function consolidarNecesidades(necesidades: NecesidadEntrada[] = []): Gru
         pedidoNumero: necesidad.pedidoNumero || null,
         clienteId: necesidad.clienteId || null,
         cliente: necesidad.cliente || null,
+        clienteOculto: Boolean(necesidad.clienteId) && !necesidad.cliente,
         prometidaEl: fecha(necesidad.prometidaEl),
       })
     }

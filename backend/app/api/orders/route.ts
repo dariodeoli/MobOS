@@ -16,6 +16,7 @@ import { lineDiscount as lineDiscountFor, warrantyDaysFor, resolveUnitPrice, uni
 import { changeStock } from '../../../lib/stock'
 import { syncOrderItemSerials } from '../../../lib/order-serials'
 import { esCodigoDuplicado, nextOrderNumber } from '../../../lib/order-number'
+import { crearNecesidadesDeVenta } from '../../../lib/supply-demand'
 
 // Detalle devuelto tanto al crear como al reutilizar una orden idempotente.
 const orderDetail = Prisma.validator<Prisma.OrderInclude>()({
@@ -566,6 +567,21 @@ export async function POST(request: Request) {
       // el panel puede volver a copiarlo y «Regenerar acceso QR» lo rota (#178).
       await tx.orderAccessToken.create({ data: { orderId: order.id, tenantId: tenant, level: 'rapido', token: publicToken, createdBy: session.user.id } })
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_CREATED', entity: 'Order', entityId: order.id, metadata: { orderNumber: order.orderNumber, totalPyg: total, items: normalized.length, ...(customerId ? { customerId } : {}), ...(offlineSale ? { offline: true } : {}) } } })
+      // Abastecimiento F1 (#254): la venta que quedó pendiente de stock/unidades
+      // deja su necesidad vinculada (pedido + línea + cliente). No crea stock:
+      // eso pasa recién en la recepción; reintentos no duplican (dedupeKey).
+      if (normalized.some(item => item.stockPending > 0 || item.serialsPending > 0)) {
+        const lineasCreadas = await tx.orderItem.findMany({ where: { orderId: order.id }, select: { id: true, productId: true, stockPending: true, serialsPending: true } })
+        await crearNecesidadesDeVenta(tx, {
+          tenantId: tenant,
+          branchId,
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          customerId: order.customerId,
+          createdById: session.user.id,
+          lineas: lineasCreadas,
+        })
+      }
       // POS offline: la venta llegó de la cola local. Queda el rastro de lo que
       // se relajó (stock faltante y equipos sin IMEI) para que se revise.
       if (offlineSale) {
