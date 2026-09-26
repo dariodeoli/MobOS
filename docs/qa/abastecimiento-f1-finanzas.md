@@ -39,18 +39,27 @@ Funciones:
   costaría comprar el grupo y cuánto margen protege, y la prioridad del grupo
   usa la efectiva.
 
-## Costo + moneda al registrar la compra (contrato verificado)
+## Costo + moneda al registrar la compra
 
-- `POST /api/supply/purchases` acepta **PYG o USD**; con USD exige cotización
-  y calcula `costPyg = round(originalCost × exchangeRatePyg)`
-  (`backend/lib/costs.ts`).
-- La **línea** puede fijar `unitCostPyg` (Gs) y manda; si no, al recibir el
-  costo unitario se deriva del **total de la compra ÷ todas las unidades**
-  (`costoPorUnidad`), con la moneda y la cotización **congeladas en la unidad**
-  → así entra al costo real, al margen y al seguro.
-- Ya cubierto por el arnés: `supply-purchases.mjs` (USD 350,5 × 7.500; falta de
-  cotización → 400; multi-línea con costo por línea) y `supply-receptions.mjs`
-  (la unidad hereda el costo de la compra).
+- `POST /api/supply/purchases` acepta **PYG, USD y BRL**; con moneda extranjera
+  exige cotización y calcula `costPyg = round(originalCost × exchangeRatePyg)`
+  (`backend/lib/costs.ts`, mismo objeto que las unidades).
+- **Costo por línea en la moneda de la compra** (`originalUnitCost`, nuevo,
+  migración aditiva `20261205000000_supply_line_original_cost`): la línea puede
+  cargar «USD 900 c/u» y se guarda el original **y** su `unitCostPyg`
+  convertido. Si viene también el Gs explícito, el Gs manda.
+- **Total derivado**: si la factura no trae total pero las líneas sí, el total
+  de la compra es la suma (en Gs y, si todas traen origen, en la moneda
+  original). Un total explícito manda tal cual: la línea es el detalle.
+- Al recibir, la unidad toma el costo de su **línea** o, si no lo tiene, el
+  total ÷ todas las unidades (`costoPorUnidad`), con moneda y cotización
+  **congeladas en la unidad** → así entra al costo real, al margen y al seguro.
+- Validaciones: moneda fuera de PYG/USD/BRL → 400; USD/BRL por línea sin
+  cotización → 400; decimales por moneda (PYG sin decimales, USD/BRL 2) y
+  cotización hasta 4 → 400 con el motivo.
+- Cubierto por el arnés: `supply-purchases.mjs` (total USD, línea con
+  `originalUnitCost` + Gs explícito, suma derivada, falta de cotización → 400)
+  y `supply-receptions.mjs` (la unidad hereda el costo de la compra).
 
 ## Contrato para INV (coordinación #254)
 

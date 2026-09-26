@@ -2380,7 +2380,11 @@ model SupplyPurchaseLine {
   product     Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
   condition   ProductCondition @default(NEW)
   quantity    Int
+  // Costo unitario congelado en guaraníes (lo que usa el margen al recibir).
   unitCostPyg Int?
+  // Costo unitario tal como se cargó en la moneda de la compra (#254 · FIN):
+  // permite mostrar "USD 900 c/u" y reconstruir la factura sin perder el dato.
+  originalUnitCost Decimal?    @db.Decimal(14, 2)
   createdAt   DateTime         @default(now())
   serials     SupplyPurchaseSerial[]
 
