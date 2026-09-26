@@ -1,6 +1,6 @@
 # Paquete de activación F4 (#241) — rollout v2 "device ops"
 
-_26/09/2026 · **APROBADO por Dario y activado** · referencia contra producción **v1.0.178**._
+_26/09/2026 · **APROBADO por Dario y activado** · referencia contra producción **v1.0.181**._
 
 Este documento es la guía para **activar y verificar** el rollout v2. El
 paquete de aprobación (qué cambia por dominio, con capturas) es
@@ -57,7 +57,7 @@ mismo sistema con datos ficticios.
 | 14 | **Mobile #249** (áreas de 44 px, sin scroll) | todas | ✅ cerrado | `docs/qa/249-cierre-responsive/`, `docs/QA-RESPONSIVE-MOBILE.md` | gate `dsn-responsive-mobile` 12/12 |
 | 15 | **AA del shell** | todas | ✅ cerrado | `docs/qa/241-shell-aa/`, `docs/qa/241-shell-produccion/` | `QA-241-shell-aa.md` |
 
-## Capturas finales por dominio (producción v1.0.178)
+## Capturas finales por dominio (producción v1.0.181)
 
 Orden del rollout: **inventario → POS → pedidos → clientes → finanzas**. Todas
 viven en `docs/qa/activacion-f4/dominios/` (22 JPGs) y se reproducen con
@@ -123,9 +123,12 @@ Más: `05-finanzas-caja-desktop-oscuro.jpg`, `05-finanzas-caja-mobile-claro.jpg`
 5. **Rollback** (si algo molesta): por dispositivo desde Preferencias o global
    con el switch en `0`.
 
-### Verificación post-.178 (26/09/2026)
+### Verificación post-F4 (26/09/2026)
 
-Con F4 activado por defecto sobre **v1.0.178**:
+Con F4 activado por defecto. Primera pasada sobre **v1.0.178** (suite completa) y
+**verificación visual** sobre **v1.0.181** (capturas claro/oscuro/móvil de las
+8 pantallas + los 5 dominios, revisadas sin hallazgos; se reforzó la captura
+para esperar el shell y no fotografiar transiciones):
 
 | Verificación | Resultado |
 |---|---|
@@ -141,7 +144,7 @@ Con F4 activado por defecto sobre **v1.0.178**:
   (22 JPGs en el orden inventario → POS → pedidos → clientes → finanzas; se
   reproducen con `node scripts/qa-activacion-f4-dominios.mjs`). Las principales
   están embebidas más arriba.
-- **Estado desplegado (producción v1.0.178)**: `docs/qa/activacion-f4/`
+- **Estado desplegado (producción v1.0.181)**: `docs/qa/activacion-f4/`
   (15 JPGs: resumen, POS, pedidos, clientes, inventario, finanzas, configuración
   y `/ops` en desktop claro; oscuro para resumen/POS/ops; mobile claro para
   POS/pedidos/configuración/ops).
