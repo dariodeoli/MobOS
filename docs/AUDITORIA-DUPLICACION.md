@@ -292,6 +292,24 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 46 — objetos de recepción e incidencias F5 (#250) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Llegada pendiente | El panel iba a componer a mano el lote por recibir (código, ETA, esperado, depósito sugerido) | **`TarjetaRecepcion`**: lote, origen → destino, método, ETA (`Vencimiento`), «N de M con IMEI» y depósito sugerido, con acción de abrir/retomar |
+| Resumen por resultado | `ResumenIncidencias` solo listaba incidencias; los recibidos y el total no tenían objeto | **`ResumenRecepcion`**: conteos por resultado desde el mapa del backend (`RECIBIDO/FALTANTE/…`) o desde los ítems |
+| Claves del backend | `ESTADOS_REVISION` era sensible a mayúsculas (`RECIBIDO` ≠ `recibido`) | **`claveRevision`** normaliza (mayúsculas, acentos y `_`): `etiquetaRevision`/`tonoRevision`/`esIncidencia` la usan |
+| Biblioteca | — | **v0.38.0** con REGLAS §13/README y tests (**232**) |
+
+**Coordinación:** PLT arma «Recepción» con `TarjetaRecepcion` (llegadas),
+`FilaRevision` + `SelectorIncidencia` (unidades) y `ResumenRecepcion` (conteos);
+`DestinoRecepcion` cierra la recepción y `CampoSeriales` cubre el escaneo. El
+stock sigue naciendo solo al confirmar.
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
+`test:e2e:smoke`; biblioteca `owncoding-ui` build + 232 tests.
+
 ### Lote 45 — objetos de Abastecimiento F2–F5 (#250) (26-09)
 
 | Objeto | Antes (evidencia) | Después |

@@ -191,9 +191,11 @@ test('los objetos de Abastecimiento F1 (#250/#254) están publicados', () => {
 
 test('los objetos de Abastecimiento F2–F5 (#250) están publicados', () => {
   const indice = readFileSync(LIB_INDEX, 'utf8')
-  for (const objeto of ['TarjetaCompra', 'TarjetaLote', 'EtiquetaLote', 'ESTADOS_COMPRA', 'ESTADOS_ENVIO', 'ESTADOS_RECEPCION', 'METODOS_ENVIO', 'PASOS_ENVIO', 'claveDeEstadoEnvio', 'etiquetaMetodoEnvio']) {
+  for (const objeto of ['TarjetaCompra', 'TarjetaLote', 'TarjetaRecepcion', 'ResumenRecepcion', 'EtiquetaLote', 'ESTADOS_COMPRA', 'ESTADOS_ENVIO', 'ESTADOS_RECEPCION', 'METODOS_ENVIO', 'PASOS_ENVIO', 'claveDeEstadoEnvio', 'etiquetaMetodoEnvio', 'claveRevision']) {
     assert.ok(indice.includes(objeto), `owncoding-ui debe publicar ${objeto} para F2–F5`)
   }
+  // Los resultados del backend entran crudos (RECIBIDO/DANADO/SIN_IMEI) al mapa.
+  assert.match(readFileSync(join(LIB_COMPONENTES, '..', 'utils', 'revision.js'), 'utf8'), /claveRevision/, 'falta claveRevision para los resultados de F5')
   // Las claves del backend viajan en los mapas: estados y métodos.
   const mapas = readFileSync(join(LIB_COMPONENTES, '..', 'utils', 'abastecimiento.js'), 'utf8')
   for (const clave of ['comprada', 'recibida', 'borrador', 'despachado', 'recepcion_parcial', 'con_incidencia', 'bus', 'transportadora', 'aex', 'importacion', 'confirmada']) {
