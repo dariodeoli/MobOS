@@ -11,6 +11,14 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.176 — 2026-09-26
+- **Calidad (#148 · #17/#96):** verificaciones en **producción** de finanzas (caja, conciliación y márgenes) e impresión (etiquetas, certificado y `/prueba`), con capturas y **checklist imprimible** del acompañamiento.
+- **Diseño (#241):** el interruptor del **rediseño v2** pasa a **configuración por entorno** (sigue activado por defecto y se puede apagar para toda la flota sin tocar cada dispositivo); contraste **AA** cerrado y verificado en local y producción.
+- **Componentes (#241):** **10 objetos compartidos más** (campos de correo/teléfono, chips de estado, teclado numérico, barra de lote, pestañas de período, etc.) salen ahora de la **biblioteca** (v0.31.0): se mantienen solos y se ven igual en todas las pantallas.
+
+## v1.0.175 — 2026-09-25
+- **Mobile (#249):** los botones **Editar / Desactivar** de Organización → Tiendas y sucursales llegan al **mínimo táctil de 44 px** (control automático de mobile en verde).
+
 ## v1.0.174 — 2026-09-25
 - **Cuenta del cliente (#240):** el **pedido en detalle** dentro de la cuenta: productos, pagos, entrega y seguimiento en un solo lugar.
 - **POS (#187):** el **retiro en tienda** ya no cobra el envío aunque quede un monto pendiente.
