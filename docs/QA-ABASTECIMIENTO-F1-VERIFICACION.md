@@ -5,6 +5,14 @@ demanda de INV** (`dee58859` + `4cd35aba`) y la pieza de **cliente con permiso**
 del dominio clientes. Método: unitarios del backend + arnés HTTP completo
 (`MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh`).
 
+> Re-verificado sobre `main` **v1.0.181** (F1 ya integrada y cerrada en #254):
+> unit **112 ✓**; arnés en verde con `supply-needs` (**60** chequeos),
+> `cliente con permiso` (**7**) y `vínculo venta/reserva → necesidad` (**17**).
+> En esa pasada se retiró el verificador y el doc **superseded** de mi primer
+> intento (`supply-demand.mjs`, `ABASTECIMIENTO-F1-DEMANDA.md`) que el merge
+> había arrastrado, y se corrigió un test de avisos del portal que dependía del
+> reloj real (`portalAvisos.test.js`).
+
 ## Criterio → evidencia → resultado
 
 | Criterio de F1 | Dónde se verifica | Resultado |
@@ -24,16 +32,16 @@ del dominio clientes. Método: unitarios del backend + arnés HTTP completo
 ## Corrida (26/09/2026)
 
 ```bash
-npm --prefix backend run test:unit                   # 107 ✓
+npm --prefix backend run test:unit                   # 112 ✓
 MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh
-# PASS: necesidades manuales + motor automático + consolidación … · 43 chequeos
+# PASS: necesidades manuales + motor automático + consolidación … · 60 chequeos
 # PASS: cliente con permiso en la tarjeta de necesidad · 7 chequeos
 # PASS: vínculo venta/reserva → necesidad sin crear stock · 17 chequeos
 # PASS: aislamiento, niveles de token, … abastecimiento … y logout
 ```
 
-- **Backend unit 107 ✓** (incluye `supply-demand` del motor y `supply-customer` del permiso).
-- **Arnés HTTP completo en verde**; `supply-needs` (INV, 43 chequeos) intacto.
+- **Backend unit 112 ✓** (incluye `supply-demand` del motor y `supply-customer` del permiso).
+- **Arnés HTTP completo en verde**; `supply-needs` (INV, 60 chequeos) intacto.
 - `npm run lint` 0 errores · build backend con `BUILD_ID` ✓.
 
 ## Hallazgos
