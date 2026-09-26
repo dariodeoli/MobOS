@@ -9,6 +9,12 @@ tiene que devolver y **qué mirar si falla**. Las reglas del módulo viven en
 > exactos listos para aplicar (incluido el bloque que junta todo para pegar en
 > el issue): **`docs/IMPRESION-17-LAUNCHD.md`**.
 
+> **Para la sesión:** imprimir el **checklist de una hoja** de
+> `docs/qa/impresion-fisica/checklist-prueba-fisica.pdf` y tener a mano los
+> **tickets esperados** de la misma carpeta (el de corte compara las 4
+> variantes). Ahí también están las capturas de producción de la pantalla y de
+> la página `/prueba` que abre el QR.
+
 ## Mapa de la pantalla (IA #253)
 
 Todo se maneja desde **Configuración → Dispositivos** (la app avisa igual en cada paso):
