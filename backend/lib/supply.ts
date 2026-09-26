@@ -70,6 +70,9 @@ export type NecesidadEntrada = {
   cliente?: string | null
   // #250 F1: centro de compra asignado a la necesidad (CDE · USA · LOCAL…).
   centro?: string | null
+  // FIN (#254): costo y margen esperados de la necesidad, cuando se conocen.
+  costoEstimadoPyg?: number | null
+  margenEstimadoPyg?: number | null
 }
 
 export type DestinoConsolidado = {
@@ -97,6 +100,10 @@ export type GrupoConsolidado = {
   centros: string[]
   destinos: DestinoConsolidado[]
   necesidades: string[]
+  // FIN (#254): lo que costaría comprar el grupo y el margen esperado sumado de
+  // las necesidades con venta vinculada (`null` si ninguna lo tiene).
+  costoEstimadoPyg: number | null
+  margenEstimadoPyg: number | null
 }
 
 /**
@@ -124,6 +131,8 @@ export function consolidarNecesidades(necesidades: NecesidadEntrada[] = []): Gru
         centros: [],
         destinos: [],
         necesidades: [],
+        costoEstimadoPyg: null,
+        margenEstimadoPyg: null,
         destinosMapa: new Map(),
       }
       grupos.set(clave, grupo)
@@ -132,6 +141,12 @@ export function consolidarNecesidades(necesidades: NecesidadEntrada[] = []): Gru
     grupo.cantidad += cantidad
     grupo.prioridad = prioridadMayor(grupo.prioridad, necesidad.prioridad)
     grupo.prometidaEl = fechaMasProxima(grupo.prometidaEl, fecha(necesidad.prometidaEl))
+    if (typeof necesidad.costoEstimadoPyg === 'number' && Number.isFinite(necesidad.costoEstimadoPyg)) {
+      grupo.costoEstimadoPyg = (grupo.costoEstimadoPyg || 0) + necesidad.costoEstimadoPyg
+    }
+    if (typeof necesidad.margenEstimadoPyg === 'number' && Number.isFinite(necesidad.margenEstimadoPyg)) {
+      grupo.margenEstimadoPyg = (grupo.margenEstimadoPyg || 0) + necesidad.margenEstimadoPyg
+    }
     if (!grupo.origenes.includes(necesidad.origen)) grupo.origenes.push(necesidad.origen)
     const centro = necesidad.centro ? String(necesidad.centro).toUpperCase() : null
     if (centro && !grupo.centros.includes(centro)) grupo.centros.push(centro)

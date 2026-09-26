@@ -1,0 +1,83 @@
+{
+  "web": "https://app.moboss.online",
+  "fecha": "2026-09-26T08:21:10.392Z",
+  "llamadasFinanzas": [],
+  "erroresConsola": [],
+  "resultados": [
+    {
+      "nombre": "Demo: se entra como Dueño",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Caja: turno abierto con medios y auditoría de efectivo",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Caja: la diferencia no anticipa un número sin arqueo",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Caja: captura desktop",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Caja: un cobro de efectivo se marca como verificado",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Caja: captura mobile",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Conciliación: resumen y filas por cuenta/procesadora",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Conciliación: un lote se concilia y queda con diferencia",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Conciliación: captura desktop",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Conciliación: captura mobile",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Márgenes: el seguro de ventas se configura en Comercial",
+      "ok": true,
+      "detalle": "25% sobre el costo"
+    },
+    {
+      "nombre": "Márgenes: Ganancias usa el costo real (costo + seguro) y cuadra",
+      "ok": true,
+      "detalle": "Ingresos 14280000 − Costo 13781250 = Resultado 498750"
+    },
+    {
+      "nombre": "Márgenes: Reportes no inventa cifras en la demo",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Márgenes: Ganadores ordenado por ganancia real y con margen",
+      "ok": true,
+      "detalle": "3 productos · primera ganancia 1595000"
+    },
+    {
+      "nombre": "Demo: finanzas no llama al API ni ensucia la consola",
+      "ok": true,
+      "detalle": "sin llamadas ni errores"
+    }
+  ]
+}

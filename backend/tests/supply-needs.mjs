@@ -27,6 +27,7 @@ const rama2 = 'branch-a2-it'
 // 1) Dos productos propios: las necesidades no crean stock, solo demanda.
 const productoA = await req('/api/products', 'POST', { name: `Necesidad A ${sufijo}`, sku: `NEC-A-${sufijo}`, pricePyg: 2000000, costPyg: 1500000, stock: 0, branchId: rama }, 201)
 const productoB = await req('/api/products', 'POST', { name: `Necesidad B ${sufijo}`, sku: `NEC-B-${sufijo}`, pricePyg: 500000, costPyg: 300000, stock: 2, branchId: rama }, 201)
+const productoC = await req('/api/products', 'POST', { name: `Necesidad C ${sufijo}`, sku: `NEC-C-${sufijo}`, pricePyg: 1200000, costPyg: 800000, stock: 0, branchId: rama }, 201)
 
 // 2) Carga manual: misma variante (NEW) para dos sucursales y otra condición.
 const reposicion = await req('/api/supply/needs', 'POST', { productId: productoA.id, quantity: 1, branchId: rama, priority: 'NORMAL', notes: 'Reposición preventiva' }, 201)
@@ -35,6 +36,15 @@ assert.equal(reposicion.status, 'ABIERTA')
 const urgente = await req('/api/supply/needs', 'POST', { productId: productoA.id, quantity: 2, branchId: rama2, priority: 'URGENTE', promisedAt: '2026-10-01T10:00:00.000Z' }, 201)
 const usada = await req('/api/supply/needs', 'POST', { productId: productoA.id, quantity: 3, condition: 'USED' }, 201)
 const otra = await req('/api/supply/needs', 'POST', { productId: productoB.id, quantity: 5 }, 201)
+assert.equal(otra.priority, 'NORMAL', 'manual sin fecha queda normal (regla FIN #254)')
+
+// FIN (#254): sin prioridad explícita, la fecha prometida manda.
+const enDosDias = await req('/api/supply/needs', 'POST', { productId: productoC.id, quantity: 2, branchId: rama, promisedAt: new Date(Date.now() + 86400000).toISOString() }, 201)
+assert.equal(enDosDias.priority, 'URGENTE', 'una promesa a un día escala la prioridad sola')
+const vencida = await req('/api/supply/needs', 'POST', { productId: productoC.id, quantity: 1, branchId: rama, promisedAt: new Date(Date.now() - 86400000).toISOString() }, 201)
+assert.equal(vencida.priority, 'URGENTE', 'una fecha vencida es urgente')
+const manualUrgente = await req('/api/supply/needs', 'POST', { productId: productoC.id, quantity: 1, priority: 'BAJA' }, 201)
+assert.equal(manualUrgente.priority, 'BAJA', 'la prioridad explícita se respeta')
 
 // Validaciones de la carga manual.
 await req('/api/supply/needs', 'POST', { productId: productoA.id, quantity: 0 }, 400)
@@ -57,6 +67,15 @@ const grupoUsado = vista.grupos.find((grupo) => grupo.productoId === productoA.i
 assert.ok(grupoUsado && grupoUsado.cantidad === 3, 'la condición USED no se mezcla con NEW')
 const grupoB = vista.grupos.find((grupo) => grupo.productoId === productoB.id)
 assert.ok(grupoB && grupoB.cantidad === 5)
+
+// FIN (#254): el grupo trae el costo estimado (costo × unidades) y, sin venta
+// vinculada, el margen queda en null.
+const grupoC = vista.grupos.find((grupo) => grupo.productoId === productoC.id)
+assert.ok(grupoC, 'el grupo del producto C existe')
+assert.equal(grupoC.cantidad, 4, '2 (a dos días) + 1 (vencida) + 1 (manual BAJA)')
+assert.equal(grupoC.costoEstimadoPyg, 800000 * 4, 'el costo estimado suma el de las necesidades')
+assert.equal(grupoC.margenEstimadoPyg, null, 'sin venta vinculada no hay margen')
+assert.equal(grupoC.prioridad, 'URGENTE', 'la fecha vencida manda en el grupo')
 
 // El filtro por producto aísla el grupo.
 const filtrado = await req(`/api/supply/needs?productId=${productoB.id}`)

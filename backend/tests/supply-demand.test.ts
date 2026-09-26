@@ -36,7 +36,7 @@ test('un pedido comprometido con fecha usa ORDER_COMMITTED y la prioridad de la 
   })
   assert.equal(demanda.source, 'ORDER_COMMITTED')
   assert.equal(demanda.priority, 'ALTA')
-  assert.equal(demanda.promisedAt.toISOString(), '2026-09-27T12:00:00.000Z')
+  assert.equal(demanda.promisedAt?.toISOString(), '2026-09-27T12:00:00.000Z')
 })
 
 test('la venta que superó el stock genera QUANTITY_OVER_STOCK por el faltante', () => {
