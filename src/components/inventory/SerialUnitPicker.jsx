@@ -25,6 +25,8 @@ export default function SerialUnitPicker({ product, customerName, selectedSerial
       // store ficticio, no del API. Se filtra por producto y sucursal, como la
       // API real.
       const rows = await resources.inventoryUnits.list(query)
+      // Solo unidades de la sucursal del producto (#263): una unidad de otra
+      // sucursal no se puede vender acá y no debe ofrecerse.
       const matched = (rows || []).filter(unit => unit.productId === product.id
         && (!product.branchId || !unit.branchId || unit.branchId === product.branchId))
       setUnits(matched)
