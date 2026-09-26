@@ -47,7 +47,8 @@ function listarChecklist() {
     console.log(`\n${fase.titulo} · ${fase.cuando}`)
     for (const paso of PASOS.filter((item) => item.fase === fase.id)) {
       const como = paso.comando ? `verificable con \`${paso.comando.texto}\`` : 'manual (panel)'
-      console.log(`  ${icono('manual')} ${paso.id} ${paso.titulo} — ${como}`)
+      const estado = paso.hecho ? 'hecho' : 'manual'
+      console.log(`  ${icono(estado)} ${paso.id} ${paso.titulo} — ${como}${paso.hecho ? ' · hecho' : ''}`)
     }
   }
 }

@@ -14,7 +14,7 @@
 
 export const FASES = [
   { id: 'cuenta', titulo: 'Fase 0 · Cuenta y permisos (antes de rotar)', cuando: 'Día 0' },
-  { id: 'expuestos', titulo: 'Fase 1 · Secretos que pudieron quedar en logs', cuando: 'Día 1' },
+  { id: 'expuestos', titulo: 'Fase 1 · Secretos que pudieron quedar en logs (ventana coordinada con el deploy)', cuando: 'Ventana coordinada' },
   { id: 'higiene', titulo: 'Fase 2 · Higiene', cuando: 'Semana 1' },
   { id: 'cierre', titulo: 'Fase 3 · Cierre y registro', cuando: 'Al terminar' },
 ]
@@ -27,6 +27,7 @@ export const PASOS = [
     titulo: '2FA en la cuenta Owner (Freddy)',
     accion: 'Coolify (hub.owncoding.dev) → avatar arriba a la derecha → Security → Two-Factor Authentication → Enable → escaneá el QR (Google Authenticator/Authy/1Password) → ingresá el código de 6 dígitos.',
     verificacion: 'Cerrá sesión y volvé a entrar: tiene que pedir el segundo factor.',
+    hecho: true,
     manual: true,
   },
   {
@@ -35,6 +36,7 @@ export const PASOS = [
     titulo: '2FA en la cuenta Admin (Dario)',
     accion: 'Repetí 0.1 con la cuenta de Dario.',
     verificacion: 'Cerrá sesión y volvé a entrar con esa cuenta.',
+    hecho: true,
     manual: true,
   },
   {

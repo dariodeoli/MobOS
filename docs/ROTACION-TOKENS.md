@@ -17,6 +17,23 @@ npm run rotacion:tokens -- --estado    # tablero de estado, sin preguntas
 - La verificación automática delega en `scripts/verificar-rotacion-tokens.mjs`
   (auditoría de logs, producción, endpoints internos y token viejo rechazado).
 
+## Estado actual (26/09/2026)
+
+- ✅ **2FA activo en Coolify** (confirmado por Dario). Los pasos 0.1 y 0.2
+  quedan hechos; el tablero (`--estado`) ya los muestra en verde.
+- **Falta (1): reducir tokens a least-privilege** — paso **0.4** (Coolify →
+  Keys & Tokens: dejar solo **Deploy** donde se pueda; si un token no se puede
+  recortar, crear uno mínimo y revocar el amplio). No crear `root` ni
+  `read:sensitive`.
+- **Falta (2): rotar los que pudieron quedar en logs** — **Fase 1** completa
+  (IMEIcheck · AEX sandbox · deploy del Hub · token de API de Coolify · GitHub
+  PAT), **en una ventana coordinada con el deploy**: la rotación incluye un
+  redeploy y su verificación, así que se hace fuera del horario de operación y
+  con el deploy de respaldo listo (regla de oro 4).
+- **Después**: Fase 2 (higiene) y Fase 3 (cierre) como están abajo.
+- Nada de esto lo ejecuta el agente: **el checklist es para Dario** (no toca
+  Coolify).
+
 ## Reglas de oro
 
 1. **Orden de cada rotación:** generar el valor nuevo en el proveedor → cargarlo
@@ -33,12 +50,12 @@ npm run rotacion:tokens -- --estado    # tablero de estado, sin preguntas
 
 ## Fase 0 — Cuenta y permisos (Día 0, antes de rotar)
 
-- [ ] **0.1 2FA en la cuenta Owner (Freddy).** Coolify (`hub.owncoding.dev`) →
+- [x] **0.1 2FA en la cuenta Owner (Freddy).** ✅ *(hecho, 26/09)* Coolify (`hub.owncoding.dev`) →
   avatar arriba a la derecha → **Security** → **Two-Factor Authentication** →
   **Enable** → escanear el QR con la app de autenticación (Google
   Authenticator, Authy, 1Password…) → ingresar el código de 6 dígitos.
   *Verificar:* cerrar sesión y volver a entrar: pide el segundo factor.
-- [ ] **0.2 2FA en la cuenta Admin (Dario).** Repetir 0.1 con la cuenta de
+- [x] **0.2 2FA en la cuenta Admin (Dario).** ✅ *(hecho, 26/09)* Repetir 0.1 con la cuenta de
   Dario. *Verificar:* cerrar sesión y volver a entrar con esa cuenta.
 - [ ] **0.3 Códigos de recuperación.** Guardar los de **las dos cuentas** en el
   gestor de secretos del equipo (nunca en el repo, un chat ni una captura).
@@ -52,7 +69,11 @@ npm run rotacion:tokens -- --estado    # tablero de estado, sin preguntas
   `npm run release:prepare -- --check-deploy-config` y un deploy de prueba con el
   token nuevo; recién ahí borrar el viejo.
 
-## Fase 1 — Secretos que pudieron quedar en logs (Día 1)
+## Fase 1 — Secretos que pudieron quedar en logs (ventana coordinada con el deploy)
+
+> **Cuándo:** en una **ventana coordinada con Dario**, fuera del horario de
+> operación. Cada paso termina en un redeploy y su verificación; se hace con el
+> valor viejo todavía vigente para poder volver atrás (regla de oro 4).
 
 Para cada uno: generar en el proveedor → Coolify (**locked**) → redeploy →
 verificar → **revocar el viejo**.
@@ -131,8 +152,8 @@ correo, RUC/SUN, Google). Sale 1 si algo falla.
 
 | Cuándo | Qué |
 | --- | --- |
-| **Día 0** | Fase 0: 2FA en Owner y Admin · códigos de recuperación · tokens de Coolify a least privilege |
-| **Día 1 (expuesto)** | Fase 1: `IMEICHECK_TOKEN` · claves sandbox AEX · tokens de deploy · token API de Coolify · GitHub PAT |
+| **Día 0** | Fase 0: ✅ 2FA Owner/Admin · códigos de recuperación · **pendiente: tokens de Coolify a least privilege** |
+| **Ventana coordinada** | **Pendiente:** Fase 1: `IMEICHECK_TOKEN` · claves sandbox AEX · tokens de deploy · token API de Coolify · GitHub PAT (con redeploy y verificación) |
 | **Semana 1 (higiene)** | Fase 2: `MOBOS_AUTH_SECRET` (avisar del re-login) · `MOBOS_MAINTENANCE_TOKEN` · WEEM · RUC/SUN · Google · SIFEN · outbox |
 | **Al cerrar** | Fase 3: auditoría · logs · smoke · registro |
 | **Trimestral** | Repaso completo + `npm run audit:logs` |
