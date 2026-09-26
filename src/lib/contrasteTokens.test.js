@@ -15,24 +15,30 @@ const cssApp = readFileSync(join(RAIZ, 'index.css'), 'utf8')
 const cssLib = readFileSync(join(RAIZ, '../node_modules/owncoding-ui/dist/styles.css'), 'utf8')
 const lineas = cssLib.split('\n')
 
-// Devuelve el bloque que ABRE con el selector pedido y contiene tokens `--c-*`.
-function bloqueDe(apertura) {
+// Todos los bloques que ABREN con el selector pedido y tengan tokens `--c-*`:
+// la paleta puede venir partida en más de un bloque bajo el mismo selector
+// (p. ej. `html.dark {`), y el resultado efectivo es la unión.
+function bloquesDe(apertura) {
   const inicios = lineas
     .map((linea, indice) => (linea.trim().startsWith(apertura) ? indice : -1))
     .filter((indice) => indice !== -1)
+  const bloques = []
   for (const inicio of inicios) {
     let fin = inicio
     while (fin < lineas.length && !lineas[fin].includes('}')) fin++
     const bloque = lineas.slice(inicio, fin + 1).join('\n')
-    if (bloque.includes('--c-')) return bloque
+    if (bloque.includes('--c-')) bloques.push(bloque)
   }
-  assert.fail(`la biblioteca no define el bloque de tokens que abre con ${apertura}`)
+  assert.ok(bloques.length, `la biblioteca no define el bloque de tokens que abre con ${apertura}`)
+  return bloques
 }
 
 function tokensDe(apertura) {
   const tokens = {}
-  for (const match of bloqueDe(apertura).matchAll(/--c-([\w-]+):\s*([\d]+)\s+([\d]+)\s+([\d]+);/g)) {
-    tokens[match[1]] = [Number(match[2]), Number(match[3]), Number(match[4])]
+  for (const bloque of bloquesDe(apertura)) {
+    for (const match of bloque.matchAll(/--c-([\w-]+):\s*([\d]+)\s+([\d]+)\s+([\d]+);/g)) {
+      tokens[match[1]] = [Number(match[2]), Number(match[3]), Number(match[4])]
+    }
   }
   return tokens
 }

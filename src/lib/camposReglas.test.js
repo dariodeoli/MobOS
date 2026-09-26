@@ -191,9 +191,11 @@ test('los objetos de Abastecimiento F1 (#250/#254) están publicados', () => {
 
 test('los objetos de Abastecimiento F2–F5 (#250) están publicados', () => {
   const indice = readFileSync(LIB_INDEX, 'utf8')
-  for (const objeto of ['TarjetaCompra', 'TarjetaLote', 'TarjetaRecepcion', 'ResumenRecepcion', 'EtiquetaLote', 'ESTADOS_COMPRA', 'ESTADOS_ENVIO', 'ESTADOS_RECEPCION', 'METODOS_ENVIO', 'PASOS_ENVIO', 'claveDeEstadoEnvio', 'etiquetaMetodoEnvio', 'claveRevision']) {
+  for (const objeto of ['TarjetaCompra', 'TarjetaLote', 'TarjetaRecepcion', 'ResumenRecepcion', 'EtiquetaLote', 'ManifiestoEnvio', 'ESTADOS_COMPRA', 'ESTADOS_ENVIO', 'ESTADOS_RECEPCION', 'METODOS_ENVIO', 'PASOS_ENVIO', 'claveDeEstadoEnvio', 'etiquetaMetodoEnvio', 'claveRevision']) {
     assert.ok(indice.includes(objeto), `owncoding-ui debe publicar ${objeto} para F2–F5`)
   }
+  // El manifiesto es papel claro con las clases imprimibles compartidas.
+  assert.match(readFileSync(join(LIB_COMPONENTES, 'ManifiestoEnvio.jsx'), 'utf8'), /oc-print-tabla/, 'el manifiesto usa las clases oc-print-*')
   // Los resultados del backend entran crudos (RECIBIDO/DANADO/SIN_IMEI) al mapa.
   assert.match(readFileSync(join(LIB_COMPONENTES, '..', 'utils', 'revision.js'), 'utf8'), /claveRevision/, 'falta claveRevision para los resultados de F5')
   // Las claves del backend viajan en los mapas: estados y métodos.

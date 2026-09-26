@@ -292,6 +292,74 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 50 — Componentes para unificar clientes (#268, con CRM) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Selector del duplicado | No existía: el flujo de merge arranca en #268 y CRM iba a buscarlo a mano | **`BuscadorCliente`** (biblioteca **v0.43.0**): búsqueda por nombre, teléfono (crudo o en dígitos), CI/RUC, correo, facturación o tags, con alta rápida y **marca de «posible duplicado»** (`detectarDuplicado` + `motivosDuplicadoCliente`, teléfonos por clave nacional) |
+| Preview/checklist | No existía | **`PreviewFusion`**: las dos fichas con sus datos, elección de **cuál queda como principal** y **checklist de lo que se fusiona** por categoría con conteos (pedidos, pagos y cuotas, créditos/saldo, notas, direcciones, teléfonos/correos, tags, seguro, portal, garantías) |
+| Confirmación | El `ConfirmDialog` de la biblioteca no pide palabra | **`ConfirmarConPalabra`**: resumen + advertencia + palabra exacta (`FUSIONAR`), con ocupado y error (reusable para otras acciones destructivas) |
+| Docs | — | `REGLAS.md` §11 ter y `docs/CAMPOS.md` §2 |
+
+**Coordinación con CRM (dueño del dominio):** los tres objetos son portables
+(datos y callbacks por props); la detección al crear cliente usa los mismos
+helpers (`motivosDuplicadoCliente`) y el merge real depende del endpoint de CRM
+(todavía no existe en main). No se tocó `src/components/customers/`.
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
+`test:e2e:smoke`; biblioteca `owncoding-ui` build + 324 tests.
+
+### Lote 49 — Selector de cuenta de cobro (#262, con POS) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Selector de cuenta | `CuentaCobroCombobox` + `CapsulaCuentaCobro` (POS): al elegir quedaban el input con el texto, la cápsula y datos superpuestos; el banco se repetía | **`SelectorCuentaCobro` + `TarjetaCuentaCobro`** (biblioteca **v0.42.0**): al elegir **colapsa el buscador** y queda **una sola tarjeta** con nombre, logo o ícono del medio, moneda, tipo de transferencia, **banco una sola vez** (se omite si el nombre ya lo dice) y **saldo pendiente de la venta** (con equivalente si la cuenta es en otra moneda) + **«Cambiar cuenta»**. Filtra por nombre, banco/procesadora, titular, número, medio y moneda |
+| Helpers | Mapas de medio/símbolo/máscara repartidos | `utils/cuentaCobro.js`: `MEDIOS_CUENTA`, `etiquetaMedioCuenta`, `iconoMedioCuenta`, `simboloCuenta`, `numeroParcialCuenta`, `filtrarCuentasCobro`, `detalleCuentaCobro` |
+| Docs | — | `REGLAS.md` §1, README y `docs/CAMPOS.md` §2 con las props |
+
+**Coordinación con POS (dueño de `PaymentAccountFields`):** el objeto es
+portable (`cuentas` por props, `onSelect(cuenta)`, importes por props) y
+`testId` conserva los `data-testid` existentes (`cuenta-capsula`,
+`cuenta-capsula-nombre`, `cuenta-capsula-saldo`, `cuenta-capsula-cambiar`,
+`cuenta-capsula-buscar`) para que el e2e del cobro siga. La cotización
+automática de USD y el saldo propuesto quedan en la pantalla, como hoy. No se
+tocó `PaymentAccountFields.jsx` (dominio POS).
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
+`test:e2e:smoke`; biblioteca `owncoding-ui` build + 318 tests.
+
+### Lote 48 — BuscadorProveedor (#259, con INV) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Buscador de proveedor | Compras usa un `<Select>` con «＋ Nuevo proveedor»; sin últimos usados ni filtro por abreviatura (issue **#259**) | **`BuscadorProveedor`** en la biblioteca (**v0.41.0**): recientes por defecto (`recientes` por id), filtro por **nombre o abreviatura** (`code`, sin acentos) y **alta rápida** (`onCreate` async); contrato combobox completo y `onQueryChange` para búsqueda al servidor. Helpers `normalizarProveedor`/`filtrarProveedores`/`resolverRecientes` |
+| Docs | — | `REGLAS.md` §1, README de la biblioteca y `docs/CAMPOS.md` §2 de la app con el contrato completo |
+
+**Coordinación con INV (dueño de Compras):** el componente es portable (el
+catálogo entra por `proveedores`, los recientes por `recientes` con el hook
+`useUltimoUsado`, y el alta por `onCreate` → `suppliersApi.create`). Adopción
+sugerida en el formulario de compra: reemplazar el `<Select aria-label="Proveedor">`
+de `Compras.jsx` conservando `supplierId` (`onSelect`) y el flujo «Nuevo
+proveedor» (`onCreate`). No se tocó `Compras.jsx` (dominio INV).
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
+`test:e2e:smoke`; biblioteca `owncoding-ui` build + 313 tests.
+
+### Lote 47 — nueva ola F3–F5: manifiesto del lote (#250) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Manifiesto del envío | El backend ya devuelve el contrato (`manifiestoEnvio`: código, ruta, método, empresa/conductor/guía, responsable, compra, fechas, líneas con IMEI conocidos y pendientes, totales y enlace público) y PRN aún no tenía layout | **`ManifiestoEnvio`**: el papel completo con `oc-print-*` (tabla por producto, IMEI o pendientes, totales y QR), listo para envolver con `DocumentoImpresion`; PRN solo aporta el layout |
+| Cobertura F3–F5 | — | F3: `CampoSeriales`/`SerialField`/`imeiValido`/`serial` + `EtiquetaLote` (el layout térmico es de PRN, ya implementado). F4: `TarjetaLote`, `ESTADOS_ENVIO`, `METODOS_ENVIO`, `PASOS_ENVIO`, `EtiquetaLote`, **`ManifiestoEnvio`**. F5: `TarjetaRecepcion`, `ResumenRecepcion`, `FilaRevision`, `SelectorIncidencia`, `ResumenIncidencias`, `DestinoRecepcion` y `claveRevision` |
+| Biblioteca | v0.38.0 | **v0.40.0** (sobre la v0.39.0 de cosechas de otras apps); REGLAS §13/README; **309** tests |
+
+**Coordinación:** PRN tiene el layout de la etiqueta térmica (`docs/ETIQUETAS-LOTE.md`) y ahora el contenido del manifiesto en `ManifiestoEnvio`; PLT puede armar «Preparar envío / En tránsito / Recepción» con las tarjetas y los mapas; el stock sigue naciendo solo en la recepción confirmada.
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con `BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y `test:e2e:smoke`; biblioteca `owncoding-ui` build + 309 tests.
+
 ### Lote 46 — objetos de recepción e incidencias F5 (#250) (26-09)
 
 | Objeto | Antes (evidencia) | Después |

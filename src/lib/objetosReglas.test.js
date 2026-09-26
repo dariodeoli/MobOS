@@ -354,7 +354,7 @@ test('las etiquetas de entrega salen del mapa con badge (lote 18)', async () => 
 
 test('Aviso cubre warn y el aviso con estructura', () => {
   const ui = leerBiblioteca('ui.jsx')
-  assert.match(ui, /warn: 'border-warn\/30 bg-warn\/10 text-warn'/, 'Aviso debe tener tono warn')
+  assert.match(ui, /warn: 'border-warn\/30 bg-warn\/10 text-warn-text'/, 'Aviso debe tener tono warn (token de texto AA)')
   assert.match(ui, /como === 'div' \? 'div' : 'p'/, 'Aviso debe permitir contenedor para el aviso con acción')
   // No queda ningún banner con las clases del aviso armado a mano.
   const culpables = archivosFuente()
