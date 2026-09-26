@@ -36,6 +36,8 @@ export default function TallerRack({
   onEtiqueta,
   onEtiquetasLote,
   onHoja,
+  onHojasPorEstacion,
+  onCertificados,
 }) {
   const [seleccionados, setSeleccionados] = useState([])
   const [imprimirAbierto, setImprimirAbierto] = useState(false)
@@ -58,6 +60,12 @@ export default function TallerRack({
   ]
   const objetivo = (opcionesImpresion.find((opcion) => opcion.id === alcance) || opcionesImpresion[0]).lista
   const pedidas = Math.min(ETIQUETAS_EN_VISTA, objetivo.length)
+  // Estaciones presentes en el alcance: con más de una, la hoja de estación
+  // puede salir en serie (una página por carril).
+  const porEstacion = agruparRack(objetivo)
+  const estacionesDelAlcance = ORDEN_RACK
+    .map((id) => ({ estacion: ETIQUETA_RACK[id], unidades: porEstacion[id] }))
+    .filter((grupo) => grupo.unidades.length)
   // Clave estable del alcance: evita regenerar la vista en cada render.
   const claveObjetivo = objetivo.map((unit) => unit.id).join(',')
 
@@ -362,6 +370,14 @@ export default function TallerRack({
           />
           <Button type="button" variant="outline" disabled={!objetivo.length || busy} onClick={() => { onHoja?.(objetivo, estacion === 'todas' ? 'Taller' : ETIQUETA_RACK[estacion]); setImprimirAbierto(false) }} data-testid="rack-hoja-estacion">
             Hoja de estación
+          </Button>
+          {estacionesDelAlcance.length > 1 && (
+            <Button type="button" variant="outline" disabled={!objetivo.length || busy} title="Una hoja por carril, en un solo trabajo" onClick={() => { onHojasPorEstacion?.(estacionesDelAlcance); setImprimirAbierto(false) }} data-testid="rack-hojas-estacion">
+              Hojas por estación ({estacionesDelAlcance.length})
+            </Button>
+          )}
+          <Button type="button" variant="outline" disabled={!objetivo.length || busy} title="Certificado de inspección de cada equipo, uno por página" onClick={() => { onCertificados?.(objetivo); setImprimirAbierto(false) }} data-testid="rack-certificados">
+            Certificados ({objetivo.length})
           </Button>
           <Button type="button" disabled={!objetivo.length || busy} onClick={() => { onEtiquetasLote?.(objetivo); setSeleccionados([]); setImprimirAbierto(false) }} data-testid="rack-imprimir-serie-confirmar">
             <Icon name="printer" className="h-4 w-4" /> Etiquetas ({objetivo.length})

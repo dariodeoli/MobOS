@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildStationSheetHtml } from './hojaEstacion.js'
+import { buildStationSheetHtml, buildStationSheetsHtml } from './hojaEstacion.js'
 
 // #240 §4: hoja de estación imprimible (impresión en serie del taller).
 
@@ -31,4 +31,31 @@ test('escapa el texto y avisa cuando no hay equipos', () => {
   assert.ok(!html.includes('<script>alert(1)</script>'))
   assert.match(html, /&lt;script&gt;/)
   assert.match(buildStationSheetHtml([]), /Sin equipos en esta estación/)
+})
+
+// En serie (taller): una página por carril en un solo documento.
+
+test('en serie sale una hoja por estación, sin carriles vacíos', () => {
+  const unidad = (serial, extra = {}) => ({ serial, status: 'AVAILABLE', product: { name: 'iPhone 15' }, location: { name: 'Depósito 1' }, ...extra })
+  const html = buildStationSheetsHtml([
+    { estacion: 'Por verificar', unidades: [unidad('AUR001'), unidad('AUR002')] },
+    { estacion: 'Verificado', unidades: [] },
+    { estacion: 'Listo para vender', unidades: [unidad('AUR003', { inspection: { grado: 'A', bateriaSalud: 92 } })] },
+  ])
+  assert.equal((html.match(/class="hoja"/g) || []).length, 2)
+  assert.match(html, /Por verificar/)
+  assert.match(html, /Listo para vender/)
+  assert.match(html, /<title>Hojas de estación \(2\)<\/title>/)
+  assert.match(html, /Total: 2 equipo/)
+  assert.match(html, /Total: 1 equipo/)
+  assert.match(html, /page-break-after:always/)
+  assert.match(html, /\.hoja:last-child\{page-break-after:auto\}/)
+  assert.match(html, /Grado A/)
+})
+
+test('sin equipos la serie no rompe: una hoja vacía y honesta', () => {
+  const html = buildStationSheetsHtml([])
+  assert.equal((html.match(/class="hoja"/g) || []).length, 1)
+  assert.match(html, /Sin equipos en esta estación\./)
+  assert.match(html, /Total: 0 equipo/)
 })
