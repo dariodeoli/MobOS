@@ -18,6 +18,8 @@ export const RUTA_DE_VISTA = {
   'tradein-admin': '/trade-in',
   inventario: '/inventario',
   compras: '/compras',
+  // Abastecimiento F1 (#250/#254): panel «Por comprar».
+  abastecimiento: '/abastecimiento',
   servicio: '/servicio',
   garantias: '/garantias',
   autorizaciones: '/autorizaciones',
@@ -73,6 +75,7 @@ export const DESTINO_LEGADO = {
   inicio: '/resumen',
   inventario: '/inventario',
   compras: '/compras',
+  abastecimiento: '/abastecimiento',
   servicio: '/servicio',
   garantias: '/garantias',
   autorizaciones: '/autorizaciones',

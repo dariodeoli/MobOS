@@ -27,6 +27,17 @@ export const resources = {
   orders: { list: () => api.get('/api/orders'), create: data => api.post('/api/orders', data), get: id => api.get(`/api/orders/${encodeURIComponent(id)}`), updateDelivery: (id, data) => api.patch(`/api/orders/${encodeURIComponent(id)}`, data) },
   payments: { create: data => api.post('/api/payments', data) },
   users: { list: () => api.get('/api/users'), create: data => api.post('/api/users', data) },
+  // Abastecimiento F1 (#250/#254): necesidades consolidadas de compra.
+  supplyNeeds: {
+    // El panel tiene botón «Actualizar»: se pide sin caché de GET para que el
+    // refresco traiga el estado real de las necesidades.
+    list: (params = {}) => {
+      const query = new URLSearchParams(Object.entries(params).filter(([, valor]) => valor !== '' && valor != null).map(([clave, valor]) => [clave, String(valor)]))
+      return api.get(`/api/supply/needs${query.toString() ? `?${query}` : ''}`, { cacheMs: 0 })
+    },
+    create: data => api.post('/api/supply/needs', data),
+    update: data => api.patch('/api/supply/needs', data),
+  },
   audit: { list: (params = {}) => api.get(`/api/audit?${new URLSearchParams(params)}`) },
   sessions: { list: () => api.get('/api/sessions'), revoke: sessionId => api.delete('/api/sessions', { body: { sessionId } }) },
 }
