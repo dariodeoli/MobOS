@@ -2,7 +2,7 @@ import { ProductCondition } from '@prisma/client'
 import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
-import { consolidarNecesidades, normalizarNecesidadManual, prioridadMayor, NECESIDAD_ESTADOS, NECESIDAD_PRIORIDADES, type NecesidadEntrada } from '../../../../lib/supply'
+import { consolidarNecesidades, normalizarNecesidadManual, prioridadMayor, NECESIDAD_ESTADOS, NECESIDAD_ORIGENES, NECESIDAD_PRIORIDADES, type NecesidadEntrada } from '../../../../lib/supply'
 import { normalizarCentro, prioridadPorPromesa } from '../../../../lib/supply-demand'
 import { puedeVerCliente } from '../../../../lib/supply-customer'
 import { costoEstimadoDeNecesidad, margenEstimadoDeNecesidad, prioridadDeNecesidad } from '../../../../lib/supply-priority'
@@ -113,9 +113,10 @@ export async function GET(request: Request) {
   // Contadores del panel (sobre toda la empresa, no solo la página): pestañas,
   // prioridades y colas de trabajo del comprador.
   const ahora = new Date()
-  const [porEstado, porPrioridad, vencidas, sinAsignarTotal, sinCentroTotal] = await Promise.all([
+  const [porEstado, porPrioridad, porOrigen, vencidas, sinAsignarTotal, sinCentroTotal] = await Promise.all([
     prisma.supplyNeed.groupBy({ by: ['status'], where: { tenantId: tenant }, _count: { _all: true } }),
     prisma.supplyNeed.groupBy({ by: ['priority'], where: { tenantId: tenant, status: { in: ESTADOS_PENDIENTES } }, _count: { _all: true } }),
+    prisma.supplyNeed.groupBy({ by: ['source'], where: { tenantId: tenant, status: { in: ESTADOS_PENDIENTES } }, _count: { _all: true } }),
     prisma.supplyNeed.count({ where: { tenantId: tenant, status: { in: ESTADOS_PENDIENTES }, promisedAt: { lt: ahora } } }),
     prisma.supplyNeed.count({ where: { tenantId: tenant, status: { in: ESTADOS_PENDIENTES }, assignedToId: null } }),
     prisma.supplyNeed.count({ where: { tenantId: tenant, status: { in: ESTADOS_PENDIENTES }, origin: null } }),
@@ -133,6 +134,7 @@ export async function GET(request: Request) {
     contadores: {
       porEstado: contar(porEstado as never, 'status', NECESIDAD_ESTADOS),
       porPrioridad: contar(porPrioridad as never, 'priority', NECESIDAD_PRIORIDADES),
+      porOrigen: contar(porOrigen as never, 'source', NECESIDAD_ORIGENES),
       vencidas,
       sinAsignar: sinAsignarTotal,
       sinCentro: sinCentroTotal,
@@ -161,6 +163,8 @@ export async function POST(request: Request) {
     : cuerpo)
   if (!normalizada.ok) return error(normalizada.error)
   const { productId, branchId, quantity, condition, priority, promisedAt, notes } = normalizada.data
+  // La prioridad sale de la regla canónica de FIN (#254) cuando no es explícita:
+  // `prioridadDeNecesidad` ya aplicó base por origen + fecha prometida arriba.
   const centro = normalizarCentro((body as { origin?: unknown })?.origin)
   if (!centro.ok) return error(centro.error)
 
@@ -276,8 +280,9 @@ export async function PATCH(request: Request) {
     }
     const datos: Record<string, unknown> = {}
     if (quiereFecha) datos.promisedAt = promesa
+    // Sin prioridad explícita no se fija una guardada: la fecha escala la
+    // prioridad **efectiva** al leer el panel (regla FIN #254 + motor).
     if (quierePrioridad) datos.priority = prioridad
-    else if (quiereFecha && promesa) datos.priority = prioridadPorPromesa(promesa)
     const actualizadas = await prisma.$transaction(async (tx) => {
       await tx.supplyNeed.updateMany({ where: { id: { in: claves }, tenantId: tenant }, data: datos as never })
       for (const necesidad of necesidades) {

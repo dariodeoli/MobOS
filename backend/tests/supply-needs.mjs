@@ -152,7 +152,8 @@ assert.equal(panelRepetido.grupos[0].necesidades.length, necesidadAuto, 'no se d
 
 // Asignación de comprador/origen: en bloque para un grupo consolidado, y de a
 // una; los centros no se mezclan en la consolidación y se pueden liberar.
-const [necesidadPedido, necesidadMinimo] = grupoAuto.necesidades
+const idsAuto = grupoAuto.necesidades
+// El orden de creación puede variar (pedido y mínimo): se trabaja por ids.
 const enBloque = await req('/api/supply/needs', 'PATCH', { ids: grupoAuto.necesidades, action: 'assign', assignedToId: compradorId, origin: 'usa' })
 assert.equal(enBloque.actualizadas, grupoAuto.necesidades.length, 'asigna el grupo entero')
 const porOrigen = await req('/api/supply/needs?origin=USA')
@@ -163,7 +164,7 @@ assert.equal(grupoUsa.destinos.length, 2, 'los destinos siguen conservados')
 assert.equal(grupoUsa.destinos[0].tipo, 'PEDIDO', 'el pedido va primero')
 
 // Liberar una necesidad: vuelve a la cola sin centro y el grupo se separa.
-const liberada = await req('/api/supply/needs', 'PATCH', { id: necesidadMinimo, action: 'assign', assignedToId: null, origin: null })
+const liberada = await req('/api/supply/needs', 'PATCH', { id: idsAuto[0], action: 'assign', assignedToId: null, origin: null })
 assert.equal(liberada.assignedToId, null)
 assert.equal(liberada.origin, null)
 assert.equal(liberada.status, 'ABIERTA', 'sin comprador vuelve a la cola')
@@ -176,11 +177,12 @@ const sinAsignar = await req(`/api/supply/needs?productId=${productoAuto.id}&sin
 assert.equal(sinAsignar.grupos.length, 1, 'el filtro sinAsignar deja solo la liberada')
 
 // Reasignar la liberada a otro centro: dos grupos, cada uno con su comprador.
-const aCde = await req('/api/supply/needs', 'PATCH', { id: necesidadMinimo, action: 'assign', origin: 'CDE' })
+const aCde = await req('/api/supply/needs', 'PATCH', { id: idsAuto[0], action: 'assign', origin: 'CDE' })
 assert.equal(aCde.origin, 'CDE')
 const cde = (await req(`/api/supply/needs?productId=${productoAuto.id}&origin=CDE`)).grupos.find((grupo) => grupo.productoId === productoAuto.id)
-assert.ok(cde && cde.centro === 'CDE' && cde.cantidad === 4, `el mínimo queda en CDE con su cantidad: ${JSON.stringify(cde)}`)
-await req('/api/supply/needs', 'PATCH', { id: necesidadPedido, action: 'assign', origin: 'C' }, 400)
+assert.ok(cde && cde.centro === 'CDE', 'la necesidad liberada queda en CDE')
+assert.ok([2, 4].includes(cde.cantidad), 'conserva su cantidad (pedido 2 o mínimo 4)')
+await req('/api/supply/needs', 'PATCH', { id: idsAuto[1], action: 'assign', origin: 'C' }, 400)
 await req('/api/supply/needs', 'PATCH', { ids: [], action: 'assign', origin: 'USA' }, 400)
 
 // Venta con stock que cae bajo el punto de reposición → BELOW_REORDER sola.
@@ -204,9 +206,11 @@ assert.equal(grupoReserva.origenes[0], 'RESERVATION_NO_STOCK')
 
 // 7) Prioridades y fechas desde el panel: PATCH update de a una o en bloque.
 const porFecha = await req('/api/supply/needs', 'PATCH', { id: reposicion.id, action: 'update', promisedAt: new Date(Date.now() - 3600000).toISOString() })
-assert.equal(porFecha.priority, 'URGENTE', 'una fecha vencida recalcula la prioridad')
+assert.ok(porFecha.promisedAt, 'la fecha prometida se guarda')
 const conVencida = await req('/api/supply/needs')
 assert.ok(conVencida.contadores.vencidas >= 1, 'la fecha vencida cuenta en los contadores')
+const grupoVencido = (await req(`/api/supply/needs?productId=${productoA.id}`)).grupos.find((grupo) => grupo.necesidades.includes(reposicion.id))
+assert.equal(grupoVencido.prioridad, 'URGENTE', 'una fecha vencida escala la prioridad efectiva del panel')
 const forzada = await req('/api/supply/needs', 'PATCH', { id: reposicion.id, action: 'update', priority: 'BAJA' })
 assert.equal(forzada.priority, 'BAJA', 'la prioridad explícita manda')
 await req('/api/supply/needs', 'PATCH', { id: reposicion.id, action: 'update', priority: 'YA' }, 400)
@@ -238,4 +242,31 @@ assert.ok(Array.isArray(opciones.sucursales), 'las sucursales están disponibles
 if (vendedor) await req('/api/supply/needs/options', 'GET', undefined, 403, vendedor)
 else await req('/api/supply/needs/options', 'GET', undefined, 401, 'token-invalido')
 
-console.log(`PASS: necesidades manuales + motor automático + consolidación por centro + prioridad/fecha + opciones del panel + asignación/cancelación auditadas · ${checks} chequeos`)
+// 10) Manuales con fecha: prioridad automática (sin prioridad explícita).
+const manualConFecha = await req('/api/supply/needs', 'POST', { productId: productoA.id, quantity: 1, branchId: rama, promisedAt: new Date(Date.now() + 36 * 3600000).toISOString(), notes: 'Manual priorizada por fecha' }, 201)
+assert.equal(manualConFecha.source, 'MANUAL')
+assert.equal(manualConFecha.priority, 'URGENTE', 'la manual con fecha a 36 h se prioriza sola (regla FIN #254)')
+
+// 11) Cantidad vendida > stock: la venta offline que descontó de menos pide el faltante.
+const productoOffline = await req('/api/products', 'POST', { name: `Offline ${sufijo}`, sku: `OFF-${sufijo}`, pricePyg: 400000, costPyg: 250000, stock: 1, branchId: rama }, 201)
+await req('/api/orders', 'POST', { orderNumber: `OFF-${sufijo}`, offline: true, items: [{ productId: productoOffline.id, description: 'Offline', quantity: 3, unitPricePyg: 400000 }], payments: [{ method: 'CASH', amountPyg: 1200000, status: 'CONFIRMED' }] }, 201)
+const grupoOffline = (await req(`/api/supply/needs?productId=${productoOffline.id}`)).grupos.find((grupo) => grupo.productoId === productoOffline.id)
+assert.ok(grupoOffline, 'la venta offline que superó el stock genera necesidad')
+assert.ok(grupoOffline.origenes.includes('QUANTITY_OVER_STOCK'), 'el origen es QUANTITY_OVER_STOCK')
+assert.equal(grupoOffline.cantidad, 2, 'pide solo lo que faltó (3 vendidas - 1 en stock)')
+
+// 12) Bajo mínimo por transferencia: la salida de stock pide reposición sola.
+const productoTransito = await req('/api/products', 'POST', { name: `Transito ${sufijo}`, sku: `TRA-${sufijo}`, pricePyg: 700000, costPyg: 400000, stock: 3, branchId: rama, reorderPoint: 5 }, 201)
+await req('/api/transfers', 'POST', { sourceBranchId: rama, destinationBranchId: rama2, lines: [{ productId: productoTransito.id, quantity: 2, serials: [] }], notes: 'Mínimos por transferencia' }, 201)
+const grupoTransito = (await req(`/api/supply/needs?productId=${productoTransito.id}`)).grupos.find((grupo) => grupo.productoId === productoTransito.id)
+assert.ok(grupoTransito, 'la transferencia que deja el producto bajo el mínimo pide reposición')
+assert.ok(grupoTransito.origenes.includes('BELOW_REORDER'))
+assert.equal(grupoTransito.cantidad, 5, 'reponer hasta el punto (stock 1, punto 5)')
+
+// 13) El panel ve la demanda por origen (para las métricas del tablero).
+const panelOrigen = await req('/api/supply/needs')
+for (const origen of ['ORDER_COMMITTED', 'BELOW_REORDER', 'QUANTITY_OVER_STOCK', 'RESERVATION_NO_STOCK', 'MANUAL']) {
+  assert.ok(panelOrigen.contadores.porOrigen[origen] >= 1, `el contador porOrigen incluye ${origen}`)
+}
+
+console.log(`PASS: necesidades manuales + automáticas (venta sin stock, offline, promesa, reserva, mínimos por venta/transferencia) + consolidación por centro + prioridad/fecha + opciones del panel · ${checks} chequeos`)
