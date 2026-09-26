@@ -179,7 +179,7 @@ assert.equal(sinAsignar.grupos.length, 1, 'el filtro sinAsignar deja solo la lib
 const aCde = await req('/api/supply/needs', 'PATCH', { id: necesidadMinimo, action: 'assign', origin: 'CDE' })
 assert.equal(aCde.origin, 'CDE')
 const cde = (await req(`/api/supply/needs?productId=${productoAuto.id}&origin=CDE`)).grupos.find((grupo) => grupo.productoId === productoAuto.id)
-assert.ok(cde && cde.centro === 'CDE' && cde.cantidad === 4, 'el mínimo queda en CDE con su cantidad')
+assert.ok(cde && cde.centro === 'CDE' && cde.cantidad === 4, `el mínimo queda en CDE con su cantidad: ${JSON.stringify(cde)}`)
 await req('/api/supply/needs', 'PATCH', { id: necesidadPedido, action: 'assign', origin: 'C' }, 400)
 await req('/api/supply/needs', 'PATCH', { ids: [], action: 'assign', origin: 'USA' }, 400)
 

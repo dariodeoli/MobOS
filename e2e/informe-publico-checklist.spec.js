@@ -77,7 +77,9 @@ test('el informe público muestra el checklist con notas solo de lo no conforme'
     // inspección: «x de y pass» y el QR al informe.
     await expect(page.getByText('1 de 2 pass')).toBeVisible()
     await expect(page.getByAltText('QR del informe del dispositivo')).toBeVisible()
-    await expect(page.getByText('Certificado', { exact: true })).toBeVisible()
+    // La biblioteca v0.35.0 dejó la tarjeta sin el rótulo «Certificado»: se
+    // ancla en el aviso legal del informe (siempre presente) y en la tarjeta.
+    await expect(page.getByText('No es un certificado oficial', { exact: false })).toBeVisible()
 
     mkdirSync(SALIDA, { recursive: true })
     await page.screenshot({ path: `${SALIDA}/01-informe-publico-checklist.png`, fullPage: true })

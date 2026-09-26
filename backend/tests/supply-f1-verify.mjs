@@ -51,10 +51,10 @@ assert.equal(destino.clienteOculto, false)
 assert.ok(grupo.origenes.includes('ORDER_COMMITTED'), `con promesa la fuente es ORDER_COMMITTED: ${grupo.origenes}`)
 assert.equal(grupo.prioridad, 'ALTA', 'la promesa a 36 h manda la prioridad')
 assert.equal(await stockDe(producto), 0, 'la necesidad no crea stock')
-const auditoria = await req('/api/audit?q=SUPPLY_NEED_AUTO&limit=100')
+const auditoria = await req('/api/audit?q=SUPPLY_NEED_CREATED&limit=100')
 assert.ok(
-  Array.isArray(auditoria) && auditoria.some((fila) => fila.action === 'SUPPLY_NEED_AUTO' && grupo.necesidades.includes(fila.entityId)),
-  'la necesidad automática queda auditada (SUPPLY_NEED_AUTO)',
+  Array.isArray(auditoria) && auditoria.some((fila) => fila.action === 'SUPPLY_NEED_CREATED' && grupo.necesidades.includes(fila.entityId)),
+  'la necesidad automática queda auditada (SUPPLY_NEED_CREATED)',
 )
 
 // 2) Venta offline que superó el stock: QUANTITY_OVER_STOCK por la diferencia.
