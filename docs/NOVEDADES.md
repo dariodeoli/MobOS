@@ -11,6 +11,13 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.183 — 2026-09-26
+- **Abastecimiento F2/F3/F5 (#250):** **compra parcial** (la necesidad conserva lo que falta), **líneas adicionales y reposición libre**, **preparación de compra con escaneo** (valida Luhn, rechaza duplicados y acepta pegado múltiple) y **recepción móvil**.
+- **Abastecimiento (#254):** **costo real por proveedor** y **puntualidad del tránsito CDE→ASU**.
+- **Impresión (#250 §11):** **etiquetas individuales** de unidad o paquete para reimprimir; impresos F4 con **QR y PNG**.
+- **Demo (#213):** el historial de pedidos suma **pagos divididos con medios variados** y **autorizaciones completas**.
+- **Diseño (#241):** verificación visual **post-F4** en producción.
+
 ## v1.0.182 — 2026-09-26
 - **Abastecimiento (#250):** los **mínimos se revisan en cada baja de stock** (no solo al vender) y la demanda se agrupa **por origen**; el panel **«Por comprar»** consume los datos nuevos con **contadores en las pestañas**.
 - **Abastecimiento (#254):** la **prioridad** de la demanda ahora pesa la **venta cobrada** y el **margen**.
