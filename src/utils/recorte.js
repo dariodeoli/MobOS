@@ -1,14 +1,29 @@
 // Recorte cuadrado para fotos de perfil: el cuadrado visible se traduce al
 // rectángulo de origen que hay que dibujar en el lienzo. Puro y testeable.
 
+// Escala base para mostrar la foto ENTERA (contain) dentro del cuadrado: la
+// dimensión más larga entra justa. El zoom del usuario se multiplica por esta
+// base, así al abrir nunca hay recorte automático.
+export function escalaAjuste({ ancho, alto, lado = 240 } = {}) {
+  const w = Number(ancho) || 0
+  const h = Number(alto) || 0
+  if (w <= 0 || h <= 0) return 1
+  return Math.min(lado / w, lado / h)
+}
+
 export function recorteCuadrado({ ancho, alto, escala = 1, desplazamientoX = 0, desplazamientoY = 0, lado = 240 }) {
-  const factor = Math.max(1, Number(escala) || 1)
+  const w = Number(ancho) || 0
+  const h = Number(alto) || 0
+  const factor = Math.max(0.0001, Number(escala) || 1)
   const visible = lado / factor
-  const centroX = Number(ancho) / 2 - Number(desplazamientoX) / factor
-  const centroY = Number(alto) / 2 - Number(desplazamientoY) / factor
-  const x = Math.min(Math.max(0, centroX - visible / 2), Math.max(0, Number(ancho) - visible))
-  const y = Math.min(Math.max(0, centroY - visible / 2), Math.max(0, Number(alto) - visible))
-  return { x, y, lado: Math.min(visible, Number(ancho), Number(alto)) }
+  // Con la foto entera visible (factor de ajuste) el cuadrado abarca todo el
+  // ancho o alto: se centra sobre la imagen, no sobre el borde del recorte.
+  const tamano = Math.min(visible, w, h)
+  const centroX = w / 2 - Number(desplazamientoX) / factor
+  const centroY = h / 2 - Number(desplazamientoY) / factor
+  const x = Math.min(Math.max(0, centroX - tamano / 2), Math.max(0, w - tamano))
+  const y = Math.min(Math.max(0, centroY - tamano / 2), Math.max(0, h - tamano))
+  return { x, y, lado: tamano }
 }
 
 export const LADO_FOTO = 512
