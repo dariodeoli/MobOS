@@ -238,7 +238,7 @@ export async function crearDemandas(tx: Prisma.TransactionClient, tenantId: stri
         data: {
           tenantId,
           userId: creadoPorId,
-          action: 'SUPPLY_NEED_AUTO',
+          action: 'SUPPLY_NEED_CREATED',
           entity: 'SupplyNeed',
           entityId: fila.id,
           metadata: { source: demanda.source, quantity: demanda.quantity, productId: demanda.productId, branchId: demanda.branchId, orderId: demanda.orderId || null, promisedAt: demanda.promisedAt ? demanda.promisedAt.toISOString() : null, dedupeKey: demanda.dedupeKey },

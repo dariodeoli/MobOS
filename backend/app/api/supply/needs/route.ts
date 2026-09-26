@@ -2,9 +2,9 @@ import { ProductCondition } from '@prisma/client'
 import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
-import { consolidarNecesidades, normalizarNecesidadManual, NECESIDAD_ESTADOS, type NecesidadEntrada } from '../../../../lib/supply'
-import { normalizarCentro, puedeVerCliente } from '../../../../lib/supply-demand'
-import { costoEstimadoDeNecesidad, margenEstimadoDeNecesidad, prioridadDeNecesidad, prioridadPorFecha } from '../../../../lib/supply-priority'
+import { consolidarNecesidades, normalizarNecesidadManual, prioridadMayor, NECESIDAD_ESTADOS, type NecesidadEntrada } from '../../../../lib/supply'
+import { normalizarCentro, prioridadPorPromesa, puedeVerCliente } from '../../../../lib/supply-demand'
+import { costoEstimadoDeNecesidad, margenEstimadoDeNecesidad, prioridadDeNecesidad } from '../../../../lib/supply-priority'
 
 // #250 Fase 1 (Centro de Abastecimiento): API mínima del panel «Por comprar».
 //
@@ -72,10 +72,12 @@ export async function GET(request: Request) {
     const costoUnitarioPyg = fila.product?.costPyg ?? null
     const costoEstimadoPyg = costoEstimadoDeNecesidad({ costoUnitarioPyg, cantidad: fila.quantity })
     const margenEstimadoPyg = margenEstimadoDeNecesidad({ precioUnitarioPyg, costoUnitarioPyg, cantidad: fila.quantity })
-    // La prioridad efectiva es la guardada escalada por la fecha prometida
-    // (lo único que cambia con el tiempo): una fecha vencida es urgente y una
-    // promesa a días sube sin pisar una prioridad explícita sin fecha.
-    const prioridadEfectiva = prioridadPorFecha(fila.priority, { prometidaEl: fila.promisedAt })
+    // Prioridad efectiva: la guardada (que ya escalona al crear, motor #250 o
+    // regla #254) y, si hay promesa, la del motor por esa fecha (es absoluta e
+    // idempotente): una vencida queda URGENTE y una explícita sin fecha se
+    // respeta tal cual.
+    const porPromesa = fila.promisedAt ? prioridadPorPromesa(fila.promisedAt) : null
+    const prioridadEfectiva = porPromesa ? prioridadMayor(fila.priority, porPromesa) : fila.priority
     return {
       id: fila.id,
       productId: fila.productId,
