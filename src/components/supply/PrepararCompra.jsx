@@ -3,6 +3,7 @@ import { resources } from '@/lib/api'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { Badge, Button, Card, EmptyState, Input, Skeleton, Textarea, useToast } from '@/components/ui'
 import CameraScan from '@/components/shared/CameraScan'
+import EtiquetasPreparacion from '@/components/supply/EtiquetasPreparacion'
 import Icon from '@/components/shared/Icon'
 import { analizarSerial, textoMotivo, validarLote } from '@/lib/escanerSeriales'
 
@@ -25,6 +26,7 @@ export default function PrepararCompra() {
   const [verPegado, setVerPegado] = useState(false)
   const [camara, setCamara] = useState(false)
   const [aviso, setAviso] = useState('')
+  const [etiquetasDe, setEtiquetasDe] = useState(null)
   const [busy, setBusy] = useState(false)
 
   const cargar = useCallback(async () => {
@@ -158,9 +160,12 @@ export default function PrepararCompra() {
                   </div>
                   <Badge color={pendientes > 0 ? 'orange' : 'green'}>{pendientes} IMEI pendiente{pendientes === 1 ? '' : 's'}</Badge>
                 </div>
-                <div className="mt-3">
+                <div className="mt-3 flex flex-wrap gap-2">
                   <Button type="button" variant={expandida ? 'outline' : 'primary'} onClick={() => { setAbierta(expandida ? null : compra); setLineaId(''); setAviso('') }}>
                     {expandida ? 'Cerrar' : 'Preparar IMEI'}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setEtiquetasDe(compra)}>
+                    <Icon name="tag" className="h-3.5 w-3.5" />Etiquetas
                   </Button>
                 </div>
 
@@ -221,6 +226,7 @@ export default function PrepararCompra() {
           })}
         </div>
       )}
+      <EtiquetasPreparacion open={Boolean(etiquetasDe)} compra={etiquetasDe} onClose={() => setEtiquetasDe(null)} />
     </div>
   )
 }

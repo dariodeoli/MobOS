@@ -32,6 +32,7 @@ const TIPO_TRABAJO = {
   'resumen-dia': 'Resumen del día',
   'liquidacion-comision': 'Liquidación de comisión',
   'etiquetas-stock': 'Etiquetas de unidades',
+  'etiquetas-lote': 'Etiquetas del lote',
   'etiqueta-ubicacion': 'Etiqueta de ubicación',
   'informe-dispositivo': 'Informe de dispositivo',
   'certificado-phonecheck': 'Certificado de inspección',
