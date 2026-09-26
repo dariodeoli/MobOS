@@ -166,7 +166,7 @@ test('F5 · recepción: escaneo contra el manifiesto, sobrante con nota y stock 
   await page.screenshot({ path: join(DIR, 'recepcion-escaneo-claro-mobile.png') })
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.getByRole('button', { name: 'Confirmar recepción' }).click()
-  await expect(page.getByText('Recepción confirmada')).toBeVisible()
+  await expect(page.getByTestId('recepcion-confirmada')).toBeVisible()
   // El lote parcial sigue en llegadas (queda por recibir el faltante): se
   // verifica por API el estado, no que desaparezca.
 
@@ -183,4 +183,74 @@ test('F5 · recepción: escaneo contra el manifiesto, sobrante con nota y stock 
   // lote queda CONFIRMADA (el cálculo no recibe `faltantes`); reportado aparte.
   expect(['RECEPCION_PARCIAL', 'CONFIRMADA']).toContain(recepcionCerrada?.status)
   void producto
+})
+
+test('F5 · recibir todo el lote con depósito alternativo (y freno si falta IMEI)', async ({ page }) => {
+  mkdirSync(DIR, { recursive: true })
+  await page.goto('/recepcion')
+  await expect(page.getByTestId('recepcion')).toBeVisible()
+
+  const marca = sufijo()
+  const depositoA = await apiPagina(page, '/api/stock-locations', {
+    method: 'POST',
+    body: JSON.stringify({ branchId: SEED.branchId, name: `Depósito A ${marca}`, code: `A${marca.slice(-4)}` }),
+  })
+  const depositoB = await apiPagina(page, '/api/stock-locations', {
+    method: 'POST',
+    body: JSON.stringify({ branchId: SEED.branchId, name: `Depósito B ${marca}`, code: `B${marca.slice(-4)}` }),
+  })
+  expect([200, 201], JSON.stringify(depositoA.body)).toContain(depositoA.status)
+  expect([200, 201], JSON.stringify(depositoB.body)).toContain(depositoB.status)
+
+  // Lote con IMEI diferido: «recibir todo» avisa y no confirma nada.
+  const diferido = await prepararLote(page, 1, [])
+  await page.getByRole('button', { name: 'Actualizar' }).click()
+  const llegadaDiferida = page.getByTestId('recepcion-llegada').filter({ hasText: diferido.lote.code })
+  await expect(llegadaDiferida).toBeVisible()
+  await llegadaDiferida.getByRole('button', { name: 'Recibir' }).click()
+  await expect(page.getByTestId('recepcion-activa')).toBeVisible()
+  await expect(page.getByText(/IMEI por completar/).first()).toBeVisible()
+  await page.getByRole('button', { name: 'Recibir todo el lote' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Recibir todo' }).click()
+  await expect(page.getByText(/preparalos antes de recibir todo/)).toBeVisible()
+  await page.getByRole('button', { name: 'Cancelar recepción' }).click()
+  await expect(page.getByTestId('recepcion')).toBeVisible()
+
+  // Lote completo: depósito sugerido precargado y alternativo elegido a mano.
+  const base = `4901542${marca.slice(-7)}`
+  const imeiA = imeiValido(base)
+  const imeiB = imeiValido(String(Number(base) + 1).padStart(14, '0'))
+  const completo = await prepararLote(page, 2, [imeiA, imeiB])
+  await page.getByRole('button', { name: 'Actualizar' }).click()
+  const llegada = page.getByTestId('recepcion-llegada').filter({ hasText: completo.lote.code })
+  await expect(llegada).toBeVisible()
+  await llegada.getByRole('button', { name: 'Recibir' }).click()
+  await expect(page.getByTestId('recepcion-activa')).toBeVisible()
+  await expect(page.getByLabel('Depósito destino')).not.toHaveValue('')
+
+  await page.getByLabel('Depósito destino').selectOption({ label: `Depósito B ${marca} (B${marca.slice(-4)})` })
+  await page.getByRole('button', { name: 'Recibir todo el lote' }).click()
+  const dialogo = page.getByRole('dialog')
+  await expect(dialogo.getByText(/Se marcan 2 unidad\(es\)/)).toBeVisible()
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.screenshot({ path: join(DIR, 'recibir-todo-dialogo-claro-desktop.png') })
+  await dialogo.getByRole('button', { name: 'Recibir todo' }).click()
+
+  const confirmada = page.getByTestId('recepcion-confirmada')
+  await expect(confirmada).toBeVisible()
+  await expect(confirmada.getByText('2 recibidas')).toBeVisible()
+  await expect(confirmada.getByRole('button', { name: 'Imprimir comprobante' })).toBeVisible()
+  await page.screenshot({ path: join(DIR, 'recepcion-confirmada-claro-desktop.png') })
+
+  // API: recepción confirmada, 2 recibidas, depósito alternativo y stock ahí.
+  const detalle = await apiPagina(page, `/api/supply/receptions?shipmentId=${completo.lote.id}`)
+  const fila = (detalle.body?.recepciones || [])[0]
+  expect(fila?.status, JSON.stringify(detalle.body).slice(0, 300)).toBe('CONFIRMADA')
+  expect(fila?.resumen, JSON.stringify(detalle.body).slice(0, 300)).toMatchObject({ RECIBIDO: 2 })
+  expect(fila?.location?.id).toBe(depositoB.body.id)
+  for (const serial of [imeiA, imeiB]) {
+    const unidades = await apiPagina(page, `/api/inventory-units?q=${serial}`)
+    const unidad = (unidades.body?.items || unidades.body || []).find((filaUnidad) => filaUnidad.serial === serial)
+    expect(unidad?.locationId || unidad?.location?.id, JSON.stringify(unidades.body).slice(0, 200)).toBe(depositoB.body.id)
+  }
 })

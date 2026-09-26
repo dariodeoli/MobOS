@@ -1,16 +1,26 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { resources } from '@/lib/api'
+import { useNavigate } from 'react-router-dom'
+import { api, resources } from '@/lib/api'
 import { isDemoRuntime } from '@/lib/demoMode'
-import { Badge, Button, Card, EmptyState, Input, Modal, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import { Badge, Button, Card, ConfirmDialog, EmptyState, Input, Modal, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import CameraScan from '@/components/shared/CameraScan'
 import Icon from '@/components/shared/Icon'
 import { analizarSerial, textoMotivo, validarLote } from '@/lib/escanerSeriales'
+import { configImpresora } from '@/lib/printing/agent'
+import { datosComprobanteRecepcion } from '@/lib/printing/comprobanteRecepcion'
+import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
+import { ticketComprobanteRecepcion } from '@/lib/printing/tickets'
+import { printComprobanteRecepcion } from '@/components/shared/OrderReceipt'
 
 // Abastecimiento · F5 (#250 §11): UI de recepción.
 // Llegadas pendientes → abrir (o retomar) por lote / código / token del QR →
 // escanear contra el manifiesto (lector BT/USB, cámara o pegado múltiple) →
 // marcar incidencias con nota → elegir depósito → confirmar (el stock entra
 // recién ahí; lo esperado sin escanear queda faltante).
+// «Recibir todo el lote» hace el caso completo de una vez: escanea los IMEI del
+// manifiesto y confirma con el depósito elegido (si falta algún IMEI por
+// completar, manda a «Preparar compra»). Al confirmar se puede imprimir el
+// comprobante de recepción de PRN (80 mm con respaldo A4).
 
 const RESULTADOS = [
   ['DANADO', 'Dañado'],
@@ -20,6 +30,13 @@ const RESULTADOS = [
 const ETIQUETA_RESULTADO = { RECIBIDO: 'Recibido', DANADO: 'Dañado', INCORRECTO: 'Incorrecto', FALTANTE: 'Faltante', SOBRANTE: 'Sobrante' }
 const TONO_RESULTADO = { RECIBIDO: 'green', DANADO: 'red', INCORRECTO: 'orange', FALTANTE: 'red', SOBRANTE: 'blue' }
 
+const confirmadasTexto = (incidencias, pendientes) => {
+  const partes = []
+  if (incidencias.length) partes.push(`${incidencias.length} ya tienen incidencia registrada y no entran al stock. `)
+  if (!pendientes.length) partes.push('Todas las unidades ya estaban escaneadas. ')
+  return partes.join('')
+}
+
 const fecha = (valor) => {
   if (!valor) return '—'
   const fechaValor = new Date(valor)
@@ -28,6 +45,7 @@ const fecha = (valor) => {
 
 export default function Recepcion() {
   const toast = useToast()
+  const navigate = useNavigate()
   const esDemo = isDemoRuntime
   const [llegadas, setLlegadas] = useState([])
   const [cargando, setCargando] = useState(!esDemo)
@@ -44,6 +62,9 @@ export default function Recepcion() {
   const [codigo, setCodigo] = useState('')
   const [incidencia, setIncidencia] = useState(null)
   const [nota, setNota] = useState('')
+  const [confirmarTodo, setConfirmarTodo] = useState(false)
+  const [confirmada, setConfirmada] = useState(null)
+  const [imprimiendo, setImprimiendo] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const cargar = useCallback(async () => {
@@ -72,6 +93,10 @@ export default function Recepcion() {
     }
     return mapa
   }, [recepcion])
+  const cubiertos = useMemo(() => new Set((recepcion?.items || []).map((item) => item.shipmentItemId).filter(Boolean)), [recepcion])
+  const pendientes = useMemo(() => esperados.filter((item) => !cubiertos.has(item.id)), [esperados, cubiertos])
+  const sinSerial = useMemo(() => pendientes.filter((item) => !item.serial), [pendientes])
+  const incidenciasCargadas = useMemo(() => (recepcion?.items || []).filter((item) => item.resultado && item.resultado !== 'RECIBIDO'), [recepcion])
 
   async function abrir(llegada) {
     setBusy(true)
@@ -187,13 +212,18 @@ export default function Recepcion() {
     }
   }
 
-  async function confirmar() {
+  async function confirmar(depositoElegido = depositoId) {
     if (!recepcion || busy) return
-    if (!depositoId) { toast.error('Elegí el depósito destino'); return }
+    if (!depositoElegido) { toast.error('Elegí el depósito destino'); return }
     setBusy(true)
     try {
-      const datos = await resources.supplyReceptions.update({ id: recepcion.id, action: 'confirm', locationId: depositoId })
-      aplicar(datos)
+      const datos = await resources.supplyReceptions.update({ id: recepcion.id, action: 'confirm', locationId: depositoElegido })
+      setConfirmada({
+        recepcion: datos?.recepcion || recepcion,
+        resumen: datos?.resumen || resumen || {},
+        estadoLote: datos?.estadoLote || '',
+        unidadesCreadas: datos?.unidadesCreadas ?? 0,
+      })
       toast.success('Recepción confirmada', 'El stock de lo recibido ya está disponible en el depósito elegido.')
       setRecepcion(null)
       setResumen(null)
@@ -203,6 +233,59 @@ export default function Recepcion() {
       toast.error('No se pudo confirmar', causa?.message || 'Revisá el depósito y reintentá.')
     } finally {
       setBusy(false)
+    }
+  }
+
+  // Caso completo de una vez: escanea los IMEI del manifiesto que faltan y
+  // confirma. Las unidades ya marcadas con incidencia no se tocan.
+  async function recibirTodo() {
+    if (!recepcion || busy) return
+    if (!depositoId) { toast.error('Elegí el depósito destino'); return }
+    if (sinSerial.length) {
+      setAviso(`Hay ${sinSerial.length} unidad(es) con IMEI por completar: preparalos antes de recibir todo el lote.`)
+      setConfirmarTodo(false)
+      return
+    }
+    setBusy(true)
+    setAviso('')
+    try {
+      let detalle = recepcion
+      for (const esperado of pendientes) {
+        const datos = await resources.supplyReceptions.update({ id: recepcion.id, action: 'scan', serial: esperado.serial })
+        detalle = datos?.recepcion || detalle
+        if (datos?.resumen) setResumen(datos.resumen)
+      }
+      setRecepcion(detalle)
+      setConfirmarTodo(false)
+      await confirmar(depositoId)
+    } catch (causa) {
+      setAviso(causa?.message || 'No se pudo recibir todo el lote.')
+      setConfirmarTodo(false)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Comprobante de recepción de PRN: térmica de 80 mm y respaldo A4/rollo.
+  async function imprimirComprobante() {
+    if (!confirmada?.recepcion || imprimiendo) return
+    setImprimiendo(true)
+    try {
+      const detalle = confirmada.recepcion
+      const ids = new Set([...(detalle.items || []).map((item) => item.productId), ...(detalle.shipment?.items || []).map((item) => item.productId)].filter(Boolean))
+      const productos = {}
+      await Promise.all([...ids].map(async (id) => {
+        try { productos[id] = await api.get(`/api/products/${id}`) } catch { /* sin nombre: cae al id */ }
+      }))
+      const datos = datosComprobanteRecepcion(detalle, { productos })
+      const { ancho } = configImpresora()
+      const resultado = await imprimirDocumentoNoFiscal(ticketComprobanteRecepcion(datos, { ancho }), { tipo: 'comprobante-recepcion', respaldo: () => printComprobanteRecepcion(datos, { format: 'a4' }) })
+      if (resultado?.dialogo) toast.info('Comprobante listo', 'Se abrió para imprimir o guardar en PDF.')
+      else if (resultado?.ok) toast.success('Comprobante enviado', 'Sale por la impresora configurada.')
+    } catch (causa) {
+      toast.error('No se pudo imprimir', causa?.message || 'Reintentá desde la recepción.')
+    } finally {
+      setImprimiendo(false)
     }
   }
 
@@ -230,6 +313,41 @@ export default function Recepcion() {
     )
   }
 
+  // ── Recepción confirmada ────────────────────────────────────────────────
+  if (confirmada) {
+    const estados = confirmada.resumen || {}
+    const creadas = confirmada.unidadesCreadas ?? estados.RECIBIDO ?? 0
+    return (
+      <div className="space-y-4" data-testid="recepcion-confirmada">
+        <Card className="space-y-3 p-4 md:p-5">
+          <div>
+            <h2 className="font-semibold">Recepción confirmada · {confirmada.recepcion?.shipment?.code || ''}</h2>
+            <p className="mt-1 text-sm text-mute">
+              {creadas} unidad(es) entraron al stock en {confirmada.recepcion?.location?.name || 'el depósito elegido'}.
+              {confirmada.estadoLote === 'RECEPCION_PARCIAL' ? ' El lote quedó parcial: lo faltante sigue pendiente de llegada.' : ''}
+              {confirmada.estadoLote === 'CON_INCIDENCIA' ? ' El lote quedó con incidencias registradas.' : ''}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-mute">
+            <Badge color="green">{estados.RECIBIDO || 0} recibidas</Badge>
+            {(estados.FALTANTE || 0) > 0 && <Badge color="red">{estados.FALTANTE} faltantes</Badge>}
+            {(estados.DANADO || 0) > 0 && <Badge color="red">{estados.DANADO} dañadas</Badge>}
+            {(estados.INCORRECTO || 0) > 0 && <Badge color="orange">{estados.INCORRECTO} incorrectas</Badge>}
+            {(estados.SOBRANTE || 0) > 0 && <Badge color="blue">{estados.SOBRANTE} sobrantes</Badge>}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" onClick={imprimirComprobante} disabled={imprimiendo}>
+              <Icon name="printer" className="h-3.5 w-3.5" />{imprimiendo ? 'Preparando…' : 'Imprimir comprobante'}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => { setConfirmada(null); setRecepcion(null); setResumen(null); cargar() }}>
+              Volver a llegadas
+            </Button>
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
   // ── Recepción activa ────────────────────────────────────────────────────
   if (recepcion) {
     const sobrantes = (recepcion.items || []).filter((item) => !item.shipmentItemId)
@@ -247,7 +365,10 @@ export default function Recepcion() {
             </div>
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" onClick={() => { setRecepcion(null); setResumen(null); cargar() }} disabled={busy}>Volver</Button>
-              <Button type="button" onClick={confirmar} disabled={busy || !depositoId}>Confirmar recepción</Button>
+              <Button type="button" variant="outline" onClick={() => confirmar()} disabled={busy || !depositoId}>Confirmar recepción</Button>
+              <Button type="button" onClick={() => setConfirmarTodo(true)} disabled={busy || !depositoId}>
+                <Icon name="check" className="h-3.5 w-3.5" />Recibir todo el lote
+              </Button>
             </div>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-mute">
@@ -311,6 +432,12 @@ export default function Recepcion() {
             {depositos.map((deposito) => <option key={deposito.id} value={deposito.id}>{deposito.name}{deposito.code ? ` (${deposito.code})` : ''}</option>)}
           </Select>
           <p className="text-xs text-mute">Se sugiere el último depósito usado en la sucursal; podés cambiarlo (queda auditado).</p>
+          {sinSerial.length > 0 && (
+            <p className="text-xs text-warn">
+              {sinSerial.length} unidad(es) con IMEI por completar: para recibir todo el lote primero cargá los IMEI.{' '}
+              <button type="button" className="underline" onClick={() => navigate('/preparacion')}>Ir a Preparar compra</button>
+            </p>
+          )}
         </Card>
 
         <div className="space-y-2.5">
@@ -352,6 +479,16 @@ export default function Recepcion() {
         <div className="flex justify-end">
           <Button type="button" variant="ghost" className="text-bad" onClick={cancelar} disabled={busy}>Cancelar recepción</Button>
         </div>
+
+        <ConfirmDialog
+          open={confirmarTodo}
+          onCancel={() => setConfirmarTodo(false)}
+          onConfirm={recibirTodo}
+          title="Recibir todo el lote"
+          description={`Se marcan ${pendientes.length} unidad(es) como recibidas con los IMEI del manifiesto y se confirma la recepción en el depósito elegido. ${confirmadasTexto(incidenciasCargadas, pendientes)}El stock entra recién al confirmar.`}
+          confirmLabel="Recibir todo"
+          busy={busy}
+        />
 
         <Modal open={Boolean(incidencia)} onClose={() => !busy && setIncidencia(null)} title={`Incidencia: ${ETIQUETA_RESULTADO[incidencia?.resultado] || ''}`} size="corto">
           <p className="mt-2 text-sm text-mute">{incidencia?.serial || 'La unidad'} · la nota queda auditada con la recepción.</p>
