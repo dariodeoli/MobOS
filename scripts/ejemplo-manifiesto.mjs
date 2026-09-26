@@ -129,6 +129,17 @@ try {
   await pdfHtml('etiquetas-lote-80mm', await htmlEtiquetas(etiquetas, 80), 'thermal-80')
   await pdfTermico('etiquetas-lote-80mm-escpos', await lineasDe('ticketEtiquetasLote', [etiquetas, { ancho: 80 }]), 80)
 
+  // El manifiesto como imagen para compartir (el camino de `CompartirImagen`).
+  const png = await page.evaluate(async ({ datos }) => {
+    const { buildManifiestoHtml } = await import('/src/components/shared/OrderReceipt.jsx')
+    const { documentoAPng } = await import('/src/lib/printing/compartirDocumento.js')
+    const imagen = await documentoAPng(await buildManifiestoHtml(datos, { format: 'thermal-80' }), { ancho: 'thermal-80' })
+    return imagen ? { bytes: imagen.blob.size, dataUrl: imagen.dataUrl } : null
+  }, { datos })
+  if (!png) throw new Error('no se pudo generar el PNG del manifiesto')
+  writeFileSync(join(SALIDA, 'manifiesto-80mm.png'), Buffer.from(png.dataUrl.split(',')[1], 'base64'))
+  pasos.push({ documento: 'manifiesto-80mm-png', archivo: 'manifiesto-80mm.png', formato: 'PNG', bytes: png.bytes })
+
   // Variante con el enlace público (contrato del QR de recepción).
   const datosEnlace = await datosDe({ emisor: 'Móvil Center (demo)', enlace: ENLACE_ENVIO, ahora: HOY.toISOString() })
   const htmlEnlace = await htmlManifiesto(datosEnlace, 'a4')
