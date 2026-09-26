@@ -15,17 +15,39 @@ Rama de esta entrega: `slot/pos`.
 Con esto el flujo de venta completo queda verificado **en la versión publicada y
 sobre el diseño v2 real** (por defecto), sin restos abiertos del lado POS.
 
-## Qué queda cerrado del lado POS
+Complemento local sobre el mismo `main` (`dd1c1ed9`): e2e del POS **44/44 en
+verde** y `npm test` **775/775**. En la pasada se corrigió un test sensible a la
+fecha del portal (`src/lib/portalAvisos.test.js`: el caso «sin nada pendiente»
+ahora usa el reloj fijo `AHORA` que el propio test define).
+
+## Checklist de la épica (§1–§24) — estado y evidencia
 
 | § | Tema | Estado | Evidencia |
 |---|---|---|---|
-| §5/§7 | Carrito y métricas del día | ✅ La línea colapsada muestra lo esencial (#243) y **ventas/pedidos del día cuentan por orden, no por unidad**, también en la demo | `docs/qa/243/1.0.175-produccion/` · `docs/qa/187-1.0.175-rama/` (TU DÍA 3→4) · `src/utils/resumenVentasDia.test.js` |
-| §9 | Montos y monedas | ✅ El POS **bloquea el guardado** con montos sobre el tope almacenable y explica cuál monto revisar | `docs/qa/148-9-pos-tope/` (post-deploy v1.0.172) · `e2e/qa-148-9-pos-montos.spec.js` |
-| §11 | Pagos divididos / no pagado | ✅ Split con saldo precargado, estados por bloque y pedido parcial | `e2e/pos-qa-173.spec.js` (split + no pagado) |
-| §12 | Entrega | ✅ Delivery con costo; **retiro no cobra envío** (corregido en #187) | `docs/qa/187-1.0.172*/` · regresión en `pos-qa-173` |
-| §20 | Borradores y enlace | ✅ Suspender/listar/recuperar en demo y servidor; «Enlace público» avisa en demo | `docs/QA-187-pos-demo.md` (pasada v1.0.172) |
-| §22 | Lista y detalle del pedido | ✅ Cubierto por `pos-checkout`, `pos-qa-173` y `qa-241-*` en verde | e2e POS 31/31 |
-| #251 | Menú nuevo (verificación en producción) | ✅ 8 grupos, Taller, `/ops`, menú del vendedor | `docs/qa/menu-ia/1.0.175-produccion/` |
+| §1 | Nombre y alcance (`/pos`, `/ventas` → `/pos`, carrito siempre visible) | ✅ | `docs/qa/187-1.0.181-produccion/` · `e2e/pos-checkout.spec.js` |
+| §2 | Limpieza del formulario (vendedor automático, sin «cero ventas», botones de limpieza) | ✅ | `docs/qa/187-1.0.181-produccion/` (descuento/borrar) · `e2e/pos-qa-173.spec.js` |
+| §3 | Layout desktop/móvil con el carrito a la vista | ✅ | 187 (medidas + paso móvil 390) |
+| §4 | Cliente: búsqueda, pre-clientes, nombres normalizados, correo, facturar a otro titular | ✅ | 187 (cartera demo y alta) · `e2e/admin.spec.js` · `e2e/qa-236-clientes.spec.js` |
+| §5 | Carrito: colapso, cantidades, descuentos y totales | ✅ | `docs/qa/243/1.0.181-produccion/` · `e2e/pos-241-carrito-estados.spec.js` |
+| §6 | Buscador de productos y escáner con confirmación | ✅ | 187 (catálogo) · `e2e/pos-qa-173.spec.js` · `scripts/qa-148-s6-escaner.mjs` |
+| §7 | Vendedor automático y métricas del POS (por orden) | ✅ | 187 (`TU DÍA 3 → 4`) · `src/utils/resumenVentasDia.test.js` |
+| §8 | Cuentas de cobro con buscador contextual | ✅ | 187 (split con cuentas y cápsula) · `e2e/pos-qa-173.spec.js` |
+| §9 | Montos y monedas (tope almacenable, bloqueo con mensaje) | ✅ | `docs/qa/148-9-pos-tope/1.0.181-produccion-postdeploy/` |
+| §10 | Botón principal por estado (verde/naranja/rojo) | ✅ | 187 (naranja → verde) · `e2e/pos-qa-173.spec.js` |
+| §11 | Pagos divididos / no pagado | ✅ | 187 · `e2e/pos-qa-173.spec.js` |
+| §12 | Entrega separada del pago (retiro no cobra envío) | ✅ | `docs/qa/187-1.0.181-produccion/` · regresión en `pos-qa-173` |
+| §13 | Bloqueo de sesión con PIN | ✅ (PLT) | `e2e/sesion-bloqueo.spec.js` |
+| §14 | Menú de tres puntos y preferencias | ✅ (PLT) | `e2e/admin.spec.js` (#228) |
+| §15 | Staff y PIN | ✅ (#253) | `docs/qa/253-equipo-acceso/` |
+| §16 | Comentarios internos y menciones | ✅ (CRM) | `e2e/qa-148-16-menciones.spec.js` |
+| §17 | Caja y auditoría de efectivo | ✅ (FIN) | `e2e/finanzas-caja.spec.js` · arnés `cash-sessions` |
+| §18 | Analytics del POS | ✅ | 187 (tablero completo en la demo) |
+| §19 | Customers y seguro | ✅ (CRM/FIN) | `e2e/qa-236-clientes.spec.js` · `docs/qa/148-19-*.md` |
+| §20 | Borradores, enlace y envío | ✅ | `e2e/pos-fulfillment-borradores.spec.js` · 187 |
+| §21 | Pedido y detalle (timeline, acciones) | ✅ | `e2e/pos-pedidos.spec.js` · `e2e/admin.spec.js` |
+| §22 | Lista de pedidos (estados visuales) | ✅ | `e2e/pos-pedidos.spec.js` |
+| §23 | Documentación interna con buscador | ✅ | `e2e/documentacion.spec.js` · Ayuda (#251) |
+| §24 | Orden recomendado de implementación | ✅ (seguido) | — |
 
 ## Verificación post-.178 en producción (26/09)
 
@@ -50,14 +72,15 @@ pasos con `v2 por defecto: true` y 0 errores**, y el carrito midió 68/84 px en 
 variantes *v2-default*: `docs/qa/187-1.0.178-f4/` · `docs/qa/243/1.0.178-f4/`.
 Con esto el flujo de venta completo queda verificado sobre el diseño v2 real.
 
-## Pendientes que NO son del POS (para la épica)
+## Pendientes que NO son del POS (revisados en v1.0.181)
 
-- **§9 BigInt**: habilitar los 10B/99B de producto exige migrar las columnas de
-  dinero (unidad cross-dominio con `db:check`). Hasta entonces el POS bloquea con
-  mensaje claro en vez de fallar en silencio.
+- **§9 BigInt**: los montos siguen en columnas de 32 bits (sin migración a BigInt
+  en `backend/prisma`), así que los 10B/99B de producto no se pueden almacenar. El
+  POS bloquea con mensaje claro en vez de fallar en silencio: es una unidad
+  cross-dominio con `db:check`, fuera del alcance del POS.
 - **Gift cards reales**: decisión de producto (hoy el equivalente es el saldo a favor).
-- **INV**: el rechazo de precio/stock dice «Precio y stock deben ser enteros válidos»
-  (cosmético, del catálogo).
+- **INV**: el rechazo de precio/stock sigue diciendo «Precio y stock deben ser
+  enteros válidos» (`backend/app/api/products/route.ts`), cosmético y del catálogo.
 - **Sesión real**: borradores en servidor, analytics real y cierre con comprobante
   quedan listados en `docs/QA-187-pos-demo.md` para cuando haya acceso a una cuenta real.
 
