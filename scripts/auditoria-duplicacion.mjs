@@ -116,9 +116,15 @@ function nombresJsx(dir) {
   }
 }
 const esPuente = (ruta) => /export\s*\{[^}]*\bas\s+default\b[^}]*\}\s*from\s*'owncoding-ui'/.test(readFileSync(ruta, 'utf8'))
+// Adaptador: la UI es del objeto publicado y la app solo aporta datos o
+// normalización (importa el mismo nombre desde la biblioteca).
+const esAdaptador = (ruta, nombre) => new RegExp(`import\\s*\\{[^}]*\\b${nombre}\\b[^}]*\\}\\s*from\\s*'owncoding-ui'`).test(readFileSync(ruta, 'utf8'))
 const publicadosComponentes = new Set(nombresJsx(LIB_COMPONENTES))
 const copiasComponentes = nombresJsx('src/components/shared')
-  .filter((nombre) => publicadosComponentes.has(nombre) && !esPuente(`src/components/shared/${nombre}.jsx`))
+  .filter((nombre) => {
+    const ruta = `src/components/shared/${nombre}.jsx`
+    return publicadosComponentes.has(nombre) && !esPuente(ruta) && !esAdaptador(ruta, nombre)
+  })
 const kitLocal = [...readFileSync('src/components/ui/index.jsx', 'utf8').matchAll(/^export (?:function|const) (\w+)/gm)].map((m) => m[1])
 const kitPublicado = new Set(
   [...readFileSync(`${LIB_COMPONENTES}/ui.jsx`, 'utf8').matchAll(/^export (?:function|const) (\w+)/gm)].map((m) => m[1]),

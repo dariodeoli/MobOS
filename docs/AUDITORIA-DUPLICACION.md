@@ -292,6 +292,50 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 43 — objetos F1 alineados al contrato real + coordinación con PLT (#250/#254) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Prioridades | `alta/media/baja` (sin el contrato a la vista) | **`URGENTE · ALTA · NORMAL · BAJA`** con tono y orden del backend (`media` → alias de `normal`); `ChipPrioridad` las pinta igual que el panel de PLT (rojo/ámbar/azul/mute) |
+| Origen | El panel de PLT armó su propio mapa | **`ChipOrigen` + `ORIGENES_NECESIDAD`** (venta sin stock, reserva sin unidad, venta sobre stock, bajo reposición, pedido comprometido, manual) con etiqueta, tono e ícono |
+| Estados | Claves de UI (`por_comprar`, `comprado`…) | Keys del contrato (`ABIERTA · ASIGNADA · COMPRADA · RECIBIDA · CANCELADA`), alias de la UI y fases siguientes |
+| Tarjeta | Sin centro | `TarjetaNecesidad` suma **`centro`** y usa `ChipOrigen` para el origen |
+| Biblioteca | — | **v0.35.0** con REGLAS §12/README y tests (**226**) |
+
+**Para PLT (coordinación F1):** con la v0.35.0 el panel puede retirar sus mapas
+locales — `PRIORIDAD`/`TONO_PRIORIDAD` → `ChipPrioridad` (o
+`etiquetaPrioridad`/`colorDeTono`), `ORIGEN` → `ChipOrigen` (o `etiquetaOrigen`),
+destinos/`DESTINO` → `ResumenDestinos`, plazo/fecha → `Vencimiento` (mismo
+«vencida/en N días»), y la tarjeta consolidada → `TarjetaNecesidad` con
+`producto`, `variante` (condición), `prioridad`, `estado`, `origen`, `centro`,
+`fechaPrometida` (`prometidaEl`), `vinculo`, `destinos`, `pendiente/comprado/faltan`
+y `acciones`. Las claves del backend entran crudas: `claveDeEstado('ABIERTA')` y
+`claveDePrioridad('URGENTE')` normalizan.
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend,
+`e2e/configuracion-lote5` y `test:e2e:smoke`; biblioteca `owncoding-ui` build +
+226 tests.
+
+### Lote 42 — adaptadores con la UI en la biblioteca (#253) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `RucField` | Copia local del campo completo (input + botón adentro + confirmación + `GET /api/ruc` + demo) | **Adaptador**: la UI y el flujo viven en la biblioteca; el archivo de la app solo provee `consultar` (API con cuota/auditoría o `consultarRucDemo`) |
+| `CityAutocomplete` | Copia local (input + lista + departamento + fetch) | **Adaptador**: la UI es de la biblioteca; la app aporta `buscar` (endpoint real) y el modo demo sin sugerencias. La biblioteca suma el aviso en línea (`mensajeError`, `role="alert"`) que la app ya tenía → **v0.34.0** |
+| `SerialField` | Copia local con normalizador QR (`leerEtiqueta`) | **Adaptador**: el campo es de la biblioteca; la app inyecta `normalizar` (QR `/u/<serial>`) |
+| Control | La guarda solo conocía puentes (sin lógica) | Nueva categoría **adaptadores** (UI de la biblioteca + datos de la app): la guarda los exige sin `<Input` y con su lógica; el auditor los excluye. Deuda de `shared/`: 9 → **6** |
+
+**Observación para CRM:** el auditor marca 1 uso de la clase del rótulo de tabla
+a mano en `components/cuenta/MiCuenta.jsx:184` (chip de rol); es del trabajo de
+Mi cuenta, no de este lote.
+
+Verificación del lote: `npm run lint` (0 errores), `npm run build` y
+`npm --prefix backend run build` (con `BUILD_ID`), `prisma:validate`,
+`npm test` (769 en verde), `test:unit` del backend,
+`npx playwright test e2e/configuracion-lote5.spec.js` y
+`npm run test:e2e:smoke`; biblioteca `owncoding-ui` build + 224 tests.
+
 ### Lote 41 — objetos de Abastecimiento F1 (#250/#254) (26-09)
 
 | Objeto | Antes (evidencia) | Después |

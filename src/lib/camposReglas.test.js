@@ -28,11 +28,14 @@ test('la consulta de RUC vive solo en el objeto compartido RucField', () => {
 })
 
 test('el extractor de RUC vive dentro del input y se ve en todos los lugares, también en demo (#234)', () => {
-  const rucField = readFileSync(join(RAIZ, 'components/shared/RucField.jsx'), 'utf8')
+  // La UI vive en la biblioteca (el adaptador de la app aporta la consulta).
+  const rucField = leerBiblioteca('RucField.jsx')
   assert.ok(rucField.includes('BotonDentroCampo'), 'el botón de extraer vive dentro del campo (objeto compartido)')
   assert.ok(!rucField.includes('<Button'), 'no vuelve un botón externo al lado del input')
-  assert.ok(rucField.includes('consultarRucDemo'), 'en demo resuelve contra el mock del navegador, sin /api/ruc')
   assert.ok(rucField.includes('Simulada en demo'), 'el resultado simulado se marca como tal')
+  const adaptador = readFileSync(join(RAIZ, 'components/shared/RucField.jsx'), 'utf8')
+  assert.ok(adaptador.includes('consultarRucDemo'), 'en demo resuelve contra el mock del navegador, sin /api/ruc')
+  assert.ok(adaptador.includes('api.get(`/api/ruc'), 'en real consulta el endpoint con cuota y auditoría')
 
   const usos = archivosFuente().filter((archivo) => /<RucField/.test(archivo.contenido))
   const esperados = [
@@ -103,12 +106,18 @@ test('las subidas de archivos pasan por el objeto compartido', () => {
 // que duplique un componente publicado falla acá y obliga a decidir (usar el
 // objeto de `owncoding-ui` o publicarlo allí).
 const DEUDA_BIBLIOTECA = new Set([
-  'Avatar', 'BancoCombobox', 'BancoLogo', 'CityAutocomplete', 'Cronologia',
-  'PasosEquipo', 'PersonaChip', 'RucField', 'SerialField',
+  'Avatar', 'BancoCombobox', 'BancoLogo', 'Cronologia', 'PasosEquipo',
+  'PersonaChip',
 ])
+
+// Adaptadores (#253): la UI es de la biblioteca y la app solo aporta la capa de
+// datos o la normalización propia. No son puentes (tienen lógica), pero no
+// reimplementan la interfaz.
+const ADAPTADORES = new Set(['RucField', 'CityAutocomplete', 'SerialField'])
 
 const LIB_COMPONENTES = fileURLToPath(new URL('../../node_modules/owncoding-ui/src/components', import.meta.url))
 const LIB_INDEX = fileURLToPath(new URL('../../node_modules/owncoding-ui/src/index.js', import.meta.url))
+const leerBiblioteca = (ruta) => readFileSync(join(LIB_COMPONENTES, ruta), 'utf8')
 const esPuente = (codigo) => /export\s*\{[^}]*\bas\s+default\b[^}]*\}\s*from\s*'owncoding-ui'/.test(codigo)
 
 test('no aparecen copias locales nuevas de objetos publicados en la biblioteca (#253)', () => {
@@ -121,7 +130,7 @@ test('no aparecen copias locales nuevas de objetos publicados en la biblioteca (
     .filter((nombre) => nombre.endsWith('.jsx'))
     .map((nombre) => nombre.replace(/\.jsx$/, ''))
   const copias = locales.filter((nombre) => {
-    if (!publicados.has(nombre)) return false
+    if (!publicados.has(nombre) || ADAPTADORES.has(nombre)) return false
     return !esPuente(readFileSync(join(RAIZ, 'components/shared', `${nombre}.jsx`), 'utf8'))
   })
   const nuevas = copias.filter((nombre) => !DEUDA_BIBLIOTECA.has(nombre))
@@ -145,10 +154,30 @@ test('no aparecen copias locales nuevas de objetos publicados en la biblioteca (
   }
 })
 
+test('los adaptadores delegan la UI en la biblioteca (#253)', () => {
+  const adaptadores = {
+    RucField: { propio: /consultarRucDemo/, prohibido: /<Input\b/ },
+    CityAutocomplete: { propio: /api\.get\(`\/api\/geo\/cities/, prohibido: /<Input\b|<ul\b/ },
+    SerialField: { propio: /leerEtiqueta/, prohibido: /<Input\b/ },
+  }
+  for (const [nombre, reglas] of Object.entries(adaptadores)) {
+    const codigo = readFileSync(join(RAIZ, 'components/shared', `${nombre}.jsx`), 'utf8')
+    assert.match(codigo, /from 'owncoding-ui'/, `${nombre} usa la biblioteca`)
+    assert.match(codigo, reglas.propio, `${nombre} conserva su lógica de datos`)
+    assert.ok(!reglas.prohibido.test(codigo), `${nombre} no reimplementa la UI`)
+  }
+})
+
 test('los objetos de Abastecimiento F1 (#250/#254) están publicados', () => {
   const indice = readFileSync(LIB_INDEX, 'utf8')
-  for (const objeto of ['ChipPrioridad', 'ContadoresCompra', 'TarjetaNecesidad', 'PRIORIDADES_COMPRA', 'ESTADOS_NECESIDAD', 'ordenarPorPrioridad', 'PASOS_NECESIDAD']) {
+  for (const objeto of ['ChipPrioridad', 'ChipOrigen', 'ContadoresCompra', 'TarjetaNecesidad', 'PRIORIDADES_COMPRA', 'ORIGENES_NECESIDAD', 'ESTADOS_NECESIDAD', 'claveDePrioridad', 'claveDeEstado', 'ordenarPorPrioridad', 'PASOS_NECESIDAD']) {
     assert.ok(indice.includes(objeto), `owncoding-ui debe publicar ${objeto} para la demanda F1`)
+  }
+  // El contrato del backend (INV) viaja en los mapas: prioridades, orígenes y
+  // estados, así el panel de PLT no traduce nada.
+  const mapas = readFileSync(join(LIB_COMPONENTES, '..', 'utils', 'abastecimiento.js'), 'utf8')
+  for (const clave of ['urgente', 'alta', 'normal', 'baja', 'sale_no_stock', 'reservation_no_stock', 'abierta', 'asignada', 'comprada', 'recibida', 'cancelada']) {
+    assert.match(mapas, new RegExp(`${clave}:`), `falta la clave ${clave} del contrato F1`)
   }
   // La tarjeta compone los objetos del abastecimiento y no reimplementa los mapas.
   const tarjeta = readFileSync(join(LIB_COMPONENTES, 'TarjetaNecesidad.jsx'), 'utf8')
