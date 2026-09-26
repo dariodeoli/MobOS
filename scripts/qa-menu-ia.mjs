@@ -159,6 +159,21 @@ for (const variante of VARIANTES) {
       pasos.push('comparador: sin ítem en el menú')
     }
 
+    // /garantias sigue siendo pestaña de Taller (sin entrada de menú).
+    await page.goto(`${BASE}/garantias`, { waitUntil: 'domcontentloaded' }).catch(() => {})
+    await ESPERA(1600)
+    const garantias = {
+      url: await page.evaluate('location.pathname'),
+      h1: await page.locator('h1').first().innerText().catch(() => null),
+      pestana: await page.getByRole('group', { name: /Ver taller o garantías/ }).getByRole('button', { name: 'Garantías', exact: true }).getAttribute('aria-pressed').catch(() => null),
+    }
+    if (garantias.url === '/garantias' && /taller/i.test(garantias.h1 || '')) {
+      await captura('03d-garantias-taller')
+      pasos.push(`garantías: ${garantias.url} · ${garantias.h1} · pestaña activa: ${garantias.pestana}`)
+    } else {
+      pasos.push(`garantías: no entra a Taller (${garantias.url})`)
+    }
+
     // ── Vendedor (contexto nuevo) ──────────────────────────────────────
     const contextoVendedor = await navegador.newContext({
       viewport: { width: variante.ancho, height: variante.alto },
