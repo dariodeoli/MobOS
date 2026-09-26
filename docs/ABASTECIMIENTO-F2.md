@@ -74,19 +74,35 @@ Una línea con `needId` puede comprar **menos, igual o más** que la necesidad:
 - Una misma necesidad no puede repetirse en dos líneas de la misma compra.
 - La consolidación ya no infla a 1 una necesidad cubierta (cantidad 0).
 
+## 4-ter. «+ Agregar compra adicional» (`PATCH action:'addLines'`)
+
+Agrega líneas a una compra **activa** (COMPRADA) sin crear otra compra:
+
+- Líneas sin `needId` → **reposición libre**; con `needId` → cobertura
+  parcial/completa como en el alta (misma auditoría y descuento de la demanda).
+- Valida: compra activa; **sin cuenta a pagar** y **sin lotes preparados**
+  (esas líneas van en una compra nueva, para no mover plata ni manifiestos ya
+  emitidos); productos/necesidades existentes y sin repetir una necesidad en la
+  compra; IMEI válidos/únicos (global y contra el inventario).
+- Audita `SUPPLY_PURCHASE_LINES_ADDED` con líneas, unidades, libres y seriales.
+- No mueve stock (regla dura) y el GET expone **`libreQuantity`** por línea
+  (excedente de una línea con necesidad, o toda la cantidad si es libre).
+
 ## 5. Tests
 
 - Unit `backend/tests/supply.test.ts`: `codigoCompra`, `normalizarSeriales`
   (Luhn, repetidos, texto pegado) y `normalizarCompra` (proveedor, moneda/costo,
   líneas, IMEI pendientes, límites).
-- Arnés HTTP `backend/tests/supply-purchases.mjs` (**50 chequeos**): compra en
+- Arnés HTTP `backend/tests/supply-purchases.mjs` (**59 chequeos**): compra en
   USD con referencia + línea que cubre una necesidad con IMEI + compra adicional
   sin IMEI; necesidad cubierta/visible por estado; **stock intacto**; duplicados
   (otra compra / inventario); completar IMEI pendiente; 400/401/403/404/409;
   cancelación que devuelve la necesidad al panel; y **compra parcial**: 5
   pedidas → compra 2 (quedan 3 en «Por comprar») → completa con otra compra →
   excedente libre → duplicar la necesidad en la misma compra (400) → cancelar
-  devuelve lo cubierto.
+  devuelve lo cubierto; y **líneas adicionales**: compra sin costo → addLines con
+  reposición libre + necesidad pendiente, validaciones (repetida/cuenta
+  a pagar/cancelada) y `libreQuantity` del excedente.
 - `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` → **PASS**;
   `npm run db:check` verde con la migración aplicada.
 

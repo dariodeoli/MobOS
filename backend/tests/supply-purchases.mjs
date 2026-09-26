@@ -188,4 +188,29 @@ const detalleRestaurado = await req('/api/supply/purchases')
 const lineasRestauradas = detalleRestaurado.compras.find((fila) => fila.id === aCancelar.id)?.lines || []
 assert.equal(lineasRestauradas[0]?.coveredQuantity, 2, 'la línea conserva la cobertura para la trazabilidad')
 
-console.log(`PASS: compra ${compra.code} (USD → Gs) con IMEI, compra parcial y adicional · necesidad cubierta/devuelta · excedente libre · stock intacto · ${checks} chequeos`)
+// 11) «+ Agregar compra adicional»: líneas nuevas en una compra activa, con
+// reposición libre y cobertura de una necesidad pendiente.
+const productoLibre = await req('/api/products', 'POST', { name: `Libre ${sufijo}`, sku: `LIB-${sufijo}`, pricePyg: 900000, costPyg: 600000, stock: 0, branchId: rama }, 201)
+const necesariaLibre = await req('/api/supply/needs', 'POST', { productId: productoLibre.id, quantity: 2, branchId: rama, notes: 'Para la compra adicional' }, 201)
+const compraAbierta = await req('/api/supply/purchases', 'POST', { supplierName: 'Proveedor Libre', currency: 'PYG', reference: `FAC-LIB-${sufijo}`, lines: [{ productId: productoLibre.id, quantity: 1 }] }, 201)
+assert.equal(compraAbierta.costPyg, null, 'la compra puede nacer sin costo (factura pendiente)')
+assert.equal(compraAbierta.lines[0].libreQuantity, 1, 'una línea sin necesidad es reposición libre')
+const conAdicionales = await req('/api/supply/purchases', 'PATCH', { id: compraAbierta.id, action: 'addLines', lines: [{ productId: productoLibre.id, quantity: 3 }, { needId: necesariaLibre.id, productId: productoLibre.id, quantity: 2 }] }, 200)
+assert.equal(conAdicionales.lines.length, 3, 'la compra suma las líneas adicionales')
+assert.equal(conAdicionales.lines.filter((linea) => !linea.needId).reduce((suma, linea) => suma + linea.quantity, 0), 4, 'la reposición libre suma 4')
+assert.equal(conAdicionales.lines.find((linea) => linea.needId === necesariaLibre.id).coveredQuantity, 2, 'la necesidad pendiente queda cubierta')
+const cubiertaLibre = await req(`/api/supply/needs?status=COMPRADA&productId=${productoLibre.id}`)
+assert.ok(cubiertaLibre.grupos.some((grupo) => grupo.necesidades.includes(necesariaLibre.id)), 'la necesidad pasa a COMPRADA')
+const stockLibre = await req(`/api/stock?branchId=${rama}`)
+const filaLibre = (Array.isArray(stockLibre) ? stockLibre : stockLibre.productos || []).find((item) => item.id === productoLibre.id)
+assert.equal(Number(filaLibre?.stock ?? 0), 0, 'agregar líneas tampoco mueve stock')
+
+// Una necesidad no se repite en la misma compra (ni contra las líneas ya cargadas).
+await req('/api/supply/purchases', 'PATCH', { id: compraAbierta.id, action: 'addLines', lines: [{ needId: necesariaLibre.id, productId: productoLibre.id, quantity: 1 }] }, 409)
+// Con cuenta a pagar o cancelada no se agregan líneas.
+await req('/api/supply/purchases', 'PATCH', { id: parcial.id, action: 'addLines', lines: [{ productId: productoLibre.id, quantity: 1 }] }, 409)
+await req('/api/supply/purchases', 'PATCH', { id: cancelada.id, action: 'addLines', lines: [{ productId: productoLibre.id, quantity: 1 }] }, 409)
+// El excedente de una línea que compró de más también queda como libre.
+assert.equal(conExtra.lines[0].libreQuantity, 3, 'comprar 8 para una necesidad de 5 deja 3 libres')
+
+console.log(`PASS: compra ${compra.code} (USD → Gs) con IMEI, parcial y adicional · cobertura/validaciones · reposición libre · stock intacto · ${checks} chequeos`)

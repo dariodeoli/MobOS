@@ -1,7 +1,7 @@
 import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
-import { coberturaDeCompra, codigoCompra, compararModelo, cuadrarSeriales, normalizarCompra, resumenPreparacion } from '../../../../lib/supply'
+import { coberturaDeCompra, codigoCompra, compararModelo, cuadrarSeriales, normalizarCompra, normalizarLineasCompra, resumenPreparacion } from '../../../../lib/supply'
 
 // #250 Fase 2 (Centro de Abastecimiento): compra rápida y stock adicional.
 //
@@ -42,8 +42,76 @@ async function compraConDetalle(id: string, tenant: string) {
     lines: compra.lines.map((linea) => ({
       ...linea,
       originalUnitCost: linea.originalUnitCost === null ? null : Number(linea.originalUnitCost),
+      // Excedente de la línea: reposición libre (sin cliente ni necesidad).
+      libreQuantity: linea.needId ? Math.max(0, linea.quantity - (linea.coveredQuantity ?? linea.quantity)) : linea.quantity,
     })),
   }
+}
+
+// Seriales nuevos: ni repetidos en otra compra ni ya en el inventario.
+async function validarSerialesNuevos(tenant: string, seriales: string[]): Promise<string | null> {
+  if (!seriales.length) return null
+  const duplicado = await prisma.supplyPurchaseSerial.findFirst({ where: { tenantId: tenant, serial: { in: seriales } }, select: { serial: true } })
+  if (duplicado) return `El IMEI ${duplicado.serial} ya está cargado en otra compra.`
+  const enStock = await prisma.inventoryUnit.findFirst({ where: { tenantId: tenant, serial: { in: seriales } }, select: { serial: true } })
+  if (enStock) return `El IMEI ${enStock.serial} ya está en el inventario.`
+  return null
+}
+
+// Crea las líneas de una compra y aplica su cobertura sobre las necesidades:
+// parcial deja el resto en «Por comprar», completa deja 0 + COMPRADA y el
+// excedente es reposición libre (queda en la línea y en la auditoría).
+async function crearLineasDeCompra(tx: any, { tenantId, userId, purchaseId, code, lineas, necesidadPorId }: {
+  tenantId: string
+  userId: string
+  purchaseId: string
+  code: string
+  lineas: Array<{ needId: string | null; productId: string; condition: string; quantity: number; unitCostPyg: number | null; originalUnitCost: number | null; serials: string[] }>
+  necesidadPorId: Map<string, { quantity: number }>
+}) {
+  const coberturas = new Map<string, { cubierta: number; faltan: number; extra: number }>()
+  for (const linea of lineas) {
+    if (!linea.needId) continue
+    const necesidad = necesidadPorId.get(linea.needId)!
+    coberturas.set(linea.needId, coberturaDeCompra({ necesaria: necesidad.quantity, comprada: linea.quantity }))
+  }
+  for (const linea of lineas) {
+    const fila = await tx.supplyPurchaseLine.create({
+      data: {
+        tenantId,
+        purchaseId,
+        needId: linea.needId,
+        productId: linea.productId,
+        condition: linea.condition as never,
+        quantity: linea.quantity,
+        unitCostPyg: linea.unitCostPyg,
+        originalUnitCost: linea.originalUnitCost,
+        coveredQuantity: linea.needId ? coberturas.get(linea.needId)!.cubierta : null,
+      },
+    })
+    if (linea.serials.length) {
+      await tx.supplyPurchaseSerial.createMany({ data: linea.serials.map((serial) => ({ tenantId, lineId: fila.id, serial })) })
+    }
+  }
+  for (const [needId, cobertura] of coberturas) {
+    await tx.supplyNeed.update({
+      where: { id: needId },
+      data: { quantity: cobertura.faltan, purchaseId, ...(cobertura.faltan === 0 ? { status: 'COMPRADA' } : {}) },
+    })
+    if (cobertura.faltan > 0) {
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          userId,
+          action: 'SUPPLY_NEED_PARTIAL_PURCHASED',
+          entity: 'SupplyNeed',
+          entityId: needId,
+          metadata: { purchaseId, code, cubierta: cobertura.cubierta, faltan: cobertura.faltan },
+        },
+      })
+    }
+  }
+  return coberturas
 }
 
 export async function GET(request: Request) {
@@ -85,6 +153,7 @@ export async function GET(request: Request) {
       ...linea,
       originalUnitCost: linea.originalUnitCost === null ? null : Number(linea.originalUnitCost),
       faltan: Math.max(0, linea.quantity - linea.serials.length),
+      libreQuantity: linea.needId ? Math.max(0, linea.quantity - (linea.coveredQuantity ?? linea.quantity)) : linea.quantity,
     })),
   }))
   // `?pendientes=1` deja solo las compras con IMEI por completar (preparación).
@@ -153,12 +222,8 @@ export async function POST(request: Request) {
 
   // IMEI/seriales: sin duplicados dentro de la compra ni contra lo ya cargado.
   const seriales = compra.lines.flatMap((linea) => linea.serials)
-  if (seriales.length) {
-    const duplicado = await prisma.supplyPurchaseSerial.findFirst({ where: { tenantId: tenant, serial: { in: seriales } }, select: { serial: true } })
-    if (duplicado) return error(`El IMEI ${duplicado.serial} ya está cargado en otra compra.`, 409)
-    const enStock = await prisma.inventoryUnit.findFirst({ where: { tenantId: tenant, serial: { in: seriales } }, select: { serial: true } })
-    if (enStock) return error(`El IMEI ${enStock.serial} ya está en el inventario.`, 409)
-  }
+  const problemaSeriales = await validarSerialesNuevos(tenant, seriales)
+  if (problemaSeriales) return error(problemaSeriales, 409)
 
   // Código compartido (#250 §2): manual o correlativo de la empresa.
   let code = compra.code
@@ -189,45 +254,7 @@ export async function POST(request: Request) {
         createdById: session.user.id,
       },
     })
-    for (const linea of compra.lines) {
-      const fila = await tx.supplyPurchaseLine.create({
-        data: {
-          tenantId: tenant,
-          purchaseId: cabecera.id,
-          needId: linea.needId,
-          productId: linea.productId,
-          condition: linea.condition as never,
-          quantity: linea.quantity,
-          unitCostPyg: linea.unitCostPyg,
-          originalUnitCost: linea.originalUnitCost,
-          coveredQuantity: linea.needId ? coberturaPorNecesidad.get(linea.needId)!.cubierta : null,
-        },
-      })
-      if (linea.serials.length) {
-        await tx.supplyPurchaseSerial.createMany({ data: linea.serials.map((serial) => ({ tenantId: tenant, lineId: fila.id, serial })) })
-      }
-    }
-    for (const [needId, cobertura] of coberturaPorNecesidad) {
-      // La demanda descuenta siempre lo que la compra cubrió: parcial deja el
-      // resto en «Por comprar» y completa deja la necesidad en 0 + COMPRADA
-      // (cancelar la compra devuelve exactamente lo cubierto).
-      await tx.supplyNeed.update({
-        where: { id: needId },
-        data: { quantity: cobertura.faltan, purchaseId: cabecera.id, ...(cobertura.faltan === 0 ? { status: 'COMPRADA' } : {}) },
-      })
-      if (cobertura.faltan > 0) {
-        await tx.auditLog.create({
-          data: {
-            tenantId: tenant,
-            userId: session.user.id,
-            action: 'SUPPLY_NEED_PARTIAL_PURCHASED',
-            entity: 'SupplyNeed',
-            entityId: needId,
-            metadata: { purchaseId: cabecera.id, code, cubierta: cobertura.cubierta, faltan: cobertura.faltan },
-          },
-        })
-      }
-    }
+    await crearLineasDeCompra(tx, { tenantId: tenant, userId: session.user.id, purchaseId: cabecera.id, code, lineas: compra.lines, necesidadPorId })
     // FIN (#254): con costo cargado, la compra genera su cuenta a pagar al
     // proveedor (contado nace paga; crédito queda pendiente con vencimiento).
     // Sin costo (factura pendiente) no hay cuenta hasta que el monto exista.
@@ -345,6 +372,66 @@ export async function PATCH(request: Request) {
     return json(await compraConDetalle(actualizada.id, tenant))
   }
 
+  // #250 F2: «+ Agregar compra adicional» sobre una compra activa. Las líneas
+  // sin `needId` son reposición libre (sin cliente); las que cubren una
+  // necesidad aplican cobertura parcial/completa con su auditoría.
+  if (body?.action === 'addLines') {
+    if (compra.status !== 'COMPRADA') return error('Solo se agregan líneas a una compra activa.', 409)
+    const cuenta = await prisma.supplierPayable.findFirst({ where: { tenantId: tenant, supplyPurchaseId: compra.id }, select: { id: true } })
+    if (cuenta) return error('La compra ya tiene cuenta a pagar: cargá las líneas adicionales en una compra nueva.', 409)
+    const envios = await prisma.supplyShipment.count({ where: { tenantId: tenant, purchaseId: compra.id } })
+    if (envios) return error('La compra ya tiene lotes preparados: cargá las líneas adicionales en una compra nueva.', 409)
+
+    const normLineas = normalizarLineasCompra(body?.lines, { currency: compra.currency, rate: compra.exchangeRatePyg === null ? null : Number(compra.exchangeRatePyg) })
+    if (!normLineas.ok) return error(normLineas.error)
+    const lineasNuevas = normLineas.lines
+
+    const productIds = [...new Set(lineasNuevas.map((linea) => linea.productId))]
+    const productos = await prisma.product.findMany({ where: { id: { in: productIds }, tenantId: tenant }, select: { id: true } })
+    if (productos.length !== productIds.length) return error('Alguna línea apunta a un producto inexistente.', 404)
+
+    const needIds = [...new Set(lineasNuevas.map((linea) => linea.needId).filter(Boolean))] as string[]
+    const necesidades = needIds.length ? await prisma.supplyNeed.findMany({ where: { id: { in: needIds }, tenantId: tenant }, select: { id: true, productId: true, condition: true, status: true, quantity: true } }) : []
+    if (necesidades.length !== needIds.length) return error('Alguna necesidad no existe.', 404)
+    const necesidadPorId = new Map(necesidades.map((necesidad) => [necesidad.id, necesidad]))
+    const yaEnLaCompra = new Set((await prisma.supplyPurchaseLine.findMany({ where: { purchaseId: compra.id, tenantId: tenant, needId: { not: null } }, select: { needId: true } })).map((fila) => fila.needId))
+    const vistas = new Set<string>()
+    for (const linea of lineasNuevas) {
+      if (!linea.needId) continue
+      const necesidad = necesidadPorId.get(linea.needId)!
+      if (necesidad.productId !== linea.productId) return error('La línea no coincide con el producto de la necesidad que cubre.')
+      if (necesidad.condition !== linea.condition) return error('La línea no coincide con la condición de la necesidad que cubre.')
+      if (ESTADOS_CERRADOS.includes(necesidad.status)) return error('Hay una necesidad que ya está cubierta o cancelada.', 409)
+      if (yaEnLaCompra.has(linea.needId) || vistas.has(linea.needId)) return error('Una necesidad no puede repetirse en una compra.', 409)
+      vistas.add(linea.needId)
+    }
+
+    const serialesNuevos = lineasNuevas.flatMap((linea) => linea.serials)
+    const problemaSeriales = await validarSerialesNuevos(tenant, serialesNuevos)
+    if (problemaSeriales) return error(problemaSeriales, 409)
+
+    await prisma.$transaction(async (tx) => {
+      await crearLineasDeCompra(tx, { tenantId: tenant, userId: session.user.id, purchaseId: compra.id, code: compra.code, lineas: lineasNuevas, necesidadPorId })
+      await tx.auditLog.create({
+        data: {
+          tenantId: tenant,
+          userId: session.user.id,
+          action: 'SUPPLY_PURCHASE_LINES_ADDED',
+          entity: 'SupplyPurchase',
+          entityId: compra.id,
+          metadata: {
+            code: compra.code,
+            lineas: lineasNuevas.length,
+            unidades: lineasNuevas.reduce((suma, linea) => suma + linea.quantity, 0),
+            libres: lineasNuevas.filter((linea) => !linea.needId).reduce((suma, linea) => suma + linea.quantity, 0),
+            seriales: serialesNuevos.length,
+          },
+        },
+      })
+    })
+    return json(await compraConDetalle(compra.id, tenant))
+  }
+
   // IMEI: carga múltiple (pegado) o escaneo de a uno (mobile). Ambos comparten
   // el cuadre: Luhn, repetidos en el lote, duplicados globales y cantidad vs
   // comprada. Si la línea queda incompleta, el IMEI queda diferido (#250 §7).
@@ -389,5 +476,5 @@ export async function PATCH(request: Request) {
     return json(escaneo ? { ...detalle, linea: linea.id, agregados: seriales.nuevos.length, aviso } : detalle)
   }
 
-  return error('Acción inválida: usá cancel, serials o scan.')
+  return error('Acción inválida: usá cancel, addLines, serials o scan.')
 }
