@@ -3,6 +3,7 @@ import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
 import { consolidarNecesidades, normalizarNecesidadManual, NECESIDAD_ESTADOS, type NecesidadEntrada } from '../../../../lib/supply'
+import { puedeVerCliente } from '../../../../lib/supply-customer'
 import { normalizarCentro } from '../../../../lib/supply-demand'
 
 // #250 Fase 1 (Centro de Abastecimiento): API mínima del panel «Por comprar».
@@ -57,8 +58,10 @@ export async function GET(request: Request) {
     take: limite,
   })
 
-  // El nombre del cliente sale solo para administración/gerencia (#250 §4).
-  const verCliente = ['ADMIN', 'GERENTE'].includes(session.user.role)
+  // El cliente de la venta/reserva vinculada: el nombre solo para quien puede
+  // gestionar clientes (`customers:manage`); el resto ve el id y la tarjeta
+  // sabe que hay un cliente detrás (`clienteOculto`, #254).
+  const verCliente = puedeVerCliente(session.user.permissions)
   const entradas: NecesidadEntrada[] = filas.map((fila) => ({
     id: fila.id,
     productId: fila.productId,
