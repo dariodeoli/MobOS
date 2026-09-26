@@ -83,4 +83,65 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
       }
     }
   })
+
+  test('la navegación se contrae a íconos con tooltip y se recuerda', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/configuracion/mi-cuenta')
+    const nav = page.locator(NAV)
+    const toggle = page.getByTestId('config-nav-toggle')
+    await expect(toggle).toBeVisible({ timeout: 20_000 })
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    await expect(nav).toHaveAttribute('data-colapsado', '0')
+
+    await toggle.click()
+    await expect(nav).toHaveAttribute('data-colapsado', '1')
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    // Solo íconos: la etiqueta visible se oculta y el nombre sigue por aria/title.
+    await expect(nav.getByText('Organización', { exact: true })).toBeHidden()
+    const tab = page.getByRole('tab', { name: 'Organización', exact: true })
+    await expect(tab).toHaveAttribute('title', 'Organización')
+    await expect(tab).toHaveAttribute('aria-label', 'Organización')
+    const caja = await nav.boundingBox()
+    expect(caja.width, 'el riel queda angosto (solo íconos)').toBeLessThan(120)
+
+    // Se recuerda en el dispositivo.
+    await page.reload()
+    await expect(page.locator(NAV)).toHaveAttribute('data-colapsado', '1')
+
+    // Teclado: la flecha mueve y activa la pestaña contigua.
+    await page.getByRole('tab', { name: 'Organización', exact: true }).focus()
+    await page.keyboard.press('ArrowDown')
+    await expect(page.getByRole('tab', { name: 'Equipo y acceso', exact: true })).toHaveAttribute('aria-selected', 'true')
+
+    await page.getByTestId('config-nav-toggle').click()
+    await expect(page.locator(NAV)).toHaveAttribute('data-colapsado', '0')
+  })
+
+  test('capturas del menú colapsable', async ({ page }) => {
+    test.setTimeout(180_000)
+    const salida = process.env.MOBOS_CAPTURAS || 'test-results/253-config-nav'
+    mkdirSync(salida, { recursive: true })
+    for (const [tema, modo] of [['claro', 'light'], ['oscuro', 'dark']]) {
+      await page.addInitScript(({ m }) => { try { localStorage.setItem('mobos:theme', m) } catch { /* sin storage */ } }, { m: modo })
+      await page.setViewportSize({ width: 1280, height: 900 })
+      await page.goto('/configuracion/mi-cuenta')
+      await expect(page.getByRole('tab', { name: 'Mi cuenta', exact: true }).first()).toBeVisible({ timeout: 20_000 })
+      await page.evaluate(() => { try { localStorage.removeItem('mobos:config-nav') } catch { /* sin storage */ } })
+      await page.reload()
+      await expect(page.locator(NAV)).toHaveAttribute('data-colapsado', '0')
+      await page.screenshot({ path: `${salida}/nav-expandido-${tema}-desktop.jpg`, type: 'jpeg', quality: 78 })
+      await page.getByTestId('config-nav-toggle').click()
+      await expect(page.locator(NAV)).toHaveAttribute('data-colapsado', '1')
+      await page.screenshot({ path: `${salida}/nav-colapsado-${tema}-desktop.jpg`, type: 'jpeg', quality: 78 })
+
+      if (tema === 'claro') {
+        // Mobile/tablet: la tira horizontal (el toggle no se muestra).
+        await page.setViewportSize({ width: 390, height: 844 })
+        await page.goto('/configuracion/mi-cuenta')
+        await expect(page.getByRole('tab', { name: 'Mi cuenta', exact: true }).first()).toBeVisible({ timeout: 20_000 })
+        await expect(page.getByTestId('config-nav-toggle')).toBeHidden()
+        await page.screenshot({ path: `${salida}/nav-horizontal-mobile-claro.jpg`, type: 'jpeg', quality: 78 })
+      }
+    }
+  })
 })
