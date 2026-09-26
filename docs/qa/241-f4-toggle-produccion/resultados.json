@@ -1,0 +1,56 @@
+{
+  "verificado": "2026-09-26T08:55:43.889Z",
+  "base": "https://app.moboss.online",
+  "version": "1.0.178",
+  "erroresConsola": [],
+  "resultados": [
+    {
+      "paso": "entrar a la demo en producción",
+      "estado": "ok",
+      "detalle": "v1.0.178",
+      "capturas": [
+        "01-v2-default-resumen-claro.jpg"
+      ]
+    },
+    {
+      "paso": "el default es v2 (claro y oscuro, desktop y mobile)",
+      "estado": "ok",
+      "detalle": "shell v2=1 · clave sin clave",
+      "capturas": [
+        "02-v2-default-resumen-claro-desktop.jpg",
+        "03-v2-default-pos-claro-mobile.jpg",
+        "04-v2-default-resumen-oscuro-desktop.jpg",
+        "05-v2-default-pos-oscuro-mobile.jpg"
+      ]
+    },
+    {
+      "paso": "el toggle de vuelta al diseño anterior funciona y se recuerda",
+      "estado": "ok",
+      "detalle": "shell anterior=0 · clave 0",
+      "capturas": [
+        "06-preferencias-selector.jpg",
+        "07-diseno-anterior-resumen-claro.jpg",
+        "08-diseno-anterior-pos-claro-mobile.jpg"
+      ]
+    },
+    {
+      "paso": "volver al rediseño deja todo como estaba",
+      "estado": "ok",
+      "detalle": "shell v2=1 · clave 1",
+      "capturas": [
+        "09-v2-vuelta-resumen-claro.jpg"
+      ]
+    },
+    {
+      "paso": "rutas clave siguen funcionando",
+      "estado": "ok",
+      "detalle": "/pos · /inventario/unidades · /ayuda/ayuda · /configuracion/mi-cuenta",
+      "capturas": []
+    }
+  ],
+  "resumen": {
+    "pasos": 5,
+    "ok": 5,
+    "fallos": 0
+  }
+}

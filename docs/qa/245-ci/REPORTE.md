@@ -44,3 +44,14 @@ componente es del dominio FIN — avisado en el issue).
 - `e2e/finanzas-comisiones.spec.js --repeat-each=3` → **6/6**.
 - Antes del fix, el mismo gate: 3/5 con
   `config-comercial 414: «Editar lista» 28x28 ×21`.
+
+## Actualización 26/09 (tarde)
+
+- Racha en `main`: **1 verde** (v1.0.178, run `36218953912`). Los dos rojos
+  previos son de la saga del gate touch: `358635c` (test del gate) y `7d8d241`
+  (release .177) → corregidos en los commits siguientes; local se re-verificó
+  `qa-249-clientes-touch` **3/3** y el gate de los 7 grupos **3/3**.
+- `#245` ya estaba **cerrado** con su racha original (3 verdes con causas raíz
+  corregidas, comentario de cierre en el issue). Con el historial de hoy, la
+  meta de **3 corridas completas verdes consecutivas** todavía no se repite:
+  faltan **2**.
