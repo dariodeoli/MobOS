@@ -166,6 +166,35 @@ node scripts/e2e-shards.mjs --generar
 node scripts/e2e-shards.mjs --check
 ```
 
+### Correos de prueba (`scripts/emails-prueba.mjs`)
+
+Renderiza **los 10 correos transaccionales** (bienvenida, invitación,
+recuperación, verificación, comprobante, informe de dispositivo, recordatorio de
+pago, pago vencido, garantía y reserva) con **datos ficticios** y los **envía a
+la casilla de prueba** si el transporte está configurado; si no, deja los
+`.html` en un directorio local para revisarlos.
+
+```bash
+# Vista previa local (sin transporte): .emails-prueba/ con 10 .html + index.html
+npm run emails:prueba
+
+# Enviar a la casilla de prueba (transporte configurado)
+node scripts/emails-prueba.mjs --to casilla@dominio.com
+MOBOS_EMAIL_TO=casilla@dominio.com node scripts/emails-prueba.mjs
+```
+
+- El envío real lo decide `emailTransportConfigured()`: exige relay
+  (`WEEM_EMAIL_RELAY_URL` + `WEEM_EMAIL_RELAY_TOKEN`), `MOBOS_APP_URL` y la clave
+  del outbox (`MOBOS_EMAIL_OUTBOX_ACTIVE_KEY_ID` +
+  `MOBOS_EMAIL_OUTBOX_ENCRYPTION_KEYS_JSON`). Con transporte y sin casilla el
+  script **no envía nada** y lo explica.
+- `--solo-html` fuerza la vista previa aunque haya transporte; `--out <dir>`
+  cambia el directorio (default `.emails-prueba/`, ignorado por git).
+- Los builders son los **reales** de `backend/lib/email.ts` (mismo puente
+  TypeScript que `backend/tests/run-unit.cjs`): no hay plantillas duplicadas.
+- Pruebas unitarias: `backend/tests/emails-prueba.test.ts` (los 10 correos,
+  argumentos y vista previa de punta a punta, sin red).
+
 ## Validación
 
 - **#245 (sin cuarentena):** 3 rondas × 3 shards en verde con la distribución
