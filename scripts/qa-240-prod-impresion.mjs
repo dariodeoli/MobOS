@@ -314,6 +314,40 @@ try {
     pasos.push({ paso: 'hoja de estación (demo)', detalle: 'el taller no mostró el botón de imprimir en serie', ok: false })
   }
 
+  // 4 ter) Etiquetas de góndola (#97): el modal elige un producto y «Descargar
+  // PDF» baja el HTML real; se arma el PDF desplegado y se verifica.
+  await page.goto(`${BASE}/inventario/unidades`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
+  await esperar(2500)
+  const botonGondola = page.getByRole('button', { name: 'Etiquetas de góndola' })
+  if (await botonGondola.count()) {
+    await botonGondola.click()
+    await esperar(1000)
+    const modalGondola = page.getByRole('dialog', { name: 'Etiquetas de góndola' })
+    const primerProducto = modalGondola.getByRole('checkbox').first()
+    if (await primerProducto.count()) {
+      await primerProducto.check()
+      await captura('13-etiquetas-gondola-modal')
+      await modalGondola.getByRole('button', { name: 'Descargar PDF' }).click()
+      const marcoGondola = page.locator('iframe[aria-hidden="true"]').last()
+      await marcoGondola.waitFor({ state: 'attached', timeout: 15_000 })
+      await esperar(600)
+      const htmlGondola = await marcoGondola.contentFrame().locator('html').evaluate((el) => el.outerHTML)
+      const pdfGondola = await pdfDeHtml('etiquetas-gondola-80mm', htmlGondola, 'thermal-80')
+      const problemas = []
+      if (!/ETIQUETA DE PRODUCTO/.test(htmlGondola)) problemas.push('sin rótulo de producto')
+      if (!/class="price"/.test(htmlGondola)) problemas.push('sin precio')
+      if (!/class="barcode"/.test(htmlGondola)) problemas.push('sin código de barras')
+      if (!/SKU /.test(htmlGondola)) problemas.push('sin SKU')
+      resultados.push({ documento: 'etiquetas-gondola-80mm', version: version ? `v${version}` : '', paginas: pdfGondola.paginas, qr: '', estado: problemas.length ? 'fallo' : 'ok', ...(problemas.length ? { detalle: problemas.join(' · ') } : {}) })
+    } else {
+      pasos.push({ paso: 'etiquetas de góndola (demo)', detalle: 'el modal no listó productos', ok: false })
+    }
+    await page.keyboard.press('Escape')
+    await esperar(400)
+  } else {
+    pasos.push({ paso: 'etiquetas de góndola (demo)', detalle: 'sin botón en Inventario', ok: false })
+  }
+
   // 5) Prueba física (#17/#96): el QR del ticket de prueba abre /prueba con los
   // datos del papel; se verifica la página desplegada con datos de ejemplo.
   await page.goto(`${BASE}/prueba?d=${encodeURIComponent('lan:192.168.1.23:9100')}&v=1234&f=2026-09-25T15%3A00%3A00.000Z&t=corta`, { waitUntil: 'domcontentloaded', timeout: 60_000 })

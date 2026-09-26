@@ -106,6 +106,14 @@ try {
   }, { grupos, hoy: HOY.toISOString() })
   await pdfHtml('hoja-estacion-serie', htmlHojas)
 
+  // 1 bis) Hoja individual de un carril (el botón «Hoja de estación»), para
+  // comparar con la serie.
+  const htmlHoja = await page.evaluate(async ({ unidades, hoy }) => {
+    const { buildStationSheetHtml } = await import('/src/lib/printing/hojaEstacion.js')
+    return buildStationSheetHtml(unidades, { estacion: 'Por verificar', fecha: new Date(hoy) })
+  }, { unidades: grupos[0].unidades, hoy: HOY.toISOString() })
+  await pdfHtml('hoja-estacion-por-verificar', htmlHoja)
+
   // 2) Certificados finales en serie: uno por equipo verificado.
   const listas = grupos.find((grupo) => grupo.estacion === 'Listo para vender').unidades
   const htmlCertificados = await page.evaluate(async ({ unidades, consultas, base, emisor, hoy }) => {

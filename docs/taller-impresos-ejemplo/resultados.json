@@ -1,12 +1,18 @@
 {
-  "base": "http://127.0.0.1:5277",
-  "fecha": "2026-09-26T08:24:03.604Z",
+  "base": "http://127.0.0.1:5278",
+  "fecha": "2026-09-26T08:46:30.032Z",
   "pasos": [
     {
       "documento": "hoja-estacion-serie",
       "archivo": "hoja-estacion-serie.pdf",
       "formato": "A4",
       "paginas": 3
+    },
+    {
+      "documento": "hoja-estacion-por-verificar",
+      "archivo": "hoja-estacion-por-verificar.pdf",
+      "formato": "A4",
+      "paginas": 1
     },
     {
       "documento": "certificados-serie",

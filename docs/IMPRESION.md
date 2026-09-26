@@ -290,6 +290,8 @@ estado se verifica en `/health.usb`. Salidas esperadas para comparar el papel
   **CODE128** (`GS k 73`) con módulo 2 y altura 80 puntos. El precio es
   `pricePyg`; si quien llama pasa `precioPyg`/`lista` (lista del cliente o
   escalón por cantidad), ese manda y la etiqueta aclara la lista.
+- **Ejemplo imprimible**: `docs/etiquetas-gondola-ejemplo/` (HTML 80/58 mm y
+  ESC/POS, con un EAN-13 y CODE128) y `scripts/ejemplo-etiquetas-gondola.mjs`.
 - **Verificación con el lector del local**: escaneá la etiqueta impresa; el
   valor leído debe ser exactamente el SKU (o el EAN-13 con su verificador) y el
   precio del papel debe coincidir con el de la venta. Si el lector no toma,
@@ -611,7 +613,7 @@ El **modo taller** imprime sus documentos en serie desde «Imprimir en serie…�
 
 | Documento | Builder | Salida |
 | --- | --- | --- |
-| **Hoja de estación** (una) | `buildStationSheetHtml` (`hojaEstacion.js`) | A4 con los equipos del alcance |
+| **Hoja de estación** (una) | `buildStationSheetHtml` (`hojaEstacion.js`) | A4 con los equipos del alcance (ejemplo: `docs/taller-impresos-ejemplo/hoja-estacion-por-verificar.pdf`) |
 | **Hojas por estación** | `buildStationSheetsHtml` (`hojaEstacion.js`) | A4, **una hoja por carril** (por verificar · verificado · listo) en un solo trabajo; aparece con más de un carril en el alcance |
 | **Certificados** | `datosCertificado` + `buildCertificadosHtml` (`OrderReceipt.jsx`) | A4, **un certificado por equipo** (grado, controles, checklist, QR y barras `CERT|…`), reusando el builder validado |
 | **Etiquetas** | `buildUnitLabelsHtml` / `ticketEtiquetasUnidad` | Rollo 58/80 mm y PNG para compartir (§14) |

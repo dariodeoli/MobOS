@@ -1,0 +1,32 @@
+{
+  "productos": [
+    {
+      "product": {
+        "id": "p1",
+        "name": "iPhone 15 128GB Azul",
+        "sku": "7791234567898",
+        "pricePyg": 5450000
+      },
+      "cantidad": 1
+    },
+    {
+      "product": {
+        "id": "p2",
+        "name": "AirPods Pro 2",
+        "sku": "IP15-128-AZ",
+        "pricePyg": 1250000
+      },
+      "cantidad": 1
+    },
+    {
+      "product": {
+        "id": "p3",
+        "name": "Cable USB-C a Lightning 1 m",
+        "sku": "CABLE-C-L1",
+        "pricePyg": 120000
+      },
+      "cantidad": 2
+    }
+  ],
+  "generado": "2026-09-26T08:46:28.349Z"
+}
