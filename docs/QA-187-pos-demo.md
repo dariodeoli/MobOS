@@ -10,6 +10,14 @@ La demo es un modo aislado en el navegador (datos ficticios, sin API de la tiend
 se recorrió el **flujo del vendedor** (PIN 2001) sin tocar datos reales.
 Resultado: **12/12 pasos ejecutados, sin fallos de script**.
 
+## Pasada final v1.0.181 (26/09/2026) — POS con v2 por defecto
+
+**Evidencia:** `docs/qa/187-1.0.181-produccion/` (25 capturas + `resultados.json`).
+**12/12 pasos, `v2 por defecto: true`, 0 errores de consola, 0 respuestas API ≥400,
+0 pedidos fallidos.** El flujo cierra igual que en .178: retiro sin envío
+(Gs 13.880.000) y contador por orden (TU DÍA 3 → 4). Es la pasada que acompaña el
+**cierre de los restos POS de #148** (`docs/qa/148-pos-cierre.md`).
+
 ## Pasada v1.0.178 · v2 por defecto (F4, 26/09/2026)
 
 **Método:** el recorrido completo (12 pasos) **sin tocar el flag por dispositivo**

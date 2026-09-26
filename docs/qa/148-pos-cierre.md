@@ -1,7 +1,19 @@
 # #148 · Cierre de los restos POS (épica «POS completo»)
 
-Fecha: 26/09/2026 · Versión de referencia: producción **v1.0.175** (main `c14f110b`) ·
+Fecha: 26/09/2026 · Versión de referencia: producción **v1.0.181** (main `dd1c1ed9`) ·
 Rama de esta entrega: `slot/pos`.
+
+## Verificación final v1.0.181 (POS con v2 por defecto)
+
+| Sonda | Resultado | Evidencia |
+|---|---|---|
+| Recorrido POS completo (12 pasos, **sin tocar el flag**: `v2 por defecto: true`) | **12/12**, 0 errores de consola y 0 respuestas API ≥400 | `docs/qa/187-1.0.181-produccion/` |
+| Carrito (#243) con variantes *v2-default* | **68 px desktop / 84 px mobile**, 0 desbordes y 0 errores | `docs/qa/243/1.0.181-produccion/` |
+| Tope de montos (§9) | el campo marca, el guardado **bloquea** y explica el monto; no crea el pedido | `docs/qa/148-9-pos-tope/1.0.181-produccion-postdeploy/` |
+| Menú (#251, referencia) | 8 grupos, Taller, `/ops`, `/celulares`, `/comparador` y `/garantias` como pestaña de Taller | `docs/qa/menu-ia/1.0.181-produccion/` |
+
+Con esto el flujo de venta completo queda verificado **en la versión publicada y
+sobre el diseño v2 real** (por defecto), sin restos abiertos del lado POS.
 
 ## Qué queda cerrado del lado POS
 

@@ -134,3 +134,9 @@ Pasada de cierre con la sonda ampliada: además de los 8 grupos, Taller, `/ops`,
 pestaña «Garantías» activa** (sin entrada propia de menú), en 4 variantes y con
 **0 errores de página**. Capturas y datos crudos:
 [`1.0.178-menu/`](1.0.178-menu/) (`03d-garantias-taller`).
+
+## Verificación final — producción v1.0.181
+
+Pasada del **26/09**: los 8 grupos, Taller, `/ops`, `/celulares`, `/comparador` y
+`/garantias` con su pestaña activa, en 4 variantes y con **0 errores de página**.
+Capturas y datos crudos: [`1.0.181-produccion/`](1.0.181-produccion/).

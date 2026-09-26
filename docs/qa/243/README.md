@@ -176,3 +176,10 @@ el diseño por defecto) y confirma `scopeV2Aplicado: true` con la fila colapsada
 **68 px desktop / 84 px mobile**, 0 desbordes y 0 errores; el escape por
 dispositivo (`mobos:tema-v2='0'`) sigue funcionando. Capturas y datos crudos:
 [`1.0.178-f4/`](1.0.178-f4/).
+
+## Verificación final — producción v1.0.181
+
+Pasada del **26/09** con el v2 por defecto (F4): **68 px desktop / 84 px mobile**
+en las 8 variantes (incluidas las *v2-default*), papelera y confirmación,
+**0 desbordes y 0 errores**. Capturas y datos crudos:
+[`1.0.181-produccion/`](1.0.181-produccion/).
