@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.184 — 2026-09-26
+- **Correos (#255):** **rediseño de los 10 correos transaccionales** (bienvenida, invitación de equipo, recuperación de contraseña, verificación, comprobante, informe de dispositivo, recordatorio de pago, pago vencido, estado de garantía y reserva por vencer): misma identidad que el shell y **enlace de respaldo siempre visible**.
+- **Abastecimiento (#250):** **recibir todo el lote de una vez** (frena y avisa si falta algún IMEI, con acceso a prepararlos) y **comprobante de recepción** imprimible.
+- **Demo (#213/#187):** **cierre visual** de la demo con capturas en **claro, oscuro y móvil**.
+- **POS (#148):** cierre con **checklist por sección** y verificación vigente.
+
 ## v1.0.183 — 2026-09-26
 - **Abastecimiento F2/F3/F5 (#250):** **compra parcial** (la necesidad conserva lo que falta), **líneas adicionales y reposición libre**, **preparación de compra con escaneo** (valida Luhn, rechaza duplicados y acepta pegado múltiple) y **recepción móvil**.
 - **Abastecimiento (#254):** **costo real por proveedor** y **puntualidad del tránsito CDE→ASU**.
