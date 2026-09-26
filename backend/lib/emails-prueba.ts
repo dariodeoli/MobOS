@@ -9,6 +9,7 @@ import {
   passwordRecoveryEmail,
   paymentDueReminderEmail,
   paymentOverdueEmail,
+  quoteEmail,
   receiptEmail,
   reservationDueEmail,
   teamInvitationEmail,
@@ -16,13 +17,14 @@ import {
   welcomeEmail,
 } from './email'
 
-/** Los 10 correos, en el orden pedido; el `id` coincide con `logEmailOutcome`. */
+/** Los correos transaccionales, en el orden pedido; el `id` coincide con `logEmailOutcome`. */
 export const TIPOS_EMAIL_PRUEBA = [
   { id: 'welcome', nombre: 'Bienvenida' },
   { id: 'team-invitation', nombre: 'Invitación al equipo' },
   { id: 'password-recovery', nombre: 'Recuperación de contraseña' },
   { id: 'email-verification', nombre: 'Verificación de correo' },
   { id: 'receipt', nombre: 'Comprobante de compra' },
+  { id: 'quote', nombre: 'Cotización' },
   { id: 'device-report', nombre: 'Informe de dispositivo' },
   { id: 'payment-due', nombre: 'Recordatorio de pago' },
   { id: 'payment-overdue', nombre: 'Pago vencido' },
@@ -71,6 +73,7 @@ export function construirEmailsPrueba({ to = CASILLA_FICTICIA, ahora = new Date(
     { id: 'password-recovery', nombre: 'Recuperación de contraseña', mensaje: passwordRecoveryEmail({ to: destinatario, companyName: TIENDA, token: recuperacion }) },
     { id: 'email-verification', nombre: 'Verificación de correo', mensaje: emailVerificationEmail({ to: destinatario, companyName: TIENDA, token: verificacion }) },
     { id: 'receipt', nombre: 'Comprobante de compra', mensaje: receiptEmail({ to: destinatario, customerName: CLIENTE, orderNumber: 'PED-1042', lines: [{ quantity: 1, description: 'iPhone 15 · 128 GB', totalPyg: 4850000 }, { quantity: 2, description: 'Funda de silicona', totalPyg: 180000 }, { quantity: 1, description: 'Protector de pantalla', totalPyg: 90000 }], totalPyg: 5120000, trackingUrl: enlace('/p', tokenFicticio(24), 'https://app.moboss.online/p/pedido-demo'), companyName: TIENDA }) },
+    { id: 'quote', nombre: 'Cotización', mensaje: quoteEmail({ to: destinatario, customerName: CLIENTE, quoteNumber: 'COT-#0042', lines: [{ quantity: 1, description: 'iPhone 15 · 128 GB', totalPyg: 4850000 }, { quantity: 1, description: 'Funda de silicona', totalPyg: 180000 }], totalPyg: 5030000, validUntil: fechaRelativa(ahora, 7), link: enlace('/cotizacion', tokenFicticio(28), 'https://app.moboss.online/cotizacion/cotizacion-demo'), companyName: TIENDA }) },
     { id: 'device-report', nombre: 'Informe de dispositivo', mensaje: deviceReportEmail({ to: destinatario, customerName: CLIENTE, model: 'iPhone 15 · 128 GB', link: enlace('/informe', tokenFicticio(32), 'https://app.moboss.online/informe/demo'), companyName: TIENDA }) },
     { id: 'payment-due', nombre: 'Recordatorio de pago', mensaje: paymentDueReminderEmail({ to: destinatario, customerName: CLIENTE, orderNumber: 'PED-1042', dueAt: fechaRelativa(ahora, 3), amountPyg: 650000, storeName: TIENDA }) },
     { id: 'payment-overdue', nombre: 'Pago vencido', mensaje: paymentOverdueEmail({ to: destinatario, customerName: CLIENTE, orderNumber: 'PED-1042', dueAt: fechaRelativa(ahora, -5), amountPyg: 650000, storeName: TIENDA }) },

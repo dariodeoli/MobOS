@@ -4,7 +4,7 @@ import { logEmailOutcome, sendTransactionalEmail } from './email'
 import { decryptEmailOutboxPayload, encryptEmailOutboxPayload } from './email-outbox-crypto'
 import { prisma } from './prisma'
 
-export type OutboxKind = 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation' | 'receipt' | 'payment-due' | 'payment-overdue' | 'warranty-update' | 'reservation-due'
+export type OutboxKind = 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation' | 'receipt' | 'payment-due' | 'payment-overdue' | 'warranty-update' | 'reservation-due' | 'quote'
 type PreparedEmail = { to: string; subject: string; html: string; text: string }
 
 const LOCK_TIMEOUT_MS = 60_000
@@ -118,6 +118,7 @@ export async function dispatchEmailOutboxJob(id: string) {
         'payment-overdue': 'PAYMENT_OVERDUE_DELIVERY_FAILED',
         'warranty-update': 'WARRANTY_STATUS_DELIVERY_FAILED',
         'reservation-due': 'RESERVATION_DUE_DELIVERY_FAILED',
+        quote: 'QUOTE_EMAIL_DELIVERY_FAILED',
       }[job.job.kind]
       if (action) await tx.auditLog.create({ data: { tenantId: job.job.tenantId, action: terminal ? `${action}_DEAD_LETTERED` : action, entity: job.job.aggregateType, entityId: job.job.aggregateId, metadata: { outboxId: id, attempt: nextAttempts, terminal, errorCode } } })
     })

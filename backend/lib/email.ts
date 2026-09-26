@@ -33,7 +33,7 @@ export function emailTransportConfigured() {
   return Boolean(relayUrl() && relayToken() && appUrl() && emailOutboxEncryptionConfigured())
 }
 
-export function logEmailOutcome(kind: 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation' | 'receipt' | 'payment-due' | 'payment-overdue' | 'warranty-update' | 'reservation-due' | 'device-report', outcome: 'delivered-to-relay' | 'delivery-failed' | 'unconfigured') {
+export function logEmailOutcome(kind: 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation' | 'receipt' | 'payment-due' | 'payment-overdue' | 'warranty-update' | 'reservation-due' | 'device-report' | 'quote', outcome: 'delivered-to-relay' | 'delivery-failed' | 'unconfigured') {
   console.info(JSON.stringify({ event: 'mobos.transactional_email', kind, outcome }))
 }
 
@@ -238,4 +238,19 @@ export function reservationDueEmail(input: { to: string; customerName: string; i
   const details = detailCard([{ label: 'Artículo', value: input.itemLabel }, { label: 'Reservado hasta', value: formatDateEsPy(input.reservedUntil) }, { label: 'Comercio', value: store }], 'Detalle de la reserva', 'warning')
   const content = template({ eyebrow: 'Reserva', title: 'Tu reserva vence pronto', lead: input.customerName.trim() ? `Hola ${input.customerName},` : undefined, body: 'Tu artículo sigue reservado y está próximo a liberarse.', contentHtml: details.html, contentText: details.text, footer: `Si no lo retirás, la reserva se libera automáticamente. Te esperamos en ${store}.`, tone: 'warning' })
   return { to: input.to, subject: 'Tu reserva vence pronto', ...content }
+}
+
+// Cotización (#261): propuesta profesional con detalle, total, validez y el
+// enlace público para aceptar o rechazar (con su respaldo visible).
+export function quoteEmail(input: { to: string; customerName: string; quoteNumber: string; lines: Array<{ quantity: number; description: string; totalPyg: number }>; totalPyg: number; validUntil?: Date | null; link: string; companyName?: string }) {
+  if (!emailPattern.test(input.to) || !input.quoteNumber.trim() || !input.link.trim()) return null
+  const company = input.companyName?.trim() || 'MobOS'
+  const linesHtml = input.lines.map((line) => `<tr><td class="email-muted" style="padding:11px 12px;border-bottom:1px solid ${COLOR.line};color:${COLOR.muted};font-size:14px;line-height:1.45">${escapeHtml(String(line.quantity))} × ${escapeHtml(line.description)}</td><td class="email-text" align="right" style="padding:11px 12px;border-bottom:1px solid ${COLOR.line};color:${COLOR.ink};font-size:14px;font-weight:700;line-height:1.45;white-space:nowrap">${escapeHtml(formatPyg(line.totalPyg))}</td></tr>`).join('')
+  const linesText = input.lines.map((line) => `${line.quantity} × ${line.description} — ${formatPyg(line.totalPyg)}`).join('\n')
+  const contentHtml = `<table role="table" aria-label="Detalle de la cotización" width="100%" cellpadding="0" cellspacing="0" class="receipt-table email-detail" style="margin:20px 0 0;background:${COLOR.surface};border:1px solid ${COLOR.border};border-radius:12px;border-collapse:separate;overflow:hidden"><thead><tr><th scope="col" align="left" style="padding:10px 12px;background:${COLOR.brandSoft};color:${COLOR.brandInk};font-size:11px;line-height:1.4;letter-spacing:.06em;text-transform:uppercase">Detalle</th><th scope="col" align="right" style="padding:10px 12px;background:${COLOR.brandSoft};color:${COLOR.brandInk};font-size:11px;line-height:1.4;letter-spacing:.06em;text-transform:uppercase">Importe</th></tr></thead><tbody>${linesHtml}<tr><th scope="row" align="right" style="padding:13px 12px;color:${COLOR.ink};font-size:14px;line-height:1.45">Total</th><td align="right" style="padding:13px 12px;color:${COLOR.ink};font-size:17px;font-weight:800;line-height:1.45;white-space:nowrap">${escapeHtml(formatPyg(input.totalPyg))}</td></tr></tbody></table>`
+  const validez = input.validUntil && !Number.isNaN(input.validUntil.getTime()) ? formatDateEsPy(input.validUntil) : null
+  const details = detailCard([{ label: 'Cotización', value: input.quoteNumber }, ...(validez ? [{ label: 'Válida hasta', value: validez }] : [])], 'Datos de la cotización', 'info')
+  const contentText = `Cotización: ${input.quoteNumber}\n${linesText}\nTotal: ${formatPyg(input.totalPyg)}${validez ? `\nVálida hasta: ${validez}` : ''}`
+  const content = template({ eyebrow: 'Cotización', title: `Tu cotización ${input.quoteNumber}`, lead: input.customerName.trim() ? `Hola ${input.customerName},` : undefined, body: `Preparamos esta propuesta en ${company}. Podés aceptarla o rechazarla desde el enlace; queda guardada a tu nombre.`, contentHtml: contentHtml + details.html, contentText: `${contentText}\n\n${details.text}`, action: { label: 'Ver y responder la cotización', url: input.link }, footer: `Si tenés dudas, respondé este correo o escribinos. Te esperamos en ${company}.`, tone: 'info' })
+  return { to: input.to, subject: `Tu cotización ${input.quoteNumber} · ${company}`, ...content }
 }
