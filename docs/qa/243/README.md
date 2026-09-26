@@ -183,3 +183,9 @@ Pasada del **26/09** con el v2 por defecto (F4): **68 px desktop / 84 px mobile*
 en las 8 variantes (incluidas las *v2-default*), papelera y confirmación,
 **0 desbordes y 0 errores**. Capturas y datos crudos:
 [`1.0.181-produccion/`](1.0.181-produccion/).
+
+## Verificación vigente — producción v1.0.182
+
+**68 px desktop / 84 px mobile** en las 8 variantes (incluidas las *v2-default*),
+papelera y confirmación, **0 desbordes y 0 errores**. Capturas y datos crudos:
+[`1.0.182-produccion/`](1.0.182-produccion/).
