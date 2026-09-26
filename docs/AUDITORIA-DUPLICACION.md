@@ -292,6 +292,24 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 50 — Componentes para unificar clientes (#268, con CRM) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Selector del duplicado | No existía: el flujo de merge arranca en #268 y CRM iba a buscarlo a mano | **`BuscadorCliente`** (biblioteca **v0.43.0**): búsqueda por nombre, teléfono (crudo o en dígitos), CI/RUC, correo, facturación o tags, con alta rápida y **marca de «posible duplicado»** (`detectarDuplicado` + `motivosDuplicadoCliente`, teléfonos por clave nacional) |
+| Preview/checklist | No existía | **`PreviewFusion`**: las dos fichas con sus datos, elección de **cuál queda como principal** y **checklist de lo que se fusiona** por categoría con conteos (pedidos, pagos y cuotas, créditos/saldo, notas, direcciones, teléfonos/correos, tags, seguro, portal, garantías) |
+| Confirmación | El `ConfirmDialog` de la biblioteca no pide palabra | **`ConfirmarConPalabra`**: resumen + advertencia + palabra exacta (`FUSIONAR`), con ocupado y error (reusable para otras acciones destructivas) |
+| Docs | — | `REGLAS.md` §11 ter y `docs/CAMPOS.md` §2 |
+
+**Coordinación con CRM (dueño del dominio):** los tres objetos son portables
+(datos y callbacks por props); la detección al crear cliente usa los mismos
+helpers (`motivosDuplicadoCliente`) y el merge real depende del endpoint de CRM
+(todavía no existe en main). No se tocó `src/components/customers/`.
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
+`test:e2e:smoke`; biblioteca `owncoding-ui` build + 324 tests.
+
 ### Lote 49 — Selector de cuenta de cobro (#262, con POS) (26-09)
 
 | Objeto | Antes (evidencia) | Después |
