@@ -3,6 +3,7 @@ import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
 import { consolidarNecesidades, normalizarNecesidadManual, NECESIDAD_ESTADOS, type NecesidadEntrada } from '../../../../lib/supply'
+import { costoEstimadoDeNecesidad, margenEstimadoDeNecesidad, prioridadDeNecesidad, prioridadPorFecha } from '../../../../lib/supply-priority'
 
 // #250 Fase 1 (Centro de Abastecimiento): API mínima del panel «Por comprar».
 //
@@ -41,7 +42,7 @@ export async function GET(request: Request) {
       ...(assignedToId ? { assignedToId } : {}),
     },
     include: {
-      product: { select: { name: true } },
+      product: { select: { name: true, costPyg: true } },
       branch: { select: { name: true } },
       order: { select: { orderNumber: true } },
       customer: { select: { name: true } },
@@ -50,24 +51,47 @@ export async function GET(request: Request) {
     take: limite,
   })
 
+  // FIN (#254): precio de la línea vendida para estimar el margen de la
+  // necesidad; una consulta por lote (no por fila).
+  const orderItemIds = [...new Set(filas.map((fila) => fila.orderItemId).filter(Boolean))] as string[]
+  const items = orderItemIds.length
+    ? await prisma.orderItem.findMany({ where: { id: { in: orderItemIds } }, select: { id: true, unitPricePyg: true, totalPyg: true, quantity: true } })
+    : []
+  const itemPorId = new Map(items.map((item) => [item.id, item]))
+
   // El nombre del cliente sale solo para administración/gerencia (#250 §4).
   const verCliente = ['ADMIN', 'GERENTE'].includes(session.user.role)
-  const entradas: NecesidadEntrada[] = filas.map((fila) => ({
-    id: fila.id,
-    productId: fila.productId,
-    producto: fila.product?.name || '',
-    condicion: fila.condition,
-    cantidad: fila.quantity,
-    prioridad: fila.priority,
-    origen: fila.source,
-    prometidaEl: fila.promisedAt,
-    sucursalId: fila.branchId,
-    sucursal: fila.branch?.name || null,
-    pedidoId: fila.orderId,
-    pedidoNumero: fila.order?.orderNumber || null,
-    clienteId: fila.customerId,
-    cliente: verCliente ? fila.customer?.name || null : null,
-  }))
+  const entradas: NecesidadEntrada[] = filas.map((fila) => {
+    const item = fila.orderItemId ? itemPorId.get(fila.orderItemId) : null
+    const precioUnitarioPyg = item
+      ? (Number(item.unitPricePyg) > 0 ? Number(item.unitPricePyg) : Math.round(Number(item.totalPyg) / Math.max(1, Number(item.quantity) || 1)))
+      : null
+    const costoUnitarioPyg = fila.product?.costPyg ?? null
+    const costoEstimadoPyg = costoEstimadoDeNecesidad({ costoUnitarioPyg, cantidad: fila.quantity })
+    const margenEstimadoPyg = margenEstimadoDeNecesidad({ precioUnitarioPyg, costoUnitarioPyg, cantidad: fila.quantity })
+    // La prioridad efectiva es la guardada escalada por la fecha prometida
+    // (lo único que cambia con el tiempo): una fecha vencida es urgente y una
+    // promesa a días sube sin pisar una prioridad explícita sin fecha.
+    const prioridadEfectiva = prioridadPorFecha(fila.priority, { prometidaEl: fila.promisedAt })
+    return {
+      id: fila.id,
+      productId: fila.productId,
+      producto: fila.product?.name || '',
+      condicion: fila.condition,
+      cantidad: fila.quantity,
+      prioridad: prioridadEfectiva,
+      origen: fila.source,
+      prometidaEl: fila.promisedAt,
+      sucursalId: fila.branchId,
+      sucursal: fila.branch?.name || null,
+      pedidoId: fila.orderId,
+      pedidoNumero: fila.order?.orderNumber || null,
+      clienteId: fila.customerId,
+      cliente: verCliente ? fila.customer?.name || null : null,
+      costoEstimadoPyg,
+      margenEstimadoPyg,
+    }
+  })
   const grupos = consolidarNecesidades(entradas)
 
   return json({
@@ -90,7 +114,14 @@ export async function POST(request: Request) {
 
   let body: unknown
   try { body = await request.json() } catch { return error('JSON inválido.') }
-  const normalizada = normalizarNecesidadManual(body)
+  // FIN (#254): sin prioridad explícita manda la regla (manual + fecha
+  // prometida); con prioridad explícita, el operador la fija a mano.
+  const cuerpo = body && typeof body === 'object' && !Array.isArray(body) ? (body as Record<string, unknown>) : {}
+  const sinPrioridad = cuerpo.priority === undefined || cuerpo.priority === null || cuerpo.priority === ''
+  const prometida = typeof cuerpo.promisedAt === 'string' || cuerpo.promisedAt instanceof Date ? (cuerpo.promisedAt as string | Date) : null
+  const normalizada = normalizarNecesidadManual(sinPrioridad
+    ? { ...cuerpo, priority: prioridadDeNecesidad({ origen: 'MANUAL', prometidaEl: prometida }) }
+    : cuerpo)
   if (!normalizada.ok) return error(normalizada.error)
   const { productId, branchId, quantity, condition, priority, promisedAt, notes } = normalizada.data
 
