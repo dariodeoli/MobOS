@@ -1,13 +1,13 @@
 {
   "base": "https://app.moboss.online",
-  "version": "1.0.178",
-  "fecha": "2026-09-26T08:21:51.789Z",
+  "version": "1.0.181",
+  "fecha": "2026-09-26T13:06:51.105Z",
   "metodo": "Playwright headless (chromium) sobre la demo pública de producción",
   "pasos": [
     {
       "paso": "entrada a la demo como dueño",
       "estado": "ok",
-      "detalle": "versión 1.0.178 · perfiles demo visibles: true",
+      "detalle": "versión 1.0.181 · perfiles demo visibles: true",
       "capturas": [
         "01-acceso-demo.jpg",
         "02-panel-demo.jpg"
