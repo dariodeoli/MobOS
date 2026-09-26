@@ -14,7 +14,9 @@ const base = (extra = {}) => ({ dueDates: [], orders: [], servicios: [], warrant
 test('sin nada pendiente no hay avisos', () => {
   assert.deepEqual(avisosDeCuenta(null), [])
   assert.deepEqual(avisosDeCuenta(base()), [])
-  assert.deepEqual(avisosDeCuenta(base({ dueDates: [{ orderNumber: 'MOB-0001', dueAt: enDias(10), pendingPyg: 100000 }] })), [])
+  // Se evalúa contra `AHORA` (no contra el reloj real): sin eso, el fixture de
+  // 10 días entra en la ventana de 7 cuando pasa el tiempo (#240).
+  assert.deepEqual(avisosDeCuenta(base({ dueDates: [{ orderNumber: 'MOB-0001', dueAt: enDias(10), pendingPyg: 100000 }] }), AHORA), [])
 })
 
 test('el pago vencido va primero y con tono de alerta', () => {
