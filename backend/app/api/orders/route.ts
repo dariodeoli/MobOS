@@ -352,7 +352,7 @@ export async function POST(request: Request) {
       }
       // #250 F1: la demanda que deja la venta (sobre pedido / offline) y los
       // productos a revisar por punto de reposición se juntan acá.
-      const demandaItems: Array<{ productId: string; condition?: string | null; quantity: number; stockPending: number; serialsPending: number; stockFaltante: number }> = []
+      const demandaItems: Array<{ productId: string; condition?: string | null; quantity: number; stockPending: number; serialsPending: number; stockFaltante: number; unitPricePyg: number; costPyg: number | null }> = []
       const productosDelPedido = new Map<string, { condition: string | null; reorderPoint: number | null }>()
       const prometida = body.promisedAt !== undefined && body.promisedAt !== null && String(body.promisedAt).trim() ? new Date(String(body.promisedAt)) : null
       if (prometida && Number.isNaN(prometida.getTime())) throw new InputError('La fecha prometida del pedido no es válida.')
@@ -507,9 +507,10 @@ export async function POST(request: Request) {
               await changeStock(tx, { tenantId: tenant, productId: product.id, delta: -decrementBy, branchId, includeBranchless: true, message: `Sin stock de ${product.name} en esta sucursal: marcala como «sobre pedido» para vender sin unidad.` })
             }
           }
-          // #250 F1: lo que la línea dejó sin cubrir alimenta la demanda.
+          // #250 F1: lo que la línea dejó sin cubrir alimenta la demanda; el
+          // precio de venta y el costo del producto pesan el margen (FIN #254).
           if (stockPending > 0 || serialsPending > 0 || faltanteOffline > 0) {
-            demandaItems.push({ productId: product.id, condition: product.condition, quantity: stockPending + serialsPending + faltanteOffline, stockPending, serialsPending, stockFaltante: faltanteOffline })
+            demandaItems.push({ productId: product.id, condition: product.condition, quantity: stockPending + serialsPending + faltanteOffline, stockPending, serialsPending, stockFaltante: faltanteOffline, unitPricePyg: price, costPyg: product.costPyg === null || product.costPyg === undefined ? null : Number(product.costPyg) })
           }
         }
         const discountPyg = item.discountPyg === undefined || item.discountPyg === '' || item.discountPyg === null ? 0 : Number(item.discountPyg)
@@ -591,7 +592,7 @@ export async function POST(request: Request) {
       // La demanda se persiste con el pedido ya creado: el dedupeKey y el
       // vínculo usan su id real (una reserva de unidades existentes no genera
       // compra: solo la diferencia sin cubrir).
-      demandas.push(...demandasDePedido({ orderId: order.id, items: demandaItems, promisedAt: prometida, customerId, branchId, ahora: new Date() }))
+      demandas.push(...demandasDePedido({ orderId: order.id, items: demandaItems, promisedAt: prometida, customerId, branchId, ventaConfirmada: confirmed > 0, ahora: new Date() }))
       if (demandas.length) await crearDemandas(tx, tenant, demandas, session.user.id)
       await tx.orderAccessToken.create({ data: { orderId: order.id, tenantId: tenant, level: 'rapido', token: publicToken, createdBy: session.user.id } })
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_CREATED', entity: 'Order', entityId: order.id, metadata: { orderNumber: order.orderNumber, totalPyg: total, items: normalized.length, ...(customerId ? { customerId } : {}), ...(offlineSale ? { offline: true } : {}) } } })

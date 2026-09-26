@@ -62,8 +62,7 @@ function diasHasta(prometidaEl: string | Date | null | undefined, hoy: string | 
   return Math.round((dia(cuando) - dia(referencia)) / 86400000)
 }
 
-export function prioridadDeNecesidad(entrada: EntradaPrioridad): PrioridadNecesidad {
-  const origen = String(entrada?.origen || 'MANUAL').toUpperCase()
+export function prioridadDeNecesidad(entrada: EntradaPrioridad): PrioridadNecesidad {  const origen = String(entrada?.origen || 'MANUAL').toUpperCase()
   const base = BASE_POR_ORIGEN[origen] || 'NORMAL'
   let pasos = 0
 
@@ -83,6 +82,27 @@ export function prioridadDeNecesidad(entrada: EntradaPrioridad): PrioridadNecesi
   }
 
   return prioridadPorPeso(PESO[base] + pasos)
+}
+
+/**
+ * Ajuste de prioridad por la **venta**: una venta ya cobrada (al menos un pago
+ * confirmado) suma un escalón y un margen esperado alto (≥ MARGEN_ALTO_PYG)
+ * otro; una venta a pérdida resta uno. Se compone con la base del origen y con
+ * la promesa (`prioridadMayor`) al crear la necesidad de una venta.
+ */
+export function prioridadDeVenta(base: string, { ventaConfirmada, margenPyg }: { ventaConfirmada?: boolean | null; margenPyg?: number | null } = {}): PrioridadNecesidad {
+  const normalizada = String(base || '').toUpperCase()
+  const actual: PrioridadNecesidad = (PRIORIDADES_NECESIDAD as readonly string[]).includes(normalizada)
+    ? (normalizada as PrioridadNecesidad)
+    : 'NORMAL'
+  let pasos = 0
+  if (ventaConfirmada === true) pasos += 1
+  const margen = Number(margenPyg)
+  if (margenPyg !== null && margenPyg !== undefined && Number.isFinite(margen)) {
+    if (margen >= MARGEN_ALTO_PYG) pasos += 1
+    else if (margen < 0) pasos -= 1
+  }
+  return prioridadPorPeso(PESO[actual] + pasos)
 }
 
 /** Costo estimado de la necesidad: costo unitario conocido × cantidad. */

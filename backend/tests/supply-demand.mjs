@@ -48,6 +48,18 @@ assert.equal(destino.cliente, `Cliente Demanda ${sufijo}`, 'quien gestiona clien
 assert.equal(destino.clienteOculto, false, 'con nombre visible no se marca oculto')
 assert.ok(grupo.necesidades.length >= 1, 'la necesidad existe como fila propia')
 
+// 2-bis) FIN (#254): la prioridad pesa la venta cobrada y el margen esperado.
+const productoMargen = await req('/api/products', 'POST', { name: `Demanda margen ${sufijo}`, sku: `DEMMG-${sufijo}`, pricePyg: 4000000, costPyg: 1000000, stock: 0, branchId: rama }, 201)
+await req('/api/orders', 'POST', {
+  orderNumber: `DEMMG-${sufijo}`,
+  items: [{ productId: productoMargen.id, description: productoMargen.name, quantity: 1, unitPricePyg: 4000000, backorder: true }],
+  payment: { method: 'CASH', amountPyg: 4000000 },
+}, 201)
+const vistaMargen = await req(`/api/supply/needs?productId=${productoMargen.id}`)
+const grupoMargen = (vistaMargen.grupos || []).find((fila) => fila.productoId === productoMargen.id)
+assert.ok(grupoMargen, 'la venta cobrada de margen alto deja su necesidad')
+assert.equal(grupoMargen.prioridad, 'URGENTE', 'cobrada + margen alto (3.000.000) sin promesa: urgente')
+
 // 3) La creación automática deja auditoría (área Abastecimiento).
 const auditoria = await req('/api/audit?q=SUPPLY_NEED_CREATED&limit=100')
 assert.ok(

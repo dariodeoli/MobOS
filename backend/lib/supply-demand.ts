@@ -12,7 +12,8 @@
 // no se crea stock acá (eso pasa recién en la recepción). Las automáticas usan
 // `dedupeKey` para que repetir el evento no duplique la necesidad.
 import type { Prisma } from '@prisma/client'
-import { type NecesidadOrigen } from './supply'
+import { prioridadMayor, type NecesidadOrigen } from './supply'
+import { margenEstimadoDeNecesidad, prioridadDeVenta } from './supply-priority'
 
 // Centros de compra del plan (§4): CDE · USA · Locales · futuros. Se acepta
 // cualquier código corto para sumar centros nuevos sin tocar el motor.
@@ -87,26 +88,33 @@ export type ItemDePedido = {
   serialsPending?: number
   stockFaltante?: number
   orderItemId?: string | null
+  // FIN (#254): precio de venta y costo del producto para pesar el margen en la
+  // prioridad de la demanda (una venta que deja plata va antes que una flaca).
+  unitPricePyg?: number | null
+  costPyg?: number | null
 }
 
 /**
  * Necesidades de una venta/pedido. La cantidad es lo que quedó sin cubrir:
  * `stockPending` (producto sin unidades), `serialsPending` (serializado sin
  * unidad) y el faltante de una venta offline (se vendió más que el stock).
- * Con fecha prometida el origen es ORDER_COMMITTED y manda la prioridad.
+ * Con fecha prometida el origen es ORDER_COMMITTED; la prioridad combina la
+ * promesa con la venta (cobrada y margen esperado, FIN #254).
  */
-export function demandasDePedido({ orderId, items = [], promisedAt = null, customerId = null, branchId = null, origen = null, ahora = new Date() }: {
+export function demandasDePedido({ orderId, items = [], promisedAt = null, customerId = null, branchId = null, origen = null, ventaConfirmada = false, ahora = new Date() }: {
   orderId: string
   items?: ItemDePedido[]
   promisedAt?: Date | string | null
   customerId?: string | null
   branchId?: string | null
   origen?: string | null
+  /** Hay al menos un pago confirmado de la venta (no es una reserva). */
+  ventaConfirmada?: boolean
   ahora?: Date
 }): DemandaNecesidad[] {
   const promesa = promisedAt ? (promisedAt instanceof Date ? promisedAt : new Date(String(promisedAt))) : null
   const prometidaValida = promesa && !Number.isNaN(promesa.getTime()) ? promesa : null
-  const prioridad = prioridadPorPromesa(prometidaValida, ahora)
+  const prioridadPromesa = prioridadPorPromesa(prometidaValida, ahora)
   const demandas: DemandaNecesidad[] = []
   for (const item of items) {
     if (!item?.productId) continue
@@ -117,12 +125,14 @@ export function demandasDePedido({ orderId, items = [], promisedAt = null, custo
     const condition = String(item.condition || 'NEW').toUpperCase()
     const soloFaltanteOffline = faltanteOffline > 0 && pendienteSobrePedido === 0
     const source: NecesidadOrigen = soloFaltanteOffline ? 'QUANTITY_OVER_STOCK' : prometidaValida ? 'ORDER_COMMITTED' : 'SALE_NO_STOCK'
+    const margenPyg = margenEstimadoDeNecesidad({ precioUnitarioPyg: item.unitPricePyg, costoUnitarioPyg: item.costPyg, cantidad })
+    const prioridadVenta = prioridadDeVenta(soloFaltanteOffline ? 'ALTA' : 'NORMAL', { ventaConfirmada, margenPyg })
     demandas.push({
       productId: item.productId,
       condition,
       quantity: cantidad,
       source,
-      priority: soloFaltanteOffline ? 'ALTA' : prioridad,
+      priority: prioridadMayor(prioridadVenta, prioridadPromesa),
       branchId: branchId || null,
       promisedAt: prometidaValida,
       orderId,
