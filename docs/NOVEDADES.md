@@ -11,6 +11,9 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.186 — 2026-09-26
+- **Correos (#255 · pedido de Dario):** nuevo **`npm run emails:prueba`**: arma los **10 correos transaccionales** con datos ficticios y **los envía** a la casilla que indiques si el transporte está configurado; si no, deja los **HTML locales** para revisarlos en el navegador. Incluye **pruebas automáticas** de los 10 correos, sus argumentos y la vista previa.
+
 ## v1.0.185 — 2026-09-26
 - **Abastecimiento F6 (#250/#254):** nuevo **panel de métricas** del abastecimiento: desempeño por **proveedor**, **tiempos del CDE** y **atrasos** del tránsito, con sus capturas en claro/oscuro.
 - **Calidad:** el control de preparación de compra quedó con **margen para entornos lentos** (el aviso del pegado de IMEI ya no falla por tiempo en CI).
