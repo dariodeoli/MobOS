@@ -27,23 +27,47 @@ const EVENTOS = (customer) => [
 
 const ANALITICA_VACIA = { ordersCount: 0, totalPyg: 0, avgTicketPyg: 0, purchasesPerMonth: 0, spendPerMonthPyg: 0, frequencyDays: null, antiguedadDias: 0, byMonth: [], topProducts: [], topModels: [], topCategories: [], topMonths: [], topWeekdays: [], statement: [] }
 
-const pedido = ({ id, numero, total, pagado, estado = 'COMPLETED', dias, items = [], entrega = 'DELIVERY', estadoEntrega = 'DELIVERED' }) => ({
-  id,
-  orderNumber: numero,
-  totalPyg: total,
-  collectedPyg: pagado,
-  pendingPyg: Math.max(0, total - pagado),
-  createdAt: haceDias(dias),
-  status: estado,
-  // Entrega (#240 → portal): el portal demo muestra el mismo paso a paso que
-  // la cuenta real (método y estado del fulfillment).
-  deliveryType: entrega,
-  fulfillmentStatus: estadoEntrega,
-  branch: { id: 'mobos-demo-central', name: 'Aurora Móviles' },
-  seller: usuarioDemo('Diego López'),
-  serials: [],
-  items,
-})
+// Medios demo espejo de `PAYMENT_LABELS` (backend/lib/payments): las
+// superficies del cliente muestran la etiqueta, no el código.
+const MEDIO_DEMO = {
+  CASH: 'Efectivo',
+  TRANSFER: 'Transferencia',
+  CARD: 'Tarjeta / POS',
+  CREDIT: 'Crédito',
+  TRADE_IN: 'Canje',
+  PIX: 'Pix',
+  STORE_CREDIT: 'Saldo a favor',
+  CRYPTO: 'USDT - Cripto',
+}
+
+const pedido = ({ id, numero, total, pagado, pagos = [], estado = 'COMPLETED', dias, items = [], entrega = 'DELIVERY', estadoEntrega = 'DELIVERED' }) => {
+  // Pagos divididos (#213): cada movimiento conserva su medio (etiquetas espejo
+  // de `PAYMENT_LABELS` del backend) y su fecha, repartida antes del pedido.
+  const movimientos = pagos.map((pago, indice) => ({
+    amountPyg: Number(pago.amountPyg || 0),
+    methodLabel: pago.methodLabel || MEDIO_DEMO[pago.method] || String(pago.method || ''),
+    paidAt: haceDias(Math.max(0, Number(dias || 0) - indice * 5)),
+  }))
+  const cobrado = pagado !== undefined ? pagado : movimientos.reduce((suma, pago) => suma + pago.amountPyg, 0)
+  return {
+    id,
+    orderNumber: numero,
+    totalPyg: total,
+    collectedPyg: cobrado,
+    pendingPyg: Math.max(0, total - cobrado),
+    createdAt: haceDias(dias),
+    status: estado,
+    // Entrega (#240 → portal): el portal demo muestra el mismo paso a paso que
+    // la cuenta real (método y estado del fulfillment).
+    deliveryType: entrega,
+    fulfillmentStatus: estadoEntrega,
+    branch: { id: 'mobos-demo-central', name: 'Aurora Móviles' },
+    seller: usuarioDemo('Diego López'),
+    serials: [],
+    pagos: movimientos,
+    items,
+  }
+}
 
 export const SEED_DEMO_CLIENTES = [
   {
@@ -90,12 +114,12 @@ export const SEED_DEMO_CLIENTES = [
     ],
     demoProfile: {
       orders: [
-        pedido({ id: 'demo-p-8', numero: 'MOB-0008', total: 3000000, pagado: 1500000, estado: 'PENDING', dias: 12, entrega: 'DELIVERY', estadoEntrega: 'IN_TRANSIT', items: [{ id: 'demo-i-8', description: 'iPhone 15 · 128 GB', quantity: 1, model: 'iPhone 15', category: 'Celulares', serials: ['356789012345678'] }] }),
-        pedido({ id: 'demo-p-5', numero: 'MOB-0005', total: 1800000, pagado: 1800000, dias: 45, items: [{ id: 'demo-i-5', description: 'Apple Watch SE', quantity: 1, model: 'Apple Watch SE', category: 'Apple Watch', serials: [] }] }),
-        pedido({ id: 'demo-p-2', numero: 'MOB-0002', total: 900000, pagado: 900000, dias: 95, items: [{ id: 'demo-i-2', description: 'AirPods 3', quantity: 1, model: 'AirPods 3', category: 'Accesorios', serials: [] }] }),
+        pedido({ id: 'demo-p-8', numero: 'MOB-0008', total: 3000000, pagado: 1500000, estado: 'PENDING', dias: 12, entrega: 'DELIVERY', estadoEntrega: 'IN_TRANSIT', pagos: [{ amountPyg: 1000000, method: 'CASH' }, { amountPyg: 500000, method: 'TRANSFER' }], items: [{ id: 'demo-i-8', description: 'iPhone 15 · 128 GB', quantity: 1, model: 'iPhone 15', category: 'Celulares', serials: ['356789012345678'] }] }),
+        pedido({ id: 'demo-p-5', numero: 'MOB-0005', total: 1800000, pagado: 1800000, dias: 45, pagos: [{ amountPyg: 800000, method: 'CARD' }, { amountPyg: 1000000, method: 'TRANSFER' }], items: [{ id: 'demo-i-5', description: 'Apple Watch SE', quantity: 1, model: 'Apple Watch SE', category: 'Apple Watch', serials: [] }] }),
+        pedido({ id: 'demo-p-2', numero: 'MOB-0002', total: 900000, pagado: 900000, dias: 95, pagos: [{ amountPyg: 200000, method: 'STORE_CREDIT' }, { amountPyg: 700000, method: 'CASH' }], items: [{ id: 'demo-i-2', description: 'AirPods 3', quantity: 1, model: 'AirPods 3', category: 'Accesorios', serials: [] }] }),
         pedido({ id: 'demo-p-31', numero: 'MOB-0031', total: 2400000, pagado: 2400000, estado: 'CANCELLED', dias: 200, items: [{ id: 'demo-i-31', description: 'iPhone 14 · 128 GB', quantity: 1, model: 'iPhone 14', category: 'Celulares', serials: [] }] }),
-        pedido({ id: 'demo-p-12', numero: 'MOB-0012', total: 1200000, pagado: 1200000, dias: 400, items: [{ id: 'demo-i-12', description: 'iPad 10 · 64 GB', quantity: 1, model: 'iPad 10', category: 'Celulares', serials: [] }] }),
-        pedido({ id: 'demo-p-3', numero: 'MOB-0003', total: 850000, pagado: 850000, dias: 700, items: [{ id: 'demo-i-3', description: 'Cargador USB-C y funda', quantity: 2, model: 'Cargador USB-C', category: 'Accesorios', serials: [] }] }),
+        pedido({ id: 'demo-p-12', numero: 'MOB-0012', total: 1200000, pagado: 1200000, dias: 400, pagos: [{ amountPyg: 1200000, method: 'PIX' }], items: [{ id: 'demo-i-12', description: 'iPad 10 · 64 GB', quantity: 1, model: 'iPad 10', category: 'Celulares', serials: [] }] }),
+        pedido({ id: 'demo-p-3', numero: 'MOB-0003', total: 850000, pagado: 850000, dias: 700, pagos: [{ amountPyg: 850000, method: 'CASH' }], items: [{ id: 'demo-i-3', description: 'Cargador USB-C y funda', quantity: 2, model: 'Cargador USB-C', category: 'Accesorios', serials: [] }] }),
       ],
       warranties: [
         { id: 'demo-g-1', serial: '356789012345678', description: 'iPhone 15 · 128 GB', status: 'DIAGNOSIS', warrantyDays: 365, expiresAt: haceDias(-300), createdAt: haceDias(60), publicToken: 'demo-garantia-lucia', coverage: 'Fallas de fábrica del equipo\nBatería con salud por debajo del 80%\nDefectos de pantalla sin golpes', exclusions: 'Daños por golpes o líquidos\nIntervenciones de terceros\nDesgaste normal del uso' },
@@ -147,9 +171,9 @@ export const SEED_DEMO_CLIENTES = [
     ],
     demoProfile: {
       orders: [
-        pedido({ id: 'demo-p-7', numero: 'MOB-0007', total: 12500000, pagado: 12500000, dias: 20, items: [{ id: 'demo-i-7', description: 'iPhone 14 · 128 GB', quantity: 5, model: 'iPhone 14', category: 'Celulares', serials: [] }] }),
-        pedido({ id: 'demo-p-3', numero: 'MOB-0003', total: 8000000, pagado: 8000000, dias: 70, items: [{ id: 'demo-i-3', description: 'iPad 10', quantity: 4, model: 'iPad 10', category: 'Celulares', serials: [] }] }),
-        pedido({ id: 'demo-p-19', numero: 'MOB-0019', total: 5500000, pagado: 5500000, dias: 250, items: [{ id: 'demo-i-19', description: 'MacBook Air M2', quantity: 1, model: 'MacBook Air M2', category: 'Mac', serials: [] }] }),
+        pedido({ id: 'demo-p-7', numero: 'MOB-0007', total: 12500000, pagado: 12500000, dias: 20, pagos: [{ amountPyg: 8000000, method: 'TRANSFER' }, { amountPyg: 4500000, method: 'CARD' }], items: [{ id: 'demo-i-7', description: 'iPhone 14 · 128 GB', quantity: 5, model: 'iPhone 14', category: 'Celulares', serials: [] }] }),
+        pedido({ id: 'demo-p-3', numero: 'MOB-0003', total: 8000000, pagado: 8000000, dias: 70, pagos: [{ amountPyg: 8000000, method: 'PIX' }], items: [{ id: 'demo-i-3', description: 'iPad 10', quantity: 4, model: 'iPad 10', category: 'Celulares', serials: [] }] }),
+        pedido({ id: 'demo-p-19', numero: 'MOB-0019', total: 5500000, pagado: 5500000, dias: 250, pagos: [{ amountPyg: 5500000, method: 'CRYPTO' }], items: [{ id: 'demo-i-19', description: 'MacBook Air M2', quantity: 1, model: 'MacBook Air M2', category: 'Mac', serials: [] }] }),
       ],
       warranties: [],
       notes: [{ id: 'demo-n-3', content: 'Compra por volumen: coordinar entrega en depósito.', createdAt: haceDias(18), user: usuarioDemo('Ana Giménez') }],
@@ -194,8 +218,8 @@ export const SEED_DEMO_CLIENTES = [
     }],
     demoProfile: {
       orders: [
-        pedido({ id: 'demo-p-1', numero: 'MOB-0001', total: 450000, pagado: 450000, dias: 35, items: [{ id: 'demo-i-1', description: 'Cargador USB-C', quantity: 1, model: 'Cargador USB-C', category: 'Accesorios', serials: [] }] }),
-        pedido({ id: 'demo-p-4', numero: 'MOB-0004', total: 320000, pagado: 320000, dias: 8, entrega: 'RETIRO', estadoEntrega: 'READY_FOR_PICKUP', items: [{ id: 'demo-i-4', description: 'Funda + vidrio templado', quantity: 2, model: 'Funda', category: 'Accesorios', serials: [] }] }),
+        pedido({ id: 'demo-p-1', numero: 'MOB-0001', total: 450000, pagado: 450000, dias: 35, pagos: [{ amountPyg: 450000, method: 'CASH' }], items: [{ id: 'demo-i-1', description: 'Cargador USB-C', quantity: 1, model: 'Cargador USB-C', category: 'Accesorios', serials: [] }] }),
+        pedido({ id: 'demo-p-4', numero: 'MOB-0004', total: 320000, pagado: 320000, dias: 8, entrega: 'RETIRO', estadoEntrega: 'READY_FOR_PICKUP', pagos: [{ amountPyg: 320000, method: 'PIX' }], items: [{ id: 'demo-i-4', description: 'Funda + vidrio templado', quantity: 2, model: 'Funda', category: 'Accesorios', serials: [] }] }),
       ],
       warranties: [],
       notes: [],
@@ -245,17 +269,17 @@ const clienteExtra = (id, nombres, documento, telefono, ciudad, opciones = {}) =
     billingIdentities: [],
   },
 })
-const pedidoDemo = (id, numero, total, pagado, dias, description) => pedido({ id, numero, total, pagado, dias, items: [{ id: `${id}-i`, description, quantity: 1, serials: [] }] })
+const pedidoDemo = (id, numero, total, pagado, dias, description, pagos = []) => pedido({ id, numero, total, pagado, dias, pagos, items: [{ id: `${id}-i`, description, quantity: 1, serials: [] }] })
 SEED_DEMO_CLIENTES.push(
-  clienteExtra('demo-cliente-maria', 'María González', '3.987.654', '0983111222', 'Asunción', { tags: ['frecuente'], credito: 1500000, dias: 15, seguro: true, notas: 'Cliente frecuente: siempre paga en fecha.', pedidos: [pedidoDemo('demo-p-9', 'MOB-0009', 6850000, 6850000, 5, 'iPhone 15 Pro · 256 GB')], garantias: [{ id: 'demo-g-3', serial: 'AUR000900000000', description: 'iPhone 15 Pro · 256 GB', status: 'RECEIVED', warrantyDays: 365, expiresAt: haceDias(-12), createdAt: haceDias(353), publicToken: 'demo-garantia-maria', coverage: 'Fallas de fábrica del equipo\nBatería con salud por debajo del 80%', exclusions: 'Daños por golpes o líquidos' }] }),
-  clienteExtra('demo-cliente-juan', 'Juan Pereira', '4.556.677', '0981222333', 'San Lorenzo', { tags: ['nuevo'], pedidos: [pedidoDemo('demo-p-10', 'MOB-0010', 4850000, 2000000, 9, 'iPhone 15 · 128 GB')] }),
+  clienteExtra('demo-cliente-maria', 'María González', '3.987.654', '0983111222', 'Asunción', { tags: ['frecuente'], credito: 1500000, dias: 15, seguro: true, notas: 'Cliente frecuente: siempre paga en fecha.', pedidos: [pedidoDemo('demo-p-9', 'MOB-0009', 6850000, 6850000, 5, 'iPhone 15 Pro · 256 GB', [{ amountPyg: 4000000, method: 'TRANSFER' }, { amountPyg: 2850000, method: 'CRYPTO' }])], garantias: [{ id: 'demo-g-3', serial: 'AUR000900000000', description: 'iPhone 15 Pro · 256 GB', status: 'RECEIVED', warrantyDays: 365, expiresAt: haceDias(-12), createdAt: haceDias(353), publicToken: 'demo-garantia-maria', coverage: 'Fallas de fábrica del equipo\nBatería con salud por debajo del 80%', exclusions: 'Daños por golpes o líquidos' }] }),
+  clienteExtra('demo-cliente-juan', 'Juan Pereira', '4.556.677', '0981222333', 'San Lorenzo', { tags: ['nuevo'], pedidos: [pedidoDemo('demo-p-10', 'MOB-0010', 4850000, 2000000, 9, 'iPhone 15 · 128 GB', [{ amountPyg: 2000000, method: 'TRANSFER' }])] }),
   clienteExtra('demo-cliente-ana', 'Ana Villalba', '5.111.222', '0972555888', 'Fernando de la Mora', { tags: ['whatsapp'], seguro: true, notes: 'Prefiere contacto por WhatsApp.' }),
-  clienteExtra('demo-cliente-ramiro', 'Ramiro Cáceres', '4.222.333', '0985666999', 'Capiatá', { tags: ['reventa'], tier: 'WHOLESALE', credito: 8000000, dias: 30, facturaA: 'Ramiro Import', facturaDoc: '80098765-4', extraDirecciones: [{ label: 'Depósito', address: 'Ruta 1 Km 20' }], pedidos: [pedidoDemo('demo-p-11', 'MOB-0011', 12500000, 12500000, 30, 'iPhone 14 Pro · 256 GB × 3')] }),
+  clienteExtra('demo-cliente-ramiro', 'Ramiro Cáceres', '4.222.333', '0985666999', 'Capiatá', { tags: ['reventa'], tier: 'WHOLESALE', credito: 8000000, dias: 30, facturaA: 'Ramiro Import', facturaDoc: '80098765-4', extraDirecciones: [{ label: 'Depósito', address: 'Ruta 1 Km 20' }], pedidos: [pedidoDemo('demo-p-11', 'MOB-0011', 12500000, 12500000, 30, 'iPhone 14 Pro · 256 GB × 3', [{ amountPyg: 7500000, method: 'TRANSFER' }, { amountPyg: 5000000, method: 'CARD' }])] }),
   clienteExtra('demo-cliente-estela', 'Estela Ramírez', '3.222.111', '0987999111', 'Asunción', { tags: ['prioridad'], notes: 'Factura a nombre de la empresa del esposo.' }),
-  clienteExtra('demo-cliente-distribuidora-luque', 'Distribuidora Luque S.A.', '80077777-1', '0982111000', 'Luque', { tags: ['volumen', 'factura'], tier: 'WHOLESALE', credito: 15000000, dias: 30, facturaA: 'Distribuidora Luque S.A.', facturaDoc: '80077777-1', pedidos: [pedidoDemo('demo-p-12', 'MOB-0012', 9600000, 5000000, 14, 'iPhone 13 · 128 GB × 4')] }),
+  clienteExtra('demo-cliente-distribuidora-luque', 'Distribuidora Luque S.A.', '80077777-1', '0982111000', 'Luque', { tags: ['volumen', 'factura'], tier: 'WHOLESALE', credito: 15000000, dias: 30, facturaA: 'Distribuidora Luque S.A.', facturaDoc: '80077777-1', pedidos: [pedidoDemo('demo-p-12', 'MOB-0012', 9600000, 5000000, 14, 'iPhone 13 · 128 GB × 4', [{ amountPyg: 5000000, method: 'TRANSFER' }])] }),
   clienteExtra('demo-cliente-fernando', 'Fernando Ortellado', '2.888.999', '0973111444', 'Mariano Roque Alonso', { tags: ['frecuente'], servicios: [{ id: 'demo-os-3', serviceNumber: 'OS-0005', device: 'iPhone 11 · 64 GB', serviceName: 'No enciende', serial: 'AUR002300000000', status: 'DIAGNOSTICO', receivedAt: haceDias(2), deliveredAt: null }], garantias: [{ id: 'demo-g-2', serial: 'AUR002300000000', description: 'iPhone 11 · 64 GB', status: 'RECEIVED', warrantyDays: 180, expiresAt: haceDias(-150), createdAt: haceDias(2), publicToken: 'demo-garantia-fernando', coverage: 'Fallas de fábrica del equipo\nBatería con salud por debajo del 80%', exclusions: 'Daños por golpes o líquidos\nIntervenciones de terceros' }] }),
   clienteExtra('demo-cliente-gloria', 'Gloria Martínez', '6.123.456', '0981222777', 'Lambaré', { tags: ['trade-in'], seguro: true, notes: 'Cambió de equipo con trade-in.' }),
-  clienteExtra('demo-cliente-hugo', 'Hugo Benítez', '4.999.888', '0986555222', 'Itauguá', { tags: ['moroso'], credito: 1000000, dias: 7, pedidos: [pedidoDemo('demo-p-13', 'MOB-0013', 2350000, 500000, 40, 'iPhone 12 · 128 GB')] }),
+  clienteExtra('demo-cliente-hugo', 'Hugo Benítez', '4.999.888', '0986555222', 'Itauguá', { tags: ['moroso'], credito: 1000000, dias: 7, pedidos: [pedidoDemo('demo-p-13', 'MOB-0013', 2350000, 500000, 40, 'iPhone 12 · 128 GB', [{ amountPyg: 500000, method: 'CASH' }])] }),
 )
 
 
@@ -537,12 +561,15 @@ export function demoCuentaPayload(token) {
   if (!cliente) return null
   const orders = cliente.demoProfile?.orders || []
   const conSaldo = orders.filter((order) => Number(order.pendingPyg || 0) > 0).map((order) => ({ orderNumber: order.orderNumber, dueAt: haceDias(-6), pendingPyg: order.pendingPyg }))
-  // Pagos (#240 → portal): historial derivado de los pedidos demo (el método se
-  // reparte para que la lista sea creíble; nada sale del navegador).
+  // Pagos (#240/#213 → portal): cada pedido trae sus movimientos (divididos y
+  // con medios variados); el historial se arma con ellos, sin inventar nada.
   const METODOS_DEMO = ['Efectivo', 'Transferencia', 'Tarjeta / POS']
+  const pagosDeOrden = (order, indice) => order.pagos?.length
+    ? order.pagos
+    : (Number(order.collectedPyg || 0) > 0 ? [{ amountPyg: Number(order.collectedPyg), methodLabel: METODOS_DEMO[indice % METODOS_DEMO.length], paidAt: order.createdAt }] : [])
   const pagosDemo = orders
-    .filter((order) => Number(order.collectedPyg || 0) > 0)
-    .map((order, indice) => ({ amountPyg: Number(order.collectedPyg || 0), methodLabel: METODOS_DEMO[indice % METODOS_DEMO.length], paidAt: order.createdAt, orderNumber: order.orderNumber }))
+    .flatMap((order, indice) => pagosDeOrden(order, indice).map((pago) => ({ ...pago, orderNumber: order.orderNumber })))
+    .sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime())
   return {
     level: nivel,
     company: { name: 'Aurora Móviles', logo: false },
@@ -582,15 +609,14 @@ export function demoCuentaPayload(token) {
       tracking: trackingDemo(order),
       pendingPyg: order.pendingPyg,
       dueAt: order.pendingPyg > 0 ? haceDias(-6) : null,
-      // Detalle del pedido (#240 → portal): líneas y pagos confirmados.
+      // Detalle del pedido (#240 → portal): líneas y pagos confirmados del
+      // pedido (divididos cuando el cliente pagó en más de un movimiento).
       items: (order.items || []).map((item) => ({
         description: item.description,
         quantity: item.quantity,
         totalPyg: Math.round(Number(order.totalPyg || 0) / Math.max(1, (order.items || []).length)),
       })),
-      pagos: Number(order.collectedPyg || 0) > 0
-        ? [{ amountPyg: Number(order.collectedPyg), methodLabel: METODOS_DEMO[indice % METODOS_DEMO.length], paidAt: order.createdAt }]
-        : [],
+      pagos: pagosDeOrden(order, indice),
       ...(nivel === 'completo' ? { receiptToken: `demo-${order.id}` } : {}),
     })),
     // Mensajes de la tienda (#240 → portal): mismo contrato que /api/portal;
