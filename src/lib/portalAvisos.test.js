@@ -12,9 +12,11 @@ const enDias = (dias) => new Date(AHORA + dias * DIA).toISOString()
 const base = (extra = {}) => ({ dueDates: [], orders: [], servicios: [], warranties: [], ...extra })
 
 test('sin nada pendiente no hay avisos', () => {
-  assert.deepEqual(avisosDeCuenta(null), [])
-  assert.deepEqual(avisosDeCuenta(base()), [])
-  assert.deepEqual(avisosDeCuenta(base({ dueDates: [{ orderNumber: 'MOB-0001', dueAt: enDias(10), pendingPyg: 100000 }] })), [])
+  // El «ahora» es fijo en todo el archivo: con el reloj real, un vencimiento a
+  // 10 días del AHORA del test puede caer dentro del umbral de 7 (#254).
+  assert.deepEqual(avisosDeCuenta(null, AHORA), [])
+  assert.deepEqual(avisosDeCuenta(base(), AHORA), [])
+  assert.deepEqual(avisosDeCuenta(base({ dueDates: [{ orderNumber: 'MOB-0001', dueAt: enDias(10), pendingPyg: 100000 }] }), AHORA), [])
 })
 
 test('el pago vencido va primero y con tono de alerta', () => {
