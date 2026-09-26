@@ -1,10 +1,12 @@
 {
   "base": "http://localhost:5203",
-  "version": "1.0.181",
-  "fecha": "2026-09-26T13:17:14.607Z",
+  "version": "1.0.182",
+  "fecha": "2026-09-26T14:18:31.079Z",
   "pantallas": [
     {
       "pantalla": "01-inicio",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/resumen",
       "señal": "Facturado",
       "elementos": 1,
@@ -14,6 +16,8 @@
     },
     {
       "pantalla": "02-pos",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/pos",
       "señal": "Nueva venta",
       "elementos": 1,
@@ -23,6 +27,8 @@
     },
     {
       "pantalla": "03-pedidos",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/pedidos",
       "señal": "pedido-fila",
       "elementos": 15,
@@ -32,6 +38,8 @@
     },
     {
       "pantalla": "04-clientes",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/clientes",
       "señal": "cliente-fila",
       "elementos": 12,
@@ -41,6 +49,8 @@
     },
     {
       "pantalla": "05-inventario",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/inventario/unidades",
       "señal": "inventario-fila",
       "elementos": 23,
@@ -50,6 +60,8 @@
     },
     {
       "pantalla": "06-taller-rack",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/inventario/taller",
       "señal": "rack-taller",
       "elementos": 1,
@@ -59,6 +71,8 @@
     },
     {
       "pantalla": "07-compras",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/compras",
       "señal": "compra-fila",
       "elementos": 2,
@@ -68,6 +82,8 @@
     },
     {
       "pantalla": "08-finanzas-caja",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/finanzas/caja",
       "señal": "Saldo esperado",
       "elementos": 1,
@@ -77,6 +93,8 @@
     },
     {
       "pantalla": "09-finanzas-bancos",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/finanzas/bancos",
       "señal": "cuenta-fila",
       "elementos": 9,
@@ -86,6 +104,8 @@
     },
     {
       "pantalla": "10-finanzas-gastos",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/finanzas/gastos",
       "señal": "gasto-fila",
       "elementos": 0,
@@ -95,6 +115,8 @@
     },
     {
       "pantalla": "11-finanzas-creditos",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/finanzas/creditos",
       "señal": "credito-fila",
       "elementos": 0,
@@ -104,6 +126,8 @@
     },
     {
       "pantalla": "12-finanzas-conciliacion",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/finanzas/conciliacion",
       "señal": "Ingresos conciliables",
       "elementos": 1,
@@ -113,6 +137,8 @@
     },
     {
       "pantalla": "13-autorizaciones",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/autorizaciones",
       "señal": "autorizacion-fila",
       "elementos": 4,
@@ -122,6 +148,8 @@
     },
     {
       "pantalla": "14-servicio",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/servicio",
       "señal": "servicio-fila",
       "elementos": 4,
@@ -131,6 +159,8 @@
     },
     {
       "pantalla": "15-equipo",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/configuracion/equipo",
       "señal": "integrante-fila",
       "elementos": 6,
@@ -140,6 +170,8 @@
     },
     {
       "pantalla": "16-inventario-reservas",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/inventario/reservas",
       "señal": "reserva-fila",
       "elementos": 3,
@@ -149,6 +181,8 @@
     },
     {
       "pantalla": "17-garantias",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/garantias",
       "señal": "garantia-fila",
       "elementos": 2,
@@ -158,6 +192,8 @@
     },
     {
       "pantalla": "18-finanzas-cuotas",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/finanzas/cuotas",
       "señal": "cuota-fila",
       "elementos": 0,
@@ -167,6 +203,8 @@
     },
     {
       "pantalla": "19-finanzas-comisiones",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/finanzas/comisiones",
       "señal": "comision-fila",
       "elementos": 0,
@@ -176,6 +214,8 @@
     },
     {
       "pantalla": "20-finanzas-publicidad",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/finanzas/publicidad",
       "señal": "anuncio-fila",
       "elementos": 0,
@@ -185,6 +225,8 @@
     },
     {
       "pantalla": "21-trade-in",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/trade-in",
       "señal": "Trade-In",
       "elementos": 2,
@@ -194,11 +236,343 @@
     },
     {
       "pantalla": "22-impresion",
+      "combo": "desktop-claro",
+      "tema": "light",
       "ruta": "/configuracion/dispositivos",
       "señal": "Impresora",
       "elementos": 6,
       "vacio": false,
       "archivo": "22-impresion-desktop-claro.jpg",
+      "texto": "Mi cuenta Organización Equipo y acceso Comercial Seguridad y auditoría Dispositivos Sistema Impresoras, puentes, formatos y diagnóstico. Datos ficticios de demostración: las impres"
+    },
+    {
+      "pantalla": "01-inicio",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/resumen",
+      "señal": "Facturado",
+      "elementos": 1,
+      "vacio": false,
+      "archivo": "01-inicio-desktop-oscuro.jpg",
+      "texto": "Acá ves el movimiento de la tienda en el período elegido. Hoy FACTURADO ↑ 34.1% Gs 14.280.000 Hoy · período anterior Gs 10.650.000 COBRADO Gs 14.180.000 2 pagadas PENDIENTE Gs 100."
+    },
+    {
+      "pantalla": "02-pos",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/pos",
+      "señal": "Nueva venta",
+      "elementos": 1,
+      "vacio": false,
+      "archivo": "02-pos-desktop-oscuro.jpg",
+      "texto": "Nueva venta Cliente, productos y cobro en una sola página. Hoy: 26/09/2026 Analytics Ventas suspendidas TOTAL DE ESTA VENTA Gs 0 0 productos · 0 unidades Agregá productos para empe"
+    },
+    {
+      "pantalla": "03-pedidos",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/pedidos",
+      "señal": "pedido-fila",
+      "elementos": 15,
+      "vacio": false,
+      "archivo": "03-pedidos-desktop-oscuro.jpg",
+      "texto": "Una fila por pedido, alineada y ordenable: entrá para ver artículos, IMEIs, cliente y cronología. Activos No pagados Pendientes Parciales A crédito Archivados Todos Actualizar ACTI"
+    },
+    {
+      "pantalla": "04-clientes",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/clientes",
+      "señal": "cliente-fila",
+      "elementos": 12,
+      "vacio": false,
+      "archivo": "04-clientes-desktop-oscuro.jpg",
+      "texto": "Demo local: ingresá únicamente datos ficticios. Todos Mayoristas Con deuda Con crédito Recientes Nombre Total gastado + Crear cliente 12 clientes 3 mayoristas 9 cliente final CLIEN"
+    },
+    {
+      "pantalla": "05-inventario",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/inventario/unidades",
+      "señal": "inventario-fila",
+      "elementos": 23,
+      "vacio": false,
+      "archivo": "05-inventario-desktop-oscuro.jpg",
+      "texto": "Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría. + Recibir unidad Reservar Transferir Recientes Modelo A→Z Modelo Z→A Nuevos primero Seminuevos primero M"
+    },
+    {
+      "pantalla": "06-taller-rack",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/inventario/taller",
+      "señal": "rack-taller",
+      "elementos": 1,
+      "vacio": false,
+      "archivo": "06-taller-rack-desktop-oscuro.jpg",
+      "texto": "Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría. + Recibir unidad Reservar Transferir Recientes Modelo A→Z Modelo Z→A Nuevos primero Seminuevos primero M"
+    },
+    {
+      "pantalla": "07-compras",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/compras",
+      "señal": "compra-fila",
+      "elementos": 2,
+      "vacio": false,
+      "archivo": "07-compras-desktop-oscuro.jpg",
+      "texto": "Compras Productos Anticipos, crédito y costos finales auditables por equipo o lote. Proveedores Elegí un proveedor ＋ Nuevo proveedor Sin sucursal (general) Casa Central Sucursal Vi"
+    },
+    {
+      "pantalla": "08-finanzas-caja",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/finanzas/caja",
+      "señal": "Saldo esperado",
+      "elementos": 1,
+      "vacio": false,
+      "archivo": "08-finanzas-caja-desktop-oscuro.jpg",
+      "texto": "Caja Gastos Bancos y cuentas Conciliación Publicidad Apertura física en Gs., saldos, pendientes, cheques y margen con costos congelados. ESTADO Abierta Turno de Hernán Acosta · 26/"
+    },
+    {
+      "pantalla": "09-finanzas-bancos",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/finanzas/bancos",
+      "señal": "cuenta-fila",
+      "elementos": 9,
+      "vacio": false,
+      "archivo": "09-finanzas-bancos-desktop-oscuro.jpg",
+      "texto": "Caja Gastos Bancos y cuentas Conciliación Publicidad Configurá los medios de pago. Desactivar conserva la cuenta y su historial. Añadir cuenta CUENTAS ACTIVAS 9 de 9 cuenta(s) INAC"
+    },
+    {
+      "pantalla": "10-finanzas-gastos",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/finanzas/gastos",
+      "señal": "gasto-fila",
+      "elementos": 0,
+      "vacio": false,
+      "archivo": "10-finanzas-gastos-desktop-oscuro.jpg",
+      "texto": "Caja Gastos Bancos y cuentas Conciliación Publicidad Registrar salida, cheque o adelanto La cotización queda congelada al guardar. Los cheques quedan pendientes hasta cobrarse o an"
+    },
+    {
+      "pantalla": "11-finanzas-creditos",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/finanzas/creditos",
+      "señal": "credito-fila",
+      "elementos": 0,
+      "vacio": false,
+      "archivo": "11-finanzas-creditos-desktop-oscuro.jpg",
+      "texto": "Caja Gastos Bancos y cuentas Conciliación Publicidad Apertura física en Gs., saldos, pendientes, cheques y margen con costos congelados. ESTADO Abierta Turno de Hernán Acosta · 26/"
+    },
+    {
+      "pantalla": "12-finanzas-conciliacion",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/finanzas/conciliacion",
+      "señal": "Ingresos conciliables",
+      "elementos": 1,
+      "vacio": false,
+      "archivo": "12-finanzas-conciliacion-desktop-oscuro.jpg",
+      "texto": "Caja Gastos Bancos y cuentas Conciliación Publicidad Conciliación y trazabilidad Ingresos por cuenta, medio y procesadora. Conciliá en lote el depósito o la transferencia recibida "
+    },
+    {
+      "pantalla": "13-autorizaciones",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/autorizaciones",
+      "señal": "autorizacion-fila",
+      "elementos": 4,
+      "vacio": false,
+      "archivo": "13-autorizaciones-desktop-oscuro.jpg",
+      "texto": "Datos ficticios: las solicitudes son de ejemplo y aprobar o rechazar queda simulado (no cambia condiciones reales). Autorizaciones comerciales Pedidos de mayorista, crédito, plazo,"
+    },
+    {
+      "pantalla": "14-servicio",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/servicio",
+      "señal": "servicio-fila",
+      "elementos": 4,
+      "vacio": false,
+      "archivo": "14-servicio-desktop-oscuro.jpg",
+      "texto": "Todo Tablero Servicio Garantías Recepción, diagnóstico, reparación, costos y entrega de cada equipo. Catálogo + Nueva orden Activos (4) Recibido (1) Diagnóstico (1) Con técnico (0)"
+    },
+    {
+      "pantalla": "15-equipo",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/configuracion/equipo",
+      "señal": "integrante-fila",
+      "elementos": 6,
+      "vacio": false,
+      "archivo": "15-equipo-desktop-oscuro.jpg",
+      "texto": "Mi cuenta Organización Equipo y acceso Comercial Seguridad y auditoría Dispositivos Sistema Integrantes, invitaciones, roles, horarios y comisiones. Integrantes Sumá personas, acti"
+    },
+    {
+      "pantalla": "16-inventario-reservas",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/inventario/reservas",
+      "señal": "reserva-fila",
+      "elementos": 3,
+      "vacio": false,
+      "archivo": "16-inventario-reservas-desktop-oscuro.jpg",
+      "texto": "Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría. + Recibir unidad Reservar Transferir Recientes Modelo A→Z Modelo Z→A Nuevos primero Seminuevos primero M"
+    },
+    {
+      "pantalla": "17-garantias",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/garantias",
+      "señal": "garantia-fila",
+      "elementos": 2,
+      "vacio": false,
+      "archivo": "17-garantias-desktop-oscuro.jpg",
+      "texto": "Todo Tablero Servicio Garantías Todos Recibido En diagnóstico Listo Entregado Nuevo caso CASOS 2 en la lista EN PROCESO 2 recibidos o en diagnóstico LISTOS 0 para entregar POR VENC"
+    },
+    {
+      "pantalla": "18-finanzas-cuotas",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/finanzas/cuotas",
+      "señal": "cuota-fila",
+      "elementos": 0,
+      "vacio": false,
+      "archivo": "18-finanzas-cuotas-desktop-oscuro.jpg",
+      "texto": "Caja Gastos Bancos y cuentas Conciliación Publicidad Apertura física en Gs., saldos, pendientes, cheques y margen con costos congelados. ESTADO Abierta Turno de Hernán Acosta · 26/"
+    },
+    {
+      "pantalla": "19-finanzas-comisiones",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/finanzas/comisiones",
+      "señal": "comision-fila",
+      "elementos": 0,
+      "vacio": false,
+      "archivo": "19-finanzas-comisiones-desktop-oscuro.jpg",
+      "texto": "Caja Gastos Bancos y cuentas Conciliación Publicidad Apertura física en Gs., saldos, pendientes, cheques y margen con costos congelados. ESTADO Abierta Turno de Hernán Acosta · 26/"
+    },
+    {
+      "pantalla": "20-finanzas-publicidad",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/finanzas/publicidad",
+      "señal": "anuncio-fila",
+      "elementos": 0,
+      "vacio": false,
+      "archivo": "20-finanzas-publicidad-desktop-oscuro.jpg",
+      "texto": "Caja Gastos Bancos y cuentas Conciliación Publicidad Gasto en publicidad (Meta Ads) Cargá manualmente cuánto invertís en ads. Se descuenta en el tablero de ganancias para saber tu "
+    },
+    {
+      "pantalla": "21-trade-in",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/trade-in",
+      "señal": "Trade-In",
+      "elementos": 2,
+      "vacio": false,
+      "archivo": "21-trade-in-desktop-oscuro.jpg",
+      "texto": "Equipos recibidos como pago Recepción, revisión, reparación y destino de cada equipo. Actualizar Demo local: registrá equipos sintéticos desde una venta demo. La recepción no suma "
+    },
+    {
+      "pantalla": "22-impresion",
+      "combo": "desktop-oscuro",
+      "tema": "dark",
+      "ruta": "/configuracion/dispositivos",
+      "señal": "Impresora",
+      "elementos": 6,
+      "vacio": false,
+      "archivo": "22-impresion-desktop-oscuro.jpg",
+      "texto": "Mi cuenta Organización Equipo y acceso Comercial Seguridad y auditoría Dispositivos Sistema Impresoras, puentes, formatos y diagnóstico. Datos ficticios de demostración: las impres"
+    },
+    {
+      "pantalla": "01-inicio",
+      "combo": "mobile-claro",
+      "tema": "light",
+      "ruta": "/resumen",
+      "señal": "Facturado",
+      "elementos": 1,
+      "vacio": false,
+      "archivo": "01-inicio-mobile-claro.jpg",
+      "texto": "Acá ves el movimiento de la tienda en el período elegido. Hoy FACTURADO ↑ 34.1% Gs 14.280.000 Hoy · período anterior Gs 10.650.000 COBRADO Gs 14.180.000 2 pagadas PENDIENTE Gs 100."
+    },
+    {
+      "pantalla": "02-pos",
+      "combo": "mobile-claro",
+      "tema": "light",
+      "ruta": "/pos",
+      "señal": "Nueva venta",
+      "elementos": 1,
+      "vacio": false,
+      "archivo": "02-pos-mobile-claro.jpg",
+      "texto": "SIN PRODUCTOS Gs 0 Ver carrito Nueva venta Cliente, productos y cobro en una sola página. Hoy: 26/09/2026 Analytics Ventas suspendidas TOTAL DE ESTA VENTA Gs 0 0 productos · 0 unid"
+    },
+    {
+      "pantalla": "03-pedidos",
+      "combo": "mobile-claro",
+      "tema": "light",
+      "ruta": "/pedidos",
+      "señal": "pedido-fila",
+      "elementos": 15,
+      "vacio": false,
+      "archivo": "03-pedidos-mobile-claro.jpg",
+      "texto": "Una fila por pedido, alineada y ordenable: entrá para ver artículos, IMEIs, cliente y cronología. Activos No pagados Pendientes Parciales A crédito Archivados Todos Actualizar ACTI"
+    },
+    {
+      "pantalla": "04-clientes",
+      "combo": "mobile-claro",
+      "tema": "light",
+      "ruta": "/clientes",
+      "señal": "cliente-fila",
+      "elementos": 12,
+      "vacio": false,
+      "archivo": "04-clientes-mobile-claro.jpg",
+      "texto": "Demo local: ingresá únicamente datos ficticios. Todos Mayoristas Con deuda Con crédito Recientes Nombre Total gastado + Crear cliente 12 clientes 3 mayoristas 9 cliente final CLIEN"
+    },
+    {
+      "pantalla": "05-inventario",
+      "combo": "mobile-claro",
+      "tema": "light",
+      "ruta": "/inventario/unidades",
+      "señal": "inventario-fila",
+      "elementos": 23,
+      "vacio": false,
+      "archivo": "05-inventario-mobile-claro.jpg",
+      "texto": "Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría. + Recibir unidad Reservar Transferir Recientes Modelo A→Z Modelo Z→A Nuevos primero Seminuevos primero M"
+    },
+    {
+      "pantalla": "13-autorizaciones",
+      "combo": "mobile-claro",
+      "tema": "light",
+      "ruta": "/autorizaciones",
+      "señal": "autorizacion-fila",
+      "elementos": 4,
+      "vacio": false,
+      "archivo": "13-autorizaciones-mobile-claro.jpg",
+      "texto": "Datos ficticios: las solicitudes son de ejemplo y aprobar o rechazar queda simulado (no cambia condiciones reales). Autorizaciones comerciales Pedidos de mayorista, crédito, plazo,"
+    },
+    {
+      "pantalla": "21-trade-in",
+      "combo": "mobile-claro",
+      "tema": "light",
+      "ruta": "/trade-in",
+      "señal": "Trade-In",
+      "elementos": 2,
+      "vacio": false,
+      "archivo": "21-trade-in-mobile-claro.jpg",
+      "texto": "Equipos recibidos como pago Recepción, revisión, reparación y destino de cada equipo. Actualizar Demo local: registrá equipos sintéticos desde una venta demo. La recepción no suma "
+    },
+    {
+      "pantalla": "22-impresion",
+      "combo": "mobile-claro",
+      "tema": "light",
+      "ruta": "/configuracion/dispositivos",
+      "señal": "Impresora",
+      "elementos": 6,
+      "vacio": false,
+      "archivo": "22-impresion-mobile-claro.jpg",
       "texto": "Mi cuenta Organización Equipo y acceso Comercial Seguridad y auditoría Dispositivos Sistema Impresoras, puentes, formatos y diagnóstico. Datos ficticios de demostración: las impres"
     }
   ]

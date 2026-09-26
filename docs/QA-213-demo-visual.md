@@ -4,11 +4,13 @@ Verificación de que la demo pública muestra la **experiencia completa** con
 datos ficticios, sin tocar la base real y sin llamar al API del dominio.
 
 - **Método:** `node scripts/qa-213-demo-visual.mjs` (Playwright headless; entra
-  por `/demo` como dueño y recorre 22 pantallas contando filas/indicadores).
-- **Versión de referencia:** producción v1.0.181 (rama local para el fix de
-  autorizaciones, que entra en el próximo release).
-- **Evidencia:** `docs/qa/213-demo-visual/antes/` (producción, con el gap) y
-  `.../despues/` (rama, con el fix) — capturas por pantalla + `resultados.json`.
+  por `/demo` como dueño y recorre 22 pantallas contando filas/indicadores, en
+  **claro, oscuro y móvil**).
+- **Versión de referencia:** rama sobre v1.0.182 (producción al 26/09: v1.0.182;
+  el fix de autorizaciones entra con la integración).
+- **Evidencia:** `docs/qa/213-demo-visual/antes/` (producción: claro, con el
+  gap) y `.../despues/` (rama: **22 claro + 22 oscuro + 8 móvil = 52 capturas**
+  por pantalla + `resultados.json` con el conteo de cada una).
 
 ## Qué muestra la demo hoy
 
@@ -23,6 +25,9 @@ datos ficticios, sin tocar la base real y sin llamar al API del dominio.
 | Servicio | 4 órdenes del pipeline | Trade-In | 2 cotizaciones |
 | Garantías | 2 activas | Equipo | 6 integrantes con roles |
 | Dispositivos | 2 impresoras demo + cola | Gastos/Publicidad | Formularios con datos |
+
+La corrida final no marcó ninguna pantalla vacía: las 22 muestran datos en los
+tres modos (claro, oscuro y móvil en las 8 principales).
 
 ## Gap cerrado: Autorizaciones
 

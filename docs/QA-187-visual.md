@@ -24,8 +24,8 @@ dominio (la funcional vive en los informes de cada slot).
   (`docs/QA-241-shell-aa.md`).
 - **Mobile**: **cero targets < 44 px** en 360/390/414 para todo lo auditado
   (`docs/QA-RESPONSIVE-MOBILE.md`, gate `dsn-responsive-mobile.spec.js`).
-- **Demo**: el recorrido visual de la demo completa está en
-  `docs/QA-213-demo-visual.md`.
+- **Demo**: el recorrido visual de la demo completa (claro/oscuro/móvil) está
+  en `docs/QA-213-demo-visual.md` y `docs/qa/213-demo-visual/despues/`.
 
 ## Hallazgos
 
