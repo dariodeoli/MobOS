@@ -1,6 +1,6 @@
 {
   "base": "http://127.0.0.1:5275",
-  "fecha": "2026-09-25T15:24:49.562Z",
+  "fecha": "2026-09-26T13:06:53.518Z",
   "pasos": [
     {
       "documento": "etiquetas-lote-80mm",
@@ -19,6 +19,24 @@
       "archivo": "etiquetas-lote-80mm.png",
       "formato": "PNG",
       "bytes": 337874
+    },
+    {
+      "documento": "etiqueta-individual-80mm",
+      "archivo": "etiqueta-individual-80mm.pdf",
+      "formato": "thermal-80",
+      "paginas": 3
+    },
+    {
+      "documento": "etiqueta-individual-pendiente-80mm",
+      "archivo": "etiqueta-individual-pendiente-80mm.pdf",
+      "formato": "thermal-80",
+      "paginas": 3
+    },
+    {
+      "documento": "etiqueta-individual-80mm-escpos",
+      "archivo": "etiqueta-individual-80mm-escpos.pdf",
+      "formato": "ESC/POS 80 mm",
+      "paginas": 1
     }
   ]
 }

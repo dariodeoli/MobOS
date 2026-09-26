@@ -87,10 +87,25 @@ try {
   writeFileSync(join(SALIDA, 'etiquetas-lote-80mm.png'), Buffer.from(png.dataUrl.split(',')[1], 'base64'))
   pasos.push({ documento: 'etiquetas-lote-80mm-png', archivo: 'etiquetas-lote-80mm.png', formato: 'PNG', bytes: png.bytes })
 
+  // Etiquetas **individuales** (reimpresión): el panel busca la unidad por su
+  // serial (o por su número si todavía no tiene IMEI) y manda una sola.
+  const individual = await page.evaluate(async ({ etiquetas }) => {
+    const { etiquetaPorSerial, etiquetaPorNumero } = await import('/src/lib/printing/etiquetaLote.js')
+    return {
+      conImei: etiquetaPorSerial(etiquetas, '351500000000004'),
+      pendiente: etiquetaPorNumero(etiquetas, 4),
+    }
+  }, { etiquetas: ETIQUETAS })
+  if (!individual.conImei || !individual.pendiente) throw new Error('no se encontraron las etiquetas individuales')
+  await pdfHtml('etiqueta-individual-80mm', await datosDe('/src/components/shared/OrderReceipt.jsx', 'buildEtiquetasLoteHtml', [[individual.conImei], { ancho: 80, compra: COMPRA }]), 'thermal-80')
+  await pdfHtml('etiqueta-individual-pendiente-80mm', await datosDe('/src/components/shared/OrderReceipt.jsx', 'buildEtiquetasLoteHtml', [[individual.pendiente], { ancho: 80, compra: COMPRA }]), 'thermal-80')
+  await pdfTermico('etiqueta-individual-80mm-escpos', await lineasDe('ticketEtiquetasLote', [[individual.conImei], { ancho: 80, compra: COMPRA }]), 80)
+
   writeFileSync(join(SALIDA, 'datos-ejemplo.json'), `${JSON.stringify({
     compra: COMPRA,
     etiquetas: ETIQUETAS,
     resumen: { unidades: ETIQUETAS.length, conImei: ETIQUETAS.filter((e) => !e.pendiente).length, pendientes: ETIQUETAS.filter((e) => e.pendiente).length },
+    individual: { conImei: individual.conImei, pendiente: individual.pendiente },
     generado: new Date().toISOString(),
   }, null, 2)}\n`)
 } catch (error) {

@@ -83,5 +83,35 @@
     "conImei": 3,
     "pendientes": 2
   },
-  "generado": "2026-09-25T15:24:49.548Z"
+  "individual": {
+    "conImei": {
+      "n": 1,
+      "total": 5,
+      "producto": "iPhone 15 Pro Max",
+      "capacidad": "256 GB",
+      "condicion": "USED",
+      "imei": "351500000000004",
+      "pendiente": false,
+      "compra": "COM-CDE-0048",
+      "referencia": "Factura 001-002",
+      "pedido": "PV-000123",
+      "destino": "Casa Central",
+      "lote": "ENV-CDE-ASU-0021"
+    },
+    "pendiente": {
+      "n": 4,
+      "total": 5,
+      "producto": "iPhone 15",
+      "capacidad": "128 GB",
+      "condicion": "NEW",
+      "imei": null,
+      "pendiente": true,
+      "compra": "COM-CDE-0048",
+      "referencia": "Factura 001-002",
+      "pedido": null,
+      "destino": "Casa Central",
+      "lote": "ENV-CDE-ASU-0021"
+    }
+  },
+  "generado": "2026-09-26T13:06:53.502Z"
 }

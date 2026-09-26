@@ -61,6 +61,20 @@ Se imprimen con los mismos builders (`ticketEtiquetasLote` /
 `buildEtiquetasLoteHtml`) y muestran «Lote: ENV-…». Ejemplo:
 `docs/manifiesto-ejemplo/etiquetas-lote-80mm.pdf`.
 
+### Etiqueta individual (reimpresión)
+
+Para reimprimir **una sola** unidad el panel no necesita otro builder: busca la
+etiqueta y manda una lista de un elemento.
+
+- `etiquetaPorSerial(etiquetas, serial)` — la unidad por su IMEI (tolera
+  mayúsculas/espacios); `null` si no está.
+- `etiquetaPorNumero(etiquetas, n)` — la unidad sin IMEI por su posición.
+- Se imprime con `ticketEtiquetasLote([etiqueta], { ancho })` /
+  `buildEtiquetasLoteHtml([etiqueta], { ancho })`: un solo corte y la misma
+  posición (`n de M`) que la tira completa.
+
+Ejemplos: `docs/etiquetas-lote-ejemplo/etiqueta-individual-*.pdf`.
+
 ## 4. Adopción del panel (pendiente de UI)
 
 El panel de abastecimiento (CMP) debe, en la pestaña de preparación de una
@@ -71,6 +85,8 @@ compra:
    `etiquetas-lote`) y «Descargar PDF»/«Compartir imagen» con
    `buildEtiquetasLoteHtml` + `CompartirImagen`.
 3. Respetar el resumen (`unidades · conImei · pendientes`) antes de despachar.
+4. Reimprimir una unidad con `etiquetaPorSerial`/`etiquetaPorNumero` (o, si INV
+   prefiere resolverlo en el servidor, un `?serial=` en la ruta de etiquetas).
 
 ## 5. Evidencia y tests
 
