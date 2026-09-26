@@ -10,7 +10,14 @@ La demo es un modo aislado en el navegador (datos ficticios, sin API de la tiend
 se recorrió el **flujo del vendedor** (PIN 2001) sin tocar datos reales.
 Resultado: **12/12 pasos ejecutados, sin fallos de script**.
 
-## Pasada v1.0.182 (26/09/2026) — verificación vigente
+## Pasada v1.0.186 (26/09/2026) — verificación vigente
+
+**Evidencia:** `docs/qa/187-1.0.186-produccion/` (25 capturas + `resultados.json`).
+**12/12 pasos, `v2 por defecto: true`, 0 errores de consola y 0 respuestas API ≥400.**
+Cierre igual que las pasadas previas: retiro sin envío (Gs 13.880.000) y TU DÍA por
+orden (3 → 4). Acompaña el cierre POS de #148 (`docs/qa/148-pos-cierre.md`).
+
+## Pasada v1.0.182 (26/09/2026)
 
 **Evidencia:** `docs/qa/187-1.0.182-produccion/` (25 capturas + `resultados.json`).
 **12/12 pasos, `v2 por defecto: true`, 0 errores de consola, 0 respuestas API ≥400.**

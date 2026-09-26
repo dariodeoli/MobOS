@@ -34,6 +34,7 @@ claro/oscuro y mobile claro), 0 errores de página:
 | **Producción v1.0.172 (post-deploy)** | ✅ | ✅ no crea el pedido | el mismo aviso, ya publicado | `1.0.172-produccion-postdeploy/guardado-desktop-claro.jpg` |
 | **Producción v1.0.178 (post-deploy)** | ✅ | ✅ no crea el pedido | el mismo aviso, vigente en la última versión | `1.0.178-produccion-postdeploy/guardado-desktop-claro.jpg` |
 | **Producción v1.0.182 (post-deploy)** | ✅ | ✅ no crea el pedido | el mismo aviso, vigente | `1.0.182-produccion-postdeploy/guardado-desktop-claro.jpg` |
+| **Producción v1.0.186 (post-deploy)** | ✅ | ✅ no crea el pedido | el mismo aviso, vigente | `1.0.186-produccion-postdeploy/guardado-desktop-claro.jpg` |
 
 Capturas por variante (`precio-sobre-tope-*`, `guardado-*`) y datos crudos en
 `resultados-<etiqueta>.json`.
