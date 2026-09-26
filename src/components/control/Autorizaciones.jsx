@@ -21,6 +21,7 @@ import {
   useToast,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { DEMO_AUTORIZACIONES, demoAutorizacionesFiltradas } from '@/lib/demoAutorizaciones'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } from '@/components/shared/tabla'
 // Tabla compacta: una fila por solicitud y las acciones de aprobación en la
 // misma línea. El detalle (autorizado, quién resolvió, notas) va en el title.
@@ -120,7 +121,10 @@ export default function Autorizaciones() {
   const puedeResolver = RESOLVERS.includes(usuario?.role)
 
   async function load() {
-    if (esDemo) return
+    if (esDemo) {
+      setRows(demoAutorizacionesFiltradas(filtro, tipo))
+      return
+    }
     setLoading(true)
     setError('')
     try {
@@ -204,6 +208,21 @@ export default function Autorizaciones() {
         resolvedValue.creditDays = days
       }
     }
+    if (esDemo) {
+      setRows((actuales) => actuales.map((row) => (row.id === approveTarget.id
+        ? {
+            ...row,
+            status: 'APPROVED',
+            resolvedValue,
+            resolvedBy: { name: usuario?.name || 'Administrador' },
+            resolvedAt: new Date().toISOString(),
+            resolvedNote: approveForm.resolvedNote.trim(),
+          }
+        : row)))
+      toast.success('Solicitud aprobada', 'En la demo queda simulada: no cambia condiciones reales.')
+      setApproveTarget(null)
+      return
+    }
     setBusy(true)
     try {
       await api.patch('/api/authorizations', {
@@ -235,6 +254,20 @@ export default function Autorizaciones() {
       toast.error('Motivo obligatorio', 'Contale al vendedor por qué se rechaza.')
       return
     }
+    if (esDemo) {
+      setRows((actuales) => actuales.map((row) => (row.id === rejectTarget.id
+        ? {
+            ...row,
+            status: 'REJECTED',
+            resolvedBy: { name: usuario?.name || 'Administrador' },
+            resolvedAt: new Date().toISOString(),
+            resolvedNote: rejectNote.trim(),
+          }
+        : row)))
+      toast.success('Solicitud rechazada', 'En la demo queda simulada.')
+      setRejectTarget(null)
+      return
+    }
     setBusy(true)
     try {
       await api.patch('/api/authorizations', {
@@ -252,20 +285,14 @@ export default function Autorizaciones() {
     }
   }
 
-  if (esDemo) {
-    return (
-      <Card>
-        <h2 className="font-bold">Autorizaciones comerciales</h2>
-        <p className="mt-2 text-sm text-mute">
-          La demo no tiene solicitudes reales. Ingresá con una cuenta real para autorizar
-          condiciones de clientes.
-        </p>
-      </Card>
-    )
-  }
-
   return (
     <div className="space-y-4">
+      {esDemo && (
+        <Aviso tono="warn">
+          Datos ficticios: las solicitudes son de ejemplo y aprobar o rechazar queda simulado
+          (no cambia condiciones reales).
+        </Aviso>
+      )}
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
