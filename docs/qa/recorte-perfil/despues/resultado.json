@@ -1,0 +1,15 @@
+{
+  "version": "1.0.186",
+  "base": "http://localhost:5203",
+  "foto": "600x1200 (vertical)",
+  "alAbrir": {
+    "ancho": 120,
+    "alto": 240
+  },
+  "contenedor": 240,
+  "alZoom": {
+    "ancho": 300,
+    "alto": 600
+  },
+  "fecha": "2026-09-26T23:22:18.667Z"
+}
