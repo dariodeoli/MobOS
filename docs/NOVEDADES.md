@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.179 — 2026-09-26
+- **Abastecimiento · Fase 1 (#250/#254):** el **Centro de compra «Por comprar»** ya funciona: las **ventas sin stock**, las **reservas faltantes** y los productos **bajo mínimo** generan necesidades, que se pueden **asignar, priorizar y cerrar** con **costo y margen estimados**.
+- **Abastecimiento (#254):** cada necesidad conserva **pedido, línea y cliente** (el nombre solo para quien gestiona clientes) y queda **auditada**; el panel **«Por comprar»** llega también al **móvil** con carga manual.
+- **Shell (#241):** el **switch del rediseño v2** se controla por configuración (sigue activado) con **opt-out visible** por dispositivo.
+- **Calidad:** recorridos de producción post-.178 en inventario/tránsito, finanzas, POS e impresión, con capturas.
+
 ## v1.0.178 — 2026-09-26
 - **Mobile (#249):** en la línea del carrito del POS, la **papelera** y el **botón de detalle** quedan con **área táctil exacta de 44 px** (el control automático de mobile vuelve a estar en verde).
 
