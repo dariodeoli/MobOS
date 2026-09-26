@@ -504,15 +504,19 @@ un trabajo nuevo).
 
 ## 12. Abastecimiento (#250 §11)
 
-Estado: la **lista de compra · 80 mm** y el **manifiesto** siguen pendientes de
-implementar en PRN (fases 1–5 ya en main); la **etiqueta producto/paquete**
-(fase 3) y el **comprobante de recepción** (fase 5) ya están implementados —
-contratos en [ETIQUETAS-LOTE.md](ETIQUETAS-LOTE.md) y
+Estado: solo el **manifiesto** sigue pendiente de implementar en PRN (fases 1–5
+ya en main); la **lista de compra**, la **etiqueta producto/paquete** y el
+**comprobante de recepción** ya están implementados — contratos en
+[LISTA-COMPRA.md](LISTA-COMPRA.md), [ETIQUETAS-LOTE.md](ETIQUETAS-LOTE.md) y
 [COMPROBANTE-RECEPCION.md](COMPROBANTE-RECEPCION.md).
 
-- **Lista de compra · 80 mm** (ESC/POS + respaldo HTML A4/rollo): `code` (`COM-…`),
-  recorrido/origen, comprador, proveedor, **productos agrupados con cantidades y
-  prioridades**, total de líneas y **QR del panel**.
+- **Lista de compra · 80 mm** (ESC/POS + respaldo HTML A4/rollo) — implementado:
+  `code` (`COM-…`), recorrido/origen, comprador, proveedor, **productos
+  agrupados con cantidades y prioridades** (con el origen de la necesidad),
+  IMEI cargados/pendientes, totales y el QR/barras del panel. Builders:
+  `datosListaCompra` (`listaCompra.js`) + `ticketListaCompra` (ESC/POS) +
+  `buildListaCompraHtml`/`printListaCompra` (A4/rollo). Ensayo:
+  `docs/lista-compra-ejemplo/`.
 - **Etiqueta producto/paquete · 80 mm** — implementado: lo devuelve
   `GET /api/supply/purchases/[id]/labels` (`etiquetasPreparacion` en
   `backend/lib/supply.ts`): `{ n, total, producto, capacidad, condicion, imei,

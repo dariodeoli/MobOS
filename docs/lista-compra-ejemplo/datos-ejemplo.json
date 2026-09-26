@@ -1,0 +1,68 @@
+{
+  "compra": {
+    "code": "COM-CDE-0048",
+    "estado": "Comprada",
+    "proveedor": "Mayorista Apple PY",
+    "recorrido": "CDE → Casa Central",
+    "comprador": "Lucía Benítez",
+    "referencia": "Factura 001-002"
+  },
+  "lineas": [
+    {
+      "producto": "iPhone 15 Pro Max",
+      "variante": "256 GB · Titanio Natural",
+      "condicion": "Seminuevo",
+      "cantidad": 3,
+      "prioridad": "Urgente",
+      "origenes": [
+        "Venta sin stock",
+        "Bajo punto de reposición"
+      ],
+      "prometida": "26/9/2026",
+      "pedidos": [
+        "PV-000123"
+      ],
+      "conImei": 1,
+      "pendientes": 2
+    },
+    {
+      "producto": "AirPods Pro 2",
+      "variante": "Blanco",
+      "condicion": "Nuevo",
+      "cantidad": 5,
+      "prioridad": "Alta",
+      "origenes": [
+        "Reserva sin stock"
+      ],
+      "prometida": "28/9/2026",
+      "pedidos": [
+        "PV-000131"
+      ],
+      "conImei": 2,
+      "pendientes": 3
+    },
+    {
+      "producto": "Cable USB-C a Lightning 1 m",
+      "variante": "Blanco",
+      "condicion": "Nuevo",
+      "cantidad": 10,
+      "prioridad": null,
+      "origenes": [
+        "Reposición libre"
+      ],
+      "prometida": "",
+      "pedidos": [],
+      "conImei": 0,
+      "pendientes": 10
+    }
+  ],
+  "resumen": {
+    "lineas": 3,
+    "unidades": 18,
+    "conImei": 3,
+    "pendientes": 15,
+    "urgentes": 2
+  },
+  "enlaceDemo": "https://app.moboss.online/envio/ENV-CDE-ASU-0021",
+  "generado": "2026-09-26T09:04:06.029Z"
+}

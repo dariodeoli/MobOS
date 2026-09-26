@@ -1,0 +1,36 @@
+{
+  "base": "http://127.0.0.1:5279",
+  "fecha": "2026-09-26T09:04:06.178Z",
+  "pasos": [
+    {
+      "documento": "lista-compra-80mm",
+      "archivo": "lista-compra-80mm.pdf",
+      "formato": "thermal-80",
+      "paginas": 1
+    },
+    {
+      "documento": "lista-compra-a4",
+      "archivo": "lista-compra-a4.pdf",
+      "formato": "A4",
+      "paginas": 1
+    },
+    {
+      "documento": "lista-compra-80mm-escpos",
+      "archivo": "lista-compra-80mm-escpos.pdf",
+      "formato": "ESC/POS 80 mm",
+      "paginas": 1
+    },
+    {
+      "documento": "lista-compra-a4-con-enlace",
+      "archivo": "lista-compra-a4-con-enlace.pdf",
+      "formato": "A4",
+      "paginas": 2
+    },
+    {
+      "documento": "qr-panel",
+      "archivo": "qr-panel.png",
+      "formato": "QR",
+      "enlace": "https://app.moboss.online/envio/ENV-CDE-ASU-0021"
+    }
+  ]
+}
