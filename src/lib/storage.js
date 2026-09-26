@@ -560,10 +560,11 @@ export function updateProducto(id, cambios) {
 
 // ── VENDEDORES ──────────────────────────────────────────────────────
 export function getVendedores() {
-  if (!isDemoRuntime && cache.vendedores.length === 0) {
-    cache.vendedores = isDemoRuntime
-      ? [{ id: 'demo-user', nombre: 'Hernán Acosta', activo: true, metaDiaria: 1000000 }]
-      : clone(VENDEDORES_DEFAULT)
+  if (cache.vendedores.length === 0) {
+    // #219: en la demo el equipo ficticio también se siembra acá. Antes la
+    // demo dependía solo de `prepararDatosDemo` y una carga directa de Equipo
+    // (antes de que el seed corriera) quedaba sin integrantes.
+    cache.vendedores = clone(isDemoRuntime ? EQUIPO_DEMO : VENDEDORES_DEFAULT)
     persistMirror()
   }
   return cache.vendedores

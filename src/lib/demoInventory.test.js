@@ -59,6 +59,7 @@ test('verificar una unidad deja usuario y fecha (sin datos reales)', () => {
   assert.equal(verificada.locationId, 'demo-ubic-piso')
   assert.ok(['Hernán Acosta', 'Ana Giménez', 'Diego López', 'María Benítez', 'Jorge Villalba', 'Sofía Cáceres'].includes(verificada.lastVerifiedBy.name), 'la firma un usuario demo del equipo')
   assert.ok(verificada.verifiedAt)
+  assert.ok(verificada.lastVerifiedAt, 'la demo espeja lastVerifiedAt (forma real)')
 })
 
 test('la venta demo marca la unidad como vendida y deja el evento (#227)', () => {

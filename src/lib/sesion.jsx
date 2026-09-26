@@ -75,7 +75,7 @@ export function SesionProvider({ children }) {
     setUsuario(user); setEmpresa(emp); setEmpresas([emp]); setSucursal(sucursalActiva); setSucursales(listaSucursales); setVendedores(getCompanyContext()?.sellers || []); setPerfilEmpresa(perfil !== undefined ? perfil : getCompanyContext()?.profile || null); setEstado('dentro')
   }, [])
   const entrarDemo = useCallback(async (role = demoSessionRole()) => {
-    saveDemoSession(role); await activarSesion({ id: 'demo-user', email: 'demo@example.invalid', name: role === 'ADMIN' ? 'Hernán Acosta' : 'Diego López', tenantId: 'mobos-demo', role, branchId: SUCURSALES_DEMO[0].id, branchName: SUCURSALES_DEMO[0].name }, { prepararLegacy: true, tenant: { name: EMPRESA_DEMO.razonSocial, slug: 'mobos-demo', email: EMPRESA_DEMO.email } }); prepararDatosDemo()
+    saveDemoSession(role); await activarSesion({ id: 'demo-user', email: 'demo@example.invalid', name: role === 'ADMIN' ? 'Hernán Acosta' : 'Diego López', hasAvatar: true, tenantId: 'mobos-demo', role, branchId: SUCURSALES_DEMO[0].id, branchName: SUCURSALES_DEMO[0].name }, { prepararLegacy: true, tenant: { name: EMPRESA_DEMO.razonSocial, slug: 'mobos-demo', email: EMPRESA_DEMO.email } }); prepararDatosDemo()
   }, [activarSesion])
   useEffect(() => {
     let vivo = true

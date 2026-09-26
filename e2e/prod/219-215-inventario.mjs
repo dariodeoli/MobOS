@@ -192,6 +192,19 @@ await paso('verificación funcional: un usuario demo firma la unidad', async (sh
   return `firma demo registrada (${antes.includes('Sin verificación') ? 'venía sin verificar' : 'se sumó otra'})`
 })
 
+await paso('equipo demo: nombres y correos ficticios (sin «demo»)', async (shot) => {
+  await irA('/configuracion/equipo')
+  const filas = page.getByTestId('integrante-fila')
+  await filas.first().waitFor({ state: 'visible', timeout: 25000 })
+  const textos = (await filas.allInnerTexts()).map((texto) => texto.replace(/\s+/g, ' '))
+  const correos = textos.map((texto) => (texto.match(/35\d{6}@[\w.-]+/) || [])[0]).filter(Boolean)
+  if (correos.length < 4) throw new Error(`se esperaban ≥4 correos que empiecen con 35: ${correos.join(', ') || 'ninguno'}`)
+  const conDemo = textos.filter((texto) => /demo/i.test(texto))
+  if (conDemo.length) throw new Error(`el equipo demo menciona «demo»: ${conDemo[0].slice(0, 80)}`)
+  await shot('equipo-demo')
+  return `${correos.length} integrantes demo · correos 35… sin «demo» (p. ej. ${correos[0]})`
+})
+
 await browser.close()
 
 resultado.veredicto = {

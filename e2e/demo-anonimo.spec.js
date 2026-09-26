@@ -461,6 +461,49 @@ test('configuración en demo muestra avisos claros y sin cargas colgadas', async
   await expect(page.getByRole('switch', { name: 'Aplica seguro' })).toBeVisible()
 })
 
+// #219: el equipo demo tiene foto de perfil (retrato ficticio local) en Equipo
+// y en la firma de una verificación, sin llamadas a servicios externos.
+test('el equipo demo muestra fotos de perfil ficticias', async ({ page }) => {
+  await page.goto('/demo')
+  await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
+  await expect(page).toHaveURL(/\/resumen$/)
+  await cerrarGuia(page)
+  mkdirSync('test-results/qa-219-demo-fotos', { recursive: true })
+
+  await page.goto('/configuracion/equipo')
+  const filas = page.getByTestId('integrante-fila')
+  await expect(filas.first()).toBeVisible({ timeout: 25_000 })
+  const fotos = filas.locator('img[alt^="Foto de"]')
+  const cantidad = await fotos.count()
+  if (cantidad < 4) throw new Error(`el equipo demo muestra ${cantidad} fotos en sus filas, se esperaban al menos 4`)
+  const fuentes = await fotos.evaluateAll((nodos) => nodos.slice(0, 8).map((nodo) => nodo.getAttribute('src') || ''))
+  for (const src of fuentes) expect(src).toMatch(/^data:image\/svg\+xml/)
+  await page.screenshot({ path: 'test-results/qa-219-demo-fotos/01-equipo.jpg', type: 'jpeg', quality: 78 })
+
+  // La firma de la verificación física muestra la foto del integrante demo.
+  await page.goto('/inventario/unidades')
+  const fila = page.getByTestId('inventario-fila').first()
+  await fila.waitFor({ state: 'visible', timeout: 20_000 })
+  const abrirFicha = async () => {
+    await fila.click()
+    const ficha = page.getByRole('dialog')
+    await ficha.waitFor({ state: 'visible', timeout: 15_000 })
+    return ficha
+  }
+  let ficha = await abrirFicha()
+  if (!(await ficha.locator('img[alt^="Foto de"]').count())) {
+    await ficha.getByRole('button', { name: '✓ Verificado' }).click()
+    await page.getByText(/verificado\./i).waitFor({ state: 'visible', timeout: 20_000 })
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(600)
+    ficha = await abrirFicha()
+  }
+  const firma = ficha.locator('img[alt^="Foto de"]').first()
+  await expect(firma).toBeVisible({ timeout: 15_000 })
+  expect(await firma.getAttribute('src')).toMatch(/^data:image\/svg\+xml/)
+  await page.screenshot({ path: 'test-results/qa-219-demo-fotos/02-firma-verificacion.jpg', type: 'jpeg', quality: 78 })
+})
+
 test('el último usado es el default y se puede cambiar (#209)', async ({ page }) => {
   await page.goto('/demo')
   await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
@@ -652,3 +695,4 @@ test('demo: el POS reserva un IMEI de la demo y la línea queda con el serial', 
   await expect(carrito.getByRole('button', { name: /^Cambiar IMEI de / })).toBeVisible()
   expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
 })
+
