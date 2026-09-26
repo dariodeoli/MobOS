@@ -155,3 +155,10 @@ y 2 unidades) con la sonda `scripts/qa-243-carrito-colapso.mjs`:
 | **Estabilidad** | 0 desbordes horizontales y 0 errores de página |
 
 Capturas y datos crudos: [`1.0.170-produccion/`](1.0.170-produccion/).
+
+## Re-verificación en producción v1.0.175
+
+Pasada del **26/09** (post-.175) con la misma sonda: **68 px desktop / 84 px
+mobile** en las 6 variantes (claro/oscuro, v2 off/on), papelera y confirmación,
+**0 desbordes y 0 errores de página**. Capturas y datos crudos:
+[`1.0.175-produccion/`](1.0.175-produccion/).

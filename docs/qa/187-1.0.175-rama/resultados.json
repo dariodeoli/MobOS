@@ -1,0 +1,151 @@
+{
+  "base": "http://127.0.0.1:5216",
+  "version": "v1.0.175",
+  "fecha": "2026-09-26T03:55:00.802Z",
+  "viewport": {
+    "desktop": "1440x900",
+    "movil": "390x844"
+  },
+  "metodo": "Playwright headless (chromium) sobre la demo pública",
+  "pasos": [
+    {
+      "paso": "entrada a la demo como vendedor",
+      "estado": "ok",
+      "detalle": "versión desplegada: v1.0.175 · perfiles: 2 · menú: VENDER POS Mis pedidos Cotizaciones Promociones Plantillas CLIENTES Clientes INVENTARIO Productos Precios OPERACIÓN Delivery Trade-In Ayuda",
+      "capturas": [
+        "01-acceso-demo.jpg",
+        "02-panel-vendedor.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "pos: venta en una sola pantalla (carrito visible sin salir)",
+      "estado": "ok",
+      "detalle": "buscador visible: true (bottom 759/900) · total visible: true (bottom 296/900) · hoy visible: 1",
+      "capturas": [
+        "03-pos-pantalla-unica.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "catalogo: buscar y agregar con modelo y capacidad",
+      "estado": "ok",
+      "detalle": "sugerencias: iPhone 15 Pro 256GB Titanio DEMO-IPHONE-15-PRO-256-T | iPhone 15 Pro 256GB Negro DEMO-IPHONE-15-PRO-256-N | iPhone 15 Pro Max 256GB Titanio Natural IP15PM-256-NAT · carrito: TOTAL DE ESTA VENTA Gs 6.850.000 1 producto · 1 unidad TU DÍA 3 ventas · 3 pedidos Facturación Gs 14.280.000",
+      "capturas": [
+        "04-catalogo-resultados.jpg",
+        "05-producto-agregado.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "carrito: fila colapsada (#243), cantidad 2 y descuento",
+      "estado": "ok",
+      "detalle": "colapsada: iPhone 15 Pro 256GB Titanio Gs 6.850.000 · 2 u.: TOTAL DE ESTA VENTA Gs 13.880.000 2 productos · 3 unidades TU DÍA 3 ventas · 3 pedidos Facturación G · con descuento: TOTAL DE ESTA VENTA Gs 13.780.000 2 productos · 3 unidades Descuento − Gs 100.000 TU DÍA 3 ventas ·  · borrado: TOTAL DE ESTA VENTA Gs 13.880.000 2 productos · 3 unidades TU DÍA 3 ventas · 3 pedidos Facturación G",
+      "capturas": [
+        "06-carrito-colapsado.jpg",
+        "07-carrito-descuento.jpg",
+        "08-carrito-sin-descuento.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "cliente: buscador con la cartera demo y alta por nombre nuevo",
+      "estado": "ok",
+      "detalle": "demo «Lucía Fernández» visible: true · ficha elegida: true · alta por nombre nuevo → botón: \"Crear pedido sin pago 3 productos · Gs 13.880.000\"",
+      "capturas": [
+        "09-cliente-demo-sugerencia.jpg",
+        "10-cliente-nuevo.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "borradores: suspender, listar y retomar (demo en el navegador)",
+      "estado": "ok",
+      "detalle": "aviso: \"Venta suspendida en la demo. Podés retomarla desde “Ventas suspendidas”.\" · filas con la etiqueta: 1 · enlace demo avisa: true · carrito recuperado: TOTAL DE ESTA VENTA Gs 13.880.000 2 productos · 3 unidades TU DÍA 3 ventas · 3 pedidos Facturación Gs 14.280.000",
+      "capturas": [
+        "11-borrador-modal.jpg",
+        "12-borrador-aviso.jpg",
+        "13-borradores-listado.jpg",
+        "14-borrador-enlace-demo.jpg",
+        "15-borrador-recuperado.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "split: parcial con dividir saldo y segundo medio",
+      "estado": "ok",
+      "detalle": "bloques: 2 · «Dividir saldo (Gs 10.880.000)» · saldo precargado: 10.880.000 · botón con parcial: \"Crear pedido 3 productos · Gs 13.880.000\" → \"Confirmar venta 3 productos · Gs 13.880.000\"",
+      "capturas": [
+        "16-split-parcial.jpg",
+        "17-split-dividido.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "entrega: delivery con costo y retiro sin monto",
+      "estado": "ok",
+      "detalle": "con delivery: TOTAL DE ESTA VENTA Gs 13.910.000 2 productos · 3 unidades Entrega + Gs 30.000 TU DÍA 3 ventas · 3 pedidos Facturación G · monto deshabilitado en retiro: true",
+      "capturas": [
+        "18-entrega-delivery.jpg",
+        "19-entrega-retiro.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "venta: cubrir el saldo, confirmar y vaciar el carrito",
+      "estado": "ok",
+      "detalle": "botón: \"Confirmar venta 3 productos · Gs 13.880.000\" · confirmación: \"Cambio simulado en la demo\" · nota demo: true · TU DÍA: \"TU DÍA 3 ventas · 3 pedidos Facturación Gs 14.280.000\" → \"TU DÍA 4 ventas · 4 pedidos Facturación Gs 28.160.000\"",
+      "capturas": [
+        "20-venta-antes-de-confirmar.jpg",
+        "21-venta-confirmada.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "analytics: métricas del POS y período",
+      "estado": "ok",
+      "detalle": "7 días: true · top productos: true · ventas por vendedor: true · cobros netos por tipo: true · cobros netos por cuenta: true",
+      "capturas": [
+        "22-analytics-modal.jpg",
+        "23-analytics-7-dias.jpg"
+      ],
+      "erroresConsola": [
+        "Warning: Each child in a list should have a unique \"key\" prop.%s%s See https://reactjs.org/link/warning-keys for more information.%s \n\nCheck the render method of `Lista`.  \n    at div\n    at Lista (http://127.0.0.1:5216/src/components/ventas/AnalyticsPos.jsx:75:18)\n    at div\n    at div\n    at div\n    at div\n    at Modal (http://127.0.0.1:5216/src/components/ui/index.jsx:337:25)\n    at AnalyticsPo"
+      ],
+      "fallosRed": []
+    },
+    {
+      "paso": "movil 390x844: POS con carrito accesible",
+      "estado": "ok",
+      "detalle": "desborde horizontal: 0px → 0px · buscador: true · total: TOTAL DE ESTA VENTA Gs 150.000 1 producto · 1 unidad TU DÍA 3 ventas · 3 pedidos Facturación Gs 14.280.000",
+      "capturas": [
+        "24-pos-movil.jpg",
+        "25-pos-movil-carrito.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "diagnostico: consola y red",
+      "estado": "ok",
+      "detalle": "errores de consola: 1 · API ≥400: 0 · pedidos fallidos: 0 · top endpoints:  · consola: 1× Warning: Each child in a list should have a unique \"key\" prop.%s%s See URL for m",
+      "capturas": [],
+      "erroresConsola": [],
+      "fallosRed": []
+    }
+  ],
+  "errores": [
+    "Warning: Each child in a list should have a unique \"key\" prop.%s%s See https://reactjs.org/link/warning-keys for more information.%s \n\nCheck the render method of `Lista`.  \n    at div\n    at Lista (http://127.0.0.1:5216/src/components/ventas/AnalyticsPos.jsx:75:18)\n    at div\n    at div\n    at div\n    at div\n    at Modal (http://127.0.0.1:5216/src/components/ui/index.jsx:337:25)\n    at AnalyticsPo"
+  ],
+  "fallosRed": [],
+  "pedidosFallidos": []
+}

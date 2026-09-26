@@ -10,6 +10,7 @@ import {
   gs,
 } from '@/utils/calculos'
 import FormularioVenta from './FormularioVenta'
+import { ordenesDeVentas } from '@/utils/resumenVentasDia'
 import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import Icon from '@/components/shared/Icon'
 import { totalResumen } from '@/lib/posCart'
@@ -62,20 +63,24 @@ export default function VistaCargarVenta({ tradeInDraft, onTradeInConsumed }) {
   const resumenDia = useMemo(() => {
     const hoy = ventasDelDia(ventas, fechaClave())
     const total = hoy.reduce((a, v) => a + num(v.precio), 0)
+    // La demo guarda una fila por unidad de la misma venta (`compraId`): las
+    // ventas/pedidos del día se cuentan por orden, no por fila (#148 §7, #187).
+    const ordenes = ordenesDeVentas(hoy)
     // Cobrado vs pendiente de hoy para el vendedor de la sesión (los pagos
     // confirmados son los que importan, no lo facturado).
     const delVendedor = ventasDelDia(ventas, fechaClave(), sesion?.vendedorId)
+    const ordenesVendedor = ordenesDeVentas(delVendedor)
     const cobrado = delVendedor.reduce((sum, v) => sum + cobradoDeVenta(v), 0)
-    const pagadas = delVendedor.filter(v => v.estadoPago === 'Pagado').length
+    const pagadas = ordenesVendedor.filter(v => v.estadoPago === 'Pagado').length
     const pendiente = Math.max(0, totalesVendedor(ventas, sesion?.vendedorId).hoy - cobrado)
     return {
       total,
-      cant: hoy.length,
-      ticket: hoy.length ? total / hoy.length : 0,
+      cant: ordenes.length,
+      ticket: ordenes.length ? total / ordenes.length : 0,
       cobrado,
       pendiente,
       pagadas,
-      pendientes: delVendedor.length - pagadas,
+      pendientes: ordenesVendedor.length - pagadas,
     }
   }, [ventas, sesion?.vendedorId])
 
