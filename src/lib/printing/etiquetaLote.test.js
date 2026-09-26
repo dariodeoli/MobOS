@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { contextoEtiquetaLote, datosEtiquetaLote } from './etiquetaLote.js'
+import { contextoEtiquetaLote, datosEtiquetaLote, etiquetaPorNumero, etiquetaPorSerial } from './etiquetaLote.js'
 import { ticketEtiquetasLote } from './tickets.js'
 
 // Forma real de `GET /api/supply/purchases/[id]/labels`: una etiqueta por unidad
@@ -57,6 +57,21 @@ test('una etiqueta incompleta no rompe', () => {
   assert.equal(datos.pendiente, true)
   assert.equal(datos.codigo, '')
   assert.equal(contextoEtiquetaLote(datos), '')
+})
+
+test('la reimpresión individual encuentra la etiqueta por serial o por número', () => {
+  const etiquetas = [ETIQUETA, { ...ETIQUETA, n: 4, imei: null, pendiente: true }]
+  assert.equal(etiquetaPorSerial(etiquetas, '351500000000004')?.n, 3)
+  assert.equal(etiquetaPorSerial(etiquetas, ' 351500000000004 ')?.n, 3, 'tolera espacios')
+  assert.equal(etiquetaPorSerial(etiquetas, 'no-existe'), null)
+  assert.equal(etiquetaPorSerial(etiquetas, ''), null)
+  // Las pendientes no tienen serial: se reimprimen por su número.
+  assert.equal(etiquetaPorNumero(etiquetas, 4)?.pendiente, true)
+  assert.equal(etiquetaPorNumero(etiquetas, 99), null)
+  // Una individual se imprime con los mismos builders (un solo corte).
+  const texto = ticketEtiquetasLote([etiquetaPorSerial(etiquetas, '351500000000004')]).lineas().join('\n')
+  assert.equal((texto.match(/\[CORTE\]/g) || []).length, 1)
+  assert.match(texto, /3 de 12/)
 })
 
 test('el ticket ESC/POS arma una etiqueta por unidad con su código', () => {

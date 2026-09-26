@@ -52,3 +52,24 @@ export function datosEtiquetaLote(etiqueta = {}, { compra = null } = {}) {
 export function contextoEtiquetaLote(datos = {}) {
   return [datos.capacidad, datos.condicion].filter(Boolean).join(' · ')
 }
+
+/**
+ * Etiqueta individual de una unidad por su serial/IMEI: la usa el panel para
+ * **reimprimir una sola** (el resto del lote sale con la lista completa).
+ * Compara sin distinguir mayúsculas ni espacios; sin coincidencia devuelve null.
+ */
+export function etiquetaPorSerial(etiquetas = [], serial = '') {
+  const buscado = texto(serial).toUpperCase()
+  if (!buscado) return null
+  return (Array.isArray(etiquetas) ? etiquetas : []).find((etiqueta) => texto(etiqueta?.imei).toUpperCase() === buscado) || null
+}
+
+/**
+ * Etiqueta individual por su número (`n`) para las unidades sin IMEI: el panel
+ * reimprime la posición que muestra el listado de preparación.
+ */
+export function etiquetaPorNumero(etiquetas = [], numero = 0) {
+  const buscado = Number(numero)
+  if (!Number.isFinite(buscado) || buscado <= 0) return null
+  return (Array.isArray(etiquetas) ? etiquetas : []).find((etiqueta) => Number(etiqueta?.n) === buscado) || null
+}

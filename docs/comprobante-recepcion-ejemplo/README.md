@@ -53,3 +53,7 @@ QA_BASE_URL=http://127.0.0.1:5274 node scripts/ejemplo-comprobante-recepcion.mjs
 
 El contrato completo (entrada de la API, datos normalizados, builders y
 adopción del panel) está en [docs/COMPROBANTE-RECEPCION.md](../COMPROBANTE-RECEPCION.md).
+
+**Par F4:** el otro papel de la fase es el
+[manifiesto del lote](../manifiesto-ejemplo/README.md); la verificación conjunta
+está en [docs/QA-250-F4-impresos.md](../QA-250-F4-impresos.md).

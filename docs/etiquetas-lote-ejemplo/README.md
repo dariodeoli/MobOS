@@ -13,6 +13,9 @@ preparación. Los documentos los genera el mismo código que usará el panel
 | `etiquetas-lote-80mm.pdf` / `.jpg` | Las 5 etiquetas en rollo de 80 mm (el HTML de «Descargar PDF»), una por página. |
 | `etiquetas-lote-80mm-escpos.pdf` / `.jpg` | Lo que recibe la impresora térmica (ESC/POS, un corte por unidad). |
 | `etiquetas-lote-80mm.png` | La misma tira como **imagen para compartir** (el camino de `CompartirImagen`). |
+| `etiqueta-individual-80mm.pdf` / `.jpg` | **Una sola etiqueta** (reimpresión de la unidad 1, con IMEI): el panel la busca por serial con `etiquetaPorSerial`. |
+| `etiqueta-individual-pendiente-80mm.pdf` / `.jpg` | La reimpresión de una unidad **sin IMEI**, buscada por su número con `etiquetaPorNumero`. |
+| `etiqueta-individual-80mm-escpos.pdf` / `.jpg` | La individual en ESC/POS (un solo corte). |
 | `datos-ejemplo.json` | La compra y las etiquetas que alimentan los documentos. |
 
 ## La compra del ejemplo
