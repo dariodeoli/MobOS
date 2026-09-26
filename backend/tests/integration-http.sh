@@ -673,6 +673,11 @@ node "$BACKEND_ROOT/tests/supply-needs.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A
 
 echo "Centro de Abastecimiento F1: vínculo venta → necesidad y cliente con permiso (#254)..."
 node "$BACKEND_ROOT/tests/supply-demand.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
+echo "Centro de Abastecimiento F1: cliente con permiso en la tarjeta de necesidad (#254)..."
+node "$BACKEND_ROOT/tests/supply-customer.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$COMPANY_TOKEN_A"
+
+echo "Centro de Abastecimiento F1: verificación del vínculo venta/reserva → necesidad (#254)..."
+node "$BACKEND_ROOT/tests/supply-f1-verify.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 
 echo "Centro de Abastecimiento F2: compra rápida, IMEI y stock adicional (#250)..."
 node "$BACKEND_ROOT/tests/supply-purchases.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"

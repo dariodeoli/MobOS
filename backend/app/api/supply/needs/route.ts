@@ -3,7 +3,8 @@ import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
 import { consolidarNecesidades, normalizarNecesidadManual, prioridadMayor, NECESIDAD_ESTADOS, NECESIDAD_PRIORIDADES, type NecesidadEntrada } from '../../../../lib/supply'
-import { normalizarCentro, prioridadPorPromesa, puedeVerCliente } from '../../../../lib/supply-demand'
+import { normalizarCentro, prioridadPorPromesa } from '../../../../lib/supply-demand'
+import { puedeVerCliente } from '../../../../lib/supply-customer'
 import { costoEstimadoDeNecesidad, margenEstimadoDeNecesidad, prioridadDeNecesidad } from '../../../../lib/supply-priority'
 
 // #250 Fase 1 (Centro de Abastecimiento): API del panel «Por comprar».

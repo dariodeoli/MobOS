@@ -85,7 +85,7 @@ export type DestinoConsolidado = {
   pedidoNumero: string | null
   clienteId: string | null
   cliente: string | null
-  // Hay cliente vinculado pero sin permiso para ver su nombre (#254).
+  // #254: hay cliente vinculado pero sin permiso para ver su nombre.
   clienteOculto?: boolean
   prometidaEl: string | null
   centro: string | null

@@ -1,7 +1,7 @@
 import { consolidarNecesidades } from '../lib/supply'
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { demandasDePedido, demandaDeReserva, demandaBajoMinimo, normalizarCentro, prioridadPorPromesa, semanaClave, puedeVerCliente } from '../lib/supply-demand'
+import { demandasDePedido, demandaDeReserva, demandaBajoMinimo, normalizarCentro, prioridadPorPromesa, semanaClave } from '../lib/supply-demand'
 
 // #250 F1 · Motor de demanda: venta sin stock, cantidad > stock, pedido
 // comprometido con fecha, reserva/backorder y punto de reposición.
@@ -83,12 +83,6 @@ test('el centro de compra acepta los del plan y códigos nuevos cortos', () => {
   assert.deepEqual(normalizarCentro('C'), { ok: false, error: 'El centro de compra no es válido (2 a 8 letras o números).' })
   assert.equal(normalizarCentro('CON ESPACIO').ok, false)
 })
-
-// ── Cliente con permiso ─────────────────────────────────────────────────────
-assert.equal(puedeVerCliente(['*']), true, 'el dueño ve el cliente')
-assert.equal(puedeVerCliente(['customers:manage']), true, 'quien gestiona clientes ve el cliente')
-assert.equal(puedeVerCliente(['stock:manage']), false, 'comprar sin acceso a clientes no expone el nombre')
-assert.equal(puedeVerCliente([]), false)
 
 // ── La tarjeta sabe que hay cliente aunque el nombre no viaje ───────────────
 const [grupo] = consolidarNecesidades([
