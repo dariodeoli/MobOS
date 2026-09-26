@@ -1063,6 +1063,79 @@ export async function printListaCompra(datos, options = {}) {
   return printHtml(await buildListaCompraHtml(datos, options))
 }
 
+// Manifiesto del envío entrante (#250 §11): el papel que viaja con el lote —
+// código grande, recorrido, transporte, responsable, productos con sus IMEI
+// conocidos y las unidades pendientes, el QR de recepción (o barras + leyenda)
+// y las firmas de despacho y transporte. Los datos vienen de `datosManifiesto`.
+export async function buildManifiestoHtml(datos = {}, { format = 'a4' } = {}) {
+  const logo = await getLogoDataUrl()
+  let qr = ''
+  try { if (datos.enlace) qr = await qrDataUrl(datos.enlace, { nivel: 'H', margen: 2, ancho: 320 }) } catch { /* queda la leyenda */ }
+  let barras = ''
+  try {
+    if (!datos.enlace && datos.code && typeof document !== 'undefined') {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+      JsBarcode(svg, datos.code, { format: formatoDeCodigo(datos.code) === 'ean13' ? 'EAN13' : 'CODE128', displayValue: false, margin: 0, height: 46, width: 1.4 })
+      barras = `<div class="barcode">${svg.outerHTML}<span class="small">${escapeHtml(datos.code)}</span></div>`
+    }
+  } catch { /* sin barras queda el código en texto */ }
+  const fila = (etiqueta, valor) => (valor ? `<div class="fila-informe"><span>${escapeHtml(etiqueta)}</span><span>${escapeHtml(valor)}</span></div>` : '')
+  const lineas = Array.isArray(datos.lineas) ? datos.lineas : []
+  const resumen = datos.resumen || {}
+  const a4 = format === 'a4'
+  const imeisHtml = (linea) => `${linea.imeis.length ? `<span class="imeis">${linea.imeis.map((imei) => escapeHtml(imei)).join('<br>')}</span>` : ''}${linea.pendientes ? `<span class="pendientes">${escapeHtml(String(linea.pendientes))} sin IMEI</span>` : ''}`
+  const tablaLineas = a4
+    ? `<table class="manifiesto"><thead><tr><th>Producto</th><th>Condición</th><th class="num">Unid.</th><th>IMEI / pendientes</th></tr></thead><tbody>${lineas.map((linea) => `<tr><td><strong>${escapeHtml(linea.producto)}</strong>${linea.capacidad ? `<br><span class="muted">${escapeHtml(linea.capacidad)}</span>` : ''}</td><td>${escapeHtml(linea.condicion)}</td><td class="num">${escapeHtml(String(linea.cantidad))}</td><td class="imeis-celda">${imeisHtml(linea) || '—'}</td></tr>`).join('') || '<tr><td class="muted" colspan="4">El lote no lleva unidades.</td></tr>'}</tbody></table>`
+    : `<div class="lineas-lista">${lineas.map((linea) => `<div class="linea-lista"><strong>${escapeHtml([linea.producto, linea.capacidad].filter(Boolean).join(' · '))} × ${escapeHtml(String(linea.cantidad))}</strong>${linea.condicion ? ` · ${escapeHtml(linea.condicion)}` : ''}<div class="cuenta">${imeisHtml(linea) || 'Sin unidades'}</div></div>`).join('') || '<p class="muted">El lote no lleva unidades.</p>'}</div>`
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Manifiesto ${escapeHtml(datos.code || '')}</title><style>${styles(format)}
+    .fila-informe{display:flex;justify-content:space-between;gap:10px;margin:2px 0}
+    .fila-informe>span:first-child{color:#66707a}
+    .manifiesto td,.manifiesto th{border-bottom:1px dashed #d5dbe0;padding:3px 4px 3px 0;text-align:left;font-size:10px;vertical-align:top}
+    .manifiesto th{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:#66707a}
+    .imeis{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:9px;line-height:1.5;color:#333}
+    .pendientes{display:block;color:#a33;font-weight:700;font-size:9px}
+    .linea-lista{border-bottom:1px dashed #d5dbe0;padding:5px 0;font-size:10px}
+    .linea-lista:last-child{border-bottom:0}
+    .linea-lista .cuenta{color:#66707a;margin-top:1px}
+    .codigo-grande{font-size:${a4 ? '26px' : '20px'};font-weight:900;letter-spacing:.06em;font-variant-numeric:tabular-nums}
+    .barcode{margin-top:2px}.barcode svg{width:100%;height:auto;max-height:12mm}
+    .card{page-break-inside:avoid}
+    ${a4 ? `@page{margin:12mm 14mm}.card{padding:6px 9px;margin:5px 0}.card .label{margin-bottom:2px}
+      .nofiscal{margin:6px 0;padding:4px 8px;font-size:10px}.brand{padding-bottom:5px;margin-bottom:6px}
+      h1{font-size:18px}body{font-size:11.5px;line-height:1.35}p{margin:2px 0}footer{margin-top:6px;padding-top:4px}` : ''}
+    @media print{.fila-informe>span:first-child{color:#000}}
+  </style></head><body>
+    ${header(datos.titulo || 'Manifiesto de envío', [datos.recorrido, datos.fechaEmision].filter(Boolean).join(' · '), logo)}
+    <div class="nofiscal">Documento no fiscal · Viaja con el lote</div>
+    <p class="codigo-grande">${escapeHtml(datos.code || '—')}</p>
+    <div class="card"><div class="label">Envío</div><div>
+      ${fila('Estado', datos.estado)}
+      ${fila('Método', datos.metodo)}
+      ${fila('Empresa', datos.empresa)}
+      ${fila('Conductor', datos.conductor)}
+      ${fila('Guía', datos.guia)}
+      ${fila('Responsable', datos.responsable)}
+      ${fila('Compra', datos.compra)}
+      ${fila('Proveedor', datos.proveedor)}
+      ${fila('Salida', datos.salidaTexto)}
+      ${fila('ETA', datos.etaTexto)}
+      ${fila('Notas', datos.notas)}
+    </div></div>
+    <div class="card"><div class="label">Productos (${escapeHtml(String(resumen.unidades ?? 0))} unidades · ${escapeHtml(String(resumen.conImei ?? 0))} con IMEI)</div>${tablaLineas}<table class="totals totales-recepcion">
+      <tr><td>Unidades</td><td class="num">${escapeHtml(String(resumen.unidades ?? 0))}</td></tr>
+      <tr><td>Con IMEI</td><td class="num">${escapeHtml(String(resumen.conImei ?? 0))}</td></tr>
+      ${resumen.pendientes ? `<tr class="saldo"><td>Sin IMEI (se completa en recepción)</td><td class="num">${escapeHtml(String(resumen.pendientes))}</td></tr>` : ''}
+    </table></div>
+    ${datos.enlace || barras ? `<div class="card"><div class="label">Recepción del lote</div>${qr ? `<img class="qr" src="${qr}" alt="QR del lote">` : ''}${barras}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el manifiesto del lote.')}</p></div>` : ''}
+    ${firmas([{ rol: 'Despachó / responsable' }, { rol: 'Recibió el transportista' }], { observaciones: !a4, estrecho: Boolean(thermalWidth(format)) })}
+    <footer>Documento de control interno. Generado por ${escapeHtml(APP_NAME)}${datos.emisor ? ` para ${escapeHtml(datos.emisor)}` : ''} · ${escapeHtml(datos.fechaEmision || '')}</footer>
+  </body></html>`
+}
+
+export async function printManifiesto(datos, options = {}) {
+  return printHtml(await buildManifiestoHtml(datos, options))
+}
+
 // Comprobante de recepción del abastecimiento (#250 Fase 5 §11): esperado vs
 // recibido por línea, faltantes/incidencias con serial y nota, depósito
 // destino, quién recibió y cuándo. Los datos vienen normalizados por

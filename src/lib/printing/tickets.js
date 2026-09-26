@@ -720,6 +720,63 @@ export function ticketListaCompra(datos = {}, { ancho = 80 } = {}) {
   return t.avanza(2).corte()
 }
 
+// Manifiesto del envío entrante (#250 §11): el papel que viaja con el lote —
+// código grande, recorrido, transporte, responsable, los IMEI conocidos y las
+// unidades pendientes, con el QR de recepción (o barras + leyenda) y las firmas
+// de despacho y transporte.
+export function ticketManifiesto(datos = {}, { ancho = 80 } = {}) {
+  const t = crearTicket({ ancho }).iniciar()
+  const estrecho = Number(ancho) <= 58
+  const par = (etiqueta, valor) => {
+    if (valor === '' || valor === null || valor === undefined) return
+    if (estrecho) { t.texto(etiqueta); t.par('  ', String(valor)) } else t.par(etiqueta, valor)
+  }
+  t.centrado(datos.emisor || APP_NAME)
+  t.negrita().doble().centrado(datos.code || 'ENVÍO').doble(false).negrita(false)
+  t.centrado('MANIFIESTO DE ENVÍO')
+  // La flecha del recorrido no viaja en CP850: el rollo usa `->`.
+  if (datos.recorrido) t.centrado(String(datos.recorrido).replace(' → ', ' -> '))
+  if (datos.fechaEmision) t.centrado(datos.fechaEmision)
+  t.linea()
+  par('Estado', datos.estado)
+  par('Método', datos.metodo)
+  par('Empresa', datos.empresa)
+  par('Conductor', datos.conductor)
+  par('Guía', datos.guia)
+  par('Responsable', datos.responsable)
+  par('Compra', datos.compra)
+  par('Proveedor', datos.proveedor)
+  par('Salida', datos.salidaTexto)
+  par('ETA', datos.etaTexto)
+  t.linea()
+
+  const resumen = datos.resumen || {}
+  t.negrita().texto(`Productos (${resumen.unidades || 0} unidades · ${resumen.conImei || 0} con IMEI)`).negrita(false)
+  for (const linea of datos.lineas || []) {
+    t.negrita().texto(`${[linea.producto, linea.capacidad].filter(Boolean).join(' · ')} x${linea.cantidad}`).negrita(false)
+    if (linea.condicion) t.texto(`  ${linea.condicion}`)
+    for (const imei of linea.imeis) t.texto(`  ${imei}`)
+    if (linea.pendientes) t.texto(`  ${linea.pendientes} unidad(es) sin IMEI (se completa en recepción)`)
+  }
+  if (!(datos.lineas || []).length) t.texto('El lote no lleva unidades.')
+  t.linea()
+  par('Unidades', resumen.unidades)
+  par('Con IMEI', resumen.conImei)
+  if (resumen.pendientes) par('IMEI pendientes', resumen.pendientes)
+  if (datos.notas) t.texto(`Notas: ${datos.notas}`)
+  t.linea()
+  if (datos.enlace) {
+    t.qr(datos.enlace, { tamano: 7, etiqueta: 'RECEPCIÓN DEL LOTE' })
+    t.centrado(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el manifiesto del lote.')
+  } else if (datos.code) {
+    t.barcode(datos.code, { etiqueta: 'ENVÍO', formato: formatoDeCodigo(datos.code) })
+    t.centrado('Escaneá para abrir el manifiesto del lote.')
+  }
+  bloqueFirma(t, ['Despachó / responsable', 'Recibió el transportista'], { ancho, observaciones: true })
+  t.centrado(LEYENDA_NO_FISCAL)
+  return t.avanza(2).corte()
+}
+
 // Recibo interno de un cobro puntual (no fiscal): monto, medio y referencia,
 // con las firmas de quien recibe y quien entrega.
 export function ticketReciboInterno(payment = {}, order = {}, { ancho = 80 } = {}) {
