@@ -1,4 +1,7 @@
-import { Input } from '@/components/ui'
+// Adaptador de migración (#253): el campo vive en la biblioteca
+// (`owncoding-ui/SerialField`); acá queda el normalizador que además entiende
+// el QR de la etiqueta (`/u/<serial>`), inyectado por la prop `normalizar`.
+import { SerialField as CampoSerial } from 'owncoding-ui'
 import { leerEtiqueta } from '@/lib/printing/qr'
 
 // IMEI/serial de UNA unidad: alfanumérico en mayúsculas, sin prefijo MOBOS:,
@@ -16,24 +19,6 @@ export function normalizarSerial(value = '') {
     .toUpperCase()
 }
 
-export default function SerialField({
-  value = '',
-  onChange,
-  disabled = false,
-  placeholder = 'IMEI o serial',
-  ...props
-}) {
-  return (
-    <Input
-      autoCapitalize="characters"
-      autoCorrect="off"
-      spellCheck={false}
-      maxLength={32}
-      disabled={disabled}
-      placeholder={placeholder}
-      {...props}
-      value={normalizarSerial(value)}
-      onChange={(event) => onChange?.(normalizarSerial(event.target.value))}
-    />
-  )
+export default function SerialField(props) {
+  return <CampoSerial normalizar={normalizarSerial} {...props} />
 }

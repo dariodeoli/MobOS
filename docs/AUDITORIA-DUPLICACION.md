@@ -292,6 +292,25 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 42 — adaptadores con la UI en la biblioteca (#253) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `RucField` | Copia local del campo completo (input + botón adentro + confirmación + `GET /api/ruc` + demo) | **Adaptador**: la UI y el flujo viven en la biblioteca; el archivo de la app solo provee `consultar` (API con cuota/auditoría o `consultarRucDemo`) |
+| `CityAutocomplete` | Copia local (input + lista + departamento + fetch) | **Adaptador**: la UI es de la biblioteca; la app aporta `buscar` (endpoint real) y el modo demo sin sugerencias. La biblioteca suma el aviso en línea (`mensajeError`, `role="alert"`) que la app ya tenía → **v0.34.0** |
+| `SerialField` | Copia local con normalizador QR (`leerEtiqueta`) | **Adaptador**: el campo es de la biblioteca; la app inyecta `normalizar` (QR `/u/<serial>`) |
+| Control | La guarda solo conocía puentes (sin lógica) | Nueva categoría **adaptadores** (UI de la biblioteca + datos de la app): la guarda los exige sin `<Input` y con su lógica; el auditor los excluye. Deuda de `shared/`: 9 → **6** |
+
+**Observación para CRM:** el auditor marca 1 uso de la clase del rótulo de tabla
+a mano en `components/cuenta/MiCuenta.jsx:184` (chip de rol); es del trabajo de
+Mi cuenta, no de este lote.
+
+Verificación del lote: `npm run lint` (0 errores), `npm run build` y
+`npm --prefix backend run build` (con `BUILD_ID`), `prisma:validate`,
+`npm test` (769 en verde), `test:unit` del backend,
+`npx playwright test e2e/configuracion-lote5.spec.js` y
+`npm run test:e2e:smoke`; biblioteca `owncoding-ui` build + 224 tests.
+
 ### Lote 41 — objetos de Abastecimiento F1 (#250/#254) (26-09)
 
 | Objeto | Antes (evidencia) | Después |
