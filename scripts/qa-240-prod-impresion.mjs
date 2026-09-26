@@ -283,6 +283,22 @@ try {
       pasos.push({ paso: 'etiquetas de unidad (demo)', detalle: `sin vista previa: ${String(error?.message || error).slice(0, 120)}`, ok: false })
     }
 
+    // Impresos en serie del taller (#240): «Hoja de estación», la serie por
+    // carril («Hojas por estación», con más de uno) y los «Certificados». En la
+    // demo se bloquean con el aviso honesto; los PDFs de ejemplo viven en
+    // docs/taller-impresos-ejemplo/ (mismos builders que viajan en la versión).
+    const botonesSerie = {
+      hoja: await page.getByTestId('rack-hoja-estacion').count(),
+      hojas: await page.getByTestId('rack-hojas-estacion').count(),
+      certificados: await page.getByTestId('rack-certificados').count(),
+    }
+    await captura('12-taller-impresos-serie')
+    pasos.push({
+      paso: 'taller en serie (hoja/certificados)',
+      detalle: `Hoja ${botonesSerie.hoja ? '✓' : '—'} · Hojas por estación ${botonesSerie.hojas ? '✓' : '—'} · Certificados ${botonesSerie.certificados ? '✓' : '—'}`,
+      ok: botonesSerie.hoja > 0 && botonesSerie.certificados > 0,
+    })
+
     const botonHoja = page.getByTestId('rack-hoja-estacion')
     if (await botonHoja.count()) {
       await botonHoja.click()
@@ -327,7 +343,22 @@ try {
     pasos.push({ paso: 'modal de prueba (tipos)', detalle: 'la demo no mostró impresoras para probar', ok: false })
   }
 
-  // 7) Consistencia de lo impreso con lo que muestra la app.
+  // 7) Agente (#17/#96): el instalador publicado sirve el mismo artefacto que
+  // el repo (versión, sha256 y tamaño), que es lo que va a bajar la Mac.
+  try {
+    const local = JSON.parse(readFileSync(join(RAIZ, 'backend/public/print-agent/manifest.json'), 'utf8'))
+    const respuesta = await fetch('https://api.moboss.online/print-agent/manifest.json')
+    const publicado = await respuesta.json()
+    const problemasAgente = []
+    if (publicado.version !== local.version) problemasAgente.push(`versión ${publicado.version} ≠ repo ${local.version}`)
+    if (publicado.sha256 !== local.sha256) problemasAgente.push('sha256 distinto')
+    if (Number(publicado.size) !== Number(local.size)) problemasAgente.push('tamaño distinto')
+    pasos.push({ paso: 'agente publicado (#17/#96)', detalle: problemasAgente.length ? problemasAgente.join(' · ') : `v${publicado.version} · sha256 y tamaño coinciden`, ok: !problemasAgente.length })
+  } catch (error) {
+    pasos.push({ paso: 'agente publicado (#17/#96)', detalle: `no se pudo comparar: ${String(error?.message || error).slice(0, 120)}`, ok: false })
+  }
+
+  // 8) Consistencia de lo impreso con lo que muestra la app.
   const html80 = readFileSync(join(SALIDA, 'informe-80mm.pdf')).toString('latin1')
   pasos.push({ paso: 'PDF 80 mm generado desde la app', detalle: `${html80.length} bytes`, ok: html80.length > 1000 })
   writeFileSync(join(SALIDA, 'datos-verificacion.json'), `${JSON.stringify({ base: BASE, version, serial, tituloInforme, fecha: new Date().toISOString() }, null, 2)}\n`)
@@ -340,12 +371,12 @@ try {
 const fallos = resultados.filter((fila) => fila.estado !== 'ok')
 writeFileSync(join(SALIDA, 'resultados.json'), `${JSON.stringify({ base: BASE, fecha: new Date().toISOString(), pasos, resultados }, null, 2)}\n`)
 const filas = resultados.map((fila) => `| ${fila.documento} | ${fila.paginas} | \`${fila.qr}\` | ${fila.estado === 'ok' ? '✅' : '❌'}${fila.detalle ? ` ${fila.detalle}` : ''} |`).join('\n')
-writeFileSync(join(SALIDA, 'REPORTE.md'), `# Verificación de impresión en producción · informe, certificado, constancia y etiquetas (#240/#220)
+writeFileSync(join(SALIDA, 'REPORTE.md'), `# Verificación de impresión en producción · informe, certificado, constancia, etiquetas y taller en serie (#240/#220)
 
 - Base: ${BASE}
 - Fecha: ${new Date().toISOString()}
 - Versión desplegada: ${pasos.find((paso) => paso.paso === 'demo + versión')?.detalle || '?'}
-- Método: camino real de la app (demo → ficha → «Informe/Certificado/Constancia» → formato → «Descargar PDF»), el PNG del certificado por «Compartir imagen», las etiquetas desde el taller («Imprimir en serie»), la página /prueba del QR físico y el modal de prueba de Dispositivos; PDFs armados con el HTML que manda la app y QR decodificado con Vision.
+- Método: camino real de la app (demo → ficha → «Informe/Certificado/Constancia» → formato → «Descargar PDF»), el PNG del certificado por «Compartir imagen», las etiquetas y la serie del taller («Hoja de estación», «Hojas por estación» y «Certificados») desde la demo, la página /prueba del QR físico, el modal de prueba de Dispositivos y el manifest del agente publicado; PDFs armados con el HTML que manda la app y QR decodificado con Vision.
 
 | Documento | Páginas | QR decodificado | Resultado |
 | --- | --- | --- | --- |
@@ -355,9 +386,11 @@ ${filas}
 
 ${pasos.map((paso) => `- ${paso.ok ? '✅' : '⚠️'} ${paso.paso}: ${paso.detalle}`).join('\n')}
 
-**Lectura**: la ronda desplegada ya trae informe, certificado, constancia, el **certificado como PNG**
-(«Compartir imagen») y las **etiquetas de unidad** del taller; si una fila figura ausente o en ❌, esa
-ronda no está desplegada o hay una regresión. Se re-corre con el mismo comando (demo, sin credenciales).
+**Lectura**: la ronda desplegada trae informe, certificado, constancia, el **certificado como PNG**
+(«Compartir imagen»), las **etiquetas de unidad** y la **serie del taller** (hojas de estación y
+certificados en serie, que en la demo se bloquean con el aviso honesto; sus PDFs de ejemplo viven en
+docs/taller-impresos-ejemplo/). Si una fila figura ausente o en ❌, esa ronda no está desplegada o hay
+una regresión. Se re-corre con el mismo comando (demo, sin credenciales).
 `)
 console.log(`Producción #240/#220: informe, certificado, constancia y etiquetas — ${resultados.length - fallos.length}/${resultados.length} documentos OK`)
 for (const paso of pasos) console.log(`${paso.ok ? '✅' : '⚠️'} ${paso.paso}: ${paso.detalle}`)

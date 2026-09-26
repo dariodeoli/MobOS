@@ -36,6 +36,11 @@ viven en [docs/IMPRESION-PRUEBA-FISICA.md](../../IMPRESION-PRUEBA-FISICA.md)
 | `prueba-corta-58mm.pdf` / `.jpg` | El mismo ticket en rollo de 58 mm. |
 | `datos-ejemplo.json` | Datos y el enlace `/prueba` del QR. |
 
+**Distribución verificada:** el manifest publicado
+(`https://api.moboss.online/print-agent/manifest.json`) coincide con el del
+repo (v1.7.3, mismo `sha256` y tamaño) — el instalador baja el artefacto
+correcto. Lo chequea el QA de producción (`qa-240-prod-impresion.mjs`).
+
 En el JPG, los códigos salen como `[QR] <url>` y `[BARRA] <texto>`: en el papel
 van dibujados; el QR abre `https://app.moboss.online/prueba?...` con el destino,
 la validación, la fecha y el tipo (verificado en el QA de producción).
