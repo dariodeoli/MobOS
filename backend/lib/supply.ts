@@ -456,6 +456,119 @@ export function normalizarCompra(body: unknown): { ok: true; data: CompraNormali
   }
 }
 
+// ── F2 · FIN (#254): cierre de costos ───────────────────────────────────────
+
+export type CierreCostos = {
+  currency: string
+  exchangeRatePyg: number | null
+  originalCost: number | null
+  costPyg: number | null
+  paymentCondition: string
+  dueAt: string | null
+  /** Costo efectivo por línea (id + unitario en Gs y en la moneda de origen). */
+  lineas: Array<{ id: string; unitCostPyg: number | null; originalUnitCost: number | null }>
+}
+
+/**
+ * Cierre de costos: la compra puede registrarse sin monto (factura pendiente) y
+ * el costo se completa después. Combina lo que llega con lo que la compra ya
+ * tiene —moneda, cotización, condición de pago— sin tocar cantidades, IMEI ni
+ * necesidades: el total sale del monto explícito o de la suma de las líneas con
+ * costo. Lo que no viene en `lines` queda como está.
+ */
+export function normalizarCierreDeCostos(
+  body: unknown,
+  actual: { currency: string; exchangeRatePyg: number | null; paymentCondition: string; dueAt: string | null },
+  lineasCompra: Array<{ id: string; quantity: number; unitCostPyg?: number | null; originalUnitCost?: number | null }> = [],
+): { ok: true; data: CierreCostos } | { ok: false; error: string } {
+  const fila = body && typeof body === 'object' && !Array.isArray(body) ? (body as Record<string, unknown>) : {}
+  const currency = typeof fila.currency === 'string' && fila.currency.trim() ? fila.currency.trim().toUpperCase() : actual.currency
+  if (!['PYG', 'USD', 'BRL'].includes(currency)) return { ok: false, error: 'Moneda inválida: usá PYG, USD o BRL.' }
+
+  // Cotización: la que llega manda; si no, se conserva la de la compra.
+  let rate: number | null = currency === 'PYG' ? null : (actual.exchangeRatePyg === null ? null : Number(actual.exchangeRatePyg))
+  if (fila.exchangeRatePyg !== undefined && fila.exchangeRatePyg !== null && fila.exchangeRatePyg !== '') {
+    try {
+      rate = normalizarCosto({ costCurrency: currency as never, originalCost: 1, exchangeRatePyg: fila.exchangeRatePyg }).exchangeRatePyg
+    } catch {
+      return { ok: false, error: 'Revisá la cotización.' }
+    }
+  }
+  if (currency !== 'PYG' && !(rate !== null && Number(rate) > 0)) return { ok: false, error: 'Con moneda extranjera la cotización es obligatoria.' }
+  if (currency === 'PYG') rate = null
+
+  // Costo por línea: solo líneas de esta compra; lo que no viene queda igual.
+  const porId = new Map(lineasCompra.map((linea) => [linea.id, linea]))
+  const crudas = Array.isArray(fila.lines) ? fila.lines : []
+  if (crudas.length > 100) return { ok: false, error: 'Demasiadas líneas para el cierre de costos.' }
+  const cambios = new Map<string, { unitCostPyg: number | null; originalUnitCost: number | null }>()
+  for (const cruda of crudas) {
+    const item = cruda && typeof cruda === 'object' && !Array.isArray(cruda) ? (cruda as Record<string, unknown>) : {}
+    const id = typeof item.id === 'string' && item.id.trim() ? item.id.trim() : ''
+    const linea = id ? porId.get(id) : undefined
+    if (!linea) return { ok: false, error: 'Alguna línea del cierre no pertenece a la compra.' }
+    const unitCostPygCrudo = item.unitCostPyg === undefined || item.unitCostPyg === null || item.unitCostPyg === '' ? null : Number(item.unitCostPyg)
+    if (unitCostPygCrudo !== null && (!Number.isSafeInteger(unitCostPygCrudo) || unitCostPygCrudo < 0)) return { ok: false, error: 'El costo unitario debe ser un entero en guaraníes.' }
+    const originalCrudo = item.originalUnitCost === undefined || item.originalUnitCost === null || item.originalUnitCost === '' ? null : Number(item.originalUnitCost)
+    let originalUnitCost: number | null = null
+    let unitCostPyg = unitCostPygCrudo
+    if (originalCrudo !== null) {
+      try {
+        const normalizado = normalizarCosto({ costCurrency: currency as never, originalCost: originalCrudo, exchangeRatePyg: rate ?? undefined })
+        originalUnitCost = normalizado.originalCost
+        if (unitCostPyg === null) unitCostPyg = normalizado.costPyg
+      } catch (cause) {
+        const motivo = cause instanceof Error ? cause.message : 'Costo de línea inválido.'
+        return { ok: false, error: motivo }
+      }
+    }
+    cambios.set(id, {
+      unitCostPyg: unitCostPyg !== null ? unitCostPyg : (linea.unitCostPyg ?? null),
+      originalUnitCost: originalUnitCost !== null ? originalUnitCost : (linea.originalUnitCost ?? null),
+    })
+  }
+  const lineas = lineasCompra.map((linea) => ({
+    id: linea.id,
+    unitCostPyg: cambios.get(linea.id)?.unitCostPyg ?? (linea.unitCostPyg ?? null),
+    originalUnitCost: cambios.get(linea.id)?.originalUnitCost ?? (linea.originalUnitCost ?? null),
+  }))
+
+  // Total: el monto explícito manda; si no viene, es la suma de las líneas.
+  const sinMonto = fila.originalCost === undefined || fila.originalCost === null || fila.originalCost === ''
+  let costPyg: number | null = null
+  let originalCost: number | null = null
+  if (!sinMonto) {
+    try {
+      const normalizado = normalizarCosto({ costCurrency: currency as never, originalCost: Number(fila.originalCost), exchangeRatePyg: rate ?? undefined })
+      costPyg = normalizado.costPyg
+      originalCost = normalizado.originalCost
+    } catch (cause) {
+      return { ok: false, error: cause instanceof Error ? cause.message : 'Costo inválido.' }
+    }
+  } else if (lineas.some((linea) => linea.unitCostPyg !== null)) {
+    costPyg = lineas.reduce((total, linea) => total + (linea.unitCostPyg || 0) * (porId.get(linea.id)?.quantity || 0), 0)
+    const todasConOrigen = lineas.every((linea) => linea.originalUnitCost !== null)
+    const sumaOrigen = lineas.reduce((total, linea) => total + (linea.originalUnitCost || 0) * (porId.get(linea.id)?.quantity || 0), 0)
+    originalCost = currency === 'PYG' ? costPyg : (todasConOrigen ? Number(sumaOrigen.toFixed(2)) : null)
+  } else {
+    return { ok: false, error: 'Indicá el monto de la factura o el costo de al menos una línea.' }
+  }
+
+  // Condición de pago y vencimiento: se pueden definir recién al cerrar el costo.
+  const condicionCruda = typeof fila.paymentCondition === 'string' && fila.paymentCondition.trim() ? fila.paymentCondition.trim().toUpperCase() : actual.paymentCondition
+  if (!['CONTADO', 'CREDITO'].includes(condicionCruda)) return { ok: false, error: 'La condición de pago tiene que ser contado o crédito.' }
+  let dueAt = actual.dueAt
+  if (fila.dueAt !== undefined && fila.dueAt !== null && fila.dueAt !== '') {
+    const cuando = new Date(String(fila.dueAt))
+    if (Number.isNaN(cuando.getTime())) return { ok: false, error: 'Vencimiento inválido.' }
+    dueAt = cuando.toISOString()
+  }
+  if (condicionCruda === 'CREDITO' && !dueAt) return { ok: false, error: 'Indicá el vencimiento de la compra a crédito.' }
+  if (condicionCruda === 'CONTADO') dueAt = null
+
+  return { ok: true, data: { currency, exchangeRatePyg: rate, originalCost, costPyg, paymentCondition: condicionCruda, dueAt, lineas } }
+}
+
 // ── Fase 3 (#250 §7 y §11): IMEI y preparación ──────────────────────────────
 
 /**

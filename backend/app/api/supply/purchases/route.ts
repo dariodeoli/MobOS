@@ -1,7 +1,7 @@
 import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
-import { coberturaDeCompra, codigoCompra, compararModelo, cuadrarSeriales, normalizarCompra, normalizarLineasCompra, resumenPreparacion } from '../../../../lib/supply'
+import { coberturaDeCompra, codigoCompra, compararModelo, costoPorUnidad, cuadrarSeriales, normalizarCierreDeCostos, normalizarCompra, normalizarLineasCompra, resumenPreparacion } from '../../../../lib/supply'
 
 // #250 Fase 2 (Centro de Abastecimiento): compra rápida y stock adicional.
 //
@@ -10,7 +10,8 @@ import { coberturaDeCompra, codigoCompra, compararModelo, cuadrarSeriales, norma
 //   referencia/factura, líneas con IMEI ahora o pendientes) y marca como
 //   COMPRADAS las necesidades que cubre. No mueve stock.
 // - PATCH /api/supply/purchases  → `cancel` (devuelve las necesidades al panel)
-//   o `serials` (completa los IMEI que faltaban en una línea).
+//   o `serials` (completa los IMEI que faltaban en una línea), `addLines`
+//   (líneas adicionales) o `costs` (cierra el costo con la factura).
 //
 // La foto de la factura se adjunta con la API de adjuntos
 // (`entity=SUPPLY_PURCHASE`, `entityId=<id de la compra>`).
@@ -430,6 +431,154 @@ export async function PATCH(request: Request) {
       })
     })
     return json(await compraConDetalle(compra.id, tenant))
+  }
+
+  // FIN (#254 · F2): cierre de costos. La compra registrada sin factura se
+  // completa después (monto/moneda/cotización, costo por línea y condición de
+  // pago): la cuenta a pagar nace —o se corrige si sigue impaga— con el monto
+  // real, y las unidades ya recibidas con el costo pendiente se completan.
+  // Nunca se pisa un costo ya congelado ni una cuenta con pagos: eso va por
+  // Finanzas (no se revalúa stock ni se mueve plata registrada en silencio).
+  if (body?.action === 'costs') {
+    if (compra.status === 'CANCELADA') return error('La compra está cancelada.', 409)
+    const conLineas = await prisma.supplyPurchase.findFirst({
+      where: { id: compra.id, tenantId: tenant },
+      include: { lines: { orderBy: { createdAt: 'asc' }, include: { serials: { select: { serial: true } } } } },
+    })
+    if (!conLineas) return error('Compra no encontrada.', 404)
+    const cuenta = await prisma.supplierPayable.findFirst({
+      where: { tenantId: tenant, supplyPurchaseId: compra.id },
+      select: { id: true, paidPyg: true, consumedPyg: true },
+    })
+    if (cuenta && (cuenta.paidPyg > 0 || cuenta.consumedPyg > 0)) {
+      return error('La cuenta a pagar ya tiene pagos o consumo: ajustá el costo desde Finanzas.', 409)
+    }
+    // Unidades recibidas de esta compra (por sus IMEI): con costo ya sellado no
+    // se ajusta acá; con el costo pendiente, el cierre lo completa.
+    const seriales = conLineas.lines.flatMap((linea) => linea.serials.map((fila) => fila.serial))
+    const unidades = seriales.length
+      ? await prisma.inventoryUnit.findMany({ where: { tenantId: tenant, serial: { in: seriales } }, select: { id: true, serial: true, costPyg: true } })
+      : []
+    if (unidades.some((unidad) => unidad.costPyg !== null)) {
+      return error('Hay unidades ya recibidas con costo: el ajuste va por Finanzas.', 409)
+    }
+
+    const normalizada = normalizarCierreDeCostos(body, {
+      currency: compra.currency,
+      exchangeRatePyg: compra.exchangeRatePyg === null ? null : Number(compra.exchangeRatePyg),
+      paymentCondition: compra.paymentCondition,
+      dueAt: compra.dueAt ? compra.dueAt.toISOString() : null,
+    }, conLineas.lines.map((linea) => ({
+      id: linea.id,
+      quantity: linea.quantity,
+      unitCostPyg: linea.unitCostPyg,
+      originalUnitCost: linea.originalUnitCost === null ? null : Number(linea.originalUnitCost),
+    })))
+    if (!normalizada.ok) return error(normalizada.error)
+    const cierre = normalizada.data
+
+    const resultado = await prisma.$transaction(async (tx) => {
+      await tx.supplyPurchase.update({
+        where: { id: compra.id },
+        data: {
+          currency: cierre.currency as never,
+          exchangeRatePyg: cierre.exchangeRatePyg,
+          originalCost: cierre.originalCost,
+          costPyg: cierre.costPyg,
+          paymentCondition: cierre.paymentCondition,
+          dueAt: cierre.dueAt ? new Date(cierre.dueAt) : null,
+        },
+      })
+      for (const linea of cierre.lineas) {
+        await tx.supplyPurchaseLine.update({ where: { id: linea.id }, data: { unitCostPyg: linea.unitCostPyg, originalUnitCost: linea.originalUnitCost } })
+      }
+
+      // Cuenta a pagar: nace si el costo recién aparece; si sigue impaga, se
+      // corrige el monto/condición. Con plata real no se toca (validado arriba).
+      const pagada = cierre.paymentCondition === 'CONTADO'
+      let cuentaId = cuenta?.id || null
+      if (cierre.costPyg !== null) {
+        if (cuentaId) {
+          await tx.supplierPayable.update({
+            where: { id: cuentaId },
+            data: {
+              amountPyg: cierre.costPyg,
+              paidPyg: pagada ? cierre.costPyg : 0,
+              condition: cierre.paymentCondition as never,
+              dueAt: cierre.dueAt ? new Date(cierre.dueAt) : null,
+            },
+          })
+          await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SUPPLIER_PAYABLE_UPDATED', entity: 'SupplierPayable', entityId: cuentaId, metadata: { origen: 'SUPPLY_PURCHASE', code: compra.code, amountPyg: cierre.costPyg, condition: cierre.paymentCondition, dueAt: cierre.dueAt } } })
+        } else {
+          const creada = await tx.supplierPayable.create({
+            data: {
+              tenantId: tenant,
+              branchId: compra.branchId,
+              supplierId: compra.supplierId,
+              supplierName: compra.supplierName,
+              concept: `Compra ${compra.code}`,
+              condition: cierre.paymentCondition as never,
+              amountPyg: cierre.costPyg,
+              paidPyg: pagada ? cierre.costPyg : 0,
+              dueAt: cierre.dueAt ? new Date(cierre.dueAt) : null,
+              reference: compra.code,
+              supplyPurchaseId: compra.id,
+              createdById: session.user.id,
+            },
+          })
+          cuentaId = creada.id
+          await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SUPPLIER_PAYABLE_CREATED', entity: 'SupplierPayable', entityId: creada.id, metadata: { origen: 'SUPPLY_PURCHASE', code: compra.code, condition: cierre.paymentCondition, amountPyg: cierre.costPyg, dueAt: cierre.dueAt } } })
+        }
+      }
+
+      // Unidades recibidas con el costo pendiente: se completan (misma cuenta
+      // proporcional que la recepción) sin pisar ningún costo ya sellado.
+      let unidadesCompletadas = 0
+      const unidadesCompra = conLineas.lines.reduce((suma, linea) => suma + linea.quantity, 0)
+      const porSerial = new Map(unidades.map((unidad) => [unidad.serial, unidad]))
+      for (const linea of conLineas.lines) {
+        const efectiva = cierre.lineas.find((fila) => fila.id === linea.id)
+        for (const { serial } of linea.serials) {
+          const unidad = porSerial.get(serial)
+          if (!unidad || unidad.costPyg !== null) continue
+          const costo = costoPorUnidad({
+            totalCostPyg: cierre.costPyg,
+            totalOriginal: cierre.originalCost,
+            currency: cierre.currency,
+            rate: cierre.exchangeRatePyg,
+            unidades: unidadesCompra,
+            unitCostPyg: efectiva?.unitCostPyg ?? null,
+          })
+          if (costo.costPyg === null) continue
+          await tx.inventoryUnit.update({
+            where: { id: unidad.id },
+            data: { costCurrency: costo.costCurrency as never, costPyg: costo.costPyg, originalCost: costo.originalCost, exchangeRatePyg: costo.exchangeRatePyg },
+          })
+          unidadesCompletadas += 1
+          await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_COST_COMPLETED', entity: 'InventoryUnit', entityId: unidad.id, metadata: { serial, compra: compra.code, costPyg: costo.costPyg, currency: cierre.currency } } })
+        }
+      }
+
+      await tx.auditLog.create({
+        data: {
+          tenantId: tenant,
+          userId: session.user.id,
+          action: 'SUPPLY_PURCHASE_COST_UPDATED',
+          entity: 'SupplyPurchase',
+          entityId: compra.id,
+          metadata: {
+            code: compra.code,
+            before: { currency: compra.currency, costPyg: compra.costPyg, originalCost: compra.originalCost === null ? null : Number(compra.originalCost) },
+            after: { currency: cierre.currency, costPyg: cierre.costPyg, originalCost: cierre.originalCost },
+            unidadesCompletadas,
+          },
+        },
+      })
+      return { unidadesCompletadas }
+    })
+
+    const detalle = await compraConDetalle(compra.id, tenant)
+    return json({ ...detalle, unidadesCompletadas: resultado.unidadesCompletadas })
   }
 
   // IMEI: carga múltiple (pegado) o escaneo de a uno (mobile). Ambos comparten
