@@ -31,6 +31,13 @@ recorrido POS `qa-187`), todo con capturas:
 Recorrido POS completo en .178: **12/12 pasos, 0 errores de consola, 0 respuestas
 API ≥400, 0 pedidos fallidos**.
 
+### Con v2 por defecto (F4)
+
+El mismo recorrido, **sin tocar el flag por dispositivo** (v2 default), dio **12/12
+pasos con `v2 por defecto: true` y 0 errores**, y el carrito midió 68/84 px en las
+variantes *v2-default*: `docs/qa/187-1.0.178-f4/` · `docs/qa/243/1.0.178-f4/`.
+Con esto el flujo de venta completo queda verificado sobre el diseño v2 real.
+
 ## Pendientes que NO son del POS (para la épica)
 
 - **§9 BigInt**: habilitar los 10B/99B de producto exige migrar las columnas de

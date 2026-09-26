@@ -25,9 +25,13 @@ const SALIDA = join(process.env.QA_OUT || 'docs/qa/243', ETIQUETA)
 mkdirSync(SALIDA, { recursive: true })
 
 const VARIANTES = [
+  // F4 (#241): el v2 es el diseño por defecto; esta variante no escribe el
+  // flag por dispositivo, así el recorrido valida lo que ve el usuario real.
+  { nombre: 'desktop-claro-v2-default', ancho: 1280, alto: 900, tema: null, v2: null },
   { nombre: 'desktop-claro-v2-off', ancho: 1280, alto: 900, tema: null, v2: false },
   { nombre: 'desktop-claro-v2-on', ancho: 1280, alto: 900, tema: null, v2: true },
   { nombre: 'desktop-oscuro-v2-on', ancho: 1280, alto: 900, tema: 'dark', v2: true },
+  { nombre: 'movil-claro-v2-default', ancho: 390, alto: 844, tema: null, v2: null },
   { nombre: 'movil-claro-v2-off', ancho: 390, alto: 844, tema: null, v2: false },
   { nombre: 'movil-claro-v2-on', ancho: 390, alto: 844, tema: null, v2: true },
   { nombre: 'movil-oscuro-v2-on', ancho: 390, alto: 844, tema: 'dark', v2: true },
@@ -80,7 +84,8 @@ for (const variante of variantes) {
   await contexto.addInitScript(({ tema, v2 }) => {
     try {
       if (tema) localStorage.setItem('mobos:theme', tema)
-      localStorage.setItem('mobos:tema-v2', v2 ? '1' : '0')
+      // v2 = null deja el valor por defecto (F4: v2 activo).
+      if (v2 !== null && v2 !== undefined) localStorage.setItem('mobos:tema-v2', v2 ? '1' : '0')
     } catch { /* sin almacenamiento */ }
   }, { tema: variante.tema, v2: variante.v2 })
   const page = await contexto.newPage()

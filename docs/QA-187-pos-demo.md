@@ -10,6 +10,19 @@ La demo es un modo aislado en el navegador (datos ficticios, sin API de la tiend
 se recorrió el **flujo del vendedor** (PIN 2001) sin tocar datos reales.
 Resultado: **12/12 pasos ejecutados, sin fallos de script**.
 
+## Pasada v1.0.178 · v2 por defecto (F4, 26/09/2026)
+
+**Método:** el recorrido completo (12 pasos) **sin tocar el flag por dispositivo**
+(F4: el v2 es el diseño por defecto) · **Evidencia:** `docs/qa/187-1.0.178-f4/`
+(25 capturas + `resultados.json`). **12/12 pasos, v2 por defecto: true, 0 errores
+de consola, 0 respuestas API ≥400, 0 pedidos fallidos.**
+
+El flujo completo quedó verificado con el diseño v2 activo: una sola pantalla,
+catálogo, carrito colapsado (#243) con su detalle, cliente, borradores, split,
+entrega (retiro sin envío → cierre en Gs 13.880.000) y cierre con el contador por
+orden (TU DÍA 3 → 4). El carrito con v2 por defecto también quedó medido:
+68 px desktop / 84 px mobile (`docs/qa/243/1.0.178-f4/`).
+
 ## Pasada v1.0.178 (26/09/2026) — producción
 
 **Método:** misma sonda (12 pasos) · **Evidencia:** `docs/qa/187-1.0.178-produccion/`
