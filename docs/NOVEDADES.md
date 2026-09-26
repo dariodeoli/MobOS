@@ -11,6 +11,11 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.181 — 2026-09-26
+- **Abastecimiento (#254):** al registrar una compra se elige **contado o crédito con vencimiento** y, con el costo cargado, la compra **genera su cuenta a pagar al proveedor** en Finanzas (una compra al contado no engorda el «por pagar»).
+- **Abastecimiento (#254):** re-verificado el **costo por línea en la moneda de la compra** con su total derivado.
+- **Calidad:** QA de finanzas en producción (caja, conciliación y márgenes) y limpieza de un helper de prioridad que quedó sin uso.
+
 ## v1.0.180 — 2026-09-26
 - **Abastecimiento (#250/#254):** el panel **«Por comprar»** suma **pestañas por estado**, **contadores** y **prioridad/fecha**; la **consolidación por centro** (CDE · USA · local) no mezcla orígenes y se puede **asignar en bloque**.
 - **Abastecimiento (#254):** **costo por línea en la moneda de la compra** con total derivado.
