@@ -17,7 +17,7 @@ import { codigoCompra, compararModelo, cuadrarSeriales, normalizarCompra, resume
 const ESTADOS_CERRADOS = ['COMPRADA', 'RECIBIDA', 'CANCELADA']
 
 async function compraConDetalle(id: string, tenant: string) {
-  return prisma.supplyPurchase.findFirst({
+  const compra = await prisma.supplyPurchase.findFirst({
     where: { id, tenantId: tenant },
     include: {
       supplier: { select: { id: true, name: true } },
@@ -33,6 +33,17 @@ async function compraConDetalle(id: string, tenant: string) {
       needs: { select: { id: true, status: true } },
     },
   })
+  if (!compra) return compra
+  // Los Decimal viajan como número (igual que el GET de la lista).
+  return {
+    ...compra,
+    originalCost: compra.originalCost === null ? null : Number(compra.originalCost),
+    exchangeRatePyg: compra.exchangeRatePyg === null ? null : Number(compra.exchangeRatePyg),
+    lines: compra.lines.map((linea) => ({
+      ...linea,
+      originalUnitCost: linea.originalUnitCost === null ? null : Number(linea.originalUnitCost),
+    })),
+  }
 }
 
 export async function GET(request: Request) {
@@ -62,7 +73,7 @@ export async function GET(request: Request) {
       originalCost: true, exchangeRatePyg: true, costPyg: true, reference: true, notes: true,
       branchId: true, createdAt: true,
       branch: { select: { name: true } },
-      lines: { select: { id: true, productId: true, condition: true, quantity: true, unitCostPyg: true, needId: true, serials: { select: { serial: true } } } },
+      lines: { select: { id: true, productId: true, condition: true, quantity: true, unitCostPyg: true, originalUnitCost: true, needId: true, serials: { select: { serial: true } } } },
     },
   })
   const conPreparacion = compras.map((compra) => ({
@@ -70,7 +81,11 @@ export async function GET(request: Request) {
     originalCost: compra.originalCost === null ? null : Number(compra.originalCost),
     exchangeRatePyg: compra.exchangeRatePyg === null ? null : Number(compra.exchangeRatePyg),
     unidades: compra.lines.reduce((total, linea) => total + linea.quantity, 0),
-    lines: compra.lines.map((linea) => ({ ...linea, faltan: Math.max(0, linea.quantity - linea.serials.length) })),
+    lines: compra.lines.map((linea) => ({
+      ...linea,
+      originalUnitCost: linea.originalUnitCost === null ? null : Number(linea.originalUnitCost),
+      faltan: Math.max(0, linea.quantity - linea.serials.length),
+    })),
   }))
   // `?pendientes=1` deja solo las compras con IMEI por completar (preparación).
   const filtradas = params.get('pendientes') === '1'
@@ -176,6 +191,7 @@ export async function POST(request: Request) {
           condition: linea.condition as never,
           quantity: linea.quantity,
           unitCostPyg: linea.unitCostPyg,
+          originalUnitCost: linea.originalUnitCost,
         },
       })
       if (linea.serials.length) {

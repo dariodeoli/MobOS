@@ -49,6 +49,25 @@ assert.ok(lineaConImei && lineaConImei.serials.length === 1, 'la línea que cubr
 const lineaAdicional = compra.lines.find((linea) => !linea.needId)
 assert.ok(lineaAdicional && lineaAdicional.serials.length === 0, 'la compra adicional puede ir con IMEI pendiente')
 
+// 2-bis) FIN (#254): costo por línea en la moneda de la compra. La línea trae
+// "USD 900 c/u" y el total de la compra se deriva de las líneas.
+const compraPorLinea = await req('/api/supply/purchases', 'POST', {
+  supplierName: 'Proveedor USD',
+  currency: 'USD',
+  exchangeRatePyg: 7500,
+  lines: [
+    { productId: producto.id, quantity: 2, originalUnitCost: 900 },
+    { productId: producto.id, quantity: 1, originalUnitCost: 700.5, unitCostPyg: 5000000 },
+  ],
+}, 201)
+assert.equal(Number(compraPorLinea.lines[0].unitCostPyg), Math.round(900 * 7500), 'la línea convierte su costo en USD')
+assert.equal(Number(compraPorLinea.lines[0].originalUnitCost), 900, 'el costo original de la línea se conserva')
+assert.equal(Number(compraPorLinea.lines[1].unitCostPyg), 5000000, 'el Gs explícito manda sobre el original')
+assert.equal(Number(compraPorLinea.costPyg), Math.round(900 * 7500) * 2 + 5000000, 'sin total explícito, el total es la suma de las líneas')
+assert.equal(Number(compraPorLinea.originalCost), Number((900 * 2 + 700.5).toFixed(2)), 'el total original suma lo cargado en origen')
+// Falta de cotización con costo por línea en moneda extranjera.
+await req('/api/supply/purchases', 'POST', { supplierName: 'Proveedor', currency: 'USD', lines: [{ productId: producto.id, quantity: 1, originalUnitCost: 900 }] }, 400)
+
 // 3) La necesidad quedó cubierta y vinculada a la compra.
 const pendientes = await req('/api/supply/needs')
 assert.ok(!pendientes.grupos.some((grupo) => grupo.necesidades.includes(necesidad.id)), 'la necesidad cubierta sale de «Por comprar»')

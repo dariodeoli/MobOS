@@ -258,6 +258,8 @@ export type LineaCompra = {
   condition: string
   quantity: number
   unitCostPyg: number | null
+  /** Costo unitario en la moneda de la compra (null si no se cargó en origen). */
+  originalUnitCost: number | null
   serials: string[]
 }
 
@@ -288,14 +290,24 @@ export function normalizarCompra(body: unknown): { ok: true; data: CompraNormali
   if (!supplierId && !supplierName) return { ok: false, error: 'Indicá el proveedor de la compra.' }
 
   const currency = typeof fila.currency === 'string' && fila.currency.trim() ? fila.currency.trim().toUpperCase() : 'PYG'
-  if (!['PYG', 'USD'].includes(currency)) return { ok: false, error: 'Moneda inválida: usá PYG o USD.' }
-  // El costo es opcional: una compra puede registrarse sin monto (se completa
-  // al recibir la factura).
-  const sinCosto = [fila.originalCost, fila.exchangeRatePyg].every((valor) => valor === undefined || valor === null || valor === '')
-  let costo: { costPyg: number | null; originalCost: number | null; exchangeRatePyg: number | null } = { costPyg: null, originalCost: null, exchangeRatePyg: null }
-  if (!sinCosto) {
+  if (!['PYG', 'USD', 'BRL'].includes(currency)) return { ok: false, error: 'Moneda inválida: usá PYG, USD o BRL.' }
+  // La cotización se valida siempre (la usan las líneas aunque la factura no
+  // traiga el total todavía); el monto del encabezado es opcional.
+  let rate: number | null = null
+  if (fila.exchangeRatePyg !== undefined && fila.exchangeRatePyg !== null && fila.exchangeRatePyg !== '') {
     try {
-      costo = normalizarCosto({ costCurrency: currency as never, originalCost: fila.originalCost === undefined ? undefined : Number(fila.originalCost), exchangeRatePyg: fila.exchangeRatePyg === undefined ? undefined : Number(fila.exchangeRatePyg) })
+      rate = normalizarCosto({ costCurrency: currency as never, originalCost: 1, exchangeRatePyg: fila.exchangeRatePyg }).exchangeRatePyg
+    } catch {
+      return { ok: false, error: 'Revisá la cotización.' }
+    }
+  }
+  const sinMonto = fila.originalCost === undefined || fila.originalCost === null || fila.originalCost === ''
+  // El costo es opcional: una compra puede registrarse sin monto (se completa
+  // al recibir la factura) y las líneas pueden traer el suyo.
+  let costo: { costPyg: number | null; originalCost: number | null; exchangeRatePyg: number | null } = { costPyg: null, originalCost: null, exchangeRatePyg: rate }
+  if (!sinMonto) {
+    try {
+      costo = normalizarCosto({ costCurrency: currency as never, originalCost: Number(fila.originalCost), exchangeRatePyg: rate ?? undefined })
     } catch (cause) {
       return { ok: false, error: cause instanceof Error ? cause.message : 'Costo inválido.' }
     }
@@ -316,16 +328,48 @@ export function normalizarCompra(body: unknown): { ok: true; data: CompraNormali
     const seriales = normalizarSeriales(linea.serials)
     if (!seriales.ok) return { ok: false, error: seriales.error }
     if (seriales.seriales.length > quantity) return { ok: false, error: `La línea trae ${seriales.seriales.length} seriales para ${quantity} unidad(es).` }
-    const unitCostPyg = linea.unitCostPyg === undefined || linea.unitCostPyg === null || linea.unitCostPyg === '' ? null : Number(linea.unitCostPyg)
-    if (unitCostPyg !== null && (!Number.isSafeInteger(unitCostPyg) || unitCostPyg < 0)) return { ok: false, error: 'El costo unitario debe ser un entero en guaraníes.' }
+    const unitCostPygCrudo = linea.unitCostPyg === undefined || linea.unitCostPyg === null || linea.unitCostPyg === '' ? null : Number(linea.unitCostPyg)
+    if (unitCostPygCrudo !== null && (!Number.isSafeInteger(unitCostPygCrudo) || unitCostPygCrudo < 0)) return { ok: false, error: 'El costo unitario debe ser un entero en guaraníes.' }
+    // FIN (#254): la línea también puede cargar su costo en la moneda de la
+    // compra (`originalUnitCost`); se convierte con la misma regla y cotización
+    // del encabezado. El Gs explícito manda si vienen los dos.
+    const originalUnitCostCrudo = linea.originalUnitCost === undefined || linea.originalUnitCost === null || linea.originalUnitCost === '' ? null : Number(linea.originalUnitCost)
+    let originalUnitCost: number | null = null
+    let unitCostPyg = unitCostPygCrudo
+    if (originalUnitCostCrudo !== null) {
+      try {
+        const normalizado = normalizarCosto({ costCurrency: currency, originalCost: originalUnitCostCrudo, exchangeRatePyg: rate ?? undefined })
+        originalUnitCost = normalizado.originalCost
+        if (unitCostPyg === null) unitCostPyg = normalizado.costPyg
+      } catch (cause) {
+        const motivo = cause instanceof Error ? cause.message : 'Costo de línea inválido.'
+        return { ok: false, error: `${motivo} (línea ${lines.length + 1})` }
+      }
+    }
     lines.push({
       needId: typeof linea.needId === 'string' && linea.needId.trim() ? linea.needId.trim().slice(0, 128) : null,
       productId,
       condition,
       quantity,
       unitCostPyg,
+      originalUnitCost,
       serials: seriales.seriales,
     })
+  }
+
+  // FIN (#254): si la factura no trae total pero las líneas sí tienen costo, el
+  // total de la compra es la suma (en Gs y, si todas traen origen, en la moneda
+  // original). Un total explícito manda tal cual: la línea es el detalle.
+  let costPyg = costo.costPyg
+  let originalCost = costo.originalCost
+  if (costPyg === null && lines.some((linea) => linea.unitCostPyg !== null)) {
+    const sumaGs = lines.reduce((total, linea) => total + (linea.unitCostPyg || 0) * linea.quantity, 0)
+    const todasConOrigen = lines.every((linea) => linea.originalUnitCost !== null)
+    const sumaOrigen = lines.reduce((total, linea) => total + (linea.originalUnitCost || 0) * linea.quantity, 0)
+    costPyg = sumaGs
+    originalCost = currency === 'PYG'
+      ? sumaGs
+      : (todasConOrigen ? Number(sumaOrigen.toFixed(2)) : null)
   }
 
   const codeCrudo = typeof fila.code === 'string' ? fila.code.trim().toUpperCase() : ''
@@ -342,9 +386,9 @@ export function normalizarCompra(body: unknown): { ok: true; data: CompraNormali
       supplierId,
       supplierName,
       currency,
-      originalCost: costo.originalCost,
+      originalCost,
       exchangeRatePyg: costo.exchangeRatePyg,
-      costPyg: costo.costPyg,
+      costPyg,
       reference,
       notes,
       lines,

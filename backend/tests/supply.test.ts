@@ -111,6 +111,33 @@ const enGs = normalizarCompra({ supplierName: 'Proveedor', currency: 'PYG', orig
 assert.equal(enGs.ok && enGs.data.costPyg, 1500000)
 assert.equal(enGs.ok && enGs.data.lines[0].unitCostPyg, 1500000)
 
+// FIN (#254): costo por línea en la moneda de la compra y total derivado.
+const porLinea = normalizarCompra({ supplierName: 'Proveedor', currency: 'USD', exchangeRatePyg: 7500, lines: [
+  { productId: 'p1', quantity: 2, originalUnitCost: 900 },
+  { productId: 'p2', quantity: 1, originalUnitCost: 700.5, unitCostPyg: 5000000 },
+] })
+assert.equal(porLinea.ok, true)
+if (porLinea.ok) {
+  assert.equal(porLinea.data.lines[0].unitCostPyg, Math.round(900 * 7500), 'la línea convierte su costo en USD')
+  assert.equal(porLinea.data.lines[0].originalUnitCost, 900)
+  assert.equal(porLinea.data.lines[1].unitCostPyg, 5000000, 'el Gs explícito manda sobre el original')
+  assert.equal(porLinea.data.lines[1].originalUnitCost, 700.5)
+  assert.equal(porLinea.data.costPyg, Math.round(900 * 7500) * 2 + 5000000, 'sin total explícito, el total es la suma de líneas')
+  assert.equal(porLinea.data.originalCost, Number((900 * 2 + 700.5).toFixed(2)), 'el total original suma lo cargado en origen')
+}
+assert.equal(normalizarCompra({ supplierName: 'Proveedor', currency: 'USD', lines: [{ productId: 'p1', quantity: 1, originalUnitCost: 900 }] }).ok, false, 'USD por línea sin cotización')
+assert.equal(normalizarCompra({ supplierName: 'Proveedor', currency: 'USD', exchangeRatePyg: 7500, lines: [{ productId: 'p1', quantity: 1, originalUnitCost: 900.999 }] }).ok, false, 'USD por línea con más de 2 decimales')
+const lineaGs = normalizarCompra({ supplierName: 'Proveedor', currency: 'PYG', lines: [{ productId: 'p1', quantity: 3, originalUnitCost: 1200000 }] })
+assert.equal(lineaGs.ok && lineaGs.data.lines[0].unitCostPyg, 1200000)
+assert.equal(lineaGs.ok && lineaGs.data.costPyg, 3600000, 'el total en Gs sale de la suma')
+const enBrl = normalizarCompra({ supplierName: 'Proveedor', currency: 'BRL', exchangeRatePyg: 1400, lines: [{ productId: 'p1', quantity: 1, originalUnitCost: 100 }] })
+assert.equal(enBrl.ok && enBrl.data.lines[0].unitCostPyg, 140000, 'BRL con cotización convierte igual')
+assert.equal(enBrl.ok && enBrl.data.originalCost, 100)
+const conTotal = normalizarCompra({ supplierName: 'Proveedor', currency: 'USD', originalCost: 100, exchangeRatePyg: 7500, lines: [{ productId: 'p1', quantity: 1, originalUnitCost: 90 }] })
+assert.equal(conTotal.ok && conTotal.data.costPyg, 750000, 'un total explícito manda tal cual')
+assert.equal(conTotal.ok && conTotal.data.originalCost, 100)
+assert.equal(normalizarCompra({ supplierName: 'Proveedor', currency: 'EUR', lines: [{ productId: 'p1', quantity: 1 }] }).ok, false, 'moneda fuera de PYG/USD/BRL')
+
 // ── Fase 3: IMEI y preparación (#250 §7 y §11) ──────────────────────────────
 import { compararModelo, cuadrarSeriales, etiquetasPreparacion, resumenPreparacion } from '../lib/supply'
 
