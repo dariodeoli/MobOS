@@ -180,7 +180,7 @@ export default function FilaVenta({
             <span className="ml-auto" />
             <button
               type="button"
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad disabled:opacity-50 md:h-7 md:w-7"
+              className="toque-44 grid h-11 w-11 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad disabled:opacity-50 md:h-7 md:w-7"
               title="Eliminar línea"
               aria-label={`Eliminar ${item.nombre}`}
               disabled={guardando}
@@ -197,7 +197,7 @@ export default function FilaVenta({
           </div>
           <button
             type="button"
-            className="grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore md:h-8 md:w-8"
+            className="toque-44 grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore md:h-8 md:w-8"
             aria-expanded={abierta}
             aria-label={abierta ? `Ver menos detalle de ${item.nombre}` : `Ver detalle de ${item.nombre}`}
             title={abierta ? 'Ver menos' : 'Ver detalle'}
