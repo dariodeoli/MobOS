@@ -51,6 +51,16 @@ const datos = datosEtiquetaLote(etiqueta, { compra })
 - Aviso del pie: «Escaneá el código en la preparación y el despacho.» o, si
   falta el IMEI, «Unidad sin IMEI: completalo antes de despachar.»
 
+### Etiquetas del lote (`N de M`, desde el manifiesto)
+
+Cuando la impresión sale del **envío** (no de la compra), las etiquetas se
+derivan del manifiesto: `etiquetasDeLote(manifiesto)` (en `manifiesto.js`)
+devuelve el mismo shape por unidad con `lote: ENV-…` y `n de M` calculado sobre
+las unidades **del lote** (los IMEI conocidos primero y las pendientes después).
+Se imprimen con los mismos builders (`ticketEtiquetasLote` /
+`buildEtiquetasLoteHtml`) y muestran «Lote: ENV-…». Ejemplo:
+`docs/manifiesto-ejemplo/etiquetas-lote-80mm.pdf`.
+
 ## 4. Adopción del panel (pendiente de UI)
 
 El panel de abastecimiento (CMP) debe, en la pestaña de preparación de una

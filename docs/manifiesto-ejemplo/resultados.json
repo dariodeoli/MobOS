@@ -1,0 +1,48 @@
+{
+  "base": "http://127.0.0.1:5280",
+  "fecha": "2026-09-26T12:49:27.406Z",
+  "pasos": [
+    {
+      "documento": "manifiesto-a4",
+      "archivo": "manifiesto-a4.pdf",
+      "formato": "A4",
+      "paginas": 1
+    },
+    {
+      "documento": "manifiesto-80mm",
+      "archivo": "manifiesto-80mm.pdf",
+      "formato": "thermal-80",
+      "paginas": 1
+    },
+    {
+      "documento": "manifiesto-80mm-escpos",
+      "archivo": "manifiesto-80mm-escpos.pdf",
+      "formato": "ESC/POS 80 mm",
+      "paginas": 1
+    },
+    {
+      "documento": "etiquetas-lote-80mm",
+      "archivo": "etiquetas-lote-80mm.pdf",
+      "formato": "thermal-80",
+      "paginas": 6
+    },
+    {
+      "documento": "etiquetas-lote-80mm-escpos",
+      "archivo": "etiquetas-lote-80mm-escpos.pdf",
+      "formato": "ESC/POS 80 mm",
+      "paginas": 1
+    },
+    {
+      "documento": "manifiesto-a4-con-enlace",
+      "archivo": "manifiesto-a4-con-enlace.pdf",
+      "formato": "A4",
+      "paginas": 2
+    },
+    {
+      "documento": "qr-envio",
+      "archivo": "qr-envio.png",
+      "formato": "QR",
+      "enlace": "https://app.moboss.online/envio/ENV-CDE-ASU-0021"
+    }
+  ]
+}
