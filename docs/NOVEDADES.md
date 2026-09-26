@@ -11,6 +11,14 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.177 — 2026-09-26
+- **POS (#148/#187):** las **ventas y pedidos del día se cuentan por orden**, no por unidad: los totales de portada y caja vuelven a coincidir con las operaciones reales.
+- **Impresión (#240):** **hojas por estación** del taller y **certificados en serie**: se imprimen varios equipos de una sola vez.
+- **Demo (#219):** el equipo demo tiene **fotos de perfil ficticias** y datos consistentes en todas las pantallas.
+- **Mobile (#249/#245):** las acciones de las **listas de precios** llegan al mínimo táctil de 44 px (cierra el barrido de controles chicos).
+- **Componentes:** el **kit de interfaz sale de la biblioteca** (v0.32.0): las piezas compartidas se mantienen en un solo lugar.
+- **Diseño (#241):** paquete de **activación de F4** con checklist y capturas finales por dominio.
+
 ## v1.0.176 — 2026-09-26
 - **Calidad (#148 · #17/#96):** verificaciones en **producción** de finanzas (caja, conciliación y márgenes) e impresión (etiquetas, certificado y `/prueba`), con capturas y **checklist imprimible** del acompañamiento.
 - **Diseño (#241):** el interruptor del **rediseño v2** pasa a **configuración por entorno** (sigue activado por defecto y se puede apagar para toda la flota sin tocar cada dispositivo); contraste **AA** cerrado y verificado en local y producción.
