@@ -671,6 +671,9 @@ node "$BACKEND_ROOT/tests/backup-restore.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$PG_BI
 echo "Centro de Abastecimiento F1: necesidades manuales y consolidación «Por comprar» (#250)..."
 node "$BACKEND_ROOT/tests/supply-needs.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 
+echo "Centro de Abastecimiento F1: vínculo venta → necesidad y cliente con permiso (#254)..."
+node "$BACKEND_ROOT/tests/supply-demand.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
+
 echo "Centro de Abastecimiento F2: compra rápida, IMEI y stock adicional (#250)..."
 node "$BACKEND_ROOT/tests/supply-purchases.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 
