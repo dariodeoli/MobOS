@@ -205,6 +205,26 @@ export function demandaBajoMinimo({ productId, condition = 'NEW', branchId = nul
 }
 
 /**
+ * Revisa si un producto quedó en o bajo su punto de reposición y, en ese caso,
+ * deja la necesidad BELOW_REORDER (una por producto/sucursal/semana). Se llama
+ * después de cada movimiento que baja stock: venta, transferencia y baja.
+ */
+export async function revisarMinimoDeStock(tx: Prisma.TransactionClient, { tenantId, userId, productId, branchId = null, ahora = new Date() }: {
+  tenantId: string
+  userId: string
+  productId: string
+  branchId?: string | null
+  ahora?: Date
+}): Promise<string | null> {
+  const producto = await tx.product.findFirst({ where: { id: productId, tenantId }, select: { id: true, stock: true, reorderPoint: true, condition: true, branchId: true } })
+  if (!producto || producto.reorderPoint === null || producto.reorderPoint === undefined) return null
+  const demanda = demandaBajoMinimo({ productId: producto.id, condition: producto.condition, branchId: branchId || producto.branchId, stock: producto.stock || 0, reorderPoint: producto.reorderPoint, ahora })
+  if (!demanda) return null
+  const [id] = await crearDemandas(tx, tenantId, [demanda], userId)
+  return id || null
+}
+
+/**
  * Persiste las demandas (dentro de la transacción del evento) sin duplicar:
  * el `dedupeKey` es único por empresa y una carrera se saltea sin romper la
  * venta. Cada necesidad creada deja su auditoría.

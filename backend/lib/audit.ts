@@ -41,6 +41,7 @@ export const ACCIONES_AUDITORIA: Record<string, string> = {
   SUPPLY_NEED_CREATED: 'Necesidad de abastecimiento creada',
   SUPPLY_NEED_ASSIGNED: 'Necesidad asignada a un comprador',
   SUPPLY_NEED_CANCELLED: 'Necesidad de abastecimiento cancelada',
+  SUPPLY_NEED_UPDATED: 'Necesidad de abastecimiento actualizada (prioridad o fecha)',
   SUPPLY_PURCHASE_CREATED: 'Compra del Centro de Abastecimiento',
   SUPPLY_PURCHASE_CANCELLED: 'Compra del Centro cancelada',
   SUPPLY_PURCHASE_SERIALS_ADDED: 'IMEI cargados a una compra',

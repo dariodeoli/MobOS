@@ -8,6 +8,7 @@ import { normalizarCosto } from '../../../lib/costs'
 import { itemsLista, normalizarInspectionItems, resumenInspection } from '../../../lib/inspection'
 import { INT_MAX } from '../../../lib/payment-input'
 import { serialKey } from '../../../lib/validation'
+import { revisarMinimoDeStock } from '../../../lib/supply-demand'
 import { changeStock } from '../../../lib/stock'
 import { consumeAuthorization } from '../../../lib/authorizations'
 
@@ -274,6 +275,8 @@ export async function PATCH(request: Request) {
         if (removed) throw new Error('La unidad ya fue eliminada de forma recuperable.')
         if (before.status !== 'AVAILABLE') throw new Error('Solo se puede eliminar una unidad disponible. Liberá reservas o completá el flujo correspondiente.')
         await changeStock(tx, { tenantId: tenant, productId: before.productId, delta: -1, message: 'El stock cambió mientras se eliminaba la unidad.' })
+        // #250 F1: la baja puede dejar el producto bajo el mínimo: se pide solo.
+        await revisarMinimoDeStock(tx, { tenantId: tenant, userId: session.user.id, productId: before.productId, branchId: before.branchId })
         const data = await tx.inventoryUnit.update({ where: { id }, data: { status: 'DEFECTIVE', reservedUntil: null, reservationCustomer: null, reservedById: null } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: INVENTORY_REMOVED, entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, reason: adjustmentReason, statusBefore: before.status, locationId: before.locationId, ...(stockAuthorization ? { authorizationId: stockAuthorization.id } : {}) } } })
         await consumirAutorizacion({ statusAfter: data.status })

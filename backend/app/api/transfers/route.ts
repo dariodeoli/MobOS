@@ -4,6 +4,7 @@ import { canAccessAny, requireSession } from '../../../lib/auth'
 import { InputError } from '../../../lib/payment-input'
 import { serialKey } from '../../../lib/validation'
 import { changeStock } from '../../../lib/stock'
+import { revisarMinimoDeStock } from '../../../lib/supply-demand'
 import { authorizationValueOf, consumeAuthorization, usableAuthorization } from '../../../lib/authorizations'
 
 const INT_MAX = 2147483647
@@ -119,6 +120,9 @@ export async function POST(request: Request) {
         if (!destination) destination = await tx.product.create({ data: { tenantId: tenant, branchId: destinationBranchId, sku: source.sku, name: source.name, category: source.category, condition: source.condition, pricePyg: source.pricePyg, costPyg: source.costPyg, stock: 0 } })
         if (destination.stock > INT_MAX - line.quantity) throw new Error('El stock de destino supera el límite permitido.')
         await changeStock(tx, { tenantId: tenant, productId: source.id, delta: -line.quantity, branchId: sourceBranchId, message: 'El stock cambió mientras se procesaba la transferencia.' })
+        // #250 F1: si el origen quedó bajo el punto de reposición, la reposición
+        // se pide sola (una por producto/sucursal/semana).
+        await revisarMinimoDeStock(tx, { tenantId: tenant, userId: session.user.id, productId: source.id, branchId: sourceBranchId })
         // Las líneas serializadas quedan en tránsito: el stock de destino recién
         // suma cuando el vendedor/encargado verifica físicamente la llegada.
         if (line.serials.length === 0) {

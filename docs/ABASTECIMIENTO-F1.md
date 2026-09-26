@@ -137,10 +137,11 @@ compra. Implementado en `backend/lib/supply-demand.ts` y enganchado en la venta
 | `QUANTITY_OVER_STOCK` | Venta offline que descontó solo lo disponible | El faltante real |
 | `ORDER_COMMITTED` | La venta/pedido trae `promisedAt` | Lo que quedó sin cubrir; prioridad por la promesa |
 | `RESERVATION_NO_STOCK` | Reserva/backorder con menos unidades que las pedidas | Solo la diferencia |
-| `BELOW_REORDER` | Al vender, el producto queda en `stock <= reorderPoint` | `punto - stock + 1` (una por producto/sucursal/semana) |
+| `BELOW_REORDER` | Un movimiento deja el producto en `stock <= reorderPoint`: **venta, transferencia entre sucursales o baja de unidad** (`revisarMinimoDeStock`) | `punto - stock + 1` (una por producto/sucursal/semana) |
 
 - Prioridad: promesa vencida ⇒ `URGENTE`; ≤ 48 h ⇒ `ALTA`; ≤ 7 días y sin fecha
-  ⇒ `NORMAL`; faltante offline ⇒ `ALTA`.
+  ⇒ `NORMAL`; faltante offline ⇒ `ALTA`. Las **manuales con fecha prometida y
+  sin prioridad explícita** también se priorizan solas con la misma regla.
 - Deduplicación por `dedupeKey` (único por empresa): repetir el evento no
   duplica. Cada alta deja auditoría `SUPPLY_NEED_AUTO`.
 - **No crea stock**: la unidad sigue apareciendo recién en la recepción (F5).
@@ -166,7 +167,8 @@ compra. Implementado en `backend/lib/supply-demand.ts` y enganchado en la venta
 
 - `GET /api/supply/needs` devuelve, además de `totales` y `grupos`:
   - `contadores`: `porEstado` (ABIERTA · ASIGNADA · COMPRADA · RECIBIDA ·
-    CANCELADA), `porPrioridad` (pendientes), `vencidas` (promesa pasada),
+    CANCELADA), `porPrioridad` (pendientes), **`porOrigen`** (venta sin stock,
+    offline, promesa, reserva, mínimo, manual), `vencidas` (promesa pasada),
     `sinAsignar`, `sinCentro` y `pendientes`. Son de **toda la empresa**, no de
     la página, para las pestañas y las colas del comprador.
   - Filtros sumados: `?priority=ALTA|URGENTE|…` y `?condition=NEW|USED|REFURBISHED`
