@@ -11,6 +11,9 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.178 — 2026-09-26
+- **Mobile (#249):** en la línea del carrito del POS, la **papelera** y el **botón de detalle** quedan con **área táctil exacta de 44 px** (el control automático de mobile vuelve a estar en verde).
+
 ## v1.0.177 — 2026-09-26
 - **POS (#148/#187):** las **ventas y pedidos del día se cuentan por orden**, no por unidad: los totales de portada y caja vuelven a coincidir con las operaciones reales.
 - **Impresión (#240):** **hojas por estación** del taller y **certificados en serie**: se imprimen varios equipos de una sola vez.
