@@ -14,6 +14,15 @@ públicos no piden sesión.
 3. `/demo` sigue disponible solo por entrada explícita;
 4. los enlaces públicos (`/u/<serial>`) siguen abiertos sin sesión.
 
+## Producción (v1.0.175) — re-verificado
+
+`node scripts/qa-248-produccion.mjs` con `QA_OUT=produccion-v1.0.175` → **5/5
+pasos OK** en `v1.0.175`: raíz → `/login` (no `/demo`), ruta protegida con
+`?volver`, `/demo` por entrada explícita, informe público sin login y bundle
+`index-DKn00FhB.js` (214 KB). Evidencia:
+[`produccion-v1.0.175/resultados.json`](produccion-v1.0.175/resultados.json)
++ capturas.
+
 ## Producción (v1.0.168)
 
 `node scripts/qa-248-produccion.mjs` con `QA_OUT=reverificacion-v1.0.168`
