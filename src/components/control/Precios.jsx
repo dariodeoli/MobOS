@@ -216,9 +216,10 @@ export default function Precios() {
             <p className="mt-1 text-xs text-mute">{(lista.items || []).length} ítem{(lista.items || []).length === 1 ? '' : 's'}{(lista.items || []).length ? ` · ${(lista.items || []).slice(0, 3).map(item => item.productId ? nombreProducto(item.productId) : item.category).join(', ')}${(lista.items || []).length > 3 ? '…' : ''}` : ''}</p>
           </div>
           <span className="flex shrink-0 items-center gap-1">
-            <IconAction icon="edit" label="Editar lista" onClick={() => abrirLista(lista)} />
-            <IconAction icon="refresh" label={lista.isActive ? 'Desactivar lista' : 'Activar lista'} onClick={() => alternarLista(lista)} />
-            <IconAction icon="trash" tone="bad" label="Eliminar lista" onClick={() => setABorrar(lista)} />
+            {/* Gate responsive (#249/#253): a ≤414 px los targets van a 44 px. */}
+            <IconAction icon="edit" size="touch" label="Editar lista" onClick={() => abrirLista(lista)} />
+            <IconAction icon="refresh" size="touch" label={lista.isActive ? 'Desactivar lista' : 'Activar lista'} onClick={() => alternarLista(lista)} />
+            <IconAction icon="trash" size="touch" tone="bad" label="Eliminar lista" onClick={() => setABorrar(lista)} />
           </span>
         </div>)}
       </div>}
