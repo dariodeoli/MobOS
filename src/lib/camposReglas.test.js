@@ -189,6 +189,18 @@ test('los objetos de Abastecimiento F1 (#250/#254) están publicados', () => {
   assert.match(tarjeta, /data-estado=/, 'la tarjeta expone el estado para los tests del panel')
 })
 
+test('los objetos de Abastecimiento F2–F5 (#250) están publicados', () => {
+  const indice = readFileSync(LIB_INDEX, 'utf8')
+  for (const objeto of ['TarjetaCompra', 'TarjetaLote', 'EtiquetaLote', 'ESTADOS_COMPRA', 'ESTADOS_ENVIO', 'ESTADOS_RECEPCION', 'METODOS_ENVIO', 'PASOS_ENVIO', 'claveDeEstadoEnvio', 'etiquetaMetodoEnvio']) {
+    assert.ok(indice.includes(objeto), `owncoding-ui debe publicar ${objeto} para F2–F5`)
+  }
+  // Las claves del backend viajan en los mapas: estados y métodos.
+  const mapas = readFileSync(join(LIB_COMPONENTES, '..', 'utils', 'abastecimiento.js'), 'utf8')
+  for (const clave of ['comprada', 'recibida', 'borrador', 'despachado', 'recepcion_parcial', 'con_incidencia', 'bus', 'transportadora', 'aex', 'importacion', 'confirmada']) {
+    assert.match(mapas, new RegExp(`${clave}:`), `falta la clave ${clave} del contrato F2–F5`)
+  }
+})
+
 test('el kit re-exporta la biblioteca y no reimplementa objetos (#253)', () => {
   const ui = readFileSync(join(RAIZ, 'components/ui/index.jsx'), 'utf8')
   assert.match(ui, /from 'owncoding-ui'/, 'el kit re-exporta la biblioteca')
