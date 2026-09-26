@@ -80,6 +80,17 @@ const esperarTexto = async (fn, timeout = 8000) => {
   return valor
 }
 
+// El perfil personal puede vivir en `/mi-perfil` (PLT) o `/mi-cuenta` (CRM):
+// la corrida acepta las dos rutas y registra la desplegada.
+const esperarUrlPerfil = async (page, timeout = 15000) => {
+  const limite = Date.now() + timeout
+  while (Date.now() < limite) {
+    if (/\/(mi-perfil|mi-cuenta)$/.test(new URL(page.url()).pathname)) return
+    await new Promise((listo) => setTimeout(listo, 250))
+  }
+  throw new Error(`el perfil no abrió: ${page.url()}`)
+}
+
 const abrirDemo = async (page) => {
   await page.goto(`${APP}/demo`, { waitUntil: 'domcontentloaded', timeout: 60000 })
   await page.waitForTimeout(1200)
@@ -119,7 +130,7 @@ await paso('entrada anónima a /demo', async () => {
 await abrirDemo(page)
 
 await paso('lista de clientes con agregados reales (#221)', async () => {
-  await page.locator('aside nav, nav').first().getByRole('button', { name: 'Clientes', exact: true }).click()
+  await page.goto(`${APP}/clientes`, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1200)
   const fila = page.getByTestId('cliente-fila').filter({ hasText: 'Lucía Fernández' }).first()
   await fila.waitFor({ timeout: 20000 })
@@ -379,6 +390,90 @@ await paso('demo Vendedor: Clientes visible por rol', async () => {
   afirmar(/Lucía Fernández/.test(texto), 'el vendedor no ve la cartera demo')
   await vendedor.close()
   return 'la cartera demo carga con el rol Vendedor'
+})
+
+// ── Portal del cliente y perfil personal (#240/#253): lo nuevo del dominio ──
+await paso('ojito de la lista → resumen rápido con acciones (#236)', async () => {
+  await page.goto(`${APP}/clientes`, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1200)
+  await page.getByLabel('Buscar clientes').fill('Lucía')
+  await page.getByRole('button', { name: /Resumen rápido de Lucía Fernández/ }).first().click()
+  const popup = page.getByRole('dialog')
+  await popup.getByText('Cliente: Lucía Fernández', { exact: false }).first().waitFor({ timeout: 15000 })
+  const texto = plano(await popup.innerText())
+  afirmar(texto.includes(ESPERADO.totalGastado), `el resumen rápido no muestra ${ESPERADO.totalGastado}`)
+  afirmar(await popup.getByRole('button', { name: /WhatsApp/i }).count() > 0, 'falta la acción de WhatsApp en el resumen rápido')
+  afirmar(await popup.getByRole('button', { name: /Ver detalle completo/ }).count() > 0, 'falta «Ver detalle completo»')
+  await shot(page, 'ojito-resumen-rapido')
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(400)
+  return 'resumen rápido con KPIs y acciones'
+})
+
+await paso('portal demo: avisos, cotización y seguimiento de la cuenta', async () => {
+  await page.goto(`${APP}/cuenta/demo-demo-cliente-lucia-rapido`, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1500)
+  const avisos = page.getByTestId('portal-avisos')
+  await avisos.waitFor({ timeout: 20000 })
+  const textoAvisos = await avisos.innerText()
+  afirmar(/Tu cotización COT-#0018 vence en 2 días/.test(textoAvisos), `falta el aviso de la cotización: ${plano(textoAvisos)}`)
+  afirmar(/Tu pago vence en 6 días/.test(textoAvisos), `falta el aviso del pago: ${plano(textoAvisos)}`)
+  afirmar(/MOB-#0008 está en camino/.test(textoAvisos), `falta el aviso del envío: ${plano(textoAvisos)}`)
+  const cotizaciones = page.getByTestId('portal-cotizaciones')
+  await cotizaciones.waitFor({ timeout: 15000 })
+  afirmar(/COT-#0018/.test(await cotizaciones.innerText()), 'no aparece la cotización en la cuenta')
+  afirmar(await page.getByText('Seguimiento de envío').first().isVisible(), 'no aparece el seguimiento de la entrega')
+  await shot(page, 'portal-cuenta-novedades', true)
+  return 'avisos (cotización/pago/envío) + cotización + seguimiento'
+})
+
+await paso('portal demo: el pedido en detalle (líneas y pagos)', async () => {
+  const boton = page.getByTestId('pedido-detalle-boton').first()
+  await boton.waitFor({ timeout: 15000 })
+  await boton.click()
+  const detalle = page.getByTestId('pedido-detalle').first()
+  await detalle.waitFor({ timeout: 10000 })
+  const texto = plano(await detalle.innerText())
+  afirmar(/Qué compraste/i.test(texto), `no aparece «Qué compraste»: ${texto.slice(0, 120)}`)
+  afirmar(/iPhone 15/.test(texto), 'no aparece la línea del pedido demo')
+  afirmar(/Tus pagos de este pedido/i.test(texto), 'no aparecen los pagos del pedido')
+  await shot(page, 'portal-pedido-detalle', true)
+  return 'líneas y pagos del pedido en la cuenta'
+})
+
+await paso('vitrina demo: el seguimiento de la entrega', async () => {
+  await page.goto(`${APP}/portal/demo-demo-cliente-lucia-completo`, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1200)
+  await page.getByText('Seguimiento de envío').first().waitFor({ timeout: 15000 })
+  const pasos = page.getByTestId('portal-pasos-entrega').first()
+  afirmar(/En camino al cliente/.test(await pasos.innerText()), 'la vitrina no marca el paso actual')
+  await shot(page, 'portal-vitrina-seguimiento', true)
+  return 'pasos del envío también en la vitrina'
+})
+
+await paso('Mi cuenta/perfil desde el avatar (#253)', async () => {
+  await page.goto(`${APP}/clientes`, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1200)
+  // La coordinación de #253 pedía `/mi-perfil` (PLT); la integración que salió
+  // en v1.0.175 conservó `/mi-cuenta` (CRM). El paso acepta las dos entradas y
+  // registra cuál usa la versión desplegada.
+  const entradaPerfil = page.getByTestId('shell-mi-perfil').or(page.getByTestId('shell-mi-cuenta')).first()
+  await entradaPerfil.waitFor({ timeout: 20000 })
+  const testid = (await entradaPerfil.getAttribute('data-testid')) || 'desconocido'
+  await entradaPerfil.click()
+  await esperarUrlPerfil(page)
+  const perfil = page.getByTestId('mi-cuenta-perfil')
+  await perfil.waitFor({ timeout: 20000 })
+  const texto = plano(await perfil.innerText())
+  afirmar(/Tu perfil/i.test(texto), `no aparece el perfil: ${texto.slice(0, 120)}`)
+  afirmar(/Preferencias del dispositivo/.test(await page.locator('body').innerText()), 'no aparecen las preferencias')
+  const sesiones = page.getByTestId('mi-cuenta-sesiones')
+  await sesiones.waitFor({ timeout: 10000 })
+  afirmar(/Sesión actual/.test(await sesiones.innerText()), 'no aparece la sesión actual')
+  afirmar(await page.locator('#pref-bloqueo').isVisible(), 'no aparece el bloqueo por inactividad')
+  await shot(page, 'mi-perfil', true)
+  resultado.perfil = { entrada: testid, url: new URL(page.url()).pathname }
+  return `perfil + preferencias + sesión actual (entrada ${testid} → ${resultado.perfil.url})`
 })
 
 resultado.capturas = capturas
