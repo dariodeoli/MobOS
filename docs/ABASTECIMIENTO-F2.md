@@ -57,16 +57,36 @@ Las líneas sin `needId` son la **reposición libre** del «+ Agregar compra
 adicional»: no tienen cliente ni pedido, pueden ir con IMEI o pendientes y
 quedan valuadas por el costo de la compra (o `unitCostPyg` por línea).
 
+## 4-bis. Compra parcial (cierre F2)
+
+Una línea con `needId` puede comprar **menos, igual o más** que la necesidad:
+
+- `SupplyPurchaseLine.coveredQuantity` guarda cuánto de la necesidad cubre la
+  línea (migración aditiva `20261206000000_supply_purchase_line_covered`).
+- La necesidad descuenta siempre lo cubierto: **parcial** deja el resto en
+  «Por comprar» (sigue abierta y vinculada a la compra, con auditoría
+  `SUPPLY_NEED_PARTIAL_PURCHASED`); **completa** queda en 0 y `COMPRADA`.
+- Comprar de más deja el excedente como **reposición libre** (la línea conserva
+  las unidades compradas y el `extra` viaja en la auditoría de la compra).
+- **Cancelar** la compra devuelve exactamente lo cubierto: la necesidad vuelve al
+  panel con su cantidad original (y `ABIERTA` si estaba `COMPRADA`); la cuenta a
+  pagar de FIN se resuelve igual que antes.
+- Una misma necesidad no puede repetirse en dos líneas de la misma compra.
+- La consolidación ya no infla a 1 una necesidad cubierta (cantidad 0).
+
 ## 5. Tests
 
 - Unit `backend/tests/supply.test.ts`: `codigoCompra`, `normalizarSeriales`
   (Luhn, repetidos, texto pegado) y `normalizarCompra` (proveedor, moneda/costo,
   líneas, IMEI pendientes, límites).
-- Arnés HTTP `backend/tests/supply-purchases.mjs` (**25 chequeos**): compra en
+- Arnés HTTP `backend/tests/supply-purchases.mjs` (**50 chequeos**): compra en
   USD con referencia + línea que cubre una necesidad con IMEI + compra adicional
   sin IMEI; necesidad cubierta/visible por estado; **stock intacto**; duplicados
-  (otra compra / inventario); completar IMEI pendiente; 400/401/403/404/409; y
-  cancelación que devuelve la necesidad al panel.
+  (otra compra / inventario); completar IMEI pendiente; 400/401/403/404/409;
+  cancelación que devuelve la necesidad al panel; y **compra parcial**: 5
+  pedidas → compra 2 (quedan 3 en «Por comprar») → completa con otra compra →
+  excedente libre → duplicar la necesidad en la misma compra (400) → cancelar
+  devuelve lo cubierto.
 - `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` → **PASS**;
   `npm run db:check` verde con la migración aplicada.
 

@@ -144,7 +144,8 @@ export function consolidarNecesidades(necesidades: NecesidadEntrada[] = []): Gru
       }
       grupos.set(clave, grupo)
     }
-    const cantidad = Number(necesidad.cantidad) > 0 ? Math.round(Number(necesidad.cantidad)) : 1
+    // Una necesidad ya cubierta (0) conserva su 0: no se infla a 1 al consolidar.
+    const cantidad = Math.max(0, Math.round(Number(necesidad.cantidad) || 0))
     grupo.cantidad += cantidad
     grupo.prioridad = prioridadMayor(grupo.prioridad, necesidad.prioridad)
     grupo.prometidaEl = fechaMasProxima(grupo.prometidaEl, fecha(necesidad.prometidaEl))
@@ -227,6 +228,18 @@ export function normalizarNecesidadManual(body: unknown): { ok: true; data: Nece
 }
 
 // ── Fase 2 (#250 §6): compra rápida y stock adicional ───────────────────────
+
+/**
+ * Cobertura de una línea de compra sobre una necesidad (#250 §4/§6): devuelve
+ * cuánto queda cubierto, cuánto falta seguir comprando y cuánto es excedente
+ * (reposición libre). La compra parcial deja el resto en «Por comprar».
+ */
+export function coberturaDeCompra({ necesaria, comprada }: { necesaria: number; comprada: number }): { cubierta: number; faltan: number; extra: number } {
+  const pedida = Math.max(0, Math.round(Number(necesaria) || 0))
+  const comprando = Math.max(0, Math.round(Number(comprada) || 0))
+  const cubierta = Math.min(pedida, comprando)
+  return { cubierta, faltan: Math.max(0, pedida - cubierta), extra: Math.max(0, comprando - cubierta) }
+}
 
 // Estados de la compra: F2 usa COMPRADA/CANCELADA; F4 (lotes) suma PREPARANDO/
 // EN_TRANSITO y F5 (recepción) RECIBIDA. El stock no se mueve en ningún estado

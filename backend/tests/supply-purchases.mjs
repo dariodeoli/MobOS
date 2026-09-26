@@ -151,4 +151,41 @@ const stockFinal = await req(`/api/stock?branchId=${rama}`)
 const filaFinal = (Array.isArray(stockFinal) ? stockFinal : stockFinal.productos || []).find((item) => item.id === producto.id)
 assert.equal(Number(filaFinal?.stock ?? 0), stockReferencia, 'comprar y cancelar no mueven el stock (solo la recepción lo hará)')
 
-console.log(`PASS: compra ${compra.code} (USD → Gs) con IMEI y compra adicional · necesidad cubierta y devuelta al cancelar · stock intacto · ${checks} chequeos`)
+// 10) Compra parcial (#250 F2): comprar menos que la necesidad deja el resto
+// en «Por comprar» y se puede completar con otra compra; el excedente es libre.
+const productoParcial = await req('/api/products', 'POST', { name: `Parcial ${sufijo}`, sku: `PAR-${sufijo}`, pricePyg: 1500000, costPyg: 1000000, stock: 0, branchId: rama }, 201)
+const necesaria = await req('/api/supply/needs', 'POST', { productId: productoParcial.id, quantity: 5, branchId: rama, notes: 'Compra parcial' }, 201)
+const parcial = await req('/api/supply/purchases', 'POST', { supplierName: 'Proveedor Parcial', currency: 'PYG', originalCost: 2000000, reference: `FAC-PAR-${sufijo}`, lines: [{ needId: necesaria.id, productId: productoParcial.id, quantity: 2 }] }, 201)
+assert.equal(parcial.lines[0].coveredQuantity, 2, 'la línea guarda cuánto de la necesidad cubre')
+let parcialPanel = (await req(`/api/supply/needs?productId=${productoParcial.id}`)).grupos.find((grupo) => grupo.productoId === productoParcial.id)
+assert.ok(parcialPanel && parcialPanel.cantidad === 3, 'lo que falta sigue en «Por comprar» (5 - 2)')
+const parcialDetalle = await req(`/api/supply/needs?status=ABIERTA&productId=${productoParcial.id}`)
+assert.ok(parcialDetalle.grupos.some((grupo) => grupo.necesidades.includes(necesaria.id)), 'la necesidad parcial sigue abierta')
+
+// Se completa con una segunda compra por el resto.
+const segunda = await req('/api/supply/purchases', 'POST', { supplierName: 'Proveedor Parcial', currency: 'PYG', originalCost: 3000000, lines: [{ needId: necesaria.id, productId: productoParcial.id, quantity: 3 }] }, 201)
+assert.equal(segunda.lines[0].coveredQuantity, 3)
+const cubiertaTotal = await req(`/api/supply/needs?status=COMPRADA&productId=${productoParcial.id}`)
+assert.ok(cubiertaTotal.grupos.some((grupo) => grupo.necesidades.includes(necesaria.id)), 'con el resto comprado la necesidad queda COMPRADA')
+await req('/api/supply/purchases', 'POST', { supplierName: 'Proveedor Parcial', currency: 'PYG', originalCost: 100000, lines: [{ needId: necesaria.id, productId: productoParcial.id, quantity: 1 }] }, 409)
+
+// Excedente: comprar de más cubre la necesidad y el resto es reposición libre.
+const necesaria2 = await req('/api/supply/needs', 'POST', { productId: productoParcial.id, quantity: 5, branchId: rama, notes: 'Excedente' }, 201)
+const conExtra = await req('/api/supply/purchases', 'POST', { supplierName: 'Proveedor Parcial', currency: 'PYG', originalCost: 4000000, lines: [{ needId: necesaria2.id, productId: productoParcial.id, quantity: 8 }] }, 201)
+assert.equal(conExtra.lines[0].coveredQuantity, 5, 'la cobertura se acota a la necesidad')
+assert.equal(conExtra.lines[0].quantity, 8, 'la compra conserva las 8 unidades compradas')
+
+// Duplicar la necesidad en dos líneas de la misma compra se rechaza.
+const necesaria3 = await req('/api/supply/needs', 'POST', { productId: productoParcial.id, quantity: 2, branchId: rama, notes: 'Duplicada' }, 201)
+await req('/api/supply/purchases', 'POST', { supplierName: 'Proveedor Parcial', currency: 'PYG', originalCost: 200000, lines: [{ needId: necesaria3.id, productId: productoParcial.id, quantity: 1 }, { needId: necesaria3.id, productId: productoParcial.id, quantity: 1 }] }, 400)
+
+// Cancelar una compra parcial devuelve exactamente lo que cubría.
+const aCancelar = await req('/api/supply/purchases', 'POST', { supplierName: 'Proveedor Parcial', currency: 'PYG', originalCost: 2000000, lines: [{ needId: necesaria3.id, productId: productoParcial.id, quantity: 2 }] }, 201)
+await req('/api/supply/purchases', 'PATCH', { id: aCancelar.id, action: 'cancel', reason: 'Prueba parcial' })
+const restaurada = (await req(`/api/supply/needs?productId=${productoParcial.id}`)).grupos.flatMap((grupo) => grupo.necesidades)
+assert.ok(restaurada.includes(necesaria3.id), 'la necesidad parcial vuelve al panel al cancelar')
+const detalleRestaurado = await req('/api/supply/purchases')
+const lineasRestauradas = detalleRestaurado.compras.find((fila) => fila.id === aCancelar.id)?.lines || []
+assert.equal(lineasRestauradas[0]?.coveredQuantity, 2, 'la línea conserva la cobertura para la trazabilidad')
+
+console.log(`PASS: compra ${compra.code} (USD → Gs) con IMEI, compra parcial y adicional · necesidad cubierta/devuelta · excedente libre · stock intacto · ${checks} chequeos`)

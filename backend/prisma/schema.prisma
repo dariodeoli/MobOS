@@ -2385,6 +2385,11 @@ model SupplyPurchaseLine {
   // Necesidad que cubre esta línea (null en la compra adicional / reposición libre).
   needId      String?
   need        SupplyNeed?      @relation(fields: [needId], references: [id], onDelete: SetNull)
+  // #250 F2: cuánto de la necesidad cubre esta línea. Si es menor que la
+  // cantidad pedida, el resto sigue en «Por comprar» (compra parcial); si la
+  // línea compra de más, el excedente es reposición libre. Null en las líneas
+  // sin necesidad.
+  coveredQuantity Int?
   productId   String
   product     Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
   condition   ProductCondition @default(NEW)

@@ -1,7 +1,7 @@
 import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
-import { codigoCompra, compararModelo, cuadrarSeriales, normalizarCompra, resumenPreparacion } from '../../../../lib/supply'
+import { coberturaDeCompra, codigoCompra, compararModelo, cuadrarSeriales, normalizarCompra, resumenPreparacion } from '../../../../lib/supply'
 
 // #250 Fase 2 (Centro de Abastecimiento): compra rápida y stock adicional.
 //
@@ -73,7 +73,7 @@ export async function GET(request: Request) {
       originalCost: true, exchangeRatePyg: true, costPyg: true, reference: true, notes: true,
       branchId: true, createdAt: true,
       branch: { select: { name: true } },
-      lines: { select: { id: true, productId: true, condition: true, quantity: true, unitCostPyg: true, originalUnitCost: true, needId: true, serials: { select: { serial: true } } } },
+      lines: { select: { id: true, productId: true, condition: true, quantity: true, unitCostPyg: true, originalUnitCost: true, needId: true, coveredQuantity: true, serials: { select: { serial: true } } } },
     },
   })
   const conPreparacion = compras.map((compra) => ({
@@ -134,15 +134,21 @@ export async function POST(request: Request) {
   if (productosValidos.size !== productIds.length) return error('Alguna línea apunta a un producto inexistente.', 404)
 
   const needIds = [...new Set(compra.lines.map((linea) => linea.needId).filter(Boolean))] as string[]
-  const necesidades = needIds.length ? await prisma.supplyNeed.findMany({ where: { id: { in: needIds }, tenantId: tenant }, select: { id: true, productId: true, condition: true, status: true } }) : []
+  const necesidades = needIds.length ? await prisma.supplyNeed.findMany({ where: { id: { in: needIds }, tenantId: tenant }, select: { id: true, productId: true, condition: true, status: true, quantity: true } }) : []
   if (necesidades.length !== needIds.length) return error('Alguna necesidad no existe.', 404)
   const necesidadPorId = new Map(necesidades.map((necesidad) => [necesidad.id, necesidad]))
+  const coberturaPorNecesidad = new Map<string, { cubierta: number; faltan: number; extra: number }>()
+  const vistas = new Set<string>()
   for (const linea of compra.lines) {
     if (!linea.needId) continue
     const necesidad = necesidadPorId.get(linea.needId)!
     if (necesidad.productId !== linea.productId) return error('La línea no coincide con el producto de la necesidad que cubre.')
     if (necesidad.condition !== linea.condition) return error('La línea no coincide con la condición de la necesidad que cubre.')
     if (ESTADOS_CERRADOS.includes(necesidad.status)) return error('Hay una necesidad que ya está cubierta o cancelada.', 409)
+    if (vistas.has(linea.needId)) return error('Una necesidad no puede aparecer en dos líneas de la misma compra.')
+    vistas.add(linea.needId)
+    // #250 F2: compra parcial — lo que la línea no cubre sigue en «Por comprar».
+    coberturaPorNecesidad.set(linea.needId, coberturaDeCompra({ necesaria: necesidad.quantity, comprada: linea.quantity }))
   }
 
   // IMEI/seriales: sin duplicados dentro de la compra ni contra lo ya cargado.
@@ -194,14 +200,33 @@ export async function POST(request: Request) {
           quantity: linea.quantity,
           unitCostPyg: linea.unitCostPyg,
           originalUnitCost: linea.originalUnitCost,
+          coveredQuantity: linea.needId ? coberturaPorNecesidad.get(linea.needId)!.cubierta : null,
         },
       })
       if (linea.serials.length) {
         await tx.supplyPurchaseSerial.createMany({ data: linea.serials.map((serial) => ({ tenantId: tenant, lineId: fila.id, serial })) })
       }
     }
-    if (needIds.length) {
-      await tx.supplyNeed.updateMany({ where: { id: { in: needIds }, tenantId: tenant }, data: { status: 'COMPRADA', purchaseId: cabecera.id } })
+    for (const [needId, cobertura] of coberturaPorNecesidad) {
+      // La demanda descuenta siempre lo que la compra cubrió: parcial deja el
+      // resto en «Por comprar» y completa deja la necesidad en 0 + COMPRADA
+      // (cancelar la compra devuelve exactamente lo cubierto).
+      await tx.supplyNeed.update({
+        where: { id: needId },
+        data: { quantity: cobertura.faltan, purchaseId: cabecera.id, ...(cobertura.faltan === 0 ? { status: 'COMPRADA' } : {}) },
+      })
+      if (cobertura.faltan > 0) {
+        await tx.auditLog.create({
+          data: {
+            tenantId: tenant,
+            userId: session.user.id,
+            action: 'SUPPLY_NEED_PARTIAL_PURCHASED',
+            entity: 'SupplyNeed',
+            entityId: needId,
+            metadata: { purchaseId: cabecera.id, code, cubierta: cobertura.cubierta, faltan: cobertura.faltan },
+          },
+        })
+      }
     }
     // FIN (#254): con costo cargado, la compra genera su cuenta a pagar al
     // proveedor (contado nace paga; crédito queda pendiente con vencimiento).
@@ -251,6 +276,8 @@ export async function POST(request: Request) {
           lineas: compra.lines.length,
           necesidades: needIds.length,
           seriales: seriales.length,
+          // Excedente de las líneas que compraron de más: reposición libre.
+          extra: [...coberturaPorNecesidad.values()].reduce((suma, cobertura) => suma + cobertura.extra, 0),
         },
       },
     })
@@ -297,8 +324,21 @@ export async function PATCH(request: Request) {
         await tx.supplierPayable.delete({ where: { id: cuenta.id } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SUPPLIER_PAYABLE_CANCELLED', entity: 'SupplierPayable', entityId: cuenta.id, metadata: { code: compra.code, reason: motivo.slice(0, 500) } } })
       }
-      // Las necesidades vuelven al panel: la compra no se completó.
-      await tx.supplyNeed.updateMany({ where: { tenantId: tenant, purchaseId: compra.id }, data: { status: 'ABIERTA', purchaseId: null } })
+      // Las necesidades vuelven al panel con lo que esta compra cubría: una
+      // compra parcial devuelve su parte y una completa vuelve a pedirse entera.
+      const lineas = await tx.supplyPurchaseLine.findMany({ where: { purchaseId: compra.id, tenantId: tenant, needId: { not: null } }, select: { needId: true, coveredQuantity: true, quantity: true } })
+      for (const linea of lineas) {
+        const devolver = linea.coveredQuantity ?? linea.quantity
+        const necesidad = await tx.supplyNeed.findFirst({ where: { id: linea.needId!, tenantId: tenant }, select: { id: true, purchaseId: true, status: true } })
+        if (!necesidad) continue
+        await tx.supplyNeed.update({
+          where: { id: necesidad.id },
+          data: {
+            quantity: { increment: devolver },
+            ...(necesidad.purchaseId === compra.id ? { purchaseId: null, ...(necesidad.status === 'COMPRADA' ? { status: 'ABIERTA' } : {}) } : {}),
+          },
+        })
+      }
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SUPPLY_PURCHASE_CANCELLED', entity: 'SupplyPurchase', entityId: fila.id, metadata: { code: fila.code, reason: motivo.slice(0, 500) } } })
       return fila
     })
