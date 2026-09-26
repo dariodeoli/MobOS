@@ -4,6 +4,7 @@ import { api, resources } from '@/lib/api'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { Badge, Button, Card, ConfirmDialog, EmptyState, Input, Modal, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import CameraScan from '@/components/shared/CameraScan'
+import AttachmentList from '@/components/shared/AttachmentList'
 import Icon from '@/components/shared/Icon'
 import { analizarSerial, textoMotivo, validarLote } from '@/lib/escanerSeriales'
 import { configImpresora } from '@/lib/printing/agent'
@@ -454,11 +455,16 @@ export default function Recepcion() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge color={estado ? TONO_RESULTADO[estado] : 'slate'}>{estado ? ETIQUETA_RESULTADO[estado] : 'Pendiente'}</Badge>
-                    {!estado && RESULTADOS.map(([id, label]) => (
-                      <Button key={id} type="button" variant="outline" onClick={() => { setIncidencia({ itemId: item.id, resultado: id, serial }); setNota('') }}>{label}</Button>
-                    ))}
+                    {registro ? RESULTADOS.map(([id, label]) => (
+                      <Button key={id} type="button" variant="outline" onClick={() => { setIncidencia({ itemId: registro.id, resultado: id, serial }); setNota(registro.nota || '') }}>{label}</Button>
+                    )) : (
+                      <span className="text-xs text-mute">Escaneá su IMEI para marcar dañado o incorrecto; sin escanear queda faltante al confirmar.</span>
+                    )}
                   </div>
                 </div>
+                {registro && registro.resultado !== 'RECIBIDO' && (
+                  <AttachmentList className="mt-3" entity="SUPPLY_RECEPTION" entityId={registro.id} titulo="Fotos de la incidencia" />
+                )}
               </Card>
             )
           })}
@@ -468,10 +474,11 @@ export default function Recepcion() {
                 <p className="truncate font-mono text-sm font-semibold">{item.serial}</p>
                 <div className="flex items-center gap-2">
                   <Badge color="blue">Sobrante</Badge>
-                  {!item.nota && <Button type="button" variant="outline" onClick={() => { setIncidencia({ itemId: item.id, resultado: 'SOBRANTE' }); setNota('') }}>Agregar nota</Button>}
+                  <Button type="button" variant="outline" onClick={() => { setIncidencia({ itemId: item.id, resultado: 'SOBRANTE' }); setNota(item.nota || '') }}>{item.nota ? 'Editar nota' : 'Agregar nota'}</Button>
                 </div>
               </div>
               {item.nota && <p className="mt-0.5 text-xs text-mute">{item.nota}</p>}
+              <AttachmentList className="mt-3" entity="SUPPLY_RECEPTION" entityId={item.id} titulo="Fotos de la incidencia" />
             </Card>
           ))}
         </div>
@@ -490,10 +497,13 @@ export default function Recepcion() {
           busy={busy}
         />
 
-        <Modal open={Boolean(incidencia)} onClose={() => !busy && setIncidencia(null)} title={`Incidencia: ${ETIQUETA_RESULTADO[incidencia?.resultado] || ''}`} size="corto">
-          <p className="mt-2 text-sm text-mute">{incidencia?.serial || 'La unidad'} · la nota queda auditada con la recepción.</p>
+        <Modal open={Boolean(incidencia)} onClose={() => !busy && setIncidencia(null)} title={`Incidencia: ${ETIQUETA_RESULTADO[incidencia?.resultado] || ''}`}>
+          <p className="mt-2 text-sm text-mute">{incidencia?.serial || 'La unidad'} · la nota queda auditada con la recepción. Podés adjuntar fotos (cámara o archivo).</p>
           <label htmlFor="nota-incidencia" className="mt-4 block text-sm font-semibold">Nota</label>
           <Input id="nota-incidencia" className="mt-2 w-full" value={nota} onChange={(evento) => setNota(evento.target.value)} placeholder="Qué pasó (mínimo 3 caracteres)" />
+          {incidencia?.itemId && (
+            <AttachmentList className="mt-5" entity="SUPPLY_RECEPTION" entityId={incidencia.itemId} puedeSubir titulo="Fotos de la incidencia (opcional)" />
+          )}
           <div className="mt-4 flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setIncidencia(null)} disabled={busy}>Volver</Button>
             <Button type="button" onClick={guardarIncidencia} disabled={nota.trim().length < 3 || busy}>{busy ? 'Guardando…' : 'Registrar'}</Button>
