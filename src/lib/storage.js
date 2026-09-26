@@ -140,11 +140,19 @@ function persistMirror() {
 
 // ── Suscripción (re-render de la UI) ────────────────────────────────
 const listeners = new Set()
+let revisionAlmacen = 0
 export function subscribe(fn) {
   listeners.add(fn)
   return () => listeners.delete(fn)
 }
+// Contador monótono: las pantallas que leen el espejo local fuera del ciclo de
+// estado (p. ej. el catálogo del POS con `getProductos()`) lo usan para repintar
+// cuando llega una hidratación o una mutación (#257).
+export function revisionDeAlmacen() {
+  return revisionAlmacen
+}
 function notify() {
+  revisionAlmacen += 1
   listeners.forEach(fn => {
     try {
       fn()
@@ -203,11 +211,11 @@ let primeraIdentidad = null
 // completo para buscar y vender, así que se recorren las páginas con el tope
 // de 500 (#247: con el catálogo típico entra en una sola consulta; el bucle
 // sigue cubriendo catálogos más grandes).
-async function todosLosProductos() {
+async function todosLosProductos({ fresco = false } = {}) {
   const todos = []
   let cursor = null
   for (let pagina = 0; pagina < 50; pagina += 1) {
-    const lote = await api.get(`/api/products?limit=500${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`)
+    const lote = await api.get(`/api/products?limit=500${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, fresco ? { cacheMs: 0 } : undefined)
     const filas = Array.isArray(lote) ? lote : []
     todos.push(...filas)
     if (filas.length < 500) break
@@ -405,6 +413,21 @@ export async function horaServidorMs() {
 
 export async function refrescar() {
   if (ctx.empresaId && apiMode()) await hydrateApi()
+}
+
+// Refresca solo el catálogo de productos. El POS lo llama al volver a la venta
+// (#257): lo que se cargó en Inventario, en otra pestaña o por otra persona
+// tiene que aparecer sin recargar la app. Liviano: una consulta paginada.
+export async function refrescarCatalogo() {
+  if (!ctx.empresaId || !apiMode()) return
+  const version = apiHydrationVersion
+  const identity = identidadActual()
+  // Sin caché de consultas: el refresco existe justamente para ver lo que se
+  // cargó fuera de esta pestaña, así que va sí o sí contra la red.
+  const products = await todosLosProductos({ fresco: true })
+  if (!apiMode() || version !== apiHydrationVersion || identity !== identidadActual()) return
+  cache.productos = products.map(mapProductoApi)
+  notify()
 }
 
 // ════════════════════════════════════════════════════════════════════
