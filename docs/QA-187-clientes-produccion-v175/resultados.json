@@ -1,0 +1,182 @@
+{
+  "app": "https://app.moboss.online",
+  "portal": "https://clientes.moboss.online",
+  "fecha": "2026-09-26T04:02:00.322Z",
+  "version": "1.0.175",
+  "pasos": [
+    {
+      "paso": "entrada anónima a /demo",
+      "ok": true,
+      "detalle": "versión v1.0.175"
+    },
+    {
+      "paso": "lista de clientes con agregados reales (#221)",
+      "ok": true,
+      "detalle": "Lucía: 5 compras · Gs 7.750.000"
+    },
+    {
+      "paso": "búsqueda instantánea y filtros segmentados",
+      "ok": true,
+      "detalle": "«Lucía» → 1 fila · sin resultados → 0 filas · filtros presentes"
+    },
+    {
+      "paso": "alta de cliente en demo (local, sin API)",
+      "ok": true,
+      "detalle": "QAV5HAN creado en el navegador"
+    },
+    {
+      "paso": "ficha → resumen con total, saldo y últimas órdenes",
+      "ok": true,
+      "detalle": "total Gs 7.750.000 · saldo Gs 1.500.000 · MOB-#0008"
+    },
+    {
+      "paso": "deuda por pedido del cliente",
+      "ok": true,
+      "detalle": "Gs 1.500.000 en MOB-#0008"
+    },
+    {
+      "paso": "pedidos asociados con historial y equipos con serial",
+      "ok": true,
+      "detalle": "MOB-#0008, MOB-#0005, MOB-#0002 + cancelada + serial 356789012345678"
+    },
+    {
+      "paso": "cronología del cliente con eventos",
+      "ok": true,
+      "detalle": "pedido, pago, comentario y garantía en la cronología"
+    },
+    {
+      "paso": "datos del cliente: seguro activo con porcentaje",
+      "ok": true,
+      "detalle": "seguro activo · 12,5%"
+    },
+    {
+      "paso": "nota pública del cliente (visible al cliente)",
+      "ok": true,
+      "detalle": "campo «Nota pública (visible al cliente)» presente · guardado bloqueado en demo"
+    },
+    {
+      "paso": "estadísticas calculadas (#221)",
+      "ok": true,
+      "detalle": "5 compras · Gs 1.550.000 · Cada 172 días"
+    },
+    {
+      "paso": "whatsapp con plantilla y enlace al chat",
+      "ok": true,
+      "detalle": "wa.me/595981123456 · «Hola, Lucía Fernández. Te escribimos de Aurora Móv…»"
+    },
+    {
+      "paso": "portal del cliente por token demo (QR, cuenta y vitrina)",
+      "ok": true,
+      "detalle": "https://clientes.moboss.online/cuenta/demo-demo-cliente-lucia-rapido + vitrina + nivel completo"
+    },
+    {
+      "paso": "?cliente=<id> abre la ficha del cliente",
+      "ok": true,
+      "detalle": "la ficha abre con los datos demo"
+    },
+    {
+      "paso": "servicio técnico demo (OS del pipeline)",
+      "ok": true,
+      "detalle": "OS-#0001 y OS-#0002 visibles"
+    },
+    {
+      "paso": "clientes en mobile sin scroll horizontal",
+      "ok": true,
+      "detalle": "ancho 390px sin scroll · tabla 992px"
+    },
+    {
+      "paso": "demo Vendedor: Clientes visible por rol",
+      "ok": true,
+      "detalle": "la cartera demo carga con el rol Vendedor"
+    },
+    {
+      "paso": "ojito de la lista → resumen rápido con acciones (#236)",
+      "ok": true,
+      "detalle": "resumen rápido con KPIs y acciones"
+    },
+    {
+      "paso": "portal demo: avisos, cotización y seguimiento de la cuenta",
+      "ok": true,
+      "detalle": "avisos (cotización/pago/envío) + cotización + seguimiento"
+    },
+    {
+      "paso": "portal demo: el pedido en detalle (líneas y pagos)",
+      "ok": true,
+      "detalle": "líneas y pagos del pedido en la cuenta"
+    },
+    {
+      "paso": "vitrina demo: el seguimiento de la entrega",
+      "ok": true,
+      "detalle": "pasos del envío también en la vitrina"
+    },
+    {
+      "paso": "Mi cuenta/perfil desde el avatar (#253)",
+      "ok": true,
+      "detalle": "perfil + preferencias + sesión actual (entrada shell-mi-cuenta → /configuracion/mi-cuenta)"
+    }
+  ],
+  "publicos": {
+    "cuenta": {
+      "generico": true,
+      "sinDatos": true
+    },
+    "vitrina": {
+      "generico": true,
+      "sinDatos": true
+    },
+    "garantia": {
+      "generico": true,
+      "sinDatos": true
+    }
+  },
+  "api": {
+    "portal": 404,
+    "vitrina": 404,
+    "garantia": 404
+  },
+  "rateLimit": {
+    "pedido429": 29,
+    "ultimoEstado": 429,
+    "retryAfter": "57"
+  },
+  "apiReal": [],
+  "observaciones": [
+    "la nota pública se edita en la ficha pero el guardado (y el render de «Nota de la tienda» en el portal) requiere una cuenta real"
+  ],
+  "hallazgos": [],
+  "perfil": {
+    "entrada": "shell-mi-cuenta",
+    "url": "/configuracion/mi-cuenta"
+  },
+  "capturas": [
+    "01-demo-entrada.png",
+    "02-clientes-agregados.png",
+    "03-clientes-busqueda.png",
+    "04-clientes-alta.png",
+    "05-ficha-resumen.png",
+    "06-ficha-deuda.png",
+    "07-ficha-pedidos.png",
+    "08-ficha-cronologia.png",
+    "09-ficha-seguro.png",
+    "10-ficha-nota-publica.png",
+    "11-ficha-estadisticas.png",
+    "12-whatsapp-plantilla.png",
+    "13-portal-qr.png",
+    "14-portal-cuenta.png",
+    "15-portal-vitrina.png",
+    "16-portal-completo.png",
+    "17-cliente-por-url.png",
+    "18-servicio-demo.png",
+    "19-clientes-mobile.png",
+    "20-demo-vendedor.png",
+    "21-ojito-resumen-rapido.png",
+    "22-portal-cuenta-novedades.png",
+    "23-portal-pedido-detalle.png",
+    "24-portal-vitrina-seguimiento.png",
+    "25-mi-perfil.png",
+    "26-publico-cuenta.png",
+    "27-publico-vitrina.png",
+    "28-publico-garantia.png"
+  ],
+  "demoNoTocaApi": true
+}

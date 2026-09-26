@@ -1,4 +1,45 @@
-# QA #187 — Clientes completo en PRODUCCIÓN (v1.0.138)
+# QA #187 — Clientes completo en PRODUCCIÓN
+
+## Corrida vigente — v1.0.175 (26/09/2026)
+
+`node e2e/prod/187-clientes.mjs` contra `app.moboss.online` y los públicos de
+`clientes.moboss.online` (Playwright headless, sin sesión real): **22/22 pasos
+OK** · **28 capturas** · la demo **no llamó al API** de clientes/portal/warranty
+· públicos con token inválido **404 genéricos sin datos** · rate limit #178
+activo (429 al pedido 29, con `Retry-After`). Evidencia:
+`docs/QA-187-clientes-produccion-v175/` (capturas + `resultados.json` sellado
+con la versión).
+
+**Nuevo en esta corrida** (además de los 20 pasos de la base):
+
+| # | Área | Resultado | Captura |
+|---|---|---|---|
+| 21 | **Ojito → resumen rápido (#236)** | KPIs de Lucía (Gs 7.750.000) y acciones WhatsApp / Ver detalle completo | `21-ojito-resumen-rapido.png` |
+| 22 | **Portal cuenta demo: avisos + cotización + seguimiento** | «Tu cotización COT-#0018 vence en 2 días» · «Tu pago vence en 6 días» · «MOB-#0008 está en camino» · cotización con enlace · pasos del envío | `22-portal-cuenta-novedades.png` |
+| 23 | **El pedido en detalle (#240)** | «Qué compraste» (iPhone 15 · 128 GB) y «Tus pagos de este pedido» (Gs 1.500.000) | `23-portal-pedido-detalle.png` |
+| 24 | **Vitrina: seguimiento de la entrega** | pasos del envío («En camino al cliente») también en `/portal/<token>` | `24-portal-vitrina-seguimiento.png` |
+| 25 | **Mi cuenta/perfil desde el avatar (#253)** | perfil + preferencias del dispositivo + sesión actual | `25-mi-perfil.png` |
+
+### Hallazgos (no bloquean el producto)
+
+1. **Ruta/entrada del perfil personal (#253).** La coordinación del lead pedía
+   `/mi-perfil` (`shell-mi-perfil`), pero la integración que salió en v1.0.175
+   conservó `/mi-cuenta` (`shell-mi-cuenta`; para el dueño abre la pestaña de
+   Configuración). Ambas pantallas funcionan y muestran lo mismo; conviene
+   **decidir el nombre canónico y unificar** (el dominio shell/rutas es del lead
+   PLT). El verificador acepta las dos y registra la desplegada
+   (`resultados.json → perfil`).
+2. **Nota pública en la demo** (limitación conocida): el campo se edita en la
+   ficha, pero el guardado y el render de «Nota de la tienda» en el portal
+   requieren una cuenta real.
+3. **Observación del verificador (no del producto):** el ítem «Clientes» del
+   menú pasó a tener más de una coincidencia accesible (sidebar y menú mobile);
+   el paso ahora navega directo a `/clientes` (sin depender del clic del menú).
+
+> El popup del ojito titula «Cliente: Lucía Fernández» (no repite «Resumen
+> rápido» en el cuerpo): es una decisión de diseño, no un hallazgo.
+
+## Corrida anterior — v1.0.138 (22/09/2026)
 
 Recorrido funcional headless (Playwright, Chromium) contra la demo pública
 (`/demo` → Dueño y Vendedor), los públicos de `clientes.moboss.online` y el API
