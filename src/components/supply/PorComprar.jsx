@@ -2,10 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { resources } from '@/lib/api'
 import { getProductos } from '@/lib/storage'
 import { isDemoRuntime } from '@/lib/demoMode'
-import { Badge, Button, Card, EmptyState, Input, Modal, Select, Skeleton, useToast } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, Input, Modal, Select, Skeleton, Subtabs, useToast } from '@/components/ui'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import Icon from '@/components/shared/Icon'
-import { cn } from '@/lib/utils'
 
 // Abastecimiento · F1 (#250/#254): panel móvil «Por comprar».
 // Lee la API de necesidades (`/api/supply/needs`) que ya consolida por producto
@@ -25,6 +24,30 @@ const ORIGEN = {
   MANUAL: 'Manual',
 }
 const DESTINO = { PEDIDO: 'Pedido', RESERVA: 'Reserva', STOCK: 'Stock' }
+
+// Pestañas por estado (#254): «Por comprar» es lo que falta comprar (sin
+// asignar + asignado), tal como define la API de INV.
+const ESTADOS = [
+  ['pendientes', 'Por comprar'],
+  ['asignadas', 'Asignadas'],
+  ['compradas', 'Compradas'],
+  ['recibidas', 'Recibidas'],
+  ['canceladas', 'Canceladas'],
+]
+const PARAMS_ESTADO = {
+  pendientes: {},
+  asignadas: { status: 'ASIGNADA' },
+  compradas: { status: 'COMPRADA' },
+  recibidas: { status: 'RECIBIDA' },
+  canceladas: { status: 'CANCELADA' },
+}
+const VACIO_ESTADO = {
+  pendientes: ['No hay nada por comprar.', 'Cuando una venta o reserva necesite stock, la necesidad aparece acá.'],
+  asignadas: ['Sin compras asignadas.', 'Asigná un comprador desde «Por comprar» para que aparezca acá.'],
+  compradas: ['No hay compras registradas.', 'Lo comprado (fase 2) se lista acá mientras espera la recepción.'],
+  recibidas: ['Todavía no hay recepciones.', 'Cuando llegue la compra y se reciba, la necesidad pasa acá.'],
+  canceladas: ['No hay necesidades canceladas.', 'Las que se cancelan con motivo quedan acá para la auditoría.'],
+}
 
 const fechaCorta = (valor) => {
   if (!valor) return ''
@@ -51,7 +74,8 @@ export default function PorComprar() {
   const [totales, setTotales] = useState(null)
   const [cargando, setCargando] = useState(!esDemo)
   const [error, setError] = useState('')
-  const [vista, setVista] = useState('pendientes') // pendientes | compradas
+  const [vista, setVista] = useState('pendientes')
+  const [conteos, setConteos] = useState({})
   const [prioridad, setPrioridad] = useState('todas')
   const [busqueda, setBusqueda] = useState('')
   const [compradores, setCompradores] = useState([])
@@ -68,9 +92,10 @@ export default function PorComprar() {
     setCargando(true)
     setError('')
     try {
-      const datos = await resources.supplyNeeds.list(vista === 'compradas' ? { status: 'COMPRADA' } : {})
+      const datos = await resources.supplyNeeds.list(PARAMS_ESTADO[vista] || {})
       setFilas(datos?.grupos || [])
       setTotales(datos?.totales || null)
+      setConteos((actuales) => ({ ...actuales, [vista]: datos?.totales?.grupos ?? 0 }))
     } catch (causa) {
       setError(causa?.message || 'No se pudieron cargar las necesidades.')
     } finally {
@@ -189,19 +214,12 @@ export default function PorComprar() {
       </Card>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
-          {[['pendientes', 'Por comprar'], ['compradas', 'Compradas']].map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              aria-pressed={vista === id}
-              onClick={() => setVista(id)}
-              className={cn('min-h-9 rounded-lg px-3 text-xs font-semibold transition', vista === id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <Subtabs
+          value={vista}
+          onChange={setVista}
+          className="mb-0 w-full sm:w-auto"
+          items={ESTADOS.map(([id, label]) => [id, conteos[id] != null ? `${label} (${conteos[id]})` : label])}
+        />
         <Select aria-label="Prioridad" className="w-auto" value={prioridad} onChange={(evento) => setPrioridad(evento.target.value)}>
           <option value="todas">Todas las prioridades</option>
           {Object.entries(PRIORIDAD).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
@@ -221,8 +239,8 @@ export default function PorComprar() {
       ) : !visibles.length ? (
         <EmptyState
           icon="box"
-          title={filas.length ? 'Sin resultados con ese filtro.' : vista === 'compradas' ? 'No hay compras registradas.' : 'No hay nada por comprar.'}
-          description={filas.length ? 'Probá con otra prioridad o palabra.' : 'Cuando una venta o reserva necesite stock, la necesidad aparece acá.'}
+          title={filas.length ? 'Sin resultados con ese filtro.' : VACIO_ESTADO[vista]?.[0] || 'No hay nada por comprar.'}
+          description={filas.length ? 'Probá con otra prioridad o palabra.' : VACIO_ESTADO[vista]?.[1] || 'Cuando una venta o reserva necesite stock, la necesidad aparece acá.'}
         />
       ) : (
         <div className="space-y-2.5">
@@ -264,7 +282,7 @@ export default function PorComprar() {
                   </p>
                 )}
 
-                {vista === 'pendientes' && (
+                {(vista === 'pendientes' || vista === 'asignadas') && (
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <Button type="button" variant="outline" onClick={() => { setAsignar(grupo); setComprador('') }}>Asignar comprador</Button>
                     <Button type="button" variant="ghost" className="text-bad" onClick={() => { setCancelar(grupo); setMotivo('') }}>Cancelar</Button>

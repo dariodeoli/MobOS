@@ -69,6 +69,17 @@ test('Por comprar: la necesidad se consolida y se ve en la tarjeta compacta', as
   await expect(fila.getByText('Faltan 2 unidades')).toBeVisible()
   await expect(fila.getByText('Manual', { exact: true })).toBeVisible()
 
+  // Pestañas por estado: la necesidad abierta está en «Por comprar» y los
+  // estados posteriores explican su vacío.
+  const tabs = page.getByRole('tablist')
+  await expect(tabs.getByRole('tab', { name: /Por comprar/ })).toHaveAttribute('aria-selected', 'true')
+  for (const [tab, vacio] of [['Compradas', 'No hay compras registradas.'], ['Recibidas', 'Todavía no hay recepciones.'], ['Canceladas', 'No hay necesidades canceladas.']]) {
+    await tabs.getByRole('tab', { name: new RegExp(`^${tab}`) }).click()
+    await expect(page.getByText(vacio)).toBeVisible()
+  }
+  await tabs.getByRole('tab', { name: /Por comprar/ }).click()
+  await expect(page.getByTestId('por-comprar-fila').filter({ hasText: producto.name })).toBeVisible()
+
   // Prioridad filtra y vuelve.
   await page.getByLabel('Prioridad').selectOption('BAJA')
   await expect(page.getByTestId('por-comprar-fila').filter({ hasText: producto.name })).toHaveCount(0)
@@ -116,7 +127,14 @@ test('Por comprar: asignar comprador y cancelar con motivo quedan auditados', as
   const grupo = (asignadas.grupos || []).find((g) => g.producto === producto.name)
   expect(grupo, 'el grupo sigue por comprar (asignado)').toBeTruthy()
 
+  // Sigue en «Por comprar» (falta comprar) y aparece en «Asignadas».
+  await page.getByRole('tab', { name: /Asignadas/ }).click()
+  await expect(page.getByTestId('por-comprar-fila').filter({ hasText: producto.name })).toBeVisible()
+  mkdirSync(DIR, { recursive: true })
+  await page.screenshot({ path: join(DIR, 'por-comprar-asignadas-desktop.png') })
+
   // Cancelar con motivo: sale de la lista y queda auditado.
+  await page.getByRole('tab', { name: /Por comprar/ }).click()
   const filaOtraVez = page.getByTestId('por-comprar-fila').filter({ hasText: producto.name }).first()
   await filaOtraVez.getByRole('button', { name: 'Cancelar', exact: true }).click()
   const dialogoCancelar = page.getByRole('dialog')
@@ -124,6 +142,11 @@ test('Por comprar: asignar comprador y cancelar con motivo quedan auditados', as
   await dialogoCancelar.getByRole('button', { name: 'Cancelar necesidad' }).click()
   await expect(page.getByText('Necesidad cancelada')).toBeVisible()
   await expect(page.getByTestId('por-comprar-fila').filter({ hasText: producto.name })).toHaveCount(0)
+
+  // La cancelada sale de «Por comprar» y queda en «Canceladas» (auditoría).
+  await page.getByRole('tab', { name: /Canceladas/ }).click()
+  await expect(page.getByTestId('por-comprar-fila').filter({ hasText: producto.name })).toBeVisible()
+  await page.screenshot({ path: join(DIR, 'por-comprar-canceladas-desktop.png') })
 
   const despues = await listarNecesidades(page)
   expect((despues.grupos || []).some((g) => g.producto === producto.name), 'la cancelada no vuelve').toBe(false)
