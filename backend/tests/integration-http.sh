@@ -501,6 +501,9 @@ node "$BACKEND_ROOT/tests/accounts-tradein.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOK
 node "$BACKEND_ROOT/tests/inventory-transfers.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/unit-repairs.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/public-quote-transfer.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN"
+
+echo "Cotizaciones: envío por WhatsApp/correo y cronología del cliente (#261)..."
+node "$BACKEND_ROOT/tests/quotes-message.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 node "$BACKEND_ROOT/tests/customer-portal.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$DATABASE_URL" "$PG_BIN"
 MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/orders-credit-discounts.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL"
 node "$BACKEND_ROOT/tests/mobos-1.2.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"

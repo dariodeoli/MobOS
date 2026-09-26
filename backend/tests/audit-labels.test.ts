@@ -27,6 +27,10 @@ assert.equal(AREAS_AUDITORIA.Tenant, 'Configuración')
 // #240 ítem 3: el informe compartido y su apertura se leen sin códigos crudos.
 assert.equal(ACCIONES_AUDITORIA.CUSTOMER_DEVICE_REPORT_SHARED, 'Informe de equipo compartido')
 assert.equal(ACCIONES_AUDITORIA.CUSTOMER_DEVICE_REPORT_VIEWED, 'Informe de equipo visto por el cliente')
+// #261: la cotización enviada al cliente también se lee sin códigos crudos.
+assert.equal(ACCIONES_AUDITORIA.QUOTE_MESSAGE_SENT, 'Cotización enviada al cliente')
+assert.equal(ACCIONES_AUDITORIA.CUSTOMER_QUOTE_SHARED, 'Cotización enviada')
+assert.equal(AREAS_AUDITORIA.Quote, 'Cotizaciones')
 assert.equal(AREAS_AUDITORIA.Customer, 'Clientes')
 assert.ok(detalleAuditoria({ serial: '356789012345678', canal: 'WHATSAPP' }).includes('Canal: WHATSAPP'))
 

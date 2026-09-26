@@ -14,7 +14,7 @@ const AHORA = new Date('2026-10-15T12:00:00.000Z')
 
 // ── Los 10 correos ──────────────────────────────────────────────────────────
 const emails = construirEmailsPrueba({ to: 'revision@ejemplo.com', ahora: AHORA })
-assert.equal(emails.length, 10, 'arma los 10 correos')
+assert.equal(emails.length, 11, 'arma los 11 correos')
 assert.deepEqual(emails.map((email) => email.id), TIPOS_EMAIL_PRUEBA.map((tipo) => tipo.id), 'respeta el orden y los identificadores de logEmailOutcome')
 for (const email of emails) {
   assert.equal(email.to, 'revision@ejemplo.com', `${email.id}: usa la casilla pedida`)
@@ -25,7 +25,7 @@ for (const email of emails) {
 }
 
 const porId = new Map(emails.map((email) => [email.id, email]))
-const conAccion = ['password-recovery', 'email-verification', 'team-invitation', 'receipt', 'device-report', 'warranty-update'] as const
+const conAccion = ['password-recovery', 'email-verification', 'team-invitation', 'receipt', 'quote', 'device-report', 'warranty-update'] as const
 for (const id of conAccion) {
   const html = porId.get(id)!.html
   assert.ok(html.includes('Si el botón no funciona, copiá y pegá este enlace:'), `${id}: deja el enlace de respaldo visible`)
@@ -33,6 +33,7 @@ for (const id of conAccion) {
 }
 assert.ok(!porId.get('reservation-due')!.html.includes('class="email-cta"'), 'la reserva no inventa un botón que no tiene')
 assert.ok(porId.get('receipt')!.html.includes('PED-1042') && porId.get('receipt')!.text.includes('Total: Gs.'), 'el comprobante lleva pedido y total')
+assert.ok(porId.get('quote')!.html.includes('COT-#0042') && porId.get('quote')!.text.includes('Total: Gs.'), 'la cotización lleva número y total')
 assert.ok(porId.get('warranty-update')!.html.includes('356789104523118'), 'la garantía muestra el equipo')
 assert.ok(porId.get('payment-overdue')!.html.includes('Cuota vencida'), 'la mora se marca como vencida')
 assert.ok(porId.get('payment-due')!.html.includes('Cuota por vencer'), 'el recordatorio avisa que vence pronto')
@@ -82,8 +83,8 @@ try {
   assert.ok(preview.stdout.includes('Sin transporte de correo: no se envía nada.'), 'avisa que no envía nada')
   assert.ok(preview.stdout.includes(CASILLA_FICTICIA), 'muestra el destinatario ficticio usado')
   const archivos = readdirSync(salida).sort()
-  assert.equal(archivos.length, 11, 'deja 10 correos + index.html')
-  assert.ok(archivos.includes('01-welcome.html') && archivos.includes('10-reservation-due.html') && archivos.includes('index.html'))
+  assert.equal(archivos.length, 12, 'deja 11 correos + index.html')
+  assert.ok(archivos.includes('01-welcome.html') && archivos.includes('06-quote.html') && archivos.includes('11-reservation-due.html') && archivos.includes('index.html'))
   const bienvenida = readFileSync(join(salida, '01-welcome.html'), 'utf8')
   assert.ok(bienvenida.includes('data-email-system="mobos-premium"') && bienvenida.includes('Te damos la bienvenida a MobOS'), 'el HTML guardado es el correo real')
 
@@ -116,7 +117,7 @@ try {
   const soloHtml = corrida(['--solo-html', '--out', salidaForzada], conTransporte)
   assert.equal(soloHtml.status, 0, `--solo-html no envía: ${soloHtml.stderr}`)
   assert.ok(soloHtml.stdout.includes('--solo-html'), 'aclara que se forzó la vista previa')
-  assert.equal(readdirSync(salidaForzada).length, 11, 'deja los 10 correos + índice')
+  assert.equal(readdirSync(salidaForzada).length, 12, 'deja los 11 correos + índice')
 } finally {
   rmSync(salidaForzada, { recursive: true, force: true })
 }
