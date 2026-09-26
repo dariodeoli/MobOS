@@ -2,15 +2,16 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { resources } from '@/lib/api'
 import { getProductos } from '@/lib/storage'
 import { isDemoRuntime } from '@/lib/demoMode'
-import { Badge, Button, Card, EmptyState, Input, Modal, Select, Skeleton, Subtabs, useToast } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, Input, Modal, Money, Select, Skeleton, Subtabs, useToast } from '@/components/ui'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import Icon from '@/components/shared/Icon'
 
 // Abastecimiento · F1 (#250/#254): panel móvil «Por comprar».
-// Lee la API de necesidades (`/api/supply/needs`) que ya consolida por producto
-// + condición conservando los destinos (pedido/reserva/stock), y permite
-// asignar comprador y cancelar (auditado) o cargar una necesidad manual.
-// El stock no se toca acá: eso pasa recién en la recepción (fases siguientes).
+// Consume la API de necesidades de INV: consolidado por producto + condición +
+// centro de compra, con prioridad efectiva (guardada + regla por promesa),
+// costo/margen estimados, destinos (pedido/reserva/stock), cliente (solo quien
+// gestiona clientes) y contadores globales para las pestañas y colas del
+// comprador. El stock no se toca acá: eso pasa recién en la recepción.
 
 const PRIORIDAD = { URGENTE: 'Urgente', ALTA: 'Alta', NORMAL: 'Normal', BAJA: 'Baja' }
 const TONO_PRIORIDAD = { URGENTE: 'red', ALTA: 'orange', NORMAL: 'blue', BAJA: 'slate' }
@@ -61,26 +62,33 @@ function plazo(prometidaEl) {
   const fecha = new Date(prometidaEl)
   if (Number.isNaN(fecha.getTime())) return null
   const dias = Math.ceil((fecha.getTime() - Date.now()) / 86_400_000)
-  if (dias < 0) return { texto: `vencida hace ${Math.abs(dias)} día${Math.abs(dias) === 1 ? '' : 's'}`, tono: 'font-semibold text-bad' }
+  if (dias < 0) return { vencida: true, texto: `vencida hace ${Math.abs(dias)} día${Math.abs(dias) === 1 ? '' : 's'}`, tono: 'font-semibold text-bad' }
   if (dias === 0) return { texto: 'vence hoy', tono: 'font-semibold text-warn' }
   if (dias <= 3) return { texto: `vence en ${dias} día${dias === 1 ? '' : 's'}`, tono: 'text-warn' }
   return { texto: `para el ${fechaCorta(prometidaEl)}`, tono: 'text-mute' }
 }
+
+const claveGrupo = (grupo) => `${grupo.productoId}::${grupo.condicion}::${grupo.centro || ''}`
 
 export default function PorComprar() {
   const toast = useToast()
   const esDemo = isDemoRuntime
   const [filas, setFilas] = useState([])
   const [totales, setTotales] = useState(null)
+  const [contadores, setContadores] = useState(null)
   const [cargando, setCargando] = useState(!esDemo)
   const [error, setError] = useState('')
   const [vista, setVista] = useState('pendientes')
-  const [conteos, setConteos] = useState({})
   const [prioridad, setPrioridad] = useState('todas')
+  const [centro, setCentro] = useState('todos')
+  const [sinAsignar, setSinAsignar] = useState(false)
+  const [vencidas, setVencidas] = useState(false)
   const [busqueda, setBusqueda] = useState('')
   const [compradores, setCompradores] = useState([])
-  const [asignar, setAsignar] = useState(null)
+  const [seleccion, setSeleccion] = useState([])
+  const [asignar, setAsignar] = useState(null) // { ids, etiqueta }
   const [comprador, setComprador] = useState('')
+  const [centroAsignar, setCentroAsignar] = useState('')
   const [cancelar, setCancelar] = useState(null)
   const [motivo, setMotivo] = useState('')
   const [agregar, setAgregar] = useState(false)
@@ -92,43 +100,82 @@ export default function PorComprar() {
     setCargando(true)
     setError('')
     try {
-      const datos = await resources.supplyNeeds.list(PARAMS_ESTADO[vista] || {})
+      const params = { ...(PARAMS_ESTADO[vista] || {}) }
+      if (prioridad !== 'todas') params.priority = prioridad
+      if (centro === 'sin-centro') params.sinCentro = 1
+      else if (centro !== 'todos') params.origin = centro
+      if (sinAsignar) params.sinAsignar = 1
+      const datos = await resources.supplyNeeds.list(params)
       setFilas(datos?.grupos || [])
       setTotales(datos?.totales || null)
-      setConteos((actuales) => ({ ...actuales, [vista]: datos?.totales?.grupos ?? 0 }))
+      setContadores(datos?.contadores || null)
     } catch (causa) {
       setError(causa?.message || 'No se pudieron cargar las necesidades.')
     } finally {
       setCargando(false)
     }
-  }, [esDemo, vista])
+  }, [esDemo, vista, prioridad, centro, sinAsignar])
 
   useEffect(() => { cargar() }, [cargar])
+  useEffect(() => { setSeleccion([]) }, [vista])
   useEffect(() => {
     if (esDemo) return
     resources.users.list().then((filasUsuarios) => setCompradores((filasUsuarios || []).filter((u) => u.status !== 'INACTIVE'))).catch(() => setCompradores([]))
   }, [esDemo])
 
+  // Centros vistos en la carga actual + los del plan (CDE · USA · Locales) para
+  // el filtro y la asignación.
+  const centros = useMemo(() => {
+    const vistos = new Set(filas.map((fila) => (fila.centro || '').toUpperCase()).filter(Boolean))
+    return [...new Set(['CDE', 'USA', 'LOCAL', ...vistos])].sort()
+  }, [filas])
+
   const visibles = useMemo(() => {
     const q = busqueda.trim().toLowerCase()
     return filas.filter((fila) => {
-      if (prioridad !== 'todas' && fila.prioridad !== prioridad) return false
+      if (vencidas && !plazo(fila.prometidaEl)?.vencida) return false
       if (!q) return true
-      return `${fila.producto || ''} ${fila.condicion || ''}`.toLowerCase().includes(q)
+      return `${fila.producto || ''} ${fila.condicion || ''} ${fila.cliente || ''}`.toLowerCase().includes(q)
     })
-  }, [filas, prioridad, busqueda])
+  }, [filas, vencidas, busqueda])
 
-  const urgencias = useMemo(() => filas.filter((fila) => fila.prioridad === 'URGENTE' || fila.prometidaEl).length, [filas])
+  const seleccionadas = useMemo(() => {
+    const claves = new Set(seleccion)
+    return visibles.filter((fila) => claves.has(claveGrupo(fila)))
+  }, [visibles, seleccion])
+
+  function alternarSeleccion(grupo) {
+    const clave = claveGrupo(grupo)
+    setSeleccion((actual) => (actual.includes(clave) ? actual.filter((item) => item !== clave) : [...actual, clave]))
+  }
+
+  function abrirAsignacion(destino) {
+    const grupos = Array.isArray(destino) ? destino : [destino]
+    setAsignar({
+      ids: grupos.flatMap((grupo) => grupo.necesidades || []),
+      etiqueta: grupos.length === 1
+        ? `${grupos[0].producto} · ${grupos[0].cantidad} unidad${grupos[0].cantidad === 1 ? '' : 'es'}`
+        : `${grupos.length} grupos seleccionados`,
+    })
+    setComprador('')
+    setCentroAsignar(grupos.length === 1 ? (grupos[0].centro || '') : '')
+  }
 
   async function confirmarAsignacion() {
-    if (!asignar || !comprador || busy) return
+    if (!asignar?.ids?.length || (!comprador && !centroAsignar.trim()) || busy) return
     setBusy(true)
     try {
-      await Promise.all((asignar.necesidades || []).map((id) => resources.supplyNeeds.update({ id, action: 'assign', assignedToId: comprador })))
-      const nombre = compradores.find((u) => u.id === comprador)?.name || 'el comprador'
-      toast.success('Compra asignada', `${asignar.producto} quedó a nombre de ${nombre}.`)
+      const cuerpo = { action: 'assign', ids: asignar.ids }
+      if (comprador) cuerpo.assignedToId = comprador
+      // La API de INV llama `origin` al centro de compra (el grupo lo devuelve
+      // como `centro`).
+      if (centroAsignar.trim()) cuerpo.origin = centroAsignar.trim().toUpperCase()
+      await resources.supplyNeeds.update(cuerpo)
+      toast.success('Compra asignada', `${asignar.etiqueta} quedó actualizada.`)
       setAsignar(null)
       setComprador('')
+      setCentroAsignar('')
+      setSeleccion([])
       cargar()
     } catch (causa) {
       toast.error('No se pudo asignar', causa?.message || 'Reintentá en un momento.')
@@ -185,6 +232,17 @@ export default function PorComprar() {
     )
   }
 
+  const enPendientes = vista === 'pendientes' || vista === 'asignadas'
+  const conteoEstado = (id) => {
+    if (!contadores) return null
+    if (id === 'pendientes') return contadores.pendientes
+    return contadores.porEstado?.[PARAMS_ESTADO[id].status] ?? 0
+  }
+  const chipsCola = [
+    ['sin-asignar', `Sin asignar (${contadores?.sinAsignar ?? 0})`, sinAsignar, () => setSinAsignar((valor) => !valor)],
+    ['vencidas', `Vencidas (${contadores?.vencidas ?? 0})`, vencidas, () => setVencidas((valor) => !valor)],
+  ]
+
   return (
     <div className="space-y-4" data-testid="por-comprar">
       <Card className="p-4 md:p-5">
@@ -192,7 +250,7 @@ export default function PorComprar() {
           <div className="min-w-0">
             <h2 className="font-semibold">Por comprar</h2>
             <p className="mt-1 text-sm text-mute">
-              Lo que falta comprar, consolidado por producto y condición (conserva pedidos, reservas y reposición).
+              Lo que falta comprar, consolidado por producto, condición y centro de compra (conserva pedidos, reservas y reposición).
               El stock se suma recién al recibir la compra.
             </p>
           </div>
@@ -207,31 +265,62 @@ export default function PorComprar() {
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-mute">
             <Badge color="blue">{totales.grupos} grupo{totales.grupos === 1 ? '' : 's'}</Badge>
             <Badge color="slate">{totales.unidades} unidad{totales.unidades === 1 ? '' : 'es'}</Badge>
-            <Badge color="orange">{urgencias} con prioridad o fecha</Badge>
+            {contadores?.sinCentro > 0 && <Badge color="orange">{contadores.sinCentro} sin centro</Badge>}
             <span>Actualizado {new Date().toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
         )}
       </Card>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="space-y-2">
         <Subtabs
           value={vista}
           onChange={setVista}
-          className="mb-0 w-full sm:w-auto"
-          items={ESTADOS.map(([id, label]) => [id, conteos[id] != null ? `${label} (${conteos[id]})` : label])}
+          className="mb-0 w-full"
+          items={ESTADOS.map(([id, label]) => {
+            const conteo = conteoEstado(id)
+            return [id, conteo == null ? label : `${label} (${conteo})`]
+          })}
         />
-        <Select aria-label="Prioridad" className="w-auto" value={prioridad} onChange={(evento) => setPrioridad(evento.target.value)}>
-          <option value="todas">Todas las prioridades</option>
-          {Object.entries(PRIORIDAD).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-        </Select>
-        <Input
-          aria-label="Buscar producto"
-          placeholder="Buscar producto…"
-          className="min-w-0 flex-1 sm:max-w-xs"
-          value={busqueda}
-          onChange={(evento) => setBusqueda(evento.target.value)}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          {chipsCola.map(([id, label, activo, alternar]) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={activo}
+              onClick={alternar}
+              className={`min-h-9 rounded-lg border px-2.5 text-xs font-semibold transition ${activo ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:text-fore'}`}
+            >
+              {label}
+            </button>
+          ))}
+          <Select aria-label="Prioridad" className="w-auto" value={prioridad} onChange={(evento) => setPrioridad(evento.target.value)}>
+            <option value="todas">Todas las prioridades</option>
+            {Object.entries(PRIORIDAD).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+          </Select>
+          <Select aria-label="Centro de compra" className="w-auto" value={centro} onChange={(evento) => setCentro(evento.target.value)}>
+            <option value="todos">Todos los centros</option>
+            {centros.map((valor) => <option key={valor} value={valor}>{valor}</option>)}
+            <option value="sin-centro">Sin centro</option>
+          </Select>
+          <Input
+            aria-label="Buscar producto"
+            placeholder="Buscar producto o cliente…"
+            className="min-w-0 flex-1 sm:max-w-xs"
+            value={busqueda}
+            onChange={(evento) => setBusqueda(evento.target.value)}
+          />
+        </div>
       </div>
+
+      {seleccionadas.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fono/40 bg-fono/10 px-3 py-2 text-sm">
+          <span className="font-semibold">{seleccionadas.length} grupo{seleccionadas.length === 1 ? '' : 's'} seleccionado{seleccionadas.length === 1 ? '' : 's'}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" onClick={() => setSeleccion([])}>Limpiar</Button>
+            <Button type="button" onClick={() => abrirAsignacion(seleccionadas)}>Asignar seleccionados</Button>
+          </div>
+        </div>
+      )}
 
       {error && <Card className="text-sm text-bad">{error}</Card>}
       {cargando && !filas.length ? (
@@ -239,30 +328,48 @@ export default function PorComprar() {
       ) : !visibles.length ? (
         <EmptyState
           icon="box"
-          title={filas.length ? 'Sin resultados con ese filtro.' : VACIO_ESTADO[vista]?.[0] || 'No hay nada por comprar.'}
-          description={filas.length ? 'Probá con otra prioridad o palabra.' : VACIO_ESTADO[vista]?.[1] || 'Cuando una venta o reserva necesite stock, la necesidad aparece acá.'}
+          title={filas.length || sinAsignar || vencidas ? 'Sin resultados con ese filtro.' : VACIO_ESTADO[vista]?.[0] || 'No hay nada por comprar.'}
+          description={filas.length || sinAsignar || vencidas ? 'Probá con otra prioridad, centro o palabra.' : VACIO_ESTADO[vista]?.[1] || 'Cuando una venta o reserva necesite stock, la necesidad aparece acá.'}
         />
       ) : (
         <div className="space-y-2.5">
           {visibles.map((grupo, indice) => {
             const vence = plazo(grupo.prometidaEl)
+            const clave = claveGrupo(grupo)
+            const marcado = seleccion.includes(clave)
             return (
-              <Card key={`${grupo.productoId}-${grupo.condicion}-${indice}`} className="p-3.5" data-testid="por-comprar-fila">
+              <Card key={`${clave}-${indice}`} className="p-3.5" data-testid="por-comprar-fila">
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold" title={grupo.producto}>{grupo.producto || 'Producto'}</p>
-                    <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-mute">
-                      <Badge color="slate">{CONDICION[grupo.condicion] || grupo.condicion || '—'}</Badge>
-                      {vence && <span className={vence.tono}>{vence.texto}</span>}
-                      {!vence && <span>Sin fecha prometida</span>}
-                    </p>
+                  <div className="flex min-w-0 items-start gap-2">
+                    {enPendientes && (
+                      <input
+                        type="checkbox"
+                        className="mt-1 h-4 w-4 shrink-0"
+                        aria-label={`Seleccionar ${grupo.producto || 'el producto'}`}
+                        checked={marcado}
+                        onChange={() => alternarSeleccion(grupo)}
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold" title={grupo.producto}>{grupo.producto || 'Producto'}</p>
+                      <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-mute">
+                        <Badge color="slate">{CONDICION[grupo.condicion] || grupo.condicion || '—'}</Badge>
+                        <Badge color={grupo.centro ? 'blue' : 'orange'}>{grupo.centro || 'Sin centro'}</Badge>
+                        {vence && <span className={vence.tono}>{vence.texto}</span>}
+                        {!vence && <span>Sin fecha prometida</span>}
+                      </p>
+                    </div>
                   </div>
                   <Badge color={TONO_PRIORIDAD[grupo.prioridad] || 'slate'}>{PRIORIDAD[grupo.prioridad] || grupo.prioridad || 'Normal'}</Badge>
                 </div>
 
                 <p className="mt-2 text-sm">
                   Faltan <b className="tabular-nums">{grupo.cantidad}</b> unidad{grupo.cantidad === 1 ? '' : 'es'}
+                  {grupo.costoEstimadoPyg != null && <> · costo <Money value={grupo.costoEstimadoPyg} className="text-sm" /></>}
+                  {grupo.margenEstimadoPyg != null && <> · margen <Money value={grupo.margenEstimadoPyg} className="text-sm" /></>}
                 </p>
+
+                {grupo.cliente && <p className="mt-1 text-xs text-mute">Cliente: <b className="text-fore">{grupo.cliente}</b></p>}
 
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {(grupo.destinos || []).map((destino, posicion) => (
@@ -282,9 +389,9 @@ export default function PorComprar() {
                   </p>
                 )}
 
-                {(vista === 'pendientes' || vista === 'asignadas') && (
+                {enPendientes && (
                   <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <Button type="button" variant="outline" onClick={() => { setAsignar(grupo); setComprador('') }}>Asignar comprador</Button>
+                    <Button type="button" variant="outline" onClick={() => abrirAsignacion(grupo)}>Asignar comprador</Button>
                     <Button type="button" variant="ghost" className="text-bad" onClick={() => { setCancelar(grupo); setMotivo('') }}>Cancelar</Button>
                   </div>
                 )}
@@ -294,18 +401,29 @@ export default function PorComprar() {
         </div>
       )}
 
-      <Modal open={Boolean(asignar)} onClose={() => !busy && setAsignar(null)} title="Asignar comprador" size="corto">
-        <p className="mt-2 text-sm text-mute">
-          {asignar?.producto} · {asignar?.cantidad} unidad{asignar?.cantidad === 1 ? '' : 'es'} · {PRIORIDAD[asignar?.prioridad] || ''}
-        </p>
+      <Modal open={Boolean(asignar)} onClose={() => !busy && setAsignar(null)} title="Asignar compra" size="corto">
+        <p className="mt-2 text-sm text-mute">{asignar?.etiqueta}</p>
         <label htmlFor="comprador" className="mt-4 block text-sm font-semibold">Comprador</label>
         <Select id="comprador" className="mt-2 w-full" value={comprador} onChange={(evento) => setComprador(evento.target.value)}>
-          <option value="">Elegí quién compra…</option>
+          <option value="">Sin cambio de comprador…</option>
           {compradores.map((persona) => <option key={persona.id} value={persona.id}>{persona.name || persona.email}</option>)}
         </Select>
+        <label htmlFor="centro-compra" className="mt-3 block text-sm font-semibold">Centro de compra</label>
+        <Input
+          id="centro-compra"
+          list="centros-compra"
+          className="mt-2 w-full"
+          placeholder="CDE · USA · LOCAL…"
+          value={centroAsignar}
+          onChange={(evento) => setCentroAsignar(evento.target.value)}
+        />
+        <datalist id="centros-compra">
+          {centros.map((valor) => <option key={valor} value={valor} />)}
+        </datalist>
+        <p className="mt-2 text-xs text-mute">Con comprador o centro alcanza; los dos quedan auditados.</p>
         <div className="mt-4 flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={() => setAsignar(null)} disabled={busy}>Cancelar</Button>
-          <Button type="button" onClick={confirmarAsignacion} disabled={!comprador || busy}>{busy ? 'Asignando…' : 'Asignar'}</Button>
+          <Button type="button" variant="outline" onClick={() => setAsignar(null)} disabled={busy}>Volver</Button>
+          <Button type="button" onClick={confirmarAsignacion} disabled={(!comprador && !centroAsignar.trim()) || busy}>{busy ? 'Asignando…' : 'Asignar'}</Button>
         </div>
       </Modal>
 
