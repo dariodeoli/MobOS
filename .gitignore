@@ -32,6 +32,9 @@ npm-debug.log*
 /blob-report/
 /playwright/.cache/
 
+# Vista previa local de los correos de prueba (scripts/emails-prueba.mjs)
+/.emails-prueba/
+
 # Estado de sesión del arnés E2E (cookies HttpOnly sembradas)
 /e2e/.auth/
 
