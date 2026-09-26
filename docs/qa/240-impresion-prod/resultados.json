@@ -1,10 +1,10 @@
 {
   "base": "https://app.moboss.online",
-  "fecha": "2026-09-26T03:51:57.264Z",
+  "fecha": "2026-09-26T08:27:20.045Z",
   "pasos": [
     {
       "paso": "demo + versión",
-      "detalle": "v1.0.175",
+      "detalle": "v1.0.178",
       "ok": true
     },
     {
@@ -24,7 +24,12 @@
     },
     {
       "paso": "certificado como imagen",
-      "detalle": "180 KB · certificado-phonecheck-0000.png",
+      "detalle": "179 KB · certificado-phonecheck-0000.png",
+      "ok": true
+    },
+    {
+      "paso": "taller en serie (hoja/certificados)",
+      "detalle": "Hoja ✓ · Hojas por estación ✓ · Certificados ✓",
       "ok": true
     },
     {
@@ -43,64 +48,69 @@
       "ok": true
     },
     {
+      "paso": "agente publicado (#17/#96)",
+      "detalle": "v1.7.3 · sha256 y tamaño coinciden",
+      "ok": true
+    },
+    {
       "paso": "PDF 80 mm generado desde la app",
-      "detalle": "105838 bytes",
+      "detalle": "105832 bytes",
       "ok": true
     }
   ],
   "resultados": [
     {
       "documento": "informe-80mm",
-      "version": "v1.0.175",
+      "version": "v1.0.178",
       "paginas": 1,
       "qr": "https://app.moboss.online/u/AUR0001000000000",
       "estado": "ok"
     },
     {
       "documento": "informe-a4",
-      "version": "v1.0.175",
+      "version": "v1.0.178",
       "paginas": 1,
       "qr": "https://app.moboss.online/u/AUR0001000000000",
       "estado": "ok"
     },
     {
       "documento": "constancia-a4",
-      "version": "v1.0.175",
+      "version": "v1.0.178",
       "paginas": 1,
       "qr": "https://app.moboss.online/u/AUR0001000000000",
       "estado": "ok"
     },
     {
       "documento": "constancia-80mm",
-      "version": "v1.0.175",
+      "version": "v1.0.178",
       "paginas": 1,
       "qr": "https://app.moboss.online/u/AUR0001000000000",
       "estado": "ok"
     },
     {
       "documento": "certificado-a4",
-      "version": "v1.0.175",
+      "version": "v1.0.178",
       "paginas": 1,
       "qr": "https://app.moboss.online/u/AUR0001000000000",
       "estado": "ok"
     },
     {
       "documento": "certificado-80mm",
-      "version": "v1.0.175",
+      "version": "v1.0.178",
       "paginas": 1,
       "qr": "https://app.moboss.online/u/AUR0001000000000",
       "estado": "ok"
     },
     {
       "documento": "certificado-png",
-      "version": "v1.0.175",
+      "version": "v1.0.178",
       "paginas": "—",
       "qr": "",
       "estado": "ok"
     },
     {
       "documento": "etiquetas-unidad-80mm",
-      "version": "v1.0.175",
+      "version": "v1.0.178",
       "paginas": 3,
       "qr": "",
       "estado": "ok"
