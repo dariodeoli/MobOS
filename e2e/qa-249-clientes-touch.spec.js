@@ -6,16 +6,30 @@ import { test, expect } from '@playwright/test'
 
 const SALIDA = 'test-results/QA-249-clientes-responsive'
 
+// #249: la medida es el AREA TACTIL (la caja dibujada puede ser 36 con
+// .toque-44, como en el resto de los gates): rect + ::after expandido.
 async function caja(locator) {
-  const rect = await locator.boundingBox()
-  return rect ? { ancho: Math.round(rect.width), alto: Math.round(rect.height) } : null
+  const rect = await locator.evaluate((el) => {
+    const box = el.getBoundingClientRect()
+    let ancho = box.width
+    let alto = box.height
+    const after = getComputedStyle(el, '::after')
+    if (after && after.content && after.content !== 'none' && after.position === 'absolute') {
+      const anchoAfter = parseFloat(after.width)
+      const altoAfter = parseFloat(after.height)
+      if (Number.isFinite(anchoAfter)) ancho = Math.max(ancho, anchoAfter)
+      if (Number.isFinite(altoAfter)) alto = Math.max(alto, altoAfter)
+    }
+    return { ancho: Math.round(ancho), alto: Math.round(alto) }
+  })
+  return rect || null
 }
 
 async function medir(page, nombre, locator, minimo = 44) {
   const medida = await caja(locator)
   expect(medida, `${nombre}: no se encontró el control`).toBeTruthy()
-  expect(medida.ancho, `${nombre}: ancho ${medida.ancho} < ${minimo}`).toBeGreaterThanOrEqual(minimo)
-  expect(medida.alto, `${nombre}: alto ${medida.alto} < ${minimo}`).toBeGreaterThanOrEqual(minimo)
+  expect(medida.ancho, `${nombre}: área táctil ${medida.ancho} < ${minimo}`).toBeGreaterThanOrEqual(minimo)
+  expect(medida.alto, `${nombre}: área táctil ${medida.alto} < ${minimo}`).toBeGreaterThanOrEqual(minimo)
   return medida
 }
 
