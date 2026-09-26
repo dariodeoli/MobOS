@@ -7,6 +7,7 @@ import { getProductos } from '@/lib/storage'
 import { gs, num } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
 import { Aviso, Badge, Button, Input, Modal, MoneyInput, Textarea } from '@/components/ui'
+import EmailField from '@/components/shared/EmailField'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
 import ProductCombobox from '@/components/shared/ProductCombobox'
@@ -82,6 +83,12 @@ export default function SellerQuotes() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [correo, setCorreo] = useState(null)
+  const [correoForm, setCorreoForm] = useState({ to: '' })
+  const [correoBusy, setCorreoBusy] = useState(false)
+  const [correoError, setCorreoError] = useState('')
+  const [correoAviso, setCorreoAviso] = useState('')
+  const [correoEnviado, setCorreoEnviado] = useState(false)
   const [form, setForm] = useState({ customerName: '', customerId: '', validUntil: '', notes: '', discountPyg: '' })
   const [clientes, setClientes] = useState([])
   const clienteTimer = useRef(null)
@@ -164,6 +171,44 @@ export default function SellerQuotes() {
       if (seq === enlaceSeq.current) setEnlaceError(cause?.message || 'No se pudo regenerar el enlace.')
     } finally { if (seq === enlaceSeq.current) setEnlaceBusy(false) }
   }
+  // Envío por correo (junto con POS/PRN): si el cliente no tiene correo, se
+  // guarda en su ficha antes de enviar; la API es idempotente por versión y el
+  // envío queda en el historial de la cotización y en la ficha del cliente.
+  function abrirCorreo(row) {
+    setCorreo(row)
+    setCorreoForm({ to: String(row.customer?.email || '').trim() })
+    setCorreoError('')
+    setCorreoAviso('')
+    setCorreoEnviado(false)
+  }
+
+  async function enviarCorreo(forzar) {
+    if (!correo || correoBusy) return
+    const to = correoForm.to.trim()
+    if (!to) { setCorreoError('Escribí el correo del cliente.'); return }
+    setCorreoBusy(true); setCorreoError(''); setCorreoAviso('')
+    try {
+      if (correo.customerId && to !== String(correo.customer?.email || '').trim()) {
+        await resources.customers.update(correo.customerId, { email: to })
+        setCorreo(current => current ? { ...current, customer: { ...(current.customer || {}), email: to } } : current)
+      }
+      const respuesta = await resources.quotes.sendEmail(correo.id, forzar ? { forzar: true } : {})
+      const estado = respuesta?.estado
+      const destino = respuesta?.to || to
+      setCorreoEnviado(estado !== 'fallido')
+      if (estado === 'duplicado') setCorreoAviso('Esta versión ya se había enviado. Usá Reenviar para mandarla de nuevo.')
+      else if (estado === 'encolado') setCorreoAviso(`En camino a ${destino}: si el proveedor no responde, la cola reintenta sola.`)
+      else if (estado === 'fallido') setCorreoError('El envío quedó fallido. Probá Reenviar o revisá el correo del cliente.')
+      else setCorreoAviso(`Cotización enviada a ${destino}.`)
+      setNotice(estado === 'duplicado' ? `La cotización ${correo.number} ya se había enviado.` : `Correo de la cotización ${correo.number} a ${destino}.`)
+      await data.refresh()
+    } catch (cause) {
+      setCorreoError(cause?.message || 'No se pudo enviar la cotización.')
+    } finally {
+      setCorreoBusy(false)
+    }
+  }
+
   async function copiarEnlace() {
     const url = quoteUrlFor(enlace?.publicToken)
     if (!url) return
@@ -233,6 +278,7 @@ export default function SellerQuotes() {
                 {row.status === 'ACCEPTED' && <Button type="button" className="h-8 px-2 text-xs" title="Convertir en pedido" disabled={busy} onClick={() => convertir(row)}>Convertir</Button>}
                 <button type="button" disabled={busy} className="h-8 rounded-lg border border-bad/30 px-2 text-xs font-semibold text-bad transition hover:bg-bad/10" onClick={() => accion(() => resources.quotes.update({ id: row.id, status: 'CANCELLED' }), 'Cotización cancelada.')}>Cancelar</button>
               </>}
+              {!esDemo && <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => abrirCorreo(row)}>Correo</Button>}
               {!esDemo && <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => abrirEnlace(row)}>Enlace/QR</Button>}
               {!esDemo && <Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setHistorial(row)}>Historial</Button>}
             </span>
@@ -295,6 +341,23 @@ export default function SellerQuotes() {
           <Button type="button" variant="outline" disabled={enlaceBusy || !enlace} onClick={imprimirProforma}><Icon name="printer" className="h-4 w-4" />Proforma</Button>
         </div>
       </div>
+    </Modal>
+    <Modal open={correo !== null} onClose={() => { if (!correoBusy) { setCorreo(null); setCorreoError(''); setCorreoAviso('') } }} title={`Enviar ${correo?.number || 'la cotización'} por correo`}>
+      {correo && <div className="space-y-4">
+        <p className="text-sm text-mute">{correo.customerId ? `El cliente recibe el detalle y el enlace para aceptarla o rechazarla, y el envío queda en el historial de la cotización y en su ficha.` : 'La cotización no está ligada a una ficha de cliente: indicá a qué correo enviarla (queda registrado en el historial).'}</p>
+        {correo.customerId && !String(correo.customer?.email || '').trim() && <Aviso tono="warn">Este cliente todavía no tiene correo guardado: lo guardamos en su ficha al enviar.</Aviso>}
+        <label className="block space-y-1.5 text-xs text-mute">{correo.customerId ? 'Correo del cliente' : 'Correo destino'}
+          <EmailField autoComplete="email" maxLength={200} value={correoForm.to} onChange={value => setCorreoForm({ to: value })} placeholder="cliente@dominio.com" aria-label="Correo del cliente" />
+        </label>
+        <p className="break-all rounded-lg border border-ink-600 bg-ink-900 px-3 py-2 text-[11px] text-mute">Enlace que recibe: {quoteUrlFor(correo.publicToken) || 'sin enlace público'}</p>
+        {correoAviso && <Aviso tono="ok">{correoAviso}</Aviso>}
+        {correoError && <Aviso tono="error">{correoError}</Aviso>}
+        <div className={PIE_ACCIONES}>
+          <Button type="button" variant="ghost" disabled={correoBusy} onClick={() => setCorreo(null)}>Cerrar</Button>
+          {correoEnviado && <Button type="button" variant="outline" disabled={correoBusy} onClick={() => enviarCorreo(true)}>Reenviar</Button>}
+          <Button type="button" disabled={correoBusy || !correoForm.to.trim()} onClick={() => enviarCorreo(false)}>{correoBusy ? 'Enviando…' : 'Enviar cotización'}</Button>
+        </div>
+      </div>}
     </Modal>
   </SellerSection>
 }
