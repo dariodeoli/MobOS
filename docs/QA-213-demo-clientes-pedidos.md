@@ -67,7 +67,8 @@ El incremento ya está publicado y verificado con el verificador propio
   Tarjeta / POS · Pix**, y su pedido MOB-#0007 reparte Transferencia
   Gs 8.000.000 + Tarjeta Gs 4.500.000.
 
-En la misma versión: `qa-221` **8/8**, `qa-236` **6/6**
+En la misma versión: `qa-221` **8/8**
+(`docs/QA-213-demo-clientes-pedidos/221-v186/`), `qa-236` **6/6**
 (`docs/QA-213-demo-clientes-pedidos/236-v186/`) y el recorrido de #187
 **22/22** (`docs/QA-187-clientes-produccion-v186/`).
 
