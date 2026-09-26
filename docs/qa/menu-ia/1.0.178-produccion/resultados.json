@@ -1,0 +1,478 @@
+{
+  "base": "https://app.moboss.online",
+  "etiqueta": "1.0.178-produccion",
+  "resultados": [
+    {
+      "variante": "desktop-claro",
+      "pasos": [
+        "dueño en /resumen: Inicio · grupos Inicio · Vender · Clientes · Inventario · Operación · Finanzas · Análisis · Configuración",
+        "taller en /servicio: Taller · solapas Todo, Tablero, Servicio, Garantías",
+        "tablero: Tablero de operaciones",
+        "lista por modelo: /celulares · Lista por modelo",
+        "comparador: /comparador · Comparador",
+        "vendedor: Vender · Clientes · Inventario · Operación"
+      ],
+      "menuDueno": {
+        "grupos": [
+          {
+            "titulo": "Inicio",
+            "items": [
+              "Inicio"
+            ]
+          },
+          {
+            "titulo": "Vender",
+            "items": [
+              "POS",
+              "Pedidos",
+              "Cotizaciones",
+              "Promociones",
+              "Plantillas"
+            ]
+          },
+          {
+            "titulo": "Clientes",
+            "items": [
+              "Clientes"
+            ]
+          },
+          {
+            "titulo": "Inventario",
+            "items": [
+              "Productos",
+              "Unidades",
+              "Compras",
+              "Traslados y tránsito",
+              "Precios",
+              "Lista por modelo",
+              "Comparador"
+            ]
+          },
+          {
+            "titulo": "Operación",
+            "items": [
+              "Delivery",
+              "Taller y garantías",
+              "Trade-In",
+              "Autorizaciones",
+              "Tablero de operaciones"
+            ]
+          },
+          {
+            "titulo": "Finanzas",
+            "items": [
+              "Finanzas"
+            ]
+          },
+          {
+            "titulo": "Análisis",
+            "items": [
+              "Análisis"
+            ]
+          },
+          {
+            "titulo": "Configuración",
+            "items": [
+              "Configuración",
+              "Ayuda"
+            ]
+          }
+        ],
+        "h1": "Inicio",
+        "url": "/resumen"
+      },
+      "menuVendedor": {
+        "grupos": [
+          {
+            "titulo": "Vender",
+            "items": [
+              "POS",
+              "Mis pedidos",
+              "Cotizaciones",
+              "Promociones",
+              "Plantillas"
+            ]
+          },
+          {
+            "titulo": "Clientes",
+            "items": [
+              "Clientes"
+            ]
+          },
+          {
+            "titulo": "Inventario",
+            "items": [
+              "Productos",
+              "Precios"
+            ]
+          },
+          {
+            "titulo": "Operación",
+            "items": [
+              "Delivery",
+              "Trade-In",
+              "Ayuda"
+            ]
+          }
+        ],
+        "h1": "POS",
+        "url": "/pos"
+      },
+      "errores": []
+    },
+    {
+      "variante": "desktop-oscuro",
+      "pasos": [
+        "dueño en /resumen: Inicio · grupos Inicio · Vender · Clientes · Inventario · Operación · Finanzas · Análisis · Configuración",
+        "taller en /servicio: Taller · solapas Todo, Tablero, Servicio, Garantías",
+        "tablero: Tablero de operaciones",
+        "lista por modelo: /celulares · Lista por modelo",
+        "comparador: /comparador · Comparador",
+        "vendedor: Vender · Clientes · Inventario · Operación"
+      ],
+      "menuDueno": {
+        "grupos": [
+          {
+            "titulo": "Inicio",
+            "items": [
+              "Inicio"
+            ]
+          },
+          {
+            "titulo": "Vender",
+            "items": [
+              "POS",
+              "Pedidos",
+              "Cotizaciones",
+              "Promociones",
+              "Plantillas"
+            ]
+          },
+          {
+            "titulo": "Clientes",
+            "items": [
+              "Clientes"
+            ]
+          },
+          {
+            "titulo": "Inventario",
+            "items": [
+              "Productos",
+              "Unidades",
+              "Compras",
+              "Traslados y tránsito",
+              "Precios",
+              "Lista por modelo",
+              "Comparador"
+            ]
+          },
+          {
+            "titulo": "Operación",
+            "items": [
+              "Delivery",
+              "Taller y garantías",
+              "Trade-In",
+              "Autorizaciones",
+              "Tablero de operaciones"
+            ]
+          },
+          {
+            "titulo": "Finanzas",
+            "items": [
+              "Finanzas"
+            ]
+          },
+          {
+            "titulo": "Análisis",
+            "items": [
+              "Análisis"
+            ]
+          },
+          {
+            "titulo": "Configuración",
+            "items": [
+              "Configuración",
+              "Ayuda"
+            ]
+          }
+        ],
+        "h1": "Inicio",
+        "url": "/resumen"
+      },
+      "menuVendedor": {
+        "grupos": [
+          {
+            "titulo": "Vender",
+            "items": [
+              "POS",
+              "Mis pedidos",
+              "Cotizaciones",
+              "Promociones",
+              "Plantillas"
+            ]
+          },
+          {
+            "titulo": "Clientes",
+            "items": [
+              "Clientes"
+            ]
+          },
+          {
+            "titulo": "Inventario",
+            "items": [
+              "Productos",
+              "Precios"
+            ]
+          },
+          {
+            "titulo": "Operación",
+            "items": [
+              "Delivery",
+              "Trade-In",
+              "Ayuda"
+            ]
+          }
+        ],
+        "h1": "POS",
+        "url": "/pos"
+      },
+      "errores": []
+    },
+    {
+      "variante": "movil-claro",
+      "pasos": [
+        "dueño en /resumen: Inicio · grupos Inicio · Vender · Clientes · Inventario · Operación · Finanzas · Análisis · Configuración",
+        "taller en /servicio: Taller · solapas Todo, Tablero, Servicio, Garantías",
+        "tablero: Tablero de operaciones",
+        "lista por modelo: /celulares · Lista por modelo",
+        "comparador: /comparador · Comparador",
+        "vendedor: Vender · Clientes · Inventario · Operación"
+      ],
+      "menuDueno": {
+        "grupos": [
+          {
+            "titulo": "Inicio",
+            "items": [
+              "Inicio"
+            ]
+          },
+          {
+            "titulo": "Vender",
+            "items": [
+              "POS",
+              "Pedidos",
+              "Cotizaciones",
+              "Promociones",
+              "Plantillas"
+            ]
+          },
+          {
+            "titulo": "Clientes",
+            "items": [
+              "Clientes"
+            ]
+          },
+          {
+            "titulo": "Inventario",
+            "items": [
+              "Productos",
+              "Unidades",
+              "Compras",
+              "Traslados y tránsito",
+              "Precios",
+              "Lista por modelo",
+              "Comparador"
+            ]
+          },
+          {
+            "titulo": "Operación",
+            "items": [
+              "Delivery",
+              "Taller y garantías",
+              "Trade-In",
+              "Autorizaciones",
+              "Tablero de operaciones"
+            ]
+          },
+          {
+            "titulo": "Finanzas",
+            "items": [
+              "Finanzas"
+            ]
+          },
+          {
+            "titulo": "Análisis",
+            "items": [
+              "Análisis"
+            ]
+          },
+          {
+            "titulo": "Configuración",
+            "items": [
+              "Configuración",
+              "Ayuda"
+            ]
+          }
+        ],
+        "h1": "Inicio",
+        "url": "/resumen"
+      },
+      "menuVendedor": {
+        "grupos": [
+          {
+            "titulo": "Vender",
+            "items": [
+              "POS",
+              "Mis pedidos",
+              "Cotizaciones",
+              "Promociones",
+              "Plantillas"
+            ]
+          },
+          {
+            "titulo": "Clientes",
+            "items": [
+              "Clientes"
+            ]
+          },
+          {
+            "titulo": "Inventario",
+            "items": [
+              "Productos",
+              "Precios"
+            ]
+          },
+          {
+            "titulo": "Operación",
+            "items": [
+              "Delivery",
+              "Trade-In",
+              "Ayuda"
+            ]
+          }
+        ],
+        "h1": "POS",
+        "url": "/pos"
+      },
+      "errores": []
+    },
+    {
+      "variante": "movil-oscuro",
+      "pasos": [
+        "dueño en /resumen: Inicio · grupos Inicio · Vender · Clientes · Inventario · Operación · Finanzas · Análisis · Configuración",
+        "taller en /servicio: Taller · solapas Todo, Tablero, Servicio, Garantías",
+        "tablero: Tablero de operaciones",
+        "lista por modelo: /celulares · Lista por modelo",
+        "comparador: /comparador · Comparador",
+        "vendedor: Vender · Clientes · Inventario · Operación"
+      ],
+      "menuDueno": {
+        "grupos": [
+          {
+            "titulo": "Inicio",
+            "items": [
+              "Inicio"
+            ]
+          },
+          {
+            "titulo": "Vender",
+            "items": [
+              "POS",
+              "Pedidos",
+              "Cotizaciones",
+              "Promociones",
+              "Plantillas"
+            ]
+          },
+          {
+            "titulo": "Clientes",
+            "items": [
+              "Clientes"
+            ]
+          },
+          {
+            "titulo": "Inventario",
+            "items": [
+              "Productos",
+              "Unidades",
+              "Compras",
+              "Traslados y tránsito",
+              "Precios",
+              "Lista por modelo",
+              "Comparador"
+            ]
+          },
+          {
+            "titulo": "Operación",
+            "items": [
+              "Delivery",
+              "Taller y garantías",
+              "Trade-In",
+              "Autorizaciones",
+              "Tablero de operaciones"
+            ]
+          },
+          {
+            "titulo": "Finanzas",
+            "items": [
+              "Finanzas"
+            ]
+          },
+          {
+            "titulo": "Análisis",
+            "items": [
+              "Análisis"
+            ]
+          },
+          {
+            "titulo": "Configuración",
+            "items": [
+              "Configuración",
+              "Ayuda"
+            ]
+          }
+        ],
+        "h1": "Inicio",
+        "url": "/resumen"
+      },
+      "menuVendedor": {
+        "grupos": [
+          {
+            "titulo": "Vender",
+            "items": [
+              "POS",
+              "Mis pedidos",
+              "Cotizaciones",
+              "Promociones",
+              "Plantillas"
+            ]
+          },
+          {
+            "titulo": "Clientes",
+            "items": [
+              "Clientes"
+            ]
+          },
+          {
+            "titulo": "Inventario",
+            "items": [
+              "Productos",
+              "Precios"
+            ]
+          },
+          {
+            "titulo": "Operación",
+            "items": [
+              "Delivery",
+              "Trade-In",
+              "Ayuda"
+            ]
+          }
+        ],
+        "h1": "POS",
+        "url": "/pos"
+      },
+      "errores": []
+    }
+  ]
+}

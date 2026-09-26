@@ -10,6 +10,18 @@ La demo es un modo aislado en el navegador (datos ficticios, sin API de la tiend
 se recorrió el **flujo del vendedor** (PIN 2001) sin tocar datos reales.
 Resultado: **12/12 pasos ejecutados, sin fallos de script**.
 
+## Pasada v1.0.178 (26/09/2026) — producción
+
+**Método:** misma sonda (12 pasos) · **Evidencia:** `docs/qa/187-1.0.178-produccion/`
+(25 capturas + `resultados.json`). **12/12 pasos, 0 errores de consola, 0 respuestas
+API ≥400, 0 pedidos fallidos.**
+
+Lo recorrido en .172 sigue igual y los dos hallazgos de esa pasada ya están
+**desplegados y verificados en producción**: «Retiro en tienda» cierra en
+**Gs 13.880.000** (no cobra envío) y «TU DÍA» cuenta **una venta/pedido por orden**
+(3 → 4 para una venta de 3 unidades). El carrito se mantiene en 68/84 px por línea
+colapsada (`docs/qa/243/1.0.178-produccion/`).
+
 ## Pasada v1.0.172 (25/09/2026) — POS/ventas
 
 **Superficie:** https://app.moboss.online/demo · **Método:** Playwright headless
