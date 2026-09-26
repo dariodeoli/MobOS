@@ -42,6 +42,23 @@ verificador, documentadas en el issue) y la capa visual pasó sin recortes ni
   —tokens, AA y el toggle de Preferencias— queda pinneado por
   `e2e/dsn-241-a11y.spec.js`.
 
+## Nueva ola (26/09/2026, producción v1.0.186)
+
+Re-verificación completa de los tres módulos y de la capa visual:
+
+| Recorrido | Resultado | Evidencia |
+|---|---|---|
+| POS (12 pasos) | **12/12**, 0 fallos de script | `docs/qa/187/` (25 capturas + resultados) |
+| Inventario (13 pasos) | **13/13**, 0 hallazgos | `docs/qa/187-inventario/` |
+| Clientes (22 pasos) | **22/22**, 0 llamadas al API real | `docs/QA-187-clientes-produccion/` (28 capturas) |
+| Capturas por dominio (claro/oscuro/móvil) | 22 al día | `docs/qa/activacion-f4/dominios/` |
+
+**Hallazgo de esta ola (corregido):** el botón «Cargar más clientes» medía
+148×34 en mobile; el gate responsive lo frenó y quedó en 44 (`min-h-11` +
+`md:min-h-0`). En la misma pasada se ajustó el verificador de Clientes para
+esperar el pipeline demo (evitaba fotografiar esqueletos) y aceptar el aviso
+genérico de rate limit (429) como «sin datos».
+
 ## Cómo reproducir
 
 ```bash
