@@ -40,6 +40,8 @@ const EstadoSistema = lazy(() => import('@/components/control/EstadoSistema'))
 const WhatsAppTemplates = lazy(() => import('@/components/control/WhatsAppTemplates'))
 const Precios = lazy(() => import('@/components/control/Precios'))
 const PorComprar = lazy(() => import('@/components/supply/PorComprar'))
+const PrepararCompra = lazy(() => import('@/components/supply/PrepararCompra'))
+const Recepcion = lazy(() => import('@/components/supply/Recepcion'))
 // #247: las secciones del panel se cargan por sección (el chunk del panel baja
 // fuerte); el `Suspense` que las envuelve ya existía para las que eran lazy.
 const SellerCustomers = lazy(() => import('@/components/ventas/SellerCustomers'))
@@ -137,6 +139,8 @@ const OWNER_NAV = [
       ['compras', 'Compras', 'store'],
       ['traslados', 'Traslados y tránsito', 'truck'],
       ['abastecimiento', 'Por comprar', 'box'],
+      ['preparacion', 'Preparar compra', 'tag'],
+      ['recepcion', 'Recepción', 'truck'],
       ['precios', 'Precios', 'tag'],
       ['celulares', 'Lista por modelo', 'tag'],
       ['comparador', 'Comparador', 'report'],
@@ -294,6 +298,8 @@ const LABELS = {
   promociones: 'Promociones',
   precios: 'Precios',
   abastecimiento: 'Por comprar',
+  preparacion: 'Preparar compra',
+  recepcion: 'Recepción',
   cotizaciones: 'Cotizaciones',
   plantillas: 'Plantillas de WhatsApp',
   cotizador: 'Trade-In',
@@ -906,6 +912,8 @@ export default function PanelVendedor() {
           )}
           {vista === 'precios' && <Precios />}
           {esOwner && vista === 'abastecimiento' && <PorComprar />}
+          {esOwner && vista === 'preparacion' && <PrepararCompra />}
+          {esOwner && vista === 'recepcion' && <Recepcion />}
           {esOwner && subpadre === 'configuracion' && (
             <NavegacionConfig value={vista} onChange={irASubtab} items={tabsConfig}>
               {vista === 'mi-cuenta' && <MiCuenta preferencias={preferencias} onCambiarPreferencias={cambiarPreferencias} />}

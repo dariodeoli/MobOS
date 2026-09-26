@@ -53,6 +53,8 @@ const protectedSections = {
   '/configuracion/impresion': 'Estado de impresión',
   '/configuracion/preferencias': 'Preferencias',
   '/abastecimiento': 'Por comprar',
+  '/preparacion': 'Preparar compra',
+  '/recepcion': 'Recepción',
   '/configuracion/sistema': 'Estado del sistema',
   // Perfil personal (#253): vive fuera de Configuración, se abre del avatar.
   '/ayuda': 'Ayuda',
