@@ -41,6 +41,26 @@ Sobre `GET /api/supply/performance` (`backend/lib/supply-forecast.ts`, puro):
 
 Ambos campos viajan tal cual en el JSON de la API (`proveedores[]`, `rutas[]`).
 
+### Panel de métricas (FIN)
+
+El panel de métricas vive en `/metricas` (vista propia «Métricas de
+abastecimiento» en Inventario, junto a «Por comprar», «Preparar compra» y
+«Recepción»), en `src/components/supply/MetricasAbastecimiento.jsx`, y es
+**solo lectura**:
+
+- **Resumen**: monto comprado, costo promedio por unidad, atrasos de ahora y
+  días de la ruta CDE (promedio ponderado por lotes, con puntualidad).
+- **Proveedores**: tabla ordenada por monto con costo real por unidad, plazo,
+  puntualidad (badge por tramos) y faltantes/incidencias. Filtro de ventana
+  (30/90/180 días, `?desde=`).
+- **Tiempos**: días promedio/máximo, puntualidad y atraso promedio por ruta y
+  método (CDE → Asunción incluida).
+- **Atrasos**: lotes con ETA vencida (con compra y días) y promesas al cliente
+  vencidas; son del momento, no de la ventana.
+
+Objetos compartidos: `DataTable` (con `mobileCard`), `Stat`, `Subtabs`,
+`Badge`, `FilaDato`, `CeldaMoneda`, `Select` y `Button` — sin piezas nuevas.
+
 ## Evidencia
 
 - Unit `backend/tests/supply-forecast.test.ts` dentro de
@@ -50,12 +70,22 @@ Ambos campos viajan tal cual en el JSON de la API (`proveedores[]`, `rutas[]`).
   (proveedores y rutas medidas, con `costoPromedioUnidadPyg` y
   `enTiempoPct`/`atrasoPromedioDias` en rango) + cadena de compras/recepciones
   en verde.
-- Build del backend con `BUILD_ID`.
+- Unit del panel `src/lib/metricasAbastecimiento.test.js` (puntualidad por
+  tramos, resumen de compras y promedio ponderado de CDE) dentro de
+  `npm test` → **784/784**.
+- e2e `e2e/qa-f6-metricas-abastecimiento.spec.js` (proyecto `admin`): siembra
+  una compra recibida y un lote atrasado por API, y afirma el proveedor con su
+  costo real, la ruta CDE medida, la alerta con días de atraso, sin scroll
+  horizontal a 1280/1440 y capturas claro/oscuro desktop y mobile en
+  `docs/qa/f6-metricas/`.
+- Build del backend con `BUILD_ID`; `npm run build` del frontend en verde.
 
 ## Coordinación
 
 - **INV**: las métricas nuevas son aditivas; el panel puede mostrarlas sin
-  cambios de contrato. La UI de F2 (compra rápida) queda de su lado con el
-  contrato de costo/moneda de arriba.
+  cambios de contrato. El panel de métricas ya consume
+  `/api/supply/performance` y `/api/supply/alerts`; la UI de F2 (compra rápida)
+  queda de su lado con el contrato de costo/moneda de arriba.
 - **PLT**: `PorComprar` ya consume prioridad/costos estimados; el panel de
-  rendimiento puede usar `proveedores[]`/`rutas[]` directo.
+  métricas es una vista propia más del grupo Inventario (`/metricas`), como
+  «Preparar compra» y «Recepción», sin tocar sus pantallas.

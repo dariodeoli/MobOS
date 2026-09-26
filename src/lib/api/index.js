@@ -56,6 +56,20 @@ export const resources = {
     create: data => api.post('/api/supply/receptions', data),
     update: data => api.patch('/api/supply/receptions', data),
   },
+  // F6 (#250): rendimiento por proveedor, tiempos de tránsito y atrasos. El
+  // panel tiene «Actualizar»: se piden sin caché de GET, como el resto.
+  supplyPerformance: {
+    get: (params = {}) => {
+      const query = new URLSearchParams(Object.entries(params).filter(([, valor]) => valor !== '' && valor != null).map(([clave, valor]) => [clave, String(valor)]))
+      return api.get(`/api/supply/performance${query.toString() ? `?${query}` : ''}`, { cacheMs: 0 })
+    },
+  },
+  supplyAlerts: {
+    get: (params = {}) => {
+      const query = new URLSearchParams(Object.entries(params).filter(([, valor]) => valor !== '' && valor != null).map(([clave, valor]) => [clave, String(valor)]))
+      return api.get(`/api/supply/alerts${query.toString() ? `?${query}` : ''}`, { cacheMs: 0 })
+    },
+  },
   audit: { list: (params = {}) => api.get(`/api/audit?${new URLSearchParams(params)}`) },
   sessions: { list: () => api.get('/api/sessions'), revoke: sessionId => api.delete('/api/sessions', { body: { sessionId } }) },
 }

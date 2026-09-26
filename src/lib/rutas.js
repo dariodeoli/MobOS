@@ -23,6 +23,8 @@ export const RUTA_DE_VISTA = {
   // F3: preparación de IMEI de la compra; F5: recepción del lote.
   preparacion: '/preparacion',
   recepcion: '/recepcion',
+  // F6: métricas de proveedores, tránsito y atrasos.
+  metricas: '/metricas',
   servicio: '/servicio',
   garantias: '/garantias',
   autorizaciones: '/autorizaciones',
@@ -81,6 +83,7 @@ export const DESTINO_LEGADO = {
   abastecimiento: '/abastecimiento',
   preparacion: '/preparacion',
   recepcion: '/recepcion',
+  metricas: '/metricas',
   servicio: '/servicio',
   garantias: '/garantias',
   autorizaciones: '/autorizaciones',

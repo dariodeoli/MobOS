@@ -50,6 +50,10 @@ necesidades, compras, lotes y recepciones); no agrega tablas.
   validaciones y auditoría, sugerencia → necesidad sin duplicar, métricas de
   proveedores y rutas, alertas de lote atrasado + promesa vencida, AEX
   (cotización honesta, guía y seguimiento) y permisos 401/403.
+- e2e `e2e/qa-f6-metricas-abastecimiento.spec.js` (proyecto `admin`): panel de
+  métricas con una compra recibida y un lote atrasado sembrados por API
+  (proveedor con costo real, ruta CDE medida, alerta con días), sin scroll
+  horizontal y capturas en `docs/qa/f6-metricas/`.
 - `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` → **PASS**
   (F1 22 + F2 25 + F3 28 + F4 31 + F5 40 + F6 33 chequeos); `db:check` verde.
 
@@ -57,7 +61,11 @@ necesidades, compras, lotes y recepciones); no agrega tablas.
 
 Con F1–F6 el backend cubre el ciclo completo del Centro de Abastecimiento y su
 automatización: **necesidad → compra → lote → recepción → stock → reposición
-sugerida**, con métricas de proveedores, rutas y alertas de atraso. Sigue
-pendiente el **panel** (CMP tiene pedida la tanda de objetos: `CampoSeriales`,
-`MedidorStock`, `ContadorLote`, `ChipPrioridad`) y los **layouts de impresión**
-de PRN (manifiesto, etiqueta de preparación y comprobante de recepción).
+sugerida**, con métricas de proveedores, rutas y alertas de atraso. Los paneles
+de **F1** («Por comprar»), **F3** («Preparar compra») y **F5** («Recepción») ya
+están integrados, y el **panel de métricas** de F6 quedó entregado por FIN en
+`/metricas` (vista propia «Métricas de abastecimiento», sobre objetos
+compartidos: `DataTable`, `Stat`, `Subtabs`, `Badge`, `FilaDato`,
+`CeldaMoneda`). Los **impresos de F4** (manifiesto, etiqueta de preparación,
+etiquetas individuales y comprobante de recepción) también están entregados
+(ver `docs/QA-250-F4-impresos.md`).
