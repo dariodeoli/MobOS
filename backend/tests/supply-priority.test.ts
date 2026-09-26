@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { MARGEN_ALTO_PYG, costoEstimadoDeNecesidad, margenEstimadoDeNecesidad, prioridadDeNecesidad } from '../lib/supply-priority'
+import { MARGEN_ALTO_PYG, costoEstimadoDeNecesidad, margenEstimadoDeNecesidad, prioridadDeNecesidad, prioridadDeVenta } from '../lib/supply-priority'
 import { consolidarNecesidades } from '../lib/supply'
 
 // #254 · FIN: prioridad de una necesidad por venta/margen/fecha y costos
@@ -34,6 +34,16 @@ test('la fecha prometida escala y una vencida es urgente', () => {
   assert.equal(prioridadDeNecesidad({ origen: 'BELOW_REORDER', prometidaEl: 'no-es-fecha', hoy: HOY }), 'BAJA')
   // Una fecha vencida con margen negativo sigue siendo urgente (compromiso).
   assert.equal(prioridadDeNecesidad({ origen: 'SALE_NO_STOCK', margenPyg: -1, prometidaEl: '2026-09-25T10:00:00.000Z', hoy: HOY }), 'URGENTE')
+})
+
+test('prioridadDeVenta: la venta cobrada y el margen ajustan la base (#254)', () => {
+  assert.equal(prioridadDeVenta('NORMAL', {}), 'NORMAL')
+  assert.equal(prioridadDeVenta('NORMAL', { ventaConfirmada: true }), 'ALTA')
+  assert.equal(prioridadDeVenta('NORMAL', { margenPyg: MARGEN_ALTO_PYG }), 'ALTA')
+  assert.equal(prioridadDeVenta('NORMAL', { ventaConfirmada: true, margenPyg: 3_000_000 }), 'URGENTE')
+  assert.equal(prioridadDeVenta('ALTA', { margenPyg: -1 }), 'NORMAL')
+  assert.equal(prioridadDeVenta('BAJA', { margenPyg: -1 }), 'BAJA', 'no baja del piso')
+  assert.equal(prioridadDeVenta('LO-QUE-SEA', {}), 'NORMAL')
 })
 
 test('costo y margen estimados de la necesidad', () => {

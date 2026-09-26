@@ -40,6 +40,50 @@ test('un pedido comprometido con fecha usa ORDER_COMMITTED y la prioridad de la 
   assert.equal(demanda.promisedAt?.toISOString(), '2026-09-27T12:00:00.000Z')
 })
 
+test('la venta cobrada y el margen esperado suben la prioridad (#254 FIN)', () => {
+  const ahora = new Date('2026-09-26T12:00:00.000Z')
+  const [sinNada] = demandasDePedido({
+    orderId: 'order-m1',
+    items: [{ productId: 'prod-1', quantity: 1, stockPending: 1, unitPricePyg: 2_000_000, costPyg: 1_500_000 }],
+    ahora,
+  })
+  assert.equal(sinNada.priority, 'NORMAL', 'margen bajo y sin cobro: normal')
+  const [cobrada] = demandasDePedido({
+    orderId: 'order-m2',
+    items: [{ productId: 'prod-1', quantity: 1, stockPending: 1, unitPricePyg: 2_000_000, costPyg: 1_500_000 }],
+    ventaConfirmada: true,
+    ahora,
+  })
+  assert.equal(cobrada.priority, 'ALTA', 'la venta cobrada sube un escalón')
+  const [margenAlto] = demandasDePedido({
+    orderId: 'order-m3',
+    items: [{ productId: 'prod-1', quantity: 1, stockPending: 1, unitPricePyg: 3_000_000, costPyg: 1_500_000 }],
+    ahora,
+  })
+  assert.equal(margenAlto.priority, 'ALTA', 'un margen esperado alto sube otro')
+  const [todo] = demandasDePedido({
+    orderId: 'order-m4',
+    items: [{ productId: 'prod-1', quantity: 1, stockPending: 1, unitPricePyg: 3_000_000, costPyg: 1_500_000 }],
+    ventaConfirmada: true,
+    ahora,
+  })
+  assert.equal(todo.priority, 'URGENTE', 'cobrada + margen alto sin promesa toca el tope')
+  const [aPerdida] = demandasDePedido({
+    orderId: 'order-m5',
+    items: [{ productId: 'prod-1', quantity: 1, stockPending: 1, unitPricePyg: 800_000, costPyg: 1_500_000 }],
+    ventaConfirmada: true,
+    ahora,
+  })
+  assert.equal(aPerdida.priority, 'NORMAL', 'una venta a pérdida no sube (piso del motor)')
+  const [vencida] = demandasDePedido({
+    orderId: 'order-m6',
+    items: [{ productId: 'prod-1', quantity: 1, stockPending: 1 }],
+    promisedAt: '2026-09-20T12:00:00.000Z',
+    ahora,
+  })
+  assert.equal(vencida.priority, 'URGENTE', 'la promesa vencida manda sobre todo')
+})
+
 test('la venta que superó el stock genera QUANTITY_OVER_STOCK por el faltante', () => {
   const [demanda] = demandasDePedido({
     orderId: 'order-3',
