@@ -170,8 +170,14 @@ test('los adaptadores delegan la UI en la biblioteca (#253)', () => {
 
 test('los objetos de Abastecimiento F1 (#250/#254) están publicados', () => {
   const indice = readFileSync(LIB_INDEX, 'utf8')
-  for (const objeto of ['ChipPrioridad', 'ContadoresCompra', 'TarjetaNecesidad', 'PRIORIDADES_COMPRA', 'ESTADOS_NECESIDAD', 'ordenarPorPrioridad', 'PASOS_NECESIDAD']) {
+  for (const objeto of ['ChipPrioridad', 'ChipOrigen', 'ContadoresCompra', 'TarjetaNecesidad', 'PRIORIDADES_COMPRA', 'ORIGENES_NECESIDAD', 'ESTADOS_NECESIDAD', 'claveDePrioridad', 'claveDeEstado', 'ordenarPorPrioridad', 'PASOS_NECESIDAD']) {
     assert.ok(indice.includes(objeto), `owncoding-ui debe publicar ${objeto} para la demanda F1`)
+  }
+  // El contrato del backend (INV) viaja en los mapas: prioridades, orígenes y
+  // estados, así el panel de PLT no traduce nada.
+  const mapas = readFileSync(join(LIB_COMPONENTES, '..', 'utils', 'abastecimiento.js'), 'utf8')
+  for (const clave of ['urgente', 'alta', 'normal', 'baja', 'sale_no_stock', 'reservation_no_stock', 'abierta', 'asignada', 'comprada', 'recibida', 'cancelada']) {
+    assert.match(mapas, new RegExp(`${clave}:`), `falta la clave ${clave} del contrato F1`)
   }
   // La tarjeta compone los objetos del abastecimiento y no reimplementa los mapas.
   const tarjeta = readFileSync(join(LIB_COMPONENTES, 'TarjetaNecesidad.jsx'), 'utf8')
