@@ -292,6 +292,45 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 46 — objetos de recepción e incidencias F5 (#250) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Llegada pendiente | El panel iba a componer a mano el lote por recibir (código, ETA, esperado, depósito sugerido) | **`TarjetaRecepcion`**: lote, origen → destino, método, ETA (`Vencimiento`), «N de M con IMEI» y depósito sugerido, con acción de abrir/retomar |
+| Resumen por resultado | `ResumenIncidencias` solo listaba incidencias; los recibidos y el total no tenían objeto | **`ResumenRecepcion`**: conteos por resultado desde el mapa del backend (`RECIBIDO/FALTANTE/…`) o desde los ítems |
+| Claves del backend | `ESTADOS_REVISION` era sensible a mayúsculas (`RECIBIDO` ≠ `recibido`) | **`claveRevision`** normaliza (mayúsculas, acentos y `_`): `etiquetaRevision`/`tonoRevision`/`esIncidencia` la usan |
+| Biblioteca | — | **v0.38.0** con REGLAS §13/README y tests (**232**) |
+
+**Coordinación:** PLT arma «Recepción» con `TarjetaRecepcion` (llegadas),
+`FilaRevision` + `SelectorIncidencia` (unidades) y `ResumenRecepcion` (conteos);
+`DestinoRecepcion` cierra la recepción y `CampoSeriales` cubre el escaneo. El
+stock sigue naciendo solo al confirmar.
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
+`test:e2e:smoke`; biblioteca `owncoding-ui` build + 232 tests.
+
+### Lote 45 — objetos de Abastecimiento F2–F5 (#250) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Estados | F2–F5 definidos en el backend (compra `COMPRADA/CANCELADA` + F4/F5; envío `BORRADOR→…→EN_TRANSITO` + incidencia/cancelado; recepción `BORRADOR/CONFIRMADA/CANCELADA`) sin mapa compartido | **`ESTADOS_COMPRA`/`ESTADOS_ENVIO`/`ESTADOS_RECEPCION` + `PASOS_ENVIO`**, tolerantes a las claves del backend, con etiqueta y tono |
+| Método del envío | Texto suelto en cada pantalla | **`METODOS_ENVIO`** (bus · transportadora · AEX · importación) con etiqueta e ícono |
+| Compra | No había objeto | **`TarjetaCompra`**: `COM-…`, proveedor, estado, «N de M con IMEI», costo/moneda y referencia |
+| Lote | No había objeto | **`TarjetaLote`**: `ENV-…`, origen → destino, método, empresa/guía, responsable, ETA y conteo |
+| Etiqueta N de M | El layout estaba pendiente (PRN) | **`EtiquetaLote`**: «ENV-… · PRODUCTO n DE N», modelo/variante, IMEI o «IMEI pendiente», pedido/destino y QR; papel claro para envolver con `DocumentoImpresion` |
+| Recepción | Resultados por unidad sin `RECIBIDO` | `ESTADOS_REVISION` suma `recibido` (los conteos usan `ContadorLote` + `ResumenIncidencias`) |
+| Biblioteca | — | **v0.37.0** con REGLAS §13/README y tests (**229**) |
+
+**Coordinación:** PLT puede armar «Comprando/Comprado/Preparar envío/En
+tránsito/Recepción» con las tarjetas y mapas; PRN tiene el contenido de la
+etiqueta (le falta el layout térmico/A4, según su propio doc); INV mantiene el
+contrato. El stock sigue naciendo solo en la recepción confirmada.
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
+`test:e2e:smoke`; biblioteca `owncoding-ui` build + 229 tests.
+
 ### Lote 44 — lo que pedía el panel de F1 (#250/#254) (26-09)
 
 | Objeto | Antes (evidencia) | Después |
