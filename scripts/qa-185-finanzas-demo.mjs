@@ -79,7 +79,11 @@ try {
     await esperar(2500)
     // La guía de la demo se abre sola la primera vez por pestaña (#201).
     const guia = page.getByRole('dialog', { name: 'Cómo funciona la demo' })
-    if (await guia.count()) await page.getByRole('button', { name: 'Cerrar' }).last().click()
+    // La guía monta un render después del ingreso: se espera (patrón de
+    // e2e/helpers/demo.js). Un count instantáneo la perdía y la guía tapaba clics.
+    if (await guia.waitFor({ state: 'visible', timeout: 4000 }).then(() => true).catch(() => false)) {
+      await guia.getByRole('button', { name: 'Cerrar' }).click()
+    }
     await esperar(800)
     await shot('panel-demo')
     const nav = await page.getByText('Finanzas', { exact: true }).first().isVisible()

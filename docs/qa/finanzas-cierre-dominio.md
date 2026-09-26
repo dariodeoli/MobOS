@@ -1,15 +1,32 @@
 # Cierre del dominio **Finanzas** (slot/finanzas)
 
 - **Rama:** `slot/finanzas` · **Verificación definitiva:** producción
-  **v1.0.141** (`release:smoke` OK) · **Fecha:** 2026-09-22
-- **Última revisión:** 2026-09-24 (post v1.0.163) — **Config → Seguro y
-  límites**: el seguro y los límites ya guardan con Enter, con estado
-  Guardado/Error por grupo y reautenticación resuelta en el lugar
-  (`seguro-limites/`). Antes: verificación de márgenes con costo real (v1.0.152
-  — descuento del carrito, líneas bajo costo y ventas sin costo), responsive
-  mobile de Finanzas (#249) y sonda de la cadena de costo real.
+  **v1.0.175** (`release:smoke` OK) · **Fecha:** 2026-09-22
+- **Última revisión:** 2026-09-26 (post v1.0.175) — barrido de #185 y sondas
+  del dominio re-ejecutadas en verde; antes: grupo **Comercial** (#253),
+  **Ganadores por margen**, fix de la **diferencia de caja** sin arqueo,
+  runner de reportes en el gate y sonda de **márgenes con costo real**.
 - Índice de todo lo entregado y verificado en el dominio, con la evidencia y la
   versión en la que quedó integrado. Sirve de punto de entrada para auditoría.
+
+## Verificación v1.0.175 (2026-09-26) — sondas del dominio en verde
+
+| Sonda | Resultado |
+| --- | --- |
+| Recorrido #185 de Finanzas (`qa-185-finanzas-demo.mjs`) | **16/16** · 25 capturas · 0 errores de consola · 0 API ≥400 · 0 pedidos fallidos |
+| §9 montos (`qa-148-montos-produccion.mjs`) | **5/5** |
+| §17/§18/§19 (`qa-148-17-18-19-produccion.mjs`) | **8/8** · **11/11** cortes del analytics |
+| §18 ventas por caja (`QA_SOLO_DEMO=1`) | **2/2** |
+| Caja + conciliación + márgenes con costo real (`qa-253-finanzas-produccion.mjs`) | **15/15** |
+
+Evidencia: `185/produccion-1.0.175/` (capturas + `resultados.json`),
+`finanzas-produccion/1.0.175-*/` y `finanzas-produccion/produccion/`.
+
+En esta pasada se corrigieron las **sondas** que quedaron desactualizadas por el
+IA de Configuración y el shell (`/configuracion/negocio` → `comercial`, el
+ítem «Análisis» del menú ahora tiene grupo homónimo) y la carrera al cerrar la
+guía de la demo (patrón robusto de `e2e/helpers/demo.js`); ningún hallazgo
+funcional nuevo en el producto.
 
 ## Verificación definitiva (v1.0.143) — sin gaps reales
 
@@ -77,7 +94,12 @@ vendedor/día ni la comisión liquidada**—, ya corregido y con evidencia en
 | #83 (2026-09-24) | KPI de Finanzas (por cobrar, por pagar, margen) sobre todo el historial | `83-finanzas-kpi-exactos.md` |
 | #241 (2026-09-24) | Lote D v2 (Caja, Conciliación, Cuentas): tiles, números de consola y chips + QA antes/después | `rediseno/F4-DOMINIOS.md` + `rediseno/c241f4b-finanzas-cuentas-*` |
 | #162 · #241 (2026-09-24) | Config → Seguro y límites: guardar con Enter, estado Guardado/Error por grupo y reautenticación resuelta en el lugar (antes: Enter no guardaba, un guardado pisaba el otro grupo y el 403 de reautenticación quedaba fuera de la sección) | `seguro-limites/` |
-| #185 Recorrido de Finanzas en producción | 16/16 pasos, 4 corridas (v1.0.137, v1.0.139, v1.0.140 y v1.0.141) | `185/produccion/reporte.md`, `185/produccion-1.0.139/`, `185/produccion-1.0.140/`, `185/produccion-1.0.141/` |
+| #185 Recorrido de Finanzas en producción | 16/16 pasos, 4 corridas (v1.0.137, v1.0.139, v1.0.140 y v1.0.141) y **16/16 en v1.0.175** | `185/produccion/reporte.md`, `185/produccion-1.0.175/` |
+| #253 (2026-09-25) | **Comercial** en archivo propio: precios, seguro, límites/autorizaciones, fidelización y mora | `config-comercial/README.md` |
+| #148 §19 · #171 (2026-09-25) | **Ganadores por margen real** (ranking por ganancia y margen por producto) | `finanzas-ganadores/README.md` |
+| #148 (2026-09-26) | **Caja**: la diferencia no anticipa un número sin arqueo (fix verificado en producción) | `finanzas-produccion/antes/` + `produccion/` |
+| #148 · #171 (2026-09-25) | Runner de reportes al gate (`test:unit`) y sonda de márgenes por **sucursal y cliente** | `reportes-margenes-ci.md` |
+| #148 · #144 (2026-09-26) | Sonda de **finanzas en producción** (caja, conciliación y márgenes con costo real) | `finanzas-produccion/README.md` |
 
 ## Sondas re-ejecutables (producción)
 
@@ -103,6 +125,12 @@ Comparativos antes/después: `produccion-1.0.139/` (línea base) y
 
 - **Montos de 10B/99B**: hoy el tope real es 2.147.483.647 (columnas enteras de
   32 bits). Para aceptar los límites de §9 hace falta migrar las columnas de
-  dinero a BigInt (plan en `148-9-montos-monedas.md`).
+  dinero a BigInt (plan en `148-9-montos-monedas.md`). **Estado 2026-09-26: no
+  se tomó en esta pasada** — relevado: los campos de dinero se usan en ~140
+  puntos de ~20 archivos de varios dominios (cash, finance, purchases,
+  delivery, exports, suppliers), así que una migración por mitades dejaría
+  topes inconsistentes y riesgo de serialización de BigInt. Es una **unidad
+  propia cross-dominio** (POS/INV/FIN) con `db:check`, como pide el plan; queda
+  para coordinarla con el orquestador.
 - **Gift cards reales** (código, saldo, vencimiento): el producto no las tiene;
   el equivalente es el saldo a favor, ya visible y documentado en la app.
