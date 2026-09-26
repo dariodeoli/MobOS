@@ -35,12 +35,13 @@ Nombre y correo ya estaban; faltaba la foto.
 - La suite `demo-anonimo` completa sigue verde (recorrido de módulos, barrido de
   storage y sin llamadas al API).
 
-## Pendiente de deploy
+## Verificado en producción (v1.0.177 / verificación en v1.0.178)
 
-Producción v1.0.175 todavía muestra iniciales en el equipo demo: este cambio
-viaja en `slot/inventario` y se evidencia con `node e2e/prod/…` una vez
-desplegado (el resto de #219 ya está verificado en producción, ver
-`docs/QA-219-215-CIERRE.md`).
+Producción muestra las fotos ficticias del equipo demo y la firma con foto en la
+ficha del equipo: `node e2e/prod/219-215-inventario.mjs` → **7/7**, con capturas
+`docs/qa/219-215-produccion/09-equipo-demo.jpg` y `08-verificacion-firmada.jpg`.
+El resto de #219 quedó verificado en el mismo recorrido (tránsito/recepción,
+checklist y datos del equipo).
 
 ## Novedades para el dueño
 

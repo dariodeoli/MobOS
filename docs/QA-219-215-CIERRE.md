@@ -13,7 +13,7 @@ usuarios demo) y **#215** (Inventario/Stock + demo funcional), verificado sobre
 | Reservas y acciones de inventario por usuarios demo | `e2e/prod/187-inventario.mjs` **13/13** (reservas con cliente/vencimiento, alta con costo diferido, acciones masivas, recepción en tránsito, conteo). Capturas `docs/qa/187-inventario/`. | ✅ producción |
 | Sin llamadas pagas / session-only | El recorrido de producción registra **0 llamadas de impresión/inventario** y la demo no toca la base; el barrido de storage sigue verde en la suite. | ✅ producción |
 | Nombres ficticios, correo que empieza con `35` y sin la palabra «demo» | Paso nuevo del script de producción: **6 integrantes**, correos `358001xx@correo.com.py`, ninguna fila menciona «demo» (`09-equipo-demo.jpg`). | ✅ producción |
-| Foto de perfil (aleatoria) de los usuarios demo | Rama `slot/inventario`: retratos ficticios locales por id (`src/lib/demo/avatares.js`), visibles en Equipo y en la firma de verificación; e2e nuevo en `demo-anonimo` con capturas `docs/qa/219-demo-fotos/` y doc `docs/QA-219-demo-usuarios.md`. | 🟡 en rama (post-deploy) |
+| Foto de perfil (aleatoria) de los usuarios demo | **Verificado en producción v1.0.178** (release .177): `e2e/prod/219-215-inventario.mjs` paso «equipo demo» → 6 integrantes con foto local y correos 35… sin «demo»; paso «verificación funcional» → la ficha muestra la firma con foto (`docs/qa/219-215-produccion/09-equipo-demo.jpg` y `08-verificacion-firmada.jpg`). Doc `docs/QA-219-demo-usuarios.md`. | ✅ producción |
 
 ## #215 — Inventario/Stock + demo funcional
 
@@ -24,7 +24,7 @@ usuarios demo) y **#215** (Inventario/Stock + demo funcional), verificado sobre
 | Tránsito: recepción, ubicaciones con color, reimpresión (#218) | `187-inventario` (tránsito + recepción con depósito y reimpresión) y `219-215` (la unidad sale del tránsito al recibir). ETA/despachó/recibió viajan en `main` desde v1.0.167+. | ✅ producción |
 | Vendidos con filtros y comprobante (#215 §10) | `187-inventario`: vendidos con estados de entrega, UBI y comprobante rápido. | ✅ producción |
 | Checklist PhoneCheck, informe público y certificado (#240, dentro de #215) | `219-215` (checklist con grado/puntaje y persistencia) e informes públicos en producción (rondas .144–.175). | ✅ producción |
-| Usuarios demo del equipo (foto) | Igual que #219: en rama, post-deploy. | 🟡 en rama (post-deploy) |
+| Usuarios demo del equipo (foto) | Igual que #219: **verificado en producción v1.0.178** (equipo con fotos y firma con foto). | ✅ producción |
 | Barrido de «demo» con guardia (#222) | `src/lib/demoBarrido.test.js` en verde en `npm test` (758). | ✅ main |
 
 ## Reproducir
@@ -36,15 +36,17 @@ node e2e/prod/187-inventario.mjs       # 13/13 — recorrido completo
 npm test && npm --prefix backend run test:unit
 ```
 
-## Pendiente de deploy (una sola pieza)
+## Post-deploy (.177/.178) — sin pendientes
 
-La **foto de perfil de los usuarios demo** (más los dos arreglos de consistencia
-de la demo: `getVendedores` y `lastVerifiedAt`) viaja en `slot/inventario`. Con
-el release, la verificación post-deploy es automática:
+La foto de perfil de los usuarios demo y los arreglos de consistencia
+(`getVendedores`, `lastVerifiedAt`) salieron en **v1.0.177** y quedaron
+verificados en **v1.0.178**: el recorrido de producción pasa **7/7** (equipo con
+fotos y firma con foto incluidas), `246` **4/4** y `187` **13/13**.
 
 ```bash
-node e2e/prod/219-215-inventario.mjs   # el paso «equipo demo» debe mostrar fotos
-node e2e/prod/219-215-inventario.mjs   # y la firma de verificación en la ficha
+node e2e/prod/219-215-inventario.mjs   # 7/7 — incluye equipo demo con foto
+node e2e/prod/246-fila-unica.mjs       # 4/4
+node e2e/prod/187-inventario.mjs       # 13/13
 ```
 
 ## Novedades para el dueño
