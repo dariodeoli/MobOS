@@ -1,10 +1,35 @@
-# Paquete de aprobación F4 (#241) — actualizado 2026-09-24
+# Paquete de aprobación F4 (#241) — actualizado 2026-09-26
+
+## Switch de activación (listo para Dario)
+
+El rollout v2 se prende o apaga desde el **entorno de build** del front, sin
+tocar código:
+
+| `VITE_TEMA_V2` | Efecto |
+|---|---|
+| sin definir o `1` | **F4 activo** (estado actual): el v2 es el diseño por defecto |
+| `0` | F4 apagado: se ve el diseño anterior; el v2 queda como prueba por dispositivo |
+
+- Se cambia en las variables de entorno del front en **Coolify** y se redeploya
+  (Vite inyecta el valor en el build).
+- El **dispositivo siempre manda**: `localStorage['mobos:tema-v2'] = '0'`
+  vuelve al diseño anterior y `'1'` regresa al v2; el selector visible está en
+  **Configuración → Sistema → Preferencias** («Volver al diseño anterior»).
+- Verificación después de activar (o de apagar):
+  1. `node scripts/qa-241-shell-produccion.mjs` → AA del shell en producción
+     (sale con código 1 si baja de AA).
+  2. `npm run test:e2e:smoke` y el gate responsive
+     (`e2e/dsn-responsive-mobile.spec.js`).
+  3. `npm test` cubre el switch y la precedencia del dispositivo
+     (`src/lib/temaV2.test.js`).
+- **Rollback**: `VITE_TEMA_V2=0` + redeploy, o por dispositivo con el selector
+  de Preferencias.
 
 **Rollout aprobado.** El rediseño v2 ("device ops") es el **diseño por defecto**
-desde el 24-09 (`TEMA_V2_POR_DEFECTO = true`): el paso 2 activó el **shell**
-(barra lateral + superior, estados de navegación y densidad) con los tokens v2,
-con QA antes/después en claro, oscuro y mobile. El paso 3 activó el **tablero
-operativo** (`/ops`), que ahora se abre sin flag y suma los patrones del mock.
+desde el 24-09: el paso 2 activó el **shell** (barra lateral + superior, estados
+de navegación y densidad) con los tokens v2, con QA antes/después en claro,
+oscuro y mobile. El paso 3 activó el **tablero operativo** (`/ops`), que ahora
+se abre sin flag y suma los patrones del mock.
 
 ## Cómo volver al diseño anterior (opt-out por dispositivo)
 
@@ -36,9 +61,13 @@ carpeta (`docs/rediseno/`).
 
 ## Accesibilidad (medida, no estimada)
 
+**Cerrada.** El cierre completo —local y producción, con capturas— está en
+[`../QA-241-shell-aa.md`](../QA-241-shell-aa.md): 8/8 estados locales y
+**0 bajos de AA** en producción (v1.0.175). Resumen de lo medido:
+
 - Cada captura viene con **medición de contraste AA** en el navegador
-  (`e2e/dsn-a11y` + `e2e/dsn-241-dominios`): 0 textos por debajo de AA en las
-  pantallas y combos medidos, en claro y oscuro.
+  (`e2e/dsn-241-a11y.spec.js` + `e2e/dsn-241-dominios.spec.js`): 0 textos por
+  debajo de AA en las pantallas y combos medidos, en claro y oscuro.
 - Las mediciones dejaron 5 hallazgos del tema claro que quedaron corregidos en
   v2 (rótulos del hero verde, encabezados de tabla, verde vivo como texto, chip
   neutro en oscuro y tintes de chips): el detalle está en
