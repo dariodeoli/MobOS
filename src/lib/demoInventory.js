@@ -34,7 +34,7 @@ const PROVEEDORES = [
 
 const COTIZACION = 7300
 // Usuario demo que firma la verificación: mismo shape que el API ({ id, name }).
-const verificadorDeDemo = (semilla) => { const usuario = EQUIPO_DEMO[Math.abs(Number(semilla) || 0) % EQUIPO_DEMO.length]; return { id: usuario.id, name: usuario.nombre, role: usuario.rol } }
+const verificadorDeDemo = (semilla) => { const usuario = EQUIPO_DEMO[Math.abs(Number(semilla) || 0) % EQUIPO_DEMO.length]; return { id: usuario.id, name: usuario.nombre, role: usuario.rol, hasAvatar: true } }
 const semillaDe = (valor) => String(valor || '').split('').reduce((suma, char) => suma + char.charCodeAt(0), 0)
 
 // 24 unidades: 15 disponibles, 3 reservadas, 3 vendidas, 2 en revisión y 1 en
@@ -82,6 +82,9 @@ function unidad(producto, indice) {
     notes: indice % 6 === 0 ? 'Ingresó con caja abierta .' : '',
     createdAt: hace(30 - indice),
     lastVerifiedBy: indice % 4 === 0 ? verificadorDeDemo(indice) : null,
+    // #219: la demo espeja la forma real (`lastVerifiedAt` es lo que leen la
+    // fila y la ficha); `verifiedAt` queda por compatibilidad.
+    lastVerifiedAt: indice % 4 === 0 ? hace(indice % 10, 15) : null,
     verifiedAt: indice % 4 === 0 ? hace(indice % 10, 15) : null,
     events: estado === 'SOLD' ? [{ id: `demo-evento-${indice}`, type: 'sale', title: 'Venta', detail: 'Vendida en la demo', at: hace(5) }] : [],
     sale: estado === 'SOLD' ? { fulfillmentStatus: indice === 19 ? 'DELIVERED' : indice === 20 ? 'READY_FOR_PICKUP' : 'PROCESSING', orderNumber: `MOB-00${40 + indice}` } : null,
@@ -166,6 +169,7 @@ export function createDemoUnit(data = {}) {
       notes: data.notes || '',
       createdAt: new Date().toISOString(),
       lastVerifiedBy: null,
+      lastVerifiedAt: null,
       verifiedAt: null,
       sale: null,
       costPyg: data.costPyg === undefined ? null : data.costPyg,
@@ -213,7 +217,8 @@ export function verifyDemoUnit(data = {}) {
   unit.status = llegabaEnTransito ? 'AVAILABLE' : unit.status
   if (data.locationId) unit.locationId = data.locationId
   unit.lastVerifiedBy = verificadorDeDemo(semillaDe(unit.serial))
-  unit.verifiedAt = new Date().toISOString()
+  unit.lastVerifiedAt = new Date().toISOString()
+  unit.verifiedAt = unit.lastVerifiedAt
   // #218: al recibir la última unidad, el lote queda con llegada real y quién
   // lo recibió, igual que en el flujo real.
   if (llegabaEnTransito) {

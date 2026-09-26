@@ -393,7 +393,7 @@ export default function Vendedores() {
             <span className="sr-only">{v.nombre}</span>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2.5">
-                <Avatar user={{ id: v.id, name: v.nombre, hasAvatar: esDemo ? false : v.hasAvatar }} size="lg" />
+                <Avatar user={{ id: v.id, name: v.nombre, hasAvatar: v.hasAvatar }} size="lg" />
                 <div className="min-w-0">
                   <input aria-label={`Nombre de ${v.nombre}`} defaultValue={v.nombre} onBlur={event => { const name = event.target.value.trim(); if (name && name !== v.nombre) actualizarUsuario(v.id, esDemo ? { nombre: name } : { name }) }} className="min-h-11 min-w-0 max-w-[15rem] bg-transparent text-[13px] font-bold outline-none border-b border-transparent focus:border-fono md:min-h-7" />
                   {v.email && <p className={CELDA_DATO}>{v.email}</p>}

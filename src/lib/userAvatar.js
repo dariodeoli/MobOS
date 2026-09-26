@@ -1,5 +1,6 @@
 import { API_URL } from '@/lib/api/client'
 import { isDemoRuntime } from '@/lib/demoMode'
+import { avatarDemo } from '@/lib/demo/avatares'
 
 // Foto de perfil del usuario: se pide una vez por pestaña y se guarda como data
 // URL para poder mostrarla en la configuración y en las cronologías. La caché
@@ -9,8 +10,9 @@ import { isDemoRuntime } from '@/lib/demoMode'
 const cache = new Map()
 
 async function cargarAvatar(userId) {
-  // La demo no tiene fotos reales: sin pedido al API (#192).
-  if (!API_URL || isDemoRuntime) return ''
+  // La demo no pide fotos al API (#192): usa el retrato ficticio del equipo
+  // demo, determinista por id (#219).
+  if (!API_URL || isDemoRuntime) return isDemoRuntime ? avatarDemo(userId) : ''
   try {
     const response = await fetch(`${API_URL}/api/users/${encodeURIComponent(userId)}/avatar`, { credentials: 'include', headers: { Accept: 'image/*' } })
     if (!response.ok) return ''
