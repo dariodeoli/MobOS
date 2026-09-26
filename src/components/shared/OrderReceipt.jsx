@@ -683,9 +683,13 @@ export async function printInternalReceipt(payment, order, options = {}) {
 
 // Proforma / presupuesto de una cotización: ítems, descuento, total y validez,
 // sin el QR de aceptación (es un presupuesto impreso, no un enlace vivo).
-export async function buildProformaHtml(quote, { format = 'a4' } = {}) {
+export async function buildProformaHtml(quote, { format = 'a4', enlace = '' } = {}) {
   const items = Array.isArray(quote.items) ? quote.items : []
   const logo = await getLogoDataUrl()
+  // Enlace público de aceptación (opcional): el PDF que se comparte por
+  // WhatsApp/correo lleva el QR para aceptar o rechazar sin instalar nada.
+  let qr = ''
+  try { if (enlace) qr = await qrDataUrl(enlace, { nivel: 'H', margen: 2, ancho: 320 }) } catch { /* queda el enlace impreso */ }
   const empresa = quote.tenant?.name || quote.companyName || ''
   const sucursal = quote.branch || null
   const cliente = quote.customer?.name || quote.customerName || 'Consumidor final'
@@ -694,7 +698,15 @@ export async function buildProformaHtml(quote, { format = 'a4' } = {}) {
   const validez = quote.validUntil ? `Válida hasta el ${new Date(quote.validUntil).toLocaleDateString('es-PY')}` : 'Sin vencimiento'
   const empresaCard = `<div class="card"><div class="label">Empresa</div><div>${escapeHtml(empresa || APP_NAME)}${sucursal?.name ? ` · ${escapeHtml(sucursal.name)}` : ''}${quote.seller?.name ? `<br>Vendedor: ${escapeHtml(quote.seller.name)}` : ''}</div></div>`
   const clienteCard = `<div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(cliente)}</strong>${quote.customer?.document ? ` · ${escapeHtml(quote.customer.document)}` : ''}${quote.customer?.phone ? `<br>${escapeHtml(`${quote.customer.countryCode || ''} ${quote.customer.phone}`.trim())}` : ''}</div></div>`
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Proforma ${escapeHtml(quote.number || '')}</title><style>${styles(format)}</style></head><body>
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Proforma ${escapeHtml(quote.number || '')}</title><style>${styles(format)}
+    .qr-fila{display:flex;align-items:center;gap:10px}.qr-fila .qr{width:24mm;margin:0;flex:0 0 auto}.qr-fila .small{text-align:left;margin:0}
+    /* A4 compacto (como el resto de los impresos): la cotización entra en una
+       hoja aunque sume el QR de aceptación y las firmas. */
+    ${format === 'a4' ? `@page{margin:12mm 14mm}.card{padding:7px 9px;margin:6px 0}.card .label{margin-bottom:2px}
+      .nofiscal{margin:7px 0;padding:5px 8px;font-size:10px}.brand{padding-bottom:6px;margin-bottom:7px}
+      h1{font-size:18px}body{font-size:11.5px;line-height:1.4}p{margin:3px 0}footer{margin-top:7px;padding-top:5px}
+      .firmas{margin:16px 0 4px}` : ''}
+  </style></head><body>
     ${header('Factura proforma', `Presupuesto ${quote.number || ''} · ${quote.createdAt ? new Date(quote.createdAt).toLocaleString('es-PY') : ''}`, logo)}
     ${avisoNoFiscal()}
     ${empresaCard}
@@ -708,7 +720,8 @@ export async function buildProformaHtml(quote, { format = 'a4' } = {}) {
     </table>
     ${quote.notes ? `<p class="muted">${escapeHtml(quote.notes)}</p>` : ''}
     <p class="muted">Presupuesto sin validez fiscal: no reemplaza a la factura.</p>
-    ${firmas([{ rol: 'Aceptación del cliente' }], { observaciones: true, estrecho: Boolean(thermalWidth(format)) })}
+    ${enlace ? `<div class="card"><div class="label">Aceptación en línea</div><div class="qr-fila">${qr ? `<img class="qr" src="${qr}" alt="QR de la cotización">` : ''}<p class="small">Escaneá o abrí el enlace para aceptar o rechazar la cotización:<br>${escapeHtml(enlace)}</p></div></div>` : ''}
+    ${firmas([{ rol: 'Aceptación del cliente' }], { observaciones: format !== 'a4', estrecho: Boolean(thermalWidth(format)) })}
     <footer>Documento no fiscal. Proforma generada por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
   </body></html>`
 }
