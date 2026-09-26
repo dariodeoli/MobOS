@@ -35,6 +35,34 @@ function imeiValido(base14) {
 
 const sufijo = () => `${Date.now().toString().slice(-7)}${Math.floor(Math.random() * 90 + 10)}`
 
+// Agente de impresión simulado (como en etiquetas-unidad.spec.js): /health dice
+// presente y /print guarda el ticket que mandó la app.
+async function agenteFalso(page, capturados) {
+  const cors = {
+    'access-control-allow-origin': '*',
+    'access-control-allow-headers': 'content-type,x-mobos-print-token',
+    'access-control-allow-methods': 'GET,POST,OPTIONS',
+  }
+  await page.route('http://127.0.0.1:17890/**', (ruta) => {
+    const peticion = ruta.request()
+    if (peticion.method() === 'OPTIONS') return ruta.fulfill({ status: 204, headers: cors })
+    if (peticion.url().includes('/health')) {
+      return ruta.fulfill({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, version: '1.6.3', equipo: 'e2e' }) })
+    }
+    if (peticion.method() === 'POST' && peticion.url().endsWith('/print')) {
+      capturados.push(JSON.parse(peticion.postData() || '{}'))
+      return ruta.fulfill({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, estado: 'impreso', transporte: 'lan' }) })
+    }
+    return ruta.fulfill({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify({ ok: true }) })
+  })
+}
+
+const textoDelTicket = (capturado) => Buffer.from(String(capturado?.data || ''), 'base64').toString('latin1')
+const sinDialogo = (page) => expect(page.locator('iframe[aria-hidden="true"]')).toHaveCount(0)
+
+// PNG de 1×1 para la foto de la incidencia.
+const PNG_E2E = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
+
 async function prepararLote(page, cantidad, seriales) {
   const marca = sufijo()
   const producto = await apiPagina(page, '/api/products', {
@@ -164,6 +192,12 @@ test('F5 · recepción: escaneo contra el manifiesto, sobrante con nota y stock 
   await page.getByRole('dialog').getByRole('button', { name: 'Registrar' }).click()
   await expect(page.getByText('Incidencia registrada')).toBeVisible()
 
+  // La incidencia acepta foto: se adjunta y queda listada en el diálogo.
+  await sobrante.getByRole('button', { name: 'Editar nota' }).click()
+  await page.getByRole('dialog').locator('input[type=file]').setInputFiles({ name: `sobrante-${sufijo()}.png`, mimeType: 'image/png', buffer: PNG_E2E })
+  await expect(page.getByRole('dialog').getByText(/sobrante-\d+\.png/)).toBeVisible({ timeout: 15_000 })
+  await page.getByRole('dialog').getByRole('button', { name: 'Volver' }).click()
+
   // Depósito destino (sugerido o elegido) y confirmación: B queda faltante.
   await page.getByLabel('Depósito destino').selectOption({ label: `Depósito E2E ${marca} (E${marca.slice(-4)})` })
   await page.setViewportSize({ width: 1280, height: 900 })
@@ -259,4 +293,114 @@ test('F5 · recibir todo el lote con depósito alternativo (y freno si falta IME
     const unidad = (unidades.body?.items || unidades.body || []).find((filaUnidad) => filaUnidad.serial === serial)
     expect(unidad?.locationId || unidad?.location?.id, JSON.stringify(unidades.body).slice(0, 200)).toBe(depositoB.body.id)
   }
+})
+
+test('F5 · incidencia con foto en una unidad escaneada (y freno en las pendientes)', async ({ page }) => {
+  mkdirSync(DIR, { recursive: true })
+  await page.goto('/recepcion')
+  await expect(page.getByTestId('recepcion')).toBeVisible()
+
+  const marca = sufijo()
+  const base = `4901542${marca.slice(-7)}`
+  const imeiA = imeiValido(base)
+  const imeiB = imeiValido(String(Number(base) + 1).padStart(14, '0'))
+  const { lote } = await prepararLote(page, 2, [imeiA, imeiB])
+  await page.getByRole('button', { name: 'Actualizar' }).click()
+  const llegada = page.getByTestId('recepcion-llegada').filter({ hasText: lote.code })
+  await expect(llegada).toBeVisible()
+  await llegada.getByRole('button', { name: 'Recibir' }).click()
+
+  const activa = page.getByTestId('recepcion-activa')
+  await expect(activa).toBeVisible()
+  const tarjetaA = activa.getByTestId('recepcion-esperado').filter({ hasText: imeiA })
+  const tarjetaB = activa.getByTestId('recepcion-esperado').filter({ hasText: imeiB })
+
+  // Una unidad sin escanear no inventa incidencias: se explica el camino.
+  await expect(tarjetaB.getByText(/Escaneá su IMEI para marcar dañado o incorrecto/)).toBeVisible()
+  await expect(tarjetaB.getByRole('button', { name: 'Dañado' })).toHaveCount(0)
+  await expect(tarjetaA.getByRole('button', { name: 'Dañado' })).toHaveCount(0)
+
+  // Escaneada la unidad, la incidencia se registra sobre ella (con nota y foto).
+  await page.getByLabel('Código a escanear').fill(imeiA)
+  await page.getByRole('button', { name: 'Registrar' }).click()
+  await expect(activa.getByText('1 recibidas')).toBeVisible()
+  await expect(tarjetaA.getByRole('button', { name: 'Dañado' })).toBeVisible()
+  await tarjetaA.getByRole('button', { name: 'Dañado' }).click()
+  const dialogo = page.getByRole('dialog')
+  await expect(dialogo.getByText(/Incidencia: Dañado/)).toBeVisible()
+  await page.getByLabel('Nota').fill('Pantalla rayada al abrir la caja (e2e)')
+  const foto = `incidencia-${marca}.png`
+  await dialogo.locator('input[type=file]').setInputFiles({ name: foto, mimeType: 'image/png', buffer: PNG_E2E })
+  await expect(dialogo.getByText(foto)).toBeVisible({ timeout: 15_000 })
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.screenshot({ path: join(DIR, 'recepcion-incidencia-foto-claro-desktop.png') })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: join(DIR, 'recepcion-incidencia-foto-claro-mobile.png') })
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await dialogo.getByRole('button', { name: 'Registrar' }).click()
+  await expect(page.getByText('Incidencia registrada')).toBeVisible()
+  // El chip del estado queda en la tarjeta junto a la nota y la foto.
+  await expect(tarjetaA.locator('span').filter({ hasText: /^Dañado$/ }).first()).toBeVisible()
+  await expect(tarjetaA.getByText('Pantalla rayada al abrir la caja (e2e)')).toBeVisible()
+  await expect(tarjetaA.getByText(foto)).toBeVisible()
+
+  // La API confirma resultado, nota y adjunto sobre la unidad de la recepción.
+  const lista = await apiPagina(page, `/api/supply/receptions?shipmentId=${lote.id}`)
+  const recepcionId = (lista.body?.recepciones || [])[0]?.id
+  const detalle = await apiPagina(page, `/api/supply/receptions?id=${recepcionId}`)
+  const item = (detalle.body?.recepcion?.items || []).find((fila) => fila.serial === imeiA)
+  expect(item?.resultado).toBe('DANADO')
+  expect(item?.nota).toContain('Pantalla rayada')
+  const adjuntos = await apiPagina(page, `/api/attachments?entity=SUPPLY_RECEPTION&entityId=${item?.id}`)
+  expect((adjuntos.body || []).map((fila) => fila.fileName)).toContain(foto)
+
+  await page.getByRole('button', { name: 'Cancelar recepción' }).click()
+  await expect(page.getByTestId('recepcion')).toBeVisible()
+})
+
+test('F3 · las etiquetas de la preparación salen por el agente (con pendientes)', async ({ page }) => {
+  mkdirSync(DIR, { recursive: true })
+  const capturados = []
+  await agenteFalso(page, capturados)
+  await page.goto('/preparacion')
+  await expect(page.getByTestId('preparar-compra')).toBeVisible()
+
+  const marca = sufijo()
+  const base = `4901542${marca.slice(-7)}`
+  const imeiA = imeiValido(base)
+  const { compra } = await prepararLote(page, 2, [imeiA])
+  await page.getByRole('button', { name: 'Actualizar' }).click()
+  const fila = page.getByTestId('preparar-compra-fila').filter({ hasText: compra.code })
+  await fila.getByRole('button', { name: 'Etiquetas' }).click()
+
+  const listaEtiquetas = page.getByTestId('etiquetas-preparacion-lista')
+  await expect(listaEtiquetas).toBeVisible()
+  await expect(listaEtiquetas.getByText('1/2')).toBeVisible()
+  await expect(listaEtiquetas.getByText('2/2')).toBeVisible()
+  await expect(listaEtiquetas.getByText(imeiA)).toBeVisible()
+  await expect(listaEtiquetas.getByText(/Pendiente · se carga antes de despachar/)).toBeVisible()
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.screenshot({ path: join(DIR, 'etiquetas-preparacion-claro-desktop.png') })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: join(DIR, 'etiquetas-preparacion-claro-mobile.png') })
+  await page.setViewportSize({ width: 1280, height: 900 })
+
+  // Impresión de la tira completa: un ticket con las dos unidades.
+  await page.getByRole('button', { name: 'Imprimir etiquetas' }).click()
+  await expect(page.getByText('Etiquetas enviadas a la impresora.')).toBeVisible({ timeout: 15_000 })
+  expect(capturados).toHaveLength(1)
+  expect(capturados[0].tipo).toBe('etiquetas-lote')
+  const tira = textoDelTicket(capturados[0])
+  expect(tira).toContain(imeiA)
+  expect(tira).toContain('PENDIENTE')
+  expect(tira).toContain(compra.code)
+
+  // Reimpresión de una sola unidad (la que ya tiene IMEI).
+  await listaEtiquetas.getByRole('button', { name: 'Reimprimir' }).first().click()
+  await expect(page.getByText('Etiqueta enviada a la impresora.')).toBeVisible({ timeout: 15_000 })
+  expect(capturados).toHaveLength(2)
+  expect(capturados[1].tipo).toBe('etiquetas-lote')
+  expect(textoDelTicket(capturados[1])).toContain(imeiA)
+  expect(textoDelTicket(capturados[1])).not.toContain('PENDIENTE')
+  await sinDialogo(page)
 })
