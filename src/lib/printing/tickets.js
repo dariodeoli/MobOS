@@ -660,6 +660,66 @@ export function ticketComprobanteRecepcion(datos = {}, { ancho = 80 } = {}) {
   return t.avanza(2).corte()
 }
 
+// Lista de compra del abastecimiento (#250 §11): lo que el comprador lleva al
+// proveedor — código de la compra, recorrido, comprador, productos agrupados
+// con cantidades y prioridades, IMEI cargados/pendientes y el QR/barras del
+// panel. El control se firma al cerrar la compra.
+export function ticketListaCompra(datos = {}, { ancho = 80 } = {}) {
+  const t = crearTicket({ ancho }).iniciar()
+  const estrecho = Number(ancho) <= 58
+  const par = (etiqueta, valor) => {
+    if (valor === '' || valor === null || valor === undefined) return
+    if (estrecho) { t.texto(etiqueta); t.par('  ', String(valor)) } else t.par(etiqueta, valor)
+  }
+  t.centrado(datos.emisor || APP_NAME).negrita().centrado('LISTA DE COMPRA').negrita(false)
+  if (datos.code) t.centrado(datos.code)
+  // La flecha del recorrido no viaja en CP850: el rollo usa `->`.
+  if (datos.recorrido) t.centrado(String(datos.recorrido).replace(' → ', ' -> '))
+  if (datos.fecha) t.centrado(datos.fecha)
+  t.linea()
+  par('Estado', datos.estado)
+  par('Comprador', datos.comprador)
+  par('Proveedor', datos.proveedor)
+  par('Referencia', datos.referencia)
+  par('Destino', datos.destino)
+  if (datos.notas) t.texto(`Notas: ${datos.notas}`)
+  t.linea()
+
+  const resumen = datos.resumen || {}
+  t.negrita().texto(`Productos (${resumen.lineas || 0} líneas · ${resumen.unidades || 0} unidades)`).negrita(false)
+  for (const linea of datos.lineas || []) {
+    t.negrita().texto(`[ ] ${[linea.producto, linea.variante].filter(Boolean).join(' · ')}`).negrita(false)
+    // En dos líneas que envuelven solas: el `par` truncaba la condición
+    // cuando el contexto de prioridad no entraba al lado.
+    t.texto(`  ${linea.cantidad} u${linea.condicion ? ` · ${linea.condicion}` : ''}`)
+    const marcas = [
+      linea.prioridad?.etiqueta ? `Prioridad ${linea.prioridad.etiqueta}` : '',
+      ...linea.origenes,
+      linea.prometidaTexto ? `Prometida ${linea.prometidaTexto}` : '',
+      linea.pedidos.length ? `Pedido ${linea.pedidos.join(', ')}` : '',
+    ].filter(Boolean)
+    if (marcas.length) t.texto(`  ${marcas.join(' · ')}`)
+    if (linea.conImei || linea.pendientes) t.texto(`  IMEI: ${linea.conImei} cargado(s) · ${linea.pendientes} pendiente(s)`)
+  }
+  if (!(datos.lineas || []).length) t.texto('Sin productos en la compra.')
+  t.linea()
+  par('Unidades', resumen.unidades)
+  par('Con IMEI', resumen.conImei)
+  if (resumen.pendientes) par('IMEI pendientes', resumen.pendientes)
+  if (resumen.urgentes) par('Líneas urgentes/altas', resumen.urgentes)
+  t.linea()
+  if (datos.enlace) {
+    t.qr(datos.enlace, { tamano: 7, etiqueta: 'PANEL DE LA COMPRA' })
+    t.centrado(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el panel de la compra.')
+  } else if (datos.code) {
+    t.barcode(datos.code, { etiqueta: 'COMPRA', formato: formatoDeCodigo(datos.code) })
+    t.centrado('Escaneá para abrir el panel de la compra.')
+  }
+  bloqueFirma(t, ['Compró / control'], { ancho, observaciones: false })
+  t.centrado(LEYENDA_NO_FISCAL)
+  return t.avanza(2).corte()
+}
+
 // Recibo interno de un cobro puntual (no fiscal): monto, medio y referencia,
 // con las firmas de quien recibe y quien entrega.
 export function ticketReciboInterno(payment = {}, order = {}, { ancho = 80 } = {}) {
