@@ -1,0 +1,142 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "1.0.181",
+  "fecha": "2026-09-26T13:09:45.835Z",
+  "pantallas": [
+    {
+      "pantalla": "01-inicio",
+      "ruta": "/resumen",
+      "señal": "Facturado",
+      "elementos": 1,
+      "vacio": false,
+      "archivo": "01-inicio-desktop-claro.jpg",
+      "texto": "Acá ves el movimiento de la tienda en el período elegido. Hoy FACTURADO ↑ 34.1% Gs 14.280.000 Hoy · período anterior Gs 10.650.000 COBRADO Gs 14.180.000 2 pagadas PENDIENTE Gs 100."
+    },
+    {
+      "pantalla": "02-pos",
+      "ruta": "/pos",
+      "señal": "Nueva venta",
+      "elementos": 1,
+      "vacio": false,
+      "archivo": "02-pos-desktop-claro.jpg",
+      "texto": "Nueva venta Cliente, productos y cobro en una sola página. Hoy: 26/09/2026 Analytics Ventas suspendidas TOTAL DE ESTA VENTA Gs 0 0 productos · 0 unidades Agregá productos para empe"
+    },
+    {
+      "pantalla": "03-pedidos",
+      "ruta": "/pedidos",
+      "señal": "pedido-fila",
+      "elementos": 15,
+      "vacio": false,
+      "archivo": "03-pedidos-desktop-claro.jpg",
+      "texto": "Una fila por pedido, alineada y ordenable: entrá para ver artículos, IMEIs, cliente y cronología. Activos No pagados Pendientes Parciales A crédito Archivados Todos Actualizar ACTI"
+    },
+    {
+      "pantalla": "04-clientes",
+      "ruta": "/clientes",
+      "señal": "cliente-fila",
+      "elementos": 12,
+      "vacio": false,
+      "archivo": "04-clientes-desktop-claro.jpg",
+      "texto": "Demo local: ingresá únicamente datos ficticios. Todos Mayoristas Con deuda Con crédito Recientes Nombre Total gastado + Crear cliente 12 clientes 3 mayoristas 9 cliente final CLIEN"
+    },
+    {
+      "pantalla": "05-inventario",
+      "ruta": "/inventario/unidades",
+      "señal": "inventario-fila",
+      "elementos": 23,
+      "vacio": false,
+      "archivo": "05-inventario-desktop-claro.jpg",
+      "texto": "Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría. + Recibir unidad Reservar Transferir Recientes Modelo A→Z Modelo Z→A Nuevos primero Seminuevos primero M"
+    },
+    {
+      "pantalla": "06-taller-rack",
+      "ruta": "/inventario/taller",
+      "señal": "rack-taller",
+      "elementos": 1,
+      "vacio": false,
+      "archivo": "06-taller-rack-desktop-claro.jpg",
+      "texto": "Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría. + Recibir unidad Reservar Transferir Recientes Modelo A→Z Modelo Z→A Nuevos primero Seminuevos primero M"
+    },
+    {
+      "pantalla": "07-compras",
+      "ruta": "/compras",
+      "señal": "compra-fila",
+      "elementos": 2,
+      "vacio": true,
+      "archivo": "07-compras-desktop-claro.jpg",
+      "texto": "Compras Productos Anticipos, crédito y costos finales auditables por equipo o lote. Proveedores Elegí un proveedor ＋ Nuevo proveedor Sin sucursal (general) Casa Central Sucursal Vi"
+    },
+    {
+      "pantalla": "08-finanzas-caja",
+      "ruta": "/finanzas/caja",
+      "señal": "Saldo esperado",
+      "elementos": 1,
+      "vacio": false,
+      "archivo": "08-finanzas-caja-desktop-claro.jpg",
+      "texto": "Caja Gastos Bancos y cuentas Conciliación Publicidad Apertura física en Gs., saldos, pendientes, cheques y margen con costos congelados. ESTADO Abierta Turno de Hernán Acosta · 26/"
+    },
+    {
+      "pantalla": "09-finanzas-bancos",
+      "ruta": "/finanzas/bancos",
+      "señal": "cuenta-fila",
+      "elementos": 9,
+      "vacio": false,
+      "archivo": "09-finanzas-bancos-desktop-claro.jpg",
+      "texto": "Caja Gastos Bancos y cuentas Conciliación Publicidad Configurá los medios de pago. Desactivar conserva la cuenta y su historial. Añadir cuenta CUENTAS ACTIVAS 9 de 9 cuenta(s) INAC"
+    },
+    {
+      "pantalla": "10-finanzas-gastos",
+      "ruta": "/finanzas/gastos",
+      "señal": "gasto-fila",
+      "elementos": 0,
+      "vacio": false,
+      "archivo": "10-finanzas-gastos-desktop-claro.jpg",
+      "texto": "Caja Gastos Bancos y cuentas Conciliación Publicidad Registrar salida, cheque o adelanto La cotización queda congelada al guardar. Los cheques quedan pendientes hasta cobrarse o an"
+    },
+    {
+      "pantalla": "11-finanzas-creditos",
+      "ruta": "/finanzas/creditos",
+      "señal": "credito-fila",
+      "elementos": 0,
+      "vacio": false,
+      "archivo": "11-finanzas-creditos-desktop-claro.jpg",
+      "texto": "Caja Gastos Bancos y cuentas Conciliación Publicidad Apertura física en Gs., saldos, pendientes, cheques y margen con costos congelados. ESTADO Abierta Turno de Hernán Acosta · 26/"
+    },
+    {
+      "pantalla": "12-finanzas-conciliacion",
+      "ruta": "/finanzas/conciliacion",
+      "señal": "Ingresos conciliables",
+      "elementos": 1,
+      "vacio": false,
+      "archivo": "12-finanzas-conciliacion-desktop-claro.jpg",
+      "texto": "Caja Gastos Bancos y cuentas Conciliación Publicidad Conciliación y trazabilidad Ingresos por cuenta, medio y procesadora. Conciliá en lote el depósito o la transferencia recibida "
+    },
+    {
+      "pantalla": "13-autorizaciones",
+      "ruta": "/autorizaciones",
+      "señal": "autorizacion-fila",
+      "elementos": 0,
+      "vacio": false,
+      "archivo": "13-autorizaciones-desktop-claro.jpg",
+      "texto": "Autorizaciones comerciales La demo no tiene solicitudes reales. Ingresá con una cuenta real para autorizar condiciones de clientes."
+    },
+    {
+      "pantalla": "14-servicio",
+      "ruta": "/servicio",
+      "señal": "servicio-fila",
+      "elementos": 4,
+      "vacio": false,
+      "archivo": "14-servicio-desktop-claro.jpg",
+      "texto": "Todo Tablero Servicio Garantías Recepción, diagnóstico, reparación, costos y entrega de cada equipo. Catálogo + Nueva orden Activos (4) Recibido (1) Diagnóstico (1) Con técnico (0)"
+    },
+    {
+      "pantalla": "15-equipo",
+      "ruta": "/configuracion/equipo",
+      "señal": "integrante-fila",
+      "elementos": 6,
+      "vacio": false,
+      "archivo": "15-equipo-desktop-claro.jpg",
+      "texto": "Mi cuenta Organización Equipo y acceso Comercial Seguridad y auditoría Dispositivos Sistema Integrantes, invitaciones, roles, horarios y comisiones. Integrantes Sumá personas, acti"
+    }
+  ]
+}
