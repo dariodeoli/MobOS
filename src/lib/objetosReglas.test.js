@@ -559,7 +559,8 @@ test('el QR del informe sale de lib/qr y shared/CodigoQr (#240)', () => {
   assert.match(qr, /export const QR_OPCIONES =/)
   assert.match(readFileSync(join(RAIZ, 'components/shared/CodigoQr.jsx'), 'utf8'), /CodigoQr as default/, 'el puente delega en la biblioteca (lote 35)')
   assert.match(leerBiblioteca('CodigoQr.jsx'), /export default function CodigoQr\(/)
-  const ficha = readFileSync(join(RAIZ, 'components/shared/FichaCertificado.jsx'), 'utf8')
+  assert.match(readFileSync(join(RAIZ, 'components/shared/FichaCertificado.jsx'), 'utf8'), /FichaCertificado as default/, 'la ficha delega en la biblioteca (lote 40)')
+  const ficha = leerBiblioteca('FichaCertificado.jsx')
   for (const objeto of ['ChipEstado', 'ChipsLocks', 'CodigoQr', 'GradoBadge', 'MedidorBateria']) {
     assert.match(ficha, new RegExp(`<${objeto}\\b`), `la ficha de certificado compone ${objeto}`)
   }
