@@ -180,16 +180,32 @@ await paso('checklist: persiste al cerrar y reabrir la ficha', async (shot) => {
   return `${texto} · repuestos no-OEM persistidos`
 })
 
-await paso('verificación funcional: un usuario demo firma la unidad', async (shot) => {
-  const ficha = page.getByRole('dialog')
-  const antes = await ficha.innerText()
-  await ficha.getByRole('button', { name: '✓ Verificado' }).click()
-  await page.getByText(/verificado\./i).waitFor({ state: 'visible', timeout: 20000 })
-  await esperar(900)
+await paso('verificación funcional: un usuario demo firma con su foto', async (shot) => {
+  const serial = resultado.serialChecklist
+  let ficha = page.getByRole('dialog')
+  const antes = (await ficha.innerText()).replace(/\s+/g, ' ')
+  const boton = ficha.getByRole('button', { name: '✓ Verificado' })
+  if (await boton.count()) {
+    await boton.click()
+    await page.getByText(/verificado\./i).waitFor({ state: 'visible', timeout: 20000 })
+    await esperar(700)
+  }
+  // Se reabre la ficha para leer la firma ya persistida en la demo.
+  await page.keyboard.press('Escape')
+  await esperar(500)
+  const fila = serial ? await buscarUnidad(serial) : page.getByTestId('inventario-fila').first()
+  await fila.waitFor({ state: 'visible', timeout: 20000 })
+  await fila.click()
+  ficha = page.getByRole('dialog')
+  await ficha.waitFor({ state: 'visible', timeout: 15000 })
+  const firma = ficha.locator('img[alt^="Foto de"]').first()
+  await firma.waitFor({ state: 'visible', timeout: 15000 })
+  const src = await firma.getAttribute('src')
+  if (!/^data:image\/svg\+xml/.test(String(src))) throw new Error('la firma no muestra la foto ficticia del usuario demo')
+  const despues = (await ficha.innerText()).replace(/\s+/g, ' ')
+  if (!/Verificado por/.test(despues)) throw new Error('la ficha no muestra «Verificado por» tras firmar')
   await shot('verificacion-firmada')
-  const despues = await ficha.innerText()
-  if (!/Verificado por|verificad/i.test(despues)) throw new Error('la verificación física no dejó firma visible')
-  return `firma demo registrada (${antes.includes('Sin verificación') ? 'venía sin verificar' : 'se sumó otra'})`
+  return `firma demo con foto (${antes.includes('Sin verificación') || antes.includes('Sin verificar') ? 'venía sin verificar' : 'se sumó otra'})`
 })
 
 await paso('equipo demo: nombres y correos ficticios (sin «demo»)', async (shot) => {
@@ -201,8 +217,15 @@ await paso('equipo demo: nombres y correos ficticios (sin «demo»)', async (sho
   if (correos.length < 4) throw new Error(`se esperaban ≥4 correos que empiecen con 35: ${correos.join(', ') || 'ninguno'}`)
   const conDemo = textos.filter((texto) => /demo/i.test(texto))
   if (conDemo.length) throw new Error(`el equipo demo menciona «demo»: ${conDemo[0].slice(0, 80)}`)
+  // #219: foto de perfil ficticia (data URI local) en cada integrante demo.
+  const fotos = filas.locator('img[alt^="Foto de"]')
+  const cantidadFotos = await fotos.count()
+  if (cantidadFotos < 4) throw new Error(`el equipo demo muestra ${cantidadFotos} fotos, se esperaban ≥4`)
+  for (const src of await fotos.evaluateAll((nodos) => nodos.slice(0, 8).map((nodo) => nodo.getAttribute('src') || ''))) {
+    if (!/^data:image\/svg\+xml/.test(src)) throw new Error(`la foto demo no es local: ${String(src).slice(0, 60)}`)
+  }
   await shot('equipo-demo')
-  return `${correos.length} integrantes demo · correos 35… sin «demo» (p. ej. ${correos[0]})`
+  return `${correos.length} integrantes demo con foto · correos 35… sin «demo» (p. ej. ${correos[0]})`
 })
 
 await browser.close()

@@ -1,13 +1,13 @@
 # Recorrido funcional de producción · Inventario / stock (#187)
 
 - Base: https://app.moboss.online
-- Versión desplegada: v1.0.175
-- Fecha: 2026-09-26T04:05:31.956Z
+- Versión desplegada: v1.0.178
+- Fecha: 2026-09-26T08:21:51.789Z
 - Método: Playwright headless (chromium) sobre la demo pública de producción
 
 ## Pasos
 
-- ✅ **entrada a la demo como dueño** — versión 1.0.175 · perfiles demo visibles: true · capturas: 01-acceso-demo.jpg, 02-panel-demo.jpg
+- ✅ **entrada a la demo como dueño** — versión 1.0.178 · perfiles demo visibles: true · capturas: 01-acceso-demo.jpg, 02-panel-demo.jpg
 - ✅ **inventario: listado compacto de una línea, sin variante duplicada y con costo** — 23 filas de ≤44 px con las 7 columnas · primera: iPhone 15 Pro 256GB Titanio AUR000100000 0000 100% Distr… USD 0,00 D1 Disponible — Sin ver · capturas: 03-inventario-listado.jpg
 - ✅ **inventario: búsqueda por IMEI y orden por modelo** — búsqueda por IMEI: 1 fila(s) · orden por modelo aplicado · capturas: 04-inventario-busqueda-imei.jpg, 05-inventario-orden-modelo.jpg
 - ✅ **sync con POS: el modelo de Inventario aparece igual en el catálogo** — inventario: iPhone 15 Pro 256GB Titanio AUR000100000 0000 100% Distr… US · POS: iPhone 15 Pro 256GB 2 variantes · desde Gs 6.750.000 6 en st · capturas: 06-inventario-modelo-base.jpg, 07-pos-catalogo-modelo.jpg

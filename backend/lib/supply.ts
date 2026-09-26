@@ -68,6 +68,8 @@ export type NecesidadEntrada = {
   pedidoNumero?: string | null
   clienteId?: string | null
   cliente?: string | null
+  // #250 F1: centro de compra asignado a la necesidad (CDE · USA · LOCAL…).
+  centro?: string | null
 }
 
 export type DestinoConsolidado = {
@@ -81,6 +83,7 @@ export type DestinoConsolidado = {
   clienteId: string | null
   cliente: string | null
   prometidaEl: string | null
+  centro: string | null
 }
 
 export type GrupoConsolidado = {
@@ -91,6 +94,7 @@ export type GrupoConsolidado = {
   prioridad: NecesidadPrioridad
   prometidaEl: string | null
   origenes: string[]
+  centros: string[]
   destinos: DestinoConsolidado[]
   necesidades: string[]
 }
@@ -117,6 +121,7 @@ export function consolidarNecesidades(necesidades: NecesidadEntrada[] = []): Gru
         prioridad: 'NORMAL',
         prometidaEl: null,
         origenes: [],
+        centros: [],
         destinos: [],
         necesidades: [],
         destinosMapa: new Map(),
@@ -128,6 +133,8 @@ export function consolidarNecesidades(necesidades: NecesidadEntrada[] = []): Gru
     grupo.prioridad = prioridadMayor(grupo.prioridad, necesidad.prioridad)
     grupo.prometidaEl = fechaMasProxima(grupo.prometidaEl, fecha(necesidad.prometidaEl))
     if (!grupo.origenes.includes(necesidad.origen)) grupo.origenes.push(necesidad.origen)
+    const centro = necesidad.centro ? String(necesidad.centro).toUpperCase() : null
+    if (centro && !grupo.centros.includes(centro)) grupo.centros.push(centro)
     grupo.necesidades.push(necesidad.id)
     if (!grupo.producto && necesidad.producto) grupo.producto = necesidad.producto
 
@@ -152,6 +159,7 @@ export function consolidarNecesidades(necesidades: NecesidadEntrada[] = []): Gru
         clienteId: necesidad.clienteId || null,
         cliente: necesidad.cliente || null,
         prometidaEl: fecha(necesidad.prometidaEl),
+        centro,
       })
     }
   }

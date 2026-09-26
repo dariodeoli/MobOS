@@ -1,7 +1,7 @@
 {
   "base": "https://app.moboss.online",
-  "version": "1.0.175",
-  "fecha": "2026-09-26T04:06:43.789Z",
+  "version": "1.0.178",
+  "fecha": "2026-09-26T08:21:23.808Z",
   "metodo": "Playwright headless (chromium) sobre la demo pública de producción",
   "serialTransito": "AUR0024000000000",
   "serialChecklist": "AUR0001000000000",
@@ -9,7 +9,7 @@
     {
       "paso": "entrada a la demo como dueño",
       "estado": "ok",
-      "detalle": "versión 1.0.175",
+      "detalle": "versión 1.0.178",
       "capturas": [
         "01-acceso-demo.jpg"
       ]
@@ -49,9 +49,9 @@
       ]
     },
     {
-      "paso": "verificación funcional: un usuario demo firma la unidad",
+      "paso": "verificación funcional: un usuario demo firma con su foto",
       "estado": "ok",
-      "detalle": "firma demo registrada (venía sin verificar)",
+      "detalle": "firma demo con foto (venía sin verificar)",
       "capturas": [
         "08-verificacion-firmada.jpg"
       ]
@@ -59,7 +59,7 @@
     {
       "paso": "equipo demo: nombres y correos ficticios (sin «demo»)",
       "estado": "ok",
-      "detalle": "6 integrantes demo · correos 35… sin «demo» (p. ej. 35800101@correo.com.py)",
+      "detalle": "6 integrantes demo con foto · correos 35… sin «demo» (p. ej. 35800101@correo.com.py)",
       "capturas": [
         "09-equipo-demo.jpg"
       ]

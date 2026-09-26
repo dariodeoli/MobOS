@@ -2297,6 +2297,9 @@ model SupplyNeed {
   source       String
   priority     String           @default("NORMAL")
   status       String           @default("OPEN")
+  // #250 F1: centro de compra asignado (CDE · USA · LOCAL…, ver lib/supply).
+  // Cada comprador ve sus centros; el código de compra usa el mismo origen.
+  origin       String?
   // Fecha prometida al cliente (prioriza la compra) y vínculo con el pedido.
   promisedAt   DateTime?
   orderId      String?
@@ -2320,6 +2323,7 @@ model SupplyNeed {
 
   @@unique([tenantId, dedupeKey])
   @@index([tenantId, status, priority, createdAt])
+  @@index([tenantId, status, origin])
   @@index([tenantId, productId, condition, status])
   @@index([tenantId, branchId, status])
   @@index([tenantId, purchaseId])
