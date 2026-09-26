@@ -3,6 +3,7 @@ import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
 import { consolidarNecesidades, normalizarNecesidadManual, NECESIDAD_ESTADOS, type NecesidadEntrada } from '../../../../lib/supply'
+import { normalizarCentro } from '../../../../lib/supply-demand'
 
 // #250 Fase 1 (Centro de Abastecimiento): API mínima del panel «Por comprar».
 //
@@ -30,6 +31,7 @@ export async function GET(request: Request) {
   const branchId = (params.get('branchId') || '').trim()
   const productId = (params.get('productId') || '').trim()
   const assignedToId = (params.get('assignedToId') || params.get('compradorId') || '').trim()
+  const origin = (params.get('origin') || params.get('centro') || '').trim().toUpperCase()
   const limite = Math.min(500, Math.max(1, Number(params.get('limit')) || 200))
 
   const filas = await prisma.supplyNeed.findMany({
@@ -39,6 +41,7 @@ export async function GET(request: Request) {
       ...(branchId ? { branchId } : {}),
       ...(productId ? { productId } : {}),
       ...(assignedToId ? { assignedToId } : {}),
+      ...(origin ? { origin } : {}),
     },
     include: {
       product: { select: { name: true } },
@@ -67,6 +70,7 @@ export async function GET(request: Request) {
     pedidoNumero: fila.order?.orderNumber || null,
     clienteId: fila.customerId,
     cliente: verCliente ? fila.customer?.name || null : null,
+    centro: fila.origin,
   }))
   const grupos = consolidarNecesidades(entradas)
 
@@ -93,6 +97,8 @@ export async function POST(request: Request) {
   const normalizada = normalizarNecesidadManual(body)
   if (!normalizada.ok) return error(normalizada.error)
   const { productId, branchId, quantity, condition, priority, promisedAt, notes } = normalizada.data
+  const centro = normalizarCentro((body as { origin?: unknown })?.origin)
+  if (!centro.ok) return error(centro.error)
 
   const producto = await prisma.product.findFirst({ where: { id: productId, tenantId: tenant }, select: { id: true, branchId: true } })
   if (!producto) return error('Producto no encontrado.', 404)
@@ -114,6 +120,7 @@ export async function POST(request: Request) {
         status: 'ABIERTA',
         promisedAt: promisedAt ? new Date(promisedAt) : null,
         notes,
+        origin: centro.centro,
         createdById: session.user.id,
       },
     })
@@ -152,12 +159,21 @@ export async function PATCH(request: Request) {
 
   if (accion === 'assign') {
     const assignedToId = typeof body?.assignedToId === 'string' ? body.assignedToId.trim() : ''
-    if (!assignedToId) return error('Indicá el comprador.')
-    const comprador = await prisma.user.findFirst({ where: { id: assignedToId, tenantId: tenant }, select: { id: true, name: true } })
-    if (!comprador) return error('Usuario no encontrado.', 404)
+    const centro = normalizarCentro(body?.origin)
+    if (!centro.ok) return error(centro.error)
+    const quiereCentro = body?.origin !== undefined
+    if (!assignedToId && !quiereCentro) return error('Indicá el comprador o el centro de compra.')
+    const comprador = assignedToId ? await prisma.user.findFirst({ where: { id: assignedToId, tenantId: tenant }, select: { id: true, name: true } }) : null
+    if (assignedToId && !comprador) return error('Usuario no encontrado.', 404)
     const actualizada = await prisma.$transaction(async (tx) => {
-      const fila = await tx.supplyNeed.update({ where: { id: necesidad.id }, data: { assignedToId: comprador.id, status: 'ASIGNADA' } })
-      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SUPPLY_NEED_ASSIGNED', entity: 'SupplyNeed', entityId: fila.id, metadata: { assignedToId: comprador.id, assignedTo: comprador.name } } })
+      const fila = await tx.supplyNeed.update({
+        where: { id: necesidad.id },
+        data: {
+          ...(comprador ? { assignedToId: comprador.id, status: 'ASIGNADA' } : {}),
+          ...(quiereCentro ? { origin: centro.centro } : {}),
+        },
+      })
+      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SUPPLY_NEED_ASSIGNED', entity: 'SupplyNeed', entityId: fila.id, metadata: { assignedToId: comprador?.id ?? null, assignedTo: comprador?.name ?? null, ...(quiereCentro ? { origin: centro.centro } : {}) } } })
       return fila
     })
     return json(actualizada)

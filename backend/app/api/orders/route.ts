@@ -14,6 +14,7 @@ import { enforceRateLimit } from '../../../lib/rate-limit'
 import { serialKey } from '../../../lib/validation'
 import { lineDiscount as lineDiscountFor, warrantyDaysFor, resolveUnitPrice, unitPricePygFallback, PricingError } from '../../../lib/pricing'
 import { changeStock } from '../../../lib/stock'
+import { crearDemandas, demandasDePedido, demandaBajoMinimo } from '../../../lib/supply-demand'
 import { syncOrderItemSerials } from '../../../lib/order-serials'
 import { esCodigoDuplicado, nextOrderNumber } from '../../../lib/order-number'
 
@@ -349,6 +350,12 @@ export async function POST(request: Request) {
           create: { tenantId: tenant, customerId, name: billingName, document: billingDocument, createdById: session.user.id },
         })
       }
+      // #250 F1: la demanda que deja la venta (sobre pedido / offline) y los
+      // productos a revisar por punto de reposición se juntan acá.
+      const demandaItems: Array<{ productId: string; condition?: string | null; quantity: number; stockPending: number; serialsPending: number; stockFaltante: number }> = []
+      const productosDelPedido = new Map<string, { condition: string | null; reorderPoint: number | null }>()
+      const prometida = body.promisedAt !== undefined && body.promisedAt !== null && String(body.promisedAt).trim() ? new Date(String(body.promisedAt)) : null
+      if (prometida && Number.isNaN(prometida.getTime())) throw new InputError('La fecha prometida del pedido no es válida.')
       let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; listPricePyg?: number; priceSource?: string; priceListId?: string; totalPyg: number; discountPyg: number; discountPct?: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; stockPending: number; costPending: boolean; promotionSnapshot?: any; comboId?: string; comboName?: string }> = []
       const soldUnits: Array<{ id: string; serial: string; productId: string }> = []
       const serialsInOrder = new Set<string>()
@@ -378,7 +385,7 @@ export async function POST(request: Request) {
         } else if (item.comboName !== undefined && item.comboName !== null && item.comboName !== '') {
           comboName = textInput(item.comboName, 'comboName', 200)
         }
-        let unitCostPyg: number | undefined; let baseUnitCostPyg: number | undefined; let listPricePyg: number | undefined; let priceSource: string | undefined; let insurancePyg = 0; let extraCostPyg = 0; let costPending = false; let serialsPending = 0; let stockPending = 0
+        let unitCostPyg: number | undefined; let baseUnitCostPyg: number | undefined; let listPricePyg: number | undefined; let priceSource: string | undefined; let insurancePyg = 0; let extraCostPyg = 0; let costPending = false; let serialsPending = 0; let stockPending = 0; let faltanteOffline = 0
         // Venta marcada «sobre pedido» (#148 §11): el POS la manda cuando el
         // vendedor decide vender sin unidad/stock. No descuenta existencia.
         const backorder = item.backorder === true
@@ -392,6 +399,7 @@ export async function POST(request: Request) {
           const product = await tx.product.findFirst({ where: { id: item.productId, tenantId: tenant, isActive: true } })
           if (!product) throw new Error(`Producto no encontrado: ${item.productId}`)
           if ((branchId === null && product.branchId !== null) || (branchId && product.branchId !== null && product.branchId !== branchId)) throw new Error('El producto pertenece a otra sucursal.')
+          productosDelPedido.set(product.id, { condition: product.condition, reorderPoint: product.reorderPoint })
           // Foto del costo: la ganancia histórica no cambia si luego se actualiza el costo.
           if (product.costPyg !== null && product.costPyg !== undefined) baseUnitCostPyg = product.costPyg
           // Costo real por unidad (#148 §19): costo de la unidad + lo que se le
@@ -493,10 +501,15 @@ export async function POST(request: Request) {
               const disponible = Math.max(0, Number(product.stock || 0))
               const aDescontar = Math.min(disponible, decrementBy)
               if (aDescontar > 0) await changeStock(tx, { tenantId: tenant, productId: product.id, delta: -aDescontar, branchId, includeBranchless: true, message: 'Stock insuficiente o producto fuera de la sucursal.' })
-              stockFaltante += decrementBy - aDescontar
+              faltanteOffline = decrementBy - aDescontar
+              stockFaltante += faltanteOffline
             } else {
               await changeStock(tx, { tenantId: tenant, productId: product.id, delta: -decrementBy, branchId, includeBranchless: true, message: `Sin stock de ${product.name} en esta sucursal: marcala como «sobre pedido» para vender sin unidad.` })
             }
+          }
+          // #250 F1: lo que la línea dejó sin cubrir alimenta la demanda.
+          if (stockPending > 0 || serialsPending > 0 || faltanteOffline > 0) {
+            demandaItems.push({ productId: product.id, condition: product.condition, quantity: stockPending + serialsPending + faltanteOffline, stockPending, serialsPending, stockFaltante: faltanteOffline })
           }
         }
         const discountPyg = item.discountPyg === undefined || item.discountPyg === '' || item.discountPyg === null ? 0 : Number(item.discountPyg)
@@ -561,9 +574,25 @@ export async function POST(request: Request) {
       // transaccional del tenant; un número explícito del cliente manda.
       const orderNumber = typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : await nextOrderNumber(tx, tenant)
 
+      // #250 F1: reposición por punto de mínimos de los productos vendidos
+      // (la demanda de la venta se arma recién con el pedido creado). No crea stock.
+      const demandas: ReturnType<typeof demandasDePedido> = []
+      const conMinimo = [...productosDelPedido.entries()].filter(([, info]) => info.reorderPoint !== null && info.reorderPoint !== undefined).map(([id]) => id)
+      if (conMinimo.length) {
+        const frescos = await tx.product.findMany({ where: { id: { in: conMinimo }, tenantId: tenant }, select: { id: true, stock: true, reorderPoint: true, condition: true, branchId: true } })
+        for (const producto of frescos) {
+          const demanda = demandaBajoMinimo({ productId: producto.id, condition: producto.condition, branchId: producto.branchId || branchId, stock: producto.stock || 0, reorderPoint: producto.reorderPoint })
+          if (demanda) demandas.push(demanda)
+        }
+      }
       const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}), ...(offlineSale ? { offlineSyncedAt: new Date() } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
       // El enlace de seguimiento se emite como token de nivel rápido del pedido:
       // el panel puede volver a copiarlo y «Regenerar acceso QR» lo rota (#178).
+      // La demanda se persiste con el pedido ya creado: el dedupeKey y el
+      // vínculo usan su id real (una reserva de unidades existentes no genera
+      // compra: solo la diferencia sin cubrir).
+      demandas.push(...demandasDePedido({ orderId: order.id, items: demandaItems, promisedAt: prometida, customerId, branchId, ahora: new Date() }))
+      if (demandas.length) await crearDemandas(tx, tenant, demandas, session.user.id)
       await tx.orderAccessToken.create({ data: { orderId: order.id, tenantId: tenant, level: 'rapido', token: publicToken, createdBy: session.user.id } })
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_CREATED', entity: 'Order', entityId: order.id, metadata: { orderNumber: order.orderNumber, totalPyg: total, items: normalized.length, ...(customerId ? { customerId } : {}), ...(offlineSale ? { offline: true } : {}) } } })
       // POS offline: la venta llegó de la cola local. Queda el rastro de lo que

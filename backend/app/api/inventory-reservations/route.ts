@@ -3,6 +3,7 @@ import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { serialKey } from '../../../lib/validation'
 import { INVENTORY_RESERVED, INVENTORY_RESERVATION_RELEASED, liberarReservasVencidas } from '../../../lib/inventory'
+import { crearDemandas, demandaDeReserva } from '../../../lib/supply-demand'
 
 const MAX_MINUTES = 24 * 60
 
@@ -33,6 +34,16 @@ export async function POST(request: Request) {
   const minutes = Number(body.minutes)
   const raw = Array.isArray(body.serials) ? body.serials : []
   const serials = raw.map(serialKey).filter(Boolean)
+  // #250 F1: reserva/backorder sin unidad. Si el cliente quiere más equipos que
+  // los disponibles, se reservan los IMEI elegidos y la diferencia genera una
+  // necesidad (RESERVATION_NO_STOCK). Una reserva de unidades existentes no
+  // genera compra.
+  const productId = typeof body.productId === 'string' && body.productId.trim() ? body.productId.trim().slice(0, 128) : ''
+  const cantidadPedida = body.quantity === undefined || body.quantity === null || body.quantity === '' ? null : Number(body.quantity)
+  if (cantidadPedida !== null && (!Number.isSafeInteger(cantidadPedida) || cantidadPedida < 1 || cantidadPedida > 100)) return error('La cantidad a reservar debe ser un entero entre 1 y 100.')
+  if (cantidadPedida !== null && !productId) return error('Indicá el producto de la reserva con faltante.')
+  const faltante = cantidadPedida !== null ? cantidadPedida - serials.length : 0
+  if (cantidadPedida !== null && faltante < 1) return error('Los IMEI/seriales ya cubren la cantidad reservada: no hay faltante que comprar.')
   if (!Number.isSafeInteger(minutes) || minutes < 1 || minutes > MAX_MINUTES || !serials.length || serials.length > 20 || new Set(serials).size !== serials.length) return error('Plazo de 1 a 1.440 minutos e IMEI/seriales únicos son obligatorios.')
   const until = new Date(Date.now() + minutes * 60000)
   try {
@@ -63,6 +74,20 @@ export async function POST(request: Request) {
           metadata: { serial: unit.serial, customer: etiqueta, customerId: cliente?.id ?? null, minutes, reservedUntil: until.toISOString() },
         })),
       })
+      if (faltante > 0) {
+        const producto = await tx.product.findFirst({ where: { id: productId, tenantId: tenant }, select: { id: true, condition: true } })
+        if (!producto) throw new Error('El producto de la reserva no existe.')
+        const demanda = demandaDeReserva({
+          productId: producto.id,
+          condition: producto.condition,
+          branchId: session.user.branchId || candidates[0]?.branchId || null,
+          faltante,
+          customerId: cliente?.id || null,
+          customerName: cliente?.name || customerName,
+          reservedUntil: until,
+        })
+        if (demanda) await crearDemandas(tx, tenant, [demanda], session.user.id)
+      }
       return tx.inventoryUnit.findMany({ where: { id: { in: candidates.map(unit => unit.id) } }, include: { product: { select: { id: true, name: true, sku: true, capacity: true } }, branch: { select: { id: true, name: true } }, reservationCustomerRef: { select: { id: true, name: true, phone: true, countryCode: true, document: true, email: true } } } })
     })
     return json(units, { status: 201 })

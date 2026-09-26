@@ -85,4 +85,76 @@ if (vendedor) {
   await req('/api/supply/needs', 'POST', { productId: productoA.id, quantity: 1 }, 403, vendedor)
 }
 
-console.log(`PASS: necesidades manuales + consolidación (${vista.grupos.length} grupos) + asignación/cancelación auditadas · ${checks} chequeos`)
+// 6) Motor automático (#250 F1): venta sobre pedido sin stock → la necesidad
+// nace sola, con el pedido vinculado y la fecha prometida como prioridad.
+const productoAuto = await req('/api/products', 'POST', { name: `Auto ${sufijo}`, sku: `AUTO-${sufijo}`, pricePyg: 1000000, costPyg: 700000, stock: 0, branchId: rama, reorderPoint: 3 }, 201)
+const prometida = new Date(Date.now() + 36 * 3600000).toISOString()
+const cuerpoPedido = {
+  orderNumber: `AUTO-${sufijo}`,
+  promisedAt: prometida,
+  items: [{ productId: productoAuto.id, description: 'Auto', quantity: 2, unitPricePyg: 1000000, backorder: true }],
+  payments: [],
+}
+const claveOperacion = `auto-${sufijo}-operacion`.toLowerCase()
+const pedido = await (async () => {
+  const respuesta = await fetch(`${base}/api/orders`, { method: 'POST', headers: { Authorization: `Bearer ${admin}`, 'Content-Type': 'application/json', 'Idempotency-Key': claveOperacion }, body: JSON.stringify(cuerpoPedido) })
+  const datos = await respuesta.json().catch(() => null)
+  assert.equal(respuesta.status, 201, `POST /api/orders: ${JSON.stringify(datos)}`)
+  checks++
+  return datos
+})()
+const panelAuto = await req(`/api/supply/needs?productId=${productoAuto.id}`)
+const grupoAuto = panelAuto.grupos.find((grupo) => grupo.productoId === productoAuto.id)
+assert.ok(grupoAuto, 'la venta sin stock generó la necesidad automática')
+const necesidadAuto = grupoAuto.necesidades.length
+assert.ok(necesidadAuto >= 1, 'hay al menos una necesidad para el producto')
+const destinos = grupoAuto.destinos || []
+const destinoPedido = destinos.find((destino) => destino.tipo === 'PEDIDO')
+const destinoStock = destinos.find((destino) => destino.tipo === 'STOCK')
+assert.ok(destinoPedido, 'el pedido conserva su destino')
+assert.equal(destinoPedido.cantidad, 2, 'la cantidad es lo que quedó sin cubrir')
+assert.equal(destinoPedido.pedidoNumero, `AUTO-${sufijo}`, 'queda vinculado al pedido')
+assert.ok(destinoStock, 'el bajo mínimo convive como destino de reposición')
+assert.ok(grupoAuto.origenes.includes('ORDER_COMMITTED'), 'la venta sin stock con fecha es ORDER_COMMITTED')
+assert.ok(grupoAuto.origenes.includes('BELOW_REORDER'), 'y la reposición por mínimo está en el mismo grupo')
+assert.equal(grupoAuto.prioridad, 'ALTA', 'la promesa a 36 h manda la prioridad')
+
+// Repetir el evento (mismo pedido idempotente) no duplica la necesidad.
+const repetido = await (async () => {
+  const respuesta = await fetch(`${base}/api/orders`, { method: 'POST', headers: { Authorization: `Bearer ${admin}`, 'Content-Type': 'application/json', 'Idempotency-Key': claveOperacion }, body: JSON.stringify(cuerpoPedido) })
+  const datos = await respuesta.json().catch(() => null)
+  assert.equal(respuesta.status, 200, `reintento idempotente: ${JSON.stringify(datos)}`)
+  checks++
+  return datos
+})()
+assert.equal(repetido.id, pedido.id, 'el pedido idempotente se reutiliza')
+const panelRepetido = await req(`/api/supply/needs?productId=${productoAuto.id}`)
+assert.equal(panelRepetido.grupos[0].necesidades.length, necesidadAuto, 'no se duplica la necesidad')
+
+// El origen/centro se asigna y filtra desde el panel.
+const asignadaOrigen = await req('/api/supply/needs', 'PATCH', { id: grupoAuto.necesidades[0], action: 'assign', origin: 'usa' })
+assert.equal(asignadaOrigen.origin, 'USA')
+const porOrigen = await req('/api/supply/needs?origin=USA')
+assert.ok(porOrigen.grupos.some((grupo) => grupo.productoId === productoAuto.id), 'el filtro por centro devuelve la necesidad')
+const centroInvalido = await req('/api/supply/needs', 'PATCH', { id: grupoAuto.necesidades[0], action: 'assign', origin: 'C' }, 400)
+
+// Venta con stock que cae bajo el punto de reposición → BELOW_REORDER sola.
+const productoMinimo = await req('/api/products', 'POST', { name: `Mínimo ${sufijo}`, sku: `MIN-${sufijo}`, pricePyg: 500000, costPyg: 300000, stock: 2, branchId: rama, reorderPoint: 3 }, 201)
+await req('/api/orders', 'POST', { orderNumber: `MIN-${sufijo}`, items: [{ productId: productoMinimo.id, description: 'Mínimo', quantity: 1, unitPricePyg: 500000 }], payments: [{ method: 'CASH', amountPyg: 500000, status: 'CONFIRMED' }] }, 201)
+const panelMinimo = await req(`/api/supply/needs?productId=${productoMinimo.id}`)
+const grupoMinimo = panelMinimo.grupos.find((grupo) => grupo.productoId === productoMinimo.id)
+assert.ok(grupoMinimo, 'la caída bajo el mínimo generó la reposición automática')
+assert.equal(grupoMinimo.origenes[0], 'BELOW_REORDER')
+
+// Reserva/backorder sin unidad: se reserva lo existente y falta la diferencia.
+const serialReserva = `356790${String(Date.now()).slice(-9)}`
+const productoReserva = await req('/api/products', 'POST', { name: `Reserva auto ${sufijo}`, sku: `RESA-${sufijo}`, pricePyg: 800000, costPyg: 500000, stock: 1, branchId: rama, imei: serialReserva }, 201)
+const reserva = await req('/api/inventory-reservations', 'POST', { serials: [serialReserva], productId: productoReserva.id, quantity: 3, minutes: 60, customerName: 'Cliente reserva auto' }, 201)
+assert.equal(Array.isArray(reserva) ? reserva.length : 0, 1, 'se reservó la unidad existente')
+const panelReserva = await req(`/api/supply/needs?productId=${productoReserva.id}`)
+const grupoReserva = panelReserva.grupos.find((grupo) => grupo.productoId === productoReserva.id)
+assert.ok(grupoReserva, 'la reserva sin unidad generó la necesidad')
+assert.equal(grupoReserva.cantidad, 2, 'solo la diferencia faltante')
+assert.equal(grupoReserva.origenes[0], 'RESERVATION_NO_STOCK')
+
+console.log(`PASS: necesidades manuales + motor automático + consolidación (${vista.grupos.length} grupos) + asignación/origen/cancelación auditadas · ${checks} chequeos`)

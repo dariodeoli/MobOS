@@ -119,3 +119,65 @@ la fila si el evento se procesa dos veces.
 - **No activado**: ninguna pantalla ni automatismo llama a la API (no hay UI).
 - La migración es aditiva: si se descarta, la tabla queda sin uso y se puede
   borrar sin afectar datos existentes.
+
+---
+
+# Motor de demanda (cierre de F1) — #250/#254
+
+La API «Por comprar» ya existía; con esta entrega **nada queda manual**: las
+necesidades nacen de los eventos reales y llegan al panel con su centro de
+compra. Implementado en `backend/lib/supply-demand.ts` y enganchado en la venta
+(`api/orders`), la reserva (`api/inventory-reservations`) y los mínimos.
+
+## 1. Fuentes automáticas
+
+| Fuente | Cuándo | Cantidad |
+| --- | --- | --- |
+| `SALE_NO_STOCK` | Venta sobre pedido de un producto sin unidades o serializado sin unidad disponible | Lo que quedó sin cubrir (`stockPending + serialsPending`) |
+| `QUANTITY_OVER_STOCK` | Venta offline que descontó solo lo disponible | El faltante real |
+| `ORDER_COMMITTED` | La venta/pedido trae `promisedAt` | Lo que quedó sin cubrir; prioridad por la promesa |
+| `RESERVATION_NO_STOCK` | Reserva/backorder con menos unidades que las pedidas | Solo la diferencia |
+| `BELOW_REORDER` | Al vender, el producto queda en `stock <= reorderPoint` | `punto - stock + 1` (una por producto/sucursal/semana) |
+
+- Prioridad: promesa vencida ⇒ `URGENTE`; ≤ 48 h ⇒ `ALTA`; ≤ 7 días y sin fecha
+  ⇒ `NORMAL`; faltante offline ⇒ `ALTA`.
+- Deduplicación por `dedupeKey` (único por empresa): repetir el evento no
+  duplica. Cada alta deja auditoría `SUPPLY_NEED_AUTO`.
+- **No crea stock**: la unidad sigue apareciendo recién en la recepción (F5).
+
+## 2. Centros de compra (origen)
+
+- `SupplyNeed.origin`: `CDE · USA · LOCAL` + códigos nuevos de 2 a 8 letras o
+  números (centros futuros). Migración `20261205000000_supply_need_origin`.
+- `GET /api/supply/needs?origin=USA` filtra por centro; los grupos exponen
+  `centros[]` y cada destino su `centro`.
+- `PATCH /api/supply/needs { id, action: 'assign', assignedToId?, origin? }`
+  asigna comprador y/o centro (audita ambos).
+
+## 3. Entradas nuevas de la API
+
+- `POST /api/orders` acepta `promisedAt` (ISO, opcional): marca el pedido
+  comprometido con fecha y prioriza su demanda.
+- `POST /api/inventory-reservations` acepta `productId` + `quantity` junto a los
+  IMEI: reserva lo existente y genera `RESERVATION_NO_STOCK` por la diferencia.
+  Sin esos campos el comportamiento es el de siempre.
+
+## 4. Para PLT (panel/móvil) y CMP (objetos)
+
+- **PLT**: pestaña **Por comprar** con tarjetas por **grupo consolidado**
+  (producto + condición, destinos conservados: pedido A / pedido B / stock),
+  prioridad, fecha prometida, centros, estado y acciones (asignar comprador o
+  centro, cancelar con motivo); filtros por centro y comprador; móvil sin scroll
+  horizontal.
+- **CMP**: objeto **tarjeta de necesidad** (badge de prioridad, chips de
+  origen/centro, bloque de destinos y acciones) para reutilizar en el panel y en
+  “Comprando”.
+
+## 5. Verificación del cierre
+
+- `backend/tests/supply-demand.test.ts`: prioridades, fuentes, dedupe, centros,
+  semana de mínimos (8 casos).
+- `backend/tests/supply-needs.mjs` (arnés HTTP): venta sobre pedido con fecha →
+  `ORDER_COMMITTED` + `BELOW_REORDER` conviviendo con destinos conservados,
+  idempotencia, centro asignado/filtrado, y reserva con faltante →
+  `RESERVATION_NO_STOCK` (36 chequeos).
