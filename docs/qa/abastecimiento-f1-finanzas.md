@@ -21,12 +21,11 @@ Reglas puras en `backend/lib/supply-priority.ts`:
 Funciones:
 
 - `prioridadDeNecesidad({ origen, ventaConfirmada, margenPyg, prometidaEl })`:
-  prioridad con la que **nace** la necesidad (la usan las automáticas de INV y
-  la carga manual sin prioridad).
-- `prioridadPorFecha(guardada, { prometidaEl })`: prioridad **efectiva** al
-  leer el panel. Lo único que cambia con el tiempo es la fecha: una `BAJA`
-  explícita sin fecha se respeta; vencida o a días, escala. Así el panel no
-  muestra prioridades viejas.
+  prioridad con la que **nace** la necesidad; la usa la carga manual sin
+  prioridad. Las automáticas del panel las crea el motor de INV
+  (`supply-demand.ts`, `prioridadPorPromesa`) y la prioridad efectiva al leer
+  el panel combina la guardada con esa regla por fecha (ya integrado en main);
+  este archivo mantiene la regla de nacimiento y los costos.
 
 ## Costos de la necesidad (lo que hay que poner para comprarla)
 
@@ -106,12 +105,12 @@ costo real (cubierto por `unit-cost-margin.mjs`).
 
 ## Evidencia
 
-- Unit `backend/tests/supply-priority.test.ts` (6 tests) y los `assert` de
+- Unit `backend/tests/supply-priority.test.ts` (5 tests) y los `assert` de
   compra (moneda por línea, total derivado, condición/vencimiento) dentro de
-  `npm --prefix backend run test:unit` → **105/105**.
+  `npm --prefix backend run test:unit` → **112/112**.
 - Arnés de integración completo (`MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh`,
   backend con `BUILD_ID`): **PASS** en toda la cadena del abastecimiento:
-  - `PASS: necesidades manuales + consolidación (4 grupos) + asignación/cancelación auditadas · 26 chequeos`
+  - `PASS: necesidades manuales + motor automático + consolidación (7 grupos) … · 40 chequeos`
   - `PASS: compra COM-CDE-0001 (USD → Gs) con IMEI y compra adicional … · 34 chequeos` (incluye costo por línea en USD, total derivado, cuenta a pagar del contado/crédito y cancelación)
   - `PASS: recepción por QR … · 50 chequeos` (incluye la unidad comprada en USD con moneda y cotización congeladas)
   - `PASS: repuestos del taller … · 35 chequeos` y `PASS: repuestos a crédito … · 14 chequeos` (KPI contra deltas y SQL)

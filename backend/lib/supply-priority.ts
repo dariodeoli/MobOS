@@ -85,24 +85,6 @@ export function prioridadDeNecesidad(entrada: EntradaPrioridad): PrioridadNecesi
   return prioridadPorPeso(PESO[base] + pasos)
 }
 
-/**
- * Prioridad efectiva de una necesidad ya guardada: lo único que cambia con el
- * tiempo es la **fecha prometida**, así que solo esa escalona sobre la
- * prioridad existente (una BAJA explícita sin fecha se respeta; vencida, sube).
- */
-export function prioridadPorFecha(prioridad: string, { prometidaEl, hoy }: { prometidaEl?: string | Date | null; hoy?: string | Date | null } = {}): PrioridadNecesidad {
-  const guardada = String(prioridad || '').toUpperCase()
-  const base: PrioridadNecesidad = (PRIORIDADES_NECESIDAD as readonly string[]).includes(guardada)
-    ? (guardada as PrioridadNecesidad)
-    : 'NORMAL'
-  const dias = diasHasta(prometidaEl, hoy)
-  if (dias === null) return base
-  if (dias < 0) return 'URGENTE'
-  if (dias <= DIAS_URGENTE) return prioridadPorPeso(PESO[base] + 2)
-  if (dias <= DIAS_ALTA) return prioridadPorPeso(PESO[base] + 1)
-  return base
-}
-
 /** Costo estimado de la necesidad: costo unitario conocido × cantidad. */
 export function costoEstimadoDeNecesidad({ costoUnitarioPyg, cantidad }: { costoUnitarioPyg?: number | null; cantidad: number }): number | null {
   const costo = Number(costoUnitarioPyg)
