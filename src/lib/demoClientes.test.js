@@ -114,9 +114,43 @@ test('la cuenta demo lleva el detalle de cada pedido (#240)', () => {
   const pedido = (lucia.orders || []).find((row) => row.orderNumber === 'MOB-0008')
   assert.ok(pedido.items?.length >= 1, 'El pedido demo trae sus líneas')
   assert.ok(pedido.items[0].description && pedido.items[0].quantity >= 1)
-  assert.equal(pedido.pagos?.length, 1, 'El pedido demo trae su pago confirmado')
-  assert.equal(pedido.pagos[0].amountPyg, 1500000)
-  assert.ok(pedido.pagos[0].methodLabel)
+  assert.equal(pedido.pagos?.length, 2, 'El pedido parcial demo trae sus pagos divididos')
+  assert.equal(pedido.pagos.reduce((suma, pago) => suma + pago.amountPyg, 0), 1500000, 'Los pagos suman lo cobrado')
+  assert.ok(pedido.pagos.every((pago) => pago.methodLabel && pago.paidAt))
+})
+
+test('el historial demo trae pagos divididos con medios variados (#213)', () => {
+  const lucia = demoCuentaPayload('demo-demo-cliente-lucia-rapido')
+  const parcial = (lucia.orders || []).find((row) => row.orderNumber === 'MOB-0008')
+  assert.deepEqual(parcial.pagos.map((pago) => pago.methodLabel), ['Efectivo', 'Transferencia'])
+  // Los movimientos de cada pedido coinciden con lo cobrado (no se inventan montos).
+  for (const pedido of lucia.orders || []) {
+    const cobrado = pedido.pagos.reduce((suma, pago) => suma + pago.amountPyg, 0)
+    assert.equal(cobrado, Math.max(0, Number(pedido.totalPyg) - Number(pedido.pendingPyg || 0)), `${pedido.orderNumber}: los pagos coinciden con lo cobrado`)
+  }
+  {
+    const medios = new Set()
+    const cuentas = [
+      'demo-demo-cliente-lucia-rapido',
+      'demo-demo-cliente-carlos-rapido',
+      'demo-demo-cliente-distribuidora-rapido',
+      'demo-demo-cliente-maria-rapido',
+      'demo-demo-cliente-ramiro-rapido',
+    ]
+    for (const token of cuentas) {
+      const cuenta = demoCuentaPayload(token)
+      for (const pago of cuenta.pagos || []) medios.add(pago.methodLabel)
+    }
+    for (const esperado of ['Efectivo', 'Transferencia', 'Tarjeta / POS', 'Pix', 'USDT - Cripto', 'Saldo a favor']) {
+      assert.ok(medios.has(esperado), `falta el medio ${esperado} en el historial demo: ${[...medios].join(', ')}`)
+    }
+  }
+  // El historial global sale de los movimientos reales de cada pedido y va del
+  // más nuevo al más viejo.
+  assert.ok(lucia.pagos.length >= 5, 'Lucía acumula los movimientos de sus pedidos')
+  for (let i = 1; i < lucia.pagos.length; i += 1) {
+    assert.ok(new Date(lucia.pagos[i - 1].paidAt) >= new Date(lucia.pagos[i].paidAt), 'el historial va del más nuevo al más viejo')
+  }
 })
 
 test('la interacción demo queda en la cronología del cliente (#240)', () => {

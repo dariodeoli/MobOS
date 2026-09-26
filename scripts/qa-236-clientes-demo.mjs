@@ -85,7 +85,10 @@ page.on('pageerror', (error) => resultado.observaciones.push(`pageerror: ${Strin
 
 await paso('entrada a la demo y lista estilo Pedidos', async () => {
   await abrirDemo(page)
-  await page.getByRole('button', { name: 'Clientes', exact: true }).click()
+  // Navegación directa: el ítem «Clientes» del menú pasó a tener más de una
+  // coincidencia accesible (sidebar y menú mobile), así que no se clickea.
+  await page.goto(`${BASE}/clientes`, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1200)
   await page.getByLabel('Buscar clientes').fill('Lucía')
   const fila = page.getByTestId('cliente-fila').filter({ hasText: 'Lucía Fernández' }).first()
   await fila.waitFor({ timeout: 20000 })
@@ -172,7 +175,7 @@ await paso('mobile: accesos táctiles con aria', async () => {
   const movil = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
   const pagina = await movil.newPage()
   await abrirDemo(pagina)
-  await pagina.getByRole('button', { name: 'Clientes', exact: true }).click()
+  await pagina.goto(`${BASE}/clientes`, { waitUntil: 'domcontentloaded' })
   await pagina.waitForTimeout(1200)
   const resumen = pagina.getByRole('button', { name: 'Resumen rápido de Lucía Fernández', exact: true }).first()
   const detalle = pagina.getByRole('button', { name: 'Ver detalle completo de Lucía Fernández', exact: true }).first()
