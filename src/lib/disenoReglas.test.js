@@ -90,7 +90,8 @@ test('el PIN se enmascara: texto oculto y máscara propia', () => {
 })
 
 test('PinInput pinta la máscara de puntos y no muestra los dígitos', () => {
-  const codigo = leer('components/ui/index.jsx')
+  assert.match(leer('components/ui/index.jsx'), /PinInput,/, 'el kit re-exporta PinInput de la biblioteca (lote 39)')
+  const codigo = leerBiblioteca('ui.jsx')
   assert.match(codigo, /pin-oculto/, 'el input de PIN debe usar la clase que oculta el texto')
   const mascara = codigo.slice(codigo.indexOf('export function PinInput'))
   assert.match(mascara, /aria-hidden="true"[\s\S]{0,400}rounded-full/, 'la máscara debe ser decorativa y de puntos')
@@ -155,7 +156,8 @@ test('la biblioteca de objetos: búsquedas, toggles y segmentados compartidos', 
     assert.match(leer(ruta), /<PeriodoTabs[\s\S]{0,120}(periodo|setPeriodo)=/, `${ruta}: el período va con PeriodoTabs`)
   }
   assert.match(leer('components/control/ListaVentasDia.jsx'.replace('control', 'ventas')), /<SegmentedField/, 'ListaVentasDia: los filtros van con SegmentedField')
-  assert.ok(leer('components/ui/index.jsx').includes('export function Subtabs'), 'Subtabs vive en la UI compartida')
+  assert.match(leer('components/ui/index.jsx'), /Subtabs,/, 'Subtabs se re-exporta del kit (biblioteca)')
+  assert.match(leerBiblioteca('ui.jsx'), /export function Subtabs\(/, 'Subtabs vive en la biblioteca')
   assert.ok(!/function Subtabs\(/.test(leer('pages/PanelVendedor.jsx')), 'PanelVendedor no redefine Subtabs')
   // Estándar de tamaños de monto (#148 §9) en el campo compartido: marca el
   // monto que supera el límite del contexto, acotado al tope almacenable.
@@ -236,11 +238,14 @@ test('la identidad de usuario tiene un solo objeto y la biblioteca suma tres obj
   assert.match(chip, /identidad\.primerNombre/, 'nombreCorto muestra solo el primer nombre')
   assert.match(leer('lib/identidad.js'), /picture: primerTexto\(objeto\.picture/, 'el adaptador resuelve la foto local → Google')
   assert.match(chip, /ESTADOS = \{[\s\S]{0,120}'en-linea'/, 'acepta estado de presencia')
-  const ui = leer('components/ui/index.jsx')
+  const ui = leerBiblioteca('ui.jsx')
   for (const objeto of ['export function FilaDato', 'export function CeldaMoneda', 'export function BarraProgreso']) {
-    assert.ok(ui.includes(objeto), `la UI compartida define ${objeto}`)
+    assert.ok(ui.includes(objeto), `la biblioteca define ${objeto}`)
   }
   assert.match(ui, /role="progressbar"/, 'la barra de progreso es accesible')
+  for (const exportado of ['CeldaMoneda,', 'BarraProgreso,']) {
+    assert.match(leer('components/ui/index.jsx'), new RegExp(exportado), `el kit re-exporta ${exportado}`)
+  }
   const doc = leer('../docs/PLANTILLA-OBJETOS.md')
   for (const nombre of ['PersonaChip', 'FilaDato', 'CeldaMoneda', 'BarraProgreso']) {
     assert.ok(doc.includes(nombre), `la biblioteca documenta ${nombre}`)

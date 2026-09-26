@@ -53,8 +53,10 @@ test('el aviso inline usa el objeto Aviso, no un párrafo con el borde copiado',
     .filter(({ contenido }) => /<p[^>]*rounded-lg border border-(bad|ok)\/30 bg-(bad|ok)\/10/.test(contenido))
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [])
-  // El objeto existe y anuncia según el tono.
-  const ui = readFileSync(join(RAIZ, 'components/ui/index.jsx'), 'utf8')
+  // El objeto existe y anuncia según el tono (vive en la biblioteca; el kit lo
+  // re-exporta desde el lote 39).
+  assert.match(readFileSync(join(RAIZ, 'components/ui/index.jsx'), 'utf8'), /Aviso,/, 'el kit re-exporta Aviso')
+  const ui = leerBiblioteca('ui.jsx')
   assert.match(ui, /export function Aviso\(/, 'falta el objeto Aviso')
   assert.match(ui, /tono === 'error' \? 'alert' : 'status'/, 'Aviso anuncia error con role="alert"')
   // Las pantallas que tenían el aviso copiado lo adoptan.
@@ -267,7 +269,8 @@ test('las barras de avance usan BarraProgreso', () => {
 })
 
 test('las notas warn y los estados con badge salen de los objetos compartidos (lote 10)', () => {
-  const ui = readFileSync(join(RAIZ, 'components/ui/index.jsx'), 'utf8')
+  assert.match(readFileSync(join(RAIZ, 'components/ui/index.jsx'), 'utf8'), /Nota,/, 'el kit re-exporta Nota')
+  const ui = leerBiblioteca('ui.jsx')
   assert.match(ui, /export function Nota\(/, 'falta el objeto Nota')
   assert.match(ui, /const NOTAS = \{/, 'los tonos de la nota viven en el objeto')
 
@@ -350,7 +353,7 @@ test('las etiquetas de entrega salen del mapa con badge (lote 18)', async () => 
 })
 
 test('Aviso cubre warn y el aviso con estructura', () => {
-  const ui = readFileSync(join(RAIZ, 'components/ui/index.jsx'), 'utf8')
+  const ui = leerBiblioteca('ui.jsx')
   assert.match(ui, /warn: 'border-warn\/30 bg-warn\/10 text-warn'/, 'Aviso debe tener tono warn')
   assert.match(ui, /como === 'div' \? 'div' : 'p'/, 'Aviso debe permitir contenedor para el aviso con acción')
   // No queda ningún banner con las clases del aviso armado a mano.

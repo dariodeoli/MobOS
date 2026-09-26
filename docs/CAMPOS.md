@@ -4,6 +4,11 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi`). Ant
 
 ## 1. Kit base — `src/components/ui/index.jsx`
 
+> **#253 (lote 39):** el kit re-exporta **27 objetos de `owncoding-ui`** desde la
+> misma ruta; solo quedan locales `Card`, `Modal`, `Drawer`, `MoneyInput` y
+> `Stat` (decisiones de diseño pendientes con DSN). Los campos nuevos se siguen
+> importando de `@/components/ui`: la ruta no cambia.
+
 | Componente | Para qué | Reglas / defaults |
 |---|---|---|
 | `Input` | Texto/número/base de todo | El tipo lo define el uso (`tel`, `email`, `date`) |

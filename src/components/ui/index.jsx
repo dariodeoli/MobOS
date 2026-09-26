@@ -1,120 +1,65 @@
-import { createContext, forwardRef, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useRef } from 'react'
+import {
+  Input,
+  LIMITE_MONTO_GENERAL,
+  TAMANOS_CAMPO,
+  excedeMonto,
+  formatGsInput,
+  formatUsdInput,
+  largoMaximoMonto,
+  limiteMonto,
+  parseGsInput,
+  parseUsdInput,
+} from 'owncoding-ui'
 import { cn } from '@/lib/utils'
-import { formatGs, formatGsInput, parseGsInput, formatUsdInput, parseUsdInput, excedeMonto, limiteMonto, LIMITE_MONTO_GENERAL, largoMaximoMonto } from '@/utils/moneda'
-import { TAMANOS_CAMPO } from '@/utils/tamanos'
-import Icon from '@/components/shared/Icon'
-import { PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
 import { TAMANO_MODAL_PREDETERMINADO, TAMANOS_MODAL } from '@/components/shared/modal'
 
-// ── Button ──────────────────────────────────────────────────────────
-const VARIANTS = {
-  primary: 'bg-fono text-onbrand hover:bg-fono-light',
-  success: 'bg-ok text-black hover:brightness-110',
-  danger: 'bg-bad text-fore hover:brightness-110',
-  outline: 'bg-transparent text-fore border border-ink-500 hover:border-fono hover:bg-fono/10',
-  ghost: 'bg-transparent text-mute hover:bg-ink-700 hover:text-fore',
-}
-export function Button({ className, variant = 'primary', ...props }) {
+// ── Kit compartido (#253) ───────────────────────────────────────────
+// La mayoría de los objetos vive en `owncoding-ui` y acá se re-exporta para
+// conservar la ruta histórica `@/components/ui`: los consumidores no cambian.
+// Quedan locales solo los que tienen una decisión de diseño pendiente con DSN:
+// `Card` (radio), `Modal`/`Drawer` (superficie), `MoneyInput` (símbolo «Gs.»)
+// y `Stat` (delta sin flechas). Al resolverse, se puentean como el resto.
+export {
+  Aviso,
+  Badge,
+  BarraProgreso,
+  Button,
+  CeldaMoneda,
+  ConfirmDialog,
+  DataTable,
+  Dot,
+  EmptyState,
+  ErrorState,
+  Eyebrow,
+  FilaDato,
+  FormField,
+  IconAction,
+  Input,
+  Label,
+  Money,
+  Nota,
+  PageHeader,
+  PasswordInput,
+  PinInput,
+  Select,
+  Skeleton,
+  Subtabs,
+  Textarea,
+  ToastProvider,
+  useToast,
+} from 'owncoding-ui'
+
+// ── Card (local: radio del tema pendiente con DSN) ──────────────────
+export function Card({ className, ...props }) {
   return (
-    <button
-      className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-lg px-4 font-semibold transition',
-        'h-11 md:h-9 text-sm disabled:opacity-30 disabled:cursor-not-allowed active:scale-[.98]',
-        VARIANTS[variant],
-        className,
-      )}
-      {...props}
-    />
+    <div className={cn('rounded-xl border border-ink-600 bg-ink p-5 shadow-card', className)} {...props} />
   )
 }
 
-// ── Input ───────────────────────────────────────────────────────────
-// forwardRef: la búsqueda global y el catálogo enfocan el campo por ref.
-export const Input = forwardRef(function Input({ className, ...props }, ref) {
-  return (
-    <input
-      ref={ref}
-      className={cn(
-        'w-full rounded-lg border border-ink-500 bg-ink-800 px-3.5 text-fore',
-        'h-11 md:h-9 text-base md:text-sm outline-none transition',
-        'focus:border-fono focus:ring-1 focus:ring-fono/40 placeholder:text-mute/60',
-        className,
-      )}
-      {...props}
-    />
-  )
-})
-
-// Campo de contraseña reutilizable: mantiene el valor oculto por defecto y
-// permite comprobarlo puntualmente sin perder foco ni accesibilidad.
-export function PasswordInput({ className, ...props }) {
-  const [visible, setVisible] = useState(false)
-  return (
-    <div className="relative">
-      <Input {...props} type={visible ? 'text' : 'password'} className={cn('pr-11', className)} />
-      <button
-        type="button"
-        onClick={() => setVisible(current => !current)}
-        className="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-lg text-mute transition hover:text-fore focus-visible:z-10"
-        aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-        aria-pressed={visible}
-        title={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-      >
-        <Icon name={visible ? 'eyeOff' : 'eye'} className="h-4 w-4" />
-      </button>
-    </div>
-  )
-}
-
-// PIN de 4 dígitos: campo compacto y centrado tipo código, con animación de
-// foco y avance automático al completar. Los dígitos no se dibujan (ver
-// .pin-oculto en index.css): el componente pinta un punto por dígito, sin
-// depender de -webkit-text-security ni de glifos de la fuente.
-export function PinInput({ value, onChange, onComplete, length = 4, autoFocus = false, disabled = false, inputRef, ariaLabel, className, id }) {
-  const largoMax = Math.min(6, Math.max(4, Number(length) || 4))
-  const largo = String(value || '').length
-  return (
-    <span className={cn('relative mx-auto block h-16 w-44 transition-transform duration-150 focus-within:scale-[1.03]', disabled && 'opacity-50', className)}>
-      <input
-        ref={inputRef}
-        id={id}
-        type="text"
-        inputMode="numeric"
-        autoComplete="one-time-code"
-        maxLength={largoMax}
-        value={value}
-        autoFocus={autoFocus}
-        disabled={disabled}
-        onChange={(event) => {
-          const next = event.target.value.replace(/\D/g, '').slice(0, largoMax)
-          onChange(next)
-          if (next.length === largoMax) onComplete?.()
-        }}
-        placeholder=""
-        aria-label={ariaLabel || `PIN de ${largoMax} dígitos`}
-        className="pin-oculto h-full w-full rounded-2xl border border-ink-500 bg-paper text-center text-3xl font-bold tracking-[.45em] shadow-card transition-all duration-150 focus:border-fono focus:ring-2 focus:ring-fono/30 focus:outline-none"
-      />
-      <span aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center gap-[.5em]">
-        {Array.from({ length: largoMax }, (_, indice) => (
-          <span
-            key={indice}
-            className={cn('h-2.5 w-2.5 rounded-full transition-colors', indice < largo ? 'bg-fore' : 'bg-mute/25')}
-          />
-        ))}
-      </span>
-    </span>
-  )
-}
-
-// Campo monetario central: PYG se escribe siempre con separador de miles;
-// el resto de las monedas conserva 2 decimales (coma es-PY). Entrega el
-// número limpio al formulario padre. `symbol` sobreescribe el prefijo cuando
-// el campo muestra un importe en una moneda distinta a su etiqueta. `max` es
-// el tamaño máximo del monto (por defecto el general de #148; las ventas
-// pasan `LIMITE_MONTO_VENTAS`): el campo nunca trunca lo escrito y se acota al
-// tope almacenable, marcándolo con `aria-invalid` para que el formulario lo
-// valide con `errorMonto`.
+// ── MoneyInput (local: el símbolo «Gs.» espera decisión de diseño) ──
 const MONEY_SYMBOL = { PYG: 'Gs.', USD: 'US$', BRL: 'R$', EUR: '€', USDT: 'USDT' }
+
 export function MoneyInput({ currency = 'PYG', symbol, value, onValueChange, className, max = LIMITE_MONTO_GENERAL, maxLength, ...props }) {
   const isPyg = currency === 'PYG'
   const prefix = symbol || MONEY_SYMBOL[currency] || currency
@@ -126,9 +71,9 @@ export function MoneyInput({ currency = 'PYG', symbol, value, onValueChange, cla
   const topeLargo = maxLength ?? largoMaximoMonto(max, { decimales: !isPyg })
   // El prefijo es una ayuda visual, no parte del valor: va chico y claro para no
   // comerse el ancho del número (montos grandes se cortaban con «Gs.» a 12px y
-  // pl-12; ahora pl-8/pl-11 con el prefijo a 9-10px). El valor conserva todo el espacio posible del campo. El color queda
-  // en `text-mute` (el auditor AA exige 4.5:1 en texto chico: atenuarlo más no
-  // pasa).
+  // pl-12; ahora pl-8/pl-11 con el prefijo a 9-10px). El valor conserva todo el
+  // espacio posible del campo. El color queda en `text-mute` (el auditor AA
+  // exige 4.5:1 en texto chico: atenuarlo más no pasa).
   const prefijoLargo = prefix.length > 3
   return (
     <div className="relative">
@@ -152,86 +97,7 @@ export function MoneyInput({ currency = 'PYG', symbol, value, onValueChange, cla
   )
 }
 
-// ── Money ───────────────────────────────────────────────────────────
-// Importe de solo lectura: guaraníes con el formato canónico del repo y
-// dólares con separador en-US, sin convertir moneda. Un valor no finito
-// se muestra como raya para no inventar cifras.
-export function Money({ value, currency = 'PYG', className }) {
-  const amount = Number(value)
-  if (!Number.isFinite(amount)) return <span className={className}>—</span>
-  return (
-    <span className={className}>
-      {currency === 'USD'
-        ? `US$ ${amount.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
-        : formatGs(amount)}
-    </span>
-  )
-}
-
-// ── Select (nativo, estilizado) ─────────────────────────────────────
-export function Select({ className, children, ...props }) {
-  return (
-    <select
-      className={cn(
-        'w-full rounded-lg border border-ink-500 bg-ink-800 px-3 text-fore',
-        'h-11 md:h-9 text-base md:text-sm outline-none transition cursor-pointer',
-        'focus:border-fono focus:ring-1 focus:ring-fono/40',
-        '[&>option]:bg-ink-800 [&>option]:text-fore',
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </select>
-  )
-}
-
-// ── Textarea ────────────────────────────────────────────────────────
-export function Textarea({ className, ...props }) {
-  return (
-    <textarea
-      className={cn(
-        'w-full rounded-lg border border-ink-500 bg-ink-800 px-3.5 py-2.5 text-fore',
-        'text-base md:text-sm outline-none transition focus:border-fono focus:ring-1 focus:ring-fono/40',
-        'placeholder:text-mute/60 resize-none',
-        className,
-      )}
-      {...props}
-    />
-  )
-}
-
-// ── Label ───────────────────────────────────────────────────────────
-export function Label({ className, ...props }) {
-  return (
-    <label
-      className={cn(
-        'block text-[11px] font-medium uppercase tracking-wider text-mute mb-1.5',
-        className,
-      )}
-      {...props}
-    />
-  )
-}
-
-// ── Eyebrow ─────────────────────────────────────────────────────────
-// Etiqueta superior pequeña; la clase repetida del repo para secciones.
-export function Eyebrow({ className, ...props }) {
-  return (
-    <div
-      className={cn('text-xs font-bold uppercase tracking-[.18em] text-fono-light', className)}
-      {...props}
-    />
-  )
-}
-
-// ── Card ────────────────────────────────────────────────────────────
-export function Card({ className, ...props }) {
-  return (
-    <div className={cn('rounded-xl border border-ink-600 bg-ink p-5 shadow-card', className)} {...props} />
-  )
-}
-
+// ── Modal (local: superficie pendiente con DSN) ─────────────────────
 // Popup estándar: Esc, clic afuera, botón cerrar y cierre opcional al guardar.
 export function Modal({ open, onClose, title, children, className, size = TAMANO_MODAL_PREDETERMINADO }) {
   const dialog = useRef(null)
@@ -270,110 +136,8 @@ export function Modal({ open, onClose, title, children, className, size = TAMANO
   )
 }
 
-// Confirmación propia de MobOS. Evita confirm()/alert() del navegador y
-// conserva foco, Escape, clic afuera y lectura accesible en toda la app.
-export function ConfirmDialog({
-  open,
-  onCancel,
-  onConfirm,
-  title = 'Confirmar acción',
-  description,
-  confirmLabel = 'Confirmar',
-  variant = 'primary',
-  busy = false,
-}) {
-  return (
-    <Modal open={open} onClose={busy ? undefined : onCancel} title={title} size="corto">
-      <div className="space-y-5">
-        <div className={cn('flex h-11 w-11 items-center justify-center rounded-2xl', variant === 'danger' ? 'bg-bad/10 text-bad' : 'bg-fono/10 text-fono-light')}>
-          <Icon name={variant === 'danger' ? 'alert' : 'check'} className="h-5 w-5" />
-        </div>
-        <p className="text-sm leading-6 text-mute">{description}</p>
-        <div className={PIE_ACCIONES_REVERSO}>
-          <Button type="button" variant="ghost" onClick={onCancel} disabled={busy}>Cancelar</Button>
-          <Button type="button" variant={variant} onClick={onConfirm} disabled={busy}>{busy ? 'Procesando…' : confirmLabel}</Button>
-        </div>
-      </div>
-    </Modal>
-  )
-}
-
-// ── Badge ───────────────────────────────────────────────────────────
-const BADGE = {
-  blue: 'bg-fono/15 text-fono-light border-fono/25',
-  green: 'bg-ok/15 text-ok border-ok/25',
-  red: 'bg-bad/15 text-bad border-bad/25',
-  orange: 'bg-warn/15 text-warn border-warn/25',
-  yellow: 'bg-warn/15 text-warn border-warn/25',
-  slate: 'bg-ink-600 text-mute border-ink-500',
-}
-export function Badge({ className, color = 'slate', ...props }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium',
-        'v2-chip',
-        BADGE[color],
-        className,
-      )}
-      {...props}
-    />
-  )
-}
-
-// ── Punto de estado (semáforo minimalista) ──────────────────────────
-const DOT = { green: 'bg-ok', red: 'bg-bad', blue: 'bg-fono', slate: 'bg-mute', orange: 'bg-warn', ok: 'bg-ok', warn: 'bg-warn', bad: 'bg-bad', info: 'bg-info', mute: 'bg-mute' }
-export function Dot({ color = 'slate', pulse = false, className }) {
-  return (
-    <span className={cn('relative inline-flex h-2 w-2 shrink-0', className)}>
-      {pulse && (
-        <span
-          className={cn(
-            'absolute inline-flex h-full w-full animate-ping rounded-full opacity-60',
-            DOT[color],
-          )}
-        />
-      )}
-      <span className={cn('relative inline-flex h-2 w-2 rounded-full', DOT[color])} />
-    </span>
-  )
-}
-
-// ── IconAction ──────────────────────────────────────────────────────
-// Acción compacta de fila: ícono con tooltip y tono semántico. Misma
-// firma que las acciones de Inventario para que todas las grillas del
-// módulo de control compartan tamaño, foco y colores.
-const ICON_ACTION_TONE = {
-  ok: 'border-ok/30 text-ok hover:bg-ok/10',
-  warn: 'border-warn/30 text-warn hover:bg-warn/10',
-  fono: 'border-fono/30 text-fono-light hover:bg-fono/10',
-  bad: 'border-bad/30 text-bad hover:bg-bad/10',
-  mute: 'border-transparent text-mute hover:bg-ink-700 hover:text-fore',
-}
-// `size="touch"` agranda el área táctil a 44 px (móvil y tablet): mismo ícono
-// y tono, y el target cumple el criterio de la auditoría responsive (#249 H2).
-export function IconAction({ icon, label, tone = 'mute', onClick, disabled = false, size = 'sm' }) {
-  return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      className={cn(
-        'inline-flex items-center justify-center rounded-lg border transition active:scale-95 disabled:pointer-events-none disabled:opacity-40',
-        size === 'touch' ? 'h-11 w-11' : 'h-7 w-7',
-        ICON_ACTION_TONE[tone],
-      )}
-    >
-      <Icon name={icon} className="h-4 w-4" />
-    </button>
-  )
-}
-
-// ── Drawer ──────────────────────────────────────────────────────────
-// Panel lateral móvil: overlay, foco atrapado, Esc y clic afuera. Mismo
-// nivel de robustez que el Modal; entra deslizándose desde el costado.
+// ── Drawer (local: superficie pendiente con DSN) ────────────────────
+// Cajón lateral: panel con overlay, foco atrapado, Esc y clic afuera.
 export function Drawer({ open, onClose, title, children, side = 'right', className }) {
   const panel = useRef(null)
   const close = useRef(onClose)
@@ -422,241 +186,7 @@ export function Drawer({ open, onClose, title, children, side = 'right', classNa
   )
 }
 
-// ── Toasts globales ─────────────────────────────────────────────────
-const ToastContext = createContext(null)
-let toastCounter = 0
-const TOAST_ICON = { success: 'check', error: 'alert', info: 'info' }
-const TOAST_TONE = { success: 'text-ok', error: 'text-bad', info: 'text-fono-light' }
-
-export function ToastProvider({ children, demo = false }) {
-  const [toasts, setToasts] = useState([])
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
-  const dismiss = useCallback((id) => setToasts(current => current.filter(toast => toast.id !== id)), [])
-  const toast = useCallback((variant, title, description) => {
-    const id = `toast-${++toastCounter}`
-    setToasts(current => [...current, { id, variant: TOAST_ICON[variant] ? variant : 'info', title, description }])
-    setTimeout(() => dismiss(id), 4000)
-  }, [dismiss])
-  // En la demo pública, cada guardado avisa que quedó simulado (#192).
-  useEffect(() => {
-    if (!demo) return undefined
-    let ultimo = 0
-    const aviso = () => {
-      const ahora = Date.now()
-      if (ahora - ultimo < 2500) return
-      ultimo = ahora
-      toast('info', 'Cambio simulado en la demo', 'El dato quedó solo en este navegador: no se guardó en la tienda real.')
-    }
-    window.addEventListener('mobos:demo-guardado', aviso)
-    return () => window.removeEventListener('mobos:demo-guardado', aviso)
-  }, [demo, toast])
-  const value = useMemo(() => ({
-    success: (title, description) => toast('success', title, description),
-    error: (title, description) => toast('error', title, description),
-    info: (title, description) => toast('info', title, description),
-  }), [toast])
-  if (!mounted) return children
-  return (
-    <ToastContext.Provider value={value}>
-      {children}
-      <div className="pointer-events-none fixed bottom-4 left-4 right-4 z-[60] flex max-w-sm flex-col gap-2 sm:left-auto sm:w-full" aria-live="polite" role="status">
-        {toasts.map(toast => (
-          <div key={toast.id} className={cn('pointer-events-auto flex items-start gap-3 rounded-xl border bg-ink-700 p-3.5 shadow-card', toast.variant === 'error' ? 'border-bad/40' : toast.variant === 'success' ? 'border-ok/40' : 'border-ink-500')}>
-            <Icon name={TOAST_ICON[toast.variant]} className={cn('mt-0.5 h-4 w-4', TOAST_TONE[toast.variant])} />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-fore">{toast.title}</p>
-              {toast.description && <p className="mt-0.5 text-xs text-mute">{toast.description}</p>}
-              {demo && (
-                <p className="mt-1 inline-flex rounded border border-fono/40 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fono-light">
-                  Demo · no se guardó en la tienda
-                </p>
-              )}
-            </div>
-            <button type="button" onClick={() => dismiss(toast.id)} className="rounded-md p-1 text-mute transition hover:bg-ink-600 hover:text-fore" aria-label="Cerrar aviso">×</button>
-          </div>
-        ))}
-      </div>
-    </ToastContext.Provider>
-  )
-}
-
-export function useToast() {
-  const context = useContext(ToastContext)
-  if (!context) return { success: () => {}, error: () => {}, info: () => {} }
-  return context
-}
-
-// ── Skeleton ────────────────────────────────────────────────────────
-export function Skeleton({ className }) {
-  return <div className={cn('animate-pulse rounded-lg bg-fore/5', className)} aria-hidden="true" />
-}
-
-// ── EmptyState ──────────────────────────────────────────────────────
-export function EmptyState({ icon = 'box', title, description, action, compact = false, className }) {
-  return (
-    <div className={cn('flex flex-col items-center justify-center px-6 text-center', compact ? 'py-6' : 'py-12', className)}>
-      <div className="grid h-12 w-12 place-items-center rounded-2xl border border-ink-500 bg-ink-700 text-mute">
-        <Icon name={icon} className="h-5 w-5" />
-      </div>
-      {title && <p className="mt-3 text-sm font-semibold text-fore">{title}</p>}
-      {description && <p className="mt-1 max-w-xs text-xs leading-5 text-mute">{description}</p>}
-      {action && <div className="mt-4">{action}</div>}
-    </div>
-  )
-}
-
-// ── ErrorState ──────────────────────────────────────────────────────
-export function ErrorState({ title = 'Algo salió mal', description, onRetry }) {
-  return (
-    <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
-      <div className="grid h-12 w-12 place-items-center rounded-2xl border border-bad/25 bg-bad/10 text-bad">
-        <Icon name="alert" className="h-5 w-5" />
-      </div>
-      <p className="mt-3 text-sm font-semibold text-fore">{title}</p>
-      {description && <p className="mt-1 max-w-xs text-xs leading-5 text-mute">{description}</p>}
-      {onRetry && (
-        <Button type="button" variant="outline" onClick={onRetry} className="mt-4">
-          Reintentar
-        </Button>
-      )}
-    </div>
-  )
-}
-
-// ── Aviso (banner inline) ───────────────────────────────────────────
-// Mensaje de resultado pegado al flujo: error o confirmación. Es el único
-// objeto para avisos inline (docs/PLANTILLA-OBJETOS.md §4); no se copia el
-// borde y el fondo de color por pantalla. `error` anuncia con role="alert" y
-// el resto con role="status"; el espaciado extra se ajusta con className.
-const AVISOS = {
-  error: 'border-bad/30 bg-bad/10 text-bad',
-  ok: 'border-ok/30 bg-ok/10 text-ok',
-  warn: 'border-warn/30 bg-warn/10 text-warn',
-}
-export function Aviso({ tono = 'error', como = 'p', compact = false, className, children, ...props }) {
-  // `como="div"` para el aviso con estructura (ícono, botón de reintentar):
-  // un <p> no admite bloques y el envoltorio lo elige la pantalla.
-  const Etiqueta = como === 'div' ? 'div' : 'p'
-  return (
-    <Etiqueta
-      role={tono === 'error' ? 'alert' : 'status'}
-      className={cn('rounded-lg border', compact ? 'px-2.5 py-2 text-xs' : 'px-3 py-2 text-sm', AVISOS[tono], className)}
-      {...props}
-    >
-      {children}
-    </Etiqueta>
-  )
-}
-
-// ── Nota (superficie informativa) ──────────────────────────────────
-// Nota neutra con borde de aviso: la misma caja en todas las pantallas para
-// aclaraciones que no son resultado (no anuncian con role). El borde y el fondo
-// salen de acá (docs/PLANTILLA-OBJETOS.md §4); `compact` achica la caja y
-// `como="div"` se usa cuando la nota lleva estructura.
-const NOTAS = {
-  warn: 'border-warn/30 bg-warn/10',
-  info: 'border-info/25 bg-info/10',
-  neutro: 'border-ink-600 bg-ink-800/40',
-}
-export function Nota({ tono = 'warn', como = 'p', compact = false, className, children, ...props }) {
-  const Etiqueta = como === 'div' ? 'div' : 'p'
-  return (
-    <Etiqueta
-      className={cn('border text-mute', compact ? 'rounded-lg p-2 text-xs' : 'rounded-xl p-3 text-sm', NOTAS[tono] || NOTAS.warn, className)}
-      {...props}
-    >
-      {children}
-    </Etiqueta>
-  )
-}
-
-// ── PageHeader ──────────────────────────────────────────────────────
-export function PageHeader({ title, subtitle, actions, backTo, eyebrow }) {
-  return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex min-w-0 items-center gap-3">
-        {backTo && (
-          <button
-            type="button"
-            onClick={backTo}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-ink-500 text-mute transition hover:border-fono hover:bg-fono/10 hover:text-fore"
-            aria-label="Volver"
-          >
-            <Icon name="back" className="h-4 w-4" />
-          </button>
-        )}
-        <div className="min-w-0">
-          {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
-          <h1 className="truncate text-2xl font-bold">{title}</h1>
-          {subtitle && <p className="mt-1 truncate text-sm text-mute">{subtitle}</p>}
-        </div>
-      </div>
-      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
-    </div>
-  )
-}
-
-// ── DataTable ───────────────────────────────────────────────────────
-// En md+ una tabla real con cabecera; en móvil tarjetas apiladas vía
-// mobileCard(row). Sin mobileCard, el móvil muestra un EmptyState chico.
-export function DataTable({ columns, rows, emptyLabel = 'Sin datos para mostrar.', loading = false, mobileCard, className }) {
-  if (loading) {
-    return (
-      <div className={cn('space-y-2 p-4', className)} aria-busy="true">
-        <Skeleton className="h-4 w-1/3" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-      </div>
-    )
-  }
-  if (!rows?.length) return <EmptyState title={emptyLabel} description="" className={className} />
-  return (
-    <div className={className}>
-      <div className="hidden max-h-[70vh] overflow-auto md:block">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 z-10 bg-ink-800">
-            <tr className="border-b border-ink-600 text-left text-xs uppercase tracking-wider text-mute">
-              {columns.map(column => (
-                <th key={column.key} className={cn('px-2.5 py-1.5 font-medium', column.align === 'right' && 'text-right', column.align === 'center' && 'text-center')}>{column.label}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(row => (
-              <tr key={row.id ?? row.key ?? JSON.stringify(row)} className="border-b border-ink-600/60 last:border-0">
-                {columns.map(column => (
-                  <td key={column.key} className={cn('px-2.5 py-1.5 text-fore', column.align === 'right' && 'text-right', column.align === 'center' && 'text-center')}>
-                    {column.render ? column.render(row) : row[column.key]}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="grid grid-cols-1 gap-2 p-2.5 md:hidden">
-        {mobileCard
-          ? rows.map(row => <div key={row.id ?? row.key ?? JSON.stringify(row)}>{mobileCard(row)}</div>)
-          : <EmptyState icon="filter" title={emptyLabel} />}
-      </div>
-    </div>
-  )
-}
-
-// ── FormField ───────────────────────────────────────────────────────
-export function FormField({ label, hint, error, children, htmlFor }) {
-  return (
-    <div>
-      {label && <Label htmlFor={htmlFor}>{label}</Label>}
-      {children}
-      {error ? <p role="alert" className="mt-1.5 text-xs text-bad">{error}</p> : hint ? <p className="mt-1.5 text-xs text-mute">{hint}</p> : null}
-    </div>
-  )
-}
-
-// ── Tarjeta de métrica (KPI con tendencia) ──────────────────────────
+// ── Stat (local: delta sin flechas, pendiente con DSN) ──────────────
 export function Stat({ label, valor, delta, sub, destacado = false, className }) {
   const sube = typeof delta === 'number' && delta >= 0
   return (
@@ -679,88 +209,6 @@ export function Stat({ label, valor, delta, sub, destacado = false, className })
         )}
         {sub && <span className={destacado ? 'text-onbrand/75' : 'text-mute'}>{sub}</span>}
       </div>
-    </div>
-  )
-}
-
-// ── Subtabs ─────────────────────────────────────────────────────────
-// Pestañas de una sección (subnavegación dentro de una vista). Es la variante
-// ancha del segmentado; una sola fuente para que todas las subpáginas se vean
-// igual. `items` usa la convención del repo: [id, etiqueta].
-export function Subtabs({ value, onChange, items = [], className }) {
-  if (!items.length) return null
-  return (
-    <div className={cn('mb-5 flex flex-wrap gap-2 rounded-2xl border border-fore/10 bg-ink p-2', className)} role="tablist">
-      {items.map(([id, label]) => (
-        <button
-          key={id}
-          type="button"
-          role="tab"
-          aria-selected={value === id}
-          onClick={() => onChange(id)}
-          className={cn(
-            'rounded-xl px-3 py-2 text-sm font-medium transition min-h-11',
-            value === id ? 'bg-fono text-onbrand' : 'text-mute hover:bg-fore/5 hover:text-fore',
-          )}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-// ── FilaDato ────────────────────────────────────────────────────────
-// Fila etiqueta/valor de los paneles de detalle (subtotal, total, pagado…):
-// etiqueta a la izquierda en `mute`, valor a la derecha en semibold con
-// números tabulares y tono semántico. `etiquetaComo`/`valorComo` permiten
-// mantener `dt`/`dd` dentro de un `<dl>`.
-const TONOS_VALOR = { ok: 'text-ok', warn: 'text-warn', bad: 'text-bad', mute: 'text-mute' }
-
-export function FilaDato({ etiqueta, valor, tono = '', etiquetaComo: Etiqueta = 'span', valorComo: Valor = 'span', className, valorClassName, children }) {
-  return (
-    <div className={cn('flex items-center justify-between gap-3', className)}>
-      <Etiqueta className="min-w-0 text-mute">{etiqueta ?? children}</Etiqueta>
-      <Valor className={cn('shrink-0 font-semibold tabular-nums', TONOS_VALOR[tono], valorClassName)}>{valor}</Valor>
-    </div>
-  )
-}
-
-// ── CeldaMoneda ─────────────────────────────────────────────────────
-// Celda de dinero para listas y tablas: alineada a la derecha, con `Money`
-// (el mismo formato que el resto de la app), números tabulares y tono. El
-// contenido extra (moneda, sufijo) va como children.
-export function CeldaMoneda({ valor, tono = '', currency = 'PYG', className, children }) {
-  return (
-    <span className={cn('inline-flex shrink-0 items-center justify-end gap-1 font-semibold tabular-nums', TONOS_VALOR[tono], className)}>
-      <Money value={Number(valor || 0)} currency={currency} />
-      {children}
-    </span>
-  )
-}
-
-// ── BarraProgreso ───────────────────────────────────────────────────
-// Barra de progreso accesible (role=progressbar) para avances, escaneos y
-// conciliaciones: tono semántico y altura chica/media/grande.
-const TONOS_BARRA = { fono: 'bg-fono', ok: 'bg-ok', warn: 'bg-warn', bad: 'bg-bad', mute: 'bg-mute', onbrand: 'bg-onbrand' }
-const ALTURAS_BARRA = { sm: 'h-1', md: 'h-1.5', lg: 'h-2.5' }
-
-// `pista` y `relleno` existen para las barras de gráfico que usan tokens del
-// tema (fondo sobre color de marca, línea de series): todo sigue pasando por el
-// objeto (rol, aria y transición) sin copiar el markup.
-export function BarraProgreso({ valor = 0, max = 100, tono = 'fono', alto = 'md', etiqueta, pista, relleno, className }) {
-  const total = Number(max) > 0 ? Number(max) : 100
-  const porcentaje = Math.min(100, Math.max(0, ((Number(valor) || 0) / total) * 100))
-  return (
-    <div
-      role="progressbar"
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={Math.round(porcentaje)}
-      aria-label={etiqueta}
-      className={cn('overflow-hidden rounded-full bg-fore/10', ALTURAS_BARRA[alto] || ALTURAS_BARRA.md, pista, className)}
-    >
-      <span className={cn('block h-full rounded-full transition-[width] duration-500 ease-out', TONOS_BARRA[tono] || TONOS_BARRA.fono, relleno)} style={{ width: `${porcentaje}%` }} />
     </div>
   )
 }
