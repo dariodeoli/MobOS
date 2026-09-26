@@ -474,7 +474,11 @@ export async function POST(request: Request) {
             } else {
               // Venta sobre pedido: sin stock disponible, el cliente reserva y
               // el IMEI se completa al entregar.
-              const available = await tx.inventoryUnit.count({ where: { tenantId: tenant, productId: product.id, status: 'AVAILABLE' } })
+              // #263: la disponibilidad se mide en la sucursal de la venta (la
+              // misma que valida los seriales y descuenta stock). Antes sumaba
+              // unidades de cualquier sucursal y frenaba la venta con un 400
+              // imposible: el POS no podía ofrecer esos IMEI.
+              const available = await tx.inventoryUnit.count({ where: { tenantId: tenant, productId: product.id, status: 'AVAILABLE', branchId: branchId ?? null } })
               if (available > 0 && !offlineSale) throw new InputError('Seleccioná el IMEI/serial exacto de cada equipo antes de vender.')
               // Venta offline sin IMEI: queda como sobre pedido (el IMEI se
               // asigna al entregar) y se cuenta para la revisión.

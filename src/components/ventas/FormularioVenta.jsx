@@ -487,19 +487,21 @@ export default function FormularioVenta({
   const itemsRef = useRef(items)
   itemsRef.current = items
 
-  // Unidades disponibles del producto que se está por vender: con stock no se
-  // puede "sobre pedir" (el servidor exige el IMEI exacto); el modal lo avisa.
+  // Unidades disponibles del producto que se está por vender: con stock en la
+  // sucursal no se puede "sobre pedir" (el servidor exige el IMEI exacto); el
+  // modal lo avisa. #263: mismo alcance que el selector (producto + sucursal)
+  // para que el aviso y el server no se contradigan.
   useEffect(() => {
     const fila = itemsRef.current.find(it => it.key === imeiPara)
     const producto = fila ? productos.find(p => p.id === fila.productoId) : null
     if (!imeiPara || !producto || esDemo) { setUnidadesDeImei(0); return undefined }
     let vivo = true
-    api.get(`/api/inventory-units?q=${encodeURIComponent(producto.sku || producto.nombre || '')}`)
+    resources.inventoryUnits.list('', 'active', { productId: producto.id, status: 'AVAILABLE', ...(sucursal?.id ? { branchId: sucursal.id } : {}) })
       .then(rows => { if (vivo) setUnidadesDeImei((rows || []).filter(unit => unit.productId === producto.id && unit.status === 'AVAILABLE').length) })
       .catch(() => { if (vivo) setUnidadesDeImei(0) })
     return () => { vivo = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [imeiPara])
+  }, [imeiPara, sucursal?.id])
 
   async function resolverPrecio(productoId, quantity) {
     if (esDemo || !productoId) return null
@@ -666,11 +668,16 @@ export default function FormularioVenta({
 
   // Los productos con unidades serializadas piden IMEI en su fila.
   function detectarUnidades(producto, key) {
-    const query = producto.sku || producto.nombre || ''
-    // `resources` respeta la demo: las unidades ficticias también piden IMEI.
-    resources.inventoryUnits.list(query)
+    // #263: unidades del producto en la sucursal de la venta (mismo alcance que
+    // el selector y el servidor). Antes se buscaba por SKU/nombre y el tope de
+    // la API podía devolver cero con unidades reales en stock: la guía no pedía
+    // el IMEI y el guardado moría con el 400 del servidor.
+    resources.inventoryUnits.list('', 'active', {
+      productId: producto.id,
+      ...(sucursal?.id ? { branchId: sucursal.id } : {}),
+    })
       .then(rows => {
-        const unidades = (rows || []).filter(unit => unit.productId === producto.id).length
+        const unidades = (rows || []).filter(unit => unit.productId === producto.id && unit.status === 'AVAILABLE').length
         if (!unidades) return
         setItems(arr => arr.map(it => (it.key === key ? { ...it, requiereSerie: true, unidades } : it)))
       })
@@ -1905,12 +1912,16 @@ export default function FormularioVenta({
               </p>
               <SerialUnitPicker
                 product={productoFila}
+                branchId={sucursal?.id || ''}
                 customerName={customer.name || f.cliente}
                 selectedSerials={fila.serials || []}
                 // Elegir unidad en el picker crea la reserva: la línea lo muestra.
                 onChange={serials => editarItem(fila.key, { serials, reservado: serials.length > 0 })}
                 onRequiresSerial={(requiere, unidades) => {
-                  if (requiere) editarItem(fila.key, { requiereSerie: true, unidades })
+                  // #263: la marca sigue el estado real del selector (antes solo
+                  // se encendía y una línea sin unidades en la sucursal quedaba
+                  // exigiendo un IMEI que no se podía elegir).
+                  editarItem(fila.key, { requiereSerie: Boolean(requiere), unidades })
                 }}
                 disabled={guardando}
               />

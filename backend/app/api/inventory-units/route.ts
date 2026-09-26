@@ -83,6 +83,12 @@ export async function GET(request: Request) {
   if (view === 'removed' && session.user.role !== 'ADMIN') return json([])
   const raw = (params.get('q') || '').replace(/^MOBOS:/i, '')
   const query = raw ? serialKey(raw) : ''
+  // #263: el selector de IMEI del POS pide las unidades de UN producto en SU
+  // sucursal; sin estos filtros dependía de la búsqueda por texto y podía
+  // quedarse sin unidades para elegir.
+  const productId = (params.get('productId') || '').trim().slice(0, 128)
+  const status = params.get('status') || ''
+  if (status && !Object.values(InventoryUnitStatus).includes(status as InventoryUnitStatus)) return error('Estado de unidad inválido.')
   const removedIds = await removedIdsForTenant(tenant)
   const removalFilter = view === 'removed'
     ? { id: { in: [...removedIds] } }
@@ -94,7 +100,7 @@ export async function GET(request: Request) {
     // guiones: un SKU como «E2E-IPHONE15» no matcheaba por `sku`. Se conserva el
     // match normalizado y se suma el crudo (búsqueda por SKU en Inventario y
     // detección de unidades serializadas del POS).
-    where: { tenantId: tenant, ...removalFilter, ...(branchId ? { branchId } : session.user.branchId ? { branchId: session.user.branchId } : {}), ...(query ? { OR: [{ serial: { contains: query, mode: 'insensitive' } }, { product: { OR: [{ sku: { contains: raw, mode: 'insensitive' } }, { sku: { contains: query, mode: 'insensitive' } }, { name: { contains: raw, mode: 'insensitive' } }] } }] } : {}) },
+    where: { tenantId: tenant, ...removalFilter, ...(branchId ? { branchId } : session.user.branchId ? { branchId: session.user.branchId } : {}), ...(productId ? { productId } : {}), ...(status ? { status: status as InventoryUnitStatus } : {}), ...(query ? { OR: [{ serial: { contains: query, mode: 'insensitive' } }, { product: { OR: [{ sku: { contains: raw, mode: 'insensitive' } }, { sku: { contains: query, mode: 'insensitive' } }, { name: { contains: raw, mode: 'insensitive' } }] } }] } : {}) },
     include: { product: { select: { id: true, name: true, sku: true, pricePyg: true, capacity: true, model: true, color: true } }, branch: { select: { id: true, name: true } }, location: { select: { id: true, name: true, code: true } }, lastVerifiedBy: { select: { id: true, name: true } }, ...(['ADMIN', 'GERENTE'].includes(session.user.role) ? { supplier: { select: { id: true, name: true, code: true } } } : {}) },
     orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }], take: Math.min(500, Math.max(1, Number(params.get('limit')) || 500)), ...(params.get('cursor') ? { cursor: { id: params.get('cursor') as string }, skip: 1 } : {}),
   })
