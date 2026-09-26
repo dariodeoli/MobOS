@@ -32,6 +32,7 @@ const ACCION_AUDITORIA: Record<string, string> = {
   CUSTOMER_AUTHORIZATION_APPROVED: 'Solicitud comercial aprobada',
   CUSTOMER_AUTHORIZATION_REJECTED: 'Solicitud comercial rechazada',
   CUSTOMER_DEVICE_REPORT_SHARED: 'Informe del equipo compartido',
+  QUOTE_EMAIL_SENT: 'Cotización enviada por correo',
   CUSTOMER_DEVICE_REPORT_VIEWED: 'Informe del equipo visto por el cliente',
   SERVICE_ORDER_CREATED: 'Equipo en taller',
   SERVICE_ORDER_FROM_WARRANTY: 'Equipo en taller (garantía)',
