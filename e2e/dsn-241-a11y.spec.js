@@ -85,11 +85,14 @@ test('el default es v2 y la salida opt-out vuelve al diseño anterior', async ({
   })
   await page.goto('/resumen')
   await expect(page.getByText('Facturado').first()).toBeVisible({ timeout: 30_000 })
+  await expect(page.locator('[data-tema-v2="0"]').first()).toBeVisible()
   await page.screenshot({ path: `${SHOTS}/c241f4b-shell-optout-antes-claro-desktop.png` })
 
   await page.addInitScript(() => { try { localStorage.removeItem('mobos:tema-v2') } catch { /* sin storage */ } })
   await page.goto('/resumen')
   await expect(page.locator('.tema-v2').first()).toBeVisible({ timeout: 30_000 })
+  // F4 aprobado (26/09): sin valor por dispositivo, el shell arranca en v2.
+  await expect(page.locator('[data-tema-v2="1"]').first()).toBeVisible()
   await expect(page.getByText('Facturado').first()).toBeVisible({ timeout: 30_000 })
   await page.screenshot({ path: `${SHOTS}/c241f4b-shell-default-despues-claro-desktop.png` })
 })

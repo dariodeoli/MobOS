@@ -1,6 +1,6 @@
 # Paquete de activación F4 (#241) — rollout v2 "device ops"
 
-_25/09/2026 · referencia producida contra producción **v1.0.175**._
+_26/09/2026 · **APROBADO por Dario y activado** · referencia contra producción **v1.0.178**._
 
 Este documento es la guía para **activar y verificar** el rollout v2. El
 paquete de aprobación (qué cambia por dominio, con capturas) es
@@ -8,12 +8,14 @@ paquete de aprobación (qué cambia por dominio, con capturas) es
 
 ## Activar F4 (un solo paso)
 
-**Estado: ya activo** (el v2 es el diseño por defecto). Para prenderlo o volver
-atrás alcanza con **una variable en Coolify + redeploy**, sin tocar código:
+**✅ Aprobado por Dario el 26/09/2026: el v2 es el diseño por defecto** (ya
+activo en producción v1.0.178). Para prenderlo o volver atrás alcanza con **una
+variable en Coolify + redeploy**, sin tocar código; el **toggle para volver al
+diseño anterior se mantiene por un tiempo** (por dispositivo, en Preferencias):
 
 | Acción | Cambio |
 |---|---|
-| **Activar** | `VITE_TEMA_V2` sin definir o `1` → redeploy *(hoy está así)* |
+| **Activar** | `VITE_TEMA_V2` sin definir o `1` → redeploy *(estado actual, aprobado)* |
 | **Volver al diseño anterior** | `VITE_TEMA_V2=0` → redeploy |
 | Solo este dispositivo | Preferencias → «Volver al diseño anterior» |
 
@@ -55,7 +57,7 @@ mismo sistema con datos ficticios.
 | 14 | **Mobile #249** (áreas de 44 px, sin scroll) | todas | ✅ cerrado | `docs/qa/249-cierre-responsive/`, `docs/QA-RESPONSIVE-MOBILE.md` | gate `dsn-responsive-mobile` 12/12 |
 | 15 | **AA del shell** | todas | ✅ cerrado | `docs/qa/241-shell-aa/`, `docs/qa/241-shell-produccion/` | `QA-241-shell-aa.md` |
 
-## Capturas finales por dominio (producción v1.0.175)
+## Capturas finales por dominio (producción v1.0.178)
 
 Orden del rollout: **inventario → POS → pedidos → clientes → finanzas**. Todas
 viven en `docs/qa/activacion-f4/dominios/` (22 JPGs) y se reproducen con
@@ -121,13 +123,25 @@ Más: `05-finanzas-caja-desktop-oscuro.jpg`, `05-finanzas-caja-mobile-claro.jpg`
 5. **Rollback** (si algo molesta): por dispositivo desde Preferencias o global
    con el switch en `0`.
 
+### Verificación post-.178 (26/09/2026)
+
+Con F4 activado por defecto sobre **v1.0.178**:
+
+| Verificación | Resultado |
+|---|---|
+| `npm run test:e2e:smoke` | **19/19** |
+| Suite e2e completa (`npm run test:e2e`) | **479 passed · 0 flaky · 0 fallos** (10 skip) |
+| AA del shell en producción (`qa-241-shell-produccion.mjs`) | **0 bajos** en los 6 estados |
+| AA/opt-out local (`dsn-241-a11y.spec.js`) | **8/8**, incluido el pin del default (`data-tema-v2="1"`) y el toggle (`0`) |
+| Capturas | producción v1.0.178: 15 de panorama + 22 por dominio + 6 del shell |
+
 ## Capturas finales
 
 - **Por dominio, para la activación**: `docs/qa/activacion-f4/dominios/`
   (22 JPGs en el orden inventario → POS → pedidos → clientes → finanzas; se
   reproducen con `node scripts/qa-activacion-f4-dominios.mjs`). Las principales
   están embebidas más arriba.
-- **Estado desplegado (producción v1.0.175)**: `docs/qa/activacion-f4/`
+- **Estado desplegado (producción v1.0.178)**: `docs/qa/activacion-f4/`
   (15 JPGs: resumen, POS, pedidos, clientes, inventario, finanzas, configuración
   y `/ops` en desktop claro; oscuro para resumen/POS/ops; mobile claro para
   POS/pedidos/configuración/ops).
