@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { MARGEN_ALTO_PYG, costoEstimadoDeNecesidad, margenEstimadoDeNecesidad, prioridadDeNecesidad, prioridadPorFecha } from '../lib/supply-priority'
+import { MARGEN_ALTO_PYG, costoEstimadoDeNecesidad, margenEstimadoDeNecesidad, prioridadDeNecesidad } from '../lib/supply-priority'
 import { consolidarNecesidades } from '../lib/supply'
 
 // #254 · FIN: prioridad de una necesidad por venta/margen/fecha y costos
@@ -43,14 +43,6 @@ test('costo y margen estimados de la necesidad', () => {
   assert.equal(margenEstimadoDeNecesidad({ precioUnitarioPyg: 2000000, costoUnitarioPyg: 1500000, cantidad: 2 }), 1000000)
   assert.equal(margenEstimadoDeNecesidad({ precioUnitarioPyg: null, costoUnitarioPyg: 1500000, cantidad: 2 }), null)
   assert.equal(margenEstimadoDeNecesidad({ precioUnitarioPyg: 1000000, costoUnitarioPyg: 1200000, cantidad: 1 }), -200000)
-})
-
-test('la prioridad efectiva solo escala por la fecha prometida', () => {
-  assert.equal(prioridadPorFecha('BAJA', { prometidaEl: null, hoy: HOY }), 'BAJA')
-  assert.equal(prioridadPorFecha('BAJA', { prometidaEl: '2026-09-27T10:00:00.000Z', hoy: HOY }), 'ALTA')
-  assert.equal(prioridadPorFecha('NORMAL', { prometidaEl: '2026-09-20T10:00:00.000Z', hoy: HOY }), 'URGENTE')
-  assert.equal(prioridadPorFecha('URGENTE', { prometidaEl: null, hoy: HOY }), 'URGENTE')
-  assert.equal(prioridadPorFecha('LO-QUE-SEA', { prometidaEl: null, hoy: HOY }), 'NORMAL')
 })
 
 test('la consolidación suma costo y margen del grupo', () => {

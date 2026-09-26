@@ -120,6 +120,34 @@ assert.equal(parcial.unidadesCreadas, 1)
 const stockDos = await req(`/api/stock?branchId=${rama}`)
 assert.equal(Number((Array.isArray(stockDos) ? stockDos : stockDos.productos || []).find((item) => item.id === dos.producto.id)?.stock ?? 0), 1, 'solo lo recibido suma stock')
 
+// 6-bis) Costos/moneda (FIN #254): una compra en USD con costo por línea llega
+// a la unidad con el costo convertido y la moneda/cotización congeladas.
+const productoTres = await req('/api/products', 'POST', { name: `Recepción USD ${sufijo}`, sku: `RECUSD-${sufijo}`, pricePyg: 3000000, costPyg: 2000000, stock: 0, branchId: rama }, 201)
+const imeiUsd = imeiValido(String(Number(base14) + 3).padStart(14, '0'))
+const compraUsd = await req('/api/supply/purchases', 'POST', {
+  supplierName: `Proveedor USA ${sufijo}`,
+  currency: 'USD',
+  exchangeRatePyg: 7500,
+  lines: [{ productId: productoTres.id, quantity: 1, originalUnitCost: 900 }],
+}, 201)
+assert.equal(Number(compraUsd.lines[0].unitCostPyg), 900 * 7500, 'la línea convierte el costo de la compra')
+assert.equal(Number(compraUsd.costPyg), 900 * 7500, 'sin total explícito, el total sale de la línea')
+const loteUsd = await req('/api/supply/shipments', 'POST', { purchaseId: compraUsd.id, origin: 'USA', destinationBranchId: rama, method: 'BUS', company: 'Bus USD', etaAt: '2026-09-27T10:00:00.000Z' }, 201)
+await req('/api/supply/shipments', 'PATCH', { id: loteUsd.id, action: 'prepare' })
+await req('/api/supply/shipments', 'PATCH', { id: loteUsd.id, action: 'dispatch', guide: `GUSD-${sufijo}` })
+await req('/api/supply/shipments', 'PATCH', { id: loteUsd.id, action: 'transit' })
+const recepcionUsd = await req('/api/supply/receptions', 'POST', { shipmentId: loteUsd.id }, 201)
+await req('/api/supply/receptions', 'PATCH', { id: recepcionUsd.recepcion.id, action: 'scan', serial: imeiUsd }, 201, admin)
+const confirmadaUsd = await req('/api/supply/receptions', 'PATCH', { id: recepcionUsd.recepcion.id, action: 'confirm', locationId: depositoId })
+assert.equal(confirmadaUsd.unidadesCreadas, 1)
+const unidadesUsd = await req(`/api/inventory-units?q=${imeiUsd}`)
+const unidadUsd = (Array.isArray(unidadesUsd) ? unidadesUsd : unidadesUsd.units || []).find((unidad) => unidad.serial === imeiUsd)
+assert.ok(unidadUsd, 'la unidad comprada en USD está en el inventario')
+assert.equal(Number(unidadUsd.costPyg), 900 * 7500, 'la unidad llega con el costo convertido')
+assert.equal(unidadUsd.costCurrency, 'USD', 'la moneda del costo queda congelada en la unidad')
+assert.equal(Number(unidadUsd.exchangeRatePyg), 7500, 'la cotización queda congelada en la unidad')
+assert.equal(Number(unidadUsd.originalCost), 900, 'el costo original se conserva')
+
 // 7) Una recepción cerrada no se vuelve a confirmar ni escanear.
 await req('/api/supply/receptions', 'PATCH', { id: recepcionId, action: 'scan', serial: 'AUR-9' }, 409, admin)
 await req('/api/supply/receptions', 'PATCH', { id: recepcionId, action: 'confirm', locationId: depositoId }, 409, admin)

@@ -68,6 +68,13 @@ assert.equal(Number(compraPorLinea.originalCost), Number((900 * 2 + 700.5).toFix
 // Falta de cotización con costo por línea en moneda extranjera.
 await req('/api/supply/purchases', 'POST', { supplierName: 'Proveedor', currency: 'USD', lines: [{ productId: producto.id, quantity: 1, originalUnitCost: 900 }] }, 400)
 
+// 2-ter) FIN (#254): la compra al contado nace sin deuda (Finanzas muestra
+// pendientes y tenencia; una cuenta saldada no engorda el «por pagar»).
+assert.equal(compraPorLinea.paymentCondition, 'CONTADO', 'por defecto, contado')
+const finContado = await req('/api/finance')
+const cuentasContado = finContado.supplierPayables?.rows || []
+assert.ok(!cuentasContado.some((fila) => fila.reference === compraPorLinea.code), 'el contado no engorda el «por pagar»')
+
 // 3) La necesidad quedó cubierta y vinculada a la compra.
 const pendientes = await req('/api/supply/needs')
 assert.ok(!pendientes.grupos.some((grupo) => grupo.necesidades.includes(necesidad.id)), 'la necesidad cubierta sale de «Por comprar»')
@@ -105,6 +112,31 @@ await req('/api/supply/purchases', 'POST', { supplierName: 'Proveedor', lines: [
 await req('/api/supply/purchases', 'POST', { supplierName: 'Proveedor', lines: [{ productId: 'no-existe', quantity: 1 }] }, 404)
 // Necesidad ya cubierta: no se puede volver a comprar.
 await req('/api/supply/purchases', 'POST', { supplierName: 'Proveedor', lines: [{ needId: necesidad.id, productId: producto.id, quantity: 1 }] }, 409, admin)
+
+// 7-bis) FIN (#254): compra a crédito con vencimiento → cuenta por pagar; el
+// crédito sin vencimiento no se acepta y cancelar la compra limpia la cuenta.
+const compraCredito = await req('/api/supply/purchases', 'POST', {
+  supplierName: 'Proveedor Crédito',
+  currency: 'PYG',
+  originalCost: 4000000,
+  paymentCondition: 'CREDITO',
+  dueAt: '2026-10-20T00:00:00.000Z',
+  lines: [{ productId: producto.id, quantity: 1 }],
+}, 201)
+assert.equal(compraCredito.paymentCondition, 'CREDITO')
+const finCredito = await req('/api/finance')
+const cuentaCredito = (finCredito.supplierPayables?.rows || []).find((fila) => fila.reference === compraCredito.code)
+assert.ok(cuentaCredito, 'el crédito queda como cuenta por pagar')
+assert.equal(cuentaCredito.condition, 'CREDITO')
+assert.equal(Number(cuentaCredito.amountPyg), 4000000)
+assert.equal(Number(cuentaCredito.paidPyg), 0)
+assert.equal(cuentaCredito.supplyPurchaseId, compraCredito.id, 'la cuenta queda vinculada a la compra')
+assert.equal(String(cuentaCredito.dueAt).slice(0, 10), '2026-10-20', 'el vencimiento viaja a Finanzas')
+await req('/api/supply/purchases', 'POST', { supplierName: 'Proveedor', currency: 'PYG', originalCost: 100000, paymentCondition: 'CREDITO', lines: [{ productId: producto.id, quantity: 1 }] }, 400, admin)
+const cancelable = await req('/api/supply/purchases', 'POST', { supplierName: 'Proveedor Crédito', currency: 'PYG', originalCost: 1000000, paymentCondition: 'CREDITO', dueAt: '2026-11-01T00:00:00.000Z', lines: [{ productId: producto.id, quantity: 1 }] }, 201)
+await req('/api/supply/purchases', 'PATCH', { id: cancelable.id, action: 'cancel', reason: 'Prueba de cancelación de la cuenta' })
+const finCancelada = await req('/api/finance')
+assert.ok(!(finCancelada.supplierPayables?.rows || []).some((fila) => fila.reference === cancelable.code), 'la cuenta de la compra cancelada no queda colgada')
 
 // 8) Permisos.
 await req('/api/supply/purchases', 'GET', undefined, 401, 'token-invalido')

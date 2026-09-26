@@ -26,6 +26,10 @@ function sql(consulta) {
 
 // Estado limpio: las compras de prueba se borran antes y después.
 sql(`DELETE FROM "SupplierPayable" WHERE "id" LIKE 'supp-q-%';`)
+// Foto previa del KPI: el arnés comparte la base con otras sondas (compras del
+// Centro de Abastecimiento crean sus propias cuentas), así que se comparan los
+// deltas de esta sonda y no el total absoluto.
+const kpiAntes = await req('/api/finance')
 
 const vencida = '2000-01-10T00:00:00.000Z'
 
@@ -63,9 +67,9 @@ assert.equal(pagado.pendientePyg, 750000, 'el pago baja el pendiente')
 const finance = await req('/api/finance')
 const mio = finance.supplierPayables.rows.filter(fila => fila.id === credito.id || fila.id === deposito.id)
 assert.equal(mio.length, 2, 'las dos compras vivas aparecen en la lista')
-assert.equal(finance.supplierPayables.totalPyg, 1050000, 'por pagar = crédito pendiente + consumo')
-assert.equal(finance.supplierPayables.vencidasPyg, 750000, 'el crédito vencido se cuenta aparte')
-assert.equal(finance.supplierPayables.depositoPyg, 500000, 'la tenencia no impacta el por pagar')
+assert.equal(finance.supplierPayables.totalPyg - kpiAntes.supplierPayables.totalPyg, 1050000, 'por pagar = crédito pendiente + consumo')
+assert.equal(finance.supplierPayables.vencidasPyg - kpiAntes.supplierPayables.vencidasPyg, 750000, 'el crédito vencido se cuenta aparte')
+assert.equal(finance.supplierPayables.depositoPyg - kpiAntes.supplierPayables.depositoPyg, 500000, 'la tenencia no impacta el por pagar')
 
 // Agregación SQL independiente: el total no depende de la lista.
 const esperado = sql(`SELECT COALESCE(SUM(CASE WHEN sp."condition" = 'CREDITO' THEN GREATEST(0, sp."amountPyg" - sp."paidPyg") WHEN sp."condition" = 'CONSIGNACION' THEN GREATEST(0, LEAST(sp."consumedPyg", sp."amountPyg") - sp."paidPyg") ELSE 0 END), 0) FROM "SupplierPayable" sp WHERE sp."tenantId" = '${TENANT}'`)
