@@ -122,12 +122,13 @@
         "qa-253-equipo-acceso.spec.js",
         "qa-253-mi-cuenta.spec.js",
         "qa-254-por-comprar.spec.js",
+        "qa-f6-metricas-abastecimiento.spec.js",
         "responsive.spec.js",
         "seguridad-cuenta.spec.js",
         "shell-roles.spec.js"
       ],
-      "tests": 165
+      "tests": 166
     }
   ],
-  "generado": "2026-09-26T14:33:51.890Z"
+  "generado": "2026-09-26T14:41:52.357Z"
 }

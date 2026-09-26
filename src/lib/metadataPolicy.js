@@ -55,6 +55,7 @@ const protectedSections = {
   '/abastecimiento': 'Por comprar',
   '/preparacion': 'Preparar compra',
   '/recepcion': 'Recepción',
+  '/metricas': 'Métricas de abastecimiento',
   '/configuracion/sistema': 'Estado del sistema',
   // Perfil personal (#253): vive fuera de Configuración, se abre del avatar.
   '/ayuda': 'Ayuda',

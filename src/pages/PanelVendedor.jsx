@@ -42,6 +42,7 @@ const Precios = lazy(() => import('@/components/control/Precios'))
 const PorComprar = lazy(() => import('@/components/supply/PorComprar'))
 const PrepararCompra = lazy(() => import('@/components/supply/PrepararCompra'))
 const Recepcion = lazy(() => import('@/components/supply/Recepcion'))
+const MetricasAbastecimiento = lazy(() => import('@/components/supply/MetricasAbastecimiento'))
 // #247: las secciones del panel se cargan por sección (el chunk del panel baja
 // fuerte); el `Suspense` que las envuelve ya existía para las que eran lazy.
 const SellerCustomers = lazy(() => import('@/components/ventas/SellerCustomers'))
@@ -141,6 +142,7 @@ const OWNER_NAV = [
       ['abastecimiento', 'Por comprar', 'box'],
       ['preparacion', 'Preparar compra', 'tag'],
       ['recepcion', 'Recepción', 'truck'],
+      ['metricas', 'Métricas de abastecimiento', 'chart'],
       ['precios', 'Precios', 'tag'],
       ['celulares', 'Lista por modelo', 'tag'],
       ['comparador', 'Comparador', 'report'],
@@ -300,6 +302,7 @@ const LABELS = {
   abastecimiento: 'Por comprar',
   preparacion: 'Preparar compra',
   recepcion: 'Recepción',
+  metricas: 'Métricas de abastecimiento',
   cotizaciones: 'Cotizaciones',
   plantillas: 'Plantillas de WhatsApp',
   cotizador: 'Trade-In',
@@ -914,6 +917,8 @@ export default function PanelVendedor() {
           {esOwner && vista === 'abastecimiento' && <PorComprar />}
           {esOwner && vista === 'preparacion' && <PrepararCompra />}
           {esOwner && vista === 'recepcion' && <Recepcion />}
+          {/* F6 (#250): rendimiento de proveedores, tiempos de tránsito y atrasos. */}
+          {esOwner && vista === 'metricas' && <MetricasAbastecimiento />}
           {esOwner && subpadre === 'configuracion' && (
             <NavegacionConfig value={vista} onChange={irASubtab} items={tabsConfig}>
               {vista === 'mi-cuenta' && <MiCuenta preferencias={preferencias} onCambiarPreferencias={cambiarPreferencias} />}

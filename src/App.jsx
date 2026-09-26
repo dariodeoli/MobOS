@@ -308,6 +308,8 @@ export default function App() {
           {/* Abastecimiento F3/F5: preparar la compra (IMEI) y recibir el lote. */}
           <Route path="/preparacion" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           <Route path="/recepcion" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
+          {/* Abastecimiento F6 (#250): métricas de proveedores, tránsito y atrasos. */}
+          <Route path="/metricas" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           <Route path="/cotizaciones" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/plantillas" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/trade-in" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
