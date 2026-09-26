@@ -8,7 +8,7 @@ barra inferior, cajón de acciones, avisos y pie) con el auditor de
 | Ámbito | Cómo | Estados | Resultado |
 |---|---|---|---|
 | **Local** (gate) | `npx playwright test e2e/dsn-241-a11y.spec.js --project=admin` | 4 shell (claro/oscuro × desktop/mobile) + cajón abierto + banner sin conexión + pantalla oscura del pilotaje + switch default/opt-out + paleta de la biblioteca | **8/8 · 0 bajos** |
-| **Producción** | `node scripts/qa-241-shell-produccion.mjs` | 6 (claro/oscuro × desktop/mobile + cajón) contra `app.moboss.online` | **v1.0.175 · 0 bajos** |
+| **Producción** | `node scripts/qa-241-shell-produccion.mjs` | 6 (claro/oscuro × desktop/mobile + cajón) contra `app.moboss.online` | **v1.0.178 · 0 bajos** |
 
 - Capturas locales: `docs/qa/241-shell-aa/` (`c241f4-shell-aa-*`, incluido el
   par antes/después del opt-out).
