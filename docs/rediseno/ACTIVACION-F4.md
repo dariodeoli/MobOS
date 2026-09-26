@@ -6,6 +6,21 @@ Este documento es la guía para **activar y verificar** el rollout v2. El
 paquete de aprobación (qué cambia por dominio, con capturas) es
 [`PAQUETE-F4.md`](PAQUETE-F4.md); acá está el orden, el switch y qué mirar.
 
+## Activar F4 (un solo paso)
+
+**Estado: ya activo** (el v2 es el diseño por defecto). Para prenderlo o volver
+atrás alcanza con **una variable en Coolify + redeploy**, sin tocar código:
+
+| Acción | Cambio |
+|---|---|
+| **Activar** | `VITE_TEMA_V2` sin definir o `1` → redeploy *(hoy está así)* |
+| **Volver al diseño anterior** | `VITE_TEMA_V2=0` → redeploy |
+| Solo este dispositivo | Preferencias → «Volver al diseño anterior» |
+
+Revisión visual antes de dar el OK: las **capturas finales por dominio** de
+abajo; para verlo en vivo, `app.moboss.online/demo` (entrar como Dueño) es el
+mismo sistema con datos ficticios.
+
 ## Switch (ya listo)
 
 | `VITE_TEMA_V2` | Efecto |
@@ -26,12 +41,12 @@ paquete de aprobación (qué cambia por dominio, con capturas) es
 |---|---|---|---|---|---|
 | 1 | **Shell** (barra lateral/topbar, densidad, foco) | todas | ✅ activo | `docs/qa/241-shell-aa/`, `docs/qa/241-shell-produccion/` | `e2e/dsn-241-a11y.spec.js` (8/8), AA prod 0 bajos |
 | 2 | **Resumen** (KPIs en tiles, hero) | `/resumen` | ✅ activo | `activacion-f4/resumen-*`, `c241f4b-resumen-on-*` | smoke + gate responsive |
-| 3 | **POS** (carrito dinámico, cobro, entrega) | `/pos` | ✅ activo | `activacion-f4/pos-*`, `c241f4b-pos-*`, `c241f3p5-*` | smoke, `qa-249-pos-touch` |
-| 4 | **Pedidos** (lista + detalle con stepper) | `/pedidos` | ✅ activo | `activacion-f4/pedidos-*`, `c241f4b-pedidos-on-*` | smoke, gate responsive |
-| 5 | **Clientes** (lista, ficha, resumen rápido) | `/clientes` | ✅ activo | `c241f4b-clientes-on-*`, `…-resumen-on-*` | `qa-249-clientes-touch` |
-| 6 | **Inventario** (tabla, ficha, tiles, taller/rack) | `/inventario/*` | ✅ activo (tiles con grado/locks: próxima vuelta con INV) | `c241f4b-inventario-tiles-on-*`, `c241f4b-taller-on-*` | `qa-249-inventario-touch` |
+| 3 | **POS** (carrito dinámico, cobro, entrega) | `/pos` | ✅ activo | `activacion-f4/dominios/02-pos-*`, `c241f4b-pos-*` | smoke, `qa-249-pos-touch` |
+| 4 | **Pedidos** (lista + detalle con stepper) | `/pedidos` | ✅ activo | `activacion-f4/dominios/03-pedidos-*`, `c241f4b-pedidos-on-*` | smoke, gate responsive |
+| 5 | **Clientes** (lista, ficha, resumen rápido) | `/clientes` | ✅ activo | `activacion-f4/dominios/04-clientes-*`, `c241f4b-clientes-on-*` | `qa-249-clientes-touch` |
+| 6 | **Inventario** (tabla, ficha, tiles, taller/rack) | `/inventario/*` | ✅ activo (tiles con grado/locks: próxima vuelta con INV) | `activacion-f4/dominios/01-inventario-*`, `c241f4b-taller-on-*` | `qa-249-inventario-touch` |
 | 7 | **Compras** (tiles y "x de y" de recepción) | `/compras` | ✅ activo | `c241f4b-compras-on-*` | specs de compras |
-| 8 | **Finanzas** (Caja, Conciliación, Cuentas) | `/finanzas/*` | ✅ activo | `c241f4b-finanzas-on-*`, `…-conciliacion-on-*` | `finanzas-caja`, conciliación |
+| 8 | **Finanzas** (Caja, Conciliación, Cuentas) | `/finanzas/*` | ✅ activo | `activacion-f4/dominios/05-finanzas-*`, `c241f4b-finanzas-on-*` | `finanzas-caja`, conciliación |
 | 9 | **Servicio y Garantías** (pipeline y stepper) | `/servicio`, `/garantias` | ✅ activo | `c241f4b-servicio-on-*`, `…-garantias-on-*` | `qa-241-servicio-*` |
 | 10 | **Configuración en 7 grupos** (riel + iconos) | `/configuracion/*` | ✅ activo | `docs/qa/253-config-grupos/finales/`, `activacion-f4/configuracion-*` | `qa-253-config-grupos` 4/4 |
 | 11 | **Públicas** (pedido por token, informe `/u/:serial`, landing) | varias | ✅ activo | `c241f4b-pedido-publico-on-*`, `…-landing-on-*` | `qa-240-informe`, `public-*` |
@@ -39,6 +54,56 @@ paquete de aprobación (qué cambia por dominio, con capturas) es
 | 13 | **Impresión** (comprobantes, etiquetas, vista previa del rollo) | varias | 🟡 parcial: informe/certificado con el lote H | `c241f4b-taller-impresion-on-*` | `impresion-remota`, `etiquetas-*` |
 | 14 | **Mobile #249** (áreas de 44 px, sin scroll) | todas | ✅ cerrado | `docs/qa/249-cierre-responsive/`, `docs/QA-RESPONSIVE-MOBILE.md` | gate `dsn-responsive-mobile` 12/12 |
 | 15 | **AA del shell** | todas | ✅ cerrado | `docs/qa/241-shell-aa/`, `docs/qa/241-shell-produccion/` | `QA-241-shell-aa.md` |
+
+## Capturas finales por dominio (producción v1.0.175)
+
+Orden del rollout: **inventario → POS → pedidos → clientes → finanzas**. Todas
+viven en `docs/qa/activacion-f4/dominios/` (22 JPGs) y se reproducen con
+`node scripts/qa-activacion-f4-dominios.mjs`.
+
+### 1 · Inventario
+
+![Inventario · lista (claro, escritorio)](../qa/activacion-f4/dominios/01-inventario-lista-desktop-claro.jpg)
+![Inventario · tiles (claro, escritorio)](../qa/activacion-f4/dominios/01-inventario-tiles-desktop-claro.jpg)
+
+Qué mirar: filtros y solapas, tiles de equipo (IMEI, batería, depósito,
+proveedor y costo) y la ficha en celular.
+Más: `01-inventario-taller-desktop-claro.jpg` (modo taller/rack),
+`01-inventario-lista-desktop-oscuro.jpg`, `01-inventario-ficha-mobile-claro.jpg`.
+
+### 2 · POS
+
+![POS · carrito (claro, escritorio)](../qa/activacion-f4/dominios/02-pos-carrito-desktop-claro.jpg)
+![POS · cobro (claro, escritorio)](../qa/activacion-f4/dominios/02-pos-cobro-desktop-claro.jpg)
+
+Qué mirar: carrito dinámico por estados, total y pagos divididos, entrega.
+Más: `02-pos-inicio-desktop-claro.jpg`, `02-pos-inicio-desktop-oscuro.jpg`,
+`02-pos-carrito-mobile-claro.jpg`.
+
+### 3 · Pedidos
+
+![Pedidos · lista (claro, escritorio)](../qa/activacion-f4/dominios/03-pedidos-lista-desktop-claro.jpg)
+![Pedidos · detalle (claro, escritorio)](../qa/activacion-f4/dominios/03-pedidos-detalle-desktop-claro.jpg)
+
+Qué mirar: filtros en píldora, resumen, y el stepper del flujo de entrega en el
+detalle.
+Más: `03-pedidos-lista-desktop-oscuro.jpg`, `03-pedidos-lista-mobile-claro.jpg`.
+
+### 4 · Clientes
+
+![Clientes · lista (claro, escritorio)](../qa/activacion-f4/dominios/04-clientes-lista-desktop-claro.jpg)
+![Clientes · resumen rápido (claro, escritorio)](../qa/activacion-f4/dominios/04-clientes-resumen-desktop-claro.jpg)
+
+Qué mirar: chips y filtros, resumen en tiles y el popup de resumen rápido.
+Más: `04-clientes-lista-desktop-oscuro.jpg`, `04-clientes-lista-mobile-claro.jpg`.
+
+### 5 · Finanzas
+
+![Finanzas · caja (claro, escritorio)](../qa/activacion-f4/dominios/05-finanzas-caja-desktop-claro.jpg)
+![Finanzas · conciliación (claro, escritorio)](../qa/activacion-f4/dominios/05-finanzas-conciliacion-desktop-claro.jpg)
+
+Qué mirar: Caja en tiles, Conciliación con «x de y» y solapas.
+Más: `05-finanzas-caja-desktop-oscuro.jpg`, `05-finanzas-caja-mobile-claro.jpg`.
 
 ## Orden de activación y verificación
 
@@ -58,6 +123,10 @@ paquete de aprobación (qué cambia por dominio, con capturas) es
 
 ## Capturas finales
 
+- **Por dominio, para la activación**: `docs/qa/activacion-f4/dominios/`
+  (22 JPGs en el orden inventario → POS → pedidos → clientes → finanzas; se
+  reproducen con `node scripts/qa-activacion-f4-dominios.mjs`). Las principales
+  están embebidas más arriba.
 - **Estado desplegado (producción v1.0.175)**: `docs/qa/activacion-f4/`
   (15 JPGs: resumen, POS, pedidos, clientes, inventario, finanzas, configuración
   y `/ops` en desktop claro; oscuro para resumen/POS/ops; mobile claro para
