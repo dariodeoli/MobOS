@@ -129,4 +129,25 @@ const stock = await req(`/api/stock?branchId=${rama}`)
 const fila = (Array.isArray(stock) ? stock : stock.productos || []).find((item) => item.id === producto.id)
 assert.equal(Number(fila?.stock ?? 0), 0, 'el lote no mueve stock (solo la recepción lo hará)')
 
+// 6) IMEI diferido por lote (F3): se completa antes de la recepción, con el
+// mismo cuadre de la compra y dejando la compra consistente.
+const imeiLote = '357001000000015'
+await req('/api/supply/shipments', 'PATCH', { id: envioUno.id, action: 'serials', serials: [imeiLote, '358001000000014'] }, 400, admin)
+await req('/api/supply/shipments', 'PATCH', { id: envioUno.id, action: 'serials', serials: ['490154203237519'] }, 400, admin)
+await req('/api/supply/shipments', 'PATCH', { id: envioUno.id, action: 'serials', serials: [imeiA] }, 409, admin)
+const enStockSerial = '353912345678907'
+await req('/api/products', 'POST', { name: `En stock ${sufijo}`, sku: `STK-${sufijo}`, pricePyg: 1000000, costPyg: 700000, stock: 1, branchId: rama, imei: enStockSerial }, 201)
+await req('/api/supply/shipments', 'PATCH', { id: envioUno.id, action: 'serials', serials: [enStockSerial] }, 409, admin)
+const conImei = await req('/api/supply/shipments', 'PATCH', { id: envioUno.id, action: 'scan', serial: imeiLote })
+assert.equal(conImei.pendientes, 0, 'el lote queda sin pendientes')
+assert.equal(conImei.conImei, 2, 'las dos unidades viajan con IMEI')
+const manifiestoCompleto = await req(`/api/supply/shipments/${envioUno.id}/manifest`)
+assert.equal(manifiestoCompleto.pendientes, 0, 'el manifiesto ya no muestra pendientes')
+const compraConImei = (await req('/api/supply/purchases?status=COMPRADA')).compras.find((fila) => fila.id === compra.id)
+const lineaUno = compraConImei.lines.find((linea) => linea.id === envioUno.items[0].lineId)
+assert.ok(lineaUno.serials.some((fila) => fila.serial === imeiLote), 'la compra queda con el IMEI asignado al despachar')
+await req('/api/supply/shipments', 'PATCH', { id: envioUno.id, action: 'serials', serials: ['353912345678915'] }, 409, admin)
+const historialNuevo = await req(`/api/supply/serials/${imeiLote}`)
+assert.equal(historialNuevo.lotes[0].envio, envioUno.code, 'el historial del serial reconoce su lote')
+
 console.log(`PASS: ${envioUno.code} (bus) + ${envioDos.code} (importación) desde una compra · manifiesto con QR público · historial de ${imeiA} · stock intacto · ${checks} chequeos`)

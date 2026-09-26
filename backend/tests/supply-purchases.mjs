@@ -213,4 +213,15 @@ await req('/api/supply/purchases', 'PATCH', { id: cancelada.id, action: 'addLine
 // El excedente de una línea que compró de más también queda como libre.
 assert.equal(conExtra.lines[0].libreQuantity, 3, 'comprar 8 para una necesidad de 5 deja 3 libres')
 
+// 12) Cierre F2: las líneas adicionales también aceptan IMEI ahora, con las
+// mismas validaciones (Luhn y duplicados globales/inventario).
+const imeiAdicional = '356789102345673'
+const conImeiAhora = await req('/api/supply/purchases', 'PATCH', { id: compraAbierta.id, action: 'addLines', lines: [{ productId: productoLibre.id, quantity: 1, serials: [imeiAdicional] }] }, 200)
+assert.ok(conImeiAhora.lines.some((linea) => linea.serials.some((fila) => fila.serial === imeiAdicional)), 'el IMEI de la línea adicional queda en la compra')
+await req('/api/supply/purchases', 'PATCH', { id: compraAbierta.id, action: 'addLines', lines: [{ productId: productoLibre.id, quantity: 1, serials: [imeiAdicional] }] }, 409, admin)
+await req('/api/supply/purchases', 'PATCH', { id: compraAbierta.id, action: 'addLines', lines: [{ productId: productoLibre.id, quantity: 1, serials: ['490154203237519'] }] }, 400, admin)
+const enStockAdicional = '352100000000002'
+await req('/api/products', 'POST', { name: `Stock libre ${sufijo}`, sku: `STKL-${sufijo}`, pricePyg: 800000, costPyg: 500000, stock: 1, branchId: rama, imei: enStockAdicional }, 201)
+await req('/api/supply/purchases', 'PATCH', { id: compraAbierta.id, action: 'addLines', lines: [{ productId: productoLibre.id, quantity: 1, serials: [enStockAdicional] }] }, 409, admin)
+
 console.log(`PASS: compra ${compra.code} (USD → Gs) con IMEI, parcial y adicional · cobertura/validaciones · reposición libre · stock intacto · ${checks} chequeos`)
