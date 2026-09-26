@@ -11,6 +11,10 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.185 — 2026-09-26
+- **Abastecimiento F6 (#250/#254):** nuevo **panel de métricas** del abastecimiento: desempeño por **proveedor**, **tiempos del CDE** y **atrasos** del tránsito, con sus capturas en claro/oscuro.
+- **Calidad:** el control de preparación de compra quedó con **margen para entornos lentos** (el aviso del pegado de IMEI ya no falla por tiempo en CI).
+
 ## v1.0.184 — 2026-09-26
 - **Correos (#255):** **rediseño de los 10 correos transaccionales** (bienvenida, invitación de equipo, recuperación de contraseña, verificación, comprobante, informe de dispositivo, recordatorio de pago, pago vencido, estado de garantía y reserva por vencer): misma identidad que el shell y **enlace de respaldo siempre visible**.
 - **Abastecimiento (#250):** **recibir todo el lote de una vez** (frena y avisa si falta algún IMEI, con acceso a prepararlos) y **comprobante de recepción** imprimible.
