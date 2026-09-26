@@ -1,0 +1,57 @@
+{
+  "verificado": "2026-09-26T03:58:04.726Z",
+  "base": "https://app.moboss.online",
+  "version": "v1.0.175",
+  "erroresConsola": [],
+  "resultados": [
+    {
+      "paso": "entrar a la demo y conocer la versión desplegada",
+      "estado": "ok",
+      "detalle": "versión v1.0.175",
+      "capturas": [
+        "01-demo-dueño.jpg"
+      ]
+    },
+    {
+      "paso": "Configuración tiene los 7 grupos con su contenido",
+      "estado": "ok",
+      "detalle": "7 grupos verificados",
+      "capturas": [
+        "02-grupo-mi-cuenta.jpg",
+        "03-grupo-organizacion.jpg",
+        "04-grupo-equipo.jpg",
+        "05-grupo-comercial.jpg",
+        "06-grupo-seguridad.jpg",
+        "07-grupo-dispositivos.jpg",
+        "08-grupo-sistema.jpg"
+      ]
+    },
+    {
+      "paso": "Mi cuenta se abre desde el avatar",
+      "estado": "ok",
+      "detalle": "avatar → /mi-cuenta",
+      "capturas": [
+        "09-mi-cuenta-avatar.jpg"
+      ]
+    },
+    {
+      "paso": "Precios: una sola entrada y su pantalla abre",
+      "estado": "ok",
+      "detalle": "una entrada de menú · aviso demo",
+      "capturas": [
+        "10-precios.jpg"
+      ]
+    },
+    {
+      "paso": "rutas viejas: identidad → /mi-cuenta y documentación → Ayuda",
+      "estado": "ok",
+      "detalle": "redirecciones vivas",
+      "capturas": []
+    }
+  ],
+  "resumen": {
+    "pasos": 5,
+    "ok": 5,
+    "fallos": 0
+  }
+}

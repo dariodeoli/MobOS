@@ -266,6 +266,18 @@ entry **175 KB** (−84% vs 1104 KB de base) y en la demo (datos locales,
 0 llamadas al API): inventario 387 ms · POS 264 · pedidos 373 · clientes 372 ·
 finanzas 102.
 
+### Producción v1.0.175 (con #253 integrado) — seguimiento
+
+`scripts/qa-247-produccion.mjs` sobre el release vigente
+([`produccion-v1.0.175/resultados.json`](produccion-v1.0.175/resultados.json)):
+entry **214 KB** (−81% vs 1104 KB de base) y en la demo (datos locales,
+0 llamadas al API): inventario 407 ms · POS 266 · pedidos 162 · clientes 259 ·
+finanzas 102.
+
+**Observación**: el entry creció de 175 KB (v1.0.168) a 214 KB con los merges de
+#253 y la biblioteca v0.30 (set único de iconos). Sigue −81% contra la base,
+pero conviene revisar qué quedó eager en el arranque si la tendencia continúa.
+
 ### Integración #253 (8 ramas) — sin regresión
 
 La verificación del conjunto de Configuración (8 ramas de #253 integradas)

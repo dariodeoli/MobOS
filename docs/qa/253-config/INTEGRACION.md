@@ -46,6 +46,15 @@ menú** (Inventario → Precios) y las listas viven **dentro del grupo Comercial
 (alcance de FIN). Si se quiere además que Comercial no muestre el gestor, es un
 recorte de una línea en `Comercial.jsx` (dominio FIN).
 
+## Verificación en producción (v1.0.175)
+
+Con el hd desplegado, corrí `scripts/qa-253-produccion.mjs` (nuevo) sobre
+`app.moboss.online`: **5/5 pasos OK** — los **7 grupos** con su contenido, **Mi
+cuenta desde el avatar**, **Precios con una sola entrada** de menú y las rutas
+viejas (`identidad → /mi-cuenta`, `documentación → /ayuda/ayuda`) vivas.
+Evidencia: [`produccion-v1.0.175/resultados.json`](produccion-v1.0.175/resultados.json)
++ capturas `01-demo-dueño` … `05-precios`.
+
 ## Estado del hd / CI
 
 Al momento de la verificación, `main` seguía en `9d750790` y **las 8 ramas
