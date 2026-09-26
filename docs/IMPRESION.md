@@ -603,3 +603,22 @@ tiene la pantalla de impresión ordenada en cinco paneles con URL (`?panel=`):
 
 Evidencia: `docs/QA-253-dispositivos.md` y capturas antes/después en
 `docs/qa/253-dispositivos/`.
+
+## 16. Impresos del taller en serie (#240)
+
+El **modo taller** imprime sus documentos en serie desde «Imprimir en serie…»
+(alcance: selección, estación o todo lo filtrado):
+
+| Documento | Builder | Salida |
+| --- | --- | --- |
+| **Hoja de estación** (una) | `buildStationSheetHtml` (`hojaEstacion.js`) | A4 con los equipos del alcance |
+| **Hojas por estación** | `buildStationSheetsHtml` (`hojaEstacion.js`) | A4, **una hoja por carril** (por verificar · verificado · listo) en un solo trabajo; aparece con más de un carril en el alcance |
+| **Certificados** | `datosCertificado` + `buildCertificadosHtml` (`OrderReceipt.jsx`) | A4, **un certificado por equipo** (grado, controles, checklist, QR y barras `CERT|…`), reusando el builder validado |
+| **Etiquetas** | `buildUnitLabelsHtml` / `ticketEtiquetasUnidad` | Rollo 58/80 mm y PNG para compartir (§14) |
+
+- Los tres respetan el alcance elegido y el aviso honesto de la demo.
+- El certificado final usa la inspección del equipo (`unit.inspection`); la
+  verificación IMEI se muestra cuando está cargada.
+- Ejemplos imprimibles: `docs/taller-impresos-ejemplo/`
+  (`hoja-estacion-serie.pdf`, `certificados-serie.pdf` y
+  `scripts/ejemplo-taller-impresos.mjs`).

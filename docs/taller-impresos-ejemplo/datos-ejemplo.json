@@ -1,0 +1,50 @@
+{
+  "estaciones": [
+    {
+      "estacion": "Por verificar",
+      "equipos": [
+        {
+          "modelo": "iPhone 15 Pro 256GB Titanio",
+          "serial": "AUR0001000000000",
+          "grado": null
+        },
+        {
+          "modelo": "iPhone 15 Pro 256GB Negro",
+          "serial": "AUR0002000000000",
+          "grado": null
+        }
+      ]
+    },
+    {
+      "estacion": "Verificado",
+      "equipos": [
+        {
+          "modelo": "iPhone 15 128GB Azul",
+          "serial": "AUR0003000000000",
+          "grado": "B"
+        },
+        {
+          "modelo": "iPhone 14 Pro 256GB Plata",
+          "serial": "AUR0004000000000",
+          "grado": "C"
+        }
+      ]
+    },
+    {
+      "estacion": "Listo para vender",
+      "equipos": [
+        {
+          "modelo": "iPhone 15 Pro Max 256GB Titanio Natural",
+          "serial": "AUR0005000000000",
+          "grado": "A"
+        },
+        {
+          "modelo": "iPhone 15 Pro Max 512GB Azul",
+          "serial": "AUR0006000000000",
+          "grado": "A"
+        }
+      ]
+    }
+  ],
+  "generado": "2026-09-26T04:07:23.367Z"
+}
