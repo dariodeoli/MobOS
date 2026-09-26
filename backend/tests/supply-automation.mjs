@@ -68,6 +68,13 @@ assert.ok(ruta, 'mide el tiempo de la ruta CDE → destino')
 assert.ok(ruta.lotes >= 1, 'la ruta acumula lotes')
 const conLlegada = rendimiento.rutas.find((fila) => fila.diasPromedio !== null)
 assert.ok(conLlegada && conLlegada.diasPromedio >= 0, 'los lotes llegados promedian días')
+// FIN: costo real por unidad del proveedor y puntualidad/atraso de la ruta.
+const conUnidades = rendimiento.proveedores.find((fila) => fila.unidades >= 1)
+assert.ok(conUnidades && Number.isFinite(conUnidades.costoPromedioUnidadPyg) && conUnidades.costoPromedioUnidadPyg >= 0, 'el costo real promedio por unidad se informa')
+for (const fila of rendimiento.rutas) {
+  assert.ok(fila.enTiempoPct === null || (fila.enTiempoPct >= 0 && fila.enTiempoPct <= 100), `puntualidad de ${fila.ruta} en rango`)
+  assert.ok(fila.atrasoPromedioDias === null || fila.atrasoPromedioDias >= 0, `atraso de ${fila.ruta} no negativo`)
+}
 
 // 5) Alertas de atraso: lote con ETA vencida y necesidad con fecha prometida pasada.
 const productoAtrasado = await req('/api/products', 'POST', { name: `Atraso ${sufijo}`, sku: `ATR-${sufijo}`, pricePyg: 1000000, costPyg: 700000, stock: 0, branchId: rama }, 201)
