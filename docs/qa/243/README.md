@@ -168,3 +168,11 @@ mobile** en las 6 variantes (claro/oscuro, v2 off/on), papelera y confirmación,
 Pasada del **26/09** (post-.178) con la misma sonda: **68 px desktop / 84 px
 mobile** en las 6 variantes, papelera y confirmación, **0 desbordes y 0 errores
 de página**. Capturas y datos crudos: [`1.0.178-produccion/`](1.0.178-produccion/).
+
+## v2 por defecto (F4) — producción v1.0.178
+
+La sonda suma variantes que **no escriben el flag** por dispositivo (F4: el v2 es
+el diseño por defecto) y confirma `scopeV2Aplicado: true` con la fila colapsada en
+**68 px desktop / 84 px mobile**, 0 desbordes y 0 errores; el escape por
+dispositivo (`mobos:tema-v2='0'`) sigue funcionando. Capturas y datos crudos:
+[`1.0.178-f4/`](1.0.178-f4/).

@@ -129,8 +129,11 @@ try {
     const perfiles = (await page.getByText('Vendedor', { exact: true }).count()) + (await page.getByText('Dueño', { exact: true }).count())
     await entrarDemo('Vendedor')
     await shot('panel-vendedor')
+    // F4 (#241): sin tocar el flag por dispositivo, el v2 tiene que estar activo
+    // (es el diseño por defecto); el alcance lo marca la clase del shell.
+    const v2 = await page.evaluate(() => document.querySelector('.tema-v2') !== null)
     const nav = await texto(page.locator('nav').first())
-    return `versión desplegada: ${version || '(sin versión en el pie)'} · perfiles: ${perfiles} · menú: ${nav.slice(0, 180)}`
+    return `versión desplegada: ${version || '(sin versión en el pie)'} · perfiles: ${perfiles} · v2 por defecto: ${v2} · menú: ${nav.slice(0, 150)}`
   })
 
   // ── POS: venta en una sola pantalla con carrito visible ──────────────

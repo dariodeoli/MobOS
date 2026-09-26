@@ -126,3 +126,11 @@ errores de página**. Capturas y datos crudos:
 Producción **v1.0.178**, 4 variantes: los 8 grupos, Taller con pestañas, `/ops`,
 `/celulares` y `/comparador` desde el menú, y el menú del vendedor; **0 errores
 de página**. Capturas y datos crudos: [`1.0.178-produccion/`](1.0.178-produccion/).
+
+## Cierre del menú en producción v1.0.178 (26/09)
+
+Pasada de cierre con la sonda ampliada: además de los 8 grupos, Taller, `/ops`,
+`/celulares` y `/comparador`, se verifica que **`/garantias` entra a Taller con la
+pestaña «Garantías» activa** (sin entrada propia de menú), en 4 variantes y con
+**0 errores de página**. Capturas y datos crudos:
+[`1.0.178-menu/`](1.0.178-menu/) (`03d-garantias-taller`).
