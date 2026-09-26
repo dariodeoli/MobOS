@@ -13,7 +13,7 @@ import { num } from '@/utils/calculos'
 import { APP_NAME } from '@/lib/brand'
 import { api } from '@/lib/api'
 import { isDemoRuntime } from './demoMode'
-import { marcarUnidadesVendidasDemo } from './demoInventory.js'
+import { marcarUnidadesVendidasDemo, listDemoUnits } from './demoInventory.js'
 import { guardarDemo } from './demoStorage.js'
 import { MEDIOS_PAGO } from './catalog'
 import { guardarSnapshotCatalogo, leerSnapshotCatalogo } from './offline/snapshot'
@@ -269,6 +269,67 @@ async function hydrateDesdeApi(version, identity) {
   aplicarHidratacion({ products, orders, users, finance })
   // Foto para el próximo arranque sin conexión (no bloquea la UI).
   guardarSnapshotCatalogo(ctx.empresaId, { products, orders, users, finance })
+}
+
+// #257 (demo): el catálogo del POS y el inventario serializado son dos stores
+// del demo. Para que las unidades cargadas figuren en el POS, el stock de los
+// productos con unidades se recalcula con las disponibles reales; los productos
+// sin unidades (accesorios, fundas) conservan su stock propio.
+function sincronizarCatalogoDemo() {
+  if (!isDemoRuntime) return
+  const unidades = listDemoUnits()
+  if (!unidades.length) return
+  const disponibles = new Map()
+  for (const unidad of unidades) {
+    if (!unidad?.productId) continue
+    if (!disponibles.has(unidad.productId)) disponibles.set(unidad.productId, 0)
+    if (unidad.status === 'AVAILABLE') disponibles.set(unidad.productId, disponibles.get(unidad.productId) + 1)
+  }
+  if (!disponibles.size) return
+  let cambio = false
+  cache.productos = cache.productos.map((producto) => {
+    if (!disponibles.has(producto.id)) return producto
+    const stock = disponibles.get(producto.id)
+    if (Number(producto.stock) === stock) return producto
+    cambio = true
+    return { ...producto, stock }
+  })
+  if (cambio) {
+    persistMirror()
+    notify()
+  }
+}
+
+// #257: refresca SOLO el catálogo de productos (sin pedidos ni usuarios) y
+// avisa a la UI. Lo usan el POS al entrar y el Inventario después de cada
+// movimiento: el espejo local tiene que ver las unidades recién cargadas sin
+// esperar al refresco periódico ni obligar a recargar la página.
+let refrescoCatalogoEnCurso = Promise.resolve()
+let ultimoRefrescoCatalogo = 0
+export function refrescarCatalogo({ forzar = false } = {}) {
+  if (isDemoRuntime) {
+    sincronizarCatalogoDemo()
+    return Promise.resolve()
+  }
+  if (!ctx.empresaId || !apiMode()) return Promise.resolve()
+  if (!forzar && Date.now() - ultimoRefrescoCatalogo < 2500) return Promise.resolve()
+  const version = apiHydrationVersion
+  const identity = identidadActual()
+  const anterior = refrescoCatalogoEnCurso
+  refrescoCatalogoEnCurso = (async () => {
+    await anterior.catch(() => {})
+    if (!apiMode() || version !== apiHydrationVersion || identity !== identidadActual()) return
+    try {
+      const products = await todosLosProductos()
+      if (!apiMode() || version !== apiHydrationVersion || identity !== identidadActual()) return
+      cache.productos = (Array.isArray(products) ? products : []).map(mapProductoApi)
+      ultimoRefrescoCatalogo = Date.now()
+      notify()
+    } catch {
+      /* sin conexión: la UI sigue con el espejo anterior */
+    }
+  })()
+  return refrescoCatalogoEnCurso
 }
 
 // Hidrata las finanzas al entrar a su pantalla (una sola consulta) y las deja
@@ -952,6 +1013,8 @@ export function addVenta(venta) {
     const seriales = nueva.seriales || nueva.serials || nueva.imei || (nueva.items || []).flatMap(item => item.serials || item.seriales || (item.imei ? [item.imei] : []))
     if (Array.isArray(seriales) && seriales.length) {
       marcarUnidadesVendidasDemo({ serials: seriales, orderNumber: nueva.orderNumber || nueva.numero || '', customerName: nueva.cliente || '', totalPyg: nueva.precio })
+      // #257: la venta demo también tiene que verse en el stock del catálogo.
+      sincronizarCatalogoDemo()
     }
   }
   logAuditoria('crear', nueva)

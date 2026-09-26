@@ -5,7 +5,7 @@ import { useLive } from '@/hooks/useLive'
 import { useAutoRefrescar } from '@/hooks/useAutoRefrescar'
 import { useReloj } from '@/hooks/useReloj'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
-import { listVentas, hidratarFinanzas } from '@/lib/storage'
+import { listVentas, hidratarFinanzas, refrescarCatalogo } from '@/lib/storage'
 import { sessionApi } from '@/lib/api'
 import { ventasDelDia, fechaClave, num, gs } from '@/utils/calculos'
 import SelectorSucursal from '@/components/shared/SelectorSucursal'
@@ -486,6 +486,12 @@ export default function PanelVendedor() {
   useEffect(() => {
     if (vista === 'cargar' && !posMontado) setPosMontado(true)
   }, [vista, posMontado])
+  // #257: el catálogo del POS sale del espejo local. Al entrar al POS se
+  // refresca (solo productos) para que las unidades cargadas en Inventario u
+  // otra pantalla sean visibles/vendibles sin recargar ni esperar al periódico.
+  useEffect(() => {
+    if (vista === 'cargar') refrescarCatalogo().catch(() => {})
+  }, [vista, identidad])
   useEffect(() => {
     if (subpadre !== 'configuracion' || !routeSeccion) return
     const destino = REDIRECCIONES_CONFIG[routeSeccion]
