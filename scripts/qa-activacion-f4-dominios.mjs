@@ -37,6 +37,9 @@ async function visible(locator, timeout = 20_000) {
 }
 
 async function foto(nombre) {
+  // Espera el shell antes de la foto: evita capturar un estado de transición
+  // (el header del shell se pinta al hidratar y puede faltar el menú).
+  await page.locator('[data-testid="shell"]').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {})
   await esperar(900)
   const archivo = `${nombre}.jpg`
   await page.screenshot({ path: join(SALIDA, archivo), type: 'jpeg', quality: 72 })

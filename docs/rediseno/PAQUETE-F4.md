@@ -69,7 +69,7 @@ carpeta (`docs/rediseno/`).
 
 **Cerrada.** El cierre completo —local y producción, con capturas— está en
 [`../QA-241-shell-aa.md`](../QA-241-shell-aa.md): 8/8 estados locales y
-**0 bajos de AA** en producción (v1.0.178). Resumen de lo medido:
+**0 bajos de AA** en producción (v1.0.181). Resumen de lo medido:
 
 - Cada captura viene con **medición de contraste AA** en el navegador
   (`e2e/dsn-241-a11y.spec.js` + `e2e/dsn-241-dominios.spec.js`): 0 textos por

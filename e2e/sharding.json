@@ -4,7 +4,13 @@
     {
       "archivos": [
         "auth.spec.js",
+<<<<<<< HEAD
         "compras-densidad.spec.js",
+=======
+        "cliente-portal-entrada.spec.js",
+        "config-comercial.spec.js",
+        "delivery.spec.js",
+>>>>>>> origin/slot/diseno
         "demo-finanzas-anonimo.spec.js",
         "demo-finanzas.spec.js",
         "documentacion.spec.js",
@@ -15,7 +21,10 @@
         "imei-mock.spec.js",
         "informe-dispositivo.spec.js",
         "informe-publico-checklist.spec.js",
+<<<<<<< HEAD
         "inventario-importacion.spec.js",
+=======
+>>>>>>> origin/slot/diseno
         "inventario-pos-sync.spec.js",
         "ops-preview.spec.js",
         "pos-241-carrito-estados.spec.js",
@@ -23,11 +32,19 @@
         "pos-busqueda-global.spec.js",
         "pos-fulfillment-borradores.spec.js",
         "pos-pedidos.spec.js",
+<<<<<<< HEAD
+=======
+        "public-quote-transfer.spec.js",
+>>>>>>> origin/slot/diseno
         "public-tracking.spec.js",
         "pwa-version.spec.js",
         "qa-148-9-pos-montos.spec.js",
         "qa-240-informe-embebible.spec.js",
+<<<<<<< HEAD
         "qa-240-mensajes-tienda.spec.js",
+=======
+        "qa-240-portal-avisos.spec.js",
+>>>>>>> origin/slot/diseno
         "qa-240-portal-seguimiento.spec.js",
         "qa-241-lote-c-tile.spec.js",
         "qa-241-servicio-pipeline.spec.js",
@@ -48,16 +65,27 @@
         "cliente-portal-entrada.spec.js",
         "config-comercial.spec.js",
         "config-seguro-limites.spec.js",
+<<<<<<< HEAD
         "delivery.spec.js",
+=======
+        "demo-autorizaciones.spec.js",
+>>>>>>> origin/slot/diseno
         "demo-imei-conciliacion.spec.js",
         "demo-publico.spec.js",
         "documentos-no-fiscales.spec.js",
         "dsn-241-a11y.spec.js",
         "equipo-invitaciones.spec.js",
+<<<<<<< HEAD
         "finanzas-conciliacion.spec.js",
         "ia-configuracion.spec.js",
         "informe-publico-controles.spec.js",
         "invitar-persona.spec.js",
+=======
+        "finanzas-caja.spec.js",
+        "finanzas-ultimo-usado.spec.js",
+        "ia-configuracion.spec.js",
+        "informe-publico-controles.spec.js",
+>>>>>>> origin/slot/diseno
         "menu-ia.spec.js",
         "modales-tamanos.spec.js",
         "ops.spec.js",
@@ -65,7 +93,10 @@
         "pos-campos.spec.js",
         "pos-checkout.spec.js",
         "precios-listas.spec.js",
+<<<<<<< HEAD
         "public-quote-transfer.spec.js",
+=======
+>>>>>>> origin/slot/diseno
         "qa-140-inventario.spec.js",
         "qa-160-perfil.spec.js",
         "qa-240-buscador-dispositivo.spec.js",
@@ -97,25 +128,44 @@
         "finanzas-caja.spec.js",
         "finanzas-ultimo-usado.spec.js",
         "impresion-remota.spec.js",
+<<<<<<< HEAD
         "inventario-tabla-encabezado.spec.js",
         "inventario-unidades.spec.js",
         "kardex-producto.spec.js",
         "notificaciones.spec.js",
+=======
+        "inventario-importacion.spec.js",
+        "inventario-tabla-encabezado.spec.js",
+        "inventario-unidades.spec.js",
+        "kardex-producto.spec.js",
+>>>>>>> origin/slot/diseno
         "ocultos-plataforma.spec.js",
         "perf-247.spec.js",
         "permissions.spec.js",
         "pos-148-cobro-ux.spec.js",
+<<<<<<< HEAD
+=======
+        "pos-241-carrito-estados.spec.js",
+>>>>>>> origin/slot/diseno
         "pos-cliente-portal.spec.js",
         "pos-qa-173.spec.js",
         "pos-resumen-fijo.spec.js",
         "public-levels.spec.js",
         "qa-148-16-menciones.spec.js",
         "qa-236-clientes.spec.js",
+<<<<<<< HEAD
         "qa-240-garantia-portal.spec.js",
         "qa-240-portal-cotizaciones.spec.js",
         "qa-240-portal-pedido-detalle.spec.js",
         "qa-241-ficha-paso6.spec.js",
         "qa-249-clientes-touch.spec.js",
+=======
+        "qa-240-mensajes-tienda.spec.js",
+        "qa-240-portal-pedido-detalle.spec.js",
+        "qa-241-ficha-paso6.spec.js",
+        "qa-249-clientes-touch.spec.js",
+        "qa-249-pos-touch.spec.js",
+>>>>>>> origin/slot/diseno
         "qa-250-buscador-dependiente.spec.js",
         "qa-253-config-grupos.spec.js",
         "qa-253-mi-cuenta.spec.js",
@@ -127,5 +177,9 @@
       "tests": 164
     }
   ],
+<<<<<<< HEAD
   "generado": "2026-09-26T14:05:25.653Z"
+=======
+  "generado": "2026-09-26T13:18:19.678Z"
+>>>>>>> origin/slot/diseno
 }
