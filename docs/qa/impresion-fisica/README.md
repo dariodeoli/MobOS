@@ -25,6 +25,9 @@ viven en [docs/IMPRESION-PRUEBA-FISICA.md](../../IMPRESION-PRUEBA-FISICA.md)
 
 | Archivo | Qué es |
 | --- | --- |
+| `checklist-prueba-fisica.pdf` / `.jpg` | **Checklist de una hoja** para la sesión: se imprime, se completa a mano y se pega el reporte en el issue. |
+| `captura-produccion-dispositivos.jpg` | La pantalla real en producción (v1.0.175): Dispositivos con la prueba lista para imprimir. |
+| `captura-produccion-pagina-prueba.jpg` | La página `/prueba` real que abre el QR del ticket (destino, validación y tipo). |
 | `prueba-corta-80mm.pdf` / `.jpg` | Prueba corta (la del día a día). |
 | `prueba-corte-80mm.pdf` / `.jpg` | **Prueba de corte**: las 4 variantes (GS V 0, GS V 1, GS V 65 0 y GS V 66 0) con la sección etiquetada; sirve para saber cuál corta el rollo. |
 | `prueba-qr-80mm.pdf` / `.jpg` | Ticket con QR y código de barras (para escanear y abrir `/prueba`). |
