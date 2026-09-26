@@ -73,8 +73,34 @@ test('demo: el detalle del pedido se arma con los datos de la pestaña', async (
   const detalle = page.getByTestId('pedido-detalle').first()
   await expect(detalle.getByText(/iPhone 15 · 128 GB/)).toBeVisible()
   await expect(detalle.getByText('Tus pagos de este pedido')).toBeVisible()
-  await expect(detalle.getByText(/1\.500\.000/)).toBeVisible()
+  // Pagos divididos (#213): el pedido parcial muestra sus dos movimientos con
+  // medio, no un total inventado.
+  await expect(detalle.getByText(/Efectivo/)).toBeVisible()
+  await expect(detalle.getByText(/1\.000\.000/)).toBeVisible()
+  await expect(detalle.getByText(/Transferencia/)).toBeVisible()
+  await expect(detalle.getByText(/500\.000/)).toBeVisible()
   await page.screenshot({ path: `${SHOTS}/02-demo-detalle-pedido.png`, fullPage: true })
+
+  await contexto.close()
+})
+
+test('demo: el historial muestra los medios de pago variados (#213)', async ({ browser }) => {
+  const contexto = await browser.newContext({ viewport: { width: 1280, height: 1200 } })
+  const page = await contexto.newPage()
+
+  await page.goto('/cuenta/demo-demo-cliente-distribuidora-rapido')
+  const pagos = page.getByTestId('portal-pagos')
+  await expect(pagos).toBeVisible({ timeout: 20000 })
+  await expect(pagos.getByText(/USDT - Cripto/)).toBeVisible()
+  await expect(pagos.getByText(/Transferencia/)).toBeVisible()
+  await expect(pagos.getByText(/Tarjeta \/ POS/)).toBeVisible()
+  await expect(pagos.getByText(/Pix/)).toBeVisible()
+  // El detalle del pedido reparte el cobro en sus movimientos.
+  await page.getByTestId('pedido-detalle-boton').first().click()
+  const detalle = page.getByTestId('pedido-detalle').first()
+  await expect(detalle.getByText(/Transferencia/)).toBeVisible()
+  await expect(detalle.getByText(/8\.000\.000/)).toBeVisible()
+  await page.screenshot({ path: `${SHOTS}/03-demo-pagos-variados.png`, fullPage: true })
 
   await contexto.close()
 })
