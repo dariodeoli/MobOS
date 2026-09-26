@@ -149,12 +149,39 @@ compra. Implementado en `backend/lib/supply-demand.ts` y enganchado en la venta
 
 - `SupplyNeed.origin`: `CDE · USA · LOCAL` + códigos nuevos de 2 a 8 letras o
   números (centros futuros). Migración `20261205000000_supply_need_origin`.
-- `GET /api/supply/needs?origin=USA` filtra por centro; los grupos exponen
-  `centros[]` y cada destino su `centro`.
-- `PATCH /api/supply/needs { id, action: 'assign', assignedToId?, origin? }`
-  asigna comprador y/o centro (audita ambos).
+- La consolidación **no mezcla centros**: agrupa por producto + condición +
+  `centro`, expone `centro` (null = sin asignar) y ordena los destinos con los
+  **pedidos primero** (por promesa más próxima) y las reposiciones al final.
+  Asignar un centro a una necesidad la separa del grupo sin centro.
+- `GET /api/supply/needs?origin=USA` filtra por centro; también
+  `?sinCentro=1` y `?sinAsignar=1` para las colas del panel.
+- `PATCH /api/supply/needs`:
+  - `{ id, action: 'assign', assignedToId?, origin? }` — de a una.
+  - `{ ids: [...], action: 'assign', assignedToId?, origin? }` — **en bloque**
+    (el grupo consolidado entero, hasta 200) y audita cada necesidad.
+  - `assignedToId: null` libera al comprador (vuelve a `ABIERTA`); `origin: null`
+    limpia el centro.
 
-## 3. Entradas nuevas de la API
+## 3. Datos del panel «Por comprar»
+
+- `GET /api/supply/needs` devuelve, además de `totales` y `grupos`:
+  - `contadores`: `porEstado` (ABIERTA · ASIGNADA · COMPRADA · RECIBIDA ·
+    CANCELADA), `porPrioridad` (pendientes), `vencidas` (promesa pasada),
+    `sinAsignar`, `sinCentro` y `pendientes`. Son de **toda la empresa**, no de
+    la página, para las pestañas y las colas del comprador.
+  - Filtros sumados: `?priority=ALTA|URGENTE|…` y `?condition=NEW|USED|REFURBISHED`
+    (además de `origin`, `sinCentro`, `sinAsignar`, `assignedToId`, `branchId`,
+    `productId`, `status`).
+- `PATCH /api/supply/needs { id?, ids?, action: 'update', priority?, promisedAt? }`:
+  ajusta **prioridad y/o fecha prometida** de a una o sobre el grupo entero.
+  Si solo mandás la fecha, la prioridad se recalcula (vencida ⇒ URGENTE,
+  ≤48 h ⇒ ALTA); `promisedAt: null` limpia la fecha. Auditado
+  (`SUPPLY_NEED_UPDATED`) con el antes/después.
+- `GET /api/supply/needs/options`: opciones del panel → `compradores` (activos
+  con acceso a stock, con rol), `centros` (los del plan + los ya usados, con
+  etiqueta) y `sucursales` activas.
+
+## 4. Entradas nuevas de la API
 
 - `POST /api/orders` acepta `promisedAt` (ISO, opcional): marca el pedido
   comprometido con fecha y prioriza su demanda.
@@ -162,18 +189,19 @@ compra. Implementado en `backend/lib/supply-demand.ts` y enganchado en la venta
   IMEI: reserva lo existente y genera `RESERVATION_NO_STOCK` por la diferencia.
   Sin esos campos el comportamiento es el de siempre.
 
-## 4. Para PLT (panel/móvil) y CMP (objetos)
+## 5. Para PLT (panel/móvil) y CMP (objetos)
 
 - **PLT**: pestaña **Por comprar** con tarjetas por **grupo consolidado**
-  (producto + condición, destinos conservados: pedido A / pedido B / stock),
-  prioridad, fecha prometida, centros, estado y acciones (asignar comprador o
-  centro, cancelar con motivo); filtros por centro y comprador; móvil sin scroll
-  horizontal.
+  (producto + condición + centro, destinos conservados: pedido A / pedido B /
+  stock), prioridad, fecha prometida, estado y acciones (asignar comprador o
+  centro —de a una o al grupo—, ajustar prioridad/fecha, cancelar con motivo);
+  pestañas y colas con los `contadores`; opciones de comprador/centro/sucursal
+  desde `/options`; móvil sin scroll horizontal.
 - **CMP**: objeto **tarjeta de necesidad** (badge de prioridad, chips de
   origen/centro, bloque de destinos y acciones) para reutilizar en el panel y en
   “Comprando”.
 
-## 5. Verificación del cierre
+## 6. Verificación del cierre
 
 - `backend/tests/supply-demand.test.ts`: prioridades, fuentes, dedupe, centros,
   semana de mínimos (8 casos).

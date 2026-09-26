@@ -99,7 +99,9 @@ export type GrupoConsolidado = {
   prioridad: NecesidadPrioridad
   prometidaEl: string | null
   origenes: string[]
-  centros: string[]
+  // Centro de compra del grupo (null = sin asignar). El plan no permite
+  // mezclar orígenes en una misma compra, así que el centro entra en la clave.
+  centro: string | null
   destinos: DestinoConsolidado[]
   necesidades: string[]
   // FIN (#254): lo que costaría comprar el grupo y el margen esperado sumado de
@@ -110,16 +112,19 @@ export type GrupoConsolidado = {
 
 /**
  * Consolidación del panel «Por comprar» (#250 §5): agrupa por producto +
- * condición, suma cantidades, deja la prioridad más alta y la fecha prometida
- * más próxima, y conserva los destinos (un pedido, una reserva o reposición de
- * una sucursal) sin mezclarlos nunca entre sí.
+ * condición + **centro de compra**, suma cantidades, deja la prioridad más alta
+ * y la fecha prometida más próxima, y conserva los destinos (un pedido, una
+ * reserva o reposición de una sucursal) sin mezclarlos nunca entre sí. Nunca se
+ * mezclan colores/capacidades/condiciones ni orígenes distintos: asignar un
+ * centro a una necesidad la separa del grupo sin centro.
  */
 export function consolidarNecesidades(necesidades: NecesidadEntrada[] = []): GrupoConsolidado[] {
   const grupos = new Map<string, GrupoConsolidado & { destinosMapa: Map<string, DestinoConsolidado> }>()
   for (const necesidad of necesidades) {
     if (!necesidad || !necesidad.productId) continue
     const condicion = String(necesidad.condicion || 'NEW').toUpperCase()
-    const clave = `${necesidad.productId}::${condicion}`
+    const centro = necesidad.centro ? String(necesidad.centro).toUpperCase() : null
+    const clave = `${necesidad.productId}::${condicion}::${centro || ''}`
     let grupo = grupos.get(clave)
     if (!grupo) {
       grupo = {
@@ -130,7 +135,7 @@ export function consolidarNecesidades(necesidades: NecesidadEntrada[] = []): Gru
         prioridad: 'NORMAL',
         prometidaEl: null,
         origenes: [],
-        centros: [],
+        centro,
         destinos: [],
         necesidades: [],
         costoEstimadoPyg: null,
@@ -150,8 +155,6 @@ export function consolidarNecesidades(necesidades: NecesidadEntrada[] = []): Gru
       grupo.margenEstimadoPyg = (grupo.margenEstimadoPyg || 0) + necesidad.margenEstimadoPyg
     }
     if (!grupo.origenes.includes(necesidad.origen)) grupo.origenes.push(necesidad.origen)
-    const centro = necesidad.centro ? String(necesidad.centro).toUpperCase() : null
-    if (centro && !grupo.centros.includes(centro)) grupo.centros.push(centro)
     grupo.necesidades.push(necesidad.id)
     if (!grupo.producto && necesidad.producto) grupo.producto = necesidad.producto
 
@@ -181,8 +184,14 @@ export function consolidarNecesidades(necesidades: NecesidadEntrada[] = []): Gru
       })
     }
   }
+  const ordenDestinos = (destinos: DestinoConsolidado[]) => [...destinos].sort((a, b) => {
+    // Primero los pedidos (lo comprometido), por fecha prometida más próxima.
+    if (a.tipo !== b.tipo) return a.tipo === 'PEDIDO' ? -1 : 1
+    return new Date(a.prometidaEl || '2999-12-31').getTime() - new Date(b.prometidaEl || '2999-12-31').getTime()
+      || a.etiqueta.localeCompare(b.etiqueta)
+  })
   return [...grupos.values()]
-    .map(({ destinosMapa, ...grupo }) => ({ ...grupo, destinos: [...destinosMapa.values()] }))
+    .map(({ destinosMapa, ...grupo }) => ({ ...grupo, destinos: ordenDestinos([...destinosMapa.values()]) }))
     .sort((a, b) => pesoPrioridad(b.prioridad) - pesoPrioridad(a.prioridad)
       || new Date(a.prometidaEl || '2999-12-31').getTime() - new Date(b.prometidaEl || '2999-12-31').getTime()
       || b.cantidad - a.cantidad)

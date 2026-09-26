@@ -2,6 +2,27 @@ import assert from 'node:assert/strict'
 import { consolidarNecesidades, normalizarNecesidadManual, prioridadMayor } from '../lib/supply'
 
 // ── Prioridad (para consolidar) ─────────────────────────────────────────────
+// Los centros de compra no se mezclan (#250 §5): asignar un centro separa el
+// grupo consolidado y el destino conserva su centro.
+const porCentro = consolidarNecesidades([
+  { id: 'k1', productId: 'p9', cantidad: 1, prioridad: 'NORMAL', origen: 'MANUAL' },
+  { id: 'k2', productId: 'p9', cantidad: 1, prioridad: 'NORMAL', origen: 'MANUAL', centro: 'USA' },
+  { id: 'k3', productId: 'p9', cantidad: 2, prioridad: 'NORMAL', origen: 'MANUAL', centro: 'usa' },
+])
+assert.equal(porCentro.length, 2, 'sin centro y USA son grupos distintos')
+const grupoUsa = porCentro.find((grupo) => grupo.centro === 'USA')!
+assert.equal(grupoUsa.cantidad, 3, 'las del mismo centro se suman')
+assert.ok(grupoUsa.destinos.every((destino) => destino.centro === 'USA'))
+assert.equal(porCentro.find((grupo) => grupo.centro === null)!.cantidad, 1)
+
+// El orden de los destinos pone primero lo comprometido y por promesa más próxima.
+const ordenados = consolidarNecesidades([
+  { id: 'r1', productId: 'p8', cantidad: 1, prioridad: 'NORMAL', origen: 'BELOW_REORDER', sucursalId: 'b1', sucursal: 'Casa Central' },
+  { id: 'r2', productId: 'p8', cantidad: 1, prioridad: 'NORMAL', origen: 'SALE_NO_STOCK', pedidoId: 'o2', pedidoNumero: 'MOB-2', prometidaEl: '2026-10-05T10:00:00.000Z' },
+  { id: 'r3', productId: 'p8', cantidad: 1, prioridad: 'NORMAL', origen: 'SALE_NO_STOCK', pedidoId: 'o1', pedidoNumero: 'MOB-1', prometidaEl: '2026-10-01T10:00:00.000Z' },
+])
+assert.deepEqual(ordenados[0].destinos.map((destino) => destino.pedidoId || 'stock'), ['o1', 'o2', 'stock'])
+
 assert.equal(prioridadMayor('BAJA', 'URGENTE'), 'URGENTE')
 assert.equal(prioridadMayor('ALTA', 'NORMAL'), 'ALTA')
 assert.equal(prioridadMayor('NORMAL', 'NORMAL'), 'NORMAL')

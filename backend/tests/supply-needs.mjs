@@ -150,12 +150,38 @@ assert.equal(repetido.id, pedido.id, 'el pedido idempotente se reutiliza')
 const panelRepetido = await req(`/api/supply/needs?productId=${productoAuto.id}`)
 assert.equal(panelRepetido.grupos[0].necesidades.length, necesidadAuto, 'no se duplica la necesidad')
 
-// El origen/centro se asigna y filtra desde el panel.
-const asignadaOrigen = await req('/api/supply/needs', 'PATCH', { id: grupoAuto.necesidades[0], action: 'assign', origin: 'usa' })
-assert.equal(asignadaOrigen.origin, 'USA')
+// Asignación de comprador/origen: en bloque para un grupo consolidado, y de a
+// una; los centros no se mezclan en la consolidación y se pueden liberar.
+const [necesidadPedido, necesidadMinimo] = grupoAuto.necesidades
+const enBloque = await req('/api/supply/needs', 'PATCH', { ids: grupoAuto.necesidades, action: 'assign', assignedToId: compradorId, origin: 'usa' })
+assert.equal(enBloque.actualizadas, grupoAuto.necesidades.length, 'asigna el grupo entero')
 const porOrigen = await req('/api/supply/needs?origin=USA')
-assert.ok(porOrigen.grupos.some((grupo) => grupo.productoId === productoAuto.id), 'el filtro por centro devuelve la necesidad')
-const centroInvalido = await req('/api/supply/needs', 'PATCH', { id: grupoAuto.necesidades[0], action: 'assign', origin: 'C' }, 400)
+const grupoUsa = porOrigen.grupos.find((grupo) => grupo.productoId === productoAuto.id)
+assert.ok(grupoUsa, 'el filtro por centro devuelve la necesidad')
+assert.equal(grupoUsa.centro, 'USA', 'el grupo expone su centro')
+assert.equal(grupoUsa.destinos.length, 2, 'los destinos siguen conservados')
+assert.equal(grupoUsa.destinos[0].tipo, 'PEDIDO', 'el pedido va primero')
+
+// Liberar una necesidad: vuelve a la cola sin centro y el grupo se separa.
+const liberada = await req('/api/supply/needs', 'PATCH', { id: necesidadMinimo, action: 'assign', assignedToId: null, origin: null })
+assert.equal(liberada.assignedToId, null)
+assert.equal(liberada.origin, null)
+assert.equal(liberada.status, 'ABIERTA', 'sin comprador vuelve a la cola')
+const separados = (await req(`/api/supply/needs?productId=${productoAuto.id}`)).grupos.filter((grupo) => grupo.productoId === productoAuto.id)
+assert.equal(separados.length, 2, 'USA y sin centro no se consolidan juntos')
+assert.ok(separados.some((grupo) => grupo.centro === 'USA') && separados.some((grupo) => grupo.centro === null))
+const sinCentro = await req(`/api/supply/needs?productId=${productoAuto.id}&sinCentro=1`)
+assert.equal(sinCentro.grupos.length, 1, 'el filtro sinCentro deja solo la que no tiene centro')
+const sinAsignar = await req(`/api/supply/needs?productId=${productoAuto.id}&sinAsignar=1`)
+assert.equal(sinAsignar.grupos.length, 1, 'el filtro sinAsignar deja solo la liberada')
+
+// Reasignar la liberada a otro centro: dos grupos, cada uno con su comprador.
+const aCde = await req('/api/supply/needs', 'PATCH', { id: necesidadMinimo, action: 'assign', origin: 'CDE' })
+assert.equal(aCde.origin, 'CDE')
+const cde = (await req(`/api/supply/needs?productId=${productoAuto.id}&origin=CDE`)).grupos.find((grupo) => grupo.productoId === productoAuto.id)
+assert.ok(cde && cde.centro === 'CDE' && cde.cantidad === 4, 'el mínimo queda en CDE con su cantidad')
+await req('/api/supply/needs', 'PATCH', { id: necesidadPedido, action: 'assign', origin: 'C' }, 400)
+await req('/api/supply/needs', 'PATCH', { ids: [], action: 'assign', origin: 'USA' }, 400)
 
 // Venta con stock que cae bajo el punto de reposición → BELOW_REORDER sola.
 const productoMinimo = await req('/api/products', 'POST', { name: `Mínimo ${sufijo}`, sku: `MIN-${sufijo}`, pricePyg: 500000, costPyg: 300000, stock: 2, branchId: rama, reorderPoint: 3 }, 201)
@@ -176,4 +202,40 @@ assert.ok(grupoReserva, 'la reserva sin unidad generó la necesidad')
 assert.equal(grupoReserva.cantidad, 2, 'solo la diferencia faltante')
 assert.equal(grupoReserva.origenes[0], 'RESERVATION_NO_STOCK')
 
-console.log(`PASS: necesidades manuales + motor automático + consolidación (${vista.grupos.length} grupos) + asignación/origen/cancelación auditadas · ${checks} chequeos`)
+// 7) Prioridades y fechas desde el panel: PATCH update de a una o en bloque.
+const porFecha = await req('/api/supply/needs', 'PATCH', { id: reposicion.id, action: 'update', promisedAt: new Date(Date.now() - 3600000).toISOString() })
+assert.equal(porFecha.priority, 'URGENTE', 'una fecha vencida recalcula la prioridad')
+const conVencida = await req('/api/supply/needs')
+assert.ok(conVencida.contadores.vencidas >= 1, 'la fecha vencida cuenta en los contadores')
+const forzada = await req('/api/supply/needs', 'PATCH', { id: reposicion.id, action: 'update', priority: 'BAJA' })
+assert.equal(forzada.priority, 'BAJA', 'la prioridad explícita manda')
+await req('/api/supply/needs', 'PATCH', { id: reposicion.id, action: 'update', priority: 'YA' }, 400)
+await req('/api/supply/needs', 'PATCH', { id: reposicion.id, action: 'update' }, 400)
+await req('/api/supply/needs', 'PATCH', { id: reposicion.id, action: 'update', promisedAt: 'ayer' }, 400)
+const enBloquePrioridad = await req('/api/supply/needs', 'PATCH', { ids: [reposicion.id, urgente.id], action: 'update', priority: 'ALTA' })
+assert.equal(enBloquePrioridad.actualizadas, 2, 'la prioridad se ajusta en bloque')
+const limpiada = await req('/api/supply/needs', 'PATCH', { id: reposicion.id, action: 'update', promisedAt: null })
+assert.equal(limpiada.promisedAt, null, 'la fecha prometida se puede limpiar')
+
+// 8) Contadores para las pestañas y filtros de prioridad/condición.
+const panel = await req('/api/supply/needs')
+assert.ok(panel.contadores, 'el panel recibe los contadores')
+assert.ok(panel.contadores.pendientes >= 1, 'hay pendientes contadas')
+assert.ok(panel.contadores.porEstado.ABIERTA >= 1 && panel.contadores.porEstado.ASIGNADA >= 1)
+assert.ok(panel.contadores.porPrioridad.ALTA >= 2, 'las dos en bloque quedaron ALTA')
+assert.ok(panel.contadores.sinAsignar >= 1 && panel.contadores.sinCentro >= 1)
+const soloAltas = await req('/api/supply/needs?priority=ALTA')
+assert.ok(soloAltas.grupos.length >= 1 && soloAltas.grupos.every((grupo) => grupo.prioridad === 'ALTA'), 'el filtro por prioridad no mezcla')
+const soloUsadas = await req('/api/supply/needs?condition=USED')
+assert.ok(soloUsadas.grupos.every((grupo) => grupo.condicion === 'USED'))
+
+// 9) Opciones del panel: compradores, centros y sucursales.
+const opciones = await req('/api/supply/needs/options')
+assert.ok(opciones.compradores.some((persona) => persona.id === compradorId), 'el comprador asignable aparece')
+assert.ok(opciones.compradores.every((persona) => persona.name), 'los compradores vienen con nombre')
+assert.ok(opciones.centros.some((centro) => centro.centro === 'CDE') && opciones.centros.some((centro) => centro.centro === 'USA'), 'los centros del plan están')
+assert.ok(Array.isArray(opciones.sucursales), 'las sucursales están disponibles')
+if (vendedor) await req('/api/supply/needs/options', 'GET', undefined, 403, vendedor)
+else await req('/api/supply/needs/options', 'GET', undefined, 401, 'token-invalido')
+
+console.log(`PASS: necesidades manuales + motor automático + consolidación por centro + prioridad/fecha + opciones del panel + asignación/cancelación auditadas · ${checks} chequeos`)
