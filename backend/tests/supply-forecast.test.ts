@@ -29,21 +29,25 @@ const rendimiento = rendimientoProveedor([
 const proveedorA = rendimiento.find((fila) => fila.supplierId === 's1')!
 assert.deepEqual([proveedorA.compras, proveedorA.unidades, proveedorA.costPyg], [2, 15, 1500000])
 assert.equal(proveedorA.plazoPromedioDias, 10, 'compra → recepción promedio')
+assert.equal(proveedorA.costoPromedioUnidadPyg, 100000, 'costo real promedio por unidad (FIN)')
 assert.equal(proveedorA.puntualidadPct, 50, 'una de dos llegó dentro de la ETA')
 assert.equal(proveedorA.faltantesPct, 6.7)
 assert.equal(proveedorA.incidencias, 2)
 const suelto = rendimiento.find((fila) => fila.supplierId === null)!
 assert.deepEqual([suelto.plazoPromedioDias, suelto.puntualidadPct], [null, null], 'sin recepción ni ETA no inventa métricas')
+assert.equal(suelto.costoPromedioUnidadPyg, 50000)
 
 // ── Tiempos de tránsito (CDE→ASU) ───────────────────────────────────────────
 const rutas = tiemposDeTransito([
-  { origen: 'CDE', destino: 'Asunción', metodo: 'BUS', salidaEl: '2026-09-01T00:00:00Z', llegadaEl: '2026-09-02T00:00:00Z', unidades: 2 },
-  { origen: 'CDE', destino: 'Asunción', metodo: 'BUS', salidaEl: '2026-09-01T00:00:00Z', llegadaEl: '2026-09-04T00:00:00Z' },
+  { origen: 'CDE', destino: 'Asunción', metodo: 'BUS', salidaEl: '2026-09-01T00:00:00Z', llegadaEl: '2026-09-02T00:00:00Z', etaEl: '2026-09-01T12:00:00Z', unidades: 2 },
+  { origen: 'CDE', destino: 'Asunción', metodo: 'BUS', salidaEl: '2026-09-01T00:00:00Z', llegadaEl: '2026-09-04T00:00:00Z', etaEl: '2026-09-04T00:00:00Z' },
   { origen: 'CDE', destino: 'Asunción', metodo: 'AEX', salidaEl: '2026-09-01T00:00:00Z' },
 ])
 const bus = rutas.find((fila) => fila.metodo === 'BUS')!
 assert.equal(bus.ruta, 'CDE → Asunción')
 assert.deepEqual([bus.lotes, bus.unidades, bus.diasPromedio, bus.diasMaximos], [2, 2, 2, 3])
+assert.equal(bus.enTiempoPct, 50, 'uno de los dos llegó dentro de la ETA')
+assert.equal(bus.atrasoPromedioDias, 0.5, 'el atraso real se promedia (solo lo atrasado)')
 assert.equal(rutas.find((fila) => fila.metodo === 'AEX')!.diasPromedio, null, 'lo que no llegó no promedia')
 
 // ── Alertas de atraso ───────────────────────────────────────────────────────

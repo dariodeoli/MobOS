@@ -51,11 +51,12 @@ export type CompraProveedor = {
 }
 
 /**
- * Rendimiento por proveedor: compras, unidades, monto, plazo promedio de
- * reposición (compra → recepción), puntualidad (lotes que llegaron dentro de la
- * ETA) y tasa de problemas (faltantes/incidencias por unidades).
+ * Rendimiento por proveedor: compras, unidades, monto y **costo real promedio
+ * por unidad** (FIN), plazo promedio de reposición (compra → recepción),
+ * puntualidad (lotes que llegaron dentro de la ETA) y tasa de problemas
+ * (faltantes/incidencias por unidades).
  */
-export function rendimientoProveedor(compras: CompraProveedor[] = []): Array<{ supplierId: string | null; proveedor: string; compras: number; unidades: number; costPyg: number; plazoPromedioDias: number | null; puntualidadPct: number | null; faltantesPct: number; incidencias: number }> {
+export function rendimientoProveedor(compras: CompraProveedor[] = []): Array<{ supplierId: string | null; proveedor: string; compras: number; unidades: number; costPyg: number; costoPromedioUnidadPyg: number | null; plazoPromedioDias: number | null; puntualidadPct: number | null; faltantesPct: number; incidencias: number }> {
   const porProveedor = new Map<string, { supplierId: string | null; proveedor: string; compras: number; unidades: number; costPyg: number; plazos: number[]; lotesConEta: number; lotesEnTiempo: number; faltantes: number; incidencias: number }>()
   for (const compra of compras || []) {
     const clave = compra.supplierId || `nombre:${compra.supplierName}`
@@ -80,6 +81,8 @@ export function rendimientoProveedor(compras: CompraProveedor[] = []): Array<{ s
       compras: fila.compras,
       unidades: fila.unidades,
       costPyg: fila.costPyg,
+      // FIN: cuánto cuesta realmente cada unidad comprada a este proveedor.
+      costoPromedioUnidadPyg: fila.unidades ? Math.round(fila.costPyg / fila.unidades) : null,
       plazoPromedioDias: fila.plazos.length ? redondear(fila.plazos.reduce((suma, valor) => suma + valor, 0) / fila.plazos.length) : null,
       puntualidadPct: fila.lotesConEta ? Math.round((fila.lotesEnTiempo / fila.lotesConEta) * 100) : null,
       faltantesPct: fila.unidades ? redondear((fila.faltantes / fila.unidades) * 100) : 0,
@@ -99,16 +102,23 @@ export type LoteTransito = {
   unidades?: number
 }
 
-/** Tiempo real de tránsito por ruta y método (incluye CDE→ASU) y atraso promedio. */
-export function tiemposDeTransito(lotes: LoteTransito[] = []): Array<{ ruta: string; origen: string; destino: string | null; metodo: string; lotes: number; unidades: number; diasPromedio: number | null; diasMaximos: number | null }> {
-  const porRuta = new Map<string, { origen: string; destino: string | null; metodo: string; dias: number[]; lotes: number; unidades: number }>()
+/** Tiempo real de tránsito por ruta y método (incluye CDE→ASU), puntualidad y atraso promedio. */
+export function tiemposDeTransito(lotes: LoteTransito[] = []): Array<{ ruta: string; origen: string; destino: string | null; metodo: string; lotes: number; unidades: number; diasPromedio: number | null; diasMaximos: number | null; enTiempoPct: number | null; atrasoPromedioDias: number | null }> {
+  const porRuta = new Map<string, { origen: string; destino: string | null; metodo: string; dias: number[]; lotes: number; unidades: number; conEta: number; enTiempo: number; atrasos: number[] }>()
   for (const lote of lotes || []) {
     const clave = `${lote.origen}→${lote.destino || '—'}·${lote.metodo}`
-    const fila = porRuta.get(clave) || { origen: lote.origen, destino: lote.destino || null, metodo: lote.metodo, dias: [], lotes: 0, unidades: 0 }
+    const fila = porRuta.get(clave) || { origen: lote.origen, destino: lote.destino || null, metodo: lote.metodo, dias: [], lotes: 0, unidades: 0, conEta: 0, enTiempo: 0, atrasos: [] }
     fila.lotes += 1
     fila.unidades += Math.max(0, Math.round(Number(lote.unidades) || 0))
     const dias = diasEntre(lote.salidaEl, lote.llegadaEl)
     if (dias !== null) fila.dias.push(dias)
+    // FIN: puntualidad vs. la ETA prometida y cuánto se atrasó (o adelantó).
+    const atraso = lote.etaEl && lote.llegadaEl ? (new Date(String(lote.llegadaEl)).getTime() - new Date(String(lote.etaEl)).getTime()) / 86400000 : null
+    if (atraso !== null && Number.isFinite(atraso)) {
+      fila.conEta += 1
+      fila.atrasos.push(Math.max(0, atraso))
+      if (atraso <= 0) fila.enTiempo += 1
+    }
     porRuta.set(clave, fila)
   }
   return [...porRuta.values()]
@@ -121,6 +131,12 @@ export function tiemposDeTransito(lotes: LoteTransito[] = []): Array<{ ruta: str
       unidades: fila.unidades,
       diasPromedio: fila.dias.length ? redondear(fila.dias.reduce((suma, valor) => suma + valor, 0) / fila.dias.length) : null,
       diasMaximos: fila.dias.length ? redondear(Math.max(...fila.dias)) : null,
+      enTiempoPct: fila.conEta ? Math.round((fila.enTiempo / fila.conEta) * 100) : null,
+      atrasoPromedioDias: (() => {
+        if (!fila.atrasos.length) return null
+        const tardes = fila.atrasos.filter((valor) => valor > 0)
+        return tardes.length ? redondear(tardes.reduce((suma, valor) => suma + valor, 0) / tardes.length) : 0
+      })(),
     }))
     .sort((a, b) => b.lotes - a.lotes)
 }
