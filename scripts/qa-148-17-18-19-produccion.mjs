@@ -39,7 +39,11 @@ await ver('Demo: se entra como Dueño y se cierra la guía', async () => {
   await page.getByRole('button', { name: /Entrar como Dueño/i }).click()
   await page.waitForURL((url) => !url.pathname.startsWith('/demo'), { timeout: 30000 })
   const guia = page.getByRole('dialog', { name: 'Cómo funciona la demo' })
-  if (await guia.count()) await page.getByRole('button', { name: 'Cerrar' }).last().click()
+  // La guía monta un render después del ingreso: se espera (patrón de
+  // e2e/helpers/demo.js). Un count instantáneo la perdía y la guía tapaba clics.
+  if (await guia.waitFor({ state: 'visible', timeout: 4000 }).then(() => true).catch(() => false)) {
+    await guia.getByRole('button', { name: 'Cerrar' }).click()
+  }
   return page.url().replace(WEB, '')
 })
 
@@ -104,7 +108,8 @@ await ver('§18: el tablero muestra todos los cortes del POS', async () => {
 
 // ── §19 Clientes y seguro ───────────────────────────────────────────────────
 await ver('§19: el seguro de la empresa se configura en Finanzas/empresa', async () => {
-  await page.goto(`${WEB}/configuracion/negocio`)
+  // #253: el seguro vive en Configuración → Comercial (la ruta vieja redirige).
+  await page.goto(`${WEB}/configuracion/comercial`)
   await expect(page.locator('#seguro-toggle')).toBeVisible({ timeout: 30000 })
   if (!(await page.locator('#seguro-toggle').isChecked())) await page.locator('#seguro-toggle').click({ force: true })
   await page.locator('#seguro-pct').fill('10')
@@ -117,7 +122,8 @@ await ver('§19: el seguro de la empresa se configura en Finanzas/empresa', asyn
 
 await ver('§19: el seguro impacta el margen (costo real = costo + seguro)', async () => {
   // Navegación dentro de la app: la demo guarda el seguro en memoria de la pestaña.
-  await page.getByRole('button', { name: 'Análisis', exact: true }).click()
+  // El shell tiene el grupo y el ítem con el mismo nombre: se entra por el ítem.
+  await page.locator('aside nav button[aria-label="Análisis"]').click()
   const tab = page.getByRole('tab', { name: 'Ganancias' })
   await expect(tab).toBeVisible({ timeout: 20000 })
   await tab.click()

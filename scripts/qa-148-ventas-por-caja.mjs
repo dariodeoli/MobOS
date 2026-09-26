@@ -66,7 +66,11 @@ await ver('Demo: el corte por caja muestra el histórico con diferencias', async
   await page.getByRole('button', { name: /Entrar como Dueño/i }).click()
   await page.waitForURL((url) => !url.pathname.startsWith('/demo'))
   const guia = page.getByRole('dialog', { name: 'Cómo funciona la demo' })
-  if (await guia.count()) await page.getByRole('button', { name: 'Cerrar' }).last().click()
+  // La guía monta un render después del ingreso: se espera (patrón de
+  // e2e/helpers/demo.js). Un count instantáneo la perdía y la guía tapaba clics.
+  if (await guia.waitFor({ state: 'visible', timeout: 4000 }).then(() => true).catch(() => false)) {
+    await guia.getByRole('button', { name: 'Cerrar' }).click()
+  }
   await page.goto(`${WEB}/finanzas/caja`)
   await expect(page.getByRole('heading', { name: 'Ventas por caja' })).toBeVisible({ timeout: 30000 })
   const filas = page.getByTestId('ventas-por-caja-fila')
