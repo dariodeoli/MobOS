@@ -96,11 +96,18 @@ test('F3 · preparar compra: escaneo, Luhn, duplicados y pegado múltiple', asyn
   await page.getByRole('button', { name: 'Pegar varios' }).click()
   await page.getByLabel('IMEI para pegar').fill(`${imeiB}, ${imeiA}\n${imeiRoto}`)
   await page.getByRole('button', { name: 'Cargar lote' }).click()
-  await expect(page.getByText(/1 cargado\(s\)/)).toBeVisible({ timeout: 20_000 })
-  await expect(page.getByText(/cargad|duplicad|repetid/i).first()).toBeVisible({ timeout: 20_000 })
-  // Con la línea completa la compra sale de «pendientes» (F2: el panel lista
-  // solo lo que tiene IMEI por cargar) y el estado queda para el API.
-  await expect(page.getByText('Cuando una compra tenga IMEI pendientes, aparece acá.')).toBeVisible({ timeout: 15_000 })
+  // El pegado deja 1 válido (el otro es duplicado y el tercero roto). El aviso
+  // puede llegar como «1 cargado(s)» o ya resuelto por el refresco (línea
+  // completa): se acepta cualquiera y, si no, el mensaje muestra el panel.
+  await expect(async () => {
+    const panel = await page.getByTestId('preparar-compra').innerText()
+    const ok = /1 cargado\(s\)/.test(panel) || /Línea completa/.test(panel)
+    expect(ok, `pegado de IMEI: ${panel.replace(/\s+/g, ' ').slice(0, 400)}`).toBe(true)
+  }).toPass({ timeout: 30_000 })
+  // La línea queda completa y la compra sigue abierta hasta cerrarla (F2: el
+  // panel la conserva visible con sus líneas completas).
+  await expect(page.getByText('Completa', { exact: true })).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Línea completa: todos los IMEI cargados.')).toBeVisible({ timeout: 15_000 })
 
   // La compra deja de estar pendiente de preparación.
   const pendientes = await apiPagina(page, '/api/supply/purchases?pendientes=1')
