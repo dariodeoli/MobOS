@@ -292,6 +292,26 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 49 — Selector de cuenta de cobro (#262, con POS) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Selector de cuenta | `CuentaCobroCombobox` + `CapsulaCuentaCobro` (POS): al elegir quedaban el input con el texto, la cápsula y datos superpuestos; el banco se repetía | **`SelectorCuentaCobro` + `TarjetaCuentaCobro`** (biblioteca **v0.42.0**): al elegir **colapsa el buscador** y queda **una sola tarjeta** con nombre, logo o ícono del medio, moneda, tipo de transferencia, **banco una sola vez** (se omite si el nombre ya lo dice) y **saldo pendiente de la venta** (con equivalente si la cuenta es en otra moneda) + **«Cambiar cuenta»**. Filtra por nombre, banco/procesadora, titular, número, medio y moneda |
+| Helpers | Mapas de medio/símbolo/máscara repartidos | `utils/cuentaCobro.js`: `MEDIOS_CUENTA`, `etiquetaMedioCuenta`, `iconoMedioCuenta`, `simboloCuenta`, `numeroParcialCuenta`, `filtrarCuentasCobro`, `detalleCuentaCobro` |
+| Docs | — | `REGLAS.md` §1, README y `docs/CAMPOS.md` §2 con las props |
+
+**Coordinación con POS (dueño de `PaymentAccountFields`):** el objeto es
+portable (`cuentas` por props, `onSelect(cuenta)`, importes por props) y
+`testId` conserva los `data-testid` existentes (`cuenta-capsula`,
+`cuenta-capsula-nombre`, `cuenta-capsula-saldo`, `cuenta-capsula-cambiar`,
+`cuenta-capsula-buscar`) para que el e2e del cobro siga. La cotización
+automática de USD y el saldo propuesto quedan en la pantalla, como hoy. No se
+tocó `PaymentAccountFields.jsx` (dominio POS).
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
+`test:e2e:smoke`; biblioteca `owncoding-ui` build + 318 tests.
+
 ### Lote 48 — BuscadorProveedor (#259, con INV) (26-09)
 
 | Objeto | Antes (evidencia) | Después |
