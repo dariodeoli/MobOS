@@ -47,6 +47,7 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi`). Ant
 | `CameraScan` | Escaneo por cámara de IMEI/código (hoy local en `Inventario.jsx`) | Inventario |
 | `shared/PegarEnlaceToken` | Entrada de enlace completo cuando el token de acción no llega por la URL (relays de correo); extrae el código de 64 hex con `extractTokenFromUrl` | Invitación, recuperación, verificación de correo |
 | `owncoding-ui/Checkbox` | Selección múltiple con `label` asociado + `descripcion`, variantes `simple` (listas) y `tarjeta` (preferencias), `tono="bad"` para lo destructivo y `ariaLabel` para el control pelado. Para booleanos de encendido/apagado va `Switch`; no se dibuja el par label + input a mano | Configuración (preferencias, permisos), impresoras y colas |
+| `owncoding-ui/BuscadorProveedor` | Input search de proveedor (#259): **últimos usados por defecto** (`recientes`: ids o proveedores, en orden y sin repetir), filtro por **nombre o abreviatura** (`code`, sin acentos) y **alta rápida** (`onCreate` async → proveedor creado). `selectedId` + `onSelect(proveedor)`; `onQueryChange` para búsqueda al servidor. Contrato combobox completo. Reemplaza el `<Select>` de proveedor | Compras (alta y filtros de proveedor); el catálogo y los recientes los aporta la pantalla |
 
 ## 3. Patrones reutilizables
 

@@ -292,6 +292,24 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 48 — BuscadorProveedor (#259, con INV) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Buscador de proveedor | Compras usa un `<Select>` con «＋ Nuevo proveedor»; sin últimos usados ni filtro por abreviatura (issue **#259**) | **`BuscadorProveedor`** en la biblioteca (**v0.41.0**): recientes por defecto (`recientes` por id), filtro por **nombre o abreviatura** (`code`, sin acentos) y **alta rápida** (`onCreate` async); contrato combobox completo y `onQueryChange` para búsqueda al servidor. Helpers `normalizarProveedor`/`filtrarProveedores`/`resolverRecientes` |
+| Docs | — | `REGLAS.md` §1, README de la biblioteca y `docs/CAMPOS.md` §2 de la app con el contrato completo |
+
+**Coordinación con INV (dueño de Compras):** el componente es portable (el
+catálogo entra por `proveedores`, los recientes por `recientes` con el hook
+`useUltimoUsado`, y el alta por `onCreate` → `suppliersApi.create`). Adopción
+sugerida en el formulario de compra: reemplazar el `<Select aria-label="Proveedor">`
+de `Compras.jsx` conservando `supplierId` (`onSelect`) y el flujo «Nuevo
+proveedor» (`onCreate`). No se tocó `Compras.jsx` (dominio INV).
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
+`test:e2e:smoke`; biblioteca `owncoding-ui` build + 313 tests.
+
 ### Lote 47 — nueva ola F3–F5: manifiesto del lote (#250) (26-09)
 
 | Objeto | Antes (evidencia) | Después |
