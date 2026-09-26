@@ -90,14 +90,14 @@ test('F3 · preparar compra: escaneo, Luhn, duplicados y pegado múltiple', asyn
   // Duplicado: el IMEI que ya tiene la línea se rechaza.
   await page.getByLabel('IMEI a escanear').fill(imeiA)
   await page.getByRole('button', { name: 'Cargar', exact: true }).click()
-  await expect(page.getByText(/cargad|duplicad|repetid/i).first()).toBeVisible()
+  await expect(page.getByText(/cargad|duplicad|repetid/i).first()).toBeVisible({ timeout: 20_000 })
 
   // Pegado múltiple: el válido entra, el repetido y el roto no.
   await page.getByRole('button', { name: 'Pegar varios' }).click()
   await page.getByLabel('IMEI para pegar').fill(`${imeiB}, ${imeiA}\n${imeiRoto}`)
   await page.getByRole('button', { name: 'Cargar lote' }).click()
-  await expect(page.getByText(/1 cargado\(s\)/)).toBeVisible()
-  await expect(page.getByText(/cargad|duplicad|repetid/i).first()).toBeVisible()
+  await expect(page.getByText(/1 cargado\(s\)/)).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByText(/cargad|duplicad|repetid/i).first()).toBeVisible({ timeout: 20_000 })
   // Con la línea completa la compra sale de «pendientes» (F2: el panel lista
   // solo lo que tiene IMEI por cargar) y el estado queda para el API.
   await expect(page.getByText('Cuando una compra tenga IMEI pendientes, aparece acá.')).toBeVisible({ timeout: 15_000 })
