@@ -29,6 +29,31 @@ Los datos financieros más finos de la demo (cuentas, conciliación, split de
 pagos, autorizaciones) se cierran desde el dominio FIN; acá se evidencia lo que
 el cliente/pedido muestra (historial, estados, deuda y portal).
 
+## #213 — historial y pedidos demo: pagos divididos y medios variados (completado)
+
+El historial demo ya no inventa un pago único por pedido: cada pedido del seed
+lleva sus **movimientos reales** (hasta pagos divididos), con las **etiquetas de
+medio espejo del backend** (`PAYMENT_LABELS`): Efectivo, Transferencia,
+Tarjeta / POS, Pix, **USDT - Cripto**, Canje y Saldo a favor.
+
+- `src/lib/demoClientes.js`: `pedido()` acepta `pagos` y el portal usa los
+  movimientos de cada pedido (detalle del pedido) y arma el historial «Tus
+  pagos» con ellos (ordenado por fecha), sin derivar montos.
+- Seeds enriquecidos: Lucía con **parcial dividido** (Efectivo + Transferencia
+  sobre MOB-#0008) y **saldo a favor** en MOB-#0002; Distribuidora con
+  Transferencia + Tarjeta, Pix y USDT; María con USDT + Transferencia; Carlos
+  con Pix; Ramiro con Transferencia + Tarjeta; Juan/Hugo/Distribuidora Luque con
+  cobros parciales.
+- Verificación: unit `src/lib/demoClientes.test.js` **20 ✓** (pagos divididos,
+  suma = cobrado, los seis medios presentes y orden del historial) y e2e
+  `e2e/qa-240-portal-pedido-detalle.spec.js` **3/3** con capturas en
+  `docs/QA-213-demo-clientes-pedidos/demo-pagos/` (`02` detalle con split, `03`
+  historial con medios variados).
+
+> Es data del navegador (demo session-only): el incremento viaja en el próximo
+> deploy del frontend; la verificación de producción de #187/221/236 sigue
+> vigente sobre v1.0.181 (sin cambios de API).
+
 ## #187 — dominio clientes en producción
 
 El recorrido completo (ficha, deuda, cronología, seguro, estadísticas,
