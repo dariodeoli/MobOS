@@ -3,6 +3,8 @@
 // resuelve sin sesión, una sola vez por documento.
 
 import { test, expect } from '@playwright/test'
+import { copyFileSync, mkdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
@@ -48,6 +50,51 @@ test('la cotización pública se acepta una sola vez y el enlace se regenera', a
 
   const viejo = await api(page, `/api/quotes/public/${token}`)
   expect(viejo.status).toBe(404)
+})
+
+// PDF profesional para compartir (con POS): desde el mismo modal (Enlace/QR) el
+// vendedor baja o comparte la cotización como PDF real (A4, identidad de marca y
+// el QR de aceptación). Sin Web Share de archivos en el arnés, cae a descarga.
+test('la cotización se descarga como PDF para compartir', async ({ page }) => {
+  const marca = Date.now()
+  await page.goto('/resumen')
+  const creada = await api(page, '/api/quotes', {
+    method: 'POST',
+    body: JSON.stringify({ customerName: `Cliente PDF ${marca}`, items: [{ description: 'Equipo PDF', quantity: 1, unitPricePyg: 450000 }] }),
+  })
+  expect(creada.status).toBe(201)
+  expect(creada.body.publicToken).toBeTruthy()
+
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'canShare', { value: () => false, configurable: true })
+    Object.defineProperty(navigator, 'share', { value: undefined, configurable: true })
+  })
+  await page.goto('/cotizaciones')
+  const fila = page.getByTestId('cotizacion-fila').filter({ hasText: creada.body.number }).first()
+  await fila.getByRole('button', { name: 'Enlace/QR' }).click()
+  const modal = page.getByRole('dialog', { name: `Enlace de ${creada.body.number}` })
+  await expect(modal.getByTestId('compartir-pdf')).toBeVisible()
+
+  const [descarga] = await Promise.all([
+    page.waitForEvent('download'),
+    modal.getByTestId('compartir-pdf').click(),
+  ])
+  expect(descarga.suggestedFilename()).toMatch(/^cotizacion-.*\.pdf$/)
+  const pdf = readFileSync(await descarga.path())
+  expect(pdf.length).toBeGreaterThan(5_000)
+  expect(pdf.subarray(0, 5).toString('latin1')).toBe('%PDF-')
+  expect(pdf.toString('latin1')).toContain('/Type /Page')
+  await expect(page.getByText('PDF descargado')).toBeVisible({ timeout: 15_000 })
+
+  const [directo] = await Promise.all([
+    page.waitForEvent('download'),
+    modal.getByTestId('descargar-pdf').click(),
+  ])
+  expect(directo.suggestedFilename()).toMatch(/^cotizacion-.*\.pdf$/)
+  if (process.env.QA_OUT) {
+    mkdirSync(process.env.QA_OUT, { recursive: true })
+    copyFileSync(await directo.path(), join(process.env.QA_OUT, 'cotizacion.pdf'))
+  }
 })
 
 test('el remito público confirma la recepción y suma el stock de destino', async ({ page }) => {

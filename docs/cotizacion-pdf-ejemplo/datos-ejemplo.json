@@ -1,0 +1,11 @@
+{
+  "cotizacion": {
+    "number": "COT-0007",
+    "cliente": "Juan Pérez",
+    "vendedor": "Lucía Benítez",
+    "totalPyg": 6000000,
+    "validez": "2026-10-03T10:00:00.000Z"
+  },
+  "enlaceDemo": "https://app.moboss.online/cotizacion/COT-DEMO-0007",
+  "generado": "2026-09-26T23:38:18.538Z"
+}
