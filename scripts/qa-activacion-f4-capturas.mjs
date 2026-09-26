@@ -65,6 +65,9 @@ for (const [combo, ancho, alto, tema] of COMBOS) {
       await page.evaluate((m) => { try { localStorage.setItem('mobos:theme', m) } catch { /* sin storage */ } }, tema)
       await page.goto(`${BASE}${ruta}`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
       await listo(page).waitFor({ state: 'visible', timeout: 25_000 }).catch(() => {})
+      // Espera el shell antes de la foto: evita capturar un estado de
+      // transición (el header se pinta al hidratar y puede faltar el menú).
+      await page.locator('[data-testid="shell"]').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {})
       await esperar(1200)
       const archivo = `${nombre}-${combo}.jpg`
       await page.screenshot({ path: join(SALIDA, archivo), type: 'jpeg', quality: 72 })
