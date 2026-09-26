@@ -1,5 +1,10 @@
 // Lectura del inventario: nombre comercial del equipo y estado visible de la
 // unidad, incluyendo lo que hereda de la entrega del pedido.
+import { CONDICION_UNIDAD } from 'owncoding-ui'
+
+// La etiqueta de condición (NEW/USED/REFURBISHED) vive en la biblioteca para
+// que listas, tarjetas y el panel de abastecimiento lean igual (#254).
+export { CONDICION_UNIDAD }
 
 const sinEspacios = (value) => String(value ?? '').toLowerCase().replace(/\s+/g, '')
 
@@ -57,9 +62,8 @@ export function estadoInventario(unit = {}) {
 }
 
 // Etiqueta y color de la condición física (nuevo / seminuevo / reacondicionado):
-// la misma regla en la lista, la tarjeta y la ficha de la unidad.
-export const CONDICION_UNIDAD = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
-
+// la misma regla en la lista, la tarjeta y la ficha de la unidad. El mapa vive
+// en la biblioteca y acá solo quedan los helpers de la unidad.
 export const etiquetaCondicionUnidad = (unit = {}) => CONDICION_UNIDAD[unit.condition] || unit.condition || '—'
 
 export const colorCondicionUnidad = (unit = {}) => (unit.condition === 'NEW' ? 'green' : 'orange')

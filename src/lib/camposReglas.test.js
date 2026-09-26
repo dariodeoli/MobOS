@@ -170,9 +170,11 @@ test('los adaptadores delegan la UI en la biblioteca (#253)', () => {
 
 test('los objetos de Abastecimiento F1 (#250/#254) están publicados', () => {
   const indice = readFileSync(LIB_INDEX, 'utf8')
-  for (const objeto of ['ChipPrioridad', 'ChipOrigen', 'ContadoresCompra', 'TarjetaNecesidad', 'PRIORIDADES_COMPRA', 'ORIGENES_NECESIDAD', 'ESTADOS_NECESIDAD', 'claveDePrioridad', 'claveDeEstado', 'ordenarPorPrioridad', 'PASOS_NECESIDAD']) {
+  for (const objeto of ['ChipPrioridad', 'ChipOrigen', 'ContadoresCompra', 'TarjetaNecesidad', 'PRIORIDADES_COMPRA', 'ORIGENES_NECESIDAD', 'ESTADOS_NECESIDAD', 'claveDePrioridad', 'claveDeEstado', 'ordenarPorPrioridad', 'PASOS_NECESIDAD', 'CONDICION_UNIDAD', 'etiquetaCondicion']) {
     assert.ok(indice.includes(objeto), `owncoding-ui debe publicar ${objeto} para la demanda F1`)
   }
+  // Las colas del panel usan Subtabs con contador (#254).
+  assert.match(readFileSync(join(LIB_COMPONENTES, 'ui.jsx'), 'utf8'), /items\.map\(\(\[id, label, contador\]\)/, 'Subtabs debe aceptar el contador de la cola')
   // El contrato del backend (INV) viaja en los mapas: prioridades, orígenes y
   // estados, así el panel de PLT no traduce nada.
   const mapas = readFileSync(join(LIB_COMPONENTES, '..', 'utils', 'abastecimiento.js'), 'utf8')

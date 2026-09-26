@@ -459,9 +459,12 @@ test('el tono de la unidad vive en utils/inventario (#217)', () => {
     assert.match(codigo, /estadoInventario\(unit\)\.tone/, `${ruta}: el badge usa el tono compartido`)
   }
   const inventario = readFileSync(join(RAIZ, 'utils/inventario.js'), 'utf8')
-  for (const nombre of ['tonoInventario', 'colorInventario', 'etiquetaCondicionUnidad', 'colorCondicionUnidad', 'puntoCondicionUnidad', 'CONDICION_UNIDAD']) {
+  for (const nombre of ['tonoInventario', 'colorInventario', 'etiquetaCondicionUnidad', 'colorCondicionUnidad', 'puntoCondicionUnidad']) {
     assert.match(inventario, new RegExp(`export (const|function) ${nombre}`), `falta ${nombre}`)
   }
+  // El mapa de condición vive en la biblioteca desde el lote 44.
+  assert.match(inventario, /export \{ CONDICION_UNIDAD \}/, 'CONDICION_UNIDAD se re-exporta de la biblioteca')
+  assert.match(readFileSync(join(LIB, '..', 'utils', 'estadoEquipo.js'), 'utf8'), /export const CONDICION_UNIDAD =/, 'falta CONDICION_UNIDAD en la biblioteca')
 })
 
 // Lote 17: la página pública del informe usa los objetos y reglas compartidas.

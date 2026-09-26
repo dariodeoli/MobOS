@@ -292,6 +292,29 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 44 — lo que pedía el panel de F1 (#250/#254) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Pestañas con contadores | `Subtabs` solo aceptaba `[id, etiqueta]`; el panel de PLT iba a sumar el número a mano | **`Subtabs` con contador** (`[id, etiqueta, 12]`): el badge va dentro de la pestaña, tabular y con tono según activa |
+| Condición de la unidad | `CONDICION_UNIDAD` vivía en `utils/inventario.js` y el panel de PLT tenía su mapa propio | Publicado en la biblioteca (`CONDICION_UNIDAD` + `etiquetaCondicion`); la app lo re-exporta desde `utils/inventario.js` y el panel puede usarlo directo |
+| Biblioteca | — | **v0.36.0** con REGLAS §12/README y tests (**226**) |
+
+**Para PLT:** las pestañas de «Por comprar» pueden pasar
+`items=[['pendientes', 'Por comprar', contadores?.pendientes], …]` (los
+contadores ya vienen de `/api/supply/needs`) y la condición con
+`etiquetaCondicion(fila.condicion)`.
+
+**Drive-by (aviso para CRM):** `portalAvisos.test.js` fallaba **en main** por un
+fixture con fecha fija que entró en la ventana de 7 días; se evaluó contra
+`AHORA` como el resto del test (era el 26-09 y la cuota del 03-10 ya figuraba
+«por vencer»). Cambio de una línea, sin tocar el código de portal.
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test` (769 en verde), `test:unit` del
+backend, `e2e/configuracion-lote5` y `test:e2e:smoke`; biblioteca `owncoding-ui`
+build + 226 tests.
+
 ### Lote 43 — objetos F1 alineados al contrato real + coordinación con PLT (#250/#254) (26-09)
 
 | Objeto | Antes (evidencia) | Después |
