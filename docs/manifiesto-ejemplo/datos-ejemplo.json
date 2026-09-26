@@ -1,0 +1,98 @@
+{
+  "envio": {
+    "code": "ENV-CDE-ASU-0021",
+    "estado": "En tránsito",
+    "recorrido": "CDE → Casa Central",
+    "metodo": "Bus",
+    "empresa": "Expreso del Este",
+    "conductor": "Ramón Giménez",
+    "guia": "A003526979",
+    "responsable": "Lucía Benítez",
+    "compra": "COM-CDE-0048",
+    "proveedor": "Mayorista Apple PY"
+  },
+  "resumen": {
+    "lineas": 3,
+    "unidades": 6,
+    "conImei": 3,
+    "pendientes": 3
+  },
+  "lineas": [
+    {
+      "producto": "iPhone 15 Pro Max",
+      "capacidad": "256 GB",
+      "condicion": "Seminuevo",
+      "cantidad": 3,
+      "imeis": 2,
+      "pendientes": 1
+    },
+    {
+      "producto": "iPhone 15",
+      "capacidad": "128 GB",
+      "condicion": "Nuevo",
+      "cantidad": 2,
+      "imeis": 1,
+      "pendientes": 1
+    },
+    {
+      "producto": "AirPods Pro 2",
+      "capacidad": "",
+      "condicion": "Nuevo",
+      "cantidad": 1,
+      "imeis": 0,
+      "pendientes": 1
+    }
+  ],
+  "etiquetas": [
+    {
+      "n": 1,
+      "total": 6,
+      "producto": "iPhone 15 Pro Max",
+      "imei": "351500000000004",
+      "pendiente": false,
+      "lote": "ENV-CDE-ASU-0021"
+    },
+    {
+      "n": 2,
+      "total": 6,
+      "producto": "iPhone 15 Pro Max",
+      "imei": "351500000000012",
+      "pendiente": false,
+      "lote": "ENV-CDE-ASU-0021"
+    },
+    {
+      "n": 3,
+      "total": 6,
+      "producto": "iPhone 15 Pro Max",
+      "imei": null,
+      "pendiente": true,
+      "lote": "ENV-CDE-ASU-0021"
+    },
+    {
+      "n": 4,
+      "total": 6,
+      "producto": "iPhone 15",
+      "imei": "351500000000020",
+      "pendiente": false,
+      "lote": "ENV-CDE-ASU-0021"
+    },
+    {
+      "n": 5,
+      "total": 6,
+      "producto": "iPhone 15",
+      "imei": null,
+      "pendiente": true,
+      "lote": "ENV-CDE-ASU-0021"
+    },
+    {
+      "n": 6,
+      "total": 6,
+      "producto": "AirPods Pro 2",
+      "imei": null,
+      "pendiente": true,
+      "lote": "ENV-CDE-ASU-0021"
+    }
+  ],
+  "enlaceDemo": "https://app.moboss.online/envio/ENV-CDE-ASU-0021",
+  "generado": "2026-09-26T12:49:27.389Z"
+}

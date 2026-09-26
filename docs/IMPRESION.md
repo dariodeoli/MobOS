@@ -504,10 +504,11 @@ un trabajo nuevo).
 
 ## 12. Abastecimiento (#250 §11)
 
-Estado: solo el **manifiesto** sigue pendiente de implementar en PRN (fases 1–5
-ya en main); la **lista de compra**, la **etiqueta producto/paquete** y el
-**comprobante de recepción** ya están implementados — contratos en
-[LISTA-COMPRA.md](LISTA-COMPRA.md), [ETIQUETAS-LOTE.md](ETIQUETAS-LOTE.md) y
+Estado: los cuatro impresos de la fase están implementados — **lista de
+compra**, **etiqueta producto/paquete** (+ las **etiquetas del lote `N de M`**),
+**manifiesto** y **comprobante de recepción**; contratos en
+[LISTA-COMPRA.md](LISTA-COMPRA.md), [ETIQUETAS-LOTE.md](ETIQUETAS-LOTE.md),
+[MANIFIESTO.md](MANIFIESTO.md) y
 [COMPROBANTE-RECEPCION.md](COMPROBANTE-RECEPCION.md).
 
 - **Lista de compra · 80 mm** (ESC/POS + respaldo HTML A4/rollo) — implementado:
@@ -533,6 +534,12 @@ ya en main); la **lista de compra**, la **etiqueta producto/paquete** y el
   para la impresora recordada. Esperado vs recibido por línea, faltantes,
   sobrantes y dañados con serial y nota, depósito destino, usuario y fecha/hora.
   Ensayo imprimible: `docs/comprobante-recepcion-ejemplo/` (A4, 80 mm y ESC/POS).
+- **Manifiesto del envío · 80 mm/A4** — implementado: `datosManifiesto` +
+  `etiquetasDeLote` (`manifiesto.js`) alimentan `ticketManifiesto` (ESC/POS) y
+  `buildManifiestoHtml`/`printManifiesto` (A4/rollo), con código grande,
+  recorrido, transporte, IMEI conocidos/pendientes y las firmas de despacho y
+  transporte; las **etiquetas del lote** salen del mismo payload con `N de M` y
+  el código `ENV-…`. Ensayo: `docs/manifiesto-ejemplo/`.
 - **QR**: falta cerrar la **ruta pública del panel/manifiesto** (path + token y si
   abre sin sesión). Candidatas a confirmar con INV/DSN: `/m/<token>` (manifiesto
   de lote) o `/abastecimiento/compras/<id>` (panel, pide sesión). Mientras no esté
