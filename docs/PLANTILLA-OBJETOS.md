@@ -549,6 +549,10 @@ por el sistema.
   El set de íconos es uno solo: `owncoding-ui/Icon` + `ICONOS` (v0.30.0, 80
   glifos); no agregar glifos en la app — se publican en la biblioteca. Para
   adoptar todo el lenguaje v2 en otra app: `owncoding-ui/docs/ADOPCION-V2.md`.
+- **Kit base (#253, lote 39):** `components/ui/index.jsx` re-exporta 27 objetos
+  de la biblioteca (`Input`, `Select`, `Aviso`, `PageHeader`, `PinInput`…);
+  quedan locales `Card`, `Modal`, `Drawer`, `MoneyInput` y `Stat` por decisiones
+  de diseño pendientes con DSN. Los imports siguen siendo `@/components/ui`.
 - **Paleta global v2 (#241, rollout aprobado):** el lenguaje "device ops"
   (consola clara/oscura, base oscura `#0E1116`/`#1F2430`, verde pass `#22C55E`,
   azul acción `#4D7CFE`) es la **paleta global** de la biblioteca desde

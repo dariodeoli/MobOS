@@ -292,6 +292,22 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 39 — el kit sale de la biblioteca (#253) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Kit `components/ui/index.jsx` (32 objetos) | Mantenía 32 definiciones locales; 19 eran idénticas a la biblioteca y varias eran superconjuntos de la biblioteca con menos props | **27 objetos se re-exportan** de `owncoding-ui` desde la misma ruta `@/components/ui`: los consumidores no cambian y el kit queda como una sola fuente (docs/CAMPOS.md §1) |
+| Paridad publicada | La biblioteca estaba detrás en `Badge` (sin `v2-chip` ni el semáforo completo), `Modal`/`Drawer` (sin `toque-44` en el cierre) y `utils/moneda` (sin tope almacenable) | Biblioteca **v0.32.0**: `Badge` con la clase de scope y los tonos `ok/warn/bad/info/mute`, cierres táctiles de 44 px y `LIMITE_MONTO_ALMACENABLE`/`limiteMonto`/`errorMonto` |
+| Quedan locales (decisión de DSN) | — | `Card` (radio 12 vs 16), `Modal`/`Drawer` (superficie `ink-800` vs `ink`), `MoneyInput` (símbolo «Gs.» vs «Gs») y `Stat` (delta sin flechas): la guarda congela la lista y exige que no crezca |
+| Control | Deuda del kit: **32 objetos** | **5**; la guarda `camposReglas.test.js` exige el re-export y los internals se asertan en la biblioteca |
+
+Verificación del lote: `npm run lint` (0 errores), `npm run build` y
+`npm --prefix backend run build` (con `BUILD_ID`), `prisma:validate`,
+`npm test` (753 en verde), `test:unit` del backend (75),
+`npx playwright test e2e/configuracion-lote5.spec.js` (7 en verde) y
+`npm run test:e2e:smoke` (19 en verde, 0 flaky); biblioteca `owncoding-ui`
+build + 219 tests.
+
 ### Lote 38 — 10 objetos más a la biblioteca y alias de sección (#253) (26-09)
 
 | Objeto | Antes (evidencia) | Después |

@@ -145,6 +145,21 @@ test('no aparecen copias locales nuevas de objetos publicados en la biblioteca (
   }
 })
 
+test('el kit re-exporta la biblioteca y no reimplementa objetos (#253)', () => {
+  const ui = readFileSync(join(RAIZ, 'components/ui/index.jsx'), 'utf8')
+  assert.match(ui, /from 'owncoding-ui'/, 'el kit re-exporta la biblioteca')
+  const inicio = ui.indexOf('export {')
+  const bloque = ui.slice(inicio, ui.indexOf("} from 'owncoding-ui'", inicio))
+  const reexportados = [...bloque.matchAll(/([A-Za-z0-9_]+),/g)].map((m) => m[1])
+  for (const nombre of ['Input', 'Select', 'Textarea', 'Aviso', 'Nota', 'Badge', 'Button', 'PageHeader', 'PinInput', 'Money', 'CeldaMoneda', 'BarraProgreso', 'Subtabs', 'FormField']) {
+    assert.ok(reexportados.includes(nombre), `el kit re-exporta ${nombre}`)
+  }
+  // Solo quedan locales los pendientes de decisión de diseño (DSN): al
+  // resolverse se puentean igual que el resto.
+  const locales = [...ui.matchAll(/^export (?:function|const) ([A-Za-z0-9_]+)/gm)].map((m) => m[1]).sort()
+  assert.deepEqual(locales, ['Card', 'Drawer', 'Modal', 'MoneyInput', 'Stat'], 'el kit no agrega objetos locales')
+})
+
 test('los objetos de Configuración (#253) están publicados en la biblioteca', () => {
   const indice = readFileSync(LIB_INDEX, 'utf8')
   for (const objeto of ['TarjetaAjuste', 'PanelDerecho', 'Subtabs', 'PageHeader', 'SeccionColapsable', 'Eyebrow', 'EstadoGuardado', 'Checkbox']) {
