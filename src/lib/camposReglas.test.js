@@ -104,8 +104,7 @@ test('las subidas de archivos pasan por el objeto compartido', () => {
 // objeto de `owncoding-ui` o publicarlo allí).
 const DEUDA_BIBLIOTECA = new Set([
   'Avatar', 'BancoCombobox', 'BancoLogo', 'CityAutocomplete', 'Cronologia',
-  'FichaCertificado', 'PasosEquipo', 'PersonaChip', 'ProductCombobox',
-  'RucField', 'SerialField',
+  'PasosEquipo', 'PersonaChip', 'RucField', 'SerialField',
 ])
 
 const LIB_COMPONENTES = fileURLToPath(new URL('../../node_modules/owncoding-ui/src/components', import.meta.url))
@@ -132,17 +131,31 @@ test('no aparecen copias locales nuevas de objetos publicados en la biblioteca (
   // y lote 35 los 15 objetos idénticos: campos, chips, QR y vista previa).
   const puentes = [
     'BarraLote', 'BotonDentroCampo', 'ChipEstado', 'ChipsLocks', 'CodigoQr',
-    'CurrencySelect', 'EmailField', 'EstadoBadge', 'GradoBadge', 'Icon',
-    'IconoCategoria', 'InstagramField', 'ListGridToggle', 'MedidorBateria',
-    'NumericKeypad', 'PanelDerecho', 'PegarEnlaceToken', 'PercentField',
-    'PeriodoTabs', 'PhoneField', 'SearchField', 'SeccionColapsable',
-    'SegmentedField', 'SemaforoItem', 'SerialTexto', 'Switch', 'VistaPreviaPapel',
+    'CurrencySelect', 'EmailField', 'EstadoBadge', 'FichaCertificado',
+    'GradoBadge', 'Icon', 'IconoCategoria', 'InstagramField', 'ListGridToggle',
+    'MedidorBateria', 'NumericKeypad', 'PanelDerecho', 'PegarEnlaceToken',
+    'PercentField', 'PeriodoTabs', 'PhoneField', 'ProductCombobox',
+    'SearchField', 'SeccionColapsable', 'SegmentedField', 'SemaforoItem',
+    'SerialTexto', 'Switch', 'VistaPreviaPapel',
   ]
   for (const nombre of puentes) {
     const puente = readFileSync(join(RAIZ, 'components/shared', `${nombre}.jsx`), 'utf8')
     assert.match(puente, new RegExp(`${nombre} as default`), `${nombre} delega en la biblioteca`)
     assert.ok(!/function |=>/.test(puente.replace(/\/\/[^\n]*/g, '')), `${nombre}: el puente no implementa nada`)
   }
+})
+
+test('los objetos de Abastecimiento F1 (#250/#254) están publicados', () => {
+  const indice = readFileSync(LIB_INDEX, 'utf8')
+  for (const objeto of ['ChipPrioridad', 'ContadoresCompra', 'TarjetaNecesidad', 'PRIORIDADES_COMPRA', 'ESTADOS_NECESIDAD', 'ordenarPorPrioridad', 'PASOS_NECESIDAD']) {
+    assert.ok(indice.includes(objeto), `owncoding-ui debe publicar ${objeto} para la demanda F1`)
+  }
+  // La tarjeta compone los objetos del abastecimiento y no reimplementa los mapas.
+  const tarjeta = readFileSync(join(LIB_COMPONENTES, 'TarjetaNecesidad.jsx'), 'utf8')
+  for (const pieza of ['ChipPrioridad', 'ContadoresCompra', 'ResumenDestinos', 'Vencimiento']) {
+    assert.match(tarjeta, new RegExp(`<${pieza}\\b`), `la tarjeta compone ${pieza}`)
+  }
+  assert.match(tarjeta, /data-estado=/, 'la tarjeta expone el estado para los tests del panel')
 })
 
 test('el kit re-exporta la biblioteca y no reimplementa objetos (#253)', () => {

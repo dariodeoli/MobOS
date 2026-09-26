@@ -292,6 +292,39 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 41 — objetos de Abastecimiento F1 (#250/#254) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Prioridad | No existía: el panel iba a repetir etiquetas y tonos de alta/media/baja | **`ChipPrioridad`** + `PRIORIDADES_COMPRA` (tono y orden) + `ordenarPorPrioridad` |
+| Estados | No existía el mapa de la necesidad | **`ESTADOS_NECESIDAD`** (por comprar → recibido, más incidencia/cancelada), `PASOS_NECESIDAD` y `colorDeTono` |
+| Contadores | `ContadorLote` cubría el «N de M» de recepción, no pendiente/comprado/faltan | **`ContadoresCompra`** (texto o chips, números tabulares, sin negativos) |
+| Tarjeta | El panel móvil «Por comprar» no tenía objeto | **`TarjetaNecesidad`**: producto/variante exacta, estado, prioridad, origen, fecha prometida (`Vencimiento`), vínculo venta/reserva, `ResumenDestinos`, observaciones y acciones |
+| Docs | — | biblioteca **v0.33.0** con `REGLAS.md` §12 y README; guarda en la app (`camposReglas.test.js`) que exige los objetos publicados y la composición de la tarjeta |
+
+**Coordinación (#254):** los objetos quedan listos para que INV (datos/lead) y
+PLT (panel/móvil) armen la demanda F1 sin repetir mapas ni contadores; el stock
+sigue entrando recién en la recepción (regla de la épica).
+
+Verificación del lote: `npm run lint` (0 errores), `npm run build` y
+`npm --prefix backend run build` (con `BUILD_ID`), `prisma:validate`,
+`npm test` (768 en verde), `test:unit` del backend (99),
+`npx playwright test e2e/configuracion-lote5.spec.js` (8 en verde) y
+`npm run test:e2e:smoke` (19 en verde, 0 flaky); biblioteca `owncoding-ui`
+build + 224 tests. Todo rebasado sobre la v1.0.178.
+
+### Lote 40 — dos puentes más y paridad de serial (#253) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `ProductCombobox` | Copia local idéntica salvo la superficie del desplegable (`bg-ink-800 shadow-lg`) | Puente a la biblioteca (dropdown `bg-ink shadow-float`, v2); consumidores sin cambios |
+| `FichaCertificado` | Copia local; la biblioteca ya era superconjunto (puntaje, condición, repuestos no OEM, `estado`) | Puente a la biblioteca |
+| `normalizarSerial` (biblioteca) | No quitaba el prefijo `MOBOS:` de las etiquetas del agente (la app sí) | Publicado en **v0.33.0** con test; `SerialField` sigue local porque su normalizador además interpreta QR/etiquetas (`leerEtiqueta`) |
+| Control | Deuda de `shared/`: 11 | **9** |
+
+Verificación del lote: `npm test` (754 en verde), builds y smoke; la paridad de
+serial viaja en la biblioteca v0.33.0.
+
 ### Lote 39 — el kit sale de la biblioteca (#253) (26-09)
 
 | Objeto | Antes (evidencia) | Después |
