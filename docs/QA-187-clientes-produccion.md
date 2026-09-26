@@ -1,6 +1,35 @@
 # QA #187 — Clientes completo en PRODUCCIÓN
 
-## Corrida vigente — v1.0.175 (26/09/2026)
+## Corrida vigente — v1.0.178 (26/09/2026)
+
+`node e2e/prod/187-clientes.mjs` contra la versión publicada: **22/22 pasos OK ·
+28 capturas** · la demo **no llamó al API** de clientes/portal/warranty ·
+públicos con token inválido **404 genéricos sin datos** · rate limit #178 activo
+(429 al pedido 29, con `Retry-After`). Evidencia:
+`docs/QA-187-clientes-produccion-v178/` (capturas + `resultados.json` sellado
+con la versión).
+
+**Con esta corrida queda cerrado el dominio Clientes de #187** (POS e
+Inventario tienen sus cierres en el hilo): ficha (resumen, deuda, pedidos,
+cronología, seguro, nota pública, estadísticas #221, WhatsApp), listado
+(agregados, búsqueda/filtros, alta demo, ojito #236, mobile 390, rol Vendedor)
+y **portal/seguimiento** (avisos de cotización/pago/envío, cotización
+COT-#0018, seguimiento del envío, pedido en detalle, vitrina con seguimiento y
+perfil personal desde el avatar #253).
+
+### Hallazgo abierto (no bloquea, para decisión)
+
+- **Ruta/entrada del perfil personal (#253):** la coordinación pedía
+  `/mi-perfil` (`shell-mi-perfil`), pero `main`/producción conserva
+  `/mi-cuenta` (`shell-mi-cuenta`; el dueño cae en la pestaña de
+  Configuración). Ambas pantallas funcionan y muestran lo mismo; conviene
+  unificar el nombre canónico (shell/rutas = PLT). Evidencia: captura
+  `25-mi-perfil.png` y `resultados.json → perfil`.
+- **Nota pública en la demo** (limitación conocida): el campo se edita en la
+  ficha, pero el guardado y el render de «Nota de la tienda» en el portal
+  requieren una cuenta real.
+
+## Corrida anterior — v1.0.175 (26/09/2026)
 
 `node e2e/prod/187-clientes.mjs` contra `app.moboss.online` y los públicos de
 `clientes.moboss.online` (Playwright headless, sin sesión real): **22/22 pasos
