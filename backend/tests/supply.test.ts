@@ -138,6 +138,17 @@ assert.equal(conTotal.ok && conTotal.data.costPyg, 750000, 'un total explícito 
 assert.equal(conTotal.ok && conTotal.data.originalCost, 100)
 assert.equal(normalizarCompra({ supplierName: 'Proveedor', currency: 'EUR', lines: [{ productId: 'p1', quantity: 1 }] }).ok, false, 'moneda fuera de PYG/USD/BRL')
 
+// FIN (#254): condición de pago de la compra (el crédito exige vencimiento).
+const sinCondicion = normalizarCompra({ supplierName: 'Proveedor', lines: [{ productId: 'p1', quantity: 1 }] })
+assert.equal(sinCondicion.ok && sinCondicion.data.paymentCondition, 'CONTADO', 'por defecto, contado')
+assert.equal(sinCondicion.ok && sinCondicion.data.dueAt, null)
+assert.equal(normalizarCompra({ ...compraBase, paymentCondition: 'CREDITO' }).ok, false, 'crédito sin vencimiento')
+assert.equal(normalizarCompra({ ...compraBase, paymentCondition: 'CREDITO', dueAt: 'no-es-fecha' }).ok, false, 'vencimiento inválido')
+assert.equal(normalizarCompra({ ...compraBase, paymentCondition: 'CONSIGNACION' }).ok, false, 'condición fuera de contado/crédito')
+const credito = normalizarCompra({ ...compraBase, paymentCondition: 'CREDITO', dueAt: '2026-10-15T00:00:00.000Z' })
+assert.equal(credito.ok && credito.data.paymentCondition, 'CREDITO')
+assert.equal(credito.ok && credito.data.dueAt, '2026-10-15T00:00:00.000Z')
+
 // ── Fase 3: IMEI y preparación (#250 §7 y §11) ──────────────────────────────
 import { compararModelo, cuadrarSeriales, etiquetasPreparacion, resumenPreparacion } from '../lib/supply'
 

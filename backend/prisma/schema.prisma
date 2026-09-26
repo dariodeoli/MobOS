@@ -2203,6 +2203,10 @@ model SupplierPayable {
   dueAt        DateTime?
   reference    String?
   notes        String?
+  // Compra del Centro de Abastecimiento que originó la cuenta (#254 · FIN);
+  // null en las cuentas cargadas a mano desde Finanzas.
+  supplyPurchaseId String?       @unique
+  supplyPurchase   SupplyPurchase? @relation(fields: [supplyPurchaseId], references: [id], onDelete: SetNull)
   createdById  String
   createdBy    User      @relation(fields: [createdById], references: [id], onDelete: Restrict)
   createdAt    DateTime  @default(now())
@@ -2354,12 +2358,17 @@ model SupplyPurchase {
   reference       String?
   notes           String?
   status          String          @default("COMPRADA")
+  // FIN (#254): condición de pago de la compra y vencimiento del crédito. Con
+  // costo cargado, la compra genera su cuenta a pagar (contado nace paga).
+  paymentCondition String         @default("CONTADO")
+  dueAt           DateTime?
   createdById     String
   createdBy       User            @relation("SupplyPurchaseAuthor", fields: [createdById], references: [id], onDelete: Restrict)
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   lines           SupplyPurchaseLine[]
   needs           SupplyNeed[]
+  payable         SupplierPayable?
 
   @@unique([tenantId, code])
   @@index([tenantId, status, createdAt])

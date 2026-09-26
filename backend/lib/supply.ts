@@ -285,6 +285,10 @@ export type CompraNormalizada = {
   costPyg: number | null
   reference: string | null
   notes: string | null
+  /** Condición de pago de la compra (FIN #254): CONTADO o CREDITO. */
+  paymentCondition: string
+  /** Vencimiento del crédito (ISO) o null. */
+  dueAt: string | null
   lines: LineaCompra[]
 }
 
@@ -389,6 +393,18 @@ export function normalizarCompra(body: unknown): { ok: true; data: CompraNormali
   const notes = typeof fila.notes === 'string' && fila.notes.trim() ? fila.notes.trim().slice(0, 500) : null
   const branchId = typeof fila.branchId === 'string' && fila.branchId.trim() ? fila.branchId.trim().slice(0, 128) : null
 
+  // FIN (#254): condición de pago de la compra. El crédito exige vencimiento:
+  // con la compra nace la cuenta a pagar al proveedor.
+  const condicionCruda = typeof fila.paymentCondition === 'string' && fila.paymentCondition.trim() ? fila.paymentCondition.trim().toUpperCase() : 'CONTADO'
+  if (!['CONTADO', 'CREDITO'].includes(condicionCruda)) return { ok: false, error: 'La condición de pago tiene que ser contado o crédito.' }
+  let dueAt: string | null = null
+  if (fila.dueAt !== undefined && fila.dueAt !== null && fila.dueAt !== '') {
+    const cuando = new Date(String(fila.dueAt))
+    if (Number.isNaN(cuando.getTime())) return { ok: false, error: 'Vencimiento inválido.' }
+    dueAt = cuando.toISOString()
+  }
+  if (condicionCruda === 'CREDITO' && !dueAt) return { ok: false, error: 'Indicá el vencimiento de la compra a crédito.' }
+
   return {
     ok: true,
     data: {
@@ -402,6 +418,8 @@ export function normalizarCompra(body: unknown): { ok: true; data: CompraNormali
       costPyg,
       reference,
       notes,
+      paymentCondition: condicionCruda,
+      dueAt,
       lines,
     },
   }

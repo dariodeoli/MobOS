@@ -39,6 +39,37 @@ Funciones:
   costaría comprar el grupo y cuánto margen protege, y la prioridad del grupo
   usa la efectiva.
 
+## Proveedor y costo real: cuenta a pagar de la compra
+
+- La compra registra su **condición de pago** (`paymentCondition`: `CONTADO` o
+  `CREDITO`, por defecto contado) y su **vencimiento** (`dueAt`, obligatorio
+  para crédito).
+- **Con costo cargado**, la compra genera su **cuenta a pagar al proveedor**
+  (`SupplierPayable` vinculada por `supplyPurchaseId`, migración aditiva
+  `20261206000000_supply_purchase_payable`): **contado nace pagada** (no
+  engorda el «por pagar»: Finanzas muestra pendientes y tenencia); **crédito
+  queda pendiente con vencimiento** y aparece en Caja (`/api/finance` →
+  `supplierPayables`, KPI «Por pagar») con la referencia `COM-…`.
+- Sin costo todavía (factura pendiente) no hay cuenta hasta que el monto
+  exista; el flujo de carga de factura llega con F5/recepción.
+- **Cancelar** una compra elimina su cuenta: el contado nace saldado por
+  definición (se paga al recibir) y no arrastra deuda; una compra a crédito sin
+  pagos también se limpia (auditado). Si la cuenta ya tiene **pagos o consumo
+  reales** (crédito/consignación), la cancelación se frena con un 409 y se
+  resuelve primero en Finanzas: no se borra plata registrada en silencio.
+- El vínculo queda expuesto en `/api/finance`
+  (`supplierPayables.rows[].supplyPurchaseId`) para que el panel pueda abrir la
+  compra desde la cuenta.
+
+## Verificación del flujo costos/moneda (compra → recepción → unidad)
+
+Arnés `supply-receptions.mjs` (caso 6-bis): compra en **USD** con
+`originalUnitCost` 900 y cotización 7.500 → la línea y el total se convierten
+(6.750.000 Gs) → lote → recepción → la unidad nace con
+`costPyg = 6.750.000`, `costCurrency = USD`, `exchangeRatePyg = 7.500` y
+`originalCost = 900` **congelados**. Ese costo es el que usa el margen con
+costo real (cubierto por `unit-cost-margin.mjs`).
+
 ## Costo + moneda al registrar la compra
 
 - `POST /api/supply/purchases` acepta **PYG, USD y BRL**; con moneda extranjera
@@ -75,12 +106,13 @@ Funciones:
 
 ## Evidencia
 
-- Unit `backend/tests/supply-priority.test.ts` (6 tests) dentro de
+- Unit `backend/tests/supply-priority.test.ts` (6 tests) y los `assert` de
+  compra (moneda por línea, total derivado, condición/vencimiento) dentro de
   `npm --prefix backend run test:unit` → **105/105**.
 - Arnés de integración completo (`MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh`,
-  backend con `BUILD_ID`): **PASS** en toda la cadena del abastecimiento, con
-  la sonda de F1 sumando prioridad automática por fecha y costos del grupo:
+  backend con `BUILD_ID`): **PASS** en toda la cadena del abastecimiento:
   - `PASS: necesidades manuales + consolidación (4 grupos) + asignación/cancelación auditadas · 26 chequeos`
-  - `PASS: compra COM-CDE-0001 (USD → Gs) con IMEI y compra adicional … · 25 chequeos`
-  - `PASS: recepción por QR … · 40 chequeos`
+  - `PASS: compra COM-CDE-0001 (USD → Gs) con IMEI y compra adicional … · 34 chequeos` (incluye costo por línea en USD, total derivado, cuenta a pagar del contado/crédito y cancelación)
+  - `PASS: recepción por QR … · 50 chequeos` (incluye la unidad comprada en USD con moneda y cotización congeladas)
+  - `PASS: repuestos del taller … · 35 chequeos` y `PASS: repuestos a crédito … · 14 chequeos` (KPI contra deltas y SQL)
 - Build del backend con `BUILD_ID` en verde.

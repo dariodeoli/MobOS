@@ -177,6 +177,8 @@ export async function POST(request: Request) {
         costPyg: compra.costPyg,
         reference: compra.reference,
         notes: compra.notes,
+        paymentCondition: compra.paymentCondition,
+        dueAt: compra.dueAt ? new Date(compra.dueAt) : null,
         status: 'COMPRADA',
         createdById: session.user.id,
       },
@@ -200,6 +202,38 @@ export async function POST(request: Request) {
     }
     if (needIds.length) {
       await tx.supplyNeed.updateMany({ where: { id: { in: needIds }, tenantId: tenant }, data: { status: 'COMPRADA', purchaseId: cabecera.id } })
+    }
+    // FIN (#254): con costo cargado, la compra genera su cuenta a pagar al
+    // proveedor (contado nace paga; crédito queda pendiente con vencimiento).
+    // Sin costo (factura pendiente) no hay cuenta hasta que el monto exista.
+    if (compra.costPyg !== null) {
+      const pagada = compra.paymentCondition === 'CONTADO'
+      const cuenta = await tx.supplierPayable.create({
+        data: {
+          tenantId: tenant,
+          branchId: compra.branchId,
+          supplierId: compra.supplierId,
+          supplierName,
+          concept: `Compra ${code}`,
+          condition: compra.paymentCondition as never,
+          amountPyg: compra.costPyg,
+          paidPyg: pagada ? compra.costPyg : 0,
+          dueAt: compra.dueAt ? new Date(compra.dueAt) : null,
+          reference: code,
+          supplyPurchaseId: cabecera.id,
+          createdById: session.user.id,
+        },
+      })
+      await tx.auditLog.create({
+        data: {
+          tenantId: tenant,
+          userId: session.user.id,
+          action: 'SUPPLIER_PAYABLE_CREATED',
+          entity: 'SupplierPayable',
+          entityId: cuenta.id,
+          metadata: { origen: 'SUPPLY_PURCHASE', code, condition: compra.paymentCondition, amountPyg: compra.costPyg, dueAt: compra.dueAt },
+        },
+      })
     }
     await tx.auditLog.create({
       data: {
@@ -248,8 +282,21 @@ export async function PATCH(request: Request) {
     if (compra.status === 'CANCELADA') return error('La compra ya está cancelada.', 409)
     const motivo = typeof body?.reason === 'string' ? body.reason.trim() : ''
     if (motivo.length < 3) return error('Indicá el motivo de la cancelación (mínimo 3 caracteres).')
+    // FIN (#254): la cuenta a pagar de la compra no puede quedar colgada. El
+    // contado nace saldado por definición (se paga al recibir) y se elimina con
+    // la compra; crédito/consignación con pagos o consumo reales se resuelven
+    // primero en Finanzas (no se borra plata registrada en silencio).
+    const cuenta = await prisma.supplierPayable.findFirst({ where: { tenantId: tenant, supplyPurchaseId: compra.id }, select: { id: true, condition: true, paidPyg: true, consumedPyg: true } })
+    const conPlataReal = cuenta !== null && cuenta.condition !== 'CONTADO' && (cuenta.paidPyg > 0 || cuenta.consumedPyg > 0)
+    if (conPlataReal) {
+      return error('La cuenta a pagar de esta compra ya tiene pagos o consumo: resolvela en Finanzas antes de cancelar.', 409)
+    }
     const actualizada = await prisma.$transaction(async (tx) => {
       const fila = await tx.supplyPurchase.update({ where: { id: compra.id }, data: { status: 'CANCELADA', notes: motivo.slice(0, 500) } })
+      if (cuenta) {
+        await tx.supplierPayable.delete({ where: { id: cuenta.id } })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SUPPLIER_PAYABLE_CANCELLED', entity: 'SupplierPayable', entityId: cuenta.id, metadata: { code: compra.code, reason: motivo.slice(0, 500) } } })
+      }
       // Las necesidades vuelven al panel: la compra no se completó.
       await tx.supplyNeed.updateMany({ where: { tenantId: tenant, purchaseId: compra.id }, data: { status: 'ABIERTA', purchaseId: null } })
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SUPPLY_PURCHASE_CANCELLED', entity: 'SupplyPurchase', entityId: fila.id, metadata: { code: fila.code, reason: motivo.slice(0, 500) } } })
