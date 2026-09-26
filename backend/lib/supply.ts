@@ -144,7 +144,8 @@ export function consolidarNecesidades(necesidades: NecesidadEntrada[] = []): Gru
       }
       grupos.set(clave, grupo)
     }
-    const cantidad = Number(necesidad.cantidad) > 0 ? Math.round(Number(necesidad.cantidad)) : 1
+    // Una necesidad ya cubierta (0) conserva su 0: no se infla a 1 al consolidar.
+    const cantidad = Math.max(0, Math.round(Number(necesidad.cantidad) || 0))
     grupo.cantidad += cantidad
     grupo.prioridad = prioridadMayor(grupo.prioridad, necesidad.prioridad)
     grupo.prometidaEl = fechaMasProxima(grupo.prometidaEl, fecha(necesidad.prometidaEl))
@@ -228,6 +229,18 @@ export function normalizarNecesidadManual(body: unknown): { ok: true; data: Nece
 
 // ── Fase 2 (#250 §6): compra rápida y stock adicional ───────────────────────
 
+/**
+ * Cobertura de una línea de compra sobre una necesidad (#250 §4/§6): devuelve
+ * cuánto queda cubierto, cuánto falta seguir comprando y cuánto es excedente
+ * (reposición libre). La compra parcial deja el resto en «Por comprar».
+ */
+export function coberturaDeCompra({ necesaria, comprada }: { necesaria: number; comprada: number }): { cubierta: number; faltan: number; extra: number } {
+  const pedida = Math.max(0, Math.round(Number(necesaria) || 0))
+  const comprando = Math.max(0, Math.round(Number(comprada) || 0))
+  const cubierta = Math.min(pedida, comprando)
+  return { cubierta, faltan: Math.max(0, pedida - cubierta), extra: Math.max(0, comprando - cubierta) }
+}
+
 // Estados de la compra: F2 usa COMPRADA/CANCELADA; F4 (lotes) suma PREPARANDO/
 // EN_TRANSITO y F5 (recepción) RECIBIDA. El stock no se mueve en ningún estado
 // de esta fase.
@@ -302,6 +315,55 @@ export type CompraNormalizada = {
 }
 
 /**
+ * Normaliza las líneas de una compra (alta o adicional): producto, cantidad
+ * 1..9999, condición, IMEI válidos/únicos y costo unitario en Gs y/o en la
+ * moneda de la compra (FIN #254). Las líneas sin `needId` son reposición libre.
+ */
+export function normalizarLineasCompra(lineasCrudas: unknown, { currency = 'PYG', rate = null }: { currency?: string; rate?: number | null } = {}): { ok: true; lines: LineaCompra[] } | { ok: false; error: string } {
+  const filas = Array.isArray(lineasCrudas) ? lineasCrudas : []
+  if (!filas.length) return { ok: false, error: 'La compra necesita al menos una línea.' }
+  if (filas.length > 100) return { ok: false, error: 'Demasiadas líneas en la compra (máximo 100).' }
+  const lines: LineaCompra[] = []
+  for (const cruda of filas) {
+    const linea = cruda && typeof cruda === 'object' && !Array.isArray(cruda) ? (cruda as Record<string, unknown>) : {}
+    const productId = typeof linea.productId === 'string' && linea.productId.trim() ? linea.productId.trim().slice(0, 128) : ''
+    if (!productId) return { ok: false, error: 'Cada línea necesita un producto.' }
+    const quantity = Number(linea.quantity)
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 9999) return { ok: false, error: 'La cantidad de cada línea debe ser un entero entre 1 y 9999.' }
+    const condition = typeof linea.condition === 'string' && linea.condition.trim() ? linea.condition.trim().toUpperCase() : 'NEW'
+    if (!['NEW', 'USED', 'REFURBISHED'].includes(condition)) return { ok: false, error: 'Condición inválida en una línea.' }
+    const seriales = normalizarSeriales(linea.serials)
+    if (!seriales.ok) return { ok: false, error: seriales.error }
+    if (seriales.seriales.length > quantity) return { ok: false, error: `La línea trae ${seriales.seriales.length} seriales para ${quantity} unidad(es).` }
+    const unitCostPygCrudo = linea.unitCostPyg === undefined || linea.unitCostPyg === null || linea.unitCostPyg === '' ? null : Number(linea.unitCostPyg)
+    if (unitCostPygCrudo !== null && (!Number.isSafeInteger(unitCostPygCrudo) || unitCostPygCrudo < 0)) return { ok: false, error: 'El costo unitario debe ser un entero en guaraníes.' }
+    const originalUnitCostCrudo = linea.originalUnitCost === undefined || linea.originalUnitCost === null || linea.originalUnitCost === '' ? null : Number(linea.originalUnitCost)
+    let originalUnitCost: number | null = null
+    let unitCostPyg = unitCostPygCrudo
+    if (originalUnitCostCrudo !== null) {
+      try {
+        const normalizado = normalizarCosto({ costCurrency: currency as never, originalCost: originalUnitCostCrudo, exchangeRatePyg: rate ?? undefined })
+        originalUnitCost = normalizado.originalCost
+        if (unitCostPyg === null) unitCostPyg = normalizado.costPyg
+      } catch (cause) {
+        const motivo = cause instanceof Error ? cause.message : 'Costo de línea inválido.'
+        return { ok: false, error: `${motivo} (línea ${lines.length + 1})` }
+      }
+    }
+    lines.push({
+      needId: typeof linea.needId === 'string' && linea.needId.trim() ? linea.needId.trim().slice(0, 128) : null,
+      productId,
+      condition,
+      quantity,
+      unitCostPyg,
+      originalUnitCost,
+      serials: seriales.seriales,
+    })
+  }
+  return { ok: true, lines }
+}
+
+/**
  * Normaliza la compra rápida: proveedor (ficha o nombre), costo/moneda con las
  * reglas compartidas (`normalizarCosto`), referencia/factura, líneas con
  * cantidad y —si ya se conocen— los IMEI. La foto de la factura se adjunta
@@ -337,49 +399,9 @@ export function normalizarCompra(body: unknown): { ok: true; data: CompraNormali
     }
   }
 
-  const lineasCrudas = Array.isArray(fila.lines) ? fila.lines : []
-  if (!lineasCrudas.length) return { ok: false, error: 'La compra necesita al menos una línea.' }
-  if (lineasCrudas.length > 100) return { ok: false, error: 'Demasiadas líneas en la compra (máximo 100).' }
-  const lines: LineaCompra[] = []
-  for (const cruda of lineasCrudas) {
-    const linea = cruda && typeof cruda === 'object' && !Array.isArray(cruda) ? (cruda as Record<string, unknown>) : {}
-    const productId = typeof linea.productId === 'string' && linea.productId.trim() ? linea.productId.trim().slice(0, 128) : ''
-    if (!productId) return { ok: false, error: 'Cada línea necesita un producto.' }
-    const quantity = Number(linea.quantity)
-    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 9999) return { ok: false, error: 'La cantidad de cada línea debe ser un entero entre 1 y 9999.' }
-    const condition = typeof linea.condition === 'string' && linea.condition.trim() ? linea.condition.trim().toUpperCase() : 'NEW'
-    if (!['NEW', 'USED', 'REFURBISHED'].includes(condition)) return { ok: false, error: 'Condición inválida en una línea.' }
-    const seriales = normalizarSeriales(linea.serials)
-    if (!seriales.ok) return { ok: false, error: seriales.error }
-    if (seriales.seriales.length > quantity) return { ok: false, error: `La línea trae ${seriales.seriales.length} seriales para ${quantity} unidad(es).` }
-    const unitCostPygCrudo = linea.unitCostPyg === undefined || linea.unitCostPyg === null || linea.unitCostPyg === '' ? null : Number(linea.unitCostPyg)
-    if (unitCostPygCrudo !== null && (!Number.isSafeInteger(unitCostPygCrudo) || unitCostPygCrudo < 0)) return { ok: false, error: 'El costo unitario debe ser un entero en guaraníes.' }
-    // FIN (#254): la línea también puede cargar su costo en la moneda de la
-    // compra (`originalUnitCost`); se convierte con la misma regla y cotización
-    // del encabezado. El Gs explícito manda si vienen los dos.
-    const originalUnitCostCrudo = linea.originalUnitCost === undefined || linea.originalUnitCost === null || linea.originalUnitCost === '' ? null : Number(linea.originalUnitCost)
-    let originalUnitCost: number | null = null
-    let unitCostPyg = unitCostPygCrudo
-    if (originalUnitCostCrudo !== null) {
-      try {
-        const normalizado = normalizarCosto({ costCurrency: currency, originalCost: originalUnitCostCrudo, exchangeRatePyg: rate ?? undefined })
-        originalUnitCost = normalizado.originalCost
-        if (unitCostPyg === null) unitCostPyg = normalizado.costPyg
-      } catch (cause) {
-        const motivo = cause instanceof Error ? cause.message : 'Costo de línea inválido.'
-        return { ok: false, error: `${motivo} (línea ${lines.length + 1})` }
-      }
-    }
-    lines.push({
-      needId: typeof linea.needId === 'string' && linea.needId.trim() ? linea.needId.trim().slice(0, 128) : null,
-      productId,
-      condition,
-      quantity,
-      unitCostPyg,
-      originalUnitCost,
-      serials: seriales.seriales,
-    })
-  }
+  const normLineas = normalizarLineasCompra(fila.lines, { currency, rate })
+  if (!normLineas.ok) return normLineas
+  const lines = normLineas.lines
 
   // FIN (#254): si la factura no trae total pero las líneas sí tienen costo, el
   // total de la compra es la suma (en Gs y, si todas traen origen, en la moneda

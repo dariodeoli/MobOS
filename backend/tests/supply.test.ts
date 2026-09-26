@@ -1,5 +1,12 @@
 import assert from 'node:assert/strict'
-import { consolidarNecesidades, normalizarNecesidadManual, prioridadMayor } from '../lib/supply'
+import { coberturaDeCompra, consolidarNecesidades, normalizarNecesidadManual, prioridadMayor } from '../lib/supply'
+
+// ── Cobertura de compra (F2): parcial, completa y con excedente ─────────────
+assert.deepEqual(coberturaDeCompra({ necesaria: 5, comprada: 2 }), { cubierta: 2, faltan: 3, extra: 0 })
+assert.deepEqual(coberturaDeCompra({ necesaria: 5, comprada: 5 }), { cubierta: 5, faltan: 0, extra: 0 })
+assert.deepEqual(coberturaDeCompra({ necesaria: 5, comprada: 8 }), { cubierta: 5, faltan: 0, extra: 3 })
+assert.deepEqual(coberturaDeCompra({ necesaria: 0, comprada: 4 }), { cubierta: 0, faltan: 0, extra: 4 })
+assert.deepEqual(coberturaDeCompra({ necesaria: -3, comprada: -1 }), { cubierta: 0, faltan: 0, extra: 0 })
 
 // ── Prioridad (para consolidar) ─────────────────────────────────────────────
 // Los centros de compra no se mezclan (#250 §5): asignar un centro separa el
@@ -63,6 +70,11 @@ assert.equal(fusionados[0].destinos[0].cantidad, 3)
 assert.equal(fusionados[0].destinos[0].prometidaEl, '2026-09-30T09:00:00.000Z')
 
 // Orden del panel: primero la prioridad más alta; sin datos no rompe.
+const cubierta = consolidarNecesidades([
+  { id: 'c0', productId: 'p7', cantidad: 0, prioridad: 'NORMAL', origen: 'SALE_NO_STOCK' },
+])
+assert.equal(cubierta.length, 1)
+assert.equal(cubierta[0].cantidad, 0, 'una necesidad cubierta queda en 0, no en 1')
 assert.equal(consolidarNecesidades([]).length, 0)
 assert.equal(consolidarNecesidades([{ id: 'x', productId: '', cantidad: 1, prioridad: 'NORMAL', origen: 'MANUAL' }]).length, 0)
 const orden = consolidarNecesidades([
