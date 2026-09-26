@@ -252,4 +252,13 @@ export async function crearDemandas(tx: Prisma.TransactionClient, tenantId: stri
     }
   }
   return ids
+
+}
+
+/**
+ * #254 (clientes): el nombre del cliente de una necesidad se muestra solo a
+ * quien puede gestionar clientes; el resto ve que hay un cliente detrás.
+ */
+export function puedeVerCliente(permisos: readonly string[] = []): boolean {
+  return permisos.includes('*') || permisos.includes('customers:manage')
 }

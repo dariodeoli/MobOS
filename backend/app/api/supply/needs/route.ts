@@ -3,7 +3,7 @@ import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
 import { consolidarNecesidades, normalizarNecesidadManual, NECESIDAD_ESTADOS, type NecesidadEntrada } from '../../../../lib/supply'
-import { normalizarCentro } from '../../../../lib/supply-demand'
+import { normalizarCentro, puedeVerCliente } from '../../../../lib/supply-demand'
 import { costoEstimadoDeNecesidad, margenEstimadoDeNecesidad, prioridadDeNecesidad, prioridadPorFecha } from '../../../../lib/supply-priority'
 
 // #250 Fase 1 (Centro de Abastecimiento): API mínima del panel «Por comprar».
@@ -62,8 +62,8 @@ export async function GET(request: Request) {
     : []
   const itemPorId = new Map(items.map((item) => [item.id, item]))
 
-  // El nombre del cliente sale solo para administración/gerencia (#250 §4).
-  const verCliente = ['ADMIN', 'GERENTE'].includes(session.user.role)
+  // El nombre del cliente sale solo para quien gestiona clientes (#254).
+  const verCliente = puedeVerCliente(session.user.permissions)
   const entradas: NecesidadEntrada[] = filas.map((fila) => {
     const item = fila.orderItemId ? itemPorId.get(fila.orderItemId) : null
     const precioUnitarioPyg = item
