@@ -1,9 +1,10 @@
 # Finanzas en producción — caja, conciliación y márgenes con costo real
 
-- **Rama:** `slot/finanzas` · **Fecha:** 2026-09-26 · **Producción:** v1.0.175
-  (incluye el fix de caja de la ronda anterior).
-- **Resultado:** sonda sin credenciales sobre el demo público **15/15**, con
-  capturas desktop/mobile por pantalla.
+- **Rama:** `slot/finanzas` · **Verificación más reciente:** producción
+  **v1.0.178** (post-.178) · **15/15** + barrido #185 **16/16**.
+- **Resultado histórico:** sonda sin credenciales sobre el demo público en
+  v1.0.175 (**15/15**) y v1.0.178 (**15/15**), con capturas desktop/mobile por
+  pantalla; ver `produccion/` y `produccion-1.0.178/`.
 
 ## Qué se verificó
 
@@ -29,6 +30,18 @@ Sonda: `node scripts/qa-253-finanzas-produccion.mjs` (sobre
 Capturas: `produccion/ganancias-produccion-desktop.png`,
 `produccion/reportes-produccion-desktop.png`,
 `produccion/ganadores-produccion-desktop.png` (+ las de caja y conciliación).
+
+## Corrida post-.178 (2026-09-26, v1.0.178)
+
+- Sonda `qa-253-finanzas-produccion.mjs`: **15/15** (mismos bloques; capturas en
+  `produccion-1.0.178/`). La caja sigue mostrando `Diferencia —` sin arqueo y
+  los márgenes cuadran (`Ingresos 14.280.000 − Costo 13.781.250 = 498.750` con
+  seguro 25% de la demo).
+- Barrido #185 de Finanzas: **16/16**, 0 errores de consola y 0 API ≥400
+  (`docs/qa/185/produccion-1.0.178/`), con el paso del seguro ya estricto en
+  Configuración → Comercial.
+- Sin hallazgos nuevos: el kit de la biblioteca (menú vertical de Configuración)
+  no rompió ninguna superficie de finanzas.
 
 ## Hallazgo (ronda anterior, corregido y confirmado acá)
 

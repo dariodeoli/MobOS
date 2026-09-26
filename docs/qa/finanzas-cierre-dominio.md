@@ -2,10 +2,12 @@
 
 - **Rama:** `slot/finanzas` · **Verificación definitiva:** producción
   **v1.0.175** (`release:smoke` OK) · **Fecha:** 2026-09-22
-- **Última revisión:** 2026-09-26 (post v1.0.175) — barrido de #185 y sondas
-  del dominio re-ejecutadas en verde; antes: grupo **Comercial** (#253),
-  **Ganadores por margen**, fix de la **diferencia de caja** sin arqueo,
-  runner de reportes en el gate y sonda de **márgenes con costo real**.
+- **Última revisión:** 2026-09-26 (post v1.0.178) — verificación de
+  conciliación/caja/márgenes **15/15** y barrido #185 **16/16** sobre la versión
+  publicada, con la sonda del seguro ya estricta en Configuración → Comercial;
+  antes: barrido y sondas en verde sobre v1.0.175, grupo **Comercial** (#253),
+  **Ganadores por margen**, fix de la **diferencia de caja** sin arqueo, runner
+  de reportes en el gate y sonda de **márgenes con costo real**.
 - Índice de todo lo entregado y verificado en el dominio, con la evidencia y la
   versión en la que quedó integrado. Sirve de punto de entrada para auditoría.
 

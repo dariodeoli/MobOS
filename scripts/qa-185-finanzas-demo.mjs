@@ -320,30 +320,30 @@ try {
   })
 
   // ── Seguro y margen ─────────────────────────────────────────────────
-  await paso('seguro de ventas en Configuración (demo)', async () => {
-    await ir('/configuracion/negocio')
+  await paso('seguro de ventas en Configuración → Comercial (demo)', async () => {
+    // #253: el seguro vive en Configuración → Comercial (la ruta vieja
+    // /configuracion/negocio redirige a Organización, donde ya no está).
+    await ir('/configuracion/comercial')
     await esperar(1500)
-    const seguro = await page.getByText('Seguro de ventas').count()
-    const toggle = await page.locator('#seguro-toggle').count()
+    const seguro = await page.getByText('Seguro de ventas', { exact: true }).count()
+    const toggle = page.locator('#seguro-toggle')
+    await toggle.first().waitFor({ state: 'visible', timeout: 15000 })
     await shot('seguro-config')
-    if (toggle) {
-      await page.locator('#seguro-toggle').click({ force: true })
-      await esperar(300)
-      const pct = await page.locator('#seguro-pct').inputValue().catch(() => '')
-      const ayuda = await page.locator('text=Costo real = costo + seguro').count()
-      await shot('seguro-porcentaje')
-      // En la demo el guardado va contra la API real: se verifica qué pasa.
-      const guardar = page.getByRole('button', { name: 'Guardar seguro' })
-      let aviso = 'sin botón de guardado'
-      if (await guardar.count()) {
-        await guardar.click()
-        await esperar(1500)
-        aviso = (await page.locator('[role="alert"], [role="status"]').allTextContents()).filter(Boolean).join(' | ').slice(0, 200) || 'sin aviso visible'
-        await shot('seguro-guardar-demo')
-      }
-      return `sección visible: ${seguro} · toggle: ${toggle} · % propuesto: "${pct}" · ayuda de fórmula: ${ayuda} · guardar en demo → ${aviso}`
+    await toggle.first().click({ force: true })
+    await esperar(300)
+    const pct = await page.locator('#seguro-pct').inputValue().catch(() => '')
+    const ayuda = await page.locator('text=Costo real = costo + seguro').count()
+    if (!ayuda) throw new Error('falta la ayuda «Costo real = costo + seguro» en Comercial')
+    await shot('seguro-porcentaje')
+    const guardar = page.getByRole('button', { name: 'Guardar seguro' })
+    let aviso = 'sin botón de guardado'
+    if (await guardar.count()) {
+      await guardar.click()
+      await esperar(1500)
+      aviso = (await page.locator('[role="alert"], [role="status"]').allTextContents()).filter(Boolean).join(' | ').slice(0, 200) || 'sin aviso visible'
+      await shot('seguro-guardar-demo')
     }
-    return `sección visible: ${seguro} · toggle: ${toggle}`
+    return `sección visible: ${seguro} · toggle: sí · % propuesto: "${pct}" · ayuda de fórmula: ${ayuda} · guardar en demo → ${aviso}`
   })
 
   await paso('resumen y ganancias en la demo', async () => {
