@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.182 — 2026-09-26
+- **Abastecimiento (#250):** los **mínimos se revisan en cada baja de stock** (no solo al vender) y la demanda se agrupa **por origen**; el panel **«Por comprar»** consume los datos nuevos con **contadores en las pestañas**.
+- **Abastecimiento (#254):** la **prioridad** de la demanda ahora pesa la **venta cobrada** y el **margen**.
+- **Impresión (#250 §11):** **manifiesto del lote** y etiquetas **«N de M»**.
+- **Calidad:** el aviso del portal por vencer usa **reloj fijo** en los tests (no depende del día), se retiró un verificador F1 superseded y quedó la QA final del POS con v2 por defecto.
+
 ## v1.0.181 — 2026-09-26
 - **Abastecimiento (#254):** al registrar una compra se elige **contado o crédito con vencimiento** y, con el costo cargado, la compra **genera su cuenta a pagar al proveedor** en Finanzas (una compra al contado no engorda el «por pagar»).
 - **Abastecimiento (#254):** re-verificado el **costo por línea en la moneda de la compra** con su total derivado.
