@@ -134,6 +134,17 @@ try {
   }
   await pdfTermico('comprobante-80mm-escpos', await lineasDe('ticketComprobanteRecepcion', [datos, { ancho: 80 }]), 80)
 
+  // El comprobante como imagen para compartir (el camino de `CompartirImagen`).
+  const png = await page.evaluate(async ({ datos }) => {
+    const { buildComprobanteRecepcionHtml } = await import('/src/components/shared/OrderReceipt.jsx')
+    const { documentoAPng } = await import('/src/lib/printing/compartirDocumento.js')
+    const imagen = await documentoAPng(await buildComprobanteRecepcionHtml(datos, { format: 'thermal-80' }), { ancho: 'thermal-80' })
+    return imagen ? { bytes: imagen.blob.size, dataUrl: imagen.dataUrl } : null
+  }, { datos })
+  if (!png) throw new Error('no se pudo generar el PNG del comprobante')
+  writeFileSync(join(SALIDA, 'comprobante-80mm.png'), Buffer.from(png.dataUrl.split(',')[1], 'base64'))
+  pasos.push({ documento: 'comprobante-80mm-png', archivo: 'comprobante-80mm.png', formato: 'PNG', bytes: png.bytes })
+
   // Variante con enlace público: muestra el QR del contrato cuando la ruta del
   // panel esté cerrada (la salida real de hoy usa el código del envío en barras).
   const datosEnlace = await datosDe('/src/lib/printing/comprobanteRecepcion.js', 'datosComprobanteRecepcion', [RECEPCION, { ...opciones, enlace: ENLACE_PANEL }])

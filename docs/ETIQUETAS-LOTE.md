@@ -73,7 +73,8 @@ etiqueta y manda una lista de un elemento.
   `buildEtiquetasLoteHtml([etiqueta], { ancho })`: un solo corte y la misma
   posición (`n de M`) que la tira completa.
 
-Ejemplos: `docs/etiquetas-lote-ejemplo/etiqueta-individual-*.pdf`.
+Ejemplos: `docs/etiquetas-lote-ejemplo/etiqueta-individual-*.pdf` y, desde el
+manifiesto, `docs/manifiesto-ejemplo/etiqueta-del-lote-individual-80mm.pdf`.
 
 ## 4. Adopción del panel (pendiente de UI)
 

@@ -15,6 +15,7 @@ Los documentos los genera el mismo código que usará el panel
 | `manifiesto-80mm.pdf` / `.jpg` | El mismo manifiesto en rollo de 80 mm (el HTML de «Descargar PDF»). |
 | `manifiesto-80mm-escpos.pdf` / `.jpg` | Lo que recibe la térmica (ESC/POS, código grande y todos los IMEI). |
 | `manifiesto-a4-con-enlace.pdf` / `.jpg` | Muestra del contrato **con enlace público**: el QR de recepción en lugar del código en barras. |
+| `etiqueta-del-lote-individual-80mm.pdf` / `.jpg` | **Una sola etiqueta del lote** (`2 de 6`, con `Lote ENV-…`): la reimpresión F3 buscando la unidad por serial (`etiquetaPorSerial`). |
 | `manifiesto-80mm.png` | El manifiesto del rollo como **imagen para compartir** (el camino de `CompartirImagen`). |
 | `etiquetas-lote-80mm.pdf` / `.jpg` | Las **6 etiquetas del lote** (`1 de 6` … `6 de 6`), con IMEI o PENDIENTE y el `Lote ENV-…`. |
 | `etiquetas-lote-80mm-escpos.pdf` / `.jpg` | Las etiquetas en ESC/POS (un corte por unidad). |
