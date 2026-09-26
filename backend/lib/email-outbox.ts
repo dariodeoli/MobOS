@@ -4,7 +4,7 @@ import { logEmailOutcome, sendTransactionalEmail } from './email'
 import { decryptEmailOutboxPayload, encryptEmailOutboxPayload } from './email-outbox-crypto'
 import { prisma } from './prisma'
 
-export type OutboxKind = 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation' | 'receipt' | 'payment-due' | 'payment-overdue' | 'warranty-update' | 'reservation-due'
+export type OutboxKind = 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation' | 'receipt' | 'payment-due' | 'payment-overdue' | 'warranty-update' | 'reservation-due' | 'quote'
 type PreparedEmail = { to: string; subject: string; html: string; text: string }
 
 const LOCK_TIMEOUT_MS = 60_000
@@ -33,24 +33,33 @@ export async function withEmailOutboxTransaction<T>(entrypoint: string, work: (t
 
 export async function enqueueEmail(
   tx: Pick<Prisma.TransactionClient, 'emailOutbox'>,
-  input: { tenantId: string; kind: OutboxKind; aggregateType: string; aggregateId: string; message: PreparedEmail },
+  input: { tenantId: string; kind: OutboxKind; aggregateType: string; aggregateId: string; message: PreparedEmail; idempotencyKey?: string },
 ) {
   const id = randomUUID()
-  const idempotencyKey = `mobos-outbox-${id}`
+  // El llamador puede fijar la clave (p. ej. cotización + versión): así dos
+  // intentos del mismo envío devuelven la misma fila en vez de duplicar.
+  const idempotencyKey = input.idempotencyKey?.trim() ? input.idempotencyKey.trim().slice(0, 180) : `mobos-outbox-${id}`
   const binding = { id, tenantId: input.tenantId, kind: input.kind, recipient: input.message.to, aggregateType: input.aggregateType, aggregateId: input.aggregateId, idempotencyKey }
-  return tx.emailOutbox.create({
-    data: {
-      id,
-      tenantId: input.tenantId,
-      kind: input.kind,
-      recipient: input.message.to,
-      payload: encryptEmailOutboxPayload({ subject: input.message.subject, html: input.message.html, text: input.message.text }, binding),
-      idempotencyKey,
-      aggregateType: input.aggregateType,
-      aggregateId: input.aggregateId,
-    },
-    select: { id: true },
-  })
+  try {
+    return await tx.emailOutbox.create({
+      data: {
+        id,
+        tenantId: input.tenantId,
+        kind: input.kind,
+        recipient: input.message.to,
+        payload: encryptEmailOutboxPayload({ subject: input.message.subject, html: input.message.html, text: input.message.text }, binding),
+        idempotencyKey,
+        aggregateType: input.aggregateType,
+        aggregateId: input.aggregateId,
+      },
+      select: { id: true },
+    })
+  } catch (cause) {
+    if ((cause as { code?: string })?.code !== 'P2002') throw cause
+    const existente = await tx.emailOutbox.findUnique({ where: { idempotencyKey }, select: { id: true } })
+    if (existente) return existente
+    throw cause
+  }
 }
 
 export async function pendingEmailForAggregate(tx: Prisma.TransactionClient, aggregateType: string, aggregateId: string) {
@@ -118,6 +127,7 @@ export async function dispatchEmailOutboxJob(id: string) {
         'payment-overdue': 'PAYMENT_OVERDUE_DELIVERY_FAILED',
         'warranty-update': 'WARRANTY_STATUS_DELIVERY_FAILED',
         'reservation-due': 'RESERVATION_DUE_DELIVERY_FAILED',
+        quote: 'QUOTE_EMAIL_DELIVERY_FAILED',
       }[job.job.kind]
       if (action) await tx.auditLog.create({ data: { tenantId: job.job.tenantId, action: terminal ? `${action}_DEAD_LETTERED` : action, entity: job.job.aggregateType, entityId: job.job.aggregateId, metadata: { outboxId: id, attempt: nextAttempts, terminal, errorCode } } })
     })

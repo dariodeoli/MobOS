@@ -75,10 +75,10 @@ etiqueta y manda una lista de un elemento.
 
 Ejemplos: `docs/etiquetas-lote-ejemplo/etiqueta-individual-*.pdf`.
 
-## 4. Adopción del panel (pendiente de UI)
+## 4. Adopción del panel (implementada)
 
-El panel de abastecimiento (CMP) debe, en la pestaña de preparación de una
-compra:
+El panel de abastecimiento (PLT) lo implementó en **Preparar compra**
+(`/preparacion` → botón «Etiquetas» de cada compra):
 
 1. Pedir las etiquetas (`/api/supply/purchases/[id]/labels`).
 2. Ofrecer «Imprimir etiquetas» con `ticketEtiquetasLote` (impresora del tipo
@@ -87,6 +87,11 @@ compra:
 3. Respetar el resumen (`unidades · conImei · pendientes`) antes de despachar.
 4. Reimprimir una unidad con `etiquetaPorSerial`/`etiquetaPorNumero` (o, si INV
    prefiere resolverlo en el servidor, un `?serial=` en la ruta de etiquetas).
+
+El modal muestra el resumen y la lista `n de N` (IMEI o «pendiente») con
+**Reimprimir** por unidad, **Imprimir etiquetas** (tipo `etiquetas-lote` en la
+impresora recordada), **Compartir imagen** y **Descargar PDF**. e2e con agente
+simulado en `e2e/qa-250-escaneo-recepcion.spec.js`.
 
 ## 5. Evidencia y tests
 

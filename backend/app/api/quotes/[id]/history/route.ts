@@ -14,6 +14,8 @@ const ACCIONES: Record<string, string> = {
   QUOTE_REJECTED: 'Rechazada por el cliente',
   QUOTE_PUBLIC_TOKEN_CREATED: 'Enlace del cliente creado',
   QUOTE_PUBLIC_TOKEN_REGENERATED: 'Enlace del cliente regenerado',
+  QUOTE_EMAIL_SENT: 'Enviada por correo',
+  QUOTE_EMAIL_DELIVERY_FAILED: 'Correo no entregado',
 }
 
 const gs = (value: unknown) => Number(value || 0).toLocaleString('es-PY')
@@ -35,6 +37,8 @@ function detalleAuditoria(action: string, metadata: unknown) {
   if (action === 'QUOTE_CONVERTED') return `Pedido ${data.orderNumber || data.orderId || '—'}`
   if (action === 'QUOTE_CREATED') return `N.º ${data.number || '—'} · Gs ${gs(data.totalPyg)}`
   if (action === 'QUOTE_ACCEPTED' || action === 'QUOTE_REJECTED') return `${data.origin === 'public' ? 'Desde el enlace del cliente' : 'Interno'}${data.note ? ` · Motivo: ${data.note}` : ''}`
+  if (action === 'QUOTE_EMAIL_SENT') return `A ${data.to || '—'}${data.reintento ? ' · reenvío' : ''}`
+  if (action === 'QUOTE_EMAIL_DELIVERY_FAILED') return `No se pudo entregar a ${data.to || '—'}`
   return detalleMetadata(metadata)
 }
 

@@ -99,9 +99,10 @@ test('un pedido cubierto no genera demanda', () => {
 })
 
 test('la reserva sin unidad genera RESERVATION_NO_STOCK solo por la diferencia', () => {
-  // `ahora` explícito: con el reloj real la reserva del fixture vence y la
-  // prioridad pasa a URGENTE (test dependiente de la fecha).
-  const demanda = demandaDeReserva({ productId: 'prod-3', branchId: 'branch-1', faltante: 2, customerName: 'Ana', reservedUntil: '2026-09-26T18:00:00.000Z', ahora: new Date('2026-09-26T12:00:00.000Z') })
+  // Fechas relativas a un `ahora` fijo: la prioridad (y la clave del día) no
+  // pueden depender del reloj real, o el test vence solo.
+  const ahora = new Date('2026-09-26T12:00:00.000Z')
+  const demanda = demandaDeReserva({ productId: 'prod-3', branchId: 'branch-1', faltante: 2, customerName: 'Ana', reservedUntil: '2026-09-27T12:00:00.000Z', ahora })
   assert.ok(demanda)
   assert.equal(demanda.source, 'RESERVATION_NO_STOCK')
   assert.equal(demanda.quantity, 2)

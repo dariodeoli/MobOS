@@ -77,7 +77,7 @@ export async function GET(request: Request) {
   // ids para conservar la paginación por cursor.
   const quotes = await prisma.quote.findMany({
     where: { id: { in: ids.map((row) => row.id) } },
-    include: { seller: { select: { id: true, name: true } }, customer: { select: { id: true, name: true, phone: true } }, order: { select: { id: true, orderNumber: true } } },
+    include: { seller: { select: { id: true, name: true } }, customer: { select: { id: true, name: true, phone: true, email: true } }, order: { select: { id: true, orderNumber: true } } },
   })
   const porId = new Map(quotes.map((quote) => [quote.id, quote]))
   return json(ids.flatMap((row) => { const quote = porId.get(row.id); return quote ? [quote] : [] }))
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
             tenantId: tenant, branchId: session.user.branchId, customerId, customerName, sellerId: session.user.id, number: await nextQuoteNumber(tx, tenant),
             items, subtotalPyg: subtotal, discountPyg: discount, totalPyg: totals.totalPyg,
             notes: text(body?.notes, 2000), validUntil, status: 'DRAFT',
-          }, include: { seller: { select: { id: true, name: true } }, customer: { select: { id: true, name: true, phone: true } } } }))
+          }, include: { seller: { select: { id: true, name: true } }, customer: { select: { id: true, name: true, phone: true, email: true } } } }))
         } catch (e) {
           if (intento >= 2 || !esNumeroCotizacionDuplicado(e)) throw e
         }
@@ -142,7 +142,7 @@ export async function PATCH(request: Request) {
         ...(validUntil !== undefined ? { validUntil } : {}),
         ...(body?.notes !== undefined ? { notes: text(body.notes, 2000) } : {}),
         ...(body?.discountPyg !== undefined ? { discountPyg: Number(body.discountPyg), totalPyg: quote.subtotalPyg - Number(body.discountPyg) } : {}),
-      }, include: { seller: { select: { id: true, name: true } }, customer: { select: { id: true, name: true, phone: true } }, order: { select: { id: true, orderNumber: true } } } })
+      }, include: { seller: { select: { id: true, name: true } }, customer: { select: { id: true, name: true, phone: true, email: true } }, order: { select: { id: true, orderNumber: true } } } })
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'QUOTE_UPDATED', entity: 'Quote', entityId: quote.id, metadata: { from: quote.status, to: data.status } } })
       return data
     })
