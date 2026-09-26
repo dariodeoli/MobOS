@@ -132,6 +132,33 @@ for (const variante of VARIANTES) {
       pasos.push(`tablero: no disponible (${tablero.url})`)
     }
 
+    // Entradas que estaban ocultas (#251): Lista por modelo y Comparador viven
+    // en Inventario y se abren desde el menú (se captura cada pantalla).
+    const abrirDelMenu = async (label) => {
+      await page.goto(`${BASE}/resumen`, { waitUntil: 'domcontentloaded' })
+      await ESPERA(1200)
+      const nav = await abrirMenu(page)
+      const boton = nav?.getByRole('button', { name: label, exact: true })
+      if (!boton || !(await boton.count())) return { ok: false, url: null, h1: null }
+      await boton.first().click()
+      await ESPERA(1400)
+      return { ok: true, url: await page.evaluate('location.pathname'), h1: await page.locator('h1').first().innerText().catch(() => null) }
+    }
+    const celulares = await abrirDelMenu('Lista por modelo')
+    if (celulares.ok) {
+      await captura('03b-celulares')
+      pasos.push(`lista por modelo: ${celulares.url} · ${celulares.h1}`)
+    } else {
+      pasos.push('lista por modelo: sin ítem en el menú')
+    }
+    const comparador = await abrirDelMenu('Comparador')
+    if (comparador.ok) {
+      await captura('03c-comparador')
+      pasos.push(`comparador: ${comparador.url} · ${comparador.h1}`)
+    } else {
+      pasos.push('comparador: sin ítem en el menú')
+    }
+
     // ── Vendedor (contexto nuevo) ──────────────────────────────────────
     const contextoVendedor = await navegador.newContext({
       viewport: { width: variante.ancho, height: variante.alto },

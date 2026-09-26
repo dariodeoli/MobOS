@@ -8,6 +8,8 @@
         "dueño en /resumen: Inicio · grupos Inicio · Vender · Clientes · Inventario · Operación · Finanzas · Análisis · Configuración",
         "taller en /servicio: Taller · solapas Todo, Tablero, Servicio, Garantías",
         "tablero: Tablero de operaciones",
+        "lista por modelo: /celulares · Lista por modelo",
+        "comparador: /comparador · Comparador",
         "vendedor: Vender · Clientes · Inventario · Operación"
       ],
       "menuDueno": {
@@ -124,6 +126,8 @@
         "dueño en /resumen: Inicio · grupos Inicio · Vender · Clientes · Inventario · Operación · Finanzas · Análisis · Configuración",
         "taller en /servicio: Taller · solapas Todo, Tablero, Servicio, Garantías",
         "tablero: Tablero de operaciones",
+        "lista por modelo: /celulares · Lista por modelo",
+        "comparador: /comparador · Comparador",
         "vendedor: Vender · Clientes · Inventario · Operación"
       ],
       "menuDueno": {
@@ -240,6 +244,8 @@
         "dueño en /resumen: Inicio · grupos Inicio · Vender · Clientes · Inventario · Operación · Finanzas · Análisis · Configuración",
         "taller en /servicio: Taller · solapas Todo, Tablero, Servicio, Garantías",
         "tablero: Tablero de operaciones",
+        "lista por modelo: /celulares · Lista por modelo",
+        "comparador: /comparador · Comparador",
         "vendedor: Vender · Clientes · Inventario · Operación"
       ],
       "menuDueno": {
@@ -356,6 +362,8 @@
         "dueño en /resumen: Inicio · grupos Inicio · Vender · Clientes · Inventario · Operación · Finanzas · Análisis · Configuración",
         "taller en /servicio: Taller · solapas Todo, Tablero, Servicio, Garantías",
         "tablero: Tablero de operaciones",
+        "lista por modelo: /celulares · Lista por modelo",
+        "comparador: /comparador · Comparador",
         "vendedor: Vender · Clientes · Inventario · Operación"
       ],
       "menuDueno": {

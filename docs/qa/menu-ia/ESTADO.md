@@ -113,6 +113,10 @@ Capturas y datos crudos: [`1.0.172-produccion/`](1.0.172-produccion/).
 
 ## Re-verificación post-.175 (26/09)
 
-Misma sonda contra producción **v1.0.175** (4 variantes): los 8 grupos, Taller
-con pestañas, `/ops` y el menú del vendedor siguen igual, **0 errores de página**.
-Capturas y datos crudos: [`1.0.175-produccion/`](1.0.175-produccion/).
+Misma sonda contra producción **v1.0.175** (4 variantes), ahora con las **tres
+entradas que estaban ocultas**: los 8 grupos, Taller con pestañas, `/ops`
+(«Tablero de operaciones»), **`/celulares` («Lista por modelo»)** y
+**`/comparador` («Comparador»)** desde el menú, y el menú del vendedor; **0
+errores de página**. Capturas y datos crudos:
+[`1.0.175-produccion/`](1.0.175-produccion/) (incluye `03-tablero`,
+`03b-celulares` y `03c-comparador`).
