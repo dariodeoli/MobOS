@@ -51,6 +51,33 @@ en la cuenta).
   Capturas en `docs/qa/fin-repuestos-taller/`.
 - Unit existentes del math compartido: `backend/tests/workshop-parts.test.ts`.
 
+## Conciliación (sonda de verificación)
+
+`node scripts/qa-fin-taller-conciliacion.mjs` (con `QA_STORAGE_STATE`) verifica
+extremo a extremo que la deuda es la misma en todos lados:
+
+1. **Workshop vs Finanzas** (sin filtro): `resumen.porPagarPyg`/`vencidasPyg` de
+   `/api/workshop/parts?porPagar=1` == `workshopParts.totalPyg`/`vencidasPyg` de
+   `/api/finance`, con la misma deuda y vencimiento por repuesto (y sin filas de
+   más).
+2. **Por sucursal**: lo mismo comparando con `?branchId=` en ambos endpoints.
+3. **KPI de Caja**: el valor de `caja-por-pagar` equivale a
+   `payables + supplierPayables + workshopParts` de la sucursal seleccionada.
+4. **Pago (solo `QA_MODO=dev`)**: crea un crédito de 350.000, paga desde
+   Finanzas y verifica que baja en ambos endpoints, que queda el egreso en la
+   cuenta, la auditoría `WORKSHOP_PART_PAID` con `desde: FINANZAS` y el 400 al
+   repetir.
+
+- **Corrida local (6/6)** con la sesión admin del e2e:
+  `QA_MODO=dev QA_BASE_URL=http://localhost:5215 QA_API_URL=http://localhost:3115
+  QA_STORAGE_STATE=e2e/.auth/admin.json node scripts/qa-fin-taller-conciliacion.mjs`
+  → `docs/qa/fin-repuestos-taller/conciliacion-dev/` (`resultados.json` +
+  `caja-deuda-taller.png` con el bloque y la deuda nueva + `caja-tras-pagar.png`
+  con el KPI después del pago).
+- **Producción**: se corre sin `QA_MODO` (solo lectura, no crea datos) cuando el
+  deploy traiga el bloque; mientras no esté desplegado, la sonda lo dice al no
+  encontrar `workshopParts`.
+
 ## Coordinación
 
 - **INV**: se reutilizan `deudaRepuesto`/`resumenRepuestos` (una sola fórmula);

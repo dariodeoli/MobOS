@@ -1,0 +1,37 @@
+{
+  "fecha": "2026-09-27T00:54:48.362Z",
+  "base": "http://localhost:5215",
+  "modo": "dev",
+  "resultados": [
+    {
+      "nombre": "Sesión válida sobre el entorno",
+      "ok": true,
+      "detalle": "Administrador"
+    },
+    {
+      "nombre": "Deuda del taller: workshop y Finanzas coinciden (sin filtro)",
+      "ok": true,
+      "detalle": "0 repuestos · 0 Gs (0 vencidos)"
+    },
+    {
+      "nombre": "Deuda del taller: coincide por sucursal",
+      "ok": true,
+      "detalle": "5 sucursal(es) comparadas"
+    },
+    {
+      "nombre": "El KPI de Caja incluye la deuda del taller",
+      "ok": true,
+      "detalle": "KPI 3440000 Gs = sin filtro (incluye taller)"
+    },
+    {
+      "nombre": "Pago desde Finanzas: la deuda baja en ambos lados con egreso y auditoría",
+      "ok": true,
+      "detalle": "deuda 350000 Gs pagada y conciliada"
+    },
+    {
+      "nombre": "Captura de Caja con la deuda del taller",
+      "ok": true,
+      "detalle": ""
+    }
+  ]
+}
