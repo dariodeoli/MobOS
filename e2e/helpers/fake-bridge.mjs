@@ -8,7 +8,7 @@ const CONSULTA_MS = 250
 // del payload como lo haría el operador con el papel en la mano.
 export function sufijoDelTicket(payload) {
   const texto = Buffer.from(String(payload || ''), 'base64').toString('latin1')
-  const match = texto.match(/VALIDACI.N\s+(\d{4})-(\d{2})/) || texto.match(/(\d{4})-(\d{2})\b/)
+  const match = texto.match(/VALIDACI.N\s+(\d{4})-(\d{1,2})/) || texto.match(/(\d{4})-(\d{1,2})\b/)
   return match ? match[2] : ''
 }
 

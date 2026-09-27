@@ -13,7 +13,7 @@ test('los tipos de prueba arman un ticket con trazabilidad completa (salvo el co
     const texto = ticket.lineas().join('')
     assert.match(ticket.ref, /^TEST-/, `ref del tipo ${tipo}`)
     assert.match(ticket.validacion, /^\d{4}$/, `validación de 4 dígitos en ${tipo}`)
-    assert.match(ticket.sufijo, /^\d{2}$/, `sufijo secreto de 2 dígitos en ${tipo}`)
+    assert.match(ticket.sufijo, /^\d$/, `sufijo secreto de 1 dígito en ${tipo}`)
     assert.equal(ticket.validador, `${ticket.validacion}-${ticket.sufijo}`)
     assert.ok(texto.includes('TICKET DE PRUEBA'), `encabezado en ${tipo}`)
     assert.ok(texto.includes(TIPOS_TICKET_PRUEBA[tipo]), `etiqueta del tipo en ${tipo}`)
@@ -100,41 +100,6 @@ test('una cola usb: se informa como CUPS, no como cable USB', () => {
   assert.ok(explicito.lineas().join('').includes('CUPS · sale por red'))
 })
 
-// #277 · El ticket corto es el predeterminado: solo el título y la validación
-// XXXX-XX; la plantilla decide qué suma y el corte (total o parcial).
-test('el ticket corto predeterminado sale solo con el título y la validación', () => {
-  const ticket = ticketPruebaTipo('corta', opciones)
-  const texto = ticket.lineas().join('')
-  assert.match(ticket.validador, /^\d{4}-\d{2}$/, 'validación con formato XXXX-XX')
-  assert.ok(texto.includes('TICKET DE PRUEBA'), 'título')
-  assert.ok(texto.includes(`VALIDACIÓN ${ticket.validador}`), 'validación')
-  assert.ok(!texto.includes('Método'), 'sin trazabilidad por defecto')
-  assert.ok(!texto.includes('Puente'), 'sin pie por defecto')
-  assert.ok(!texto.includes('[QR]'), 'sin códigos por defecto')
-  assert.ok(!texto.includes('Prueba corta'), 'sin la etiqueta del tipo')
-  assert.ok(texto.includes('[CORTE]'), 'corte total por defecto')
-})
-
-test('la plantilla del ticket corto suma fecha, códigos, trazabilidad y corte parcial', () => {
-  const ticket = ticketPruebaTipo('corta', { ...opciones, incluye: { fechaHora: true, codigos: true, trazabilidad: true }, corte: 'parcial' })
-  const texto = ticket.lineas().join('')
-  assert.ok(texto.includes('Fecha'), 'fecha y hora')
-  assert.ok(texto.includes('[QR]'), 'códigos')
-  assert.ok(texto.includes('Método'), 'trazabilidad')
-  assert.ok(texto.includes('Puente'), 'pie')
-  assert.ok(texto.includes('[CORTE: parcial]'), 'corte parcial')
-  assert.equal(ticket.corte, true, 'el comando de corte salió')
-})
-
-test('el ticket corto también respeta el ancho de 58 mm', () => {
-  const ticket = ticketPruebaTipo('corta', { ...opciones, ancho: 58 })
-  const lineas = ticket.lineas()
-  assert.ok(Math.max(...lineas.map((linea) => linea.length)) <= 32, 'las líneas entran en 58 mm')
-  const texto = lineas.join('')
-  assert.ok(texto.includes('TICKET DE') && texto.includes('PRUEBA'), 'título (puede envolver)')
-  assert.ok(texto.includes('VALIDACIÓN'), 'validación')
-})
-
 test('todos los tipos confirman que el comando de corte fue enviado', () => {
   for (const tipo of Object.keys(TIPOS_TICKET_PRUEBA)) {
     const ticket = ticketPruebaTipo(tipo, opciones)
@@ -159,70 +124,6 @@ test('el validador va grande arriba y repetido en el pie', () => {
   assert.notEqual(primera, -1, 'validador en el header')
   assert.ok(primera < texto.indexOf('[QR]'), 'el header sale antes del QR')
   assert.ok(ultima > texto.indexOf('[BARRA]'), 'el pie repite el validador después del código de barras')
-})
-
-test('el ticket corto (#277) sale solo con título, validación y fecha opcional', () => {
-  const ticket = ticketPruebaTipo('breve', opciones)
-  const texto = ticket.lineas().join('')
-  assert.match(texto, /Ticket de prueba MobOS/, 'título del ticket corto')
-  assert.ok(texto.includes('VALIDACIÓN'), 'validación')
-  assert.ok(!texto.includes('Impresora'), 'sin trazabilidad')
-  assert.ok(!texto.includes('[QR]') && !texto.includes('[BARRA]'), 'sin códigos')
-  assert.ok(!texto.includes('Acentos:'), 'sin acentos')
-  assert.equal(ticket.corte, true, 'corta al final')
-  // La fecha/hora es opt-in (bloque apagado por defecto).
-  assert.ok(!/\d{1,2}\/\d{1,2}\/\d{2}/.test(texto), 'sin fecha por defecto')
-  const conFecha = ticketPruebaTipo('breve', { ...opciones, incluye: { fecha: true } })
-  assert.ok(/\d{1,2}\/\d{1,2}\/\d{2}/.test(conFecha.lineas().join('')), 'fecha cuando se pide')
-  // El título se puede apagar; la validación sigue siendo el punto.
-  const sinTitulo = ticketPruebaTipo('breve', { ...opciones, incluye: { encabezado: false } })
-  assert.ok(!sinTitulo.lineas().join('').includes('Ticket de prueba'), 'sin encabezado')
-  // La plantilla también manda en el corte del ticket corto.
-  assert.equal(ticketPruebaTipo('breve', { ...opciones, corte: 'ninguno' }).corte, false)
-})
-
-test('la plantilla puede apagar todos los bloques opcionales', () => {
-  const ticket = ticketPruebaTipo('corta', { ...opciones, incluye: { encabezado: false, validacion: false, trazabilidad: false, codigos: false, acentos: false } })
-  const texto = ticket.lineas().join('')
-  assert.ok(!texto.includes('TICKET DE PRUEBA'), 'sin encabezado')
-  assert.ok(!texto.includes('VALIDACIÓN'), 'sin número secreto')
-  assert.ok(!texto.includes('Impresora'), 'sin trazabilidad')
-  assert.ok(!texto.includes('[QR]') && !texto.includes('[BARRA]'), 'sin códigos')
-  assert.ok(!texto.includes('Acentos:'), 'sin acentos')
-  assert.ok(texto.includes('Prueba'), 'el cuerpo del tipo siempre sale')
-})
-
-test('la plantilla respeta los bloques encendidos y apaga solo los elegidos', () => {
-  const ticket = ticketPruebaTipo('corta', { ...opciones, incluye: { trazabilidad: false, acentos: false } })
-  const texto = ticket.lineas().join('')
-  assert.ok(texto.includes('TICKET DE PRUEBA'), 'encabezado')
-  assert.ok(texto.includes('VALIDACIÓN'), 'validación')
-  assert.ok(texto.includes('[QR]'), 'códigos')
-  assert.ok(!texto.includes('Impresora'), 'sin trazabilidad')
-  assert.ok(!texto.includes('Acentos:'), 'sin acentos')
-})
-
-test('la variante de corte viaja a la vista previa y «sin corte» no corta', () => {
-  const parcial = ticketPruebaTipo('corta', { ...opciones, corte: 'parcial' })
-  assert.ok(parcial.lineas().join('').includes('[CORTE: parcial]'))
-  assert.equal(parcial.corte, true)
-  const sinCorte = ticketPruebaTipo('corta', { ...opciones, corte: 'ninguno' })
-  assert.ok(!sinCorte.lineas().join('').includes('[CORTE'), 'sin marca de corte')
-  assert.equal(sinCorte.corte, false)
-})
-
-test('el ancho de la plantilla manda en el ticket: 58 mm envuelve a 32 columnas', () => {
-  const ticket = ticketPruebaTipo('venta', { ...opciones, ancho: 58 })
-  const texto = ticket.lineas().join('')
-  for (const linea of texto.split('\n')) {
-    assert.ok(linea.length <= 32, `línea de 58 mm dentro del ancho (${linea.length}): ${linea.slice(0, 40)}`)
-  }
-  assert.ok(texto.includes('58 mm'), 'el pie informa el ancho elegido')
-})
-
-test('las copias de la plantilla quedan impresas en la trazabilidad', () => {
-  const texto = ticketPruebaTipo('corta', { ...opciones, copias: 3 }).lineas().join('')
-  assert.match(texto, /Copias\s+3/, 'el pie informa 3 copias')
 })
 
 test('el comprobante muestra el total de ítems y destaca el saldo pendiente', () => {

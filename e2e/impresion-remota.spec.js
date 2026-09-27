@@ -353,7 +353,7 @@ test.describe('impresión remota: cola con puente falso', () => {
 
       // El puente falso reclama, "imprime" y reporta; el sufijo sale del ticket.
       const trabajo = await puente.esperarTrabajo((item) => item.destination === DESTINO_REMOTO)
-      expect(trabajo.sufijo).toMatch(/^\d{2}$/)
+      expect(trabajo.sufijo).toMatch(/^\d$/)
 
       const detalle = await apiImpresion(page, `/api/print/jobs/${trabajo.id}`)
       expect(detalle.datos?.job?.path).toBe('REMOTO')
@@ -365,7 +365,7 @@ test.describe('impresión remota: cola con puente falso', () => {
       const fila = page.getByRole('row').filter({ hasText: trabajo.validation }).filter({ hasText: nombrePuente }).first()
       await expect(fila.getByText('aceptado')).toBeVisible({ timeout: 20_000 })
 
-      const incorrecto = String((Number(trabajo.sufijo) + 1) % 100).padStart(2, '0')
+      const incorrecto = String((Number(trabajo.sufijo) + 1) % 10)
       // #138: con el código incorrecto la validación automática avisa claro.
       await fila.getByLabel(`Número secreto de la validación ${trabajo.validation}`).fill(incorrecto)
       await expect(page.getByText('No coincide', { exact: true }).first()).toBeVisible({ timeout: 10_000 })
@@ -950,7 +950,7 @@ test.describe('estado vivo y popup de prueba', () => {
     await expect(dialogo.getByText('Sale 1 copia', { exact: false })).toBeVisible()
     // La vista previa arranca visible (papel real 58/80) y el toggle la oculta.
     const hoja = page.frameLocator('iframe[title="Vista previa del ticket de prueba"]')
-    await expect(hoja.locator('pre')).toContainText('Ticket de prueba MobOS')
+    await expect(hoja.locator('pre')).toContainText('TICKET DE PRUEBA MobOS')
     await dialogo.getByRole('button', { name: 'Ocultar vista previa' }).click()
     await expect(page.locator('iframe[title="Vista previa del ticket de prueba"]')).toHaveCount(0)
   })
@@ -1026,39 +1026,41 @@ test('el ticket corto es el predeterminado y la plantilla se guarda por impresor
   await expect(tarjeta).toBeVisible({ timeout: 20_000 })
 
   // La ficha abre el editor de plantilla; el corto sale solo con el título y
-  // la validación XXXX-XX.
+  // la validación XXXX-X (modelo de la biblioteca).
   await tarjeta.getByTestId('editar-plantilla').click()
   const dialogo = page.getByRole('dialog')
-  await expect(dialogo.getByTestId('plantilla-ancho')).toBeVisible()
-  await dialogo.getByRole('button', { name: 'Ver vista previa' }).click()
-  const vista = dialogo.getByTestId('prueba-vista-previa')
-  await expect(vista).toContainText('TICKET DE PRUEBA')
-  await expect(vista).toContainText(/VALIDACIÓN \d{4}-\d{2}/)
-  await expect(vista).not.toContainText('Método')
-  await expect(vista).not.toContainText('Impresora')
+  const editor = dialogo.getByTestId('plantilla-prueba')
+  await expect(editor).toBeVisible()
+  await expect(dialogo.getByLabel('Tipo de prueba')).toHaveValue('corta')
+  const hoja = page.frameLocator('iframe[title="Vista previa del ticket de prueba"]')
+  await expect(hoja.locator('pre')).toContainText('TICKET DE PRUEBA MobOS')
+  await expect(hoja.locator('pre')).toContainText(/VALIDACIÓN \d{4}-\d/)
+  await expect(hoja.locator('pre')).not.toContainText('Método')
+  await expect(hoja.locator('pre')).not.toContainText('[QR]')
 
-  // Plantilla: 58 mm, corte parcial, 2 copias y fecha/hora.
-  await dialogo.getByTestId('plantilla-ancho').selectOption('58')
-  await dialogo.getByTestId('plantilla-corte').selectOption('parcial')
-  await dialogo.getByTestId('plantilla-copias').fill('2')
-  await dialogo.getByTestId('plantilla-fecha').check()
-  await dialogo.getByTestId('guardar-plantilla').click()
+  // Plantilla: 58 mm, corte parcial, 2 copias y fecha/hora en el corto.
+  await editor.getByRole('button', { name: '58 mm' }).click()
+  await editor.getByLabel('Corte').selectOption('parcial')
+  await editor.getByRole('button', { name: 'Una copia más' }).click()
+  await editor.getByTestId('plantilla-fecha').check()
+  await expect(hoja.locator('pre')).toContainText('Fecha')
+  await expect(hoja.locator('pre')).toContainText('[CORTE: parcial]')
+  await dialogo.getByRole('button', { name: 'Guardar plantilla' }).click()
   await expect(page.getByText('Plantilla guardada').first()).toBeVisible({ timeout: 10_000 })
 
-  // Reabrir: la plantilla quedó recordada como predeterminada.
+  // Reabrir: la plantilla quedó guardada en la impresora como predeterminada.
   await dialogo.getByRole('button', { name: 'Cancelar' }).click()
   await tarjeta.getByTestId('editar-plantilla').click()
   const dialogo2 = page.getByRole('dialog')
-  await expect(dialogo2.getByTestId('plantilla-ancho')).toHaveValue('58')
-  await expect(dialogo2.getByTestId('plantilla-corte')).toHaveValue('parcial')
-  await expect(dialogo2.getByTestId('plantilla-copias')).toHaveValue('2')
+  await expect(dialogo2.getByLabel('Tipo de prueba')).toHaveValue('corta')
+  await expect(dialogo2.getByRole('button', { name: '58 mm' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(dialogo2.getByLabel('Corte')).toHaveValue('parcial')
+  await expect(dialogo2.getByRole('group', { name: 'Copias' })).toContainText('2')
   await expect(dialogo2.getByTestId('plantilla-fecha')).toBeChecked()
-  await dialogo2.getByRole('button', { name: 'Ver vista previa' }).click()
-  await expect(dialogo2.getByTestId('prueba-vista-previa')).toContainText('Fecha')
-  await expect(dialogo2.getByTestId('prueba-vista-previa')).toContainText('[CORTE: parcial]')
+  await expect(dialogo2.getByText('Guardada en esta impresora', { exact: true })).toBeVisible()
 
   // Imprimir: sale por el agente local con la plantilla aplicada (2 copias).
-  await dialogo2.getByTestId('imprimir-prueba').click()
+  await dialogo2.getByRole('button', { name: 'Imprimir prueba' }).click()
   await expect(page.getByText(/Prueba enviada por la cola CUPS \(fallback\)|Prueba encolada/).first()).toBeVisible({ timeout: 20_000 })
   expect(capturados).toHaveLength(1)
   expect(Number(capturados[0].copias)).toBe(2)

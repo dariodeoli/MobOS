@@ -143,14 +143,13 @@ async function main() {
   assert.equal(normalizarPlantillaPrueba(undefined), undefined, 'sin dato no cambia la plantilla')
   assert.equal(normalizarPlantillaPrueba(null), null, 'null borra la plantilla guardada')
   assert.deepEqual(
-    normalizarPlantillaPrueba({ tipo: 'breve', ancho: 58, corte: 'parcial', copias: 2, incluye: { validacion: false, basura: 'no', otro: true }, extra: 'se ignora' }),
-    { tipo: 'breve', ancho: 58, corte: 'parcial', copias: 2, incluye: { validacion: false, otro: true } },
+    normalizarPlantillaPrueba({ tipo: 'corta', ancho: 58, corte: 'parcial', copias: 2, incluyeFecha: true, incluye: { validacion: false }, extra: 'se ignora' }),
+    { tipo: 'corta', ancho: 58, corte: 'parcial', copias: 2, incluyeFecha: true },
     'acota y filtra la plantilla',
   )
   assert.deepEqual(normalizarPlantillaPrueba({}), {}, 'una plantilla vacía es válida')
   assert.throws(() => normalizarPlantillaPrueba('texto'), /Plantilla/, 'rechaza plantillas que no son objeto')
   assert.throws(() => normalizarPlantillaPrueba([]), /Plantilla/, 'rechaza listas')
-  assert.throws(() => normalizarPlantillaPrueba({ incluye: 'todos' }), /bloques/, 'rechaza bloques inválidos')
   assert.throws(() => normalizarPlantillaPrueba({ tipo: '' }), /Tipo/, 'exige tipo no vacío')
   assert.throws(() => normalizarPlantillaPrueba({ ancho: 55 }), /ancho/, 'solo acepta 58 u 80 mm')
   assert.throws(() => normalizarPlantillaPrueba({ copias: 9 }), /Copias/, 'rechaza copias fuera de rango')
@@ -239,7 +238,7 @@ async function main() {
   const publicoJob = shapePublico(jobInterno)
   assert.deepEqual(
     Object.keys(publicoJob).sort(),
-    ['acceptedAt', 'attempts', 'bridgeId', 'bridgeName', 'claimedAt', 'confirmedAt', 'copies', 'createdAt', 'destination', 'deviceName', 'durationMs', 'enqueuedAt', 'error', 'id', 'kind', 'mode', 'path', 'payloadBytes', 'printerId', 'printerName', 'queueMs', 'reference', 'requestedByName', 'requestedByUserId', 'state', 'suffixLength', 'tokenHint', 'transport', 'validation', 'width'],
+    ['acceptedAt', 'attempts', 'bridgeId', 'bridgeName', 'claimedAt', 'confirmedAt', 'copies', 'createdAt', 'destination', 'deviceName', 'durationMs', 'enqueuedAt', 'error', 'fallback', 'fallbackReason', 'id', 'kind', 'mode', 'path', 'payloadBytes', 'physicalConnection', 'printerId', 'printerName', 'queueMs', 'reference', 'requestedByName', 'requestedByUserId', 'requestedTransport', 'state', 'suffixLength', 'tokenHint', 'transport', 'validation', 'width'],
     'el shape público es una lista blanca exacta',
   )
   assert.equal(publicoJob.requestedByUserId, 'user-1', 'el id del usuario que mandó el trabajo alimenta el avatar de la cola')

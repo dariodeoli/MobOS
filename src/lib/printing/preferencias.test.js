@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { crearMemoriaImpresion, crearMemoriaPrueba, etiquetaTipoImpresion, PLANTILLA_PRUEBA, TIPOS_DOCUMENTO } from './preferencias.js'
+import { crearMemoriaImpresion, etiquetaTipoImpresion, TIPOS_DOCUMENTO } from './preferencias.js'
 
 // Storage mínima en memoria: el núcleo es puro y no depende del navegador.
 const storageFalso = () => {
@@ -56,21 +56,4 @@ test('la etiqueta del tipo es legible para la pantalla', () => {
   assert.equal(etiquetaTipoImpresion('etiquetas-producto'), 'Etiquetas de góndola')
   assert.equal(etiquetaTipoImpresion('etiqueta-ubicacion'), 'Etiqueta de ubicación')
   assert.equal(etiquetaTipoImpresion(''), 'Impresión')
-})
-
-// #277 · Plantilla del ticket de prueba: el corto es el inicial y lo último
-// usado queda como predeterminado por impresora (destino).
-test('la plantilla de prueba arranca corta y recuerda lo último usado', () => {
-  const memoria = crearMemoriaPrueba(storageFalso())
-  const destino = 'lan:192.168.1.23:9100'
-  assert.deepEqual(memoria.plantillaDe(destino), { ...PLANTILLA_PRUEBA })
-  memoria.recordar(destino, { tipo: 'venta', ancho: 58, copias: 3, corte: 'parcial', fechaHora: true, codigos: true, trazabilidad: true })
-  assert.deepEqual(memoria.plantillaDe(destino), { tipo: 'venta', ancho: 58, copias: 3, corte: 'parcial', fechaHora: true, codigos: true, trazabilidad: true })
-  // Otra impresora conserva la plantilla corta por defecto.
-  assert.equal(memoria.plantillaDe('cups:ZKP8008').tipo, 'corta')
-  // Los valores fuera de rango se normalizan y `olvidar` vuelve al inicial.
-  memoria.recordar('cups:ZKP8008', { ancho: 75, copias: 0, corte: 'raro' })
-  assert.deepEqual(memoria.plantillaDe('cups:ZKP8008'), { ...PLANTILLA_PRUEBA })
-  memoria.olvidar(destino)
-  assert.equal(memoria.plantillaDe(destino).tipo, 'corta')
 })

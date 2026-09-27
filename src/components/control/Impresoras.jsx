@@ -9,13 +9,12 @@ import { descargarArchivo, descargarCsvCliente } from '@/utils/descargarArchivo'
 import { printingApi } from '@/lib/api/printing'
 import { URL_AGENTE, cargarImpresoras, colaAgente, configImpresora, confirmarJob, diagnosticoAgente, enmascararToken, esIdBackend, estadoAgente, historialAgente, impresoraHaciaBackend, importarConfigUnaVez, imprimirTicketRouter, limpiarFallidos, puenteDe, refrescarDesdeBackend, registrarPlantillaPrueba, registrarUltimaPrueba, reintentarFallidos, repararRed, sincronizarAgente } from '@/lib/printing/agent'
 import { TIPOS_TICKET_PRUEBA, ticketPruebaTipo } from '@/lib/printing/tickets'
-import { ANCHOS_PRUEBA, BLOQUES_PRUEBA, COPIAS_MAX, CORTES_PRUEBA, bloquesDeTipo, memoriaPlantilla, normalizarPlantilla, plantillaDeImpresora } from '@/lib/printing/plantillaPrueba'
+import { ANCHOS_PRUEBA, COPIAS_MAX, CORTES_PRUEBA, memoriaPlantilla, normalizarPlantilla, plantillaDeImpresora } from '@/lib/printing/plantillaPrueba'
 import { ESTADO_IMPRESORA, ETIQUETA_ESTADO, colorTrabajo, etiquetaTrabajo, textoVerificacion } from '@/lib/printing/estadoImpresoras'
 import { colaDemo, historialDemo, storeDemo } from '@/lib/printing/demo'
 import { etiquetaTipoImpresion, memoriaDeImpresion, olvidarTipoDeImpresion } from '@/lib/printing/preferencias'
 import { datosTransporte, resumenTransporte } from '@/lib/printing/transporte'
 import { useEstadoImpresoras } from '@/hooks/useEstadoImpresoras'
-import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import Avatar from '@/components/shared/Avatar'
 import VistaPreviaPapel from '@/components/shared/VistaPreviaPapel'
 import ImpresionComparativa from './ImpresionComparativa'
@@ -1838,8 +1837,6 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
     return fuente ? normalizarPlantilla(fuente, impresora) : null
   })
   const sinCambios = Boolean(referencia) && JSON.stringify(referencia) === JSON.stringify(plantilla)
-  const aplica = bloquesDeTipo(plantilla.tipo)
-  const alternarBloque = (id) => setPlantilla((actual) => ({ ...actual, incluye: { ...actual.incluye, [id]: !actual.incluye[id] } }))
   const reiniciar = () => {
     memoria.olvidar(impresora.id)
     setPlantilla(plantillaDeImpresora(impresora))
@@ -1869,7 +1866,7 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
       puente,
       tokenPista,
       usuario,
-      incluye: plantilla.incluye,
+      incluyeFecha: plantilla.incluyeFecha,
       corte: plantilla.corte,
     }),
     // turno solo dispara la regeneración: un número nuevo por ejecución.
@@ -1889,7 +1886,7 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
             {Object.entries(TIPOS_TICKET_PRUEBA).map(([valor, etiqueta]) => <option key={valor} value={valor}>{etiqueta}</option>)}
           </Select>
         </FormField>
-        {plantilla.tipo === 'breve' && (
+        {plantilla.tipo === 'corta' && (
           <p className="-mt-2 text-xs text-mute">El ticket corto es el <b className="text-fore">predeterminado</b>: solo título y validación, menos papel. Activá «Fecha y hora» si lo necesitás.</p>
         )}
         <section ref={refPlantilla} className="space-y-3" data-testid="plantilla-prueba" aria-label="Plantilla de la prueba">
@@ -1898,24 +1895,17 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
             {sinCambios && guardadaEnServidor && <Badge color="blue">Guardada en esta impresora</Badge>}
             {sinCambios && !guardadaEnServidor && referencia && <Badge>Recordada en este dispositivo</Badge>}
           </div>
-          <div className="flex flex-wrap gap-1" role="group" aria-label="Qué incluye la prueba">
-            {BLOQUES_PRUEBA.map(({ id, etiqueta, detalle }) => {
-              const habilitado = aplica.includes(id)
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  aria-pressed={Boolean(plantilla.incluye[id])}
-                  disabled={!habilitado}
-                  title={habilitado ? detalle : 'No aplica al ticket corto: lleva título, validación y fecha.'}
-                  onClick={() => alternarBloque(id)}
-                  className={cn('min-h-9 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition', !habilitado ? 'cursor-not-allowed border-ink-600 text-mute/60' : plantilla.incluye[id] ? 'border-ok/40 bg-ok/10 text-ok' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}
-                >
-                  {etiqueta}
-                </button>
-              )
-            })}
-          </div>
+          {plantilla.tipo === 'corta' && (
+            <label className="flex min-h-9 items-center gap-2 text-sm text-fore">
+              <input
+                type="checkbox"
+                checked={Boolean(plantilla.incluyeFecha)}
+                onChange={(event) => setPlantilla((actual) => ({ ...actual, incluyeFecha: event.target.checked }))}
+                data-testid="plantilla-fecha"
+              />
+              Fecha y hora en el ticket corto
+            </label>
+          )}
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
               <span className={ROTULO_SECCION}>Ancho del papel</span>
@@ -1958,7 +1948,7 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-mute">
             {plantilla.copias === 1 ? 'Sale 1 copia' : `Salen ${plantilla.copias} copias`}
-            {plantilla.incluye.validacion ? ', con un número secreto para confirmarla en papel.' : ', sin número secreto: la confirmación en papel queda desactivada.'}
+            {plantilla.tipo === 'corta' ? ', solo el título y la validación.' : ', con la trazabilidad completa.'}
           </p>
           <div className="flex flex-wrap items-center gap-1">
             <Button type="button" variant="outline" onClick={guardar} disabled={enviando || guardando || (sinCambios && guardadaEnServidor)}>

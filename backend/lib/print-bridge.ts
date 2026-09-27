@@ -196,10 +196,10 @@ export function normalizarImpresora(valor: unknown): ImpresoraNormalizada {
   }
 }
 
-// Plantilla del ticket de prueba (#277): la arma el cliente y el backend solo
-// la acota (tipo, ancho 58/80, corte, copias 1–5 y bloques booleanos). Se
-// guarda por impresora para que viaje entre dispositivos. `undefined` = sin
-// cambio; `null` = borrar la plantilla guardada.
+// Plantilla del ticket de prueba (#277): la arma el cliente con el contrato de
+// la biblioteca (tipo, ancho 58/80, corte, copias 1–5 y fecha en el corto) y el
+// backend solo la acota. Se guarda por impresora para que viaje entre
+// dispositivos. `undefined` = sin cambio; `null` = borrar la plantilla.
 export function normalizarPlantillaPrueba(valor: unknown): Record<string, unknown> | null | undefined {
   if (valor === undefined) return undefined
   if (valor === null) return null
@@ -213,16 +213,7 @@ export function normalizarPlantillaPrueba(valor: unknown): Record<string, unknow
   }
   if (entrada.corte !== undefined) plantilla.corte = texto(entrada.corte, 'Corte', 24, true)
   if (entrada.copias !== undefined) plantilla.copias = entero(entrada.copias, 'Copias', 1, 5, 1)
-  if (entrada.incluye !== undefined) {
-    if (!entrada.incluye || typeof entrada.incluye !== 'object' || Array.isArray(entrada.incluye)) {
-      throw new InputError('Los bloques de la plantilla son inválidos.')
-    }
-    const bloques: Record<string, boolean> = {}
-    for (const [clave, activo] of Object.entries(entrada.incluye as Record<string, unknown>).slice(0, 12)) {
-      if (typeof activo === 'boolean' && clave.length <= 20) bloques[clave] = activo
-    }
-    plantilla.incluye = bloques
-  }
+  if (entrada.incluyeFecha !== undefined) plantilla.incluyeFecha = Boolean(entrada.incluyeFecha)
   return plantilla
 }
 
@@ -230,7 +221,8 @@ export function normalizarPlantillaPrueba(valor: unknown): Record<string, unknow
 // las canónicas en inglés para no atarse a la forma vieja del cliente.
 // `branchId` queda afuera a propósito: la sucursal es del backend y una
 // configuración local no puede inventar ids de sucursal.
-export function impresoraDesdeLegacy(valor: unknown): ImpresoraNormalizada {  if (!valor || typeof valor !== 'object' || Array.isArray(valor)) throw new InputError('Impresora legacy inválida.')
+export function impresoraDesdeLegacy(valor: unknown): ImpresoraNormalizada {
+  if (!valor || typeof valor !== 'object' || Array.isArray(valor)) throw new InputError('Impresora legacy inválida.')
   const entrada = valor as Record<string, unknown>
   const tomar = (ingles: string, espanol: string) => (entrada[ingles] !== undefined ? entrada[ingles] : entrada[espanol])
   return normalizarImpresora({

@@ -159,20 +159,20 @@ QR muerto: se omite el código.
   ofrece **«Reimprimir igual»** como confirmación explícita. Detalle en §11.
 - **Validación en papel (#138)**: el panel conoce el **largo** del sufijo (el
   valor nunca sale del servidor ni se expone en el listado) y valida **solo** al
-  completar el código: el sufijo de **2 dígitos** de la prueba corta valida
-  apenas se escribe y un sufijo mayor al llegar a su largo, con un debounce
-  corto para poder corregir. El botón **Confirmar** y **Enter** quedan como
-  respaldo. **Si el número no coincide**, el aviso "No coincide" es claro y se
-  puede reintentar; al confirmar, el input se limpia y la fila pasa a «✓ en
-  papel». Un trabajo sin largo conocido (anterior a la columna `suffixLength`)
-  se valida con el botón.
-- **Ticket de prueba corto (#277, predeterminado)**: sale solo con el **título
-  y la validación** (`XXXX-XX`); el ticket completo sigue disponible en el
-  selector de tipo. Desde la ficha de la impresora se abre **Plantilla**, que
-  edita qué incluye el ticket corto (fecha y hora · QR y barras · trazabilidad),
-  el **ancho** (58/80 mm), los **cortes** (total/parcial) y las **copias** (1–5),
-  y se guarda **por impresora** (destino). El patrón es «último usado =
-  predeterminado» (#209): al imprimir, esa plantilla queda como la próxima.
+  completar el código: el sufijo de la prueba corta valida apenas se escribe y
+  un sufijo mayor al llegar a su largo, con un debounce corto para poder
+  corregir. El botón **Confirmar** y **Enter** quedan como respaldo. **Si el
+  número no coincide**, el aviso "No coincide" es claro y se puede reintentar;
+  al confirmar, el input se limpia y la fila pasa a «✓ en papel». Un trabajo sin
+  largo conocido (anterior a la columna `suffixLength`) se valida con el botón.
+- **Ticket de prueba corto (#277, predeterminado)**: el modelo vive en la
+  biblioteca (`paginaDePrueba`) y sale solo con el **título y la validación**
+  (`XXXX-X`), con fecha/hora opcional; el ticket **completo** sigue disponible
+  en el selector (trazabilidad, QR y barras). Desde la ficha de la impresora se
+  abre **Plantilla**: tipo, **ancho** (58/80 mm), **corte** y **copias** (1–5);
+  se guarda **por impresora** en el backend (`testTemplate`) con la memoria
+  local como respaldo y el patrón «último usado = predeterminado» (#209): al
+  imprimir, esa plantilla queda como la próxima.
 - La **prueba física** en la Mac (launchd, IP secundaria, CUPS, USB y corte)
   tiene su checklist en **`docs/IMPRESION-PRUEBA-FISICA.md`** (#170).
 
