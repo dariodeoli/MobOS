@@ -141,7 +141,13 @@ Pasada del **26/09**: los 8 grupos, Taller, `/ops`, `/celulares`, `/comparador` 
 `/garantias` con su pestaña activa, en 4 variantes y con **0 errores de página**.
 Capturas y datos crudos: [`1.0.181-produccion/`](1.0.181-produccion/).
 
-## Verificación vigente — producción v1.0.182
+## Verificación vigente — producción v1.0.186
+
+Los 8 grupos, Taller, `/ops`, `/celulares`, `/comparador` y `/garantias` con su
+pestaña activa, en 4 variantes y con **0 errores de página**. Capturas y datos
+crudos: [`1.0.186-produccion/`](1.0.186-produccion/).
+
+## Pasada — producción v1.0.182
 
 Los 8 grupos, Taller, `/ops`, `/celulares`, `/comparador` y `/garantias` con su
 pestaña activa, en 4 variantes y con **0 errores de página**. Capturas y datos

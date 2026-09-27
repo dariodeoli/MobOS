@@ -1,24 +1,24 @@
 # #148 · Cierre de los restos POS (épica «POS completo»)
 
-Fecha: 26/09/2026 · Versión de referencia: producción **v1.0.182** (main `55d5c685` ·
-v1.0.183 en main) · Rama de esta entrega: `slot/pos`.
+Fecha: 26/09/2026 · Versión de referencia: producción **v1.0.186** (main `800199d0`) ·
+Rama de esta entrega: `slot/pos`.
 
-## Verificación final v1.0.182 (POS con v2 por defecto)
+## Verificación final v1.0.186 (POS con v2 por defecto)
 
 | Sonda | Resultado | Evidencia |
 |---|---|---|
-| Recorrido POS completo (12 pasos, **sin tocar el flag**: `v2 por defecto: true`) | **12/12**, 0 errores de consola y 0 respuestas API ≥400 | `docs/qa/187-1.0.182-produccion/` |
-| Carrito (#243) con variantes *v2-default* | **68 px desktop / 84 px mobile**, 0 desbordes y 0 errores | `docs/qa/243/1.0.182-produccion/` |
-| Tope de montos (§9) | el campo marca, el guardado **bloquea** y explica el monto; no crea el pedido | `docs/qa/148-9-pos-tope/1.0.182-produccion-postdeploy/` |
-| Menú (#251, referencia) | 8 grupos, Taller, `/ops`, `/celulares`, `/comparador` y `/garantias` como pestaña de Taller | `docs/qa/menu-ia/1.0.182-produccion/` |
+| Recorrido POS completo (12 pasos, **sin tocar el flag**: `v2 por defecto: true`) | **12/12**, 0 errores de consola y 0 respuestas API ≥400 | `docs/qa/187-1.0.186-produccion/` |
+| Carrito (#243) con variantes *v2-default* | **68 px desktop / 84 px mobile**, 0 desbordes y 0 errores | `docs/qa/243/1.0.186-produccion/` |
+| Tope de montos (§9) | el campo marca, el guardado **bloquea** y explica el monto; no crea el pedido | `docs/qa/148-9-pos-tope/1.0.186-produccion-postdeploy/` |
+| Menú (#251, referencia) | 8 grupos, Taller, `/ops`, `/celulares`, `/comparador` y `/garantias` como pestaña de Taller | `docs/qa/menu-ia/1.0.186-produccion/` |
 
-(La misma pasada sobre v1.0.181 quedó en `docs/qa/*/1.0.181-*`.)
+(Pasadas anteriores: `docs/qa/*/1.0.181-*`, `docs/qa/*/1.0.182-*`.)
 
 Con esto el flujo de venta completo queda verificado **en la versión publicada y
 sobre el diseño v2 real** (por defecto), sin restos abiertos del lado POS.
 
-Complemento local sobre `main` (`55d5c685`): e2e del POS **44/44 en verde** y
-`npm test` **789/789**. Nota de entorno: tras subir la biblioteca de componentes
+Complemento local (e2e del POS **44/44** y `npm test` **789/789**) sobre el main
+previo; el estado exacto por versión vive en cada carpeta de evidencia. Nota de entorno: tras subir la biblioteca de componentes
 (`owncoding-ui` v0.38.0) hay que correr `npm install` y limpiar la caché de Vite
 (`rm -rf node_modules/.vite`) o el dev server queda con los módulos viejos.
 

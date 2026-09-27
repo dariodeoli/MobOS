@@ -84,7 +84,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const items = Array.isArray(quote.items) ? quote.items as Array<Record<string, unknown>> : []
   const link = actionLink(`/cotizacion/${quote.publicToken || ''}`)
   if (!link) return error('No se pudo armar el enlace público de la cotización.', 500)
-  const lineas = items.map((item) => ({ quantity: Number(item.quantity) || 1, description: texto(item.description) || 'Producto', totalPyg: Number(item.totalPyg) || 0 }))
+  const lineas = items.map((item) => { const cantidad = Number(item.quantity) || 1; const unitario = Number(item.unitPricePyg) || Math.round((Number(item.totalPyg) || 0) / cantidad); return { quantity: cantidad, description: texto(item.description) || 'Producto', unitPricePyg: unitario, totalPyg: unitario * cantidad } })
   const mensaje = mensajeCotizacion({
     quoteNumber: quote.number,
     customerName: quote.customer?.name || quote.customerName,
@@ -119,6 +119,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         customerName: quote.customer?.name || quote.customerName,
         number: quote.number,
         items: lineas,
+        subtotalPyg: Number(quote.subtotalPyg) || 0,
+        discountPyg: Number(quote.discountPyg) || 0,
         totalPyg: quote.totalPyg,
         validUntil: quote.validUntil,
         link,

@@ -860,6 +860,7 @@ export default function PanelVendedor() {
             <VistaCargarVenta
               tradeInDraft={tradeIn?.identidad === identidad ? tradeIn : null}
               onTradeInConsumed={() => setTradeIn(null)}
+              activo={vista === 'cargar'}
             />
           </div>
           )}

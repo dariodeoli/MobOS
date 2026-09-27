@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
-import { listVentas } from '@/lib/storage'
+import { listVentas, refrescarCatalogo } from '@/lib/storage'
 import {
   ventasDelDia,
   totalesVendedor,
@@ -11,6 +11,7 @@ import {
 } from '@/utils/calculos'
 import FormularioVenta from './FormularioVenta'
 import { ordenesDeVentas } from '@/utils/resumenVentasDia'
+import { useAlmacenRevision } from '@/hooks/useAlmacenRevision'
 import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import Icon from '@/components/shared/Icon'
 import { totalResumen } from '@/lib/posCart'
@@ -49,9 +50,16 @@ function BarraTotal({ carrito, totalCompra, unidadesCarrito }) {
 // Pantalla de carga de venta: una sola página con el flujo completo. Acá se
 // calculan los datos del día (contexto del vendedor) y el formulario se lleva
 // la venta: cliente, productos, carrito y cobro con el resumen fijo.
-export default function VistaCargarVenta({ tradeInDraft, onTradeInConsumed }) {
+export default function VistaCargarVenta({ tradeInDraft, onTradeInConsumed, activo = true }) {
   const { sesion } = useSesion()
   const angosta = usePantallaAngosta()
+  // #257: repinta cuando el espejo local se actualiza (hidratación en segundo
+  // plano o mutaciones) y refresca el catálogo al volver a la venta, así lo
+  // cargado en Inventario u otra pestaña aparece sin recargar la app.
+  useAlmacenRevision()
+  useEffect(() => {
+    if (activo) refrescarCatalogo().catch(() => { /* sin conexión: queda el espejo */ })
+  }, [activo])
   const ventas = listVentas()
   const [carrito, setCarrito] = useState({
     items: [],

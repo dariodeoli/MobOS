@@ -22,6 +22,7 @@ export default function SerialUnitPicker({ product, branchId = '', customerName,
     if (!product?.id) { setUnits([]); onRequiresSerial?.(false, 0); return }
     setLoading(true); setError('')
     try {
+<<<<<<< HEAD
       // #263: unidades reales de ESTE producto en la sucursal de la venta (la
       // misma que valida y descuenta al confirmar). Antes se buscaba por texto
       // (SKU/nombre) y se filtraba con el branch del producto, así que el
@@ -30,6 +31,15 @@ export default function SerialUnitPicker({ product, branchId = '', customerName,
         productId: product.id,
         ...(branchId ? { branchId } : {}),
       })
+=======
+      const query = product.sku || product.nombre || product.name || ''
+      // `resources` respeta la demo (#213): en la demo las unidades salen del
+      // store ficticio, no del API. Se filtra por producto y sucursal, como la
+      // API real.
+      const rows = await resources.inventoryUnits.list(query)
+      // Solo unidades de la sucursal del producto (#263): una unidad de otra
+      // sucursal no se puede vender acá y no debe ofrecerse.
+>>>>>>> origin/slot/pos
       const matched = (rows || []).filter(unit => unit.productId === product.id
         // Solo unidades vendibles; la elegida se conserva aunque la reserva ya
         // le haya cambiado el estado.

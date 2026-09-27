@@ -496,8 +496,21 @@ export default function FormularioVenta({
     const producto = fila ? productos.find(p => p.id === fila.productoId) : null
     if (!imeiPara || !producto || esDemo) { setUnidadesDeImei(0); return undefined }
     let vivo = true
+<<<<<<< HEAD
     resources.inventoryUnits.list('', 'active', { productId: producto.id, status: 'AVAILABLE', ...(sucursal?.id ? { branchId: sucursal.id } : {}) })
       .then(rows => { if (vivo) setUnidadesDeImei((rows || []).filter(unit => unit.productId === producto.id && unit.status === 'AVAILABLE').length) })
+=======
+    api.get(`/api/inventory-units?q=${encodeURIComponent(producto.sku || producto.nombre || '')}`)
+      .then(rows => {
+        if (!vivo) return
+        // Misma sucursal que el selector (#263): si el equipo está en otra
+        // sucursal no se puede vender desde acá y no debe contar como stock.
+        const deLaSucursal = (rows || []).filter(unit => unit.productId === producto.id
+          && unit.status === 'AVAILABLE'
+          && (!producto.branchId || !unit.branchId || unit.branchId === producto.branchId))
+        setUnidadesDeImei(deLaSucursal.length)
+      })
+>>>>>>> origin/slot/pos
       .catch(() => { if (vivo) setUnidadesDeImei(0) })
     return () => { vivo = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -906,11 +919,32 @@ export default function FormularioVenta({
         totalPagado,
       })
       if (excesos.length) throw new Error(mensajeMontosFueraDeRango(excesos))
+      // #263: la detección de unidades es asíncrona (y puede fallar): al guardar
+      // se confirma contra el servidor que ninguna línea sin serial tenga stock
+      // serializado, así no se manda un pedido incompleto que el API rechace.
+      const sinSerial = lista.filter(it => !it.serials?.length && !it.sobrePedido && !it.requiereSerie)
+      const conUnidades = []
+      for (const it of sinSerial) {
+        const productoUnidades = productos.find(p => p.id === it.productoId)
+        if (!productoUnidades) continue
+        try {
+          const filas = await resources.inventoryUnits.list(productoUnidades.sku || productoUnidades.nombre || '')
+          const disponibles = (filas || []).filter(unit => unit.productId === productoUnidades.id
+            && unit.status === 'AVAILABLE'
+            && (!productoUnidades.branchId || !unit.branchId || unit.branchId === productoUnidades.branchId)).length
+          if (disponibles) conUnidades.push({ ...it, unidades: disponibles })
+        } catch { /* sin conexión: queda la validación local */ }
+      }
       const sinImei = lista.filter(it => it.requiereSerie && !it.serials?.length && !it.sobrePedido)
-      if (sinImei.length && !sinRed)
+      for (const extra of conUnidades) if (!sinImei.some(it => it.key === extra.key)) sinImei.push(extra)
+      if (sinImei.length && !sinRed) {
+        // Guía dentro del flujo (#263): se abre el selector del primer equipo
+        // que falta y el aviso nombra a todos los que necesitan serial.
+        setImeiPara(sinImei[0].key)
         throw new Error(
-          `Seleccioná el IMEI/serial exacto de cada equipo antes de vender (${sinImei.map(it => it.nombre).join(', ')}), o marcalo como «sobre pedido».`,
+          `Falta elegir el IMEI/serial de ${sinImei.map(it => `«${it.nombre}»`).join(', ')}. Elegí la unidad exacta en el selector (o marcalo como «sobre pedido»).`,
         )
+      }
       if (tieneCupon && gsNum(descuento) > 0)
         throw new Error('Quitá el descuento extra para utilizar un cupón. No son acumulables.')
       if (customer.phone?.trim() && !telefonoValido(customer.phone, customer.countryCode))
