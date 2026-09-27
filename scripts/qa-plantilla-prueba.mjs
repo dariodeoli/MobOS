@@ -57,7 +57,7 @@ for (const [tema, modo] of [['claro', 'light'], ['oscuro', 'dark']]) {
   await dialogo.screenshot({ path: join(SALIDA, `editor-${tema}-desktop-modal.jpg`), type: 'jpeg', quality: 78 })
 
   // Editor en acción (solo si esta versión trae la plantilla): 58 mm, 2 copias
-  // y sin corte sobre el ticket de la impresora de 80 mm.
+  // y sin corte sobre el ticket corto (el predeterminado de #277).
   if (medidas[`editor-${tema}`].editor && tema === 'claro') {
     const editor = dialogo.getByTestId('plantilla-prueba')
     await editor.getByRole('button', { name: '58 mm' }).click()
@@ -65,6 +65,10 @@ for (const [tema, modo] of [['claro', 'light'], ['oscuro', 'dark']]) {
     await editor.getByRole('button', { name: 'Una copia más' }).click()
     await esperar(700)
     await dialogo.screenshot({ path: join(SALIDA, 'editor-58-sin-corte-2-copias-desktop.jpg'), type: 'jpeg', quality: 78 })
+    // El ticket completo sigue disponible (el corto es el predeterminado).
+    await dialogo.getByLabel('Tipo de prueba').selectOption('corta')
+    await esperar(700)
+    await dialogo.screenshot({ path: join(SALIDA, 'editor-completo-claro-desktop.jpg'), type: 'jpeg', quality: 78 })
   }
   await dialogo.getByRole('button', { name: 'Cancelar' }).click()
   await esperar(500)
