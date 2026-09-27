@@ -950,7 +950,7 @@ test.describe('estado vivo y popup de prueba', () => {
     await expect(dialogo.getByText('Sale 1 copia', { exact: false })).toBeVisible()
     // La vista previa arranca visible (papel real 58/80) y el toggle la oculta.
     const hoja = page.frameLocator('iframe[title="Vista previa del ticket de prueba"]')
-    await expect(hoja.locator('pre')).toContainText('TICKET DE PRUEBA')
+    await expect(hoja.locator('pre')).toContainText('Ticket de prueba MobOS')
     await dialogo.getByRole('button', { name: 'Ocultar vista previa' }).click()
     await expect(page.locator('iframe[title="Vista previa del ticket de prueba"]')).toHaveCount(0)
   })

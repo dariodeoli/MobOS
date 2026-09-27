@@ -7,8 +7,8 @@ import { digitoVerificadorEan, esEan13, formatoDeCodigo } from './codigos.js'
 
 const opciones = { ancho: 80, impresora: 'lan:192.168.1.23:9100', nombre: 'ZKP8008', equipo: 'mac-puente', copias: 1 }
 
-test('los cinco tipos de prueba arman un ticket con trazabilidad completa', () => {
-  for (const tipo of Object.keys(TIPOS_TICKET_PRUEBA)) {
+test('los tipos completos arman un ticket con trazabilidad completa', () => {
+  for (const tipo of Object.keys(TIPOS_TICKET_PRUEBA).filter((id) => id !== 'breve')) {
     const ticket = ticketPruebaTipo(tipo, opciones)
     const texto = ticket.lineas().join('')
     assert.match(ticket.ref, /^TEST-/, `ref del tipo ${tipo}`)
@@ -109,6 +109,26 @@ test('el validador va grande arriba y repetido en el pie', () => {
   assert.notEqual(primera, -1, 'validador en el header')
   assert.ok(primera < texto.indexOf('[QR]'), 'el header sale antes del QR')
   assert.ok(ultima > texto.indexOf('[BARRA]'), 'el pie repite el validador después del código de barras')
+})
+
+test('el ticket corto (#277) sale solo con título, validación y fecha opcional', () => {
+  const ticket = ticketPruebaTipo('breve', opciones)
+  const texto = ticket.lineas().join('')
+  assert.match(texto, /Ticket de prueba MobOS/, 'título del ticket corto')
+  assert.ok(texto.includes('VALIDACIÓN'), 'validación')
+  assert.ok(!texto.includes('Impresora'), 'sin trazabilidad')
+  assert.ok(!texto.includes('[QR]') && !texto.includes('[BARRA]'), 'sin códigos')
+  assert.ok(!texto.includes('Acentos:'), 'sin acentos')
+  assert.equal(ticket.corte, true, 'corta al final')
+  // La fecha/hora es opt-in (bloque apagado por defecto).
+  assert.ok(!/\d{1,2}\/\d{1,2}\/\d{2}/.test(texto), 'sin fecha por defecto')
+  const conFecha = ticketPruebaTipo('breve', { ...opciones, incluye: { fecha: true } })
+  assert.ok(/\d{1,2}\/\d{1,2}\/\d{2}/.test(conFecha.lineas().join('')), 'fecha cuando se pide')
+  // El título se puede apagar; la validación sigue siendo el punto.
+  const sinTitulo = ticketPruebaTipo('breve', { ...opciones, incluye: { encabezado: false } })
+  assert.ok(!sinTitulo.lineas().join('').includes('Ticket de prueba'), 'sin encabezado')
+  // La plantilla también manda en el corte del ticket corto.
+  assert.equal(ticketPruebaTipo('breve', { ...opciones, corte: 'ninguno' }).corte, false)
 })
 
 test('la plantilla puede apagar todos los bloques opcionales', () => {

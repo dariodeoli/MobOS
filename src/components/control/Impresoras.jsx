@@ -7,9 +7,9 @@ import { api } from '@/lib/api/client'
 import { fechaHora as fmt } from '@/utils/fecha'
 import { descargarArchivo, descargarCsvCliente } from '@/utils/descargarArchivo'
 import { printingApi } from '@/lib/api/printing'
-import { URL_AGENTE, cargarImpresoras, colaAgente, configImpresora, confirmarJob, diagnosticoAgente, enmascararToken, esIdBackend, estadoAgente, historialAgente, impresoraHaciaBackend, importarConfigUnaVez, imprimirTicketRouter, limpiarFallidos, puenteDe, refrescarDesdeBackend, registrarUltimaPrueba, reintentarFallidos, repararRed, sincronizarAgente } from '@/lib/printing/agent'
+import { URL_AGENTE, cargarImpresoras, colaAgente, configImpresora, confirmarJob, diagnosticoAgente, enmascararToken, esIdBackend, estadoAgente, historialAgente, impresoraHaciaBackend, importarConfigUnaVez, imprimirTicketRouter, limpiarFallidos, puenteDe, refrescarDesdeBackend, registrarPlantillaPrueba, registrarUltimaPrueba, reintentarFallidos, repararRed, sincronizarAgente } from '@/lib/printing/agent'
 import { TIPOS_TICKET_PRUEBA, ticketPruebaTipo } from '@/lib/printing/tickets'
-import { ANCHOS_PRUEBA, BLOQUES_PRUEBA, COPIAS_MAX, CORTES_PRUEBA, memoriaPlantilla, normalizarPlantilla } from '@/lib/printing/plantillaPrueba'
+import { ANCHOS_PRUEBA, BLOQUES_PRUEBA, COPIAS_MAX, CORTES_PRUEBA, bloquesDeTipo, memoriaPlantilla, normalizarPlantilla, plantillaDeImpresora } from '@/lib/printing/plantillaPrueba'
 import { ESTADO_IMPRESORA, ETIQUETA_ESTADO, colorTrabajo, etiquetaTrabajo, textoVerificacion } from '@/lib/printing/estadoImpresoras'
 import { colaDemo, historialDemo, storeDemo } from '@/lib/printing/demo'
 import { etiquetaTipoImpresion, memoriaDeImpresion, olvidarTipoDeImpresion } from '@/lib/printing/preferencias'
@@ -179,6 +179,9 @@ export default function Impresoras() {
   const [probandoId, setProbandoId] = useState(null)
   const [progreso, setProgreso] = useState('')
   const [pruebaDe, setPruebaDe] = useState(null) // impresora del modal de prueba
+  // Intención del modal de la ficha: «probar» (default) o «plantilla» (#277):
+  // el mismo editor, con el título que corresponda al punto de entrada.
+  const [pruebaIntencion, setPruebaIntencion] = useState('probar')
   const [eliminarId, setEliminarId] = useState(null)
   const [verColaAbierta, setVerColaAbierta] = useState(false)
   const [filtroActividad, setFiltroActividad] = useState('')
@@ -563,13 +566,38 @@ export default function Impresoras() {
     }
   }
 
-  function probar(impresora) {
+  function probar(impresora, intencion = 'probar') {
+    setPruebaIntencion(intencion)
     setPruebaDe(impresora)
   }
 
-  async function enviarPrueba({ tipo, copias, ticket }) {
+  // Guarda la plantilla del ticket de prueba en la impresora (#277): primero el
+  // backend (viaja entre dispositivos) y la memoria local como respaldo. Es
+  // best-effort: si el servidor no responde, imprimir sigue funcionando.
+  async function guardarPlantillaDePrueba(impresora, plantilla, { avisar = true } = {}) {
+    const igual = JSON.stringify(normalizarPlantilla(impresora.plantillaPrueba || {}, impresora)) === JSON.stringify(normalizarPlantilla(plantilla, impresora))
+    if (impresora.plantillaPrueba && igual) return true
+    if (esDemo) {
+      setStore((actual) => ({ ...actual, impresoras: actual.impresoras.map((item) => (item.id === impresora.id ? { ...item, plantillaPrueba: plantilla } : item)) }))
+      if (avisar) toast.success('Plantilla guardada (demo)', 'Dato ficticio: no se guardó en el servidor.')
+      return true
+    }
+    const guardada = await registrarPlantillaPrueba(impresora, plantilla)
+    if (!guardada) {
+      if (avisar) toast.error('No se pudo guardar la plantilla', 'Quedó recordada en este dispositivo.')
+      return false
+    }
+    setStore((actual) => ({ ...actual, impresoras: actual.impresoras.map((item) => (item.id === impresora.id ? { ...item, plantillaPrueba: guardada.testTemplate ?? plantilla } : item)) }))
+    if (avisar) toast.success('Plantilla guardada', impresora.nombre)
+    return true
+  }
+
+  async function enviarPrueba({ tipo, copias, ticket, plantilla }) {
     const impresora = pruebaDe
     if (!impresora || probandoId) return
+    // La plantilla usada queda como predeterminada de la impresora (último
+    // usado, #277): se guarda antes de imprimir y no bloquea si falla.
+    if (plantilla) await guardarPlantillaDePrueba(impresora, plantilla, { avisar: false })
     setProbandoId(impresora.id)
     setProgreso('Enviando…')
     if (esDemo) {
@@ -1044,6 +1072,7 @@ export default function Impresoras() {
                 <div className="flex flex-wrap items-center gap-2">
                   <Button type="button" onClick={() => probar(impresora)} disabled={Boolean(probandoId) || !impresora.activa}>{probandoId === impresora.id ? 'Enviando…' : 'Imprimir prueba'}</Button>
                   <Button type="button" variant="outline" onClick={() => abrirFormulario(impresora)}>Editar</Button>
+                  <Button type="button" variant="ghost" title="Ajustar la plantilla del ticket de prueba" onClick={() => probar(impresora, 'plantilla')} disabled={Boolean(probandoId) || !impresora.activa}>Plantilla</Button>
                   <Button type="button" variant="ghost" onClick={() => diagnosticar(impresora)}>Diagnóstico</Button>
                   <Button type="button" variant="ghost" onClick={() => setFiltroActividad(impresora.destino)}>Ver actividad</Button>
                   <span className="ml-auto" />
@@ -1282,6 +1311,8 @@ export default function Impresoras() {
           progreso={progreso}
           onCerrar={() => setPruebaDe(null)}
           onEnviar={enviarPrueba}
+          onGuardarPlantilla={(plantilla) => guardarPlantillaDePrueba(pruebaDe, plantilla)}
+          intencion={pruebaIntencion}
         />
       )}
 
@@ -1743,23 +1774,49 @@ function hojaDeTicket(texto) {
   return `<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#fff}pre{margin:0;padding:10px 8px;font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#111}</style></head><body><pre>${seguro}</pre></body></html>`
 }
 
-function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, tokenPista, equipo, enviando, progreso, onCerrar, onEnviar }) {
-  const [tipo, setTipo] = useState('corta')
+function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, tokenPista, equipo, enviando, progreso, onCerrar, onEnviar, onGuardarPlantilla, intencion = 'probar' }) {
   const [turno, setTurno] = useState(0) // regenera el ticket (y su número de 4 dígitos)
   const [verPrevia, setVerPrevia] = useState(true)
-  // Plantilla de la prueba: qué incluye, ancho (58/80), corte y copias. Se
-  // recuerda por impresora al imprimir (memoria local, patrón «último usado»).
+  const [guardando, setGuardando] = useState(false)
+  const refPlantilla = useRef(null)
+  // Entrada «Plantilla» de la ficha (#277): se arranca en el editor, no en el
+  // botón de imprimir.
+  useEffect(() => {
+    if (intencion === 'plantilla') refPlantilla.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }, [intencion])
+  // Plantilla de la prueba (#277): manda la guardada en la impresora (viaja
+  // entre dispositivos); si no hay, la memoria local; si tampoco, la
+  // configuración de la impresora con el ticket corto como predeterminado.
   const memoria = useMemo(() => memoriaPlantilla(), [])
-  const [plantilla, setPlantilla] = useState(() => normalizarPlantilla(memoria.de(impresora.id) || {}, impresora))
-  const [recordada, setRecordada] = useState(() => Boolean(memoria.de(impresora.id)))
+  const [plantilla, setPlantilla] = useState(() => normalizarPlantilla(impresora.plantillaPrueba || memoria.de(impresora.id) || {}, impresora))
+  const [guardadaEnServidor, setGuardadaEnServidor] = useState(() => Boolean(impresora.plantillaPrueba))
+  // Referencia de lo guardado/recordado: estado del chip y PATCH de más.
+  const [referencia, setReferencia] = useState(() => {
+    const fuente = impresora.plantillaPrueba || memoria.de(impresora.id)
+    return fuente ? normalizarPlantilla(fuente, impresora) : null
+  })
+  const sinCambios = Boolean(referencia) && JSON.stringify(referencia) === JSON.stringify(plantilla)
+  const aplica = bloquesDeTipo(plantilla.tipo)
   const alternarBloque = (id) => setPlantilla((actual) => ({ ...actual, incluye: { ...actual.incluye, [id]: !actual.incluye[id] } }))
   const reiniciar = () => {
     memoria.olvidar(impresora.id)
-    setPlantilla(normalizarPlantilla({}, impresora))
-    setRecordada(false)
+    setPlantilla(plantillaDeImpresora(impresora))
+  }
+  const guardar = async () => {
+    setGuardando(true)
+    try {
+      const ok = await onGuardarPlantilla(plantilla)
+      if (ok) {
+        memoria.recordar(impresora.id, plantilla)
+        setReferencia(normalizarPlantilla(plantilla, impresora))
+        setGuardadaEnServidor(true)
+      }
+    } finally {
+      setGuardando(false)
+    }
   }
   const ticket = useMemo(
-    () => ticketPruebaTipo(tipo, {
+    () => ticketPruebaTipo(plantilla.tipo, {
       ancho: plantilla.ancho,
       impresora: impresora.destino,
       nombre: impresora.nombre,
@@ -1775,39 +1832,47 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
     }),
     // turno solo dispara la regeneración: un número nuevo por ejecución.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tipo, turno, impresora, equipo, metodo, puente, tokenPista, usuario, plantilla],
+    [turno, impresora, equipo, metodo, puente, tokenPista, usuario, plantilla],
   )
   const hoja = useMemo(() => hojaDeTicket(ticket.lineas().join('')), [ticket])
   return (
-    <Modal open onClose={enviando ? undefined : onCerrar} title={`Probar: ${impresora.nombre}`} size="formulario">
+    <Modal open onClose={enviando ? undefined : onCerrar} title={intencion === 'plantilla' ? `Plantilla: ${impresora.nombre}` : `Probar: ${impresora.nombre}`} size="formulario">
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-600 p-3">
           <Badge color={chip.color} title={verificacion || undefined}>{chip.label}</Badge>
           <p className={cn('min-w-0 flex-1', CELDA_DATO)} title={`${impresora.destino || 'Sin destino'} · ${impresora.ancho} mm`}>{impresora.destino || 'Sin destino'} · {impresora.ancho} mm</p>
         </div>
         <FormField label="Tipo de prueba" htmlFor="prueba-tipo">
-          <Select id="prueba-tipo" value={tipo} onChange={(event) => setTipo(event.target.value)}>
+          <Select id="prueba-tipo" value={plantilla.tipo} onChange={(event) => setPlantilla((actual) => ({ ...actual, tipo: event.target.value }))}>
             {Object.entries(TIPOS_TICKET_PRUEBA).map(([valor, etiqueta]) => <option key={valor} value={valor}>{etiqueta}</option>)}
           </Select>
         </FormField>
-        <section className="space-y-3" data-testid="plantilla-prueba" aria-label="Plantilla de la prueba">
+        {plantilla.tipo === 'breve' && (
+          <p className="-mt-2 text-xs text-mute">El ticket corto es el <b className="text-fore">predeterminado</b>: solo título y validación, menos papel. Activá «Fecha y hora» si lo necesitás.</p>
+        )}
+        <section ref={refPlantilla} className="space-y-3" data-testid="plantilla-prueba" aria-label="Plantilla de la prueba">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h4 className={ROTULO_SECCION}>Plantilla de la prueba</h4>
-            {recordada && <Badge color="slate">Recordada en esta impresora</Badge>}
+            {sinCambios && guardadaEnServidor && <Badge color="blue">Guardada en esta impresora</Badge>}
+            {sinCambios && !guardadaEnServidor && referencia && <Badge>Recordada en este dispositivo</Badge>}
           </div>
           <div className="flex flex-wrap gap-1" role="group" aria-label="Qué incluye la prueba">
-            {BLOQUES_PRUEBA.map(({ id, etiqueta, detalle }) => (
-              <button
-                key={id}
-                type="button"
-                aria-pressed={Boolean(plantilla.incluye[id])}
-                title={detalle}
-                onClick={() => alternarBloque(id)}
-                className={cn('min-h-9 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition', plantilla.incluye[id] ? 'border-ok/40 bg-ok/10 text-ok' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}
-              >
-                {etiqueta}
-              </button>
-            ))}
+            {BLOQUES_PRUEBA.map(({ id, etiqueta, detalle }) => {
+              const habilitado = aplica.includes(id)
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={Boolean(plantilla.incluye[id])}
+                  disabled={!habilitado}
+                  title={habilitado ? detalle : 'No aplica al ticket corto: lleva título, validación y fecha.'}
+                  onClick={() => alternarBloque(id)}
+                  className={cn('min-h-9 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition', !habilitado ? 'cursor-not-allowed border-ink-600 text-mute/60' : plantilla.incluye[id] ? 'border-ok/40 bg-ok/10 text-ok' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}
+                >
+                  {etiqueta}
+                </button>
+              )
+            })}
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
@@ -1842,9 +1907,10 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
             </div>
           </div>
           <p className="text-xs text-mute">
-            Solo cambia el <b className="text-fore">ticket de prueba</b>: la venta diaria usa la configuración de la impresora. {recordada
-              ? <>Se recuerda la última plantilla usada acá. <button type="button" className="underline underline-offset-2 hover:text-fore" onClick={reiniciar}>Restablecer</button>.</>
-              : 'Al imprimir se recuerda en esta impresora.'}
+            Solo cambia el <b className="text-fore">ticket de prueba</b>: la venta diaria usa la configuración de la impresora. {sinCambios && guardadaEnServidor
+              ? 'La plantilla está guardada en esta impresora.'
+              : <>Se guarda con <b className="text-fore">Guardar plantilla</b> o al imprimir.</>}{' '}
+            <button type="button" className="underline underline-offset-2 hover:text-fore" onClick={reiniciar}>Restablecer</button>.
           </p>
         </section>
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1852,9 +1918,14 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
             {plantilla.copias === 1 ? 'Sale 1 copia' : `Salen ${plantilla.copias} copias`}
             {plantilla.incluye.validacion ? ', con un número secreto para confirmarla en papel.' : ', sin número secreto: la confirmación en papel queda desactivada.'}
           </p>
-          <Button type="button" variant="ghost" onClick={() => setVerPrevia((actual) => !actual)} aria-expanded={verPrevia}>
-            <Icon name="eye" className="h-3.5 w-3.5" />{verPrevia ? 'Ocultar vista previa' : 'Ver vista previa'}
-          </Button>
+          <div className="flex flex-wrap items-center gap-1">
+            <Button type="button" variant="outline" onClick={guardar} disabled={enviando || guardando || (sinCambios && guardadaEnServidor)}>
+              <Icon name="save" className="h-3.5 w-3.5" />{guardando ? 'Guardando…' : 'Guardar plantilla'}
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setVerPrevia((actual) => !actual)} aria-expanded={verPrevia}>
+              <Icon name="eye" className="h-3.5 w-3.5" />{verPrevia ? 'Ocultar vista previa' : 'Ver vista previa'}
+            </Button>
+          </div>
         </div>
         {verPrevia && (
           <div>
@@ -1865,7 +1936,7 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
             <VistaPreviaPapel formato={plantilla.ancho === 58 ? 'thermal-58' : 'thermal-80'} contenido={hoja} titulo="Vista previa del ticket de prueba" alto="h-72" />
           </div>
         )}
-        {tipo === 'corte' && (
+        {plantilla.tipo === 'corte' && (
           <Nota compact>
             La verificación del corte es <b className="text-fore">física</b>: el ticket debe separarse del rollo solo. El éxito por TCP confirma el envío, no la cuchilla. Si no corta, revisá <b className="text-fore">Cutter Enable: YES</b> en la impresora.
           </Nota>
@@ -1875,11 +1946,10 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
           <Button type="button" variant="ghost" onClick={onCerrar} disabled={enviando}>Cancelar</Button>
           <Button
             type="button"
-            disabled={enviando}
+            disabled={enviando || guardando}
             onClick={() => {
               memoria.recordar(impresora.id, plantilla)
-              setRecordada(true)
-              onEnviar({ tipo, copias: plantilla.copias, ticket })
+              onEnviar({ tipo: plantilla.tipo, copias: plantilla.copias, ticket, plantilla })
             }}
           >
             {enviando ? 'Enviando…' : 'Imprimir prueba'}

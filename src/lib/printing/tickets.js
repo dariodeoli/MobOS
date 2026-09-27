@@ -325,6 +325,9 @@ const pruebaSufijo = () => String(Math.floor(Math.random() * 10))
 const refDePrueba = () => `TEST-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(16).slice(2, 6).toUpperCase()}`
 
 const TIPOS_PRUEBA = {
+  // Ticket corto (#277): el predeterminado de «Imprimir prueba» — menos papel
+  // y más rápido. El ticket completo sigue disponible como opción.
+  'breve': 'Ticket de prueba MobOS',
   'corta': 'Prueba corta',
   'pedido': 'Ticket de pedido',
   'qr': 'Ticket con QR',
@@ -334,14 +337,15 @@ const TIPOS_PRUEBA = {
 }
 export const TIPOS_TICKET_PRUEBA = TIPOS_PRUEBA
 
-// Ticket de prueba con trazabilidad completa: impresora, método, conexión,
-// puente, token (enmascarado), usuario, equipo, trabajo, validación de 4
-// dígitos y corte final. Todos los tipos comparten cabecera, bloque QR/barras,
-// acentos, pie de trazabilidad y corte.
+// Ticket de prueba: el corto (#277, predeterminado) sale solo con el título y
+// la validación (+ fecha/hora opcional); el resto de los tipos agrega cuerpo,
+// códigos y trazabilidad completa (impresora, método, conexión, puente, token
+// enmascarado, usuario, equipo, trabajo y corte final).
+//
 // Bloques opcionales de la prueba: el editor de la ficha de la impresora los
 // prende/apaga (plantilla del ticket de prueba) y acá se respetan. La clave es
 // la fuente de verdad de los ids; `plantillaPrueba.js` los rotula para la UI.
-const BLOQUES_PRUEBA = Object.freeze({ encabezado: true, validacion: true, trazabilidad: true, codigos: true, acentos: true })
+const BLOQUES_PRUEBA = Object.freeze({ encabezado: true, validacion: true, trazabilidad: true, codigos: true, acentos: true, fecha: false })
 export const BLOQUES_TICKET_PRUEBA = Object.freeze(Object.keys(BLOQUES_PRUEBA))
 
 export function ticketPruebaTipo(tipo, {
@@ -420,19 +424,27 @@ export function ticketPruebaTipo(tipo, {
     t.texto('Acentos: á é í ó ú ü ñ Ñ ¿? ¡!')
   }
 
-  if (bloque.encabezado) {
-    t.centrado(APP_NAME).negrita().doble().centrado('TICKET DE PRUEBA').doble(false).negrita(false)
-    t.centrado(TIPOS_PRUEBA[tipo] || 'Prueba')
-    // Marca de la corrida comparativa: el mismo texto en las tres impresoras
-    // permite reconocer el papel y cruzar los trabajos con las métricas.
-    if (marca) t.centrado(`Comparativa ${marca}`)
-    t.linea()
-  }
-  // El validador va grande y arriba (y se repite en el pie): si algo cortara la
-  // impresión, el código secreto igual salió en el papel.
-  if (bloque.validacion) {
-    t.negrita().doble().centrado(`VALIDACIÓN ${validador}`).doble(false).negrita(false)
-    t.linea()
+  if (tipo === 'breve') {
+    // Ticket corto (#277): título + validación + fecha/hora opcional. Sin pie
+    // ni códigos: menos papel y más rápido; el corte sigue la plantilla.
+    if (bloque.encabezado) t.negrita().centrado(`Ticket de prueba ${APP_NAME}`).negrita(false)
+    if (bloque.validacion) t.negrita().doble().centrado(`VALIDACIÓN ${validador}`).doble(false).negrita(false)
+    if (bloque.fecha) t.centrado(fecha(ahora))
+  } else {
+    if (bloque.encabezado) {
+      t.centrado(APP_NAME).negrita().doble().centrado('TICKET DE PRUEBA').doble(false).negrita(false)
+      t.centrado(TIPOS_PRUEBA[tipo] || 'Prueba')
+      // Marca de la corrida comparativa: el mismo texto en las tres impresoras
+      // permite reconocer el papel y cruzar los trabajos con las métricas.
+      if (marca) t.centrado(`Comparativa ${marca}`)
+      t.linea()
+    }
+    // El validador va grande y arriba (y se repite en el pie): si algo cortara
+    // la impresión, el código secreto igual salió en el papel.
+    if (bloque.validacion) {
+      t.negrita().doble().centrado(`VALIDACIÓN ${validador}`).doble(false).negrita(false)
+      t.linea()
+    }
   }
 
   if (tipo === 'corta') {
@@ -519,7 +531,8 @@ export function ticketPruebaTipo(tipo, {
     codigos('CORTE')
   }
 
-  pie()
+  // El ticket corto no lleva pie de trazabilidad: es título + validación.
+  if (tipo !== 'breve') pie()
   t.avanza(2)
   // «Sin corte» deja el papel unido al rollo: la plantilla lo permite para
   // probar el avance o imprimir sobre una etiqueta continua.

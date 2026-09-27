@@ -12,6 +12,7 @@ import {
   impresoraDesdeLegacy,
   normalizarCodigoVinculacion,
   normalizarImpresora,
+  normalizarPlantillaPrueba,
   remoteEnabledDeTenant,
   resolverPuenteDeImpresion,
   shapePuente,
@@ -137,6 +138,22 @@ async function main() {
   assert.throws(() => normalizarImpresora({ name: 'X', destination: 'lan:1.2.3.4:9100', density: 0 }), /Densidad/, 'rechaza densidad fuera de rango')
   assert.throws(() => normalizarImpresora({ name: 'x'.repeat(121), destination: 'cups:cola' }), /120/, 'rechaza nombres largos')
   assert.throws(() => normalizarImpresora({ name: 'X', destination: 'lan:1.2.3.4:9100', isActive: 'sí' }), /verdadero o falso/, 'no acepta strings como booleanos')
+
+  // ── Plantilla del ticket de prueba (#277) ────────────────────────────────
+  assert.equal(normalizarPlantillaPrueba(undefined), undefined, 'sin dato no cambia la plantilla')
+  assert.equal(normalizarPlantillaPrueba(null), null, 'null borra la plantilla guardada')
+  assert.deepEqual(
+    normalizarPlantillaPrueba({ tipo: 'breve', ancho: 58, corte: 'parcial', copias: 2, incluye: { validacion: false, basura: 'no', otro: true }, extra: 'se ignora' }),
+    { tipo: 'breve', ancho: 58, corte: 'parcial', copias: 2, incluye: { validacion: false, otro: true } },
+    'acota y filtra la plantilla',
+  )
+  assert.deepEqual(normalizarPlantillaPrueba({}), {}, 'una plantilla vacía es válida')
+  assert.throws(() => normalizarPlantillaPrueba('texto'), /Plantilla/, 'rechaza plantillas que no son objeto')
+  assert.throws(() => normalizarPlantillaPrueba([]), /Plantilla/, 'rechaza listas')
+  assert.throws(() => normalizarPlantillaPrueba({ incluye: 'todos' }), /bloques/, 'rechaza bloques inválidos')
+  assert.throws(() => normalizarPlantillaPrueba({ tipo: '' }), /Tipo/, 'exige tipo no vacío')
+  assert.throws(() => normalizarPlantillaPrueba({ ancho: 55 }), /ancho/, 'solo acepta 58 u 80 mm')
+  assert.throws(() => normalizarPlantillaPrueba({ copias: 9 }), /Copias/, 'rechaza copias fuera de rango')
 
   const desdeLegacy = impresoraDesdeLegacy({ nombre: 'Vieja', marca: 'Epson', destino: 'usb:CAJA', ancho: 58, copias: 2, densidad: 5, predeterminada: true })
   assert.equal(desdeLegacy.name, 'Vieja', 'mapea las claves legacy en español')

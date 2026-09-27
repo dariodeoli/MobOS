@@ -3,7 +3,7 @@ import { requireSession } from '../../../../../lib/auth'
 import { error, json } from '../../../../../lib/http'
 import { prisma } from '../../../../../lib/prisma'
 import { InputError } from '../../../../../lib/payment-input'
-import { normalizarImpresora } from '../../../../../lib/print-bridge'
+import { normalizarImpresora, normalizarPlantillaPrueba } from '../../../../../lib/print-bridge'
 import { cambiosDeImpresora, resumenImpresora } from '../../../../../lib/print-audit'
 
 // Edición de una impresora (solo ADMIN): se valida el estado final, no el
@@ -51,13 +51,20 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     if (!sucursal) return error('La sucursal elegida no existe en la empresa.', 404)
   }
   const lastTest = entrada.lastTest === undefined ? undefined : entrada.lastTest === null ? Prisma.JsonNull : (entrada.lastTest as Prisma.InputJsonValue)
+  let testTemplate: Prisma.InputJsonValue | typeof Prisma.JsonNull | undefined
+  try {
+    const plantilla = normalizarPlantillaPrueba(entrada.testTemplate)
+    testTemplate = plantilla === undefined ? undefined : plantilla === null ? Prisma.JsonNull : (plantilla as Prisma.InputJsonValue)
+  } catch (cause) {
+    return error(cause instanceof InputError ? cause.message : 'Plantilla de prueba inválida.', cause instanceof InputError ? cause.status : 400)
+  }
   try {
     const guardada = await prisma.$transaction(async tx => {
       const anteriorPredeterminada = impresora.isDefault && !actual.isDefault
         ? await tx.printPrinter.findFirst({ where: { tenantId, isDefault: true, id: { not: id } }, select: { id: true, name: true } })
         : null
       if (impresora.isDefault) await tx.printPrinter.updateMany({ where: { tenantId, isDefault: true, id: { not: id } }, data: { isDefault: false } })
-      const actualizada = await tx.printPrinter.update({ where: { id }, data: { ...impresora, ...(lastTest === undefined ? {} : { lastTest }) } })
+      const actualizada = await tx.printPrinter.update({ where: { id }, data: { ...impresora, ...(lastTest === undefined ? {} : { lastTest }), ...(testTemplate === undefined ? {} : { testTemplate }) } })
       // Un solo registro de cambio con el antes/después de cada campo; los
       // eventos puntuales (predeterminada, activa/inactiva) se suman aparte
       // para que el historial se lea sin interpretar el diff.
