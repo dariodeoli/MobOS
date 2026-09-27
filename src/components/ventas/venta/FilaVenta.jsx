@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Badge, ConfirmDialog, Input, MoneyInput, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import PercentField from '@/components/shared/PercentField'
@@ -350,7 +351,7 @@ export default function FilaVenta({
         </div>
       )}
 
-      <ConfirmDialog
+      {createPortal(<ConfirmDialog
         open={confirmarQuitar}
         onCancel={() => setConfirmarQuitar(false)}
         onConfirm={() => {
@@ -361,7 +362,7 @@ export default function FilaVenta({
         description={`${item.nombre} tiene ${motivosQuitar.join(' y ')}: si la quitás, se pierde ese dato.`}
         confirmLabel="Eliminar línea"
         variant="danger"
-      />
+      /> , document.body)}
     </div>
   )
 }
