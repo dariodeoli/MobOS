@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useTemaV2 } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 import { Drawer, Skeleton } from '@/components/ui'
@@ -7,7 +7,6 @@ import PersonaChip from '@/components/shared/PersonaChip'
 import ThemeToggle from '@/components/app/ThemeToggle'
 import PresencePill from '@/components/app/PresencePill'
 import ProductFooter from '@/components/app/ProductFooter'
-import MenuAcciones from '@/components/app/MenuAcciones'
 import PanelNotificaciones from '@/components/app/PanelNotificaciones'
 import ComoFuncionaDemo from '@/components/app/ComoFuncionaDemo'
 import PanelColaOffline from '@/components/ventas/PanelColaOffline'
@@ -207,76 +206,50 @@ function AvisoColaOffline({ texto, corto, urgente, onClick, pastilla = false, te
   )
 }
 
-function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onSwitchUser, onMiCuenta, onLockRequest, collapsed, perfilEmpresa, usuario }) {
-  const clicsRef = useRef([])
-  const clicsTimer = useRef(null)
-  useEffect(() => () => clearTimeout(clicsTimer.current), [])
-
-  function manejarClicUsuario() {
-    const ahora = Date.now()
-    clicsRef.current = clicsRef.current.filter((t) => ahora - t < 800)
-    clicsRef.current.push(ahora)
-    if (clicsRef.current.length >= 3) {
-      clicsRef.current = []
-      clearTimeout(clicsTimer.current)
-      onLockRequest?.()
-      return
-    }
-    clearTimeout(clicsTimer.current)
-    clicsTimer.current = setTimeout(() => {
-      clicsRef.current = []
-      onSwitchUser?.()
-    }, 300)
-  }
-
+function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onMiCuenta, collapsed, perfilEmpresa, usuario }) {
   // La persona de la barra es la de la sesión; el perfil de empresa (identidad
   // del dueño) solo aporta su foto de Google cuando quien opera es el dueño.
+  // #266: el chip va directo a Mi perfil (antes un clic cambiaba de vendedor y
+  // el triple clic bloqueaba); el bloqueo vive en el header y cambiar de
+  // vendedor sigue disponible desde la pantalla bloqueada.
   const nombreUsuario = sesionNombre || perfilEmpresa?.name || 'Usuario'
   const fotoGoogle = esOwner ? perfilEmpresa?.picture : undefined
+  const clases = cn('flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-xl p-1.5 text-left transition', collapsed && 'lg:flex-none lg:justify-center')
+  const identidad = (
+    <PersonaChip
+      user={{ id: usuario?.id, name: nombreUsuario }}
+      picture={fotoGoogle}
+      size="lg"
+      nombre={false}
+      title={nombreUsuario}
+      className={cn('min-w-0 flex-1', collapsed && 'lg:flex-none')}
+    >
+      <span className={cn('flex min-w-0 flex-1 flex-col gap-0.5', collapsed && 'lg:hidden')}>
+        <strong className="truncate text-[13px] font-medium leading-snug text-fore">{nombreUsuario}</strong>
+        <small className="truncate text-[10px] uppercase leading-snug tracking-wider text-mute">
+          {esOwner ? 'Dueño' : roleLabel}
+        </small>
+      </span>
+    </PersonaChip>
+  )
 
   return (
     <div className={cn('border-t border-ink-600 p-2.5 pb-safe', collapsed && 'lg:p-2')}>
-      <div className={cn('mt-2 flex items-center gap-1.5', collapsed && 'lg:mt-1 lg:flex-col')}>
-        <button
-          type="button"
-          onClick={manejarClicUsuario}
-          className={cn(
-            'flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-xl p-1.5 text-left transition hover:bg-fore/5',
-            collapsed && 'lg:flex-none',
-          )}
-          title={nombreUsuario}
-          aria-label={`Cambiar de vendedor (${nombreUsuario})`}
-        >
-          <PersonaChip
-            user={{ id: usuario?.id, name: nombreUsuario }}
-            picture={fotoGoogle}
-            size="lg"
-            nombre={false}
-            title={nombreUsuario}
-            className={cn('min-w-0 flex-1', collapsed && 'lg:flex-none')}
+      <div className={cn('mt-2 min-w-0', collapsed && 'lg:mt-1')}>
+        {onMiCuenta ? (
+          <button
+            type="button"
+            data-testid="shell-perfil"
+            onClick={onMiCuenta}
+            className={cn(clases, 'hover:bg-fore/5')}
+            title={`Mi perfil · ${nombreUsuario}`}
+            aria-label={`Mi perfil de ${nombreUsuario}`}
           >
-            <span className={cn('flex min-w-0 flex-1 flex-col gap-0.5', collapsed && 'lg:hidden')}>
-              <strong className="truncate text-[13px] font-medium leading-snug text-fore">{nombreUsuario}</strong>
-              <small className="truncate text-[10px] uppercase leading-snug tracking-wider text-mute">
-                {esOwner ? 'Dueño' : roleLabel}
-              </small>
-            </span>
-          </PersonaChip>
-          <Icon name="refresh" className={cn('ml-auto h-3 w-3 shrink-0 text-mute', collapsed && 'lg:hidden')} />
-        </button>
-        <button
-          type="button"
-          data-testid="shell-mi-cuenta"
-          onClick={onMiCuenta}
-          title="Mi cuenta"
-          aria-label="Mi cuenta"
-          className={cn(
-            'grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore',
-            collapsed && 'lg:h-9 lg:w-9',
-          )}
-        >
-          <Icon name="user" className="h-4 w-4" />
-        </button>
+            {identidad}
+          </button>
+        ) : (
+          <div className={clases} title={nombreUsuario}>{identidad}</div>
+        )}
       </div>
     </div>
   )
@@ -325,7 +298,6 @@ export default function AppShell({
   sesionNombre,
   esOwner = false,
   usuario,
-  onSwitchUser,
   onMiCuenta,
   onLogout,
   onLockRequest,
@@ -337,7 +309,7 @@ export default function AppShell({
   statsCollapsed,
   perfilEmpresa,
   roleLabel,
-  menuAcciones = false,
+  notificacionesActivas = false,
   onAbrirNotificacion,
 }) {
   const [menuAbierto, setMenuAbierto] = useState(false)
@@ -355,7 +327,7 @@ export default function AppShell({
   const { usuario: usuarioSesion } = useSesion()
   const usuarioActual = usuario || usuarioSesion
   const [preferencias] = usePreferencias(usuarioActual?.id)
-  const notificaciones = useNotificaciones(usuarioActual?.id, { activo: menuAcciones && !esDemo })
+  const notificaciones = useNotificaciones(usuarioActual?.id, { activo: notificacionesActivas && !esDemo })
   const [notificacionesAbiertas, setNotificacionesAbiertas] = useState(false)
   const enLinea = useOnlineStatus()
   // Modo offline del POS (#168): el shell muestra la cola pendiente en el menú
@@ -458,9 +430,7 @@ export default function AppShell({
           sesionNombre={sesionNombre}
           esOwner={esOwner}
           roleLabel={roleLabel}
-          onSwitchUser={onSwitchUser}
           onMiCuenta={onMiCuenta}
-          onLockRequest={onLockRequest}
           collapsed={collapsed}
           perfilEmpresa={perfilEmpresa}
           usuario={usuario}
@@ -502,9 +472,7 @@ export default function AppShell({
             sesionNombre={sesionNombre}
             esOwner={esOwner}
             roleLabel={roleLabel}
-            onSwitchUser={onSwitchUser}
             onMiCuenta={onMiCuenta}
-            onLockRequest={onLockRequest}
             collapsed={false}
             perfilEmpresa={perfilEmpresa}
             usuario={usuario}
@@ -569,28 +537,36 @@ export default function AppShell({
               onClick={() => setColaAbierta(true)}
             />
             {headerActions}
-            {menuAcciones && (
-              <>
-                <button
-                  type="button"
-                  data-testid="notificaciones-aviso"
-                  onClick={() => { setNotificacionesAbiertas(true); notificaciones.marcarVistas() }}
-                  className="relative grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore"
-                  title="Notificaciones"
-                  aria-label={notificaciones.nuevas.length > 0 ? `Notificaciones (${notificaciones.nuevas.length} sin ver)` : 'Notificaciones'}
-                >
-                  <Icon name="bell" className="h-[18px] w-[18px]" />
-                  {preferencias.notificaciones && notificaciones.nuevas.length > 0 && (
-                    <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-bad px-1 text-[9px] font-bold text-white">
-                      {notificaciones.nuevas.length > 9 ? '9+' : notificaciones.nuevas.length}
-                    </span>
-                  )}
-                </button>
-                <MenuAcciones
-                  onNavegar={(id, opciones) => navegar(id, opciones)}
-                  onBloquear={onLockRequest}
-                />
-              </>
+            {notificacionesActivas && (
+              <button
+                type="button"
+                data-testid="notificaciones-aviso"
+                onClick={() => { setNotificacionesAbiertas(true); notificaciones.marcarVistas() }}
+                className="relative grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore"
+                title="Notificaciones"
+                aria-label={notificaciones.nuevas.length > 0 ? `Notificaciones (${notificaciones.nuevas.length} sin ver)` : 'Notificaciones'}
+              >
+                <Icon name="bell" className="h-[18px] w-[18px]" />
+                {preferencias.notificaciones && notificaciones.nuevas.length > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-bad px-1 text-[9px] font-bold text-white">
+                    {notificaciones.nuevas.length > 9 ? '9+' : notificaciones.nuevas.length}
+                  </span>
+                )}
+              </button>
+            )}
+            {/* #266: el bloqueo vive en el header (antes en el menú de tres
+                puntos) y los accesos de uso siguen en el menú principal. */}
+            {onLockRequest && (
+              <button
+                type="button"
+                data-testid="shell-bloquear"
+                onClick={onLockRequest}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore"
+                title="Bloquear pantalla"
+                aria-label="Bloquear pantalla"
+              >
+                <Icon name="lock" className="h-4 w-4" />
+              </button>
             )}
             {/* Tema y acciones secundarias: en el menú lateral con pantallas
                 chicas, en la barra desde sm. */}
@@ -670,7 +646,7 @@ export default function AppShell({
       {/* Detalle de la cola offline del POS, desde el aviso del shell. */}
       {colaAbierta && <PanelColaOffline open onClose={() => setColaAbierta(false)} />}
 
-      {menuAcciones && (
+      {notificacionesActivas && (
         <>
           <PanelNotificaciones
             open={notificacionesAbiertas}

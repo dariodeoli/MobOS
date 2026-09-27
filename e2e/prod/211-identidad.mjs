@@ -68,7 +68,7 @@ async function cerrarGuiaDemo(page) {
 async function entrarDemoDueno(page) {
   await page.goto(`${APP}/demo`)
   await page.getByRole('button', { name: /Entrar como Dueño/i }).click()
-  await page.getByTestId('menu-acciones').waitFor({ timeout: 30_000 })
+  await page.getByTestId('shell-bloquear').waitFor({ timeout: 30_000 })
   await cerrarGuiaDemo(page)
 }
 
@@ -169,8 +169,7 @@ try {
   await paso('pantalla de bloqueo: chip con primer nombre y PIN', async () => {
     // Vuelve a claro de verdad (clase + preferencia) antes de capturar.
     await page.evaluate(() => { try { localStorage.setItem('mobos:theme', 'light') } catch {}; document.documentElement.classList.remove('dark') })
-    await page.getByTestId('menu-acciones').click()
-    await page.getByRole('menuitem', { name: 'Bloquear pantalla' }).click()
+    await page.getByTestId('shell-bloquear').click()
     await page.getByText(/Ingresá tu PIN/).waitFor({ timeout: 15_000 })
     const estado = await estadoIdentidad(page)
     afirmar(estado.chips > 0, 'la pantalla de bloqueo no usa el chip de identidad')
@@ -183,10 +182,9 @@ try {
     await page.evaluate(() => { try { localStorage.setItem('mobos:theme', 'dark') } catch {} })
     await page.reload()
     if (await page.getByText(/Ingresá tu PIN/).count() === 0) {
-      await page.getByTestId('menu-acciones').waitFor({ timeout: 25_000 })
+      await page.getByTestId('shell-bloquear').waitFor({ timeout: 25_000 })
       await cerrarGuiaDemo(page)
-      await page.getByTestId('menu-acciones').click()
-      await page.getByRole('menuitem', { name: 'Bloquear pantalla' }).click()
+      await page.getByTestId('shell-bloquear').click()
       await page.getByText(/Ingresá tu PIN/).waitFor({ timeout: 15_000 })
     }
     const estado = await estadoIdentidad(page)
@@ -197,7 +195,7 @@ try {
 
   await paso('píldora de presencia del topbar', async () => {
     await page.goto(`${APP}/pos/resumen`)
-    await page.getByTestId('menu-acciones').waitFor({ timeout: 25_000 })
+    await page.getByTestId('shell-bloquear').waitFor({ timeout: 25_000 })
     await cerrarGuiaDemo(page)
     const pildora = page.getByRole('group', { name: 'Personas en línea' })
     const visible = await pildora.count()

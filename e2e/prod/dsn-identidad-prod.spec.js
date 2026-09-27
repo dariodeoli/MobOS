@@ -16,7 +16,7 @@ async function cerrarGuiaDemo(page) {
 async function entrarDemoDueno(page) {
   await page.goto(`${APP}/demo`)
   await page.getByRole('button', { name: /Entrar como Dueño/i }).click()
-  await expect(page.getByTestId('menu-acciones')).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByTestId('shell-bloquear')).toBeVisible({ timeout: 30_000 })
   await cerrarGuiaDemo(page)
 }
 
@@ -65,8 +65,7 @@ test('producción: identidad en el pedido (demo) claro/oscuro', async ({ page })
 test('producción: pantalla de bloqueo (demo) claro/oscuro', async ({ page }) => {
   await entrarDemoDueno(page)
   const bloquear = async () => {
-    await page.getByTestId('menu-acciones').click()
-    await page.getByRole('menuitem', { name: 'Bloquear pantalla' }).click()
+    await page.getByTestId('shell-bloquear').click()
     await expect(page.getByText(/Ingresá tu PIN/)).toBeVisible({ timeout: 15_000 })
   }
   await bloquear()
@@ -79,7 +78,7 @@ test('producción: pantalla de bloqueo (demo) claro/oscuro', async ({ page }) =>
   await page.addInitScript(() => { try { localStorage.setItem('mobos:theme', 'dark') } catch {} })
   await page.reload()
   if (await page.getByText(/Ingresá tu PIN/).count() === 0) {
-    await expect(page.getByTestId('menu-acciones')).toBeVisible({ timeout: 25_000 })
+    await expect(page.getByTestId('shell-bloquear')).toBeVisible({ timeout: 25_000 })
     await cerrarGuiaDemo(page)
     await bloquear()
   }

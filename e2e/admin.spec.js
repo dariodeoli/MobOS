@@ -1235,16 +1235,15 @@ test('el menú de tres puntos queda corto y lo destructivo vive en Configuració
   await page.goto('/pos')
   await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
-  await page.getByTestId('menu-acciones').click()
-  const menu = page.getByTestId('menu-acciones-lista')
-  for (const item of ['Configuración', 'Caja', 'Análisis', 'Clientes', 'Bloquear pantalla']) {
-    await expect(menu.getByRole('menuitem', { name: item, exact: true })).toBeVisible()
-  }
-  for (const fuera of ['Eliminar cuenta', 'Cerrar sesión', 'Preferencias', 'Cambiar sucursal']) {
-    await expect(menu.getByRole('menuitem', { name: fuera, exact: true })).toHaveCount(0)
+  // #266: el menú de tres puntos se retiró; el bloqueo vive en el header y los
+  // accesos siguen en el menú principal.
+  await expect(page.getByTestId('menu-acciones')).toHaveCount(0)
+  await expect(page.getByTestId('shell-bloquear')).toBeVisible()
+  const navPrincipal = page.locator('aside nav')
+  for (const item of ['Configuración', 'Clientes', 'Análisis', 'Finanzas']) {
+    await expect(navPrincipal.getByRole('button', { name: item, exact: true }).first()).toBeAttached()
   }
   await page.screenshot({ path: 'test-results/qa-228/02-despues.jpg', type: 'jpeg', quality: 70 })
-  await page.keyboard.press('Escape')
 
   // Preferencias del dispositivo: Configuración → Mi cuenta (sección #IA).
   {
