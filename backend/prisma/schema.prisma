@@ -118,6 +118,8 @@ model Tenant {
   priceLists              PriceList[]
   storeCredits            StoreCredit[]
   storeCreditUses         StoreCreditUse[]
+  giftCards               GiftCard[]
+  giftCardMovements       GiftCardMovement[]
   loyaltyMovements        LoyaltyMovement[]
   inventoryCounts         InventoryCount[]
   inventoryCountLines     InventoryCountLine[]
@@ -853,6 +855,7 @@ model Customer {
   billingIdentities CustomerBillingIdentity[]
   portalTokens      CustomerPortalToken[]
   storeCredits      StoreCredit[]
+  giftCards         GiftCard[]
   loyaltyMovements  LoyaltyMovement[]
   suspendedSales    SuspendedSale[]
   marketingRecipients MarketingRecipient[]
@@ -1328,6 +1331,7 @@ model Order {
   accessTokens OrderAccessToken[]
   storeCredits StoreCredit[]
   storeCreditUses StoreCreditUse[]
+  giftCardMovements GiftCardMovement[]
   loyaltyMovements LoyaltyMovement[]
   sifenDocuments SifenDocument[]
 
@@ -1671,6 +1675,7 @@ model Payment {
   proofs         PaymentProof[]
   reconciliation PaymentReconciliation?
   storeCreditUse StoreCreditUse?
+  giftCardMovement GiftCardMovement?
 
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId])
@@ -1830,6 +1835,70 @@ model StoreCreditUse {
   @@index([tenantId, orderId])
 }
 
+// Gift cards reales (#280): saldo prepago con código. El código crudo se
+// muestra una sola vez al emitirlo y en la base vive solo su sha256
+// (docs/TOKENS.md); el vencimiento se valida con el reloj de Postgres y el canje
+// descuenta saldo de forma atómica, dejando su movimiento para el historial.
+enum GiftCardStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum GiftCardMovementKind {
+  ISSUE
+  REDEEM
+  CANCEL
+}
+
+model GiftCard {
+  id          String         @id @default(cuid())
+  tenantId    String
+  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  codeHash    String
+  // Últimos 4 del código para reconocerla en la lista sin exponerlo entero.
+  codeLast4   String
+  customerId  String?
+  customer    Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  amountPyg   BigInt
+  balancePyg  BigInt
+  status      GiftCardStatus @default(ACTIVE)
+  expiresAt   DateTime?
+  note        String?
+  createdById String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  movements   GiftCardMovement[]
+
+  @@unique([tenantId, codeHash])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, customerId])
+}
+
+model GiftCardMovement {
+  id              String               @id @default(cuid())
+  tenantId        String
+  tenant          Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  giftCardId      String
+  giftCard        GiftCard             @relation(fields: [giftCardId], references: [id], onDelete: Cascade)
+  kind            GiftCardMovementKind
+  amountPyg       BigInt
+  balanceAfterPyg BigInt
+  orderId         String?
+  order           Order?               @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  paymentId       String?              @unique
+  payment         Payment?             @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  // Cobro de la emisión: cuenta donde entró el dinero (si se eligió una), con
+  // su foto inmutable para que Finanzas pueda conciliarlo.
+  accountId       String?
+  accountSnapshot Json?
+  userId          String?
+  note            String?
+  createdAt       DateTime             @default(now())
+
+  @@index([tenantId, giftCardId, createdAt])
+  @@index([tenantId, orderId])
+}
+
 // Fidelización: puntos por venta medidos en guaraníes (1 punto = 1 Gs. de
 // valor canjeable). El saldo vigente es Customer.loyaltyPointsPyg; estos
 // movimientos lo explican (devengo por venta, canje como saldo a favor o
@@ -1905,6 +1974,7 @@ enum PaymentMethod {
   PIX
   CRYPTO
   STORE_CREDIT
+  GIFT_CARD
 }
 
 enum PaymentCurrency {

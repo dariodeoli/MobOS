@@ -53,6 +53,8 @@ import { accountPayment } from '@/utils/pagoCuenta'
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import ColaOffline from './ColaOffline'
 import AnalyticsPos from './AnalyticsPos'
+import GiftCardsPos from './venta/GiftCardsPos'
+import { buscarGiftCardDemo, canjearGiftCardDemo, normalizarCodigoGiftCard } from '@/lib/giftCards'
 import { whatsappTrackingLink } from './PagosPedido'
 import { telefonoValido, MENSAJE_TELEFONO, whatsappUrl } from '@/utils/telefono'
 import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
@@ -360,6 +362,8 @@ export default function FormularioVenta({
   // Aviso de la última venta que quedó en la cola local por falta de conexión.
   const [avisoOffline, setAvisoOffline] = useState('')
   const [avisoEnlaceDemo, setAvisoEnlaceDemo] = useState(null)
+  // Gift cards (#280): emisión/consulta desde el POS y canje dentro del cobro.
+  const [giftCardsOpen, setGiftCardsOpen] = useState(false)
 
   // #275: si el POS se desmonta antes de que dispare la ida automática al
   // detalle, no navegamos en nombre del usuario.
@@ -989,24 +993,50 @@ export default function FormularioVenta({
         throw new Error('Sin conexión no se pueden usar las cuentas de cobro ya cargadas. Recargá el cobro o esperá la conexión.')
       if (!usaCuentas && pagos.some(p => !String(p.monto).trim() || gsNum(p.monto) <= 0))
         throw new Error('Ingresá un monto positivo en cada pago o quitá la fila vacía.')
+      // Gift cards (#280): la fila propia lleva código y monto; el saldo se
+      // valida en el servidor, pero pedimos la consulta previa para no cobrar a
+      // ciegas. Sin conexión no se puede validar el saldo, así que no se canjea.
+      const filasGiftCard = pagos.filter(p => p.giftCardCode !== undefined)
+      if (filasGiftCard.length) {
+        if (sinRed) throw new Error('Sin conexión no se pueden canjear gift cards: la validación del saldo necesita la conexión.')
+        const incompleta = filasGiftCard.find(p => !normalizarCodigoGiftCard(p.giftCardCode) || gsNum(p.monto) <= 0)
+        if (incompleta) throw new Error('Revisá la gift card: el código tiene que ser GC-XXXX-XXXX-XXXX y el monto mayor a cero.')
+        const sinConsultar = filasGiftCard.find(p => !p.giftCard?.id)
+        if (sinConsultar) throw new Error('Consultá el saldo de la gift card antes de cobrar (botón «Consultar saldo»).')
+        const excedida = filasGiftCard.find(p => gsNum(p.monto) > Number(p.giftCard?.balancePyg || 0))
+        if (excedida) throw new Error('El monto de la gift card supera su saldo disponible. Ajustalo o consultá el saldo.')
+      }
+      // Pago de una gift card: el código viaja con el pago y el servidor
+      // descuenta el saldo en la misma transacción de la venta.
+      const pagoGiftCard = p => ({
+        method: 'GIFT_CARD',
+        amountPyg: gsNum(p.monto),
+        status: p.noPagado ? 'PENDING' : 'CONFIRMED',
+        giftCardCode: normalizarCodigoGiftCard(p.giftCardCode) || p.giftCardCode,
+        // El medio legacy de la demo (Caja/conciliación) no cuenta la gift card
+        // como efectivo: el canje no mueve plata.
+        medioPago: 'Gift card',
+      })
       // Forma legacy (sin cuentas de cobro): solo método, monto en ₲ y estado.
       // Los campos de moneda (originalAmount/currency/exchangeRatePyg) se
       // rechazan sin accountId.
       // «No pagado» (#148 §11): el bloque queda PENDING y no cuenta como cobrado.
       payments = usaCuentas
-        ? pagos.map(p => ({ ...accountPayment(p, cuentas), status: p.noPagado ? 'PENDING' : 'CONFIRMED' }))
-        : pagos.map(p => ({
-            method: /efectivo/i.test(p.medioPago)
-              ? 'CASH'
-              : /tarjeta|pos/i.test(p.medioPago)
-                ? 'CARD'
-                : 'TRANSFER',
-            amountPyg: gsNum(p.monto),
-            status: p.noPagado ? 'PENDING' : 'CONFIRMED',
-            ...([p.medioPago, p.cuenta].filter(Boolean).join(' · ').trim()
-              ? { reference: [p.medioPago, p.cuenta].filter(Boolean).join(' · ') }
-              : {}),
-          }))
+        ? pagos.map(p => (p.giftCardCode !== undefined ? pagoGiftCard(p) : { ...accountPayment(p, cuentas), status: p.noPagado ? 'PENDING' : 'CONFIRMED' }))
+        : pagos.map(p => (p.giftCardCode !== undefined
+          ? pagoGiftCard(p)
+          : {
+              method: /efectivo/i.test(p.medioPago)
+                ? 'CASH'
+                : /tarjeta|pos/i.test(p.medioPago)
+                  ? 'CARD'
+                  : 'TRANSFER',
+              amountPyg: gsNum(p.monto),
+              status: p.noPagado ? 'PENDING' : 'CONFIRMED',
+              ...([p.medioPago, p.cuenta].filter(Boolean).join(' · ').trim()
+                ? { reference: [p.medioPago, p.cuenta].filter(Boolean).join(' · ') }
+                : {}),
+            }))
       if (esDemo)
         payments = payments.map(p => {
           const account = cuentas.find(a => a.id === p.accountId)
@@ -1167,6 +1197,14 @@ export default function FormularioVenta({
                 String(c.name || '').toLowerCase() === String(customer.name || '').trim().toLowerCase() &&
                 (!customer.phone || c.phone === customer.phone),
             ) || { ...customer, name: customer.name.trim(), id: crypto.randomUUID() }
+        // Gift cards demo (#280): se valida el saldo antes de crear la venta y
+        // el canje se aplica al store local con la misma forma que el backend.
+        const canjesGiftCard = payments.filter(p => p.method === 'GIFT_CARD')
+        for (const canje of canjesGiftCard) {
+          const tarjeta = buscarGiftCardDemo(canje.giftCardCode)
+          if (tarjeta.status !== 'ACTIVE') throw new Error('La gift card está anulada o vencida.')
+          if (Number(tarjeta.balancePyg) < canje.amountPyg) throw new Error(`La gift card no tiene saldo suficiente (disponible ${gs(Number(tarjeta.balancePyg))}).`)
+        }
         // El número de pedido se toma ANTES de persistir la venta para que cada
         // venta demo lo guarde igual que una orden real (#275): el listado y el
         // detalle del pedido muestran AUR-#0001, no el id interno.
@@ -1203,6 +1241,9 @@ export default function FormularioVenta({
             throw new Error(venta?.error || 'No se recibió confirmación de la venta demo.')
           ventaPersistida = true
           ventas.push(venta)
+        }
+        for (const canje of canjesGiftCard) {
+          canjearGiftCardDemo({ code: canje.giftCardCode, amountPyg: canje.amountPyg, orderId: ventas[0]?.id, orderNumber: numeroPedidoDemo })
         }
         if (!clientesDemo.some(c => c.id === clienteDemo.id))
           guardarClienteDemo(clienteDemo)
@@ -1352,6 +1393,42 @@ export default function FormularioVenta({
           }
         : { ...PAGO_VACIO, monto: prefill.monto ? String(prefill.monto) : pendiente > 0 ? String(pendiente) : '' },
     ])
+  }
+
+  // Gift card (#280): fila de cobro propia. El código se consulta contra el
+  // saldo y el monto se propone con lo que falta pagar (nunca más que el saldo).
+  function agregarGiftCard() {
+    if (!cuentas) return
+    setPagos(arr => [
+      ...arr,
+      { ...PAGO_VACIO, giftCardCode: '', giftCard: null, monto: pendiente > 0 ? '' : '' },
+    ])
+  }
+
+  async function consultarGiftCard(indice) {
+    const fila = pagos[indice]
+    const codigo = normalizarCodigoGiftCard(fila?.giftCardCode || '')
+    if (!codigo) {
+      setErrorVenta('El código de gift card no es válido. Revisalo (GC-XXXX-XXXX-XXXX).')
+      return
+    }
+    setErrorVenta('')
+    setPagos(arr => arr.map((pago, i) => (i === indice ? { ...pago, giftCard: { ...(pago.giftCard || {}), consultando: true } } : pago)))
+    try {
+      const tarjeta = await resources.giftCards.lookup(codigo)
+      const saldo = Number(tarjeta?.balancePyg) || 0
+      setPagos(arr => arr.map((pago, i) => (i === indice
+        ? {
+            ...pago,
+            giftCardCode: codigo,
+            giftCard: tarjeta,
+            monto: String(Math.max(0, Math.min(saldo, pendiente > 0 ? pendiente : saldo) || 0)),
+          }
+        : pago)))
+    } catch (cause) {
+      setPagos(arr => arr.map((pago, i) => (i === indice ? { ...pago, giftCard: null } : pago)))
+      setErrorVenta(cause?.message || 'No se pudo consultar la gift card.')
+    }
   }
 
   // Último usado como predeterminado en la venta (#209): la cuenta de cobro y
@@ -1690,6 +1767,14 @@ export default function FormularioVenta({
           <Button
             type="button"
             variant="outline"
+            onClick={() => setGiftCardsOpen(true)}
+          >
+            <Icon name="card" className="h-4 w-4" />
+            Gift cards
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
             onClick={() => setAnalyticsOpen(true)}
           >
             <Icon name="chart" className="h-4 w-4" />
@@ -1930,6 +2015,8 @@ export default function FormularioVenta({
               pagos={pagos}
               setPagos={setPagos}
               onAgregarPago={agregarPago}
+              onAgregarGiftCard={agregarGiftCard}
+              onConsultarGiftCard={consultarGiftCard}
               guardando={guardando}
               guardadoIncompleto={guardadoIncompleto}
               descuentoMedioPct={descuentoMedioPct}
@@ -2211,6 +2298,12 @@ export default function FormularioVenta({
       />
 
       <AnalyticsPos open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} />
+      <GiftCardsPos
+        open={giftCardsOpen}
+        onClose={() => setGiftCardsOpen(false)}
+        cuentas={cuentas || []}
+        customer={customer}
+      />
 
       {/* Código escaneado: se confirma antes de sumarlo a la venta. */}
       <Modal open={Boolean(escaneado)} onClose={() => setEscaneado(null)} title="Producto escaneado" size="corto">

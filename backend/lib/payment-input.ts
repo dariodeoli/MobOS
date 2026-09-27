@@ -1,5 +1,6 @@
 import { Prisma, type Payment, type PaymentAccount, type PaymentMethod, type PaymentStatus } from '@prisma/client'
 import { LIMITE_MONTO_VENTAS, numero } from './montos'
+import { codigoGiftCardValido } from './gift-card-code'
 
 export const INT_MAX = 2147483647
 export class InputError extends Error {
@@ -27,6 +28,7 @@ type NormalizedPayment = {
   settlesAt?: Date;
   dueAt?: Date;
   tradeIn?: TradeInInput;
+  giftCard?: { code: string };
 }
 export function accountSnapshot(account: PaymentAccount): Prisma.InputJsonObject {
   // Foto inmutable para historial y trazabilidad (#144): incluye procesadora,
@@ -73,7 +75,7 @@ export async function normalizePayment(tx: Prisma.TransactionClient, tenantId: s
   } else {
     if (input.originalAmount !== undefined || input.exchangeRatePyg !== undefined || input.currency !== undefined) throw new InputError('Los campos de moneda requieren accountId.')
     const amountPyg = Number(input.amountPyg)
-    if (!Number.isSafeInteger(amountPyg) || amountPyg <= 0 || amountPyg > LIMITE_MONTO_VENTAS || !['CASH', 'TRANSFER', 'CARD', 'CREDIT', 'TRADE_IN', 'PIX', 'STORE_CREDIT'].includes(input.method as string)) throw new InputError(`El monto debe ser un entero positivo hasta ${LIMITE_MONTO_VENTAS.toLocaleString('es-PY')} y el método tiene que ser válido.`)
+    if (!Number.isSafeInteger(amountPyg) || amountPyg <= 0 || amountPyg > LIMITE_MONTO_VENTAS || !['CASH', 'TRANSFER', 'CARD', 'CREDIT', 'TRADE_IN', 'PIX', 'STORE_CREDIT', 'GIFT_CARD'].includes(input.method as string)) throw new InputError(`El monto debe ser un entero positivo hasta ${LIMITE_MONTO_VENTAS.toLocaleString('es-PY')} y el método tiene que ser válido.`)
     result = { amountPyg, method: input.method as PaymentMethod, status: status as PaymentStatus, reference }
   }
   // Previsión de acreditación: medios con settlementDays (tarjeta, PIX) tienen
@@ -87,6 +89,15 @@ export async function normalizePayment(tx: Prisma.TransactionClient, tenantId: s
     const device = objectInput(input.tradeIn)
     result.tradeIn = { serial: textInput(device.serial, 'serial', 100).toUpperCase(), model: textInput(device.model, 'model', 200), conditionNotes: textInput(device.conditionNotes, 'conditionNotes') }
   } else if (input.tradeIn !== undefined && input.tradeIn !== null) throw new InputError('tradeIn solo corresponde al método TRADE_IN.')
+  // Gift card (#280): el canje viaja con el código y el monto aplicado; el saldo
+  // se descuenta en la misma transacción del cobro (consumirGiftCard).
+  if (result.method === 'GIFT_CARD') {
+    if (result.status !== 'CONFIRMED') throw new InputError('El canje de una gift card requiere pago CONFIRMED.')
+    const codigo = codigoGiftCardValido(input.giftCardCode)
+    if (!codigo) throw new InputError('El código de gift card no es válido.')
+    result.reference = result.reference || `GC ••${codigo.slice(-4)}`
+    result.giftCard = { code: codigo }
+  } else if (input.giftCardCode !== undefined && input.giftCardCode !== null && input.giftCardCode !== '') throw new InputError('giftCardCode solo corresponde al método GIFT_CARD.')
   // Vencimiento de una cuota a crédito pendiente: es la fecha que usan los
   // recordatorios (email y WhatsApp) y el control de mora.
   const rawDueAt = input.dueAt

@@ -3,6 +3,7 @@ import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { canAccessAny, requireSession } from '../../../lib/auth'
 import { InputError, matchesPayment, normalizePayment, objectInput, receiveTradeIn, textInput } from '../../../lib/payment-input'
+import { consumirGiftCard } from '../../../lib/gift-cards'
 import { enforceRateLimit } from '../../../lib/rate-limit'
 import { LIMITE_MONTO_VENTAS, numero } from '../../../lib/montos'
 class PaymentScopeError extends Error {
@@ -77,7 +78,7 @@ export async function POST(request: Request) {
         }
       }
       if (order.status === 'CANCELLED' || order.status === 'COMPLETED') throw new Error('La venta no admite nuevos pagos.')
-      const { tradeIn, ...normalized } = await normalizePayment(tx, tenant, body)
+      const { tradeIn, giftCard, ...normalized } = await normalizePayment(tx, tenant, body)
       const amount = normalized.amountPyg; const status = normalized.status
       // Cobro de una cuota del plan de crédito: se salda la cuota misma (mismo
       // movimiento), se confirma con el medio real del cobro, se cierra el
@@ -100,6 +101,7 @@ export async function POST(request: Request) {
         const payment = await tx.payment.update({ where: { id: cuota.id }, data: { ...normalized, reference: normalized.reference ?? cuota.reference, idempotencyKey, userId: session.user.id, createdById: session.user.id, paidAt: new Date() } })
         await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
         await consumeStoreCredit(tx, { tenantId: tenant, customerId: order.customerId, orderId: order.id, paymentId: payment.id, userId: session.user.id, amountPyg: payment.amountPyg, method: normalized.method })
+        if (giftCard) await consumirGiftCard(tx, { tenantId: tenant, userId: session.user.id, orderId: order.id, paymentId: payment.id, code: giftCard.code, amountPyg: payment.amountPyg })
         if (yaCobrado + amount >= totalVenta) await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'CREDIT_INSTALLMENT_PAID', entity: 'Payment', entityId: payment.id, metadata: { orderId: order.id, orderNumber: order.orderNumber, amountPyg: numero(payment.amountPyg), method: payment.method, dueAt: cuota.dueAt, installment: true } } })
         return payment
@@ -111,6 +113,7 @@ export async function POST(request: Request) {
       const payment = await tx.payment.create({ data: { ...normalized, tenantId: tenant, orderId: order.id, idempotencyKey, createdById: session.user.id, userId: session.user.id } })
       await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
       await consumeStoreCredit(tx, { tenantId: tenant, customerId: order.customerId, orderId: order.id, paymentId: payment.id, userId: session.user.id, amountPyg: payment.amountPyg, method: normalized.method })
+      if (giftCard) await consumirGiftCard(tx, { tenantId: tenant, userId: session.user.id, orderId: order.id, paymentId: payment.id, code: giftCard.code, amountPyg: payment.amountPyg })
       if (status === 'CONFIRMED' && confirmed + amount === totalVenta) await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } })
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PAYMENT_RECORDED', entity: 'Payment', entityId: payment.id, metadata: { orderId: order.id, orderNumber: order.orderNumber, amountPyg: amount, status: normalized.status, method: normalized.method } } })
       return payment
