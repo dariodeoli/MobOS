@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Button, EmptyState, Skeleton } from '@/components/ui'
 import SearchField from '@/components/shared/SearchField'
+import BarraModulo from '@/components/shared/BarraModulo'
 import SegmentedField from '@/components/shared/SegmentedField'
 import { ESTADOS_SERVICIO, ESTADO_SERVICIO_LABEL, SIGUIENTE_SERVICIO } from '@/lib/estadosServicio'
 import { ESTADO_GARANTIA, SIGUIENTE_GARANTIA } from '@/lib/estadosPedido'
@@ -44,18 +45,18 @@ export default function TableroServicioGarantias({ filas, error, onReintentar, o
 
   return (
     <div className="space-y-3" data-testid="servicio-garantias-tablero">
+      {/* Composición compacta (#256): barra de módulo con el contexto del tablero. */}
+      <BarraModulo
+        titulo="Tablero"
+        descripcion={esServicio ? 'Cada orden en su etapa del taller; avanzá desde la tarjeta sin salir del tablero.' : 'Cada garantía en su etapa; avanzá desde la tarjeta sin salir del tablero.'}
+        testId="barra-tablero"
+        contexto={<SegmentedField value={tipo} onChange={setTipo} ariaLabel="Ver el tablero de órdenes o de garantías" options={TIPOS} />}
+      />
       <div className="flex flex-wrap items-center gap-2">
-        <SegmentedField value={tipo} onChange={setTipo} ariaLabel="Ver el tablero de órdenes o de garantías" options={TIPOS} />
         <div className="min-w-[12rem] flex-1">
           <SearchField ariaLabel="Buscar en el tablero" placeholder="Cliente, equipo o IMEI" value={busqueda} onChange={(event) => setBusqueda(event.target.value)} />
         </div>
       </div>
-
-      <p className="text-sm text-mute">
-        {esServicio
-          ? 'Cada orden en su etapa del taller; avanzá desde la tarjeta sin salir del tablero.'
-          : 'Cada garantía en su etapa; avanzá desde la tarjeta sin salir del tablero.'}
-      </p>
 
       {filas === null && (
         <div className="space-y-2" aria-busy="true">

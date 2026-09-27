@@ -18,6 +18,8 @@ import { configImpresora } from '@/lib/printing/agent'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { ticketProforma } from '@/lib/printing/tickets'
 import { cn } from '@/lib/utils'
+import { fechaDia } from '@/utils/fecha'
+import FichaClienteModal from '@/components/customers/FichaClienteModal'
 import { resources } from '@/lib/api'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { internationalPhone, whatsappUrl } from '@/utils/telefono'
@@ -97,6 +99,8 @@ export default function SellerQuotes() {
   const [correoEnviado, setCorreoEnviado] = useState(false)
   const [form, setForm] = useState({ customerName: '', customerId: '', validUntil: '', notes: '', discountPyg: '' })
   const [clientes, setClientes] = useState([])
+  // Alta rápida del cliente sin salir de la cotización (#260).
+  const [fichaAbierta, setFichaAbierta] = useState(false)
   const clienteTimer = useRef(null)
   const [items, setItems] = useState([emptyItem()])
 
@@ -339,9 +343,30 @@ export default function SellerQuotes() {
         <div className={GRILLA_DOS_COLUMNAS}>
           <label className="block space-y-1.5 text-xs text-mute">Cliente
             <div className="relative">
-              <Input required maxLength={200} autoComplete="off" value={form.customerName} onChange={event => buscarCliente(event.target.value)} placeholder="Nombre o empresa" />
-              {form.customerId && <span className="mt-1 block text-[11px] text-fono-light">Cliente de la ficha: la cotización queda ligada a su perfil.</span>}
-              {!form.customerId && clientes.length > 0 && <ul className="absolute z-10 mt-1 max-h-44 w-full overflow-auto rounded-xl border border-ink-500 bg-ink-800 shadow-xl">{clientes.slice(0, 6).map(cliente => <li key={cliente.id}><button type="button" className="flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-ink-700" onClick={() => { setForm(current => ({ ...current, customerId: cliente.id, customerName: cliente.name })); setClientes([]) }}><span className="min-w-0 truncate font-medium text-fore">{cliente.name}</span><span className="shrink-0 text-xs text-mute">{[cliente.phone ? `+${internationalPhone(cliente.phone, cliente.countryCode)}` : '', cliente.document ? `CI/RUC ${cliente.document}` : ''].filter(Boolean).join(' · ')}</span></button></li>)}</ul>}
+              <Input required maxLength={200} autoComplete="off" value={form.customerName} onChange={event => buscarCliente(event.target.value)} placeholder="Buscar por nombre, teléfono, CI/RUC o correo" />
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
+                {/* Consumidor final (#260): cotización sin ficha, sin inventar datos. */}
+                <button type="button" data-testid="cotizacion-consumidor-final" className="rounded-lg border border-ink-500 px-2 py-0.5 font-semibold text-mute transition hover:border-fono hover:text-fore" onClick={() => { setForm(current => ({ ...current, customerName: 'Consumidor final', customerId: '' })); setClientes([]) }}>Consumidor final</button>
+                {form.customerId ? <span className="text-fono-light">Cliente de la ficha: la cotización queda ligada a su perfil.</span> : <span className="text-mute">Sin ficha: se guarda solo el nombre.</span>}
+              </div>
+              {!form.customerId && form.customerName.trim().length >= 2 && (
+                <ul className="absolute z-10 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-ink-500 bg-ink-800 shadow-xl" data-testid="cotizacion-clientes">
+                  {clientes.slice(0, 6).map(cliente => (
+                    <li key={cliente.id}>
+                      <button type="button" className="flex w-full items-baseline justify-between gap-3 overflow-hidden px-3 py-2 text-left text-sm transition hover:bg-ink-700" onClick={() => { setForm(current => ({ ...current, customerId: cliente.id, customerName: cliente.name })); setClientes([]) }}>
+                        <span className="min-w-0 flex-1 truncate font-medium text-fore">{cliente.name}</span>
+                        <span className="max-w-[60%] shrink-0 truncate text-xs text-mute">{[cliente.phone ? `+${internationalPhone(cliente.phone, cliente.countryCode)}` : '', cliente.document ? `CI/RUC ${cliente.document}` : '', cliente.stats?.lastOrderAt ? `última compra ${fechaDia(cliente.stats.lastOrderAt)}` : ''].filter(Boolean).join(' · ')}</span>
+                      </button>
+                    </li>
+                  ))}
+                  {/* Alta rápida: mismo buscador/formulario del POS (#260). */}
+                  <li>
+                    <button type="button" data-testid="cotizacion-crear-ficha" className="flex w-full items-center gap-2 border-t border-ink-600 px-3 py-2 text-left text-sm font-semibold text-fono-light transition hover:bg-ink-700" onClick={() => setFichaAbierta(true)}>
+                      <Icon name="plus" className="h-3.5 w-3.5" />Crear ficha «{form.customerName.trim()}»
+                    </button>
+                  </li>
+                </ul>
+              )}
             </div>
           </label>
           <label className="block space-y-1.5 text-xs text-mute">Válida hasta<Input type="date" value={form.validUntil} onChange={event => setForm(current => ({ ...current, validUntil: event.target.value }))} /></label>
@@ -368,6 +393,12 @@ export default function SellerQuotes() {
         <div className={PIE_ACCIONES}><Button type="button" variant="ghost" disabled={busy} onClick={() => setCrearOpen(false)}>Cancelar</Button><Button type="submit" disabled={busy || !form.customerName.trim() || !itemsValidos.length}>{busy ? 'Guardando…' : 'Crear cotización'}</Button></div>
       </form>
     </Modal>
+    <FichaClienteModal
+      open={fichaAbierta}
+      nombreInicial={form.customerName.trim()}
+      onClose={() => setFichaAbierta(false)}
+      onCreada={(ficha) => { setFichaAbierta(false); setForm(current => ({ ...current, customerId: ficha.id, customerName: ficha.name })); setClientes([]) }}
+    />
     <Modal open={historial !== null} onClose={() => setHistorial(null)} title={`Historial de ${historial?.number || 'cotización'}`}>
       {historial && <Cronologia endpoint={`/api/quotes/${historial.id}/history`} active={historial !== null} vacio="Sin actividad" descripcionVacio="Los cambios de estado, la conversión en pedido y las notas de esta cotización aparecerán acá." />}
     </Modal>

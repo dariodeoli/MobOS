@@ -460,7 +460,7 @@ await paso('Mi cuenta/perfil desde el avatar (#253)', async () => {
   // La coordinación de #253 pedía `/mi-perfil` (PLT); la integración que salió
   // en v1.0.175 conservó `/mi-cuenta` (CRM). El paso acepta las dos entradas y
   // registra cuál usa la versión desplegada.
-  const entradaPerfil = page.getByTestId('shell-mi-perfil').or(page.getByTestId('shell-mi-cuenta')).first()
+  const entradaPerfil = page.getByTestId('shell-mi-perfil').or(page.getByTestId('shell-mi-cuenta')).or(page.getByTestId('shell-perfil')).first()
   await entradaPerfil.waitFor({ timeout: 20000 })
   const testid = (await entradaPerfil.getAttribute('data-testid')) || 'desconocido'
   await entradaPerfil.click()

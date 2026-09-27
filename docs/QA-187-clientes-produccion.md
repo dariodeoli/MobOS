@@ -1,6 +1,23 @@
 # QA #187 — Clientes completo en PRODUCCIÓN
 
-## Corrida vigente — v1.0.186 (26/09/2026)
+## Corrida vigente — v1.0.190 (27/09/2026)
+
+`node e2e/prod/187-clientes.mjs` contra la versión publicada: **22/22 pasos OK ·
+28 capturas** · demo **0 llamadas al API** · públicos con token inválido 404
+genéricos · rate limit activo. Evidencia:
+`docs/QA-187-clientes-produccion-v190/`.
+
+- **Ajuste del verificador**: el header nuevo (#266) mueve la entrada a
+  **`shell-perfil` → `/configuracion/mi-cuenta`**; el paso de Mi cuenta ahora
+  acepta ese chip además de los históricos `shell-mi-perfil`/`shell-mi-cuenta`.
+  Sin ese ajuste la corrida daba 21/22 (falso rojo por selector viejo).
+- **Hallazgo abierto (no bloquea):** el perfil personal vive en
+  `/configuracion/mi-cuenta` (la coordinación pedía `/mi-perfil`); funciona
+  igual, pendiente de unificar.
+- **Limitación conocida:** la nota pública de la demo se edita, pero su guardado
+  y su render en el portal requieren cuenta real.
+
+## Corrida anterior — v1.0.186 (26/09/2026)
 
 `node e2e/prod/187-clientes.mjs` contra la versión publicada: **22/22 pasos OK ·
 28 capturas** · demo **0 llamadas al API** · públicos con token inválido 404
