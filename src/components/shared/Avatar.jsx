@@ -15,55 +15,65 @@ const TAMANOS = {
 // (picture) y, si no, las iniciales en un círculo. Todos los lugares que
 // muestran personas usan este componente.
 //
-// #271: al cambiar o quitar la foto, `userAvatar` invalida la caché y avisa a
-// todos los avatares montados; acá se limpia la foto y se muestra un
-// **placeholder neutro** (iniciales) hasta que resuelve la nueva, sin pintar la
-// anterior en ningún lugar de la app.
+// #271: mientras la foto local resuelve **no se pinta nada anterior** —ni la
+// del usuario anterior, ni la de Google—: queda el placeholder neutro de
+// iniciales y, cuando llega, aparece la foto correcta (sin flash). La foto se
+// guarda **por usuario** (`local.id`), así un cambio de `user` no reusa la
+// anterior, y cada `<img>` va con `key`/capa de carga para que el navegador no
+// mantenga la imagen vieja mientras carga la nueva. `userAvatar` invalida la
+// caché al cambiar o quitar la foto y avisa a los avatares montados.
 export default function Avatar({ user, hasAvatar, picture, size = 'md', className = '', title }) {
   const nombre = user?.name || 'Equipo'
+  const id = user?.id || ''
   const puedeTenerFoto = hasAvatar ?? user?.hasAvatar !== false
-  const [foto, setFoto] = useState('')
-  const [neutro, setNeutro] = useState(false)
+  const [local, setLocal] = useState({ id: '', url: '', listo: false })
   const [revision, setRevision] = useState(0)
-  // La foto de Google puede caer (la URL caduca): si falla, se cae a iniciales
-  // en vez de dejar una imagen rota (#164).
-  const [googleRota, setGoogleRota] = useState(false)
+  const [cargada, setCargada] = useState('')
+  const [rota, setRota] = useState('')
 
-  // Cambio o quita de foto en cualquier parte: se recarga y, mientras tanto, el
-  // avatar queda en el placeholder neutro (no la foto anterior).
+  // Cambio o quita de foto en cualquier parte: se recarga (nunca la anterior).
   useEffect(() => suscribirAvatar((cambiado) => {
-    if (cambiado && user?.id && cambiado !== user.id) return
-    setNeutro(true)
+    if (cambiado && id && cambiado !== id) return
     setRevision((valor) => valor + 1)
-  }), [user?.id])
+  }), [id])
 
   useEffect(() => {
     let vigente = true
-    setFoto('')
-    if (puedeTenerFoto && user?.id) {
-      getAvatarDataUrl(user.id).then((url) => {
-        if (!vigente) return
-        setFoto(url || '')
-        setNeutro(false)
-      })
-    } else {
-      setNeutro(false)
+    if (!puedeTenerFoto || !id) {
+      setLocal({ id, url: '', listo: true })
+      return () => { vigente = false }
     }
+    // Se limpia antes de pedir: mientras resuelve queda el placeholder neutro.
+    setLocal({ id, url: '', listo: false })
+    getAvatarDataUrl(id).then((url) => { if (vigente) setLocal({ id, url: url || '', listo: true }) })
     return () => { vigente = false }
-  }, [puedeTenerFoto, user?.id, revision])
+  }, [puedeTenerFoto, id, revision])
 
-  useEffect(() => { setGoogleRota(false) }, [picture])
-
+  const localDeEste = local.id === id ? local : { id, url: '', listo: false }
+  const esperando = puedeTenerFoto && Boolean(id) && !localDeEste.listo
+  const enlace = esperando ? '' : (localDeEste.url || (picture && picture !== rota ? picture : ''))
   const clases = TAMANOS[size] || TAMANOS.md
   const etiqueta = title ?? nombre
-  if (neutro) {
-    return <span title={etiqueta} className={`${clases} grid shrink-0 place-items-center rounded-full border border-ink-600 bg-ink-700 font-semibold text-mute ${className}`}>{inicialesDe(nombre)}</span>
-  }
-  if (foto) {
-    return <img src={foto} alt={`Foto de ${nombre}`} loading="lazy" title={etiqueta} className={`${clases} shrink-0 rounded-full border border-ink-600 object-cover ${className}`} />
-  }
-  if (picture && !googleRota) {
-    return <img src={picture} alt={`Foto de ${nombre}`} loading="lazy" title={etiqueta} referrerPolicy="no-referrer" onError={() => setGoogleRota(true)} className={`${clases} shrink-0 rounded-full border border-ink-600 object-cover ${className}`} />
-  }
-  return <span title={etiqueta} className={`${clases} grid shrink-0 place-items-center rounded-full border border-ink-600 bg-ink-700 font-semibold text-mute ${className}`}>{inicialesDe(nombre)}</span>
+  const visible = Boolean(enlace) && cargada === enlace
+
+  return (
+    <span
+      title={etiqueta}
+      className={`${clases} relative grid shrink-0 place-items-center overflow-hidden rounded-full border border-ink-600 bg-ink-700 font-semibold text-mute ${className}`}
+    >
+      {visible ? null : <span aria-hidden="true">{inicialesDe(nombre)}</span>}
+      {enlace ? (
+        <img
+          key={enlace}
+          src={enlace}
+          alt={`Foto de ${nombre}`}
+          loading="lazy"
+          referrerPolicy={enlace.startsWith('data:') ? undefined : 'no-referrer'}
+          onLoad={() => setCargada(enlace)}
+          onError={() => setRota(enlace)}
+          className="absolute inset-0 h-full w-full rounded-full object-cover"
+        />
+      ) : null}
+    </span>
+  )
 }

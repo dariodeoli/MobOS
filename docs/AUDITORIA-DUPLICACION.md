@@ -304,6 +304,20 @@ Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
 `BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
 `test:e2e:smoke`; biblioteca `owncoding-ui` build + 343 tests.
 
+### Fix #271 (2ª vuelta) — el Avatar compartido y el flash del bloqueo (27-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `Avatar` (biblioteca, **v0.48.2**) | Al cambiar `src` (otra persona, otra versión de la foto) el navegador **mantenía la imagen anterior** en el mismo `<img>` hasta que cargaba la nueva: ese es el flash que Dario veía al recargar el bloqueo | El objeto monta un nodo nuevo (`key` por URL) y, hasta que la nueva carga, queda el **placeholder neutro de iniciales**; si falla, cae a iniciales y avisa por `onError`. Tests de navegador (`test/avatar-carga.test.jsx`) |
+| `Avatar` (app) | Mientras la foto subida resolvía pintaba `picture` de Google (la identidad guardada en el espejo local) y, si el usuario cambiaba, podía quedar un frame con la foto del anterior | Estado **por usuario** (`local.id`): al cambiar de persona no reusa nada; mientras resuelve (o hasta saber que no hay foto) muestra **solo iniciales** —nunca Google ni la anterior—; cada `<img>` va con `key`/capa de carga. Regla en `docs/AVATAR.md` §2 |
+| Componentes de los lotes | Revisión de caché/estaleness en los objetos publicados (Inventario, Finanzas, Config, selector de cobro) | Sin caches de módulo: guarda nueva en la biblioteca (`test/sin-cache.test.js`) que falla si un componente guarda datos fuera de sus props. El único caso de imagen vieja era `Avatar` (corregido); `SelectorCuentaCobro`, `NavegacionSeccion`, `TileEquipo`/`MedidorStock`, `Stat`/`ImporteDelta`/`GraficoBarras` y `TarjetaCuentaCobro` son puros. Nota: `tenantLogo` (DSN) tiene el mismo patrón caché+`olvidarLogo` sin aviso a los montados; sus consumidores piden al abrir |
+| Guardas | — | e2e en `qa-253-mi-cuenta.spec.js`: se deja una foto de Google **vieja** en el espejo local, se bloquea y se recarga: el registro de cada avatar pintado no puede contener la vieja (ni fotos externas) y tiene que terminar en la foto actual; captura `docs/qa/271-avatar/09-271-bloqueo-recarga.png` |
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test` (824), `test:unit` del backend
+(114), `db:check`, `test:e2e:smoke` (19) y el spec de `qa-253-mi-cuenta`
+(6, con el bloqueo recargado); biblioteca `owncoding-ui` build + **350 tests**.
+
 ### Fix #271 — la foto de perfil se invalida en toda la app (27-09)
 
 | Objeto | Antes (evidencia) | Después |
