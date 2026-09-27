@@ -11,6 +11,10 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.194 — 2026-09-27
+- **POS (#275):** al confirmar la venta (**completa, parcial o a crédito**) la app **va sola al detalle del pedido**, con la animación de confirmación y el número; desde el detalle se **vuelve al POS** con el carrito vacío. También en la **demo**.
+- **Compras/Inventario (#259):** el **buscador de proveedores** de la recepción mantiene los **últimos usados visibles** al reabrir y filtra por **abreviatura o nombre**.
+
 ## v1.0.193 — 2026-09-27
 - **Calidad:** cierre del **dominio Clientes (#187)** en producción v1.0.192: **22/22 marcadores** con capturas (clientes, ficha, portal y móvil).
 - **Calidad:** auditoría de cierre de **#256 (secundarias)**: **6/7 con barra compacta** en producción más el cotizador Trade-In; **faltantes auditados y derivados** (abastecimiento → Inventario).
