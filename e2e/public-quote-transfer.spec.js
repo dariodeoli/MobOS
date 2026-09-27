@@ -97,6 +97,58 @@ test('la cotización se descarga como PDF para compartir', async ({ page }) => {
   }
 })
 
+// #261: envío por WhatsApp (mensaje profesional + PDF adjunto, con wa.me como
+// respaldo cuando el navegador no comparte archivos) y la cotización queda
+// marcada como enviada (SENT).
+test('la cotización se envía por WhatsApp con el PDF y queda enviada', async ({ page }) => {
+  const marca = Date.now()
+  await page.goto('/resumen')
+  const cliente = await api(page, '/api/customers', {
+    method: 'POST',
+    body: JSON.stringify({ firstName: 'WA', secondName: `QA ${marca}`, phone: `0981${String(marca).slice(-6)}`, countryCode: '+595' }),
+  })
+  expect([200, 201], JSON.stringify(cliente.body)).toContain(cliente.status)
+  const creada = await api(page, '/api/quotes', {
+    method: 'POST',
+    body: JSON.stringify({ customerId: cliente.body.id, customerName: cliente.body.name || `WA QA ${marca}`, items: [{ description: 'Equipo WhatsApp', quantity: 1, unitPricePyg: 250000 }] }),
+  })
+  expect(creada.status).toBe(201)
+
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'canShare', { value: () => false, configurable: true })
+    Object.defineProperty(navigator, 'share', { value: undefined, configurable: true })
+    window.__wa = []
+    window.open = (url) => { window.__wa.push(String(url)); return null }
+  })
+
+  await page.goto('/cotizaciones')
+  const fila = page.getByTestId('cotizacion-fila').filter({ hasText: creada.body.number }).first()
+  await fila.getByRole('button', { name: 'Enlace/QR' }).click()
+  const modal = page.getByRole('dialog', { name: `Enlace de ${creada.body.number}` })
+
+  const [descarga] = await Promise.all([
+    page.waitForEvent('download'),
+    modal.getByTestId('cotizacion-whatsapp').click(),
+  ])
+  expect(descarga.suggestedFilename()).toMatch(/^cotizacion-.*\.pdf$/)
+  const pdf = readFileSync(await descarga.path())
+  expect(pdf.subarray(0, 5).toString('latin1')).toBe('%PDF-')
+
+  // Sin Web Share cae al respaldo: PDF descargado + wa.me con el mensaje.
+  const abierto = await page.evaluate(() => window.__wa || [])
+  expect(abierto.length).toBe(1)
+  expect(abierto[0]).toContain('https://wa.me/595981')
+  const mensaje = decodeURIComponent(abierto[0])
+  expect(mensaje).toContain('te comparto la cotización')
+  expect(mensaje).toContain('/cotizacion/')
+
+  // El estado quedó en SENT (enviada).
+  const lista = await api(page, '/api/quotes')
+  const filas = Array.isArray(lista.body) ? lista.body : lista.body?.quotes || lista.body?.rows || []
+  const cotizacion = filas.find((fila) => fila.number === creada.body.number)
+  expect(cotizacion?.status).toBe('SENT')
+})
+
 test('el remito público confirma la recepción y suma el stock de destino', async ({ page }) => {
   await page.goto('/resumen')
   const marca = Date.now()

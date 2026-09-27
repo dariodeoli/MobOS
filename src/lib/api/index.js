@@ -10,7 +10,7 @@ export { ApiError, isApiError } from './errors'
 export { clearAccessToken, clearCompanyToken, clearSession, getAccessToken, getCompanyContext, getCompanyToken, setAccessToken, setCompanyToken, sessionApi } from './session'
 
 export const resources = {
-  customers: { list: (q = '') => api.get(`/api/customers?q=${encodeURIComponent(q)}`), create: data => api.post('/api/customers', data), update: (id, data) => api.patch(`/api/customers/${encodeURIComponent(id)}`, data) },, duplicates: (params = { }
+  customers: { list: (q = '') => api.get(`/api/customers?q=${encodeURIComponent(q)}`), create: data => api.post('/api/customers', data), update: (id, data) => api.patch(`/api/customers/${encodeURIComponent(id)}`, data), duplicates: (params = {}) => api.get(`/api/customers/duplicates?${new URLSearchParams(Object.entries(params).filter(([, valor]) => valor))}`), mergePreview: (id, withId) => api.get(`/api/customers/${encodeURIComponent(id)}/merge?with=${encodeURIComponent(withId)}`), merge: (id, data) => api.post(`/api/customers/${encodeURIComponent(id)}/merge`, data) },
   products: { list: (q = '') => api.get(`/api/products?q=${encodeURIComponent(q)}`), create: data => api.post('/api/products', data) },
   stock: { list: demo(() => api.get('/api/stock'), () => demoStockAlerts(getProductos())), adjust: demo(data => api.patch('/api/stock', data), () => ({})) },
   inventoryBranches: { list: demo(() => api.get('/api/inventory-branches'), () => listDemoBranches()) },
@@ -46,8 +46,8 @@ export const resources = {
       return api.get(`/api/supply/purchases${query.toString() ? `?${query}` : ''}`, { cacheMs: 0 })
     },
     update: data => api.patch('/api/supply/purchases', data),
-    // F3: etiquetas de la preparación (una por unidad comprada).
-    labels: id => api.get(`/api/supply/purchases/${encodeURIComponent(id)}/labels`),
+    // F3 (#250 §11): etiquetas de la preparación (una por unidad comprada).
+    labels: id => api.get(`/api/supply/purchases/${encodeURIComponent(id)}/labels`, { cacheMs: 0 }),
   },
   // F5 (#250 §11): llegadas pendientes y recepción contra el manifiesto.
   supplyReceptions: {

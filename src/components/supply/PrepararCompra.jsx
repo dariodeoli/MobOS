@@ -6,6 +6,12 @@ import CameraScan from '@/components/shared/CameraScan'
 import EtiquetasPreparacion from '@/components/supply/EtiquetasPreparacion'
 import Icon from '@/components/shared/Icon'
 import { analizarSerial, textoMotivo, validarLote } from '@/lib/escanerSeriales'
+import { printHtml } from '@/utils/printHtml'
+import { configImpresora } from '@/lib/printing/agent'
+import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
+import { ticketEtiquetasLote } from '@/lib/printing/tickets'
+import { buildEtiquetasLoteHtml } from '@/components/shared/OrderReceipt'
+import { etiquetaPorSerial } from '@/lib/printing/etiquetaLote'
 
 // Abastecimiento · F3 (#250 §7): preparación de la compra.
 // Lista las compras con IMEI por completar y permite cargarlos escaneando de a
@@ -28,6 +34,8 @@ export default function PrepararCompra() {
   const [aviso, setAviso] = useState('')
   const [etiquetasDe, setEtiquetasDe] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [etiquetasBusy, setEtiquetasBusy] = useState('')
+  const [ultimoSerial, setUltimoSerial] = useState('')
 
   const cargar = useCallback(async () => {
     if (esDemo) return
@@ -54,6 +62,39 @@ export default function PrepararCompra() {
   }, [esDemo])
 
   useEffect(() => { cargar() }, [cargar])
+
+  // F3 (#250 §11): las etiquetas de la preparación (una por unidad comprada,
+  // `PRODUCTO n de N`, IMEI o pendiente y el lote cuando la compra lo tiene).
+  // Salen por el agente/puente y, si el fallo es claro, por el diálogo.
+  async function imprimirEtiquetas(compra, { serial = '' } = {}) {
+    if (!compra || etiquetasBusy) return
+    setEtiquetasBusy(compra.id)
+    try {
+      const datos = await resources.supplyPurchases.labels(compra.id)
+      const todas = datos?.etiquetas || []
+      // Sin serial sale la tira completa; con serial, solo esa unidad (reimpresión).
+      const etiquetas = serial ? [etiquetaPorSerial(todas, serial)].filter(Boolean) : todas
+      if (!etiquetas.length) {
+        toast.error('Sin etiquetas', serial ? 'No se encontró la etiqueta de esa unidad.' : 'La compra no tiene unidades para etiquetar.')
+        return
+      }
+      const { ancho } = configImpresora()
+      const contexto = { ancho, compra: datos?.compra || null }
+      const resultado = await imprimirDocumentoNoFiscal(ticketEtiquetasLote(etiquetas, contexto), {
+        tipo: 'etiquetas-lote',
+        respaldo: async () => printHtml(await buildEtiquetasLoteHtml(etiquetas, contexto)),
+      })
+      if (resultado?.ok) {
+        toast.success(resultado.dialogo ? 'Etiquetas listas' : 'Etiquetas enviadas', `${etiquetas.length} etiqueta(s) de ${compra.code}.`)
+        return
+      }
+      if (!resultado?.dialogo) toast.error('No se pudo imprimir', resultado?.error || 'Revisá la impresora.')
+    } catch (causa) {
+      toast.error('No se pudo imprimir', causa?.message || 'Reintentá en un momento.')
+    } finally {
+      setEtiquetasBusy('')
+    }
+  }
 
   // La compra abierta se sigue mostrando aunque ya no esté en «pendientes»
   // (queda con las líneas completas hasta que la cierren).
@@ -160,12 +201,12 @@ export default function PrepararCompra() {
                   </div>
                   <Badge color={pendientes > 0 ? 'orange' : 'green'}>{pendientes} IMEI pendiente{pendientes === 1 ? '' : 's'}</Badge>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap items-center gap-2">
                   <Button type="button" variant={expandida ? 'outline' : 'primary'} onClick={() => { setAbierta(expandida ? null : compra); setLineaId(''); setAviso('') }}>
                     {expandida ? 'Cerrar' : 'Preparar IMEI'}
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => setEtiquetasDe(compra)}>
-                    <Icon name="tag" className="h-3.5 w-3.5" />Etiquetas
+                  <Button type="button" variant="outline" disabled={Boolean(etiquetasBusy)} onClick={() => imprimirEtiquetas(compra)} data-testid="preparar-etiquetas">
+                    <Icon name="printer" className="h-3.5 w-3.5" />{etiquetasBusy === compra.id ? 'Preparando…' : `Etiquetas (${compra.units || compra.unidades || 0})`}
                   </Button>
                 </div>
 
@@ -173,7 +214,7 @@ export default function PrepararCompra() {
                   <div className="mt-3 space-y-3 border-t border-ink-600 pt-3">
                     {(compra.lines || []).map((fila) => (
                       <label key={fila.id} className="flex items-center gap-2 text-sm">
-                        <input type="radio" name={`linea-${compra.id}`} checked={linea?.id === fila.id} onChange={() => { setLineaId(fila.id); setAviso('') }} aria-label={`Línea ${fila.product?.name || fila.productId}`} />
+                        <input type="radio" name={`linea-${compra.id}`} checked={linea?.id === fila.id} onChange={() => { setLineaId(fila.id); setAviso(''); setUltimoSerial('') }} aria-label={`Línea ${fila.product?.name || fila.productId}`} />
                         <span className="min-w-0 flex-1 truncate">{fila.product?.name || 'Producto'}{fila.product?.capacity ? ` · ${fila.product.capacity}` : ''}</span>
                         <span className="text-xs text-mute tabular-nums">{(fila.serials || []).length}/{fila.quantity}</span>
                         {Number(fila.faltan) > 0
@@ -218,6 +259,14 @@ export default function PrepararCompra() {
                       </>
                     )}
                     {aviso && <p role="status" className="text-sm text-warn">{aviso}</p>}
+                    {ultimoSerial && !aviso && (
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-mute">
+                        <span>Última unidad escaneada: <b className="text-fore">{ultimoSerial}</b></span>
+                        <Button type="button" variant="outline" disabled={Boolean(etiquetasBusy)} onClick={() => imprimirEtiquetas(compra, { serial: ultimoSerial })} data-testid="preparar-etiqueta-individual">
+                          <Icon name="printer" className="h-3.5 w-3.5" />Etiqueta de esa unidad
+                        </Button>
+                      </div>
+                    )}
                     {linea && linea.faltan <= 0 && <p className="text-sm text-ok">Línea completa: todos los IMEI cargados.</p>}
                   </div>
                 )}

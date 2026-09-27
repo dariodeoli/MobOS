@@ -9,9 +9,11 @@ import Icon from '@/components/shared/Icon'
 import { analizarSerial, textoMotivo, validarLote } from '@/lib/escanerSeriales'
 import { configImpresora } from '@/lib/printing/agent'
 import { datosComprobanteRecepcion } from '@/lib/printing/comprobanteRecepcion'
+import { datosManifiesto } from '@/lib/printing/manifiesto'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
-import { ticketComprobanteRecepcion } from '@/lib/printing/tickets'
-import { printComprobanteRecepcion } from '@/components/shared/OrderReceipt'
+import { ticketComprobanteRecepcion, ticketManifiesto } from '@/lib/printing/tickets'
+import { buildManifiestoHtml, printComprobanteRecepcion } from '@/components/shared/OrderReceipt'
+import { printHtml } from '@/utils/printHtml'
 
 // Abastecimiento · F5 (#250 §11): UI de recepción.
 // Llegadas pendientes → abrir (o retomar) por lote / código / token del QR →
@@ -66,6 +68,7 @@ export default function Recepcion() {
   const [confirmarTodo, setConfirmarTodo] = useState(false)
   const [confirmada, setConfirmada] = useState(null)
   const [imprimiendo, setImprimiendo] = useState(false)
+  const [manifiestoBusy, setManifiestoBusy] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const cargar = useCallback(async () => {
@@ -268,6 +271,32 @@ export default function Recepcion() {
   }
 
   // Comprobante de recepción de PRN: térmica de 80 mm y respaldo A4/rollo.
+  // F4 (#250 §11): reimprimir el manifiesto del lote al recibirlo. El enlace
+  // público todavía no tiene página, así que sale el código en barras.
+  async function imprimirManifiesto() {
+    const envioId = recepcion?.shipment?.id
+    if (!envioId || manifiestoBusy) return
+    setManifiestoBusy(true)
+    try {
+      const datos = await resources.supplyShipments.manifest(envioId)
+      const normalizado = datosManifiesto(datos)
+      const { ancho } = configImpresora()
+      const resultado = await imprimirDocumentoNoFiscal(ticketManifiesto(normalizado, { ancho }), {
+        tipo: 'manifiesto',
+        respaldo: async () => printHtml(await buildManifiestoHtml(normalizado, { format: 'a4' })),
+      })
+      if (resultado?.ok) {
+        toast.success(resultado.dialogo ? 'Manifiesto listo' : 'Manifiesto enviado', `${normalizado.code} · ${normalizado.resumen.unidades} unidad(es).`)
+        return
+      }
+      if (!resultado?.dialogo) toast.error('No se pudo imprimir', resultado?.error || 'Revisá la impresora.')
+    } catch (causa) {
+      toast.error('No se pudo imprimir', causa?.message || 'Reintentá en un momento.')
+    } finally {
+      setManifiestoBusy(false)
+    }
+  }
+
   async function imprimirComprobante() {
     if (!confirmada?.recepcion || imprimiendo) return
     setImprimiendo(true)
@@ -365,6 +394,9 @@ export default function Recepcion() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={imprimirManifiesto} disabled={busy || manifiestoBusy} data-testid="recepcion-manifiesto">
+                <Icon name="printer" className="h-3.5 w-3.5" />{manifiestoBusy ? 'Preparando…' : 'Manifiesto'}
+              </Button>
               <Button type="button" variant="outline" onClick={() => { setRecepcion(null); setResumen(null); cargar() }} disabled={busy}>Volver</Button>
               <Button type="button" variant="outline" onClick={() => confirmar()} disabled={busy || !depositoId}>Confirmar recepción</Button>
               <Button type="button" onClick={() => setConfirmarTodo(true)} disabled={busy || !depositoId}>
