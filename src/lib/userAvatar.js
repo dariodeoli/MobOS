@@ -14,7 +14,9 @@ async function cargarAvatar(userId) {
   // demo, determinista por id (#219).
   if (!API_URL || isDemoRuntime) return isDemoRuntime ? avatarDemo(userId) : ''
   try {
-    const response = await fetch(`${API_URL}/api/users/${encodeURIComponent(userId)}/avatar`, { credentials: 'include', headers: { Accept: 'image/*' } })
+    // `no-cache` fuerza revalidar el ETag en cada uso (#271): si la foto cambió
+    // o se quitó, el navegador no puede servir la anterior desde su caché.
+    const response = await fetch(`${API_URL}/api/users/${encodeURIComponent(userId)}/avatar`, { credentials: 'include', cache: 'no-cache', headers: { Accept: 'image/*' } })
     if (!response.ok) return ''
     const blob = await response.blob()
     if (!blob.type.startsWith('image/')) return ''

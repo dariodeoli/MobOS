@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getAvatarDataUrl } from '@/lib/userAvatar'
 import { inicialesDe } from '@/lib/iniciales'
+import { fuenteAvatar } from '@/lib/avatarFuente'
 
 const TAMANOS = {
   xs: 'h-5 w-5 text-[9px]',
@@ -17,26 +18,38 @@ const TAMANOS = {
 export default function Avatar({ user, hasAvatar, picture, size = 'md', className = '', title }) {
   const nombre = user?.name || 'Equipo'
   const puedeTenerFoto = hasAvatar ?? user?.hasAvatar !== false
-  const [foto, setFoto] = useState('')
+  // La foto local se guarda con su dueño: nunca se pinta la de otro usuario
+  // (#271). Mientras resuelve, el placeholder es neutro (iniciales) — tampoco
+  // se adelanta la foto de Google, que se vería como «la foto anterior».
+  const [foto, setFoto] = useState(null)
+  const [localListo, setLocalListo] = useState(false)
   // La foto de Google puede caer (la URL caduca): si falla, se cae a iniciales
   // en vez de dejar una imagen rota (#164).
   const [googleRota, setGoogleRota] = useState(false)
   useEffect(() => {
     let vigente = true
-    setFoto('')
+    setFoto(null)
+    setLocalListo(false)
     if (puedeTenerFoto && user?.id) {
-      getAvatarDataUrl(user.id).then((url) => { if (vigente && url) setFoto(url) })
+      getAvatarDataUrl(user.id).then((url) => {
+        if (!vigente) return
+        if (url) setFoto({ id: user.id, url })
+        setLocalListo(true)
+      })
+    } else {
+      setLocalListo(true)
     }
     return () => { vigente = false }
   }, [puedeTenerFoto, user?.id])
   useEffect(() => { setGoogleRota(false) }, [picture])
   const clases = TAMANOS[size] || TAMANOS.md
   const etiqueta = title ?? nombre
-  if (foto) {
-    return <img src={foto} alt={`Foto de ${nombre}`} loading="lazy" title={etiqueta} className={`${clases} shrink-0 rounded-full border border-ink-600 object-cover ${className}`} />
+  const fuente = fuenteAvatar({ foto, usuarioId: user?.id, localListo, picture, googleRota })
+  if (fuente.tipo === 'foto') {
+    return <img src={fuente.src} alt={`Foto de ${nombre}`} loading="lazy" title={etiqueta} className={`${clases} shrink-0 rounded-full border border-ink-600 object-cover ${className}`} />
   }
-  if (picture && !googleRota) {
-    return <img src={picture} alt={`Foto de ${nombre}`} loading="lazy" title={etiqueta} referrerPolicy="no-referrer" onError={() => setGoogleRota(true)} className={`${clases} shrink-0 rounded-full border border-ink-600 object-cover ${className}`} />
+  if (fuente.tipo === 'google') {
+    return <img src={fuente.src} alt={`Foto de ${nombre}`} loading="lazy" title={etiqueta} referrerPolicy="no-referrer" onError={() => setGoogleRota(true)} className={`${clases} shrink-0 rounded-full border border-ink-600 object-cover ${className}`} />
   }
   return <span title={etiqueta} className={`${clases} grid shrink-0 place-items-center rounded-full border border-ink-600 bg-ink-700 font-semibold text-mute ${className}`}>{inicialesDe(nombre)}</span>
 }
