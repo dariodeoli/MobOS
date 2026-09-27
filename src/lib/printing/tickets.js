@@ -319,13 +319,14 @@ export function ticketReserva(reservation, { ancho = 80 } = {}) {
 }
 
 const pruebaAleatoria = () => String(Math.floor(1000 + Math.random() * 9000)) // exactamente 4 dígitos
-// Sufijo secreto: solo sale impreso en el papel; la app lo guarda para que el
-// operador confirme la impresión escribiéndolo en Actividad de impresión.
-const pruebaSufijo = () => String(Math.floor(Math.random() * 10))
+// Sufijo secreto (#277): dos dígitos, tal como sale en el papel («XXXX-XX»);
+// la app lo guarda para que el operador confirme la impresión escribiéndolo en
+// Actividad de impresión.
+const pruebaSufijo = () => String(Math.floor(10 + Math.random() * 90))
 const refDePrueba = () => `TEST-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(16).slice(2, 6).toUpperCase()}`
 
 const TIPOS_PRUEBA = {
-  'corta': 'Prueba corta',
+  'corta': 'Prueba corta (predeterminada)',
   'pedido': 'Ticket de pedido',
   'qr': 'Ticket con QR',
   'venta': 'Ticket completo de venta',
@@ -350,6 +351,10 @@ export function ticketPruebaTipo(tipo, {
   tokenPista = '',
   usuario = '',
   marca = '',
+  // #277: la plantilla del ticket corto decide qué suma (fecha/hora, códigos y
+  // trazabilidad); el corte puede ser total o parcial.
+  incluye = null,
+  corte = '',
   base = baseDeApp(),
 } = {}) {
   // Método honesto: lo informa quien arma el ticket (CUPS local, LAN TCP,
@@ -361,6 +366,10 @@ export function ticketPruebaTipo(tipo, {
   const validador = `${validacion}-${sufijo}`
   const ref = refDePrueba()
   const ahora = new Date().toISOString()
+  // El ticket corto (#277) es el predeterminado: solo el título y la validación
+  // (XXXX-XX); la plantilla decide si suma fecha/hora, códigos y trazabilidad.
+  const corto = tipo === 'corta'
+  const opciones = { fechaHora: false, codigos: false, trazabilidad: false, ...(incluye || {}) }
   // El QR de la prueba abre una página autocontenida: destino, validación,
   // fecha y formato viajan en la URL (esta prueba no vive en la base).
   const enlacePrueba = qrPrueba({ destino: impresora, validacion, fecha: ahora, tipo }, base)
@@ -398,7 +407,7 @@ export function ticketPruebaTipo(tipo, {
   }
 
   t.centrado(APP_NAME).negrita().doble().centrado('TICKET DE PRUEBA').doble(false).negrita(false)
-  t.centrado(TIPOS_PRUEBA[tipo] || 'Prueba')
+  if (!corto) t.centrado(TIPOS_PRUEBA[tipo] || 'Prueba')
   // Marca de la corrida comparativa: el mismo texto en las tres impresoras
   // permite reconocer el papel y cruzar los trabajos con las métricas.
   if (marca) t.centrado(`Comparativa ${marca}`)
@@ -408,11 +417,11 @@ export function ticketPruebaTipo(tipo, {
   t.negrita().doble().centrado(`VALIDACIÓN ${validador}`).doble(false).negrita(false)
   t.linea()
 
-  if (tipo === 'corta') {
-    t.par('Prueba', metodoReal)
-    t.par('Destino', impresora || '—')
-    t.par('Resultado', 'PENDIENTE')
-    codigos('CORTA')
+  // #277 · Ticket corto (predeterminado): solo el título y la validación; la
+  // plantilla suma fecha/hora, códigos y trazabilidad si se piden.
+  if (corto) {
+    if (opciones.fechaHora) t.par('Fecha', fecha(ahora))
+    if (opciones.codigos) codigos('CORTA')
   }
 
   if (tipo === 'pedido') {
@@ -492,8 +501,8 @@ export function ticketPruebaTipo(tipo, {
     codigos('CORTE')
   }
 
-  pie()
-  t.avanza(2).corte()
+  if (!corto || opciones.trazabilidad) pie()
+  t.avanza(2).corte(corte === 'parcial' ? 'parcial' : 'completo')
   return { base64: () => t.base64(), lineas: () => t.lineas(), ref, validacion, sufijo, validador, corte: t.corteEnviado() }
 }
 

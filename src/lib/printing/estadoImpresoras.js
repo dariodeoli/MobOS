@@ -6,6 +6,9 @@ export const ESTADO_IMPRESORA = Object.freeze({
   SIN_VERIFICAR: 'sin-verificar',
   VERIFICANDO: 'verificando',
   OK: 'ok',
+  // #276: la salida directa no responde, pero hay cola CUPS de respaldo: la
+  // impresora imprime igual (no es "sin respuesta").
+  FALLBACK: 'fallback',
   ERROR: 'error',
 })
 
@@ -14,6 +17,7 @@ export const ETIQUETA_ESTADO = Object.freeze({
   'sin-verificar': 'Sin verificar',
   'verificando': 'Verificando…',
   'ok': 'Lista para imprimir',
+  'fallback': 'TCP sin respuesta · imprime por CUPS',
   'error': 'Sin respuesta',
 })
 
@@ -22,6 +26,7 @@ export const TONO_ESTADO = Object.freeze({
   'sin-verificar': 'slate',
   'verificando': 'slate',
   'ok': 'ok',
+  'fallback': 'orange',
   'error': 'bad',
 })
 
@@ -67,6 +72,9 @@ export function estadoDeDiagnostico(resultado) {
   if (!resultado || typeof resultado !== 'object' || resultado.ok === false) return ESTADO_IMPRESORA.ERROR
   if (resultado.alcance === true) return ESTADO_IMPRESORA.OK
   if (resultado.metodo === 'CUPS') return resultado.cupsUri ? ESTADO_IMPRESORA.OK : ESTADO_IMPRESORA.ERROR
+  // #276: el destino TCP no respondió pero hay cola CUPS de respaldo con la que
+  // la impresora sí imprime: el estado real es fallback, no caída.
+  if (resultado.transporte === 'cups' && resultado.cups) return ESTADO_IMPRESORA.FALLBACK
   return ESTADO_IMPRESORA.ERROR
 }
 
@@ -84,24 +92,40 @@ export function textoVerificacion(registro, ahora = Date.now()) {
   if (registro.estado === ESTADO_IMPRESORA.VERIFICANDO) return 'Verificando…'
   const segundos = Number.isFinite(registro.fecha) ? Math.max(0, Math.round((ahora - registro.fecha) / 1000)) : 0
   if (registro.estado === ESTADO_IMPRESORA.OK) return `Verificada hace ${segundos} s`
+  if (registro.estado === ESTADO_IMPRESORA.FALLBACK) return `TCP sin respuesta; imprime por CUPS (fallback)${registro.motivo ? ` — ${registro.motivo}` : ''}`
   return registro.motivo ? `Sin respuesta: ${registro.motivo}` : 'Sin respuesta'
 }
 
-// Agregado por empresa: "Listo para imprimir" si todas las activas están ok,
-// "Con problemas" si alguna falló, "Sin verificar" si todavía no hay datos.
+// Agregado por empresa: "Listo para imprimir" si todas las activas están ok
+// (o salen por fallback CUPS), "Con problemas" si alguna falló, "Sin verificar"
+// si todavía no hay datos.
 export function agregarEstado(impresoras = [], estados = {}) {
   const activas = (impresoras || []).filter((impresora) => impresora?.activa !== false)
   const total = activas.length
   let ok = 0
+  let fallback = 0
   let error = 0
   for (const impresora of activas) {
     const estado = estados?.[impresora?.id]?.estado
     if (estado === ESTADO_IMPRESORA.OK) ok += 1
+    else if (estado === ESTADO_IMPRESORA.FALLBACK) fallback += 1
     else if (estado === ESTADO_IMPRESORA.ERROR) error += 1
   }
-  const sinVerificar = total - ok - error
-  if (!total) return { estado: 'sin-verificar', label: 'Sin verificar', tono: 'slate', total, ok, error, sinVerificar, detalle: 'Sin impresoras activas' }
-  if (error > 0) return { estado: 'con-problemas', label: 'Con problemas', tono: 'bad', total, ok, error, sinVerificar, detalle: `${error} de ${total} sin respuesta` }
-  if (ok === total) return { estado: 'listo', label: 'Listo para imprimir', tono: 'ok', total, ok, error, sinVerificar, detalle: `${total} de ${total} listas` }
-  return { estado: 'sin-verificar', label: 'Sin verificar', tono: 'slate', total, ok, error, sinVerificar, detalle: `${sinVerificar} de ${total} sin verificar` }
+  const sinVerificar = total - ok - fallback - error
+  if (!total) return { estado: 'sin-verificar', label: 'Sin verificar', tono: 'slate', total, ok, fallback, error, sinVerificar, detalle: 'Sin impresoras activas' }
+  if (error > 0) return { estado: 'con-problemas', label: 'Con problemas', tono: 'bad', total, ok, fallback, error, sinVerificar, detalle: `${error} de ${total} sin respuesta` }
+  if (ok + fallback === total) {
+    return {
+      estado: 'listo',
+      label: 'Listo para imprimir',
+      tono: 'ok',
+      total,
+      ok,
+      fallback,
+      error,
+      sinVerificar,
+      detalle: `${total} de ${total} listas${fallback ? ` · ${fallback} por fallback CUPS` : ''}`,
+    }
+  }
+  return { estado: 'sin-verificar', label: 'Sin verificar', tono: 'slate', total, ok, fallback, error, sinVerificar, detalle: `${sinVerificar} de ${total} sin verificar` }
 }

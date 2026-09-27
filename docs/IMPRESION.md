@@ -153,12 +153,20 @@ QR muerto: se omite el código.
   ofrece **«Reimprimir igual»** como confirmación explícita. Detalle en §11.
 - **Validación en papel (#138)**: el panel conoce el **largo** del sufijo (el
   valor nunca sale del servidor ni se expone en el listado) y valida **solo** al
-  completar el código: la prueba (1 dígito) apenas se escribe y un sufijo mayor
-  al llegar a su largo, con un debounce corto para poder corregir. El botón
-  **Confirmar** y **Enter** quedan como respaldo. **Si el número no coincide**,
-  el aviso "No coincide" es claro y se puede reintentar; al confirmar, el input
-  se limpia y la fila pasa a «✓ en papel». Un trabajo sin largo conocido
-  (anterior a la columna `suffixLength`) se valida con el botón.
+  completar el código: el sufijo de **2 dígitos** de la prueba corta valida
+  apenas se escribe y un sufijo mayor al llegar a su largo, con un debounce
+  corto para poder corregir. El botón **Confirmar** y **Enter** quedan como
+  respaldo. **Si el número no coincide**, el aviso "No coincide" es claro y se
+  puede reintentar; al confirmar, el input se limpia y la fila pasa a «✓ en
+  papel». Un trabajo sin largo conocido (anterior a la columna `suffixLength`)
+  se valida con el botón.
+- **Ticket de prueba corto (#277, predeterminado)**: sale solo con el **título
+  y la validación** (`XXXX-XX`); el ticket completo sigue disponible en el
+  selector de tipo. Desde la ficha de la impresora se abre **Plantilla**, que
+  edita qué incluye el ticket corto (fecha y hora · QR y barras · trazabilidad),
+  el **ancho** (58/80 mm), los **cortes** (total/parcial) y las **copias** (1–5),
+  y se guarda **por impresora** (destino). El patrón es «último usado =
+  predeterminado» (#209): al imprimir, esa plantilla queda como la próxima.
 - La **prueba física** en la Mac (launchd, IP secundaria, CUPS, USB y corte)
   tiene su checklist en **`docs/IMPRESION-PRUEBA-FISICA.md`** (#170).
 
@@ -361,15 +369,25 @@ estado se verifica en `/health.usb`. Salidas esperadas para comparar el papel
 | `queueMs` | Con el resultado | `claimedAt - enqueuedAt`: lo que esperó en la cola. |
 | `durationMs` | Con el resultado | `confirmedAt - enqueuedAt`: el total, de encolado a cierre. |
 | `transport` | Lo informa el agente | `directo`, `cups` o `usb`: por dónde salió de verdad. |
+| `requestedTransport` | Lo informa el agente | Lo pedido por el destino: `tcp` o `cups` (#276). |
+| `fallback` + `fallbackReason` | Lo informa el agente | Si otro transporte tomó el relevo y por qué (p. ej. TCP sin ruta → CUPS). |
+| `physicalConnection` | Lo informa el agente | Conexión física real de la cola CUPS (`lan`/`usb`/`serial`/`otro`), resuelta con la URI de `lpstat -v`; nunca inferida del nombre. |
 | `printerName` | Al encolar | Foto del nombre: sobrevive a renombres y bajas. |
 
 - Los tiempos son enteros `>= 0` (un reloj atrasado no produce negativos) y se
   calculan con el reloj de la app, no con `now()` de la base: las etapas se
   comparan entre sí y no pueden mezclar relojes.
-- En Actividad cada trabajo muestra fecha con **hora:minuto:segundo**, el
-  transporte y las líneas `en cola N ms` / `total N ms`; el detalle agrega
-  encolado, reclamado, ambos tiempos y el transporte. El CSV exporta esas
-  columnas.
+- En Actividad cada trabajo muestra fecha con **hora:minuto:segundo** y la celda
+  **Transporte** con los tres datos reales —**solicitado** (TCP/CUPS),
+  **ejecutado** (TCP directo/CUPS/USB directo, con `· fallback` y el motivo) y
+  **conexión física** (LAN/USB/Serial)— más las líneas `en cola N ms` /
+  `total N ms`; el detalle agrega encolado, reclamado, ambos tiempos y el
+  transporte. Sin URI resuelta, la conexión queda «—» (una cola CUPS no dice por
+  dónde sale hasta leerla). El CSV exporta esas columnas.
+- **Estado de la impresora (#276):** si el destino TCP no responde pero hay cola
+  CUPS de respaldo, el estado real es **«TCP sin respuesta · imprime por CUPS»**
+  (ámbar, no «Sin respuesta») y la ficha ofrece **«Reintentar TCP»**, que vuelve
+  a sondear la salida directa sin esperar el ciclo.
 - `GET /api/print/metrics?desde=&hasta=&printerId=&reference=` (ADMIN/GERENTE;
   por defecto, últimas 24 h; rango máximo 90 días) devuelve totales con tasa de
   éxito, latencia promedio y p95 global y por impresora, serie por hora

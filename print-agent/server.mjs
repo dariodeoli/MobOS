@@ -5,18 +5,27 @@ import { promisify } from 'node:util'
 import { cargarConfig, guardarConfig, RUTA_COLA, RUTA_HISTORIAL } from './config.mjs'
 import { crearCola } from './cola.mjs'
 import { aplicarConfigRemota, crearRemoto } from './remoto.mjs'
-import { aliasSecundario, colaLanDeCups, colaUri, comandoColaLan, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle, tipoDeCola, usbAplicaA } from './transportes.mjs'
+import { aliasSecundario, colaLanDeCups, colaUri, comandoColaLan, diagnosticoRed, enviarConDetalle, impresorasUsb, probarConexion, probarConexionDetalle, tipoDeCola, usbAplicaA } from './transportes.mjs'
 import { estadoUsb, enviarUsbDirecto } from './usb.mjs'
 
-const VERSION = '1.7.3'
+const VERSION = '1.7.4'
 const config = cargarConfig()
 // `--usb` enciende el USB directo en esta corrida sin tocar config.json.
 if (process.argv.includes('--usb')) config.usb = true
-// Transporte real del último envío (directo | cups | usb): la app solo debe
-// marcar éxito cuando hubo entrega confirmada, no solo encolado. La cola local
-// y el poller remoto comparten este camino: sin la config (cola CUPS y alias),
-// el remoto no bindea la IP secundaria ni respeta la cola configurada.
-let ultimoTransporte = ''
+// Detalle real del último envío (#276): solicitado (tcp|cups), ejecutado
+// (directo|cups|usb), fallback + motivo y conexión física (lan|usb|serial). La
+// app solo debe marcar éxito cuando hubo entrega confirmada, no solo encolado.
+// La cola local y el poller remoto comparten este camino: sin la config (cola
+// CUPS y alias), el remoto no bindea la IP secundaria ni respeta la cola.
+let ultimoEnvio = { solicitado: '', transporte: '', fallback: false, motivo: '', conexion: '' }
+// Respuesta pública del detalle (la app la muestra en Cola e historial).
+const detalleTransporte = (detalle = {}) => ({
+  transporte: detalle.transporte || 'directo',
+  solicitado: detalle.solicitado || '',
+  fallback: Boolean(detalle.fallback),
+  motivo: detalle.motivo || '',
+  conexion: detalle.conexion || '',
+})
 // USB directo: se refresca al arrancar, cada 90 s y en /health, así conectar la
 // impresora o cambiar la bandera se refleja sin reiniciar el agente. Si el USB
 // no está disponible, el trabajo sigue por CUPS/LAN sin interrumpirse.
@@ -42,9 +51,9 @@ const usbParaEnviar = () => (config.usb ? {
 const enviarConConfig = async (destino, bytes) => {
   // El USB directo solo se intenta para la impresora configurada del agente;
   // un trabajo a otra impresora explícita respeta su transporte.
-  const transporte = await enviar(destino, bytes, { lanCups: config.lanCups, alias: config.alias, usb: usbAplicaA(destino, config.impresora) ? usbParaEnviar() : null })
-  ultimoTransporte = transporte
-  return transporte
+  const detalle = await enviarConDetalle(destino, bytes, { lanCups: config.lanCups, alias: config.alias, usb: usbAplicaA(destino, config.impresora) ? usbParaEnviar() : null })
+  ultimoEnvio = detalle
+  return detalle
 }
 const cola = crearCola({ ruta: RUTA_COLA, rutaHistorial: RUTA_HISTORIAL, enviar: enviarConConfig, esperaMs: config.esperaMs, reintentos: config.reintentos, log: (mensaje) => console.log(`[cola] ${mensaje}`) })
 cola.reanudar()
@@ -250,7 +259,7 @@ const servidor = createServer(async (request, response) => {
           colaTipo: cups ? await tipoDeCola(cups) : '',
           alias: await aliasSecundario(config.alias),
           transporte: (await impresoraResponde()) ? 'directo' : (cups ? 'cups' : 'ninguno'),
-          ultimoTransporte,
+          ultimoTransporte: detalleTransporte(ultimoEnvio),
           autotest,
         },
         cola: cola.resumen(),
@@ -376,7 +385,7 @@ const servidor = createServer(async (request, response) => {
               : pendiente.error || '',
         }, 202)
       }
-      return responder(response, { ok: true, encolado: false, transporte: ultimoTransporte || 'directo', jobId: resultados[0]?.jobId || null })
+      return responder(response, { ok: true, encolado: false, ...detalleTransporte(ultimoEnvio), jobId: resultados[0]?.jobId || null })
     }
 
     if (request.method === 'POST' && url.pathname === '/config') {

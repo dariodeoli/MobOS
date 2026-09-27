@@ -353,7 +353,7 @@ test.describe('impresión remota: cola con puente falso', () => {
 
       // El puente falso reclama, "imprime" y reporta; el sufijo sale del ticket.
       const trabajo = await puente.esperarTrabajo((item) => item.destination === DESTINO_REMOTO)
-      expect(trabajo.sufijo).toMatch(/^\d$/)
+      expect(trabajo.sufijo).toMatch(/^\d{2}$/)
 
       const detalle = await apiImpresion(page, `/api/print/jobs/${trabajo.id}`)
       expect(detalle.datos?.job?.path).toBe('REMOTO')
@@ -365,7 +365,7 @@ test.describe('impresión remota: cola con puente falso', () => {
       const fila = page.getByRole('row').filter({ hasText: trabajo.validation }).filter({ hasText: nombrePuente }).first()
       await expect(fila.getByText('aceptado')).toBeVisible({ timeout: 20_000 })
 
-      const incorrecto = String((Number(trabajo.sufijo) + 1) % 10)
+      const incorrecto = String((Number(trabajo.sufijo) + 1) % 100).padStart(2, '0')
       // #138: con el código incorrecto la validación automática avisa claro.
       await fila.getByLabel(`Número secreto de la validación ${trabajo.validation}`).fill(incorrecto)
       await expect(page.getByText('No coincide', { exact: true }).first()).toBeVisible({ timeout: 10_000 })
@@ -943,9 +943,10 @@ test.describe('estado vivo y popup de prueba', () => {
     await tarjeta.getByRole('button', { name: 'Imprimir prueba' }).click()
     const dialogo = page.getByRole('dialog')
     await expect(dialogo).toBeVisible()
-    // La prueba sale siempre con 1 copia: no hay campo Copias.
+    // #277: el ticket corto es el predeterminado; la plantilla arranca colapsada.
+    await expect(dialogo.getByText(/Sale solo el título y la validación/)).toBeVisible()
     await expect(dialogo.getByLabel('Copias')).toHaveCount(0)
-    await expect(dialogo.getByText('Sale 1 copia', { exact: false })).toBeVisible()
+    await expect(dialogo.getByTestId('plantilla-toggle')).toBeVisible()
     // La vista previa arranca colapsada; el toggle la muestra y la vuelve a ocultar.
     await expect(dialogo.locator('pre')).toHaveCount(0)
     await dialogo.getByRole('button', { name: 'Ver vista previa' }).click()
@@ -953,4 +954,115 @@ test.describe('estado vivo y popup de prueba', () => {
     await dialogo.getByRole('button', { name: 'Ocultar vista previa' }).click()
     await expect(dialogo.locator('pre')).toHaveCount(0)
   })
+})
+
+// #276/#277 · Impresión local: el estado honesto del perfil TCP caído con
+// respaldo CUPS (badge + «Reintentar TCP») y el ticket de prueba corto como
+// predeterminado, con la plantilla editable por impresora.
+const URL_AGENTE_LOCAL = 'http://127.0.0.1:17890'
+
+// Agente local simulado. `diagnostico` devuelve primero el perfil TCP caído con
+// cola CUPS de respaldo y después TCP sano (para «Reintentar TCP»); `/print`
+// guarda los tickets que manda la app.
+async function agenteLocal(page, { capturados, control = { recuperado: false } } = {}) {
+  const cors = {
+    'access-control-allow-origin': '*',
+    'access-control-allow-headers': 'content-type,x-mobos-print-token',
+    'access-control-allow-methods': 'GET,POST,OPTIONS',
+  }
+  await page.route(`${URL_AGENTE_LOCAL}/**`, (ruta) => {
+    const peticion = ruta.request()
+    const url = peticion.url()
+    const json = (cuerpo) => ruta.fulfill({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify(cuerpo) })
+    if (peticion.method() === 'OPTIONS') return ruta.fulfill({ status: 204, headers: cors })
+    if (url.includes('/health')) return json({ ok: true, version: '1.7.4', equipo: 'e2e' })
+    if (url.includes('/diagnostico')) {
+      // El panel sondea varias impresoras: el estado se controla desde el test
+      // (el primer sondeo de todas es fallback; tras «Reintentar TCP», sano).
+      if (control.recuperado) return json({ ok: true, metodo: 'LAN', alcance: true, tcpReal: true, cups: 'ZKP8008', cupsUri: 'socket://192.168.1.60:9100', transporte: 'directo' })
+      return json({ ok: true, metodo: 'LAN', alcance: false, tcpReal: false, cups: 'ZKP8008', cupsUri: 'socket://192.168.1.60:9100', transporte: 'cups', motivo: 'permiso_o_red', error: 'EHOSTUNREACH 192.168.1.60:9100' })
+    }
+    if (peticion.method() === 'POST' && url.endsWith('/print')) {
+      capturados?.push(JSON.parse(peticion.postData() || '{}'))
+      return json({ ok: true, encolado: false, transporte: 'cups', solicitado: 'tcp', fallback: true, motivo: 'La salida directa falló (EHOSTUNREACH); se usó la cola CUPS.', conexion: 'lan' })
+    }
+    return json({ ok: true })
+  })
+}
+
+const textoDelPayload = (capturado) => Buffer.from(String(capturado?.data || ''), 'base64').toString('latin1')
+
+test('el perfil TCP sin respuesta con respaldo CUPS se muestra como fallback y ofrece Reintentar TCP', async ({ page }) => {
+  const destino = 'lan:10.99.99.60:9100'
+  // Primero la pantalla (deja las cookies de la sesión para la API), después el
+  // alta idempotente de la impresora y la recarga con el agente simulado.
+  await page.goto('/configuracion/impresoras')
+  await asegurarImpresoraSuelta(page, { nombre: 'ZKP8008 TCP fallback E2E', destino })
+  const control = { recuperado: false }
+  await agenteLocal(page, { control })
+  await page.goto('/configuracion/impresoras')
+  const tarjeta = tarjetaDe(page, 'ZKP8008 TCP fallback E2E')
+  await expect(tarjeta).toBeVisible({ timeout: 20_000 })
+
+  // Estado real del perfil: no es «Sin respuesta», imprime por el respaldo.
+  await expect(tarjeta.getByText('TCP sin respuesta · imprime por CUPS').first()).toBeVisible({ timeout: 20_000 })
+  await expect(tarjeta.getByText(/TCP sin respuesta; imprime por CUPS \(fallback\)/)).toBeVisible()
+
+  // «Reintentar TCP» vuelve a sondear: el diagnóstico ya responde sano.
+  control.recuperado = true
+  await tarjeta.getByTestId('reintentar-tcp').click()
+  await expect(page.getByText('TCP responde otra vez').first()).toBeVisible({ timeout: 20_000 })
+  await expect(tarjeta.getByText('Lista para imprimir').first()).toBeVisible({ timeout: 20_000 })
+})
+
+test('el ticket corto es el predeterminado y la plantilla se guarda por impresora', async ({ page }) => {
+  const capturados = []
+  const destino = 'lan:10.99.99.61:9100'
+  await page.goto('/configuracion/impresoras')
+  await asegurarImpresoraSuelta(page, { nombre: 'ZKP8008 plantilla E2E', destino })
+  await agenteLocal(page, { capturados })
+  await page.goto('/configuracion/impresoras')
+  const tarjeta = tarjetaDe(page, 'ZKP8008 plantilla E2E')
+  await expect(tarjeta).toBeVisible({ timeout: 20_000 })
+
+  // La ficha abre el editor de plantilla; el corto sale solo con el título y
+  // la validación XXXX-XX.
+  await tarjeta.getByTestId('editar-plantilla').click()
+  const dialogo = page.getByRole('dialog')
+  await expect(dialogo.getByTestId('plantilla-ancho')).toBeVisible()
+  await dialogo.getByRole('button', { name: 'Ver vista previa' }).click()
+  const vista = dialogo.getByTestId('prueba-vista-previa')
+  await expect(vista).toContainText('TICKET DE PRUEBA')
+  await expect(vista).toContainText(/VALIDACIÓN \d{4}-\d{2}/)
+  await expect(vista).not.toContainText('Método')
+  await expect(vista).not.toContainText('Impresora')
+
+  // Plantilla: 58 mm, corte parcial, 2 copias y fecha/hora.
+  await dialogo.getByTestId('plantilla-ancho').selectOption('58')
+  await dialogo.getByTestId('plantilla-corte').selectOption('parcial')
+  await dialogo.getByTestId('plantilla-copias').fill('2')
+  await dialogo.getByTestId('plantilla-fecha').check()
+  await dialogo.getByTestId('guardar-plantilla').click()
+  await expect(page.getByText('Plantilla guardada').first()).toBeVisible({ timeout: 10_000 })
+
+  // Reabrir: la plantilla quedó recordada como predeterminada.
+  await dialogo.getByRole('button', { name: 'Cancelar' }).click()
+  await tarjeta.getByTestId('editar-plantilla').click()
+  const dialogo2 = page.getByRole('dialog')
+  await expect(dialogo2.getByTestId('plantilla-ancho')).toHaveValue('58')
+  await expect(dialogo2.getByTestId('plantilla-corte')).toHaveValue('parcial')
+  await expect(dialogo2.getByTestId('plantilla-copias')).toHaveValue('2')
+  await expect(dialogo2.getByTestId('plantilla-fecha')).toBeChecked()
+  await dialogo2.getByRole('button', { name: 'Ver vista previa' }).click()
+  await expect(dialogo2.getByTestId('prueba-vista-previa')).toContainText('Fecha')
+  await expect(dialogo2.getByTestId('prueba-vista-previa')).toContainText('[CORTE: parcial]')
+
+  // Imprimir: sale por el agente local con la plantilla aplicada (2 copias).
+  await dialogo2.getByTestId('imprimir-prueba').click()
+  await expect(page.getByText(/Prueba enviada por la cola CUPS \(fallback\)|Prueba encolada/).first()).toBeVisible({ timeout: 20_000 })
+  expect(capturados).toHaveLength(1)
+  expect(Number(capturados[0].copias)).toBe(2)
+  const plano = textoDelPayload(capturados[0]).replace(/\s+/g, ' ')
+  expect(plano).toContain('TICKET DE PRUEBA')
+  expect(plano).toContain('VALIDACI')
 })

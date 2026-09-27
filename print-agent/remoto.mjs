@@ -101,6 +101,10 @@ export function crearRemoto({
           state: pendiente.resultado,
           ...(pendiente.error ? { error: pendiente.error } : {}),
           ...(pendiente.transporte ? { transport: pendiente.transporte } : {}),
+          ...(pendiente.solicitado ? { requestedTransport: pendiente.solicitado } : {}),
+          ...(pendiente.fallback ? { fallback: true } : {}),
+          ...(pendiente.motivo ? { fallbackReason: pendiente.motivo } : {}),
+          ...(pendiente.conexion ? { physicalConnection: pendiente.conexion } : {}),
         },
       })
     } catch (error) {
@@ -163,11 +167,22 @@ export function crearRemoto({
     const latido = setInterval(() => { latir(job.id) }, latidoMs)
     if (latido.unref) latido.unref()
     try {
-      let transporte = ''
+      let detalle = {}
       for (let copia = 0; copia < copias; copia += 1) {
-        transporte = await enviar(job.destination, Buffer.from(payload, 'base64'))
+        detalle = await enviar(job.destination, Buffer.from(payload, 'base64'))
       }
-      cola.resultadoRemoto(job.id, { estado: 'ACEPTADO', transporte: transporte || '' })
+      // #276: el detalle del envío viaja al backend (solicitado/ejecutado,
+      // fallback con motivo y conexión física resuelta). Los agentes viejos
+      // devolvían solo el texto del transporte.
+      const info = typeof detalle === 'string' ? { transporte: detalle } : (detalle || {})
+      cola.resultadoRemoto(job.id, {
+        estado: 'ACEPTADO',
+        transporte: info.transporte || '',
+        solicitado: info.solicitado || '',
+        fallback: Boolean(info.fallback),
+        motivo: info.motivo || '',
+        conexion: info.conexion || '',
+      })
       log(`impreso remoto ${job.id} en ${job.destination}`)
     } catch (error) {
       cola.resultadoRemoto(job.id, {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { diagnosticoAgente, estadoAgente } from '@/lib/printing/agent'
 import { ESTADO_IMPRESORA, agregarEstado, estadoDeDiagnostico, motivoDeDiagnostico } from '@/lib/printing/estadoImpresoras'
 
@@ -86,5 +86,22 @@ export function useEstadoImpresoras(impresoras = [], { intervaloMs = INTERVALO_E
   }, [clave, intervaloMs, enPausa, concurrencia])
 
   const agregado = useMemo(() => agregarEstado(impresoras, estados), [impresoras, estados])
-  return { estados, agregado }
+
+  // #276: «Reintentar TCP» — vuelve a sondear una impresora sin esperar el
+  // ciclo (el sondeo exitoso rehabilita la salida directa en el agente).
+  const revisar = useCallback(async (impresora) => {
+    if (!impresora?.id || !impresora?.destino) return null
+    setEstados((actual) => ({ ...actual, [impresora.id]: { estado: ESTADO_IMPRESORA.VERIFICANDO, fecha: actual[impresora.id]?.fecha ?? null, motivo: '' } }))
+    try {
+      const resultado = await diagnosticoAgente(impresora.destino)
+      const estado = estadoDeDiagnostico(resultado)
+      setEstados((actual) => ({ ...actual, [impresora.id]: { estado, fecha: Date.now(), motivo: estado === ESTADO_IMPRESORA.OK ? '' : motivoDeDiagnostico(resultado) } }))
+      return estado
+    } catch (cause) {
+      setEstados((actual) => ({ ...actual, [impresora.id]: { estado: ESTADO_IMPRESORA.ERROR, fecha: Date.now(), motivo: cause?.message || 'El agente no respondió' } }))
+      return ESTADO_IMPRESORA.ERROR
+    }
+  }, [])
+
+  return { estados, agregado, revisar }
 }

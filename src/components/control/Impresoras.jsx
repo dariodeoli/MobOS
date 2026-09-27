@@ -11,7 +11,8 @@ import { URL_AGENTE, cargarImpresoras, colaAgente, configImpresora, confirmarJob
 import { TIPOS_TICKET_PRUEBA, ticketPruebaTipo } from '@/lib/printing/tickets'
 import { ESTADO_IMPRESORA, ETIQUETA_ESTADO, colorTrabajo, etiquetaTrabajo, textoVerificacion } from '@/lib/printing/estadoImpresoras'
 import { colaDemo, historialDemo, storeDemo } from '@/lib/printing/demo'
-import { etiquetaTipoImpresion, memoriaDeImpresion, olvidarTipoDeImpresion } from '@/lib/printing/preferencias'
+import { etiquetaTipoImpresion, memoriaDeImpresion, olvidarTipoDeImpresion, plantillaDePrueba, recordarPlantillaDePrueba } from '@/lib/printing/preferencias'
+import { datosTransporte, resumenTransporte } from '@/lib/printing/transporte'
 import { useEstadoImpresoras } from '@/hooks/useEstadoImpresoras'
 import Avatar from '@/components/shared/Avatar'
 import ImpresionComparativa from './ImpresionComparativa'
@@ -26,16 +27,19 @@ const fmtHora = (valor) => (valor ? new Date(valor).toLocaleTimeString('es-PY', 
 const fmtTiempo = (valor) => (typeof valor === 'number' && Number.isFinite(valor) ? `${Math.round(valor)} ms` : '—')
 const fechaConSegundos = (valor) => (valor ? `${fmtDia(valor)} ${fmtHora(valor)}` : '—')
 
-// Transporte real que reportó el agente; sin dato se cae al modo configurado.
-const etiquetaTransporte = (fila) => {
-  const transporte = String(fila.transporte || '').toLowerCase()
-  if (transporte === 'directo') return 'LAN directo'
-  if (transporte === 'cups') return 'CUPS'
-  if (transporte === 'usb') return 'USB'
-  if (transporte) return transporte
-  if (fila.modo === 'usb') return 'CUPS'
-  if (fila.modo === 'lan') return 'LAN'
-  return conexionDe(fila.impresora)
+// #276 · La celda de transporte muestra los tres datos reales —solicitado,
+// ejecutado (con fallback y motivo) y conexión física— sin inferir nada del
+// nombre de la cola: lo que el agente no pudo resolver queda «—».
+const celdasTransporte = (fila) => {
+  const datos = datosTransporte(fila)
+  return {
+    titulo: resumenTransporte(fila) || 'Sin reporte del agente',
+    solicitado: datos.solicitado || '—',
+    ejecutado: datos.ejecutado || '—',
+    fallback: datos.fallback,
+    motivo: datos.motivo,
+    conexion: datos.conexion || '—',
+  }
 }
 const hace = (valor) => {
   if (!valor) return 'sin registro'
@@ -73,16 +77,15 @@ function sinRespuesta(fila) {
 
 // Tono semántico del estado vivo → color/clase del sistema de diseño.
 const COLOR_TONO = { ok: 'green', bad: 'red', slate: 'slate', blue: 'blue', orange: 'orange' }
-const CLASE_TONO = { ok: 'text-ok', bad: 'text-bad', slate: 'text-mute' }
+const CLASE_TONO = { ok: 'text-ok', bad: 'text-bad', slate: 'text-mute', orange: 'text-warn' }
 
 // Detalle de la última prueba física (una sola línea, sin repetir el chip).
 const textoUltimaPrueba = (ultimaPrueba) => {
   if (!ultimaPrueba) return 'Sin prueba todavía'
   const resultado = ultimaPrueba.ok ? 'Impresa correctamente' : ultimaPrueba.remoto && ultimaPrueba.encolado ? 'Encolada al puente' : ultimaPrueba.encolado ? 'Encolada' : 'Falló'
-  return `${resultado} · ${TIPOS_TICKET_PRUEBA[ultimaPrueba.tipo] || 'Prueba'} · ${fmt(ultimaPrueba.fecha)}${ultimaPrueba.transporte ? ` · vía ${ultimaPrueba.transporte}` : ''}${ultimaPrueba.validacion ? ` · Código ${ultimaPrueba.validacion}` : ''}${ultimaPrueba.corte ? ' · Corte solicitado ✓' : ''}`
+  const transporte = resumenTransporte(ultimaPrueba)
+  return `${resultado} · ${TIPOS_TICKET_PRUEBA[ultimaPrueba.tipo] || 'Prueba'} · ${fmt(ultimaPrueba.fecha)}${transporte ? ` · ${transporte}` : ''}${ultimaPrueba.validacion ? ` · Código ${ultimaPrueba.validacion}` : ''}${ultimaPrueba.corte ? ' · Corte solicitado ✓' : ''}`
 }
-
-const conexionDe = (destino) => (/^(usb|cups):/.test(String(destino || '')) ? 'CUPS' : 'LAN')
 
 const vacioFormulario = () => ({
   id: null,
@@ -113,6 +116,10 @@ const filaDesdeJob = (job) => ({
   enColaMs: typeof job.queueMs === 'number' ? job.queueMs : null,
   totalMs: typeof job.durationMs === 'number' ? job.durationMs : null,
   transporte: job.transport || '',
+  solicitado: job.requestedTransport || '',
+  fallback: Boolean(job.fallback),
+  motivo: job.fallbackReason || '',
+  conexion: job.physicalConnection || '',
   usuario: job.requestedByName || '',
   impresora: job.destination || '',
   impresoraNombre: job.printerName || '',
@@ -175,8 +182,10 @@ export default function Impresoras() {
   const [diagnostico, setDiagnostico] = useState(null)
   const [diagnosticando, setDiagnosticando] = useState(false)
   const [probandoId, setProbandoId] = useState(null)
+  const [revisandoId, setRevisandoId] = useState('')
   const [progreso, setProgreso] = useState('')
   const [pruebaDe, setPruebaDe] = useState(null) // impresora del modal de prueba
+  const [plantillaInicial, setPlantillaInicial] = useState(false) // abre el editor de plantilla
   const [eliminarId, setEliminarId] = useState(null)
   const [verColaAbierta, setVerColaAbierta] = useState(false)
   const [filtroActividad, setFiltroActividad] = useState('')
@@ -337,7 +346,7 @@ export default function Impresoras() {
   // una impresión, prueba o diagnóstico en curso para no competir con el agente.
   const impresorasActivas = useMemo(() => impresoras.filter((impresora) => impresora.activa), [impresoras])
   const sondeoEnPausa = Boolean(probandoId) || diagnosticando || reparando
-  const { estados: estadosVivos, agregado } = useEstadoImpresoras(impresorasActivas, { enPausa: sondeoEnPausa || esDemo })
+  const { estados: estadosVivos, agregado, revisar } = useEstadoImpresoras(impresorasActivas, { enPausa: sondeoEnPausa || esDemo })
 
   // Estado de configuración cuando todavía no hay verificación viva: la prueba
   // anterior y la detección del agente dan el contexto.
@@ -359,6 +368,7 @@ export default function Impresoras() {
     if (!impresora.destino) return { label: 'Error de configuración', color: 'red' }
     const vivo = estadosVivos[impresora.id]?.estado
     if (vivo === ESTADO_IMPRESORA.OK) return { label: ETIQUETA_ESTADO[ESTADO_IMPRESORA.OK], color: 'green' }
+    if (vivo === ESTADO_IMPRESORA.FALLBACK) return { label: ETIQUETA_ESTADO[ESTADO_IMPRESORA.FALLBACK], color: 'orange' }
     if (vivo === ESTADO_IMPRESORA.ERROR) return { label: ETIQUETA_ESTADO[ESTADO_IMPRESORA.ERROR], color: 'red' }
     if (vivo === ESTADO_IMPRESORA.VERIFICANDO) return { label: ETIQUETA_ESTADO[ESTADO_IMPRESORA.VERIFICANDO], color: 'slate' }
     if (!estado?.disponible) return { label: ETIQUETA_ESTADO[ESTADO_IMPRESORA.SIN_VERIFICAR], color: 'slate' }
@@ -383,8 +393,24 @@ export default function Impresoras() {
   function tonoDe(impresora) {
     const vivo = estadosVivos[impresora.id]?.estado
     if (vivo === ESTADO_IMPRESORA.OK) return 'ok'
+    if (vivo === ESTADO_IMPRESORA.FALLBACK) return 'orange'
     if (vivo === ESTADO_IMPRESORA.ERROR) return 'bad'
     return 'slate'
+  }
+
+  // #276: «Reintentar TCP» vuelve a sondear la salida directa; si responde, la
+  // próxima impresión sale por red (el agente rehabilita el camino directo).
+  async function reintentarTcp(impresora) {
+    if (revisandoId) return
+    setRevisandoId(impresora.id)
+    try {
+      const estado = await revisar(impresora)
+      if (estado === ESTADO_IMPRESORA.OK) toast.success('TCP responde otra vez', 'La próxima impresión sale directo por red.')
+      else if (estado === ESTADO_IMPRESORA.FALLBACK) toast.info('TCP sigue sin responder', 'La impresora sigue imprimiendo por la cola CUPS (fallback).')
+      else toast.error('TCP sin respuesta', 'No hay ruta a la impresora: revisá la red o el permiso de Red Local de macOS.')
+    } finally {
+      setRevisandoId('')
+    }
   }
 
   // Método honesto de cada impresora: `usb:` es una cola CUPS local (puede
@@ -424,9 +450,10 @@ export default function Impresoras() {
   }), [historialCombinado, filtroActividad, filtroTipo, filtroRango])
 
   function exportarActividad() {
-    const filas = [['Fecha', 'Hora', 'Usuario', 'Equipo', 'Impresora', 'Transporte', 'En cola (ms)', 'Total (ms)', 'Puente', 'Validación', 'Sufijo', 'Resultado', 'Bytes', 'Trabajo']]
+    const filas = [['Fecha', 'Hora', 'Usuario', 'Equipo', 'Impresora', 'Solicitado', 'Ejecutado', 'Fallback', 'Motivo del fallback', 'Conexión física', 'En cola (ms)', 'Total (ms)', 'Puente', 'Validación', 'Sufijo', 'Resultado', 'Bytes', 'Trabajo']]
     for (const fila of historialFiltrado) {
-      filas.push([fmtDia(fila.fecha), fmtHora(fila.fecha), fila.usuario, fila.cliente, fila.impresoraNombre || fila.impresora, fila.transporte || '', fila.enColaMs ?? '', fila.totalMs ?? '', fila.puente, fila.validacion, fila.sufijo, fila.resultado, fila.bytes, fila.ref])
+      const transporte = celdasTransporte(fila)
+      filas.push([fmtDia(fila.fecha), fmtHora(fila.fecha), fila.usuario, fila.cliente, fila.impresoraNombre || fila.impresora, transporte.solicitado, transporte.ejecutado, transporte.fallback ? 'Sí' : 'No', transporte.motivo, transporte.conexion, fila.enColaMs ?? '', fila.totalMs ?? '', fila.puente, fila.validacion, fila.sufijo, fila.resultado, fila.bytes, fila.ref])
     }
     const csv = filas.map((columnas) => columnas.map((valor) => `"${String(valor ?? '').replaceAll('"', '""')}"`).join(';')).join('\n')
     descargarCsvCliente(`mobos-impresion-${new Date().toISOString().slice(0, 10)}.csv`, csv)
@@ -562,12 +589,21 @@ export default function Impresoras() {
   }
 
   function probar(impresora) {
+    setPlantillaInicial(false)
     setPruebaDe(impresora)
   }
 
-  async function enviarPrueba({ tipo, copias, ticket }) {
+  // #277: la ficha abre directo el editor de la plantilla de la prueba.
+  function editarPlantilla(impresora) {
+    setPlantillaInicial(true)
+    setPruebaDe(impresora)
+  }
+
+  async function enviarPrueba({ tipo, copias, ticket, plantilla }) {
     const impresora = pruebaDe
     if (!impresora || probandoId) return
+    // #277: lo último usado queda como predeterminado de la próxima prueba.
+    if (plantilla) recordarPlantillaDePrueba(impresora.destino, plantilla)
     setProbandoId(impresora.id)
     setProgreso('Enviando…')
     if (esDemo) {
@@ -607,6 +643,10 @@ export default function Impresoras() {
         validacion: ticket.validacion,
         metodo: metodoDe(impresora),
         transporte: resultado.transporte || '',
+        solicitado: resultado.solicitado || '',
+        fallback: Boolean(resultado.fallback),
+        motivo: resultado.motivo || '',
+        conexion: resultado.conexion || '',
         jobId: resultado.jobId || null,
         corte: Boolean(ticket.corte),
       }
@@ -622,7 +662,7 @@ export default function Impresoras() {
       } else if (encolado) {
         toast.success('Prueba encolada', 'La impresora no respondió; el agente reintenta solo.')
       } else {
-        const via = resultado.transporte === 'cups' ? 'por la cola CUPS' : resultado.transporte === 'usb' ? 'por USB' : 'por TCP'
+        const via = resultado.transporte === 'cups' ? (resultado.fallback ? 'por la cola CUPS (fallback)' : 'por la cola CUPS') : resultado.transporte === 'usb' ? 'por USB directo' : 'por TCP directo'
         toast.success(`Prueba enviada ${via}`, 'El agente confirmó el envío. La confirmación final es visual: verificá el código en el papel y que se cortó solo.')
       }
     } else {
@@ -1040,6 +1080,12 @@ export default function Impresoras() {
                 {probandoId === impresora.id && <p role="status" className="rounded-lg border border-fono/25 bg-fono/10 p-2 text-xs text-fono-light">{progreso}</p>}
                 <div className="flex flex-wrap items-center gap-2">
                   <Button type="button" onClick={() => probar(impresora)} disabled={Boolean(probandoId) || !impresora.activa}>{probandoId === impresora.id ? 'Enviando…' : 'Imprimir prueba'}</Button>
+                  <Button type="button" variant="outline" onClick={() => editarPlantilla(impresora)} disabled={Boolean(probandoId) || !impresora.activa} data-testid="editar-plantilla">Plantilla</Button>
+                  {estadosVivos[impresora.id]?.estado === ESTADO_IMPRESORA.FALLBACK && (
+                    <Button type="button" variant="outline" onClick={() => reintentarTcp(impresora)} disabled={Boolean(revisandoId)} data-testid="reintentar-tcp">
+                      {revisandoId === impresora.id ? 'Sondeando…' : 'Reintentar TCP'}
+                    </Button>
+                  )}
                   <Button type="button" variant="outline" onClick={() => abrirFormulario(impresora)}>Editar</Button>
                   <Button type="button" variant="ghost" onClick={() => diagnosticar(impresora)}>Diagnóstico</Button>
                   <Button type="button" variant="ghost" onClick={() => setFiltroActividad(impresora.destino)}>Ver actividad</Button>
@@ -1132,6 +1178,7 @@ export default function Impresoras() {
                   const clave = fila.jobId || `${fila.fecha}-${indice}`
                   const abierto = detalleAbierto === clave
                   const largoSufijo = largoDelSufijo(fila)
+                  const transporte = celdasTransporte(fila)
                   return [
                     <tr key={`fila-${clave}`} className="border-b border-ink-600/50">
                       <td className="px-2 py-2 text-xs text-mute">
@@ -1140,7 +1187,12 @@ export default function Impresoras() {
                       </td>
                       <td className="px-2 py-2 text-xs">{fila.usuario || '—'}</td>
                       <td className={cn('px-2 py-2', CELDA_DATO)} title={`${fila.impresoraNombre || fila.impresora}${fila.ancho ? ` · ${fila.ancho} mm` : ''}`}>{fila.impresora}</td>
-                      <td className="px-2 py-2 text-xs text-mute" title={fila.transporte ? `Reportado por el agente: ${fila.transporte}` : 'Sin reporte del agente: se muestra el modo configurado'}>{etiquetaTransporte(fila)}</td>
+                      <td className="px-2 py-2 text-[11px] text-mute" title={transporte.titulo}>
+                        <span className="block">solicitado <b className="text-fore">{transporte.solicitado}</b></span>
+                        <span className="block">ejecutado <b className="text-fore">{transporte.ejecutado}</b>{transporte.fallback ? ' · fallback' : ''}</span>
+                        <span className="block">conexión <b className="text-fore">{transporte.conexion}</b></span>
+                        {transporte.motivo && <span className="block text-[10px] text-warn" title={transporte.motivo}>{transporte.motivo}</span>}
+                      </td>
                       <td className="px-2 py-2 text-[11px] text-mute">
                         <span className="block">en cola <b className="text-fore tabular-nums">{fmtTiempo(fila.enColaMs)}</b></span>
                         <span className="block">total <b className="text-fore tabular-nums">{fmtTiempo(fila.totalMs)}</b></span>
@@ -1277,8 +1329,10 @@ export default function Impresoras() {
           equipo={estado?.equipo || 'navegador'}
           enviando={Boolean(probandoId)}
           progreso={progreso}
-          onCerrar={() => setPruebaDe(null)}
+          plantillaInicial={plantillaInicial}
+          onCerrar={() => { setPruebaDe(null); setPlantillaInicial(false) }}
           onEnviar={enviarPrueba}
+          onGuardarPlantilla={(plantilla) => recordarPlantillaDePrueba(pruebaDe.destino, plantilla)}
         />
       )}
 
@@ -1732,28 +1786,44 @@ function GuiaImpresion() {
   )
 }
 
-function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, tokenPista, equipo, enviando, progreso, onCerrar, onEnviar }) {
-  const [tipo, setTipo] = useState('corta')
-  const [turno, setTurno] = useState(0) // regenera el ticket (y su número de 4 dígitos)
+function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, tokenPista, equipo, enviando, progreso, plantillaInicial = false, onCerrar, onEnviar, onGuardarPlantilla }) {
+  const toast = useToast()
+  const plantilla = useMemo(() => plantillaDePrueba(impresora.destino), [impresora.destino])
+  const [tipo, setTipo] = useState(plantilla.tipo)
+  const [ancho, setAncho] = useState(plantilla.ancho)
+  const [copias, setCopias] = useState(plantilla.copias)
+  const [corte, setCorte] = useState(plantilla.corte)
+  const [fechaHora, setFechaHora] = useState(plantilla.fechaHora)
+  const [codigos, setCodigos] = useState(plantilla.codigos)
+  const [trazabilidad, setTrazabilidad] = useState(plantilla.trazabilidad)
+  const [verPlantilla, setVerPlantilla] = useState(plantillaInicial)
+  const [turno, setTurno] = useState(0) // regenera el ticket (y su validación)
   const [verPrevia, setVerPrevia] = useState(false)
-  // Las pruebas salen SIEMPRE con 1 copia: no hay campo ni estado de copias.
+  const plantillaActual = { tipo, ancho, copias, corte, fechaHora, codigos, trazabilidad }
   const ticket = useMemo(
     () => ticketPruebaTipo(tipo, {
-      ancho: impresora.ancho,
+      ancho,
       impresora: impresora.destino,
       nombre: impresora.nombre,
       equipo,
-      copias: 1,
+      copias,
       metodo,
       conexion: impresora.conexion,
       puente,
       tokenPista,
       usuario,
+      incluye: { fechaHora, codigos, trazabilidad },
+      corte,
     }),
     // turno solo dispara la regeneración: un número nuevo por ejecución.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tipo, turno, impresora, equipo, metodo, puente, tokenPista, usuario],
+    [tipo, ancho, copias, corte, fechaHora, codigos, trazabilidad, turno, impresora, equipo, metodo, puente, tokenPista, usuario],
   )
+  const corto = tipo === 'corta'
+  function guardar() {
+    onGuardarPlantilla(plantillaActual)
+    toast.success('Plantilla guardada', `${corto ? 'Ticket corto' : TIPOS_TICKET_PRUEBA[tipo] || 'Prueba'} · ${ancho} mm · corte ${corte} · ${copias} copia(s).`)
+  }
   return (
     <Modal open onClose={enviando ? undefined : onCerrar} title={`Probar: ${impresora.nombre}`} size="formulario">
       <div className="space-y-4">
@@ -1767,7 +1837,10 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
           </Select>
         </FormField>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-mute">Sale <b className="text-fore">1 copia</b>, con un número secreto para confirmarla en papel.</p>
+          <p className="text-xs text-mute">
+            {corto ? <>Sale solo el <b className="text-fore">título y la validación</b></> : <>Sale con la <b className="text-fore">trazabilidad completa</b></>}
+            {' '}· {copias} copia(s) · {ancho} mm.
+          </p>
           <Button type="button" variant="ghost" onClick={() => setVerPrevia((actual) => !actual)} aria-expanded={verPrevia}>
             <Icon name="eye" className="h-3.5 w-3.5" />{verPrevia ? 'Ocultar vista previa' : 'Ver vista previa'}
           </Button>
@@ -1777,9 +1850,51 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
             <div className="mb-1 flex items-center justify-end">
               <Button type="button" variant="ghost" onClick={() => setTurno((n) => n + 1)} disabled={enviando}><Icon name="refresh" className="h-3.5 w-3.5" />Nuevo número</Button>
             </div>
-            <pre className="max-h-80 overflow-y-auto rounded-xl border border-ink-600 bg-ink-900 p-3 font-mono text-[11px] leading-4 text-fore">{ticket.lineas().join('')}</pre>
+            <pre data-testid="prueba-vista-previa" className="max-h-80 overflow-y-auto rounded-xl border border-ink-600 bg-ink-900 p-3 font-mono text-[11px] leading-4 text-fore">{ticket.lineas().join('')}</pre>
           </div>
         )}
+        <div className="rounded-xl border border-ink-600 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-semibold text-fore">Plantilla del ticket de prueba</p>
+            <Button type="button" variant="ghost" onClick={() => setVerPlantilla((actual) => !actual)} aria-expanded={verPlantilla} data-testid="plantilla-toggle">
+              {verPlantilla ? 'Ocultar plantilla' : 'Editar plantilla'}
+            </Button>
+          </div>
+          {verPlantilla && (
+            <div className="mt-3 space-y-3">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <FormField label="Ancho" htmlFor="plantilla-ancho">
+                  <Select id="plantilla-ancho" value={String(ancho)} onChange={(event) => setAncho(Number(event.target.value))} data-testid="plantilla-ancho">
+                    <option value="80">80 mm</option>
+                    <option value="58">58 mm</option>
+                  </Select>
+                </FormField>
+                <FormField label="Cortes" htmlFor="plantilla-corte">
+                  <Select id="plantilla-corte" value={corte} onChange={(event) => setCorte(event.target.value)} data-testid="plantilla-corte">
+                    <option value="total">Total</option>
+                    <option value="parcial">Parcial</option>
+                  </Select>
+                </FormField>
+                <FormField label="Copias" htmlFor="plantilla-copias">
+                  <Input id="plantilla-copias" inputMode="numeric" maxLength={1} value={String(copias)} onChange={(event) => setCopias(Math.min(5, Math.max(1, Number(event.target.value.replace(/\D/g, '').slice(0, 1)) || 1)))} data-testid="plantilla-copias" />
+                </FormField>
+              </div>
+              <div className="space-y-1 text-sm">
+                <p className="text-xs text-mute">Qué incluye el ticket corto (el título y la validación salen siempre):</p>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={fechaHora} onChange={(event) => setFechaHora(event.target.checked)} data-testid="plantilla-fecha" />Fecha y hora
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={codigos} onChange={(event) => setCodigos(event.target.checked)} data-testid="plantilla-codigos" />QR y código de barras
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={trazabilidad} onChange={(event) => setTrazabilidad(event.target.checked)} data-testid="plantilla-trazabilidad" />Trazabilidad (impresora, método, usuario, equipo)
+                </label>
+              </div>
+              <p className="text-xs text-mute">Se guarda por impresora y es el predeterminado de la próxima prueba (último usado).</p>
+            </div>
+          )}
+        </div>
         {tipo === 'corte' && (
           <Nota compact>
             La verificación del corte es <b className="text-fore">física</b>: el ticket debe separarse del rollo solo. El éxito por TCP confirma el envío, no la cuchilla. Si no corta, revisá <b className="text-fore">Cutter Enable: YES</b> en la impresora.
@@ -1788,7 +1903,8 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
         {enviando && <p role="status" className="rounded-lg border border-fono/25 bg-fono/10 p-2 text-xs text-fono-light">{progreso}</p>}
         <div className={PIE_ACCIONES_REVERSO}>
           <Button type="button" variant="ghost" onClick={onCerrar} disabled={enviando}>Cancelar</Button>
-          <Button type="button" onClick={() => onEnviar({ tipo, copias: 1, ticket })} disabled={enviando}>{enviando ? 'Enviando…' : 'Imprimir prueba'}</Button>
+          <Button type="button" variant="outline" onClick={guardar} disabled={enviando} data-testid="guardar-plantilla">Guardar plantilla</Button>
+          <Button type="button" onClick={() => onEnviar({ tipo, copias, ticket, plantilla: plantillaActual })} disabled={enviando} data-testid="imprimir-prueba">{enviando ? 'Enviando…' : 'Imprimir prueba'}</Button>
         </div>
       </div>
     </Modal>

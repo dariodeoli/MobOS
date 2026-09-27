@@ -186,49 +186,103 @@ export function usbAplicaA(destino, impresoraConfigurada = '') {
   return Boolean(valor) && valor === String(impresoraConfigurada || '').trim()
 }
 
-// Destino: `lan:192.168.1.23:9100` o `usb:NombreDeLaCola`. Devuelve el
-// transporte real usado ('usb' | 'cups' | 'directo') para que la app solo
-// marque éxito cuando hubo entrega por un transporte real.
-// Con la bandera USB encendida (opciones.usb) el orden es USB directo → cola
-// CUPS → LAN directa. Sin bandera se conserva el camino histórico
-// (LAN directo → respaldo CUPS). `deps` inyecta los transportes en los tests.
-export async function enviar(destino, bytes, { lanCups = 'MobOS_LAN', alias = '', usb = null, deps = {} } = {}) {
+// Conexión física real detrás de la URI de una cola CUPS (`lpstat -v`). NUNCA
+// se infiere del nombre: una cola llamada «ZKP8008» puede salir por USB y una
+// «USB» por red. socket/ipp/lpd → LAN, usb/ippusb → USB, serial → serial.
+export function conexionDeUri(uri = '') {
+  const valor = String(uri || '').toLowerCase()
+  if (!valor) return ''
+  if (valor.startsWith('usb://') || valor.startsWith('ippusb://')) return 'usb'
+  if (valor.startsWith('serial:') || valor.startsWith('serial://')) return 'serial'
+  if (/^(socket|ipp|ipps|lpd|http|https|dnssd|smb):/.test(valor)) return 'lan'
+  return 'otro'
+}
+
+// Lo que pide el destino, sin mirar la URI: `lan:` pide TCP; `usb:`/`cups:`
+// piden una cola de CUPS (el prefijo `usb:` es histórico de la app).
+export function solicitadoDeDestino(destino = '') {
+  return /^(usb|cups):/.test(String(destino || '').trim()) ? 'cups' : 'tcp'
+}
+
+// Detalle honesto del envío (#276): `solicitado` (tcp|cups), `transporte`
+// ejecutado (directo|cups|usb), `fallback` + `motivo` cuando otro transporte
+// tomó el relevo, y `conexion` física (lan|usb|serial|otro|'') resuelta con la
+// URI real de la cola que imprimió. `deps` inyecta los transportes en tests.
+export async function enviarConDetalle(destino, bytes, { lanCups = 'MobOS_LAN', alias = '', usb = null, deps = {} } = {}) {
   const valor = String(destino || '').trim()
   if (!valor) throw new Error('Elegí una impresora.')
   const porLan = deps.enviarLan || enviarLan
   const porCola = deps.enviarUsb || enviarUsb
   const colaDeCups = deps.colaLanDeCups || colaLanDeCups
+  const uriDeCola = deps.colaUri || colaUri
+  const detalle = { solicitado: solicitadoDeDestino(valor), transporte: '', fallback: false, motivo: '', conexion: '', cola: '' }
+  const cerrar = async () => {
+    if (detalle.conexion) return detalle
+    const cola = detalle.cola || (detalle.solicitado === 'cups' ? valor.slice(valor.indexOf(':') + 1) : '')
+    if (cola) detalle.conexion = conexionDeUri(await uriDeCola(cola).catch(() => ''))
+    if (!detalle.conexion) detalle.conexion = detalle.transporte === 'usb' ? 'usb' : detalle.transporte === 'directo' ? 'lan' : ''
+    return detalle
+  }
   // 1) USB directo: solo si la bandera está encendida y el dispositivo aparece.
   if (usb?.disponible) {
-    try { await usb.enviar(bytes); return 'usb' } catch (error) { usb.ultimoError = error?.message || String(error) }
+    try { await usb.enviar(bytes); detalle.transporte = 'usb'; return cerrar() } catch (error) { usb.ultimoError = error?.message || String(error) }
   }
   // 2) Cola CUPS: destino de cola (`usb:` se acepta por compatibilidad con la
   // app vieja) o respaldo cuando el USB está activo pero no entregó.
-  if (/^(usb|cups):/.test(valor)) { await porCola(valor.slice(valor.indexOf(':') + 1), bytes); return 'cups' }
+  if (detalle.solicitado === 'cups') {
+    detalle.cola = valor.slice(valor.indexOf(':') + 1)
+    await porCola(detalle.cola, bytes)
+    detalle.transporte = 'cups'
+    return cerrar()
+  }
   if (usb) {
     const cola = await colaDeCups(lanCups, valor)
-    if (cola) { await porCola(cola, bytes); return 'cups' }
+    if (cola) {
+      detalle.cola = cola
+      detalle.fallback = true
+      detalle.motivo = usb.disponible ? 'El USB directo no entregó; se usó la cola CUPS.' : 'El USB directo no está disponible; se usó la cola CUPS.'
+      await porCola(cola, bytes)
+      detalle.transporte = 'cups'
+      return cerrar()
+    }
   }
   // 3) LAN directa, con el respaldo CUPS histórico.
   if (cacheDirecto.bloqueado()) {
     // Esta máquina viene fallando el directo: si hay respaldo, no se paga el
     // intento (con su cola resuelta por nombre o por la impresora del destino).
     const cola = await colaDeCups(lanCups, valor)
-    if (cola) { await porCola(cola, bytes); return 'cups' }
+    if (cola) {
+      detalle.cola = cola
+      detalle.fallback = true
+      detalle.motivo = 'La salida directa quedó en pausa tras fallos de ruta previos.'
+      await porCola(cola, bytes)
+      detalle.transporte = 'cups'
+      return cerrar()
+    }
     cacheDirecto.habilitar()
   }
   try {
     await porLan(valor, bytes, { alias })
     cacheDirecto.habilitar()
-    return 'directo'
+    detalle.transporte = 'directo'
+    return cerrar()
   } catch (error) {
     if (!/EHOSTUNREACH|ENETUNREACH/i.test(error?.message || '')) throw error
     const cola = await colaDeCups(lanCups, valor)
     if (!cola) throw error
     cacheDirecto.bloquear()
+    detalle.cola = cola
+    detalle.fallback = true
+    detalle.motivo = `La salida directa falló (${error?.message || 'sin ruta'}); se usó la cola CUPS.`
     await porCola(cola, bytes)
-    return 'cups'
+    detalle.transporte = 'cups'
+    return cerrar()
   }
+}
+
+// Compatibilidad: el transporte ejecutado como texto ('usb' | 'cups' | 'directo').
+export async function enviar(destino, bytes, opciones = {}) {
+  return (await enviarConDetalle(destino, bytes, opciones)).transporte
 }
 
 // Prueba de alcance: intenta abrir el socket sin enviar nada. Sirve para
