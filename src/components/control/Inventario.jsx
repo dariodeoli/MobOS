@@ -707,7 +707,12 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
     resources.inventoryUnits.list(busquedaDiferida, 'removed').then(setRemovedUnits).catch(() => {})
   }, [tab, busquedaDiferida, inventarioOperativo]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (qParam) setQuery(qParam) }, [qParam])
-  useEffect(() => { if (detalleUnidad) setDetalleUnidad(current => units.find(unit => unit.id === current.id) || current) }, [units]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!detalleUnidad) return
+    // El refresco puede correr con el detalle ya cerrado (current null): sin el
+    // guardia, `current.id` tira y la pantalla queda en blanco.
+    setDetalleUnidad(current => (current ? units.find(unit => unit.id === current.id) || current : current))
+  }, [units]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!apiMode || tab !== 'compartido') return undefined
     let active = true
