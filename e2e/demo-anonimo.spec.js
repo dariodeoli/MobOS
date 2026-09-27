@@ -161,7 +161,7 @@ test('la demo entra sin login, navega con datos ficticios y no toca el API', asy
 
   // Módulos del vendedor con datos locales.
   await page.goto('/clientes')
-  await expect(page.getByRole('heading', { name: 'Clientes' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Clientes', level: 1 })).toBeVisible()
   await page.goto('/pedidos')
   await expect(page.getByRole('heading', { name: 'Mis pedidos' })).toBeVisible()
 

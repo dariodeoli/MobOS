@@ -67,7 +67,7 @@ test.describe('delivery', () => {
     const tienda = await contexto.newPage()
     await entrarConPin(tienda, SEED.admin.pin, /\/resumen$/)
     await tienda.goto('/delivery')
-    await expect(tienda.getByRole('heading', { name: 'Delivery' })).toBeVisible()
+    await expect(tienda.getByRole('heading', { name: 'Delivery', level: 1 })).toBeVisible()
     // Pestaña Repartos: el pedido figura asignado al repartidor con lo cobrado.
     await tienda.getByRole('button', { name: 'Asignados', exact: true }).click()
     const filaTienda = tienda.locator(`[data-testid="reparto-admin-pedido"][data-pedido="${SEED.deliveryOrderNumber}"]`)
