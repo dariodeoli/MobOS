@@ -11,6 +11,10 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.188 — 2026-09-26
+- **POS (#263):** los botones de la **guía de venta** («Elegir unidad» / «Sobre pedido») llegan al **mínimo táctil de 44 px** en mobile.
+- **Calidad:** el cierre de la demo usa un **accesorio** (stock simple) para la venta de prueba, acorde a la guía del IMEI.
+
 ## v1.0.187 — 2026-09-26
 - **Cotizaciones (#261):** se pueden **enviar por WhatsApp o correo** desde la lista, con **correo profesional** (y **PDF para compartir**) y su **cronología** de envíos.
 - **POS (#257/#263):** el **catálogo se refresca al volver al POS** (lo cargado en Inventario aparece **sin recargar**) y la venta **guía la elección del IMEI** dentro del flujo, validando antes de enviar.
