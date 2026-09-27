@@ -415,6 +415,11 @@ export default function PasoCobro({
         </Nota>
       )}
 
+      {!guardando && motivos.length > 0 && (
+        <p role="status" data-testid="motivos-bloqueo" className="mb-2 text-xs font-semibold text-warn">
+          Falta: {motivos.join(' · ')}
+        </p>
+      )}
       <div className="flex items-center gap-3">
         <Button
           type="submit"
@@ -450,11 +455,6 @@ export default function PasoCobro({
             {detalleBoton && <span className="text-xs font-semibold tabular-nums opacity-95 whitespace-nowrap">{detalleBoton}</span>}
           </span>
         </Button>
-        {!guardando && motivos.length > 0 && (
-          <p role="status" data-testid="motivos-bloqueo" className="text-xs font-semibold text-warn">
-            Falta: {motivos.join(' · ')}
-          </p>
-        )}
         {ok && (
           <span
             role="status"
