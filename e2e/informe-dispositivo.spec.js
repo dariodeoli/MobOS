@@ -14,10 +14,18 @@ const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 const SALIDA = 'test-results/qa-240-informe-dispositivo'
 mkdirSync(SALIDA, { recursive: true })
 
-// IMEI ficticio con checksum Luhn válido, único por corrida (misma receta que
-// imei-mock.spec.js): el informe lo usa como serial de la unidad.
+// IMEI ficticio con checksum Luhn válido, único por corrida. El reloj (10
+// dígitos) evita chocar con corridas anteriores —la base e2e persiste— y el
+// contador por proceso garantiza que dos llamadas seguidas nunca repitan serial
+// (el rojo de CI: dos unidades sembradas en el mismo milisegundo con el mismo
+// random). No es un problema de producto: la API rechaza duplicados a propósito.
+const prefijoCorrida = String(Math.floor(Math.random() * 100)).padStart(2, '0')
+let secuenciaImei = 0
 function imeiValido() {
-  const base = `35${String(Date.now()).slice(-11)}${Math.floor(Math.random() * 10)}`.slice(0, 14)
+  secuenciaImei += 1
+  const reloj = String(Date.now()).slice(-7)
+  const contador = String(secuenciaImei).padStart(3, '0').slice(-3)
+  const base = `35${prefijoCorrida}${reloj}${contador}`.slice(0, 14)
   let suma = 0
   for (let i = 0; i < 14; i += 1) { let digito = Number(base[13 - i]); if (i % 2 === 0) { digito *= 2; if (digito > 9) digito -= 9 } suma += digito }
   return base + String((10 - (suma % 10)) % 10)
