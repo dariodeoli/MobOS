@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { resources } from '@/lib/api'
-import { getProductos } from '@/lib/storage'
+import { contextoActual, getProductos } from '@/lib/storage'
+import { suppliersApi } from '@/lib/api/suppliers'
+import { leerProveedoresRecientes, recordarProveedorReciente } from '@/lib/proveedores'
 import { isDemoRuntime } from '@/lib/demoMode'
-import { Badge, Button, Card, EmptyState, Input, Modal, Money, Select, Skeleton, Subtabs, useToast } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, Input, Modal, Money, MoneyInput, Select, Skeleton, Subtabs, useToast } from '@/components/ui'
 import ProductCombobox from '@/components/shared/ProductCombobox'
+import SupplierCombobox from '@/components/shared/SupplierCombobox'
+import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 import Icon from '@/components/shared/Icon'
 
 // Abastecimiento · F1 (#250/#254): panel móvil «Por comprar».
@@ -93,6 +97,11 @@ export default function PorComprar() {
   const [motivo, setMotivo] = useState('')
   const [agregar, setAgregar] = useState(false)
   const [nuevo, setNuevo] = useState({ productId: '', quantity: '1', priority: 'NORMAL', promisedAt: '', notes: '' })
+  // #250 F2: compra adicional (reposición libre, sin cliente ni necesidad).
+  const [libre, setLibre] = useState(false)
+  const [libreForm, setLibreForm] = useState({ productId: '', quantity: '1', unitCostPyg: '', supplierName: '' })
+  const [recientesProveedores, setRecientesProveedores] = useState(() => leerProveedoresRecientes(contextoActual().empresaId))
+  const [proveedores, setProveedores] = useState([])
   const [busy, setBusy] = useState(false)
 
   const cargar = useCallback(async () => {
@@ -117,6 +126,10 @@ export default function PorComprar() {
   }, [esDemo, vista, prioridad, centro, sinAsignar])
 
   useEffect(() => { cargar() }, [cargar])
+  useEffect(() => {
+    if (esDemo) return
+    suppliersApi.list().then((filas) => setProveedores(Array.isArray(filas) ? filas : [])).catch(() => {})
+  }, [esDemo])
   useEffect(() => { setSeleccion([]) }, [vista])
   useEffect(() => {
     if (esDemo) return
@@ -200,6 +213,30 @@ export default function PorComprar() {
     }
   }
 
+  async function guardarCompraLibre(evento) {
+    evento.preventDefault()
+    const cantidad = Number(libreForm.quantity) || 0
+    const costo = Number(String(libreForm.unitCostPyg).replace(/\D/g, '')) || 0
+    if (!libreForm.productId || !libreForm.supplierName.trim() || cantidad < 1 || busy) return
+    setBusy(true)
+    try {
+      await resources.supplyPurchases.create({
+        supplierName: libreForm.supplierName.trim(),
+        currency: 'PYG',
+        ...(costo > 0 ? { originalCost: cantidad * costo } : {}),
+        lines: [{ productId: libreForm.productId, quantity: cantidad, ...(costo > 0 ? { unitCostPyg: costo } : {}) }],
+      })
+      toast.success('Compra libre registrada', 'No crea necesidad: el stock entra al recibirla.')
+      setLibre(false)
+      setLibreForm({ productId: '', quantity: '1', unitCostPyg: '', supplierName: '' })
+      cargar()
+    } catch (causa) {
+      toast.error('No se pudo registrar', causa?.message || 'Revisá el producto, el proveedor y la cantidad.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function guardarManual(evento) {
     evento.preventDefault()
     if (!nuevo.productId || busy) return
@@ -258,6 +295,7 @@ export default function PorComprar() {
             <Button type="button" variant="outline" onClick={cargar} disabled={cargando}>
               <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
             </Button>
+            <Button type="button" variant="outline" onClick={() => setLibre(true)}>+ Compra libre</Button>
             <Button type="button" onClick={() => setAgregar(true)}>+ Agregar necesidad</Button>
           </div>
         </div>
@@ -437,6 +475,55 @@ export default function PorComprar() {
           <Button type="button" variant="outline" onClick={() => setCancelar(null)} disabled={busy}>Volver</Button>
           <Button type="button" variant="danger" onClick={confirmarCancelacion} disabled={motivo.trim().length < 4 || busy}>{busy ? 'Cancelando…' : 'Cancelar necesidad'}</Button>
         </div>
+      </Modal>
+
+      <Modal open={libre} onClose={() => !busy && setLibre(false)} title="Compra libre (reposición)" size="amplio">
+        <form onSubmit={guardarCompraLibre} className="space-y-3">
+          <p className="text-sm text-mute">
+            Reposición adicional <b>sin cliente ni necesidad</b>: no aparece en «Por comprar» y el stock se suma recién al
+            recibirla. Los IMEI se cargan acá o después, en «Preparar compra»/«Preparar lote».
+          </p>
+          <div>
+            <label className="block text-sm font-semibold" htmlFor="libre-producto">Producto</label>
+            <ProductCombobox
+              className="mt-1"
+              products={getProductos()}
+              selectedId={libreForm.productId}
+              onSelect={(producto) => setLibreForm((actual) => ({ ...actual, productId: producto?.id || '' }))}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold" htmlFor="libre-proveedor">Proveedor</label>
+            <SupplierCombobox
+              id="libre-proveedor"
+              ariaLabel="Proveedor de la compra libre"
+              proveedores={proveedores}
+              value={libreForm.supplierName}
+              recientes={recientesProveedores}
+              onSelect={(proveedor) => {
+                setLibreForm((actual) => ({ ...actual, supplierName: proveedor.name }))
+                setRecientesProveedores(recordarProveedorReciente(contextoActual().empresaId, proveedor.id))
+              }}
+              onLibre={(texto) => setLibreForm((actual) => ({ ...actual, supplierName: texto }))}
+              confirmarAlTipear
+              placeholder="Elegí uno o escribí el nombre"
+            />
+          </div>
+          <div className={GRILLA_DOS_COLUMNAS}>
+            <label className="block space-y-1 text-sm">
+              <span className="font-semibold">Cantidad</span>
+              <Input inputMode="numeric" value={libreForm.quantity} onChange={(evento) => setLibreForm((actual) => ({ ...actual, quantity: evento.target.value.replace(/\D/g, '').slice(0, 4) }))} />
+            </label>
+            <label className="block space-y-1 text-sm">
+              <span className="font-semibold">Costo unitario (Gs., opcional)</span>
+              <MoneyInput aria-label="Costo unitario de la compra libre" value={libreForm.unitCostPyg} onValueChange={(valor) => setLibreForm((actual) => ({ ...actual, unitCostPyg: valor === '' ? '' : String(valor) }))} placeholder="Ej. 1500000" />
+            </label>
+          </div>
+          <div className={PIE_ACCIONES}>
+            <Button type="button" variant="outline" onClick={() => setLibre(false)} disabled={busy}>Volver</Button>
+            <Button type="submit" disabled={busy || !libreForm.productId || !libreForm.supplierName.trim() || Number(libreForm.quantity) < 1}>{busy ? 'Registrando…' : 'Registrar compra libre'}</Button>
+          </div>
+        </form>
       </Modal>
 
       <Modal open={agregar} onClose={() => !busy && setAgregar(false)} title="Agregar necesidad" size="amplio">

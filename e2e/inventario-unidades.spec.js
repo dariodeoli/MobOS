@@ -702,9 +702,9 @@ test('recepción: buscador de proveedores por abreviatura y últimos usados (#25
     await expect(modal2).toBeVisible({ timeout: 15_000 })
     const campo2 = modal2.locator('#recibir-proveedor')
     await campo2.click()
-    // TODO(#259): al reabrir el buscador, el dropdown debería listar los recientes
-    // («Últimos usados» + el proveedor usado primero). Hoy no los muestra ni los
-    // persiste al guardar desde este modal; queda reportado para el slot.
+    const lista2 = modal2.getByRole('listbox', { name: 'Proveedores' })
+    await expect(lista2.getByText('Últimos usados')).toBeVisible()
+    await expect(lista2.getByRole('option').first()).toContainText(`Distribuidora Beta QA ${id} ${sufijo}`)
     await page.screenshot({ path: 'test-results/qa-259-proveedores/recepcion-ultimos-usados.jpg', type: 'jpeg', quality: 78 })
     await page.keyboard.press('Escape')
   } finally {

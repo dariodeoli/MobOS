@@ -3,8 +3,11 @@
 Continuación de [ABASTECIMIENTO-F1.md](ABASTECIMIENTO-F1.md) (#250 §6): registra
 **lo comprado** — cantidades, proveedor, costo/moneda, referencia/factura e
 **IMEI ahora o pendientes** — cubre las necesidades del panel y suma la
-**compra adicional** (reposición libre, sin cliente). Sigue **sin UI**: la API
-queda lista para el panel de la próxima ronda.
+**compra adicional** (reposición libre, sin cliente). El panel «Por comprar»
+ofrece **«+ Compra libre»** (producto, proveedor del buscador de #259, cantidad y
+costo opcional): registra la compra sin necesidad y sin tocar stock. Queda
+pendiente el listado de compras del Centro con «agregar líneas» a una compra
+activa (`action: 'addLines'`) para una próxima ronda.
 
 ## 1. Regla dura
 

@@ -60,15 +60,26 @@ await page.goto(`${APP}/pos`, { waitUntil: 'domcontentloaded' })
 await page.waitForTimeout(2500)
 await cerrarGuia()
 const buscadorPOS = page.getByPlaceholder('Buscar producto…')
+// El catálogo del POS se refresca al entrar (#257): se espera la primera tarjeta
+// antes de medir para no confundir hidratación con desalineación.
+const hasta = async (condicion, etiqueta, intentos = 30) => {
+  for (let intento = 0; intento < intentos; intento += 1) {
+    const valor = await condicion()
+    if (valor) return valor
+    await page.waitForTimeout(500)
+  }
+  throw new Error(`No se pudo confirmar ${etiqueta}`)
+}
+await buscadorPOS.fill('iPhone 15 Pro 256GB')
+await hasta(() => page.getByRole('button', { name: /iPhone 15 Pro 256GB/ }).first().isVisible().catch(() => false), 'el catálogo del POS')
 const pos = new Map()
 for (const { base } of FAMILIAS) {
   await buscadorPOS.fill(base)
-  await page.waitForTimeout(350)
-  const texto = await page.evaluate((textoBase) => {
+  const texto = await hasta(() => page.evaluate((textoBase) => {
     const cuerpo = document.body.innerText
     const indice = cuerpo.indexOf(textoBase)
-    return indice >= 0 ? cuerpo.slice(indice, indice + 160).replace(/\s+/g, ' ') : ''
-  }, base)
+    return indice >= 0 ? cuerpo.slice(indice, indice + 320).replace(/\s+/g, ' ') : ''
+  }, base), `la tarjeta de ${base}`)
   pos.set(base, { stock: numeroEnStock(texto) })
 }
 await buscadorPOS.fill('')

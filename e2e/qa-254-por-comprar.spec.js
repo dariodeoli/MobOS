@@ -52,8 +52,15 @@ const cancelarNecesidad = (page, id) => apiPagina(page, '/api/supply/needs', {
 const listarNecesidades = async (page) => (await apiPagina(page, '/api/supply/needs')).body
 
 const numeroDeTab = async (page, nombre) => {
-  const texto = await page.getByRole('tab', { name: new RegExp(`^${nombre}`) }).innerText()
-  return Number((texto.match(/\((\d+)\)/) || [])[1] || 0)
+  // Los contadores llegan con la carga: se espera el número, no el 0 del primer pintado.
+  let numero = 0
+  await expect(async () => {
+    const texto = await page.getByRole('tab', { name: new RegExp(`^${nombre}`) }).innerText()
+    const match = texto.match(/\((\d+)\)/)
+    expect(match, `contador de ${nombre}: ${texto}`).toBeTruthy()
+    numero = Number(match[1])
+  }).toPass({ timeout: 15_000 })
+  return numero
 }
 
 test('Por comprar: contadores, tarjeta compacta (prioridad/fecha/costo) y filtros', async ({ page }) => {
@@ -196,4 +203,57 @@ test('Por comprar: asignación en bloque de varios grupos', async ({ page }) => 
   // Limpieza: se cancelan las dos (de a una, con motivo).
   await cancelarNecesidad(page, creadaA.id)
   await cancelarNecesidad(page, creadaB.id)
+})
+
+// #250 F2 · compra libre: reposición sin necesidad ni cliente, con proveedor
+// del buscador (#259 de fondo). No pasa por «Por comprar» y no mueve stock.
+test('F2 · compra libre: reposición sin necesidad con proveedor del buscador', async ({ page }) => {
+  mkdirSync(DIR, { recursive: true })
+  await page.goto('/abastecimiento')
+  await expect(page.getByTestId('por-comprar')).toBeVisible()
+
+  const marca = Date.now().toString(36)
+  const producto = await productoDePrueba(page, `${marca}L`)
+  const proveedor = `Proveedor Libre ${marca}`
+  // El catálogo del POS/compras sale del espejo local: se recarga para que el
+  // producto recién creado esté en el buscador.
+  await page.goto('/abastecimiento')
+  await expect(page.getByTestId('por-comprar')).toBeVisible()
+
+  await page.getByRole('button', { name: '+ Compra libre' }).click()
+  const modal = page.getByRole('dialog', { name: 'Compra libre (reposición)' })
+  await expect(modal).toBeVisible()
+
+  // Producto con el combobox compartido.
+  await modal.getByRole('combobox').first().fill(producto.name)
+  await modal.getByRole('option', { name: new RegExp(producto.name) }).first().click()
+
+  // Proveedor nuevo tipeado (texto libre) y cantidad/costo.
+  await modal.locator('#libre-proveedor').fill(proveedor)
+  await modal.getByLabel('Cantidad').fill('2')
+  await modal.getByLabel('Costo unitario de la compra libre').fill('100000')
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.screenshot({ path: join(DIR, 'compra-libre-desktop.png') })
+  const [respuesta] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/api/supply/purchases') && r.request().method() === 'POST'),
+    modal.getByRole('button', { name: 'Registrar compra libre' }).click(),
+  ])
+  const cuerpoCompra = await respuesta.json().catch(() => null)
+  expect(respuesta.ok(), `POST /api/supply/purchases → ${respuesta.status()} ${JSON.stringify(cuerpoCompra)}`).toBeTruthy()
+  await expect(page.getByText('Compra libre registrada')).toBeVisible({ timeout: 20_000 })
+
+  // La compra existe con una línea libre (sin necesidad) y su cantidad libre.
+  const compra = await page.evaluate(async ({ api, proveedor }) => {
+    const filas = await fetch(`${api}/api/supply/purchases?limit=50`, { credentials: 'include' }).then((r) => r.json()).catch(() => null)
+    const lista = filas?.compras || []
+    return lista.find((fila) => fila.supplierName === proveedor) || null
+  }, { api: API, proveedor })
+  expect(compra, 'la compra libre queda registrada').toBeTruthy()
+  expect(compra.lines?.[0]?.needId).toBeFalsy()
+  expect(Number(compra.lines?.[0]?.libreQuantity)).toBe(2)
+
+  // No crea necesidad: «Por comprar» no muestra el producto.
+  const necesidades = await listarNecesidades(page)
+  const lista = necesidades?.necesidades || necesidades?.items || []
+  expect((lista || []).some((fila) => fila.productId === producto.id)).toBe(false)
 })

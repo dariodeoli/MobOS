@@ -219,9 +219,14 @@ test('F5 · recepción: escaneo contra el manifiesto, sobrante con nota y stock 
   // El resumen es la fuente de verdad de lo que pasó: 1 recibida, 1 faltante
   // (la que no se escaneó) y 1 sobrante con nota.
   expect(recepcionCerrada?.resumen, JSON.stringify(conFaltante.body).slice(0, 300)).toMatchObject({ RECIBIDO: 1, FALTANTE: 1, SOBRANTE: 1 })
-  // Edge case del backend (INV): con sobrante + faltante a la vez el estado del
-  // lote queda CONFIRMADA (el cálculo no recibe `faltantes`); reportado aparte.
-  expect(['RECEPCION_PARCIAL', 'CONFIRMADA']).toContain(recepcionCerrada?.status)
+  expect(recepcionCerrada?.status).toBe('CONFIRMADA')
+  // El LOTE queda en CON_INCIDENCIA (contrato F5: sobrantes/dañados/incorrectos
+  // mandan sobre el parcial) y sigue en llegadas pendientes para retomarlo.
+  const lotes = await apiPagina(page, `/api/supply/shipments?purchaseId=${lote.purchaseId}`)
+  const loteTrasRecepcion = (lotes.body?.envios || []).find((fila) => fila.id === lote.id)
+  expect(loteTrasRecepcion?.status, JSON.stringify(lotes.body).slice(0, 300)).toBe('CON_INCIDENCIA')
+  const llegadas = await apiPagina(page, '/api/supply/receptions?pendientes=1')
+  expect((llegadas.body?.llegadas || []).some((fila) => fila.id === lote.id || fila.code === lote.code)).toBe(true)
   void producto
 })
 
@@ -404,6 +409,61 @@ test('F3 · las etiquetas de la preparación salen por el agente (con pendientes
   expect(textoDelTicket(capturados[1])).not.toContain('PENDIENTE')
   await sinDialogo(page)
 
+})
+
+// F3/F4 · IMEI diferido del lote: el panel completa las unidades pendientes de
+// un despacho (escaneo de a uno y pegado múltiple) antes de la recepción.
+test('F3 · preparar lote: IMEI diferido por escaneo y pegado', async ({ page }) => {
+  mkdirSync(DIR, { recursive: true })
+  const base = `4901542${sufijo().slice(0, 7)}`
+  const imeiA = imeiValido(base)
+  const imeiB = imeiValido(String(Number(base) + 1).padStart(14, '0'))
+  const imeiRoto = `${imeiB.slice(0, 14)}${(Number(imeiB[14]) + 1) % 10}`
+  await page.goto('/preparar-lote')
+  await expect(page.getByTestId('preparar-lote')).toBeVisible()
+  const { compra, lote } = await prepararLote(page, 2, [])
+  await page.getByRole('button', { name: 'Actualizar' }).click()
+
+  const fila = page.getByTestId('preparar-lote-fila').filter({ hasText: lote.code })
+  await expect(fila).toBeVisible({ timeout: 20_000 })
+  await expect(fila.getByText('2 IMEI pendientes')).toBeVisible()
+  await expect(fila).toContainText(compra.code)
+  await fila.getByRole('button', { name: 'Cargar IMEI' }).click()
+
+  // Escaneo de a uno: el inválido (Luhn) no sale del panel.
+  const activa = page.getByTestId('preparar-lote-activa')
+  await expect(activa).toBeVisible()
+  await expect(activa.getByText('2 pendientes')).toBeVisible()
+  await page.getByLabel('IMEI del lote a escanear').fill(imeiRoto)
+  await page.getByRole('button', { name: 'Cargar', exact: true }).click()
+  await expect(page.getByText(/IMEI inválido/)).toBeVisible()
+
+  // El válido entra por escaneo y el lote baja a 1 pendiente.
+  await page.getByLabel('IMEI del lote a escanear').fill(imeiA)
+  await page.getByRole('button', { name: 'Cargar', exact: true }).click()
+  await expect(async () => {
+    const pendientes = await apiPagina(page, `/api/supply/shipments?purchaseId=${compra.id}`)
+    expect((pendientes.body?.envios || [])[0]?.pendientes, JSON.stringify(pendientes.body).slice(0, 240)).toBe(1)
+  }).toPass({ timeout: 20_000 })
+
+  // Pegado múltiple: el válido entra y el roto se rechaza con el motivo.
+  await page.getByRole('button', { name: 'Pegar varios' }).click()
+  await page.getByLabel('IMEI del lote para pegar').fill(`${imeiB}, ${imeiRoto}`)
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.screenshot({ path: join(DIR, 'preparar-lote-pegado-desktop.png') })
+  await page.getByRole('button', { name: 'Cargar lote' }).click()
+  await expect(async () => {
+    const completos = await apiPagina(page, `/api/supply/shipments?purchaseId=${compra.id}`)
+    const envio = (completos.body?.envios || [])[0]
+    expect(envio?.pendientes, JSON.stringify(completos.body).slice(0, 240)).toBe(0)
+    expect(envio?.conImei).toBe(2)
+  }).toPass({ timeout: 20_000 })
+
+  // Completo: sale de la lista de lotes con IMEI pendientes.
+  await page.getByRole('button', { name: 'Actualizar' }).click()
+  await expect(page.getByTestId('preparar-lote').getByTestId('preparar-lote-fila').filter({ hasText: lote.code })).toHaveCount(0)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: join(DIR, 'preparar-lote-completo-mobile.png') })
 })
 
 // F3/F4 · IMEI diferido del lote: el panel completa las unidades pendientes de
