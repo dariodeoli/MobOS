@@ -33,18 +33,23 @@ La captura `bloqueo-en-curso-claro.jpg` muestra la foto vieja junto a
 - `getAvatarDataUrl` descarga con `cache: 'no-cache'` (revalida el ETag).
 - `combinarPerfil` (sesión) ahora es puro y el servidor manda: la copia del
   dispositivo solo cubre cuando `/me` **falla**.
-- Evidencia de PLT (en `slot/plataforma:docs/qa/271-avatar-sin-flash/`): su
-  `bloqueo-reload-en-curso.jpg` muestra las **iniciales «A»** (sin foto) y su
-  `bloqueo-reload-resuelto.jpg` la foto correcta; e2e `qa-271-avatar-sin-flash`
-  2/2 según su handover.
+- Evidencia de PLT: e2e `qa-271-avatar-sin-flash` 2/2 y capturas en su rama.
+
+**Verificación «después» (mía, con el fix aplicado localmente):** apliqué el
+parche de runtime de PLT (`Avatar.jsx`, `userAvatar.js`, `sesion.jsx`,
+`avatarFuente.js`, `sesionPerfil.js`, ruta del avatar) **sin commitear**, corrí
+el mismo script y después **revertí** el árbol (queda limpio). Resultado en
+claro, oscuro y móvil: **`fotoViejaPintada: false` (0/3)** — el bloqueo muestra
+las iniciales neutras durante la ventana y la foto correcta al resolver.
+Capturas: `docs/qa/271-avatar-sin-flash/dsn-despues/`.
 
 **Veredicto:** el bug es real y está reproducido; el fix de PLT resuelve el
-comportamiento esperado en la evidencia revisada. **Pendiente de integración**:
-cuando entre, este mismo script debe dar `fotoViejaPintada: false` en los 3
-temas (queda como re-verificación post-deploy, igual que #266).
+comportamiento esperado, verificado en los tres temas con el parche aplicado
+localmente. **Pendiente de integración**: cuando entre, se re-verifica en la
+rama/producción con el mismo script (esperado 0/3 igual que en la simulación).
 
 **Lámina de cierre:** `docs/qa/271-avatar-sin-flash/comparativa-cierre.jpg`
-(ANTES: DSN con el bug · DESPUÉS: PLT con el fix), generada con
+(matriz claro/oscuro/móvil × ANTES/DESPUÉS), generada con
 `scripts/qa-comparativas-cierre.mjs`.
 
 **Nota para CMP/PLT:** `docs/AVATAR.md` mantiene «subida → Google → iniciales»

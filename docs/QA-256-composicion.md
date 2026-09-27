@@ -71,7 +71,7 @@ visibles (la séptima es el pipeline del dueño en Trade-In, que no es una
 secundaria de vendedor). No quedan `SellerSection description` sueltos en
 `src/components`.
 
-Lámina de cierre ANTES | DESPUÉS (Productos) en
+Lámina de cierre (matriz claro/oscuro/móvil × ANTES | DESPUÉS) de Productos en
 `docs/qa/paginas-secundarias/cierre/comparativa-cierre.jpg`, generada con
 `scripts/qa-comparativas-cierre.mjs`.
 

@@ -81,5 +81,5 @@ sigue usando el ancho/copias de la impresora.
   `scripts/qa-plantilla-prueba.mjs` (claro, oscuro, móvil; acción con 58 mm + sin
   corte + 2 copias, el completo y las **acciones de la ficha** con la entrada
   «Plantilla»). Producción v1.0.190: **0/3 con editor**; rama: **3/3**, sin
-  desborde en móvil. Lámina de cierre ANTES | DESPUÉS:
-  `docs/qa/plantilla-prueba/comparativa-cierre.jpg`.
+  desborde en móvil. Lámina de cierre (matriz
+  claro/oscuro/móvil × ANTES | DESPUÉS): `docs/qa/plantilla-prueba/comparativa-cierre.jpg`.
