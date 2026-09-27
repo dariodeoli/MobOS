@@ -10,6 +10,8 @@ import Icon from '@/components/shared/Icon'
 import { Aviso, Textarea } from '@/components/ui'
 import { PIE_ACCIONES } from '@/components/shared/formulario'
 import { ABIERTAS, ESTADO_COTIZACION as ESTADO, TONO_COTIZACION as TONO } from '@/lib/cotizaciones'
+import CompartirPdf from '@/components/shared/CompartirPdf'
+import { buildProformaHtml } from '@/components/shared/OrderReceipt'
 
 // Cotización pública: el cliente abre el QR o el enlace, revisa el detalle y
 // acepta o rechaza (con motivo opcional) sin iniciar sesión. Una sola vez.
@@ -167,9 +169,20 @@ export default function CotizacionPublica() {
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-4 flex flex-wrap justify-center gap-2">
-                    <button type="button" disabled={busy} onClick={() => resolver('accept')} className="inline-flex items-center gap-2 rounded-xl bg-ok px-5 py-2.5 text-sm font-bold text-black transition hover:opacity-90 disabled:opacity-60"><Icon name="check" className="h-4 w-4" />{busy ? 'Guardando…' : 'Aceptar cotización'}</button>
-                    <button type="button" disabled={busy} onClick={() => setRechazando(true)} className="inline-flex items-center gap-2 rounded-xl border border-bad/40 px-5 py-2.5 text-sm font-semibold text-bad transition hover:bg-bad/10 disabled:opacity-60"><Icon name="close" className="h-4 w-4" />Rechazar</button>
+                  <div className="mt-4 flex flex-col items-center gap-3">
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <button type="button" disabled={busy} onClick={() => resolver('accept')} className="inline-flex items-center gap-2 rounded-xl bg-ok px-5 py-2.5 text-sm font-bold text-black transition hover:opacity-90 disabled:opacity-60"><Icon name="check" className="h-4 w-4" />{busy ? 'Guardando…' : 'Aceptar cotización'}</button>
+                      <button type="button" disabled={busy} onClick={() => setRechazando(true)} className="inline-flex items-center gap-2 rounded-xl border border-bad/40 px-5 py-2.5 text-sm font-semibold text-bad transition hover:bg-bad/10 disabled:opacity-60"><Icon name="close" className="h-4 w-4" />Rechazar</button>
+                    </div>
+                    {/* #261: el cliente baja o comparte el A4 de marca (misma proforma). */}
+                    <CompartirPdf
+                      construirHtml={() => buildProformaHtml(quote, { format: 'a4', enlace: typeof window !== 'undefined' ? window.location.href : '' })}
+                      nombre={`cotizacion-${quote?.number || ''}`}
+                      titulo={`Cotización ${quote?.number || ''}`}
+                      texto={[`Cotización ${quote?.number || ''}`, quote?.customerName, typeof window !== 'undefined' ? window.location.href : ''].filter(Boolean).join(' · ')}
+                      formato="a4"
+                      etiqueta="PDF de la cotización"
+                    />
                   </div>
                 )}
               </section>
