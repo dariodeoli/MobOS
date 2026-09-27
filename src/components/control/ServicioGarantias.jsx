@@ -9,6 +9,7 @@ import { useSesion } from '@/lib/sesion'
 import { cn } from '@/lib/utils'
 import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
 import { temaV2Activo } from '@/lib/temaV2'
+import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import { ESTADO_GARANTIA, ESTADO_GARANTIA_BADGE, SIGUIENTE_GARANTIA } from '@/lib/estadosPedido'
 import { SIGUIENTE_SERVICIO, etiquetaServicio } from '@/lib/estadosServicio'
 import Garantias from './Garantias'
@@ -190,12 +191,16 @@ export default function ServicioGarantias({ vistaInicial = 'servicio' }) {
         <div className="space-y-3">
           <p className="text-sm text-mute">Órdenes del taller y garantías en una sola lista, con su tipo a la vista. Una garantía puede pasar al taller conservando su historial.</p>
           {v2 && filas && filas.length > 0 && (
-            <div data-testid="resumen-servicio-garantias" className="grid grid-cols-2 divide-ink-600 rounded-xl border border-ink-600 bg-ink-800/60 text-center sm:grid-cols-4 sm:divide-x">
-              <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Registros</p><p className="v2-numero mt-1 text-lg font-semibold tabular-nums sm:text-2xl">{filas.length}</p><p className="text-[11px] text-mute">en la lista</p></div>
-              <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">En taller</p><p className={cn('v2-numero mt-1 text-lg font-semibold tabular-nums', filas.some((fila) => fila.tipo === 'SERVICIO' && !['Entregado', 'Cancelado'].includes(fila.estado)) ? 'text-fore' : 'text-mute')}>{filas.filter((fila) => fila.tipo === 'SERVICIO' && !['Entregado', 'Cancelado'].includes(fila.estado)).length}</p><p className="text-[11px] text-mute">órdenes activas</p></div>
-              <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Garantías</p><p className={cn('v2-numero mt-1 text-lg font-semibold tabular-nums', filas.some((fila) => fila.tipo === 'GARANTIA' && fila.estado !== 'Entregado') ? 'text-fore' : 'text-mute')}>{filas.filter((fila) => fila.tipo === 'GARANTIA' && fila.estado !== 'Entregado').length}</p><p className="text-[11px] text-mute">casos abiertos</p></div>
-              <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Desde garantía</p><p className={cn('v2-numero mt-1 text-lg font-semibold tabular-nums', filas.some((fila) => fila.desdeGarantia) ? 'text-ok' : 'text-mute')}>{filas.filter((fila) => fila.desdeGarantia).length}</p><p className="text-[11px] text-mute">pasaron al taller</p></div>
-            </div>
+            <ResumenMetricas
+              testId="resumen-servicio-garantias"
+              columnas={4}
+              items={[
+                { titulo: 'Registros', valor: filas.length, alcance: 'En pantalla', nota: 'en la lista' },
+                { titulo: 'En taller', valor: filas.filter((fila) => fila.tipo === 'SERVICIO' && !['Entregado', 'Cancelado'].includes(fila.estado)).length, alcance: 'En pantalla', nota: 'órdenes activas', tono: filas.some((fila) => fila.tipo === 'SERVICIO' && !['Entregado', 'Cancelado'].includes(fila.estado)) ? 'text-fore' : 'text-mute' },
+                { titulo: 'Garantías', valor: filas.filter((fila) => fila.tipo === 'GARANTIA' && fila.estado !== 'Entregado').length, alcance: 'En pantalla', nota: 'casos abiertos', tono: filas.some((fila) => fila.tipo === 'GARANTIA' && fila.estado !== 'Entregado') ? 'text-fore' : 'text-mute' },
+                { titulo: 'Desde garantía', valor: filas.filter((fila) => fila.desdeGarantia).length, alcance: 'En pantalla', nota: 'pasaron al taller', tono: filas.some((fila) => fila.desdeGarantia) ? 'text-ok' : 'text-mute' },
+              ]}
+            />
           )}
           {filas === null && <div className="space-y-2" aria-busy="true"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>}
           {filas !== null && error && <EmptyState compact icon="alert" title="No se pudieron cargar los registros" description={error} action={<Button onClick={() => setRevision((valor) => valor + 1)}>Reintentar</Button>} />}

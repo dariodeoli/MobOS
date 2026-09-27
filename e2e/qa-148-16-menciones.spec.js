@@ -64,18 +64,21 @@ test('menciones: comentario interno, notificación al mencionado y nada para el 
   await pagina.screenshot({ path: `${SALIDA}/02-campana-mencion.png` })
 
   // (3) Nunca visible al cliente: el público por token no trae comentarios.
-  const publico = await pagina.request.get(`${API}/api/public/orders/${seedOrder.publicToken}`)
+  // Se abre con un contexto SIN sesión (como un cliente real) y por la ruta
+  // pública del mismo origen («/pedido/:token»): «/pedidos/:token» es la ruta
+  // interna del panel y, con sesión de vendedor, muestra la ficha del pedido
+  // con el aviso de comentarios (falso positivo/flaky en CI).
+  const cliente = await browser.newContext()
+  const publico = await cliente.request.get(`${API}/api/public/orders/${seedOrder.publicToken}`)
   const texto = await publico.text()
   expect(texto).not.toContain(`Revisar stock ${marca}`)
   expect(texto.toLowerCase()).not.toContain('ordercomment')
-  // Contexto limpio (sin sesión): el cliente real no tiene cookies de la tienda.
-  const contextoPublico = await browser.newContext()
-  const publica = await contextoPublico.newPage()
-  await publica.goto(`/pedidos/${seedOrder.publicToken}`)
+  const publica = await cliente.newPage()
+  await publica.goto(`/pedido/${seedOrder.publicToken}`)
   await expect(publica.locator('h1').first()).toBeVisible({ timeout: 20000 })
   await expect(publica.getByText(new RegExp(`Revisar stock ${marca}`))).toHaveCount(0)
   await expect(publica.getByText(/Solo tú y otros empleados/)).toHaveCount(0)
   await publica.screenshot({ path: `${SALIDA}/03-publico-sin-comentarios.png` })
-  await contextoPublico.close()
+  await cliente.close()
   await vendedor.close()
 })

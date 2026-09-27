@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PresenciaPedido from './PresenciaPedido'
-import { Aviso, Badge, Button, Drawer, Input, Modal, Money, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, ConfirmDialog, Drawer, Input, Modal, Money, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { descargarArchivo } from '@/utils/descargarArchivo'
 import Icon from '@/components/shared/Icon'
@@ -16,6 +16,7 @@ import { FULFILLMENT_LABELS } from '@/lib/constants'
 import { metodoEntrega, opcionesDeEntrega, tonoEntrega } from './venta/entrega'
 import { accessUrlFor, FORMATOS_PEDIDO, printDeliveryNote } from '@/components/shared/OrderReceipt'
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
+import ClienteDelPedidoModal from './ClienteDelPedidoModal'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { configImpresora } from '@/lib/printing/agent'
 import { ticketNotaEntrega } from '@/lib/printing/tickets'
@@ -55,6 +56,9 @@ const AUDIT_LABELS = {
   ORDER_DISCOUNT_APPROVED: (meta) => <>Descuento aprobado: <Money value={Number(meta?.discountPyg || 0)} /></>,
   ORDER_DISCOUNT_AUTHORIZED: (meta) => <>Descuento autorizado: <Money value={Number(meta?.discountPyg || 0)} /> (máx. <Money value={Number(meta?.maxDiscountPyg || 0)} />)</>,
   ORDER_PRICE_AUTHORIZED: (meta) => <>Precio bajo lista autorizado: <Money value={Number(meta?.belowListPyg || 0)} /></>,
+  ORDER_CUSTOMER_CHANGED: (meta) => `Cliente: ${meta?.previousCustomerName || 'ocasional'} → ${meta?.customerName || '—'}`,
+  ORDER_CUSTOMER_REMOVED: (meta) => `Cliente quitado${meta?.previousCustomerName ? `: ${meta.previousCustomerName}` : ''} · el pedido queda como ocasional`,
+  ORDER_CUSTOMER_CREATED: (meta) => `Ficha creada desde el pedido: ${meta?.customerName || ''}${meta?.matched ? ' (coincidía con una ficha existente)' : ''}`,
   ORDER_VOIDED: (meta) => `Pedido anulado${meta?.reason ? `: ${meta.reason}` : ''}${Number(meta?.restoredUnits || 0) > 0 ? ` · ${meta.restoredUnits} unidad(es) repuestas` : ''}`,
   ORDER_DELIVERED_UNPAID: (meta) => `Entrega con saldo autorizada${Number(meta?.pendingPyg || 0) > 0 ? ` · saldo ${gs(Number(meta.pendingPyg))}` : ''}`,
   ORDER_TAGS_UPDATED: (meta) => (meta?.tags || []).length ? `Etiquetas: ${meta.tags.join(', ')}` : 'Etiquetas quitadas',
@@ -174,6 +178,9 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const [entregaAuth, setEntregaAuth] = useState(null)
   const [entregaVersion, setEntregaVersion] = useState(0)
   const puedeAnular = Boolean(usuario && (['ADMIN', 'GERENTE'].includes(usuario.role) || usuario.permissions?.includes('orders:manage')))
+  // Cliente ocasional (#149): asignar/cambiar la ficha y crear una desde el pedido.
+  const [clienteModal, setClienteModal] = useState(null)
+  const [quitarCliente, setQuitarCliente] = useState(false)
   const fileRef = useRef(null)
   // `order` se declara antes de los efectos: usarlo en un array de
   // dependencias después de su declaración es TDZ y rompía la vista en
@@ -575,6 +582,21 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                 {!order.customer?.addresses?.length && <p className="mt-1 text-xs text-mute">Sin dirección cargada.</p>}
               </div>
             </div>
+            {!esDemo && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {order.customer?.id ? (
+                  <>
+                    <Button type="button" variant="outline" className="h-9 px-3 text-xs" data-testid="pedido-cambiar-cliente" onClick={() => setClienteModal('asignar')}>Cambiar cliente</Button>
+                    <Button type="button" variant="ghost" className="h-9 px-3 text-xs text-warn" data-testid="pedido-quitar-cliente" onClick={() => setQuitarCliente(true)}>Quitar cliente</Button>
+                  </>
+                ) : (
+                  <>
+                    <Button type="button" className="h-9 px-3 text-xs" data-testid="pedido-asignar-cliente" onClick={() => setClienteModal('asignar')}>Asignar cliente</Button>
+                    <Button type="button" variant="outline" className="h-9 px-3 text-xs" data-testid="pedido-crear-ficha" onClick={() => setClienteModal('crear')}>Crear ficha</Button>
+                  </>
+                )}
+              </div>
+            )}
             {order.notes && !notaOpen && <p className="mt-3 rounded-lg bg-ink-700/60 px-3 py-2 text-xs text-mute">Nota: {order.notes}</p>}
             {!esDemo && (notaOpen ? (
               <div className="mt-3 space-y-2">
@@ -596,6 +618,24 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               </button>
             ))}
           </SeccionColapsable>
+
+          {/* Cliente ocasional (#149): asignar/cambiar la ficha o crear una
+              desde el pedido, reutilizando el buscador/alta rápida del POS. */}
+          <ClienteDelPedidoModal
+            open={Boolean(clienteModal)}
+            modo={clienteModal || 'asignar'}
+            order={order}
+            onClose={() => setClienteModal(null)}
+            onSaved={() => { setClienteModal(null); load(); onChanged?.() }}
+          />
+          <ConfirmDialog
+            open={quitarCliente}
+            onCancel={() => setQuitarCliente(false)}
+            onConfirm={() => { setQuitarCliente(false); accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { action: 'setCustomer', customerId: null }), 'Cliente quitado.') }}
+            title="Quitar el cliente del pedido"
+            description="El pedido queda como cliente ocasional. La ficha no se borra y el cambio queda en la cronología y la auditoría."
+            confirmLabel="Quitar cliente"
+          />
 
           {/* Cronología */}
           <SeccionColapsable id={`pedido-${order.id}-cronologia`} titulo="Cronología" icono="clock" resumen={events.length ? `${events.length} movimiento${events.length === 1 ? '' : 's'}` : 'Sin movimientos'}>

@@ -508,6 +508,9 @@ node "$BACKEND_ROOT/tests/customer-portal.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKE
 
 echo "Clientes: unificación de duplicados con preview, puntero y cronología (#268)..."
 node "$BACKEND_ROOT/tests/customer-merge.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
+
+echo "Pedidos: cliente ocasional, crear/cambiar/quitar ficha con auditoría (#149)..."
+node "$BACKEND_ROOT/tests/orders-customer.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/orders-credit-discounts.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL"
 node "$BACKEND_ROOT/tests/mobos-1.2.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 node "$BACKEND_ROOT/tests/price-lists.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
