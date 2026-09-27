@@ -7,6 +7,8 @@
 genéricos · rate limit activo. Evidencia:
 `docs/QA-187-clientes-produccion-v192/`.
 
+Comentario de cierre publicado: https://github.com/dariodeoli/MobOS/issues/187#issuecomment-5854957601
+
 Cubre el dominio completo: **ficha** (resumen, deuda, cronología, seguro, nota
 pública, estadísticas #221, WhatsApp), **pedidos** asociados y **portal/
 seguimiento** (cuenta, pedido en detalle, vitrina), además del listado
