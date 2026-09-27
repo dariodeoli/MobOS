@@ -41,12 +41,13 @@
         "qa-263-imei-venta.spec.js",
         "qa-266-shell-header.spec.js",
         "qa-271-avatar-sin-flash.spec.js",
-        "qa-f6-metricas-abastecimiento.spec.js",
+        "qa-271-avatar-superficies.spec.js",
+        "recorte-perfil.spec.js",
         "redireccion-248.spec.js",
         "responsive.spec.js",
         "seguridad-cuenta.spec.js"
       ],
-      "tests": 186
+      "tests": 187
     },
     {
       "archivos": [
@@ -84,10 +85,10 @@
         "qa-254-por-comprar.spec.js",
         "qa-256-composicion.spec.js",
         "qa-257-inventario-pos.spec.js",
-        "qa-261-cotizacion-envio.spec.js",
+        "qa-260-cotizacion-cliente.spec.js",
         "qa-268-unificar-clientes.spec.js",
+        "qa-f6-metricas-abastecimiento.spec.js",
         "qa-fin-compacto.spec.js",
-        "qa-fin-repuestos-taller.spec.js",
         "ruc-demo.spec.js",
         "shell-roles.spec.js",
         "traslados-etiquetas-lote.spec.js",
@@ -133,9 +134,9 @@
         "qa-249-clientes-touch.spec.js",
         "qa-253-equipo-acceso.spec.js",
         "qa-253-mi-cuenta.spec.js",
+        "qa-261-cotizacion-envio.spec.js",
         "qa-267-config-menu.spec.js",
-        "qa-271-avatar-superficies.spec.js",
-        "recorte-perfil.spec.js",
+        "qa-fin-repuestos-taller.spec.js",
         "repuestos-proveedores.spec.js",
         "ruc-extraccion.spec.js",
         "selector-sucursal.spec.js",
@@ -145,5 +146,5 @@
       "tests": 186
     }
   ],
-  "generado": "2026-09-27T07:38:51.427Z"
+  "generado": "2026-09-27T08:45:57.277Z"
 }
