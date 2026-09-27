@@ -29,7 +29,7 @@ export const notaInterna = (notes) => {
   return notes.trim()
 }
 
-export default function ClientesTabla({ rows, templates, onPerfil, onResumen }) {
+export default function ClientesTabla({ rows, templates, onPerfil, onResumen, onUnificar }) {
   // Vista previa v2 (#241 lote B): números de consola y chips pill en la fila.
   const v2 = temaV2Activo()
   // Sin orden de columna, respeta el orden del servidor (actividad reciente).
@@ -79,6 +79,10 @@ export default function ClientesTabla({ rows, templates, onPerfil, onResumen }) 
       <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
         <button type="button" className="min-h-11 rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore md:min-h-0" onClick={copiarTelefonos}>Copiar teléfonos</button>
         <button type="button" className="min-h-11 rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore md:min-h-0" onClick={exportarSeleccionados}>Exportar CSV</button>
+        {/* Unificar duplicados (#268): con exactamente dos fichas elegidas. */}
+        {onUnificar && seleccionados.length === 2 && (
+          <button type="button" data-testid="unificar-seleccionados" className="min-h-11 rounded-lg border border-fono/50 px-2 py-1 text-xs font-semibold text-fono-light transition hover:bg-fono/10 md:min-h-0" onClick={() => { const [a, b] = elegidas(); if (a && b) onUnificar(a, b) }}>Unificar seleccionados</button>
+        )}
       </BarraLote>
     <div className="overflow-x-auto" data-testid="clientes-tabla">
       <div className={cn(GRID, 'px-3.5 pb-2 pt-1')}>
