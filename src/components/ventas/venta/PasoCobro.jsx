@@ -395,11 +395,11 @@ export default function PasoCobro({
                 {/* Con unidades disponibles la salida es elegir la unidad; sin
                     unidades (o sin stock) el pedido se marca sobre pedido. */}
                 {pendiente.motivo === 'imei' && pendiente.unidades > 0 ? (
-                  <Button type="button" variant="outline" className="h-8 px-2.5 text-xs" disabled={guardando} onClick={() => onElegirUnidad?.(pendiente.key)}>
+                  <Button type="button" variant="outline" className="min-h-11 px-2.5 text-xs md:h-8 md:min-h-0" disabled={guardando} onClick={() => onElegirUnidad?.(pendiente.key)}>
                     Elegir unidad{pendiente.unidades > 1 ? ` (${pendiente.unidades})` : ''}
                   </Button>
                 ) : (
-                  <Button type="button" variant="outline" className="h-8 px-2.5 text-xs" disabled={guardando} onClick={() => onSobrePedido?.(pendiente.key)}>
+                  <Button type="button" variant="outline" className="min-h-11 px-2.5 text-xs md:h-8 md:min-h-0" disabled={guardando} onClick={() => onSobrePedido?.(pendiente.key)}>
                     {pendiente.motivo === 'imei' ? 'Vender sin IMEI' : 'Sobre pedido'}
                   </Button>
                 )}

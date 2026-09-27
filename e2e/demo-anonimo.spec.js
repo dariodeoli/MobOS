@@ -375,8 +375,9 @@ test('la demo no persiste nada: guardados, recarga, salida y base intacta', asyn
   await page.goto('/pos')
   await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente cierre POS ${marca}`)
-  await page.getByPlaceholder('Buscar producto…').fill('iPhone')
-  await page.getByRole('button', { name: /iPhone/ }).first().click()
+  // Accesorio (stock simple): la venta serializada pide el IMEI exacto (#263).
+  await page.getByPlaceholder('Buscar producto…').fill('Funda')
+  await page.getByRole('button', { name: /Funda/ }).first().click()
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
   const pagos = page.locator('div.space-y-3').filter({ hasText: 'Pagos de esta venta' })
   await pagos.getByLabel('Cuenta de cobro').first().click()
