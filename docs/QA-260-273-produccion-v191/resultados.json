@@ -1,0 +1,20 @@
+{
+  "url": "https://app.moboss.online",
+  "version": "1.0.191",
+  "assets": 81,
+  "marcadores": {
+    "#260 · Consumidor final": true,
+    "#260 · alta rápida": true,
+    "#273 · cronología «Ficha creada desde el pedido»": true,
+    "#273 · asignar cliente": true,
+    "#273 · crear ficha": true,
+    "#273 · cambiar cliente": true,
+    "#273 · quitar cliente": true
+  },
+  "faltantes": [],
+  "pendienteDeploy": false,
+  "capturas": [
+    "01-cotizaciones-demo.png",
+    "02-pedidos-demo.png"
+  ]
+}
