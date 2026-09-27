@@ -21,7 +21,7 @@ import { numeroOpcional } from '../../../../lib/montos'
 // venta, la reserva y los mínimos. No crea stock: eso pasa en la recepción (F5).
 // «Por comprar» = lo que falta comprar: ABIERTA + ASIGNADA. Lo COMPRADO vive en
 // su propia pestaña (`?status=COMPRADA`).
-const ESTADOS_PENDIENTES = ['ABIERTA', 'ASIGNADA']
+const ESTADOS_PENDIENTES = ['ABIERTA', 'ASIGNADA', 'ESPERANDO_CLIENTE']
 
 export async function GET(request: Request) {
   const tenant = await tenantId(request)
