@@ -1,7 +1,6 @@
 // #264/#265 · Verificación en producción (demo): la papelera del pago vive
 // dentro del bloque y el diálogo de eliminar línea queda por encima del carrito.
 // Salida: docs/qa/264-265-produccion/{capturas}.jpg + resultados.json
-/* global window, document */
 import { createRequire } from 'node:module'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
