@@ -174,6 +174,17 @@ test('F5 · recepción: escaneo contra el manifiesto, sobrante con nota y stock 
   await expect(activa).toBeVisible()
   await expect(activa.getByTestId('recepcion-esperado')).toHaveCount(2)
 
+  // F4 (#250 §11): el manifiesto del lote se reimprime al recibirlo (agente
+  // simulado). Este click habría cazado el bug de `resources.supplyShipments`
+  // (bloques repetidos que dejaban `manifest` sin definir).
+  const capturadosRecepcion = []
+  await agenteFalso(page, capturadosRecepcion)
+  await page.getByTestId('recepcion-manifiesto').click()
+  await expect(page.getByText('Manifiesto enviado')).toBeVisible({ timeout: 15_000 })
+  expect(capturadosRecepcion).toHaveLength(1)
+  expect(capturadosRecepcion[0].tipo).toBe('manifiesto')
+  expect(textoDelTicket(capturadosRecepcion[0])).toContain(lote.code)
+
   // Escaneo del esperado A y rechazo del repetido.
   await page.getByLabel('Código a escanear').fill(imeiA)
   await page.getByRole('button', { name: 'Registrar' }).click()
@@ -415,6 +426,8 @@ test('F3 · las etiquetas de la preparación salen por el agente (con pendientes
 // un despacho (escaneo de a uno y pegado múltiple) antes de la recepción.
 test('F3 · preparar lote: IMEI diferido por escaneo y pegado', async ({ page }) => {
   mkdirSync(DIR, { recursive: true })
+  const capturados = []
+  await agenteFalso(page, capturados)
   const base = `4901542${sufijo().slice(0, 7)}`
   const imeiA = imeiValido(base)
   const imeiB = imeiValido(String(Number(base) + 1).padStart(14, '0'))
@@ -445,6 +458,23 @@ test('F3 · preparar lote: IMEI diferido por escaneo y pegado', async ({ page })
     const pendientes = await apiPagina(page, `/api/supply/shipments?purchaseId=${compra.id}`)
     expect((pendientes.body?.envios || [])[0]?.pendientes, JSON.stringify(pendientes.body).slice(0, 240)).toBe(1)
   }).toPass({ timeout: 20_000 })
+
+  // F4/F3 (#250 §11): desde el propio lote salen el manifiesto y las etiquetas
+  // `N de M` (la unidad todavía pendiente sale como PENDIENTE).
+  await page.getByTestId('preparar-lote-manifiesto').click()
+  await expect(page.getByText('Manifiesto enviado')).toBeVisible({ timeout: 15_000 })
+  expect(capturados).toHaveLength(1)
+  expect(capturados[0].tipo).toBe('manifiesto')
+  expect(textoDelTicket(capturados[0])).toContain(lote.code)
+
+  await page.getByTestId('preparar-lote-etiquetas').click()
+  await expect(page.getByText('Etiquetas enviadas a la impresora.')).toBeVisible({ timeout: 15_000 })
+  expect(capturados).toHaveLength(2)
+  expect(capturados[1].tipo).toBe('etiquetas-lote')
+  const tiraDelLote = textoDelTicket(capturados[1])
+  expect(tiraDelLote).toContain(imeiA)
+  expect(tiraDelLote).toContain('PENDIENTE')
+  await sinDialogo(page)
 
   // Pegado múltiple: el válido entra y el roto se rechaza con el motivo.
   await page.getByRole('button', { name: 'Pegar varios' }).click()

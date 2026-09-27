@@ -539,7 +539,11 @@ compra**, **etiqueta producto/paquete** (+ las **etiquetas del lote `N de M`**),
   `buildManifiestoHtml`/`printManifiesto` (A4/rollo), con código grande,
   recorrido, transporte, IMEI conocidos/pendientes y las firmas de despacho y
   transporte; las **etiquetas del lote** salen del mismo payload con `N de M` y
-  el código `ENV-…`. Ensayo: `docs/manifiesto-ejemplo/`.
+  el código `ENV-…`. Ensayo: `docs/manifiesto-ejemplo/`. **Adopción**: se imprime
+  desde el lote (`/preparar-lote`, botones «Manifiesto» y «Etiquetas del lote»)
+  y se reimprime desde la recepción F5; ambos usan el mismo recurso
+  `resources.supplyShipments.manifest` (una sola clave `supplyShipments`, con
+  `list/create/update/manifest` — bloques repetidos la pisaban).
 - **QR**: falta cerrar la **ruta pública del panel/manifiesto** (path + token y si
   abre sin sesión). Candidatas a confirmar con INV/DSN: `/m/<token>` (manifiesto
   de lote) o `/abastecimiento/compras/<id>` (panel, pide sesión). Mientras no esté

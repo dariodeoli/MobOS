@@ -96,6 +96,11 @@ El modal muestra el resumen y la lista `n de N` (IMEI o «pendiente») con
 impresora recordada), **Compartir imagen** y **Descargar PDF**. e2e con agente
 simulado en `e2e/qa-250-escaneo-recepcion.spec.js`.
 
+Las **etiquetas del lote** (`N de M` por unidad del envío, con la compra y el
+destino) salen además desde **Preparar lote** (`/preparar-lote` → «Etiquetas del
+lote»), derivadas del manifiesto (`etiquetasDeLote`) y con la misma impresora
+del tipo `etiquetas-lote`; mismo e2e.
+
 ## 5. Evidencia y tests
 
 - Unit `src/lib/printing/etiquetaLote.test.js` (4): normalización, fallback del
