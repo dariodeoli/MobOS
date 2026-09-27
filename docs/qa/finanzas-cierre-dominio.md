@@ -100,6 +100,7 @@ vendedor/día ni la comisión liquidada**—, ya corregido y con evidencia en
 | #253 (2026-09-25) | **Comercial** en archivo propio: precios, seguro, límites/autorizaciones, fidelización y mora | `config-comercial/README.md` |
 | #250 F2 (#254, 2026-09-26) | **Cierre de costos de la compra**: factura pendiente → cuenta a pagar y costo real de las unidades recibidas (`PATCH action:'costs'`) | `abastecimiento-f2-cierre-costos.md` |
 | #250 F6 (#254, 2026-09-26) | **Panel de métricas de abastecimiento** (rendimiento por proveedor, tiempos CDE→ASU, atrasos) entregado y **verificado en producción v1.0.186** | `abastecimiento-f6-finanzas.md` + `f6-metricas/` |
+| #250 · taller (#83, 2026-09-27) | **Repuestos del taller en Finanzas**: la deuda entra en el «por pagar» de Caja y se paga desde ahí con egreso en la cuenta | `fin-repuestos-taller.md` |
 | #148 §19 · #171 (2026-09-25) | **Ganadores por margen real** (ranking por ganancia y margen por producto) | `finanzas-ganadores/README.md` |
 | #148 (2026-09-26) | **Caja**: la diferencia no anticipa un número sin arqueo (fix verificado en producción) | `finanzas-produccion/antes/` + `produccion/` |
 | #148 · #171 (2026-09-25) | Runner de reportes al gate (`test:unit`) y sonda de márgenes por **sucursal y cliente** | `reportes-margenes-ci.md` |

@@ -341,8 +341,9 @@ export default function Caja() {
     load()
   }, [load])
 
-  // Repuestos y proveedores (#250 · #83).
+  // Repuestos y proveedores (#250 · #83) y repuestos del taller (#250 · FIN).
   const proveedores = finance?.supplierPayables || null
+  const taller = finance?.workshopParts || null
   async function registrarCompraProveedor(evento) {
     evento.preventDefault()
     if (proveedorBusy) return
@@ -369,12 +370,17 @@ export default function Caja() {
     if (proveedorBusy || !proveedorAccion) return
     setProveedorBusy(true); setProveedorError('')
     try {
-      await api.post(`/api/finance${sucursal?.id ? `?branchId=${encodeURIComponent(sucursal.id)}` : ''}`, {
-        action: proveedorAccion.tipo === 'pagar' ? 'supplierPayment' : 'supplierConsumption',
-        id: proveedorAccion.fila.id,
-        amountPyg: parseGsInput(proveedorMonto),
-        ...(proveedorAccion.tipo === 'pagar' && proveedorCuenta ? { accountId: proveedorCuenta } : {}),
-      })
+      const url = `/api/finance${sucursal?.id ? `?branchId=${encodeURIComponent(sucursal.id)}` : ''}`
+      // Repuesto del taller: deuda total (sin monto a mano) y egreso opcional.
+      const cuerpo = proveedorAccion.tipo === 'pagar-taller'
+        ? { action: 'workshopPartPayment', id: proveedorAccion.fila.id, ...(proveedorCuenta ? { accountId: proveedorCuenta } : {}) }
+        : {
+          action: proveedorAccion.tipo === 'pagar' ? 'supplierPayment' : 'supplierConsumption',
+          id: proveedorAccion.fila.id,
+          amountPyg: parseGsInput(proveedorMonto),
+          ...(proveedorAccion.tipo === 'pagar' && proveedorCuenta ? { accountId: proveedorCuenta } : {}),
+        }
+      await api.post(url, cuerpo)
       setProveedorAccion(null); setProveedorMonto(''); setProveedorCuenta('')
       await load({ silencioso: true })
     } catch (err) { setProveedorError(err?.message || 'No se pudo completar la acción.') } finally { setProveedorBusy(false) }
@@ -686,10 +692,10 @@ export default function Caja() {
           <Card className={v2 ? 'v2-tile' : undefined}>
             <Label>Por pagar</Label>
             <strong data-testid="caja-por-pagar">
-              <Money value={(finance.payables?.totalPyg || 0) + (proveedores?.totalPyg || 0)} />
+              <Money value={(finance.payables?.totalPyg || 0) + (proveedores?.totalPyg || 0) + (taller?.totalPyg || 0)} />
             </strong>
-            {proveedores?.totalPyg > 0 && (
-              <p className="mt-1 text-xs text-mute">incluye repuestos a crédito y consumo</p>
+            {((proveedores?.totalPyg || 0) > 0 || (taller?.totalPyg || 0) > 0) && (
+              <p className="mt-1 text-xs text-mute">incluye repuestos a crédito, consumo y taller</p>
             )}
           </Card>
           <Card className={v2 ? 'v2-tile' : undefined}>
@@ -766,6 +772,49 @@ export default function Caja() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+          {taller && taller.rows.length > 0 && (
+            <div className="mt-4 space-y-3 border-t border-ink-600 pt-4" data-testid="taller-repuestos">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div className="min-w-0">
+                  <h4 className="text-sm font-bold">Repuestos del taller</h4>
+                  <p className="mt-0.5 text-xs text-mute">Crédito y consignación consumida; pagar registra el egreso en la cuenta elegida.</p>
+                </div>
+                <div className="flex gap-5 text-right">
+                  <div>
+                    <Label>Por pagar</Label>
+                    <strong className="tabular-nums" data-testid="taller-por-pagar"><Money value={taller.totalPyg} /></strong>
+                  </div>
+                  <div>
+                    <Label>Vencidas</Label>
+                    <strong className="tabular-nums text-bad" data-testid="taller-vencidas"><Money value={taller.vencidasPyg} /></strong>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {taller.rows.map(parte => (
+                  <div key={parte.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3" data-testid={`taller-parte-${parte.id}`}>
+                    <div className="min-w-0">
+                      <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                        {parte.name}
+                        <Badge color={parte.paymentMode === 'CREDITO' ? 'orange' : 'blue'}>{parte.paymentMode === 'CREDITO' ? 'Crédito' : 'Consignación'}</Badge>
+                        {parte.vencimiento === 'VENCIDA' && <Badge color="red">Vencida</Badge>}
+                        {parte.vencimiento === 'POR_VENCER' && <Badge color="orange">Por vencer</Badge>}
+                      </p>
+                      <p className="mt-0.5 text-xs text-mute">
+                        {parte.code}
+                        {parte.supplierName ? ` · ${parte.supplierName}` : ''}
+                        {parte.dueAt ? ` · vence ${fechaHora(parte.dueAt)}` : ''}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <strong className="tabular-nums" data-testid={`taller-deuda-${parte.id}`}><Money value={parte.deudaPyg} /></strong>
+                      <Button type="button" variant="outline" onClick={() => { setProveedorError(''); setProveedorAccion({ tipo: 'pagar-taller', fila: parte }); setProveedorMonto(''); setProveedorCuenta('') }}>Pagar</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </Card>
@@ -1217,18 +1266,22 @@ export default function Caja() {
           </div>
         </form>
       </Modal>
-      <Modal open={Boolean(proveedorAccion)} onClose={() => !proveedorBusy && setProveedorAccion(null)} title={proveedorAccion?.tipo === 'pagar' ? 'Pagar al proveedor' : 'Registrar consumo'}>
+      <Modal open={Boolean(proveedorAccion)} onClose={() => !proveedorBusy && setProveedorAccion(null)} title={proveedorAccion?.tipo === 'pagar-taller' ? 'Pagar repuesto del taller' : proveedorAccion?.tipo === 'pagar' ? 'Pagar al proveedor' : 'Registrar consumo'}>
         <form onSubmit={confirmarAccionProveedor} className="space-y-3">
           <p className="text-sm text-mute">
-            {proveedorAccion?.fila.supplierName} · {proveedorAccion?.fila.concept}.{' '}
-            {proveedorAccion?.tipo === 'pagar'
-              ? `Pendiente ${formatGs(proveedorAccion?.fila.pendientePyg || 0)}.`
-              : `En depósito ${formatGs(proveedorAccion?.fila.depositoPyg || 0)}: lo consumido pasa a pagarse.`}
+            {proveedorAccion?.tipo === 'pagar-taller'
+              ? <>{proveedorAccion?.fila.name} · {proveedorAccion?.fila.code}. Deuda <b className="text-fore">{formatGs(proveedorAccion?.fila.deudaPyg || 0)}</b> (pago total).</>
+              : <>{proveedorAccion?.fila.supplierName} · {proveedorAccion?.fila.concept}.{' '}
+                {proveedorAccion?.tipo === 'pagar'
+                  ? `Pendiente ${formatGs(proveedorAccion?.fila.pendientePyg || 0)}.`
+                  : `En depósito ${formatGs(proveedorAccion?.fila.depositoPyg || 0)}: lo consumido pasa a pagarse.`}</>}
           </p>
-          <FormField label="Monto (Gs)" htmlFor="prov-accion-monto">
-            <MoneyInput id="prov-accion-monto" value={proveedorMonto} onValueChange={setProveedorMonto} placeholder="0" />
-          </FormField>
-          {proveedorAccion?.tipo === 'pagar' && (
+          {proveedorAccion?.tipo !== 'pagar-taller' && (
+            <FormField label="Monto (Gs)" htmlFor="prov-accion-monto">
+              <MoneyInput id="prov-accion-monto" value={proveedorMonto} onValueChange={setProveedorMonto} placeholder="0" />
+            </FormField>
+          )}
+          {proveedorAccion?.tipo !== 'consumir' && (
             <FormField label="Cuenta de salida (opcional)" htmlFor="prov-accion-cuenta">
               <Select id="prov-accion-cuenta" value={proveedorCuenta} onChange={evento => setProveedorCuenta(evento.target.value)}>
                 <option value="">Solo registrar el pago</option>
@@ -1239,7 +1292,7 @@ export default function Caja() {
           {proveedorError && <Aviso tono="error">{proveedorError}</Aviso>}
           <div className={PIE_ACCIONES_REVERSO}>
             <Button type="button" variant="ghost" disabled={proveedorBusy} onClick={() => setProveedorAccion(null)}>Cancelar</Button>
-            <Button type="submit" disabled={proveedorBusy || !proveedorMonto}>{proveedorBusy ? 'Guardando…' : proveedorAccion?.tipo === 'pagar' ? 'Registrar pago' : 'Registrar consumo'}</Button>
+            <Button type="submit" disabled={proveedorBusy || (proveedorAccion?.tipo !== 'pagar-taller' && !proveedorMonto)}>{proveedorBusy ? 'Guardando…' : proveedorAccion?.tipo === 'consumir' ? 'Registrar consumo' : 'Registrar pago'}</Button>
           </div>
         </form>
       </Modal>
