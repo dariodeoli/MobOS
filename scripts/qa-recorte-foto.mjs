@@ -94,5 +94,22 @@ medida.alZoom = cajaZoom ? { ancho: Math.round(cajaZoom.width), alto: Math.round
 await page.screenshot({ path: join(SALIDA, '02-zoom-2.5x.jpg'), type: 'jpeg', quality: 78 })
 
 writeFileSync(join(SALIDA, 'resultado.json'), `${JSON.stringify({ ...medida, fecha: new Date().toISOString() }, null, 2)}\n`)
+
+// Oscuro y móvil: la foto entra entera en los tres modos.
+for (const [nombre, tema, ancho, alto] of [['03-al-abrir-oscuro-desktop', 'dark', 1280, 900], ['04-al-abrir-claro-mobile', 'light', 390, 844]]) {
+  await page.keyboard.press('Escape').catch(() => {})
+  await page.setViewportSize({ width: ancho, height: alto })
+  await page.evaluate((m) => { try { localStorage.setItem('mobos:theme', m) } catch { /* sin storage */ } }, tema)
+  await page.goto(`${BASE}/configuracion/mi-cuenta`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
+  await page.getByText('Mi foto', { exact: false }).first().waitFor({ state: 'visible', timeout: 20_000 }).catch(() => {})
+  await page.locator('input[type="file"]').first().setInputFiles(rutaFoto)
+  const modalCombo = page.getByRole('dialog').filter({ hasText: 'Recortar foto' }).first()
+  await modalCombo.waitFor({ state: 'visible', timeout: 20_000 })
+  await page.waitForTimeout(700)
+  const cajaCombo = await modalCombo.getByAltText('Foto a recortar').boundingBox().catch(() => null)
+  medida[nombre] = cajaCombo ? { ancho: Math.round(cajaCombo.width), alto: Math.round(cajaCombo.height) } : null
+  await page.screenshot({ path: join(SALIDA, `${nombre}.jpg`), type: 'jpeg', quality: 78 })
+}
+writeFileSync(join(SALIDA, 'resultado.json'), `${JSON.stringify({ ...medida, fecha: new Date().toISOString() }, null, 2)}\n`)
 await browser.close()
 console.log(`[recorte] ${BASE} · v${version || '?'} · al abrir: ${JSON.stringify(medida.alAbrir)} · 2,5×: ${JSON.stringify(medida.alZoom)}`)

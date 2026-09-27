@@ -11,5 +11,13 @@
     "ancho": 600,
     "alto": 1200
   },
-  "fecha": "2026-09-26T23:22:14.411Z"
+  "03-al-abrir-oscuro-desktop": {
+    "ancho": 240,
+    "alto": 480
+  },
+  "04-al-abrir-claro-mobile": {
+    "ancho": 240,
+    "alto": 480
+  },
+  "fecha": "2026-09-27T00:14:36.510Z"
 }

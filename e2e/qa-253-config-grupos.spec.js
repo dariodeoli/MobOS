@@ -134,14 +134,12 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
       await expect(page.locator(NAV)).toHaveAttribute('data-colapsado', '1')
       await page.screenshot({ path: `${salida}/nav-colapsado-${tema}-desktop.jpg`, type: 'jpeg', quality: 78 })
 
-      if (tema === 'claro') {
-        // Mobile/tablet: la tira horizontal (el toggle no se muestra).
-        await page.setViewportSize({ width: 390, height: 844 })
-        await page.goto('/configuracion/mi-cuenta')
-        await expect(page.getByRole('tab', { name: 'Mi cuenta', exact: true }).first()).toBeVisible({ timeout: 20_000 })
-        await expect(page.getByTestId('config-nav-toggle')).toBeHidden()
-        await page.screenshot({ path: `${salida}/nav-horizontal-mobile-claro.jpg`, type: 'jpeg', quality: 78 })
-      }
+      // Mobile/tablet: la tira horizontal (el toggle no se muestra).
+      await page.setViewportSize({ width: 390, height: 844 })
+      await page.goto('/configuracion/mi-cuenta')
+      await expect(page.getByRole('tab', { name: 'Mi cuenta', exact: true }).first()).toBeVisible({ timeout: 20_000 })
+      await expect(page.getByTestId('config-nav-toggle')).toBeHidden()
+      await page.screenshot({ path: `${salida}/nav-horizontal-mobile-${tema}.jpg`, type: 'jpeg', quality: 78 })
     }
   })
 })
