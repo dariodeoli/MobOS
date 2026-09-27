@@ -87,7 +87,7 @@ test('gestión de listas y venta con escalón aplica el precio por cantidad', as
 
   // ── Venta con escalón: 3 unidades al precio del escalón ─────────────────
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(nombreCliente)
   await page.getByPlaceholder('Buscar producto…').fill(nombreProducto)
   await page.getByRole('button', { name: new RegExp(nombreProducto) }).first().click()

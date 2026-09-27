@@ -154,7 +154,7 @@ test('la demo entra sin login, navega con datos ficticios y no toca el API', asy
   await page.getByRole('button', { name: /Entrar como Vendedor/ }).click()
   await expect(page).toHaveURL(/\/pos$/)
   await cerrarGuia(page)
-  await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
   // Banner visible de datos ficticios y encabezado con la marca (#223).
   await expect(page.getByText(/datos ficticios/)).toBeVisible()
   await expect(page.getByTestId('shell-tienda')).toHaveText('MobOS')
@@ -373,7 +373,7 @@ test('la demo no persiste nada: guardados, recarga, salida y base intacta', asyn
   await expect(page.getByText(codigo).first()).toBeVisible()
 
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente cierre POS ${marca}`)
   // Accesorio (stock simple): la venta serializada pide el IMEI exacto (#263).
   await page.getByPlaceholder('Buscar producto…').fill('Funda')
@@ -437,7 +437,7 @@ test('la marca de demo no se filtra al login real de la misma pestaña', async (
   await loginCompany(page)
   expect(await page.evaluate(() => sessionStorage.getItem('mobos:demo-session'))).toBeNull()
   await completeSellerPin(page)
-  await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
   // La sesión real usa el API de verdad: ya no hay barrera de demo.
   expect(llamadas.length, 'el login real tiene que llamar al API').toBeGreaterThan(0)
 })

@@ -35,7 +35,7 @@ const PANTALLAS = [
     id: 'pos',
     ruta: '/pos',
     listo: async (page) => {
-      await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+      await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
     },
   },
   {
@@ -248,7 +248,7 @@ test('navegación entre las secciones más usadas (#247)', async ({ browser }) =
     }
 
     await page.goto('/pos', { waitUntil: 'commit' })
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
 
     // El adelanto ocioso avisa cuando terminó (y si algún chunk falla, el
     // navegador lo carga igual al entrar: acá se registra si llegó a tiempo).
@@ -262,7 +262,7 @@ test('navegación entre las secciones más usadas (#247)', async ({ browser }) =
       ['Pedidos', async () => expect(page.getByTestId('pedidos-tabla')).toBeVisible()],
       ['Clientes', async () => expect(page.getByTestId('cliente-fila').first()).toBeVisible()],
       ['Unidades', async () => expect(page.getByTestId('inventario-fila').first()).toBeVisible()],
-      ['POS', async () => expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()],
+      ['POS', async () => expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()],
     ]
     const filas = []
     for (const [seccion, listo] of pasos) {

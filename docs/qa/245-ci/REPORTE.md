@@ -113,3 +113,18 @@ Clasificación de los 8 rojos:
 Los tres fixes de causa raíz (#245) siguen verificados: IMEI con alta entropía,
 página pública sin sesión y entrada liviana en Mi cuenta. Racha en `main`:
 **0/3** (sin corridas nuevas; `main` no se movió desde v1.0.190).
+
+## Actualización 27/09 (tarde)
+
+- **Ancla de #270 desacoplada**: las pruebas aceptan `POS` o `Nueva venta`
+  (`name: /^(POS|Nueva venta)$/`), así la rama no depende del orden de
+  integración del PR. Re-verificado: `ocultos-plataforma` + `pos-148-s11-sin-stock`
+  + `qa-256-composicion` + `qa-257-inventario-pos` → **16/18** (los 2 restantes
+  son de POS/datos locales, ver abajo).
+- **Rojo flaky del aviso offline** (`ocultos-plataforma`): el evento `offline`
+  de `context.setOffline` no es confiable bajo carga y `setOffline` bloquea
+  también los assets locales. El spec simula ahora el estado real del navegador
+  (`navigator.onLine=false`) y recarga → **16/16 con `--repeat-each=2`**.
+- Pendiente ajeno: `pos-148-s11-sin-stock › sobre pedido` falla en el worktree
+  con `stockDe()` devolviendo `null` para un producto recién creado con stock 0
+  (no aparece en los rojos de CI; queda para POS).

@@ -22,7 +22,7 @@ test.describe('login', () => {
     await completeSellerPin(page, { sellerName: SEED.sellers[0].name, pin: SEED.sellers[0].pin })
 
     // Seller role redirects to the checkout view (the POS composition).
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
     await expect(page.getByPlaceholder('Buscar producto…')).toBeVisible()
   })
 

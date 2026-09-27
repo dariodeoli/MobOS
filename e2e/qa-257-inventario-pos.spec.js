@@ -44,7 +44,7 @@ test('el producto creado en Inventario aparece en el POS al volver sin recargar 
 
   // 1) POS cargado (catálogo hidratado al arrancar).
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
   await expect(page.getByRole('button', { name: /iPhone 15 E2E Serial/ }).first()).toBeVisible({ timeout: 20_000 })
 
   // 2) Alta en Inventario (como si fuese otra pestaña o el dueño en Productos).
@@ -56,7 +56,7 @@ test('el producto creado en Inventario aparece en el POS al volver sin recargar 
     await expect(page).toHaveURL(/\/productos$/)
     await page.locator('aside nav button[aria-label="POS"]').click()
     await expect(page).toHaveURL(/\/pos$/)
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
 
     const buscar = page.getByPlaceholder('Buscar producto…')
     await buscar.fill(nombre)
@@ -79,7 +79,7 @@ test('el producto creado en Inventario aparece en el POS tras recargar (#257)', 
   const nombre = `QA 257 reload ${clave()}`
 
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
   await expect(page.getByRole('button', { name: /iPhone 15 E2E Serial/ }).first()).toBeVisible({ timeout: 20_000 })
   await page.waitForTimeout(2500) // deja guardar la foto local del catálogo
 
@@ -87,7 +87,7 @@ test('el producto creado en Inventario aparece en el POS tras recargar (#257)', 
 
   try {
     await page.reload()
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
     const buscar = page.getByPlaceholder('Buscar producto…')
     await buscar.fill(nombre)
     await page.getByPlaceholder('Buscar producto…').scrollIntoViewIfNeeded().catch(() => {})

@@ -9,7 +9,7 @@ const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 test.describe('seller permissions', () => {
   test('owner-only nav items are not visible to a seller', async ({ page }) => {
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
 
     const sidebarNav = page.locator('aside nav')
     // Menú del vendedor (IA #251): cuatro grupos y solo sus módulos.
@@ -27,7 +27,7 @@ test.describe('seller permissions', () => {
   // puede verla ni por la API.
   test('la auditoría no está disponible para un vendedor', async ({ page }) => {
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
     // La API exige el mismo origen de la app, así que la petición sale con el
     // Origin de la página (como en el navegador).
     const respuesta = await page.request.get(`${API}/api/audit`, { headers: { origin: new URL(page.url()).origin } })
@@ -41,7 +41,7 @@ test.describe('seller permissions', () => {
     // seller on /pos.
     await page.goto('/control/finanzas')
     await expect(page).toHaveURL(/\/pos$/)
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
   })
 
   // Marketing (cobranzas por WhatsApp, segmentos y campañas) es de
@@ -67,7 +67,7 @@ test.describe('seller permissions', () => {
 
     // Single clean redirect, no loop: the URL leaves the owner view.
     await expect(page).toHaveURL(/\/pos$/)
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
 
     // The owner content is never mounted for a seller.
     await expect(page.getByPlaceholder('Escanear IMEI, SKU o buscar modelo')).toHaveCount(0)
@@ -77,7 +77,7 @@ test.describe('seller permissions', () => {
   test('las URLs viejas /pos/* y /tradein redirigen a los slugs nuevos', async ({ page }) => {
     await page.goto('/pos/cargar')
     await expect(page).toHaveURL(/\/pos$/)
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
 
     await page.goto('/pos/pedidos')
     await expect(page).toHaveURL(/\/pedidos$/)

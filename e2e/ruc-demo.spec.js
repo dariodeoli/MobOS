@@ -31,7 +31,7 @@ test('demo: el extractor de RUC simula el resultado y espera confirmación', asy
   const guia = page.getByRole('dialog', { name: 'Cómo funciona la demo' })
   if (await guia.count()) await expect(guia.getByText('RUC simulado')).toBeVisible()
   await cerrarGuia(page)
-  await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
 
   const cliente = page.getByLabel('Nombre, teléfono, CI o RUC del cliente')
   await cliente.fill('Cliente Demo QA234')
@@ -69,7 +69,7 @@ test('demo: un RUC inválido se rechaza con el mensaje del proveedor', async ({ 
   await page.goto('/demo')
   await page.getByRole('button', { name: /Entrar como Vendedor/ }).click()
   await cerrarGuia(page)
-  await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
   await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
   const ruc = page.getByLabel('CI o RUC del cliente', { exact: true })
   await ruc.fill('123')

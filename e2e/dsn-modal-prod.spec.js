@@ -15,7 +15,7 @@ test('modales principales en producción (después)', async ({ page }) => {
 
   // 1) POS · Analytics
   await page.goto(`${APP}/pos`)
-  await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible({ timeout: 25_000 })
+  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible({ timeout: 25_000 })
   await page.getByRole('button', { name: 'Analytics' }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
   const anchoAnalytics = await page.getByRole('dialog').evaluate((el) => Math.round(el.getBoundingClientRect().width))
