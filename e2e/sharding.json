@@ -41,7 +41,7 @@
         "qa-261-cotizacion-envio.spec.js",
         "qa-263-imei-venta.spec.js",
         "qa-267-config-menu.spec.js",
-        "qa-fin-repuestos-taller.spec.js",
+        "qa-f6-metricas-abastecimiento.spec.js",
         "redireccion-248.spec.js",
         "responsive.spec.js",
         "ruc-demo.spec.js",
@@ -89,7 +89,7 @@
         "qa-271-avatar-superficies.spec.js",
         "qa-278-cierre.spec.js",
         "qa-fin-compacto.spec.js",
-        "recorte-perfil.spec.js",
+        "qa-fin-repuestos-taller.spec.js",
         "seguridad-cuenta.spec.js",
         "servicio-tecnico.spec.js",
         "sesion-bloqueo.spec.js",
@@ -138,14 +138,15 @@
         "qa-260-cotizacion-cliente.spec.js",
         "qa-266-shell-header.spec.js",
         "qa-271-avatar-sin-flash.spec.js",
-        "qa-f6-metricas-abastecimiento.spec.js",
+        "qa-279-alternativas.spec.js",
+        "recorte-perfil.spec.js",
         "repuestos-proveedores.spec.js",
         "ruc-extraccion.spec.js",
         "shell-roles.spec.js",
         "traslados-etiquetas-lote.spec.js"
       ],
-      "tests": 187
+      "tests": 188
     }
   ],
-  "generado": "2026-09-27T14:21:06.061Z"
+  "generado": "2026-09-27T18:32:47.980Z"
 }

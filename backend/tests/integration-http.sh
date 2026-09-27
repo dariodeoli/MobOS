@@ -511,6 +511,9 @@ node "$BACKEND_ROOT/tests/customer-merge.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN
 
 echo "Pedidos: cliente ocasional, crear/cambiar/quitar ficha con auditoría (#149)..."
 node "$BACKEND_ROOT/tests/orders-customer.mjs" "$BASE_URL" "$ADMIN_TOKEN"
+
+echo "Abastecimiento: variante agotada → alternativas con OTP del cliente (#279 A5)..."
+node "$BACKEND_ROOT/tests/supply-alternatives.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/orders-credit-discounts.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL"
 node "$BACKEND_ROOT/tests/mobos-1.2.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 node "$BACKEND_ROOT/tests/price-lists.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
