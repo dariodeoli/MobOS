@@ -404,6 +404,8 @@ test('F3 · las etiquetas de la preparación salen por el agente (con pendientes
   expect(textoDelTicket(capturados[1])).not.toContain('PENDIENTE')
   await sinDialogo(page)
 
+})
+
 // F3/F4 · IMEI diferido del lote: el panel completa las unidades pendientes de
 // un despacho (escaneo de a uno y pegado múltiple) antes de la recepción.
 test('F3 · preparar lote: IMEI diferido por escaneo y pegado', async ({ page }) => {

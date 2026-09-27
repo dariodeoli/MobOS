@@ -57,11 +57,18 @@ export function sugerenciasDeProveedores(proveedores = [], recientes = [], limit
 // ¿El texto tipeado ya identifica a un proveedor del catálogo? (para no ofrecer
 // crearlo de nuevo).
 export function coincideExacto(proveedores = [], texto = '') {
-  const termino = normalizarProveedor(texto)
-  if (!termino) return null
-  return proveedores.find((proveedor) =>
-    normalizarProveedor(proveedor?.name || proveedor?.nombre) === termino || normalizarProveedor(proveedor?.code) === termino,
-  ) || null
+  // El campo puede traer el valor combinado «código · nombre» (al elegir del
+  // buscador): se prueba el texto completo y cada parte.
+  const candidatos = String(texto || '')
+    .split('·')
+    .map((parte) => normalizarProveedor(parte))
+    .filter(Boolean)
+  if (!candidatos.length) return null
+  return proveedores.find((proveedor) => {
+    const nombre = normalizarProveedor(proveedor?.name || proveedor?.nombre)
+    const codigo = normalizarProveedor(proveedor?.code)
+    return candidatos.some((termino) => termino === nombre || termino === codigo)
+  }) || null
 }
 
 export function leerProveedoresRecientes(empresaId) {

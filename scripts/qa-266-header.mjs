@@ -1,3 +1,4 @@
+/* eslint-disable no-undef -- el probe corre dentro del navegador (page.evaluate). */
 // Capturas antes/después del header (#266): candado en lugar del menú de tres
 // puntos, chip de usuario (foto + nombre) a Mi perfil y sin íconos de
 // persona/recarga.

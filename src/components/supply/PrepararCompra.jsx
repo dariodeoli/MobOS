@@ -205,8 +205,8 @@ export default function PrepararCompra() {
                   <Button type="button" variant={expandida ? 'outline' : 'primary'} onClick={() => { setAbierta(expandida ? null : compra); setLineaId(''); setAviso('') }}>
                     {expandida ? 'Cerrar' : 'Preparar IMEI'}
                   </Button>
-                  <Button type="button" variant="outline" disabled={Boolean(etiquetasBusy)} onClick={() => imprimirEtiquetas(compra)} data-testid="preparar-etiquetas">
-                    <Icon name="printer" className="h-3.5 w-3.5" />{etiquetasBusy === compra.id ? 'Preparando…' : `Etiquetas (${compra.units || compra.unidades || 0})`}
+                  <Button type="button" variant="outline" onClick={() => setEtiquetasDe(compra)} data-testid="preparar-etiquetas">
+                    <Icon name="tag" className="h-3.5 w-3.5" />Etiquetas
                   </Button>
                 </div>
 
