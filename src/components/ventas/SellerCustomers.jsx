@@ -3,13 +3,15 @@ import { useSearchParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import Icon from '@/components/shared/Icon'
-import { Aviso, Badge, Button, Input, Modal, MoneyInput, Select, Textarea } from '@/components/ui'
+import { Aviso, Button, Input, Modal, MoneyInput, Select, Textarea } from '@/components/ui'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import SearchField from '@/components/shared/SearchField'
 import PhoneField from '@/components/shared/PhoneField'
 import EmailField from '@/components/shared/EmailField'
 import ListGridToggle from '@/components/shared/ListGridToggle'
 import SegmentedField from '@/components/shared/SegmentedField'
+import BarraModulo from '@/components/shared/BarraModulo'
+import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
 import { coincideCliente } from '@/utils/cliente'
 import { capitalizarPrimera } from '@/utils/texto'
@@ -54,7 +56,6 @@ import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { useVistaListaGrid } from '@/hooks/useVistaListaGrid'
 import CustomerCommunicationCard from '@/components/customers/CustomerCommunicationCard'
 import ClientesTabla from '@/components/customers/ClientesTabla'
-import { temaV2Activo } from '@/lib/temaV2'
 import { gs } from '@/utils/calculos'
 import CustomerProfile from '@/components/customers/CustomerProfile'
 import ClienteResumenPopup from '@/components/customers/ClienteResumenPopup'
@@ -253,7 +254,6 @@ export default function SellerCustomers() {
   const resumenMostrar = esDemo ? { total: rows.length, wholesalers: rows.filter((row) => row.wholesale).length, retail: rows.filter((row) => !row.wholesale).length } : resumen
   // Vista previa v2 (#241): resumen de la lista en tiles —clientes listados,
   // con deuda y saldo por cobrar— con los números de consola.
-  const v2 = temaV2Activo()
   const resumenV2 = useMemo(() => rows.reduce((acumulado, row) => {
     const deuda = Number(row.stats?.pendingPyg || 0)
     return {
@@ -280,11 +280,21 @@ export default function SellerCustomers() {
   }, [esDemo])
 
 
-  return <SellerSection title="Clientes" description={esDemo ? 'Demo local: ingresá únicamente datos ficticios.' : 'Buscá al instante por nombre, apellido, teléfono, RUC/CI, correo, ciudad, dirección, etiquetas, notas o datos de facturación.'}>
-    {puedeCampanas && <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
-      {[['clientes', 'Clientes'], ['campanas', 'Campañas']].map(([clave, label]) => <button key={clave} type="button" aria-pressed={seccion === clave} onClick={() => setSeccion(clave)} className={cn('inline-flex min-h-11 items-center rounded-lg px-3 py-1.5 text-xs font-semibold transition', seccion === clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}
-    </div>}
+  return <SellerSection title="Clientes">
     {puedeCampanas && seccion === 'campanas' ? <CampanasClientes templates={plantillasClientes} empresa={empresa} sucursal={sucursal} vendedor={sesion?.nombre} /> : <>
+    <BarraModulo
+      icono="users"
+      titulo="Clientes"
+      descripcion={esDemo ? 'Demo local: ingresá únicamente datos ficticios.' : 'Buscá al instante por nombre, apellido, teléfono, RUC/CI, correo, ciudad, direcciones, etiquetas o notas.'}
+      testId="barra-clientes"
+      contexto={puedeCampanas ? <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
+        {[['clientes', 'Clientes'], ['campanas', 'Campañas']].map(([clave, label]) => <button key={clave} type="button" aria-pressed={seccion === clave} onClick={() => setSeccion(clave)} className={cn('inline-flex min-h-11 items-center rounded-lg px-3 py-1.5 text-xs font-semibold transition md:min-h-0', seccion === clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}
+      </div> : undefined}
+    >
+      <Button type="button" onClick={abrirCrear}>+ Crear cliente</Button>
+      {!esDemo && <Button type="button" variant="outline" className="px-3 text-xs" disabled={exportando} onClick={exportar}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}
+      {!esDemo && <Button type="button" variant="outline" onClick={() => { setImportAbierto(true); setImportError(''); setImportResultado(null) }}>Importar</Button>}
+    </BarraModulo>
     <div className="flex flex-wrap items-center gap-2">
       <SegmentedField
         value={filtro}
@@ -304,19 +314,18 @@ export default function SellerCustomers() {
         <option value="total">Total gastado</option>
       </Select>
       <ListGridToggle value={vista} onChange={cambiarVista} />
-      <Button type="button" onClick={abrirCrear}>+ Crear cliente</Button>
-      {!esDemo && <Button type="button" variant="outline" className="px-3 text-xs" disabled={exportando} onClick={exportar}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}
-      {!esDemo && <Button type="button" variant="outline" onClick={() => { setImportAbierto(true); setImportError(''); setImportResultado(null) }}>Importar</Button>}
     </div>
     {exportError && <p role="alert" className="text-sm text-bad">{exportError}</p>}
-    {resumenMostrar && <div className="flex flex-wrap items-center gap-2 text-sm"><Badge color="blue">{resumenMostrar.total} clientes</Badge><Badge color="orange">{resumenMostrar.wholesalers} mayoristas</Badge><Badge color="slate">{resumenMostrar.retail} cliente final</Badge></div>}
-    {v2 && rows.length > 0 && (
-      <div data-testid="resumen-clientes" className="grid grid-cols-3 divide-ink-600 rounded-xl border border-ink-600 bg-ink-800/60 text-center sm:divide-x">
-        <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Clientes</p><p className="v2-numero mt-1 text-lg font-semibold tabular-nums sm:text-2xl">{rows.length}</p><p className="text-[11px] text-mute">en la lista</p></div>
-        <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Con deuda</p><p className={cn('v2-numero mt-1 text-lg font-semibold tabular-nums sm:text-2xl', resumenV2.conDeuda > 0 ? 'text-warn' : 'text-ok')}>{resumenV2.conDeuda}</p><p className="text-[11px] text-mute">de los listados</p></div>
-        <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Por cobrar</p><p className={cn('v2-numero mt-1 text-lg font-semibold tabular-nums sm:text-2xl', resumenV2.porCobrar > 0 ? 'text-warn' : 'text-ok')}>{gs(resumenV2.porCobrar)}</p><p className="text-[11px] text-mute">saldo pendiente</p></div>
-      </div>
-    )}
+    <ResumenMetricas
+      testId="resumen-clientes"
+      columnas={4}
+      items={[
+        { titulo: 'Clientes', valor: resumenMostrar?.total ?? rows.length, alcance: 'Tienda', nota: `${rows.length} en pantalla` },
+        { titulo: 'Mayoristas', valor: resumenMostrar?.wholesalers ?? '—', alcance: 'Tienda', nota: `${resumenMostrar?.retail ?? '—'} cliente final` },
+        { titulo: 'Con deuda', valor: resumenV2.conDeuda, alcance: 'En pantalla', tono: resumenV2.conDeuda > 0 ? 'text-warn' : 'text-ok' },
+        { titulo: 'Por cobrar', valor: gs(resumenV2.porCobrar), alcance: 'En pantalla', tono: resumenV2.porCobrar > 0 ? 'text-warn' : 'text-ok' },
+      ]}
+    />
     <SellerFeedback {...data} empty={!rows.length} />
     {seguimientos.length > 0 && (
       <section className="rounded-xl border border-warn/25 bg-warn/5 p-3">

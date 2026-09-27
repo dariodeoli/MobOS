@@ -45,6 +45,7 @@ import {
   Modal,
 } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import BarraModulo from '@/components/shared/BarraModulo'
 import { parsePercent } from '@/components/shared/PercentField'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
@@ -1634,21 +1635,16 @@ export default function FormularioVenta({
   return (
     <Card className="p-4 md:p-5">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-b border-ink-600 pb-4">
-        <div className="flex items-center gap-2">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-fono/10 text-fono-light">
-            <Icon name="receipt" className="h-5 w-5" />
-          </span>
-          <div>
-            <h2 className="text-lg font-bold tracking-tight">Nueva venta</h2>
-            <p className="mt-0.5 text-xs text-mute">
-              Cliente, productos y cobro en una sola página.
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <span className="rounded-full border border-fono/20 bg-fono/5 px-3 py-1 text-xs font-semibold text-fore">
-            Hoy: {fechaClave().split('-').reverse().join('/')}
-          </span>
+        {/* Composición compacta (#256): una sola barra con la identidad del
+            módulo, la fecha y las acciones juntas; el título sigue siendo un h2
+            para los tests y lectores, sin el bloque grande duplicado. */}
+        <BarraModulo
+          icono="receipt"
+          titulo="Nueva venta"
+          descripcion="Cliente, productos y cobro en una sola página."
+          testId="barra-pos"
+          contexto={<span className="ml-1 shrink-0 rounded-full border border-fono/20 bg-fono/5 px-3 py-1 text-xs font-semibold text-fore">Hoy: {fechaClave().split('-').reverse().join('/')}</span>}
+        >
           {/* Carrito en espera: suspender la venta actual y retomar otra. Vive
               en el encabezado para no cortar el flujo de la venta. */}
           <Button
@@ -1678,7 +1674,7 @@ export default function FormularioVenta({
               Suspender venta
             </Button>
           )}
-        </div>
+        </BarraModulo>
       </div>
 
       {ok && (

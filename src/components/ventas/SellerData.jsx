@@ -58,7 +58,7 @@ export function SellerSection({ title, description, children }) {
   // mode). El título sigue en el `aria-label` de la sección para lectores de
   // pantalla y para ubicar la región en los tests.
   return <section className="space-y-4" aria-label={title}>
-    <div><p className="text-sm text-mute">{description}</p></div>
+    {description && <div><p className="text-sm text-mute">{description}</p></div>}
     {children}
   </section>
 }
