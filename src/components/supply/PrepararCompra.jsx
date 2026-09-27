@@ -5,6 +5,11 @@ import { Badge, Button, Card, EmptyState, Input, Skeleton, Textarea, useToast } 
 import CameraScan from '@/components/shared/CameraScan'
 import Icon from '@/components/shared/Icon'
 import { analizarSerial, textoMotivo, validarLote } from '@/lib/escanerSeriales'
+import { printHtml } from '@/utils/printHtml'
+import { configImpresora } from '@/lib/printing/agent'
+import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
+import { ticketEtiquetasLote } from '@/lib/printing/tickets'
+import { buildEtiquetasLoteHtml } from '@/components/shared/OrderReceipt'
 
 // Abastecimiento · F3 (#250 §7): preparación de la compra.
 // Lista las compras con IMEI por completar y permite cargarlos escaneando de a
@@ -26,6 +31,7 @@ export default function PrepararCompra() {
   const [camara, setCamara] = useState(false)
   const [aviso, setAviso] = useState('')
   const [busy, setBusy] = useState(false)
+  const [etiquetasBusy, setEtiquetasBusy] = useState('')
 
   const cargar = useCallback(async () => {
     if (esDemo) return
@@ -52,6 +58,37 @@ export default function PrepararCompra() {
   }, [esDemo])
 
   useEffect(() => { cargar() }, [cargar])
+
+  // F3 (#250 §11): las etiquetas de la preparación (una por unidad comprada,
+  // `PRODUCTO n de N`, IMEI o pendiente y el lote cuando la compra lo tiene).
+  // Salen por el agente/puente y, si el fallo es claro, por el diálogo.
+  async function imprimirEtiquetas(compra) {
+    if (!compra || etiquetasBusy) return
+    setEtiquetasBusy(compra.id)
+    try {
+      const datos = await resources.supplyPurchases.labels(compra.id)
+      const etiquetas = datos?.etiquetas || []
+      if (!etiquetas.length) {
+        toast.error('Sin etiquetas', 'La compra no tiene unidades para etiquetar.')
+        return
+      }
+      const { ancho } = configImpresora()
+      const contexto = { ancho, compra: datos?.compra || null }
+      const resultado = await imprimirDocumentoNoFiscal(ticketEtiquetasLote(etiquetas, contexto), {
+        tipo: 'etiquetas-lote',
+        respaldo: async () => printHtml(await buildEtiquetasLoteHtml(etiquetas, contexto)),
+      })
+      if (resultado?.ok) {
+        toast.success(resultado.dialogo ? 'Etiquetas listas' : 'Etiquetas enviadas', `${etiquetas.length} etiqueta(s) de ${compra.code}.`)
+        return
+      }
+      if (!resultado?.dialogo) toast.error('No se pudo imprimir', resultado?.error || 'Revisá la impresora.')
+    } catch (causa) {
+      toast.error('No se pudo imprimir', causa?.message || 'Reintentá en un momento.')
+    } finally {
+      setEtiquetasBusy('')
+    }
+  }
 
   // La compra abierta se sigue mostrando aunque ya no esté en «pendientes»
   // (queda con las líneas completas hasta que la cierren).
@@ -158,9 +195,12 @@ export default function PrepararCompra() {
                   </div>
                   <Badge color={pendientes > 0 ? 'orange' : 'green'}>{pendientes} IMEI pendiente{pendientes === 1 ? '' : 's'}</Badge>
                 </div>
-                <div className="mt-3">
+                <div className="mt-3 flex flex-wrap items-center gap-2">
                   <Button type="button" variant={expandida ? 'outline' : 'primary'} onClick={() => { setAbierta(expandida ? null : compra); setLineaId(''); setAviso('') }}>
                     {expandida ? 'Cerrar' : 'Preparar IMEI'}
+                  </Button>
+                  <Button type="button" variant="outline" disabled={Boolean(etiquetasBusy)} onClick={() => imprimirEtiquetas(compra)} data-testid="preparar-etiquetas">
+                    <Icon name="printer" className="h-3.5 w-3.5" />{etiquetasBusy === compra.id ? 'Preparando…' : `Etiquetas (${compra.units || compra.unidades || 0})`}
                   </Button>
                 </div>
 

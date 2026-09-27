@@ -81,7 +81,9 @@ manifiesto, `docs/manifiesto-ejemplo/etiqueta-del-lote-individual-80mm.pdf`.
 El panel de abastecimiento (CMP) debe, en la pestaña de preparación de una
 compra:
 
-1. Pedir las etiquetas (`/api/supply/purchases/[id]/labels`).
+1. Pedir las etiquetas (`/api/supply/purchases/[id]/labels`). Ya está en el
+   panel de preparación (`PrepararCompra`): **«Etiquetas (n)»** por compra, con
+   el agente/puente y el diálogo como respaldo.
 2. Ofrecer «Imprimir etiquetas» con `ticketEtiquetasLote` (impresora del tipo
    `etiquetas-lote`) y «Descargar PDF»/«Compartir imagen» con
    `buildEtiquetasLoteHtml` + `CompartirImagen`.

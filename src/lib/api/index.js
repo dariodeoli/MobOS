@@ -46,6 +46,8 @@ export const resources = {
       return api.get(`/api/supply/purchases${query.toString() ? `?${query}` : ''}`, { cacheMs: 0 })
     },
     update: data => api.patch('/api/supply/purchases', data),
+    // F3 (#250 §11): etiquetas de la preparación (una por unidad comprada).
+    labels: id => api.get(`/api/supply/purchases/${encodeURIComponent(id)}/labels`, { cacheMs: 0 }),
   },
   // F5 (#250 §11): llegadas pendientes y recepción contra el manifiesto.
   supplyReceptions: {
