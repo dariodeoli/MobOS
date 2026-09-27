@@ -136,3 +136,17 @@ causa: racha de corridas completas verdes, última roja con job y tests fallidos
 `--esperar` para la corrida en curso y `--reporte` para dejar el snapshot (ver
 `docs/qa/245-ci/guardia.md`). Salidas: 0 = racha ≥ mínimo, 1 = corta, 2 = espera
 agotada.
+
+## Corrección 27/09 — el fix de menciones necesitaba dos cosas
+
+El primer intento (contexto «limpio») **no alcanzaba**: Playwright hereda el
+`storageState` del proyecto en `browser.newContext()`, así que el contexto seguía
+autenticado y veía la **vista interna** del pedido (con la etiqueta «Solo tú y
+otros empleados»). Además, la página pública canónica de pedidos vive en
+`clientes.moboss.online` (`dabb7e81`); en el host de la app la ruta interna pide
+sesión.
+
+Fix real en `qa-148-16-menciones`: contexto **anónimo explícito**
+(`storageState: { cookies: [], origins: [] }`) y aserciones de que el cliente sin
+sesión no ve el texto ni la etiqueta internos **y** que la ruta interna pide
+sesión (login visible). Verificado **2/2 con `--repeat-each=2`**.

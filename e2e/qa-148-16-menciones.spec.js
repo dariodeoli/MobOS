@@ -68,16 +68,17 @@ test('menciones: comentario interno, notificación al mencionado y nada para el 
   // pública del mismo origen («/pedido/:token»): «/pedidos/:token» es la ruta
   // interna del panel y, con sesión de vendedor, muestra la ficha del pedido
   // con el aviso de comentarios (falso positivo/flaky en CI).
-  const cliente = await browser.newContext()
+  // Anónimo real: Playwright hereda el storageState del proyecto en newContext().
+  const cliente = await browser.newContext({ storageState: { cookies: [], origins: [] } })
   const publico = await cliente.request.get(`${API}/api/public/orders/${seedOrder.publicToken}`)
   const texto = await publico.text()
   expect(texto).not.toContain(`Revisar stock ${marca}`)
   expect(texto.toLowerCase()).not.toContain('ordercomment')
   const publica = await cliente.newPage()
-  await publica.goto(`/pedido/${seedOrder.publicToken}`)
-  await expect(publica.locator('h1').first()).toBeVisible({ timeout: 20000 })
+  await publica.goto(`/pedido/${seedOrder.publicToken}`)  await expect(publica.locator('h1').first()).toBeVisible({ timeout: 20000 })
   await expect(publica.getByText(new RegExp(`Revisar stock ${marca}`))).toHaveCount(0)
   await expect(publica.getByText(/Solo tú y otros empleados/)).toHaveCount(0)
+  await expect(publica.getByText(/Ingresá|Iniciar sesión|Entrar/i).first()).toBeVisible({ timeout: 20000 })
   await publica.screenshot({ path: `${SALIDA}/03-publico-sin-comentarios.png` })
   await cliente.close()
   await vendedor.close()
