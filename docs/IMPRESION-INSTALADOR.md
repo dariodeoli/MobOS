@@ -14,7 +14,7 @@ verifica y cómo se vuelve atrás.
 | --- | --- | --- |
 | Versión del agente | `print-agent/package.json` **y** `print-agent/server.mjs` (`const VERSION`) | Tienen que ser **idénticas**: `pack:agent` falla si difieren. |
 | Artefacto | `backend/public/print-agent/mobos-print-agent-<versión>.tgz` | Una versión = un tarball: publicar otra **borra** las anteriores. |
-| Manifest | `backend/public/print-agent/manifest.json` (y `GET /api/print-agent/manifest`) | `version`, `file`, `sha256`, `size`; el API agrega `installUrl` (apunta al origen que sirve el instalador, no a la app). |
+| Manifest | `backend/public/print-agent/manifest.json` (y `GET /api/print-agent/manifest`) | `version`, `file`, `sha256`, `size`; el API agrega `installUrl` (apunta al origen que sirve el instalador, no a la app). El origen se resuelve con `lib/print-agent-install`: `MOBOS_PRINT_INSTALL_BASE` → `MOBOS_API_URL` → `X-Forwarded-Host/Proto` (solo con `MOBOS_TRUST_PROXY=true`) → origen del request; detrás del proxy el request trae el origen interno y no sirve ([#17]). |
 | Version en la app | Configuración → Dispositivos | Muestra la que reporta `/health` del agente. |
 
 **Publicar una versión nueva**:
