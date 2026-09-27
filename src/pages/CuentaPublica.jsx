@@ -11,7 +11,7 @@ import PasosEntrega from '@/components/customerPortal/PasosEntrega'
 import { avisosDeCuenta } from '@/lib/portalAvisos'
 import { demoCuentaPayload, esTokenDemo } from '@/lib/demoClientes'
 import { NIVELES_PORTAL } from '@/lib/customerPortal'
-import { ESTADO_COTIZACION, cotizacionUrlFor, diasParaVencer, estadoCotizacion, tonoCotizacion } from '@/lib/cotizaciones'
+import { etiquetaCotizacion, cotizacionUrlFor, diasParaVencer, estadoCotizacion, tonoCotizacion } from '@/lib/cotizaciones'
 import { ESTADO_ENTREGA, ESTADO_GARANTIA, ESTADO_PEDIDO, tonoGarantia, tonoPedido } from '@/lib/estadosPedido'
 import { tonoServicioPortal } from '@/lib/estadosServicio'
 
@@ -322,12 +322,21 @@ export default function CuentaPublica() {
                               Emitida el {fecha(cotizacion.createdAt)}
                               {estado === 'SENT' && dias !== null ? ` · ${dias <= 0 ? 'Vence hoy' : `Vence en ${dias} día${dias === 1 ? '' : 's'}`}` : ''}
                               {estado === 'EXPIRED' && cotizacion.validUntil ? ` · Venció el ${fecha(cotizacion.validUntil)}` : ''}
+                              {cotizacion.orderNumber ? ` · Pedido ${codigoPedido(cotizacion.orderNumber)}` : ''}
                             </p>
+                            {cotizacion.approval && (
+                              <p className="mt-0.5 text-xs text-mute" data-testid="cotizacion-aprobacion">
+                                {cotizacion.approval.method && String(cotizacion.approval.method).toUpperCase().includes('OTP') ? 'Aprobada con código' : 'Aceptada'}
+                                {cotizacion.approval.at ? ` el ${fecha(cotizacion.approval.at)}` : ''}
+                                {cotizacion.approval.destination ? ` · ${cotizacion.approval.destination}` : ''}
+                                {cotizacion.approval.version ? ` · versión ${cotizacion.approval.version}` : ''}
+                              </p>
+                            )}
                           </div>
                           <span className="shrink-0 font-semibold tabular-nums">{gs(cotizacion.totalPyg)}</span>
                         </div>
                         <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                          <PortalEstado tono={tonoCotizacion(estado)}>{ESTADO_COTIZACION[estado] || estado}</PortalEstado>
+                          <PortalEstado tono={tonoCotizacion(estado)}>{etiquetaCotizacion(cotizacion, estado)}</PortalEstado>
                           {url && (
                             <Link
                               to={url}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { qrDataUrl } from '@/lib/qr'
 import { useParams, useSearchParams } from 'react-router-dom'
+import { codigoPedido } from '@/utils/pedido'
 import { API_URL } from '@/lib/api/client'
 import { varianteDeTema } from '@/lib/tenantLogo'
 import { isDemoRuntime } from '@/lib/demoMode'
@@ -108,8 +109,8 @@ export default function CotizacionPublica() {
               <span className={`mt-4 inline-block rounded-lg border px-3 py-1 text-xs font-bold ${TONO[estado] || 'border-warn/30 bg-warn/10 text-warn'}`}>{ESTADO[estado] || estado}</span>
               {quote.resolution?.at && !abierta && (
                 <p className="mt-2 text-xs text-mute">
-                  {estado === 'ACCEPTED' ? 'Aceptada' : 'Rechazada'} el {new Date(quote.resolution.at).toLocaleString('es-PY')}
-                  {quote.resolution.note ? ` · Motivo: ${quote.resolution.note}` : ''}
+                  {estado === 'ACCEPTED' ? (quote.resolution.method && String(quote.resolution.method).toUpperCase().includes('OTP') ? 'Aprobada con código' : 'Aceptada') : 'Rechazada'} el {new Date(quote.resolution.at).toLocaleString('es-PY')}
+                  {quote.resolution.note ? ` · Motivo: ${quote.resolution.note}` : ''}{quote.resolution.destination ? ` · ${quote.resolution.destination}` : ''}{quote.orderNumber ? ` · Pedido ${codigoPedido(quote.orderNumber)}` : ''}
                 </p>
               )}
             </section>

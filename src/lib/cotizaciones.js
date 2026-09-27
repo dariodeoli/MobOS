@@ -51,3 +51,12 @@ export function cotizacionUrlFor(cotizacion, { demo = false } = {}) {
   if (!token) return ''
   return `/cotizacion/${encodeURIComponent(token)}${demo ? '?demo=1' : ''}`
 }
+
+/** A3 (#279): ¿la aprobación vino con código (OTP)? El endpoint la expone cuando existe. */
+export const aprobacionConCodigo = (cotizacion) => Boolean(cotizacion?.approval && String(cotizacion.approval.method || '').toUpperCase().includes('OTP'))
+
+/** Etiqueta del estado para el portal: «Aprobada con código» cuando corresponde. */
+export function etiquetaCotizacion(cotizacion, estado = estadoCotizacion(cotizacion)) {
+  if ((estado === 'ACCEPTED' || cotizacion?.approval) && aprobacionConCodigo(cotizacion)) return 'Aprobada con código'
+  return ESTADO_COTIZACION[estado] || estado
+}
