@@ -11,6 +11,15 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.189 — 2026-09-26
+- **Clientes (#268):** **unificar duplicados** con **vista previa** del resultado y aviso al crear un cliente parecido (evita repetidos).
+- **POS (#264/#265):** el **popup de eliminar producto** ya no se superpone y la **papelera del medio de pago** vive dentro de su bloque, con más espacio.
+- **Shell (#266):** el header estrena **candado** para bloquear al instante; el **chip de usuario** (foto + nombre) abre **Mi perfil** y se retiraron los íconos de cambiar persona y recargar.
+- **Compras (#259):** **buscador de proveedores** por abreviatura o nombre, con **últimos usados**.
+- **Cotizaciones (#261):** envío por **WhatsApp con el PDF** desde la lista.
+- **Abastecimiento (#250 · F3/F4):** **IMEI diferido del lote** en el panel de preparación (escaneo de a uno y pegado), **etiquetas de la preparación** (tira completa o unidad) y **reimpresión del manifiesto** desde la recepción.
+- **Finanzas (#250 · F6):** la **deuda de repuestos del taller** entra en «por pagar» y se paga desde **Caja**; **cierre F6** verificado post-deploy.
+
 ## v1.0.188 — 2026-09-26
 - **POS (#263):** los botones de la **guía de venta** («Elegir unidad» / «Sobre pedido») llegan al **mínimo táctil de 44 px** en mobile.
 - **Calidad:** el cierre de la demo usa un **accesorio** (stock simple) para la venta de prueba, acorde a la guía del IMEI.
