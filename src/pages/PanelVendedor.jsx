@@ -41,6 +41,7 @@ const WhatsAppTemplates = lazy(() => import('@/components/control/WhatsAppTempla
 const Precios = lazy(() => import('@/components/control/Precios'))
 const PorComprar = lazy(() => import('@/components/supply/PorComprar'))
 const PrepararCompra = lazy(() => import('@/components/supply/PrepararCompra'))
+const PrepararLote = lazy(() => import('@/components/supply/PrepararLote'))
 const Recepcion = lazy(() => import('@/components/supply/Recepcion'))
 const MetricasAbastecimiento = lazy(() => import('@/components/supply/MetricasAbastecimiento'))
 // #247: las secciones del panel se cargan por sección (el chunk del panel baja
@@ -141,6 +142,7 @@ const OWNER_NAV = [
       ['traslados', 'Traslados y tránsito', 'truck'],
       ['abastecimiento', 'Por comprar', 'box'],
       ['preparacion', 'Preparar compra', 'tag'],
+      ['lotes', 'Preparar lote', 'tag'],
       ['recepcion', 'Recepción', 'truck'],
       ['metricas', 'Métricas de abastecimiento', 'chart'],
       ['precios', 'Precios', 'tag'],
@@ -301,6 +303,7 @@ const LABELS = {
   precios: 'Precios',
   abastecimiento: 'Por comprar',
   preparacion: 'Preparar compra',
+  lotes: 'Preparar lote',
   recepcion: 'Recepción',
   metricas: 'Métricas de abastecimiento',
   cotizaciones: 'Cotizaciones',
@@ -916,6 +919,7 @@ export default function PanelVendedor() {
           {vista === 'precios' && <Precios />}
           {esOwner && vista === 'abastecimiento' && <PorComprar />}
           {esOwner && vista === 'preparacion' && <PrepararCompra />}
+          {esOwner && vista === 'lotes' && <PrepararLote />}
           {esOwner && vista === 'recepcion' && <Recepcion />}
           {/* F6 (#250): rendimiento de proveedores, tiempos de tránsito y atrasos. */}
           {esOwner && vista === 'metricas' && <MetricasAbastecimiento />}

@@ -2,6 +2,7 @@
 // scroll horizontal en desktop y con las acciones a la vista (íconos con
 // tooltip de la biblioteca compartida). Autosuficiente: crea su compra.
 import { test, expect } from '@playwright/test'
+import { mkdirSync } from 'node:fs'
 import { SEED } from './helpers/seed-data.js'
 
 const API = SEED.api
@@ -56,4 +57,50 @@ test('compras y proveedores: filas compactas, sin scroll y acciones visibles', a
   await page.evaluate(async ({ api, productId }) => {
     await fetch(`${api}/api/products?id=${encodeURIComponent(productId)}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
   }, { api: API, productId: compra.productId })
+})
+
+// #259: en Compras el proveedor se elige con el buscador (abreviatura o nombre)
+// y un nombre nuevo se puede crear desde el mismo campo.
+test('compras: buscador de proveedores y alta desde el campo (#259)', async ({ page }) => {
+  const id = `${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`.toUpperCase()
+  const sufijo = Math.random().toString(36).slice(2, 7).toUpperCase()
+  const codigo = `ZZCOMBO${sufijo}`
+  const nombre = `Proveedor Combo QA ${id} ${sufijo}`
+  const nuevo = `Proveedor Nuevo QA ${id} ${sufijo}`
+  // El proveedor se crea antes de entrar: Compras carga el catálogo al montar.
+  await page.goto('/pos')
+  const proveedor = await page.evaluate(async ({ api, nombre, codigo }) => {
+    const respuesta = await fetch(`${api}/api/suppliers`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nombre, code: codigo }) })
+    const datos = await respuesta.json().catch(() => null)
+    if (!respuesta.ok) throw new Error(datos?.message || `suppliers: ${respuesta.status}`)
+    return datos
+  }, { api: API, nombre, codigo })
+
+  try {
+    await page.goto('/compras')
+    const campo = page.locator('#compra-proveedor')
+    await expect(campo).toBeVisible({ timeout: 20_000 })
+
+    // La abreviatura filtra y al elegir queda abreviatura + nombre.
+    await campo.fill(codigo.toLowerCase())
+    const lista = page.getByRole('listbox', { name: 'Proveedores' })
+    const opcion = lista.getByRole('option').filter({ hasText: nombre })
+    await expect(opcion).toHaveCount(1)
+    await expect(opcion).toContainText(codigo)
+    await opcion.click()
+    await expect(campo).toHaveValue(`${codigo} · ${nombre}`)
+
+    // Un nombre nuevo se crea desde el campo (abre el alta con el nombre puesto).
+    await campo.fill(nuevo)
+    const crear = page.getByRole('option', { name: new RegExp(`Crear «${nuevo}»`) })
+    await expect(crear).toBeVisible()
+    await crear.click()
+    await expect(page.getByPlaceholder('Nombre del proveedor')).toHaveValue(nuevo)
+    mkdirSync('test-results/qa-259-proveedores', { recursive: true })
+    await page.screenshot({ path: 'test-results/qa-259-proveedores/compras-alta-proveedor.jpg', type: 'jpeg', quality: 78 })
+  } finally {
+    await page.evaluate(async ({ api, id }) => {
+      await fetch(`${api}/api/suppliers`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, isActive: false }) }).catch(() => {})
+    }, { api: API, id: proveedor.id })
+  }
 })

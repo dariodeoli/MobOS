@@ -20,8 +20,9 @@ export const RUTA_DE_VISTA = {
   compras: '/compras',
   // Abastecimiento F1 (#250/#254): panel «Por comprar».
   abastecimiento: '/abastecimiento',
-  // F3: preparación de IMEI de la compra; F5: recepción del lote.
+  // F3: preparación de IMEI de la compra y del lote; F5: recepción del lote.
   preparacion: '/preparacion',
+  lotes: '/preparar-lote',
   recepcion: '/recepcion',
   // F6: métricas de proveedores, tránsito y atrasos.
   metricas: '/metricas',
@@ -82,6 +83,7 @@ export const DESTINO_LEGADO = {
   compras: '/compras',
   abastecimiento: '/abastecimiento',
   preparacion: '/preparacion',
+  lotes: '/preparar-lote',
   recepcion: '/recepcion',
   metricas: '/metricas',
   servicio: '/servicio',
