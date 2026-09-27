@@ -6,6 +6,8 @@ import { isDemoRuntime } from '@/lib/demoMode'
 import { api } from '@/lib/api/client'
 import { purchasesApi } from '@/lib/api/purchases'
 import { suppliersApi } from '@/lib/api/suppliers'
+import { leerProveedoresRecientes, recordarProveedorReciente } from '@/lib/proveedores'
+import SupplierCombobox from '@/components/shared/SupplierCombobox'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { loadDemoPurchases, createDemoPurchase, receiveDemoPurchase, updateDemoPurchaseCosts } from '@/lib/demoPurchases'
 import { gs } from '@/utils/calculos'
@@ -115,6 +117,7 @@ export default function Compras() {
   const branchOptions = sucursales.length > 0 ? sucursales : (sucursal ? [sucursal] : [])
   const [purchases, setPurchases] = useState(demo ? loadDemoPurchases() : [])
   const [suppliers, setSuppliers] = useState([])
+  const [recientesProveedores, setRecientesProveedores] = useState(() => leerProveedoresRecientes(empresa?.id))
   const [supplierId, setSupplierId] = useState('')
   const [newSupplier, setNewSupplier] = useState({ name: '', countryCode: '+595', phone: '', city: '', department: '', address: '' })
   const [suppliersOpen, setSuppliersOpen] = useState(false)
@@ -156,6 +159,18 @@ export default function Compras() {
     catch (err) { setError(err?.message || 'No se pudieron cargar las compras.') } finally { setBusy(false) }
   }, [demo])
   useEffect(() => { load(busqueda.trim()) }, [load, busqueda])
+  // #259: sin historial propio, los últimos usados salen de las compras más
+  // recientes (la primera vez en un dispositivo nuevo).
+  useEffect(() => {
+    if (recientesProveedores.length || !empresa?.id || purchases.length === 0) return
+    const ids = []
+    for (const compra of purchases) {
+      if (compra.supplierId && !ids.includes(compra.supplierId)) ids.push(compra.supplierId)
+      if (ids.length >= 3) break
+    }
+    if (ids.length) setRecientesProveedores([...ids].reverse().reduce((_, id) => recordarProveedorReciente(empresa.id, id), []))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [purchases, empresa?.id])
   useEffect(() => { if (qParam) setQuery(qParam) }, [qParam])
   const estimatedTotal = useMemo(() => {
     const total = totalOf(lines, costs)
@@ -211,6 +226,7 @@ export default function Compras() {
         const created = await suppliersApi.create({ name: finalSupplierName, phone: componerTelefono({ countryCode: newSupplier.countryCode, phone: newSupplier.phone }) || undefined, city: newSupplier.city.trim() || undefined, department: newSupplier.department?.trim() || undefined, address: newSupplier.address.trim() || undefined })
         finalSupplierId = created.id; finalSupplierName = created.name
         setSuppliers(items => [...items, created].sort((a, b) => a.name.localeCompare(b.name)))
+        setRecientesProveedores(recordarProveedorReciente(empresa?.id, created.id))
       }
       const payload = { supplierName: finalSupplierName, ...(finalSupplierId && finalSupplierId !== 'new' ? { supplierId: finalSupplierId } : {}), ...(requiereCompraAuth && compraAuth ? { purchaseAuthorizationId: compraAuth.id } : {}), branchId: branchId || undefined, ...Object.fromEntries(Object.entries(costs).map(([key, value]) => [key, toPyg(value)])), currency, exchangeRatePyg: currency === 'PYG' ? 1 : rate, creditEnabled, dueAt: dueAt || undefined, supplierReference: supplierReference || undefined, costAllocationMethod, lines: lines.map(line => ({ ...line, quantity: Number(line.quantity), unitCostPyg: toPyg(line.unitCostPyg) })) }
       if (demo) { const created = { ...payload, id: `demo-purchase-${Date.now()}`, status: 'DRAFT', createdAt: new Date().toISOString(), receivedAt: null, payments: [], lines: payload.lines.map((line, index) => ({ ...line, id: `demo-line-${Date.now()}-${index}`, productName: products.find((p) => p.id === line.productId)?.nombre, baseTotalPyg: line.quantity * line.unitCostPyg, finalTotalCostPyg: line.quantity * line.unitCostPyg })) }; createDemoPurchase(created); setPurchases(loadDemoPurchases()) }
@@ -417,7 +433,16 @@ export default function Compras() {
   return <div className="space-y-4">
     <Card><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="mb-4 text-sm text-mute">Anticipos, crédito y costos finales auditables por equipo o lote.</p></div><div className="flex flex-wrap gap-2">{!demo && <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={exportando} onClick={exportar}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}<Button type="button" variant="outline" onClick={() => setSuppliersOpen(true)}>Proveedores</Button></div></div>
       <SearchField value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar proveedor, referencia o número…" ariaLabel="Buscar compras" className="mb-4 max-w-md" />
-      <form onSubmit={create} className="space-y-3"><div className={GRILLA_DOS_COLUMNAS_COMPACTA}><Select aria-label="Proveedor" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}><option value="">Elegí un proveedor</option>{suppliers.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="new">＋ Nuevo proveedor</option></Select><div><Select aria-label="Sucursal de recepción" value={branchId} onChange={(e) => { branchTouched.current = true; setBranchId(e.target.value) }}>{branchOptions.length === 0 ? <option value="">Sin sucursal definida</option> : <><option value="">Sin sucursal (general)</option>{branchOptions.map(branch => <option key={branch.id} value={branch.id}>{branch.nombre || branch.name}</option>)}</>}</Select><p className="mt-1 px-1 text-xs text-mute">Es tu sucursal donde entra el stock, no la del proveedor.</p></div></div>
+      <form onSubmit={create} className="space-y-3"><div className={GRILLA_DOS_COLUMNAS_COMPACTA}><SupplierCombobox
+            id="compra-proveedor"
+            ariaLabel="Proveedor"
+            proveedores={suppliers}
+            value={supplierId === 'new' ? newSupplier.name : supplierId}
+            recientes={recientesProveedores}
+            onSelect={(proveedor) => { setSupplierId(proveedor.id); setNewSupplier(s => ({ ...s, name: '' })); setRecientesProveedores(recordarProveedorReciente(empresa?.id, proveedor.id)) }}
+            onLibre={(texto) => { setSupplierId('new'); setNewSupplier(s => ({ ...s, name: texto })) }}
+            etiquetaNuevo="＋ Crear"
+          /><div><Select aria-label="Sucursal de recepción" value={branchId} onChange={(e) => { branchTouched.current = true; setBranchId(e.target.value) }}>{branchOptions.length === 0 ? <option value="">Sin sucursal definida</option> : <><option value="">Sin sucursal (general)</option>{branchOptions.map(branch => <option key={branch.id} value={branch.id}>{branch.nombre || branch.name}</option>)}</>}</Select><p className="mt-1 px-1 text-xs text-mute">Es tu sucursal donde entra el stock, no la del proveedor.</p></div></div>
         {supplierId === 'new' && <div className={GRILLA_DOS_COLUMNAS_COMPACTA}><Input required value={newSupplier.name} onChange={(e) => setNewSupplier(s => ({ ...s, name: e.target.value }))} placeholder="Nombre del proveedor" /><PhoneField countryCode={newSupplier.countryCode || '+595'} phone={newSupplier.phone || ''} onCountryCodeChange={(countryCode) => setNewSupplier(s => ({ ...s, countryCode }))} onChange={(phone) => setNewSupplier(s => ({ ...s, phone }))} placeholder="Teléfono (opcional)" /><div className="space-y-1"><CityAutocomplete value={newSupplier.city} onSelect={(city, department) => setNewSupplier(s => ({ ...s, city, department }))} placeholder="Ciudad (opcional)" />{newSupplier.department && <p className="px-1 text-xs text-fono-light">Departamento: {newSupplier.department}</p>}</div><Input value={newSupplier.address} onChange={(e) => setNewSupplier(s => ({ ...s, address: e.target.value }))} placeholder="Dirección (opcional)" /></div>}
         <div className="space-y-2">{lines.map((line, index) => <ProductLine key={index} products={products} line={line} currency={currency} onChange={(value) => updateLine(index, value)} onSelectProduct={(product) => chooseProduct(index, product)} onCreateProduct={(texto) => createProduct(texto, index)} canRemove={lines.length > 1} onRemove={() => setLines(items => items.filter((_, itemIndex) => itemIndex !== index))} />)}<Button type="button" variant="outline" onClick={() => setLines(items => [...items, emptyLine()])}>+ Agregar línea / lote</Button>{!demo && <Button type="button" variant="outline" disabled={busy} onClick={sugerirReposicion}>Sugerir reposición</Button>}</div>
         <details className="rounded-xl border border-ink-600/70 p-3"><summary className="cursor-pointer select-none text-sm font-semibold text-fore">Costos de importación (flete, aduana, seguro…) <span className="ml-1 text-xs font-normal text-mute">· {gs(costsTotalPyg)}</span></summary><div className={cn('mt-3 lg:grid-cols-3', GRILLA_DOS_COLUMNAS_COMPACTA)}>{COST_FIELDS.map(([key, label]) => <MoneyInput key={key} currency={currency} value={costs[key]} onValueChange={(value) => setCosts(current => ({ ...current, [key]: value }))} placeholder={label} />)}</div></details>

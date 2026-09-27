@@ -633,3 +633,87 @@ test('el modo taller agrupa por estado y verifica e imprime en serie', async ({ 
     await limpiar(page, datos)
   }
 })
+
+// #259: el proveedor de la recepción se elige con un buscador (no datalist):
+// al enfocar vacío aparecen los últimos usados y al escribir filtra por
+// abreviatura o nombre, sin acentos.
+test('recepción: buscador de proveedores por abreviatura y últimos usados (#259)', async ({ page }) => {
+  const id = marca()
+  const sufijo = Math.random().toString(36).slice(2, 7).toUpperCase()
+  const codigoAlfa = `ZZALFA${sufijo}`
+  const codigoBeta = `ZZBETA${sufijo}`
+  // Los proveedores se crean antes de entrar: la pantalla los carga al montar.
+  await page.goto('/pos')
+  const proveedores = await page.evaluate(async ({ api, datos }) => {
+    const pedir = async (ruta, opciones = {}) => {
+      const respuesta = await fetch(`${api}/api/${ruta}`, { credentials: 'include', headers: opciones.body ? { 'Content-Type': 'application/json' } : undefined, ...opciones })
+      const payload = await respuesta.json().catch(() => null)
+      if (!respuesta.ok) throw new Error(`${ruta}: ${payload?.message || respuesta.status}`)
+      return payload
+    }
+    const alfa = await pedir('suppliers', { method: 'POST', body: JSON.stringify({ name: `Importadora Alfa QA ${datos.id} ${datos.sufijo}`, code: datos.codigoAlfa }) })
+    const beta = await pedir('suppliers', { method: 'POST', body: JSON.stringify({ name: `Distribuidora Beta QA ${datos.id} ${datos.sufijo}`, code: datos.codigoBeta }) })
+    const producto = await pedir('products', { method: 'POST', body: JSON.stringify({ sku: `ZZ-QA259-${datos.sufijo}`, name: `Equipo proveedor QA ${datos.id}`, category: 'Celulares', pricePyg: 2500000, costPyg: 1800000, stock: 0, branchId: datos.sucursal }) })
+    return { alfa, beta, producto }
+  }, { api: API, datos: { id, sufijo, codigoAlfa, codigoBeta, sucursal: SEED.branchId } })
+
+  const serial = `ZZPROV${id}`
+  try {
+    await page.goto('/inventario/unidades')
+    await page.getByRole('button', { name: '+ Recibir unidad' }).click()
+    const modal = page.getByRole('dialog')
+    // Primero el modelo (la carga rápida exige modelo, IMEI y dónde entra).
+    const modelo = modal.getByRole('combobox').first()
+    await modelo.fill(`Equipo proveedor QA ${id}`)
+    await modal.getByRole('option', { name: new RegExp(`Equipo proveedor QA ${id}`) }).first().click()
+    const campo = modal.locator('#recibir-proveedor')
+    await expect(campo).toBeVisible({ timeout: 15_000 })
+
+    // Al enfocar vacío se listan los proveedores (sin últimos usados todavía).
+    await campo.click()
+    const lista = modal.getByRole('listbox', { name: 'Proveedores' })
+    await expect(lista).toBeVisible()
+    await expect(lista.getByRole('option').filter({ hasText: `Distribuidora Beta QA ${id} ${sufijo}` })).toBeVisible()
+    await expect(lista.getByRole('option').filter({ hasText: `Importadora Alfa QA ${id} ${sufijo}` })).toBeVisible()
+    await expect(modal.getByText('Últimos usados')).toHaveCount(0)
+
+    // La abreviatura en minúsculas filtra el proveedor correcto.
+    await campo.fill(codigoBeta.toLowerCase())
+    await expect(lista.getByRole('option')).toHaveCount(1)
+    await expect(lista.getByRole('option').first()).toContainText(`Distribuidora Beta QA ${id} ${sufijo}`)
+    await expect(lista.getByRole('option').first()).toContainText(codigoBeta)
+    mkdirSync('test-results/qa-259-proveedores', { recursive: true })
+    await page.screenshot({ path: 'test-results/qa-259-proveedores/recepcion-filtro-abreviatura.jpg', type: 'jpeg', quality: 78 })
+
+    // Elegir completa el campo con abreviatura + nombre.
+    await lista.getByRole('option').first().click()
+    await expect(campo).toHaveValue(`${codigoBeta} · Distribuidora Beta QA ${id} ${sufijo}`)
+
+    // La recepción guarda y el proveedor queda recordado como último usado.
+    await modal.getByLabel('IMEI o serial', { exact: true }).fill(serial)
+    await modal.getByLabel('Sucursal', { exact: true }).selectOption(SEED.branchId)
+    await modal.getByRole('button', { name: 'Guardar unidad' }).click()
+    await expect(page.getByText(/1 unidad recibida/)).toBeVisible({ timeout: 20_000 })
+
+    await page.getByRole('button', { name: '+ Recibir unidad' }).click()
+    const modal2 = page.getByRole('dialog')
+    const campo2 = modal2.locator('#recibir-proveedor')
+    await campo2.click()
+    const lista2 = modal2.getByRole('listbox', { name: 'Proveedores' })
+    await expect(lista2.getByText('Últimos usados')).toBeVisible()
+    await expect(lista2.getByRole('option').first()).toContainText(`Distribuidora Beta QA ${id} ${sufijo}`)
+    await page.screenshot({ path: 'test-results/qa-259-proveedores/recepcion-ultimos-usados.jpg', type: 'jpeg', quality: 78 })
+    await page.keyboard.press('Escape')
+  } finally {
+    await page.evaluate(async ({ api, serial, ids, productId }) => {
+      const unidades = await fetch(`${api}/api/inventory-units?q=${encodeURIComponent(serial)}`, { credentials: 'include' }).then((r) => r.json()).catch(() => [])
+      for (const unidad of Array.isArray(unidades) ? unidades : []) {
+        await fetch(`${api}/api/inventory-units`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: unidad.id, action: 'remove', reason: 'Limpieza QA #259' }) }).catch(() => {})
+      }
+      for (const id of ids) {
+        await fetch(`${api}/api/suppliers`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, isActive: false }) }).catch(() => {})
+      }
+      if (productId) await fetch(`${api}/api/products?id=${encodeURIComponent(productId)}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
+    }, { api: API, serial, ids: [proveedores.alfa.id, proveedores.beta.id], productId: proveedores.producto.id })
+  }
+})
