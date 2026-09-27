@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.195 — 2026-09-27
+- **Compras/Abastecimiento (#278 · #250 §11):** «**Lista de compra**» desde **Compras del Centro** con vista previa del papel real, **impresión 80 mm, PDF e imagen**; la compra muestra por línea **prioridad, origen, promesa y reposición libre**.
+- **Inventario (#250 F4):** la ficha de la unidad muestra la **cadena del serial** (necesidad → compra → lote → stock), con aviso honesto si no hay cadena.
+- **Composición compacta (#256):** **Precios, Celulares, Comparador** y el **pipeline Trade-In del dueño** pasan a la barra compacta, sin títulos duplicados.
+- **POS (#148 §20):** el **enlace público del borrador** avisa «Sin stock en este momento» si no alcanza, con captura de evidencia.
+
 ## v1.0.194 — 2026-09-27
 - **POS (#275):** al confirmar la venta (**completa, parcial o a crédito**) la app **va sola al detalle del pedido**, con la animación de confirmación y el número; desde el detalle se **vuelve al POS** con el carrito vacío. También en la **demo**.
 - **Compras/Inventario (#259):** el **buscador de proveedores** de la recepción mantiene los **últimos usados visibles** al reabrir y filtra por **abreviatura o nombre**.
