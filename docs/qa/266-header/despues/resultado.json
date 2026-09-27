@@ -1,0 +1,16 @@
+{
+  "base": "http://localhost:5203",
+  "version": "1.0.186",
+  "fecha": "2026-09-27T00:13:57.381Z",
+  "medidas": {
+    "estado": {
+      "candado": true,
+      "menuTresPuntos": false,
+      "chip": {
+        "texto": "Hernán AcostaDueño",
+        "aria": "Mi perfil (Hernán Acosta)"
+      },
+      "botonMiCuentaSuelto": false
+    }
+  }
+}
