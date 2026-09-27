@@ -60,8 +60,9 @@ async function agregarProducto(page) {
 async function elegirCuenta(page, fila, nombre) {
   await fila.getByLabel('Cuenta de cobro').click()
   await page.getByRole('option', { name: nombre }).first().click()
-  // El combo queda con la cuenta elegida (la fila propone el saldo pendiente).
-  await expect(fila.getByLabel('Cuenta de cobro')).toHaveValue(nombre)
+  // #283: elegida la cuenta, el selector desaparece y queda solo la cápsula.
+  await expect(fila.getByLabel('Cuenta de cobro')).toHaveCount(0)
+  await expect(fila.getByTestId('cuenta-capsula-nombre')).toHaveText(nombre)
 }
 
 async function armarCobro(page, sufijo) {

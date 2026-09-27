@@ -38,6 +38,48 @@ async function elegirCuenta(page, fila, nombre) {
 const colorTema = (page, variable) =>
   page.evaluate((v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim().split(/\s+/).join(', '), variable)
 
+// #283: el pago arranca SIN cuenta (se elige a propósito), al elegirla el
+// selector desaparece y queda solo la cápsula con sus datos ordenados, y la
+// lista abierta empuja el bloque en vez de superponerse.
+test('el pago arranca sin cuenta, al elegirla queda la cápsula y la lista no tapa el bloque (#283)', async ({ page }) => {
+  await armarVenta(page, { clienteNombre: cliente() })
+  const fila = await agregarPago(page)
+
+  // Sin cuenta predeterminada: buscador vacío, monto deshabilitado y sin cápsula.
+  const combo = fila.getByLabel('Cuenta de cobro')
+  await expect(combo).toHaveValue('')
+  await expect(fila.getByLabel('Monto original')).toBeDisabled()
+  await expect(fila.getByTestId('cuenta-capsula')).toHaveCount(0)
+
+  // La lista se abre en el flujo: el monto queda debajo, sin superposición.
+  await combo.click()
+  const lista = page.getByRole('listbox', { name: 'Cuentas de cobro' })
+  await expect(lista).toBeVisible()
+  const cajaLista = await lista.boundingBox()
+  const cajaMonto = await fila.getByLabel('Monto original').boundingBox()
+  expect(Math.round(cajaLista.y + cajaLista.height)).toBeLessThanOrEqual(Math.round(cajaMonto.y))
+
+  // Al elegir: el selector desaparece, queda la cápsula y el monto propone el saldo.
+  await page.getByRole('option', { name: /Transferencia E2E/ }).first().click()
+  await expect(fila.getByLabel('Cuenta de cobro')).toHaveCount(0)
+  const capsula = fila.getByTestId('cuenta-capsula')
+  await expect(capsula.getByTestId('cuenta-capsula-nombre')).toHaveText('Transferencia E2E')
+  await expect(fila.getByTestId('cuenta-cambiar-ayuda')).toContainText('eliminá este pago')
+  await expect(fila.getByLabel('Monto original')).toBeEnabled()
+  await expect(fila.getByLabel('Monto original')).toHaveValue('45.000')
+
+  // Datos ordenados y rotulados: número, titular y banco (#283, ajuste de Dario).
+  const datos = capsula.getByTestId('cuenta-capsula-datos')
+  await expect(datos.locator('dt')).toHaveText(['Nro de cuenta', 'Titular', 'Banco'])
+  await expect(datos).toContainText('E2E-0001')
+  await expect(datos).toContainText('Tienda E2E')
+  await expect(datos).toContainText('Banco E2E')
+
+  // Otro pago: vuelve a arrancar sin cuenta (no se arrastra la anterior).
+  await page.getByRole('button', { name: '+ Agregar pago' }).click()
+  await expect(page.getByTestId('pago-fila-1').getByLabel('Cuenta de cobro')).toHaveValue('')
+})
+
 test('la cuenta elegida muestra cápsula con banco, titular, número, moneda y saldo (#148 §5/§11)', async ({ page }) => {
   await armarVenta(page, { clienteNombre: cliente() })
   const fila = await agregarPago(page)
@@ -49,11 +91,11 @@ test('la cuenta elegida muestra cápsula con banco, titular, número, moneda y s
   // Moneda y medio, con logo del banco.
   await expect(capsula).toContainText('Gs')
   await expect(capsula).toContainText('Transferencia')
-  // Banco, titular y número: lo que hace falta para operar sin salir del cobro.
+  // Banco, titular y número, rotulados y en orden (#283): lo que hace falta
+  // para operar sin salir del cobro.
   const datos = capsula.getByTestId('cuenta-capsula-datos')
-  await expect(datos).toContainText('Banco E2E')
-  await expect(datos).toContainText('Titular Tienda E2E')
-  await expect(datos).toContainText('E2E-0001')
+  await expect(datos.locator('dt')).toHaveText(['Nro de cuenta', 'Titular', 'Banco'])
+  await expect(datos.locator('dd')).toHaveText(['E2E-0001', 'Tienda E2E', 'Banco E2E'])
   // El cable cuesta 45.000: al elegir la cuenta se propone el saldo, así que no
   // hay pendiente. Con un pago parcial aparece el saldo; al completarlo se va.
   await expect(capsula.getByTestId('cuenta-capsula-saldo')).toHaveCount(0)

@@ -63,9 +63,12 @@ test('mobile 390: carrito, cobros y entrega llegan al target de 44', async ({ pa
   // Cobros/split: agregar pago, cuenta, monto y la papelera de la fila.
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
   const pagos = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
+  // #283: el buscador de cuenta es el target para elegirla; al elegirla
+  // desaparece y queda la cápsula (ya no hay combo para medir).
+  await toque(pagos.getByLabel('Cuenta de cobro').first(), 'cuenta de cobro')
   await pagos.getByLabel('Cuenta de cobro').first().click()
   await page.getByRole('option', { name: /Caja E2E/ }).first().click()
-  await toque(pagos.getByLabel('Cuenta de cobro').first(), 'cuenta de cobro')
+  await expect(pagos.getByTestId('cuenta-capsula').first()).toBeVisible()
   await toque(pagos.getByLabel('Monto original').first(), 'monto original')
   await toque(pagos.getByRole('button', { name: 'Eliminar pago 1' }), 'eliminar pago')
   await toque(page.getByRole('button', { name: '+ Agregar pago' }), 'agregar pago')
