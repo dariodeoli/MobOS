@@ -49,6 +49,10 @@ export const resources = {
     // F3 (#250 §11): etiquetas de la preparación (una por unidad comprada).
     labels: id => api.get(`/api/supply/purchases/${encodeURIComponent(id)}/labels`, { cacheMs: 0 }),
   },
+  // F4 (#250 §11): el manifiesto del envío (se reimprime al recibir el lote).
+  supplyShipments: {
+    manifest: id => api.get(`/api/supply/shipments/${encodeURIComponent(id)}/manifest`, { cacheMs: 0 }),
+  },
   // F5 (#250 §11): llegadas pendientes y recepción contra el manifiesto.
   supplyReceptions: {
     list: (params = {}) => {

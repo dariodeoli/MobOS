@@ -67,7 +67,9 @@ const etiquetas = etiquetasDeLote(manifiesto)
 
 El panel de abastecimiento (CMP/INV) debe, en el envío:
 
-1. Pedir el manifiesto (`/api/supply/shipments/[id]/manifest`).
+1. Pedir el manifiesto (`/api/supply/shipments/[id]/manifest`). Ya se
+   **reimprime desde la recepción** (botón «Manifiesto» del panel F5, con el
+   agente/puente y el diálogo como respaldo).
 2. Ofrecer «Imprimir manifiesto» con `ticketManifiesto` (impresora del tipo
    `manifiesto`) y «Imprimir etiquetas del lote» con `etiquetasDeLote` +
    `ticketEtiquetasLote`; «Descargar PDF»/«Compartir imagen» con
