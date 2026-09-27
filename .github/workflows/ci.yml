@@ -92,6 +92,10 @@ jobs:
             sudo ln -sf "$source" "/opt/homebrew/bin/${binary}"
             test -x "/opt/homebrew/bin/${binary}"
           done
+      # El arnés de impresión (backend/tests/print-bridge-http.mjs) importa
+      # `src/lib/printing/tickets.js`, que depende de `owncoding-ui` (raíz).
+      - name: Install root dependencies
+        run: npm ci
       - name: Install backend dependencies
         working-directory: backend
         run: npm ci
