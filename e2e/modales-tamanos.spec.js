@@ -61,7 +61,7 @@ test('Preferencias (corto)', async ({ page }) => {
 test('Proveedores (amplio)', async ({ page }) => {
   const nombre = `Proveedor QA237 ${Date.now().toString(36).toUpperCase()}`
   await page.goto('/compras')
-  await expect(page.getByRole('heading', { name: 'Compras' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Compras', level: 1 })).toBeVisible()
   await page.evaluate(async ({ api, nombre }) => {
     const respuesta = await fetch(`${api}/api/suppliers`, {
       method: 'POST',

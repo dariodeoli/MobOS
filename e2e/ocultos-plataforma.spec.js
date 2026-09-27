@@ -126,6 +126,15 @@ test.describe('ocultos de plataforma', () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/pos')
     await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+    // Los módulos perezosos del POS (SellerTools) tienen que estar cargados
+    // antes de cortar la red: si el import dinámico queda en vuelo, falla
+    // offline y la pantalla queda en blanco (el aviso no es lo que se prueba).
+    const moduloDiferido = page
+      .waitForResponse((respuesta) => /SellerTools(\.[^/]*)?\.jsx?/.test(respuesta.url()) && respuesta.ok(), { timeout: 30_000 })
+      .catch(() => null)
+    await page.goto('/pos')
+    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+    await moduloDiferido
     await context.setOffline(true)
     await expect(page.getByTestId('shell-cola-offline-pill')).toBeVisible()
     await page.screenshot({ path: `${salida}/offline-badge-mobile.png` })

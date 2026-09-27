@@ -49,7 +49,7 @@ test.describe('seller permissions', () => {
   // la API (#81, #82).
   test('el marketing y las cobranzas por WhatsApp no están para un vendedor', async ({ page }) => {
     await page.goto('/clientes')
-    await expect(page.getByRole('heading', { name: 'Clientes' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Clientes', level: 1 })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Campañas' })).toHaveCount(0)
 
     for (const path of ['/api/collections/reminders', '/api/customers/segments?segment=INACTIVE', '/api/marketing/campaigns']) {

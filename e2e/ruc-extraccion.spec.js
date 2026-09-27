@@ -58,7 +58,7 @@ test('POS: RUC del titular de factura', async ({ page }) => {
 
 test('CRM: RUC o CI del nuevo cliente', async ({ page }) => {
   await page.goto('/clientes')
-  await expect(page.getByRole('heading', { name: 'Clientes' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Clientes', level: 1 })).toBeVisible()
   await page.getByRole('button', { name: '+ Crear cliente' }).click()
   const ruc = page.locator('#cliente-documento')
   await ruc.fill('80012345-6')
@@ -69,7 +69,7 @@ test('CRM: RUC o CI del nuevo cliente', async ({ page }) => {
 
 test('CRM: identidad fiscal de una ficha', async ({ page }) => {
   await page.goto('/clientes')
-  await expect(page.getByRole('heading', { name: 'Clientes' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Clientes', level: 1 })).toBeVisible()
   // La tabla nueva (#236) abre la ficha al hacer clic en la fila.
   const fila = page.getByTestId('cliente-fila').first()
   await expect(fila).toBeVisible()
@@ -88,7 +88,7 @@ test('CRM: identidad fiscal de una ficha', async ({ page }) => {
 test('Compras: RUC del proveedor', async ({ page }) => {
   const nombre = `Proveedor QA234 ${Date.now().toString(36).toUpperCase()}`
   await page.goto('/compras')
-  await expect(page.getByRole('heading', { name: 'Compras' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Compras', level: 1 })).toBeVisible()
   await page.evaluate(async ({ api, nombre }) => {
     const respuesta = await fetch(`${api}/api/suppliers`, {
       method: 'POST',
@@ -101,7 +101,7 @@ test('Compras: RUC del proveedor', async ({ page }) => {
   // La pantalla carga su lista de proveedores al montar: se recarga para que el
   // alta recién creada aparezca en el modal.
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Compras' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Compras', level: 1 })).toBeVisible()
   await page.getByRole('button', { name: 'Proveedores' }).click()
   const modal = page.getByRole('dialog', { name: 'Proveedores' })
   await modal.getByTestId('proveedor-fila').filter({ hasText: nombre }).getByRole('button', { name: `Editar ${nombre}` }).click()

@@ -62,7 +62,10 @@ test.describe('owner panel', () => {
     const fila = () =>
       page.getByTestId('inventario-fila').filter({ hasText: SEED.products.iphone.imei }).first()
     await expect(fila()).toBeVisible()
-    await fila().click()
+    // La fila compacta tiene acciones internas en el centro (editar costo,
+    // acciones) que interceptan el clic: se toca el nombre (inerto) para abrir
+    // la ficha completa de la unidad.
+    await fila().locator('b').first().click()
     await page
       .getByRole('dialog', { name: /iPhone/ })
       .getByRole('button', { name: 'Reservar' })
@@ -294,7 +297,7 @@ test.describe('owner panel', () => {
   test('servicio técnico → crea la orden y avanza el pipeline', async ({ page }) => {
     await page.goto('/servicio')
     // Sección unificada (#224): el taller es una de sus solapas.
-    await expect(page.getByRole('heading', { name: 'Taller' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Taller', level: 1 })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Servicio', exact: true })).toBeVisible()
 
     const stamp = Date.now().toString(36)
