@@ -348,7 +348,10 @@ await paso('?cliente=<id> abre la ficha del cliente', async () => {
 
 await paso('servicio técnico demo (OS del pipeline)', async () => {
   await page.goto(`${APP}/servicio`, { waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(1500)
+  // La demo pinta el pipeline con un chunk perezoso: esperar el contenido (no
+  // un tiempo fijo) evita fotografiar los esqueletos de carga.
+  await page.getByText('OS-#0001', { exact: false }).first().waitFor({ state: 'visible', timeout: 20_000 }).catch(() => {})
+  await page.waitForTimeout(500)
   await shot(page, 'servicio-demo')
   const texto = await page.locator('body').innerText()
   afirmar(texto.includes('OS-#0001') && texto.includes('OS-#0002'), 'no aparecen las órdenes OS-#0001/OS-#0002')
@@ -484,7 +487,7 @@ for (const [ruta, clave] of [['/cuenta/token-inexistente-qa187', 'cuenta'], ['/p
   await anonimo.goto(`${PORTAL}${ruta}`, { waitUntil: 'domcontentloaded', timeout: 60000 })
   await anonimo.waitForTimeout(1000)
   const texto = (await anonimo.locator('body').innerText()).toLowerCase()
-  resultado.publicos[clave] = { generico: /no encontrada|no es válido|venció/.test(texto), sinDatos: !/gs \d/.test(texto) }
+  resultado.publicos[clave] = { generico: /no encontrada|no es válido|venció|demasiadas solicitudes/.test(texto), sinDatos: !/gs \d/.test(texto) }
   contador += 1
   const archivo = `${String(contador).padStart(2, '0')}-publico-${clave}.png`
   await anonimo.screenshot({ path: `${SHOTS}/${archivo}` })

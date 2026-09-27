@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 import { useMenuConfigColapsado } from '@/lib/menuConfig'
@@ -16,6 +16,7 @@ import { grupoConfig } from './gruposConfig'
 export default function NavegacionConfig({ value, onChange, items = [], children }) {
   const [colapsado, setColapsado] = useMenuConfigColapsado()
   const activoRef = useRef(null)
+  const botonesRef = useRef({})
   const grupos = items.map(([id, label]) => ({ id, label, ...(grupoConfig(id) || {}) }))
   const activo = grupos.find((grupo) => grupo.id === value) || grupos[0]
 
@@ -24,6 +25,27 @@ export default function NavegacionConfig({ value, onChange, items = [], children
     // por un enlace directo: la centramos sin mover la página.
     activoRef.current?.scrollIntoView?.({ inline: 'center', block: 'nearest' })
   }, [value])
+
+  function alternarColapsado() {
+    const siguiente = !colapsado
+    setColapsado(siguiente)
+    try { window.localStorage.setItem(CLAVE_COLAPSADO, siguiente ? '1' : '0') } catch { /* sin storage */ }
+  }
+
+  // Teclado del tablist: las flechas mueven y activan la pestaña contigua a la
+  // enfocada (comportamiento estándar de un tablist).
+  function alTeclado(event) {
+    const teclas = ['ArrowDown', 'ArrowRight', 'ArrowUp', 'ArrowLeft']
+    if (!teclas.includes(event.key) || !grupos.length) return
+    event.preventDefault()
+    const ids = grupos.map((grupo) => grupo.id)
+    const enfocado = ids.findIndex((id) => botonesRef.current[id] === document.activeElement)
+    const actual = enfocado >= 0 ? enfocado : ids.indexOf(value)
+    const paso = event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : -1
+    const siguiente = grupos[(actual + paso + grupos.length) % grupos.length]
+    onChange(siguiente.id)
+    botonesRef.current[siguiente.id]?.focus()
+  }
 
   if (!grupos.length) return null
 

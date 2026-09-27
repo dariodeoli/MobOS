@@ -1,0 +1,15 @@
+{
+  "version": "1.0.186",
+  "base": "https://app.moboss.online",
+  "foto": "600x1200 (vertical)",
+  "alAbrir": {
+    "ancho": 240,
+    "alto": 480
+  },
+  "contenedor": 240,
+  "alZoom": {
+    "ancho": 600,
+    "alto": 1200
+  },
+  "fecha": "2026-09-26T23:22:14.411Z"
+}
