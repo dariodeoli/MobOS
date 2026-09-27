@@ -1,0 +1,48 @@
+{
+  "base": "https://app.moboss.online",
+  "fecha": "2026-09-27T00:55:57.405Z",
+  "pasos": [
+    {
+      "paso": "demo + versión",
+      "detalle": "v1.0.188",
+      "ok": true
+    },
+    {
+      "paso": "cotizaciones en la demo",
+      "detalle": "la demo no listó cotizaciones",
+      "ok": true
+    }
+  ],
+  "resultados": [
+    {
+      "item": "F3 · etiquetas desde la preparación",
+      "estado": "pendiente",
+      "detalle": "la versión desplegada todavía no trae el botón",
+      "captura": "01-abastecimiento.jpg"
+    },
+    {
+      "item": "F4 · manifiesto desde la recepción",
+      "estado": "pendiente",
+      "detalle": "necesita una recepción activa / todavía no desplegado",
+      "captura": "01-abastecimiento.jpg"
+    },
+    {
+      "item": "#261 · enviar por WhatsApp (texto + PDF)",
+      "estado": "pendiente",
+      "detalle": "la versión desplegada todavía no trae la acción",
+      "captura": "03-cotizacion-enlace.jpg"
+    },
+    {
+      "item": "#261 · PDF de la cotización",
+      "estado": "pendiente",
+      "detalle": "la versión desplegada todavía no trae el PDF",
+      "captura": "03-cotizacion-enlace.jpg"
+    },
+    {
+      "item": "#261 · PDF en la página pública",
+      "estado": "pendiente",
+      "detalle": "la versión desplegada todavía no trae el PDF público",
+      "captura": "04-cotizacion-publica.jpg"
+    }
+  ]
+}

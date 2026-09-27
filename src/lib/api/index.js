@@ -59,6 +59,10 @@ export const resources = {
     create: data => api.post('/api/supply/shipments', data),
     update: data => api.patch('/api/supply/shipments', data),
   },
+  // F4 (#250 §11): el manifiesto del envío (se reimprime al recibir el lote).
+  supplyShipments: {
+    manifest: id => api.get(`/api/supply/shipments/${encodeURIComponent(id)}/manifest`, { cacheMs: 0 }),
+  },
   // F5 (#250 §11): llegadas pendientes y recepción contra el manifiesto.
   supplyReceptions: {
     list: (params = {}) => {
