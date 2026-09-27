@@ -169,6 +169,7 @@ export const impresoraDesdeBackend = (impresora) => ({
   bridgeId: impresora?.bridgeId || '',
   branchId: impresora?.branchId || '',
   ultimaPrueba: impresora?.lastTest || null,
+  plantillaPrueba: impresora?.testTemplate || null,
   origen: 'backend',
 })
 
@@ -188,6 +189,9 @@ export const impresoraHaciaBackend = (impresora) => ({
   isActive: impresora?.activa !== false,
   bridgeId: impresora?.bridgeId || null,
   branchId: impresora?.branchId || null,
+  // La plantilla del ticket de prueba (#277) viaja con la impresora: solo se
+  // toca cuando el cliente la conoce (evita pisarla al guardar el formulario).
+  ...(impresora?.plantillaPrueba !== undefined ? { testTemplate: impresora.plantillaPrueba } : {}),
 })
 
 // Refresca la caché desde el backend: el backend manda y pisa lo guardado.
@@ -518,6 +522,18 @@ export async function registrarUltimaPrueba(impresora, ultimaPrueba) {
   if (!esIdBackend(impresora?.id)) return null
   try {
     return await printingApi.guardarImpresora(impresora.id, { lastTest: ultimaPrueba })
+  } catch {
+    return null
+  }
+}
+
+// Best-effort: guarda la plantilla del ticket de prueba en la impresora del
+// backend (#277) para que viaje entre dispositivos. Si falla (o la impresora
+// es local/demo), la memoria local la conserva.
+export async function registrarPlantillaPrueba(impresora, plantilla) {
+  if (!esIdBackend(impresora?.id)) return null
+  try {
+    return await printingApi.guardarImpresora(impresora.id, { testTemplate: plantilla })
   } catch {
     return null
   }
