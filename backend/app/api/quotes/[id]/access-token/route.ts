@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
+import { congelarVersionDeCotizacion } from '../../../../../lib/quote-approval'
 
 const nuevoToken = () => randomBytes(24).toString('base64url')
 const text = (value: unknown, max = 128) => typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : ''
@@ -13,7 +14,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (!session) return error('Falta sesión.', 401)
   const tenant = session.user.tenantId
   const { id } = await context.params
-  const quote = await prisma.quote.findFirst({ where: { id: text(id), tenantId: tenant }, select: { id: true, sellerId: true, branchId: true, publicToken: true } })
+  const quote = await prisma.quote.findFirst({ where: { id: text(id), tenantId: tenant }, select: { id: true, tenantId: true, sellerId: true, branchId: true, publicToken: true, number: true, customerName: true, customerId: true, items: true, subtotalPyg: true, discountPyg: true, totalPyg: true, notes: true, validUntil: true, status: true } })
   if (!quote) return error('Cotización no encontrada.', 404)
   if (session.user.role === 'VENDEDOR' && quote.sellerId !== session.user.id && quote.branchId !== session.user.branchId) return error('No autorizado.', 403)
 
@@ -30,6 +31,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const token = nuevoToken()
   await prisma.$transaction(async tx => {
     await tx.quote.update({ where: { id: quote.id }, data: { publicToken: token } })
+    // A3 (#279): emitir/renovar el enlace congela la versión que el cliente
+    // verá; si el contenido no cambió, reutiliza la versión vigente.
+    await congelarVersionDeCotizacion(tx, quote, { frozenById: session.user.id, motivo: quote.publicToken ? 'token-regenerado' : 'token-creado' })
     await tx.auditLog.create({ data: {
       tenantId: tenant,
       userId: session.user.id,

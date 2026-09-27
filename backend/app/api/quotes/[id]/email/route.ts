@@ -2,6 +2,7 @@ import { error, json, tenantId } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { prisma } from '../../../../../lib/prisma'
 import { enviarCotizacionPorCorreo } from '../../../../../lib/quote-email'
+import { congelarVersionDeCotizacion } from '../../../../../lib/quote-approval'
 import { numero } from '../../../../../lib/montos'
 
 // Envío de la cotización por correo (pedido de Dario, junto con POS/PRN):
@@ -37,6 +38,8 @@ export async function POST(request: Request, { params }: RouteContext) {
 
   let envio
   try {
+    // A3 (#279): el envío congela la versión que el cliente va a revisar.
+    await prisma.$transaction(tx => congelarVersionDeCotizacion(tx, cotizacion, { frozenById: session.user.id, motivo: 'email' }))
     envio = await enviarCotizacionPorCorreo({
       tenantId: tenant,
       to,

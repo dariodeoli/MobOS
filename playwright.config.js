@@ -24,6 +24,11 @@ const PG_PORT = process.env.MOBOS_E2E_PGPORT || (esWorktreeVinculado ? String(55
 const PG_DATA = process.env.MOBOS_E2E_PGDATA || (esWorktreeVinculado ? `/tmp/mobos-e2e-pg-${sufijo}` : '/tmp/mobos-e2e-pg')
 const DB_NAME = process.env.MOBOS_E2E_DB || (esWorktreeVinculado ? `mobos_e2e_${sufijo.replace(/-/g, '_')}` : 'mobos_e2e')
 
+// A3 (#279): clave de la outbox del arnés, compartida entre el backend (cifra)
+// y las specs (descifran el OTP para probar la aprobación de punta a punta).
+const OUTBOX_KEY_ID = process.env.MOBOS_EMAIL_OUTBOX_ACTIVE_KEY_ID || 'e2e-v1'
+const OUTBOX_KEYS_JSON = process.env.MOBOS_EMAIL_OUTBOX_ENCRYPTION_KEYS_JSON || JSON.stringify({ 'e2e-v1': Buffer.alloc(32, 0).toString('base64') })
+
 // El aislamiento tiene que verlo TODO el run: los lanzadores (procesos
 // separados), globalSetup y las specs. Por eso se escribe en process.env, que
 // es lo que heredan los hijos.
@@ -34,6 +39,8 @@ Object.assign(process.env, {
   MOBOS_E2E_PGDATA: PG_DATA,
   MOBOS_E2E_DB: DB_NAME,
   MOBOS_APP_URL: `http://localhost:${WEB_PORT}`,
+  MOBOS_EMAIL_OUTBOX_ACTIVE_KEY_ID: OUTBOX_KEY_ID,
+  MOBOS_EMAIL_OUTBOX_ENCRYPTION_KEYS_JSON: OUTBOX_KEYS_JSON,
 })
 
 const E2E_ENV = {
@@ -43,6 +50,11 @@ const E2E_ENV = {
   MOBOS_E2E_PGDATA: PG_DATA,
   MOBOS_E2E_DB: DB_NAME,
   MOBOS_APP_URL: `http://localhost:${WEB_PORT}`,
+  // A3 (#279): la outbox transaccional del arnés usa esta clave; las specs leen
+  // de ahí el código OTP (y el backend la usa para cifrar). Misma clave que
+  // e2e/bin/start-backend.sh exporta.
+  MOBOS_EMAIL_OUTBOX_ACTIVE_KEY_ID: OUTBOX_KEY_ID,
+  MOBOS_EMAIL_OUTBOX_ENCRYPTION_KEYS_JSON: OUTBOX_KEYS_JSON,
   // `prod` arranca el backend con `next start` (build previo): lo usa CI para
   // no depender de la compilación por ruta de `next dev`. Local queda `dev`.
   MOBOS_E2E_BACKEND: process.env.MOBOS_E2E_BACKEND || 'dev',
@@ -109,7 +121,7 @@ export default defineConfig({
     {
       // Seeded owner session (PIN 1234) for control views.
       name: 'admin',
-      testMatch: /admin\.spec\.js|analisis\.spec\.js|auditoria\.spec\.js|campanas-recompra\.spec\.js|cobro-cuotas\.spec\.js|compras-densidad\.spec\.js|config-comercial\.spec\.js|config-guardado\.spec\.js|config-seguro-limites\.spec\.js|configuracion-lote5\.spec\.js|demo-publico\.spec\.js|documentacion\.spec\.js|documentos-no-fiscales\.spec\.js|dsn-241-a11y\.spec\.js|dsn-241-dominios\.spec\.js|dsn-responsive-mobile\.spec\.js|equipo-integrantes\.spec\.js|equipo-invitaciones\.spec\.js|etiquetas-gondola\.spec\.js|etiquetas-unidad\.spec\.js|finanzas-caja\.spec\.js|finanzas-comisiones\.spec\.js|finanzas-conciliacion\.spec\.js|finanzas-ultimo-usado\.spec\.js|ia-configuracion\.spec\.js|imei-mock\.spec\.js|impresion-plantilla\.spec\.js|impresion-remota\.spec\.js|informe-dispositivo\.spec\.js|informe-publico-checklist\.spec\.js|informe-publico-controles\.spec\.js|inventario-importacion\.spec\.js|inventario-pos-sync\.spec\.js|inventario-tabla-encabezado\.spec\.js|inventario-unidades\.spec\.js|invitar-persona\.spec\.js|kardex-producto\.spec\.js|menu-ia\.spec\.js|modales-tamanos\.spec\.js|notificaciones\.spec\.js|ocultos-plataforma\.spec\.js|ops\.spec\.js|perf-247\.spec\.js|pos-148-cobro-ux\.spec\.js|pos-148-s11-sin-stock\.spec\.js|pos-241-carrito-estados\.spec\.js|pos-241-v2\.spec\.js|pos-qa-173\.spec\.js|pos-resumen-fijo\.spec\.js|precios-listas\.spec\.js|public-quote-transfer\.spec\.js|qa-140-inventario\.spec\.js|qa-148-16-menciones\.spec\.js|qa-148-9-pos-montos\.spec\.js|qa-149-cliente-ocasional\.spec\.js|qa-160-perfil\.spec\.js|qa-236-clientes\.spec\.js|qa-240-buscador-dispositivo\.spec\.js|qa-240-garantia-portal\.spec\.js|qa-240-informe\.spec\.js|qa-240-informe-embebible\.spec\.js|qa-240-mensajes-tienda\.spec\.js|qa-240-portal-avisos\.spec\.js|qa-240-portal-cotizaciones\.spec\.js|qa-240-portal-pedido-detalle\.spec\.js|qa-240-portal-seguimiento\.spec\.js|qa-240-portal-vitrina\.spec\.js|qa-240-valuacion\.spec\.js|qa-241-clientes-v2\.spec\.js|qa-241-ficha-paso6\.spec\.js|qa-241-lote-c-tile\.spec\.js|qa-241-servicio-pipeline\.spec\.js|qa-241-servicio-v2\.spec\.js|qa-249-clientes-touch\.spec\.js|qa-249-inventario-touch\.spec\.js|qa-249-pos-touch\.spec\.js|qa-250-buscador-dependiente\.spec\.js|qa-250-cotizacion-correo\.spec\.js|qa-250-escaneo-recepcion\.spec\.js|qa-253-config-grupos\.spec\.js|qa-253-equipo-acceso\.spec\.js|qa-253-mi-cuenta\.spec\.js|qa-254-por-comprar\.spec\.js|qa-256-composicion\.spec\.js|qa-257-inventario-pos\.spec\.js|qa-261-cotizacion-envio\.spec\.js|qa-263-imei-venta\.spec\.js|qa-266-shell-header\.spec\.js|qa-267-config-menu\.spec\.js|qa-268-unificar-clientes\.spec\.js|qa-271-avatar-sin-flash\.spec\.js|qa-271-avatar-superficies\.spec\.js|qa-279-push\.spec\.js|qa-278-cierre\.spec\.js|qa-f6-metricas-abastecimiento\.spec\.js|qa-fin-compacto\.spec\.js|qa-260-cotizacion-cliente\.spec\.js|qa-fin-repuestos-taller\.spec\.js|repuestos-proveedores\.spec\.js|ruc-extraccion\.spec\.js|seguridad-cuenta\.spec\.js|selector-sucursal\.spec\.js|servicio-tecnico\.spec\.js|traslados-etiquetas-lote\.spec\.js|vendidos-comprobante-rapido\.spec\.js/,
+      testMatch: /admin\.spec\.js|analisis\.spec\.js|auditoria\.spec\.js|campanas-recompra\.spec\.js|cobro-cuotas\.spec\.js|compras-densidad\.spec\.js|config-comercial\.spec\.js|config-guardado\.spec\.js|config-seguro-limites\.spec\.js|configuracion-lote5\.spec\.js|demo-publico\.spec\.js|documentacion\.spec\.js|documentos-no-fiscales\.spec\.js|dsn-241-a11y\.spec\.js|dsn-241-dominios\.spec\.js|dsn-responsive-mobile\.spec\.js|equipo-integrantes\.spec\.js|equipo-invitaciones\.spec\.js|etiquetas-gondola\.spec\.js|etiquetas-unidad\.spec\.js|finanzas-caja\.spec\.js|finanzas-comisiones\.spec\.js|finanzas-conciliacion\.spec\.js|finanzas-ultimo-usado\.spec\.js|ia-configuracion\.spec\.js|imei-mock\.spec\.js|impresion-plantilla\.spec\.js|impresion-remota\.spec\.js|informe-dispositivo\.spec\.js|informe-publico-checklist\.spec\.js|informe-publico-controles\.spec\.js|inventario-importacion\.spec\.js|inventario-pos-sync\.spec\.js|inventario-tabla-encabezado\.spec\.js|inventario-unidades\.spec\.js|invitar-persona\.spec\.js|kardex-producto\.spec\.js|menu-ia\.spec\.js|modales-tamanos\.spec\.js|notificaciones\.spec\.js|ocultos-plataforma\.spec\.js|ops\.spec\.js|perf-247\.spec\.js|pos-148-cobro-ux\.spec\.js|pos-148-s11-sin-stock\.spec\.js|pos-241-carrito-estados\.spec\.js|pos-241-v2\.spec\.js|pos-qa-173\.spec\.js|pos-resumen-fijo\.spec\.js|precios-listas\.spec\.js|public-quote-transfer\.spec\.js|qa-140-inventario\.spec\.js|qa-148-16-menciones\.spec\.js|qa-148-9-pos-montos\.spec\.js|qa-149-cliente-ocasional\.spec\.js|qa-160-perfil\.spec\.js|qa-236-clientes\.spec\.js|qa-240-buscador-dispositivo\.spec\.js|qa-240-garantia-portal\.spec\.js|qa-240-informe\.spec\.js|qa-240-informe-embebible\.spec\.js|qa-240-mensajes-tienda\.spec\.js|qa-240-portal-avisos\.spec\.js|qa-240-portal-cotizaciones\.spec\.js|qa-240-portal-pedido-detalle\.spec\.js|qa-240-portal-seguimiento\.spec\.js|qa-240-portal-vitrina\.spec\.js|qa-240-valuacion\.spec\.js|qa-241-clientes-v2\.spec\.js|qa-241-ficha-paso6\.spec\.js|qa-241-lote-c-tile\.spec\.js|qa-241-servicio-pipeline\.spec\.js|qa-241-servicio-v2\.spec\.js|qa-249-clientes-touch\.spec\.js|qa-249-inventario-touch\.spec\.js|qa-249-pos-touch\.spec\.js|qa-250-buscador-dependiente\.spec\.js|qa-250-cotizacion-correo\.spec\.js|qa-250-escaneo-recepcion\.spec\.js|qa-253-config-grupos\.spec\.js|qa-253-equipo-acceso\.spec\.js|qa-253-mi-cuenta\.spec\.js|qa-254-por-comprar\.spec\.js|qa-256-composicion\.spec\.js|qa-257-inventario-pos\.spec\.js|qa-261-cotizacion-envio\.spec\.js|qa-263-imei-venta\.spec\.js|qa-266-shell-header\.spec\.js|qa-267-config-menu\.spec\.js|qa-268-unificar-clientes\.spec\.js|qa-271-avatar-sin-flash\.spec\.js|qa-271-avatar-superficies\.spec\.js|qa-279-push\.spec\.js|qa-278-cierre\.spec\.js|qa-f6-metricas-abastecimiento\.spec\.js|qa-fin-compacto\.spec\.js|qa-260-cotizacion-cliente\.spec\.js|quote-approval-otp\.spec\.js|qa-fin-repuestos-taller\.spec\.js|repuestos-proveedores\.spec\.js|ruc-extraccion\.spec\.js|seguridad-cuenta\.spec\.js|selector-sucursal\.spec\.js|servicio-tecnico\.spec\.js|traslados-etiquetas-lote\.spec\.js|vendidos-comprobante-rapido\.spec\.js/,
       use: { storageState: 'e2e/.auth/admin.json' },
     },
   ],

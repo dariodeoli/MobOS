@@ -33,7 +33,7 @@ export function emailTransportConfigured() {
   return Boolean(relayUrl() && relayToken() && appUrl() && emailOutboxEncryptionConfigured())
 }
 
-export function logEmailOutcome(kind: 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation' | 'receipt' | 'payment-due' | 'payment-overdue' | 'warranty-update' | 'reservation-due' | 'device-report' | 'quote', outcome: 'delivered-to-relay' | 'delivery-failed' | 'unconfigured') {
+export function logEmailOutcome(kind: 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation' | 'receipt' | 'payment-due' | 'payment-overdue' | 'warranty-update' | 'reservation-due' | 'device-report' | 'quote' | 'quote-approval-otp', outcome: 'delivered-to-relay' | 'delivery-failed' | 'unconfigured') {
   console.info(JSON.stringify({ event: 'mobos.transactional_email', kind, outcome }))
 }
 
@@ -271,4 +271,32 @@ export function quoteEmail(input: { to: string; customerName: string; number: st
     tone: 'brand',
   })
   return { to: input.to, subject: `Cotización ${input.number} · ${company}`, ...content }
+}
+
+/**
+ * A3 (#279): código de un solo uso para aprobar un presupuesto desde el enlace
+ * público. El código va en el cuerpo y nunca se guarda en claro.
+ */
+export function quoteApprovalOtpEmail(input: { to: string; customerName: string; number: string; code: string; companyName?: string; minutes: number; link?: string | null }) {
+  if (!emailPattern.test(input.to) || !/^\d{6}$/.test(input.code) || !input.number.trim()) return null
+  const company = input.companyName?.trim() || 'la tienda'
+  const nombre = input.customerName.trim()
+  const contentHtml = `<table role="table" aria-label="Código de aprobación" width="100%" cellpadding="0" cellspacing="0" class="email-detail" style="margin:20px 0 0;background:${COLOR.brandSoft};border:1px solid ${COLOR.border};border-radius:12px;border-collapse:separate"><tbody><tr><td align="center" style="padding:20px"><p class="email-muted" style="margin:0;color:${COLOR.muted};font-size:12px;font-weight:700;line-height:1.4;letter-spacing:.08em;text-transform:uppercase">Tu código</p><p class="email-text" style="margin:8px 0 0;color:${COLOR.brandInk};font-size:34px;font-weight:800;line-height:1.1;letter-spacing:.28em">${escapeHtml(input.code)}</p></td></tr></tbody></table>`
+  const detalles = detailCard([
+    { label: 'Cotización', value: input.number },
+    { label: 'Validez del código', value: `${Math.max(1, Math.round(input.minutes))} minutos` },
+    { label: 'Uso', value: 'Una sola vez' },
+  ], 'Detalles del código', 'brand')
+  const content = template({
+    eyebrow: 'Aprobación de presupuesto',
+    title: `Aprobá la cotización ${input.number}`,
+    lead: nombre ? `Hola ${nombre},` : undefined,
+    body: `Pediste aprobar la cotización de ${company} desde su enlace seguro. Ingresá este código en la página para confirmar que sos vos.`,
+    contentHtml: `${detalles.html}${contentHtml}`,
+    contentText: `${detalles.text}\nCódigo: ${input.code}`,
+    ...(input.link ? { action: { label: 'Volver a la cotización', url: input.link } } : {}),
+    footer: 'Si no pediste este código, ignorá este correo: nadie puede aprobar el presupuesto sin él.',
+    tone: 'brand',
+  })
+  return { to: input.to, subject: `Código para aprobar la cotización ${input.number} · ${company}`, ...content }
 }

@@ -404,7 +404,8 @@ export default function SellerQuotes() {
     </Modal>
     <Modal open={enlace !== null} onClose={() => { setEnlace(null); setQr(''); setEnlaceError('') }} title={`Enlace de ${enlace?.number || 'la cotización'}`}>
       <div className="space-y-4 text-center">
-        <p className="text-sm text-mute">Compartí este enlace o QR con el cliente: puede aceptar o rechazar la cotización desde su teléfono, sin instalar nada.</p>
+        <p className="text-sm text-mute">Compartí este enlace o QR con el cliente: revisa la <b>versión congelada</b> del presupuesto y la aprueba con un código enviado a su correo o teléfono. Recién al aprobar se genera el pedido.</p>
+        {Number(enlace?.version) > 0 && <p data-testid="enlace-version" className="text-[11px] uppercase tracking-wider text-mute">Versión {enlace.version} congelada</p>}
         {enlaceBusy && !qr
           ? <p className="py-10 text-sm text-mute">Preparando enlace…</p>
           : qr
