@@ -1,0 +1,447 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "1.0.192",
+  "fecha": "2026-09-27T10:17:41.571Z",
+  "resultados": [
+    {
+      "ruta": "/pos",
+      "slug": "pos",
+      "rol": "vendedor",
+      "tituloShell": "POS",
+      "titulosContenido": [
+        "Nueva venta",
+        "Cliente",
+        "Productos",
+        "Productos de esta venta",
+        "Cobro y entrega",
+        "Cotizar equipo"
+      ],
+      "identidadDuplicada": [],
+      "barra": [
+        "barra-pos"
+      ],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/clientes",
+      "slug": "clientes",
+      "rol": "vendedor",
+      "tituloShell": "Clientes",
+      "titulosContenido": [
+        "Clientes",
+        "Cotizar equipo"
+      ],
+      "identidadDuplicada": [
+        "Clientes"
+      ],
+      "barra": [
+        "barra-clientes"
+      ],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/productos",
+      "slug": "productos",
+      "rol": "vendedor",
+      "tituloShell": "Productos",
+      "titulosContenido": [
+        "Productos",
+        "Cotizar equipo"
+      ],
+      "identidadDuplicada": [
+        "Productos"
+      ],
+      "barra": [
+        "barra-productos"
+      ],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/pedidos",
+      "slug": "pedidos",
+      "rol": "vendedor",
+      "tituloShell": "Mis pedidos",
+      "titulosContenido": [
+        "Pedidos",
+        "Cotizar equipo"
+      ],
+      "identidadDuplicada": [],
+      "barra": [
+        "barra-pedidos"
+      ],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/delivery",
+      "slug": "delivery",
+      "rol": "vendedor",
+      "tituloShell": "Delivery",
+      "titulosContenido": [
+        "Delivery",
+        "Cotizar equipo"
+      ],
+      "identidadDuplicada": [
+        "Delivery"
+      ],
+      "barra": [
+        "barra-delivery"
+      ],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/promociones",
+      "slug": "promociones",
+      "rol": "vendedor",
+      "tituloShell": "Promociones",
+      "titulosContenido": [
+        "Promociones",
+        "Crear cupón",
+        "Cotizar equipo"
+      ],
+      "identidadDuplicada": [
+        "Promociones"
+      ],
+      "barra": [
+        "barra-promociones"
+      ],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/cotizaciones",
+      "slug": "cotizaciones",
+      "rol": "vendedor",
+      "tituloShell": "Cotizaciones",
+      "titulosContenido": [
+        "Cotizaciones",
+        "Cotizar equipo"
+      ],
+      "identidadDuplicada": [
+        "Cotizaciones"
+      ],
+      "barra": [
+        "barra-cotizaciones"
+      ],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/plantillas",
+      "slug": "plantillas",
+      "rol": "vendedor",
+      "tituloShell": "Plantillas de WhatsApp",
+      "titulosContenido": [
+        "Cotizar equipo",
+        "Plantillas"
+      ],
+      "identidadDuplicada": [],
+      "barra": [
+        "barra-plantillas"
+      ],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/resumen",
+      "slug": "resumen",
+      "rol": "dueno",
+      "tituloShell": "Inicio",
+      "titulosContenido": [
+        "Cotizar equipo",
+        "Accesos rápidos",
+        "Evolución",
+        "Medios de pago",
+        "Stock bajo",
+        "Rendimiento por vendedor"
+      ],
+      "identidadDuplicada": [],
+      "barra": [],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/inventario",
+      "slug": "inventario",
+      "rol": "dueno",
+      "tituloShell": "Unidades",
+      "titulosContenido": [
+        "Cotizar equipo",
+        "Inventario"
+      ],
+      "identidadDuplicada": [],
+      "barra": [
+        "barra-inventario"
+      ],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/compras",
+      "slug": "compras",
+      "rol": "dueno",
+      "tituloShell": "Compras",
+      "titulosContenido": [
+        "Cotizar equipo",
+        "Compras"
+      ],
+      "identidadDuplicada": [
+        "Compras"
+      ],
+      "barra": [
+        "barra-compras"
+      ],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/abastecimiento",
+      "slug": "abastecimiento",
+      "rol": "dueno",
+      "tituloShell": "Por comprar",
+      "titulosContenido": [
+        "Cotizar equipo",
+        "Por comprar"
+      ],
+      "identidadDuplicada": [
+        "Por comprar"
+      ],
+      "barra": [],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/compras-centro",
+      "slug": "compras-centro",
+      "rol": "dueno",
+      "tituloShell": "Compras del Centro",
+      "titulosContenido": [
+        "Cotizar equipo",
+        "Compras del Centro"
+      ],
+      "identidadDuplicada": [
+        "Compras del Centro"
+      ],
+      "barra": [],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/preparacion",
+      "slug": "preparacion",
+      "rol": "dueno",
+      "tituloShell": "Preparar compra",
+      "titulosContenido": [
+        "Cotizar equipo",
+        "Preparar compra"
+      ],
+      "identidadDuplicada": [
+        "Preparar compra"
+      ],
+      "barra": [],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/preparar-lote",
+      "slug": "preparar-lote",
+      "rol": "dueno",
+      "tituloShell": "Preparar lote",
+      "titulosContenido": [
+        "Cotizar equipo",
+        "Preparar lote"
+      ],
+      "identidadDuplicada": [
+        "Preparar lote"
+      ],
+      "barra": [],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/recepcion",
+      "slug": "recepcion",
+      "rol": "dueno",
+      "tituloShell": "Recepción",
+      "titulosContenido": [
+        "Cotizar equipo",
+        "Recepción"
+      ],
+      "identidadDuplicada": [
+        "Recepción"
+      ],
+      "barra": [],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/metricas",
+      "slug": "metricas",
+      "rol": "dueno",
+      "tituloShell": "Métricas de abastecimiento",
+      "titulosContenido": [
+        "Cotizar equipo",
+        "Métricas de abastecimiento"
+      ],
+      "identidadDuplicada": [
+        "Métricas de abastecimiento"
+      ],
+      "barra": [],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/servicio",
+      "slug": "servicio",
+      "rol": "dueno",
+      "tituloShell": "Taller",
+      "titulosContenido": [
+        "Cotizar equipo",
+        "Taller"
+      ],
+      "identidadDuplicada": [
+        "Taller"
+      ],
+      "barra": [
+        "barra-taller"
+      ],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/garantias",
+      "slug": "garantias",
+      "rol": "dueno",
+      "tituloShell": "Taller",
+      "titulosContenido": [
+        "Cotizar equipo",
+        "Garantías"
+      ],
+      "identidadDuplicada": [],
+      "barra": [
+        "barra-garantias"
+      ],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/autorizaciones",
+      "slug": "autorizaciones",
+      "rol": "dueno",
+      "tituloShell": "Autorizaciones",
+      "titulosContenido": [
+        "Cotizar equipo",
+        "Autorizaciones comerciales"
+      ],
+      "identidadDuplicada": [],
+      "barra": [],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/analisis",
+      "slug": "analisis",
+      "rol": "dueno",
+      "tituloShell": "Reportes",
+      "titulosContenido": [
+        "Cotizar equipo"
+      ],
+      "identidadDuplicada": [],
+      "barra": [],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/finanzas",
+      "slug": "finanzas",
+      "rol": "dueno",
+      "tituloShell": "Caja",
+      "titulosContenido": [
+        "Cotizar equipo",
+        "Cerrar caja",
+        "Entradas por medio de pago",
+        "Auditoría de efectivo",
+        "Ventas por caja"
+      ],
+      "identidadDuplicada": [],
+      "barra": [],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/precios",
+      "slug": "precios",
+      "rol": "dueno",
+      "tituloShell": "Precios",
+      "titulosContenido": [
+        "Cotizar equipo"
+      ],
+      "identidadDuplicada": [],
+      "barra": [],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/trade-in",
+      "slug": "trade-in",
+      "rol": "dueno",
+      "tituloShell": "Trade-In",
+      "titulosContenido": [
+        "Cotizar equipo",
+        "Equipos recibidos como pago",
+        "Valores de toma"
+      ],
+      "identidadDuplicada": [],
+      "barra": [],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/celulares",
+      "slug": "celulares",
+      "rol": "dueno",
+      "tituloShell": "Lista por modelo",
+      "titulosContenido": [
+        "Cotizar equipo"
+      ],
+      "identidadDuplicada": [],
+      "barra": [],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/comparador",
+      "slug": "comparador",
+      "rol": "dueno",
+      "tituloShell": "Comparador",
+      "titulosContenido": [
+        "Cotizar equipo"
+      ],
+      "identidadDuplicada": [],
+      "barra": [],
+      "desborde": false,
+      "desbordeMobile": false
+    },
+    {
+      "ruta": "/mi-cuenta",
+      "slug": "mi-cuenta",
+      "rol": "personal",
+      "tituloShell": "Mi cuenta",
+      "titulosContenido": [
+        "Cotizar equipo",
+        "Tu perfil",
+        "Hernán Acosta",
+        "Sesiones personales",
+        "Preferencias del dispositivo"
+      ],
+      "identidadDuplicada": [],
+      "barra": [],
+      "desborde": false,
+      "desbordeMobile": false
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "1.0.192",
+  "fecha": "2026-09-27T10:17:48.929Z",
+  "cotizador": {
+    "desktop-claro": {
+      "barra": [
+        "barra-tradein"
+      ],
+      "desborde": false
+    },
+    "desktop-oscuro": {
+      "barra": [
+        "barra-tradein"
+      ],
+      "desborde": false
+    },
+    "mobile-claro": {
+      "barra": [
+        "barra-tradein"
+      ],
+      "desborde": false
+    }
+  }
+}
