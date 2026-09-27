@@ -88,7 +88,9 @@ export default function Recepcion() {
   useEffect(() => { cargar() }, [cargar])
 
   const escaneados = useMemo(() => new Set((recepcion?.items || []).filter((item) => item.resultado === 'RECIBIDO').map((item) => item.serial)), [recepcion])
-  const esperados = recepcion?.shipment?.items || []
+  // #250 F5: recomponer un lote parcial no vuelve a pedir lo ya recibido (el
+  // backend tampoco lo cuenta): la lista activa muestra solo lo pendiente.
+  const esperados = useMemo(() => (recepcion?.shipment?.items || []).filter((item) => item.status !== 'RECIBIDO'), [recepcion])
   const porItemId = useMemo(() => {
     const mapa = new Map()
     for (const item of recepcion?.items || []) {
@@ -588,7 +590,7 @@ export default function Recepcion() {
                     {llegada.origen || '—'} → {llegada.destino || '—'} · {llegada.empresa || llegada.metodo || '—'} · llegada {fecha(llegada.eta)}
                   </p>
                 </div>
-                <Badge color={llegada.pendientes > 0 ? 'orange' : 'blue'}>{llegada.unidades} unidad{llegada.unidades === 1 ? '' : 'es'}</Badge>
+                <Badge color={llegada.porRecibir > 0 ? 'orange' : 'blue'}>{llegada.porRecibir < llegada.unidades ? `${llegada.porRecibir} de ${llegada.unidades} por recibir` : `${llegada.unidades} unidad${llegada.unidades === 1 ? '' : 'es'}`}</Badge>
               </div>
               <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-mute">
                 {llegada.conImei > 0 && <span>{llegada.conImei} con IMEI</span>}

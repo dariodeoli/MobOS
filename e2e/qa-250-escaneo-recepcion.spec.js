@@ -598,3 +598,66 @@ test('F2 · compras del Centro: líneas libres, agregar líneas y cancelar', asy
   await page.setViewportSize({ width: 390, height: 844 })
   await page.screenshot({ path: join(DIR, 'compras-centro-mobile.png') })
 })
+
+// F5 · recomponer un lote parcial: solo se pide lo que falta, el IMEI ya
+// recibido no se duplica y el lote queda completo.
+test('F5 · un lote parcial se completa después sin volver a pedir lo recibido', async ({ page }) => {
+  mkdirSync(DIR, { recursive: true })
+  await page.goto('/recepcion')
+  await expect(page.getByTestId('recepcion')).toBeVisible()
+
+  const marca = sufijo()
+  const deposito = await apiPagina(page, '/api/stock-locations', {
+    method: 'POST',
+    body: JSON.stringify({ branchId: SEED.branchId, name: `Depósito parcial ${marca}`, code: `P${marca.slice(-4)}` }),
+  })
+  expect([200, 201], JSON.stringify(deposito.body)).toContain(deposito.status)
+  const etiquetaDeposito = `Depósito parcial ${marca} (P${marca.slice(-4)})`
+
+  const base = `4901542${marca.slice(0, 7)}`
+  const imeiA = imeiValido(base)
+  const imeiB = imeiValido(String(Number(base) + 1).padStart(14, '0'))
+  const { lote } = await prepararLote(page, 2, [imeiA, imeiB])
+  await page.getByRole('button', { name: 'Actualizar' }).click()
+
+  // Primera recepción: entra A y el lote queda parcial (B faltante).
+  const llegada = page.getByTestId('recepcion-llegada').filter({ hasText: lote.code })
+  await llegada.getByRole('button', { name: 'Recibir' }).click()
+  await expect(page.getByTestId('recepcion-activa').getByTestId('recepcion-esperado')).toHaveCount(2)
+  await page.getByLabel('Código a escanear').fill(imeiA)
+  await page.getByRole('button', { name: 'Registrar' }).click()
+  await page.getByLabel('Depósito destino').selectOption({ label: etiquetaDeposito })
+  await page.getByRole('button', { name: 'Confirmar recepción' }).click()
+  await expect(page.getByTestId('recepcion-confirmada')).toBeVisible()
+
+  // Recomposición: queda solo B por recibir y A ya no se pide.
+  await page.getByRole('button', { name: 'Volver a llegadas' }).click()
+  const parcial = page.getByTestId('recepcion-llegada').filter({ hasText: lote.code })
+  await expect(parcial.getByText('1 de 2 por recibir')).toBeVisible({ timeout: 20_000 })
+  await parcial.getByRole('button', { name: 'Recibir' }).click()
+  const activa = page.getByTestId('recepcion-activa')
+  await expect(activa.getByTestId('recepcion-esperado')).toHaveCount(1)
+
+  // El IMEI ya recibido se rechaza con aviso claro.
+  await page.getByLabel('Código a escanear').fill(imeiA)
+  await page.getByRole('button', { name: 'Registrar' }).click()
+  await expect(page.getByText(/ya fue recibido/)).toBeVisible()
+
+  // B entra, se confirma y el lote queda recibido con un solo ejemplar por IMEI.
+  await page.getByLabel('Código a escanear').fill(imeiB)
+  await page.getByRole('button', { name: 'Registrar' }).click()
+  await expect(activa.getByText('1 recibidas')).toBeVisible()
+  await page.getByLabel('Depósito destino').selectOption({ label: etiquetaDeposito })
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.screenshot({ path: join(DIR, 'recepcion-parcial-recompuesta-desktop.png') })
+  await page.getByRole('button', { name: 'Confirmar recepción' }).click()
+  await expect(page.getByTestId('recepcion-confirmada')).toBeVisible()
+
+  const lotes = await apiPagina(page, `/api/supply/shipments?purchaseId=${lote.purchaseId}`)
+  expect((lotes.body?.envios || [])[0]?.status, JSON.stringify(lotes.body).slice(0, 240)).toBe('RECIBIDO')
+  for (const serial of [imeiA, imeiB]) {
+    const unidades = await apiPagina(page, `/api/inventory-units?q=${serial}`)
+    const filas = (unidades.body?.items || unidades.body || []).filter((fila) => fila.serial === serial)
+    expect(filas.length, `${serial}: ${JSON.stringify(unidades.body).slice(0, 200)}`).toBe(1)
+  }
+})

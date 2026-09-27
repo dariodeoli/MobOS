@@ -1,7 +1,7 @@
 {
   "base": "http://localhost:5299",
   "version": "1.0.190",
-  "fecha": "2026-09-27T04:56:16.644Z",
+  "fecha": "2026-09-27T05:08:51.604Z",
   "medidas": {
     "clientes": {
       "barra": true,
@@ -25,6 +25,13 @@
       "alcances": [
         "En pantalla",
         "En pantalla",
+        "En pantalla"
+      ]
+    },
+    "compras": {
+      "barra": true,
+      "tiles": 4,
+      "alcances": [
         "En pantalla"
       ]
     },
