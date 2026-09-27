@@ -276,6 +276,18 @@ export default function PasoCobro({
                 {p.noPagado ? 'No pagado' : 'Pagado'}
               </button>
               {p.noPagado && <span className="text-[11px] text-warn">No suma al cobrado: el saldo queda pendiente.</span>}
+              {/* #265: el basurero vive dentro del bloque de pago (fila compacta),
+                  con el mismo comportamiento y tooltip. */}
+              <button
+                type="button"
+                className="ml-auto grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad disabled:opacity-50 md:h-8 md:w-8"
+                title="Eliminar pago"
+                aria-label={`Eliminar pago ${i + 1}`}
+                disabled={guardando}
+                onClick={() => setPagos(a => a.filter((_, j) => j !== i))}
+              >
+                <Icon name="trash" className="h-4 w-4" />
+              </button>
             </div>
             {usaCuentas ? (
               <PaymentAccountFields
@@ -335,16 +347,6 @@ export default function PasoCobro({
                 </div>
               </>
             )}
-            <button
-              type="button"
-              className="grid h-11 w-11 place-items-center self-end rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad disabled:opacity-50 md:h-9 md:w-9"
-              title="Eliminar pago"
-              aria-label={`Eliminar pago ${i + 1}`}
-              disabled={guardando}
-              onClick={() => setPagos(a => a.filter((_, j) => j !== i))}
-            >
-              <Icon name="trash" className="h-4 w-4" />
-            </button>
           </div>
         ))}
         <div className="grid grid-cols-3 gap-2 border-t border-fono/20 pt-3 text-xs text-mute">
