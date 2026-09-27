@@ -9,6 +9,7 @@ import { getProductos } from '@/lib/storage'
 import { normalizarModelo, valorSugerido, valorSugeridoDeCatalogo } from '@/utils/tradeInCheckout'
 import { GRADOS_TOMA, HALLAZGOS_TOMA, gradoSugerido, valuarToma } from '@/lib/tradeInValuation'
 import { SellerSection } from './SellerData'
+import BarraModulo from '@/components/shared/BarraModulo'
 import SellerPromotions from './SellerPromotions'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { cn } from '@/lib/utils'
@@ -68,7 +69,13 @@ export default function SellerTools({ vista, onCargarVenta }) {
   }, [model, condition])
 
   if (vista === 'promociones') return <SellerPromotions />
-  return <SellerSection description="Prepará los datos del equipo y el valor de toma ya acordado para cargarlo como parte de pago.">
+  return <SellerSection title="Cotizar equipo">
+    <BarraModulo
+      icono="refresh"
+      titulo="Cotizar equipo"
+      descripcion="Prepará los datos del equipo y el valor de toma ya acordado para cargarlo como parte de pago."
+      testId="barra-tradein"
+    />
     <form className="space-y-4 rounded-2xl border border-fono/25 bg-gradient-to-br from-fono/[.06] to-transparent p-5" onSubmit={(event) => { event.preventDefault(); if (valid) { const notas = [conditionNotes.trim(), valuacion?.resumen].filter(Boolean).join(' · '); onCargarVenta?.({ model: model.trim(), imei: imei.trim(), condition, conditionNotes: notas, value: Number(value) }); setModel(''); setImei(''); setValue(''); setCondition('USED'); setConditionNotes(''); setHallazgos([]); setGrado('') } }}>
       <div className="flex items-center gap-2">
         <span className="grid h-9 w-9 place-items-center rounded-xl bg-fono/15 text-fono-light"><Icon name="refresh" className="h-4 w-4" /></span>

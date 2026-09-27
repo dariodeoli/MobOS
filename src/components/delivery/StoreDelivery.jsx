@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
+import BarraModulo from '@/components/shared/BarraModulo'
 import { api } from '@/lib/api/client'
 import { Aviso, Badge, Button, ConfirmDialog, Input, Modal, Money, Select, Textarea, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -225,7 +226,12 @@ export default function StoreDelivery() {
   const [tab, setTab] = useState('repartos')
   return (
     <section className="space-y-5">
-      <p className="text-sm text-mute">Asigná cada pedido a un repartidor y verificá lo que rinde al volver: el cobro de la calle recién queda confirmado acá.</p>
+      <BarraModulo
+        icono="truck"
+        titulo="Delivery"
+        descripcion="Asigná cada pedido a un repartidor y verificá lo que rinde al volver: el cobro de la calle recién queda confirmado acá."
+        testId="barra-delivery"
+      />
       <Tabs value={tab} onChange={setTab} items={[['repartos', 'Repartos'], ['rendiciones', 'Rendiciones']]} />
       {tab === 'repartos' ? <Asignaciones /> : <Rendiciones />}
     </section>

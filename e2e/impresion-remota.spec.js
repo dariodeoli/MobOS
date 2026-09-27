@@ -926,7 +926,7 @@ test.describe('impresión remota: cola con puente falso', () => {
 })
 
 test.describe('estado vivo y popup de prueba', () => {
-  test('sin agente local la impresora queda Sin verificar y el popup no pide copias', async ({ page }) => {
+  test('sin agente local la impresora queda Sin verificar y el popup deja elegir la plantilla', async ({ page }) => {
     // La e2e corre sin agente: se corta 127.0.0.1 para que ni una instalación
     // local de la máquina de turno pueda responder y falsear el estado.
     await page.route('http://127.0.0.1:17890/**', (ruta) => ruta.abort())
@@ -943,14 +943,15 @@ test.describe('estado vivo y popup de prueba', () => {
     await tarjeta.getByRole('button', { name: 'Imprimir prueba' }).click()
     const dialogo = page.getByRole('dialog')
     await expect(dialogo).toBeVisible()
-    // La prueba sale siempre con 1 copia: no hay campo Copias.
-    await expect(dialogo.getByLabel('Copias')).toHaveCount(0)
+    // La plantilla de la prueba deja elegir copias (1 a 5) y arranca en 1.
+    const copias = dialogo.getByRole('group', { name: 'Copias' })
+    await expect(copias).toBeVisible()
+    await expect(copias).toContainText('1')
     await expect(dialogo.getByText('Sale 1 copia', { exact: false })).toBeVisible()
-    // La vista previa arranca colapsada; el toggle la muestra y la vuelve a ocultar.
-    await expect(dialogo.locator('pre')).toHaveCount(0)
-    await dialogo.getByRole('button', { name: 'Ver vista previa' }).click()
-    await expect(dialogo.locator('pre')).toBeVisible()
+    // La vista previa arranca visible (papel real 58/80) y el toggle la oculta.
+    const hoja = page.frameLocator('iframe[title="Vista previa del ticket de prueba"]')
+    await expect(hoja.locator('pre')).toContainText('TICKET DE PRUEBA')
     await dialogo.getByRole('button', { name: 'Ocultar vista previa' }).click()
-    await expect(dialogo.locator('pre')).toHaveCount(0)
+    await expect(page.locator('iframe[title="Vista previa del ticket de prueba"]')).toHaveCount(0)
   })
 })

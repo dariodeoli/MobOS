@@ -1,0 +1,35 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "1.0.190",
+  "fecha": "2026-09-27T04:01:13.511Z",
+  "medidas": {
+    "productos": {
+      "barra": false,
+      "tituloVisible": false
+    },
+    "promociones": {
+      "barra": false,
+      "tituloVisible": false
+    },
+    "pedidos": {
+      "barra": false,
+      "tituloVisible": false
+    },
+    "cotizaciones": {
+      "barra": false,
+      "tituloVisible": false
+    },
+    "plantillas": {
+      "barra": false,
+      "tituloVisible": false
+    },
+    "delivery": {
+      "barra": false,
+      "tituloVisible": false
+    },
+    "trade-in": {
+      "barra": false,
+      "tituloVisible": false
+    }
+  }
+}

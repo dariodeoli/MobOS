@@ -9,11 +9,13 @@ import { descargarArchivo, descargarCsvCliente } from '@/utils/descargarArchivo'
 import { printingApi } from '@/lib/api/printing'
 import { URL_AGENTE, cargarImpresoras, colaAgente, configImpresora, confirmarJob, diagnosticoAgente, enmascararToken, esIdBackend, estadoAgente, historialAgente, impresoraHaciaBackend, importarConfigUnaVez, imprimirTicketRouter, limpiarFallidos, puenteDe, refrescarDesdeBackend, registrarUltimaPrueba, reintentarFallidos, repararRed, sincronizarAgente } from '@/lib/printing/agent'
 import { TIPOS_TICKET_PRUEBA, ticketPruebaTipo } from '@/lib/printing/tickets'
+import { ANCHOS_PRUEBA, BLOQUES_PRUEBA, COPIAS_MAX, CORTES_PRUEBA, memoriaPlantilla, normalizarPlantilla } from '@/lib/printing/plantillaPrueba'
 import { ESTADO_IMPRESORA, ETIQUETA_ESTADO, colorTrabajo, etiquetaTrabajo, textoVerificacion } from '@/lib/printing/estadoImpresoras'
 import { colaDemo, historialDemo, storeDemo } from '@/lib/printing/demo'
 import { etiquetaTipoImpresion, memoriaDeImpresion, olvidarTipoDeImpresion } from '@/lib/printing/preferencias'
 import { useEstadoImpresoras } from '@/hooks/useEstadoImpresoras'
 import Avatar from '@/components/shared/Avatar'
+import VistaPreviaPapel from '@/components/shared/VistaPreviaPapel'
 import ImpresionComparativa from './ImpresionComparativa'
 import ImpresionGraficos from './ImpresionGraficos'
 import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } from '@/components/shared/tabla'
@@ -79,7 +81,7 @@ const CLASE_TONO = { ok: 'text-ok', bad: 'text-bad', slate: 'text-mute' }
 const textoUltimaPrueba = (ultimaPrueba) => {
   if (!ultimaPrueba) return 'Sin prueba todavía'
   const resultado = ultimaPrueba.ok ? 'Impresa correctamente' : ultimaPrueba.remoto && ultimaPrueba.encolado ? 'Encolada al puente' : ultimaPrueba.encolado ? 'Encolada' : 'Falló'
-  return `${resultado} · ${TIPOS_TICKET_PRUEBA[ultimaPrueba.tipo] || 'Prueba'} · ${fmt(ultimaPrueba.fecha)}${ultimaPrueba.transporte ? ` · vía ${ultimaPrueba.transporte}` : ''}${ultimaPrueba.validacion ? ` · Código ${ultimaPrueba.validacion}` : ''}${ultimaPrueba.corte ? ' · Corte solicitado ✓' : ''}`
+  return `${resultado} · ${TIPOS_TICKET_PRUEBA[ultimaPrueba.tipo] || 'Prueba'} · ${fmt(ultimaPrueba.fecha)}${ultimaPrueba.transporte ? ` · vía ${ultimaPrueba.transporte}` : ''}${ultimaPrueba.validacion ? ` · Código ${ultimaPrueba.validacion}` : ''}${Number(ultimaPrueba.copias) > 1 ? ` · ${ultimaPrueba.copias} copias` : ''}${ultimaPrueba.corte ? ' · Corte solicitado ✓' : ''}`
 }
 
 const conexionDe = (destino) => (/^(usb|cups):/.test(String(destino || '')) ? 'CUPS' : 'LAN')
@@ -572,7 +574,7 @@ export default function Impresoras() {
     setProgreso('Enviando…')
     if (esDemo) {
       // Demo (#194): la prueba se simula; no se envía nada a ningún equipo.
-      const ultimaPrueba = { ok: true, encolado: false, remoto: false, fecha: new Date().toISOString(), tipo, ref: ticket.ref, validacion: ticket.validacion, metodo: metodoDe(impresora), transporte: 'directo', jobId: null, corte: Boolean(ticket.corte) }
+      const ultimaPrueba = { ok: true, encolado: false, remoto: false, fecha: new Date().toISOString(), tipo, copias, ref: ticket.ref, validacion: ticket.validacion, metodo: metodoDe(impresora), transporte: 'directo', jobId: null, corte: Boolean(ticket.corte) }
       setProgreso('Prueba simulada')
       setStore((actual) => ({ ...actual, impresoras: actual.impresoras.map((item) => (item.id === impresora.id ? { ...item, ultimaPrueba } : item)) }))
       setPruebaDe(null)
@@ -603,6 +605,7 @@ export default function Impresoras() {
         remoto: Boolean(resultado.remoto),
         fecha: new Date().toISOString(),
         tipo,
+        copias,
         ref: ticket.ref,
         validacion: ticket.validacion,
         metodo: metodoDe(impresora),
@@ -1732,28 +1735,49 @@ function GuiaImpresion() {
   )
 }
 
+// Hoja de la vista previa: el texto del ticket en un iframe con el ancho real
+// del papel (VistaPreviaPapel). El contenido se escapa: la vista previa muestra
+// el ticket tal cual, nunca interpreta marcado.
+function hojaDeTicket(texto) {
+  const seguro = String(texto || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return `<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#fff}pre{margin:0;padding:10px 8px;font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#111}</style></head><body><pre>${seguro}</pre></body></html>`
+}
+
 function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, tokenPista, equipo, enviando, progreso, onCerrar, onEnviar }) {
   const [tipo, setTipo] = useState('corta')
   const [turno, setTurno] = useState(0) // regenera el ticket (y su número de 4 dígitos)
-  const [verPrevia, setVerPrevia] = useState(false)
-  // Las pruebas salen SIEMPRE con 1 copia: no hay campo ni estado de copias.
+  const [verPrevia, setVerPrevia] = useState(true)
+  // Plantilla de la prueba: qué incluye, ancho (58/80), corte y copias. Se
+  // recuerda por impresora al imprimir (memoria local, patrón «último usado»).
+  const memoria = useMemo(() => memoriaPlantilla(), [])
+  const [plantilla, setPlantilla] = useState(() => normalizarPlantilla(memoria.de(impresora.id) || {}, impresora))
+  const [recordada, setRecordada] = useState(() => Boolean(memoria.de(impresora.id)))
+  const alternarBloque = (id) => setPlantilla((actual) => ({ ...actual, incluye: { ...actual.incluye, [id]: !actual.incluye[id] } }))
+  const reiniciar = () => {
+    memoria.olvidar(impresora.id)
+    setPlantilla(normalizarPlantilla({}, impresora))
+    setRecordada(false)
+  }
   const ticket = useMemo(
     () => ticketPruebaTipo(tipo, {
-      ancho: impresora.ancho,
+      ancho: plantilla.ancho,
       impresora: impresora.destino,
       nombre: impresora.nombre,
       equipo,
-      copias: 1,
+      copias: plantilla.copias,
       metodo,
       conexion: impresora.conexion,
       puente,
       tokenPista,
       usuario,
+      incluye: plantilla.incluye,
+      corte: plantilla.corte,
     }),
     // turno solo dispara la regeneración: un número nuevo por ejecución.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tipo, turno, impresora, equipo, metodo, puente, tokenPista, usuario],
+    [tipo, turno, impresora, equipo, metodo, puente, tokenPista, usuario, plantilla],
   )
+  const hoja = useMemo(() => hojaDeTicket(ticket.lineas().join('')), [ticket])
   return (
     <Modal open onClose={enviando ? undefined : onCerrar} title={`Probar: ${impresora.nombre}`} size="formulario">
       <div className="space-y-4">
@@ -1766,18 +1790,79 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
             {Object.entries(TIPOS_TICKET_PRUEBA).map(([valor, etiqueta]) => <option key={valor} value={valor}>{etiqueta}</option>)}
           </Select>
         </FormField>
+        <section className="space-y-3" data-testid="plantilla-prueba" aria-label="Plantilla de la prueba">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h4 className={ROTULO_SECCION}>Plantilla de la prueba</h4>
+            {recordada && <Badge color="slate">Recordada en esta impresora</Badge>}
+          </div>
+          <div className="flex flex-wrap gap-1" role="group" aria-label="Qué incluye la prueba">
+            {BLOQUES_PRUEBA.map(({ id, etiqueta, detalle }) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={Boolean(plantilla.incluye[id])}
+                title={detalle}
+                onClick={() => alternarBloque(id)}
+                className={cn('min-h-9 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition', plantilla.incluye[id] ? 'border-ok/40 bg-ok/10 text-ok' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}
+              >
+                {etiqueta}
+              </button>
+            ))}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <span className={ROTULO_SECCION}>Ancho del papel</span>
+              <div className="mt-1 flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1" role="group" aria-label="Ancho del papel">
+                {ANCHOS_PRUEBA.map((mm) => (
+                  <button
+                    key={mm}
+                    type="button"
+                    aria-pressed={plantilla.ancho === mm}
+                    onClick={() => setPlantilla((actual) => ({ ...actual, ancho: mm }))}
+                    className={cn('min-h-9 flex-1 rounded-lg px-3 text-xs font-semibold transition', plantilla.ancho === mm ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}
+                  >
+                    {mm} mm
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <span className={ROTULO_SECCION}>Corte</span>
+              <Select aria-label="Corte" className="mt-1" value={plantilla.corte} onChange={(event) => setPlantilla((actual) => ({ ...actual, corte: event.target.value }))}>
+                {CORTES_PRUEBA.map(({ id, etiqueta }) => <option key={id} value={id}>{etiqueta}</option>)}
+              </Select>
+            </div>
+            <div>
+              <span className={ROTULO_SECCION}>Copias</span>
+              <div className="mt-1 flex items-center gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1" role="group" aria-label="Copias">
+                <button type="button" aria-label="Una copia menos" disabled={plantilla.copias <= 1} onClick={() => setPlantilla((actual) => ({ ...actual, copias: Math.max(1, actual.copias - 1) }))} className="min-h-9 w-9 rounded-lg text-sm font-bold text-mute transition hover:text-fore disabled:opacity-40">−</button>
+                <span className="v2-numero min-w-6 flex-1 text-center text-sm font-bold" aria-live="polite">{plantilla.copias}</span>
+                <button type="button" aria-label="Una copia más" disabled={plantilla.copias >= COPIAS_MAX} onClick={() => setPlantilla((actual) => ({ ...actual, copias: Math.min(COPIAS_MAX, actual.copias + 1) }))} className="min-h-9 w-9 rounded-lg text-sm font-bold text-mute transition hover:text-fore disabled:opacity-40">+</button>
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-mute">
+            Solo cambia el <b className="text-fore">ticket de prueba</b>: la venta diaria usa la configuración de la impresora. {recordada
+              ? <>Se recuerda la última plantilla usada acá. <button type="button" className="underline underline-offset-2 hover:text-fore" onClick={reiniciar}>Restablecer</button>.</>
+              : 'Al imprimir se recuerda en esta impresora.'}
+          </p>
+        </section>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-mute">Sale <b className="text-fore">1 copia</b>, con un número secreto para confirmarla en papel.</p>
+          <p className="text-xs text-mute">
+            {plantilla.copias === 1 ? 'Sale 1 copia' : `Salen ${plantilla.copias} copias`}
+            {plantilla.incluye.validacion ? ', con un número secreto para confirmarla en papel.' : ', sin número secreto: la confirmación en papel queda desactivada.'}
+          </p>
           <Button type="button" variant="ghost" onClick={() => setVerPrevia((actual) => !actual)} aria-expanded={verPrevia}>
             <Icon name="eye" className="h-3.5 w-3.5" />{verPrevia ? 'Ocultar vista previa' : 'Ver vista previa'}
           </Button>
         </div>
         {verPrevia && (
           <div>
-            <div className="mb-1 flex items-center justify-end">
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+              <p className={CELDA_DATO}>Tal como sale del rollo · {plantilla.ancho} mm</p>
               <Button type="button" variant="ghost" onClick={() => setTurno((n) => n + 1)} disabled={enviando}><Icon name="refresh" className="h-3.5 w-3.5" />Nuevo número</Button>
             </div>
-            <pre className="max-h-80 overflow-y-auto rounded-xl border border-ink-600 bg-ink-900 p-3 font-mono text-[11px] leading-4 text-fore">{ticket.lineas().join('')}</pre>
+            <VistaPreviaPapel formato={plantilla.ancho === 58 ? 'thermal-58' : 'thermal-80'} contenido={hoja} titulo="Vista previa del ticket de prueba" alto="h-72" />
           </div>
         )}
         {tipo === 'corte' && (
@@ -1788,7 +1873,17 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
         {enviando && <p role="status" className="rounded-lg border border-fono/25 bg-fono/10 p-2 text-xs text-fono-light">{progreso}</p>}
         <div className={PIE_ACCIONES_REVERSO}>
           <Button type="button" variant="ghost" onClick={onCerrar} disabled={enviando}>Cancelar</Button>
-          <Button type="button" onClick={() => onEnviar({ tipo, copias: 1, ticket })} disabled={enviando}>{enviando ? 'Enviando…' : 'Imprimir prueba'}</Button>
+          <Button
+            type="button"
+            disabled={enviando}
+            onClick={() => {
+              memoria.recordar(impresora.id, plantilla)
+              setRecordada(true)
+              onEnviar({ tipo, copias: plantilla.copias, ticket })
+            }}
+          >
+            {enviando ? 'Enviando…' : 'Imprimir prueba'}
+          </Button>
         </div>
       </div>
     </Modal>
