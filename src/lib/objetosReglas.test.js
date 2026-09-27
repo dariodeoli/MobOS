@@ -691,3 +691,20 @@ test('la composición de módulo y el resumen de métricas son objetos (#256)', 
   assert.match(readFileSync(join(RAIZ, 'components/control/Compras.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-compras"/, 'Compras usa el resumen con alcance')
   assert.match(readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /data-testid="tabs-inventario"/, 'las solapas de Inventario viven en un contenedor propio (sin contadores repetidos)')
 })
+
+// Diseño #279 (A3/A5): los previews usan los objetos compartidos (barra,
+// código con PinInput, avisos con Aviso/Nota y pie con PIE_ACCIONES) y no
+// meten colores hex a mano.
+test('los previews de diseño de #279 usan los objetos compartidos', () => {
+  for (const [ruta, testid] of [
+    ['pages/preview/AprobacionOtpPreview.jsx', 'a3-preview'],
+    ['pages/preview/VarianteAgotadaPreview.jsx', 'a5-preview'],
+  ]) {
+    const fuente = readFileSync(join(RAIZ, ruta), 'utf8')
+    assert.match(fuente, /<BarraModulo/, `${ruta}: usa la barra compartida`)
+    assert.match(fuente, /<PinInput/, `${ruta}: el código usa PinInput`)
+    assert.match(fuente, /PIE_ACCIONES/, `${ruta}: el pie de acciones es el compartido`)
+    assert.match(fuente, new RegExp(`data-testid="${testid}"`), `${ruta}: testid del preview`)
+    assert.doesNotMatch(fuente, /#[0-9a-fA-F]{6}\b/, `${ruta}: sin colores hex (solo tokens)`)
+  }
+})

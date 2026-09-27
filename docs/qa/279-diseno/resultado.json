@@ -1,0 +1,160 @@
+{
+  "base": "http://localhost:5203",
+  "fecha": "2026-09-27T18:25:28.439Z",
+  "resultados": [
+    {
+      "pantalla": "a3",
+      "paso": "solicitud",
+      "vista": "desktop",
+      "tema": "claro",
+      "desborde": false,
+      "textos": 31,
+      "bajosAA": 0,
+      "detalleAA": []
+    },
+    {
+      "pantalla": "a3",
+      "paso": "codigo",
+      "vista": "desktop",
+      "tema": "claro",
+      "desborde": false,
+      "textos": 17,
+      "bajosAA": 0,
+      "detalleAA": []
+    },
+    {
+      "pantalla": "a3",
+      "paso": "constancia",
+      "vista": "desktop",
+      "tema": "claro",
+      "desborde": false,
+      "textos": 25,
+      "bajosAA": 0,
+      "detalleAA": []
+    },
+    {
+      "pantalla": "a3",
+      "paso": "2 · Código",
+      "vista": "mobile",
+      "tema": "claro",
+      "desborde": false
+    },
+    {
+      "pantalla": "a3",
+      "paso": "solicitud",
+      "vista": "desktop",
+      "tema": "oscuro",
+      "desborde": false,
+      "textos": 31,
+      "bajosAA": 0,
+      "detalleAA": []
+    },
+    {
+      "pantalla": "a3",
+      "paso": "codigo",
+      "vista": "desktop",
+      "tema": "oscuro",
+      "desborde": false,
+      "textos": 17,
+      "bajosAA": 0,
+      "detalleAA": []
+    },
+    {
+      "pantalla": "a3",
+      "paso": "constancia",
+      "vista": "desktop",
+      "tema": "oscuro",
+      "desborde": false,
+      "textos": 25,
+      "bajosAA": 0,
+      "detalleAA": []
+    },
+    {
+      "pantalla": "a5",
+      "paso": "proponer",
+      "vista": "desktop",
+      "tema": "claro",
+      "desborde": false,
+      "textos": 34,
+      "bajosAA": 0,
+      "detalleAA": []
+    },
+    {
+      "pantalla": "a5",
+      "paso": "enviada",
+      "vista": "desktop",
+      "tema": "claro",
+      "desborde": false,
+      "textos": 28,
+      "bajosAA": 0,
+      "detalleAA": []
+    },
+    {
+      "pantalla": "a5",
+      "paso": "decidir",
+      "vista": "desktop",
+      "tema": "claro",
+      "desborde": false,
+      "textos": 24,
+      "bajosAA": 0,
+      "detalleAA": []
+    },
+    {
+      "pantalla": "a5",
+      "paso": "resultado",
+      "vista": "desktop",
+      "tema": "claro",
+      "desborde": false,
+      "textos": 26,
+      "bajosAA": 0,
+      "detalleAA": []
+    },
+    {
+      "pantalla": "a5",
+      "paso": "3 · Decisión",
+      "vista": "mobile",
+      "tema": "claro",
+      "desborde": false
+    },
+    {
+      "pantalla": "a5",
+      "paso": "proponer",
+      "vista": "desktop",
+      "tema": "oscuro",
+      "desborde": false,
+      "textos": 34,
+      "bajosAA": 0,
+      "detalleAA": []
+    },
+    {
+      "pantalla": "a5",
+      "paso": "enviada",
+      "vista": "desktop",
+      "tema": "oscuro",
+      "desborde": false,
+      "textos": 28,
+      "bajosAA": 0,
+      "detalleAA": []
+    },
+    {
+      "pantalla": "a5",
+      "paso": "decidir",
+      "vista": "desktop",
+      "tema": "oscuro",
+      "desborde": false,
+      "textos": 24,
+      "bajosAA": 0,
+      "detalleAA": []
+    },
+    {
+      "pantalla": "a5",
+      "paso": "resultado",
+      "vista": "desktop",
+      "tema": "oscuro",
+      "desborde": false,
+      "textos": 26,
+      "bajosAA": 0,
+      "detalleAA": []
+    }
+  ]
+}
