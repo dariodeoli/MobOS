@@ -91,3 +91,25 @@ Con la corrección, la corrida de v1.0.188 quedó **verde completa** (5/5 jobs).
   `docs/qa/266-shell-header/produccion/` (`resultados.json` + captura).
 - #266 vive en `slot/plataforma` (aún no mergeado): el script queda listo para
   correr después del release que lo incluya.
+
+## Suite completa local (27/09) — rama lista para integrar
+
+`MOBOS_E2E_BACKEND=prod npx playwright test` sobre `slot/plataforma`:
+**513 passed · 8 failed · 10 skipped** (31.7 min, 531 tests).
+
+Clasificación de los 8 rojos:
+
+- **Ancla de #270 (2)**: `ocultos-plataforma` (capturas) y `pos-148-s11-sin-stock`
+  (sobre pedido) afirman `heading «POS»`, el ancla nueva del PR **#270**, que aún
+  no está mergeado en esta rama (caveat documentado en
+  `docs/qa/270-ancla-pos/REPORTE.md`). Desaparecen al integrar el PR.
+- **Artefactos de datos locales (5)**: `permissions`, `finanzas-ultimo-usado`,
+  `informe-dispositivo` (hoja de estación), `ruc-extraccion` y
+  `seguridad-cuenta` — re-corridos individualmente quedan **en verde**: dependen
+  del estado acumulado de la base del worktree (la CI parte de base limpia).
+- **Datos sembrados (1)**: `admin › la unidad reservada sigue en el listado`
+  depende de la reserva sembrada (ya consumida en la base local).
+
+Los tres fixes de causa raíz (#245) siguen verificados: IMEI con alta entropía,
+página pública sin sesión y entrada liviana en Mi cuenta. Racha en `main`:
+**0/3** (sin corridas nuevas; `main` no se movió desde v1.0.190).
