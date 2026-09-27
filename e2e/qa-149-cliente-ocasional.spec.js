@@ -43,20 +43,31 @@ test('cliente ocasional: crear ficha, cambiar y quitar con cronología', async (
   // Crear la ficha desde el pedido en un clic (buscador/alta rápida del POS).
   await crear.click()
   const modal = page.getByTestId('cliente-del-pedido')
-  await modal.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Ocasional ${marca}`)
+  const campo = modal.getByLabel('Nombre, teléfono, CI o RUC del cliente')
+  const guardar = modal.getByTestId('cliente-del-pedido-guardar')
+  // Campo controlado: si el evento de tipeo se pierde durante el montaje del
+  // modal, el valor queda sin estado y el botón deshabilitado; se reintenta.
+  await expect(async () => {
+    await campo.fill(`Ocasional ${marca}`)
+    await expect(guardar).toBeEnabled({ timeout: 1_500 })
+  }).toPass({ timeout: 20_000 })
   await page.screenshot({ path: `${SHOTS}/02-crear-ficha.png` })
-  await modal.getByTestId('cliente-del-pedido-guardar').click()
-  await expect(page.getByText('Ficha creada desde el pedido')).toBeVisible({ timeout: 15000 })
+  await guardar.click()
+  await expect(page.getByText('Ficha creada desde el pedido', { exact: true })).toBeVisible({ timeout: 15000 })
   await expect(page.getByTestId('pedido-quitar-cliente')).toBeVisible({ timeout: 15000 })
 
   // Cambiar por una ficha existente.
   await page.getByTestId('pedido-cambiar-cliente').click()
   const modalCambio = page.getByTestId('cliente-del-pedido')
-  await modalCambio.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cambio ${marca}`)
+  const campoCambio = modalCambio.getByLabel('Nombre, teléfono, CI o RUC del cliente')
+  const guardarCambio = modalCambio.getByTestId('cliente-del-pedido-guardar')
   // Con el nombre exacto, el buscador del POS liga la ficha sola.
-  await expect(modalCambio.getByText('Cliente seleccionado')).toBeVisible({ timeout: 10000 })
-  await modalCambio.getByTestId('cliente-del-pedido-guardar').click()
-  await expect(page.getByText('Cliente vinculado al pedido')).toBeVisible({ timeout: 15000 })
+  await expect(async () => {
+    await campoCambio.fill(`Cambio ${marca}`)
+    await expect(modalCambio.getByText('Cliente seleccionado')).toBeVisible({ timeout: 3_000 })
+  }).toPass({ timeout: 20_000 })
+  await guardarCambio.click()
+  await expect(page.getByText('Cliente vinculado al pedido', { exact: true })).toBeVisible({ timeout: 15000 })
 
   // Quitar el cliente: el pedido vuelve a ser ocasional.
   await page.getByTestId('pedido-quitar-cliente').click()

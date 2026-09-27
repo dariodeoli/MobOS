@@ -398,9 +398,9 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
 
   const cuerpo = (
     <>
-      {loading && <div className="space-y-3"><Skeleton className="h-20 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-24 w-full" /></div>}
+      {loading && !detail && <div className="space-y-3"><Skeleton className="h-20 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-24 w-full" /></div>}
       {error && <Aviso tono="error" className="mb-4 rounded-xl">{error}</Aviso>}
-      {!loading && (
+      {(!loading || detail) && (
         <div className="space-y-3">
           {/* Estado y cabecera */}
           <section className="rounded-2xl border border-ink-600 bg-gradient-to-br from-ink-800 to-ink-800/40 p-4">

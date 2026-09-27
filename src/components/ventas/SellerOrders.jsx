@@ -315,7 +315,11 @@ export default function SellerOrders() {
   // viewport, y parecía que el enlace no cargaba.
   const seleccion = useMemo(() => (orderId ? rows.find((row) => row.id === orderId) || null : null), [orderId, rows])
   const [pedidoPanel, setPedidoPanel] = useState(null)
-  const detalleAbierto = seleccion || (orderId && !esDemo ? { id: orderId } : null)
+  // Respaldo estable: sin el memo, cada render creaba un `{ id }` nuevo,
+  // PedidoDetalle recargaba el pedido en loop y el modal del cliente perdía lo
+  // tipeado.
+  const respaldo = useMemo(() => (orderId ? { id: orderId } : null), [orderId])
+  const detalleAbierto = seleccion || (!esDemo ? respaldo : null)
   const abrirPedido = (row) => navigate(`/pedidos/${encodeURIComponent(row.id)}${location.search}`)
   const cerrarPedido = () => navigate(`/pedidos${location.search}`)
 
