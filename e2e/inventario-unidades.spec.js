@@ -701,10 +701,16 @@ test('recepción: buscador de proveedores por abreviatura y últimos usados (#25
     const modal2 = page.getByRole('dialog')
     await expect(modal2).toBeVisible({ timeout: 15_000 })
     const campo2 = modal2.locator('#recibir-proveedor')
+    // La carga rápida arranca limpia: el proveedor recién guardado no vuelve a
+    // aparecer en el campo (antes lo reponía la confirmación diferida del blur).
+    await expect(campo2).toHaveValue('')
     await campo2.click()
-    // TODO(#259): el dropdown al reabrir debería listar los recientes
-    // («Últimos usados» + el proveedor usado primero). Con el lote integrado el
-    // buscador filtra bien, pero los recientes no se muestran: queda reportado.
+    // Al reabrir el buscador vacío, el reciente sobrevive: encabezado
+    // «Últimos usados» y el proveedor usado primero (#259).
+    const lista2 = modal2.getByRole('listbox', { name: 'Proveedores' })
+    await expect(lista2).toBeVisible()
+    await expect(lista2.getByText('Últimos usados')).toBeVisible()
+    await expect(lista2.getByRole('option').first()).toContainText(`Distribuidora Beta QA ${id} ${sufijo}`)
     await page.screenshot({ path: 'test-results/qa-259-proveedores/recepcion-ultimos-usados.jpg', type: 'jpeg', quality: 78 })
     await page.keyboard.press('Escape')
   } finally {
