@@ -656,9 +656,12 @@ test('la composición de módulo y el resumen de métricas son objetos (#256)', 
   for (const [ruta, marca] of [
     ['components/ventas/SellerCustomers.jsx', /<BarraModulo[\s\S]*?testId="barra-clientes"/],
     ['components/ventas/FormularioVenta.jsx', /<BarraModulo[\s\S]*?testId="barra-pos"/],
+    ['components/control/Inventario.jsx', /<BarraModulo[\s\S]*?testId="barra-inventario"/],
   ]) {
     const codigo = readFileSync(join(RAIZ, ruta), 'utf8')
     assert.match(codigo, marca, `${ruta}: usa la barra compartida`)
   }
   assert.match(readFileSync(join(RAIZ, 'components/ventas/SellerCustomers.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-clientes"/, 'Clientes usa el resumen con alcance')
+  assert.match(readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-inventario"/, 'Inventario usa el resumen con alcance')
+  assert.match(readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /data-testid="tabs-inventario"/, 'las solapas de Inventario viven en un contenedor propio (sin contadores repetidos)')
 })

@@ -511,7 +511,7 @@ test('la solapa Alertas renderiza sin quedar en blanco', async ({ page }) => {
   const errores = []
   page.on('pageerror', (error) => errores.push(error.message))
   await page.goto('/inventario/alertas')
-  await expect(page.getByRole('button', { name: /^Alertas \(/ })).toBeVisible()
+  await expect(page.getByTestId('tabs-inventario').getByRole('button', { name: 'Alertas', exact: true })).toBeVisible()
   await expect(page.getByText(/Sin alertas de reposición|Bajo el umbral de reposición|Unidades sin costo/).first()).toBeVisible({ timeout: 15_000 })
   expect(errores, `errores de página: ${errores.join(' | ')}`).toEqual([])
 })

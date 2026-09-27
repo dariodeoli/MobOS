@@ -36,7 +36,7 @@ test.describe('owner panel', () => {
     // El título de la página lo pone el panel (un solo h1); Inventario aporta el subtítulo.
     await expect(page.getByRole('heading', { name: 'Unidades', level: 1 })).toBeVisible()
     await expect(page.getByText('Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría.')).toBeVisible()
-    await expect(page.getByRole('button', { name: /^Inventario \(/ })).toBeVisible()
+    await expect(page.getByTestId('tabs-inventario').getByRole('button', { name: 'Inventario', exact: true })).toBeVisible()
     // La tabla compacta alinea el serial por columna (últimos 4 destacados).
     await expect(page.getByText('Verificado', { exact: true }).first()).toBeVisible()
     await expect(page.getByText(new RegExp(SEED.products.iphone.imei))).toBeVisible()

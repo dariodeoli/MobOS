@@ -32,10 +32,41 @@ test.describe('composición compacta', () => {
     await expect(resumen.getByText(/en pantalla$/)).toHaveCount(1)
   })
 
+  test('Inventario: barra única, controles agrupados y métricas con alcance', async ({ page }) => {
+    await page.goto('/inventario/unidades')
+    await expect(page.getByTestId('inventario-fila').first()).toBeVisible({ timeout: 20_000 })
+
+    const barra = page.getByTestId('barra-inventario')
+    await expect(barra).toHaveCount(1)
+    // La identidad no se repite: el h1 es del shell y la barra usa h2.
+    await expect(barra.getByRole('heading', { level: 2, name: 'Inventario' })).toBeVisible()
+    for (const accion of ['+ Recibir unidad', 'Reservar', 'Transferir']) {
+      await expect(barra.getByRole('button', { name: accion, exact: true })).toBeVisible()
+    }
+
+    const resumen = page.getByTestId('resumen-inventario')
+    await expect(resumen).toBeVisible()
+    await expect(resumen.locator('> div')).toHaveCount(4)
+    // Totales de la sucursal vs. lo cargado en pantalla, sin mezclarse.
+    await expect(resumen.getByText('En pantalla', { exact: true })).toHaveCount(3)
+    await expect(resumen.getByText('Sucursal', { exact: true })).toHaveCount(1)
+
+    // La consulta va en una fila y las acciones secundarias agrupadas.
+    await expect(page.getByLabel('Buscar en inventario')).toBeVisible()
+    await expect(page.getByLabel('Orden del inventario')).toBeVisible()
+    for (const accion of ['Escanear', 'Conteo rápido', 'Etiquetas de góndola', 'Exportar CSV']) {
+      await expect(page.getByRole('button', { name: accion, exact: true })).toBeVisible()
+    }
+
+    // Las solapas no repiten contadores (viven en el resumen con alcance).
+    await expect(page.getByTestId('tabs-inventario').getByRole('button', { name: /^Inventario \(/ })).toHaveCount(0)
+    await expect(page.getByTestId('tabs-inventario').getByRole('button', { name: 'Inventario', exact: true })).toBeVisible()
+  })
+
   test('sin desborde horizontal en 390 y 1280', async ({ page }) => {
     for (const [ancho, alto] of [[390, 844], [1280, 900]]) {
       await page.setViewportSize({ width: ancho, height: alto })
-      for (const ruta of ['/pos', '/clientes']) {
+      for (const ruta of ['/pos', '/clientes', '/inventario/unidades']) {
         await page.goto(ruta)
         await expect(page.getByTestId('shell')).toBeVisible({ timeout: 20_000 })
         await page.waitForTimeout(600)

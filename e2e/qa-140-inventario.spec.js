@@ -9,7 +9,7 @@ test('inventario post-.140: alertas, vendidos, transito/traslados y acciones mas
   const capturar = nombre => page.screenshot({ path: `${salida}/${nombre}.png` })
 
   await page.goto('/inventario/alertas')
-  await expect(page.getByRole('button', { name: /^Alertas \(/ })).toBeVisible()
+  await expect(page.getByTestId('tabs-inventario').getByRole('button', { name: 'Alertas', exact: true })).toBeVisible()
   await capturar('01-alertas')
 
   await page.goto('/inventario/vendidos')
@@ -20,7 +20,7 @@ test('inventario post-.140: alertas, vendidos, transito/traslados y acciones mas
   await capturar('02-vendidos')
 
   await page.goto('/inventario/transito')
-  await expect(page.getByRole('button', { name: /^En tránsito \(/ })).toBeVisible()
+  await expect(page.getByTestId('tabs-inventario').getByRole('button', { name: 'En tránsito', exact: true })).toBeVisible()
   await capturar('03-transito')
 
   await page.goto('/inventario/traslados')
