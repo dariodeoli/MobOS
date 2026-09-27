@@ -150,6 +150,21 @@ por spec: lo prohíbe la guarda de `src/lib/ciHarness.test.js`).
 
 ## 6. Comandos útiles
 
+**Guardia de CI (#245)** — cuenta la racha de corridas completas verdes en
+`main`, lista la última roja con su job y sus tests (sin rojos silenciosos) y
+puede aguantar la corrida en curso antes de decidir:
+
+```bash
+npm run ci:guardia                         # estado + racha (exit 1 si < 3)
+npm run ci:guardia -- --minimo 3           # exigir el hito de 3 verdes
+npm run ci:guardia -- --esperar 900        # espera hasta 15 min la corrida en curso
+npm run ci:guardia -- --reporte docs/qa/245-ci/guardia.md
+```
+
+Salidas: `0` racha ≥ mínimo · `1` racha corta (roja o pendiente) · `2` se agotó
+la espera. El contador histórico sigue en `scripts/qa-ci-racha.mjs`.
+
+
 ```bash
 # Gate rápido durante el trabajo (~20 s)
 npm run test:e2e:smoke

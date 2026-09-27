@@ -128,3 +128,11 @@ página pública sin sesión y entrada liviana en Mi cuenta. Racha en `main`:
 - Pendiente ajeno: `pos-148-s11-sin-stock › sobre pedido` falla en el worktree
   con `stockDe()` devolviendo `null` para un producto recién creado con stock 0
   (no aparece en los rojos de CI; queda para POS).
+
+## Guardia de CI (#245)
+
+`npm run ci:guardia` (scripts/qa-ci-guardia.mjs) automatiza el recuento y la
+causa: racha de corridas completas verdes, última roja con job y tests fallidos,
+`--esperar` para la corrida en curso y `--reporte` para dejar el snapshot (ver
+`docs/qa/245-ci/guardia.md`). Salidas: 0 = racha ≥ mínimo, 1 = corta, 2 = espera
+agotada.
