@@ -4,6 +4,8 @@ import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, IconAction, Input, Label, Modal, MoneyInput, Skeleton, Textarea, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import BarraModulo from '@/components/shared/BarraModulo'
+import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import SearchField from '@/components/shared/SearchField'
 import SegmentedField from '@/components/shared/SegmentedField'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
@@ -164,19 +166,27 @@ export default function Garantias() {
       toast.error('No se pudo subir la foto.', cause?.message)
     } finally { setSubiendo(false) }
   }
-  return <div className="space-y-4"><div className="flex flex-wrap items-center gap-2">
+  return <div className="space-y-4">
+    {/* Composición compacta (#256): identidad y acciones en una sola barra. */}
+    <BarraModulo icono="shield" titulo="Garantías" descripcion="Casos de garantía, su estado y su vencimiento." testId="barra-garantias">
+      {!esDemo && <Button type="button" variant="outline" className="px-3 text-xs" disabled={exportando} onClick={exportar}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}
+      <Button type="button" onClick={() => { setForm(blank); setError(''); setRepuesto({}); setCrearAbierto(true) }}><Icon name="plus" className="h-4 w-4" />Nuevo caso</Button>
+    </BarraModulo>
+    <div className="flex flex-wrap items-center gap-2">
     <SegmentedField value={estadoFiltro} onChange={setEstadoFiltro} ariaLabel="Filtrar garantías por estado" options={[['todos', 'Todos'], ...STATES.map(([id, nombre]) => [id, nombre])]} />
     <div className="min-w-[220px] flex-1"><SearchField value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar cliente, serial o detalle…" ariaLabel="Buscar garantías" /></div>
-    {!esDemo && <Button type="button" variant="outline" className="h-9 shrink-0 px-3 text-xs" disabled={exportando} onClick={exportar}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}
-    <Button type="button" className="h-9 shrink-0 px-3 text-xs" onClick={() => { setForm(blank); setError(''); setRepuesto({}); setCrearAbierto(true) }}><Icon name="plus" className="h-4 w-4" />Nuevo caso</Button>
   </div>
     {v2 && visible.length > 0 && (
-      <div data-testid="resumen-garantias" className="grid grid-cols-2 divide-ink-600 rounded-xl border border-ink-600 bg-ink-800/60 text-center sm:grid-cols-4 sm:divide-x">
-        <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Casos</p><p className="v2-numero mt-1 text-lg font-semibold tabular-nums sm:text-2xl">{visible.length}</p><p className="text-[11px] text-mute">en la lista</p></div>
-        <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">En proceso</p><p className={cn('v2-numero mt-1 text-lg font-semibold tabular-nums', resumenV2.enProceso > 0 ? 'text-fore' : 'text-mute')}>{resumenV2.enProceso}</p><p className="text-[11px] text-mute">recibidos o en diagnóstico</p></div>
-        <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Listos</p><p className={cn('v2-numero mt-1 text-lg font-semibold tabular-nums', resumenV2.listos > 0 ? 'text-ok' : 'text-mute')}>{resumenV2.listos}</p><p className="text-[11px] text-mute">para entregar</p></div>
-        <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Por vencer</p><p className={cn('v2-numero mt-1 text-lg font-semibold tabular-nums', resumenV2.porVencer > 0 ? 'text-warn' : 'text-ok')}>{resumenV2.porVencer}</p><p className="text-[11px] text-mute">en 7 días o menos</p></div>
-      </div>
+      <ResumenMetricas
+        testId="resumen-garantias"
+        columnas={4}
+        items={[
+          { titulo: 'Casos', valor: visible.length, alcance: 'En pantalla', nota: 'en la lista' },
+          { titulo: 'En proceso', valor: resumenV2.enProceso, alcance: 'En pantalla', nota: 'recibidos o en diagnóstico', tono: resumenV2.enProceso > 0 ? 'text-fore' : 'text-mute' },
+          { titulo: 'Listos', valor: resumenV2.listos, alcance: 'En pantalla', nota: 'para entregar', tono: resumenV2.listos > 0 ? 'text-ok' : 'text-mute' },
+          { titulo: 'Por vencer', valor: resumenV2.porVencer, alcance: 'En pantalla', nota: 'en 7 días o menos', tono: resumenV2.porVencer > 0 ? 'text-warn' : 'text-ok' },
+        ]}
+      />
     )}
     <Modal open={crearAbierto} onClose={() => !saving && setCrearAbierto(false)} title="Nuevo caso de garantía" size="amplio"><form onSubmit={create} className="grid gap-3 md:grid-cols-2"><div><Label>Cliente</Label><Input required value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} placeholder="Nombre del cliente" /></div><div><Label>Serial / IMEI</Label><SerialField required value={form.serial} onChange={(value) => setForm({ ...form, serial: value })} placeholder="Serial o IMEI" /></div><div className="md:col-span-2"><Label>Descripción del caso</Label><Textarea required rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Falla reportada, revisión solicitada…" /></div><div><Label>Responsable</Label><Input value={form.responsibleName} onChange={(e) => setForm({ ...form, responsibleName: e.target.value })} placeholder="Persona responsable" /></div><div><Label>Costo de reparación (Gs)</Label><MoneyInput value={form.repairCostPyg} onValueChange={(value) => setForm({ ...form, repairCostPyg: value === '' ? '' : String(value) })} placeholder="0" /></div><div><Label>Técnico asignado</Label><Input value={form.technicianName} onChange={(e) => setForm({ ...form, technicianName: e.target.value })} placeholder="Técnico responsable" /></div><div className="md:col-span-2"><Label>Diagnóstico inicial</Label><Textarea rows={2} value={form.diagnosis} onChange={(e) => setForm({ ...form, diagnosis: e.target.value })} placeholder="Pruebas, causa probable y condición de recepción…" /></div><div className="md:col-span-2"><Label>Resolución</Label><Textarea rows={2} value={form.resolution} onChange={(e) => setForm({ ...form, resolution: e.target.value })} placeholder="Qué se hizo y cómo quedó el equipo…" /></div><div><Label>Repuestos (uno por línea)</Label><Textarea rows={2} value={form.partsText} onChange={(e) => setForm({ ...form, partsText: e.target.value })} placeholder="Pantalla OLED\nBatería" /><div className="mt-2 rounded-xl border border-ink-600 bg-ink-800/30 p-3" data-testid="recepcion-repuesto"><p className="text-[11px] text-mute">Elegí un repuesto del catálogo y agregalo a la lista: el producto manda y marca/categoría se despliegan después.</p><div className="mt-1"><BuscadorDispositivo valor={repuesto} onCambio={setRepuesto} tipo="accesorios" /></div><Button type="button" variant="outline" className="mt-2 h-9 w-full px-2 text-xs" disabled={!repuesto.modelo} onClick={agregarRepuesto}>Agregar a la lista</Button></div></div><div><Label>Fotos / enlaces (uno por línea)</Label><Textarea rows={2} value={form.photosText} onChange={(e) => setForm({ ...form, photosText: e.target.value })} placeholder="https://…" /></div><div><Label>Días de garantía</Label><Input inputMode="numeric" value={form.warrantyDays} onChange={(e) => setForm({ ...form, warrantyDays: e.target.value.replace(/\D/g, '') })} placeholder="Ej. 90" /></div><div><Label>Vencimiento</Label><Input type="date" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} /></div><div className="md:col-span-2"><Label>Qué cubre (una por línea)</Label><Textarea rows={2} value={form.coverage} onChange={(e) => setForm({ ...form, coverage: e.target.value })} placeholder={'Defectos de fábrica\nPantalla y batería'} /></div><div className="md:col-span-2"><Label>Qué no cubre (una por línea)</Label><Textarea rows={2} value={form.exclusions} onChange={(e) => setForm({ ...form, exclusions: e.target.value })} placeholder={'Daños por agua\nReparaciones de terceros'} /></div><Button type="submit" disabled={saving} className="md:col-span-2 min-h-11">{saving ? 'Guardando…' : 'Registrar caso'}</Button></form></Modal>
     {error && <Aviso tono="error" className="px-4 py-3 text-sm rounded-xl">{error}</Aviso>}

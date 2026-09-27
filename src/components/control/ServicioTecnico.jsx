@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useUrlState } from '@/hooks/useUrlState'
 import { Aviso, Badge, Button, Card, EmptyState, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import BarraLote from '@/components/shared/BarraLote'
+import BarraModulo from '@/components/shared/BarraModulo'
+import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import SearchField from '@/components/shared/SearchField'
 import EsquemaEquipo from '@/components/shared/EsquemaEquipo'
 import PatronDesbloqueo from '@/components/shared/PatronDesbloqueo'
@@ -484,16 +486,18 @@ export default function ServicioTecnico() {
 
   return (
     <Card className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-sm text-mute">Recepción, diagnóstico, reparación, costos y entrega de cada equipo.</p>
-        </div>
-        <span className="flex flex-wrap items-center gap-2">
-          {servicios.length === 0 && <Button variant="outline" onClick={cargarCatalogoSugerido}>Cargar catálogo sugerido</Button>}
-          <Button variant="outline" onClick={() => setCatalogoOpen(true)}>Catálogo</Button>
-          <Button onClick={() => { setEditing(null); setForm({ ...FORM_VACIO }); setDispositivo({}) }}>+ Nueva orden</Button>
-        </span>
-      </div>
+      {/* Composición compacta (#256): identidad y acciones en una sola barra. */}
+      <BarraModulo
+        icono="wrench"
+        titulo="Taller"
+        descripcion="Recepción, diagnóstico, reparación, costos y entrega de cada equipo."
+        testId="barra-taller"
+      >
+        <Button variant="outline" onClick={load} disabled={loading}>Actualizar</Button>
+        {servicios.length === 0 && <Button variant="outline" onClick={cargarCatalogoSugerido}>Cargar catálogo sugerido</Button>}
+        <Button variant="outline" onClick={() => setCatalogoOpen(true)}>Catálogo</Button>
+        <Button onClick={() => { setEditing(null); setForm({ ...FORM_VACIO }); setDispositivo({}) }}>+ Nueva orden</Button>
+      </BarraModulo>
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
@@ -502,18 +506,21 @@ export default function ServicioTecnico() {
           ))}
         </div>
         <div className="min-w-[200px] flex-1"><SearchField ariaLabel="Buscar órdenes de servicio" placeholder="Cliente, equipo, IMEI, falla o técnico" value={q} onChange={event => setQ(event.target.value)} /></div>
-        <Button variant="outline" onClick={load} disabled={loading}>Actualizar</Button>
       </div>
 
       {error && <Aviso tono="error" className="p-3">{error}</Aviso>}
       {loading && <div className="space-y-2"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>}
       {!loading && !visibles.length && <EmptyState icon="refresh" title={q ? 'Ninguna orden coincide con la búsqueda.' : 'Todavía no hay órdenes de servicio.'} description={q ? undefined : 'Cargá la primera orden para seguir el taller de punta a punta.'} /* El alta vive en el header: duplicarla acá rompía el nombre accesible único. */ />}
       {!loading && visibles.length > 0 && (
-        <div className="grid grid-cols-3 divide-ink-600 rounded-xl border border-ink-600 bg-ink-800/60 text-center sm:divide-x">
-          <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Facturado</p><p className={cn('mt-1 text-lg font-semibold tabular-nums', v2 && 'v2-numero sm:text-2xl')}>{gs(totales.facturado)}</p></div>
-          <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Costos</p><p className={cn('mt-1 text-lg font-semibold tabular-nums text-warn', v2 && 'v2-numero sm:text-2xl')}>{gs(totales.costos)}</p></div>
-          <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Utilidad</p><p className={cn('mt-1 text-lg font-semibold tabular-nums', totales.facturado - totales.costos >= 0 ? 'text-ok' : 'text-bad', v2 && 'v2-numero sm:text-2xl')}>{gs(totales.facturado - totales.costos)}</p></div>
-        </div>
+        <ResumenMetricas
+          testId="resumen-taller"
+          columnas={3}
+          items={[
+            { titulo: 'Facturado', valor: gs(totales.facturado), alcance: 'En pantalla' },
+            { titulo: 'Costos', valor: gs(totales.costos), alcance: 'En pantalla', tono: 'text-warn' },
+            { titulo: 'Utilidad', valor: gs(totales.facturado - totales.costos), alcance: 'En pantalla', tono: totales.facturado - totales.costos >= 0 ? 'text-ok' : 'text-bad' },
+          ]}
+        />
       )}
       {v2 && !loading && visibles.length > 0 && (
         <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" aria-label="Flujo del taller">
