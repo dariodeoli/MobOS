@@ -3,6 +3,7 @@
 import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { SEED } from './helpers/seed-data.js'
+import { imeiValido } from './helpers/imei.js'
 
 const API = SEED.api
 // Capturas del QA: viven en test-results para no ensuciar el árbol del release.
@@ -10,12 +11,6 @@ const SALIDA = 'test-results/imei-conciliacion'
 
 // IMEI ficticio con checksum Luhn válido, único por corrida: las aserciones no
 // dependen de registros que hayan dejado corridas anteriores.
-function imeiValido() {
-  const base = `35${String(Date.now()).slice(-11)}${Math.floor(Math.random() * 10)}`.slice(0, 14)
-  let suma = 0
-  for (let i = 0; i < 14; i += 1) { let digito = Number(base[13 - i]); if (i % 2 === 0) { digito *= 2; if (digito > 9) digito -= 9 } suma += digito }
-  return base + String((10 - (suma % 10)) % 10)
-}
 
 async function api(page, ruta, opciones) {
   return page.evaluate(async ({ api, ruta, opciones }) => {

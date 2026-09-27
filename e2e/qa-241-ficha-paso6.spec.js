@@ -10,6 +10,7 @@ import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { SHELL, auditarContraste, informar } from './helpers/contraste.js'
 import { SEED } from './helpers/seed-data.js'
+import { imeiValido } from './helpers/imei.js'
 
 const API = SEED.api
 const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/rediseno'
@@ -17,12 +18,6 @@ const marca = () => `P6${Date.now().toString(36)}${Math.floor(Math.random() * 10
 const MINIMO_ITEM = 10
 
 // IMEI ficticio con checksum Luhn válido (mismo criterio que imei-mock.spec.js).
-function imeiValido() {
-  const base = `35${String(Date.now()).slice(-11)}${Math.floor(Math.random() * 10)}`.slice(0, 14)
-  let suma = 0
-  for (let i = 0; i < 14; i += 1) { let digito = Number(base[13 - i]); if (i % 2 === 0) { digito *= 2; if (digito > 9) digito -= 9 } suma += digito }
-  return base + String((10 - (suma % 10)) % 10)
-}
 
 // Crea el producto y una unidad propia (con IMEI válido) para no depender del seed.
 async function preparar(page, clave) {
