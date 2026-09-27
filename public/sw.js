@@ -120,3 +120,40 @@ self.addEventListener('fetch', (event) => {
       }),
   )
 })
+
+// A1 (#279) · Web Push: aviso genérico (nunca datos sensibles: el detalle vive
+// en la bandeja interna del panel). `tag` evita duplicados del mismo evento y
+// `notificationclick` enfoca una pestaña abierta o abre la ruta indicada.
+self.addEventListener('push', (event) => {
+  let datos = {}
+  try { datos = event.data ? event.data.json() : {} } catch { datos = {} }
+  const titulo = String(datos?.titulo || 'Tenés una novedad en MobOS').slice(0, 120)
+  const cuerpo = String(datos?.cuerpo || 'Abrí MobOS para verla.').slice(0, 180)
+  event.waitUntil(
+    self.registration.showNotification(titulo, {
+      body: cuerpo,
+      tag: String(datos?.tag || 'mobos').slice(0, 64),
+      renotify: false,
+      icon: '/mobos-icon-192.png',
+      badge: '/mobos-icon-192.png',
+      data: { url: String(datos?.url || '/') },
+    }),
+  )
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const destino = new URL(String(event.notification.data?.url || '/'), self.location.origin).href
+  event.waitUntil(
+    (async () => {
+      const clientes = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      for (const cliente of clientes) {
+        if (cliente.url.startsWith(self.location.origin) && 'focus' in cliente) {
+          await cliente.navigate(destino).catch(() => {})
+          return cliente.focus()
+        }
+      }
+      return self.clients.openWindow(destino)
+    })(),
+  )
+})
