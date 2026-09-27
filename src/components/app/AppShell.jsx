@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useTemaV2 } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 import { Drawer, Skeleton } from '@/components/ui'
@@ -7,7 +7,6 @@ import PersonaChip from '@/components/shared/PersonaChip'
 import ThemeToggle from '@/components/app/ThemeToggle'
 import PresencePill from '@/components/app/PresencePill'
 import ProductFooter from '@/components/app/ProductFooter'
-import MenuAcciones from '@/components/app/MenuAcciones'
 import PanelNotificaciones from '@/components/app/PanelNotificaciones'
 import ComoFuncionaDemo from '@/components/app/ComoFuncionaDemo'
 import PanelColaOffline from '@/components/ventas/PanelColaOffline'
@@ -207,30 +206,11 @@ function AvisoColaOffline({ texto, corto, urgente, onClick, pastilla = false, te
   )
 }
 
-function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onSwitchUser, onMiCuenta, onLockRequest, collapsed, perfilEmpresa, usuario }) {
-  const clicsRef = useRef([])
-  const clicsTimer = useRef(null)
-  useEffect(() => () => clearTimeout(clicsTimer.current), [])
-
-  function manejarClicUsuario() {
-    const ahora = Date.now()
-    clicsRef.current = clicsRef.current.filter((t) => ahora - t < 800)
-    clicsRef.current.push(ahora)
-    if (clicsRef.current.length >= 3) {
-      clicsRef.current = []
-      clearTimeout(clicsTimer.current)
-      onLockRequest?.()
-      return
-    }
-    clearTimeout(clicsTimer.current)
-    clicsTimer.current = setTimeout(() => {
-      clicsRef.current = []
-      onSwitchUser?.()
-    }, 300)
-  }
-
+function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onMiCuenta, collapsed, perfilEmpresa, usuario }) {
   // La persona de la barra es la de la sesión; el perfil de empresa (identidad
   // del dueño) solo aporta su foto de Google cuando quien opera es el dueño.
+  // El chip (foto + nombre completo) lleva a Mi perfil: los gestos de cambiar
+  // vendedor/bloquear se fueron con el candado de la barra superior.
   const nombreUsuario = sesionNombre || perfilEmpresa?.name || 'Usuario'
   const fotoGoogle = esOwner ? perfilEmpresa?.picture : undefined
 
@@ -239,13 +219,14 @@ function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onSwitch
       <div className={cn('mt-2 flex items-center gap-1.5', collapsed && 'lg:mt-1 lg:flex-col')}>
         <button
           type="button"
-          onClick={manejarClicUsuario}
+          data-testid="shell-mi-cuenta"
+          onClick={onMiCuenta}
           className={cn(
             'flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-xl p-1.5 text-left transition hover:bg-fore/5',
             collapsed && 'lg:flex-none',
           )}
-          title={nombreUsuario}
-          aria-label={`Cambiar de vendedor (${nombreUsuario})`}
+          title="Mi perfil"
+          aria-label={`Mi perfil (${nombreUsuario})`}
         >
           <PersonaChip
             user={{ id: usuario?.id, name: nombreUsuario }}
@@ -262,20 +243,6 @@ function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onSwitch
               </small>
             </span>
           </PersonaChip>
-          <Icon name="refresh" className={cn('ml-auto h-3 w-3 shrink-0 text-mute', collapsed && 'lg:hidden')} />
-        </button>
-        <button
-          type="button"
-          data-testid="shell-mi-cuenta"
-          onClick={onMiCuenta}
-          title="Mi cuenta"
-          aria-label="Mi cuenta"
-          className={cn(
-            'grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore',
-            collapsed && 'lg:h-9 lg:w-9',
-          )}
-        >
-          <Icon name="user" className="h-4 w-4" />
         </button>
       </div>
     </div>
@@ -325,7 +292,6 @@ export default function AppShell({
   sesionNombre,
   esOwner = false,
   usuario,
-  onSwitchUser,
   onMiCuenta,
   onLogout,
   onLockRequest,
@@ -458,9 +424,7 @@ export default function AppShell({
           sesionNombre={sesionNombre}
           esOwner={esOwner}
           roleLabel={roleLabel}
-          onSwitchUser={onSwitchUser}
           onMiCuenta={onMiCuenta}
-          onLockRequest={onLockRequest}
           collapsed={collapsed}
           perfilEmpresa={perfilEmpresa}
           usuario={usuario}
@@ -502,9 +466,7 @@ export default function AppShell({
             sesionNombre={sesionNombre}
             esOwner={esOwner}
             roleLabel={roleLabel}
-            onSwitchUser={onSwitchUser}
             onMiCuenta={onMiCuenta}
-            onLockRequest={onLockRequest}
             collapsed={false}
             perfilEmpresa={perfilEmpresa}
             usuario={usuario}
@@ -586,10 +548,16 @@ export default function AppShell({
                     </span>
                   )}
                 </button>
-                <MenuAcciones
-                  onNavegar={(id, opciones) => navegar(id, opciones)}
-                  onBloquear={onLockRequest}
-                />
+                <button
+                  type="button"
+                  data-testid="shell-bloquear"
+                  onClick={onLockRequest}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore"
+                  title="Bloquear pantalla"
+                  aria-label="Bloquear pantalla"
+                >
+                  <Icon name="lock" className="h-4 w-4" />
+                </button>
               </>
             )}
             {/* Tema y acciones secundarias: en el menú lateral con pantallas

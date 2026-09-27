@@ -138,8 +138,8 @@ test('Ayuda lista todos los comandos y atajos con su pantalla', async ({ page })
     ['Cotizar Trade-In', 'F4', null, '/trade-in'],
     ['Guardar venta (POS)', 'Ctrl + S', 'Cmd + S', '/pos'],
     ['Cerrar', 'Esc', null, '/pos'],
-    ['Cambiar de vendedor', '1 clic', null, '/pos'],
-    ['Bloquear pantalla', 'Triple clic', null, '/pos'],
+    ['Bloquear pantalla', 'Candado', null, '/pos'],
+    ['Mi perfil', 'Chip de usuario', null, '/configuracion/mi-cuenta'],
   ]
   for (const [titulo, tecla, mac, ruta] of casos) {
     await expect(seccion.getByText(tecla, { exact: true })).toBeVisible()

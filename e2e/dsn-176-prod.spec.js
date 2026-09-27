@@ -11,7 +11,7 @@ const captura = (page, nombre) => page.screenshot({ path: `${SHOTS}/cprod-${nomb
 async function entrarDemoDueno(page) {
   await page.goto(`${APP}/demo`)
   await page.getByRole('button', { name: /Entrar como Dueño/i }).click()
-  await expect(page.getByTestId('menu-acciones')).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByTestId('shell-bloquear')).toBeVisible({ timeout: 30_000 })
   const guia = page.getByRole('dialog', { name: 'Cómo funciona la demo' })
   if (await guia.count()) await guia.getByRole('button', { name: 'Cerrar' }).click().catch(() => {})
 }
