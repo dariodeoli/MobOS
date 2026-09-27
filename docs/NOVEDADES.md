@@ -11,6 +11,13 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.197 — 2026-09-27
+- **Cotizaciones (#279 A3):** el **presupuesto se aprueba con código** (OTP por correo o WhatsApp) desde la página pública, con **versión congelada**, evidencia/firma opcional y **pedido generado** al aprobar.
+- **Abastecimiento (#279 A5):** cuando **se agota una variante**, el vendedor puede **proponer alternativas** y el cliente **decide con un código**; la necesidad se libera con la decisión.
+- **Avisos (#280):** el **vendedor recibe un aviso** cuando cambia el **stock comprometido** de lo que tiene por vender o entregar.
+- **Notificaciones (#279 A1):** andamiaje de **Web Push** (VAPID, suscripciones y service worker) listo para activar los avisos del navegador.
+- **Diseño (#279 A3/A5):** previews de las dos experiencias nuevas, con capturas en claro/oscuro/móvil.
+
 ## v1.0.196 — 2026-09-27
 - **POS/Ventas (#148 §9):** los **montos pasan a bigint**: los topes reales de **Gs. 10.000 millones** (general) y **Gs. 99.000 millones** (ventas) ya se pueden cargar, guardar y reportar sin el techo viejo de 32 bits.
 - **Autorizaciones (#278 · #256):** la pantalla estrena la **barra compacta** (identidad, pendientes como contexto y acciones juntas), sin encabezado duplicado.
