@@ -28,7 +28,7 @@ export const NECESIDAD_PRIORIDADES = ['BAJA', 'NORMAL', 'ALTA', 'URGENTE'] as co
 export type NecesidadPrioridad = (typeof NECESIDAD_PRIORIDADES)[number]
 const PESO_PRIORIDAD: Record<string, number> = { BAJA: 1, NORMAL: 2, ALTA: 3, URGENTE: 4 }
 
-export const NECESIDAD_ESTADOS = ['ABIERTA', 'ASIGNADA', 'COMPRADA', 'RECIBIDA', 'CANCELADA'] as const
+export const NECESIDAD_ESTADOS = ['ABIERTA', 'ASIGNADA', 'COMPRADA', 'RECIBIDA', 'CANCELADA', 'ESPERANDO_CLIENTE'] as const
 export type NecesidadEstado = (typeof NECESIDAD_ESTADOS)[number]
 
 /** Prioridad más alta de dos (para consolidar). */

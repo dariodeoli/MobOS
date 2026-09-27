@@ -34,6 +34,7 @@ const CotizacionPublica = lazy(() => import('@/pages/CotizacionPublica'))
 const CuentaPublica = lazy(() => import('@/pages/CuentaPublica'))
 const PortalCliente = lazy(() => import('@/pages/PortalCliente'))
 const RemitoPublico = lazy(() => import('@/pages/RemitoPublico'))
+const AlternativaPublica = lazy(() => import('@/pages/AlternativaPublica'))
 // QR impresos (#97/#203): la etiqueta de góndola abre /producto/<sku> y el
 // ticket de prueba, /prueba. Viven fuera del panel y caen al login si no hay
 // sesión (cada página lo avisa a su manera).
@@ -275,6 +276,8 @@ export default function App() {
           <Route path="/cuenta/:token" element={<CuentaPublica />} />
           <Route path="/portal/:token" element={<PortalCliente />} />
           <Route path="/remito/:token" element={<RemitoPublico />} />
+          {/* A5 (#279): el cliente aprueba la alternativa de una variante agotada. */}
+          <Route path="/alternativa/:token" element={<AlternativaPublica />} />
           {/* QR impresos (ver src/lib/printing/qr.js): la etiqueta de góndola
               apunta a /producto/<sku> y el ticket de prueba a /prueba. Antes
               caían al catch-all y terminaban en el login. */}
