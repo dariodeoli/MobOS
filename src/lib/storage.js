@@ -328,7 +328,9 @@ export function refrescarCatalogo({ forzar = false } = {}) {
     await anterior.catch(() => {})
     if (!apiMode() || version !== apiHydrationVersion || identity !== identidadActual()) return
     try {
-      const products = await todosLosProductos()
+      // Sin caché de consultas: el refresco existe justamente para ver lo que se
+      // cargó fuera de esta pestaña, así que va sí o sí contra la red (#257).
+      const products = await todosLosProductos({ fresco: true })
       if (!apiMode() || version !== apiHydrationVersion || identity !== identidadActual()) return
       cache.productos = (Array.isArray(products) ? products : []).map(mapProductoApi)
       ultimoRefrescoCatalogo = Date.now()

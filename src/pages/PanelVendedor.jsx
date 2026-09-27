@@ -490,7 +490,7 @@ export default function PanelVendedor() {
   // refresca (solo productos) para que las unidades cargadas en Inventario u
   // otra pantalla sean visibles/vendibles sin recargar ni esperar al periódico.
   useEffect(() => {
-    if (vista === 'cargar') refrescarCatalogo().catch(() => {})
+    if (vista === 'cargar') refrescarCatalogo({ forzar: true }).catch(() => {})
   }, [vista, identidad])
   useEffect(() => {
     if (subpadre !== 'configuracion' || !routeSeccion) return

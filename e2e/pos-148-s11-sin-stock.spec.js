@@ -137,7 +137,8 @@ test('con unidad disponible, la guía manda a elegir el IMEI exacto (#148 §11)'
 
     // Sin elegir la unidad, el aviso es claro y accionable (no el genérico).
     await page.getByRole('button', { name: /^Crear pedido sin pago/ }).click()
-    const alerta = page.getByRole('alert').filter({ hasText: 'Seleccioná el IMEI/serial exacto' })
+    // La validación del POS frena antes de enviar, con su propio mensaje.
+    const alerta = page.getByRole('alert').filter({ hasText: 'Falta elegir el IMEI/serial' })
     await expect(alerta).toBeVisible()
     await expect(alerta).toContainText('sobre pedido')
     expect(await pedidoDe(page, cliente), 'no se crea una orden sin el IMEI').toBeNull()

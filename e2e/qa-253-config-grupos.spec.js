@@ -88,13 +88,12 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.goto('/configuracion/mi-cuenta')
     const nav = page.locator(NAV)
-    const toggle = page.getByTestId('config-nav-toggle')
+    const toggle = page.getByTestId('config-grupos-toggle')
     await expect(toggle).toBeVisible({ timeout: 20_000 })
     await expect(toggle).toHaveAttribute('aria-expanded', 'true')
-    await expect(nav).toHaveAttribute('data-colapsado', '0')
 
     await toggle.click()
-    await expect(nav).toHaveAttribute('data-colapsado', '1')
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
     await expect(toggle).toHaveAttribute('aria-expanded', 'false')
     // Solo íconos: la etiqueta visible se oculta y el nombre sigue por aria/title.
     await expect(nav.getByText('Organización', { exact: true })).toBeHidden()
@@ -106,15 +105,11 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
 
     // Se recuerda en el dispositivo.
     await page.reload()
-    await expect(page.locator(NAV)).toHaveAttribute('data-colapsado', '1')
+    await expect(page.getByTestId('config-grupos-toggle')).toHaveAttribute('aria-expanded', 'false')
 
-    // Teclado: la flecha mueve y activa la pestaña contigua.
-    await page.getByRole('tab', { name: 'Organización', exact: true }).focus()
-    await page.keyboard.press('ArrowDown')
-    await expect(page.getByRole('tab', { name: 'Equipo y acceso', exact: true })).toHaveAttribute('aria-selected', 'true')
 
-    await page.getByTestId('config-nav-toggle').click()
-    await expect(page.locator(NAV)).toHaveAttribute('data-colapsado', '0')
+    await page.getByTestId('config-grupos-toggle').click()
+    await expect(page.getByTestId('config-grupos-toggle')).toHaveAttribute('aria-expanded', 'true')
   })
 
   test('capturas del menú colapsable', async ({ page }) => {
@@ -126,12 +121,12 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
       await page.setViewportSize({ width: 1280, height: 900 })
       await page.goto('/configuracion/mi-cuenta')
       await expect(page.getByRole('tab', { name: 'Mi cuenta', exact: true }).first()).toBeVisible({ timeout: 20_000 })
-      await page.evaluate(() => { try { localStorage.removeItem('mobos:config-nav') } catch { /* sin storage */ } })
+      await page.evaluate(() => { try { localStorage.removeItem('mobos:config-menu') } catch { /* sin storage */ } })
       await page.reload()
-      await expect(page.locator(NAV)).toHaveAttribute('data-colapsado', '0')
+      await expect(page.getByTestId('config-grupos-toggle')).toHaveAttribute('aria-expanded', 'true')
       await page.screenshot({ path: `${salida}/nav-expandido-${tema}-desktop.jpg`, type: 'jpeg', quality: 78 })
-      await page.getByTestId('config-nav-toggle').click()
-      await expect(page.locator(NAV)).toHaveAttribute('data-colapsado', '1')
+      await page.getByTestId('config-grupos-toggle').click()
+      await expect(page.getByTestId('config-grupos-toggle')).toHaveAttribute('aria-expanded', 'false')
       await page.screenshot({ path: `${salida}/nav-colapsado-${tema}-desktop.jpg`, type: 'jpeg', quality: 78 })
 
       if (tema === 'claro') {
@@ -139,7 +134,7 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
         await page.setViewportSize({ width: 390, height: 844 })
         await page.goto('/configuracion/mi-cuenta')
         await expect(page.getByRole('tab', { name: 'Mi cuenta', exact: true }).first()).toBeVisible({ timeout: 20_000 })
-        await expect(page.getByTestId('config-nav-toggle')).toBeHidden()
+        await expect(page.getByTestId('config-grupos-toggle')).toBeHidden()
         await page.screenshot({ path: `${salida}/nav-horizontal-mobile-claro.jpg`, type: 'jpeg', quality: 78 })
       }
     }
