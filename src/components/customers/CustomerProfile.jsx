@@ -9,6 +9,7 @@ import { formatGs } from '@/utils/moneda'
 import { fechaDia as fecha, fechaHora } from '@/utils/fecha'
 import { telefonoVisible } from '@/utils/telefono'
 import { codigoPedido } from '@/utils/pedido'
+import UnificarClienteModal from './UnificarClienteModal'
 import { cn } from '@/lib/utils'
 import { primerNombre } from '@/lib/utils'
 import { portalUrlFor, portalVitrinaUrlFor } from '@/lib/customerPortal'
@@ -161,6 +162,8 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
     return true
   }
   const [revision, setRevision] = useState(0)
+  const [unificarAbierto, setUnificarAbierto] = useState(false)
+  const [principalFusionada, setPrincipalFusionada] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [profile, setProfile] = useState(null)
@@ -634,6 +637,18 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
       })
     return () => { active = false }
   }, [open, customer?.id, customer, esDemo, revision])
+
+  // Puntero del merge (#268): nombre de la ficha principal si esta quedó
+  // archivada por una unificación.
+  useEffect(() => {
+    const principalId = profile?.customer?.mergedIntoId
+    if (!principalId || esDemo) { setPrincipalFusionada(null); return undefined }
+    let activo = true
+    api.get(`/api/customers/${encodeURIComponent(principalId)}`)
+      .then((data) => { if (activo) setPrincipalFusionada(data?.customer ? { id: data.customer.id, name: data.customer.name } : null) })
+      .catch(() => { if (activo) setPrincipalFusionada(null) })
+    return () => { activo = false }
+  }, [profile?.customer?.mergedIntoId, esDemo])
 
   // Cada apertura (u otro cliente) arranca en la pestaña pedida (resumen por
   // defecto; «datos» cuando se entra a editar desde el resumen rápido).
@@ -1190,6 +1205,13 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                 <Icon name="external" className="h-4 w-4" />
                 Portal del cliente{esDemo ? '' : ''}
               </Button>
+              {/* Unificar duplicados (#268): solo dueño/gerencia y fuera de demo. */}
+              {!esDemo && ['ADMIN', 'GERENTE'].includes(usuario?.role) && !profile?.customer?.archivedAt && (
+                <Button type="button" variant="outline" className="h-9 px-3 text-xs" data-testid="unificar-cliente-boton" onClick={() => setUnificarAbierto(true)}>
+                  <Icon name="users" className="h-4 w-4" />
+                  Unificar
+                </Button>
+              )}
               {phone && (
                 <span className="inline-flex items-center gap-1 rounded-lg border border-ok/30 bg-ok/5 px-1.5 py-0.5">
                   <WhatsAppMenu
@@ -1211,6 +1233,22 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
               )}
             </span>
           </header>
+
+          {/* Puntero del merge (#268): la ficha archivada no se borra y muestra
+              con qué ficha principal se unificó. */}
+          {profile?.customer?.archivedAt && (
+            <Aviso tono="info" className="rounded-xl p-3 text-sm" data-testid="ficha-fusionada">
+              Esta ficha se unificó con otra y quedó archivada; su historial vive en la ficha principal
+              {principalFusionada?.name ? ` (${principalFusionada.name})` : ''}. Los enlaces y tokens siguen funcionando.
+            </Aviso>
+          )}
+
+          <UnificarClienteModal
+            open={unificarAbierto}
+            cliente={{ id: customer?.id, name: profile?.customer?.name || customer?.name }}
+            onClose={() => setUnificarAbierto(false)}
+            onMerged={() => { setUnificarAbierto(false); setRevision((actual) => actual + 1) }}
+          />
 
           {tab === 'resumen' && (
           <>

@@ -32,6 +32,9 @@ export async function GET(request: Request) {
   const limit = Math.min(500, Math.max(1, Number(params.get('limit')) || 100))
   const cursor = params.get('cursor')
   const condiciones: Prisma.Sql[] = [Prisma.sql`c."tenantId" = ${tenant}`]
+  // Merge de duplicados (#268): la ficha archivada sale del listado por
+  // defecto (sigue accesible por su URL con ?archivados=1).
+  if (params.get('archivados') !== '1') condiciones.push(Prisma.sql`c."archivedAt" IS NULL`)
   if (filtro === 'mayoristas') condiciones.push(Prisma.sql`c."pricingTier" = 'WHOLESALE'`)
   else if (filtro === 'minoristas') condiciones.push(Prisma.sql`c."pricingTier" <> 'WHOLESALE'`)
   else if (filtro === 'credito') condiciones.push(Prisma.sql`COALESCE(c."creditLimitPyg", 0) > 0`)

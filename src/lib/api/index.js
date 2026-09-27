@@ -10,7 +10,7 @@ export { ApiError, isApiError } from './errors'
 export { clearAccessToken, clearCompanyToken, clearSession, getAccessToken, getCompanyContext, getCompanyToken, setAccessToken, setCompanyToken, sessionApi } from './session'
 
 export const resources = {
-  customers: { list: (q = '') => api.get(`/api/customers?q=${encodeURIComponent(q)}`), create: data => api.post('/api/customers', data), update: (id, data) => api.patch(`/api/customers/${encodeURIComponent(id)}`, data) },
+  customers: { list: (q = '') => api.get(`/api/customers?q=${encodeURIComponent(q)}`), create: data => api.post('/api/customers', data), update: (id, data) => api.patch(`/api/customers/${encodeURIComponent(id)}`, data), duplicates: (params = {}) => api.get(`/api/customers/duplicates?${new URLSearchParams(Object.entries(params).filter(([, valor]) => valor))}`), mergePreview: (id, withId) => api.get(`/api/customers/${encodeURIComponent(id)}/merge?with=${encodeURIComponent(withId)}`), merge: (id, data) => api.post(`/api/customers/${encodeURIComponent(id)}/merge`, data) },
   products: { list: (q = '') => api.get(`/api/products?q=${encodeURIComponent(q)}`), create: data => api.post('/api/products', data) },
   stock: { list: demo(() => api.get('/api/stock'), () => demoStockAlerts(getProductos())), adjust: demo(data => api.patch('/api/stock', data), () => ({})) },
   inventoryBranches: { list: demo(() => api.get('/api/inventory-branches'), () => listDemoBranches()) },

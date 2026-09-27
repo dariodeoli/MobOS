@@ -121,6 +121,24 @@ export default function SellerCustomers() {
   const [profileTab, setProfileTab] = useState('resumen')
   const [listas, setListas] = useState([])
   const [crearAbierto, setCrearAbierto] = useState(false)
+  const [posiblesDuplicados, setPosiblesDuplicados] = useState([])
+
+  // Aviso de posible duplicado (#268): al tipear teléfono/CI/correo se buscan
+  // fichas activas con los mismos datos (no bloquea el alta).
+  useEffect(() => {
+    if (!crearAbierto || esDemo) { setPosiblesDuplicados([]); return undefined }
+    const phone = (form.phones || []).find((valor) => String(valor || '').trim())
+    const params = { phone, document: form.document, email: form.email }
+    if (!phone && !params.document && !params.email) { setPosiblesDuplicados([]); return undefined }
+    const timer = setTimeout(async () => {
+      try {
+        const query = new URLSearchParams(Object.entries(params).filter(([, valor]) => valor)).toString()
+        const data = await api.get(`/api/customers/duplicates?${query}`)
+        setPosiblesDuplicados(data?.duplicados || [])
+      } catch { setPosiblesDuplicados([]) }
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [crearAbierto, esDemo, form.phones, form.document, form.email])
   const [importAbierto, setImportAbierto] = useState(false)
   const [importTexto, setImportTexto] = useState('')
   const [importBusy, setImportBusy] = useState(false)
@@ -362,6 +380,17 @@ export default function SellerCustomers() {
           <label className="block space-y-2"><span>Segundo nombre <small className="text-mute">(opcional)</small></span><Input maxLength={120} disabled={saving} value={form.secondName} onChange={(event) => setForm({ ...form, secondName: event.target.value })} /></label>
         </div>
         <div className={GRILLA_DOS_COLUMNAS}><label className="block space-y-2"><span>RUC o CI <small className="text-mute">(opcional)</small></span><RucField id="cliente-documento" disabled={saving} value={form.document} onChange={(document) => setForm((actual) => ({ ...actual, document }))} onAplicar={(datos) => setForm((actual) => ({ ...actual, name: datos.name || actual.name, document: datos.fullRuc || actual.document }))} esDemo={esDemo} /></label><label className="block space-y-2"><span>Correo <small className="text-mute">(opcional)</small></span><EmailField maxLength={200} disabled={saving} value={form.email} onChange={value => setForm({ ...form, email: value })} placeholder="cliente@correo.com" /></label></div>
+        {/* Aviso de posible duplicado (#268): mismo teléfono, CI/RUC o correo. */}
+        {!esDemo && posiblesDuplicados.length > 0 && (
+          <Aviso tono="warn" className="rounded-xl p-3 text-xs" data-testid="posible-duplicado">
+            <b>Posible duplicado:</b> ya existe {posiblesDuplicados.length === 1 ? 'una ficha' : `${posiblesDuplicados.length} fichas`} con estos datos
+            {' — '}
+            {posiblesDuplicados.map((fila, indice) => (
+              <span key={fila.id}>{indice > 0 ? ' · ' : ''}<b className="text-fore">{fila.name}</b>{fila.phone ? ` (${fila.phone})` : ''}{fila.document ? ` · ${fila.document}` : ''}</span>
+            ))}
+            . Si es la misma persona, conviene editar esa ficha en vez de crear otra.
+          </Aviso>
+        )}
         <div className="grid gap-3 sm:grid-cols-4">
           <label className="block space-y-2"><span>Precio</span><Select value={form.pricingTier} onChange={(event) => setForm({ ...form, pricingTier: event.target.value })}><option value="RETAIL">Minorista</option><option value="WHOLESALE">Mayorista</option></Select></label>
           <label className="block space-y-2"><span>Lista de precios <small className="text-mute">(opcional)</small></span><Select disabled={saving} value={form.priceListId} onChange={(event) => setForm({ ...form, priceListId: event.target.value })}><option value="">Sin lista</option>{listas.map(lista => <option key={lista.id} value={lista.id}>{lista.name}</option>)}</Select></label>
