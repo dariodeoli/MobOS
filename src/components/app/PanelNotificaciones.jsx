@@ -14,6 +14,9 @@ const ICONO = {
   RECHAZADA: 'alert',
   MENCION: 'megaphone',
   COMENTARIO: 'send',
+  // #280 · INV → vendedor: llegó stock de lo comprometido o se agotó.
+  STOCK: 'box',
+  SIN_STOCK: 'alert',
 }
 
 function hace(at) {
@@ -28,7 +31,9 @@ function hace(at) {
 }
 
 // Panel de notificaciones: pedidos, aprobaciones, comentarios y menciones de
-// la persona, con acceso directo a la pantalla donde se resuelve.
+// la persona, con acceso directo a la pantalla donde se resuelve. Incluye el
+// aviso de Inventario al vendedor (#280) cuando cambia el stock de un producto
+// comprometido.
 export default function PanelNotificaciones({ open, onClose, items, cargando, error, onRecargar, onAbrir, activas = true }) {
   return (
     <Modal open={open} onClose={onClose} title="Notificaciones" size="formulario">

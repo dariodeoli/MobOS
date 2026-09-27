@@ -21,7 +21,9 @@ export function useNotificaciones(userId, { activo = true } = {}) {
     setCargando(true)
     setError('')
     try {
-      const data = await api.get('/api/notifications')
+      // Novedades en vivo: el «Actualizar» del panel y el aviso de INV al
+      // vendedor (#280) no pueden quedar atrás por la caché corta de GET.
+      const data = await api.get('/api/notifications', { cacheMs: 0 })
       setItems(Array.isArray(data?.items) ? data.items : [])
     } catch (cause) {
       setError(cause?.message || 'No se pudieron cargar las novedades.')

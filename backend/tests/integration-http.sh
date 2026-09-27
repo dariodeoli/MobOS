@@ -702,6 +702,9 @@ node "$BACKEND_ROOT/tests/supply-receptions.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TO
 echo "Centro de Abastecimiento F6: automatización (reposición, proveedores, atrasos y AEX) (#250)..."
 node "$BACKEND_ROOT/tests/supply-automation.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 
+echo "Abastecimiento: aviso de INV al vendedor cuando cambia el stock comprometido (#280)..."
+node "$BACKEND_ROOT/tests/stock-notices.mjs" "$BASE_URL" "$TOKEN_A" "$ADMIN_TOKEN"
+
 echo "Centro de Abastecimiento: repuestos del taller con tenencia y pago (#250)..."
 node "$BACKEND_ROOT/tests/supply-workshop-parts.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 
