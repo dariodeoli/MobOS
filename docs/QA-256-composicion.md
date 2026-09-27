@@ -75,6 +75,8 @@ Lámina de cierre (matriz claro/oscuro/móvil × ANTES | DESPUÉS) de Productos 
 `docs/qa/paginas-secundarias/cierre/comparativa-cierre.jpg`, generada con
 `scripts/qa-comparativas-cierre.mjs`.
 
+> Cierre formal + auditoría de faltantes (producción v1.0.192): `docs/QA-256-CIERRE.md`.
+
 ## Verificación
 
 - `e2e/qa-256-composicion.spec.js` **4/4**: barra única del POS (con fecha y
