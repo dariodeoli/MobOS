@@ -496,21 +496,8 @@ export default function FormularioVenta({
     const producto = fila ? productos.find(p => p.id === fila.productoId) : null
     if (!imeiPara || !producto || esDemo) { setUnidadesDeImei(0); return undefined }
     let vivo = true
-<<<<<<< HEAD
     resources.inventoryUnits.list('', 'active', { productId: producto.id, status: 'AVAILABLE', ...(sucursal?.id ? { branchId: sucursal.id } : {}) })
       .then(rows => { if (vivo) setUnidadesDeImei((rows || []).filter(unit => unit.productId === producto.id && unit.status === 'AVAILABLE').length) })
-=======
-    api.get(`/api/inventory-units?q=${encodeURIComponent(producto.sku || producto.nombre || '')}`)
-      .then(rows => {
-        if (!vivo) return
-        // Misma sucursal que el selector (#263): si el equipo está en otra
-        // sucursal no se puede vender desde acá y no debe contar como stock.
-        const deLaSucursal = (rows || []).filter(unit => unit.productId === producto.id
-          && unit.status === 'AVAILABLE'
-          && (!producto.branchId || !unit.branchId || unit.branchId === producto.branchId))
-        setUnidadesDeImei(deLaSucursal.length)
-      })
->>>>>>> origin/slot/pos
       .catch(() => { if (vivo) setUnidadesDeImei(0) })
     return () => { vivo = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
