@@ -53,7 +53,21 @@ async function sembrarComisiones(page) {
   await apiPagina(page, '/api/commission-rules', { method: 'POST', body: JSON.stringify({ userId: alguien.id, percentPyg: 1.5 }) })
 }
 
+// Caja (continuación del batch): una compra a crédito y un repuesto del taller
+// con deuda para que las dos grillas densas tengan filas.
+async function sembrarCaja(page, marca) {
+  await apiPagina(page, `/api/finance?branchId=${encodeURIComponent(SEED.branchId)}`, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'supplierPayable', supplierName: `Proveedor Compacto ${marca}`, concept: `Repuestos ${marca}`, condition: 'CREDITO', amountPyg: 320000, dueAt: new Date(Date.now() + 6 * 86400000).toISOString(), reference: `FAC-CMP-${marca}` }),
+  })
+  await apiPagina(page, '/api/workshop/parts', {
+    method: 'POST',
+    body: JSON.stringify({ name: `Pantalla compacta ${marca}`, ownership: 'PROPIO', paymentMode: 'CREDITO', quantity: 2, unitCostPyg: 95000, dueAt: new Date(Date.now() - 3 * 86400000).toISOString(), branchId: SEED.branchId }),
+  })
+}
+
 const PANTALLAS = [
+  ['caja', '/finanzas/caja', (page) => page.getByTestId('caja-por-pagar'), sembrarCaja, (page) => page.locator('[data-testid^="proveedor-"]')],
   ['gastos', '/finanzas/gastos', (page) => page.getByTestId('gastos-resumen'), sembrarGastos, (page) => page.getByTestId('gasto-fila')],
   ['creditos', '/finanzas/creditos', (page) => page.getByTestId('creditos-resumen'), sembrarCredito, (page) => page.getByTestId('credito-fila')],
   ['cuotas', '/finanzas/cuotas', (page) => page.getByTestId('cuotas-resumen'), sembrarCredito, (page) => page.getByTestId('cuota-fila')],

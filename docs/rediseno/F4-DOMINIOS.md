@@ -229,14 +229,17 @@ Publicidad y Comisiones) suman su pasada compacta:
 - **Tablas densas**: las cuotas pasan de tarjeta a fila de una línea (con el
   saldo destacado y las mismas acciones), el libro de Gastos gana
   `data-testid="gasto-fila"`, las tablas existentes de Publicidad conservan su
-  grilla sumando la superficie v2 y **Comisiones** pasa sus reglas y
-  liquidaciones a grillas densas (una fila por regla y por liquidación).
+  grilla sumando la superficie v2, **Comisiones** pasa sus reglas y
+  liquidaciones a grillas densas (una fila por regla y por liquidación) y la
+  **Caja** (continuación) suma las grillas de repuestos/proveedores
+  (`proveedores-tabla`) y del taller (`taller-tabla`) con los cuatro totales en
+  tiles v2.
 
-QA (`e2e/qa-fin-compacto.spec.js`, 10/10): capturas **antes/después** con v2
-apagado/prendido (el después en claro/oscuro desktop y mobile; el antes en
-claro/oscuro desktop), AA del shell y del contenido en 0 bajos, y sin scroll
-horizontal en 360/390/768/1440. Detalle y capturas: `docs/qa/fin-compacto.md` y
-`docs/qa/fin-compacto/`.
+QA (`e2e/qa-fin-compacto.spec.js`, **12/12** sobre 6 pantallas): capturas
+**antes/después** con v2 apagado/prendido (el después en claro/oscuro desktop y
+mobile; el antes en claro/oscuro desktop), AA del shell y del contenido en 0
+bajos, y sin scroll horizontal en 360/390/768/1440. Detalle y capturas:
+`docs/qa/fin-compacto.md` y `docs/qa/fin-compacto/`.
 
 ## Públicas: pedido público y landing (lote G)
 Las dos superficies públicas previsualizables entran al lenguaje v2 detrás del
