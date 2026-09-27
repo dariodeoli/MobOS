@@ -181,10 +181,12 @@ export default function PasoCobro({
       )}
 
       {/* Pagos parciales y combinados */}
-      <div className="space-y-3 rounded-2xl border border-fono/30 bg-gradient-to-br from-fono/[.08] to-transparent p-3.5">
+      {/* #281 · identidad de color: pagos = violeta (reserved), distintas del
+          carrito (verde) y del catálogo (marca). */}
+      <div data-testid="pos-bloque-pagos" className="space-y-3 rounded-2xl border border-reserved/35 bg-reserved/[.04] p-3.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-mute">
+            <p className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-reserved">
               Pagos de esta venta
             </p>
             <p className="text-[11px] text-mute">
@@ -396,14 +398,16 @@ export default function PasoCobro({
             )}
           </div>
         ))}
-        <div className="grid grid-cols-3 gap-2 border-t border-fono/20 pt-3 text-xs text-mute">
-          <span className="rounded-xl border border-ink-600 px-3 py-2" data-testid="cobro-total">
+        {/* #281 · tiles con identidad propia: Total (info) · Pagado (ok) ·
+            Pendiente (warn), con la familia de texto AA de cada tono. */}
+        <div data-testid="pos-tiles-resumen" className="grid grid-cols-3 gap-2 border-t border-reserved/20 pt-3 text-xs text-mute">
+          <span className="rounded-xl border border-info/35 bg-info/[.06] px-3 py-2 text-info" data-testid="cobro-total">
             <Icon name="receipt" className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden="true" />Total
             <strong className="v2-numero mt-0.5 block text-base tabular-nums text-fore">
               {gs(totalGeneral)}
             </strong>
           </span>
-          <span className="rounded-xl border border-ok/25 bg-ok/10 px-3 py-2 text-ok" data-testid="cobro-pagado">
+          <span className="rounded-xl border border-ok/35 bg-ok/[.08] px-3 py-2 text-ok" data-testid="cobro-pagado">
             <Icon name="check" className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden="true" />Pagado
             <strong className="v2-numero mt-0.5 block text-base tabular-nums text-ok">
               {gs(totalPagado)}
@@ -413,7 +417,7 @@ export default function PasoCobro({
             data-testid="cobro-pendiente"
             className={cn(
               'rounded-xl border px-3 py-2',
-              pendiente ? 'border-warn/25 bg-warn/10 text-warn' : 'border-ink-600 text-mute',
+              pendiente ? 'border-warn/35 bg-warn/[.08] text-warn' : 'border-ok/25 bg-ok/[.04] text-ok',
             )}
           >
             <Icon name={pendiente ? 'alert' : 'check'} className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden="true" />Pendiente

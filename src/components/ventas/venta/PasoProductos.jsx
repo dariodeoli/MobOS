@@ -52,9 +52,11 @@ export default function PasoProductos({
 
   return (
     <>
-      <section className="rounded-2xl border border-ink-600 bg-ink-800 p-3.5">
+      {/* #281 · identidad de color: Cliente = azul (info). */}
+      <section data-testid="pos-bloque-cliente" className="rounded-2xl border border-info/35 bg-info/[.04] p-3.5">
         <EncabezadoBloque
           titulo="Cliente"
+          tono="text-info"
           descripcion="Buscá la ficha por nombre, teléfono, CI o RUC; si no existe, se crea al confirmar."
           extra={
             <div className="shrink-0 text-right text-xs text-mute">
@@ -78,9 +80,11 @@ export default function PasoProductos({
         />
       </section>
 
-      <section className="rounded-2xl border border-fono/20 bg-fono/[.04] p-3.5">
+      {/* #281 · identidad de color: Productos = acento de marca (fono). */}
+      <section data-testid="pos-bloque-productos" className="rounded-2xl border border-fono/35 bg-fono/[.04] p-3.5">
         <EncabezadoBloque
           titulo="Productos"
+          tono="text-fono-light"
           descripcion="Buscá por nombre, modelo o variante y hacé clic para sumarlo a la venta."
           extra={<span className="shrink-0 text-xs font-medium text-fono-light">{productos.length} disponibles</span>}
         />
