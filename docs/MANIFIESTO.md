@@ -63,18 +63,25 @@ const etiquetas = etiquetasDeLote(manifiesto)
 - El rollo largo (lotes grandes) es esperable: el manifiesto lista los IMEI para
   el control en la ruta.
 
-## 4. Adopción del panel (pendiente de UI)
+## 4. Adopción del panel (implementada)
 
-El panel de abastecimiento (CMP/INV) debe, en el envío:
+El panel de abastecimiento (CMP/INV) lo tiene en dos superficies:
 
-1. Pedir el manifiesto (`/api/supply/shipments/[id]/manifest`). Ya se
-   **reimprime desde la recepción** (botón «Manifiesto» del panel F5, con el
-   agente/puente y el diálogo como respaldo).
-2. Ofrecer «Imprimir manifiesto» con `ticketManifiesto` (impresora del tipo
-   `manifiesto`) y «Imprimir etiquetas del lote» con `etiquetasDeLote` +
-   `ticketEtiquetasLote`; «Descargar PDF»/«Compartir imagen» con
-   `buildManifiestoHtml` + `CompartirImagen`.
-3. Pasar `enlace` cuando la ruta pública esté cerrada.
+- **Preparar lote** (`/preparar-lote`, botones de cada lote): **«Manifiesto»**
+  (`ticketManifiesto` → impresora del tipo `manifiesto`, diálogo/HTML A4 como
+  respaldo) y **«Etiquetas del lote»** (`etiquetasDeLote` +
+  `ticketEtiquetasLote` → tipo `etiquetas-lote`). Las dos piden la misma data
+  (`/api/supply/shipments/[id]/manifest`): un solo pedido. Además se comparten o
+  descargan como **PDF real** (`CompartirPdf`: A4 el manifiesto, rollo continuo
+  las etiquetas).
+- **Recepción** (`/recepcion`): **«Manifiesto»** reimprime al recibir el lote
+  (mismo recurso y tipo de impresora).
+
+Pendiente:
+
+1. Pasar `enlace` cuando la ruta pública esté cerrada (`/envio/<token>` o la que
+   defina INV/DSN): hasta entonces el papel sale con barras y la leyenda de
+   escanear el panel.
 
 ## 5. Evidencia y tests
 

@@ -9,14 +9,27 @@
 
 import { test, expect } from '@playwright/test'
 import { mkdirSync, readFileSync } from 'node:fs'
-import { imeiValido } from './helpers/imei.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 const SALIDA = 'test-results/qa-240-informe-dispositivo'
 mkdirSync(SALIDA, { recursive: true })
 
-// IMEI ficticio con checksum Luhn válido, único por corrida (misma receta que
-// imei-mock.spec.js): el informe lo usa como serial de la unidad.
+// IMEI ficticio con checksum Luhn válido, único por corrida. El reloj (10
+// dígitos) evita chocar con corridas anteriores —la base e2e persiste— y el
+// contador por proceso garantiza que dos llamadas seguidas nunca repitan serial
+// (el rojo de CI: dos unidades sembradas en el mismo milisegundo con el mismo
+// random). No es un problema de producto: la API rechaza duplicados a propósito.
+const prefijoCorrida = String(Math.floor(Math.random() * 100)).padStart(2, '0')
+let secuenciaImei = 0
+function imeiValido() {
+  secuenciaImei += 1
+  const reloj = String(Date.now()).slice(-7)
+  const contador = String(secuenciaImei).padStart(3, '0').slice(-3)
+  const base = `35${prefijoCorrida}${reloj}${contador}`.slice(0, 14)
+  let suma = 0
+  for (let i = 0; i < 14; i += 1) { let digito = Number(base[13 - i]); if (i % 2 === 0) { digito *= 2; if (digito > 9) digito -= 9 } suma += digito }
+  return base + String((10 - (suma % 10)) % 10)
+}
 
 async function apiPagina(page, ruta, opciones = {}) {
   return page.evaluate(
@@ -133,7 +146,7 @@ test('el informe de la unidad sale directo por el agente con el QR al informe p�
   await page.screenshot({ path: `${SALIDA}/02-impreso-directo.jpg` })
 })
 
-test('sin agente, el informe A4 queda listo para «Guardar como PDF»', async ({ page }) => {
+test('sin agente, el informe A4 se descarga como PDF real', async ({ page }) => {
   await page.route('http://127.0.0.1:17890/**', (ruta) => ruta.abort())
   await page.route('**/api/print/printers', (ruta) => ruta.fulfill({
     status: 200,
@@ -153,19 +166,21 @@ test('sin agente, el informe A4 queda listo para «Guardar como PDF»', async ({
   await expect(vista.locator('body')).toContainText('Blacklist actual')
   await expect(vista.locator('img.qr')).toBeVisible()
 
-  await modal.getByRole('button', { name: 'Descargar PDF' }).click()
-  // El respaldo abre el HTML imprimible en un iframe oculto (sin ventanas).
-  const marco = page.locator('iframe[aria-hidden="true"]').last()
-  await marco.waitFor({ state: 'attached', timeout: 10_000 })
-  const contenido = marco.contentFrame()
-  await expect(contenido.locator('h1')).toHaveText('Informe de dispositivo')
-  const filaImei = contenido.locator('.fila-informe').filter({ hasText: 'IMEI' }).first()
-  await expect(filaImei).toContainText(imei.slice(-4))
-  await expect(filaImei).not.toContainText(imei)
-  await page.screenshot({ path: `${SALIDA}/03-respaldo-iframe.jpg` })
+  // El PDF profesional sale del objeto compartido: archivo real (sin diálogos).
+  const [descarga] = await Promise.all([
+    page.waitForEvent('download'),
+    modal.getByTestId('descargar-pdf').click(),
+  ])
+  expect(descarga.suggestedFilename()).toMatch(/^informe-dispositivo-.*\.pdf$/)
+  const pdf = readFileSync(await descarga.path())
+  expect(pdf.length).toBeGreaterThan(5_000)
+  expect(pdf.subarray(0, 5).toString('latin1')).toBe('%PDF-')
+  expect(pdf.toString('latin1')).toContain('/Type /Page')
+  await expect(page.getByText('PDF descargado')).toBeVisible({ timeout: 15_000 })
+  await page.screenshot({ path: `${SALIDA}/03-pdf-descargado.jpg` })
 
-  // Mismo HTML que la app manda a «Guardar como PDF», en A4 y en 80 mm.
-  const html = await contenido.locator('html').evaluate((el) => el.outerHTML)
+  // Mismo HTML que la app usa para el PDF, en A4 (ejemplo versionable).
+  const html = await vista.locator('html').evaluate((el) => el.outerHTML)
   const hoja = await page.context().newPage()
   await hoja.emulateMedia({ media: 'print' })
   await hoja.setContent(html, { waitUntil: 'load' })
@@ -334,6 +349,7 @@ test('la hoja de estación sale del taller con los equipos del carril', async ({
   expect(pdf.split('/Type /Page').length - pdf.split('/Type /Pages').length).toBe(1)
   expect(pdf.length).toBeGreaterThan(1000)
 })
+
 
 // Constancia de preparación (#240 §6): mismo camino directo, tipo propio. Las
 // aserciones no dependen de qué campos traiga la verificación del arnés: se

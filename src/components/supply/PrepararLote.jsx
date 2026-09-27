@@ -3,15 +3,24 @@ import { resources } from '@/lib/api'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { Badge, Button, Card, EmptyState, Input, Skeleton, Textarea, useToast } from '@/components/ui'
 import CameraScan from '@/components/shared/CameraScan'
+import CompartirPdf from '@/components/shared/CompartirPdf'
 import Icon from '@/components/shared/Icon'
 import { analizarSerial, textoMotivo, validarLote } from '@/lib/escanerSeriales'
 import { etiquetaLineaDeLote, pendientesDeEnvio, serialesDeEnvio, totalPendienteLotes } from '@/lib/lotes'
+import { configImpresora } from '@/lib/printing/agent'
+import { datosManifiesto, etiquetasDeLote } from '@/lib/printing/manifiesto'
+import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
+import { ticketEtiquetasLote, ticketManifiesto } from '@/lib/printing/tickets'
+import { buildEtiquetasLoteHtml, buildManifiestoHtml } from '@/components/shared/OrderReceipt'
+import { printHtml } from '@/utils/printHtml'
 
 // Abastecimiento · F3/F4 (#250 §7): IMEI diferido del lote.
 // Lista los envíos con unidades pendientes (antes de despachar o en tránsito) y
 // permite completarlas escaneando de a una (lector BT/USB o cámara) o pegando
 // varias, con la misma validación previa que el backend (Luhn, repetidos,
 // cantidad). No mueve stock: eso pasa en la recepción (F5).
+// §11: desde el mismo lote salen el manifiesto (va con el transporte) y las
+// etiquetas `N de M` de las unidades, con el agente o el diálogo como respaldo.
 
 export default function PrepararLote() {
   const toast = useToast()
@@ -27,6 +36,7 @@ export default function PrepararLote() {
   const [camara, setCamara] = useState(false)
   const [aviso, setAviso] = useState('')
   const [busy, setBusy] = useState(false)
+  const [imprimiendo, setImprimiendo] = useState('')
 
   const cargar = useCallback(async () => {
     if (esDemo) return
@@ -90,6 +100,41 @@ export default function PrepararLote() {
       setAviso(causa?.message || 'No se pudo cargar el lote.')
     } finally {
       setBusy(false)
+    }
+  }
+
+  // F3/F4 (#250 §11): desde el lote salen el manifiesto (va con el transporte)
+  // y las etiquetas `N de M` de las unidades; la data viene del mismo pedido.
+  async function imprimirDelLote(envio, cual) {
+    if (!envio?.id || imprimiendo) return
+    setImprimiendo(cual)
+    try {
+      const datos = await resources.supplyShipments.manifest(envio.id)
+      const normalizado = datosManifiesto(datos)
+      const { ancho } = configImpresora()
+      const esEtiquetas = cual === 'etiquetas'
+      const etiquetas = esEtiquetas ? etiquetasDeLote(normalizado) : []
+      const resultado = await imprimirDocumentoNoFiscal(
+        esEtiquetas ? ticketEtiquetasLote(etiquetas, { ancho }) : ticketManifiesto(normalizado, { ancho }),
+        {
+          tipo: esEtiquetas ? 'etiquetas-lote' : 'manifiesto',
+          respaldo: async () => printHtml(await (esEtiquetas
+            ? buildEtiquetasLoteHtml(etiquetas, { ancho })
+            : buildManifiestoHtml(normalizado, { format: 'a4' }))),
+        },
+      )
+      if (resultado?.ok) {
+        toast.success(
+          resultado.dialogo ? (esEtiquetas ? 'Etiquetas listas' : 'Manifiesto listo') : (esEtiquetas ? 'Etiquetas enviadas a la impresora.' : 'Manifiesto enviado'),
+          esEtiquetas ? `${etiquetas.length} etiqueta(s) · ${normalizado.code}.` : `${normalizado.code} · ${normalizado.resumen.unidades} unidad(es).`,
+        )
+        return
+      }
+      if (!resultado?.dialogo) toast.error('No se pudo imprimir', resultado?.error || 'Revisá la impresora.')
+    } catch (causa) {
+      toast.error('No se pudo imprimir', causa?.message || 'Reintentá en un momento.')
+    } finally {
+      setImprimiendo('')
     }
   }
 
@@ -213,6 +258,53 @@ export default function PrepararLote() {
                       </>
                     )}
                     {aviso && <p role="status" className="text-sm text-warn">{aviso}</p>}
+                    <div className="flex flex-wrap items-center gap-2 border-t border-ink-600 pt-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => imprimirDelLote(envio, 'manifiesto')}
+                        disabled={busy || Boolean(imprimiendo)}
+                        data-testid="preparar-lote-manifiesto"
+                      >
+                        <Icon name="printer" className="h-3.5 w-3.5" />{imprimiendo === 'manifiesto' ? 'Preparando…' : 'Manifiesto'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => imprimirDelLote(envio, 'etiquetas')}
+                        disabled={busy || Boolean(imprimiendo)}
+                        data-testid="preparar-lote-etiquetas"
+                      >
+                        <Icon name="tag" className="h-3.5 w-3.5" />{imprimiendo === 'etiquetas' ? 'Preparando…' : 'Etiquetas del lote'}
+                      </Button>
+                      <span data-testid="preparar-lote-manifiesto-pdf">
+                        <CompartirPdf
+                          construirHtml={async () => {
+                            const datos = await resources.supplyShipments.manifest(envio.id)
+                            return buildManifiestoHtml(datosManifiesto(datos), { format: 'a4' })
+                          }}
+                          nombre={`manifiesto-${envio.code || 'lote'}`}
+                          titulo="Manifiesto del lote"
+                          texto={`Manifiesto ${envio.code || ''}`}
+                          formato="a4"
+                          disabled={Boolean(imprimiendo)}
+                        />
+                      </span>
+                      <span data-testid="preparar-lote-etiquetas-pdf">
+                        <CompartirPdf
+                          construirHtml={async () => {
+                            const datos = await resources.supplyShipments.manifest(envio.id)
+                            const { ancho } = configImpresora()
+                            return buildEtiquetasLoteHtml(etiquetasDeLote(datosManifiesto(datos)), { ancho })
+                          }}
+                          nombre={`etiquetas-lote-${envio.code || 'lote'}`}
+                          titulo="Etiquetas del lote"
+                          texto={`Etiquetas ${envio.code || ''}`}
+                          formato={`thermal-${configImpresora().ancho}`}
+                          disabled={Boolean(imprimiendo)}
+                        />
+                      </span>
+                    </div>
                   </div>
                 )}
               </Card>

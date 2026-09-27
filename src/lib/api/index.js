@@ -52,7 +52,10 @@ export const resources = {
     labels: id => api.get(`/api/supply/purchases/${encodeURIComponent(id)}/labels`, { cacheMs: 0 }),
   },
   // F3/F4 (#250): lotes (despachos) y su IMEI diferido — se completa antes de
-  // despachar o en tránsito, de a uno (`scan`) o pegado (`serials`).
+  // despachar o en tránsito, de a uno (`scan`) o pegado (`serials`). El
+  // manifiesto (§11) se imprime desde el lote y se reimprime al recibirlo.
+  // Ojo: una sola clave `supplyShipments` — bloques repetidos se pisaban entre
+  // sí y dejaban `manifest` sin definir (el botón «Manifiesto» fallaba).
   supplyShipments: {
     list: (params = {}) => {
       const query = new URLSearchParams(Object.entries(params).filter(([, valor]) => valor !== '' && valor != null).map(([clave, valor]) => [clave, String(valor)]))
@@ -60,20 +63,7 @@ export const resources = {
     },
     create: data => api.post('/api/supply/shipments', data),
     update: data => api.patch('/api/supply/shipments', data),
-  },
-  // F4 (#250 §11): el manifiesto del envío (se reimprime al recibir el lote).
-  supplyShipments: {
     manifest: id => api.get(`/api/supply/shipments/${encodeURIComponent(id)}/manifest`, { cacheMs: 0 }),
-  },
-  // F3/F4 (#250): lotes (despachos) y su IMEI diferido — se completa antes de
-  // despachar o en tránsito, de a uno (`scan`) o pegado (`serials`).
-  supplyShipments: {
-    list: (params = {}) => {
-      const query = new URLSearchParams(Object.entries(params).filter(([, valor]) => valor !== '' && valor != null).map(([clave, valor]) => [clave, String(valor)]))
-      return api.get(`/api/supply/shipments${query.toString() ? `?${query}` : ''}`, { cacheMs: 0 })
-    },
-    create: data => api.post('/api/supply/shipments', data),
-    update: data => api.patch('/api/supply/shipments', data),
   },
   // F5 (#250 §11): llegadas pendientes y recepción contra el manifiesto.
   supplyReceptions: {

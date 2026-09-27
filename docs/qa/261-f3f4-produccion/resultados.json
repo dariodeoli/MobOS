@@ -1,48 +1,53 @@
 {
   "base": "https://app.moboss.online",
-  "fecha": "2026-09-27T00:55:57.405Z",
+  "fecha": "2026-09-27T04:10:06.476Z",
   "pasos": [
     {
       "paso": "demo + versión",
-      "detalle": "v1.0.188",
+      "detalle": "v1.0.190",
       "ok": true
     },
     {
-      "paso": "cotizaciones en la demo",
-      "detalle": "la demo no listó cotizaciones",
+      "paso": "pantalla pública de la cotización",
+      "detalle": "sirve en producción (demo)",
+      "ok": true
+    },
+    {
+      "paso": "JS servido analizado",
+      "detalle": "4335 KB de scripts",
       "ok": true
     }
   ],
   "resultados": [
     {
-      "item": "F3 · etiquetas desde la preparación",
-      "estado": "pendiente",
-      "detalle": "la versión desplegada todavía no trae el botón",
-      "captura": "01-abastecimiento.jpg"
+      "item": "F3 · etiquetas desde la preparación (tira + individual)",
+      "estado": "desplegado",
+      "detalle": "en la versión servida (/preparacion (necesita una compra de una cuenta real))"
     },
     {
       "item": "F4 · manifiesto desde la recepción",
-      "estado": "pendiente",
-      "detalle": "necesita una recepción activa / todavía no desplegado",
-      "captura": "01-abastecimiento.jpg"
+      "estado": "desplegado",
+      "detalle": "en la versión servida (/recepcion (necesita una llegada de una cuenta real))"
     },
     {
       "item": "#261 · enviar por WhatsApp (texto + PDF)",
-      "estado": "pendiente",
-      "detalle": "la versión desplegada todavía no trae la acción",
-      "captura": "03-cotizacion-enlace.jpg"
+      "estado": "desplegado",
+      "detalle": "en la versión servida (Cotizaciones → Enlace/QR (oculto en la demo))"
     },
     {
-      "item": "#261 · PDF de la cotización",
-      "estado": "pendiente",
-      "detalle": "la versión desplegada todavía no trae el PDF",
-      "captura": "03-cotizacion-enlace.jpg"
+      "item": "#261 · PDF de la cotización (ventas)",
+      "estado": "desplegado",
+      "detalle": "en la versión servida (Cotizaciones → Enlace/QR (oculto en la demo))"
     },
     {
       "item": "#261 · PDF en la página pública",
+      "estado": "desplegado",
+      "detalle": "en la versión servida (/cotizacion/<token> (el cliente real))"
+    },
+    {
+      "item": "F3/F4 · manifiesto y etiquetas del lote (rama PRN)",
       "estado": "pendiente",
-      "detalle": "la versión desplegada todavía no trae el PDF público",
-      "captura": "04-cotizacion-publica.jpg"
+      "detalle": "no está en la versión servida; se verifica en Preparar lote → abrir un lote"
     }
   ]
 }

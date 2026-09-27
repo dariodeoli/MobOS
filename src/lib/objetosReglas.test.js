@@ -552,13 +552,21 @@ test('compartir documentos como imagen sale del objeto compartido (#240/#220)', 
   assert.ok(!/toPng/.test(componente), 'el rasterizado vive en el módulo, no en la pantalla')
 })
 
-// Cotizaciones/POS: el PDF profesional para compartir sale del objeto
-// compartido (`CompartirPdf` + `lib/printing/pdfDocumento`); las pantallas no
-// rasterizan ni arman PDF por su cuenta.
+// Cotizaciones/POS y los impresos del taller/abastecimiento: el PDF profesional
+// para compartir sale del objeto compartido (`CompartirPdf` +
+// `lib/printing/pdfDocumento`); las pantallas no rasterizan ni arman PDF por su
+// cuenta.
 test('el PDF para compartir sale del objeto compartido (#250/POS)', () => {
-  const pantalla = readFileSync(join(RAIZ, 'components/ventas/SellerQuotes.jsx'), 'utf8')
-  assert.match(pantalla, /import CompartirPdf from '@\/components\/shared\/CompartirPdf'/)
-  assert.match(pantalla, /<CompartirPdf\b/)
+  const pantallas = [
+    'components/ventas/SellerQuotes.jsx',
+    'components/inventory/DocumentoUnidadModal.jsx',
+    'components/supply/PrepararLote.jsx',
+  ]
+  for (const ruta of pantallas) {
+    const pantalla = readFileSync(join(RAIZ, ruta), 'utf8')
+    assert.match(pantalla, /import CompartirPdf from '@\/components\/shared\/CompartirPdf'/, `${ruta} comparte PDF por el objeto`)
+    assert.match(pantalla, /<CompartirPdf\b/, `${ruta} usa el objeto`)
+  }
   const modulo = readFileSync(join(RAIZ, 'lib/printing/pdfDocumento.js'), 'utf8')
   for (const nombre of ['documentoAPdf', 'pdfDeJpegPaginas', 'paginasDeImagen', 'nombrePdfDocumento']) {
     assert.match(modulo, new RegExp(`export (async )?function ${nombre}\\(`), `falta ${nombre}`)
