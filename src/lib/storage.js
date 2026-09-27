@@ -476,20 +476,6 @@ export async function refrescar() {
   if (ctx.empresaId && apiMode()) await hydrateApi()
 }
 
-// Refresca solo el catálogo de productos. El POS lo llama al volver a la venta
-// (#257): lo que se cargó en Inventario, en otra pestaña o por otra persona
-// tiene que aparecer sin recargar la app. Liviano: una consulta paginada.
-export async function refrescarCatalogo() {
-  if (!ctx.empresaId || !apiMode()) return
-  const version = apiHydrationVersion
-  const identity = identidadActual()
-  // Sin caché de consultas: el refresco existe justamente para ver lo que se
-  // cargó fuera de esta pestaña, así que va sí o sí contra la red.
-  const products = await todosLosProductos({ fresco: true })
-  if (!apiMode() || version !== apiHydrationVersion || identity !== identidadActual()) return
-  cache.productos = products.map(mapProductoApi)
-  notify()
-}
 
 // ════════════════════════════════════════════════════════════════════
 // MULTIEMPRESA — sesión, empresas y sucursales
