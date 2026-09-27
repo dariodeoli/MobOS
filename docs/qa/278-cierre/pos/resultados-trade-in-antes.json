@@ -1,0 +1,40 @@
+{
+  "base": "https://app.moboss.online",
+  "etiqueta": "antes",
+  "fecha": "2026-09-27T13:55:54.135Z",
+  "capturas": [
+    {
+      "archivo": "trade-in-desktop-claro-antes.jpg",
+      "tituloShell": "Trade-In",
+      "barraCompacta": 0,
+      "encabezadoGrandeDuplicado": 1,
+      "encabezadosVisibles": [
+        "Equipos recibidos como pago",
+        "Valores de toma"
+      ],
+      "erroresPagina": []
+    },
+    {
+      "archivo": "trade-in-desktop-oscuro-antes.jpg",
+      "tituloShell": "Trade-In",
+      "barraCompacta": 0,
+      "encabezadoGrandeDuplicado": 1,
+      "encabezadosVisibles": [
+        "Equipos recibidos como pago",
+        "Valores de toma"
+      ],
+      "erroresPagina": []
+    },
+    {
+      "archivo": "trade-in-mobile-claro-antes.jpg",
+      "tituloShell": "Trade-In",
+      "barraCompacta": 0,
+      "encabezadoGrandeDuplicado": 1,
+      "encabezadosVisibles": [
+        "Equipos recibidos como pago",
+        "Valores de toma"
+      ],
+      "erroresPagina": []
+    }
+  ]
+}
