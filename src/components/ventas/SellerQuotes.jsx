@@ -19,7 +19,11 @@ import { ticketProforma } from '@/lib/printing/tickets'
 import { cn } from '@/lib/utils'
 import { resources } from '@/lib/api'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
-import { internationalPhone } from '@/utils/telefono'
+import { internationalPhone, whatsappUrl } from '@/utils/telefono'
+import { mensajeCotizacion } from '@/lib/mensajeCotizacion'
+import { documentoAPdf, nombrePdfDocumento } from '@/lib/printing/pdfDocumento'
+import { compartirArchivo, puedeCompartirArchivo } from '@/lib/printing/compartirDocumento'
+import { descargarArchivo } from '@/utils/descargarArchivo'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import { CELDA_ENCABEZADO, CELDA_IDENTIDAD_GRANDE, ROTULO_DATO } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
@@ -192,6 +196,40 @@ export default function SellerQuotes() {
     if (!resultado.dialogo) setEnlaceError(resultado.error || 'No se pudo imprimir la proforma.')
   }
 
+  // #261: envío por WhatsApp con el mensaje profesional y el PDF adjunto. Con
+  // share sheet sale el archivo (WhatsApp/correo); sin él, se descarga el PDF y
+  // se abre wa.me con el texto. Al compartir, la cotización queda SENT.
+  async function enviarWhatsApp() {
+    if (!enlace || enlaceBusy) return
+    setEnlaceError('')
+    try {
+      const url = quoteUrlFor(enlace.publicToken)
+      const mensaje = mensajeCotizacion(enlace, { enlace: url })
+      const blob = await documentoAPdf(await buildProformaHtml(enlace, { format: 'a4', enlace: url }), { formato: 'a4' })
+      if (!blob?.size) throw new Error('No se pudo preparar el PDF.')
+      const archivo = new File([blob], nombrePdfDocumento(`cotizacion-${enlace.number || ''}`), { type: 'application/pdf' })
+      let enviado = false
+      if (puedeCompartirArchivo(globalThis, archivo)) {
+        const resultado = await compartirArchivo(globalThis, { archivo, titulo: `Cotización ${enlace.number || ''}`, texto: mensaje })
+        if (resultado === 'cancelado') return
+        if (resultado !== 'compartido') throw new Error('No se pudo compartir la cotización.')
+        enviado = true
+      } else {
+        if (!descargarArchivo(archivo.name, blob, { tipo: 'application/pdf' })) throw new Error('No se pudo descargar el PDF.')
+        const wa = whatsappUrl(enlace.customer?.phone || enlace.customerPhone || '', mensaje, enlace.customer?.countryCode || enlace.customerCountryCode || '+595')
+        if (wa) window.open(wa, '_blank', 'noopener')
+        setNotice(wa ? 'PDF descargado: WhatsApp se abrió con el mensaje; adjuntá el PDF.' : 'PDF descargado: adjuntalo en WhatsApp con este mensaje.')
+        enviado = true
+      }
+      if (enviado) {
+        try { await resources.quotes.update({ id: enlace.id, status: 'SENT' }); data.refresh?.() } catch { /* el envío no se cae por el estado */ }
+        setNotice((actual) => actual || 'Cotización enviada.')
+      }
+    } catch (cause) {
+      setEnlaceError(cause?.message || 'No se pudo enviar la cotización.')
+    }
+  }
+
   return <SellerSection description="Pipeline de ventas: cotizá, seguí el vencimiento y convertí en pedido cuando el cliente acepte.">
     <div className="flex flex-wrap items-center gap-2">
       <div className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{FILTROS.map(([key, label]) => <button key={key} type="button" onClick={() => setFiltro(key)} className={cn('rounded-lg px-3 py-1.5 text-xs font-semibold transition', filtro === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>
@@ -294,6 +332,7 @@ export default function SellerQuotes() {
           <Button type="button" variant="outline" disabled={enlaceBusy || !enlace} onClick={regenerarEnlace}><Icon name="refresh" className="h-4 w-4" />Regenerar</Button>
           <Button type="button" disabled={enlaceBusy || !enlace} onClick={imprimirEnlace}><Icon name="printer" className="h-4 w-4" />Imprimir</Button>
           <Button type="button" variant="outline" disabled={enlaceBusy || !enlace} onClick={imprimirProforma}><Icon name="printer" className="h-4 w-4" />Proforma</Button>
+          <Button type="button" variant="success" disabled={enlaceBusy || !enlace} onClick={enviarWhatsApp} data-testid="cotizacion-whatsapp"><Icon name="send" className="h-4 w-4" />Enviar por WhatsApp</Button>
           <CompartirPdf
             construirHtml={() => buildProformaHtml(enlace, { format: 'a4', enlace: quoteUrlFor(enlace?.publicToken) })}
             nombre={`cotizacion-${enlace?.number || ''}`}
