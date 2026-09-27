@@ -73,14 +73,16 @@ test('las fechas de pantalla salen de utils/fecha (sin duplicar el formato)', ()
     .filter(({ ruta, contenido }) => !permitidos.some((p) => ruta.startsWith(p)) && ruta !== 'utils/fecha.js' && contenido.includes("dateStyle: 'short', timeStyle: 'short'"))
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [])
-  // Las pantallas migradas importan el helper compartido.
+  // Las pantallas migradas importan el helper compartido; la cronología
+  // formatea en la biblioteca (la app es un adaptador desde el lote 53).
   for (const [ruta, patron] of [
-    ['components/shared/Cronologia.jsx', /import \{ fechaHora \} from '@\/utils\/fecha'/],
     ['pages/CuentaPublica.jsx', /import \{ fechaDia as fecha, fechaHora \} from '@\/utils\/fecha'/],
     ['components/control/Conciliacion.jsx', /import \{ fechaCorta \} from '@\/utils\/fecha'/],
   ]) {
     assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), patron, `${ruta}: falta el helper compartido`)
   }
+  assert.match(readFileSync(join(LIB, 'Cronologia.jsx'), 'utf8'), /fechaHora/, 'la cronología formatea con el helper de la biblioteca')
+  assert.match(readFileSync(join(RAIZ, 'components/shared/Cronologia.jsx'), 'utf8'), /from 'owncoding-ui'/, 'el adaptador usa la biblioteca')
 })
 
 test('el portapapeles sale del objeto compartido', () => {

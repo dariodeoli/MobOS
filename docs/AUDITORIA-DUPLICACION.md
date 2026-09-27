@@ -292,6 +292,17 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 53 — Cronología como adaptador, con estados en la biblioteca (#250) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `Cronologia` | Copia local de la lista (3346) con su fetch, esqueleto, error con reintento, vacío y cabecera de actualizar; la biblioteca (4060) solo dibujaba los hitos | Biblioteca **v0.46.0**: la lista suma **estados honestos** (`cargando` → esqueleto, `error` + `onReintentar`, `onActualizar` + cabecera). La app pasa a **adaptador**: hace el fetch del endpoint, mapea `{ type, action, createdAt, user, detail }` → hitos y conserva sus íconos/tonos por tipo (`EVENTOS`) |
+| Control | `Cronologia` figuraba en la deuda de `shared/` | Pasa a **adaptadores** (la guarda exige que no reimplemente lista ni estados); deuda de `shared/`: 6 → **5** (`Avatar`, `BancoCombobox`, `BancoLogo`, `PasosEquipo`, `PersonaChip`) |
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
+`test:e2e:smoke`; biblioteca `owncoding-ui` build + 330 tests.
+
 ### Lote 52 — Cierre de la ola #262/#265/#268 (26-09)
 
 | Objeto | Antes (evidencia) | Después |
