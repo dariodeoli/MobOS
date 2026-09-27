@@ -1,0 +1,40 @@
+{
+  "base": "http://localhost:5216",
+  "etiqueta": "despues",
+  "fecha": "2026-09-27T13:57:40.035Z",
+  "capturas": [
+    {
+      "archivo": "trade-in-desktop-claro-despues.jpg",
+      "tituloShell": "Trade-In",
+      "barraCompacta": 1,
+      "encabezadoGrandeDuplicado": 0,
+      "encabezadosVisibles": [
+        "Equipos recibidos como pago",
+        "Valores de toma"
+      ],
+      "erroresPagina": []
+    },
+    {
+      "archivo": "trade-in-desktop-oscuro-despues.jpg",
+      "tituloShell": "Trade-In",
+      "barraCompacta": 1,
+      "encabezadoGrandeDuplicado": 0,
+      "encabezadosVisibles": [
+        "Equipos recibidos como pago",
+        "Valores de toma"
+      ],
+      "erroresPagina": []
+    },
+    {
+      "archivo": "trade-in-mobile-claro-despues.jpg",
+      "tituloShell": "Trade-In",
+      "barraCompacta": 1,
+      "encabezadoGrandeDuplicado": 0,
+      "encabezadosVisibles": [
+        "Equipos recibidos como pago",
+        "Valores de toma"
+      ],
+      "erroresPagina": []
+    }
+  ]
+}

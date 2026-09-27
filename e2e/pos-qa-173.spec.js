@@ -164,6 +164,46 @@ test('el borrador con enlace público se abre sin sesión y muestra el carrito',
   }
 })
 
+test('el enlace público del borrador avisa cuando no alcanza el stock (#148 §20)', async ({ page, browser }) => {
+  const id = clave()
+  const nombre = `Equipo aviso QA ${id}`
+  // Producto con 1 unidad y borrador pidiendo 2: la página pública tiene que
+  // avisar que la disponibilidad se confirma al cerrar.
+  const { productId } = await crearProducto(page, { nombre, precio: 150000, stock: 1 })
+  let contexto
+  try {
+    // El borrador usa la misma forma que guarda el POS (`productoId`, `nombre`,
+    // `precio`): así el aviso se calcula contra el stock real del catálogo.
+    const enlace = await page.evaluate(async ({ api, productId, branchId, nombre }) => {
+      const pedir = async (ruta, opciones = {}) => {
+        const respuesta = await fetch(`${api}/api/${ruta}`, { credentials: 'include', headers: opciones.body ? { 'Content-Type': 'application/json' } : undefined, ...opciones })
+        const payload = await respuesta.json().catch(() => null)
+        if (!respuesta.ok) throw new Error(`${ruta}: ${payload?.message || respuesta.status}`)
+        return payload
+      }
+      const suspendida = await pedir('suspended-sales', { method: 'POST', body: JSON.stringify({ branchId, label: 'QA 173 sin stock', payload: { items: [{ productoId: productId, nombre, precio: 150000, quantity: 2 }], totalPyg: 300000 } }) })
+      const publica = await pedir('suspended-sales', { method: 'PATCH', body: JSON.stringify({ id: suspendida.id }) })
+      return publica?.token || publica?.publicToken || null
+    }, { api: API, productId, branchId: SEED.branchId, nombre })
+    expect(enlace, 'el borrador devuelve un token público').toBeTruthy()
+
+    // Sin sesión: contexto nuevo y limpio.
+    contexto = await browser.newContext()
+    const anonima = await contexto.newPage()
+    await anonima.goto(`/carrito/${enlace}`)
+    await expect(anonima.getByText(nombre).first()).toBeVisible({ timeout: 20_000 })
+    await expect(anonima.getByText('Sin stock en este momento: lo confirmamos al cerrar')).toBeVisible()
+    // Captura versionable para la evidencia de cierre (#278).
+    const salida = process.env.MOBOS_CAPTURAS
+    if (salida) await anonima.screenshot({ path: `${salida}/carrito-publico-aviso-stock.jpg`, fullPage: true, type: 'jpeg', quality: 72 })
+  } finally {
+    await contexto?.close()
+    await page.evaluate(async ({ api, productId }) => {
+      await fetch(`${api}/api/products?id=${encodeURIComponent(productId)}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
+    }, { api: API, productId })
+  }
+})
+
 test('carrito ultra-colapsado: el descuento individual se ve sin desplegar (#148 §5, #243)', async ({ page }) => {
   const id = clave()
   const nombre = `Equipo descuento QA ${id}`

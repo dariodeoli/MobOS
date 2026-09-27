@@ -7,6 +7,7 @@ import { normalizarModelo } from '@/utils/tradeInCheckout'
 import { cn } from '@/lib/utils'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
+import BarraModulo from '@/components/shared/BarraModulo'
 import { codigoPedido } from '@/utils/pedido'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import {
@@ -346,7 +347,16 @@ export default function TradeInPipeline() {
     [item.serial, item.model, item.orderId, item.orderNumber, item.customerName, item.sellerName, item.order?.orderNumber, item.order?.customer?.name].some((value) => String(value || '').toLocaleLowerCase().includes(search)))
 
   return <div className="space-y-4">
-    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-2xl font-bold">Equipos recibidos como pago</h2><p className="mt-1 text-sm text-mute">Recepción, revisión, reparación y destino de cada equipo.</p></div><Button variant="outline" disabled={busy} onClick={load}>Actualizar</Button></div>
+    {/* Composición compacta (#256): la identidad del módulo y la acción van en
+        una sola barra; el h1 de la página sigue siendo el del shell. */}
+    <BarraModulo
+      icono="refresh"
+      titulo="Equipos recibidos como pago"
+      descripcion="Recepción, revisión, reparación y destino de cada equipo."
+      testId="barra-tradein"
+    >
+      <Button type="button" variant="outline" className="px-3 text-xs" disabled={busy} onClick={load}>Actualizar</Button>
+    </BarraModulo>
     {esDemo && <p className="text-sm text-mute">Demo local: registrá equipos sintéticos desde una venta demo. La recepción no suma stock ni crea clientes reales.</p>}
     <div className={GRILLA_DOS_COLUMNAS}><SearchField ariaLabel="Buscar equipos" placeholder="Serial, modelo, venta o referencia…" value={query} onChange={(event) => setQuery(event.target.value)} /><Select aria-label="Filtrar estado" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="">Todos los estados ({items.length})</option>{Object.entries(TRADE_IN_STATUSES).map(([value, text]) => <option key={value} value={value}>{text} ({items.filter((item) => item.status === value).length})</option>)}</Select></div>
     {error && <p role="alert" className="rounded-lg bg-bad/10 p-3 text-sm text-bad">{error}</p>}
