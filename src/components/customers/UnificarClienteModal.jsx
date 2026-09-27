@@ -80,7 +80,7 @@ function Lado({ clave, datos, principal, onPrincipal, titulo }) {
   )
 }
 
-export default function UnificarClienteModal({ open, cliente, onClose, onMerged }) {
+export default function UnificarClienteModal({ open, cliente, duplicado, onClose, onMerged }) {
   const toast = useToast()
   const [query, setQuery] = useState('')
   const [resultados, setResultados] = useState([])
@@ -91,9 +91,9 @@ export default function UnificarClienteModal({ open, cliente, onClose, onMerged 
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!open) return
-    setQuery(''); setResultados([]); setElegido(null); setPreview(null); setPrincipal('a'); setError('')
-  }, [open])
+    if (!open) { setQuery(''); setResultados([]); setElegido(null); setPreview(null); return }
+    setQuery(duplicado?.name || ''); setResultados([]); setElegido(duplicado || null); setPreview(null); setPrincipal('a'); setError('')
+  }, [open, duplicado])
 
   useEffect(() => {
     if (!open || !query.trim()) { setResultados([]); return undefined }
@@ -117,7 +117,7 @@ export default function UnificarClienteModal({ open, cliente, onClose, onMerged 
   }, [open, elegido, cliente?.id])
 
   async function confirmar() {
-    if (busy || !elegido) return
+    if (busy || !elegido || !cliente?.id) return
     setBusy(true); setError('')
     try {
       const principalId = principal === 'a' ? cliente.id : elegido.id
@@ -168,7 +168,7 @@ export default function UnificarClienteModal({ open, cliente, onClose, onMerged 
               </Aviso>
             )}
             <Aviso tono="info" className="rounded-xl p-3 text-xs">
-              Se archiva <b>{(principal === 'a' ? elegido.name : cliente.name)}</b> y su historial pasa a <b>{(principal === 'a' ? cliente.name : elegido.name)}</b>. Los enlaces y tokens siguen funcionando.
+              Se archiva <b>{(principal === 'a' ? elegido?.name : cliente?.name) || 'la ficha duplicada'}</b> y su historial pasa a <b>{(principal === 'a' ? cliente?.name : elegido?.name) || 'la ficha principal'}</b>. Los enlaces y tokens siguen funcionando.
             </Aviso>
             <div className={PIE_ACCIONES}>
               <Button type="button" variant="ghost" disabled={busy} onClick={() => { setElegido(null); setPreview(null) }}>Elegir otro</Button>

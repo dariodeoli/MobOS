@@ -57,6 +57,7 @@ import ClientesTabla from '@/components/customers/ClientesTabla'
 import { temaV2Activo } from '@/lib/temaV2'
 import { gs } from '@/utils/calculos'
 import CustomerProfile from '@/components/customers/CustomerProfile'
+import UnificarClienteModal from '@/components/customers/UnificarClienteModal'
 import ClienteResumenPopup from '@/components/customers/ClienteResumenPopup'
 import CampanasClientes from '@/components/customers/CampanasClientes'
 import { customerMetadata, DEMO_CUSTOMER_TEMPLATES, readCustomerMetadata } from '@/components/customers/customerMessaging'
@@ -122,6 +123,8 @@ export default function SellerCustomers() {
   const [listas, setListas] = useState([])
   const [crearAbierto, setCrearAbierto] = useState(false)
   const [posiblesDuplicados, setPosiblesDuplicados] = useState([])
+  // Par elegido en la lista para unificar (#268): [principal, duplicado].
+  const [parUnificar, setParUnificar] = useState(null)
 
   // Aviso de posible duplicado (#268): al tipear teléfono/CI/correo se buscan
   // fichas activas con los mismos datos (no bloquea el alta).
@@ -351,9 +354,17 @@ export default function SellerCustomers() {
       </section>
     )}
     {!data.loading && !data.error && vista === 'grid' && <ul className={GRILLA_DOS_COLUMNAS}>{ordenados.map((row) => <CustomerCommunicationCard key={row.id} customer={row} templates={plantillasClientes} onViewProfile={setProfileCustomer} />)}</ul>}
-    {!data.loading && !data.error && vista === 'list' && <ClientesTabla rows={ordenados} templates={plantillasClientes} onPerfil={(row) => { setProfileTab('resumen'); setProfileCustomer(row) }} onResumen={setResumenCliente} />}
+    {!data.loading && !data.error && vista === 'list' && <ClientesTabla rows={ordenados} templates={plantillasClientes} onPerfil={(row) => { setProfileTab('resumen'); setProfileCustomer(row) }} onResumen={setResumenCliente} onUnificar={(a, b) => setParUnificar([a, b])} />}
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="min-h-11 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60 md:min-h-0">{data.cargandoMas ? 'Cargando…' : 'Cargar más clientes'}</button></div>}
     <CustomerProfile customer={profileCustomer} open={Boolean(profileCustomer)} onClose={cerrarPerfil} tabInicial={profileTab} />
+    {/* Unificar duplicados (#268) desde la selección de la lista: dos fichas. */}
+    <UnificarClienteModal
+      open={Boolean(parUnificar)}
+      cliente={parUnificar?.[0]}
+      duplicado={parUnificar?.[1]}
+      onClose={() => setParUnificar(null)}
+      onMerged={() => { setParUnificar(null); data.refresh?.() }}
+    />
     <ClienteResumenPopup
       row={resumenCliente}
       open={Boolean(resumenCliente)}
