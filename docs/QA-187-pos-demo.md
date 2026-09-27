@@ -10,6 +10,26 @@ La demo es un modo aislado en el navegador (datos ficticios, sin API de la tiend
 se recorrió el **flujo del vendedor** (PIN 2001) sin tocar datos reales.
 Resultado: **12/12 pasos ejecutados, sin fallos de script**.
 
+## Pasada v1.0.190 (27/09/2026) — dominio ventas
+
+**Evidencia:** `docs/qa/187-1.0.190-produccion/` (24 capturas + `resultados.json`).
+**11/12 pasos, 0 errores de consola, 0 respuestas API ≥400, 0 pedidos fallidos.**
+
+### Hallazgos de esta pasada
+1. **(Producto · revisar)** El cierre de la venta no dio confirmación visible: el botón
+   quedó en «Confirmar venta 3 productos · Gs 13.880.000» y **«TU DÍA» no subió**
+   (3 ventas → 3), a diferencia de las pasadas anteriores (3 → 4). En esta corrida
+   la venta de la demo **no se registró** (sin aviso ni toast); conviene reproducir
+   con una demo limpia y revisar el flujo tras los últimos cambios del pago.
+2. **(Probe/UX)** El paso de **Analytics** no encontró el botón `Analytics` en la
+   cabecera del POS (timeout 30 s) en el estado en que quedó la pantalla después de
+   la venta; verificar si el encabezado cambió con el chip de perfil (#256/shell).
+
+Lo verificado en verde: una sola pantalla, catálogo con modelo/capacidad, carrito
+colapsado (#243) con su detalle, cartera demo + alta por nombre, borradores
+(suspender/listar/recuperar), split con saldo precargado, entrega con costo y retiro
+sin monto, móvil 390 sin desbordes.
+
 ## Pasada v1.0.186 (26/09/2026) — verificación vigente
 
 **Evidencia:** `docs/qa/187-1.0.186-produccion/` (25 capturas + `resultados.json`).
