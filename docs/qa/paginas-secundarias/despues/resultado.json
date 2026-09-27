@@ -1,13 +1,17 @@
 {
   "base": "http://localhost:5203",
   "version": "1.0.190",
-  "fecha": "2026-09-27T03:20:45.204Z",
+  "fecha": "2026-09-27T04:01:48.894Z",
   "medidas": {
     "productos": {
       "barra": true,
       "tituloVisible": true
     },
     "promociones": {
+      "barra": true,
+      "tituloVisible": true
+    },
+    "pedidos": {
       "barra": true,
       "tituloVisible": true
     },

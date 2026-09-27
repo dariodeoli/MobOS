@@ -43,12 +43,13 @@ claro mobile) reproducibles con `node scripts/qa-256-composicion.mjs`
 ## Segunda unidad: páginas secundarias
 
 La barra de módulo se aplicó también a las secundarias: **Productos**
-(«Actualizar/Combos/Importar» suben a la barra), **Promociones**,
-**Cotizaciones** («+ Nueva cotización» y «Actualizar» en la barra),
-**Plantillas** («Nueva plantilla») y **Delivery**. El **cotizador de Trade-In**
-(«Cotizar equipo») la usa en la vista del vendedor; el dueño ve el pipeline.
+(«Actualizar/Combos/Importar» suben a la barra), **Pedidos** («Actualizar» en la
+barra y resumen con alcance «En pantalla»), **Promociones**, **Cotizaciones**
+(«+ Nueva cotización» y «Actualizar» en la barra), **Plantillas** («Nueva
+plantilla») y **Delivery**. El **cotizador de Trade-In** («Cotizar equipo») la
+usa en la vista del vendedor; el dueño ve el pipeline.
 
-Medición (demo, v1.0.190): **5/6 con barra visible** (la sexta es el pipeline
+Medición (demo, v1.0.190): **6/7 con barra visible** (la séptima es el pipeline
 del dueño), títulos visibles y sin desbordes. Capturas claro/oscuro desktop y
 claro mobile en `docs/qa/paginas-secundarias/{antes,despues}/` con
 `scripts/qa-secundarias.mjs`.
