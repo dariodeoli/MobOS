@@ -11,6 +11,10 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.200 — 2026-09-27
+- **Login y demo (#282):** **/login y /demo comparten la misma cáscara** (panel, encabezado/volver, tipografía, toggle de tema y pie), con la columna de marca de la demo; y **correo y contraseña quedan pareados** (mismo alto, radio y padding) en login y en «crear cuenta». Sin cambios de lógica.
+- **Evidencia:** capturas **antes/después** de /login y /demo en claro/oscuro/móvil, con verificación de SHA-256 por dupla (si «antes» y «después» coinciden, el script falla y explica cómo rehacerlas).
+
 ## v1.0.199 — 2026-09-27
 - **Impresión (#17):** el **manifest del instalador** publica el **enlace real** detrás del proxy (antes entregaba `https://0.0.0.0:3000` y comandos rotos); el diagnóstico de la ficha ofrece el **escape por USB** cuando la red local no da permiso; y la guía suma **«actualizar un agente viejo»** con un one-liner sin clonar el repo, conservando el token y con checklist para `red_cambiada`.
 
