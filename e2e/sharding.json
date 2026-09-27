@@ -82,7 +82,7 @@
         "qa-250-buscador-dependiente.spec.js",
         "qa-250-escaneo-recepcion.spec.js",
         "qa-263-imei-venta.spec.js",
-        "qa-268-unificar-clientes.spec.js",
+        "qa-f6-metricas-abastecimiento.spec.js",
         "ruc-demo.spec.js",
         "ruc-extraccion.spec.js",
         "shell-roles.spec.js",
@@ -127,7 +127,7 @@
         "qa-253-config-grupos.spec.js",
         "qa-253-mi-cuenta.spec.js",
         "qa-257-inventario-pos.spec.js",
-        "qa-f6-metricas-abastecimiento.spec.js",
+        "qa-fin-repuestos-taller.spec.js",
         "redireccion-248.spec.js",
         "repuestos-proveedores.spec.js",
         "responsive.spec.js",
@@ -137,5 +137,5 @@
       "tests": 172
     }
   ],
-  "generado": "2026-09-27T00:51:06.050Z"
+  "generado": "2026-09-27T00:35:47.908Z"
 }
