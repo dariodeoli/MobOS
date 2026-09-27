@@ -1,16 +1,34 @@
 {
   "base": "https://app.moboss.online",
-  "version": "1.0.188",
-  "fecha": "2026-09-27T00:57:20.429Z",
+  "version": "1.0.190",
+  "fecha": "2026-09-27T04:55:49.289Z",
   "medidas": {
     "clientes": {
-      "barra": false,
-      "alcances": [],
-      "tiles": 3
+      "barra": true,
+      "alcances": [
+        "Tienda",
+        "Tienda",
+        "En pantalla",
+        "En pantalla",
+        "En pantalla",
+        "En pantalla"
+      ],
+      "tiles": 4
     },
     "pos": {
-      "barra": false,
+      "barra": true,
       "bloquesGrandes": 0
+    },
+    "productos": {
+      "barra": false,
+      "tiles": 0,
+      "alcances": []
+    },
+    "inventario": {
+      "barra": false,
+      "tiles": 0,
+      "alcances": [],
+      "tabsConContador": []
     }
   }
 }

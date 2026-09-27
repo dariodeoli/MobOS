@@ -48,7 +48,7 @@ test('mobile 390: los targets de la fila y la ficha llegan a 44', async ({ page 
   await exigirToque(fila.getByLabel('✓ Verificar'), 'verificar (H2)')
   await exigirToque(fila.getByLabel(/^Acciones de/), 'menú Acciones (H2)')
   await exigirToque(fila.getByRole('button', { name: 'Editar', exact: true }), 'Editar (H2)')
-  await exigirToque(page.getByRole('button', { name: /^Inventario \(/ }), 'solapa Inventario (H3)')
+  await exigirToque(page.getByTestId('tabs-inventario').getByRole('button', { name: 'Inventario', exact: true }), 'solapa Inventario (H3)')
   await exigirToque(page.getByLabel('Buscar en inventario'), 'buscador')
 
   // Barra de acciones del lote (aparece al seleccionar): se elige tocando la etiqueta.

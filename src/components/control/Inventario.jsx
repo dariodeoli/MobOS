@@ -12,6 +12,8 @@ import { gs } from '@/utils/calculos'
 import { formatUsd } from '@/utils/moneda'
 import { montoTexto } from '@/utils/moneda'
 import BarraLote from '@/components/shared/BarraLote'
+import BarraModulo from '@/components/shared/BarraModulo'
+import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import MedidorBateria from '@/components/shared/MedidorBateria'
 import Switch from '@/components/shared/Switch'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
@@ -1219,7 +1221,49 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   }
   async function createTransfer(event) { event.preventDefault(); const serials = transfer.serials.split(/[\n,;]+/).map(normalizeScan).filter(Boolean); if (!serials.length) { setError('Indicá al menos un IMEI/serial para trasladar.'); return }; if (!puedeTransferirSinAuth && !transferAuth) { setError('Tu rol necesita autorización de gerencia para transferir entre sucursales. Solicitá la autorización y esperá la aprobación.'); return }; await setAndRefresh(async () => { await resources.transfers.create({ ...transfer, destinationLocationId: transfer.destinationLocationId || null, eta: transfer.eta ? `${transfer.eta}T12:00:00.000Z` : null, lines: [{ productId: transfer.productId, quantity: serials.length, serials }], ...(transferAuth && !puedeTransferirSinAuth ? { transferAuthorizationId: transferAuth.id } : {}) }); setTransfer({ sourceBranchId: '', destinationBranchId: '', destinationLocationId: '', productId: '', serials: '', notes: '', eta: '' }); setTransferAuth(null); setTransferOpen(false) }, 'Transferencia registrada con trazabilidad por IMEI.') }
   if (!inventarioOperativo) return <Card><h2 className="font-bold">Inventario operativo</h2><p className="mt-2 text-sm text-mute">Ingresá con una cuenta real para controlar IMEI, reservas, ubicaciones y transferencias. La demo conserva sus datos aislados.</p></Card>
-  return <div className={cn('space-y-4', temaV2Activo() && 'tema-v2')}><Card className="p-4 md:p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-mute">Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría.</p><div className="flex shrink-0 flex-wrap items-center gap-2"><Button onClick={abrirReceive}>+ Recibir unidad</Button><Button variant="outline" onClick={() => setReserveOpen(true)}>Reservar</Button><Button variant="outline" onClick={() => setTransferOpen(true)}>Transferir</Button></div></div><form onSubmit={search} className="mt-4 flex flex-wrap gap-2"><SearchField value={query} onChange={event => setQuery(event.target.value)} placeholder="Escanear IMEI, SKU o buscar modelo" ariaLabel="Buscar en inventario" className="min-w-0 flex-1" /><Select value={orden} onChange={event => recordarOrden(event.target.value)} className="w-auto" aria-label="Orden del inventario" title="Se recuerda tu último orden"><option value="recientes">Recientes</option><option value="modelo-az">Modelo A→Z</option><option value="modelo-za">Modelo Z→A</option><option value="nuevos">Nuevos primero</option><option value="semis">Seminuevos primero</option><option value="modelo-natural">Modelo (17→13)</option><option value="mezclado">Modelos mezclados</option><option value="costo-mayor">Costo mayor</option><option value="costo-menor">Costo menor</option></Select><Button type="button" variant="outline" onClick={() => setScannerOpen(true)}>Escanear</Button><Button type="button" variant="outline" onClick={startCount}>Conteo rápido</Button><ListGridToggle value={vistaUnidades} onChange={cambiarVistaUnidades} />{disponibles.length > 0 && <Button type="button" variant="outline" onClick={() => printLabels(disponibles).then(avisarImpresion)}>Etiquetas ({disponibles.length})</Button>}<Button type="button" variant="outline" onClick={() => setGondolaOpen(true)}>Etiquetas de góndola</Button>{tab === 'unidades' && <Button type="button" variant="outline" className="px-3 text-xs" disabled={exportando || busy} onClick={exportarUnidades}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}</form><div className="mt-4 flex gap-1 overflow-x-auto rounded-lg border border-ink-600 bg-ink-800 p-1">{[['unidades', `Inventario (${disponibles.length})`], ['taller', 'Taller'], ...(canViewAlerts ? [['alertas', `Alertas (${(stockAlerts.alerts?.length || 0) + (stockAlerts.outOfStock?.length || 0)})`]] : []), ['reservas', `Reservas (${reservations.length})`], ['traslados', `Traslados (${transfers.length})`], ['vendidos', `Vendidos (${vendidosFiltrados.length})`], ['transito', `En tránsito (${enTransito.length})`], ['ubicaciones', `Ubicaciones (${locations.length})`], ['compartido', 'Compartido'], ['eliminados', `Eliminados (${removedUnits.length})`], ['conteos', 'Conteos']].map(([key, label]) => <button key={key} onClick={() => cambiarTab(key)} className={`min-h-11 shrink-0 rounded-md px-3 py-2 text-xs font-semibold md:min-h-0 ${tab === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>)}</div>{notice && <Aviso tono="ok" className="mt-3">{notice}</Aviso>}{error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
+  return <div className={cn('space-y-4', temaV2Activo() && 'tema-v2')}>
+      <BarraModulo
+        icono="box"
+        titulo="Inventario"
+        descripcion="Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría."
+        testId="barra-inventario"
+      >
+        <Button onClick={abrirReceive}>+ Recibir unidad</Button>
+        <Button variant="outline" onClick={() => setReserveOpen(true)}>Reservar</Button>
+        <Button variant="outline" onClick={() => setTransferOpen(true)}>Transferir</Button>
+      </BarraModulo>
+
+      {/* Métricas con alcance (#256): lo cargado/filtrado no se mezcla con lo de la sucursal. */}
+      <ResumenMetricas
+        testId="resumen-inventario"
+        columnas={4}
+        items={[
+          { titulo: 'Unidades', valor: units.length, alcance: 'En pantalla', nota: `${disponibles.length} disponibles` },
+          { titulo: 'Reservadas', valor: reservations.length, alcance: 'En pantalla' },
+          { titulo: 'En tránsito', valor: enTransito.length, alcance: 'En pantalla' },
+          { titulo: 'Alertas de stock', valor: (stockAlerts.alerts?.length || 0) + (stockAlerts.outOfStock?.length || 0), alcance: 'Sucursal', tono: ((stockAlerts.alerts?.length || 0) + (stockAlerts.outOfStock?.length || 0)) > 0 ? 'text-warn' : 'text-ok' },
+        ]}
+      />
+
+      {/* Consulta: búsqueda + orden + vista en una sola fila. */}
+      <form onSubmit={search} className="flex flex-wrap items-center gap-2">
+        <SearchField value={query} onChange={event => setQuery(event.target.value)} placeholder="Escanear IMEI, SKU o buscar modelo" ariaLabel="Buscar en inventario" className="min-w-0 flex-1" />
+        <Select value={orden} onChange={event => recordarOrden(event.target.value)} className="w-auto" aria-label="Orden del inventario" title="Se recuerda tu último orden"><option value="recientes">Recientes</option><option value="modelo-az">Modelo A→Z</option><option value="modelo-za">Modelo Z→A</option><option value="nuevos">Nuevos primero</option><option value="semis">Seminuevos primero</option><option value="modelo-natural">Modelo (17→13)</option><option value="mezclado">Modelos mezclados</option><option value="costo-mayor">Costo mayor</option><option value="costo-menor">Costo menor</option></Select>
+        <ListGridToggle value={vistaUnidades} onChange={cambiarVistaUnidades} />
+      </form>
+
+      {/* Acciones de lote/impresión/exportación, agrupadas (sin botones sueltos). */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" variant="outline" onClick={() => setScannerOpen(true)}>Escanear</Button>
+        <Button type="button" variant="outline" onClick={startCount}>Conteo rápido</Button>
+        {disponibles.length > 0 && <Button type="button" variant="outline" onClick={() => printLabels(disponibles).then(avisarImpresion)}>Etiquetas ({disponibles.length})</Button>}
+        <Button type="button" variant="outline" onClick={() => setGondolaOpen(true)}>Etiquetas de góndola</Button>
+        {tab === 'unidades' && <Button type="button" variant="outline" className="px-3 text-xs" disabled={exportando || busy} onClick={exportarUnidades}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}
+      </div>
+
+      <Card className="p-4 md:p-4">
+        {/* Navegación del módulo sin contadores repetidos: viven en el resumen con alcance. */}
+        <div data-testid="tabs-inventario" className="flex gap-1 overflow-x-auto rounded-lg border border-ink-600 bg-ink-800 p-1">{[['unidades', 'Inventario'], ['taller', 'Taller'], ...(canViewAlerts ? [['alertas', 'Alertas']] : []), ['reservas', 'Reservas'], ['traslados', 'Traslados'], ['vendidos', 'Vendidos'], ['transito', 'En tránsito'], ['ubicaciones', 'Ubicaciones'], ['compartido', 'Compartido'], ['eliminados', 'Eliminados'], ['conteos', 'Conteos']].map(([key, label]) => <button key={key} onClick={() => cambiarTab(key)} className={`min-h-11 shrink-0 rounded-md px-3 py-2 text-xs font-semibold md:min-h-0 ${tab === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>)}</div>{notice && <Aviso tono="ok" className="mt-3">{notice}</Aviso>}{error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
     <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
       <button type="button" disabled={busy} data-testid="vender-todos" title="Cargar la venta de todas las seleccionadas en el POS" onClick={venderTodos} className="min-h-11 rounded-lg border border-fono/50 bg-fono/10 px-2 py-1 text-xs md:min-h-0 font-semibold text-fono-light transition hover:bg-fono/20 disabled:opacity-50">Vender todos</button>
       <button type="button" disabled={busy} title="Registrar la verificación física de todas las seleccionadas" onClick={() => Promise.all(unidadesElegidas().map(unidad => verify(unidad)))} className="min-h-11 rounded-lg border border-ok/40 px-2 py-1 text-xs md:min-h-0 font-semibold text-ok transition hover:bg-ok/10 disabled:opacity-50">Verificar todos</button>

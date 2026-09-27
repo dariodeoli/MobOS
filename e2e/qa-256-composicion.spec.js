@@ -44,45 +44,63 @@ test.describe('composición compacta', () => {
     await expect(resumen.getByText(/en pantalla$/)).toHaveCount(1)
   })
 
-  test('Servicio/Taller: barra de módulo por vista y resumen con alcance', async ({ page }) => {
-    // Una orden de taller para que el resumen tenga datos (el seed comercial no
-    // trae órdenes de servicio). La página ya está abierta: el fetch autenticado
-    // necesita un origen real (con `about:blank` el navegador manda `Origin: null`).
-    await page.goto('/servicio')
-    const marca = Date.now().toString(36).toUpperCase()
-    const creada = await api(page, '/api/service-orders', { method: 'POST', body: JSON.stringify({ customerName: `Taller ${marca}`, device: `Equipo ${marca}`, pricePyg: 150000, costPyg: 90000 }) })
-    expect(creada.status, JSON.stringify(creada.body)).toBe(201)
-    await page.reload()
+  test('Inventario: barra única, controles agrupados y métricas con alcance', async ({ page }) => {
+    await page.goto('/inventario/unidades')
+    await expect(page.getByTestId('inventario-fila').first()).toBeVisible({ timeout: 20_000 })
 
-    const barraTaller = page.getByTestId('barra-taller')
-    await expect(barraTaller).toHaveCount(1, { timeout: 20_000 })
-    for (const accion of ['+ Nueva orden', 'Catálogo', 'Actualizar']) {
-      await expect(barraTaller.getByRole('button', { name: accion, exact: true })).toBeVisible()
+    const barra = page.getByTestId('barra-inventario')
+    await expect(barra).toHaveCount(1)
+    // La identidad no se repite: el h1 es del shell y la barra usa h2.
+    await expect(barra.getByRole('heading', { level: 2, name: 'Inventario' })).toBeVisible()
+    for (const accion of ['+ Recibir unidad', 'Reservar', 'Transferir']) {
+      await expect(barra.getByRole('button', { name: accion, exact: true })).toBeVisible()
     }
-    const resumenTaller = page.getByTestId('resumen-taller')
-    await expect(resumenTaller).toBeVisible()
-    await expect(resumenTaller.locator('> div')).toHaveCount(3)
-    await expect(resumenTaller.getByText('En pantalla', { exact: true })).toHaveCount(3)
-    await page.screenshot({ path: `${SHOTS}/01-taller.png` })
 
-    // La vista Garantías usa la misma composición y sus acciones no quedan
-    // sueltas entre los filtros.
-    await page.getByRole('button', { name: 'Garantías', exact: true }).click()
-    const barraGarantias = page.getByTestId('barra-garantias')
-    await expect(barraGarantias).toHaveCount(1)
-    await expect(barraGarantias.getByRole('button', { name: 'Nuevo caso' })).toBeVisible()
-    await expect(page.getByLabel('Filtrar garantías por estado')).toBeVisible()
-    await expect(page.getByLabel('Buscar garantías')).toBeVisible()
-    await page.screenshot({ path: `${SHOTS}/02-garantias.png` })
+    const resumen = page.getByTestId('resumen-inventario')
+    await expect(resumen).toBeVisible()
+    await expect(resumen.locator('> div')).toHaveCount(4)
+    // Totales de la sucursal vs. lo cargado en pantalla, sin mezclarse.
+    await expect(resumen.getByText('En pantalla', { exact: true })).toHaveCount(3)
+    await expect(resumen.getByText('Sucursal', { exact: true })).toHaveCount(1)
 
-    // Sin identidad duplicada: la barra usa h2; el shell conserva el h1 único.
-    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+    // La consulta va en una fila y las acciones secundarias agrupadas.
+    await expect(page.getByLabel('Buscar en inventario')).toBeVisible()
+    await expect(page.getByLabel('Orden del inventario')).toBeVisible()
+    for (const accion of ['Escanear', 'Conteo rápido', 'Etiquetas de góndola', 'Exportar CSV']) {
+      await expect(page.getByRole('button', { name: accion, exact: true })).toBeVisible()
+    }
+
+    // Las solapas no repiten contadores (viven en el resumen con alcance).
+    await expect(page.getByTestId('tabs-inventario').getByRole('button', { name: /^Inventario \(/ })).toHaveCount(0)
+    await expect(page.getByTestId('tabs-inventario').getByRole('button', { name: 'Inventario', exact: true })).toBeVisible()
+  })
+
+  test('Productos: barra única, métricas con alcance y controles agrupados', async ({ page }) => {
+    await page.goto('/productos')
+    await expect(page.getByTestId('producto-fila').first()).toBeVisible({ timeout: 20_000 })
+
+    const barra = page.getByTestId('barra-productos')
+    await expect(barra).toHaveCount(1)
+    await expect(barra.getByRole('heading', { level: 2, name: 'Productos' })).toBeVisible()
+    await expect(barra.getByRole('button', { name: 'Actualizar' })).toBeVisible()
+
+    const resumen = page.getByTestId('resumen-productos')
+    await expect(resumen).toBeVisible()
+    await expect(resumen.locator('> div')).toHaveCount(4)
+    // El catálogo se carga paginado: todas las métricas declaran su alcance.
+    await expect(resumen.getByText('En pantalla', { exact: true })).toHaveCount(4)
+    await expect(resumen.getByText('Valor a costo')).toBeVisible()
+
+    // Consulta agrupada: búsqueda + categoría + condición + vista.
+    await expect(page.getByLabel('Buscar productos')).toBeVisible()
+    await expect(page.getByLabel('Filtrar por categoría')).toBeVisible()
+    await expect(page.getByLabel('Filtrar por condición')).toBeVisible()
   })
 
   test('sin desborde horizontal en 390 y 1280', async ({ page }) => {
     for (const [ancho, alto] of [[390, 844], [1280, 900]]) {
       await page.setViewportSize({ width: ancho, height: alto })
-      for (const ruta of ['/pos', '/clientes', '/servicio']) {
+      for (const ruta of ['/pos', '/clientes', '/inventario/unidades', '/productos']) {
         await page.goto(ruta)
         await expect(page.getByTestId('shell')).toBeVisible({ timeout: 20_000 })
         await page.waitForTimeout(600)

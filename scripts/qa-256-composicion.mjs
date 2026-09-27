@@ -1,6 +1,6 @@
-// Capturas antes/después de la composición compacta (#256) de Clientes y POS:
-// barra de módulo única (identidad + contexto + acciones) y métricas con
-// alcance explícito (Tienda vs En pantalla).
+// Capturas antes/después de la composición compacta (#256) de Clientes, POS e
+// Inventario: barra de módulo única (identidad + contexto + acciones) y
+// métricas con alcance explícito (Tienda/Sucursal vs En pantalla).
 //
 //   node scripts/qa-256-composicion.mjs                       (producción: antes)
 //   QA_BASE_URL=http://localhost:5203 QA_OUT=... node scripts/qa-256-composicion.mjs
@@ -73,6 +73,39 @@ for (const [tema, modo] of [['claro', 'light'], ['oscuro', 'dark']]) {
     }))
     console.log('[256] pos:', JSON.stringify(medidas.pos))
   }
+
+  await page.goto(`${BASE}/productos`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
+  await page.locator('[data-testid="shell"]').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {})
+  await page.getByTestId('producto-fila').first().waitFor({ state: 'visible', timeout: 20_000 }).catch(() => {})
+  await capturar(`productos-${tema}-desktop`)
+  if (tema === 'claro') {
+    medidas.productos = await page.evaluate(() => {
+      const resumen = document.querySelector('[data-testid="resumen-productos"]')
+      const alcances = resumen ? [...resumen.querySelectorAll('p')].map((p) => p.textContent.trim()).filter((t) => /^(Tienda|En pantalla)$/.test(t)) : []
+      return { barra: Boolean(document.querySelector('[data-testid="barra-productos"]')), tiles: resumen ? resumen.children.length : 0, alcances }
+    })
+    console.log('[256] productos:', JSON.stringify(medidas.productos))
+  }
+
+  await page.goto(`${BASE}/inventario/unidades`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
+  await page.locator('[data-testid="shell"]').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {})
+  await page.getByTestId('inventario-fila').first().waitFor({ state: 'visible', timeout: 20_000 }).catch(() => {})
+  await capturar(`inventario-${tema}-desktop`)
+  if (tema === 'claro') {
+    medidas.inventario = await page.evaluate(() => {
+      const resumen = document.querySelector('[data-testid="resumen-inventario"]')
+      const alcances = resumen ? [...resumen.querySelectorAll('p')].map((p) => p.textContent.trim()).filter((t) => /^(Tienda|Sucursal|En pantalla)$/.test(t)) : []
+      const tabs = document.querySelector('[data-testid="tabs-inventario"]')
+      const labels = tabs ? [...tabs.querySelectorAll('button')].map((b) => b.textContent.trim()) : []
+      return {
+        barra: Boolean(document.querySelector('[data-testid="barra-inventario"]')),
+        tiles: resumen ? resumen.children.length : 0,
+        alcances,
+        tabsConContador: labels.filter((t) => /\(\d+\)/.test(t)),
+      }
+    })
+    console.log('[256] inventario:', JSON.stringify(medidas.inventario))
+  }
 }
 
 await page.setViewportSize({ width: 390, height: 844 })
@@ -84,6 +117,12 @@ await capturar('clientes-claro-mobile')
 await page.goto(`${BASE}/pos`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
 await page.getByRole('heading', { name: 'Nueva venta' }).first().waitFor({ state: 'visible', timeout: 20_000 }).catch(() => {})
 await capturar('pos-claro-mobile')
+await page.goto(`${BASE}/inventario/unidades`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
+await page.getByTestId('inventario-fila').first().waitFor({ state: 'visible', timeout: 20_000 }).catch(() => {})
+await capturar('inventario-claro-mobile')
+await page.goto(`${BASE}/productos`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
+await page.getByTestId('producto-fila').first().waitFor({ state: 'visible', timeout: 20_000 }).catch(() => {})
+await capturar('productos-claro-mobile')
 
 writeFileSync(join(SALIDA, 'resultado.json'), `${JSON.stringify({ base: BASE, version, fecha: new Date().toISOString(), medidas }, null, 2)}\n`)
 await browser.close()

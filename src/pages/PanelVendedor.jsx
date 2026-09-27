@@ -40,6 +40,7 @@ const EstadoSistema = lazy(() => import('@/components/control/EstadoSistema'))
 const WhatsAppTemplates = lazy(() => import('@/components/control/WhatsAppTemplates'))
 const Precios = lazy(() => import('@/components/control/Precios'))
 const PorComprar = lazy(() => import('@/components/supply/PorComprar'))
+const ComprasCentro = lazy(() => import('@/components/supply/ComprasCentro'))
 const PrepararCompra = lazy(() => import('@/components/supply/PrepararCompra'))
 const PrepararLote = lazy(() => import('@/components/supply/PrepararLote'))
 const Recepcion = lazy(() => import('@/components/supply/Recepcion'))
@@ -141,6 +142,7 @@ const OWNER_NAV = [
       ['compras', 'Compras', 'store'],
       ['traslados', 'Traslados y tránsito', 'truck'],
       ['abastecimiento', 'Por comprar', 'box'],
+      ['compras-centro', 'Compras del Centro', 'store'],
       ['preparacion', 'Preparar compra', 'tag'],
       ['lotes', 'Preparar lote', 'tag'],
       ['recepcion', 'Recepción', 'truck'],
@@ -302,6 +304,7 @@ const LABELS = {
   promociones: 'Promociones',
   precios: 'Precios',
   abastecimiento: 'Por comprar',
+  'compras-centro': 'Compras del Centro',
   preparacion: 'Preparar compra',
   lotes: 'Preparar lote',
   recepcion: 'Recepción',
@@ -918,6 +921,7 @@ export default function PanelVendedor() {
           )}
           {vista === 'precios' && <Precios />}
           {esOwner && vista === 'abastecimiento' && <PorComprar />}
+          {esOwner && vista === 'compras-centro' && <ComprasCentro />}
           {esOwner && vista === 'preparacion' && <PrepararCompra />}
           {esOwner && vista === 'lotes' && <PrepararLote />}
           {esOwner && vista === 'recepcion' && <Recepcion />}

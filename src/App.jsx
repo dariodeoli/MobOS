@@ -305,6 +305,8 @@ export default function App() {
           <Route path="/precios" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           {/* Abastecimiento F1 (#254): panel «Por comprar» (dueño/gerencia). */}
           <Route path="/abastecimiento" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
+          {/* Abastecimiento F2: compras del Centro (líneas, IMEI y cancelación). */}
+          <Route path="/compras-centro" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           {/* Abastecimiento F3/F5: preparar la compra (IMEI), preparar el lote (IMEI diferido) y recibir el lote. */}
           <Route path="/preparacion" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           <Route path="/preparar-lote" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
