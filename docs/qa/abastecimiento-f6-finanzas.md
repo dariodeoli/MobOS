@@ -82,7 +82,9 @@ Objetos compartidos: `DataTable` (con `mobileCard`), `Stat`, `Subtabs`,
 
 ### Verificación post-deploy (producción v1.0.186)
 
-`node scripts/qa-f6-metricas-produccion.mjs` → **7/7** sobre
+La sonda `scripts/qa-f6-metricas-produccion.mjs` tiene dos modos:
+
+**Sin credenciales (default, demo público)** → **7/7** sobre
 `https://app.moboss.online` (salida en `docs/qa/f6-metricas/produccion-1.0.186/`,
 `resultados.json` + capturas desktop/mobile):
 
@@ -98,9 +100,23 @@ Objetos compartidos: `DataTable` (con `mobileCard`), `Stat`, `Subtabs`,
    salen de una cuenta real (única sesión disponible sin credenciales); captura
    sin scroll horizontal en mobile.
 
-> La sesión real (dueño con compras y recepciones) se verifica en el e2e
-> `qa-f6-metricas-abastecimiento.spec.js` contra la app local; en producción la
-> prueba no intrusiva llega hasta el demo.
+**Con sesión real** (`QA_STORAGE_STATE=/tmp/mobos-qa.json`, generado con
+`npx playwright codegen --save-storage=/tmp/mobos-qa.json
+https://app.moboss.online/login`) la sonda verifica, además, contra la cuenta:
+panel montado (testid real), las tres vistas (proveedores · tiempos · atrasos),
+`/api/supply/performance` **200** con `proveedores[]`/`rutas[]` y
+`costoPromedioUnidadPyg` cuando hay unidades, y `/api/supply/alerts` **200** con
+`atrasados[]`/`necesidadesVencidas[]`; captura el panel real.
+
+- El camino de sesión real quedó **validado contra el stack local** con
+  `QA_MODO=dev QA_BASE_URL=http://localhost:5215
+  QA_STORAGE_STATE=e2e/.auth/admin.json` → **6/6** (12 proveedores, ruta medida,
+  6 lotes atrasados, `costoPromedioUnidadPyg` vivo); evidencia en
+  `docs/qa/f6-metricas/local-sesion-real/`.
+- En producción el modo real se corre cuando haya una sesión disponible; sin
+  credenciales, la verificación no intrusiva llega hasta el demo (lo dice en el
+  resultado). El e2e `qa-f6-metricas-abastecimiento.spec.js` cubre la sesión real
+  con datos sembrados en cada corrida.
 
 ## Coordinación
 
