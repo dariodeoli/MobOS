@@ -19,7 +19,7 @@ for (const viewport of viewports) {
 
     test('/pos has no horizontal overflow and shows the product search', async ({ page }) => {
       await page.goto('/pos')
-      await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
 
       const search = page.getByPlaceholder('Buscar producto…')
       await expect(search).toBeVisible()

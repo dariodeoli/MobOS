@@ -52,7 +52,7 @@ async function pedidoDe(page, cliente) {
 
 async function agregarAlCarrito(page, cliente, producto) {
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(cliente)
   await page.getByPlaceholder('Buscar producto…').fill(producto)
   const card = page.getByRole('button', { name: new RegExp(producto) })
@@ -186,7 +186,7 @@ test('la venta serializada cierra aunque haya 500 unidades con el mismo texto (#
     }, { api: API, sku, branchId: SEED.branchId, baseSerials })
 
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
     await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(cliente)
     await page.getByPlaceholder('Buscar producto…').fill(sku)
     const tarjeta = page.locator('button').filter({ hasText: nombre }).filter({ hasNotText: 'Repuesto' }).first()

@@ -9,6 +9,7 @@
 
 import { test, expect } from '@playwright/test'
 import { mkdirSync, readFileSync } from 'node:fs'
+import { imeiValido } from './helpers/imei.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 const SALIDA = 'test-results/qa-240-informe-dispositivo'
@@ -16,12 +17,6 @@ mkdirSync(SALIDA, { recursive: true })
 
 // IMEI ficticio con checksum Luhn válido, único por corrida (misma receta que
 // imei-mock.spec.js): el informe lo usa como serial de la unidad.
-function imeiValido() {
-  const base = `35${String(Date.now()).slice(-11)}${Math.floor(Math.random() * 10)}`.slice(0, 14)
-  let suma = 0
-  for (let i = 0; i < 14; i += 1) { let digito = Number(base[13 - i]); if (i % 2 === 0) { digito *= 2; if (digito > 9) digito -= 9 } suma += digito }
-  return base + String((10 - (suma % 10)) % 10)
-}
 
 async function apiPagina(page, ruta, opciones = {}) {
   return page.evaluate(
@@ -339,7 +334,6 @@ test('la hoja de estación sale del taller con los equipos del carril', async ({
   expect(pdf.split('/Type /Page').length - pdf.split('/Type /Pages').length).toBe(1)
   expect(pdf.length).toBeGreaterThan(1000)
 })
-
 
 // Constancia de preparación (#240 §6): mismo camino directo, tipo propio. Las
 // aserciones no dependen de qué campos traiga la verificación del arnés: se

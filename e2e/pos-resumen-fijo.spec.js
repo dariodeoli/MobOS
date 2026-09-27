@@ -15,7 +15,7 @@ const MARGEN_SUPERIOR_MAX = 140
 
 async function agregarProducto(page) {
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   const producto = page.getByRole('button', { name: new RegExp(SEED.products.cable.name) })
   await expect(producto).toBeVisible()

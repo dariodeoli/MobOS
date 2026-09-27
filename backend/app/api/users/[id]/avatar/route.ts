@@ -56,13 +56,21 @@ export async function GET(request: Request, { params }: RouteContext) {
   const avatar = await prisma.userAvatar.findUnique({ where: { userId } })
   if (!avatar) return error('El usuario no tiene foto.', 404)
   const bytes = await readAttachment({ storageKey: avatar.storageKey, data: avatar.data ?? new Uint8Array() })
+  // #271: la URL del avatar es estable; sin validador el navegador seguía
+  // pintando la foto anterior (hasta 60 s) después de cambiarla o quitarla.
+  // Con ETag + `no-cache` cada uso revalida y nunca se sirve la foto vieja.
+  const etag = `"${createHash('sha256').update(bytes).digest('hex').slice(0, 32)}"`
+  if (request.headers.get('if-none-match') === etag) {
+    return new Response(null, { status: 304, headers: { ETag: etag, 'Cache-Control': 'private, no-cache' } })
+  }
   return new Response(bytes, {
     headers: {
       'Content-Type': avatar.mimeType,
       'Content-Length': String(bytes.byteLength),
       'Content-Disposition': `inline; filename="avatar.${EXTENSION[avatar.mimeType] || 'png'}"`,
       'X-Content-Type-Options': 'nosniff',
-      'Cache-Control': 'private, max-age=60',
+      'Cache-Control': 'private, no-cache',
+      ETag: etag,
     },
   })
 }

@@ -6,7 +6,7 @@ const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 // agrupado por tipo y Enter abre el listado con el filtro aplicado.
 test('búsqueda global: encuentra una cotización por su número y la abre filtrada', async ({ page }) => {
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
 
   const cotizacion = await page.evaluate(async (api) => {
     const response = await fetch(`${api}/api/quotes`, {

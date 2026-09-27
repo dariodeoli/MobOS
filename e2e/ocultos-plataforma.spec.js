@@ -54,7 +54,7 @@ test.describe('ocultos de plataforma', () => {
   // (c) El modo offline del POS se ve en el shell/menú y abre la cola.
   test('el shell avisa el modo offline del POS y abre la cola', async ({ page, context }) => {
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
     // Con conexión y sin pendientes, el aviso no ocupa lugar.
     await expect(page.getByTestId('shell-cola-offline')).toHaveCount(0)
 
@@ -125,7 +125,7 @@ test.describe('ocultos de plataforma', () => {
     await page.addInitScript(() => { try { localStorage.setItem('mobos:theme', 'light') } catch { /* sin storage */ } })
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
     await context.setOffline(true)
     await expect(page.getByTestId('shell-cola-offline-pill')).toBeVisible()
     await page.screenshot({ path: `${salida}/offline-badge-mobile.png` })
