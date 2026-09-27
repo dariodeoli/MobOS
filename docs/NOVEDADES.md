@@ -11,6 +11,9 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.199 — 2026-09-27
+- **Impresión (#17):** el **manifest del instalador** publica el **enlace real** detrás del proxy (antes entregaba `https://0.0.0.0:3000` y comandos rotos); el diagnóstico de la ficha ofrece el **escape por USB** cuando la red local no da permiso; y la guía suma **«actualizar un agente viejo»** con un one-liner sin clonar el repo, conservando el token y con checklist para `red_cambiada`.
+
 ## v1.0.198 — 2026-09-27
 - **POS (#280):** **gift cards reales**: emisión con **código** (se muestra una sola vez), consulta de **saldo**, **canje como medio de pago** (parcial o total) en el cobro y en cobros posteriores, **historial por tarjeta**, anulación de gerencia y auditoría; el corte por tipo muestra «Gift card». En la demo funciona igual.
 - **Notificaciones (#279 A1 · fase 2):** **avisos del navegador** con **preferencias por dispositivo** (estados honestos y **horario silencioso** 22→07), cuatro **eventos espejo de la bandeja** (mención, cotización aprobada, incidencia y pedido listo) con dedupe y poda de endpoints muertos, y **métricas** de enviados/silenciados.
