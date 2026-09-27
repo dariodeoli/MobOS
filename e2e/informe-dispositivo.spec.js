@@ -146,7 +146,7 @@ test('el informe de la unidad sale directo por el agente con el QR al informe p�
   await page.screenshot({ path: `${SALIDA}/02-impreso-directo.jpg` })
 })
 
-test('sin agente, el informe A4 queda listo para «Guardar como PDF»', async ({ page }) => {
+test('sin agente, el informe A4 se descarga como PDF real', async ({ page }) => {
   await page.route('http://127.0.0.1:17890/**', (ruta) => ruta.abort())
   await page.route('**/api/print/printers', (ruta) => ruta.fulfill({
     status: 200,
@@ -166,19 +166,21 @@ test('sin agente, el informe A4 queda listo para «Guardar como PDF»', async ({
   await expect(vista.locator('body')).toContainText('Blacklist actual')
   await expect(vista.locator('img.qr')).toBeVisible()
 
-  await modal.getByRole('button', { name: 'Descargar PDF' }).click()
-  // El respaldo abre el HTML imprimible en un iframe oculto (sin ventanas).
-  const marco = page.locator('iframe[aria-hidden="true"]').last()
-  await marco.waitFor({ state: 'attached', timeout: 10_000 })
-  const contenido = marco.contentFrame()
-  await expect(contenido.locator('h1')).toHaveText('Informe de dispositivo')
-  const filaImei = contenido.locator('.fila-informe').filter({ hasText: 'IMEI' }).first()
-  await expect(filaImei).toContainText(imei.slice(-4))
-  await expect(filaImei).not.toContainText(imei)
-  await page.screenshot({ path: `${SALIDA}/03-respaldo-iframe.jpg` })
+  // El PDF profesional sale del objeto compartido: archivo real (sin diálogos).
+  const [descarga] = await Promise.all([
+    page.waitForEvent('download'),
+    modal.getByTestId('descargar-pdf').click(),
+  ])
+  expect(descarga.suggestedFilename()).toMatch(/^informe-dispositivo-.*\.pdf$/)
+  const pdf = readFileSync(await descarga.path())
+  expect(pdf.length).toBeGreaterThan(5_000)
+  expect(pdf.subarray(0, 5).toString('latin1')).toBe('%PDF-')
+  expect(pdf.toString('latin1')).toContain('/Type /Page')
+  await expect(page.getByText('PDF descargado')).toBeVisible({ timeout: 15_000 })
+  await page.screenshot({ path: `${SALIDA}/03-pdf-descargado.jpg` })
 
-  // Mismo HTML que la app manda a «Guardar como PDF», en A4 y en 80 mm.
-  const html = await contenido.locator('html').evaluate((el) => el.outerHTML)
+  // Mismo HTML que la app usa para el PDF, en A4 (ejemplo versionable).
+  const html = await vista.locator('html').evaluate((el) => el.outerHTML)
   const hoja = await page.context().newPage()
   await hoja.emulateMedia({ media: 'print' })
   await hoja.setContent(html, { waitUntil: 'load' })

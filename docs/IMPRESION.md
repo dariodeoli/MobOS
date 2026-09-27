@@ -638,7 +638,12 @@ caso es la **cotización** (proforma A4); el objeto sirve para cualquier impreso
   página continua del ancho real.
 - **Acciones:** *Compartir PDF* (Web Share del archivo; si el navegador no
   comparte archivos, lo **descarga** y lo avisa) y *PDF* (descarga). La regla
-  de objetos exige que las pantallas no rastericen ni armen PDF por su cuenta.
+  de objetos exige que las pantallas no rastericen ni armen PDF por su cuenta
+  (`objetosReglas.test.js`).
+- **Adopción:** la **cotización** (ventas y página pública), el **informe /
+  certificado / constancia** del modal de la unidad (con el formato elegido:
+  A4 o rollo) y los impresos del **abastecimiento** — **manifiesto** (A4) y
+  **etiquetas del lote** (rollo continuo) desde `/preparar-lote`.
 - **Cotización:** `buildProformaHtml(quote, { format, enlace })` suma la tarjeta
   **Aceptación en línea** (QR al enlace público) cuando el vendedor lo comparte;
   en A4 la proforma entra en **una hoja** (compacta, sin el área de
@@ -656,7 +661,10 @@ caso es la **cotización** (proforma A4); el objeto sirve para cualquier impreso
   firma `%PDF-`, `/Type /Page`, respaldo `wa.me` y estado SENT), ensayo
   `docs/cotizacion-pdf-ejemplo/` (PDF de 1 página + JPG + QR verificado) y unit
   `pdfDocumento.test.js` (cortes, objetos PDF, rollo y nombre) +
-  `mensajeCotizacion.test.js` (mensaje).
+  `mensajeCotizacion.test.js` (mensaje). El mismo objeto en
+  `informe-dispositivo.spec.js` («sin agente, el informe A4 se descarga como PDF
+  real») y en `qa-250-escaneo-recepcion.spec.js` (manifiesto y etiquetas del
+  lote como PDF).
 
 ## 16. Impresos del taller en serie (#240)
 

@@ -3,6 +3,7 @@ import { resources } from '@/lib/api'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { Badge, Button, Card, EmptyState, Input, Skeleton, Textarea, useToast } from '@/components/ui'
 import CameraScan from '@/components/shared/CameraScan'
+import CompartirPdf from '@/components/shared/CompartirPdf'
 import Icon from '@/components/shared/Icon'
 import { analizarSerial, textoMotivo, validarLote } from '@/lib/escanerSeriales'
 import { etiquetaLineaDeLote, pendientesDeEnvio, serialesDeEnvio, totalPendienteLotes } from '@/lib/lotes'
@@ -276,6 +277,33 @@ export default function PrepararLote() {
                       >
                         <Icon name="tag" className="h-3.5 w-3.5" />{imprimiendo === 'etiquetas' ? 'Preparando…' : 'Etiquetas del lote'}
                       </Button>
+                      <span data-testid="preparar-lote-manifiesto-pdf">
+                        <CompartirPdf
+                          construirHtml={async () => {
+                            const datos = await resources.supplyShipments.manifest(envio.id)
+                            return buildManifiestoHtml(datosManifiesto(datos), { format: 'a4' })
+                          }}
+                          nombre={`manifiesto-${envio.code || 'lote'}`}
+                          titulo="Manifiesto del lote"
+                          texto={`Manifiesto ${envio.code || ''}`}
+                          formato="a4"
+                          disabled={Boolean(imprimiendo)}
+                        />
+                      </span>
+                      <span data-testid="preparar-lote-etiquetas-pdf">
+                        <CompartirPdf
+                          construirHtml={async () => {
+                            const datos = await resources.supplyShipments.manifest(envio.id)
+                            const { ancho } = configImpresora()
+                            return buildEtiquetasLoteHtml(etiquetasDeLote(datosManifiesto(datos)), { ancho })
+                          }}
+                          nombre={`etiquetas-lote-${envio.code || 'lote'}`}
+                          titulo="Etiquetas del lote"
+                          texto={`Etiquetas ${envio.code || ''}`}
+                          formato={`thermal-${configImpresora().ancho}`}
+                          disabled={Boolean(imprimiendo)}
+                        />
+                      </span>
                     </div>
                   </div>
                 )}

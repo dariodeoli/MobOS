@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button, Modal, Select } from '@/components/ui'
 import { buildCertificadoHtml, buildInformeDispositivoHtml, printCertificado, printInformeDispositivo } from '@/components/shared/OrderReceipt'
 import CompartirImagen from '@/components/shared/CompartirImagen'
+import CompartirPdf from '@/components/shared/CompartirPdf'
 import VistaPreviaPapel from '@/components/shared/VistaPreviaPapel'
 import { datosInformeDispositivo } from '@/lib/printing/informeDispositivo'
 import { datosCertificado, datosConstancia } from '@/lib/printing/certificado'
@@ -25,7 +26,7 @@ const TIPOS = {
   informe: {
     titulo: 'Informe del dispositivo',
     tipo: 'informe-dispositivo',
-    ayuda: 'El QR abre el informe público de la unidad. La impresión directa sale por la impresora configurada (80 mm por defecto); «Descargar PDF» guarda la versión A4 o del rollo.',
+    ayuda: 'El QR abre el informe público de la unidad. La impresión directa sale por la impresora configurada (80 mm por defecto); «Compartir PDF» y «PDF» generan el archivo real (A4 o rollo).',
     datos: (unit, consulta) => datosInformeDispositivo(unit, { consulta }),
     html: buildInformeDispositivoHtml,
     ticket: ticketInformeDispositivo,
@@ -97,11 +98,6 @@ export default function DocumentoUnidadModal({ unit, tipo = 'informe', open, onC
     }
   }
 
-  function descargarPdf() {
-    if (!html) return
-    return config.respaldo(datos, { format: formato })
-  }
-
   return (
     <Modal open={open} onClose={onClose} title={config.titulo} size="amplio">
       <div className="space-y-3">
@@ -121,7 +117,14 @@ export default function DocumentoUnidadModal({ unit, tipo = 'informe', open, onC
               formato={formato}
               disabled={!html || cargando}
             />
-            <Button type="button" variant="outline" onClick={descargarPdf} disabled={!html || cargando}>Descargar PDF</Button>
+            <CompartirPdf
+              construirHtml={() => html}
+              nombre={`${config.tipo}-${datos?.identificador || ''}`}
+              titulo={config.titulo}
+              texto={datos?.modelo ? `${config.titulo} · ${datos.modelo}` : config.titulo}
+              formato={formato}
+              disabled={!html || cargando}
+            />
             <Button type="button" onClick={imprimirDirecto} disabled={!datos || cargando || enviando}>{enviando ? 'Enviando…' : 'Impresión directa'}</Button>
           </span>
         </div>

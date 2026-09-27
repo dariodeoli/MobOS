@@ -99,7 +99,8 @@ simulado en `e2e/qa-250-escaneo-recepcion.spec.js`.
 Las **etiquetas del lote** (`N de M` por unidad del envío, con la compra y el
 destino) salen además desde **Preparar lote** (`/preparar-lote` → «Etiquetas del
 lote»), derivadas del manifiesto (`etiquetasDeLote`) y con la misma impresora
-del tipo `etiquetas-lote`; mismo e2e.
+del tipo `etiquetas-lote`; también se comparten o descargan como PDF real
+(`CompartirPdf`, rollo continuo). Mismo e2e.
 
 ## 5. Evidencia y tests
 

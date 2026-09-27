@@ -71,7 +71,9 @@ El panel de abastecimiento (CMP/INV) lo tiene en dos superficies:
   (`ticketManifiesto` → impresora del tipo `manifiesto`, diálogo/HTML A4 como
   respaldo) y **«Etiquetas del lote»** (`etiquetasDeLote` +
   `ticketEtiquetasLote` → tipo `etiquetas-lote`). Las dos piden la misma data
-  (`/api/supply/shipments/[id]/manifest`): un solo pedido.
+  (`/api/supply/shipments/[id]/manifest`): un solo pedido. Además se comparten o
+  descargan como **PDF real** (`CompartirPdf`: A4 el manifiesto, rollo continuo
+  las etiquetas).
 - **Recepción** (`/recepcion`): **«Manifiesto»** reimprime al recibir el lote
   (mismo recurso y tipo de impresora).
 

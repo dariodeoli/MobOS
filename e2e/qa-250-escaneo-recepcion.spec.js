@@ -5,7 +5,7 @@
 // Capturas: `QA_250_CAPTURAS` (default test-results/qa-250) — se versionan en
 // docs/qa/250-escaneo-recepcion/.
 import { test, expect } from '@playwright/test'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { SEED } from './helpers/seed-data.js'
 
@@ -475,6 +475,25 @@ test('F3 · preparar lote: IMEI diferido por escaneo y pegado', async ({ page })
   expect(tiraDelLote).toContain(imeiA)
   expect(tiraDelLote).toContain('PENDIENTE')
   await sinDialogo(page)
+
+  // El PDF profesional de cada impreso sale del objeto compartido (archivo real).
+  const [pdfManifiesto] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('preparar-lote-manifiesto-pdf').getByTestId('descargar-pdf').click(),
+  ])
+  expect(pdfManifiesto.suggestedFilename()).toMatch(/^manifiesto-.*\.pdf$/)
+  const manifiestoPdf = readFileSync(await pdfManifiesto.path())
+  expect(manifiestoPdf.length).toBeGreaterThan(5_000)
+  expect(manifiestoPdf.subarray(0, 5).toString('latin1')).toBe('%PDF-')
+
+  const [pdfEtiquetas] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('preparar-lote-etiquetas-pdf').getByTestId('descargar-pdf').click(),
+  ])
+  expect(pdfEtiquetas.suggestedFilename()).toMatch(/^etiquetas-lote-.*\.pdf$/)
+  const etiquetasPdf = readFileSync(await pdfEtiquetas.path())
+  expect(etiquetasPdf.length).toBeGreaterThan(5_000)
+  expect(etiquetasPdf.subarray(0, 5).toString('latin1')).toBe('%PDF-')
 
   // Pegado múltiple: el válido entra y el roto se rechaza con el motivo.
   await page.getByRole('button', { name: 'Pegar varios' }).click()
