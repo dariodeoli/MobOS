@@ -13,6 +13,7 @@ import { ANCHOS_PRUEBA, BLOQUES_PRUEBA, COPIAS_MAX, CORTES_PRUEBA, bloquesDeTipo
 import { ESTADO_IMPRESORA, ETIQUETA_ESTADO, colorTrabajo, etiquetaTrabajo, textoVerificacion } from '@/lib/printing/estadoImpresoras'
 import { colaDemo, historialDemo, storeDemo } from '@/lib/printing/demo'
 import { etiquetaTipoImpresion, memoriaDeImpresion, olvidarTipoDeImpresion } from '@/lib/printing/preferencias'
+import { datosTransporte, resumenTransporte } from '@/lib/printing/transporte'
 import { useEstadoImpresoras } from '@/hooks/useEstadoImpresoras'
 import Avatar from '@/components/shared/Avatar'
 import VistaPreviaPapel from '@/components/shared/VistaPreviaPapel'
@@ -28,16 +29,19 @@ const fmtHora = (valor) => (valor ? new Date(valor).toLocaleTimeString('es-PY', 
 const fmtTiempo = (valor) => (typeof valor === 'number' && Number.isFinite(valor) ? `${Math.round(valor)} ms` : '—')
 const fechaConSegundos = (valor) => (valor ? `${fmtDia(valor)} ${fmtHora(valor)}` : '—')
 
-// Transporte real que reportó el agente; sin dato se cae al modo configurado.
-const etiquetaTransporte = (fila) => {
-  const transporte = String(fila.transporte || '').toLowerCase()
-  if (transporte === 'directo') return 'LAN directo'
-  if (transporte === 'cups') return 'CUPS'
-  if (transporte === 'usb') return 'USB'
-  if (transporte) return transporte
-  if (fila.modo === 'usb') return 'CUPS'
-  if (fila.modo === 'lan') return 'LAN'
-  return conexionDe(fila.impresora)
+// #276 · La celda de transporte muestra los tres datos reales —solicitado,
+// ejecutado (con fallback y motivo) y conexión física— sin inferir nada del
+// nombre de la cola: lo que el agente no pudo resolver queda «—».
+const celdasTransporte = (fila) => {
+  const datos = datosTransporte(fila)
+  return {
+    titulo: resumenTransporte(fila) || 'Sin reporte del agente',
+    solicitado: datos.solicitado || '—',
+    ejecutado: datos.ejecutado || '—',
+    fallback: datos.fallback,
+    motivo: datos.motivo,
+    conexion: datos.conexion || '—',
+  }
 }
 const hace = (valor) => {
   if (!valor) return 'sin registro'
@@ -75,16 +79,15 @@ function sinRespuesta(fila) {
 
 // Tono semántico del estado vivo → color/clase del sistema de diseño.
 const COLOR_TONO = { ok: 'green', bad: 'red', slate: 'slate', blue: 'blue', orange: 'orange' }
-const CLASE_TONO = { ok: 'text-ok', bad: 'text-bad', slate: 'text-mute' }
+const CLASE_TONO = { ok: 'text-ok', bad: 'text-bad', slate: 'text-mute', orange: 'text-warn' }
 
 // Detalle de la última prueba física (una sola línea, sin repetir el chip).
 const textoUltimaPrueba = (ultimaPrueba) => {
   if (!ultimaPrueba) return 'Sin prueba todavía'
   const resultado = ultimaPrueba.ok ? 'Impresa correctamente' : ultimaPrueba.remoto && ultimaPrueba.encolado ? 'Encolada al puente' : ultimaPrueba.encolado ? 'Encolada' : 'Falló'
-  return `${resultado} · ${TIPOS_TICKET_PRUEBA[ultimaPrueba.tipo] || 'Prueba'} · ${fmt(ultimaPrueba.fecha)}${ultimaPrueba.transporte ? ` · vía ${ultimaPrueba.transporte}` : ''}${ultimaPrueba.validacion ? ` · Código ${ultimaPrueba.validacion}` : ''}${Number(ultimaPrueba.copias) > 1 ? ` · ${ultimaPrueba.copias} copias` : ''}${ultimaPrueba.corte ? ' · Corte solicitado ✓' : ''}`
+  const transporte = resumenTransporte(ultimaPrueba)
+  return `${resultado} · ${TIPOS_TICKET_PRUEBA[ultimaPrueba.tipo] || 'Prueba'} · ${fmt(ultimaPrueba.fecha)}${transporte ? ` · ${transporte}` : ''}${ultimaPrueba.validacion ? ` · Código ${ultimaPrueba.validacion}` : ''}${Number(ultimaPrueba.copias) > 1 ? ` · ${ultimaPrueba.copias} copias` : ''}${ultimaPrueba.corte ? ' · Corte solicitado ✓' : ''}`
 }
-
-const conexionDe = (destino) => (/^(usb|cups):/.test(String(destino || '')) ? 'CUPS' : 'LAN')
 
 const vacioFormulario = () => ({
   id: null,
@@ -115,6 +118,10 @@ const filaDesdeJob = (job) => ({
   enColaMs: typeof job.queueMs === 'number' ? job.queueMs : null,
   totalMs: typeof job.durationMs === 'number' ? job.durationMs : null,
   transporte: job.transport || '',
+  solicitado: job.requestedTransport || '',
+  fallback: Boolean(job.fallback),
+  motivo: job.fallbackReason || '',
+  conexion: job.physicalConnection || '',
   usuario: job.requestedByName || '',
   impresora: job.destination || '',
   impresoraNombre: job.printerName || '',
@@ -177,6 +184,7 @@ export default function Impresoras() {
   const [diagnostico, setDiagnostico] = useState(null)
   const [diagnosticando, setDiagnosticando] = useState(false)
   const [probandoId, setProbandoId] = useState(null)
+  const [revisandoId, setRevisandoId] = useState('')
   const [progreso, setProgreso] = useState('')
   const [pruebaDe, setPruebaDe] = useState(null) // impresora del modal de prueba
   // Intención del modal de la ficha: «probar» (default) o «plantilla» (#277):
@@ -342,7 +350,7 @@ export default function Impresoras() {
   // una impresión, prueba o diagnóstico en curso para no competir con el agente.
   const impresorasActivas = useMemo(() => impresoras.filter((impresora) => impresora.activa), [impresoras])
   const sondeoEnPausa = Boolean(probandoId) || diagnosticando || reparando
-  const { estados: estadosVivos, agregado } = useEstadoImpresoras(impresorasActivas, { enPausa: sondeoEnPausa || esDemo })
+  const { estados: estadosVivos, agregado, revisar } = useEstadoImpresoras(impresorasActivas, { enPausa: sondeoEnPausa || esDemo })
 
   // Estado de configuración cuando todavía no hay verificación viva: la prueba
   // anterior y la detección del agente dan el contexto.
@@ -364,6 +372,7 @@ export default function Impresoras() {
     if (!impresora.destino) return { label: 'Error de configuración', color: 'red' }
     const vivo = estadosVivos[impresora.id]?.estado
     if (vivo === ESTADO_IMPRESORA.OK) return { label: ETIQUETA_ESTADO[ESTADO_IMPRESORA.OK], color: 'green' }
+    if (vivo === ESTADO_IMPRESORA.FALLBACK) return { label: ETIQUETA_ESTADO[ESTADO_IMPRESORA.FALLBACK], color: 'orange' }
     if (vivo === ESTADO_IMPRESORA.ERROR) return { label: ETIQUETA_ESTADO[ESTADO_IMPRESORA.ERROR], color: 'red' }
     if (vivo === ESTADO_IMPRESORA.VERIFICANDO) return { label: ETIQUETA_ESTADO[ESTADO_IMPRESORA.VERIFICANDO], color: 'slate' }
     if (!estado?.disponible) return { label: ETIQUETA_ESTADO[ESTADO_IMPRESORA.SIN_VERIFICAR], color: 'slate' }
@@ -388,8 +397,24 @@ export default function Impresoras() {
   function tonoDe(impresora) {
     const vivo = estadosVivos[impresora.id]?.estado
     if (vivo === ESTADO_IMPRESORA.OK) return 'ok'
+    if (vivo === ESTADO_IMPRESORA.FALLBACK) return 'orange'
     if (vivo === ESTADO_IMPRESORA.ERROR) return 'bad'
     return 'slate'
+  }
+
+  // #276: «Reintentar TCP» vuelve a sondear la salida directa; si responde, la
+  // próxima impresión sale por red (el agente rehabilita el camino directo).
+  async function reintentarTcp(impresora) {
+    if (revisandoId) return
+    setRevisandoId(impresora.id)
+    try {
+      const estado = await revisar(impresora)
+      if (estado === ESTADO_IMPRESORA.OK) toast.success('TCP responde otra vez', 'La próxima impresión sale directo por red.')
+      else if (estado === ESTADO_IMPRESORA.FALLBACK) toast.info('TCP sigue sin responder', 'La impresora sigue imprimiendo por la cola CUPS (fallback).')
+      else toast.error('TCP sin respuesta', 'No hay ruta a la impresora: revisá la red o el permiso de Red Local de macOS.')
+    } finally {
+      setRevisandoId('')
+    }
   }
 
   // Método honesto de cada impresora: `usb:` es una cola CUPS local (puede
@@ -429,9 +454,10 @@ export default function Impresoras() {
   }), [historialCombinado, filtroActividad, filtroTipo, filtroRango])
 
   function exportarActividad() {
-    const filas = [['Fecha', 'Hora', 'Usuario', 'Equipo', 'Impresora', 'Transporte', 'En cola (ms)', 'Total (ms)', 'Puente', 'Validación', 'Sufijo', 'Resultado', 'Bytes', 'Trabajo']]
+    const filas = [['Fecha', 'Hora', 'Usuario', 'Equipo', 'Impresora', 'Solicitado', 'Ejecutado', 'Fallback', 'Motivo del fallback', 'Conexión física', 'En cola (ms)', 'Total (ms)', 'Puente', 'Validación', 'Sufijo', 'Resultado', 'Bytes', 'Trabajo']]
     for (const fila of historialFiltrado) {
-      filas.push([fmtDia(fila.fecha), fmtHora(fila.fecha), fila.usuario, fila.cliente, fila.impresoraNombre || fila.impresora, fila.transporte || '', fila.enColaMs ?? '', fila.totalMs ?? '', fila.puente, fila.validacion, fila.sufijo, fila.resultado, fila.bytes, fila.ref])
+      const transporte = celdasTransporte(fila)
+      filas.push([fmtDia(fila.fecha), fmtHora(fila.fecha), fila.usuario, fila.cliente, fila.impresoraNombre || fila.impresora, transporte.solicitado, transporte.ejecutado, transporte.fallback ? 'Sí' : 'No', transporte.motivo, transporte.conexion, fila.enColaMs ?? '', fila.totalMs ?? '', fila.puente, fila.validacion, fila.sufijo, fila.resultado, fila.bytes, fila.ref])
     }
     const csv = filas.map((columnas) => columnas.map((valor) => `"${String(valor ?? '').replaceAll('"', '""')}"`).join(';')).join('\n')
     descargarCsvCliente(`mobos-impresion-${new Date().toISOString().slice(0, 10)}.csv`, csv)
@@ -638,6 +664,10 @@ export default function Impresoras() {
         validacion: ticket.validacion,
         metodo: metodoDe(impresora),
         transporte: resultado.transporte || '',
+        solicitado: resultado.solicitado || '',
+        fallback: Boolean(resultado.fallback),
+        motivo: resultado.motivo || '',
+        conexion: resultado.conexion || '',
         jobId: resultado.jobId || null,
         corte: Boolean(ticket.corte),
       }
@@ -653,7 +683,7 @@ export default function Impresoras() {
       } else if (encolado) {
         toast.success('Prueba encolada', 'La impresora no respondió; el agente reintenta solo.')
       } else {
-        const via = resultado.transporte === 'cups' ? 'por la cola CUPS' : resultado.transporte === 'usb' ? 'por USB' : 'por TCP'
+        const via = resultado.transporte === 'cups' ? (resultado.fallback ? 'por la cola CUPS (fallback)' : 'por la cola CUPS') : resultado.transporte === 'usb' ? 'por USB directo' : 'por TCP directo'
         toast.success(`Prueba enviada ${via}`, 'El agente confirmó el envío. La confirmación final es visual: verificá el código en el papel y que se cortó solo.')
       }
     } else {
@@ -1071,8 +1101,13 @@ export default function Impresoras() {
                 {probandoId === impresora.id && <p role="status" className="rounded-lg border border-fono/25 bg-fono/10 p-2 text-xs text-fono-light">{progreso}</p>}
                 <div className="flex flex-wrap items-center gap-2">
                   <Button type="button" onClick={() => probar(impresora)} disabled={Boolean(probandoId) || !impresora.activa}>{probandoId === impresora.id ? 'Enviando…' : 'Imprimir prueba'}</Button>
+                  {estadosVivos[impresora.id]?.estado === ESTADO_IMPRESORA.FALLBACK && (
+                    <Button type="button" variant="outline" onClick={() => reintentarTcp(impresora)} disabled={Boolean(revisandoId)} data-testid="reintentar-tcp">
+                      {revisandoId === impresora.id ? 'Sondeando…' : 'Reintentar TCP'}
+                    </Button>
+                  )}
                   <Button type="button" variant="outline" onClick={() => abrirFormulario(impresora)}>Editar</Button>
-                  <Button type="button" variant="ghost" title="Ajustar la plantilla del ticket de prueba" onClick={() => probar(impresora, 'plantilla')} disabled={Boolean(probandoId) || !impresora.activa}>Plantilla</Button>
+                  <Button type="button" variant="ghost" title="Ajustar la plantilla del ticket de prueba" onClick={() => probar(impresora, 'plantilla')} disabled={Boolean(probandoId) || !impresora.activa} data-testid="editar-plantilla">Plantilla</Button>
                   <Button type="button" variant="ghost" onClick={() => diagnosticar(impresora)}>Diagnóstico</Button>
                   <Button type="button" variant="ghost" onClick={() => setFiltroActividad(impresora.destino)}>Ver actividad</Button>
                   <span className="ml-auto" />
@@ -1164,6 +1199,7 @@ export default function Impresoras() {
                   const clave = fila.jobId || `${fila.fecha}-${indice}`
                   const abierto = detalleAbierto === clave
                   const largoSufijo = largoDelSufijo(fila)
+                  const transporte = celdasTransporte(fila)
                   return [
                     <tr key={`fila-${clave}`} className="border-b border-ink-600/50">
                       <td className="px-2 py-2 text-xs text-mute">
@@ -1172,7 +1208,12 @@ export default function Impresoras() {
                       </td>
                       <td className="px-2 py-2 text-xs">{fila.usuario || '—'}</td>
                       <td className={cn('px-2 py-2', CELDA_DATO)} title={`${fila.impresoraNombre || fila.impresora}${fila.ancho ? ` · ${fila.ancho} mm` : ''}`}>{fila.impresora}</td>
-                      <td className="px-2 py-2 text-xs text-mute" title={fila.transporte ? `Reportado por el agente: ${fila.transporte}` : 'Sin reporte del agente: se muestra el modo configurado'}>{etiquetaTransporte(fila)}</td>
+                      <td className="px-2 py-2 text-[11px] text-mute" title={transporte.titulo}>
+                        <span className="block">solicitado <b className="text-fore">{transporte.solicitado}</b></span>
+                        <span className="block">ejecutado <b className="text-fore">{transporte.ejecutado}</b>{transporte.fallback ? ' · fallback' : ''}</span>
+                        <span className="block">conexión <b className="text-fore">{transporte.conexion}</b></span>
+                        {transporte.motivo && <span className="block text-[10px] text-warn" title={transporte.motivo}>{transporte.motivo}</span>}
+                      </td>
                       <td className="px-2 py-2 text-[11px] text-mute">
                         <span className="block">en cola <b className="text-fore tabular-nums">{fmtTiempo(fila.enColaMs)}</b></span>
                         <span className="block">total <b className="text-fore tabular-nums">{fmtTiempo(fila.totalMs)}</b></span>

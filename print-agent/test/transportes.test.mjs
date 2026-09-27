@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { comandoColaLan, enviarLan, motivoDeFalloRed, probarConexionDetalle } from '../transportes.mjs'
+import { comandoColaLan, conexionDeUri, enviarConDetalle, enviarLan, motivoDeFalloRed, probarConexionDetalle, solicitadoDeDestino } from '../transportes.mjs'
 
 // Red de prueba reservada (TEST-NET-1, RFC 5737): nadie responde y el bind a
 // una IP que no está en la máquina falla con EADDRNOTAVAIL. Sirve para probar

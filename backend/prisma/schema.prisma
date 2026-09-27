@@ -3121,6 +3121,14 @@ model PrintJob {
   queueMs           Int?
   durationMs        Int?
   transport         String?
+  // Transporte honesto reportado por el agente (#276): lo solicitado
+  // (`tcp`/`cups`), si hubo fallback con su motivo, y la conexión física real
+  // (`lan`/`usb`/`serial`/`otro`) resuelta con la URI de la cola CUPS — nunca
+  // inferida del nombre de la cola.
+  requestedTransport String        @default("")
+  fallback           Boolean       @default(false)
+  fallbackReason     String        @default("")
+  physicalConnection String        @default("")
   copies            Int           @default(1)
   attempts          Int           @default(0)
   leaseId           String?

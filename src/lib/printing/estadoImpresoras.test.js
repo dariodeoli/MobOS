@@ -60,6 +60,26 @@ test('estadoDeDiagnostico: TCP alcanzable, cola CUPS con URI y fallos', () => {
   assert.equal(estadoDeDiagnostico(null), ESTADO_IMPRESORA.ERROR)
 })
 
+// #276 · El perfil TCP «sin respuesta» que igual imprime por la cola CUPS no es
+// una caída: es fallback, y ofrece «Reintentar TCP».
+test('un destino TCP caído con cola CUPS de respaldo es fallback, no caída', () => {
+  const conRespaldo = { ok: true, metodo: 'LAN', alcance: false, tcpReal: false, cups: 'ZKP8008', cupsUri: 'socket://192.168.1.23:9100', transporte: 'cups', motivo: 'permiso_o_red' }
+  assert.equal(estadoDeDiagnostico(conRespaldo), ESTADO_IMPRESORA.FALLBACK)
+  const texto = textoVerificacion({ estado: ESTADO_IMPRESORA.FALLBACK, fecha: Date.now(), motivo: 'Puede faltar el permiso de Red Local de macOS' })
+  assert.match(texto, /TCP sin respuesta; imprime por CUPS \(fallback\)/)
+  assert.match(texto, /permiso de Red Local/)
+  // Sin respaldo disponible vuelve a ser un error honesto.
+  assert.equal(estadoDeDiagnostico({ ok: true, metodo: 'LAN', alcance: false, cups: '', transporte: 'ninguno' }), ESTADO_IMPRESORA.ERROR)
+})
+
+test('el agregado cuenta el fallback como operativo y lo informa', () => {
+  const impresoras = [impresora('aa'), impresora('bb')]
+  const agregado = agregarEstado(impresoras, { aa: registro(ESTADO_IMPRESORA.OK), bb: registro(ESTADO_IMPRESORA.FALLBACK) })
+  assert.equal(agregado.label, 'Listo para imprimir')
+  assert.equal(agregado.fallback, 1)
+  assert.match(agregado.detalle, /1 por fallback CUPS/)
+})
+
 test('motivoDeDiagnostico traduce los códigos y cae al error real', () => {
   assert.equal(motivoDeDiagnostico({ motivo: 'red_cambiada' }), 'La impresora no está en esta red')
   assert.equal(motivoDeDiagnostico({ motivo: 'permisos_red_local' }), 'macOS bloqueó la salida a la red local')

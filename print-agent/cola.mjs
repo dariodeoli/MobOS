@@ -71,7 +71,13 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
       ancho: trabajo.ancho || 0,
       origen: trabajo.origen || 'local',
       estadoRemoto: trabajo.resultadoRemoto || '',
+      // #276: transporte honesto — lo solicitado, lo ejecutado, el fallback con
+      // su motivo y la conexión física resuelta con la URI real de la cola.
       transporte: trabajo.transporte || '',
+      solicitado: trabajo.solicitado || '',
+      fallback: Boolean(trabajo.fallback),
+      motivo: trabajo.motivo || '',
+      conexion: trabajo.conexion || '',
     })
     guardarHistorial()
   }
@@ -92,7 +98,15 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
     if (!siguiente) return
     procesando = true
     try {
-      await enviar(siguiente.impresora, Buffer.from(siguiente.data, 'base64'))
+      const detalle = await enviar(siguiente.impresora, Buffer.from(siguiente.data, 'base64'))
+      // #276: el detalle del envío (solicitado/ejecutado/fallback/conexión)
+      // queda en el historial; los agentes viejos devolvían solo el texto.
+      const info = typeof detalle === 'string' ? { transporte: detalle } : (detalle || {})
+      siguiente.transporte = info.transporte || ''
+      siguiente.solicitado = info.solicitado || ''
+      siguiente.fallback = Boolean(info.fallback)
+      siguiente.motivo = info.motivo || ''
+      siguiente.conexion = info.conexion || ''
       trabajos = trabajos.filter((trabajo) => trabajo.id !== siguiente.id)
       anotar(siguiente, 'aceptado')
       log(`aceptado ${siguiente.id} en ${siguiente.impresora} (${siguiente.cliente || 'sin equipo'}) — pendiente de confirmación en papel`)
@@ -213,7 +227,7 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
     },
     // Resultado del intento de impresión remoto. El payload local se borra en
     // el mismo paso: alcanza con los metadatos para reportar al backend.
-    resultadoRemoto(id, { estado, error = '', transporte = '' } = {}) {
+    resultadoRemoto(id, { estado, error = '', transporte = '', solicitado = '', fallback = false, motivo = '', conexion = '' } = {}) {
       if (!['ACEPTADO', 'INCIERTO', 'FALLIDO'].includes(estado)) return { ok: false, motivo: 'estado-invalido' }
       const trabajo = trabajos.find((item) => item.id === id && esRemoto(item))
       if (!trabajo) {
@@ -223,6 +237,10 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
       trabajo.estado = estado === 'ACEPTADO' ? 'aceptado' : estado === 'INCIERTO' ? 'incierto' : 'fallido'
       trabajo.resultadoRemoto = estado
       trabajo.transporte = transporte || ''
+      trabajo.solicitado = solicitado || ''
+      trabajo.fallback = Boolean(fallback)
+      trabajo.motivo = motivo || ''
+      trabajo.conexion = conexion || ''
       trabajo.error = error || ''
       trabajo.data = ''
       trabajo.reportado = false
@@ -250,6 +268,10 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
         resultado: trabajo.resultadoRemoto,
         error: trabajo.error || '',
         transporte: trabajo.transporte || '',
+        solicitado: trabajo.solicitado || '',
+        fallback: Boolean(trabajo.fallback),
+        motivo: trabajo.motivo || '',
+        conexion: trabajo.conexion || '',
         impresora: trabajo.impresora,
         ref: trabajo.ref || '',
         tipo: trabajo.tipo || '',

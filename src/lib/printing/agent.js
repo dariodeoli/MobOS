@@ -567,7 +567,7 @@ export async function imprimirDirecto(base64, { ancho, copias, impresora, usuari
     })
     const datos = await respuesta.json().catch(() => ({}))
     if (!respuesta.ok || datos?.ok === false) throw new Error(datos?.error || `El agente respondió ${respuesta.status}.`)
-    return { ok: true, encolado: Boolean(datos?.encolado), incierto: Boolean(datos?.incierto), estado: datos?.estado || '', transporte: datos?.transporte || '', error: datos?.error || '', jobId: datos?.jobId || null }
+    return { ok: true, encolado: Boolean(datos?.encolado), incierto: Boolean(datos?.incierto), estado: datos?.estado || '', transporte: datos?.transporte || '', solicitado: datos?.solicitado || '', fallback: Boolean(datos?.fallback), motivo: datos?.motivo || '', conexion: datos?.conexion || '', error: datos?.error || '', jobId: datos?.jobId || null }
   } catch (cause) {
     const mensaje = cause?.name === 'AbortError' ? 'El agente de impresión no respondió.' : cause?.message || 'No se pudo imprimir.'
     // Sin respuesta no se sabe si el agente aceptó: se marca incierto para no

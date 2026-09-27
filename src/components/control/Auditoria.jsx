@@ -235,6 +235,7 @@ const ETIQUETAS = {
   from: 'Antes', to: 'Después', before: 'Antes', after: 'Después', amountPyg: 'Monto', totalPyg: 'Total', minutes: 'Minutos',
   level: 'Nivel', tags: 'Etiquetas', discountPyg: 'Descuento', method: 'Medio', role: 'Rol', name: 'Nombre', email: 'Correo',
   action: 'Acción', jobId: 'Job', attempts: 'Intentos', intentos: 'Intentos', transport: 'Transporte', path: 'Camino',
+  requestedTransport: 'Solicitado', fallback: 'Fallback', fallbackReason: 'Motivo del fallback', physicalConnection: 'Conexión física',
   kind: 'Tipo', bytes: 'Tamaños', printerId: 'Impresora', error: 'Error', sku: 'SKU', pricePyg: 'Precio', costPyg: 'Costo',
   stock: 'Stock', reorderPoint: 'Punto de reorden', wholesalePricePyg: 'Precio mayorista', isActive: 'Activo',
   condition: 'Condición', category: 'Categoría', model: 'Modelo', color: 'Color', capacity: 'Capacidad', destination: 'Destino',

@@ -3,6 +3,7 @@ import { Aviso, Badge, Button, Card, EmptyState, Nota } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { printingApi } from '@/lib/api/printing'
 import { esIdBackend } from '@/lib/printing/agent'
+import { resumenTransporte } from '@/lib/printing/transporte'
 import { ticketPruebaTipo } from '@/lib/printing/tickets'
 
 // Comparativa de impresoras: manda el MISMO ticket (con la marca de la corrida)
@@ -16,7 +17,7 @@ const COLOR_RESULTADO = { confirmado: 'green', aceptado: 'blue', incierto: 'oran
 const TERMINALES_EXITO = ['ACEPTADO', 'CONFIRMADO']
 
 const ms = (valor) => (typeof valor === 'number' && Number.isFinite(valor) ? `${Math.max(0, Math.round(valor))} ms` : '—')
-const transporteDe = (fila, job) => job?.transport || (/^(usb|cups):/.test(String(fila.destino || '')) ? 'CUPS' : 'LAN')
+const transporteDe = (fila, job) => resumenTransporte({ ...(fila || {}), ...(job || {}) }) || '—'
 const etiquetaEstado = (job) => (job ? String(job.state || '').toLowerCase() : 'en cola')
 
 export default function ImpresionComparativa({ impresoras = [], onAgregar, onGestionarPuentes, usuario = '', equipo = '' }) {

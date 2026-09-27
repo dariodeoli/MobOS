@@ -13,7 +13,7 @@ test('los tipos completos arman un ticket con trazabilidad completa', () => {
     const texto = ticket.lineas().join('')
     assert.match(ticket.ref, /^TEST-/, `ref del tipo ${tipo}`)
     assert.match(ticket.validacion, /^\d{4}$/, `validación de 4 dígitos en ${tipo}`)
-    assert.match(ticket.sufijo, /^\d$/, `sufijo secreto de 1 dígito en ${tipo}`)
+    assert.match(ticket.sufijo, /^\d{2}$/, `sufijo secreto de 2 dígitos en ${tipo}`)
     assert.equal(ticket.validador, `${ticket.validacion}-${ticket.sufijo}`)
     assert.ok(texto.includes('TICKET DE PRUEBA'), `encabezado en ${tipo}`)
     assert.ok(texto.includes(TIPOS_TICKET_PRUEBA[tipo]), `etiqueta del tipo en ${tipo}`)
@@ -60,7 +60,7 @@ test('la vista previa no se desborda ni pega líneas (todas las líneas caben)',
 })
 
 test('la trazabilidad incluye puente, token enmascarado, usuario y conexión', () => {
-  const ticket = ticketPruebaTipo('corta', { ...opciones, puente: 'Mac mostrador', tokenPista: '1f75…5a8c', usuario: 'Dario', conexion: 'usb' })
+  const ticket = ticketPruebaTipo('venta', { ...opciones, puente: 'Mac mostrador', tokenPista: '1f75…5a8c', usuario: 'Dario', conexion: 'usb' })
   const texto = ticket.lineas().join('')
   assert.ok(texto.includes('Puente'), 'puente')
   assert.ok(texto.includes('Mac mostrador'), 'nombre del puente')
@@ -79,10 +79,45 @@ test('cada ejecución genera un número de validación nuevo', () => {
 })
 
 test('una cola usb: se informa como CUPS, no como cable USB', () => {
-  const ticket = ticketPruebaTipo('corta', { ...opciones, impresora: 'usb:ZKP8008' })
+  const ticket = ticketPruebaTipo('venta', { ...opciones, impresora: 'usb:ZKP8008' })
   assert.ok(ticket.lineas().join('').includes('CUPS'))
-  const explicito = ticketPruebaTipo('corta', { ...opciones, impresora: 'usb:ZKP8008', metodo: 'CUPS · sale por red' })
+  const explicito = ticketPruebaTipo('venta', { ...opciones, impresora: 'usb:ZKP8008', metodo: 'CUPS · sale por red' })
   assert.ok(explicito.lineas().join('').includes('CUPS · sale por red'))
+})
+
+// #277 · El ticket corto es el predeterminado: solo el título y la validación
+// XXXX-XX; la plantilla decide qué suma y el corte (total o parcial).
+test('el ticket corto predeterminado sale solo con el título y la validación', () => {
+  const ticket = ticketPruebaTipo('corta', opciones)
+  const texto = ticket.lineas().join('')
+  assert.match(ticket.validador, /^\d{4}-\d{2}$/, 'validación con formato XXXX-XX')
+  assert.ok(texto.includes('TICKET DE PRUEBA'), 'título')
+  assert.ok(texto.includes(`VALIDACIÓN ${ticket.validador}`), 'validación')
+  assert.ok(!texto.includes('Método'), 'sin trazabilidad por defecto')
+  assert.ok(!texto.includes('Puente'), 'sin pie por defecto')
+  assert.ok(!texto.includes('[QR]'), 'sin códigos por defecto')
+  assert.ok(!texto.includes('Prueba corta'), 'sin la etiqueta del tipo')
+  assert.ok(texto.includes('[CORTE]'), 'corte total por defecto')
+})
+
+test('la plantilla del ticket corto suma fecha, códigos, trazabilidad y corte parcial', () => {
+  const ticket = ticketPruebaTipo('corta', { ...opciones, incluye: { fechaHora: true, codigos: true, trazabilidad: true }, corte: 'parcial' })
+  const texto = ticket.lineas().join('')
+  assert.ok(texto.includes('Fecha'), 'fecha y hora')
+  assert.ok(texto.includes('[QR]'), 'códigos')
+  assert.ok(texto.includes('Método'), 'trazabilidad')
+  assert.ok(texto.includes('Puente'), 'pie')
+  assert.ok(texto.includes('[CORTE: parcial]'), 'corte parcial')
+  assert.equal(ticket.corte, true, 'el comando de corte salió')
+})
+
+test('el ticket corto también respeta el ancho de 58 mm', () => {
+  const ticket = ticketPruebaTipo('corta', { ...opciones, ancho: 58 })
+  const lineas = ticket.lineas()
+  assert.ok(Math.max(...lineas.map((linea) => linea.length)) <= 32, 'las líneas entran en 58 mm')
+  const texto = lineas.join('')
+  assert.ok(texto.includes('TICKET DE') && texto.includes('PRUEBA'), 'título (puede envolver)')
+  assert.ok(texto.includes('VALIDACIÓN'), 'validación')
 })
 
 test('todos los tipos confirman que el comando de corte fue enviado', () => {
@@ -102,7 +137,7 @@ test('la prueba de corte explica la verificación física', () => {
 })
 
 test('el validador va grande arriba y repetido en el pie', () => {
-  const ticket = ticketPruebaTipo('corta', opciones)
+  const ticket = ticketPruebaTipo('venta', opciones)
   const texto = ticket.lineas().join('')
   const primera = texto.indexOf(`VALIDACIÓN ${ticket.validador}`)
   const ultima = texto.lastIndexOf(`VALIDACIÓN ${ticket.validador}`)

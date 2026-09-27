@@ -1,0 +1,29 @@
+{
+  "base": "http://127.0.0.1:5237",
+  "fecha": "2026-09-27T04:54:25.462Z",
+  "resultados": [
+    {
+      "paso": "demo como dueño",
+      "estado": "ok",
+      "detalle": "v1.0.190",
+      "capturas": []
+    },
+    {
+      "paso": "#276 · historial con transporte honesto",
+      "estado": "ok",
+      "detalle": "solicitado · ejecutado con fallback · conexión física visibles",
+      "capturas": [
+        "01-historial-transporte.jpg"
+      ]
+    },
+    {
+      "paso": "#277 · ticket corto predeterminado y plantilla",
+      "estado": "ok",
+      "detalle": "el corto sale solo con título + validación XXXX-XX; la plantilla se edita y guarda",
+      "capturas": [
+        "02-ticket-corto-plantilla.jpg",
+        "03-plantilla-guardada.jpg"
+      ]
+    }
+  ]
+}

@@ -27,6 +27,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
   const errorReportado = textoOpcional(body?.error, 200)
   const transporte = textoOpcional(body?.transport, 40)
+  // #276: transporte honesto reportado por el agente (lo solicitado, el
+  // fallback con su motivo y la conexión física real de la cola CUPS).
+  const solicitado = textoOpcional(body?.requestedTransport, 10).toLowerCase()
+  const fallback = body?.fallback === true
+  const motivoFallback = textoOpcional(body?.fallbackReason, 200)
+  const conexion = textoOpcional(body?.physicalConnection, 10).toLowerCase()
   const ahora = new Date()
   const aplicado = await prisma.$transaction(async tx => {
     const cambio = await tx.printJob.updateMany({
@@ -42,6 +48,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         queueMs: milisegundosEntre(trabajo.enqueuedAt, trabajo.claimedAt),
         durationMs: milisegundosEntre(trabajo.enqueuedAt, ahora),
         ...(transporte ? { transport: transporte } : {}),
+        ...(solicitado ? { requestedTransport: solicitado } : {}),
+        ...(fallback ? { fallback: true } : {}),
+        ...(motivoFallback ? { fallbackReason: motivoFallback } : {}),
+        ...(conexion ? { physicalConnection: conexion } : {}),
         ...(nuevo === 'ACEPTADO' ? { acceptedAt: ahora } : {}),
         ...(nuevo === 'FALLIDO' && !errorReportado ? { error: 'El puente reportó un fallo.' } : {}),
         ...(nuevo !== 'ACEPTADO' && errorReportado ? { error: errorReportado } : {}),
@@ -54,7 +64,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         action: nuevo === 'ACEPTADO' ? 'PRINT_JOB_ACCEPTED' : nuevo === 'INCIERTO' ? 'PRINT_JOB_INCIERTO' : 'PRINT_JOB_FAILED',
         entity: 'PrintJob',
         entityId: trabajo.id,
-        metadata: { jobId: trabajo.id, attempts: trabajo.attempts, ...(trabajo.printerId ? { printerId: trabajo.printerId } : {}), ...(transporte ? { transport: transporte } : {}), ...(nuevo !== 'ACEPTADO' && errorReportado ? { error: errorReportado } : {}) },
+        metadata: { jobId: trabajo.id, attempts: trabajo.attempts, ...(trabajo.printerId ? { printerId: trabajo.printerId } : {}), ...(transporte ? { transport: transporte } : {}), ...(solicitado ? { requestedTransport: solicitado } : {}), ...(fallback ? { fallback: true, ...(motivoFallback ? { fallbackReason: motivoFallback } : {}) } : {}), ...(conexion ? { physicalConnection: conexion } : {}), ...(nuevo !== 'ACEPTADO' && errorReportado ? { error: errorReportado } : {}) },
       },
     })
     return true
