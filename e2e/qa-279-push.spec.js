@@ -48,4 +48,29 @@ test('el andamiaje de Web Push responde y la suscripción se da de alta y baja',
   // Una suscripción inválida se rechaza sin romper.
   const invalida = await apiPagina(page, '/api/push/suscripciones', { method: 'POST', body: JSON.stringify({ suscripcion: { endpoint: 'http://inseguro', keys: {} } }) })
   expect(invalida.status).toBe(400)
+
+  // Despacho de eventos y métricas: sin claves VAPID no envía, pero deriva y
+  // registra; el cron interno exige token de mantenimiento.
+  const sincronizar = await apiPagina(page, '/api/push/sincronizar', { method: 'POST', body: '{}' })
+  expect(sincronizar.status, JSON.stringify(sincronizar.body)).toBe(200)
+  expect(typeof sincronizar.body?.evaluados).toBe('number')
+  expect(sincronizar.body?.enviados).toBe(0)
+
+  const metricas = await apiPagina(page, '/api/push/metricas')
+  expect(metricas.status).toBe(200)
+  expect(metricas.body?.propias || metricas.body?.tienda).toBeTruthy()
+
+  const interno = await apiPagina(page, '/api/internal/push-eventos', { method: 'POST', body: '{}' })
+  expect([401, 503]).toContain(interno.status)
+})
+
+test('Preferencias muestra los avisos del navegador con el estado real', async ({ page }) => {
+  await page.goto('/mi-cuenta')
+  await expect(page.getByTestId('mi-cuenta-perfil')).toBeVisible({ timeout: 20_000 })
+  const avisos = page.getByTestId('pref-avisos')
+  await expect(avisos).toBeVisible()
+  // Sin claves VAPID el arnés lo explica y no ofrece la suscripción.
+  await expect(page.getByTestId('pref-avisos-detalle')).toContainText('no está configurado', { timeout: 20_000 })
+  await expect(avisos).toBeDisabled()
+  await page.screenshot({ path: (process.env.MOBOS_279_CAPTURAS || 'test-results/qa-279-push') + '/avisos-preferencias.png', fullPage: true })
 })

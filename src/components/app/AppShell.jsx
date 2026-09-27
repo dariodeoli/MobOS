@@ -12,7 +12,7 @@ import ComoFuncionaDemo from '@/components/app/ComoFuncionaDemo'
 import PanelColaOffline from '@/components/ventas/PanelColaOffline'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { useColaOffline } from '@/hooks/useColaOffline'
-import { sincronizarWebPush } from '@/lib/webPush'
+import { sincronizarEventosWebPush, sincronizarWebPush } from '@/lib/webPush'
 import { usePresenceTracker } from '@/hooks/usePresence'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { usePreferencias } from '@/hooks/usePreferencias'
@@ -336,6 +336,9 @@ export default function AppShell({
   useEffect(() => {
     if (esDemo || !usuario?.id) return
     sincronizarWebPush().catch(() => {})
+    sincronizarEventosWebPush()
+    const intervalo = window.setInterval(() => sincronizarEventosWebPush(), 5 * 60 * 1000)
+    return () => window.clearInterval(intervalo)
   }, [esDemo, usuario?.id])
   // Modo offline del POS (#168): el shell muestra la cola pendiente en el menú
   // (escritorio) y en la barra (móvil), y la abre con su detalle. Solo lectura:
