@@ -1,0 +1,16 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "1.0.188",
+  "fecha": "2026-09-27T00:50:38.225Z",
+  "medidas": {
+    "estado": {
+      "candado": false,
+      "menuTresPuntos": true,
+      "chip": {
+        "texto": "",
+        "aria": "Mi cuenta"
+      },
+      "botonMiCuentaSuelto": true
+    }
+  }
+}
