@@ -1,6 +1,6 @@
-// Bloqueo de sesión del POS (#158): el menú de tres puntos bloquea la pantalla
-// y el PIN personal la desbloquea solo (sin Enter); la inactividad bloquea con
-// el tiempo configurado en Preferencias.
+// Bloqueo de sesión del POS (#158/#266): el candado del header bloquea la
+// pantalla y el PIN personal la desbloquea solo (sin Enter); la inactividad
+// bloquea con el tiempo configurado en Preferencias.
 
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
@@ -20,28 +20,22 @@ async function simularImagenes(page, variantes) {
 }
 
 async function bloquear(page) {
-  await page.getByTestId('menu-acciones').click()
-  await page.getByTestId('menu-acciones-lista').getByRole('menuitem', { name: 'Bloquear pantalla', exact: true }).click()
+  await page.getByTestId('shell-bloquear').click()
   const bloqueo = page.getByTestId('pantalla-bloqueada')
   await expect(bloqueo).toBeVisible()
   return bloqueo
 }
 
 test.describe('bloqueo de sesión', () => {
-  test('el menú de tres puntos bloquea la pantalla y el PIN la desbloquea', async ({ page }) => {
+  test('el candado del header bloquea la pantalla y el PIN la desbloquea', async ({ page }) => {
     await page.goto('/ventas')
     await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
-    await page.getByTestId('menu-acciones').click()
-    const menu = page.getByTestId('menu-acciones-lista')
-    // Menú corto (#228): solo accesos de uso; nada destructivo ni duplicado.
-    for (const item of ['Configuración', 'Caja', 'Análisis', 'Clientes', 'Bloquear pantalla']) {
-      await expect(menu.getByRole('menuitem', { name: item, exact: true })).toBeVisible()
-    }
-    for (const fuera of ['Eliminar cuenta', 'Cerrar sesión', 'Preferencias', 'Cambiar sucursal']) {
-      await expect(menu.getByRole('menuitem', { name: fuera, exact: true })).toHaveCount(0)
-    }
-    await menu.getByRole('menuitem', { name: 'Bloquear pantalla', exact: true }).click()
+    // #266: el menú de tres puntos se retiró; el bloqueo es el candado del
+    // header y el chip de usuario lleva a Mi perfil.
+    await expect(page.getByTestId('menu-acciones')).toHaveCount(0)
+    await expect(page.getByTestId('shell-perfil')).toBeVisible()
+    await bloquear(page)
 
     const bloqueo = page.getByTestId('pantalla-bloqueada')
     await expect(bloqueo).toBeVisible()
@@ -80,8 +74,7 @@ test.describe('bloqueo de sesión', () => {
     await page.goto('/ventas')
     await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
-    await page.getByTestId('menu-acciones').click()
-    await page.getByTestId('menu-acciones-lista').getByRole('menuitem', { name: 'Bloquear pantalla', exact: true }).click()
+    await page.getByTestId('shell-bloquear').click()
     await expect(page.getByTestId('pantalla-bloqueada')).toBeVisible()
 
     // F5 no puede saltar el bloqueo: sigue pidiendo el PIN.
