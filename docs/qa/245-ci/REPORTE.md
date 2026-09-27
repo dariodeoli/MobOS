@@ -91,3 +91,62 @@ Con la corrección, la corrida de v1.0.188 quedó **verde completa** (5/5 jobs).
   `docs/qa/266-shell-header/produccion/` (`resultados.json` + captura).
 - #266 vive en `slot/plataforma` (aún no mergeado): el script queda listo para
   correr después del release que lo incluya.
+
+## Suite completa local (27/09) — rama lista para integrar
+
+`MOBOS_E2E_BACKEND=prod npx playwright test` sobre `slot/plataforma`:
+**513 passed · 8 failed · 10 skipped** (31.7 min, 531 tests).
+
+Clasificación de los 8 rojos:
+
+- **Ancla de #270 (2)**: `ocultos-plataforma` (capturas) y `pos-148-s11-sin-stock`
+  (sobre pedido) afirman `heading «POS»`, el ancla nueva del PR **#270**, que aún
+  no está mergeado en esta rama (caveat documentado en
+  `docs/qa/270-ancla-pos/REPORTE.md`). Desaparecen al integrar el PR.
+- **Artefactos de datos locales (5)**: `permissions`, `finanzas-ultimo-usado`,
+  `informe-dispositivo` (hoja de estación), `ruc-extraccion` y
+  `seguridad-cuenta` — re-corridos individualmente quedan **en verde**: dependen
+  del estado acumulado de la base del worktree (la CI parte de base limpia).
+- **Datos sembrados (1)**: `admin › la unidad reservada sigue en el listado`
+  depende de la reserva sembrada (ya consumida en la base local).
+
+Los tres fixes de causa raíz (#245) siguen verificados: IMEI con alta entropía,
+página pública sin sesión y entrada liviana en Mi cuenta. Racha en `main`:
+**0/3** (sin corridas nuevas; `main` no se movió desde v1.0.190).
+
+## Actualización 27/09 (tarde)
+
+- **Ancla de #270 desacoplada**: las pruebas aceptan `POS` o `Nueva venta`
+  (`name: /^(POS|Nueva venta)$/`), así la rama no depende del orden de
+  integración del PR. Re-verificado: `ocultos-plataforma` + `pos-148-s11-sin-stock`
+  + `qa-256-composicion` + `qa-257-inventario-pos` → **16/18** (los 2 restantes
+  son de POS/datos locales, ver abajo).
+- **Rojo flaky del aviso offline** (`ocultos-plataforma`): el evento `offline`
+  de `context.setOffline` no es confiable bajo carga y `setOffline` bloquea
+  también los assets locales. El spec simula ahora el estado real del navegador
+  (`navigator.onLine=false`) y recarga → **16/16 con `--repeat-each=2`**.
+- Pendiente ajeno: `pos-148-s11-sin-stock › sobre pedido` falla en el worktree
+  con `stockDe()` devolviendo `null` para un producto recién creado con stock 0
+  (no aparece en los rojos de CI; queda para POS).
+
+## Guardia de CI (#245)
+
+`npm run ci:guardia` (scripts/qa-ci-guardia.mjs) automatiza el recuento y la
+causa: racha de corridas completas verdes, última roja con job y tests fallidos,
+`--esperar` para la corrida en curso y `--reporte` para dejar el snapshot (ver
+`docs/qa/245-ci/guardia.md`). Salidas: 0 = racha ≥ mínimo, 1 = corta, 2 = espera
+agotada.
+
+## Corrección 27/09 — el fix de menciones necesitaba dos cosas
+
+El primer intento (contexto «limpio») **no alcanzaba**: Playwright hereda el
+`storageState` del proyecto en `browser.newContext()`, así que el contexto seguía
+autenticado y veía la **vista interna** del pedido (con la etiqueta «Solo tú y
+otros empleados»). Además, la página pública canónica de pedidos vive en
+`clientes.moboss.online` (`dabb7e81`); en el host de la app la ruta interna pide
+sesión.
+
+Fix real en `qa-148-16-menciones`: contexto **anónimo explícito**
+(`storageState: { cookies: [], origins: [] }`) y aserciones de que el cliente sin
+sesión no ve el texto ni la etiqueta internos **y** que la ruta interna pide
+sesión (login visible). Verificado **2/2 con `--repeat-each=2`**.

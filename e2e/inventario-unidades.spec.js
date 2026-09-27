@@ -298,7 +298,7 @@ test('vender todos deja el lote elegido en el POS con producto, cantidad e IMEI'
       if (!page.url().includes('/pos')) {
         await page.getByTestId('vender-todos').click({ timeout: 5_000 })
       }
-      await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible({ timeout: 5_000 })
+      await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible({ timeout: 5_000 })
     }).toPass({ timeout: 30_000 })
     await expect(page).toHaveURL(/\/pos/)
     // La línea nace colapsada (#243): se despliega para ver cantidad e IMEI.

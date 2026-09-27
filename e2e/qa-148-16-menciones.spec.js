@@ -68,7 +68,8 @@ test('menciones: comentario interno, notificación al mencionado y nada para el 
   // pública del mismo origen («/pedido/:token»): «/pedidos/:token» es la ruta
   // interna del panel y, con sesión de vendedor, muestra la ficha del pedido
   // con el aviso de comentarios (falso positivo/flaky en CI).
-  const cliente = await browser.newContext()
+  // Anónimo real: Playwright hereda el storageState del proyecto en newContext().
+  const cliente = await browser.newContext({ storageState: { cookies: [], origins: [] } })
   const publico = await cliente.request.get(`${API}/api/public/orders/${seedOrder.publicToken}`)
   const texto = await publico.text()
   expect(texto).not.toContain(`Revisar stock ${marca}`)

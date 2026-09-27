@@ -29,7 +29,7 @@ async function bloquear(page) {
 test.describe('bloqueo de sesión', () => {
   test('el candado del header bloquea la pantalla y el PIN la desbloquea', async ({ page }) => {
     await page.goto('/ventas')
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
 
     // #266: el menú de tres puntos se retiró; el bloqueo es el candado del
     // header y el chip de usuario lleva a Mi perfil.
@@ -45,13 +45,13 @@ test.describe('bloqueo de sesión', () => {
     // El PIN valida solo al completarlo: no hay Enter ni botón.
     await page.locator('#lock-pin').pressSequentially(SEED.sellers[0].pin)
     await expect(bloqueo).toBeHidden()
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
   })
 
   test('la inactividad bloquea sola con el tiempo configurado', async ({ page }) => {
     await page.clock.install()
     await page.goto('/ventas')
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
 
     // Preferencia de 1 minuto (el default son 10) para no esperar. Las
     // preferencias del dispositivo viven en Configuración → Sistema (#228);
@@ -64,7 +64,7 @@ test.describe('bloqueo de sesión', () => {
       localStorage.setItem(`mobos:preferencias:${id}`, JSON.stringify({ bloqueoMinutos: 1, notificaciones: true }))
     }, userId)
     await page.reload()
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
 
     await page.clock.fastForward(61_000)
     await expect(page.getByTestId('pantalla-bloqueada')).toBeVisible()
@@ -72,7 +72,7 @@ test.describe('bloqueo de sesión', () => {
 
   test('el bloqueo sobrevive a la recarga de la pestaña', async ({ page }) => {
     await page.goto('/ventas')
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
 
     await page.getByTestId('shell-bloquear').click()
     await expect(page.getByTestId('pantalla-bloqueada')).toBeVisible()
@@ -83,7 +83,7 @@ test.describe('bloqueo de sesión', () => {
 
     await page.locator('#lock-pin').pressSequentially(SEED.sellers[0].pin)
     await expect(page.getByTestId('pantalla-bloqueada')).toBeHidden()
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
 
     // Desbloqueado, otra recarga ya no bloquea.
     await page.reload()
@@ -94,7 +94,7 @@ test.describe('bloqueo de sesión', () => {
     const variantes = []
     await simularImagenes(page, variantes)
     await page.goto('/ventas')
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
 
     const bloqueo = await bloquear(page)
     await expect(bloqueo.locator('img[alt="MobOS"]')).toHaveAttribute('src', /\/logo\.svg$/)
@@ -113,7 +113,7 @@ test.describe('bloqueo de sesión', () => {
     const variantes = []
     await simularImagenes(page, variantes)
     await page.goto('/ventas')
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
 
     const bloqueo = await bloquear(page)
     await expect(bloqueo.locator('img[alt="MobOS"]')).toHaveAttribute('src', /\/logo-dark\.svg$/)

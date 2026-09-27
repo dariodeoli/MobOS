@@ -19,7 +19,7 @@ try {
 } catch { /* sin setup: el listado no lo necesita */ }
 
 const PANTALLAS = [
-  ['pos', '/pos', (page) => page.getByRole('heading', { name: 'POS', level: 1 }), async (page, ancho) => {
+  ['pos', '/pos', (page) => page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 }), async (page, ancho) => {
     // Carrito con una línea en el ancho de referencia del celular: es el estado
     // que más se usa en el mostrador (en los otros anchos se audita el inicio).
     if (ancho !== 390) return
@@ -59,7 +59,7 @@ const MODALES = {
 // (menú de tres puntos desplegado, bloqueo/PIN, detalle de pedido y ficha de
 // unidad con checklist). Se auditan a 390 (ancho de referencia del celular).
 const SUPERFICIES = [
-  ['pos-header', '/pos', (page) => page.getByRole('heading', { name: 'POS', level: 1 }), async (page) => {
+  ['pos-header', '/pos', (page) => page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 }), async (page) => {
     // #266: el header muestra el candado de bloquear (el menú de tres puntos ya no existe).
     await expect(page.getByTestId('shell-bloquear')).toBeVisible()
     await expect(page.getByTestId('menu-acciones')).toHaveCount(0)
@@ -73,7 +73,7 @@ const SUPERFICIES = [
     await expect(page.getByRole('dialog').first()).toBeVisible({ timeout: 20_000 })
   }],
   // El bloqueo va al final: la pantalla de PIN tapa la app hasta desbloquear.
-  ['pos-bloqueo', '/pos', (page) => page.getByRole('heading', { name: 'POS', level: 1 }), async (page) => {
+  ['pos-bloqueo', '/pos', (page) => page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 }), async (page) => {
     await page.getByTestId('shell-bloquear').click()
     await expect(page.locator('#lock-pin')).toBeVisible({ timeout: 15_000 })
   }],
@@ -359,7 +359,7 @@ test.describe('demo · POS y páginas clave', () => {
 
     const claveDemo = [{ nombre: 'candado (header)', selector: '[data-testid="shell-bloquear"]' }]
     const pantallas = [
-      ['demo-pos', '/pos', (page) => page.getByRole('heading', { name: 'POS', level: 1 }), async (page, ancho) => {
+      ['demo-pos', '/pos', (page) => page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 }), async (page, ancho) => {
         if (ancho !== 390) return
         await page.getByPlaceholder('Buscar producto…').fill('iPhone 15 Pro')
         const producto = page.getByRole('button', { name: /iPhone 15 Pro 256GB/ }).first()
@@ -395,7 +395,7 @@ test.describe('demo · POS y páginas clave', () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await entrarDemoDueno(page)
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible({ timeout: 30_000 })
     await expect(page.getByTestId('shell-bloquear')).toBeVisible()
     await expect(page.getByTestId('menu-acciones')).toHaveCount(0)
     const medicion = await auditar(page, CLAVE['pos-header'])

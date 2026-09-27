@@ -40,3 +40,11 @@ npx playwright test $(git diff --name-only origin/codex/ui-composition-clients-p
 
 El commit de tests **asume la UI del PR**: debe entrar junto con (o después de)
 #270. Si el PR se rebasa sobre `main` primero, el commit aplica sin conflictos.
+
+## Actualización 27/09 — ancla compatible con las dos UIs
+
+Para que la rama no quede atada al orden de integración, las **56 búsquedas** de
+los 25 specs pasaron a `getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })`:
+aceptan el título nuevo (UI del PR #270) y el anterior (main), así que la rama
+puede mergearse **antes o después** del PR sin rojos por el título. Los 5 specs
+del propio PR conservan su ancla estricta (`«POS»`).

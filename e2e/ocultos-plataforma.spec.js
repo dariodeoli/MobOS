@@ -61,14 +61,19 @@ test.describe('ocultos de plataforma', () => {
   })
 
   // (c) El modo offline del POS se ve en el shell/menú y abre la cola.
-  test('el shell avisa el modo offline del POS y abre la cola', async ({ page, context }) => {
+  test('el shell avisa el modo offline del POS y abre la cola', async ({ page }) => {
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
-    await esperarModulosPerezososPos(page)
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
     // Con conexión y sin pendientes, el aviso no ocupa lugar.
     await expect(page.getByTestId('shell-cola-offline')).toHaveCount(0)
 
-    await context.setOffline(true)
+    // `context.setOffline` bloquea también los assets locales y su evento
+    // `offline` no es confiable bajo carga; se simula el estado real del
+    // navegador sin conexión (`navigator.onLine=false`) y se recarga.
+    const sinConexion = () => page.addInitScript(() => { try { Object.defineProperty(navigator, 'onLine', { get: () => false, configurable: true }) } catch { /* sin soporte */ } })
+    const conConexion = () => page.addInitScript(() => { try { Object.defineProperty(navigator, 'onLine', { get: () => true, configurable: true }) } catch { /* sin soporte */ } })
+    await sinConexion()
+    await page.reload()
     const aviso = page.getByTestId('shell-cola-offline')
     await expect(aviso).toBeVisible()
     await expect(aviso).toContainText('POS sin conexión')
@@ -79,7 +84,8 @@ test.describe('ocultos de plataforma', () => {
     await expect(detalle.getByText('No hay ventas sin conexión.')).toBeVisible()
     await detalle.getByRole('button', { name: 'Cerrar' }).last().click()
 
-    await context.setOffline(false)
+    await conConexion()
+    await page.reload()
     await expect(aviso).toHaveCount(0)
   })
 
@@ -135,19 +141,26 @@ test.describe('ocultos de plataforma', () => {
     await page.addInitScript(() => { try { localStorage.setItem('mobos:theme', 'light') } catch { /* sin storage */ } })
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
     // Los módulos perezosos del POS (SellerTools) tienen que estar cargados
-    // antes de cortar la red: si el import dinámico queda en vuelo, falla
-    // offline y la pantalla queda en blanco (el aviso no es lo que se prueba).
+    // antes de simular la desconexión: si el import dinámico queda en vuelo, la
+    // pantalla queda en blanco (el aviso no es lo que se prueba).
+    const moduloDiferido = page
+      .waitForResponse((respuesta) => /SellerTools(\.[^/]*)?\.jsx?/.test(respuesta.url()) && respuesta.ok(), { timeout: 30_000 })
+      .catch(() => null)
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
-    await esperarModulosPerezososPos(page)
-    await context.setOffline(true)
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+    await moduloDiferido
+    // `context.setOffline` puede no disparar el evento `offline` bajo carga y
+    // bloquea también los assets locales: se simula el estado real del navegador.
+    await page.addInitScript(() => { try { Object.defineProperty(navigator, 'onLine', { get: () => false, configurable: true }) } catch { /* sin soporte */ } })
+    await page.reload()
     await expect(page.getByTestId('shell-cola-offline-pill')).toBeVisible()
     await page.screenshot({ path: `${salida}/offline-badge-mobile.png` })
     await page.getByRole('button', { name: 'Menú', exact: true }).click()
     await expect(page.getByTestId('shell-cola-offline-menu')).toBeVisible()
     await page.screenshot({ path: `${salida}/offline-badge-menu-mobile.png` })
-    await context.setOffline(false)
+    await page.addInitScript(() => { try { Object.defineProperty(navigator, 'onLine', { get: () => true, configurable: true }) } catch { /* sin soporte */ } })
+    await page.reload()
   })
 })

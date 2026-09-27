@@ -47,7 +47,7 @@ test('producción: paleta AA en el POS (claro/oscuro) y vistas del shell', async
   for (const modo of ['light', 'dark']) {
     await tema(page, modo)
     await page.goto(`${APP}/pos`)
-    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible({ timeout: 25_000 })
+    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible({ timeout: 25_000 })
     const buscador = page.getByPlaceholder('Buscar producto…')
     await buscador.fill('iPhone')
     const producto = page.getByRole('button', { name: /iPhone|Equipo/i }).first()
