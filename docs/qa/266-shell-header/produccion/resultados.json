@@ -1,0 +1,15 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "v1.0.188",
+  "estado": "pendiente-deploy",
+  "resultados": [
+    {
+      "paso": "header nuevo desplegado",
+      "estado": "pendiente-deploy",
+      "detalle": "producción v1.0.188 todavía sirve el header anterior",
+      "capturas": [
+        "01-produccion-header-anterior.jpg"
+      ]
+    }
+  ]
+}
