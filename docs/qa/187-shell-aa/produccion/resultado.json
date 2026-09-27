@@ -1,0 +1,170 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "1.0.190",
+  "fecha": "2026-09-27T07:17:33.207Z",
+  "resultados": [
+    {
+      "pantalla": "pos",
+      "estado": "desktop-claro",
+      "medidos": 57,
+      "bajos": 0,
+      "detalle": [],
+      "totalBajosContenido": 0,
+      "contenido": []
+    },
+    {
+      "pantalla": "resumen",
+      "estado": "desktop-claro",
+      "medidos": 58,
+      "bajos": 0,
+      "detalle": [],
+      "totalBajosContenido": 0,
+      "contenido": []
+    },
+    {
+      "pantalla": "clientes",
+      "estado": "desktop-claro",
+      "medidos": 58,
+      "bajos": 0,
+      "detalle": [],
+      "totalBajosContenido": 0,
+      "contenido": []
+    },
+    {
+      "pantalla": "inventario",
+      "estado": "desktop-claro",
+      "medidos": 58,
+      "bajos": 0,
+      "detalle": [],
+      "totalBajosContenido": 0,
+      "contenido": []
+    },
+    {
+      "pantalla": "pos",
+      "estado": "mobile-claro",
+      "medidos": 16,
+      "bajos": 0,
+      "detalle": [],
+      "totalBajosContenido": 0,
+      "contenido": []
+    },
+    {
+      "pantalla": "pos-menu",
+      "estado": "mobile-claro",
+      "medidos": 65,
+      "bajos": 0,
+      "detalle": [],
+      "totalBajosContenido": 0,
+      "contenido": []
+    },
+    {
+      "pantalla": "resumen",
+      "estado": "mobile-claro",
+      "medidos": 16,
+      "bajos": 0,
+      "detalle": [],
+      "totalBajosContenido": 0,
+      "contenido": []
+    },
+    {
+      "pantalla": "clientes",
+      "estado": "mobile-claro",
+      "medidos": 16,
+      "bajos": 0,
+      "detalle": [],
+      "totalBajosContenido": 0,
+      "contenido": []
+    },
+    {
+      "pantalla": "inventario",
+      "estado": "mobile-claro",
+      "medidos": 16,
+      "bajos": 0,
+      "detalle": [],
+      "totalBajosContenido": 0,
+      "contenido": []
+    },
+    {
+      "pantalla": "pos",
+      "estado": "desktop-oscuro",
+      "medidos": 57,
+      "bajos": 0,
+      "detalle": [],
+      "totalBajosContenido": 0,
+      "contenido": []
+    },
+    {
+      "pantalla": "resumen",
+      "estado": "desktop-oscuro",
+      "medidos": 58,
+      "bajos": 0,
+      "detalle": [],
+      "totalBajosContenido": 0,
+      "contenido": []
+    },
+    {
+      "pantalla": "clientes",
+      "estado": "desktop-oscuro",
+      "medidos": 58,
+      "bajos": 0,
+      "detalle": [],
+      "totalBajosContenido": 0,
+      "contenido": []
+    },
+    {
+      "pantalla": "inventario",
+      "estado": "desktop-oscuro",
+      "medidos": 58,
+      "bajos": 0,
+      "detalle": [],
+      "totalBajosContenido": 0,
+      "contenido": []
+    },
+    {
+      "pantalla": "pos",
+      "estado": "mobile-oscuro",
+      "medidos": 16,
+      "bajos": 0,
+      "detalle": [],
+      "totalBajosContenido": 0,
+      "contenido": []
+    },
+    {
+      "pantalla": "pos-menu",
+      "estado": "mobile-oscuro",
+      "medidos": 65,
+      "bajos": 0,
+      "detalle": [],
+      "totalBajosContenido": 0,
+      "contenido": []
+    },
+    {
+      "pantalla": "resumen",
+      "estado": "mobile-oscuro",
+      "medidos": 16,
+      "bajos": 0,
+      "detalle": [],
+      "totalBajosContenido": 0,
+      "contenido": []
+    },
+    {
+      "pantalla": "clientes",
+      "estado": "mobile-oscuro",
+      "medidos": 16,
+      "bajos": 0,
+      "detalle": [],
+      "totalBajosContenido": 0,
+      "contenido": []
+    },
+    {
+      "pantalla": "inventario",
+      "estado": "mobile-oscuro",
+      "medidos": 16,
+      "bajos": 0,
+      "detalle": [],
+      "totalBajosContenido": 0,
+      "contenido": []
+    }
+  ],
+  "fallas": []
+}

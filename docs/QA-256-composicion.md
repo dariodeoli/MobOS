@@ -63,6 +63,18 @@ integrante apretaba los importes en tiles de 4 columnas dentro de una tarjeta
 angosta (los números se pisaban); ahora las métricas van como filas
 etiqueta/valor con el objeto `FilaDato`.
 
+## Cierre visual (final)
+
+Barrido final del panel vendedor con `scripts/qa-secundarias.mjs` →
+`docs/qa/paginas-secundarias/cierre/`: **6/7 con barra visible** y títulos
+visibles (la séptima es el pipeline del dueño en Trade-In, que no es una
+secundaria de vendedor). No quedan `SellerSection description` sueltos en
+`src/components`.
+
+Lámina de cierre (matriz claro/oscuro/móvil × ANTES | DESPUÉS) de Productos en
+`docs/qa/paginas-secundarias/cierre/comparativa-cierre.jpg`, generada con
+`scripts/qa-comparativas-cierre.mjs`.
+
 ## Verificación
 
 - `e2e/qa-256-composicion.spec.js` **4/4**: barra única del POS (con fecha y

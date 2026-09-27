@@ -1,0 +1,79 @@
+{
+  "base": "http://localhost:5203",
+  "ventanaMs": 1500,
+  "fecha": "2026-09-27T07:01:24.447Z",
+  "medidas": [
+    {
+      "tema": "claro",
+      "ms": 2104,
+      "fotoViejaPintada": false,
+      "enCurso": [
+        {
+          "alt": "MobOS",
+          "esVieja": false,
+          "esCorrecta": false
+        }
+      ],
+      "resuelto": [
+        {
+          "alt": "MobOS",
+          "esVieja": false,
+          "esCorrecta": false
+        },
+        {
+          "alt": "Foto de Administrador",
+          "esVieja": false,
+          "esCorrecta": true
+        }
+      ]
+    },
+    {
+      "tema": "oscuro",
+      "ms": 2104,
+      "fotoViejaPintada": false,
+      "enCurso": [
+        {
+          "alt": "MobOS",
+          "esVieja": false,
+          "esCorrecta": false
+        }
+      ],
+      "resuelto": [
+        {
+          "alt": "MobOS",
+          "esVieja": false,
+          "esCorrecta": false
+        },
+        {
+          "alt": "Foto de Administrador",
+          "esVieja": false,
+          "esCorrecta": true
+        }
+      ]
+    },
+    {
+      "tema": "movil",
+      "ms": 2096,
+      "fotoViejaPintada": false,
+      "enCurso": [
+        {
+          "alt": "MobOS",
+          "esVieja": false,
+          "esCorrecta": false
+        }
+      ],
+      "resuelto": [
+        {
+          "alt": "MobOS",
+          "esVieja": false,
+          "esCorrecta": false
+        },
+        {
+          "alt": "Foto de Administrador",
+          "esVieja": false,
+          "esCorrecta": true
+        }
+      ]
+    }
+  ]
+}
