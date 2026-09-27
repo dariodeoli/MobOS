@@ -225,3 +225,70 @@ await req('/api/products', 'POST', { name: `Stock libre ${sufijo}`, sku: `STKL-$
 await req('/api/supply/purchases', 'PATCH', { id: compraAbierta.id, action: 'addLines', lines: [{ productId: productoLibre.id, quantity: 1, serials: [enStockAdicional] }] }, 409, admin)
 
 console.log(`PASS: compra ${compra.code} (USD → Gs) con IMEI, parcial y adicional · cobertura/validaciones · reposición libre · stock intacto · ${checks} chequeos`)
+
+// 12) FIN (#254 · F2): cierre de costos — la compra que nace sin factura se
+// completa después: la cuenta a pagar aparece con el monto real y las unidades
+// recibidas con el costo pendiente se completan (nunca se pisa lo ya sellado).
+const imeiCierre = '490154203237559'
+const imeiCierre2 = '490154203237567'
+// La recepción de esta sección va a la sucursal A2: la sugerencia de depósito
+// de F5 mira la última recepción de la sucursal y no queremos pisarla.
+const ramaCierre = 'branch-a2-it'
+const productoCierre = await req('/api/products', 'POST', { name: `Cierre ${sufijo}`, sku: `CIE-${sufijo}`, pricePyg: 2500000, costPyg: 1800000, stock: 0, branchId: rama }, 201)
+const pendiente = await req('/api/supply/purchases', 'POST', { supplierName: `Proveedor Cierre ${sufijo}`, currency: 'PYG', reference: `FAC-CIE-${sufijo}`, lines: [{ productId: productoCierre.id, quantity: 2, serials: [imeiCierre] }] }, 201)
+assert.equal(pendiente.costPyg, null, 'la compra nace sin costo (factura pendiente)')
+const auditoriaPrevia = await req('/api/audit?action=SUPPLIER_PAYABLE_CREATED&limit=50')
+assert.ok(!(auditoriaPrevia || []).some((fila) => fila.metadata?.code === pendiente.code), 'sin monto todavía no hay cuenta a pagar')
+const cerrada = await req('/api/supply/purchases', 'PATCH', { id: pendiente.id, action: 'costs', originalCost: 3600000 }, 200)
+assert.equal(Number(cerrada.costPyg), 3600000, 'el cierre carga el costo de la factura')
+assert.equal(Number(cerrada.originalCost), 3600000, 'en Gs el original es el mismo monto')
+const auditoriaCierre = await req('/api/audit?action=SUPPLIER_PAYABLE_CREATED&limit=50')
+const cuentaCerrada = (auditoriaCierre || []).find((fila) => fila.metadata?.code === pendiente.code)
+assert.ok(cuentaCerrada, 'el cierre genera la cuenta a pagar')
+assert.equal(Number(cuentaCerrada.metadata?.amountPyg), 3600000)
+// Con la cuenta ya saldada no se ajusta el costo en silencio (contado pago).
+await req('/api/supply/purchases', 'PATCH', { id: pendiente.id, action: 'costs', originalCost: 4000000 }, 409)
+
+// Validaciones del cierre (compra sin costo y sin cuenta).
+const paraValidar = await req('/api/supply/purchases', 'POST', { supplierName: `Proveedor Cierre ${sufijo}`, currency: 'PYG', lines: [{ productId: productoCierre.id, quantity: 1 }] }, 201)
+await req('/api/supply/purchases', 'PATCH', { id: paraValidar.id, action: 'costs' }, 400)
+await req('/api/supply/purchases', 'PATCH', { id: paraValidar.id, action: 'costs', originalCost: 100, currency: 'USD' }, 400)
+await req('/api/supply/purchases', 'PATCH', { id: paraValidar.id, action: 'costs', originalCost: 100, paymentCondition: 'CREDITO' }, 400)
+await req('/api/supply/purchases', 'PATCH', { id: paraValidar.id, action: 'costs', originalCost: 100, lines: [{ id: 'no-existe', unitCostPyg: 1 }] }, 400)
+// A crédito: la cuenta nace pendiente con su vencimiento.
+const cierreCredito = await req('/api/supply/purchases', 'PATCH', { id: paraValidar.id, action: 'costs', originalCost: 500000, paymentCondition: 'CREDITO', dueAt: '2026-11-10T00:00:00.000Z' }, 200)
+assert.equal(cierreCredito.paymentCondition, 'CREDITO')
+const finCierreCredito = await req('/api/finance')
+const cuentaCierreCredito = (finCierreCredito.supplierPayables?.rows || []).find((fila) => fila.reference === paraValidar.code)
+assert.ok(cuentaCierreCredito, 'el cierre a crédito deja la cuenta pendiente')
+assert.equal(Number(cuentaCierreCredito.paidPyg), 0)
+assert.equal(String(cuentaCierreCredito.dueAt).slice(0, 10), '2026-11-10', 'el vencimiento del cierre viaja a Finanzas')
+
+// Cierre con costo por línea (la factura no trae total).
+const compraLineas = await req('/api/supply/purchases', 'POST', { supplierName: `Proveedor Cierre ${sufijo}`, currency: 'PYG', lines: [{ productId: productoCierre.id, quantity: 2 }] }, 201)
+const conCostoLinea = await req('/api/supply/purchases', 'PATCH', { id: compraLineas.id, action: 'costs', lines: [{ id: compraLineas.lines[0].id, unitCostPyg: 950000 }] }, 200)
+assert.equal(Number(conCostoLinea.costPyg), 1900000, 'sin total, el cierre suma el costo por línea')
+assert.equal(Number(conCostoLinea.lines[0].unitCostPyg), 950000)
+
+// Unidad recibida con el costo pendiente: el cierre la completa.
+const depositoCierre = await req('/api/stock-locations', 'POST', { branchId: ramaCierre, name: `Depósito Cierre ${sufijo}`, code: `CIE${sufijo.slice(-4)}` }, 201)
+const compraRecibir = await req('/api/supply/purchases', 'POST', { supplierName: `Proveedor Cierre ${sufijo}`, currency: 'PYG', reference: `FAC-CIE2-${sufijo}`, lines: [{ productId: productoCierre.id, quantity: 1, serials: [imeiCierre2] }] }, 201)
+const loteCierre = await req('/api/supply/shipments', 'POST', { purchaseId: compraRecibir.id, origin: 'CDE', destinationBranchId: ramaCierre, method: 'BUS', company: 'Bus del Este', etaAt: '2026-09-30T10:00:00.000Z' }, 201)
+await req('/api/supply/shipments', 'PATCH', { id: loteCierre.id, action: 'prepare' })
+await req('/api/supply/shipments', 'PATCH', { id: loteCierre.id, action: 'dispatch', guide: `G-CIE-${sufijo}` })
+await req('/api/supply/shipments', 'PATCH', { id: loteCierre.id, action: 'transit' })
+const recepcionCierre = await req('/api/supply/receptions', 'POST', { shipmentId: loteCierre.id }, 201)
+await req('/api/supply/receptions', 'PATCH', { id: recepcionCierre.recepcion.id, action: 'scan', serial: imeiCierre2 }, 201)
+await req('/api/supply/receptions', 'PATCH', { id: recepcionCierre.recepcion.id, action: 'confirm', locationId: depositoCierre.id })
+const unidadesPendientes = await req(`/api/inventory-units?q=${imeiCierre2}&branchId=${ramaCierre}`)
+const unidadPendiente = (Array.isArray(unidadesPendientes) ? unidadesPendientes : unidadesPendientes.units || []).find((unidad) => unidad.serial === imeiCierre2)
+assert.ok(unidadPendiente, 'la unidad recibida está en stock')
+assert.equal(unidadPendiente.costPyg, null, 'sin factura, la unidad nace con el costo pendiente')
+const cierreUnidad = await req('/api/supply/purchases', 'PATCH', { id: compraRecibir.id, action: 'costs', originalCost: 1800000 }, 200)
+assert.equal(cierreUnidad.unidadesCompletadas, 1, 'el cierre completa la unidad recibida')
+const unidadesCerradas = await req(`/api/inventory-units?q=${imeiCierre2}&branchId=${ramaCierre}`)
+const unidadCerrada = (Array.isArray(unidadesCerradas) ? unidadesCerradas : unidadesCerradas.units || []).find((unidad) => unidad.serial === imeiCierre2)
+assert.equal(Number(unidadCerrada.costPyg), 1800000, 'la unidad queda con el costo de la factura')
+assert.equal(unidadCerrada.costCurrency, 'PYG')
+
+console.log(`PASS: compra ${compra.code} (USD → Gs) con IMEI, parcial y adicional · cobertura/validaciones · reposición libre · cierre de costos (cuenta, unidades y bloqueos) · stock intacto · ${checks} chequeos`)

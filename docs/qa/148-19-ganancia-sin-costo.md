@@ -66,7 +66,10 @@ Sin API (demo/offline) no cambia nada: `sinCostoPyg` es 0 y no aparece la línea
 - **#122 (costo pendiente):** el aviso de Resumen ya existía; ahora la ganancia
   no cuenta esas ventas como margen. Completar el costo de una unidad **no
   cambia la venta ya cerrada** (la línea congela su costo): queda como candidato
-  de producto poder conciliar el costo pendiente de una venta pasada.
+  de producto poder conciliar el costo pendiente de una venta pasada. En
+  **compras del Centro de Abastecimiento** el costo sí se puede cerrar después
+  (`PATCH action:'costs'`, #250 F2): la unidad recibida sin factura pasa a tener
+  su costo real para las ventas siguientes.
 - **#171 (reportes):** Ganancias, el calendario y la tarjeta de Reportes quedan
   alineados con el motor del backend.
 - **Inventario:** la lista «Unidades sin costo» sigue siendo el lugar para

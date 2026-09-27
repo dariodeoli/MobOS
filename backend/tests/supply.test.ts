@@ -97,7 +97,7 @@ assert.equal(manual.ok, true)
 assert.deepEqual(manual.ok && manual.data, { productId: 'p1', branchId: null, quantity: 2, condition: 'USED', priority: 'URGENTE', promisedAt: '2026-10-05T12:00:00.000Z', notes: 'Reposición preventiva' })
 
 // ── Fase 2: compra rápida (#250 §6) ─────────────────────────────────────────
-import { codigoCompra, normalizarCompra, normalizarSeriales } from '../lib/supply'
+import { codigoCompra, normalizarCierreDeCostos, normalizarCompra, normalizarSeriales } from '../lib/supply'
 
 assert.equal(codigoCompra({ origen: 'cde', secuencia: 48 }), 'COM-CDE-0048')
 assert.equal(codigoCompra({ origen: 'CDE', destino: 'ASU', secuencia: 21 }), 'COM-CDE-ASU-0021')
@@ -181,6 +181,36 @@ assert.equal(normalizarCompra({ ...compraBase, paymentCondition: 'CONSIGNACION' 
 const credito = normalizarCompra({ ...compraBase, paymentCondition: 'CREDITO', dueAt: '2026-10-15T00:00:00.000Z' })
 assert.equal(credito.ok && credito.data.paymentCondition, 'CREDITO')
 assert.equal(credito.ok && credito.data.dueAt, '2026-10-15T00:00:00.000Z')
+
+// FIN (#254 · F2): cierre de costos — la compra sin factura se completa
+// después con el monto (o el costo por línea) sin tocar el resto.
+const compraSinCosto = { currency: 'PYG', exchangeRatePyg: null, paymentCondition: 'CONTADO', dueAt: null }
+const lineasCierre = [
+  { id: 'l1', quantity: 2, unitCostPyg: null, originalUnitCost: null },
+  { id: 'l2', quantity: 1, unitCostPyg: null, originalUnitCost: null },
+]
+const cierreTotal = normalizarCierreDeCostos({ originalCost: 3000000 }, compraSinCosto, lineasCierre)
+assert.equal(cierreTotal.ok && cierreTotal.data.costPyg, 3000000, 'el monto de la factura cierra el total')
+assert.equal(cierreTotal.ok && cierreTotal.data.originalCost, 3000000, 'en Gs el original es el mismo monto')
+assert.equal(cierreTotal.ok && cierreTotal.data.lineas.every((linea) => linea.unitCostPyg === null), true, 'un total no inventa costo por línea')
+const cierreUsd = normalizarCierreDeCostos({ currency: 'USD', exchangeRatePyg: 7500, originalCost: 400 }, compraSinCosto, lineasCierre)
+assert.equal(cierreUsd.ok && cierreUsd.data.costPyg, 3000000, 'USD con cotización convierte al cerrar')
+assert.equal(cierreUsd.ok && cierreUsd.data.originalCost, 400)
+assert.equal(cierreUsd.ok && cierreUsd.data.exchangeRatePyg, 7500)
+assert.equal(normalizarCierreDeCostos({ currency: 'USD', originalCost: 400 }, compraSinCosto, lineasCierre).ok, false, 'USD sin cotización')
+const cierreLineas = normalizarCierreDeCostos({ lines: [{ id: 'l1', unitCostPyg: 1200000 }, { id: 'l2', originalUnitCost: 800000 }] }, compraSinCosto, lineasCierre)
+assert.equal(cierreLineas.ok && cierreLineas.data.costPyg, 3200000, 'sin total, el cierre suma las líneas')
+assert.equal(cierreLineas.ok && cierreLineas.data.lineas.find((linea) => linea.id === 'l1')?.unitCostPyg, 1200000)
+const cierreParcial = normalizarCierreDeCostos({ lines: [{ id: 'l1', unitCostPyg: 1000000 }] }, compraSinCosto, lineasCierre)
+assert.equal(cierreParcial.ok && cierreParcial.data.lineas.find((linea) => linea.id === 'l2')?.unitCostPyg, null, 'la línea que no viene queda como estaba')
+assert.equal(cierreParcial.ok && cierreParcial.data.costPyg, 2000000, 'el total sale de la línea cargada × cantidad')
+assert.equal(normalizarCierreDeCostos({}, compraSinCosto, lineasCierre).ok, false, 'sin monto ni líneas no hay cierre')
+assert.equal(normalizarCierreDeCostos({ lines: [{ id: 'nope', unitCostPyg: 1 }] }, compraSinCosto, lineasCierre).ok, false, 'línea ajena a la compra')
+assert.equal(normalizarCierreDeCostos({ originalCost: 3000000, paymentCondition: 'CREDITO' }, compraSinCosto, lineasCierre).ok, false, 'crédito sin vencimiento')
+const cierreCredito = normalizarCierreDeCostos({ originalCost: 3000000, paymentCondition: 'CREDITO', dueAt: '2026-11-05T00:00:00.000Z' }, compraSinCosto, lineasCierre)
+assert.equal(cierreCredito.ok && cierreCredito.data.dueAt, '2026-11-05T00:00:00.000Z')
+const cierreContado = normalizarCierreDeCostos({ originalCost: 3000000, paymentCondition: 'CONTADO' }, { ...compraSinCosto, paymentCondition: 'CREDITO', dueAt: '2026-11-05T00:00:00.000Z' }, lineasCierre)
+assert.equal(cierreContado.ok && cierreContado.data.dueAt, null, 'volver a contado limpia el vencimiento')
 
 // ── Fase 3: IMEI y preparación (#250 §7 y §11) ──────────────────────────────
 import { compararModelo, cuadrarSeriales, etiquetasPreparacion, resumenPreparacion } from '../lib/supply'

@@ -117,8 +117,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       const message = quoteEmail({
         to: email,
         customerName: quote.customer?.name || quote.customerName,
-        quoteNumber: quote.number,
-        lines: lineas,
+        number: quote.number,
+        items: lineas,
         totalPyg: quote.totalPyg,
         validUntil: quote.validUntil,
         link,

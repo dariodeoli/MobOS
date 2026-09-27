@@ -31,7 +31,7 @@ Estados de la compra: F2 usa **COMPRADA** y **CANCELADA**; F4 suma
 |---|---|---|
 | `GET` | `/api/supply/purchases` | lista con líneas, IMEI y necesidades; filtros `status`, `supplierId`, `branchId`, `limit` |
 | `POST` | `/api/supply/purchases` | crea la compra: proveedor (ficha o nombre), costo/moneda, referencia, líneas con `needId?`, `quantity`, `condition?`, `unitCostPyg?`, `serials?` (lista o texto pegado) y `code?`/`origin?` opcionales |
-| `PATCH` | `/api/supply/purchases` | `cancel` (motivo; devuelve las necesidades a «Por comprar») o `serials` (completa IMEI de una línea) |
+| `PATCH` | `/api/supply/purchases` | `cancel` (motivo; devuelve las necesidades a «Por comprar») · `addLines` (§4-ter) · `serials`/`scan` (completa IMEI de una línea) · `costs` (cierre de costos, §4-quater) |
 
 - El **código** se genera correlativo por empresa (`codigoCompra` → `COM-<centro>-0001`)
   o se acepta el que mande el cliente.
@@ -40,7 +40,7 @@ Estados de la compra: F2 usa **COMPRADA** y **CANCELADA**; F4 suma
 - **Costo**: usa las reglas compartidas (`normalizarCosto`): PYG entero, USD con
   2 decimales y cotización obligatoria; `costPyg` se calcula en el servidor. Es
   **opcional** (una compra puede registrarse sin monto y completarse al recibir
-  la factura).
+  la factura con `PATCH action:'costs'`, ver §4-quater).
 - **IMEI**: acepta lista o texto pegado; valida **Luhn** en los IMEI de 15
   dígitos, descarta repetidos dentro de la compra y rechaza (409) los que ya
   están en otra compra o en el inventario; nunca más seriales que unidades. Si
@@ -91,21 +91,49 @@ Agrega líneas a una compra **activa** (COMPRADA) sin crear otra compra:
 - No mueve stock (regla dura) y el GET expone **`libreQuantity`** por línea
   (excedente de una línea con necesidad, o toda la cantidad si es libre).
 
+## 4-quater. Cierre de costos (`PATCH action:'costs'`, FIN #254)
+
+La compra registrada **sin factura** (`costPyg: null`) se completa cuando el
+monto aparece: `originalCost` (total, manda tal cual), `lines: [{ id,
+unitCostPyg | originalUnitCost }]` (si la factura trae el detalle; sin total, el
+total es la suma de las líneas × cantidad) y opcionalmente `currency`,
+`exchangeRatePyg`, `paymentCondition` y `dueAt`.
+
+Reglas:
+
+- **Cuenta a pagar**: si no existía, nace con el monto real (contado saldado;
+  crédito con vencimiento). Si existía **impaga**, se corrige el monto/condición.
+  Con **pagos o consumo reales** (409) el ajuste va por Finanzas: no se mueve
+  plata registrada en silencio.
+- **Unidades recibidas**: las que quedaron con el **costo pendiente** (`costPyg:
+  null`) se completan con la misma cuenta proporcional que la recepción
+  (`costoPorUnidad`); las que ya tienen costo sellado bloquean el ajuste (409).
+- **No toca** cantidades, IMEI, necesidades ni stock: solo costo/moneda/condición
+  y la valuación de lo ya recibido sin costo.
+- **Auditoría**: `SUPPLY_PURCHASE_COST_UPDATED` · `SUPPLIER_PAYABLE_CREATED` /
+  `_UPDATED` · `INVENTORY_UNIT_COST_COMPLETED` (por unidad completada).
+- La respuesta trae la compra completa + **`unidadesCompletadas`**.
+
 ## 5. Tests
 
 - Unit `backend/tests/supply.test.ts`: `codigoCompra`, `normalizarSeriales`
-  (Luhn, repetidos, texto pegado) y `normalizarCompra` (proveedor, moneda/costo,
-  líneas, IMEI pendientes, límites).
-- Arnés HTTP `backend/tests/supply-purchases.mjs` (**59 chequeos**): compra en
+  (Luhn, repetidos, texto pegado), `normalizarCompra` (proveedor, moneda/costo,
+  líneas, IMEI pendientes, límites) y `normalizarCierreDeCostos` (total o por
+  línea, moneda/cotización, condición de pago y bloqueos).
+- Arnés HTTP `backend/tests/supply-purchases.mjs` (**86 chequeos**): compra en
   USD con referencia + línea que cubre una necesidad con IMEI + compra adicional
   sin IMEI; necesidad cubierta/visible por estado; **stock intacto**; duplicados
   (otra compra / inventario); completar IMEI pendiente; 400/401/403/404/409;
   cancelación que devuelve la necesidad al panel; y **compra parcial**: 5
   pedidas → compra 2 (quedan 3 en «Por comprar») → completa con otra compra →
   excedente libre → duplicar la necesidad en la misma compra (400) → cancelar
-  devuelve lo cubierto; y **líneas adicionales**: compra sin costo → addLines con
+  devuelve lo cubierto; **líneas adicionales**: compra sin costo → addLines con
   reposición libre + necesidad pendiente, validaciones (repetida/cuenta
-  a pagar/cancelada) y `libreQuantity` del excedente.
+  a pagar/cancelada) y `libreQuantity` del excedente; y **cierre de costos**:
+  compra sin factura → cuenta a pagar (contado saldado / crédito con
+  vencimiento), validaciones (sin monto, USD sin cotización, línea ajena,
+  crédito sin vencimiento), 409 al ajustar con la cuenta saldada, costo por
+  línea sin total y unidad recibida con costo pendiente completada.
 - `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` → **PASS**;
   `npm run db:check` verde con la migración aplicada.
 
@@ -115,6 +143,9 @@ Agrega líneas a una compra **activa** (COMPRADA) sin crear otra compra:
   (necesita IMEI por línea, condición y estados de lote que `PurchaseOrder` no
   tiene). Cuando Dario confirme, se puede volcar a Compras para contabilidad y
   pago a proveedor (o hacer que Compras consuma estas tablas).
+- **UI de F2**: sigue pendiente la pantalla de compra rápida (INV/PLT). El
+  contrato incluye `costs` para «Completar costo» cuando llega la factura, con
+  las validaciones de §4-quater.
 - F3 (escaneo de IMEI y etiquetas), F4 (lotes/envíos) y F5 (recepción) siguen
   sin empezar; el `PATCH serials` ya deja el gancho para completarlos.
 - La foto de la factura se adjunta después de crear la compra (la UI lo hará en
