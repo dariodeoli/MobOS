@@ -58,9 +58,10 @@ test('la cuenta elegida muestra cápsula con banco, titular, número, moneda y s
   // hay pendiente. Con un pago parcial aparece el saldo; al completarlo se va.
   await expect(capsula.getByTestId('cuenta-capsula-saldo')).toHaveCount(0)
   await fila.getByLabel('Monto original').fill('20000')
-  const saldo = capsula.getByTestId('cuenta-capsula-saldo')
+  await expect(capsula.getByTestId('cuenta-capsula-saldo')).toHaveCount(0) // #272: el saldo vive en los totales
+  const saldo = page.getByTestId('cobro-pendiente')
   await expect(saldo).toBeVisible()
-  await expect(saldo).toContainText('Saldo pendiente de esta venta')
+  await expect(saldo).toContainText('Gs')
   await expect(saldo).toContainText('Gs 25.000')
   await fila.getByLabel('Monto original').fill('45000')
   await expect(capsula.getByTestId('cuenta-capsula-saldo')).toHaveCount(0)
