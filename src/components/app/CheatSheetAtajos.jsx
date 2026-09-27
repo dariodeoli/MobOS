@@ -29,8 +29,8 @@ export const ATAJOS_AYUDA = [
     icono: 'lock',
     filas: [
       { teclas: ['Esc'], accion: 'Cerrar diálogos' },
-      { teclas: ['1 clic'], accion: 'Cambiar vendedor', contexto: 'chip de usuario, pide PIN' },
-      { teclas: ['3 clics'], accion: 'Bloquear pantalla', contexto: 'chip de usuario' },
+      { teclas: ['Candado'], accion: 'Bloquear pantalla', contexto: 'ícono en la barra superior' },
+      { teclas: ['Chip'], accion: 'Mi perfil', contexto: 'tu foto y nombre, en la barra' },
     ],
   },
 ]

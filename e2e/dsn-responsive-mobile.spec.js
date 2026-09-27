@@ -269,7 +269,7 @@ function auditarPantallas(registro, pantallas) {
 }
 
 function auditarSuperficies(registro) {
-  test('segunda vuelta: menú, bloqueo, detalle de pedido y ficha (390)', async ({ page }) => {
+  test('segunda vuelta: candado, bloqueo, detalle de pedido y ficha (390)', async ({ page }) => {
     mkdirSync(SHOTS, { recursive: true })
     await page.setViewportSize({ width: 390, height: 844 })
     for (const [nombre, ruta, listo, abrir] of SUPERFICIES) {

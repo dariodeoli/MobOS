@@ -26,7 +26,7 @@ mobile/tablet, con espaciado y accesibilidad cuidados.
 |---|---|
 | `nav-expandido-claro-desktop.jpg` / `nav-expandido-oscuro-desktop.jpg` | riel completo en ambos temas |
 | `nav-colapsado-claro-desktop.jpg` / `nav-colapsado-oscuro-desktop.jpg` | solo íconos con tooltip y toggle |
-| `nav-horizontal-mobile-claro.jpg` | tira horizontal en 390 (sin toggle) |
+| `nav-horizontal-mobile-claro.jpg` / `nav-horizontal-mobile-oscuro.jpg` | tira horizontal en 390 en ambos temas (sin toggle) |
 
 Se reproducen con
 `MOBOS_CAPTURAS=docs/qa/253-config-nav npx playwright test e2e/qa-253-config-grupos.spec.js --project=admin -g "capturas del menú"`.

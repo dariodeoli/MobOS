@@ -1224,7 +1224,7 @@ test('servicio y garantías: la garantía pasa al taller con su historial', asyn
 
 // #228: el menú de tres puntos queda corto y sin duplicados; Preferencias y la
 // eliminación de la empresa viven en Configuración (nunca a un toque).
-test('el menú de tres puntos queda corto y lo destructivo vive en Configuración (#228)', async ({ page }) => {
+test('el header usa el candado y lo destructivo vive en Configuración (#228/#266)', async ({ page }) => {
   mkdirSync('test-results/qa-228', { recursive: true })
   // Sesión fresca: la ventana de reautenticación vence y el flujo de
   // confirmación es determinista (la sesión del arnés se comparte).

@@ -27,10 +27,11 @@ con fotos verticales eso dejaba el cuadrado en el centro de la imagen.
 | **Antes** (producción v1.0.186) | **240×480** (solo el centro) | 600×1200 |
 | **Después** (rama) | **120×240** (entera) | 300×600 |
 
-Capturas: `docs/qa/recorte-perfil/antes/01-al-abrir.jpg` (se ve solo el centro)
-vs `.../despues/01-al-abrir.jpg` (se ven las tres marcas 1-2-3), más `02-zoom-2.5x.jpg`
-en cada lado. Se reproducen con `node scripts/qa-recorte-foto.mjs`
-(`QA_BASE_URL` para el host).
+Capturas en los tres modos: `01-al-abrir` (claro, escritorio),
+`02-zoom-2.5x`, `03-al-abrir-oscuro-desktop` y `04-al-abrir-claro-mobile` en
+`docs/qa/recorte-perfil/{antes,despues}/` — en el «antes» se ve solo el centro;
+en el «después», las tres marcas 1-2-3. Se reproducen con
+`node scripts/qa-recorte-foto.mjs` (`QA_BASE_URL` para el host).
 
 ## Tests
 
