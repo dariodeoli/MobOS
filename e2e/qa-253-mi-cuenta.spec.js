@@ -10,7 +10,7 @@ test('el dueño abre Mi cuenta desde el avatar y ve perfil, preferencias y sesio
   test.skip(test.info().project.name !== 'admin', 'Flujo del dueño.')
 
   await page.goto('/clientes')
-  await page.getByTestId('shell-mi-cuenta').click()
+  await page.getByTestId('shell-perfil').click()
   await expect(page).toHaveURL(/\/configuracion\/mi-cuenta/)
 
   await expect(page.getByTestId('mi-cuenta-perfil')).toBeVisible({ timeout: 20000 })
@@ -41,7 +41,7 @@ test('el vendedor entra a su perfil personal desde el avatar', async ({ page }) 
   test.skip(test.info().project.name !== 'seller', 'Flujo del vendedor.')
 
   await page.goto('/clientes')
-  await page.getByTestId('shell-mi-cuenta').click()
+  await page.getByTestId('shell-perfil').click()
   await expect(page).toHaveURL(/\/mi-cuenta$/)
 
   const perfil = page.getByTestId('mi-cuenta-perfil')
@@ -67,7 +67,7 @@ test('demo: Mi cuenta se arma con los datos de la pestaña', async ({ browser })
   const cerrarGuia = page.getByRole('button', { name: 'Cerrar', exact: true })
   if (await cerrarGuia.count()) await cerrarGuia.first().click().catch(() => {})
   await page.waitForTimeout(300)
-  await page.getByTestId('shell-mi-cuenta').click()
+  await page.getByTestId('shell-perfil').click()
   await expect(page.getByTestId('mi-cuenta-perfil')).toBeVisible({ timeout: 20000 })
   await expect(page.getByTestId('mi-cuenta-perfil').getByText('Hernán Acosta')).toBeVisible()
   await expect(page.getByTestId('mi-cuenta-sesiones').getByText('Sesión actual')).toBeVisible()
@@ -82,7 +82,7 @@ test('mobile: Mi cuenta entra desde el menú lateral', async ({ browser }) => {
 
   await page.goto('/clientes')
   await page.getByRole('button', { name: 'Menú' }).first().click()
-  await page.getByRole('dialog').getByTestId('shell-mi-cuenta').click()
+  await page.getByRole('dialog').getByTestId('shell-perfil').click()
   await expect(page.getByTestId('mi-cuenta-perfil')).toBeVisible({ timeout: 20000 })
   await page.screenshot({ path: `${SHOTS}/04-mobile-mi-cuenta.png`, fullPage: true })
   await contexto.close()

@@ -11,6 +11,15 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.190 — 2026-09-27
+- **Clientes (#268):** la unificación suma **aviso al crear** un posible duplicado, **unificar desde la lista** (elegís las dos fichas) y la **cronología** del cliente unificado.
+- **POS y Clientes (#256 · #262/#264/#265):** **composición compacta** de ambas pantallas, **selector de cuenta de cobro** que colapsa el buscador al elegir y **papelera del pago** dentro de su bloque.
+- **Shell (#266):** iteración del header (**candado** + **chip a Mi perfil**) con capturas en claro/oscuro/móvil.
+- **Abastecimiento (#250 · F3/F4):** **IMEI diferido del lote** en el panel de preparación, **etiquetas** de la preparación y **reimpresión del manifiesto** en la recepción.
+- **Finanzas (#250 · F6):** cierre de la **deuda de repuestos del taller** en «por pagar» y pago desde Caja.
+- **Componentes (#241):** biblioteca **v0.46.0** y auditoría de duplicaciones actualizada.
+- **Calidad:** specs del header alineados al chip nuevo (`shell-perfil`) y biblioteca actualizada.
+
 ## v1.0.189 — 2026-09-26
 - **Clientes (#268):** **unificar duplicados** con **vista previa** del resultado y aviso al crear un cliente parecido (evita repetidos).
 - **POS (#264/#265):** el **popup de eliminar producto** ya no se superpone y la **papelera del medio de pago** vive dentro de su bloque, con más espacio.
