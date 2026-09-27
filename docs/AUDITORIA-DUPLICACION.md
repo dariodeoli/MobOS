@@ -292,6 +292,20 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Fix #271 — la foto de perfil se invalida en toda la app (27-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `Avatar` / `userAvatar` | La caché guardaba la promesa por `userId` y nadie avisaba a los componentes montados: al cambiar o quitar la foto, todos los avatares de la app seguían pintando la vieja hasta recargar. Encima el GET del avatar tiene URL fija con `max-age=60`, así que la descarga podía salir de la caché HTTP del navegador | `lib/avatarCache.js` (lógica pura, testeable): comparte la descarga, y `olvidarAvatar` borra + versiona + avisa a los suscriptores del módulo + emite `mobos:avatar-cambio`. `userAvatar` descarga con `cache: 'no-store'`. El `Avatar` compartido **se suscribe**, limpia la foto y muestra el **placeholder neutro** (iniciales) mientras resuelve la nueva; `MiCuenta` limpia su vista previa antes de resolver |
+| Almacenamiento | — | Verificado: el POST guarda con clave nueva (`randomUUID`) y borra la anterior; el DELETE borra fila y archivo. No queda la vieja en disco/base |
+| Guardas | — | `src/lib/avatarCache.test.js`: comparte promesa, invalida, avisa, versiona y asertúa fuente (`no-store`, suscripción, placeholder, `MiCuenta`); e2e en `qa-253-mi-cuenta.spec.js`: sube/reemplaza/quita por el camino real y registra cada foto que pinta el chip del shell, exigiendo que la anterior no reaparezca |
+
+Nota: `Avatar` sigue en la deuda de `shared/` (API distinta a la de la
+biblioteca, revisión de DSN pendiente); este fix es de la app y no cambia la
+API. Queda como candidata la cosecha de `crearCacheAvatar` a la biblioteca
+(caché con invalidación, genérica). El GET del avatar puede bajar su
+`Cache-Control` a `no-store` desde el backend (hoy lo cubre el cliente).
+
 ### Lote 54 — Riel de Configuración a la biblioteca (#267/#253) + INV/FIN (27-09)
 
 | Objeto | Antes (evidencia) | Después |

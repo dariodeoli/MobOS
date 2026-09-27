@@ -3,8 +3,21 @@
 // desde el avatar. El dueño la ve además como pestaña de Configuración; el
 // resto del equipo entra a /mi-cuenta (sin permisos de administración).
 import { test, expect } from '@playwright/test'
+import { pngSolido } from './helpers/png.js'
 
 const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/QA-253-mi-cuenta'
+
+// Sube una foto sólida por el camino real (adjunto → recorte → POST).
+async function subirFoto(page, rgb) {
+  await page.locator('[data-testid="mi-cuenta-perfil"] input[type="file"]').setInputFiles({
+    name: 'foto.png',
+    mimeType: 'image/png',
+    buffer: pngSolido({ rgb }),
+  })
+  const usar = page.getByRole('button', { name: 'Usar esta foto' })
+  await expect(usar).toBeEnabled({ timeout: 20000 })
+  await usar.click()
+}
 
 test('el dueño abre Mi cuenta desde el avatar y ve perfil, preferencias y sesiones', async ({ page }) => {
   test.skip(test.info().project.name !== 'admin', 'Flujo del dueño.')
@@ -86,4 +99,54 @@ test('mobile: Mi cuenta entra desde el menú lateral', async ({ browser }) => {
   await expect(page.getByTestId('mi-cuenta-perfil')).toBeVisible({ timeout: 20000 })
   await page.screenshot({ path: `${SHOTS}/04-mobile-mi-cuenta.png`, fullPage: true })
   await contexto.close()
+})
+
+// #271: la foto vieja se veía en TODA la app después de cambiarla o quitarla
+// (caché por usuario sin invalidación + caché HTTP de URL fija). El chip del
+// shell es otro avatar montado: se registra cada foto que pinta para comprobar
+// que la anterior no reaparece mientras resuelve la nueva.
+test('cambiar o quitar la foto actualiza todos los avatares sin recargar', async ({ page }) => {
+  test.skip(test.info().project.name !== 'admin', 'Flujo del dueño.')
+
+  await page.goto('/configuracion/mi-cuenta')
+  const perfil = page.getByTestId('mi-cuenta-perfil')
+  await expect(perfil).toBeVisible({ timeout: 20000 })
+  const preview = perfil.locator('img[alt="Mi foto"]')
+
+  await page.evaluate(() => {
+    const raiz = [...document.querySelectorAll('[data-testid="shell-perfil"]')].find((el) => el.offsetParent !== null)
+    window.__fotosChip = []
+    const registrar = () => {
+      const img = raiz?.querySelector('img')
+      window.__fotosChip.push(img?.getAttribute('src') || '(iniciales)')
+    }
+    registrar()
+    if (raiz) new MutationObserver(registrar).observe(raiz, { subtree: true, childList: true, attributes: true, attributeFilter: ['src'] })
+  })
+  const chip = page.getByTestId('shell-perfil').filter({ visible: true }).locator('img')
+
+  await subirFoto(page, [220, 38, 38])
+  await expect(preview).toBeVisible({ timeout: 20000 })
+  const fotoRoja = String(await preview.getAttribute('src'))
+  expect(fotoRoja).toMatch(/^data:image\//)
+  await expect(chip).toHaveAttribute('src', fotoRoja, { timeout: 20000 })
+  await page.screenshot({ path: `${SHOTS}/06-271-foto-subida.png` })
+
+  // Reemplazo: no puede pintarse la roja mientras resuelve la azul.
+  await page.evaluate(() => { window.__fotosChip = [] })
+  await subirFoto(page, [37, 99, 235])
+  await expect(preview).not.toHaveAttribute('src', fotoRoja, { timeout: 20000 })
+  const fotoAzul = String(await preview.getAttribute('src'))
+  await expect(chip).toHaveAttribute('src', fotoAzul, { timeout: 20000 })
+  const vistas = await page.evaluate(() => window.__fotosChip)
+  const desdeElCambio = vistas.slice(vistas.findIndex((vista) => vista !== fotoRoja))
+  expect(desdeElCambio, `fotos pintadas: ${vistas.join(' | ')}`).not.toContain(fotoRoja)
+  expect(vistas.at(-1)).toBe(fotoAzul)
+  await page.screenshot({ path: `${SHOTS}/07-271-foto-reemplazada.png` })
+
+  // Quitar: todos los avatares vuelven al placeholder neutro.
+  await page.getByRole('button', { name: 'Quitar', exact: true }).click()
+  await expect(preview).toHaveCount(0, { timeout: 20000 })
+  await expect(page.getByTestId('shell-perfil').filter({ visible: true }).locator('img[src^="data:image"]')).toHaveCount(0, { timeout: 20000 })
+  await page.screenshot({ path: `${SHOTS}/08-271-foto-quitada.png` })
 })

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getAvatarDataUrl } from '@/lib/userAvatar'
+import { getAvatarDataUrl, suscribirAvatar } from '@/lib/userAvatar'
 import { inicialesDe } from '@/lib/iniciales'
 
 const TAMANOS = {
@@ -14,24 +14,51 @@ const TAMANOS = {
 // una vez por pestaña y se cachea), si no la foto de su identidad Google
 // (picture) y, si no, las iniciales en un círculo. Todos los lugares que
 // muestran personas usan este componente.
+//
+// #271: al cambiar o quitar la foto, `userAvatar` invalida la caché y avisa a
+// todos los avatares montados; acá se limpia la foto y se muestra un
+// **placeholder neutro** (iniciales) hasta que resuelve la nueva, sin pintar la
+// anterior en ningún lugar de la app.
 export default function Avatar({ user, hasAvatar, picture, size = 'md', className = '', title }) {
   const nombre = user?.name || 'Equipo'
   const puedeTenerFoto = hasAvatar ?? user?.hasAvatar !== false
   const [foto, setFoto] = useState('')
+  const [neutro, setNeutro] = useState(false)
+  const [revision, setRevision] = useState(0)
   // La foto de Google puede caer (la URL caduca): si falla, se cae a iniciales
   // en vez de dejar una imagen rota (#164).
   const [googleRota, setGoogleRota] = useState(false)
+
+  // Cambio o quita de foto en cualquier parte: se recarga y, mientras tanto, el
+  // avatar queda en el placeholder neutro (no la foto anterior).
+  useEffect(() => suscribirAvatar((cambiado) => {
+    if (cambiado && user?.id && cambiado !== user.id) return
+    setNeutro(true)
+    setRevision((valor) => valor + 1)
+  }), [user?.id])
+
   useEffect(() => {
     let vigente = true
     setFoto('')
     if (puedeTenerFoto && user?.id) {
-      getAvatarDataUrl(user.id).then((url) => { if (vigente && url) setFoto(url) })
+      getAvatarDataUrl(user.id).then((url) => {
+        if (!vigente) return
+        setFoto(url || '')
+        setNeutro(false)
+      })
+    } else {
+      setNeutro(false)
     }
     return () => { vigente = false }
-  }, [puedeTenerFoto, user?.id])
+  }, [puedeTenerFoto, user?.id, revision])
+
   useEffect(() => { setGoogleRota(false) }, [picture])
+
   const clases = TAMANOS[size] || TAMANOS.md
   const etiqueta = title ?? nombre
+  if (neutro) {
+    return <span title={etiqueta} className={`${clases} grid shrink-0 place-items-center rounded-full border border-ink-600 bg-ink-700 font-semibold text-mute ${className}`}>{inicialesDe(nombre)}</span>
+  }
   if (foto) {
     return <img src={foto} alt={`Foto de ${nombre}`} loading="lazy" title={etiqueta} className={`${clases} shrink-0 rounded-full border border-ink-600 object-cover ${className}`} />
   }

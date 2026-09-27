@@ -105,6 +105,8 @@ export default function MiCuenta({ preferencias, onCambiarPreferencias }) {
       form.append('avatar', file)
       await api.post(`/api/users/${encodeURIComponent(usuario.id)}/avatar`, form)
       olvidarAvatar(usuario.id)
+      // Mientras resuelve la nueva, no se pinta la anterior (placeholder neutro).
+      setFoto('')
       setFoto(await getAvatarDataUrl(usuario.id))
       setCuenta(current => current ? { ...current, perfil: { ...current.perfil, hasAvatar: true } } : current)
       toast.success('Foto actualizada.')
