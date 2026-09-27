@@ -6,7 +6,9 @@ import { isDemoRuntime } from '@/lib/demoMode'
 import { fechaClave, num, gs } from '@/utils/calculos'
 import { Aviso, Badge, Button, Card, EmptyState, Input, Label, MoneyInput, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { cn } from '@/lib/utils'
+import { temaV2Activo } from '@/lib/temaV2'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 // Tablas compactas: una fila por mes y por inversión.
 const GRID_ADS = 'grid min-w-[40rem] grid-cols-[minmax(10rem,1.4fr)_6rem_8rem_8rem_4rem] items-center gap-x-2'
@@ -40,6 +42,7 @@ const PREFIJO = 'Publicidad:'
 export default function Ads() {
   const demo = isDemoRuntime
   const { sucursal } = useSesion()
+  const v2 = temaV2Activo()
   const [ads, setAds] = useState(demo ? listAds() : [])
   const [cargando, setCargando] = useState(!demo)
   const [error, setError] = useState('')
@@ -86,9 +89,18 @@ export default function Ads() {
     porMes[clave].cant += 1
   })
   const meses = Object.entries(porMes).sort((a, b) => b[0].localeCompare(a[0]))
+  const mesActual = fechaClave().slice(0, 7)
+  const totalMesActual = porMes[mesActual]?.total || 0
+  const promedioMensual = meses.length ? Math.round(total / meses.length) : 0
 
   return (
     <div className="space-y-4">
+      <div className={`${GRILLA_DOS_COLUMNAS} xl:grid-cols-4`} data-testid="ads-resumen">
+        <div className={cn('rounded-xl border border-warn/30 bg-warn/5 p-3', v2 && 'v2-tile')} data-testid="ads-total"><p className="text-xs text-mute">Total invertido</p><strong className={cn('mt-1 block tabular-nums text-warn', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{gs(total)}</strong></div>
+        <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="ads-mes"><p className="text-xs text-mute">{mesLabel(mesActual)}</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{gs(totalMesActual)}</strong></div>
+        <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="ads-promedio"><p className="text-xs text-mute">Promedio por mes</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{gs(promedioMensual)}</strong></div>
+        <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="ads-inversiones"><p className="text-xs text-mute">Inversiones cargadas</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{ads.length}</strong></div>
+      </div>
       <Card>
         <h2 className="font-bold mb-1">Gasto en publicidad (Meta Ads)</h2>
         <p className="text-sm text-mute mb-3">
@@ -98,7 +110,7 @@ export default function Ads() {
         {error && <Aviso tono="error" className="p-3 mb-3">{error}</Aviso>}
         {!demo && cargando && <p className="mb-3 text-sm text-mute">Cargando inversiones…</p>}
         {!demo && <p className="mb-3 text-xs text-mute">Las inversiones se registran como gastos en Finanzas y se descuentan de la ganancia.</p>}
-        <form onSubmit={guardar} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <form onSubmit={guardar} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <Label htmlFor="monto">Monto</Label>
             <MoneyInput id="monto"
@@ -146,7 +158,7 @@ export default function Ads() {
             </div>
             <div className="space-y-1">
               {meses.map(([clave, { total: t, cant }]) => (
-                <div key={clave} data-testid="ads-mes-fila" className={cn(GRID_ADS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2')}>
+                <div key={clave} data-testid="ads-mes-fila" className={cn(GRID_ADS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2', v2 && 'v2-tile')}>
                   <span className={cn('capitalize', CELDA_IDENTIDAD)} title={mesLabel(clave)}>{mesLabel(clave)}</span>
                   <span className="truncate text-xs tabular-nums text-mute">{cant}</span>
                   <span className="truncate text-xs tabular-nums text-mute">{gs(Math.round(t / Math.max(1, cant)))}</span>
@@ -177,7 +189,7 @@ export default function Ads() {
             </div>
             <div className="space-y-1">
               {ads.map((a) => (
-                <div key={a.id} data-testid="ad-fila" className={cn(GRID_ADS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2')}>
+                <div key={a.id} data-testid="ad-fila" className={cn(GRID_ADS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2', v2 && 'v2-tile')}>
                   <span className={CELDA_IDENTIDAD}>{a.plataforma}</span>
                   <span className={CELDA_DATO}>{a.fecha}</span>
                   <span className="truncate text-xs font-bold tabular-nums text-warn">{gs(a.monto)}</span>

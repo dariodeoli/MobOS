@@ -10,6 +10,7 @@ import { Aviso, Badge, Button, Card, EmptyState, Modal, useToast } from '@/compo
 import Icon from '@/components/shared/Icon'
 import PagosPedido from '@/components/ventas/PagosPedido'
 import { cn } from '@/lib/utils'
+import { temaV2Activo } from '@/lib/temaV2'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 // Cobranzas: cuotas de planes de crédito vencidas y próximas, con los días de
@@ -19,6 +20,7 @@ import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 export default function Cobranzas() {
   const toast = useToast()
+  const v2 = temaV2Activo()
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [aviso, setAviso] = useState('')
@@ -63,23 +65,20 @@ export default function Cobranzas() {
   const Fila = ({ row }) => {
     const vencida = row.tipo === 'VENCIDA'
     return (
-      <article data-testid="cuota-fila" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <b className="text-sm">{row.customerName || 'Cliente'}</b>
-            <span className="font-mono text-[11px] text-mute">{row.orderNumber || ''}</span>
-            <Badge color={vencida ? 'red' : 'orange'}>{vencida ? `Vencida · ${diasDeAtraso(row.dueAt)}d` : 'Próxima'}</Badge>
-            {row.avisadoEn && <Badge color="green">Avisado {fecha(row.avisadoEn)}</Badge>}
-          </div>
-          <p className="mt-1 text-xs text-mute">
-            {row.reference || 'Cuota'} · vence {fecha(row.dueAt)} · saldo <b className="text-fore">{gs(row.saldoPendientePyg)}</b>
+      <article data-testid="cuota-fila" className={cn('flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')}>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+          <b className="max-w-[14rem] truncate text-sm" title={row.customerName || 'Cliente'}>{row.customerName || 'Cliente'}</b>
+          <span className="shrink-0 font-mono text-[11px] text-mute">{row.orderNumber || ''}</span>
+          <Badge color={vencida ? 'red' : 'orange'}>{vencida ? `Vencida · ${diasDeAtraso(row.dueAt)}d` : 'Próxima'}</Badge>
+          {row.avisadoEn && <Badge color="green">Avisado {fecha(row.avisadoEn)}</Badge>}
+          <span className="min-w-0 truncate text-xs text-mute" title={`${row.reference || 'Cuota'} · vence ${fecha(row.dueAt)}`}>
+            {row.reference || 'Cuota'} · vence {fecha(row.dueAt)}
             {row.recargoPyg > 0 && <> · recargo {gs(row.recargoPyg)}</>}
-          </p>
-          <p className="mt-0.5 text-[11px] text-mute">
-            {row.phone ? `Tel. ${telefonoVisible(row.phone, row.countryCode)}` : 'Sin teléfono cargado'}
-          </p>
+            {' · '}{row.phone ? `Tel. ${telefonoVisible(row.phone, row.countryCode)}` : 'sin teléfono'}
+          </span>
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <b className="text-[13px] tabular-nums text-fore" data-testid="cuota-saldo">{gs(row.saldoPendientePyg)}</b>
           <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => setDetalle(row)}>Ver mensaje</Button>
           {row.whatsappUrl
             ? <button type="button" disabled={Boolean(enviando)} onClick={() => recordar(row)} className={cn('rounded-lg bg-ok px-3 py-2 text-xs font-semibold text-black transition disabled:opacity-50')}>{enviando === row.id ? 'Registrando…' : row.avisadoEn ? 'Reenviar WhatsApp' : 'WhatsApp'}</button>
@@ -90,6 +89,8 @@ export default function Cobranzas() {
     )
   }
 
+  const montoDe = (filas) => filas.reduce((suma, fila) => suma + Number(fila.saldoPendientePyg || 0), 0)
+
   return (
     <div className="space-y-4">
       <Card>
@@ -99,11 +100,13 @@ export default function Cobranzas() {
             <p className="mt-1 text-sm text-mute">Recordá las cuotas vencidas y próximas con la plantilla de <b className="text-fore">Cobranzas</b>. Cada cuota se avisa una sola vez por WhatsApp y queda en la cronología del cliente y del pedido. La plantilla se edita en <a className="text-fono-light underline" href="/plantillas">Plantillas de WhatsApp</a>.</p>
             <p className="mt-1 text-xs text-mute">{moraPct > 0 ? `Recargo por mora configurado: ${moraPct}% por día (tope 20%).` : 'Sin recargo por mora configurado: solo se informan los días de atraso.'}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge color={resumen.pendientePyg > 0 ? 'orange' : 'green'}>Pendiente total {gs(resumen.pendientePyg)}</Badge>
-            {resumen.recargoPyg > 0 && <Badge color="red">Recargo {gs(resumen.recargoPyg)}</Badge>}
-            <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={cargar}>Actualizar</Button>
-          </div>
+          <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={cargar}>Actualizar</Button>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-4" data-testid="cuotas-resumen">
+          <div className={cn('rounded-xl border border-warn/30 bg-warn/5 p-3', v2 && 'v2-tile')} data-testid="cuotas-pendiente"><p className="text-xs text-mute">Pendiente total</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{gs(resumen.pendientePyg)}</strong></div>
+          <div className={cn('rounded-xl border border-bad/25 bg-bad/5 p-3', v2 && 'v2-tile')} data-testid="cuotas-vencidas"><p className="text-xs text-mute">Vencidas</p><strong className={cn('mt-1 block tabular-nums text-bad', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{vencidas.length}</strong><span className="mt-0.5 block text-[11px] text-mute">{gs(montoDe(vencidas))}</span></div>
+          <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="cuotas-proximas"><p className="text-xs text-mute">Próximas</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{proximas.length}</strong><span className="mt-0.5 block text-[11px] text-mute">{gs(montoDe(proximas))}</span></div>
+          <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="cuotas-recargo"><p className="text-xs text-mute">Recargo por mora</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg', resumen.recargoPyg > 0 ? 'text-bad' : 'text-mute')}>{gs(resumen.recargoPyg)}</strong></div>
         </div>
         {resumen.sinTelefono > 0 && <p className="mt-2 text-xs text-warn">{resumen.sinTelefono} cuota(s) sin teléfono: no se puede armar el enlace de WhatsApp.</p>}
         {aviso && <Aviso tono="ok" className="p-3 mt-3">{aviso}</Aviso>}

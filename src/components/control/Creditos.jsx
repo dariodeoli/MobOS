@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
-import { Aviso, Badge, BarraProgreso, Card, EmptyState, Money, Skeleton } from '@/components/ui'
+import { Aviso, Badge, BarraProgreso, Button, Card, EmptyState, Money, Skeleton } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { temaV2Activo } from '@/lib/temaV2'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 // Tabla compacta: una fila por cliente, con el uso del límite en su columna.
 const GRID_CREDITOS = 'grid min-w-[56rem] grid-cols-[minmax(9rem,1.4fr)_5rem_6rem_minmax(7rem,0.9fr)_7rem_7rem_7rem] items-center gap-x-2'
@@ -18,6 +19,7 @@ const TONE = (row) => row.overduePyg > 0 ? 'bad' : row.limitUsagePct !== null &&
 // atraso. Es la pantalla de compliance para administración y caja.
 export default function Creditos() {
   const { esDemo, sucursal } = useSesion()
+  const v2 = temaV2Activo()
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -45,7 +47,10 @@ export default function Creditos() {
             <h2 className="font-bold">Créditos y días de mora</h2>
             <p className="mt-1 text-sm text-mute">Pendiente por cliente, límite configurado y atraso en días. Los vencimientos se cargan desde cada venta a crédito.</p>
           </div>
-          <button type="button" className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light" onClick={load} disabled={busy}>{busy ? 'Cargando…' : 'Actualizar'}</button>
+          <div className="flex flex-wrap items-center gap-2">
+            {data?.truncado && <Badge color="orange">Primeros 200 clientes</Badge>}
+            <Button type="button" variant="outline" onClick={load} disabled={busy}>{busy ? 'Cargando…' : 'Actualizar'}</Button>
+          </div>
         </div>
         {error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
         {data?.truncado && (
@@ -53,11 +58,11 @@ export default function Creditos() {
             <Badge color="orange">Mostrando los primeros 200 clientes con deuda</Badge> Los totales de arriba incluyen a todos.
           </p>
         )}
-        <div className="mt-4 grid gap-3 sm:grid-cols-4">
-          <div className="rounded-xl border border-ink-600 p-3"><p className="text-xs text-mute">Total por cobrar</p><strong className="mt-1 block text-lg tabular-nums"><Money value={totals.outstandingPyg} /></strong></div>
-          <div className="rounded-xl border border-bad/25 bg-bad/5 p-3"><p className="text-xs text-mute">En mora</p><strong className="mt-1 block text-lg tabular-nums text-bad"><Money value={totals.overduePyg} /></strong></div>
-          <div className="rounded-xl border border-ink-600 p-3"><p className="text-xs text-mute">Clientes con deuda</p><strong className="mt-1 block text-lg tabular-nums">{totals.customersWithDebt}</strong></div>
-          <div className="rounded-xl border border-bad/25 bg-bad/5 p-3"><p className="text-xs text-mute">Clientes en mora</p><strong className="mt-1 block text-lg tabular-nums text-bad">{totals.overdueCustomers}</strong></div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-4" data-testid="creditos-resumen">
+          <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="creditos-por-cobrar"><p className="text-xs text-mute">Total por cobrar</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}><Money value={totals.outstandingPyg} /></strong></div>
+          <div className={cn('rounded-xl border border-bad/25 bg-bad/5 p-3', v2 && 'v2-tile')} data-testid="creditos-en-mora"><p className="text-xs text-mute">En mora</p><strong className={cn('mt-1 block tabular-nums text-bad', v2 ? 'v2-numero text-2xl' : 'text-lg')}><Money value={totals.overduePyg} /></strong></div>
+          <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="creditos-clientes"><p className="text-xs text-mute">Clientes con deuda</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{totals.customersWithDebt}</strong></div>
+          <div className={cn('rounded-xl border border-bad/25 bg-bad/5 p-3', v2 && 'v2-tile')} data-testid="creditos-clientes-mora"><p className="text-xs text-mute">Clientes en mora</p><strong className={cn('mt-1 block tabular-nums text-bad', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{totals.overdueCustomers}</strong></div>
         </div>
       </Card>
       <Card>
@@ -75,7 +80,7 @@ export default function Creditos() {
           </div>
           <div className="space-y-1">
           {rows.map(row => (
-            <div key={row.customerId} data-testid="credito-fila" className={cn(GRID_CREDITOS, 'rounded-xl border bg-ink-800/40 px-3.5 py-2', TONE(row) === 'bad' ? 'border-bad/30 bg-bad/5' : TONE(row) === 'warn' ? 'border-warn/30 bg-warn/5' : 'border-ink-600')}>
+            <div key={row.customerId} data-testid="credito-fila" className={cn(GRID_CREDITOS, 'rounded-xl border bg-ink-800/40 px-3.5 py-2', v2 && 'v2-tile', TONE(row) === 'bad' ? 'border-bad/30 bg-bad/5' : TONE(row) === 'warn' ? 'border-warn/30 bg-warn/5' : 'border-ink-600')}>
               <span className={CELDA_IDENTIDAD} title={row.name}>{row.name}{row.pricingTier === 'WHOLESALE' ? <Badge className="ml-2" color="blue">Mayorista</Badge> : null}</span>
               <span className="truncate text-xs tabular-nums text-mute">{row.pendingOrders}</span>
               <span className={CELDA_DATO}>{fechaCorta(row.oldestDueAt)}</span>

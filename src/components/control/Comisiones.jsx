@@ -14,8 +14,14 @@ import { printHtml, escapeHtml } from '@/utils/printHtml'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { configImpresora } from '@/lib/printing/agent'
 import { ticketLiquidacionComision } from '@/lib/printing/tickets'
-import { CELDA_IDENTIDAD } from '@/components/shared/tabla'
-import { PIE_ACCIONES } from '@/components/shared/formulario'
+import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD, CELDA_NUMERO } from '@/components/shared/tabla'
+import { PIE_ACCIONES, GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+import { temaV2Activo } from '@/lib/temaV2'
+import { cn } from '@/lib/utils'
+
+// Batch compacto v2: una fila por regla y por liquidación (grillas densas).
+const GRID_REGLAS = 'grid min-w-[36rem] grid-cols-[minmax(9rem,1.4fr)_8rem_6rem_minmax(6.5rem,auto)] items-center gap-x-2'
+const GRID_LIQUIDACIONES = 'grid min-w-[62rem] grid-cols-[minmax(10rem,1.4fr)_7rem_8rem_5.5rem_6rem_minmax(11rem,auto)] items-center gap-x-2'
 
 // Reglas de comisión sobre el margen y liquidaciones por vendedor
 // (Finanzas → Comisiones). Mismo contrato que Configuración → Equipo usaba:
@@ -265,9 +271,18 @@ export default function Comisiones() {
 
   // Token crudo del comprobante abierto (solo en memoria).
   const tokenComprobante = comprobante ? (tokens[comprobante.id] || comprobante.verificationToken || '') : ''
+  const v2 = temaV2Activo()
+  const totalLiquidado = (liquidaciones || []).reduce((suma, item) => suma + Number(item.totalPyg || 0), 0)
+  const porPagar = (liquidaciones || []).filter(item => item.status === 'DRAFT').reduce((suma, item) => suma + Number(item.totalPyg || 0), 0)
 
   return (
     <div className="space-y-4">
+      <div className={`${GRILLA_DOS_COLUMNAS} xl:grid-cols-4`} data-testid="comisiones-resumen">
+        <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="comisiones-reglas"><p className="text-xs text-mute">Reglas activas</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{reglas?.length ?? '—'}</strong></div>
+        <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="comisiones-liquidaciones"><p className="text-xs text-mute">Liquidaciones</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{liquidaciones?.length ?? '—'}</strong></div>
+        <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="comisiones-liquidado"><p className="text-xs text-mute">Total liquidado</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{gs(totalLiquidado)}</strong></div>
+        <div className={cn('rounded-xl border border-warn/30 bg-warn/5 p-3', v2 && 'v2-tile')} data-testid="comisiones-por-pagar"><p className="text-xs text-mute">Por pagar</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg', porPagar > 0 ? 'text-warn' : 'text-mute')}>{gs(porPagar)}</strong></div>
+      </div>
       <Card>
         <h2 className="font-bold mb-1">Comisiones</h2>
         <p className="text-sm text-mute mb-4">
@@ -290,30 +305,39 @@ export default function Comisiones() {
         ) : reglas.length === 0 ? (
           <EmptyState compact icon="tag" title="Sin reglas de comisión" description="Agregá una regla para empezar a calcular comisiones por margen." />
         ) : (
-          <div className="space-y-2">
+          <div className="overflow-x-auto" data-testid="comisiones-reglas-tabla">
+            <div className={cn(GRID_REGLAS, 'px-3.5 pb-2 pt-1')}>
+              <span className={CELDA_ENCABEZADO}>Vendedor</span>
+              <span className={CELDA_ENCABEZADO}>Tipo</span>
+              <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Comisión</span>
+              <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span>
+            </div>
+            <div className="space-y-1">
             {reglas.map(regla => (
-              <div key={regla.id} data-testid="regla-comision" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-2.5">
-                <div className="min-w-0">
-                  <div className={CELDA_IDENTIDAD}>{regla.userId ? (regla.user?.name || nombreUsuario(regla.userId)) : `Rol ${regla.role}`}</div>
-                  <div className="mt-0.5 text-xs text-mute">{regla.userId ? 'Regla por usuario' : 'Regla por rol'}</div>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
+              <div key={regla.id} data-testid="regla-comision" className={cn(GRID_REGLAS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2', v2 && 'v2-tile')}>
+                <span className={CELDA_IDENTIDAD} title={regla.userId ? (regla.user?.name || nombreUsuario(regla.userId)) : `Rol ${regla.role}`}>{regla.userId ? (regla.user?.name || nombreUsuario(regla.userId)) : `Rol ${regla.role}`}</span>
+                <span className={CELDA_DATO}>{regla.userId ? 'Regla por usuario' : 'Regla por rol'}</span>
+                <span className="flex justify-end">
+                  {editandoId === regla.id
+                    ? <PercentField className="h-8 w-20 px-2 text-right text-sm" aria-label="Porcentaje de comisión" value={borrador} onChange={setBorrador} />
+                    : <Badge color="green">{formatPercent(regla.percentPyg)}%</Badge>}
+                </span>
+                <span className="flex shrink-0 items-center justify-end gap-1">
                   {editandoId === regla.id ? (
                     <>
-                      <PercentField className="h-8 w-20 px-2 text-right text-sm" aria-label="Porcentaje de comisión" value={borrador} onChange={setBorrador} />
                       <Button type="button" variant="success" disabled={ocupado} className="h-8 px-2 text-xs" onClick={() => guardar(regla)}>Guardar</Button>
                       <Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setEditandoId(null)}>Cancelar</Button>
                     </>
                   ) : (
                     <>
-                      <Badge color="green">{formatPercent(regla.percentPyg)}%</Badge>
                       <IconAction icon="edit" label="Editar porcentaje" onClick={() => { setEditandoId(regla.id); setBorrador(formatPercent(regla.percentPyg)) }} />
                       <IconAction icon="trash" label="Eliminar regla" onClick={() => setEliminando(regla)} />
                     </>
                   )}
-                </div>
+                </span>
               </div>
             ))}
+            </div>
           </div>
         )}
       </Card>
@@ -351,21 +375,26 @@ export default function Comisiones() {
         ) : liquidaciones.length === 0 ? (
           <EmptyState compact icon="receipt" title="Sin liquidaciones" description="Cerrá el período de un vendedor para emitir su comprobante." />
         ) : (
-          <div className="space-y-2">
+          <div className="overflow-x-auto" data-testid="comisiones-liquidaciones-tabla">
+            <div className={cn(GRID_LIQUIDACIONES, 'px-3.5 pb-2 pt-1')}>
+              <span className={CELDA_ENCABEZADO}>Vendedor</span>
+              <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Total</span>
+              <span className={CELDA_ENCABEZADO}>Período</span>
+              <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Comisión</span>
+              <span className={CELDA_ENCABEZADO}>Estado</span>
+              <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span>
+            </div>
+            <div className="space-y-1">
             {liquidaciones.map(item => {
               const [estado, color] = ESTADO_LIQUIDACION[item.status] || [item.status, 'slate']
               return (
-                <div key={item.id} data-testid="liquidacion-comision" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-2.5">
-                  <div className="min-w-0">
-                    <div className={CELDA_IDENTIDAD}>{item.sellerName || 'Vendedor'} · {gs(item.totalPyg || 0)}</div>
-                    <div className="mt-0.5 text-xs text-mute">
-                      {item.periodFrom} al {item.periodTo}
-                      {item.commissionPct !== null && item.commissionPct !== undefined ? ` · ${formatPercent(item.commissionPct)}%` : ''}
-                      {item.createdAt ? ` · emitida ${new Date(item.createdAt).toLocaleDateString('es-PY')}` : ''}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <Badge color={color}>{estado}</Badge>
+                <div key={item.id} data-testid="liquidacion-comision" className={cn(GRID_LIQUIDACIONES, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2', v2 && 'v2-tile')}>
+                  <span className={CELDA_IDENTIDAD} title={item.sellerName || 'Vendedor'}>{item.sellerName || 'Vendedor'}</span>
+                  <span className={cn(CELDA_NUMERO, 'text-[13px] font-semibold text-fore')}>{gs(item.totalPyg || 0)}</span>
+                  <span className={cn(CELDA_DATO, 'tabular-nums')} title={item.createdAt ? `${item.periodFrom} al ${item.periodTo} · emitida ${new Date(item.createdAt).toLocaleDateString('es-PY')}` : `${item.periodFrom} al ${item.periodTo}`}>{item.periodFrom} al {item.periodTo}</span>
+                  <span className={cn(CELDA_NUMERO, 'text-xs text-mute')}>{item.commissionPct !== null && item.commissionPct !== undefined ? `${formatPercent(item.commissionPct)}%` : '—'}</span>
+                  <span className="w-fit"><Badge color={color}>{estado}</Badge></span>
+                  <span className="flex shrink-0 items-center justify-end gap-1">
                     <IconAction icon="receipt" label="Ver comprobante y QR" onClick={() => abrirComprobante(item)} />
                     <IconAction icon="printer" label="Imprimir comprobante" disabled={Boolean(imprimiendoId)} onClick={() => imprimir(item)} />
                     <IconAction icon="copy" label="Copiar enlace de verificación" onClick={() => copiarEnlace(item)} />
@@ -375,10 +404,11 @@ export default function Comisiones() {
                         <IconAction icon="close" tone="bad" label="Anular liquidación" disabled={actualizandoId === item.id} onClick={() => setAnulando(item)} />
                       </>
                     )}
-                  </div>
+                  </span>
                 </div>
               )
             })}
+            </div>
           </div>
         )}
       </Card>
