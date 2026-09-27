@@ -77,6 +77,8 @@ export const ACCIONES_AUDITORIA: Record<string, string> = {
   CUSTOMER_DEVICE_REPORT_SHARED: 'Informe de equipo compartido',
   CUSTOMER_DEVICE_REPORT_VIEWED: 'Informe de equipo visto por el cliente',
   CUSTOMER_QUOTE_SHARED: 'Cotización enviada',
+  CUSTOMER_MERGED: 'Cliente unificado',
+  CUSTOMER_MERGED_INTO: 'Ficha unificada con otra',
   CUSTOMER_NOTICE_CREATED: 'Mensaje al cliente',
   CUSTOMER_NOTICE_DELETED: 'Mensaje al cliente eliminado',
   CASH_OPENED: 'Caja abierta',

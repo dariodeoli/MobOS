@@ -33,6 +33,8 @@ const ACCION_AUDITORIA: Record<string, string> = {
   CUSTOMER_AUTHORIZATION_REJECTED: 'Solicitud comercial rechazada',
   CUSTOMER_DEVICE_REPORT_SHARED: 'Informe del equipo compartido',
   CUSTOMER_QUOTE_SHARED: 'Cotización enviada',
+  CUSTOMER_MERGED: 'Cliente unificado',
+  CUSTOMER_MERGED_INTO: 'Ficha unificada con otra',
   CUSTOMER_DEVICE_REPORT_VIEWED: 'Informe del equipo visto por el cliente',
   SERVICE_ORDER_CREATED: 'Equipo en taller',
   SERVICE_ORDER_FROM_WARRANTY: 'Equipo en taller (garantía)',
@@ -79,6 +81,16 @@ function detalleMetadata(action: string, metadata: unknown) {
     const equipo = typeof data.device === 'string' ? data.device : ''
     const cambio = `${etiquetaServicio(data.previous)} → ${etiquetaServicio(data.current)}`
     return [equipo, cambio].filter(Boolean).join(' · ')
+  }
+  if (action === 'CUSTOMER_MERGED') {
+    const con = typeof data.duplicado === 'string' ? `con ${data.duplicado}` : 'con el duplicado'
+    const resumen = typeof data.resumen === 'string' ? data.resumen : ''
+    return [con, resumen].filter(Boolean).join(' · ')
+  }
+  if (action === 'CUSTOMER_MERGED_INTO') {
+    const con = typeof data.principal === 'string' ? `con ${data.principal}` : 'con la ficha principal'
+    const resumen = typeof data.resumen === 'string' ? data.resumen : ''
+    return [con, resumen].filter(Boolean).join(' · ')
   }
   if (action === 'CUSTOMER_QUOTE_SHARED') {
     const canal = data.canal === 'EMAIL' ? `por correo${typeof data.destino === 'string' && data.destino ? ` a ${data.destino}` : ''}` : 'por WhatsApp'
