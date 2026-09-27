@@ -11,6 +11,10 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.196 — 2026-09-27
+- **POS/Ventas (#148 §9):** los **montos pasan a bigint**: los topes reales de **Gs. 10.000 millones** (general) y **Gs. 99.000 millones** (ventas) ya se pueden cargar, guardar y reportar sin el techo viejo de 32 bits.
+- **Autorizaciones (#278 · #256):** la pantalla estrena la **barra compacta** (identidad, pendientes como contexto y acciones juntas), sin encabezado duplicado.
+
 ## v1.0.195 — 2026-09-27
 - **Compras/Abastecimiento (#278 · #250 §11):** «**Lista de compra**» desde **Compras del Centro** con vista previa del papel real, **impresión 80 mm, PDF e imagen**; la compra muestra por línea **prioridad, origen, promesa y reposición libre**.
 - **Inventario (#250 F4):** la ficha de la unidad muestra la **cadena del serial** (necesidad → compra → lote → stock), con aviso honesto si no hay cadena.
