@@ -40,10 +40,33 @@ Capturas en `docs/qa/256-composicion/{antes,despues}/` (claro/oscuro desktop y
 claro mobile) reproducibles con `node scripts/qa-256-composicion.mjs`
 (`QA_BASE_URL` para el host).
 
+## Segunda unidad: páginas secundarias
+
+La barra de módulo se aplicó también a las secundarias: **Productos**
+(«Actualizar/Combos/Importar» suben a la barra), **Promociones**,
+**Cotizaciones** («+ Nueva cotización» y «Actualizar» en la barra),
+**Plantillas** («Nueva plantilla») y **Delivery**. El **cotizador de Trade-In**
+(«Cotizar equipo») la usa en la vista del vendedor; el dueño ve el pipeline.
+
+Medición (demo, v1.0.190): **5/6 con barra visible** (la sexta es el pipeline
+del dueño), títulos visibles y sin desbordes. Capturas claro/oscuro desktop y
+claro mobile en `docs/qa/paginas-secundarias/{antes,despues}/` con
+`scripts/qa-secundarias.mjs`.
+
+## Revisión de Configuración (v1.0.190)
+
+`scripts/qa-config-revision.mjs` recorre los 7 grupos **con el contenido
+cargado** (nada de esqueletos) en claro/oscuro/móvil: 21 capturas, sin
+desbordes. **Hallazgo corregido**: en «Equipo y acceso», la ficha del
+integrante apretaba los importes en tiles de 4 columnas dentro de una tarjeta
+angosta (los números se pisaban); ahora las métricas van como filas
+etiqueta/valor con el objeto `FilaDato`.
+
 ## Verificación
 
-- `e2e/qa-256-composicion.spec.js` **3/3**: barra única del POS (con fecha y
-  acciones), resumen con alcance en Clientes y sin desbordes 390/1280.
+- `e2e/qa-256-composicion.spec.js` **4/4**: barra única del POS (con fecha y
+  acciones), resumen con alcance en Clientes, barra en las secundarias y sin
+  desbordes 390/1280.
 - Regla de objetos: las pantallas usan las composiciones y los tiles declaran su
   alcance (`src/lib/objetosReglas.test.js`).
 - Sin regresiones: smoke **19/19**, gate responsive **12/12** y touch de
