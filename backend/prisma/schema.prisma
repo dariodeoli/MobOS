@@ -8,6 +8,7 @@ datasource db {
 
 model Tenant {
   presenceTabs        PresenceTab[]
+  webPushSubscriptions WebPushSubscription[]
   usageSessions       UsageSession[]
   googleStoreAccesses GoogleStoreAccess[]
   promotions          Promotion[]
@@ -285,6 +286,7 @@ model Branch {
 
 model User {
   presenceTabs        PresenceTab[]
+  webPushSubscriptions WebPushSubscription[]
   usageSessions       UsageSession[]
   avatar              UserAvatar?
   openedCashSessions  CashSession[]   @relation("CashOpenedBy")
@@ -3262,4 +3264,27 @@ model ImeiCheckQuery {
   @@index([tenantId, requestedAt])
   conciliatedAt     DateTime?
   conciliationNote  String?
+}
+
+// A1 (#279) · Web Push: una suscripción por usuario y dispositivo. La bandeja
+// interna sigue siendo la fuente oficial; el push solo avisa al navegador y el
+// payload viaja sin datos sensibles (título/cuerpo genéricos + ruta interna).
+model WebPushSubscription {
+  id            String    @id @default(cuid())
+  tenantId      String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint      String    @unique
+  p256dh        String
+  auth          String
+  userAgent     String?
+  // Horario silencioso de la tienda en minutos desde 00:00 (null = sin silencio).
+  silencioDesde Int?
+  silencioHasta Int?
+  lastUsedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([tenantId, userId])
 }

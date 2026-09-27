@@ -12,6 +12,7 @@ import ComoFuncionaDemo from '@/components/app/ComoFuncionaDemo'
 import PanelColaOffline from '@/components/ventas/PanelColaOffline'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { useColaOffline } from '@/hooks/useColaOffline'
+import { sincronizarWebPush } from '@/lib/webPush'
 import { usePresenceTracker } from '@/hooks/usePresence'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { usePreferencias } from '@/hooks/usePreferencias'
@@ -330,6 +331,12 @@ export default function AppShell({
   const notificaciones = useNotificaciones(usuarioActual?.id, { activo: notificacionesActivas && !esDemo })
   const [notificacionesAbiertas, setNotificacionesAbiertas] = useState(false)
   const enLinea = useOnlineStatus()
+  // A1 (#279): si el dispositivo ya autorizó los avisos, se re-registra la
+  // suscripción al arrancar (el endpoint puede cambiar). No pide permiso.
+  useEffect(() => {
+    if (esDemo || !usuario?.id) return
+    sincronizarWebPush().catch(() => {})
+  }, [esDemo, usuario?.id])
   // Modo offline del POS (#168): el shell muestra la cola pendiente en el menú
   // (escritorio) y en la barra (móvil), y la abre con su detalle. Solo lectura:
   // el POS sigue siendo quien sincroniza.
