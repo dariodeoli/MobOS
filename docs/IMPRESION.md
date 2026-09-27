@@ -39,6 +39,12 @@ QR muerto: se omite el código.
 
 - La **prueba es local del agente** y no existe en la base: destino, validación,
   fecha y formato viajan en la URL para que la página sea autocontenida.
+- **Ticket de prueba (#277):** el selector de **Imprimir prueba** arranca con el
+  **corto** (título + validación; sin pie ni códigos, menos papel y más rápido),
+  recuerda el **último tipo usado** como predeterminado y mantiene el
+  **completo** (pie auditable, QR y barras) como opción; el modelo y la
+  plantilla (`PLANTILLA_PRUEBA`: tipo, ancho 58/80, corte, copias) viven en la
+  biblioteca y la app solo los adapta (`src/lib/printing/tickets.js`).
 - Los QR viejos `MOBOS:<serial>`, `MOBOS:PROD:<sku>` y `MOBOS:PRUEBA:...` **ya
   no se imprimen**. El **código de barras** sigue diciendo `MOBOS:` a propósito:
   lo lee el escáner del local (teclado) y los flujos lo normalizan con
