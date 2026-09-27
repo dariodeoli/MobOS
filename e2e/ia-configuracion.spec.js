@@ -94,7 +94,7 @@ test('Mi cuenta se abre desde el avatar; Precios vive en una sola pantalla', asy
   // La superficie personal se entra desde el avatar (pie del menú); la ruta
   // vieja de identidad cae en Mi cuenta (#253).
   await page.goto('/configuracion/mi-cuenta')
-  await page.getByTestId('shell-mi-cuenta').click()
+  await page.getByTestId('shell-perfil').click()
   await expect(page).toHaveURL(/\/configuracion\/mi-cuenta$/)
   await expect(page.getByText('Tu perfil').first()).toBeVisible()
   await capturar(page, 'mi-cuenta')
@@ -138,11 +138,11 @@ test('Ayuda lista todos los comandos y atajos con su pantalla', async ({ page })
     ['Cotizar Trade-In', 'F4', null, '/trade-in'],
     ['Guardar venta (POS)', 'Ctrl + S', 'Cmd + S', '/pos'],
     ['Cerrar', 'Esc', null, '/pos'],
-    ['Cambiar de vendedor', '1 clic', null, '/pos'],
-    ['Bloquear pantalla', 'Triple clic', null, '/pos'],
+    ['Mi perfil', '1 clic', null, '/pos'],
+    ['Bloquear pantalla', '1 clic', null, '/pos'],
   ]
   for (const [titulo, tecla, mac, ruta] of casos) {
-    await expect(seccion.getByText(tecla, { exact: true })).toBeVisible()
+    await expect(seccion.getByText(tecla, { exact: true }).first()).toBeVisible()
     if (mac) await expect(seccion.getByText(mac, { exact: true })).toBeVisible()
     await expect(seccion.getByRole('link', { name: `Ir a ${titulo}` })).toHaveAttribute('href', ruta)
   }
