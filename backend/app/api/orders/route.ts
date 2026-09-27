@@ -4,6 +4,7 @@ import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { InputError, normalizePayment, objectInput, receiveTradeIn, textInput } from '../../../lib/payment-input'
+import { consumirGiftCard } from '../../../lib/gift-cards'
 import { resolveInsuranceRate } from '../../../lib/insurance'
 import { costoRepuestosDeInspection } from '../../../lib/costs'
 import { quotePromotion } from '../../../lib/promotions'
@@ -631,9 +632,10 @@ export async function POST(request: Request) {
       }
       if (discount > 0) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_DISCOUNT_APPROVED', entity: 'Order', entityId: order.id, metadata: { discountPyg: discount, subtotalPyg: subtotal, approvedRole: session.user.role } } })
       if (soldUnits.length) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNITS_SOLD', entity: 'Order', entityId: order.id, metadata: { serials: soldUnits.map(unit => unit.serial), productIds: [...new Set(soldUnits.map(unit => unit.productId))] } } })
-      for (const { tradeIn, ...paymentData } of normalizedPayments) {
+      for (const { tradeIn, giftCard, ...paymentData } of normalizedPayments) {
         const payment = await tx.payment.create({ data: { ...paymentData, tenantId: tenant, orderId: order.id, createdById: session.user.id, userId: session.user.id } })
         await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
+        if (giftCard) await consumirGiftCard(tx, { tenantId: tenant, userId: session.user.id, orderId: order.id, paymentId: payment.id, code: giftCard.code, amountPyg: payment.amountPyg })
       }
       // Comprobante congelado al emitir: queda guardado con los ítems, los pagos
       // y los datos de las partes tal como estaban en esta venta.

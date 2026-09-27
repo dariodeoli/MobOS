@@ -2,6 +2,7 @@ import { api, request, apiFetch, API_URL } from './client'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { getProductos } from '@/lib/storage'
 import { createDemoTransfer, createDemoUnit, demoStockAlerts, listDemoBranches, listDemoLocations, listDemoReservations, listDemoTransfers, listDemoUnits, releaseDemoReservations, reserveDemoUnits, saveDemoLocation, updateDemoUnit, verifyDemoUnit } from '@/lib/demoInventory'
+import { anularGiftCardDemo, buscarGiftCardDemo, detalleGiftCardDemo, emitirGiftCardDemo, listarGiftCardsDemo } from '@/lib/giftCards'
 // El módulo de Inventario funciona igual en demo (#213): cuando hay sesión demo
 // los recursos leen el store session-only; con cuenta real van al API.
 const demo = (real, local) => (...args) => Promise.resolve(isDemoRuntime ? local(...args) : real(...args))
@@ -26,6 +27,15 @@ export const resources = {
   quotes: { list: (status = '') => api.get(`/api/quotes${status ? `?status=${status}` : ''}`), create: data => api.post('/api/quotes', data), update: data => api.patch('/api/quotes', data), convert: id => api.post(`/api/quotes/${encodeURIComponent(id)}/convert`, {}), accessToken: (id, regenerate = false) => api.post(`/api/quotes/${encodeURIComponent(id)}/access-token`, { regenerate }), sendEmail: (id, data = {}) => api.post(`/api/quotes/${encodeURIComponent(id)}/email`, data), mensaje: id => api.get(`/api/quotes/${encodeURIComponent(id)}/message`), enviarMensaje: (id, canal) => api.post(`/api/quotes/${encodeURIComponent(id)}/message`, { canal }) },
   orders: { list: () => api.get('/api/orders'), create: data => api.post('/api/orders', data), get: id => api.get(`/api/orders/${encodeURIComponent(id)}`), updateDelivery: (id, data) => api.patch(`/api/orders/${encodeURIComponent(id)}`, data) },
   payments: { create: data => api.post('/api/payments', data) },
+  // Gift cards (#280): emisión con código, consulta de saldo, historial y
+  // anulación. En la demo viven en memoria de la pestaña con la misma forma.
+  giftCards: {
+    list: demo(() => api.get('/api/gift-cards'), () => listarGiftCardsDemo()),
+    lookup: demo(code => api.get(`/api/gift-cards/lookup?code=${encodeURIComponent(code)}`), code => buscarGiftCardDemo(code)),
+    issue: demo(data => api.post('/api/gift-cards', data), data => emitirGiftCardDemo(data)),
+    get: demo(id => api.get(`/api/gift-cards/${encodeURIComponent(id)}`), id => detalleGiftCardDemo(id)),
+    cancel: demo(id => api.patch(`/api/gift-cards/${encodeURIComponent(id)}`, { action: 'cancel' }), id => anularGiftCardDemo(id)),
+  },
   users: { list: () => api.get('/api/users'), create: data => api.post('/api/users', data) },
   // Abastecimiento F1 (#250/#254): necesidades consolidadas de compra.
   supplyNeeds: {

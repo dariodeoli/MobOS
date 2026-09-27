@@ -84,22 +84,26 @@ test('#148 §18: cobros netos por tipo, efectivo y pagos por sucursal', () => {
   assert.deepEqual(t.pagosPorSucursal.map((fila) => [fila.etiqueta, fila.neto]), [['Central', 80000], ['Villa Morra', 45000]])
 })
 
-test('#148 §18: gift cards no existen; el equivalente (saldo a favor y canje) va con nombre humano', () => {
-  // El producto no tiene gift cards: el corte por tipo desglosa el saldo a
-  // favor (STORE_CREDIT) y el canje (TRADE_IN) con su etiqueta, no con el código.
+test('#148 §18 / #280: los medios especiales (saldo a favor, canje y gift card) van con nombre humano', () => {
+  // El corte por tipo desglosa el saldo a favor (STORE_CREDIT), el canje
+  // (TRADE_IN) y la gift card (GIFT_CARD) con su etiqueta, no con el código.
   const ordenes = [
-    orden('2026-09-20', 120000, [
+    orden('2026-09-20', 200000, [
       PAGO(70000, 'STORE_CREDIT'),
       PAGO(50000, 'TRADE_IN'),
-    ], [{ productId: 'p1', description: 'iPhone', quantity: 1, unitPricePyg: 120000, totalPyg: 120000 }]),
+      PAGO(80000, 'GIFT_CARD'),
+    ], [{ productId: 'p1', description: 'iPhone', quantity: 1, unitPricePyg: 200000, totalPyg: 200000 }]),
   ]
   const t = tableroPos(ordenes, { hoy: '2026-09-20', ayer: '2026-09-19' })
   const saldo = t.pagos.find((fila) => fila.clave === 'STORE_CREDIT')
   const canje = t.pagos.find((fila) => fila.clave === 'TRADE_IN')
+  const gift = t.pagos.find((fila) => fila.clave === 'GIFT_CARD')
   assert.equal(saldo?.etiqueta, 'Saldo a favor')
   assert.equal(saldo?.neto, 70000)
   assert.equal(canje?.etiqueta, 'Canje')
   assert.equal(canje?.neto, 50000)
+  assert.equal(gift?.etiqueta, 'Gift card')
+  assert.equal(gift?.neto, 80000)
 })
 
 test('un pedido viejo no entra en el día y los pagos no confirmados no cobran', () => {

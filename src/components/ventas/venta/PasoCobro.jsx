@@ -29,6 +29,8 @@ export default function PasoCobro({
   pagos,
   setPagos,
   onAgregarPago,
+  onAgregarGiftCard,
+  onConsultarGiftCard,
   guardando,
   guardadoIncompleto,
   descuentoMedioPct,
@@ -212,6 +214,14 @@ export default function PasoCobro({
           >
             + Agregar pago
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onAgregarGiftCard?.()}
+            disabled={!cuentas || guardando || guardadoIncompleto}
+          >
+            + Canjear gift card
+          </Button>
           {pagos.length > 0 && pendiente > 0 && (
             <Button
               type="button"
@@ -290,7 +300,43 @@ export default function PasoCobro({
                 <Icon name="trash" className="h-4 w-4" />
               </button>
             </div>
-            {usaCuentas ? (
+            {p.giftCardCode !== undefined ? (
+              <>
+                <div className="sm:col-span-2">
+                  <Label htmlFor={`gift-card-${i}`}>Código de gift card</Label>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <Input
+                      id={`gift-card-${i}`}
+                      aria-label={`Código de gift card del pago ${i + 1}`}
+                      className="min-w-[12rem] flex-1 font-mono uppercase"
+                      value={p.giftCardCode}
+                      placeholder="GC-XXXX-XXXX-XXXX"
+                      autoComplete="off"
+                      onChange={event => setPagos(a => a.map((x, j) => (j === i ? { ...x, giftCardCode: event.target.value.toUpperCase(), giftCard: null, monto: '' } : x)))}
+                    />
+                    <Button type="button" variant="outline" disabled={guardando} onClick={() => onConsultarGiftCard?.(i)}>Consultar saldo</Button>
+                  </div>
+                  {p.giftCard && (
+                    <p role="status" className={cn('mt-1 text-xs', p.giftCard.status === 'ACTIVE' && Number(p.giftCard.balancePyg) > 0 ? 'text-ok' : 'text-warn')}>
+                      {p.giftCard.status === 'ACTIVE'
+                        ? <>Saldo disponible: <b className="tabular-nums">{gs(Number(p.giftCard.balancePyg))}</b>{p.giftCard.customerName ? ` · ${p.giftCard.customerName}` : ''}</>
+                        : p.giftCard.status === 'EXPIRED' ? 'La gift card está vencida.' : 'La gift card está anulada.'}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor={`gift-card-monto-${i}`}>Monto a canjear (Gs)</Label>
+                  <MoneyInput
+                    id={`gift-card-monto-${i}`}
+                    aria-label={`Monto a canjear de la gift card del pago ${i + 1}`}
+                    max={LIMITE_MONTO_VENTAS}
+                    value={String(p.monto || '').replace(/\D/g, '')}
+                    onValueChange={v => setPagos(a => a.map((x, j) => (j === i ? { ...x, monto: v === '' ? '' : String(v) } : x)))}
+                    placeholder="0"
+                  />
+                </div>
+              </>
+            ) : usaCuentas ? (
               <PaymentAccountFields
                 payment={p}
                 accounts={cuentas}

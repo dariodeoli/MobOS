@@ -11,6 +11,7 @@ export const PAYMENT_METHOD_LABELS = {
   CREDIT: 'Crédito',
   TRADE_IN: 'Canje',
   STORE_CREDIT: 'Saldo a favor',
+  GIFT_CARD: 'Gift card',
 }
 
 export const paymentMethodLabel = (value) => PAYMENT_METHOD_LABELS[value] || value || ''

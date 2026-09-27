@@ -183,8 +183,8 @@ const AYUDA = [
     ruta: '/configuracion/comercial',
   },
   {
-    modulo: 'Finanzas', titulo: 'Gift cards y saldo a favor', ubicacion: 'Vender → POS · cobros · Análisis → cortes por tipo',
-    explicacion: 'El sistema no emite gift cards: el equivalente es el saldo a favor (STORE_CREDIT), que se cobra como un medio más y aparece con ese nombre en los cortes. Si se necesitan gift cards reales (código, saldo y vencimiento), pedirlo como función nueva.',
+    modulo: 'Finanzas', titulo: 'Gift cards', ubicacion: 'Vender → POS · Gift cards · cobros · Análisis → cortes por tipo',
+    explicacion: 'Las gift cards se emiten desde el POS con un código (se muestra una sola vez), saldo y vencimiento opcional. Se canjean como un medio de pago más —parcial o total— en el cobro, y cada emisión, canje y anulación queda en el historial de la tarjeta y en la auditoría.',
     ruta: '/pos',
   },
   {
