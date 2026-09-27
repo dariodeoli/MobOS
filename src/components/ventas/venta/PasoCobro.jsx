@@ -42,6 +42,7 @@ export default function PasoCobro({
   f,
   setF,
   valido,
+  motivos = [],
   cantTotal,
   ok,
   pendientes = [],
@@ -432,6 +433,7 @@ export default function PasoCobro({
             !pagoCompleto && !sinPago && 'bg-warn text-white dark:text-black hover:brightness-110',
           )}
           disabled={!valido || guardando || !cuentas || Boolean(errorCuentas) || guardadoIncompleto}
+          title={motivos[0] || undefined}
         >
           <span className="flex flex-col items-center gap-0.5 leading-tight">
             <span className="text-[15px] font-bold">
@@ -448,6 +450,11 @@ export default function PasoCobro({
             {detalleBoton && <span className="text-xs font-semibold tabular-nums opacity-95 whitespace-nowrap">{detalleBoton}</span>}
           </span>
         </Button>
+        {!guardando && motivos.length > 0 && (
+          <p role="status" data-testid="motivos-bloqueo" className="text-xs font-semibold text-warn">
+            Falta: {motivos.join(' · ')}
+          </p>
+        )}
         {ok && (
           <span
             role="status"
