@@ -85,6 +85,9 @@ Agrega líneas a una compra **activa** (COMPRADA) sin crear otra compra:
   emitidos); productos/necesidades existentes y sin repetir una necesidad en la
   compra; IMEI válidos/únicos (global y contra el inventario).
 - Audita `SUPPLY_PURCHASE_LINES_ADDED` con líneas, unidades, libres y seriales.
+- Las líneas adicionales aceptan **IMEI ahora** (`serials` por línea) con el
+  mismo cuadre (Luhn, duplicados, inventario); las pendientes se completan en
+  F3 (compra o lote).
 - No mueve stock (regla dura) y el GET expone **`libreQuantity`** por línea
   (excedente de una línea con necesidad, o toda la cantidad si es libre).
 

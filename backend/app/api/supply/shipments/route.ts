@@ -1,7 +1,7 @@
 import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
-import { codigoEnvio, ENVIO_ESTADOS, ENVIO_ESTADOS_RECEPCION, expandirItemsEnvio, METODOS_ENVIO, transicionEnvioValida } from '../../../../lib/supply'
+import { codigoEnvio, ENVIO_ESTADOS, ENVIO_ESTADOS_RECEPCION, expandirItemsEnvio, METODOS_ENVIO, normalizarSeriales, transicionEnvioValida } from '../../../../lib/supply'
 import { aexQuote, aexWebTrackingUrl } from '../../../../lib/aex'
 
 // #250 Fase 4 (Centro de Abastecimiento): lotes/envíos entrantes de una compra.
@@ -175,8 +175,73 @@ export async function PATCH(request: Request) {
   const envio = await prisma.supplyShipment.findFirst({ where: { id, tenantId: tenant } })
   if (!envio) return error('Envío no encontrado.', 404)
 
-  const accion = ['prepare', 'dispatch', 'transit', 'incidencia', 'cancel', 'status', 'aex-quote', 'aex-guide'].includes(body?.action) ? body.action : null
-  if (!accion) return error('Acción inválida: usá prepare, dispatch, transit, incidencia, cancel, status, aex-quote o aex-guide.')
+  const accion = ['prepare', 'dispatch', 'transit', 'incidencia', 'cancel', 'status', 'aex-quote', 'aex-guide', 'serials', 'scan'].includes(body?.action) ? body.action : null
+  if (!accion) return error('Acción inválida: usá prepare, dispatch, transit, incidencia, cancel, status, aex-quote, aex-guide, serials o scan.')
+
+  // #250 F3: IMEI diferido del lote. Completa las unidades pendientes antes de
+  // la recepción (al comprar ya se cargan en la compra; acá se asignan al
+  // despachar/en tránsito) con el mismo cuadre: Luhn, repetidos, duplicados
+  // globales y cantidad. Deja la compra consistente y no mueve stock.
+  if (accion === 'serials' || accion === 'scan') {
+    if (['CANCELADO', 'RECIBIDO'].includes(envio.status)) return error('El envío ya está cerrado.', 409)
+    const escaneo = accion === 'scan'
+    const normalizados = normalizarSeriales(escaneo ? [body?.serial] : body?.serials)
+    if (!normalizados.ok) return error(normalizados.error)
+    const seriales = normalizados.seriales
+    if (!seriales.length) return error('Escaneá o pegá al menos un IMEI/serial.')
+    const itemId = typeof body?.itemId === 'string' ? body.itemId.trim() : ''
+    const lineId = typeof body?.lineId === 'string' ? body.lineId.trim() : ''
+    const productId = typeof body?.productId === 'string' ? body.productId.trim() : ''
+    const pendientes = await prisma.supplyShipmentItem.findMany({
+      where: { tenantId: tenant, shipmentId: envio.id, serial: null, ...(itemId ? { id: itemId } : {}), ...(lineId ? { lineId } : {}), ...(productId ? { productId } : {}) },
+      orderBy: { createdAt: 'asc' },
+      include: { line: { select: { id: true, quantity: true, serials: { select: { serial: true } } } } },
+    })
+    if (!pendientes.length) return error('El lote no tiene unidades con IMEI pendiente.', 409)
+    if (seriales.length > pendientes.length) return error(`El lote tiene ${pendientes.length} unidad(es) pendiente(s) para ${seriales.length} IMEI.`, 400)
+
+    const yaEnLotes = await prisma.supplyShipmentItem.findFirst({ where: { tenantId: tenant, serial: { in: seriales } }, select: { serial: true } })
+    if (yaEnLotes) return error(`El IMEI ${yaEnLotes.serial} ya está cargado en un lote.`, 409)
+    const enStock = await prisma.inventoryUnit.findFirst({ where: { tenantId: tenant, serial: { in: seriales } }, select: { serial: true } })
+    if (enStock) return error(`El IMEI ${enStock.serial} ya está en el inventario.`, 409)
+
+    // Consistencia con la compra: un IMEI que ya está en otra línea no se mueve;
+    // el que falta se agrega a la línea de la unidad si todavía tiene lugar.
+    const enCompra = await prisma.supplyPurchaseSerial.findMany({ where: { tenantId: tenant, serial: { in: seriales } }, select: { serial: true, lineId: true } })
+    const lineaDelSerial = new Map(enCompra.map((fila) => [fila.serial, fila.lineId]))
+    const nuevosPorLinea = new Map<string, number>()
+    for (const [indice, serial] of seriales.entries()) {
+      const item = pendientes[indice]
+      const lineaId = lineaDelSerial.get(serial)
+      if (lineaId && lineaId !== item.lineId) return error(`El IMEI ${serial} pertenece a otra línea de la compra.`, 409)
+      if (lineaId) continue
+      const usados = nuevosPorLinea.get(item.lineId) || 0
+      if (item.line.serials.length + usados >= item.line.quantity) return error(`La línea ya tiene todos sus IMEI cargados (${serial}).`, 409)
+      nuevosPorLinea.set(item.lineId, usados + 1)
+    }
+
+    const actualizado = await prisma.$transaction(async (tx) => {
+      const nuevosEnCompra: Array<{ tenantId: string; lineId: string; serial: string }> = []
+      for (const [indice, serial] of seriales.entries()) {
+        const item = pendientes[indice]
+        await tx.supplyShipmentItem.update({ where: { id: item.id }, data: { serial } })
+        if (!lineaDelSerial.has(serial)) nuevosEnCompra.push({ tenantId: tenant, lineId: item.lineId, serial })
+      }
+      if (nuevosEnCompra.length) await tx.supplyPurchaseSerial.createMany({ data: nuevosEnCompra })
+      await tx.auditLog.create({
+        data: {
+          tenantId: tenant,
+          userId: session.user.id,
+          action: 'SUPPLY_SHIPMENT_SERIALS_ADDED',
+          entity: 'SupplyShipment',
+          entityId: envio.id,
+          metadata: { code: envio.code, seriales: seriales.length, via: escaneo ? 'scan' : 'bulk', itemIds: pendientes.slice(0, seriales.length).map((item) => item.id), enCompra: nuevosEnCompra.length },
+        },
+      })
+      return tx.supplyShipment.findFirst({ where: { id: envio.id, tenantId: tenant }, include: INCLUDE_ENVIO })
+    })
+    return json({ ...actualizado, conImei: (actualizado?.items || []).filter((item) => item.serial).length, pendientes: (actualizado?.items || []).filter((item) => !item.serial).length })
+  }
 
   // #250 Fase 6: AEX ampliado — cotización del lote y guía, con los mismos
   // servicios de los traslados. La confirmación del envío sigue bloqueada hasta
@@ -231,7 +296,15 @@ export async function PATCH(request: Request) {
         action: accion === 'dispatch' ? 'SUPPLY_SHIPMENT_DISPATCHED' : accion === 'incidencia' ? 'SUPPLY_SHIPMENT_INCIDENT' : accion === 'cancel' ? 'SUPPLY_SHIPMENT_CANCELLED' : 'SUPPLY_SHIPMENT_UPDATED',
         entity: 'SupplyShipment',
         entityId: fila.id,
-        metadata: { code: fila.code, from: envio.status, to: hacia, ...(motivo ? { reason: motivo.slice(0, 500) } : {}) },
+        metadata: {
+          code: fila.code,
+          from: envio.status,
+          to: hacia,
+          // F3: el despacho informa cuántos IMEI siguen pendientes (pueden
+          // completarse en tránsito o al recibir).
+          ...(accion === 'dispatch' ? { pendientes: await tx.supplyShipmentItem.count({ where: { shipmentId: envio.id, serial: null } }) } : {}),
+          ...(motivo ? { reason: motivo.slice(0, 500) } : {}),
+        },
       },
     })
     return fila

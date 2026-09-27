@@ -56,3 +56,43 @@ test('la demo permite conciliar una consulta desde el registro', async ({ page }
   await expect(registro.getByText(/ORD-233-DEMO/)).toBeVisible()
   await page.screenshot({ path: `${SALIDA}/04-demo-consulta-conciliada.png`, fullPage: true })
 })
+
+// #257 (demo): las unidades del inventario demo tienen que verse en el POS.
+// El modelo «iPhone 12 128GB Verde» nace con una unidad disponible: el POS lo
+// muestra con stock y al recibir otra unidad el stock sube sin recargar.
+test('la demo muestra en el POS el stock de las unidades del inventario (#257)', async ({ page }) => {
+  await page.goto('/demo')
+  await page.getByRole('button', { name: /Entrar como Dueño/ }).first().click()
+  await page.waitForURL((url) => !url.pathname.startsWith('/demo'), { timeout: 60_000 })
+  await cerrarGuiaDemo(page)
+
+  const buscador = () => page.getByPlaceholder('Buscar producto…')
+  const tarjeta = () => page.getByRole('button', { name: /^iPhone 12 128GB/ }).first()
+
+  // El POS arranca solo: el stock sale de las unidades disponibles del demo (1).
+  await page.goto('/pos')
+  await expect(buscador()).toBeVisible({ timeout: 25_000 })
+  await buscador().fill('iPhone 12 128GB')
+  await expect(tarjeta()).toContainText('1 en stock', { timeout: 20_000 })
+
+  // Se recibe una unidad desde Inventario (misma sesión, sin recargar el POS).
+  await page.getByRole('button', { name: 'Unidades', exact: true }).first().click()
+  await page.getByRole('button', { name: '+ Recibir unidad' }).click()
+  const modal = page.getByRole('dialog')
+  const combo = modal.getByRole('combobox').first()
+  await combo.fill('iPhone 12 128GB Verde')
+  await modal.getByRole('option', { name: /iPhone 12 128GB Verde/ }).first().click()
+  await modal.getByLabel('IMEI o serial', { exact: true }).fill(serialDemo(99))
+  const sucursal = modal.getByLabel('Sucursal', { exact: true })
+  if (await sucursal.count()) await sucursal.selectOption('mobos-demo-central')
+  await modal.getByRole('button', { name: 'Guardar unidad' }).click()
+  await expect(page.getByText(/1 unidad recibida/)).toBeVisible({ timeout: 20_000 })
+
+  // Al volver al POS el stock ya es 2: la unidad nueva es vendible.
+  await page.getByRole('button', { name: 'POS', exact: true }).first().click()
+  await expect(buscador()).toBeVisible({ timeout: 20_000 })
+  await buscador().fill('iPhone 12 128GB')
+  await expect(tarjeta()).toContainText('2 en stock', { timeout: 20_000 })
+  mkdirSync('test-results/qa-257-demo', { recursive: true })
+  await page.screenshot({ path: 'test-results/qa-257-demo/unidad-demo-en-pos.jpg', type: 'jpeg', quality: 78 })
+})

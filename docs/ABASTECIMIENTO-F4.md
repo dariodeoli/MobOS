@@ -31,7 +31,7 @@ y la API los rechaza con un mensaje claro. Toda transición se valida
 |---|---|---|
 | `GET` | `/api/supply/shipments` | lotes con compra, destino y unidades (`conImei`/`pendientes`); filtros `status`, `purchaseId`, `method` |
 | `POST` | `/api/supply/shipments` | crea el lote: `purchaseId`, `origin`, `destinationBranchId?`, `method` (BUS/TRANSPORTADORA/AEX/IMPORTACION), `company/driver/guide?`, `responsibleId?`, `etaAt?`, `notes?` y `lines?` (por línea o todo lo que falta) |
-| `PATCH` | `/api/supply/shipments` | `prepare` · `dispatch` (exige guía o empresa, guarda `sentAt`) · `transit` · `incidencia` (motivo) · `cancel` (motivo) · `status` (transición validada) |
+| `PATCH` | `/api/supply/shipments` | `serials`/`scan` (completar IMEI pendientes), `prepare` · `dispatch` (exige guía o empresa, guarda `sentAt`) · `transit` · `incidencia` (motivo) · `cancel` (motivo) · `status` (transición validada) |
 | `GET` | `/api/supply/shipments/:id/manifest` | manifiesto (§11): código, origen/destino, método, empresa/conductor/guía, responsable, compra, unidades, IMEI conocidos/pendientes por producto y **enlace del QR** |
 | `GET` | `/api/public/supply/shipments/:token` | manifiesto público (QR, sin sesión, con rate limit): sin costos, sin proveedor, sin cliente |
 | `GET` | `/api/supply/serials/:serial` | **historial por unidad**: en stock o en la cadena (necesidad → compra → lote → estado) |

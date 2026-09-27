@@ -10,34 +10,44 @@ const normalize = (value = '') => String(value).trim().replace(/^MOBOS:/i, '').r
 // Selector para una línea de venta. La reserva se hace antes del checkout para
 // evitar que dos vendedores elijan el mismo equipo; el backend mantiene la
 // autoridad sobre disponibilidad y vencimiento.
-export default function SerialUnitPicker({ product, customerName, selectedSerials = [], onChange, onRequiresSerial, disabled = false }) {
+export default function SerialUnitPicker({ product, branchId = '', customerName, selectedSerials = [], onChange, onRequiresSerial, disabled = false }) {
   const [units, setUnits] = useState([])
   const [loading, setLoading] = useState(false)
   const [busySerial, setBusySerial] = useState('')
   const [error, setError] = useState('')
+  const seleccionadosRef = useRef(selectedSerials)
+  useEffect(() => { seleccionadosRef.current = selectedSerials }, [selectedSerials])
 
   const load = useCallback(async () => {
     if (!product?.id) { setUnits([]); onRequiresSerial?.(false, 0); return }
     setLoading(true); setError('')
     try {
-      const query = product.sku || product.nombre || product.name || ''
-      // `resources` respeta la demo (#213): en la demo las unidades salen del
-      // store ficticio, no del API. Se filtra por producto y sucursal, como la
-      // API real.
-      const rows = await resources.inventoryUnits.list(query)
+      // #263: unidades reales de ESTE producto en la sucursal de la venta (la
+      // misma que valida y descuenta al confirmar). Antes se buscaba por texto
+      // (SKU/nombre) y se filtraba con el branch del producto, así que el
+      // selector podía quedar vacío o mostrar equipos de otra sucursal.
+      const rows = await resources.inventoryUnits.list('', 'active', {
+        productId: product.id,
+        ...(branchId ? { branchId } : {}),
+      })
       const matched = (rows || []).filter(unit => unit.productId === product.id
-        && (!product.branchId || !unit.branchId || unit.branchId === product.branchId))
+        // Solo unidades vendibles; la elegida se conserva aunque la reserva ya
+        // le haya cambiado el estado.
+        && (unit.status === 'AVAILABLE' || seleccionadosRef.current.includes(normalize(unit.serial)))
+        // Sesión sin sucursal (dueño sin sucursal): el servidor solo acepta
+        // unidades sin sucursal, así que el selector ofrece esas.
+        && (branchId ? true : !unit.branchId))
       setUnits(matched)
       // Segundo argumento: cuántas unidades hay (guía inline del POS).
       onRequiresSerial?.(matched.length > 0, matched.length)
     } catch (cause) { setError(cause?.message || 'No se pudieron cargar los IMEI de este modelo.') } finally { setLoading(false) }
-  }, [product, onRequiresSerial])
+  }, [product, branchId, onRequiresSerial])
 
-  // El efecto inicial carga solo cuando cambia el producto; el ref mantiene
-  // la versión más reciente de load sin volver a disparar la descarga.
+  // El efecto inicial carga solo cuando cambia el producto o la sucursal; el ref
+  // mantiene la versión más reciente de load sin volver a disparar la descarga.
   const loadRef = useRef(load)
   useEffect(() => { loadRef.current = load }, [load])
-  useEffect(() => { loadRef.current() }, [product?.id])
+  useEffect(() => { loadRef.current() }, [product?.id, branchId])
 
   async function toggle(unit) {
     const serial = normalize(unit.serial)
@@ -61,7 +71,7 @@ export default function SerialUnitPicker({ product, customerName, selectedSerial
 
   if (!product?.id) return null
   if (loading) return <div className="mt-3 space-y-2"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>
-  if (!units.length && !error) return null
+  if (!units.length && !error) return <p className="mt-3 rounded-xl border border-ink-600 bg-ink-800/40 px-3 py-2 text-xs text-mute">No hay unidades disponibles de este modelo en tu sucursal. Si el cliente la espera, marcala como «sobre pedido»: el IMEI se asigna al entregar.</p>
 
   return <section className="mt-3 rounded-2xl border border-fono/25 bg-fono/[.04] p-3" aria-label="Unidad física para esta venta">
     <div className="flex flex-wrap items-start justify-between gap-2">

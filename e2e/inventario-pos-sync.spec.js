@@ -119,6 +119,60 @@ test('el stock y la disponibilidad se informan por sucursal', async ({ page }) =
   }
 })
 
+// #257 (causa): el POS queda montado y su catálogo sale del espejo local. Las
+// unidades cargadas después (otra pantalla, otra sesión o el propio Inventario)
+// tienen que verse en el stock del POS sin recargar la aplicación.
+test('el POS ve las unidades cargadas después, sin recargar (#257)', async ({ page }) => {
+  const id = marca()
+  const nombre = `iPhone 12 QA POS ${id}`
+  const serial = `ZZPOS${id}`
+  await page.goto('/pos')
+  await expect(page.getByPlaceholder('Buscar producto…')).toBeVisible({ timeout: 25_000 })
+  // El producto nace sin unidades (stock 0) desde la API, como la carga rápida.
+  const producto = await page.evaluate(async ({ api, datos }) => {
+    const respuesta = await fetch(`${api}/api/products`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sku: `ZZ-POS-${datos.id}`, name: datos.nombre, model: 'iPhone 12', capacity: '128 GB', color: 'Verde', category: 'Celulares', pricePyg: 2500000, costPyg: 1800000, stock: 0, branchId: datos.sucursal }) })
+    const payload = await respuesta.json().catch(() => null)
+    if (!respuesta.ok) throw new Error(payload?.message || `products: ${respuesta.status}`)
+    return payload.id
+  }, { api: API, datos: { id, nombre, sucursal: SEED.branchId } })
+
+  const buscador = page.getByPlaceholder('Buscar producto…')
+  const tarjeta = () => page.getByRole('button', { name: new RegExp(nombre) }).first()
+  try {
+    // El POS se monta con el catálogo al día: el producto figura agotado.
+    await page.reload()
+    await expect(buscador).toBeVisible({ timeout: 25_000 })
+    await buscador.fill(nombre)
+    await expect(tarjeta()).toContainText('Agotado', { timeout: 20_000 })
+    await buscador.fill('')
+
+    // Se cargan las unidades (API), como si vinieran de otra pantalla/sesión.
+    const unidad = await page.evaluate(async ({ api, datos }) => {
+      const respuesta = await fetch(`${api}/api/inventory-units`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productId: datos.productId, branchId: datos.sucursal, serial: datos.serial }) })
+      if (!respuesta.ok) throw new Error(`inventory-units: ${respuesta.status}`)
+      return (await respuesta.json().catch(() => null))?.id || null
+    }, { api: API, datos: { productId: producto, serial, sucursal: SEED.branchId } })
+    expect(unidad).toBeTruthy()
+
+    // Al volver al POS (sin recargar) el stock ya es 1: la unidad es vendible.
+    await page.waitForTimeout(2600)
+    await page.getByRole('button', { name: 'Pedidos', exact: true }).first().click()
+    await page.getByRole('button', { name: 'POS', exact: true }).first().click()
+    await expect(buscador).toBeVisible({ timeout: 20_000 })
+    await buscador.fill(nombre)
+    await expect(tarjeta()).toContainText('1 en stock', { timeout: 20_000 })
+    await page.screenshot({ path: 'test-results/qa-257-pos/unidad-en-pos.jpg', type: 'jpeg', quality: 78 })
+  } finally {
+    await page.evaluate(async ({ api, datos }) => {
+      const unidades = await fetch(`${api}/api/inventory-units?q=${encodeURIComponent(datos.serial)}`, { credentials: 'include' }).then((r) => r.json()).catch(() => [])
+      for (const fila of Array.isArray(unidades) ? unidades : []) {
+        await fetch(`${api}/api/inventory-units`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: fila.id, action: 'remove', reason: 'Limpieza QA #257' }) }).catch(() => {})
+      }
+      await fetch(`${api}/api/products?id=${encodeURIComponent(datos.productId)}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
+    }, { api: API, datos: { productId: producto, serial } }).catch(() => {})
+  }
+})
+
 test('un código desconocido no devuelve resultados y el SKU identifica el producto', async ({ page }) => {
   const id = marca()
   const inventario = await crearInventario(page, { marca: id, nombre: `SKU QA ${id}`, modelo: 'iPhone 11', capacidad: '64 GB', color: 'Rojo' })

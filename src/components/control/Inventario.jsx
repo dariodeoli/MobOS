@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { useVistaListaGrid } from '@/hooks/useVistaListaGrid'
 import { qrDataUrl } from '@/lib/qr'
-import { getProductos, modoDatosActual, updateProducto, contextoActual, refrescar } from '@/lib/storage'
+import { getProductos, modoDatosActual, updateProducto, contextoActual, refrescar, refrescarCatalogo } from '@/lib/storage'
 import { prepararVentaDesdeInventario } from '@/lib/posCart'
 import { gs } from '@/utils/calculos'
 import { formatUsd } from '@/utils/moneda'
@@ -767,7 +767,7 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   const locationsFor = branchId => locations.filter(location => location.branchId === branchId && location.isActive)
   const grantedIds = useMemo(() => new Set(grants.filter(grant => grant.isActive).map(grant => grant.recipientTenant?.id).filter(Boolean)), [grants])
   const receivedBySource = useMemo(() => receivedStock.reduce((acc, row) => { const key = row.sourceTenant || 'Otra empresa'; (acc[key] ||= []).push(row); return acc }, {}), [receivedStock])
-  const setAndRefresh = async (operation, success) => { setBusy(true); setError(''); setNotice(''); try { await operation(); setNotice(success); await refresh(query); } catch (cause) { setError(cause?.message || 'No se pudo guardar.') } finally { setBusy(false) } }
+  const setAndRefresh = async (operation, success) => { setBusy(true); setError(''); setNotice(''); try { await operation(); setNotice(success); await refresh(query); await refrescarCatalogo({ forzar: true }) } catch (cause) { setError(cause?.message || 'No se pudo guardar.') } finally { setBusy(false) } }
   async function search(event) { event.preventDefault(); await refresh(busquedaDiferida) }
   async function exportarUnidades() { setExportando(true); setError(''); try { await descargarCsv('inventory-units', { q: query.trim() || undefined, orden }, 'mobos-inventario-unidades.csv') } catch (cause) { setError(cause?.message || 'No se pudo exportar el CSV.') } finally { setExportando(false) } }
   async function verify(unit) { await setAndRefresh(() => resources.inventoryUnits.verify({ serial: unit.serial }), `IMEI ${unit.serial.slice(-4)} verificado.`) }

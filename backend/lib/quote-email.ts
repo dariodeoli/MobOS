@@ -89,13 +89,10 @@ export function armarCorreoCotizacion({ cotizacion, customerName, to, companyNam
     customerName: String(customerName || cotizacion.customerName || '').trim(),
     quoteNumber: cotizacion.number,
     lines: items.map((linea) => ({ quantity: Number(linea.quantity) || 0, description: String(linea.description || ''), totalPyg: Number(linea.unitPricePyg || 0) * (Number(linea.quantity) || 0) })),
-    subtotalPyg: Number(cotizacion.subtotalPyg) || 0,
-    discountPyg: Number(cotizacion.discountPyg) || 0,
     totalPyg: Number(cotizacion.totalPyg) || 0,
     validUntil: cotizacion.validUntil,
     link,
     companyName: companyName.trim() || '',
-    notes: cotizacion.notes,
   })
 }
 

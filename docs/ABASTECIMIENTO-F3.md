@@ -41,6 +41,27 @@ formas de carga:
   `SUPPLY_PURCHASE_SERIALS_ADDED` con `via: 'scan' | 'bulk'`, la línea y cuántos
   seriales entraron.
 
+## 2-bis. IMEI diferido por lote (lotes de F4)
+
+Los momentos del plan §7 son **compra · antes de despachar · recepción**. La
+compra ya completa sus IMEI (`PATCH /api/supply/purchases`); ahora el lote
+también:
+
+| Acción | Contrato |
+|---|---|
+| `PATCH /api/supply/shipments { id, action: 'serials', serials, itemId? }` | completa unidades **pendientes** del lote (pegado múltiple) |
+| `PATCH /api/supply/shipments { id, action: 'scan', serial, itemId? \| lineId? \| productId? }` | escaneo de a uno; elige las pendientes por línea o producto |
+
+- **Mismo cuadre**: Luhn, repetidos en el pedido, duplicado en otro lote o en el
+  inventario, y cantidad ≤ pendientes.
+- **Consistencia con la compra**: si el IMEI ya está en la línea del lote se
+  reutiliza; si es nuevo se agrega a esa línea cuando todavía tiene lugar; si
+  pertenece a otra línea de la compra se rechaza.
+- **Auditoría**: `SUPPLY_SHIPMENT_SERIALS_ADDED` (via, items, cuántos entraron a
+  la compra). El despacho informa en su auditoría cuántos IMEI siguen
+  pendientes; la recepción (F5) sigue pudiendo completarlos.
+- No mueve stock; el manifiesto pasa a `pendientes: 0` cuando el lote se completa.
+
 ## 3. Etiquetas de la preparación (contrato para PRN, §11)
 
 `GET /api/supply/purchases/:id/labels` devuelve:
@@ -71,6 +92,9 @@ formas de carga:
 - Unit `backend/tests/supply.test.ts`: `cuadrarSeriales` (Luhn, repetidos, ya
   cargados, cantidad), `compararModelo`, `etiquetasPreparacion` (n de N, IMEI o
   pendiente, pedido/destino) y `resumenPreparacion`.
+- Arnés HTTP `backend/tests/supply-shipments.mjs` (**41 chequeos**): lotes,
+  manifiesto y **IMEI diferido del lote** (asignar al despachar con Luhn,
+  duplicados, inventario y consistencia con la compra).
 - Arnés HTTP `backend/tests/supply-preparation.mjs` (**28 chequeos**): compra con
   IMEI diferido, filtro `pendientes`, etiquetas 3 de 3, escaneo por línea y por
   producto, pegado múltiple, cuadre completo (400/404/409), aviso de modelo con
