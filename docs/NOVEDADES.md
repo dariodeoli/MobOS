@@ -11,6 +11,10 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.192 — 2026-09-27
+- **Calidad:** verificación **post-deploy de la v1.0.191** en producción: POS/carrito y pagos, cliente ocasional, cotizaciones, plantilla del ticket de prueba y foto de perfil (**17 muestras, ninguna foto vieja**), con capturas en claro/oscuro/móvil.
+- **Calidad:** los recorridos de **Clientes (#260/#273)** y **Plataforma (#271)** quedan documentados con sus enlaces de cierre; el hallazgo de **#275** (al confirmar no navega al detalle) queda registrado para el próximo ciclo.
+
 ## v1.0.191 — 2026-09-27
 - **Cotizaciones (#260):** buscá una ficha existente o **creá al cliente desde la cotización** con el buscador del POS; también podés seguir con **Consumidor final**.
 - **Pedidos (#149/#273):** **cliente ocasional**: se puede vender sin ficha y después **asignar, cambiar o quitar** el cliente del pedido en un clic, con **cronología** y auditoría.
