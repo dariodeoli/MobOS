@@ -43,6 +43,10 @@ comportamiento esperado en la evidencia revisada. **Pendiente de integración**:
 cuando entre, este mismo script debe dar `fotoViejaPintada: false` en los 3
 temas (queda como re-verificación post-deploy, igual que #266).
 
+**Lámina de cierre:** `docs/qa/271-avatar-sin-flash/comparativa-cierre.jpg`
+(ANTES: DSN con el bug · DESPUÉS: PLT con el fix), generada con
+`scripts/qa-comparativas-cierre.mjs`.
+
 **Nota para CMP/PLT:** `docs/AVATAR.md` mantiene «subida → Google → iniciales»
 (no cambia), pero conviene sumar la nuance al integrar: *mientras la subida
 resuelve, placeholder neutro; Google entra recién cuando la local se descartó*.
