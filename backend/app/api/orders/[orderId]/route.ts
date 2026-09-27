@@ -43,13 +43,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
   try {
     const { orderId } = await context.params
     const body = objectInput(await request.json())
-    if (Object.keys(body).some(key => !['fulfillmentStatus', 'deliveryType', 'deliveryNotes', 'deliveryAuthorizationId', 'action', 'itemId', 'serials', 'billingName', 'billingDocument', 'notes', 'tags'].includes(key))) throw new InputError('Campo no admitido al actualizar el pedido.')
+    if (Object.keys(body).some(key => !['fulfillmentStatus', 'deliveryType', 'deliveryNotes', 'deliveryAuthorizationId', 'action', 'itemId', 'serials', 'billingName', 'billingDocument', 'notes', 'tags', 'customerId', 'customer'].includes(key))) throw new InputError('Campo no admitido al actualizar el pedido.')
     const existing = await prisma.order.findFirst({
       where: { id: orderId, tenantId: tenant },
       include: {
         items: true,
         payments: { select: { amountPyg: true, status: true } },
-        customer: { select: { creditLimitPyg: true, creditDays: true } },
+        customer: { select: { id: true, name: true, creditLimitPyg: true, creditDays: true } },
       },
     })
     if (!existing || !canAccessOrder(session.user, existing)) return error('Pedido no encontrado.', 404)
@@ -57,6 +57,44 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
 
     // ── Entregar equipos sobre pedido: agregar IMEI/seriales a una línea ──
     if (body.action !== undefined) {
+      // Cliente ocasional (#149): asignar, cambiar o quitar la ficha del pedido.
+      if (body.action === 'setCustomer') {
+        const customerId = body.customerId === null || body.customerId === '' || body.customerId === undefined ? null : textInput(body.customerId, 'customerId', 200)
+        const customer = customerId
+          ? await prisma.customer.findFirst({ where: { id: customerId, tenantId: tenant, archivedAt: null }, select: { id: true, name: true } })
+          : null
+        if (customerId && !customer) throw new InputError('Cliente no encontrado.')
+        const updated = await prisma.$transaction(async tx => {
+          const order = await tx.order.update({ where: { id: existing.id }, data: { customerId } })
+          await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: customerId ? 'ORDER_CUSTOMER_CHANGED' : 'ORDER_CUSTOMER_REMOVED', entity: 'Order', entityId: existing.id, metadata: { previousCustomerId: existing.customerId, previousCustomerName: existing.customer?.name || null, customerId, customerName: customer?.name || null } } })
+          return order
+        })
+        return json(updated)
+      }
+      // Ficha desde el pedido ocasional en un clic: reusa la deduplicación del
+      // alta (documento > teléfono > nombre) y vincula el pedido.
+      if (body.action === 'createCustomer') {
+        const input = body.customer === undefined ? {} : objectInput(body.customer)
+        if (Object.keys(input).some(key => !['name', 'phone', 'countryCode', 'email', 'document'].includes(key))) throw new InputError('customer contiene campos no admitidos.')
+        const nombre = (typeof input.name === 'string' && input.name.trim() ? input.name.trim() : '').slice(0, 200)
+        if (!nombre || nombre.toLowerCase() === 'consumidor final') throw new InputError('La ficha necesita un nombre.')
+        const phone = input.phone === undefined || input.phone === null || input.phone === '' ? null : textInput(input.phone, 'Teléfono', 100)
+        const document = input.document === undefined || input.document === null || input.document === '' ? null : textInput(input.document, 'Documento', 100)
+        const email = input.email === undefined || input.email === null || input.email === '' ? null : textInput(input.email, 'Correo', 200).toLowerCase()
+        const countryCode = input.countryCode === undefined || input.countryCode === null || input.countryCode === '' ? '+595' : textInput(input.countryCode, 'Código de país', 5)
+        const customer = await prisma.$transaction(async tx => {
+          const existente = document
+            ? await tx.customer.findFirst({ where: { tenantId: tenant, document, archivedAt: null }, select: { id: true, name: true, phone: true } })
+            : phone
+              ? await tx.customer.findFirst({ where: { tenantId: tenant, phone, archivedAt: null }, select: { id: true, name: true, phone: true } })
+              : await tx.customer.findFirst({ where: { tenantId: tenant, archivedAt: null, name: { equals: nombre, mode: 'insensitive' } }, select: { id: true, name: true, phone: true } })
+          const ficha = existente || await tx.customer.create({ data: { tenantId: tenant, createdById: session.user.id, name: nombre, ...(phone ? { phone, countryCode } : {}), ...(document ? { document } : {}), ...(email ? { email } : {}) }, select: { id: true, name: true, phone: true } })
+          await tx.order.update({ where: { id: existing.id }, data: { customerId: ficha.id } })
+          await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_CUSTOMER_CREATED', entity: 'Order', entityId: existing.id, metadata: { customerId: ficha.id, customerName: ficha.name, matched: Boolean(existente) } } })
+          return ficha
+        })
+        return json({ customer })
+      }
       // Archivar/desarchivar: no borra nada, solo lo saca del listado activo.
       if (body.action === 'archive' || body.action === 'unarchive') {
         const archivedAt = body.action === 'archive' ? new Date() : null
