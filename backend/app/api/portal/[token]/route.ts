@@ -118,10 +118,14 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
       status: { not: 'DRAFT' },
       publicToken: { not: null },
     },
-    select: { number: true, status: true, totalPyg: true, createdAt: true, validUntil: true, publicToken: true },
+    select: { id: true, number: true, status: true, totalPyg: true, createdAt: true, validUntil: true, publicToken: true, order: { select: { orderNumber: true } } },
     orderBy: { createdAt: 'desc' },
     take: 5,
   })
+
+  const aprobaciones = cotizaciones.length
+    ? await prisma.auditLog.findMany({ where: { tenantId: portal.tenantId, entity: 'Quote', entityId: { in: cotizaciones.map((cita) => cita.id) }, action: 'QUOTE_ACCEPTED' }, orderBy: { createdAt: 'desc' }, select: { entityId: true, metadata: true, createdAt: true } })
+    : []
 
   const [orders, saldo, dueOrders, warrantyRows, saldoFavor] = await Promise.all([
     prisma.order.findMany({
@@ -248,7 +252,24 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     })),
     totalPagadoPyg: numero(totalPagado._sum.amountPyg),
     // Cotizaciones: número, monto, validez y enlace público; la más nueva primero.
-    cotizaciones: cotizaciones.map((cotizacion) => ({ ...cotizacion, totalPyg: numero(cotizacion.totalPyg) })),
+    // A3 (#279): la aprobación con código (versión congelada, método y destino
+    // enmascarado) vive en la auditoría QUOTE_ACCEPTED de FIN; el portal la
+    // muestra tal cual y expone el pedido generado si existe.
+    cotizaciones: cotizaciones.map(({ id, order, ...cotizacion }) => {
+      const aprobacion = aprobaciones.find((fila) => fila.entityId === id) || null
+      const metadata = aprobacion?.metadata && typeof aprobacion.metadata === 'object' ? aprobacion.metadata as Record<string, unknown> : null
+      return {
+        ...cotizacion,
+        totalPyg: numero(cotizacion.totalPyg),
+        orderNumber: order?.orderNumber || null,
+        approval: aprobacion ? {
+          at: aprobacion.createdAt,
+          method: typeof metadata?.method === 'string' ? metadata.method : (metadata?.origin === 'public' ? 'LINK' : null),
+          destination: typeof metadata?.destinationMasked === 'string' ? metadata.destinationMasked : null,
+          version: typeof metadata?.version === 'number' || typeof metadata?.version === 'string' ? metadata.version : null,
+        } : null,
+      }
+    }),
     orders: orders.map(order => {
       // #178: el pedido nuevo no guarda su token histórico en claro; el enlace
       // del comprobante sale del enlace vigente de nivel rápido (o del legacy).

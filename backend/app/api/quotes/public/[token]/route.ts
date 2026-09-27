@@ -20,6 +20,7 @@ async function porToken(token: string) {
       branch: { select: { name: true, address: true, city: true, department: true, phone: true, instagram: true } },
       customer: { select: { name: true, document: true, email: true, phone: true, countryCode: true } },
       seller: { select: { name: true } },
+      order: { select: { orderNumber: true } },
       tenant: { select: { name: true, logos: { select: { id: true }, take: 1 } } },
     },
   })
@@ -130,7 +131,12 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
       status: resolucion.action === 'QUOTE_ACCEPTED' ? 'ACCEPTED' : 'REJECTED',
       at: resolucion.createdAt,
       note: metadata && typeof metadata.note === 'string' ? metadata.note : null,
+      // A3 (#279): datos de la aprobación congelada cuando FIN los escribe.
+      method: metadata && typeof metadata.method === 'string' ? metadata.method : null,
+      destination: metadata && typeof metadata.destinationMasked === 'string' ? metadata.destinationMasked : null,
+      version: metadata && (typeof metadata.version === 'number' || typeof metadata.version === 'string') ? metadata.version : null,
     } : null,
+    orderNumber: quote.order?.orderNumber || null,
   })
 }
 
