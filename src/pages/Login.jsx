@@ -4,12 +4,11 @@ import { useSesion } from '@/lib/sesion'
 import { Aviso, Button, Input, Label, PasswordInput, PinInput, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import EmailField from '@/components/shared/EmailField'
-import { publicUrls, rutaInterna } from '@/lib/urls'
+import { rutaInterna } from '@/lib/urls'
 import { sessionApi, getCompanyContext } from '@/lib/api/session'
 import { deviceId } from '@/lib/deviceId'
-import AuthLayout from '@/components/auth/AuthLayout'
+import AuthLayout, { AuthPanel, AuthPanelHeader } from '@/components/auth/AuthLayout'
 import GoogleButton, { OAuthDivider } from '@/components/auth/GoogleButton'
-import ThemeLogo from '@/components/app/ThemeLogo'
 import { CELDA_DATO } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 
@@ -232,15 +231,13 @@ export default function Login() {
 
   return (
     <AuthLayout>
-      <section className="login-panel mx-auto w-full max-w-[560px] rounded-[2rem] border border-fore/10 bg-ink/95 p-5 shadow-2xl shadow-fono/5 sm:p-6 lg:p-7">
+      <AuthPanel>
         {verificandoSesion && (
           <p role="status" className="mb-3 flex items-center gap-2 text-xs text-mute">
             <span aria-hidden="true" className="h-2 w-2 animate-pulse rounded-full bg-fono" />Verificando tu sesión…
           </p>
         )}
-        <a href={publicUrls.landing} className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-fono-dark transition hover:text-fore lg:mb-3">← Volver al inicio</a>
-        <ThemeLogo className="mb-1 w-48" />
-        <p className="mb-5 text-sm text-mute lg:mb-4">Sistema de ventas para tiendas</p>
+        <AuthPanelHeader />
 
         <h1 className="mb-1 text-2xl font-semibold sm:text-[1.7rem]">
           {crear ? 'Creá la cuenta de tu tienda' : 'Entrá a tu tienda'}
@@ -254,7 +251,7 @@ export default function Login() {
 
           {crear && <>
             <div><Label htmlFor="company-name">Nombre de la tienda</Label><Input className="h-14 rounded-xl px-4 lg:h-12" id="company-name" required maxLength={100} value={f.nombreEmpresa} onChange={set('nombreEmpresa')} onBlur={touchSignup('nombreEmpresa')} aria-invalid={Boolean(signupErrors.nombreEmpresa)} aria-describedby={signupErrors.nombreEmpresa ? 'company-name-error' : undefined} autoComplete="organization" placeholder="Nombre de tu tienda" />{signupErrors.nombreEmpresa && <p id="company-name-error" role="alert" className="mt-1 text-xs text-bad">{signupErrors.nombreEmpresa}</p>}</div>
-            {!googleReady && <div><Label htmlFor="new-email">Correo de acceso</Label><EmailField className="h-14 rounded-xl px-4 lg:h-12" id="new-email" required value={f.correo} onChange={(value) => { setF((x) => ({ ...x, correo: value })); if (modo === 'crear' && signupTouched.correo) setSignupErrors((errors) => ({ ...errors, correo: signupFieldError('correo', value) })) }} onBlur={touchSignup('correo')} aria-invalid={Boolean(signupErrors.correo)} aria-describedby={signupErrors.correo ? 'new-email-error' : undefined} autoComplete="email" placeholder="vos@tutienda.com" />{signupErrors.correo && <p id="new-email-error" role="alert" className="mt-1 text-xs text-bad">{signupErrors.correo}</p>}</div>}
+            {!googleReady && <div><Label htmlFor="new-email">Correo de acceso</Label><EmailField inputClassName="h-14 rounded-xl px-4 lg:h-12" id="new-email" required value={f.correo} onChange={(value) => { setF((x) => ({ ...x, correo: value })); if (modo === 'crear' && signupTouched.correo) setSignupErrors((errors) => ({ ...errors, correo: signupFieldError('correo', value) })) }} onBlur={touchSignup('correo')} aria-invalid={Boolean(signupErrors.correo)} aria-describedby={signupErrors.correo ? 'new-email-error' : undefined} autoComplete="email" placeholder="vos@tutienda.com" />{signupErrors.correo && <p id="new-email-error" role="alert" className="mt-1 text-xs text-bad">{signupErrors.correo}</p>}</div>}
             {!googleReady && <div><Label htmlFor="new-password">Contraseña de empresa</Label><PasswordInput className="h-14 rounded-xl px-4 pr-11 lg:h-12" id="new-password" required minLength={12} maxLength={128} value={f.clave} onChange={set('clave')} onBlur={touchSignup('clave')} aria-invalid={Boolean(signupErrors.clave)} aria-describedby={signupErrors.clave ? 'new-password-error' : undefined} autoComplete="new-password" placeholder="Mínimo 8 caracteres" /><p className="mt-1 text-xs text-mute">Establecé una contraseña de al menos 8 caracteres.</p>{signupErrors.clave && <p id="new-password-error" role="alert" className="mt-1 text-xs text-bad">{signupErrors.clave}</p>}</div>}
           </>}
 
@@ -289,7 +286,7 @@ export default function Login() {
           <div>
             <Label htmlFor="mail">Correo</Label>
             <EmailField
-              className="h-14 rounded-xl px-4 lg:h-12"
+              inputClassName="h-14 rounded-xl px-4 lg:h-12"
               id="mail"
               value={f.correo}
               onChange={(value) => setF((x) => ({ ...x, correo: value }))}
@@ -335,7 +332,7 @@ export default function Login() {
             {crear ? <>¿Ya tenés una tienda? <button type="button" onClick={() => cambiarModo('entrar')} className="font-semibold text-fono-dark hover:text-fore hover:underline">Entrá a tu cuenta</button></> : <>¿Sos nuevo en MobOS? <button type="button" onClick={() => cambiarModo('crear')} className="font-semibold text-fono-dark hover:text-fore hover:underline">Creá tu tienda</button></>}
           </p>}
         </form>
-      </section>
+      </AuthPanel>
     </AuthLayout>
   )
 }
