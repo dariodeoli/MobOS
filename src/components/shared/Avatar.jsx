@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getAvatarDataUrl } from '@/lib/userAvatar'
 import { inicialesDe } from '@/lib/iniciales'
+import { fuenteAvatar } from '@/lib/avatarFuente'
 
 const TAMANOS = {
   xs: 'h-5 w-5 text-[9px]',
@@ -43,13 +44,12 @@ export default function Avatar({ user, hasAvatar, picture, size = 'md', classNam
   useEffect(() => { setGoogleRota(false) }, [picture])
   const clases = TAMANOS[size] || TAMANOS.md
   const etiqueta = title ?? nombre
-  const fotoVisible = foto && foto.id === user?.id ? foto.url : ''
-  if (fotoVisible) {
-    return <img src={fotoVisible} alt={`Foto de ${nombre}`} loading="lazy" title={etiqueta} className={`${clases} shrink-0 rounded-full border border-ink-600 object-cover ${className}`} />
+  const fuente = fuenteAvatar({ foto, usuarioId: user?.id, localListo, picture, googleRota })
+  if (fuente.tipo === 'foto') {
+    return <img src={fuente.src} alt={`Foto de ${nombre}`} loading="lazy" title={etiqueta} className={`${clases} shrink-0 rounded-full border border-ink-600 object-cover ${className}`} />
   }
-  // Google solo entra cuando la foto local ya se descartó (o no puede existir).
-  if (picture && !googleRota && localListo) {
-    return <img src={picture} alt={`Foto de ${nombre}`} loading="lazy" title={etiqueta} referrerPolicy="no-referrer" onError={() => setGoogleRota(true)} className={`${clases} shrink-0 rounded-full border border-ink-600 object-cover ${className}`} />
+  if (fuente.tipo === 'google') {
+    return <img src={fuente.src} alt={`Foto de ${nombre}`} loading="lazy" title={etiqueta} referrerPolicy="no-referrer" onError={() => setGoogleRota(true)} className={`${clases} shrink-0 rounded-full border border-ink-600 object-cover ${className}`} />
   }
   return <span title={etiqueta} className={`${clases} grid shrink-0 place-items-center rounded-full border border-ink-600 bg-ink-700 font-semibold text-mute ${className}`}>{inicialesDe(nombre)}</span>
 }
