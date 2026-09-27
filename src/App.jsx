@@ -21,6 +21,8 @@ const PortalClientesEntrada = lazy(() => import('@/pages/PortalClientesEntrada')
 const RecuperarEmpresa = lazy(() => import('@/pages/RecuperarEmpresa'))
 const OpsPreview = lazy(() => import('@/pages/OpsPreview'))
 const Ops = lazy(() => import('@/pages/Ops'))
+// Preview de diseño (#279): A3/A5 del plan #250, solo DEV.
+const PreviewDiseno = lazy(() => import('@/pages/preview/PreviewDiseno'))
 // #247: rutas pesadas fuera del arranque. El panel (todas las secciones), el
 // reparto y las páginas públicas cargan su chunk recién al entrar; el login y
 // la demo quedan en el chunk de entrada.
@@ -216,6 +218,17 @@ export default function App() {
       <>
         <MetadatosPagina />
         <Suspense fallback={<PaginaCargando />}><PaginaOps /></Suspense>
+      </>
+    )
+  }
+
+  // Preview de diseño (#279): pantallas A3/A5 del plan #250, solo DEV.
+  const disenoPreview = import.meta.env.DEV && window.location.pathname.startsWith('/diseno-')
+  if (disenoPreview) {
+    return (
+      <>
+        <MetadatosPagina />
+        <Suspense fallback={<PaginaCargando />}><PreviewDiseno /></Suspense>
       </>
     )
   }
