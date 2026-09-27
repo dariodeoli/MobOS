@@ -74,3 +74,40 @@ test('unificar dos fichas: preview, principal, archivo con puntero y cronología
   await expect(fichaA.getByText('Cliente unificado').first()).toBeVisible({ timeout: 20000 })
   await page.screenshot({ path: `${SHOTS}/06-cronologia-unificado.png` })
 })
+
+test('unificar desde la lista: seleccionar dos fichas y confirmar', async ({ page }) => {
+  await page.goto('/clientes')
+  const marca = `SEL${Date.now().toString(36).toUpperCase()}`
+  const telefono = `0983${String(Date.now()).slice(-6)}`
+  const a = await api(page, '/api/customers', { method: 'POST', body: JSON.stringify({ name: `Lista A ${marca}`, phone: telefono }) })
+  expect(a.status, JSON.stringify(a.body)).toBe(201)
+  const b = await api(page, '/api/customers', { method: 'POST', body: JSON.stringify({ name: `Lista B ${marca}`, phone: `0984${String(Date.now()).slice(-6)}` }) })
+  expect(b.status, JSON.stringify(b.body)).toBe(201)
+  await api(page, `/api/customers/${encodeURIComponent(b.body.id)}`, { method: 'PATCH', body: JSON.stringify({ phone: telefono }) })
+
+  // Selección por lote: con exactamente dos fichas aparece «Unificar».
+  await page.goto('/clientes')
+  await page.getByLabel('Buscar clientes').fill(marca)
+  await expect(page.getByLabel(`Seleccionar a Lista A ${marca}`)).toBeVisible()
+  await expect(page.getByLabel(`Seleccionar a Lista B ${marca}`)).toBeVisible()
+  // Seleccionar las visibles + abrir, en un solo intento: la tabla puede
+  // re-montarse al asentar el buscador y perder la selección.
+  await expect(async () => {
+    if (!(await page.getByLabel('Seleccionar visibles').isChecked())) await page.getByLabel('Seleccionar visibles').check()
+    await expect(page.getByText('2 seleccionada(s)')).toBeVisible({ timeout: 1500 })
+    await page.getByTestId('unificar-seleccionados').click({ timeout: 1500 })
+  }).toPass({ timeout: 30000 })
+  await expect(page.getByTestId('merge-lado-b')).toBeVisible({ timeout: 15000 })
+  await page.screenshot({ path: `${SHOTS}/07-unificar-desde-lista.png` })
+  await page.getByRole('button', { name: 'Unificar clientes' }).click()
+  await expect(page.getByText('Clientes unificados')).toBeVisible({ timeout: 15000 })
+
+  // Una de las dos quedó archivada con puntero a la otra (el orden de la lista
+  // define cuál es la principal).
+  const detalleA = await api(page, `/api/customers/${encodeURIComponent(a.body.id)}`)
+  const detalleB = await api(page, `/api/customers/${encodeURIComponent(b.body.id)}`)
+  const archivada = detalleA.body.customer.archivedAt ? detalleA.body.customer : detalleB.body.customer
+  const principal = detalleA.body.customer.archivedAt ? detalleB.body.customer : detalleA.body.customer
+  expect(archivada.mergedIntoId).toBe(principal.id)
+  await page.screenshot({ path: `${SHOTS}/08-lista-tras-unificar.png` })
+})
