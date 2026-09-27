@@ -25,6 +25,7 @@ import { colorCondicionUnidad, estadoInventario, etiquetaCondicionUnidad, sinCos
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
+import { etiquetaEnvio, etiquetaMetodoEnvio, etiquetaNecesidad, etiquetaOrigen } from 'owncoding-ui'
 
 const EVENT_LABEL = { audit: 'Auditoría', transfer: 'Traslado', comment: 'Comentario', sale: 'Venta', imei: 'Consulta IMEI', repair: 'Reparación' }
 // #233: aclaración que acompaña toda conciliación (el panel del proveedor no
@@ -114,6 +115,11 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   // última verificación real del serial alimenta los chips de locks (fuente/hora).
   const [inspeccionOficial, setInspeccionOficial] = useState(unit.inspection || null)
   const [verificacion, setVerificacion] = useState(null)
+  // #278 (F4 de #250): la cadena del Centro de Abastecimiento de esta unidad
+  // (necesidad → compra → lote → stock). La API exige `stock:manage`; en demo
+  // no aplica y la sección no se muestra.
+  const [cadena, setCadena] = useState(null)
+  const [cadenaCargando, setCadenaCargando] = useState(false)
   // #240: evidencia (foto) de repuestos no-OEM: se adjunta como comentario de la unidad.
   const [repuestosEvidencia, setRepuestosEvidencia] = useState(null)
   const [subiendoEvidencia, setSubiendoEvidencia] = useState(false)
@@ -174,6 +180,21 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
     })()
     return () => { active = false }
   }, [unit.serial])
+
+  // #278: historial del serial en la cadena (se relee al cambiar la unidad).
+  // Sin datos devuelve el bloque mínimo («en stock») y se anuncia el camino
+  // directo; un error no rompe la ficha (la sección simplemente no se muestra).
+  useEffect(() => {
+    if (esDemo || !canManage || !unit?.serial) return undefined
+    let activo = true
+    setCadena(null)
+    setCadenaCargando(true)
+    resources.supplySerials.get(unit.serial)
+      .then((datos) => { if (activo) setCadena(datos) })
+      .catch(() => { if (activo) setCadena(null) })
+      .finally(() => { if (activo) setCadenaCargando(false) })
+    return () => { activo = false }
+  }, [esDemo, canManage, unit?.serial])
 
   async function guardarNota() {
     if (guardandoNota) return
@@ -452,6 +473,45 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
             <div className="col-span-2 rounded-xl bg-ink-800/60 p-3 text-sm"><p className="text-xs text-mute">Nota interna</p><div className="mt-1.5 flex flex-wrap items-center gap-2"><Input aria-label="Nota interna de la unidad" maxLength={500} value={nota} onChange={event => setNota(event.target.value)} placeholder="Raya lateral, caja dañada, accesorio faltante…" className="min-h-9 min-w-[12rem] flex-1" /><Button type="button" variant="outline" disabled={guardandoNota || nota.trim() === (unit.notes || "")} onClick={guardarNota}>{guardandoNota ? "Guardando…" : "Guardar nota"}</Button></div></div>
           </div>
         </section>
+
+        {/* #278: de dónde salió el equipo — necesidad → compra → lote → stock.
+            Lo que guarda el Centro de Abastecimiento tiene que poder mostrarse. */}
+        {!esDemo && canManage && (cadenaCargando || cadena) && (
+          <section className="rounded-2xl border border-ink-600 p-4" data-testid="unidad-cadena">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className={ROTULO_SECCION}>Cadena de abastecimiento</h3>
+              {cadena && <Badge color={cadena.enStock ? 'green' : 'blue'}>{cadena.enStock ? 'En stock' : 'En la cadena'}</Badge>}
+            </div>
+            {cadenaCargando && !cadena ? <p className="mt-2 text-xs text-mute" role="status">Cargando la cadena…</p> : (
+              <div className="mt-2 space-y-2 text-sm">
+                {cadena?.necesidad && (
+                  <div className="rounded-xl bg-ink-800/60 p-3">
+                    <p className="text-xs text-mute">Necesidad · {etiquetaNecesidad(cadena.necesidad.estado)}</p>
+                    <p className="mt-1 font-semibold">{etiquetaOrigen(cadena.necesidad.origen)}</p>
+                    <p className="mt-0.5 text-xs text-mute">{[cadena.necesidad.destino ? `Destino ${cadena.necesidad.destino}` : '', cadena.necesidad.prometidaEl ? `Prometida ${fechaHora(cadena.necesidad.prometidaEl)}` : ''].filter(Boolean).join(' · ') || 'Sin destino ni fecha prometida'}</p>
+                  </div>
+                )}
+                {cadena?.compra && (
+                  <div className="rounded-xl bg-ink-800/60 p-3">
+                    <p className="text-xs text-mute">Compra · {cadena.compra.estado}</p>
+                    <p className="mt-1 font-semibold">{cadena.compra.code}{cadena.compra.proveedor ? ` · ${cadena.compra.proveedor}` : ''}</p>
+                    <p className="mt-0.5 text-xs text-mute">{[cadena.compra.referencia ? `Ref. ${cadena.compra.referencia}` : '', cadena.compra.fecha ? fechaHora(cadena.compra.fecha) : ''].filter(Boolean).join(' · ') || 'Sin referencia ni fecha'}</p>
+                  </div>
+                )}
+                {(cadena?.lotes || []).map((lote) => (
+                  <div key={lote.envio} className="rounded-xl bg-ink-800/60 p-3">
+                    <p className="text-xs text-mute">Lote · {etiquetaMetodoEnvio(lote.metodo)}</p>
+                    <p className="mt-1 font-semibold">{lote.envio} · {etiquetaEnvio(lote.estado)}</p>
+                    <p className="mt-0.5 text-xs text-mute">{[lote.origen && lote.destino ? `${lote.origen} → ${lote.destino}` : lote.origen || lote.destino, lote.salida ? `salió ${fechaHora(lote.salida)}` : '', lote.eta ? `ETA ${fechaHora(lote.eta)}` : '', lote.llegada ? `llegó ${fechaHora(lote.llegada)}` : ''].filter(Boolean).join(' · ')}</p>
+                  </div>
+                ))}
+                {cadena && !cadena.necesidad && !cadena.compra && !(cadena.lotes || []).length && (
+                  <p className="text-xs text-mute">Sin pasos del Centro de Abastecimiento: la unidad ingresó directo a stock.</p>
+                )}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Costo del equipo: se puede completar después de recibirlo */}
         <section className="rounded-2xl border border-ink-600 p-4" data-testid="unidad-costo">

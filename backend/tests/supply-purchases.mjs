@@ -224,7 +224,22 @@ const enStockAdicional = '352100000000002'
 await req('/api/products', 'POST', { name: `Stock libre ${sufijo}`, sku: `STKL-${sufijo}`, pricePyg: 800000, costPyg: 500000, stock: 1, branchId: rama, imei: enStockAdicional }, 201)
 await req('/api/supply/purchases', 'PATCH', { id: compraAbierta.id, action: 'addLines', lines: [{ productId: productoLibre.id, quantity: 1, serials: [enStockAdicional] }] }, 409, admin)
 
-console.log(`PASS: compra ${compra.code} (USD → Gs) con IMEI, parcial y adicional · cobertura/validaciones · reposición libre · stock intacto · ${checks} chequeos`)
+// 11-bis) #278 · la lista de compra (§11) sale del propio listado: cada línea trae
+// la prioridad/origen/promesa/pedido de su necesidad y la compra a quien la
+// cargó (la firma del papel). Sin necesidad, la línea viaja sin prioridad.
+const necesariaLista = await req('/api/supply/needs', 'POST', { productId: productoLibre.id, quantity: 1, branchId: rama, priority: 'ALTA', promisedAt: '2026-10-01T12:00:00.000Z', origin: 'CDE', notes: 'Para la lista impresa' }, 201)
+const compraLista = await req('/api/supply/purchases', 'POST', { supplierName: `Proveedor Lista ${sufijo}`, currency: 'PYG', lines: [{ needId: necesariaLista.id, productId: productoLibre.id, quantity: 1 }, { productId: productoLibre.id, quantity: 2 }] }, 201)
+const detalleLista = (await req('/api/supply/purchases')).compras.find((fila) => fila.id === compraLista.id)
+const lineaLista = detalleLista.lines.find((linea) => linea.needId === necesariaLista.id)
+assert.equal(lineaLista.priority, 'ALTA', 'la línea lleva la prioridad de su necesidad')
+assert.equal(lineaLista.source, 'MANUAL', 'la línea lleva el origen de su necesidad')
+assert.equal(String(lineaLista.promisedAt).slice(0, 10), '2026-10-01', 'la línea lleva la fecha prometida al cliente')
+assert.equal(lineaLista.orderNumber, null, 'sin pedido vinculado no inventa número')
+assert.equal(lineaLista.needOrigin, 'CDE', 'la línea lleva el centro de compra (recorrido de la lista)')
+assert.ok(detalleLista.createdBy?.name, 'la compra indica quién la cargó (firma de la lista)')
+assert.equal(detalleLista.lines.find((linea) => !linea.needId).priority, null, 'la reposición libre viaja sin prioridad')
+
+console.log(`PASS: compra ${compra.code} (USD → Gs) con IMEI, parcial y adicional · cobertura/validaciones · reposición libre · lista de compra · stock intacto · ${checks} chequeos`)
 
 // 12) FIN (#254 · F2): cierre de costos — la compra que nace sin factura se
 // completa después: la cuenta a pagar aparece con el monto real y las unidades

@@ -10,6 +10,7 @@ import BarraModulo from '@/components/shared/BarraModulo'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 import Icon from '@/components/shared/Icon'
 import ProductCombobox from '@/components/shared/ProductCombobox'
+import ListaCompraModal from '@/components/supply/ListaCompraModal'
 import { etiquetaCompra, tonoCompra } from 'owncoding-ui'
 import { CONDICION_UNIDAD } from '@/utils/inventario'
 import { analizarSerial, textoMotivo, validarLote } from '@/lib/escanerSeriales'
@@ -34,6 +35,7 @@ export default function ComprasCentro() {
   const [agregar, setAgregar] = useState(null)
   const [linea, setLinea] = useState({ productId: '', quantity: '1', unitCostPyg: '', seriales: '' })
   const [adjuntosDe, setAdjuntosDe] = useState(null)
+  const [listaDe, setListaDe] = useState(null)
   const [cancelar, setCancelar] = useState(null)
   const [motivo, setMotivo] = useState('')
   const [busy, setBusy] = useState(false)
@@ -187,6 +189,11 @@ export default function ComprasCentro() {
                     {expandida ? 'Cerrar' : 'Ver líneas'}
                   </Button>
                   <Button type="button" variant="outline" onClick={() => setAdjuntosDe(compra)}>Adjuntos</Button>
+                  {/* #278 · el impreso de §11 ya existía sin llamador: acá se
+                      adopta (térmica directa, PDF o imagen para el proveedor). */}
+                  <Button type="button" variant="outline" disabled={!(compra.lines || []).length} onClick={() => setListaDe(compra)} data-testid="compra-lista-imprimir">
+                    <Icon name="printer" className="h-4 w-4" />Lista de compra
+                  </Button>
                   {activa && <Button type="button" variant="outline" onClick={() => abrirAgregar(compra)}>+ Agregar líneas</Button>}
                   {cancelable && <Button type="button" variant="ghost" className="text-bad" onClick={() => { setCancelar(compra); setMotivo('') }}>Cancelar</Button>}
                 </div>
@@ -252,6 +259,8 @@ export default function ComprasCentro() {
           </div>
         </form>
       </Modal>
+
+      <ListaCompraModal compra={listaDe} open={Boolean(listaDe)} onClose={() => setListaDe(null)} />
 
       <Modal open={Boolean(adjuntosDe)} onClose={() => setAdjuntosDe(null)} title={`Adjuntos · ${adjuntosDe?.code || ''}`} size="amplio">
         <p className="text-sm text-mute">La factura o los comprobantes de la compra quedan auditados con el documento.</p>

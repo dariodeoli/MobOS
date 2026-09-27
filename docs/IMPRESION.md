@@ -541,7 +541,8 @@ compra**, **etiqueta producto/paquete** (+ las **etiquetas del lote `N de M`**),
   IMEI cargados/pendientes, totales y el QR/barras del panel. Builders:
   `datosListaCompra` (`listaCompra.js`) + `ticketListaCompra` (ESC/POS) +
   `buildListaCompraHtml`/`printListaCompra` (A4/rollo). Ensayo:
-  `docs/lista-compra-ejemplo/`.
+  `docs/lista-compra-ejemplo/`. **Adopción (#278):** botón «Lista de compra» en
+  Compras del Centro con impresora del tipo `lista-compra`, PDF real y PNG.
 - **Etiqueta producto/paquete · 80 mm** — implementado: lo devuelve
   `GET /api/supply/purchases/[id]/labels` (`etiquetasPreparacion` en
   `backend/lib/supply.ts`): `{ n, total, producto, capacidad, condicion, imei,

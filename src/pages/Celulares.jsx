@@ -7,6 +7,7 @@ import { gs } from '@/utils/calculos'
 import { Button, Card } from '@/components/ui'
 import ProductFooter from '@/components/app/ProductFooter'
 import Icon from '@/components/shared/Icon'
+import BarraModulo from '@/components/shared/BarraModulo'
 import { APP_NAME } from '@/lib/brand'
 import ThemeLogo from '@/components/app/ThemeLogo'
 
@@ -104,22 +105,23 @@ export default function Celulares() {
 
   return (
     <div className="space-y-4">
+      {/* #278 · composición compacta (#256): la identidad y las acciones viven
+          en la barra; la tarjeta exportable queda intacta para compartir. */}
+      <BarraModulo
+        icono="tag"
+        titulo="Lista por modelo"
+        descripcion="Precios de nuevos y semi-nuevos por modelo y capacidad, listos para compartir con el cliente."
+        testId="barra-celulares"
+      >
+        <Button variant="success" onClick={exportar} disabled={!conPrecio.length || exportando}>
+          <Icon name="share" className="h-4 w-4" />{exportando ? 'Generando…' : 'Compartir por WhatsApp'}
+        </Button>
+        <Button variant="outline" onClick={() => navigate('/comparador')}>
+          <Icon name="report" className="h-4 w-4" />Comparar
+        </Button>
+      </BarraModulo>
 
       <main className="mx-auto max-w-3xl space-y-4">
-        <div className="flex gap-2">
-          <Button
-            variant="success"
-            className="flex-1"
-            onClick={exportar}
-            disabled={!conPrecio.length || exportando}
-          >
-            {exportando ? '⏳ Generando…' : 'Compartir por WhatsApp'}
-          </Button>
-          <Button variant="outline" onClick={() => navigate('/comparador')}>
-            Comparar
-          </Button>
-        </div>
-
         {!conPrecio.length && (
           <Card className="text-center text-mute py-10">
             <div className="text-4xl mb-2">

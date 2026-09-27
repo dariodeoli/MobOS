@@ -52,6 +52,11 @@ con alcance), como ya hicieron Inventario, Compras, Servicio y Garantías.
 `/comparador`. No repiten la identidad de página; si se quiere barra compacta es
 una decisión de cada dominio (INV/FIN/POS).
 
+> **Resuelto para INV (#278, 27/09):** Precios · Celulares · Comparador ya usan
+> la barra compacta (`barra-precios`, `barra-celulares`, `barra-comparador`).
+> Cierre y capturas en `docs/QA-278-CIERRE.md`. Trade-In pipeline (POS) y
+> Autorizaciones (FIN) siguen a decisión de su slot.
+
 ### 2.3 No visibles en demo (requieren sesión real)
 - **Compras del Centro** (`/compras-centro`): la composición existe en código
   (`testId="barra-compras-centro"`), pero en la demo gana el **estado vacío**

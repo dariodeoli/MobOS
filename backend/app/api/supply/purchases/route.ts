@@ -142,7 +142,17 @@ export async function GET(request: Request) {
       originalCost: true, exchangeRatePyg: true, costPyg: true, reference: true, notes: true,
       branchId: true, createdAt: true,
       branch: { select: { name: true } },
-      lines: { select: { id: true, productId: true, condition: true, quantity: true, unitCostPyg: true, originalUnitCost: true, needId: true, coveredQuantity: true, serials: { select: { serial: true } } } },
+      // #278 · la lista de compra (§11) sale del propio listado: quién compró
+      // (firma del papel) y, por línea, los datos de su necesidad (prioridad,
+      // origen, promesa y pedido) que el impreso muestra agrupados.
+      createdBy: { select: { name: true } },
+      lines: {
+        select: {
+          id: true, productId: true, condition: true, quantity: true, unitCostPyg: true, originalUnitCost: true, needId: true, coveredQuantity: true,
+          serials: { select: { serial: true } },
+          need: { select: { priority: true, source: true, promisedAt: true, origin: true, order: { select: { orderNumber: true } } } },
+        },
+      },
     },
   })
   const conPreparacion = compras.map((compra) => ({
@@ -155,6 +165,15 @@ export async function GET(request: Request) {
       originalUnitCost: linea.originalUnitCost === null ? null : Number(linea.originalUnitCost),
       faltan: Math.max(0, linea.quantity - linea.serials.length),
       libreQuantity: linea.needId ? Math.max(0, linea.quantity - (linea.coveredQuantity ?? linea.quantity)) : linea.quantity,
+      // Lo plano es lo que consume `datosListaCompra`: la línea sin necesidad es
+      // reposición libre y viaja sin prioridad ni promesa.
+      priority: linea.need?.priority || null,
+      source: linea.need?.source || null,
+      promisedAt: linea.need?.promisedAt || null,
+      orderNumber: linea.need?.order?.orderNumber || null,
+      // Centro de compra de la necesidad (CDE · USA · local): arranque del
+      // recorrido que imprime la lista.
+      needOrigin: linea.need?.origin || null,
     })),
   }))
   // `?pendientes=1` deja solo las compras con IMEI por completar (preparación).
