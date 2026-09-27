@@ -1,6 +1,30 @@
 # QA #187 — Clientes completo en PRODUCCIÓN
 
-## Corrida vigente — v1.0.190 (27/09/2026)
+## Corrida de cierre — v1.0.192 (27/09/2026)
+
+`node e2e/prod/187-clientes.mjs` contra la versión publicada: **22/22 pasos OK ·
+28 capturas** · demo **0 llamadas al API** · públicos con token inválido 404
+genéricos · rate limit activo. Evidencia:
+`docs/QA-187-clientes-produccion-v192/`.
+
+Comentario de cierre publicado: https://github.com/dariodeoli/MobOS/issues/187#issuecomment-5854957601
+
+Cubre el dominio completo: **ficha** (resumen, deuda, cronología, seguro, nota
+pública, estadísticas #221, WhatsApp), **pedidos** asociados y **portal/
+seguimiento** (cuenta, pedido en detalle, vitrina), además del listado
+(agregados, búsqueda/filtros, alta demo, ojito #236, mobile 390, rol Vendedor).
+
+### Faltantes reportados del dominio
+
+| Faltante | Estado | Detalle |
+|---|---|---|
+| Ruta del perfil | Abierto (no bloquea) | Vive en `/configuracion/mi-cuenta`; la coordinación pedía `/mi-perfil`. Funciona; falta unificar ruta/enlaces. |
+| Nota pública en demo | Limitación conocida | Se edita en la demo, pero su guardado y render en el portal requieren cuenta real. |
+| Garantía pública con token válido | No verificable sin sesión | El script valida token inválido (404 genérico); el token válido requiere una sesión real. |
+| Click-through de #260/#273 | Parcial | Verificados post-deploy por **marcadores (7/7) + capturas de contexto** en `docs/QA-260-273-produccion-v191/`; el recorrido con datos reales requiere `MOBOS_QA_STORAGE_STATE` (`scripts/qa-260-273-produccion.mjs`). |
+| Venta sin cliente desde el POS | De POS | El alta ocasional del backend y la ficha del pedido están verificadas acá; el checkout sin cliente es del slot POS (#273, coordinado). |
+
+## Corrida vigente anterior — v1.0.190 (27/09/2026)
 
 `node e2e/prod/187-clientes.mjs` contra la versión publicada: **22/22 pasos OK ·
 28 capturas** · demo **0 llamadas al API** · públicos con token inválido 404
