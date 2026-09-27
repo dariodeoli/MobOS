@@ -30,7 +30,7 @@ async function verificarExtractor(raiz) {
 
 test('POS: RUC del cliente con el extractor dentro del input', async ({ page }) => {
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
   await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
   const cliente = page.getByLabel('CI o RUC del cliente', { exact: true })
   await cliente.fill('80012345-6')
@@ -46,7 +46,7 @@ test('POS: RUC del cliente con el extractor dentro del input', async ({ page }) 
 
 test('POS: RUC del titular de factura', async ({ page }) => {
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
   await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
   await page.getByLabel(/Facturar a otro titular/).check()
   const titular = page.getByLabel('RUC del titular de factura')

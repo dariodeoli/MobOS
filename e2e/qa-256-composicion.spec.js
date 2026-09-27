@@ -6,7 +6,7 @@ import { test, expect } from '@playwright/test'
 test.describe('composición compacta', () => {
   test('POS: una sola barra de módulo con el título y las acciones', async ({ page }) => {
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: 'Nueva venta' }).first()).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByRole('heading', { name: 'POS', level: 1 }).first()).toBeVisible({ timeout: 20_000 })
     const barra = page.getByTestId('barra-pos')
     await expect(barra).toHaveCount(1)
     await expect(barra.getByText(/Hoy: \d{2}\/\d{2}\/\d{4}/)).toBeVisible()

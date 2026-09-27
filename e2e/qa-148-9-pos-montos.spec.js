@@ -18,7 +18,7 @@ async function contarPedidos(page) {
 
 test('POS: un precio sobre el tope bloquea el guardado y explica qué monto revisar (#148 §9)', async ({ page }) => {
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
 
   // Cliente y producto (accesorio del seed: no pide IMEI).
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente tope ${Date.now().toString(36)}`)

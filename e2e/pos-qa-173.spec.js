@@ -39,7 +39,7 @@ async function pedidoDe(page, cliente) {
 
 async function pagarEnPos(page, { cliente, producto, pagos }) {
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(cliente)
   const search = page.getByPlaceholder('Buscar producto…')
   await search.fill(producto)
@@ -170,7 +170,7 @@ test('carrito ultra-colapsado: el descuento individual se ve sin desplegar (#148
   const { productId } = await crearProducto(page, { nombre, precio: 100000, stock: 1 })
   try {
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
     await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(cliente)
     await page.getByPlaceholder('Buscar producto…').fill(nombre)
     await page.getByRole('button', { name: new RegExp(nombre) }).click()
@@ -216,7 +216,7 @@ test('split: un bloque marcado como no pagado deja el saldo pendiente y el pedid
   const { productId } = await crearProducto(page, { nombre, precio: 100000, stock: 1 })
   try {
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
     await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(cliente)
     await page.getByPlaceholder('Buscar producto…').fill(nombre)
     await page.getByRole('button', { name: new RegExp(nombre) }).click()
@@ -273,7 +273,7 @@ test('retiro en tienda no cobra el envío aunque haya un monto cargado (#187)', 
 
   try {
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
     await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente retiro ${clave()}`)
     const buscar = page.getByPlaceholder('Buscar producto…')
     await buscar.fill(nombre)

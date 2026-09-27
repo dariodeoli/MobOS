@@ -11,7 +11,7 @@ test('pedidos: la lista abre sin popups y el detalle se abre y cierra', async ({
   const errores = []
   page.on('pageerror', (error) => errores.push(String(error?.message || error)))
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
 
   await page.getByRole('button', { name: 'Mis pedidos' }).click()
   await expect(page).toHaveURL(/\/pedidos$/)

@@ -29,7 +29,7 @@ test('venta serializada: guía el IMEI, valida antes de enviar y cierra sin 400 
 
   try {
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
     await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente 263 ${clave()}`)
     const buscar = page.getByPlaceholder('Buscar producto…')
     await buscar.fill(nombre)
@@ -77,7 +77,7 @@ test('un producto sin serialización no pide IMEI y vende sin fricción (#263)',
 
   try {
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
     await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente simple ${clave()}`)
     const buscar = page.getByPlaceholder('Buscar producto…')
     await buscar.fill(nombre)

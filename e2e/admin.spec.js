@@ -1146,7 +1146,7 @@ test('IMEI: comprobante adjunto al cliente y visible en su portal', async ({ pag
 
 test('recuerda el menú plegado y los grupos del shell (#209)', async ({ page }) => {
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
 
   // Cerrar el grupo Operación y plegar el menú: son «último usado».
   await page.getByTitle('Ocultar Operación').click()
@@ -1233,7 +1233,7 @@ test('el header usa el candado y lo destructivo vive en Configuración (#228/#26
   await page.locator('#seller-pin').pressSequentially(SEED.admin.pin)
   await expect(page).toHaveURL(/\/resumen$/)
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
 
   // #266: el menú de tres puntos se retiró; el bloqueo vive en el header y los
   // accesos siguen en el menú principal.
