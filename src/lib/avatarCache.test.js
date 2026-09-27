@@ -61,19 +61,17 @@ test('la invalidación avisa a los suscriptores y emite el evento', () => {
   assert.deepEqual(avisos, ['u2'], 'después de la baja no hay más avisos')
 })
 
-test('la descarga evita la caché HTTP y el componente no pinta la anterior', () => {
+test('la descarga revalida y el componente no pinta la anterior', () => {
   const cache = leer('lib/userAvatar.js')
-  assert.match(cache, /cache: 'no-store'/, 'la descarga no puede salir de la caché del navegador (URL fija)')
+  assert.match(cache, /cache: 'no-cache'/, 'la descarga revalida el ETag: no puede salir de la caché del navegador (URL fija)')
   assert.match(cache, /suscribirAvatar/, 'expone la suscripción a los cambios')
   assert.match(leer('lib/avatarCache.js'), /mobos:avatar-cambio/, 'emite el evento para el resto de las instancias')
 
   const avatar = leer('components/shared/Avatar.jsx')
   assert.match(avatar, /suscribirAvatar/, 'el avatar escucha los cambios de foto')
-  assert.match(avatar, /esperando/, 'mientras resuelve no pinta la anterior ni la de Google')
-  assert.match(avatar, /const localDeEste = local\.id === id/, 'la foto es por usuario: no reusa la del anterior')
-  assert.match(avatar, /setLocal\(\{ id, url: '', listo: false \}\)/, 'limpia antes de resolver (placeholder neutro)')
-  assert.match(avatar, /key=\{enlace\}/, 'la imagen se reemplaza: el navegador no mantiene la vieja')
-  assert.match(avatar, /onError=\{\(\) => setRota\(enlace\)\}/, 'si la imagen falla no queda un cuadro roto')
+  assert.match(avatar, /fuenteAvatar/, 'la fuente visible sale del contrato puro (#271)')
+  assert.match(avatar, /setLocalListo\(false\)/, 'mientras resuelve no pinta la anterior ni la de Google')
+  assert.match(avatar, /onError=\{\(\) => setGoogleRota\(true\)\}/, 'si la imagen falla no queda un cuadro roto')
 
   const miCuenta = leer('components/cuenta/MiCuenta.jsx')
   assert.match(miCuenta, /olvidarAvatar\(usuario\.id\)/, 'al subir y quitar se invalida la caché')

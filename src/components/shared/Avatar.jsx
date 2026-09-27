@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getAvatarDataUrl } from '@/lib/userAvatar'
+import { getAvatarDataUrl, suscribirAvatar } from '@/lib/userAvatar'
 import { inicialesDe } from '@/lib/iniciales'
 import { fuenteAvatar } from '@/lib/avatarFuente'
 
@@ -23,6 +23,13 @@ export default function Avatar({ user, hasAvatar, picture, size = 'md', classNam
   // se adelanta la foto de Google, que se vería como «la foto anterior».
   const [foto, setFoto] = useState(null)
   const [localListo, setLocalListo] = useState(false)
+  // Cambio/quitado de foto en cualquier parte de la app (#271): la caché avisa
+  // y este avatar vuelve a resolver con el placeholder neutro.
+  const [version, setVersion] = useState(0)
+  useEffect(() => {
+    if (!user?.id) return undefined
+    return suscribirAvatar((id) => { if (id === user.id) setVersion((actual) => actual + 1) })
+  }, [user?.id])
   // La foto de Google puede caer (la URL caduca): si falla, se cae a iniciales
   // en vez de dejar una imagen rota (#164).
   const [googleRota, setGoogleRota] = useState(false)
@@ -40,7 +47,7 @@ export default function Avatar({ user, hasAvatar, picture, size = 'md', classNam
       setLocalListo(true)
     }
     return () => { vigente = false }
-  }, [puedeTenerFoto, user?.id])
+  }, [puedeTenerFoto, user?.id, version])
   useEffect(() => { setGoogleRota(false) }, [picture])
   const clases = TAMANOS[size] || TAMANOS.md
   const etiqueta = title ?? nombre
