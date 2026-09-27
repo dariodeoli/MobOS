@@ -1,0 +1,30 @@
+{
+  "base": "https://app.moboss.online",
+  "repo": "v1.0.191",
+  "estado": "verificado",
+  "hallazgos": [],
+  "resultados": [
+    {
+      "paso": "versión publicada = release con el fix",
+      "estado": "ok",
+      "detalle": "v1.0.191 (repo v1.0.191)",
+      "capturas": [
+        "01-shell-demo.jpg"
+      ]
+    },
+    {
+      "paso": "la foto vieja nunca se pinta (shell)",
+      "estado": "ok",
+      "detalle": "7 muestras de src · ninguna es la foto vieja",
+      "capturas": []
+    },
+    {
+      "paso": "la foto vieja tampoco aparece al recargar el bloqueo",
+      "estado": "ok",
+      "detalle": "10 muestras · la foto vieja no aparece",
+      "capturas": [
+        "02-bloqueo-demo.jpg"
+      ]
+    }
+  ]
+}
