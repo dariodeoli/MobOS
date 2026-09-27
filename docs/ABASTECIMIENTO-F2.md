@@ -5,9 +5,10 @@ Continuación de [ABASTECIMIENTO-F1.md](ABASTECIMIENTO-F1.md) (#250 §6): regist
 **IMEI ahora o pendientes** — cubre las necesidades del panel y suma la
 **compra adicional** (reposición libre, sin cliente). El panel «Por comprar»
 ofrece **«+ Compra libre»** (producto, proveedor del buscador de #259, cantidad y
-costo opcional): registra la compra sin necesidad y sin tocar stock. Queda
-pendiente el listado de compras del Centro con «agregar líneas» a una compra
-activa (`action: 'addLines'`) para una próxima ronda.
+costo opcional): registra la compra sin necesidad y sin tocar stock. La pantalla
+**Compras del Centro** (`/compras-centro`) lista lo comprado con sus líneas,
+IMEI cargados y cantidades libres, y permite **agregar líneas** a una compra
+activa (`action: 'addLines'`) y **cancelarla** con motivo.
 
 ## 1. Regla dura
 

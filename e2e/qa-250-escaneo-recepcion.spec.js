@@ -465,3 +465,75 @@ test('F3 · preparar lote: IMEI diferido por escaneo y pegado', async ({ page })
   await page.setViewportSize({ width: 390, height: 844 })
   await page.screenshot({ path: join(DIR, 'preparar-lote-completo-mobile.png') })
 })
+
+// F2 · compras del Centro: listado con las cantidades libres, alta de líneas
+// sobre una compra activa (IMEI ahora o pendientes) y cancelación con motivo.
+test('F2 · compras del Centro: líneas libres, agregar líneas y cancelar', async ({ page }) => {
+  mkdirSync(DIR, { recursive: true })
+  await page.goto('/compras-centro')
+  await expect(page.getByTestId('compras-centro')).toBeVisible()
+
+  const marca = sufijo()
+  const producto = await apiPagina(page, '/api/products', {
+    method: 'POST',
+    body: JSON.stringify({ name: `E2E F2 ${marca}`, sku: `E2E-F2-${marca}`, category: 'Celulares', pricePyg: 2000000, costPyg: 1500000, stock: 0, branchId: SEED.branchId }),
+  })
+  expect([200, 201], JSON.stringify(producto.body)).toContain(producto.status)
+  const compra = await apiPagina(page, '/api/supply/purchases', {
+    method: 'POST',
+    body: JSON.stringify({ supplierName: `Proveedor F2 ${marca}`, currency: 'PYG', lines: [{ productId: producto.body.id, quantity: 2 }] }),
+  })
+  expect([200, 201], JSON.stringify(compra.body)).toContain(compra.status)
+  // El buscador de productos sale del espejo local: se recarga para incluirlo.
+  await page.reload()
+  await expect(page.getByTestId('compras-centro')).toBeVisible({ timeout: 20_000 })
+  await page.getByRole('button', { name: 'Actualizar' }).click()
+
+  // La compra figura con su reposición libre (sin necesidad ni cliente).
+  const fila = page.getByTestId('compra-centro-fila').filter({ hasText: compra.body.code })
+  await expect(fila).toBeVisible({ timeout: 20_000 })
+  await expect(fila.getByText('2 unidad(es)')).toBeVisible()
+  await expect(fila.getByText('2 libre(s)')).toBeVisible()
+  await expect(fila.getByText('Comprada', { exact: true })).toBeVisible()
+
+  // El detalle muestra la línea con sus IMEI pendientes y las libres.
+  await fila.getByRole('button', { name: 'Ver líneas' }).click()
+  const lineas = fila.getByTestId('compra-centro-lineas')
+  await expect(lineas.getByText('0/2 IMEI')).toBeVisible()
+  await expect(lineas.getByText('2 libre(s)')).toBeVisible()
+
+  // Agregar una línea activa con un IMEI ahora.
+  const base = `4901542${marca.slice(0, 7)}`
+  const imei = imeiValido(base)
+  await fila.getByRole('button', { name: '+ Agregar líneas' }).click()
+  const modal = page.getByRole('dialog', { name: /Agregar líneas/ })
+  await expect(modal).toBeVisible()
+  await modal.getByRole('combobox').first().fill(producto.body.name)
+  await modal.getByRole('option', { name: new RegExp(producto.body.name) }).first().click()
+  await modal.getByLabel('Cantidad').fill('1')
+  await modal.getByLabel('Costo unitario de la línea').fill('1600000')
+  await modal.getByLabel('IMEI de la línea').fill(imei)
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.screenshot({ path: join(DIR, 'compras-centro-desktop.png') })
+  await modal.getByRole('button', { name: 'Agregar líneas' }).click()
+  await expect(page.getByText('Líneas agregadas')).toBeVisible({ timeout: 20_000 })
+
+  const detalle = await apiPagina(page, `/api/supply/purchases?limit=50`)
+  const actualizada = (detalle.body?.compras || []).find((f) => f.id === compra.body.id)
+  expect(actualizada?.lines?.length, JSON.stringify(actualizada).slice(0, 300)).toBe(2)
+  const nueva = actualizada?.lines?.find((l) => (l.serials || []).some((s) => (s.serial || s) === imei))
+  expect(nueva?.quantity).toBe(1)
+
+  // Cancelar con motivo: vuelve auditado y la compra queda cancelada.
+  const filaActualizada = page.getByTestId('compra-centro-fila').filter({ hasText: compra.body.code })
+  await filaActualizada.getByRole('button', { name: 'Cancelar', exact: true }).click()
+  const modalCancelar = page.getByRole('dialog', { name: 'Cancelar compra' })
+  await modalCancelar.getByLabel('Motivo').fill('El proveedor no tenía stock (e2e)')
+  await modalCancelar.getByRole('button', { name: 'Cancelar compra' }).click()
+  await expect(page.getByText('Compra cancelada')).toBeVisible({ timeout: 20_000 })
+  const trasCancelar = await apiPagina(page, '/api/supply/purchases?limit=50')
+  const cancelada = (trasCancelar.body?.compras || []).find((f) => f.id === compra.body.id)
+  expect(cancelada?.status).toBe('CANCELADA')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: join(DIR, 'compras-centro-mobile.png') })
+})
