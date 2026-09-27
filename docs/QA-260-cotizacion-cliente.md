@@ -50,3 +50,10 @@ el caso de consumidor final).
 - No hubo cambios de backend ni migraciones.
 - La búsqueda sigue siendo la de `/api/customers?q=`, la misma que usa el POS;
   el modal de alta reutiliza el componente compartido.
+
+## Cierre (barrido del dominio)
+
+Con el **Tablero** ya en composición compacta, se barrió todo el dominio
+Servicio/Taller + Garantías en una corrida: `servicio-tecnico`,
+`qa-241-servicio-v2`, `qa-241-servicio-pipeline`, `qa-fin-repuestos-taller` y
+`qa-240-garantia-portal` → **21/21 verde**. No quedan restos rojos.
