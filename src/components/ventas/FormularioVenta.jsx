@@ -93,6 +93,12 @@ const VACIO = vendedorId => ({
 
 const PAGO_VACIO = { medioPago: MEDIOS_PAGO[0], cuenta: '', monto: '' }
 
+// #275: al confirmar la venta (completa, parcial o a crédito) la app va sola al
+// detalle del pedido recién creado, también en la demo. La pausa deja a la vista
+// la animación de confirmación y el número del pedido antes de cambiar de
+// pantalla.
+const MS_CONFIRMACION_ANTES_DEL_DETALLE = 1500
+
 function Atajo({ k, label }) {
   return (
     <span className="inline-flex items-center gap-1.5">
@@ -317,6 +323,9 @@ export default function FormularioVenta({
   const [lastOrder, setLastOrder] = useState(null)
   const [comprobante, setComprobante] = useState(false)
   const guardadoEnCurso = useRef(false)
+  // Temporizador de la ida automática al detalle (#275): se cancela si el POS
+  // se desmonta antes de que dispare.
+  const irAlDetalleRef = useRef(null)
   const [guardadoIncompleto, setGuardadoIncompleto] = useState(false)
   // Misma clave idempotente para todos los reintentos de una misma venta;
   // se regenera recién cuando la venta quedó confirmada.
@@ -351,6 +360,10 @@ export default function FormularioVenta({
   // Aviso de la última venta que quedó en la cola local por falta de conexión.
   const [avisoOffline, setAvisoOffline] = useState('')
   const [avisoEnlaceDemo, setAvisoEnlaceDemo] = useState(null)
+
+  // #275: si el POS se desmonta antes de que dispare la ida automática al
+  // detalle, no navegamos en nombre del usuario.
+  useEffect(() => () => { if (irAlDetalleRef.current) clearTimeout(irAlDetalleRef.current) }, [])
 
   useEffect(() => {
     if (!tradeInDraft || !cuentas || appliedTradeIn.current === tradeInDraft.id) return
@@ -1154,10 +1167,15 @@ export default function FormularioVenta({
                 String(c.name || '').toLowerCase() === String(customer.name || '').trim().toLowerCase() &&
                 (!customer.phone || c.phone === customer.phone),
             ) || { ...customer, name: customer.name.trim(), id: crypto.randomUUID() }
+        // El número de pedido se toma ANTES de persistir la venta para que cada
+        // venta demo lo guarde igual que una orden real (#275): el listado y el
+        // detalle del pedido muestran AUR-#0001, no el id interno.
+        const numeroPedidoDemo = tomarNumeroPedidoDemo()
         const ventas = []
         for (const [i, it] of lineas.entries()) {
           const venta = await addVenta({
             compraId,
+            orderNumber: numeroPedidoDemo,
             vendedorId: sesion.vendedorId,
             cliente: String(f.cliente ?? ''),
             clienteId: clienteDemo.id,
@@ -1191,7 +1209,6 @@ export default function FormularioVenta({
         // La venta entra en la ficha del cliente (#160/#194): la vista por
         // actividad, los agregados (#221), la ficha y el portal leen sus
         // pedidos, así que se actualizan como en la cuenta real.
-        const numeroPedidoDemo = tomarNumeroPedidoDemo()
         registrarPedidoDemoDeVenta(clienteDemo.id, {
           numero: numeroPedidoDemo,
           total: totalGeneral,
@@ -1254,6 +1271,19 @@ export default function FormularioVenta({
       setOk(true)
       setTimeout(() => setOk(false), 2500)
       onGuardado?.()
+      // #275: al confirmar, la app va sola al detalle del pedido recién creado
+      // —también en la demo—. Aplica a venta completa, parcial y a crédito; la
+      // espera deja ver la animación de confirmación con el número del pedido.
+      const pedidoId = completedOrder?.id
+      if (pedidoId) {
+        if (irAlDetalleRef.current) clearTimeout(irAlDetalleRef.current)
+        irAlDetalleRef.current = setTimeout(() => {
+          irAlDetalleRef.current = null
+          // Si el vendedor ya se movió a otra pantalla, no lo interrumpimos.
+          if (window.location.pathname !== '/pos') return
+          navigate(`/pedidos/${encodeURIComponent(pedidoId)}`)
+        }, MS_CONFIRMACION_ANTES_DEL_DETALLE)
+      }
     } catch (error) {
       // Sin conexión (o se cortó justo al enviar): la venta no se pierde. Queda
       // en la cola local con la misma Idempotency-Key y se reintenta al

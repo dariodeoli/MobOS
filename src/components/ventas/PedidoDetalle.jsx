@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import PresenciaPedido from './PresenciaPedido'
 import { Aviso, Badge, Button, ConfirmDialog, Drawer, Input, Modal, Money, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
@@ -128,6 +129,7 @@ const NIVELES_ACCESO = [['rapido', 'Rápido'], ['completo', 'Completo'], ['detal
 
 export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onClose, onChanged, pagina = false }) {
   const toast = useToast()
+  const navigate = useNavigate()
   const { usuario, vendedores, sesion } = useSesion()
   const [accesos, setAccesos] = useState({})
   const [accesoBusy, setAccesoBusy] = useState(false)
@@ -770,7 +772,14 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             <Button type="button" variant="ghost" onClick={onClose}><Icon name="back" className="h-3.5 w-3.5" />Volver a pedidos</Button>
             <h1 className="font-mono text-sm font-bold text-fono-light">{codigoPedido(order.orderNumber || order.number) || 'Pedido'}</h1>
           </div>
-          <PresenciaPedido pedidoId={order.id || row?.id} />
+          <div className="flex flex-wrap items-center gap-3">
+            <PresenciaPedido pedidoId={order.id || row?.id} />
+            {/* #275: después de confirmar la venta la app aterriza acá; desde el
+                detalle se vuelve al POS a cargar la próxima (carrito vacío). */}
+            <Button type="button" variant="outline" data-testid="volver-al-pos" onClick={() => navigate('/pos')}>
+              <Icon name="receipt" className="h-3.5 w-3.5" />Volver al POS
+            </Button>
+          </div>
         </div>
         {cuerpo}
       </div>
