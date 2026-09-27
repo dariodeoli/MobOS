@@ -292,13 +292,77 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 55 — Selector de cuenta: preselección y lista de 100 (biblioteca v0.48.1) (#262, con POS) (27-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Selector de cuenta de cobro (#262) | El selector publicado en **v0.42.0** filtraba hasta **8** resultados (los montaba todos) y arrancaba siempre en modo búsqueda, aunque hubiera una cuenta obvia; con muchas cuentas la lista no escalaba ni quedaba estable en mobile | Biblioteca **v0.48.1**: **preselección** (`preseleccionar` + `ultimoUsadoId`/`predeterminadaId`; helper `preseleccionDeCuenta`: última usada → predeterminada, nunca una inactiva) y **hasta 100 cuentas** (`LIMITE_CUENTAS`) con **virtualización** (`ventanaDeLista` + `MARGEN_VENTANA`, fila medida al montar, `aria-posinset`/`aria-setsize` y relleno de la lista) y scroll estable en mobile (las flechas ya no arrastran la página; `overscroll-contain`, `min(60vh,18rem)`). Se mantiene el buscador y el **colapso de #262** |
+| Coordinación con POS | `CuentaCobroCombobox` + `CapsulaCuentaCobro` siguen en `PaymentAccountFields` (POS) | Receta de adopción: `cuentas` (activas y de las monedas que cobra), `cuentaId={payment.accountId}`, `onSelect` con el monto propuesto (lo que hoy hace el combobox), `preseleccionar` + `ultimoUsadoId={preferenciaPos('cuenta')}` (y `recordarPos('cuenta', id)` al elegir), `logo={(c) => <BancoLogo banco={c.bank} alto="h-4" />}`, `saldoPendientePyg`/`cotizacionPyg`; la **`TarjetaCuentaCobro`** reemplaza a la cápsula (ya no repite el banco, criterio del arreglo de POS) |
+| Guarda | — | Biblioteca: `test/cuentaCobro.test.jsx` (preselección, tope de 100, virtualización del markup) + `test/ventana.test.js` (ventana) y `test/selectorCuentaCobro.test.jsx` (navegador: preselección, buscar/elegir/colapsar, teclado y virtualización); la app queda fijada a **v0.48.1** |
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
+`test:e2e:smoke`; biblioteca `owncoding-ui` build + 343 tests.
+
+### Fix #271 (2ª vuelta) — el Avatar compartido y el flash del bloqueo (27-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `Avatar` (biblioteca, **v0.48.2**) | Al cambiar `src` (otra persona, otra versión de la foto) el navegador **mantenía la imagen anterior** en el mismo `<img>` hasta que cargaba la nueva: ese es el flash que Dario veía al recargar el bloqueo | El objeto monta un nodo nuevo (`key` por URL) y, hasta que la nueva carga, queda el **placeholder neutro de iniciales**; si falla, cae a iniciales y avisa por `onError`. Tests de navegador (`test/avatar-carga.test.jsx`) |
+| `Avatar` (app) | Mientras la foto subida resolvía pintaba `picture` de Google (la identidad guardada en el espejo local) y, si el usuario cambiaba, podía quedar un frame con la foto del anterior | Estado **por usuario** (`local.id`): al cambiar de persona no reusa nada; mientras resuelve (o hasta saber que no hay foto) muestra **solo iniciales** —nunca Google ni la anterior—; cada `<img>` va con `key`/capa de carga. Regla en `docs/AVATAR.md` §2 |
+| Componentes de los lotes | Revisión de caché/estaleness en los objetos publicados (Inventario, Finanzas, Config, selector de cobro) | Sin caches de módulo: guarda nueva en la biblioteca (`test/sin-cache.test.js`) que falla si un componente guarda datos fuera de sus props. El único caso de imagen vieja era `Avatar` (corregido); `SelectorCuentaCobro`, `NavegacionSeccion`, `TileEquipo`/`MedidorStock`, `Stat`/`ImporteDelta`/`GraficoBarras` y `TarjetaCuentaCobro` son puros. Nota: `tenantLogo` (DSN) tiene el mismo patrón caché+`olvidarLogo` sin aviso a los montados; sus consumidores piden al abrir |
+| Guardas | — | e2e en `qa-253-mi-cuenta.spec.js`: se deja una foto de Google **vieja** en el espejo local, se bloquea y se recarga: el registro de cada avatar pintado no puede contener la vieja (ni fotos externas) y tiene que terminar en la foto actual; captura `docs/qa/271-avatar/09-271-bloqueo-recarga.png` |
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test` (824), `test:unit` del backend
+(114), `db:check`, `test:e2e:smoke` (19) y el spec de `qa-253-mi-cuenta`
+(6, con el bloqueo recargado); biblioteca `owncoding-ui` build + **350 tests**.
+
+### Fix #271 — la foto de perfil se invalida en toda la app (27-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `Avatar` / `userAvatar` | La caché guardaba la promesa por `userId` y nadie avisaba a los componentes montados: al cambiar o quitar la foto, todos los avatares de la app seguían pintando la vieja hasta recargar. Encima el GET del avatar tiene URL fija con `max-age=60`, así que la descarga podía salir de la caché HTTP del navegador | `lib/avatarCache.js` (lógica pura, testeable): comparte la descarga, y `olvidarAvatar` borra + versiona + avisa a los suscriptores del módulo + emite `mobos:avatar-cambio`. `userAvatar` descarga con `cache: 'no-store'`. El `Avatar` compartido **se suscribe**, limpia la foto y muestra el **placeholder neutro** (iniciales) mientras resuelve la nueva; `MiCuenta` limpia su vista previa antes de resolver |
+| Almacenamiento | — | Verificado: el POST guarda con clave nueva (`randomUUID`) y borra la anterior; el DELETE borra fila y archivo. No queda la vieja en disco/base |
+| Guardas | — | `src/lib/avatarCache.test.js`: comparte promesa, invalida, avisa, versiona y asertúa fuente (`no-store`, suscripción, placeholder, `MiCuenta`); e2e en `qa-253-mi-cuenta.spec.js`: sube/reemplaza/quita por el camino real y registra cada foto que pinta el chip del shell, exigiendo que la anterior no reaparezca |
+
+Nota: `Avatar` sigue en la deuda de `shared/` (API distinta a la de la
+biblioteca, revisión de DSN pendiente); este fix es de la app y no cambia la
+API. Queda como candidata la cosecha de `crearCacheAvatar` a la biblioteca
+(caché con invalidación, genérica). El GET del avatar puede bajar su
+`Cache-Control` a `no-store` desde el backend (hoy lo cubre el cliente).
+
+### Lote 54 — Riel de Configuración a la biblioteca (#267/#253) + INV/FIN (27-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `NavegacionSeccion` | `config/NavegacionConfig.jsx` implementaba el riel completo (colapso a íconos con tooltip, tira horizontal mobile, centrado del activo, descripción del grupo, `role="tab"`, testids) | Biblioteca **v0.47.0**: el riel es `NavegacionSeccion` con colapso **controlado** (`colapsado`/`onToggle`), `variante="horizontal"` y descripción del activo. La app queda como **adaptador**: `useMenuConfigColapsedo` (preferencia por dispositivo), los 7 grupos de `gruposConfig` y los testids `config-grupos`/`config-grupos-toggle`/`config-grupo-descripcion` |
+| Inventario / Finanzas | — | Sin piezas locales nuevas que dupliquen la biblioteca (los lotes usan lo ya publicado: `TileEquipo`/`MedidorStock`/`ColumnaLote`/`ChipEstado` en Inventario; `Stat`/`ImporteDelta`/`GraficoBarras`/`PeriodoTabs`/`CeldaMoneda` en Finanzas). `NavegacionSeccion` también sirve para sus secciones internas |
+| Guarda | El spec de #253 asertaba el markup en la app | Ahora el markup se asertúa en la biblioteca y el adaptador en la app (import, hook y testids) |
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend,
+`e2e/qa-253-config-grupos` (riel) y `test:e2e:smoke`; biblioteca `owncoding-ui`
+build + 334 tests.
+
+### Lote 53 — Cronología como adaptador, con estados en la biblioteca (#250) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `Cronologia` | Copia local de la lista (3346) con su fetch, esqueleto, error con reintento, vacío y cabecera de actualizar; la biblioteca (4060) solo dibujaba los hitos | Biblioteca **v0.46.0**: la lista suma **estados honestos** (`cargando` → esqueleto, `error` + `onReintentar`, `onActualizar` + cabecera). La app pasa a **adaptador**: hace el fetch del endpoint, mapea `{ type, action, createdAt, user, detail }` → hitos y conserva sus íconos/tonos por tipo (`EVENTOS`) |
+| Control | `Cronologia` figuraba en la deuda de `shared/` | Pasa a **adaptadores** (la guarda exige que no reimplemente lista ni estados); deuda de `shared/`: 6 → **5** (`Avatar`, `BancoCombobox`, `BancoLogo`, `PasosEquipo`, `PersonaChip`) |
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
+`test:e2e:smoke`; biblioteca `owncoding-ui` build + 330 tests.
+
 ### Lote 52 — Cierre de la ola #262/#265/#268 (26-09)
 
 | Objeto | Antes (evidencia) | Después |
 | --- | --- | --- |
 | Ficha fusionada | El flujo de #268 archivaba el cliente sin una pieza para mostrarlo | **`ChipFusion`** (biblioteca **v0.45.0**): marca la ficha archivada con la principal, cuándo y quién la fusionó, y abre la principal (enlaces, tokens e historial siguen vivos) |
 | Categorías del preview | Cada pantalla iba a inventar etiquetas y orden | **`CATEGORIAS_FUSION` + `categoriasFusion(conteos)` + `hayFusion`**: checklist canónico (pedidos, pagos y cuotas, créditos y saldo, notas, direcciones, teléfonos y correos, tags, seguro de ventas, portal, garantías y servicio); los ids fuera del catálogo se agregan al final |
-| Estado de la ola | #262 (v0.42.0), #265 (v0.44.0) y #268 (v0.43.0) publicados | **Completos del lado de la biblioteca**: `SelectorCuentaCobro`/`TarjetaCuentaCobro`, `BloquePago`, `BuscadorCliente`, `PreviewFusion`, `ConfirmarConPalabra`, `ChipFusion` y las categorías. Adopción pendiente de POS (#262/#265) y del backend de merge de CRM (#268) |
+| Estado de la ola | #262 (v0.42.0 → **v0.48.1**), #265 (v0.44.0) y #268 (v0.43.0) publicados | **Completos del lado de la biblioteca**: `SelectorCuentaCobro`/`TarjetaCuentaCobro`, `BloquePago`, `BuscadorCliente`, `PreviewFusion`, `ConfirmarConPalabra`, `ChipFusion` y las categorías. El selector de cobro sumó **preselección y lista de 100 virtualizada** (v0.48.1, lote 55). Adopción pendiente de POS (#262/#265) y del backend de merge de CRM (#268) |
 
 Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
 `BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y

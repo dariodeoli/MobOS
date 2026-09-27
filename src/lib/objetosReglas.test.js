@@ -589,6 +589,16 @@ test('el QR del informe sale de lib/qr y shared/CodigoQr (#240)', () => {
 // Lote 33 (#241): el buscador global del shell usa la paleta de la biblioteca
 // (`PaletaComandos`, docs/SHELL.md §3) y acá solo queda la consulta a la API
 // (los 8 grupos en paralelo). La lista, el teclado y el debounce no se repiten.
+// Lote 54 (#267): el riel de Configuración delega el markup en la biblioteca y
+// conserva la preferencia del dispositivo.
+test('el riel de Configuración usa NavegacionSeccion (#267)', () => {
+  const riel = readFileSync(join(RAIZ, 'components/control/config/NavegacionConfig.jsx'), 'utf8')
+  assert.match(riel, /import \{ NavegacionSeccion \} from 'owncoding-ui'/, 'el riel sale de la biblioteca')
+  assert.match(riel, /useMenuConfigColapsado/, 'la preferencia sigue siendo del dispositivo')
+  assert.match(riel, /testId="config-grupos"/, 'conserva los testids de los specs')
+  assert.ok(!riel.includes('role="tablist"'), 'el markup del riel vive en la biblioteca')
+})
+
 test('el buscador global usa PaletaComandos y no reimplementa la paleta (#241)', () => {
   const buscador = readFileSync(join(RAIZ, 'components/app/GlobalSearch.jsx'), 'utf8')
   assert.match(buscador, /import \{ PaletaComandos \} from 'owncoding-ui'/, 'la paleta sale de la biblioteca')
@@ -624,19 +634,19 @@ test('los 7 grupos de Configuración viven en config/gruposConfig (#253)', () =>
     assert.ok(biblioteca.includes(`${icono}:`), `el icono ${icono} no existe en la biblioteca`)
   }
   const nav = readFileSync(join(RAIZ, 'components/control/config/NavegacionConfig.jsx'), 'utf8')
-  assert.match(nav, /role="tablist"/, 'la navegación conserva la semántica de pestañas')
-  assert.match(nav, /aria-selected=\{esta\}/, 'la pestaña activa se anuncia')
-  // Colapsable (solo íconos) con tooltip y accesibilidad: toggle con
-  // aria-expanded/aria-controls, etiquetas por aria-label/title y estado por
-  // dispositivo; en mobile la tira horizontal no muestra el toggle.
-  assert.match(nav, /data-testid="config-grupos-toggle"/, 'el menú se puede contraer')
-  assert.match(nav, /aria-expanded=\{!colapsado\}/, 'el toggle anuncia el estado')
-  assert.match(nav, /aria-controls="config-grupos"/, 'el toggle apunta al tablist')
-  assert.match(nav, /aria-label=\{grupo\.label\}/, 'cada ícono se anuncia aunque esté colapsado')
-  assert.match(nav, /title=\{grupo\.label\}/, 'cada ícono tiene tooltip')
+  // Lote 54 (#267): el markup del riel vive en la biblioteca; la app aporta la
+  // preferencia del dispositivo, los 7 grupos y los testids de los specs.
+  const riel = readFileSync(join(LIB, 'NavegacionSeccion.jsx'), 'utf8')
+  assert.match(riel, /role="tablist"/, 'la navegación conserva la semántica de pestañas')
+  assert.match(riel, /aria-selected=\{esta\}/, 'la pestaña activa se anuncia')
+  assert.match(riel, /aria-expanded=\{!colapsado\}/, 'el toggle anuncia el estado')
+  assert.match(riel, /aria-controls=\{testId\}/, 'el toggle apunta al tablist')
+  assert.match(riel, /aria-label=\{item\.label\}/, 'cada ícono se anuncia aunque esté colapsado')
+  assert.match(riel, /title=\{item\.label\}/, 'cada ícono tiene tooltip')
+  assert.match(riel, /hidden lg:flex/, 'el toggle solo vive en el riel de escritorio')
+  assert.match(nav, /testId="config-grupos"/, 'el adaptador conserva los testids')
   const menuConfig = readFileSync(join(RAIZ, 'lib/menuConfig.js'), 'utf8')
   assert.match(menuConfig, /mobos:config-menu/, 'el estado se recuerda por dispositivo')
-  assert.match(nav, /hidden lg:flex/, 'el toggle solo vive en el riel de escritorio')
   const panel = readFileSync(join(RAIZ, 'pages/PanelVendedor.jsx'), 'utf8')
   assert.match(panel, /<NavegacionConfig value=\{vista\} onChange=\{irASubtab\} items=\{tabsConfig\}>/, 'Configuración usa la navegación de los 7 grupos')
   assert.ok(!/<Subtabs value=\{vista\} onChange=\{irASubtab\} items=\{tabsConfig\}/.test(panel), 'la lista plana no se repite en Configuración')

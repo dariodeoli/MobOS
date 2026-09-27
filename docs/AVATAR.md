@@ -23,12 +23,14 @@ Regla viva del proyecto, hermana de `docs/CAMPOS.md` y `docs/TABLAS.md`. Antes d
 ## 2. Reglas de uso
 
 1. **Nunca** un `<img>` ni un círculo de iniciales a mano: si se muestra una persona, se usa `Avatar`.
-2. **Identidad por `id`**, nunca por coincidencia de nombre o correo.
-3. La **foto de Google se pasa solo para quien corresponde**: el perfil de empresa (`perfilEmpresa.picture`, la identidad del dueño) y la fila "Acceso de empresa" cuya sesión es `google:`. Nunca atribuir la foto del dueño a un tercero; un vendedor sin foto muestra sus iniciales.
-4. No mostrar iniciales si hay foto, y no mezclar en la misma entidad la foto subida con la de Google: la subida siempre gana.
-5. `alt` = `Foto de <nombre>`; el tooltip usa el nombre o `title`.
-6. Las fotos se sirven con **sesión** (endpoint autenticado) y `referrerPolicy="no-referrer"` cuando vienen de Google.
-7. Borrado **explícito** (no se restaura sola) y auditado.
+2. **Identidad por `id`**, nunca por coincidencia de nombre o correo. **La foto es por usuario**: al cambiar la persona no se reusa la foto de la anterior (el estado del avatar se guarda con el `id`).
+3. **Mientras resuelve, placeholder neutro** (#271): hasta que la foto subida llega (o se sabe que no hay), el avatar muestra las iniciales; **nunca** pinta la foto anterior ni la de Google "adelantada" — al recargar una pantalla (el bloqueo, por ejemplo) no hay flash de la foto previa.
+4. **Sin imágenes viejas al cambiar la fuente** (#271): cada `<img>` se reemplaza por un nodo nuevo (`key` por URL) y queda tapado por el placeholder hasta que carga; el navegador no mantiene la imagen anterior.
+5. La **foto de Google se pasa solo para quien corresponde**: el perfil de empresa (`perfilEmpresa.picture`, la identidad del dueño) y la fila "Acceso de empresa" cuya sesión es `google:`. Nunca atribuir la foto del dueño a un tercero; un vendedor sin foto muestra sus iniciales.
+6. No mostrar iniciales si hay foto, y no mezclar en la misma entidad la foto subida con la de Google: la subida siempre gana.
+7. `alt` = `Foto de <nombre>`; el tooltip usa el nombre o `title`.
+8. Las fotos se sirven con **sesión** (endpoint autenticado) y `referrerPolicy="no-referrer"` cuando vienen de Google.
+9. Borrado **explícito** (no se restaura sola) y auditado.
 
 ## 3. Formato de la foto
 

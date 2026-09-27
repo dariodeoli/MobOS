@@ -296,5 +296,5 @@ test('el pedido: secciones plegables, avatar compartido y densidad (#164)', () =
   assert.match(detalle, /import Avatar from '@\/components\/shared\/Avatar'/, 'el detalle usa el Avatar compartido')
   assert.doesNotMatch(detalle, /function Avatar\(/, 'el detalle no redefine el avatar')
   assert.match(detalle, /picture=\{event\.user\?\.picture\}/, 'la cronología pasa la foto de Google al Avatar')
-  assert.match(leer('components/shared/Avatar.jsx'), /onError=\{\(\) => setGoogleRota\(true\)\}/, 'la foto de Google cae a iniciales si falla')
+  assert.match(leer('components/shared/Avatar.jsx'), /onError=\{\(\) => setRota\(enlace\)\}/, 'la imagen que falla cae a iniciales (#271)')
 })
