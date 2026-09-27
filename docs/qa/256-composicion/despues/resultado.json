@@ -1,0 +1,23 @@
+{
+  "base": "http://localhost:5203",
+  "version": "1.0.188",
+  "fecha": "2026-09-27T01:01:58.817Z",
+  "medidas": {
+    "clientes": {
+      "barra": true,
+      "alcances": [
+        "Tienda",
+        "Tienda",
+        "En pantalla",
+        "En pantalla",
+        "En pantalla",
+        "En pantalla"
+      ],
+      "tiles": 4
+    },
+    "pos": {
+      "barra": true,
+      "bloquesGrandes": 0
+    }
+  }
+}
