@@ -1309,7 +1309,17 @@ export default function FormularioVenta({
         // Con cuentas, el monto se edita en `originalAmount` (moneda de la
         // cuenta): «Dividir saldo» precarga ahí el saldo que falta (#187).
         // Última cuenta usada como predeterminada (#209).
-        ? { ...PAGO_VACIO, accountId: (cuentas || []).find(c => c.id === preferenciaPos('cuenta') && c.isActive)?.id || '', originalAmount: prefill.monto ? String(prefill.monto) : '', exchangeRatePyg: '' }
+        ? {
+            ...PAGO_VACIO,
+            // #272: al agregar el pago viene la última cuenta usada y, si no
+            // hay, la primera cuenta activa (no obliga a buscar). El selector
+            // lista todas (la API no pagina) y scrollea en mobile.
+            accountId: (cuentas || []).find(c => c.id === preferenciaPos('cuenta') && c.isActive)?.id
+              || (cuentas || []).find(c => c.isActive && ['USD', 'PYG', 'BRL'].includes(c.currency))?.id
+              || '',
+            originalAmount: prefill.monto ? String(prefill.monto) : '',
+            exchangeRatePyg: '',
+          }
         : { ...PAGO_VACIO, monto: prefill.monto ? String(prefill.monto) : pendiente > 0 ? String(pendiente) : '' },
     ])
   }
