@@ -5,6 +5,7 @@ import {
   passwordRecoveryEmail,
   paymentDueReminderEmail,
   paymentOverdueEmail,
+  quoteEmail,
   receiptEmail,
   reservationDueEmail,
   teamInvitationEmail,
@@ -52,12 +53,13 @@ const messages = [
   teamInvitationEmail({ to: 'equipo@test.com', inviteeName: 'Ana', companyName: 'Tienda Test', inviterName: 'Darío', token: 'c'.repeat(64), invitationId: 'inv-1' }),
   receiptEmail({ to: 'cliente@test.com', customerName: 'Cliente', orderNumber: 'MOB #1', lines: [{ quantity: 1, description: 'Producto', totalPyg: 100000 }], totalPyg: 100000, trackingUrl: 'https://app.moboss.online/p/token' }),
   deviceReportEmail({ to: 'informe@test.com', customerName: 'Cliente', model: 'Galaxy A55', link: 'https://app.moboss.online/informe/token', companyName: 'Tienda Test' }),
+  quoteEmail({ to: 'cotizacion@test.com', customerName: 'Cliente', quoteNumber: 'COT-#0042', lines: [{ quantity: 1, description: 'iPhone 15 · 128 GB', totalPyg: 4850000 }], totalPyg: 4850000, validUntil: date, link: 'https://app.moboss.online/cotizacion/token', companyName: 'Tienda Test' }),
   paymentDueReminderEmail({ to: 'cuota@test.com', customerName: 'Cliente', orderNumber: 'MOB-2', dueAt: date, amountPyg: 250000, storeName: 'Tienda Test' }),
   paymentOverdueEmail({ to: 'mora@test.com', customerName: 'Cliente', orderNumber: 'MOB-3', dueAt: date, amountPyg: 250000, storeName: 'Tienda Test' }),
   warrantyStatusEmail({ to: 'garantia@test.com', customerName: 'Cliente', serial: 'SN-123', storeName: 'Tienda Test', statusLabel: 'Listo para retirar', trackingUrl: 'https://app.moboss.online/garantia/token' }),
   reservationDueEmail({ to: 'reserva@test.com', customerName: 'Cliente', itemLabel: 'Galaxy A55', reservedUntil: date, storeName: 'Tienda Test' }),
 ]
-assert.equal(messages.length, 9)
+assert.equal(messages.length, 10)
 for (const message of messages) {
   assert.ok(message, 'cada builder produce su correo')
   assert.ok(message.html.includes('data-email-system="mobos-premium"'), 'cada builder usa el shell premium')

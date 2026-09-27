@@ -1,8 +1,9 @@
 # Cierre del dominio Clientes/Pedidos — demo completa (#213) y recorrido de producción (#187)
 
 Verificación del dominio **clientes/pedidos** en la demo pública y en el
-recorrido funcional de producción, sobre la versión publicada **v1.0.181**
-(26/09/2026), con Playwright headless y **0 llamadas al API real**.
+recorrido funcional de producción, sobre la versión publicada **v1.0.186**
+(26/09/2026), con Playwright headless y **0 llamadas al API real** (las corridas
+sobre v1.0.181 quedan como historial más abajo).
 
 - **#213** (demo: experiencia completa): parte del dominio cliente/pedidos.
 - **#187** (recorrido funcional en producción): dominio clientes.
@@ -53,6 +54,23 @@ Tarjeta / POS, Pix, **USDT - Cripto**, Canje y Saldo a favor.
 > Es data del navegador (demo session-only): el incremento viaja en el próximo
 > deploy del frontend; la verificación de producción de #187/221/236 sigue
 > vigente sobre v1.0.181 (sin cambios de API).
+
+### Verificado en producción — v1.0.186 (26/09/2026)
+
+El incremento ya está publicado y verificado con el verificador propio
+`node scripts/qa-213-demo-pagos.mjs` (**2/2 OK · 0 llamadas al API**,
+`docs/QA-213-demo-clientes-pedidos/demo-pagos-prod/`):
+
+- Lucía (demo): el pedido parcial MOB-#0008 reparte su cobro en **Efectivo
+  Gs 1.000.000 + Transferencia Gs 500.000**.
+- Distribuidora (demo): el historial muestra **USDT - Cripto · Transferencia ·
+  Tarjeta / POS · Pix**, y su pedido MOB-#0007 reparte Transferencia
+  Gs 8.000.000 + Tarjeta Gs 4.500.000.
+
+En la misma versión: `qa-221` **8/8**
+(`docs/QA-213-demo-clientes-pedidos/221-v186/`), `qa-236` **6/6**
+(`docs/QA-213-demo-clientes-pedidos/236-v186/`) y el recorrido de #187
+**22/22** (`docs/QA-187-clientes-produccion-v186/`).
 
 ## #187 — dominio clientes en producción
 

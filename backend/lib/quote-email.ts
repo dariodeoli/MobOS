@@ -87,8 +87,8 @@ export function armarCorreoCotizacion({ cotizacion, customerName, to, companyNam
   return quoteEmail({
     to: String(to).trim(),
     customerName: String(customerName || cotizacion.customerName || '').trim(),
-    number: cotizacion.number,
-    items,
+    quoteNumber: cotizacion.number,
+    lines: items,
     subtotalPyg: Number(cotizacion.subtotalPyg) || 0,
     discountPyg: Number(cotizacion.discountPyg) || 0,
     totalPyg: Number(cotizacion.totalPyg) || 0,

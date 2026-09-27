@@ -1,6 +1,20 @@
 # QA #187 — Clientes completo en PRODUCCIÓN
 
-## Corrida vigente — v1.0.178 (26/09/2026)
+## Corrida vigente — v1.0.186 (26/09/2026)
+
+`node e2e/prod/187-clientes.mjs` contra la versión publicada: **22/22 pasos OK ·
+28 capturas** · demo **0 llamadas al API** · públicos con token inválido 404
+genéricos · rate limit activo. Evidencia:
+`docs/QA-187-clientes-produccion-v186/`. En la misma versión, los verificadores
+del demo dieron **8/8** (`qa-221`), **6/6** (`qa-236`) y **2/2**
+(`qa-213-demo-pagos`, historial con pagos divididos y medios variados).
+
+- **Hallazgo abierto (no bloquea):** el perfil personal queda en `/mi-cuenta`
+  (la coordinación pedía `/mi-perfil`); funciona igual, pendiente de unificar.
+- **Limitación conocida:** la nota pública de la demo se edita, pero su guardado
+  y su render en el portal requieren cuenta real.
+
+## Corrida anterior — v1.0.178 (26/09/2026)
 
 `node e2e/prod/187-clientes.mjs` contra la versión publicada: **22/22 pasos OK ·
 28 capturas** · la demo **no llamó al API** de clientes/portal/warranty ·

@@ -108,6 +108,11 @@ echo "[e2e] Starting backend (Next.js) on port ${API_PORT}…"
 cd "$BACKEND_ROOT"
 export DATABASE_URL
 export MOBOS_APP_URL="http://localhost:$WEB_PORT"
+# Correo transaccional en el arnés: la clave ficticia del outbox (el mismo par
+# que usa la integración HTTP) permite verificar los envíos encolados sin relay
+# real y sin tocar la configuración de producción.
+export MOBOS_EMAIL_OUTBOX_ACTIVE_KEY_ID="e2e-v1"
+export MOBOS_EMAIL_OUTBOX_ENCRYPTION_KEYS_JSON='{"e2e-v1":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}'
 FILTRO="$REPO_ROOT/scripts/filtro-log-web.mjs"
 if [[ "${MOBOS_E2E_BACKEND:-dev}" == "prod" ]]; then
   if [[ ! -f "$BACKEND_ROOT/.next/BUILD_ID" ]]; then

@@ -240,35 +240,17 @@ export function reservationDueEmail(input: { to: string; customerName: string; i
   return { to: input.to, subject: 'Tu reserva vence pronto', ...content }
 }
 
-// Cotización enviada al cliente con el detalle y el enlace público para
-// aceptarla o rechazarla (el token viaja en el path, ver TOKENS.md).
-export function quoteEmail(input: { to: string; customerName: string; number: string; items: Array<{ quantity: number; description: string; unitPricePyg: number }>; subtotalPyg: number; discountPyg?: number; totalPyg: number; validUntil?: Date | null; link: string; companyName?: string; notes?: string | null }) {
-  const validUntil = input.validUntil instanceof Date && Number.isFinite(input.validUntil.getTime()) ? input.validUntil : null
-  if (!emailPattern.test(input.to) || !input.number.trim() || !input.link.trim() || !Array.isArray(input.items) || !input.items.length) return null
+// Cotización (#261): propuesta profesional con detalle, total, validez y el
+// enlace público para aceptar o rechazar (con su respaldo visible).
+export function quoteEmail(input: { to: string; customerName: string; quoteNumber: string; lines: Array<{ quantity: number; description: string; totalPyg: number }>; totalPyg: number; validUntil?: Date | null; link: string; companyName?: string }) {
+  if (!emailPattern.test(input.to) || !input.quoteNumber.trim() || !input.link.trim()) return null
   const company = input.companyName?.trim() || 'MobOS'
-  const filas = input.items.map((item) => ({
-    quantity: Number(item.quantity || 0),
-    description: String(item.description || 'Ítem'),
-    unitPricePyg: Number(item.unitPricePyg || 0),
-    totalPyg: Number(item.quantity || 0) * Number(item.unitPricePyg || 0),
-  }))
-  const lineasHtml = filas.map((fila) => `<tr><td class="email-muted" style="padding:11px 12px;border-bottom:1px solid ${COLOR.line};color:${COLOR.muted};font-size:14px;line-height:1.45">${escapeHtml(String(fila.quantity))} × ${escapeHtml(fila.description)}<span style="display:block;color:${COLOR.muted};font-size:12px">${escapeHtml(formatPyg(fila.unitPricePyg))} c/u</span></td><td class="email-text" align="right" style="padding:11px 12px;border-bottom:1px solid ${COLOR.line};color:${COLOR.ink};font-size:14px;font-weight:700;line-height:1.45;white-space:nowrap">${escapeHtml(formatPyg(fila.totalPyg))}</td></tr>`).join('')
-  const descuento = Number(input.discountPyg || 0)
-  const filaDescuento = descuento > 0 ? `<tr><th scope="row" align="right" style="padding:9px 12px;color:${COLOR.muted};font-size:13px;line-height:1.45">Descuento</th><td align="right" style="padding:9px 12px;color:${COLOR.muted};font-size:13px;line-height:1.45;white-space:nowrap">- ${escapeHtml(formatPyg(descuento))}</td></tr>` : ''
-  const contentHtml = `<table role="table" aria-label="Detalle de la cotización" width="100%" cellpadding="0" cellspacing="0" class="receipt-table email-detail" style="margin:20px 0 0;background:${COLOR.surface};border:1px solid ${COLOR.border};border-radius:12px;border-collapse:separate;overflow:hidden"><thead><tr><th scope="col" align="left" style="padding:10px 12px;background:${COLOR.brandSoft};color:${COLOR.brandInk};font-size:11px;line-height:1.4;letter-spacing:.06em;text-transform:uppercase">Detalle</th><th scope="col" align="right" style="padding:10px 12px;background:${COLOR.brandSoft};color:${COLOR.brandInk};font-size:11px;line-height:1.4;letter-spacing:.06em;text-transform:uppercase">Importe</th></tr></thead><tbody>${lineasHtml}<tr><th scope="row" align="right" style="padding:9px 12px;color:${COLOR.muted};font-size:13px;line-height:1.45">Subtotal</th><td align="right" style="padding:9px 12px;color:${COLOR.muted};font-size:13px;line-height:1.45;white-space:nowrap">${escapeHtml(formatPyg(input.subtotalPyg))}</td></tr>${filaDescuento}<tr><th scope="row" align="right" style="padding:13px 12px;color:${COLOR.ink};font-size:14px;line-height:1.45">Total</th><td align="right" style="padding:13px 12px;color:${COLOR.ink};font-size:17px;font-weight:800;line-height:1.45;white-space:nowrap">${escapeHtml(formatPyg(input.totalPyg))}</td></tr></tbody></table>`
-  const detalles = detailCard([{ label: 'Cotización', value: input.number }, { label: 'Validez', value: validUntil ? formatDateEsPy(validUntil) : 'Sin vencimiento' }, { label: 'Comercio', value: company }], 'Datos de la cotización', 'brand')
-  const contentText = `Cotización: ${input.number}\n${filas.map((fila) => `${fila.quantity} × ${fila.description} — ${formatPyg(fila.totalPyg)}`).join('\n')}\nSubtotal: ${formatPyg(input.subtotalPyg)}${descuento > 0 ? `\nDescuento: - ${formatPyg(descuento)}` : ''}\nTotal: ${formatPyg(input.totalPyg)}${validUntil ? `\nValidez: ${formatDateEsPy(validUntil)}` : ''}`
-  const notas = input.notes?.trim()
-  const content = template({
-    eyebrow: 'Cotización',
-    title: `Cotización ${input.number}`,
-    lead: input.customerName.trim() ? `Hola ${input.customerName},` : undefined,
-    body: `Te enviamos la cotización de ${company}. Podés aceptarla o rechazarla desde el botón; si preferís, respondé este correo.`,
-    contentHtml: `${detalles.html}${contentHtml}`,
-    contentText: `${detalles.text}\n${contentText}`,
-    action: { label: 'Ver la cotización', url: input.link },
-    footer: notas ? `Condiciones: ${notas}` : 'Los precios pueden variar después de la fecha de validez.',
-    tone: 'brand',
-  })
-  return { to: input.to, subject: `Cotización ${input.number} · ${company}`, ...content }
+  const linesHtml = input.lines.map((line) => `<tr><td class="email-muted" style="padding:11px 12px;border-bottom:1px solid ${COLOR.line};color:${COLOR.muted};font-size:14px;line-height:1.45">${escapeHtml(String(line.quantity))} × ${escapeHtml(line.description)}</td><td class="email-text" align="right" style="padding:11px 12px;border-bottom:1px solid ${COLOR.line};color:${COLOR.ink};font-size:14px;font-weight:700;line-height:1.45;white-space:nowrap">${escapeHtml(formatPyg(line.totalPyg))}</td></tr>`).join('')
+  const linesText = input.lines.map((line) => `${line.quantity} × ${line.description} — ${formatPyg(line.totalPyg)}`).join('\n')
+  const contentHtml = `<table role="table" aria-label="Detalle de la cotización" width="100%" cellpadding="0" cellspacing="0" class="receipt-table email-detail" style="margin:20px 0 0;background:${COLOR.surface};border:1px solid ${COLOR.border};border-radius:12px;border-collapse:separate;overflow:hidden"><thead><tr><th scope="col" align="left" style="padding:10px 12px;background:${COLOR.brandSoft};color:${COLOR.brandInk};font-size:11px;line-height:1.4;letter-spacing:.06em;text-transform:uppercase">Detalle</th><th scope="col" align="right" style="padding:10px 12px;background:${COLOR.brandSoft};color:${COLOR.brandInk};font-size:11px;line-height:1.4;letter-spacing:.06em;text-transform:uppercase">Importe</th></tr></thead><tbody>${linesHtml}<tr><th scope="row" align="right" style="padding:13px 12px;color:${COLOR.ink};font-size:14px;line-height:1.45">Total</th><td align="right" style="padding:13px 12px;color:${COLOR.ink};font-size:17px;font-weight:800;line-height:1.45;white-space:nowrap">${escapeHtml(formatPyg(input.totalPyg))}</td></tr></tbody></table>`
+  const validez = input.validUntil && !Number.isNaN(input.validUntil.getTime()) ? formatDateEsPy(input.validUntil) : null
+  const details = detailCard([{ label: 'Cotización', value: input.quoteNumber }, ...(validez ? [{ label: 'Válida hasta', value: validez }] : [])], 'Datos de la cotización', 'info')
+  const contentText = `Cotización: ${input.quoteNumber}\n${linesText}\nTotal: ${formatPyg(input.totalPyg)}${validez ? `\nVálida hasta: ${validez}` : ''}`
+  const content = template({ eyebrow: 'Cotización', title: `Tu cotización ${input.quoteNumber}`, lead: input.customerName.trim() ? `Hola ${input.customerName},` : undefined, body: `Preparamos esta propuesta en ${company}. Podés aceptarla o rechazarla desde el enlace; queda guardada a tu nombre.`, contentHtml: contentHtml + details.html, contentText: `${contentText}\n\n${details.text}`, action: { label: 'Ver y responder la cotización', url: input.link }, footer: `Si tenés dudas, respondé este correo o escribinos. Te esperamos en ${company}.`, tone: 'info' })
+  return { to: input.to, subject: `Tu cotización ${input.quoteNumber} · ${company}`, ...content }
 }
