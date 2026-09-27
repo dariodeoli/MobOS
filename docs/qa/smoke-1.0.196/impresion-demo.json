@@ -1,0 +1,113 @@
+{
+  "base": "https://app.moboss.online",
+  "fecha": "2026-09-27T18:23:22.386Z",
+  "resultados": [
+    {
+      "paso": "entrada a la demo como dueño",
+      "estado": "ok",
+      "detalle": "demo abierta como dueño",
+      "capturas": [
+        "01-panel-demo.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "Impresoras en demo: banner de ficticios y dos impresoras",
+      "estado": "ok",
+      "detalle": "banner de ficticios + 2 impresoras demo visibles",
+      "capturas": [
+        "02-impresoras-demo.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "actividad demo con estados honestos",
+      "estado": "fallo",
+      "detalle": "estados visibles: ninguno",
+      "capturas": [
+        "03-actividad-demo.jpg",
+        "04-fallo-actividad demo con estados honestos.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "auto-validación demo: 1 dígito valida solo",
+      "estado": "fallo",
+      "detalle": "locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('row').filter({ hasText: 'DEMO-01' }).getByLabel(/Número secreto de la validación DEMO-01/)\u001b[22m\n",
+      "capturas": [
+        "05-fallo-auto-validación demo: 1 dígito valida solo.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "auto-validación demo: 4 dígitos y aviso de no coincide",
+      "estado": "fallo",
+      "detalle": "locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('row').filter({ hasText: 'DEMO-02' }).getByLabel(/Número secreto de la validación DEMO-02/)\u001b[22m\n",
+      "capturas": [
+        "06-fallo-auto-validación demo: 4 dígitos y aviso de no coincide.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "cola demo: pendientes y fallidos con reintento simulado",
+      "estado": "fallo",
+      "detalle": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Ver cola' })\u001b[22m\n",
+      "capturas": [
+        "07-fallo-cola demo: pendientes y fallidos con reintento simulado.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "prueba de impresión demo simulada",
+      "estado": "ok",
+      "detalle": "la prueba avisa que es simulada y no envía nada",
+      "capturas": [
+        "08-prueba-simulada.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "cancelación demo: individual y en lote desde la cola",
+      "estado": "fallo",
+      "detalle": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Ver cola' })\u001b[22m\n",
+      "capturas": [
+        "09-fallo-cancelación demo: individual y en lote desde la cola.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "anti-duplicados demo: aviso de duplicado y «Reimprimir igual»",
+      "estado": "ok",
+      "detalle": "el segundo click avisó del duplicado y «Reimprimir igual» sumó una copia ficticia",
+      "capturas": [
+        "10-duplicado-primer-encolado.jpg",
+        "11-duplicado-aviso.jpg",
+        "12-duplicado-reimprimir.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "QR del comprobante en demo: token ficticio estable y por nivel (#204)",
+      "estado": "ok",
+      "detalle": "token ficticio estable por nivel (demo-completo-demo-venta-hoy-partial) y reimpresión con el mismo token",
+      "capturas": [
+        "13-qr-comprobante-demo.jpg",
+        "14-qr-demo-nivel-detallado.jpg"
+      ],
+      "llamadasApi": []
+    }
+  ],
+  "llamadasAlApi": [],
+  "llamadasDeImpresion": [],
+  "llamadasDeOtrosModulos": [],
+  "erroresConsola": [],
+  "erroresDeRed": [],
+  "erroresOtros": [],
+  "veredicto": {
+    "pasosOk": 5,
+    "pasosTotal": 10,
+    "llamadasDeImpresion": 0,
+    "llamadasDeOtrosModulos": 0,
+    "erroresDeRed": 0
+  }
+}

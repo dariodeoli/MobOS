@@ -1,0 +1,31 @@
+{
+  "base": "https://app.moboss.online",
+  "pasos": [
+    {
+      "paso": "login/entrada: demo como Dueño",
+      "estado": "ok",
+      "detalle": "https://app.moboss.online/resumen"
+    },
+    {
+      "paso": "impresión: Impresoras en demo (banner + lista)",
+      "estado": "ok",
+      "detalle": "banner=true · menciones impresoras=9"
+    },
+    {
+      "paso": "inventario: Carga rápida de unidad abre con campos",
+      "estado": "ok",
+      "detalle": "modal abierto · campos=10"
+    },
+    {
+      "paso": "taller: Servicio y garantías renderiza",
+      "estado": "ok",
+      "detalle": "barra-taller visible"
+    },
+    {
+      "paso": "POS: Analytics del POS abre",
+      "estado": "ok",
+      "detalle": "Analytics del POS abierto"
+    }
+  ],
+  "errores": []
+}

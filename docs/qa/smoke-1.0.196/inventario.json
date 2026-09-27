@@ -1,0 +1,90 @@
+{
+  "verificado": "2026-09-27T18:16:11.079Z",
+  "base": "https://app.moboss.online",
+  "version": "v1.0.196",
+  "llamadasApi": [],
+  "erroresConsola": [],
+  "resultados": [
+    {
+      "paso": "#195 demo: entrada anónima como Dueño",
+      "estado": "ok",
+      "detalle": "v1.0.196 · sesión demo activa",
+      "capturas": [
+        "01-demo-entrada.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#195 Inv: Productos en demo",
+      "estado": "ok",
+      "detalle": "catálogo demo con productos visibles (12 menciones de modelo)",
+      "capturas": [
+        "02-productos.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#195 Inv: Compras en demo",
+      "estado": "ok",
+      "detalle": "pantalla de compras navegable (con contenido)",
+      "capturas": [
+        "03-compras.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#195 Inv: Ubicaciones y Vendidos",
+      "estado": "ok",
+      "detalle": "ubicaciones y vendidos renderizan con datos demo",
+      "capturas": [
+        "04-ubicaciones.jpg",
+        "05-vendidos.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#195 Inv: Servicio Técnico en demo",
+      "estado": "fallo",
+      "detalle": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('heading', { name: /Servicio/i }).visible().first() to be visible\u001b[22m\n",
+      "capturas": [],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#195 Inv: carga rápida con costo diferido en USD",
+      "estado": "fallo",
+      "detalle": "locator.selectOption: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#recibir-modelo')\u001b[22m\n",
+      "capturas": [],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#195 Inv: kardex oculto en demo (por diseño)",
+      "estado": "ok",
+      "detalle": "sin botón Kardex en demo (cubierto con sesión real por e2e/kardex-producto.spec.js)",
+      "capturas": [
+        "06-productos-kardex.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#195 Inv: sync con POS (la venta demo descuenta unidades)",
+      "estado": "fallo",
+      "detalle": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Inventario', exact: true }).first()\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" aria-expanded=\"true\" title=\"Ocultar Inventario\" class=\"mb-0.5 flex w-full items-center justify-between gap-1 rounded-md px-2.5 py-0.5 text-left transition hover:bg-fore/5\">…</button>\u001b[22m\n\u001b[2m  - attempting ",
+      "capturas": [
+        "07-pos-venta-demo.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#195 demo: 0 llamadas al API real",
+      "estado": "ok",
+      "detalle": "ninguna request a /api/",
+      "capturas": [],
+      "llamadasApi": []
+    }
+  ],
+  "resumen": {
+    "pasos": 9,
+    "ok": 6,
+    "fallos": 3
+  }
+}
