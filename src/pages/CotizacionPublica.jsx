@@ -11,6 +11,7 @@ import { Aviso, Textarea } from '@/components/ui'
 import { PIE_ACCIONES } from '@/components/shared/formulario'
 import { ABIERTAS, ESTADO_COTIZACION as ESTADO, TONO_COTIZACION as TONO } from '@/lib/cotizaciones'
 import CompartirPdf from '@/components/shared/CompartirPdf'
+import AprobacionPresupuesto from '@/components/shared/AprobacionPresupuesto'
 import { buildProformaHtml } from '@/components/shared/OrderReceipt'
 
 // Cotización pública: el cliente abre el QR o el enlace, revisa el detalle y
@@ -106,6 +107,11 @@ export default function CotizacionPublica() {
                 </p>
               )}
               <span className={`mt-4 inline-block rounded-lg border px-3 py-1 text-xs font-bold ${TONO[estado] || 'border-warn/30 bg-warn/10 text-warn'}`}>{ESTADO[estado] || estado}</span>
+              {quote.version && (
+                <p data-testid="aprobacion-version" className="mt-2 text-[11px] uppercase tracking-wider text-mute">
+                  Versión {quote.version.number} · congelada {new Date(quote.version.frozenAt).toLocaleString('es-PY')}
+                </p>
+              )}
               {quote.resolution?.at && !abierta && (
                 <p className="mt-2 text-xs text-mute">
                   {estado === 'ACCEPTED' ? 'Aceptada' : 'Rechazada'} el {new Date(quote.resolution.at).toLocaleString('es-PY')}
@@ -154,10 +160,22 @@ export default function CotizacionPublica() {
               </section>
             )}
 
+            {/* A3 (#279): aprobación autenticada (código + versión congelada).
+                Sigue montada después de aprobar para mostrar la evidencia.
+                La aceptación rápida queda como alternativa legacy más abajo. */}
+            {(abierta || quote.approval) && (
+              <AprobacionPresupuesto
+                quote={quote}
+                token={token}
+                demo={demo}
+                onAprobada={(evidencia) => setQuote(current => current ? { ...current, status: 'CONVERTED', approval: evidencia } : current)}
+              />
+            )}
+
             {abierta && !demo && (
-              <section className="rounded-2xl border border-fono/30 bg-fono/5 p-5">
-                <h2 className="text-center font-semibold">¿Aceptás esta cotización?</h2>
-                <p className="mt-1 text-center text-xs text-mute">Tu respuesta queda registrada y el vendedor la ve al instante.</p>
+              <section className="rounded-2xl border border-ink-600 bg-ink-800/40 p-5">
+                <h2 className="text-center text-sm font-semibold">¿No podés recibir el código?</h2>
+                <p className="mt-1 text-center text-xs text-mute">Aceptá sin verificar identidad: el vendedor ve tu respuesta y convierte el pedido a mano.</p>
                 {rechazando ? (
                   <div className="mt-4 space-y-3">
                     <label className="block text-xs text-mute">Motivo del rechazo (opcional)

@@ -40,6 +40,10 @@ export function demoCotizacionPayload(token) {
       totalPyg: Number(cotizacion.totalPyg || subtotal - discountPyg),
       notes: cotizacion.notes || null,
       resolution: cotizacion.resolution || null,
+      // A3 (#279): versión congelada y canales de OTP (demo simulada).
+      version: cotizacion.version || { number: 1, hash: 'demo', frozenAt: cotizacion.updatedAt || cotizacion.createdAt || null },
+      approval: cotizacion.approval || null,
+      otp: { canales: { email: true, phone: false }, email: 'l***@c***.com', phone: null, maxAttempts: 5 },
       demo: true,
     }
   }
