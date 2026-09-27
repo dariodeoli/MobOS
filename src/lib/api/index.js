@@ -10,7 +10,7 @@ export { ApiError, isApiError } from './errors'
 export { clearAccessToken, clearCompanyToken, clearSession, getAccessToken, getCompanyContext, getCompanyToken, setAccessToken, setCompanyToken, sessionApi } from './session'
 
 export const resources = {
-  customers: { list: (q = '') => api.get(`/api/customers?q=${encodeURIComponent(q)}`), create: data => api.post('/api/customers', data), update: (id, data) => api.patch(`/api/customers/${encodeURIComponent(id)}`, data) },
+  customers: { list: (q = '') => api.get(`/api/customers?q=${encodeURIComponent(q)}`), create: data => api.post('/api/customers', data), update: (id, data) => api.patch(`/api/customers/${encodeURIComponent(id)}`, data) },, duplicates: (params = { }
   products: { list: (q = '') => api.get(`/api/products?q=${encodeURIComponent(q)}`), create: data => api.post('/api/products', data) },
   stock: { list: demo(() => api.get('/api/stock'), () => demoStockAlerts(getProductos())), adjust: demo(data => api.patch('/api/stock', data), () => ({})) },
   inventoryBranches: { list: demo(() => api.get('/api/inventory-branches'), () => listDemoBranches()) },

@@ -825,6 +825,12 @@ model Customer {
   // evita mandarle el mismo mensaje dos veces a la misma persona.
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  // Merge de duplicados (#268): la ficha fusionada no se borra; queda
+  // archivada y con puntero a la principal para no romper enlaces ni tokens.
+  archivedAt   DateTime?
+  mergedIntoId String?
+  mergedInto   Customer?  @relation("CustomerMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull)
+  mergedFrom   Customer[] @relation("CustomerMerge")
 
   orders        Order[]
   quotes        Quote[]
@@ -848,6 +854,8 @@ model Customer {
   @@index([tenantId])
   @@index([tenantId, phone])
   @@index([tenantId, externalId])
+  @@index([tenantId, archivedAt])
+  @@index([mergedIntoId])
   @@index([priceListId])
   // Búsqueda difusa por nombre (pg_trgm, GIN): ILIKE '%texto%' sin escanear.
   @@index([name(ops: raw("gin_trgm_ops"))], map: "Customer_name_trgm_idx", type: Gin)
