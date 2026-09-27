@@ -292,6 +292,18 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 55 — Selector de cuenta: preselección y lista de 100 (biblioteca v0.48.1) (#262, con POS) (27-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Selector de cuenta de cobro (#262) | El selector publicado en **v0.42.0** filtraba hasta **8** resultados (los montaba todos) y arrancaba siempre en modo búsqueda, aunque hubiera una cuenta obvia; con muchas cuentas la lista no escalaba ni quedaba estable en mobile | Biblioteca **v0.48.1**: **preselección** (`preseleccionar` + `ultimoUsadoId`/`predeterminadaId`; helper `preseleccionDeCuenta`: última usada → predeterminada, nunca una inactiva) y **hasta 100 cuentas** (`LIMITE_CUENTAS`) con **virtualización** (`ventanaDeLista` + `MARGEN_VENTANA`, fila medida al montar, `aria-posinset`/`aria-setsize` y relleno de la lista) y scroll estable en mobile (las flechas ya no arrastran la página; `overscroll-contain`, `min(60vh,18rem)`). Se mantiene el buscador y el **colapso de #262** |
+| Coordinación con POS | `CuentaCobroCombobox` + `CapsulaCuentaCobro` siguen en `PaymentAccountFields` (POS) | Receta de adopción: `cuentas` (activas y de las monedas que cobra), `cuentaId={payment.accountId}`, `onSelect` con el monto propuesto (lo que hoy hace el combobox), `preseleccionar` + `ultimoUsadoId={preferenciaPos('cuenta')}` (y `recordarPos('cuenta', id)` al elegir), `logo={(c) => <BancoLogo banco={c.bank} alto="h-4" />}`, `saldoPendientePyg`/`cotizacionPyg`; la **`TarjetaCuentaCobro`** reemplaza a la cápsula (ya no repite el banco, criterio del arreglo de POS) |
+| Guarda | — | Biblioteca: `test/cuentaCobro.test.jsx` (preselección, tope de 100, virtualización del markup) + `test/ventana.test.js` (ventana) y `test/selectorCuentaCobro.test.jsx` (navegador: preselección, buscar/elegir/colapsar, teclado y virtualización); la app queda fijada a **v0.48.1** |
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
+`test:e2e:smoke`; biblioteca `owncoding-ui` build + 343 tests.
+
 ### Fix #271 — la foto de perfil se invalida en toda la app (27-09)
 
 | Objeto | Antes (evidencia) | Después |
@@ -336,7 +348,7 @@ Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
 | --- | --- | --- |
 | Ficha fusionada | El flujo de #268 archivaba el cliente sin una pieza para mostrarlo | **`ChipFusion`** (biblioteca **v0.45.0**): marca la ficha archivada con la principal, cuándo y quién la fusionó, y abre la principal (enlaces, tokens e historial siguen vivos) |
 | Categorías del preview | Cada pantalla iba a inventar etiquetas y orden | **`CATEGORIAS_FUSION` + `categoriasFusion(conteos)` + `hayFusion`**: checklist canónico (pedidos, pagos y cuotas, créditos y saldo, notas, direcciones, teléfonos y correos, tags, seguro de ventas, portal, garantías y servicio); los ids fuera del catálogo se agregan al final |
-| Estado de la ola | #262 (v0.42.0), #265 (v0.44.0) y #268 (v0.43.0) publicados | **Completos del lado de la biblioteca**: `SelectorCuentaCobro`/`TarjetaCuentaCobro`, `BloquePago`, `BuscadorCliente`, `PreviewFusion`, `ConfirmarConPalabra`, `ChipFusion` y las categorías. Adopción pendiente de POS (#262/#265) y del backend de merge de CRM (#268) |
+| Estado de la ola | #262 (v0.42.0 → **v0.48.1**), #265 (v0.44.0) y #268 (v0.43.0) publicados | **Completos del lado de la biblioteca**: `SelectorCuentaCobro`/`TarjetaCuentaCobro`, `BloquePago`, `BuscadorCliente`, `PreviewFusion`, `ConfirmarConPalabra`, `ChipFusion` y las categorías. El selector de cobro sumó **preselección y lista de 100 virtualizada** (v0.48.1, lote 55). Adopción pendiente de POS (#262/#265) y del backend de merge de CRM (#268) |
 
 Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
 `BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
