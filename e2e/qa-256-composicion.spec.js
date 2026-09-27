@@ -63,10 +63,32 @@ test.describe('composición compacta', () => {
     await expect(page.getByTestId('tabs-inventario').getByRole('button', { name: 'Inventario', exact: true })).toBeVisible()
   })
 
+  test('Productos: barra única, métricas con alcance y controles agrupados', async ({ page }) => {
+    await page.goto('/productos')
+    await expect(page.getByTestId('producto-fila').first()).toBeVisible({ timeout: 20_000 })
+
+    const barra = page.getByTestId('barra-productos')
+    await expect(barra).toHaveCount(1)
+    await expect(barra.getByRole('heading', { level: 2, name: 'Productos' })).toBeVisible()
+    await expect(barra.getByRole('button', { name: 'Actualizar' })).toBeVisible()
+
+    const resumen = page.getByTestId('resumen-productos')
+    await expect(resumen).toBeVisible()
+    await expect(resumen.locator('> div')).toHaveCount(4)
+    // El catálogo se carga paginado: todas las métricas declaran su alcance.
+    await expect(resumen.getByText('En pantalla', { exact: true })).toHaveCount(4)
+    await expect(resumen.getByText('Valor a costo')).toBeVisible()
+
+    // Consulta agrupada: búsqueda + categoría + condición + vista.
+    await expect(page.getByLabel('Buscar productos')).toBeVisible()
+    await expect(page.getByLabel('Filtrar por categoría')).toBeVisible()
+    await expect(page.getByLabel('Filtrar por condición')).toBeVisible()
+  })
+
   test('sin desborde horizontal en 390 y 1280', async ({ page }) => {
     for (const [ancho, alto] of [[390, 844], [1280, 900]]) {
       await page.setViewportSize({ width: ancho, height: alto })
-      for (const ruta of ['/pos', '/clientes', '/inventario/unidades']) {
+      for (const ruta of ['/pos', '/clientes', '/inventario/unidades', '/productos']) {
         await page.goto(ruta)
         await expect(page.getByTestId('shell')).toBeVisible({ timeout: 20_000 })
         await page.waitForTimeout(600)

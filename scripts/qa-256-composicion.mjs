@@ -74,6 +74,19 @@ for (const [tema, modo] of [['claro', 'light'], ['oscuro', 'dark']]) {
     console.log('[256] pos:', JSON.stringify(medidas.pos))
   }
 
+  await page.goto(`${BASE}/productos`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
+  await page.locator('[data-testid="shell"]').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {})
+  await page.getByTestId('producto-fila').first().waitFor({ state: 'visible', timeout: 20_000 }).catch(() => {})
+  await capturar(`productos-${tema}-desktop`)
+  if (tema === 'claro') {
+    medidas.productos = await page.evaluate(() => {
+      const resumen = document.querySelector('[data-testid="resumen-productos"]')
+      const alcances = resumen ? [...resumen.querySelectorAll('p')].map((p) => p.textContent.trim()).filter((t) => /^(Tienda|En pantalla)$/.test(t)) : []
+      return { barra: Boolean(document.querySelector('[data-testid="barra-productos"]')), tiles: resumen ? resumen.children.length : 0, alcances }
+    })
+    console.log('[256] productos:', JSON.stringify(medidas.productos))
+  }
+
   await page.goto(`${BASE}/inventario/unidades`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
   await page.locator('[data-testid="shell"]').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {})
   await page.getByTestId('inventario-fila').first().waitFor({ state: 'visible', timeout: 20_000 }).catch(() => {})
@@ -107,6 +120,9 @@ await capturar('pos-claro-mobile')
 await page.goto(`${BASE}/inventario/unidades`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
 await page.getByTestId('inventario-fila').first().waitFor({ state: 'visible', timeout: 20_000 }).catch(() => {})
 await capturar('inventario-claro-mobile')
+await page.goto(`${BASE}/productos`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
+await page.getByTestId('producto-fila').first().waitFor({ state: 'visible', timeout: 20_000 }).catch(() => {})
+await capturar('productos-claro-mobile')
 
 writeFileSync(join(SALIDA, 'resultado.json'), `${JSON.stringify({ base: BASE, version, fecha: new Date().toISOString(), medidas }, null, 2)}\n`)
 await browser.close()

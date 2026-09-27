@@ -5,6 +5,7 @@ import { getProductos } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { Badge, Button, Card, EmptyState, Input, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import SearchField from '@/components/shared/SearchField'
+import AttachmentList from '@/components/shared/AttachmentList'
 import BarraModulo from '@/components/shared/BarraModulo'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 import Icon from '@/components/shared/Icon'
@@ -32,6 +33,7 @@ export default function ComprasCentro() {
   const [abierta, setAbierta] = useState('')
   const [agregar, setAgregar] = useState(null)
   const [linea, setLinea] = useState({ productId: '', quantity: '1', unitCostPyg: '', seriales: '' })
+  const [adjuntosDe, setAdjuntosDe] = useState(null)
   const [cancelar, setCancelar] = useState(null)
   const [motivo, setMotivo] = useState('')
   const [busy, setBusy] = useState(false)
@@ -184,6 +186,7 @@ export default function ComprasCentro() {
                   <Button type="button" variant={expandida ? 'outline' : 'primary'} onClick={() => setAbierta(expandida ? '' : compra.id)}>
                     {expandida ? 'Cerrar' : 'Ver líneas'}
                   </Button>
+                  <Button type="button" variant="outline" onClick={() => setAdjuntosDe(compra)}>Adjuntos</Button>
                   {activa && <Button type="button" variant="outline" onClick={() => abrirAgregar(compra)}>+ Agregar líneas</Button>}
                   {cancelable && <Button type="button" variant="ghost" className="text-bad" onClick={() => { setCancelar(compra); setMotivo('') }}>Cancelar</Button>}
                 </div>
@@ -248,6 +251,11 @@ export default function ComprasCentro() {
             <Button type="submit" disabled={busy || !linea.productId || Number(linea.quantity) < 1}>{busy ? 'Agregando…' : 'Agregar líneas'}</Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal open={Boolean(adjuntosDe)} onClose={() => setAdjuntosDe(null)} title={`Adjuntos · ${adjuntosDe?.code || ''}`} size="amplio">
+        <p className="text-sm text-mute">La factura o los comprobantes de la compra quedan auditados con el documento.</p>
+        {adjuntosDe && <AttachmentList entity="SUPPLY_PURCHASE" entityId={adjuntosDe.id} puedeSubir titulo="Factura de la compra" />}
       </Modal>
 
       <Modal open={Boolean(cancelar)} onClose={() => !busy && setCancelar(null)} title="Cancelar compra" size="corto">

@@ -1,7 +1,7 @@
 {
   "base": "https://app.moboss.online",
   "version": "1.0.190",
-  "fecha": "2026-09-27T03:19:29.013Z",
+  "fecha": "2026-09-27T04:55:49.289Z",
   "medidas": {
     "clientes": {
       "barra": true,
@@ -18,6 +18,11 @@
     "pos": {
       "barra": true,
       "bloquesGrandes": 0
+    },
+    "productos": {
+      "barra": false,
+      "tiles": 0,
+      "alcances": []
     },
     "inventario": {
       "barra": false,

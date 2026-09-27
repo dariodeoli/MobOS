@@ -8,7 +8,8 @@ ofrece **«+ Compra libre»** (producto, proveedor del buscador de #259, cantida
 costo opcional): registra la compra sin necesidad y sin tocar stock. La pantalla
 **Compras del Centro** (`/compras-centro`) lista lo comprado con sus líneas,
 IMEI cargados y cantidades libres, y permite **agregar líneas** a una compra
-activa (`action: 'addLines'`) y **cancelarla** con motivo.
+activa (`action: 'addLines'`) y **cancelarla** con motivo; también se adjunta
+la **foto de la factura** (`SUPPLY_PURCHASE` en `/api/attachments`).
 
 ## 1. Regla dura
 
@@ -152,5 +153,5 @@ Reglas:
   las validaciones de §4-quater.
 - F3 (escaneo de IMEI y etiquetas), F4 (lotes/envíos) y F5 (recepción) siguen
   sin empezar; el `PATCH serials` ya deja el gancho para completarlos.
-- La foto de la factura se adjunta después de crear la compra (la UI lo hará en
+- La foto de la factura se adjunta después de crear la compra (la UI lo hace desde
   un paso); si se prefiere en el mismo POST, se agrega `multipart` en F3.

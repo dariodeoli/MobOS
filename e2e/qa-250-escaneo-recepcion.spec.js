@@ -524,8 +524,20 @@ test('F2 · compras del Centro: líneas libres, agregar líneas y cancelar', asy
   const nueva = actualizada?.lines?.find((l) => (l.serials || []).some((s) => (s.serial || s) === imei))
   expect(nueva?.quantity).toBe(1)
 
-  // Cancelar con motivo: vuelve auditado y la compra queda cancelada.
   const filaActualizada = page.getByTestId('compra-centro-fila').filter({ hasText: compra.body.code })
+
+  // La factura se adjunta desde la misma pantalla (queda auditada).
+  const factura = `factura-${marca}.png`
+  await filaActualizada.getByRole('button', { name: 'Adjuntos' }).click()
+  const modalAdjuntos = page.getByRole('dialog', { name: /Adjuntos/ })
+  await expect(modalAdjuntos).toBeVisible()
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.screenshot({ path: join(DIR, 'compras-centro-adjuntos-desktop.png') })
+  await modalAdjuntos.locator('input[type=file]').setInputFiles({ name: factura, mimeType: 'image/png', buffer: PNG_E2E })
+  await expect(modalAdjuntos.getByText(factura)).toBeVisible({ timeout: 20_000 })
+  await modalAdjuntos.getByRole('button', { name: 'Cerrar' }).click()
+
+  // Cancelar con motivo: vuelve auditado y la compra queda cancelada.
   await filaActualizada.getByRole('button', { name: 'Cancelar', exact: true }).click()
   const modalCancelar = page.getByRole('dialog', { name: 'Cancelar compra' })
   await modalCancelar.getByLabel('Motivo').fill('El proveedor no tenía stock (e2e)')
