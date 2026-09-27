@@ -1,7 +1,9 @@
 # Plantilla del ticket de prueba (#277, PRN + diseño)
 
 El editor vive en la **ficha de la impresora**: Configuración → Dispositivos →
-Impresoras → **Imprimir prueba**. Ahí el operador elige el tipo de ticket, arma
+Impresoras. La ficha tiene tres entradas: **Imprimir prueba** (flujo completo),
+**Plantilla** (abre el mismo editor, con el título de la plantilla) y **Editar**
+(configuración de la impresora). Dentro del editor se elige el tipo de ticket,
 qué bloques incluye, el ancho 58/80, la variante de corte y las copias, con
 **vista previa real** del rollo, y la **guarda en la impresora**.
 
@@ -77,5 +79,6 @@ sigue usando el ancho/copias de la impresora.
   la ficha vuelve con el tipo, ancho, bloques y copias guardados.
 - Capturas antes/después en `docs/qa/plantilla-prueba/{antes,despues}/` con
   `scripts/qa-plantilla-prueba.mjs` (claro, oscuro, móvil; acción con 58 mm + sin
-  corte + 2 copias, y el completo). Producción v1.0.190: **0/3 con editor**;
-  rama: **3/3**, sin desborde en móvil.
+  corte + 2 copias, el completo y las **acciones de la ficha** con la entrada
+  «Plantilla»). Producción v1.0.190: **0/3 con editor**; rama: **3/3**, sin
+  desborde en móvil.

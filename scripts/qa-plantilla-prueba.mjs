@@ -34,11 +34,18 @@ if (await guia.waitFor({ state: 'visible', timeout: 4000 }).then(() => true).cat
 }
 const version = ((await page.locator('body').innerText()).match(/v(\d+\.\d+\.\d+)/) || [])[1] || ''
 
+let tarjetaCapturada = false
 async function abrirEditor() {
   await page.goto(`${BASE}/configuracion/dispositivos`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
   await page.locator('[data-testid="shell"]').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {})
   await page.waitForTimeout(800)
   const tarjeta = page.locator('xpath=//div[contains(@class, "lg:grid-cols-2")]/div').filter({ hasText: 'Térmica mostrador' }).first()
+  // Evidencia de las acciones de la ficha: «Imprimir prueba» / «Editar» /
+  // «Plantilla» (#277). Se captura una sola vez.
+  if (!tarjetaCapturada) {
+    await tarjeta.screenshot({ path: join(SALIDA, 'ficha-acciones-desktop.jpg'), type: 'jpeg', quality: 80 })
+    tarjetaCapturada = true
+  }
   await tarjeta.getByRole('button', { name: 'Imprimir prueba' }).click()
   await page.getByRole('dialog').waitFor({ state: 'visible', timeout: 15_000 })
   await esperar(900)
