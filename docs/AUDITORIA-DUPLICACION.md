@@ -292,6 +292,41 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 52 — Cierre de la ola #262/#265/#268 (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Ficha fusionada | El flujo de #268 archivaba el cliente sin una pieza para mostrarlo | **`ChipFusion`** (biblioteca **v0.45.0**): marca la ficha archivada con la principal, cuándo y quién la fusionó, y abre la principal (enlaces, tokens e historial siguen vivos) |
+| Categorías del preview | Cada pantalla iba a inventar etiquetas y orden | **`CATEGORIAS_FUSION` + `categoriasFusion(conteos)` + `hayFusion`**: checklist canónico (pedidos, pagos y cuotas, créditos y saldo, notas, direcciones, teléfonos y correos, tags, seguro de ventas, portal, garantías y servicio); los ids fuera del catálogo se agregan al final |
+| Estado de la ola | #262 (v0.42.0), #265 (v0.44.0) y #268 (v0.43.0) publicados | **Completos del lado de la biblioteca**: `SelectorCuentaCobro`/`TarjetaCuentaCobro`, `BloquePago`, `BuscadorCliente`, `PreviewFusion`, `ConfirmarConPalabra`, `ChipFusion` y las categorías. Adopción pendiente de POS (#262/#265) y del backend de merge de CRM (#268) |
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
+`test:e2e:smoke`; biblioteca `owncoding-ui` build + 329 tests.
+
+### Lote 51 — Bloque de pago con la papelera adentro (#265, con POS) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Bloque de pago | `PasoCobro` usa una grilla con la papelera como **celda aparte** (fuera del contenedor del pago): la fila pierde ancho y queda desalineada en mobile (#265) | **`BloquePago`** (biblioteca **v0.44.0**): el contenido (medio/cuenta/monto) va dentro de la tarjeta y la **papelera adentro**, arriba a la derecha (`IconAction` `tone="bad"` `size="touch"`, tooltip + 44 px), con `acento` para el borde pagado/no pagado y `onQuitar` por callback (la confirmación es de la pantalla) |
+| Selector de cuenta (#262) | Publicado en **v0.42.0** (`SelectorCuentaCobro` + `TarjetaCuentaCobro`): al elegir colapsa el buscador, una sola tarjeta, banco una vez, saldo pendiente y «Cambiar cuenta» | Pendiente de adopción por POS (documentado en el lote 49) |
+| Unificar clientes (#268) | Publicado en **v0.43.0** (`BuscadorCliente` con posible duplicado, `PreviewFusion`, `ConfirmarConPalabra`) | Pendiente del backend de merge de CRM (lote 50) |
+
+**Coordinación con POS:** adopción sugerida en `venta/PasoCobro.jsx` —
+```
+<BloquePago testId={`pago-fila-${i}`} acento={p.noPagado ? 'warn' : 'ok'}
+  encabezado={…chip Pagado/No pagado…} onQuitar={() => quitar(i)} deshabilitado={guardando}
+  etiquetaQuitar={`Eliminar pago ${i + 1}`}>
+  {usaCuentas ? <PaymentAccountFields … /> : …medio/cuenta/monto…}
+</BloquePago>
+```
+conserva `data-testid="pago-fila-N"` y el comportamiento actual (quitar directo o
+con la confirmación que POS ya tenga). No se tocó `PasoCobro.jsx` (dominio POS).
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
+`test:e2e:smoke`; biblioteca `owncoding-ui` build + 327 tests.
+
 ### Lote 50 — Componentes para unificar clientes (#268, con CRM) (26-09)
 
 | Objeto | Antes (evidencia) | Después |
