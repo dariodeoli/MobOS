@@ -6,6 +6,7 @@ import { quoteTotals } from '../../../lib/pricing'
 import { enforceRateLimit } from '../../../lib/rate-limit'
 import { esNumeroCotizacionDuplicado, nextQuoteNumber } from '../../../lib/quote-number'
 import { LIMITE_MONTO_VENTAS, numero } from '../../../lib/montos'
+import { congelarVersionDeCotizacion } from '../../../lib/quote-approval'
 
 const INT_MAX = 2147483647
 const STATUSES = ['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED', 'CONVERTED', 'EXPIRED', 'CANCELLED']
@@ -146,6 +147,12 @@ export async function PATCH(request: Request) {
         ...(body?.notes !== undefined ? { notes: text(body.notes, 2000) } : {}),
         ...(body?.discountPyg !== undefined ? { discountPyg: Number(body.discountPyg), totalPyg: numero(quote.subtotalPyg) - Number(body.discountPyg) } : {}),
       }, include: { seller: { select: { id: true, name: true } }, customer: { select: { id: true, name: true, phone: true, email: true } }, order: { select: { id: true, orderNumber: true } } } })
+      // A3 (#279): si el enlace ya existe (o la cotización se marca enviada),
+      // el cambio de contenido deja una versión nueva congelada para el cliente.
+      const tocaContenido = status === 'SENT' || validUntil !== undefined || body?.notes !== undefined || body?.discountPyg !== undefined
+      if (tocaContenido && (data.status === 'SENT' || quote.publicToken)) {
+        await congelarVersionDeCotizacion(tx, data, { frozenById: session.user.id, motivo: 'patch' })
+      }
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'QUOTE_UPDATED', entity: 'Quote', entityId: quote.id, metadata: { from: quote.status, to: data.status } } })
       return data
     })

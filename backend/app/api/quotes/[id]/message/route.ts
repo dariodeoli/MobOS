@@ -8,6 +8,7 @@ import { quoteEmail } from '../../../../../lib/email'
 import { mensajeCotizacion } from '../../../../../lib/quote-message'
 import { internationalPhone } from '../../../../../lib/validation'
 import { numero } from '../../../../../lib/montos'
+import { congelarVersionDeCotizacion } from '../../../../../lib/quote-approval'
 
 // Envío de la cotización al cliente (#261): mensaje profesional para WhatsApp
 // (texto + enlace público) y correo al email registrado. Cada envío queda en la
@@ -110,6 +111,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       status = updated.status
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'QUOTE_UPDATED', entity: 'Quote', entityId: quote.id, metadata: { from: 'DRAFT', to: 'SENT', motivo: 'envio' } } })
     }
+    // A3 (#279): compartir congela la versión que el cliente va a revisar.
+    await congelarVersionDeCotizacion(tx, quote, { frozenById: session.user.id, motivo: `message-${canal.toLowerCase()}` })
     await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'QUOTE_MESSAGE_SENT', entity: 'Quote', entityId: quote.id, metadata: { canal, destino, quoteNumber: quote.number } } })
     if (quote.customerId) {
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'CUSTOMER_QUOTE_SHARED', entity: 'Customer', entityId: quote.customerId, metadata: { canal, destino, quoteNumber: quote.number } } })

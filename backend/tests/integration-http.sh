@@ -502,6 +502,9 @@ node "$BACKEND_ROOT/tests/inventory-transfers.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/unit-repairs.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/public-quote-transfer.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN"
 
+echo "Cotizaciones: aprobación autenticada con OTP, versión congelada y evidencia (#279)..."
+node "$BACKEND_ROOT/tests/quote-approval-otp.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN"
+
 echo "Cotizaciones: envío por WhatsApp/correo y cronología del cliente (#261)..."
 node "$BACKEND_ROOT/tests/quotes-message.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 node "$BACKEND_ROOT/tests/customer-portal.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$DATABASE_URL" "$PG_BIN"

@@ -1,6 +1,9 @@
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'
+import { numero } from '../../../../../lib/montos'
+import { OTP_MAX_ATTEMPTS, congelarVersionDeCotizacion, enmascararEmail, enmascararTelefono } from '../../../../../lib/quote-approval'
+import { canalesOtpDisponibles } from '../../../../../lib/otp-transport'
 
 // Vista pública de la cotización para el cliente: número, empresa/sucursal,
 // ítems con precios, descuento, total, validez y estado. Nunca expone costos,
@@ -15,7 +18,7 @@ async function porToken(token: string) {
     where: { publicToken: token },
     include: {
       branch: { select: { name: true, address: true, city: true, department: true, phone: true, instagram: true } },
-      customer: { select: { name: true, document: true } },
+      customer: { select: { name: true, document: true, email: true, phone: true, countryCode: true } },
       seller: { select: { name: true } },
       tenant: { select: { name: true, logos: { select: { id: true }, take: 1 } } },
     },
@@ -42,13 +45,46 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
   })
   const metadata = resolucion?.metadata && typeof resolucion.metadata === 'object' ? resolucion.metadata as Record<string, unknown> : null
 
-  const items = Array.isArray(quote.items) ? quote.items as Array<Record<string, unknown>> : []
+  // A3 (#279): el enlace muestra la **versión congelada** vigente (lo que el
+  // cliente revisa y puede aprobar). El primer acceso de un enlace legacy
+  // congela el contenido que el cliente está viendo; los envíos/reenvíos
+  // explícitos generan versiones nuevas cuando el contenido cambia.
+  let version = await prisma.quoteVersion.findFirst({ where: { quoteId: quote.id, tenantId: quote.tenantId }, orderBy: { version: 'desc' } })
+  if (!version && ABORTABLES.includes(status)) {
+    try {
+      version = await prisma.$transaction(tx => congelarVersionDeCotizacion(tx, quote, { frozenById: null, motivo: 'primer-acceso' }))
+    } catch {
+      version = await prisma.quoteVersion.findFirst({ where: { quoteId: quote.id, tenantId: quote.tenantId }, orderBy: { version: 'desc' } })
+    }
+  }
+  const aprobacion = await prisma.quoteApproval.findFirst({
+    where: { quoteId: quote.id, tenantId: quote.tenantId, status: 'APPROVED' },
+    orderBy: { createdAt: 'desc' },
+    include: { order: { select: { orderNumber: true } }, versionRef: { select: { version: true } } },
+  })
+  const snapshot = version && version.snapshot && typeof version.snapshot === 'object' ? version.snapshot as Record<string, unknown> : null
+  const items = Array.isArray(snapshot?.items) ? snapshot.items as Array<Record<string, unknown>> : Array.isArray(quote.items) ? quote.items as Array<Record<string, unknown>> : []
+  const monto = (valor: unknown) => numero(typeof valor === 'number' || typeof valor === 'bigint' ? valor : null)
+  const contenido = snapshot
+    ? {
+        validUntil: typeof snapshot.validUntil === 'string' ? snapshot.validUntil : null,
+        notes: typeof snapshot.notes === 'string' ? snapshot.notes : null,
+        subtotalPyg: monto(snapshot.subtotalPyg),
+        discountPyg: monto(snapshot.discountPyg),
+        totalPyg: monto(snapshot.totalPyg),
+      }
+    : { validUntil: quote.validUntil, notes: quote.notes, subtotalPyg: quote.subtotalPyg, discountPyg: quote.discountPyg, totalPyg: quote.totalPyg }
+
+  const canales = canalesOtpDisponibles(quote.customer)
+  const destinoEmail = String(quote.customer?.email || '').trim()
+  const destinoTelefono = `${quote.customer?.countryCode || ''}${quote.customer?.phone || ''}`.trim()
+
   return json({
     number: quote.number,
     status,
     createdAt: quote.createdAt,
     updatedAt: quote.updatedAt,
-    validUntil: quote.validUntil,
+    validUntil: contenido.validUntil,
     company: { name: quote.tenant?.name || null, logo: Boolean(quote.tenant?.logos?.length) },
     branch: quote.branch ? {
       name: quote.branch.name,
@@ -67,10 +103,29 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
       unitPricePyg: Number(item.unitPricePyg) || 0,
       totalPyg: Number(item.totalPyg) || 0,
     })),
-    subtotalPyg: quote.subtotalPyg,
-    discountPyg: quote.discountPyg,
-    totalPyg: quote.totalPyg,
-    notes: quote.notes,
+    subtotalPyg: contenido.subtotalPyg,
+    discountPyg: contenido.discountPyg,
+    totalPyg: contenido.totalPyg,
+    notes: contenido.notes,
+    // Versión congelada vigente: lo que el cliente revisa y puede aprobar.
+    version: version ? { number: version.version, hash: version.hash, frozenAt: version.createdAt } : null,
+    // Evidencia de una aprobación autenticada previa (A3).
+    approval: aprobacion ? {
+      at: aprobacion.createdAt,
+      method: aprobacion.method,
+      destination: aprobacion.destination,
+      signerName: aprobacion.signerName,
+      version: aprobacion.versionRef?.version ?? null,
+      versionHash: aprobacion.versionHash,
+      orderNumber: aprobacion.order?.orderNumber ?? null,
+    } : null,
+    // Canales disponibles para pedir el código (el código nunca viaja acá).
+    otp: {
+      canales,
+      email: canales.email ? enmascararEmail(destinoEmail) : null,
+      phone: canales.phone ? enmascararTelefono(destinoTelefono) : null,
+      maxAttempts: OTP_MAX_ATTEMPTS,
+    },
     resolution: resolucion ? {
       status: resolucion.action === 'QUOTE_ACCEPTED' ? 'ACCEPTED' : 'REJECTED',
       at: resolucion.createdAt,

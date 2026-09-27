@@ -80,6 +80,9 @@ model Tenant {
   orderComments           OrderComment[]
   marketingCampaigns      MarketingCampaign[]
   quotes                  Quote[]
+  quoteVersions           QuoteVersion[]
+  quoteApprovalChallenges QuoteApprovalChallenge[]
+  quoteApprovals          QuoteApproval[]
   combos                  Combo[]
   orderCommentPhotos      OrderCommentPhoto[]
   inventoryUnitComments   InventoryUnitComment[]
@@ -292,6 +295,7 @@ model User {
   closedCashSessions  CashSession[]   @relation("CashClosedBy")
   orderComments       OrderComment[]
   quotes              Quote[]
+  quoteVersionsFrozen QuoteVersion[] @relation("QuoteVersionFrozenBy")
   inventoryUnitComments InventoryUnitComment[]
   purchases           PurchaseOrder[]
   suspendedSales      SuspendedSale[]
@@ -1163,6 +1167,12 @@ model Quote {
   publicToken  String?     @unique @default(cuid())
   orderId      String?
   order        Order?      @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  // Versión congelada vigente del enlace público: se incrementa cada vez que
+  // la tienda vuelve a compartir con contenido distinto (A3 · #279).
+  version      Int         @default(1)
+  versions     QuoteVersion[]
+  approvalChallenges QuoteApprovalChallenge[]
+  approvals    QuoteApproval[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -1170,6 +1180,81 @@ model Quote {
   @@index([tenantId, status])
   @@index([tenantId, validUntil])
   @@index([branchId])
+}
+
+// Versión congelada de una cotización (A3 · #279): lo que el cliente revisó y
+// aprobó queda inmutable, con su hash sha256 como evidencia.
+model QuoteVersion {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  quoteId    String
+  quote      Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  version    Int
+  // sha256 del snapshot canónico: identifica exactamente qué se aprobó.
+  hash       String
+  snapshot   Json
+  frozenById String?
+  frozenBy   User?    @relation("QuoteVersionFrozenBy", fields: [frozenById], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+  approvals  QuoteApproval[]
+  challenges QuoteApprovalChallenge[]
+
+  @@unique([quoteId, version])
+  @@index([tenantId, quoteId, version])
+}
+
+// Desafío OTP del enlace público: el código vive hasheado (bcrypt), con
+// vencimiento e intentos. Un desafío pertenece a una versión congelada.
+model QuoteApprovalChallenge {
+  id              String       @id @default(cuid())
+  tenantId        String
+  tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  quoteId         String
+  quote           Quote        @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  versionId       String
+  versionRef      QuoteVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  channel         String
+  // Destino enmascarado para mostrar (nunca el valor completo en claro).
+  destination     String
+  destinationHash String
+  codeHash        String
+  attempts        Int          @default(0)
+  expiresAt       DateTime
+  usedAt          DateTime?
+  createdAt       DateTime     @default(now())
+  approvals       QuoteApproval[]
+
+  @@index([tenantId, quoteId, createdAt])
+  @@index([tenantId, destinationHash, createdAt])
+}
+
+// Evidencia de la aprobación autenticada: qué versión, con qué método, quién
+// declaró ser y desde dónde. La firma dibujada es opcional: no autentica sola.
+model QuoteApproval {
+  id            String       @id @default(cuid())
+  tenantId      String
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  quoteId       String
+  quote         Quote        @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  versionId     String
+  versionRef    QuoteVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  challengeId   String?
+  challenge     QuoteApprovalChallenge? @relation(fields: [challengeId], references: [id], onDelete: SetNull)
+  status        String       @default("APPROVED")
+  method        String
+  destination   String
+  versionHash   String
+  signerName    String?
+  signerDocument String?
+  signatureDataUrl String?   @db.Text
+  ipHash        String?
+  userAgent     String?
+  orderId       String?
+  order         Order?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  createdAt     DateTime     @default(now())
+
+  @@index([tenantId, quoteId, createdAt])
 }
 
 model Order {
@@ -1236,6 +1321,7 @@ model Order {
   payments Payment[]
   comments OrderComment[]
   quotes   Quote[]
+  quoteApprovals QuoteApproval[]
   accessTokens OrderAccessToken[]
   storeCredits StoreCredit[]
   storeCreditUses StoreCreditUse[]

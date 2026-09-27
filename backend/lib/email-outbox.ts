@@ -4,7 +4,7 @@ import { logEmailOutcome, sendTransactionalEmail } from './email'
 import { decryptEmailOutboxPayload, encryptEmailOutboxPayload } from './email-outbox-crypto'
 import { prisma } from './prisma'
 
-export type OutboxKind = 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation' | 'receipt' | 'payment-due' | 'payment-overdue' | 'warranty-update' | 'reservation-due' | 'quote'
+export type OutboxKind = 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation' | 'receipt' | 'payment-due' | 'payment-overdue' | 'warranty-update' | 'reservation-due' | 'quote' | 'quote-approval-otp'
 type PreparedEmail = { to: string; subject: string; html: string; text: string }
 
 const LOCK_TIMEOUT_MS = 60_000
