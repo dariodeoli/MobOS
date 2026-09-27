@@ -11,6 +11,17 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.191 — 2026-09-27
+- **Cotizaciones (#260):** buscá una ficha existente o **creá al cliente desde la cotización** con el buscador del POS; también podés seguir con **Consumidor final**.
+- **Pedidos (#149/#273):** **cliente ocasional**: se puede vender sin ficha y después **asignar, cambiar o quitar** el cliente del pedido en un clic, con **cronología** y auditoría.
+- **POS (#262/#263/#272/#274):** al agregar un pago viene **preseleccionada la última cuenta usada** (o la primera activa) y el selector de cuentas es estable con listas largas; el **saldo pendiente sale del bloque de pago** y vive en los totales; la venta sin cliente explica los **motivos del bloqueo**.
+- **Impresión (#276/#277):** el **historial de transporte** dice qué se pidió, qué se ejecutó (con respaldo y motivo) y la **conexión física real**, con **«Reintentar TCP»**; el **ticket de prueba sale corto por defecto** y su **plantilla** (tipo, ancho, corte, copias y fecha) se **guarda por impresora**. Certificados e impresos del lote salen en **PDF real**.
+- **Avatar (#271):** al recargar el bloqueo o cambiar/quitar la foto **nunca se ve la anterior**, y la nueva se refleja en **toda la app**.
+- **Abastecimiento (#250 · F5):** **recomponer un lote parcial sin duplicar** y **compras compactas** con líneas libres; la compra del Centro suma **productos y adjuntos** en grillas densas.
+- **Composición compacta (#256):** ahora también en **Productos, Pedidos, Inventario, Servicio y garantías, secundarias y Finanzas** (Caja y Comisiones en grillas densas).
+- **Componentes (#241/#277):** biblioteca **v0.49.0** (ticket de prueba y objetos compartidos).
+- **Calidad (#245):** suite completa estable en **3 shards** (arranque en modo producción, guardia de CI y specs al día con títulos y offline).
+
 ## v1.0.190 — 2026-09-27
 - **Clientes (#268):** la unificación suma **aviso al crear** un posible duplicado, **unificar desde la lista** (elegís las dos fichas) y la **cronología** del cliente unificado.
 - **POS y Clientes (#256 · #262/#264/#265):** **composición compacta** de ambas pantallas, **selector de cuenta de cobro** que colapsa el buscador al elegir y **papelera del pago** dentro de su bloque.
