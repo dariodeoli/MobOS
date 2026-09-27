@@ -7,6 +7,7 @@
 //
 // Evidencia: docs/qa/266-header/<host>/ (pantalla completa, topbar, chip y el
 // cajón en mobile). Entra por la demo pública.
+/* global document */
 import { createRequire } from 'node:module'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
