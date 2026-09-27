@@ -1,0 +1,45 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "1.0.191",
+  "fecha": "2026-09-27T09:23:42.913Z",
+  "bundle": {
+    "assets": 58,
+    "conMarcador": [
+      "assets/AppShell-BEdfCaYy.js"
+    ],
+    "sinMarcador": []
+  },
+  "apiSinSesion": 401,
+  "superficies": {
+    "equipo-claro": {
+      "avatares": 7,
+      "rotas": 0,
+      "desborde": false
+    },
+    "mi-cuenta-claro": {
+      "avatares": 2,
+      "rotas": 0,
+      "desborde": false
+    },
+    "equipo-oscuro": {
+      "avatares": 7,
+      "rotas": 0,
+      "desborde": false
+    },
+    "mi-cuenta-oscuro": {
+      "avatares": 2,
+      "rotas": 0,
+      "desborde": false
+    },
+    "equipo-mobile": {
+      "avatares": 7,
+      "rotas": 0,
+      "desborde": false
+    },
+    "mi-cuenta-mobile": {
+      "avatares": 2,
+      "rotas": 0,
+      "desborde": false
+    }
+  }
+}

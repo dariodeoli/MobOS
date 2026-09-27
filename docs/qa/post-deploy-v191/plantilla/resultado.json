@@ -1,0 +1,19 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "1.0.191",
+  "fecha": "2026-09-27T09:22:09.792Z",
+  "medidas": {
+    "editor-claro": {
+      "editor": true,
+      "tipo": "corta"
+    },
+    "editor-oscuro": {
+      "editor": true,
+      "tipo": "corta"
+    },
+    "editor-mobile": {
+      "editor": true,
+      "desborde": false
+    }
+  }
+}
