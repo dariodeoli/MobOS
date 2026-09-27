@@ -5,7 +5,7 @@ import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { useSesion } from '@/lib/sesion'
 import { getVendedores, addVendedor, updateVendedor, deleteVendedor, listVentas, productosById, refrescar } from '@/lib/storage'
 import { totalesVendedor, ventasDelDia, comisionDeVentas, fechaClave, num, gs } from '@/utils/calculos'
-import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, Label, Modal, MoneyInput, PinInput, Select } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, FilaDato, FormField, Input, Label, Modal, MoneyInput, PinInput, Select } from '@/components/ui'
 import Avatar from '@/components/shared/Avatar'
 import EmailField from '@/components/shared/EmailField'
 import Cronologia from '@/components/shared/Cronologia'
@@ -416,15 +416,13 @@ export default function Vendedores() {
                 ? <button type="button" onClick={() => setConfirmarEliminar(v)} className="min-h-11 rounded-lg px-2 py-1 text-xs font-semibold text-bad transition hover:bg-bad/10 md:min-h-0" aria-label={`Desactivar a ${v.nombre} (conserva el historial)`}>Desactivar</button>
                 : <button type="button" onClick={() => reactivarUsuario(v)} className="min-h-11 rounded-lg px-2 py-1 text-xs font-semibold text-ok transition hover:bg-ok/10 md:min-h-0" aria-label={`Volver a activar a ${v.nombre}`}>Volver a activar</button>}
             </div>
-            <div className="mt-1 grid grid-cols-2 items-end gap-2 border-t border-ink-600/60 pt-2 md:grid-cols-4">
-              <div className="col-span-2 md:col-span-1">
-                <span className="text-[10px] font-bold uppercase text-mute">Meta diaria</span>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <span className="v2-numero text-sm font-bold">{meta > 0 ? gs(meta) : 'Sin meta'}</span>
-                  {pct !== null && <Badge color={pct >= 100 ? 'green' : pct > 0 ? 'orange' : 'slate'}>{pct}%</Badge>}
-                </div>
-              </div>
-              <Mini label="Hoy" valor={t.hoy} /><Mini label="Comisión hoy" valor={com} /><Mini label="Mes" valor={t.mes} />
+            {/* Métricas como filas etiqueta/valor (#253): la ficha del integrante
+                es angosta y los tiles apretaban los importes. */}
+            <div className="mt-2 space-y-1 border-t border-ink-600/60 pt-2">
+              <FilaDato etiqueta="Meta diaria" tono={meta > 0 ? 'fore' : 'mute'} valor={<span className="v2-numero inline-flex items-center gap-2">{meta > 0 ? gs(meta) : 'Sin meta'}{pct !== null && <Badge color={pct >= 100 ? 'green' : pct > 0 ? 'orange' : 'slate'}>{pct}%</Badge>}</span>} />
+              <FilaDato etiqueta="Hoy" tono="fore" valorClassName="v2-numero" valor={gs(t.hoy)} />
+              <FilaDato etiqueta="Comisión hoy" tono="fore" valorClassName="v2-numero" valor={gs(com)} />
+              <FilaDato etiqueta="Mes" tono="fore" valorClassName="v2-numero" valor={gs(t.mes)} />
             </div>
           </div>
         )})}

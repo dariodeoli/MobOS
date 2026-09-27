@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { Aviso, Badge, Button, Card, ConfirmDialog, FormField, Input, Modal, Select, Textarea, useToast } from '@/components/ui'
+import BarraModulo from '@/components/shared/BarraModulo'
 import Icon from '@/components/shared/Icon'
 import { CATEGORIAS_PLANTILLA, VARIABLES_POR_CONTEXTO, VALORES_EJEMPLO, renderPlantilla } from '@/lib/whatsappPlantillas'
 import { cn } from '@/lib/utils'
@@ -148,12 +149,15 @@ export default function WhatsAppTemplates() {
 
   return (
     <Card className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-sm text-mute">Mensajes reutilizables por contexto para clientes, pedidos y servicio. Las variables se completan al enviar.</p>
-        </div>
+      <BarraModulo
+        icono="send"
+        titulo="Plantillas"
+        descripcion="Mensajes reutilizables por contexto para clientes, pedidos y servicio. Las variables se completan al enviar."
+        testId="barra-plantillas"
+        className="border-0 pb-0"
+      >
         <Button type="button" onClick={() => abrirEditor(editorVacio(categoria))}><Icon name="plus" className="h-3.5 w-3.5" />Nueva plantilla</Button>
-      </div>
+      </BarraModulo>
       <div className="flex flex-wrap gap-2">
         {CATEGORIAS_PLANTILLA.map((item) => {
           const total = (items || []).filter((plantilla) => plantilla.category === item.clave).length

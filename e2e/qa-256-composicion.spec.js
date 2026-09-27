@@ -32,6 +32,31 @@ test.describe('composición compacta', () => {
     await expect(resumen.getByText(/en pantalla$/)).toHaveCount(1)
   })
 
+  test('secundarias: barra de módulo y sin desborde en 390/1280', async ({ page }) => {
+    test.setTimeout(120_000)
+    const PANTALLAS = [
+      ['/productos', 'barra-productos', 'Productos'],
+      ['/promociones', 'barra-promociones', 'Promociones'],
+      ['/cotizaciones', 'barra-cotizaciones', 'Cotizaciones'],
+      ['/plantillas', 'barra-plantillas', 'Plantillas'],
+      ['/delivery', 'barra-delivery', 'Delivery'],
+      // /trade-in no va acá: el dueño ve el pipeline (admin) y el cotizador con
+      // barra es la vista del vendedor; la cubre la regla de objetos.
+    ]
+    for (const [ancho, alto] of [[1280, 900], [390, 844]]) {
+      await page.setViewportSize({ width: ancho, height: alto })
+      for (const [ruta, testId, titulo] of PANTALLAS) {
+        await page.goto(ruta)
+        // El panel mantiene vistas montadas con `hidden`: se apunta a la visible.
+        const barra = page.locator(`[data-testid="${testId}"]:visible`)
+        await expect(barra, `${ruta}: barra de módulo`).toBeVisible({ timeout: 20_000 })
+        await expect(barra.getByRole('heading', { name: titulo })).toBeVisible()
+        const desborda = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)
+        expect(desborda, `${ruta} desborda a ${ancho}px`).toBe(false)
+      }
+    }
+  })
+
   test('sin desborde horizontal en 390 y 1280', async ({ page }) => {
     for (const [ancho, alto] of [[390, 844], [1280, 900]]) {
       await page.setViewportSize({ width: ancho, height: alto })

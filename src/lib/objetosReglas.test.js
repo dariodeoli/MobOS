@@ -661,4 +661,20 @@ test('la composición de módulo y el resumen de métricas son objetos (#256)', 
     assert.match(codigo, marca, `${ruta}: usa la barra compartida`)
   }
   assert.match(readFileSync(join(RAIZ, 'components/ventas/SellerCustomers.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-clientes"/, 'Clientes usa el resumen con alcance')
+  // Segunda unidad: las páginas secundarias también usan la barra.
+  for (const [ruta, testId] of [
+    ['components/ventas/SellerCatalog.jsx', 'barra-productos'],
+    ['components/ventas/SellerPromotions.jsx', 'barra-promociones'],
+    ['components/ventas/SellerQuotes.jsx', 'barra-cotizaciones'],
+    ['components/control/WhatsAppTemplates.jsx', 'barra-plantillas'],
+    ['components/delivery/StoreDelivery.jsx', 'barra-delivery'],
+    ['components/ventas/SellerTools.jsx', 'barra-tradein'],
+  ]) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), new RegExp(`<BarraModulo[\\s\\S]*?testId="${testId}"`), `${ruta}: usa la barra compartida`)
+  }
+  // La ficha del integrante (Config → Equipo) usa filas etiqueta/valor: los
+  // tiles apretaban los importes en la tarjeta angosta.
+  const vendedores = readFileSync(join(RAIZ, 'components/control/Vendedores.jsx'), 'utf8')
+  assert.match(vendedores, /<FilaDato[\s\S]*?Meta diaria/, 'las métricas del integrante van con FilaDato')
+  assert.ok(!/pt-2 md:grid-cols-4/.test(vendedores), 'no vuelven los tiles apretados del integrante')
 })

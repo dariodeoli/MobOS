@@ -10,6 +10,7 @@ import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import { cn } from '@/lib/utils'
 import { SellerSection, SellerFeedback, useSellerData } from './SellerData'
+import BarraModulo from '@/components/shared/BarraModulo'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 // Tabla compacta: una fila por cupón, con vigencia y estado en su columna.
 const GRID_PROMOS = 'grid min-w-[56rem] grid-cols-[6.5rem_minmax(8rem,1.2fr)_7rem_minmax(8rem,1.2fr)_6.5rem_6.5rem_6.5rem_8rem] items-center gap-x-2'
@@ -45,7 +46,13 @@ export default function SellerPromotions() {
       setForm(empty)
     })
   }
-  return <SellerSection description={esDemo ? 'Demo ficticia local. Usá DEMO10 al elegir un producto.' : 'Aplicá el código en el precio del producto. Se verifica nuevamente al registrar la venta.'}>
+  return <SellerSection title="Promociones">
+    <BarraModulo
+      icono="store"
+      titulo="Promociones"
+      descripcion={esDemo ? 'Demo ficticia local. Usá DEMO10 al elegir un producto.' : 'Aplicá el código en el precio del producto. Se verifica nuevamente al registrar la venta.'}
+      testId="barra-promociones"
+    />
     <SellerFeedback {...data} empty={!data.rows.length} />
     {data.rows.length > 0 && <div className="overflow-x-auto" data-testid="promociones-tabla">
       <div className={cn(GRID_PROMOS, 'px-3.5 pb-2 pt-1')}>

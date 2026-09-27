@@ -11,6 +11,7 @@ import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
 import { cn } from '@/lib/utils'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
+import BarraModulo from '@/components/shared/BarraModulo'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { useVistaListaGrid } from '@/hooks/useVistaListaGrid'
 import ProductoDetalle from '@/components/productos/ProductoDetalle'
@@ -171,7 +172,17 @@ export default function SellerCatalog() {
     toast.success(`${lista.length} producto(s) exportados.`)
   }
 
-  return <SellerSection description="Catálogo de consulta y edición: precio, mayorista, stock y equipos por IMEI.">
+  return <SellerSection title="Productos">
+    <BarraModulo
+      icono="phone"
+      titulo="Productos"
+      descripcion="Catálogo de consulta y edición: precio, mayorista, stock y equipos por IMEI."
+      testId="barra-productos"
+    >
+      <button type="button" onClick={data.refresh} disabled={data.loading} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Actualizar</button>
+      {canManage && !esDemo && <button type="button" onClick={() => setCombosOpen(true)} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Combos</button>}
+      {esOwner && !esDemo && <ImportarProductos onImportada={data.refresh} />}
+    </BarraModulo>
     <div className="flex flex-wrap items-center gap-2">
       <form className="flex min-w-[220px] flex-1 gap-2" onSubmit={(event) => { event.preventDefault(); setSearch(busquedaDiferida.trim()) }}>
         <div className="relative min-w-0 flex-1">
@@ -189,9 +200,6 @@ export default function SellerCatalog() {
       <Select aria-label="Filtrar por condición" className="w-auto" value={condicion} onChange={(event) => setCondicion(event.target.value)}><option value="todas">Nueva y seminueva</option><option value="NEW">Nuevos</option><option value="USED">Seminuevos</option><option value="REFURBISHED">Reacondicionados</option></Select>
       <button type="button" onClick={() => setSoloStock(value => !value)} className={cn('rounded-lg border px-3 py-2 text-xs font-semibold transition', soloStock ? 'border-ok/40 bg-ok/10 text-ok' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}>Con stock</button>
       <ListGridToggle value={vista} onChange={cambiarVista} />
-      <button type="button" onClick={data.refresh} disabled={data.loading} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Actualizar</button>
-      {canManage && !esDemo && <button type="button" onClick={() => setCombosOpen(true)} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Combos</button>}
-      {esOwner && !esDemo && <ImportarProductos onImportada={data.refresh} />}
     </div>
     <SellerFeedback {...data} empty={!rows.length} />
     <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
