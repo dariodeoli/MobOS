@@ -59,10 +59,6 @@ const MODALES = {
 // (menú de tres puntos desplegado, bloqueo/PIN, detalle de pedido y ficha de
 // unidad con checklist). Se auditan a 390 (ancho de referencia del celular).
 const SUPERFICIES = [
-  ['pos-menu', '/pos', (page) => page.getByRole('heading', { name: 'Nueva venta' }), async (page) => {
-    await page.getByTestId('menu-acciones').click()
-    await expect(page.getByTestId('menu-acciones-lista')).toBeVisible()
-  }],
   ['pedido-detalle', '/pedidos', (page) => page.getByTestId('pedido-fila').first(), async (page) => {
     await page.getByTestId('pedido-fila').first().click()
     await expect(page.getByRole('button', { name: /Imprimir comprobante/ }).first()).toBeVisible({ timeout: 20_000 })
@@ -73,8 +69,8 @@ const SUPERFICIES = [
   }],
   // El bloqueo va al final: la pantalla de PIN tapa la app hasta desbloquear.
   ['pos-bloqueo', '/pos', (page) => page.getByRole('heading', { name: 'Nueva venta' }), async (page) => {
-    await page.getByTestId('menu-acciones').click()
-    await page.getByTestId('menu-acciones-lista').getByRole('menuitem', { name: 'Bloquear pantalla', exact: true }).click()
+    // #266: el candado del header bloquea directo (ya no hay menú de tres puntos).
+    await page.getByTestId('shell-bloquear').click()
     await expect(page.locator('#lock-pin')).toBeVisible({ timeout: 15_000 })
   }],
 ]
@@ -82,10 +78,8 @@ const SUPERFICIES = [
 // Controles clave por superficie: el gate exige 44 px. `dibujo: true` mide la
 // caja dibujada (grupos pegados, donde el área expandida se solaparía).
 const CLAVE = {
-  'pos-menu': [
-    { nombre: 'menú · disparador', selector: '[data-testid="menu-acciones"]' },
-    { nombre: 'menú · ítems', selector: '[data-testid="menu-acciones-lista"] [role="menuitem"]', dibujo: true },
-  ],
+  // #266: el candado del header reemplaza al menú de tres puntos.
+  pos: [{ nombre: 'candado del header', selector: '[data-testid="shell-bloquear"]' }],
 }
 
 // Medición en la página: scroll horizontal del documento, elementos visibles
@@ -270,7 +264,7 @@ function auditarPantallas(registro, pantallas) {
 }
 
 function auditarSuperficies(registro) {
-  test('segunda vuelta: menú, bloqueo, detalle de pedido y ficha (390)', async ({ page }) => {
+  test('segunda vuelta: candado, bloqueo, detalle de pedido y ficha (390)', async ({ page }) => {
     mkdirSync(SHOTS, { recursive: true })
     await page.setViewportSize({ width: 390, height: 844 })
     for (const [nombre, ruta, listo, abrir] of SUPERFICIES) {
@@ -358,7 +352,7 @@ test.describe('demo · POS y páginas clave', () => {
     mkdirSync(SHOTS, { recursive: true })
     await entrarDemoDueno(page)
 
-    const claveDemo = [{ nombre: 'menú de acciones (POS)', selector: '[data-testid="menu-acciones"]' }]
+    const claveDemo = [{ nombre: 'candado del header (POS)', selector: '[data-testid="shell-bloquear"]' }]
     const pantallas = [
       ['demo-pos', '/pos', (page) => page.getByRole('heading', { name: 'Nueva venta' }), async (page, ancho) => {
         if (ancho !== 390) return
@@ -391,20 +385,21 @@ test.describe('demo · POS y páginas clave', () => {
     expect(registro).toHaveLength(pantallas.length * ANCHOS.length)
   })
 
-  test('demo · menú de tres puntos desplegado en 390', async ({ page }) => {
+  test('demo · el candado del header bloquea en 390', async ({ page }) => {
     mkdirSync(SHOTS, { recursive: true })
     await page.setViewportSize({ width: 390, height: 844 })
     await entrarDemoDueno(page)
     await page.goto('/pos')
     await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible({ timeout: 30_000 })
-    await page.getByTestId('menu-acciones').click()
-    await expect(page.getByTestId('menu-acciones-lista')).toBeVisible()
-    const medicion = await auditar(page, CLAVE['pos-menu'])
-    console.log(`[demo-pos-menu-390] scroll=${medicion.overflowH}px cortados=${medicion.totalCortados} chicos=${medicion.totalChicos}`)
-    exigirMedicion(medicion, 'demo pos-menu 390', true)
+    const medicion = await auditar(page, CLAVE.pos)
+    console.log(`[demo-pos-candado-390] scroll=${medicion.overflowH}px cortados=${medicion.totalCortados} chicos=${medicion.totalChicos}`)
+    exigirMedicion(medicion, 'demo pos candado 390', true)
     for (const grupo of medicion.clave) {
-      for (const nodo of grupo.nodos) console.log(`[demo-pos-menu-390] clave ${grupo.nombre}: ${nodo.texto} ${nodo.dibujo} → ${nodo.ancho}x${nodo.alto}`)
+      for (const nodo of grupo.nodos) console.log(`[demo-pos-candado-390] clave ${grupo.nombre}: ${nodo.texto} ${nodo.dibujo} → ${nodo.ancho}x${nodo.alto}`)
     }
-    await page.screenshot({ path: `${SHOTS}/demo-pos-menu-390.png` })
+    await page.screenshot({ path: `${SHOTS}/demo-pos-candado-390.png` })
+    await page.getByTestId('shell-bloquear').click()
+    await expect(page.locator('#lock-pin')).toBeVisible({ timeout: 15_000 })
+    await page.screenshot({ path: `${SHOTS}/demo-pos-bloqueo-390.png` })
   })
 })

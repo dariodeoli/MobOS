@@ -480,7 +480,7 @@ test('el informe público usa MedidorBateria y la condición compartida (#240)',
 // «?» del shell lo reutiliza y nadie vuelve a copiar la lista a mano.
 test('el cheat-sheet de atajos vive en app/CheatSheetAtajos (#241)', () => {
   const hoja = readFileSync(join(RAIZ, 'components/app/CheatSheetAtajos.jsx'), 'utf8')
-  for (const accion of ['Búsqueda global', 'Nueva venta', 'Buscar producto', 'Crear cliente', 'Cotizar equipo (Trade-In)', 'Guardar venta', 'Cerrar diálogos', 'Cambiar vendedor', 'Bloquear pantalla']) {
+  for (const accion of ['Búsqueda global', 'Nueva venta', 'Buscar producto', 'Crear cliente', 'Cotizar equipo (Trade-In)', 'Guardar venta', 'Cerrar diálogos', 'Bloquear pantalla', 'Mi perfil']) {
     assert.match(hoja, new RegExp(accion.replace(/[()]/g, '\\$&')), `falta «${accion}» en el cheat-sheet`)
   }
   assert.match(hoja, /Fn\+F1/, 'la nota de Mac explica Fn+F1…F4')
