@@ -11,6 +11,11 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.193 — 2026-09-27
+- **Calidad:** cierre del **dominio Clientes (#187)** en producción v1.0.192: **22/22 marcadores** con capturas (clientes, ficha, portal y móvil).
+- **Calidad:** auditoría de cierre de **#256 (secundarias)**: **6/7 con barra compacta** en producción más el cotizador Trade-In; **faltantes auditados y derivados** (abastecimiento → Inventario).
+- **Calidad:** **CI (#245)** con **racha 2/3** corridas completas verdes; #271 reverificada post-deploy.
+
 ## v1.0.192 — 2026-09-27
 - **Calidad:** verificación **post-deploy de la v1.0.191** en producción: POS/carrito y pagos, cliente ocasional, cotizaciones, plantilla del ticket de prueba y foto de perfil (**17 muestras, ninguna foto vieja**), con capturas en claro/oscuro/móvil.
 - **Calidad:** los recorridos de **Clientes (#260/#273)** y **Plataforma (#271)** quedan documentados con sus enlaces de cierre; el hallazgo de **#275** (al confirmar no navega al detalle) queda registrado para el próximo ciclo.
