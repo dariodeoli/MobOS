@@ -1,6 +1,9 @@
 // Capturas antes/después del editor de la plantilla del ticket de prueba
-// (PRN + diseño): se abre «Imprimir prueba» en la ficha de la impresora demo y
+// (#277, PRN + diseño): se abre «Plantilla» en la ficha de la impresora demo y
 // se fotografían el editor y la vista previa en claro, oscuro y móvil.
+// Contrato v1.0.191 (biblioteca v0.49.0): tipo corto (`corta`, predeterminado)
+// o completo (`completa`), fecha optativa en el corto, ancho 58/80, corte,
+// copias y guardado por impresora.
 //
 //   node scripts/qa-plantilla-prueba.mjs                 (producción: antes)
 //   QA_BASE_URL=http://localhost:5203 QA_OUT=... node scripts/qa-plantilla-prueba.mjs
@@ -46,7 +49,7 @@ async function abrirEditor() {
     await tarjeta.screenshot({ path: join(SALIDA, 'ficha-acciones-desktop.jpg'), type: 'jpeg', quality: 80 })
     tarjetaCapturada = true
   }
-  await tarjeta.getByRole('button', { name: 'Imprimir prueba' }).click()
+  await tarjeta.getByTestId('editar-plantilla').click()
   await page.getByRole('dialog').waitFor({ state: 'visible', timeout: 15_000 })
   await esperar(900)
   return page.getByRole('dialog')
@@ -59,21 +62,23 @@ for (const [tema, modo] of [['claro', 'light'], ['oscuro', 'dark']]) {
   const dialogo = await abrirEditor()
   medidas[`editor-${tema}`] = await page.evaluate(({ testId }) => ({
     editor: Boolean(document.querySelector(`[data-testid="${testId}"]`)),
+    tipo: document.querySelector('#prueba-tipo')?.value || '',
   }), { testId: 'plantilla-prueba' })
   await page.screenshot({ path: join(SALIDA, `editor-${tema}-desktop.jpg`), type: 'jpeg', quality: 76 })
   await dialogo.screenshot({ path: join(SALIDA, `editor-${tema}-desktop-modal.jpg`), type: 'jpeg', quality: 78 })
 
-  // Editor en acción (solo si esta versión trae la plantilla): 58 mm, 2 copias
-  // y sin corte sobre el ticket corto (el predeterminado de #277).
+  // Editor en acción: el ticket corto (predeterminado) con fecha, 58 mm y 2
+  // copias; después el ticket completo, que sigue disponible.
   if (medidas[`editor-${tema}`].editor && tema === 'claro') {
     const editor = dialogo.getByTestId('plantilla-prueba')
+    await editor.getByTestId('plantilla-fecha').check().catch(() => {})
     await editor.getByRole('button', { name: '58 mm' }).click()
-    await editor.getByLabel('Corte').selectOption('ninguno')
+    await editor.getByLabel('Corte').selectOption('parcial')
     await editor.getByRole('button', { name: 'Una copia más' }).click()
     await esperar(700)
-    await dialogo.screenshot({ path: join(SALIDA, 'editor-58-sin-corte-2-copias-desktop.jpg'), type: 'jpeg', quality: 78 })
+    await dialogo.screenshot({ path: join(SALIDA, 'editor-58-fecha-parcial-2-copias-desktop.jpg'), type: 'jpeg', quality: 78 })
     // El ticket completo sigue disponible (el corto es el predeterminado).
-    await dialogo.getByLabel('Tipo de prueba').selectOption('corta')
+    await dialogo.getByLabel('Tipo de prueba').selectOption('completa')
     await esperar(700)
     await dialogo.screenshot({ path: join(SALIDA, 'editor-completo-claro-desktop.jpg'), type: 'jpeg', quality: 78 })
   }
