@@ -1,0 +1,52 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "v1.0.190 (repo v1.0.190)",
+  "estado": "verificado",
+  "hallazgos": [
+    "CI: racha 0/3 · última roja 36285527914 · 9d81687 · chore(release): v1.0.190"
+  ],
+  "resultados": [
+    {
+      "paso": "versión publicada",
+      "estado": "ok",
+      "detalle": "v1.0.190 (repo v1.0.190)",
+      "capturas": [
+        "01-shell-demo.jpg"
+      ]
+    },
+    {
+      "paso": "manifest e íconos de la PWA",
+      "estado": "ok",
+      "detalle": "3 íconos · standalone",
+      "capturas": []
+    },
+    {
+      "paso": "service worker (sw.js) y registro",
+      "estado": "ok",
+      "detalle": "caché mobos-shell-v4/mobos-api-v1 · 1 registro(s) activated",
+      "capturas": []
+    },
+    {
+      "paso": "shell offline (control + precache)",
+      "estado": "ok",
+      "detalle": "8 archivos precacheados · recarga offline: servida desde la caché",
+      "capturas": [
+        "02-shell-precache.jpg"
+      ]
+    },
+    {
+      "paso": "CI en main (guardia)",
+      "estado": "ok",
+      "detalle": "racha 0/3 · última roja 36285527914 · 9d81687 · chore(release): v1.0.190",
+      "capturas": []
+    },
+    {
+      "paso": "vuelta a online",
+      "estado": "ok",
+      "detalle": "recarga normal",
+      "capturas": [
+        "03-demo-online.jpg"
+      ]
+    }
+  ]
+}
