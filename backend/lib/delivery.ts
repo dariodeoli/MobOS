@@ -45,11 +45,11 @@ export function deliveryMethod(value: unknown): DeliveryMethod {
   return method as DeliveryMethod
 }
 
-const INT_MAX = 2147483647
+import { LIMITE_MONTO_VENTAS, numero } from './montos'
 
 function money(value: unknown, label: string) {
   const amount = Number(value)
-  if (!Number.isSafeInteger(amount) || amount < 0 || amount > INT_MAX) throw new InputError(`${label} inválido.`)
+  if (!Number.isSafeInteger(amount) || amount < 0 || amount > LIMITE_MONTO_VENTAS) throw new InputError(`${label} inválido.`)
   return amount
 }
 
@@ -69,16 +69,16 @@ export function deliveryBalance(totalPyg: unknown, confirmedPyg: unknown, collec
   return { paidPyg, pendingPyg: Math.max(0, total - paidPyg) }
 }
 
-export type DeliveryPaymentRow = { amountPyg: number; status: string; deliveryUserId?: string | null }
+export type DeliveryPaymentRow = { amountPyg: bigint | number; status: string; deliveryUserId?: string | null }
 
 /**
  * Resumen del pedido para el reparto: separa lo confirmado de lo pre-cobrado
  * en la calle (todavía sin verificar). Es lo que muestra el panel y lo que
  * decide si todavía falta cobrar.
  */
-export function deliverySummary(order: { totalPyg: number; payments: DeliveryPaymentRow[] }) {
-  const confirmedPyg = order.payments.filter(pago => pago.status === 'CONFIRMED').reduce((suma, pago) => suma + pago.amountPyg, 0)
-  const collectedPyg = order.payments.filter(pago => pago.status === 'PENDING' && pago.deliveryUserId).reduce((suma, pago) => suma + pago.amountPyg, 0)
+export function deliverySummary(order: { totalPyg: bigint | number; payments: DeliveryPaymentRow[] }) {
+  const confirmedPyg = order.payments.filter(pago => pago.status === 'CONFIRMED').reduce((suma, pago) => suma + numero(pago.amountPyg), 0)
+  const collectedPyg = order.payments.filter(pago => pago.status === 'PENDING' && pago.deliveryUserId).reduce((suma, pago) => suma + numero(pago.amountPyg), 0)
   const { paidPyg, pendingPyg } = deliveryBalance(order.totalPyg, confirmedPyg, collectedPyg)
   return { confirmedPyg, collectedPyg, paidPyg, pendingPyg }
 }

@@ -6,6 +6,7 @@ import SerialField from '@/components/shared/SerialField'
 import { api } from '@/lib/api'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { getProductos } from '@/lib/storage'
+import { LIMITE_MONTO_GENERAL } from '@/utils/moneda'
 import { normalizarModelo, valorSugerido, valorSugeridoDeCatalogo } from '@/utils/tradeInCheckout'
 import { GRADOS_TOMA, HALLAZGOS_TOMA, gradoSugerido, valuarToma } from '@/lib/tradeInValuation'
 import { SellerSection } from './SellerData'
@@ -33,7 +34,7 @@ export default function SellerTools({ vista, onCargarVenta }) {
     ? valuarToma({ baseValuePyg: sugerencia.baseValuePyg, grado: gradoElegido, hallazgos })
     : null
   const alternarHallazgo = (clave) => setHallazgos((actuales) => actuales.includes(clave) ? actuales.filter((item) => item !== clave) : [...actuales, clave])
-  const valid = Boolean(model.trim() && imei.trim() && conditionNotes.trim() && String(value ?? '').trim() && Number.isSafeInteger(Number(value)) && Number(value) > 0 && Number(value) <= 2147483647)
+  const valid = Boolean(model.trim() && imei.trim() && conditionNotes.trim() && String(value ?? '').trim() && Number.isSafeInteger(Number(value)) && Number(value) > 0 && Number(value) <= LIMITE_MONTO_GENERAL)
 
   // El valor sugerido se consulta con retraso mientras se escribe: es una
   // referencia para el vendedor, nunca un dato que bloquee la carga.

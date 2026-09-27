@@ -17,7 +17,10 @@ test('no usa cuentas inactivas ni otra moneda', () => {
 })
 test('rechaza ficha incompleta, importe inválido y serial repetido', () => {
   assert.throws(() => tradeInDraftPayment({ ...draft, conditionNotes: '' }, accounts), /Completá/)
-  for (const value of [0, -1, 0.5, NaN, Infinity, 2147483648]) assert.throws(() => tradeInDraftPayment({ ...draft, value }, accounts), /valor/)
+  for (const value of [0, -1, 0.5, NaN, Infinity, 10_000_000_001]) assert.throws(() => tradeInDraftPayment({ ...draft, value }, accounts), /valor/)
+  // La migración bigint de §9 habilita los topes de producto: 3.000 millones
+  // (antes por encima del techo de 32 bits) ya es un valor de toma válido.
+  assert.equal(tradeInDraftPayment({ ...draft, value: 3_000_000_000 }, accounts).monto, '3000000000')
   assert.throws(() => tradeInDraftPayment(draft, accounts, [tradeInDraftPayment(draft, accounts)]), /ya está/)
 })
 test('normaliza el modelo como la clave del backend', () => {

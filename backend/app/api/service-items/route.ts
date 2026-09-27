@@ -2,10 +2,10 @@ import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { canAccessAny, requireSession } from '../../../lib/auth'
 import { InputError, objectInput, textInput } from '../../../lib/payment-input'
+import { LIMITE_MONTO_GENERAL } from '../../../lib/montos'
 
 const DEVICE_TYPES = ['iPhone', 'MacBook', 'AirPods', 'iPad', 'Apple Watch', 'Otros']
-const INT_MAX = 2147483647
-const safeInt = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0 && (value as number) <= INT_MAX
+const safeInt = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0 && (value as number) <= LIMITE_MONTO_GENERAL
 const clean = (value: unknown, max: number) => typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null
 
 // Servicios sugeridos para arrancar el taller (se crean una sola vez por nombre).

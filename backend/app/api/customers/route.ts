@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
+import { LIMITE_MONTO_GENERAL } from '../../../lib/montos'
 import { addressesInput, leerPorcentajeSeguro } from './_lib'
 
 const clean = (value: unknown, max: number) => typeof value === 'string' ? value.trim().slice(0, max) : ''
@@ -171,7 +172,7 @@ export async function POST(request: Request) {
     })()
     if (priceListId && !await prisma.priceList.findFirst({ where: { id: priceListId, tenantId: tenant, isActive: true }, select: { id: true } })) return error('Lista de precios no encontrada.', 404)
     const creditLimitPyg = body.creditLimitPyg === undefined || body.creditLimitPyg === '' || body.creditLimitPyg === null ? undefined : Number(body.creditLimitPyg)
-    if (creditLimitPyg !== undefined && (!Number.isSafeInteger(creditLimitPyg) || creditLimitPyg < 0 || creditLimitPyg > 2147483647)) return error('Límite de crédito inválido.')
+    if (creditLimitPyg !== undefined && (!Number.isSafeInteger(creditLimitPyg) || creditLimitPyg < 0 || creditLimitPyg > LIMITE_MONTO_GENERAL)) return error('Límite de crédito inválido.')
     const creditDays = body.creditDays === undefined || body.creditDays === '' || body.creditDays === null ? undefined : Number(body.creditDays)
     if (creditDays !== undefined && (!Number.isSafeInteger(creditDays) || creditDays < 0 || creditDays > 365)) return error('Plazo de crédito inválido (0 a 365 días).')
     const fields = {

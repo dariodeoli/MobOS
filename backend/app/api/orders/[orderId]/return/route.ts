@@ -4,6 +4,7 @@ import { requireSession } from '../../../../../lib/auth'
 import { InputError, objectInput } from '../../../../../lib/payment-input'
 import { changeStock, recomputeStock } from '../../../../../lib/stock'
 import { canAccessOrder, canProcessOrderReturn, returnRequest } from '../../../../../lib/orders'
+import { numero } from '../../../../../lib/montos'
 
 // La devolución financiera se conserva en la orden original. La reposición de
 // stock es una decisión explícita del mostrador: puede volver a la venta,
@@ -30,7 +31,7 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
         const replacement = await tx.order.findFirst({ where: { id: replacementOrderId, tenantId: tenant }, select: { id: true } })
         if (!replacement) throw new InputError('El pedido de cambio no pertenece a esta empresa.', 404)
       }
-      const confirmed = order.payments.filter(payment => payment.status === 'CONFIRMED').reduce((sum, payment) => sum + payment.amountPyg, 0)
+      const confirmed = order.payments.filter(payment => payment.status === 'CONFIRMED').reduce((sum, payment) => sum + numero(payment.amountPyg), 0)
       // Reembolso total por defecto en devoluciones y cancelaciones; parcial
       // permitido (0..confirmado). El cobro neto baja porque el pago queda
       // registrado como REFUNDED y no suma a lo confirmado.

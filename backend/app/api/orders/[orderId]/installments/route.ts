@@ -1,6 +1,7 @@
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
+import { numero } from '../../../../../lib/montos'
 
 const DAY_MS = 86400000
 
@@ -21,8 +22,8 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
       const order = await tx.order.findFirst({ where: { id: orderId, tenantId: session.user.tenantId }, include: { payments: true } })
       if (!order) throw new Error('Pedido no encontrado.')
       if (order.status === 'CANCELLED') throw new Error('Este pedido está cancelado.')
-      const confirmed = order.payments.filter((payment) => payment.status === 'CONFIRMED').reduce((sum, payment) => sum + payment.amountPyg, 0)
-      const pending = Math.max(0, order.totalPyg - confirmed)
+      const confirmed = order.payments.filter((payment) => payment.status === 'CONFIRMED').reduce((sum, payment) => sum + numero(payment.amountPyg), 0)
+      const pending = Math.max(0, numero(order.totalPyg) - confirmed)
       if (pending <= 0) throw new Error('Este pedido no tiene saldo pendiente.')
       if (order.payments.some((payment) => payment.status === 'PENDING' && payment.dueAt)) throw new Error('Ya existe un plan de cuotas para este pedido.')
       const base = Math.floor(pending / count)

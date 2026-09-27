@@ -48,7 +48,8 @@ export async function GET(request: Request) {
     oldestDueAt: row.oldestDueAt, overdueOrders: row.overdueOrders,
     overduePyg: Number(row.overduePyg), maxOverdueDays: row.maxOverdueDays,
     dueSoonPyg: Number(row.dueSoonPyg), dueSoonOrders: row.dueSoonOrders,
-    limitUsagePct: row.creditLimitPyg ? Math.min(100, Math.round((Number(row.outstandingPyg) / row.creditLimitPyg) * 100)) : null,
+    // El límite viene bigint desde la migración §9: se compara en number.
+    limitUsagePct: row.creditLimitPyg ? Math.min(100, Math.round((Number(row.outstandingPyg) / Number(row.creditLimitPyg)) * 100)) : null,
   }))
   const totales = resumen[0] || { customersWithDebt: 0, outstandingPyg: 0n, overdueCustomers: 0, overduePyg: 0n, dueSoonCustomers: 0, dueSoonPyg: 0n }
   const totals = {

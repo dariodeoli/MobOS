@@ -2,7 +2,8 @@ import { Prisma, type TradeInStatus, type ProductDestination } from '@prisma/cli
 import { prisma } from '../../../lib/prisma'
 import { requireSession } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
-import { InputError, INT_MAX, objectInput, textInput } from '../../../lib/payment-input'
+import { InputError, objectInput, textInput } from '../../../lib/payment-input'
+import { LIMITE_MONTO_GENERAL, numero } from '../../../lib/montos'
 
 const transitions: Record<TradeInStatus, TradeInStatus[]> = {
   RECEIVED: ['REVIEW'], REVIEW: ['REPAIR', 'READY', 'SOLD_EXTERNAL'], REPAIR: ['READY'],
@@ -74,7 +75,7 @@ export async function PATCH(request: Request) {
     const accessories = stringList(body.accessories, 'accessories')
     const photos = stringList(body.photos, 'photos')
     const increment = body.repairCostPyg === undefined ? 0 : body.repairCostPyg
-    if (!Number.isSafeInteger(increment) || Number(increment) < 0 || Number(increment) > INT_MAX || (body.repairCostPyg !== undefined && increment === 0)) throw new InputError('repairCostPyg debe ser un incremento entero positivo.')
+    if (!Number.isSafeInteger(increment) || Number(increment) < 0 || Number(increment) > LIMITE_MONTO_GENERAL || (body.repairCostPyg !== undefined && increment === 0)) throw new InputError('repairCostPyg debe ser un incremento entero positivo.')
     const result = await prisma.$transaction(async tx => {
       if (admin) await tx.$queryRaw`SELECT "id" FROM "TradeInDevice" WHERE "id" = ${id} AND "tenantId" = ${tenantId} FOR UPDATE`
       else await tx.$queryRaw`SELECT "id" FROM "TradeInDevice" WHERE "id" = ${id} AND "tenantId" = ${tenantId} AND "branchId" IS NOT DISTINCT FROM ${session.user.branchId}::text FOR UPDATE`
@@ -85,19 +86,19 @@ export async function PATCH(request: Request) {
       if (current.status === 'STOCK' || current.status === 'SOLD_EXTERNAL') throw new InputError('El equipo ya tiene una salida registrada.', 409)
       if (!body.status && notes === undefined && !increment && diagnosis === undefined && technicianName === undefined && accessories === undefined && photos === undefined) throw new InputError('Faltan cambios.')
       if (increment && current.status !== 'REPAIR' && next !== 'REPAIR') throw new InputError('Los costos se registran durante reparación.', 409)
-      const repairCostPyg = current.repairCostPyg + Number(increment)
-      if (!Number.isSafeInteger(repairCostPyg) || repairCostPyg > INT_MAX) throw new InputError('Costo acumulado fuera de rango.')
+      const repairCostPyg = numero(current.repairCostPyg) + Number(increment)
+      if (!Number.isSafeInteger(repairCostPyg) || repairCostPyg > LIMITE_MONTO_GENERAL) throw new InputError('Costo acumulado fuera de rango.')
       // Costo real del equipo para margen y seguro (#148 §19): lo que se pagó
       // por la valuación + las reparaciones acumuladas. Se congela en el
       // producto al publicarlo; si no, la venta queda con costo pendiente.
-      const costoEquipoPyg = current.valuePyg + repairCostPyg
-      if (!Number.isSafeInteger(costoEquipoPyg) || costoEquipoPyg > INT_MAX) throw new InputError('El costo del equipo (valor + reparaciones) supera el máximo permitido.')
+      const costoEquipoPyg = numero(current.valuePyg) + repairCostPyg
+      if (!Number.isSafeInteger(costoEquipoPyg) || costoEquipoPyg > LIMITE_MONTO_GENERAL) throw new InputError('El costo del equipo (valor + reparaciones) supera el máximo permitido.')
       if (next === 'SOLD_EXTERNAL' && !notes) throw new InputError('Indique destino y contraparte en notes para la salida externa.')
       if (next !== 'STOCK' && (body.pricePyg !== undefined || body.destination !== undefined)) throw new InputError('Precio y destino corresponden a la publicación STOCK.')
       let productId: string | undefined
       if (next === 'STOCK') {
         if (current.productId) throw new InputError('El equipo ya fue publicado.', 409)
-        if (!Number.isSafeInteger(body.pricePyg) || Number(body.pricePyg) <= 0 || Number(body.pricePyg) > INT_MAX) throw new InputError('pricePyg debe ser un entero positivo.')
+        if (!Number.isSafeInteger(body.pricePyg) || Number(body.pricePyg) <= 0 || Number(body.pricePyg) > LIMITE_MONTO_GENERAL) throw new InputError('pricePyg debe ser un entero positivo.')
         if (!['NORMAL', 'OFFER', 'WHOLESALE'].includes(body.destination as string)) throw new InputError('destination debe ser NORMAL, OFFER o WHOLESALE.')
         if (current.branchId && !await tx.branch.findFirst({ where: { id: current.branchId, tenantId, isActive: true } })) throw new InputError('Sucursal inactiva.', 409)
         const duplicate = await tx.product.findFirst({ where: { tenantId, imei: { equals: current.serial, mode: 'insensitive' } } })
@@ -108,7 +109,7 @@ export async function PATCH(request: Request) {
       }
       const updated = await tx.tradeInDevice.update({ where: { id }, data: { status: next, notes, productId, ...(diagnosis !== undefined ? { diagnosis } : {}), ...(technicianName !== undefined ? { technicianName } : {}), ...(accessories !== undefined ? { accessories } : {}), ...(photos !== undefined ? { photos } : {}), ...(increment ? { repairCostPyg: { increment: Number(increment) } } : {}) }, include: includeRelations(admin) })
       if (increment) await tx.auditLog.create({ data: { tenantId, userId: session.user.id, action: 'TRADE_IN_REPAIR_COST_ADDED', entity: 'TradeInDevice', entityId: id,
-        metadata: { incrementPyg: Number(increment), beforePyg: current.repairCostPyg, afterPyg: repairCostPyg, notes: notes ?? null } } })
+        metadata: { incrementPyg: Number(increment), beforePyg: numero(current.repairCostPyg), afterPyg: repairCostPyg, notes: notes ?? null } } })
       await tx.auditLog.create({ data: { tenantId, userId: session.user.id, action: next === 'STOCK' ? 'TRADE_IN_PUBLISHED' : next === 'SOLD_EXTERNAL' ? 'TRADE_IN_SOLD_EXTERNAL' : 'TRADE_IN_UPDATED', entity: 'TradeInDevice', entityId: id,
         metadata: { from: current.status, to: next, notes: notes ?? null, previousNotes: current.notes, productId: productId ?? null,
           ...(next === 'STOCK' ? { pricePyg: Number(body.pricePyg), destination: body.destination as string, costPyg: costoEquipoPyg } : {}), ...(diagnosis !== undefined ? { diagnosis } : {}), ...(technicianName !== undefined ? { technicianName } : {}), ...(accessories !== undefined ? { accessoriesCount: accessories.length } : {}), ...(photos !== undefined ? { photosCount: photos.length } : {}) } } })

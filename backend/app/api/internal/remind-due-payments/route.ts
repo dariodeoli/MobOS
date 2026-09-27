@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { error, json } from '../../../../lib/http'
 import { prisma } from '../../../../lib/prisma'
 import { customerEmailValid, notifyPaymentDue, notifyPaymentOverdue, notifyReservationDue } from '../../../../lib/email-notifications'
+import { numero } from '../../../../lib/montos'
 
 function authorized(request: Request) {
   const expected = process.env.MOBOS_MAINTENANCE_TOKEN
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
       customerEmail: email,
       orderNumber: payment.order.orderNumber,
       dueAt: payment.dueAt as Date,
-      amountPyg: payment.amountPyg,
+      amountPyg: numero(payment.amountPyg),
     })
     if (!customerEmailValid(email) && !enqueued) continue
     const marked = await prisma.payment.updateMany({ where: { id: payment.id, remindedAt: null }, data: { remindedAt: new Date() } })
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
       customerEmail: email,
       orderNumber: payment.order.orderNumber,
       dueAt: payment.dueAt as Date,
-      amountPyg: payment.amountPyg,
+      amountPyg: numero(payment.amountPyg),
     })
     if (!customerEmailValid(email) && !enqueued) continue
     const marked = await prisma.payment.updateMany({ where: { id: payment.id, overdueRemindedAt: null }, data: { overdueRemindedAt: new Date() } })

@@ -1,6 +1,7 @@
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
+import { numero } from '../../../../../lib/montos'
 
 type RouteContext = { params: { id: string } }
 
@@ -83,7 +84,7 @@ export async function GET(request: Request, { params }: RouteContext) {
 
   const events: TimelineEvent[] = [
     ...orders.flatMap(order => {
-      const totalPyg = order.lines.reduce((sum, line) => sum + line.finalTotalCostPyg, 0)
+      const totalPyg = order.lines.reduce((sum, line) => sum + numero(line.finalTotalCostPyg), 0)
       const compra: TimelineEvent = {
         id: `purchase-${order.id}`,
         type: 'purchase',

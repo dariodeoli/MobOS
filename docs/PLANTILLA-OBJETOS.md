@@ -109,7 +109,9 @@ patrón de uso de cada familia y un ejemplo corto.
   se escribe. `MoneyInput` usa el límite general por defecto; las pantallas de
   venta pasan `max={LIMITE_MONTO_VENTAS}` (POS #151 y FIN). Al superarlo el
   campo se marca (`aria-invalid`) y el formulario valida con `excedeMonto`;
-  nunca se recortan dígitos.
+  nunca se recortan dígitos. Las columnas de dinero son **bigint** desde la
+  migración `20261228000000_money_bigint` (#278), así que estos topes son el
+  techo real del sistema.
 - Teclado móvil correcto (`inputMode`/`pattern`/`autoComplete`); nada de
   máscaras que rompan pegado, autofill o `fill()` de las pruebas.
 - Solo dígitos: `inputMode="numeric"` + limpieza `\D`; porcentajes con

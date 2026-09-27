@@ -4,6 +4,7 @@ import { error, json, tenantId } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
 import { InputError, objectInput, textInput } from '../../../../lib/payment-input'
 import { canManageDelivery, canUseDelivery } from '../../../../lib/delivery'
+import { numero } from '../../../../lib/montos'
 
 // Rendición del reparto: el repartidor entrega en la tienda el efectivo y las
 // transferencias que cobró en la calle, junto con el saldo que quedó pendiente
@@ -52,14 +53,14 @@ export async function POST(request: Request) {
     if (Object.keys(body).some(key => key !== 'note')) throw new InputError('Campo no admitido en la rendición.')
     const note = body.note === undefined || body.note === null || body.note === '' ? null : textInput(body.note, 'Observación', 500)
     const settlement = await prisma.$transaction(async tx => {
-      const cobros = await tx.$queryRaw<Array<{ id: string; amountPyg: number; orderId: string }>>`
+      const cobros = await tx.$queryRaw<Array<{ id: string; amountPyg: bigint | number; orderId: string }>>`
         SELECT "id", "amountPyg", "orderId" FROM "Payment"
         WHERE "tenantId" = ${tenant} AND "deliveryUserId" = ${session.user.id} AND "status" = 'PENDING' AND "deliverySettlementId" IS NULL
         ORDER BY "createdAt" ASC
         FOR UPDATE
       `
       if (!cobros.length) throw new InputError('No hay cobros pendientes de rendir.', 409)
-      const totalPyg = cobros.reduce((suma, cobro) => suma + cobro.amountPyg, 0)
+      const totalPyg = cobros.reduce((suma, cobro) => suma + numero(cobro.amountPyg), 0)
       if (!Number.isSafeInteger(totalPyg)) throw new InputError('El total de la rendición está fuera de rango.')
       const orderIds = [...new Set(cobros.map(cobro => cobro.orderId))]
       // Saldo que queda vivo en cada pedido después de esta rendición: es lo
@@ -68,14 +69,14 @@ export async function POST(request: Request) {
         tx.order.findMany({ where: { id: { in: orderIds }, tenantId: tenant }, select: { id: true, totalPyg: true, status: true } }),
         tx.payment.groupBy({ by: ['orderId'], where: { tenantId: tenant, orderId: { in: orderIds }, status: 'CONFIRMED' }, _sum: { amountPyg: true } }),
       ])
-      const confirmadoPorPedido = new Map(confirmados.map(row => [row.orderId, row._sum.amountPyg || 0]))
+      const confirmadoPorPedido = new Map(confirmados.map(row => [row.orderId, numero(row._sum.amountPyg)]))
       const rendidoPorPedido = new Map<string, number>()
-      for (const cobro of cobros) rendidoPorPedido.set(cobro.orderId, (rendidoPorPedido.get(cobro.orderId) || 0) + cobro.amountPyg)
+      for (const cobro of cobros) rendidoPorPedido.set(cobro.orderId, (rendidoPorPedido.get(cobro.orderId) || 0) + numero(cobro.amountPyg))
       const pagados = new Set(pedidos.filter(pedido => pedido.status === 'COMPLETED').map(pedido => pedido.id))
       let pendingPyg = 0
       for (const pedido of pedidos) {
         if (pagados.has(pedido.id)) continue
-        pendingPyg += Math.max(0, pedido.totalPyg - (confirmadoPorPedido.get(pedido.id) || 0) - (rendidoPorPedido.get(pedido.id) || 0))
+        pendingPyg += Math.max(0, numero(pedido.totalPyg) - (confirmadoPorPedido.get(pedido.id) || 0) - (rendidoPorPedido.get(pedido.id) || 0))
       }
       const created = await tx.deliverySettlement.create({
         data: { tenantId: tenant, branchId: session.user.branchId, deliveryUserId: session.user.id, totalPyg, pendingPyg, ordersCount: orderIds.length, note },

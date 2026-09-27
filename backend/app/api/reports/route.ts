@@ -2,6 +2,7 @@ import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
 import { canAccessAny, requireSession } from '../../../lib/auth'
 import { costoRepuestosDeInspection } from '../../../lib/costs'
+import { numero } from '../../../lib/montos'
 import {
   MAX_REPORT_ORDERS,
   ReportInputError,
@@ -198,7 +199,7 @@ export async function GET(request: Request) {
           const feePercent = snapshot && (typeof snapshot.feePercent === 'number' || typeof snapshot.feePercent === 'string')
             ? Number(snapshot.feePercent) : 0
           const feePyg = Number.isFinite(feePercent) && feePercent > 0
-            ? Math.round((pago.amountPyg * feePercent) / 100) : 0
+            ? Math.round((numero(pago.amountPyg) * feePercent) / 100) : 0
           return {
             status: pago.status, amountPyg: pago.amountPyg, feePyg, method: pago.method ?? null,
             accountName: snapshot && typeof snapshot.name === 'string' ? snapshot.name : null,
@@ -262,7 +263,7 @@ export async function GET(request: Request) {
           select: { productId: true, costPyg: true, inspection: true },
         })
       : []
-    const unidadesPorProducto = new Map<string, Array<{ costPyg: number | null; inspection: unknown }>>()
+    const unidadesPorProducto = new Map<string, Array<{ costPyg: bigint | number | null; inspection: unknown }>>()
     for (const unidad of unidadesStock) {
       const fila = unidadesPorProducto.get(unidad.productId) || []
       fila.push({ costPyg: unidad.costPyg, inspection: unidad.inspection })
@@ -270,8 +271,8 @@ export async function GET(request: Request) {
     }
     const valorDeProducto = (product: (typeof productStock)[number]) => {
       const unidades = unidadesPorProducto.get(product.id)
-      if (unidades?.length) return unidades.reduce((suma, unidad) => suma + (unidad.costPyg ?? product.costPyg ?? 0) + costoRepuestosDeInspection(unidad.inspection), 0)
-      return Math.max(0, product.stock) * Math.max(0, product.costPyg ?? 0)
+      if (unidades?.length) return unidades.reduce((suma, unidad) => suma + numero(unidad.costPyg ?? product.costPyg ?? 0) + costoRepuestosDeInspection(unidad.inspection), 0)
+      return Math.max(0, product.stock) * Math.max(0, numero(product.costPyg))
     }
     const sinCostoDeProducto = (product: (typeof productStock)[number]) => {
       if (product.stock <= 0) return false

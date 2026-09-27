@@ -4,6 +4,7 @@ import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
 import { changeStock } from '../../../../lib/stock'
 import { costoPorUnidad, estadoLoteRecepcion, normalizarSeriales, RESULTADOS_INCIDENCIA, RESULTADOS_RECEPCION, resumenRecepcion } from '../../../../lib/supply'
+import { numeroOpcional } from '../../../../lib/montos'
 
 // #250 Fase 5 (Centro de Abastecimiento): recepción del envío entrante.
 //
@@ -230,12 +231,12 @@ export async function PATCH(request: Request) {
       const existente = await tx.inventoryUnit.findFirst({ where: { tenantId: tenant, serial: item.serial }, select: { serial: true } })
       if (existente) throw new Error(`El IMEI ${item.serial} ya está en el inventario.`)
       const costo = costoPorUnidad({
-        totalCostPyg: recepcion.shipment.purchase.costPyg,
+        totalCostPyg: numeroOpcional(recepcion.shipment.purchase.costPyg),
         totalOriginal: recepcion.shipment.purchase.originalCost === null ? null : Number(recepcion.shipment.purchase.originalCost),
         currency: recepcion.shipment.purchase.currency,
         rate: recepcion.shipment.purchase.exchangeRatePyg === null ? null : Number(recepcion.shipment.purchase.exchangeRatePyg),
         unidades: unidadesCompra,
-        unitCostPyg: linea.unitCostPyg,
+        unitCostPyg: numeroOpcional(linea.unitCostPyg),
       })
       const unidad = await tx.inventoryUnit.create({
         data: {

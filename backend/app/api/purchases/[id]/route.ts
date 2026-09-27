@@ -2,6 +2,7 @@ import { prisma } from '../../../../lib/prisma'
 import { error, json } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
 import { purchaseTotals } from '../../../../lib/purchases'
+import { numero } from '../../../../lib/montos'
 
 type RouteContext = { params: { id: string } }
 
@@ -34,6 +35,21 @@ export async function GET(request: Request, { params }: RouteContext) {
     take: 200,
   })
 
-  const totals = purchaseTotals(purchase.lines, purchase.payments)
+  const totals = purchaseTotals(
+    purchase.lines.map(line => ({
+      ...line,
+      unitCostPyg: numero(line.unitCostPyg),
+      baseTotalPyg: numero(line.baseTotalPyg),
+      allocatedShippingPyg: numero(line.allocatedShippingPyg),
+      allocatedCustomsPyg: numero(line.allocatedCustomsPyg),
+      allocatedInsurancePyg: numero(line.allocatedInsurancePyg),
+      allocatedTaxesPyg: numero(line.allocatedTaxesPyg),
+      allocatedOtherCostsPyg: numero(line.allocatedOtherCostsPyg),
+      allocatedExtraCostPyg: numero(line.allocatedExtraCostPyg),
+      finalTotalCostPyg: numero(line.finalTotalCostPyg),
+      finalUnitCostPyg: numero(line.finalUnitCostPyg),
+    })),
+    purchase.payments,
+  )
   return json({ purchase: { ...purchase, ...totals }, audit })
 }

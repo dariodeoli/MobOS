@@ -2,6 +2,7 @@
 // API. Centralizarla evita que POST y PATCH acepten combinaciones distintas
 // (producto vs categoría, precio fijo vs descuento, escalones inválidos).
 import { normalizarCategoria } from './pricing'
+import { LIMITE_MONTO_GENERAL } from './montos'
 
 const INT_MAX = 2147483647
 
@@ -27,7 +28,7 @@ const texto = (value: unknown, label: string, max: number) => {
 function montoPyg(value: unknown): number | null {
   if (value === null || value === undefined || value === '') return null
   const number = Number(value)
-  if (!Number.isSafeInteger(number) || number < 0 || number > INT_MAX) throw new PriceListInputError('El precio en guaraníes debe ser un entero válido.')
+  if (!Number.isSafeInteger(number) || number < 0 || number > LIMITE_MONTO_GENERAL) throw new PriceListInputError('El precio en guaraníes debe ser un entero válido.')
   return number
 }
 

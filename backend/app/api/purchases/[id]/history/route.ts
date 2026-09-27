@@ -1,6 +1,7 @@
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
+import { numero } from '../../../../../lib/montos'
 
 type RouteContext = { params: { id: string } }
 
@@ -94,7 +95,7 @@ export async function GET(request: Request, { params }: RouteContext) {
   ])
   const userById = new Map(paymentUsers.map(user => [user.id, user]))
   const lineById = new Map(purchase.lines.map(line => [line.id, line]))
-  const totalPyg = purchase.lines.reduce((sum, line) => sum + line.finalTotalCostPyg, 0)
+  const totalPyg = purchase.lines.reduce((sum, line) => sum + numero(line.finalTotalCostPyg), 0)
   const nombreLinea = (lineId: unknown) => {
     const line = lineById.get(String(lineId || ''))
     return line ? (line.product?.name || line.product?.sku || line.productId) : 'Línea'

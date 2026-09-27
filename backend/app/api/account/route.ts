@@ -6,6 +6,7 @@ import { googleStores } from '../../../lib/google-company'
 import { formatOrderNumber, maxOrderSequence } from '../../../lib/order-number'
 import { recoveryDeadline } from '../../../lib/tenant-archive'
 import { purgeTenantData, type TenantPurgeCounts } from '../../../lib/tenant-purge'
+import { LIMITE_MONTO_GENERAL } from '../../../lib/montos'
 
 const REAUTH_WINDOW_MS = 10 * 60 * 1000
 const ADMIN_ROLE = 'ADMIN'
@@ -144,7 +145,7 @@ export async function PATCH(request: Request) {
         if (value === undefined) return undefined
         if (value === null || value === '') return null
         const amount = Number(value)
-        if (!Number.isSafeInteger(amount) || amount < 0 || amount > 2147483647) throw new Error(`${field} debe ser un entero entre 0 y 2147483647.`)
+        if (!Number.isSafeInteger(amount) || amount < 0 || amount > LIMITE_MONTO_GENERAL) throw new Error(`${field} debe ser un entero entre 0 y ${LIMITE_MONTO_GENERAL.toLocaleString('es-PY')}.`)
         return amount
       }
       const expenseLimitPyg = limitOf(body.expenseLimitPyg, 'El límite de gasto')

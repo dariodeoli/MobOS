@@ -5,10 +5,13 @@ import { requireSession } from '../../../lib/auth'
 import { quoteTotals } from '../../../lib/pricing'
 import { enforceRateLimit } from '../../../lib/rate-limit'
 import { esNumeroCotizacionDuplicado, nextQuoteNumber } from '../../../lib/quote-number'
+import { LIMITE_MONTO_VENTAS, numero } from '../../../lib/montos'
 
 const INT_MAX = 2147483647
 const STATUSES = ['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED', 'CONVERTED', 'EXPIRED', 'CANCELLED']
 const safeInt = (value: unknown, min = 0) => Number.isSafeInteger(value) && (value as number) >= min && (value as number) <= INT_MAX
+// Precios y totales de la cotización: tope de montos de venta.
+const safeMonto = (value: unknown, min = 0) => Number.isSafeInteger(value) && (value as number) >= min && (value as number) <= LIMITE_MONTO_VENTAS
 const text = (value: unknown, max = 300) => typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null
 
 // Patrón LIKE literal: % y _ del texto buscado no actúan como comodines.
@@ -23,9 +26,9 @@ function normalizeItems(raw: unknown): QuoteItem[] {
     const quantity = Number(item.quantity)
     const price = Number(item.unitPricePyg)
     const description = text(item.description, 300) || 'Producto'
-    if (!safeInt(quantity, 1) || !safeInt(price)) throw new Error('Cantidad y precio deben ser enteros válidos.')
+    if (!safeInt(quantity, 1) || !safeMonto(price)) throw new Error('Cantidad y precio deben ser enteros válidos.')
     const total = quantity * price
-    if (!safeInt(total)) throw new Error('El total de una línea excede el rango permitido.')
+    if (!safeMonto(total)) throw new Error('El total de una línea excede el rango permitido.')
     return { ...(typeof item.productId === 'string' && item.productId ? { productId: item.productId } : {}), description, quantity, unitPricePyg: price, totalPyg: total }
   })
 }
@@ -141,7 +144,7 @@ export async function PATCH(request: Request) {
         ...(status ? { status } : {}),
         ...(validUntil !== undefined ? { validUntil } : {}),
         ...(body?.notes !== undefined ? { notes: text(body.notes, 2000) } : {}),
-        ...(body?.discountPyg !== undefined ? { discountPyg: Number(body.discountPyg), totalPyg: quote.subtotalPyg - Number(body.discountPyg) } : {}),
+        ...(body?.discountPyg !== undefined ? { discountPyg: Number(body.discountPyg), totalPyg: numero(quote.subtotalPyg) - Number(body.discountPyg) } : {}),
       }, include: { seller: { select: { id: true, name: true } }, customer: { select: { id: true, name: true, phone: true, email: true } }, order: { select: { id: true, orderNumber: true } } } })
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'QUOTE_UPDATED', entity: 'Quote', entityId: quote.id, metadata: { from: quote.status, to: data.status } } })
       return data

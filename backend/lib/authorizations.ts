@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client'
 import { InputError } from './payment-input'
+import { LIMITE_MONTO_GENERAL } from './montos'
 
 // Motor genérico de autorizaciones comerciales: una solicitud pendiente por
 // vendedor + tipo + sujeto, resuelta por gerencia y consumida una sola vez.
@@ -30,8 +31,6 @@ export const DEFAULT_EXPENSE_LIMIT_PYG = 1000000
 export const DEFAULT_PURCHASE_CREDIT_LIMIT_PYG = 5000000
 // Venta bajo lista: hasta este porcentaje de diferencia no pide autorización.
 export const DEFAULT_BELOW_LIST_PCT = 10
-
-const INT_MAX = 2147483647
 
 export type AuthorizationValue = {
   creditLimitPyg?: number
@@ -79,7 +78,7 @@ export function maxDiscountPygOf(resolvedValue: unknown): number {
 export function authorizedAmountOf(resolvedValue: unknown, key: 'maxAmountPyg' | 'maxTotalPyg'): number {
   const value = authorizationValueOf(resolvedValue)
   const amount = Number(value[key])
-  return safeIntValue(amount, 0, INT_MAX) ? amount : -1
+  return safeIntValue(amount, 0, LIMITE_MONTO_GENERAL) ? amount : -1
 }
 
 type UsableAuthorization = {

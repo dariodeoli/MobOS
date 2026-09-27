@@ -2,6 +2,7 @@ import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { esCodigoDuplicado, nextOrderNumber } from '../../../../../lib/order-number'
+import { numero } from '../../../../../lib/montos'
 
 // Convierte la cotización en un pedido pendiente (sin movimientos de stock:
 // el stock y los IMEI se confirman al cobrar/entregar en el POS).
@@ -17,7 +18,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (quote.status === 'CANCELLED') return error('La cotización está cancelada.', 409)
   const items = Array.isArray(quote.items) ? quote.items as Array<Record<string, unknown>> : []
   if (!items.length) return error('La cotización no tiene ítems.', 409)
-  const total = Math.max(0, quote.totalPyg)
+  const total = Math.max(0, numero(quote.totalPyg))
   try {
     const convertir = () => prisma.$transaction(async tx => {
       const created = await tx.order.create({ data: {

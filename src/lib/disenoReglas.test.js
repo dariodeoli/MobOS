@@ -160,11 +160,12 @@ test('la biblioteca de objetos: búsquedas, toggles y segmentados compartidos', 
   assert.match(leerBiblioteca('ui.jsx'), /export function Subtabs\(/, 'Subtabs vive en la biblioteca')
   assert.ok(!/function Subtabs\(/.test(leer('pages/PanelVendedor.jsx')), 'PanelVendedor no redefine Subtabs')
   // Estándar de tamaños de monto (#148 §9) en el campo compartido: marca el
-  // monto que supera el límite del contexto, acotado al tope almacenable.
+  // monto que supera el límite del contexto, acotado al tope almacenable
+  // (bigint desde la migración de §9: general 10B y ventas 99B).
   assert.match(leer('components/ui/index.jsx'), /excedeMonto\(value, limite\)/, 'MoneyInput debe marcar el monto que supera el límite efectivo')
   assert.match(leer('components/ui/index.jsx'), /limiteMonto\(max\)/, 'el límite del campo se acota al tope almacenable')
   assert.match(leer('utils/moneda.js'), /LIMITE_MONTO_VENTAS = 99_000_000_000/, 'falta el límite de ventas')
-  assert.match(leer('utils/moneda.js'), /LIMITE_MONTO_ALMACENABLE = 2_147_483_647/, 'falta el tope real de almacenamiento')
+  assert.match(leer('utils/moneda.js'), /LIMITE_MONTO_ALMACENABLE = LIMITE_MONTO_VENTAS/, 'el tope real de almacenamiento es el de ventas (columnas bigint)')
 })
 
 test('el logo sigue al tema: fondo oscuro → logo claro y fondo claro → logo oscuro (#163)', () => {

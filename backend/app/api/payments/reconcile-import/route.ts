@@ -2,7 +2,8 @@ import { prisma } from '../../../../lib/prisma'
 import { error, json } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
 import { enforceRateLimit } from '../../../../lib/rate-limit'
-import { InputError, INT_MAX, objectInput } from '../../../../lib/payment-input'
+import { InputError, objectInput } from '../../../../lib/payment-input'
+import { LIMITE_MONTO_VENTAS, numero } from '../../../../lib/montos'
 
 // Conciliación bancaria por CSV: el cliente ya parseó el extracto y acá se
 // cruzan las filas contra los cobros confirmados del tenant. No modifica nada:
@@ -28,7 +29,7 @@ type FilaExtracto = {
 type PagoCandidato = {
   id: string
   orderId: string
-  amountPyg: number
+  amountPyg: bigint | number
   paidAt: Date
   reference: string | null
   order: { orderNumber: string; customer: { name: string } | null }
@@ -53,7 +54,7 @@ function fechaDeFila(value: unknown): { date: string; dayNumber: number } {
 
 function montoDeFila(value: unknown): number {
   const amountPyg = Number(value)
-  if (!Number.isSafeInteger(amountPyg) || amountPyg <= 0 || amountPyg > INT_MAX) throw new InputError('amountPyg debe ser un entero positivo.')
+  if (!Number.isSafeInteger(amountPyg) || amountPyg <= 0 || amountPyg > LIMITE_MONTO_VENTAS) throw new InputError('amountPyg debe ser un entero positivo.')
   return amountPyg
 }
 
@@ -142,9 +143,10 @@ export async function POST(request: Request) {
 
   const porMonto = new Map<number, PagoCandidato[]>()
   for (const pago of candidatos) {
-    const lista = porMonto.get(pago.amountPyg)
+    const monto = numero(pago.amountPyg)
+    const lista = porMonto.get(monto)
     if (lista) lista.push(pago)
-    else porMonto.set(pago.amountPyg, [pago])
+    else porMonto.set(monto, [pago])
   }
 
   const resultado = filas.map(fila => ({
@@ -160,7 +162,7 @@ export async function POST(request: Request) {
         paymentId: pago.id,
         orderId: pago.orderId,
         orderNumber: pago.order.orderNumber,
-        amountPyg: pago.amountPyg,
+        amountPyg: numero(pago.amountPyg),
         paidAt: pago.paidAt,
         customerName: pago.order.customer?.name ?? null,
         reference: pago.reference,

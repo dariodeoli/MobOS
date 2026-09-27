@@ -8,6 +8,7 @@ import { canAccessOrder, validateFulfillmentTransition, canApproveOrderDiscount 
 import { consumeAuthorization, usableAuthorization } from '../../../../lib/authorizations'
 import { serialKey } from '../../../../lib/validation'
 import { changeStock } from '../../../../lib/stock'
+import { numero } from '../../../../lib/montos'
 
 const orderInclude = Prisma.validator<Prisma.OrderInclude>()({
   items: true,
@@ -188,10 +189,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
     let pendingDeliveryPyg = 0
     // Entregar (o retirar) con saldo, incluso parcial, sigue la misma regla.
     if (['DELIVERED', 'PICKED_UP', 'PARTIAL'].includes(String(fulfillmentStatus)) && existing.fulfillmentStatus !== fulfillmentStatus) {
-      const pagado = existing.payments.filter(pago => pago.status === 'CONFIRMED').reduce((suma, pago) => suma + Number(pago.amountPyg || 0), 0)
-      pendingDeliveryPyg = Math.max(0, existing.totalPyg - pagado)
+      const pagado = existing.payments.filter(pago => pago.status === 'CONFIRMED').reduce((suma, pago) => suma + numero(pago.amountPyg), 0)
+      pendingDeliveryPyg = Math.max(0, numero(existing.totalPyg) - pagado)
       if (pendingDeliveryPyg > 0) {
-        const credito = existing.customer && Number(existing.customer.creditLimitPyg || 0) > 0 && Number(existing.customer.creditDays || 0) > 0
+        const credito = existing.customer && numero(existing.customer.creditLimitPyg) > 0 && Number(existing.customer.creditDays || 0) > 0
           ? { creditDays: Number(existing.customer.creditDays) }
           : null
         if (credito) {

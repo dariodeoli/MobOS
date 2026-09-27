@@ -1,15 +1,15 @@
 export type PurchaseCostLineInput = {
   id: string
   quantity: number
-  unitCostPyg: number
+  unitCostPyg: bigint | number
 }
 
 export type PurchaseCostInput = {
-  shippingPyg: number
-  customsPyg: number
-  insurancePyg: number
-  taxesPyg: number
-  otherCostsPyg: number
+  shippingPyg: bigint | number
+  customsPyg: bigint | number
+  insurancePyg: bigint | number
+  taxesPyg: bigint | number
+  otherCostsPyg: bigint | number
   method?: 'PROPORTIONAL_VALUE' | 'PROPORTIONAL_QUANTITY'
 }
 
@@ -31,17 +31,19 @@ function allocate(total: number, weights: number[], ids: string[]): Allocation {
   return result
 }
 
+import { numero } from './montos'
+
 /** Distribuye cada gasto explícitamente, sin redondeos perdidos, por valor o cantidad. */
 export function distributePurchaseCosts<T extends PurchaseCostLineInput>(lines: T[], input: PurchaseCostInput) {
   if (!lines.length) throw new Error('La compra necesita al menos una línea.')
   const ids = lines.map(line => line.id)
-  const baseTotals = lines.map(line => line.quantity * line.unitCostPyg)
+  const baseTotals = lines.map(line => line.quantity * numero(line.unitCostPyg))
   const weights = input.method === 'PROPORTIONAL_QUANTITY' ? lines.map(line => line.quantity) : baseTotals
-  const shipping = allocate(input.shippingPyg, weights, ids)
-  const customs = allocate(input.customsPyg, weights, ids)
-  const insurance = allocate(input.insurancePyg, weights, ids)
-  const taxes = allocate(input.taxesPyg, weights, ids)
-  const other = allocate(input.otherCostsPyg, weights, ids)
+  const shipping = allocate(numero(input.shippingPyg), weights, ids)
+  const customs = allocate(numero(input.customsPyg), weights, ids)
+  const insurance = allocate(numero(input.insurancePyg), weights, ids)
+  const taxes = allocate(numero(input.taxesPyg), weights, ids)
+  const other = allocate(numero(input.otherCostsPyg), weights, ids)
   return lines.map((line, index) => {
     const baseTotalPyg = baseTotals[index]
     const allocatedExtraCostPyg = shipping[line.id] + customs[line.id] + insurance[line.id] + taxes[line.id] + other[line.id]
@@ -57,9 +59,9 @@ export function distributePurchaseCosts<T extends PurchaseCostLineInput>(lines: 
   })
 }
 
-export function purchaseTotals(lines: ReturnType<typeof distributePurchaseCosts>, payments: Array<{ amountPyg: number }> = []) {
+export function purchaseTotals(lines: ReturnType<typeof distributePurchaseCosts>, payments: Array<{ amountPyg: bigint | number }> = []) {
   const finalCostPyg = lines.reduce((sum, line) => sum + line.finalTotalCostPyg, 0)
-  const paidPyg = payments.reduce((sum, payment) => sum + Number(payment.amountPyg || 0), 0)
+  const paidPyg = payments.reduce((sum, payment) => sum + numero(payment.amountPyg), 0)
   return { finalCostPyg, paidPyg, outstandingPyg: finalCostPyg - paidPyg }
 }
 

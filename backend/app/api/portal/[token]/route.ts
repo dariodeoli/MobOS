@@ -6,6 +6,7 @@ import { buscarPorTokenPublico } from '../../../../lib/public-token'
 import { etiquetaServicio } from '../../../../lib/service-order'
 import { etiquetaPago } from '../../../../lib/payments'
 import { seguimientoDeEntrega } from '../../../../lib/orders'
+import { numero } from '../../../../lib/montos'
 
 // Resumen de cuenta público del cliente. El token es aleatorio y no
 // enumerable, y el nivel acota lo que se muestra:
@@ -193,8 +194,8 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     fechasPorPedido.set(evento.entityId, fechas)
   }
 
-  const pendienteDe = (totalPyg: number, pagos: Array<{ amountPyg: number }>) =>
-    Math.max(0, Number(totalPyg) - pagos.reduce((sum, pago) => sum + Number(pago.amountPyg || 0), 0))
+  const pendienteDe = (totalPyg: bigint | number, pagos: Array<{ amountPyg: bigint | number }>) =>
+    Math.max(0, numero(totalPyg) - pagos.reduce((sum, pago) => sum + numero(pago.amountPyg), 0))
   const vencimientos = dueOrders
     .map(order => ({
       orderNumber: order.orderNumber,
@@ -212,9 +213,9 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
       // interna sigue prohibida en el portal.
       ...(portal.customer?.publicNote ? { publicNote: portal.customer.publicNote } : {}),
     },
-    balancePyg: Number(saldo[0]?.pending || 0n),
+    balancePyg: numero(saldo[0]?.pending),
     // Tus beneficios (#240 → portal): saldo a favor (1 punto = 1 Gs. canjeable).
-    saldoFavorPyg: Number(saldoFavor._sum.remainingPyg || 0),
+    saldoFavorPyg: numero(saldoFavor._sum.remainingPyg),
     puntosPyg: Number(portal.customer?.loyaltyPointsPyg || 0),
     dueDates: vencimientos,
     informes: informes.map((fila) => ({ serial: fila.serial, model: fila.orderItem.description, orderNumber: fila.orderItem.order.orderNumber })),
@@ -240,14 +241,14 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     })),
     // Pagos: últimos 8 con su medio y el total confirmado de la historia.
     pagos: pagos.map(({ order, ...pago }) => ({
-      amountPyg: pago.amountPyg,
+      amountPyg: numero(pago.amountPyg),
       methodLabel: etiquetaPago(pago.method),
       paidAt: pago.paidAt,
       orderNumber: order.orderNumber,
     })),
-    totalPagadoPyg: Number(totalPagado._sum.amountPyg || 0),
+    totalPagadoPyg: numero(totalPagado._sum.amountPyg),
     // Cotizaciones: número, monto, validez y enlace público; la más nueva primero.
-    cotizaciones,
+    cotizaciones: cotizaciones.map((cotizacion) => ({ ...cotizacion, totalPyg: numero(cotizacion.totalPyg) })),
     orders: orders.map(order => {
       // #178: el pedido nuevo no guarda su token histórico en claro; el enlace
       // del comprobante sale del enlace vigente de nivel rápido (o del legacy).
@@ -259,15 +260,15 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
       return {
         orderNumber: order.orderNumber,
         createdAt: order.createdAt,
-        totalPyg: order.totalPyg,
+        totalPyg: numero(order.totalPyg),
         status: order.status,
         fulfillmentStatus: order.fulfillmentStatus,
         tracking: seguimientoDeEntrega(order.deliveryType, order.fulfillmentStatus, fechas),
         pendingPyg: pendienteDe(order.totalPyg, order.payments),
         dueAt: order.dueAt,
         // Detalle del pedido: líneas y pagos confirmados de ese pedido.
-        items: order.items.map(item => ({ description: item.description, quantity: item.quantity, totalPyg: item.totalPyg })),
-        pagos: order.payments.map(pago => ({ amountPyg: pago.amountPyg, methodLabel: etiquetaPago(pago.method), paidAt: pago.paidAt })),
+        items: order.items.map(item => ({ description: item.description, quantity: item.quantity, totalPyg: numero(item.totalPyg) })),
+        pagos: order.payments.map(pago => ({ amountPyg: numero(pago.amountPyg), methodLabel: etiquetaPago(pago.method), paidAt: pago.paidAt })),
         ...(completo && receiptToken ? { receiptToken } : {}),
       }
     }),

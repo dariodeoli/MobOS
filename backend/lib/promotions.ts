@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client'
 import { InputError, objectInput, textInput } from './payment-input'
+import { LIMITE_MONTO_GENERAL } from './montos'
 
 export function couponCode(value: unknown) {
   const code = textInput(value, 'Cupón', 40).toUpperCase()
@@ -9,7 +10,7 @@ export function couponCode(value: unknown) {
 export function promotionInput(payload: unknown) {
   const b = objectInput(payload)
   if (Object.keys(b).some(k => !['code','name','kind','value','productId','startsAt','endsAt','maxUnits'].includes(k))) throw new InputError('Campo de promoción no admitido.')
-  if (!['PERCENT', 'FIXED'].includes(b.kind as string) || !Number.isSafeInteger(b.value) || Number(b.value) <= 0 || Number(b.value) > (b.kind === 'PERCENT' ? 100 : 2147483647)) throw new InputError('Descuento inválido.')
+  if (!['PERCENT', 'FIXED'].includes(b.kind as string) || !Number.isSafeInteger(b.value) || Number(b.value) <= 0 || Number(b.value) > (b.kind === 'PERCENT' ? 100 : LIMITE_MONTO_GENERAL)) throw new InputError('Descuento inválido.')
   const startsAt = new Date(typeof b.startsAt === 'string' ? b.startsAt : '')
   const endsAt = new Date(typeof b.endsAt === 'string' ? b.endsAt : '')
   if (!Number.isFinite(+startsAt) || !Number.isFinite(+endsAt) || endsAt <= startsAt) throw new InputError('Vigencia inválida.')
@@ -31,8 +32,10 @@ export async function quotePromotion(tx: Prisma.TransactionClient, tenantId: str
   const product = await tx.product.findFirst({ where: { id: productId, tenantId, isActive: true, OR: [{ branchId }, { branchId: null }] } })
   if (!product || (promotion.productId && promotion.productId !== product.id)) throw new InputError('Cupón no aplicable al producto.', 409)
   if (promotion.maxUnits !== null && promotion.usedUnits + Number(quantity) > promotion.maxUnits) throw new InputError('Límite de unidades del cupón agotado.', 409)
-  const discount = Math.min(product.pricePyg, promotion.kind === 'PERCENT' ? Math.round(product.pricePyg * promotion.value / 100) : promotion.value)
-  const unitPricePyg = product.pricePyg - discount
+  const pricePyg = Number(product.pricePyg)
+  const value = Number(promotion.value)
+  const discount = Math.min(pricePyg, promotion.kind === 'PERCENT' ? Math.round(pricePyg * value / 100) : value)
+  const unitPricePyg = pricePyg - discount
   if (consume) await tx.promotion.update({ where: { id: promotion.id }, data: { usedUnits: { increment: Number(quantity) } } })
-  return { couponCode: code, unitPricePyg, promotionSnapshot: { id: promotion.id, code, name: promotion.name, kind: promotion.kind, value: promotion.value, baseUnitPricePyg: product.pricePyg, discountUnitPyg: discount } }
+  return { couponCode: code, unitPricePyg, promotionSnapshot: { id: promotion.id, code, name: promotion.name, kind: promotion.kind, value, baseUnitPricePyg: pricePyg, discountUnitPyg: discount } }
 }

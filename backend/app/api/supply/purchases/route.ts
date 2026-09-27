@@ -2,6 +2,7 @@ import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
 import { coberturaDeCompra, codigoCompra, compararModelo, costoPorUnidad, cuadrarSeriales, normalizarCierreDeCostos, normalizarCompra, normalizarLineasCompra, resumenPreparacion } from '../../../../lib/supply'
+import { numero, numeroOpcional } from '../../../../lib/montos'
 
 // #250 Fase 2 (Centro de Abastecimiento): compra rápida y stock adicional.
 //
@@ -303,7 +304,7 @@ export async function POST(request: Request) {
           action: 'SUPPLIER_PAYABLE_CREATED',
           entity: 'SupplierPayable',
           entityId: cuenta.id,
-          metadata: { origen: 'SUPPLY_PURCHASE', code, condition: compra.paymentCondition, amountPyg: compra.costPyg, dueAt: compra.dueAt },
+          metadata: { origen: 'SUPPLY_PURCHASE', code, condition: compra.paymentCondition, amountPyg: numeroOpcional(compra.costPyg), dueAt: compra.dueAt },
         },
       })
     }
@@ -318,7 +319,7 @@ export async function POST(request: Request) {
           code,
           supplierName,
           currency: compra.currency,
-          costPyg: compra.costPyg,
+          costPyg: numeroOpcional(compra.costPyg),
           unidades: compra.lines.reduce((suma, linea) => suma + linea.quantity, 0),
           lineas: compra.lines.length,
           necesidades: needIds.length,
@@ -361,7 +362,7 @@ export async function PATCH(request: Request) {
     // la compra; crédito/consignación con pagos o consumo reales se resuelven
     // primero en Finanzas (no se borra plata registrada en silencio).
     const cuenta = await prisma.supplierPayable.findFirst({ where: { tenantId: tenant, supplyPurchaseId: compra.id }, select: { id: true, condition: true, paidPyg: true, consumedPyg: true } })
-    const conPlataReal = cuenta !== null && cuenta.condition !== 'CONTADO' && (cuenta.paidPyg > 0 || cuenta.consumedPyg > 0)
+    const conPlataReal = cuenta !== null && cuenta.condition !== 'CONTADO' && (numero(cuenta.paidPyg) > 0 || numero(cuenta.consumedPyg) > 0)
     if (conPlataReal) {
       return error('La cuenta a pagar de esta compra ya tiene pagos o consumo: resolvela en Finanzas antes de cancelar.', 409)
     }
@@ -469,7 +470,7 @@ export async function PATCH(request: Request) {
       where: { tenantId: tenant, supplyPurchaseId: compra.id },
       select: { id: true, paidPyg: true, consumedPyg: true },
     })
-    if (cuenta && (cuenta.paidPyg > 0 || cuenta.consumedPyg > 0)) {
+    if (cuenta && (numero(cuenta.paidPyg) > 0 || numero(cuenta.consumedPyg) > 0)) {
       return error('La cuenta a pagar ya tiene pagos o consumo: ajustá el costo desde Finanzas.', 409)
     }
     // Unidades recibidas de esta compra (por sus IMEI): con costo ya sellado no
@@ -490,7 +491,7 @@ export async function PATCH(request: Request) {
     }, conLineas.lines.map((linea) => ({
       id: linea.id,
       quantity: linea.quantity,
-      unitCostPyg: linea.unitCostPyg,
+      unitCostPyg: numeroOpcional(linea.unitCostPyg),
       originalUnitCost: linea.originalUnitCost === null ? null : Number(linea.originalUnitCost),
     })))
     if (!normalizada.ok) return error(normalizada.error)
@@ -587,7 +588,7 @@ export async function PATCH(request: Request) {
           entityId: compra.id,
           metadata: {
             code: compra.code,
-            before: { currency: compra.currency, costPyg: compra.costPyg, originalCost: compra.originalCost === null ? null : Number(compra.originalCost) },
+            before: { currency: compra.currency, costPyg: numeroOpcional(compra.costPyg), originalCost: compra.originalCost === null ? null : Number(compra.originalCost) },
             after: { currency: cierre.currency, costPyg: cierre.costPyg, originalCost: cierre.originalCost },
             unidadesCompletadas,
           },

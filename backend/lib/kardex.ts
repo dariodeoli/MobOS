@@ -123,8 +123,8 @@ export type CompraKardex = {
   id: string
   receivedQty: number
   lotReference: string | null
-  unitCostPyg: number
-  finalUnitCostPyg: number
+  unitCostPyg: bigint | number
+  finalUnitCostPyg: bigint | number
   purchase: { id: string; supplierName: string; status: string; createdAt: Date; receivedAt: Date | null; createdBy: { name: string } | null }
 }
 
@@ -157,7 +157,7 @@ export type VentaKardex = {
   serialsPending: number
   // Unidades sin serial vendidas sobre pedido: tampoco descontaron stock.
   stockPending: number
-  unitPricePyg: number
+  unitPricePyg: bigint | number
   order: { id: string; orderNumber: string; status: string; createdAt: Date; customer: { name: string } | null; seller: { name: string } | null }
 }
 export type AdjuntoSerialKardex = { itemId: string; at: Date; cantidad: number; user: string | null }
@@ -261,7 +261,7 @@ export function eventosDeTransferencias(lineas: TransferenciaKardex[], productId
 export type DevolucionProveedorKardex = {
   id: string
   quantity: number
-  unitCostPyg: number
+  unitCostPyg: bigint | number
   purchaseReturn: { id: string; createdAt: Date; reason: string; purchase: { supplierName: string } }
 }
 

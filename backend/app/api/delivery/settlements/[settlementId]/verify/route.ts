@@ -4,6 +4,7 @@ import { error, json, tenantId } from '../../../../../../lib/http'
 import { requireSession } from '../../../../../../lib/auth'
 import { InputError, objectInput, textInput } from '../../../../../../lib/payment-input'
 import { canManageDelivery } from '../../../../../../lib/delivery'
+import { numero } from '../../../../../../lib/montos'
 
 // Verificación de la rendición en la tienda (vendedor/caja/gerencia). Al
 // confirmarla, los pre-cobros del repartidor pasan a CONFIRMED —y con eso
@@ -37,7 +38,7 @@ export async function POST(request: Request, context: { params: Promise<{ settle
     if (!['VERIFIED', 'REJECTED'].includes(state)) throw new InputError('La rendición se verifica o se rechaza.')
     const note = body.note === undefined || body.note === null || body.note === '' ? null : textInput(body.note, 'Observación', 500)
     const result = await prisma.$transaction(async tx => {
-      const rows = await tx.$queryRaw<Array<{ id: string; status: string; deliveryUserId: string; branchId: string | null; totalPyg: number }>>`
+      const rows = await tx.$queryRaw<Array<{ id: string; status: string; deliveryUserId: string; branchId: string | null; totalPyg: bigint | number }>>`
         SELECT "id", "status", "deliveryUserId", "branchId", "totalPyg" FROM "DeliverySettlement"
         WHERE "id" = ${settlementId} AND "tenantId" = ${tenant} FOR UPDATE
       `
@@ -85,12 +86,12 @@ export async function POST(request: Request, context: { params: Promise<{ settle
         }
       }
       const updated = await tx.deliverySettlement.update({ where: { id: settlement.id }, data: { status: 'VERIFIED', verifiedById: session.user.id, verifiedAt: new Date(), verificationNote: note }, include: settlementInclude })
-      const metadata = { settlementId: settlement.id, totalPyg: settlement.totalPyg, pendingPyg: updated.pendingPyg, payments: payments.length, ordersClosed: cerrados.length, repartidor: updated.deliveryUser.name, ...(note ? { note } : {}) }
+      const metadata = { settlementId: settlement.id, totalPyg: numero(settlement.totalPyg), pendingPyg: numero(updated.pendingPyg), payments: payments.length, ordersClosed: cerrados.length, repartidor: updated.deliveryUser.name, ...(note ? { note } : {}) }
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'DELIVERY_SETTLEMENT_VERIFIED', entity: 'DeliverySettlement', entityId: settlement.id, metadata } })
       // Un asiento por pedido: la cronología de cada pedido muestra que su
       // cobro de calle quedó confirmado en la rendición.
       for (const orderId of orderIds) {
-        const montoPedido = payments.filter(payment => payment.orderId === orderId).reduce((suma, payment) => suma + payment.amountPyg, 0)
+        const montoPedido = payments.filter(payment => payment.orderId === orderId).reduce((suma, payment) => suma + numero(payment.amountPyg), 0)
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'DELIVERY_SETTLEMENT_VERIFIED', entity: 'Order', entityId: orderId, metadata: { ...metadata, amountPyg: montoPedido } } })
       }
       return updated

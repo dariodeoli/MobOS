@@ -11,13 +11,13 @@ export const CONDICION_PROVEEDOR_LABELS: Record<SupplierPayableCondition, string
   CONSIGNACION: 'En consignación',
 }
 
-export class SupplierPayableInputError extends Error {}
+import { LIMITE_MONTO_GENERAL } from './montos'
 
-const INT_MAX = 2147483647
+export class SupplierPayableInputError extends Error {}
 
 function monto(value: unknown, field: string) {
   const numero = Number(value)
-  if (typeof value === 'boolean' || value === null || value === undefined || value === '' || !Number.isSafeInteger(numero) || numero < 0 || numero > INT_MAX) {
+  if (typeof value === 'boolean' || value === null || value === undefined || value === '' || !Number.isSafeInteger(numero) || numero < 0 || numero > LIMITE_MONTO_GENERAL) {
     throw new SupplierPayableInputError(`${field} inválido.`)
   }
   return numero
@@ -25,9 +25,9 @@ function monto(value: unknown, field: string) {
 
 export type DatosDeCompra = {
   condition: SupplierPayableCondition
-  amountPyg: number
-  consumedPyg?: number
-  paidPyg?: number
+  amountPyg: bigint | number
+  consumedPyg?: bigint | number
+  paidPyg?: bigint | number
   dueAt?: Date | string | null
 }
 

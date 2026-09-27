@@ -3,7 +3,8 @@ import { prisma } from '../../../../lib/prisma'
 import { requireSession } from '../../../../lib/auth'
 import { error, json } from '../../../../lib/http'
 import { ensureStoreBranch } from '../../../../lib/store-branch'
-import { InputError, INT_MAX, objectInput } from '../../../../lib/payment-input'
+import { InputError, objectInput } from '../../../../lib/payment-input'
+import { LIMITE_MONTO_GENERAL, numero } from '../../../../lib/montos'
 import { normalizeReconciliationNote } from '../../payments/_lib'
 import {
   METHOD_LABELS,
@@ -63,7 +64,7 @@ async function scope(request: Request) {
   return { session, branchId }
 }
 
-function entero(value: unknown, field: string, { required = false, max = INT_MAX }: { required?: boolean; max?: number } = {}) {
+function entero(value: unknown, field: string, { required = false, max = LIMITE_MONTO_GENERAL }: { required?: boolean; max?: number } = {}) {
   if (value === undefined || value === null || value === '') {
     if (required) throw new InputError(`${field} es obligatorio.`)
     return null
@@ -200,7 +201,7 @@ export async function POST(request: Request) {
 
     const lote = await prisma.$transaction(async tx => {
       const rows = await tx.$queryRaw<Array<{
-        id: string; orderId: string; status: string; amountPyg: number; method: string; accountId: string | null
+        id: string; orderId: string; status: string; amountPyg: bigint | number; method: string; accountId: string | null
         paidAt: Date | null; createdAt: Date; deliveryUserId: string | null; deliverySettlementId: string | null
       }>>`
         SELECT "id", "orderId", "status"::text AS "status", "amountPyg", "method"::text AS "method", "accountId", "paidAt", "createdAt", "deliveryUserId", "deliverySettlementId"
@@ -222,8 +223,8 @@ export async function POST(request: Request) {
       })
       if (enLotes.length) throw new InputError('Algún pago ya está conciliado en un lote; los lotes no se reasignan.', 409)
 
-      const expectedPyg = rows.reduce((total, row) => total + row.amountPyg, 0)
-      const receivedPyg = entero(body.receivedPyg, 'receivedPyg', { max: INT_MAX }) ?? expectedPyg
+      const expectedPyg = rows.reduce((total, row) => total + numero(row.amountPyg), 0)
+      const receivedPyg = entero(body.receivedPyg, 'receivedPyg', { max: LIMITE_MONTO_GENERAL }) ?? expectedPyg
       const differencePyg = receivedPyg - expectedPyg
       if (differencePyg !== 0 && !note) throw new InputError('Una diferencia entre lo recibido y lo esperado necesita una observación.')
 

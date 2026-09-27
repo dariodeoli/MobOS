@@ -23,22 +23,22 @@ export type OrdenFiscal = {
   id: string
   orderNumber: string
   createdAt: Date | string
-  subtotalPyg: number
-  discountPyg: number
-  deliveryPyg: number
+  subtotalPyg: bigint | number
+  discountPyg: bigint | number
+  deliveryPyg: bigint | number
   deliveryType?: string | null
   dueAt?: Date | string | null
   creditDays?: number | null
-  totalPyg: number
+  totalPyg: bigint | number
   items: Array<{
     description: string
     quantity: number
-    unitPricePyg: number
-    totalPyg: number
-    discountPyg?: number
+    unitPricePyg: bigint | number
+    totalPyg: bigint | number
+    discountPyg?: bigint | number
     serials?: unknown
   }>
-  payments?: Array<{ method: string; amountPyg: number; status?: string | null }>
+  payments?: Array<{ method: string; amountPyg: bigint | number; status?: string | null }>
 }
 
 export type ClienteFiscal = {
@@ -168,7 +168,7 @@ export function mapearDocumentoFiscal({ orden, cliente, config, numeroDocumento,
 
   // ── Ítems y descuento global ──────────────────────────────────────────
   const brutos = orden.items.map((item) => numero(item.totalPyg))
-  if (orden.deliveryPyg > 0) brutos.push(numero(orden.deliveryPyg))
+  if (numero(orden.deliveryPyg) > 0) brutos.push(numero(orden.deliveryPyg))
   const descuentoGlobal = Math.max(0, numero(orden.discountPyg))
   const netos = netosConDescuentoGlobal(brutos, descuentoGlobal)
   const items: SifenItem[] = []
@@ -193,7 +193,7 @@ export function mapearDocumentoFiscal({ orden, cliente, config, numeroDocumento,
       seriales: serialesDe(item),
     })
   })
-  if (orden.deliveryPyg > 0) {
+  if (numero(orden.deliveryPyg) > 0) {
     const neto = netos[netos.length - 1]
     const { base, iva } = desglosarIva(neto, 10)
     baseGravada10 += base

@@ -1,6 +1,7 @@
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
+import { numero } from '../../../../../lib/montos'
 
 type RouteContext = { params: { id: string } }
 
@@ -33,9 +34,9 @@ export async function GET(request: Request, { params }: RouteContext) {
   })
 
   const orderRows = orders.map(order => {
-    const totalPyg = order.lines.reduce((sum, line) => sum + line.finalTotalCostPyg, 0)
-    const paidPyg = order.payments.reduce((sum, payment) => sum + payment.amountPyg, 0)
-    const returnedPyg = order.returns.reduce((sum, item) => sum + item.totalPyg, 0)
+    const totalPyg = order.lines.reduce((sum, line) => sum + numero(line.finalTotalCostPyg), 0)
+    const paidPyg = order.payments.reduce((sum, payment) => sum + numero(payment.amountPyg), 0)
+    const returnedPyg = order.returns.reduce((sum, item) => sum + numero(item.totalPyg), 0)
     return { id: order.id, orderNumber: order.supplierReference, createdAt: order.createdAt, receivedAt: order.receivedAt, status: order.status, totalPyg, paidPyg, returnedPyg, outstandingPyg: Math.max(0, totalPyg - paidPyg - returnedPyg) }
   })
   const totalPurchasedPyg = orderRows.reduce((sum, order) => sum + order.totalPyg, 0)

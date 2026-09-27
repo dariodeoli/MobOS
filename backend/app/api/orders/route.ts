@@ -17,6 +17,7 @@ import { changeStock } from '../../../lib/stock'
 import { crearDemandas, demandasDePedido, revisarMinimoDeStock } from '../../../lib/supply-demand'
 import { syncOrderItemSerials } from '../../../lib/order-serials'
 import { esCodigoDuplicado, nextOrderNumber } from '../../../lib/order-number'
+import { LIMITE_MONTO_GENERAL, LIMITE_MONTO_VENTAS, numero } from '../../../lib/montos'
 
 // Detalle devuelto tanto al crear como al reutilizar una orden idempotente.
 const orderDetail = Prisma.validator<Prisma.OrderInclude>()({
@@ -30,6 +31,10 @@ const orderDetail = Prisma.validator<Prisma.OrderInclude>()({
 
 const INT_MAX = 2147483647
 const safeInt = (value: unknown, minimum = 0): value is number => Number.isSafeInteger(value) && (value as number) >= minimum && (value as number) <= INT_MAX
+// Topes por tipo de monto: la venta admite hasta LIMITE_MONTO_VENTAS y los
+// costos hasta LIMITE_MONTO_GENERAL (mismos límites que el resto del sistema).
+const safeMonto = (value: unknown, minimum = 0): value is number => Number.isSafeInteger(value) && (value as number) >= minimum && (value as number) <= LIMITE_MONTO_VENTAS
+const safeCosto = (value: unknown, minimum = 0): value is number => Number.isSafeInteger(value) && (value as number) >= minimum && (value as number) <= LIMITE_MONTO_GENERAL
 const cleanText = (value: unknown, field: string, max: number) => value === undefined ? undefined : textInput(value, field, max)
 
 
@@ -233,7 +238,7 @@ export async function POST(request: Request) {
   }
   const orderNotes = body.notes === undefined || body.notes === null || body.notes === '' ? null : textInput(body.notes, 'Comentario', 2000)
   const discount = body.discountPyg ?? 0; const delivery = body.deliveryPyg ?? 0
-  if (!safeInt(discount) || !safeInt(delivery)) return error('Descuento y delivery inválidos.')
+  if (!safeMonto(discount) || !safeMonto(delivery)) return error('Descuento y delivery inválidos.')
   // Descuento fuera de política: el vendedor necesita una autorización DISCOUNT
   // aprobada, vigente (24 h), sin usar y que alcance para el monto de esta venta.
   const canDiscount = canApproveOrderDiscount(session.user)
@@ -368,7 +373,7 @@ export async function POST(request: Request) {
         objectInput(item)
         if (['coupon', 'couponCodes', 'discountCode', 'promoCode', 'promotionSnapshot'].some(key => key in item)) throw new InputError('Enviá solo couponCode como metadata del cupón.')
         const quantity = Number(item.quantity); const price = Number(item.unitPricePyg ?? item.pricePyg ?? item.price ?? 0)
-        if (!safeInt(quantity, 1) || !safeInt(price) || !Number.isSafeInteger(quantity * price)) throw new Error('Cantidad y precio inválidos.')
+        if (!safeInt(quantity, 1) || !safeMonto(price) || !Number.isSafeInteger(quantity * price)) throw new Error('Cantidad y precio inválidos.')
         const serials = itemSerials(item.inventoryUnitSerials, quantity)
         if (serials.some(serial => serialsInOrder.has(serial))) throw new InputError('Un IMEI/serial no puede repetirse en la misma venta.')
         serials.forEach(serial => serialsInOrder.add(serial))
@@ -393,7 +398,7 @@ export async function POST(request: Request) {
         if (item.soldWithoutInsurance !== undefined && typeof item.soldWithoutInsurance !== 'boolean') throw new InputError('"Vendido sin seguro" debe ser verdadero o falso.')
         if (item.extraCostPyg !== undefined) {
           extraCostPyg = Number(item.extraCostPyg)
-          if (!safeInt(extraCostPyg)) throw new InputError('Costo extra inválido.')
+          if (!safeCosto(extraCostPyg)) throw new InputError('Costo extra inválido.')
         }
         if (item.productId) {
           const product = await tx.product.findFirst({ where: { id: item.productId, tenantId: tenant, isActive: true } })
@@ -401,7 +406,7 @@ export async function POST(request: Request) {
           if ((branchId === null && product.branchId !== null) || (branchId && product.branchId !== null && product.branchId !== branchId)) throw new Error('El producto pertenece a otra sucursal.')
           productosDelPedido.set(product.id, { condition: product.condition, reorderPoint: product.reorderPoint })
           // Foto del costo: la ganancia histórica no cambia si luego se actualiza el costo.
-          if (product.costPyg !== null && product.costPyg !== undefined) baseUnitCostPyg = product.costPyg
+          if (product.costPyg !== null && product.costPyg !== undefined) baseUnitCostPyg = numero(product.costPyg)
           // Costo real por unidad (#148 §19): costo de la unidad + lo que se le
           // paga al consignador al venderla (#33) + repuestos/arreglos de la
           // inspección PhoneCheck (#240). Si la unidad no tiene costo propio ni
@@ -412,17 +417,17 @@ export async function POST(request: Request) {
             if (unidades.length === serials.length) {
               const bases = unidades.map((unidad) => {
                 const repuestos = costoRepuestosDeInspection(unidad.inspection)
-                const consignacion = Number(unidad.consignorPyg ?? 0)
+                const consignacion = numero(unidad.consignorPyg)
                 // En consignación el equipo no es de la tienda: el costo de venta
                 // es lo que se le paga al consignador (más repuestos), no el
                 // costo de compra del producto (evita contarlo dos veces).
                 if (Number.isSafeInteger(consignacion) && consignacion > 0) return consignacion + repuestos
-                if (unidad.costPyg !== null && unidad.costPyg !== undefined) return Number(unidad.costPyg) + repuestos
-                return product.costPyg === null || product.costPyg === undefined ? null : Number(product.costPyg) + repuestos
+                if (unidad.costPyg !== null && unidad.costPyg !== undefined) return numero(unidad.costPyg) + repuestos
+                return product.costPyg === null || product.costPyg === undefined ? null : numero(product.costPyg) + repuestos
               })
               if (bases.every((valor) => valor !== null)) {
                 const costoPorUnidad = Math.round((bases as number[]).reduce((suma, valor) => suma + valor, 0) / bases.length)
-                if (!safeInt(costoPorUnidad)) throw new InputError('El costo real de la unidad (con consignación y repuestos) supera el máximo permitido.')
+                if (!safeCosto(costoPorUnidad)) throw new InputError('El costo real de la unidad (con consignación y repuestos) supera el máximo permitido.')
                 baseUnitCostPyg = costoPorUnidad
               }
             }
@@ -439,10 +444,10 @@ export async function POST(request: Request) {
           // como venta bajo lista discrecional.
           if (item.couponCode === undefined && price < listPricePyg) {
             const gap = (listPricePyg - price) * quantity
-            if (!Number.isSafeInteger(gap)) throw new Error('Diferencia bajo lista fuera de rango.')
+            if (!safeMonto(gap)) throw new Error('Diferencia bajo lista fuera de rango.')
             belowListPyg += gap
             belowListBasePyg += listPricePyg * quantity
-            if (!Number.isSafeInteger(belowListPyg) || !Number.isSafeInteger(belowListBasePyg)) throw new Error('Diferencia bajo lista fuera de rango.')
+            if (!safeMonto(belowListPyg) || !safeMonto(belowListBasePyg)) throw new Error('Diferencia bajo lista fuera de rango.')
           }
           const policy = product.category ? await tx.costPolicy.findFirst({ where: { tenantId: tenant, category: product.category, isActive: true }, select: { insuranceRate: true } }) : null
           // Precedencia de la tasa (#160): producto > seguro del cliente (con
@@ -458,10 +463,10 @@ export async function POST(request: Request) {
           // del producto; costo real = costo + seguro.
           if (!soldWithoutInsurance && rate > 0 && baseUnitCostPyg !== undefined) {
             insurancePyg = Math.round((baseUnitCostPyg * rate) / 100)
-            if (!safeInt(insurancePyg)) throw new InputError('El seguro calculado es inválido.')
+            if (!safeCosto(insurancePyg)) throw new InputError('El seguro calculado es inválido.')
           }
           const combinedCost = (baseUnitCostPyg ?? 0) + insurancePyg + extraCostPyg
-          if ((baseUnitCostPyg !== undefined || insurancePyg > 0 || extraCostPyg > 0) && safeInt(combinedCost)) unitCostPyg = combinedCost
+          if ((baseUnitCostPyg !== undefined || insurancePyg > 0 || extraCostPyg > 0) && safeCosto(combinedCost)) unitCostPyg = combinedCost
           costPending = baseUnitCostPyg === undefined && insurancePyg === 0 && extraCostPyg === 0
           const trackedUnitCount = await tx.inventoryUnit.count({ where: { tenantId: tenant, productId: product.id } })
           if (trackedUnitCount === 0 && serials.length) throw new InputError('Este producto no tiene unidades serializadas en stock.')
@@ -517,7 +522,7 @@ export async function POST(request: Request) {
           // #250 F1: lo que la línea dejó sin cubrir alimenta la demanda; el
           // precio de venta y el costo del producto pesan el margen (FIN #254).
           if (stockPending > 0 || serialsPending > 0 || faltanteOffline > 0) {
-            demandaItems.push({ productId: product.id, condition: product.condition, quantity: stockPending + serialsPending + faltanteOffline, stockPending, serialsPending, stockFaltante: faltanteOffline, unitPricePyg: price, costPyg: product.costPyg === null || product.costPyg === undefined ? null : Number(product.costPyg) })
+            demandaItems.push({ productId: product.id, condition: product.condition, quantity: stockPending + serialsPending + faltanteOffline, stockPending, serialsPending, stockFaltante: faltanteOffline, unitPricePyg: price, costPyg: product.costPyg === null || product.costPyg === undefined ? null : numero(product.costPyg) })
           }
         }
         const discountPyg = item.discountPyg === undefined || item.discountPyg === '' || item.discountPyg === null ? 0 : Number(item.discountPyg)
@@ -529,13 +534,13 @@ export async function POST(request: Request) {
         } catch (pricingError) { throw new InputError(pricingError instanceof Error ? pricingError.message : 'Descuento inválido.') }
         const line = quantity * price
         subtotal += lineTotal
-        if (!Number.isSafeInteger(subtotal)) throw new Error('Total fuera de rango seguro.')
+        if (!safeMonto(subtotal)) throw new Error('Total fuera de rango seguro.')
         normalized.push({ productId: item.productId || undefined, description: typeof item.description === 'string' && item.description.trim() ? item.description.trim() : 'Producto', quantity, unitPricePyg: price, ...(listPricePyg === undefined ? {} : { listPricePyg }),
           ...(priceSource === undefined ? {} : { priceSource }), ...(priceListId ? { priceListId } : {}), ...(unitCostPyg === undefined ? {} : { unitCostPyg }), ...(baseUnitCostPyg === undefined ? {} : { baseUnitCostPyg }), insurancePyg, extraCostPyg, soldWithoutInsurance, serials, serialsPending, stockPending, costPending, discountPyg: lineDiscount, ...(discountPct !== undefined ? { discountPct } : {}), totalPyg: lineTotal, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}), ...(comboId ? { comboId } : {}), ...(comboName ? { comboName } : {}) })
       }
       if (discount > subtotal) throw new Error('El descuento no puede superar el subtotal.')
       const total = subtotal - discount + delivery
-      if (!safeInt(subtotal) || !safeInt(total)) throw new Error('Total inválido.')
+      if (!safeMonto(subtotal) || !safeMonto(total)) throw new Error('Total inválido.')
       // Venta bajo lista sin permiso de descuento: hasta el porcentaje
       // configurado no pide autorización; el excedente debe estar cubierto por
       // la autorización BELOW_LIST_PRICE vigente.
@@ -553,7 +558,7 @@ export async function POST(request: Request) {
       if (body.creditDays !== undefined || body.dueAt !== undefined) {
         const customerRow = customerId ? await tx.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { creditLimitPyg: true, creditDays: true } }) : null
         if (!customerRow?.creditLimitPyg) throw new InputError('El cliente no tiene límite de crédito habilitado. Configuralo en Clientes.')
-        creditLimit = customerRow.creditLimitPyg
+        creditLimit = numero(customerRow.creditLimitPyg)
         const requestedDays = body.creditDays !== undefined ? Number(body.creditDays) : (customerRow.creditDays ?? undefined)
         if (requestedDays !== undefined && (!safeInt(requestedDays) || requestedDays > 365)) throw new InputError('El plazo de crédito debe estar entre 0 y 365 días.')
         creditDays = requestedDays ?? null
@@ -575,7 +580,7 @@ export async function POST(request: Request) {
           FROM "Order" o
           LEFT JOIN (SELECT "orderId", SUM("amountPyg") AS confirmed FROM "Payment" WHERE "tenantId" = ${tenant} AND status = 'CONFIRMED' GROUP BY "orderId") p ON p."orderId" = o."id"
           WHERE o."tenantId" = ${tenant} AND o."customerId" = ${customerId} AND o."status" = 'PENDING'`
-        const pendingTotal = Number(outstanding[0]?.total || 0n)
+        const pendingTotal = numero(outstanding[0]?.total)
         if (!Number.isSafeInteger(pendingTotal) || pendingTotal + (total - confirmed) > creditLimit) throw new InputError('Supera el límite de crédito del cliente.', 409)
       }
       // Identificador comercial de la empresa (`PREFIX-#0001`) con el contador

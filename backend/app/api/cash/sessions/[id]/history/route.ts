@@ -2,10 +2,11 @@ import { prisma } from '../../../../../../lib/prisma'
 import { error, json } from '../../../../../../lib/http'
 import { requireSession } from '../../../../../../lib/auth'
 import { ensureStoreBranch } from '../../../../../../lib/store-branch'
+import { numero } from '../../../../../../lib/montos'
 
 type RouteContext = { params: { id: string } }
 
-const gs = (value: unknown) => Number(value || 0).toLocaleString('es-PY')
+const gs = (value: bigint | number | null | undefined) => numero(value).toLocaleString('es-PY')
 
 const KINDS: Record<string, string> = {
   EXPENSE: 'Gasto',
@@ -118,7 +119,7 @@ export async function GET(request: Request, { params }: RouteContext) {
       action: 'Caja cerrada',
       createdAt: cashSession.closedAt,
       user: cashSession.closedBy,
-      detail: `Esperado Gs ${gs(cashSession.expectedPyg)} · contado Gs ${gs(cashSession.countedPyg)} · diferencia Gs ${gs((cashSession.countedPyg ?? 0) - (cashSession.expectedPyg ?? 0))}${cashSession.notes ? ` · ${cashSession.notes}` : ''}`,
+      detail: `Esperado Gs ${gs(cashSession.expectedPyg)} · contado Gs ${gs(cashSession.countedPyg)} · diferencia Gs ${gs(numero(cashSession.countedPyg) - numero(cashSession.expectedPyg))}${cashSession.notes ? ` · ${cashSession.notes}` : ''}`,
     }] : []),
     ...movements.map(movement => ({
       id: `movement-${movement.id}`,

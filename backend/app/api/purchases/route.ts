@@ -7,13 +7,14 @@ import { applyPurchaseLineOverrides, distributePurchaseCosts, purchaseTotals } f
 import { changeStock } from '../../../lib/stock'
 import type { PurchaseLineCostOverride } from '../../../lib/purchases'
 import { DEFAULT_PURCHASE_CREDIT_LIMIT_PYG, authorizedAmountOf, authorizationValueOf, consumeAuthorization, usableAuthorization } from '../../../lib/authorizations'
+import { LIMITE_MONTO_GENERAL, numero } from '../../../lib/montos'
 
 const INT_MAX = 2147483647
 const MAX_TEXT = 160
 const MAX_ID = 128
 const MAX_LINES = 200
 const statuses = new Set(['DRAFT', 'RECEIVED'])
-const safePyg = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0 && Number(value) <= INT_MAX
+const safePyg = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0 && Number(value) <= LIMITE_MONTO_GENERAL
 const boundedText = (value: unknown, max = MAX_TEXT) => typeof value === 'string' && value.trim().length > 0 && value.trim().length <= max
 const currencies = new Set(['PYG', 'USD', 'BRL', 'EUR', 'USDT'])
 const decimal = (value: unknown, decimals = 2) => {
@@ -77,7 +78,7 @@ export async function POST(request: Request) {
         if (!p || (branchId === null ? p.branchId !== null : p.branchId !== null && p.branchId !== branchId)) throw new Error('Producto fuera del tenant o sucursal.')
         const lineTotal = quantity * unitCostPyg
         const lotReference = line.lotReference === undefined || line.lotReference === '' ? null : boundedText(line.lotReference, 120) ? String(line.lotReference).trim() : null
-        if (!Number.isSafeInteger(lineTotal) || lineTotal > INT_MAX || (line.lotReference !== undefined && line.lotReference !== '' && !lotReference)) throw new Error('Línea de compra o lote inválido.')
+        if (!Number.isSafeInteger(lineTotal) || lineTotal > LIMITE_MONTO_GENERAL || (line.lotReference !== undefined && line.lotReference !== '' && !lotReference)) throw new Error('Línea de compra o lote inválido.')
         normalized.push({ id: randomUUID(), productId: p.id, quantity, unitCostPyg, lotReference })
       }
       const costing = distributePurchaseCosts(normalized, { shippingPyg, customsPyg, insurancePyg, taxesPyg, otherCostsPyg, method: costAllocationMethod })
@@ -156,8 +157,9 @@ export async function PATCH(request: Request) {
         if (!safePyg(amountPyg) || amountPyg === 0) throw new Error('Monto convertido fuera de rango.')
         const kind = body.action === 'advance' || body.kind === 'ADVANCE' ? 'ADVANCE' : 'SETTLEMENT'
         if (kind === 'ADVANCE') {
-          const balanceRows = await tx.$queryRaw<Array<{ finalCostPyg: number; paidPyg: number }>>`SELECT COALESCE((SELECT SUM(pl."finalTotalCostPyg")::int FROM "PurchaseLine" pl WHERE pl."purchaseId" = ${purchase.id}), 0) AS "finalCostPyg", COALESCE((SELECT SUM(pp."amountPyg")::int FROM "PurchasePayment" pp WHERE pp."purchaseId" = ${purchase.id}), 0) AS "paidPyg"`
-          if (amountPyg > balanceRows[0].finalCostPyg - balanceRows[0].paidPyg) throw new Error('El anticipo supera el saldo pendiente de la compra.')
+          const balanceRows = await tx.$queryRaw<Array<{ finalCostPyg: bigint; paidPyg: bigint }>>`SELECT COALESCE((SELECT SUM(pl."finalTotalCostPyg")::bigint FROM "PurchaseLine" pl WHERE pl."purchaseId" = ${purchase.id}), 0) AS "finalCostPyg", COALESCE((SELECT SUM(pp."amountPyg")::bigint FROM "PurchasePayment" pp WHERE pp."purchaseId" = ${purchase.id}), 0) AS "paidPyg"`
+          const pendiente = numero(balanceRows[0].finalCostPyg) - numero(balanceRows[0].paidPyg)
+          if (amountPyg > pendiente) throw new Error('El anticipo supera el saldo pendiente de la compra.')
         }
         const payment = await tx.purchasePayment.create({ data: { tenantId: tenant, purchaseId: purchase.id, accountId, amountPyg, currency, originalAmount: String(originalAmount), exchangeRatePyg: String(exchangeRatePyg), reference: body.reference ? String(body.reference).slice(0, 200) : null, kind, createdById: session.user.id } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: kind === 'ADVANCE' ? 'PURCHASE_ADVANCE' : 'PURCHASE_PAYMENT_RECORDED', entity: 'PurchaseOrder', entityId: purchase.id, metadata: { paymentId: payment.id, accountId, currency, originalAmount, exchangeRatePyg, amountPyg, kind } } })
@@ -175,7 +177,20 @@ export async function PATCH(request: Request) {
           if (!boundedText(lineId, MAX_ID) || !safePyg(unitCostPyg) || !safePyg(allocatedFeesPyg)) throw new Error('Línea de costo inválida.')
           overrides[String(lineId)] = { id: String(lineId), unitCostPyg, allocatedFeesPyg }
         }
-        const current = await tx.$queryRaw<Array<{ id: string; quantity: number; unitCostPyg: number; baseTotalPyg: number; allocatedShippingPyg: number; allocatedCustomsPyg: number; allocatedInsurancePyg: number; allocatedTaxesPyg: number; allocatedOtherCostsPyg: number; allocatedExtraCostPyg: number; finalTotalCostPyg: number; finalUnitCostPyg: number }>>`SELECT "id", "quantity", "unitCostPyg", "baseTotalPyg", "allocatedShippingPyg", "allocatedCustomsPyg", "allocatedInsurancePyg", "allocatedTaxesPyg", "allocatedOtherCostsPyg", "allocatedExtraCostPyg", "finalTotalCostPyg", "finalUnitCostPyg" FROM "PurchaseLine" WHERE "purchaseId" = ${purchase.id} FOR UPDATE`
+        const current = (await tx.$queryRaw<Array<{ id: string; quantity: number; unitCostPyg: bigint | number; baseTotalPyg: bigint | number; allocatedShippingPyg: bigint | number; allocatedCustomsPyg: bigint | number; allocatedInsurancePyg: bigint | number; allocatedTaxesPyg: bigint | number; allocatedOtherCostsPyg: bigint | number; allocatedExtraCostPyg: bigint | number; finalTotalCostPyg: bigint | number; finalUnitCostPyg: bigint | number }>>`SELECT "id", "quantity", "unitCostPyg", "baseTotalPyg", "allocatedShippingPyg", "allocatedCustomsPyg", "allocatedInsurancePyg", "allocatedTaxesPyg", "allocatedOtherCostsPyg", "allocatedExtraCostPyg", "finalTotalCostPyg", "finalUnitCostPyg" FROM "PurchaseLine" WHERE "purchaseId" = ${purchase.id} FOR UPDATE`).map(line => ({
+          id: line.id,
+          quantity: line.quantity,
+          unitCostPyg: numero(line.unitCostPyg),
+          baseTotalPyg: numero(line.baseTotalPyg),
+          allocatedShippingPyg: numero(line.allocatedShippingPyg),
+          allocatedCustomsPyg: numero(line.allocatedCustomsPyg),
+          allocatedInsurancePyg: numero(line.allocatedInsurancePyg),
+          allocatedTaxesPyg: numero(line.allocatedTaxesPyg),
+          allocatedOtherCostsPyg: numero(line.allocatedOtherCostsPyg),
+          allocatedExtraCostPyg: numero(line.allocatedExtraCostPyg),
+          finalTotalCostPyg: numero(line.finalTotalCostPyg),
+          finalUnitCostPyg: numero(line.finalUnitCostPyg),
+        }))
         const currentById = new Map(current.map(line => [line.id, line]))
         for (const lineId of Object.keys(overrides)) if (!currentById.has(lineId)) throw new Error('Línea de compra no encontrada.')
         const updated = applyPurchaseLineOverrides(current, overrides)
@@ -190,8 +205,9 @@ export async function PATCH(request: Request) {
           await tx.$executeRaw`UPDATE "PurchaseLine" SET "unitCostPyg" = ${after.unitCostPyg}, "baseTotalPyg" = ${after.baseTotalPyg}, "allocatedShippingPyg" = 0, "allocatedCustomsPyg" = 0, "allocatedInsurancePyg" = 0, "allocatedTaxesPyg" = 0, "allocatedOtherCostsPyg" = 0, "allocatedExtraCostPyg" = ${after.allocatedExtraCostPyg}, "finalTotalCostPyg" = ${after.finalTotalCostPyg}, "finalUnitCostPyg" = ${after.finalUnitCostPyg} WHERE "id" = ${lineId} AND "purchaseId" = ${purchase.id}`
           await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PURCHASE_COSTS_UPDATED', entity: 'PurchaseLine', entityId: lineId, metadata: { purchaseOrderId: purchase.id, lineId, before: snapshot(before), after: snapshot(after) } } })
         }
-        const paidRows = await tx.$queryRaw<Array<{ paidPyg: number }>>`SELECT COALESCE(SUM("amountPyg")::int, 0) AS "paidPyg" FROM "PurchasePayment" WHERE "purchaseId" = ${purchase.id}`
-        return { id: purchase.id, status: purchase.status, lines: updated, finalCostPyg, paidPyg: paidRows[0].paidPyg, outstandingPyg: finalCostPyg - paidRows[0].paidPyg }
+        const paidRows = await tx.$queryRaw<Array<{ paidPyg: bigint }>>`SELECT COALESCE(SUM("amountPyg")::bigint, 0) AS "paidPyg" FROM "PurchasePayment" WHERE "purchaseId" = ${purchase.id}`
+        const paidPyg = numero(paidRows[0].paidPyg)
+        return { id: purchase.id, status: purchase.status, lines: updated, finalCostPyg, paidPyg, outstandingPyg: finalCostPyg - paidPyg }
       }
       // Devolución al proveedor: sale stock y baja la deuda de la compra.
       if (body.action === 'return') {
@@ -200,7 +216,7 @@ export async function PATCH(request: Request) {
         if (!reason) throw new Error('Indicá el motivo de la devolución al proveedor.')
         const inputLines = Array.isArray(body.lines) ? body.lines : []
         if (!inputLines.length || inputLines.length > MAX_LINES) throw new Error('Líneas de devolución inválidas.')
-        const purchaseLines = await tx.$queryRaw<Array<{ id: string; productId: string; receivedQty: number; finalUnitCostPyg: number }>>`SELECT "id", "productId", "receivedQty", "finalUnitCostPyg" FROM "PurchaseLine" WHERE "purchaseId" = ${purchase.id} FOR UPDATE`
+        const purchaseLines = await tx.$queryRaw<Array<{ id: string; productId: string; receivedQty: number; finalUnitCostPyg: bigint | number }>>`SELECT "id", "productId", "receivedQty", "finalUnitCostPyg" FROM "PurchaseLine" WHERE "purchaseId" = ${purchase.id} FOR UPDATE`
         const byId = new Map(purchaseLines.map(line => [line.id, line]))
         const priorRows = await tx.$queryRaw<Array<{ purchaseLineId: string; quantity: bigint }>>`SELECT "purchaseLineId", COALESCE(SUM("quantity"), 0)::bigint AS quantity FROM "PurchaseReturnLine" WHERE "tenantId" = ${tenant} AND "returnId" IN (SELECT "id" FROM "PurchaseReturn" WHERE "purchaseId" = ${purchase.id}) GROUP BY "purchaseLineId"`
         const returnedByLine = new Map(priorRows.map(row => [row.purchaseLineId, Number(row.quantity)]))
@@ -211,7 +227,8 @@ export async function PATCH(request: Request) {
           if (!line || !Number.isSafeInteger(quantity) || quantity <= 0) throw new Error('Cantidad de devolución inválida.')
           const available = line.receivedQty - (returnedByLine.get(line.id) || 0)
           if (quantity > available) throw new Error('No se puede devolver más de lo recibido pendiente de devolución.')
-          returnLines.push({ purchaseLineId: line.id, productId: line.productId, quantity, unitCostPyg: line.finalUnitCostPyg, totalPyg: quantity * line.finalUnitCostPyg })
+          const unitCostPyg = numero(line.finalUnitCostPyg)
+          returnLines.push({ purchaseLineId: line.id, productId: line.productId, quantity, unitCostPyg, totalPyg: quantity * unitCostPyg })
         }
         for (const line of returnLines) await changeStock(tx, { tenantId: tenant, productId: line.productId, delta: -line.quantity, branchId: purchase.branchId, includeBranchless: true, message: 'Stock insuficiente para devolver al proveedor.' })
         const totalPyg = returnLines.reduce((sum, line) => sum + line.totalPyg, 0)

@@ -41,8 +41,8 @@ model Tenant {
   orderNextNumber     Int?
   // Umbrales de autorización: gasto y compra a crédito sin autorización de
   // gerencia para los roles operativos. Null usa el default de la aplicación.
-  expenseLimitPyg        Int?
-  purchaseCreditLimitPyg Int?
+  expenseLimitPyg        BigInt?
+  purchaseCreditLimitPyg BigInt?
   // Porcentaje de venta bajo lista permitido sin autorización (default 10).
   belowListPct           Int?
   // Seguro predeterminado de la empresa (#162): porcentaje sobre el costo del
@@ -315,7 +315,7 @@ model User {
   lockedUntil         DateTime?
   lastAccessAt        DateTime?
   // Meta diaria de venta en guaraníes: se compara contra lo vendido hoy.
-  dailyGoalPyg        Int?
+  dailyGoalPyg        BigInt?
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
 
@@ -484,16 +484,16 @@ model Product {
   capacity      String?
   imei          String?
   condition     ProductCondition   @default(NEW)
-  pricePyg      Int
+  pricePyg      BigInt
   // Precio para clientes mayoristas; si es null, se usa pricePyg.
-  wholesalePricePyg Int?
+  wholesalePricePyg BigInt?
   // Precio en dólares (opcional) para ventas/cotizaciones en USD.
   priceUsd          Decimal?           @db.Decimal(14, 2)
   // Garantía automática al vender: días, cobertura y exclusiones.
   warrantyDays      Int?
   warrantyCoverage  String?
   warrantyExclusions String?
-  costPyg       Int?
+  costPyg       BigInt?
   // Si tiene valor, prevalece sobre la política de la categoría.
   insuranceRate Decimal?           @db.Decimal(5, 2)
   stock         Int                @default(0)
@@ -605,7 +605,7 @@ model InventoryUnit {
   batteryHealth       Int?
   supplierName        String?
   purchasedAt         DateTime?
-  costPyg             Int?
+  costPyg             BigInt?
   costCurrency        PaymentCurrency     @default(PYG)
   originalCost        Decimal?            @db.Decimal(14, 2)
   exchangeRatePyg     Decimal?            @db.Decimal(14, 4)
@@ -614,7 +614,7 @@ model InventoryUnit {
   // paga al consignador el monto acordado.
   consignorName       String?
   consignorPhone      String?
-  consignorPyg        Int?
+  consignorPyg        BigInt?
   reservedUntil       DateTime?
   // Nombre congelado al reservar (lo que se muestra) y la ficha real del
   // cliente cuando la reserva se hizo eligiendo uno existente.
@@ -801,7 +801,7 @@ model Customer {
   priceListId String?
   priceList   PriceList?     @relation(fields: [priceListId], references: [id], onDelete: SetNull)
   // Límite de crédito en guaraníes (null = sin venta a crédito).
-  creditLimitPyg Int?
+  creditLimitPyg BigInt?
   // Plazo de crédito estándar en días para este cliente.
   creditDays Int?
   // Seguro del cliente (#160): con el toggle activo, sus ventas usan su
@@ -1040,9 +1040,9 @@ model CommissionSettlement {
   periodFrom        String
   periodTo          String
   // Comisión liquidada según el reporte de comisiones del período.
-  totalPyg          Int
+  totalPyg          BigInt
   // Margen acumulado sobre el que se calculó la comisión.
-  marginPyg         Int      @default(0)
+  marginPyg         BigInt   @default(0)
   commissionPct     Decimal? @db.Decimal(5, 2)
   // Detalle congelado: [{ orderNumber, date, totalPyg, basePyg, commissionPct, commissionPyg }];
   // la última línea puede ser un "Ajuste por redondeo" cuando la suma por venta
@@ -1117,7 +1117,7 @@ model Combo {
   branchId  String?
   branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
   name      String
-  pricePyg  Int
+  pricePyg  BigInt
   items     Json     @default("[]")
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -1152,9 +1152,9 @@ model Quote {
   seller       User        @relation(fields: [sellerId], references: [id])
   number       String
   items        Json        @default("[]")
-  subtotalPyg  Int
-  discountPyg  Int         @default(0)
-  totalPyg     Int
+  subtotalPyg  BigInt
+  discountPyg  BigInt      @default(0)
+  totalPyg     BigInt
   notes        String?
   validUntil   DateTime?
   status       QuoteStatus @default(DRAFT)
@@ -1200,9 +1200,9 @@ model Order {
   publicTokenIssuedAt DateTime?
   status            OrderStatus       @default(PENDING)
   fulfillmentStatus FulfillmentStatus @default(PROCESSING)
-  subtotalPyg       Int
-  discountPyg       Int               @default(0)
-  deliveryPyg       Int               @default(0)
+  subtotalPyg       BigInt
+  discountPyg       BigInt            @default(0)
+  deliveryPyg       BigInt            @default(0)
   deliveryType      String?
   deliveryNotes     String?
   // Factura a otro titular (esposo/a, padre, empresa): nombre y RUC.
@@ -1221,7 +1221,7 @@ model Order {
   // Venta cargada sin conexión (POS offline) y sincronizada después: el stock
   // pudo quedar laxo, así que queda marcada para revisión.
   offlineSyncedAt   DateTime?
-  totalPyg          Int
+  totalPyg          BigInt
   // Comprobante congelado al emitir la venta: lo que se imprimió o mostró no
   // cambia aunque después se edite el producto, el cliente o la empresa.
   // Pedido especial con seña: la venta se toma con anticipo y fecha esperada
@@ -1438,21 +1438,21 @@ model OrderItem {
   product              Product?       @relation(fields: [productId], references: [id], onDelete: SetNull)
   description          String
   quantity             Int            @default(1)
-  unitPricePyg         Int
+  unitPricePyg         BigInt
   // Precio de lista del producto al momento de la venta (el mayorista si el
   // cliente lo es). La UI y el comprobante muestran el descuento solo cuando
   // la línea se vendió más barato; por encima de lista se muestra normal.
-  listPricePyg         Int?
+  listPricePyg         BigInt?
   // Origen congelado del precio resuelto al vender (TIER, LIST, WHOLESALE, RETAIL, USD).
   priceSource          String?
   // Lista del cliente que originó el precio congelado de esta línea.
   priceListId          String?
-  unitCostPyg          Int?
-  baseUnitCostPyg      Int?
-  insurancePyg         Int            @default(0)
-  extraCostPyg         Int            @default(0)
+  unitCostPyg          BigInt?
+  baseUnitCostPyg      BigInt?
+  insurancePyg         BigInt         @default(0)
+  extraCostPyg         BigInt         @default(0)
   soldWithoutInsurance Boolean        @default(false)
-  totalPyg             Int
+  totalPyg             BigInt
   // IMEI/seriales físicos vendidos por esta línea. El producto sigue siendo
   // un modelo único; la trazabilidad queda en cada unidad seleccionada.
   serials              Json           @default("[]")
@@ -1464,7 +1464,7 @@ model OrderItem {
   // La línea se vendió sin costo conocido: falta cargar el costo del producto.
   costPending          Boolean        @default(false)
   // Descuento por línea: fijo en guaraníes o porcentual (uno de los dos).
-  discountPyg          Int            @default(0)
+  discountPyg          BigInt         @default(0)
   discountPct          Decimal?       @db.Decimal(5, 2)
   // Combo del que salió la línea (trazabilidad comercial): el precio ya viene
   // repartido por componente y el nombre queda congelado por si el combo cambia.
@@ -1517,7 +1517,7 @@ model Promotion {
   code      String
   name      String
   kind      String
-  value     Int
+  value     BigInt
   productId String?
   startsAt  DateTime
   endsAt    DateTime
@@ -1547,7 +1547,7 @@ model Payment {
   createdBy       User?            @relation("PaymentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   method          PaymentMethod
   status          PaymentStatus    @default(CONFIRMED)
-  amountPyg       Int
+  amountPyg       BigInt
   reference       String?
   // Quién registró el cobro (la cronología muestra la persona real).
   userId          String?
@@ -1682,9 +1682,9 @@ model ReconciliationBatch {
   account         PaymentAccount?     @relation(fields: [accountId], references: [id], onDelete: SetNull)
   from            DateTime
   to              DateTime
-  expectedPyg     Int
-  receivedPyg     Int
-  differencePyg   Int
+  expectedPyg     BigInt
+  receivedPyg     BigInt
+  differencePyg   BigInt
   state           ReconciliationState @default(VERIFIED)
   note            String?
   createdById     String?
@@ -1710,8 +1710,8 @@ model StoreCredit {
   // Pedido que lo originó (devolución/cambio); null en un crédito manual.
   orderId      String?
   order        Order?      @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  amountPyg    Int
-  remainingPyg Int
+  amountPyg    BigInt
+  remainingPyg BigInt
   note         String?
   createdById  String?
   createdAt    DateTime    @default(now())
@@ -1734,7 +1734,7 @@ model StoreCreditUse {
   order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
   paymentId   String?     @unique
   payment     Payment?    @relation(fields: [paymentId], references: [id], onDelete: SetNull)
-  amountPyg   Int
+  amountPyg   BigInt
   createdById String?
   createdAt   DateTime    @default(now())
 
@@ -1783,8 +1783,8 @@ model DeliverySettlement {
   deliveryUser     User                     @relation("DeliverySettlementRenderedBy", fields: [deliveryUserId], references: [id], onDelete: Restrict)
   // Lo que el repartidor entrega (suma de los pre-cobros rendidos) y el saldo
   // que queda vivo en esos pedidos después de esta rendición.
-  totalPyg         Int
-  pendingPyg       Int                      @default(0)
+  totalPyg         BigInt
+  pendingPyg       BigInt                   @default(0)
   ordersCount      Int                      @default(0)
   note             String?
   status           DeliverySettlementStatus @default(PENDING)
@@ -1884,7 +1884,7 @@ model PriceListItem {
   productId    String?
   product      Product?        @relation(fields: [productId], references: [id], onDelete: Cascade)
   category     String?
-  unitPricePyg Int?
+  unitPricePyg BigInt?
   unitPriceUsd Decimal?        @db.Decimal(14, 2)
   discountPct  Decimal?        @db.Decimal(5, 2)
 
@@ -1901,7 +1901,7 @@ model PriceTier {
   priceListItemId String
   priceListItem   PriceListItem @relation(fields: [priceListItemId], references: [id], onDelete: Cascade)
   minQty          Int
-  unitPricePyg    Int
+  unitPricePyg    BigInt
 
   @@unique([priceListItemId, minQty])
 }
@@ -2015,9 +2015,9 @@ model TradeInDevice {
   serial         String
   model          String
   conditionNotes String
-  valuePyg       Int
+  valuePyg       BigInt
   status         TradeInStatus @default(RECEIVED)
-  repairCostPyg  Int           @default(0)
+  repairCostPyg  BigInt        @default(0)
   diagnosis      String?
   technicianName String?
   accessories    Json          @default("[]")
@@ -2045,8 +2045,8 @@ model DeviceValuation {
   modelKey     String
   storage      String           @default("")
   condition    ProductCondition @default(USED)
-  baseValuePyg Int
-  maxValuePyg  Int?
+  baseValuePyg BigInt
+  maxValuePyg  BigInt?
   notes        String?
   isActive     Boolean          @default(true)
   createdById  String
@@ -2139,9 +2139,9 @@ model CashSession {
   closedBy    User?     @relation("CashClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
   openedAt    DateTime  @default(now())
   closedAt    DateTime?
-  openingPyg  Int
-  countedPyg  Int?
-  expectedPyg Int?
+  openingPyg  BigInt
+  countedPyg  BigInt?
+  expectedPyg BigInt?
   // Arqueo por denominación del turno: {"100000": 3, "50000": 1, ...}. El total
   // contado se deriva de acá cuando está presente.
   countedBreakdown Json?
@@ -2168,7 +2168,7 @@ model CashMovement {
   currency        PaymentCurrency @default(PYG)
   originalAmount  Decimal         @db.Decimal(18, 2)
   exchangeRatePyg Decimal         @default(1) @db.Decimal(18, 6)
-  amountPyg       Int
+  amountPyg       BigInt
   counterparty    String?
   reference       String?
   description     String
@@ -2205,9 +2205,9 @@ model SupplierPayable {
   supplierName String
   concept      String
   condition    SupplierPayableCondition @default(CONTADO)
-  amountPyg    Int       @default(0)
-  paidPyg      Int       @default(0)
-  consumedPyg  Int       @default(0)
+  amountPyg    BigInt    @default(0)
+  paidPyg      BigInt    @default(0)
+  consumedPyg  BigInt    @default(0)
   dueAt        DateTime?
   reference    String?
   notes        String?
@@ -2265,11 +2265,11 @@ model PurchaseOrder {
   receivedAt   DateTime?
   createdById  String
   createdBy    User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  shippingPyg  Int            @default(0)
-  customsPyg   Int            @default(0)
-  insurancePyg Int            @default(0)
-  taxesPyg     Int            @default(0)
-  otherCostsPyg Int           @default(0)
+  shippingPyg  BigInt         @default(0)
+  customsPyg   BigInt         @default(0)
+  insurancePyg BigInt         @default(0)
+  taxesPyg     BigInt         @default(0)
+  otherCostsPyg BigInt        @default(0)
   currency     PaymentCurrency @default(PYG)
   exchangeRatePyg Decimal     @default(1) @db.Decimal(18, 6)
   originalSubtotal Decimal?   @db.Decimal(18, 2)
@@ -2362,7 +2362,7 @@ model SupplyPurchase {
   currency        PaymentCurrency @default(PYG)
   originalCost    Decimal?        @db.Decimal(14, 2)
   exchangeRatePyg Decimal?        @db.Decimal(14, 4)
-  costPyg         Int?
+  costPyg         BigInt?
   reference       String?
   notes           String?
   status          String          @default("COMPRADA")
@@ -2403,7 +2403,7 @@ model SupplyPurchaseLine {
   condition   ProductCondition @default(NEW)
   quantity    Int
   // Costo unitario congelado en guaraníes (lo que usa el margen al recibir).
-  unitCostPyg Int?
+  unitCostPyg BigInt?
   // Costo unitario tal como se cargó en la moneda de la compra (#254 · FIN):
   // permite mostrar "USD 900 c/u" y reconstruir la factura sin perder el dato.
   originalUnitCost Decimal?    @db.Decimal(14, 2)
@@ -2591,8 +2591,8 @@ model WorkshopPart {
   paymentMode     String   @default("CONTADO")
   quantity        Int      @default(1)
   usedQuantity    Int      @default(0)
-  unitCostPyg     Int?
-  totalCostPyg    Int?
+  unitCostPyg     BigInt?
+  totalCostPyg    BigInt?
   // Deuda: vencimiento y pago (lo que FIN mira en cuentas por pagar).
   dueAt           DateTime?
   paidAt          DateTime?
@@ -2630,7 +2630,7 @@ model WorkshopPartMovement {
   // ALTA · USO · DEVOLUCION · PAGO · BAJA · AJUSTE (lib/workshop-parts.ts).
   kind           String
   quantity       Int      @default(0)
-  amountPyg      Int?
+  amountPyg      BigInt?
   serviceOrderId String?
   serviceOrder   ServiceOrder? @relation(fields: [serviceOrderId], references: [id], onDelete: SetNull)
   note           String?
@@ -2691,17 +2691,17 @@ model PurchaseLine {
   receivedQty Int @default(0)
   // unitCostPyg es el costo base pactado; los valores finales quedan congelados
   // para que una modificación posterior de flete o de catálogo no reescriba historia.
-  unitCostPyg Int
+  unitCostPyg BigInt
   lotReference String?
-  baseTotalPyg Int @default(0)
-  allocatedShippingPyg Int @default(0)
-  allocatedCustomsPyg Int @default(0)
-  allocatedInsurancePyg Int @default(0)
-  allocatedTaxesPyg Int @default(0)
-  allocatedOtherCostsPyg Int @default(0)
-  allocatedExtraCostPyg Int @default(0)
-  finalTotalCostPyg Int @default(0)
-  finalUnitCostPyg Int @default(0)
+  baseTotalPyg BigInt @default(0)
+  allocatedShippingPyg BigInt @default(0)
+  allocatedCustomsPyg BigInt @default(0)
+  allocatedInsurancePyg BigInt @default(0)
+  allocatedTaxesPyg BigInt @default(0)
+  allocatedOtherCostsPyg BigInt @default(0)
+  allocatedExtraCostPyg BigInt @default(0)
+  finalTotalCostPyg BigInt @default(0)
+  finalUnitCostPyg BigInt @default(0)
 
   @@index([purchaseId])
   @@index([productId])
@@ -2717,7 +2717,7 @@ model PurchaseReturn {
   purchase    PurchaseOrder        @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
   supplierId  String?
   reason      String
-  totalPyg    Int
+  totalPyg    BigInt
   createdById String
   createdAt   DateTime             @default(now())
   lines       PurchaseReturnLine[]
@@ -2736,8 +2736,8 @@ model PurchaseReturnLine {
   productId    String
   product      Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
   quantity     Int
-  unitCostPyg  Int
-  totalPyg     Int
+  unitCostPyg  BigInt
+  totalPyg     BigInt
 
   @@index([returnId])
   @@index([productId])
@@ -2750,7 +2750,7 @@ model PurchasePayment {
   purchase        PurchaseOrder   @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
   accountId       String?
   account         PaymentAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
-  amountPyg       Int
+  amountPyg       BigInt
   currency        PaymentCurrency @default(PYG)
   originalAmount  Decimal         @db.Decimal(18, 2)
   exchangeRatePyg Decimal         @default(1) @db.Decimal(18, 6)
@@ -2801,7 +2801,7 @@ model WarrantyCase {
   parts           Json           @default("[]")
   photos          Json           @default("[]")
   resolution      String?
-  repairCostPyg   Int            @default(0)
+  repairCostPyg   BigInt         @default(0)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @default(now()) @updatedAt
   expiresAt       DateTime?
@@ -2871,13 +2871,13 @@ model ServiceOrder {
   // Garantía que originó esta orden (#224): la conversión conserva el historial.
   warrantyCaseId String?
   warrantyCase   WarrantyCase? @relation("ServiceOrderWarranty", fields: [warrantyCaseId], references: [id], onDelete: SetNull)
-  pricePyg       Int       @default(0)
+  pricePyg       BigInt    @default(0)
   // Costo total del trabajo. Si la orden tiene el desglose cargado
   // (repuesto + mano de obra + otros), el total se calcula y se guarda acá.
-  costPyg        Int       @default(0)
-  partsPyg       Int?
-  laborPyg       Int?
-  otherCostPyg   Int?
+  costPyg        BigInt    @default(0)
+  partsPyg       BigInt?
+  laborPyg       BigInt?
+  otherCostPyg   BigInt?
   // Código de desbloqueo (PIN y/o patrón) cifrado, atado a esta orden.
   unlockSecret   String?
   unlockUpdatedAt DateTime?
@@ -2911,7 +2911,7 @@ model ServiceItem {
   tenantId          String
   name              String
   deviceType        String   @default("iPhone")
-  suggestedPricePyg Int      @default(0)
+  suggestedPricePyg BigInt   @default(0)
   isActive          Boolean  @default(true)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

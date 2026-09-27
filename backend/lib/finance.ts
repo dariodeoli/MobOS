@@ -1,11 +1,10 @@
 import { Prisma } from '@prisma/client'
+import { LIMITE_MONTO_GENERAL, numero } from './montos'
 
 export const FINANCE_CURRENCIES = ['PYG', 'USD', 'BRL', 'EUR', 'USDT'] as const
 export type FinanceCurrency = (typeof FINANCE_CURRENCIES)[number]
 
 export class FinanceInputError extends Error {}
-
-const INT_MAX = 2147483647
 
 export function frozenAmountPyg(originalAmount: unknown, currency: FinanceCurrency, exchangeRatePyg: unknown): number {
   const amount = new Prisma.Decimal(originalAmount as Prisma.Decimal.Value)
@@ -13,11 +12,14 @@ export function frozenAmountPyg(originalAmount: unknown, currency: FinanceCurren
   if (!amount.isFinite() || amount.lte(0) || !rate.isFinite() || rate.lte(0)) throw new FinanceInputError('Monto o cotización inválidos.')
   if (currency === 'PYG' && !rate.eq(1)) throw new FinanceInputError('La cotización PYG debe ser 1.')
   const result = amount.mul(rate).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
-  if (result.lt(1) || result.gt(INT_MAX)) throw new FinanceInputError('El monto convertido supera el máximo que el sistema puede guardar (Gs 2.147.483.647).')
+  if (result.lt(1) || result.gt(LIMITE_MONTO_GENERAL)) throw new FinanceInputError(`El monto convertido supera el máximo que el sistema puede guardar (Gs ${LIMITE_MONTO_GENERAL.toLocaleString('es-PY')}).`)
   return result.toNumber()
 }
 
-export type MarginLine = { quantity: number; totalPyg: number; unitCostPyg: number | null; insurancePyg?: number; extraCostPyg?: number }
+// Tipos de dinero que aceptan tanto `number` (tests y payloads) como `bigint`
+// (filas de Prisma desde la migración §9); adentro se normalizan con `numero`.
+
+export type MarginLine = { quantity: number; totalPyg: bigint | number; unitCostPyg: bigint | number | null; insurancePyg?: bigint | number; extraCostPyg?: bigint | number }
 
 /**
  * Costo ya congelado al vender: base + seguro + extras, sin reinterpretar la
@@ -30,11 +32,13 @@ export function realMargin(lines: MarginLine[], { discountPyg = 0 }: { discountP
   let costPyg = 0
   let unknownCostLines = 0
   for (const line of lines) {
-    if (!Number.isSafeInteger(line.quantity) || line.quantity < 1 || !Number.isSafeInteger(line.totalPyg) || line.totalPyg < 0) throw new FinanceInputError('Línea financiera inválida.')
-    revenuePyg += line.totalPyg
-    if (line.unitCostPyg === null || line.unitCostPyg === undefined) { unknownCostLines += 1; continue }
-    if (!Number.isSafeInteger(line.unitCostPyg) || line.unitCostPyg < 0) throw new FinanceInputError('Costo de línea inválido.')
-    costPyg += line.unitCostPyg * line.quantity
+    const totalPyg = numero(line.totalPyg)
+    const unitCostPyg = line.unitCostPyg === null || line.unitCostPyg === undefined ? null : numero(line.unitCostPyg)
+    if (!Number.isSafeInteger(line.quantity) || line.quantity < 1 || !Number.isSafeInteger(totalPyg) || totalPyg < 0) throw new FinanceInputError('Línea financiera inválida.')
+    revenuePyg += totalPyg
+    if (unitCostPyg === null) { unknownCostLines += 1; continue }
+    if (!Number.isSafeInteger(unitCostPyg) || unitCostPyg < 0) throw new FinanceInputError('Costo de línea inválido.')
+    costPyg += unitCostPyg * line.quantity
   }
   const netoPyg = Math.max(0, revenuePyg - discountPyg)
   return { revenuePyg: netoPyg, costPyg, profitPyg: netoPyg - costPyg, marginPct: netoPyg ? Number((((netoPyg - costPyg) / netoPyg) * 100).toFixed(2)) : null, unknownCostLines }
@@ -63,14 +67,14 @@ export function margenConSeguro({ costoPyg, ventaPyg, seguroPct }: { costoPyg: n
   return { seguroPyg, costoRealPyg, margenPyg: ventaPyg - costoRealPyg }
 }
 
-export type PayablePurchaseLine = { quantity: number; unitCostPyg: number; finalTotalCostPyg: number }
-export type PayablePurchase = { id: string; supplierName: string; lines: PayablePurchaseLine[]; payments: Array<{ amountPyg: number }> }
+export type PayablePurchaseLine = { quantity: number; unitCostPyg: bigint | number; finalTotalCostPyg: bigint | number }
+export type PayablePurchase = { id: string; supplierName: string; lines: PayablePurchaseLine[]; payments: Array<{ amountPyg: bigint | number }> }
 
 /** Compra a pagar: el total es la suma del costo final congelado por línea
  * (ya prorrateado al recibir la compra), no cantidad × costo base + gastos
  * crudos. Consistente con purchaseTotals() de purchases.ts. */
 export function purchasePayable(purchase: PayablePurchase) {
-  const totalPyg = purchase.lines.reduce((total, line) => total + line.finalTotalCostPyg, 0)
-  const paidPyg = purchase.payments.reduce((total, payment) => total + Number(payment.amountPyg || 0), 0)
+  const totalPyg = purchase.lines.reduce((total, line) => total + numero(line.finalTotalCostPyg), 0)
+  const paidPyg = purchase.payments.reduce((total, payment) => total + numero(payment.amountPyg), 0)
   return { id: purchase.id, supplierName: purchase.supplierName, totalPyg, paidPyg, pendingPyg: Math.max(0, totalPyg - paidPyg) }
 }

@@ -76,10 +76,9 @@ Con esto el flujo de venta completo queda verificado sobre el diseño v2 real.
 
 ## Pendientes que NO son del POS (revisados en v1.0.181)
 
-- **§9 BigInt**: los montos siguen en columnas de 32 bits (sin migración a BigInt
-  en `backend/prisma`), así que los 10B/99B de producto no se pueden almacenar. El
-  POS bloquea con mensaje claro en vez de fallar en silencio: es una unidad
-  cross-dominio con `db:check`, fuera del alcance del POS.
+- **§9 BigInt**: **resuelto** (#278, 27/09): migración `money_bigint` a columnas
+  bigint, topes general 10B / ventas 99B y normalización `numero()` en el
+  backend. El POS bloquea con mensaje claro cuando se pasa del tope.
 - **Gift cards reales**: decisión de producto (hoy el equivalente es el saldo a favor).
 - **INV**: el rechazo de precio/stock sigue diciendo «Precio y stock deben ser
   enteros válidos» (`backend/app/api/products/route.ts`), cosmético y del catálogo.

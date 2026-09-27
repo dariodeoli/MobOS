@@ -6,7 +6,7 @@ import { InventoryUnitStatus, PaymentCurrency, ProductCondition } from '@prisma/
 import { INVENTORY_REMOVED, INVENTORY_RESTORED, removedInventoryUnitIds } from '../../../lib/inventory'
 import { normalizarCosto } from '../../../lib/costs'
 import { itemsLista, normalizarInspectionItems, resumenInspection } from '../../../lib/inspection'
-import { INT_MAX } from '../../../lib/payment-input'
+import { LIMITE_MONTO_GENERAL, numeroOpcional } from '../../../lib/montos'
 import { serialKey } from '../../../lib/validation'
 import { revisarMinimoDeStock } from '../../../lib/supply-demand'
 import { changeStock } from '../../../lib/stock'
@@ -29,7 +29,7 @@ async function removedIdsForTenant(tenant: string) {
 function consignarMonto(value: unknown) {
   if (value === undefined || value === null || value === "") return null
   const monto = Number(value)
-  if (!Number.isSafeInteger(monto) || monto < 0 || monto > 2147483647) throw new Error("Monto de consignación inválido.")
+  if (!Number.isSafeInteger(monto) || monto < 0 || monto > LIMITE_MONTO_GENERAL) throw new Error("Monto de consignación inválido.")
   return monto
 }
 
@@ -220,7 +220,7 @@ export async function PATCH(request: Request) {
     // costó dejar el equipo en condiciones. Suma al costo real del equipo para
     // el margen y el seguro (#148 §19), así que se valida y normaliza acá.
     const costoRepuestos = inspeccion.costoRepuestosPyg === undefined || inspeccion.costoRepuestosPyg === '' || inspeccion.costoRepuestosPyg === null ? null : Number(inspeccion.costoRepuestosPyg)
-    if (costoRepuestos !== null && (!Number.isSafeInteger(costoRepuestos) || costoRepuestos < 0 || costoRepuestos > INT_MAX)) return error('El costo de repuestos debe ser un entero entre 0 y 2.147.483.647.')
+    if (costoRepuestos !== null && (!Number.isSafeInteger(costoRepuestos) || costoRepuestos < 0 || costoRepuestos > LIMITE_MONTO_GENERAL)) return error(`El costo de repuestos debe ser un entero entre 0 y ${LIMITE_MONTO_GENERAL.toLocaleString('es-PY')}.`)
     const actualizada = await prisma.inventoryUnit.update({ where: { id }, data: { inspection: { ...inspeccion, items, itemsLista: itemsLista(items), puntaje, grado, costoRepuestosPyg: costoRepuestos, inspeccionadoAt: new Date().toISOString(), inspeccionadoPor: session.user.name } as any } })
     return json(actualizada)
   }
@@ -303,7 +303,7 @@ export async function PATCH(request: Request) {
         const patch = unitData(body)
         // Costo (diferido o editado): se normaliza contra lo que ya tenía la unidad.
         const tocaCosto = body.costPyg !== undefined || body.originalCost !== undefined || body.costCurrency !== undefined || body.exchangeRatePyg !== undefined
-        const costo = normalizarCosto(body, { costPyg: before.costPyg, originalCost: before.originalCost === null ? null : Number(before.originalCost), costCurrency: before.costCurrency, exchangeRatePyg: before.exchangeRatePyg === null ? null : Number(before.exchangeRatePyg) })
+        const costo = normalizarCosto(body, { costPyg: numeroOpcional(before.costPyg), originalCost: before.originalCost === null ? null : Number(before.originalCost), costCurrency: before.costCurrency, exchangeRatePyg: before.exchangeRatePyg === null ? null : Number(before.exchangeRatePyg) })
         // Un proveedor nuevo escrito a mano también se da de alta.
         const proveedor = body.supplierId !== undefined || typeof body.supplierName === 'string' ? await resolverProveedor(tx, tenant, body) : undefined
         const data = await tx.inventoryUnit.update({ where: { id }, data: { ...patch, ...costo, ...(proveedor === undefined ? {} : { supplierId: proveedor }) } })

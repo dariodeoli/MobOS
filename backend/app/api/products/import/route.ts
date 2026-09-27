@@ -6,6 +6,7 @@ import { ensureStoreBranch } from '../../../../lib/store-branch'
 import { IMPORT_MAX_FILAS, analizarImportacion } from '../../../../lib/product-import'
 import type { ImportMode } from '../../../../lib/product-import'
 import type { SessionContext } from '../../../../lib/auth'
+import { numero, numeroOpcional } from '../../../../lib/montos'
 
 const ID_MAX = 128
 
@@ -80,13 +81,13 @@ async function importar(tenant: string, session: SessionContext, body: any) {
           },
         })
         creadas.push({ id: producto.id, sku: producto.sku, name: producto.name })
-        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PRODUCT_CREATED', entity: 'Product', entityId: producto.id, metadata: { name: producto.name, sku: producto.sku, pricePyg: producto.pricePyg, costPyg: producto.costPyg, stock: producto.stock, imported: true, batchId } } })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PRODUCT_CREATED', entity: 'Product', entityId: producto.id, metadata: { name: producto.name, sku: producto.sku, pricePyg: numero(producto.pricePyg), costPyg: numeroOpcional(producto.costPyg), stock: producto.stock, imported: true, batchId } } })
       }
       for (const fila of aActualizar) {
         const datos = fila.data
         const actual = porSku.get(datos.sku)
         if (!actual) throw new Error('SKU cambiado mientras se importaba.')
-        const before = { pricePyg: actual.pricePyg, wholesalePricePyg: actual.wholesalePricePyg ?? null, priceUsd: actual.priceUsd === null ? null : Number(actual.priceUsd) }
+        const before = { pricePyg: numero(actual.pricePyg), wholesalePricePyg: numeroOpcional(actual.wholesalePricePyg), priceUsd: actual.priceUsd === null ? null : Number(actual.priceUsd) }
         const after = {
           pricePyg: datos.pricePyg as number,
           wholesalePricePyg: datos.wholesalePricePyg ?? before.wholesalePricePyg,
@@ -139,7 +140,7 @@ async function deshacer(tenant: string, userId: string, body: any) {
         const producto = await tx.product.findFirst({ where: { id: fila.id, tenantId: tenant }, select: { id: true, sku: true, name: true, isActive: true, pricePyg: true } })
         if (!producto) { omitidas.push({ sku: fila.sku, motivo: 'ya no existe' }); continue }
         if (!producto.isActive) { omitidas.push({ sku: fila.sku, motivo: 'está eliminado' }); continue }
-        const igualAlLote = producto.pricePyg === fila.after.pricePyg
+        const igualAlLote = numero(producto.pricePyg) === fila.after.pricePyg
         if (!igualAlLote) { omitidas.push({ sku: fila.sku, motivo: 'el precio cambió después de importarlo' }); continue }
         await tx.product.update({ where: { id: producto.id }, data: { pricePyg: fila.before.pricePyg, wholesalePricePyg: fila.before.wholesalePricePyg, priceUsd: fila.before.priceUsd } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId, action: 'PRODUCT_UPDATED', entity: 'Product', entityId: producto.id, metadata: { name: producto.name, sku: producto.sku, pricePyg: fila.before.pricePyg, imported: true, batchId, undo: true } } })

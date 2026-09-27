@@ -6,9 +6,10 @@ import { error, json } from '../../../lib/http'
 import { ensureStoreBranch } from '../../../lib/store-branch'
 import { CASH_MOVEMENT_KINDS, createCashMovement } from '../../../lib/cash-movements'
 import { FINANCE_CURRENCIES, frozenAmountPyg } from '../../../lib/finance'
+import { LIMITE_MONTO_GENERAL } from '../../../lib/montos'
 
 type QueryDb = Pick<typeof prisma, '$queryRaw'> | Pick<Prisma.TransactionClient, '$queryRaw'>
-const int = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0 && Number(value) <= 2147483647
+const int = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0 && Number(value) <= LIMITE_MONTO_GENERAL
 const note = (value: unknown) => value == null ? null : typeof value === 'string' && value.trim().length <= 500 ? value.trim() || null : undefined
 
 async function context(request: Request) {
@@ -39,7 +40,7 @@ function countedBreakdownInput(value: unknown): { breakdown: Record<string, numb
     const denom = Number(key); const count = Number(raw)
     if (!DENOMINACIONES.includes(denom) || !Number.isInteger(count) || count < 0 || count > 1000000) return undefined
     if (count > 0) { breakdown[String(denom)] = count; total += denom * count }
-    if (total > 2147483647) return undefined
+    if (total > LIMITE_MONTO_GENERAL) return undefined
   }
   return { breakdown, countedPyg: total }
 }
@@ -173,7 +174,7 @@ export async function GET(request: Request) {
   // no, se muestra la última sesión (para consultar el último cierre).
   const mine = await prisma.$queryRaw<Array<Record<string, unknown>>>`SELECT * FROM "CashSession" WHERE "tenantId" = ${tenant} AND "branchId" = ${ctx.branchId} AND "openedById" = ${ctx.session.user.id} AND "status" = 'OPEN' ORDER BY "openedAt" DESC LIMIT 1`
   const row = mine[0] ? mine : await prisma.$queryRaw<Array<Record<string, unknown>>>`SELECT * FROM "CashSession" WHERE "tenantId" = ${tenant} AND "branchId" = ${ctx.branchId} ORDER BY "openedAt" DESC LIMIT 1`
-  const openSessions = await prisma.$queryRaw<Array<{ id: string; openedById: string; openedByName: string; openedAt: Date; openingPyg: number }>>`
+  const openSessions = await prisma.$queryRaw<Array<{ id: string; openedById: string; openedByName: string; openedAt: Date; openingPyg: bigint | number }>>`
     SELECT s."id", s."openedById", u."name" AS "openedByName", s."openedAt", s."openingPyg"
     FROM "CashSession" s JOIN "User" u ON u."id" = s."openedById"
     WHERE s."tenantId" = ${tenant} AND s."branchId" = ${ctx.branchId} AND s."status" = 'OPEN'
@@ -194,7 +195,7 @@ export async function POST(request: Request) {
   const body = await request.json(); const action = body.action
   const notes = note(body.notes); if (notes === undefined) return error('Las notas deben ser texto de hasta 500 caracteres.')
   if (action === 'open') {
-    const openingPyg = Number(body.openingPyg); if (!int(openingPyg)) return error('El fondo inicial debe ser un entero entre 0 y 2.147.483.647.')
+    const openingPyg = Number(body.openingPyg); if (!int(openingPyg)) return error(`El fondo inicial debe ser un entero entre 0 y ${LIMITE_MONTO_GENERAL.toLocaleString('es-PY')}.`)
     try {
       const result = await prisma.$transaction(async (tx) => {
         const id = randomUUID()
@@ -214,12 +215,12 @@ export async function POST(request: Request) {
     // Con desglose por denominación el total contado se deriva del detalle; sin
     // él se mantiene el total manual de siempre.
     const countedPyg = arqueo.breakdown ? arqueo.countedPyg : Number(body.countedPyg)
-    if (!int(countedPyg)) return error('El efectivo contado debe ser un entero entre 0 y 2.147.483.647.')
+    if (!int(countedPyg)) return error(`El efectivo contado debe ser un entero entre 0 y ${LIMITE_MONTO_GENERAL.toLocaleString('es-PY')}.`)
     const requestedSessionId = typeof body.sessionId === 'string' && body.sessionId ? body.sessionId : null
     const result = await prisma.$transaction(async (tx) => {
       const open = requestedSessionId
-        ? await tx.$queryRaw<Array<{ id: string; openedAt: Date; openingPyg: number; openedById: string }>>`SELECT "id", "openedAt", "openingPyg", "openedById" FROM "CashSession" WHERE "id" = ${requestedSessionId} AND "tenantId" = ${ctx.session.user.tenantId} AND "branchId" = ${ctx.branchId} AND "status" = 'OPEN' FOR UPDATE`
-        : await tx.$queryRaw<Array<{ id: string; openedAt: Date; openingPyg: number; openedById: string }>>`SELECT "id", "openedAt", "openingPyg", "openedById" FROM "CashSession" WHERE "tenantId" = ${ctx.session.user.tenantId} AND "branchId" = ${ctx.branchId} AND "openedById" = ${ctx.session.user.id} AND "status" = 'OPEN' FOR UPDATE`
+        ? await tx.$queryRaw<Array<{ id: string; openedAt: Date; openingPyg: bigint | number; openedById: string }>>`SELECT "id", "openedAt", "openingPyg", "openedById" FROM "CashSession" WHERE "id" = ${requestedSessionId} AND "tenantId" = ${ctx.session.user.tenantId} AND "branchId" = ${ctx.branchId} AND "status" = 'OPEN' FOR UPDATE`
+        : await tx.$queryRaw<Array<{ id: string; openedAt: Date; openingPyg: bigint | number; openedById: string }>>`SELECT "id", "openedAt", "openingPyg", "openedById" FROM "CashSession" WHERE "tenantId" = ${ctx.session.user.tenantId} AND "branchId" = ${ctx.branchId} AND "openedById" = ${ctx.session.user.id} AND "status" = 'OPEN' FOR UPDATE`
       if (!open[0]) return null
       // Cerrar el turno de otra persona es de administración/gerencia.
       if (open[0].openedById !== ctx.session.user.id && !['ADMIN', 'GERENTE'].includes(ctx.session.user.role)) throw new Error('Solo administración o gerencia pueden cerrar el turno de otra persona.')

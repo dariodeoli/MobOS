@@ -65,7 +65,7 @@ export function esPorPagar(part: { paymentMode?: string | null; paidAt?: unknown
 }
 
 /** Deuda del repuesto en guaraníes (crédito: lo comprado; consignación: lo usado). */
-export function deudaRepuesto(part: { paymentMode?: string | null; paidAt?: unknown; quantity?: number | null; usedQuantity?: number | null; unitCostPyg?: number | null; totalCostPyg?: number | null } = {}): number {
+export function deudaRepuesto(part: { paymentMode?: string | null; paidAt?: unknown; quantity?: number | null; usedQuantity?: number | null; unitCostPyg?: bigint | number | null; totalCostPyg?: bigint | number | null } = {}): number {
   if (!esPorPagar(part)) return 0
   const pago = String(part.paymentMode || 'CONTADO').toUpperCase()
   const unitario = Math.max(0, Number(part.unitCostPyg) || 0)
@@ -76,7 +76,7 @@ export function deudaRepuesto(part: { paymentMode?: string | null; paidAt?: unkn
 }
 
 /** Resumen para el panel y para FIN (cuentas por pagar del taller). */
-export function resumenRepuestos(parts: Array<{ ownership?: string | null; paymentMode?: string | null; paidAt?: unknown; quantity?: number | null; usedQuantity?: number | null; unitCostPyg?: number | null; totalCostPyg?: number | null; status?: string | null; dueAt?: string | Date | null; supplierId?: string | null }> = [], { ahora = new Date() }: { ahora?: Date | string } = {}): { total: number; disponibles: number; propios: number; deProveedor: number; porPagar: number; porPagarPyg: number; vencidas: number; vencidasPyg: number; unidadesDisponibles: number } {
+export function resumenRepuestos(parts: Array<{ ownership?: string | null; paymentMode?: string | null; paidAt?: unknown; quantity?: number | null; usedQuantity?: number | null; unitCostPyg?: bigint | number | null; totalCostPyg?: bigint | number | null; status?: string | null; dueAt?: string | Date | null; supplierId?: string | null }> = [], { ahora = new Date() }: { ahora?: Date | string } = {}): { total: number; disponibles: number; propios: number; deProveedor: number; porPagar: number; porPagarPyg: number; vencidas: number; vencidasPyg: number; unidadesDisponibles: number } {
   const referencia = new Date(ahora).getTime()
   const resumen = { total: parts.length, disponibles: 0, propios: 0, deProveedor: 0, porPagar: 0, porPagarPyg: 0, vencidas: 0, vencidasPyg: 0, unidadesDisponibles: 0 }
   for (const part of parts) {

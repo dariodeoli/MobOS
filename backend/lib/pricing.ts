@@ -9,8 +9,9 @@ export class PricingError extends Error {}
 export const normalizarCategoria = (value: unknown) => String(value ?? '')
   .normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase()
 
-const INT_MAX = 2147483647
-const int = (value: unknown, min = 0) => Number.isSafeInteger(value) && (value as number) >= min && (value as number) <= INT_MAX
+import { LIMITE_MONTO_VENTAS } from './montos'
+
+const int = (value: unknown, min = 0) => Number.isSafeInteger(value) && (value as number) >= min && (value as number) <= LIMITE_MONTO_VENTAS
 
 export function lineDiscount(input: { quantity: number; unitPricePyg: number; discountPyg?: number; discountPct?: number }) {
   const { quantity, unitPricePyg } = input
@@ -82,7 +83,7 @@ function amount(value: unknown, label: string): number | undefined {
   const number = typeof value === 'object' && value !== null && 'toNumber' in value
     ? (value as { toNumber(): number }).toNumber()
     : Number(value)
-  if (!Number.isFinite(number) || number < 0 || number > INT_MAX) throw new PricingError(`${label} inválido.`)
+  if (!Number.isFinite(number) || number < 0 || number > LIMITE_MONTO_VENTAS) throw new PricingError(`${label} inválido.`)
   return number
 }
 

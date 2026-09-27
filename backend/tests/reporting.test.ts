@@ -279,10 +279,14 @@ test('el margen por venta es el mismo en el reporte y en las comisiones', () => 
 })
 
 test('avisa cuando los importes exceden el rango permitido', () => {
+  // El tope de reportes es el de ventas (99B): dos ventas de 60B ya no entran.
   assert.throws(
-    () => aggregateReport([orden({ subtotalPyg: 2147483647, totalPyg: 2147483647 }), orden({ id: 'b', subtotalPyg: 2147483647, totalPyg: 2147483647 })], { groupBy: 'day', offsetMinutes: DEFAULT_OFFSET_MINUTES }),
+    () => aggregateReport([orden({ subtotalPyg: 60000000000, totalPyg: 60000000000 }), orden({ id: 'b', subtotalPyg: 60000000000, totalPyg: 60000000000 })], { groupBy: 'day', offsetMinutes: DEFAULT_OFFSET_MINUTES }),
     ReportInputError,
   )
+  // Lo que antes era el techo de 32 bits ahora suma sin problema.
+  const dosVentasGrandes = aggregateReport([orden({ subtotalPyg: 2147483647, totalPyg: 2147483647 }), orden({ id: 'b', subtotalPyg: 2147483647, totalPyg: 2147483647 })], { groupBy: 'day', offsetMinutes: DEFAULT_OFFSET_MINUTES })
+  assert.equal(dosVentasGrandes.totals.totalPyg, 4294967294)
 })
 
 test('el tope de órdenes analizadas es explícito', () => {

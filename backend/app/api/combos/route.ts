@@ -1,9 +1,10 @@
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
+import { LIMITE_MONTO_GENERAL } from '../../../lib/montos'
 
 const INT_MAX = 2147483647
-const safeInt = (value: unknown, min = 0) => Number.isSafeInteger(value) && (value as number) >= min && (value as number) <= INT_MAX
+const safeInt = (value: unknown, min = 0, max = INT_MAX) => Number.isSafeInteger(value) && (value as number) >= min && (value as number) <= max
 const text = (value: unknown, max = 200) => typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null
 
 type ComboItem = { productId: string; quantity: number }
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
   let body: any; try { body = await request.json() } catch { return error('JSON inválido.') }
   const name = text(body?.name, 200); const price = Number(body?.pricePyg)
   if (!name) return error('El nombre del combo es obligatorio.')
-  if (!safeInt(price, 1)) return error('El precio del combo debe ser un entero positivo.')
+  if (!safeInt(price, 1, LIMITE_MONTO_GENERAL)) return error('El precio del combo debe ser un entero positivo.')
   try {
     const items = normalizeItems(body?.items)
     const products = await prisma.product.findMany({ where: { tenantId: tenant, id: { in: items.map(item => item.productId) } }, select: { id: true } })
@@ -61,7 +62,7 @@ export async function PATCH(request: Request) {
   try {
     const items = body?.items === undefined ? undefined : normalizeItems(body.items)
     const price = body?.pricePyg === undefined ? undefined : Number(body.pricePyg)
-    if (price !== undefined && !safeInt(price, 1)) return error('Precio inválido.')
+    if (price !== undefined && !safeInt(price, 1, LIMITE_MONTO_GENERAL)) return error('Precio inválido.')
     const updated = await prisma.combo.update({ where: { id }, data: {
       ...(body?.name !== undefined ? { name: text(body.name, 200) || combo.name } : {}),
       ...(price !== undefined ? { pricePyg: price } : {}),
