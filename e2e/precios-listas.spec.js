@@ -103,7 +103,8 @@ test('gestión de listas y venta con escalón aplica el precio por cantidad', as
   await paymentsSection.getByLabel('Monto original').fill('210000')
   await expect(paymentsSection.getByText('Pendiente').first().locator('strong')).toHaveText('Gs 0')
   await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
-  await expect(page.getByText('Venta registrada correctamente. Ya podés cargar la siguiente.')).toBeVisible()
+  // #275: al confirmar, la app va sola al detalle del pedido recién creado.
+  await expect(page).toHaveURL(/\/pedidos\/[^/?#]+$/, { timeout: 20_000 })
 
   // La línea quedó con el precio del escalón y su origen congelado (el escalón
   // gana sobre la lista del cliente, que también cubre el producto).

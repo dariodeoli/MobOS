@@ -74,7 +74,8 @@ async function pagarEnPos(page, { cliente, producto, pagos }) {
   }
   await expect(page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ })).toBeVisible()
   await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'Venta registrada correctamente.' })).toBeVisible({ timeout: 20_000 })
+  // #275: al confirmar, la app va sola al detalle del pedido recién creado.
+  await expect(page).toHaveURL(/\/pedidos\/[^/?#]+$/, { timeout: 20_000 })
 }
 
 test('venta completa desde inventario: el POS vende el producto y descuenta stock', async ({ page }) => {
@@ -249,7 +250,8 @@ test('split: un bloque marcado como no pagado deja el saldo pendiente y el pedid
     const boton = page.getByRole('button', { name: /^Crear pedido/ })
     await expect(boton).toBeVisible()
     await boton.click()
-    await expect(page.getByText(/Venta registrada correctamente/)).toBeVisible({ timeout: 20_000 })
+    // #275: el pedido parcial también aterriza en su detalle.
+    await expect(page).toHaveURL(/\/pedidos\/[^/?#]+$/, { timeout: 20_000 })
 
     const orden = await pedidoDe(page, cliente)
     expect(orden, 'el pedido queda registrado').toBeTruthy()

@@ -41,7 +41,7 @@ const navego = await page.waitForURL(/\/pedidos\//, { timeout: 20_000 }).then(()
 await esperar(1500)
 const url = await page.evaluate('location.pathname')
 const titulo = await page.locator('h1').first().innerText().catch(() => '')
-const numeroVisible = /MOB-#?\d{4}/.test(await page.locator('body').innerText())
+const numeroVisible = /[A-Z]{2,3}-#?\d{4}/.test(await page.locator('body').innerText())
 await page.screenshot({ path: join(SALIDA, 'detalle-pedido.jpg'), type: 'jpeg', quality: 72 }).catch(() => {})
 // Al volver, el carrito queda vacío.
 await page.goto(`${BASE}/pos`, { waitUntil: 'domcontentloaded' })

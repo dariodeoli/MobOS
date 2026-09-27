@@ -79,7 +79,8 @@ test('venta sin stock marcada «sobre pedido» crea el pedido sin descontar stoc
     await expect(page.locator('[data-estado="sobre-pedido"]')).toHaveCount(1)
 
     await page.getByRole('button', { name: /^Crear pedido sin pago/ }).click()
-    await expect(page.getByRole('status').filter({ hasText: 'Venta registrada correctamente.' })).toBeVisible({ timeout: 20_000 })
+    // #275: al confirmar, la app va sola al detalle del pedido creado.
+    await expect(page).toHaveURL(/\/pedidos\/[^/?#]+$/, { timeout: 20_000 })
 
     const orden = await pedidoDe(page, cliente)
     expect(orden, 'el pedido queda registrado').toBeTruthy()
@@ -205,7 +206,8 @@ test('la venta serializada cierra aunque haya 500 unidades con el mismo texto (#
     await page.getByRole('button', { name: 'Listo' }).click()
 
     await page.getByRole('button', { name: /^Crear pedido sin pago/ }).click()
-    await expect(page.getByRole('status').filter({ hasText: 'Venta registrada correctamente.' })).toBeVisible({ timeout: 20_000 })
+    // #275: al confirmar, la app va sola al detalle del pedido creado.
+    await expect(page).toHaveURL(/\/pedidos\/[^/?#]+$/, { timeout: 20_000 })
     const vendida = await page.evaluate(async ({ api, serial }) => {
       const filas = await fetch(`${api}/api/inventory-units?q=${encodeURIComponent(serial)}`, { credentials: 'include' }).then((r) => r.json()).catch(() => [])
       return Array.isArray(filas) ? filas[0]?.status || '' : ''

@@ -1,6 +1,6 @@
 // Full POS checkout through the real API as the seeded seller (PIN 2468):
 // search product → add to cart → review → split payment across two payment
-// accounts → save → success banner → sale appears in /pedidos.
+// accounts → save → lands on the order detail (#275) → sale appears in /pedidos.
 //
 // The checkout uses the account-based payment rows (Cuenta de cobro +
 // Monto original); the legacy method-only fallback only renders when the
@@ -95,15 +95,12 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   // (fixed in the Phase-3 merge), so no observation is required here.
   await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
 
-  // Success banner with print actions.
-  const banner = page
-    .getByRole('status')
-    .filter({ hasText: 'Venta registrada correctamente. Ya podés cargar la siguiente.' })
-  await expect(banner).toBeVisible()
-  // La confirmación muestra el número de pedido recién creado.
-  await expect(banner).toContainText(/Pedido MOB-#\d{4,} creado/)
-  // Vista previa del comprobante con nivel y formato elegibles.
-  await banner.getByRole('button', { name: 'Imprimir comprobante' }).click()
+  // #275: al confirmar, la app va sola al detalle del pedido recién creado
+  // (venta completa, parcial y a crédito, también en demo).
+  await expect(page).toHaveURL(/\/pedidos\/[^/?#]+$/, { timeout: 20_000 })
+  await expect(page.getByText('Artículos preparados')).toBeVisible()
+  // Vista previa del comprobante con nivel y formato elegibles (desde el detalle).
+  await page.getByRole('button', { name: 'Imprimir comprobante' }).click()
   await expect(page.getByLabel('Tipo de comprobante')).toBeVisible()
   await expect(page.getByLabel('Formato de impresión')).toBeVisible()
   await page.keyboard.press('Escape')
@@ -124,6 +121,13 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   // El id interno no es el código comercial: la navegación no depende de él.
   expect(creada?.id).toBeTruthy()
   expect(creada?.id).not.toBe(creada?.orderNumber)
+
+  // El detalle muestra el número del pedido y «Volver al POS» deja el carrito
+  // vacío para la próxima venta.
+  await expect(page.getByText(codigoPedido(creada.orderNumber)).first()).toBeVisible()
+  await page.getByRole('button', { name: 'Volver al POS' }).click()
+  await expect(page).toHaveURL(/\/pos$/)
+  await expect(page.getByText('Todavía no agregaste productos.')).toBeVisible()
 
   // La venta aparece en el listado del vendedor. La columna Cliente muestra
   // nombre + primer apellido, así que el nombre completo no se ve en la tabla.
@@ -385,9 +389,7 @@ test('POS manual price below list stores the list price for the receipt', async 
     await expect(paymentsSection.getByText('Equivalente: Gs 40.000')).toBeVisible()
 
     await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
-    await expect(
-      page.getByRole('status').filter({ hasText: 'Venta registrada correctamente.' }),
-    ).toBeVisible()
+    await expect(page).toHaveURL(/\/pedidos\/[^/?#]+$/, { timeout: 20_000 })
 
     await expect
       .poll(async () => orderItems(page, name))
@@ -482,7 +484,7 @@ test('POS vende un equipo serializado con su IMEI y bloquea el sobre pedido con 
   await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
   await paymentsSection.getByLabel('Monto original').nth(0).fill(String(SEED.products.iphone.pricePyg))
   await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
-  await expect(page.getByText('Venta registrada correctamente. Ya podés cargar la siguiente.')).toBeVisible({ timeout: 15_000 })
+  await expect(page).toHaveURL(/\/pedidos\/[^/?#]+$/, { timeout: 20_000 })
 })
 
 // #150: el borrador del RUC consultado (pre-cliente) reaparece al buscar por
@@ -530,7 +532,7 @@ test('POS: el correo corregido de un cliente se guarda en la ficha al vender', a
   await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
   await paymentsSection.getByLabel('Monto original').fill('45000')
   await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
-  await expect(page.getByText('Venta registrada correctamente. Ya podés cargar la siguiente.')).toBeVisible({ timeout: 15_000 })
+  await expect(page).toHaveURL(/\/pedidos\/[^/?#]+$/, { timeout: 20_000 })
 
   // La ficha quedó con el correo cargado (se consulta por la API).
   await expect
