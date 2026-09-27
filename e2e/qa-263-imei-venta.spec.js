@@ -95,3 +95,47 @@ test('un producto sin serialización no pide IMEI y vende sin fricción (#263)',
     }, { api: API, productId })
   }
 })
+
+// Caso real (Dario): sin cliente → «Cliente ocasional», con línea «Sobre pedido»
+// y sin IMEI. Antes el botón quedaba deshabilitado sin motivo y el pedido no se
+// guardaba (#263).
+test('venta ocasional (sin cliente) con línea sobre pedido guarda el pedido (#263)', async ({ page }) => {
+  const nombre = `QA 263 Ocasional ${clave()}`
+  const rechazos = []
+  page.on('response', (respuesta) => {
+    if (respuesta.url().includes('/api/orders') && respuesta.status() >= 400) rechazos.push(`${respuesta.status()} ${respuesta.url()}`)
+  })
+  await page.goto('/pos')
+  const productId = await page.evaluate(async ({ api, branchId, nombre }) => {
+    const respuesta = await fetch(`${api}/api/products`, {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sku: `ZZ-QA263O-${nombre.slice(-6)}`, name: nombre, category: 'Audio', pricePyg: 500000, costPyg: 300000, stock: 0, branchId }),
+    })
+    return (await respuesta.json()).id
+  }, { api: API, branchId: SEED.branchId, nombre })
+
+  try {
+    await page.goto('/pos')
+    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+    const buscar = page.getByPlaceholder('Buscar producto…')
+    await buscar.fill(nombre)
+    await expect(page.getByRole('button', { name: new RegExp(nombre) }).first()).toBeVisible({ timeout: 15_000 })
+    await page.getByRole('button', { name: new RegExp(nombre) }).first().click()
+    await expect(page.getByText('Productos de esta venta')).toBeVisible()
+
+    // Sin stock: la guía ofrece «Sobre pedido»; sin cliente no debe bloquear.
+    const principal = page.getByTestId('pos-cobro').getByRole('button', { name: /Confirmar venta|Crear pedido|Guardar pedido/ })
+    await principal.click()
+    const sobrePedido = page.getByRole('button', { name: 'Sobre pedido' })
+    if (await sobrePedido.count()) await sobrePedido.first().click()
+    await expect(page.getByTestId('motivos-bloqueo')).toHaveCount(0)
+    await principal.click()
+    await expect(page.getByText(/Venta registrada|Pedido .* creado/).first()).toBeVisible({ timeout: 20_000 })
+    expect(rechazos, `POST /api/orders rechazado: ${rechazos.join(' | ')}`).toEqual([])
+    await page.screenshot({ path: 'test-results/qa-263/ocasional-sobre-pedido.png' })
+  } finally {
+    await page.evaluate(async ({ api, productId }) => {
+      await fetch(`${api}/api/products?id=${encodeURIComponent(productId)}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
+    }, { api: API, productId })
+  }
+})

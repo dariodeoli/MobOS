@@ -743,12 +743,16 @@ export default function FormularioVenta({
   })
 
   const cantTotal = items.reduce((a, it) => a + (it.quantity || 1), 0)
-  const valido =
-    sesion?.vendedorId &&
-    String(f.cliente ?? '').trim() &&
-    cantTotal > 0 &&
-    totalPagado <= totalGeneral &&
-    gsNum(descuento) <= subtotal
+  // #263: se puede vender sin cliente → «Cliente ocasional»; el botón nunca se
+  // deshabilita en silencio: los motivos se listan debajo.
+  const clienteEfectivo = String(f.cliente ?? '').trim() || 'Cliente ocasional'
+  const motivosBloqueo = [
+    !sesion?.vendedorId && 'Ingresá con tu PIN para vender.',
+    cantTotal === 0 && 'Agregá al menos un producto.',
+    totalPagado > totalGeneral && 'Los pagos superan el total de la venta.',
+    gsNum(descuento) > subtotal && 'El descuento supera el subtotal.',
+  ].filter(Boolean)
+  const valido = sesion?.vendedorId && cantTotal > 0 && totalPagado <= totalGeneral && gsNum(descuento) <= subtotal
 
   // Informa al contenedor lo que lleva esta compra, para pintarlo en la barra
   // compacta de pantallas angostas. Cada línea viaja con su subtotal ya
@@ -850,13 +854,9 @@ export default function FormularioVenta({
     e.preventDefault()
     if (guardando || guardadoEnCurso.current || guardadoIncompleto) return
     const lista = [...items]
-    if (
-      !sesion?.vendedorId ||
-      !String(f.cliente ?? '').trim() ||
-      lista.length === 0 ||
-      totalPagado > totalGeneral
-    )
-      return
+    if (!sesion?.vendedorId || lista.length === 0) return
+    if (totalPagado > totalGeneral) { setErrorVenta('Los pagos superan el total de la venta: ajustá los montos.'); return }
+    if (gsNum(descuento) > subtotal) { setErrorVenta('El descuento supera el subtotal de la venta.'); return }
     const orderItems = lista.map(it => {
       const pct = parsePercent(it.descuentoPct) ?? 0
       const fijo = gsNum(it.descuento || 0)
@@ -1081,7 +1081,7 @@ export default function FormularioVenta({
                   customer: {
                     // Nombre normalizado ("PEREZ, JUAN" → "Juan Perez"): la
                     // ficha y el pedido se muestran siempre igual.
-                    name: normalizarNombre(f.cliente.trim()),
+                    name: normalizarNombre(clienteEfectivo),
                     ...(customer.phone?.trim() ? { phone: customer.phone.trim() } : {}),
                     ...(customer.countryCode ? { countryCode: customer.countryCode } : {}),
                     ...(customer.email?.trim() ? { email: customer.email.trim() } : {}),
@@ -1904,6 +1904,7 @@ export default function FormularioVenta({
               setF={setF}
               set={set}
               valido={valido}
+              motivos={motivosBloqueo}
               cantTotal={cantTotal}
               ok={ok}
               pendientes={pendientesVenta}

@@ -3,7 +3,6 @@ import Icon from '@/components/shared/Icon'
 import { CELDA_DATO } from '@/components/shared/tabla'
 import { KIND_LABELS } from '@/lib/paymentAccounts'
 import { logoDeBanco } from '@/lib/bancosLogos'
-import { gs } from '@/utils/calculos'
 import { cn } from '@/lib/utils'
 
 // Cápsula resumida de la cuenta de cobro elegida (#148 §5/§11): al elegir una
@@ -22,7 +21,8 @@ const numero = (valor) => {
 
 function datosDeCuenta(account) {
   const partes = []
-  if (account.bank) partes.push(account.bank)
+  // El banco no se repite si el nombre de la cuenta ya lo incluye (#262).
+  if (account.bank && !String(account.name || '').toLowerCase().includes(String(account.bank).toLowerCase())) partes.push(account.bank)
   if (account.kind === 'CARD' && account.processor) partes.push(account.processor)
   if (account.holder) partes.push(`Titular ${account.holder}`)
   if (account.kind === 'TRANSFER' && account.accountNumber) partes.push(`Nro ${numero(account.accountNumber)}`)
@@ -45,16 +45,12 @@ function extrasDeCuenta(account) {
   return partes
 }
 
-export default function CapsulaCuentaCobro({ account, pendientePyg = 0, cotizacionPyg = 0, className }) {
+export default function CapsulaCuentaCobro({ account, className }) {
   if (!account) return null
   const medio = KIND_LABELS[account.kind] || account.kind
   const moneda = account.currencyLabel || SIMBOLO[account.currency] || account.currency
   const datos = datosDeCuenta(account)
   const extras = extrasDeCuenta(account)
-  // Saldo de la venta (en la moneda de la cuenta cuando hay cotización).
-  const pendiente = Math.max(0, Number(pendientePyg) || 0)
-  const cotizacion = Number(cotizacionPyg) || 0
-  const equivalente = account.currency !== 'PYG' && cotizacion > 0 ? pendiente / cotizacion : null
   const conLogo = Boolean(account.bank) && Boolean(logoDeBanco(account.bank))
 
   return (
@@ -76,17 +72,6 @@ export default function CapsulaCuentaCobro({ account, pendientePyg = 0, cotizaci
         {(datos.length > 0 || extras.length > 0) && (
           <p className={cn('mt-0.5', CELDA_DATO)} data-testid="cuenta-capsula-datos">
             {[...datos, ...extras].join(' · ')}
-          </p>
-        )}
-        {pendiente > 0 && (
-          <p className="mt-1 text-xs text-mute" data-testid="cuenta-capsula-saldo">
-            Saldo pendiente de esta venta:{' '}
-            <b className="tabular-nums text-warn">{gs(pendiente)}</b>
-            {equivalente !== null && (
-              <span className="text-mute">
-                {' '}· {moneda} {equivalente.toLocaleString('es-PY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            )}
           </p>
         )}
       </div>
