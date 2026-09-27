@@ -292,6 +292,30 @@ Google), ambos legítimos.
   vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
   en el contador.
 
+### Lote 54 — Riel de Configuración a la biblioteca (#267/#253) + INV/FIN (27-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `NavegacionSeccion` | `config/NavegacionConfig.jsx` implementaba el riel completo (colapso a íconos con tooltip, tira horizontal mobile, centrado del activo, descripción del grupo, `role="tab"`, testids) | Biblioteca **v0.47.0**: el riel es `NavegacionSeccion` con colapso **controlado** (`colapsado`/`onToggle`), `variante="horizontal"` y descripción del activo. La app queda como **adaptador**: `useMenuConfigColapsedo` (preferencia por dispositivo), los 7 grupos de `gruposConfig` y los testids `config-grupos`/`config-grupos-toggle`/`config-grupo-descripcion` |
+| Inventario / Finanzas | — | Sin piezas locales nuevas que dupliquen la biblioteca (los lotes usan lo ya publicado: `TileEquipo`/`MedidorStock`/`ColumnaLote`/`ChipEstado` en Inventario; `Stat`/`ImporteDelta`/`GraficoBarras`/`PeriodoTabs`/`CeldaMoneda` en Finanzas). `NavegacionSeccion` también sirve para sus secciones internas |
+| Guarda | El spec de #253 asertaba el markup en la app | Ahora el markup se asertúa en la biblioteca y el adaptador en la app (import, hook y testids) |
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend,
+`e2e/qa-253-config-grupos` (riel) y `test:e2e:smoke`; biblioteca `owncoding-ui`
+build + 334 tests.
+
+### Lote 53 — Cronología como adaptador, con estados en la biblioteca (#250) (26-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `Cronologia` | Copia local de la lista (3346) con su fetch, esqueleto, error con reintento, vacío y cabecera de actualizar; la biblioteca (4060) solo dibujaba los hitos | Biblioteca **v0.46.0**: la lista suma **estados honestos** (`cargando` → esqueleto, `error` + `onReintentar`, `onActualizar` + cabecera). La app pasa a **adaptador**: hace el fetch del endpoint, mapea `{ type, action, createdAt, user, detail }` → hitos y conserva sus íconos/tonos por tipo (`EVENTOS`) |
+| Control | `Cronologia` figuraba en la deuda de `shared/` | Pasa a **adaptadores** (la guarda exige que no reimplemente lista ni estados); deuda de `shared/`: 6 → **5** (`Avatar`, `BancoCombobox`, `BancoLogo`, `PasosEquipo`, `PersonaChip`) |
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
+`test:e2e:smoke`; biblioteca `owncoding-ui` build + 330 tests.
+
 ### Lote 52 — Cierre de la ola #262/#265/#268 (26-09)
 
 | Objeto | Antes (evidencia) | Después |
