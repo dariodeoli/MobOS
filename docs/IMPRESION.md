@@ -639,10 +639,20 @@ caso es la **cotización** (proforma A4); el objeto sirve para cualquier impreso
   **Aceptación en línea** (QR al enlace público) cuando el vendedor lo comparte;
   en A4 la proforma entra en **una hoja** (compacta, sin el área de
   observaciones en blanco) y en rollo mantiene las observaciones.
+- **Envío por WhatsApp (#261):** desde Cotizaciones → «Enlace/QR», *Enviar por
+  WhatsApp* arma el **mensaje profesional** (`mensajeCotizacion`: número,
+  cliente, ítems, total, validez y enlace público) y comparte el **PDF adjunto**
+  con el share sheet; si el navegador no comparte archivos, **descarga el PDF y
+  abre `wa.me`** con el texto (única superficie que arma `wa.me`:
+  `utils/telefono.js`). Al compartir, la cotización queda **SENT**.
+  El **cliente** también puede bajar el A4 de marca desde la página pública
+  (`/cotizacion/<token>` → *PDF de la cotización*).
 - **Evidencia:** e2e `public-quote-transfer.spec.js` («la cotización se descarga
-  como PDF para compartir»: firma `%PDF-`, tamaño y `/Type /Page`), ensayo
+  como PDF para compartir» y «se envía por WhatsApp con el PDF y queda enviada»:
+  firma `%PDF-`, `/Type /Page`, respaldo `wa.me` y estado SENT), ensayo
   `docs/cotizacion-pdf-ejemplo/` (PDF de 1 página + JPG + QR verificado) y unit
-  `pdfDocumento.test.js` (cortes, objetos PDF, rollo y nombre).
+  `pdfDocumento.test.js` (cortes, objetos PDF, rollo y nombre) +
+  `mensajeCotizacion.test.js` (mensaje).
 
 ## 16. Impresos del taller en serie (#240)
 
