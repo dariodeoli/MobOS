@@ -68,13 +68,33 @@ navegador                         backend (Next API)
 - Unit del backend: silencio (inclusive cruce de medianoche), payload genérico y
   “sin configurar”.
 
-## Pendiente (fase 2)
+## Fase 2 entregada
 
-- Toggle «Avisos del navegador» + horario silencioso en Mi cuenta → Preferencias
-  (con los estados honestos: no soportado / sin configurar / denegado).
-- Enganchar los 6 eventos en sus módulos (A4/A5 aún no existen) usando la misma
-  derivación que la bandeja interna, para no tener dos verdades.
-- Métricas: enviados/silenciados/podados por evento (hoy se devuelven por
-  llamada; falta acumularlos).
-- Rotación de claves VAPID documentada en `docs/TOKENS.md`/ops cuando el deploy
-  las habilite.
+- **Preferencias** (`src/components/app/Preferencias.jsx`): bloque «Avisos del
+  navegador» con los estados honestos (no soportado / **sin configurar** /
+  permiso denegado / activo) y **horario silencioso** por dispositivo
+  (22→07 sugerido), guardado en la suscripción del panel.
+- **Eventos** (`backend/lib/web-push-eventos.ts`): derivación **espejo de la
+  bandeja** para MENCION (comentarios con el mismo `mencionadosEn`/variantes y
+  ventana de 7 días), COTIZACION_APROBADA (del vendedor), INCIDENCIA (avisa a
+  administración) y PEDIDO_LISTO (del vendedor). `ALTERNATIVA` y `TRANSITO`
+  quedan catalogados y **esperan A5/A4**: cuando existan, sus módulos llaman a
+  `despacharEventosWebPush` sin duplicar derivaciones.
+- **Despacho**: dedupe por `(usuario, evento)` en `WebPushEnvio` (un aviso por
+  evento, nunca repetido), silencio por dispositivo, poda de endpoints muertos.
+  Se dispara desde el shell (al abrir y cada 5 min) y desde el **cron interno**
+  `POST /api/internal/push-eventos` (token de mantenimiento) para dispositivos
+  con la app cerrada.
+- **Métricas**: `GET /api/push/metricas` (propias y, para administración, las de
+  la tienda) con evaluados/enviados/silenciados/podados por resultado.
+
+## Pendiente (fase 3)
+
+- Wiring server-side de los eventos que viven en otros dominios (mención al
+  crear el comentario, cotización al aceptarse, incidencia al confirmar la
+  recepción, pedido listo al cambiar la entrega): hoy la derivación cubre esos
+  casos por lectura; el aviso instantáneo con la app cerrada llega con el cron ✅
+  y conviene además el push en el momento del hecho (llamada a
+  `despacharEventosWebPush` desde esas rutas — **dominios POS/CRM/INV**).
+- UI de métricas (hoy es API) y rotación de claves VAPID documentada en
+  `docs/TOKENS.md`/ops cuando el deploy las habilite.

@@ -41,4 +41,16 @@ if (antes.publica === undefined) delete process.env.VAPID_PUBLIC_KEY; else proce
 if (antes.privada === undefined) delete process.env.VAPID_PRIVATE_KEY; else process.env.VAPID_PRIVATE_KEY = antes.privada
 if (antes.sujeto === undefined) delete process.env.VAPID_SUBJECT; else process.env.VAPID_SUBJECT = antes.sujeto
 
-console.log('web-push: silencio, payload y configuración ok')
+// ── Eventos (A1 fase 2) ─────────────────────────────────────────────────────
+const { CATALOGO_WEB_PUSH, claveEnvio } = require('../lib/web-push-eventos') as typeof import('../lib/web-push-eventos')
+assert.equal(claveEnvio('MENCION', 'comentario-1'), 'MENCION:comentario-1')
+assert.equal(claveEnvio('MENCION', 'comentario-1'), claveEnvio('MENCION', 'comentario-1'), 'clave estable (dedupe)')
+assert.notEqual(claveEnvio('MENCION', 'a'), claveEnvio('PEDIDO_LISTO', 'a'), 'la clave incluye el tipo')
+for (const kind of ['MENCION', 'COTIZACION_APROBADA', 'INCIDENCIA', 'PEDIDO_LISTO']) {
+  assert.ok(CATALOGO_WEB_PUSH[kind]?.url?.startsWith('/'), `${kind} tiene ruta interna`)
+  assert.ok(CATALOGO_WEB_PUSH[kind]?.titulo && CATALOGO_WEB_PUSH[kind]?.cuerpo, `${kind} tiene texto genérico`)
+}
+assert.equal(CATALOGO_WEB_PUSH.ALTERNATIVA?.pendiente, 'A5', 'alternativa espera A5')
+assert.equal(CATALOGO_WEB_PUSH.TRANSITO?.pendiente, 'A4', 'tránsito espera A4')
+
+console.log('web-push: silencio, payload, configuración y eventos ok')

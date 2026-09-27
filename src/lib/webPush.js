@@ -72,6 +72,11 @@ export async function sincronizarWebPush() {
   }
 }
 
+/** Despacha los eventos nuevos del usuario (menciones, cotización, etc.). */
+export async function sincronizarEventosWebPush() {
+  try { return await api.post('/api/push/sincronizar', {}) } catch { return null }
+}
+
 export async function avisoDePrueba() {
   return api.post('/api/push/prueba', {})
 }

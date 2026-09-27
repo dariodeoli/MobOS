@@ -9,6 +9,7 @@ datasource db {
 model Tenant {
   presenceTabs        PresenceTab[]
   webPushSubscriptions WebPushSubscription[]
+  webPushEnvios      WebPushEnvio[]
   usageSessions       UsageSession[]
   googleStoreAccesses GoogleStoreAccess[]
   promotions          Promotion[]
@@ -291,6 +292,7 @@ model Branch {
 model User {
   presenceTabs        PresenceTab[]
   webPushSubscriptions WebPushSubscription[]
+  webPushEnvios      WebPushEnvio[]
   usageSessions       UsageSession[]
   avatar              UserAvatar?
   openedCashSessions  CashSession[]   @relation("CashOpenedBy")
@@ -3418,4 +3420,23 @@ model WebPushSubscription {
   updatedAt     DateTime  @updatedAt
 
   @@index([tenantId, userId])
+}
+
+model WebPushEnvio {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clave       String
+  kind        String
+  url         String?
+  resultado   String
+  enviados    Int      @default(0)
+  silenciados Int      @default(0)
+  podados     Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, clave])
+  @@index([tenantId, createdAt])
 }
