@@ -12,6 +12,14 @@ import { SEED } from './helpers/seed-data.js'
 
 const TICKET_PRUEBA = '/prueba?d=lan%3A192.168.1.23%3A9100&v=4821&f=2026-09-20T12%3A00%3A00.000Z&t=qr'
 
+// Los módulos perezosos del POS (SellerTools) tienen que estar cargados antes
+// de cortar la red: si el import dinámico queda en vuelo, falla offline y la
+// pantalla queda en blanco. Se registra antes de navegar; sin coincidencia
+// (build de producción) sigue de largo.
+const esperarModuloPerezosoPos = (page) => page
+  .waitForResponse((respuesta) => /SellerTools(\.[^/]*)?\.jsx?/.test(respuesta.url()) && respuesta.ok(), { timeout: 30_000 })
+  .catch(() => null)
+
 test.describe('ocultos de plataforma', () => {
   // (a) Los QR de etiqueta de góndola apuntan a /producto/<sku>.
   test('el QR de góndola abre la ficha del producto (/producto/:sku)', async ({ page }) => {
@@ -53,8 +61,10 @@ test.describe('ocultos de plataforma', () => {
 
   // (c) El modo offline del POS se ve en el shell/menú y abre la cola.
   test('el shell avisa el modo offline del POS y abre la cola', async ({ page, context }) => {
+    const moduloDiferido = esperarModuloPerezosoPos(page)
     await page.goto('/pos')
     await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
+    await moduloDiferido
     // Con conexión y sin pendientes, el aviso no ocupa lugar.
     await expect(page.getByTestId('shell-cola-offline')).toHaveCount(0)
 
@@ -129,9 +139,7 @@ test.describe('ocultos de plataforma', () => {
     // Los módulos perezosos del POS (SellerTools) tienen que estar cargados
     // antes de cortar la red: si el import dinámico queda en vuelo, falla
     // offline y la pantalla queda en blanco (el aviso no es lo que se prueba).
-    const moduloDiferido = page
-      .waitForResponse((respuesta) => /SellerTools(\.[^/]*)?\.jsx?/.test(respuesta.url()) && respuesta.ok(), { timeout: 30_000 })
-      .catch(() => null)
+    const moduloDiferido = esperarModuloPerezosoPos(page)
     await page.goto('/pos')
     await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
     await moduloDiferido

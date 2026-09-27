@@ -95,6 +95,10 @@ jobs:
       - name: Install backend dependencies
         working-directory: backend
         run: npm ci
+      - name: Install root dependencies (app code que usa el arnés)
+        # `backend/tests/print-bridge-http.mjs` importa el builder de tickets de
+        # la app, que depende de la biblioteca `owncoding-ui` del raíz.
+        run: npm ci --omit=dev
       - name: Generate Prisma client
         working-directory: backend
         env:
