@@ -15,7 +15,9 @@ import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { configImpresora } from '@/lib/printing/agent'
 import { ticketLiquidacionComision } from '@/lib/printing/tickets'
 import { CELDA_IDENTIDAD } from '@/components/shared/tabla'
-import { PIE_ACCIONES } from '@/components/shared/formulario'
+import { PIE_ACCIONES, GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+import { temaV2Activo } from '@/lib/temaV2'
+import { cn } from '@/lib/utils'
 
 // Reglas de comisión sobre el margen y liquidaciones por vendedor
 // (Finanzas → Comisiones). Mismo contrato que Configuración → Equipo usaba:
@@ -265,9 +267,18 @@ export default function Comisiones() {
 
   // Token crudo del comprobante abierto (solo en memoria).
   const tokenComprobante = comprobante ? (tokens[comprobante.id] || comprobante.verificationToken || '') : ''
+  const v2 = temaV2Activo()
+  const totalLiquidado = (liquidaciones || []).reduce((suma, item) => suma + Number(item.totalPyg || 0), 0)
+  const porPagar = (liquidaciones || []).filter(item => item.status === 'DRAFT').reduce((suma, item) => suma + Number(item.totalPyg || 0), 0)
 
   return (
     <div className="space-y-4">
+      <div className={`${GRILLA_DOS_COLUMNAS} xl:grid-cols-4`} data-testid="comisiones-resumen">
+        <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="comisiones-reglas"><p className="text-xs text-mute">Reglas activas</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{reglas?.length ?? '—'}</strong></div>
+        <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="comisiones-liquidaciones"><p className="text-xs text-mute">Liquidaciones</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{liquidaciones?.length ?? '—'}</strong></div>
+        <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="comisiones-liquidado"><p className="text-xs text-mute">Total liquidado</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{gs(totalLiquidado)}</strong></div>
+        <div className={cn('rounded-xl border border-warn/30 bg-warn/5 p-3', v2 && 'v2-tile')} data-testid="comisiones-por-pagar"><p className="text-xs text-mute">Por pagar</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg', porPagar > 0 ? 'text-warn' : 'text-mute')}>{gs(porPagar)}</strong></div>
+      </div>
       <Card>
         <h2 className="font-bold mb-1">Comisiones</h2>
         <p className="text-sm text-mute mb-4">
@@ -292,7 +303,7 @@ export default function Comisiones() {
         ) : (
           <div className="space-y-2">
             {reglas.map(regla => (
-              <div key={regla.id} data-testid="regla-comision" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-2.5">
+              <div key={regla.id} data-testid="regla-comision" className={cn('flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-2.5', v2 && 'v2-tile')}>
                 <div className="min-w-0">
                   <div className={CELDA_IDENTIDAD}>{regla.userId ? (regla.user?.name || nombreUsuario(regla.userId)) : `Rol ${regla.role}`}</div>
                   <div className="mt-0.5 text-xs text-mute">{regla.userId ? 'Regla por usuario' : 'Regla por rol'}</div>
@@ -355,7 +366,7 @@ export default function Comisiones() {
             {liquidaciones.map(item => {
               const [estado, color] = ESTADO_LIQUIDACION[item.status] || [item.status, 'slate']
               return (
-                <div key={item.id} data-testid="liquidacion-comision" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-2.5">
+                <div key={item.id} data-testid="liquidacion-comision" className={cn('flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-2.5', v2 && 'v2-tile')}>
                   <div className="min-w-0">
                     <div className={CELDA_IDENTIDAD}>{item.sellerName || 'Vendedor'} · {gs(item.totalPyg || 0)}</div>
                     <div className="mt-0.5 text-xs text-mute">

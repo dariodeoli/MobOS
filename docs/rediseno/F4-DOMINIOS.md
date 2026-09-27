@@ -213,6 +213,33 @@ la verificación de **sin scroll horizontal del documento en 360/390/768/1440**
 para las tres pantallas (`e2e/dsn-241-dominios.spec.js`), el criterio #3 del
 plan.
 
+## Finanzas · batch compacto (métricas claras, controles agrupados, tablas densas)
+
+Las cinco pantallas que faltaban del lenguaje v2 (Gastos, Créditos, Cuotas,
+Publicidad y Comisiones) suman su pasada compacta:
+
+- **Métricas claras**: tiles de consola (`v2-tile`) con los números grandes
+  (`v2-numero`) y testids por pantalla — el libro de Gastos (total, cheques
+  pendientes, movimientos), el control de Créditos (por cobrar, mora, clientes,
+  clientes en mora), Cuotas (pendiente, vencidas, próximas, recargo),
+  Publicidad (total, mes, promedio, inversiones) y Comisiones (reglas,
+  liquidaciones, liquidado, por pagar).
+- **Controles agrupados**: «Actualizar»/avisos comparten la fila del encabezado;
+  el alta de Publicidad entra en una fila en desktop.
+- **Tablas densas**: las cuotas pasan de tarjeta a fila de una línea (con el
+  saldo destacado y las mismas acciones), el libro de Gastos gana
+  `data-testid="gasto-fila"` y las tablas existentes de Publicidad conservan su
+  grilla sumando la superficie v2.
+
+QA (`e2e/qa-fin-compacto.spec.js`, 10/10): capturas **antes/después** con v2
+apagado/prendido (el después en claro/oscuro desktop y mobile; el antes en
+claro/oscuro desktop), AA del shell y del contenido en 0 bajos, y sin scroll
+horizontal en 360/390/768/1440. Detalle y capturas: `docs/qa/fin-compacto.md` y
+`docs/qa/fin-compacto/`.
+
+Quedan para la próxima pasada: las listas de **Comisiones** (grillas densas) y
+los objetos de biblioteca que CMP sume (`PasosEquipo`).
+
 ## Públicas: pedido público y landing (lote G)
 Las dos superficies públicas previsualizables entran al lenguaje v2 detrás del
 flag: la **página del pedido** (`/pedido/:token`) y la **landing** (en dev,
