@@ -22,12 +22,14 @@ El par de papel de la fase 4: el **manifiesto** que viaja con el lote y el
 - **Manifiesto** — `docs/manifiesto-ejemplo/`: `manifiesto-a4.pdf`,
   `manifiesto-80mm.pdf`, `manifiesto-80mm-escpos.pdf`,
   `manifiesto-80mm.png` (imagen para compartir),
-  `manifiesto-a4-con-enlace.pdf`, las **etiquetas del lote** (`1 de 6` …) y
+  `manifiesto-a4-con-enlace.pdf`, las **etiquetas del lote** (`1 de 6` …), la
+  **etiqueta individual del lote** (`etiqueta-del-lote-individual-80mm.pdf`) y
   `qr-envio.png` → decodificado con Vision:
   `https://app.moboss.online/envio/ENV-CDE-ASU-0021`.
 - **Comprobante de recepción** — `docs/comprobante-recepcion-ejemplo/`:
   `comprobante-a4.pdf`, `comprobante-80mm.pdf`, `comprobante-80mm-escpos.pdf`,
-  `comprobante-a4-con-enlace.pdf` y `qr-panel.png` (mismo enlace verificado).
+  `comprobante-80mm.png` (imagen para compartir), `comprobante-a4-con-enlace.pdf`
+  y `qr-panel.png` (mismo enlace verificado).
 
 Ambos ensayos se generan con los builders que viajan en la app
 (`manifiesto.js`, `comprobanteRecepcion.js`, `tickets.js`, `OrderReceipt.jsx`) y

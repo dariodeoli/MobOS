@@ -8,11 +8,12 @@ import { gs, num } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
 import { Aviso, Badge, Button, Input, Modal, MoneyInput, Textarea } from '@/components/ui'
 import EmailField from '@/components/shared/EmailField'
+import CompartirPdf from '@/components/shared/CompartirPdf'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import Cronologia from '@/components/shared/Cronologia'
-import { printProformaReceipt, printQuoteReceipt, quoteUrlFor } from '@/components/shared/OrderReceipt'
+import { buildProformaHtml, printProformaReceipt, printQuoteReceipt, quoteUrlFor } from '@/components/shared/OrderReceipt'
 import { configImpresora } from '@/lib/printing/agent'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { ticketProforma } from '@/lib/printing/tickets'
@@ -339,6 +340,14 @@ export default function SellerQuotes() {
           <Button type="button" variant="outline" disabled={enlaceBusy || !enlace} onClick={regenerarEnlace}><Icon name="refresh" className="h-4 w-4" />Regenerar</Button>
           <Button type="button" disabled={enlaceBusy || !enlace} onClick={imprimirEnlace}><Icon name="printer" className="h-4 w-4" />Imprimir</Button>
           <Button type="button" variant="outline" disabled={enlaceBusy || !enlace} onClick={imprimirProforma}><Icon name="printer" className="h-4 w-4" />Proforma</Button>
+          <CompartirPdf
+            construirHtml={() => buildProformaHtml(enlace, { format: 'a4', enlace: quoteUrlFor(enlace?.publicToken) })}
+            nombre={`cotizacion-${enlace?.number || ''}`}
+            titulo={`Cotización ${enlace?.number || ''}`}
+            texto={[`Cotización ${enlace?.number || ''}`, enlace?.customerName, quoteUrlFor(enlace?.publicToken)].filter(Boolean).join(' · ')}
+            formato="a4"
+            disabled={enlaceBusy || !enlace}
+          />
         </div>
       </div>
     </Modal>

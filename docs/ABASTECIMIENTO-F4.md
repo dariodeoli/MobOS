@@ -58,7 +58,10 @@ y la API los rechaza con un mensaje claro. Toda transición se valida
 
 - **F5 (recepción)**: escaneo vs manifiesto, parciales, incidencias por unidad,
   elección de depósito y alta en stock (recién ahí nace el `InventoryUnit`).
-- **PRN**: el manifiesto y la etiqueta de preparación ya tienen contrato; falta
-  el layout térmico/A4 (mismo trato que el informe de dispositivo).
+- **PRN**: el manifiesto y la etiqueta de preparación ya están implementados
+  (layout térmico/A4 + QR/barras y etiquetas `N de M`): contratos en
+  [MANIFIESTO.md](MANIFIESTO.md) y [ETIQUETAS-LOTE.md](ETIQUETAS-LOTE.md), con
+  PDFs de ejemplo. Falta la **ruta pública `/envio/<token>`** para que el QR
+  salga en el papel.
 - Los estados `RECEPCION_PARCIAL`/`RECIBIDO` quedan definidos y bloqueados hasta
   F5.

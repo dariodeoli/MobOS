@@ -617,6 +617,33 @@ tiene la pantalla de impresión ordenada en cinco paneles con URL (`?panel=`):
 Evidencia: `docs/QA-253-dispositivos.md` y capturas antes/después en
 `docs/qa/253-dispositivos/`.
 
+## 17. PDF profesional para compartir (cotizaciones · con POS)
+
+Además de «Imprimir», los documentos pueden salir como **archivo PDF real**
+para adjuntar por WhatsApp/correo, con el share sheet del sistema. El primer
+caso es la **cotización** (proforma A4); el objeto sirve para cualquier impreso.
+
+- **Objeto compartido:** `shared/CompartirPdf` +
+  `lib/printing/pdfDocumento.js` (`documentoAPdf`, `pdfDeJpegPaginas`,
+  `paginasDeImagen`, `nombrePdfDocumento`). Reusa el render de
+  `compartirDocumento.js` (`documentoImagen`) y no trae dependencias nuevas: el
+  HTML se rasteriza con `html-to-image` y se envuelve en un PDF mínimo (una
+  imagen JPEG por página, `/DCTDecode`).
+- **Paginación A4 real:** el contenido se corta en páginas de A4 (595,28 ×
+  841,89 pt) con los márgenes del impreso (18/16 mm); el rollo sale en una
+  página continua del ancho real.
+- **Acciones:** *Compartir PDF* (Web Share del archivo; si el navegador no
+  comparte archivos, lo **descarga** y lo avisa) y *PDF* (descarga). La regla
+  de objetos exige que las pantallas no rastericen ni armen PDF por su cuenta.
+- **Cotización:** `buildProformaHtml(quote, { format, enlace })` suma la tarjeta
+  **Aceptación en línea** (QR al enlace público) cuando el vendedor lo comparte;
+  en A4 la proforma entra en **una hoja** (compacta, sin el área de
+  observaciones en blanco) y en rollo mantiene las observaciones.
+- **Evidencia:** e2e `public-quote-transfer.spec.js` («la cotización se descarga
+  como PDF para compartir»: firma `%PDF-`, tamaño y `/Type /Page`), ensayo
+  `docs/cotizacion-pdf-ejemplo/` (PDF de 1 página + JPG + QR verificado) y unit
+  `pdfDocumento.test.js` (cortes, objetos PDF, rollo y nombre).
+
 ## 16. Impresos del taller en serie (#240)
 
 El **modo taller** imprime sus documentos en serie desde «Imprimir en serie…»

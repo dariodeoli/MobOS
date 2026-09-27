@@ -129,6 +129,15 @@ try {
   await pdfHtml('etiquetas-lote-80mm', await htmlEtiquetas(etiquetas, 80), 'thermal-80')
   await pdfTermico('etiquetas-lote-80mm-escpos', await lineasDe('ticketEtiquetasLote', [etiquetas, { ancho: 80 }]), 80)
 
+  // Etiqueta individual del lote (F3→F4): se reimprime una sola unidad del
+  // manifiesto buscándola por serial, con el código ENV-… en el papel.
+  const individual = await page.evaluate(async ({ etiquetas }) => {
+    const { etiquetaPorSerial } = await import('/src/lib/printing/etiquetaLote.js')
+    return etiquetaPorSerial(etiquetas, '351500000000012')
+  }, { etiquetas })
+  if (!individual) throw new Error('no se encontró la etiqueta individual del lote')
+  await pdfHtml('etiqueta-del-lote-individual-80mm', await htmlEtiquetas([individual], 80), 'thermal-80')
+
   // El manifiesto como imagen para compartir (el camino de `CompartirImagen`).
   const png = await page.evaluate(async ({ datos }) => {
     const { buildManifiestoHtml } = await import('/src/components/shared/OrderReceipt.jsx')

@@ -23,7 +23,7 @@ export const anchoImagen = (formato = 'a4') => ANCHOS_IMAGEN[formato] || ANCHOS_
 // Nombre de archivo seguro: sin acentos, espacios ni barras. La referencia
 // (serial, identificador, cantidad) entra recortada para no armar nombres
 // kilométricos.
-export function nombreImagenDocumento(documento = 'documento', referencia = '') {
+export function nombreDocumento(documento = 'documento', referencia = '', extension = 'png') {
   const normalizar = (valor) => String(valor ?? '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -31,7 +31,12 @@ export function nombreImagenDocumento(documento = 'documento', referencia = '') 
     .replace(/^-+|-+$/g, '')
   const base = normalizar(documento).toLowerCase() || 'documento'
   const sufijo = normalizar(referencia).slice(0, 48)
-  return `${base}${sufijo ? `-${sufijo}` : ''}.png`
+  const ext = normalizar(extension).toLowerCase() || 'png'
+  return `${base}${sufijo ? `-${sufijo}` : ''}.${ext}`
+}
+
+export function nombreImagenDocumento(documento = 'documento', referencia = '') {
+  return nombreDocumento(documento, referencia, 'png')
 }
 
 // ¿El navegador puede compartir archivos? Web Share con `files` no existe en
@@ -97,7 +102,7 @@ const esperarRecursos = async (doc, timeout) => {
  * @param {Function} [opciones.renderizar] inyectable para tests (`toPng` por defecto).
  * @returns {Promise<{ dataUrl: string, blob: Blob } | null>}
  */
-export async function documentoAPng(html, { ancho = 'a4', pixelRatio = 2, fondo = '#ffffff', timeout = 15_000, entorno = globalThis, renderizar = toPng } = {}) {
+export async function documentoImagen(html, { ancho = 'a4', pixelRatio = 2, fondo = '#ffffff', timeout = 15_000, entorno = globalThis, renderizar = toPng } = {}) {
   const doc = entorno?.document
   const fetchFn = entorno?.fetch
   const anchoPapel = typeof ancho === 'string' ? anchoImagen(ancho) : Math.max(1, Number(ancho) || ANCHOS_IMAGEN.a4)
@@ -126,10 +131,16 @@ export async function documentoAPng(html, { ancho = 'a4', pixelRatio = 2, fondo 
     })
     if (!dataUrl) return null
     const blob = await (await fetchFn(dataUrl)).blob()
-    return { dataUrl, blob }
+    // El tamaño del cuerpo (px CSS) lo usa el PDF para paginar.
+    return { dataUrl, blob, anchoPx: Math.max(1, cuerpo.scrollWidth || anchoPapel), altoPx: Math.max(1, cuerpo.scrollHeight || 600) }
   } catch {
     return null
   } finally {
     marco.remove()
   }
+}
+
+export async function documentoAPng(html, opciones = {}) {
+  const resultado = await documentoImagen(html, { renderizar: toPng, ...opciones })
+  return resultado ? { dataUrl: resultado.dataUrl, blob: resultado.blob } : null
 }

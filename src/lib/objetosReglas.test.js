@@ -550,6 +550,21 @@ test('compartir documentos como imagen sale del objeto compartido (#240/#220)', 
   assert.ok(!/toPng/.test(componente), 'el rasterizado vive en el módulo, no en la pantalla')
 })
 
+// Cotizaciones/POS: el PDF profesional para compartir sale del objeto
+// compartido (`CompartirPdf` + `lib/printing/pdfDocumento`); las pantallas no
+// rasterizan ni arman PDF por su cuenta.
+test('el PDF para compartir sale del objeto compartido (#250/POS)', () => {
+  const pantalla = readFileSync(join(RAIZ, 'components/ventas/SellerQuotes.jsx'), 'utf8')
+  assert.match(pantalla, /import CompartirPdf from '@\/components\/shared\/CompartirPdf'/)
+  assert.match(pantalla, /<CompartirPdf\b/)
+  const modulo = readFileSync(join(RAIZ, 'lib/printing/pdfDocumento.js'), 'utf8')
+  for (const nombre of ['documentoAPdf', 'pdfDeJpegPaginas', 'paginasDeImagen', 'nombrePdfDocumento']) {
+    assert.match(modulo, new RegExp(`export (async )?function ${nombre}\\(`), `falta ${nombre}`)
+  }
+  const componente = readFileSync(join(RAIZ, 'components/shared/CompartirPdf.jsx'), 'utf8')
+  assert.ok(!/navigator\.|toJpeg|createElement\('canvas'\)/.test(componente), 'el render y el navegador viven en el módulo')
+})
+
 // Lote 12: el QR y la ficha del informe público salen de los objetos; ninguna
 // pantalla vuelve a llamar a `qrcode` por su cuenta.
 test('el QR del informe sale de lib/qr y shared/CodigoQr (#240)', () => {

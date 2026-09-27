@@ -14,6 +14,7 @@ así que lo que se ve acá es lo que sale por la impresora o por «Descargar PDF
 | `comprobante-a4.pdf` / `.jpg` | Comprobante A4 (1 página): envío, conciliación esperado vs recibido, totales, incidencias, panel en barras y firmas. |
 | `comprobante-80mm.pdf` / `.jpg` | El mismo comprobante en rollo de 80 mm (el HTML que usa «Descargar PDF»). |
 | `comprobante-80mm-escpos.pdf` / `.jpg` | Lo que recibe la impresora térmica (ESC/POS, 42 columnas) en la impresión directa. |
+| `comprobante-80mm.png` | El comprobante como **imagen para compartir** (el camino de `CompartirImagen`). |
 | `comprobante-a4-con-enlace.pdf` / `.jpg` | Muestra del contrato **con enlace público**: el QR al panel en lugar del código en barras. |
 | `qr-panel.png` | El QR de la variante con enlace, para escanear desde la pantalla. |
 | `datos-ejemplo.json` | Los datos normalizados que alimentan los documentos (envío, líneas, resumen e incidencias). |
