@@ -106,14 +106,13 @@ test('las subidas de archivos pasan por el objeto compartido', () => {
 // que duplique un componente publicado falla acá y obliga a decidir (usar el
 // objeto de `owncoding-ui` o publicarlo allí).
 const DEUDA_BIBLIOTECA = new Set([
-  'Avatar', 'BancoCombobox', 'BancoLogo', 'Cronologia', 'PasosEquipo',
-  'PersonaChip',
+  'Avatar', 'BancoCombobox', 'BancoLogo', 'PasosEquipo', 'PersonaChip',
 ])
 
 // Adaptadores (#253): la UI es de la biblioteca y la app solo aporta la capa de
 // datos o la normalización propia. No son puentes (tienen lógica), pero no
 // reimplementan la interfaz.
-const ADAPTADORES = new Set(['RucField', 'CityAutocomplete', 'SerialField'])
+const ADAPTADORES = new Set(['RucField', 'CityAutocomplete', 'SerialField', 'Cronologia'])
 
 const LIB_COMPONENTES = fileURLToPath(new URL('../../node_modules/owncoding-ui/src/components', import.meta.url))
 const LIB_INDEX = fileURLToPath(new URL('../../node_modules/owncoding-ui/src/index.js', import.meta.url))
@@ -159,6 +158,7 @@ test('los adaptadores delegan la UI en la biblioteca (#253)', () => {
     RucField: { propio: /consultarRucDemo/, prohibido: /<Input\b/ },
     CityAutocomplete: { propio: /api\.get\(`\/api\/geo\/cities/, prohibido: /<Input\b|<ul\b/ },
     SerialField: { propio: /leerEtiqueta/, prohibido: /<Input\b/ },
+    Cronologia: { propio: /api\s*\n?\s*\.get\(endpoint\)/, prohibido: /<Skeleton\b|<EmptyState\b|<ol\b/ },
   }
   for (const [nombre, reglas] of Object.entries(adaptadores)) {
     const codigo = readFileSync(join(RAIZ, 'components/shared', `${nombre}.jsx`), 'utf8')
