@@ -658,6 +658,7 @@ test('la composición de módulo y el resumen de métricas son objetos (#256)', 
     ['components/ventas/FormularioVenta.jsx', /<BarraModulo[\s\S]*?testId="barra-pos"/],
     ['components/control/Inventario.jsx', /<BarraModulo[\s\S]*?testId="barra-inventario"/],
     ['components/ventas/SellerCatalog.jsx', /<BarraModulo[\s\S]*?testId="barra-productos"/],
+    ['components/control/Compras.jsx', /<BarraModulo[\s\S]*?testId="barra-compras"/],
   ]) {
     const codigo = readFileSync(join(RAIZ, ruta), 'utf8')
     assert.match(codigo, marca, `${ruta}: usa la barra compartida`)
@@ -665,5 +666,6 @@ test('la composición de módulo y el resumen de métricas son objetos (#256)', 
   assert.match(readFileSync(join(RAIZ, 'components/ventas/SellerCustomers.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-clientes"/, 'Clientes usa el resumen con alcance')
   assert.match(readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-inventario"/, 'Inventario usa el resumen con alcance')
   assert.match(readFileSync(join(RAIZ, 'components/ventas/SellerCatalog.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-productos"/, 'Productos usa el resumen con alcance')
+  assert.match(readFileSync(join(RAIZ, 'components/control/Compras.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-compras"/, 'Compras usa el resumen con alcance')
   assert.match(readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /data-testid="tabs-inventario"/, 'las solapas de Inventario viven en un contenedor propio (sin contadores repetidos)')
 })

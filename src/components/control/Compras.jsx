@@ -8,6 +8,8 @@ import { purchasesApi } from '@/lib/api/purchases'
 import { suppliersApi } from '@/lib/api/suppliers'
 import { leerProveedoresRecientes, recordarProveedorReciente } from '@/lib/proveedores'
 import SupplierCombobox from '@/components/shared/SupplierCombobox'
+import BarraModulo from '@/components/shared/BarraModulo'
+import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { loadDemoPurchases, createDemoPurchase, receiveDemoPurchase, updateDemoPurchaseCosts } from '@/lib/demoPurchases'
 import { gs } from '@/utils/calculos'
@@ -431,8 +433,20 @@ export default function Compras() {
   }, { pendientes: 0, costo: 0, saldo: 0 }), [filtradas])
 
   return <div className="space-y-4">
-    <Card><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="mb-4 text-sm text-mute">Anticipos, crédito y costos finales auditables por equipo o lote.</p></div><div className="flex flex-wrap gap-2">{!demo && <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={exportando} onClick={exportar}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}<Button type="button" variant="outline" onClick={() => setSuppliersOpen(true)}>Proveedores</Button></div></div>
-      <SearchField value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar proveedor, referencia o número…" ariaLabel="Buscar compras" className="mb-4 max-w-md" />
+    {/* #256: barra de módulo única (identidad + acciones juntas). */}
+    <BarraModulo
+      icono="store"
+      titulo="Compras"
+      descripcion="Anticipos, crédito y costos finales auditables por equipo o lote."
+      testId="barra-compras"
+    >
+      {!demo && <Button type="button" variant="outline" onClick={exportar} disabled={exportando}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}
+      <Button type="button" variant="outline" onClick={() => setSuppliersOpen(true)}>Proveedores</Button>
+    </BarraModulo>
+    <div className="flex flex-wrap items-center gap-2">
+      <SearchField value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar proveedor, referencia o número…" ariaLabel="Buscar compras" className="min-w-0 max-w-md flex-1" />
+    </div>
+    <Card>
       <form onSubmit={create} className="space-y-3"><div className={GRILLA_DOS_COLUMNAS_COMPACTA}><SupplierCombobox
             id="compra-proveedor"
             ariaLabel="Proveedor"
@@ -467,11 +481,16 @@ export default function Compras() {
     </Card>
     <div className="space-y-3">
       {v2 && filtradas.length > 0 && (
-        <div className="grid grid-cols-3 divide-ink-600 rounded-xl border border-ink-600 bg-ink-800/60 text-center sm:divide-x">
-          <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Por recibir</p><p className={cn('mt-1 text-lg font-semibold tabular-nums', 'v2-numero sm:text-2xl', resumenCompras.pendientes > 0 ? 'text-warn' : 'text-ok')}>{resumenCompras.pendientes}</p><p className="text-[11px] text-mute">unidades pendientes</p></div>
-          <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Comprado</p><p className={cn('mt-1 text-lg font-semibold tabular-nums', 'v2-numero sm:text-2xl')}>{gs(resumenCompras.costo)}</p><p className="text-[11px] text-mute">costo final de las compras listadas</p></div>
-          <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Saldo por pagar</p><p className={cn('mt-1 text-lg font-semibold tabular-nums', 'v2-numero sm:text-2xl', resumenCompras.saldo > 0 ? 'text-warn' : 'text-ok')}>{gs(resumenCompras.saldo)}</p><p className="text-[11px] text-mute">anticipos y créditos incluidos</p></div>
-        </div>
+        <ResumenMetricas
+          testId="resumen-compras"
+          columnas={4}
+          items={[
+            { titulo: 'Compras', valor: filtradas.length, alcance: 'En pantalla' },
+            { titulo: 'Por recibir', valor: resumenCompras.pendientes, alcance: 'En pantalla', nota: 'unidades', tono: resumenCompras.pendientes > 0 ? 'text-warn' : 'text-ok' },
+            { titulo: 'Comprado', valor: gs(resumenCompras.costo), alcance: 'En pantalla', nota: 'costo final' },
+            { titulo: 'Saldo por pagar', valor: gs(resumenCompras.saldo), alcance: 'En pantalla', nota: 'anticipos y créditos', tono: resumenCompras.saldo > 0 ? 'text-warn' : 'text-ok' },
+          ]}
+        />
       )}
       {busy && purchases.length === 0 && <div className="space-y-2" aria-busy="true"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div>}
       {!busy && purchases.length === 0 && <EmptyState icon="box" title="Sin compras registradas." description="Creá la primera orden de compra o importación." />}

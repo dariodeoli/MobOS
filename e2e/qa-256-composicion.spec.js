@@ -85,10 +85,26 @@ test.describe('composición compacta', () => {
     await expect(page.getByLabel('Filtrar por condición')).toBeVisible()
   })
 
+  test('Compras: barra única, métricas con alcance y búsqueda agrupada', async ({ page }) => {
+    await page.goto('/compras')
+    await expect(page.getByTestId('barra-compras')).toBeVisible({ timeout: 20_000 })
+    const barra = page.getByTestId('barra-compras')
+    await expect(barra.getByRole('heading', { level: 2, name: 'Compras' })).toBeVisible()
+    for (const accion of ['Proveedores', 'Exportar CSV']) {
+      await expect(barra.getByRole('button', { name: accion, exact: true })).toBeVisible()
+    }
+    await expect(page.getByLabel('Buscar compras')).toBeVisible()
+    const resumen = page.getByTestId('resumen-compras')
+    if (await resumen.count()) {
+      await expect(resumen.locator('> div')).toHaveCount(4)
+      await expect(resumen.getByText('En pantalla', { exact: true })).toHaveCount(4)
+    }
+  })
+
   test('sin desborde horizontal en 390 y 1280', async ({ page }) => {
     for (const [ancho, alto] of [[390, 844], [1280, 900]]) {
       await page.setViewportSize({ width: ancho, height: alto })
-      for (const ruta of ['/pos', '/clientes', '/inventario/unidades', '/productos']) {
+      for (const ruta of ['/pos', '/clientes', '/inventario/unidades', '/productos', '/compras']) {
         await page.goto(ruta)
         await expect(page.getByTestId('shell')).toBeVisible({ timeout: 20_000 })
         await page.waitForTimeout(600)

@@ -17,6 +17,10 @@ import { costoPorUnidad, estadoLoteRecepcion, normalizarSeriales, RESULTADOS_INC
 // El stock se crea **solo al confirmar** y solo para las unidades RECIBIDAS; los
 // faltantes/sobrantes/dañados/incorrectos quedan como incidencia.
 const ESTADOS_LLEGADA = ['DESPACHADO', 'EN_TRANSITO', 'CON_INCIDENCIA', 'RECEPCION_PARCIAL']
+// #250 F5: lo que queda por recibir de un lote. Recomponer un parcial no debe
+// volver a pedir lo ya recibido (antes se marcaba FALTANTE lo ya ingresado y
+// podía duplicarse el IMEI al escanearlo de nuevo).
+const pendientesDeRecibir = <T extends { status?: string | null }>(items: T[]) => items.filter((item) => item.status !== 'RECIBIDO')
 const INCLUDE_RECEPCION = {
   shipment: { include: { purchase: { select: { code: true, currency: true, originalCost: true, exchangeRatePyg: true, costPyg: true, lines: { select: { id: true, productId: true, condition: true, quantity: true, unitCostPyg: true } } } }, destinationBranch: { select: { id: true, name: true } }, items: { select: { id: true, serial: true, productId: true, status: true, lineId: true } } } },
   location: { select: { id: true, name: true, code: true } },
@@ -44,7 +48,7 @@ export async function GET(request: Request) {
   if (id) {
     const recepcion = await prisma.supplyReception.findFirst({ where: { id, tenantId: tenant }, include: INCLUDE_RECEPCION })
     if (!recepcion) return error('Recepción no encontrada.', 404)
-    return json({ recepcion, esperados: recepcion.shipment.items, resumen: resumenRecepcion(recepcion.items) })
+    return json({ recepcion, esperados: pendientesDeRecibir(recepcion.shipment.items), resumen: resumenRecepcion(recepcion.items) })
   }
 
   if (params.get('pendientes') === '1') {
@@ -52,7 +56,7 @@ export async function GET(request: Request) {
       where: { tenantId: tenant, status: { in: ESTADOS_LLEGADA }, ...(params.get('purchaseId') ? { purchaseId: String(params.get('purchaseId')) } : {}) },
       orderBy: [{ etaAt: 'asc' }, { createdAt: 'desc' }],
       take: 100,
-      include: { purchase: { select: { code: true } }, destinationBranch: { select: { id: true, name: true } }, items: { select: { id: true, serial: true } } },
+      include: { purchase: { select: { code: true } }, destinationBranch: { select: { id: true, name: true } }, items: { select: { id: true, serial: true, status: true } } },
     })
     const abiertas = await prisma.supplyReception.findMany({ where: { tenantId: tenant, status: 'BORRADOR', shipmentId: { in: envios.map((envio) => envio.id) } }, select: { id: true, shipmentId: true } })
     const abiertaDe = new Map(abiertas.map((fila) => [fila.shipmentId, fila.id]))
@@ -74,6 +78,8 @@ export async function GET(request: Request) {
         unidades: envio.items.length,
         conImei: envio.items.filter((item) => item.serial).length,
         pendientes: envio.items.filter((item) => !item.serial).length,
+        // Lo que queda por recibir (un parcial que se recompone no vuelve a pedir lo recibido).
+        porRecibir: envio.items.filter((item) => item.status !== 'RECIBIDO').length,
         recepcionAbiertaId: abiertaDe.get(envio.id) || null,
         ubicacionSugerida: await ubicacionSugerida(tenant, envio.destinationBranchId),
       }))),
@@ -112,7 +118,7 @@ export async function POST(request: Request) {
   if (!ESTADOS_LLEGADA.includes(envio.status)) return error(`El envío está en ${envio.status}: no hay nada para recibir.`, 409)
 
   const existente = await prisma.supplyReception.findFirst({ where: { tenantId: tenant, shipmentId: envio.id, status: 'BORRADOR' }, include: INCLUDE_RECEPCION })
-  if (existente) return json({ recepcion: existente, esperados: existente.shipment.items, resumen: resumenRecepcion(existente.items), retomada: true })
+  if (existente) return json({ recepcion: existente, esperados: pendientesDeRecibir(existente.shipment.items), resumen: resumenRecepcion(existente.items), retomada: true })
 
   const locationId = typeof body?.locationId === 'string' && body.locationId.trim() ? body.locationId.trim() : null
   if (locationId) {
@@ -129,7 +135,7 @@ export async function POST(request: Request) {
     return recepcion
   })
   const conDetalle = await prisma.supplyReception.findFirst({ where: { id: creada.id, tenantId: tenant }, include: INCLUDE_RECEPCION })
-  return json({ recepcion: conDetalle, esperados: conDetalle!.shipment.items, resumen: resumenRecepcion([]) }, { status: 201 })
+  return json({ recepcion: conDetalle, esperados: pendientesDeRecibir(conDetalle!.shipment.items), resumen: resumenRecepcion([]) }, { status: 201 })
 }
 
 export async function PATCH(request: Request) {
@@ -169,9 +175,12 @@ export async function PATCH(request: Request) {
     const registrados = []
     for (const serial of nuevos) {
       if (yaEscaneados.has(serial)) return error(`El IMEI ${serial} ya se escaneó en esta recepción.`)
+      // Un IMEI ya ingresado en una recepción anterior del lote no se recibe dos veces.
+      const yaRecibido = recepcion.shipment.items.find((item) => item.status === 'RECIBIDO' && String(item.serial || '').toUpperCase() === serial)
+      if (yaRecibido) return error(`El IMEI ${serial} ya fue recibido en este lote.`)
       // Coincide con un IMEI del manifiesto o completa una unidad con IMEI diferido.
-      const esperado = recepcion.shipment.items.find((item) => String(item.serial || '').toUpperCase() === serial && !cubiertos.has(item.id))
-      const pendiente = recepcion.shipment.items.find((item) => !item.serial && !cubiertos.has(item.id))
+      const esperado = pendientesDeRecibir(recepcion.shipment.items).find((item) => String(item.serial || '').toUpperCase() === serial && !cubiertos.has(item.id))
+      const pendiente = pendientesDeRecibir(recepcion.shipment.items).find((item) => !item.serial && !cubiertos.has(item.id))
       const item = esperado || pendiente || null
       const resultado = item ? resultadoPedido : 'SOBRANTE'
       const fila = await prisma.supplyReceptionItem.create({
@@ -209,7 +218,7 @@ export async function PATCH(request: Request) {
   if (!deposito) return error('Depósito destino inválido para la sucursal.', 400)
 
   const lineas = new Map(recepcion.shipment.purchase.lines.map((linea) => [linea.id, linea]))
-  const esperados = recepcion.shipment.items
+  const esperados = pendientesDeRecibir(recepcion.shipment.items)
   const unidadesCompra = recepcion.shipment.purchase.lines.reduce((suma, linea) => suma + linea.quantity, 0)
   const confirmada = await prisma.$transaction(async (tx) => {
     const creadas: string[] = []
