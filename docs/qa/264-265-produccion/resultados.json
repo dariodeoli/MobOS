@@ -1,0 +1,11 @@
+{
+  "base": "https://app.moboss.online",
+  "fecha": "2026-09-27T03:12:02.907Z",
+  "version": "v1.0.190",
+  "basureroDentroDelBloque": true,
+  "bloquesAntes": 1,
+  "bloquesDespues": 0,
+  "dialogoVisible": true,
+  "lineaEliminada": true,
+  "erroresPagina": []
+}
