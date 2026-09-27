@@ -783,4 +783,7 @@ PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/finance-totales.mjs" "$BASE_URL" "$AD
 echo "Repuestos a crédito: cuenta a pagar al proveedor con condición y consumo (#250 · #83)..."
 PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/supplier-payables-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL"
 
-echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración, consistencia, abastecimiento (necesidades, compras, preparación y lotes), repuestos a crédito y logout."
+echo "Gift cards: emisión, saldo, canje en pago, agotado y anulación (#280)..."
+node "$BACKEND_ROOT/tests/gift-cards.mjs" "$BASE_URL" "$ADMIN_TOKEN"
+
+echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración, consistencia, abastecimiento (necesidades, compras, preparación y lotes), repuestos a crédito, gift cards y logout."
