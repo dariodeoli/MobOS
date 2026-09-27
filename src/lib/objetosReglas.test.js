@@ -661,6 +661,7 @@ test('la composición de módulo y el resumen de métricas son objetos (#256)', 
     assert.match(codigo, marca, `${ruta}: usa la barra compartida`)
   }
   assert.match(readFileSync(join(RAIZ, 'components/ventas/SellerCustomers.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-clientes"/, 'Clientes usa el resumen con alcance')
+  assert.match(readFileSync(join(RAIZ, 'components/ventas/SellerOrders.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-pedidos"/, 'Pedidos usa el resumen con alcance')
   // Segunda unidad: las páginas secundarias también usan la barra.
   for (const [ruta, testId] of [
     ['components/ventas/SellerCatalog.jsx', 'barra-productos'],
@@ -669,6 +670,7 @@ test('la composición de módulo y el resumen de métricas son objetos (#256)', 
     ['components/control/WhatsAppTemplates.jsx', 'barra-plantillas'],
     ['components/delivery/StoreDelivery.jsx', 'barra-delivery'],
     ['components/ventas/SellerTools.jsx', 'barra-tradein'],
+    ['components/ventas/SellerOrders.jsx', 'barra-pedidos'],
   ]) {
     assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), new RegExp(`<BarraModulo[\\s\\S]*?testId="${testId}"`), `${ruta}: usa la barra compartida`)
   }

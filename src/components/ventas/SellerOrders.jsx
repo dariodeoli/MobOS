@@ -13,6 +13,8 @@ import { ultimos4 } from '@/utils/serial'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import SearchField from '@/components/shared/SearchField'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
+import BarraModulo from '@/components/shared/BarraModulo'
+import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import PedidoDetalle from './PedidoDetalle'
 import Icon from '@/components/shared/Icon'
 import { FULFILLMENT_LABELS as FULFILLMENT } from '@/lib/constants'
@@ -349,18 +351,29 @@ export default function SellerOrders() {
     </SellerSection>
   }
 
-  return <SellerSection description="Una fila por pedido, alineada y ordenable: entrá para ver artículos, IMEIs, cliente y cronología.">
+  return <SellerSection title="Pedidos">
+    <BarraModulo
+      icono="box"
+      titulo="Pedidos"
+      descripcion="Una fila por pedido, alineada y ordenable: entrá para ver artículos, IMEIs, cliente y cronología."
+      testId="barra-pedidos"
+    >
+      <button type="button" onClick={data.refresh} disabled={data.loading} className="min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore md:min-h-0">Actualizar</button>
+    </BarraModulo>
     <div className="flex flex-wrap items-center gap-2">
       <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{FILTROS.map(([key, label]) => <button key={key} type="button" onClick={() => setFiltro(key)} className={cn('min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition md:min-h-0', filtro === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>
       <div className="min-w-[220px] flex-1"><SearchField ariaLabel="Buscar pedidos" placeholder="Pedido, cliente, RUC, teléfono, producto, IMEI o monto" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
-      <button type="button" onClick={data.refresh} disabled={data.loading} className="min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore md:min-h-0">Actualizar</button>
     </div>
     {v2 && rows.length > 0 && (
-      <div className="grid grid-cols-3 divide-ink-600 rounded-xl border border-ink-600 bg-ink-800/60 text-center sm:divide-x">
-        <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Activos</p><p className="v2-numero mt-1 text-lg font-semibold tabular-nums sm:text-2xl">{resumen.activos}</p><p className="text-[11px] text-mute">en la lista</p></div>
-        <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Por cobrar</p><p className={cn('v2-numero mt-1 text-lg font-semibold tabular-nums sm:text-2xl', resumen.porCobrar > 0 ? 'text-warn' : 'text-ok')}>{gs(resumen.porCobrar)}</p><p className="text-[11px] text-mute">saldo pendiente</p></div>
-        <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">En reparto</p><p className="v2-numero mt-1 text-lg font-semibold tabular-nums sm:text-2xl">{resumen.enReparto}</p><p className="text-[11px] text-mute">listos o en camino</p></div>
-      </div>
+      <ResumenMetricas
+        testId="resumen-pedidos"
+        columnas={3}
+        items={[
+          { titulo: 'Activos', valor: resumen.activos, alcance: 'En pantalla' },
+          { titulo: 'Por cobrar', valor: gs(resumen.porCobrar), alcance: 'En pantalla', tono: resumen.porCobrar > 0 ? 'text-warn' : 'text-ok' },
+          { titulo: 'En reparto', valor: resumen.enReparto, alcance: 'En pantalla' },
+        ]}
+      />
     )}
     <SellerFeedback {...data} empty={!rows.length} />
     {!data.loading && !data.error && (

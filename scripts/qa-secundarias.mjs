@@ -21,6 +21,7 @@ mkdirSync(SALIDA, { recursive: true })
 const PANTALLAS = [
   ['productos', '/productos', 'barra-productos', 'Productos'],
   ['promociones', '/promociones', 'barra-promociones', 'Promociones'],
+  ['pedidos', '/pedidos', 'barra-pedidos', 'Pedidos'],
   ['cotizaciones', '/cotizaciones', 'barra-cotizaciones', 'Cotizaciones'],
   ['plantillas', '/plantillas', 'barra-plantillas', 'Plantillas'],
   ['delivery', '/delivery', 'barra-delivery', 'Delivery'],

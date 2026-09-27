@@ -39,6 +39,7 @@ test.describe('composición compacta', () => {
       ['/promociones', 'barra-promociones', 'Promociones'],
       ['/cotizaciones', 'barra-cotizaciones', 'Cotizaciones'],
       ['/plantillas', 'barra-plantillas', 'Plantillas'],
+      ['/pedidos', 'barra-pedidos', 'Pedidos'],
       ['/delivery', 'barra-delivery', 'Delivery'],
       // /trade-in no va acá: el dueño ve el pipeline (admin) y el cotizador con
       // barra es la vista del vendedor; la cubre la regla de objetos.
@@ -55,6 +56,12 @@ test.describe('composición compacta', () => {
         expect(desborda, `${ruta} desborda a ${ancho}px`).toBe(false)
       }
     }
+    // Pedidos resume su lista con alcance explícito.
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/pedidos')
+    const resumen = page.getByTestId('resumen-pedidos')
+    await expect(resumen).toBeVisible({ timeout: 20_000 })
+    await expect(resumen.getByText('En pantalla', { exact: true })).toHaveCount(3)
   })
 
   test('sin desborde horizontal en 390 y 1280', async ({ page }) => {
