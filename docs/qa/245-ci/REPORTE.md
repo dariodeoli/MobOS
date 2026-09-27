@@ -55,3 +55,39 @@ componente es del dominio FIN — avisado en el issue).
   corregidas, comentario de cierre en el issue). Con el historial de hoy, la
   meta de **3 corridas completas verdes consecutivas** todavía no se repite:
   faltan **2**.
+
+## Actualización 27/09 (madrugada) — recuento oficial
+
+`node scripts/qa-ci-racha.mjs --minimo 3` → **1 corrida completa verde
+consecutiva** en `main`:
+
+- ✓ `36283548443` · `5360ecb` · **v1.0.188** (5/5 jobs: Frontend, Backend,
+  Integración y los 3 shards E2E).
+- ✘ `36282723046` · `b0b1602` · v1.0.187 (corta la racha; causas abajo).
+- ✓ `36254718751` · `800199d` (verde previa al rojo).
+
+**Faltan 2 verdes** para repetir la meta de 3 corridas completas consecutivas;
+las suman los pushes del integrador a `main` (no vale re-run ciego ni
+cuarentena). El issue #245 sigue **cerrado** con su racha original documentada.
+
+### Causas raíz del rojo v1.0.187 (corregidas en v1.0.188, `b05a9e2e`)
+
+1. **E2E 1/3 · `dsn-responsive-mobile`** («demo-pos 390: ningún target < 44»):
+   el botón «Elegir unidad (2)» de la guía del POS medía **118×32**; quedó con
+   área de 44 en `PasoCobro`.
+2. **E2E 3/3 · `demo-anonimo`** («Venta registrada correctamente» no aparecía):
+   la guía del demo mostraba el paso del accesorio; spec ajustado en el mismo
+   commit.
+
+Con la corrección, la corrida de v1.0.188 quedó **verde completa** (5/5 jobs).
+
+### Verificación de #266 en producción — pendiente de deploy
+
+- Script nuevo: `node scripts/qa-266-header-produccion.mjs` (entra por la demo
+  pública). Verifica candado de bloqueo, chip → Mi perfil y ausencia de los
+  chips retirados; sale 0 si verifica, **2 si todavía no está desplegado**.
+- Resultado de hoy: **PENDIENTE DE DEPLOY** — producción sirve **v1.0.188** con
+  el header anterior (`menu-acciones`). Evidencia:
+  `docs/qa/266-shell-header/produccion/` (`resultados.json` + captura).
+- #266 vive en `slot/plataforma` (aún no mergeado): el script queda listo para
+  correr después del release que lo incluya.
