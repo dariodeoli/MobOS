@@ -38,6 +38,13 @@ export default function SupplierCombobox({
   const [creando, setCreando] = useState(false)
   const listaId = useId()
   const raiz = useRef(null)
+  // El blur confirma 120 ms después (para que gane el clic de la opción). La
+  // confirmación lee el texto vigente y se cancela si la pantalla ya cerró el
+  // campo (p. ej. guardó la unidad y limpió el formulario): sin esto el
+  // proveedor recién guardado volvía a aparecer al reabrir (#259).
+  const textoVigente = useRef(texto)
+  textoVigente.current = texto
+  const timerBlur = useRef(null)
 
   // El valor puede venir como id (Compras) o como nombre tipeado (recepción de
   // unidades): se muestra la etiqueta del proveedor elegido o el texto tal cual.
@@ -60,7 +67,10 @@ export default function SupplierCombobox({
       setAbierto(false)
     }
     document.addEventListener('click', cerrarFuera)
-    return () => document.removeEventListener('click', cerrarFuera)
+    return () => {
+      document.removeEventListener('click', cerrarFuera)
+      clearTimeout(timerBlur.current)
+    }
   }, [])
 
   const termino = texto.trim()
@@ -100,7 +110,7 @@ export default function SupplierCombobox({
   // proveedor del catálogo se selecciona; si no, la pantalla decide el alta.
   // Sin esto, un nombre tipeado y guardado directo se perdía.
   function confirmarTexto() {
-    const valor = texto.trim()
+    const valor = textoVigente.current.trim()
     if (!valor) return
     const proveedor = proveedores.find((item) => item.id === valor)
       || coincideExacto(proveedores, valor)
@@ -185,7 +195,10 @@ export default function SupplierCombobox({
           setAbierto(true)
           setResaltado(0)
         }}
-        onBlur={() => setTimeout(() => { cerrar(); confirmarTexto() }, 120)}
+        onBlur={() => {
+          clearTimeout(timerBlur.current)
+          timerBlur.current = setTimeout(() => { cerrar(); confirmarTexto() }, 120)
+        }}
         onKeyDown={alTeclear}
       />
       {abierto && (opciones.length > 0 || puedeNuevo) && (
