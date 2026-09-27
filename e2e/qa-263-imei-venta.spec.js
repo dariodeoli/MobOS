@@ -87,7 +87,8 @@ test('un producto sin serialización no pide IMEI y vende sin fricción (#263)',
 
     await page.getByTestId('pos-cobro').getByRole('button', { name: /Confirmar venta|Crear pedido|Guardar pedido/ }).click()
     await expect(page.getByText(/Falta elegir el IMEI\/serial/)).toHaveCount(0)
-    await expect(page.getByText(/Venta registrada|Pedido .* creado/).first()).toBeVisible({ timeout: 20_000 })
+    // #275: la venta cierra y aterriza en el detalle del pedido creado.
+    await expect(page).toHaveURL(/\/pedidos\/[^/?#]+$/, { timeout: 20_000 })
     expect(rechazos).toEqual([])
   } finally {
     await page.evaluate(async ({ api, productId }) => {
@@ -130,7 +131,8 @@ test('venta ocasional (sin cliente) con línea sobre pedido guarda el pedido (#2
     if (await sobrePedido.count()) await sobrePedido.first().click()
     await expect(page.getByTestId('motivos-bloqueo')).toHaveCount(0)
     await principal.click()
-    await expect(page.getByText(/Venta registrada|Pedido .* creado/).first()).toBeVisible({ timeout: 20_000 })
+    // #275: el pedido ocasional (sin cliente) también aterriza en su detalle.
+    await expect(page).toHaveURL(/\/pedidos\/[^/?#]+$/, { timeout: 20_000 })
     expect(rechazos, `POST /api/orders rechazado: ${rechazos.join(' | ')}`).toEqual([])
     await page.screenshot({ path: 'test-results/qa-263/ocasional-sobre-pedido.png' })
   } finally {

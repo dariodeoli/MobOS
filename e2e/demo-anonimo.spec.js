@@ -385,7 +385,10 @@ test('la demo no persiste nada: guardados, recarga, salida y base intacta', asyn
   const dividir = pagos.getByRole('button', { name: /^Dividir saldo/ })
   if (await dividir.count()) await dividir.click()
   await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
-  await expect(page.getByText(/Venta registrada correctamente/)).toBeVisible()
+  // #275: también en la demo la venta aterriza en el detalle del pedido, con
+  // su número a la vista.
+  await expect(page).toHaveURL(/\/pedidos\//, { timeout: 15_000 })
+  await expect(page.getByText(/AUR-#\d{4}/).first()).toBeVisible({ timeout: 15_000 })
 
   // Nada nuevo en el navegador: localStorage, sessionStorage, cookies, cachés
   // ni IndexedDB (incluida la cola offline real, que la demo no debe tocar).

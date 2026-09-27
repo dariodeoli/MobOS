@@ -44,7 +44,8 @@ test('demo: la venta del POS actualiza la actividad y los agregados del cliente'
   expect(monto, `la venta demo tiene un monto reconocible: "${etiqueta}"`).toBeGreaterThan(0)
   await page.screenshot({ path: '/tmp/qa160-demo-pos.png' })
   await principal.click()
-  await expect(page.getByText('Venta registrada').first()).toBeVisible({ timeout: 15000 })
+  // #275: la venta demo aterriza en el detalle del pedido creado.
+  await expect(page).toHaveURL(/\/pedidos\//, { timeout: 15_000 })
 
   // CRM: la fila sube por actividad reciente y suma la venta (se espera a que
   // el aviso de demo se desvanezca para que la captura salga limpia).
