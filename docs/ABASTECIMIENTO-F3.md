@@ -61,6 +61,10 @@ también:
   la compra). El despacho informa en su auditoría cuántos IMEI siguen
   pendientes; la recepción (F5) sigue pudiendo completarlos.
 - No mueve stock; el manifiesto pasa a `pendientes: 0` cuando el lote se completa.
+- **Panel**: la pestaña **Preparar lote** (`/preparar-lote`, `supply/PrepararLote.jsx`)
+  lista los lotes con `GET /api/supply/shipments?pendientes=1` (cada item viaja con
+  su producto), agrupa las pendientes por línea y carga escaneando de a uno,
+  con cámara o pegando varios, con la validación previa de `lib/escanerSeriales.js`.
 
 ## 3. Etiquetas de la preparación (contrato para PRN, §11)
 

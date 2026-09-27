@@ -49,6 +49,16 @@ export const resources = {
     // F3: etiquetas de la preparación (una por unidad comprada).
     labels: id => api.get(`/api/supply/purchases/${encodeURIComponent(id)}/labels`),
   },
+  // F3/F4 (#250): lotes (despachos) y su IMEI diferido — se completa antes de
+  // despachar o en tránsito, de a uno (`scan`) o pegado (`serials`).
+  supplyShipments: {
+    list: (params = {}) => {
+      const query = new URLSearchParams(Object.entries(params).filter(([, valor]) => valor !== '' && valor != null).map(([clave, valor]) => [clave, String(valor)]))
+      return api.get(`/api/supply/shipments${query.toString() ? `?${query}` : ''}`, { cacheMs: 0 })
+    },
+    create: data => api.post('/api/supply/shipments', data),
+    update: data => api.patch('/api/supply/shipments', data),
+  },
   // F5 (#250 §11): llegadas pendientes y recepción contra el manifiesto.
   supplyReceptions: {
     list: (params = {}) => {

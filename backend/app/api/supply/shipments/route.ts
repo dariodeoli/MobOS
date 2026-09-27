@@ -19,7 +19,7 @@ const INCLUDE_ENVIO = {
   purchase: { select: { id: true, code: true, supplierName: true } },
   destinationBranch: { select: { id: true, name: true } },
   responsible: { select: { id: true, name: true } },
-  items: { select: { id: true, lineId: true, productId: true, serial: true, status: true } },
+  items: { select: { id: true, lineId: true, productId: true, serial: true, status: true, product: { select: { id: true, name: true, capacity: true, color: true } } } },
 } as const
 
 export async function GET(request: Request) {
@@ -33,10 +33,12 @@ export async function GET(request: Request) {
   const status = (params.get('status') || '').trim().toUpperCase()
   const purchaseId = (params.get('purchaseId') || '').trim()
   const method = (params.get('method') || '').trim().toUpperCase()
+  // #250 F3: el panel pide los lotes con IMEI por completar (antes de recibir).
+  const pendientes = params.get('pendientes') === '1'
   const limite = Math.min(200, Math.max(1, Number(params.get('limit')) || 50))
 
   const envios = await prisma.supplyShipment.findMany({
-    where: { tenantId: tenant, ...(status ? { status } : {}), ...(purchaseId ? { purchaseId } : {}), ...(method ? { method } : {}) },
+    where: { tenantId: tenant, ...(status ? { status } : {}), ...(purchaseId ? { purchaseId } : {}), ...(method ? { method } : {}), ...(pendientes ? { items: { some: { serial: null } } } : {}) },
     orderBy: [{ createdAt: 'desc' }],
     take: limite,
     include: INCLUDE_ENVIO,
