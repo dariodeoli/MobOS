@@ -1579,21 +1579,30 @@ function ExplicacionDiagnostico({ diagnostico, estado, nombre }) {
         </div>
       )}
       {metodo === 'LAN' && !diagnostico.alcance && diagnostico.motivo === 'red_cambiada' && (
-        <div className="space-y-1 rounded-lg border border-warn/30 bg-warn/10 p-2">
-          <p className="font-semibold text-warn">La impresora no está en esta red.</p>
-          <p className="text-mute">No hay ruta hacia {host}: la computadora puente pudo cambiar de Wi‑Fi/red, o la impresora cambió de IP. Conectá la Mac a la red de la impresora (o corregí la IP) y volvé a probar. No es un permiso de macOS.</p>
+        <div className="space-y-2 rounded-lg border border-warn/30 bg-warn/10 p-2">
+          <p className="font-semibold text-warn">La impresora no está en esta red ({diagnostico.errno || 'EHOSTUNREACH'}).</p>
+          <p className="text-mute">No hay ruta hacia {host}:{puerto}. Revisá en este orden:</p>
+          <ol className="list-decimal space-y-1 pl-4 text-mute">
+            <li><b className="text-fore">IP real de la impresora</b>: sacale el autotest (mantené el botón de avance al encender) y mirá la IP que sale impresa; si cambió, corregila en <b className="text-fore">Editar</b>.</li>
+            <li><b className="text-fore">¿El router cambió de subred?</b> La impresora está en {subred(host)}.x y esta Mac en {interfaces.length ? interfaces.map((ip) => `${subred(ip)}.x`).join(' · ') : '—'}. Si no coinciden, conectá la Mac a la red de la impresora (o corregí la IP del destino).</li>
+            <li><b className="text-fore">Ruta y ARP</b>: {diagnostico.ruta ? <>ruta actual: <span className="font-mono">{diagnostico.ruta}</span>. </> : null}En Terminal, <code className="rounded bg-ink-700 px-1">arp -n {host}</code> tiene que devolver la MAC de la impresora.</li>
+          </ol>
+          <p className="text-mute">
+            {cupsDisponible ? <>Mientras tanto puede imprimir: la cola CUPS <b className="text-fore">{diagnostico.cups}</b> queda como respaldo. </> : null}
+            <b className="text-fore">Escape por USB (#96)</b>: conectá la impresora por USB y encendé <code className="rounded bg-ink-700 px-1">"usb": true</code> en <code className="rounded bg-ink-700 px-1">~/.mobos-print/config.json</code> (o arrancá el agente con <code className="rounded bg-ink-700 px-1">--usb</code>): imprime por USB directo mientras arreglás la red (ver <code className="rounded bg-ink-700 px-1">print-agent/USB-DIRECTO.md</code>).
+          </p>
         </div>
       )}
       {metodo === 'LAN' && !diagnostico.alcance && diagnostico.motivo === 'permiso_o_red' && aliasPresente && (
         <div className="space-y-1 rounded-lg border border-warn/30 bg-warn/10 p-2">
           <p className="font-semibold text-warn">El agente automático no pudo salir a la red local.</p>
-          <p className="text-mute">Falló con {diagnostico.errno || 'EHOSTUNREACH'} y la IP secundaria <b className="text-fore">{diagnostico.alias?.ip || estado?.alias?.ip || '192.168.1.100'}</b> está presente. Si desde Terminal <code className="rounded bg-ink-700 px-1">ping {host}</code> y <code className="rounded bg-ink-700 px-1">nc -vz {host} {puerto}</code> conectan, falta el <b className="text-fore">permiso de Red Local</b>: Ajustes → Privacidad y seguridad → Red local → habilitá <b className="text-fore">node</b> (reinstalar con <code className="rounded bg-ink-700 px-1">bash print-agent/install-macos.sh</code> abre el panel). Si tampoco conectan, revisá que la impresora esté encendida y en la misma red. Después usá <b className="text-fore">Reparar conexión → Imprimir prueba</b>.</p>
+          <p className="text-mute">Falló con {diagnostico.errno || 'EHOSTUNREACH'} y la IP secundaria <b className="text-fore">{diagnostico.alias?.ip || estado?.alias?.ip || '192.168.1.100'}</b> está presente. Si desde Terminal <code className="rounded bg-ink-700 px-1">ping {host}</code> y <code className="rounded bg-ink-700 px-1">nc -vz {host} {puerto}</code> conectan, falta el <b className="text-fore">permiso de Red Local</b>: Ajustes → Privacidad y seguridad → Red local → habilitá <b className="text-fore">node</b> (reinstalar con <code className="rounded bg-ink-700 px-1">bash print-agent/install-macos.sh</code> abre el panel). Si tampoco conectan, revisá que la impresora esté encendida y en la misma red. Después usá <b className="text-fore">Reparar conexión → Imprimir prueba</b>. Si la red sigue sin responder, el <b className="text-fore">USB directo (#96)</b> es el escape: conectá la impresora por USB y encendé <code className="rounded bg-ink-700 px-1">&quot;usb&quot;: true</code> en la config del agente.</p>
         </div>
       )}
       {metodo === 'LAN' && !diagnostico.alcance && (!diagnostico.motivo || diagnostico.motivo === 'permisos_red_local') && aliasPresente && (
         <div className="space-y-1 rounded-lg border border-warn/30 bg-warn/10 p-2">
           <p className="font-semibold text-warn">El agente automático no puede salir a la red (permiso de macOS).</p>
-          <p className="text-mute">La IP secundaria está presente y <code className="rounded bg-ink-700 px-1">nc -s {diagnostico.alias?.ip || estado?.alias?.ip || '192.168.1.100'}</code> conecta, pero el proceso de launchd no: el agente ya usa bind al alias, así que falta el <b className="text-fore">permiso de Red Local</b>. En el puente: <b className="text-fore">Ajustes → Privacidad y seguridad → Red local</b> → habilitá <b className="text-fore">node</b> (o reinstalá con <code className="rounded bg-ink-700 px-1">bash print-agent/install-macos.sh</code>, que abre el panel). Después usá <b className="text-fore">Reparar conexión → Imprimir prueba</b>.</p>
+          <p className="text-mute">La IP secundaria está presente y <code className="rounded bg-ink-700 px-1">nc -s {diagnostico.alias?.ip || estado?.alias?.ip || '192.168.1.100'}</code> conecta, pero el proceso de launchd no: el agente ya usa bind al alias, así que falta el <b className="text-fore">permiso de Red Local</b>. En el puente: <b className="text-fore">Ajustes → Privacidad y seguridad → Red local</b> → habilitá <b className="text-fore">node</b> (o reinstalá con <code className="rounded bg-ink-700 px-1">bash print-agent/install-macos.sh</code>, que abre el panel). Después usá <b className="text-fore">Reparar conexión → Imprimir prueba</b>. Si la red sigue sin responder, el <b className="text-fore">USB directo (#96)</b> es el escape: conectá la impresora por USB y encendé <code className="rounded bg-ink-700 px-1">&quot;usb&quot;: true</code> en la config del agente.</p>
         </div>
       )}
       {metodo === 'LAN' && !diagnostico.alcance && !aliasPresente && mismaRed && (

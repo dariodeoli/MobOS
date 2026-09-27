@@ -86,6 +86,39 @@ salud() { curl -s --max-time 3 http://127.0.0.1:17890/health -H "x-mobos-print-t
 - El archivo `~/mobos-prueba-fisica.txt` es lo que se pega en el issue al terminar
   (§5): no incluye tokens ni contraseñas.
 
+## 0.1 Actualizar un agente viejo (≤1.6.x → actual)
+
+Si `/health` dice una versión **≤1.6.x**, actualizá antes de la prueba: los fixes
+de #17 (bind al alias + fallback `EADDRNOTAVAIL`, clasificación de
+`EHOSTUNREACH` con motivo honesto, `/health.red.*` completo, autotest dentro del
+proceso de `launchd`) y el USB de #96 viajan recién desde **1.7.x**. No hace
+falta clonar el repo: el instalador lo sirve el API.
+
+```bash
+curl -fsSL https://api.moboss.online/print-agent/install.sh | bash
+```
+
+- **No borra el token**: sin `--code` conserva el vínculo existente
+  (`apiUrl` + `bridgeToken`) de `~/.mobos-print/config.json`; solo reemplaza el
+  agente y reinicia el servicio. La app muestra este mismo comando en
+  **Configuración → Dispositivos · Puentes** (lo publica el manifest del
+  backend).
+- **Verificar la versión y la red** después de actualizar:
+
+  ```bash
+  CONFIG="$HOME/.mobos-print/config.json"
+  TOKEN=$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).token||'')" "$CONFIG" 2>/dev/null)
+  curl -s http://127.0.0.1:17890/health -H "x-mobos-print-token: $TOKEN" | python3 -m json.tool
+  ```
+
+- **Qué mirar** (`red.*`): `version` (la publicada en el manifest), `alias.presente`,
+  `tcp`, `cups`, `cupsUri`, `colaTipo`, `transporte`, `autotest` y —después de
+  imprimir— `ultimoTransporte`. Si el agente no responde, reiniciar el servicio
+  (paso 1.2).
+- **Qué pegar en #17**: el bloque completo de §0 (`~/mobos-prueba-fisica.txt`)
+  con la versión nueva; si algo falla, el `errno`/`motivo` exacto (plantilla de
+  §5).
+
 ## 1. launchd + IP secundaria (#17)
 
 1. **IP secundaria presente** (la impresora vive en `192.168.1.x`):
@@ -178,6 +211,7 @@ salud() { curl -s --max-time 3 http://127.0.0.1:17890/health -H "x-mobos-print-t
 | --- | --- | --- |
 | «Sin verificar» en Dispositivos · Impresoras | `/health` → `impresoraOk` y `red.*` | Ver pasos 1 y 2; suele ser Red local o la cola CUPS |
 | `EHOSTUNREACH` desde launchd (y OK desde Terminal) | `/health` → `red.alias.presente`, `errno` en `/diagnostico` | Falta permiso de Red local (paso 1.3) o la IP secundaria (1.1) |
+| `EHOSTUNREACH` con alias y colas CUPS presentes · motivo `red_cambiada` | `/health.red.interfaces` y la ruta del `/diagnostico` | La Mac y la impresora no comparten subred: verificá la **IP real** de la impresora (autotest), si el router cambió de subred y el ARP (`arp -n 192.168.1.23`). Mientras tanto imprime por la cola CUPS; escape **USB directo** (#96, paso 3) |
 | `ECONNREFUSED` | `/health` → `red.tcp` | La impresora está apagada o cambió de IP; Configuración → Dispositivos · Impresoras muestra el estado vivo |
 | El ticket sale cortado o incompleto | Prueba de corte (#17) | Anotar qué sección falta; revisar alimentación y `corte()` |
 | El QR no se lee | `docs/IMPRESION.md` §1 | El QA va con corrección H y módulo 7; reimprimir y escanear con el teléfono |
