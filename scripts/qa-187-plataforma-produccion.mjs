@@ -113,7 +113,7 @@ try {
   if (!(await paso('shell offline (control + precache)', async (caps) => {
     const estado = await page.evaluate(async () => {
       const controlada = Boolean(navigator.serviceWorker.controller)
-      const cache = await caches.open('mobos-shell-v4')
+      const cache = await globalThis.caches.open('mobos-shell-v4')
       const claves = (await cache.keys()).map((respuesta) => new URL(respuesta.url).pathname)
       return { controlada, claves }
     })

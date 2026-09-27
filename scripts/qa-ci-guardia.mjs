@@ -63,7 +63,7 @@ export function fallosDe(corridaId) {
 }
 
 const corridas = corridasDe()
-const { racha, completas } = calcularRacha(corridas)
+const { completas } = calcularRacha(corridas)
 const espera = await esperarCorrida(corridas, ESPERA)
 const recientes = corridasDe()
 const rachaFinal = calcularRacha(recientes).racha

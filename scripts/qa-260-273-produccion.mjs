@@ -66,7 +66,7 @@ try {
     await fila.click()
     await pagina.getByText('CLIENTE', { exact: false }).first().waitFor({ timeout: 20000 })
   })
-  const accionesPedido = await pagina.evaluate(() => ['pedido-asignar-cliente', 'pedido-crear-ficha', 'pedido-cambiar-cliente', 'pedido-quitar-cliente'].filter((id) => document.querySelector(`[data-testid="${id}"]`)))
+  const accionesPedido = await pagina.evaluate(() => ['pedido-asignar-cliente', 'pedido-crear-ficha', 'pedido-cambiar-cliente', 'pedido-quitar-cliente'].filter((id) => globalThis.document.querySelector(`[data-testid="${id}"]`)))
   resultados.pasos.push({ nombre: 'pedidos: acciones del cliente', ok: accionesPedido.length > 0, dato: accionesPedido.join(', ') })
   if (accionesPedido.length === 0) resultados.pendienteDeploy = true
   await pagina.screenshot({ path: join(SALIDA, '01-pedido-cliente.png') })
