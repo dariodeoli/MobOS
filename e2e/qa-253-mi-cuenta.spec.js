@@ -9,7 +9,9 @@ const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/QA-253-mi-cuenta'
 test('el dueño abre Mi cuenta desde el avatar y ve perfil, preferencias y sesiones', async ({ page }) => {
   test.skip(test.info().project.name !== 'admin', 'Flujo del dueño.')
 
-  await page.goto('/clientes')
+  // Entrada liviana: el test necesita el shell, no la pantalla de clientes
+  // (bajo carga, una pantalla pesada puede consumir el tiempo del test).
+  await page.goto('/resumen')
   await page.getByTestId('shell-perfil').click()
   await expect(page).toHaveURL(/\/configuracion\/mi-cuenta/)
 
@@ -40,7 +42,9 @@ test('el dueño abre Mi cuenta desde el avatar y ve perfil, preferencias y sesio
 test('el vendedor entra a su perfil personal desde el avatar', async ({ page }) => {
   test.skip(test.info().project.name !== 'seller', 'Flujo del vendedor.')
 
-  await page.goto('/clientes')
+  // Entrada liviana: el test necesita el shell, no la pantalla de clientes
+  // (bajo carga, una pantalla pesada puede consumir el tiempo del test).
+  await page.goto('/resumen')
   await page.getByTestId('shell-perfil').click()
   await expect(page).toHaveURL(/\/mi-cuenta$/)
 
