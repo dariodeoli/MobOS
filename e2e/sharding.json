@@ -39,11 +39,12 @@
         "qa-254-por-comprar.spec.js",
         "qa-261-cotizacion-envio.spec.js",
         "qa-267-config-menu.spec.js",
+        "recorte-perfil.spec.js",
         "seguridad-cuenta.spec.js",
         "servicio-tecnico.spec.js",
         "traslados-etiquetas-lote.spec.js"
       ],
-      "tests": 172
+      "tests": 173
     },
     {
       "archivos": [
@@ -126,7 +127,7 @@
         "qa-253-config-grupos.spec.js",
         "qa-253-mi-cuenta.spec.js",
         "qa-257-inventario-pos.spec.js",
-        "recorte-perfil.spec.js",
+        "qa-fin-repuestos-taller.spec.js",
         "redireccion-248.spec.js",
         "repuestos-proveedores.spec.js",
         "responsive.spec.js",
@@ -136,5 +137,5 @@
       "tests": 172
     }
   ],
-  "generado": "2026-09-27T00:07:34.057Z"
+  "generado": "2026-09-27T00:35:47.908Z"
 }

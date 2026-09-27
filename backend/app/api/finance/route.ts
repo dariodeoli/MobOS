@@ -6,6 +6,7 @@ import { InputError } from '../../../lib/payment-input'
 import { ensureStoreBranch } from '../../../lib/store-branch'
 import { FINANCE_CURRENCIES, FinanceInputError, frozenAmountPyg, purchasePayable } from '../../../lib/finance'
 import { CONDICION_PROVEEDOR_LABELS, SUPPLIER_PAYABLE_CONDITIONS, SupplierPayableInputError, enDepositoDeCompra, estadoDeVencimiento, pendienteDeCompra, payableDeCompra } from '../../../lib/supplier-payables'
+import { deudaRepuesto, resumenRepuestos } from '../../../lib/workshop-parts'
 import { createCashMovement } from '../../../lib/cash-movements'
 import { DEFAULT_EXPENSE_LIMIT_PYG, authorizedAmountOf, consumeAuthorization, usableAuthorization } from '../../../lib/authorizations'
 
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
   if ('status' in ctx) return error(ctx.status === 401 ? 'Falta sesión.' : 'No autorizado.', ctx.status)
   const tenantId = ctx.session.user.tenantId
   const branchFilter = ctx.branchId ? { branchId: ctx.branchId } : {}
-  const [movements, accounts, orders, purchases, salePayments, reconciliations, supplierPayablesRows] = await Promise.all([
+  const [movements, accounts, orders, purchases, salePayments, reconciliations, supplierPayablesRows, workshopPartRows] = await Promise.all([
     prisma.cashMovement.findMany({ where: { tenantId, ...branchFilter }, include: { account: { select: { id: true, name: true, currency: true } } }, orderBy: { createdAt: 'desc' }, take: 150 }),
     prisma.paymentAccount.findMany({ where: { tenantId }, select: { id: true, name: true, currency: true, kind: true, feePercent: true, isActive: true } }),
     prisma.order.findMany({ where: { tenantId, ...branchFilter, status: { not: 'CANCELLED' } }, select: { id: true, totalPyg: true, discountPyg: true, payments: { select: { amountPyg: true, status: true } }, items: { select: { quantity: true, totalPyg: true, unitCostPyg: true, insurancePyg: true, extraCostPyg: true } } }, take: 5000 }),
@@ -52,6 +53,13 @@ export async function GET(request: Request) {
     // Cuenta a pagar al proveedor por repuestos/insumos (#250 · #83): contado,
     // crédito con vencimiento y consignación (que recién impacta al consumirse).
     prisma.supplierPayable.findMany({ where: { tenantId, ...branchFilter }, select: { id: true, supplierId: true, supplierName: true, concept: true, condition: true, amountPyg: true, paidPyg: true, consumedPyg: true, dueAt: true, reference: true, createdAt: true, supplyPurchaseId: true }, orderBy: [{ dueAt: 'asc' }, { createdAt: 'desc' }], take: 2000 }),
+    // Repuestos del taller (#250 · FIN): crédito y consignación consumida.
+    prisma.workshopPart.findMany({
+      where: { tenantId, ...branchFilter, paidAt: null, paymentMode: { in: ['CREDITO', 'CONSIGNACION'] } },
+      select: { id: true, code: true, name: true, sku: true, supplierId: true, supplier: { select: { name: true } }, ownership: true, paymentMode: true, quantity: true, usedQuantity: true, unitCostPyg: true, totalCostPyg: true, dueAt: true, serviceOrderId: true, branchId: true },
+      orderBy: [{ dueAt: 'asc' }, { createdAt: 'desc' }],
+      take: 1000,
+    }),
   ])
   const receivables = orders.map(order => ({ id: order.id, totalPyg: order.totalPyg, paidPyg: order.payments.filter(payment => payment.status === 'CONFIRMED').reduce((total, payment) => total + payment.amountPyg, 0) })).map(row => ({ ...row, pendingPyg: Math.max(0, row.totalPyg - row.paidPyg) })).filter(row => row.pendingPyg > 0)
   const payables = purchases.map(purchasePayable).filter(row => row.pendingPyg > 0)
@@ -112,6 +120,12 @@ export async function GET(request: Request) {
   for (const movement of movements) if (movement.status === 'CLEARED' && movement.accountId && balances.has(movement.accountId)) balances.get(movement.accountId)!.balance += (movement.direction === 'IN' ? 1 : -1) * Number(movement.originalAmount)
   for (const payment of salePayments) if (payment.accountId && balances.has(payment.accountId)) balances.get(payment.accountId)!.balance += Number(payment.originalAmount ?? payment.amountPyg)
   for (const purchase of purchases) for (const payment of purchase.payments) if (payment.accountId && balances.has(payment.accountId)) balances.get(payment.accountId)!.balance -= Number(payment.originalAmount ?? payment.amountPyg)
+  // Repuestos del taller (#250 · FIN): deuda real (crédito y consignación
+  // consumida) con vencimiento, para el KPI de «por pagar» y su pago desde Caja.
+  const repuestosTaller = workshopPartRows
+    .map(part => ({ ...part, deudaPyg: deudaRepuesto(part), vencimiento: estadoDeVencimiento(part.dueAt) }))
+    .filter(part => part.deudaPyg > 0)
+  const resumenTaller = resumenRepuestos(workshopPartRows)
   return json({
     movements, accounts: [...balances.values()],
     receivables: { rows: receivables, totalPyg: Number(receivablesTotales[0]?.totalPyg ?? 0), orders: Number(receivablesTotales[0]?.orders ?? 0) },
@@ -128,6 +142,14 @@ export async function GET(request: Request) {
       porVencerPyg: Number(proveedoresTotales[0]?.porVencerPyg ?? 0),
       depositoPyg: Number(proveedoresTotales[0]?.depositoPyg ?? 0),
       compras: Number(proveedoresTotales[0]?.compras ?? 0),
+    },
+    // Repuestos del taller (#250 · FIN): la deuda entra al «por pagar» y se
+    // paga desde Caja (el pago registra el egreso de la cuenta elegida).
+    workshopParts: {
+      rows: repuestosTaller.map(part => ({ ...part, supplierName: part.supplier?.name || null })),
+      totalPyg: resumenTaller.porPagarPyg,
+      vencidasPyg: resumenTaller.vencidasPyg,
+      partes: resumenTaller.porPagar,
     },
     margin: marginTotal,
     reconciliations: reconciliations.filter(row => !ctx.branchId || row.payment.order.branchId === ctx.branchId),
@@ -259,6 +281,40 @@ export async function POST(request: Request) {
         return fila
       })
       return json({ ...actualizado, pendientePyg: pendienteDeCompra(actualizado), depositoPyg: enDepositoDeCompra(actualizado), vencimiento: estadoDeVencimiento(actualizado.dueAt) })
+    }
+    // Repuestos del taller (#250 · FIN): paga la deuda del repuesto (crédito o
+    // consignación consumida) y, con cuenta, registra el egreso en Caja. Espeja
+    // la semántica del `pay` del taller (pago total) y agrega la parte de FIN.
+    if (action === 'workshopPartPayment') {
+      const id = text(body.id, 'Repuesto', 200, true)!
+      const accountId = text(body.accountId, 'Cuenta', 200)
+      const actualizado = await prisma.$transaction(async tx => {
+        const part = await tx.workshopPart.findFirst({
+          where: { id, tenantId: ctx.session.user.tenantId, ...(ctx.branchId ? { branchId: ctx.branchId } : {}) },
+          include: { supplier: { select: { name: true } } },
+        })
+        if (!part) throw new FinanceInputError('El repuesto del taller no existe.')
+        const deuda = deudaRepuesto(part)
+        if (part.paidAt || deuda <= 0) throw new FinanceInputError('Ese repuesto no tiene deuda pendiente.')
+        if (accountId) {
+          const account = await tx.paymentAccount.findFirst({ where: { id: accountId, tenantId: ctx.session.user.tenantId, isActive: true }, select: { id: true } })
+          if (!account) throw new FinanceInputError('La cuenta no existe o está inactiva.')
+        }
+        const fila = await tx.workshopPart.update({ where: { id: part.id }, data: { paidAt: new Date() } })
+        await tx.workshopPartMovement.create({
+          data: { tenantId: ctx.session.user.tenantId, partId: part.id, kind: 'PAGO', quantity: 0, amountPyg: deuda, serviceOrderId: part.serviceOrderId, note: 'Pago desde Finanzas', userId: ctx.session.user.id },
+        })
+        if (accountId) {
+          await createCashMovement(tx, {
+            tenantId: ctx.session.user.tenantId, branchId: part.branchId, createdById: ctx.session.user.id,
+            kind: 'SUPPLIER_ADVANCE', direction: 'OUT', currency: 'PYG', originalAmount: String(deuda), exchangeRatePyg: '1',
+            counterparty: part.supplier?.name || part.name, reference: part.code, description: `Pago a proveedor: ${part.name} (repuesto del taller)`, dueAt: null, accountId,
+          }, { auditAction: 'FINANCE_MOVEMENT_CREATED' })
+        }
+        await tx.auditLog.create({ data: { tenantId: ctx.session.user.tenantId, userId: ctx.session.user.id, action: 'WORKSHOP_PART_PAID', entity: 'WorkshopPart', entityId: fila.id, metadata: { code: fila.code, paymentMode: fila.paymentMode, deudaPyg: deuda, desde: 'FINANZAS', conCuenta: Boolean(accountId) } } })
+        return fila
+      })
+      return json({ ...actualizado, deudaPyg: 0, porPagar: false })
     }
     if (action === 'supplierConsumption') {
       const id = text(body.id, 'Compra', 200, true)!
