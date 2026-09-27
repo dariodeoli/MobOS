@@ -131,6 +131,7 @@ model Tenant {
 
   @@index([archivedAt])
   supplyNeeds                 SupplyNeed[]
+  supplyAlternatives          SupplyAlternative[]
   supplyPurchases             SupplyPurchase[]
   supplyPurchaseLines         SupplyPurchaseLine[]
   supplyPurchaseSerials       SupplyPurchaseSerial[]
@@ -2428,6 +2429,50 @@ model SupplyNeed {
   @@index([tenantId, branchId, status])
   @@index([tenantId, purchaseId])
   purchaseLines SupplyPurchaseLine[]
+  // A5 (#279): versiones de alternativas propuestas cuando la variante se agotó.
+  alternatives SupplyAlternative[]
+}
+
+// A5 (#279) · Variante agotada → alternativas: el comprador **propone** (sin
+// decidir), el vendedor resuelve y, si cambia el precio, el **cliente aprueba**
+// con OTP. Se conserva el historial de versiones; la necesidad original se
+// libera recién al aceptar.
+model SupplyAlternative {
+  id           String @id @default(cuid())
+  tenantId     String
+  tenant       Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  supplyNeedId String
+  supplyNeed   SupplyNeed @relation(fields: [supplyNeedId], references: [id], onDelete: Cascade)
+  // Versión consecutiva por necesidad: la original y la aprobada se conservan.
+  version      Int    @default(1)
+  // PROPUESTA · VENDEDOR_OK · ENVIADA_AL_CLIENTE · ACEPTADA · RECHAZADA · CANCELADA
+  status       String @default("PROPUESTA")
+  // Motivo del agotamiento y opción ofrecida (colores/capacidades/modelo).
+  reason       String?
+  optionSummary String
+  // Alternativa del catálogo, si la hay (color/capacidad/modelo exacto).
+  productId    String?
+  // Diferencia de precio contra la versión original (positiva = más caro).
+  priceDeltaPyg Int   @default(0)
+  // Nueva fecha estimada de entrega, si la opción la mueve.
+  newEta       DateTime?
+  notes        String?
+  proposedById String?
+  decidedById  String?
+  decidedAt    DateTime?
+  customerApprovedAt DateTime?
+  customerRejectedAt DateTime?
+  // Enlace público del cliente (64 hex → solo sha256 en la base).
+  publicTokenHash String? @unique
+  // OTP de aprobación cuando hay diferencia de precio/condiciones.
+  otpCodeHash  String?
+  otpExpiresAt DateTime?
+  otpAttempts  Int     @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([supplyNeedId, version])
+  @@index([tenantId, status])
 }
 
 // #250 Fase 2 (Centro de Abastecimiento): compra rápida y stock adicional. La
