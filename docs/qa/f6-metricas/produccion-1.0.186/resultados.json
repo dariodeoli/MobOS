@@ -1,0 +1,45 @@
+{
+  "fecha": "2026-09-27T00:10:31.531Z",
+  "base": "https://app.moboss.online",
+  "modo": "produccion",
+  "version": "1.0.186",
+  "sesionReal": false,
+  "storageState": null,
+  "resultados": [
+    {
+      "nombre": "Producción responde y el bundle expone la versión",
+      "ok": true,
+      "detalle": "v1.0.186"
+    },
+    {
+      "nombre": "El panel F6 está en el bundle desplegado",
+      "ok": true,
+      "detalle": "4 secciones + testids + ruta"
+    },
+    {
+      "nombre": "La API de F6 existe en producción (pide sesión)",
+      "ok": true,
+      "detalle": "performance y alerts → 401"
+    },
+    {
+      "nombre": "Demo: se entra como Dueño",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "El menú Inventario trae «Métricas de abastecimiento»",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "La vista /metricas abre y monta el panel (demo)",
+      "ok": true,
+      "detalle": "URL /metricas"
+    },
+    {
+      "nombre": "Capturas del panel en producción",
+      "ok": true,
+      "detalle": ""
+    }
+  ]
+}

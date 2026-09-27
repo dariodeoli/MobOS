@@ -80,6 +80,44 @@ Objetos compartidos: `DataTable` (con `mobileCard`), `Stat`, `Subtabs`,
   `docs/qa/f6-metricas/`.
 - Build del backend con `BUILD_ID`; `npm run build` del frontend en verde.
 
+### Verificación post-deploy (producción v1.0.186)
+
+La sonda `scripts/qa-f6-metricas-produccion.mjs` tiene dos modos:
+
+**Sin credenciales (default, demo público)** → **7/7** sobre
+`https://app.moboss.online` (salida en `docs/qa/f6-metricas/produccion-1.0.186/`,
+`resultados.json` + capturas desktop/mobile):
+
+1. El bundle desplegado expone la versión viva (**1.0.186**).
+2. El panel F6 está en el bundle: las cuatro secciones («Métricas de
+   abastecimiento», «Rendimiento por proveedor», «Tiempos de tránsito por
+   ruta», «Lotes atrasados»), los testids (`metricas-abastecimiento`,
+   `metricas-tiempos-tabla`, `metricas-atrasados-tabla`) y la ruta `/metricas`.
+3. La API existe y pide sesión: `/api/supply/performance` y
+   `/api/supply/alerts` → **401** sin sesión.
+4. En el demo público: el menú **Inventario** trae «Métricas de abastecimiento»,
+   la vista `/metricas` abre sin redirigir y el panel avisa que las métricas
+   salen de una cuenta real (única sesión disponible sin credenciales); captura
+   sin scroll horizontal en mobile.
+
+**Con sesión real** (`QA_STORAGE_STATE=/tmp/mobos-qa.json`, generado con
+`npx playwright codegen --save-storage=/tmp/mobos-qa.json
+https://app.moboss.online/login`) la sonda verifica, además, contra la cuenta:
+panel montado (testid real), las tres vistas (proveedores · tiempos · atrasos),
+`/api/supply/performance` **200** con `proveedores[]`/`rutas[]` y
+`costoPromedioUnidadPyg` cuando hay unidades, y `/api/supply/alerts` **200** con
+`atrasados[]`/`necesidadesVencidas[]`; captura el panel real.
+
+- El camino de sesión real quedó **validado contra el stack local** con
+  `QA_MODO=dev QA_BASE_URL=http://localhost:5215
+  QA_STORAGE_STATE=e2e/.auth/admin.json` → **6/6** (12 proveedores, ruta medida,
+  6 lotes atrasados, `costoPromedioUnidadPyg` vivo); evidencia en
+  `docs/qa/f6-metricas/local-sesion-real/`.
+- En producción el modo real se corre cuando haya una sesión disponible; sin
+  credenciales, la verificación no intrusiva llega hasta el demo (lo dice en el
+  resultado). El e2e `qa-f6-metricas-abastecimiento.spec.js` cubre la sesión real
+  con datos sembrados en cada corrida.
+
 ## Coordinación
 
 - **INV**: las métricas nuevas son aditivas; el panel puede mostrarlas sin

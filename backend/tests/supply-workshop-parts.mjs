@@ -91,6 +91,31 @@ await req('/api/workshop/parts', 'PATCH', { id: propioCredito.id, action: 'pay' 
 const trasPago = await req('/api/workshop/parts?porPagar=1')
 assert.equal(trasPago.parts.some((part) => part.id === propioCredito.id), false)
 
+// 5-bis) FIN (#250): la deuda del taller entra en Finanzas (bloque + KPI) y se
+// paga desde ahí con el egreso de la cuenta elegida.
+const cuentaTaller = await req('/api/payment-accounts', 'POST', { name: `Cuenta Taller ${sufijo}`, kind: 'TRANSFER', currency: 'PYG', bank: 'Banco QA', holder: 'Empresa QA', accountNumber: `QA-${sufijo}` }, 201)
+const finTaller = await req('/api/finance')
+assert.ok(finTaller.workshopParts, 'Finanzas expone la deuda del taller')
+const filaCreditoProveedor = finTaller.workshopParts.rows.find((fila) => fila.id === proveedorCredito.id)
+assert.ok(filaCreditoProveedor, 'el crédito del proveedor está en «por pagar»')
+assert.equal(Number(filaCreditoProveedor.deudaPyg), 240000)
+assert.equal(filaCreditoProveedor.vencimiento, 'VENCIDA', 'el vencimiento viaja a Finanzas')
+const filaConsignacion = finTaller.workshopParts.rows.find((fila) => fila.id === deProveedor.id)
+assert.ok(filaConsignacion && Number(filaConsignacion.deudaPyg) === 180000, 'la consignación consumida también es deuda')
+assert.ok(Number(finTaller.workshopParts.totalPyg) >= 420000, 'el total suma las deudas del taller')
+assert.ok(Number(finTaller.workshopParts.vencidasPyg) >= 240000, 'las vencidas se informan aparte')
+const pagoFin = await req('/api/finance', 'POST', { action: 'workshopPartPayment', id: proveedorCredito.id, accountId: cuentaTaller.id }, 200)
+assert.equal(pagoFin.deudaPyg, 0)
+assert.equal(pagoFin.paidAt !== null, true, 'el repuesto queda pago')
+const finTrasPago = await req('/api/finance')
+assert.equal(finTrasPago.workshopParts.rows.some((fila) => fila.id === proveedorCredito.id), false, 'el repuesto pagado sale del «por pagar»')
+const egresoTaller = (finTrasPago.movements || []).find((fila) => fila.kind === 'SUPPLIER_ADVANCE' && fila.direction === 'OUT' && Number(fila.amountPyg) === 240000 && fila.accountId === cuentaTaller.id)
+assert.ok(egresoTaller, 'el pago desde Finanzas registra el egreso en la cuenta')
+const auditoriaPagoFin = await req('/api/audit?action=WORKSHOP_PART_PAID&limit=5')
+assert.ok((auditoriaPagoFin || []).some((fila) => fila.metadata?.desde === 'FINANZAS'), 'la auditoría marca el pago desde Finanzas')
+await req('/api/finance', 'POST', { action: 'workshopPartPayment', id: proveedorCredito.id }, 400)
+await req('/api/finance', 'POST', { action: 'workshopPartPayment', id: 'no-existe' }, 400)
+
 // 6) Trazabilidad: movimientos del repuesto y auditoría de las acciones.
 const detalle = await req(`/api/workshop/parts?id=${deProveedor.id}`)
 assert.deepEqual(detalle.part.movements.map((movimiento) => movimiento.kind), ['DEVOLUCION', 'USO', 'ALTA'])
@@ -110,4 +135,4 @@ await req('/api/workshop/parts', 'GET', undefined, 401, 'token-invalido')
 await req('/api/workshop/parts', 'POST', { name: 'Sin permiso', ownership: 'PROPIO', paymentMode: 'CONTADO', quantity: 1 }, 403, vendedor)
 await req('/api/workshop/parts', 'PATCH', { id: propioContado.id, action: 'pay' }, 403, vendedor)
 
-console.log(`PASS: repuestos del taller — 4 altas (propio contado/crédito, proveedor consignación/crédito), uso ${usado.part.usedQuantity} en el taller, devolución, baja, deuda ${porPagar.resumen.porPagarPyg} Gs (${porPagar.resumen.vencidas} vencida), pago y stock vendible intacto · ${checks} chequeos`)
+console.log(`PASS: repuestos del taller — 4 altas (propio contado/crédito, proveedor consignación/crédito), uso ${usado.part.usedQuantity} en el taller, devolución, baja, deuda ${porPagar.resumen.porPagarPyg} Gs (${porPagar.resumen.vencidas} vencida), pago, deuda del taller en Finanzas (KPI + pago con egreso) y stock vendible intacto · ${checks} chequeos`)

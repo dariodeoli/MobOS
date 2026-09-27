@@ -42,6 +42,17 @@ Auditoría: `WORKSHOP_PART_CREATED` · `USED` · `RETURNED` · `PAID` · `DISCAR
 - Lo que FIN debería registrar como egreso es `deudaPyg` del repuesto pagado; el
   asiento queda auditado en `WORKSHOP_PART_PAID`.
 
+### Implementado por FIN (#250 · 2026-09-27)
+
+- `GET /api/finance` expone **`workshopParts`** (filas con `deudaPyg` +
+  `vencimiento`, `totalPyg`, `vencidasPyg`, `partes`) con los mismos helpers
+  (`deudaRepuesto`/`resumenRepuestos`): Caja suma el total al KPI **«Por pagar»**
+  y muestra el bloque **«Repuestos del taller»**.
+- `POST /api/finance { action: 'workshopPartPayment', id, accountId? }`: pago
+  total desde Finanzas (misma semántica que `pay`), y con cuenta registra el
+  **egreso** (`CashMovement` OUT) además del movimiento `PAGO` del taller.
+- Evidencia: `docs/qa/fin-repuestos-taller.md` (arnés + e2e + capturas).
+
 ## Tests
 
 - Unit `backend/tests/workshop-parts.test.ts`: validaciones de tenencia/pago,

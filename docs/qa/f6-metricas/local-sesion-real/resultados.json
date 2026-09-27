@@ -1,0 +1,40 @@
+{
+  "fecha": "2026-09-27T00:12:11.181Z",
+  "base": "http://localhost:5215",
+  "modo": "dev",
+  "version": "dev",
+  "sesionReal": true,
+  "storageState": "e2e/.auth/admin.json",
+  "resultados": [
+    {
+      "nombre": "La API de F6 existe en producción (pide sesión)",
+      "ok": true,
+      "detalle": "performance y alerts → 401"
+    },
+    {
+      "nombre": "Sesión real: válida y con permiso sobre el panel",
+      "ok": true,
+      "detalle": "panel montado"
+    },
+    {
+      "nombre": "Sesión real: el panel trae las tres vistas (proveedores · tiempos · atrasos)",
+      "ok": true,
+      "detalle": ""
+    },
+    {
+      "nombre": "Sesión real: /api/supply/performance responde el contrato de F6",
+      "ok": true,
+      "detalle": "12 proveedores · 1 rutas · costo/unidad vivo"
+    },
+    {
+      "nombre": "Sesión real: /api/supply/alerts responde el contrato de atrasos",
+      "ok": true,
+      "detalle": "6 lotes atrasados · 0 promesas vencidas"
+    },
+    {
+      "nombre": "Capturas del panel en producción",
+      "ok": true,
+      "detalle": ""
+    }
+  ]
+}
