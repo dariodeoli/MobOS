@@ -4,6 +4,8 @@
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
 
+const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/QA-149-cliente-ocasional'
+
 async function api(page, path, options = {}) {
   return page.evaluate(async ({ api, path, options }) => {
     const response = await fetch(`${api}${path}`, { credentials: 'include', headers: { 'Content-Type': 'application/json' }, ...options })
@@ -36,11 +38,13 @@ test('cliente ocasional: crear ficha, cambiar y quitar con cronología', async (
   // Ocasional: sin ficha, con las dos salidas (asignar una existente o crear).
   await expect(page.getByTestId('pedido-asignar-cliente')).toBeVisible({ timeout: 15000 })
   await expect(crear).toBeVisible()
+  await page.screenshot({ path: `${SHOTS}/01-pedido-ocasional.png` })
 
   // Crear la ficha desde el pedido en un clic (buscador/alta rápida del POS).
   await crear.click()
   const modal = page.getByTestId('cliente-del-pedido')
   await modal.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Ocasional ${marca}`)
+  await page.screenshot({ path: `${SHOTS}/02-crear-ficha.png` })
   await modal.getByTestId('cliente-del-pedido-guardar').click()
   await expect(page.getByText('Ficha creada desde el pedido')).toBeVisible({ timeout: 15000 })
   await expect(page.getByTestId('pedido-quitar-cliente')).toBeVisible({ timeout: 15000 })
@@ -66,4 +70,5 @@ test('cliente ocasional: crear ficha, cambiar y quitar con cronología', async (
   await expect(page.getByText(/Ficha creada desde el pedido/).first()).toBeVisible({ timeout: 15000 })
   await expect(page.getByText(/^Cliente: /).first()).toBeVisible()
   await expect(page.getByText(/Cliente quitado/).first()).toBeVisible()
+  await page.screenshot({ path: `${SHOTS}/03-cronologia-cambios.png` })
 })
