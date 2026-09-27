@@ -22,7 +22,8 @@ const numero = (valor) => {
 
 function datosDeCuenta(account) {
   const partes = []
-  if (account.bank) partes.push(account.bank)
+  // El banco no se repite si el nombre de la cuenta ya lo incluye (#262).
+  if (account.bank && !String(account.name || '').toLowerCase().includes(String(account.bank).toLowerCase())) partes.push(account.bank)
   if (account.kind === 'CARD' && account.processor) partes.push(account.processor)
   if (account.holder) partes.push(`Titular ${account.holder}`)
   if (account.kind === 'TRANSFER' && account.accountNumber) partes.push(`Nro ${numero(account.accountNumber)}`)
