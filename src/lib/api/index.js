@@ -45,6 +45,8 @@ export const resources = {
       const query = new URLSearchParams(Object.entries(params).filter(([, valor]) => valor !== '' && valor != null).map(([clave, valor]) => [clave, String(valor)]))
       return api.get(`/api/supply/purchases${query.toString() ? `?${query}` : ''}`, { cacheMs: 0 })
     },
+    // #250 F2: compra desde el panel (cubre necesidades o reposición libre).
+    create: data => api.post('/api/supply/purchases', data),
     update: data => api.patch('/api/supply/purchases', data),
     // F3: etiquetas de la preparación (una por unidad comprada).
     labels: id => api.get(`/api/supply/purchases/${encodeURIComponent(id)}/labels`),

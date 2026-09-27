@@ -219,9 +219,14 @@ test('F5 · recepción: escaneo contra el manifiesto, sobrante con nota y stock 
   // El resumen es la fuente de verdad de lo que pasó: 1 recibida, 1 faltante
   // (la que no se escaneó) y 1 sobrante con nota.
   expect(recepcionCerrada?.resumen, JSON.stringify(conFaltante.body).slice(0, 300)).toMatchObject({ RECIBIDO: 1, FALTANTE: 1, SOBRANTE: 1 })
-  // Edge case del backend (INV): con sobrante + faltante a la vez el estado del
-  // lote queda CONFIRMADA (el cálculo no recibe `faltantes`); reportado aparte.
-  expect(['RECEPCION_PARCIAL', 'CONFIRMADA']).toContain(recepcionCerrada?.status)
+  expect(recepcionCerrada?.status).toBe('CONFIRMADA')
+  // El LOTE queda en CON_INCIDENCIA (contrato F5: sobrantes/dañados/incorrectos
+  // mandan sobre el parcial) y sigue en llegadas pendientes para retomarlo.
+  const lotes = await apiPagina(page, `/api/supply/shipments?purchaseId=${lote.purchaseId}`)
+  const loteTrasRecepcion = (lotes.body?.envios || []).find((fila) => fila.id === lote.id)
+  expect(loteTrasRecepcion?.status, JSON.stringify(lotes.body).slice(0, 300)).toBe('CON_INCIDENCIA')
+  const llegadas = await apiPagina(page, '/api/supply/receptions?pendientes=1')
+  expect((llegadas.body?.llegadas || []).some((fila) => fila.id === lote.id || fila.code === lote.code)).toBe(true)
   void producto
 })
 
