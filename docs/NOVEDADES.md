@@ -11,6 +11,14 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.187 — 2026-09-26
+- **Cotizaciones (#261):** se pueden **enviar por WhatsApp o correo** desde la lista, con **correo profesional** (y **PDF para compartir**) y su **cronología** de envíos.
+- **POS (#257/#263):** el **catálogo se refresca al volver al POS** (lo cargado en Inventario aparece **sin recargar**) y la venta **guía la elección del IMEI** dentro del flujo, validando antes de enviar.
+- **Configuración (#267):** el menú interno se puede **colapsar a solo íconos** (con tooltips) y la preferencia **se recuerda por dispositivo**.
+- **Perfil:** el **recortador de foto** abre con la foto entera y el zoom lo decide la persona; en mobile, «Cargar más clientes» llega a 44 px.
+- **Abastecimiento (#250):** **cierre de costos** de la compra (cuenta a pagar con el monto real), **etiquetas de la preparación**, **incidencias con foto** sobre la unidad escaneada y **manifiesto** del lote (biblioteca **v0.40.1**).
+- **Demo/QA:** verificaciones de la **demo completa (#213)** y del **dominio clientes (#187)** con capturas.
+
 ## v1.0.186 — 2026-09-26
 - **Correos (#255 · pedido de Dario):** nuevo **`npm run emails:prueba`**: arma los **10 correos transaccionales** con datos ficticios y **los envía** a la casilla que indiques si el transporte está configurado; si no, deja los **HTML locales** para revisarlos en el navegador. Incluye **pruebas automáticas** de los 10 correos, sus argumentos y la vista previa.
 
