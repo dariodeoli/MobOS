@@ -1,4 +1,4 @@
-# Cliente ocasional (#149)
+# Cliente ocasional (#273)
 
 Pedido **sin ficha**, **cambiar/quitar** el cliente de un pedido (con auditoría
 y cronología) y **crear la ficha desde el pedido en un clic**, reutilizando el
@@ -39,6 +39,9 @@ En la sección **Cliente** del detalle (`PedidoDetalle`):
   prepara el pedido ocasional, crea la ficha desde la ficha del pedido, cambia
   por una existente (auto-selección por nombre exacto del buscador del POS),
   quita el cliente y comprueba los tres movimientos en la cronología.
+- Capturas: `docs/QA-149-cliente-ocasional/01-pedido-ocasional.png` (pedido sin
+  ficha con sus acciones) · `02-crear-ficha.png` (alta rápida reuse del POS) ·
+  `03-cronologia-cambios.png` (los tres movimientos auditados).
 - `npm run lint` 0 errores · `npm test` · `backend test:unit` ·
   `prisma:validate` · builds FE/BE con `BUILD_ID` · `test:e2e:smoke`.
 
