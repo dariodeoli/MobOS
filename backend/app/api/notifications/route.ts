@@ -4,6 +4,7 @@ import { error, json } from '../../../lib/http'
 import { canAccessAny, requireSession } from '../../../lib/auth'
 import { AUTHORIZATION_RESOLVERS } from '../../../lib/authorizations'
 import { mencionadosEn, variantesDeNombre } from '../../../lib/menciones'
+import { ACCIONES_PRODUCTO, ACCIONES_UNIDAD, avisosDeStock, claveDisponibilidad, eventosDeAuditoria } from '../../../lib/stock-notices'
 
 // Centro de notificaciones del panel: lista corta y accionable, sin tabla
 // propia. Se arma con lo que ya existe (pedidos, autorizaciones y comentarios
@@ -169,6 +170,110 @@ export async function GET(request: Request) {
       at: comentario.createdAt,
       href: `/pedidos/${comentario.orderId}`,
     })
+  }
+
+  // #280 · INV → POS/vendedor: cuando cambia el stock o la disponibilidad de un
+  // producto comprometido (una necesidad de abastecimiento de un pedido
+  // abierto), **su vendedor** recibe la novedad. Se deriva de la auditoría del
+  // inventario (el registro) y solo se muestra el último cambio que invierte la
+  // disponibilidad: llegó lo que faltaba o se dio de baja lo último. Es para
+  // quien tiene que actuar (el vendedor del pedido): no se le replica a toda la
+  // empresa.
+  if (['ADMIN', 'GERENTE', 'VENDEDOR', 'CAJERA'].includes(user.role)) {
+    const compromisos = await prisma.supplyNeed.findMany({
+      where: {
+        tenantId: user.tenantId,
+        orderId: { not: null },
+        status: { in: ['ABIERTA', 'ASIGNADA', 'COMPRADA', 'RECIBIDA'] },
+        createdAt: { gte: desde },
+        order: {
+          sellerId: user.id,
+          status: { not: 'CANCELLED' },
+          fulfillmentStatus: { not: 'DELIVERED' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 40,
+      select: {
+        id: true, productId: true, branchId: true, quantity: true, createdAt: true,
+        order: { select: { id: true, orderNumber: true, branchId: true, branch: { select: { name: true } }, customer: { select: { name: true } } } },
+        product: { select: { name: true, capacity: true, color: true, branchId: true, stock: true } },
+      },
+    })
+    if (compromisos.length) {
+      const productosInteres = [...new Set(compromisos.map((fila) => fila.productId))]
+      // Los eventos salen de la auditoría: unidades (alta/baja/ajuste/venta) y
+      // stock de productos sin seriales.
+      const registro = await prisma.auditLog.findMany({
+        where: {
+          tenantId: user.tenantId,
+          createdAt: { gte: desde },
+          OR: [
+            { entity: 'InventoryUnit', action: { in: [...ACCIONES_UNIDAD] } },
+            { entity: 'Product', action: { in: [...ACCIONES_PRODUCTO] } },
+            { action: 'INVENTORY_UNITS_SOLD' },
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 400,
+        select: { action: true, entity: true, entityId: true, metadata: true, createdAt: true, userId: true },
+      })
+      const idsUnidad = [...new Set(registro.filter((fila) => fila.entity === 'InventoryUnit' && fila.entityId).map((fila) => fila.entityId as string))]
+      const idsProducto = [...new Set(registro.filter((fila) => fila.entity === 'Product' && fila.entityId).map((fila) => fila.entityId as string))]
+      const serialesVendidos = [...new Set(registro
+        .filter((fila) => fila.action === 'INVENTORY_UNITS_SOLD')
+        .flatMap((fila) => {
+          const metadata = fila.metadata && typeof fila.metadata === 'object' ? fila.metadata as { serials?: unknown } : {}
+          return Array.isArray(metadata.serials) ? metadata.serials.map(String) : []
+        }))]
+      const [unidades, vendidas, productos] = await Promise.all([
+        idsUnidad.length ? prisma.inventoryUnit.findMany({ where: { tenantId: user.tenantId, id: { in: idsUnidad } }, select: { id: true, productId: true, branchId: true } }) : [],
+        serialesVendidos.length ? prisma.inventoryUnit.findMany({ where: { tenantId: user.tenantId, serial: { in: serialesVendidos } }, select: { serial: true, productId: true, branchId: true } }) : [],
+        idsProducto.length ? prisma.product.findMany({ where: { tenantId: user.tenantId, id: { in: idsProducto } }, select: { id: true, branchId: true } }) : [],
+      ])
+      const eventos = eventosDeAuditoria(registro, {
+        unidadesPorId: new Map(unidades.map((fila) => [fila.id, fila])),
+        unidadesPorSerial: new Map(vendidas.map((fila) => [fila.serial, fila])),
+        productosPorId: new Map(productos.map((fila) => [fila.id, fila])),
+      })
+      // Disponibilidad por producto+sucursal: unidades AVAILABLE + stock del
+      // producto cuando vive en la misma sucursal del compromiso.
+      const porUnidad = await prisma.inventoryUnit.groupBy({
+        by: ['productId', 'branchId'],
+        where: { tenantId: user.tenantId, productId: { in: productosInteres }, status: 'AVAILABLE' },
+        _count: { _all: true },
+      })
+      const disponibilidad = new Map<string, { unidades: number; stock: number }>()
+      for (const fila of compromisos) {
+        const branchId = fila.branchId || fila.order?.branchId || null
+        const clave = claveDisponibilidad(fila.productId, branchId)
+        const sumaStock = fila.product && (fila.product.branchId === null || fila.product.branchId === branchId) ? Number(fila.product.stock || 0) : 0
+        disponibilidad.set(clave, { unidades: 0, stock: sumaStock })
+      }
+      for (const fila of porUnidad) {
+        const clave = claveDisponibilidad(fila.productId, fila.branchId)
+        const actual = disponibilidad.get(clave)
+        if (actual) actual.unidades = fila._count._all
+      }
+      const avisos = avisosDeStock(
+        compromisos.map((fila) => ({
+          id: fila.id,
+          orderId: fila.order?.id || null,
+          orderNumber: fila.order?.orderNumber || null,
+          customerName: fila.order?.customer?.name || null,
+          productId: fila.productId,
+          productName: [fila.product?.name, fila.product?.capacity].filter(Boolean).join(' · ') || 'Producto',
+          branchId: fila.branchId || fila.order?.branchId || null,
+          branchName: fila.order?.branch?.name || null,
+          quantity: fila.quantity,
+          createdAt: fila.createdAt,
+        })),
+        eventos,
+        disponibilidad,
+        { ahora: new Date(), ignorarUsuarioId: user.id },
+      )
+      for (const aviso of avisos) items.push(aviso)
+    }
   }
 
   items.sort((a, b) => b.at.getTime() - a.at.getTime())
