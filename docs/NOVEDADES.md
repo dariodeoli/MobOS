@@ -11,6 +11,11 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.198 — 2026-09-27
+- **POS (#280):** **gift cards reales**: emisión con **código** (se muestra una sola vez), consulta de **saldo**, **canje como medio de pago** (parcial o total) en el cobro y en cobros posteriores, **historial por tarjeta**, anulación de gerencia y auditoría; el corte por tipo muestra «Gift card». En la demo funciona igual.
+- **Notificaciones (#279 A1 · fase 2):** **avisos del navegador** con **preferencias por dispositivo** (estados honestos y **horario silencioso** 22→07), cuatro **eventos espejo de la bandeja** (mención, cotización aprobada, incidencia y pedido listo) con dedupe y poda de endpoints muertos, y **métricas** de enviados/silenciados.
+- **Cotizaciones (#279 A3):** el **portal del cliente** muestra el presupuesto **aprobado con su código** y el **pedido generado**.
+
 ## v1.0.197 — 2026-09-27
 - **Cotizaciones (#279 A3):** el **presupuesto se aprueba con código** (OTP por correo o WhatsApp) desde la página pública, con **versión congelada**, evidencia/firma opcional y **pedido generado** al aprobar.
 - **Abastecimiento (#279 A5):** cuando **se agota una variante**, el vendedor puede **proponer alternativas** y el cliente **decide con un código**; la necesidad se libera con la decisión.
