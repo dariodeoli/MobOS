@@ -8,20 +8,24 @@ Hermana del comprobante de recepción y de la etiqueta del lote.
 
 ## 1. De dónde salen los datos
 
-`GET /api/supply/purchases` (INV, F2) devuelve la compra con sus líneas. **Hoy
-el listado no incluye** el nombre del producto ni la prioridad/origen de la
-necesidad ni quién compró: quien imprime los pasa desde el panel:
+`GET /api/supply/purchases` (INV, F2) devuelve la compra con sus líneas **y,
+desde #278, lo que el papel necesita**: `createdBy { name }` en la compra y, en
+cada línea, `priority`, `source`, `promisedAt`, `orderNumber` y `needOrigin` de
+su necesidad (lo plano). El panel arma los datos con el catálogo local para el
+color de la variante:
 
 ```js
 datosListaCompra(compra, {
   productos,    // catálogo por id: { id, name, capacity, color }
-  necesidades,  // necesidad por id: { id, priority, source, promisedAt, orderNumber }
   comprador,    // nombre (o `compra.createdBy.name` si la API lo trae)
-  origen,       // punto de partida del recorrido (p. ej. 'CDE')
+  origen,       // punto de partida del recorrido (p. ej. 'CDE'); sale de needOrigin
   recorrido,    // recorrido ya armado (p. ej. 'CDE → Asunción')
   emisor, enlace, ahora,
 })
 ```
+
+El builder sigue aceptando el mapa `necesidades` (compatibilidad), pero ya no
+hace falta cruzarlo a mano.
 
 - **Agrupación**: por producto **y condición** (nunca se mezclan variantes); las
   cantidades se suman, la **prioridad más alta** manda y el orden de la lista es
@@ -34,14 +38,12 @@ datosListaCompra(compra, {
 - **Sin datos no se inventa**: sin prioridad la línea no muestra chip; sin
   catálogo cae al id del producto.
 
-### Pedido a INV (coordinación)
+### Pedido a INV (coordinación) — resuelto en #278
 
-Para que el panel no tenga que cruzar nada, el `GET /api/supply/purchases`
-debería sumar en cada línea: `product { name, capacity, color }`,
-`priority`, `source`, `promisedAt` y `order { orderNumber }`, más
-`createdBy { name }` en la compra. El builder **ya acepta las dos formas** (lo
-plano en la línea o el mapa `necesidades`): cuando la API lo traiga, el panel
-puede dejar de pasar los mapas sin tocar el impreso.
+El `GET /api/supply/purchases` sumó en cada línea `priority`, `source`,
+`promisedAt`, `orderNumber` y `needOrigin`, y `createdBy { name }` en la
+compra (sin migración: solo el `select` de la ruta). El espinazo de #250 tenía
+este pedido abierto desde que se definió el contrato.
 
 ## 2. Cómo se imprime
 
@@ -58,15 +60,20 @@ puede dejar de pasar los mapas sin tocar el impreso.
   comprobante fiscal.».
 - El rollo reemplaza la flecha del recorrido por `->` (CP850 no la tiene).
 
-## 3. Adopción del panel (pendiente de UI)
+## 3. Adopción del panel (implementada en #278)
 
-El panel de abastecimiento (CMP/INV) debe, en la compra:
+El panel de abastecimiento (INV) ofrece, en cada compra de **Compras del
+Centro**, el botón **«Lista de compra»** (`ListaCompraModal`):
 
-1. Cargar la compra, el catálogo de productos y las necesidades involucradas.
-2. Ofrecer «Imprimir lista» con `ticketListaCompra` (impresora del tipo
-   `lista-compra`) y «Descargar PDF»/«Compartir imagen» con
-   `buildListaCompraHtml` + `CompartirImagen`.
-3. Pasar `enlace` cuando la ruta pública del panel esté disponible.
+1. Carga la compra del listado (ya trae prioridad/origen/promesa/pedido y quién
+   compró) y el catálogo local para el color de la variante.
+2. **«Imprimir»** sale por la impresora del tipo `lista-compra` (con el diálogo
+   como respaldo), y hay **PDF real** (`CompartirPdf`) e **imagen**
+   (`CompartirImagen`) del mismo HTML de la vista previa.
+3. Sin impresora configurada se abre el diálogo para imprimir o guardar en PDF.
+
+Pendiente menor: pasar `enlace` cuando exista una ruta pública del panel de la
+compra (hoy el papel imprime el código `COM-…` en barras y la leyenda).
 
 ## 4. Evidencia y tests
 

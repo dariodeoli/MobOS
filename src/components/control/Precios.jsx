@@ -8,6 +8,7 @@ import { Aviso, Badge, Button, Card, EmptyState, IconAction, Input, Label, Modal
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import Switch from '@/components/shared/Switch'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
+import BarraModulo from '@/components/shared/BarraModulo'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 
 // Gestión de precios: listas por cliente (con ítems por producto o categoría y
@@ -200,13 +201,21 @@ export default function Precios() {
   )
 
   return <div className="space-y-4">
+    {/* #278 · composición compacta (#256): una sola barra con la identidad y la
+        acción; las secciones quedan con su rótulo, sin encabezado duplicado. */}
+    <BarraModulo
+      icono="tag"
+      titulo="Precios"
+      descripcion="Listas por cliente y precios por cantidad. El POS resuelve el mejor precio; la lista asignada gana sobre mayorista y minorista."
+      testId="barra-precios"
+    >
+      <Button type="button" onClick={() => abrirLista()} disabled={busy}>+ Nueva lista</Button>
+    </BarraModulo>
+
     <Card className="space-y-3">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h2 className="font-semibold">Listas de precios</h2>
-          <p className="mt-1 text-sm text-mute">Descuento o recargo por producto o categoría, aplicado sobre el precio que le corresponde al cliente. Se asigna en la ficha del cliente y gana sobre mayorista y minorista.</p>
-        </div>
-        <Button type="button" onClick={() => abrirLista()} disabled={busy}>+ Nueva lista</Button>
+      <div>
+        <h2 className="font-semibold">Listas de precios</h2>
+        <p className="mt-1 text-xs text-mute">Descuento o recargo por producto o categoría, sobre el precio del cliente; se asigna en su ficha.</p>
       </div>
       {error && <Aviso tono="error">{error}</Aviso>}
       {cargando ? <p className="text-sm text-mute">Cargando listas…</p> : !listas.length ? <EmptyState compact icon="store" title="Todavía no hay listas de precios." /> : <div className="space-y-2">
@@ -228,7 +237,7 @@ export default function Precios() {
     <Card className="space-y-3">
       <div>
         <h2 className="font-semibold">Precios por cantidad</h2>
-        <p className="mt-1 text-sm text-mute">Desde la cantidad mínima, el precio unitario de la línea es el del escalón. Gana sobre cualquier lista, mayorista o minorista. Cargá el escalón más alto y el resto se resuelve solo.</p>
+        <p className="mt-1 text-xs text-mute">Desde la cantidad mínima, el precio unitario de la línea es el del escalón. Cargá el escalón más alto y el resto se resuelve solo.</p>
       </div>
       <div className="max-w-md"><p className="mb-1 text-xs text-mute">Producto</p><ProductCombobox products={productos} selectedId={productoTier} onQueryChange={buscarProductos} onSelect={product => setProductoTier(product.id)} placeholder="Elegí el producto…" /></div>
       {productoTier && <form onSubmit={guardarTiers} className="space-y-2">

@@ -88,6 +88,11 @@ export const resources = {
       return api.get(`/api/supply/alerts${query.toString() ? `?${query}` : ''}`, { cacheMs: 0 })
     },
   },
+  // F4 (#250): historial de una unidad en la cadena de abastecimiento
+  // (necesidad → compra → lote → stock), para la ficha del inventario (#278).
+  supplySerials: {
+    get: (serial) => api.get(`/api/supply/serials/${encodeURIComponent(serial)}`, { cacheMs: 0 }),
+  },
   audit: { list: (params = {}) => api.get(`/api/audit?${new URLSearchParams(params)}`) },
   sessions: { list: () => api.get('/api/sessions'), revoke: sessionId => api.delete('/api/sessions', { body: { sessionId } }) },
 }

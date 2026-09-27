@@ -6,6 +6,7 @@ import { colorHex } from '@/utils/colores'
 import { cn } from '@/lib/utils'
 import { Select } from '@/components/ui'
 import ProductFooter from '@/components/app/ProductFooter'
+import BarraModulo from '@/components/shared/BarraModulo'
 import Icon from '@/components/shared/Icon'
 
 const CONDICIONES = [
@@ -164,13 +165,19 @@ export default function Comparador() {
 
   return (
     <div className="space-y-4">
-
-      <main className="mx-auto max-w-5xl space-y-5 p-4">
-        {/* Switch de condición */}
-        <div className="inline-flex rounded-xl border border-ink-600 bg-ink-800 p-1">
+      {/* #278 · composición compacta (#256): la identidad y el switch de
+          condición viven en una sola barra, sin encabezado suelto. */}
+      <BarraModulo
+        icono="report"
+        titulo="Comparador"
+        descripcion="Hasta tres modelos lado a lado: capacidades, colores y precios reales del catálogo."
+        testId="barra-comparador"
+      >
+        <div className="inline-flex rounded-xl border border-ink-600 bg-ink-800 p-1" role="group" aria-label="Condición de los modelos">
           {CONDICIONES.map(([key, label]) => (
             <button
               key={key}
+              type="button"
               onClick={() => setCondicion(key)}
               className={cn(
                 'rounded-lg px-4 py-1.5 text-sm font-bold transition',
@@ -181,7 +188,9 @@ export default function Comparador() {
             </button>
           ))}
         </div>
+      </BarraModulo>
 
+      <main className="mx-auto max-w-5xl space-y-5 p-4">
         {modelos.length === 0 ? (
           <div className="rounded-2xl border border-ink-600 bg-ink-800 py-16 text-center text-mute">
             <div className="mb-2 text-4xl">
