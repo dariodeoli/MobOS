@@ -111,6 +111,50 @@ test('el validador va grande arriba y repetido en el pie', () => {
   assert.ok(ultima > texto.indexOf('[BARRA]'), 'el pie repite el validador después del código de barras')
 })
 
+test('la plantilla puede apagar todos los bloques opcionales', () => {
+  const ticket = ticketPruebaTipo('corta', { ...opciones, incluye: { encabezado: false, validacion: false, trazabilidad: false, codigos: false, acentos: false } })
+  const texto = ticket.lineas().join('')
+  assert.ok(!texto.includes('TICKET DE PRUEBA'), 'sin encabezado')
+  assert.ok(!texto.includes('VALIDACIÓN'), 'sin número secreto')
+  assert.ok(!texto.includes('Impresora'), 'sin trazabilidad')
+  assert.ok(!texto.includes('[QR]') && !texto.includes('[BARRA]'), 'sin códigos')
+  assert.ok(!texto.includes('Acentos:'), 'sin acentos')
+  assert.ok(texto.includes('Prueba'), 'el cuerpo del tipo siempre sale')
+})
+
+test('la plantilla respeta los bloques encendidos y apaga solo los elegidos', () => {
+  const ticket = ticketPruebaTipo('corta', { ...opciones, incluye: { trazabilidad: false, acentos: false } })
+  const texto = ticket.lineas().join('')
+  assert.ok(texto.includes('TICKET DE PRUEBA'), 'encabezado')
+  assert.ok(texto.includes('VALIDACIÓN'), 'validación')
+  assert.ok(texto.includes('[QR]'), 'códigos')
+  assert.ok(!texto.includes('Impresora'), 'sin trazabilidad')
+  assert.ok(!texto.includes('Acentos:'), 'sin acentos')
+})
+
+test('la variante de corte viaja a la vista previa y «sin corte» no corta', () => {
+  const parcial = ticketPruebaTipo('corta', { ...opciones, corte: 'parcial' })
+  assert.ok(parcial.lineas().join('').includes('[CORTE: parcial]'))
+  assert.equal(parcial.corte, true)
+  const sinCorte = ticketPruebaTipo('corta', { ...opciones, corte: 'ninguno' })
+  assert.ok(!sinCorte.lineas().join('').includes('[CORTE'), 'sin marca de corte')
+  assert.equal(sinCorte.corte, false)
+})
+
+test('el ancho de la plantilla manda en el ticket: 58 mm envuelve a 32 columnas', () => {
+  const ticket = ticketPruebaTipo('venta', { ...opciones, ancho: 58 })
+  const texto = ticket.lineas().join('')
+  for (const linea of texto.split('\n')) {
+    assert.ok(linea.length <= 32, `línea de 58 mm dentro del ancho (${linea.length}): ${linea.slice(0, 40)}`)
+  }
+  assert.ok(texto.includes('58 mm'), 'el pie informa el ancho elegido')
+})
+
+test('las copias de la plantilla quedan impresas en la trazabilidad', () => {
+  const texto = ticketPruebaTipo('corta', { ...opciones, copias: 3 }).lineas().join('')
+  assert.match(texto, /Copias\s+3/, 'el pie informa 3 copias')
+})
+
 test('el comprobante muestra el total de ítems y destaca el saldo pendiente', () => {
   const order = {
     orderNumber: 'P-100',

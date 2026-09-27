@@ -680,3 +680,16 @@ test('la composición de módulo y el resumen de métricas son objetos (#256)', 
   assert.match(vendedores, /<FilaDato[\s\S]*?Meta diaria/, 'las métricas del integrante van con FilaDato')
   assert.ok(!/pt-2 md:grid-cols-4/.test(vendedores), 'no vuelven los tiles apretados del integrante')
 })
+
+// La plantilla del ticket de prueba (PRN + diseño): el editor vive en la ficha
+// de la impresora, usa la vista previa de papel compartida (nunca el `<pre>`
+// suelto) y su memoria por impresora es un módulo puro.
+test('el editor de la plantilla de prueba usa los objetos compartidos', () => {
+  const impresoras = readFileSync(join(RAIZ, 'components/control/Impresoras.jsx'), 'utf8')
+  assert.match(impresoras, /<VistaPreviaPapel[\s\S]*?formato=\{plantilla\.ancho === 58 \? 'thermal-58' : 'thermal-80'\}/, 'la vista previa usa el papel real (58/80)')
+  assert.doesNotMatch(impresoras, /<pre className="max-h-80/, 'no vuelve el bloque de texto plano')
+  assert.match(impresoras, /data-testid="plantilla-prueba"/, 'el editor es identificable')
+  const plantilla = readFileSync(join(RAIZ, 'lib/printing/plantillaPrueba.js'), 'utf8')
+  assert.match(plantilla, /normalizarPlantilla/, 'la plantilla se normaliza antes de imprimir')
+  assert.match(plantilla, /crearMemoriaPlantilla/, 'la memoria por impresora es un núcleo puro')
+})

@@ -338,6 +338,12 @@ export const TIPOS_TICKET_PRUEBA = TIPOS_PRUEBA
 // puente, token (enmascarado), usuario, equipo, trabajo, validación de 4
 // dígitos y corte final. Todos los tipos comparten cabecera, bloque QR/barras,
 // acentos, pie de trazabilidad y corte.
+// Bloques opcionales de la prueba: el editor de la ficha de la impresora los
+// prende/apaga (plantilla del ticket de prueba) y acá se respetan. La clave es
+// la fuente de verdad de los ids; `plantillaPrueba.js` los rotula para la UI.
+const BLOQUES_PRUEBA = Object.freeze({ encabezado: true, validacion: true, trazabilidad: true, codigos: true, acentos: true })
+export const BLOQUES_TICKET_PRUEBA = Object.freeze(Object.keys(BLOQUES_PRUEBA))
+
 export function ticketPruebaTipo(tipo, {
   ancho = 80,
   impresora = '',
@@ -350,8 +356,12 @@ export function ticketPruebaTipo(tipo, {
   tokenPista = '',
   usuario = '',
   marca = '',
+  incluye = {},
+  corte = 'completo',
   base = baseDeApp(),
 } = {}) {
+  const bloque = { ...BLOQUES_PRUEBA, ...incluye }
+  const varianteCorte = String(corte || 'completo')
   // Método honesto: lo informa quien arma el ticket (CUPS local, LAN TCP,
   // CUPS-USB…); el prefijo `usb:` es histórico y no implica cable USB.
   const metodoReal = metodo || (/^(usb|cups):/.test(String(impresora || '')) ? 'CUPS (cola local)' : 'LAN (TCP directo)')
@@ -366,11 +376,16 @@ export function ticketPruebaTipo(tipo, {
   const enlacePrueba = qrPrueba({ destino: impresora, validacion, fecha: ahora, tipo }, base)
   const t = crearTicket({ ancho }).iniciar()
 
-  // Pie común: todo lo que hace auditable la prueba desde el papel.
+  // Pie común: todo lo que hace auditable la prueba desde el papel. La
+  // plantilla puede apagar la trazabilidad y/o el número secreto.
   const pie = () => {
+    if (!bloque.trazabilidad && !bloque.validacion) return
     t.linea()
-    t.negrita().centrado(`VALIDACIÓN ${validador}`).negrita(false)
-    t.linea()
+    if (bloque.validacion) {
+      t.negrita().centrado(`VALIDACIÓN ${validador}`).negrita(false)
+      t.linea()
+    }
+    if (!bloque.trazabilidad) return
     t.par('Impresora', nombre || '—')
     t.par('Método', metodoReal)
     t.par('Conexión', conexionReal)
@@ -385,28 +400,40 @@ export function ticketPruebaTipo(tipo, {
     t.par('Trabajo', ref)
   }
 
-  // Cuerpo común de códigos: QR + barras con su rótulo, siempre centrados.
+  // Cuerpo común de códigos: QR + barras con su rótulo, siempre centrados. La
+  // línea de acentos se controla aparte; con ambos bloques apagados no imprime
+  // nada.
   const codigos = (sufijo) => {
-    t.linea()
-    t.centrado('Escanear')
-    // Con base de la app el QR abre la prueba (destino, validación y fecha);
-    // sin base igual se imprime un QR de trazabilidad (no un código muerto).
-    t.qr(enlacePrueba || `MOBOS:PRUEBA:${sufijo}:${validacion}`, { tamano: 6, etiqueta: 'QR' })
-    t.barcode(`MOBOS-${sufijo}-${validacion}`, { etiqueta: 'Código de barras' })
-    t.linea()
+    if (!bloque.codigos && !bloque.acentos) return
+    if (bloque.codigos) {
+      t.linea()
+      t.centrado('Escanear')
+      // Con base de la app el QR abre la prueba (destino, validación y fecha);
+      // sin base igual se imprime un QR de trazabilidad (no un código muerto).
+      t.qr(enlacePrueba || `MOBOS:PRUEBA:${sufijo}:${validacion}`, { tamano: 6, etiqueta: 'QR' })
+      t.barcode(`MOBOS-${sufijo}-${validacion}`, { etiqueta: 'Código de barras' })
+      t.linea()
+      if (!bloque.acentos) return
+    } else {
+      t.linea()
+    }
     t.texto('Acentos: á é í ó ú ü ñ Ñ ¿? ¡!')
   }
 
-  t.centrado(APP_NAME).negrita().doble().centrado('TICKET DE PRUEBA').doble(false).negrita(false)
-  t.centrado(TIPOS_PRUEBA[tipo] || 'Prueba')
-  // Marca de la corrida comparativa: el mismo texto en las tres impresoras
-  // permite reconocer el papel y cruzar los trabajos con las métricas.
-  if (marca) t.centrado(`Comparativa ${marca}`)
-  t.linea()
+  if (bloque.encabezado) {
+    t.centrado(APP_NAME).negrita().doble().centrado('TICKET DE PRUEBA').doble(false).negrita(false)
+    t.centrado(TIPOS_PRUEBA[tipo] || 'Prueba')
+    // Marca de la corrida comparativa: el mismo texto en las tres impresoras
+    // permite reconocer el papel y cruzar los trabajos con las métricas.
+    if (marca) t.centrado(`Comparativa ${marca}`)
+    t.linea()
+  }
   // El validador va grande y arriba (y se repite en el pie): si algo cortara la
   // impresión, el código secreto igual salió en el papel.
-  t.negrita().doble().centrado(`VALIDACIÓN ${validador}`).doble(false).negrita(false)
-  t.linea()
+  if (bloque.validacion) {
+    t.negrita().doble().centrado(`VALIDACIÓN ${validador}`).doble(false).negrita(false)
+    t.linea()
+  }
 
   if (tipo === 'corta') {
     t.par('Prueba', metodoReal)
@@ -493,7 +520,10 @@ export function ticketPruebaTipo(tipo, {
   }
 
   pie()
-  t.avanza(2).corte()
+  t.avanza(2)
+  // «Sin corte» deja el papel unido al rollo: la plantilla lo permite para
+  // probar el avance o imprimir sobre una etiqueta continua.
+  if (varianteCorte !== 'ninguno') t.corte(varianteCorte)
   return { base64: () => t.base64(), lineas: () => t.lineas(), ref, validacion, sufijo, validador, corte: t.corteEnviado() }
 }
 
