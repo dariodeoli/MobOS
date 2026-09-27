@@ -1,0 +1,16 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "1.0.188",
+  "fecha": "2026-09-27T00:57:20.429Z",
+  "medidas": {
+    "clientes": {
+      "barra": false,
+      "alcances": [],
+      "tiles": 3
+    },
+    "pos": {
+      "barra": false,
+      "bloquesGrandes": 0
+    }
+  }
+}

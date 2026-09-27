@@ -641,3 +641,24 @@ test('los 7 grupos de Configuración viven en config/gruposConfig (#253)', () =>
   assert.match(panel, /<NavegacionConfig value=\{vista\} onChange=\{irASubtab\} items=\{tabsConfig\}>/, 'Configuración usa la navegación de los 7 grupos')
   assert.ok(!/<Subtabs value=\{vista\} onChange=\{irASubtab\} items=\{tabsConfig\}/.test(panel), 'la lista plana no se repite en Configuración')
 })
+
+// #256: la composición compacta de módulo (identidad + contexto + acciones) y
+// el resumen de métricas con alcance son objetos compartidos: las pantallas no
+// vuelven a armar su propio encabezado grande ni mezclan totales sin alcance.
+test('la composición de módulo y el resumen de métricas son objetos (#256)', () => {
+  const barra = readFileSync(join(RAIZ, 'components/shared/BarraModulo.jsx'), 'utf8')
+  assert.match(barra, /export default function BarraModulo\(/)
+  assert.match(barra, /<h2/, 'la identidad del módulo va como h2 (el h1 es del shell)')
+  assert.match(barra, /min-w-\[11rem\]/, 'el título no colapsa en mobile')
+  const resumen = readFileSync(join(RAIZ, 'components/shared/ResumenMetricas.jsx'), 'utf8')
+  assert.match(resumen, /export default function ResumenMetricas\(/)
+  assert.match(resumen, /alcance/, 'cada tile declara su alcance')
+  for (const [ruta, marca] of [
+    ['components/ventas/SellerCustomers.jsx', /<BarraModulo[\s\S]*?testId="barra-clientes"/],
+    ['components/ventas/FormularioVenta.jsx', /<BarraModulo[\s\S]*?testId="barra-pos"/],
+  ]) {
+    const codigo = readFileSync(join(RAIZ, ruta), 'utf8')
+    assert.match(codigo, marca, `${ruta}: usa la barra compartida`)
+  }
+  assert.match(readFileSync(join(RAIZ, 'components/ventas/SellerCustomers.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-clientes"/, 'Clientes usa el resumen con alcance')
+})
