@@ -5,6 +5,7 @@ import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
 import { fechaHora } from '@/utils/fecha'
 import Icon from '@/components/shared/Icon'
+import BarraModulo from '@/components/shared/BarraModulo'
 import {
   Aviso,
   Badge,
@@ -287,6 +288,23 @@ export default function Autorizaciones() {
 
   return (
     <div className="space-y-4">
+      {/* #256/#278: barra de módulo única (identidad + acciones juntas), sin
+          encabezado grande duplicado. */}
+      <BarraModulo
+        icono="check"
+        titulo="Autorizaciones comerciales"
+        descripcion="Mayorista, crédito, plazo, descuentos fuera de política, precios bajo lista, ajustes de stock y anulaciones."
+        contexto={pendientes > 0 ? (
+          <Badge color="orange">
+            {pendientes} pendiente{pendientes === 1 ? '' : 's'}
+          </Badge>
+        ) : null}
+        testId="barra-autorizaciones"
+      >
+        <Button type="button" variant="outline" className="px-3 text-xs" onClick={load} disabled={loading}>
+          {loading ? 'Cargando…' : 'Actualizar'}
+        </Button>
+      </BarraModulo>
       {esDemo && (
         <Aviso tono="warn">
           Datos ficticios: las solicitudes son de ejemplo y aprobar o rechazar queda simulado
@@ -294,32 +312,7 @@ export default function Autorizaciones() {
         </Aviso>
       )}
       <Card>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="font-bold">Autorizaciones comerciales</h2>
-            <p className="mt-1 text-sm text-mute">
-              Pedidos de mayorista, crédito, plazo, descuentos fuera de política, ventas bajo lista,
-              ajustes de stock y anulaciones. Aprobá ajustando lo autorizado o rechazá con un
-              motivo; queda en la cronología del cliente, la unidad o el pedido.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {pendientes > 0 && (
-              <Badge color="orange">
-                {pendientes} pendiente{pendientes === 1 ? '' : 's'}
-              </Badge>
-            )}
-            <button
-              type="button"
-              className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light"
-              onClick={load}
-              disabled={loading}
-            >
-              {loading ? 'Cargando…' : 'Actualizar'}
-            </button>
-          </div>
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           {FILTERS.map(([value, label]) => (
             <button
               key={value}

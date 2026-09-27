@@ -54,8 +54,10 @@ una decisión de cada dominio (INV/FIN/POS).
 
 > **Resuelto para INV (#278, 27/09):** Precios · Celulares · Comparador ya usan
 > la barra compacta (`barra-precios`, `barra-celulares`, `barra-comparador`).
-> Cierre y capturas en `docs/QA-278-CIERRE.md`. Trade-In pipeline (POS) y
-> Autorizaciones (FIN) siguen a decisión de su slot.
+> Cierre y capturas en `docs/QA-278-CIERRE.md`.
+> **Resuelto para FIN (#278, 27/09):** Autorizaciones usa la barra
+> (`barra-autorizaciones`); cierre y capturas en `docs/QA-278-CIERRE-FIN.md`.
+> Trade-In pipeline (POS) también quedó con la barra compartida.
 
 ### 2.3 No visibles en demo (requieren sesión real)
 - **Compras del Centro** (`/compras-centro`): la composición existe en código
