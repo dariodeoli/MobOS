@@ -32,10 +32,10 @@ const ver = async (nombre, fn) => {
   }
 }
 
-const FUERA = '3.000.000.000'
-const DENTRO = '2.000.000.000'
+const FUERA = '10.000.000.001'
+const DENTRO = '3.000.000.000'
 // Para la API, el monto va sin separadores (como lo manda el formulario).
-const FUERA_DIGITOS = '3000000000'
+const FUERA_DIGITOS = '10000000001'
 
 const browser = await chromium.launch()
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
@@ -59,13 +59,13 @@ await ver('Gastos: un monto fuera del tope se conserva, se marca y el guardado l
   const monto = page.locator('#monto-gasto')
   await monto.waitFor({ timeout: 30000 })
   await monto.fill(FUERA)
-  await expect(monto).toHaveValue('3.000.000.000')
+  await expect(monto).toHaveValue(FUERA)
   await expect(monto).toHaveAttribute('aria-invalid', 'true')
   const titulo = await monto.getAttribute('title')
   await page.locator('#descripcion').fill('QA §9 tope (demo)')
   await page.getByRole('button', { name: 'Guardar movimiento' }).click()
   await expect(page.getByText(/máximo que el sistema puede guardar/)).toBeVisible({ timeout: 10000 })
-  await page.screenshot({ path: join(SALIDA, 'gastos-tope.jpg'), type: 'jpeg', quality: 72 })
+  await page.screenshot({ path: join(SALIDA, 'gastos-sobre-tope-general.jpg'), type: 'jpeg', quality: 72 })
   return `aviso: ${titulo || '(sin title)'}`
 })
 
@@ -87,7 +87,7 @@ await ver('Caja: el arqueo fuera del tope se bloquea con el mismo mensaje', asyn
   if (porAbrir) await page.getByRole('button', { name: 'Abrir caja', exact: true }).click()
   else await page.getByRole('button', { name: /Cerrar caja/ }).first().click()
   await expect(page.getByText(/máximo que el sistema puede guardar/)).toBeVisible({ timeout: 10000 })
-  await page.screenshot({ path: join(SALIDA, 'caja-tope.jpg'), type: 'jpeg', quality: 72 })
+  await page.screenshot({ path: join(SALIDA, 'caja-sobre-tope-general.jpg'), type: 'jpeg', quality: 72 })
   return `bloqueado con mensaje (${porAbrir ? 'apertura' : 'cierre'})`
 })
 
@@ -103,7 +103,7 @@ await ver('API: sin sesión real la demo no escribe en el servidor (constancia)'
     })
     return { status: res.status, texto: (await res.text()).slice(0, 200) }
   }, { api: API, web: WEB, monto: FUERA_DIGITOS })
-  if (respuesta.status === 400 && /2\.147\.483\.647/.test(respuesta.texto)) return '400 con el tope explicado (sesión real)'
+  if (respuesta.status === 400 && /10\.000\.000\.000/.test(respuesta.texto)) return '400 con el tope explicado (sesión real)'
   if (respuesta.status === 401) return '401 sin sesión: la demo no escribe; el tope del servidor se verificó en local'
   return `respuesta ${respuesta.status} — ${respuesta.texto.slice(0, 120)}`
 })

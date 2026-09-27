@@ -7,6 +7,7 @@ import { enqueueEmail } from '../../../../../lib/email-outbox'
 import { quoteEmail } from '../../../../../lib/email'
 import { mensajeCotizacion } from '../../../../../lib/quote-message'
 import { internationalPhone } from '../../../../../lib/validation'
+import { numero } from '../../../../../lib/montos'
 
 // Envío de la cotización al cliente (#261): mensaje profesional para WhatsApp
 // (texto + enlace público) y correo al email registrado. Cada envío queda en la
@@ -49,7 +50,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     customerName: quote.customer?.name || quote.customerName,
     companyName: quote.tenant?.name,
     items: items.map((item) => ({ description: texto(item.description), quantity: Number(item.quantity) || 1, totalPyg: Number(item.totalPyg) || 0 })),
-    totalPyg: quote.totalPyg,
+    totalPyg: numero(quote.totalPyg),
     validUntil: quote.validUntil,
     link,
   })
@@ -90,7 +91,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     customerName: quote.customer?.name || quote.customerName,
     companyName: quote.tenant?.name,
     items: lineas,
-    totalPyg: quote.totalPyg,
+    totalPyg: numero(quote.totalPyg),
     validUntil: quote.validUntil,
     link,
   })
@@ -119,9 +120,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         customerName: quote.customer?.name || quote.customerName,
         number: quote.number,
         items: lineas,
-        subtotalPyg: Number(quote.subtotalPyg) || 0,
-        discountPyg: Number(quote.discountPyg) || 0,
-        totalPyg: quote.totalPyg,
+        subtotalPyg: numero(quote.subtotalPyg),
+        discountPyg: numero(quote.discountPyg),
+        totalPyg: numero(quote.totalPyg),
         validUntil: quote.validUntil,
         link,
         companyName: quote.tenant?.name,

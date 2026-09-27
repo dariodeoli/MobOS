@@ -128,14 +128,11 @@ Comparativos antes/después: `produccion-1.0.139/` (línea base) y
 
 ## Pendientes de producto (no bugs)
 
-- **Montos de 10B/99B**: hoy el tope real es 2.147.483.647 (columnas enteras de
-  32 bits). Para aceptar los límites de §9 hace falta migrar las columnas de
-  dinero a BigInt (plan en `148-9-montos-monedas.md`). **Estado 2026-09-26: no
-  se tomó en esta pasada** — relevado: los campos de dinero se usan en ~140
-  puntos de ~20 archivos de varios dominios (cash, finance, purchases,
-  delivery, exports, suppliers), así que una migración por mitades dejaría
-  topes inconsistentes y riesgo de serialización de BigInt. Es una **unidad
-  propia cross-dominio** (POS/INV/FIN) con `db:check`, como pide el plan; queda
-  para coordinarla con el orquestador.
+- **Montos de 10B/99B**: **resuelto** (#278, 27/09). La migración
+  `20261228000000_money_bigint` pasa las 81 columnas de dinero a `bigint`;
+  los topes general (10B) y ventas (99B) quedan vigentes de punta a punta y el
+  backend normaliza `bigint → number` con `numero()` (`backend/lib/montos.ts`).
+  Evidencia: `docs/QA-278-CIERRE-FIN.md`, `npm run db:check` y el arnés de
+  integración HTTP completo en verde.
 - **Gift cards reales** (código, saldo, vencimiento): el producto no las tiene;
   el equivalente es el saldo a favor, ya visible y documentado en la app.

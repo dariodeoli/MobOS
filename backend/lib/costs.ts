@@ -5,8 +5,9 @@
 
 import type { PaymentCurrency } from '@prisma/client'
 
-const INT_MAX = 2147483647
 const RATE_MAX = 999999999
+// Límite general de dinero (§9): hasta 10.000.000.000 por campo del contexto.
+const MAX_MONTO = 10000000000
 // Decimales por moneda: PYG no lleva; el resto, dos.
 const DECIMALES: Record<string, number> = { PYG: 0, USD: 2, BRL: 2, EUR: 2, USDT: 2 }
 
@@ -32,7 +33,7 @@ export const monedaDeCosto = (valor: unknown): PaymentCurrency => (typeof valor 
 const vacio = (valor: unknown) => valor === undefined || valor === null || valor === ''
 const sinDecimalesExtra = (numero: number, decimales: number) => Math.abs(Math.round(numero * 10 ** decimales) - numero * 10 ** decimales) < 1e-9
 
-function numeroValido(valor: unknown, etiqueta: string, decimales: number, maximo = INT_MAX, minimo = 0.000001) {
+function numeroValido(valor: unknown, etiqueta: string, decimales: number, maximo = MAX_MONTO, minimo = 0.000001) {
   const Mayus = `${etiqueta.charAt(0).toUpperCase()}${etiqueta.slice(1)}`
   const numero = Number(valor)
   if (!Number.isFinite(numero) || numero < minimo || numero > maximo) throw new Error(`Revisá ${etiqueta}.`)
@@ -73,7 +74,7 @@ export function normalizarCosto(entrada: CostoEntrada, actual: Partial<CostoNorm
   if (totalPyg === null && originalCost !== undefined) {
     if (moneda !== 'PYG' && rateEfectiva === undefined) throw new Error(`Cargá la cotización del ${moneda} para calcular el costo en guaraníes.`)
     totalPyg = Math.round(originalCost * (moneda === 'PYG' ? 1 : (rateEfectiva as number)))
-    if (totalPyg > INT_MAX) throw new Error('El costo en guaraníes supera el máximo permitido.')
+    if (totalPyg > MAX_MONTO) throw new Error('El costo en guaraníes supera el máximo permitido.')
   }
   return {
     costPyg: totalPyg,

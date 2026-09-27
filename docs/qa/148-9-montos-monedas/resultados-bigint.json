@@ -1,0 +1,44 @@
+{
+  "resultados": [
+    {
+      "nombre": "API: un cheque de 3.000 millones entra (antes lo rechazaba el tope de 32 bits)",
+      "ok": true,
+      "detalle": "alta=201 (monto 3000000000) · anulación=200"
+    },
+    {
+      "nombre": "API: por encima del tope general el guardado se rechaza con el número",
+      "ok": true,
+      "detalle": "status=400 · El monto convertido supera el máximo que el sistema puede guardar (Gs 10.000.000.000)."
+    },
+    {
+      "nombre": "API: un cheque de 2.000 millones se guarda y se puede anular",
+      "ok": true,
+      "detalle": "alta=201 · anulación=200"
+    },
+    {
+      "nombre": "API: una venta de 3.000 millones se guarda y se cobra",
+      "ok": true,
+      "detalle": "producto=201 · orden=201 · total=3000000000"
+    },
+    {
+      "nombre": "API: una venta por encima del tope de ventas (99B) se rechaza",
+      "ok": true,
+      "detalle": "orden rechazada: status=400 · Total de línea fuera de rango seguro."
+    },
+    {
+      "nombre": "Gastos: 3.000 millones entran y quedan guardados",
+      "ok": true,
+      "detalle": "3.000 millones guardados sin marcar el campo"
+    },
+    {
+      "nombre": "Gastos: por encima del tope general el campo marca y el guardado bloquea",
+      "ok": true,
+      "detalle": "campo completo, marcado y bloqueado con mensaje"
+    },
+    {
+      "nombre": "Caja: el monto por encima del tope general también avisa",
+      "ok": true,
+      "detalle": "bloqueado con mensaje"
+    }
+  ]
+}

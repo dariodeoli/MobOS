@@ -3,6 +3,7 @@ import { requireSession } from '../../../../lib/auth'
 import { error, json, tenantId } from '../../../../lib/http'
 import { ensureStoreBranch } from '../../../../lib/store-branch'
 import { InputError, objectInput, textInput } from '../../../../lib/payment-input'
+import { numero, numeroOpcional } from '../../../../lib/montos'
 
 // Auditoría de efectivo (#161): lista las operaciones de caja de un rango
 // (cobros en efectivo y movimientos) con su marca de verificación, y permite
@@ -78,12 +79,12 @@ export async function GET(request: Request) {
 
     const operaciones = [
       ...cobros.map((cobro) => ({
-        id: cobro.id, kind: 'PAYMENT', fecha: cobro.paidAt, direction: 'IN', montoPyg: cobro.amountPyg,
+        id: cobro.id, kind: 'PAYMENT', fecha: cobro.paidAt, direction: 'IN', montoPyg: numero(cobro.amountPyg),
         pedido: cobro.order?.orderNumber || '', cliente: cobro.order?.customer?.name || '', vendedor: cobro.order?.seller?.name || cobro.createdBy?.name || '',
         nota: cobro.reference || '',
       })),
       ...movimientos.map((movimiento) => ({
-        id: movimiento.id, kind: 'MOVEMENT', fecha: movimiento.createdAt, direction: movimiento.direction, montoPyg: movimiento.amountPyg,
+        id: movimiento.id, kind: 'MOVEMENT', fecha: movimiento.createdAt, direction: movimiento.direction, montoPyg: numero(movimiento.amountPyg),
         pedido: '', cliente: movimiento.counterparty || '', vendedor: nombreUsuario.get(movimiento.createdById) || '',
         nota: [movimiento.description, movimiento.reference].filter(Boolean).join(' · '),
       })),
@@ -92,9 +93,9 @@ export async function GET(request: Request) {
       return { ...operacion, status: marca?.status || 'PENDING', notaAuditoria: marca?.note || '', auditadoPor: marca?.auditedBy?.name || '', auditadoAt: marca?.auditedAt || null }
     }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
 
-    const aperturaPyg = sesiones.reduce((suma, sesion) => suma + sesion.openingPyg, 0)
-    const esperadoPyg = sesiones.reduce((suma, sesion) => suma + Number(sesion.expectedPyg || 0), 0)
-    const diferenciaPyg = sesiones.reduce((suma, sesion) => suma + (sesion.countedPyg === null ? 0 : Number(sesion.countedPyg) - Number(sesion.expectedPyg || 0)), 0)
+    const aperturaPyg = sesiones.reduce((suma, sesion) => suma + numero(sesion.openingPyg), 0)
+    const esperadoPyg = sesiones.reduce((suma, sesion) => suma + numero(sesion.expectedPyg), 0)
+    const diferenciaPyg = sesiones.reduce((suma, sesion) => suma + (sesion.countedPyg === null ? 0 : numero(sesion.countedPyg) - numero(sesion.expectedPyg)), 0)
     const recibidoPyg = operaciones.filter((operacion) => operacion.direction === 'IN').reduce((suma, operacion) => suma + operacion.montoPyg, 0)
     return json({
       rango: { from, to, branchId },
@@ -108,7 +109,7 @@ export async function GET(request: Request) {
         pendientes: operaciones.filter((operacion) => operacion.status === 'PENDING').length,
         conDiferencia: operaciones.filter((operacion) => operacion.status === 'DIFFERENCE').length,
       },
-      sesiones: sesiones.map((sesion) => ({ ...sesion, esperadoPyg: sesion.expectedPyg, diferenciaPyg: sesion.countedPyg === null ? null : Number(sesion.countedPyg) - Number(sesion.expectedPyg || 0) })),
+      sesiones: sesiones.map((sesion) => ({ ...sesion, openingPyg: numero(sesion.openingPyg), countedPyg: numeroOpcional(sesion.countedPyg), esperadoPyg: numero(sesion.expectedPyg), diferenciaPyg: sesion.countedPyg === null ? null : numero(sesion.countedPyg) - numero(sesion.expectedPyg) })),
       operaciones,
     })
   } catch (e) {

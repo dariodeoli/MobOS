@@ -1,8 +1,8 @@
 // #148 §9 · POS: monto por encima del tope que el sistema puede guardar
-// (los importes viven en columnas de 32 bits: 2.147.483.647).
+// (las ventas guardan hasta 99.000.000.000 desde la migración bigint de §9).
 //
 // Reproduce el caso en la demo pública (datos ficticios): pone un precio de
-// venta de 5.000.000.000 y confirma. En la rama el guardado se bloquea con el
+// venta de 99.000.000.001 y confirma. En la rama el guardado se bloquea con el
 // detalle del monto; el «antes» (producción) seguía de largo y el backend
 // rechazaba sin decir qué campo. Capturas en claro/oscuro y desktop/mobile.
 //
@@ -82,7 +82,7 @@ for (const variante of variantes) {
   if (await detalle.count()) await detalle.click()
   await esperar(400)
   const precio = page.getByLabel(/^Precio de venta de /).first()
-  await precio.fill('5.000.000.000')
+  await precio.fill('99.000.000.001')
   await esperar(300)
   const campoMarcado = await precio.getAttribute('aria-invalid')
   const carrito = page.locator('#pos-resumen-venta')
@@ -105,7 +105,7 @@ for (const variante of variantes) {
   }
   resultados.push({
     variante: variante.nombre,
-    tope: 2147483647,
+    tope: 99000000000,
     campoMarcado: campoMarcado === 'true',
     bloqueo,
     mensaje,

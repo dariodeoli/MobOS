@@ -13,6 +13,7 @@ import {
   renderPlantilla,
   variablesDeCuota,
 } from '../../../../lib/collections'
+import { numero } from '../../../../lib/montos'
 
 // Cobranzas por WhatsApp: cuotas a crédito vencidas y próximas, con mora
 // explícita y un enlace wa.me por cuota. El aviso es una acción humana (abrir
@@ -27,7 +28,7 @@ const DIAS_MS = DIA_MS
 type FilaCuota = {
   id: string
   tenantId: string
-  amountPyg: number
+  amountPyg: bigint | number
   reference: string | null
   dueAt: Date | null
   whatsappRemindedAt: Date | null
@@ -64,13 +65,14 @@ function armarCuota(cuota: FilaCuota, input: { now: Date; moraBpPorDia: number; 
   if (!dueAt) return null
   const vencida = esCuotaVencida(dueAt, input.now)
   const diasAtraso = diasDeAtraso(dueAt, input.now)
-  const recargoPyg = vencida ? calcularRecargoPyg({ amountPyg: cuota.amountPyg, diasAtraso, bpPorDia: input.moraBpPorDia }) : 0
+  const saldoPendientePyg = numero(cuota.amountPyg)
+  const recargoPyg = vencida ? calcularRecargoPyg({ amountPyg: saldoPendientePyg, diasAtraso, bpPorDia: input.moraBpPorDia }) : 0
   const { key, body } = plantillaDeCobranza(input.plantillas, vencida ? FALLBACK_CUOTA_VENCIDA : FALLBACK_CUOTA_POR_VENCER, vencida)
   const variables = variablesDeCuota({
     cliente: cuota.order?.customer?.name || 'cliente',
     pedido: cuota.order?.orderNumber || '',
     vencimiento: dueAt.toLocaleDateString('es-PY'),
-    saldoPendiente: cuota.amountPyg,
+    saldoPendiente: saldoPendientePyg,
     diasAtraso,
     recargoPyg,
     empresa: input.tenantName,
@@ -80,7 +82,7 @@ function armarCuota(cuota: FilaCuota, input: { now: Date; moraBpPorDia: number; 
   // El recargo se agrega al final solo si la plantilla no lo menciona: así una
   // tienda sin tasa configurada nunca anuncia un recargo que no existe.
   const mensaje = recargoPyg > 0 && !body.includes('{{recargo}}') ? `${texto} Recargo por mora: Gs. ${Number(recargoPyg).toLocaleString('es-PY')}.` : texto
-  const numero = internationalPhone(cuota.order?.customer?.phone, cuota.order?.customer?.countryCode)
+  const telefono = internationalPhone(cuota.order?.customer?.phone, cuota.order?.customer?.countryCode)
   const avisadoEn = vencida ? cuota.whatsappOverdueRemindedAt : cuota.whatsappRemindedAt
   return {
     id: cuota.id,
@@ -90,15 +92,15 @@ function armarCuota(cuota: FilaCuota, input: { now: Date; moraBpPorDia: number; 
     customerName: cuota.order?.customer?.name ?? null,
     phone: cuota.order?.customer?.phone ?? null,
     tipo: vencida ? 'VENCIDA' : 'PROXIMA',
-    saldoPendientePyg: cuota.amountPyg,
+    saldoPendientePyg,
     recargoPyg,
-    totalPyg: cuota.amountPyg + recargoPyg,
+    totalPyg: saldoPendientePyg + recargoPyg,
     reference: cuota.reference,
     dueAt: dueAt.toISOString(),
     diasAtraso,
     templateKey: key,
     message: mensaje,
-    whatsappUrl: numero ? `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}` : null,
+    whatsappUrl: telefono ? `https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}` : null,
     avisadoEn: avisadoEn ? avisadoEn.toISOString() : null,
   }
 }
@@ -162,7 +164,7 @@ export async function POST(request: Request) {
   if (!cuota) return error('Cuota no encontrada o ya cobrada.', 404)
   const { tenantName, moraBpPorDia, plantillas } = await datosDeAviso(tenantId)
   const now = new Date()
-  const row = armarCuota(cuota as FilaCuota, { now, moraBpPorDia, tenantName, plantillas })
+  const row = armarCuota(cuota, { now, moraBpPorDia, tenantName, plantillas })
   if (!row) return error('La cuota no tiene vencimiento cargado.', 409)
   if (!row.whatsappUrl) return error('El cliente no tiene teléfono cargado.', 409)
   if (row.avisadoEn && !force) return error('Esta cuota ya fue recordada por WhatsApp.', 409, { avisadoEn: row.avisadoEn })

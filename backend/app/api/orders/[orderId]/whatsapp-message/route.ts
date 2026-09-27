@@ -3,6 +3,7 @@ import { internationalPhone } from '../../../../../lib/validation'
 import { error, json, tenantId } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { canAccessOrder } from '../../../../../lib/orders'
+import { numero } from '../../../../../lib/montos'
 
 // Plantilla sugerida según el estado de entrega del pedido.
 const TEMPLATE_BY_STATUS: Record<string, string> = {
@@ -19,7 +20,7 @@ const importe = (value: number) => `Gs. ${Math.round(Math.max(0, value)).toLocal
 
 type OrderForMessage = {
   orderNumber: string | null
-  totalPyg: number
+  totalPyg: bigint | number
   publicToken: string | null
   accessTokens: Array<{ token: string }>
   fulfillmentStatus: string
@@ -27,14 +28,14 @@ type OrderForMessage = {
   customer: { name: string | null; phone: string | null; countryCode: string | null } | null
   branch: { name: string } | null
   seller: { name: string } | null
-  payments: Array<{ amountPyg: number }>
+  payments: Array<{ amountPyg: bigint | number }>
 }
 
 // Variables del contexto ORDERS compartidas por el aviso automático y el envío
 // con plantilla elegida. Los alias viejos siguen funcionando.
 function variablesDe(order: OrderForMessage) {
-  const paid = order.payments.reduce((sum, payment) => sum + Number(payment.amountPyg || 0), 0)
-  const pending = Math.max(0, Number(order.totalPyg || 0) - paid)
+  const paid = order.payments.reduce((sum, payment) => sum + numero(payment.amountPyg), 0)
+  const pending = Math.max(0, numero(order.totalPyg) - paid)
   const cliente = order.customer?.name || 'cliente'
   const sucursal = order.branch?.name || 'la tienda'
   return {
@@ -43,7 +44,7 @@ function variablesDe(order: OrderForMessage) {
     customer_name: cliente,
     pedido: order.orderNumber || '',
     order_number: order.orderNumber || '',
-    total: importe(Number(order.totalPyg || 0)),
+    total: importe(numero(order.totalPyg)),
     saldo_pendiente: importe(pending),
     sucursal,
     branch_name: sucursal,

@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto'
 import { prisma } from '../../../../lib/prisma'
 import { error, json } from '../../../../lib/http'
 import { canAccessAny, hashToken, requireSession } from '../../../../lib/auth'
+import { numero } from '../../../../lib/montos'
 
 // Detalle y ciclo de vida de una liquidación de comisiones. El comprobante
 // impreso sale de `linesJson`, que quedó congelado al cerrar el período.
@@ -21,8 +22,8 @@ type SettlementDetail = {
   sellerId: string
   periodFrom: string
   periodTo: string
-  totalPyg: number
-  marginPyg: number
+  totalPyg: bigint | number
+  marginPyg: bigint | number
   commissionPct: Prisma.Decimal | null
   linesJson: Prisma.JsonValue
   status: string
@@ -64,8 +65,8 @@ function shape(settlement: SettlementDetail) {
     sellerRole: settlement.seller?.role ?? null,
     periodFrom: settlement.periodFrom,
     periodTo: settlement.periodTo,
-    totalPyg: settlement.totalPyg,
-    marginPyg: settlement.marginPyg,
+    totalPyg: numero(settlement.totalPyg),
+    marginPyg: numero(settlement.marginPyg),
     commissionPct: settlement.commissionPct === null ? null : Number(settlement.commissionPct),
     status: settlement.status,
     // El token crudo nunca sale de la base: se revela una vez al emitir o
@@ -137,7 +138,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
             action: 'COMMISSION_SETTLEMENT_TOKEN_ROTATED',
             entity: 'CommissionSettlement',
             entityId: id,
-            metadata: { sellerId: existing.sellerId, totalPyg: existing.totalPyg },
+            metadata: { sellerId: existing.sellerId, totalPyg: numero(existing.totalPyg) },
           },
         })
         return settlement
@@ -168,7 +169,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
           action: action === 'pay' ? 'COMMISSION_SETTLEMENT_PAID' : 'COMMISSION_SETTLEMENT_CANCELLED',
           entity: 'CommissionSettlement',
           entityId: id,
-          metadata: { sellerId: existing.sellerId, totalPyg: existing.totalPyg, ...(reason ? { reason } : {}) },
+          metadata: { sellerId: existing.sellerId, totalPyg: numero(existing.totalPyg), ...(reason ? { reason } : {}) },
         },
       })
       return settlement

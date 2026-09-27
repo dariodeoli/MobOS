@@ -9,11 +9,11 @@ const GS_FORMATTER = new Intl.NumberFormat('es-PY', {
 export const LIMITE_MONTO_GENERAL = 10_000_000_000
 export const LIMITE_MONTO_VENTAS = 99_000_000_000
 
-// Tope real de almacenamiento: los importes viven en columnas enteras de 32
-// bits, así que por encima de este valor el backend rechaza el guardado. Los
-// campos marcan y los formularios bloquean con `errorMonto`; los límites de
-// #148 (10B/99B) quedan como objetivo de producto pendiente de migrar.
-export const LIMITE_MONTO_ALMACENABLE = 2_147_483_647
+// Tope real de almacenamiento (migración bigint de §9): las columnas de dinero
+// guardan hasta bigint, así que el techo efectivo es el mayor tope de producto.
+// Se mantiene el nombre y `limiteMonto` para que cada campo siga acotando su
+// contexto (general 10B / ventas 99B) sin superar lo que el sistema guarda.
+export const LIMITE_MONTO_ALMACENABLE = LIMITE_MONTO_VENTAS
 
 /** Límite efectivo de un campo: el del contexto, acotado a lo almacenable. */
 export function limiteMonto(max = LIMITE_MONTO_GENERAL) {

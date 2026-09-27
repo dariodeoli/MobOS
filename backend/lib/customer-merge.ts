@@ -57,7 +57,7 @@ export type ClienteFusionable = {
   publicNote?: string | null
   externalId?: string | null
   priceListId?: string | null
-  creditLimitPyg?: number | null
+  creditLimitPyg?: bigint | number | null
   creditDays?: number | null
   insuranceEnabled?: boolean | null
   insuranceRatePct?: unknown

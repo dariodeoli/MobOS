@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client'
+import { numero } from './montos'
 
 // Conciliación y trazabilidad (#144).
 //
@@ -31,7 +32,7 @@ export type ReconciliationPayment = {
   id: string
   method: string
   status: string
-  amountPyg: number
+  amountPyg: bigint | number
   currency: string | null
   reference: string | null
   accountId: string | null
@@ -44,7 +45,7 @@ export type ReconciliationBatchLike = {
   accountId: string | null
   accountKind: string | null
   processor: string | null
-  differencePyg: number
+  differencePyg: bigint | number
   state: string
 }
 
@@ -109,13 +110,14 @@ function emptyRow(key: string, label: string, secondary: string, method: string 
 }
 
 function addPayment(row: ReconciliationGroupRow, payment: ReconciliationPayment) {
+  const amountPyg = numero(payment.amountPyg)
   row.count += 1
   if (payment.currency && !row.currency) row.currency = payment.currency
   if (payment.status === 'CONFIRMED') {
     const verified = payment.reconciliation?.state === 'VERIFIED'
-    if (verified) { row.verifiedPyg += payment.amountPyg; row.verifiedCount += 1 } else { row.unverifiedPyg += payment.amountPyg; row.pendingCount += 1 }
-  } else if (payment.status === 'PENDING') row.pendingPyg += payment.amountPyg
-  else if (payment.status === 'REFUNDED') row.refundedPyg += payment.amountPyg
+    if (verified) { row.verifiedPyg += amountPyg; row.verifiedCount += 1 } else { row.unverifiedPyg += amountPyg; row.pendingCount += 1 }
+  } else if (payment.status === 'PENDING') row.pendingPyg += amountPyg
+  else if (payment.status === 'REFUNDED') row.refundedPyg += amountPyg
 }
 
 function addDifference(row: ReconciliationGroupRow, differencePyg: number) {
@@ -138,6 +140,7 @@ export function summarizeReconciliation(payments: ReconciliationPayment[], batch
   const totals: ReconciliationSummary['totals'] = { count: 0, confirmedPyg: 0, pendingPyg: 0, refundedPyg: 0, verifiedPyg: 0, unverifiedPyg: 0, verifiedCount: 0, pendingCount: 0, differencePyg: 0, batches: 0 }
 
   for (const payment of payments) {
+    const amountPyg = numero(payment.amountPyg)
     const processor = processorOf(payment)
     const accountKey = payment.accountId || `metodo:${payment.method}`
     const method = accountKindOf(payment)
@@ -156,27 +159,28 @@ export function summarizeReconciliation(payments: ReconciliationPayment[], batch
 
     totals.count += 1
     if (payment.status === 'CONFIRMED') {
-      totals.confirmedPyg += payment.amountPyg
-      if (payment.reconciliation?.state === 'VERIFIED') { totals.verifiedPyg += payment.amountPyg; totals.verifiedCount += 1 } else { totals.unverifiedPyg += payment.amountPyg; totals.pendingCount += 1 }
-    } else if (payment.status === 'PENDING') totals.pendingPyg += payment.amountPyg
-    else if (payment.status === 'REFUNDED') totals.refundedPyg += payment.amountPyg
+      totals.confirmedPyg += amountPyg
+      if (payment.reconciliation?.state === 'VERIFIED') { totals.verifiedPyg += amountPyg; totals.verifiedCount += 1 } else { totals.unverifiedPyg += amountPyg; totals.pendingCount += 1 }
+    } else if (payment.status === 'PENDING') totals.pendingPyg += amountPyg
+    else if (payment.status === 'REFUNDED') totals.refundedPyg += amountPyg
   }
 
   for (const batch of batches) {
-    if (batch.state === 'REJECTED' || !batch.differencePyg) continue
-    totals.differencePyg += batch.differencePyg
+    const differencePyg = numero(batch.differencePyg)
+    if (batch.state === 'REJECTED' || !differencePyg) continue
+    totals.differencePyg += differencePyg
     totals.batches += 1
     const accountKey = batch.accountId || 'sin-cuenta'
     const accountRow = byAccount.get(accountKey) || emptyRow(accountKey, 'Sin cuenta', '', batch.accountKind, batch.processor || '', null)
-    addDifference(accountRow, batch.differencePyg)
+    addDifference(accountRow, differencePyg)
     byAccount.set(accountKey, accountRow)
     const methodKey = batch.accountKind || 'sin-medio'
     const methodRow = byMethod.get(methodKey) || emptyRow(methodKey, METHOD_LABELS[methodKey] || 'Sin medio', '', methodKey, batch.processor || '', null)
-    addDifference(methodRow, batch.differencePyg)
+    addDifference(methodRow, differencePyg)
     byMethod.set(methodKey, methodRow)
     const processorKey = batch.processor || 'sin-procesadora'
     const processorRow = byProcessor.get(processorKey) || emptyRow(processorKey, batch.processor || 'Sin procesadora', '', batch.accountKind, batch.processor || '', null)
-    addDifference(processorRow, batch.differencePyg)
+    addDifference(processorRow, differencePyg)
     byProcessor.set(processorKey, processorRow)
   }
 
@@ -187,7 +191,7 @@ export type LockedPaymentRow = {
   id: string
   orderId: string
   status: string
-  amountPyg: number
+  amountPyg: bigint | number
   method: string
   deliveryUserId: string | null
   deliverySettlementId: string | null

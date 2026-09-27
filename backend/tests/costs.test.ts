@@ -19,7 +19,10 @@ assert.throws(() => normalizarCosto({ originalCost: 350, costPyg: 2600000.5, cos
 
 // ── Límites y cotización ───────────────────────────────────────────────────
 assert.throws(() => normalizarCosto({ originalCost: -1 }), /Revisá el costo/)
-assert.throws(() => normalizarCosto({ originalCost: 2147483647, costCurrency: 'USD', exchangeRatePyg: 2 }), /supera el máximo/)
+// La migración bigint de §9 habilita los 10B del tope general: 2.147.483.647
+// USD × 2 ya no se rechaza (antes era el techo de 32 bits).
+assert.deepEqual(normalizarCosto({ originalCost: 2147483647, costCurrency: 'USD', exchangeRatePyg: 2 }), { costPyg: 4294967294, originalCost: 2147483647, costCurrency: 'USD', exchangeRatePyg: 2 })
+assert.throws(() => normalizarCosto({ originalCost: 6000000000, costCurrency: 'USD', exchangeRatePyg: 2 }), /supera el máximo/)
 assert.throws(() => normalizarCosto({ exchangeRatePyg: 0, originalCost: 10, costCurrency: 'USD' }), /Revisá la cotización/)
 assert.throws(() => normalizarCosto({ costCurrency: 'USD' }), /Indicá el monto del costo/)
 // Sin datos de costo la unidad queda pendiente (costo diferido).

@@ -4,6 +4,7 @@ import { error, json } from '../../../../../lib/http'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'
 import { PAYMENT_LABELS } from '../../../../../lib/payments'
 import { seguimientoDeEntrega } from '../../../../../lib/orders'
+import { numero, numeroOpcional } from '../../../../../lib/montos'
 
 // Vista pública del pedido. El token es aleatorio y no enumerable: autoriza una
 // sola vista según su nivel (rapido | completo | detallado). El token histórico
@@ -40,8 +41,8 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
 
   const level = acceso?.level || 'rapido'
   const pagosConfirmados = order.payments.filter(pago => pago.status === 'CONFIRMED')
-  const pagado = pagosConfirmados.reduce((sum, pago) => sum + Number(pago.amountPyg || 0), 0)
-  const pendiente = Math.max(0, order.totalPyg - pagado)
+  const pagado = pagosConfirmados.reduce((sum, pago) => sum + numero(pago.amountPyg), 0)
+  const pendiente = Math.max(0, numero(order.totalPyg) - pagado)
   // El crédito también viaja en el nivel rápido: la vista digital del cliente
   // muestra saldo, plazo y vencimiento sin exponer datos internos.
   const credito = order.creditDays
@@ -87,22 +88,22 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     items: order.items.map(item => ({
       description: item.description,
       quantity: item.quantity,
-      unitPricePyg: item.unitPricePyg,
-      listPricePyg: item.listPricePyg,
-      discountPyg: item.discountPyg,
-      totalPyg: item.totalPyg,
+      unitPricePyg: numero(item.unitPricePyg),
+      listPricePyg: numeroOpcional(item.listPricePyg),
+      discountPyg: numero(item.discountPyg),
+      totalPyg: numero(item.totalPyg),
     })),
-    subtotalPyg: order.subtotalPyg,
-    discountPyg: order.discountPyg,
-    deliveryPyg: order.deliveryPyg,
-    totalPyg: order.totalPyg,
+    subtotalPyg: numero(order.subtotalPyg),
+    discountPyg: numero(order.discountPyg),
+    deliveryPyg: numero(order.deliveryPyg),
+    totalPyg: numero(order.totalPyg),
     paidPyg: pagado,
     pendingPyg: pendiente,
     credit: credito,
     payments: pagosConfirmados.map(pago => ({
       method: pago.method,
       methodLabel: PAYMENT_LABELS[pago.method] || pago.method,
-      amountPyg: pago.amountPyg,
+      amountPyg: numero(pago.amountPyg),
       paidAt: pago.paidAt || pago.createdAt,
     })),
     warranties: warranties.map(warranty => {
@@ -158,7 +159,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     payments: pagosConfirmados.map(pago => ({
       method: pago.method,
       methodLabel: PAYMENT_LABELS[pago.method] || pago.method,
-      amountPyg: pago.amountPyg,
+      amountPyg: numero(pago.amountPyg),
       paidAt: pago.paidAt || pago.createdAt,
       reference: pago.reference,
       account: pago.accountSnapshot && typeof pago.accountSnapshot === 'object' ? (pago.accountSnapshot as { name?: string }).name || null : null,
@@ -179,7 +180,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     ...pagosConfirmados.map(pago => ({
       type: 'payment',
       at: pago.paidAt || pago.createdAt,
-      amountPyg: pago.amountPyg,
+      amountPyg: numero(pago.amountPyg),
       methodLabel: PAYMENT_LABELS[pago.method] || pago.method,
       account: pago.accountSnapshot && typeof pago.accountSnapshot === 'object' ? (pago.accountSnapshot as { name?: string }).name || null : null,
     })),

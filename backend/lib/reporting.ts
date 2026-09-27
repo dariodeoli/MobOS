@@ -34,7 +34,8 @@ const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/
 const MAX_RANGE_DAYS = 366
 const MIN_OFFSET_MINUTES = -720
 const MAX_OFFSET_MINUTES = 840
-const INT_MAX = 2147483647
+// Los importes del período pueden sumar hasta el tope de ventas de §9.
+const MAX_MONTO = 99000000000
 const DAY_MS = 86400000
 
 export type OrderItemLike = {
@@ -43,19 +44,19 @@ export type OrderItemLike = {
   productName?: string | null
   category?: string | null
   quantity: number
-  unitCostPyg?: number | null
-  totalPyg: number
+  unitCostPyg?: bigint | number | null
+  totalPyg: bigint | number
 }
 
-export type PaymentLike = { status?: string | null; amountPyg: number; method?: string | null; accountName?: string | null; accountId?: string | null; processor?: string | null }
+export type PaymentLike = { status?: string | null; amountPyg: bigint | number; method?: string | null; accountName?: string | null; accountId?: string | null; processor?: string | null }
 
 export type OrderLike = {
   id: string
   status?: string | null
-  subtotalPyg: number
-  discountPyg?: number | null
-  deliveryPyg?: number | null
-  totalPyg: number
+  subtotalPyg: bigint | number
+  discountPyg?: bigint | number | null
+  deliveryPyg?: bigint | number | null
+  totalPyg: bigint | number
   sellerId?: string | null
   sellerName?: string | null
   customerId?: string | null
@@ -222,7 +223,7 @@ export class ReportInputError extends Error {}
 
 function entero(value: unknown, minimo = 0): number | null {
   const number = typeof value === 'number' ? value : Number(value)
-  if (!Number.isSafeInteger(number) || number < minimo || number > INT_MAX) return null
+  if (!Number.isSafeInteger(number) || number < minimo || number > MAX_MONTO) return null
   return number
 }
 
@@ -236,7 +237,7 @@ function porcentaje(value: unknown): number | null {
 
 function suma(actual: number, delta: number): number {
   const total = actual + delta
-  if (!Number.isSafeInteger(total) || total < 0 || total > INT_MAX) {
+  if (!Number.isSafeInteger(total) || total < 0 || total > MAX_MONTO) {
     throw new ReportInputError('Los importes del período exceden el rango permitido.')
   }
   return total

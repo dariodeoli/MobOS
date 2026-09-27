@@ -3,6 +3,8 @@
 // escritura real usan el mismo análisis, así que lo que el panel muestra es
 // exactamente lo que se importa. Sin escrituras acá: solo datos y diagnósticos.
 
+import { LIMITE_MONTO_GENERAL } from './montos'
+
 export const IMPORT_MAX_FILAS = 500
 export const IMPORT_SKU_MAX = 60
 export const IMPORT_NOMBRE_MAX = 160
@@ -20,7 +22,7 @@ export type ProductoExistente = {
   id: string
   sku: string
   name: string
-  pricePyg: number
+  pricePyg: bigint | number
   isActive: boolean
 }
 
@@ -81,10 +83,10 @@ export function textoImportado(valor: unknown): string | null {
 // campos de guaraníes no existen los decimales, así que el punto y la coma se
 // leen siempre como separadores de miles cuando cierran el número: "55.000" es
 // 55000, no 55. null = vacío; undefined = inválido.
-export function enteroImportado(valor: unknown): number | null | undefined {
+export function enteroImportado(valor: unknown, maximo = IMPORT_INT_MAX): number | null | undefined {
   if (vacio(valor)) return null
   const numero = typeof valor === 'number' ? valor : enteroDeTexto(String(valor))
-  if (numero === null || !Number.isSafeInteger(numero) || numero < 0 || numero > IMPORT_INT_MAX) return undefined
+  if (numero === null || !Number.isSafeInteger(numero) || numero < 0 || numero > maximo) return undefined
   return numero
 }
 
@@ -163,10 +165,10 @@ export function analizarImportacion(filas: unknown[], opciones: { existentes: Pr
     const color = textoImportado(bruto.color)
     const capacity = textoImportado(bruto.capacity)
     const condition = condicionImportada(bruto.condition)
-    const pricePyg = enteroImportado(bruto.pricePyg)
+    const pricePyg = enteroImportado(bruto.pricePyg, LIMITE_MONTO_GENERAL)
     const stock = enteroImportado(bruto.stock)
-    const costPyg = enteroImportado(bruto.costPyg)
-    const wholesalePricePyg = enteroImportado(bruto.wholesalePricePyg)
+    const costPyg = enteroImportado(bruto.costPyg, LIMITE_MONTO_GENERAL)
+    const wholesalePricePyg = enteroImportado(bruto.wholesalePricePyg, LIMITE_MONTO_GENERAL)
     const priceUsd = decimalImportado(bruto.priceUsd)
     const warrantyDays = enteroImportado(bruto.warrantyDays)
 

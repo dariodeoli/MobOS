@@ -7,6 +7,7 @@ import { canAccessAny } from '../../../../lib/auth'
 import { csvResponse } from '../../../../lib/csv'
 import { INVENTORY_REMOVED, INVENTORY_RESTORED, removedInventoryUnitIds } from '../../../../lib/inventory'
 import { MAX_REPORT_ORDERS, aggregateCommissions, dayBounds, parseReportQuery } from '../../../../lib/reporting'
+import { numero, numeroOpcional } from '../../../../lib/montos'
 import { serialKey } from '../../../../lib/validation'
 import { ensureStoreBranch } from '../../../../lib/store-branch'
 import { ACCIONES_AUDITORIA, AREAS_AUDITORIA, ROLES_AUDITORIA, detalleAuditoria, parseFiltrosAuditoria, whereAuditoria } from '../../../../lib/audit'
@@ -172,9 +173,9 @@ async function exportarClientes(session: SessionContext, params: URLSearchParams
       cliente.email || '',
       cliente.addresses[0]?.city || '',
       esMayorista(cliente) ? 'Sí' : 'No',
-      cliente.creditLimitPyg ?? '',
+      numeroOpcional(cliente.creditLimitPyg) ?? '',
       stat.orders,
-      stat.totalSpentPyg,
+      numero(stat.totalSpentPyg),
       deudaPorId.get(id) ?? 0,
     ])
   }
@@ -344,7 +345,7 @@ async function exportarMovimientos(session: SessionContext, params: URLSearchPar
     TIPOS_MOVIMIENTO[movimiento.kind] || movimiento.kind,
     DIRECCIONES_MOVIMIENTO[movimiento.direction] || movimiento.direction,
     movimiento.account?.name || '',
-    movimiento.amountPyg,
+    numero(movimiento.amountPyg),
     ESTADOS_MOVIMIENTO[movimiento.status] || movimiento.status,
     usuarioPorId.get(movimiento.createdById) || '',
   ])

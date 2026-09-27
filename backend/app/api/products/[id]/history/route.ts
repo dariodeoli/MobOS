@@ -1,6 +1,7 @@
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
+import { numero } from '../../../../../lib/montos'
 
 type RouteContext = { params: { id: string } }
 
@@ -132,7 +133,7 @@ export async function GET(request: Request, { params }: RouteContext) {
       action: line.purchase.status === 'RECEIVED' ? 'Compra recibida' : 'Compra registrada',
       createdAt: line.purchase.receivedAt || line.purchase.createdAt,
       user: line.purchase.createdBy,
-      detail: `${line.purchase.supplierName} · ${line.quantity} unid. · Gs ${gs(line.finalTotalCostPyg || line.quantity * (line.finalUnitCostPyg || line.unitCostPyg))}${line.lotReference ? ` · lote ${line.lotReference}` : ''} · ${line.purchase.status === 'RECEIVED' ? 'Recibida' : 'Borrador'}`,
+      detail: `${line.purchase.supplierName} · ${line.quantity} unid. · Gs ${gs(line.finalTotalCostPyg || line.quantity * numero(line.finalUnitCostPyg || line.unitCostPyg))}${line.lotReference ? ` · lote ${line.lotReference}` : ''} · ${line.purchase.status === 'RECEIVED' ? 'Recibida' : 'Borrador'}`,
     })),
   ]
   events.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())

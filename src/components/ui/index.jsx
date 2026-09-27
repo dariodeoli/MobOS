@@ -1,8 +1,10 @@
 import { useEffect, useId, useRef } from 'react'
+import { Input, TAMANOS_CAMPO } from 'owncoding-ui'
+// Los helpers de dinero salen del módulo del repo, no de la biblioteca: desde
+// la migración bigint de §9 (#278) los topes reales son 10B general / 99B
+// ventas y la biblioteca todavía acota al techo de 32 bits.
 import {
-  Input,
   LIMITE_MONTO_GENERAL,
-  TAMANOS_CAMPO,
   excedeMonto,
   formatGsInput,
   formatUsdInput,
@@ -10,7 +12,7 @@ import {
   limiteMonto,
   parseGsInput,
   parseUsdInput,
-} from 'owncoding-ui'
+} from '@/utils/moneda'
 import { cn } from '@/lib/utils'
 import { TAMANO_MODAL_PREDETERMINADO, TAMANOS_MODAL } from '@/components/shared/modal'
 

@@ -4,6 +4,7 @@ import { requireSession } from '../../../../../lib/auth'
 import { canAccessOrder } from '../../../../../lib/orders'
 import { enqueueEmail, pendingEmailForAggregate } from '../../../../../lib/email-outbox'
 import { receiptEmail } from '../../../../../lib/email'
+import { numero } from '../../../../../lib/montos'
 
 // Encola el comprobante del pedido al correo del cliente. Correo transaccional:
 // no requiere consentimiento de marketing, solo que el cliente tenga email.
@@ -26,8 +27,8 @@ export async function POST(_request: Request, context: { params: Promise<{ order
       to: email,
       customerName: order.customer?.name ?? '',
       orderNumber: order.orderNumber,
-      lines: order.items.map((item) => ({ quantity: item.quantity, description: item.description, totalPyg: item.totalPyg })),
-      totalPyg: order.totalPyg,
+      lines: order.items.map((item) => ({ quantity: item.quantity, description: item.description, totalPyg: numero(item.totalPyg) })),
+      totalPyg: numero(order.totalPyg),
       trackingUrl,
       companyName: tenant?.name ?? 'MobOS',
     })

@@ -4,6 +4,7 @@ import { prisma } from '../../../lib/prisma'
 import { effectivePermissions, normalizeAccessSchedule, requireSession, USER_ROLES } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
 import { pinValido } from '../../../lib/pin'
+import { LIMITE_MONTO_GENERAL } from '../../../lib/montos'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -108,7 +109,7 @@ export async function PATCH(request: Request) {
     const accessSchedule = body.accessSchedule === undefined ? current.accessSchedule : normalizeAccessSchedule(body.accessSchedule)
     const permissions = body.permissions === undefined ? current.permissions : body.permissions === null ? null : validPermissions(body.permissions) ? body.permissions : null
     if (body.permissions !== undefined && body.permissions !== null && !validPermissions(body.permissions)) return error('Permisos inválidos.')
-    const dailyGoalPyg = body.dailyGoalPyg === undefined ? current.dailyGoalPyg : body.dailyGoalPyg === null ? null : Number.isSafeInteger(Number(body.dailyGoalPyg)) && Number(body.dailyGoalPyg) >= 0 && Number(body.dailyGoalPyg) <= 1000000000000 ? Number(body.dailyGoalPyg) : null
+    const dailyGoalPyg = body.dailyGoalPyg === undefined ? current.dailyGoalPyg : body.dailyGoalPyg === null ? null : Number.isSafeInteger(Number(body.dailyGoalPyg)) && Number(body.dailyGoalPyg) >= 0 && Number(body.dailyGoalPyg) <= LIMITE_MONTO_GENERAL ? Number(body.dailyGoalPyg) : null
     if (body.dailyGoalPyg !== undefined && body.dailyGoalPyg !== null && dailyGoalPyg === null) return error('Meta diaria inválida: usá un número entero no negativo.')
     const resetPin = body.resetPin === true
     if (resetPin && !pinValido(body.pin)) return error('Para restablecer el PIN ingresá de 4 a 6 dígitos.')

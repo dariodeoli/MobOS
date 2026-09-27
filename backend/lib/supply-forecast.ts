@@ -40,7 +40,7 @@ export type CompraProveedor = {
   supplierId: string | null
   supplierName: string
   unidades: number
-  costPyg: number
+  costPyg: bigint | number
   creadaEl: string | Date | null
   despachadaEl?: string | Date | null
   recibidaEl?: string | Date | null

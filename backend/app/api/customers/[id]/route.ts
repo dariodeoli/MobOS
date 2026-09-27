@@ -2,6 +2,7 @@ import { prisma } from '../../../../lib/prisma'
 import { error, json } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
 import { InputError, objectInput, textInput } from '../../../../lib/payment-input'
+import { LIMITE_MONTO_GENERAL, numero } from '../../../../lib/montos'
 import { addressesInput, leerPorcentajeSeguro } from '../_lib'
 
 type RouteContext = { params: { id: string } }
@@ -40,13 +41,14 @@ export async function GET(request: Request, { params }: RouteContext) {
     take: 200,
   })
   const orderRows = orders.map(order => {
-    const collectedPyg = order.payments.filter(payment => payment.status === 'CONFIRMED').reduce((sum, payment) => sum + payment.amountPyg, 0)
-    const pendingPyg = Math.max(0, order.totalPyg - collectedPyg)
+    const totalPyg = numero(order.totalPyg)
+    const collectedPyg = order.payments.filter(payment => payment.status === 'CONFIRMED').reduce((sum, payment) => sum + numero(payment.amountPyg), 0)
+    const pendingPyg = Math.max(0, totalPyg - collectedPyg)
     const serials = [...new Set(order.items.flatMap(item => (Array.isArray(item.serials) ? item.serials as string[] : [])))]
     return {
       id: order.id,
       orderNumber: order.orderNumber,
-      totalPyg: order.totalPyg,
+      totalPyg,
       collectedPyg,
       pendingPyg,
       createdAt: order.createdAt,
@@ -192,7 +194,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     if (body.creditLimitPyg !== undefined) {
       if (!gestionaCredito) throw new InputError('Solo administración o gerencia pueden cambiar el crédito.', 403)
       const limit = body.creditLimitPyg === null || body.creditLimitPyg === '' ? null : Number(body.creditLimitPyg)
-      if (limit !== null && (!Number.isSafeInteger(limit) || limit < 0 || limit > 2147483647)) throw new InputError('Límite de crédito inválido.')
+      if (limit !== null && (!Number.isSafeInteger(limit) || limit < 0 || limit > LIMITE_MONTO_GENERAL)) throw new InputError('Límite de crédito inválido.')
       data.creditLimitPyg = limit
     }
     // Lista de precios negociada: vacía significa volver al precio de la ficha.

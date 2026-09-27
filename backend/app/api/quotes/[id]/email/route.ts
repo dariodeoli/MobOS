@@ -2,6 +2,7 @@ import { error, json, tenantId } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { prisma } from '../../../../../lib/prisma'
 import { enviarCotizacionPorCorreo } from '../../../../../lib/quote-email'
+import { numero } from '../../../../../lib/montos'
 
 // Envío de la cotización por correo (pedido de Dario, junto con POS/PRN):
 // usa el transporte existente (outbox + relay) con idempotencia por cotización
@@ -47,9 +48,9 @@ export async function POST(request: Request, { params }: RouteContext) {
         customerName: cotizacion.customer?.name || cotizacion.customerName,
         customerId: cotizacion.customerId,
         publicToken: cotizacion.publicToken,
-        subtotalPyg: cotizacion.subtotalPyg,
-        discountPyg: cotizacion.discountPyg,
-        totalPyg: cotizacion.totalPyg,
+        subtotalPyg: numero(cotizacion.subtotalPyg),
+        discountPyg: numero(cotizacion.discountPyg),
+        totalPyg: numero(cotizacion.totalPyg),
         validUntil: cotizacion.validUntil,
         notes: cotizacion.notes,
         items: cotizacion.items,

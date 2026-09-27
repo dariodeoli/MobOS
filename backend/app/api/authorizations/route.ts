@@ -11,6 +11,7 @@ import {
   authorizationValueOf,
   safeIntValue,
 } from '../../../lib/authorizations'
+import { LIMITE_MONTO_GENERAL } from '../../../lib/montos'
 
 // Autorizaciones comerciales y operativas: cualquier vendedor pide cambios de
 // condición (mayorista, crédito, días), un descuento fuera de política, una
@@ -51,7 +52,7 @@ function normalizeValue(kind: string, raw: unknown, label: string): ValueShape |
   if (kind === 'CREDIT') {
     if (input.creditLimitPyg === undefined || input.creditLimitPyg === null || input.creditLimitPyg === '') return `${label}: el límite de crédito es obligatorio.`
     const limit = Number(input.creditLimitPyg)
-    if (!safeInt(limit, 0, INT_MAX)) return `${label}: el límite de crédito debe ser un entero entre 0 y ${INT_MAX}.`
+    if (!safeInt(limit, 0, LIMITE_MONTO_GENERAL)) return `${label}: el límite de crédito debe ser un entero entre 0 y ${LIMITE_MONTO_GENERAL.toLocaleString('es-PY')}.`
     value.creditLimitPyg = limit
   }
   if (kind === 'CREDIT' || kind === 'CREDIT_DAYS') {
@@ -99,13 +100,13 @@ function normalizeSubjectResolution(kind: string, raw: unknown, requestedValue: 
   if (kind === 'EXPENSE_OVER_LIMIT') {
     const rawAmount = input.maxAmountPyg ?? requested.amountPyg
     const amount = Number(rawAmount)
-    if (!safeInt(amount, 0, INT_MAX)) return `${label}: el máximo autorizado debe ser un entero entre 0 y ${INT_MAX}.`
+    if (!safeInt(amount, 0, LIMITE_MONTO_GENERAL)) return `${label}: el máximo autorizado debe ser un entero entre 0 y ${LIMITE_MONTO_GENERAL.toLocaleString('es-PY')}.`
     return { maxAmountPyg: amount }
   }
   if (kind === 'PURCHASE_CREDIT') {
     const rawAmount = input.maxTotalPyg ?? requested.totalPyg
     const amount = Number(rawAmount)
-    if (!safeInt(amount, 0, INT_MAX)) return `${label}: el máximo autorizado debe ser un entero entre 0 y ${INT_MAX}.`
+    if (!safeInt(amount, 0, LIMITE_MONTO_GENERAL)) return `${label}: el máximo autorizado debe ser un entero entre 0 y ${LIMITE_MONTO_GENERAL.toLocaleString('es-PY')}.`
     return { maxTotalPyg: amount }
   }
   // BELOW_LIST_PRICE: el máximo autorizado puede ser menor (o 0) al pedido.
@@ -244,7 +245,7 @@ export async function POST(request: Request) {
       const raw = inputObject(body?.requestedValue)
       const amountPyg = Number(raw.amountPyg)
       const expenseDescription = clean(raw.description, 300)
-      if (!safeInt(amountPyg, 1, INT_MAX)) return error('Solicitud: el monto del gasto debe ser un entero mayor a 0.')
+      if (!safeInt(amountPyg, 1, LIMITE_MONTO_GENERAL)) return error('Solicitud: el monto del gasto debe ser un entero mayor a 0.')
       if (expenseDescription.length < 3) return error('Solicitud: describí el gasto en 3 a 300 caracteres.')
       entity = 'EXPENSE'
       requestedJson = { amountPyg, description: expenseDescription }
@@ -281,7 +282,7 @@ export async function POST(request: Request) {
       // ya existe la ficha) y el total pedido.
       const raw = inputObject(body?.requestedValue)
       const totalPyg = Number(raw.totalPyg)
-      if (!safeInt(totalPyg, 1, INT_MAX)) return error('Solicitud: el total de la compra debe ser un entero mayor a 0.')
+      if (!safeInt(totalPyg, 1, LIMITE_MONTO_GENERAL)) return error('Solicitud: el total de la compra debe ser un entero mayor a 0.')
       const requestedSupplierId = clean(raw.supplierId, 128) || null
       const requestedSupplierName = clean(raw.supplierName, 160) || null
       if (!requestedSupplierId && !requestedSupplierName) return error('Solicitud: indicá el proveedor de la compra a crédito.')

@@ -1,12 +1,12 @@
-// #148 §9 · Montos y monedas: los importes se guardan en columnas enteras de
-// 32 bits (`LIMITE_MONTO_ALMACENABLE`), así que un monto por encima del tope
-// no se puede persistir. Los campos del POS ya lo acotan y lo marcan
-// (`MoneyInput`), pero el guardado seguía de largo y el backend lo rechazaba
-// sin decir cuál era el monto: acá se revisan todos antes de armar el pedido
-// para bloquear con un mensaje que explica qué campo y cuánto.
+// #148 §9 · Montos y monedas: las columnas de dinero son bigint (migración
+// 20261228000000_money_bigint), así que el tope real de la app es el de
+// producto: general 10B y ventas 99B. Los campos del POS ya lo acotan y lo
+// marcan (`MoneyInput`), pero el guardado seguía de largo y el backend lo
+// rechazaba sin decir cuál era el monto: acá se revisan todos antes de armar
+// el pedido para bloquear con un mensaje que explica qué campo y cuánto.
 import { errorMonto, formatGs, LIMITE_MONTO_VENTAS, limiteMonto } from './moneda.js'
 
-/** Tope real de un monto de venta: el límite de producto acotado a lo almacenable. */
+/** Tope de un monto de venta: el límite de producto acotado a lo almacenable. */
 export const TOPE_VENTA = limiteMonto(LIMITE_MONTO_VENTAS)
 
 const montoDe = (valor) => {

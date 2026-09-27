@@ -48,6 +48,9 @@ crea ningún pedido.
 
 ## Alcance
 
-El tope real sigue siendo **2.147.483.647** (columnas de 32 bits). Habilitar los
-10B/99B de §9 exige migrar las columnas de dinero a BigInt: queda como unidad
-cross-dominio de la épica, fuera del POS.
+El tope real pasó a ser el de ventas (**99.000.000.000**) con la migración
+`20261228000000_money_bigint` (#278, 27/09): las columnas de dinero son
+`bigint` y el e2e `qa-148-9-pos-montos` verifica el bloqueo sobre el nuevo
+tope. Historia: hasta v1.0.195 el tope era 2.147.483.647 (columnas de 32 bits)
+y habilitar los 10B/99B de §9 exigía esta unidad cross-dominio (FIN con apoyo
+INV), ya entregada.

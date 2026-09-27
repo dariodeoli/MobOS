@@ -3,6 +3,7 @@ import { hashTokenPublico, nuevoTokenPublico } from '../../../lib/public-token'
 import { prisma } from '../../../lib/prisma'
 import { resolveCustomerId } from '../../../lib/customer-link'
 import { canAccessAny, requireSession } from '../../../lib/auth'
+import { LIMITE_MONTO_GENERAL } from '../../../lib/montos'
 import { error, json, tenantId } from '../../../lib/http'
 import { notifyWarrantyStatusChanged } from '../../../lib/email-notifications'
 
@@ -136,7 +137,7 @@ export async function PATCH(request: Request) {
       if (body.description !== undefined && !withinLimit(body.description)) throw new Error('La descripción no puede superar 2000 caracteres.')
       if (body.responsibleName !== undefined && !withinLimit(body.responsibleName)) throw new Error('El responsable no puede superar 2000 caracteres.')
       const diagnosis = optionalText(body.diagnosis, 'diagnosis'); const technicianName = optionalText(body.technicianName, 'technicianName', 200); const resolution = optionalText(body.resolution, 'resolution'); const photos = list(body.photos, 'photos'); const parts = list(body.parts, 'parts'); const repairCostPyg = body.repairCostPyg === undefined ? undefined : Number(body.repairCostPyg)
-      if (repairCostPyg !== undefined && (!Number.isSafeInteger(repairCostPyg) || repairCostPyg < 0 || repairCostPyg > 2147483647)) throw new Error('Costo de reparación inválido.')
+      if (repairCostPyg !== undefined && (!Number.isSafeInteger(repairCostPyg) || repairCostPyg < 0 || repairCostPyg > LIMITE_MONTO_GENERAL)) throw new Error('Costo de reparación inválido.')
       const coverage = optionalText(body.coverage, 'coverage'); const exclusions = optionalText(body.exclusions, 'exclusions')
       const warrantyDays = body.warrantyDays === undefined || body.warrantyDays === '' || body.warrantyDays === null ? undefined : Number(body.warrantyDays)
       if (warrantyDays !== undefined && (!Number.isSafeInteger(warrantyDays) || warrantyDays < 1 || warrantyDays > 730)) throw new Error('Los días de garantía deben estar entre 1 y 730.')

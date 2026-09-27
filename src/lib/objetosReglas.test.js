@@ -679,6 +679,8 @@ test('la composición de módulo y el resumen de métricas son objetos (#256)', 
     ['components/control/Compras.jsx', /<BarraModulo[\s\S]*?testId="barra-compras"/],
     // #278: el pipeline Trade-In del dueño completa los compactos de #256.
     ['components/control/TradeInPipeline.jsx', /<BarraModulo[\s\S]*?testId="barra-tradein"/],
+    // #278 · FIN: Autorizaciones usa la barra compacta (identidad + acciones).
+    ['components/control/Autorizaciones.jsx', /<BarraModulo[\s\S]*?testId="barra-autorizaciones"/],
   ]) {
     const codigo = readFileSync(join(RAIZ, ruta), 'utf8')
     assert.match(codigo, marca, `${ruta}: usa la barra compartida`)

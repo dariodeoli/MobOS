@@ -50,18 +50,37 @@
 - **Tests**: `moneda.test.js` (tope, acotado y mensaje) y la regla de objetos
   actualizada para exigir el acotado del campo.
 
-## 4. Pendiente (reportado a la épica)
+## 4. Migración entregada (bigint, #278)
 
-- **Migrar las columnas de dinero a BigInt** para habilitar 10B/99B: `Order`,
-  `OrderItem`, `Payment`, `Product`, `CashSession`/`CashMovement`, comisiones,
-  listas de precios, compras y los límites de empresa; validaciones por
-  contexto (general/ventas) y serialización de BigInt en las rutas y sumas SQL.
-  Es cross-dominio y necesita una unidad propia con `db:check`.
-- **POS**: los campos marcan el exceso, pero el guardado de la venta no lo
-  bloquea (su validación devuelve en silencio); le toca al slot POS.
-- **Inventario**: el mensaje de rechazo de precio/stock es vago; le toca a INV.
+La unidad cross-dominio quedó implementada el 27/09 (slot FIN con apoyo INV):
 
-## 5. Checks
+- **Migración `20261228000000_money_bigint`**: 81 columnas de dinero pasan de
+  `integer` (32 bits) a `bigint`, aditiva e idempotente (solo altera lo que
+  todavía está en `integer`). Lista completa en el SQL.
+- **Schema Prisma**: los mismos 81 campos quedan `BigInt`; Prisma devuelve
+  `bigint` en lecturas y acepta `number` en escrituras. El borde se normaliza
+  con `numero()`/`numeroOpcional()` (`backend/lib/montos.ts`) y las respuestas
+  JSON serializan los importes como número (`BigInt.prototype.toJSON` en
+  `backend/lib/prisma.ts`, seguro hasta 2^53).
+- **Topes reales**: general **10.000.000.000**; ventas **99.000.000.000**,
+  consistentes en POS, Gastos, Pagos, Cuentas, Reportes y Comisiones. La UI ya
+  no acota al viejo techo de 32 bits (`LIMITE_MONTO_ALMACENABLE` = tope de
+  ventas); los formularios marcan y bloquean con el mensaje del tope.
+- **Backend**: validaciones de dinero en caja, finanzas, pagos, compras,
+  cotizaciones, créditos, autorizaciones, garantías, servicios y valuaciones
+  pasan a esos topes (stock, cantidades y días siguen en 32 bits).
+- **Evidencia**: `docs/QA-278-CIERRE-FIN.md` (sonda
+  `scripts/qa-148-montos-monedas.mjs` + e2e `qa-148-9-pos-montos`), y
+  `npm run db:check` contra la base migrada.
+
+## 5. Pendientes históricos de esta verificación
+
+- **POS**: el guardado bloquea el exceso con mensaje (entregado por el slot POS
+  en v1.0.170; la migración renueva el tope de venta a 99B).
+- **Inventario**: el mensaje de rechazo de precio/stock (hoy «Precio y stock
+  deben ser enteros válidos») es cosmético y del catálogo.
+
+## 6. Checks
 
 `lint` 0 errores · `npm test` 507/507 · build FE ✓ · build BE con `BUILD_ID` ✓ ·
 `test:unit` 71/71 · arnés de integración HTTP completo **PASS** · e2e de

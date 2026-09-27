@@ -9,6 +9,7 @@ import { CONDICION_PROVEEDOR_LABELS, SUPPLIER_PAYABLE_CONDITIONS, SupplierPayabl
 import { deudaRepuesto, resumenRepuestos } from '../../../lib/workshop-parts'
 import { createCashMovement } from '../../../lib/cash-movements'
 import { DEFAULT_EXPENSE_LIMIT_PYG, authorizedAmountOf, consumeAuthorization, usableAuthorization } from '../../../lib/authorizations'
+import { numero } from '../../../lib/montos'
 
 const ROLES = ['ADMIN', 'GERENTE', 'CAJERA'] as const
 const WRITE_ROLES = ['ADMIN', 'GERENTE', 'CAJERA'] as const
@@ -61,7 +62,7 @@ export async function GET(request: Request) {
       take: 1000,
     }),
   ])
-  const receivables = orders.map(order => ({ id: order.id, totalPyg: order.totalPyg, paidPyg: order.payments.filter(payment => payment.status === 'CONFIRMED').reduce((total, payment) => total + payment.amountPyg, 0) })).map(row => ({ ...row, pendingPyg: Math.max(0, row.totalPyg - row.paidPyg) })).filter(row => row.pendingPyg > 0)
+  const receivables = orders.map(order => ({ id: order.id, totalPyg: numero(order.totalPyg), paidPyg: order.payments.filter(payment => payment.status === 'CONFIRMED').reduce((total, payment) => total + numero(payment.amountPyg), 0) })).map(row => ({ ...row, pendingPyg: Math.max(0, row.totalPyg - row.paidPyg) })).filter(row => row.pendingPyg > 0)
   const payables = purchases.map(purchasePayable).filter(row => row.pendingPyg > 0)
   // Los KPI de la tarjeta (por cobrar, por pagar y margen real) se calculan
   // sobre TODO el historial: las listas de abajo se cortan en 5.000 filas y sus

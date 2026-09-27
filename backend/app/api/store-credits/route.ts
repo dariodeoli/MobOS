@@ -2,8 +2,7 @@ import { prisma } from '../../../lib/prisma'
 import { canAccessAny, requireSession } from '../../../lib/auth'
 import { error, json, tenantId } from '../../../lib/http'
 import { InputError, objectInput, textInput } from '../../../lib/payment-input'
-
-const INT_MAX = 2147483647
+import { LIMITE_MONTO_VENTAS, numero } from '../../../lib/montos'
 
 // Saldo a favor del cliente (nota de crédito interna): consulta y emisión
 // manual. Las devoluciones también lo emiten; acá además gerencia puede
@@ -20,7 +19,7 @@ export async function GET(request: Request) {
     take: 200,
     select: { id: true, customerId: true, orderId: true, amountPyg: true, remainingPyg: true, note: true, createdAt: true, customer: { select: { name: true } } },
   })
-  const availablePyg = credits.reduce((sum, credit) => sum + credit.remainingPyg, 0)
+  const availablePyg = credits.reduce((sum, credit) => sum + numero(credit.remainingPyg), 0)
   return json({ customerId: customerId || null, availablePyg, credits })
 }
 
@@ -32,7 +31,7 @@ export async function POST(request: Request) {
     const body = objectInput(await request.json())
     const customerId = textInput(body.customerId, 'customerId', 200)
     const amountPyg = Number(body.amountPyg)
-    if (!Number.isSafeInteger(amountPyg) || amountPyg <= 0 || amountPyg > INT_MAX) throw new InputError('El monto debe ser un entero positivo.')
+    if (!Number.isSafeInteger(amountPyg) || amountPyg <= 0 || amountPyg > LIMITE_MONTO_VENTAS) throw new InputError('El monto debe ser un entero positivo.')
     const note = body.note === undefined || body.note === null || body.note === '' ? null : textInput(body.note, 'Motivo', 300)
     const customer = await prisma.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { id: true } })
     if (!customer) throw new InputError('Cliente no encontrado.', 404)

@@ -13,6 +13,7 @@ import {
   type CommissionRuleLike,
   type OrderLike,
 } from '../../../lib/reporting'
+import { numero } from '../../../lib/montos'
 
 // Liquidaciones de comisiones por vendedor: cerrar un período, congelar el
 // detalle por venta y emitir el comprobante con token de verificación. El
@@ -35,8 +36,8 @@ type SettlementView = {
   sellerId: string
   periodFrom: string
   periodTo: string
-  totalPyg: number
-  marginPyg: number
+  totalPyg: bigint | number
+  marginPyg: bigint | number
   commissionPct: Prisma.Decimal | null
   status: string
   verificationTokenHash: string | null
@@ -55,8 +56,8 @@ function shape(settlement: SettlementView) {
     sellerName: settlement.seller?.name ?? null,
     periodFrom: settlement.periodFrom,
     periodTo: settlement.periodTo,
-    totalPyg: settlement.totalPyg,
-    marginPyg: settlement.marginPyg,
+    totalPyg: numero(settlement.totalPyg),
+    marginPyg: numero(settlement.marginPyg),
     commissionPct: settlement.commissionPct === null ? null : Number(settlement.commissionPct),
     status: settlement.status,
     // El token crudo no se devuelve nunca desde la base: se revela una vez al

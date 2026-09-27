@@ -3,7 +3,8 @@
 //   1. la lista de compra 80 mm (§11 de #250) impresa desde Compras del Centro;
 //   2. el historial del serial en la cadena de abastecimiento en la ficha de la
 //      unidad (`GET /api/supply/serials/:serial`);
-//   3. los compactos de #256 que faltaban: Precios · Celulares · Comparador.
+//   3. los compactos de #256 que faltaban: Precios · Celulares · Comparador
+//      (INV) y Autorizaciones (FIN).
 //
 // Capturas: `docs/qa/278-cierre/` (se versionan con el cierre).
 import { test, expect } from '@playwright/test'
@@ -236,14 +237,15 @@ test('#278 · la ficha de la unidad muestra su cadena de abastecimiento', async 
   await detalle.getByRole('button', { name: 'Cerrar' }).click()
 })
 
-// 3) Compactos #256: Precios · Celulares · Comparador con barra del módulo
-// (identidad + acciones) y sin desborde en móvil.
-test('#278 · compactos de Precios, Celulares y Comparador', async ({ page }) => {
+// 3) Compactos #256: Precios · Celulares · Comparador (INV) y Autorizaciones
+// (FIN) con barra del módulo (identidad + acciones) y sin desborde en móvil.
+test('#278 · compactos de Precios, Celulares, Comparador y Autorizaciones', async ({ page }) => {
   mkdirSync(DIR, { recursive: true })
   const pantallas = [
     { ruta: '/precios', barra: 'barra-precios', extra: 'Nueva lista' },
     { ruta: '/celulares', barra: 'barra-celulares', extra: 'Comparar' },
     { ruta: '/comparador', barra: 'barra-comparador', extra: 'Semi-nuevos' },
+    { ruta: '/autorizaciones', barra: 'barra-autorizaciones', extra: 'Actualizar' },
   ]
   for (const pantalla of pantallas) {
     await page.setViewportSize({ width: 1280, height: 900 })

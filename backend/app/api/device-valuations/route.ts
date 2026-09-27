@@ -2,7 +2,8 @@ import { Prisma, ProductCondition } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { canAccessAny, requireSession } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
-import { InputError, INT_MAX, objectInput, textInput } from '../../../lib/payment-input'
+import { InputError, objectInput, textInput } from '../../../lib/payment-input'
+import { LIMITE_MONTO_GENERAL, numero, numeroOpcional } from '../../../lib/montos'
 import { diffCampos } from '../../../lib/audit'
 
 const CONDITIONS = Object.values(ProductCondition)
@@ -35,7 +36,7 @@ const notesInput = (value: unknown) => {
 
 const moneyInput = (value: unknown, name: string) => {
   const number = typeof value === 'number' || typeof value === 'string' && value.trim() !== '' ? Number(value) : NaN
-  if (!Number.isSafeInteger(number) || number <= 0 || number > INT_MAX) throw new InputError(`${name} debe ser un entero positivo.`)
+  if (!Number.isSafeInteger(number) || number <= 0 || number > LIMITE_MONTO_GENERAL) throw new InputError(`${name} debe ser un entero positivo.`)
   return number
 }
 
@@ -85,7 +86,7 @@ export async function POST(request: Request) {
       isActive: body.isActive ?? true, createdById: session.user.id,
     } })
     await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'DEVICE_VALUATION_CREATED', entity: 'DeviceValuation', entityId: created.id,
-      metadata: { model: created.model, storage: created.storage, condition: created.condition, baseValuePyg: created.baseValuePyg, maxValuePyg: created.maxValuePyg } } })
+      metadata: { model: created.model, storage: created.storage, condition: created.condition, baseValuePyg: numero(created.baseValuePyg), maxValuePyg: numeroOpcional(created.maxValuePyg) } } })
     return json(created, { status: 201 })
   } catch (cause) {
     if (cause instanceof Prisma.PrismaClientKnownRequestError && cause.code === 'P2002') return error('Ya existe un valor para ese modelo, capacidad y condición.', 409)
@@ -115,8 +116,8 @@ export async function PATCH(request: Request) {
       model: model ?? current.model,
       storage: storage ?? current.storage,
       condition: condition ?? current.condition,
-      baseValuePyg: baseValuePyg ?? current.baseValuePyg,
-      maxValuePyg: maxValuePyg === undefined ? current.maxValuePyg : maxValuePyg,
+      baseValuePyg: baseValuePyg ?? numero(current.baseValuePyg),
+      maxValuePyg: maxValuePyg === undefined ? numeroOpcional(current.maxValuePyg) : maxValuePyg,
       notes: notes === undefined ? current.notes : notes,
       isActive: isActive ?? current.isActive,
     }

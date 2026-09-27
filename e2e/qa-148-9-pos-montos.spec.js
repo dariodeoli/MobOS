@@ -1,8 +1,8 @@
 // #148 §9 · POS: un monto por encima del tope que el sistema puede guardar
-// (los importes viven en columnas de 32 bits) no puede guardarse en silencio.
-// Los campos ya lo marcan (MoneyInput); al confirmar, el guardado se bloquea y
-// el aviso dice qué monto revisar. Antes se llegaba al backend, que rechazaba
-// sin señalar el campo (reporte de Finanzas en la épica #148).
+// (ventas hasta 99.000.000.000 desde la migración bigint) no puede guardarse en
+// silencio. Los campos ya lo marcan (MoneyInput); al confirmar, el guardado se
+// bloquea y el aviso dice qué monto revisar. Antes se llegaba al backend, que
+// rechazaba sin señalar el campo (reporte de Finanzas en la épica #148).
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
 
@@ -29,16 +29,16 @@ test('POS: un precio sobre el tope bloquea el guardado y explica qué monto revi
   await tarjeta.click()
   await expect(page.getByText('Productos de esta venta')).toBeVisible()
 
-  // Precio de venta por encima del tope real (2.147.483.647): el campo lo marca.
+  // Precio de venta por encima del tope de ventas (99.000.000.000): el campo lo marca.
   await page.getByRole('button', { name: `Ver detalle de ${PRODUCTO}` }).click()
   const precio = page.getByLabel(`Precio de venta de ${PRODUCTO}`)
-  await precio.fill('5.000.000.000')
+  await precio.fill('99.000.000.001')
   await expect(precio).toHaveAttribute('aria-invalid', 'true')
 
   // Confirmar queda bloqueado con el detalle del monto y no crea el pedido.
   const antes = await contarPedidos(page)
   await page.getByTestId('pos-cobro').getByRole('button', { name: /Confirmar venta|Crear pedido|Guardar pedido/ }).click()
-  const aviso = page.getByText(/No se puede guardar: el precio de .+ \(Gs 5\.000\.000\.000\) supera el máximo que el sistema puede guardar \(Gs 2\.147\.483\.647\)\./)
+  const aviso = page.getByText(/No se puede guardar: el precio de .+ \(Gs 99\.000\.000\.001\) supera el máximo que el sistema puede guardar \(Gs 99\.000\.000\.000\)\./)
   await expect(aviso).toBeVisible()
   // El aviso queda a la vista aunque el usuario esté en el cobro (no hace
   // falta scrollear a mano para enterarse de por qué no se guardó).

@@ -21,9 +21,15 @@ test('el precio unitario por encima del tope se reporta con el nombre del produc
 })
 
 test('el total de la línea se revisa con la cantidad (no alcanza con el precio)', () => {
-  const precio = 1_500_000_000
+  const precio = 50_000_000_000
   const excesos = montosFueraDeRango({ lineas: [{ nombre: 'MacBook', precio, cantidad: 2 }] })
-  assert.deepEqual(excesos, [{ campo: 'el total de MacBook', monto: 3_000_000_000 }])
+  assert.deepEqual(excesos, [{ campo: 'el total de MacBook', monto: 100_000_000_000 }])
+})
+
+test('un monto que antes bloqueaba el tope de 32 bits ahora entra', () => {
+  // #148 §9 · migración bigint: 3.000 millones ya no se marca.
+  const excesos = montosFueraDeRango({ lineas: [{ nombre: 'iPhone 15', precio: 3_000_000_000, cantidad: 1 }], totalGeneral: 3_000_000_000, totalPagado: 3_000_000_000 })
+  assert.deepEqual(excesos, [])
 })
 
 test('pagos, descuento, envío y totales también se revisan', () => {
@@ -45,15 +51,15 @@ test('pagos, descuento, envío y totales también se revisan', () => {
 })
 
 test('el mensaje nombra el primer monto, el tope real y los que faltan', () => {
-  const unico = mensajeMontosFueraDeRango([{ campo: 'el precio de iPhone 15', monto: 5_000_000_000 }])
-  assert.match(unico, /^No se puede guardar: el precio de iPhone 15 \(Gs 5\.000\.000\.000\) supera el máximo que el sistema puede guardar \(Gs 2\.147\.483\.647\)\./)
+  const unico = mensajeMontosFueraDeRango([{ campo: 'el precio de iPhone 15', monto: 99_000_000_001 }])
+  assert.match(unico, /^No se puede guardar: el precio de iPhone 15 \(Gs 99\.000\.000\.001\) supera el máximo que el sistema puede guardar \(Gs 99\.000\.000\.000\)\./)
   assert.match(unico, /Bajá el monto para continuar\.$/)
   assert.doesNotMatch(unico, /Revisá también/)
 
   const varios = mensajeMontosFueraDeRango([
-    { campo: 'el precio de iPhone 15', monto: 5_000_000_000 },
-    { campo: 'el pago 1', monto: 3_000_000_000 },
-    { campo: 'lo pagado', monto: 3_000_000_000 },
+    { campo: 'el precio de iPhone 15', monto: 99_000_000_001 },
+    { campo: 'el pago 1', monto: 99_000_000_002 },
+    { campo: 'lo pagado', monto: 99_000_000_003 },
   ])
   assert.match(varios, /Revisá también 2 montos más\.$/)
 })

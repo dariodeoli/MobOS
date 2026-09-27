@@ -71,14 +71,16 @@ test('el largo máximo del monto sale del tope permitido', () => {
   assert.equal(largoMaximoMonto(1000), 5)
 })
 
-test('el tope almacenable acota los límites y da el mensaje de bloqueo', () => {
-  assert.equal(limiteMonto(), LIMITE_MONTO_ALMACENABLE, 'sin límite propio manda el tope real')
-  assert.equal(limiteMonto(LIMITE_MONTO_GENERAL), LIMITE_MONTO_ALMACENABLE, '10B se acota a lo almacenable')
+test('el tope real de almacenamiento ya no recorta los topes de producto', () => {
+  assert.equal(LIMITE_MONTO_ALMACENABLE, LIMITE_MONTO_VENTAS, 'las columnas bigint guardan hasta el tope de ventas')
+  assert.equal(limiteMonto(), LIMITE_MONTO_GENERAL, 'sin límite propio manda el general')
+  assert.equal(limiteMonto(LIMITE_MONTO_GENERAL), LIMITE_MONTO_GENERAL, '10B entra completo')
+  assert.equal(limiteMonto(LIMITE_MONTO_VENTAS), LIMITE_MONTO_VENTAS, '99B entra completo')
   assert.equal(limiteMonto(1_000_000), 1_000_000, 'un límite menor se respeta')
   assert.equal(limiteMonto('invalido'), LIMITE_MONTO_ALMACENABLE)
   assert.equal(errorMonto(2_000_000_000), '', 'dos mil millones entran')
-  assert.match(errorMonto(3_000_000_000), /máximo que el sistema puede guardar/)
-  assert.match(errorMonto('3.000.000.000'), /máximo que el sistema puede guardar/)
-  // Las ventas siguen acotadas al tope real aunque su límite de producto sea 99B.
-  assert.match(errorMonto(3_000_000_000, LIMITE_MONTO_VENTAS), /máximo que el sistema puede guardar/)
+  assert.equal(errorMonto(3_000_000_000), '', 'un monto antes bloqueado ahora entra')
+  assert.equal(errorMonto(10_000_000_001), 'El monto supera el máximo que el sistema puede guardar (Gs 10.000.000.000).')
+  assert.equal(errorMonto(100_000_000, LIMITE_MONTO_VENTAS), '', 'las ventas admiten hasta 99B')
+  assert.equal(errorMonto(99_000_000_001, LIMITE_MONTO_VENTAS), 'El monto supera el máximo que el sistema puede guardar (Gs 99.000.000.000).')
 })

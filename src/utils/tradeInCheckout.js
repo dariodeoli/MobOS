@@ -1,5 +1,7 @@
 // Clave de comparación del modelo: sin mayúsculas, sin acentos y con espacios
 // simples. Debe coincidir con la `modelKey` que guarda DeviceValuation.
+import { LIMITE_MONTO_GENERAL } from './moneda.js'
+
 export const normalizarModelo = value => String(value ?? '')
   .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
 
@@ -48,7 +50,7 @@ export function tradeInDraftPayment(draft, accounts, payments = []) {
   const account = accounts.find(a => a.isActive && a.kind === 'TRADE_IN' && a.currency === 'PYG')
   if (!account) throw new Error('El administrador debe configurar una cuenta activa Canje / Trade-In en Gs antes de continuar.')
   if (!draft?.model?.trim() || !draft?.imei?.trim() || !draft?.conditionNotes?.trim()) throw new Error('Completá modelo, IMEI y condición del equipo recibido.')
-  if (!Number.isSafeInteger(draft.value) || draft.value <= 0 || draft.value > 2147483647) throw new Error('El valor de toma debe ser un monto válido en Gs.')
+  if (!Number.isSafeInteger(draft.value) || draft.value <= 0 || draft.value > LIMITE_MONTO_GENERAL) throw new Error('El valor de toma debe ser un monto válido en Gs.')
   const serial = draft.imei.trim()
   const serialKey = value => String(value || '').toUpperCase().replace(/[\s-]+/g, '')
   if (payments.some(p => p.tradeIn && serialKey(p.tradeIn.serial) === serialKey(serial))) throw new Error('Ese IMEI ya está incluido como parte de pago en esta venta.')

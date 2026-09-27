@@ -3,6 +3,7 @@ import { error, json, tenantId } from '../../../../../../lib/http'
 import { requireSession } from '../../../../../../lib/auth'
 import { InputError, objectInput, textInput } from '../../../../../../lib/payment-input'
 import { assertCollectionWithinBalance, canUseDelivery, deliveryMethod } from '../../../../../../lib/delivery'
+import { numero } from '../../../../../../lib/montos'
 
 // Pre-cobro del repartidor en la calle: parcial o total, efectivo o
 // transferencia. Nace PENDING (no entra a caja ni cierra el pedido) y viaja en
@@ -25,7 +26,7 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
     const payment = await prisma.$transaction(async tx => {
       // La fila del pedido se bloquea: dos cobros concurrentes del mismo
       // repartidor no pueden pasar los dos el control de saldo.
-      const locked = await tx.$queryRaw<Array<{ id: string; status: string; totalPyg: number; orderNumber: string; assignedToId: string | null }>>`
+      const locked = await tx.$queryRaw<Array<{ id: string; status: string; totalPyg: bigint | number; orderNumber: string; assignedToId: string | null }>>`
         SELECT "id", "status", "totalPyg", "orderNumber", "assignedToId" FROM "Order"
         WHERE "id" = ${orderId} AND "tenantId" = ${tenant} FOR UPDATE
       `
@@ -35,13 +36,13 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
       if (idempotencyKey) {
         const previous = await tx.payment.findUnique({ where: { tenantId_idempotencyKey: { tenantId: tenant, idempotencyKey } } })
         if (previous) {
-          if (previous.orderId !== order.id || previous.amountPyg !== amountPyg || previous.method !== method || previous.deliveryUserId !== session.user.id) throw new InputError('El identificador ya pertenece a otro cobro.', 409)
+          if (previous.orderId !== order.id || numero(previous.amountPyg) !== amountPyg || previous.method !== method || previous.deliveryUserId !== session.user.id) throw new InputError('El identificador ya pertenece a otro cobro.', 409)
           return previous
         }
       }
       const totales = await tx.payment.groupBy({ by: ['status'], where: { tenantId: tenant, orderId: order.id, status: { in: ['CONFIRMED', 'PENDING'] } }, _sum: { amountPyg: true } })
-      const confirmado = totales.find(row => row.status === 'CONFIRMED')?._sum.amountPyg || 0
-      const preCobrado = totales.find(row => row.status === 'PENDING')?._sum.amountPyg || 0
+      const confirmado = numero(totales.find(row => row.status === 'CONFIRMED')?._sum.amountPyg)
+      const preCobrado = numero(totales.find(row => row.status === 'PENDING')?._sum.amountPyg)
       assertCollectionWithinBalance(order.totalPyg, confirmado, preCobrado, amountPyg)
       const created = await tx.payment.create({
         data: { tenantId: tenant, orderId: order.id, method, status: 'PENDING', amountPyg, reference, deliveryUserId: session.user.id, collectedAt: new Date(), userId: session.user.id, createdById: session.user.id, idempotencyKey },

@@ -1,4 +1,5 @@
 import { Prisma, type Payment, type PaymentAccount, type PaymentMethod, type PaymentStatus } from '@prisma/client'
+import { LIMITE_MONTO_VENTAS, numero } from './montos'
 
 export const INT_MAX = 2147483647
 export class InputError extends Error {
@@ -66,13 +67,13 @@ export async function normalizePayment(tx: Prisma.TransactionClient, tenantId: s
     const exchangeRatePyg = decimalInput(input.exchangeRatePyg ?? (currency === 'PYG' ? 1 : undefined), 'exchangeRatePyg', 6)
     if (currency === 'PYG' && !exchangeRatePyg.eq(1)) throw new InputError('La cotización PYG debe ser 1.')
     const converted = originalAmount.mul(exchangeRatePyg).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
-    if (converted.lt(1) || converted.gt(INT_MAX)) throw new InputError('El monto convertido supera el máximo que el sistema puede guardar (Gs 2.147.483.647).')
+    if (converted.lt(1) || converted.gt(LIMITE_MONTO_VENTAS)) throw new InputError(`El monto convertido supera el máximo que el sistema puede guardar (Gs ${LIMITE_MONTO_VENTAS.toLocaleString('es-PY')}).`)
     result = { accountId, accountSnapshot: snapshot, currency, originalAmount, exchangeRatePyg, method,
       amountPyg: converted.toNumber(), status: status as PaymentStatus, reference }
   } else {
     if (input.originalAmount !== undefined || input.exchangeRatePyg !== undefined || input.currency !== undefined) throw new InputError('Los campos de moneda requieren accountId.')
     const amountPyg = Number(input.amountPyg)
-    if (!Number.isSafeInteger(amountPyg) || amountPyg <= 0 || amountPyg > INT_MAX || !['CASH', 'TRANSFER', 'CARD', 'CREDIT', 'TRADE_IN', 'PIX', 'STORE_CREDIT'].includes(input.method as string)) throw new InputError('El monto debe ser un entero positivo hasta 2.147.483.647 y el método tiene que ser válido.')
+    if (!Number.isSafeInteger(amountPyg) || amountPyg <= 0 || amountPyg > LIMITE_MONTO_VENTAS || !['CASH', 'TRANSFER', 'CARD', 'CREDIT', 'TRADE_IN', 'PIX', 'STORE_CREDIT'].includes(input.method as string)) throw new InputError(`El monto debe ser un entero positivo hasta ${LIMITE_MONTO_VENTAS.toLocaleString('es-PY')} y el método tiene que ser válido.`)
     result = { amountPyg, method: input.method as PaymentMethod, status: status as PaymentStatus, reference }
   }
   // Previsión de acreditación: medios con settlementDays (tarjeta, PIX) tienen
@@ -100,16 +101,17 @@ export async function normalizePayment(tx: Prisma.TransactionClient, tenantId: s
 
 export function matchesPayment(previous: Payment, next: NormalizedPayment, orderId: string) {
   return previous.orderId === orderId && previous.method === next.method && previous.status === next.status
-    && previous.amountPyg === next.amountPyg && (previous.reference || '') === (next.reference || '')
+    && numero(previous.amountPyg) === next.amountPyg && (previous.reference || '') === (next.reference || '')
     && (previous.accountId ?? null) === (next.accountId ?? null) && (previous.currency ?? null) === (next.currency ?? null)
     && (previous.originalAmount == null ? next.originalAmount === undefined : next.originalAmount !== undefined && previous.originalAmount.eq(next.originalAmount))
     && (previous.exchangeRatePyg == null ? next.exchangeRatePyg === undefined : next.exchangeRatePyg !== undefined && previous.exchangeRatePyg.eq(next.exchangeRatePyg))
     && (previous.dueAt?.getTime() ?? null) === (next.dueAt?.getTime() ?? null)
 }
 
-export async function receiveTradeIn(tx: Prisma.TransactionClient, input: TradeInInput | undefined, payment: { id: string; amountPyg: number }, order: { id: string; branchId: string | null }, tenantId: string, userId: string) {
+export async function receiveTradeIn(tx: Prisma.TransactionClient, input: TradeInInput | undefined, payment: { id: string; amountPyg: bigint | number }, order: { id: string; branchId: string | null }, tenantId: string, userId: string) {
   if (!input) return
-  const device = await tx.tradeInDevice.create({ data: { ...input, tenantId, branchId: order.branchId, orderId: order.id, paymentId: payment.id, valuePyg: payment.amountPyg } })
+  const valuePyg = numero(payment.amountPyg)
+  const device = await tx.tradeInDevice.create({ data: { ...input, tenantId, branchId: order.branchId, orderId: order.id, paymentId: payment.id, valuePyg } })
   await tx.auditLog.create({ data: { tenantId, userId, action: 'TRADE_IN_RECEIVED', entity: 'TradeInDevice', entityId: device.id,
-    metadata: { orderId: order.id, paymentId: payment.id, serial: input.serial, valuePyg: payment.amountPyg, status: 'RECEIVED' } } })
+    metadata: { orderId: order.id, paymentId: payment.id, serial: input.serial, valuePyg, status: 'RECEIVED' } } })
 }

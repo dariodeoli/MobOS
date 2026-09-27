@@ -7,11 +7,13 @@ import { resolveCustomerId } from '../../../lib/customer-link'
 import { error, json, tenantId } from '../../../lib/http'
 import { canAccessAny, requireSession } from '../../../lib/auth'
 import { InputError, objectInput, textInput } from '../../../lib/payment-input'
+import { LIMITE_MONTO_GENERAL, numeroOpcional } from '../../../lib/montos'
 
 // Pipeline del taller: el estado avanza en este orden y ENTREGADO cierra la orden.
 const STATUS = ['RECIBIDO', 'DIAGNOSTICO', 'CON_TECNICO', 'ESPERANDO_REPUESTO', 'REPARADO', 'LISTO', 'ENTREGADO', 'CANCELADO']
-const INT_MAX = 2147483647
-const safeInt = (value: unknown, minimum = 0): value is number => Number.isSafeInteger(value) && (value as number) >= minimum && (value as number) <= INT_MAX
+// Los montos del taller (precio y costos) usan el tope general de dinero (§9).
+const LIMITE_MONTO = LIMITE_MONTO_GENERAL
+const safeInt = (value: unknown, minimum = 0): value is number => Number.isSafeInteger(value) && (value as number) >= minimum && (value as number) <= LIMITE_MONTO
 const clean = (value: unknown, max: number) => typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null
 
 const USO_DESBLOQUEO = 'service-order-unlock'
@@ -27,7 +29,7 @@ const costoOpcional = (valor: unknown): number | null | undefined => {
   if (valor === undefined) return undefined
   if (valor === null || valor === '') return null
   const numero = Number(valor)
-  if (!Number.isSafeInteger(numero) || numero < 0 || numero > INT_MAX) throw new InputError('El costo debe ser un entero válido.')
+  if (!Number.isSafeInteger(numero) || numero < 0 || numero > LIMITE_MONTO) throw new InputError('El costo debe ser un entero válido.')
   return numero
 }
 const usaDesglose = (parts: number | null | undefined, labor: number | null | undefined, other: number | null | undefined) => [parts ?? 0, labor ?? 0, other ?? 0].some(valor => valor > 0)
@@ -192,9 +194,9 @@ export async function PATCH(request: Request) {
     const otherCostPyg = costoOpcional(body.otherCostPyg)
     const tocaDesglose = [partsPyg, laborPyg, otherCostPyg].some(valor => valor !== undefined)
     const desglose = {
-      partsPyg: partsPyg === undefined ? existing.partsPyg : partsPyg,
-      laborPyg: laborPyg === undefined ? existing.laborPyg : laborPyg,
-      otherCostPyg: otherCostPyg === undefined ? existing.otherCostPyg : otherCostPyg,
+      partsPyg: partsPyg === undefined ? numeroOpcional(existing.partsPyg) : partsPyg,
+      laborPyg: laborPyg === undefined ? numeroOpcional(existing.laborPyg) : laborPyg,
+      otherCostPyg: otherCostPyg === undefined ? numeroOpcional(existing.otherCostPyg) : otherCostPyg,
     }
     const costoTotal = usaDesglose(desglose.partsPyg, desglose.laborPyg, desglose.otherCostPyg)
       ? (desglose.partsPyg ?? 0) + (desglose.laborPyg ?? 0) + (desglose.otherCostPyg ?? 0)

@@ -6,6 +6,7 @@ import { consolidarNecesidades, normalizarNecesidadManual, prioridadMayor, NECES
 import { normalizarCentro, prioridadPorPromesa } from '../../../../lib/supply-demand'
 import { puedeVerCliente } from '../../../../lib/supply-customer'
 import { costoEstimadoDeNecesidad, margenEstimadoDeNecesidad, prioridadDeNecesidad } from '../../../../lib/supply-priority'
+import { numeroOpcional } from '../../../../lib/montos'
 
 // #250 Fase 1 (Centro de Abastecimiento): API del panel «Por comprar».
 //
@@ -79,7 +80,7 @@ export async function GET(request: Request) {
     const precioUnitarioPyg = item
       ? (Number(item.unitPricePyg) > 0 ? Number(item.unitPricePyg) : Math.round(Number(item.totalPyg) / Math.max(1, Number(item.quantity) || 1)))
       : null
-    const costoUnitarioPyg = fila.product?.costPyg ?? null
+    const costoUnitarioPyg = numeroOpcional(fila.product?.costPyg)
     const costoEstimadoPyg = costoEstimadoDeNecesidad({ costoUnitarioPyg, cantidad: fila.quantity })
     const margenEstimadoPyg = margenEstimadoDeNecesidad({ precioUnitarioPyg, costoUnitarioPyg, cantidad: fila.quantity })
     // Prioridad efectiva: la guardada (que ya escalona al crear, motor #250 o
