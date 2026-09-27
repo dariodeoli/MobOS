@@ -1377,20 +1377,10 @@ export default function FormularioVenta({
     setPagos(arr => [
       ...arr,
       usaCuentas
-        // Con cuentas, el monto se edita en `originalAmount` (moneda de la
-        // cuenta): «Dividir saldo» precarga ahí el saldo que falta (#187).
-        // Última cuenta usada como predeterminada (#209).
-        ? {
-            ...PAGO_VACIO,
-            // #272: al agregar el pago viene la última cuenta usada y, si no
-            // hay, la primera cuenta activa (no obliga a buscar). El selector
-            // lista todas (la API no pagina) y scrollea en mobile.
-            accountId: (cuentas || []).find(c => c.id === preferenciaPos('cuenta') && c.isActive)?.id
-              || (cuentas || []).find(c => c.isActive && ['USD', 'PYG', 'BRL'].includes(c.currency))?.id
-              || '',
-            originalAmount: prefill.monto ? String(prefill.monto) : '',
-            exchangeRatePyg: '',
-          }
+        // #283: el pago arranca SIN cuenta (la predeterminada de #272 se
+        // elimina) y el monto se edita en `originalAmount` (moneda de la
+        // cuenta): al elegirla se propone el saldo que falta.
+        ? { ...PAGO_VACIO, accountId: '', originalAmount: '', exchangeRatePyg: '' }
         : { ...PAGO_VACIO, monto: prefill.monto ? String(prefill.monto) : pendiente > 0 ? String(pendiente) : '' },
     ])
   }
@@ -1431,8 +1421,9 @@ export default function FormularioVenta({
     }
   }
 
-  // Último usado como predeterminado en la venta (#209): la cuenta de cobro y
-  // el tipo de entrega se recuerdan solos; un borrador retomado manda.
+  // Último usado como predeterminado en la venta (#209): el tipo de entrega se
+  // recuerda solo; un borrador retomado manda. La cuenta de cobro dejó de
+  // recordarse (#283: se elige a propósito y el selector desaparece al elegir).
   useEffect(() => {
     if (cartInicial) return
     const ultima = preferenciaPos('entrega')
@@ -1441,10 +1432,6 @@ export default function FormularioVenta({
   useEffect(() => {
     if (f.entrega) recordarPos('entrega', f.entrega)
   }, [f.entrega])
-  useEffect(() => {
-    const ultima = [...pagos].reverse().find(pago => pago.accountId)?.accountId
-    if (ultima) recordarPos('cuenta', ultima)
-  }, [pagos])
 
   // ── Ventas suspendidas ──────────────────────────────────────────────
   const carritoConDatos = Boolean(
