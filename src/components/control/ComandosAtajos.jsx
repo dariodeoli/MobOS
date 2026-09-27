@@ -3,10 +3,11 @@ import { Card } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 
 // Sección «Comandos y atajos» de Ayuda (#IA · #251): todo lo que se puede hacer
-// con el teclado o con el chip de usuario, cada uno con el enlace a la pantalla
+// con el teclado, tu perfil o el candado del header, cada uno con el enlace a la pantalla
 // donde funciona. Los atajos del panel viven en PanelVendedor (Ctrl/Cmd+K y
 // F1–F4) y los del POS en FormularioVenta (F2 y Ctrl/Cmd+S); el chip de usuario
-// está en AppShell (1 clic cambia de vendedor, triple clic bloquea).
+// y el candado están en AppShell (#266: el chip va a Mi perfil y el candado
+// bloquea; cambiar de vendedor vive en la pantalla bloqueada).
 const ATAJOS = [
   {
     tecla: 'Ctrl + K', mac: 'Cmd + K', titulo: 'Búsqueda global',
@@ -44,13 +45,13 @@ const ATAJOS = [
     ruta: '/pos', pantalla: 'Panel',
   },
   {
-    tecla: '1 clic', titulo: 'Cambiar de vendedor',
-    detalle: 'Un clic en el chip de usuario de la barra lateral abre el cambio de vendedor: se confirma con su PIN.',
+    tecla: '1 clic', titulo: 'Mi perfil',
+    detalle: 'Un clic en tu foto o nombre (barra lateral) abre Mi perfil para editar tus datos y preferencias.',
     ruta: '/pos', pantalla: 'Panel',
   },
   {
-    tecla: 'Triple clic', titulo: 'Bloquear pantalla',
-    detalle: 'Tres clics seguidos en el chip de usuario bloquean la pantalla; se desbloquea con tu PIN.',
+    tecla: '1 clic', titulo: 'Bloquear pantalla',
+    detalle: 'El candado del header bloquea la pantalla al instante; se desbloquea con tu PIN. Desde ahí también podés cambiar de vendedor.',
     ruta: '/pos', pantalla: 'Panel',
   },
 ]
