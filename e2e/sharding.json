@@ -36,7 +36,7 @@
         "qa-241-servicio-v2.spec.js",
         "qa-249-inventario-touch.spec.js",
         "qa-249-pos-touch.spec.js",
-        "qa-f6-metricas-abastecimiento.spec.js",
+        "qa-268-unificar-clientes.spec.js",
         "repuestos-proveedores.spec.js",
         "selector-sucursal.spec.js",
         "servicio-tecnico.spec.js",
@@ -78,13 +78,14 @@
         "qa-249-clientes-touch.spec.js",
         "qa-250-buscador-dependiente.spec.js",
         "qa-250-escaneo-recepcion.spec.js",
+        "qa-f6-metricas-abastecimiento.spec.js",
         "redireccion-248.spec.js",
         "ruc-demo.spec.js",
         "ruc-extraccion.spec.js",
         "sesion-bloqueo.spec.js",
         "vendidos-comprobante-rapido.spec.js"
       ],
-      "tests": 166
+      "tests": 167
     },
     {
       "archivos": [
@@ -131,5 +132,5 @@
       "tests": 166
     }
   ],
-  "generado": "2026-09-26T23:41:55.497Z"
+  "generado": "2026-09-27T00:04:46.368Z"
 }
