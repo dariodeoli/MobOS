@@ -1,7 +1,10 @@
 {
-  "fecha": "2026-09-27T00:01:23.976Z",
+  "fecha": "2026-09-27T00:10:31.531Z",
   "base": "https://app.moboss.online",
+  "modo": "produccion",
   "version": "1.0.186",
+  "sesionReal": false,
+  "storageState": null,
   "resultados": [
     {
       "nombre": "Producción responde y el bundle expone la versión",
