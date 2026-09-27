@@ -179,6 +179,9 @@ export default function Impresoras() {
   const [probandoId, setProbandoId] = useState(null)
   const [progreso, setProgreso] = useState('')
   const [pruebaDe, setPruebaDe] = useState(null) // impresora del modal de prueba
+  // Intención del modal de la ficha: «probar» (default) o «plantilla» (#277):
+  // el mismo editor, con el título que corresponda al punto de entrada.
+  const [pruebaIntencion, setPruebaIntencion] = useState('probar')
   const [eliminarId, setEliminarId] = useState(null)
   const [verColaAbierta, setVerColaAbierta] = useState(false)
   const [filtroActividad, setFiltroActividad] = useState('')
@@ -563,7 +566,8 @@ export default function Impresoras() {
     }
   }
 
-  function probar(impresora) {
+  function probar(impresora, intencion = 'probar') {
+    setPruebaIntencion(intencion)
     setPruebaDe(impresora)
   }
 
@@ -1068,6 +1072,7 @@ export default function Impresoras() {
                 <div className="flex flex-wrap items-center gap-2">
                   <Button type="button" onClick={() => probar(impresora)} disabled={Boolean(probandoId) || !impresora.activa}>{probandoId === impresora.id ? 'Enviando…' : 'Imprimir prueba'}</Button>
                   <Button type="button" variant="outline" onClick={() => abrirFormulario(impresora)}>Editar</Button>
+                  <Button type="button" variant="ghost" title="Ajustar la plantilla del ticket de prueba" onClick={() => probar(impresora, 'plantilla')} disabled={Boolean(probandoId) || !impresora.activa}>Plantilla</Button>
                   <Button type="button" variant="ghost" onClick={() => diagnosticar(impresora)}>Diagnóstico</Button>
                   <Button type="button" variant="ghost" onClick={() => setFiltroActividad(impresora.destino)}>Ver actividad</Button>
                   <span className="ml-auto" />
@@ -1307,6 +1312,7 @@ export default function Impresoras() {
           onCerrar={() => setPruebaDe(null)}
           onEnviar={enviarPrueba}
           onGuardarPlantilla={(plantilla) => guardarPlantillaDePrueba(pruebaDe, plantilla)}
+          intencion={pruebaIntencion}
         />
       )}
 
@@ -1768,10 +1774,16 @@ function hojaDeTicket(texto) {
   return `<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#fff}pre{margin:0;padding:10px 8px;font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#111}</style></head><body><pre>${seguro}</pre></body></html>`
 }
 
-function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, tokenPista, equipo, enviando, progreso, onCerrar, onEnviar, onGuardarPlantilla }) {
+function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, tokenPista, equipo, enviando, progreso, onCerrar, onEnviar, onGuardarPlantilla, intencion = 'probar' }) {
   const [turno, setTurno] = useState(0) // regenera el ticket (y su número de 4 dígitos)
   const [verPrevia, setVerPrevia] = useState(true)
   const [guardando, setGuardando] = useState(false)
+  const refPlantilla = useRef(null)
+  // Entrada «Plantilla» de la ficha (#277): se arranca en el editor, no en el
+  // botón de imprimir.
+  useEffect(() => {
+    if (intencion === 'plantilla') refPlantilla.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }, [intencion])
   // Plantilla de la prueba (#277): manda la guardada en la impresora (viaja
   // entre dispositivos); si no hay, la memoria local; si tampoco, la
   // configuración de la impresora con el ticket corto como predeterminado.
@@ -1824,7 +1836,7 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
   )
   const hoja = useMemo(() => hojaDeTicket(ticket.lineas().join('')), [ticket])
   return (
-    <Modal open onClose={enviando ? undefined : onCerrar} title={`Probar: ${impresora.nombre}`} size="formulario">
+    <Modal open onClose={enviando ? undefined : onCerrar} title={intencion === 'plantilla' ? `Plantilla: ${impresora.nombre}` : `Probar: ${impresora.nombre}`} size="formulario">
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-600 p-3">
           <Badge color={chip.color} title={verificacion || undefined}>{chip.label}</Badge>
@@ -1838,7 +1850,7 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
         {plantilla.tipo === 'breve' && (
           <p className="-mt-2 text-xs text-mute">El ticket corto es el <b className="text-fore">predeterminado</b>: solo título y validación, menos papel. Activá «Fecha y hora» si lo necesitás.</p>
         )}
-        <section className="space-y-3" data-testid="plantilla-prueba" aria-label="Plantilla de la prueba">
+        <section ref={refPlantilla} className="space-y-3" data-testid="plantilla-prueba" aria-label="Plantilla de la prueba">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h4 className={ROTULO_SECCION}>Plantilla de la prueba</h4>
             {sinCambios && guardadaEnServidor && <Badge color="blue">Guardada en esta impresora</Badge>}

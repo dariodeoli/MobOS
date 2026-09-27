@@ -18,6 +18,7 @@ test.describe('plantilla del ticket de prueba', () => {
   test('ADMIN edita la plantilla, la guarda y el ticket corto es el predeterminado', async ({ page }) => {
     test.setTimeout(120_000)
     await page.goto('/configuracion/dispositivos')
+    const nombre = `Térmica plantilla E2E ${Date.now()}`
     // Impresora propia de la prueba (idempotente por destino): la base e2e se
     // reutiliza entre corridas.
     await page.evaluate(
@@ -33,11 +34,19 @@ test.describe('plantilla del ticket de prueba', () => {
           })
         }
       },
-      { api: API, nombre: `Térmica plantilla E2E ${Date.now()}`, destino: DESTINO },
+      { api: API, nombre, destino: DESTINO },
     )
     await page.reload()
     const tarjeta = tarjetaDe(page, DESTINO)
     await expect(tarjeta).toBeVisible({ timeout: 20_000 })
+
+    // Entrada «Plantilla» de la ficha (#277): el mismo editor, con su título.
+    await tarjeta.getByRole('button', { name: 'Plantilla', exact: true }).click()
+    await expect(page.getByRole('dialog', { name: `Plantilla: ${nombre}` })).toBeVisible()
+    await expect(page.getByRole('dialog').getByTestId('plantilla-prueba')).toBeVisible()
+    await page.getByRole('dialog').getByRole('button', { name: 'Cancelar' }).click()
+    await expect(page.getByRole('dialog')).toBeHidden()
+
     await tarjeta.getByRole('button', { name: 'Imprimir prueba' }).click()
     const dialogo = page.getByRole('dialog')
     const editor = dialogo.getByTestId('plantilla-prueba')
