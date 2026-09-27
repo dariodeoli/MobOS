@@ -597,12 +597,6 @@ export default function PanelVendedor() {
     ? vendedores
     : [{ id: sesion?.vendedorId, name: sesion?.nombre }]
 
-  function abrirCambio() {
-    setSellerId(sesion?.vendedorId || opcionesVendedor[0]?.id || '')
-    setPin('')
-    setCambiarAbierto(true)
-  }
-
   function pedirBloqueo() {
     setLockPin('')
     setLockError('')
@@ -776,11 +770,10 @@ export default function PanelVendedor() {
         esOwner={esOwner}
         usuario={usuario}
         perfilEmpresa={perfilEmpresa}
-        onSwitchUser={abrirCambio}
         onMiCuenta={() => ir('mi-cuenta')}
         onLogout={() => setSalirAbierto(true)}
         onLockRequest={pedirBloqueo}
-        menuAcciones
+        notificacionesActivas
         onAbrirNotificacion={(href) => navigate(href)}
         onSearch={() => setBusquedaAbierta(true)}
         onHelp={() => setAyudaAbierto(true)}
