@@ -150,3 +150,23 @@ Fix real en `qa-148-16-menciones`: contexto **anónimo explícito**
 (`storageState: { cookies: [], origins: [] }`) y aserciones de que el cliente sin
 sesión no ve el texto ni la etiqueta internos **y** que la ruta interna pide
 sesión (login visible). Verificado **2/2 con `--repeat-each=2`**.
+
+## Cierre post-deploy (27/09) — racha 2/3
+
+`npm run ci:guardia -- --minimo 3` → **2 corridas completas verdes** consecutivas:
+
+- ✓ `36309571830` · `55bd713` · **v1.0.192**
+- ✓ `36307554917` · `66c2b79` · **v1.0.191**
+- ✘ `36305292290` / `36304471742` · `3d048b2` / `e30aa78` (flake del subárbol
+  perezoso del POS al simular offline, corregido)
+
+**Falta 1 verde** para el hito de 3. Todos los fixes de la saga quedaron dentro de
+los releases: guardianes (menciones con contexto anónimo, IMEI con entropía),
+job de integración con dependencias raíz y el ancla de POS compatible.
+
+## #271 cerrada con verificación en producción
+
+Post-deploy v1.0.191: `docs/qa/271-avatar-produccion/` (**verificado** — la foto
+vieja no se pinta en el shell ni al recargar el bloqueo, 17 muestras de `src`) +
+e2e de superficies con prueba negativa y videos en
+`docs/qa/271-avatar-sin-flash/`. Sin pendientes abiertos del lado plataforma.
