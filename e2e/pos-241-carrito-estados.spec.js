@@ -20,7 +20,7 @@ async function crearCupon(page) {
 
 test('la linea del carrito muestra su estado y sus chips (#241)', async ({ page }) => {
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente estados ${Date.now().toString(36)}`)
   const buscar = page.getByPlaceholder('Buscar producto…')
   const filas = page.locator('#pos-resumen-venta .divide-y > div')
@@ -66,7 +66,7 @@ test('la linea del carrito muestra su estado y sus chips (#241)', async ({ page 
 
 test('los bloques de cobro muestran su estado (pagado / no pagado) (#241)', async ({ page }) => {
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'POS', level: 1 })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente bloques ${Date.now().toString(36)}`)
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()

@@ -99,7 +99,8 @@ test('un pedido cubierto no genera demanda', () => {
 })
 
 test('la reserva sin unidad genera RESERVATION_NO_STOCK solo por la diferencia', () => {
-  const demanda = demandaDeReserva({ productId: 'prod-3', branchId: 'branch-1', faltante: 2, customerName: 'Ana', reservedUntil: '2026-09-26T18:00:00.000Z' })
+  const ahora = new Date('2026-09-26T12:00:00.000Z')
+  const demanda = demandaDeReserva({ productId: 'prod-3', branchId: 'branch-1', faltante: 2, customerName: 'Ana', reservedUntil: '2026-09-26T18:00:00.000Z', ahora })
   assert.ok(demanda)
   assert.equal(demanda.source, 'RESERVATION_NO_STOCK')
   assert.equal(demanda.quantity, 2)

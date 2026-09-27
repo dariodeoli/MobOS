@@ -45,6 +45,7 @@ import {
   Modal,
 } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import ModuleToolbar from '@/components/shared/ModuleToolbar'
 import { parsePercent } from '@/components/shared/PercentField'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
@@ -1605,53 +1606,18 @@ export default function FormularioVenta({
 
   return (
     <Card className="p-4 md:p-5">
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-b border-ink-600 pb-4">
-        <div className="flex items-center gap-2">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-fono/10 text-fono-light">
-            <Icon name="receipt" className="h-5 w-5" />
-          </span>
-          <div>
-            <h2 className="text-lg font-bold tracking-tight">Nueva venta</h2>
-            <p className="mt-0.5 text-xs text-mute">
-              Cliente, productos y cobro en una sola página.
-            </p>
+      <ModuleToolbar
+        ariaLabel="Acciones de venta"
+        className="mb-4"
+        description={<span className="inline-flex min-h-11 items-center gap-2"><Icon name="calendar" className="h-4 w-4 shrink-0" />Fecha de operación: <b className="text-fore">{fechaClave().split('-').reverse().join('/')}</b></span>}
+        actions={<>
+          <div role="group" aria-label="Operaciones secundarias de venta" className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" className="min-h-11" onClick={() => setAnalyticsOpen(true)}><Icon name="chart" className="h-4 w-4" />Analytics</Button>
+            <Button type="button" variant="outline" className="min-h-11" onClick={abrirSuspendidas}><Icon name="clock" className="h-4 w-4" />Ventas suspendidas</Button>
           </div>
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <span className="rounded-full border border-fono/20 bg-fono/5 px-3 py-1 text-xs font-semibold text-fore">
-            Hoy: {fechaClave().split('-').reverse().join('/')}
-          </span>
-          {/* Carrito en espera: suspender la venta actual y retomar otra. Vive
-              en el encabezado para no cortar el flujo de la venta. */}
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setAnalyticsOpen(true)}
-          >
-            <Icon name="chart" className="h-4 w-4" />
-            Analytics
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={abrirSuspendidas}
-          >
-            <Icon name="clock" className="h-4 w-4" />
-            Ventas suspendidas
-          </Button>
-          {items.length > 0 && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={abrirSuspender}
-              disabled={guardando}
-            >
-              <Icon name="save" className="h-4 w-4" />
-              Suspender venta
-            </Button>
-          )}
-        </div>
-      </div>
+          {items.length > 0 && <Button type="button" className="min-h-11" onClick={abrirSuspender} disabled={guardando}><Icon name="save" className="h-4 w-4" />Suspender venta</Button>}
+        </>}
+      />
 
       {ok && (
         <Aviso tono="ok" como="div" aria-live="polite" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl p-4">
@@ -1696,38 +1662,40 @@ export default function FormularioVenta({
         </Aviso>
       )}
       {avisoSuspension && (
-        <div
-          role="status"
+        <Aviso
+          tono="ok"
+          como="div"
           aria-live="polite"
-          className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-fono/30 bg-fono/10 p-4 text-sm text-fono-light"
+          className="mb-4 flex items-center justify-between gap-3 rounded-xl p-3 text-sm"
         >
           <span>{avisoSuspension}</span>
           <button
             type="button"
             onClick={() => setAvisoSuspension('')}
-            className="rounded-md p-1 text-mute transition hover:bg-ink-700 hover:text-fore"
+            className="toque-44 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore"
             aria-label="Cerrar aviso"
           >
             ×
           </button>
-        </div>
+        </Aviso>
       )}
       {avisoOffline && (
-        <div
-          role="status"
+        <Aviso
+          tono="warn"
+          como="div"
           aria-live="polite"
-          className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-warn/40 bg-warn/10 p-4 text-sm text-warn"
+          className="mb-4 flex items-center justify-between gap-3 rounded-xl p-3 text-sm"
         >
           <span>{avisoOffline}</span>
           <button
             type="button"
             onClick={() => setAvisoOffline('')}
-            className="rounded-md p-1 text-mute transition hover:bg-ink-700 hover:text-fore"
+            className="toque-44 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore"
             aria-label="Cerrar aviso"
           >
             ×
           </button>
-        </div>
+        </Aviso>
       )}
       {/* Cola local de ventas sin sincronizar (offline-first). */}
       <div className="mb-4 empty:hidden">
