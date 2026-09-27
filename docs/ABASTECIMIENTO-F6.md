@@ -66,6 +66,8 @@ de **F1** («Por comprar»), **F3** («Preparar compra») y **F5** («Recepción
 están integrados, y el **panel de métricas** de F6 quedó entregado por FIN en
 `/metricas` (vista propia «Métricas de abastecimiento», sobre objetos
 compartidos: `DataTable`, `Stat`, `Subtabs`, `Badge`, `FilaDato`,
-`CeldaMoneda`). Los **impresos de F4** (manifiesto, etiqueta de preparación,
-etiquetas individuales y comprobante de recepción) también están entregados
-(ver `docs/QA-250-F4-impresos.md`).
+`CeldaMoneda`) y **verificado en producción v1.0.186**
+(`scripts/qa-f6-metricas-produccion.mjs`, 7/7; evidencia en
+`docs/qa/f6-metricas/produccion-1.0.186/`). Los **impresos de F4** (manifiesto,
+etiqueta de preparación, etiquetas individuales y comprobante de recepción)
+también están entregados (ver `docs/QA-250-F4-impresos.md`).
