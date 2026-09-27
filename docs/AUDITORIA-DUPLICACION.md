@@ -304,6 +304,20 @@ Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
 `BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
 `test:e2e:smoke`; biblioteca `owncoding-ui` build + 343 tests.
 
+### Lote 56 — Ticket de prueba: corto predeterminado y plantilla en la biblioteca (#277, con impresión) (27-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Ticket de prueba | La app tenía su **propia copia** del armado (`ticketPruebaTipo` en `src/lib/printing/tickets.js`, ~115 líneas) espejo de `paginaDePrueba` de la biblioteca, y el tipo `corta` imprimía el pie auditable completo, QR y barras: más papel y más lento | Biblioteca **v0.49.0**: `corta` pasa a ser **minimal** (título + validación + fecha/hora opcional) y el nuevo `completa` conserva la trazabilidad y los códigos; `incluyeFecha`/`corte` por opciones y `PLANTILLA_PRUEBA`/`plantillaDePrueba` (tipo, ancho 58/80, corte, copias 1–5) con normalización. La app queda como **adaptador**: aporta `APP_NAME`, la base del QR (`qrPrueba`) y nada más |
+| Último usado (#277.2) | El modal de prueba arrancaba siempre en `corta` y no recordaba la elección | `Impresoras.jsx` recuerda el **último tipo usado** (`useUltimoUsado('impresora:prueba-tipo')`, patrón #209); la comparativa de impresoras pide `completa` (necesita QR/barras) |
+| Guarda | — | `src/lib/printing/prueba.test.js` (corto sin pie ni códigos, completo con trazabilidad, tipos) + aserción de fuente: `tickets.js` delega en `paginaDePrueba` y no vuelve a copiar el modelo; `tickets.test.js` actualizado al contrato nuevo |
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test` (829), `test:unit` del backend
+(114), `db:check`, `test:e2e:smoke` (19) y `e2e/impresion-remota.spec.js`
+(19, incluido el popup de prueba); biblioteca `owncoding-ui` build + **356
+tests** (tag **v0.49.0**).
+
 ### Fix #271 (2ª vuelta) — el Avatar compartido y el flash del bloqueo (27-09)
 
 | Objeto | Antes (evidencia) | Después |

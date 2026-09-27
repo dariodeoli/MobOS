@@ -84,7 +84,7 @@ export default function ImpresionComparativa({ impresoras = [], onAgregar, onGes
       const filas = []
       for (const [indice, impresora] of elegidas.entries()) {
         const reference = `${marca}-${indice + 1}`
-        const ticket = ticketPruebaTipo('corta', {
+        const ticket = ticketPruebaTipo('completa', {
           ancho: impresora.ancho,
           impresora: impresora.destino,
           nombre: impresora.nombre,

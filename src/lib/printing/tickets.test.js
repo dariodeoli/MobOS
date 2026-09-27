@@ -7,8 +7,8 @@ import { digitoVerificadorEan, esEan13, formatoDeCodigo } from './codigos.js'
 
 const opciones = { ancho: 80, impresora: 'lan:192.168.1.23:9100', nombre: 'ZKP8008', equipo: 'mac-puente', copias: 1 }
 
-test('los cinco tipos de prueba arman un ticket con trazabilidad completa', () => {
-  for (const tipo of Object.keys(TIPOS_TICKET_PRUEBA)) {
+test('los tipos de prueba arman un ticket con trazabilidad completa (salvo el corto)', () => {
+  for (const tipo of Object.keys(TIPOS_TICKET_PRUEBA).filter((clave) => clave !== 'corta')) {
     const ticket = ticketPruebaTipo(tipo, opciones)
     const texto = ticket.lineas().join('')
     assert.match(ticket.ref, /^TEST-/, `ref del tipo ${tipo}`)
@@ -27,6 +27,21 @@ test('los cinco tipos de prueba arman un ticket con trazabilidad completa', () =
     assert.ok(texto.includes(ticket.validacion), `número de validación en ${tipo}`)
     assert.ok(ticket.base64().length > 100, `bytes en ${tipo}`)
   }
+})
+
+// #277: el corto es el predeterminado y sale solo con el título y la validación
+// (con fecha/hora opcional): menos papel y más rápido.
+test('el ticket corto sale solo con el título y la validación', () => {
+  const ticket = ticketPruebaTipo('corta', opciones)
+  const texto = ticket.lineas().join('')
+  assert.ok(texto.includes('TICKET DE PRUEBA MobOS'), 'título')
+  assert.ok(texto.includes(`VALIDACIÓN ${ticket.validador}`), 'validación')
+  assert.ok(texto.includes('[CORTE]'), 'corta el papel')
+  assert.ok(ticket.lineas().length < 12, 'sin pie de trazabilidad ni códigos')
+  assert.ok(!texto.includes('Escanear'), 'sin QR')
+  assert.ok(!texto.includes('Puente'), 'sin pie')
+  const conFecha = ticketPruebaTipo('corta', { ...opciones, incluyeFecha: true }).lineas().join('')
+  assert.ok(conFecha.includes('Fecha'), 'fecha opcional')
 })
 
 test('el ticket de venta incluye comercio, IVA, QR y código de barras', () => {
@@ -60,7 +75,7 @@ test('la vista previa no se desborda ni pega líneas (todas las líneas caben)',
 })
 
 test('la trazabilidad incluye puente, token enmascarado, usuario y conexión', () => {
-  const ticket = ticketPruebaTipo('corta', { ...opciones, puente: 'Mac mostrador', tokenPista: '1f75…5a8c', usuario: 'Dario', conexion: 'usb' })
+  const ticket = ticketPruebaTipo('completa', { ...opciones, puente: 'Mac mostrador', tokenPista: '1f75…5a8c', usuario: 'Dario', conexion: 'usb' })
   const texto = ticket.lineas().join('')
   assert.ok(texto.includes('Puente'), 'puente')
   assert.ok(texto.includes('Mac mostrador'), 'nombre del puente')
@@ -79,9 +94,9 @@ test('cada ejecución genera un número de validación nuevo', () => {
 })
 
 test('una cola usb: se informa como CUPS, no como cable USB', () => {
-  const ticket = ticketPruebaTipo('corta', { ...opciones, impresora: 'usb:ZKP8008' })
+  const ticket = ticketPruebaTipo('completa', { ...opciones, impresora: 'usb:ZKP8008' })
   assert.ok(ticket.lineas().join('').includes('CUPS'))
-  const explicito = ticketPruebaTipo('corta', { ...opciones, impresora: 'usb:ZKP8008', metodo: 'CUPS · sale por red' })
+  const explicito = ticketPruebaTipo('completa', { ...opciones, impresora: 'usb:ZKP8008', metodo: 'CUPS · sale por red' })
   assert.ok(explicito.lineas().join('').includes('CUPS · sale por red'))
 })
 
@@ -102,7 +117,7 @@ test('la prueba de corte explica la verificación física', () => {
 })
 
 test('el validador va grande arriba y repetido en el pie', () => {
-  const ticket = ticketPruebaTipo('corta', opciones)
+  const ticket = ticketPruebaTipo('completa', opciones)
   const texto = ticket.lineas().join('')
   const primera = texto.indexOf(`VALIDACIÓN ${ticket.validador}`)
   const ultima = texto.lastIndexOf(`VALIDACIÓN ${ticket.validador}`)

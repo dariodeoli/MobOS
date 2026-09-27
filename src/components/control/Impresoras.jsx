@@ -13,6 +13,7 @@ import { ESTADO_IMPRESORA, ETIQUETA_ESTADO, colorTrabajo, etiquetaTrabajo, texto
 import { colaDemo, historialDemo, storeDemo } from '@/lib/printing/demo'
 import { etiquetaTipoImpresion, memoriaDeImpresion, olvidarTipoDeImpresion } from '@/lib/printing/preferencias'
 import { useEstadoImpresoras } from '@/hooks/useEstadoImpresoras'
+import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import Avatar from '@/components/shared/Avatar'
 import ImpresionComparativa from './ImpresionComparativa'
 import ImpresionGraficos from './ImpresionGraficos'
@@ -1733,7 +1734,8 @@ function GuiaImpresion() {
 }
 
 function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, tokenPista, equipo, enviando, progreso, onCerrar, onEnviar }) {
-  const [tipo, setTipo] = useState('corta')
+  // Último usado como predeterminado (#277/#209): el corto arranca la primera vez.
+  const [tipo, recordarTipo] = useUltimoUsado('impresora:prueba-tipo', 'corta')
   const [turno, setTurno] = useState(0) // regenera el ticket (y su número de 4 dígitos)
   const [verPrevia, setVerPrevia] = useState(false)
   // Las pruebas salen SIEMPRE con 1 copia: no hay campo ni estado de copias.
@@ -1762,7 +1764,7 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
           <p className={cn('min-w-0 flex-1', CELDA_DATO)} title={`${impresora.destino || 'Sin destino'} · ${impresora.ancho} mm`}>{impresora.destino || 'Sin destino'} · {impresora.ancho} mm</p>
         </div>
         <FormField label="Tipo de prueba" htmlFor="prueba-tipo">
-          <Select id="prueba-tipo" value={tipo} onChange={(event) => setTipo(event.target.value)}>
+          <Select id="prueba-tipo" value={tipo} onChange={(event) => recordarTipo(event.target.value)}>
             {Object.entries(TIPOS_TICKET_PRUEBA).map(([valor, etiqueta]) => <option key={valor} value={valor}>{etiqueta}</option>)}
           </Select>
         </FormField>

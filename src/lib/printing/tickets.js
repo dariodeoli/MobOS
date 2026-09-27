@@ -11,6 +11,7 @@ import { contextoEtiquetaLote, datosEtiquetaLote } from './etiquetaLote.js'
 import { estadoGarantia, fechaVerificacionInforme } from './informeDispositivo.js'
 import { AVISO_BLACKLIST, estadoChecklistCorto, estadoControl, fechaHoraDocumento } from './certificado.js'
 import { baseDeApp, qrProducto, qrPrueba } from './qr.js'
+import { TIPOS_PRUEBA, paginaDePrueba } from 'owncoding-ui'
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
 
@@ -318,26 +319,11 @@ export function ticketReserva(reservation, { ancho = 80 } = {}) {
   return t.avanza(2).corte()
 }
 
-const pruebaAleatoria = () => String(Math.floor(1000 + Math.random() * 9000)) // exactamente 4 dígitos
-// Sufijo secreto: solo sale impreso en el papel; la app lo guarda para que el
-// operador confirme la impresión escribiéndolo en Actividad de impresión.
-const pruebaSufijo = () => String(Math.floor(Math.random() * 10))
-const refDePrueba = () => `TEST-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(16).slice(2, 6).toUpperCase()}`
-
-const TIPOS_PRUEBA = {
-  'corta': 'Prueba corta',
-  'pedido': 'Ticket de pedido',
-  'qr': 'Ticket con QR',
-  'venta': 'Ticket completo de venta',
-  'caracteres': 'Caracteres y formato',
-  'corte': 'Prueba de corte',
-}
+// Ticket de prueba (#277): el modelo vive en la biblioteca (`paginaDePrueba`)
+// y la app aporta su nombre, la base del QR y la página de verificación. El
+// corto es el predeterminado; el completo conserva trazabilidad y códigos.
 export const TIPOS_TICKET_PRUEBA = TIPOS_PRUEBA
 
-// Ticket de prueba con trazabilidad completa: impresora, método, conexión,
-// puente, token (enmascarado), usuario, equipo, trabajo, validación de 4
-// dígitos y corte final. Todos los tipos comparten cabecera, bloque QR/barras,
-// acentos, pie de trazabilidad y corte.
 export function ticketPruebaTipo(tipo, {
   ancho = 80,
   impresora = '',
@@ -350,151 +336,28 @@ export function ticketPruebaTipo(tipo, {
   tokenPista = '',
   usuario = '',
   marca = '',
+  incluyeFecha = false,
+  corte = 'completo',
   base = baseDeApp(),
 } = {}) {
-  // Método honesto: lo informa quien arma el ticket (CUPS local, LAN TCP,
-  // CUPS-USB…); el prefijo `usb:` es histórico y no implica cable USB.
-  const metodoReal = metodo || (/^(usb|cups):/.test(String(impresora || '')) ? 'CUPS (cola local)' : 'LAN (TCP directo)')
-  const conexionReal = /^(usb|cups)/.test(String(conexion || '')) ? 'Cola CUPS local' : 'LAN (TCP directo)'
-  const validacion = pruebaAleatoria()
-  const sufijo = pruebaSufijo()
-  const validador = `${validacion}-${sufijo}`
-  const ref = refDePrueba()
-  const ahora = new Date().toISOString()
-  // El QR de la prueba abre una página autocontenida: destino, validación,
-  // fecha y formato viajan en la URL (esta prueba no vive en la base).
-  const enlacePrueba = qrPrueba({ destino: impresora, validacion, fecha: ahora, tipo }, base)
-  const t = crearTicket({ ancho }).iniciar()
-
-  // Pie común: todo lo que hace auditable la prueba desde el papel.
-  const pie = () => {
-    t.linea()
-    t.negrita().centrado(`VALIDACIÓN ${validador}`).negrita(false)
-    t.linea()
-    t.par('Impresora', nombre || '—')
-    t.par('Método', metodoReal)
-    t.par('Conexión', conexionReal)
-    t.par('Destino', impresora || '—')
-    t.par('Puente', puente || '—')
-    t.par('Token', tokenPista || 'sin token')
-    t.par('Ancho', `${ancho} mm`)
-    t.par('Copias', String(copias))
-    t.par('Usuario', usuario || '—')
-    t.par('Fecha', fecha(ahora))
-    t.par('Equipo', equipo || '—')
-    t.par('Trabajo', ref)
-  }
-
-  // Cuerpo común de códigos: QR + barras con su rótulo, siempre centrados.
-  const codigos = (sufijo) => {
-    t.linea()
-    t.centrado('Escanear')
-    // Con base de la app el QR abre la prueba (destino, validación y fecha);
-    // sin base igual se imprime un QR de trazabilidad (no un código muerto).
-    t.qr(enlacePrueba || `MOBOS:PRUEBA:${sufijo}:${validacion}`, { tamano: 6, etiqueta: 'QR' })
-    t.barcode(`MOBOS-${sufijo}-${validacion}`, { etiqueta: 'Código de barras' })
-    t.linea()
-    t.texto('Acentos: á é í ó ú ü ñ Ñ ¿? ¡!')
-  }
-
-  t.centrado(APP_NAME).negrita().doble().centrado('TICKET DE PRUEBA').doble(false).negrita(false)
-  t.centrado(TIPOS_PRUEBA[tipo] || 'Prueba')
-  // Marca de la corrida comparativa: el mismo texto en las tres impresoras
-  // permite reconocer el papel y cruzar los trabajos con las métricas.
-  if (marca) t.centrado(`Comparativa ${marca}`)
-  t.linea()
-  // El validador va grande y arriba (y se repite en el pie): si algo cortara la
-  // impresión, el código secreto igual salió en el papel.
-  t.negrita().doble().centrado(`VALIDACIÓN ${validador}`).doble(false).negrita(false)
-  t.linea()
-
-  if (tipo === 'corta') {
-    t.par('Prueba', metodoReal)
-    t.par('Destino', impresora || '—')
-    t.par('Resultado', 'PENDIENTE')
-    codigos('CORTA')
-  }
-
-  if (tipo === 'pedido') {
-    const pedido = `P-${pruebaAleatoria()}`
-    t.par('Pedido', pedido)
-    t.par('Cliente', 'Cliente de prueba')
-    t.linea()
-    t.texto('iPhone 16 Pro 128GB')
-    t.par('  x1', '7.950.000')
-    t.texto('Case MagSafe silicona')
-    t.par('  x1', '180.000')
-    t.texto('Lámina 9H')
-    t.par('  x2', '60.000')
-    t.linea()
-    t.par('Subtotal', '8.250.000')
-    t.par('Descuento', '-250.000')
-    t.negrita().par('Total', '8.000.000').negrita(false)
-    t.par('Medio de pago', 'Efectivo')
-    t.par('Vendedor', 'Vendedor de prueba')
-    codigos('PEDIDO')
-  }
-
-  if (tipo === 'qr') {
-    t.par('Pedido', `P-${pruebaAleatoria()}`)
-    t.par('Cliente', 'Cliente de prueba')
-    t.negrita().par('Total', '1.234.000').negrita(false)
-    codigos('QR')
-  }
-
-  if (tipo === 'venta') {
-    t.centrado(`${APP_NAME} · SUCURSAL CENTRAL`).centrado('Comprobante de venta')
-    t.linea()
-    t.par('Fecha', fecha(new Date().toISOString()))
-    t.par('Vendedor', 'Vendedor de prueba')
-    t.par('Cliente', 'Cliente de prueba')
-    t.linea()
-    t.texto('iPhone 16 Pro 128GB')
-    t.par('  x1', '7.950.000')
-    t.texto('Case MagSafe silicona')
-    t.par('  x1', '180.000')
-    t.linea()
-    t.par('Subtotal', '8.130.000')
-    t.par('IVA 10%', '813.000')
-    t.negrita().par('Total', '8.943.000').negrita(false)
-    t.par('Medio de pago', 'Transferencia')
-    codigos('VENTA')
-  }
-
-  if (tipo === 'caracteres') {
-    t.texto('Texto normal')
-    t.negrita().texto('Negrita').negrita(false)
-    t.doble().par('DOBLE', '123').doble(false)
-    t.centrado('Centrado')
-    t.par('Columna izquierda', 'derecha')
-    codigos('CHARS')
-  }
-
-  if (tipo === 'corte') {
-    t.par('Prueba', 'Corte físico por variantes')
-    t.linea()
-    t.texto('Cada sección etiquetada intenta un corte distinto: mirá en qué sección se separó el papel.')
-    t.linea()
-    t.centrado('1) GS V 0 · completo')
-    t.texto('Corte completo puro (el estándar de recibos).')
-    t.avanza(1).corte('completo')
-    t.centrado('2) GS V 1 · parcial')
-    t.texto('Corte parcial: deja una tirita sin cortar.')
-    t.avanza(1).corte('parcial')
-    t.centrado('3) GS V 65 0 · avanza + completo')
-    t.texto('Primero avanza hasta la cuchilla y después corta todo.')
-    t.avanza(1).corte('avanza-completo')
-    t.centrado('4) GS V 66 0 · avanza + parcial')
-    t.texto('Avanza hasta la cuchilla y corta parcial.')
-    t.avanza(1).corte('avanza-parcial')
-    t.linea()
-    t.texto('Si ninguna cortó, revisá Cutter Enable: YES y que el rollo esté bien cargado.')
-    codigos('CORTE')
-  }
-
-  pie()
-  t.avanza(2).corte()
-  return { base64: () => t.base64(), lineas: () => t.lineas(), ref, validacion, sufijo, validador, corte: t.corteEnviado() }
+  return paginaDePrueba({
+    tipo,
+    ancho,
+    impresora,
+    nombre,
+    equipo,
+    copias,
+    metodo,
+    conexion,
+    puente,
+    tokenPista,
+    usuario,
+    marca,
+    incluyeFecha,
+    corte,
+    nombreApp: APP_NAME,
+    qr: (datos) => qrPrueba(datos, base),
+  })
 }
 
 // Compatibilidad con el flujo anterior: la prueba clásica de caracteres.
