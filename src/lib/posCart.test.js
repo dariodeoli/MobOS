@@ -19,10 +19,28 @@ function mockStorage() {
   }
 }
 
-test('claveCarrito separa empresa y sucursal y exige empresa', () => {
+test('claveCarrito separa empresa, sucursal y usuario y exige empresa', () => {
+  assert.equal(claveCarrito('emp-a', 'suc-1', 'user-1'), 'mobos:pos-cart:v1:emp-a:suc-1:user-1')
+  assert.equal(claveCarrito('emp-a', null, 'user-1'), 'mobos:pos-cart:v1:emp-a:user-1')
+  // Sin usuario (sesiones viejas) queda la clave por empresa/sucursal.
   assert.equal(claveCarrito('emp-a', 'suc-1'), 'mobos:pos-cart:v1:emp-a:suc-1')
-  assert.equal(claveCarrito('emp-a', null), 'mobos:pos-cart:v1:emp-a')
-  assert.equal(claveCarrito(null, 'suc-1'), null)
+  assert.equal(claveCarrito(null, 'suc-1', 'user-1'), null)
+})
+
+test('#279 A2: dos vendedores no comparten el carrito activo', () => {
+  globalThis.localStorage = mockStorage()
+  const carritoA = { items: [{ key: 'a', productoId: 'p1' }] }
+  const carritoB = { items: [{ key: 'b', productoId: 'p2' }] }
+  assert.equal(guardarCarrito('emp-a', 'suc-1', 'vendedor-1', carritoA), true)
+  assert.equal(guardarCarrito('emp-a', 'suc-1', 'vendedor-2', carritoB), true)
+  // Cada uno lee el suyo: el carrito del otro no aparece ni al recargar.
+  assert.deepEqual(leerCarrito('emp-a', 'suc-1', 'vendedor-1'), carritoA)
+  assert.deepEqual(leerCarrito('emp-a', 'suc-1', 'vendedor-2'), carritoB)
+  assert.equal(leerCarrito('emp-a', 'suc-1', null), null, 'la clave vieja compartida no revive')
+  // Borrar el de uno no toca el del otro.
+  borrarCarrito('emp-a', 'suc-1', 'vendedor-1')
+  assert.equal(leerCarrito('emp-a', 'suc-1', 'vendedor-1'), null)
+  assert.deepEqual(leerCarrito('emp-a', 'suc-1', 'vendedor-2'), carritoB)
 })
 
 test('guardar y leer redondea el carrito completo', () => {
@@ -33,38 +51,38 @@ test('guardar y leer redondea el carrito completo', () => {
     cliente: 'Ana',
     descuento: '5000',
   }
-  assert.equal(guardarCarrito('emp-a', 'suc-1', carrito), true)
-  assert.deepEqual(leerCarrito('emp-a', 'suc-1'), carrito)
+  assert.equal(guardarCarrito('emp-a', 'suc-1', 'user-1', carrito), true)
+  assert.deepEqual(leerCarrito('emp-a', 'suc-1', 'user-1'), carrito)
 })
 
 test('leer devuelve null sin carrito guardado', () => {
   globalThis.localStorage = mockStorage()
-  assert.equal(leerCarrito('emp-a', 'suc-1'), null)
+  assert.equal(leerCarrito('emp-a', 'suc-1', 'user-1'), null)
 })
 
 test('leer tolera JSON corrupto y valores que no son objeto', () => {
   const mock = mockStorage()
-  mock.datos.set('mobos:pos-cart:v1:emp-a', '{no es json')
+  mock.datos.set('mobos:pos-cart:v1:emp-a:user-1', '{no es json')
   globalThis.localStorage = mock
-  assert.equal(leerCarrito('emp-a'), null)
-  mock.datos.set('mobos:pos-cart:v1:emp-a', '[1,2,3]')
-  assert.equal(leerCarrito('emp-a'), null)
+  assert.equal(leerCarrito('emp-a', null, 'user-1'), null)
+  mock.datos.set('mobos:pos-cart:v1:emp-a:user-1', '[1,2,3]')
+  assert.equal(leerCarrito('emp-a', null, 'user-1'), null)
 })
 
 test('borrar elimina solo la clave propia', () => {
   const mock = mockStorage()
   globalThis.localStorage = mock
-  guardarCarrito('emp-a', 'suc-1', { items: [] })
-  guardarCarrito('emp-a', 'suc-2', { items: [{ key: 'x' }] })
-  borrarCarrito('emp-a', 'suc-1')
-  assert.equal(leerCarrito('emp-a', 'suc-1'), null)
-  assert.ok(leerCarrito('emp-a', 'suc-2'))
+  guardarCarrito('emp-a', 'suc-1', 'user-1', { items: [] })
+  guardarCarrito('emp-a', 'suc-2', 'user-1', { items: [{ key: 'x' }] })
+  borrarCarrito('emp-a', 'suc-1', 'user-1')
+  assert.equal(leerCarrito('emp-a', 'suc-1', 'user-1'), null)
+  assert.ok(leerCarrito('emp-a', 'suc-2', 'user-1'))
 })
 
 test('sin empresa no se escribe ni se lee', () => {
   globalThis.localStorage = mockStorage()
-  assert.equal(guardarCarrito(null, 'suc-1', { items: [] }), false)
-  assert.equal(leerCarrito(null, 'suc-1'), null)
+  assert.equal(guardarCarrito(null, 'suc-1', 'user-1', { items: [] }), false)
+  assert.equal(leerCarrito(null, 'suc-1', 'user-1'), null)
 })
 
 test('cuota llena o almacenamiento roto no revienta', () => {
@@ -79,9 +97,9 @@ test('cuota llena o almacenamiento roto no revienta', () => {
       throw new Error('SecurityError')
     },
   }
-  assert.equal(leerCarrito('emp-a'), null)
-  assert.equal(guardarCarrito('emp-a', null, { items: [] }), false)
-  borrarCarrito('emp-a')
+  assert.equal(leerCarrito('emp-a', null, 'user-1'), null)
+  assert.equal(guardarCarrito('emp-a', null, 'user-1', { items: [] }), false)
+  borrarCarrito('emp-a', null, 'user-1')
 })
 
 test('el resumen del carrito suma cantidades sin duplicar el total', () => {
@@ -113,6 +131,7 @@ test('prepararVentaDesdeInventario deja el carrito listo para el POS (#217)', as
   const ok = prepararVentaDesdeInventario({
     empresaId: 'emp-a',
     sucursalId: 'suc-1',
+    usuarioId: 'user-1',
     items: [
       { id: 'prod-1', quantity: 2, serials: ['IMEI1', 'IMEI2'] },
       { productoId: 'prod-2' },
@@ -123,7 +142,7 @@ test('prepararVentaDesdeInventario deja el carrito listo para el POS (#217)', as
     entrega: 'Retiro en tienda',
   })
   assert.equal(ok, true)
-  const carrito = leerCarrito('emp-a', 'suc-1')
+  const carrito = leerCarrito('emp-a', 'suc-1', 'user-1')
   assert.equal(carrito.items.length, 2)
   assert.deepEqual(carrito.items[0], { productoId: 'prod-1', quantity: 2, serials: ['IMEI1', 'IMEI2'] })
   assert.deepEqual(carrito.items[1], { productoId: 'prod-2', quantity: 1 })
