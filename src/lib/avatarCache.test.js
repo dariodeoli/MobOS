@@ -162,3 +162,23 @@ test('la revalidación no repite descargas por ventana y el 304 conserva la foto
   cache.limpiar()
   assert.equal(cache.cacheado('u1'), '', 'limpiar borra memoria y almacén')
 })
+
+test('una revalidación fallida no borra la foto; un 404 sí (#284)', async () => {
+  const almacen = crearAlmacenAvatar(almacenFalso())
+  almacen.guardar('u1', { url: 'cacheada', etag: 'e1' })
+  let respuesta = { url: 'cacheada', etag: 'e1' }
+  const cache = crearCacheAvatar(async () => respuesta, { almacen, revalidarCadaMs: 0 })
+
+  await cache.obtener('u1')
+  respuesta = { url: '', error: true }
+  await cache.obtener('u1')
+  await new Promise((resolver) => setTimeout(resolver, 10))
+  assert.equal(cache.cacheado('u1'), 'cacheada', 'un fallo de red conserva la foto buena')
+  assert.equal(almacen.leer('u1')?.url, 'cacheada', 'tampoco toca la persistencia')
+
+  respuesta = { url: '', borrada: true }
+  await cache.obtener('u1')
+  await new Promise((resolver) => setTimeout(resolver, 10))
+  assert.equal(cache.cacheado('u1'), '', 'una respuesta sin foto (404) la invalida')
+  assert.equal(almacen.leer('u1'), null, 'y limpia la persistencia')
+})

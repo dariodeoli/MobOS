@@ -84,10 +84,12 @@ export function crearAlmacenAvatar(storage, { prefijo = 'mobos:avatar', maxBytes
 }
 
 // Normaliza lo que devuelve la descarga: un string (contrato viejo) o
-// `{ url, etag, noModificado }` (#284).
+// `{ url, etag, noModificado, error, borrada }` (#284). `error` marca un fallo
+// de red (no se puede concluir que la foto ya no esté) y `borrada` una respuesta
+// del servidor sin foto (404).
 const normalizar = (resultado) => (typeof resultado === 'string'
-  ? { url: resultado, etag: '', noModificado: false }
-  : { url: resultado?.url || '', etag: String(resultado?.etag || ''), noModificado: Boolean(resultado?.noModificado) })
+  ? { url: resultado, etag: '', noModificado: false, error: false, borrada: false }
+  : { url: resultado?.url || '', etag: String(resultado?.etag || ''), noModificado: Boolean(resultado?.noModificado), error: Boolean(resultado?.error), borrada: Boolean(resultado?.borrada) })
 
 export function crearCacheAvatar(cargar, { almacen = null, revalidarCadaMs = 30_000 } = {}) {
   const valores = new Map() // userId → { url, etag }
@@ -128,6 +130,17 @@ export function crearCacheAvatar(cargar, { almacen = null, revalidarCadaMs = 30_
     const etag = valores.get(userId)?.etag || ''
     descargar(userId, { etag }).then((resultado) => {
       if (resultado.noModificado) return
+      // #284: un fallo de red NO puede borrar la foto buena ya cacheada (antes
+      // una revalidación abortada dejaba el avatar en iniciales). Solo una
+      // respuesta del servidor sin foto (404) la invalida.
+      if (resultado.error) return
+      // El servidor dice que ya no hay foto: se invalida memoria y persistencia.
+      if (resultado.borrada) {
+        valores.delete(userId)
+        almacen?.olvidar(userId)
+        notificar(userId)
+        return
+      }
       const actual = valores.get(userId)?.url || ''
       if (resultado.url === actual) return
       guardarValor(userId, resultado)
