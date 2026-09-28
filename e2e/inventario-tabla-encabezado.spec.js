@@ -85,9 +85,11 @@ test('vacío e IMEI largo en mono: el encabezado queda visible y la grilla no se
   await expect(page.getByTestId('unidades-vacio')).toBeVisible({ timeout: 20_000 })
   await expect(page.getByTestId('inventario-encabezado')).toBeVisible()
   const titulosVacio = (await page.getByTestId('inventario-encabezado').locator('span').allInnerTexts()).join(' ').toLowerCase()
-  for (const titulo of ['Producto', 'Proveedor', 'Costo', 'Ubicación', 'Estado', 'Verificado', 'Acciones']) {
+  // #285: estructura final (el IMEI es columna propia y Proveedor salió de la fila).
+  for (const titulo of ['Producto', 'IMEI', 'Verificación', 'Ubicación', 'Estado', 'Costo', 'Acciones']) {
     expect(titulosVacio, `el título ${titulo} sigue en el vacío`).toContain(titulo.toLowerCase())
   }
+  expect(titulosVacio, 'Proveedor salió de la tabla (#285)').not.toContain('proveedor')
 
   // IMEI largo en mono: la fila sigue en una línea y las columnas alineadas.
   await page.goto('/inventario/unidades?q=E2EE2EIPHONE15')

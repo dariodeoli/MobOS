@@ -95,7 +95,8 @@ test('la tabla muestra ubicación con color, condición y verificación compacta
     await expect(fila).toBeVisible()
     await expect(fila.getByText(datos.locationName)).toBeVisible()
     await expect(fila.getByLabel('Condición: Nuevo')).toBeVisible()
-    await expect(fila.getByText(/Sin verificar|\d{2} [a-z]{3} \d{2} · \d{2}:\d{2}/i)).toBeVisible()
+    // #285: la verificación se muestra como «OK <iniciales> · dd/mm/aaaa».
+    await expect(fila.getByText(/Sin verificar|\d{2}\/\d{2}\/\d{4}/)).toBeVisible()
   } finally { await limpiar(page, datos) }
 })
 
