@@ -31,7 +31,18 @@ const hostValido = (valor: unknown) => {
   return /^[a-z0-9.-]+(:\d{1,5})?$/.test(host) ? host : ''
 }
 
-export function baseDeInstalacion(request: Request, env: NodeJS.ProcessEnv = process.env): string {
+// Entorno del instalador: la resolución solo lee estas tres variables. Se tipa
+// como diccionario (claves conocidas + índice) para admitir entornos parciales
+// (tests) sin exigir el `NodeJS.ProcessEnv` completo, que Next aumenta con
+// `NODE_ENV` obligatorio.
+export type EntornoInstalador = {
+  MOBOS_PRINT_INSTALL_BASE?: string
+  MOBOS_API_URL?: string
+  MOBOS_TRUST_PROXY?: string
+  [clave: string]: string | undefined
+}
+
+export function baseDeInstalacion(request: Request, env: EntornoInstalador = process.env): string {
   const configurada = limpiar(env.MOBOS_PRINT_INSTALL_BASE)
   if (configurada) return configurada
 
@@ -50,6 +61,6 @@ export function baseDeInstalacion(request: Request, env: NodeJS.ProcessEnv = pro
   return new URL(request.url).origin
 }
 
-export function urlDeInstalacion(request: Request, env: NodeJS.ProcessEnv = process.env): string {
+export function urlDeInstalacion(request: Request, env: EntornoInstalador = process.env): string {
   return `${baseDeInstalacion(request, env)}/print-agent/install.sh`
 }
