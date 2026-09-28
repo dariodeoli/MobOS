@@ -11,6 +11,11 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.205 — 2026-09-28
+- **POS · Abastecimiento (#279 A2):** cada vendedor tiene su **carrito activo privado** (empresa + sucursal + usuario + sesión); al suspender, el **borrador guarda quién lo creó** y se puede **retomar** quedando registrado. Ya no se mezclan ventas entre vendedores.
+- **Vender en tránsito (#279 A4):** se puede **apartar una unidad que viaja** para una venta futura (queda **bloqueada para otras ventas**); al llegar, el **IMEI se vincula solo** y avisa en la bandeja.
+- **Sucursal efectiva (#286):** un **vendedor sin sucursal asignada** opera en su **sucursal efectiva** (última usada → primera creada): catálogo del POS, unidades y venta dejan de quedar vacíos, sin filtrar stock de otras sucursales.
+
 ## v1.0.204 — 2026-09-28
 - **Productos y Unidades (#287):** un mismo objeto en **dos vistas** con un **switch Productos ⇄ Unidades** en la misma barra y el **contexto viajando** (búsqueda y producto) al cambiar: desde la ficha del producto se ven **sus unidades** y desde la unidad se **vuelve al producto**. Unidades se puede **acotar por producto** con un chip de contexto; el **catálogo del POS** muestra «**N unidades con IMEI**» por producto con su selector. Sin fusionar datos ni perder nada de cada vista.
 
