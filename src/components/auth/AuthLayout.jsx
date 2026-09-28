@@ -50,7 +50,7 @@ export function AuthPanel({ children, className }) {
 export function AuthPanelHeader({ volver = publicUrls.landing, volverLabel = 'Volver al inicio', subtitulo = 'Sistema de ventas para tiendas' }) {
   return (
     <>
-      <a href={volver} className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-fono-dark transition hover:text-fore lg:mb-3">← {volverLabel}</a>
+      <a href={volver} className="toque-44 mb-4 inline-flex items-center gap-2 text-sm font-semibold text-fono-dark transition hover:text-fore lg:mb-3">← {volverLabel}</a>
       <ThemeLogo className="mb-1 w-48" />
       <p className="mb-5 text-sm text-mute lg:mb-4">{subtitulo}</p>
     </>
