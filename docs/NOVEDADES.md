@@ -11,6 +11,9 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.204 — 2026-09-28
+- **Productos y Unidades (#287):** un mismo objeto en **dos vistas** con un **switch Productos ⇄ Unidades** en la misma barra y el **contexto viajando** (búsqueda y producto) al cambiar: desde la ficha del producto se ven **sus unidades** y desde la unidad se **vuelve al producto**. Unidades se puede **acotar por producto** con un chip de contexto; el **catálogo del POS** muestra «**N unidades con IMEI**» por producto con su selector. Sin fusionar datos ni perder nada de cada vista.
+
 ## v1.0.203 — 2026-09-28
 - **Avatar (#284):** la sesión **precarga la foto al entrar** y **limpia la caché al cerrar sesión** (equipos compartidos); una **revalidación fallida ya no borra** la foto cacheada y la segunda carga se pinta **sin red** desde la caché.
 - **POS/Inventario (#286):** el POS **vuelve a mostrar las unidades**: se corrigió el **filtro de sucursal** del selector de IMEI, «**Equipos por estado**» ya no queda vacío en silencio y los **errores crudos** se reemplazan por mensajes accionables (permiso, sucursal o sin unidades).
