@@ -11,6 +11,10 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.203 — 2026-09-28
+- **Avatar (#284):** la sesión **precarga la foto al entrar** y **limpia la caché al cerrar sesión** (equipos compartidos); una **revalidación fallida ya no borra** la foto cacheada y la segunda carga se pinta **sin red** desde la caché.
+- **POS/Inventario (#286):** el POS **vuelve a mostrar las unidades**: se corrigió el **filtro de sucursal** del selector de IMEI, «**Equipos por estado**» ya no queda vacío en silencio y los **errores crudos** se reemplazan por mensajes accionables (permiso, sucursal o sin unidades).
+
 ## v1.0.202 — 2026-09-28
 - **Avatar (#284):** la foto de perfil se guarda en **caché persistente por usuario** y **se pinta al instante** en las siguientes entradas (sin flash de iniciales); sigue **revalidando** con ETag y, al cambiarla o quitarla, nunca se ve la anterior.
 - **Inventario (#285):** la tabla de **Unidades queda en una sola línea**: **Producto · IMEI · Verificación · Ubicación · Estado · Costo · Acciones**; «Verificado» pasa a **Verificación** con fecha (ej. «OK VPC · 01/09/2026») y el IMEI sale del bloque Producto. Sin scroll en 1280+.
