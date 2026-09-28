@@ -11,6 +11,10 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.201 — 2026-09-28
+- **POS (#281):** los **contenedores de la venta** se distinguen de un vistazo con **identidad de color suave** —Cliente (info), Productos (marca), Productos de esta venta (ok), Pagos (reserved) y los tiles Total/Pagado/Pendiente—, usando **tokens existentes** y consistente en claro, oscuro y **alto contraste**. Sin cambios de lógica ni de datos.
+- **Evidencia:** capturas antes/después en los 3 temas (`docs/qa/281-contenedores/`) con **medición AA: 0 bajos** en los bloques.
+
 ## v1.0.200 — 2026-09-27
 - **Login y demo (#282):** **/login y /demo comparten la misma cáscara** (panel, encabezado/volver, tipografía, toggle de tema y pie), con la columna de marca de la demo; y **correo y contraseña quedan pareados** (mismo alto, radio y padding) en login y en «crear cuenta». Sin cambios de lógica.
 - **Evidencia:** capturas **antes/después** de /login y /demo en claro/oscuro/móvil, con verificación de SHA-256 por dupla (si «antes» y «después» coinciden, el script falla y explica cómo rehacerlas).
