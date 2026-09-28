@@ -11,6 +11,9 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.207 — 2026-09-28
+- **Mi cuenta (#290):** al **quitar la foto de perfil**, deja de verse la foto anterior en todos lados (se limpiaba recién al recargar). Corrige el rojo de CI que quedó de la .206.
+
 ## v1.0.206 — 2026-09-28
 - **CI (#288):** corregido el **typecheck** del backend (test A4 del tránsito) y del **instalador del agente de impresión**: main vuelve a compilar limpio.
 - **Mobile (#289 · #249):** el **toggle de tema** y el botón **volver** de la demo llegan al **mínimo táctil de 44 px** (cierre del hallazgo de la auditoría).
