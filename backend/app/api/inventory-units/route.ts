@@ -11,6 +11,7 @@ import { serialKey } from '../../../lib/validation'
 import { revisarMinimoDeStock } from '../../../lib/supply-demand'
 import { changeStock } from '../../../lib/stock'
 import { consumeAuthorization } from '../../../lib/authorizations'
+import { sucursalEfectiva } from '../../../lib/sucursal-efectiva'
 
 const canSeeBranch = (role: string, assigned: string | null, branchId: string | null) => !['VENDEDOR', 'CAJERA'].includes(role) || assigned === branchId
 const canManageBranch = (role: string, assigned: string | null, branchId: string) => role === 'ADMIN' || (role === 'GERENTE' && assigned === branchId)
@@ -75,12 +76,11 @@ export async function GET(request: Request) {
   if (!tenant || !session) return error('Falta sesión.', 401)
   const params = new URL(request.url).searchParams
   const branchId = params.get('branchId')
-  if (branchId && !canSeeBranch(session.user.role, session.user.branchId, branchId)) return error('No autorizado para esa sucursal.', 403)
-  // #286: un lector sin sucursal asignada (vendedor/cajera) no tiene contexto
-  // de stock: se responde vacío en vez de mezclar unidades de todas las
-  // sucursales (mismo criterio que el catálogo de productos, que les oculta los
-  // productos con sucursal). Con sucursal, el filtro de abajo la aplica.
-  if (!branchId && !session.user.branchId && ['VENDEDOR', 'CAJERA'].includes(session.user.role)) return json([])
+  // #286: sin sucursal asignada se resuelve la efectiva (última usada → primera
+  // creada) antes de los chequeos, en vez de devolver vacío.
+  const branchEfectiva = ['VENDEDOR', 'CAJERA'].includes(session.user.role) ? await sucursalEfectiva(session) : session.user.branchId
+  if (branchId && !canSeeBranch(session.user.role, branchEfectiva ?? session.user.branchId, branchId)) return error('No autorizado para esa sucursal.', 403)
+  if (!branchId && !branchEfectiva && ['VENDEDOR', 'CAJERA'].includes(session.user.role)) return json([])
   const view = params.get('view') || 'active'
   if (!['active', 'removed', 'all'].includes(view)) return error('Vista de inventario inválida.')
   // No revelar qué se retiró a gerentes, cajeras o vendedores. Devolver una
@@ -105,7 +105,7 @@ export async function GET(request: Request) {
     // guiones: un SKU como «E2E-IPHONE15» no matcheaba por `sku`. Se conserva el
     // match normalizado y se suma el crudo (búsqueda por SKU en Inventario y
     // detección de unidades serializadas del POS).
-    where: { tenantId: tenant, ...removalFilter, ...(branchId ? { branchId } : session.user.branchId ? { branchId: session.user.branchId } : {}), ...(productId ? { productId } : {}), ...(status ? { status: status as InventoryUnitStatus } : {}), ...(query ? { OR: [{ serial: { contains: query, mode: 'insensitive' } }, { product: { OR: [{ sku: { contains: raw, mode: 'insensitive' } }, { sku: { contains: query, mode: 'insensitive' } }, { name: { contains: raw, mode: 'insensitive' } }] } }] } : {}) },
+    where: { tenantId: tenant, ...removalFilter, ...(branchId ? { branchId } : branchEfectiva ? { branchId: branchEfectiva } : {}), ...(productId ? { productId } : {}), ...(status ? { status: status as InventoryUnitStatus } : {}), ...(query ? { OR: [{ serial: { contains: query, mode: 'insensitive' } }, { product: { OR: [{ sku: { contains: raw, mode: 'insensitive' } }, { sku: { contains: query, mode: 'insensitive' } }, { name: { contains: raw, mode: 'insensitive' } }] } }] } : {}) },
     include: { product: { select: { id: true, name: true, sku: true, pricePyg: true, capacity: true, model: true, color: true } }, branch: { select: { id: true, name: true } }, location: { select: { id: true, name: true, code: true } }, lastVerifiedBy: { select: { id: true, name: true } }, ...(['ADMIN', 'GERENTE'].includes(session.user.role) ? { supplier: { select: { id: true, name: true, code: true } } } : {}) },
     orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }], take: Math.min(500, Math.max(1, Number(params.get('limit')) || 500)), ...(params.get('cursor') ? { cursor: { id: params.get('cursor') as string }, skip: 1 } : {}),
   })

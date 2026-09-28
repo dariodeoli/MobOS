@@ -10,6 +10,7 @@ model Tenant {
   presenceTabs        PresenceTab[]
   webPushSubscriptions WebPushSubscription[]
   webPushEnvios      WebPushEnvio[]
+  branchUsages        UserBranchUsage[]
   usageSessions       UsageSession[]
   googleStoreAccesses GoogleStoreAccess[]
   promotions          Promotion[]
@@ -247,6 +248,7 @@ model GeoCity {
 }
 
 model Branch {
+  branchUsages UserBranchUsage[]
   tradeInDevices TradeInDevice[]
   cashSessions   CashSession[]
   purchases      PurchaseOrder[]
@@ -295,6 +297,7 @@ model User {
   presenceTabs        PresenceTab[]
   webPushSubscriptions WebPushSubscription[]
   webPushEnvios      WebPushEnvio[]
+  branchUsages        UserBranchUsage[]
   usageSessions       UsageSession[]
   avatar              UserAvatar?
   openedCashSessions  CashSession[]   @relation("CashOpenedBy")
@@ -3509,4 +3512,20 @@ model WebPushEnvio {
 
   @@unique([userId, clave])
   @@index([tenantId, createdAt])
+}
+
+// #286 · Sucursal efectiva: última sucursal usada por usuario (preferencia del
+// usuario sin sucursal asignada; si no usó ninguna se toma la primera creada).
+model UserBranchUsage {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  usedAt    DateTime @default(now())
+
+  @@unique([userId, branchId])
+  @@index([tenantId, userId, usedAt])
 }
