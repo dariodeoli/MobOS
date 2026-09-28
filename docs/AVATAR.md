@@ -37,7 +37,11 @@ Regla viva del proyecto, hermana de `docs/CAMPOS.md` y `docs/TABLAS.md`. Antes d
 - **Subida de avatar:** `POST /api/users/[id]/avatar` (la propia, o cualquier usuario si sos ADMIN) con `FormData` campo `avatar`.
 - **Tipos:** PNG, JPG o WebP. **Tamaño:** hasta **1 MiB**. Se validan MIME **y magic bytes** en el servidor (y en el cliente con `AttachmentInput`/`PhotoCropper`).
 - **Lectura:** `GET /api/users/[id]/avatar` (con sesión) → imagen con `nosniff` y caché privada; `DELETE` la quita.
-- **Recorte y compresión:** `PhotoCropper` (+ `preparePhoto`) antes de subir; el resultado se guarda como data URL en `getAvatarDataUrl` (una sola descarga por pestaña, cacheada como **promesa** para que dos componentes no pidan dos veces).
+- **Recorte y compresión:** `PhotoCropper` (+ `preparePhoto`) antes de subir; el resultado se guarda como data URL en `getAvatarDataUrl`.
+- **Caché de la foto (#271 + #284):** por usuario y en dos capas: memoria (promesa compartida entre componentes) + **persistente** en `localStorage` (`mobos:avatar:<userId>`, con tope de tamaño y descarte de las más viejas si la cuota se llena). `avatarCacheado(userId)` lee de forma **síncrona** para que el avatar arranque pintado en el primer render (sin flash de iniciales), y la **revalidación con ETag** (`no-cache` + `If-None-Match`, 304) corre en segundo plano; si la foto cambió, la caché actualiza y avisa por `mobos:avatar-cambio`.
+  - `olvidarAvatar(userId)` limpia memoria + persistencia (se llama al **subir** o **quitar** la foto) y `limpiarAvatarCache()` borra todo (**cierre de sesión** en equipos compartidos).
+  - `precargarAvatar(userId)` queda expuesto para el **arranque de sesión**: cuando `lib/sesion.jsx` resuelve el usuario conviene llamarlo para que la primera carga (sin caché) llegue antes de que el chip se dibuje.
+  - Los avatares de la app usan **siempre** `Avatar` (regla 1) y el orden visible sigue siendo foto subida → Google → iniciales (`avatarFuente`).
 - **Logo de empresa** (no es avatar): `POST/GET/DELETE /api/tenant/logo`, mismo límite de 1 MiB y formatos.
 - **Almacenamiento:** volumen de adjuntos (`MOBOS_STORAGE_DIR`) con respaldo de bytes en base; nunca dentro del HTML público.
 

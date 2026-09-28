@@ -43,7 +43,7 @@
         "qa-267-config-menu.spec.js",
         "qa-279-push.spec.js",
         "qa-280-aviso-stock.spec.js",
-        "recorte-perfil.spec.js",
+        "qa-fin-repuestos-taller.spec.js",
         "redireccion-248.spec.js",
         "responsive.spec.js",
         "ruc-demo.spec.js",
@@ -91,14 +91,15 @@
         "qa-271-avatar-superficies.spec.js",
         "qa-278-cierre.spec.js",
         "qa-280-gift-cards.spec.js",
-        "qa-f6-metricas-abastecimiento.spec.js",
+        "qa-284-avatar-cache.spec.js",
         "qa-fin-compacto.spec.js",
+        "recorte-perfil.spec.js",
         "seguridad-cuenta.spec.js",
         "servicio-tecnico.spec.js",
         "sesion-bloqueo.spec.js",
         "vendidos-comprobante-rapido.spec.js"
       ],
-      "tests": 190
+      "tests": 191
     },
     {
       "archivos": [
@@ -142,7 +143,7 @@
         "qa-266-shell-header.spec.js",
         "qa-271-avatar-sin-flash.spec.js",
         "qa-279-alternativas.spec.js",
-        "qa-fin-repuestos-taller.spec.js",
+        "qa-f6-metricas-abastecimiento.spec.js",
         "quote-approval-otp.spec.js",
         "repuestos-proveedores.spec.js",
         "ruc-extraccion.spec.js",
@@ -152,5 +153,5 @@
       "tests": 190
     }
   ],
-  "generado": "2026-09-27T19:16:27.993Z"
+  "generado": "2026-09-27T20:55:55.242Z"
 }

@@ -1,0 +1,23 @@
+{
+  "base": "http://localhost:5203",
+  "demoraAvatarMs": 300,
+  "fecha": "2026-09-27T20:50:08.388Z",
+  "frio": {
+    "etiqueta": "frio",
+    "tapa": 121,
+    "iniciales": 190,
+    "imagen": 454,
+    "fotoLocal": 454,
+    "rtt": 322,
+    "statusAvatar": 0
+  },
+  "repetida": {
+    "etiqueta": "repetida",
+    "tapa": 87,
+    "iniciales": 146,
+    "imagen": 412,
+    "fotoLocal": 412,
+    "rtt": 316,
+    "statusAvatar": 0
+  }
+}

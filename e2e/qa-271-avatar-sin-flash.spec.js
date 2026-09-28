@@ -39,6 +39,16 @@ const borrarAvatar = (page, userId) => page.evaluate(async ({ api, userId }) => 
   return respuesta.status
 }, { api: API, userId })
 
+// #284: la app invalida la caché persistente al subir/quitar la foto
+// (`olvidarAvatar`). Este spec cambia la foto por API —sin pasar por la app—,
+// así que emula esa invalidación antes de recargar: sin ella, la recarga pinta
+// la foto cacheada (stale-while-revalidate) y la comparación exacta falla.
+const olvidarCacheAvatar = (page) => page.evaluate(() => {
+  try {
+    for (const clave of Object.keys(localStorage)) if (clave.startsWith('mobos:avatar')) localStorage.removeItem(clave)
+  } catch { /* sin almacenamiento */ }
+})
+
 test('cambiar o quitar la foto no muestra la anterior (revalidación del avatar)', async ({ page }) => {
   mkdirSync(DIR, { recursive: true })
   await page.goto('/resumen')
@@ -60,7 +70,8 @@ test('cambiar o quitar la foto no muestra la anterior (revalidación del avatar)
   // avatar además revalida con ETag y pide `no-cache` explícito.
   expect(String(cabeceras.cache || '')).toMatch(/no-store|no-cache/)/* el ETag del avatar revalida incluso si el middleware no agrega no-store */
 
-  // Foto A visible tras recargar.
+  // Foto A visible tras recargar (con la caché invalidada, como en la app).
+  await olvidarCacheAvatar(page)
   await page.reload()
   await expect(foto()).toHaveAttribute('src', /data:image\/png;base64,/, { timeout: 20_000 })
   // Los PNG del QR comparten cabecera: la comparación es exacta.
@@ -68,6 +79,7 @@ test('cambiar o quitar la foto no muestra la anterior (revalidación del avatar)
 
   // Cambio de foto: tras recargar se ve la B y nunca la A.
   expect(await subirAvatar(page, sesion.id, b64B)).toBeLessThan(300)
+  await olvidarCacheAvatar(page)
   await page.reload()
   await expect(foto()).toBeVisible({ timeout: 20_000 })
   const srcB = await foto().getAttribute('src')
@@ -77,6 +89,7 @@ test('cambiar o quitar la foto no muestra la anterior (revalidación del avatar)
 
   // Foto quitada: placeholder neutro (iniciales), no la anterior.
   expect([200, 204]).toContain(await borrarAvatar(page, sesion.id))
+  await olvidarCacheAvatar(page)
   await page.reload()
   await expect(page.locator(`img[alt="Foto de ${nombre}"]`)).toHaveCount(0, { timeout: 20_000 })
   await page.screenshot({ path: join(DIR, 'sin-foto.jpg'), type: 'jpeg', quality: 74 })
@@ -89,6 +102,7 @@ test('al recargar el bloqueo no se pinta la foto anterior (placeholder hasta res
   const nombre = String(sesion?.user_metadata?.nombre || sesion?.name || SEED.admin.name)
   const png = await QRCode.toBuffer(`avatar-lock-${Date.now()}`)
   expect(await subirAvatar(page, sesion.id, png.toString('base64'))).toBeLessThan(300)
+  await olvidarCacheAvatar(page)
 
   // Perfil viejo en el almacenamiento del dispositivo (la foto que NO debe verse).
   await page.addInitScript(({ clave, foto }) => {

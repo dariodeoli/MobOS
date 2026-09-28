@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getAvatarDataUrl, suscribirAvatar } from '@/lib/userAvatar'
+import { avatarCacheado, getAvatarDataUrl, suscribirAvatar } from '@/lib/userAvatar'
 import { inicialesDe } from '@/lib/iniciales'
 import { fuenteAvatar } from '@/lib/avatarFuente'
 
@@ -21,7 +21,12 @@ export default function Avatar({ user, hasAvatar, picture, size = 'md', classNam
   // La foto local se guarda con su dueño: nunca se pinta la de otro usuario
   // (#271). Mientras resuelve, el placeholder es neutro (iniciales) — tampoco
   // se adelanta la foto de Google, que se vería como «la foto anterior».
-  const [foto, setFoto] = useState(null)
+  // #284: si la foto está cacheada (memoria o localStorage), arranca pintada en
+  // el primer render — sin flash; la revalidación con ETag corre de fondo.
+  const [foto, setFoto] = useState(() => {
+    const url = puedeTenerFoto && user?.id ? avatarCacheado(user.id) : ''
+    return url ? { id: user.id, url } : null
+  })
   const [localListo, setLocalListo] = useState(false)
   // Cambio/quitado de foto en cualquier parte de la app (#271): la caché avisa
   // y este avatar vuelve a resolver con el placeholder neutro.
