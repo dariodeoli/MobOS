@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { CONDICION_UNIDAD, colorCondicionUnidad, colorInventario, estadoInventario, etiquetaCondicionUnidad, nombreProducto, puntoCondicionUnidad, sigueEnInventario, sinCostoUnitario, costoEnGs, tonoInventario } from './inventario.js'
+import { CONDICION_UNIDAD, colorCondicionUnidad, colorInventario, estadoInventario, etiquetaCondicionUnidad, nombreProducto, puntoCondicionUnidad, sigueEnInventario, sinCostoUnitario, costoEnGs, tonoInventario, serialNormalizado, unidadesElegibles } from './inventario.js'
 
 test('el nombre comercial agrega la capacidad solo si falta', () => {
   assert.equal(nombreProducto({ name: 'iPhone 15 Pro Max', capacity: '256 GB' }), 'iPhone 15 Pro Max · 256 GB')
@@ -74,4 +74,30 @@ test('la condición física tiene etiqueta, color y punto compartidos', () => {
   assert.equal(puntoCondicionUnidad({ condition: 'NEW' }), 'bg-ok')
   assert.equal(puntoCondicionUnidad({ condition: 'USED' }), 'bg-warn')
   assert.equal(puntoCondicionUnidad({}), 'bg-mute')
+})
+
+// #286: el selector del POS no puede descartar unidades por sucursal — cuando
+// la venta no manda sucursal, el servidor ya acota por la sesión.
+test('unidadesElegibles deja las vendibles del producto y la ya elegida', () => {
+  const unidades = [
+    { id: 'u1', productId: 'p1', status: 'AVAILABLE', serial: 'ABC-123' },
+    { id: 'u2', productId: 'p1', status: 'RESERVED', serial: 'DEF456' },
+    { id: 'u3', productId: 'p2', status: 'AVAILABLE', serial: 'OTRO' },
+    { id: 'u4', productId: 'p1', status: 'SOLD', serial: 'GHI789' },
+    { id: 'u5', productId: 'p1', status: 'RESERVED', serial: 'MOBOS: JKL 000' },
+  ]
+  const elegibles = unidadesElegibles(unidades, { productId: 'p1', seleccionados: ['jkl000'] })
+  assert.deepEqual(elegibles.map((unit) => unit.id), ['u1', 'u5'])
+})
+
+test('unidadesElegibles ignora unidades sin sucursal y sin producto', () => {
+  const conSucursal = [{ id: 'u1', productId: 'p1', status: 'AVAILABLE', serial: 'A1', branchId: 'branch-1' }]
+  assert.deepEqual(unidadesElegibles(conSucursal, { productId: 'p1' }).map((unit) => unit.id), ['u1'], 'la sucursal la decide la API, no el cliente')
+  assert.deepEqual(unidadesElegibles(conSucursal, { productId: '' }), [])
+  assert.deepEqual(unidadesElegibles(null, { productId: 'p1' }), [])
+})
+
+test('serialNormalizado equipara lo que el vendedor eligió con lo que devuelve la API', () => {
+  assert.equal(serialNormalizado(' MOBOS:abc-123 '), 'ABC123')
+  assert.equal(serialNormalizado(undefined), '')
 })

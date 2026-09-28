@@ -71,3 +71,18 @@ test('la venta demo marca la unidad como vendida y deja el evento (#227)', () =>
   const enLista = demo.listDemoUnits().find(unit => unit.serial === libre.serial)
   assert.equal(enLista.status, 'SOLD')
 })
+
+// #286: el selector del POS en la demo usa los mismos filtros que la API real
+// (producto + sucursal + estado) y no pierde las unidades de la sucursal demo.
+test('filtrarUnidadesDemo acota por producto, sucursal y estado', () => {
+  const unidades = demo.listDemoUnits()
+  const producto = unidades[0]
+  const delProducto = demo.filtrarUnidadesDemo(unidades, { productId: producto.productId, branchId: demo.DEMO_BRANCH })
+  assert.ok(delProducto.length > 0, 'la sucursal demo tiene unidades del producto')
+  assert.ok(delProducto.every(unidad => unidad.productId === producto.productId))
+  const disponibles = demo.filtrarUnidadesDemo(unidades, { productId: producto.productId, branchId: demo.DEMO_BRANCH, status: 'AVAILABLE' })
+  assert.ok(disponibles.every(unidad => unidad.status === 'AVAILABLE'))
+  assert.deepEqual(demo.filtrarUnidadesDemo(unidades, { branchId: 'sucursal-inexistente' }), [])
+  // Las unidades sin sucursal (caso borde) siguen visibles en cualquier filtro.
+  assert.equal(demo.filtrarUnidadesDemo([{ id: 'x', branchId: null, status: 'AVAILABLE' }], { branchId: demo.DEMO_BRANCH }).length, 1)
+})
