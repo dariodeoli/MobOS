@@ -11,6 +11,10 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.206 — 2026-09-28
+- **CI (#288):** corregido el **typecheck** del backend (test A4 del tránsito) y del **instalador del agente de impresión**: main vuelve a compilar limpio.
+- **Mobile (#289 · #249):** el **toggle de tema** y el botón **volver** de la demo llegan al **mínimo táctil de 44 px** (cierre del hallazgo de la auditoría).
+
 ## v1.0.205 — 2026-09-28
 - **POS · Abastecimiento (#279 A2):** cada vendedor tiene su **carrito activo privado** (empresa + sucursal + usuario + sesión); al suspender, el **borrador guarda quién lo creó** y se puede **retomar** quedando registrado. Ya no se mezclan ventas entre vendedores.
 - **Vender en tránsito (#279 A4):** se puede **apartar una unidad que viaja** para una venta futura (queda **bloqueada para otras ventas**); al llegar, el **IMEI se vincula solo** y avisa en la bandeja.
