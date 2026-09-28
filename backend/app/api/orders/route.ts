@@ -19,6 +19,7 @@ import { crearDemandas, demandasDePedido, revisarMinimoDeStock } from '../../../
 import { syncOrderItemSerials } from '../../../lib/order-serials'
 import { esCodigoDuplicado, nextOrderNumber } from '../../../lib/order-number'
 import { LIMITE_MONTO_GENERAL, LIMITE_MONTO_VENTAS, numero } from '../../../lib/montos'
+import { sucursalEfectiva } from '../../../lib/sucursal-efectiva'
 
 // Detalle devuelto tanto al crear como al reutilizar una orden idempotente.
 const orderDetail = Prisma.validator<Prisma.OrderInclude>()({
@@ -89,15 +90,18 @@ export async function GET(request: Request) {
   const q = (params.get('q') || '').trim().slice(0, 120)
   // Alcance por rol: VENDEDOR ve lo suyo de su sucursal; CAJERA su sucursal;
   // ADMIN/GERENTE todo el tenant. El repartidor solo lo que tiene asignado
-  // (su panel es /api/delivery/orders). Sin sucursal el alcance es NULL.
+  // (su panel es /api/delivery/orders). Sin sucursal asignada el alcance usa la
+  // efectiva (#286: última usada → primera creada), para que el vendedor vea los
+  // pedidos que acaba de hacer.
   const condiciones: Prisma.Sql[] = [Prisma.sql`o."tenantId" = ${tenant}`]
+  const alcanceSucursal = ['VENDEDOR', 'CAJERA'].includes(session.user.role) ? await sucursalEfectiva(session) : null
   if (session.user.role === 'REPARTIDOR') {
     condiciones.push(Prisma.sql`o."assignedToId" = ${session.user.id}`)
   } else if (session.user.role === 'VENDEDOR') {
     condiciones.push(Prisma.sql`o."sellerId" = ${session.user.id}`)
-    condiciones.push(session.user.branchId ? Prisma.sql`o."branchId" = ${session.user.branchId}` : Prisma.sql`o."branchId" IS NULL`)
+    condiciones.push(alcanceSucursal ? Prisma.sql`o."branchId" = ${alcanceSucursal}` : Prisma.sql`o."branchId" IS NULL`)
   } else if (session.user.role === 'CAJERA') {
-    condiciones.push(session.user.branchId ? Prisma.sql`o."branchId" = ${session.user.branchId}` : Prisma.sql`o."branchId" IS NULL`)
+    condiciones.push(alcanceSucursal ? Prisma.sql`o."branchId" = ${alcanceSucursal}` : Prisma.sql`o."branchId" IS NULL`)
   }
   const confirmado = Prisma.sql`COALESCE(p."paid", 0)`
   const esPagado = Prisma.sql`(${confirmado} >= o."totalPyg" AND o."totalPyg" > 0)`
@@ -274,7 +278,8 @@ export async function POST(request: Request) {
   }
   if (discount > 0 && items.some(item => item?.couponCode !== undefined)) throw new InputError('No se puede combinar cupón y descuento global.')
     const crearPedido = () => prisma.$transaction(async tx => {
-      const branchId = session.user.branchId
+      // #286: sin sucursal asignada la venta opera con la efectiva (última usada → primera creada).
+      const branchId = await sucursalEfectiva(session)
       if (branchId && !await tx.branch.findFirst({ where: { id: branchId, tenantId: tenant, isActive: true }, select: { id: true } })) throw new Error('Sucursal no encontrada.')
       let customerId = selectedCustomerId
       let pricingTier = 'RETAIL'

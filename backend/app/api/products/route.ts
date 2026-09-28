@@ -2,11 +2,11 @@ import { prisma } from '../../../lib/prisma'
 import { PaymentCurrency, ProductCondition } from '@prisma/client'
 import { error, json, tenantId } from '../../../lib/http'
 import { canAccessAny, requireSession } from '../../../lib/auth'
-import { ensureStoreBranch } from '../../../lib/store-branch'
 import { skuUnico } from '../../../lib/sku'
 import { serialKey } from '../../../lib/validation'
 import { INVENTORY_UNIT_RECEIVED, liberarReservasVencidas } from '../../../lib/inventory'
 import { LIMITE_MONTO_GENERAL, numero, numeroOpcional } from '../../../lib/montos'
+import { sucursalEfectiva } from '../../../lib/sucursal-efectiva'
 
 // Variante estructurada: texto libre acotado; vacío se guarda como null.
 const variantField = (value: unknown, max: number) => typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null
@@ -35,7 +35,10 @@ export async function GET(request: Request) {
   const session = await requireSession(request); if (!session) return error('Sesión inválida.', 401)
   await prisma.$transaction(tx => liberarReservasVencidas(tx, tenant))
   const p = new URL(request.url).searchParams; const q = p.get('q') || ''
-  const branchFilter = ['VENDEDOR', 'CAJERA'].includes(session.user.role) ? { OR: [{ branchId: session.user.branchId }, { branchId: null }] } : undefined
+  // #286: un vendedor/cajera sin sucursal asignada opera con su sucursal
+  // efectiva (última usada → primera creada) para que el catálogo no quede vacío.
+  const branchEfectiva = ['VENDEDOR', 'CAJERA'].includes(session.user.role) ? await sucursalEfectiva(session) : null
+  const branchFilter = ['VENDEDOR', 'CAJERA'].includes(session.user.role) ? { OR: [{ branchId: branchEfectiva }, { branchId: null }] } : undefined
   const searchFilter = q ? { OR: [{ name: { contains: q, mode: 'insensitive' as const } }, { model: { contains: q, mode: 'insensitive' as const } }, { color: { contains: q, mode: 'insensitive' as const } }, { capacity: { contains: q, mode: 'insensitive' as const } }, { sku: { contains: q, mode: 'insensitive' as const } }, { imei: { contains: q } }] } : undefined
   // Paginado por cursor: el catálogo puede tener más de una pantalla y el
   // orden necesita un desempate estable (nombre no es único). El tope subió a
@@ -77,7 +80,7 @@ export async function POST(request: Request) {
   if (insuranceRate !== undefined && (!Number.isFinite(insuranceRate) || insuranceRate < 0 || insuranceRate > 100)) return error('El seguro debe ser un porcentaje entre 0 y 100.')
   if (reorderPoint !== undefined && reorderPoint !== null && (!Number.isSafeInteger(reorderPoint) || reorderPoint < 0 || reorderPoint > 2147483647)) return error('El umbral de reposición debe ser un entero válido.')
   const requestedBranchId: string | null = b.branchId || session.user.branchId || null
-  const branchId = requestedBranchId ?? await ensureStoreBranch(session)
+  const branchId = requestedBranchId ?? await sucursalEfectiva(session)
   if (branchId && !(await prisma.branch.findFirst({ where: { id: branchId, tenantId: tenant, isActive: true }, select: { id: true } }))) return error('Sucursal no encontrada.', 404)
   if (session.user.branchId && branchId !== session.user.branchId) return error('No autorizado para esa sucursal.', 403)
   const serial = serialKey(b.imei)
@@ -116,7 +119,7 @@ export async function PATCH(request: Request) {
   if (reorderPoint !== undefined && reorderPoint !== null && (!Number.isSafeInteger(reorderPoint) || reorderPoint < 0 || reorderPoint > 2147483647)) return error('El umbral de reposición debe ser un entero válido.')
   const product = await prisma.product.findFirst({ where: { id: b.id, tenantId: tenant, isActive: true } })
   if (!product) return error('Producto no encontrado.', 404)
-  const userBranchId = session.user.branchId ?? await ensureStoreBranch(session)
+  const userBranchId = session.user.branchId ?? await sucursalEfectiva(session)
   if ((userBranchId === null && product.branchId !== null) || (userBranchId && product.branchId !== null && product.branchId !== userBranchId)) return error('No autorizado para esa sucursal.', 403)
   const serial = b.imei === undefined ? undefined : serialKey(b.imei)
   if (serial !== undefined && (!serial || stock !== undefined && stock !== 1 || product.stock !== 1 || !product.branchId)) return error('El IMEI/serial solo se asigna a una unidad individual con stock 1.')
