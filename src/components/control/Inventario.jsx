@@ -565,9 +565,9 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
       if (!linea.precio && Number(unit.product?.pricePyg) > 0) linea.precio = Number(unit.product.pricePyg)
       porProducto.set(productoId, linea)
     }
-    const { empresaId, sucursalId } = contextoActual()
+    const { empresaId, sucursalId, userId } = contextoActual()
     const items = [...porProducto.values()].map(({ precio, ...linea }) => (precio > 0 ? { ...linea, precio } : linea))
-    if (!prepararVentaDesdeInventario({ empresaId, sucursalId, items })) { toast.error('No se pudo preparar la venta en el POS.'); return }
+    if (!prepararVentaDesdeInventario({ empresaId, sucursalId, usuarioId: userId, items })) { toast.error('No se pudo preparar la venta en el POS.'); return }
     const sobrantes = elegidas.length - vendibles.length
     toast.success(`${vendibles.length} unidad${vendibles.length === 1 ? '' : 'es'} para vender en el POS${sobrantes > 0 ? ` (${sobrantes} quedaron fuera por no estar disponibles)` : ''}.`)
     setSeleccionados([])

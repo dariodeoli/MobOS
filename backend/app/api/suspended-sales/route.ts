@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     where: { tenantId: tenant, ...(branchId ? { branchId } : {}) },
     orderBy: { createdAt: 'desc' },
     take: 50,
-    select: { id: true, branchId: true, userId: true, customerId: true, label: true, createdAt: true, payload: true, customer: { select: { id: true, name: true, phone: true, email: true } }, user: { select: { id: true, name: true } } },
+    select: { id: true, branchId: true, userId: true, customerId: true, label: true, createdAt: true, resumedAt: true, payload: true, customer: { select: { id: true, name: true, phone: true, email: true } }, user: { select: { id: true, name: true } }, resumedBy: { select: { id: true, name: true } } },
   })
   return json(rows)
 }
@@ -73,6 +73,18 @@ export async function PATCH(request: Request) {
     if (!row) return error('Venta suspendida no encontrada.', 404)
     const isManager = canAccessAny(session.user, ['orders:manage']) || ['ADMIN', 'GERENTE'].includes(session.user.role)
     if (row.userId !== session.user.id && !isManager) return error('Solo quien la suspendió o gerencia pueden compartirla.', 403)
+    // #279 A2: retomar el borrador queda registrado (es compartido: cualquiera
+    // de la sucursal lo puede tomar). No se borra: el creador o gerencia lo
+    // descartan cuando ya no hace falta.
+    if (body.action === 'resume') {
+      const resumida = await prisma.suspendedSale.update({
+        where: { id: row.id },
+        data: { resumedById: session.user.id, resumedAt: new Date() },
+        select: { id: true, resumedAt: true, resumedBy: { select: { id: true, name: true } } },
+      })
+      await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SALE_RESUMED', entity: 'SuspendedSale', entityId: row.id, metadata: { branchId: row.branchId, ownerId: row.userId } } })
+      return json(resumida)
+    }
     // Revocar sin emitir otro: el enlace deja de abrir al instante.
     if (body.revoke === true) {
       await prisma.$transaction(async tx => {
