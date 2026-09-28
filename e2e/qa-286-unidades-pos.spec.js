@@ -179,7 +179,7 @@ test.describe('dueño', () => {
     }
   })
 
-  test('#286 · un vendedor sin sucursal no recibe stock de otras sucursales', async ({ page, browser }) => {
+  test('#286 · un vendedor sin sucursal opera en su sucursal efectiva y no ve stock de otras', async ({ page, browser }) => {
     const adminCtx = await browser.newContext({ storageState: 'e2e/.auth/admin.json' })
     const adminPage = await adminCtx.newPage()
     let vendedorId = ''
@@ -200,12 +200,21 @@ test.describe('dueño', () => {
         await fetch(`${api}/api/auth/pin`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sellerId, pin }) })
         return (await fetch(`${api}/api/auth/me`, { credentials: 'include', headers: { 'Content-Type': 'application/json' } }).then((r) => r.json()).catch(() => null))?.user
       }, { api: API, pin, sellerId: vendedorId, company: SEED.company })
-      expect(login?.branchId ?? null, JSON.stringify(login)).toBeNull()
+      // Contrato vigente (sucursal efectiva, #286/#279 A1): sin sucursal asignada
+      // el vendedor opera en la sucursal efectiva (primera del tenant), no en el vacío.
+      const efectiva = login?.branchId ?? null
+      expect(efectiva, JSON.stringify(login)).not.toBeNull()
+      expect(efectiva, JSON.stringify(login)).toBe(SEED.branchId)
 
-      // El contrato del API: sin sucursal no se filtra stock ajeno.
+      // Ve las unidades de su sucursal efectiva…
       const unidades = await apiPagina(suPage, `/api/inventory-units?productId=${encodeURIComponent(productId)}`)
       expect(unidades.status, JSON.stringify(unidades.body)).toBe(200)
-      expect(Array.isArray(unidades.body) ? unidades.body.length : -1, JSON.stringify(unidades.body).slice(0, 200)).toBe(0)
+      const filas = Array.isArray(unidades.body) ? unidades.body : []
+      expect(filas.length, JSON.stringify(unidades.body).slice(0, 200)).toBeGreaterThan(0)
+      expect(filas.every((u) => u.branchId === efectiva), JSON.stringify(unidades.body).slice(0, 300)).toBe(true)
+      // …y no puede consultar stock de otra sucursal (aislamiento).
+      const ajena = await apiPagina(suPage, `/api/inventory-units?branchId=${encodeURIComponent(SEED.branch2Id)}`)
+      expect(ajena.status, JSON.stringify(ajena.body)).toBe(403)
       await ctx.close()
     } finally {
       if (vendedorId) await apiPagina(adminPage, '/api/users', { method: 'PATCH', body: JSON.stringify({ id: vendedorId, status: 'INACTIVE' }) }).catch(() => {})

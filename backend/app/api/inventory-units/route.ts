@@ -158,7 +158,10 @@ export async function GET(request: Request) {
   return json(units.map(unit => {
     const conVenta = unit.status === 'SOLD' && ventaPorSerial.has(unit.serial) ? { ...unit, sale: ventaPorSerial.get(unit.serial) } : unit
     const verificacion = verificacionPorSerial.get(unit.serial)
-    return verificacion ? { ...conVenta, verificacion } : conVenta
+    const conVerificacion = verificacion ? { ...conVenta, verificacion } : conVenta
+    // #279 (A4): una sola asignación viva por unidad, ya aplanada.
+    const { transitAssignments, ...resto } = conVerificacion as typeof conVerificacion & { transitAssignments?: Array<Record<string, unknown>> }
+    return { ...resto, transitAssignment: transitAssignments?.[0] || null }
   }))
 }
 
