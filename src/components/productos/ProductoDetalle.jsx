@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Aviso, Badge, Button, Drawer, Input, Label, Money, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
@@ -184,7 +185,20 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
         )}
 
         <section className="rounded-2xl border border-ink-600 p-4">
-          <h3 className={ROTULO_SECCION}>Equipos por estado</h3>
+          {/* #287: el producto y sus unidades son el mismo objeto: desde acá se
+              pasa a la vista de Unidades acotada a este producto. */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className={ROTULO_SECCION}>Equipos por estado</h3>
+            {!esDemo && units.length > 0 && (
+              <Link
+                to={`/inventario/unidades?producto=${encodeURIComponent(current.id)}${current.sku ? `&q=${encodeURIComponent(current.sku)}` : ''}`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-ink-600 px-2.5 py-1 text-[11px] font-semibold text-fono-light transition hover:border-fono/40"
+                title="Abrir estas unidades en Inventario"
+              >
+                <Icon name="box" className="h-3.5 w-3.5" />Ver unidades en Inventario
+              </Link>
+            )}
+          </div>
           {loadingUnits && <div className="mt-3 space-y-2"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>}
           {!loadingUnits && Boolean(errorUnits) && (
             <Aviso tono="error" className="mt-2 flex flex-wrap items-center gap-2 p-3" role="alert">

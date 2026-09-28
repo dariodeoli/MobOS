@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { fechaHora, paraInputFechaHora } from '@/utils/fecha'
 import { serialEnmascarado } from '@/utils/serial'
 import { qrDataUrl } from '@/lib/qr'
@@ -430,6 +431,17 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="font-mono text-sm font-bold tracking-wide">{unit.serial}</span>
             <button type="button" className="toque-44 rounded-md p-1 text-mute transition hover:bg-fore/5 hover:text-fore" title="Copiar IMEI/serial" aria-label="Copiar IMEI/serial" onClick={() => { copiarAlPortapapeles(unit.serial); toast.success('IMEI copiado.') }}><Icon name="copy" className="h-3.5 w-3.5" /></button>
+            {/* #287: la unidad y su producto son el mismo objeto: se pasa a la
+                ficha del producto sin cambiar de mundo mental. */}
+            {!esDemo && (unit.productId || unit.product?.id) && (
+              <Link
+                to={`/productos?producto=${encodeURIComponent(unit.productId || unit.product.id)}${unit.product?.sku ? `&q=${encodeURIComponent(unit.product.sku)}` : ''}`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-ink-600 px-2.5 py-1 text-[11px] font-semibold text-fono-light transition hover:border-fono/40"
+                title="Abrir la ficha del producto en el catálogo"
+              >
+                <Icon name="phone" className="h-3.5 w-3.5" />Ver producto
+              </Link>
+            )}
           </div>
           <p className="mt-1 text-xs text-mute">{unit.branch?.name || 'Sucursal'}{unit.location?.name ? ` · ${unit.location.name}` : ''}{unit.product?.sku ? ` · ${unit.product.sku}` : ''}</p>
           {verificador && unit.lastVerifiedAt && (

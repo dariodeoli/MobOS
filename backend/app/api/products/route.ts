@@ -48,8 +48,11 @@ export async function GET(request: Request) {
     orderBy: [{ name: 'asc' }, { id: 'asc' }],
     take: limit,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    // #287: el producto y sus unidades son el mismo objeto en dos vistas: la
+    // lista dice cuántas unidades físicas (vendibles) tiene cada variante.
+    include: { _count: { select: { inventoryUnits: { where: { status: 'AVAILABLE' } } } } },
   })
-  return json(data)
+  return json(data.map(({ _count, ...producto }) => ({ ...producto, unitsCount: _count?.inventoryUnits ?? 0 })))
 }
 
 export async function POST(request: Request) {
