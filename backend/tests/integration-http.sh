@@ -500,6 +500,9 @@ node "$BACKEND_ROOT/tests/finance-consolidated.mjs" "$BASE_URL" "$ADMIN_TOKEN" "
 node "$BACKEND_ROOT/tests/accounts-tradein.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A"
 node "$BACKEND_ROOT/tests/inventory-transfers.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/unit-repairs.mjs" "$BASE_URL" "$ADMIN_TOKEN"
+
+echo "Sucursal efectiva: un vendedor sin sucursal ve catálogo, unidades y vende (#286)..."
+node "$BACKEND_ROOT/tests/sucursal-efectiva.mjs" "$BASE_URL" "$DATABASE_URL" "$PG_BIN"
 node "$BACKEND_ROOT/tests/public-quote-transfer.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN"
 
 echo "Cotizaciones: aprobación autenticada con OTP, versión congelada y evidencia (#279)..."
