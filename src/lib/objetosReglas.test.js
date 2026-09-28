@@ -739,3 +739,14 @@ test('Productos y Unidades comparten el switch y los enlaces de contexto (#287)'
   assert.match(readFileSync(join(RAIZ, 'components/inventory/UnidadDetalle.jsx'), 'utf8'), /\/productos\?producto=/, 'la ficha de la unidad lleva a su producto')
   assert.match(readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /inventario-filtro-producto/, 'la vista de Unidades muestra el producto que la acota')
 })
+
+// #279 (A4 · vender en tránsito): el panel aparta unidades que viajan, las
+// marca en la fila y el menú de acciones vuelve a responder (solo cierra afuera).
+test('el panel de Unidades aparta unidades en tránsito y el menú responde (#279)', () => {
+  const inventario = readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8')
+  assert.match(inventario, /data-testid="unidad-apartada"/, 'la fila marca la unidad apartada')
+  assert.match(inventario, /Apartar para una venta/, 'el menú ofrece apartar la unidad que viaja')
+  assert.match(inventario, /transitAssignments\.create\(/, 'el panel usa la API de asignaciones futuras')
+  assert.match(inventario, /function MenuAcciones[\s\S]*?raiz\.current\?\.contains/, 'el menú de acciones solo cierra si el clic fue afuera')
+  assert.match(readFileSync(join(RAIZ, 'components/app/PanelNotificaciones.jsx'), 'utf8'), /TRANSITO: 'truck'/, 'la bandeja tiene el aviso de llegada del apartado')
+})

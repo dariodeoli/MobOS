@@ -41,15 +41,16 @@
         "qa-278-cierre.spec.js",
         "qa-279-alternativas.spec.js",
         "qa-279-push.spec.js",
+        "qa-284-avatar-cache.spec.js",
         "qa-286-unidades-pos.spec.js",
         "qa-287-objeto-unificado.spec.js",
-        "qa-f6-metricas-abastecimiento.spec.js",
+        "recorte-perfil.spec.js",
         "responsive.spec.js",
         "seguridad-cuenta.spec.js",
         "shell-roles.spec.js",
         "vendidos-comprobante-rapido.spec.js"
       ],
-      "tests": 194
+      "tests": 195
     },
     {
       "archivos": [
@@ -91,10 +92,10 @@
         "qa-261-cotizacion-envio.spec.js",
         "qa-268-unificar-clientes.spec.js",
         "qa-271-avatar-sin-flash.spec.js",
-        "qa-280-aviso-stock.spec.js",
+        "qa-279-transito.spec.js",
         "qa-285-unidades.spec.js",
+        "qa-f6-metricas-abastecimiento.spec.js",
         "qa-fin-compacto.spec.js",
-        "qa-fin-repuestos-taller.spec.js",
         "ruc-demo.spec.js",
         "selector-sucursal.spec.js",
         "servicio-tecnico.spec.js",
@@ -144,10 +145,10 @@
         "qa-263-imei-venta.spec.js",
         "qa-267-config-menu.spec.js",
         "qa-271-avatar-superficies.spec.js",
+        "qa-280-aviso-stock.spec.js",
         "qa-280-gift-cards.spec.js",
-        "qa-284-avatar-cache.spec.js",
+        "qa-fin-repuestos-taller.spec.js",
         "quote-approval-otp.spec.js",
-        "recorte-perfil.spec.js",
         "redireccion-248.spec.js",
         "repuestos-proveedores.spec.js",
         "ruc-extraccion.spec.js",
@@ -156,5 +157,5 @@
       "tests": 194
     }
   ],
-  "generado": "2026-09-28T18:55:09.382Z"
+  "generado": "2026-09-28T19:16:17.556Z"
 }

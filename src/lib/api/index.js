@@ -103,6 +103,16 @@ export const resources = {
   supplySerials: {
     get: (serial) => api.get(`/api/supply/serials/${encodeURIComponent(serial)}`, { cacheMs: 0 }),
   },
+  // #279 (A4): asignaciones futuras de unidades en tránsito (apartar para una
+  // venta, liberar y consultar).
+  transitAssignments: {
+    list: (params = {}) => {
+      const query = new URLSearchParams(Object.entries(params).filter(([, valor]) => valor !== '' && valor != null).map(([clave, valor]) => [clave, String(valor)]))
+      return api.get(`/api/transit-assignments${query.toString() ? `?${query.toString()}` : ''}`, { cacheMs: 0 })
+    },
+    create: data => api.post('/api/transit-assignments', data),
+    update: data => api.patch('/api/transit-assignments', data),
+  },
   audit: { list: (params = {}) => api.get(`/api/audit?${new URLSearchParams(params)}`) },
   sessions: { list: () => api.get('/api/sessions'), revoke: sessionId => api.delete('/api/sessions', { body: { sessionId } }) },
 }

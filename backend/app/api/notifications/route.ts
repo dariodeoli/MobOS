@@ -276,6 +276,30 @@ export async function GET(request: Request) {
     }
   }
 
+  // #279 (A4) · Vender en tránsito: llegó el equipo que apartaste y el IMEI ya
+  // quedó vinculado a tu venta/pedido (o a la reserva del cliente).
+  const apartados = await prisma.transitAssignment.findMany({
+    where: { tenantId: user.tenantId, sellerId: user.id, status: 'VINCULADA', linkedAt: { gte: desde } },
+    orderBy: { linkedAt: 'desc' },
+    take: 20,
+    select: { id: true, linkedAt: true, orderId: true, customerName: true, order: { select: { orderNumber: true } }, unit: { select: { serial: true, product: { select: { name: true } } } } },
+  })
+  for (const apartado of apartados) {
+    const contexto = [
+      apartado.unit?.product?.name || 'Equipo',
+      apartado.unit?.serial ? `IMEI ${apartado.unit.serial}` : '',
+      apartado.order?.orderNumber || (apartado.customerName ? `para ${apartado.customerName}` : ''),
+    ].filter(Boolean).join(' · ')
+    items.push({
+      id: `transito-${apartado.id}`,
+      kind: 'TRANSITO',
+      title: 'Llegó el equipo que apartaste',
+      detail: contexto,
+      at: apartado.linkedAt || new Date(),
+      href: apartado.orderId ? `/pedidos/${apartado.orderId}` : '/pedidos',
+    })
+  }
+
   items.sort((a, b) => b.at.getTime() - a.at.getTime())
   return json({ items: items.slice(0, limite).map(item => ({ ...item, at: item.at.toISOString() })), windowDays: DIAS }, { headers: { 'Cache-Control': 'no-store' } })
 }

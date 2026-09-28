@@ -106,7 +106,11 @@ export async function GET(request: Request) {
     // match normalizado y se suma el crudo (búsqueda por SKU en Inventario y
     // detección de unidades serializadas del POS).
     where: { tenantId: tenant, ...removalFilter, ...(branchId ? { branchId } : session.user.branchId ? { branchId: session.user.branchId } : {}), ...(productId ? { productId } : {}), ...(status ? { status: status as InventoryUnitStatus } : {}), ...(query ? { OR: [{ serial: { contains: query, mode: 'insensitive' } }, { product: { OR: [{ sku: { contains: raw, mode: 'insensitive' } }, { sku: { contains: query, mode: 'insensitive' } }, { name: { contains: raw, mode: 'insensitive' } }] } }] } : {}) },
-    include: { product: { select: { id: true, name: true, sku: true, pricePyg: true, capacity: true, model: true, color: true } }, branch: { select: { id: true, name: true } }, location: { select: { id: true, name: true, code: true } }, lastVerifiedBy: { select: { id: true, name: true } }, ...(['ADMIN', 'GERENTE'].includes(session.user.role) ? { supplier: { select: { id: true, name: true, code: true } } } : {}) },
+    include: { product: { select: { id: true, name: true, sku: true, pricePyg: true, capacity: true, model: true, color: true } }, branch: { select: { id: true, name: true } }, location: { select: { id: true, name: true, code: true } }, lastVerifiedBy: { select: { id: true, name: true } }, ...(['ADMIN', 'GERENTE'].includes(session.user.role) ? { supplier: { select: { id: true, name: true, code: true } } } : {}),
+      // #279 (A4): la asignación futura viva (si la hay) viaja con la unidad
+      // para que la lista muestre para quién está apartada.
+      transitAssignments: { where: { status: { not: 'LIBERADA' } }, orderBy: { createdAt: 'desc' }, take: 1, select: { id: true, status: true, customerName: true, customerId: true, sellerId: true, orderId: true, orderItemId: true, linkedAt: true, notes: true, seller: { select: { id: true, name: true } }, order: { select: { id: true, orderNumber: true } } } },
+    },
     orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }], take: Math.min(500, Math.max(1, Number(params.get('limit')) || 500)), ...(params.get('cursor') ? { cursor: { id: params.get('cursor') as string }, skip: 1 } : {}),
   })
   // Una unidad vendida hereda la entrega de su pedido: Inventario puede así
@@ -154,7 +158,10 @@ export async function GET(request: Request) {
   return json(units.map(unit => {
     const conVenta = unit.status === 'SOLD' && ventaPorSerial.has(unit.serial) ? { ...unit, sale: ventaPorSerial.get(unit.serial) } : unit
     const verificacion = verificacionPorSerial.get(unit.serial)
-    return verificacion ? { ...conVenta, verificacion } : conVenta
+    const conVerificacion = verificacion ? { ...conVenta, verificacion } : conVenta
+    // #279 (A4): una sola asignación viva por unidad, ya aplanada.
+    const { transitAssignments, ...resto } = conVerificacion as typeof conVerificacion & { transitAssignments?: Array<Record<string, unknown>> }
+    return { ...resto, transitAssignment: transitAssignments?.[0] || null }
   }))
 }
 
