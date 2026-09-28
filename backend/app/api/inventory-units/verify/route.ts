@@ -4,6 +4,7 @@ import { requireSession } from '../../../../lib/auth'
 import { serialKey } from '../../../../lib/validation'
 import { changeStock } from '../../../../lib/stock'
 import { INVENTORY_PHYSICALLY_VERIFIED } from '../../../../lib/inventory'
+import { reservaDeAsignacion, vincularAsignacionAlRecibir } from '../../../../lib/transit'
 
 const branchAllowed = (role: string, assigned: string | null, branchId: string | null) => !['VENDEDOR', 'CAJERA'].includes(role) || assigned === branchId
 const text = (value: unknown, max = 128) => typeof value === 'string' && value.trim().length > 0 && value.trim().length <= max ? value.trim() : null
@@ -28,17 +29,27 @@ export async function POST(request: Request) {
       if (units.length !== serials.length) throw new Error('Uno o más equipos no existen, ya fueron vendidos o no se pueden verificar.')
       if (units.some(unit => !branchAllowed(session.user.role, session.user.branchId, unit.branchId))) throw new Error('No autorizado para verificar equipos de otra sucursal.')
       let received = 0
+      let vinculadas = 0
       for (const unit of units) {
         if (locationId && !(await tx.stockLocation.findFirst({ where: { id: locationId, tenantId: tenant, branchId: unit.branchId ?? undefined, isActive: true }, select: { id: true } }))) throw new Error('Ubicación no encontrada para la sucursal del equipo.')
         const arriving = unit.status === 'IN_TRANSIT'
+        // #279 (A4): si la unidad futura estaba apartada para una venta, al
+        // llegar queda reservada a ese cliente (no se ofrece a otro vendedor) y
+        // el IMEI se vincula al pedido que la esperaba.
+        const asignacion = arriving
+          ? await tx.transitAssignment.findFirst({ where: { tenantId: tenant, unitId: unit.id, status: 'ASIGNADA' }, orderBy: { createdAt: 'desc' } })
+          : null
         await tx.inventoryUnit.update({ where: { id: unit.id }, data: {
           lastVerifiedAt: now, lastVerifiedById: session.user.id, verificationCount: { increment: 1 },
-          ...(arriving ? { status: 'AVAILABLE', locationId: locationId ?? null, reservedUntil: null, reservationCustomer: null, reservedById: null } : locationId ? { locationId } : {}),
+          ...(arriving
+            ? { ...reservaDeAsignacion(asignacion), locationId: locationId ?? null, reservedUntil: null }
+            : locationId ? { locationId } : {}),
         } })
         if (arriving) {
           received += 1
           await changeStock(tx, { tenantId: tenant, productId: unit.productId, delta: 1, message: 'El stock cambió mientras se recibía el equipo.' })
           await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_TRANSIT_RECEIVED', entity: 'InventoryUnit', entityId: unit.id, metadata: { serial: unit.serial, branchId: unit.branchId, locationId } } })
+          if (asignacion && await vincularAsignacionAlRecibir(tx, { tenantId: tenant, unit, userId: session.user.id })) vinculadas += 1
         }
       }
       // El traslado se cierra cuando llegó su última unidad: así deja de

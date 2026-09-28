@@ -17,6 +17,8 @@ const ICONO = {
   // #280 · INV → vendedor: llegó stock de lo comprometido o se agotó.
   STOCK: 'box',
   SIN_STOCK: 'alert',
+  // #279 (A4) · vender en tránsito: llegó el equipo que estaba apartado.
+  TRANSITO: 'truck',
 }
 
 function hace(at) {

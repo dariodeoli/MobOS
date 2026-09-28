@@ -146,6 +146,7 @@ model Tenant {
   supplyPolicies              SupplyPolicy[]
   workshopParts               WorkshopPart[]
   workshopPartMovements       WorkshopPartMovement[]
+  transitAssignments         TransitAssignment[]
 }
 
 // Identidad de la PERSONA (cuenta Google). No pertenece a ninguna tienda:
@@ -291,6 +292,7 @@ model Branch {
   supplyShipments SupplyShipment[] @relation("SupplyShipmentDestination")
   supplyPolicies SupplyPolicy[]
   workshopParts WorkshopPart[]
+  transitAssignments TransitAssignment[]
 }
 
 model User {
@@ -381,6 +383,7 @@ model User {
   supplyPoliciesUpdated        SupplyPolicy[] @relation("SupplyPolicyUpdater")
   workshopPartsCreated         WorkshopPart[] @relation("WorkshopPartAuthor")
   workshopPartMovements        WorkshopPartMovement[] @relation("WorkshopPartMovementAuthor")
+  transitAssignments TransitAssignment[] @relation("TransitAssignmentSeller")
 }
 
 model UserInvitation {
@@ -664,6 +667,7 @@ model InventoryUnit {
   // la orden se puede pasar al costo real de la unidad (vínculo explícito y
   // auditado) y queda visible en la cronología del serial.
   serviceOrders     ServiceOrder[] @relation("ServiceOrderUnit")
+  transitAssignments TransitAssignment[]
 }
 
 // Ubicación física dentro de una sucursal: piso de venta, depósito, vitrina,
@@ -778,6 +782,44 @@ model StockTransferLine {
   @@index([transferId])
 }
 
+// #279 (A4) · Vender en tránsito: asignación futura de una unidad que todavía
+// viaja (traslado interno o compra en camino). La unidad existe con status
+// IN_TRANSIT en la sucursal destino, así que la asignación **bloquea esa unidad
+// futura** para otros (índice único parcial: una sola asignación viva por
+// unidad) y, al recibirla, el IMEI se vincula solo a la venta/pedido que la
+// esperaba. Estados: ASIGNADA → VINCULADA (llegó y se vinculó) · LIBERADA.
+model TransitAssignment {
+  id           String         @id @default(cuid())
+  tenantId     String
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  unitId       String
+  unit         InventoryUnit  @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  // Venta/pedido que la espera (opcional: también se puede apartar para un
+  // cliente sin pedido, como una reserva a futuro).
+  orderId      String?
+  order        Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderItemId  String?
+  customerId   String?
+  customer     Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerName String?
+  // Quién la apartó: la asignación queda bloqueada a su nombre.
+  sellerId     String
+  seller       User           @relation("TransitAssignmentSeller", fields: [sellerId], references: [id], onDelete: Restrict)
+  branchId     String?
+  branch       Branch?        @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  status       String         @default("ASIGNADA")
+  linkedAt     DateTime?
+  releasedAt   DateTime?
+  notes        String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, sellerId, status])
+  @@index([tenantId, orderId])
+  @@index([unitId])
+}
+
 enum ProductCondition {
   NEW
   USED
@@ -876,6 +918,7 @@ model Customer {
   // Búsqueda difusa por nombre (pg_trgm, GIN): ILIKE '%texto%' sin escanear.
   @@index([name(ops: raw("gin_trgm_ops"))], map: "Customer_name_trgm_idx", type: Gin)
   supplyNeeds SupplyNeed[]
+  transitAssignments TransitAssignment[]
 }
 
 // Solicitud de autorización comercial (mayorista, crédito, plazo o descuento).
@@ -1352,6 +1395,7 @@ model Order {
   @@index([assignedToId])
   @@index([tenantId, assignedToId, fulfillmentStatus])
   supplyNeeds SupplyNeed[]
+  transitAssignments TransitAssignment[]
 }
 
 // Acceso público del pedido por nivel de información. Cada token es aleatorio,
