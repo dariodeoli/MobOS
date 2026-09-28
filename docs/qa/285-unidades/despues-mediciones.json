@@ -41,7 +41,7 @@
       }
     ],
     "filaAlto": 44,
-    "filas": 26
+    "filas": 21
   },
   "1280-dark": {
     "scrollWidth": 978,
@@ -85,7 +85,7 @@
       }
     ],
     "filaAlto": 44,
-    "filas": 26
+    "filas": 21
   },
   "1440-light": {
     "scrollWidth": 1138,
@@ -129,7 +129,7 @@
       }
     ],
     "filaAlto": 44,
-    "filas": 26
+    "filas": 21
   },
   "1440-dark": {
     "scrollWidth": 1138,
@@ -173,6 +173,6 @@
       }
     ],
     "filaAlto": 44,
-    "filas": 26
+    "filas": 21
   }
 }
