@@ -1,0 +1,178 @@
+{
+  "1280-light": {
+    "scrollWidth": 978,
+    "clientWidth": 978,
+    "scrollPagina": {
+      "scrollWidth": 1280,
+      "clientWidth": 1280
+    },
+    "columnas": [
+      {
+        "titulo": "",
+        "ancho": 44
+      },
+      {
+        "titulo": "Producto",
+        "ancho": 209
+      },
+      {
+        "titulo": "IMEI",
+        "ancho": 119
+      },
+      {
+        "titulo": "Verificación",
+        "ancho": 134
+      },
+      {
+        "titulo": "Ubicación",
+        "ancho": 67
+      },
+      {
+        "titulo": "Estado",
+        "ancho": 108
+      },
+      {
+        "titulo": "Costo",
+        "ancho": 96
+      },
+      {
+        "titulo": "Acciones",
+        "ancho": 116
+      }
+    ],
+    "filaAlto": 44,
+    "filas": 26
+  },
+  "1280-dark": {
+    "scrollWidth": 978,
+    "clientWidth": 978,
+    "scrollPagina": {
+      "scrollWidth": 1280,
+      "clientWidth": 1280
+    },
+    "columnas": [
+      {
+        "titulo": "",
+        "ancho": 44
+      },
+      {
+        "titulo": "Producto",
+        "ancho": 209
+      },
+      {
+        "titulo": "IMEI",
+        "ancho": 119
+      },
+      {
+        "titulo": "Verificación",
+        "ancho": 134
+      },
+      {
+        "titulo": "Ubicación",
+        "ancho": 67
+      },
+      {
+        "titulo": "Estado",
+        "ancho": 108
+      },
+      {
+        "titulo": "Costo",
+        "ancho": 96
+      },
+      {
+        "titulo": "Acciones",
+        "ancho": 116
+      }
+    ],
+    "filaAlto": 44,
+    "filas": 26
+  },
+  "1440-light": {
+    "scrollWidth": 1138,
+    "clientWidth": 1138,
+    "scrollPagina": {
+      "scrollWidth": 1440,
+      "clientWidth": 1440
+    },
+    "columnas": [
+      {
+        "titulo": "",
+        "ancho": 44
+      },
+      {
+        "titulo": "Producto",
+        "ancho": 272
+      },
+      {
+        "titulo": "IMEI",
+        "ancho": 155
+      },
+      {
+        "titulo": "Verificación",
+        "ancho": 175
+      },
+      {
+        "titulo": "Ubicación",
+        "ancho": 87
+      },
+      {
+        "titulo": "Estado",
+        "ancho": 108
+      },
+      {
+        "titulo": "Costo",
+        "ancho": 96
+      },
+      {
+        "titulo": "Acciones",
+        "ancho": 116
+      }
+    ],
+    "filaAlto": 44,
+    "filas": 26
+  },
+  "1440-dark": {
+    "scrollWidth": 1138,
+    "clientWidth": 1138,
+    "scrollPagina": {
+      "scrollWidth": 1440,
+      "clientWidth": 1440
+    },
+    "columnas": [
+      {
+        "titulo": "",
+        "ancho": 44
+      },
+      {
+        "titulo": "Producto",
+        "ancho": 272
+      },
+      {
+        "titulo": "IMEI",
+        "ancho": 155
+      },
+      {
+        "titulo": "Verificación",
+        "ancho": 175
+      },
+      {
+        "titulo": "Ubicación",
+        "ancho": 87
+      },
+      {
+        "titulo": "Estado",
+        "ancho": 108
+      },
+      {
+        "titulo": "Costo",
+        "ancho": 96
+      },
+      {
+        "titulo": "Acciones",
+        "ancho": 116
+      }
+    ],
+    "filaAlto": 44,
+    "filas": 26
+  }
+}

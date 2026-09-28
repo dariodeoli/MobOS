@@ -136,15 +136,33 @@ const fechaVerificacion = (value) => {
   const hora = date.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', hour12: false })
   return `${dia} ${mes} ${String(date.getFullYear()).slice(-2)} · ${hora}`
 }
+// #285: la columna Verificación muestra estado + quién + fecha en una línea
+// («OK VPC · 01/09/2026»): fecha corta y las iniciales del verificador.
+const fechaVerificacionCorta = (value) => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const dos = (numero) => String(numero).padStart(2, '0')
+  return `${dos(date.getDate())}/${dos(date.getMonth() + 1)}/${date.getFullYear()}`
+}
+const inicialesNombre = (nombre) => {
+  const palabras = String(nombre || '').trim().split(/\s+/).filter(Boolean)
+  if (!palabras.length) return ''
+  if (palabras.length === 1) return palabras[0].slice(0, 3).toUpperCase()
+  return palabras.slice(0, 3).map((palabra) => palabra[0]).join('').toUpperCase()
+}
 // Mismas columnas para el encabezado y cada unidad: nada se desplaza.
-// Anchos medidos sobre el contenido real de cada columna: las compactas
-// (batería, proveedor, costo, estado) ceden el ancho a producto, serial y
-// verificación, que son los datos que se leen de un vistazo.
-// #246: una sola línea por fila. La variante (capacidad) ya viaja en el nombre
-// del producto, así que no tiene columna propia; la condición queda en el punto
-// de color y la batería como chip compacto en la celda de producto.
+// #285 (estructura final de Dario): una sola línea por fila con
+// Selección · Producto · IMEI · Verificación · Ubicación · Estado · Costo ·
+// Acciones. Los porcentajes pedidos (3/28/16/18/9/10/7/9) se traducen a la
+// grilla como proporciones `fr` de las columnas flexibles, respetando los
+// mínimos reales de contenido (docs/TABLAS.md): el IMEI sale del bloque de
+// producto a su columna, Verificación lleva estado + fecha, Acciones el
+// conjunto de botones y Costo el badge + el lápiz. **Proveedor** sale de la
+// fila (el dato sigue en el detalle). La variante viaja en el nombre del
+// producto; la condición queda en el punto de color y la batería como chip.
 // #249: la primera columna reserva el target táctil de la casilla (44 px).
-const UNIDADES_GRID = 'grid min-w-[59rem] grid-cols-[2.75rem_minmax(11rem,2.4fr)_5.5rem_6.5rem_6.5rem_9.5rem_6rem_11rem] items-center gap-x-2'
+const UNIDADES_GRID = 'grid min-w-[60rem] grid-cols-[2.75rem_minmax(0,28fr)_minmax(0,16fr)_minmax(0,18fr)_minmax(0,9fr)_minmax(6.75rem,10fr)_minmax(6rem,7fr)_minmax(7.25rem,9fr)] items-center gap-x-2'
 const GRID_RESERVAS = 'grid min-w-[44rem] grid-cols-[minmax(8rem,1.4fr)_minmax(5rem,0.9fr)_minmax(6rem,1.1fr)_6rem_15rem] items-center gap-x-2'
 const GRID_ELIMINADOS = 'grid min-w-[42rem] grid-cols-[minmax(8rem,1.4fr)_minmax(5rem,0.9fr)_minmax(7rem,1.6fr)_7rem] items-center gap-x-2'
 // #218: el lote suma ETA y Despachó/Recibió al detalle del tránsito.
@@ -155,13 +173,6 @@ const fechaReserva = (value) => {
   const dia = date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '')
   return `${dia} · ${date.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', hour12: false })}`
 }
-// Abreviatura estable para proveedor (3–5 caracteres) y códigos cortos.
-const abrev = (texto, largo = 5) => {
-  const limpio = String(texto || '').trim()
-  if (!limpio) return '—'
-  return limpio.length > largo ? `${limpio.slice(0, largo)}…` : limpio
-}
-
 // Encabezado de la tabla de unidades: **mismo contenido-box que las filas**
 // (`px-3` + el borde izquierdo de 4 px que reserva el acento de condición y el
 // borde de 1 px del otro lado), así cada título cae exactamente sobre su
@@ -177,13 +188,13 @@ function EncabezadoUnidades({ seleccionado = false, onSeleccionar }) {
           ? <label className="flex h-11 w-11 items-center justify-center md:h-5 md:w-5"><input type="checkbox" className="h-4 min-h-0 w-4 accent-fono" aria-label="Seleccionar visibles" title="Seleccionar visibles" checked={seleccionado} onChange={onSeleccionar} /></label>
           : null}
       </span>
-      <span className={celda} title="Modelo y IMEI/serial de la unidad"><Icon name="box" className={icono} aria-hidden="true" />Producto</span>
-      <span className={celda} title="Proveedor de la unidad (se muestra abreviado; pasá el mouse por la fila para verlo completo)"><Icon name="truck" className={icono} aria-hidden="true" />Proveedor</span>
-      <span className={`${celda} justify-end text-right`} title="Costo cargado de la unidad"><Icon name="money" className={icono} aria-hidden="true" />Costo</span>
-      <span className={celda} title="Depósito o sucursal donde está la unidad"><Icon name="store" className={icono} aria-hidden="true" />Ubicación</span>
-      <span className={celda} title="Estado de la unidad (disponible, reservada, vendida…)"><Icon name="info" className={icono} aria-hidden="true" />Estado</span>
-      <span className={celda} title="Quién verificó físicamente la unidad y cuándo"><Icon name="shield" className={icono} aria-hidden="true" />Verificado</span>
-      <span className={`${celda} justify-end`} title="Acciones de la fila"><Icon name="sliders" className={icono} aria-hidden="true" />Acciones</span>
+      <span className={celda} title="Modelo, condición y batería de la unidad"><Icon name="box" className={icono} aria-hidden="true" />Producto</span>
+      <span className={celda} title="IMEI/serial de la unidad"><Icon name="qr" className={icono} aria-hidden="true" />IMEI</span>
+      <span className={celda} title="Estado de la verificación física, quién la hizo y cuándo"><Icon name="shield" className={icono} aria-hidden="true" />Verificación</span>
+      <span className={celda} title="Sucursal y depósito donde está la unidad"><Icon name="store" className={icono} aria-hidden="true" />Ubicación</span>
+      <span className={celda} title="Estado de la unidad (disponible, reservada, en tránsito, vendida…)"><Icon name="info" className={icono} aria-hidden="true" />Estado</span>
+      <span className={`${celda} justify-end text-right`} title="Costo cargado de la unidad (el proveedor vive en el detalle)"><Icon name="money" className={icono} aria-hidden="true" />Costo</span>
+      <span className={`${celda} justify-end`} title="Acciones de la fila: ver detalles, editar y más"><Icon name="sliders" className={icono} aria-hidden="true" />Acciones</span>
     </div>
   )
 }
@@ -251,6 +262,8 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
       ? formatUsd(enUsd)
       : costoGs !== null ? gs(costoGs) : '—'
   const vencida = unit.warrantyUntil ? new Date(unit.warrantyUntil).getTime() < Date.now() : null
+  // #285: el depósito muestra su código cuando lo tiene («Asunción · D1»).
+  const deposito = unit.location ? (unit.location.code || unit.location.name || '') : ''
   const acciones = [
     ...(unit.status === 'SOLD' ? [{ label: 'Comprobante rápido', tooltip: 'Imprimir el comprobante de la venta sin abrir la ficha', icon: 'receipt', run: () => onComprobante?.(unit) }] : []),
     { label: 'Vender', tooltip: 'Cargar la venta de esta unidad', icon: 'cart', run: () => onSell?.(unit) },
@@ -260,7 +273,6 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
     { label: 'Enviar a revisión', tooltip: 'Marcar la unidad en revisión con un motivo', icon: 'alert', run: () => onAdjust?.(unit) },
     { label: 'Cambiar ubicación', tooltip: 'Mover la unidad a otro depósito o sucursal', icon: 'box', run: () => onMove?.(unit) },
     { label: 'Dar de baja', tooltip: 'Sacar la unidad del stock (queda en Eliminados)', icon: 'trash', run: () => onRemove?.(unit) },
-    { label: 'Ver detalles', tooltip: 'Abrir la ficha completa de la unidad', icon: 'eye', run: () => onClick?.() },
   ]
   return <div role="button" tabIndex={0} data-testid="inventario-fila" onClick={onClick} onKeyDown={event => { if (event.key === 'Enter') onClick() }} className={`${UNIDADES_GRID} cursor-pointer rounded-lg border border-ink-600 px-3 py-1.5 transition hover:border-fono/40 ${rowTone(unit)}`}>
     {onAlternar
@@ -268,11 +280,9 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
       : <span />}
     <span className="flex min-w-0 items-center gap-1.5 overflow-hidden">
       <span className="grid h-5 w-5 shrink-0 place-items-center overflow-hidden rounded-md border border-ink-600 bg-ink-800 text-mute" title={`Categoría: ${etiquetaDeCategoria(nombreProducto(unit.product || {}))}`}><IconoCategoria categoria={nombreProducto(unit.product || {})} className="h-3.5 w-3.5" /></span>
-      {/* #245: el modelo nunca se colapsa (mínimo legible) y el serial cede antes:
-          con seriales largos la fila perdía el nombre por completo. La cola del
-          serial y su título siguen identificando el equipo. */}
+      {/* #245: el modelo nunca se colapsa (mínimo legible); #285: el IMEI dejó
+          de ir debajo del nombre y vive en su propia columna. */}
       <b className="min-w-[3rem] truncate text-[13px] leading-tight" title={nombreProducto(unit.product || {})}>{nombreProducto(unit.product || {})}</b>
-      <SerialTexto serial={serial} className="text-[10px] text-mute" />
       <span
         className={`h-2 w-2 shrink-0 rounded-full ${puntoCondicionUnidad(unit)}`}
         title={`Condición: ${etiquetaCondicionUnidad(unit)}`}
@@ -283,21 +293,25 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
         <span className={`shrink-0 rounded border px-1 text-[10px] font-semibold tabular-nums ${diasStock >= 90 ? 'border-bad/30 text-bad' : 'border-warn/30 text-warn'}`} title={`Ingresó a stock el ${ingreso} · ${diasStock} días`}>{diasStock} d</span>
       )}
     </span>
-    <span className={CELDA_DATO} title={unit.supplierName || undefined}>{abrev(unit.supplierName, 5)}</span>
-    <span className="flex items-center justify-end gap-1 text-right text-xs font-semibold tabular-nums text-fore">
-      {costoAbierto ? (
-        <span className="flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
-          <Input autoFocus aria-label={`Costo en USD de ${serial}`} className="h-7 w-20 px-1 text-right text-xs" inputMode="decimal" value={costoUsd} onChange={(event) => setCostoUsd(event.target.value.replace(/[^0-9.,]/g, ''))} onKeyDown={(event) => { if (event.key === 'Enter') { onCosto?.(unit, costoUsd); setCostoAbierto(false) } if (event.key === 'Escape') setCostoAbierto(false) }} />
-          <button type="button" title="Guardar el costo en USD" onClick={() => { onCosto?.(unit, costoUsd); setCostoAbierto(false) }} className="rounded-lg border border-ok/40 px-1.5 py-0.5 text-[10px] font-bold text-ok">OK</button>
-          <button type="button" title="Cancelar" onClick={() => setCostoAbierto(false)} className="rounded-lg px-1 text-[10px] text-mute">✕</button>
-        </span>
-      ) : sinCostoUnitario(unit) ? (
-        <Badge color="orange" className="px-1.5 py-0.5 text-[10px]" title="Falta cargar el costo: usá el lápiz para completarlo">Sin costo</Badge>
-      ) : <span title={`Costo cargado${costoGs !== null ? ` (${gs(costoGs)})` : ''}`}>{costoTexto}</span>}
-      <button type="button" disabled={busy} title="Editar el costo en dólares" aria-label={`Editar el costo de ${serial}`} onClick={(event) => { event.stopPropagation(); setCostoUsd(enUsd !== null && Number.isFinite(enUsd) ? String(Number(enUsd.toFixed(2))) : ''); setCostoAbierto(true) }} className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-mute transition hover:text-fono md:h-7 md:w-7"><Icon name="edit" className="h-3.5 w-3.5" /></button>
+    {/* #285: el IMEI es su propia columna (ya no va debajo del modelo). */}
+    <span className="flex min-w-0 items-center overflow-hidden" title={`IMEI/serial ${serial}`}>
+      <SerialTexto serial={serial} className="text-[11px] text-mute" />
     </span>
-    <span className="flex min-w-0 items-center gap-1.5 text-xs text-mute" title={unit.location?.name ? `Ubicación: ${unit.location.name}${unit.location.code ? ` (${unit.location.code})` : ''}` : 'Sin ubicación asignada'}>
-      {unit.location?.name ? <><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: locationTone(unit.location) }} /><span className={`truncate ${unit.location.code ? 'font-semibold text-fore/80' : ''}`}>{unit.location.code ? abrev(unit.location.code, 4) : unit.location.name}</span></> : '—'}
+    {/* #285: Verificación = estado + verificador + fecha en una línea
+        («OK VPC · 01/09/2026»), con la verificación de un clic al lado. */}
+    <span className={`flex min-w-0 items-center gap-1.5 rounded-lg px-1.5 py-0.5 text-[10px] ${v ? 'bg-ok/10 text-ok' : 'border border-ink-600 text-mute'}`} title={v ? `Verificado OK por ${v.quien} · ${fechaHora(unit.lastVerifiedAt)}` : 'Todavía sin verificación física'}>
+      {/* El texto ocupa el ancho libre: el botón de verificar queda pegado al
+          borde y el centro de la fila no cae sobre una acción (#285). */}
+      {v
+        ? <span className="flex min-w-0 flex-1 items-center gap-1"><span className="shrink-0 font-bold">OK</span><span className="shrink-0 font-semibold">{inicialesNombre(v.quien)}</span><span className="truncate tabular-nums">{fechaVerificacionCorta(unit.lastVerifiedAt)}</span></span>
+        : <span className="min-w-0 flex-1 truncate">Sin verificar</span>}
+      <button type="button" disabled={busy} aria-label="✓ Verificar" title={`Verificar ${serial} (un clic)`} onClick={(event) => { event.stopPropagation(); onVerify?.(unit) }} className="grid h-11 w-11 md:h-6 md:w-6 shrink-0 place-items-center rounded-full border border-ok/40 text-ok transition hover:bg-ok/10 disabled:opacity-50"><Icon name="check" className="h-3.5 w-3.5" /></button>
+    </span>
+    {/* #285: sucursal y depósito cuando corresponda («Asunción · D1»). */}
+    <span className="flex min-w-0 items-center gap-1.5 text-xs text-mute" title={`Ubicación: ${[unit.branch?.name, deposito].filter(Boolean).join(' · ') || 'sin asignar'}`}>
+      {unit.branch?.name || deposito
+        ? <><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: locationTone(unit.location) }} /><span className="truncate">{unit.branch?.name && deposito ? `${unit.branch.name} · ${deposito}` : (deposito || unit.branch?.name)}</span></>
+        : '—'}
     </span>
     {/* #246: el estado y sus avisos van en una sola línea (con tooltip para el
         detalle completo), así todas las filas tienen la misma altura. */}
@@ -308,17 +322,26 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
       {unit.consignorName && <span className="shrink-0 font-semibold text-fono-light" title={`En consignación de ${unit.consignorName}`}>Consignado</span>}
       {fechaVenta && <span className="shrink-0 text-mute" title={`Vendido el ${new Date(fechaVenta).toLocaleString('es-PY')}`}>{fechaReserva(fechaVenta)}</span>}
     </span>
-    <span className={`flex min-w-0 items-center gap-1.5 rounded-lg px-1.5 py-0.5 text-[10px] ${v ? 'bg-ok/10 text-ok' : 'border border-ink-600 text-mute'}`} title={v ? `Verificó: ${v.quien} · ${fechaVerificacion(unit.lastVerifiedAt)}` : 'Todavía sin verificación física'}>
-      {v ? <Avatar user={v.usuario} hasAvatar={false} picture={unit.lastVerifiedBy?.picture} size="xs" /> : <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-ink-700 text-[8px] font-bold text-fore">—</span>}
-      <span className="truncate">{v ? fechaVerificacion(unit.lastVerifiedAt) : 'Sin verificar'}</span>
-      <button type="button" disabled={busy} aria-label="✓ Verificar" title={`Verificar ${serial} (un clic)`} onClick={(event) => { event.stopPropagation(); onVerify?.(unit) }} className="grid h-11 w-11 md:h-6 md:w-6 shrink-0 place-items-center rounded-full border border-ok/40 text-ok transition hover:bg-ok/10 disabled:opacity-50"><Icon name="check" className="h-3.5 w-3.5" /></button>
+    <span className="flex items-center justify-end gap-1 text-right text-xs font-semibold tabular-nums text-fore">
+      {costoAbierto ? (
+        <span className="flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
+          <Input autoFocus aria-label={`Costo en USD de ${serial}`} className="h-7 w-20 px-1 text-right text-xs" inputMode="decimal" value={costoUsd} onChange={(event) => setCostoUsd(event.target.value.replace(/[^0-9.,]/g, ''))} onKeyDown={(event) => { if (event.key === 'Enter') { onCosto?.(unit, costoUsd); setCostoAbierto(false) } if (event.key === 'Escape') setCostoAbierto(false) }} />
+          <button type="button" title="Guardar el costo en USD" onClick={() => { onCosto?.(unit, costoUsd); setCostoAbierto(false) }} className="rounded-lg border border-ok/40 px-1.5 py-0.5 text-[10px] font-bold text-ok">OK</button>
+          <button type="button" title="Cancelar" onClick={() => setCostoAbierto(false)} className="rounded-lg px-1 text-[10px] text-mute">✕</button>
+        </span>
+      ) : sinCostoUnitario(unit) ? (
+        <Badge color="orange" className="whitespace-nowrap px-1.5 py-0.5 text-[10px]" title="Falta cargar el costo: usá el lápiz para completarlo">Sin costo</Badge>
+      ) : <span className="min-w-0 truncate" title={`Costo cargado${costoGs !== null ? ` (${gs(costoGs)})` : ''}`}>{costoTexto}</span>}
+      <button type="button" disabled={busy} title="Editar el costo en dólares" aria-label={`Editar el costo de ${serial}`} onClick={(event) => { event.stopPropagation(); setCostoUsd(enUsd !== null && Number.isFinite(enUsd) ? String(Number(enUsd.toFixed(2))) : ''); setCostoAbierto(true) }} className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-mute transition hover:text-fono md:h-7 md:w-7"><Icon name="edit" className="h-3.5 w-3.5" /></button>
     </span>
     <span className="flex min-w-0 items-center justify-end gap-1">
-      {/* En reservadas la acción primaria es finalizar la venta: el acceso a
-          editar queda en la ficha (clic en la fila) para que entre en una línea. */}
+      {/* #285: ver detalles, editar y el menú adicional. Las reservadas
+          conservan «Finalizar venta» y las vendidas su comprobante rápido (sus
+          acciones primarias), como hasta ahora. */}
+      <button type="button" disabled={busy} aria-label={`Ver detalles de ${serial}`} title="Ver los detalles de la unidad" onClick={(event) => { event.stopPropagation(); onClick?.() }} className="grid h-11 w-11 md:h-7 md:w-7 shrink-0 place-items-center rounded-lg text-mute transition hover:text-fono disabled:opacity-50"><Icon name="eye" className="h-3.5 w-3.5" /></button>
       {unit.status === 'RESERVED' && <button type="button" disabled={busy} title="Cerrar la reserva y cargar la venta" onClick={event => { event.stopPropagation(); onSell?.(unit) }} className="min-h-11 whitespace-nowrap rounded-lg border border-fono/40 px-2 py-1 text-[10px] font-bold text-fono-light transition hover:bg-fono/10 disabled:opacity-50 md:min-h-0">Finalizar venta</button>}
-      {unit.status !== 'RESERVED' && <button type="button" disabled={busy} title="Editar los datos de la unidad" onClick={event => { event.stopPropagation(); onEdit?.(unit) }} className="min-h-11 whitespace-nowrap rounded-lg border border-ink-600 px-2 py-1 text-[10px] font-semibold text-fore transition hover:border-fono/40 md:min-h-0">Editar</button>}
       {unit.status === 'SOLD' && <button type="button" disabled={busy} aria-label={`Imprimir comprobante rápido de ${serial}`} title="Imprimir comprobante rápido (nivel Rápido, 80 mm) sin salir de la lista" onClick={event => { event.stopPropagation(); onComprobante?.(unit) }} className="grid h-11 w-11 md:h-7 md:w-7 shrink-0 place-items-center rounded-lg border border-ink-600 text-mute transition hover:border-fono/40 hover:text-fore disabled:opacity-50"><Icon name="receipt" className="h-3.5 w-3.5" /></button>}
+      {unit.status !== 'RESERVED' && unit.status !== 'SOLD' && <button type="button" disabled={busy} title="Editar los datos de la unidad" onClick={event => { event.stopPropagation(); onEdit?.(unit) }} className="min-h-11 whitespace-nowrap rounded-lg border border-ink-600 px-2 py-1 text-[10px] font-semibold text-fore transition hover:border-fono/40 md:min-h-0">Editar</button>}
       <MenuAcciones unit={unit} busy={busy} acciones={acciones} />
     </span>
   </div>
@@ -1305,12 +1328,12 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
         />
       </div>
     )}
-    {tab === 'unidades' && vistaUnidades === 'list' && <div className="mt-4 overflow-x-auto"><EncabezadoUnidades seleccionado={disponibles.length > 0 && seleccionados.length === disponibles.length} onSeleccionar={() => setSeleccionados((actuales) => seleccionarTodos(disponibles, actuales))} />{cargandoUnidades
+    {tab === 'unidades' && vistaUnidades === 'list' && <div className="mt-4 overflow-x-auto" data-testid="inventario-tabla"><EncabezadoUnidades seleccionado={disponibles.length > 0 && seleccionados.length === disponibles.length} onSeleccionar={() => setSeleccionados((actuales) => seleccionarTodos(disponibles, actuales))} />{cargandoUnidades
     ? <FilasCargando />
     : <div className="space-y-1" aria-busy="false">{disponibles.map(unit => <FilaUnidad key={unit.id} unit={unit} busy={busy} onVerify={verify} onSell={sellUnit} onReserve={openReserveFor} onLabel={unit => printLabel(unit).then(avisarImpresion)} onAdjust={unit => requestReason('adjust', unit)} onRemove={unit => requestReason('remove', unit)} onMove={unit => setDetalleUnidad(unit)} onEdit={unit => setDetalleUnidad(unit)} onCosto={guardarCostoRapido} cotizacion={cotizacion} onClick={() => setDetalleUnidad(unit)} seleccionado={seleccionados.includes(unit.id)} onAlternar={() => setSeleccionados((actuales) => alternarId(actuales, unit.id))} />)}{!disponibles.length && <div data-testid="unidades-vacio"><EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay unidades en inventario.'} /></div>}</div>}</div>}
     {tab === 'unidades' && vistaUnidades === 'grid' && <div className={cn('mt-4 min-[1200px]:grid-cols-3', GRILLA_DOS_COLUMNAS_COMPACTA)}>{disponibles.map(unit => <TarjetaUnidad key={unit.id} unit={unit} onClick={() => setDetalleUnidad(unit)} />)}{!disponibles.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay stock disponible.'} />}</div>}
-    {tab === 'vendidos' && <div className="mt-4 space-y-2"><div className="flex flex-wrap items-center gap-2"><Select aria-label="Período de vendidos" value={filtroVendidos.periodo} onChange={event => setFiltroVendidos(actual => ({ ...actual, periodo: event.target.value }))} className="w-auto"><option value="todos">Todos</option><option value="hoy">Hoy</option><option value="ayer">Ayer</option><option value="rango">Rango</option></Select>{filtroVendidos.periodo === 'rango' && <><Input type="date" aria-label="Desde" value={filtroVendidos.desde} onChange={event => setFiltroVendidos(actual => ({ ...actual, desde: event.target.value }))} className="w-auto" /><Input type="date" aria-label="Hasta" value={filtroVendidos.hasta} onChange={event => setFiltroVendidos(actual => ({ ...actual, hasta: event.target.value }))} className="w-auto" /></>}<span className="text-xs text-mute">{vendidosFiltrados.length} de {vendidos.length} vendidos</span></div><div className="overflow-x-auto"><EncabezadoUnidades />{cargandoUnidades ? <FilasCargando /> : <div className="space-y-1">{vendidosFiltrados.map(unit => <FilaUnidad key={unit.id} unit={unit} busy={busy} fechaVenta={fechaDeVenta(unit)} onVerify={verify} onLabel={unit => printLabel(unit).then(avisarImpresion)} onAdjust={unit => requestReason('adjust', unit)} onRemove={unit => requestReason('remove', unit)} onMove={unit => setDetalleUnidad(unit)} onEdit={unit => setDetalleUnidad(unit)} onComprobante={imprimirComprobanteRapido} onCosto={guardarCostoRapido} cotizacion={cotizacion} onClick={() => setDetalleUnidad(unit)} />)}{!vendidosFiltrados.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'Todavía no hay vendidos en el período.'} />}</div>}</div></div>}
-    {tab === 'transito' && <div className="mt-4 overflow-x-auto"><EncabezadoUnidades />{cargandoUnidades ? <FilasCargando /> : <div className="space-y-1">{enTransito.map(unit => <FilaUnidad key={unit.id} unit={unit} busy={busy} onVerify={verify} onLabel={unit => printLabel(unit).then(avisarImpresion)} onAdjust={unit => requestReason('adjust', unit)} onRemove={unit => requestReason('remove', unit)} onMove={unit => setDetalleUnidad(unit)} onEdit={unit => setDetalleUnidad(unit)} onCosto={guardarCostoRapido} cotizacion={cotizacion} onClick={() => setDetalleUnidad(unit)} />)}{!enTransito.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay unidades en tránsito.'} />}</div>}</div>}
+    {tab === 'vendidos' && <div className="mt-4 space-y-2"><div className="flex flex-wrap items-center gap-2"><Select aria-label="Período de vendidos" value={filtroVendidos.periodo} onChange={event => setFiltroVendidos(actual => ({ ...actual, periodo: event.target.value }))} className="w-auto"><option value="todos">Todos</option><option value="hoy">Hoy</option><option value="ayer">Ayer</option><option value="rango">Rango</option></Select>{filtroVendidos.periodo === 'rango' && <><Input type="date" aria-label="Desde" value={filtroVendidos.desde} onChange={event => setFiltroVendidos(actual => ({ ...actual, desde: event.target.value }))} className="w-auto" /><Input type="date" aria-label="Hasta" value={filtroVendidos.hasta} onChange={event => setFiltroVendidos(actual => ({ ...actual, hasta: event.target.value }))} className="w-auto" /></>}<span className="text-xs text-mute">{vendidosFiltrados.length} de {vendidos.length} vendidos</span></div><div className="overflow-x-auto" data-testid="inventario-tabla"><EncabezadoUnidades />{cargandoUnidades ? <FilasCargando /> : <div className="space-y-1">{vendidosFiltrados.map(unit => <FilaUnidad key={unit.id} unit={unit} busy={busy} fechaVenta={fechaDeVenta(unit)} onVerify={verify} onLabel={unit => printLabel(unit).then(avisarImpresion)} onAdjust={unit => requestReason('adjust', unit)} onRemove={unit => requestReason('remove', unit)} onMove={unit => setDetalleUnidad(unit)} onEdit={unit => setDetalleUnidad(unit)} onComprobante={imprimirComprobanteRapido} onCosto={guardarCostoRapido} cotizacion={cotizacion} onClick={() => setDetalleUnidad(unit)} />)}{!vendidosFiltrados.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'Todavía no hay vendidos en el período.'} />}</div>}</div></div>}
+    {tab === 'transito' && <div className="mt-4 overflow-x-auto" data-testid="inventario-tabla"><EncabezadoUnidades />{cargandoUnidades ? <FilasCargando /> : <div className="space-y-1">{enTransito.map(unit => <FilaUnidad key={unit.id} unit={unit} busy={busy} onVerify={verify} onLabel={unit => printLabel(unit).then(avisarImpresion)} onAdjust={unit => requestReason('adjust', unit)} onRemove={unit => requestReason('remove', unit)} onMove={unit => setDetalleUnidad(unit)} onEdit={unit => setDetalleUnidad(unit)} onCosto={guardarCostoRapido} cotizacion={cotizacion} onClick={() => setDetalleUnidad(unit)} />)}{!enTransito.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay unidades en tránsito.'} />}</div>}</div>}
 {tab === 'alertas' && <div className="mt-4 space-y-4"><TableroCertificaciones units={units} onAbrirUnidad={id => setDetalleUnidad(units.find(unit => unit.id === id) || null)} />{sinCostoUnits.length > 0 && <section className="rounded-xl border border-warn/25 bg-warn/5 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div className="min-w-0"><h3 className="text-xs font-bold uppercase tracking-wider text-warn">Unidades sin costo ({sinCostoUnits.length})</h3><p className="mt-1 text-xs text-mute">Se recibieron sin costo: completalo desde la ficha para que la ganancia y el kardex no queden incompletos. Es el mismo dato que alimenta el «Costo pendiente» de Resumen cuando se venden sin costo.</p></div><Badge color="orange">Costo pendiente</Badge></div><div className="mt-2 flex flex-wrap gap-1.5">{sinCostoUnits.slice(0, 8).map(unit => <button key={unit.id} type="button" onClick={() => setDetalleUnidad(unit)} className="rounded-lg border border-ink-500 bg-ink-800 px-2 py-0.5 text-[11px] text-fore transition hover:border-fono">{nombreProducto(unit.product || {})} · {ultimos4(unit.serial)}</button>)}{sinCostoUnits.length > 8 && <span className="px-2 py-0.5 text-[11px] text-mute">y {sinCostoUnits.length - 8} más…</span>}</div></section>}{alertsLoading && <div className="space-y-2"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>}{alertsError && <Aviso tono="error">{alertsError}</Aviso>}{!alertsLoading && !alertsError && !(stockAlerts.alerts?.length || stockAlerts.outOfStock?.length) && <EmptyState compact icon="check" title="Sin alertas de reposición." description="Todo el stock está por encima de su umbral." />}{!alertsLoading && stockAlerts.alerts?.length > 0 && <section><h3 className={ROTULO_SECCION}>Bajo el umbral de reposición</h3><div className="mt-2 space-y-2">{stockAlerts.alerts.map(item => <article key={item.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-warn/25 bg-warn/5 px-3 py-2"><div className="min-w-0"><b className="text-sm">{item.name}</b><p className="mt-1 text-xs text-mute">{item.sku ? `SKU ${item.sku} · ` : ''}Stock {item.stock} de {item.reorderPoint}{item.branchName ? ` · ${item.branchName}` : ''}</p></div><div className="flex shrink-0 items-center gap-2"><Badge color="orange">Reponer</Badge><Button type="button" variant="outline" disabled={busy} onClick={() => { setThreshold({ id: item.id, name: item.name }); setThresholdValue(String(item.reorderPoint ?? '')) }}>Ajustar umbral</Button></div></article>)}</div></section>}{!alertsLoading && stockAlerts.outOfStock?.length > 0 && <section><h3 className={ROTULO_SECCION}>Agotados</h3><div className="mt-2 space-y-2">{stockAlerts.outOfStock.map(item => <article key={item.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-bad/25 bg-bad/5 px-3 py-2"><div className="min-w-0"><b className="text-sm">{item.name}</b><p className="mt-1 text-xs text-mute">{item.sku ? `SKU ${item.sku} · ` : ''}Sin stock{item.branchName ? ` · ${item.branchName}` : ''}</p></div><div className="flex shrink-0 items-center gap-2"><Badge color="red">Agotado</Badge><Button type="button" variant="outline" disabled={busy} onClick={() => { setThreshold({ id: item.id, name: item.name }); setThresholdValue(String(item.reorderPoint ?? '')) }}>Definir umbral</Button></div></article>)}</div></section>}</div>}
     {tab === 'reservas' && <div className="mt-4 overflow-x-auto" data-testid="reservas-tabla"><div className={cn(GRID_RESERVAS, 'border border-transparent px-3.5 pb-2 pt-1')}><span className={CELDA_ENCABEZADO}>Producto</span><span className={CELDA_ENCABEZADO}>IMEI</span><span className={CELDA_ENCABEZADO}>Cliente</span><span className={CELDA_ENCABEZADO}>Vence</span><span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span></div><div className="space-y-1">{reservations.map(unit => { const serial = String(unit.serial || ''); const cliente = unit.reservationCustomerRef?.name || unit.reservationCustomer || 'Sin cliente'; return <div key={unit.id} data-testid="reserva-fila" className={cn(GRID_RESERVAS, 'rounded-xl border border-reserved/30 bg-reserved/10 px-3.5 py-2')}><span className={CELDA_IDENTIDAD} title={nombreProducto(unit.product || {})}>{nombreProducto(unit.product || {}) || 'Producto'}</span><SerialTexto serial={serial} className="truncate text-[11px] text-mute" /><span className="truncate text-xs" title={cliente}>{cliente}</span><span className={CELDA_DATO} title={unit.reservedUntil ? new Date(unit.reservedUntil).toLocaleString('es-PY') : undefined}>{unit.reservedUntil ? fechaReserva(unit.reservedUntil) : '—'}</span><span className="flex flex-wrap items-center justify-end gap-1"><Button type="button" className="h-8 px-2 text-xs" disabled={busy} onClick={() => sellUnit(unit)}>Vender</Button><Button type="button" variant="outline" className="h-8 px-2 text-xs" title="Imprimir comprobante de la reserva" onClick={() => printReservationReceipt(unit, { format: 'a4' })}>Comprobante</Button><Button variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => releaseReservation(unit.serial)}>Liberar</Button></span></div> })}{!reservations.length && <EmptyState compact icon="box" title="No hay reservas activas." />}</div></div>}
     {tab === 'traslados' && <div className="mt-4 overflow-x-auto" data-testid="traslados-tabla"><div className={cn(GRID_TRASLADOS, 'border border-transparent px-3.5 pb-2 pt-1')}><span className={CELDA_ENCABEZADO}>Ruta</span><span className={CELDA_ENCABEZADO}>Líneas</span><span className={CELDA_ENCABEZADO} title="Cantidad de equipos del lote">Cant.</span><span className={CELDA_ENCABEZADO}>Enviado</span><span className={CELDA_ENCABEZADO} title="Día estimado de llegada a destino">ETA</span><span className={CELDA_ENCABEZADO} title="Llegada real a destino">Llegada</span><span className={CELDA_ENCABEZADO}>Estado</span><span className={CELDA_ENCABEZADO} title="Quién despachó el lote y quién lo recibió">Despachó / Recibió</span><span className={CELDA_ENCABEZADO}>Guía AEX</span><span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span></div><div className="space-y-1">{transfers.map(item => { const lineas = item.lines?.map(line => `${line.quantity} × ${line.sourceProduct?.name}`).join(' · ') || 'Sin líneas'; const eta = etiquetaEta(item.eta, item.receivedAt); const despacho = etiquetaDespacho(item); return <div key={item.id} data-testid="traslado-fila" className={cn(GRID_TRASLADOS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2')}><span className={CELDA_IDENTIDAD} title={`${item.sourceBranch?.name} → ${item.destinationBranch?.name}`}>{item.sourceBranch?.name} → {item.destinationBranch?.name}</span><span className={CELDA_DATO} title={[lineas, item.notes].filter(Boolean).join(' · ')}>{lineas}{item.notes ? <span className="text-mute/70"> · {item.notes}</span> : null}</span><span className="text-center text-xs font-semibold tabular-nums text-fore" title="Equipos del lote">{(item.lines || []).reduce((suma, line) => suma + Number(line.quantity || 0), 0)}</span><span className={CELDA_DATO} title={`Enviado el ${new Date(item.createdAt).toLocaleDateString('es-PY')}`}>{new Date(item.createdAt).toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '')}</span><span className={CELDA_DATO} title={eta ? (item.receivedAt ? eta.detalle : `${eta.detalle} · clic para ajustarla`) : (item.receivedAt ? 'Sin ETA cargada' : 'Cargar la ETA del lote')}>{!item.receivedAt ? <button type="button" disabled={busy} title={eta ? `${eta.detalle} · clic para ajustarla` : 'Cargar la ETA del lote'} onClick={() => setEtaPara({ id: item.id, eta: item.eta ? String(item.eta).slice(0, 10) : '' })} className={`rounded border border-dashed border-ink-500 px-1 py-0.5 text-[11px] transition hover:border-fono/40 hover:text-fore disabled:opacity-50 ${eta?.vencida ? 'font-semibold text-bad' : 'text-mute'}`}>{eta ? eta.texto : 'fijar ETA'}</button> : (eta ? <span>{eta.texto}</span> : '—')}</span><span className={CELDA_DATO} title={item.receivedAt ? `Llegó el ${new Date(item.receivedAt).toLocaleString('es-PY')}` : 'Todavía no llegó a destino'}>{item.receivedAt ? fechaReserva(item.receivedAt) : '—'}</span><span className="min-w-0"><Badge color={item.receivedAt ? 'green' : 'blue'} className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]" title={item.receivedAt ? `Recibido el ${new Date(item.receivedAt).toLocaleDateString('es-PY')}` : 'Todavía no llegó a destino'}>{item.receivedAt ? 'Recibido' : 'En camino'}</Badge></span><span className={CELDA_DATO} title={despacho.detalle}>{despacho.texto}</span><span className="truncate font-mono text-[11px] text-fono-light" title={item.aexGuide || undefined}>{item.aexGuide || '—'}</span><span className="flex flex-wrap items-center justify-end gap-1"><Button type="button" variant="outline" className="h-8 px-2 text-xs" title="Reimprimir las etiquetas de todas las unidades del lote" onClick={() => { const delLote = unidadesDeTransferencia(item); if (delLote.length) printLabels(delLote).then(avisarImpresion); else toast.error('No se encontraron las unidades del lote para imprimir.') }}>Etiquetas</Button><Button type="button" variant="outline" className="h-8 px-2 text-xs" title="Recibir todo el lote y elegir depósito destino" onClick={() => setReceiveBatch({ transfer: item, locationId: '', busy: false })}>Recibir lote</Button><Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => prepararRemitoQr(item)}>Enlace/QR</Button><Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => printTransferReceipt(item, { format: 'a4' })}>Remito</Button><Button type="button" variant="outline" className="h-8 px-2 text-xs" title="Remisión interna con firma de entrega y recepción" onClick={() => imprimirRemision(item).then(resultado => avisarImpresion(resultado, 'Remisión'))}>Remisión</Button>{!item.aexGuide && <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => cotizarEnvio(item)}>Enviar por AEX</Button>}{item.aexGuide ? <><Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => abrirEtiquetaAex(item)}>Etiqueta AEX</Button><Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => seguirGuia(item)}>Seguimiento</Button></> : guiaPara?.id === item.id ? <form onSubmit={guardarGuia} className="flex flex-wrap items-center gap-1"><Input className="h-8 w-40" aria-label="Guía AEX" value={guiaPara.guia} onChange={event => setGuiaPara(current => ({ ...current, guia: event.target.value }))} placeholder="A003526979" /><Button type="submit" className="h-8 px-2 text-xs" disabled={busy}>Guardar</Button><Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setGuiaPara(null)}>Cancelar</Button></form> : <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => setGuiaPara({ id: item.id, guia: '' })}>Agregar guía</Button>}</span></div> })}{!transfers.length && <EmptyState compact icon="box" title="Todavía no hay transferencias." />}</div></div>}
