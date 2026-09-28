@@ -76,6 +76,7 @@ test('la descarga revalida y el componente no pinta la anterior', () => {
 
   assert.match(avatar, /suscribirAvatar/, 'el avatar escucha los cambios de foto')
   assert.match(avatar, /avatarCacheado/, 'el avatar pinta lo cacheado en el primer render (#284)')
+  assert.match(avatar, /setFoto\(url \? \{ id: user\.id, url \} : null\)/, 'sin foto se limpia la conservada (#290)')
   assert.match(avatar, /fuenteAvatar/, 'la fuente visible sale del contrato puro (#271)')
   assert.match(avatar, /setLocalListo\(false\)/, 'mientras resuelve no pinta la anterior ni la de Google')
   assert.match(avatar, /onError=\{\(\) => setGoogleRota\(true\)\}/, 'si la imagen falla no queda un cuadro roto')
@@ -181,4 +182,30 @@ test('una revalidación fallida no borra la foto; un 404 sí (#284)', async () =
   await new Promise((resolver) => setTimeout(resolver, 10))
   assert.equal(cache.cacheado('u1'), '', 'una respuesta sin foto (404) la invalida')
   assert.equal(almacen.leer('u1'), null, 'y limpia la persistencia')
+})
+
+test('una revalidación en vuelo no revive la foto después de olvidar (#290)', async () => {
+  const almacen = crearAlmacenAvatar(almacenFalso())
+  almacen.guardar('u1', { url: 'vieja', etag: 'e1' })
+  let responder = null
+  const cache = crearCacheAvatar(() => new Promise((resolve) => { responder = resolve }), { almacen, revalidarCadaMs: 0 })
+  assert.equal(await cache.obtener('u1'), 'vieja', 'pinta la cacheada y revalida de fondo')
+  cache.olvidar('u1')
+  assert.ok(responder, 'la revalidación quedó en vuelo')
+  responder({ url: 'vieja-tardia', etag: 'e1' }) // responde después del borrado
+  await new Promise((resolver) => setTimeout(resolver, 10))
+  assert.equal(cache.cacheado('u1'), '', 'la memoria no revive la foto vieja')
+  assert.equal(almacen.leer('u1'), null, 'la persistencia no revive la foto vieja')
+})
+
+test('una descarga fría invalidada no escribe ni devuelve la foto vieja (#290)', async () => {
+  let responder = null
+  const cache = crearCacheAvatar(() => new Promise((resolve) => { responder = resolve }), { almacen: crearAlmacenAvatar(almacenFalso()) })
+  const pedido = cache.obtener('u2')
+  await new Promise((resolver) => setTimeout(resolver, 0)) // deja arrancar la descarga
+  cache.olvidar('u2')
+  assert.ok(responder, 'la descarga quedó en vuelo')
+  responder({ url: 'tardia' })
+  assert.equal(await pedido, '', 'la promesa invalidada no devuelve la foto vieja')
+  assert.equal(cache.cacheado('u2'), '', 'no queda guardada en memoria')
 })

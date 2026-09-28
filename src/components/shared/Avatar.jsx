@@ -47,7 +47,9 @@ export default function Avatar({ user, hasAvatar, picture, size = 'md', classNam
     if (puedeTenerFoto && user?.id) {
       getAvatarDataUrl(user.id).then((url) => {
         if (!vigente) return
-        if (url) setFoto({ id: user.id, url })
+        // #290: si el servidor dice que ya no hay foto, se limpia la conservada
+        // (antes quedaba pintada la vieja al quitarla). Con foto, se actualiza.
+        setFoto(url ? { id: user.id, url } : null)
         setLocalListo(true)
       })
     } else {
