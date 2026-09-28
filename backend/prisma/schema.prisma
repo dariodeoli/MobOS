@@ -309,6 +309,7 @@ model User {
   inventoryUnitComments InventoryUnitComment[]
   purchases           PurchaseOrder[]
   suspendedSales      SuspendedSale[]
+  suspendedSalesResumed SuspendedSale[] @relation("SuspendedSaleResumedBy")
   id                  String          @id @default(cuid())
   tenantId            String
   tenant              Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -2246,6 +2247,12 @@ model SuspendedSale {
   branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // #279 A2: el borrador es compartido y queda registrado quién lo retomó
+  // (la última vez) para que el equipo sepa quién lo está vendiendo. Al
+  // retomarlo no se borra: se marca; el creador o gerencia lo descartan.
+  resumedById String?
+  resumedBy   User?    @relation("SuspendedSaleResumedBy", fields: [resumedById], references: [id], onDelete: SetNull)
+  resumedAt   DateTime?
   customerId  String?
   customer    Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
   label       String?
@@ -2264,6 +2271,7 @@ model SuspendedSale {
 
   @@index([tenantId, branchId, createdAt])
   @@index([tenantId, userId])
+  @@index([tenantId, branchId, resumedAt])
 }
 
 model AuditLog {

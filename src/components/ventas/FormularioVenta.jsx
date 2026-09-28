@@ -19,7 +19,7 @@ import { leerCarrito, guardarCarrito, borrarCarrito, lineasParaResumen } from '@
 import { leerUltimo, recordarUltimo } from '@/lib/ultimoUsado'
 import { encolarVenta } from '@/lib/offline/ventas'
 import { preferenciaPos, recordarPos } from '@/lib/preferenciasPos'
-import { listarBorradoresDemo, guardarBorradorDemo, borrarBorradorDemo } from '@/lib/borradoresDemo'
+import { listarBorradoresDemo, guardarBorradorDemo, borrarBorradorDemo, marcarBorradorRetomadoDemo } from '@/lib/borradoresDemo'
 import { descartarPreCliente } from '@/lib/preClientes'
 import { normalizarNombre } from '@/utils/nombre'
 import { codigoPedido } from '@/utils/pedido'
@@ -117,9 +117,9 @@ function Atajo({ k, label }) {
 // carrito viejo no rompa el formulario.
 function leerCarritoInicial() {
   try {
-    const { empresaId, sucursalId } = contextoActual()
+    const { empresaId, sucursalId, userId } = contextoActual()
     if (!empresaId) return null
-    const guardado = leerCarrito(empresaId, sucursalId)
+    const guardado = leerCarrito(empresaId, sucursalId, userId)
     if (!guardado) return null
     const prods = productosById()
     const items = Array.isArray(guardado.items)
@@ -338,6 +338,7 @@ export default function FormularioVenta({
   // Ventas suspendidas (carrito en espera): lista de la sucursal, alta con
   // etiqueta opcional, recuperación y descarte.
   const [suspendidasOpen, setSuspendidasOpen] = useState(false)
+  const [filtroSuspendidas, setFiltroSuspendidas] = useState('pendientes')
   const [suspendidas, setSuspendidas] = useState([])
   const [cargandoSuspendidas, setCargandoSuspendidas] = useState(false)
   const [errorSuspendidas, setErrorSuspendidas] = useState('')
@@ -433,7 +434,7 @@ export default function FormularioVenta({
   // entrega) para recuperarla si se recarga la página o se cambia de vendedor.
   // Un carrito vacío se borra para no dejar basura en localStorage.
   useEffect(() => {
-    const { empresaId, sucursalId } = contextoActual()
+    const { empresaId, sucursalId, userId } = contextoActual()
     if (!empresaId) return
     const vacio =
       items.length === 0 &&
@@ -450,10 +451,10 @@ export default function FormularioVenta({
         customer.addresses?.length
       )
     if (vacio) {
-      borrarCarrito(empresaId, sucursalId)
+      borrarCarrito(empresaId, sucursalId, userId)
       return
     }
-    guardarCarrito(empresaId, sucursalId, {
+    guardarCarrito(empresaId, sucursalId, userId, {
       items,
       customer,
       descuento,
@@ -1297,10 +1298,10 @@ export default function FormularioVenta({
 
       recordarUltimo(ULTIMO_VENDEDOR, f.vendedorId)
       idempotencyKeyRef.current = null // la próxima venta arranca con clave nueva
-      const { empresaId, sucursalId } = contextoActual()
+      const { empresaId, sucursalId, userId } = contextoActual()
       // La ficha ya existe (o la creó la venta): el borrador del RUC sobra.
       if (customer.document) descartarPreCliente(empresaId, customer.document)
-      borrarCarrito(empresaId, sucursalId)
+      borrarCarrito(empresaId, sucursalId, userId)
       setCustomer({ ...CLIENTE_VACIO })
       setItems([])
       setDescuento('')
@@ -1338,8 +1339,8 @@ export default function FormularioVenta({
           })
           recordarUltimo(ULTIMO_VENDEDOR, f.vendedorId)
           idempotencyKeyRef.current = null
-          const { empresaId, sucursalId } = contextoActual()
-          borrarCarrito(empresaId, sucursalId)
+          const { empresaId, sucursalId, userId } = contextoActual()
+          borrarCarrito(empresaId, sucursalId, userId)
           setCustomer({ ...CLIENTE_VACIO })
           setItems([])
           setDescuento('')
@@ -1458,6 +1459,13 @@ export default function FormularioVenta({
           minute: '2-digit',
         })
   }
+  // #279 A2: el borrador guardado es compartido; la lista muestra quién lo creó
+  // y, cuando alguien ya lo tomó, quién lo retomó. Por defecto se ven los
+  // pendientes; los retomados quedan en su pestaña como registro.
+  const suspendidasPendientes = suspendidas.filter(fila => !fila.resumedAt)
+  const suspendidasRetomadas = suspendidas.filter(fila => fila.resumedAt)
+  const suspendidasVisibles =
+    filtroSuspendidas === 'retomadas' ? suspendidasRetomadas : suspendidasPendientes
   // Deja el carrito sin descuentos: el global y los de cada línea (los dos
   // botones de limpieza del carrito).
   function borrarDescuentos() {
@@ -1467,8 +1475,8 @@ export default function FormularioVenta({
     ))
   }
   function limpiarCarrito() {
-    const { empresaId, sucursalId } = contextoActual()
-    borrarCarrito(empresaId, sucursalId)
+    const { empresaId, sucursalId, userId } = contextoActual()
+    borrarCarrito(empresaId, sucursalId, userId)
     setItems([])
     setDescuento('')
     setPagos([])
@@ -1482,6 +1490,7 @@ export default function FormularioVenta({
   }
   async function abrirSuspendidas() {
     setSuspendidasOpen(true)
+    setFiltroSuspendidas('pendientes')
     setErrorSuspendidas('')
     if (esDemo) {
       // En la demo los borradores viven en el navegador (#148 §20).
@@ -1660,20 +1669,32 @@ export default function FormularioVenta({
       specialOrder: Boolean(payload.specialOrder),
       expectedAt: typeof payload.expectedAt === 'string' ? payload.expectedAt : '',
     })
-    setSuspendidas(list => list.filter(item => item.id !== suspendida.id))
+    setSuspendidas(list => list.map(item => item.id === suspendida.id
+      ? {
+          ...item,
+          resumedAt: item.resumedAt || new Date().toISOString(),
+          resumedBy: item.resumedBy || { id: sesion?.vendedorId, name: sesion?.nombre || 'Vendedor' },
+        }
+      : item))
     setAvisoSuspension('Venta recuperada. Revisá el carrito antes de cobrar.')
     if (esDemo) {
-      borrarBorradorDemo(suspendida.id)
+      // #279 A2: la demo guarda el mismo registro de quién la retomó.
+      marcarBorradorRetomadoDemo(suspendida.id, { id: sesion?.vendedorId, name: sesion?.nombre || 'Equipo demo' })
       setSuspendidasOpen(false)
       return
     }
     try {
-      await api.delete(`/api/suspended-sales?id=${encodeURIComponent(suspendida.id)}`)
+      // #279 A2: el borrador compartido no se borra al retomarlo: queda
+      // registrado quién lo retomó y cuándo; el creador o gerencia lo descartan.
+      const marcada = await api.patch('/api/suspended-sales', { id: suspendida.id, action: 'resume' })
+      setSuspendidas(list => list.map(item => item.id === suspendida.id
+        ? { ...item, resumedAt: marcada?.resumedAt || item.resumedAt, resumedBy: marcada?.resumedBy || item.resumedBy }
+        : item))
       setSuspendidasOpen(false)
     } catch (error) {
       setErrorSuspendidas(
         error?.message ||
-          'La venta se recuperó, pero no se pudo quitarla del servidor: descartala para evitar duplicados.',
+          'La venta se recuperó, pero no se pudo registrar quién la retomó: descartala si ya no la vas a usar.',
       )
     }
   }
@@ -2127,9 +2148,30 @@ export default function FormularioVenta({
         <div className="space-y-3">
           <p className="text-sm text-mute">
             {esDemo
-              ? 'Carritos en espera guardados en este navegador. Al recuperar uno, el carrito actual se reemplaza y el borrador se quita de la lista.'
-              : 'Carritos en espera de esta sucursal. Al recuperar uno, el carrito actual se reemplaza y la venta suspendida se quita de la lista.'}
+              ? 'Carritos en espera guardados en este navegador. Al recuperar uno, el carrito actual se reemplaza y el borrador queda marcado como retomado.'
+              : 'Carritos en espera de esta sucursal. Al recuperar uno, el carrito actual se reemplaza y el borrador queda registrado con quién lo retomó.'}
           </p>
+          {!cargandoSuspendidas && !errorSuspendidas && (suspendidasPendientes.length > 0 || suspendidasRetomadas.length > 0) && (
+            // #279 A2: los pendientes son los que se pueden tomar; los
+            // retomados quedan como registro de quién los tomó.
+            <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1" role="tablist" aria-label="Filtro de ventas suspendidas">
+              {[
+                ['pendientes', `Pendientes (${suspendidasPendientes.length})`],
+                ['retomadas', `Retomadas (${suspendidasRetomadas.length})`],
+              ].map(([clave, etiqueta]) => (
+                <button
+                  key={clave}
+                  type="button"
+                  role="tab"
+                  aria-selected={filtroSuspendidas === clave}
+                  onClick={() => setFiltroSuspendidas(clave)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${filtroSuspendidas === clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}
+                >
+                  {etiqueta}
+                </button>
+              ))}
+            </div>
+          )}
           {cargandoSuspendidas && (
             <p role="status" className="text-sm text-mute">
               Cargando ventas suspendidas…
@@ -2140,17 +2182,19 @@ export default function FormularioVenta({
               {errorSuspendidas}
             </Aviso>
           )}
-          {!cargandoSuspendidas && !suspendidas.length && !errorSuspendidas && (
+          {!cargandoSuspendidas && !suspendidasVisibles.length && !errorSuspendidas && (
             <EmptyState
               compact
               icon="cart"
-              title={esDemo
-                ? 'No hay borradores guardados en este navegador.'
-                : 'No hay ventas suspendidas en esta sucursal.'}
+              title={filtroSuspendidas === 'retomadas'
+                ? 'No hay ventas retomadas en esta sucursal.'
+                : esDemo
+                  ? 'No hay borradores guardados en este navegador.'
+                  : 'No hay ventas suspendidas en esta sucursal.'}
             />
           )}
           <div className="space-y-2">
-            {suspendidas.map(suspendida => (
+            {suspendidasVisibles.map(suspendida => (
               <article
                 key={suspendida.id}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 px-3 py-2.5"
@@ -2160,9 +2204,14 @@ export default function FormularioVenta({
                     {suspendida.label?.trim() || 'Sin etiqueta'}
                   </p>
                   <p className="mt-0.5 text-xs text-mute">
-                    {suspendida.customer?.name || 'Sin cliente'} ·{' '}
+                    {suspendida.customer?.name || 'Sin cliente'} · Creada por{' '}
                     {suspendida.user?.name || 'Vendedor'} · {fechaSuspendida(suspendida.createdAt)}
                   </p>
+                  {suspendida.resumedAt && (
+                    <p className="mt-0.5 text-xs font-semibold text-warn">
+                      Retomada por {suspendida.resumedBy?.name || 'un vendedor'} · {fechaSuspendida(suspendida.resumedAt)}
+                    </p>
+                  )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <Button

@@ -625,11 +625,18 @@ test('demo: el borrador del POS se suspende, se lista, se retoma y se descarta',
   await lista.getByRole('button', { name: 'Enlace público' }).click()
   await expect(lista.getByText('En la demo el enlace público no se genera.')).toBeVisible()
 
-  // Retomar devuelve el carrito completo y quita el borrador de la lista.
+  // Retomar devuelve el carrito completo y el borrador queda en «Retomadas»
+  // con quién lo retomó (#279 A2): ya no se borra al recuperarlo.
   await lista.getByRole('button', { name: 'Recuperar' }).click()
   await expect(page.getByText(/Venta recuperada/)).toBeVisible()
   await expect(page.getByRole('button', { name: /^Ver detalle de iPhone 15 Pro/ })).toBeVisible()
   await expect(lista).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Ventas suspendidas' }).click()
+  const retomadas = page.getByRole('dialog', { name: 'Ventas suspendidas' })
+  await retomadas.getByRole('tab', { name: /Retomadas \(1\)/ }).click()
+  await expect(retomadas.getByText(/Retomada por Diego López/)).toBeVisible()
+  await page.keyboard.press('Escape')
 
   // Un segundo borrador se descarta desde la lista (el vendedor es su dueño).
   await page.getByRole('button', { name: 'Suspender venta' }).click()

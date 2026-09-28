@@ -3,14 +3,17 @@ import { almacenamientoDemo } from './demoStorage.js'
 // la capa de storage.js, porque en modo API no hay espejo local que lo guarde:
 // un vendedor que recarga la página debe recuperar la venta a medio armar.
 //
-// Clave con empresa y sucursal (cuando la sesión la define): evita que un
-// carrito armado en una sucursal aparezca en otra de la misma empresa. Sin
-// sucursal conocida se usa solo la empresa.
+// Clave con empresa, sucursal y usuario (#279 A2): el carrito ACTIVO es privado
+// del vendedor de la sesión, así dos personas en la misma computadora no se
+// pisan la venta en curso. Las pestañas del mismo vendedor comparten su carrito
+// (es la misma sesión). El borrador guardado (ventas suspendidas) sí es
+// compartido y vive en el servidor con quién lo creó y quién lo retomó.
 const PREFIJO = 'mobos:pos-cart:v1'
 
-export function claveCarrito(empresaId, sucursalId) {
+export function claveCarrito(empresaId, sucursalId, usuarioId) {
   if (!empresaId) return null
-  return sucursalId ? `${PREFIJO}:${empresaId}:${sucursalId}` : `${PREFIJO}:${empresaId}`
+  const base = sucursalId ? `${PREFIJO}:${empresaId}:${sucursalId}` : `${PREFIJO}:${empresaId}`
+  return usuarioId ? `${base}:${usuarioId}` : base
 }
 
 // En la demo el carrito vive solo en memoria (#204): no se guarda al recargar.
@@ -18,8 +21,8 @@ const storage = () => almacenamientoDemo()
 
 // Devuelve el carrito guardado o null si no existe, está corrupto o el
 // almacenamiento no está disponible (cuota, modo privado, etc.).
-export function leerCarrito(empresaId, sucursalId) {
-  const key = claveCarrito(empresaId, sucursalId)
+export function leerCarrito(empresaId, sucursalId, usuarioId) {
+  const key = claveCarrito(empresaId, sucursalId, usuarioId)
   if (!key) return null
   try {
     const raw = storage()?.getItem(key)
@@ -31,8 +34,8 @@ export function leerCarrito(empresaId, sucursalId) {
   }
 }
 
-export function guardarCarrito(empresaId, sucursalId, data) {
-  const key = claveCarrito(empresaId, sucursalId)
+export function guardarCarrito(empresaId, sucursalId, usuarioId, data) {
+  const key = claveCarrito(empresaId, sucursalId, usuarioId)
   if (!key || data == null) return false
   try {
     storage()?.setItem(key, JSON.stringify(data))
@@ -42,8 +45,8 @@ export function guardarCarrito(empresaId, sucursalId, data) {
   }
 }
 
-export function borrarCarrito(empresaId, sucursalId) {
-  const key = claveCarrito(empresaId, sucursalId)
+export function borrarCarrito(empresaId, sucursalId, usuarioId) {
+  const key = claveCarrito(empresaId, sucursalId, usuarioId)
   if (!key) return
   try {
     storage()?.removeItem(key)
@@ -79,7 +82,7 @@ export function totalResumen(lineas) {
 // seriales opcionales) y el vendedor solo revisa y cobra. Se llama antes de
 // navegar a /pos; el POS lo levanta solo (leerCarritoInicial) y lo borra al
 // guardar la venta. Devuelve false si no hay contexto o no hay items válidos.
-export function prepararVentaDesdeInventario({ empresaId, sucursalId, items = [], customer = null, entrega, montoDelivery, observacion } = {}) {
+export function prepararVentaDesdeInventario({ empresaId, sucursalId, usuarioId, items = [], customer = null, entrega, montoDelivery, observacion } = {}) {
   const normalizados = (Array.isArray(items) ? items : [])
     .filter(Boolean)
     .map(({ productoId, id, quantity, serials, ...resto }) => ({
@@ -90,7 +93,7 @@ export function prepararVentaDesdeInventario({ empresaId, sucursalId, items = []
     }))
     .filter((item) => item.productoId)
   if (!empresaId || !normalizados.length) return false
-  return guardarCarrito(empresaId, sucursalId, {
+  return guardarCarrito(empresaId, sucursalId, usuarioId, {
     items: normalizados,
     ...(customer ? { customer } : {}),
     ...(entrega ? { entrega } : {}),
