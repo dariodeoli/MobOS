@@ -1,0 +1,334 @@
+{
+  "base": "http://localhost:5216",
+  "etiqueta": "despues",
+  "fecha": "2026-09-27T20:23:05.405Z",
+  "variantes": [
+    {
+      "variante": "claro",
+      "tema": "light",
+      "altoContraste": false,
+      "escritorio": {
+        "archivo": "claro-pos-desktop-despues.jpg",
+        "viewport": "1440x900",
+        "bloques": [
+          {
+            "etiqueta": "Cliente",
+            "presente": true,
+            "fondo": "rgba(32, 89, 190, 0.04)",
+            "borde": "rgba(32, 89, 190, 0.35)",
+            "ancho": "1px",
+            "medidos": 16,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Productos",
+            "presente": true,
+            "fondo": "rgba(16, 185, 129, 0.04)",
+            "borde": "rgba(16, 185, 129, 0.35)",
+            "ancho": "1px",
+            "medidos": 9,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Carrito",
+            "presente": true,
+            "fondo": "rgba(22, 101, 52, 0.04)",
+            "borde": "rgba(22, 101, 52, 0.35)",
+            "ancho": "1px",
+            "medidos": 19,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Pagos",
+            "presente": true,
+            "fondo": "rgba(109, 40, 217, 0.04)",
+            "borde": "rgba(109, 40, 217, 0.35)",
+            "ancho": "1px",
+            "medidos": 23,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Tiles",
+            "presente": true,
+            "fondo": "rgba(0, 0, 0, 0)",
+            "borde": "rgba(109, 40, 217, 0.2)",
+            "ancho": "1px",
+            "medidos": 6,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Barra compacta",
+            "presente": false
+          }
+        ]
+      },
+      "movil": {
+        "archivo": "claro-pos-mobile-despues.jpg",
+        "viewport": "390x844",
+        "bloques": [
+          {
+            "etiqueta": "Cliente",
+            "presente": true,
+            "fondo": "rgba(32, 89, 190, 0.04)",
+            "borde": "rgba(32, 89, 190, 0.35)",
+            "ancho": "1px",
+            "medidos": 16,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Productos",
+            "presente": true,
+            "fondo": "rgba(16, 185, 129, 0.04)",
+            "borde": "rgba(16, 185, 129, 0.35)",
+            "ancho": "1px",
+            "medidos": 9,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Carrito",
+            "presente": true,
+            "fondo": "rgba(22, 101, 52, 0.04)",
+            "borde": "rgba(22, 101, 52, 0.35)",
+            "ancho": "1px",
+            "medidos": 19,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Pagos",
+            "presente": true,
+            "fondo": "rgba(109, 40, 217, 0.04)",
+            "borde": "rgba(109, 40, 217, 0.35)",
+            "ancho": "1px",
+            "medidos": 23,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Tiles",
+            "presente": true,
+            "fondo": "rgba(0, 0, 0, 0)",
+            "borde": "rgba(109, 40, 217, 0.2)",
+            "ancho": "1px",
+            "medidos": 6,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Barra compacta",
+            "presente": true,
+            "fondo": "rgba(0, 0, 0, 0)",
+            "borde": "rgb(229, 231, 235)",
+            "ancho": "0px",
+            "medidos": 3,
+            "bajosAA": 0,
+            "detalleAA": []
+          }
+        ]
+      }
+    },
+    {
+      "variante": "oscuro",
+      "tema": "dark",
+      "altoContraste": false,
+      "escritorio": {
+        "archivo": "oscuro-pos-desktop-despues.jpg",
+        "viewport": "1440x900",
+        "bloques": [
+          {
+            "etiqueta": "Cliente",
+            "presente": true,
+            "fondo": "rgba(159, 184, 255, 0.04)",
+            "borde": "rgba(159, 184, 255, 0.35)",
+            "ancho": "1px",
+            "medidos": 16,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Productos",
+            "presente": true,
+            "fondo": "rgba(5, 241, 156, 0.04)",
+            "borde": "rgba(5, 241, 156, 0.35)",
+            "ancho": "1px",
+            "medidos": 9,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Carrito",
+            "presente": true,
+            "fondo": "rgba(74, 222, 128, 0.04)",
+            "borde": "rgba(74, 222, 128, 0.35)",
+            "ancho": "1px",
+            "medidos": 19,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Pagos",
+            "presente": true,
+            "fondo": "rgba(196, 181, 253, 0.04)",
+            "borde": "rgba(196, 181, 253, 0.35)",
+            "ancho": "1px",
+            "medidos": 23,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Tiles",
+            "presente": true,
+            "fondo": "rgba(0, 0, 0, 0)",
+            "borde": "rgba(196, 181, 253, 0.2)",
+            "ancho": "1px",
+            "medidos": 6,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Barra compacta",
+            "presente": false
+          }
+        ]
+      },
+      "movil": {
+        "archivo": "oscuro-pos-mobile-despues.jpg",
+        "viewport": "390x844",
+        "bloques": [
+          {
+            "etiqueta": "Cliente",
+            "presente": true,
+            "fondo": "rgba(159, 184, 255, 0.04)",
+            "borde": "rgba(159, 184, 255, 0.35)",
+            "ancho": "1px",
+            "medidos": 16,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Productos",
+            "presente": true,
+            "fondo": "rgba(5, 241, 156, 0.04)",
+            "borde": "rgba(5, 241, 156, 0.35)",
+            "ancho": "1px",
+            "medidos": 9,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Carrito",
+            "presente": true,
+            "fondo": "rgba(74, 222, 128, 0.04)",
+            "borde": "rgba(74, 222, 128, 0.35)",
+            "ancho": "1px",
+            "medidos": 19,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Pagos",
+            "presente": true,
+            "fondo": "rgba(196, 181, 253, 0.04)",
+            "borde": "rgba(196, 181, 253, 0.35)",
+            "ancho": "1px",
+            "medidos": 23,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Tiles",
+            "presente": true,
+            "fondo": "rgba(0, 0, 0, 0)",
+            "borde": "rgba(196, 181, 253, 0.2)",
+            "ancho": "1px",
+            "medidos": 6,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Barra compacta",
+            "presente": true,
+            "fondo": "rgba(0, 0, 0, 0)",
+            "borde": "rgb(229, 231, 235)",
+            "ancho": "0px",
+            "medidos": 3,
+            "bajosAA": 0,
+            "detalleAA": []
+          }
+        ]
+      }
+    },
+    {
+      "variante": "alto-contraste",
+      "tema": "light",
+      "altoContraste": true,
+      "escritorio": {
+        "archivo": "alto-contraste-pos-desktop-despues.jpg",
+        "viewport": "1440x900",
+        "bloques": [
+          {
+            "etiqueta": "Cliente",
+            "presente": true,
+            "fondo": "rgba(255, 255, 255, 0.04)",
+            "borde": "rgb(0, 0, 0)",
+            "ancho": "1px",
+            "medidos": 16,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Productos",
+            "presente": true,
+            "fondo": "rgba(255, 255, 255, 0.04)",
+            "borde": "rgb(0, 0, 0)",
+            "ancho": "1px",
+            "medidos": 9,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Carrito",
+            "presente": true,
+            "fondo": "rgba(255, 255, 255, 0.04)",
+            "borde": "rgb(0, 0, 0)",
+            "ancho": "1px",
+            "medidos": 19,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Pagos",
+            "presente": true,
+            "fondo": "rgba(255, 255, 255, 0.04)",
+            "borde": "rgb(0, 0, 0)",
+            "ancho": "1px",
+            "medidos": 23,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Tiles",
+            "presente": true,
+            "fondo": "rgba(255, 255, 255, 0)",
+            "borde": "rgb(0, 0, 0)",
+            "ancho": "1px",
+            "medidos": 6,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Barra compacta",
+            "presente": false
+          }
+        ]
+      }
+    }
+  ]
+}

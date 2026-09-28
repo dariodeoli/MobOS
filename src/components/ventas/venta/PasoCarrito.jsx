@@ -54,15 +54,18 @@ export default function PasoCarrito({
   return (
     <section
       id="pos-resumen-venta"
+      data-testid="pos-bloque-carrito"
       className={cn(
-        'scroll-mt-32 overflow-hidden rounded-2xl border border-ink-600 bg-ink-800 shadow-card',
+        // #281 · identidad de color: carrito = verde de venta (ok).
+        'scroll-mt-32 overflow-hidden rounded-2xl border border-ok/35 bg-ok/[.04] shadow-card',
         // Lenguaje v2 (#241, paso 5): el carrito completo detrás del flag.
         temaV2Activo() && 'tema-v2',
       )}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-600 bg-ink-700/50 px-3.5 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ok/20 bg-ok/[.06] px-3.5 py-2">
         <EncabezadoBloque
           titulo="Productos de esta venta"
+          tono="text-ok"
           descripcion={[cliente ? `Cliente: ${cliente}` : 'Consumidor final', vendedor, f?.entrega].filter(Boolean).join(' · ')}
           extra={
             <span className="shrink-0 text-xs text-mute">

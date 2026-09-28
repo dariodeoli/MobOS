@@ -1,0 +1,334 @@
+{
+  "base": "http://localhost:5216",
+  "etiqueta": "antes",
+  "fecha": "2026-09-27T20:21:58.581Z",
+  "variantes": [
+    {
+      "variante": "claro",
+      "tema": "light",
+      "altoContraste": false,
+      "escritorio": {
+        "archivo": "claro-pos-desktop-antes.jpg",
+        "viewport": "1440x900",
+        "bloques": [
+          {
+            "etiqueta": "Cliente",
+            "presente": true,
+            "fondo": "rgb(248, 250, 253)",
+            "borde": "rgb(213, 220, 230)",
+            "ancho": "1px",
+            "medidos": 16,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Productos",
+            "presente": true,
+            "fondo": "rgba(16, 185, 129, 0.04)",
+            "borde": "rgba(16, 185, 129, 0.2)",
+            "ancho": "1px",
+            "medidos": 9,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Carrito",
+            "presente": true,
+            "fondo": "rgb(248, 250, 253)",
+            "borde": "rgb(213, 220, 230)",
+            "ancho": "1px",
+            "medidos": 19,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Pagos",
+            "presente": true,
+            "fondo": "rgba(0, 0, 0, 0)",
+            "borde": "rgba(16, 185, 129, 0.3)",
+            "ancho": "1px",
+            "medidos": 23,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Tiles",
+            "presente": true,
+            "fondo": "rgba(0, 0, 0, 0)",
+            "borde": "rgba(16, 185, 129, 0.2)",
+            "ancho": "1px",
+            "medidos": 6,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Barra compacta",
+            "presente": false
+          }
+        ]
+      },
+      "movil": {
+        "archivo": "claro-pos-mobile-antes.jpg",
+        "viewport": "390x844",
+        "bloques": [
+          {
+            "etiqueta": "Cliente",
+            "presente": true,
+            "fondo": "rgb(248, 250, 253)",
+            "borde": "rgb(213, 220, 230)",
+            "ancho": "1px",
+            "medidos": 16,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Productos",
+            "presente": true,
+            "fondo": "rgba(16, 185, 129, 0.04)",
+            "borde": "rgba(16, 185, 129, 0.2)",
+            "ancho": "1px",
+            "medidos": 9,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Carrito",
+            "presente": true,
+            "fondo": "rgb(248, 250, 253)",
+            "borde": "rgb(213, 220, 230)",
+            "ancho": "1px",
+            "medidos": 19,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Pagos",
+            "presente": true,
+            "fondo": "rgba(0, 0, 0, 0)",
+            "borde": "rgba(16, 185, 129, 0.3)",
+            "ancho": "1px",
+            "medidos": 23,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Tiles",
+            "presente": true,
+            "fondo": "rgba(0, 0, 0, 0)",
+            "borde": "rgba(16, 185, 129, 0.2)",
+            "ancho": "1px",
+            "medidos": 6,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Barra compacta",
+            "presente": true,
+            "fondo": "rgba(0, 0, 0, 0)",
+            "borde": "rgb(229, 231, 235)",
+            "ancho": "0px",
+            "medidos": 3,
+            "bajosAA": 0,
+            "detalleAA": []
+          }
+        ]
+      }
+    },
+    {
+      "variante": "oscuro",
+      "tema": "dark",
+      "altoContraste": false,
+      "escritorio": {
+        "archivo": "oscuro-pos-desktop-antes.jpg",
+        "viewport": "1440x900",
+        "bloques": [
+          {
+            "etiqueta": "Cliente",
+            "presente": true,
+            "fondo": "rgb(36, 42, 56)",
+            "borde": "rgb(62, 71, 90)",
+            "ancho": "1px",
+            "medidos": 16,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Productos",
+            "presente": true,
+            "fondo": "rgba(5, 241, 156, 0.04)",
+            "borde": "rgba(5, 241, 156, 0.2)",
+            "ancho": "1px",
+            "medidos": 9,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Carrito",
+            "presente": true,
+            "fondo": "rgb(36, 42, 56)",
+            "borde": "rgb(62, 71, 90)",
+            "ancho": "1px",
+            "medidos": 19,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Pagos",
+            "presente": true,
+            "fondo": "rgba(0, 0, 0, 0)",
+            "borde": "rgba(5, 241, 156, 0.3)",
+            "ancho": "1px",
+            "medidos": 23,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Tiles",
+            "presente": true,
+            "fondo": "rgba(0, 0, 0, 0)",
+            "borde": "rgba(5, 241, 156, 0.2)",
+            "ancho": "1px",
+            "medidos": 6,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Barra compacta",
+            "presente": false
+          }
+        ]
+      },
+      "movil": {
+        "archivo": "oscuro-pos-mobile-antes.jpg",
+        "viewport": "390x844",
+        "bloques": [
+          {
+            "etiqueta": "Cliente",
+            "presente": true,
+            "fondo": "rgb(36, 42, 56)",
+            "borde": "rgb(62, 71, 90)",
+            "ancho": "1px",
+            "medidos": 16,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Productos",
+            "presente": true,
+            "fondo": "rgba(5, 241, 156, 0.04)",
+            "borde": "rgba(5, 241, 156, 0.2)",
+            "ancho": "1px",
+            "medidos": 9,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Carrito",
+            "presente": true,
+            "fondo": "rgb(36, 42, 56)",
+            "borde": "rgb(62, 71, 90)",
+            "ancho": "1px",
+            "medidos": 19,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Pagos",
+            "presente": true,
+            "fondo": "rgba(0, 0, 0, 0)",
+            "borde": "rgba(5, 241, 156, 0.3)",
+            "ancho": "1px",
+            "medidos": 23,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Tiles",
+            "presente": true,
+            "fondo": "rgba(0, 0, 0, 0)",
+            "borde": "rgba(5, 241, 156, 0.2)",
+            "ancho": "1px",
+            "medidos": 6,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Barra compacta",
+            "presente": true,
+            "fondo": "rgba(0, 0, 0, 0)",
+            "borde": "rgb(229, 231, 235)",
+            "ancho": "0px",
+            "medidos": 3,
+            "bajosAA": 0,
+            "detalleAA": []
+          }
+        ]
+      }
+    },
+    {
+      "variante": "alto-contraste",
+      "tema": "light",
+      "altoContraste": true,
+      "escritorio": {
+        "archivo": "alto-contraste-pos-desktop-antes.jpg",
+        "viewport": "1440x900",
+        "bloques": [
+          {
+            "etiqueta": "Cliente",
+            "presente": true,
+            "fondo": "rgb(255, 255, 255)",
+            "borde": "rgb(0, 0, 0)",
+            "ancho": "1px",
+            "medidos": 16,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Productos",
+            "presente": true,
+            "fondo": "rgba(255, 255, 255, 0.04)",
+            "borde": "rgb(0, 0, 0)",
+            "ancho": "1px",
+            "medidos": 9,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Carrito",
+            "presente": true,
+            "fondo": "rgb(255, 255, 255)",
+            "borde": "rgb(0, 0, 0)",
+            "ancho": "1px",
+            "medidos": 19,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Pagos",
+            "presente": true,
+            "fondo": "rgba(255, 255, 255, 0)",
+            "borde": "rgb(0, 0, 0)",
+            "ancho": "1px",
+            "medidos": 23,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Tiles",
+            "presente": true,
+            "fondo": "rgba(255, 255, 255, 0)",
+            "borde": "rgb(0, 0, 0)",
+            "ancho": "1px",
+            "medidos": 6,
+            "bajosAA": 0,
+            "detalleAA": []
+          },
+          {
+            "etiqueta": "Barra compacta",
+            "presente": false
+          }
+        ]
+      }
+    }
+  ]
+}
