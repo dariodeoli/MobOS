@@ -95,7 +95,13 @@ export function crearCacheAvatar(cargar, { almacen = null, revalidarCadaMs = 30_
   const valores = new Map() // userId → { url, etag }
   const pendientes = new Map() // userId → promesa en vuelo
   const revalidaciones = new Map() // userId → timestamp de la última revalidación
+  const epocas = new Map() // userId → generación: invalida las descargas en vuelo (#290)
   const suscriptores = new Set()
+
+  const epocaDe = (userId) => epocas.get(userId) || 0
+  // Al invalidar se sube la generación: cualquier descarga que haya arrancado
+  // antes queda obsoleta y no puede re-escribir la foto vieja (#290).
+  const invalidarEnVuelo = (userId) => epocas.set(userId, epocaDe(userId) + 1)
 
   const notificar = (userId) => {
     for (const suscriptor of suscriptores) {
@@ -128,7 +134,11 @@ export function crearCacheAvatar(cargar, { almacen = null, revalidarCadaMs = 30_
     if (Date.now() - ultima < revalidarCadaMs) return
     revalidaciones.set(userId, Date.now())
     const etag = valores.get(userId)?.etag || ''
+    const epoca = epocaDe(userId)
     descargar(userId, { etag }).then((resultado) => {
+      // La foto se cambió o quitó mientras esta revalidación viajaba: el
+      // resultado es viejo y no puede tocar la caché (#290).
+      if (epocaDe(userId) !== epoca) return
       if (resultado.noModificado) return
       // #284: un fallo de red NO puede borrar la foto buena ya cacheada (antes
       // una revalidación abortada dejaba el avatar en iniciales). Solo una
@@ -162,7 +172,10 @@ export function crearCacheAvatar(cargar, { almacen = null, revalidarCadaMs = 30_
         revalidar(userId)
         return Promise.resolve(persistida.url)
       }
+      const epoca = epocaDe(userId)
       return descargar(userId).then((resultado) => {
+        // Si mientras bajaba se cambió/quitó la foto, esta respuesta no vale.
+        if (epocaDe(userId) !== epoca) return ''
         if (!valores.has(userId)) guardarValor(userId, resultado)
         return valores.get(userId)?.url || ''
       })
@@ -183,6 +196,7 @@ export function crearCacheAvatar(cargar, { almacen = null, revalidarCadaMs = 30_
     /** Invalida la foto (cambio o quita) y avisa a los componentes montados. */
     olvidar(userId) {
       if (!userId) return
+      invalidarEnVuelo(userId)
       valores.delete(userId)
       pendientes.delete(userId)
       revalidaciones.delete(userId)
@@ -192,6 +206,7 @@ export function crearCacheAvatar(cargar, { almacen = null, revalidarCadaMs = 30_
 
     /** Borra todo (cierre de sesión): memoria y almacén persistente. */
     limpiar() {
+      for (const userId of new Set([...valores.keys(), ...pendientes.keys(), ...revalidaciones.keys(), ...epocas.keys()])) invalidarEnVuelo(userId)
       valores.clear()
       pendientes.clear()
       revalidaciones.clear()
