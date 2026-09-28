@@ -1,0 +1,32 @@
+{
+  "base": "http://localhost:5203",
+  "demoraAvatarMs": 300,
+  "fecha": "2026-09-27T20:52:20.389Z",
+  "frio": {
+    "etiqueta": "frio",
+    "tapa": 111,
+    "iniciales": null,
+    "imagen": 434,
+    "fotoLocal": 434,
+    "rtt": 321,
+    "statusAvatar": 0
+  },
+  "sinCache": {
+    "etiqueta": "repetida-sin-cache",
+    "tapa": 94,
+    "iniciales": null,
+    "imagen": 417,
+    "fotoLocal": 417,
+    "rtt": 320,
+    "statusAvatar": 0
+  },
+  "conCache": {
+    "etiqueta": "repetida-con-cache",
+    "tapa": 88,
+    "iniciales": null,
+    "imagen": 88,
+    "fotoLocal": 88,
+    "rtt": 0,
+    "statusAvatar": 0
+  }
+}
