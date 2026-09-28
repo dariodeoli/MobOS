@@ -14,9 +14,10 @@ const customerName = `${SEED.checkoutCustomer} ${Date.now().toString(36)}`
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
 // Las cuentas de cobro ahora se eligen con buscador: se abre y se elige la
-// opción por nombre.
+// opción por nombre. #283: el `indice` es la FILA de pago (cada fila esconde su
+// selector al elegir la cuenta).
 async function elegirCuenta(page, paymentsSection, indice, nombre) {
-  await paymentsSection.getByLabel('Cuenta de cobro').nth(indice).click()
+  await paymentsSection.getByTestId(`pago-fila-${indice}`).getByLabel('Cuenta de cobro').click()
   await page.getByRole('option', { name: new RegExp(nombre) }).click()
 }
 
@@ -75,15 +76,19 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await expect(paymentsSection.getByText('Equivalente: Gs 25.000')).toBeVisible()
 
   // Con un pago parcial aparece «Dividir saldo» con lo que falta y el bloque
-  // nuevo queda con ese saldo precargado (#187).
+  // nuevo (#187). #283: la fila nueva arranca sin cuenta (solo esa muestra el
+  // selector) y el monto se propone recién al elegir la cuenta.
   const dividirSaldo = paymentsSection.getByRole('button', { name: /^Dividir saldo/ })
   await expect(dividirSaldo).toBeVisible()
   await dividirSaldo.click()
-  await expect(accountSelects).toHaveCount(2)
-  await expect(amountInputs.nth(1)).toHaveValue('20.000')
+  await expect(paymentsSection.getByTestId('pago-fila-1')).toBeVisible()
+  await expect(accountSelects).toHaveCount(1)
+  await expect(amountInputs.nth(1)).toHaveValue('')
 
   // Second payment account covers the remainder.
   await elegirCuenta(page, paymentsSection, 1, 'Transferencia E2E')
+  await expect(accountSelects).toHaveCount(0)
+  await expect(amountInputs.nth(1)).toHaveValue('20.000')
   await expect(paymentsSection.getByText('Equivalente: Gs 20.000')).toBeVisible()
 
   // Totals must balance before saving: el botón principal cambia de estado.

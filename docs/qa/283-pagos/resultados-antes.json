@@ -1,0 +1,37 @@
+{
+  "base": "http://localhost:5217",
+  "etiqueta": "antes",
+  "fecha": "2026-09-27T20:40:53.648Z",
+  "variantes": [
+    {
+      "vista": "claro",
+      "predeterminada": "Caja · Guaraníes",
+      "solapaMonto": true,
+      "comboTrasElegir": 1,
+      "capsula": 1,
+      "ayuda": 0,
+      "datos": "Caja chica mostrador",
+      "segunda": "Caja · Guaraníes"
+    },
+    {
+      "vista": "oscuro",
+      "predeterminada": "Caja · Guaraníes",
+      "solapaMonto": true,
+      "comboTrasElegir": 1,
+      "capsula": 1,
+      "ayuda": 0,
+      "datos": "Caja chica mostrador",
+      "segunda": "Caja · Guaraníes"
+    },
+    {
+      "vista": "movil",
+      "predeterminada": "Caja · Guaraníes",
+      "solapaMonto": true,
+      "comboTrasElegir": 1,
+      "capsula": 1,
+      "ayuda": 0,
+      "datos": "Caja chica mostrador",
+      "segunda": "Caja · Guaraníes"
+    }
+  ]
+}

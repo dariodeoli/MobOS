@@ -1,0 +1,37 @@
+{
+  "base": "http://localhost:5217",
+  "etiqueta": "despues",
+  "fecha": "2026-09-27T20:42:43.163Z",
+  "variantes": [
+    {
+      "vista": "claro",
+      "predeterminada": "",
+      "solapaMonto": false,
+      "comboTrasElegir": 0,
+      "capsula": 1,
+      "ayuda": 1,
+      "datos": "REFERENCIA Caja chica mostrador",
+      "segunda": ""
+    },
+    {
+      "vista": "oscuro",
+      "predeterminada": "",
+      "solapaMonto": false,
+      "comboTrasElegir": 0,
+      "capsula": 1,
+      "ayuda": 1,
+      "datos": "REFERENCIA Caja chica mostrador",
+      "segunda": ""
+    },
+    {
+      "vista": "movil",
+      "predeterminada": "",
+      "solapaMonto": false,
+      "comboTrasElegir": 0,
+      "capsula": 1,
+      "ayuda": 1,
+      "datos": "REFERENCIA Caja chica mostrador",
+      "segunda": ""
+    }
+  ]
+}

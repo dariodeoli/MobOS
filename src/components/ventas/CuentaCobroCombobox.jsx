@@ -97,7 +97,9 @@ export default function CuentaCobroCombobox({ value, onChange, accounts, disable
         onKeyDown={alTeclear}
       />
       {abierto && (
-        <ul id={listaId} role="listbox" aria-label="Cuentas de cobro" className="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-ink-500 bg-ink-800 py-1 shadow-xl">
+        // #283: la lista va en el flujo (no `absolute`): al abrirse empuja el
+        // monto y el equivalente hacia abajo en vez de superponerse.
+        <ul id={listaId} role="listbox" aria-label="Cuentas de cobro" className="mt-2 max-h-72 w-full overflow-auto rounded-lg border border-ink-500 bg-ink-800 py-1 shadow-xl">
           {resultados.map((account, indice) => (
             <li key={account.id}>
               <button

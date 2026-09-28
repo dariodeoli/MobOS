@@ -44,23 +44,36 @@ export default function PaymentAccountFields({ payment, accounts, onChange, pend
   // clipeado). Con minmax(0,1fr) todo se ajusta al ancho disponible.
   return <div className="grid grid-cols-1 gap-3 rounded-2xl border border-ink-600 bg-ink-800/40 p-3 sm:grid-cols-2 sm:col-span-3">
     <div className="sm:col-span-2">
-      <Label htmlFor="cuenta-de-cobro">Cuenta de cobro</Label>
-      <CuentaCobroCombobox
-        value={payment.accountId || ''}
-        accounts={accounts}
-        onChange={(accountId) => {
-          // Al elegir la cuenta se propone el saldo que falta, en la moneda de
-          // la cuenta (así «dividir el pago» sale con un clic).
-          const elegida = accounts.find((a) => a.id === accountId)
-          const esPyg = !elegida || elegida.currency === 'PYG'
-          const rate = esPyg ? 1 : decimal(payment.exchangeRatePyg)
-          const propuesto = pendientePyg > 0 && rate > 0
-            ? (esPyg ? String(Math.round(pendientePyg)) : (pendientePyg / rate).toFixed(2).replace('.', ','))
-            : ''
-          onChange({ accountId, originalAmount: propuesto, exchangeRatePyg: payment.exchangeRatePyg, tradeIn: undefined })
-        }}
-      />
-      {account && <CapsulaCuentaCobro className="mt-2" account={account} pendientePyg={pendientePyg} cotizacionPyg={decimal(payment.exchangeRatePyg)} />}
+      {account ? (
+        <>
+          {/* #283: elegida la cuenta, el selector desaparece y queda solo la
+              cápsula con sus datos; cambiar de cuenta = eliminar el pago y
+              agregar otro (no se edita en el lugar). */}
+          <CapsulaCuentaCobro account={account} />
+          <p className="mt-1.5 text-[11px] text-mute" data-testid="cuenta-cambiar-ayuda">
+            Para cambiar de cuenta, eliminá este pago y agregá otro.
+          </p>
+        </>
+      ) : (
+        <>
+          <Label htmlFor="cuenta-de-cobro">Cuenta de cobro</Label>
+          <CuentaCobroCombobox
+            value={payment.accountId || ''}
+            accounts={accounts}
+            onChange={(accountId) => {
+              // Al elegir la cuenta se propone el saldo que falta, en la moneda
+              // de la cuenta (así «dividir el pago» sale con un clic).
+              const elegida = accounts.find((a) => a.id === accountId)
+              const esPyg = !elegida || elegida.currency === 'PYG'
+              const rate = esPyg ? 1 : decimal(payment.exchangeRatePyg)
+              const propuesto = pendientePyg > 0 && rate > 0
+                ? (esPyg ? String(Math.round(pendientePyg)) : (pendientePyg / rate).toFixed(2).replace('.', ','))
+                : ''
+              onChange({ accountId, originalAmount: propuesto, exchangeRatePyg: payment.exchangeRatePyg, tradeIn: undefined })
+            }}
+          />
+        </>
+      )}
     </div>
     <div className="sm:col-span-2"><Label htmlFor="monto-original">Monto original ({account?.currency || 'moneda de la cuenta'})</Label><MoneyInput id="monto-original" aria-label="Monto original" className="w-full" disabled={!account} max={LIMITE_MONTO_VENTAS} currency={account?.currency || 'PYG'} value={payment.originalAmount} onValueChange={(v) => onChange({ originalAmount: account?.currency === 'PYG' ? (v === '' ? '' : String(v)) : v })} placeholder={FOREIGN(account?.currency) ? '0,00' : '0'} /></div>
     {FOREIGN(account?.currency) && <div className="sm:col-span-2"><Label htmlFor="cotizacion-manual">Cotización (₲ por {account.currency}){account.currency === 'USD' ? ' · automática, editable' : ''}</Label><MoneyInput id="cotizacion-manual" aria-label={`Cotización manual ${account.currency} a PYG`} currency="USD" symbol="Gs." value={payment.exchangeRatePyg || ''} onValueChange={(v) => onChange({ exchangeRatePyg: v })} placeholder="Ingresar cotización" /></div>}
