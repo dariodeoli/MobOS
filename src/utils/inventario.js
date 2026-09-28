@@ -79,6 +79,23 @@ export function sinCostoUnitario(unit = {}) {
   return sinPyg && sinOriginal
 }
 
+// #286: serial canónico para comparar lo que elige el vendedor (mismo criterio
+// que el backend: mayúsculas, sin separadores ni el prefijo MOBOS:).
+export const serialNormalizado = (value = '') => String(value ?? '').trim().replace(/^MOBOS:/i, '').replace(/[\s-]+/g, '').toUpperCase()
+
+// #286: unidades que el selector del POS puede ofrecer en una venta. La regla
+// es del producto: solo las vendibles (AVAILABLE) o la que la línea ya eligió
+// (sigue visible aunque la reserva le haya cambiado el estado). **No** se filtra
+// por sucursal acá: cuando la venta tiene sucursal, la API ya devuelve solo las
+// de esa sucursal; cuando no la tiene, el servidor acota por la sesión (y si la
+// persona no tiene sucursal, el selector lo dice en vez de inventar stock).
+export function unidadesElegibles(unidades = [], { productId = '', seleccionados = [] } = {}) {
+  if (!productId) return []
+  const elegidos = new Set((seleccionados || []).map(serialNormalizado))
+  return (unidades || []).filter((unit) => unit?.productId === productId
+    && (unit.status === 'AVAILABLE' || elegidos.has(serialNormalizado(unit.serial))))
+}
+
 // Costo total en guaraníes de una unidad: el guardado o, si está en moneda
 // extranjera, el monto original por su cotización. null = todavía sin costo.
 export function costoEnGs(unit = {}) {

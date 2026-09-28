@@ -4,8 +4,18 @@ import { Badge, Button, Skeleton } from '@/components/ui'
 import SerialTexto from '@/components/shared/SerialTexto'
 import MedidorBateria from '@/components/shared/MedidorBateria'
 import { serialEnmascarado } from '@/utils/serial'
+import { serialNormalizado as normalize, unidadesElegibles } from '@/utils/inventario'
 
-const normalize = (value = '') => String(value).trim().replace(/^MOBOS:/i, '').replace(/[\s-]+/g, '').toUpperCase()
+// #286: mensaje honesto y accionable para cada fallo (nunca el texto crudo del
+// API sin salida): permiso/sucursal se explican y siempre queda el camino de
+// «sobre pedido».
+const mensajeDeCarga = (cause) => {
+  const status = Number(cause?.status || 0)
+  if (status === 401) return 'Tu sesión venció: volvé a entrar para elegir el equipo.'
+  if (status === 403) return 'No podés ver el stock de esa sucursal. Revisá tu sucursal activa o pedile a administración que te asigne una. Mientras tanto, podés marcar la venta «sobre pedido» y asignar el IMEI al entregar.'
+  const detalle = String(cause?.message || '').trim()
+  return `${detalle || 'No se pudieron cargar los IMEI de este modelo.'} Probá de nuevo; si persiste, vendé «sobre pedido» y asigná el IMEI al entregar.`
+}
 
 // Selector para una línea de venta. La reserva se hace antes del checkout para
 // evitar que dos vendedores elijan el mismo equipo; el backend mantiene la
@@ -15,32 +25,30 @@ export default function SerialUnitPicker({ product, branchId = '', customerName,
   const [loading, setLoading] = useState(false)
   const [busySerial, setBusySerial] = useState('')
   const [error, setError] = useState('')
+  const [sinSucursal, setSinSucursal] = useState(false)
   const seleccionadosRef = useRef(selectedSerials)
   useEffect(() => { seleccionadosRef.current = selectedSerials }, [selectedSerials])
 
   const load = useCallback(async () => {
     if (!product?.id) { setUnits([]); onRequiresSerial?.(false, 0); return }
-    setLoading(true); setError('')
+    setLoading(true); setError(''); setSinSucursal(false)
     try {
-      // #263: unidades reales de ESTE producto en la sucursal de la venta (la
-      // misma que valida y descuenta al confirmar). Antes se buscaba por texto
-      // (SKU/nombre) y se filtraba con el branch del producto, así que el
-      // selector podía quedar vacío o mostrar equipos de otra sucursal.
-      const rows = await resources.inventoryUnits.list('', 'active', {
-        productId: product.id,
-        ...(branchId ? { branchId } : {}),
-      })
-      const matched = (rows || []).filter(unit => unit.productId === product.id
-        // Solo unidades vendibles; la elegida se conserva aunque la reserva ya
-        // le haya cambiado el estado.
-        && (unit.status === 'AVAILABLE' || seleccionadosRef.current.includes(normalize(unit.serial)))
-        // Sesión sin sucursal (dueño sin sucursal): el servidor solo acepta
-        // unidades sin sucursal, así que el selector ofrece esas.
-        && (branchId ? true : !unit.branchId))
+      // #286: sin sucursal en la venta no se inventa stock ni se listan unidades
+      // de otras sucursales: se explica que falta la sucursal (la venta tampoco
+      // puede descontar stock así). Con sucursal, la API devuelve solo las de
+      // esa sucursal (#263) y el selector no vuelve a filtrar por sucursal.
+      if (!branchId) {
+        setUnits([])
+        setSinSucursal(true)
+        onRequiresSerial?.(false, 0)
+        return
+      }
+      const rows = await resources.inventoryUnits.list('', 'active', { productId: product.id, branchId })
+      const matched = unidadesElegibles(rows, { productId: product.id, seleccionados: seleccionadosRef.current })
       setUnits(matched)
       // Segundo argumento: cuántas unidades hay (guía inline del POS).
       onRequiresSerial?.(matched.length > 0, matched.length)
-    } catch (cause) { setError(cause?.message || 'No se pudieron cargar los IMEI de este modelo.') } finally { setLoading(false) }
+    } catch (cause) { setError(mensajeDeCarga(cause)) } finally { setLoading(false) }
   }, [product, branchId, onRequiresSerial])
 
   // El efecto inicial carga solo cuando cambia el producto o la sucursal; el ref
@@ -71,6 +79,11 @@ export default function SerialUnitPicker({ product, branchId = '', customerName,
 
   if (!product?.id) return null
   if (loading) return <div className="mt-3 space-y-2"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>
+  // #286: sin sucursal no hay stock que ofrecer; se dice por qué y cómo seguir.
+  if (sinSucursal) return <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-warn/40 bg-warn/5 px-3 py-2 text-xs text-warn" role="status" data-testid="picker-sin-sucursal">
+    <span className="min-w-0 flex-1">Tu usuario no tiene sucursal asignada: pedile a administración que te asigne una para elegir el equipo físico. Mientras tanto, podés vender «sobre pedido» y asignar el IMEI al entregar.</span>
+    <Button type="button" variant="ghost" className="h-8 shrink-0 px-2 text-[11px] text-warn" onClick={() => load()}>Reintentar</Button>
+  </div>
   if (!units.length && !error) return <p className="mt-3 rounded-xl border border-ink-600 bg-ink-800/40 px-3 py-2 text-xs text-mute">No hay unidades disponibles de este modelo en tu sucursal. Si el cliente la espera, marcala como «sobre pedido»: el IMEI se asigna al entregar.</p>
 
   return <section className="mt-3 rounded-2xl border border-fono/25 bg-fono/[.04] p-3" aria-label="Unidad física para esta venta">
@@ -96,6 +109,6 @@ export default function SerialUnitPicker({ product, branchId = '', customerName,
         </Button>
       </div>
     })}</div>
-    {error && <p role="alert" className="mt-2 text-xs text-bad">{error}</p>}
+    {error && <p role="alert" className="mt-2 flex flex-wrap items-center gap-2 text-xs text-bad" data-testid="picker-error"><span className="min-w-0 flex-1">{error}</span><Button type="button" variant="ghost" className="h-8 shrink-0 px-2 text-[11px] text-bad" onClick={() => load()}>Reintentar</Button></p>}
   </section>
 }

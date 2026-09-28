@@ -8,6 +8,7 @@ import EtiquetasProductoModal from '@/components/shared/EtiquetasProductoModal'
 import KardexProducto from '@/components/productos/KardexProducto'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import { api } from '@/lib/api/client'
+import { useSesion } from '@/lib/sesion'
 import { num } from '@/utils/calculos'
 import SerialTexto from '@/components/shared/SerialTexto'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
@@ -30,8 +31,12 @@ const costo = (row) => Number(row?.costPyg ?? row?.precioCosto ?? 0)
 export default function ProductoDetalle({ product, canManage, esDemo, onClose, onChanged, onSell }) {
   const toast = useToast()
   const [current, setCurrent] = useState(product)
+  const { sucursal } = useSesion()
   const [units, setUnits] = useState([])
   const [loadingUnits, setLoadingUnits] = useState(!esDemo)
+  // #286: si la carga falla se dice (con reintento) en vez de mostrar «no tiene
+  // unidades» aunque existan.
+  const [errorUnits, setErrorUnits] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [editando, setEditando] = useState(false)
@@ -56,13 +61,23 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
   }))
 
   const loadUnits = useCallback(async () => {
-    if (esDemo || !current?.sku) { setLoadingUnits(false); return }
+    if (esDemo || !current?.id) { setLoadingUnits(false); return }
     setLoadingUnits(true)
+    setErrorUnits('')
     try {
-      const rows = await api.get(`/api/inventory-units?q=${encodeURIComponent(current.sku)}`)
-      setUnits((Array.isArray(rows) ? rows : []).filter(unit => unit.product?.sku === current.sku))
-    } catch { setUnits([]) } finally { setLoadingUnits(false) }
-  }, [current?.sku, esDemo])
+      // #286: por id de producto (exacto) y con la sucursal activa — el mismo
+      // alcance que el selector del POS y el resto del panel. Antes se buscaba
+      // por texto (SKU) y un fallo quedaba en silencio: la sección decía «no
+      // tiene unidades» aunque existieran (o mostraba las de otra sucursal).
+      const query = new URLSearchParams({ productId: current.id })
+      if (sucursal?.id) query.set('branchId', sucursal.id)
+      const rows = await api.get(`/api/inventory-units?${query.toString()}`)
+      setUnits(Array.isArray(rows) ? rows : [])
+    } catch (cause) {
+      setUnits([])
+      setErrorUnits(cause?.message || 'No se pudieron cargar los equipos de este producto.')
+    } finally { setLoadingUnits(false) }
+  }, [current?.id, esDemo, sucursal?.id])
   useEffect(() => { loadUnits() }, [loadUnits])
 
   const resumen = useMemo(() => {
@@ -171,7 +186,13 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
         <section className="rounded-2xl border border-ink-600 p-4">
           <h3 className={ROTULO_SECCION}>Equipos por estado</h3>
           {loadingUnits && <div className="mt-3 space-y-2"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>}
-          {!loadingUnits && units.length === 0 && <p className="mt-2 text-sm text-mute">{esDemo ? 'La lista de IMEI está disponible con una cuenta real.' : 'Este producto no tiene unidades serializadas cargadas.'}</p>}
+          {!loadingUnits && Boolean(errorUnits) && (
+            <Aviso tono="error" className="mt-2 flex flex-wrap items-center gap-2 p-3" role="alert">
+              <span className="min-w-0 flex-1">{errorUnits}</span>
+              <Button type="button" variant="ghost" className="h-8 shrink-0 px-2 text-[11px] text-bad" onClick={() => loadUnits()}>Reintentar</Button>
+            </Aviso>
+          )}
+          {!loadingUnits && !errorUnits && units.length === 0 && <p className="mt-2 text-sm text-mute">{esDemo ? 'La lista de IMEI está disponible con una cuenta real.' : 'No hay unidades de este producto en la sucursal activa. Cambiá de sucursal para ver otras o revisá que la compra esté recibida.'}</p>}
           {!loadingUnits && units.length > 0 && <>
             <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
               {Object.entries(UNIT_STATUS).map(([status, label]) => <div key={status} className="rounded-xl bg-ink-800/60 p-2.5 text-center"><p className="text-lg font-bold tabular-nums">{resumen[status] || 0}</p><p className="text-[10px] text-mute">{label}</p></div>)}

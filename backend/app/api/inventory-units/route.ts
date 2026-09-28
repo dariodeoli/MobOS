@@ -76,6 +76,11 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams
   const branchId = params.get('branchId')
   if (branchId && !canSeeBranch(session.user.role, session.user.branchId, branchId)) return error('No autorizado para esa sucursal.', 403)
+  // #286: un lector sin sucursal asignada (vendedor/cajera) no tiene contexto
+  // de stock: se responde vacío en vez de mezclar unidades de todas las
+  // sucursales (mismo criterio que el catálogo de productos, que les oculta los
+  // productos con sucursal). Con sucursal, el filtro de abajo la aplica.
+  if (!branchId && !session.user.branchId && ['VENDEDOR', 'CAJERA'].includes(session.user.role)) return json([])
   const view = params.get('view') || 'active'
   if (!['active', 'removed', 'all'].includes(view)) return error('Vista de inventario inválida.')
   // No revelar qué se retiró a gerentes, cajeras o vendedores. Devolver una

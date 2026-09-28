@@ -135,6 +135,14 @@ function snapshot(state, unit) {
   return { ...unit, branch: state.branches.find(b => b.id === unit.branchId) || null, location: state.locations.find(l => l.id === unit.locationId) || null }
 }
 
+// #286: filtros del selector del POS en la demo (mismo contrato que la API
+// real): producto, sucursal (las sin sucursal siguen visibles) y estado.
+export function filtrarUnidadesDemo(unidades = [], { productId = '', branchId = '', status = '' } = {}) {
+  return (unidades || []).filter((unidad) => (!productId || unidad.productId === productId)
+    && (!branchId || !unidad.branchId || unidad.branchId === branchId)
+    && (!status || unidad.status === status))
+}
+
 // ── API para resources.inventoryUnits / stockLocations / inventoryBranches ──
 export function listDemoUnits(q = '', view = 'active') {
   const state = read()

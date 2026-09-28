@@ -708,3 +708,18 @@ test('los previews de diseño de #279 usan los objetos compartidos', () => {
     assert.doesNotMatch(fuente, /#[0-9a-fA-F]{6}\b/, `${ruta}: sin colores hex (solo tokens)`)
   }
 })
+
+// #286 (POS sin unidades): el selector de IMEI no descarta unidades por su
+// sucursal (la API ya acota por la venta/sesión) y el detalle de producto no
+// se queda en silencio cuando la carga falla.
+test('el selector de IMEI del POS no filtra unidades por sucursal y el detalle de producto no silencia errores (#286)', () => {
+  const picker = readFileSync(join(RAIZ, 'components/inventory/SerialUnitPicker.jsx'), 'utf8')
+  assert.doesNotMatch(picker, /!\s*unit\.branchId/, 'el selector no descarta unidades sin sucursal')
+  assert.match(picker, /unidadesElegibles\(/, 'el selector usa la elegibilidad compartida (utils/inventario)')
+  assert.match(picker, /data-testid="picker-sin-sucursal"/, 'sin sucursal explica qué falta y cómo seguir')
+  assert.match(picker, /picker-error/, 'los fallos de carga muestran un aviso del selector')
+  assert.match(picker, /setError\(mensajeDeCarga\(cause\)\)/, 'los fallos pasan por el mensaje accionable (sin texto crudo del API)')
+  const detalle = readFileSync(join(RAIZ, 'components/productos/ProductoDetalle.jsx'), 'utf8')
+  assert.doesNotMatch(detalle, /catch\s*\{\s*setUnits\(\[\]\)\s*\}/, 'el detalle no silencia el fallo de unidades')
+  assert.match(detalle, /productId: current\.id/, 'el detalle pide las unidades por producto (no por texto)')
+})
