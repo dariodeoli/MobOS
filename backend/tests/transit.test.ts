@@ -22,31 +22,50 @@ test('una asignación deja la unidad reservada a nombre de quien la apartó', ()
   )
 })
 
+// Formas que la vinculación usa del cliente de transacción real: tiparlas acá
+// evita depender del client generado de Prisma (y del `NODE_ENV` obligatorio de
+// Next) para un doble mínimo.
+type AsignacionFalsa = {
+  id: string
+  orderId: string | null
+  orderItemId: string | null
+  customerName: string | null
+  sellerId: string
+} | null
+
+type LlamadasFalsas = {
+  updates: Array<{ where: { id: string }; data: Record<string, unknown> }>
+  serials: string[]
+  linea?: string[]
+  serialsPendientes?: number
+  audits: Array<{ action: string; metadata: Record<string, unknown> }>
+}
+
 // Cliente de transacción mínimo: registra lo que la vinculación toca.
-function txFalso({ asignacion = null } = {}) {
-  const llamadas: { updates: unknown[]; serials: string[]; linea?: string[]; serialsPendientes?: number; audits: Array<Record<string, unknown>> } = { updates: [], serials: [], audits: [] }
+function txFalso({ asignacion = null }: { asignacion?: AsignacionFalsa } = {}) {
+  const llamadas: LlamadasFalsas = { updates: [], serials: [], audits: [] }
   return {
     llamadas,
     transitAssignment: {
       findFirst: async () => asignacion,
-      update: async ({ where, data }) => { llamadas.updates.push({ where, data }); return { id: where.id, ...data } },
+      update: async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => { llamadas.updates.push({ where, data }); return { id: where.id, ...data } },
     },
     orderItem: {
       findFirst: async () => ({ id: 'item-1', serials: [], serialsPending: 1 }),
-      update: async ({ data }) => { llamadas.linea = Array.isArray(data.serials) ? data.serials : []; llamadas.serialsPendientes = data.serialsPending; return { id: 'item-1', ...data } },
+      update: async ({ data }: { data: { serials?: unknown; serialsPending?: number } }) => { llamadas.linea = Array.isArray(data.serials) ? data.serials : []; llamadas.serialsPendientes = data.serialsPending; return { id: 'item-1', ...data } },
     },
-    orderItemSerial: { deleteMany: async () => {}, createMany: async ({ data }) => { llamadas.serials.push(...data.map((fila: { serial: string }) => fila.serial)) } },
-    auditLog: { create: async ({ data }) => { llamadas.audits.push(data) } },
+    orderItemSerial: { deleteMany: async () => {}, createMany: async ({ data }: { data: Array<{ serial: string }> }) => { llamadas.serials.push(...data.map((fila) => fila.serial)) } },
+    auditLog: { create: async ({ data }: { data: { action: string; metadata: Record<string, unknown> } }) => { llamadas.audits.push(data) } },
   }
 }
 
 test('al recibir una unidad apartada, el IMEI se vincula al pedido y la asignación pasa a VINCULADA', async () => {
   const tx = txFalso({ asignacion: { id: 'asig-1', orderId: 'order-1', orderItemId: 'item-1', customerName: 'Ana', sellerId: 'user-1' } })
   const vinculada = await vincularAsignacionAlRecibir(tx as never, { tenantId: 't1', unit: { id: 'u1', serial: 'ABC123' }, userId: 'user-9' })
-  assert.equal(vinculada.status, 'VINCULADA')
+  assert.equal(vinculada!.status, 'VINCULADA')
   assert.deepEqual(tx.llamadas.linea, ['ABC123'], 'la línea del pedido recibe su IMEI')
-assert.deepEqual(tx.llamadas.serials, ['ABC123'], 'el índice de seriales se sincroniza')
-assert.equal(tx.llamadas.serialsPendientes, 0, 'la línea deja de esperar el IMEI')
+  assert.deepEqual(tx.llamadas.serials, ['ABC123'], 'el índice de seriales se sincroniza')
+  assert.equal(tx.llamadas.serialsPendientes, 0, 'la línea deja de esperar el IMEI')
   assert.equal(tx.llamadas.updates[0].where.id, 'asig-1')
   assert.equal(tx.llamadas.audits[0].action, 'TRANSIT_UNIT_LINKED')
   assert.equal(tx.llamadas.audits[0].metadata.serial, 'ABC123')
@@ -63,7 +82,7 @@ test('sin asignación viva no se toca nada (la recepción sigue igual)', async (
 test('una asignación sin pedido se vincula igual (reserva a futuro)', async () => {
   const tx = txFalso({ asignacion: { id: 'asig-2', orderId: null, orderItemId: null, customerName: null, sellerId: 'user-2' } })
   const vinculada = await vincularAsignacionAlRecibir(tx as never, { tenantId: 't1', unit: { id: 'u1', serial: 'XYZ' }, userId: null })
-  assert.equal(vinculada.status, 'VINCULADA')
+  assert.equal(vinculada!.status, 'VINCULADA')
   assert.deepEqual(tx.llamadas.serials, [], 'sin pedido no hay serial que vincular')
   assert.equal(tx.llamadas.audits[0].metadata.orderId, null)
 })
