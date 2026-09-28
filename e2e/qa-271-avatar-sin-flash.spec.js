@@ -134,3 +134,29 @@ test('al recargar el bloqueo no se pinta la foto anterior (placeholder hasta res
   // La API del avatar ya respondió: la evidencia de cabeceras quedó en el test 1.
   await borrarAvatar(page, sesion.id)
 })
+
+// #284 · Segunda carga: con la caché persistente (localStorage) la foto se pinta
+// **sin red** — es lo que elimina el flash de iniciales. Sin caché, al abortar
+// la descarga del avatar no habría foto (el test falla).
+test('la foto cacheada se pinta sin red en la segunda carga (#284)', async ({ page }) => {
+  await page.goto('/resumen')
+  await expect(page.getByTestId('shell-perfil')).toBeVisible({ timeout: 20_000 })
+  const sesion = await page.evaluate(async (api) => (await (await fetch(`${api}/api/auth/me`, { credentials: 'include' })).json())?.user, `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`)
+  const nombre = String(sesion?.user_metadata?.nombre || sesion?.name || SEED.admin.name)
+  const png = await QRCode.toBuffer(`avatar-cache-${Date.now()}`)
+  expect(await subirAvatar(page, sesion.id, png.toString('base64'))).toBeLessThan(300)
+
+  // Primera carga: la foto entra a la caché persistente.
+  await page.reload()
+  await expect(page.locator(`img[alt="Foto de ${nombre}"]`).first()).toBeVisible({ timeout: 20_000 })
+  const cacheado = await page.evaluate((userId) => Boolean(localStorage.getItem(`mobos:avatar:${userId}`)), sesion.id)
+  expect(cacheado, 'la primera carga tiene que dejar la foto en localStorage').toBe(true)
+
+  // Segunda carga sin red: la foto sigue apareciendo al instante desde la caché.
+  await page.route('**/api/users/*/avatar', (ruta) => ruta.abort())
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.locator(`img[alt="Foto de ${nombre}"]`).first()).toBeVisible({ timeout: 10_000 })
+  // Se libera la ruta antes de limpiar (el DELETE también pasa por ahí).
+  await page.unroute('**/api/users/*/avatar')
+  await borrarAvatar(page, sesion.id)
+})
