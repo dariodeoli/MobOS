@@ -11,6 +11,11 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.202 — 2026-09-28
+- **Avatar (#284):** la foto de perfil se guarda en **caché persistente por usuario** y **se pinta al instante** en las siguientes entradas (sin flash de iniciales); sigue **revalidando** con ETag y, al cambiarla o quitarla, nunca se ve la anterior.
+- **Inventario (#285):** la tabla de **Unidades queda en una sola línea**: **Producto · IMEI · Verificación · Ubicación · Estado · Costo · Acciones**; «Verificado» pasa a **Verificación** con fecha (ej. «OK VPC · 01/09/2026») y el IMEI sale del bloque Producto. Sin scroll en 1280+.
+- **POS (#283):** al **+ Agregar pago ya no viene una cuenta predeterminada** (se elige a propósito); al elegirla, **el selector se colapsa** y queda solo la cápsula (cambiar = borrar la fila y agregar otra); la lista **ya no se superpone** a los ítems del bloque.
+
 ## v1.0.201 — 2026-09-28
 - **POS (#281):** los **contenedores de la venta** se distinguen de un vistazo con **identidad de color suave** —Cliente (info), Productos (marca), Productos de esta venta (ok), Pagos (reserved) y los tiles Total/Pagado/Pendiente—, usando **tokens existentes** y consistente en claro, oscuro y **alto contraste**. Sin cambios de lógica ni de datos.
 - **Evidencia:** capturas antes/después en los 3 temas (`docs/qa/281-contenedores/`) con **medición AA: 0 bajos** en los bloques.
