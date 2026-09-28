@@ -14,6 +14,7 @@ import { montoTexto } from '@/utils/moneda'
 import BarraLote from '@/components/shared/BarraLote'
 import BarraModulo from '@/components/shared/BarraModulo'
 import ResumenMetricas from '@/components/shared/ResumenMetricas'
+import VistaProductosUnidades from '@/components/shared/VistaProductosUnidades'
 import MedidorBateria from '@/components/shared/MedidorBateria'
 import Switch from '@/components/shared/Switch'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
@@ -514,9 +515,11 @@ const INVENTARIO_TABS = ['unidades', 'taller', 'alertas', 'reservas', 'traslados
 const ESTADO_CONTEO = { DRAFT: ['Borrador', 'orange'], APPLIED: ['Aplicado', 'green'], CANCELLED: ['Cancelado', 'slate'] }
 
 export default function Inventario({ tab: tabProp, onTabChange } = {}) {
-  // La búsqueda global abre Unidades con ?q=<serial> ya aplicado.
-  const [searchParams] = useSearchParams()
+  // La búsqueda global abre Unidades con ?q=<serial> ya aplicado y #287 suma
+  // ?producto=<id>: la vista de Unidades acotada a un producto (desde su ficha).
+  const [searchParams, setSearchParams] = useSearchParams()
   const qParam = searchParams.get('q') || ''
+  const productoParam = searchParams.get('producto') || ''
   const [products, setProducts] = useState([]), [units, setUnits] = useState([]), [removedUnits, setRemovedUnits] = useState([]), [reservations, setReservations] = useState([]), [transfers, setTransfers] = useState([]), [locations, setLocations] = useState([]), [cargandoUnidades, setCargandoUnidades] = useState(true)
   const apiMode = modoDatosActual() === 'api'
   const { sesion, sucursal, sucursales, esDemo } = useSesion()
@@ -682,10 +685,11 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
     if (!inventarioOperativo) { setCargandoUnidades(false); return }
     setBusy(true); setError('')
     try {
-      const nextUnits = await resources.inventoryUnits.list(search)
+      // #287: la vista puede venir acotada a un producto (desde su ficha).
+      const nextUnits = await resources.inventoryUnits.list(search, 'active', { ...(productoParam ? { productId: productoParam } : {}) })
       setUnits(nextUnits); setProducts(getProductos())
     } catch (cause) { setError(cause?.message || 'No se pudo actualizar el inventario.') } finally { setBusy(false); setCargandoUnidades(false) }
-  }, [inventarioOperativo])
+  }, [inventarioOperativo, productoParam])
   // La cotización del día ya no bloquea el arranque (#247): entra con los
   // secundarios y, si alguien guarda un costo antes de que llegue, se pide en
   // el momento (ver `guardarCostoRapido`).
@@ -730,6 +734,13 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
     resources.inventoryUnits.list(busquedaDiferida, 'removed').then(setRemovedUnits).catch(() => {})
   }, [tab, busquedaDiferida, inventarioOperativo]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (qParam) setQuery(qParam) }, [qParam])
+  // #287: el producto que acota la vista (nombre para el contexto de la barra).
+  const productoFiltro = useMemo(() => {
+    if (!productoParam) return null
+    const deUnidad = units.find((unit) => unit.productId === productoParam)?.product
+    const delCatalogo = getProductos().find((fila) => fila.id === productoParam)
+    return { id: productoParam, nombre: deUnidad?.name || delCatalogo?.nombre || delCatalogo?.name || 'Producto' }
+  }, [productoParam, units])
   useEffect(() => {
     if (!detalleUnidad) return
     // El refresco puede correr con el detalle ya cerrado (current null): sin el
@@ -772,7 +783,9 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
     } catch (cause) { setError(cause?.message || 'No se pudo actualizar el umbral.') } finally { setBusy(false) }
   }
   const availableProducts = useMemo(() => products.filter(product => product.branchId), [products])
-  const filtroBusqueda = lista => { const q = query.trim().toLowerCase(); if (!q) return lista; return lista.filter(unit => [unit.serial, unit.product?.name, unit.reservationCustomer, unit.notes, unit.supplierName].some(valor => String(valor || '').toLowerCase().includes(q))) }
+  // #287: el buscador promete «IMEI, SKU o modelo» y la API ya busca por SKU; el
+  // filtro local no lo miraba y las filas desaparecían al llegar por SKU.
+  const filtroBusqueda = lista => { const q = query.trim().toLowerCase(); if (!q) return lista; return lista.filter(unit => [unit.serial, unit.product?.name, unit.product?.sku, unit.reservationCustomer, unit.notes, unit.supplierName].some(valor => String(valor || '').toLowerCase().includes(q))) }
   const modeloNatural = unit => { const numero = String(unit.product?.model || unit.product?.name || '').match(/(\d{2})/); return numero ? Number(numero[1]) : 0 }
   const ordenarUnidades = lista => { const nombre = unit => String(unit.product?.name || '').toLowerCase(); switch (orden) { case 'modelo-az': return [...lista].sort((a, b) => nombre(a).localeCompare(nombre(b))); case 'modelo-za': return [...lista].sort((a, b) => nombre(b).localeCompare(nombre(a))); case 'nuevos': return [...lista].sort((a, b) => (a.condition === 'NEW' ? -1 : 1) - (b.condition === 'NEW' ? -1 : 1) || nombre(a).localeCompare(nombre(b))); case 'semis': return [...lista].sort((a, b) => (a.condition !== 'NEW' ? -1 : 1) - (b.condition !== 'NEW' ? -1 : 1) || nombre(a).localeCompare(nombre(b))); case 'mezclado': return [...lista].sort((a, b) => nombre(a).localeCompare(nombre(b))); case 'modelo-natural': return [...lista].sort((a, b) => modeloNatural(b) - modeloNatural(a) || nombre(a).localeCompare(nombre(b))); case 'costo-mayor': return [...lista].sort((a, b) => (costoEnGs(b) ?? 0) - (costoEnGs(a) ?? 0)); case 'costo-menor': return [...lista].sort((a, b) => (costoEnGs(a) ?? 0) - (costoEnGs(b) ?? 0)); default: return lista } }
   // Inventario: la unidad sigue acá mientras no haya salido del local. Por eso
@@ -1255,7 +1268,10 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
         titulo="Inventario"
         descripcion="Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría."
         testId="barra-inventario"
+        contexto={productoFiltro ? <span data-testid="inventario-filtro-producto" className="inline-flex min-w-0 max-w-[16rem] items-center gap-1.5 rounded-lg border border-fono/30 bg-fono/5 px-2 py-1 text-[11px] text-fono-light" title={`Unidades de ${productoFiltro.nombre}`}><Icon name="phone" className="h-3 w-3 shrink-0" /><span className="truncate font-semibold">{productoFiltro.nombre}</span><button type="button" aria-label="Quitar el filtro de producto" title="Ver todas las unidades" onClick={() => setSearchParams((actuales) => { const params = new URLSearchParams(actuales); params.delete('producto'); return params }, { replace: true })} className="toque-44 shrink-0 rounded px-1 text-mute transition hover:text-fore">×</button></span> : null}
       >
+        {/* #287: Productos ⇄ Unidades, el mismo objeto en dos vistas. */}
+        <VistaProductosUnidades vista="unidades" q={query} productoId={productoFiltro?.id || ''} />
         <Button onClick={abrirReceive}>+ Recibir unidad</Button>
         <Button variant="outline" onClick={() => setReserveOpen(true)}>Reservar</Button>
         <Button variant="outline" onClick={() => setTransferOpen(true)}>Transferir</Button>

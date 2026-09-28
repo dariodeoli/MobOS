@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { descargarCsvCliente } from '@/utils/descargarArchivo'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
@@ -16,6 +17,7 @@ import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { useVistaListaGrid } from '@/hooks/useVistaListaGrid'
 import ProductoDetalle from '@/components/productos/ProductoDetalle'
+import VistaProductosUnidades from '@/components/shared/VistaProductosUnidades'
 import ListGridToggle from '@/components/shared/ListGridToggle'
 import ComboManager from '@/components/productos/ComboManager'
 import ImportarProductos from '@/components/productos/ImportarProductos'
@@ -92,8 +94,15 @@ export default function SellerCatalog() {
   const toast = useToast()
   const [seleccionados, setSeleccionados] = useState([])
   const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
-  const [query, setQuery] = useState('')
-  const [search, setSearch] = useState('')
+  // #287: la vista de Productos comparte contexto con la de Unidades: `q` (la
+  // búsqueda) y `producto` (llegar desde una unidad a su ficha).
+  const [searchParams, setSearchParams] = useSearchParams()
+  const qUrl = searchParams.get('q') || ''
+  const productoUrl = searchParams.get('producto') || ''
+  const [query, setQuery] = useState(qUrl)
+  const [search, setSearch] = useState(qUrl)
+  // Producto que abrió esta vista (contexto del switch hacia Unidades).
+  const [productoAbierto, setProductoAbierto] = useState(null)
   const busquedaDiferida = useBusquedaDiferida(query)
   const [categoria, setCategoria] = useState('todas')
   const [condicion, setCondicion] = useState('todas')
@@ -105,6 +114,8 @@ export default function SellerCatalog() {
   const [etiquetasOpen, setEtiquetasOpen] = useState(false)
   const searchRef = useRef(null)
   useEffect(() => { setSearch(busquedaDiferida.trim()) }, [busquedaDiferida])
+  // La búsqueda puede llegar por URL (switch desde Unidades).
+  useEffect(() => { if (qUrl) { setQuery(qUrl); setSearch(qUrl) } }, [qUrl])
   const data = useSellerData(`/api/products?q=${encodeURIComponent(search)}`, productFields, demoProducts, esDemo, { limit: 50 })
   const canManage = Boolean(sesion?.esPropietario || ['ADMIN', 'GERENTE'].includes(sesion?.rol) || ['ADMIN', 'GERENTE'].includes(usuario?.role))
   const rows = useMemo(() => {
@@ -144,6 +155,21 @@ export default function SellerCatalog() {
       return (va - vb) * factor
     })
   }, [rows, orden])
+  // Llegar desde una unidad (`?producto=<id>`, con `q` acotando la búsqueda)
+  // abre la ficha del producto y limpia el parámetro para no reabrirla al
+  // cerrar el detalle.
+  useEffect(() => {
+    if (!productoUrl) return
+    const fila = data.rows.find((row) => row.id === productoUrl)
+    if (!fila) return
+    setSeleccion(fila)
+    setProductoAbierto(fila)
+    setSearchParams((actuales) => {
+      const params = new URLSearchParams(actuales)
+      params.delete('producto')
+      return params
+    }, { replace: true })
+  }, [productoUrl, data.rows, setSearchParams])
   useEffect(() => {
     if (window.__mobosFocusSearch) {
       delete window.__mobosFocusSearch
@@ -185,6 +211,8 @@ export default function SellerCatalog() {
       descripcion="Catálogo de consulta y edición: precio, mayorista, stock y equipos por IMEI."
       testId="barra-productos"
     >
+      {/* #287: Productos ⇄ Unidades, el mismo objeto en dos vistas. */}
+      <VistaProductosUnidades vista="productos" q={search || busquedaDiferida} productoId={seleccion?.id || productoAbierto?.id || ''} />
       <Button type="button" variant="outline" onClick={data.refresh} disabled={data.loading}>
         <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
       </Button>

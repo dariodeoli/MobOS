@@ -308,6 +308,10 @@ export default function PasoProductos({
                 const p = fam.items[0]
                 // Stock y datos de la ficha para elegir sin adivinar.
                 const stockFamilia = fam.items.reduce((suma, item) => suma + num(item.stock), 0)
+                // #287: las unidades físicas del producto (IMEI/serial) se ven
+                // como parte de la vista del producto; elegirlas es el paso
+                // siguiente al agregarlo.
+                const unidadesFamilia = fam.items.reduce((suma, item) => suma + num(item.unitsCount), 0)
                 const modelo = p.model || p.modelo || ''
                 const capacidad = p.capacity || p.capacidad || ''
                 return (
@@ -342,6 +346,7 @@ export default function PasoProductos({
                         {stockFamilia > 0
                           ? <b className="font-semibold text-ok">{stockFamilia} en stock</b>
                           : <b className="font-semibold text-bad">Agotado</b>}
+                        {unidadesFamilia > 0 && <span className="text-mute"> · {unidadesFamilia} {unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI</span>}
                       </span>
                     </span>
                   </button>

@@ -723,3 +723,19 @@ test('el selector de IMEI del POS no filtra unidades por sucursal y el detalle d
   assert.doesNotMatch(detalle, /catch\s*\{\s*setUnits\(\[\]\)\s*\}/, 'el detalle no silencia el fallo de unidades')
   assert.match(detalle, /productId: current\.id/, 'el detalle pide las unidades por producto (no por texto)')
 })
+
+// #287 (Productos y Unidades = el mismo objeto): el switch comparte la
+// definición y vive en las dos vistas, y el paso producto → unidades (y
+// vuelta) está cableado en los dos detalles.
+test('Productos y Unidades comparten el switch y los enlaces de contexto (#287)', () => {
+  const switch_ = readFileSync(join(RAIZ, 'components/shared/VistaProductosUnidades.jsx'), 'utf8')
+  assert.match(switch_, /data-testid="vista-productos-unidades"/, 'el switch tiene testid propio')
+  assert.match(switch_, /SegmentedField/, 'usa el control compartido de la biblioteca')
+  for (const ruta of ['components/ventas/SellerCatalog.jsx', 'components/control/Inventario.jsx']) {
+    const fuente = readFileSync(join(RAIZ, ruta), 'utf8')
+    assert.match(fuente, /<VistaProductosUnidades/, `${ruta}: usa el switch compartido`)
+  }
+  assert.match(readFileSync(join(RAIZ, 'components/productos/ProductoDetalle.jsx'), 'utf8'), /\/inventario\/unidades\?producto=/, 'la ficha del producto lleva a sus unidades')
+  assert.match(readFileSync(join(RAIZ, 'components/inventory/UnidadDetalle.jsx'), 'utf8'), /\/productos\?producto=/, 'la ficha de la unidad lleva a su producto')
+  assert.match(readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /inventario-filtro-producto/, 'la vista de Unidades muestra el producto que la acota')
+})
