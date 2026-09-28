@@ -94,8 +94,11 @@ test('ninguna superficie pinta una foto antes de resolver (y después muestra la
     rearmar()
     await page.goto(ruta)
     await expect(listo(page)).toBeVisible({ timeout: 25_000 })
-    // Mientras el avatar no resolvió: ninguna foto pintada (ni la vieja).
-    await expect(page.locator('img[alt^="Foto de"]')).toHaveCount(0)
+    // #271 sigue vigente: la «foto vieja» inyectada (perfil/Google) no se pinta
+    // nunca. #284: si este usuario ya tiene su foto cacheada (memoria/localStorage),
+    // se pinta al instante — eso es lo pedido y no es «la vieja».
+    await expect(page.locator(`img[src="${FOTO_VIEJA}"]`)).toHaveCount(0)
+    await expect(page.locator('img[alt^="Foto de"][src^="http"]')).toHaveCount(0)
     await page.screenshot({ path: join(DIR, `superficie-${nombreSuperficie}-sin-foto.jpg`), type: 'jpeg', quality: 70 })
     liberar()
     if (muestraFoto) {
