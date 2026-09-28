@@ -1,0 +1,21 @@
+{
+  "base": "http://localhost:5217",
+  "fecha": "2026-09-28T19:04:01.526Z",
+  "variantes": [
+    {
+      "vista": "claro",
+      "creador": "Cliente A2 claro · Creada por Diego López · 28/9, 04:04 p. m.",
+      "retoma": "Retomada por Diego López · 28/9, 04:04 p. m."
+    },
+    {
+      "vista": "oscuro",
+      "creador": "Cliente A2 oscuro · Creada por Diego López · 28/9, 04:04 p. m.",
+      "retoma": "Retomada por Diego López · 28/9, 04:04 p. m."
+    },
+    {
+      "vista": "movil",
+      "creador": "Cliente A2 movil · Creada por Diego López · 28/9, 04:04 p. m.",
+      "retoma": "Retomada por Diego López · 28/9, 04:04 p. m."
+    }
+  ]
+}
