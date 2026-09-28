@@ -55,7 +55,9 @@ export default function ThemeToggle() {
       type="button"
       variant="ghost"
       onClick={toggle}
-      className="px-2.5"
+      // #249/#289: en mobile el objetivo táctil mide 44×44; desde sm se
+      // conserva la densidad de escritorio (36) del resto de la barra.
+      className="px-2.5 max-sm:min-w-11"
       title={dark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
       aria-label={dark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
       aria-pressed={dark}
