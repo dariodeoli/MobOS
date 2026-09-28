@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import { isDemoRuntime, demoSessionActive, demoSessionRole, saveDemoSession, clearDemoSession } from './demoMode'
 import { EMPRESA_DEMO, SUCURSALES_DEMO } from './demo/empresa'
 import { combinarPerfil } from '@/lib/sesionPerfil'
+import { limpiarAvatarCache, precargarAvatar } from '@/lib/userAvatar'
 import { clearSession, getCompanyContext, sessionApi, resources } from '@/lib/api'
 import { setActor, setContexto, prepararDatosDemo } from '@/lib/storage'
 import { leerUltimo, recordarUltimo } from '@/lib/ultimoUsado'
@@ -40,6 +41,9 @@ export function SesionProvider({ children }) {
   const [perfilEmpresa, setPerfilEmpresa] = useState(() => getCompanyContext()?.profile || null)
   const activarSesion = useCallback(async (rawUser, { tenant, prepararLegacy = false, perfil } = {}) => {
     const user = adaptarUsuario(rawUser); const emp = adaptarEmpresa(rawUser, tenant); const suc = rawUser.branchId ? { id: rawUser.branchId, nombre: rawUser.branchName || 'Sucursal' } : null
+    // #284: la foto arranca cacheada (primer render sin flash) y se revalida en
+    // segundo plano; acá se dispara el cacheo apenas la sesión resuelve.
+    precargarAvatar(user.id)
     // Los datos reales se hidratan desde la API; el almacenamiento local queda
     // reservado al demo y a los módulos que aún están en transición.
     await setContexto({ empresaId: emp.id, sucursalId: suc?.id || null, userId: user.id, rol: emp.rol, fuente: prepararLegacy ? 'legacy' : 'api' })
@@ -114,7 +118,7 @@ export function SesionProvider({ children }) {
   async function entrarVendedor(credentials) { const result = await sessionApi.loginSeller(credentials); const contexto = await sessionApi.me().catch(() => null); await activarSesion(result.user, { tenant: contexto?.tenant, perfil: combinarPerfil(contexto?.ownerProfile, getCompanyContext()?.profile || null) }); return result }
   async function cambiarVendedor(credentials) { const result = await sessionApi.switchSeller(credentials); const contexto = await sessionApi.me().catch(() => null); await activarSesion(result.user, { tenant: contexto?.tenant, perfil: combinarPerfil(contexto?.ownerProfile, getCompanyContext()?.profile || null) }); return result }
   async function entrar(session) { if (!session?.user) throw new Error('Usá el flujo de autenticación de MobOS.'); await activarSesion(session.user) }
-  async function salir() { if (isDemoRuntime) { clearDemoSession(); clearSession(); await setContexto({ fuente: 'legacy' }); window.location.assign('/login'); return }; try { await sessionApi.logout() } catch (error) { console.error('[sesion] el cierre remoto falló:', error) } await setContexto({ fuente: 'legacy' }); setUsuario(null); setEmpresa(null); setEmpresas([]); setSucursal(null); setSucursales([]); setVendedores([]); setPerfilEmpresa(null); setEstado('fuera'); window.location.assign('/login') }
+  async function salir() { limpiarAvatarCache(); if (isDemoRuntime) { clearDemoSession(); clearSession(); await setContexto({ fuente: 'legacy' }); window.location.assign('/login'); return }; try { await sessionApi.logout() } catch (error) { console.error('[sesion] el cierre remoto falló:', error) } await setContexto({ fuente: 'legacy' }); setUsuario(null); setEmpresa(null); setEmpresas([]); setSucursal(null); setSucursales([]); setVendedores([]); setPerfilEmpresa(null); setEstado('fuera'); window.location.assign('/login') }
   async function cambiarSucursal(sucursalId) {
     const destino = sucursales.find((s) => s.id === sucursalId)
     if (!destino) return

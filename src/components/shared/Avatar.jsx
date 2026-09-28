@@ -40,7 +40,9 @@ export default function Avatar({ user, hasAvatar, picture, size = 'md', classNam
   const [googleRota, setGoogleRota] = useState(false)
   useEffect(() => {
     let vigente = true
-    setFoto(null)
+    // #284: la foto cacheada del mismo usuario se conserva mientras revalida
+    // (el placeholder solo entra si no hay nada para mostrar).
+    setFoto((actual) => (actual && actual.id === user?.id ? actual : null))
     setLocalListo(false)
     if (puedeTenerFoto && user?.id) {
       getAvatarDataUrl(user.id).then((url) => {

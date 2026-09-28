@@ -31,7 +31,7 @@ async function cargarAvatar(userId, { etag = '' } = {}) {
       headers: { Accept: 'image/*', ...(etag ? { 'If-None-Match': etag } : {}) },
     })
     if (response.status === 304) return { noModificado: true }
-    if (!response.ok) return { url: '' }
+    if (!response.ok) return { url: '', borrada: response.status === 404 }
     const blob = await response.blob()
     if (!blob.type.startsWith('image/')) return { url: '' }
     const url = await new Promise((resolve) => {
@@ -41,7 +41,7 @@ async function cargarAvatar(userId, { etag = '' } = {}) {
       reader.readAsDataURL(blob)
     })
     return { url, etag: response.headers.get('etag') || '' }
-  } catch { return { url: '' } }
+  } catch { return { url: '', error: true } }
 }
 
 // La demo no persiste nada: su retrato es ficticio y determinista (#219).
