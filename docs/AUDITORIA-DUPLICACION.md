@@ -304,6 +304,17 @@ Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
 `BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
 `test:e2e:smoke`; biblioteca `owncoding-ui` build + 343 tests.
 
+### Lote 57 — Pie institucional: el objeto de la biblioteca y la regla (#291) (29-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Pie institucional | `src/components/app/ProductFooter.jsx` era una **copia propia** (© 2026 fijo y los `APP_*` a mano); la regla no estaba escrita en ningún lado | Biblioteca **v0.50.0**: `ProductFooter` con crédito por defecto (`CREDITO_PIE`/`CREDITO_PIE_URL`), `toque-44` en el enlace, `data-testid="product-footer"` y la regla en **`REGLAS.md` §14** + checklist en `SHELL.md` §6 (panel, acceso, públicas y tokenizadas). La app queda como **puente**: inyecta `APP_NAME`/`APP_VERSION`/`APP_CREDIT`/`APP_CREDIT_URL` y conserva `mobos-footer`/`leading`/`children` (los usos no cambian) |
+| Superficies (app) | Panel ✓ (`AppShell`), acceso ✓ (`AuthLayout` + recuperación/verificación/invitación) y públicas parciales | **Pendiente de adopción**: `CarritoPublico`, `CotizacionPublica`, `CuentaPublica`, `GarantiaPublica`, `InformePublico`, `PedidoPublico`, `PortalCliente`, `ProductoPublico`, `PruebaImpresion`, `RemitoPublico` (el resto de la app ya lo tiene por el shell/acceso) |
+
+Verificación del lote: `npm run lint` (0 errores), build FE, `npm test` (829),
+`test:e2e:smoke` (19) y biblioteca `owncoding-ui` build + **361 tests**
+(tag **v0.50.0**, docs §14 y checklist).
+
 ### Lote 56 — Ticket de prueba: corto predeterminado y plantilla en la biblioteca (#277, con impresión) (27-09)
 
 | Objeto | Antes (evidencia) | Después |
