@@ -7,6 +7,8 @@ import LoadingScreen from '@/components/app/LoadingScreen'
 import { useSesion } from '@/lib/sesion'
 import { resources } from '@/lib/api'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
+import ProductFooter from '@/components/app/ProductFooter'
+
 
 const CONDICION = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
 
@@ -118,6 +120,7 @@ export default function ProductoPublico() {
         </header>
         {contenido}
       </div>
+      <ProductFooter />
     </main>
   )
 }

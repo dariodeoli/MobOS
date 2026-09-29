@@ -14,6 +14,8 @@ import { ABIERTAS, ESTADO_COTIZACION as ESTADO, TONO_COTIZACION as TONO } from '
 import CompartirPdf from '@/components/shared/CompartirPdf'
 import AprobacionPresupuesto from '@/components/shared/AprobacionPresupuesto'
 import { buildProformaHtml } from '@/components/shared/OrderReceipt'
+import ProductFooter from '@/components/app/ProductFooter'
+
 
 // Cotización pública: el cliente abre el QR o el enlace, revisa el detalle y
 // acepta o rechaza (con motivo opcional) sin iniciar sesión. Una sola vez.
@@ -219,6 +221,7 @@ export default function CotizacionPublica() {
           </div>
         )}
       </div>
+      <ProductFooter />
     </main>
   )
 }

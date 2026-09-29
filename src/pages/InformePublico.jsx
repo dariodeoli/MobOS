@@ -12,6 +12,8 @@ import MedidorBateria from '@/components/shared/MedidorBateria'
 import FichaCertificado from '@/components/shared/FichaCertificado'
 import { colorBadge, gradoCondicion } from '@/lib/estadoEquipo'
 import { etiquetaCondicionUnidad } from '@/utils/inventario'
+import ProductFooter from '@/components/app/ProductFooter'
+
 
 // Semáforo del checklist en el informe público (mismos tonos que la ficha).
 const SEMAFORO_CHECKLIST = { ok: 'bg-ok', observacion: 'bg-warn', falla: 'bg-bad', na: 'bg-mute' }
@@ -82,6 +84,7 @@ export default function InformePublico() {
       <p className="text-sm font-bold uppercase tracking-[.2em] text-fono-light">Informe de dispositivo</p>
       <h1 className="mt-2 text-2xl font-bold">No encontramos este equipo</h1>
       <p className="mt-2 text-sm text-mute">El enlace puede estar incompleto o el equipo no pertenece a esta tienda. Pedile a la tienda que te comparta el informe de nuevo.</p>
+      <ProductFooter />
     </main>
   }
 
@@ -214,6 +217,7 @@ export default function InformePublico() {
           <Icon name="printer" className="h-4 w-4" />Imprimir
         </button>
       </div>
+      <ProductFooter />
     </main>
   )
 }

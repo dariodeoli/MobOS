@@ -7,6 +7,8 @@ import Icon from '@/components/shared/Icon'
 import { Aviso } from '@/components/ui'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
+import ProductFooter from '@/components/app/ProductFooter'
+
 
 // Carrito público de un borrador (#154): sin sesión, con el enlace privado que
 // comparte el vendedor. Muestra lo mismo que el comprobante digital (productos,
@@ -126,6 +128,7 @@ export default function CarritoPublico() {
           </div>
         )}
       </div>
+      <ProductFooter />
     </main>
   )
 }
