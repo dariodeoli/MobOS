@@ -304,6 +304,18 @@ Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
 `BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
 `test:e2e:smoke`; biblioteca `owncoding-ui` build + 343 tests.
 
+### Lote 58 — Reglas transversales y formato de notificaciones (#293) (29-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Reglas transversales | Las 11 reglas aprobadas por Dario no estaban escritas | Biblioteca **v0.51.0**: `REGLAS.md` **§15** con las 11 (cero éxito falso, paridad demo, cuatro estados, tres temas + toque 44, una entidad una fuente de verdad, microcopy es-PY, rutas canónicas, búsqueda y atajos, dinero y sensibilidad, versión visible y novedades, rendimiento), cada una con objeto y verificación; §3, §8, §9, §11-ter y §14 ampliadas con el puntero |
+| Formato de notificaciones | La campana y los avisos no tenían contrato escrito | `REGLAS.md` **§16**: bandeja (`CampanaAvisos`, ahora con **vacío con acción**, `destino` como ruta y testid), push **genérico** + horario silencioso (`payloadPush`/`enHorarioSilencioso`), toast solo de acción en pantalla, derivación única, «sin relay → en cola» (`enviado`/`encolado`/`duplicado`/`fallido`) y plantillas correo/WhatsApp (motivo/acción/cierre/firma) |
+| Adopción en la app (pendiente) | El shell usa un `Icon name="bell"` propio; no hay aviso de versión nueva | Para los slots de app: montar `CampanaAvisos` con los avisos canónicos (`{ id, titulo, detalle?, tono?, fecha?, href?/destino?, leido? }`), `hayVersionNueva` para el aviso de versión nueva (regla 10), `payloadPush`/`enHorarioSilencioso` cuando exista push, y alinear las plantillas del backend a la estructura canónica (la outbox ya distingue `encolado` de `enviado`) |
+
+Verificación del lote: `npm run lint` (0 errores), build FE, `npm test` (829),
+`test:e2e:smoke` (19) y biblioteca `owncoding-ui` build + **371 tests**
+(tag **v0.51.0**).
+
 ### Lote 57 — Pie institucional: el objeto de la biblioteca y la regla (#291) (29-09)
 
 | Objeto | Antes (evidencia) | Después |
