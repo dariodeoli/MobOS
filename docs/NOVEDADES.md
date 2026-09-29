@@ -11,6 +11,10 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.209 — 2026-09-29
+- **Pie institucional (#292):** el pie llega a **todas las páginas públicas y tokenizadas** (cuenta, pedido, garantía, cotización, remito, informe, carrito, producto, alternativa, prueba y portal) con marca, **versión** y crédito desde `brand.js`, vía el puente único a la biblioteca; capturas antes/después (0/12 → 12/12).
+- **Componentes (#293):** la app fija la biblioteca **v0.51.0** (11 **reglas transversales** y formato de notificaciones); la adopción en la app de bandeja, aviso de versión nueva y plantillas queda documentada como pendiente.
+
 ## v1.0.208 — 2026-09-29
 - **Pie institucional (#291):** la app adopta el **objeto único de la biblioteca v0.50.0**: versión de la app + crédito **«Desarrollado por Owncoding»** con enlace (área táctil 44), y la regla queda documentada en la biblioteca (`REGLAS.md §14` + checklist). **Pendiente de adopción** en las páginas públicas/tokenizadas (siguiente lote, listado en `docs/AUDITORIA-DUPLICACION.md`).
 
