@@ -5,6 +5,8 @@ import { Aviso, Button, Input } from '@/components/ui'
 import { PIE_ACCIONES } from '@/components/shared/formulario'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { formatGs } from '@/utils/moneda'
+import ProductFooter from '@/components/app/ProductFooter'
+
 
 // A5 (#279) · Variante agotada → alternativas: el cliente abre el enlace del
 // vendedor, ve la opción (colores/capacidades/modelo, diferencia de precio y
@@ -121,6 +123,7 @@ export default function AlternativaPublica() {
         </section>
       )}
       {!datos && !error && <p className="text-sm text-mute">Cargando la propuesta…</p>}
+      <ProductFooter />
     </main>
   )
 }

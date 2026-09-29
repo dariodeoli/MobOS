@@ -14,6 +14,8 @@ import { NIVELES_PORTAL } from '@/lib/customerPortal'
 import { etiquetaCotizacion, cotizacionUrlFor, diasParaVencer, estadoCotizacion, tonoCotizacion } from '@/lib/cotizaciones'
 import { ESTADO_ENTREGA, ESTADO_GARANTIA, ESTADO_PEDIDO, tonoGarantia, tonoPedido } from '@/lib/estadosPedido'
 import { tonoServicioPortal } from '@/lib/estadosServicio'
+import ProductFooter from '@/components/app/ProductFooter'
+
 
 // Tonos de los avisos del portal (el mismo set que la cronología del CRM).
 const TONO_AVISO = {
@@ -513,6 +515,7 @@ export default function CuentaPublica() {
           </div>
         )}
       </div>
+      <ProductFooter />
     </main>
   )
 }

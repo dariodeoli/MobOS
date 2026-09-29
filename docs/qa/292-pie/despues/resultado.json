@@ -1,0 +1,66 @@
+{
+  "base": "http://localhost:5203",
+  "fecha": "2026-09-29T15:25:26.094Z",
+  "medidas": {
+    "producto-claro": {
+      "pie": true,
+      "credito": true,
+      "version": "v1.0.207",
+      "desborde": false
+    },
+    "informe-claro": {
+      "pie": true,
+      "credito": true,
+      "version": "v1.0.207",
+      "desborde": false
+    },
+    "prueba-claro": {
+      "pie": true,
+      "credito": true,
+      "version": "v1.0.207",
+      "desborde": false
+    },
+    "producto-claro-mobile": {
+      "pie": true,
+      "desborde": false
+    },
+    "informe-claro-mobile": {
+      "pie": true,
+      "desborde": false
+    },
+    "prueba-claro-mobile": {
+      "pie": true,
+      "desborde": false
+    },
+    "producto-oscuro": {
+      "pie": true,
+      "credito": true,
+      "version": "v1.0.207",
+      "desborde": false
+    },
+    "informe-oscuro": {
+      "pie": true,
+      "credito": true,
+      "version": "v1.0.207",
+      "desborde": false
+    },
+    "prueba-oscuro": {
+      "pie": true,
+      "credito": true,
+      "version": "v1.0.207",
+      "desborde": false
+    },
+    "producto-oscuro-mobile": {
+      "pie": true,
+      "desborde": false
+    },
+    "informe-oscuro-mobile": {
+      "pie": true,
+      "desborde": false
+    },
+    "prueba-oscuro-mobile": {
+      "pie": true,
+      "desborde": false
+    }
+  }
+}

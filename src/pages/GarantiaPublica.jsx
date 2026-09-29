@@ -9,6 +9,8 @@ import { isDemoRuntime } from '@/lib/demoMode'
 import { demoGarantiaPayload } from '@/lib/demoGarantia'
 import { Aviso, BarraProgreso } from '@/components/ui'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
+import ProductFooter from '@/components/app/ProductFooter'
+
 
 function bulletList(text) {
   if (!text) return []
@@ -105,6 +107,7 @@ export default function GarantiaPublica() {
           </div>
         )}
       </div>
+      <ProductFooter />
     </main>
   )
 }

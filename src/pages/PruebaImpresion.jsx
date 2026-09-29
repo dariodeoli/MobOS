@@ -5,6 +5,8 @@ import { useSesion } from '@/lib/sesion'
 import { enlaceLogin } from '@/lib/urls'
 import { TIPOS_TICKET_PRUEBA } from '@/lib/printing/tickets'
 import { leerPrueba } from '@/lib/printing/qr'
+import ProductFooter from '@/components/app/ProductFooter'
+
 
 // #253: la sección de impresión vive en Dispositivos (el slug viejo redirige).
 const IMPRESORAS = '/configuracion/dispositivos'
@@ -108,6 +110,7 @@ export default function PruebaImpresion() {
           </Link>
         </div>
       </div>
+      <ProductFooter />
     </main>
   )
 }

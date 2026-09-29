@@ -6,6 +6,8 @@ import AttachmentInput from '@/components/shared/AttachmentInput'
 import Icon from '@/components/shared/Icon'
 import { Aviso, Textarea } from '@/components/ui'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
+import ProductFooter from '@/components/app/ProductFooter'
+
 
 // Remito público de traslado: el destino abre el QR impreso, controla los
 // IMEI/seriales, saca la foto del remito y confirma la recepción sin sesión.
@@ -181,6 +183,7 @@ export default function RemitoPublico() {
           </div>
         )}
       </div>
+      <ProductFooter />
     </main>
   )
 }

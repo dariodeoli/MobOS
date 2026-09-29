@@ -10,6 +10,8 @@ import { PortalCargando, PortalEncabezado, PortalEstado, PortalFallo, PortalPie,
 import PasosEntrega from '@/components/customerPortal/PasosEntrega'
 import { demoVitrinaPayload, esTokenDemo } from '@/lib/demoClientes'
 import { ESTADO_ENTREGA, ESTADO_GARANTIA, ESTADO_PEDIDO, tonoGarantia, tonoPedido } from '@/lib/estadosPedido'
+import ProductFooter from '@/components/app/ProductFooter'
+
 
 // Vitrina pública del cliente: solo lectura, por token. Muestra la marca de la
 // tienda, su saldo a favor, sus pedidos con estado, saldo y seguimiento de
@@ -157,6 +159,7 @@ export default function PortalCliente() {
           </div>
         )}
       </div>
+      <ProductFooter />
     </main>
   )
 }
