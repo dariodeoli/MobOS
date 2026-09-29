@@ -11,6 +11,9 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.208 — 2026-09-29
+- **Pie institucional (#291):** la app adopta el **objeto único de la biblioteca v0.50.0**: versión de la app + crédito **«Desarrollado por Owncoding»** con enlace (área táctil 44), y la regla queda documentada en la biblioteca (`REGLAS.md §14` + checklist). **Pendiente de adopción** en las páginas públicas/tokenizadas (siguiente lote, listado en `docs/AUDITORIA-DUPLICACION.md`).
+
 ## v1.0.207 — 2026-09-28
 - **Mi cuenta (#290):** al **quitar la foto de perfil**, deja de verse la foto anterior en todos lados (se limpiaba recién al recargar). Corrige el rojo de CI que quedó de la .206.
 
