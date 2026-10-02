@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.210 — 2026-10-02
+- **Impresión (#318):** el **comprobante del pedido** se arma con los **datos reales de la venta** (empresa, cliente, número, artículos y total, también en las ventas viejas de la demo) y se muestra en un **modal con encabezado y pie fijos**: el papel se ve completo, sin cortes, y se imprime o comparte desde ahí.
+- **Taller y superficies por rol (#325):** recorrido completo de las pantallas por rol en **390 px**: taller, reparto, productos, cotizaciones y portales públicos quedaron **sin scroll horizontal, sin elementos cortados y con áreas táctiles de 44 px** en mobile (incluido el enlace del pie institucional).
+- **Inventario (#306):** la **ficha del producto** quedó ordenada **por secciones** y el **kardex** se puede verificar en la demo con su movimiento real.
+- **Componentes (#323):** la app adopta el **modal/drawer estándar** de la biblioteca (v0.62.0): encabezado, cuerpo desplazable y **pie fijo** en todos los diálogos, con confirmación al cerrar si hay cambios y resultados unificados; los **toasts ya no tapan los botones** del pie.
+
 ## v1.0.209 — 2026-09-29
 - **Pie institucional (#292):** el pie llega a **todas las páginas públicas y tokenizadas** (cuenta, pedido, garantía, cotización, remito, informe, carrito, producto, alternativa, prueba y portal) con marca, **versión** y crédito desde `brand.js`, vía el puente único a la biblioteca; capturas antes/después (0/12 → 12/12).
 - **Componentes (#293):** la app fija la biblioteca **v0.51.0** (11 **reglas transversales** y formato de notificaciones); la adopción en la app de bandeja, aviso de versión nueva y plantillas queda documentada como pendiente.
