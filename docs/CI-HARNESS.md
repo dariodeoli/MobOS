@@ -2,9 +2,10 @@
 
 Cómo queda el arnés de pruebas de punta a punta y el workflow de CI: **rápido**
 (shards balanceados en paralelo), **determinista** (backend prod, datos con PIN
-libre, sin ruido de abortos) y **sin reintentos**: si algo flapea, se aísla y se
-corrige la raíz (#245). Los comandos del día a día siguen siendo los de siempre:
-`npm run test:e2e:smoke` y `npm run test:e2e`.
+libre, sin ruido de abortos) y **sin reintentos locales** (en CI hay uno,
+registrado, para absorber la varianza del runner: ver §1.2). Un flake real
+falla dos veces y sigue rojo (#245, #326). Los comandos del día a día siguen
+siendo los de siempre: `npm run test:e2e:smoke` y `npm run test:e2e`.
 
 ## 1. Jobs de CI y duraciones
 
@@ -32,8 +33,25 @@ Los tres shards corren la misma receta (timeout 20 min por job):
 | `npm ci` (raíz + backend) + `prisma generate` | dependencias y cliente Prisma. |
 | Cache + instalación de Chromium | `~/.cache/ms-playwright` cacheado por lockfile; `--with-deps` deja las libs. |
 | `npm --prefix backend run build` | build prod del backend: el harness lo arranca con `next start`. |
-| `npx playwright test $(node scripts/e2e-shards.mjs --shard N)` | la suite del shard con `MOBOS_E2E_BACKEND=prod`, sin reintentos. |
+| `npx playwright test $(node scripts/e2e-shards.mjs --shard N)` | la suite del shard con `MOBOS_E2E_BACKEND=prod`; 1 reintento en CI (registrado por el reporter). |
 | Upload de artifacts | `playwright-report/` + `test-results/reporte-flaky.{md,json}` por shard (14 días). |
+
+### 1.2 Estabilidad del runner (#326)
+
+Medición: la suite corre con `workers: 1` (tenant y stock compartidos). En CI los
+runners son más lentos y con más ruido de red; los ajustes:
+
+| Ajuste | Local | CI | Por qué |
+| --- | --- | --- | --- |
+| `retries` | 0 | **1** | Varianza del runner (arranque de Chromium, red). El reporter `reporte-flaky.{md,json}` registra cada reintento en el artifact: un fallo real falla dos veces y sigue rojo. |
+| `timeout` por test | 90 s | **120 s** | Los specs de más peso (inventario, impresión) rozan el minuto en CI. |
+| `expect.timeout` | 20 s | **30 s** | Esperas de datos renderizados bajo carga. |
+| `workers` | 1 | 1 (override `MOBOS_E2E_WORKERS` solo para specs sin stock) | Evita carreras de checkout sobre el mismo tenant. |
+
+Evidencia reproducible: `npx playwright test e2e/ruc-demo.spec.js e2e/ruc-extraccion.spec.js --repeat-each=5`
+(60/60 en verde —12 specs × 5—, 0 flaky, tras la corrección). El timeout de `ruc-demo` que se veía en CI no
+era flake: #299 movió los datos privados a la pestaña «Datos fiscales» y el spec
+quedó viejo; se corrigió el spec (el reintento no lo habría salvado).
 
 Los otros jobs no cambiaron de forma: Frontend (lint + unit + build, 15 min),
 Backend (typecheck + unit + build, 12 min) e Integration (harness HTTP con

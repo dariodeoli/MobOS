@@ -33,8 +33,11 @@ assert.equal(final?.tipoEvento, '')
 assert.equal(final?.observacion, '')
 assert.equal(normalizarEventoWebhook({ guia: 'X'.repeat(300) })?.guia.length, 100)
 
-// La fecha de AEX viene en hora local (`YYYY-MM-DD HH:MM:SS`).
-assert.equal(fechaEventoAex('2026-09-17 18:05:00')?.toISOString(), new Date('2026-09-17T18:05:00').toISOString())
+// La fecha de AEX viene en hora local de Paraguay (UTC-3): el ISO esperado es
+// explícito para que el test no dependa del TZ del runner (#301).
+assert.equal(fechaEventoAex('2026-09-17 18:05:00')?.toISOString(), '2026-09-17T21:05:00.000Z')
+// Si AEX mandara un ISO con Z, se respeta tal cual.
+assert.equal(fechaEventoAex('2026-09-17T18:05:00Z')?.toISOString(), '2026-09-17T18:05:00.000Z')
 assert.equal(fechaEventoAex(''), null)
 assert.equal(fechaEventoAex('no es fecha'), null)
 

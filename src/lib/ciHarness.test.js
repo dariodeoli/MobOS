@@ -4,14 +4,15 @@ import { readFileSync, readdirSync } from 'node:fs'
 import test from 'node:test'
 import config from '../../playwright.config.js'
 
-// Guardas del contrato del harness/CI (#245): la suite corre sin reintentos ni
-// cuarentena y los shards están balanceados y completos. Si algo flapea, se
-// aísla y se corrige la raíz; no se habilita un re-run ciego.
+// Guardas del contrato del harness/CI (#245, #326): la suite local corre sin
+// reintentos; **en CI hay un único reintento global** (ruido del runner) que el
+// reporter de flakiness deja registrado en el artifact. No hay cuarentena ni
+// reintentos por spec: lo que falla dos veces sigue siendo un fallo real.
 
 const RAIZ = new URL('../../', import.meta.url)
 const leer = (ruta) => readFileSync(new URL(ruta, RAIZ), 'utf8')
 
-test('el workflow no tiene cuarentena ni reintentos por spec', () => {
+test('el workflow no tiene cuarentena y los reintentos viven solo en CI (#245/#326)', () => {
   const workflow = leer('.github/workflows/ci.yml')
   assert.doesNotMatch(workflow, /MOBOS_E2E_CUARENTENA/, 'la cuarentena se retiró (#245)')
   assert.match(workflow, /node scripts\/e2e-shards\.mjs --shard \${{ matrix\.shard }}/, 'los shards salen de la distribución versionada')
@@ -19,7 +20,10 @@ test('el workflow no tiene cuarentena ni reintentos por spec', () => {
   assert.match(workflow, /MOBOS_E2E_BACKEND:\s*prod/, 'el job E2E tiene que usar el backend prod')
   assert.match(workflow, /reporte-flaky/, 'los artifacts tienen que incluir el reporte de flakiness')
   const config = leer('playwright.config.js')
-  assert.match(config, /retries:\s*0/, 'la suite corre sin reintentos')
+  // #326: un reintento global y condicional (solo CI); local cero.
+  assert.match(config, /const REINTENTOS = CI \? 1 : 0/, 'un único reintento, solo en CI')
+  assert.match(config, /retries:\s*REINTENTOS/, 'la suite usa el reintento condicional')
+  assert.doesNotMatch(config, /retries:\s*[1-9]/, 'ningún reintento fijo en el config')
   for (const archivo of readdirSync(new URL('e2e/', RAIZ)).filter((nombre) => nombre.endsWith('.spec.js'))) {
     assert.doesNotMatch(leer(`e2e/${archivo}`), /habilitarRetrySiCuarentena|retries:\s*[1-9]/, `${archivo} no puede habilitar retries propios`)
   }
