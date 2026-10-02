@@ -25,7 +25,7 @@ export default function BarraModulo({ icono, titulo, descripcion, contexto, chil
           {tituloVisible && <h2 className="truncate text-base font-bold tracking-tight">{titulo}</h2>}
           {descripcion && (
             <p
-              className={cn('truncate text-xs text-mute', tituloVisible && 'mt-0.5 hidden sm:block')}
+              className={cn('truncate text-xs text-mute', tituloVisible && 'mt-0.5', 'hidden sm:block')}
               title={descripcion}
             >
               {descripcion}

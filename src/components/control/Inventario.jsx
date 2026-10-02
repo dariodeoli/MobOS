@@ -3,6 +3,7 @@ import { temaV2Activo } from '@/lib/temaV2'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { useVistaListaGrid } from '@/hooks/useVistaListaGrid'
+import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import { qrDataUrl } from '@/lib/qr'
 import { getProductos, modoDatosActual, updateProducto, contextoActual, refrescar, refrescarCatalogo } from '@/lib/storage'
 import { coincideExacto, leerProveedoresRecientes, recordarProveedorReciente } from '@/lib/proveedores'
@@ -146,6 +147,13 @@ const fechaVerificacionCorta = (value) => {
   const dos = (numero) => String(numero).padStart(2, '0')
   return `${dos(date.getDate())}/${dos(date.getMonth() + 1)}/${date.getFullYear()}`
 }
+// #304: en la tarjeta móvil alcanza el día y el mes («23 sep»).
+const fechaVerificacionDia = (value) => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '')
+}
 const inicialesNombre = (nombre) => {
   const palabras = String(nombre || '').trim().split(/\s+/).filter(Boolean)
   if (!palabras.length) return ''
@@ -253,6 +261,27 @@ function MenuAcciones({ unit, busy, acciones }) {
   </span>
 }
 
+// Acciones de una unidad, compartidas por la fila de escritorio y la tarjeta
+// móvil (#304). `incluirVerificar` suma la verificación al menú cuando la vista
+// no tiene el botón inline (la tarjeta móvil no lo tiene).
+function accionesDeUnidad(unit, handlers, { incluirVerificar = false } = {}) {
+  return [
+    ...(unit.status === 'SOLD' ? [{ label: 'Comprobante rápido', tooltip: 'Imprimir el comprobante de la venta sin abrir la ficha', icon: 'receipt', run: () => handlers.onComprobante?.(unit) }] : []),
+    // #279 (A4): el equipo que viaja se puede apartar para una venta futura.
+    ...(unit.status === 'IN_TRANSIT' && !unit.transitAssignment ? [{ label: 'Apartar para una venta', tooltip: 'Bloquear este equipo que viaja para una venta (se vincula solo al llegar)', icon: 'clock', run: () => handlers.onApartar?.(unit) }] : []),
+    ...(unit.status === 'IN_TRANSIT' && unit.transitAssignment ? [{ label: 'Liberar apartado', tooltip: 'Soltar la asignación futura de este equipo', icon: 'alert', run: () => handlers.onLiberarApartado?.(unit) }] : []),
+    { label: 'Vender', tooltip: 'Cargar la venta de esta unidad', icon: 'cart', run: () => handlers.onSell?.(unit) },
+    { label: 'Reservar', tooltip: 'Apartar la unidad para un cliente', icon: 'clock', run: () => handlers.onReserve?.(unit) },
+    // #305: en la tabla «Verificar» vive solo en el botón de la columna; la
+    // tarjeta móvil no lo tiene, así que lo suma al menú (#304).
+    ...(incluirVerificar ? [{ label: 'Verificar', tooltip: 'Registrar la verificación física ahora', icon: 'check', run: () => handlers.onVerify?.(unit) }] : []),
+    { label: 'Imprimir etiqueta', tooltip: 'Imprimir la etiqueta de esta unidad', icon: 'printer', run: () => handlers.onLabel?.(unit) },
+    { label: 'Enviar a revisión', tooltip: 'Marcar la unidad en revisión con un motivo', icon: 'alert', run: () => handlers.onAdjust?.(unit) },
+    { label: 'Cambiar ubicación', tooltip: 'Mover la unidad a otro depósito o sucursal', icon: 'box', run: () => handlers.onMove?.(unit) },
+    { label: 'Dar de baja', tooltip: 'Sacar la unidad del stock (queda en Eliminados)', icon: 'trash', run: () => handlers.onRemove?.(unit) },
+  ]
+}
+
 function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdjust, onRemove, onMove, onEdit, onCosto, onComprobante, onApartar, onLiberarApartado, cotizacion, fechaVenta, busy, seleccionado = false, onAlternar }) {
   const v = verifiedLabel(unit)
   const estado = estadoInventario(unit)
@@ -268,19 +297,7 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
       : costoGs !== null ? gs(costoGs) : '—'
   // #285: el depósito muestra su código cuando lo tiene («Asunción · D1»).
   const deposito = unit.location ? (unit.location.code || unit.location.name || '') : ''
-  const acciones = [
-    ...(unit.status === 'SOLD' ? [{ label: 'Comprobante rápido', tooltip: 'Imprimir el comprobante de la venta sin abrir la ficha', icon: 'receipt', run: () => onComprobante?.(unit) }] : []),
-    // #279 (A4): el equipo que viaja se puede apartar para una venta futura.
-    ...(unit.status === 'IN_TRANSIT' && !unit.transitAssignment ? [{ label: 'Apartar para una venta', tooltip: 'Bloquear este equipo que viaja para una venta (se vincula solo al llegar)', icon: 'clock', run: () => onApartar?.(unit) }] : []),
-    ...(unit.status === 'IN_TRANSIT' && unit.transitAssignment ? [{ label: 'Liberar apartado', tooltip: 'Soltar la asignación futura de este equipo', icon: 'alert', run: () => onLiberarApartado?.(unit) }] : []),
-    { label: 'Vender', tooltip: 'Cargar la venta de esta unidad', icon: 'cart', run: () => onSell?.(unit) },
-    { label: 'Reservar', tooltip: 'Apartar la unidad para un cliente', icon: 'clock', run: () => onReserve?.(unit) },
-    // #305: «Verificar» vive solo en el botón de la columna Verificación.
-    { label: 'Imprimir etiqueta', tooltip: 'Imprimir la etiqueta de esta unidad', icon: 'printer', run: () => onLabel?.(unit) },
-    { label: 'Enviar a revisión', tooltip: 'Marcar la unidad en revisión con un motivo', icon: 'alert', run: () => onAdjust?.(unit) },
-    { label: 'Cambiar ubicación', tooltip: 'Mover la unidad a otro depósito o sucursal', icon: 'box', run: () => onMove?.(unit) },
-    { label: 'Dar de baja', tooltip: 'Sacar la unidad del stock (queda en Eliminados)', icon: 'trash', run: () => onRemove?.(unit) },
-  ]
+  const acciones = accionesDeUnidad(unit, { onComprobante, onApartar, onLiberarApartado, onSell, onReserve, onVerify, onLabel, onAdjust, onMove, onRemove })
   return <div role="button" tabIndex={0} data-testid="inventario-fila" onClick={onClick} onKeyDown={event => { if (event.key === 'Enter') onClick() }} className={`${UNIDADES_GRID} cursor-pointer rounded-lg border border-ink-600 px-3 py-1.5 transition hover:border-fono/40 ${rowTone(unit)}`}>
     {onAlternar
       ? <span className="flex items-center" onClick={(event) => event.stopPropagation()}><label className="flex h-11 w-11 items-center justify-center md:h-5 md:w-5"><input type="checkbox" className="h-4 min-h-0 w-4 accent-fono" aria-label={`Seleccionar ${nombreProducto(unit.product || {})} ${serial}`} checked={seleccionado} onChange={() => onAlternar()} /></label></span>
@@ -353,6 +370,60 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
       <MenuAcciones unit={unit} busy={busy} acciones={acciones} />
     </span>
   </div>
+}
+
+// #304: tarjeta compacta del listado móvil. Muestra lo que el operario
+// necesita para trabajar (modelo, batería, IMEI completo, verificación,
+// ubicación, estado y costo) con «Ver» y el menú de acciones, sin esconder el
+// IMEI ni exigir scroll horizontal.
+function TarjetaUnidadMovil({ unit, busy, fechaVenta, onClick, onVerify, onSell, onReserve, onLabel, onAdjust, onRemove, onMove, onComprobante, onApartar, onLiberarApartado }) {
+  const v = verifiedLabel(unit)
+  const estado = estadoInventario(unit)
+  const serial = String(unit.serial || '')
+  const nombre = nombreProducto(unit.product || {})
+  const deposito = unit.location ? (unit.location.code || unit.location.name || '') : ''
+  const ubicacion = [unit.branch?.name, deposito].filter(Boolean).join(' · ')
+  const costoGs = costoEnGs(unit)
+  const costoTexto = sinCostoUnitario(unit) ? 'Sin costo' : costoGs !== null ? gs(costoGs) : '—'
+  const acciones = accionesDeUnidad(unit, { onComprobante, onApartar, onLiberarApartado, onSell, onReserve, onVerify, onLabel, onAdjust, onMove, onRemove }, { incluirVerificar: true })
+  return (
+    <article
+      role="button"
+      tabIndex={0}
+      data-testid="inventario-tarjeta-movil"
+      onClick={onClick}
+      onKeyDown={(event) => { if (event.key === 'Enter') onClick?.() }}
+      className={cn('cursor-pointer rounded-xl border border-ink-600 px-3 py-2 transition hover:border-fono/40', rowTone(unit))}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className="flex min-w-0 items-start gap-1.5">
+          <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center overflow-hidden rounded-md border border-ink-600 bg-ink-800 text-mute" title={`Categoría: ${etiquetaDeCategoria(nombre)}`}><IconoCategoria categoria={nombre} className="h-3.5 w-3.5" /></span>
+          <b className="min-w-0 truncate text-[13px] leading-tight" title={nombre}>{nombre}</b>
+          <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${puntoCondicionUnidad(unit)}`} title={`Condición: ${etiquetaCondicionUnidad(unit)}`} aria-label={`Condición: ${etiquetaCondicionUnidad(unit)}`} />
+          {unit.transitAssignment && <span data-testid="unidad-apartada" className="shrink-0 rounded border border-info/40 bg-info/10 px-1 font-semibold text-info" title={`Apartada para ${unit.transitAssignment.customerName || unit.transitAssignment.order?.orderNumber || 'una venta futura'}.`}>Apart.</span>}
+        </span>
+        <Badge color={estado.tone} className="shrink-0 whitespace-nowrap px-1.5 py-0.5 text-[10px]">{estado.label}</Badge>
+      </div>
+      <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-mute">
+        {unit.batteryHealth ? <MedidorBateria porcentaje={unit.batteryHealth} variante="chip" /> : null}
+        {/* #304: el IMEI nunca se oculta; si no entra, baja de línea completo. */}
+        <span data-testid="unidad-imei" className="break-all font-mono tabular-nums" title={`IMEI/serial ${serial}`}>{serial || '—'}</span>
+      </p>
+      <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-mute">
+        <span data-testid="unidad-verificacion" className={v ? 'font-semibold text-ok' : ''} title={v ? `Verificado por ${v.quien} · ${fechaHora(unit.lastVerifiedAt)}` : 'Todavía sin verificación física'}>{v ? `Verificado ${fechaVerificacionDia(unit.lastVerifiedAt)}` : 'Sin verificar'}</span>
+        {ubicacion && <span className="truncate" title={`Ubicación: ${ubicacion}`}>{ubicacion}</span>}
+        {unit.reservationCustomer && <span className="truncate font-semibold text-reserved" title={`Reservado para ${unit.reservationCustomer}`}>{unit.reservationCustomer}</span>}
+        {fechaVenta && <span className="text-mute" title={`Vendido el ${new Date(fechaVenta).toLocaleString('es-PY')}`}>{fechaReserva(fechaVenta)}</span>}
+      </p>
+      <div className="mt-1.5 flex items-center justify-between gap-2">
+        <span className="min-w-0 truncate text-[11px] font-semibold tabular-nums text-fore" title="Costo cargado de la unidad">{costoTexto}</span>
+        <span className="flex shrink-0 items-center gap-1">
+          <button type="button" disabled={busy} onClick={(event) => { event.stopPropagation(); onClick?.() }} className="min-h-11 rounded-lg border border-ink-600 px-3 text-xs font-semibold text-fore transition hover:border-fono/40 md:min-h-0">Ver</button>
+          <MenuAcciones unit={unit} busy={busy} acciones={acciones} />
+        </span>
+      </div>
+    </article>
+  )
 }
 
 function TarjetaUnidad({ unit, onClick }) {
@@ -614,6 +685,8 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   const [constanciaDe, setConstanciaDe] = useState(null)
   const [vistaUnidades, cambiarVistaUnidades] = useVistaListaGrid('inventario')
   const [vistaUbicaciones, cambiarVistaUbicaciones] = useVistaListaGrid('ubicaciones', 'grid')
+  // #304: debajo de `sm` el listado usa tarjetas compactas (no la tabla ancha).
+  const esMovil = usePantallaAngosta('(min-width: 640px)')
   // #209: selecciones frecuentes arrancan con el último usado; se avisa en
   // pantalla y siempre se puede cambiar.
   const [motivoBajaRecordado, recordarMotivoBaja] = useUltimoUsado('inventario:motivo-baja')
@@ -1348,9 +1421,11 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
           <SearchField value={query} onChange={event => setQuery(event.target.value)} placeholder="Escanear IMEI, SKU o buscar modelo" ariaLabel="Buscar en inventario" className="w-full" />
         </form>
         <Select value={orden} onChange={event => recordarOrden(event.target.value)} className="w-auto min-w-0 max-w-full shrink" aria-label="Orden del inventario" title="Se recuerda tu último orden"><option value="recientes">Recientes</option><option value="modelo-az">Modelo A→Z</option><option value="modelo-za">Modelo Z→A</option><option value="nuevos">Nuevos primero</option><option value="semis">Seminuevos primero</option><option value="modelo-natural">Modelo (17→13)</option><option value="mezclado">Modelos mezclados</option><option value="costo-mayor">Costo mayor</option><option value="costo-menor">Costo menor</option></Select>
-        <ListGridToggle value={vistaUnidades} onChange={cambiarVistaUnidades} />
-        {/* #287: Productos ⇄ Unidades, el mismo objeto en dos vistas. */}
-        <VistaProductosUnidades vista="unidades" q={query} productoId={productoFiltro?.id || ''} />
+        {!esMovil && <ListGridToggle value={vistaUnidades} onChange={cambiarVistaUnidades} />}
+        {/* #287: Productos ⇄ Unidades, el mismo objeto en dos vistas.
+            #304: en móvil el switch se oculta (el menú ya tiene ambas vistas)
+            para que el primer equipo entre en el primer viewport. */}
+        {!esMovil && <VistaProductosUnidades vista="unidades" q={query} productoId={productoFiltro?.id || ''} />}
         <Button onClick={abrirReceive}>+ Recibir unidad</Button>
         {/* #305: las acciones secundarias viven en un solo menú. */}
         <MenuSecundario
@@ -1414,10 +1489,11 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
         />
       </div>
     )}
-    {tab === 'unidades' && vistaUnidades === 'list' && <div className="mt-4 overflow-x-auto" data-testid="inventario-tabla"><EncabezadoUnidades seleccionado={disponibles.length > 0 && seleccionados.length === disponibles.length} onSeleccionar={() => setSeleccionados((actuales) => seleccionarTodos(disponibles, actuales))} />{cargandoUnidades
+    {tab === 'unidades' && esMovil && <div className="mt-4 space-y-1.5" data-testid="inventario-tarjetas">{cargandoUnidades ? <div className="space-y-2" aria-busy="true"><Skeleton className="h-20 w-full rounded-xl" /><Skeleton className="h-20 w-full rounded-xl" /><Skeleton className="h-20 w-full rounded-xl" /></div> : <>{disponibles.map(unit => <TarjetaUnidadMovil key={unit.id} unit={unit} busy={busy} onVerify={verify} onSell={sellUnit} onReserve={openReserveFor} onLabel={unit => printLabel(unit).then(avisarImpresion)} onAdjust={unit => requestReason('adjust', unit)} onRemove={unit => requestReason('remove', unit)} onMove={unit => setDetalleUnidad(unit)} onComprobante={imprimirComprobanteRapido} onApartar={abrirApartado} onLiberarApartado={liberarApartado} onClick={() => setDetalleUnidad(unit)} />)}{!disponibles.length && <div data-testid="unidades-vacio"><EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay unidades en inventario.'} /></div>}</>}</div>}
+    {tab === 'unidades' && !esMovil && vistaUnidades === 'list' && <div className="mt-4 overflow-x-auto" data-testid="inventario-tabla"><EncabezadoUnidades seleccionado={disponibles.length > 0 && seleccionados.length === disponibles.length} onSeleccionar={() => setSeleccionados((actuales) => seleccionarTodos(disponibles, actuales))} />{cargandoUnidades
     ? <FilasCargando />
     : <div className="space-y-1" aria-busy="false">{disponibles.map(unit => <FilaUnidad key={unit.id} unit={unit} busy={busy} onVerify={verify} onSell={sellUnit} onReserve={openReserveFor} onLabel={unit => printLabel(unit).then(avisarImpresion)} onAdjust={unit => requestReason('adjust', unit)} onRemove={unit => requestReason('remove', unit)} onMove={unit => setDetalleUnidad(unit)} onEdit={unit => setDetalleUnidad(unit)} onCosto={guardarCostoRapido} cotizacion={cotizacion} onClick={() => setDetalleUnidad(unit)} seleccionado={seleccionados.includes(unit.id)} onAlternar={() => setSeleccionados((actuales) => alternarId(actuales, unit.id))} />)}{!disponibles.length && <div data-testid="unidades-vacio"><EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay unidades en inventario.'} /></div>}</div>}</div>}
-    {tab === 'unidades' && vistaUnidades === 'grid' && <div className={cn('mt-4 min-[1200px]:grid-cols-3', GRILLA_DOS_COLUMNAS_COMPACTA)}>{disponibles.map(unit => <TarjetaUnidad key={unit.id} unit={unit} onClick={() => setDetalleUnidad(unit)} />)}{!disponibles.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay stock disponible.'} />}</div>}
+    {tab === 'unidades' && !esMovil && vistaUnidades === 'grid' && <div className={cn('mt-4 min-[1200px]:grid-cols-3', GRILLA_DOS_COLUMNAS_COMPACTA)}>{disponibles.map(unit => <TarjetaUnidad key={unit.id} unit={unit} onClick={() => setDetalleUnidad(unit)} />)}{!disponibles.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay stock disponible.'} />}</div>}
     {tab === 'vendidos' && <div className="mt-4 space-y-2"><div className="flex flex-wrap items-center gap-2"><Select aria-label="Período de vendidos" value={filtroVendidos.periodo} onChange={event => setFiltroVendidos(actual => ({ ...actual, periodo: event.target.value }))} className="w-auto"><option value="todos">Todos</option><option value="hoy">Hoy</option><option value="ayer">Ayer</option><option value="rango">Rango</option></Select>{filtroVendidos.periodo === 'rango' && <><Input type="date" aria-label="Desde" value={filtroVendidos.desde} onChange={event => setFiltroVendidos(actual => ({ ...actual, desde: event.target.value }))} className="w-auto" /><Input type="date" aria-label="Hasta" value={filtroVendidos.hasta} onChange={event => setFiltroVendidos(actual => ({ ...actual, hasta: event.target.value }))} className="w-auto" /></>}<span className="text-xs text-mute">{vendidosFiltrados.length} de {vendidos.length} vendidos</span></div><div className="overflow-x-auto" data-testid="inventario-tabla"><EncabezadoUnidades />{cargandoUnidades ? <FilasCargando /> : <div className="space-y-1">{vendidosFiltrados.map(unit => <FilaUnidad key={unit.id} unit={unit} busy={busy} fechaVenta={fechaDeVenta(unit)} onVerify={verify} onLabel={unit => printLabel(unit).then(avisarImpresion)} onAdjust={unit => requestReason('adjust', unit)} onRemove={unit => requestReason('remove', unit)} onMove={unit => setDetalleUnidad(unit)} onEdit={unit => setDetalleUnidad(unit)} onApartar={abrirApartado} onLiberarApartado={liberarApartado} onComprobante={imprimirComprobanteRapido} onCosto={guardarCostoRapido} cotizacion={cotizacion} onClick={() => setDetalleUnidad(unit)} />)}{!vendidosFiltrados.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'Todavía no hay vendidos en el período.'} />}</div>}</div></div>}
     {tab === 'transito' && <div className="mt-4 overflow-x-auto" data-testid="inventario-tabla"><EncabezadoUnidades />{cargandoUnidades ? <FilasCargando /> : <div className="space-y-1">{enTransito.map(unit => <FilaUnidad key={unit.id} unit={unit} busy={busy} onVerify={verify} onLabel={unit => printLabel(unit).then(avisarImpresion)} onAdjust={unit => requestReason('adjust', unit)} onRemove={unit => requestReason('remove', unit)} onMove={unit => setDetalleUnidad(unit)} onEdit={unit => setDetalleUnidad(unit)} onApartar={abrirApartado} onLiberarApartado={liberarApartado} onCosto={guardarCostoRapido} cotizacion={cotizacion} onClick={() => setDetalleUnidad(unit)} />)}{!enTransito.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay unidades en tránsito.'} />}</div>}</div>}
 {tab === 'alertas' && <div className="mt-4 space-y-4"><TableroCertificaciones units={units} onAbrirUnidad={id => setDetalleUnidad(units.find(unit => unit.id === id) || null)} />{sinCostoUnits.length > 0 && <section className="rounded-xl border border-warn/25 bg-warn/5 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div className="min-w-0"><h3 className="text-xs font-bold uppercase tracking-wider text-warn">Unidades sin costo ({sinCostoUnits.length})</h3><p className="mt-1 text-xs text-mute">Se recibieron sin costo: completalo desde la ficha para que la ganancia y el kardex no queden incompletos. Es el mismo dato que alimenta el «Costo pendiente» de Resumen cuando se venden sin costo.</p></div><Badge color="orange">Costo pendiente</Badge></div><div className="mt-2 flex flex-wrap gap-1.5">{sinCostoUnits.slice(0, 8).map(unit => <button key={unit.id} type="button" onClick={() => setDetalleUnidad(unit)} className="rounded-lg border border-ink-500 bg-ink-800 px-2 py-0.5 text-[11px] text-fore transition hover:border-fono">{nombreProducto(unit.product || {})} · {ultimos4(unit.serial)}</button>)}{sinCostoUnits.length > 8 && <span className="px-2 py-0.5 text-[11px] text-mute">y {sinCostoUnits.length - 8} más…</span>}</div></section>}{alertsLoading && <div className="space-y-2"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>}{alertsError && <Aviso tono="error">{alertsError}</Aviso>}{!alertsLoading && !alertsError && !(stockAlerts.alerts?.length || stockAlerts.outOfStock?.length) && <EmptyState compact icon="check" title="Sin alertas de reposición." description="Todo el stock está por encima de su umbral." />}{!alertsLoading && stockAlerts.alerts?.length > 0 && <section><h3 className={ROTULO_SECCION}>Bajo el umbral de reposición</h3><div className="mt-2 space-y-2">{stockAlerts.alerts.map(item => <article key={item.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-warn/25 bg-warn/5 px-3 py-2"><div className="min-w-0"><b className="text-sm">{item.name}</b><p className="mt-1 text-xs text-mute">{item.sku ? `SKU ${item.sku} · ` : ''}Stock {item.stock} de {item.reorderPoint}{item.branchName ? ` · ${item.branchName}` : ''}</p></div><div className="flex shrink-0 items-center gap-2"><Badge color="orange">Reponer</Badge><Button type="button" variant="outline" disabled={busy} onClick={() => { setThreshold({ id: item.id, name: item.name }); setThresholdValue(String(item.reorderPoint ?? '')) }}>Ajustar umbral</Button></div></article>)}</div></section>}{!alertsLoading && stockAlerts.outOfStock?.length > 0 && <section><h3 className={ROTULO_SECCION}>Agotados</h3><div className="mt-2 space-y-2">{stockAlerts.outOfStock.map(item => <article key={item.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-bad/25 bg-bad/5 px-3 py-2"><div className="min-w-0"><b className="text-sm">{item.name}</b><p className="mt-1 text-xs text-mute">{item.sku ? `SKU ${item.sku} · ` : ''}Sin stock{item.branchName ? ` · ${item.branchName}` : ''}</p></div><div className="flex shrink-0 items-center gap-2"><Badge color="red">Agotado</Badge><Button type="button" variant="outline" disabled={busy} onClick={() => { setThreshold({ id: item.id, name: item.name }); setThresholdValue(String(item.reorderPoint ?? '')) }}>Definir umbral</Button></div></article>)}</div></section>}</div>}

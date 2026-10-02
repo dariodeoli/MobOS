@@ -30,7 +30,7 @@ const PANTALLAS = [
   ['promociones', '/promociones', 'barra-promociones', (p) => p.getByTestId('barra-promociones')],
   ['plantillas', '/plantillas', 'barra-plantillas', (p) => p.getByTestId('barra-plantillas')],
   ['precios', '/precios', 'barra-precios', (p) => p.getByRole('heading', { name: 'Listas de precios' }).first()],
-  ['inventario-unidades', '/inventario/unidades', 'barra-inventario', (p) => p.getByTestId('inventario-fila').first()],
+  ['inventario-unidades', '/inventario/unidades', 'barra-inventario', (p) => p.locator('[data-testid="inventario-fila"], [data-testid="inventario-tarjeta-movil"]').first()],
   ['compras', '/compras', 'barra-compras', (p) => p.getByTestId('barra-compras')],
   ['delivery', '/delivery', 'barra-delivery', (p) => p.getByTestId('reparto-admin-pedido').first()],
   ['servicio', '/servicio', 'barra-taller', (p) => p.getByTestId('servicio-garantias')],

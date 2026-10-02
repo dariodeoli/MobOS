@@ -10,6 +10,10 @@ import { cerrarGuiaDemo } from './helpers/demo.js'
 const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/responsive-mobile'
 const ANCHOS = [[360, 740], [390, 844], [414, 896], [768, 1024]]
 
+// #304: en móvil el listado de inventario usa tarjetas compactas y en
+// escritorio la tabla; el locator sirve para los dos casos.
+const filaInventario = (page) => page.locator('[data-testid="inventario-fila"], [data-testid="inventario-tarjeta-movil"]').first()
+
 // Token del pedido semilla (lo escribe el global-setup): el portal público se
 // audita con el mismo pedido del tracking. Tolerar su ausencia deja que
 // `playwright --list` (y el guardián de shards) funcione sin setup.
@@ -31,7 +35,7 @@ const PANTALLAS = [
     await producto.click()
     await expect(page.getByText('Productos de esta venta').first()).toBeVisible({ timeout: 15_000 })
   }],
-  ['inventario', '/inventario/unidades', (page) => page.getByTestId('inventario-fila').first()],
+  ['inventario', '/inventario/unidades', (page) => filaInventario(page)],
   ['pedidos', '/pedidos', (page) => page.getByRole('heading', { name: 'Mis pedidos' }), async (page) => {
     // La tabla llega con los datos: esperar la primera fila deja la medición
     // igual en todos los anchos.
@@ -68,8 +72,8 @@ const SUPERFICIES = [
     await page.getByTestId('pedido-fila').first().click()
     await expect(page.getByRole('button', { name: /Imprimir comprobante/ }).first()).toBeVisible({ timeout: 20_000 })
   }],
-  ['inventario-ficha', '/inventario/unidades', (page) => page.getByTestId('inventario-fila').first(), async (page) => {
-    await page.getByTestId('inventario-fila').first().locator('span[title^="Categoría:"]').click()
+  ['inventario-ficha', '/inventario/unidades', (page) => filaInventario(page), async (page) => {
+    await filaInventario(page).locator('span[title^="Categoría:"]').click()
     await expect(page.getByRole('dialog').first()).toBeVisible({ timeout: 20_000 })
   }],
   // El bloqueo va al final: la pantalla de PIN tapa la app hasta desbloquear.
@@ -369,7 +373,7 @@ test.describe('demo · POS y páginas clave', () => {
       }],
       ['demo-pedidos', '/pedidos', (page) => page.getByTestId('pedido-fila').first()],
       ['demo-clientes', '/clientes', (page) => page.getByTestId('cliente-fila').first()],
-      ['demo-inventario', '/inventario/unidades', (page) => page.getByTestId('inventario-fila').first()],
+      ['demo-inventario', '/inventario/unidades', (page) => filaInventario(page)],
       ['demo-finanzas', '/finanzas/caja', (page) => page.getByText('Saldo esperado').first()],
     ]
     const registro = []

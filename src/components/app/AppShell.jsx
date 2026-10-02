@@ -615,14 +615,18 @@ export default function AppShell({
           </div>
         )}
         {esDemo && (
-          <div role="status" className="flex flex-wrap items-center justify-center gap-2 bg-warn/15 px-4 py-2 text-center text-sm font-medium text-warn">
-            <Icon name="alert" className="h-4 w-4" />
-            <span>Modo demo: datos ficticios, no se guardan y se descartan al recargar.</span>
+          <div role="status" className="flex items-center justify-between gap-2 bg-warn/15 px-3 py-1 text-xs font-medium text-warn sm:justify-center sm:px-4 sm:py-2 sm:text-sm">
+            <span className="flex min-w-0 items-center gap-2 text-left">
+              <Icon name="alert" className="h-4 w-4 shrink-0" />
+              {/* #304: en móvil el aviso es una línea compacta; el completo queda en escritorio. */}
+              <span className="hidden sm:inline">Modo demo: datos ficticios, no se guardan y se descartan al recargar.</span>
+              <span className="truncate sm:hidden">Demo: datos ficticios, nada se guarda.</span>
+            </span>
             <button
               type="button"
               data-testid="demo-como-funciona"
               onClick={() => setComoFunciona(true)}
-              className="min-h-11 rounded-lg border border-warn/40 px-2 py-0.5 text-xs font-semibold transition hover:bg-warn/10 md:min-h-0"
+              className="min-h-11 shrink-0 rounded-lg border border-warn/40 px-2 py-0.5 text-xs font-semibold transition hover:bg-warn/10 md:min-h-0"
             >
               Cómo funciona
             </button>

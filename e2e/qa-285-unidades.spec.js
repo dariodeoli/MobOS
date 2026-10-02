@@ -109,14 +109,19 @@ test('#285 · estructura final en una línea: columnas, alto y sin scroll (1280/
   }
 })
 
-test('#285 · mobile 390: la tabla scrollea dentro de su caja', async ({ page }) => {
+test('#285 · mobile 390: tarjetas compactas, sin desborde y con el IMEI completo (#304)', async ({ page }) => {
   mkdirSync(DIR, { recursive: true })
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/inventario/unidades')
-  await expect(page.getByTestId('inventario-fila').first()).toBeVisible({ timeout: 20_000 })
-  const medida = await medir(page)
-  // La página no desborda; el scroll horizontal queda dentro de la caja de la tabla.
-  expect(medida.scrollPagina.scrollWidth, 'la página no desborda en 390').toBeLessThanOrEqual(medida.scrollPagina.clientWidth + 1)
-  expect(medida.scrollWidth, 'la tabla scrollea dentro de su caja').toBeGreaterThan(medida.clientWidth)
+  const tarjeta = page.getByTestId('inventario-tarjeta-movil').first()
+  await expect(tarjeta).toBeVisible({ timeout: 20_000 })
+  // #304: en móvil la tabla ancha se reemplaza por tarjetas compactas.
+  await expect(page.getByTestId('inventario-tabla')).toHaveCount(0)
+  // La página no desborda y el IMEI se muestra completo.
+  const scrollPagina = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth }))
+  expect(scrollPagina.scrollWidth, 'la página no desborda en 390').toBeLessThanOrEqual(scrollPagina.clientWidth + 1)
+  const imei = await tarjeta.getByTestId('unidad-imei').evaluate((nodo) => ({ scrollWidth: nodo.scrollWidth, clientWidth: nodo.clientWidth, texto: (nodo.textContent || '').trim() }))
+  expect(imei.texto.length, 'el IMEI viaja completo').toBeGreaterThan(8)
+  expect(imei.scrollWidth, 'el IMEI no se recorta').toBeLessThanOrEqual(imei.clientWidth + 1)
   await page.screenshot({ path: join(DIR, `${PREFIJO}-unidades-390-mobile.png`) })
 })
