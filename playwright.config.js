@@ -110,7 +110,7 @@ export default defineConfig({
     {
       // No storage state: UI login flows and anonymous API tracking.
       name: 'core',
-      testMatch: /auth\.spec\.js|demo-autorizaciones\.spec\.js|recorte-perfil\.spec\.js|redireccion-248\.spec\.js|public-tracking\.spec\.js|cliente-portal-entrada\.spec\.js|demo-finanzas\.spec\.js|demo-finanzas-anonimo\.spec\.js|delivery\.spec\.js|shell-roles\.spec\.js|demo-anonimo\.spec\.js|demo-imei-conciliacion\.spec\.js|pwa-version\.spec\.js|demo-crm\.spec\.js|ruc-demo\.spec\.js|ops-preview\.spec\.js|qa-318-comprobante\.spec\.js|qa-306-producto-kardex\.spec\.js|qa-312-ficha-accesos\.spec\.js|qa-319-dispositivos\.spec\.js|qa-307-compras-proveedores\.spec\.js|qa-313-listas\.spec\.js|qa-323-prn\.spec\.js|demo-fixtures\.spec\.js/
+      testMatch: /auth\.spec\.js|demo-autorizaciones\.spec\.js|recorte-perfil\.spec\.js|redireccion-248\.spec\.js|public-tracking\.spec\.js|cliente-portal-entrada\.spec\.js|demo-finanzas\.spec\.js|demo-finanzas-anonimo\.spec\.js|delivery\.spec\.js|shell-roles\.spec\.js|demo-anonimo\.spec\.js|demo-imei-conciliacion\.spec\.js|pwa-version\.spec\.js|demo-crm\.spec\.js|ruc-demo\.spec\.js|ops-preview\.spec\.js|qa-318-comprobante\.spec\.js|qa-306-producto-kardex\.spec\.js|qa-312-ficha-accesos\.spec\.js|qa-319-dispositivos\.spec\.js|qa-307-compras-proveedores\.spec\.js|qa-313-listas\.spec\.js|qa-323-prn\.spec\.js|demo-fixtures\.spec\.js|qa-295-estado-publico\.spec\.js/
     },
     {
       // Seeded seller session (PIN 2468) for POS and permissions coverage.

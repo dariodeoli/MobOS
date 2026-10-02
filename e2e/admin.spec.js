@@ -1315,3 +1315,24 @@ test('el header usa el candado y lo destructivo vive en Configuración (#228/#26
   await dialogo.getByRole('button', { name: 'Cancelar' }).click()
   await expect(page.getByText('Escribí ELIMINAR para confirmar')).toHaveCount(0)
 })
+
+// #295: los botones de Sistema explican por qué están deshabilitados mientras
+// corre la comprobación (antes quedaban grises sin motivo visible).
+test('sistema explica por qué los botones están deshabilitados (#295)', async ({ page }) => {
+  const salida = process.env.MOBOS_295_CAPTURAS || 'test-results/qa-295'
+  mkdirSync(salida, { recursive: true })
+  await page.route('**/api/system/checks', async (ruta) => {
+    await new Promise((resolver) => setTimeout(resolver, 1500))
+    await ruta.continue()
+  })
+  await page.goto('/configuracion/sistema')
+  const copiar = page.getByRole('button', { name: 'Copiar informe' })
+  const actualizar = page.getByRole('button', { name: 'Actualizar' }).first()
+  await expect(copiar).toBeDisabled()
+  await expect(copiar).toHaveAttribute('title', /Se habilita al terminar/)
+  await expect(actualizar).toBeDisabled()
+  await expect(page.getByTestId('sistema-comprobando')).toHaveText('Comprobando… los botones se habilitan al terminar.')
+  await page.screenshot({ path: `${salida}/04-sistema-comprobando.png`, fullPage: true })
+  await expect(copiar).toBeEnabled({ timeout: 20_000 })
+  await expect(page.getByTestId('sistema-comprobando')).toHaveCount(0)
+})
