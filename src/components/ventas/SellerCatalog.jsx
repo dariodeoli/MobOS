@@ -275,7 +275,7 @@ export default function SellerCatalog() {
       <div className="space-y-1">{ordenadas.map((row) => <FilaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} seleccionado={seleccionados.includes(row.id)} onAlternar={() => setSeleccionados((actuales) => alternarId(actuales, row.id))} />)}</div>
     </div>}
     {!data.loading && !data.error && vista === 'grid' && <div className={cn('min-[1200px]:grid-cols-3', GRILLA_DOS_COLUMNAS)}>{rows.map((row) => <TarjetaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>}
-    {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más productos'}</button></div>}
+    {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="min-h-11 md:min-h-0 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más productos'}</button></div>}
     <ComboManager open={combosOpen} onClose={() => setCombosOpen(false)} />
     <EtiquetasProductoModal open={etiquetasOpen} onClose={() => setEtiquetasOpen(false)} productos={rows} seleccionInicial={seleccionados} />
     {/* #307: copiar precios muestra antes lo que se copia; nada sobrescribe sin preview. */}

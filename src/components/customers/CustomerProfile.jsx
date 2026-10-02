@@ -2087,7 +2087,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
               )}
               {!timelineLoading && !timelineError && timeline.length > 0 && timelineNext && (
                 <div className="flex justify-center pt-1">
-                  <button type="button" disabled={timelineCargandoMas} onClick={cargarMasTimeline} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">
+                  <button type="button" disabled={timelineCargandoMas} onClick={cargarMasTimeline} className="min-h-11 md:min-h-0 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">
                     {timelineCargandoMas ? 'Cargando…' : 'Cargar más'}
                   </button>
                 </div>

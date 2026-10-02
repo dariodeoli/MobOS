@@ -339,7 +339,7 @@ export default function SellerQuotes() {
         })}
       </div>
     </div>}
-    {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más cotizaciones'}</button></div>}
+    {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="min-h-11 md:min-h-0 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más cotizaciones'}</button></div>}
     <Modal open={crearOpen} onClose={() => !busy && setCrearOpen(false)} title="Nueva cotización" size="amplio">
       <form onSubmit={crear} className="space-y-4">
         <div className={GRILLA_DOS_COLUMNAS}>
