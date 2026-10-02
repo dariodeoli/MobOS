@@ -252,7 +252,8 @@ test('#278 · compactos de Precios, Celulares, Comparador y Autorizaciones', asy
     await page.goto(pantalla.ruta)
     const barra = page.getByTestId(pantalla.barra)
     await expect(barra).toBeVisible({ timeout: 20_000 })
-    await expect(barra.getByRole('heading', { level: 2 })).toBeVisible()
+    // #320: la barra no repite el título visible de la página.
+    await expect(barra.getByRole('heading')).toHaveCount(0)
     await expect(page.getByRole('button', { name: pantalla.extra }).first()).toBeVisible()
     const nombre = pantalla.ruta.replace('/', '')
     await page.screenshot({ path: join(DIR, `compacto-${nombre}-claro-desktop.png`) })

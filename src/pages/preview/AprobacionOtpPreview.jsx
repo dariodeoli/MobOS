@@ -29,6 +29,7 @@ export default function AprobacionOtpPreview() {
       <BarraModulo
         icono="lock"
         titulo="Presupuesto con aprobación"
+        tituloVisible
         descripcion="El presupuesto se congela al pedir la aprobación: se aprueba con código y queda constancia. Si cambia algo, es una versión nueva."
         testId="barra-a3"
       />

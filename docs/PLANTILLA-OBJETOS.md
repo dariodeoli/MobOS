@@ -197,6 +197,15 @@ patrón de uso de cada familia y un ejemplo corto.
   fecha/hora) junto al contenido; selección múltiple en lote donde haya listas
   (contador “N seleccionados”, seleccionar visibles, limpiar, resolver en una
   sola operación).
+- **Tarjetas: una sola capa (#320).** Prohibido anidar tarjeta dentro de
+  tarjeta: lo que separa secciones es un **divisor** (borde/`border-t`) o el
+  espaciado, no otra caja. La tarjeta agrupa un dato o una entidad; no envuelve
+  la pantalla. En el **primer viewport** las tarjetas muestran **datos**, no
+  controles: las acciones viven en la barra del módulo y los filtros van
+  debajo. Sin tarjetas enormes que empujen la tabla fuera de pantalla.
+- **Fila con estado (#320).** El estado de una fila se marca con
+  **borde/ícono/badge** (y color de texto puntual), nunca pintando la fila
+  completa: el color de fondo queda para selección o alerta, no para decorar.
 - **Encabezados y rótulos de tabla (#147):** las clases de la grilla se escriben
   una sola vez en `src/components/shared/tabla.js`:
   `ROTULO_DATO` (etiqueta de dato, 10 px), `CELDA_ENCABEZADO` (encabezado de
@@ -343,6 +352,22 @@ navegación propia por pantalla.
   **presencia** en el topbar con `PilaPersonas` (pila con «+N» y
   `resumenPresencia`); el encabezado de la vista lleva la **miga de sección**
   (`PageHeader migas=[…]`, `aria-current="page"`).
+- **Un solo encabezado visible por página (#320).** El título de la página es
+  el `h1` del shell (topbar, con su miga). La **barra de módulo**
+  (`shared/BarraModulo`) **no repite el título**: agrupa el contexto, la acción
+  principal y las secundarias, y los filtros van debajo. Su `titulo` es el
+  **nombre accesible** de la sección (`aria-label`) y `tituloVisible` existe
+  solo para las previews standalone que no pasan por el shell. `SellerSection`
+  sigue la misma regla desde #57. Ningún componente que viva dentro del shell
+  vuelve a dibujar el título de la página.
+- **Un solo pie institucional por página (#320).** Lo renderiza el **shell**
+  (`AppShell` → `ProductFooter`); las pantallas del panel no lo repiten. Las
+  páginas públicas y tokenizadas (que no pasan por el shell) sí lo montan por
+  ser standalone.
+- **El primer viewport muestra datos.** En el panel, después del título y la
+  barra de módulo vienen los filtros y **la tabla o el dato**; los controles no
+  ocupan la primera pantalla ni compiten con la acción principal (una sola
+  acción primaria por vista; el resto, secundarias/borde).
 - Con el sistema v2, el shell va dentro del scope `tema-v2` y sus tonos de
   texto son los **AA** medidos (#241); los vivos quedan para relleno. Las
   reglas de navegación (ítem activo, rótulos de grupo, foco por tema, chips
@@ -351,8 +376,10 @@ navegación propia por pantalla.
   y `.oc-rotulo-grupo`; la app no las repite.
 
 > Referencia MobOS: `src/components/app/AppShell.jsx` + `src/pages/PanelVendedor.jsx`
-> (POS y control comparten un solo shell). Guía portable completa (piezas,
-> props, breakpoints, contrastes y checklist): `owncoding-ui/docs/SHELL.md`.
+> (POS y control comparten un solo shell) y `src/components/shared/BarraModulo.jsx`
+> (barra de módulo sin título duplicado; los previews standalone pasan
+> `tituloVisible`). Guía portable completa (piezas, props, breakpoints,
+> contrastes y checklist): `owncoding-ui/docs/SHELL.md`.
 
 ## 6. Identidad, fotos y archivos
 
@@ -569,6 +596,14 @@ por el sistema.
   MobOS (paquete + `styles.css`, borrar el bloque local de `src/index.css`)
   queda en el lote de adopción con PLT/DSN.
 - Tipografía: sans para UI; mono para importes, referencias y códigos.
+- **Referencia de sistema (#320):** tipografía **Inter o Plus Jakarta Sans**;
+  escala de espaciado **4/8/12/16/24/32**; radios **10–12**; filas **40–44**
+  (tablas 12 de padding); padding general **16–20**; modales
+  **420/560/680/960** de contenido de referencia (los cuatro anchos
+  implementados de la sección 5) con header/footer fijos; contraste
+  **AA mínimo** en claro y oscuro. Los tokens del tema mandan sobre estos
+  valores; la referencia ordena la composición, no reemplaza la fuente de
+  tokens.
 - Respetar `prefers-reduced-motion`; evitar animaciones que rompan el patrón.
 - **Un solo activo de marca** (logo, favicon, PWA, Apple touch, social): todo
   consumo apunta a esa fuente.

@@ -5,7 +5,6 @@ import { gs } from '@/utils/calculos'
 import { colorHex } from '@/utils/colores'
 import { cn } from '@/lib/utils'
 import { Select } from '@/components/ui'
-import ProductFooter from '@/components/app/ProductFooter'
 import BarraModulo from '@/components/shared/BarraModulo'
 import Icon from '@/components/shared/Icon'
 
@@ -222,7 +221,6 @@ export default function Comparador() {
           maqueta con el color elegido.
         </p>
       </main>
-      <ProductFooter />
     </div>
   )
 }
