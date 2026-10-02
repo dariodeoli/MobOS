@@ -14,6 +14,11 @@ export function sistemaDemo() {
   ]
   const pendientes = trabajos.filter((trabajo) => trabajo.state === 'PENDIENTE').length
   const fallidos = trabajos.filter((trabajo) => trabajo.state === 'FALLIDO').length
+  // #301: el panel lista los problemas desde esta misma fuente (antes los
+  // recortaba de los 50 trabajos más recientes y podía contradecir el contador).
+  const problemas = trabajos
+    .filter((trabajo) => trabajo.state === 'FALLIDO' || trabajo.state === 'INCIERTO')
+    .map((trabajo) => ({ id: trabajo.id, state: trabajo.state, kind: trabajo.kind, printerName: trabajo.printerName, destination: '', error: trabajo.error, createdAt: hace(48) }))
   return {
     checks: {
       checkedAt: new Date().toISOString(),
@@ -32,9 +37,11 @@ export function sistemaDemo() {
       generadoEn: new Date().toISOString(),
       puentes: { total: 2, activos: 1, ultimaSenal: hace(1) },
       impresoras: { total: 3, enLinea: 2, sinSenal: 1, sinPuente: 0 },
-      trabajos: { pendientes, fallidos, ultimoExitoAt: haceHoras(3) },
+      trabajos: { pendientes, enCurso: pendientes, fallidos, problemas, ultimoExitoAt: haceHoras(3) },
       emails: { pendientes: 1, fallidos: 0 },
       aex: {
+        configurado: true,
+        webhookToken: true,
         ultimoEventoAt: haceHoras(5),
         ultimos: [
           { id: 'demo-aex-1', guia: 'AEX-778812', estado: 'EN_TRANSITO', tipoEvento: 'transito', fechaEvento: haceHoras(5), recibidoEn: haceHoras(5) },

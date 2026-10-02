@@ -2,6 +2,7 @@ import { prisma } from '../../../../lib/prisma'
 import { error, json } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
 import { estaEnLinea } from '../../../../lib/presence'
+import { aexConfigurado, aexWebhookConToken } from '../../../../lib/aex'
 
 const ULTIMOS = 5
 const VENTANA_ERRORES_HORAS = 24
@@ -30,10 +31,12 @@ export async function GET(request: Request) {
     erroresRecientes,
     ultimosErrores,
     reservasVencidas,
+    trabajosEnCurso,
+    trabajosProblemas,
   ] = await Promise.all([
     prisma.printBridge.findMany({ where: { tenantId, revokedAt: null }, select: { id: true, lastSeenAt: true } }),
     prisma.printPrinter.findMany({ where: { tenantId, isActive: true }, select: { bridgeId: true } }),
-    prisma.printJob.count({ where: { tenantId, state: { in: ['PENDIENTE', 'RECLAMADO'] } } }),
+    prisma.printJob.count({ where: { tenantId, state: 'PENDIENTE' } }),
     prisma.printJob.count({ where: { tenantId, state: 'FALLIDO' } }),
     prisma.printJob.aggregate({ where: { tenantId, state: 'CONFIRMADO' }, _max: { confirmedAt: true } }),
     prisma.emailOutbox.count({ where: { tenantId, sentAt: null, cancelledAt: null, failedAt: null } }),
@@ -47,12 +50,19 @@ export async function GET(request: Request) {
     }),
     prisma.errorReport.count({ where: { tenantId, createdAt: { gte: desdeErrores } } }),
     prisma.errorReport.findMany({
-      where: { tenantId },
+      where: { tenantId, createdAt: { gte: desdeErrores } },
       orderBy: { createdAt: 'desc' },
       take: ULTIMOS,
       select: { id: true, kind: true, message: true, url: true, createdAt: true },
     }),
     prisma.inventoryUnit.count({ where: { tenantId, status: 'RESERVED', reservedUntil: { lte: ahora } } }),
+    prisma.printJob.count({ where: { tenantId, state: { in: ['PENDIENTE', 'RECLAMADO'] } } }),
+    prisma.printJob.findMany({
+      where: { tenantId, state: { in: ['FALLIDO', 'INCIERTO'] } },
+      orderBy: { createdAt: 'desc' },
+      take: ULTIMOS,
+      select: { id: true, state: true, kind: true, destination: true, printerName: true, error: true, createdAt: true },
+    }),
   ])
 
   const enLinea = new Set(puentes.filter((puente) => estaEnLinea(puente.lastSeenAt, ahora)).map((puente) => puente.id))
@@ -72,9 +82,9 @@ export async function GET(request: Request) {
       sinPuente: impresoras.length - conPuente.length,
     },
     puentes: { total: puentes.length, activos: enLinea.size, ultimaSenal },
-    trabajos: { pendientes: trabajosPendientes, fallidos: trabajosFallidos, ultimoExitoAt: ultimoTrabajoOk._max.confirmedAt },
+    trabajos: { pendientes: trabajosPendientes, enCurso: trabajosEnCurso, fallidos: trabajosFallidos, problemas: trabajosProblemas, ultimoExitoAt: ultimoTrabajoOk._max.confirmedAt },
     emails: { pendientes: emailsPendientes, fallidos: emailsFallidos },
-    aex: { ultimoEventoAt: ultimoEventoAex._max.recibidoEn, ultimos: eventosAex },
+    aex: { configurado: aexConfigurado(), webhookToken: aexWebhookConToken(), ultimoEventoAt: ultimoEventoAex._max.recibidoEn, ultimos: eventosAex },
     errores: { recientes: erroresRecientes, ventanaHoras: VENTANA_ERRORES_HORAS, ultimos: ultimosErrores },
     reservas: { vencidasSinLiberar: reservasVencidas },
   })

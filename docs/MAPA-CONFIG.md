@@ -55,7 +55,7 @@
 - En demo: `DemoNoDisponible`.
 
 ## 8. Auditoría (`/configuracion/historial`)
-- Real (`Auditoria.jsx`): filtros «Filtrar por área» (Pedidos, Inventario, Promociones, Clientes, Pagos, Caja y finanzas, Compras, Garantías, Servicio técnico, Cotizaciones, Trade-In, Equipo, Sesiones, Impresiones), «Filtrar por fecha» (Hoy/Esta semana/Este mes), «Filtrar por actor», buscador («Acción, IMEI, pedido, impresora…»), «Exportar CSV», «Actualizar»; tabla Acción/Actor/Área/Detalle/Fecha con detalle expandible y JSON crudo; «Cargar más» (50 por página).
+- Real (`Auditoria.jsx`): filtros «Filtrar por área» (Pedidos, Inventario · unidades, Inventario · productos, Promociones, Clientes, Pagos, Caja y finanzas, Compras, Garantías, Servicio técnico, Cotizaciones, Trade-In, Equipo, Sesiones, Impresiones), «Filtrar por fecha» (Hoy/Esta semana/Este mes), «Filtrar por actor», buscador («Acción, IMEI, pedido, impresora…»), «Exportar CSV», «Actualizar»; tabla Acción/Actor/Área/Detalle/Fecha con severidad (Sensible/Cambio/Actividad) y detalle expandible: resumen humano y «Detalles técnicos» plegables con los campos etiquetados (ID de petición, huella, URL) y el JSON crudo al final (#301).
 - Demo (`Historial.jsx`): buscador + chips «Todo / Cargas / Ediciones / Borrados» y lista local.
 
 ## 9. Dispositivos (`/configuracion/dispositivos`) — Impresoras · `control/Impresoras.jsx`
@@ -82,5 +82,5 @@
 - **Alcance (#253)**: acá **se monitorea** (servicios, puentes/impresoras, cola global, correo, AEX, errores); para **agregar, probar o formatear** impresoras hay un enlace a Dispositivos · Impresoras. La configuración no se duplica.
 - **Chequeos**: «Copiar informe», «Actualizar», badges (versión, «n chequeos · fecha», «a revisar», «con error»); lista con «En orden» / «A revisar» / «Con error», incluye «Impresión (este equipo)».
 - **Sincronización**: tarjetas «Puentes», «Impresoras», «Cola de impresión», «Correo saliente»; paneles «Últimos webhooks de AEX» y «Errores recientes (N h)»; avisos por fallos de impresión, correos y reservas vencidas.
-- **Cola de impresión**: filtro por impresora; pendientes con tipo/referencia/estado/usuario/impresora/puente/fecha/intentos/error; «Cancelar seleccionados» / «Cancelar todos» (dueño/ADMIN/GERENTE); «Recientes con problema».
-- En demo: `DemoNoDisponible`.
+- **Cola de impresión**: filtro por impresora; pendientes con tipo/referencia/estado/usuario/impresora/puente/fecha/intentos/error; «Cancelar seleccionados» / «Cancelar todos» (dueño/ADMIN/GERENTE); «Recientes con problema» sale de la misma fuente que el contador global de fallidos (#301).
+- En demo: fixtures locales con la misma forma que el API (#324), con coherencia entre contadores y listas (#301).

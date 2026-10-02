@@ -241,6 +241,10 @@ test('#324 · sistema, reparto y cronologías tienen datos y no terminan en erro
   assert.ok(sistema.checks.checks.length >= 5)
   assert.equal(sistema.sincronizacion.trabajos.pendientes, sistema.trabajos.filter((trabajo) => trabajo.state === 'PENDIENTE').length)
   assert.ok(sistema.sincronizacion.trabajos.ultimoExitoAt)
+  // #301: los problemas listados son los mismos que alimentan el contador.
+  assert.equal(sistema.sincronizacion.trabajos.problemas.length, sistema.trabajos.filter((trabajo) => trabajo.state === 'FALLIDO' || trabajo.state === 'INCIERTO').length)
+  assert.equal(sistema.sincronizacion.trabajos.fallidos, sistema.trabajos.filter((trabajo) => trabajo.state === 'FALLIDO').length)
+  assert.equal(sistema.sincronizacion.aex.configurado, true)
   const historialPersona = historialDemo('/api/users/demo-user-vendedor/history').events
   assert.ok(historialPersona.length >= 3 && historialPersona.every((evento) => evento.action))
   assert.deepEqual(historialDemo('/api/proveedores-x').events, [])

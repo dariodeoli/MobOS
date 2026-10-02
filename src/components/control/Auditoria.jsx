@@ -4,6 +4,8 @@ import { api } from '@/lib/api'
 import { Aviso, Badge, Card, EmptyState, Select, Skeleton } from '@/components/ui'
 import SearchField from '@/components/shared/SearchField'
 import { descargarCsv } from '@/utils/descargarCsv'
+import { fechaHora } from '@/utils/fecha'
+import { ETIQUETA_SEVERIDAD, etiquetaCampo, severidadAuditoria } from '@/lib/auditoriaLectura'
 import { cn } from '@/lib/utils'
 import { CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 // Pantalla real de auditoría: el registro que escribe el backend en cada
@@ -170,8 +172,8 @@ const ACCIONES = {
 const ENTIDADES = [
   ['', 'Todo'],
   ['Order', 'Pedidos'],
-  ['InventoryUnit', 'Inventario'],
-  ['Product', 'Inventario'],
+  ['InventoryUnit', 'Inventario · unidades'],
+  ['Product', 'Inventario · productos'],
   ['Promotion', 'Promociones'],
   ['Customer', 'Clientes'],
   ['Payment', 'Pagos'],
@@ -189,8 +191,8 @@ const ENTIDADES = [
 // Área legible para la columna: el nombre técnico no dice nada.
 const ENTIDAD_LABEL = {
   Order: 'Pedidos',
-  InventoryUnit: 'Inventario',
-  Product: 'Inventario',
+  InventoryUnit: 'Inventario · unidades',
+  Product: 'Inventario · productos',
   Promotion: 'Promociones',
   Customer: 'Clientes',
   Payment: 'Pagos',
@@ -205,6 +207,14 @@ const ENTIDAD_LABEL = {
   PrintJob: 'Impresiones',
   PrintBridge: 'Impresiones',
   PrintPrinter: 'Impresiones',
+  // #301: entidades que llegaban crudas a la columna.
+  ImeiCheckQuery: 'IMEI',
+  Branch: 'Sucursales',
+  Tenant: 'Empresa',
+  DeviceValuation: 'Valuaciones',
+  PaymentReconciliation: 'Conciliación',
+  SupplierPayable: 'Cuentas por pagar',
+  CommissionSettlement: 'Comisiones',
 }
 
 // Rangos de fecha: el navegador conoce el día del negocio y manda el inicio
@@ -230,30 +240,10 @@ function desdeDelRango(rango) {
 
 const GRID_AUDITORIA = 'grid min-w-[42rem] grid-cols-[minmax(9rem,1.1fr)_minmax(7rem,0.9fr)_minmax(6rem,0.7fr)_minmax(10rem,1.8fr)_8rem] items-center gap-x-2'
 
-function fechaHora(value) {
-  const date = new Date(value)
-  if (!value || Number.isNaN(date.getTime())) return '—'
-  const dia = date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '')
-  return `${dia} · ${date.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', hour12: false })}`
-}
-
 // El metadata es libre por acción: se muestra como pares legibles y los campos
 // técnicos largos (ids) se recortan para que la fila siga siendo de una línea.
 // Los cambios campo a campo (`{ from, to }`) se leen como "antes → después".
-const ETIQUETAS = {
-  serial: 'IMEI', serials: 'IMEI', imei: 'IMEI', reason: 'Motivo', customer: 'Cliente', customerName: 'Cliente', status: 'Estado',
-  from: 'Antes', to: 'Después', before: 'Antes', after: 'Después', amountPyg: 'Monto', totalPyg: 'Total', minutes: 'Minutos',
-  level: 'Nivel', tags: 'Etiquetas', discountPyg: 'Descuento', method: 'Medio', role: 'Rol', name: 'Nombre', email: 'Correo',
-  action: 'Acción', jobId: 'Job', attempts: 'Intentos', intentos: 'Intentos', transport: 'Transporte', path: 'Camino',
-  requestedTransport: 'Solicitado', fallback: 'Fallback', fallbackReason: 'Motivo del fallback', physicalConnection: 'Conexión física',
-  kind: 'Tipo', bytes: 'Tamaños', printerId: 'Impresora', error: 'Error', sku: 'SKU', pricePyg: 'Precio', costPyg: 'Costo',
-  stock: 'Stock', reorderPoint: 'Punto de reorden', wholesalePricePyg: 'Precio mayorista', isActive: 'Activo',
-  condition: 'Condición', category: 'Categoría', model: 'Modelo', color: 'Color', capacity: 'Capacidad', destination: 'Destino',
-  connection: 'Conexión', isDefault: 'Predeterminada', brand: 'Marca', location: 'Ubicación', width: 'Ancho', copies: 'Copias',
-  cut: 'Corte', density: 'Densidad', characters: 'Caracteres', bridgeId: 'Puente', printers: 'Impresoras', bridges: 'Puentes',
-  force: 'Forzar', code: 'Código', value: 'Valor', maxUnits: 'Unidades máximas', productId: 'Producto', usedUnits: 'Unidades usadas',
-}
-
+// Los nombres de los campos salen del mapa compartido (#301).
 function formatearValor(valor) {
   if (valor === null || valor === undefined) return ''
   if (typeof valor === 'boolean') return valor ? 'Sí' : 'No'
@@ -284,7 +274,7 @@ function detalleDe(metadata) {
   })
   return [...ordenados, ...booleanas]
     .slice(0, 5)
-    .map(([clave, texto]) => `${ETIQUETAS[clave] || clave}: ${texto.slice(0, 40)}`)
+    .map(([clave, texto]) => `${etiquetaCampo(clave)}: ${texto.slice(0, 40)}`)
     .join(' · ')
 }
 
@@ -402,27 +392,52 @@ export default function Auditoria() {
             const [label, tone] = ACCIONES[row.action] || [row.action, 'slate']
             const detalle = detalleDe(row.metadata)
             const abierto = abiertos.has(row.id)
+            const severidad = severidadAuditoria(row.action)
             const alternar = () => setAbiertos(prev => { const next = new Set(prev); next.has(row.id) ? next.delete(row.id) : next.add(row.id); return next })
             return <div key={row.id}>
               <div
                 role="button"
                 tabIndex={0}
                 data-testid="auditoria-fila"
+                data-severidad={severidad}
                 onClick={alternar}
                 onKeyDown={(event) => { if (event.key === 'Enter') alternar() }}
                 className={cn(GRID_AUDITORIA, 'cursor-pointer rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40', abierto && 'border-fono/40')}
               >
-                <span className="min-w-0"><Badge color={tone} className="w-fit max-w-full truncate whitespace-nowrap px-1.5 py-0.5 text-[10px]" title={row.action}>{label}</Badge></span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <span
+                    aria-hidden="true"
+                    title={ETIQUETA_SEVERIDAD[severidad]}
+                    className={cn('h-1.5 w-1.5 shrink-0 rounded-full', severidad === 'alta' ? 'bg-bad' : severidad === 'media' ? 'bg-warn' : 'bg-mute/60')}
+                  />
+                  <Badge color={tone} className="w-fit max-w-full truncate whitespace-nowrap px-1.5 py-0.5 text-[10px]" title={`${row.action} · ${ETIQUETA_SEVERIDAD[severidad]}`}>{label}</Badge>
+                </span>
                 <span className={CELDA_IDENTIDAD} title={row.user?.name || undefined}>{row.user?.name || 'Sistema'}</span>
                 <span className="truncate text-[11px] text-mute" title={row.entity}>{ENTIDAD_LABEL[row.entity] || row.entity}</span>
                 <span className="truncate text-[11px] text-mute" title={row.entityId || undefined}>{detalle || row.entityId || '—'}</span>
                 <span className="truncate text-right text-[11px] text-mute">{fechaHora(row.createdAt)}</span>
               </div>
               {abierto && <div className="mt-1 space-y-1 rounded-xl border border-ink-600 bg-ink-800/60 p-3 text-xs text-mute">
-                <p><span className="font-semibold text-fore">Acción:</span> {label}</p>
+                <p><span className="font-semibold text-fore">Acción:</span> {label} <span className="text-[10.5px] uppercase tracking-wider">· {ETIQUETA_SEVERIDAD[severidad]}</span></p>
                 <p><span className="font-semibold text-fore">Área:</span> {ENTIDAD_LABEL[row.entity] || row.entity}{row.entityId ? ` · ${row.entityId}` : ''}</p>
                 {detalle ? <p><span className="font-semibold text-fore">Detalle:</span> {detalle}</p> : null}
-                {row.metadata && Object.keys(row.metadata).length > 0 && <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-ink-700/60 p-2 text-[11px]">{JSON.stringify(row.metadata, null, 2)}</pre>}
+                {row.metadata && Object.keys(row.metadata).length > 0 && (
+                  <details className="mt-1" data-testid="auditoria-detalles">
+                    <summary className="cursor-pointer select-none text-[10.5px] font-semibold uppercase tracking-wider text-mute transition hover:text-fore">Detalles técnicos</summary>
+                    <dl className="mt-1.5 grid gap-x-3 gap-y-0.5 sm:grid-cols-2">
+                      {Object.entries(row.metadata).map(([clave, valor]) => (
+                        <div key={clave} className="min-w-0">
+                          <dt className="inline text-mute">{etiquetaCampo(clave)}: </dt>
+                          <dd className="inline break-all font-mono text-[11px] text-fore">{typeof valor === 'object' && valor !== null ? JSON.stringify(valor) : String(valor)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                    <details className="mt-1.5">
+                      <summary className="cursor-pointer select-none text-[10.5px] text-mute">JSON crudo</summary>
+                      <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-ink-700/60 p-2 text-[11px]">{JSON.stringify(row.metadata, null, 2)}</pre>
+                    </details>
+                  </details>
+                )}
               </div>}
             </div>
           })}
