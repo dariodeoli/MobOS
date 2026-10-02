@@ -29,7 +29,10 @@ const cotizacion = ({ id, number, status, customerId, customerName, sellerId, se
     totalPyg: subtotalPyg - descuentoPyg,
     notes: '',
     validUntil: validaDias === null ? null : vence(validaDias),
-    publicToken: `demo-cot-${id}`,
+    // #314: el token público es el mismo que usa la ficha del cliente para
+    // Lucía y Carlos (`demo-cot-lucia`/`demo-cot-carlos`), así el enlace del
+    // pipeline y el del portal no se contradicen.
+    publicToken: `demo-${id}`,
     createdAt: hace(dias),
     updatedAt: hace(Math.max(0, dias - 1)),
     order,

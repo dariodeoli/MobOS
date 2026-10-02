@@ -30,6 +30,7 @@ export {
   CeldaMoneda,
   ConfirmDialog,
   DataTable,
+  DocumentoImpresion,
   Dot,
   Drawer,
   EmptyState,

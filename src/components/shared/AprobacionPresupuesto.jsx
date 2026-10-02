@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { API_URL } from '@/lib/api/client'
 import { Aviso, Input, Nota } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import { codigoPedido } from '@/utils/pedido'
 import { PIE_ACCIONES } from '@/components/shared/formulario'
 
 // A3 (#279) · Aprobación autenticada del presupuesto desde el enlace público.
@@ -173,7 +174,7 @@ export default function AprobacionPresupuesto({ quote, token, demo, onAprobada }
         <h2 className="flex items-center justify-center gap-2 text-center font-semibold text-ok"><Icon name="check" className="h-4 w-4" />Presupuesto aprobado</h2>
         <p className="mt-2 text-center text-sm text-mute">
           Aprobaste la versión {evidencia.version ?? '—'} el {new Date(evidencia.at).toLocaleString('es-PY')} con código enviado a {evidencia.destination || 'tu contacto'}.
-          {evidencia.orderNumber ? <> Se generó el pedido <b className="text-fore">{evidencia.orderNumber}</b>.</> : null}
+          {evidencia.orderNumber ? <> Se generó el pedido <b className="text-fore">{codigoPedido(evidencia.orderNumber)}</b>.</> : null}
         </p>
         <p className="mt-2 text-center text-[11px] text-mute">
           Evidencia: {String(evidencia.method || '').replace('OTP_', 'OTP por ').toLowerCase()} · hash {String(evidencia.versionHash || '').slice(0, LARGO_HASH)}…
