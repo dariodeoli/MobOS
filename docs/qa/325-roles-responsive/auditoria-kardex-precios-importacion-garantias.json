@@ -1,0 +1,194 @@
+[
+  {
+    "superficie": "precios",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 3,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Colapsar menú",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Vendido hoy",
+        "ancho": 187,
+        "alto": 24,
+        "dibujo": "187x24",
+        "clase": "flex w-full items-center justify-between gap-2 rounded-lg px",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "+ Nueva lista",
+        "ancho": 118,
+        "alto": 36,
+        "dibujo": "118x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "superficie": "precios",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "precios",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "importar-productos",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 9,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Actualizar",
+        "ancho": 124,
+        "alto": 36,
+        "dibujo": "124x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "veces": 4
+      },
+      {
+        "que": "button",
+        "texto": "Compras",
+        "ancho": 71,
+        "alto": 36,
+        "dibujo": "71x36",
+        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold tran",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Colapsar menú",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Vendido hoy",
+        "ancho": 187,
+        "alto": 24,
+        "dibujo": "187x24",
+        "clase": "flex w-full items-center justify-between gap-2 rounded-lg px",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Con stock",
+        "ancho": 84,
+        "alto": 36,
+        "dibujo": "84x36",
+        "clase": "min-h-11 rounded-lg border px-3 py-2 text-xs font-semibold t",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "superficie": "importar-productos",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "importar-productos",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "garantias-taller",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 16,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Activos (0)",
+        "ancho": 83,
+        "alto": 36,
+        "dibujo": "83x36",
+        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold tran",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Actualizar",
+        "ancho": 102,
+        "alto": 36,
+        "dibujo": "102x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "veces": 4
+      },
+      {
+        "que": "button",
+        "texto": "Colapsar menú",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Vendido hoy",
+        "ancho": 187,
+        "alto": 24,
+        "dibujo": "187x24",
+        "clase": "flex w-full items-center justify-between gap-2 rounded-lg px",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "superficie": "garantias-taller",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "garantias-taller",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  }
+]

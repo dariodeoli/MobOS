@@ -1,0 +1,93 @@
+[
+  {
+    "superficie": "portal-pedido-publico",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "portal-pedido-publico",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "portal-pedido-publico",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "portal-cotizacion-publica",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 2,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "PDF de la cotización",
+        "ancho": 192,
+        "alto": 36,
+        "dibujo": "192x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "veces": 2
+      }
+    ]
+  },
+  {
+    "superficie": "portal-cotizacion-publica",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "portal-cotizacion-publica",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "portal-cuenta-cliente",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "portal-cuenta-cliente",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "portal-cuenta-cliente",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  }
+]
