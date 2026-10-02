@@ -11,6 +11,7 @@ import { contextoEtiquetaUnidad, datosEtiquetaUnidad } from '@/lib/printing/etiq
 import { contextoEtiquetaLote, datosEtiquetaLote } from '@/lib/printing/etiquetaLote'
 import { estadoGarantia, fechaVerificacionInforme } from '@/lib/printing/informeDispositivo'
 import { estadoChecklist, estadoControl, fechaCortaDocumento, fechaHoraDocumento } from '@/lib/printing/certificado'
+import { documentoComprobante } from '@/lib/printing/ventaComprobante'
 import JsBarcode from 'jsbarcode'
 import { api } from '@/lib/api/client'
 import { getLogoDataUrl } from '@/lib/tenantLogo'
@@ -286,7 +287,7 @@ const firmas = (bloques = [], { observaciones = false, lineasObservaciones = 2, 
 }
 
 
-const header = (title, when, logo = '') => `<div class="brand">${logo ? `<img class="logo" src="${logo}" alt="">` : `<b>${escapeHtml(APP_NAME)}</b>`}<span>${escapeHtml(title)}</span></div><h1>${escapeHtml(title)}</h1><p class="muted">${escapeHtml(when)}</p>`
+const header = (title, when, logo = '', marca = '') => `<div class="brand">${logo ? `<img class="logo" src="${logo}" alt="">` : `<b>${escapeHtml(marca || APP_NAME)}</b>`}<span>${escapeHtml(title)}</span></div><h1>${escapeHtml(title)}</h1><p class="muted">${escapeHtml(when)}</p>`
 const footer = () => `<footer>Conservá este comprobante para cambios y garantía. Documento generado por ${escapeHtml(APP_NAME)}.</footer>`
 
 // Niveles de comprobante y formatos físicos, independientes entre sí.
@@ -341,11 +342,17 @@ export async function tokenDeNivel(orderId, level) {
   } catch { return '' }
 }
 
-export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', format = 'a4', token = '' } = {}) {
+export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', format = 'a4', token = '', contexto } = {}) {
   // Comprobante congelado al emitir: si la venta lo tiene, se imprime lo que
   // quedó guardado y no los datos vivos (producto, cliente o empresa editados).
   const congelado = ordenViva?.receiptSnapshot?.datos
-  const order = congelado && typeof congelado === 'object' ? { ...ordenViva, ...congelado } : ordenViva
+  // #318: una sola fuente de verdad. La orden puede llegar completa (API), como
+  // fila del listado o como venta demo: acá se resuelven empresa, cliente,
+  // número, artículos y totales reales antes de armar el papel.
+  const order = documentoComprobante(
+    congelado && typeof congelado === 'object' ? { ...ordenViva, ...congelado } : ordenViva,
+    contexto,
+  )
   const items = Array.isArray(order.items) ? order.items : []
   const payments = Array.isArray(order.payments) ? order.payments : order.pagos || []
   const pagosConfirmados = payments.filter(payment => payment.status === 'CONFIRMED' || payment.status === undefined)
@@ -476,7 +483,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
   }
 
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ${escapeHtml(order.orderNumber || order.codigo || '')}</title><style>${styles(format)}</style></head><body>
-    ${header('Comprobante de compra', `${order.orderNumber || order.codigo || 'Pedido'} · ${when ? new Date(when).toLocaleString('es-PY') : ''}`, logo)}
+    ${header('Comprobante de compra', `${order.orderNumber || order.codigo || 'Pedido'} · ${when ? new Date(when).toLocaleString('es-PY') : ''}`, logo, empresa)}
     ${empresaCard}
     ${contactoCliente}
     ${documento}

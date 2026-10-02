@@ -24,9 +24,16 @@ import { temaV2Activo } from '@/lib/temaV2'
 export const orderFields = (row) => {
   const pagos = row.payments || row.pagos || []
   const pagado = pagos.filter(p => p.status === 'CONFIRMED' || p.status === undefined).reduce((sum, p) => sum + Number(p.amountPyg ?? p.monto ?? 0), 0)
-  const total = Number(row.totalPyg ?? row.total ?? row.precio ?? 0)
+  const total = Number(row.totalPyg ?? row.total ?? (Number(row.precio || 0) + Number(row.montoDelivery || 0)))
   const creditDays = Number(row.creditDays || 0)
-  const items = Array.isArray(row.items) ? row.items : []
+  // Venta legacy del demo (una línea con producto, precio y envío): se
+  // sintetiza el artículo real para que la ficha, el listado y el comprobante
+  // muestren lo mismo. Con los ítems del API no se toca nada (#318).
+  const items = Array.isArray(row.items) && row.items.length
+    ? row.items
+    : row.productoNombre
+      ? [{ id: row.id, description: row.productoNombre, quantity: 1, unitPricePyg: Number(row.precio ?? 0), totalPyg: Number(row.precio ?? 0) }]
+      : []
   const seriales = items.flatMap(item => Array.isArray(item.serials) ? item.serials : [])
   const products = items.length ? items.map(item => item.description).filter(Boolean) : [row.productoNombre].filter(Boolean)
   return {
@@ -53,7 +60,8 @@ export const orderFields = (row) => {
     email: row.customer?.email || '',
     phone: row.customer?.phone || '',
     notes: row.notes || row.observacion || '',
-    subtotalPyg: row.subtotalPyg, discountPyg: row.discountPyg, deliveryPyg: row.deliveryPyg,
+    subtotalPyg: row.subtotalPyg ?? (items.length ? items.reduce((sum, item) => sum + Number(item.totalPyg || 0), 0) : undefined),
+    discountPyg: row.discountPyg ?? row.descuento, deliveryPyg: row.deliveryPyg ?? row.montoDelivery,
     tags: Array.isArray(row.tags) ? row.tags : [], archivedAt: row.archivedAt || null,
     offlineSyncedAt: row.offlineSyncedAt || null,
     isSpecialOrder: row.isSpecialOrder === true || row.specialOrder === true,
