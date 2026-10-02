@@ -1,12 +1,14 @@
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 
-// Composición compacta de módulo (#256): una sola barra con la identidad del
-// módulo (ícono + título + detalle), el contexto a la derecha (fecha, alcance)
-// y las acciones juntas al final. Evita el encabezado grande duplicado y que
-// los botones queden aislados en una fila vacía. El `h1` sigue siendo el del
-// shell: acá el título va como `h2` para no duplicar la identidad de página.
-export default function BarraModulo({ icono, titulo, descripcion, contexto, children, className, testId = 'barra-modulo', expandir = false }) {
+// Barra compacta del módulo (#256 · consolidada en #320 · agrupada en #305):
+// contexto + acción principal + secundarias, con los filtros en la misma barra.
+// El título visible de la página es UNO solo: el `h1` del shell (topbar); esta
+// barra NO lo repite. `titulo` queda como nombre accesible de la sección y
+// `tituloVisible` existe solo para previews standalone que no pasan por el
+// shell. `expandir` da el modo agrupado de #305 (identidad compacta + controles
+// y acciones en la misma fila).
+export default function BarraModulo({ icono, titulo, descripcion, contexto, children, className, testId = 'barra-modulo', tituloVisible = false, expandir = false }) {
   return (
     <section
       data-testid={testId}
@@ -20,8 +22,15 @@ export default function BarraModulo({ icono, titulo, descripcion, contexto, chil
           </span>
         )}
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-base font-bold tracking-tight">{titulo}</h2>
-          {descripcion && <p className="mt-0.5 hidden truncate text-xs text-mute sm:block" title={descripcion}>{descripcion}</p>}
+          {tituloVisible && <h2 className="truncate text-base font-bold tracking-tight">{titulo}</h2>}
+          {descripcion && (
+            <p
+              className={cn('truncate text-xs text-mute', tituloVisible && 'mt-0.5 hidden sm:block')}
+              title={descripcion}
+            >
+              {descripcion}
+            </p>
+          )}
         </div>
         {contexto}
       </div>

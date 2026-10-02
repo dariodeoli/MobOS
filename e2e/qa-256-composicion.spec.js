@@ -22,8 +22,11 @@ test.describe('composición compacta', () => {
     const barra = page.getByTestId('barra-pos')
     await expect(barra).toHaveCount(1)
     await expect(barra.getByText(/Hoy: \d{2}\/\d{2}\/\d{4}/)).toBeVisible()
+    // #309: gift cards, analytics y ventas suspendidas viven en «Más» para no
+    // llenar la barra; la principal de la venta sigue a mano.
+    await barra.getByTestId('pos-mas').click()
     for (const accion of ['Analytics', 'Ventas suspendidas']) {
-      await expect(barra.getByRole('button', { name: accion, exact: true })).toBeVisible()
+      await expect(page.getByRole('menuitem', { name: accion, exact: true })).toBeVisible()
     }
   })
 
@@ -50,8 +53,10 @@ test.describe('composición compacta', () => {
 
     const barra = page.getByTestId('barra-inventario')
     await expect(barra).toHaveCount(1)
-    // La identidad no se repite: el h1 es del shell y la barra usa h2.
-    await expect(barra.getByRole('heading', { level: 2, name: 'Inventario' })).toBeVisible()
+    // #320: la identidad visible es una sola (el h1 del shell); la barra no
+    // repite el título: agrupa contexto y acciones.
+    await expect(barra.getByRole('heading')).toHaveCount(0)
+    await expect(barra).toHaveAttribute('aria-label', 'Inventario')
     // #305: buscador y filtros viven en la barra, con la acción primaria.
     await expect(barra.getByLabel('Buscar en inventario')).toBeVisible()
     await expect(barra.getByLabel('Orden del inventario')).toBeVisible()
@@ -88,7 +93,10 @@ test.describe('composición compacta', () => {
 
     const barra = page.getByTestId('barra-productos')
     await expect(barra).toHaveCount(1)
-    await expect(barra.getByRole('heading', { level: 2, name: 'Productos' })).toBeVisible()
+    // #320: la identidad visible es una sola (el h1 del shell); la barra no
+    // repite el título: agrupa contexto y acciones.
+    await expect(barra.getByRole('heading')).toHaveCount(0)
+    await expect(barra).toHaveAttribute('aria-label', 'Productos')
     await expect(barra.getByRole('button', { name: 'Actualizar' })).toBeVisible()
 
     const resumen = page.getByTestId('resumen-productos')
@@ -108,7 +116,10 @@ test.describe('composición compacta', () => {
     await page.goto('/compras')
     await expect(page.getByTestId('barra-compras')).toBeVisible({ timeout: 20_000 })
     const barra = page.getByTestId('barra-compras')
-    await expect(barra.getByRole('heading', { level: 2, name: 'Compras' })).toBeVisible()
+    // #320: la identidad visible es una sola (el h1 del shell); la barra no
+    // repite el título: agrupa contexto y acciones.
+    await expect(barra.getByRole('heading')).toHaveCount(0)
+    await expect(barra).toHaveAttribute('aria-label', 'Compras')
     for (const accion of ['Proveedores', 'Exportar CSV']) {
       await expect(barra.getByRole('button', { name: accion, exact: true })).toBeVisible()
     }
