@@ -304,6 +304,20 @@ Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
 `BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend y
 `test:e2e:smoke`; biblioteca `owncoding-ui` build + 343 tests.
 
+### Lote 59 — Modal/drawer estándar, validación y resultados (#323) (02-10)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `Modal`/`Drawer` estándar | `src/components/ui/index.jsx` tenía copias locales: todo el panel scrolleaba (header y pie se iban con el scroll), sin confirmación al cerrar y sin registro de formularios pendientes; los 10 modales auditados (crear cliente, recibir unidad, taller, impresora, preview, catálogo, horarios, precios…) no tenían pie fijo ni descarte confirmado | Biblioteca **v0.62.0**: `Modal`/`Drawer` con header fijo, cuerpo desplazable y pie fuera del scroll; `dirty`/`useDialogDirty` + `CIERRE_CON_CAMBIOS` («Seguir editando» / «Descartar y cerrar»); `busy`/`useDialogPending`; `ConfirmDialog` con `cancelLabel`. La app **re-exporta** el objeto: los 90+ `<Modal>` heredan la estructura; los tamaños y `PIE_ACCIONES` salen de `owncoding-ui/utils` |
+| Validación compartida | `FormField` aceptaba `error` pero tenía **0 usos**; reglas duplicadas (correo ×3, PIN ×4, porcentaje ×3, contraseña ×2) repartidas en Login/Vendedores/Config | `utils/validacion.js` (reglas puras + `EMAIL_RE` + `validarCampos`/`limpiarError`) y `useValidacionCampos` para el error junto al campo; el kit de la app los re-exporta. Adopción por dominio pendiente (Login, Vendedores, Config, CustomerProfile/Autorizaciones, Compras/Inventario) |
+| Toasts de resultado | Textos divergentes para la misma acción: copiar enlace tenía ≥7 variantes; el contrato de impresión (`encolado`/`remoto`/`dialogo`/`error`) se repetía en ~10 archivos; fallbacks distintos (`Intentá de nuevo`/`Reintentá en un momento`) | `utils/resultado.js` + `useResultado()` con los cuatro resultados canónicos (guardar/copiar/imprimir/enviar) y `fallo(accion, detalle)`. Adoptado en los compartidos CMP (etiquetas, reporte, comprobante, copiar imagen); los módulos quedan listados en `docs/MODALES.md` |
+| Guarda y pendientes | Sin lista de adopción por dominio | `src/lib/modalReglas.test.js` (tamaño/ancho + kit sin copia local + adopción CMP + pendientes documentados) y `docs/MODALES.md` con CRM/INV/PRN y el resto, ruta y línea incluidas |
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test`, `test:unit` del backend,
+`db:check`, smoke e2e y biblioteca `owncoding-ui` build + **572 tests**
+(tag **v0.62.0**).
+
 ### Lote 58 — Reglas transversales y formato de notificaciones (#293) (29-09)
 
 | Objeto | Antes (evidencia) | Después |
