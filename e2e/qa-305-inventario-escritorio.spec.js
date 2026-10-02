@@ -104,10 +104,10 @@ test('#305 · una barra, navegación agrupada y tabla completa en escritorio', a
     if (alta.body?.id) await apiPagina(page, '/api/inventory-units', { method: 'PATCH', body: JSON.stringify({ id: alta.body.id, action: 'remove', reason: 'Limpieza QA #305' }) }).catch(() => {})
   }
 
-  // Mobile: la vista completa no desborda la pantalla.
+  // Mobile: tarjetas compactas (#304), sin desborde de página.
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/inventario/unidades')
-  await expect(page.getByTestId('inventario-fila').first()).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByTestId('inventario-tarjeta-movil').first()).toBeVisible({ timeout: 20_000 })
   await capturar(page, 'inventario-390-light.png', false, false)
   const desborde = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
   expect(desborde, `desborde horizontal de ${desborde} px en mobile`).toBeLessThanOrEqual(1)

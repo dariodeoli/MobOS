@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button, Modal, Skeleton, useToast } from '@/components/ui'
+import { Button, Modal, Skeleton, useResultado } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { useCompartirImagen } from '@/components/shared/CompartirImagen'
 import MenuSecundario from '@/components/shared/MenuSecundario'
@@ -21,7 +21,7 @@ import { buildEtiquetasLoteHtml } from '@/components/shared/OrderReceipt'
 const formatosPorAncho = (ancho) => (Number(ancho) === 80 ? 'thermal-80' : 'thermal-58')
 
 export default function EtiquetasPreparacion({ open, onClose, compra }) {
-  const toast = useToast()
+  const avisar = useResultado()
   const [datos, setDatos] = useState(null)
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState('')
@@ -54,15 +54,16 @@ export default function EtiquetasPreparacion({ open, onClose, compra }) {
     formato: formatosPorAncho(configImpresora().ancho),
   })
 
-  async function imprimir(lista, clave, exito) {
+  async function imprimir(lista, clave) {
     if (!lista.length || enviando) return
     setEnviando(clave)
     try {
       const { ancho } = configImpresora()
       const resultado = await imprimirDocumento(ticketEtiquetasLote(lista, { ancho, compra: codigo }), { tipo: 'etiquetas-lote' })
       if (resultado?.ok) {
-        if (resultado.encolado) toast.success('Etiquetas encoladas', resultado.remoto ? 'Las imprime el puente cuando las reclame.' : 'La impresora no respondió; se reintenta solo.')
-        else toast.success(exito, `${lista.length} etiqueta(s) · compra ${codigo}.`)
+        const sujeto = lista.length === 1 ? 'La etiqueta' : 'Las etiquetas'
+        if (resultado.encolado) avisar.impreso(sujeto, resultado.remoto ? 'Las imprime el puente cuando las reclame.' : 'La impresora no respondió; se reintenta solo.')
+        else avisar.impreso(sujeto, `${lista.length} etiqueta(s) · compra ${codigo}.`)
         return
       }
       if (puedeCaerAlDialogo(resultado)) {
@@ -70,7 +71,7 @@ export default function EtiquetasPreparacion({ open, onClose, compra }) {
         await imprimirConDialogo(html)
         return
       }
-      toast.error('No se pudo imprimir', resultado?.error || 'Revisá la impresora.')
+      avisar.fallo('imprimir', resultado?.error || 'Revisá la impresora.')
     } finally {
       setEnviando('')
     }
@@ -111,7 +112,7 @@ export default function EtiquetasPreparacion({ open, onClose, compra }) {
                     <span className="mt-0.5 block truncate font-mono text-[11px] text-mute">{etiqueta.pendiente ? 'Pendiente · se carga antes de despachar' : etiqueta.imei}</span>
                   </span>
                   {etiqueta.pedido ? <span className="text-[11px] text-mute">Pedido {etiqueta.pedido}</span> : null}
-                  <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={Boolean(enviando)} onClick={() => imprimir([etiqueta], `n-${etiqueta.n}`, 'Etiqueta enviada a la impresora.')}>
+                  <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={Boolean(enviando)} onClick={() => imprimir([etiqueta], `n-${etiqueta.n}`)}>
                     <Icon name="printer" className="h-3.5 w-3.5" />Reimprimir
                   </Button>
                 </div>
@@ -132,7 +133,7 @@ export default function EtiquetasPreparacion({ open, onClose, compra }) {
               { icon: 'report', label: 'Descargar PDF', disabled: !etiquetas.length || Boolean(enviando), onClick: descargar },
             ]}
           />
-          <Button type="button" disabled={!etiquetas.length || Boolean(enviando)} onClick={() => imprimir(etiquetas, 'todas', 'Etiquetas enviadas a la impresora.')}>
+          <Button type="button" disabled={!etiquetas.length || Boolean(enviando)} onClick={() => imprimir(etiquetas, 'todas')}>
             <Icon name="printer" className="h-4 w-4" />{enviando === 'todas' ? 'Enviando…' : 'Imprimir etiquetas'}
           </Button>
         </div>

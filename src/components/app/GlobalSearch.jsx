@@ -26,6 +26,17 @@ const ETIQUETAS_TIPO = Object.fromEntries(GRUPOS.map((grupo) => [grupo.id, grupo
 const ICONOS_TIPO = Object.fromEntries(GRUPOS.map((grupo) => [grupo.id, grupo.icon]))
 const incluye = (texto, q) => String(texto || '').toLocaleLowerCase().includes(q)
 
+// #303: accesos del panel que no son entidades de datos y, aun así, tienen que
+// poder encontrarse por nombre desde la búsqueda («Centro de Control» se
+// mencionaba en Lista por modelo y Comparador, pero no existía en la paleta).
+const ACCESOS = [
+  { id: 'centro-control', titulo: 'Centro de Control', detalle: 'Lista por modelo y fotos del comparador', vista: 'centro-control' },
+  { id: 'celulares', titulo: 'Lista por modelo', detalle: 'Precios de nuevos y semi-nuevos', vista: 'celulares' },
+  { id: 'comparador', titulo: 'Comparador', detalle: 'Modelos lado a lado con precios y fotos', vista: 'comparador' },
+]
+ETIQUETAS_TIPO.accesos = 'Accesos'
+ICONOS_TIPO.accesos = 'search'
+
 const proyectarCliente = row => ({
   id: row.id,
   titulo: row.name || row.nombre || 'Cliente',
@@ -135,10 +146,17 @@ export default function GlobalSearch({ open, onClose, onNavigate, vistas }) {
         console.error(`[GlobalSearch] la búsqueda de ${ids[indice]} falló:`, resultado.reason)
       }
     })
-    if (settled.length > 0 && settled.every(resultado => resultado.status === 'rejected')) {
-      throw new Error('No se pudo consultar el catálogo.')
-    }
-    const resultados = []
+    const accesos = ACCESOS
+      .filter(acceso => !vistas || vistas.includes(acceso.vista))
+      .filter(acceso => incluye(acceso.titulo, q) || incluye(acceso.detalle, q))
+      .map(acceso => ({
+        id: `acceso:${acceso.id}`,
+        tipo: 'accesos',
+        titulo: acceso.titulo,
+        detalle: acceso.detalle,
+        datos: { vista: acceso.vista },
+      }))
+    const resultados = [...accesos]
     ids.forEach((id, indice) => {
       if (settled[indice].status !== 'fulfilled') return
       const grupo = POR_ID[id]
@@ -150,6 +168,10 @@ export default function GlobalSearch({ open, onClose, onNavigate, vistas }) {
         datos: { vista: grupo.vista, params: { ...fila.navegar, ...(grupo.subtab ? { subtab: grupo.subtab } : {}) } },
       }))
     })
+    // Los accesos alcanzan para responder aunque el API esté caído (demo).
+    if (resultados.length === 0 && settled.length > 0 && settled.every(resultado => resultado.status === 'rejected')) {
+      throw new Error('No se pudo consultar el catálogo.')
+    }
     return resultados
   }
 

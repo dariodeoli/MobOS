@@ -41,6 +41,7 @@ const Impresoras = lazy(() => import('@/components/control/Impresoras'))
 const EstadoSistema = lazy(() => import('@/components/control/EstadoSistema'))
 const WhatsAppTemplates = lazy(() => import('@/components/control/WhatsAppTemplates'))
 const Precios = lazy(() => import('@/components/control/Precios'))
+const CentroControl = lazy(() => import('@/components/control/CentroControl'))
 const PorComprar = lazy(() => import('@/components/supply/PorComprar'))
 const ComprasCentro = lazy(() => import('@/components/supply/ComprasCentro'))
 const PrepararCompra = lazy(() => import('@/components/supply/PrepararCompra'))
@@ -152,6 +153,8 @@ const OWNER_NAV = [
       ['precios', 'Precios', 'tag'],
       ['celulares', 'Lista por modelo', 'tag'],
       ['comparador', 'Comparador', 'report'],
+      // #303: administra la lista por modelo y las fotos del comparador.
+      ['centro-control', 'Centro de Control', 'settings'],
     ],
   },
   {
@@ -333,6 +336,7 @@ const LABELS = {
   caja: 'Caja',
   celulares: 'Lista por modelo',
   comparador: 'Comparador',
+  'centro-control': 'Centro de Control',
   gastos: 'Gastos',
   bancos: 'Bancos y cuentas',
   conciliacion: 'Conciliación',
@@ -902,6 +906,7 @@ export default function PanelVendedor() {
           {!subpadre && vista === 'mi-cuenta' && <MiCuenta preferencias={preferencias} onCambiarPreferencias={cambiarPreferencias} />}
           {esOwner && vista === 'celulares' && <Celulares />}
           {esOwner && vista === 'comparador' && <Comparador />}
+          {esOwner && vista === 'centro-control' && <CentroControl />}
           {esOwner && vista === 'compras' && <Compras />}
           {esOwner && vista === 'tradein-admin' && <TradeInPipeline />}
           {(esOwner || esTecnico) && (vista === 'servicio' || vista === 'garantias') && <ServicioGarantias vistaInicial={vista} />}

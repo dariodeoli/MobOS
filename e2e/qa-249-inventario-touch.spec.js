@@ -30,41 +30,27 @@ const exigirToque = async (locator, nombre) => {
   expect(w, `${nombre} ancho ${w} < ${MINIMO_TOQUE}`).toBeGreaterThanOrEqual(MINIMO_TOQUE)
 }
 
-test('mobile 390: los targets de la fila y la ficha llegan a 44', async ({ page }) => {
+test('mobile 390: los targets de la tarjeta y la ficha llegan a 44', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/inventario/unidades')
-  const fila = page.getByTestId('inventario-fila').first()
-  await expect(fila).toBeVisible({ timeout: 20_000 })
-  // El blanco de toque real de la casilla es la etiqueta de 44; el input no.
-  const casilla = fila.locator('label:has(input[type=checkbox])').first()
-  const check = fila.locator('input[type=checkbox]').first()
+  // #304: en móvil el listado son tarjetas compactas (la tabla ancha no va).
+  const tarjeta = page.getByTestId('inventario-tarjeta-movil').first()
+  await expect(tarjeta).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByTestId('inventario-tabla')).toHaveCount(0)
 
-  await exigirToque(casilla, 'casilla de la fila (H4)')
+  await exigirToque(tarjeta.getByRole('button', { name: 'Ver', exact: true }), 'Ver de la tarjeta (H4)')
+  await exigirToque(tarjeta.getByLabel(/^Acciones de/), 'menú Acciones (H4)')
   // #245: el modelo tiene que verse siempre (antes colapsaba a 0 px con seriales largos).
-  const nombre = await caja(fila.locator('b').first())
+  const nombre = await caja(tarjeta.locator('b').first())
   medidas['nombre del modelo'] = `${nombre.w}x${nombre.h}`
   expect(nombre.w, `nombre ${nombre.w} px < ${MINIMO_NOMBRE}`).toBeGreaterThanOrEqual(MINIMO_NOMBRE)
-  await exigirToque(fila.getByLabel(/^Editar el costo de/), 'lápiz de costo (H2)')
-  await exigirToque(fila.getByLabel('✓ Verificar'), 'verificar (H2)')
-  await exigirToque(fila.getByLabel(/^Acciones de/), 'menú Acciones (H2)')
-  await exigirToque(fila.getByRole('button', { name: 'Editar', exact: true }), 'Editar (H2)')
   await exigirToque(page.getByTestId('tabs-inventario').getByRole('button', { name: 'Inventario', exact: true }), 'solapa Inventario (H3)')
   await exigirToque(page.getByLabel('Buscar en inventario'), 'buscador')
-
-  // Barra de acciones del lote (aparece al seleccionar): se elige tocando la etiqueta.
-  await casilla.click()
-  await expect(check, 'la etiqueta de la casilla selecciona la fila').toBeChecked()
-  await exigirToque(page.getByRole('button', { name: 'Verificar todos' }), 'Verificar todos (lote)')
-  await exigirToque(page.getByRole('button', { name: 'Vender todos' }), 'Vender todos (lote)')
   mkdirSync(SALIDA, { recursive: true })
   await page.screenshot({ path: `${SALIDA}/01-mobile-lista.png`, fullPage: true })
 
   // Ficha con checklist en mobile: los estados del PhoneCheck a 44.
-  await casilla.click()
-  await expect(check, 'la etiqueta de la casilla deselecciona la fila').not.toBeChecked()
-  // #245: se abre tocando el ícono de categoría de la fila (blanco fijo y estable
-  // dentro de la primera columna); el clic burbujea al onClick de la fila.
-  await fila.locator('span[title^="Categoría:"]').click()
+  await tarjeta.getByRole('button', { name: 'Ver', exact: true }).click()
   const ficha = page.getByRole('dialog')
   await expect(ficha).toBeVisible({ timeout: 20_000 })
   const checklist = ficha.getByTestId('unidad-phonecheck')

@@ -13,7 +13,7 @@ import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { loadDemoPurchases, createDemoPurchase, receiveDemoPurchase, updateDemoPurchaseCosts } from '@/lib/demoPurchases'
 import { gs } from '@/utils/calculos'
-import { Aviso, Badge, BarraProgreso, Button, Drawer, EmptyState, IconAction, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import { Aviso, Badge, BarraProgreso, Button, Drawer, EmptyState, FormField, IconAction, Input, Label, Modal, MoneyInput, SaveActions, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import { useSesion } from '@/lib/sesion'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import SearchField from '@/components/shared/SearchField'
@@ -278,6 +278,19 @@ export default function Compras() {
     }).filter(line => line.maximo > 0 || line.cantidad > 0)
   }, [devolucionDe, devolucionCantidades, devolucionesLocales])
   const totalDevolucionPyg = lineasDevolucion.reduce((sum, line) => sum + line.totalPyg, 0)
+  // #323: recibir mercadería cierra con confirmación solo si el operador
+  // cambió alguna cantidad respecto del pendiente precargado.
+  const recepcionSucio = !demo && Boolean(recepcionDe) && (recepcionDe.lines || []).some(item => String(recepcionCantidades[item.id] ?? '') !== String(pendienteDeLinea(recepcionDe, item)))
+  // Error junto al campo de cada línea (enteros, nunca más que lo pendiente).
+  const errorRecepcionDe = (item) => {
+    const crudo = recepcionCantidades[item.id]
+    if (crudo === '' || crudo === undefined || !recepcionDe) return ''
+    const cantidad = Number(crudo)
+    const pendiente = pendienteDeLinea(recepcionDe, item)
+    if (!Number.isSafeInteger(cantidad)) return 'Poné un número entero.'
+    if (cantidad > pendiente) return `Máximo ${pendiente} (lo pendiente).`
+    return ''
+  }
   function abrirRecepcion(purchase) {
     setError(''); setMessage(''); setAccionError('')
     setRecepcionDe(purchase)
@@ -702,7 +715,7 @@ export default function Compras() {
     <Modal open={historialDe !== null} onClose={() => setHistorialDe(null)} title={`Historial de ${historialDe?.supplierName || 'compra'}`}>
       {historialDe && <Cronologia endpoint={`/api/purchases/${historialDe.id}/history`} active={historialDe !== null} vacio="Sin actividad" descripcionVacio="El alta, los costos, la recepción, los pagos y los adjuntos de esta compra aparecerán acá." />}
     </Modal>
-    <Modal open={recepcionDe !== null} onClose={() => !busy && setRecepcionDe(null)} title="Recibir mercadería">
+    <Modal open={recepcionDe !== null} onClose={() => !busy && setRecepcionDe(null)} title="Recibir mercadería" dirty={recepcionSucio}>
       {recepcionDe && <form onSubmit={event => { event.preventDefault(); if (demo) recibirTodo(recepcionDe); else confirmarRecepcion(event) }} className="space-y-4">
         <p className="text-sm text-mute">{recepcionDe.supplierName} · {estadoCompra(recepcionDe).texto}. Lo que elijas entra al stock; el resto queda pendiente en la orden.</p>
         {demo && <Aviso tono="warn">La recepción parcial requiere conexión con el servidor: en la demo solo se puede recibir la compra completa.</Aviso>}
@@ -715,16 +728,15 @@ export default function Compras() {
               {pendiente > 0
                 ? (demo
                   ? <span className="text-[11px] text-mute">Se recibe completo</span>
-                  : <Input inputMode="numeric" aria-label={`Recibir ${item.productName || item.productId}`} value={recepcionCantidades[item.id] ?? ''} onChange={(event) => setRecepcionCantidades(current => ({ ...current, [item.id]: event.target.value.replace(/\D/g, '') }))} placeholder="Cantidad" />)
+                  : <FormField label="Cantidad" htmlFor={`recibir-${item.id}`} error={errorRecepcionDe(item)}><Input id={`recibir-${item.id}`} inputMode="numeric" aria-label={`Recibir ${item.productName || item.productId}`} value={recepcionCantidades[item.id] ?? ''} onChange={(event) => setRecepcionCantidades(current => ({ ...current, [item.id]: event.target.value.replace(/\D/g, '') }))} placeholder="Cantidad" /></FormField>)
                 : <span className="text-[11px] text-ok">Completa</span>}
             </div>
           })}
         </div>
         {accionError && <Aviso tono="error">{accionError}</Aviso>}
-        <div className={PIE_ACCIONES_REVERSO}>
-          <Button type="button" variant="ghost" disabled={busy} onClick={() => setRecepcionDe(null)}>Cancelar</Button>
+        <SaveActions pendiente={busy}>
           <Button type="submit" disabled={busy}>{demo ? 'Recibir todo' : 'Recibir cantidades'}</Button>
-        </div>
+        </SaveActions>
       </form>}
     </Modal>
     <Modal open={devolucionDe !== null} onClose={() => !busy && setDevolucionDe(null)} title="Devolver al proveedor">

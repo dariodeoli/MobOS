@@ -52,8 +52,9 @@ const exigirAlineada = (columnas, contexto) => {
   }
 }
 
-test('la grilla del encabezado cae exactamente sobre las celdas (1280 y 390)', async ({ page }) => {
-  for (const [vista, ancho, alto] of [['desktop', 1280, 900], ['mobile', 390, 844]]) {
+test('la grilla del encabezado cae exactamente sobre las celdas (1280)', async ({ page }) => {
+  // #304: en móvil el listado usa tarjetas compactas; la grilla se audita en escritorio.
+  for (const [vista, ancho, alto] of [['desktop', 1280, 900]]) {
     await page.setViewportSize({ width: ancho, height: alto })
     await page.goto('/inventario/unidades')
     await expect(page.getByTestId('inventario-fila').first()).toBeVisible({ timeout: 20_000 })
@@ -110,7 +111,8 @@ test('capturas de la tabla en todos los estados', async ({ page }) => {
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/inventario/unidades')
-  await expect(page.getByTestId('inventario-fila').first()).toBeVisible({ timeout: 20_000 })
+  // #304: en móvil se ven las tarjetas compactas (la tabla no se renderiza).
+  await expect(page.getByTestId('inventario-tarjeta-movil').first()).toBeVisible({ timeout: 20_000 })
   await page.screenshot({ path: `${SHOTS}/tabla-02-lleno-mobile.png`, fullPage: true })
 
   await page.setViewportSize({ width: 1280, height: 900 })

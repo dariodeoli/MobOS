@@ -422,7 +422,7 @@ test('modales: crear, editar, recibir y rechazar dentro del viewport', async ({ 
   filas.push(...await evidencia(page, {
     nombre: 'modal-recibir-unidad',
     ruta: '/inventario/unidades',
-    listo: (p) => p.getByTestId('inventario-fila').first(),
+    listo: (p) => p.locator('[data-testid="inventario-fila"], [data-testid="inventario-tarjeta-movil"]').first(),
     accion: async (p) => {
       await p.getByRole('button', { name: '+ Recibir unidad' }).click()
       await expect(p.getByLabel('IMEI o serial')).toBeVisible({ timeout: 20_000 })
