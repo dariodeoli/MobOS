@@ -1173,7 +1173,12 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
               Modo demo: esta ficha usa los datos cargados en tu navegador (pedidos, deuda, cronología y portal incluidos). Nada se guarda en una tienda real.
             </Aviso>
           )}
-          <header className="flex flex-wrap items-center justify-between gap-3">
+          {/* #312: cabecera y pestañas fijas dentro del modal. Al scrollear el
+              contenido, las acciones y las solapas siguen a la vista; el borde
+              inferior marca dónde termina la zona fija. El offset negativo
+              compensa el padding del modal (el sticky se ancla al content-box)
+              y los márgenes negativos hacen que el fondo cubra todo el ancho. */}
+          <header className="sticky -top-4 z-20 -mx-4 flex flex-wrap items-center justify-between gap-3 border-b border-ink-600 bg-ink-800 px-4 pb-3 pt-4 sm:-top-6 sm:-mx-6 sm:px-6 sm:pt-6" data-testid="perfil-cabecera-fija">
             <div className="min-w-0">
               <h3 className="truncate text-lg font-bold">{profile.customer?.name || customer?.name}</h3>
               <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-mute">
@@ -1232,6 +1237,23 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                 </span>
               )}
             </span>
+            {/* #312: las solapas viven en la zona fija, no al final del
+                resumen: se ven al abrir y al scrollear cualquier pestaña. */}
+            <div className="flex w-full gap-2 overflow-x-auto" role="tablist" aria-label="Secciones de la ficha">
+              {TABS.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === item.key}
+                  onClick={() => setTab(item.key)}
+                  className={`shrink-0 rounded-lg px-3 py-2 text-sm font-semibold transition ${tab === item.key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:bg-ink-700 hover:text-fore'}`}
+                >
+                  {item.label}
+                  {tabCounts[item.key] !== undefined && ` (${tabCounts[item.key]})`}
+                </button>
+              ))}
+            </div>
           </header>
 
           {/* Puntero del merge (#268): la ficha archivada no se borra y muestra
@@ -1404,22 +1426,6 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
           )}
           </>
           )}
-
-          <div className="flex gap-2 overflow-x-auto" role="tablist">
-            {TABS.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                role="tab"
-                aria-selected={tab === item.key}
-                onClick={() => setTab(item.key)}
-                className={`shrink-0 rounded-lg px-3 py-2 text-sm font-semibold transition ${tab === item.key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:bg-ink-700 hover:text-fore'}`}
-              >
-                {item.label}
-                {tabCounts[item.key] !== undefined && ` (${tabCounts[item.key]})`}
-              </button>
-            ))}
-          </div>
 
           {tab === 'pedidos' && (
             <>
