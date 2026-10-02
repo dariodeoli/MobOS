@@ -7,7 +7,7 @@ import { getProductos } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { montoUsd } from '@/utils/moneda'
 import { categoriaMeta } from '@/lib/categoriasProducto'
-import { Badge, Button, Select } from '@/components/ui'
+import { Badge, Button, Modal, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
 import BarraModulo from '@/components/shared/BarraModulo'
@@ -26,7 +26,7 @@ import EtiquetasProductoModal from '@/components/shared/EtiquetasProductoModal'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
 import { useToast } from '@/components/ui'
 import { CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
-import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 
 export const productFields = (row) => ({ ...row, id: row.id, name: row.name || row.nombre || '', sku: row.sku || '', price: row.pricePyg ?? row.precioVenta, stock: row.stock })
 const demoProducts = () => getProductos().filter((row) => row.activo !== false)
@@ -110,6 +110,8 @@ export default function SellerCatalog() {
   const [orden, setOrden] = useState({ key: 'recientes', dir: 'asc' })
   const [vista, cambiarVista] = useVistaListaGrid('productos')
   const [seleccion, setSeleccion] = useState(null)
+  // #307: copiar precios muestra antes lo que se va a copiar.
+  const [previewPrecios, setPreviewPrecios] = useState(false)
   const [combosOpen, setCombosOpen] = useState(false)
   const [etiquetasOpen, setEtiquetasOpen] = useState(false)
   const searchRef = useRef(null)
@@ -187,9 +189,11 @@ export default function SellerCatalog() {
     window.location.assign('/ventas')
   }
   const elegidos = () => ordenadas.filter((row) => seleccionados.includes(row.id))
+  const textoPrecios = () => elegidos().map((row) => `${row.name} · ${precio(row) > 0 ? gs(precio(row)) : 'sin precio'} · stock ${Number(row.stock || 0)}`).join('\n')
   async function copiarPrecios() {
-    const texto = elegidos().map((row) => `${row.name} · ${precio(row) > 0 ? gs(precio(row)) : 'sin precio'} · stock ${Number(row.stock || 0)}`).join('\n')
-    if (await copiarAlPortapapeles(texto)) toast.success(`${elegidos().length} producto(s) copiados.`); else toast.error('No se pudo copiar la lista.')
+    const lista = elegidos()
+    if (await copiarAlPortapapeles(textoPrecios())) toast.success(`${lista.length} producto(s) copiados.`); else toast.error('No se pudo copiar la lista.')
+    setPreviewPrecios(false)
   }
   function exportarSeleccionados() {
     const lista = elegidos()
@@ -253,7 +257,7 @@ export default function SellerCatalog() {
     <SellerFeedback {...data} empty={!rows.length} />
     <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
       <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore" onClick={() => setEtiquetasOpen(true)}>Etiquetas</button>
-      <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore" onClick={copiarPrecios}>Copiar precios</button>
+      <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore" onClick={() => setPreviewPrecios(true)} data-testid="copiar-precios">Copiar precios</button>
       <button type="button" className="min-h-11 rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore md:min-h-0" onClick={exportarSeleccionados}>Exportar CSV</button>
     </BarraLote>
     {!data.loading && !data.error && vista === 'list' && <div className="overflow-x-auto" data-testid="catalogo-tabla">
@@ -274,6 +278,24 @@ export default function SellerCatalog() {
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más productos'}</button></div>}
     <ComboManager open={combosOpen} onClose={() => setCombosOpen(false)} />
     <EtiquetasProductoModal open={etiquetasOpen} onClose={() => setEtiquetasOpen(false)} productos={rows} seleccionInicial={seleccionados} />
+    {/* #307: copiar precios muestra antes lo que se copia; nada sobrescribe sin preview. */}
+    <Modal open={previewPrecios} onClose={() => setPreviewPrecios(false)} title="Copiar precios" size="amplio">
+      <div className="space-y-3">
+        <p className="text-sm text-mute">Se copiará al portapapeles el nombre, el precio y el stock de los productos seleccionados:</p>
+        <div className="max-h-72 overflow-y-auto rounded-xl border border-ink-600" data-testid="preview-precios">
+          {elegidos().map((row) => (
+            <div key={row.id} className="flex items-center justify-between gap-3 border-b border-ink-600/60 px-3.5 py-2 text-xs last:border-0">
+              <span className="min-w-0 truncate" title={row.name}>{row.name}</span>
+              <span className="shrink-0 tabular-nums">{precio(row) > 0 ? gs(precio(row)) : 'sin precio'} <span className="text-mute">· stock {Number(row.stock || 0)}</span></span>
+            </div>
+          ))}
+        </div>
+        <div className={PIE_ACCIONES}>
+          <Button type="button" variant="ghost" onClick={() => setPreviewPrecios(false)}>Cancelar</Button>
+          <Button type="button" onClick={copiarPrecios} data-testid="preview-precios-copiar">Copiar</Button>
+        </div>
+      </div>
+    </Modal>
     {seleccion && <ProductoDetalle product={seleccion} canManage={canManage} esDemo={esDemo} onClose={() => setSeleccion(null)} onChanged={data.refresh} onSell={vender} />}
   </SellerSection>
 }
