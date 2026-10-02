@@ -41,6 +41,6 @@ corrida conjunta).
 - `npm run lint` → 0 errores.
 - `npm run build` + `npm --prefix backend run build` → exit 0 con `BUILD_ID`.
 - `npm --prefix backend run prisma:validate` → OK.
-- `npm test` → 869 pass · 0 fail.
+- `npm test` → 885 pass · 0 fail.
 - `npm --prefix backend run test:unit` → 138 pass · 0 fail.
 - `node scripts/e2e-shards.mjs --check` → shards balanceados.

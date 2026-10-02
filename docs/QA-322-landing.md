@@ -31,7 +31,7 @@ Además:
   (`CapturaModulo`), el mock del portal y la sección duplicada de offline; cada
   `h2` aparece una sola vez.
 - **Largo**: la auditoría reportó ~15.000 px; en 390 px la landing mide
-  **10.730 px** (−28 %), con **0 scroll horizontal, 0 cortes y 0 targets < 44**.
+  **10.718 px** (−29 %), con **0 scroll horizontal, 0 cortes y 0 targets < 44**.
 
 ## Archivos
 
@@ -80,6 +80,6 @@ Resultado: **3/3 en verde** (menú móvil, sin repeticiones, pie legal, targets
 - `npm run lint` → 0 errores.
 - `npm run build` + `npm --prefix backend run build` → exit 0 con `BUILD_ID`.
 - `npm --prefix backend run prisma:validate` → OK.
-- `npm test` → 869 pass · 0 fail.
+- `npm test` → 885 pass · 0 fail.
 - `npm --prefix backend run test:unit` → 138 pass · 0 fail.
 - `node scripts/e2e-shards.mjs --check` → shards balanceados.
