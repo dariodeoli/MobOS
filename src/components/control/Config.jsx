@@ -9,25 +9,24 @@ import { sessionApi } from '@/lib/api/session'
 import { deviceId } from '@/lib/deviceId'
 import { comprimirImagen } from '@/utils/imagen'
 import { fechaHora as fmtDate } from '@/utils/fecha'
-import { Aviso, Badge, Button, Card, ConfirmDialog, Eyebrow, FormField, Input, Modal, PasswordInput, PinInput, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, FormField, Input, Modal, PasswordInput, PinInput, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import EmailField from '@/components/shared/EmailField'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
-import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
+import PhoneField from '@/components/shared/PhoneField'
 import RucField from '@/components/shared/RucField'
-import PanelDerecho from '@/components/shared/PanelDerecho'
 import UsoEquipo from '@/components/control/UsoEquipo'
 import DatosPrivados from '@/components/control/DatosPrivados'
 import Comercial from '@/components/control/config/Comercial'
 import { ROLE_LABELS } from '@/lib/roles'
-import { copiarAlPortapapeles, copiarValor } from '@/utils/portapapeles'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import TiendasSucursales from '@/components/config/TiendasSucursales'
 import DialogoDestructivo from '@/components/config/DialogoDestructivo'
 import { descargarArchivo } from '@/utils/descargarArchivo'
-import { cn } from '@/lib/utils'
-import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { mensajeDeGuardado } from '@/utils/guardadoCuenta'
 import { EstadoGuardado, useGuardadoCuenta } from '@/components/control/GuardadoCuenta'
+import { cambiosIdentidad, formularioIdentidad } from '@/lib/identidadCuenta'
 
 // Un logo por modo (UX Config → Logos): el modo claro lleva el logo oscuro y
 // el modo oscuro el logo claro, y la vista previa se hace **sobre el fondo real
@@ -394,151 +393,145 @@ function IdentidadCuenta({ onReauthValid, onGuardado, tenant }) {
   const guardado = useGuardadoCuenta({ id: 'datos-tienda', onReauth: onReauthValid })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const formulario = () => ({
-    name: empresa?.nombre || '',
-    email: empresa?.email || '',
-    address: tenant?.address || '',
-    city: tenant?.city || '',
-    department: tenant?.department || '',
-    countryCode: parseTelefono(tenant?.phone).countryCode,
-    phone: parseTelefono(tenant?.phone).phone,
-    ruc: tenant?.ruc || '',
-  })
-  const [form, setForm] = useState(formulario)
+  // #298: una sola tarjeta, sin resumen duplicado. En lectura muestra los
+  // datos y «Editar»; la edición reemplaza la misma tarjeta, con la barra de
+  // «Guardar cambios» visible solo cuando hay diferencias reales.
+  const [editando, setEditando] = useState(false)
+  const [form, setForm] = useState(() => formularioIdentidad({ empresa, tenant }))
   // La hidratación no puede pisar lo que la persona ya escribió: el formulario
-  // se rellena con la cuenta solo mientras nadie lo tocó (el GET llega después
-  // del primer render y antes borraba los campos en silencio).
+  // se rellena con lo guardado solo mientras nadie lo tocó.
   const tocado = useRef(false)
   function editar(cambios) {
     tocado.current = true
     setForm(current => ({ ...current, ...cambios }))
   }
-  const valores = [
-    { etiqueta: 'Nombre de la tienda', valor: empresa?.nombre || null },
-    { etiqueta: 'Correo de la empresa', valor: empresa?.email || null },
-    { etiqueta: 'Dirección', valor: tenant?.address || null },
-    { etiqueta: 'Ciudad', valor: [tenant?.city, tenant?.department].filter(Boolean).join(' · ') || null },
-    { etiqueta: 'Teléfono', valor: tenant?.phone || null },
-    { etiqueta: 'RUC', valor: tenant?.ruc || null },
-  ]
-  // Los datos del panel siguen a la ficha (carga inicial y tras guardar) sin
-  // pisar lo que la persona está escribiendo: solo se rellenan cuando cambian
-  // los valores guardados.
   useEffect(() => {
     if (tocado.current) return
-    setForm(formulario())
+    setForm(formularioIdentidad({ empresa, tenant }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant?.id, tenant?.address, tenant?.city, tenant?.department, tenant?.phone, tenant?.ruc, empresa?.nombre, empresa?.email])
 
-  function irAlFormulario() {
-    document.getElementById('cuenta-form')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
-  }
+  const hayCambios = Object.keys(cambiosIdentidad(form, { empresa, tenant })).length > 0
 
-  function restablecer() {
+  function abrirEdicion() {
     tocado.current = false
-    setForm(formulario())
+    setForm(formularioIdentidad({ empresa, tenant }))
     setError('')
+    setEditando(true)
+  }
+  function cancelar() {
+    if (busy) return
+    tocado.current = false
+    setForm(formularioIdentidad({ empresa, tenant }))
+    setError('')
+    setEditando(false)
+  }
+  // Cierra la edición con lo ya persistido (también tras reautenticar): la
+  // tarjeta vuelve a lectura con los datos nuevos.
+  function aplicarGuardado(datos) {
+    const valores = datos || {}
+    actualizarEmpresa?.({
+      ...(valores.name ? { nombre: valores.name } : {}),
+      ...(valores.email ? { email: valores.email } : {}),
+    })
+    onGuardado?.(valores)
+    tocado.current = false
+    setEditando(false)
+    toast.success('Datos de la tienda actualizados.')
   }
   async function guardar(event) {
     event.preventDefault()
     if (busy) return
+    // Sin diferencias no hay acción: el criterio es que «Guardar» exista solo
+    // con cambios.
+    const pendientes = cambiosIdentidad(form, { empresa, tenant })
+    if (!Object.keys(pendientes).length) return
     const nombre = form?.name?.trim() || ''
     const correo = form?.email?.trim() || ''
     if (nombre.length < 2 || nombre.length > 120) { setError('El nombre de la tienda debe tener entre 2 y 120 caracteres.'); return }
     if (!/^\S+@\S+\.\S+$/.test(correo)) { setError('Ingresá un correo de empresa válido.'); return }
-    const cambios = {}
-    if (nombre !== (empresa?.nombre || '')) cambios.name = nombre
-    if (correo !== (empresa?.email || '')) cambios.email = correo
-    const perfil = {
-      address: (form?.address || '').trim(),
-      city: (form?.city || '').trim(),
-      department: (form?.department || '').trim(),
-      phone: componerTelefono({ countryCode: form?.countryCode, phone: form?.phone }),
-      ruc: (form?.ruc || '').trim(),
-    }
-    if (perfil.address !== (tenant?.address || '')) cambios.address = perfil.address
-    if (perfil.city !== (tenant?.city || '')) cambios.city = perfil.city
-    if (perfil.department !== (tenant?.department || '')) cambios.department = perfil.department
-    if (perfil.phone !== (tenant?.phone || '')) cambios.phone = perfil.phone
-    if (perfil.ruc !== (tenant?.ruc || '')) cambios.ruc = perfil.ruc
     setBusy(true); setError('')
     try {
-      const resultado = await guardado.ejecutar(async () => {
-        if (Object.keys(cambios).length) await api.patch('/api/account', { action: 'updateProfile', ...cambios })
-        return cambios
-      }, { etiqueta: 'los datos de la tienda' })
-      if (resultado) {
-        actualizarEmpresa?.(resultado)
-        // La ficha del panel y los datos guardados se actualizan al instante:
-        // sin esto el formulario volvía a los valores viejos y parecía que no
-        // se había guardado nada.
-        onGuardado?.(resultado)
-        toast.success('Datos de la tienda actualizados.')
-      }
+      await guardado.ejecutar(
+        () => api.patch('/api/account', { action: 'updateProfile', ...pendientes }),
+        { etiqueta: 'los datos de la tienda', onExito: aplicarGuardado },
+      )
     } finally { setBusy(false) }
   }
+
+  const lecturas = [
+    ['Nombre de la tienda', empresa?.nombre],
+    ['Correo de la empresa', empresa?.email],
+    ['RUC', tenant?.ruc],
+    ['Teléfono', tenant?.phone],
+    ['Ciudad', tenant?.city],
+    ['Departamento', tenant?.department],
+  ]
   return (
-    <PanelDerecho
-      id="cuenta-form"
-      panel={
-        <Card className="space-y-3">
-          <div>
-            <h2 className="font-semibold">Datos de la tienda</h2>
-            <p className="mt-1 text-sm text-mute">Se usan en comprobantes, portal y reportes.</p>
+    <Card id="cuenta-form" data-testid="cuenta-form" className="space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="font-semibold">Datos de la tienda</h2>
+          <p className="mt-1 text-sm text-mute">Se usan en comprobantes, portal y reportes.</p>
+        </div>
+        {editando
+          ? <Button type="button" variant="ghost" onClick={cancelar} disabled={busy}>Cancelar</Button>
+          : <Button type="button" variant="outline" data-testid="datos-tienda-editar" onClick={abrirEdicion}><Icon name="edit" className="h-4 w-4" />Editar</Button>}
+      </div>
+
+      {!editando && (
+        <dl data-testid="datos-tienda-lectura" className="grid gap-2 sm:grid-cols-2">
+          {lecturas.map(([etiqueta, valor]) => (
+            <div key={etiqueta} className="rounded-xl border border-ink-600 p-3">
+              <dt className="text-xs font-semibold uppercase tracking-wider text-mute">{etiqueta}</dt>
+              <dd className="mt-0.5 truncate text-sm text-fore">{valor || '—'}</dd>
+            </div>
+          ))}
+          <div className="rounded-xl border border-ink-600 p-3 sm:col-span-2">
+            <dt className="text-xs font-semibold uppercase tracking-wider text-mute">Dirección</dt>
+            <dd className="mt-0.5 text-sm text-fore">{tenant?.address || '—'}</dd>
           </div>
-          <form onSubmit={guardar} className="space-y-3">
+        </dl>
+      )}
+
+      {editando && (
+        <form onSubmit={guardar} className="space-y-3" data-testid="datos-tienda-form">
+          {/* #298: formulario en 2 columnas; la dirección va a ancho completo. */}
+          <div className={GRILLA_DOS_COLUMNAS}>
             <FormField label="Nombre de la tienda" htmlFor="edit-nombre">
               <Input id="edit-nombre" disabled={busy} value={form?.name || ''} onChange={event => editar({ name: event.target.value })} placeholder="Nombre de la tienda" />
             </FormField>
             <FormField label="Correo de la empresa" htmlFor="edit-correo">
               <EmailField id="edit-correo" disabled={busy} value={form?.email || ''} onChange={value => editar({ email: value })} placeholder="Correo de la empresa" />
             </FormField>
-            <FormField label="Dirección" htmlFor="edit-direccion">
-              <Input id="edit-direccion" maxLength={400} disabled={busy} value={form?.address || ''} onChange={event => editar({ address: event.target.value })} placeholder="Dirección del negocio (para el comprobante)" />
-            </FormField>
-            <div className={cn(GRILLA_DOS_COLUMNAS, 'lg:grid-cols-1')}>
-              <FormField label="Ciudad" hint={form?.department ? `Departamento: ${form.department}` : undefined}>
-                <CityAutocomplete disabled={busy} value={form?.city || ''} onSelect={(city, department) => editar({ city, department })} placeholder="Ciudad del negocio" />
-              </FormField>
-              <FormField label="Teléfono">
-                <PhoneField disabled={busy} countryCode={form?.countryCode || '+595'} phone={form?.phone || ''} onCountryCodeChange={countryCode => editar({ countryCode })} onChange={phone => editar({ phone })} placeholder="Teléfono del negocio" />
-              </FormField>
-            </div>
             <FormField label="RUC" htmlFor="edit-ruc">
               <RucField id="edit-ruc" value={form?.ruc || ''} onChange={ruc => editar({ ruc })} onAplicar={(datos) => { tocado.current = true; setForm(current => ({ ...current, name: datos.name || current.name, ruc: datos.fullRuc || current.ruc })) }} disabled={busy} esDemo={esDemo} placeholder="RUC del negocio (opcional)" autoComplete="off" />
             </FormField>
-            <EstadoGuardado testId="datos-tienda-estado" estado={guardado.estado} />
-            {error && <Aviso tono="error">{error}</Aviso>}
-            <div className={PIE_ACCIONES}>
-              <Button type="button" variant="ghost" disabled={busy} onClick={restablecer}>Restablecer</Button>
-              <Button type="submit" disabled={busy || !form?.name?.trim() || !form?.email?.trim()}>{busy ? 'Guardando…' : 'Guardar cambios'}</Button>
-            </div>
-          </form>
-          {guardado.panel}
-        </Card>
-      }
-    >
-      <Card className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <Eyebrow>Datos de la tienda</Eyebrow>
-            <p className="mt-1 text-sm text-mute">Lo que MobOS usa en comprobantes, portal y reportes.</p>
+            <FormField label="Teléfono">
+              <PhoneField disabled={busy} countryCode={form?.countryCode || '+595'} phone={form?.phone || ''} onCountryCodeChange={countryCode => editar({ countryCode })} onChange={phone => editar({ phone })} placeholder="Teléfono del negocio" />
+            </FormField>
+            <FormField label="Ciudad" hint={form?.department ? `Departamento: ${form.department}` : undefined}>
+              <CityAutocomplete disabled={busy} value={form?.city || ''} onSelect={(city, department) => editar({ city, department })} placeholder="Ciudad del negocio" />
+            </FormField>
+            <FormField className="sm:col-span-2" label="Dirección" htmlFor="edit-direccion">
+              <Input id="edit-direccion" maxLength={400} disabled={busy} value={form?.address || ''} onChange={event => editar({ address: event.target.value })} placeholder="Dirección del negocio (para el comprobante)" />
+            </FormField>
           </div>
-          <Button type="button" variant="outline" className="lg:hidden" onClick={irAlFormulario}><Icon name="edit" className="h-3.5 w-3.5" />Editar</Button>
-        </div>
-        <div className="space-y-2">
-          {valores.map(({ etiqueta, valor }) => (
-            <div key={etiqueta} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wider text-mute">{etiqueta}</p>
-                <p className="mt-0.5 truncate text-sm text-fore">{valor || '—'}</p>
-              </div>
-              <Button type="button" variant="outline" onClick={() => copiarValor(toast, valor, etiqueta)} disabled={!valor}>Copiar</Button>
+          <EstadoGuardado testId="datos-tienda-estado" estado={guardado.estado} />
+          {error && <Aviso tono="error">{error}</Aviso>}
+          {hayCambios && (
+            <div data-testid="datos-tienda-barra" className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800 px-3 py-2 shadow-lg shadow-black/10">
+              <span className="text-xs text-mute">Tenés cambios sin guardar.</span>
+              <span className="flex items-center gap-2">
+                <Button type="button" variant="ghost" disabled={busy} onClick={cancelar}>Descartar</Button>
+                <Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar cambios'}</Button>
+              </span>
             </div>
-          ))}
-        </div>
-      </Card>
-    </PanelDerecho>
+          )}
+        </form>
+      )}
+      {guardado.panel}
+    </Card>
   )
 }
 

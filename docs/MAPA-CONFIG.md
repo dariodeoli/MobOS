@@ -1,7 +1,7 @@
 # Configuración de MobOS — detalle campo por campo
 
 > Relevado el 25/09/2026 sobre `origin/main`. Ruta base `/configuracion/:seccion?` (solo dueño). Secciones y orden: `Mi cuenta` · `Organización` · `Equipo y acceso` · `Comercial` · `Seguridad y auditoría` · `Dispositivos` · `Sistema`. Los slugs viejos (`impresoras`, `negocio`, `identidad`…) redirigen a su sección.
-> Patrón transversal: chip «Guardado…» o error donde iría el botón; si el backend pide reautenticación (403) aparece «Confirmá tu contraseña para guardar» → «Contraseña de la empresa» + «Verificar y guardar» (autorización 10 min) y el guardado sigue solo. Aplica a numeración, seguro, límites, datos de tienda, sucursal, sesiones, exportación y permisos.
+> El riel de secciones es **uno solo, siempre con texto** (#298; ya no se colapsa a iconos). Patrón transversal: chip «Guardado…» o error donde iría el botón; si el backend pide reautenticación (403) aparece «Confirmá tu contraseña para guardar» → «Contraseña de la empresa» + «Verificar y guardar» (autorización 10 min) y el guardado sigue solo. Aplica a numeración, seguro, límites, datos de tienda, sucursal, sesiones, exportación y permisos.
 
 ## 1. Equipo y acceso (`/configuracion/equipo`) — `control/Vendedores.jsx` + `control/RolesPermisos.jsx`
 - Encabezado: banners de aviso; «+ Invitar persona» (solo pantallas chicas).
@@ -31,7 +31,7 @@
   - *Titulares/socios*: «Primer/Segundo/Tercer nombre», «Primer/Segundo apellido», «Cédula/RUC» (RucField, puede autocompletar), vista previa del nombre completo; «Guardar titular»; lista con «Editar» / «Desactivar/Activar».
 - **Tiendas**: tienda actual (copiar ID), «Crear otra tienda», «Abandonar tienda» (palabra ABANDONAR), «Archivar tienda» (contraseña + ARCHIVAR, 30 días).
 - **Invitaciones pendientes** (si hay): tienda, invitador/rol/vencimiento, «Aceptar» + PIN propio.
-- **Identidad de la cuenta**: «Mi foto» (con recorte) + «Datos de la tienda»: «Nombre de la tienda», «Correo de la empresa», «Dirección», «Ciudad» (autocompleta departamento), «Teléfono» (código país), «RUC» (con extractor); «Restablecer» / «Guardar cambios»; ficha con «ID de la tienda» y copiar.
+- **Datos de la tienda** (#298): una sola tarjeta. En lectura: «Nombre de la tienda», «Correo de la empresa», «RUC», «Teléfono», «Ciudad», «Departamento» y «Dirección» (ancho completo), con «Editar». La edición reemplaza la tarjeta: formulario en 2 columnas («Nombre», «Correo», «RUC» con extractor, «Teléfono» con código país, «Ciudad» que autocompleta departamento, «Dirección» a ancho completo); «Cancelar»/«Descartar» vuelve a lectura y la barra fija «Guardar cambios» aparece solo cuando hay diferencias reales.
 
 ## 5. Listas de precios (`/configuracion/precios`) — `control/Precios.jsx`
 - Reglas: en demo o sin permiso (dueño/ADMIN/GERENTE) se reemplaza por avisos. Prioridad en venta: **escalón por cantidad > lista del cliente > mayorista > minorista > USD**.
