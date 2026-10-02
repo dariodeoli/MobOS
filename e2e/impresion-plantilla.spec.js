@@ -15,6 +15,12 @@ const DESTINO = `lan:10.99.99.60:${9200 + Math.floor(Math.random() * 700)}`
 const HOJA = 'iframe[title="Vista previa del ticket de prueba"]'
 const tarjetaDe = (page, texto) => page.locator('xpath=//div[contains(@class, "lg:grid-cols-2")]/div').filter({ hasText: texto })
 
+// #319: las acciones secundarias de la tarjeta viven en «…».
+const abrirAccion = async (tarjeta, opcion) => {
+  await tarjeta.getByRole('button', { name: /^Más acciones de/ }).click()
+  await tarjeta.getByRole('menuitem', { name: opcion }).click()
+}
+
 test.describe('plantilla del ticket de prueba', () => {
   test('ADMIN edita la plantilla, la guarda y el ticket corto es el predeterminado', async ({ page }) => {
     test.setTimeout(120_000)
@@ -39,7 +45,7 @@ test.describe('plantilla del ticket de prueba', () => {
     await page.reload()
     const tarjeta = tarjetaDe(page, DESTINO)
     await expect(tarjeta).toBeVisible({ timeout: 20_000 })
-    await tarjeta.getByTestId('editar-plantilla').click()
+    await abrirAccion(tarjeta, 'Plantilla de la prueba')
     const dialogo = page.getByRole('dialog')
     const editor = dialogo.getByTestId('plantilla-prueba')
     await expect(editor).toBeVisible()
@@ -86,7 +92,7 @@ test.describe('plantilla del ticket de prueba', () => {
     await dialogo.getByRole('button', { name: 'Cancelar' }).click()
     await expect(dialogo).toBeHidden()
 
-    await tarjeta.getByTestId('editar-plantilla').click()
+    await abrirAccion(tarjeta, 'Plantilla de la prueba')
     const reabierto = page.getByRole('dialog')
     await expect(reabierto.getByLabel('Tipo de prueba')).toHaveValue('completa', { timeout: 20_000 })
     await expect(reabierto.getByRole('button', { name: '58 mm' })).toHaveAttribute('aria-pressed', 'true')

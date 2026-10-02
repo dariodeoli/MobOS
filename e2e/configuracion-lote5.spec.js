@@ -112,7 +112,7 @@ test.describe('Configuración IA', () => {
   test('Dispositivos ordena sus secciones sin duplicar el monitoreo de Sistema', async ({ page }) => {
     await page.goto('/configuracion/dispositivos')
     const paneles = page.getByTestId('paneles-impresion')
-    for (const label of ['Impresoras', 'Puentes', 'Formatos', 'Diagnóstico', 'Cola e historial']) {
+    for (const label of ['Impresoras', 'Puentes', 'Ruteo de documentos', 'Diagnóstico', 'Cola e historial']) {
       await expect(paneles.getByRole('button', { name: label, exact: true })).toBeVisible()
     }
     await expect(paneles.getByRole('button', { name: 'Estado del sistema', exact: true })).toHaveCount(0)
@@ -133,7 +133,7 @@ test.describe('Configuración IA', () => {
     await expect(page.getByTestId('cola-impresion')).toBeVisible()
     await expect(page.getByText('Actividad de impresión')).toBeVisible()
 
-    // Formatos: la impresora recordada por tipo de documento.
+    // Ruteo de documentos: la impresora recordada por tipo de documento.
     await page.getByTestId('panel-formatos').click()
     await expect(page.getByTestId('formatos-impresion')).toBeVisible()
 
