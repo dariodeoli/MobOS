@@ -2,9 +2,18 @@ import { puntosEsquema } from '@/lib/servicioImpresion'
 
 // Esquema del equipo para la recepción en pantalla: el mismo dibujo y la misma
 // numeración que la hoja impresa, pero cada punto se toca para marcarlo como
-// revisado (queda guardado en el checklist de la orden).
-export default function EsquemaEquipo({ tipo = 'iPhone', marcados = {}, onToggle, disabled = false }) {
-  const puntos = puntosEsquema(tipo)
+// revisado (queda guardado en el checklist de la orden). #315: acepta los
+// puntos configurados de la tienda (los primeros 8 son los del dibujo) y trata
+// cualquier valor cargado como revisado, igual que la hoja impresa.
+export default function EsquemaEquipo({ tipo = 'iPhone', puntos: puntosConfigurados, marcados = {}, onToggle, disabled = false, mostrarContador = true }) {
+  const puntos = Array.isArray(puntosConfigurados) && puntosConfigurados.length
+    ? puntosConfigurados.slice(0, 8).map((etiqueta, indice) => ({
+        numero: indice + 1,
+        etiqueta,
+        x: 74 + (indice % 4) * 18,
+        y: 18 + Math.floor(indice / 4) * 96,
+      }))
+    : puntosEsquema(tipo)
 
   return (
     <div className="inline-flex flex-col items-center gap-1">
@@ -14,7 +23,7 @@ export default function EsquemaEquipo({ tipo = 'iPhone', marcados = {}, onToggle
         <rect x="62" y="13" width="26" height="4" rx="2" fill="currentColor" className="text-mute/70" />
         <circle cx="75" cy="124" r="4" fill="none" stroke="currentColor" strokeWidth="1" className="text-mute/70" />
         {puntos.map(({ numero, etiqueta, x, y }) => {
-          const activo = marcados[etiqueta] === true
+          const activo = Boolean(marcados[etiqueta])
           return (
             <g
               key={etiqueta}
@@ -33,7 +42,7 @@ export default function EsquemaEquipo({ tipo = 'iPhone', marcados = {}, onToggle
           )
         })}
       </svg>
-      <span className="text-[10px] text-mute">{Object.values(marcados).filter(Boolean).length} de {puntos.length} revisados</span>
+      {mostrarContador && <span className="text-[10px] text-mute">{puntos.filter((punto) => Boolean(marcados[punto.etiqueta])).length} de {puntos.length} revisados</span>}
     </div>
   )
 }
