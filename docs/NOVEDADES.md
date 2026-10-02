@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.215 — 2026-10-02
+- **Clientes (#314):** la demo de **cotizaciones** se puede recorrer de punta a punta: ejemplos en distintas etapas, **modal** con etiquetas claras y **vista previa** del documento antes de guardar o enviar; la conversión a pedido y la aprobación desde el portal quedan cubiertas con capturas en claro, oscuro y móvil.
+- **Búsqueda global (#296):** en la demo la búsqueda **funciona sin backend** y los avisos distinguen tres estados: **sin resultados**, **servicio no disponible** (con reintento que recupera) y **error de conexión** (con reintento disponible).
+- **Abastecimiento e Inventario (#250/#254/#259):** el **filtro por prioridad** de Por comprar usa la prioridad efectiva; la **asignación en bloque** muestra su progreso en la barra en lugar del aviso pasajero; y el **buscador de proveedores** de recepción ya no repone la selección al guardar, con últimos usados por abreviatura o nombre.
+- **Otros (#301/#326):** menos falsos positivos en las pruebas: el test del webhook AEX deja de depender de la zona horaria del equipo y el CI reintenta una vez los casos intermitentes, dejando registro para no ocultarlos.
+
 ## v1.0.214 — 2026-10-02
 - **Configuración (#298):** una sola **navegación con texto** y **edición bajo demanda**: las tarjetas arrancan en modo lectura y «Editar» abre el formulario con lo guardado.
 - **Organización y Equipo (#299):** Organización queda dividida **por tareas** (Datos generales · Identidad visual · Sucursales y depósitos · Datos fiscales · Numeración · Zona de peligro) y Equipo usa **pestañas** (Miembros · Invitaciones · Permisos · Rendimiento); los **roles quedan unificados** en toda la app.
