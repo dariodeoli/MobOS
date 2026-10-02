@@ -39,7 +39,7 @@ function DetallePedido({ order }) {
         aria-expanded={abierto}
         onClick={() => setAbierto(valor => !valor)}
         data-testid="pedido-detalle-boton"
-        className="inline-flex min-h-10 items-center gap-1.5 text-xs font-bold text-fono-light transition hover:underline"
+        className="inline-flex min-h-11 items-center gap-1.5 text-xs font-bold text-fono-light transition hover:underline"
       >
         <Icon name="receipt" className="h-4 w-4" />
         {abierto ? 'Ocultar detalle' : 'Ver detalle'}
@@ -342,7 +342,7 @@ export default function CuentaPublica() {
                           {url && (
                             <Link
                               to={url}
-                              className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-fono/40 px-3 py-2 text-xs font-bold text-fono-light transition hover:bg-fono/10"
+                              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-fono/40 px-3 py-2 text-xs font-bold text-fono-light transition hover:bg-fono/10"
                             >
                               <Icon name="external" className="h-4 w-4" />
                               Ver cotización
@@ -385,7 +385,7 @@ export default function CuentaPublica() {
                         {order.receiptToken && (
                           <Link
                             to={`/pedido/${encodeURIComponent(order.receiptToken)}`}
-                            className="mt-2.5 inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-fono/40 px-3 py-2 text-xs font-bold text-fono-light transition hover:bg-fono/10 sm:w-auto sm:min-h-9 sm:justify-start sm:border-0 sm:px-0"
+                            className="mt-2.5 inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-fono/40 px-3 py-2 text-xs font-bold text-fono-light transition hover:bg-fono/10 sm:w-auto sm:min-h-9 sm:justify-start sm:border-0 sm:px-0"
                           >
                             <Icon name="receipt" className="h-4 w-4" />
                             Ver comprobante
@@ -412,7 +412,7 @@ export default function CuentaPublica() {
                       </div>
                       <Link
                         to={`/u/${encodeURIComponent(informe.serial)}${esTokenDemo(token) ? '?demo=1' : ''}`}
-                        className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-fono/40 px-3 py-2 text-xs font-bold text-fono-light transition hover:bg-fono/10"
+                        className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-fono/40 px-3 py-2 text-xs font-bold text-fono-light transition hover:bg-fono/10"
                       >
                         <Icon name="external" className="h-4 w-4" />
                         Ver informe
@@ -477,7 +477,7 @@ export default function CuentaPublica() {
                         {warranty.publicToken && (
                           <Link
                             to={`/garantia/${encodeURIComponent(warranty.publicToken)}${esTokenDemo(token) ? '?demo=1' : ''}`}
-                            className="mt-2.5 inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-fono/40 px-3 py-2 text-xs font-bold text-fono-light transition hover:bg-fono/10 sm:w-auto sm:min-h-9 sm:justify-start sm:border-0 sm:px-0"
+                            className="mt-2.5 inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-fono/40 px-3 py-2 text-xs font-bold text-fono-light transition hover:bg-fono/10 sm:w-auto sm:min-h-9 sm:justify-start sm:border-0 sm:px-0"
                           >
                             <Icon name="shield" className="h-4 w-4" />
                             Ver garantía

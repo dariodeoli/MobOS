@@ -157,7 +157,7 @@ export default function ImportarProductos({ onImportada }) {
 
   return (
     <>
-      <Button type="button" variant="outline" className="h-9 px-3 text-xs font-medium" onClick={() => setAbierto(true)} data-testid="importar-productos">
+      <Button type="button" variant="outline" className="px-3 text-xs font-medium" onClick={() => setAbierto(true)} data-testid="importar-productos">
         <Icon name="upload" className="h-4 w-4" />
         Importar productos
       </Button>

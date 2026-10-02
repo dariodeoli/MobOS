@@ -206,6 +206,23 @@ header button::after {
   transform: translate(-50%, -50%);
 }
 
+/* #325: el crédito del pie institucional (#292) es un enlace y en mobile tiene
+   que llegar a 44 de área táctil sin cambiar el dibujo (mismo patrón que el
+   header). Es el único enlace externo del pie; si #322 suma enlaces legales,
+   van separados y cada uno con su propia área. */
+.mobos-footer a[target="_blank"] {
+  position: relative;
+}
+.mobos-footer a[target="_blank"]::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100%, 44px);
+  height: max(100%, 44px);
+  transform: translate(-50%, -50%);
+}
+
 /* Superficies rojas propias (aviso sin conexión, contador de notificaciones,
    botón de peligro): blanco en claro; en oscuro el rojo es claro y pide texto
    oscuro. La biblioteca resuelve las suyas dentro de sus objetos

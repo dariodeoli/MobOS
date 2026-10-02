@@ -234,7 +234,7 @@ export default function ServicioGarantias({ vistaInicial = 'servicio' }) {
                     <span className="flex items-center justify-end gap-2">
                       {fila.codigo && <span className="truncate text-[11px] font-semibold text-fono-light tabular-nums" title={fila.codigo}>{fila.codigo}</span>}
                       {fila.tipo === 'GARANTIA' && !fila.enServicio && (
-                        <button type="button" className="whitespace-nowrap text-xs font-semibold text-ok transition hover:underline" onClick={() => setConfirmar(fila)}>Pasar a servicio</button>
+                        <button type="button" className="toque-44 whitespace-nowrap text-xs font-semibold text-ok transition hover:underline" onClick={() => setConfirmar(fila)}>Pasar a servicio</button>
                       )}
                     </span>
                   </div>
