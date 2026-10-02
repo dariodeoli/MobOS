@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, MenuDesplegable, Modal, Nota, Select, Skeleton, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, MenuDesplegable, Modal, Nota, SaveActions, Select, Skeleton, useResultado, useToast, useValidacionCampos } from '@/components/ui'
+import { obligatorio, patron } from 'owncoding-ui/utils'
 import Icon from '@/components/shared/Icon'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
@@ -22,7 +23,7 @@ import ImpresionComparativa from './ImpresionComparativa'
 import ImpresionGraficos from './ImpresionGraficos'
 import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
-import { GRILLA_DOS_COLUMNAS, GRILLA_DOS_COLUMNAS_COMPACTA, PIE_ACCIONES, PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
+import { GRILLA_DOS_COLUMNAS, GRILLA_DOS_COLUMNAS_COMPACTA, PIE_ACCIONES } from '@/components/shared/formulario'
 // Día y hora con segundos: la telemetría se mide en milisegundos y la columna
 // de actividad tiene que mostrar el segundo exacto, no solo el minuto.
 const fmtDia = (valor) => (valor ? new Date(valor).toLocaleDateString('es-PY', { dateStyle: 'short' }) : '—')
@@ -172,6 +173,7 @@ const firmaImpresora = (impresora) => JSON.stringify(CAMPOS_IMPRESORA.map((campo
 // térmicas. Configuración, estado, cola y actividad en un mismo lugar.
 export default function Impresoras() {
   const toast = useToast()
+  const avisar = useResultado()
   const { usuario, sesion, perfilEmpresa, esDemo } = useSesion()
   const tenantId = usuario?.tenantId || 'sin-tenant'
   const [store, setStore] = useState(() => cargarImpresoras(tenantId))
@@ -554,10 +556,11 @@ export default function Impresoras() {
 
   async function guardarFormulario({ probar = false } = {}) {
     const f = formulario
-    if (!f) return
+    if (!f) return false
     const destino = destinoDelFormulario(f)
-    if (!f.nombre.trim()) return toast.error('Falta el nombre', 'Poné un nombre visible para reconocer la impresora.')
-    if (!destino || (f.conexion === 'cups' && destino === 'cups:') || (f.conexion === 'lan' && (!f.ip.trim() || !f.puerto.trim()))) return toast.error('Falta el destino', f.conexion === 'cups' ? 'Elegí la cola CUPS.' : 'Completá la IP y el puerto.')
+    // La validación visible vive en el formulario (error junto al campo, #323):
+    // acá solo queda el corte defensivo para no persistir un destino vacío.
+    if (!f.nombre.trim() || !destino || (f.conexion === 'cups' && destino === 'cups:') || (f.conexion === 'lan' && (!f.ip.trim() || !f.puerto.trim()))) return false
     let siguiente = { ...store }
     let impresoras = [...siguiente.impresoras]
     if (f.predeterminada) impresoras = impresoras.map((item) => ({ ...item, predeterminada: false }))
@@ -587,13 +590,14 @@ export default function Impresoras() {
     if (impresoras.length === 1) impresoras[0].predeterminada = true
     siguiente = { ...siguiente, impresoras }
     const fresco = await persistir(siguiente)
-    if (!fresco) return
+    if (!fresco) return false
     setFormulario(null)
-    toast.success('Impresora guardada', datos.destino)
+    avisar.guardado('Impresora', datos.destino)
     if (probar) {
       const guardada = (fresco.impresoras || []).find((item) => item.destino === datos.destino)
       if (guardada) probar(guardada)
     }
+    return true
   }
 
   function probar(impresora, intencion = 'probar') {
@@ -604,21 +608,21 @@ export default function Impresoras() {
   // Guarda la plantilla del ticket de prueba en la impresora (#277): primero el
   // backend (viaja entre dispositivos) y la memoria local como respaldo. Es
   // best-effort: si el servidor no responde, imprimir sigue funcionando.
-  async function guardarPlantillaDePrueba(impresora, plantilla, { avisar = true } = {}) {
+  async function guardarPlantillaDePrueba(impresora, plantilla, { notificar = true } = {}) {
     const igual = JSON.stringify(normalizarPlantilla(impresora.plantillaPrueba || {}, impresora)) === JSON.stringify(normalizarPlantilla(plantilla, impresora))
     if (impresora.plantillaPrueba && igual) return true
     if (esDemo) {
       setStore((actual) => ({ ...actual, impresoras: actual.impresoras.map((item) => (item.id === impresora.id ? { ...item, plantillaPrueba: plantilla } : item)) }))
-      if (avisar) toast.success('Plantilla guardada (demo)', 'Dato ficticio: no se guardó en el servidor.')
+      if (notificar) avisar.guardado('Plantilla (demo)', 'Dato ficticio: no se guardó en el servidor.')
       return true
     }
     const guardada = await registrarPlantillaPrueba(impresora, plantilla)
     if (!guardada) {
-      if (avisar) toast.error('No se pudo guardar la plantilla', 'Quedó recordada en este dispositivo.')
+      if (notificar) avisar.fallo('guardar', 'Quedó recordada en este dispositivo.')
       return false
     }
     setStore((actual) => ({ ...actual, impresoras: actual.impresoras.map((item) => (item.id === impresora.id ? { ...item, plantillaPrueba: guardada.testTemplate ?? plantilla } : item)) }))
-    if (avisar) toast.success('Plantilla guardada', impresora.nombre)
+    if (notificar) avisar.guardado('Plantilla', impresora.nombre)
     return true
   }
 
@@ -685,19 +689,19 @@ export default function Impresoras() {
       })
       if (resultado.remoto) {
         setResultadoPrueba({ tono: 'warn', titulo: 'Prueba encolada al puente', detalle: `${impresora.nombre} · la imprime el puente; confirmá el número en Actividad` })
-        toast.success('Prueba encolada para el puente', 'El puente la reclama y la imprime. Cuando salga el papel, confirmá el número secreto en Actividad.')
+        avisar.impreso('Prueba', `${impresora.nombre} · quedó en la cola del puente: la imprime cuando la reclame.`)
       } else if (encolado) {
         setResultadoPrueba({ tono: 'warn', titulo: 'Prueba encolada', detalle: `${impresora.nombre} · la impresora no respondió; el agente reintenta solo` })
-        toast.success('Prueba encolada', 'La impresora no respondió; el agente reintenta solo.')
+        avisar.impreso('Prueba', 'La impresora no respondió; el agente reintenta solo.')
       } else {
         const via = resultado.transporte === 'cups' ? (resultado.fallback ? 'por la cola CUPS (fallback)' : 'por la cola CUPS') : resultado.transporte === 'usb' ? 'por USB directo' : 'por TCP directo'
         setResultadoPrueba({ tono: 'ok', titulo: `Prueba enviada ${via}`, detalle: `${impresora.nombre} · verificá el número y el corte en el papel` })
-        toast.success(`Prueba enviada ${via}`, 'El agente confirmó el envío. La confirmación final es visual: verificá el código en el papel y que se cortó solo.')
+        avisar.impreso('Prueba', `${impresora.nombre} · ${via}; verificá el número y el corte en el papel.`)
       }
     } else {
       setProgreso(resultado.remoto ? 'No se pudo encolar.' : 'La impresora no respondió.')
       setResultadoPrueba({ tono: 'error', titulo: 'No se pudo imprimir la prueba', detalle: `${impresora.nombre}: ${resultado.error || 'revisá la impresora y reintentá'}` })
-      toast.error(resultado.remoto ? 'No se pudo encolar la prueba' : 'No se pudo imprimir', resultado.error)
+      avisar.fallo('imprimir', resultado.error || 'Revisá la impresora y probá de nuevo.')
     }
     setProbandoId(null)
     setPruebaDe(null)
@@ -1674,9 +1678,38 @@ function ExplicacionDiagnostico({ diagnostico, estado, nombre }) {
 function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], sucursales = [], onGuardar, onGestionarPuentes }) {
   const [validacion, setValidacion] = useState(null)
   const [validando, setValidando] = useState(false)
+  const [guardando, setGuardando] = useState(false)
   const f = formulario
   const set = (cambios) => setFormulario((actual) => ({ ...actual, ...cambios }))
   const destino = f.conexion === 'cups' ? `cups:${f.destinoUsb.trim()}` : `lan:${f.ip.trim()}:${f.puerto.trim() || '9100'}`
+  // Cambios sin guardar (#323): el modal confirma antes de descartar. La foto
+  // inicial es la del formulario con el que se abrió (alta o edición).
+  const inicial = useRef(null)
+  if (inicial.current === null) inicial.current = { ...formulario }
+  const hayCambios = JSON.stringify(f) !== JSON.stringify(inicial.current)
+  // Errores junto al campo (#323): las reglas son las compartidas; al corregir
+  // el dato el mensaje se limpia solo.
+  const { validar: validarCampos, limpiar, errorDe } = useValidacionCampos({
+    nombre: [obligatorio('Poné un nombre visible para reconocer la impresora.')],
+    ...(f.conexion === 'cups'
+      ? { destinoUsb: [obligatorio('Elegí la cola CUPS.')] }
+      : {
+          ip: [obligatorio('Completá la IP de la impresora.'), patron(/^\d{1,3}(\.\d{1,3}){3}$/, 'Revisá la IP (ej. 192.168.1.23).')],
+          puerto: [obligatorio('Completá el puerto.'), patron(/^\d{1,5}$/, 'El puerto son números (ej. 9100).')],
+        }),
+  })
+
+  async function guardar({ probar = false } = {}) {
+    if (guardando) return
+    const { valido } = validarCampos({ nombre: f.nombre, ip: f.ip, puerto: f.puerto, destinoUsb: f.destinoUsb })
+    if (!valido) return
+    setGuardando(true)
+    try {
+      await onGuardar({ probar })
+    } finally {
+      setGuardando(false)
+    }
+  }
 
   async function validar() {
     if (validando || !destino) return
@@ -1690,13 +1723,16 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
   }
 
   return (
-    <Modal open onClose={() => setFormulario(null)} title={f.id ? 'Editar impresora' : 'Agregar impresora'} size="formulario">
-      <div className="space-y-5">
+    <Modal open onClose={() => setFormulario(null)} title={f.id ? 'Editar impresora' : 'Agregar impresora'} size="formulario" dirty={hayCambios} busy={guardando}>
+      <form
+        className="space-y-5"
+        onSubmit={(event) => { event.preventDefault(); guardar({ probar: false }) }}
+      >
         <div>
           <h4 className={ROTULO_SECCION}>Identificación</h4>
           <div className={cn('mt-2', GRILLA_DOS_COLUMNAS)}>
-            <FormField label="Nombre visible" htmlFor="imp-nombre">
-              <Input id="imp-nombre" value={f.nombre} onChange={(event) => set({ nombre: event.target.value })} placeholder="Térmica mostrador" />
+            <FormField label="Nombre visible" htmlFor="imp-nombre" error={errorDe('nombre')}>
+              <Input id="imp-nombre" value={f.nombre} onChange={(event) => { set({ nombre: event.target.value }); limpiar('nombre') }} placeholder="Térmica mostrador" aria-invalid={Boolean(errorDe('nombre')) || undefined} />
             </FormField>
             <FormField label="Sucursal o ubicación" htmlFor="imp-ubicacion">
               <Input id="imp-ubicacion" value={f.ubicacion} onChange={(event) => set({ ubicacion: event.target.value })} placeholder="Mostrador ASU" />
@@ -1723,17 +1759,17 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
           </div>
           <div className={cn('mt-3', GRILLA_DOS_COLUMNAS)}>
             {f.conexion === 'cups' ? (
-              <FormField label="Cola CUPS local" htmlFor="imp-usb" hint="Una cola CUPS puede salir por red (socket://) o por USB físico (usb://); la URI real la informa el agente.">
-                <Input id="imp-usb" list="impresoras-usb" value={f.destinoUsb} onChange={(event) => set({ destinoUsb: event.target.value })} placeholder="ZKP8008" autoCapitalize="off" spellCheck={false} />
+              <FormField label="Cola CUPS local" htmlFor="imp-usb" hint="Una cola CUPS puede salir por red (socket://) o por USB físico (usb://); la URI real la informa el agente." error={errorDe('destinoUsb')}>
+                <Input id="imp-usb" list="impresoras-usb" value={f.destinoUsb} onChange={(event) => { set({ destinoUsb: event.target.value }); limpiar('destinoUsb') }} placeholder="ZKP8008" autoCapitalize="off" spellCheck={false} aria-invalid={Boolean(errorDe('destinoUsb')) || undefined} />
                 <datalist id="impresoras-usb">{(estado?.impresoras?.usb || []).map((cola) => <option key={cola} value={cola} />)}</datalist>
               </FormField>
             ) : (
               <>
-                <FormField label="IP" htmlFor="imp-ip">
-                  <Input id="imp-ip" value={f.ip} onChange={(event) => set({ ip: event.target.value })} placeholder="192.168.1.23" autoCapitalize="off" spellCheck={false} />
+                <FormField label="IP" htmlFor="imp-ip" error={errorDe('ip')}>
+                  <Input id="imp-ip" value={f.ip} onChange={(event) => { set({ ip: event.target.value }); limpiar('ip') }} placeholder="192.168.1.23" autoCapitalize="off" spellCheck={false} aria-invalid={Boolean(errorDe('ip')) || undefined} />
                 </FormField>
-                <FormField label="Puerto" htmlFor="imp-puerto">
-                  <Input id="imp-puerto" inputMode="numeric" value={f.puerto} onChange={(event) => set({ puerto: event.target.value.replace(/\D/g, '') })} placeholder="9100" />
+                <FormField label="Puerto" htmlFor="imp-puerto" error={errorDe('puerto')}>
+                  <Input id="imp-puerto" inputMode="numeric" value={f.puerto} onChange={(event) => { set({ puerto: event.target.value.replace(/\D/g, '') }); limpiar('puerto') }} placeholder="9100" aria-invalid={Boolean(errorDe('puerto')) || undefined} />
                 </FormField>
               </>
             )}
@@ -1799,12 +1835,13 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
           <p className="mt-2 text-xs text-mute">Estado: <b className={estado?.disponible ? 'text-ok' : 'text-bad'}>{estado?.disponible ? `agente local conectado · v${estado.version || ''}` : 'esta computadora no tiene el agente local'}</b>{estado?.disponible ? ` · ${estado.host === '0.0.0.0' ? 'acceso: red local' : 'acceso: solo esta computadora'}` : ' · los trabajos se encolan al puente'}.</p>
         </div>
 
-        <div className={PIE_ACCIONES_REVERSO}>
-          <Button type="button" variant="ghost" onClick={() => setFormulario(null)}>Cancelar</Button>
-          <Button type="button" onClick={() => onGuardar({ probar: false })}>Guardar impresora</Button>
-          <Button type="button" variant="outline" onClick={() => onGuardar({ probar: true })}>Guardar y probar</Button>
-        </div>
-      </div>
+        {/* Un solo primario (#323): guardar; la prueba sale como secundaria y
+            el pie queda fijo fuera del scroll. */}
+        <SaveActions pendiente={guardando}>
+          <Button type="button" variant="outline" disabled={guardando} onClick={() => guardar({ probar: true })}>Guardar y probar</Button>
+          <Button type="submit" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar impresora'}</Button>
+        </SaveActions>
+      </form>
     </Modal>
   )
 }
@@ -1904,6 +1941,12 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
     const fuente = impresora.plantillaPrueba || memoria.de(impresora.id)
     return fuente ? normalizarPlantilla(fuente, impresora) : null
   })
+  // Plantilla con la que se abrió (o la última guardada/recordada): base para
+  // el cierre con cambios (#323). Guardar actualiza la base: después de
+  // guardar, cerrar no pregunta.
+  const inicial = useRef(null)
+  if (inicial.current === null) inicial.current = plantilla
+  const hayCambios = JSON.stringify(referencia || inicial.current) !== JSON.stringify(plantilla)
   const sinCambios = Boolean(referencia) && JSON.stringify(referencia) === JSON.stringify(plantilla)
   const reiniciar = () => {
     memoria.olvidar(impresora.id)
@@ -1943,7 +1986,7 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
   )
   const hoja = useMemo(() => hojaDeTicket(ticket.lineas().join('')), [ticket])
   return (
-    <Modal open onClose={enviando ? undefined : onCerrar} title={intencion === 'plantilla' ? `Plantilla: ${impresora.nombre}` : `Probar: ${impresora.nombre}`} size="formulario">
+    <Modal open onClose={enviando ? undefined : onCerrar} title={intencion === 'plantilla' ? `Plantilla: ${impresora.nombre}` : `Probar: ${impresora.nombre}`} size="formulario" dirty={hayCambios} busy={enviando || guardando}>
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-600 p-3">
           <Badge color={chip.color} title={verificacion || undefined}>{chip.label}</Badge>
@@ -2042,8 +2085,7 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
           </Nota>
         )}
         {enviando && <p role="status" className="rounded-lg border border-fono/25 bg-fono/10 p-2 text-xs text-fono-light">{progreso}</p>}
-        <div className={PIE_ACCIONES_REVERSO}>
-          <Button type="button" variant="ghost" onClick={onCerrar} disabled={enviando}>Cancelar</Button>
+        <SaveActions pendiente={enviando || guardando}>
           <Button
             type="button"
             disabled={enviando || guardando}
@@ -2054,7 +2096,7 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
           >
             {enviando ? 'Enviando…' : 'Imprimir prueba'}
           </Button>
-        </div>
+        </SaveActions>
       </div>
     </Modal>
   )

@@ -69,14 +69,14 @@ error junto al campo, etiquetas visibles y feedback canónico.
 | Lista de compra | `src/components/supply/ListaCompraModal.jsx:87` | toasts de imprimir con `useResultado` |
 | Etiquetas de preparación | `src/components/supply/EtiquetasPreparacion.jsx:75` | toasts de imprimir con `useResultado` |
 
-### PRN (impresión)
+### PRN (impresión) — adoptado en la pasada de impresión (#323)
 
-| Modal | Ruta | Qué falta |
+| Modal | Ruta | Estado |
 | --- | --- | --- |
-| Agregar/editar impresora | `src/components/control/Impresoras.jsx:1634` | `dirty`; errores por campo (hoy `toast`); unificar «Guardar» y «Guardar y probar» en un primario + secundario |
-| Probar / plantilla de impresora («preview») | `src/components/control/Impresoras.jsx:1887` | ya detecta `sinCambios`: pasarlo a `dirty` para confirmar al descartar; toasts con `useResultado` |
-| Documento de unidad | `src/components/inventory/DocumentoUnidadModal.jsx:102` | `dirty` si hay ajustes; resultado canónico |
-| Rack de taller (imprimir en serie) | `src/components/inventory/TallerRack.jsx:322` | resultado canónico |
+| Agregar/editar impresora | `src/components/control/Impresoras.jsx` | ✅ `dirty` al cerrar con cambios, errores junto al campo con las reglas compartidas y pie fijo con un primario («Guardar impresora») + secundario («Guardar y probar») |
+| Probar / plantilla de impresora («preview») | `src/components/control/Impresoras.jsx` | ✅ `dirty` para confirmar al descartar cambios sin guardar; guardar actualiza la base y el cierre deja de preguntar; resultados con `useResultado` |
+| Documento de unidad | `src/components/inventory/DocumentoUnidadModal.jsx` | ✅ resultado canónico con `useResultado`; sin `dirty`: el único ajuste es el formato de la vista previa, efímero según §4 |
+| Rack de taller (imprimir en serie) | `src/components/inventory/TallerRack.jsx` | ✅ resultado canónico y pie fijo con `FormActions` |
 
 ### Otros módulos (POS, taller, configuración)
 
