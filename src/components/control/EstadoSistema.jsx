@@ -335,7 +335,7 @@ export default function EstadoSistema() {
               <div className="rounded-xl border border-ink-600 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs uppercase tracking-wider text-mute">Errores recientes ({sincronizacion.errores.ventanaHoras} h)</p>
-                  <Badge color={sincronizacion.errores.recientes > 0 ? 'red' : 'slate'}>{sincronizacion.errores.recientes}</Badge>
+                  <Badge color={sincronizacion.errores.recientes > 0 ? 'red' : 'slate'} data-testid="errores-recientes">{sincronizacion.errores.recientes}</Badge>
                 </div>
                 {sincronizacion.errores.ultimos.length ? (
                   <ul className="mt-2 divide-y divide-ink-600/60">

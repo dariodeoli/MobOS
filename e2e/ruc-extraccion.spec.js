@@ -145,6 +145,8 @@ test('Config: RUC del negocio', async ({ page }) => {
 // documento de una cuenta de cobro entran al mismo objeto compartido.
 test('Config: RUC de la empresa privada (datos privados)', async ({ page }) => {
   await page.goto('/configuracion/negocio')
+  // #298/#299: los datos privados viven en la pestaña «Datos fiscales».
+  await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Datos fiscales', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Empresas/personas jurídicas (privado)' })).toBeVisible({ timeout: 20_000 })
   await page.getByRole('button', { name: 'Agregar empresa' }).click()
   const ruc = page.locator('#priv-ruc')
@@ -156,6 +158,8 @@ test('Config: RUC de la empresa privada (datos privados)', async ({ page }) => {
 
 test('Config: Cédula/RUC del titular privado', async ({ page }) => {
   await page.goto('/configuracion/negocio')
+  // #298/#299: los datos privados viven en la pestaña «Datos fiscales».
+  await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Datos fiscales', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Titulares/socios (privado)' })).toBeVisible({ timeout: 20_000 })
   await page.getByRole('button', { name: 'Agregar titular' }).click()
   const doc = page.locator('#priv-doc')

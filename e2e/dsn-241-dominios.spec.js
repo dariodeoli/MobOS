@@ -221,7 +221,7 @@ const PANTALLAS = [
   ['taller', '/inventario/taller', (page) => page.getByTestId('rack-taller'), prepararTablero, async (page) => {
     await expect(page.getByTestId('rack-equipo').first()).toBeVisible({ timeout: 30_000 })
   }],
-  ['inventario-tiles', '/inventario/unidades', (page) => page.getByTestId('inventario-tarjeta').first(), async (page) => {
+  ['inventario-tiles', '/inventario/unidades', (page) => page.locator('[data-testid="inventario-tarjeta"], [data-testid="inventario-tarjeta-movil"]').first(), async (page) => {
     // Tiles de equipo (lote C): la vista lista/cuadrícula se recuerda por pantalla.
     await page.evaluate(() => { try { localStorage.setItem('mobos:inventario-vista', 'grid') } catch { /* sin storage */ } })
   }],

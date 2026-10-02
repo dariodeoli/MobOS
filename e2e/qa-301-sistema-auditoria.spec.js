@@ -26,6 +26,9 @@ test('#301 · Sistema: los contadores coinciden con sus listas', async ({ page }
   await page.goto('/configuracion/sistema')
   const resumen = page.getByTestId('sistema-resumen-chequeos')
   await expect(resumen).toContainText(/\d+ chequeos? ·/, { timeout: 20_000 })
+  // El resumen arranca en «0 chequeos · comprobando…»: esperar a que la lista
+  // de chequeos cargue antes de comparar el número con las filas.
+  await expect(page.getByTestId('sistema-chequeo').first()).toBeVisible({ timeout: 20_000 })
 
   // El número del encabezado es exactamente la cantidad de filas de chequeos.
   const texto = (await resumen.textContent()) || ''
@@ -35,7 +38,7 @@ test('#301 · Sistema: los contadores coinciden con sus listas', async ({ page }
   // Errores de las últimas 24 h: el badge no puede contradecir la lista.
   const errores = page.locator('div.rounded-xl.border.border-ink-600.p-3').filter({ hasText: 'Errores recientes' })
   if (await errores.count()) {
-    const badge = Number(((await errores.locator('.rounded-full').first().textContent()) || '0').trim())
+    const badge = Number(((await page.getByTestId('errores-recientes').textContent()) || '0').trim())
     const filas = await errores.locator('li').count()
     if (badge > filas) {
       await expect(page.getByTestId('errores-y-mas')).toContainText(`y ${badge - filas} más`)
