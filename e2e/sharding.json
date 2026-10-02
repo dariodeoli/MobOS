@@ -44,13 +44,14 @@
         "qa-279-transito.spec.js",
         "qa-285-unidades.spec.js",
         "qa-286-unidades-pos.spec.js",
-        "qa-f6-metricas-abastecimiento.spec.js",
+        "qa-306-producto-kardex.spec.js",
+        "recorte-perfil.spec.js",
         "responsive.spec.js",
         "seguridad-cuenta.spec.js",
         "selector-sucursal.spec.js",
         "shell-roles.spec.js"
       ],
-      "tests": 195
+      "tests": 196
     },
     {
       "archivos": [
@@ -95,8 +96,8 @@
         "qa-271-avatar-superficies.spec.js",
         "qa-280-aviso-stock.spec.js",
         "qa-280-gift-cards.spec.js",
+        "qa-f6-metricas-abastecimiento.spec.js",
         "qa-fin-compacto.spec.js",
-        "qa-fin-repuestos-taller.spec.js",
         "quote-approval-otp.spec.js",
         "ruc-demo.spec.js",
         "servicio-tecnico.spec.js",
@@ -148,7 +149,7 @@
         "qa-279-push.spec.js",
         "qa-284-avatar-cache.spec.js",
         "qa-287-objeto-unificado.spec.js",
-        "recorte-perfil.spec.js",
+        "qa-fin-repuestos-taller.spec.js",
         "redireccion-248.spec.js",
         "repuestos-proveedores.spec.js",
         "ruc-extraccion.spec.js",
@@ -158,5 +159,5 @@
       "tests": 195
     }
   ],
-  "generado": "2026-09-28T19:31:01.736Z"
+  "generado": "2026-10-02T05:02:57.753Z"
 }
