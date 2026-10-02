@@ -134,7 +134,9 @@ test('con unidad disponible, la guía manda a elegir el IMEI exacto (#148 §11)'
     await elegir.click()
     await expect(page.getByText('Elegir IMEI de esta venta')).toBeVisible()
     await expect(page.getByTitle(imei)).toBeVisible()
-    await page.getByRole('button', { name: 'Listo' }).click()
+    // Sin decisión el modal no se cierra con «Listo» (#308): se cancela.
+    await expect(page.getByRole('button', { name: 'Listo' })).toBeDisabled()
+    await page.keyboard.press('Escape')
 
     // Sin elegir la unidad, el aviso es claro y accionable (no el genérico).
     await page.getByRole('button', { name: /^Crear pedido sin pago/ }).click()
@@ -254,7 +256,7 @@ test('el selector de IMEI lista solo las unidades disponibles de la sucursal (#2
     await expect(page.getByText('Elegir IMEI de esta venta')).toBeVisible()
     await expect(page.getByTitle(imeiOk)).toBeVisible()
     await expect(page.getByTitle(imeiRevision)).toHaveCount(0)
-    await page.getByRole('button', { name: 'Listo' }).click()
+    await page.keyboard.press('Escape')
   } finally {
     await page.evaluate(async ({ api, seriales, ids }) => {
       for (const serial of seriales) {

@@ -50,6 +50,8 @@ export default function PasoCobro({
   pendientes = [],
   onElegirUnidad,
   onSobrePedido,
+  onTransito,
+  onIrAlCarrito,
 }) {
   // El botón principal dice qué se está por crear según lo cobrado: verde si
   // está pago, naranja si es parcial y rojo si queda pendiente/a crédito.
@@ -60,6 +62,47 @@ export default function PasoCobro({
     cantTotal > 1 ? `${cantTotal} productos` : '',
     totalGeneral > 0 ? gs(totalGeneral) : '',
   ].filter(Boolean).join(' · ')
+  // #308: con el carrito vacío no se cobra (pagos/gift cards bloqueados).
+  const sinProductos = cantTotal === 0
+  const etiquetaBoton = guardando
+    ? 'Guardando venta…'
+    : !valido
+      ? 'Guardar pedido'
+      : pagoCompleto
+        ? 'Confirmar venta'
+        : sinPago
+          ? (venderACredito ? 'Crear pedido a crédito' : 'Crear pedido sin pago')
+          : 'Crear pedido'
+  const clasesBoton = cn(
+    // Cabecera en su renglón y productos/importe abajo: el botón no parte el
+    // importe en dos líneas (#148 §5/§11). Más alto y con más aire que el
+    // botón estándar.
+    'h-auto min-h-14 min-w-0 px-5 py-3 shadow-lg shadow-fono/10',
+    // AA (#241): sobre ok/bad/warn el texto sigue el tema (blanco sobre el
+    // verde/rojo/ámbar oscuro del claro; negro sobre los tonos claros del
+    // oscuro).
+    pagoCompleto && 'text-white dark:text-black',
+    sinPago && 'text-white dark:text-black',
+    // Parcial (#148 §5/§11): naranja de atención, no el azul primario.
+    !pagoCompleto && !sinPago && 'bg-warn text-white dark:text-black hover:brightness-110',
+  )
+  // Un solo botón para los dos lugares (escritorio y barra fija del celular).
+  function BotonGuardar({ className }) {
+    return (
+      <Button
+        type="submit"
+        variant={pagoCompleto ? 'success' : sinPago ? 'danger' : 'primary'}
+        className={cn(clasesBoton, className)}
+        disabled={!valido || guardando || !cuentas || Boolean(errorCuentas) || guardadoIncompleto}
+        title={motivos[0] || undefined}
+      >
+        <span className="flex flex-col items-center gap-0.5 leading-tight">
+          <span className="text-[15px] font-bold">{etiquetaBoton}</span>
+          {detalleBoton && <span className="text-xs font-semibold tabular-nums opacity-95 whitespace-nowrap">{detalleBoton}</span>}
+        </span>
+      </Button>
+    )
+  }
   return (
     <section
       data-testid="pos-cobro"
@@ -212,7 +255,8 @@ export default function PasoCobro({
             type="button"
             variant="outline"
             onClick={() => onAgregarPago()}
-            disabled={!cuentas || guardando || guardadoIncompleto}
+            disabled={!cuentas || guardando || guardadoIncompleto || sinProductos}
+            title={sinProductos ? 'Agregá productos a la venta para cargar pagos.' : undefined}
           >
             + Agregar pago
           </Button>
@@ -220,7 +264,8 @@ export default function PasoCobro({
             type="button"
             variant="outline"
             onClick={() => onAgregarGiftCard?.()}
-            disabled={!cuentas || guardando || guardadoIncompleto}
+            disabled={!cuentas || guardando || guardadoIncompleto || sinProductos}
+            title={sinProductos ? 'Agregá productos a la venta para canjear gift cards.' : undefined}
           >
             + Canjear gift card
           </Button>
@@ -229,12 +274,17 @@ export default function PasoCobro({
               type="button"
               variant="outline"
               onClick={() => onAgregarPago({ monto: pendiente })}
-              disabled={!cuentas || guardando || guardadoIncompleto}
+              disabled={!cuentas || guardando || guardadoIncompleto || sinProductos}
             >
               Dividir saldo ({gs(pendiente)})
             </Button>
           )}
         </div>
+        {sinProductos && (
+          <p role="status" data-testid="cobro-sin-productos" className="text-xs text-mute">
+            Agregá productos a la venta para cargar pagos o canjear gift cards.
+          </p>
+        )}
         {!cuentas && !errorCuentas && (
           <p role="status" className="text-sm text-mute">
             Cargando cuentas de cobro…
@@ -452,9 +502,21 @@ export default function PasoCobro({
                     Elegir unidad{pendiente.unidades > 1 ? ` (${pendiente.unidades})` : ''}
                   </Button>
                 ) : (
-                  <Button type="button" variant="outline" className="min-h-11 px-2.5 text-xs md:h-8 md:min-h-0" disabled={guardando} onClick={() => onSobrePedido?.(pendiente.key)}>
-                    {pendiente.motivo === 'imei' ? 'Vender sin IMEI' : 'Sobre pedido'}
-                  </Button>
+                  <>
+                    <Button type="button" variant="outline" className="min-h-11 px-2.5 text-xs md:h-8 md:min-h-0" disabled={guardando} onClick={() => onSobrePedido?.(pendiente.key)}>
+                      {pendiente.motivo === 'imei' ? 'Vender sin IMEI' : 'Sobre pedido'}
+                    </Button>
+                    {/* #309: si el faltante es un lote que ya viene, la reserva
+                        queda ligada a esa llegada. */}
+                    <button
+                      type="button"
+                      className="min-h-11 font-semibold text-info hover:underline disabled:opacity-50 md:min-h-0"
+                      disabled={guardando}
+                      onClick={() => onTransito?.(pendiente.key)}
+                    >
+                      Llega en tránsito
+                    </button>
+                  </>
                 )}
               </li>
             ))}
@@ -470,41 +532,9 @@ export default function PasoCobro({
           Falta: {motivos.join(' · ')}
         </p>
       )}
-      <div className="flex items-center gap-3">
-        <Button
-          type="submit"
-          variant={pagoCompleto ? 'success' : sinPago ? 'danger' : 'primary'}
-          className={cn(
-            // Cabecera en su renglón y productos/importe abajo: el botón no
-            // parte el importe en dos líneas (#148 §5/§11). Más alto y con más
-            // aire arriba/abajo que el botón estándar.
-            'sticky bottom-20 h-auto min-h-14 min-w-0 flex-1 px-5 py-3 shadow-lg shadow-fono/10 lg:bottom-3',
-            // AA (#241): sobre ok/bad/warn el texto sigue el tema (blanco sobre
-            // el verde/rojo/ámbar oscuro del claro; negro sobre los tonos
-            // claros del oscuro).
-            pagoCompleto && 'text-white dark:text-black',
-            sinPago && 'text-white dark:text-black',
-            // Parcial (#148 §5/§11): naranja de atención, no el azul primario.
-            !pagoCompleto && !sinPago && 'bg-warn text-white dark:text-black hover:brightness-110',
-          )}
-          disabled={!valido || guardando || !cuentas || Boolean(errorCuentas) || guardadoIncompleto}
-          title={motivos[0] || undefined}
-        >
-          <span className="flex flex-col items-center gap-0.5 leading-tight">
-            <span className="text-[15px] font-bold">
-              {guardando
-                ? 'Guardando venta…'
-                : !valido
-                  ? 'Guardar pedido'
-                  : pagoCompleto
-                    ? 'Confirmar venta'
-                    : sinPago
-                      ? (venderACredito ? 'Crear pedido a crédito' : 'Crear pedido sin pago')
-                      : 'Crear pedido'}
-            </span>
-            {detalleBoton && <span className="text-xs font-semibold tabular-nums opacity-95 whitespace-nowrap">{detalleBoton}</span>}
-          </span>
-        </Button>
+      {/* Escritorio: la acción vive al pie del bloque de cobro. */}
+      <div className="hidden items-center gap-3 lg:flex">
+        <BotonGuardar className="sticky bottom-3 flex-1" />
         {ok && (
           <span
             role="status"
@@ -514,6 +544,33 @@ export default function PasoCobro({
             <Icon name="receipt" className="h-4 w-4" /> Recibo confirmado
           </span>
         )}
+      </div>
+
+      {/* Celular: Total y acción principal fijos abajo, arriba de la barra del
+          shell (#309). El botón es el mismo submit del formulario. */}
+      <div
+        data-testid="pos-barra-accion"
+        className="fixed inset-x-0 bottom-[calc(54px+env(safe-area-inset-bottom))] z-30 border-t border-ink-600 bg-ink-800/95 px-3 py-2 shadow-[0_-8px_24px_rgba(0,0,0,.18)] backdrop-blur lg:hidden"
+      >
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <span className="block text-[10px] font-bold uppercase tracking-wider text-mute">Total</span>
+            <b data-testid="barra-total" className="v2-numero block truncate text-lg font-extrabold tabular-nums text-fore">
+              {gs(totalGeneral)}
+            </b>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 shrink-0 px-3 text-xs"
+            disabled={guardando}
+            onClick={() => onIrAlCarrito?.()}
+          >
+            <Icon name="cart" className="h-4 w-4" />
+            Carrito{cantTotal > 0 ? ` (${cantTotal})` : ''}
+          </Button>
+          <BotonGuardar className="shrink-0" />
+        </div>
       </div>
     </section>
   )

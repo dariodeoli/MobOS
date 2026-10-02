@@ -1,0 +1,198 @@
+{
+  "base": "https://app.moboss.online",
+  "etiqueta": "produccion-antes",
+  "resultados": [
+    {
+      "variante": "desktop-claro",
+      "pasos": [
+        "orden: productos 685 · cliente 345 → revisar",
+        "cliente en una línea: no",
+        "carrito: static · total — · franja con importe",
+        "barra de acción: no existe",
+        "«Más»: no existe (versión anterior)",
+        "sin productos: pago habilitado · gift card habilitada"
+      ],
+      "medidas": {
+        "productos": {
+          "y": 685,
+          "position": "static",
+          "display": "block",
+          "texto": "ProductosBuscá por nombre, modelo o variante y hacé clic para sumarlo a la venta.17 disponibles Nuevo productoiPhone 15 Pro 256GB2 variantes · desde Gs 6.750.0004 en stockiPhone 15 128GBGs 4.850.0002 "
+        },
+        "cliente": {
+          "y": 345,
+          "position": "static",
+          "display": "block",
+          "texto": "ClienteBuscá la ficha por nombre, teléfono, CI o RUC; si no existe, se crea al confirmar.Vendedor: Diego LópezAsignado automáticamente a tu sesión.Cliente Datos de contacto, RUC/CI y direccionesTeléfo"
+        },
+        "elegido": null,
+        "cart": {
+          "y": 321,
+          "position": "static",
+          "display": "block",
+          "texto": "Productos de esta ventaCliente: Lucía Fernández · Diego López · Retiro en tienda1 producto · 1 unidadVaciar carritoFunda MagSafe TransparenteGs 180.000Descuento extra (Gs)Gs.SubtotalGs 180.000TotalGs "
+        },
+        "total": null,
+        "franja": {
+          "y": 598,
+          "position": "static",
+          "display": "flex",
+          "texto": "Total de esta ventaGs 180.0001 producto · 1 unidadTu día3 ventas · 3 pedidosFacturación Gs 14.280.000"
+        },
+        "barra": null,
+        "sinProductos": {
+          "agregarPagoDeshabilitado": false,
+          "canjearDeshabilitado": false,
+          "aviso": null
+        },
+        "selectorVariante": null,
+        "imeiBloqueado": null
+      },
+      "errores": []
+    },
+    {
+      "variante": "desktop-oscuro",
+      "pasos": [
+        "orden: productos 685 · cliente 345 → revisar",
+        "cliente en una línea: no",
+        "carrito: static · total — · franja con importe",
+        "barra de acción: no existe",
+        "«Más»: no existe (versión anterior)",
+        "sin productos: pago habilitado · gift card habilitada"
+      ],
+      "medidas": {
+        "productos": {
+          "y": 685,
+          "position": "static",
+          "display": "block",
+          "texto": "ProductosBuscá por nombre, modelo o variante y hacé clic para sumarlo a la venta.17 disponibles Nuevo productoiPhone 15 Pro 256GB2 variantes · desde Gs 6.750.0004 en stockiPhone 15 128GBGs 4.850.0002 "
+        },
+        "cliente": {
+          "y": 345,
+          "position": "static",
+          "display": "block",
+          "texto": "ClienteBuscá la ficha por nombre, teléfono, CI o RUC; si no existe, se crea al confirmar.Vendedor: Diego LópezAsignado automáticamente a tu sesión.Cliente Datos de contacto, RUC/CI y direccionesTeléfo"
+        },
+        "elegido": null,
+        "cart": {
+          "y": 321,
+          "position": "static",
+          "display": "block",
+          "texto": "Productos de esta ventaCliente: Lucía Fernández · Diego López · Retiro en tienda1 producto · 1 unidadVaciar carritoFunda MagSafe TransparenteGs 180.000Descuento extra (Gs)Gs.SubtotalGs 180.000TotalGs "
+        },
+        "total": null,
+        "franja": {
+          "y": 598,
+          "position": "static",
+          "display": "flex",
+          "texto": "Total de esta ventaGs 180.0001 producto · 1 unidadTu día3 ventas · 3 pedidosFacturación Gs 14.280.000"
+        },
+        "barra": null,
+        "sinProductos": {
+          "agregarPagoDeshabilitado": false,
+          "canjearDeshabilitado": false,
+          "aviso": null
+        },
+        "selectorVariante": null,
+        "imeiBloqueado": null
+      },
+      "errores": []
+    },
+    {
+      "variante": "movil-claro",
+      "pasos": [
+        "orden: productos 889 · cliente 513 → revisar",
+        "cliente en una línea: no",
+        "carrito: static · total — · franja con importe",
+        "barra de acción: no existe",
+        "«Más»: no existe (versión anterior)",
+        "sin productos: pago habilitado · gift card habilitada"
+      ],
+      "medidas": {
+        "productos": {
+          "y": 889,
+          "position": "static",
+          "display": "block",
+          "texto": "ProductosBuscá por nombre, modelo o variante y hacé clic para sumarlo a la venta.17 disponibles Nuevo productoiPhone 15 Pro 256GB2 variantes · desde Gs 6.750.0004 en stockiPhone 15 128GBGs 4.850.0002 "
+        },
+        "cliente": {
+          "y": 513,
+          "position": "static",
+          "display": "block",
+          "texto": "ClienteBuscá la ficha por nombre, teléfono, CI o RUC; si no existe, se crea al confirmar.Vendedor: Diego LópezAsignado automáticamente a tu sesión.Cliente Datos de contacto, RUC/CI y direccionesTeléfo"
+        },
+        "elegido": null,
+        "cart": {
+          "y": 1385,
+          "position": "static",
+          "display": "block",
+          "texto": "Productos de esta ventaCliente: Lucía Fernández · Diego López · Retiro en tienda1 producto · 1 unidadVaciar carritoFunda MagSafe TransparenteGs 180.000Descuento extra (Gs)Gs.SubtotalGs 180.000TotalGs "
+        },
+        "total": null,
+        "franja": {
+          "y": 2656,
+          "position": "static",
+          "display": "flex",
+          "texto": "Total de esta ventaGs 180.0001 producto · 1 unidadTu día3 ventas · 3 pedidosFacturación Gs 14.280.000"
+        },
+        "barra": null,
+        "sinProductos": {
+          "agregarPagoDeshabilitado": false,
+          "canjearDeshabilitado": false,
+          "aviso": null
+        },
+        "selectorVariante": null,
+        "imeiBloqueado": null
+      },
+      "errores": []
+    },
+    {
+      "variante": "movil-oscuro",
+      "pasos": [
+        "orden: productos 889 · cliente 513 → revisar",
+        "cliente en una línea: no",
+        "carrito: static · total — · franja con importe",
+        "barra de acción: no existe",
+        "«Más»: no existe (versión anterior)",
+        "sin productos: pago habilitado · gift card habilitada"
+      ],
+      "medidas": {
+        "productos": {
+          "y": 889,
+          "position": "static",
+          "display": "block",
+          "texto": "ProductosBuscá por nombre, modelo o variante y hacé clic para sumarlo a la venta.17 disponibles Nuevo productoiPhone 15 Pro 256GB2 variantes · desde Gs 6.750.0004 en stockiPhone 15 128GBGs 4.850.0002 "
+        },
+        "cliente": {
+          "y": 513,
+          "position": "static",
+          "display": "block",
+          "texto": "ClienteBuscá la ficha por nombre, teléfono, CI o RUC; si no existe, se crea al confirmar.Vendedor: Diego LópezAsignado automáticamente a tu sesión.Cliente Datos de contacto, RUC/CI y direccionesTeléfo"
+        },
+        "elegido": null,
+        "cart": {
+          "y": 1385,
+          "position": "static",
+          "display": "block",
+          "texto": "Productos de esta ventaCliente: Lucía Fernández · Diego López · Retiro en tienda1 producto · 1 unidadVaciar carritoFunda MagSafe TransparenteGs 180.000Descuento extra (Gs)Gs.SubtotalGs 180.000TotalGs "
+        },
+        "total": null,
+        "franja": {
+          "y": 2656,
+          "position": "static",
+          "display": "flex",
+          "texto": "Total de esta ventaGs 180.0001 producto · 1 unidadTu día3 ventas · 3 pedidosFacturación Gs 14.280.000"
+        },
+        "barra": null,
+        "sinProductos": {
+          "agregarPagoDeshabilitado": false,
+          "canjearDeshabilitado": false,
+          "aviso": null
+        },
+        "selectorVariante": null,
+        "imeiBloqueado": null
+      },
+      "errores": []
+    }
+  ]
+}

@@ -61,8 +61,10 @@ export default function FilaVenta({
   // sin colores nuevos.
   const estadoFila = agotado
     ? 'agotado'
-    : item.sobrePedido
-      ? 'sobre-pedido'
+    : item.sobrePedido && item.enTransito
+      ? 'en-transito'
+      : item.sobrePedido
+        ? 'sobre-pedido'
       : item.requiereSerie && !tieneImei
         ? 'falta-imei'
         : tieneImei && item.reservado
@@ -74,6 +76,8 @@ export default function FilaVenta({
     reservado: 'border-l-info/70',
     agotado: 'border-l-bad/70',
     'sobre-pedido': 'border-l-info/40',
+    // #309: reserva anticipada de un lote que llega.
+    'en-transito': 'border-l-info/60',
   }
   const ESTADO_IMEI = tieneImei
     ? (item.reservado ? { tono: 'info', icono: 'clock', title: 'Reservado · cambiá o quitá el IMEI' } : { tono: 'ok', icono: 'box', title: 'Cambiar IMEI' })
@@ -139,6 +143,7 @@ export default function FilaVenta({
             <b className="truncate text-sm" title={item.nombre}>{item.nombre}</b>
             {/* Avisos que no pueden esperar al detalle. */}
             {item.sobrePedido && <Badge color="orange">Sobre pedido</Badge>}
+            {item.enTransito && <Badge color="blue">En tránsito</Badge>}
             {agotado && <Badge color="red">Agotado</Badge>}
             {item.soldWithoutInsurance && <Badge color="slate">Sin seguro</Badge>}
           </div>
@@ -274,6 +279,22 @@ export default function FilaVenta({
                 ? <span className="font-semibold text-bad">Agotado</span>
                 : <span>{stock} en stock</span>)}
             </p>
+          )}
+
+          {item.sobrePedido && (
+            <label className="mt-2 flex items-start gap-2 rounded-lg border border-info/25 bg-info/[.05] p-2 text-[11px] text-mute">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 accent-info"
+                checked={Boolean(item.enTransito)}
+                disabled={guardando}
+                onChange={event => onEditar({ enTransito: event.target.checked })}
+              />
+              <span>
+                <b className="text-fore">Llega en tránsito</b>: la reserva queda ligada al lote que
+                ingresa. Inventario la confirma al recibirlo.
+              </span>
+            </label>
           )}
 
           {puedeDescontar && (

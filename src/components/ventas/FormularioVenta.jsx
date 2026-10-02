@@ -43,6 +43,7 @@ import {
   Input,
   Label,
   Modal,
+  useToast,
 } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import BarraModulo from '@/components/shared/BarraModulo'
@@ -202,18 +203,17 @@ function itemsGuardados(valor) {
 // una tira compacta que cruza las dos columnas en desktop. En pantallas
 // angostas queda al pie (después del cobro) y la barra superior sigue siendo el
 // acceso rápido al carrito.
-function ResumenVenta({ totalGeneral, items, unidades, montoDescuento, montoDelivery, dia }) {
+function ResumenVenta({ items, unidades, montoDescuento, montoDelivery, dia }) {
   return (
     <section
       data-testid="resumen-compra"
       className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-fono/50 bg-ink-700 px-4 py-3 shadow-lg shadow-fono/10"
     >
+      {/* #309: el total dejó de repetirse acá (vive una sola vez, más
+          destacado, en el pie del carrito y en la barra fija del celular). */}
       <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="text-[11px] font-bold uppercase tracking-wider text-mute">
-          Total de esta venta
-        </span>
-        <span className="v2-numero text-2xl font-extrabold tracking-tight tabular-nums text-fono-light">
-          {gs(totalGeneral)}
+          Esta venta
         </span>
         <span className="text-xs text-mute">
           {items.length} {items.length === 1 ? 'producto' : 'productos'} · {unidades}{' '}
@@ -342,6 +342,12 @@ export default function FormularioVenta({
   const [suspendidas, setSuspendidas] = useState([])
   const [cargandoSuspendidas, setCargandoSuspendidas] = useState(false)
   const [errorSuspendidas, setErrorSuspendidas] = useState('')
+  // #309: menú «Más» del encabezado (cierra al elegir una herramienta).
+  const refHerramientas = useRef(null)
+  const cerrarHerramientas = () => { if (refHerramientas.current) refHerramientas.current.open = false }
+  const toast = useToast()
+  // #308: familia con más de una variante esperando elección explícita.
+  const [variantePara, setVariantePara] = useState(null)
   const [suspenderOpen, setSuspenderOpen] = useState(false)
   const [labelSuspender, setLabelSuspender] = useState('')
   const [errorSuspender, setErrorSuspender] = useState('')
@@ -868,6 +874,21 @@ export default function FormularioVenta({
     }
   }
 
+  // #308: elegir la variante exacta (o cerrar el selector sin agregar nada).
+  function elegirVariante(familia, { elegir = false } = {}) {
+    if (elegir) {
+      agregarProducto(familia)
+      setVariantePara(null)
+      return
+    }
+    setVariantePara(familia)
+  }
+
+  // #309: la barra fija del celular vuelve al carrito sin buscar el bloque.
+  function irAlCarrito() {
+    document.getElementById('pos-resumen-venta')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   async function guardar(e) {
     e.preventDefault()
     if (guardando || guardadoEnCurso.current || guardadoIncompleto) return
@@ -884,8 +905,11 @@ export default function FormularioVenta({
         quantity: it.quantity || 1,
         unitPricePyg: it.precio,
         soldWithoutInsurance: Boolean(it.soldWithoutInsurance),
-        // Venta sin unidad/stock decidida por el vendedor (#148 §11).
+        // Venta sin unidad/stock decidida por el vendedor (#148 §11) y, si
+        // aplica, la reserva anticipada de un lote en tránsito (#309; la
+        // conciliación del lote la hace Inventario).
         ...(it.sobrePedido ? { backorder: true } : {}),
+        ...(it.enTransito ? { enTransito: true, asignacionAnticipada: true } : {}),
         ...(it.serials?.length ? { inventoryUnitSerials: it.serials } : {}),
         ...(it.couponCode ? { couponCode: it.couponCode } : {}),
         ...(it.comboId ? { comboId: it.comboId } : it.combo ? { comboName: it.combo } : {}),
@@ -1770,32 +1794,48 @@ export default function FormularioVenta({
           testId="barra-pos"
           contexto={<span className="ml-1 shrink-0 rounded-full border border-fono/20 bg-fono/5 px-3 py-1 text-xs font-semibold text-fore">Hoy: {fechaClave().split('-').reverse().join('/')}</span>}
         >
-          {/* Carrito en espera: suspender la venta actual y retomar otra. Vive
-              en el encabezado para no cortar el flujo de la venta. */}
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setGiftCardsOpen(true)}
-          >
-            <Icon name="card" className="h-4 w-4" />
-            Gift cards
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setAnalyticsOpen(true)}
-          >
-            <Icon name="chart" className="h-4 w-4" />
-            Analytics
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={abrirSuspendidas}
-          >
-            <Icon name="clock" className="h-4 w-4" />
-            Ventas suspendidas
-          </Button>
+          {/* #309: las herramientas del POS (gift cards, analytics y ventas
+              suspendidas) viven en «Más» para no llenar la barra del módulo.
+              Suspender la venta en curso queda a mano, junto al carrito. */}
+          <details ref={refHerramientas} className="relative">
+            <summary data-testid="pos-mas" className="inline-flex h-11 cursor-pointer list-none select-none items-center gap-2 rounded-lg border border-ink-500 px-4 text-sm font-semibold transition hover:border-fono hover:bg-fono/10 md:h-9 [&::-webkit-details-marker]:hidden">
+              <Icon name="menu" className="h-4 w-4" />
+              Más
+            </summary>
+            <div
+              role="menu"
+              aria-label="Herramientas de la venta"
+              className="absolute right-0 z-30 mt-1 w-60 rounded-xl border border-ink-600 bg-ink-800 p-1 shadow-xl"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-mute transition hover:bg-ink-700 hover:text-fore"
+                onClick={() => { cerrarHerramientas(); setGiftCardsOpen(true) }}
+              >
+                <Icon name="card" className="h-4 w-4" />
+                Gift cards
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-mute transition hover:bg-ink-700 hover:text-fore"
+                onClick={() => { cerrarHerramientas(); setAnalyticsOpen(true) }}
+              >
+                <Icon name="chart" className="h-4 w-4" />
+                Analytics
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-mute transition hover:bg-ink-700 hover:text-fore"
+                onClick={() => { cerrarHerramientas(); abrirSuspendidas() }}
+              >
+                <Icon name="clock" className="h-4 w-4" />
+                Ventas suspendidas
+              </button>
+            </div>
+          </details>
           {items.length > 0 && (
             <Button
               type="button"
@@ -1834,11 +1874,19 @@ export default function FormularioVenta({
                   href={whatsappTrackingLink(lastOrder)}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => toast.info('Abriendo WhatsApp', 'Revisá el mensaje y enviálo desde tu teléfono.')}
                 >
                   Seguimiento por WhatsApp
                 </a>
               )}
-              <Button type="button" variant="outline" onClick={() => setComprobante(true)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  toast.info('Comprobante abierto', 'Revisalo y confirmá la impresión.')
+                  setComprobante(true)
+                }}
+              >
                 Imprimir comprobante
               </Button>
               <Button
@@ -1920,7 +1968,6 @@ export default function FormularioVenta({
           className="order-last z-10 lg:order-first lg:sticky lg:top-24"
         >
           <ResumenVenta
-            totalGeneral={totalGeneral}
             items={items}
             unidades={cantTotal}
             montoDescuento={gsNum(descuento)}
@@ -1963,6 +2010,9 @@ export default function FormularioVenta({
               familiasVisibles={familiasVisibles}
               agregarProducto={agregarProducto}
               guardando={guardando}
+              variantePara={variantePara}
+              onElegirVariante={(familia, opciones) => elegirVariante(familia, opciones)}
+              onCerrarVariante={() => setVariantePara(null)}
             />
 
             {/* Atajos al pie de la operación (en pantallas angostas no se muestran). */}
@@ -2043,8 +2093,10 @@ export default function FormularioVenta({
               cantTotal={cantTotal}
               ok={ok}
               pendientes={pendientesVenta}
+              onIrAlCarrito={irAlCarrito}
               onElegirUnidad={setImeiPara}
               onSobrePedido={key => editarItem(key, { sobrePedido: true, serials: [], reservado: false })}
+              onTransito={key => editarItem(key, { sobrePedido: true, enTransito: true, serials: [], reservado: false })}
             />
           </div>
         </div>
@@ -2058,6 +2110,9 @@ export default function FormularioVenta({
           const fila = items.find(it => it.key === imeiPara)
           const productoFila = fila ? productos.find(p => p.id === fila.productoId) : null
           if (!fila || !productoFila) return null
+          // #308: la línea se cierra con una decisión explícita (unidad exacta
+          // o «vender sin IMEI»), no por omisión.
+          const decidido = Boolean(fila.serials?.length) || Boolean(fila.sobrePedido)
           return (
             <div className="space-y-3">
               <p className="text-sm text-mute">
@@ -2092,8 +2147,20 @@ export default function FormularioVenta({
                     : <>Vender <b className="text-fore">sin IMEI (sobre pedido)</b>: el cliente reserva sin stock; el IMEI se completa al entregar.</>}
                 </span>
               </label>
+              {!decidido && (
+                <p role="status" data-testid="imei-falta-eleccion" className="text-xs font-semibold text-warn">
+                  Elegí la unidad exacta o marcá «vender sin IMEI» para cerrar la línea.
+                </p>
+              )}
               <div className="flex justify-end">
-                <Button type="button" onClick={() => setImeiPara(null)}>Listo</Button>
+                <Button
+                  type="button"
+                  onClick={() => setImeiPara(null)}
+                  disabled={!decidido}
+                  title={!decidido ? 'Elegí la unidad exacta o marcá «vender sin IMEI».' : undefined}
+                >
+                  Listo
+                </Button>
               </div>
             </div>
           )
@@ -2148,8 +2215,8 @@ export default function FormularioVenta({
         <div className="space-y-3">
           <p className="text-sm text-mute">
             {esDemo
-              ? 'Carritos en espera guardados en este navegador. Al recuperar uno, el carrito actual se reemplaza y el borrador queda marcado como retomado.'
-              : 'Carritos en espera de esta sucursal. Al recuperar uno, el carrito actual se reemplaza y el borrador queda registrado con quién lo retomó.'}
+              ? 'Carritos en espera guardados en este navegador (compartidos en la demo). Al recuperar uno, tu carrito privado se reemplaza y el borrador queda marcado como retomado.'
+              : 'Carritos en espera de esta sucursal, compartidos con el equipo. Al recuperar uno, tu carrito privado se reemplaza y el borrador queda registrado con quién lo retomó.'}
           </p>
           {!cargandoSuspendidas && !errorSuspendidas && (suspendidasPendientes.length > 0 || suspendidasRetomadas.length > 0) && (
             // #279 A2: los pendientes son los que se pueden tomar; los
@@ -2266,6 +2333,7 @@ export default function FormularioVenta({
                         href={whatsappUrl(suspendida.customer?.phone, `Hola${suspendida.customer?.name ? ` ${suspendida.customer.name}` : ''}, te comparto el carrito${suspendida.label ? ` "${suspendida.label}"` : ''}: ${enlacePublico.url}`, suspendida.customer?.countryCode)}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => toast.info('Abriendo WhatsApp', 'El enlace del carrito va en el mensaje.')}
                       >
                         Enviar por WhatsApp
                       </a>

@@ -58,6 +58,9 @@ export default function PasoCarrito({
       className={cn(
         // #281 · identidad de color: carrito = verde de venta (ok).
         'scroll-mt-32 overflow-hidden rounded-2xl border border-ok/35 bg-ok/[.04] shadow-card',
+        // #309: en escritorio el carrito queda fijo a la derecha mientras se
+        // recorre el catálogo (el cobro sigue debajo, en la misma columna).
+        'lg:sticky lg:top-24',
         // Lenguaje v2 (#241, paso 5): el carrito completo detrás del flag.
         temaV2Activo() && 'tema-v2',
       )}
@@ -184,9 +187,11 @@ export default function PasoCarrito({
             <span className="tabular-nums">{gs(montoDelivery)}</span>
           </div>
         )}
+        {/* #309: el total vive acá (una sola vez, más destacado) y no se repite
+            en el resumen del encabezado. */}
         <div className="mt-1 flex items-baseline justify-between border-t border-fono/20 pt-1.5">
           <span className="text-[11px] font-bold uppercase tracking-wider text-mute">Total</span>
-          <span className="v2-numero text-2xl font-extrabold tracking-tight tabular-nums text-fore">
+          <span data-testid="carrito-total" className="v2-numero text-3xl font-extrabold tracking-tight tabular-nums text-fore">
             {gs(totalGeneral ?? totalCarrito)}
           </span>
         </div>

@@ -336,7 +336,7 @@ test('retiro en tienda no cobra el envío aunque haya un monto cargado (#187)', 
     await expect(monto).toBeDisabled()
     await expect(monto).toHaveValue('')
     await expect(carrito).not.toContainText('Entrega +')
-    await expect(carrito).toContainText('Gs 100.000')
+    await expect(page.getByTestId('carrito-total')).toContainText('Gs 100.000')
   } finally {
     await page.evaluate(async ({ api, productId }) => {
       await fetch(`${api}/api/products?id=${encodeURIComponent(productId)}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})

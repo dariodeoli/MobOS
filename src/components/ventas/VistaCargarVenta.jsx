@@ -7,52 +7,16 @@ import {
   cobradoDeVenta,
   fechaClave,
   num,
-  gs,
 } from '@/utils/calculos'
 import FormularioVenta from './FormularioVenta'
 import { ordenesDeVentas } from '@/utils/resumenVentasDia'
 import { useAlmacenRevision } from '@/hooks/useAlmacenRevision'
-import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
-import Icon from '@/components/shared/Icon'
-import { totalResumen } from '@/lib/posCart'
-
-// Barra compacta para pantallas angostas: cuando el layout no tiene columna
-// lateral, el total y el acceso al carrito quedan pegados bajo el encabezado
-// para no perderlos al deslizar el formulario.
-function BarraTotal({ carrito, totalCompra, unidadesCarrito }) {
-  return (
-    <div data-testid="carrito-barra" className="sticky top-20 z-10 lg:hidden">
-      <div className="flex items-center justify-between gap-3 rounded-[14px] border border-fono/40 bg-gradient-to-br from-fono-dark via-fono to-fono px-4 py-3 shadow-lg shadow-black/25">
-        <div className="min-w-0">
-          <div className="truncate text-[10.5px] font-semibold uppercase tracking-[.08em] text-onbrand/75">
-            {carrito.items.length === 0
-              ? 'Sin productos'
-              : `${carrito.items.length} ${carrito.items.length === 1 ? 'producto' : 'productos'} · ${unidadesCarrito} ${unidadesCarrito === 1 ? 'unidad' : 'unidades'}`}
-          </div>
-          <div className="v2-numero text-xl font-semibold tracking-tight tabular-nums text-onbrand">
-            {gs(totalCompra)}
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => carrito.irARevisar?.()}
-          disabled={!carrito.puedeRevisar}
-          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-onbrand/15 px-4 text-sm font-bold text-onbrand transition hover:bg-onbrand/25 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Icon name="cart" className="h-4 w-4" />
-          Ver carrito
-        </button>
-      </div>
-    </div>
-  )
-}
 
 // Pantalla de carga de venta: una sola página con el flujo completo. Acá se
 // calculan los datos del día (contexto del vendedor) y el formulario se lleva
 // la venta: cliente, productos, carrito y cobro con el resumen fijo.
 export default function VistaCargarVenta({ tradeInDraft, onTradeInConsumed, activo = true }) {
   const { sesion } = useSesion()
-  const angosta = usePantallaAngosta()
   // #257: repinta cuando el espejo local se actualiza (hidratación en segundo
   // plano o mutaciones) y refresca el catálogo al volver a la venta, así lo
   // cargado en Inventario u otra pestaña aparece sin recargar la app.
@@ -61,7 +25,9 @@ export default function VistaCargarVenta({ tradeInDraft, onTradeInConsumed, acti
     if (activo) refrescarCatalogo().catch(() => { /* sin conexión: queda el espejo */ })
   }, [activo])
   const ventas = listVentas()
-  const [carrito, setCarrito] = useState({
+  // El carrito se reporta al shell por `onCarrito` (accesos rápidos); el total
+  // y la acción principal viven en la barra fija del cobro (#309).
+  const [, setCarrito] = useState({
     items: [],
     quitar: null,
     irARevisar: null,
@@ -92,15 +58,10 @@ export default function VistaCargarVenta({ tradeInDraft, onTradeInConsumed, acti
     }
   }, [ventas, sesion?.vendedorId])
 
-  // Cada línea llega con su subtotal ya calculado (precio unitario × cantidad).
-  const totalCompra = totalResumen(carrito.items)
-  const unidadesCarrito = carrito.items.reduce((a, it) => a + (it.quantity || 1), 0)
-
+  // #309: el total y la acción principal del celular viven en la barra fija
+  // del bloque de cobro (PasoCobro); ya no hay barra superior duplicada.
   return (
     <div className="flex flex-col gap-5">
-      {angosta && (
-        <BarraTotal carrito={carrito} totalCompra={totalCompra} unidadesCarrito={unidadesCarrito} />
-      )}
       <FormularioVenta
         onCarrito={setCarrito}
         resumenDia={resumenDia}

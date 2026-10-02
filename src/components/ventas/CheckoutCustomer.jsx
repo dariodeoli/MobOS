@@ -26,7 +26,7 @@ const customerValue = (customer) => ({
   billingName: customer.billingName || '', billingDocument: customer.billingDocument || '',
 })
 
-export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, onBillingChange, nombreLista = '' }) {
+export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, onBillingChange, nombreLista = '', colapsarFicha = false }) {
   const { empresa } = useSesion()
   const empresaId = empresa?.id || null
   const [matches, setMatches] = useState([])
@@ -36,6 +36,12 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   const [borradores, setBorradores] = useState([])
   // Facturación a otro titular: toggle compacto junto al cliente.
   const [facturarAOtro, setFacturarAOtro] = useState(Boolean(billingTo?.name || billingTo?.document))
+  // #309: con la ficha elegida el bloque se lee en una línea; «Editar datos»
+  // abre el formulario completo (contacto, direcciones y facturación).
+  const [editar, setEditar] = useState(false)
+  // #309: el POS colapsa la ficha elegida a una línea; los modales de edición
+  // (ficha del cliente, cambiar cliente del pedido) mantienen el formulario.
+  const colapsado = colapsarFicha && Boolean(value.id) && !editar
   // Última versión de `elegirCliente` accesible desde el efecto de búsqueda sin
   // recrearlo en cada render (evita reconsultas en loop).
   const elegirClienteRef = useRef(null)
@@ -87,6 +93,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     setMatches([])
   }
   function elegirCliente(customer) {
+    setEditar(false)
     onChange(customerValue(customer))
     // La factura a otro titular que el cliente ya usó se propone de nuevo,
     // salvo que esta venta ya tenga datos escritos.
@@ -94,13 +101,56 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     if (facturacion && onBillingChange && !billingTo?.name?.trim() && !billingTo?.document?.trim()) onBillingChange(facturacion)
   }
   function quitarCliente() {
-    setMatches([]); setError('')
+    setMatches([]); setError(''); setEditar(false)
     onChange(clienteVacio())
   }
 
   const setAddress = (index, field, next) => onChange({ ...value, addresses: value.addresses.map((address, position) => position === index ? { ...address, [field]: next } : address) })
   const addAddress = () => onChange({ ...value, addresses: [...(value.addresses || []), { ...emptyAddress(), label: `Dirección ${(value.addresses?.length || 0) + 1}`, isDefault: !value.addresses?.length }] })
   const removeAddress = (index) => onChange({ ...value, addresses: value.addresses.filter((_, position) => position !== index).map((address, position) => ({ ...address, isDefault: position === 0 ? true : address.isDefault })) })
+
+  // Una línea: quién es, qué lista/crédito tiene y las acciones (#309).
+  if (colapsado) {
+    return (
+      <div
+        data-testid="cliente-elegido"
+        className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-ok/30 bg-ok/10 px-3 py-2 text-xs"
+      >
+        <span className="inline-flex items-center gap-1.5 font-bold text-ok">
+          <Icon name="check" className="h-3.5 w-3.5" /> Cliente
+        </span>
+        <span data-testid="cliente-elegido-nombre" className="font-semibold text-fore">{value.name}</span>
+        {value.document ? <span className="text-mute">{value.document}</span> : null}
+        {value.phone ? <span className="text-mute">{value.countryCode} {value.phone}</span> : null}
+        {value.pricingTier === 'WHOLESALE' ? (
+          <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light">Mayorista</span>
+        ) : null}
+        {nombreLista ? (
+          <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light" title="Lista de precios asignada a esta ficha">Lista {nombreLista}</span>
+        ) : null}
+        {Number(value.creditLimitPyg || 0) > 0 ? (
+          <span className="rounded border border-warn/30 px-1.5 py-0.5 font-bold text-warn">
+            Crédito hasta {montoGs(value.creditLimitPyg)}{value.creditDays ? ' · ' + value.creditDays + ' días' : ''}
+          </span>
+        ) : null}
+        {facturarAOtro && (billingTo?.name || billingTo?.document) ? (
+          <span className="text-mute">Factura a {billingTo?.name || billingTo?.document}</span>
+        ) : null}
+        <span className="ml-auto flex shrink-0 items-center gap-1.5">
+          <Button type="button" variant="outline" className="h-8 px-2.5 text-xs" onClick={() => setEditar(true)}>
+            Editar datos
+          </Button>
+          <button
+            type="button"
+            className="rounded-lg border border-bad/40 px-2 py-1 font-semibold text-bad transition hover:bg-bad/10"
+            onClick={quitarCliente}
+          >
+            × Quitar
+          </button>
+        </span>
+      </div>
+    )
+  }
 
   return <div className="space-y-3 md:col-span-2">
     <label className="block text-sm font-semibold">Cliente<Input aria-label="Nombre, teléfono, CI o RUC del cliente" value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => onChange({ ...value, id: undefined, name: event.target.value })} /></label>

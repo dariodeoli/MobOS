@@ -1,0 +1,278 @@
+{
+  "base": "http://localhost:5216",
+  "etiqueta": "rama-309-308",
+  "resultados": [
+    {
+      "variante": "desktop-claro",
+      "pasos": [
+        "orden: productos 309 · cliente 783 → productos primero",
+        "cliente en una línea: sí",
+        "carrito: sticky · total Gs 180.000 · franja con importe",
+        "barra de acción: fixed (none) · TotalGs 180.000Carrito (1)Crear pedido sin pagoGs 180.000",
+        "«Más»: Gift cards · Analytics · Ventas suspendidas",
+        "sin productos: pago bloqueado · gift card bloqueada"
+      ],
+      "medidas": {
+        "productos": {
+          "y": 309,
+          "position": "static",
+          "display": "block",
+          "texto": "ProductosBuscá por nombre, modelo o variante y hacé clic para sumarlo a la venta.17 disponibles Nuevo productoiPhone 15 Pro 256GB2 variantes · desde Gs 6.750.0004 en stock · elegí la varianteiPhone 15"
+        },
+        "cliente": {
+          "y": 783,
+          "position": "static",
+          "display": "block",
+          "texto": "ClienteBuscá la ficha por nombre, teléfono, CI o RUC; si no existe, se crea al confirmar.Vendedor: Diego LópezAsignado automáticamente a tu sesión.Cliente Datos de contacto, RUC/CI y direccionesTeléfo"
+        },
+        "elegido": {
+          "y": 888,
+          "position": "static",
+          "display": "flex",
+          "texto": " ClienteLucía Fernández3.456.789+595 0981123456Crédito hasta Gs 2.000.000 · 15 díasEditar datos× Quitar"
+        },
+        "cart": {
+          "y": 309,
+          "position": "sticky",
+          "display": "block",
+          "texto": "Productos de esta ventaCliente: Lucía Fernández · Diego López · Retiro en tienda1 producto · 1 unidadVaciar carritoFunda MagSafe TransparenteGs 180.000Descuento extra (Gs)Gs.SubtotalGs 180.000TotalGs "
+        },
+        "total": {
+          "y": 606,
+          "position": "static",
+          "display": "block",
+          "texto": "Gs 180.000"
+        },
+        "franja": {
+          "y": 247,
+          "position": "static",
+          "display": "flex",
+          "texto": "Esta venta1 producto · 1 unidadTu día3 ventas · 3 pedidosFacturación Gs 14.280.000"
+        },
+        "barra": {
+          "y": 39,
+          "position": "fixed",
+          "display": "none",
+          "texto": "TotalGs 180.000Carrito (1)Crear pedido sin pagoGs 180.000"
+        },
+        "sinProductos": {
+          "agregarPagoDeshabilitado": true,
+          "canjearDeshabilitado": true,
+          "aviso": {
+            "y": 1051,
+            "position": "static",
+            "display": "block",
+            "texto": "Agregá productos a la venta para cargar pagos o canjear gift cards."
+          }
+        },
+        "selectorVariante": null,
+        "imeiBloqueado": null
+      },
+      "errores": []
+    },
+    {
+      "variante": "desktop-oscuro",
+      "pasos": [
+        "orden: productos 309 · cliente 783 → productos primero",
+        "cliente en una línea: sí",
+        "carrito: sticky · total Gs 180.000 · franja con importe",
+        "barra de acción: fixed (none) · TotalGs 180.000Carrito (1)Crear pedido sin pagoGs 180.000",
+        "«Más»: Gift cards · Analytics · Ventas suspendidas",
+        "sin productos: pago bloqueado · gift card bloqueada"
+      ],
+      "medidas": {
+        "productos": {
+          "y": 309,
+          "position": "static",
+          "display": "block",
+          "texto": "ProductosBuscá por nombre, modelo o variante y hacé clic para sumarlo a la venta.17 disponibles Nuevo productoiPhone 15 Pro 256GB2 variantes · desde Gs 6.750.0004 en stock · elegí la varianteiPhone 15"
+        },
+        "cliente": {
+          "y": 783,
+          "position": "static",
+          "display": "block",
+          "texto": "ClienteBuscá la ficha por nombre, teléfono, CI o RUC; si no existe, se crea al confirmar.Vendedor: Diego LópezAsignado automáticamente a tu sesión.Cliente Datos de contacto, RUC/CI y direccionesTeléfo"
+        },
+        "elegido": {
+          "y": 888,
+          "position": "static",
+          "display": "flex",
+          "texto": " ClienteLucía Fernández3.456.789+595 0981123456Crédito hasta Gs 2.000.000 · 15 díasEditar datos× Quitar"
+        },
+        "cart": {
+          "y": 309,
+          "position": "sticky",
+          "display": "block",
+          "texto": "Productos de esta ventaCliente: Lucía Fernández · Diego López · Retiro en tienda1 producto · 1 unidadVaciar carritoFunda MagSafe TransparenteGs 180.000Descuento extra (Gs)Gs.SubtotalGs 180.000TotalGs "
+        },
+        "total": {
+          "y": 606,
+          "position": "static",
+          "display": "block",
+          "texto": "Gs 180.000"
+        },
+        "franja": {
+          "y": 247,
+          "position": "static",
+          "display": "flex",
+          "texto": "Esta venta1 producto · 1 unidadTu día3 ventas · 3 pedidosFacturación Gs 14.280.000"
+        },
+        "barra": {
+          "y": 39,
+          "position": "fixed",
+          "display": "none",
+          "texto": "TotalGs 180.000Carrito (1)Crear pedido sin pagoGs 180.000"
+        },
+        "sinProductos": {
+          "agregarPagoDeshabilitado": true,
+          "canjearDeshabilitado": true,
+          "aviso": {
+            "y": 1051,
+            "position": "static",
+            "display": "block",
+            "texto": "Agregá productos a la venta para cargar pagos o canjear gift cards."
+          }
+        },
+        "selectorVariante": null,
+        "imeiBloqueado": null
+      },
+      "errores": []
+    },
+    {
+      "variante": "movil-claro",
+      "pasos": [
+        "orden: productos 323 · cliente 851 → productos primero",
+        "cliente en una línea: sí",
+        "carrito: static · total Gs 180.000 · franja con importe",
+        "barra de acción: fixed (block) · TotalGs 180.000Carrito (1)Crear pedido sin pagoGs 180.000",
+        "«Más»: Gift cards · Analytics · Ventas suspendidas",
+        "sin productos: pago bloqueado · gift card bloqueada"
+      ],
+      "medidas": {
+        "productos": {
+          "y": 323,
+          "position": "static",
+          "display": "block",
+          "texto": "ProductosBuscá por nombre, modelo o variante y hacé clic para sumarlo a la venta.17 disponibles Nuevo productoiPhone 15 Pro 256GB2 variantes · desde Gs 6.750.0004 en stock · elegí la varianteiPhone 15"
+        },
+        "cliente": {
+          "y": 851,
+          "position": "static",
+          "display": "block",
+          "texto": "ClienteBuscá la ficha por nombre, teléfono, CI o RUC; si no existe, se crea al confirmar.Vendedor: Diego LópezAsignado automáticamente a tu sesión.Cliente Datos de contacto, RUC/CI y direccionesTeléfo"
+        },
+        "elegido": {
+          "y": 972,
+          "position": "static",
+          "display": "flex",
+          "texto": " ClienteLucía Fernández3.456.789+595 0981123456Crédito hasta Gs 2.000.000 · 15 díasEditar datos× Quitar"
+        },
+        "cart": {
+          "y": 957,
+          "position": "static",
+          "display": "block",
+          "texto": "Productos de esta ventaCliente: Lucía Fernández · Diego López · Retiro en tienda1 producto · 1 unidadVaciar carritoFunda MagSafe TransparenteGs 180.000Descuento extra (Gs)Gs.SubtotalGs 180.000TotalGs "
+        },
+        "total": {
+          "y": 1304,
+          "position": "static",
+          "display": "block",
+          "texto": "Gs 180.000"
+        },
+        "franja": {
+          "y": 2157,
+          "position": "static",
+          "display": "flex",
+          "texto": "Esta venta1 producto · 1 unidadTu día3 ventas · 3 pedidosFacturación Gs 14.280.000"
+        },
+        "barra": {
+          "y": 2285,
+          "position": "fixed",
+          "display": "block",
+          "texto": "TotalGs 180.000Carrito (1)Crear pedido sin pagoGs 180.000"
+        },
+        "sinProductos": {
+          "agregarPagoDeshabilitado": true,
+          "canjearDeshabilitado": true,
+          "aviso": {
+            "y": 2129,
+            "position": "static",
+            "display": "block",
+            "texto": "Agregá productos a la venta para cargar pagos o canjear gift cards."
+          }
+        },
+        "selectorVariante": null,
+        "imeiBloqueado": null
+      },
+      "errores": []
+    },
+    {
+      "variante": "movil-oscuro",
+      "pasos": [
+        "orden: productos 323 · cliente 851 → productos primero",
+        "cliente en una línea: sí",
+        "carrito: static · total Gs 180.000 · franja con importe",
+        "barra de acción: fixed (block) · TotalGs 180.000Carrito (1)Crear pedido sin pagoGs 180.000",
+        "«Más»: Gift cards · Analytics · Ventas suspendidas",
+        "sin productos: pago bloqueado · gift card bloqueada"
+      ],
+      "medidas": {
+        "productos": {
+          "y": 323,
+          "position": "static",
+          "display": "block",
+          "texto": "ProductosBuscá por nombre, modelo o variante y hacé clic para sumarlo a la venta.17 disponibles Nuevo productoiPhone 15 Pro 256GB2 variantes · desde Gs 6.750.0004 en stock · elegí la varianteiPhone 15"
+        },
+        "cliente": {
+          "y": 851,
+          "position": "static",
+          "display": "block",
+          "texto": "ClienteBuscá la ficha por nombre, teléfono, CI o RUC; si no existe, se crea al confirmar.Vendedor: Diego LópezAsignado automáticamente a tu sesión.Cliente Datos de contacto, RUC/CI y direccionesTeléfo"
+        },
+        "elegido": {
+          "y": 972,
+          "position": "static",
+          "display": "flex",
+          "texto": " ClienteLucía Fernández3.456.789+595 0981123456Crédito hasta Gs 2.000.000 · 15 díasEditar datos× Quitar"
+        },
+        "cart": {
+          "y": 957,
+          "position": "static",
+          "display": "block",
+          "texto": "Productos de esta ventaCliente: Lucía Fernández · Diego López · Retiro en tienda1 producto · 1 unidadVaciar carritoFunda MagSafe TransparenteGs 180.000Descuento extra (Gs)Gs.SubtotalGs 180.000TotalGs "
+        },
+        "total": {
+          "y": 1304,
+          "position": "static",
+          "display": "block",
+          "texto": "Gs 180.000"
+        },
+        "franja": {
+          "y": 2157,
+          "position": "static",
+          "display": "flex",
+          "texto": "Esta venta1 producto · 1 unidadTu día3 ventas · 3 pedidosFacturación Gs 14.280.000"
+        },
+        "barra": {
+          "y": 2285,
+          "position": "fixed",
+          "display": "block",
+          "texto": "TotalGs 180.000Carrito (1)Crear pedido sin pagoGs 180.000"
+        },
+        "sinProductos": {
+          "agregarPagoDeshabilitado": true,
+          "canjearDeshabilitado": true,
+          "aviso": {
+            "y": 2129,
+            "position": "static",
+            "display": "block",
+            "texto": "Agregá productos a la venta para cargar pagos o canjear gift cards."
+          }
+        },
+        "selectorVariante": null,
+        "imeiBloqueado": null
+      },
+      "errores": []
+    }
+  ]
+}

@@ -70,7 +70,7 @@ test('POS: un cliente con lista ve el precio de lista y su escalón por cantidad
     await page.goto('/pos')
     await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(nombreCliente)
     await page.getByRole('button', { name: new RegExp(nombreCliente) }).click()
-    await expect(page.getByText('Cliente seleccionado')).toBeVisible()
+    await expect(page.getByTestId('cliente-elegido')).toBeVisible()
 
     await page.getByPlaceholder('Buscar producto…').fill('Cable')
     await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
