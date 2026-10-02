@@ -142,11 +142,13 @@ test('la cotización se envía por WhatsApp con el PDF y queda enviada', async (
   expect(mensaje).toContain('te comparto la cotización')
   expect(mensaje).toContain('/cotizacion/')
 
-  // El estado quedó en SENT (enviada).
-  const lista = await api(page, '/api/quotes')
-  const filas = Array.isArray(lista.body) ? lista.body : lista.body?.quotes || lista.body?.rows || []
-  const cotizacion = filas.find((fila) => fila.number === creada.body.number)
-  expect(cotizacion?.status).toBe('SENT')
+  // El estado queda en SENT (enviada): el PATCH sale después del share, así
+  // que se reintenta la lectura hasta que llegue (evita la carrera del spec).
+  await expect.poll(async () => {
+    const lista = await api(page, '/api/quotes')
+    const filas = Array.isArray(lista.body) ? lista.body : lista.body?.quotes || lista.body?.rows || []
+    return filas.find((fila) => fila.number === creada.body.number)?.status
+  }, { timeout: 10_000 }).toBe('SENT')
 })
 
 test('el remito público confirma la recepción y suma el stock de destino', async ({ page }) => {
