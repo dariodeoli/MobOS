@@ -39,13 +39,17 @@ test('pedidos: la lista abre sin popups y el detalle se abre y cierra', async ({
   await expect(page).toHaveURL(/\/pedidos$/)
   await expect(page.getByRole('dialog')).toHaveCount(0)
 
-  // El ícono de acciones abre la vista rápida en panel sin redirigir.
+  // El ícono de acciones abre la vista rápida en panel sin redirigir y sin
+  // repetir el detalle (#313): resumen + acceso al pedido completo.
   const urlLista = page.url()
   await page.getByRole('button', { name: /Vista rápida de/ }).first().click()
-  await expect(page.getByRole('dialog')).toBeVisible()
+  const panelRapido = page.getByTestId('pedido-vista-rapida')
+  await expect(panelRapido).toBeVisible()
   await expect(page).toHaveURL(urlLista)
+  await expect(panelRapido.getByText('Artículos preparados')).toHaveCount(0)
+  await expect(panelRapido.getByRole('button', { name: 'Ver pedido completo' })).toBeVisible()
   await page.getByRole('button', { name: 'Cerrar', exact: true }).click()
-  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(panelRapido).toHaveCount(0)
 
   expect(errores, `Errores de página: ${errores.join(' | ')}`).toEqual([])
 })

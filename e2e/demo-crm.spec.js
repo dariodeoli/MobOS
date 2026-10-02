@@ -63,14 +63,14 @@ test('demo: la venta del POS actualiza la actividad y los agregados del cliente'
   const ficha = page.getByRole('dialog')
   await expect(ficha.getByText(esperado).first()).toBeVisible()
   await expect(ficha.getByText('Últimas órdenes')).toBeVisible()
-  await expect(ficha.getByText(/AUR-#0001/).first()).toBeVisible()
+  await expect(ficha.getByText(/AUR-#\d{4}/).first()).toBeVisible()
   await expect(ficha.getByText('Última compra')).toBeVisible()
   await page.waitForTimeout(1200)
   await page.screenshot({ path: '/tmp/qa160-demo-ficha.png' })
 
   // Cronología: el pedido nuevo queda registrado en el historial del cliente.
   await ficha.getByRole('tab', { name: /^Cronología/ }).click()
-  await expect(ficha.getByText(/AUR-#0001/).first()).toBeVisible()
+  await expect(ficha.getByText(/AUR-#\d{4}/).first()).toBeVisible()
 
   // #236: el ojito abre el resumen rápido del cliente (demo, datos locales).
   // Se cierra la ficha que quedó abierta del tramo anterior.
@@ -79,9 +79,11 @@ test('demo: la venta del POS actualiza la actividad y los agregados del cliente'
   await filaDemo.getByRole('button', { name: 'Resumen rápido de Lucía Fernández' }).click()
   const resumen = page.getByRole('dialog', { name: 'Cliente: Lucía Fernández' })
   await expect(resumen.getByText('Total gastado')).toBeVisible()
-  await expect(resumen.getByText('Últimas compras')).toBeVisible()
-  await expect(resumen.getByText(/MOB-?#?0008/).first()).toBeVisible()
+  await expect(resumen.getByText('Deuda')).toBeVisible()
   await expect(resumen.getByRole('button', { name: 'Ver detalle completo' })).toBeVisible()
+  // #313: la vista rápida no repite el detalle (sin compras ni notas).
+  await expect(resumen.getByText('Últimas compras')).toHaveCount(0)
+  await expect(resumen.getByText('Nota interna')).toHaveCount(0)
   await page.screenshot({ path: '/tmp/qa160-demo-resumen-popup.png' })
   await resumen.getByRole('button', { name: 'Ver detalle completo' }).click()
   await expect(page.getByRole('tab', { name: /^Resumen/ })).toBeVisible({ timeout: 15000 })

@@ -738,9 +738,12 @@ test.describe('mini CRM de clientes', () => {
     await expect(fila).toBeVisible()
     // Teléfono siempre con código de país.
     await expect(fila).toContainText('+595 981')
-    // Dos acciones de WhatsApp: envío directo y elección de plantilla.
-    await expect(fila.getByRole('button', { name: new RegExp(`Enviar WhatsApp a ${nombre}`) })).toBeVisible()
-    await expect(fila.getByRole('button', { name: new RegExp(`Elegir plantilla de WhatsApp para ${nombre}`) })).toBeVisible()
+    // #313: una acción visible y las de WhatsApp dentro del menú «…».
+    await expect(fila.getByRole('button', { name: `Resumen rápido de ${nombre}` })).toBeVisible()
+    await fila.getByRole('button', { name: `Más acciones de ${nombre}` }).click()
+    await expect(page.getByRole('menuitem', { name: `Enviar WhatsApp a ${nombre}` })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: `Elegir plantilla de WhatsApp para ${nombre}` })).toBeVisible()
+    await page.keyboard.press('Escape')
 
     const { scrollWidth, clientWidth } = await page.getByTestId('clientes-tabla').evaluate((nodo) => ({ scrollWidth: nodo.scrollWidth, clientWidth: nodo.clientWidth }))
     expect(scrollWidth, 'la tabla de clientes debe entrar sin scroll horizontal').toBeLessThanOrEqual(clientWidth + 1)

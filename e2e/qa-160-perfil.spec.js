@@ -100,7 +100,9 @@ test('§19: listado por actividad y perfil completo en cuenta real', async ({ pa
 
   // Estadísticas (misma lógica que la cuenta real).
   await ficha.getByRole('tab', { name: /^Estadísticas/ }).click()
-  await page.waitForTimeout(900)
+  // La analítica se pide al abrir la pestaña: se espera la métrica y recién
+  // después se lee el texto (el timeout fijo anterior flaqueaba tras tandas).
+  await expect(ficha.getByText(/TICKET PROMEDIO/i)).toBeVisible({ timeout: 15000 })
   const estadisticas = (await ficha.innerText()).replace(/\s+/g, ' ')
   expect(estadisticas).toMatch(/TICKET PROMEDIO Gs 2\.250\.000/i)
   await page.screenshot({ path: `${SALIDA}/04-perfil-estadisticas.png` })
