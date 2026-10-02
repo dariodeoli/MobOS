@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.213 — 2026-10-02
+- **Validación global (#297):** ninguna acción se habilita con datos incompletos — gastos, compras, impresoras, promociones, traslados y conteos indican **qué falta** junto al campo y en el botón, y con **total en Gs 0** no se cargan pagos ni se canjean gift cards; la **API rechaza un conteo sin equipos** escaneados.
+- **Inventario móvil (#304):** en el celular cada equipo es una **tarjeta compacta** (el trabajo primero) y en escritorio la **tabla completa** vuelve a mostrar todo; el switch Productos/Unidades se oculta en mobile para que el primer equipo entre en pantalla.
+- **Centro de Control (#303) y diálogos de Inventario (#323):** el Centro de Control se abre desde **Lista por modelo** y **Comparador**, y los diálogos de Inventario usan el **modal/drawer estándar** (campos ordenados, confirmación al cerrar con cambios y resultado unificado).
+- **Demo completa (#302):** Delivery y Abastecimiento de la demo dejan de tener placeholders y comparten **datos coherentes** con el resto del panel.
+
 ## v1.0.212 — 2026-10-02
 - **Inventario (#305):** el módulo queda con **una sola barra** (identidad, búsqueda, filtros y acciones juntas) y las secundarias en **«Más»**; la tabla muestra **IMEI completo, verificación y estado sin truncar** y en mobile el orden ya no se corta.
 - **Clientes y Pedidos (#313):** los listados muestran **solo códigos humanos** (se terminaron los «demo-ven…»), cada pedido tiene **una acción principal** con la vista rápida aparte, y las filas se leen completas en mobile.
