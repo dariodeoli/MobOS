@@ -451,14 +451,14 @@ test('configuración en demo muestra avisos claros y sin cargas colgadas', async
   await expect(page).toHaveURL(/\/resumen$/)
   await cerrarGuia(page)
 
-  // Sucursales y Precios (dentro de Organización y Comercial) explican que se
-  // administran con una cuenta real.
+  // Sucursales explican que se administran con una cuenta real; Precios ya
+  // muestra listas ficticias auditables (#324).
   await page.goto('/configuracion/organizacion')
   await expect(page.getByText('Las sucursales se administran con una cuenta real')).toBeVisible()
   await expect(page.getByText('Cargando sucursales…')).toHaveCount(0)
   await page.goto('/configuracion/comercial')
-  await expect(page.getByText('Las listas de precios se configuran con una cuenta real')).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Ingresar con mi cuenta' })).toBeVisible()
+  await expect(page.getByTestId('lista-precio-fila').first()).toBeVisible()
+  await expect(page.getByText('Las listas de precios se configuran con una cuenta real')).toHaveCount(0)
 
   // El interruptor de seguro tiene nombre accesible y no expone atributos raros.
   await page.goto('/configuracion/comercial')
