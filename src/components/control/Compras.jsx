@@ -157,7 +157,7 @@ export default function Compras() {
   filtroRef.current = busqueda.trim()
   const load = useCallback(async (search = filtroRef.current) => {
     setBusy(true); setError('')
-    try { const [purchaseRows, supplierRows, accountRows] = await Promise.all([demo ? Promise.resolve(loadDemoPurchases()) : purchasesApi.list(search), demo ? Promise.resolve([]) : suppliersApi.list(), getPaymentAccounts()]); setPurchases(purchaseRows); setSuppliers(supplierRows); setAccounts(accountRows.filter(account => account.isActive)) }
+    try { const [purchaseRows, supplierRows, accountRows] = await Promise.all([demo ? Promise.resolve(loadDemoPurchases()) : purchasesApi.list(search), suppliersApi.list(), getPaymentAccounts()]); setPurchases(purchaseRows); setSuppliers(supplierRows); setAccounts(accountRows.filter(account => account.isActive)) }
     catch (err) { setError(err?.message || 'No se pudieron cargar las compras.') } finally { setBusy(false) }
   }, [demo])
   useEffect(() => { load(busqueda.trim()) }, [load, busqueda])

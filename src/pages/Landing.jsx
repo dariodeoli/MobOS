@@ -140,7 +140,7 @@ const accesos = [
 const faqs = [
   [
     "¿Puedo probar antes de crear una cuenta?",
-    "Sí. La demo es una tienda de ejemplo, anónima y con datos ficticios: usá el PIN 2001 como vendedor o 3001 como dueño, sin instalar nada.",
+    "Sí. La demo es una tienda de ejemplo, anónima y con datos ficticios: entrá con el PIN 2001 como vendedor o 3001 como dueño (también hay gerente, caja, técnico y delivery), sin instalar nada.",
   ],
   [
     "¿Cómo se verifica un IMEI?",
@@ -681,8 +681,7 @@ export default function Landing() {
               </h2>
               <p className="mt-2 text-sm text-mute">
                 <b className="font-mono text-fono-dark">2001</b> vendedor ·{" "}
-                <b className="font-mono text-fono-dark">3001</b> dueño · datos
-                ficticios, sin registro y sin gastar nada
+                <b className="font-mono text-fono-dark">3001</b> dueño · seis roles ficticios, sin registro y sin gastar nada
               </p>
             </div>
             <a

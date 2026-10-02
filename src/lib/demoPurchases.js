@@ -1,19 +1,25 @@
 import { getProductos, moverStock } from '@/lib/storage'
-import { leerDemo, guardarDemo } from './demoStorage.js'
+import { guardarDemo, leerDemo } from './demoStorage.js'
+import { DEMO_PURCHASES } from './demo/compras.js'
 
+// Compras demo (#324): la semilla pura vive en `demo/compras.js` (mismos
+// proveedores que Inventario y Abastecimiento); acá quedan la persistencia
+// session-only y las mutaciones de la pantalla Compras.
 const KEY = 'mobos:demo-purchases:v1'
-const seed = [
-  { id: 'demo-purchase-1', supplierName: 'Proveedor Norte', status: 'RECEIVED', createdAt: '2026-01-12T10:00:00.000Z', receivedAt: '2026-01-14T10:00:00.000Z', shippingPyg: 85000, customsPyg: 120000, lines: [{ id: 'demo-line-1', productId: 'demo-funda-magsafe-transparente', productName: 'Funda MagSafe Transparente', quantity: 24, unitCostPyg: 18000 }] },
-  { id: 'demo-purchase-2', supplierName: 'Proveedor Sur', status: 'DRAFT', createdAt: '2026-02-02T10:00:00.000Z', receivedAt: null, shippingPyg: 60000, customsPyg: 0, lines: [{ id: 'demo-line-2', productId: 'demo-cargador-usbc-20w', productName: 'Cargador USB-C 20W', quantity: 50, unitCostPyg: 9000 }] },
-]
+const seed = DEMO_PURCHASES
 
 function read() {
-  try { return JSON.parse(leerDemo(KEY)) || seed } catch { return seed }
+  try {
+    const guardado = JSON.parse(leerDemo(KEY))
+    return Array.isArray(guardado) && guardado.length ? guardado : seed
+  } catch { return seed }
 }
 function write(items) { guardarDemo(KEY, JSON.stringify(items)); return items }
-export const DEMO_PURCHASES = seed
 export function loadDemoPurchases() { return read() }
-export function createDemoPurchase(purchase) { return write([purchase, ...read()]) }
+export function createDemoPurchase(purchase) {
+  const nuevo = { payments: [], paidPyg: 0, outstandingPyg: 0, ...purchase }
+  return write([nuevo, ...read()])
+}
 export function receiveDemoPurchase(id) {
   const items = read(); const purchase = items.find((item) => item.id === id)
   if (!purchase || purchase.status !== 'DRAFT') throw new Error('La compra ya fue recibida o no existe.')
@@ -21,7 +27,12 @@ export function receiveDemoPurchase(id) {
     if (!getProductos().some((product) => product.id === line.productId)) throw new Error('Producto demo inválido; no se actualizó el stock.')
   }
   for (const line of purchase.lines || []) moverStock(line.productId, Number(line.quantity))
-  const updated = { ...purchase, status: 'RECEIVED', receivedAt: new Date().toISOString() }
+  const updated = {
+    ...purchase,
+    status: 'RECEIVED',
+    receivedAt: new Date().toISOString(),
+    lines: (purchase.lines || []).map((line) => ({ ...line, receivedQty: Number(line.quantity) || 0 })),
+  }
   write(items.map((item) => item.id === id ? updated : item))
   return updated
 }
@@ -36,7 +47,7 @@ export function updateDemoPurchaseCosts(id, lines) {
       const next = byId[line.id]
       if (!next) return line
       const unitCostPyg = Number(next.unitCostPyg)
-      return { ...line, unitCostPyg, finalTotalCostPyg: Number(line.quantity) * unitCostPyg }
+      return { ...line, unitCostPyg, finalUnitCostPyg: unitCostPyg, finalTotalCostPyg: Number(line.quantity) * unitCostPyg }
     }),
   }
   write(items.map((item) => item.id === id ? updated : item))

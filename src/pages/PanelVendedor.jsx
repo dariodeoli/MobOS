@@ -7,6 +7,8 @@ import { useReloj } from '@/hooks/useReloj'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { listVentas, hidratarFinanzas, refrescarCatalogo } from '@/lib/storage'
 import { sessionApi } from '@/lib/api'
+import { EQUIPO_DEMO } from '@/lib/demo/iphones'
+import { ROLE_LABELS } from '@/lib/roles'
 import { ventasDelDia, fechaClave, num, gs } from '@/utils/calculos'
 import SelectorSucursal from '@/components/shared/SelectorSucursal'
 import Icon from '@/components/shared/Icon'
@@ -605,9 +607,12 @@ export default function PanelVendedor() {
   const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
   const diaSem = DIAS[new Date(`${hoy}T12:00:00`).getDay()]
   const fechaLarga = `${diaSem}, ${Number(dd)} de ${MESES[Number(m) - 1]}`
-  const opcionesVendedor = vendedores?.length
-    ? vendedores
-    : [{ id: sesion?.vendedorId, name: sesion?.nombre }]
+  const opcionesVendedor = useMemo(
+    () => (esDemo
+      ? EQUIPO_DEMO
+      : (vendedores?.length ? vendedores : [{ id: sesion?.vendedorId, name: sesion?.nombre }])),
+    [esDemo, vendedores, sesion?.vendedorId, sesion?.nombre],
+  )
 
   function pedirBloqueo() {
     setLockPin('')
@@ -638,7 +643,7 @@ export default function PanelVendedor() {
       setLockError('')
       try {
         if (esDemo) {
-          const esperado = esOwner ? '3001' : '2001'
+          const esperado = usuario?.pin || (esOwner ? '3001' : '2001')
           if (pinIntento !== esperado) throw new Error('PIN inválido. Probá de nuevo.')
         } else {
           await sessionApi.loginSeller({ sellerId: sesion?.vendedorId, pin: pinIntento })
@@ -655,7 +660,7 @@ export default function PanelVendedor() {
         setLockBusy(false)
       }
     },
-    [esDemo, esOwner, sesion?.vendedorId],
+    [esDemo, esOwner, sesion?.vendedorId, usuario?.pin],
   )
 
   useEffect(() => {
@@ -735,15 +740,16 @@ export default function PanelVendedor() {
     if (!cambiarAbierto || pin.length !== pinLengthCambio || !sellerId || cambioEnCurso.current) return
     cambioEnCurso.current = true
     setCambiando(true)
-    if (esDemo && !['2001', '3001'].includes(pin)) {
-      toast.error('PIN demo inválido.')
+    const elegido = opcionesVendedor.find(seller => String(seller.id) === String(sellerId)) || null
+    if (esDemo && (!elegido?.pin || pin !== elegido.pin)) {
+      toast.error('PIN demo inválido.', elegido ? `Usá el PIN de ${elegido.nombre || elegido.name} (el de su tarjeta en /demo).` : undefined)
       setPin('')
       setCambiando(false)
       cambioEnCurso.current = false
       return
     }
     const cambio = esDemo
-      ? entrarDemo(pin === '3001' ? 'ADMIN' : 'VENDEDOR')
+      ? entrarDemo(elegido)
       : cambiarVendedor({ sellerId, pin })
     cambio
       .then(() => {
@@ -752,7 +758,13 @@ export default function PanelVendedor() {
         setLocked(false)
         marcarBloqueo(false)
         toast.success('Sesión cambiada', 'La próxima venta se registrará con este vendedor.')
-        if (esDemo && pin === '3001') navigate('/')
+        if (esDemo) {
+          const destino = elegido?.rol === 'ADMIN' ? '/'
+            : elegido?.rol === 'TECNICO' ? '/servicio'
+              : elegido?.rol === 'REPARTIDOR' ? '/delivery/repartos'
+                : '/pos'
+          navigate(destino)
+        }
       })
       .catch(err => {
         toast.error(err?.message || 'PIN inválido. Probá de nuevo.')
@@ -762,7 +774,7 @@ export default function PanelVendedor() {
         cambioEnCurso.current = false
         setCambiando(false)
       })
-  }, [pin, sellerId, pinLengthCambio, cambiarAbierto, esDemo, cambiarVendedor, entrarDemo, navigate, toast])
+  }, [pin, sellerId, pinLengthCambio, cambiarAbierto, esDemo, cambiarVendedor, entrarDemo, navigate, toast, opcionesVendedor])
 
   return (
     <>
@@ -780,6 +792,7 @@ export default function PanelVendedor() {
         esDemo={esDemo}
         sesionNombre={sesion?.nombre}
         esOwner={esOwner}
+        roleLabel={ROLE_LABELS[usuario?.role] || 'Vendedor'}
         usuario={usuario}
         perfilEmpresa={perfilEmpresa}
         onMiCuenta={() => ir('mi-cuenta')}
@@ -957,9 +970,9 @@ export default function PanelVendedor() {
                 </div>
               ))}
               {vista === 'dispositivos' && <Impresoras />}
-              {vista === 'sistema' && (esDemo
-                ? <DemoNoDisponible modulo="Estado del sistema" motivo="Consulta los servicios reales de MobOS (API, base e impresión)." />
-                : <EstadoSistema />)}
+              {/* #324: Sistema muestra los chequeos y la cola ficticios en
+                  demo; fuera de demo lee los servicios reales como siempre. */}
+              {vista === 'sistema' && <EstadoSistema />}
             </NavegacionConfig>
           )}
           {subpadre === 'ayuda' && (
@@ -1002,8 +1015,10 @@ export default function PanelVendedor() {
         {esDemo ? (
           <>
             <p className="mt-4 rounded-xl border border-fono-dark/20 bg-fono-dark/5 p-3 text-xs text-mute">
-              PIN demo vendedor: <strong className="text-fore">2001</strong> · dueño:{' '}
-              <strong className="text-fore">3001</strong>
+              Perfiles demo: <strong className="text-fore">2001</strong> vendedor ·{' '}
+              <strong className="text-fore">2002</strong> gerente · <strong className="text-fore">2004</strong> caja ·{' '}
+              <strong className="text-fore">2005</strong> técnico · <strong className="text-fore">2007</strong> delivery ·{' '}
+              <strong className="text-fore">3001</strong> dueño
             </p>
             <label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">
               PIN demo
