@@ -39,6 +39,7 @@ export {
   IconAction,
   Input,
   Label,
+  MenuDesplegable,
   Money,
   Nota,
   PageHeader,

@@ -17,7 +17,7 @@ PDFs de las etiquetas de producto que salen del modal «Etiquetas de góndola»
 
 - Local: e2e `etiquetas-gondola.spec.js` (SKU y precio correctos en el HTML del
   respaldo) y `preferencias.test.js` (los tipos de etiqueta se nombran solos en
-  Dispositivos · Formatos).
+  Dispositivos · Ruteo de documentos).
 - **Producción v1.0.178**: el QA `scripts/qa-240-prod-impresion.mjs` elige un
   producto en la demo desplegada y arma el PDF real
   (`docs/qa/240-impresion-prod/etiquetas-gondola-80mm.pdf`).
