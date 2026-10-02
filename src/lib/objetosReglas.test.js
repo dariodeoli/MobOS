@@ -537,9 +537,12 @@ test('compartir documentos como imagen sale del objeto compartido (#240/#220)', 
     'components/shared/ComprobantePreview.jsx',
   ]
   for (const ruta of pantallas) {
+    // #307: el objeto se consume como componente (botones) o como hook cuando
+    // la pantalla arma su propio menú secundario; las dos rutas viven en el
+    // mismo módulo compartido.
     assert.match(
       readFileSync(join(RAIZ, ruta), 'utf8'),
-      /import CompartirImagen from '@\/components\/shared\/CompartirImagen'/,
+      /(import CompartirImagen from '@\/components\/shared\/CompartirImagen'|import \{[^}]*useCompartirImagen[^}]*\} from '@\/components\/shared\/CompartirImagen')/,
       `${ruta} comparte por el objeto`,
     )
   }

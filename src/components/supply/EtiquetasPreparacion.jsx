@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Button, Modal, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
-import CompartirImagen from '@/components/shared/CompartirImagen'
+import { useCompartirImagen } from '@/components/shared/CompartirImagen'
+import MenuSecundario from '@/components/shared/MenuSecundario'
 import { PIE_ACCIONES } from '@/components/shared/formulario'
 import { CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import { printHtml } from '@/utils/printHtml'
@@ -43,6 +44,15 @@ export default function EtiquetasPreparacion({ open, onClose, compra }) {
   const resumen = datos?.resumen || {}
   const codigo = datos?.compra?.code || compra?.code || ''
   const conImei = etiquetas.filter((etiqueta) => !etiqueta.pendiente).length
+  // #307: compartir/descargar la imagen viven en el menú secundario; imprimir
+  // queda como la acción primaria.
+  const compartir = useCompartirImagen({
+    construirHtml: () => buildEtiquetasLoteHtml(etiquetas, { ancho: configImpresora().ancho, compra: codigo }),
+    nombre: `etiquetas-preparacion-${codigo || 'compra'}`,
+    titulo: 'Etiquetas de la preparación',
+    texto: `${etiquetas.length} etiqueta(s) · compra ${codigo}`,
+    formato: formatosPorAncho(configImpresora().ancho),
+  })
 
   async function imprimir(lista, clave, exito) {
     if (!lista.length || enviando) return
@@ -112,17 +122,16 @@ export default function EtiquetasPreparacion({ open, onClose, compra }) {
 
         <div className={PIE_ACCIONES}>
           <Button type="button" variant="ghost" onClick={onClose}>Cerrar</Button>
-          <CompartirImagen
-            construirHtml={() => buildEtiquetasLoteHtml(etiquetas, { ancho: configImpresora().ancho, compra: codigo })}
-            nombre={`etiquetas-preparacion-${codigo || 'compra'}`}
-            titulo="Etiquetas de la preparación"
-            texto={`${etiquetas.length} etiqueta(s) · compra ${codigo}`}
-            formato={formatosPorAncho(configImpresora().ancho)}
-            disabled={!etiquetas.length || Boolean(enviando)}
+          <MenuSecundario
+            ariaLabel="Más acciones de las etiquetas"
+            acciones={[
+              { icon: 'share', label: compartir.generando === 'compartir' ? 'Generando…' : 'Compartir imagen', disabled: !etiquetas.length || Boolean(enviando) || compartir.ocupado, onClick: compartir.compartir },
+              { icon: 'download', label: compartir.generando === 'descargar' ? 'Generando…' : 'Descargar PNG', disabled: !etiquetas.length || Boolean(enviando) || compartir.ocupado, onClick: compartir.descargar },
+              { icon: 'copy', label: compartir.generando === 'copiar' ? 'Copiando…' : 'Copiar imagen', disabled: !etiquetas.length || Boolean(enviando) || compartir.ocupado, onClick: compartir.copiar },
+              { separador: true },
+              { icon: 'report', label: 'Descargar PDF', disabled: !etiquetas.length || Boolean(enviando), onClick: descargar },
+            ]}
           />
-          <Button type="button" variant="outline" disabled={!etiquetas.length || Boolean(enviando)} onClick={descargar}>
-            <Icon name="download" className="h-4 w-4" />Descargar PDF
-          </Button>
           <Button type="button" disabled={!etiquetas.length || Boolean(enviando)} onClick={() => imprimir(etiquetas, 'todas', 'Etiquetas enviadas a la impresora.')}>
             <Icon name="printer" className="h-4 w-4" />{enviando === 'todas' ? 'Enviando…' : 'Imprimir etiquetas'}
           </Button>

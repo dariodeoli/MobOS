@@ -7,7 +7,8 @@ import { printHtml } from '@/utils/printHtml'
 import { configImpresora, imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
 import { ticketEtiquetasProducto } from '@/lib/printing/tickets'
 import { buildProductLabelsHtml } from '@/components/shared/OrderReceipt'
-import CompartirImagen from '@/components/shared/CompartirImagen'
+import { useCompartirImagen } from '@/components/shared/CompartirImagen'
+import MenuSecundario from '@/components/shared/MenuSecundario'
 import { CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 import { PIE_ACCIONES } from '@/components/shared/formulario'
@@ -20,6 +21,7 @@ const claveDe = (product) => String(product?.id || product?.sku || product?.nomb
 const nombreDe = (product) => product?.name || product?.nombre || 'Producto'
 const precioDe = (product) => Number(product?.precioEtiqueta ?? product?.precioPyg ?? product?.pricePyg ?? product?.precioVenta ?? 0)
 const formatosPorAncho = (ancho) => (Number(ancho) === 80 ? 'thermal-80' : 'thermal-58')
+
 
 export default function EtiquetasProductoModal({ open, onClose, productos = [], seleccionInicial = [] }) {
   const toast = useToast()
@@ -57,6 +59,15 @@ export default function EtiquetasProductoModal({ open, onClose, productos = [], 
   const totalEtiquetas = items.reduce((suma, item) => suma + item.cantidad, 0)
   const alternar = (id) => setElegidos((actuales) => (actuales.includes(id) ? actuales.filter((actual) => actual !== id) : [...actuales, id]))
   const setCantidad = (id, valor) => setCantidades((actuales) => ({ ...actuales, [id]: valor.replace(/\D/g, '').replace(/^0+/, '').slice(0, 2) }))
+  // #307: la imagen y el PDF salen del menú secundario; imprimir es la acción
+  // primaria. El hook comparte la lógica con el componente de botones.
+  const compartir = useCompartirImagen({
+    construirHtml: () => buildProductLabelsHtml(items, { format: formatosPorAncho(configImpresora().ancho) }),
+    nombre: `etiquetas-gondola-${totalEtiquetas}`,
+    titulo: 'Etiquetas de góndola',
+    texto: `${totalEtiquetas} etiqueta(s) · ${items.length} producto(s)`,
+    formato: formatosPorAncho(configImpresora().ancho),
+  })
   async function conDialogo() {
     const { ancho } = configImpresora()
     await printHtml(await buildProductLabelsHtml(items, { format: formatosPorAncho(ancho) }))
@@ -110,15 +121,16 @@ export default function EtiquetasProductoModal({ open, onClose, productos = [], 
         {items.length > 0 && <p className="text-xs text-mute">{items.length} producto(s) · {totalEtiquetas} etiqueta(s) en total.</p>}
         <div className={PIE_ACCIONES}>
           <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
-          <CompartirImagen
-            construirHtml={() => buildProductLabelsHtml(items, { format: formatosPorAncho(configImpresora().ancho) })}
-            nombre={`etiquetas-gondola-${totalEtiquetas}`}
-            titulo="Etiquetas de góndola"
-            texto={`${totalEtiquetas} etiqueta(s) · ${items.length} producto(s)`}
-            formato={formatosPorAncho(configImpresora().ancho)}
-            disabled={!items.length || enviando}
+          <MenuSecundario
+            ariaLabel="Más acciones de etiquetas"
+            acciones={[
+              { icon: 'share', label: compartir.generando === 'compartir' ? 'Generando…' : 'Compartir imagen', disabled: !items.length || enviando || compartir.ocupado, onClick: compartir.compartir },
+              { icon: 'download', label: compartir.generando === 'descargar' ? 'Generando…' : 'Descargar PNG', disabled: !items.length || enviando || compartir.ocupado, onClick: compartir.descargar },
+              { icon: 'copy', label: compartir.generando === 'copiar' ? 'Copiando…' : 'Copiar imagen', disabled: !items.length || enviando || compartir.ocupado, onClick: compartir.copiar },
+              { separador: true },
+              { icon: 'report', label: 'Descargar PDF', disabled: !items.length || enviando, onClick: conDialogo },
+            ]}
           />
-          <Button type="button" variant="outline" disabled={!items.length || enviando} onClick={conDialogo}><Icon name="download" className="h-4 w-4" />Descargar PDF</Button>
           <Button type="button" disabled={!items.length || enviando} onClick={imprimir}><Icon name="printer" className="h-4 w-4" />{enviando ? 'Enviando…' : 'Imprimir etiquetas'}</Button>
         </div>
       </div>
