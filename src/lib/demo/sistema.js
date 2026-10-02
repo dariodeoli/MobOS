@@ -18,7 +18,7 @@ export function sistemaDemo() {
   // recortaba de los 50 trabajos más recientes y podía contradecir el contador).
   const problemas = trabajos
     .filter((trabajo) => trabajo.state === 'FALLIDO' || trabajo.state === 'INCIERTO')
-    .map((trabajo) => ({ id: trabajo.id, state: trabajo.state, kind: trabajo.kind, printerName: trabajo.printerName, destination: '', error: trabajo.error, createdAt: hace(48) }))
+    .map((trabajo) => ({ id: trabajo.id, state: trabajo.state, kind: trabajo.kind, reference: trabajo.reference, printerName: trabajo.printerName, destination: '', error: trabajo.error, createdAt: hace(48) }))
   return {
     checks: {
       checkedAt: new Date().toISOString(),

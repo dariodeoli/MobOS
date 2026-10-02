@@ -262,13 +262,21 @@ test.describe('impresión remota: configuración', () => {
 
     await page.goto('/configuracion/dispositivos')
     await asegurarImpresora(page)
+    // La caché con la impresora prueba que el refresco del montaje ya terminó
+    // de escribir; recién ahí se corta el backend. Así ninguna request queda
+    // despachada sin abortar y el refresco de 20 s no puede pisar la captura.
+    await expect.poll(async () => {
+      const cache = await leerCache(page)
+      return (cache?.store?.impresoras || []).some((impresora) => impresora.destino === DESTINO)
+    }, { timeout: 25_000 }).toBe(true)
+    await esperarSyncedAtQuieto()
+
+    // El backend se corta ANTES del reload: todo `consultar()` posterior queda
+    // abortado y no puede escribir syncedAt después de la captura (carrera del
+    // slice 4).
+    await page.route('**/api/print/**', (ruta) => ruta.abort())
     await page.reload()
     await expect(page.getByText(NOMBRE).first()).toBeVisible({ timeout: 20_000 })
-
-    // El backend se corta ANTES de capturar: el refresco automático de 20 s no
-    // puede pisar syncedAt entre la captura y el reload (carrera del slice 4).
-    await page.route('**/api/print/**', (ruta) => ruta.abort())
-    await esperarSyncedAtQuieto()
 
     // Marca testigo: si la UI escribiera la caché, desaparecería.
     const antes = await page.evaluate(() => {

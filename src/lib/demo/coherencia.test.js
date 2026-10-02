@@ -243,6 +243,9 @@ test('#324 · sistema, reparto y cronologías tienen datos y no terminan en erro
   assert.ok(sistema.sincronizacion.trabajos.ultimoExitoAt)
   // #301: los problemas listados son los mismos que alimentan el contador.
   assert.equal(sistema.sincronizacion.trabajos.problemas.length, sistema.trabajos.filter((trabajo) => trabajo.state === 'FALLIDO' || trabajo.state === 'INCIERTO').length)
+  // #204: la fila del problema conserva la referencia del trabajo (mismo
+  // contrato que /api/system/sync-status) para que el monitor sea legible.
+  assert.ok(sistema.sincronizacion.trabajos.problemas.every((trabajo) => trabajo.reference))
   assert.equal(sistema.sincronizacion.trabajos.fallidos, sistema.trabajos.filter((trabajo) => trabajo.state === 'FALLIDO').length)
   assert.equal(sistema.sincronizacion.aex.configurado, true)
   const historialPersona = historialDemo('/api/users/demo-user-vendedor/history').events
