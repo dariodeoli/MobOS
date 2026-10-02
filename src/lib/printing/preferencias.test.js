@@ -50,7 +50,7 @@ test('la etiqueta del tipo es legible para la pantalla', () => {
   assert.equal(etiquetaTipoImpresion('nota-entrega'), 'Nota de entrega')
   assert.equal(etiquetaTipoImpresion('cierre-caja'), 'Cierre de caja')
   assert.equal(Object.keys(TIPOS_DOCUMENTO).includes('comprobante'), true)
-  // Los tipos reales de etiquetas del taller/inventario se nombran solos en Formatos.
+  // Los tipos reales de etiquetas del taller/inventario se nombran solos en Ruteo de documentos.
   assert.equal(etiquetaTipoImpresion('etiquetas-stock'), 'Etiquetas de unidades')
   assert.equal(etiquetaTipoImpresion('etiqueta-stock'), 'Etiqueta de unidad')
   assert.equal(etiquetaTipoImpresion('etiquetas-producto'), 'Etiquetas de góndola')

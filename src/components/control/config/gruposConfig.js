@@ -9,7 +9,7 @@ export const GRUPOS_CONFIG = {
   'equipo': { icono: 'users', descripcion: 'Integrantes, invitaciones, roles, horarios y comisiones.' },
   'comercial': { icono: 'tag', descripcion: 'Listas de precios, seguro de ventas, límites y fidelización.' },
   'seguridad': { icono: 'shield', descripcion: 'Sesiones, acciones sensibles, exportación y auditoría.' },
-  'dispositivos': { icono: 'printer', descripcion: 'Impresoras, puentes, formatos y diagnóstico.' },
+  'dispositivos': { icono: 'printer', descripcion: 'Impresoras, puentes, ruteo de documentos y diagnóstico.' },
   'sistema': { icono: 'pulse', descripcion: 'Salud del sistema, correo saliente, AEX y webhooks.' },
 }
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, Modal, Nota, Select, Skeleton, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, MenuDesplegable, Modal, Nota, Select, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
@@ -13,6 +13,7 @@ import { ANCHOS_PRUEBA, COPIAS_MAX, CORTES_PRUEBA, memoriaPlantilla, normalizarP
 import { ESTADO_IMPRESORA, ETIQUETA_ESTADO, colorTrabajo, etiquetaTrabajo, textoVerificacion } from '@/lib/printing/estadoImpresoras'
 import { colaDemo, historialDemo, storeDemo } from '@/lib/printing/demo'
 import { etiquetaTipoImpresion, memoriaDeImpresion, olvidarTipoDeImpresion } from '@/lib/printing/preferencias'
+import { presenciaDePuente } from '@/lib/printing/presenciaPuentes'
 import { datosTransporte, resumenTransporte } from '@/lib/printing/transporte'
 import { useEstadoImpresoras } from '@/hooks/useEstadoImpresoras'
 import Avatar from '@/components/shared/Avatar'
@@ -59,7 +60,7 @@ const hace = (valor) => {
 const PANELES = [
   { id: 'impresoras', label: 'Impresoras', icon: 'printer', detalle: 'Agregá, editá y probá cada impresora. La prueba imprime un número secreto que se confirma en Cola e historial.' },
   { id: 'puentes', label: 'Puentes', icon: 'send', detalle: 'Computadoras con el agente que reclaman los trabajos en remoto; se vinculan con un código de un solo uso.' },
-  { id: 'formatos', label: 'Formatos', icon: 'list', detalle: 'Qué impresora recuerda cada tipo de documento (comprobante, etiquetas, informes…).' },
+  { id: 'formatos', label: 'Ruteo de documentos', icon: 'list', detalle: 'Qué impresora recuerda cada tipo de documento (comprobante, etiquetas, informes…).' },
   { id: 'diagnostico', label: 'Diagnóstico', icon: 'pulse', detalle: 'Estado del agente de esta computadora, red y cobertura por sucursal. El monitoreo global está en Estado del sistema.' },
   { id: 'cola', label: 'Cola e historial', icon: 'clock', detalle: 'Trabajos pendientes y fallidos de esta computadora, y todo lo que ya salió por el papel.' },
 ]
@@ -211,6 +212,9 @@ export default function Impresoras() {
   const [detalleAbierto, setDetalleAbierto] = useState('')
   const [sufijos, setSufijos] = useState({})
   const [confirmandoId, setConfirmandoId] = useState('')
+  // Resultado de la última prueba (rápida): queda visible en la pantalla además
+  // del toast, con el estado real del trabajo (#319).
+  const [resultadoPrueba, setResultadoPrueba] = useState(null)
   // Memoria de impresión (#209): impresora recordada por tipo de documento.
   const [memoriaImpresion, setMemoriaImpresion] = useState(() => memoriaDeImpresion())
   // Temporizadores de la auto-validación en papel (#138): uno por trabajo, se
@@ -631,6 +635,7 @@ export default function Impresoras() {
       const ultimaPrueba = { ok: true, encolado: false, remoto: false, fecha: new Date().toISOString(), tipo, copias, ref: ticket.ref, validacion: ticket.validacion, metodo: metodoDe(impresora), transporte: 'directo', jobId: null, corte: Boolean(ticket.corte) }
       setProgreso('Prueba simulada')
       setStore((actual) => ({ ...actual, impresoras: actual.impresoras.map((item) => (item.id === impresora.id ? { ...item, ultimaPrueba } : item)) }))
+      setResultadoPrueba({ tono: 'ok', titulo: 'Prueba simulada (demo)', detalle: `${impresora.nombre} · dato ficticio: no salió papel` })
       setPruebaDe(null)
       setProbandoId(null)
       toast.success('Prueba simulada (demo)', 'Dato ficticio: no se envió nada a la impresora ni al servidor.')
@@ -679,15 +684,19 @@ export default function Impresoras() {
         impresoras: store.impresoras.map((item) => (item.id === impresora.id ? { ...item, ultimaPrueba } : item)),
       })
       if (resultado.remoto) {
+        setResultadoPrueba({ tono: 'warn', titulo: 'Prueba encolada al puente', detalle: `${impresora.nombre} · la imprime el puente; confirmá el número en Actividad` })
         toast.success('Prueba encolada para el puente', 'El puente la reclama y la imprime. Cuando salga el papel, confirmá el número secreto en Actividad.')
       } else if (encolado) {
+        setResultadoPrueba({ tono: 'warn', titulo: 'Prueba encolada', detalle: `${impresora.nombre} · la impresora no respondió; el agente reintenta solo` })
         toast.success('Prueba encolada', 'La impresora no respondió; el agente reintenta solo.')
       } else {
         const via = resultado.transporte === 'cups' ? (resultado.fallback ? 'por la cola CUPS (fallback)' : 'por la cola CUPS') : resultado.transporte === 'usb' ? 'por USB directo' : 'por TCP directo'
+        setResultadoPrueba({ tono: 'ok', titulo: `Prueba enviada ${via}`, detalle: `${impresora.nombre} · verificá el número y el corte en el papel` })
         toast.success(`Prueba enviada ${via}`, 'El agente confirmó el envío. La confirmación final es visual: verificá el código en el papel y que se cortó solo.')
       }
     } else {
       setProgreso(resultado.remoto ? 'No se pudo encolar.' : 'La impresora no respondió.')
+      setResultadoPrueba({ tono: 'error', titulo: 'No se pudo imprimir la prueba', detalle: `${impresora.nombre}: ${resultado.error || 'revisá la impresora y reintentá'}` })
       toast.error(resultado.remoto ? 'No se pudo encolar la prueba' : 'No se pudo imprimir', resultado.error)
     }
     setProbandoId(null)
@@ -698,22 +707,39 @@ export default function Impresoras() {
   async function diagnosticar(impresora = null) {
     if (diagnosticando) return
     const destino = impresora?.destino || configImpresora().impresora || ''
+    // El nombre viaja con el resultado: la tarjeta diagnostica su impresora y
+    // el panel no puede mostrar siempre la predeterminada (#319).
+    const nombre = impresora?.nombre || ''
     if (!destino) {
-      setDiagnostico({ ok: true, sinDestino: true, mensaje: 'No hay impresora configurada.' })
+      setDiagnostico({ ok: true, sinDestino: true, nombre, mensaje: 'No hay impresora configurada.' })
       return
     }
     if (esDemo) {
       // Demo (#194): diagnóstico ficticio, sin consultar al agente.
-      setDiagnostico({ ok: true, alcance: true, destino, metodo: 'LAN (demo)', mensaje: 'Diagnóstico simulado: la impresora demo responde.' })
+      setDiagnostico({ ok: true, alcance: true, destino, nombre, metodo: 'LAN (demo)', mensaje: 'Diagnóstico simulado: la impresora demo responde.' })
       return
     }
     setDiagnosticando(true)
     setDiagnostico(null)
     try {
-      setDiagnostico({ destino, ...(await diagnosticoAgente(destino)) })
+      setDiagnostico({ destino, nombre, ...(await diagnosticoAgente(destino)) })
     } catch (cause) {
-      setDiagnostico({ ok: false, error: cause?.message || 'No se pudo consultar el diagnóstico.' })
+      setDiagnostico({ ok: false, nombre, error: cause?.message || 'No se pudo consultar el diagnóstico.' })
     } finally { setDiagnosticando(false) }
+  }
+
+  // Diagnóstico desde la tarjeta (#319): el resultado vive en su panel, así que
+  // se navega ahí para que el botón tenga una respuesta visible.
+  function diagnosticarDesdeTarjeta(impresora) {
+    irAPanel('diagnostico')
+    diagnosticar(impresora)
+  }
+
+  // Ver actividad desde la tarjeta (#319): abre Cola e historial con el filtro
+  // de esa impresora puesto.
+  function verActividadDe(impresora) {
+    setFiltroActividad(impresora.destino || '')
+    irAPanel('cola')
   }
 
   async function crearPuente() {
@@ -938,8 +964,8 @@ export default function Impresoras() {
       {panel === 'formatos' && (Object.keys(memoriaImpresion).length > 0 ? (
         <Card className="space-y-3" data-testid="formatos-impresion">
           <div>
-            <h3 className="flex items-center gap-2 text-sm font-semibold"><Icon name="printer" className="h-4 w-4 text-mute" />Impresora por tipo de documento</h3>
-            <p className="mt-1 text-sm text-mute">Se recuerda la última impresora usada en cada tipo (siempre se puede cambiar eligiéndola al imprimir). «Olvidar» vuelve a la predeterminada de la empresa.</p>
+            <h3 className="flex items-center gap-2 text-sm font-semibold"><Icon name="printer" className="h-4 w-4 text-mute" />Ruteo de documentos</h3>
+            <p className="mt-1 text-sm text-mute">Cada tipo de documento sale por la última impresora usada (siempre se puede cambiar eligiéndola al imprimir). «Olvidar» vuelve a la predeterminada de la empresa.</p>
           </div>
           <ul className="divide-y divide-ink-600/60">
             {Object.entries(memoriaImpresion).map(([tipo, datos]) => (
@@ -957,8 +983,8 @@ export default function Impresoras() {
       ) : (
         <Card className="space-y-3" data-testid="formatos-impresion">
           <div>
-            <h3 className="flex items-center gap-2 text-sm font-semibold"><Icon name="printer" className="h-4 w-4 text-mute" />Impresora por tipo de documento</h3>
-            <p className="mt-1 text-sm text-mute">Todavía no hay ninguna elección guardada: cuando imprimas un comprobante, una etiqueta o un informe, la impresora usada queda recordada acá (siempre podés cambiarla al imprimir).</p>
+            <h3 className="flex items-center gap-2 text-sm font-semibold"><Icon name="printer" className="h-4 w-4 text-mute" />Ruteo de documentos</h3>
+            <p className="mt-1 text-sm text-mute">Todavía no hay ningún ruteo guardado: cuando imprimas un comprobante, una etiqueta o un informe, la impresora usada queda recordada acá (siempre podés cambiarla al imprimir).</p>
           </div>
           <p className="text-sm text-mute">La predeterminada de la empresa es <b className="text-fore">{predeterminada?.nombre || 'sin configurar'}</b>.</p>
         </Card>
@@ -983,7 +1009,7 @@ export default function Impresoras() {
               <p className="mt-1 flex items-center gap-2 text-sm font-semibold"><span className={`h-2 w-2 rounded-full ${estado?.disponible ? 'bg-ok' : 'bg-bad'}`} />{estado?.disponible ? 'Encendida' : 'Apagada o sin agente'}</p>
               <p className={cn('mt-1', CELDA_DATO)} title={puentePrincipal.url || puentePrincipal.nombre}>
                 {puentePrincipal.nombre} · {puentePrincipal.backend
-                  ? (puentePrincipal.online ? 'en línea' : `último contacto ${hace(puentePrincipal.lastSeenAt)}`)
+                  ? presenciaDePuente(puentePrincipal, { formatearHace: hace }).label
                   : puentePrincipal.url.includes('127.0.0.1') || puentePrincipal.url.includes('localhost') ? 'solo esta computadora' : puentePrincipal.url}
               </p>
               <Button type="button" variant="ghost" className="min-h-11 mt-1 px-0 py-1 text-xs text-fono-light md:min-h-0" onClick={() => irAPanel('puentes')}>Gestionar puentes ({(store.bridges || []).length})</Button>
@@ -1028,7 +1054,8 @@ export default function Impresoras() {
             <p className="text-xs uppercase tracking-wider text-mute">Diagnóstico de red{diagnostico.destino ? ` · ${diagnostico.destino}` : ''}</p>
             {diagnostico.ok === false && <p role="alert" className="mt-1 text-bad">{diagnostico.error}</p>}
             {diagnostico.sinDestino && <p className="mt-1 text-mute">{diagnostico.mensaje || 'No hay impresora configurada.'}</p>}
-            {diagnostico.ok && !diagnostico.sinDestino && <ExplicacionDiagnostico diagnostico={diagnostico} estado={estado} nombre={predeterminada?.nombre} />}
+            {diagnostico.ok && !diagnostico.sinDestino && diagnostico.mensaje && <p className="mt-1 text-mute">{diagnostico.mensaje}</p>}
+            {diagnostico.ok && !diagnostico.sinDestino && <ExplicacionDiagnostico diagnostico={diagnostico} estado={estado} nombre={diagnostico.nombre || predeterminada?.nombre} />}
           </div>
         )}
         <Nota data-testid="monitoreo-global">
@@ -1063,6 +1090,15 @@ export default function Impresoras() {
             ))}
           </div>
         </Card>
+      )}
+
+      {panel === 'impresoras' && resultadoPrueba && (
+        <Aviso tono={resultadoPrueba.tono} como="div" role="status" data-testid="resultado-prueba">
+          <span className="flex flex-wrap items-center justify-between gap-2">
+            <span><b>{resultadoPrueba.titulo}</b>{resultadoPrueba.detalle ? ` · ${resultadoPrueba.detalle}` : ''}</span>
+            <button type="button" onClick={() => setResultadoPrueba(null)} className="font-semibold underline underline-offset-2 hover:text-fore">Cerrar</button>
+          </span>
+        </Aviso>
       )}
 
       {panel === 'impresoras' && (impresoras.length === 0 ? (
@@ -1107,14 +1143,29 @@ export default function Impresoras() {
                     </Button>
                   )}
                   <Button type="button" variant="outline" onClick={() => abrirFormulario(impresora)}>Editar</Button>
-                  <Button type="button" variant="ghost" title="Ajustar la plantilla del ticket de prueba" onClick={() => probar(impresora, 'plantilla')} disabled={Boolean(probandoId) || !impresora.activa} data-testid="editar-plantilla">Plantilla</Button>
-                  <Button type="button" variant="ghost" onClick={() => diagnosticar(impresora)}>Diagnóstico</Button>
-                  <Button type="button" variant="ghost" onClick={() => setFiltroActividad(impresora.destino)}>Ver actividad</Button>
-                  <span className="ml-auto" />
-                  {!impresora.predeterminada && impresora.activa && <Button type="button" variant="ghost" onClick={() => marcarPredeterminada(impresora)}>Predeterminada</Button>}
-                  <Button type="button" variant="ghost" onClick={() => duplicar(impresora)}>Duplicar</Button>
-                  <Button type="button" variant="ghost" onClick={() => alternarActiva(impresora)}>{impresora.activa ? 'Desactivar' : 'Activar'}</Button>
-                  <Button type="button" variant="ghost" className="text-bad" onClick={() => setEliminarId(impresora.id)}>Eliminar</Button>
+                  {/* Secundarias en «…» (#319): una sola fila de acciones por
+                      impresora, sin perder ninguna. */}
+                  <MenuDesplegable
+                    className="ml-auto"
+                    ariaLabel={`Más acciones de ${impresora.nombre || impresora.destino}`}
+                    trigger={
+                      <span className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-ink-500 px-3 py-1.5 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore md:min-h-0">
+                        <Icon name="dots" className="h-4 w-4" />
+                        <span className="sr-only">Más acciones de {impresora.nombre || impresora.destino}</span>
+                      </span>
+                    }
+                    items={[
+                      { id: 'plantilla', label: 'Plantilla de la prueba', icono: 'edit', disabled: Boolean(probandoId) || !impresora.activa, onClick: () => probar(impresora, 'plantilla') },
+                      { id: 'diagnostico', label: 'Diagnóstico', icono: 'pulse', onClick: () => diagnosticarDesdeTarjeta(impresora) },
+                      { id: 'actividad', label: 'Ver actividad', icono: 'clock', onClick: () => verActividadDe(impresora) },
+                      { separador: true },
+                      ...(!impresora.predeterminada && impresora.activa ? [{ id: 'predeterminada', label: 'Marcar predeterminada', icono: 'check', onClick: () => marcarPredeterminada(impresora) }] : []),
+                      { id: 'duplicar', label: 'Duplicar', icono: 'copy', onClick: () => duplicar(impresora) },
+                      { id: 'activa', label: impresora.activa ? 'Desactivar' : 'Activar', icono: 'power', onClick: () => alternarActiva(impresora) },
+                      { separador: true },
+                      { id: 'eliminar', label: 'Eliminar', icono: 'trash', peligro: true, onClick: () => setEliminarId(impresora.id) },
+                    ]}
+                  />
                 </div>
               </Card>
             )
@@ -1141,7 +1192,9 @@ export default function Impresoras() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="flex items-center gap-2 text-sm font-semibold"><Icon name="clock" className="h-4 w-4 text-mute" />Cola de esta computadora</h3>
-            <p className="mt-1 text-sm text-mute">{estado?.cola?.pendientes ?? cola?.resumen?.pendientes ?? 0} pendientes · {estado?.cola?.fallidos ?? cola?.resumen?.fallidos ?? 0} fallidos{remotosEnCurso.length > 0 ? ` · remoto: ${remotosEnCurso.length} en curso · ${remotosAceptados.length} por confirmar` : ''}.</p>
+            {/* Un solo origen para los contadores (#319): los mismos arrays que
+                alimentan «Ver cola» y la lista de espera de la actividad. */}
+            <p className="mt-1 text-sm text-mute">{pendientes.length} pendientes · {fallidos.length} fallidos{remotosEnCurso.length > 0 ? ` · remoto: ${remotosEnCurso.length} en curso · ${remotosAceptados.length} por confirmar` : ''}.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={() => setVerColaAbierta(true)}>Ver cola</Button>
@@ -1368,13 +1421,18 @@ export default function Impresoras() {
             <EmptyState compact icon="printer" title="Todavía no hay puentes." description="Creá uno y vinculá la computadora con el código." />
           ) : (
             <div className="space-y-2">
-              {(store.bridges || []).map((puente) => (
+              {(store.bridges || []).map((puente) => {
+                // Estado, versión y último contacto del mismo registro (#319):
+                // no puede decir «en línea» con una versión vieja ni «sin
+                // registro» cuando el backend mandó el último contacto.
+                const presencia = presenciaDePuente(puente, { formatearHace: hace })
+                return (
                 <div key={puente.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 px-3 py-2">
                   <div className="min-w-0">
                     <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
                       {puente.nombre}
                       {puente.predeterminado && <Badge color="blue">Predeterminado</Badge>}
-                      <Badge color={puente.online ? 'green' : 'slate'}>{puente.online ? `en línea${puente.version ? ` · v${puente.version}` : ''}` : `sin conexión · ${hace(puente.lastSeenAt)}`}</Badge>
+                      <Badge color={presencia.tono} title={presencia.detalle}>{presencia.label}</Badge>
                     </p>
                     <p className={cn('mt-0.5', CELDA_DATO)}>{puente.plataforma ? `${puente.plataforma} · ` : ''}reclama trabajos por HTTPS (conexión saliente)</p>
                   </div>
@@ -1390,7 +1448,8 @@ export default function Impresoras() {
                     <Button type="button" variant="ghost" className="text-bad" onClick={() => setPuenteRevocar(puente)}>Revocar</Button>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
           {codigoVinculacion && (

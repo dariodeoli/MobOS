@@ -17,7 +17,7 @@ export const TIPOS_DOCUMENTO = Object.freeze({
   'recibo-interno': 'Recibo interno',
   proforma: 'Proforma',
   etiqueta: 'Etiquetas',
-  // Tipos reales del taller/inventario (Formatos los muestra con su nombre).
+  // Tipos reales del taller/inventario (Ruteo de documentos los muestra con su nombre).
   'etiquetas-stock': 'Etiquetas de unidades',
   'etiquetas-lote': 'Etiquetas del lote',
   'etiqueta-stock': 'Etiqueta de unidad',

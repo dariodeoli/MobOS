@@ -8,7 +8,7 @@ Capturas antes/después en `docs/qa/253-dispositivos/`.
 ## Qué cambió
 
 - Navegación interna con URL (`?panel=`), sin pestañas nuevas en Configuración:
-  **Impresoras** · **Puentes** · **Formatos** · **Diagnóstico** ·
+  **Impresoras** · **Puentes** · **Ruteo de documentos** · **Diagnóstico** ·
   **Cola e historial** (`data-testid="paneles-impresion"`).
 - **Puentes** dejó de ser un modal suelto: la gestión (crear/revincular,
   sucursal, código de un solo uso, revocar) y **Equipos con acceso** viven en su

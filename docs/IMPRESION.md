@@ -626,9 +626,9 @@ tiene la pantalla de impresión ordenada en cinco paneles con URL (`?panel=`):
 
 | Sección | Qué resuelve |
 | --- | --- |
-| **Impresoras** | Alta/edición, predeterminada y **pruebas** de cada impresora; comparativa de impresoras. |
+| **Impresoras** | Alta/edición y **pruebas** de cada impresora, con las secundarias en «…» (#319); la prueba deja toast + aviso con el resultado; comparativa de impresoras. |
 | **Puentes** | Computadoras con el agente: vincular con código, sucursal que sirve, revocar; equipos con acceso. |
-| **Formatos** | Qué impresora recuerda cada tipo de documento («Olvidar» vuelve a la predeterminada). |
+| **Ruteo de documentos** | Qué impresora recuerda cada tipo de documento («Olvidar» vuelve a la predeterminada). |
 | **Diagnóstico** | Agente de esta computadora, red (reparar/exportar), cobertura por sucursal y métricas de impresión. |
 | **Cola e historial** | Cola de esta computadora (reintentar/limpiar), actividad y confirmación en papel por número secreto. |
 
