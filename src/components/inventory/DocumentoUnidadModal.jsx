@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button, Modal, Select } from '@/components/ui'
+import { Button, Modal, Select, useResultado } from '@/components/ui'
 import { buildCertificadoHtml, buildInformeDispositivoHtml, printCertificado, printInformeDispositivo } from '@/components/shared/OrderReceipt'
 import CompartirImagen from '@/components/shared/CompartirImagen'
 import CompartirPdf from '@/components/shared/CompartirPdf'
@@ -25,6 +25,7 @@ const anchoDeFormato = (formato) => {
 const TIPOS = {
   informe: {
     titulo: 'Informe del dispositivo',
+    sujeto: 'Informe',
     tipo: 'informe-dispositivo',
     ayuda: 'El QR abre el informe público de la unidad. La impresión directa sale por la impresora configurada (80 mm por defecto); «Compartir PDF» y «PDF» generan el archivo real (A4 o rollo).',
     datos: (unit, consulta) => datosInformeDispositivo(unit, { consulta }),
@@ -34,6 +35,7 @@ const TIPOS = {
   },
   constancia: {
     titulo: 'Constancia de preparación',
+    sujeto: 'Constancia',
     tipo: 'constancia-preparacion',
     ayuda: 'La declaración de formateo/desvinculación (iCloud, MDM, reportes y SIM) firmada para adjuntar al informe; el QR abre el informe público.',
     datos: (unit, consulta) => datosConstancia(unit, { verificacion: consulta }),
@@ -43,6 +45,7 @@ const TIPOS = {
   },
   certificado: {
     titulo: 'Certificado de inspección',
+    sujeto: 'Certificado',
     tipo: 'certificado-phonecheck',
     ayuda: 'La constancia de la inspección (grado, puntaje, controles y checklist) para el comprador; el QR abre el informe público. El código interno va en barras.',
     datos: (unit, consulta) => datosCertificado(unit, { verificacion: consulta }),
@@ -52,7 +55,8 @@ const TIPOS = {
   },
 }
 
-export default function DocumentoUnidadModal({ unit, tipo = 'informe', open, onClose, onResult }) {
+export default function DocumentoUnidadModal({ unit, tipo = 'informe', open, onClose }) {
+  const avisar = useResultado()
   const config = TIPOS[tipo] || TIPOS.informe
   const [formato, setFormato] = useState('thermal-80')
   const [datos, setDatos] = useState(null)
@@ -88,16 +92,29 @@ export default function DocumentoUnidadModal({ unit, tipo = 'informe', open, onC
     setEnviando(true)
     try {
       const resultado = await imprimirDocumento(config.ticket(datos, { ancho: anchoDeFormato(formato) }), { tipo: config.tipo, ref: datos.serial })
+      // Fallo claro: el respaldo con diálogo ya avisa; acá solo se anuncia el
+      // resultado real con el texto canónico (#323).
       if (!resultado?.ok && puedeCaerAlDialogo(resultado)) {
         await config.respaldo(datos, { format: formato })
         return
       }
-      onResult?.(resultado, config.titulo)
+      if (!resultado?.ok) {
+        avisar.fallo('imprimir', resultado?.error || 'Revisá la impresora y probá de nuevo.')
+        return
+      }
+      if (resultado.encolado) {
+        avisar.impreso(config.sujeto, resultado.remoto ? 'Quedó en la cola del puente: la imprime cuando la reclame.' : 'La impresora no respondió; se reintenta solo.')
+        return
+      }
+      const pieza = datos.identificador || datos.serial || ''
+      avisar.impreso(config.sujeto, [pieza, datos.modelo].filter(Boolean).join(' · '))
     } finally {
       setEnviando(false)
     }
   }
 
+  // Sin `dirty`: el único ajuste (el formato de la vista previa) es efímero y
+  // no hay datos que perder al cerrar (#323 §4).
   return (
     <Modal open={open} onClose={onClose} title={config.titulo} size="amplio">
       <div className="space-y-3">

@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Badge, Button, Card, Modal, Select } from '@/components/ui'
+import { Badge, Button, Card, FormActions, Modal, Select, useResultado } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
 import PasosEquipo from '@/components/shared/PasosEquipo'
-import { PIE_ACCIONES } from '@/components/shared/formulario'
 import { buildUnitLabelsHtml } from '@/components/shared/OrderReceipt'
 import CompartirImagen from '@/components/shared/CompartirImagen'
 import { BarraLote, ConteoChecklist, ContadorLote, TileEquipo, VistaPreviaPapel } from 'owncoding-ui'
@@ -46,6 +45,32 @@ export default function TallerRack({
   const [busqueda, setBusqueda] = useState('')
   const [ubicacionId, setUbicacionId] = useState('')
   const [vistaHtml, setVistaHtml] = useState('')
+  const avisar = useResultado()
+
+  // Resultado canónico de las impresiones en serie (#323): un solo lugar decide
+  // qué se anuncia según lo que devolvió el camino de impresión real.
+  async function imprimirEnSerie(accion, sujeto, detalle = '') {
+    try {
+      const resultado = await accion()
+      if (resultado === false) {
+        avisar.fallo('imprimir', 'No se pudo abrir el diálogo de impresión.')
+        return false
+      }
+      if (resultado?.ok === false) {
+        avisar.fallo('imprimir', resultado.error || 'Revisá la impresora y probá de nuevo.')
+        return false
+      }
+      if (resultado?.encolado) {
+        avisar.impreso(sujeto, resultado.remoto ? 'Quedó en la cola del puente: la imprime cuando la reclame.' : 'La impresora no respondió; se reintenta solo.')
+        return true
+      }
+      avisar.impreso(sujeto, detalle)
+      return true
+    } catch (cause) {
+      avisar.fallo('imprimir', cause?.message || 'No se pudo imprimir.')
+      return false
+    }
+  }
 
   const ancho = configImpresora().ancho
   const filtradas = useMemo(() => filtrarRack(unidades, { busqueda, ubicacionId }), [unidades, busqueda, ubicacionId])
@@ -230,7 +255,7 @@ export default function TallerRack({
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => onEtiquetasLote?.(lista)}
+                      onClick={() => imprimirEnSerie(() => onEtiquetasLote?.(lista), 'Etiquetas', `${lista.length} etiqueta(s) · rollo de ${ancho} mm`)}
                       className="toque-44 text-[11px] font-semibold text-fono-light hover:underline disabled:opacity-50"
                       title={`Imprimir las etiquetas de los ${lista.length} equipos de esta estación`}
                       data-testid={`rack-imprimir-${estado}`}
@@ -359,7 +384,7 @@ export default function TallerRack({
             />
           </div>
         )}
-        <div className={cn(PIE_ACCIONES, 'mt-4')}>
+        <FormActions>
           <CompartirImagen
             construirHtml={() => buildUnitLabelsHtml(objetivo, { ancho })}
             nombre={`etiquetas-taller-${objetivo.length}`}
@@ -368,21 +393,21 @@ export default function TallerRack({
             formato={FORMATO_PAPEL[ancho] || 'thermal-80'}
             disabled={!objetivo.length || busy}
           />
-          <Button type="button" variant="outline" disabled={!objetivo.length || busy} onClick={() => { onHoja?.(objetivo, estacion === 'todas' ? 'Taller' : ETIQUETA_RACK[estacion]); setImprimirAbierto(false) }} data-testid="rack-hoja-estacion">
+          <Button type="button" variant="outline" disabled={!objetivo.length || busy} onClick={() => { imprimirEnSerie(() => onHoja?.(objetivo, estacion === 'todas' ? 'Taller' : ETIQUETA_RACK[estacion]), 'Hoja de estación'); setImprimirAbierto(false) }} data-testid="rack-hoja-estacion">
             Hoja de estación
           </Button>
           {estacionesDelAlcance.length > 1 && (
-            <Button type="button" variant="outline" disabled={!objetivo.length || busy} title="Una hoja por carril, en un solo trabajo" onClick={() => { onHojasPorEstacion?.(estacionesDelAlcance); setImprimirAbierto(false) }} data-testid="rack-hojas-estacion">
+            <Button type="button" variant="outline" disabled={!objetivo.length || busy} title="Una hoja por carril, en un solo trabajo" onClick={() => { imprimirEnSerie(() => onHojasPorEstacion?.(estacionesDelAlcance), 'Hojas por estación'); setImprimirAbierto(false) }} data-testid="rack-hojas-estacion">
               Hojas por estación ({estacionesDelAlcance.length})
             </Button>
           )}
-          <Button type="button" variant="outline" disabled={!objetivo.length || busy} title="Certificado de inspección de cada equipo, uno por página" onClick={() => { onCertificados?.(objetivo); setImprimirAbierto(false) }} data-testid="rack-certificados">
+          <Button type="button" variant="outline" disabled={!objetivo.length || busy} title="Certificado de inspección de cada equipo, uno por página" onClick={() => { imprimirEnSerie(() => onCertificados?.(objetivo), 'Certificados', `${objetivo.length} documento(s)`); setImprimirAbierto(false) }} data-testid="rack-certificados">
             Certificados ({objetivo.length})
           </Button>
-          <Button type="button" disabled={!objetivo.length || busy} onClick={() => { onEtiquetasLote?.(objetivo); setSeleccionados([]); setImprimirAbierto(false) }} data-testid="rack-imprimir-serie-confirmar">
+          <Button type="button" disabled={!objetivo.length || busy} onClick={() => { imprimirEnSerie(() => onEtiquetasLote?.(objetivo), 'Etiquetas', `${objetivo.length} etiqueta(s) · rollo de ${ancho} mm`); setSeleccionados([]); setImprimirAbierto(false) }} data-testid="rack-imprimir-serie-confirmar">
             <Icon name="printer" className="h-4 w-4" /> Etiquetas ({objetivo.length})
           </Button>
-        </div>
+        </FormActions>
       </Modal>
     </Card>
   )
