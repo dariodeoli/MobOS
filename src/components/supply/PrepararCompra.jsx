@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { resources } from '@/lib/api'
-import { isDemoRuntime } from '@/lib/demoMode'
 import { Badge, Button, Card, EmptyState, Input, Skeleton, Textarea, useToast } from '@/components/ui'
 import CameraScan from '@/components/shared/CameraScan'
 import EtiquetasPreparacion from '@/components/supply/EtiquetasPreparacion'
@@ -20,10 +19,9 @@ import { etiquetaPorSerial } from '@/lib/printing/etiquetaLote'
 
 export default function PrepararCompra() {
   const toast = useToast()
-  const esDemo = isDemoRuntime
   const [compras, setCompras] = useState([])
   const [totales, setTotales] = useState(null)
-  const [cargando, setCargando] = useState(!esDemo)
+  const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [abierta, setAbierta] = useState(null)
   const [lineaId, setLineaId] = useState('')
@@ -38,7 +36,6 @@ export default function PrepararCompra() {
   const [ultimoSerial, setUltimoSerial] = useState('')
 
   const cargar = useCallback(async () => {
-    if (esDemo) return
     setCargando(true)
     setError('')
     try {
@@ -59,7 +56,7 @@ export default function PrepararCompra() {
     } finally {
       setCargando(false)
     }
-  }, [esDemo])
+  }, [])
 
   useEffect(() => { cargar() }, [cargar])
 
@@ -148,15 +145,6 @@ export default function PrepararCompra() {
     } finally {
       setBusy(false)
     }
-  }
-
-  if (esDemo) {
-    return (
-      <Card className="p-4 md:p-5">
-        <h2 className="font-semibold">Preparar compra</h2>
-        <p className="mt-1 text-sm text-mute">La preparación de IMEI trabaja con las compras de una cuenta real.</p>
-      </Card>
-    )
   }
 
   return (

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
+import { isDemoRuntime } from '@/lib/demoMode'
+import { plantillasDemo } from '@/lib/demo/plantillas'
 import Icon from '@/components/shared/Icon'
 import { Textarea } from '@/components/ui'
 import { cn } from '@/lib/utils'
@@ -32,8 +34,10 @@ export default function WhatsAppMenu({
   const { sesion, empresa, sucursal } = useSesion()
   const [abierto, setAbierto] = useState(false)
   const [cargando, setCargando] = useState(false)
-  const [cargado, setCargado] = useState(Array.isArray(plantillas))
-  const [lista, setLista] = useState(() => Array.isArray(plantillas) ? plantillas : [])
+  // #324: en demo las plantillas salen de la fixture local; nunca se pide al
+  // API (antes Garantías y Taller terminaban en «No se pudieron cargar»).
+  const [cargado, setCargado] = useState(Array.isArray(plantillas) || isDemoRuntime)
+  const [lista, setLista] = useState(() => Array.isArray(plantillas) ? plantillas : (isDemoRuntime ? plantillasDemo(category) : []))
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [elegidaId, setElegidaId] = useState(() => leerUltimo(`wa:plantilla:${category}`, '') || (storageKey ? localStorage.getItem(storageKey) : '') || '')
