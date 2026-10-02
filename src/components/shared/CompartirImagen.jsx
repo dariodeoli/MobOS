@@ -12,15 +12,10 @@ import { descargarArchivo } from '@/utils/descargarArchivo'
 // `construirHtml` puede ser un HTML o una función (async): las etiquetas arman
 // el suyo al vuelo. `formato` es el del papel ('a4', 'thermal-80'…) para que la
 // imagen salga con el ancho real.
-export default function CompartirImagen({
-  construirHtml,
-  nombre = 'documento',
-  titulo = '',
-  texto = '',
-  formato = 'a4',
-  disabled = false,
-  onResult,
-}) {
+//
+// #307: la lógica vive en este hook para que una pantalla que necesita un menú
+// secundario (etiquetas) use las mismas acciones sin duplicarlas.
+export function useCompartirImagen({ construirHtml, nombre = 'documento', titulo = '', texto = '', formato = 'a4', onResult }) {
   const toast = useToast()
   const avisar = useResultado()
   const [generando, setGenerando] = useState('')
@@ -80,7 +75,11 @@ export default function CompartirImagen({
     }
   })
 
-  const ocupado = Boolean(generando)
+  return { compartir, descargar, copiar, generando, ocupado: Boolean(generando) }
+}
+
+export default function CompartirImagen({ disabled = false, ...opciones }) {
+  const { compartir, descargar, copiar, generando, ocupado } = useCompartirImagen(opciones)
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
       <Button type="button" variant="outline" disabled={disabled || ocupado} onClick={compartir} data-testid="compartir-imagen">
