@@ -250,12 +250,20 @@ function newToken() {
   return randomBytes(32).toString('hex')
 }
 
-async function createSession(tx: any, tenantId: string, userId: string | null, level: 'COMPANY' | 'SELLER', deviceId: string, branchId: string | null = null) {
+async function createSession(
+  tx: any,
+  tenantId: string,
+  userId: string | null,
+  level: 'COMPANY' | 'SELLER',
+  deviceId: string,
+  branchId: string | null = null,
+  { userAgent = null }: { userAgent?: string | null } = {},
+) {
   const tienda = await tx.tenant.findUnique({ where: { id: tenantId }, select: { archivedAt: true } })
   if (tienda?.archivedAt) throw new ArchivedTenantError()
   const accessToken = newToken()
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000)
-  const session = await tx.session.create({ data: { tenantId, userId, level, deviceId, branchId, tokenHash: hashToken(accessToken), expiresAt } })
+  const session = await tx.session.create({ data: { tenantId, userId, level, deviceId, branchId, tokenHash: hashToken(accessToken), expiresAt, userAgent: userAgent ? String(userAgent).slice(0, 240) : null } })
   return { accessToken, expiresAt, sessionId: session.id }
 }
 
@@ -315,7 +323,7 @@ export async function authenticateCompany(input: LoginInput, request?: Request) 
       select: { id: true, name: true, branchId: true, pinLength: true },
       orderBy: { name: 'asc' },
     })
-    const session = await createSession(tx, tenant.id, null, 'COMPANY', deviceId, branchId)
+    const session = await createSession(tx, tenant.id, null, 'COMPANY', deviceId, branchId, { userAgent: auditMetadata.userAgent })
     await tx.auditLog.create({ data: { tenantId: tenant.id, action: 'COMPANY_SIGNED_IN', entity: 'Session', entityId: session.sessionId, metadata: { branchId, ...auditMetadata } } })
     return { ...session, tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug }, sellers, onboardingRequired: requiresAdminPinSetup(tenant.settings), scope: 'device:company' as const }
   })
@@ -423,7 +431,7 @@ export async function authenticateSeller(request: Request, input: PinInput) {
       return null
     }
     await tx.user.update({ where: { id: user.id }, data: { failedLoginAttempts: 0, lockedUntil: null, lastAccessAt: now } })
-    const session = await createSession(tx, parent.tenantId, user.id, 'SELLER', parent.deviceId, parent.branchId)
+    const session = await createSession(tx, parent.tenantId, user.id, 'SELLER', parent.deviceId, parent.branchId, { userAgent: auditMetadata.userAgent })
     await tx.auditLog.create({ data: { tenantId: parent.tenantId, userId: user.id, action: 'SELLER_PIN_VERIFIED', entity: 'Session', entityId: session.sessionId, metadata: { branchId: parent.branchId, ...auditMetadata } } })
     return { ...session, user: sessionUser(user) }
   })

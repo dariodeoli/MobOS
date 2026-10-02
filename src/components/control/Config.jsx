@@ -16,6 +16,7 @@ import EmailField from '@/components/shared/EmailField'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PhoneField from '@/components/shared/PhoneField'
 import RucField from '@/components/shared/RucField'
+import SesionDispositivo from '@/components/shared/SesionDispositivo'
 import UsoEquipo from '@/components/control/UsoEquipo'
 import DatosPrivados from '@/components/control/DatosPrivados'
 import Comercial from '@/components/control/config/Comercial'
@@ -379,12 +380,23 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
         <Card className="space-y-3"><div className="flex items-start gap-3">{perfilEmpresa?.picture ? <img src={perfilEmpresa.picture} referrerPolicy="no-referrer" alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" /> : <div className="rounded-lg bg-fono/10 p-2 text-fono"><Icon name="user" className="h-5 w-5" /></div>}<div className="min-w-0"><h2 className="font-semibold">Sesión activa</h2><p className="mt-0.5 truncate text-sm text-mute">{perfilEmpresa?.name || sesion?.correo || sesion?.nombre || 'Usuario de MobOS'}</p></div></div><div className="flex flex-wrap gap-2 text-sm"><Badge color="blue">{empresa?.nombre || 'Mi empresa'}</Badge>{sucursal?.nombre && <Badge color="slate">{sucursal.nombre}</Badge>}{sesion?.rol && <Badge color="slate">{etiquetaRol(sesion.rol)}</Badge>}</div></Card>
         <Card className="space-y-3"><div><h2 className="font-semibold">Confirmar identidad</h2><p className="mt-1 text-sm text-mute">Pedimos tu contraseña antes de descargar datos, cerrar la empresa o revocar dispositivos. La autorización dura 10 minutos.</p></div><div className="flex flex-col gap-2 sm:flex-row"><PasswordInput aria-label="Contraseña para reautenticar" value={password} onChange={event => setPassword(event.target.value)} placeholder="Contraseña de la empresa" className="min-w-0 flex-1" /><Button onClick={reauthenticate} disabled={busy || !password}>Verificar contraseña</Button></div>{account?.reauthValidUntil && <p className="text-xs text-ok">Acciones sensibles habilitadas hasta {fmtDate(account.reauthValidUntil)}.</p>}</Card>
 
-        <Card className="space-y-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><h2 className="font-semibold">Sesiones activas</h2><p className="mt-1 text-sm text-mute">Cada dispositivo se puede cerrar de forma remota.</p></div><span className="flex flex-wrap items-center gap-2"><Button variant="outline" onClick={load} disabled={busy}>Actualizar</Button><Button variant="outline" className="border-bad/50 text-bad hover:bg-bad/10" onClick={() => { setFailure(''); setCerrarCuentaAbierto(true) }} disabled={busy}>Cerrar mi cuenta</Button></span></div>{!account && !failure && <p className="text-sm text-mute">Cargando sesiones…</p>}{account?.sessions?.length === 0 && <p className="text-sm text-mute">No hay sesiones activas.</p>}<div className="space-y-2">{account?.sessions?.map(active => <div key={active.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3"><div><p className="font-medium">{active.user?.name || 'Acceso de empresa'} {active.id === account.currentSessionId && <span className="ml-2 text-xs text-fono-light">Este dispositivo</span>}</p><p className="mt-1 text-xs text-mute">{etiquetaRol(active.user?.role || active.level)} · {active.deviceId || 'Dispositivo no identificado'} · última actividad {fmtDate(active.lastSeenAt)}</p></div><Button variant="outline" onClick={() => setConfirmar({ tipo: 'revocar', sessionId: active.id })} disabled={busy}>Revocar</Button></div>)}</div>
+        <Card className="space-y-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><h2 className="font-semibold">Sesiones activas</h2><p className="mt-1 text-sm text-mute">Cada dispositivo se puede cerrar de forma remota. Los identificadores técnicos quedan en «Detalles técnicos».</p></div><Button variant="outline" onClick={load} disabled={busy}>Actualizar</Button></div>{!account && !failure && <p className="text-sm text-mute">Cargando sesiones…</p>}{account?.sessions?.length === 0 && <p className="text-sm text-mute">No hay sesiones activas.</p>}<div className="space-y-2">{account?.sessions?.map(active => <SesionDispositivo key={active.id} sesion={active} actual={active.id === account.currentSessionId} nivel={`${active.user?.name || 'Acceso de empresa'}${active.user?.role ? ` · ${etiquetaRol(active.user.role)}` : ''}`}><Button variant="outline" onClick={() => setConfirmar({ tipo: 'revocar', sessionId: active.id })} disabled={busy}>Revocar</Button></SesionDispositivo>)}</div>
         <EstadoGuardado testId="sesiones-estado" estado={guardadoSesiones.estado} />
         {guardadoSesiones.panel}</Card>
 
         {esDueno && <UsoEquipo />}
         <Card className="space-y-3"><div><h2 className="font-semibold">Exportación básica</h2><p className="mt-1 text-sm text-mute">Descarga JSON de empresa, sucursales, equipo, clientes, productos, órdenes y pagos. Excluye credenciales, tokens, PIN y archivos de comprobantes.</p></div><div className="flex flex-wrap items-center gap-3"><Button variant="outline" onClick={exportData} disabled={busy}>Descargar mis datos</Button><EstadoGuardado testId="exportar-estado" estado={guardadoExportar.estado} /></div>{guardadoExportar.panel}</Card>
+
+        {/* #300: la acción destructiva vive en su propia zona, lejos de
+            «Actualizar» y de las sesiones normales. La confirmación ya pide
+            contraseña + la palabra CERRAR. */}
+        <Card className="space-y-3 border-bad/30" data-testid="zona-destructiva">
+          <div>
+            <h2 className="font-semibold text-bad">Zona destructiva</h2>
+            <p className="mt-1 text-sm text-mute">Cerrar tu cuenta revoca tus sesiones y desactiva tu usuario; la empresa y su historial se conservan, pero cada tienda necesita otro administrador activo. Para confirmar se pide tu contraseña de empresa y la palabra CERRAR.</p>
+          </div>
+          <Button variant="outline" className="border-bad/50 text-bad hover:bg-bad/10" onClick={() => { setFailure(''); setCerrarCuentaAbierto(true) }} disabled={busy}>Cerrar mi cuenta</Button>
+        </Card>
       </>}
       <DialogoDestructivo
         open={cerrarCuentaAbierto}

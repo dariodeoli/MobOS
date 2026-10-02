@@ -46,7 +46,7 @@
 ## 7. Seguridad (`/configuracion/seguridad`)
 - **Sesión activa**: avatar/nombre + badges empresa/sucursal/rol.
 - **Confirmar identidad**: «Contraseña de la empresa» + «Verificar contraseña» → «Acciones sensibles habilitadas hasta …» (10 min).
-- **Sesiones activas**: «Actualizar», «Cerrar mi cuenta» (palabra CERRAR + contraseña); fila: usuario o «Acceso de empresa», «Este dispositivo», rol·deviceId·última actividad, «Revocar».
+- **Sesiones activas (#300)**: «Actualizar»; cada fila se lee por dispositivo («Chrome en Mac · macOS»), última actividad en palabras, «Sesión actual» e inicio; «Detalles técnicos» plegado muestra el `deviceId`, el id de sesión y el agente; «Revocar». «Cerrar mi cuenta» ya no vive acá: está en la **Zona destructiva** del final (palabra CERRAR + contraseña).
 - **Uso del equipo** (dueño): últimos 30 días por persona (en línea, rol, sesiones, tiempo activo y detalle inicio→fin), «Actualizar».
 - **Exportación básica**: «Descargar mis datos» (JSON sin credenciales/PIN/tokens/adjuntos).
 - **Archivar empresa**: «Motivo del archivado (mínimo 10 caracteres)» + «Archivar empresa» (RESTORE en 30 días).
@@ -76,7 +76,7 @@
 ## 11. Preferencias (`/configuracion/preferencias`) — `app/Preferencias.jsx`
 - «Bloqueo por inactividad» — select: «1 minuto», «5 minutos», «10 minutos» (por defecto), «15 minutos», «30 minutos».
 - «Notificaciones» — checkbox «Mostrar el aviso de novedades: pedidos, aprobaciones, comentarios y menciones.» (activado por defecto).
-- Se guardan **en el navegador, por usuario** (`mobos:preferencias:<userId>`, o `:anon`), nunca viajan a la empresa; se aplican al instante (evento `mobos:preferencias`); el **tema claro/oscuro no está acá** (está en el topbar/menú lateral).
+- Se guardan **en el navegador, por usuario** (`mobos:preferencias:<userId>`, o `:anon`), nunca viajan a la empresa; se aplican al instante (evento `mobos:preferencias`); el **tema claro/oscuro no está acá** (está en el topbar/menú lateral). #300: se retiró la salida «Volver al diseño anterior» (exponía deuda técnica como preferencia); v2 es el único diseño.
 
 ## 12. Estado del sistema (`/configuracion/sistema`) — `control/EstadoSistema.jsx`
 - **Alcance (#253)**: acá **se monitorea** (servicios, puentes/impresoras, cola global, correo, AEX, errores); para **agregar, probar o formatear** impresoras hay un enlace a Dispositivos · Impresoras. La configuración no se duplica.

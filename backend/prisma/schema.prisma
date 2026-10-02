@@ -448,6 +448,9 @@ model Session {
   user       User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
   level      SessionLevel @default(COMPANY)
   deviceId   String
+  // #300: agente de usuario del dispositivo que abrió la sesión. Permite
+  // mostrar «Chrome en MacBook · macOS» sin exponer identificadores técnicos.
+  userAgent  String?
   branchId   String?
   tokenHash  String       @unique
   expiresAt  DateTime

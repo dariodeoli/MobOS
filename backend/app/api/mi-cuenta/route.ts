@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     }),
     prisma.session.findMany({
       where: { tenantId: session.user.tenantId, userId: session.user.id, revokedAt: null, expiresAt: { gt: now } },
-      select: { id: true, level: true, deviceId: true, createdAt: true, lastSeenAt: true },
+      select: { id: true, level: true, deviceId: true, userAgent: true, createdAt: true, lastSeenAt: true },
       orderBy: { lastSeenAt: 'desc' },
       take: 50,
     }),
