@@ -1,0 +1,681 @@
+[
+  {
+    "superficie": "rol-vendedor-entrada",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 7,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Gift cards",
+        "ancho": 125,
+        "alto": 36,
+        "dibujo": "125x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "veces": 6
+      },
+      {
+        "que": "button",
+        "texto": "Colapsar menú",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "superficie": "rol-vendedor-entrada",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-vendedor-entrada",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-vendedor-pedidos",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 9,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Activos",
+        "ancho": 63,
+        "alto": 28,
+        "dibujo": "63x28",
+        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold tran",
+        "veces": 7
+      },
+      {
+        "que": "button",
+        "texto": "Colapsar menú",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Actualizar",
+        "ancho": 84,
+        "alto": 34,
+        "dibujo": "84x34",
+        "clase": "min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs ",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "superficie": "rol-vendedor-pedidos",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-vendedor-pedidos",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-vendedor-clientes",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 4,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "+ Crear cliente",
+        "ancho": 130,
+        "alto": 36,
+        "dibujo": "130x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "veces": 3
+      },
+      {
+        "que": "button",
+        "texto": "Colapsar menú",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "superficie": "rol-vendedor-clientes",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-vendedor-clientes",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-vendedor-productos",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 4,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Actualizar",
+        "ancho": 124,
+        "alto": 36,
+        "dibujo": "124x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Colapsar menú",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Con stock",
+        "ancho": 84,
+        "alto": 36,
+        "dibujo": "84x36",
+        "clase": "min-h-11 rounded-lg border px-3 py-2 text-xs font-semibold t",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "superficie": "rol-vendedor-productos",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-vendedor-productos",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-vendedor-cotizaciones",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 10,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Todas",
+        "ancho": 54,
+        "alto": 28,
+        "dibujo": "54x28",
+        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold tran",
+        "veces": 7
+      },
+      {
+        "que": "button",
+        "texto": "Colapsar menú",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "+ Nueva cotización",
+        "ancho": 160,
+        "alto": 36,
+        "dibujo": "160x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Actualizar",
+        "ancho": 84,
+        "alto": 34,
+        "dibujo": "84x34",
+        "clase": "min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs ",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "superficie": "rol-vendedor-cotizaciones",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-vendedor-cotizaciones",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-gerente-entrada",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 8,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Gift cards",
+        "ancho": 125,
+        "alto": 36,
+        "dibujo": "125x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "veces": 6
+      },
+      {
+        "que": "button",
+        "texto": "Colapsar menú",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Nuevo producto",
+        "ancho": 135,
+        "alto": 30,
+        "dibujo": "135x30",
+        "clase": "inline-flex min-h-11 items-center gap-1.5 rounded-lg border ",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "superficie": "rol-gerente-entrada",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-gerente-entrada",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-gerente-precios",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 2,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Colapsar menú",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "+ Nueva lista",
+        "ancho": 118,
+        "alto": 36,
+        "dibujo": "118x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "superficie": "rol-gerente-precios",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-gerente-precios",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-gerente-pedidos",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 9,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Activos",
+        "ancho": 63,
+        "alto": 28,
+        "dibujo": "63x28",
+        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold tran",
+        "veces": 7
+      },
+      {
+        "que": "button",
+        "texto": "Colapsar menú",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Actualizar",
+        "ancho": 84,
+        "alto": 34,
+        "dibujo": "84x34",
+        "clase": "min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs ",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "superficie": "rol-gerente-pedidos",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-gerente-pedidos",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-tecnico-entrada",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 15,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Activos (0)",
+        "ancho": 83,
+        "alto": 36,
+        "dibujo": "83x36",
+        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold tran",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Actualizar",
+        "ancho": 102,
+        "alto": 36,
+        "dibujo": "102x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "veces": 4
+      },
+      {
+        "que": "button",
+        "texto": "Colapsar menú",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "superficie": "rol-tecnico-entrada",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-tecnico-entrada",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-tecnico-servicio",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 15,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Activos (0)",
+        "ancho": 83,
+        "alto": 36,
+        "dibujo": "83x36",
+        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold tran",
+        "veces": 10
+      },
+      {
+        "que": "button",
+        "texto": "Actualizar",
+        "ancho": 102,
+        "alto": 36,
+        "dibujo": "102x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "veces": 4
+      },
+      {
+        "que": "button",
+        "texto": "Colapsar menú",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "superficie": "rol-tecnico-servicio",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-tecnico-servicio",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-delivery-entrada",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 6,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "En camino",
+        "ancho": 127,
+        "alto": 36,
+        "dibujo": "127x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "veces": 3
+      },
+      {
+        "que": "button",
+        "texto": "A entregar",
+        "ancho": 81,
+        "alto": 28,
+        "dibujo": "81x28",
+        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold tran",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Actualizar",
+        "ancho": 84,
+        "alto": 34,
+        "dibujo": "84x34",
+        "clase": "ml-auto min-h-11 rounded-lg border border-ink-500 px-3 py-2 ",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "superficie": "rol-delivery-entrada",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-delivery-entrada",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-delivery-delivery-repartos",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 6,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "En camino",
+        "ancho": 127,
+        "alto": 36,
+        "dibujo": "127x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "veces": 3
+      },
+      {
+        "que": "button",
+        "texto": "A entregar",
+        "ancho": 81,
+        "alto": 28,
+        "dibujo": "81x28",
+        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold tran",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Actualizar",
+        "ancho": 84,
+        "alto": 34,
+        "dibujo": "84x34",
+        "clase": "ml-auto min-h-11 rounded-lg border border-ink-500 px-3 py-2 ",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "superficie": "rol-delivery-delivery-repartos",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-delivery-delivery-repartos",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-delivery-delivery-rendiciones",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Rendir",
+        "ancho": 100,
+        "alto": 36,
+        "dibujo": "100x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "superficie": "rol-delivery-delivery-rendiciones",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "rol-delivery-delivery-rendiciones",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  }
+]

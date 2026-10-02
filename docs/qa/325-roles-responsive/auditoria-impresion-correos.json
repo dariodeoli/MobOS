@@ -1,0 +1,212 @@
+[
+  {
+    "superficie": "impresion-comprobante",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 10,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Volver a pedidos",
+        "ancho": 165,
+        "alto": 36,
+        "dibujo": "165x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "veces": 6
+      },
+      {
+        "que": "button",
+        "texto": "Archivar",
+        "ancho": 74,
+        "alto": 34,
+        "dibujo": "74x34",
+        "clase": "min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs ",
+        "veces": 2
+      },
+      {
+        "que": "button",
+        "texto": "Colapsar menú",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Vendido hoy",
+        "ancho": 187,
+        "alto": 24,
+        "dibujo": "187x24",
+        "clase": "flex w-full items-center justify-between gap-2 rounded-lg px",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "superficie": "impresion-comprobante",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "impresion-comprobante",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "correo-cotizacion",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 11,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Todas",
+        "ancho": 54,
+        "alto": 28,
+        "dibujo": "54x28",
+        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold tran",
+        "veces": 7
+      },
+      {
+        "que": "button",
+        "texto": "Colapsar menú",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Vendido hoy",
+        "ancho": 187,
+        "alto": 24,
+        "dibujo": "187x24",
+        "clase": "flex w-full items-center justify-between gap-2 rounded-lg px",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "+ Nueva cotización",
+        "ancho": 160,
+        "alto": 36,
+        "dibujo": "160x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Actualizar",
+        "ancho": 84,
+        "alto": 34,
+        "dibujo": "84x34",
+        "clase": "min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs ",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "superficie": "correo-cotizacion",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "correo-cotizacion",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "impresion-dispositivos",
+    "ancho": "desktop",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 14,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Actualizar estado",
+        "ancho": 175,
+        "alto": 36,
+        "dibujo": "175x36",
+        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "veces": 6
+      },
+      {
+        "que": "button",
+        "texto": "Impresoras",
+        "ancho": 110,
+        "alto": 28,
+        "dibujo": "110x28",
+        "clase": "flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-1.5 te",
+        "veces": 5
+      },
+      {
+        "que": "button",
+        "texto": "Colapsar menú",
+        "ancho": 28,
+        "alto": 28,
+        "dibujo": "28x28",
+        "clase": "hidden shrink-0 rounded-md p-1.5 text-mute transition hover:",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Vendido hoy",
+        "ancho": 187,
+        "alto": 24,
+        "dibujo": "187x24",
+        "clase": "flex w-full items-center justify-between gap-2 rounded-lg px",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Colapsar el menú de Configuración",
+        "ancho": 36,
+        "alto": 36,
+        "dibujo": "36x36",
+        "clase": "grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mut",
+        "veces": 1
+      }
+    ]
+  },
+  {
+    "superficie": "impresion-dispositivos",
+    "ancho": "mobile",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  },
+  {
+    "superficie": "impresion-dispositivos",
+    "ancho": "mobile-oscuro",
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": []
+  }
+]

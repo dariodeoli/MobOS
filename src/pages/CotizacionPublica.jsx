@@ -185,15 +185,15 @@ export default function CotizacionPublica() {
                       <Textarea rows={3} maxLength={500} value={motivo} onChange={event => setMotivo(event.target.value)} className="mt-1.5 rounded-xl px-3 py-2 text-sm" placeholder="Contanos por qué no avanzás con esta cotización" />
                     </label>
                     <div className={PIE_ACCIONES}>
-                      <button type="button" disabled={busy} onClick={() => { setRechazando(false); setMotivo('') }} className="rounded-xl border border-ink-500 px-4 py-2 text-sm font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">Volver</button>
-                      <button type="button" disabled={busy} onClick={() => resolver('reject')} className="rounded-xl border border-bad/40 bg-bad/10 px-4 py-2 text-sm font-semibold text-bad transition hover:bg-bad/20 disabled:opacity-60">Confirmar rechazo</button>
+                      <button type="button" disabled={busy} onClick={() => { setRechazando(false); setMotivo('') }} className="min-h-11 rounded-xl border border-ink-500 px-4 py-2 text-sm font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">Volver</button>
+                      <button type="button" disabled={busy} onClick={() => resolver('reject')} className="min-h-11 rounded-xl border border-bad/40 bg-bad/10 px-4 py-2 text-sm font-semibold text-bad transition hover:bg-bad/20 disabled:opacity-60">Confirmar rechazo</button>
                     </div>
                   </div>
                 ) : (
                   <div className="mt-4 flex flex-col items-center gap-3">
                     <div className="flex flex-wrap justify-center gap-2">
-                      <button type="button" disabled={busy} onClick={() => resolver('accept')} className="inline-flex items-center gap-2 rounded-xl bg-ok px-5 py-2.5 text-sm font-bold text-black transition hover:opacity-90 disabled:opacity-60"><Icon name="check" className="h-4 w-4" />{busy ? 'Guardando…' : 'Aceptar cotización'}</button>
-                      <button type="button" disabled={busy} onClick={() => setRechazando(true)} className="inline-flex items-center gap-2 rounded-xl border border-bad/40 px-5 py-2.5 text-sm font-semibold text-bad transition hover:bg-bad/10 disabled:opacity-60"><Icon name="close" className="h-4 w-4" />Rechazar</button>
+                      <button type="button" disabled={busy} onClick={() => resolver('accept')} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-ok px-5 py-2.5 text-sm font-bold text-black transition hover:opacity-90 disabled:opacity-60"><Icon name="check" className="h-4 w-4" />{busy ? 'Guardando…' : 'Aceptar cotización'}</button>
+                      <button type="button" disabled={busy} onClick={() => setRechazando(true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-bad/40 px-5 py-2.5 text-sm font-semibold text-bad transition hover:bg-bad/10 disabled:opacity-60"><Icon name="close" className="h-4 w-4" />Rechazar</button>
                     </div>
                     {/* #261: el cliente baja o comparte el A4 de marca (misma proforma). */}
                     <CompartirPdf

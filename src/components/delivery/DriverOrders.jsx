@@ -47,7 +47,7 @@ function PedidoReparto({ row, onCobrar, onEstado, busy }) {
         {row.telefono && (
           <p className="flex items-center gap-1.5 text-xs">
             <Icon name="phone" className="h-3.5 w-3.5 shrink-0 text-mute" />
-            <a href={`tel:+${row.telefono}`} className="text-fono-light hover:underline">{row.telefonoVisible || `+${row.telefono}`}</a>
+            <a href={`tel:+${row.telefono}`} className="toque-44 text-fono-light hover:underline">{row.telefonoVisible || `+${row.telefono}`}</a>
           </p>
         )}
         {row.articulos.length > 0 && <p className="text-xs text-mute">{row.articulos.join(' · ')}</p>}
@@ -134,10 +134,10 @@ export default function DriverOrders() {
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
           {[['activos', 'A entregar'], ['entregados', 'Entregados']].map(([id, label]) => (
-            <button key={id} type="button" onClick={() => setEstado(id)} className={cn('rounded-lg px-2.5 py-1.5 text-xs font-semibold transition', estado === id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>
+            <button key={id} type="button" onClick={() => setEstado(id)} className={cn('min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition md:min-h-0', estado === id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>
           ))}
         </div>
-        <button type="button" onClick={data.refresh} disabled={data.loading} className="ml-auto rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Actualizar</button>
+        <button type="button" onClick={data.refresh} disabled={data.loading} className="ml-auto min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore md:min-h-0">Actualizar</button>
       </div>
       <SellerFeedback {...data} empty={!data.rows.length} />
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

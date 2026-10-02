@@ -502,7 +502,7 @@ export default function ServicioTecnico() {
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
           {[['activos', `Activos (${conteos.activos})`], ...ESTADOS.map(([id, label]) => [id, `${label} (${conteos[id] || 0})`]), ['todos', 'Todos']].map(([key, label]) => (
-            <button key={key} type="button" onClick={() => setFiltro(key)} className={cn('rounded-lg px-2.5 py-1.5 text-xs font-semibold transition', filtro === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>
+            <button key={key} type="button" onClick={() => setFiltro(key)} className={cn('min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition md:min-h-9', filtro === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>
           ))}
         </div>
         <div className="min-w-[200px] flex-1"><SearchField ariaLabel="Buscar órdenes de servicio" placeholder="Cliente, equipo, IMEI, falla o técnico" value={q} onChange={event => setQ(event.target.value)} /></div>
