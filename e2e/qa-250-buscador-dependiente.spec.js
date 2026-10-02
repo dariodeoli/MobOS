@@ -88,11 +88,15 @@ test('Compras: la línea usa el buscador y el alta dependiente queda en la líne
   try {
     mkdirSync(SHOTS, { recursive: true })
     await page.goto('/compras')
-    const combo = page.locator('input[placeholder="Buscar producto…"]:visible').first()
+    // #307: el alta de la compra vive en un drawer; el buscador dependiente
+    // está en su línea (antes la spec lo buscaba embebido en la lista).
+    await page.getByRole('button', { name: 'Nueva compra' }).click()
+    const alta = page.getByRole('dialog', { name: 'Nueva compra' })
+    const combo = alta.locator('input[placeholder="Buscar producto…"]').first()
     await expect(combo).toBeVisible({ timeout: 20_000 })
     await combo.fill(modelo)
     await page.getByRole('option', { name: /como producto nuevo/i }).first().click()
-    const modal = page.getByRole('dialog')
+    const modal = page.getByRole('dialog', { name: 'Producto nuevo · modelo → capacidad → color' })
     const cascada = modal.getByTestId('variante-producto')
     await expect(cascada).toBeVisible()
     await cascada.getByLabel('Capacidad del producto').fill('128GB')
