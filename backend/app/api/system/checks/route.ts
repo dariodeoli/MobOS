@@ -8,7 +8,10 @@ import { aexConfigurado, aexWebhookConToken } from '../../../../lib/aex'
 type EstadoChequeo = 'ok' | 'atencion' | 'error'
 type Chequeo = { id: string; label: string; estado: EstadoChequeo; detalle: string }
 
-const fecha = (valor: Date) => new Date(valor).toLocaleDateString('es-PY')
+// Las fechas del servidor se formatean en la zona de la empresa (el contenedor
+// corre en UTC: sin esto la hora se veía ~3 h adelantada, #301).
+const ZONA_HORARIA = 'America/Asuncion'
+const fecha = (valor: Date) => new Date(valor).toLocaleDateString('es-PY', { timeZone: ZONA_HORARIA })
 
 // Estado del sistema (solo el dueño): los chequeos que se corren antes de
 // entregar una versión, dentro de la app, para detectar configuraciones
@@ -23,7 +26,7 @@ export async function GET(request: Request) {
     chequeos.push({ id, label, estado, detalle })
   }
 
-  agregar('api', 'API', 'ok', `En línea desde ${new Date().toLocaleString('es-PY')}`)
+  agregar('api', 'API', 'ok', `En línea desde ${new Date().toLocaleString('es-PY', { timeZone: ZONA_HORARIA })}`)
 
   try {
     await prisma.$queryRaw`SELECT 1`

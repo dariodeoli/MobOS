@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import AttachmentInput from '@/components/shared/AttachmentInput'
@@ -9,25 +10,25 @@ import { sessionApi } from '@/lib/api/session'
 import { deviceId } from '@/lib/deviceId'
 import { comprimirImagen } from '@/utils/imagen'
 import { fechaHora as fmtDate } from '@/utils/fecha'
-import { Aviso, Badge, Button, Card, ConfirmDialog, Eyebrow, FormField, Input, Modal, PasswordInput, PinInput, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, FormField, Input, Modal, PasswordInput, PinInput, Subtabs, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import EmailField from '@/components/shared/EmailField'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
-import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
+import PhoneField from '@/components/shared/PhoneField'
 import RucField from '@/components/shared/RucField'
-import PanelDerecho from '@/components/shared/PanelDerecho'
+import SesionDispositivo from '@/components/shared/SesionDispositivo'
 import UsoEquipo from '@/components/control/UsoEquipo'
 import DatosPrivados from '@/components/control/DatosPrivados'
 import Comercial from '@/components/control/config/Comercial'
-import { ROLE_LABELS } from '@/lib/roles'
-import { copiarAlPortapapeles, copiarValor } from '@/utils/portapapeles'
+import { ROLE_LABELS, etiquetaRol } from '@/lib/roles'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import TiendasSucursales from '@/components/config/TiendasSucursales'
 import DialogoDestructivo from '@/components/config/DialogoDestructivo'
 import { descargarArchivo } from '@/utils/descargarArchivo'
-import { cn } from '@/lib/utils'
-import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { mensajeDeGuardado } from '@/utils/guardadoCuenta'
 import { EstadoGuardado, useGuardadoCuenta } from '@/components/control/GuardadoCuenta'
+import { cambiosIdentidad, formularioIdentidad } from '@/lib/identidadCuenta'
 
 // Un logo por modo (UX Config → Logos): el modo claro lleva el logo oscuro y
 // el modo oscuro el logo claro, y la vista previa se hace **sobre el fondo real
@@ -60,6 +61,17 @@ function ConfirmarLogo({ item, busy, onCancel, onConfirm }) {
     </Modal>
   )
 }
+
+// #299 · Organización en secciones por tarea: cada una se abre con su tarea
+// clara y no se mezcla con el resto. El orden es el del uso cotidiano.
+const ORG_SECCIONES = [
+  ['datos', 'Datos generales'],
+  ['identidad', 'Identidad visual'],
+  ['sucursales', 'Sucursales y depósitos'],
+  ['fiscales', 'Datos fiscales'],
+  ['numeracion', 'Numeración'],
+  ['peligro', 'Zona de peligro'],
+]
 
 // El backend numera con MOB cuando la empresa no configuró prefijo
 // (`backend/lib/order-number.ts`): la pantalla muestra y edita el prefijo
@@ -100,6 +112,9 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
   const [confirmar, setConfirmar] = useState(null)
   const [cerrarCuentaAbierto, setCerrarCuentaAbierto] = useState(false)
   const [eliminarAbierto, setEliminarAbierto] = useState(false)
+  // #299: sección activa de Organización (cada tarea abre sola, sin apilar
+  // todo en una columna).
+  const [org, setOrg] = useState('datos')
 
   // El formulario se hidrata solo al cargar (y al recargar) la cuenta: los
   // guardados parciales actualizan `account` sin pisar lo que el usuario está
@@ -254,9 +269,15 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
   return (
     <div className="space-y-4">
       {failure && <Aviso tono="error" className="p-3 rounded-xl">{failure}</Aviso>}{notice && <Aviso tono="ok" className="p-3 rounded-xl">{notice}</Aviso>}
-      {seccion === 'organizacion' && <>
-        <IdentidadCuenta tenant={account?.tenant} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} onGuardado={(cambios) => setAccount(current => current ? { ...current, tenant: { ...current.tenant, ...cambios } } : current)} />
-        {esDueno && <Card className="space-y-3">
+      {seccion === 'organizacion' && (
+        <div className="space-y-3" data-testid="organizacion-pantalla">
+          <div data-testid="organizacion-secciones">
+            <Subtabs value={org} onChange={setOrg} items={ORG_SECCIONES} ariaLabel="Secciones de Organización" className="[&>button]:min-h-11 md:[&>button]:min-h-9" />
+          </div>
+          {org === 'datos' && (
+            <IdentidadCuenta tenant={account?.tenant} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} onGuardado={(cambios) => setAccount(current => current ? { ...current, tenant: { ...current.tenant, ...cambios } } : current)} />
+          )}
+          {org === 'identidad' && esDueno && <Card className="space-y-3">
           <div>
             <h2 className="font-semibold">Logo de la empresa</h2>
             <p className="mt-1 text-sm text-mute">Un logo por modo, con la vista previa sobre el fondo donde se usa: <b className="text-fore">modo claro</b> = logo oscuro, <b className="text-fore">modo oscuro</b> = logo claro. Se muestra en el encabezado de los comprobantes. Recomendado: PNG con <b className="text-fore">fondo transparente</b>, 1024×1024 px (1600×600 si es horizontal) y hasta 1 MiB.</p>
@@ -295,10 +316,14 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
             />
           )}
         </Card>}
-        {esDueno && <DatosPrivados />}
-        <TiendasSucursales account={account} />
-
-        <Card className="space-y-3">
+          {org === 'fiscales' && esDueno && <DatosPrivados />}
+          {org === 'sucursales' && (
+            <>
+              <TiendasSucursales account={account} />
+              <p className="text-xs text-mute">Los depósitos y ubicaciones de cada sucursal se administran en <Link to="/inventario/ubicaciones" className="font-semibold text-fono-light hover:underline">Inventario → Ubicaciones</Link>.</p>
+            </>
+          )}
+          {org === 'numeracion' && <Card className="space-y-3">
           <div>
             <h2 className="font-semibold">Identificador de pedidos</h2>
             <p className="mt-1 text-sm text-mute">Formato visible de los pedidos: prefijo de 2 o 3 letras y número inicial. Ejemplo: <b className="text-fore">{prefijo || 'MOB'} #{inicio || '310840'}</b>.</p>
@@ -314,7 +339,8 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
           </form>
           {guardadoNumeracion.panel}
           <p className="text-xs text-mute">Los pedidos ya creados conservan su número; los nuevos siguen esta secuencia.</p>
-        </Card>
+        </Card>}
+          {org === 'peligro' && <>
         <Card className="space-y-3 border-bad/30"><div><h2 className="font-semibold text-bad">Archivar empresa</h2><p className="mt-1 text-sm text-mute">No borra ventas ni historial. Cierra sesiones y bloquea el acceso hasta restaurarla con correo, contraseña y la confirmación RESTORE, durante los 30 días posteriores al archivado.</p></div><Input aria-label="Motivo de archivado" value={archiveReason} onChange={event => setArchiveReason(event.target.value)} placeholder="Motivo del archivado (mínimo 10 caracteres)" /><Button variant="outline" onClick={() => setConfirmar({ tipo: 'archivar' })} disabled={busy || archiveReason.trim().length < 10 || !account?.reauthValidUntil} className="border-bad/50 text-bad hover:bg-bad/10">Archivar empresa</Button></Card>
 
         {esDueno && <Card className="space-y-3 border-bad/30"><div><h2 className="font-semibold text-bad">Eliminar empresa definitivamente</h2><p className="mt-1 text-sm text-mute">Borra la empresa y todo su historial: ventas, clientes, pagos, stock, integrantes y auditoría. No se puede deshacer ni recuperar. Si solo querés dejar de usarla por un tiempo, usá <b className="text-fore">Archivar empresa</b>: se conserva todo y podés restaurarla.</p></div><Button variant="outline" onClick={() => { setFailure(''); setEliminarAbierto(true) }} disabled={busy || !account?.reauthValidUntil} className="border-bad/50 text-bad hover:bg-bad/10">Eliminar empresa</Button></Card>}
@@ -337,7 +363,9 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
             )}
           </form>
         )}
-      </>}
+          </>}
+        </div>
+      )}
       {seccion === 'comercial' && (
         <Comercial
           account={account}
@@ -349,15 +377,26 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
         <SeccionInvitaciones />
       </>}
       {seccion === 'seguridad' && <>
-        <Card className="space-y-3"><div className="flex items-start gap-3">{perfilEmpresa?.picture ? <img src={perfilEmpresa.picture} referrerPolicy="no-referrer" alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" /> : <div className="rounded-lg bg-fono/10 p-2 text-fono"><Icon name="user" className="h-5 w-5" /></div>}<div className="min-w-0"><h2 className="font-semibold">Sesión activa</h2><p className="mt-0.5 truncate text-sm text-mute">{perfilEmpresa?.name || sesion?.correo || sesion?.nombre || 'Usuario de MobOS'}</p></div></div><div className="flex flex-wrap gap-2 text-sm"><Badge color="blue">{empresa?.nombre || 'Mi empresa'}</Badge>{sucursal?.nombre && <Badge color="slate">{sucursal.nombre}</Badge>}{sesion?.rol && <Badge color="slate">{sesion.rol}</Badge>}</div></Card>
+        <Card className="space-y-3"><div className="flex items-start gap-3">{perfilEmpresa?.picture ? <img src={perfilEmpresa.picture} referrerPolicy="no-referrer" alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" /> : <div className="rounded-lg bg-fono/10 p-2 text-fono"><Icon name="user" className="h-5 w-5" /></div>}<div className="min-w-0"><h2 className="font-semibold">Sesión activa</h2><p className="mt-0.5 truncate text-sm text-mute">{perfilEmpresa?.name || sesion?.correo || sesion?.nombre || 'Usuario de MobOS'}</p></div></div><div className="flex flex-wrap gap-2 text-sm"><Badge color="blue">{empresa?.nombre || 'Mi empresa'}</Badge>{sucursal?.nombre && <Badge color="slate">{sucursal.nombre}</Badge>}{sesion?.rol && <Badge color="slate">{etiquetaRol(sesion.rol)}</Badge>}</div></Card>
         <Card className="space-y-3"><div><h2 className="font-semibold">Confirmar identidad</h2><p className="mt-1 text-sm text-mute">Pedimos tu contraseña antes de descargar datos, cerrar la empresa o revocar dispositivos. La autorización dura 10 minutos.</p></div><div className="flex flex-col gap-2 sm:flex-row"><PasswordInput aria-label="Contraseña para reautenticar" value={password} onChange={event => setPassword(event.target.value)} placeholder="Contraseña de la empresa" className="min-w-0 flex-1" /><Button onClick={reauthenticate} disabled={busy || !password}>Verificar contraseña</Button></div>{account?.reauthValidUntil && <p className="text-xs text-ok">Acciones sensibles habilitadas hasta {fmtDate(account.reauthValidUntil)}.</p>}</Card>
 
-        <Card className="space-y-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><h2 className="font-semibold">Sesiones activas</h2><p className="mt-1 text-sm text-mute">Cada dispositivo se puede cerrar de forma remota.</p></div><span className="flex flex-wrap items-center gap-2"><Button variant="outline" onClick={load} disabled={busy}>Actualizar</Button><Button variant="outline" className="border-bad/50 text-bad hover:bg-bad/10" onClick={() => { setFailure(''); setCerrarCuentaAbierto(true) }} disabled={busy}>Cerrar mi cuenta</Button></span></div>{!account && !failure && <p className="text-sm text-mute">Cargando sesiones…</p>}{account?.sessions?.length === 0 && <p className="text-sm text-mute">No hay sesiones activas.</p>}<div className="space-y-2">{account?.sessions?.map(active => <div key={active.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3"><div><p className="font-medium">{active.user?.name || 'Acceso de empresa'} {active.id === account.currentSessionId && <span className="ml-2 text-xs text-fono-light">Este dispositivo</span>}</p><p className="mt-1 text-xs text-mute">{active.user?.role || active.level} · {active.deviceId || 'Dispositivo no identificado'} · última actividad {fmtDate(active.lastSeenAt)}</p></div><Button variant="outline" onClick={() => setConfirmar({ tipo: 'revocar', sessionId: active.id })} disabled={busy}>Revocar</Button></div>)}</div>
+        <Card className="space-y-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><h2 className="font-semibold">Sesiones activas</h2><p className="mt-1 text-sm text-mute">Cada dispositivo se puede cerrar de forma remota. Los identificadores técnicos quedan en «Detalles técnicos».</p></div><Button variant="outline" onClick={load} disabled={busy}>Actualizar</Button></div>{!account && !failure && <p className="text-sm text-mute">Cargando sesiones…</p>}{account?.sessions?.length === 0 && <p className="text-sm text-mute">No hay sesiones activas.</p>}<div className="space-y-2">{account?.sessions?.map(active => <SesionDispositivo key={active.id} sesion={active} actual={active.id === account.currentSessionId} nivel={`${active.user?.name || 'Acceso de empresa'}${active.user?.role ? ` · ${etiquetaRol(active.user.role)}` : ''}`}><Button variant="outline" onClick={() => setConfirmar({ tipo: 'revocar', sessionId: active.id })} disabled={busy}>Revocar</Button></SesionDispositivo>)}</div>
         <EstadoGuardado testId="sesiones-estado" estado={guardadoSesiones.estado} />
         {guardadoSesiones.panel}</Card>
 
         {esDueno && <UsoEquipo />}
         <Card className="space-y-3"><div><h2 className="font-semibold">Exportación básica</h2><p className="mt-1 text-sm text-mute">Descarga JSON de empresa, sucursales, equipo, clientes, productos, órdenes y pagos. Excluye credenciales, tokens, PIN y archivos de comprobantes.</p></div><div className="flex flex-wrap items-center gap-3"><Button variant="outline" onClick={exportData} disabled={busy}>Descargar mis datos</Button><EstadoGuardado testId="exportar-estado" estado={guardadoExportar.estado} /></div>{guardadoExportar.panel}</Card>
+
+        {/* #300: la acción destructiva vive en su propia zona, lejos de
+            «Actualizar» y de las sesiones normales. La confirmación ya pide
+            contraseña + la palabra CERRAR. */}
+        <Card className="space-y-3 border-bad/30" data-testid="zona-destructiva">
+          <div>
+            <h2 className="font-semibold text-bad">Zona destructiva</h2>
+            <p className="mt-1 text-sm text-mute">Cerrar tu cuenta revoca tus sesiones y desactiva tu usuario; la empresa y su historial se conservan, pero cada tienda necesita otro administrador activo. Para confirmar se pide tu contraseña de empresa y la palabra CERRAR.</p>
+          </div>
+          <Button variant="outline" className="border-bad/50 text-bad hover:bg-bad/10" onClick={() => { setFailure(''); setCerrarCuentaAbierto(true) }} disabled={busy}>Cerrar mi cuenta</Button>
+        </Card>
       </>}
       <DialogoDestructivo
         open={cerrarCuentaAbierto}
@@ -394,151 +433,145 @@ function IdentidadCuenta({ onReauthValid, onGuardado, tenant }) {
   const guardado = useGuardadoCuenta({ id: 'datos-tienda', onReauth: onReauthValid })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const formulario = () => ({
-    name: empresa?.nombre || '',
-    email: empresa?.email || '',
-    address: tenant?.address || '',
-    city: tenant?.city || '',
-    department: tenant?.department || '',
-    countryCode: parseTelefono(tenant?.phone).countryCode,
-    phone: parseTelefono(tenant?.phone).phone,
-    ruc: tenant?.ruc || '',
-  })
-  const [form, setForm] = useState(formulario)
+  // #298: una sola tarjeta, sin resumen duplicado. En lectura muestra los
+  // datos y «Editar»; la edición reemplaza la misma tarjeta, con la barra de
+  // «Guardar cambios» visible solo cuando hay diferencias reales.
+  const [editando, setEditando] = useState(false)
+  const [form, setForm] = useState(() => formularioIdentidad({ empresa, tenant }))
   // La hidratación no puede pisar lo que la persona ya escribió: el formulario
-  // se rellena con la cuenta solo mientras nadie lo tocó (el GET llega después
-  // del primer render y antes borraba los campos en silencio).
+  // se rellena con lo guardado solo mientras nadie lo tocó.
   const tocado = useRef(false)
   function editar(cambios) {
     tocado.current = true
     setForm(current => ({ ...current, ...cambios }))
   }
-  const valores = [
-    { etiqueta: 'Nombre de la tienda', valor: empresa?.nombre || null },
-    { etiqueta: 'Correo de la empresa', valor: empresa?.email || null },
-    { etiqueta: 'Dirección', valor: tenant?.address || null },
-    { etiqueta: 'Ciudad', valor: [tenant?.city, tenant?.department].filter(Boolean).join(' · ') || null },
-    { etiqueta: 'Teléfono', valor: tenant?.phone || null },
-    { etiqueta: 'RUC', valor: tenant?.ruc || null },
-  ]
-  // Los datos del panel siguen a la ficha (carga inicial y tras guardar) sin
-  // pisar lo que la persona está escribiendo: solo se rellenan cuando cambian
-  // los valores guardados.
   useEffect(() => {
     if (tocado.current) return
-    setForm(formulario())
+    setForm(formularioIdentidad({ empresa, tenant }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant?.id, tenant?.address, tenant?.city, tenant?.department, tenant?.phone, tenant?.ruc, empresa?.nombre, empresa?.email])
 
-  function irAlFormulario() {
-    document.getElementById('cuenta-form')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
-  }
+  const hayCambios = Object.keys(cambiosIdentidad(form, { empresa, tenant })).length > 0
 
-  function restablecer() {
+  function abrirEdicion() {
     tocado.current = false
-    setForm(formulario())
+    setForm(formularioIdentidad({ empresa, tenant }))
     setError('')
+    setEditando(true)
+  }
+  function cancelar() {
+    if (busy) return
+    tocado.current = false
+    setForm(formularioIdentidad({ empresa, tenant }))
+    setError('')
+    setEditando(false)
+  }
+  // Cierra la edición con lo ya persistido (también tras reautenticar): la
+  // tarjeta vuelve a lectura con los datos nuevos.
+  function aplicarGuardado(datos) {
+    const valores = datos || {}
+    actualizarEmpresa?.({
+      ...(valores.name ? { nombre: valores.name } : {}),
+      ...(valores.email ? { email: valores.email } : {}),
+    })
+    onGuardado?.(valores)
+    tocado.current = false
+    setEditando(false)
+    toast.success('Datos de la tienda actualizados.')
   }
   async function guardar(event) {
     event.preventDefault()
     if (busy) return
+    // Sin diferencias no hay acción: el criterio es que «Guardar» exista solo
+    // con cambios.
+    const pendientes = cambiosIdentidad(form, { empresa, tenant })
+    if (!Object.keys(pendientes).length) return
     const nombre = form?.name?.trim() || ''
     const correo = form?.email?.trim() || ''
     if (nombre.length < 2 || nombre.length > 120) { setError('El nombre de la tienda debe tener entre 2 y 120 caracteres.'); return }
     if (!/^\S+@\S+\.\S+$/.test(correo)) { setError('Ingresá un correo de empresa válido.'); return }
-    const cambios = {}
-    if (nombre !== (empresa?.nombre || '')) cambios.name = nombre
-    if (correo !== (empresa?.email || '')) cambios.email = correo
-    const perfil = {
-      address: (form?.address || '').trim(),
-      city: (form?.city || '').trim(),
-      department: (form?.department || '').trim(),
-      phone: componerTelefono({ countryCode: form?.countryCode, phone: form?.phone }),
-      ruc: (form?.ruc || '').trim(),
-    }
-    if (perfil.address !== (tenant?.address || '')) cambios.address = perfil.address
-    if (perfil.city !== (tenant?.city || '')) cambios.city = perfil.city
-    if (perfil.department !== (tenant?.department || '')) cambios.department = perfil.department
-    if (perfil.phone !== (tenant?.phone || '')) cambios.phone = perfil.phone
-    if (perfil.ruc !== (tenant?.ruc || '')) cambios.ruc = perfil.ruc
     setBusy(true); setError('')
     try {
-      const resultado = await guardado.ejecutar(async () => {
-        if (Object.keys(cambios).length) await api.patch('/api/account', { action: 'updateProfile', ...cambios })
-        return cambios
-      }, { etiqueta: 'los datos de la tienda' })
-      if (resultado) {
-        actualizarEmpresa?.(resultado)
-        // La ficha del panel y los datos guardados se actualizan al instante:
-        // sin esto el formulario volvía a los valores viejos y parecía que no
-        // se había guardado nada.
-        onGuardado?.(resultado)
-        toast.success('Datos de la tienda actualizados.')
-      }
+      await guardado.ejecutar(
+        () => api.patch('/api/account', { action: 'updateProfile', ...pendientes }),
+        { etiqueta: 'los datos de la tienda', onExito: aplicarGuardado },
+      )
     } finally { setBusy(false) }
   }
+
+  const lecturas = [
+    ['Nombre de la tienda', empresa?.nombre],
+    ['Correo de la empresa', empresa?.email],
+    ['RUC', tenant?.ruc],
+    ['Teléfono', tenant?.phone],
+    ['Ciudad', tenant?.city],
+    ['Departamento', tenant?.department],
+  ]
   return (
-    <PanelDerecho
-      id="cuenta-form"
-      panel={
-        <Card className="space-y-3">
-          <div>
-            <h2 className="font-semibold">Datos de la tienda</h2>
-            <p className="mt-1 text-sm text-mute">Se usan en comprobantes, portal y reportes.</p>
+    <Card id="cuenta-form" data-testid="cuenta-form" className="space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="font-semibold">Datos de la tienda</h2>
+          <p className="mt-1 text-sm text-mute">Se usan en comprobantes, portal y reportes.</p>
+        </div>
+        {editando
+          ? <Button type="button" variant="ghost" onClick={cancelar} disabled={busy}>Cancelar</Button>
+          : <Button type="button" variant="outline" data-testid="datos-tienda-editar" onClick={abrirEdicion}><Icon name="edit" className="h-4 w-4" />Editar</Button>}
+      </div>
+
+      {!editando && (
+        <dl data-testid="datos-tienda-lectura" className="grid gap-2 sm:grid-cols-2">
+          {lecturas.map(([etiqueta, valor]) => (
+            <div key={etiqueta} className="rounded-xl border border-ink-600 p-3">
+              <dt className="text-xs font-semibold uppercase tracking-wider text-mute">{etiqueta}</dt>
+              <dd className="mt-0.5 truncate text-sm text-fore">{valor || '—'}</dd>
+            </div>
+          ))}
+          <div className="rounded-xl border border-ink-600 p-3 sm:col-span-2">
+            <dt className="text-xs font-semibold uppercase tracking-wider text-mute">Dirección</dt>
+            <dd className="mt-0.5 text-sm text-fore">{tenant?.address || '—'}</dd>
           </div>
-          <form onSubmit={guardar} className="space-y-3">
+        </dl>
+      )}
+
+      {editando && (
+        <form onSubmit={guardar} className="space-y-3" data-testid="datos-tienda-form">
+          {/* #298: formulario en 2 columnas; la dirección va a ancho completo. */}
+          <div className={GRILLA_DOS_COLUMNAS}>
             <FormField label="Nombre de la tienda" htmlFor="edit-nombre">
               <Input id="edit-nombre" disabled={busy} value={form?.name || ''} onChange={event => editar({ name: event.target.value })} placeholder="Nombre de la tienda" />
             </FormField>
             <FormField label="Correo de la empresa" htmlFor="edit-correo">
               <EmailField id="edit-correo" disabled={busy} value={form?.email || ''} onChange={value => editar({ email: value })} placeholder="Correo de la empresa" />
             </FormField>
-            <FormField label="Dirección" htmlFor="edit-direccion">
-              <Input id="edit-direccion" maxLength={400} disabled={busy} value={form?.address || ''} onChange={event => editar({ address: event.target.value })} placeholder="Dirección del negocio (para el comprobante)" />
-            </FormField>
-            <div className={cn(GRILLA_DOS_COLUMNAS, 'lg:grid-cols-1')}>
-              <FormField label="Ciudad" hint={form?.department ? `Departamento: ${form.department}` : undefined}>
-                <CityAutocomplete disabled={busy} value={form?.city || ''} onSelect={(city, department) => editar({ city, department })} placeholder="Ciudad del negocio" />
-              </FormField>
-              <FormField label="Teléfono">
-                <PhoneField disabled={busy} countryCode={form?.countryCode || '+595'} phone={form?.phone || ''} onCountryCodeChange={countryCode => editar({ countryCode })} onChange={phone => editar({ phone })} placeholder="Teléfono del negocio" />
-              </FormField>
-            </div>
             <FormField label="RUC" htmlFor="edit-ruc">
               <RucField id="edit-ruc" value={form?.ruc || ''} onChange={ruc => editar({ ruc })} onAplicar={(datos) => { tocado.current = true; setForm(current => ({ ...current, name: datos.name || current.name, ruc: datos.fullRuc || current.ruc })) }} disabled={busy} esDemo={esDemo} placeholder="RUC del negocio (opcional)" autoComplete="off" />
             </FormField>
-            <EstadoGuardado testId="datos-tienda-estado" estado={guardado.estado} />
-            {error && <Aviso tono="error">{error}</Aviso>}
-            <div className={PIE_ACCIONES}>
-              <Button type="button" variant="ghost" disabled={busy} onClick={restablecer}>Restablecer</Button>
-              <Button type="submit" disabled={busy || !form?.name?.trim() || !form?.email?.trim()}>{busy ? 'Guardando…' : 'Guardar cambios'}</Button>
-            </div>
-          </form>
-          {guardado.panel}
-        </Card>
-      }
-    >
-      <Card className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <Eyebrow>Datos de la tienda</Eyebrow>
-            <p className="mt-1 text-sm text-mute">Lo que MobOS usa en comprobantes, portal y reportes.</p>
+            <FormField label="Teléfono">
+              <PhoneField disabled={busy} countryCode={form?.countryCode || '+595'} phone={form?.phone || ''} onCountryCodeChange={countryCode => editar({ countryCode })} onChange={phone => editar({ phone })} placeholder="Teléfono del negocio" />
+            </FormField>
+            <FormField label="Ciudad" hint={form?.department ? `Departamento: ${form.department}` : undefined}>
+              <CityAutocomplete disabled={busy} value={form?.city || ''} onSelect={(city, department) => editar({ city, department })} placeholder="Ciudad del negocio" />
+            </FormField>
+            <FormField className="sm:col-span-2" label="Dirección" htmlFor="edit-direccion">
+              <Input id="edit-direccion" maxLength={400} disabled={busy} value={form?.address || ''} onChange={event => editar({ address: event.target.value })} placeholder="Dirección del negocio (para el comprobante)" />
+            </FormField>
           </div>
-          <Button type="button" variant="outline" className="lg:hidden" onClick={irAlFormulario}><Icon name="edit" className="h-3.5 w-3.5" />Editar</Button>
-        </div>
-        <div className="space-y-2">
-          {valores.map(({ etiqueta, valor }) => (
-            <div key={etiqueta} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wider text-mute">{etiqueta}</p>
-                <p className="mt-0.5 truncate text-sm text-fore">{valor || '—'}</p>
-              </div>
-              <Button type="button" variant="outline" onClick={() => copiarValor(toast, valor, etiqueta)} disabled={!valor}>Copiar</Button>
+          <EstadoGuardado testId="datos-tienda-estado" estado={guardado.estado} />
+          {error && <Aviso tono="error">{error}</Aviso>}
+          {hayCambios && (
+            <div data-testid="datos-tienda-barra" className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800 px-3 py-2 shadow-lg shadow-black/10">
+              <span className="text-xs text-mute">Tenés cambios sin guardar.</span>
+              <span className="flex items-center gap-2">
+                <Button type="button" variant="ghost" disabled={busy} onClick={cancelar}>Descartar</Button>
+                <Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar cambios'}</Button>
+              </span>
             </div>
-          ))}
-        </div>
-      </Card>
-    </PanelDerecho>
+          )}
+        </form>
+      )}
+      {guardado.panel}
+    </Card>
   )
 }
 

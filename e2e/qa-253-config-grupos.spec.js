@@ -84,35 +84,18 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
     }
   })
 
-  test('la navegación se contrae a íconos con tooltip y se recuerda', async ({ page }) => {
+  test('la navegación siempre muestra los rótulos (sin colapso a íconos) (#298)', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.goto('/configuracion/mi-cuenta')
     const nav = page.locator(NAV)
-    const toggle = page.getByTestId('config-grupos-toggle')
-    await expect(toggle).toBeVisible({ timeout: 20_000 })
-    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
-
-    await toggle.click()
-    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    // Solo íconos: la etiqueta visible se oculta y el nombre sigue por aria/title.
-    await expect(nav.getByText('Organización', { exact: true })).toBeHidden()
-    const tab = page.getByRole('tab', { name: 'Organización', exact: true })
-    await expect(tab).toHaveAttribute('title', 'Organización')
-    await expect(tab).toHaveAttribute('aria-label', 'Organización')
+    await expect(nav.getByText('Organización', { exact: true })).toBeVisible({ timeout: 20_000 })
+    // #298: se retiró el colapso a solo iconos; el riel conserva su ancho.
+    await expect(page.getByTestId('config-grupos-toggle')).toHaveCount(0)
     const caja = await nav.boundingBox()
-    expect(caja.width, 'el riel queda angosto (solo íconos)').toBeLessThan(120)
-
-    // Se recuerda en el dispositivo.
-    await page.reload()
-    await expect(page.getByTestId('config-grupos-toggle')).toHaveAttribute('aria-expanded', 'false')
-
-
-    await page.getByTestId('config-grupos-toggle').click()
-    await expect(page.getByTestId('config-grupos-toggle')).toHaveAttribute('aria-expanded', 'true')
+    expect(caja.width, 'el riel conserva el ancho con texto').toBeGreaterThan(200)
   })
 
-  test('capturas del menú colapsable', async ({ page }) => {
+  test('capturas de la navegación con texto', async ({ page }) => {
     test.setTimeout(180_000)
     const salida = process.env.MOBOS_CAPTURAS || 'test-results/253-config-nav'
     mkdirSync(salida, { recursive: true })
@@ -123,18 +106,15 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
       await expect(page.getByRole('tab', { name: 'Mi cuenta', exact: true }).first()).toBeVisible({ timeout: 20_000 })
       await page.evaluate(() => { try { localStorage.removeItem('mobos:config-menu') } catch { /* sin storage */ } })
       await page.reload()
-      await expect(page.getByTestId('config-grupos-toggle')).toHaveAttribute('aria-expanded', 'true')
-      await page.screenshot({ path: `${salida}/nav-expandido-${tema}-desktop.jpg`, type: 'jpeg', quality: 78 })
-      await page.getByTestId('config-grupos-toggle').click()
-      await expect(page.getByTestId('config-grupos-toggle')).toHaveAttribute('aria-expanded', 'false')
-      await page.screenshot({ path: `${salida}/nav-colapsado-${tema}-desktop.jpg`, type: 'jpeg', quality: 78 })
+      await expect(page.locator(NAV).getByText('Organización', { exact: true })).toBeVisible()
+      await expect(page.getByTestId('config-grupos-toggle')).toHaveCount(0)
+      await page.screenshot({ path: `${salida}/nav-texto-${tema}-desktop.jpg`, type: 'jpeg', quality: 78 })
 
       if (tema === 'claro') {
-        // Mobile/tablet: la tira horizontal (el toggle no se muestra).
+        // Mobile/tablet: la tira horizontal, siempre con rótulos.
         await page.setViewportSize({ width: 390, height: 844 })
         await page.goto('/configuracion/mi-cuenta')
         await expect(page.getByRole('tab', { name: 'Mi cuenta', exact: true }).first()).toBeVisible({ timeout: 20_000 })
-        await expect(page.getByTestId('config-grupos-toggle')).toBeHidden()
         await page.screenshot({ path: `${salida}/nav-horizontal-mobile-claro.jpg`, type: 'jpeg', quality: 78 })
       }
     }

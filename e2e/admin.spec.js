@@ -193,7 +193,8 @@ test.describe('owner panel', () => {
 
   test('equipo → Roles y permisos describes each role and its matrix', async ({ page }) => {
     await page.goto('/configuracion/equipo')
-    // #IA: Roles y permisos vive dentro de Equipo y acceso (sin pestaña propia).
+    // #IA/#299: Roles y permisos vive dentro de Equipo y acceso, en su pestaña.
+    await page.getByTestId('equipo-pantalla').getByRole('tab', { name: 'Permisos', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Matriz de capacidades' })).toBeVisible()
     await expect(page.getByRole('columnheader', { name: 'Gerente' })).toBeVisible()
     await expect(page.getByRole('rowheader', { name: /Aplicar descuentos/ })).toBeVisible()
@@ -502,6 +503,8 @@ test('configuración → sube el logo de la empresa y lo quita', async ({ page }
     'base64',
   )
   await page.goto('/configuracion/organizacion')
+  // #299: el logo vive en la sección Identidad visual.
+  await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Identidad visual', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Logo de la empresa' })).toBeVisible()
   // UX Config → Logos: un preview por modo, cada uno sobre el fondo que le toca.
   await expect(page.getByTestId('logo-preview-light')).toHaveClass(/bg-white/)
@@ -553,9 +556,14 @@ test('configuración → sube mi foto y la quita', async ({ page }) => {
     .last()
     .setInputFiles({ name: 'yo.png', mimeType: 'image/png', buffer: png })
   await page.getByRole('button', { name: 'Usar esta foto' }).click()
-  await expect(page.getByAltText('Mi foto')).toBeVisible()
+  // #300: el único control vive junto al avatar, que es quien muestra la foto.
+  const perfil = page.getByTestId('mi-cuenta-perfil')
+  await expect(perfil.getByAltText(/^Foto de /).first()).toBeVisible({ timeout: 20_000 })
   await page.getByRole('button', { name: 'Quitar', exact: true }).last().click()
-  await expect(page.getByAltText('Mi foto')).toHaveCount(0)
+  // El control vuelve a «Subir foto»: ya no hay foto subida (si la persona
+  // tiene foto de Google, el avatar la muestra, y eso es correcto).
+  await expect(perfil.getByRole('button', { name: 'Subir foto' })).toBeVisible({ timeout: 20_000 })
+  await expect(perfil.getByRole('button', { name: 'Quitar', exact: true })).toHaveCount(0)
 })
 
 // Solicitudes comerciales: hay una sola bandeja (Stock y servicio →
@@ -1303,6 +1311,8 @@ test('el header usa el candado y lo destructivo vive en Configuración (#228/#26
 
   // Eliminar empresa: Configuración → Organización, con reauth + palabra ELIMINAR.
   await page.locator('main').getByRole('tab', { name: 'Organización', exact: true }).click()
+  // #299: archivar/eliminar y la verificación de identidad están en Zona de peligro.
+  await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Zona de peligro', exact: true }).click()
   await expect(page.getByText('Eliminar empresa definitivamente')).toBeVisible()
   await page.getByLabel('Contraseña para reautenticar').fill(SEED.company.password)
   await page.getByLabel('Contraseña para reautenticar').press('Enter')

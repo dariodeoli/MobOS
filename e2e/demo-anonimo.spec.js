@@ -156,7 +156,7 @@ test('la demo entra sin login, navega con datos ficticios y no toca el API', asy
   await cerrarGuia(page)
   await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
   // Banner visible de datos ficticios y encabezado con la marca (#223).
-  await expect(page.getByText(/datos ficticios/)).toBeVisible()
+  await expect(page.getByText(/datos ficticios/).first()).toBeVisible()
   await expect(page.getByTestId('shell-tienda')).toHaveText('MobOS')
 
   // Módulos del vendedor con datos locales.
@@ -180,7 +180,7 @@ test('dueño: un guardado en demo avisa que quedó simulado', async ({ page }) =
   await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
   await expect(page).toHaveURL(/\/resumen$/)
   await cerrarGuia(page)
-  await expect(page.getByText(/datos ficticios/)).toBeVisible()
+  await expect(page.getByText(/datos ficticios/).first()).toBeVisible()
 
   await page.goto('/configuracion/equipo')
   const panel = page.locator('#equipo-form')
@@ -454,6 +454,8 @@ test('configuración en demo muestra avisos claros y sin cargas colgadas', async
   // Sucursales explican que se administran con una cuenta real; Precios ya
   // muestra listas ficticias auditables (#324).
   await page.goto('/configuracion/organizacion')
+  // #299: las sucursales viven en su propia sección de Organización.
+  await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Sucursales y depósitos', exact: true }).click()
   await expect(page.getByText('Las sucursales se administran con una cuenta real')).toBeVisible()
   await expect(page.getByText('Cargando sucursales…')).toHaveCount(0)
   await page.goto('/configuracion/comercial')

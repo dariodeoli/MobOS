@@ -5,12 +5,13 @@ import { api } from '@/lib/api/client'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import PhotoCropper from '@/components/shared/PhotoCropper'
 import Avatar from '@/components/shared/Avatar'
+import SesionDispositivo from '@/components/shared/SesionDispositivo'
 import PanelDerecho from '@/components/shared/PanelDerecho'
 import { Aviso, Button, Card, ConfirmDialog, FormField, Input, Skeleton, useToast } from '@/components/ui'
 import { PreferenciasContenido } from '@/components/app/Preferencias'
+import { etiquetaRol } from '@/lib/roles'
 import { getAvatarDataUrl, olvidarAvatar } from '@/lib/userAvatar'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
-import { fechaHora as fmtFecha } from '@/utils/fecha'
 
 // Mi cuenta (#253): la superficie PERSONAL de cualquier rol. Perfil (nombre,
 // correo y foto), preferencias del dispositivo (bloqueo por inactividad y
@@ -45,7 +46,7 @@ export default function MiCuenta({ preferencias, onCambiarPreferencias }) {
           hasAvatar: Boolean(perfilEmpresa?.picture),
         },
         currentSessionId: 'demo-sesion',
-        sessions: [{ id: 'demo-sesion', level: 'SELLER', deviceId: 'Este dispositivo', createdAt: null, lastSeenAt: new Date().toISOString() }],
+        sessions: [{ id: 'demo-sesion', level: 'SELLER', deviceId: 'demo-dispositivo', userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '', createdAt: new Date().toISOString(), lastSeenAt: new Date().toISOString() }],
       }
       setCuenta(local)
       setNombre(local.perfil.name)
@@ -183,9 +184,22 @@ export default function MiCuenta({ preferencias, onCambiarPreferencias }) {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="font-semibold">{perfil?.name || 'Tu nombre'}</h3>
-                {sesion?.rol && <span className="rounded-md border border-ink-500 bg-ink-800 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-mute">{sesion.rol}</span>}
+                {sesion?.rol && <span className="rounded-md border border-ink-500 bg-ink-800 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-mute">{etiquetaRol(sesion.rol)}</span>}
               </div>
               {perfil?.email && <p className="mt-0.5 truncate text-sm text-mute">{perfil.email}</p>}
+              {/* #300: un único control de foto, junto al avatar que muestra la
+                  foto. Antes había además una fila con la misma miniatura. */}
+              <div className="mt-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-mute">Mi foto</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <AttachmentInput onSelect={(file) => setFotoAConfirmar(file)} onError={setFotoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={fotoBusy}>
+                    <Button type="button" variant="outline" disabled={fotoBusy}>{foto ? 'Reemplazar foto' : 'Subir foto'}</Button>
+                  </AttachmentInput>
+                  {foto && <Button type="button" variant="ghost" disabled={fotoBusy} onClick={quitarFoto}>Quitar</Button>}
+                </div>
+                <p className="mt-1 text-xs text-mute">Aparece en la cronología de clientes y pedidos.</p>
+                {fotoError && <p role="alert" className="mt-1 text-sm text-bad">{fotoError}</p>}
+              </div>
             </div>
           </div>
           <form onSubmit={guardarNombre} className="space-y-3">
@@ -196,22 +210,6 @@ export default function MiCuenta({ preferencias, onCambiarPreferencias }) {
               {guardandoNombre ? 'Guardando…' : 'Guardar nombre'}
             </Button>
           </form>
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
-            <div className="flex min-w-0 items-center gap-3">
-              {foto ? <img src={foto} alt="Mi foto" className="h-10 w-10 shrink-0 rounded-full border border-ink-600 object-cover" /> : <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-ink-600 bg-ink-700 text-xs font-semibold text-mute">{(perfil?.name || 'Yo').trim().split(/\s+/).slice(0, 2).map(parte => parte[0] || '').join('').toUpperCase()}</span>}
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wider text-mute">Mi foto</p>
-                <p className="mt-0.5 text-sm text-mute">Aparece en la cronología de clientes y pedidos.</p>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <AttachmentInput onSelect={(file) => setFotoAConfirmar(file)} onError={setFotoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={fotoBusy}>
-                <Button type="button" variant="outline" disabled={fotoBusy}>{foto ? 'Reemplazar foto' : 'Subir foto'}</Button>
-              </AttachmentInput>
-              {foto && <Button type="button" variant="ghost" disabled={fotoBusy} onClick={quitarFoto}>Quitar</Button>}
-            </div>
-          </div>
-          {fotoError && <p role="alert" className="text-sm text-bad">{fotoError}</p>}
           {fotoAConfirmar && <PhotoCropper file={fotoAConfirmar} onCancel={() => setFotoAConfirmar(null)} onCropped={async (recortada) => { setFotoAConfirmar(null); await subirFoto(recortada) }} />}
           <div className="space-y-2">
             {[{ etiqueta: perfil?.role === 'ADMIN' ? 'Correo de la cuenta' : 'Correo', valor: perfil?.email }, { etiqueta: 'ID de usuario', valor: perfil?.id }].map(({ etiqueta, valor }) => (
@@ -238,15 +236,16 @@ export default function MiCuenta({ preferencias, onCambiarPreferencias }) {
           </div>
           <div className="space-y-2">
             {sesiones.map(activa => (
-              <div key={activa.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
-                <div className="min-w-0">
-                  <p className="font-medium">{activa.deviceId || 'Dispositivo sin identificar'} {activa.id === cuenta.currentSessionId && <span className="ml-2 text-xs font-semibold text-fono-light">Sesión actual</span>}</p>
-                  <p className="mt-1 text-xs text-mute">{ETIQUETA_NIVEL[activa.level] || activa.level} · última actividad {fmtFecha(activa.lastSeenAt)}</p>
-                </div>
+              <SesionDispositivo
+                key={activa.id}
+                sesion={activa}
+                actual={activa.id === cuenta.currentSessionId}
+                nivel={ETIQUETA_NIVEL[activa.level] || activa.level}
+              >
                 {activa.id !== cuenta.currentSessionId && (
                   <Button variant="outline" onClick={() => setARevocar(activa.id)} disabled={revocando || esDemo}>Revocar</Button>
                 )}
-              </div>
+              </SesionDispositivo>
             ))}
           </div>
           {sesiones.length === 0 && <p className="text-sm text-mute">No hay sesiones activas.</p>}

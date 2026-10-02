@@ -20,6 +20,9 @@ test.describe('Seguridad de la cuenta', () => {
     await page.locator('#seller-pin').pressSequentially(SEED.admin.pin)
     await expect(page).toHaveURL(/\/resumen$/)
     await page.goto('/configuracion/organizacion')
+    // #299: archivar/eliminar y la verificación de identidad viven en la
+    // sección Zona de peligro.
+    await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Zona de peligro', exact: true }).click()
 
     const confirmar = page.getByText('Confirmar identidad')
     await expect(confirmar).toBeVisible()
@@ -64,6 +67,10 @@ test.describe('Seguridad de la cuenta', () => {
     await dialogoEliminar.getByLabel('Escribí ELIMINAR para confirmar').fill('ELIMINAR')
     await expect(confirmarEliminar).toBeEnabled()
     await dialogoEliminar.getByRole('button', { name: 'Cancelar' }).click()
+    // #323: con la palabra y la clave escritas, el cierre pide confirmar el
+    // descarte antes de cerrar.
+    const descartarEliminar = page.getByRole('dialog', { name: '¿Descartar los cambios?' })
+    if (await descartarEliminar.count()) await descartarEliminar.getByRole('button', { name: 'Descartar y cerrar' }).click()
     await expect(dialogoEliminar).toBeHidden()
   })
 

@@ -12,6 +12,8 @@ import { esReautenticacionRequerida, mensajeDeErrorDeGuardado, mensajeDeGuardado
 //   const guardado = useGuardadoCuenta({ id: 'datos-tienda', onReauth })
 //   ...
 //   const datos = await guardado.ejecutar(() => api.patch(…), { etiqueta: 'los datos de la tienda' })
+//   // `onExito(resultado)` corre al guardar (también tras la reautenticación):
+//   // deja que la pantalla cierre la edición con los datos ya persistidos.
 //   ...
 //   <EstadoGuardado testId="datos-tienda-estado" estado={guardado.estado} />
 //   {guardado.panel}
@@ -23,17 +25,18 @@ export function useGuardadoCuenta({ id, onReauth } = {}) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  async function ejecutar(accion, { etiqueta = 'los cambios', exito } = {}) {
+  async function ejecutar(accion, { etiqueta = 'los cambios', exito, onExito } = {}) {
     setEstado(null)
     try {
       const resultado = await accion()
       setPendiente(null)
       const detalle = typeof exito === 'function' ? exito(resultado) : exito
       setEstado({ ok: true, texto: mensajeDeGuardado(detalle) })
+      onExito?.(resultado)
       return resultado
     } catch (causa) {
       if (esReautenticacionRequerida(causa)) {
-        setPendiente({ accion, etiqueta })
+        setPendiente({ accion, etiqueta, exito, onExito })
         setEstado({ ok: false, texto: 'Falta verificar tu contraseña: los cambios no se guardaron todavía.' })
       } else setEstado({ ok: false, texto: mensajeDeErrorDeGuardado(causa) })
       return null
@@ -48,9 +51,9 @@ export function useGuardadoCuenta({ id, onReauth } = {}) {
       const auth = await api.post('/api/account', { password })
       onReauth?.(auth?.validUntil)
       setPassword('')
-      const { accion, etiqueta } = pendiente
+      const { accion, etiqueta, exito, onExito } = pendiente
       setPendiente(null)
-      await ejecutar(accion, { etiqueta })
+      await ejecutar(accion, { etiqueta, exito, onExito })
     } catch (causa) { setError(causa?.message || 'No se pudo verificar la contraseña.') } finally { setBusy(false) }
   }
 

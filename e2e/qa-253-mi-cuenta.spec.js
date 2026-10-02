@@ -116,7 +116,7 @@ test('cambiar o quitar la foto actualiza todos los avatares sin recargar', async
   await page.goto('/configuracion/mi-cuenta')
   const perfil = page.getByTestId('mi-cuenta-perfil')
   await expect(perfil).toBeVisible({ timeout: 20000 })
-  const preview = perfil.locator('img[alt="Mi foto"]')
+  const preview = perfil.locator('img[alt^="Foto de"]')
 
   await page.evaluate(() => {
     const raiz = [...document.querySelectorAll('[data-testid="shell-perfil"]')].find((el) => el.offsetParent !== null)
@@ -152,9 +152,10 @@ test('cambiar o quitar la foto actualiza todos los avatares sin recargar', async
   expect(vistas.at(-1), `fotos pintadas: ${vistas.length} ${vistas.map((vista) => vista.slice(0, 24)).join(' | ')}`).toBe(fotoAzul)
   await page.screenshot({ path: `${SHOTS}/07-271-foto-reemplazada.png` })
 
-  // Quitar: todos los avatares vuelven al placeholder neutro.
+  // Quitar: el control vuelve a «Subir foto» y la foto subida desaparece de
+  // todos los avatares (el avatar puede caer a la foto de Google, si existe).
   await page.getByRole('button', { name: 'Quitar', exact: true }).click()
-  await expect(preview).toHaveCount(0, { timeout: 20000 })
+  await expect(perfil.getByRole('button', { name: 'Subir foto' })).toBeVisible({ timeout: 20000 })
   await expect(page.getByTestId('shell-perfil').filter({ visible: true }).locator('img[src^="data:image"]')).toHaveCount(0, { timeout: 20000 })
   await page.screenshot({ path: `${SHOTS}/08-271-foto-quitada.png` })
 })
@@ -171,7 +172,7 @@ test('al recargar el bloqueo no se pinta la foto anterior', async ({ page }) => 
   await page.goto('/configuracion/mi-cuenta')
   const perfil = page.getByTestId('mi-cuenta-perfil')
   await expect(perfil).toBeVisible({ timeout: 20000 })
-  const preview = perfil.locator('img[alt="Mi foto"]')
+  const preview = perfil.locator('img[alt^="Foto de"]')
   const previa = (await preview.count()) ? await preview.getAttribute('src') : ''
 
   await subirFoto(page, [16, 185, 129])

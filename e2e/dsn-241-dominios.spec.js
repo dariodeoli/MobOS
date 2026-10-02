@@ -201,7 +201,12 @@ const PANTALLAS = [
     if (await parcial.count()) await parcial.click()
   }],
   ['equipo', '/configuracion/equipo', (page) => page.getByTestId('integrante-fila').first()],
-  ['roles', '/configuracion/roles', (page) => page.getByText('Matriz de capacidades')],
+  // #299: la matriz vive en la pestaña Permisos; el callback puede preparar la
+  // pantalla antes de devolver el locator.
+  ['roles', '/configuracion/roles', async (page) => {
+    await page.getByTestId('equipo-pantalla').getByRole('tab', { name: 'Permisos', exact: true }).click()
+    return page.getByText('Matriz de capacidades')
+  }],
   // Públicas (lote G): la página del pedido y la vista previa de la landing.
   ['pedido-publico', `/pedido/${PEDIDO_SEMILLA.publicToken}`, (page) => page.getByText(PEDIDO_SEMILLA.orderNumber).first()],
   ['landing', '/landing-preview', (page) => page.locator('h1:visible').first()],
@@ -277,7 +282,7 @@ test.describe('dominios v2 · capturas y contraste', () => {
           if (prepararDatos) await prepararDatos(page)
           await page.goto(ruta)
           await expect(page.locator(RAICES_V2.join(', ')).first()).toBeVisible({ timeout: 30_000 })
-          await expect(listo(page)).toBeVisible({ timeout: 30_000 })
+          await expect(await listo(page)).toBeVisible({ timeout: 30_000 })
           if (antesDeCapturar) await antesDeCapturar(page)
           const medicion = await auditarContraste(page, SHELL, RAICES_V2)
           informar(`${dominio}-on-${vista}-${tema}`, medicion)
@@ -300,7 +305,7 @@ test.describe('dominios v2 · capturas y contraste', () => {
       if (prepararDatos) await prepararDatos(page, 1280)
       await page.goto(ruta)
       await expect(page.locator('.tema-v2')).toHaveCount(0)
-      await expect(listo(page)).toBeVisible({ timeout: 30_000 })
+      await expect(await listo(page)).toBeVisible({ timeout: 30_000 })
       if (antesDeCapturar) await antesDeCapturar(page)
       await page.screenshot({ path: `${SHOTS}/c241f4b-${dominio}-off-claro-desktop.png` })
     })

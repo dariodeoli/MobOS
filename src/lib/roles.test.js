@@ -9,6 +9,8 @@ import {
   capacidadesDe,
   capacidadesNegadas,
   capacidadesPorDominio,
+  codigoRol,
+  etiquetaRol,
 } from './roles.js'
 
 test('cada rol tiene etiqueta y descripción', () => {
@@ -56,4 +58,39 @@ test('los dominios agrupan todas las capacidades sin duplicarlas', () => {
   const agrupadas = grupos.flatMap(grupo => grupo.capacidades.map(capacidad => capacidad.id))
   assert.equal(agrupadas.length, CAPACIDADES.length)
   assert.equal(new Set(agrupadas).size, CAPACIDADES.length)
+})
+
+// #299: el backend usa ADMIN/GERENTE/…; la sesión de la app expone `dueno`.
+// Un solo traductor evita que la misma persona se lea DUEÑO · DUENO · dueno ·
+// ADMIN según la pantalla.
+
+test('#299 · el código de rol acepta las variantes de la sesión y del backend', () => {
+  for (const valor of ['ADMIN', 'admin', 'dueno', 'DUENO', 'Dueño', 'dueño', 'DUEÑO']) {
+    assert.equal(codigoRol(valor), 'ADMIN', `«${valor}» es el rol de dueño`)
+  }
+  assert.equal(codigoRol('GERENTE'), 'GERENTE')
+  assert.equal(codigoRol('Gerente'), 'GERENTE')
+  assert.equal(codigoRol('Vendedor'), 'VENDEDOR')
+  assert.equal(codigoRol(''), '')
+  assert.equal(codigoRol(null), '')
+})
+
+test('#299 · las etiquetas se leen igual en todas las pantallas', () => {
+  assert.equal(etiquetaRol('ADMIN'), 'Dueño')
+  assert.equal(etiquetaRol('dueno'), 'Dueño')
+  assert.equal(etiquetaRol('DUENO'), 'Dueño')
+  assert.equal(etiquetaRol('Dueño'), 'Dueño')
+  assert.equal(etiquetaRol('Gerente'), 'Gerente')
+  assert.equal(etiquetaRol('VENDEDOR'), 'Vendedor')
+  assert.equal(etiquetaRol('CAJERA'), 'Cajera')
+  assert.equal(etiquetaRol('TECNICO'), 'Técnico')
+  assert.equal(etiquetaRol('REPARTIDOR'), 'Repartidor')
+  assert.equal(etiquetaRol(''), '—')
+  assert.equal(etiquetaRol(null), '—')
+  // Un código desconocido se muestra tal cual (en mayúsculas), nunca vacío.
+  assert.equal(etiquetaRol('CONTABLE'), 'CONTABLE')
+  // Todas las etiquetas canónicas salen del mismo mapa.
+  for (const [codigo, etiqueta] of Object.entries(ROLE_LABELS)) {
+    assert.equal(etiquetaRol(codigo), etiqueta, `la etiqueta de ${codigo} es la del mapa`)
+  }
 })

@@ -123,7 +123,15 @@ export default function EstadoSistema() {
   useEffect(() => { consultar() }, [consultar])
 
   const pendientes = (trabajos || []).filter((trabajo) => trabajo.state === 'PENDIENTE')
-  const conProblema = (trabajos || []).filter((trabajo) => trabajo.state === 'INCIERTO' || trabajo.state === 'FALLIDO').slice(0, 8)
+  // #301: los problemas salen del listado global del backend (no del top-50 de
+  // esta pantalla), así el contador y la lista coinciden. Si la sincronización
+  // no llegó, se usa la cola local como respaldo.
+  const problemasLocales = (trabajos || []).filter((trabajo) => trabajo.state === 'INCIERTO' || trabajo.state === 'FALLIDO')
+  const problemasSync = (sincronizacion?.trabajos?.problemas || []).map((trabajo) => ({ ...trabajo, enqueuedAt: trabajo.createdAt }))
+  const conProblema = (problemasSync.length
+    ? [...problemasSync, ...problemasLocales.filter((local) => !problemasSync.some((global) => global.id === local.id))]
+    : problemasLocales
+  ).slice(0, 8)
   const enCola = filtroImpresora ? pendientes.filter((trabajo) => (trabajo.printerName || trabajo.destination) === filtroImpresora) : pendientes
   const impresorasEnCola = [...new Set(pendientes.map((trabajo) => trabajo.printerName || trabajo.destination).filter(Boolean))]
   const idsSeleccionados = seleccion.filter((id) => pendientes.some((trabajo) => trabajo.id === id))
@@ -166,7 +174,7 @@ export default function EstadoSistema() {
           label: 'Impresión (este equipo)',
           estado: impresion.agente?.disponible ? 'ok' : 'atencion',
           detalle: impresion.agente?.disponible
-            ? `${impresion.agente.impresora || 'sin destino'} · agente ${impresion.agente.version || '—'}`
+            ? `${impresion.agente.impresora || 'sin destino'} · agente de esta computadora v${impresion.agente.version || '—'}`
             : `Sin agente en ${impresion.url}`,
         }]
       : []),
@@ -224,7 +232,7 @@ export default function EstadoSistema() {
 
         <div className="flex flex-wrap items-center gap-2 text-xs text-mute">
           <Badge color="slate">{APP_VERSION}</Badge>
-          <span>{chequeos.length} chequeos · {fmt(datos?.checkedAt)}</span>
+          <span data-testid="sistema-resumen-chequeos">{chequeos.length} {chequeos.length === 1 ? 'chequeo' : 'chequeos'} · {datos?.checkedAt ? fmt(datos.checkedAt) : cargando ? 'comprobando…' : 'sin datos'}</span>
           {resumen.atencion > 0 && <Badge color="orange">{resumen.atencion} a revisar</Badge>}
           {resumen.error > 0 && <Badge color="red">{resumen.error} con error</Badge>}
         </div>
@@ -234,7 +242,7 @@ export default function EstadoSistema() {
         ) : (
           <div className="divide-y divide-ink-600/60">
             {chequeos.map((chequeo) => (
-              <div key={chequeo.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <div key={chequeo.id} data-testid="sistema-chequeo" className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">{chequeo.label}</p>
                   <p className={cn('mt-0.5', CELDA_DATO)} title={chequeo.detalle}>{chequeo.detalle}</p>
@@ -286,7 +294,7 @@ export default function EstadoSistema() {
               <TarjetaSync
                 titulo="Cola de impresión"
                 tono={tonoTrabajos}
-                principal={`${sincronizacion.trabajos.pendientes} pendientes · ${sincronizacion.trabajos.fallidos} fallidos`}
+                principal={`${sincronizacion.trabajos.pendientes} pendientes · ${sincronizacion.trabajos.fallidos} fallidos${Number(sincronizacion.trabajos.enCurso || 0) > sincronizacion.trabajos.pendientes ? ` · ${Number(sincronizacion.trabajos.enCurso) - sincronizacion.trabajos.pendientes} en curso` : ''}`}
                 detalle={sincronizacion.trabajos.ultimoExitoAt ? `Último confirmado ${fmt(sincronizacion.trabajos.ultimoExitoAt)}` : 'Sin trabajos confirmados todavía'}
               />
               <TarjetaSync
@@ -303,12 +311,20 @@ export default function EstadoSistema() {
                   <p className="text-xs uppercase tracking-wider text-mute">Últimos webhooks de AEX</p>
                   <span className="text-xs text-mute">{sincronizacion.aex.ultimoEventoAt ? `Último ${fmt(sincronizacion.aex.ultimoEventoAt)}` : 'Sin eventos'}</span>
                 </div>
+                {/* #301: sin credenciales, la lista vacía no puede leerse como
+                    «todo en orden». */}
+                {!sincronizacion.aex.configurado && (
+                  <Aviso tono="warn" compact className="mt-2">Faltan las claves de AEX: no se pueden cotizar envíos ni generar guías.</Aviso>
+                )}
+                {sincronizacion.aex.configurado && !sincronizacion.aex.webhookToken && (
+                  <p className="mt-2 text-[11px] text-mute">Sin token de webhook: el endpoint de AEX acepta cualquier origen.</p>
+                )}
                 {sincronizacion.aex.ultimos.length ? (
                   <ul className="mt-2 divide-y divide-ink-600/60">
                     {sincronizacion.aex.ultimos.map((evento) => (
                       <li key={evento.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 py-1.5 text-xs">
                         <span className="truncate font-medium" title={evento.guia}>{evento.guia}</span>
-                        <span className="text-mute">{evento.estado || evento.tipoEvento || 'Evento'} · {fmt(evento.fechaEvento || evento.recibidoEn)}</span>
+                        <span className="text-mute">{evento.estado || evento.tipoEvento || 'Evento'} · {fmt(evento.recibidoEn)}</span>
                       </li>
                     ))}
                   </ul>
@@ -333,6 +349,9 @@ export default function EstadoSistema() {
                 ) : (
                   <p className="mt-2 text-xs text-mute">Sin errores en las últimas {sincronizacion.errores.ventanaHoras} horas.</p>
                 )}
+                {sincronizacion.errores.recientes > sincronizacion.errores.ultimos.length && (
+                  <p className="mt-2 text-xs text-mute" data-testid="errores-y-mas">y {sincronizacion.errores.recientes - sincronizacion.errores.ultimos.length} más en las últimas {sincronizacion.errores.ventanaHoras} h.</p>
+                )}
               </div>
             </div>
 
@@ -340,7 +359,7 @@ export default function EstadoSistema() {
               <div className="space-y-2">
                 {sincronizacion.trabajos.fallidos > 0 && (
                   <Aviso tono="error" className="p-3 rounded-xl text-mute">
-                    Hay <b className="text-fore">{sincronizacion.trabajos.fallidos}</b> trabajo(s) de impresión fallidos: revisalos en <Link to="/configuracion/dispositivos?panel=cola" className="toque-44 font-semibold text-fono-light underline underline-offset-2">Dispositivos · Cola e historial</Link>.
+                    Hay <b className="text-fore">{sincronizacion.trabajos.fallidos}</b> trabajo(s) de impresión fallidos en la empresa: están listados abajo, en <a href="#cola-impresion" className="toque-44 font-semibold text-fono-light underline underline-offset-2">Cola de impresión</a>.
                   </Aviso>
                 )}
                 {sincronizacion.emails.fallidos > 0 && (
@@ -364,7 +383,7 @@ export default function EstadoSistema() {
           de cancelar solo para lo que sigue PENDIENTE. Lo que el puente ya
           reclamó (o el transporte aceptó) no se cancela: se confirma o se
           revisa en papel. */}
-      <Card className="space-y-3">
+      <Card className="space-y-3" id="cola-impresion">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <h3 className="flex items-center gap-2 text-sm font-semibold"><Icon name="printer" className="h-4 w-4 text-mute" />Cola de impresión</h3>

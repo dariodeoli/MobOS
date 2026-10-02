@@ -420,10 +420,13 @@ export function aexWebhookConToken() {
   return Boolean(String(process.env.MOBOS_AEX_WEBHOOK_TOKEN || '').trim())
 }
 
-// Fecha del evento en formato `YYYY-MM-DD HH:MM:SS` (hora local de AEX).
+// Fecha del evento en formato `YYYY-MM-DD HH:MM:SS` (hora local de AEX, UTC-3):
+// se parsea con el offset de Paraguay para que la hora mostrada sea la real
+// (antes quedaba como UTC y el panel la corría 3 h, #301).
 export function fechaEventoAex(valor: string): Date | null {
   const limpio = (valor || '').trim().replace(' ', 'T')
   if (!limpio) return null
-  const fecha = new Date(limpio)
+  const conOffset = /(Z|[+-]\d{2}:?\d{2})$/i.test(limpio) ? limpio : `${limpio}-03:00`
+  const fecha = new Date(conOffset)
   return Number.isNaN(fecha.getTime()) ? null : fecha
 }

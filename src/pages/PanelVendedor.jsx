@@ -33,7 +33,7 @@ const Inventario = lazy(() => import('@/components/control/Inventario'))
 const Compras = lazy(() => import('@/components/control/Compras'))
 const Config = lazy(() => import('@/components/control/Config'))
 const MiCuenta = lazy(() => import('@/components/cuenta/MiCuenta'))
-const Vendedores = lazy(() => import('@/components/control/Vendedores'))
+const Equipo = lazy(() => import('@/components/control/Equipo'))
 const Autorizaciones = lazy(() => import('@/components/control/Autorizaciones'))
 const ServicioGarantias = lazy(() => import('@/components/control/ServicioGarantias'))
 const TradeInPipeline = lazy(() => import('@/components/control/TradeInPipeline'))
@@ -70,7 +70,6 @@ const Conciliacion = lazy(() => import('@/components/control/Conciliacion'))
 const Creditos = lazy(() => import('@/components/control/Creditos'))
 const Cobranzas = lazy(() => import('@/components/control/Cobranzas'))
 const Comisiones = lazy(() => import('@/components/control/Comisiones'))
-const RolesPermisos = lazy(() => import('@/components/control/RolesPermisos'))
 const Celulares = lazy(() => import('@/pages/Celulares'))
 const Comparador = lazy(() => import('@/pages/Comparador'))
 const Documentacion = lazy(() => import('@/components/control/Documentacion'))
@@ -949,13 +948,7 @@ export default function PanelVendedor() {
             <NavegacionConfig value={vista} onChange={irASubtab} items={tabsConfig}>
               {vista === 'mi-cuenta' && <MiCuenta preferencias={preferencias} onCambiarPreferencias={cambiarPreferencias} />}
               {vista === 'organizacion' && <Config seccion="organizacion" />}
-              {vista === 'equipo' && (
-                <div className="space-y-3">
-                  <Vendedores />
-                  <Config seccion="equipo" />
-                  <RolesPermisos />
-                </div>
-              )}
+              {vista === 'equipo' && <Equipo />}
               {vista === 'comercial' && (
                 <div className="space-y-3">
                   {/* #253: las listas de precios viven en Inventario → Precios

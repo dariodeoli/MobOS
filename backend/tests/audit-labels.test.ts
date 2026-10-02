@@ -22,7 +22,12 @@ assert.equal(ACCIONES_AUDITORIA.BRANCH_UPDATED, 'Sucursal editada')
 assert.equal(ACCIONES_AUDITORIA.BRANCH_AUTO_ASSIGNED, 'Sucursal asignada')
 assert.equal(ACCIONES_AUDITORIA.TENANT_PROFILE_UPDATED, 'Perfil de la tienda')
 assert.equal(AREAS_AUDITORIA.Branch, 'Sucursales')
-assert.equal(AREAS_AUDITORIA.Tenant, 'Configuración')
+// #301: el área de la empresa se lee «Empresa» en la pantalla y en el CSV.
+assert.equal(AREAS_AUDITORIA.Tenant, 'Empresa')
+// #301: las dos entidades de inventario dejan de compartir la etiqueta ambigua.
+assert.equal(AREAS_AUDITORIA.InventoryUnit, 'Inventario · unidades')
+assert.equal(AREAS_AUDITORIA.Product, 'Inventario · productos')
+assert.equal(AREAS_AUDITORIA.ImeiCheckQuery, 'IMEI')
 
 // #240 ítem 3: el informe compartido y su apertura se leen sin códigos crudos.
 assert.equal(ACCIONES_AUDITORIA.CUSTOMER_DEVICE_REPORT_SHARED, 'Informe de equipo compartido')

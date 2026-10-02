@@ -59,6 +59,7 @@ test.describe('Configuración Lote 5', () => {
 
     // Sucursales (dentro de Organización): el formulario queda a la derecha de la lista.
     await page.goto('/configuracion/organizacion')
+    await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Sucursales y depósitos', exact: true }).click()
     const panelSucursal = page.locator('#sucursal-form')
     await expect(panelSucursal).toBeVisible()
     await expect(page.locator('#sucursal-nombre')).toBeVisible()

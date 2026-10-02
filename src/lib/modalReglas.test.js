@@ -104,6 +104,28 @@ test('los modales de CRM/INV/PRN pendientes quedan documentados (#323)', () => {
   assert.ok(doc.includes('CRM') && doc.includes('INV') && doc.includes('PRN'))
 })
 
+test('los modales de PLT adoptan cierre con cambios, etiquetas y error adentro (#323)', () => {
+  const vendedores = leer('../components/control/Vendedores.jsx')
+  assert.ok(vendedores.includes('FormField label="Desde"'), 'el horario muestra la etiqueta Desde')
+  assert.ok(vendedores.includes('FormField label="Hasta"'), 'el horario muestra la etiqueta Hasta')
+  assert.ok(vendedores.includes('dirty={hayCambiosHorario}'), 'el horario confirma al cerrar con cambios')
+  assert.ok(vendedores.includes('{horarioError &&'), 'el error del horario queda adentro del diálogo')
+  assert.ok(!vendedores.includes("setError(cause?.message || 'No se pudo guardar el horario.')"), 'el error de guardado no va al Aviso de página')
+  assert.ok(vendedores.includes('<SaveActions pendiente={busy}>'), 'el horario usa el pie estándar')
+
+  const sucursales = leer('../components/config/TiendasSucursales.jsx')
+  assert.ok(sucursales.includes('useValidacionFormulario'), 'sucursales valida con el hook compartido')
+  assert.ok(sucursales.includes("error={control.errorDe('nombre')}"), 'el nombre muestra su error junto al campo')
+  assert.ok(sucursales.includes('pedirAbrir') && sucursales.includes('<ConfirmDialog'), 'cambiar de sucursal con cambios pide confirmación')
+  assert.ok(sucursales.includes('disabled={busy || !control.valido}'), 'el guardado se bloquea con el formulario incompleto')
+
+  const destructivo = leer('../components/config/DialogoDestructivo.jsx')
+  assert.ok(destructivo.includes('dirty={Boolean(palabraActual || clave)}'), 'el destructivo confirma al cerrar con algo escrito')
+  assert.ok(destructivo.includes('error={errorPalabra}'), 'la palabra se valida junto al campo')
+  assert.ok(destructivo.includes('<SaveActions pendiente={busy}>'), 'el destructivo usa el pie estándar')
+  assert.ok(!destructivo.includes('PIE_ACCIONES_REVERSO'), 'el pie ya no se arma a mano')
+})
+
 test('los modales de FIN adoptan cierre con cambios y error junto al campo (#323)', () => {
   const precios = leer('../components/control/Precios.jsx')
   assert.ok(precios.includes('dirty={editorDirty}'), 'Precios confirma al cerrar con cambios')

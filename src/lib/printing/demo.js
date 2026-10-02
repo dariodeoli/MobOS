@@ -35,7 +35,7 @@ export function storeDemo() {
         // de Puentes y el Diagnóstico muestran la versión y el contacto reales
         // sin quedar «sin registro» (#319).
         lastSeenAt: haceSegundos(12),
-        version: '1.6.3',
+        version: '1.7.4',
         plataforma: 'macOS',
       },
     ],

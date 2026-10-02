@@ -34,6 +34,8 @@ async function abrirNegocio(page) {
   // #IA: Negocio pasó a Organización (la ruta vieja redirige igual).
   await page.goto('/configuracion/organizacion')
   await expect(page.locator('#cuenta-form')).toBeVisible()
+  // #298: la tarjeta arranca en lectura; «Editar» abre el formulario.
+  await page.getByTestId('datos-tienda-editar').click()
   // El formulario se hidrata con la cuenta: se espera a que llegue.
   await expect(page.locator('#edit-nombre')).not.toHaveValue('', { timeout: 20_000 })
 }
@@ -53,7 +55,7 @@ async function confirmarPassword(page, id) {
   await panel.getByRole('button', { name: 'Verificar y guardar' }).click()
 }
 
-test('Datos de la tienda: Guardar persiste y la ficha lo refleja', async ({ page }) => {
+test('Datos de la tienda: Editar, Guardar persiste y la tarjeta lo refleja', async ({ page }) => {
   await abrirNegocio(page)
   const form = page.locator('#cuenta-form')
   const original = {
@@ -65,30 +67,40 @@ test('Datos de la tienda: Guardar persiste y la ficha lo refleja', async ({ page
   await page.locator('#edit-direccion').fill('Av. Mcal. López 1234, Asunción')
   await page.locator('#edit-ruc').fill('80012345-6')
   await form.getByLabel('Teléfono').fill('981 000 111')
-  const telefono = await form.getByLabel('Teléfono').inputValue()
   // Enter guarda: el pie de acciones es el submit del formulario.
   await page.locator('#edit-direccion').press('Enter')
   await page.waitForTimeout(700)
   await capturar(page, 'datos-tienda-enter')
   await confirmarPassword(page, 'datos-tienda')
-  await expect(page.getByTestId('datos-tienda-estado')).toContainText('Guardado', { timeout: 15_000 })
+  // #298: al guardar, la tarjeta vuelve a lectura y el dato queda visible.
+  await expect(form.getByTestId('datos-tienda-lectura').getByText('80012345-6', { exact: true })).toBeVisible({ timeout: 15_000 })
+  await expect(form.getByTestId('datos-tienda-lectura').getByText('Av. Mcal. López 1234, Asunción', { exact: true })).toBeVisible()
   await capturar(form, 'datos-tienda-guardado')
   await page.reload()
-  await expect(page.locator('#edit-ruc')).toHaveValue('80012345-6', { timeout: 20_000 })
-  await expect(page.locator('#edit-direccion')).toHaveValue('Av. Mcal. López 1234, Asunción')
-  await expect(form.getByLabel('Teléfono')).toHaveValue(telefono)
-  // La ficha de identidad (panel izquierdo) muestra lo guardado.
-  await expect(page.getByText('80012345-6').first()).toBeVisible()
+  await expect(form.getByTestId('datos-tienda-lectura').getByText('80012345-6', { exact: true })).toBeVisible({ timeout: 20_000 })
+  await expect(form.getByTestId('datos-tienda-lectura').getByText(/981 000 111/)).toBeVisible()
   // Restaura los valores originales (la tienda la comparte toda la suite).
+  await page.getByTestId('datos-tienda-editar').click()
   await page.locator('#edit-direccion').fill(original.direccion)
   await page.locator('#edit-ruc').fill(original.ruc)
   await form.getByLabel('Teléfono').fill(original.telefono)
   await page.getByRole('button', { name: 'Guardar cambios' }).click()
-  await expect(page.getByTestId('datos-tienda-estado')).toContainText('Guardado', { timeout: 15_000 })
+  await confirmarPassword(page, 'datos-tienda')
+  // La dirección original del seed puede estar vacía: en ese caso la tarjeta
+  // muestra «—». Se verifica que volvió a lectura y el valor quedó restaurado.
+  await expect(form.getByTestId('datos-tienda-lectura')).toBeVisible({ timeout: 15_000 })
+  if (original.direccion) {
+    await expect(form.getByTestId('datos-tienda-lectura').getByText(original.direccion, { exact: true })).toBeVisible()
+  } else {
+    await page.reload()
+    await expect(form.getByTestId('datos-tienda-lectura').getByText('—').first()).toBeVisible({ timeout: 20_000 })
+  }
 })
 
 test('Identificador de pedidos: Enter guarda y el error queda en la sección', async ({ page }) => {
   await abrirNegocio(page)
+  // #299: la numeración vive en su propia sección de Organización.
+  await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Numeración', exact: true }).click()
   const prefijo = page.getByLabel('Prefijo de pedidos')
   await expect(prefijo).not.toHaveValue('', { timeout: 20_000 })
   const numero = page.getByLabel('Número inicial de pedidos')
@@ -152,6 +164,8 @@ test('Sucursales: editar y guardar avisa Guardado', async ({ page }) => {
   await entrarComoDueno(page)
   // #IA: las sucursales viven en Organización (la ruta vieja /configuracion/sucursales redirige).
   await page.goto('/configuracion/organizacion')
+  // #299: Sucursales y depósitos es una sección propia.
+  await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Sucursales y depósitos', exact: true }).click()
   const fila = page.locator('article').filter({ hasText: SEED.branchName }).first()
   await expect(fila).toBeVisible({ timeout: 20_000 })
   await fila.getByRole('button', { name: 'Editar' }).click()

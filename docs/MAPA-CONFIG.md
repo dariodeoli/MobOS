@@ -1,17 +1,15 @@
 # Configuración de MobOS — detalle campo por campo
 
 > Relevado el 25/09/2026 sobre `origin/main`. Ruta base `/configuracion/:seccion?` (solo dueño). Secciones y orden: `Mi cuenta` · `Organización` · `Equipo y acceso` · `Comercial` · `Seguridad y auditoría` · `Dispositivos` · `Sistema`. Los slugs viejos (`impresoras`, `negocio`, `identidad`…) redirigen a su sección.
-> Patrón transversal: chip «Guardado…» o error donde iría el botón; si el backend pide reautenticación (403) aparece «Confirmá tu contraseña para guardar» → «Contraseña de la empresa» + «Verificar y guardar» (autorización 10 min) y el guardado sigue solo. Aplica a numeración, seguro, límites, datos de tienda, sucursal, sesiones, exportación y permisos.
+> El riel de secciones es **uno solo, siempre con texto** (#298; ya no se colapsa a iconos). **Organización** se divide en secciones por tarea (Datos generales · Identidad visual · Sucursales y depósitos · Datos fiscales · Numeración · Zona de peligro) y **Equipo y acceso** en pestañas (Miembros · Invitaciones · Permisos · Rendimiento) (#299). Los roles se leen siempre con la misma etiqueta (`Dueño`, `Gerente`, …), sin importar el código interno (#299). Patrón transversal: chip «Guardado…» o error donde iría el botón; si el backend pide reautenticación (403) aparece «Confirmá tu contraseña para guardar» → «Contraseña de la empresa» + «Verificar y guardar» (autorización 10 min) y el guardado sigue solo. Aplica a numeración, seguro, límites, datos de tienda, sucursal, sesiones, exportación y permisos.
 
 ## 1. Equipo y acceso (`/configuracion/equipo`) — `control/Vendedores.jsx` + `control/RolesPermisos.jsx`
-- Encabezado: banners de aviso; «+ Invitar persona» (solo pantallas chicas).
-- **Integrantes** (#253): pestañas «Activos (n)»/«Inactivos (n)»; por integrante: nombre editable en línea, correo, sucursal (o «Sin sucursal»), badge Activo/Inactivo, selector de rol, «Historial», «Horario» (con el resumen cargado en el `title` o «Sin horario: acceso libre»), «PIN» (oculto en demo), «Permisos» (oculto en demo/ADMIN), «Desactivar»/«Volver a activar», **meta diaria como chip** con % de cumplimiento, métricas «Hoy», «Comisión hoy», «Mes». Vacíos propios.
-- **Metas y comisiones** (#253): una fila por integrante activo con «Meta diaria» editable, «Hoy», «Cumplimiento (%)», «Comisión hoy» y «Mes» (vendido + comisión del mes); incluye el «Historial mensual por vendedor» y el acceso «Reglas y liquidaciones →» (Finanzas → Comisiones).
-- **Sumar integrante**: modos «Invitar por correo» / «Agregar directamente» (demo oculta modos); formulario: «Nombre», «Correo (opcional)», «Rol», «PIN temporal (4 a 6 dígitos)» + «Agregar», o «Enviar invitación». Aviso de invitación activa con «Reenviar invitación» / «Revocar invitación».
-- **Historial mensual por vendedor** (si hay ventas): mes colapsable con «Vendido {total}»; filas con ventas y «Comisión {monto}».
-- **Comisiones** (sesión real + dueño): «Ir a Finanzas → Comisiones».
-- **Invitaciones** (sesión real): estado (Pendiente/Aceptada/Vencida/Revocada), rol, quién invitó y fechas; «Reenviar», «Invitar de nuevo» (vencidas), «Revocar».
-- **Modales**: Permisos (checkboxes recortables del rol; «Restaurar todo el rol»), Horario de acceso (zona horaria + rangos con días Lu–Do y horas; «+ Rango»), Historial, PIN (generar aleatorio / definir manual; el PIN no se vuelve a mostrar), confirmaciones de desactivar/rol/revocar.
+- **Pestañas (#299)**: «Miembros» · «Invitaciones» · «Permisos» · «Rendimiento». Cada una abre su tarea y no apila el resto.
+- **Miembros** (pestaña por defecto): integrantes activos/inactivos con nombre editable, correo, sucursal, badge Activo/Inactivo, selector de rol, «Historial», «Horario», «PIN» (oculto en demo), «Permisos» (oculto en demo/ADMIN), «Desactivar»/«Volver a activar», meta diaria como chip y métricas de hoy/mes; panel derecho «Sumar integrante» (Invitar por correo / Agregar directamente) con Nombre, Correo, Rol, PIN temporal.
+- **Invitaciones**: listado con estado (Pendiente/Aceptada/Vencida/Revocada), rol, quién invitó y fechas; «Reenviar», «Invitar de nuevo» (vencidas), «Revocar»; y las invitaciones personales pendientes del usuario.
+- **Permisos**: tiles por rol, acordeón «Qué puede hacer» / «Qué no puede» y **Matriz de capacidades** por dominio × rol (solo lectura).
+- **Rendimiento**: metas y comisiones por integrante activo («Hoy», «Cumplimiento (%)», «Comisión hoy», «Mes»), «Reglas y liquidaciones →» (Finanzas → Comisiones) e historial mensual por vendedor.
+- **Modales**: Permisos por integrante, Horario de acceso, Historial, PIN y confirmaciones de desactivar/rol/revocar.
 
 ## 2. Mi identidad (`/configuracion/identidad`) — `MiIdentidad` (Config.jsx)
 - Ficha «Identidad de la cuenta»: avatar, nombre, correo; lista con «Correo del dueño» e «ID del usuario» (cada uno con «Copiar»).
@@ -23,6 +21,7 @@
 - «Matriz de capacidades»: tabla por dominio (Panel, Ventas, Delivery, Catálogo y stock, Pagos, Servicio, Equipo y configuración) × rol (Dueño, Gerente, Vendedor, Cajera, Técnico, Repartidor) con ✓/×. Solo lectura.
 
 ## 4. Negocio (`/configuracion/negocio`) — Config.jsx + `DatosPrivados.jsx`
+- **Secciones (#299)**: «Datos generales» (datos de la tienda) · «Identidad visual» (logo) · «Sucursales y depósitos» (tiendas y sucursales; los depósitos se administran en Inventario → Ubicaciones) · «Datos fiscales» (empresas/personas jurídicas y titulares) · «Numeración» · «Zona de peligro» (archivar/eliminar + confirmar identidad).
 - **Identificador de pedidos**: «Prefijo» (2–3 letras A-Z), «Número inicial» (hasta 8 dígitos), «Guardar numeración»; nota «Los pedidos ya creados conservan su número…».
 - **Seguro y límites** (solo dueño): switch «Seguro de ventas» + «Porcentaje sobre el costo (%)» + «Guardar seguro»; y «Gasto sin autorización (Gs)», «Compra a crédito sin autorización (Gs)», «Bajo lista sin autorización (%)», «Fidelización: puntos por venta (%)», «Recargo por mora (% diario)» + «Guardar límites»; línea «Actual: …».
 - **Logo de la empresa** (solo dueño): PNG 1024×1024 transparente ≤1 MiB; «Copiar prompt»; «Modo claro» = «Logo oscuro, para fondos claros» y «Modo oscuro» = «Logo claro, para fondos oscuros», con preview real, «Subir/Reemplazar», «Quitar» y modal de confirmación.
@@ -31,7 +30,7 @@
   - *Titulares/socios*: «Primer/Segundo/Tercer nombre», «Primer/Segundo apellido», «Cédula/RUC» (RucField, puede autocompletar), vista previa del nombre completo; «Guardar titular»; lista con «Editar» / «Desactivar/Activar».
 - **Tiendas**: tienda actual (copiar ID), «Crear otra tienda», «Abandonar tienda» (palabra ABANDONAR), «Archivar tienda» (contraseña + ARCHIVAR, 30 días).
 - **Invitaciones pendientes** (si hay): tienda, invitador/rol/vencimiento, «Aceptar» + PIN propio.
-- **Identidad de la cuenta**: «Mi foto» (con recorte) + «Datos de la tienda»: «Nombre de la tienda», «Correo de la empresa», «Dirección», «Ciudad» (autocompleta departamento), «Teléfono» (código país), «RUC» (con extractor); «Restablecer» / «Guardar cambios»; ficha con «ID de la tienda» y copiar.
+- **Datos de la tienda** (#298): una sola tarjeta. En lectura: «Nombre de la tienda», «Correo de la empresa», «RUC», «Teléfono», «Ciudad», «Departamento» y «Dirección» (ancho completo), con «Editar». La edición reemplaza la tarjeta: formulario en 2 columnas («Nombre», «Correo», «RUC» con extractor, «Teléfono» con código país, «Ciudad» que autocompleta departamento, «Dirección» a ancho completo); «Cancelar»/«Descartar» vuelve a lectura y la barra fija «Guardar cambios» aparece solo cuando hay diferencias reales.
 
 ## 5. Listas de precios (`/configuracion/precios`) — `control/Precios.jsx`
 - Reglas: en demo o sin permiso (dueño/ADMIN/GERENTE) se reemplaza por avisos. Prioridad en venta: **escalón por cantidad > lista del cliente > mayorista > minorista > USD**.
@@ -47,7 +46,7 @@
 ## 7. Seguridad (`/configuracion/seguridad`)
 - **Sesión activa**: avatar/nombre + badges empresa/sucursal/rol.
 - **Confirmar identidad**: «Contraseña de la empresa» + «Verificar contraseña» → «Acciones sensibles habilitadas hasta …» (10 min).
-- **Sesiones activas**: «Actualizar», «Cerrar mi cuenta» (palabra CERRAR + contraseña); fila: usuario o «Acceso de empresa», «Este dispositivo», rol·deviceId·última actividad, «Revocar».
+- **Sesiones activas (#300)**: «Actualizar»; cada fila se lee por dispositivo («Chrome en Mac · macOS»), última actividad en palabras, «Sesión actual» e inicio; «Detalles técnicos» plegado muestra el `deviceId`, el id de sesión y el agente; «Revocar». «Cerrar mi cuenta» ya no vive acá: está en la **Zona destructiva** del final (palabra CERRAR + contraseña).
 - **Uso del equipo** (dueño): últimos 30 días por persona (en línea, rol, sesiones, tiempo activo y detalle inicio→fin), «Actualizar».
 - **Exportación básica**: «Descargar mis datos» (JSON sin credenciales/PIN/tokens/adjuntos).
 - **Archivar empresa**: «Motivo del archivado (mínimo 10 caracteres)» + «Archivar empresa» (RESTORE en 30 días).
@@ -56,7 +55,7 @@
 - En demo: `DemoNoDisponible`.
 
 ## 8. Auditoría (`/configuracion/historial`)
-- Real (`Auditoria.jsx`): filtros «Filtrar por área» (Pedidos, Inventario, Promociones, Clientes, Pagos, Caja y finanzas, Compras, Garantías, Servicio técnico, Cotizaciones, Trade-In, Equipo, Sesiones, Impresiones), «Filtrar por fecha» (Hoy/Esta semana/Este mes), «Filtrar por actor», buscador («Acción, IMEI, pedido, impresora…»), «Exportar CSV», «Actualizar»; tabla Acción/Actor/Área/Detalle/Fecha con detalle expandible y JSON crudo; «Cargar más» (50 por página).
+- Real (`Auditoria.jsx`): filtros «Filtrar por área» (Pedidos, Inventario · unidades, Inventario · productos, Promociones, Clientes, Pagos, Caja y finanzas, Compras, Garantías, Servicio técnico, Cotizaciones, Trade-In, Equipo, Sesiones, Impresiones), «Filtrar por fecha» (Hoy/Esta semana/Este mes), «Filtrar por actor», buscador («Acción, IMEI, pedido, impresora…»), «Exportar CSV», «Actualizar»; tabla Acción/Actor/Área/Detalle/Fecha con severidad (Sensible/Cambio/Actividad) y detalle expandible: resumen humano y «Detalles técnicos» plegables con los campos etiquetados (ID de petición, huella, URL) y el JSON crudo al final (#301).
 - Demo (`Historial.jsx`): buscador + chips «Todo / Cargas / Ediciones / Borrados» y lista local.
 
 ## 9. Dispositivos (`/configuracion/dispositivos`) — Impresoras · `control/Impresoras.jsx`
@@ -77,11 +76,11 @@
 ## 11. Preferencias (`/configuracion/preferencias`) — `app/Preferencias.jsx`
 - «Bloqueo por inactividad» — select: «1 minuto», «5 minutos», «10 minutos» (por defecto), «15 minutos», «30 minutos».
 - «Notificaciones» — checkbox «Mostrar el aviso de novedades: pedidos, aprobaciones, comentarios y menciones.» (activado por defecto).
-- Se guardan **en el navegador, por usuario** (`mobos:preferencias:<userId>`, o `:anon`), nunca viajan a la empresa; se aplican al instante (evento `mobos:preferencias`); el **tema claro/oscuro no está acá** (está en el topbar/menú lateral).
+- Se guardan **en el navegador, por usuario** (`mobos:preferencias:<userId>`, o `:anon`), nunca viajan a la empresa; se aplican al instante (evento `mobos:preferencias`); el **tema claro/oscuro no está acá** (está en el topbar/menú lateral). #300: se retiró la salida «Volver al diseño anterior» (exponía deuda técnica como preferencia); v2 es el único diseño.
 
 ## 12. Estado del sistema (`/configuracion/sistema`) — `control/EstadoSistema.jsx`
 - **Alcance (#253)**: acá **se monitorea** (servicios, puentes/impresoras, cola global, correo, AEX, errores); para **agregar, probar o formatear** impresoras hay un enlace a Dispositivos · Impresoras. La configuración no se duplica.
 - **Chequeos**: «Copiar informe», «Actualizar», badges (versión, «n chequeos · fecha», «a revisar», «con error»); lista con «En orden» / «A revisar» / «Con error», incluye «Impresión (este equipo)».
 - **Sincronización**: tarjetas «Puentes», «Impresoras», «Cola de impresión», «Correo saliente»; paneles «Últimos webhooks de AEX» y «Errores recientes (N h)»; avisos por fallos de impresión, correos y reservas vencidas.
-- **Cola de impresión**: filtro por impresora; pendientes con tipo/referencia/estado/usuario/impresora/puente/fecha/intentos/error; «Cancelar seleccionados» / «Cancelar todos» (dueño/ADMIN/GERENTE); «Recientes con problema».
-- En demo: `DemoNoDisponible`.
+- **Cola de impresión**: filtro por impresora; pendientes con tipo/referencia/estado/usuario/impresora/puente/fecha/intentos/error; «Cancelar seleccionados» / «Cancelar todos» (dueño/ADMIN/GERENTE); «Recientes con problema» sale de la misma fuente que el contador global de fallidos (#301).
+- En demo: fixtures locales con la misma forma que el API (#324), con coherencia entre contadores y listas (#301).
