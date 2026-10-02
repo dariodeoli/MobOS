@@ -60,6 +60,8 @@ test('#279 · A4: se aparta una unidad en tránsito, queda bloqueada y al llegar
 
     // La unidad viaja: aparece en «En tránsito» de la sucursal destino.
     await page.goto('/inventario/unidades')
+    // #305: En tránsito vive en el grupo Movimientos.
+    await page.getByTestId('grupos-inventario').getByRole('button', { name: 'Movimientos', exact: true }).click()
     await page.getByRole('button', { name: 'En tránsito', exact: true }).click()
     const fila = page.getByTestId('inventario-fila').filter({ hasText: serial }).first()
     await expect(fila).toBeVisible({ timeout: 20_000 })
@@ -92,6 +94,8 @@ test('#279 · A4: se aparta una unidad en tránsito, queda bloqueada y al llegar
       const recepcion = await apiPagina(adminPage, '/api/inventory-units/verify', { method: 'POST', body: JSON.stringify({ serial }) })
       expect(recepcion.status, JSON.stringify(recepcion.body)).toBe(200)
       await page.reload()
+      // #305: la navegación está agrupada; para volver a Inventario se elige Stock.
+      await page.getByTestId('grupos-inventario').getByRole('button', { name: 'Stock', exact: true }).click()
       await page.getByTestId('tabs-inventario').getByRole('button', { name: 'Inventario', exact: true }).click()
       const recibida = page.getByTestId('inventario-fila').filter({ hasText: serial }).first()
       await expect(recibida).toBeVisible({ timeout: 20_000 })

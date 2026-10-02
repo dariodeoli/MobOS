@@ -42,16 +42,17 @@
         "qa-279-push.spec.js",
         "qa-284-avatar-cache.spec.js",
         "qa-287-objeto-unificado.spec.js",
+        "qa-307-compras-proveedores.spec.js",
         "qa-323-modales.spec.js",
         "qa-325-roles-movil.spec.js",
-        "qa-f6-metricas-abastecimiento.spec.js",
+        "recorte-perfil.spec.js",
         "redireccion-248.spec.js",
         "responsive.spec.js",
         "seguridad-cuenta.spec.js",
         "traslados-etiquetas-lote.spec.js",
         "vendidos-comprobante-rapido.spec.js"
       ],
-      "tests": 200
+      "tests": 201
     },
     {
       "archivos": [
@@ -96,10 +97,10 @@
         "qa-278-cierre.spec.js",
         "qa-279-transito.spec.js",
         "qa-280-gift-cards.spec.js",
-        "qa-306-producto-kardex.spec.js",
+        "qa-305-inventario-escritorio.spec.js",
         "qa-318-comprobante.spec.js",
+        "qa-f6-metricas-abastecimiento.spec.js",
         "qa-fin-compacto.spec.js",
-        "qa-fin-repuestos-taller.spec.js",
         "quote-approval-otp.spec.js",
         "ruc-demo.spec.js",
         "sesion-bloqueo.spec.js",
@@ -153,8 +154,8 @@
         "qa-280-aviso-stock.spec.js",
         "qa-285-unidades.spec.js",
         "qa-286-unidades-pos.spec.js",
-        "qa-307-compras-proveedores.spec.js",
-        "recorte-perfil.spec.js",
+        "qa-306-producto-kardex.spec.js",
+        "qa-fin-repuestos-taller.spec.js",
         "repuestos-proveedores.spec.js",
         "ruc-extraccion.spec.js",
         "selector-sucursal.spec.js",
@@ -163,5 +164,5 @@
       "tests": 200
     }
   ],
-  "generado": "2026-10-02T06:35:18.897Z"
+  "generado": "2026-10-02T06:35:48.615Z"
 }

@@ -205,7 +205,9 @@ test('el lote muestra ETA y quién despachó/recibió, y la ETA se ajusta desde 
 
   // El alta del traslado ya ofrece la ETA (opcional) y el lote llega con el
   // despachante registrado (quien lo cargó).
-  await page.getByRole('button', { name: 'Transferir' }).click()
+  // #305: Transferir vive en «Más acciones».
+  await page.getByTestId('barra-inventario').getByRole('button', { name: 'Más', exact: true }).click()
+  await page.getByRole('menu', { name: 'Más acciones de inventario' }).getByRole('menuitem', { name: 'Transferir' }).click()
   const alta = page.getByRole('dialog', { name: 'Transferir IMEI entre sucursales' })
   await expect(alta.getByLabel('ETA (opcional)')).toBeVisible()
   await page.keyboard.press('Escape')

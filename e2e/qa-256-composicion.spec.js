@@ -44,7 +44,7 @@ test.describe('composición compacta', () => {
     await expect(resumen.getByText(/en pantalla$/)).toHaveCount(1)
   })
 
-  test('Inventario: barra única, controles agrupados y métricas con alcance', async ({ page }) => {
+  test('Inventario: barra única con buscador, filtros y acciones agrupadas', async ({ page }) => {
     await page.goto('/inventario/unidades')
     await expect(page.getByTestId('inventario-fila').first()).toBeVisible({ timeout: 20_000 })
 
@@ -52,27 +52,34 @@ test.describe('composición compacta', () => {
     await expect(barra).toHaveCount(1)
     // La identidad no se repite: el h1 es del shell y la barra usa h2.
     await expect(barra.getByRole('heading', { level: 2, name: 'Inventario' })).toBeVisible()
-    for (const accion of ['+ Recibir unidad', 'Reservar', 'Transferir']) {
-      await expect(barra.getByRole('button', { name: accion, exact: true })).toBeVisible()
+    // #305: buscador y filtros viven en la barra, con la acción primaria.
+    await expect(barra.getByLabel('Buscar en inventario')).toBeVisible()
+    await expect(barra.getByLabel('Orden del inventario')).toBeVisible()
+    await expect(barra.getByRole('button', { name: '+ Recibir unidad', exact: true })).toBeVisible()
+
+    // Las acciones secundarias ya no se apilan: viven en «Más».
+    await expect(page.getByTestId('resumen-inventario')).toHaveCount(0)
+    for (const accion of ['Escanear', 'Conteo rápido', 'Reservar', 'Transferir', 'Etiquetas de góndola']) {
+      await expect(page.getByRole('button', { name: accion, exact: true })).toHaveCount(0)
     }
-
-    const resumen = page.getByTestId('resumen-inventario')
-    await expect(resumen).toBeVisible()
-    await expect(resumen.locator('> div')).toHaveCount(4)
-    // Totales de la sucursal vs. lo cargado en pantalla, sin mezclarse.
-    await expect(resumen.getByText('En pantalla', { exact: true })).toHaveCount(3)
-    await expect(resumen.getByText('Sucursal', { exact: true })).toHaveCount(1)
-
-    // La consulta va en una fila y las acciones secundarias agrupadas.
-    await expect(page.getByLabel('Buscar en inventario')).toBeVisible()
-    await expect(page.getByLabel('Orden del inventario')).toBeVisible()
-    for (const accion of ['Escanear', 'Conteo rápido', 'Etiquetas de góndola', 'Exportar CSV']) {
-      await expect(page.getByRole('button', { name: accion, exact: true })).toBeVisible()
+    await barra.getByRole('button', { name: 'Más', exact: true }).click()
+    const menu = page.getByRole('menu', { name: 'Más acciones de inventario' })
+    for (const accion of ['Escanear', 'Conteo rápido', 'Etiquetas de góndola', 'Reservar', 'Transferir']) {
+      await expect(menu.getByRole('menuitem', { name: accion })).toBeVisible()
     }
+    await page.keyboard.press('Escape')
 
-    // Las solapas no repiten contadores (viven en el resumen con alcance).
-    await expect(page.getByTestId('tabs-inventario').getByRole('button', { name: /^Inventario \(/ })).toHaveCount(0)
-    await expect(page.getByTestId('tabs-inventario').getByRole('button', { name: 'Inventario', exact: true })).toBeVisible()
+    // #305: navegación agrupada Stock · Movimientos · Control.
+    const grupos = page.getByTestId('grupos-inventario')
+    for (const grupo of ['Stock', 'Movimientos', 'Control']) {
+      await expect(grupos.getByRole('button', { name: grupo, exact: true })).toBeVisible()
+    }
+    const tabs = page.getByTestId('tabs-inventario')
+    await expect(tabs.getByRole('button', { name: 'Inventario', exact: true })).toBeVisible()
+    await expect(tabs.getByRole('button', { name: 'Reservas', exact: true })).toBeVisible()
+    await expect(tabs.getByRole('button', { name: 'En tránsito', exact: true })).toHaveCount(0)
+    await grupos.getByRole('button', { name: 'Movimientos', exact: true }).click()
+    await expect(tabs.getByRole('button', { name: 'En tránsito', exact: true })).toBeVisible()
   })
 
   test('Productos: barra única, métricas con alcance y controles agrupados', async ({ page }) => {
