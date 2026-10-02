@@ -61,7 +61,10 @@ export async function GET(request: Request) {
       where: { tenantId, state: { in: ['FALLIDO', 'INCIERTO'] } },
       orderBy: { createdAt: 'desc' },
       take: ULTIMOS,
-      select: { id: true, state: true, kind: true, destination: true, printerName: true, error: true, createdAt: true },
+      // `reference` es la identidad visible del trabajo en el monitor (#204):
+      // sin ella la lista de problemas muestra «Comprobante» sin poder
+      // distinguir cuál es y el e2e del monitor incierto no tiene fila.
+      select: { id: true, state: true, kind: true, reference: true, destination: true, printerName: true, error: true, createdAt: true },
     }),
   ])
 
