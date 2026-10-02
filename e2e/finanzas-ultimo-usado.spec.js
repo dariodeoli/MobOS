@@ -6,6 +6,9 @@ import { test, expect } from '@playwright/test'
 test.describe('finanzas · último usado', () => {
   test('Gastos arranca con el tipo y la moneda del movimiento anterior', async ({ page }) => {
     await page.goto('/finanzas/gastos')
+    // #311: el alta vive en un cajón; se abre para trabajar con el formulario.
+    await expect(page.getByRole('heading', { name: 'Gastos, cheques y adelantos' })).toBeVisible()
+    await page.getByRole('button', { name: 'Registrar movimiento' }).click()
     await expect(page.getByRole('heading', { name: 'Registrar salida, cheque o adelanto' })).toBeVisible()
 
     const tipo = page.locator('#tipo')
@@ -15,12 +18,14 @@ test.describe('finanzas · último usado', () => {
     await expect(page.getByText(/arrancan con tu última elección/)).toBeVisible()
 
     await page.reload()
+    await page.getByRole('button', { name: 'Registrar movimiento' }).click()
     await expect(tipo).toHaveValue('CHEQUE')
     await expect(moneda).toHaveValue('USD')
 
     // Siempre cambiable: el cambio explícito pisa lo recordado y se vuelve a recordar.
     await tipo.selectOption('EXPENSE')
     await page.reload()
+    await page.getByRole('button', { name: 'Registrar movimiento' }).click()
     await expect(tipo).toHaveValue('EXPENSE')
   })
 

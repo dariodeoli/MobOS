@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { getPaymentAccounts, createPaymentAccount, updatePaymentAccount, KIND_LABELS } from '@/lib/paymentAccounts'
-import { Aviso, Badge, Button, Card, EmptyState, Input, Label, Select } from '@/components/ui'
+import { Aviso, Badge, Button, Card, Drawer, EmptyState, Input, Label, Select } from '@/components/ui'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import Switch from '@/components/shared/Switch'
 import BancoCombobox from '@/components/shared/BancoCombobox'
@@ -168,6 +168,14 @@ function AccountManager() {
     setMessage(null)
   }
 
+  // #311: el alta/edición vive en un cajón: la página de cuentas queda para
+  // leer el listado y el formulario no compite abierto dentro de la grilla.
+  function cerrarForm() {
+    setForm(null)
+    setEditingId(null)
+    setMessage(null)
+  }
+
   // Nombre automático: se recalcula con cada dato mientras no lo hayan tocado.
   function conNombre(next) {
     return nombreTocadoRef.current ? next : { ...next, name: nombreSugeridoDeCuenta(next) }
@@ -286,8 +294,13 @@ function AccountManager() {
       {!loading && !loadError && !form && <div className="flex flex-wrap gap-2" aria-label="Plantillas rápidas">
         {TEMPLATES.map(template => <Button key={template.name} type="button" variant="outline" disabled={busy} onClick={() => openForm(template)}>+ {template.name}</Button>)}
       </div>}
-      {form && <form onSubmit={save} data-testid="cuenta-form" className="space-y-4 rounded-lg border border-ink-600 p-4">
-        <h3 className="text-sm font-semibold">{editingId ? 'Editar cuenta' : 'Nueva cuenta'}</h3>
+      {form && (
+        <Drawer
+          open
+          onClose={() => !busy && cerrarForm()}
+          title={editingId ? 'Editar cuenta' : 'Nueva cuenta'}
+        >
+        <form onSubmit={save} data-testid="cuenta-form" className="space-y-4">
         <fieldset disabled={busy} className="grid gap-x-3 gap-y-2.5 sm:grid-cols-6">
           <div className="sm:col-span-2"><Label htmlFor="pa-kind">Medio de pago</Label><Select id="pa-kind" value={form.kind} onChange={event => changeMedio(event.target.value)}>{MEDIOS.map(item => <option key={item.kind} value={item.kind}>{item.label}</option>)}</Select></div>
           <div className="sm:col-span-4"><Label htmlFor="pa-name">Nombre</Label><Input id="pa-name" autoFocus required maxLength={200} value={form.name} onChange={event => change('name', event.target.value)} placeholder="Se completa solo" />{!nombreTocado && <p className="mt-1 text-[11px] text-mute">El nombre se completa solo al cargar el medio, el titular y la cuenta. Escribí para cambiarlo.</p>}</div>
@@ -328,10 +341,18 @@ function AccountManager() {
               </div>}
             </div>)}
           </div>
-          <span className="flex items-center gap-2 text-sm"><Switch id="pa-active" checked={form.isActive} onChange={event => change('isActive', event.target.checked)} /><span>Cuenta activa</span></span>
+          <div className="space-y-1">
+            <span className="flex items-center gap-2 text-sm">
+              <Switch id="pa-active" checked={form.isActive} aria-describedby="pa-active-desc" onChange={event => change('isActive', event.target.checked)} />
+              <label htmlFor="pa-active" className="cursor-pointer">Cuenta activa</label>
+            </span>
+            <p id="pa-active-desc" className="text-[11px] text-mute">Desactivada deja de ofrecerse al cobrar; la cuenta, su historial y sus marcas se conservan.</p>
+          </div>
         </fieldset>
-        <div className="flex flex-wrap gap-2"><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar cuenta'}</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => { setForm(null); setMessage(null) }}>Cancelar</Button></div>
-      </form>}
+        <div className="flex flex-wrap gap-2"><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar cuenta'}</Button><Button type="button" variant="ghost" disabled={busy} onClick={cerrarForm}>Cancelar</Button></div>
+        </form>
+        </Drawer>
+      )}
       {!loading && !loadError && <div className="overflow-x-auto" data-testid="cuentas-tabla">
         <div className={cn(GRID_CUENTAS, 'px-3.5 pb-2 pt-1')}>
           <span className={CELDA_ENCABEZADO}>Cuenta</span>
