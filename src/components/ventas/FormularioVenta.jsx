@@ -809,7 +809,9 @@ export default function FormularioVenta({
   const familiasVisibles = familias.filter(fam => {
     const query = busquedaProducto.trim().toLocaleLowerCase()
     if (!query) return true
-    return [fam.base, ...fam.items.map(item => item.nombre)].some(text =>
+    // Nombre, modelo/variante y SKU: tipear el código a mano tiene que
+    // encontrar el producto igual que el escaneo (#148 §11).
+    return [fam.base, ...fam.items.map(item => item.nombre), ...fam.items.map(item => String(item.sku || ''))].some(text =>
       text.toLocaleLowerCase().includes(query),
     )
   })
