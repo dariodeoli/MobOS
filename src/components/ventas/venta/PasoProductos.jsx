@@ -3,6 +3,7 @@ import Icon from '@/components/shared/Icon'
 import IconoCategoria from '@/components/shared/IconoCategoria'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import CheckoutCustomer from '../CheckoutCustomer'
+import SelectorVariante from './SelectorVariante'
 import { gs, num } from '@/utils/calculos'
 import { useSesion } from '@/lib/sesion'
 import EncabezadoBloque from './EncabezadoBloque'
@@ -10,9 +11,10 @@ import { CELDA_DATO } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 
-// La venta en una sola pantalla: para quién es y qué se vende. El cliente
-// primero (define la lista de precios) y después el catálogo, que agrega al
-// carrito con un clic.
+// La venta en una sola pantalla: para quién es y qué se vende. Primero el
+// catálogo (buscar/escanear y agregar con un clic) y después el cliente, que
+// define la lista de precios; con la ficha elegida el bloque se colapsa a una
+// línea (#309).
 export default function PasoProductos({
   sesion,
   esDemo,
@@ -45,6 +47,9 @@ export default function PasoProductos({
   agregarProducto,
   nombreLista = '',
   guardando,
+  variantePara,
+  onElegirVariante,
+  onCerrarVariante,
 }) {
   const { perfilEmpresa } = useSesion()
   const nombreVendedor =
@@ -52,34 +57,6 @@ export default function PasoProductos({
 
   return (
     <>
-      {/* #281 · identidad de color: Cliente = azul (info). */}
-      <section data-testid="pos-bloque-cliente" className="rounded-2xl border border-info/35 bg-info/[.04] p-3.5">
-        <EncabezadoBloque
-          titulo="Cliente"
-          tono="text-info"
-          descripcion="Buscá la ficha por nombre, teléfono, CI o RUC; si no existe, se crea al confirmar."
-          extra={
-            <div className="shrink-0 text-right text-xs text-mute">
-              <span className="block">
-                Vendedor: <strong className="text-fore">{nombreVendedor || 'Ingresá con tu PIN'}</strong>
-              </span>
-              <span className="block text-[11px]">Asignado automáticamente a tu sesión.</span>
-            </div>
-          }
-        />
-        <CheckoutCustomer
-          esDemo={esDemo}
-          value={customer}
-          onChange={c => {
-            setCustomer(c)
-            setF(current => ({ ...current, cliente: c?.name ?? '' }))
-          }}
-          billingTo={billingTo}
-          onBillingChange={setBillingTo}
-          nombreLista={nombreLista}
-        />
-      </section>
-
       {/* #281 · identidad de color: Productos = acento de marca (fono). */}
       <section data-testid="pos-bloque-productos" className="rounded-2xl border border-fono/35 bg-fono/[.04] p-3.5">
         <EncabezadoBloque
@@ -319,7 +296,7 @@ export default function PasoProductos({
                     type="button"
                     key={fam.base}
                     disabled={guardando}
-                    onClick={() => agregarProducto(p)}
+                    onClick={() => (fam.items.length > 1 ? onElegirVariante?.(fam) : agregarProducto(p))}
                     className="flex min-h-20 items-center gap-3 rounded-xl border border-ink-600 p-3 text-left transition hover:border-fono focus-visible:outline focus-visible:outline-fono"
                   >
                     {p.imagen || p.imageUrl ? (
@@ -346,6 +323,7 @@ export default function PasoProductos({
                         {stockFamilia > 0
                           ? <b className="font-semibold text-ok">{stockFamilia} en stock</b>
                           : <b className="font-semibold text-bad">Agotado</b>}
+                        {fam.items.length > 1 && <span className="text-mute"> · elegí la variante</span>}
                         {unidadesFamilia > 0 && <span className="text-mute"> · {unidadesFamilia} {unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI</span>}
                       </span>
                     </span>
@@ -361,6 +339,43 @@ export default function PasoProductos({
           </>
         )}
       </section>
+
+      {/* #281 · identidad de color: Cliente = azul (info). */}
+      <section data-testid="pos-bloque-cliente" className="rounded-2xl border border-info/35 bg-info/[.04] p-3.5">
+        <EncabezadoBloque
+          titulo="Cliente"
+          tono="text-info"
+          descripcion="Buscá la ficha por nombre, teléfono, CI o RUC; si no existe, se crea al confirmar."
+          extra={
+            <div className="shrink-0 text-right text-xs text-mute">
+              <span className="block">
+                Vendedor: <strong className="text-fore">{nombreVendedor || 'Ingresá con tu PIN'}</strong>
+              </span>
+              <span className="block text-[11px]">Asignado automáticamente a tu sesión.</span>
+            </div>
+          }
+        />
+        <CheckoutCustomer
+          colapsarFicha
+          esDemo={esDemo}
+          value={customer}
+          onChange={c => {
+            setCustomer(c)
+            setF(current => ({ ...current, cliente: c?.name ?? '' }))
+          }}
+          billingTo={billingTo}
+          onBillingChange={setBillingTo}
+          nombreLista={nombreLista}
+        />
+      </section>
+
+      {/* #308: con más de una variante no se elige sola: selector obligatorio. */}
+      <SelectorVariante
+        abierto={Boolean(variantePara)}
+        familia={variantePara}
+        onElegir={producto => onElegirVariante?.(producto, { elegir: true })}
+        onClose={() => onCerrarVariante?.()}
+      />
     </>
   )
 }

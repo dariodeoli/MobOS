@@ -23,9 +23,13 @@ export default function ListaVenta({
 
   if (!items.length) {
     return (
-      <p className="px-4 py-8 text-center text-sm text-mute">
-        Todavía no agregaste productos. Buscá uno arriba y hacé clic para sumarlo.
-      </p>
+      <div className="px-4 py-8 text-center text-sm text-mute">
+        <p>Todavía no agregaste productos. Buscá uno arriba y hacé clic para sumarlo.</p>
+        <p className="mt-1 text-xs">
+          Este carrito es tuyo (privado de tu sesión). Para pasarlo a otra persona, usá
+          «Suspender venta»: queda en Ventas suspendidas, compartidas con el equipo.
+        </p>
+      </div>
     )
   }
 
