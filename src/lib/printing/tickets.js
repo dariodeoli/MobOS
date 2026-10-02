@@ -11,6 +11,7 @@ import { contextoEtiquetaLote, datosEtiquetaLote } from './etiquetaLote.js'
 import { estadoGarantia, fechaVerificacionInforme } from './informeDispositivo.js'
 import { AVISO_BLACKLIST, estadoChecklistCorto, estadoControl, fechaHoraDocumento } from './certificado.js'
 import { baseDeApp, qrProducto, qrPrueba } from './qr.js'
+import { documentoComprobante } from './ventaComprobante.js'
 import { TIPOS_PRUEBA, paginaDePrueba } from 'owncoding-ui'
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
@@ -19,7 +20,11 @@ const fecha = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { date
 
 // Comprobante de compra. `link` es el enlace del nivel (se imprime como QR) y
 // `logo` el raster monocromo de la empresa (GS v 0) para el encabezado.
-export function ticketComprobante(order, { nivel = 'completo', ancho = 80, link = '', logo = null } = {}) {
+// #318: el pedido se normaliza con la misma fuente de verdad que el HTML
+// (empresa, cliente, número, artículos y totales), también para las ventas
+// legacy del demo y las filas del listado.
+export function ticketComprobante(entrada, { nivel = 'completo', ancho = 80, link = '', logo = null, contexto } = {}) {
+  const order = documentoComprobante(entrada, contexto)
   const t = crearTicket({ ancho }).iniciar()
   const items = Array.isArray(order.items) ? order.items : []
   const payments = Array.isArray(order.payments) ? order.payments : order.pagos || []
