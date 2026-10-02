@@ -17,6 +17,8 @@ test.describe('reglas de comisión en Finanzas', () => {
     // cliente). Recargamos para que Comisiones lea /api/users fresco y el
     // buscador de vendedores incluya al integrante recién creado.
     await page.reload()
+    // #299: las metas y el aviso de comisiones viven en Rendimiento.
+    await page.getByTestId('equipo-pantalla').getByRole('tab', { name: 'Rendimiento', exact: true }).click()
 
     // Configuración → Equipo solo avisa dónde viven ahora.
     await expect(page.getByRole('heading', { name: 'Comisiones' })).toBeVisible()

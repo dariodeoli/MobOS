@@ -454,6 +454,8 @@ test('configuración en demo muestra avisos claros y sin cargas colgadas', async
   // Sucursales explican que se administran con una cuenta real; Precios ya
   // muestra listas ficticias auditables (#324).
   await page.goto('/configuracion/organizacion')
+  // #299: las sucursales viven en su propia sección de Organización.
+  await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Sucursales y depósitos', exact: true }).click()
   await expect(page.getByText('Las sucursales se administran con una cuenta real')).toBeVisible()
   await expect(page.getByText('Cargando sucursales…')).toHaveCount(0)
   await page.goto('/configuracion/comercial')

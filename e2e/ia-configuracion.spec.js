@@ -67,6 +67,10 @@ test('Configuración tiene siete secciones y ninguna duplica contenido', async (
   await expect(page.getByRole('heading', { name: 'Datos de la tienda', exact: true })).toHaveCount(1)
   await expect(page.getByText('Mi foto')).toHaveCount(0)
   await expect(page.getByText('ID de la tienda', { exact: true })).toHaveCount(0)
+
+  // #299: Tiendas y sucursales es su propia sección de Organización.
+  const org = page.getByTestId('organizacion-secciones')
+  await org.getByRole('tab', { name: 'Sucursales y depósitos', exact: true }).click()
   // El ID de tienda vive en el detalle de Tiendas (cuando la cuenta tiene
   // tiendas cargadas), nunca en la ficha de Datos de la tienda.
   await expect(page.getByRole('heading', { name: 'Tiendas', exact: true })).toBeVisible()
@@ -77,8 +81,6 @@ test('Configuración tiene siete secciones y ninguna duplica contenido', async (
   await expect(unificada).toBeVisible()
   await expect(unificada.getByRole('heading', { name: 'Tiendas', exact: true })).toBeVisible()
   await expect(unificada.getByRole('heading', { name: 'Sucursales', exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Archivar tienda' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Archivar empresa' })).toHaveCount(1)
   // Evidencia de la sección unificada (antes eran dos tarjetas separadas).
   await expect(unificada.getByTestId('tiendas-bloque')).toBeVisible()
   await expect(unificada.getByTestId('sucursales-bloque')).toBeVisible()
@@ -86,6 +88,11 @@ test('Configuración tiene siete secciones y ninguna duplica contenido', async (
   await page.screenshot({ path: join(DIR, 'ia-config-organizacion-tiendas.png') })
   await page.getByTestId('sucursales-bloque').scrollIntoViewIfNeeded()
   await page.screenshot({ path: join(DIR, 'ia-config-organizacion-sucursales.png') })
+
+  // Zona de peligro: el archivado de la empresa queda en un único lugar.
+  await org.getByRole('tab', { name: 'Zona de peligro', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Archivar tienda' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Archivar empresa' })).toHaveCount(1)
   await page.locator('main').getByRole('tab', { name: 'Mi cuenta', exact: true }).click()
   await expect(page.getByText('Mi foto')).toHaveCount(1)
 })
@@ -155,21 +162,24 @@ test('Ayuda lista todos los comandos y atajos con su pantalla', async ({ page })
   await capturar(page, 'ayuda-atajos')
 })
 
-test('Organización: capturas por bloque (#253)', async ({ page }) => {
-  // Evidencia del grupo completo, bloque por bloque: datos generales, identidad
-  // visual (logos), datos legales, tiendas y sucursales, numeración y archivar.
+test('Organización: capturas por bloque (#253/#299)', async ({ page }) => {
+  // Evidencia del grupo completo, sección por sección: datos generales,
+  // identidad visual (logos), datos legales, tiendas y sucursales, numeración
+  // y zona de peligro.
   await page.goto('/configuracion/organizacion')
   await expect(page.getByRole('heading', { name: 'Datos de la tienda', exact: true })).toBeVisible({ timeout: 20_000 })
   await capturar(page, 'organizacion-datos-generales')
 
+  const org = page.getByTestId('organizacion-secciones')
   const bloques = [
-    ['organizacion-logos', 'Logo de la empresa'],
-    ['organizacion-legales', 'Empresas/personas jurídicas (privado)'],
-    ['organizacion-tiendas-sucursales', 'Tiendas y sucursales'],
-    ['organizacion-numeracion', 'Identificador de pedidos'],
-    ['organizacion-archivar', 'Archivar empresa'],
+    ['Identidad visual', 'Logo de la empresa', 'organizacion-logos'],
+    ['Datos fiscales', 'Empresas/personas jurídicas (privado)', 'organizacion-legales'],
+    ['Sucursales y depósitos', 'Tiendas', 'organizacion-tiendas-sucursales'],
+    ['Numeración', 'Identificador de pedidos', 'organizacion-numeracion'],
+    ['Zona de peligro', 'Archivar empresa', 'organizacion-archivar'],
   ]
-  for (const [nombre, titulo] of bloques) {
+  for (const [tab, titulo, nombre] of bloques) {
+    await org.getByRole('tab', { name: tab, exact: true }).click()
     const encabezado = page.getByRole('heading', { name: titulo, exact: true }).first()
     await encabezado.scrollIntoViewIfNeeded()
     await expect(encabezado).toBeVisible()

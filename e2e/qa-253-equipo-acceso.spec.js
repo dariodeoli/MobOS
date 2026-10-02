@@ -1,13 +1,14 @@
 // #253 · Grupo «Equipo y acceso»: integrantes, invitaciones, roles y permisos,
-// horarios, PIN, metas y comisiones. Esta spec cubre el orden nuevo del grupo
-// (Integrantes → Metas y comisiones → Roles y permisos), el resumen de horario
-// por integrante y que la meta diaria se edite desde «Metas y comisiones» y
-// persista en el backend.
+// horarios, PIN, metas y comisiones. Esta spec cubre el orden nuevo del grupo y
+// el resumen de horario por integrante. #299: cada tarea vive en su pestaña
+// (Miembros · Invitaciones · Permisos · Rendimiento).
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
 
 const API = SEED.api
 const VENDEDOR = SEED.sellers[0].name
+
+const pestana = (page, nombre) => page.getByTestId('equipo-pantalla').getByRole('tab', { name: nombre, exact: true })
 
 async function usuarioDe(page, nombre) {
   return page.evaluate(async ({ api, nombre }) => {
@@ -22,26 +23,33 @@ async function fijarMeta(page, nombre, valor) {
   await campo.blur()
 }
 
-test('Equipo y acceso: integrantes, metas y comisiones y roles en un solo grupo (#253)', async ({ page }) => {
+test('Equipo y acceso: cada tarea en su pestaña, con integrantes, metas y roles (#253/#299)', async ({ page }) => {
   await page.goto('/configuracion/equipo')
-  await expect(page.getByRole('heading', { name: 'Integrantes' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Metas y comisiones' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Matriz de capacidades' })).toBeVisible()
 
-  // Una fila de metas por integrante activo, con cumplimiento y comisiones.
+  // Miembros: la ficha del integrante y el resumen de horario.
+  await expect(page.getByRole('heading', { name: 'Integrantes' })).toBeVisible()
+  await expect(page.getByTestId('integrante-fila').filter({ hasText: VENDEDOR }).first()).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByLabel(`Horario de ${VENDEDOR}`)).toHaveAttribute('title', /^(Horario:|Sin horario:)/)
+  await expect(page.getByRole('heading', { name: 'Metas y comisiones' })).toHaveCount(0)
+
+  // Rendimiento: metas, cumplimiento y comisiones por integrante.
+  await pestana(page, 'Rendimiento').click()
+  await expect(page.getByRole('heading', { name: 'Metas y comisiones' })).toBeVisible()
   const filas = page.getByTestId('meta-fila')
-  await expect(filas.filter({ hasText: VENDEDOR })).toBeVisible()
+  await expect(filas.filter({ hasText: VENDEDOR })).toBeVisible({ timeout: 20_000 })
   const fila = filas.filter({ hasText: VENDEDOR })
   for (const etiqueta of ['Hoy', 'Cumplimiento', 'Comisión hoy', 'Mes']) {
     await expect(fila.getByText(etiqueta, { exact: true })).toBeVisible()
   }
 
-  // El horario del integrante se resume en la propia ficha (o avisa que es libre).
-  await expect(page.getByLabel(`Horario de ${VENDEDOR}`)).toHaveAttribute('title', /^(Horario:|Sin horario:)/)
+  // Permisos: la matriz de roles.
+  await pestana(page, 'Permisos').click()
+  await expect(page.getByRole('heading', { name: 'Matriz de capacidades' })).toBeVisible()
 })
 
-test('Equipo y acceso: la meta diaria se edita en Metas y comisiones y persiste (#253)', async ({ page }) => {
+test('Equipo y acceso: la meta diaria se edita en Rendimiento y persiste (#253/#299)', async ({ page }) => {
   await page.goto('/configuracion/equipo')
+  await pestana(page, 'Rendimiento').click()
   await expect(page.getByRole('heading', { name: 'Metas y comisiones' })).toBeVisible()
 
   const previo = await usuarioDe(page, VENDEDOR)

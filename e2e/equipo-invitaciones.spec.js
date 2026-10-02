@@ -10,9 +10,15 @@ const conflicto = 'invitado.conflicto@test.local'
 
 const fila = (page, email) => page.getByTestId('invitacion-fila').filter({ hasText: email })
 
+// #299: las invitaciones del equipo viven en su propia pestaña de Equipo.
+async function abrirEquipoInvitaciones(page) {
+  await page.goto('/configuracion/equipo')
+  await page.getByTestId('equipo-pantalla').getByRole('tab', { name: 'Invitaciones', exact: true }).click()
+}
+
 test.describe('invitaciones en Configuración → Equipo', () => {
   test('el listado muestra pendientes y vencidas con autor y fechas', async ({ page }) => {
-    await page.goto('/configuracion/equipo')
+    await abrirEquipoInvitaciones(page)
     await expect(page.getByRole('heading', { name: 'Invitaciones' })).toBeVisible()
 
     const pend = fila(page, pendiente)
@@ -32,7 +38,7 @@ test.describe('invitaciones en Configuración → Equipo', () => {
   })
 
   test('una invitación vencida se puede volver a invitar desde el listado', async ({ page }) => {
-    await page.goto('/configuracion/equipo')
+    await abrirEquipoInvitaciones(page)
     await fila(page, vencida).getByRole('button', { name: 'Invitar de nuevo' }).click()
     const panel = page.locator('#equipo-form')
     await expect(panel).toBeVisible()
@@ -73,7 +79,7 @@ test.describe('invitaciones en Configuración → Equipo', () => {
       body: JSON.stringify({ deliveryState: 'sent' }),
     }))
 
-    await page.goto('/configuracion/equipo')
+    await abrirEquipoInvitaciones(page)
     const panel = page.locator('#equipo-form')
     await panel.locator('#invite-name').fill('Invitado E2E Conflicto')
     await panel.locator('#invite-email').fill(conflicto)

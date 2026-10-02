@@ -99,6 +99,8 @@ test('Datos de la tienda: Editar, Guardar persiste y la tarjeta lo refleja', asy
 
 test('Identificador de pedidos: Enter guarda y el error queda en la sección', async ({ page }) => {
   await abrirNegocio(page)
+  // #299: la numeración vive en su propia sección de Organización.
+  await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Numeración', exact: true }).click()
   const prefijo = page.getByLabel('Prefijo de pedidos')
   await expect(prefijo).not.toHaveValue('', { timeout: 20_000 })
   const numero = page.getByLabel('Número inicial de pedidos')
@@ -162,6 +164,8 @@ test('Sucursales: editar y guardar avisa Guardado', async ({ page }) => {
   await entrarComoDueno(page)
   // #IA: las sucursales viven en Organización (la ruta vieja /configuracion/sucursales redirige).
   await page.goto('/configuracion/organizacion')
+  // #299: Sucursales y depósitos es una sección propia.
+  await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Sucursales y depósitos', exact: true }).click()
   const fila = page.locator('article').filter({ hasText: SEED.branchName }).first()
   await expect(fila).toBeVisible({ timeout: 20_000 })
   await fila.getByRole('button', { name: 'Editar' }).click()
