@@ -36,6 +36,7 @@ export default function VarianteAgotadaPreview() {
       <BarraModulo
         icono="box"
         titulo="Variante agotada"
+        tituloVisible
         descripcion="El comprador propone una variante con stock; el vendedor o el cliente acepta. Si cambia el precio, la decisión pide código."
         testId="barra-a5"
       />
