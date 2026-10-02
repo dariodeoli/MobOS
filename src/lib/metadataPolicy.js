@@ -53,7 +53,10 @@ const protectedSections = {
   '/configuracion/impresion': 'Estado de impresión',
   '/configuracion/preferencias': 'Preferencias',
   '/abastecimiento': 'Por comprar',
+  // #302: faltaban las dos rutas y su título caía en «Página no encontrada».
+  '/compras-centro': 'Compras del Centro',
   '/preparacion': 'Preparar compra',
+  '/preparar-lote': 'Preparar lote',
   '/recepcion': 'Recepción',
   '/metricas': 'Métricas de abastecimiento',
   '/configuracion/sistema': 'Estado del sistema',

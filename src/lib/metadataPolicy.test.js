@@ -61,6 +61,25 @@ test('las vistas nuevas del panel tienen título propio y no se indexan', () => 
   }
 })
 
+test('las rutas de Abastecimiento tienen título propio (nunca «Página no encontrada») #302', () => {
+  const rutas = {
+    '/abastecimiento': 'Por comprar',
+    // #302: «Compras del Centro» y «Preparar lote» renderizaban su pantalla
+    // pero el título caía al aviso de página inexistente.
+    '/compras-centro': 'Compras del Centro',
+    '/preparacion': 'Preparar compra',
+    '/preparar-lote': 'Preparar lote',
+    '/recepcion': 'Recepción',
+    '/metricas': 'Métricas de abastecimiento',
+  }
+  for (const [pathname, label] of Object.entries(rutas)) {
+    const metadata = resolvePageMetadata({ pathname })
+    assert.equal(metadata.title, `${label} · MobOS`)
+    assert.equal(metadata.canonical, `https://app.moboss.online${pathname}`)
+    assert.equal(metadata.robots, 'noindex, nofollow')
+  }
+})
+
 test('configuration subpages keep their own child slug in the URL and the title', () => {
   const rutas = {
     '/configuracion': 'Configuración',
