@@ -556,9 +556,14 @@ test('configuración → sube mi foto y la quita', async ({ page }) => {
     .last()
     .setInputFiles({ name: 'yo.png', mimeType: 'image/png', buffer: png })
   await page.getByRole('button', { name: 'Usar esta foto' }).click()
-  await expect(page.getByAltText('Mi foto')).toBeVisible()
+  // #300: el único control vive junto al avatar, que es quien muestra la foto.
+  const perfil = page.getByTestId('mi-cuenta-perfil')
+  await expect(perfil.getByAltText(/^Foto de /).first()).toBeVisible({ timeout: 20_000 })
   await page.getByRole('button', { name: 'Quitar', exact: true }).last().click()
-  await expect(page.getByAltText('Mi foto')).toHaveCount(0)
+  // El control vuelve a «Subir foto»: ya no hay foto subida (si la persona
+  // tiene foto de Google, el avatar la muestra, y eso es correcto).
+  await expect(perfil.getByRole('button', { name: 'Subir foto' })).toBeVisible({ timeout: 20_000 })
+  await expect(perfil.getByRole('button', { name: 'Quitar', exact: true })).toHaveCount(0)
 })
 
 // Solicitudes comerciales: hay una sola bandeja (Stock y servicio →

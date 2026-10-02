@@ -89,25 +89,13 @@ test.describe('ocultos de plataforma', () => {
     await expect(aviso).toHaveCount(0)
   })
 
-  // (d) Selector visible para volver al diseño anterior, por dispositivo.
-  test('Preferencias permite volver al diseño anterior y lo recuerda', async ({ page }) => {
+  // (d) #300: la salida «Volver al diseño anterior» se retiró de Preferencias
+  // (exponía deuda técnica como preferencia); v2 es el único diseño visible.
+  test('Preferencias ya no ofrece volver al diseño anterior', async ({ page }) => {
     await page.goto('/configuracion/preferencias')
-    const volver = page.getByLabel('Volver al diseño anterior')
     await expect(page.getByTestId('shell')).toHaveAttribute('data-tema-v2', '1')
-    await expect(volver).not.toBeChecked()
-
-    await volver.check()
-    await expect(page.getByTestId('shell')).toHaveAttribute('data-tema-v2', '0')
-    expect(await page.evaluate(() => localStorage.getItem('mobos:tema-v2'))).toBe('0')
-
-    // El opt-out es del dispositivo: sobrevive a la recarga.
-    await page.reload()
-    await expect(page.getByLabel('Volver al diseño anterior')).toBeChecked()
-    await expect(page.getByTestId('shell')).toHaveAttribute('data-tema-v2', '0')
-
-    await page.getByLabel('Volver al diseño anterior').uncheck()
-    await expect(page.getByTestId('shell')).toHaveAttribute('data-tema-v2', '1')
-    expect(await page.evaluate(() => localStorage.getItem('mobos:tema-v2'))).toBe('1')
+    await expect(page.getByLabel('Volver al diseño anterior')).toHaveCount(0)
+    await expect(page.getByText('Volver al diseño anterior')).toHaveCount(0)
   })
 
   // Capturas del cambio, reproducibles (claro/oscuro/mobile).
@@ -133,7 +121,8 @@ test.describe('ocultos de plataforma', () => {
       await page.screenshot({ path: `${salida}/ayuda-status-${tema}-desktop.png` })
 
       await page.goto('/configuracion/preferencias')
-      await expect(page.getByLabel('Volver al diseño anterior')).toBeVisible()
+      await expect(page.getByLabel('Bloqueo por inactividad')).toBeVisible()
+      await expect(page.getByLabel('Volver al diseño anterior')).toHaveCount(0)
       await page.screenshot({ path: `${salida}/preferencias-v2-${tema}-desktop.png` })
     }
 
