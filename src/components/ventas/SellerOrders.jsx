@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useUrlState } from '@/hooks/useUrlState'
+import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import { useSesion } from '@/lib/sesion'
 import { listVentas, productosById } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { codigoPedido, fechaLegible } from '@/utils/pedido'
 import { normalizarBusqueda, nombreCortoCliente } from '@/utils/cliente'
-import { Button, EmptyState } from '@/components/ui'
+import { Button, Drawer, EmptyState } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import SerialTexto from '@/components/shared/SerialTexto'
 import { ultimos4 } from '@/utils/serial'
@@ -32,7 +33,9 @@ export const orderFields = (row) => {
   return {
     id: row.id, sellerId: row.sellerId ?? row.vendedorId,
     sellerName: row.seller?.name || row.vendedor || '',
-    number: row.orderNumber || row.codigo || row.id,
+    // #313: al listado solo viaja un código humano (orderNumber/codigo de la
+    // orden). Antes caía al id interno y la fila mostraba «demo-ven…».
+    number: row.orderNumber || row.codigo || '',
     customer: row.customer?.name || row.cliente || 'Sin cliente',
     customerId: row.customerId || row.clienteId || null,
     date: row.createdAt || row.creadoEn || row.fecha,
@@ -143,17 +146,30 @@ const ACENTO_PAGO = (row) => {
   return 'border-l-bad/60'
 }
 
-function FilaPedido({ row, onClick, onAcciones, v2 }) {
+function FilaPedido({ row, onClick, onAcciones, v2, angosta = false }) {
   const cancelado = estaCancelado(row)
   const tachado = cancelado ? 'line-through decoration-bad/70' : ''
   const ultimo = row.seriales.length ? String(row.seriales[row.seriales.length - 1]) : ''
   const articulos = vistaArticulos(row)
+  const total = Number.isFinite(Number(row.total)) ? gs(row.total) : '—'
+  const codigo = codigoPedido(row.number) || 'Pedido'
+  const accionVistaRapida = onAcciones && (
+    <button
+      type="button"
+      onClick={(event) => { event.stopPropagation(); onAcciones() }}
+      title="Vista rápida (panel)"
+      aria-label={`Vista rápida de ${codigoPedido(row.number) || 'sin número'}`}
+      className="grid h-11 w-11 place-items-center rounded-lg border border-ink-500 text-mute transition hover:border-fono hover:text-fore md:h-7 md:w-7"
+    >
+      <Icon name="eye" className="h-3.5 w-3.5" />
+    </button>
+  )
   return (
     <div
       role="button"
       tabIndex={0}
       data-testid="pedido-fila"
-      aria-label={`Abrir pedido ${codigoPedido(row.number)}`}
+      aria-label={`Abrir pedido ${codigoPedido(row.number) || 'sin número'}`}
       onClick={onClick}
       onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick?.() } }}
       className={cn(
@@ -162,59 +178,130 @@ function FilaPedido({ row, onClick, onAcciones, v2 }) {
         estaCompletado(row) && !cancelado && 'opacity-70 hover:opacity-100',
       )}
     >
-      <div className={GRID}>
-        <span className={cn('truncate font-mono text-xs font-bold text-fono-light', tachado)} title={row.number}>{codigoPedido(row.number)}</span>
-        <span className={cn(CELDA_DATO, tachado)}>{fechaLegible(row.date)}</span>
-        <span className="flex min-w-0 items-center gap-1">
-          <span className={cn(CELDA_IDENTIDAD, tachado)} title={row.customer}>{nombreCortoCliente(row.customer)}</span>
-          {row.isSpecialOrder && (
-            <span
-              className={cn('shrink-0 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-warn', v2 && 'v2-chip')}
-              title={row.expectedAt && !Number.isNaN(Date.parse(row.expectedAt)) ? `Pedido especial · esperado ${new Date(row.expectedAt).toLocaleDateString('es-PY')}` : 'Pedido especial'}
-            >
-              Especial
-            </span>
-          )}
-          {row.offlineSyncedAt && (
-            <span
-              className={cn('shrink-0 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-warn', v2 && 'v2-chip')}
-              title={`Venta cargada sin conexión el ${new Date(row.offlineSyncedAt).toLocaleString('es-PY')}: revisá el stock`}
-            >
-              Offline
-            </span>
-          )}
-        </span>
-        <span className={cn(CELDA_DATO, tachado)} title={articulos.completo || undefined}>
-          {articulos.texto || '—'}
-          {articulos.extra > 0 && <span className="ml-1 font-semibold text-fono-light">+{articulos.extra}</span>}
-        </span>
-        <CeldaSerial serial={ultimo} />
-        <span className={cn('text-xs font-semibold tabular-nums', tachado)}>×{row.quantity || 1}</span>
-        <span className={cn(CELDA_DATO, tachado)}>{ENTREGA[row.deliveryType] || row.deliveryType || 'Retiro'}</span>
-        <BadgePago row={row} v2={v2} />
-        <BadgeEstado row={row} v2={v2} />
-        {/* La info financiera no se tacha ni en los pedidos cancelados: el
-            importe sigue siendo el dato que se necesita ver. */}
-        <span className="truncate text-right text-[13px] font-bold tabular-nums text-fore">
-          {Number.isFinite(Number(row.total)) ? gs(row.total) : '—'}
-        </span>
-        {/* Vista rápida: es la última columna de la grilla, así queda alineada
-            con su encabezado y no pisa el total. */}
-        <span className="grid place-items-center">
-          {onAcciones && (
-            <button
-              type="button"
-              onClick={(event) => { event.stopPropagation(); onAcciones() }}
-              title="Vista rápida (panel)"
-              aria-label={`Vista rápida de ${codigoPedido(row.number)}`}
-              className="grid h-7 w-7 place-items-center rounded-lg border border-ink-500 text-mute transition hover:border-fono hover:text-fore"
-            >
-              <Icon name="eye" className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </span>
-      </div>
+      {angosta ? (
+        // #313 · móvil: tarjeta en una sola columna (nada de tabla comprimida).
+        <div>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className={cn('truncate font-mono text-xs font-bold text-fono-light', tachado)}>{codigo}</span>
+                {row.isSpecialOrder && (
+                  <span className={cn('shrink-0 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-warn', v2 && 'v2-chip')}>Especial</span>
+                )}
+                {row.offlineSyncedAt && (
+                  <span className={cn('shrink-0 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-warn', v2 && 'v2-chip')}>Offline</span>
+                )}
+              </div>
+              <p className={cn('mt-1', CELDA_IDENTIDAD, tachado)} title={row.customer}>{nombreCortoCliente(row.customer)}</p>
+              <p className={cn('mt-0.5', CELDA_DATO, tachado)} title={articulos.completo || undefined}>
+                {articulos.texto || 'Sin artículos'}
+                {articulos.extra > 0 && <span className="ml-1 font-semibold text-fono-light">+{articulos.extra}</span>}
+              </p>
+              <p className={cn('mt-1 text-[11px] text-mute', tachado)}>
+                {fechaLegible(row.date)} · {ENTREGA[row.deliveryType] || row.deliveryType || 'Retiro'} · ×{row.quantity || 1}
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-1.5">
+              <span className="truncate text-sm font-bold tabular-nums text-fore">{total}</span>
+              <BadgePago row={row} v2={v2} />
+              <BadgeEstado row={row} v2={v2} />
+            </div>
+          </div>
+          <div className="mt-1.5 flex items-center justify-between gap-2">
+            <span className="min-w-0 truncate">{ultimo && <CeldaSerial serial={ultimo} />}</span>
+            {accionVistaRapida}
+          </div>
+        </div>
+      ) : (
+        <div className={GRID}>
+          <span className={cn('truncate font-mono text-xs font-bold text-fono-light', tachado)} title={row.number}>{codigo}</span>
+          <span className={cn(CELDA_DATO, tachado)}>{fechaLegible(row.date)}</span>
+          <span className="flex min-w-0 items-center gap-1">
+            <span className={cn(CELDA_IDENTIDAD, tachado)} title={row.customer}>{nombreCortoCliente(row.customer)}</span>
+            {row.isSpecialOrder && (
+              <span
+                className={cn('shrink-0 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-warn', v2 && 'v2-chip')}
+                title={row.expectedAt && !Number.isNaN(Date.parse(row.expectedAt)) ? `Pedido especial · esperado ${new Date(row.expectedAt).toLocaleDateString('es-PY')}` : 'Pedido especial'}
+              >
+                Especial
+              </span>
+            )}
+            {row.offlineSyncedAt && (
+              <span
+                className={cn('shrink-0 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-warn', v2 && 'v2-chip')}
+                title={`Venta cargada sin conexión el ${new Date(row.offlineSyncedAt).toLocaleString('es-PY')}: revisá el stock`}
+              >
+                Offline
+              </span>
+            )}
+          </span>
+          <span className={cn(CELDA_DATO, tachado)} title={articulos.completo || undefined}>
+            {articulos.texto || '—'}
+            {articulos.extra > 0 && <span className="ml-1 font-semibold text-fono-light">+{articulos.extra}</span>}
+          </span>
+          <CeldaSerial serial={ultimo} />
+          <span className={cn('text-xs font-semibold tabular-nums', tachado)}>×{row.quantity || 1}</span>
+          <span className={cn(CELDA_DATO, tachado)}>{ENTREGA[row.deliveryType] || row.deliveryType || 'Retiro'}</span>
+          <BadgePago row={row} v2={v2} />
+          <BadgeEstado row={row} v2={v2} />
+          {/* La info financiera no se tacha ni en los pedidos cancelados: el
+              importe sigue siendo el dato que se necesita ver. */}
+          <span className="truncate text-right text-[13px] font-bold tabular-nums text-fore">
+            {total}
+          </span>
+          {/* Vista rápida: es la última columna de la grilla, así queda alineada
+              con su encabezado y no pisa el total. */}
+          <span className="grid place-items-center">{accionVistaRapida}</span>
+        </div>
+      )}
     </div>
+  )
+}
+
+// Fila etiqueta/valor del panel rápido: montos y datos alineados a la derecha.
+function FilaResumen({ etiqueta, children, tono = '' }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 text-sm">
+      <dt className="shrink-0 text-mute">{etiqueta}</dt>
+      <dd className={cn('min-w-0 truncate text-right font-semibold tabular-nums', tono)}>{children}</dd>
+    </div>
+  )
+}
+
+// #313: la vista rápida del listado ya no repite el detalle completo. Muestra
+// el resumen del pedido (cliente, artículos y totales) y deriva a la página
+// exclusiva, donde viven la impresión, los cobros y la cronología.
+function VistaRapidaPedido({ row, onClose, onAbrir }) {
+  const articulos = vistaArticulos(row)
+  const total = Number(row.total || 0)
+  const pagado = Number(row.paid || 0)
+  const pendiente = Number(row.pending || 0)
+  return (
+    <Drawer open onClose={onClose} title={codigoPedido(row.number) || 'Pedido'} className="w-full sm:max-w-md">
+      <div className="space-y-4" data-testid="pedido-vista-rapida">
+        <div className="flex flex-wrap items-center gap-2">
+          <BadgePago row={row} v2 />
+          <BadgeEstado row={row} v2 />
+        </div>
+        <dl className="space-y-2 rounded-xl border border-ink-600 bg-ink-800/40 p-3">
+          <FilaResumen etiqueta="Cliente">{nombreCortoCliente(row.customer)}</FilaResumen>
+          <FilaResumen etiqueta="Fecha">{fechaLegible(row.date)}</FilaResumen>
+          <FilaResumen etiqueta="Artículos">
+            {articulos.texto || 'Sin artículos'}{articulos.extra > 0 ? ` +${articulos.extra}` : ''}
+          </FilaResumen>
+          <FilaResumen etiqueta="Entrega">{ENTREGA[row.deliveryType] || row.deliveryType || 'Retiro'}</FilaResumen>
+          {row.sellerName && <FilaResumen etiqueta="Vendedor">{row.sellerName}</FilaResumen>}
+        </dl>
+        <dl className="space-y-2 rounded-xl border border-ink-600 bg-ink-800/40 p-3">
+          <FilaResumen etiqueta="Total">{Number.isFinite(total) ? gs(total) : '—'}</FilaResumen>
+          <FilaResumen etiqueta="Pagado" tono="text-ok">{gs(pagado)}</FilaResumen>
+          <FilaResumen etiqueta="Saldo" tono={pendiente > 0 ? 'text-warn' : ''}>{gs(pendiente)}</FilaResumen>
+        </dl>
+        <div className="flex flex-wrap justify-end border-t border-ink-600 pt-3">
+          <Button type="button" onClick={onAbrir}>Ver pedido completo</Button>
+        </div>
+      </div>
+    </Drawer>
   )
 }
 
@@ -298,6 +385,8 @@ export default function SellerOrders() {
   // Vista previa v2 (#241): resumen de la lista en tiles (activos, por cobrar y
   // en reparto) con los números de consola. Se apaga solo con el flag.
   const v2 = temaV2Activo()
+  // #313: en móvil la lista se muestra como tarjetas (no tabla comprimida).
+  const angosta = usePantallaAngosta('(min-width: 768px)')
   const resumen = useMemo(() => rows.reduce((acumulado, row) => {
     const activo = !estaCompletado(row) && !estaCancelado(row)
     const enReparto = ['READY_TO_SHIP', 'SHIPPED', 'IN_TRANSIT'].includes(row.fulfillmentStatus)
@@ -380,7 +469,12 @@ export default function SellerOrders() {
       />
     )}
     <SellerFeedback {...data} empty={!rows.length} />
-    {!data.loading && !data.error && (
+    {!data.loading && !data.error && (angosta ? (
+      // #313 · móvil: una tarjeta por pedido, sin tabla comprimida.
+      <div className="space-y-2" data-testid="pedidos-tabla">
+        {rows.map((row) => <FilaPedido key={row.id} row={row} v2={v2} angosta onClick={() => abrirPedido(row)} onAcciones={() => setPedidoPanel(row)} />)}
+      </div>
+    ) : (
       <div className="overflow-x-auto" data-testid="pedidos-tabla">
         <div className={cn(GRID, 'px-2.5 pb-0.5 pt-1')}>
           {encabezado('number', 'Pedido')}
@@ -397,16 +491,13 @@ export default function SellerOrders() {
         </div>
         <div className="space-y-1">{rows.map((row) => <FilaPedido key={row.id} row={row} v2={v2} onClick={() => abrirPedido(row)} onAcciones={() => setPedidoPanel(row)} />)}</div>
       </div>
-    )}
+    ))}
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="min-h-11 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60 md:min-h-0">{data.cargandoMas ? 'Cargando…' : 'Cargar más pedidos'}</button></div>}
     {pedidoPanel && !detalleAbierto && (
-      <PedidoDetalle
-        key={pedidoPanel.id}
+      <VistaRapidaPedido
         row={pedidoPanel}
-        esDemo={esDemo}
-        customerOrderCount={pedidoPanel.customerId ? porCliente[pedidoPanel.customerId] || 0 : 0}
         onClose={() => setPedidoPanel(null)}
-        onChanged={() => { data.refresh(); setPedidoPanel(null) }}
+        onAbrir={() => { const seleccionado = pedidoPanel; setPedidoPanel(null); abrirPedido(seleccionado) }}
       />
     )}
   </SellerSection>

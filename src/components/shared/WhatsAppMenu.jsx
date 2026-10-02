@@ -28,6 +28,9 @@ export default function WhatsAppMenu({
   title,
   preferKey = '',
   className,
+  // #313: `items` muestra dos opciones de menú con etiqueta (para el «…» de la
+  // fila); `iconos` (default) mantiene el par de botones de siempre.
+  variant = 'iconos',
 }) {
   const { sesion, empresa, sucursal } = useSesion()
   const [abierto, setAbierto] = useState(false)
@@ -143,28 +146,58 @@ export default function WhatsAppMenu({
   if (!telefono) return null
 
   return (
-    <span ref={caja} className={cn('relative inline-flex items-center', className)}>
-      <button
-        type="button"
-        disabled={disabled || enviando}
-        aria-label={title ? `Enviar WhatsApp a ${title}` : 'Enviar WhatsApp'}
-        title={disabled ? 'No disponible' : 'Abrir WhatsApp con la última plantilla'}
-        onClick={(event) => { event.stopPropagation(); abrirDirecto() }}
-        className={cn('grid h-11 w-11 place-items-center rounded-lg transition', disabled || enviando ? 'cursor-not-allowed text-mute' : 'text-ok hover:bg-ok/10')}
-      >
-        <Icon name="send" className="h-4 w-4" />
-      </button>
-      <button
-        type="button"
-        disabled={disabled || enviando}
-        aria-label={title ? `Elegir plantilla de WhatsApp para ${title}` : 'Elegir plantilla de WhatsApp'}
-        aria-expanded={abierto}
-        title="Elegir plantilla, editar y previsualizar"
-        onClick={(event) => { event.stopPropagation(); setAbierto((current) => !current) }}
-        className={cn('grid h-11 w-11 place-items-center rounded transition', disabled || enviando ? 'cursor-not-allowed text-mute' : 'text-mute hover:text-ok')}
-      >
-        <Icon name="chevron" className="h-3 w-3" />
-      </button>
+    <span ref={caja} className={cn(variant === 'items' ? 'relative block' : 'relative inline-flex items-center', className)}>
+      {variant === 'items' ? (
+        <>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={disabled || enviando}
+            aria-label={title ? `Enviar WhatsApp a ${title}` : 'Enviar WhatsApp'}
+            onClick={(event) => { event.stopPropagation(); abrirDirecto() }}
+            className="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-fore transition hover:bg-ink-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Icon name="send" className="h-3.5 w-3.5 shrink-0 text-ok" />
+            Enviar WhatsApp
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={disabled || enviando}
+            aria-label={title ? `Elegir plantilla de WhatsApp para ${title}` : 'Elegir plantilla de WhatsApp'}
+            aria-expanded={abierto}
+            onClick={(event) => { event.stopPropagation(); setAbierto((current) => !current) }}
+            className="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-fore transition hover:bg-ink-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Icon name="edit" className="h-3.5 w-3.5 shrink-0 text-mute" />
+            Elegir plantilla…
+          </button>
+        </>
+      ) : (
+        <>
+          <button
+            type="button"
+            disabled={disabled || enviando}
+            aria-label={title ? `Enviar WhatsApp a ${title}` : 'Enviar WhatsApp'}
+            title={disabled ? 'No disponible' : 'Abrir WhatsApp con la última plantilla'}
+            onClick={(event) => { event.stopPropagation(); abrirDirecto() }}
+            className={cn('grid h-11 w-11 place-items-center rounded-lg transition', disabled || enviando ? 'cursor-not-allowed text-mute' : 'text-ok hover:bg-ok/10')}
+          >
+            <Icon name="send" className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            disabled={disabled || enviando}
+            aria-label={title ? `Elegir plantilla de WhatsApp para ${title}` : 'Elegir plantilla de WhatsApp'}
+            aria-expanded={abierto}
+            title="Elegir plantilla, editar y previsualizar"
+            onClick={(event) => { event.stopPropagation(); setAbierto((current) => !current) }}
+            className={cn('grid h-11 w-11 place-items-center rounded transition', disabled || enviando ? 'cursor-not-allowed text-mute' : 'text-mute hover:text-ok')}
+          >
+            <Icon name="chevron" className="h-3 w-3" />
+          </button>
+        </>
+      )}
       {abierto && (
         <div className="absolute right-0 top-full z-30 mt-1 w-80 rounded-xl border border-ink-500 bg-paper p-2 text-left shadow-xl" onClick={(event) => event.stopPropagation()} role="dialog" aria-label="Plantillas de WhatsApp">
           <p className={cn('px-2 py-1', ROTULO_DATO)}>Plantilla de WhatsApp</p>

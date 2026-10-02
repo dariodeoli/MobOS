@@ -13,6 +13,7 @@ import { num } from '@/utils/calculos'
 import { APP_NAME } from '@/lib/brand'
 import { api } from '@/lib/api'
 import { isDemoRuntime } from './demoMode'
+import { tomarNumeroPedidoDemo } from './demoTenant.js'
 import { marcarUnidadesVendidasDemo, listDemoUnits } from './demoInventory.js'
 import { guardarDemo } from './demoStorage.js'
 import { MEDIOS_PAGO } from './catalog'
@@ -922,10 +923,18 @@ export function prepararDatosDemo() {
     // idempotente: solo toca los que no tienen SKU.
     cache.productos = cache.productos.map(item => (item.sku ? item : { ...item, sku: skuDemo(item.id) }))
   }
+  if (version < 7) {
+    // #313: los pedidos demo sin número humano mostraban el id interno truncado
+    // (demo-venta-…). Se numera una sola vez con el mismo contador del POS
+    // (#275) para que la lista y el detalle muestren AUR-#0001 y siguientes.
+    cache.ventas = cache.ventas.map(venta => (venta.orderNumber || venta.numero)
+      ? venta
+      : { ...venta, orderNumber: tomarNumeroPedidoDemo() })
+  }
   cache.config = {
     ...cache.config,
     nombreTienda: cache.config.nombreTienda || 'Aurora Móviles',
-    demoSeedVersion: 6,
+    demoSeedVersion: 7,
   }
   persistMirror()
   notify()
@@ -1001,6 +1010,9 @@ export function addVenta(venta) {
     comision: num(prod?.comision),
     ...venta,
   }
+  // #313: toda venta demo tiene número humano (AUR-#0001): sin esto, la lista
+  // de Pedidos caía al id interno y lo mostraba truncado.
+  nueva.orderNumber = nueva.orderNumber || nueva.numero || tomarNumeroPedidoDemo()
   const pagos = Array.isArray(venta.pagos) ? venta.pagos : []
   nueva.pagos = pagos.map(p => ({
     ...p,
