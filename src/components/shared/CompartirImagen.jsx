@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, useToast } from '@/components/ui'
+import { Button, useResultado, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { anchoImagen, compartirArchivo, copiarImagen, documentoAPng, nombreImagenDocumento, puedeCompartirArchivo } from '@/lib/printing/compartirDocumento'
 import { descargarArchivo } from '@/utils/descargarArchivo'
@@ -22,6 +22,7 @@ export default function CompartirImagen({
   onResult,
 }) {
   const toast = useToast()
+  const avisar = useResultado()
   const [generando, setGenerando] = useState('')
 
   async function conImagen(accion) {
@@ -72,7 +73,7 @@ export default function CompartirImagen({
 
   const copiar = () => conImagen(async (imagen) => {
     if (await copiarImagen(imagen.blob, globalThis)) {
-      toast.success('Imagen copiada', 'Pegala en el chat o donde la necesites.')
+      avisar.copiado('Imagen', 'Pegala en el chat o donde la necesites.')
       onResult?.('copiado')
     } else {
       toast.info('No se pudo copiar la imagen', 'Usá «PNG» para descargarla.')
