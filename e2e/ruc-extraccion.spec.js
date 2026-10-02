@@ -118,8 +118,9 @@ test('Config: RUC del negocio', async ({ page }) => {
   // #IA: Negocio pasó a Organización (la ruta vieja redirige igual).
   await page.goto('/configuracion/negocio')
   await expect(page.locator('h1')).toHaveText('Organización')
-  // El negocio carga async y rellena el formulario: si se llena antes, la
-  // carga pisa el valor. Se espera a que el nombre cargado esté presente.
+  // #298: la tarjeta de Datos de la tienda arranca en lectura; «Editar» abre el
+  // formulario y recién ahí se llena con lo guardado.
+  await page.getByTestId('datos-tienda-editar').click()
   await expect(page.locator('#edit-nombre')).not.toHaveValue('', { timeout: 20000 })
   const ruc = page.locator('#edit-ruc')
   const raiz = ruc.locator('xpath=../..')
