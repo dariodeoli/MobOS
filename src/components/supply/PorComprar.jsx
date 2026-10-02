@@ -337,7 +337,7 @@ export default function PorComprar() {
       </div>
 
       {seleccionadas.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fono/40 bg-fono/10 px-3 py-2 text-sm">
+        <div data-testid="seleccion-lote" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fono/40 bg-fono/10 px-3 py-2 text-sm">
           <span className="font-semibold">{seleccionadas.length} grupo{seleccionadas.length === 1 ? '' : 's'} seleccionado{seleccionadas.length === 1 ? '' : 's'}</span>
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" variant="outline" onClick={() => setSeleccion([])}>Limpiar</Button>

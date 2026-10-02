@@ -186,14 +186,16 @@ test('Por comprar: asignación en bloque de varios grupos', async ({ page }) => 
   for (const producto of [productoA, productoB]) {
     await page.getByLabel(`Seleccionar ${producto.name}`).check()
   }
-  await expect(page.getByText('2 grupos seleccionados')).toBeVisible()
+  await expect(page.getByTestId('seleccion-lote')).toContainText('2 grupos seleccionados')
   await page.getByRole('button', { name: 'Asignar seleccionados' }).click()
   const dialogo = page.getByRole('dialog')
   await expect(dialogo.getByText('2 grupos seleccionados')).toBeVisible()
   await dialogo.locator('#comprador').selectOption(await dialogo.locator('#comprador option').nth(1).getAttribute('value'))
   await dialogo.getByRole('button', { name: 'Asignar', exact: true }).click()
   await expect(page.getByText('Compra asignada')).toBeVisible()
-  await expect(page.getByText('2 grupos seleccionados')).toHaveCount(0)
+  // La barra de selección se vacía (el toast repite la etiqueta y no debe
+  // confundir la aserción).
+  await expect(page.getByTestId('seleccion-lote')).toHaveCount(0)
 
   await page.getByRole('tab', { name: /^Asignadas/ }).click()
   for (const producto of [productoA, productoB]) {
