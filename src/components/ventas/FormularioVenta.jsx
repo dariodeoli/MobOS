@@ -56,6 +56,7 @@ import ColaOffline from './ColaOffline'
 import AnalyticsPos from './AnalyticsPos'
 import GiftCardsPos from './venta/GiftCardsPos'
 import { buscarGiftCardDemo, canjearGiftCardDemo, normalizarCodigoGiftCard } from '@/lib/giftCards'
+import { puedeCanjearGiftCard } from '@/lib/validacionGlobal'
 import { whatsappTrackingLink } from './PagosPedido'
 import { telefonoValido, MENSAJE_TELEFONO, whatsappUrl } from '@/utils/telefono'
 import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
@@ -1400,7 +1401,8 @@ export default function FormularioVenta({
   // legacy se precarga tal cual; con cuentas, el monto lo propone la cuenta al
   // elegirla (PaymentAccountFields conoce el pendiente).
   function agregarPago(prefill = {}) {
-    if (!cuentas) return
+    // #297: sin total por cobrar no se carga un pago.
+    if (!cuentas || totalGeneral <= 0) return
     setPagos(arr => [
       ...arr,
       usaCuentas
@@ -1415,7 +1417,8 @@ export default function FormularioVenta({
   // Gift card (#280): fila de cobro propia. El código se consulta contra el
   // saldo y el monto se propone con lo que falta pagar (nunca más que el saldo).
   function agregarGiftCard() {
-    if (!cuentas) return
+    // #297: canjear con total Gs 0 o sin saldo pendiente no tiene sentido.
+    if (!cuentas || !puedeCanjearGiftCard({ cantTotal, totalGeneral, pendiente })) return
     setPagos(arr => [
       ...arr,
       { ...PAGO_VACIO, giftCardCode: '', giftCard: null, monto: pendiente > 0 ? '' : '' },
@@ -1439,7 +1442,7 @@ export default function FormularioVenta({
             ...pago,
             giftCardCode: codigo,
             giftCard: tarjeta,
-            monto: String(Math.max(0, Math.min(saldo, pendiente > 0 ? pendiente : saldo) || 0)),
+            monto: String(Math.max(0, Math.min(saldo, pendiente > 0 ? pendiente : totalGeneral) || 0)),
           }
         : pago)))
     } catch (cause) {

@@ -13,7 +13,7 @@ import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { loadDemoPurchases, createDemoPurchase, receiveDemoPurchase, updateDemoPurchaseCosts } from '@/lib/demoPurchases'
 import { gs } from '@/utils/calculos'
-import { Aviso, Badge, BarraProgreso, Button, Drawer, EmptyState, IconAction, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import { Aviso, Badge, BarraProgreso, Button, Drawer, EmptyState, FormField, IconAction, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import { useSesion } from '@/lib/sesion'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import SearchField from '@/components/shared/SearchField'
@@ -28,6 +28,8 @@ import CurrencySelect from '@/components/shared/CurrencySelect'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import { cn } from '@/lib/utils'
 import { temaV2Activo } from '@/lib/temaV2'
+import useValidacionFormulario from '@/hooks/useValidacionFormulario'
+import { ETIQUETAS_COMPRA, errorLineaCompra, reglasCompra, valoresCompra } from '@/lib/validacionGlobal'
 import { normalizarBusqueda } from '@/utils/cliente'
 
 // Tabla compacta: una fila por compra y el detalle de líneas se despliega en
@@ -93,26 +95,27 @@ const SUPPLIER_FIELDS = [
   ['notes', 'Notas'],
 ]
 
-function ProductLine({ products, line, index = 0, currency, onChange, onSelectProduct, onCreateProduct, canRemove, onRemove }) {
+function ProductLine({ products, line, index = 0, currency, onChange, onSelectProduct, onCreateProduct, canRemove, onRemove, onTouch, error = '' }) {
   const sufijo = `compra-linea-${index}`
   return <div className="grid gap-2 rounded-xl border border-ink-600/70 p-3 sm:grid-cols-[minmax(0,1.6fr)_5.5rem_8rem_minmax(0,1fr)_auto] sm:items-end">
     <div className="min-w-0" role="group" aria-label="Producto">
       <Label>Producto</Label>
-      <ProductCombobox products={products} selectedId={line.productId} onSelect={onSelectProduct} onCreate={onCreateProduct} placeholder="Buscar producto…" />
+      <ProductCombobox products={products} selectedId={line.productId} onSelect={(product) => { onTouch?.(); onSelectProduct(product) }} onCreate={onCreateProduct} placeholder="Buscar producto…" />
     </div>
     <div>
       <Label htmlFor={`${sufijo}-cantidad`}>Cantidad</Label>
-      <Input id={`${sufijo}-cantidad`} inputMode="numeric" value={line.quantity} onChange={(e) => onChange({ ...line, quantity: e.target.value.replace(/\D/g, '') })} placeholder="Cant." />
+      <Input id={`${sufijo}-cantidad`} inputMode="numeric" value={line.quantity} onChange={(e) => onChange({ ...line, quantity: e.target.value.replace(/\D/g, '') })} onBlur={onTouch} placeholder="Cant." />
     </div>
     <div>
       <Label htmlFor={`${sufijo}-costo`}>Costo unitario</Label>
-      <MoneyInput id={`${sufijo}-costo`} currency={currency} value={line.unitCostPyg} onValueChange={(value) => onChange({ ...line, unitCostPyg: value })} placeholder="Costo" />
+      <MoneyInput id={`${sufijo}-costo`} currency={currency} value={line.unitCostPyg} onValueChange={(value) => onChange({ ...line, unitCostPyg: value })} onBlur={onTouch} placeholder="Costo" />
     </div>
     <div>
       <Label htmlFor={`${sufijo}-lote`}>Lote / referencia</Label>
       <Input id={`${sufijo}-lote`} value={line.lotReference} onChange={(e) => onChange({ ...line, lotReference: e.target.value })} placeholder="Lote o referencia" />
     </div>
     {canRemove && <Button type="button" variant="ghost" aria-label={`Quitar línea ${index + 1}`} onClick={onRemove}>×</Button>}
+    {error && <p role="alert" className="text-xs font-semibold text-bad sm:col-span-full">{error}</p>}
   </div>
 }
 
@@ -209,6 +212,13 @@ export default function Compras() {
     : proveedorSeleccionado ? { supplierId: proveedorSeleccionado.id, supplierName: proveedorSeleccionado.name } : null
   const requiereCompraAuth = Boolean(creditEnabled && !esAdmin && estimatedTotal > limiteCredito && proveedorAuth?.supplierName)
   useEffect(() => { if (!requiereCompraAuth) setCompraAuth(null) }, [requiereCompraAuth])
+  // #297: sin proveedor, cotización, líneas completas y autorización (cuando
+  // corresponde) no se crea la compra. El submit revalida con las mismas reglas.
+  const control = useValidacionFormulario(
+    valoresCompra({ supplierId, newSupplier, suppliers, currency, exchangeRatePyg, lines, requiereAuth: requiereCompraAuth, compraAuth }),
+    reglasCompra({ currency, lines }),
+    ETIQUETAS_COMPRA,
+  )
   const updateLine = (index, value) => setLines(items => items.map((item, itemIndex) => itemIndex === index ? value : item))
   useEffect(() => { if (!branchTouched.current) setBranchId(sucursal?.id || '') }, [sucursal])
   const rate = currency === 'PYG' ? 1 : Number(exchangeRatePyg)
@@ -235,12 +245,8 @@ export default function Compras() {
 
   async function create(e) {
     e.preventDefault(); setError(''); setMessage('')
-    const rateValid = currency === 'PYG' || (Number.isFinite(Number(exchangeRatePyg)) && Number(exchangeRatePyg) > 0)
-    const costValid = (value) => (currency === 'PYG' ? Number.isSafeInteger(Number(value)) && Number(value) >= 0 : Number.isFinite(Number(value)) && Number(value) >= 0)
-    const linesValid = lines.length && rateValid && lines.every(line => line.productId && Number.isSafeInteger(Number(line.quantity)) && Number(line.quantity) > 0 && costValid(line.unitCostPyg))
-    const supplierValid = supplierId === 'new' ? Boolean(newSupplier.name.trim()) : suppliers.some(item => item.id === supplierId)
-    if (!linesValid || !supplierValid) return setError(!rateValid ? 'Indicá la cotización PYG de la compra.' : 'Indicá proveedor y completá cada línea con producto, cantidad y costo.')
-    if (requiereCompraAuth && !compraAuth) return setError('La compra a crédito supera el límite sin autorización. Solicitá autorización a gerencia y esperá la aprobación.')
+    // #297: submit inválido bloqueado (proveedor, cotización, líneas y auth).
+    if (!control.intentar().valido) return
     setBusy(true)
     try {
       let finalSupplierId = supplierId
@@ -472,7 +478,7 @@ export default function Compras() {
       descripcion="Anticipos, crédito y costos finales auditables por equipo o lote."
       testId="barra-compras"
     >
-      <Button type="button" onClick={() => { setError(''); setMessage(''); setNuevaCompra(true) }}><Icon name="plus" className="h-4 w-4" />Nueva compra</Button>
+      <Button type="button" onClick={() => { setError(''); setMessage(''); control.limpiar(); setNuevaCompra(true) }}><Icon name="plus" className="h-4 w-4" />Nueva compra</Button>
       {!demo && <Button type="button" variant="outline" onClick={exportar} disabled={exportando}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}
       <Button type="button" variant="outline" onClick={() => setSuppliersOpen(true)}>Proveedores</Button>
     </BarraModulo>
@@ -486,17 +492,18 @@ export default function Compras() {
       <form onSubmit={create} className="space-y-4">
         <div className={GRILLA_DOS_COLUMNAS_COMPACTA}>
           <div>
-            <Label htmlFor="compra-proveedor">Proveedor</Label>
-            <SupplierCombobox
-              id="compra-proveedor"
-              ariaLabel="Proveedor"
-              proveedores={suppliers}
-              value={supplierId === 'new' ? newSupplier.name : supplierId}
-              recientes={recientesProveedores}
-              onSelect={(proveedor) => { setSupplierId(proveedor.id); setNewSupplier(s => ({ ...s, name: '' })); setRecientesProveedores(recordarProveedorReciente(empresa?.id, proveedor.id)) }}
-              onLibre={(texto) => { setSupplierId('new'); setNewSupplier(s => ({ ...s, name: texto })) }}
-              etiquetaNuevo="＋ Crear"
-            />
+            <FormField label="Proveedor" htmlFor="compra-proveedor" error={supplierId === 'new' ? '' : control.errorDe('proveedor')}>
+              <SupplierCombobox
+                id="compra-proveedor"
+                ariaLabel="Proveedor"
+                proveedores={suppliers}
+                value={supplierId === 'new' ? newSupplier.name : supplierId}
+                recientes={recientesProveedores}
+                onSelect={(proveedor) => { setSupplierId(proveedor.id); setNewSupplier(s => ({ ...s, name: '' })); setRecientesProveedores(recordarProveedorReciente(empresa?.id, proveedor.id)) }}
+                onLibre={(texto) => { setSupplierId('new'); setNewSupplier(s => ({ ...s, name: texto })) }}
+                etiquetaNuevo="＋ Crear"
+              />
+            </FormField>
           </div>
           <div>
             <Label htmlFor="compra-sucursal">Sucursal de recepción</Label>
@@ -509,8 +516,9 @@ export default function Compras() {
             <p className={ROTULO_SECCION}>Proveedor nuevo</p>
             <div className={GRILLA_DOS_COLUMNAS_COMPACTA}>
               <div>
-                <Label htmlFor="compra-proveedor-nombre">Nombre</Label>
-                <Input id="compra-proveedor-nombre" required value={newSupplier.name} onChange={(e) => setNewSupplier(s => ({ ...s, name: e.target.value }))} placeholder="Nombre del proveedor" />
+                <FormField label="Nombre" htmlFor="compra-proveedor-nombre" error={supplierId === 'new' ? control.errorDe('proveedor') : ''}>
+                  <Input id="compra-proveedor-nombre" value={newSupplier.name} onChange={(e) => setNewSupplier(s => ({ ...s, name: e.target.value }))} onBlur={control.alSalir('proveedor')} placeholder="Nombre del proveedor" />
+                </FormField>
               </div>
               <div>
                 <Label htmlFor="compra-proveedor-telefono">Teléfono (opcional)</Label>
@@ -530,7 +538,7 @@ export default function Compras() {
         )}
         <div className="space-y-2">
           <p className={ROTULO_SECCION}>Productos y lotes</p>
-          {lines.map((line, index) => <ProductLine key={index} index={index} products={products} line={line} currency={currency} onChange={(value) => updateLine(index, value)} onSelectProduct={(product) => chooseProduct(index, product)} onCreateProduct={(texto) => createProduct(texto, index)} canRemove={lines.length > 1} onRemove={() => setLines(items => items.filter((_, itemIndex) => itemIndex !== index))} />)}
+          {lines.map((line, index) => <ProductLine key={index} index={index} products={products} line={line} currency={currency} error={control.mostrarResumen ? errorLineaCompra(line, currency) : ''} onTouch={control.alSalir('lineas')} onChange={(value) => updateLine(index, value)} onSelectProduct={(product) => chooseProduct(index, product)} onCreateProduct={(texto) => createProduct(texto, index)} canRemove={lines.length > 1} onRemove={() => setLines(items => items.filter((_, itemIndex) => itemIndex !== index))} />)}
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={() => setLines(items => [...items, emptyLine()])}>+ Agregar línea / lote</Button>
             {!demo && <Button type="button" variant="outline" disabled={busy} onClick={sugerirReposicion}>Sugerir reposición</Button>}
@@ -557,10 +565,9 @@ export default function Compras() {
             <CurrencySelect id="compra-moneda" value={currency} onChange={(e) => setCurrency(e.target.value)} />
           </div>
           {currency !== 'PYG' && (
-            <div>
-              <Label htmlFor="compra-cotizacion">Cotización en Gs.</Label>
-              <MoneyInput id="compra-cotizacion" currency="USD" symbol="Gs." value={exchangeRatePyg} onValueChange={setExchangeRatePyg} placeholder="Cotización PYG" />
-            </div>
+            <FormField label="Cotización en Gs." htmlFor="compra-cotizacion" error={control.errorDe('cotizacion')}>
+              <MoneyInput id="compra-cotizacion" currency="USD" symbol="Gs." value={exchangeRatePyg} onValueChange={setExchangeRatePyg} onBlur={control.alSalir('cotizacion')} placeholder="Cotización PYG" />
+            </FormField>
           )}
         </div>
         <div className="grid gap-2 rounded-xl border border-ink-600/70 p-3 sm:grid-cols-3">
@@ -588,7 +595,10 @@ export default function Compras() {
             bloqueado={busy}
           />
         )}
-        <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800 px-3 py-2 text-sm text-mute shadow-lg shadow-black/10"><span>Total final estimado: <strong className="text-fore">{gs(estimatedTotal)}</strong></span><span className="flex items-center gap-2"><Button type="button" variant="ghost" disabled={busy} onClick={() => setNuevaCompra(false)}>Cancelar</Button><Button type="submit" disabled={busy}>Crear pedido</Button></span></div>
+        {control.mostrarResumen && !control.valido && (
+          <p role="alert" data-testid="compra-motivos" className="rounded-xl border border-bad/30 bg-bad/5 px-3 py-2 text-xs font-semibold text-bad">{control.motivo}</p>
+        )}
+        <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800 px-3 py-2 text-sm text-mute shadow-lg shadow-black/10"><span>Total final estimado: <strong className="text-fore">{gs(estimatedTotal)}</strong></span><span className="flex items-center gap-2"><Button type="button" variant="ghost" disabled={busy} onClick={() => setNuevaCompra(false)}>Cancelar</Button><Button type="submit" disabled={busy || !control.valido} title={control.motivo || undefined}>Crear pedido</Button></span></div>
       </form>
       {error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
     </Drawer>

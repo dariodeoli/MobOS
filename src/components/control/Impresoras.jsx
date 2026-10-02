@@ -12,6 +12,8 @@ import { TIPOS_TICKET_PRUEBA, ticketPruebaTipo } from '@/lib/printing/tickets'
 import { ANCHOS_PRUEBA, COPIAS_MAX, CORTES_PRUEBA, memoriaPlantilla, normalizarPlantilla, plantillaDeImpresora } from '@/lib/printing/plantillaPrueba'
 import { ESTADO_IMPRESORA, ETIQUETA_ESTADO, colorTrabajo, etiquetaTrabajo, textoVerificacion } from '@/lib/printing/estadoImpresoras'
 import { colaDemo, historialDemo, storeDemo } from '@/lib/printing/demo'
+import useValidacionFormulario from '@/hooks/useValidacionFormulario'
+import { ETIQUETAS_IMPRESORA, reglasImpresora, valoresImpresora } from '@/lib/validacionGlobal'
 import { etiquetaTipoImpresion, memoriaDeImpresion, olvidarTipoDeImpresion } from '@/lib/printing/preferencias'
 import { presenciaDePuente } from '@/lib/printing/presenciaPuentes'
 import { datosTransporte, resumenTransporte } from '@/lib/printing/transporte'
@@ -543,7 +545,7 @@ export default function Impresoras() {
       ip: ip || '192.168.1.23',
       puerto: puerto || '9100',
       ancho: impresora.ancho,
-      copias: impresora.copias,
+      copias: impresora.copias || 1,
       corte: impresora.corte,
       densidad: impresora.densidad || 3,
       caracteres: impresora.caracteres,
@@ -1677,6 +1679,9 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
   const f = formulario
   const set = (cambios) => setFormulario((actual) => ({ ...actual, ...cambios }))
   const destino = f.conexion === 'cups' ? `cups:${f.destinoUsb.trim()}` : `lan:${f.ip.trim()}:${f.puerto.trim() || '9100'}`
+  // #297: sin nombre y sin destino no hay guardado; el motivo viaja en el botón
+  // deshabilitado y el mensaje queda junto al campo al salir de él.
+  const control = useValidacionFormulario(valoresImpresora(f), reglasImpresora(f), ETIQUETAS_IMPRESORA)
 
   async function validar() {
     if (validando || !destino) return
@@ -1695,8 +1700,8 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
         <div>
           <h4 className={ROTULO_SECCION}>Identificación</h4>
           <div className={cn('mt-2', GRILLA_DOS_COLUMNAS)}>
-            <FormField label="Nombre visible" htmlFor="imp-nombre">
-              <Input id="imp-nombre" value={f.nombre} onChange={(event) => set({ nombre: event.target.value })} placeholder="Térmica mostrador" />
+            <FormField label="Nombre visible" htmlFor="imp-nombre" error={control.errorDe('nombre')}>
+              <Input id="imp-nombre" value={f.nombre} onChange={(event) => set({ nombre: event.target.value })} onBlur={control.alSalir('nombre')} placeholder="Térmica mostrador" />
             </FormField>
             <FormField label="Sucursal o ubicación" htmlFor="imp-ubicacion">
               <Input id="imp-ubicacion" value={f.ubicacion} onChange={(event) => set({ ubicacion: event.target.value })} placeholder="Mostrador ASU" />
@@ -1723,17 +1728,17 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
           </div>
           <div className={cn('mt-3', GRILLA_DOS_COLUMNAS)}>
             {f.conexion === 'cups' ? (
-              <FormField label="Cola CUPS local" htmlFor="imp-usb" hint="Una cola CUPS puede salir por red (socket://) o por USB físico (usb://); la URI real la informa el agente.">
-                <Input id="imp-usb" list="impresoras-usb" value={f.destinoUsb} onChange={(event) => set({ destinoUsb: event.target.value })} placeholder="ZKP8008" autoCapitalize="off" spellCheck={false} />
+              <FormField label="Cola CUPS local" htmlFor="imp-usb" error={control.errorDe('destinoUsb')} hint="Una cola CUPS puede salir por red (socket://) o por USB físico (usb://); la URI real la informa el agente.">
+                <Input id="imp-usb" list="impresoras-usb" value={f.destinoUsb} onChange={(event) => set({ destinoUsb: event.target.value })} onBlur={control.alSalir('destinoUsb')} placeholder="ZKP8008" autoCapitalize="off" spellCheck={false} />
                 <datalist id="impresoras-usb">{(estado?.impresoras?.usb || []).map((cola) => <option key={cola} value={cola} />)}</datalist>
               </FormField>
             ) : (
               <>
-                <FormField label="IP" htmlFor="imp-ip">
-                  <Input id="imp-ip" value={f.ip} onChange={(event) => set({ ip: event.target.value })} placeholder="192.168.1.23" autoCapitalize="off" spellCheck={false} />
+                <FormField label="IP" htmlFor="imp-ip" error={control.errorDe('ip')}>
+                  <Input id="imp-ip" value={f.ip} onChange={(event) => set({ ip: event.target.value })} onBlur={control.alSalir('ip')} placeholder="192.168.1.23" autoCapitalize="off" spellCheck={false} />
                 </FormField>
-                <FormField label="Puerto" htmlFor="imp-puerto">
-                  <Input id="imp-puerto" inputMode="numeric" value={f.puerto} onChange={(event) => set({ puerto: event.target.value.replace(/\D/g, '') })} placeholder="9100" />
+                <FormField label="Puerto" htmlFor="imp-puerto" error={control.errorDe('puerto')}>
+                  <Input id="imp-puerto" inputMode="numeric" value={f.puerto} onChange={(event) => set({ puerto: event.target.value.replace(/\D/g, '') })} onBlur={control.alSalir('puerto')} placeholder="9100" />
                 </FormField>
               </>
             )}
@@ -1760,8 +1765,8 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
                 <option value="80">80 mm</option>
               </Select>
             </FormField>
-            <FormField label="Copias" htmlFor="imp-copias">
-              <Input id="imp-copias" inputMode="numeric" maxLength={1} value={String(f.copias)} onChange={(event) => set({ copias: Number(event.target.value.replace(/\D/g, '').slice(0, 1) || '1') })} />
+            <FormField label="Copias" htmlFor="imp-copias" error={control.errorDe('copias')}>
+              <Input id="imp-copias" inputMode="numeric" maxLength={1} value={String(f.copias)} onChange={(event) => set({ copias: Number(event.target.value.replace(/\D/g, '').slice(0, 1) || '1') })} onBlur={control.alSalir('copias')} />
             </FormField>
             <FormField label="Densidad" htmlFor="imp-densidad">
               <Select id="imp-densidad" value={String(f.densidad)} onChange={(event) => set({ densidad: Number(event.target.value) })}>
@@ -1799,10 +1804,13 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
           <p className="mt-2 text-xs text-mute">Estado: <b className={estado?.disponible ? 'text-ok' : 'text-bad'}>{estado?.disponible ? `agente local conectado · v${estado.version || ''}` : 'esta computadora no tiene el agente local'}</b>{estado?.disponible ? ` · ${estado.host === '0.0.0.0' ? 'acceso: red local' : 'acceso: solo esta computadora'}` : ' · los trabajos se encolan al puente'}.</p>
         </div>
 
+        {control.mostrarResumen && !control.valido && (
+          <p role="alert" data-testid="impresora-motivos" className="text-xs font-semibold text-bad">{control.motivo}</p>
+        )}
         <div className={PIE_ACCIONES_REVERSO}>
           <Button type="button" variant="ghost" onClick={() => setFormulario(null)}>Cancelar</Button>
-          <Button type="button" onClick={() => onGuardar({ probar: false })}>Guardar impresora</Button>
-          <Button type="button" variant="outline" onClick={() => onGuardar({ probar: true })}>Guardar y probar</Button>
+          <Button type="button" onClick={() => onGuardar({ probar: false })} disabled={!control.valido} title={control.motivo || undefined}>Guardar impresora</Button>
+          <Button type="button" variant="outline" onClick={() => onGuardar({ probar: true })} disabled={!control.valido} title={control.motivo || undefined}>Guardar y probar</Button>
         </div>
       </div>
     </Modal>

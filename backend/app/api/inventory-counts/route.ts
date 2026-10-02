@@ -103,6 +103,10 @@ export async function PATCH(request: Request) {
 
     if (action === 'apply') {
       if (!canManage) throw new InputError('Solo administración o gerencia aprueban un conteo.', 403)
+      // #297: un conteo sin equipos escaneados no se aplica. Sin este guard, el
+      // ajuste masivo marcaba faltante todo el stock disponible de la sucursal.
+      const lineasEscaneadas = await prisma.inventoryCountLine.count({ where: { countId: count.id } })
+      if (lineasEscaneadas === 0) throw new InputError('Escaneá al menos un equipo antes de aplicar el conteo.', 409)
       const adjust = body.adjust !== false
       const result = await prisma.$transaction(async tx => {
         const lines = await tx.inventoryCountLine.findMany({ where: { countId: count.id } })

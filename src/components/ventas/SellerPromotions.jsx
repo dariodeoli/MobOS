@@ -4,10 +4,12 @@ import { api } from '@/lib/api/client'
 import { readDemoPromotions, saveDemoPromotion, toggleDemoPromotion } from '@/lib/demoPromotions'
 import { gs } from '@/utils/calculos'
 import { getProductos } from '@/lib/storage'
-import { Badge, Button, Input, MoneyInput, Select } from '@/components/ui'
+import { Badge, Button, FormField, Input, MoneyInput, Select } from '@/components/ui'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
+import useValidacionFormulario from '@/hooks/useValidacionFormulario'
+import { ETIQUETAS_PROMOCION, reglasPromocion, valoresPromocion } from '@/lib/validacionGlobal'
 import { cn } from '@/lib/utils'
 import { SellerSection, SellerFeedback, useSellerData } from './SellerData'
 import BarraModulo from '@/components/shared/BarraModulo'
@@ -30,6 +32,9 @@ export default function SellerPromotions() {
   const [form, setForm] = useState(empty)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  // #297: sin datos válidos no se crea el cupón; el mensaje por campo aparece
+  // al salir de él y el botón queda deshabilitado con el motivo.
+  const control = useValidacionFormulario(valoresPromocion(form), reglasPromocion(form), ETIQUETAS_PROMOCION)
   async function mutate(action) {
     if (busy) return
     setBusy(true); setMessage('')
@@ -37,13 +42,14 @@ export default function SellerPromotions() {
   }
   function create(event) {
     event.preventDefault()
+    const resultado = control.intentar()
+    if (!resultado.valido) return
     mutate(async () => {
       const percentValue = form.kind === 'PERCENT' ? parsePercent(form.value) : null
-      if (form.kind === 'PERCENT' && (percentValue === null || !Number.isSafeInteger(percentValue) || percentValue < 1 || percentValue > 100)) throw new Error('El porcentaje debe ser un entero entre 1 y 100.')
       const payload = { ...form, code: form.code.trim().toUpperCase(), name: form.name.trim(), value: form.kind === 'PERCENT' ? percentValue : Number(form.value), productId: form.productId.trim() || null, maxUnits: form.maxUnits ? Number(form.maxUnits) : null, startsAt: new Date(form.startsAt).toISOString(), endsAt: new Date(form.endsAt).toISOString() }
-      if (+new Date(payload.endsAt) <= +new Date(payload.startsAt)) throw new Error('Fin debe ser posterior al inicio.')
       if (esDemo) saveDemoPromotion(payload); else await api.post('/api/promotions', payload)
       setForm(empty)
+      control.limpiar()
     })
   }
   return <SellerSection title="Promociones">
@@ -87,30 +93,25 @@ export default function SellerPromotions() {
           4 en desktop; los campos cortos no se estiran (ancho máximo propio). */}
       <div className={cn('mt-3 lg:grid-cols-4', GRILLA_DOS_COLUMNAS)}>
         {['code', 'name'].map(key => (
-          <label className="block" key={key}>
-            {{ code: 'Código', name: 'Nombre' }[key]}
-            <Input required pattern={key === 'code' ? '[A-Za-z0-9_-]{2,40}' : undefined} maxLength={key === 'code' ? 40 : 120} className={key === 'code' ? 'max-w-[11rem]' : ''} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} />
-          </label>
+          <FormField className="block" key={key} label={{ code: 'Código', name: 'Nombre' }[key]} htmlFor={`cupon-${key}`} error={control.errorDe(key)}>
+            <Input id={`cupon-${key}`} maxLength={key === 'code' ? 40 : 120} className={key === 'code' ? 'max-w-[11rem]' : ''} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} onBlur={control.alSalir(key)} />
+          </FormField>
         ))}
-        <label className="block">
-          Tipo
-          <Select className="max-w-[11rem]" value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value })}><option value="PERCENT">Porcentaje</option><option value="FIXED">Monto Gs. por unidad</option></Select>
-        </label>
-        <label className="block">
-          Descuento
+        <FormField className="block" label="Tipo" htmlFor="cupon-tipo">
+          <Select id="cupon-tipo" className="max-w-[11rem]" value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value })}><option value="PERCENT">Porcentaje</option><option value="FIXED">Monto Gs. por unidad</option></Select>
+        </FormField>
+        <FormField className="block" label="Descuento" htmlFor="cupon-valor" error={control.errorDe('value')}>
           {form.kind === 'FIXED'
-            ? <MoneyInput required className="max-w-[9rem]" value={form.value} onValueChange={v => setForm({ ...form, value: v })} />
-            : <PercentField required className="max-w-[9rem]" value={form.value} onChange={value => setForm({ ...form, value })} />}
-        </label>
-        <label className="block">
-          Límite de unidades (opcional)
-          <Input inputMode="numeric" type="number" step="1" min="1" max={2147483647} className="max-w-[9rem]" value={form.maxUnits} onChange={e => setForm({ ...form, maxUnits: e.target.value.replace(/\D/g, '') })} />
-        </label>
+            ? <MoneyInput id="cupon-valor" className="max-w-[9rem]" value={form.value} onValueChange={v => setForm({ ...form, value: v })} onBlur={control.alSalir('value')} />
+            : <PercentField id="cupon-valor" className="max-w-[9rem]" value={form.value} onChange={value => setForm({ ...form, value })} onBlur={control.alSalir('value')} />}
+        </FormField>
+        <FormField className="block" label="Límite de unidades (opcional)" htmlFor="cupon-limite" error={control.errorDe('maxUnits')}>
+          <Input id="cupon-limite" inputMode="numeric" type="number" step="1" min="1" max={2147483647} className="max-w-[9rem]" value={form.maxUnits} onChange={e => setForm({ ...form, maxUnits: e.target.value.replace(/\D/g, '') })} onBlur={control.alSalir('maxUnits')} />
+        </FormField>
         {['startsAt','endsAt'].map(key => (
-          <label className="block" key={key}>
-            {key === 'startsAt' ? 'Inicio (hora local)' : 'Fin (hora local)'}
-            <Input required type="datetime-local" className="max-w-[13rem]" value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} />
-          </label>
+          <FormField className="block" key={key} label={key === 'startsAt' ? 'Inicio (hora local)' : 'Fin (hora local)'} htmlFor={`cupon-${key}`} error={control.errorDe(key)}>
+            <Input id={`cupon-${key}`} type="datetime-local" className="max-w-[13rem]" value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} onBlur={control.alSalir(key)} />
+          </FormField>
         ))}
         <label className="block sm:col-span-2">
           Productos incluidos
@@ -121,7 +122,8 @@ export default function SellerPromotions() {
         </label>
       </div>
       <p className="mt-3 text-sm text-mute">No acumulable con descuento global. Para cambiar condiciones, desactivá el cupón y creá otro código.</p>
-      <Button className="mt-3" disabled={busy}>Crear cupón</Button>
+      {control.mostrarResumen && !control.valido && <p role="alert" data-testid="promocion-motivos" className="mt-3 text-xs font-semibold text-bad">{control.motivo}</p>}
+      <Button className="mt-3" type="submit" disabled={busy || !control.valido} title={control.motivo || undefined}>Crear cupón</Button>
     </form>}
     {message && <p role="status">{message}</p>}
   </SellerSection>
