@@ -142,16 +142,16 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 10,
+    "totalChicos": 7,
     "chicos": [
       {
         "que": "button",
-        "texto": "+ Recibir unidad",
-        "ancho": 141,
-        "alto": 36,
-        "dibujo": "141x36",
-        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
-        "veces": 8
+        "texto": "Stock",
+        "ancho": 64,
+        "alto": 32,
+        "dibujo": "64x32",
+        "clase": "min-h-11 shrink-0 rounded-lg px-3 py-2 text-xs font-bold upp",
+        "veces": 3
       },
       {
         "que": "button",
@@ -169,6 +169,24 @@
         "alto": 24,
         "dibujo": "187x24",
         "clase": "flex w-full items-center justify-between gap-2 rounded-lg px",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "+ Recibir unidad",
+        "ancho": 141,
+        "alto": 36,
+        "dibujo": "141x36",
+        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Más",
+        "ancho": 72,
+        "alto": 34,
+        "dibujo": "72x34",
+        "clase": "inline-flex min-h-11 items-center gap-1.5 rounded-lg border ",
         "veces": 1
       }
     ]
