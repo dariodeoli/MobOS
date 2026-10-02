@@ -153,6 +153,7 @@
         "qa-280-aviso-stock.spec.js",
         "qa-285-unidades.spec.js",
         "qa-286-unidades-pos.spec.js",
+        "qa-323-fin-modales.spec.js",
         "qa-f6-metricas-abastecimiento.spec.js",
         "repuestos-proveedores.spec.js",
         "ruc-extraccion.spec.js",

@@ -4,6 +4,7 @@ import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
 import { fechaHora } from '@/utils/fecha'
+import { obligatorio } from 'owncoding-ui/utils'
 import Icon from '@/components/shared/Icon'
 import BarraModulo from '@/components/shared/BarraModulo'
 import {
@@ -16,10 +17,12 @@ import {
   Input,
   Modal,
   MoneyInput,
+  SaveActions,
   Select,
   Skeleton,
   Textarea,
   useToast,
+  useValidacionCampos,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { demoAutorizacionesFiltradas } from '@/lib/demoAutorizaciones'
@@ -118,6 +121,11 @@ export default function Autorizaciones() {
   const [rejectTarget, setRejectTarget] = useState(null)
   const [rejectNote, setRejectNote] = useState('')
   const [busy, setBusy] = useState(false)
+  // #323: el motivo del rechazo se valida junto al campo (ya no por toast) y el
+  // cierre con texto cargado pide confirmación.
+  const { errorDe, validar, limpiar } = useValidacionCampos({
+    motivo: [obligatorio('Contale al vendedor por qué se rechaza.')],
+  })
 
   const puedeResolver = RESOLVERS.includes(usuario?.role)
 
@@ -251,10 +259,7 @@ export default function Autorizaciones() {
 
   async function confirmarRechazar() {
     if (!rejectTarget || busy) return
-    if (!rejectNote.trim()) {
-      toast.error('Motivo obligatorio', 'Contale al vendedor por qué se rechaza.')
-      return
-    }
+    if (!validar({ motivo: rejectNote }).valido) return
     if (esDemo) {
       setRows((actuales) => actuales.map((row) => (row.id === rejectTarget.id
         ? {
@@ -464,6 +469,7 @@ export default function Autorizaciones() {
                           className="h-8 px-2 text-xs"
                           onClick={() => {
                             setRejectNote('')
+                            limpiar('motivo')
                             setRejectTarget(row)
                           }}
                         >
@@ -615,9 +621,9 @@ export default function Autorizaciones() {
 
       <Modal
         open={Boolean(rejectTarget)}
-        onClose={() => {
-          if (!busy) setRejectTarget(null)
-        }}
+        onClose={() => setRejectTarget(null)}
+        dirty={Boolean(rejectTarget) && rejectNote.trim() !== ''}
+        busy={busy}
         title={`Rechazar ${KINDS[rejectTarget?.kind] || 'solicitud'}`} size="formulario">
         {rejectTarget && (
           <div className="space-y-4">
@@ -628,34 +634,29 @@ export default function Autorizaciones() {
                 {resumenValor(rejectTarget.kind, rejectTarget.requestedValue)}
               </b>
             </p>
-            <FormField label="Motivo del rechazo" htmlFor="auth-reject-note">
+            <FormField label="Motivo del rechazo" htmlFor="auth-reject-note" error={errorDe('motivo')}>
               <Textarea
                 id="auth-reject-note"
                 rows={3}
                 maxLength={500}
                 value={rejectNote}
-                onChange={event => setRejectNote(event.target.value)}
+                onChange={event => {
+                  limpiar('motivo')
+                  setRejectNote(event.target.value)
+                }}
                 placeholder="Explicá al vendedor por qué no se autoriza…"
               />
             </FormField>
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setRejectTarget(null)}
-                disabled={busy}
-              >
-                Cancelar
-              </Button>
+            <SaveActions pendiente={busy}>
               <Button
                 type="button"
                 variant="danger"
                 onClick={confirmarRechazar}
-                disabled={busy || !rejectNote.trim()}
+                disabled={busy}
               >
                 {busy ? 'Guardando…' : 'Rechazar'}
               </Button>
-            </div>
+            </SaveActions>
           </div>
         )}
       </Modal>
