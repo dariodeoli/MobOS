@@ -151,7 +151,7 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 13,
+    "totalChicos": 14,
     "chicos": [
       {
         "que": "button",
@@ -160,7 +160,7 @@
         "alto": 36,
         "dibujo": "175x36",
         "clase": "inline-flex select-none items-center justify-center gap-2 ro",
-        "veces": 6
+        "veces": 7
       },
       {
         "que": "button",

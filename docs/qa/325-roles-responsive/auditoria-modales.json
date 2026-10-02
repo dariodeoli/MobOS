@@ -10,9 +10,9 @@
       {
         "que": "button",
         "texto": "+ Crear cliente",
-        "ancho": 130,
+        "ancho": 129,
         "alto": 36,
-        "dibujo": "130x36",
+        "dibujo": "129x36",
         "clase": "inline-flex select-none items-center justify-center gap-2 ro",
         "veces": 3
       },
