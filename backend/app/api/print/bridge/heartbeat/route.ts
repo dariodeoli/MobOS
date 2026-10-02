@@ -1,12 +1,11 @@
 import { error, json } from '../../../../../lib/http'
 import { prisma } from '../../../../../lib/prisma'
-import { autenticarPuente } from '../../../../../lib/print-bridge'
+import { autenticarPuente, debeRefrescarPresencia } from '../../../../../lib/print-bridge'
 import { calcularLeaseExtendido, textoOpcional } from '../../../../../lib/print-jobs'
 
 // Latido del puente: presencia (throttled a 1 escritura/20 s) y extensión del
-// lease del trabajo en curso. El token nunca se registra.
-const LATIDO_MIN_MS = 20_000
-
+// lease del trabajo en curso. La versión y la plataforma se refrescan apenas
+// cambian, aunque la presencia esté throttled (#319). El token nunca se registra.
 export async function POST(request: Request) {
   const puente = await autenticarPuente(request, prisma)
   if (!puente) return error('Token de puente inválido.', 401)
@@ -14,7 +13,7 @@ export async function POST(request: Request) {
   const ahora = new Date()
   const version = textoOpcional(body?.version, 40)
   const platform = textoOpcional(body?.platform, 40)
-  if (!puente.lastSeenAt || ahora.getTime() - puente.lastSeenAt.getTime() >= LATIDO_MIN_MS) {
+  if (debeRefrescarPresencia(puente, { version, platform, ahora })) {
     await prisma.printBridge.update({
       where: { id: puente.id },
       data: { lastSeenAt: ahora, ...(version ? { version } : {}), ...(platform ? { platform } : {}) },
