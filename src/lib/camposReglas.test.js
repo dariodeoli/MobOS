@@ -174,7 +174,7 @@ test('los objetos de Abastecimiento F1 (#250/#254) están publicados', () => {
     assert.ok(indice.includes(objeto), `owncoding-ui debe publicar ${objeto} para la demanda F1`)
   }
   // Las colas del panel usan Subtabs con contador (#254).
-  assert.match(readFileSync(join(LIB_COMPONENTES, 'ui.jsx'), 'utf8'), /items\.map\(\(\[id, label, contador\]\)/, 'Subtabs debe aceptar el contador de la cola')
+  assert.match(readFileSync(join(LIB_COMPONENTES, 'ui.jsx'), 'utf8'), /items\.map\(\(\[id, label, contador\]/, 'Subtabs debe aceptar el contador de la cola')
   // El contrato del backend (INV) viaja en los mapas: prioridades, orígenes y
   // estados, así el panel de PLT no traduce nada.
   const mapas = readFileSync(join(LIB_COMPONENTES, '..', 'utils', 'abastecimiento.js'), 'utf8')
@@ -215,9 +215,13 @@ test('el kit re-exporta la biblioteca y no reimplementa objetos (#253)', () => {
     assert.ok(reexportados.includes(nombre), `el kit re-exporta ${nombre}`)
   }
   // Solo quedan locales los pendientes de decisión de diseño (DSN): al
-  // resolverse se puentean igual que el resto.
+  // resolverse se puentean igual que el resto. `Modal`/`Drawer` se adoptaron en
+  // #323 y ya salen de la biblioteca.
   const locales = [...ui.matchAll(/^export (?:function|const) ([A-Za-z0-9_]+)/gm)].map((m) => m[1]).sort()
-  assert.deepEqual(locales, ['Card', 'Drawer', 'Modal', 'MoneyInput', 'Stat'], 'el kit no agrega objetos locales')
+  assert.deepEqual(locales, ['Card', 'MoneyInput', 'Stat'], 'el kit no agrega objetos locales')
+  for (const nombre of ['Modal', 'Drawer', 'useDialogDirty', 'useResultado', 'useValidacionCampos']) {
+    assert.ok(reexportados.includes(nombre), `el kit re-exporta ${nombre} (#323)`)
+  }
 })
 
 test('los objetos de Configuración (#253) están publicados en la biblioteca', () => {
