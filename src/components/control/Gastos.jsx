@@ -6,7 +6,7 @@ import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { listGastos, addGasto } from '@/lib/storage'
 import { fechaClave, gs } from '@/utils/calculos'
 import { errorMonto, LIMITE_MONTO_GENERAL, parseGsInput } from '@/utils/moneda'
-import { Aviso, Badge, Button, Card, EmptyState, IconAction, Input, Label, MoneyInput, Select } from '@/components/ui'
+import { Aviso, Badge, Button, Card, Drawer, EmptyState, IconAction, Input, Label, MoneyInput, Select } from '@/components/ui'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import ComboBuscador from '@/components/shared/ComboBuscador'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
@@ -37,13 +37,19 @@ const estadoVisible = (row) => (row.status === 'CLEARED' && row.kind === 'CHEQUE
 const montoVisible = (row) => {
   if (!row.currency || row.currency === 'PYG') return gs(row.originalAmount || row.monto)
   const numero = Number(row.originalAmount)
-  return `${row.currency} ${Number.isFinite(numero) ? numero.toLocaleString('es-PY', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : row.originalAmount}`
+  // Sin monto en la moneda original (0/null) vale el equivalente en Gs: nunca
+  // se muestra «USD 0,00» al lado de un importe real (#311).
+  if (!Number.isFinite(numero) || numero <= 0) return gs(row.amountPyg || row.monto)
+  return `${row.currency} ${numero.toLocaleString('es-PY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 export default function Gastos() {
   const { esDemo, sucursal, empresa, sesion } = useSesion()
   const v2 = temaV2Activo()
   const [form, setForm] = useState(inicial)
+  // #311: el alta vive en un cajón; el libro queda como protagonista y el
+  // formulario no compite abierto dentro de la página.
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const [rows, setRows] = useState([])
   const [accounts, setAccounts] = useState([])
   const [loading, setLoading] = useState(!esDemo)
@@ -108,10 +114,10 @@ export default function Gastos() {
     try {
       if (isDemoRuntime) {
         addGasto({ monto: Number(originalAmount), motivo: form.description, fecha: form.date, categoria: 'Otros' })
-        setRows(listGastos()); setForm(inicial()); return
+        setRows(listGastos()); setForm(inicial()); setDrawerOpen(false); return
       }
       await api.post(`/api/finance${branch}`, { action: 'movement', kind: form.kind, direction: 'OUT', currency: form.currency, originalAmount, exchangeRatePyg: form.currency === 'PYG' ? 1 : form.exchangeRatePyg, accountId: form.accountId || null, description: form.description, counterparty: form.counterparty || null, reference: form.reference || null, dueAt: form.kind === 'CHEQUE' && form.dueAt ? form.dueAt : null, ...(requiereAutorizacion && authGasto ? { expenseAuthorizationId: authGasto.id } : {}) })
-      setForm(inicial()); setAuthGasto(null); await load()
+      setForm(inicial()); setAuthGasto(null); setDrawerOpen(false); await load()
     } catch (error) { setMessage(error.message || 'No se pudo guardar el movimiento.') } finally { setBusy(false) }
   }
   async function updateStatus(id, action) {
@@ -127,12 +133,19 @@ export default function Gastos() {
       <div className={cn('rounded-xl border border-warn/30 bg-warn/5 p-3', v2 && 'v2-tile')} data-testid="gastos-cheques"><p className="text-xs text-mute">Cheques pendientes</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg', chequesPendientes > 0 ? 'text-warn' : 'text-mute')}>{gs(chequesPendientes)}</strong></div>
       <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="gastos-movimientos"><p className="text-xs text-mute">Movimientos en el libro</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{rows.length}</strong></div>
     </div>
-    <Card>
-      <h2 className="font-bold">Registrar salida, cheque o adelanto</h2>
-      <p className="mt-1 text-sm text-mute">La cotización queda congelada al guardar. Los cheques quedan pendientes hasta cobrarse o anularse.</p>
-      {hayRecordado && <p className="mt-1 text-xs text-mute">Tipo, moneda y cuenta arrancan con tu última elección; podés cambiarlos.</p>}
-      {message && <Aviso tono="error" className="p-3 mt-3">{message}</Aviso>}
-      <form onSubmit={save} className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+    <Card className="space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="font-bold">Gastos, cheques y adelantos</h2>
+          <p className="mt-1 text-sm text-mute">Registrá la salida en un cajón y seguí en el libro: la cotización queda congelada al guardar y los cheques quedan pendientes hasta cobrarse o anularse.</p>
+          {hayRecordado && <p className="mt-1 text-xs text-mute">Tipo, moneda y cuenta arrancan con tu última elección; podés cambiarlos.</p>}
+        </div>
+        <Button type="button" onClick={() => { setMessage(''); setDrawerOpen(true) }}>Registrar movimiento</Button>
+      </div>
+      {message && <Aviso tono="error" className="p-3">{message}</Aviso>}
+    </Card>
+    <Drawer open={drawerOpen} onClose={() => !busy && setDrawerOpen(false)} title="Registrar salida, cheque o adelanto">
+      <form onSubmit={save} className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         <div><Label htmlFor="monto-gasto">Monto {form.currency === 'PYG' ? '(Gs)' : `(${form.currency})`}</Label><MoneyInput id="monto-gasto" required currency={form.currency} value={form.originalAmount} onValueChange={value => set('originalAmount', value)} placeholder={form.currency === 'PYG' ? '250.000' : '0,00'} /></div>
         <div><Label htmlFor="moneda-gasto">Moneda</Label><CurrencySelect id="moneda-gasto" title="Se recuerda tu última elección" value={form.currency} onChange={event => { const valor = event.target.value; setForm(current => ({ ...current, currency: valor, accountId: '', originalAmount: '', exchangeRatePyg: valor === 'PYG' ? '1' : current.exchangeRatePyg })); recordarUltimo(CLAVES_FIN.gastoMoneda, valor) }} /></div>
         {form.currency !== 'PYG' && <div><Label htmlFor="cotizacion-congelada-en-gs">Cotización en Gs.</Label><MoneyInput id="cotizacion-congelada-en-gs" required currency="USD" symbol="Gs." value={form.exchangeRatePyg} onValueChange={value => set('exchangeRatePyg', value)} placeholder="7.500" /></div>}
@@ -158,7 +171,7 @@ export default function Gastos() {
         )}
         <div className="flex items-end"><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar movimiento'}</Button></div>
       </form>
-    </Card>
+    </Drawer>
     <Card className="overflow-hidden p-0"><div className="flex items-center justify-between border-b border-ink-600 p-4"><h3 className="font-bold">Libro financiero</h3><Badge color="red">Gastos: {gs(total)}</Badge></div>
       {loading ? <p className="p-8 text-center text-sm text-mute">Cargando movimientos…</p> : rows.length === 0 ? <EmptyState compact icon="box" title="Sin movimientos registrados" description="Registrá un gasto, un cheque o un adelanto para verlo acá." /> : <div className="space-y-1.5 p-4">{rows.map(row => <div key={row.id} data-testid="gasto-fila" className={cn('flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 px-2.5 py-1.5 transition hover:border-bad/40', v2 && 'v2-tile')}><span className="min-w-0 flex-1"><b className="block truncate text-[13px]">{row.description || row.motivo}</b><span className="mt-0.5 block truncate text-[11px] text-mute">{KINDS[row.kind] || row.category || 'Gasto'} · {row.currency || 'PYG'} · {row.counterparty || 'Sin contraparte'}{row.currency && row.currency !== 'PYG' ? ` · cotización ${gs(row.exchangeRatePyg)} por ${row.currency} = ${gs(row.amountPyg)}` : ''}</span></span><span className="flex shrink-0 items-center gap-2"><Badge color={row.status === 'CLEARED' ? 'green' : row.status === 'VOID' ? 'slate' : 'yellow'}>{estadoVisible(row)}</Badge><b className="text-[13px] font-bold tabular-nums text-bad">{montoVisible(row)}</b>{row.kind === 'CHEQUE' && row.status === 'PENDING' && !isDemoRuntime && <><IconAction icon="check" tone="ok" label="Marcar cobrado" disabled={busy} onClick={() => updateStatus(row.id, 'clear')} /><IconAction icon="trash" tone="bad" label="Anular" disabled={busy} onClick={() => updateStatus(row.id, 'void')} /></>}</span></div>)}</div>}
     </Card>

@@ -18,6 +18,9 @@ test.describe('demo de Finanzas', () => {
     await expect(page.getByRole('heading', { name: 'Bancos y cuentas' })).toBeVisible()
 
     await page.getByRole('button', { name: 'Añadir cuenta' }).click()
+    // #311: el alta vive en un cajón y el switch «Cuenta activa» queda descrito.
+    await expect(page.locator('#pa-active')).toHaveAttribute('aria-describedby', 'pa-active-desc')
+    await expect(page.locator('#pa-active-desc')).toContainText('historial')
     await page.selectOption('#pa-kind', 'TRANSFER')
     await page.fill('#pa-bank', 'Itaú')
     await page.getByRole('option', { name: /Itaú/ }).first().click()
@@ -82,6 +85,13 @@ test.describe('demo de Finanzas', () => {
     await expect(medio.locator('option', { hasText: 'Canje' }).first()).toHaveCount(1)
     await expect(page.getByTestId('conciliacion-lote').first()).toContainText('Itaú · Cuenta corriente')
     await expect(page.getByTestId('conciliacion-fila').first().getByText(/AUR-\d{4}/)).toBeVisible()
+
+    // #311: una fila en USD/USDT sin monto original no muestra «USD 0,00» al
+    // lado de su equivalente en Gs; la columna de monto manda.
+    await expect(page.getByText('USD 0,00')).toHaveCount(0)
+    const filaUsdt = page.getByTestId('conciliacion-fila').filter({ hasText: 'USDT · Binance' }).first()
+    await expect(filaUsdt).toBeVisible()
+    await expect(filaUsdt.locator('span').filter({ hasText: /^Gs / }).first()).toBeVisible()
   })
 
   test('la conciliación funciona en la demo con datos ficticios', async ({ page }) => {
@@ -128,5 +138,17 @@ test.describe('demo de Finanzas', () => {
     // El primer match es la insignia; el otro es la opción del selector.
     await expect(fila.getByText('Verificado', { exact: true }).first()).toBeVisible()
     await expect(fila.getByRole('button', { name: 'Guardar' })).toBeDisabled()
+
+    // #311: el cierre guiado permite contar por denominación con los botones
+    // (sin abrir formularios dentro de la página).
+    await page.getByRole('button', { name: 'Contar y cerrar' }).click()
+    const cierre = page.getByRole('dialog', { name: 'Cerrar caja' })
+    await expect(cierre).toBeVisible()
+    await cierre.getByRole('button', { name: 'Por denominación' }).click()
+    await cierre.getByRole('button', { name: /Agregar un billete de Gs 100\.000/ }).click()
+    await expect(cierre.getByTestId('total-arqueo')).toHaveText(/100\.000/)
+    await expect(cierre.getByTestId('resumen-conteo')).toContainText('100.000')
+    await page.keyboard.press('Escape')
+    await expect(cierre).toHaveCount(0)
   })
 })
