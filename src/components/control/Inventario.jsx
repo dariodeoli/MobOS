@@ -13,7 +13,7 @@ import { formatUsd } from '@/utils/moneda'
 import { montoTexto } from '@/utils/moneda'
 import BarraLote from '@/components/shared/BarraLote'
 import BarraModulo from '@/components/shared/BarraModulo'
-import ResumenMetricas from '@/components/shared/ResumenMetricas'
+import MenuSecundario from '@/components/shared/MenuSecundario'
 import VistaProductosUnidades from '@/components/shared/VistaProductosUnidades'
 import MedidorBateria from '@/components/shared/MedidorBateria'
 import Switch from '@/components/shared/Switch'
@@ -259,8 +259,6 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
   const serial = String(unit.serial || '')
   const [costoAbierto, setCostoAbierto] = useState(false)
   const [costoUsd, setCostoUsd] = useState('')
-  const diasStock = unit.createdAt ? Math.floor((Date.now() - new Date(unit.createdAt).getTime()) / 86400000) : null
-  const ingreso = unit.createdAt ? new Date(unit.createdAt).toLocaleDateString('es-PY') : null
   const costoGs = costoEnGs(unit)
   const enUsd = costoGs === null ? null : (unit.costCurrency === 'USD' && !cotizacion ? Number(unit.originalCost) : (cotizacion > 0 ? costoGs / cotizacion : Number(unit.originalCost)))
   const costoTexto = sinCostoUnitario(unit)
@@ -268,7 +266,6 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
     : enUsd !== null && Number.isFinite(enUsd)
       ? formatUsd(enUsd)
       : costoGs !== null ? gs(costoGs) : '—'
-  const vencida = unit.warrantyUntil ? new Date(unit.warrantyUntil).getTime() < Date.now() : null
   // #285: el depósito muestra su código cuando lo tiene («Asunción · D1»).
   const deposito = unit.location ? (unit.location.code || unit.location.name || '') : ''
   const acciones = [
@@ -278,7 +275,7 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
     ...(unit.status === 'IN_TRANSIT' && unit.transitAssignment ? [{ label: 'Liberar apartado', tooltip: 'Soltar la asignación futura de este equipo', icon: 'alert', run: () => onLiberarApartado?.(unit) }] : []),
     { label: 'Vender', tooltip: 'Cargar la venta de esta unidad', icon: 'cart', run: () => onSell?.(unit) },
     { label: 'Reservar', tooltip: 'Apartar la unidad para un cliente', icon: 'clock', run: () => onReserve?.(unit) },
-    { label: 'Verificar', tooltip: 'Registrar la verificación física ahora', icon: 'check', run: () => onVerify?.(unit) },
+    // #305: «Verificar» vive solo en el botón de la columna Verificación.
     { label: 'Imprimir etiqueta', tooltip: 'Imprimir la etiqueta de esta unidad', icon: 'printer', run: () => onLabel?.(unit) },
     { label: 'Enviar a revisión', tooltip: 'Marcar la unidad en revisión con un motivo', icon: 'alert', run: () => onAdjust?.(unit) },
     { label: 'Cambiar ubicación', tooltip: 'Mover la unidad a otro depósito o sucursal', icon: 'box', run: () => onMove?.(unit) },
@@ -291,32 +288,32 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
     <span className="flex min-w-0 items-center gap-1.5 overflow-hidden">
       <span className="grid h-5 w-5 shrink-0 place-items-center overflow-hidden rounded-md border border-ink-600 bg-ink-800 text-mute" title={`Categoría: ${etiquetaDeCategoria(nombreProducto(unit.product || {}))}`}><IconoCategoria categoria={nombreProducto(unit.product || {})} className="h-3.5 w-3.5" /></span>
       {/* #245: el modelo nunca se colapsa (mínimo legible); #285: el IMEI dejó
-          de ir debajo del nombre y vive en su propia columna. */}
+          de ir debajo del nombre y vive en su propia columna. #305: la batería y
+          la antigüedad salieron de la fila (viven en el detalle) para que el
+          nombre tenga el ancho aprobado. */}
       <b className="min-w-[3rem] truncate text-[13px] leading-tight" title={nombreProducto(unit.product || {})}>{nombreProducto(unit.product || {})}</b>
       <span
         className={`h-2 w-2 shrink-0 rounded-full ${puntoCondicionUnidad(unit)}`}
         title={`Condición: ${etiquetaCondicionUnidad(unit)}`}
         aria-label={`Condición: ${etiquetaCondicionUnidad(unit)}`}
       />
-      {unit.batteryHealth ? <MedidorBateria porcentaje={unit.batteryHealth} variante="chip" className="shrink-0" /> : null}
-      {diasStock != null && diasStock >= 30 && (
-        <span className={`shrink-0 rounded border px-1 text-[10px] font-semibold tabular-nums ${diasStock >= 90 ? 'border-bad/30 text-bad' : 'border-warn/30 text-warn'}`} title={`Ingresó a stock el ${ingreso} · ${diasStock} días`}>{diasStock} d</span>
-      )}
       {/* #279 (A4): equipo que viaja, apartado para una venta futura. */}
       {unit.transitAssignment && <span data-testid="unidad-apartada" className="shrink-0 rounded border border-info/40 bg-info/10 px-1 font-semibold text-info" title={`Apartada para ${unit.transitAssignment.customerName || unit.transitAssignment.order?.orderNumber || 'una venta futura'} · la apartó ${unit.transitAssignment.seller?.name || 'un vendedor'}. Queda bloqueada para otras ventas y el IMEI se vincula al llegar.`}>Apart.</span>}
     </span>
-    {/* #285: el IMEI es su propia columna (ya no va debajo del modelo). */}
-    <span className="flex min-w-0 items-center overflow-hidden" title={`IMEI/serial ${serial}`}>
-      <SerialTexto serial={serial} className="text-[11px] text-mute" />
+    {/* #285: el IMEI es su propia columna (ya no va debajo del modelo).
+        #305: completo, sin recortar la cabeza. */}
+    <span data-testid="unidad-imei" className="flex min-w-0 items-center font-mono text-[11px] tabular-nums text-mute" title={`IMEI/serial ${serial}`}>
+      {serial || '—'}
     </span>
     {/* #285: Verificación = estado + verificador + fecha en una línea
-        («OK VPC · 01/09/2026»), con la verificación de un clic al lado. */}
-    <span className={`flex min-w-0 items-center gap-1.5 rounded-lg px-1.5 py-0.5 text-[10px] ${v ? 'bg-ok/10 text-ok' : 'border border-ink-600 text-mute'}`} title={v ? `Verificado OK por ${v.quien} · ${fechaHora(unit.lastVerifiedAt)}` : 'Todavía sin verificación física'}>
+        («OK VPC · 01/09/2026»), con la verificación de un clic al lado.
+        #305: sin truncar la fecha. */}
+    <span data-testid="unidad-verificacion" className={`flex min-w-0 items-center gap-1.5 rounded-lg px-1.5 py-0.5 text-[10px] ${v ? 'bg-ok/10 text-ok' : 'border border-ink-600 text-mute'}`} title={v ? `Verificado OK por ${v.quien} · ${fechaHora(unit.lastVerifiedAt)}` : 'Todavía sin verificación física'}>
       {/* El texto ocupa el ancho libre: el botón de verificar queda pegado al
           borde y el centro de la fila no cae sobre una acción (#285). */}
       {v
-        ? <span className="flex min-w-0 flex-1 items-center gap-1"><span className="shrink-0 font-bold">OK</span><span className="shrink-0 font-semibold">{inicialesNombre(v.quien)}</span><span className="truncate tabular-nums">{fechaVerificacionCorta(unit.lastVerifiedAt)}</span></span>
-        : <span className="min-w-0 flex-1 truncate">Sin verificar</span>}
+        ? <span className="flex min-w-0 flex-1 items-center gap-1"><span className="shrink-0 font-bold">OK</span><span className="shrink-0 font-semibold">{inicialesNombre(v.quien)}</span><span className="shrink-0 whitespace-nowrap tabular-nums">{fechaVerificacionCorta(unit.lastVerifiedAt)}</span></span>
+        : <span className="min-w-0 flex-1 whitespace-nowrap">Sin verificar</span>}
       <button type="button" disabled={busy} aria-label="✓ Verificar" title={`Verificar ${serial} (un clic)`} onClick={(event) => { event.stopPropagation(); onVerify?.(unit) }} className="grid h-11 w-11 md:h-6 md:w-6 shrink-0 place-items-center rounded-full border border-ok/40 text-ok transition hover:bg-ok/10 disabled:opacity-50"><Icon name="check" className="h-3.5 w-3.5" /></button>
     </span>
     {/* #285: sucursal y depósito cuando corresponda («Asunción · D1»). */}
@@ -329,7 +326,6 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
         detalle completo), así todas las filas tienen la misma altura. */}
     <span className="flex min-w-0 items-center gap-1.5 overflow-hidden text-[10px]">
       <Badge color={estado.tone} className="shrink-0 max-w-full truncate" title={estado.label}>{estado.label}</Badge>
-      {vencida !== null && <span className={`shrink-0 truncate font-semibold ${vencida ? 'text-bad' : 'text-ok'}`} title={vencida ? `Garantía vencida el ${new Date(unit.warrantyUntil).toLocaleDateString('es-PY')}` : `Garantía vigente hasta ${new Date(unit.warrantyUntil).toLocaleDateString('es-PY')}`}>Garantía {vencida ? 'vencida' : 'vigente'}</span>}
       {unit.reservationCustomer && <span className="truncate font-semibold text-reserved" title={`Reservado para ${unit.reservationCustomer}`}>{unit.reservationCustomer}</span>}
       {unit.consignorName && <span className="shrink-0 font-semibold text-fono-light" title={`En consignación de ${unit.consignorName}`}>Consignado</span>}
       {fechaVenta && <span className="shrink-0 text-mute" title={`Vendido el ${new Date(fechaVenta).toLocaleString('es-PY')}`}>{fechaReserva(fechaVenta)}</span>}
@@ -527,6 +523,19 @@ function CameraScan({ onDetected, onClose, continuous = false }) {
 }
 
 const INVENTARIO_TABS = ['unidades', 'taller', 'alertas', 'reservas', 'traslados', 'vendidos', 'transito', 'ubicaciones', 'compartido', 'eliminados', 'conteos']
+// #305: la navegación agrupa las once vistas en tres bloques (Stock ·
+// Movimientos · Control). El grupo activo se deriva de la pestaña actual, así
+// los enlaces directos (/inventario/transito, etc.) siguen abriendo su vista.
+const GRUPOS_INVENTARIO = [
+  { id: 'stock', label: 'Stock', tabs: ['unidades', 'reservas', 'ubicaciones', 'alertas'] },
+  { id: 'movimientos', label: 'Movimientos', tabs: ['transito', 'traslados', 'vendidos', 'eliminados'] },
+  { id: 'control', label: 'Control', tabs: ['taller', 'conteos', 'compartido'] },
+]
+const TAB_LABEL = {
+  unidades: 'Inventario', reservas: 'Reservas', ubicaciones: 'Ubicaciones', alertas: 'Alertas',
+  transito: 'En tránsito', traslados: 'Traslados', vendidos: 'Vendidos', eliminados: 'Eliminados',
+  taller: 'Taller', conteos: 'Conteos', compartido: 'Compartido',
+}
 const ESTADO_CONTEO = { DRAFT: ['Borrador', 'orange'], APPLIED: ['Aplicado', 'green'], CANCELLED: ['Cancelado', 'slate'] }
 
 export default function Inventario({ tab: tabProp, onTabChange } = {}) {
@@ -1278,6 +1287,18 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
     // panel, así que no se navega y la URL conserva la pestaña anterior.
     if (next !== 'conteos') onTabChange?.(next)
   }
+  // #305: grupo activo derivado de la pestaña (los enlaces directos siguen
+  // funcionando) y sus vistas visibles.
+  const grupos = useMemo(
+    () => GRUPOS_INVENTARIO.map((grupo) => ({ ...grupo, tabs: grupo.tabs.filter((id) => id !== 'alertas' || canViewAlerts) })),
+    [canViewAlerts],
+  )
+  const grupoActivo = grupos.find((grupo) => grupo.tabs.includes(tab))?.id || grupos[0]?.id
+  function cambiarGrupo(id) {
+    const grupo = grupos.find((item) => item.id === id)
+    if (!grupo || grupo.id === grupoActivo) return
+    cambiarTab(grupo.tabs[0])
+  }
   function requestReason(kind, unitOrUnits) {
     const units = Array.isArray(unitOrUnits) ? unitOrUnits : [unitOrUnits]
     const unit = units[0]
@@ -1313,51 +1334,56 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   async function createTransfer(event) { event.preventDefault(); const serials = transfer.serials.split(/[\n,;]+/).map(normalizeScan).filter(Boolean); if (!serials.length) { setError('Indicá al menos un IMEI/serial para trasladar.'); return }; if (!puedeTransferirSinAuth && !transferAuth) { setError('Tu rol necesita autorización de gerencia para transferir entre sucursales. Solicitá la autorización y esperá la aprobación.'); return }; await setAndRefresh(async () => { await resources.transfers.create({ ...transfer, destinationLocationId: transfer.destinationLocationId || null, eta: transfer.eta ? `${transfer.eta}T12:00:00.000Z` : null, lines: [{ productId: transfer.productId, quantity: serials.length, serials }], ...(transferAuth && !puedeTransferirSinAuth ? { transferAuthorizationId: transferAuth.id } : {}) }); setTransfer({ sourceBranchId: '', destinationBranchId: '', destinationLocationId: '', productId: '', serials: '', notes: '', eta: '' }); setTransferAuth(null); setTransferOpen(false) }, 'Transferencia registrada con trazabilidad por IMEI.') }
   if (!inventarioOperativo) return <Card><h2 className="font-bold">Inventario operativo</h2><p className="mt-2 text-sm text-mute">Ingresá con una cuenta real para controlar IMEI, reservas, ubicaciones y transferencias. La demo conserva sus datos aislados.</p></Card>
   return <div className={cn('space-y-4', temaV2Activo() && 'tema-v2')}>
+      {/* #305: una sola barra antes de la tabla. Identidad + buscador +
+          filtros/orden + vista + Recibir + las acciones secundarias en «Más». */}
       <BarraModulo
         icono="box"
         titulo="Inventario"
         descripcion="Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría."
         testId="barra-inventario"
+        expandir
         contexto={productoFiltro ? <span data-testid="inventario-filtro-producto" className="inline-flex min-w-0 max-w-[16rem] items-center gap-1.5 rounded-lg border border-fono/30 bg-fono/5 px-2 py-1 text-[11px] text-fono-light" title={`Unidades de ${productoFiltro.nombre}`}><Icon name="phone" className="h-3 w-3 shrink-0" /><span className="truncate font-semibold">{productoFiltro.nombre}</span><button type="button" aria-label="Quitar el filtro de producto" title="Ver todas las unidades" onClick={() => setSearchParams((actuales) => { const params = new URLSearchParams(actuales); params.delete('producto'); return params }, { replace: true })} className="toque-44 shrink-0 rounded px-1 text-mute transition hover:text-fore">×</button></span> : null}
       >
+        <form onSubmit={search} className="min-w-[10rem] max-w-sm flex-1">
+          <SearchField value={query} onChange={event => setQuery(event.target.value)} placeholder="Escanear IMEI, SKU o buscar modelo" ariaLabel="Buscar en inventario" className="w-full" />
+        </form>
+        <Select value={orden} onChange={event => recordarOrden(event.target.value)} className="w-auto min-w-0 max-w-full shrink" aria-label="Orden del inventario" title="Se recuerda tu último orden"><option value="recientes">Recientes</option><option value="modelo-az">Modelo A→Z</option><option value="modelo-za">Modelo Z→A</option><option value="nuevos">Nuevos primero</option><option value="semis">Seminuevos primero</option><option value="modelo-natural">Modelo (17→13)</option><option value="mezclado">Modelos mezclados</option><option value="costo-mayor">Costo mayor</option><option value="costo-menor">Costo menor</option></Select>
+        <ListGridToggle value={vistaUnidades} onChange={cambiarVistaUnidades} />
         {/* #287: Productos ⇄ Unidades, el mismo objeto en dos vistas. */}
         <VistaProductosUnidades vista="unidades" q={query} productoId={productoFiltro?.id || ''} />
         <Button onClick={abrirReceive}>+ Recibir unidad</Button>
-        <Button variant="outline" onClick={() => setReserveOpen(true)}>Reservar</Button>
-        <Button variant="outline" onClick={() => setTransferOpen(true)}>Transferir</Button>
+        {/* #305: las acciones secundarias viven en un solo menú. */}
+        <MenuSecundario
+          direccion="abajo"
+          etiqueta="Más"
+          ariaLabel="Más acciones de inventario"
+          acciones={[
+            { icon: 'search', label: 'Escanear', onClick: () => setScannerOpen(true) },
+            { icon: 'check', label: 'Conteo rápido', onClick: startCount },
+            ...(disponibles.length > 0 ? [{ icon: 'printer', label: `Etiquetas (${disponibles.length})`, onClick: () => printLabels(disponibles).then(avisarImpresion) }] : []),
+            { icon: 'tag', label: 'Etiquetas de góndola', onClick: () => setGondolaOpen(true) },
+            { separador: true },
+            { icon: 'clock', label: 'Reservar', onClick: () => setReserveOpen(true) },
+            { icon: 'transfer', label: 'Transferir', onClick: () => setTransferOpen(true) },
+            ...(tab === 'unidades' ? [{ icon: 'download', label: 'Exportar CSV', disabled: exportando || busy, onClick: exportarUnidades }] : []),
+          ]}
+        />
       </BarraModulo>
 
-      {/* Métricas con alcance (#256): lo cargado/filtrado no se mezcla con lo de la sucursal. */}
-      <ResumenMetricas
-        testId="resumen-inventario"
-        columnas={4}
-        items={[
-          { titulo: 'Unidades', valor: units.length, alcance: 'En pantalla', nota: `${disponibles.length} disponibles` },
-          { titulo: 'Reservadas', valor: reservations.length, alcance: 'En pantalla' },
-          { titulo: 'En tránsito', valor: enTransito.length, alcance: 'En pantalla' },
-          { titulo: 'Alertas de stock', valor: (stockAlerts.alerts?.length || 0) + (stockAlerts.outOfStock?.length || 0), alcance: 'Sucursal', tono: ((stockAlerts.alerts?.length || 0) + (stockAlerts.outOfStock?.length || 0)) > 0 ? 'text-warn' : 'text-ok' },
-        ]}
-      />
-
-      {/* Consulta: búsqueda + orden + vista en una sola fila. */}
-      <form onSubmit={search} className="flex flex-wrap items-center gap-2">
-        <SearchField value={query} onChange={event => setQuery(event.target.value)} placeholder="Escanear IMEI, SKU o buscar modelo" ariaLabel="Buscar en inventario" className="min-w-0 flex-1" />
-        <Select value={orden} onChange={event => recordarOrden(event.target.value)} className="w-auto" aria-label="Orden del inventario" title="Se recuerda tu último orden"><option value="recientes">Recientes</option><option value="modelo-az">Modelo A→Z</option><option value="modelo-za">Modelo Z→A</option><option value="nuevos">Nuevos primero</option><option value="semis">Seminuevos primero</option><option value="modelo-natural">Modelo (17→13)</option><option value="mezclado">Modelos mezclados</option><option value="costo-mayor">Costo mayor</option><option value="costo-menor">Costo menor</option></Select>
-        <ListGridToggle value={vistaUnidades} onChange={cambiarVistaUnidades} />
-      </form>
-
-      {/* Acciones de lote/impresión/exportación, agrupadas (sin botones sueltos). */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" variant="outline" onClick={() => setScannerOpen(true)}>Escanear</Button>
-        <Button type="button" variant="outline" onClick={startCount}>Conteo rápido</Button>
-        {disponibles.length > 0 && <Button type="button" variant="outline" onClick={() => printLabels(disponibles).then(avisarImpresion)}>Etiquetas ({disponibles.length})</Button>}
-        <Button type="button" variant="outline" onClick={() => setGondolaOpen(true)}>Etiquetas de góndola</Button>
-        {tab === 'unidades' && <Button type="button" variant="outline" className="px-3 text-xs" disabled={exportando || busy} onClick={exportarUnidades}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}
-      </div>
-
       <Card className="p-4 md:p-4">
-        {/* Navegación del módulo sin contadores repetidos: viven en el resumen con alcance. */}
-        <div data-testid="tabs-inventario" className="flex gap-1 overflow-x-auto rounded-lg border border-ink-600 bg-ink-800 p-1">{[['unidades', 'Inventario'], ['taller', 'Taller'], ...(canViewAlerts ? [['alertas', 'Alertas']] : []), ['reservas', 'Reservas'], ['traslados', 'Traslados'], ['vendidos', 'Vendidos'], ['transito', 'En tránsito'], ['ubicaciones', 'Ubicaciones'], ['compartido', 'Compartido'], ['eliminados', 'Eliminados'], ['conteos', 'Conteos']].map(([key, label]) => <button key={key} onClick={() => cambiarTab(key)} className={`min-h-11 shrink-0 rounded-md px-3 py-2 text-xs font-semibold md:min-h-0 ${tab === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>)}</div>{notice && <Aviso tono="ok" className="mt-3">{notice}</Aviso>}{error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
+        {/* #305: navegación agrupada Stock · Movimientos · Control; el grupo
+            activo se deriva de la pestaña, así los enlaces directos siguen
+            abriendo su vista. */}
+        <div data-testid="grupos-inventario" role="group" aria-label="Grupos de inventario" className="flex flex-wrap items-center gap-1">
+          {grupos.map((grupo) => (
+            <button key={grupo.id} type="button" aria-pressed={grupoActivo === grupo.id} onClick={() => cambiarGrupo(grupo.id)} className={cn('min-h-11 shrink-0 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wider transition md:min-h-0', grupoActivo === grupo.id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:bg-ink-700 hover:text-fore')}>{grupo.label}</button>
+          ))}
+        </div>
+        <div data-testid="tabs-inventario" className="mt-2 flex gap-1 overflow-x-auto rounded-lg border border-ink-600 bg-ink-800 p-1">
+          {(grupos.find((grupo) => grupo.id === grupoActivo)?.tabs || []).map((clave) => (
+            <button key={clave} type="button" aria-pressed={tab === clave} onClick={() => cambiarTab(clave)} className={`min-h-11 shrink-0 rounded-md px-3 py-2 text-xs font-semibold md:min-h-0 ${tab === clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{TAB_LABEL[clave]}</button>
+          ))}
+        </div>{notice && <Aviso tono="ok" className="mt-3">{notice}</Aviso>}{error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
     <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
       <button type="button" disabled={busy} data-testid="vender-todos" title="Cargar la venta de todas las seleccionadas en el POS" onClick={venderTodos} className="min-h-11 rounded-lg border border-fono/50 bg-fono/10 px-2 py-1 text-xs md:min-h-0 font-semibold text-fono-light transition hover:bg-fono/20 disabled:opacity-50">Vender todos</button>
       <button type="button" disabled={busy} title="Registrar la verificación física de todas las seleccionadas" onClick={() => Promise.all(unidadesElegidas().map(unidad => verify(unidad)))} className="min-h-11 rounded-lg border border-ok/40 px-2 py-1 text-xs md:min-h-0 font-semibold text-ok transition hover:bg-ok/10 disabled:opacity-50">Verificar todos</button>

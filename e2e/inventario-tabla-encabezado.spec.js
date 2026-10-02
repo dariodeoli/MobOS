@@ -67,7 +67,7 @@ test('el estado de carga usa la misma grilla (esqueleto alineado, sin vacío)', 
   // La API de unidades responde con demora: se alcanza a ver el esqueleto.
   await page.route('**/api/inventory-units**', async (ruta) => {
     await new Promise((resolver) => setTimeout(resolver, 4_000))
-    await ruta.continue()
+    await ruta.continue().catch(() => {})
   })
   await page.goto('/inventario/unidades')
   const cargando = page.getByTestId('unidades-cargando')
@@ -120,7 +120,7 @@ test('capturas de la tabla en todos los estados', async ({ page }) => {
 
   await page.route('**/api/inventory-units**', async (ruta) => {
     await new Promise((resolver) => setTimeout(resolver, 4_000))
-    await ruta.continue()
+    await ruta.continue().catch(() => {})
   })
   await page.goto('/inventario/unidades')
   await expect(page.getByTestId('unidades-cargando')).toBeVisible({ timeout: 20_000 })

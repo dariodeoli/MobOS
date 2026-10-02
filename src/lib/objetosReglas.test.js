@@ -712,9 +712,11 @@ test('la composición de módulo y el resumen de métricas son objetos (#256)', 
     assert.match(codigo, marca, `${ruta}: usa la barra compartida`)
   }
   assert.match(readFileSync(join(RAIZ, 'components/ventas/SellerCustomers.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-clientes"/, 'Clientes usa el resumen con alcance')
-  assert.match(readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-inventario"/, 'Inventario usa el resumen con alcance')
+  // #305: Inventario dejó de apilar el resumen de métricas antes de la tabla.
+  assert.doesNotMatch(readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /<ResumenMetricas/, 'Inventario ya no apila el resumen de métricas (#305)')
   assert.match(readFileSync(join(RAIZ, 'components/ventas/SellerCatalog.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-productos"/, 'Productos usa el resumen con alcance')
   assert.match(readFileSync(join(RAIZ, 'components/control/Compras.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-compras"/, 'Compras usa el resumen con alcance')
+  assert.match(readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /data-testid="grupos-inventario"/, 'la navegación de Inventario está agrupada (#305)')
   assert.match(readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /data-testid="tabs-inventario"/, 'las solapas de Inventario viven en un contenedor propio (sin contadores repetidos)')
 })
 

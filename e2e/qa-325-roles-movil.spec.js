@@ -144,7 +144,7 @@ function guardar(nombre, filas) {
 
 function exigir(medicion, etiqueta, esMobile = false) {
   expect(medicion.overflowH, `${etiqueta}: sin scroll horizontal`).toBe(0)
-  expect(medicion.totalCortados, `${etiqueta}: sin elementos cortados`).toBe(0)
+  expect(medicion.totalCortados, `${etiqueta}: sin elementos cortados · ${JSON.stringify(medicion.cortados)}`).toBe(0)
   if (esMobile) expect(medicion.totalChicos, `${etiqueta}: ningún target < 44 en mobile · ${JSON.stringify(medicion.chicos)}`).toBe(0)
 }
 

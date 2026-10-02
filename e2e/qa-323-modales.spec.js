@@ -9,7 +9,9 @@ import { SEED } from './helpers/seed-data.js'
 
 async function abrirEtiquetas(page) {
   await page.goto('/inventario/unidades')
-  await page.getByRole('button', { name: 'Etiquetas de góndola' }).click()
+  // #305: etiquetas de góndola vive en «Más acciones» de la barra.
+  await page.getByTestId('barra-inventario').getByRole('button', { name: 'Más', exact: true }).click()
+  await page.getByRole('menu', { name: 'Más acciones de inventario' }).getByRole('menuitem', { name: 'Etiquetas de góndola' }).click()
   const modal = page.getByRole('dialog', { name: 'Etiquetas de góndola' })
   await expect(modal).toBeVisible()
   // La lista hidrata desde la API: esperar el producto sembrado.

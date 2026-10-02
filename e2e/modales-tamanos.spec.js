@@ -42,6 +42,8 @@ test('Notificaciones (formulario)', async ({ page }) => {
 
 test('Nuevo conteo (formulario, antes sin ancho declarado)', async ({ page }) => {
   await page.goto('/inventario')
+  // #305: la navegación está agrupada; Conteos vive en Control.
+  await page.getByTestId('grupos-inventario').getByRole('button', { name: 'Control', exact: true }).click()
   await page.getByRole('button', { name: 'Conteos', exact: true }).click()
   await page.getByRole('button', { name: 'Nuevo conteo' }).click()
   await capturar(page, page.getByRole('dialog', { name: 'Nuevo conteo' }), 'nuevo-conteo', 'formulario')
