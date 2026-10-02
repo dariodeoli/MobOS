@@ -78,6 +78,8 @@ test('compras: buscador de proveedores y alta desde el campo (#259)', async ({ p
 
   try {
     await page.goto('/compras')
+    // #307: el alta de compra vive en un drawer.
+    await page.getByRole('button', { name: 'Nueva compra' }).click()
     const campo = page.locator('#compra-proveedor')
     await expect(campo).toBeVisible({ timeout: 20_000 })
 

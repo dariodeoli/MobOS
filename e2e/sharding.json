@@ -44,7 +44,7 @@
         "qa-287-objeto-unificado.spec.js",
         "qa-323-modales.spec.js",
         "qa-325-roles-movil.spec.js",
-        "qa-fin-repuestos-taller.spec.js",
+        "qa-f6-metricas-abastecimiento.spec.js",
         "redireccion-248.spec.js",
         "responsive.spec.js",
         "seguridad-cuenta.spec.js",
@@ -99,8 +99,8 @@
         "qa-306-producto-kardex.spec.js",
         "qa-318-comprobante.spec.js",
         "qa-fin-compacto.spec.js",
+        "qa-fin-repuestos-taller.spec.js",
         "quote-approval-otp.spec.js",
-        "recorte-perfil.spec.js",
         "ruc-demo.spec.js",
         "sesion-bloqueo.spec.js",
         "shell-roles.spec.js"
@@ -153,14 +153,15 @@
         "qa-280-aviso-stock.spec.js",
         "qa-285-unidades.spec.js",
         "qa-286-unidades-pos.spec.js",
-        "qa-f6-metricas-abastecimiento.spec.js",
+        "qa-307-compras-proveedores.spec.js",
+        "recorte-perfil.spec.js",
         "repuestos-proveedores.spec.js",
         "ruc-extraccion.spec.js",
         "selector-sucursal.spec.js",
         "servicio-tecnico.spec.js"
       ],
-      "tests": 199
+      "tests": 200
     }
   ],
-  "generado": "2026-10-02T05:26:12.699Z"
+  "generado": "2026-10-02T06:35:18.897Z"
 }
