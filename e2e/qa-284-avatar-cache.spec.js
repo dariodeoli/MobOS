@@ -55,6 +55,10 @@ test('la segunda carga pinta la foto cacheada al instante y revalida sola (#284)
   await olvidarCache(page)
   await page.reload()
   await expect(foto()).toHaveAttribute('src', `data:image/png;base64,${b64A}`, { timeout: 20_000 })
+  // Recién cuando A quedó persistida se sube B: si la descarga de A siguiera en
+  // vuelo, podría guardarse B en la caché y la segunda carga lo pintaría antes
+  // de revalidar (la carrera que hacía fallar el spec).
+  await page.waitForFunction((id) => Boolean(localStorage.getItem(`mobos:avatar:${id}`)), sesion.id)
   await page.screenshot({ path: join(DIR, 'segunda-carga-antes.jpg'), type: 'jpeg', quality: 74 })
 
   // Otra computadora cambia la foto: esta pestaña todavía no lo sabe.
