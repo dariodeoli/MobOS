@@ -39,6 +39,11 @@ export async function GET(request: Request) {
   const sinAsignar = params.get('sinAsignar') === '1' || params.get('sinAsignar') === 'true'
   const sinCentro = params.get('sinCentro') === '1' || params.get('sinCentro') === 'true'
   const prioridad = (params.get('priority') || params.get('prioridad') || '').trim().toUpperCase()
+  // El filtro de prioridad se aplica sobre la prioridad **efectiva** (guardada +
+  // regla por promesa), que es la que muestra el panel; si se filtrara en SQL
+  // por la guardada, un grupo con fecha vencida entraría como ALTA y saldría
+  // rotulado URGENTE (#254 · «el filtro por prioridad no mezcla»).
+  const prioridadValida = (NECESIDAD_PRIORIDADES as readonly string[]).includes(prioridad) ? prioridad : ''
   const condicion = (params.get('condition') || params.get('condicion') || '').trim().toUpperCase()
   const limite = Math.min(500, Math.max(1, Number(params.get('limit')) || 200))
 
@@ -52,7 +57,6 @@ export async function GET(request: Request) {
       ...(sinAsignar ? { assignedToId: null } : {}),
       ...(origin ? { origin } : {}),
       ...(sinCentro ? { origin: null } : {}),
-      ...(prioridad && (NECESIDAD_PRIORIDADES as readonly string[]).includes(prioridad) ? { priority: prioridad } : {}),
       ...(condicion && ['NEW', 'USED', 'REFURBISHED'].includes(condicion) ? { condition: condicion as ProductCondition } : {}),
     },
     include: {
@@ -109,7 +113,10 @@ export async function GET(request: Request) {
       margenEstimadoPyg,
     }
   })
-  const grupos = consolidarNecesidades(entradas)
+  // El filtro por prioridad efectiva se resuelve después de calcularla,
+  // antes de consolidar: así todo grupo devuelto lleva la prioridad pedida.
+  const entradasFiltradas = prioridadValida ? entradas.filter((entrada) => entrada.prioridad === prioridadValida) : entradas
+  const grupos = consolidarNecesidades(entradasFiltradas)
 
   // Contadores del panel (sobre toda la empresa, no solo la página): pestañas,
   // prioridades y colas de trabajo del comprador.
@@ -128,9 +135,9 @@ export async function GET(request: Request) {
   return json({
     fecha: ahora.toISOString(),
     totales: {
-      necesidades: entradas.length,
+      necesidades: entradasFiltradas.length,
       grupos: grupos.length,
-      unidades: entradas.reduce((suma, entrada) => suma + entrada.cantidad, 0),
+      unidades: entradasFiltradas.reduce((suma, entrada) => suma + entrada.cantidad, 0),
     },
     contadores: {
       porEstado: contar(porEstado as never, 'status', NECESIDAD_ESTADOS),

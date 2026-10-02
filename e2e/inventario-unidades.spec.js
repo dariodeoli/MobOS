@@ -666,7 +666,12 @@ test('recepción: buscador de proveedores por abreviatura y últimos usados (#25
     // Primero el modelo (la carga rápida exige modelo, IMEI y dónde entra).
     const modelo = modal.getByRole('combobox').first()
     await modelo.fill(`Equipo proveedor QA ${id}`)
-    await modal.getByRole('option', { name: new RegExp(`Equipo proveedor QA ${id}`) }).first().click()
+    // El catálogo se hidrata async: esperar la opción real del producto (la de
+    // crear solo aparece cuando no hay sugerencias; con la carrera, el clic
+    // caía ahí y abría el alta dependiente sin seleccionar el modelo).
+    const opcionProducto = modal.getByRole('option').filter({ hasText: `Equipo proveedor QA ${id}` }).filter({ hasNotText: 'Agregar' }).first()
+    await expect(opcionProducto).toBeVisible({ timeout: 15_000 })
+    await opcionProducto.click()
     const campo = modal.locator('#recibir-proveedor')
     await expect(campo).toBeVisible({ timeout: 15_000 })
 
