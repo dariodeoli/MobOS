@@ -486,7 +486,7 @@ test.describe('impresión remota: cola con puente falso', () => {
       expect(detalle.datos?.job?.kind).toBe('comprobante')
       expect(detalle.datos?.job?.path).toBe('REMOTO')
       expect(detalle.datos?.job?.state).toBe('ACEPTADO')
-      await expect(page.getByText('Comprobante encolado al puente')).toBeVisible({ timeout: 10_000 })
+      await expect(page.getByText('Comprobante se envió a la impresora')).toBeVisible({ timeout: 10_000 })
       expect(await page.evaluate(() => window.__dialogosImpresion)).toBe(0)
     } finally {
       puente.detener()
@@ -519,7 +519,7 @@ test.describe('impresión remota: cola con puente falso', () => {
     // Primer click: encola (queda pendiente).
     await page.getByRole('button', { name: 'Imprimir comprobante' }).click()
     await page.getByRole('button', { name: 'Impresión directa' }).click()
-    await expect(page.getByText('Comprobante encolado al puente')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText('Comprobante se envió a la impresora')).toBeVisible({ timeout: 15_000 })
 
     // Segundo click del mismo comprobante: avisa y no encola solo.
     await page.getByRole('button', { name: 'Impresión directa' }).click()
@@ -531,7 +531,7 @@ test.describe('impresión remota: cola con puente falso', () => {
 
     // "Reimprimir igual" es la confirmación explícita: crea un trabajo nuevo.
     await reimprimir.click()
-    await expect(page.getByText('Comprobante encolado al puente')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText('Comprobante se envió a la impresora')).toBeVisible({ timeout: 15_000 })
     await expect.poll(async () => (await pendientesDe()).length, { timeout: 10_000 }).toBe(2)
 
     // Limpieza: este test encola pendientes a propósito; si quedan, en la
@@ -1057,7 +1057,7 @@ test('el ticket corto es el predeterminado y la plantilla se guarda por impresor
   await expect(hoja.locator('pre')).toContainText('Fecha')
   await expect(hoja.locator('pre')).toContainText('[CORTE: parcial]')
   await dialogo.getByRole('button', { name: 'Guardar plantilla' }).click()
-  await expect(page.getByText('Plantilla guardada').first()).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByText('Plantilla se guardó').first()).toBeVisible({ timeout: 10_000 })
 
   // Reabrir: la plantilla quedó guardada en la impresora como predeterminada.
   await dialogo.getByRole('button', { name: 'Cancelar' }).click()

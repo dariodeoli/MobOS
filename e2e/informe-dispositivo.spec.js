@@ -120,7 +120,7 @@ test('el informe de la unidad sale directo por el agente con el QR al informe p�
   await page.screenshot({ path: `${SALIDA}/01-vista-previa-80.jpg` })
 
   await modal.getByRole('button', { name: 'Impresión directa' }).click()
-  await expect(page.getByText('Informe enviado a la impresora.')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Informe se envió a la impresora')).toBeVisible({ timeout: 15_000 })
 
   expect(capturados).toHaveLength(1)
   expect(capturados[0].tipo).toBe('informe-dispositivo')
@@ -213,7 +213,7 @@ test('el certificado de inspección sale directo y sin inventar la inspección',
   await page.screenshot({ path: `${SALIDA}/05-certificado-preview.jpg` })
 
   await modal.getByRole('button', { name: 'Impresión directa' }).click()
-  await expect(page.getByText('Certificado enviado a la impresora.')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Certificado se envió a la impresora')).toBeVisible({ timeout: 15_000 })
 
   expect(capturados).toHaveLength(1)
   expect(capturados[0].tipo).toBe('certificado-phonecheck')
@@ -277,7 +277,7 @@ test('el certificado se comparte como imagen PNG (descarga y portapapeles)', asy
 
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await modal.getByTestId('copiar-png').click()
-  await expect(page.getByText('Imagen copiada')).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByText('Imagen se copió')).toBeVisible({ timeout: 20_000 })
 })
 
 // Etiquetas del taller (#220/#241): el diálogo «Imprimir en serie» también baja
@@ -417,7 +417,7 @@ test('la constancia de preparación sale directo con la declaración del checkli
   await expect(vista.locator('body')).toContainText(/formateado y desvinculado|No se puede afirmar/)
 
   await modal.getByRole('button', { name: 'Impresión directa' }).click()
-  await expect(page.getByText(/Constancia enviada a la impresora/)).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText(/Constancia se envió a la impresora/)).toBeVisible({ timeout: 30_000 })
   await expect.poll(() => capturados.length, { timeout: 20_000 }).toBe(1)
   expect(capturados[0].tipo).toBe('constancia-preparacion')
   const texto = textoDelTicket(capturados[0])

@@ -569,7 +569,7 @@ test('el modo taller agrupa por estado y verifica e imprime en serie', async ({ 
     // Impresión por estación: el «Imprimir (3)» del carril manda el trabajo
     // directo (sin modal ni diálogo) con las etiquetas de toda la estación.
     await page.getByTestId('rack-imprimir-por-verificar').click()
-    await expect(page.getByText('Etiqueta enviada a la impresora.')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText('Etiquetas se envió a la impresora')).toBeVisible({ timeout: 15_000 })
     expect(capturados).toHaveLength(1)
     expect(capturados[0].tipo).toBe('etiquetas-stock')
     const textoEstacion = textoDelTicket(capturados[0])
