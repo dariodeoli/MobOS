@@ -11,6 +11,13 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.212 — 2026-10-02
+- **Inventario (#305):** el módulo queda con **una sola barra** (identidad, búsqueda, filtros y acciones juntas) y las secundarias en **«Más»**; la tabla muestra **IMEI completo, verificación y estado sin truncar** y en mobile el orden ya no se corta.
+- **Clientes y Pedidos (#313):** los listados muestran **solo códigos humanos** (se terminaron los «demo-ven…»), cada pedido tiene **una acción principal** con la vista rápida aparte, y las filas se leen completas en mobile.
+- **Ayuda y landing (#321/#322):** **Ayuda** abre por **tareas frecuentes**, con atajos reales y avisos de demo; la **landing** quedó reorganizada y más corta, con **menú móvil**, capturas reales y **pie legal**.
+- **Diálogos (#323):** impresoras, precios/autorizaciones, inventario y clientes adoptan el **modal/drawer estándar** (confirmación al cerrar con cambios, error junto al campo y **resultado unificado** al imprimir).
+- **Demo y sistema (#324/#295/#326):** la demo usa **una sola fuente de verdad** para ventas, clientes, proveedores, abastecimiento y equipo; la **página pública de estado** deja de anunciar degradación cuando solo falta sesión o el chequeo no es verificable, y se estabilizó la **falla intermitente del avatar** en las pruebas.
+
 ## v1.0.211 — 2026-10-02
 - **POS (#308/#309):** la venta pide **variante e IMEI exactos** (o «vender sin IMEI» explícito) y quedó ordenada como **una sola página de trabajo**: producto y búsqueda primero, cliente después, y carrito y cobro siempre a la vista; gift cards, analytics y ventas suspendidas viven en **«Más»**.
 - **Compras (#307):** proveedores coherentes en la demo, **alta rápida en cajón** con campos identificados, etiquetas con **una sola acción primaria** y menú secundario, y **copiar precios con vista previa** antes de aplicar.
