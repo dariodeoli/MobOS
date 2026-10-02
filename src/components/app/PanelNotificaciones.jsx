@@ -36,13 +36,15 @@ function hace(at) {
 // la persona, con acceso directo a la pantalla donde se resuelve. Incluye el
 // aviso de Inventario al vendedor (#280) cuando cambia el stock de un producto
 // comprometido.
-export default function PanelNotificaciones({ open, onClose, items, cargando, error, onRecargar, onAbrir, activas = true }) {
+export default function PanelNotificaciones({ open, onClose, items, cargando, error, onRecargar, onAbrir, activas = true, demo = false }) {
   return (
     <Modal open={open} onClose={onClose} title="Notificaciones" size="formulario">
       <div className="space-y-3" data-testid="notificaciones-panel">
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs text-mute">
-            {activas ? 'Últimos movimientos de tu operación (7 días).' : 'Las notificaciones están desactivadas en Preferencias.'}
+            {demo
+              ? 'Ejemplos ficticios para evaluar la bandeja: en la demo no se guarda nada.'
+              : activas ? 'Últimos movimientos de tu operación (7 días).' : 'Las notificaciones están desactivadas en Preferencias.'}
           </p>
           <Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={onRecargar} disabled={cargando}>
             Actualizar
@@ -75,7 +77,10 @@ export default function PanelNotificaciones({ open, onClose, items, cargando, er
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-2">
-                    <span className={CELDA_IDENTIDAD_GRANDE}>{item.title}</span>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className={CELDA_IDENTIDAD_GRANDE}>{item.title}</span>
+                      {item.demo && <span className="shrink-0 rounded-full border border-fono/40 bg-fono/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-fono-light">Ejemplo</span>}
+                    </span>
                     <span className="shrink-0 text-[10px] text-mute">{hace(item.at)}</span>
                   </span>
                   <span className={cn('mt-0.5 block', CELDA_DATO)}>{item.detail}</span>

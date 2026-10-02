@@ -328,7 +328,7 @@ export default function AppShell({
   const { usuario: usuarioSesion } = useSesion()
   const usuarioActual = usuario || usuarioSesion
   const [preferencias] = usePreferencias(usuarioActual?.id)
-  const notificaciones = useNotificaciones(usuarioActual?.id, { activo: notificacionesActivas && !esDemo })
+  const notificaciones = useNotificaciones(usuarioActual?.id, { activo: notificacionesActivas && !esDemo, demo: esDemo && notificacionesActivas })
   const [notificacionesAbiertas, setNotificacionesAbiertas] = useState(false)
   const enLinea = useOnlineStatus()
   // A1 (#279): si el dispositivo ya autorizó los avisos, se re-registra la
@@ -666,6 +666,7 @@ export default function AppShell({
             error={notificaciones.error}
             onRecargar={notificaciones.cargar}
             activas={preferencias.notificaciones}
+            demo={esDemo}
             onAbrir={(href) => {
               setNotificacionesAbiertas(false)
               if (onAbrirNotificacion) onAbrirNotificacion(href)
