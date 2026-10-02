@@ -5,7 +5,7 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 10,
+    "totalChicos": 22,
     "chicos": [
       {
         "que": "button",
@@ -13,7 +13,16 @@
         "ancho": 165,
         "alto": 36,
         "dibujo": "165x36",
-        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
+        "veces": 12
+      },
+      {
+        "que": "button",
+        "texto": "Rápido",
+        "ancho": 84,
+        "alto": 36,
+        "dibujo": "84x36",
+        "clase": "inline-flex min-h-11 min-w-11 items-center gap-1.5 rounded-l",
         "veces": 6
       },
       {
@@ -104,7 +113,7 @@
         "ancho": 160,
         "alto": 36,
         "dibujo": "160x36",
-        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
         "veces": 1
       },
       {
@@ -142,7 +151,7 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 14,
+    "totalChicos": 29,
     "chicos": [
       {
         "que": "button",
@@ -150,8 +159,8 @@
         "ancho": 175,
         "alto": 36,
         "dibujo": "175x36",
-        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
-        "veces": 6
+        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
+        "veces": 22
       },
       {
         "que": "button",
@@ -178,15 +187,6 @@
         "alto": 24,
         "dibujo": "187x24",
         "clase": "flex w-full items-center justify-between gap-2 rounded-lg px",
-        "veces": 1
-      },
-      {
-        "que": "button",
-        "texto": "Colapsar el menú de Configuración",
-        "ancho": 36,
-        "alto": 36,
-        "dibujo": "36x36",
-        "clase": "grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mut",
         "veces": 1
       }
     ]

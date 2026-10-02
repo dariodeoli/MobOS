@@ -13,7 +13,7 @@
         "ancho": 125,
         "alto": 36,
         "dibujo": "125x36",
-        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
         "veces": 6
       },
       {
@@ -114,7 +114,7 @@
         "ancho": 130,
         "alto": 36,
         "dibujo": "130x36",
-        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
         "veces": 3
       },
       {
@@ -160,7 +160,7 @@
         "ancho": 124,
         "alto": 36,
         "dibujo": "124x36",
-        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
         "veces": 2
       },
       {
@@ -233,7 +233,7 @@
         "ancho": 160,
         "alto": 36,
         "dibujo": "160x36",
-        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
         "veces": 1
       },
       {
@@ -279,7 +279,7 @@
         "ancho": 125,
         "alto": 36,
         "dibujo": "125x36",
-        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
         "veces": 6
       },
       {
@@ -343,7 +343,7 @@
         "ancho": 118,
         "alto": 36,
         "dibujo": "118x36",
-        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
         "veces": 1
       }
     ]
@@ -444,7 +444,7 @@
         "ancho": 102,
         "alto": 36,
         "dibujo": "102x36",
-        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
         "veces": 4
       },
       {
@@ -499,7 +499,7 @@
         "ancho": 102,
         "alto": 36,
         "dibujo": "102x36",
-        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
         "veces": 4
       },
       {
@@ -545,7 +545,7 @@
         "ancho": 127,
         "alto": 36,
         "dibujo": "127x36",
-        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
         "veces": 3
       },
       {
@@ -600,7 +600,7 @@
         "ancho": 127,
         "alto": 36,
         "dibujo": "127x36",
-        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
         "veces": 3
       },
       {
@@ -655,7 +655,7 @@
         "ancho": 100,
         "alto": 36,
         "dibujo": "100x36",
-        "clase": "inline-flex items-center justify-center gap-2 rounded-lg px-",
+        "clase": "inline-flex select-none items-center justify-center gap-2 ro",
         "veces": 1
       }
     ]
