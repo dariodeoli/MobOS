@@ -756,7 +756,7 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   useEffect(() => {
     if (!inventarioOperativo || tab !== 'eliminados' || !secundariosListos.current) return
     resources.inventoryUnits.list(busquedaDiferida, 'removed').then(setRemovedUnits).catch(() => {})
-  }, [tab, busquedaDiferida, inventarioOperativo]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tab, busquedaDiferida, inventarioOperativo])
   useEffect(() => { if (qParam) setQuery(qParam) }, [qParam])
   // #287: el producto que acota la vista (nombre para el contexto de la barra).
   const productoFiltro = useMemo(() => {
