@@ -6,6 +6,36 @@ import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
 import { publicUrls } from '@/lib/urls'
 
+// Tareas frecuentes (#321): la ayuda arranca por la pregunta real, con los
+// pasos y el enlace a la pantalla. El índice completo sigue abajo.
+const TAREAS = [
+  {
+    pregunta: '¿Cómo hago una venta?',
+    pasos: 'Elegí el cliente, buscá el producto por nombre o IMEI, sumalo al carrito y cobrá en el bloque de pagos.',
+    ruta: '/pos', accion: 'Ir al POS', icono: 'receipt',
+  },
+  {
+    pregunta: '¿Cómo recibo una unidad?',
+    pasos: 'Inventario → Unidades → «+ Recibir unidad»: cargá IMEI/serial, sucursal y depósito; queda en el stock con historial.',
+    ruta: '/inventario/unidades', accion: 'Recibir una unidad', icono: 'box',
+  },
+  {
+    pregunta: '¿Cómo cierro la caja?',
+    pasos: 'Finanzas → Caja → «Cerrar caja»: contá las denominaciones; el arqueo muestra la diferencia y queda auditado.',
+    ruta: '/finanzas/caja', accion: 'Ir a Caja', icono: 'money',
+  },
+  {
+    pregunta: '¿Cómo traslado stock?',
+    pasos: 'Inventario → Traslados: elegí origen, destino y unidades; el envío y la recepción quedan con ETA y responsable.',
+    ruta: '/inventario/traslados', accion: 'Preparar un traslado', icono: 'truck',
+  },
+  {
+    pregunta: '¿Cómo consulto un IMEI?',
+    pasos: 'Inventario → Unidades → ficha de la unidad → «Consultar IMEI»: blacklist, Find My, SIM lock y garantía, con confirmación y auditoría.',
+    ruta: '/inventario/unidades', accion: 'Consultar un IMEI', icono: 'shield',
+  },
+]
+
 // Documentación interna: dónde se configura cada cosa y cómo funciona. Cada
 // resultado lleva la ubicación exacta, una explicación breve y un enlace
 // directo a la pantalla. El buscador ignora mayúsculas y acentos.
@@ -21,14 +51,14 @@ const AYUDA = [
     ruta: '/pos',
   },
   {
-    modulo: 'Vender', titulo: 'Bloqueo de pantalla y PIN', ubicacion: 'Barra superior → menú de tres puntos',
-    explicacion: 'La pantalla se bloquea sola por inactividad (10 minutos por defecto) o con Bloquear pantalla. Se desbloquea con el PIN personal, que valida solo al completarlo.',
+    modulo: 'Vender', titulo: 'Bloqueo de pantalla y PIN', ubicacion: 'Barra superior → candado',
+    explicacion: 'La pantalla se bloquea sola por inactividad (10 minutos por defecto) o con el candado de la barra superior. Se desbloquea con el PIN personal, que valida solo al completarlo.',
     ruta: '/pos',
   },
   {
-    modulo: 'Vender', titulo: 'Preferencias y notificaciones', ubicacion: 'Barra superior → menú de tres puntos → Preferencias',
-    explicacion: 'Cambiá el tema claro/oscuro, los minutos de bloqueo y si querés ver el aviso de novedades. El panel de notificaciones junta pedidos, aprobaciones, comentarios y menciones.',
-    ruta: '/pos',
+    modulo: 'Vender', titulo: 'Preferencias y notificaciones', ubicacion: 'Mi perfil (foto de la barra) → Mi cuenta · Barra superior → campana',
+    explicacion: 'En Mi cuenta cambiás el tema claro/oscuro, los minutos de bloqueo y las preferencias del dispositivo. La campana de la barra junta pedidos, aprobaciones, comentarios y menciones; en la demo muestra ejemplos ficticios.',
+    ruta: '/mi-cuenta',
   },
   {
     modulo: 'Vender', titulo: 'Buscar y abrir un pedido', ubicacion: 'Vender → Pedidos → /pedidos',
@@ -213,9 +243,9 @@ const AYUDA = [
     ruta: '/configuracion/organizacion',
   },
   {
-    modulo: 'Inventario', titulo: 'Listas de precios', ubicacion: 'Inventario → Precios · Configuración → Comercial',
+    modulo: 'Inventario', titulo: 'Listas de precios', ubicacion: 'Inventario → Precios → /precios',
     explicacion: 'Definí precios por producto o categoría, con escalones por cantidad. Al vender, el cliente con lista asignada ve su precio y el origen queda visible.',
-    ruta: '/configuracion/comercial',
+    ruta: '/precios',
   },
   {
     modulo: 'Configuración', titulo: 'Seguridad de la cuenta', ubicacion: 'Configuración → Seguridad y auditoría',
@@ -285,8 +315,37 @@ export default function Documentacion() {
       <div>
         <h2 className="font-bold">Documentación interna</h2>
         <p className="mt-1 text-sm text-mute">
-          Dónde se configura cada cosa y cómo funciona la operación. Buscá por tema, pantalla o palabra clave.
+          Dónde se configura cada cosa y cómo funciona la operación. Empezá por las tareas frecuentes o buscá por tema, pantalla o palabra clave.
         </p>
+      </div>
+
+      {/* #321: ayuda por tareas, con pasos y enlace directo a la pantalla. */}
+      <div className="space-y-2" data-testid="ayuda-tareas">
+        <h3 className="text-sm font-bold">Empezá por acá</h3>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {TAREAS.map(({ pregunta, pasos, ruta, accion, icono }) => (
+            <Card key={pregunta} className="flex flex-col gap-3 p-4">
+              <div className="flex min-w-0 items-start gap-2.5">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-fono/10 text-fono-light">
+                  <Icon name={icono} className="h-[18px] w-[18px]" />
+                </span>
+                <div className="min-w-0">
+                  <h4 className="text-sm font-bold">{pregunta}</h4>
+                  <p className="mt-1 text-xs leading-5 text-mute">{pasos}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate(ruta)}
+                aria-label={`${accion}: ${pregunta}`}
+                className="mt-auto inline-flex min-h-11 shrink-0 items-center gap-1.5 self-start rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light transition hover:bg-fono/10 md:min-h-9"
+              >
+                {accion}
+                <Icon name="external" className="h-3.5 w-3.5" />
+              </button>
+            </Card>
+          ))}
+        </div>
       </div>
 
       {/* Estado público de los servicios (moboss.online/status): si algo no

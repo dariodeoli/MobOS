@@ -115,10 +115,11 @@ export default function ImeiVerificador() {
           <li className="flex gap-3"><Check size={16} className="mt-0.5 shrink-0 text-fono-dark" /><span>En el demo se muestra <b className="text-fore">simulado</b>, con datos ficticios y sin consultar al proveedor.</span></li>
         </ul>
         <p className="mt-6 rounded-2xl border border-fore/10 bg-ink p-4 text-xs leading-6 text-mute">
-          <b className="text-fore">Honestidad ante todo:</b> la verificación corre en <b className="text-fore">modo mock
-          (Fase 1)</b>: valida el IMEI (15 dígitos y dígito control), usa estados honestos, exige costo
-          confirmado y deja registro auditable, sin llamadas reales al proveedor salvo configuración
-          explícita. Acá la ficha es una demostración visual con datos ficticios.
+          <b className="text-fore">Honestidad ante todo:</b> validamos el IMEI (15 dígitos y dígito
+          control), pedimos confirmar el costo antes de cada consulta y dejamos un registro
+          auditable. Si el proveedor no responde o falta un dato, el estado es
+          <b className="text-fore"> «No verificado»</b>. Acá la ficha es una demostración visual con
+          datos ficticios.
         </p>
       </div>
 
@@ -226,9 +227,9 @@ export default function ImeiVerificador() {
             )}
 
             <p className="mt-3 text-[11px] leading-5 text-mute">
-              Demostración visual con datos ficticios: acá no se consulta al proveedor ni se cobra. En la tienda
-              la Fase 1 corre en <b className="text-fore">modo mock</b>, con costo confirmado e idempotencia; lo
-              pendiente, parcial o sin dato queda como <b className="text-fore">“No verificado”</b>.
+              Demostración visual con datos ficticios: acá no se consulta al proveedor ni se cobra. En la
+              tienda, la consulta se confirma antes de ejecutarse, queda auditada y lo pendiente, parcial
+              o sin dato queda como <b className="text-fore">“No verificado”</b>.
             </p>
             <a href={`${app}/demo`} className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-fono-dark transition hover:text-fono">
               Ver cómo queda en el demo <ArrowRight size={16} />

@@ -1059,10 +1059,9 @@ export default function PanelVendedor() {
         open={ayudaAbierto}
         onClose={() => setAyudaAbierto(false)}
         title="Atajos de teclado" size="corto">
-        <p className="mt-4 text-xs text-mute">
-          Los atajos no funcionan mientras escribís en un campo o tenés un diálogo abierto.
-        </p>
-        <CheatSheetAtajos />
+        <div className="mt-4">
+          <CheatSheetAtajos />
+        </div>
         <Link
           to="/ayuda/ayuda"
           onClick={() => setAyudaAbierto(false)}

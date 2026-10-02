@@ -59,9 +59,9 @@ con la regla nueva (10/10 en conjunto).
 - `npm run build` + `npm --prefix backend run build` → exit 0 con
   `backend/.next/BUILD_ID`.
 - `npm --prefix backend run prisma:validate` → OK.
-- `npm test` → 869 pass · 0 fail (incluye la aserción de fuente nueva).
+- `npm test` → 885 pass · 0 fail (incluye la aserción de fuente nueva).
 - `npm --prefix backend run test:unit` → 138 pass · 0 fail.
-- `node scripts/e2e-shards.mjs --check` → 198 / 197 / 197 (592 tests).
+- `node scripts/e2e-shards.mjs --check` → 202 / 202 / 202 (606 tests).
 - `e2e/qa-320-sistema-visual.spec.js` (1/1) + `e2e/qa-256-composicion.spec.js`
   (6/6) + `e2e/qa-278-cierre.spec.js` (3/3) → **10/10 en verde**, sin reintentos.
 - `rg "<<<<<<<" src backend e2e` → sin marcadores.

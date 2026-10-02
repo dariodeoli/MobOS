@@ -15,6 +15,7 @@ import { DESTINO_LEGADO } from '@/lib/rutas'
 
 // Rutas secundarias en lazy: su código baja solo cuando se navega a ellas.
 const Landing = lazy(() => import('@/pages/Landing'))
+const LegalPublica = lazy(() => import('@/pages/LegalPublica'))
 const Status = lazy(() => import('@/pages/Status'))
 const RecuperarContrasena = lazy(() => import('@/pages/RecuperarContrasena'))
 const PortalClientesEntrada = lazy(() => import('@/pages/PortalClientesEntrada'))
@@ -237,10 +238,12 @@ export default function App() {
   const landingPreview = import.meta.env.DEV && window.location.pathname === '/landing-preview'
   const landing = ['moboss.online', 'www.moboss.online'].includes(host) || landingPreview
   const status = typeof window !== 'undefined' && window.location.pathname === '/status'
+  // Privacidad y Términos viven en el host público (#322) junto a la landing.
+  const legal = typeof window !== 'undefined' && ['/privacidad', '/terminos'].includes(window.location.pathname)
   // Solo la app publicada redirige los enlaces viejos al subdominio canónico;
   // en dev/local se abre la página acá mismo (#197).
   const canonicoPedido = ['app.moboss.online', 'www.app.moboss.online'].includes(host)
-  if (landing) return <><MetadatosPagina publicPage /><Suspense fallback={<PaginaCargando />}>{status ? <Status /> : <Landing />}</Suspense></>
+  if (landing) return <><MetadatosPagina publicPage /><Suspense fallback={<PaginaCargando />}>{status ? <Status /> : legal ? <LegalPublica /> : <Landing />}</Suspense></>
 
   const clientPortalPreview = import.meta.env.DEV && window.location.pathname === '/clientes-preview'
   const clientPortal = ['clientes.moboss.online', 'www.clientes.moboss.online'].includes(host) || clientPortalPreview
@@ -276,6 +279,9 @@ export default function App() {
         <Routes>
           <Route path="/demo" element={<DemoAccess />} />
           <Route path="/login" element={<SoloFuera />} />
+          {/* Públicas informativas de la landing (#322). */}
+          <Route path="/privacidad" element={<LegalPublica />} />
+          <Route path="/terminos" element={<LegalPublica />} />
           <Route path="/restablecer-contrasena/:token?" element={<RecuperarContrasena />} />
           <Route path="/recuperar-empresa" element={<RecuperarEmpresa />} />
           <Route path="/aceptar-invitacion/:token?" element={<AceptarInvitacion />} />
