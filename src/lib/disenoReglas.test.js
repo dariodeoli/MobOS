@@ -111,10 +111,13 @@ test('los campos de dinero y porcentaje del barrido usan las primitivas', () => 
   for (const [ruta, patron] of crudos) {
     assert.ok(!leer(ruta).includes(patron), `${ruta} volvió al input crudo: ${patron}`)
   }
-  // Los campos siguen existiendo con la primitiva correspondiente.
+  // Los campos siguen existiendo con la primitiva correspondiente. Desde #311
+  // el cierre es guiado y el id entra por `quickId`; los llamadores conservan
+  // los ids que usan las pruebas (`counted`, `counted-ajeno`).
   for (const [ruta, patron] of [
-    ['components/control/Caja.jsx', /MoneyInput[\s\S]{0,200}id="counted"/],
-    ['components/control/Caja.jsx', /MoneyInput[\s\S]{0,200}id="counted-ajeno"/],
+    ['components/control/Caja.jsx', /MoneyInput[\s\S]{0,200}id=\{quickId\}/],
+    ['components/control/Caja.jsx', /quickId="counted"/],
+    ['components/control/Caja.jsx', /quickId="counted-ajeno"/],
     ['components/inventory/UnidadDetalle.jsx', /MoneyInput[\s\S]{0,160}consignadorMonto/],
     ['components/control/config/Comercial.jsx', /PercentField[\s\S]{0,200}id="limite-fidelizacion"/],
   ]) {

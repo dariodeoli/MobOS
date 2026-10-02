@@ -103,79 +103,71 @@ function PendientesDeHoy({ pendientes, onIr }) {
   )
 }
 
-// Facturado del período: la métrica principal, con la estética del total de
-// venta de /pos/cargar. Adentro vive el cobrado vs pendiente (mismos datos y
-// misma acción que la tarjeta anterior).
-function CardFacturado({ total, totalAnt, cobrado, pendiente, pagadas, sinPagar, pctCobrado, etiqueta, onPendientes }) {
-  const delta = variacion(total, totalAnt)
-  const sube = typeof delta === 'number' && delta >= 0
+// Indicador compacto del resumen (#310): cuatro métricas en el primer
+// viewport. La superficie es neutra (Card); el verde queda como acento —borde,
+// número o tendencia— y nunca como fondo completo.
+function Indicador({ testId, etiqueta, valor, delta, sub, tono = 'neutro', destacado = false, progreso, accion }) {
   const v2 = temaV2Activo()
+  const sube = typeof delta === 'number' && delta >= 0
+  const color = { ok: 'text-ok', warn: 'text-warn', bad: 'text-bad', neutro: 'text-fore' }[tono] || 'text-fore'
   return (
-    <div className="overflow-hidden rounded-[14px] border border-fono/40 bg-gradient-to-br from-fono-dark via-fono to-fono p-[18px]">
+    <Card
+      className={cn('flex h-full flex-col p-3 sm:p-4', v2 && 'v2-tile', destacado && 'border-fono/40')}
+      data-testid={testId}
+    >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-onbrand/75">
-          Facturado
-        </span>
-        <span className="flex items-center gap-2">
-          {typeof delta === 'number' && (
-            <span className="rounded-full bg-onbrand/15 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-onbrand">
-              {sube ? '↑' : '↓'} {Math.abs(delta).toFixed(1)}%
-            </span>
-          )}
-          <Icon name="chart" className="h-4 w-4 text-onbrand/80" />
-        </span>
-      </div>
-      <div className={cn('mt-1.5 text-[30px] font-semibold leading-none tracking-tight tabular-nums text-onbrand', v2 && 'v2-numero')}>
-        {gs(total)}
-      </div>
-      <div className="mt-2 text-[11.5px] text-onbrand/75">
-        {etiqueta} · período anterior {gs(totalAnt)}
-      </div>
-
-      <div className="mt-4 rounded-xl bg-onbrand/10 p-3.5">
-        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-          <div>
-            <div className="text-[11px] font-medium uppercase tracking-wider text-onbrand/70">Cobrado</div>
-            <div className="text-xl font-semibold tabular-nums text-onbrand">{gs(cobrado)}</div>
-            <div className="text-[11px] text-onbrand/70">
-              {pagadas} {pagadas === 1 ? 'pagada' : 'pagadas'}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onPendientes}
-            disabled={sinPagar === 0}
-            title={sinPagar === 0 ? 'No hay ventas pendientes' : 'Ver los pendientes en el detalle'}
-            className="rounded-lg text-right transition disabled:cursor-default disabled:opacity-70"
+        <span className="text-[11px] font-medium uppercase tracking-wider text-mute">{etiqueta}</span>
+        {typeof delta === 'number' && (
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium',
+              v2 && 'v2-chip',
+              sube ? 'bg-ok/15 text-ok' : 'bg-bad/15 text-bad',
+            )}
           >
-            <div className="flex items-center justify-end gap-1 text-[11px] font-medium uppercase tracking-wider text-onbrand/70">
-              Pendiente
-              <Icon name="chevron" className="h-3 w-3 rotate-180" />
-            </div>
-            <div className="text-xl font-semibold tabular-nums text-onbrand">{gs(pendiente)}</div>
-            <div className="text-[11px] text-onbrand/70">
-              {sinPagar} {sinPagar === 1 ? 'pendiente' : 'pendientes'}
-            </div>
-          </button>
-        </div>
-        <BarraProgreso className="mt-3" valor={pctCobrado} tono="onbrand" pista="bg-onbrand/20" etiqueta={`Cobrado: ${pctCobrado}%`} />
+            {sube ? '↑' : '↓'} {Math.abs(delta).toFixed(1)}%
+          </span>
+        )}
       </div>
-    </div>
+      <div className={cn('mt-1.5 text-xl font-semibold tracking-tight tabular-nums sm:text-2xl', v2 && 'v2-numero', color)}>
+        {valor}
+      </div>
+      {typeof progreso === 'number' && (
+        <BarraProgreso
+          className="mt-2"
+          valor={progreso}
+          tono="ok"
+          etiqueta={`Cobrado: ${Math.round(progreso)}%`}
+        />
+      )}
+      {sub && <p className="mt-1.5 text-xs text-mute">{sub}</p>}
+      {accion && (
+        <button
+          type="button"
+          onClick={accion.onClick}
+          className="mt-2 flex w-fit items-center gap-1 text-xs font-medium text-fono-light transition hover:text-fore"
+        >
+          {accion.label}
+          <Icon name="chevron" className="h-3 w-3 rotate-180" />
+        </button>
+      )}
+    </Card>
   )
 }
 
-// Accesos rápidos del resumen: las acciones que el dueño usa a diario.
+// Accesos rápidos del resumen: franja compacta debajo de los indicadores (el
+// panel lateral que compartía el hero con la tarjeta verde ya no compite).
 function AccesosRapidos({ onIr, onImprimir }) {
   return (
-    <Card className="flex h-full flex-col gap-3 p-4">
-      <h2 className="text-sm font-semibold">Accesos rápidos</h2>
-      <div className="grid flex-1 grid-cols-2 gap-2 lg:grid-cols-1">
+    <Card className="flex flex-wrap items-center gap-2 p-3" data-testid="accesos-rapidos">
+      <span className="px-1 text-[11px] font-medium uppercase tracking-wider text-mute">Accesos rápidos</span>
+      <div className="grid min-w-[16rem] flex-1 grid-cols-2 gap-2 sm:grid-cols-4">
         {ACCIONES.map((accion) => (
           <button
             key={accion.label}
             type="button"
             onClick={() => onIr(accion.ruta)}
-            className="flex min-w-0 items-center gap-2.5 rounded-xl border border-ink-600 bg-ink-800/60 px-3 py-2.5 text-left text-sm font-medium text-fore transition hover:border-fono/50"
+            className="flex min-w-0 items-center gap-2 rounded-lg border border-ink-600 bg-ink-800/60 px-2.5 py-2 text-left text-[13px] font-medium text-fore transition hover:border-fono/50"
           >
             <Icon name={accion.icon} className="h-4 w-4 shrink-0 text-fono-light" />
             <span className="min-w-0 flex-1 truncate">{accion.label}</span>
@@ -482,21 +474,46 @@ export default function Resumen() {
         </div>
       </div>
 
-      {/* ── Facturado (hero) + accesos rápidos ───────────────────── */}
-      <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]">
-        <CardFacturado
-          total={d.total}
-          totalAnt={d.totalAnt}
-          cobrado={d.cobrado}
-          pendiente={d.pendiente}
-          pagadas={d.pagadas}
-          sinPagar={d.sinPagar}
-          pctCobrado={pctCobrado}
-          etiqueta={etiquetaRango(rango)}
-          onPendientes={irAPendientes}
+      {/* ── Resumen del período (#310): cuatro indicadores compactos ── */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4" data-testid="resumen-indicadores">
+        <Indicador
+          testId="indicador-facturado"
+          etiqueta="Facturado"
+          valor={gs(d.total)}
+          delta={variacion(d.total, d.totalAnt)}
+          sub={`${etiquetaRango(rango)} · anterior ${gs(d.totalAnt)}`}
+          destacado
         />
-        <AccesosRapidos onIr={navigate} onImprimir={() => setResumenOpen(true)} />
+        <Indicador
+          testId="indicador-cobrado"
+          etiqueta="Cobrado"
+          valor={gs(d.cobrado)}
+          progreso={pctCobrado}
+          tono="ok"
+          sub={`${d.pagadas} ${d.pagadas === 1 ? 'pagada' : 'pagadas'} · ${Math.round(pctCobrado)}% del facturado`}
+        />
+        <Indicador
+          testId="indicador-por-cobrar"
+          etiqueta="Por cobrar"
+          valor={gs(d.pendiente)}
+          tono={d.pendiente > 0 ? 'warn' : 'neutro'}
+          sub={`${d.sinPagar} ${d.sinPagar === 1 ? 'venta pendiente' : 'ventas pendientes'} de cobro`}
+          accion={d.sinPagar > 0 ? { label: 'Ver pendientes', onClick: irAPendientes } : null}
+        />
+        <Indicador
+          testId="indicador-margen"
+          etiqueta="Margen"
+          valor={gs(d.ganancia)}
+          tono={d.ganancia > 0 ? 'ok' : d.ganancia < 0 ? 'bad' : 'neutro'}
+          sub={
+            d.sinCosto.lineas > 0
+              ? `Ventas − costos − gastos · costo pendiente en ${d.sinCosto.lineas} ${d.sinCosto.lineas === 1 ? 'línea' : 'líneas'}`
+              : 'Ventas − costos − gastos del período'
+          }
+        />
       </div>
+
+      <AccesosRapidos onIr={navigate} onImprimir={() => setResumenOpen(true)} />
 
       {/* ── Métricas del período ─────────────────────────────────── */}
       <div className="grid gap-4 sm:grid-cols-3">

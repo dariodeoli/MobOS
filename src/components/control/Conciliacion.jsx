@@ -414,7 +414,7 @@ export default function Conciliacion() {
                   <span className={CELDA_DATO}>{item.procesadora || '—'}</span>
                   <span className="min-w-0">
                     <span className={cn('block', CELDA_DATO)} title={item.reference}>{item.reference || '—'}</span>
-                    {item.currency && item.currency !== 'PYG' && <span className="mt-0.5 block truncate text-[11px] text-mute">{formatMoney(item.originalAmount, item.currency)}</span>}
+                    {item.currency && item.currency !== 'PYG' && Number(item.originalAmount) > 0 && <span className="mt-0.5 block truncate text-[11px] text-mute">{formatMoney(item.originalAmount, item.currency)}</span>}
                     {item.settlesAt && <span className="mt-0.5 block truncate text-[11px] text-mute">acredita {fecha(item.settlesAt)}</span>}
                   </span>
                   <span className="truncate text-xs font-semibold tabular-nums">{gs(item.montoPyg)}</span>
