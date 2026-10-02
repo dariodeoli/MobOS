@@ -68,7 +68,7 @@ async function instantaneaNavegador(page) {
 // Texto del resumen ya pintado: sirve para comparar el estado demo antes y
 // después de una recarga.
 async function textoResumen(page) {
-  await expect(page.getByText('FACTURADO')).toBeVisible()
+  await expect(page.getByTestId('indicador-facturado')).toBeVisible()
   await page.waitForTimeout(300)
   return (await page.locator('main').innerText()).replace(/\s+/g, ' ')
 }
@@ -604,6 +604,9 @@ test('demo: el borrador del POS se suspende, se lista, se retoma y se descarta',
   await page.getByPlaceholder('Buscar producto…').fill('iPhone 15 Pro')
   await expect(page.getByRole('button', { name: /iPhone 15 Pro 256GB/ }).first()).toBeVisible({ timeout: 20_000 })
   await page.getByRole('button', { name: /iPhone 15 Pro 256GB/ }).first().click()
+  // #308: la familia con varias variantes pide elegir el color exacto antes
+  // de sumarla a la venta.
+  await page.getByTestId('selector-variante').getByTestId('variante-opcion').first().click()
   await expect(page.getByRole('button', { name: /^Ver detalle de iPhone 15 Pro/ })).toBeVisible()
 
   // Suspender: el carrito queda en el navegador y el formulario se limpia.

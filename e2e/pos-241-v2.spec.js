@@ -71,7 +71,7 @@ async function armarCobro(page, sufijo) {
   // antes de armar la venta y se recarga para que el desplegable la tenga.
   const usd = await cuentaUsd(page)
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente V2 ${sufijo}`)
   await agregarProducto(page)
 

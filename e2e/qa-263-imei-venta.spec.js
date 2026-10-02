@@ -118,7 +118,7 @@ test('venta ocasional (sin cliente) con línea sobre pedido guarda el pedido (#2
 
   try {
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
     const buscar = page.getByPlaceholder('Buscar producto…')
     await buscar.fill(nombre)
     await expect(page.getByRole('button', { name: new RegExp(nombre) }).first()).toBeVisible({ timeout: 15_000 })

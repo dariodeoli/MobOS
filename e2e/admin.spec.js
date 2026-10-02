@@ -68,6 +68,17 @@ test.describe('owner panel', () => {
   // listado, y desde ahí se puede cerrar la venta.
   test('inventario: la unidad reservada sigue en el listado', async ({ page }) => {
     await page.goto('/inventario')
+    // El seed repone hasta 3 unidades por producto, pero otra suite pudo vender
+    // justo la original en esta misma corrida: se elige una disponible.
+    const serial = await page.evaluate(
+      async ({ api, sku, preferido }) => {
+        const unidades = await fetch(`${api}/api/inventory-units?q=${encodeURIComponent(sku)}`, { credentials: 'include' }).then((r) => r.json()).catch(() => [])
+        const disponibles = (unidades || []).filter((unit) => unit.status === 'AVAILABLE' && unit.product?.sku === sku)
+        return disponibles.find((unit) => unit.serial === preferido)?.serial || disponibles[0]?.serial || null
+      },
+      { api: API, sku: SEED.products.iphone.sku, preferido: SEED.products.iphone.imei },
+    )
+    test.skip(!serial, 'No hay unidades disponibles del iPhone del seed.')
     await page.evaluate(
       async ({ api, serial }) => {
         await fetch(`${api}/api/inventory-reservations`, {
@@ -77,12 +88,11 @@ test.describe('owner panel', () => {
           body: JSON.stringify({ action: 'release', serials: [serial] }),
         })
       },
-      { api: API, serial: SEED.products.iphone.imei },
+      { api: API, serial },
     )
     await page.reload()
 
-    const fila = () =>
-      page.getByTestId('inventario-fila').filter({ hasText: SEED.products.iphone.imei }).first()
+    const fila = () => page.getByTestId('inventario-fila').filter({ hasText: serial }).first()
     await expect(fila()).toBeVisible()
     // La fila compacta tiene acciones internas en el centro (editar costo,
     // acciones) que interceptan el clic: se toca el nombre (inerto) para abrir
@@ -115,7 +125,7 @@ test.describe('owner panel', () => {
           body: JSON.stringify({ action: 'release', serials: [serial] }),
         })
       },
-      { api: API, serial: SEED.products.iphone.imei },
+      { api: API, serial },
     )
     await page.reload()
     await expect(fila().getByText('Disponible')).toBeVisible()
@@ -302,10 +312,14 @@ test.describe('owner panel', () => {
     // El formulario de venta queda montado y oculto detrás del modal: se acota al modal de alta.
     const alta = page.locator('form').filter({ hasText: 'Límite de crédito (Gs)' })
 
-    const pais = alta.getByLabel('Código de país')
-    await expect(pais).toHaveValue('+595')
-    await pais.fill('55')
-    await expect(pais).toHaveValue('+55')
+    // La biblioteca v0.62 usa un selector de país (combobox, no input): se
+    // verifica el código visible y se cambia por Brasil desde su lista.
+    const pais = alta.getByRole('combobox', { name: 'Código de país' })
+    await expect(pais).toContainText('+595')
+    await pais.click()
+    await alta.getByLabel('Buscar país').fill('+55')
+    await alta.getByRole('option', { name: /Brasil/ }).first().click()
+    await expect(pais).toContainText('+55')
 
     const telefono = alta.getByPlaceholder('981 123 456')
     await telefono.fill('0981123456')
@@ -585,7 +599,7 @@ test('solicitudes → pedir mayorista desde la ficha y aprobarla en Autorizacion
   await contextoVendedor.close()
 
   await page.goto('/autorizaciones')
-  await expect(page.getByRole('heading', { name: 'Autorizaciones comerciales' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Autorizaciones comerciales' })).toBeVisible()
   const fila = page.getByTestId('autorizacion-fila').filter({ hasText: nombre }).first()
   await expect(fila).toBeVisible()
   await fila.getByRole('button', { name: 'Aprobar' }).click()

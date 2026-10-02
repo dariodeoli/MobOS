@@ -22,8 +22,11 @@ test.describe('composición compacta', () => {
     const barra = page.getByTestId('barra-pos')
     await expect(barra).toHaveCount(1)
     await expect(barra.getByText(/Hoy: \d{2}\/\d{2}\/\d{4}/)).toBeVisible()
+    // #309: gift cards, analytics y ventas suspendidas viven en «Más» para no
+    // llenar la barra; la principal de la venta sigue a mano.
+    await barra.getByTestId('pos-mas').click()
     for (const accion of ['Analytics', 'Ventas suspendidas']) {
-      await expect(barra.getByRole('button', { name: accion, exact: true })).toBeVisible()
+      await expect(page.getByRole('menuitem', { name: accion, exact: true })).toBeVisible()
     }
   })
 

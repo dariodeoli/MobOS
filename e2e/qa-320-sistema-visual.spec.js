@@ -39,7 +39,7 @@ const PANTALLAS = [
   ['celulares', '/celulares', 'barra-celulares', (p) => p.getByTestId('barra-celulares')],
   ['comparador', '/comparador', 'barra-comparador', (p) => p.getByTestId('barra-comparador')],
   // Páginas administrativas sin barra de módulo: mismo criterio de título y pie.
-  ['inicio', '/resumen', null, (p) => p.getByRole('heading', { name: 'Accesos rápidos' })],
+  ['inicio', '/resumen', null, (p) => p.getByTestId('accesos-rapidos')],
   ['analisis-reportes', '/analisis/reportes', null, (p) => p.locator('[data-testid="reportes-abc-tabla"]').or(p.getByText('Cómo se calcula el resultado')).first()],
   ['finanzas-caja', '/finanzas/caja', null, (p) => p.getByText('Saldo esperado').first()],
   ['configuracion-equipo', '/configuracion/equipo', null, (p) => p.getByTestId('integrante-fila').first()],

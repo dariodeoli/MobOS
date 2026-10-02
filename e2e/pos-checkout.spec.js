@@ -43,7 +43,7 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   page,
 }) => {
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
 
   // Step 1: customer + product.
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(customerName)
@@ -433,7 +433,7 @@ test('POS shows the price authorization block for a below-list price', async ({ 
 // total en el resumen de la columna y las acciones secundarias fuera del camino.
 test('POS muestra toda la venta en una sola pantalla, sin pasos numerados', async ({ page }) => {
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
 
   for (const bloque of ['Cliente', 'Productos', 'Productos de esta venta', 'Cobro y entrega']) {
     const heading = page.getByRole('heading', { name: bloque, exact: true })
@@ -459,7 +459,7 @@ test('POS muestra toda la venta en una sola pantalla, sin pasos numerados', asyn
 // "vender sin IMEI" y la venta se completa reservando la unidad física.
 test('POS vende un equipo serializado con su IMEI y bloquea el sobre pedido con stock', async ({ page }) => {
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente serial ${Date.now().toString(36)}`)
   // El catalogo del POS hidrata async: se reintenta la busqueda hasta verlo.
   await expect(async () => {
@@ -499,7 +499,7 @@ test('POS vende un equipo serializado con su IMEI y bloquea el sobre pedido con 
 test('POS: el pre-cliente guardado se ofrece al buscar por nombre', async ({ page }) => {
   const nombre = `Pre Cliente ${Date.now().toString(36)}`
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
   // Se siembra el borrador como lo haría la consulta de RUC (misma clave de
   // empresa que usa la app).
   await page.evaluate(async ({ api, nombre }) => {
@@ -555,7 +555,7 @@ test('POS: el correo corregido de un cliente se guarda en la ficha al vender', a
 test('POS: la venta cargada sin conexión se sincroniza al volver (sin duplicar)', async ({ page, context }) => {
   const cliente = `Cliente offline ${Date.now().toString(36)}`
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(cliente)
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
@@ -735,7 +735,7 @@ test('POS offline: reporte, conflicto al sincronizar y descarte', async ({ page,
 // #175 (§6): el código escaneado se muestra y se agrega recién al confirmar.
 test('POS: el producto escaneado pide confirmación antes de entrar a la venta', async ({ page }) => {
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
   await page.getByPlaceholder('Buscar producto…').fill(`MOBOS:PROD:${SEED.products.cable.sku}`)
 
   const dialogo = page.getByRole('dialog')

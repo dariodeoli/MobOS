@@ -74,7 +74,7 @@ test('producto y búsqueda van antes que el cliente, y la ficha elegida queda en
   const nombreReal = clienteCreado?.name || nombreCliente
 
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
 
   // Orden de trabajo: catálogo primero, cliente después.
   const productos = await posicionDe(page, 'pos-bloque-productos')
@@ -154,7 +154,7 @@ test('celular: el Total y la acción principal quedan fijos abajo (#309)', async
 
 test('gift cards, analytics y ventas suspendidas viven en «Más» (#309)', async ({ page }) => {
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
 
   // No están sueltas en la barra del módulo.
   for (const label of ['Gift cards', 'Analytics', 'Ventas suspendidas']) {

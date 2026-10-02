@@ -11,7 +11,7 @@ const cliente = () => `Cliente cobro UX ${Date.now().toString(36).toUpperCase()}
 
 async function armarVenta(page, { productos = [SEED.products.cable.name], veces = 1, clienteNombre } = {}) {
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(clienteNombre)
   const buscar = page.getByPlaceholder('Buscar producto…')
   for (const producto of productos) {
