@@ -1,0 +1,43 @@
+{
+  "fase": "despues",
+  "base": "http://localhost:5391",
+  "fecha": "2026-10-02T05:20:25.627Z",
+  "mediciones": {
+    "caja-claro-desktop": {
+      "inputsConteoEnPagina": 0,
+      "botonGuiado": true
+    },
+    "bancos-claro-desktop": {
+      "descripcionId": "pa-active-desc",
+      "descripcion": "Desactivada deja de ofrecerse al cobrar; la cuenta, su historial y sus marcas se conservan."
+    },
+    "conciliacion-claro-desktop": {
+      "usdCero": 0,
+      "filasUsdt": 1
+    },
+    "caja-oscuro-desktop": {
+      "inputsConteoEnPagina": 0,
+      "botonGuiado": true
+    },
+    "bancos-oscuro-desktop": {
+      "descripcionId": "pa-active-desc",
+      "descripcion": "Desactivada deja de ofrecerse al cobrar; la cuenta, su historial y sus marcas se conservan."
+    },
+    "conciliacion-oscuro-desktop": {
+      "usdCero": 0,
+      "filasUsdt": 1
+    },
+    "caja-claro-mobile": {
+      "inputsConteoEnPagina": 0,
+      "botonGuiado": true
+    },
+    "bancos-claro-mobile": {
+      "descripcionId": "pa-active-desc",
+      "descripcion": "Desactivada deja de ofrecerse al cobrar; la cuenta, su historial y sus marcas se conservan."
+    },
+    "conciliacion-claro-mobile": {
+      "usdCero": 0,
+      "filasUsdt": 1
+    }
+  }
+}

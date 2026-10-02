@@ -1,0 +1,43 @@
+{
+  "fase": "antes",
+  "base": "http://localhost:5391",
+  "fecha": "2026-10-02T05:18:39.070Z",
+  "mediciones": {
+    "caja-claro-desktop": {
+      "inputsConteoEnPagina": 9,
+      "botonGuiado": false
+    },
+    "bancos-claro-desktop": {
+      "descripcionId": "",
+      "descripcion": ""
+    },
+    "conciliacion-claro-desktop": {
+      "usdCero": 3,
+      "filasUsdt": 1
+    },
+    "caja-oscuro-desktop": {
+      "inputsConteoEnPagina": 9,
+      "botonGuiado": false
+    },
+    "bancos-oscuro-desktop": {
+      "descripcionId": "",
+      "descripcion": ""
+    },
+    "conciliacion-oscuro-desktop": {
+      "usdCero": 3,
+      "filasUsdt": 1
+    },
+    "caja-claro-mobile": {
+      "inputsConteoEnPagina": 9,
+      "botonGuiado": false
+    },
+    "bancos-claro-mobile": {
+      "descripcionId": "",
+      "descripcion": ""
+    },
+    "conciliacion-claro-mobile": {
+      "usdCero": 3,
+      "filasUsdt": 1
+    }
+  }
+}
