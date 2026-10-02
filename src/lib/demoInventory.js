@@ -335,11 +335,22 @@ export function listDemoSuppliers(q = '') {
   return state.suppliers.filter(item => !buscar || item.name.toLowerCase().includes(buscar))
 }
 
+// #307: el alta/edición de proveedores del demo guarda los campos del mismo
+// formulario que la cuenta real (teléfono, código, ciudad…), no solo el
+// nombre; así el modal de Proveedores no se contradice con lo que se cargó.
+const CAMPOS_PROVEEDOR = ['name', 'contact', 'code', 'document', 'phone', 'email', 'address', 'city', 'department', 'contactName', 'paymentTerms', 'notes']
+
 export function saveDemoSupplier(data = {}) {
   const state = read()
   const existente = state.suppliers.find(item => item.id === data.id)
-  if (existente) Object.assign(existente, { name: data.name ?? existente.name, contact: data.contact ?? existente.contact })
-  else state.suppliers.push({ id: `demo-prov-${Date.now().toString(36)}`, name: data.name || 'Proveedor demo', contact: data.contact || '', isActive: true })
+  if (existente) Object.assign(existente, Object.fromEntries(CAMPOS_PROVEEDOR.filter(campo => data[campo] !== undefined).map(campo => [campo, data[campo]])))
+  else state.suppliers.push({
+    id: `demo-prov-${Date.now().toString(36)}`,
+    name: data.name || 'Proveedor demo',
+    contact: data.contact || '',
+    ...Object.fromEntries(CAMPOS_PROVEEDOR.filter(campo => campo !== 'name' && campo !== 'contact' && data[campo] !== undefined).map(campo => [campo, data[campo]])),
+    isActive: true,
+  })
   write(state)
   return listDemoSuppliers()
 }
