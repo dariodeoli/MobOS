@@ -1,5 +1,8 @@
 import { api } from './api/client'
 import { normalizarMetricas } from './metricasNucleo.js'
+import { isDemoRuntime } from './demoMode'
+import { reporteDemoMetricas } from './demo/reportes.js'
+import { getProductos, listVentas } from './storage.js'
 
 // Adaptador único de métricas (#171, fase 2 de #145).
 //
@@ -22,6 +25,9 @@ function parametrosReporte({ rango, branchId, groupBy = 'product', paymentsBy, t
 
 /** Un reporte crudo de `/api/reports` (totales, grupos, inventario y previo). */
 export function reporteMetricas({ rango, branchId, groupBy = 'product', paymentsBy, type } = {}) {
+  // #324: en demo el reporte se calcula con los fixtures locales (mismas
+  // columnas y fórmulas visibles), sin pegarle al API real.
+  if (isDemoRuntime) return Promise.resolve(reporteDemoMetricas({ rango, branchId, groupBy, paymentsBy, type, ventas: listVentas(), productos: getProductos() }))
   return api.get(`/api/reports?${parametrosReporte({ rango, branchId, groupBy, paymentsBy, type })}`)
 }
 

@@ -28,6 +28,7 @@ import { documentoAPdf, nombrePdfDocumento } from '@/lib/printing/pdfDocumento'
 import { compartirArchivo, puedeCompartirArchivo } from '@/lib/printing/compartirDocumento'
 import { descargarArchivo } from '@/utils/descargarArchivo'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
+import { listDemoQuotes } from '@/lib/demo/cotizaciones.js'
 import BarraModulo from '@/components/shared/BarraModulo'
 import { CELDA_ENCABEZADO, CELDA_IDENTIDAD_GRANDE, ROTULO_DATO } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
@@ -36,7 +37,8 @@ const STATUS = { DRAFT: ['Borrador', 'slate'], SENT: ['Enviada', 'blue'], ACCEPT
 const ABIERTAS = ['DRAFT', 'SENT', 'ACCEPTED']
 const FILTROS = [['todas', 'Todas'], ['abiertas', 'Abiertas'], ['DRAFT', 'Borrador'], ['SENT', 'Enviada'], ['ACCEPTED', 'Aceptada'], ['REJECTED', 'Rechazada'], ['CONVERTED', 'Convertida']]
 const identity = row => row
-const demoQuotes = () => []
+// #324: el pipeline demo sale de la fixture canónica de cotizaciones.
+const demoQuotes = listDemoQuotes
 const emptyItem = (product = null) => ({ productId: product?.id || '', description: product?.nombre || '', quantity: '1', unitPricePyg: product && product.precioVenta > 0 ? String(product.precioVenta) : '' })
 
 // Tabla compacta: una fila por cotización, encabezados ordenables y las

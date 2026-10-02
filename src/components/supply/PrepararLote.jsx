@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { resources } from '@/lib/api'
-import { isDemoRuntime } from '@/lib/demoMode'
 import { Badge, Button, Card, EmptyState, Input, Skeleton, Textarea, useToast } from '@/components/ui'
 import CameraScan from '@/components/shared/CameraScan'
 import CompartirPdf from '@/components/shared/CompartirPdf'
@@ -24,9 +23,8 @@ import { printHtml } from '@/utils/printHtml'
 
 export default function PrepararLote() {
   const toast = useToast()
-  const esDemo = isDemoRuntime
   const [envios, setEnvios] = useState([])
-  const [cargando, setCargando] = useState(!esDemo)
+  const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [abierto, setAbierto] = useState(null)
   const [lineaId, setLineaId] = useState('')
@@ -39,7 +37,6 @@ export default function PrepararLote() {
   const [imprimiendo, setImprimiendo] = useState('')
 
   const cargar = useCallback(async () => {
-    if (esDemo) return
     setCargando(true)
     setError('')
     try {
@@ -52,7 +49,7 @@ export default function PrepararLote() {
     } finally {
       setCargando(false)
     }
-  }, [esDemo])
+  }, [])
 
   useEffect(() => { cargar() }, [cargar])
 
@@ -136,15 +133,6 @@ export default function PrepararLote() {
     } finally {
       setImprimiendo('')
     }
-  }
-
-  if (esDemo) {
-    return (
-      <Card className="p-4 md:p-5">
-        <h2 className="font-semibold">Preparar lote</h2>
-        <p className="mt-1 text-sm text-mute">El IMEI diferido del lote trabaja con los envíos de una cuenta real.</p>
-      </Card>
-    )
   }
 
   const totalPendientes = totalPendienteLotes(envios)

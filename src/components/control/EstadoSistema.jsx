@@ -7,6 +7,7 @@ import { api } from '@/lib/api/client'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { printingApi } from '@/lib/api/printing'
 import { useSesion } from '@/lib/sesion'
+import { sistemaDemo } from '@/lib/demo/sistema.js'
 import { APP_VERSION } from '@/lib/brand'
 import { fechaHora as fmt } from '@/utils/fecha'
 import { configImpresora, estadoAgente } from '@/lib/printing/agent'
@@ -60,7 +61,7 @@ function TarjetaSync({ titulo, tono = 'slate', principal, detalle }) {
 
 export default function EstadoSistema() {
   const toast = useToast()
-  const { sesion, usuario } = useSesion()
+  const { sesion, usuario, esDemo } = useSesion()
   const [datos, setDatos] = useState(null)
   const [sincronizacion, setSincronizacion] = useState(null)
   const [impresion, setImpresion] = useState(null)
@@ -79,6 +80,18 @@ export default function EstadoSistema() {
 
   const consultar = useCallback(async () => {
     const config = configImpresora()
+    // #324: en demo el estado sale de la fixture local (mismo contrato que el
+    // API); no se consulta el agente de esta computadora ni el servidor real.
+    if (esDemo) {
+      const fixture = sistemaDemo()
+      setDatos(fixture.checks)
+      setSincronizacion(fixture.sincronizacion)
+      setTrabajos(fixture.trabajos)
+      setError(''); setErrorSync(''); setErrorCola('')
+      setImpresion({ agente: { disponible: false, version: 'demo', equipo: 'Demo' }, url: config.url })
+      setCargando(false)
+      return
+    }
     const [chequeos, sincro, cola] = await Promise.allSettled([
       api.get('/api/system/checks'),
       api.get('/api/system/sync-status'),
@@ -105,7 +118,7 @@ export default function EstadoSistema() {
     const agente = await estadoAgente({ forzar: true })
     setImpresion({ agente, url: config.url })
     setCargando(false)
-  }, [])
+  }, [esDemo])
 
   useEffect(() => { consultar() }, [consultar])
 
@@ -122,6 +135,16 @@ export default function EstadoSistema() {
     if (cancelando) return
     setCancelando(true)
     try {
+      if (esDemo) {
+        const ids = Array.isArray(filtros?.ids) ? filtros.ids : []
+        setTrabajos(actual => (actual || []).filter(trabajo => !ids.includes(trabajo.id)))
+        setSincronizacion(actual => actual ? { ...actual, trabajos: { ...actual.trabajos, pendientes: Math.max(0, Number(actual.trabajos?.pendientes || 0) - ids.length) } } : actual)
+        toast.success(ids.length === 1 ? 'Trabajo cancelado (demo)' : `${ids.length} trabajos cancelados (demo)`, 'Dato ficticio: no salen cuando el puente reconecte.')
+        setCancelando(false)
+        setCancelarPregunta(null)
+        setSeleccion([])
+        return
+      }
       const resultado = await printingApi.cancelarLote(filtros)
       const total = Number(resultado?.total || 0)
       toast.success(total === 1 ? 'Trabajo cancelado' : `${total} trabajos cancelados`, total ? 'No van a salir cuando el puente reconecte.' : 'No había pendientes para cancelar.')

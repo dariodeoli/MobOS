@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { resources } from '@/lib/api'
-import { isDemoRuntime } from '@/lib/demoMode'
 import { Badge, Button, Card, CeldaMoneda, DataTable, ErrorState, FilaDato, Select, Skeleton, Stat, Subtabs } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
@@ -37,16 +36,14 @@ const fechaHora = (valor) => {
 }
 
 export default function MetricasAbastecimiento() {
-  const esDemo = isDemoRuntime
   const [ventana, setVentana] = useState(180)
   const [rendimiento, setRendimiento] = useState(null)
   const [alertas, setAlertas] = useState(null)
-  const [cargando, setCargando] = useState(!esDemo)
+  const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [seccion, setSeccion] = useState('proveedores')
 
   const cargar = useCallback(async () => {
-    if (esDemo) return
     setCargando(true)
     setError('')
     try {
@@ -62,7 +59,7 @@ export default function MetricasAbastecimiento() {
     } finally {
       setCargando(false)
     }
-  }, [esDemo, ventana])
+  }, [ventana])
 
   useEffect(() => { cargar() }, [cargar])
 
@@ -184,15 +181,6 @@ export default function MetricasAbastecimiento() {
       render: (fila) => <Badge color="red">{fila.diasVencidos} día{fila.diasVencidos === 1 ? '' : 's'}</Badge>,
     },
   ]
-
-  if (esDemo) {
-    return (
-      <Card className="p-4 md:p-5">
-        <h2 className="font-semibold">Métricas de abastecimiento</h2>
-        <p className="mt-1 text-sm text-mute">El rendimiento de proveedores y los tiempos de tránsito salen de las compras y recepciones de una cuenta real.</p>
-      </Card>
-    )
-  }
 
   const tablas = [
     ['proveedores', `Proveedores (${proveedores.length})`],

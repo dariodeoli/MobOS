@@ -1,17 +1,7 @@
-export const DEMO_MESSAGE_TEMPLATES = [
-  { id: 'demo-ready', key: 'ready_for_pickup', name: 'Pedido listo para retirar', body: 'Hola, {{customer_name}}. Tu pedido {{order_number}} ya está listo para retirar en {{branch_name}}.' },
-  { id: 'demo-arrived', key: 'arrived_from_depot', name: 'Pedido llegó a sucursal', body: 'Hola, {{customer_name}}. Tu pedido {{order_number}} ya llegó a {{branch_name}}.' },
-  { id: 'demo-reservation', key: 'reservation', name: 'Reserva confirmada', body: 'Hola, {{customer_name}}. Reservamos tu pedido {{order_number}} hasta {{reservation_until}}.' },
-]
-
-// Plantillas demo del contexto Clientes (#160/#194): variables del cliente
-// (nombre, saldo, sucursal) para que la vista previa salga completa. Las de
-// pedidos (DEMO_MESSAGE_TEMPLATES) usan variables de orden y siguen para POS.
-export const DEMO_CUSTOMER_TEMPLATES = [
-  { id: 'demo-customer-hola', key: 'customer_hello', name: 'Saludo del equipo', body: 'Hola, {{customer_name}}. Te escribimos de {{empresa}} · {{sucursal}} por si necesitás algo.' },
-  { id: 'demo-customer-saldo', key: 'customer_balance', name: 'Saldo pendiente', body: 'Hola, {{customer_name}}. Tu saldo pendiente es {{saldo_pendiente}}. Cualquier consulta, respondé este mensaje.' },
-  { id: 'demo-customer-novedades', key: 'customer_news', name: 'Novedades', body: 'Hola, {{customer_name}}. Pasá por {{sucursal}} y aprovechá las novedades de {{empresa}}.' },
-]
+// Plantillas demo del contexto Clientes (#160/#194): la fuente vive en
+// `lib/demo/plantillas.js` (#324) y acá se re-exportan para no tocar a los
+// consumidores. Las de pedidos usan variables de orden y siguen para POS.
+export { PLANTILLAS_PEDIDOS_DEMO as DEMO_MESSAGE_TEMPLATES, PLANTILLAS_CLIENTES_DEMO as DEMO_CUSTOMER_TEMPLATES } from '@/lib/demo/plantillas'
 
 /** Clave de «última plantilla usada» del contexto Clientes (lista y popup). */
 export const ULTIMA_PLANTILLA_CLIENTES = 'mobos:clientes:plantilla-wa'

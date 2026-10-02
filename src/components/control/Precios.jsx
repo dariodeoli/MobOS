@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { resources } from '@/lib/api'
 import { getProductos } from '@/lib/storage'
@@ -54,7 +53,7 @@ export default function Precios() {
       fusionarProductos(productosData)
     } catch (cause) { setError(cause?.message || 'No se pudieron cargar los precios.') } finally { setCargando(false) }
   }
-  useEffect(() => { if (!esDemo) cargar() }, [esDemo])
+  useEffect(() => { cargar() }, [esDemo]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // El catálogo global se hidrata después del montaje: al cambiar la sesión se
   // vuelve a leer el cache para no quedarnos con la foto vacía del arranque.
@@ -112,7 +111,7 @@ export default function Precios() {
     setBusy(true); setError('')
     try {
       const payload = { name: editor.name.trim(), isActive: editor.isActive, items }
-      if (editor.id) await resources.priceLists.update({ id: editor.id, ...payload, replaceItems: true })
+      if (editor.id) await resources.priceLists.update(editor.id, { ...payload, replaceItems: true })
       else await resources.priceLists.create(payload)
       setEditor(null)
       toast.success(editor.id ? 'Lista actualizada.' : 'Lista creada.')
@@ -123,7 +122,7 @@ export default function Precios() {
   }
 
   async function alternarLista(lista) {
-    try { await resources.priceLists.update({ id: lista.id, isActive: !lista.isActive }); toast.success(lista.isActive ? 'Lista desactivada.' : 'Lista activada.'); await cargar() } catch (cause) { setError(cause?.message || 'No se pudo cambiar el estado.') }
+    try { await resources.priceLists.update(lista.id, { isActive: !lista.isActive }); toast.success(lista.isActive ? 'Lista desactivada.' : 'Lista activada.'); await cargar() } catch (cause) { setError(cause?.message || 'No se pudo cambiar el estado.') }
   }
   async function borrarLista() {
     if (!aBorrar || busy) return
@@ -180,16 +179,6 @@ export default function Precios() {
     } catch (cause) { setError(cause?.message || 'No se pudieron guardar los escalones.') } finally { setBusy(false) }
   }
 
-  if (esDemo) return (
-    <Card>
-      <EmptyState
-        icon="tag"
-        title="Las listas de precios se configuran con una cuenta real"
-        description="En la demo los productos usan una lista ficticia; podés verla en Productos y en el POS."
-        action={<Link to="/login" className="inline-flex min-h-11 items-center rounded-lg border border-ink-600 px-4 text-sm font-semibold text-fono-light transition hover:border-fono/50">Ingresar con mi cuenta</Link>}
-      />
-    </Card>
-  )
   if (!gestiona) return (
     <Card>
       <EmptyState

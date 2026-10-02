@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import { Aviso, Badge, Button, Modal, Money, Textarea, useToast } from '@/components/ui'
@@ -6,7 +6,8 @@ import Icon from '@/components/shared/Icon'
 import { fechaHoraCorta } from '@/utils/fecha'
 import { codigoPedido } from '@/utils/pedido'
 import { useSellerData, SellerFeedback } from '@/components/ventas/SellerData'
-import { deliveryFields, settlementFields, MEDIO_LABELS, RENDICION_LABELS, SIN_DATOS } from './datos'
+import { deliveryFields, settlementFields, MEDIO_LABELS, RENDICION_LABELS } from './datos'
+import { crearRendicionDemo, listDemoDeliveryOrdersDelRepartidor, listDemoDeliverySettlementsDelRepartidor } from '@/lib/demo/delivery.js'
 
 const TONO = (estado) => estado === 'VERIFIED' ? 'green' : estado === 'REJECTED' ? 'red' : 'orange'
 
@@ -40,8 +41,11 @@ function ResumenRendicion({ fila }) {
 export default function DriverSettlements() {
   const { esDemo } = useSesion()
   const toast = useToast()
-  const pedidos = useSellerData('/api/delivery/orders?estado=todos', deliveryFields, SIN_DATOS, esDemo, { limit: 100 })
-  const historial = useSellerData('/api/delivery/settlements', settlementFields, SIN_DATOS, esDemo, { limit: 60 })
+  // #324: pedidos e historial salen de la fixture demo (mismo contrato).
+  const demoPedidos = useCallback(() => listDemoDeliveryOrdersDelRepartidor({}), [])
+  const demoHistorial = useCallback(() => listDemoDeliverySettlementsDelRepartidor({}), [])
+  const pedidos = useSellerData('/api/delivery/orders?estado=todos', deliveryFields, demoPedidos, esDemo, { limit: 100 })
+  const historial = useSellerData('/api/delivery/settlements', settlementFields, demoHistorial, esDemo, { limit: 60 })
   const [abierto, setAbierto] = useState(false)
   const [nota, setNota] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -56,7 +60,9 @@ export default function DriverSettlements() {
     if (enviando) return
     setEnviando(true); setError('')
     try {
-      const rendicion = await api.post('/api/delivery/settlements', { ...(nota.trim() ? { note: nota.trim() } : {}) })
+      const rendicion = esDemo
+        ? crearRendicionDemo()
+        : await api.post('/api/delivery/settlements', { ...(nota.trim() ? { note: nota.trim() } : {}) })
       toast.success('Rendición registrada', `Queda pendiente de verificación por la tienda (${rendicion.payments?.length || 0} cobros).`)
       setAbierto(false); setNota('')
       pedidos.refresh(); historial.refresh()

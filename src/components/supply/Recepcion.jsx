@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, resources } from '@/lib/api'
-import { isDemoRuntime } from '@/lib/demoMode'
 import { Badge, Button, Card, ConfirmDialog, EmptyState, Input, Modal, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import CameraScan from '@/components/shared/CameraScan'
 import AttachmentList from '@/components/shared/AttachmentList'
@@ -49,9 +48,8 @@ const fecha = (valor) => {
 export default function Recepcion() {
   const toast = useToast()
   const navigate = useNavigate()
-  const esDemo = isDemoRuntime
   const [llegadas, setLlegadas] = useState([])
-  const [cargando, setCargando] = useState(!esDemo)
+  const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [recepcion, setRecepcion] = useState(null)
   const [resumen, setResumen] = useState(null)
@@ -72,7 +70,6 @@ export default function Recepcion() {
   const [busy, setBusy] = useState(false)
 
   const cargar = useCallback(async () => {
-    if (esDemo) return
     setCargando(true)
     setError('')
     try {
@@ -83,7 +80,7 @@ export default function Recepcion() {
     } finally {
       setCargando(false)
     }
-  }, [esDemo])
+  }, [])
 
   useEffect(() => { cargar() }, [cargar])
 
@@ -334,15 +331,6 @@ export default function Recepcion() {
     } finally {
       setBusy(false)
     }
-  }
-
-  if (esDemo) {
-    return (
-      <Card className="p-4 md:p-5">
-        <h2 className="font-semibold">Recepción</h2>
-        <p className="mt-1 text-sm text-mute">La recepción de lotes trabaja con los envíos y el stock de una cuenta real.</p>
-      </Card>
-    )
   }
 
   // ── Recepción confirmada ────────────────────────────────────────────────
