@@ -101,7 +101,9 @@ export function MoneyInput({ currency = 'PYG', symbol, value, onValueChange, cla
 
 // ── Modal (local: superficie pendiente con DSN) ─────────────────────
 // Popup estándar: Esc, clic afuera, botón cerrar y cierre opcional al guardar.
-export function Modal({ open, onClose, title, children, className, size = TAMANO_MODAL_PREDETERMINADO }) {
+// El panel tiene altura máxima; el encabezado y el pie (opcional) quedan fijos
+// y el cuerpo es el único que se desplaza (#318).
+export function Modal({ open, onClose, title, children, className, size = TAMANO_MODAL_PREDETERMINADO, footer }) {
   const dialog = useRef(null)
   const close = useRef(onClose)
   close.current = onClose
@@ -127,12 +129,13 @@ export function Modal({ open, onClose, title, children, className, size = TAMANO
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center sm:p-6" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
-      <div ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} className={cn('max-h-[min(90dvh,720px)] w-full overflow-y-auto rounded-2xl border border-ink-600 bg-ink-800 p-4 shadow-float sm:p-6', TAMANOS_MODAL[size] || TAMANOS_MODAL[TAMANO_MODAL_PREDETERMINADO], className)}>
-        <div className="mb-4 flex items-center justify-between gap-3">
+      <div ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} className={cn('flex max-h-[min(90dvh,720px)] w-full flex-col overflow-hidden rounded-2xl border border-ink-600 bg-ink-800 shadow-float', TAMANOS_MODAL[size] || TAMANOS_MODAL[TAMANO_MODAL_PREDETERMINADO], className)}>
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-ink-600 p-4 sm:px-6">
           <h2 id={titleId} className="text-base font-bold text-fore">{title}</h2>
           <button type="button" onClick={onClose} className="toque-44 rounded-lg p-2 text-mute hover:bg-ink-700 hover:text-fore" aria-label="Cerrar">×</button>
         </div>
-        {children}
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6" data-testid="modal-cuerpo">{children}</div>
+        {footer ? <div className="shrink-0 border-t border-ink-600 p-4 sm:px-6" data-testid="modal-pie">{footer}</div> : null}
       </div>
     </div>
   )

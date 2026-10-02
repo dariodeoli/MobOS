@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Aviso, Button, ConfirmDialog, Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import CompartirImagen from '@/components/shared/CompartirImagen'
@@ -23,6 +23,8 @@ import { isDemoRuntime } from '@/lib/demoMode'
 import { encolarComprobanteDemo } from '@/lib/printing/demo'
 import { formatoDeTipo, recordarFormatoDeTipo } from '@/lib/printing/preferencias'
 import { ticketComprobante } from '@/lib/printing/tickets'
+import { documentoDeVenta } from '@/lib/printing/ventaComprobanteLocal'
+import { useSesion } from '@/lib/sesion'
 
 // Vista previa real del comprobante: nivel (Rápido/Completo/Detallado) y
 // formato físico se eligen acá y la última combinación queda recordada. El
@@ -31,8 +33,19 @@ import { ticketComprobante } from '@/lib/printing/tickets'
 // impresora configurada en Impresoras.
 // La vista previa usa el ancho real del papel (mm a 96 dpi) para que lo que se
 // ve coincida con lo que sale impreso, sin franjas blancas a los costados.
+//
+// #318: el documento sale de la venta real —empresa, cliente, número, artículos
+// y total— también para las ventas legacy del demo; el modal mantiene header y
+// pie fijos con el cuerpo desplazable, y el papel se dimensiona a su contenido
+// para que el comprobante no quede cortado.
 export default function ComprobantePreview({ order, open, onClose, formatos = FORMATOS_COMPROBANTE }) {
   const toast = useToast()
+  const { empresa, sucursal, sesion } = useSesion()
+  const contexto = useMemo(
+    () => ({ empresa, sucursal, vendedor: sesion?.nombre }),
+    [empresa, sucursal, sesion?.nombre],
+  )
+  const documento = useMemo(() => (order ? documentoDeVenta(order, contexto) : null), [order, contexto])
   const inicial = (() => {
     const preferido = formatoPreferido()
     // #209: si no hay preferencia global, vale el último formato usado para
@@ -99,22 +112,35 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
   }, [open, cargarPendientes])
 
   useEffect(() => {
-    if (!open || !order) return undefined
+    if (!open || !documento) return undefined
     let active = true
     setCargando(true)
     ;(async () => {
-      const token = await tokenDeNivel(order.id, nivel)
-      const built = await buildOrderReceiptHtml(order, { level: nivel, format: formato, token })
-      if (active) { setHtml(built); setLink(token ? accessUrlFor(token) : trackingUrlFor(order)); setCargando(false) }
+      const token = await tokenDeNivel(documento.id, nivel)
+      const built = await buildOrderReceiptHtml(documento, { level: nivel, format: formato, token, contexto })
+      if (active) { setHtml(built); setLink(token ? accessUrlFor(token) : trackingUrlFor(documento)); setCargando(false) }
     })()
     return () => { active = false }
-  }, [open, order, nivel, formato])
+  }, [open, documento, contexto, nivel, formato])
+
+  // El iframe de la vista previa toma el alto de su contenido: el comprobante
+  // entero queda dentro del cuerpo desplazable del modal, sin cortes ni doble
+  // scroll (#318).
+  const ajustarAltoAlContenido = useCallback((evento) => {
+    const marco = evento?.currentTarget
+    const doc = marco?.contentDocument
+    if (!doc) return
+    const alto = Math.max(doc.documentElement?.scrollHeight || 0, doc.body?.scrollHeight || 0)
+    if (alto > 0) marco.style.height = `${alto + 2}px`
+  }, [])
 
   function imprimir() {
     if (!html) return
     recordarPreferencia(nivel, formato)
     recordarFormatoDeTipo('comprobante', formato)
-    printHtml(html)
+    const abierto = printHtml(html)
+    if (abierto) toast.success('Comprobante listo', 'Elegí la impresora o «Guardar como PDF» en el diálogo.')
+    else toast.error('No se pudo abrir la impresión', 'Probá de nuevo o descargá el PDF.')
   }
 
   // El diálogo del sistema es una acción manual: si el puente tiene trabajos
@@ -141,7 +167,7 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
   }
 
   async function imprimirDirecto(reimprimir = false) {
-    if (enviando) return
+    if (enviando || !documento) return
     setEnviando(true)
     const { ancho } = configImpresora()
     // Logo de la empresa en el encabezado térmico: variante oscura (papel
@@ -150,7 +176,7 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
     // El pedido identifica el trabajo en la cola y alimenta el guarda
     // anti-duplicados (#128): un click repetido se bloquea y, si la persona
     // confirma, sale como reimpresión explícita.
-    const referencia = String(order?.orderNumber || order?.codigo || order?.id || '')
+    const referencia = String(documento.orderNumber || documento.codigo || documento.id || '')
     if (isDemoRuntime) {
       // Demo (#196): el encolado se simula con la misma ventana anti-duplicados
       // que el backend; «Reimprimir igual» agrega una copia ficticia.
@@ -161,7 +187,7 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
       toast.success(reimprimir ? 'Reimpresión encolada (demo)' : 'Comprobante encolado (demo)', 'Dato ficticio: no se envió nada al puente.')
       return
     }
-    const resultado = await imprimirDocumento(ticketComprobante(order, { nivel, ancho, link, logo }), { tipo: 'comprobante', ref: referencia, reimprimir })
+    const resultado = await imprimirDocumento(ticketComprobante(documento, { nivel, ancho, link, logo }), { tipo: 'comprobante', ref: referencia, reimprimir })
     setEnviando(false)
     if (resultado.duplicado) { setPreguntaDuplicado({ mensaje: resultado.error }); return }
     if (!resultado.ok) { toast.error('No se pudo imprimir', resultado.error || 'Revisá la impresora.'); return }
@@ -180,64 +206,71 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
     }
   }
 
+  const acciones = (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="block space-y-1 text-xs text-mute">
+          <span>Comprobante</span>
+          <div role="radiogroup" aria-label="Tipo de comprobante" className="flex items-center gap-1">
+            {NIVELES_MODELO.map(({ id, label, icon }) => (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={nivel === id}
+                aria-label={`Comprobante ${label}`}
+                title={label}
+                onClick={() => setNivel(id)}
+                className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fono/50 ${nivel === id ? 'border-fono/50 bg-fono/10 text-fono-light' : 'border-ink-500 text-mute hover:border-fono hover:text-fore'}`}
+              >
+                <Icon name={icon} className="h-4 w-4" />
+                <span className="hidden sm:inline">{label}</span>
+              </button>
+            ))}
+          </div>
+        </label>
+        <label className="block space-y-1 text-xs text-mute">
+          <span>Formato</span>
+          <div role="radiogroup" aria-label="Formato de impresión" className="flex items-center gap-1">
+            {formatos.map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={formato === id}
+                aria-label={`Formato ${label}`}
+                title={label}
+                onClick={() => setFormato(id)}
+                className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fono/50 ${formato === id ? 'border-fono/50 bg-fono/10 text-fono-light' : 'border-ink-500 text-mute hover:border-fono hover:text-fore'}`}
+              >
+                <Icon name="receipt" className="h-4 w-4" />
+                {label}
+              </button>
+            ))}
+          </div>
+        </label>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 sm:justify-between">
+        <CompartirImagen
+          construirHtml={() => html}
+          nombre={`comprobante-${documento?.orderNumber || documento?.codigo || 'pedido'}`}
+          titulo="Comprobante de compra"
+          texto={`Comprobante ${documento?.orderNumber || documento?.codigo || ''}`.trim()}
+          formato={formato}
+          disabled={!html || cargando}
+        />
+        <span className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" onClick={imprimir} disabled={!html || cargando}>Descargar PDF</Button>
+          {(agente || hayImpresora) && <Button type="button" variant="outline" onClick={() => imprimirDirecto()} disabled={cargando || enviando}>{enviando ? 'Enviando…' : 'Impresión directa'}</Button>}
+          <Button type="button" onClick={imprimirConDialogo} disabled={!html || cargando}>{cargando ? 'Preparando…' : 'Imprimir con diálogo'}</Button>
+        </span>
+      </div>
+    </div>
+  )
+
   return (
-    <Modal open={open} onClose={onClose} title="Comprobante" size="amplio">
+    <Modal open={open} onClose={onClose} title="Comprobante" size="amplio" footer={acciones}>
       <div className="space-y-3">
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="block space-y-1 text-xs text-mute">
-            <span>Comprobante</span>
-            <div role="radiogroup" aria-label="Tipo de comprobante" className="flex items-center gap-1">
-              {NIVELES_MODELO.map(({ id, label, icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="radio"
-                  aria-checked={nivel === id}
-                  aria-label={`Comprobante ${label}`}
-                  title={label}
-                  onClick={() => setNivel(id)}
-                  className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fono/50 ${nivel === id ? 'border-fono/50 bg-fono/10 text-fono-light' : 'border-ink-500 text-mute hover:border-fono hover:text-fore'}`}
-                >
-                  <Icon name={icon} className="h-4 w-4" />
-                  <span className="hidden sm:inline">{label}</span>
-                </button>
-              ))}
-            </div>
-          </label>
-          <label className="block space-y-1 text-xs text-mute">
-            <span>Formato</span>
-            <div role="radiogroup" aria-label="Formato de impresión" className="flex items-center gap-1">
-              {formatos.map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="radio"
-                  aria-checked={formato === id}
-                  aria-label={`Formato ${label}`}
-                  title={label}
-                  onClick={() => setFormato(id)}
-                  className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fono/50 ${formato === id ? 'border-fono/50 bg-fono/10 text-fono-light' : 'border-ink-500 text-mute hover:border-fono hover:text-fore'}`}
-                >
-                  <Icon name="receipt" className="h-4 w-4" />
-                  {label}
-                </button>
-              ))}
-            </div>
-          </label>
-          <span className="flex flex-1 flex-wrap items-center justify-end gap-2">
-            <CompartirImagen
-              construirHtml={() => html}
-              nombre={`comprobante-${order?.orderNumber || order?.codigo || 'pedido'}`}
-              titulo="Comprobante de compra"
-              texto={`Comprobante ${order?.orderNumber || order?.codigo || ''}`.trim()}
-              formato={formato}
-              disabled={!html || cargando}
-            />
-            <Button type="button" variant="outline" onClick={imprimir} disabled={!html || cargando}>Descargar PDF</Button>
-            {(agente || hayImpresora) && <Button type="button" variant="outline" onClick={() => imprimirDirecto()} disabled={cargando || enviando}>{enviando ? 'Enviando…' : 'Impresión directa'}</Button>}
-            <Button type="button" onClick={imprimirConDialogo} disabled={!html || cargando}>{cargando ? 'Preparando…' : 'Imprimir con diálogo'}</Button>
-          </span>
-        </div>
         {agente && Number(estado?.cola?.pendientes || 0) > 0 && (
           <Aviso tono="warn" compact className="px-3">
             El puente tiene {estado.cola.pendientes} trabajo(s) encolado(s): la impresora no respondió y reintenta solo.
@@ -258,9 +291,6 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
             La cola del puente tiene {pendientesRemotos} trabajo(s) pendiente(s) para {destino?.nombre || 'la impresora configurada'}. Si esta impresión ya se mandó, revisá y cancelá en Configuración → Estado del sistema antes de mandar otra.
           </Aviso>
         )}
-        <p className="text-[11px] text-mute">
-          Cada nivel imprime su propio QR privado. Para PDF, elegí «Guardar como PDF» en el diálogo de impresión.
-        </p>
         <ConfirmDialog
           open={preguntaDialogo}
           title="Hay trabajos encolados en el puente"
@@ -280,7 +310,17 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
           onCancel={() => setPreguntaDuplicado(null)}
           onConfirm={() => { setPreguntaDuplicado(null); imprimirDirecto(true) }}
         />
-        <VistaPreviaPapel formato={formato} contenido={html} titulo="Vista previa del comprobante" />
+        <p className="text-[11px] text-mute">
+          Cada nivel imprime su propio QR privado. Para PDF, elegí «Guardar como PDF» en el diálogo de impresión.
+        </p>
+        <VistaPreviaPapel
+          formato={formato}
+          contenido={html}
+          titulo="Vista previa del comprobante"
+          alto="h-auto"
+          className="min-h-[320px]"
+          onLoad={ajustarAltoAlContenido}
+        />
       </div>
     </Modal>
   )
