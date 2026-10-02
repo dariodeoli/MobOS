@@ -11,6 +11,13 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.214 — 2026-10-02
+- **Configuración (#298):** una sola **navegación con texto** y **edición bajo demanda**: las tarjetas arrancan en modo lectura y «Editar» abre el formulario con lo guardado.
+- **Organización y Equipo (#299):** Organización queda dividida **por tareas** (Datos generales · Identidad visual · Sucursales y depósitos · Datos fiscales · Numeración · Zona de peligro) y Equipo usa **pestañas** (Miembros · Invitaciones · Permisos · Rendimiento); los **roles quedan unificados** en toda la app.
+- **Mi cuenta (#300):** las **sesiones** se leen en lenguaje claro, el avatar tiene **una sola foto** y la **zona destructiva** queda separada y explicada.
+- **Sistema y Auditoría (#301):** los **contadores coinciden con sus listas**, las fechas van en hora de **Asunción** y la auditoría se lee sin jerga: severidad visible, sin «Inventario» duplicado y con los **detalles técnicos plegados**; AEX sin claves lo dice en vez de parecer «en orden».
+- **Diálogos (#323, plataforma):** Horario, Sucursales y el diálogo destructivo adoptan el **modal estándar** (confirmación al cerrar con cambios y errores junto al campo).
+
 ## v1.0.213 — 2026-10-02
 - **Validación global (#297):** ninguna acción se habilita con datos incompletos — gastos, compras, impresoras, promociones, traslados y conteos indican **qué falta** junto al campo y en el botón, y con **total en Gs 0** no se cargan pagos ni se canjean gift cards; la **API rechaza un conteo sin equipos** escaneados.
 - **Inventario móvil (#304):** en el celular cada equipo es una **tarjeta compacta** (el trabajo primero) y en escritorio la **tabla completa** vuelve a mostrar todo; el switch Productos/Unidades se oculta en mobile para que el primer equipo entre en pantalla.
