@@ -67,6 +67,10 @@ test.describe('Seguridad de la cuenta', () => {
     await dialogoEliminar.getByLabel('Escribí ELIMINAR para confirmar').fill('ELIMINAR')
     await expect(confirmarEliminar).toBeEnabled()
     await dialogoEliminar.getByRole('button', { name: 'Cancelar' }).click()
+    // #323: con la palabra y la clave escritas, el cierre pide confirmar el
+    // descarte antes de cerrar.
+    const descartarEliminar = page.getByRole('dialog', { name: '¿Descartar los cambios?' })
+    if (await descartarEliminar.count()) await descartarEliminar.getByRole('button', { name: 'Descartar y cerrar' }).click()
     await expect(dialogoEliminar).toBeHidden()
   })
 
