@@ -11,6 +11,10 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.216 — 2026-10-02
+- **Impresión (#204):** el monitor de trabajos con problema identifica cada trabajo por su **referencia**, así se distingue de un vistazo cuál es en lugar de mostrarlos todos como «Comprobante»; un trabajo **incierto** se muestra honesto y no se cancela por error.
+- **Otros (#204):** menos falsos rojos en las pruebas: la prueba de la **caché sin backend** ya no depende de una carrera del refresco automático de 20 s.
+
 ## v1.0.215 — 2026-10-02
 - **Clientes (#314):** la demo de **cotizaciones** se puede recorrer de punta a punta: ejemplos en distintas etapas, **modal** con etiquetas claras y **vista previa** del documento antes de guardar o enviar; la conversión a pedido y la aprobación desde el portal quedan cubiertas con capturas en claro, oscuro y móvil.
 - **Búsqueda global (#296):** en la demo la búsqueda **funciona sin backend** y los avisos distinguen tres estados: **sin resultados**, **servicio no disponible** (con reintento que recupera) y **error de conexión** (con reintento disponible).
