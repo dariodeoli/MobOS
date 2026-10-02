@@ -10,6 +10,7 @@ import {
   Badge,
   Button,
   Card,
+  Drawer,
   FormField,
   Input,
   Label,
@@ -20,9 +21,18 @@ import {
   Skeleton,
   Textarea,
 } from '@/components/ui'
+import NumericKeypad from '@/components/shared/NumericKeypad'
 import AuditoriaMedios from './AuditoriaMedios'
 import AuditoriaEfectivo from './AuditoriaEfectivo'
 import VentasPorCaja from './VentasPorCaja'
+import {
+  DENOMINACIONES,
+  MODO_DETALLADO,
+  MODO_RAPIDO,
+  desglosePayload,
+  normalizarCantidad,
+  resumenConteo,
+} from '@/lib/cajaConteo'
 import AttachmentList from '@/components/shared/AttachmentList'
 import Cronologia from '@/components/shared/Cronologia'
 import Icon from '@/components/shared/Icon'
@@ -42,19 +52,9 @@ import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES_REVERSO } from '@/components/shared/f
 const GRID_PROVEEDORES = 'grid min-w-[52rem] grid-cols-[minmax(11rem,1.3fr)_minmax(13rem,1.4fr)_8rem_minmax(10rem,auto)] items-center gap-x-2'
 const GRID_TALLER = 'grid min-w-[50rem] grid-cols-[minmax(11rem,1.3fr)_minmax(13rem,1.3fr)_8rem_minmax(6.5rem,auto)] items-center gap-x-2'
 
-// Denominaciones del arqueo en guaraníes: son las mismas que acepta el backend
-// y el total contado se deriva de acá cuando hay desglose.
-const DENOMINACIONES = [
-  { valor: 100000, tipo: 'Billete' },
-  { valor: 50000, tipo: 'Billete' },
-  { valor: 20000, tipo: 'Billete' },
-  { valor: 10000, tipo: 'Billete' },
-  { valor: 5000, tipo: 'Billete' },
-  { valor: 2000, tipo: 'Billete' },
-  { valor: 1000, tipo: 'Moneda' },
-  { valor: 500, tipo: 'Moneda' },
-  { valor: 100, tipo: 'Moneda' },
-]
+// Denominaciones del arqueo en guaraníes: las mismas que acepta el backend y
+// el total contado se deriva de acá cuando hay desglose. Viven en
+// `src/lib/cajaConteo.js` para compartir el modo rápido/detallado con tests.
 
 // Condiciones de pago de las compras de repuestos/insumos (#250 · #83): mismas
 // etiquetas que `backend/lib/supplier-payables.ts`.
@@ -63,70 +63,154 @@ const CONDICION_PROVEEDOR = { CONTADO: 'Contado', CREDITO: 'Crédito', CONSIGNAC
 // Fecha y hora locales en 24 h, sin segundos: mismo formato que las demás
 // pantallas de control (auditoría, inventario, impresión).
 
-function desgloseItems(cantidades) {
-  return DENOMINACIONES.map(({ valor }) => ({
-    valor,
-    cantidad: Number(cantidades[valor] || 0),
-  })).filter(item => item.cantidad > 0)
-}
-
-function totalArqueo(cantidades) {
-  return desgloseItems(cantidades).reduce((total, item) => total + item.valor * item.cantidad, 0)
-}
-
-function desglosePayload(cantidades) {
-  const payload = {}
-  for (const item of desgloseItems(cantidades)) payload[String(item.valor)] = item.cantidad
-  return payload
-}
-
-// Grilla compartida por el cierre propio y el cierre de otro turno (admin):
-// cada fila suma su subtotal y el total se calcula en vivo.
+// Grilla guiada del arqueo (#311): dos columnas con el valor y el subtotal a la
+// vista, y la cantidad se carga con los botones ± o tipeando (entrada tipo
+// calculadora). El total se calcula en vivo y queda fijo en el resumen del
+// cierre para que no haya dos montos compitiendo.
 function ArqueoDenominaciones({ cantidades, onCambiar, id }) {
-  const total = totalArqueo(cantidades)
+  const total = resumenConteo({ modo: MODO_DETALLADO, cantidades }).contado
   return (
-    <div className="space-y-2">
-      <div className="hidden grid-cols-[1.4fr_6.5rem_1fr] items-center gap-2 px-3 text-[11px] font-medium uppercase tracking-wider text-mute sm:grid">
-        <span>Denominación</span>
-        <span className="text-center">Cantidad</span>
-        <span className="text-right">Subtotal</span>
-      </div>
-      {DENOMINACIONES.map(({ valor, tipo }) => {
-        const cantidad = Number(cantidades[valor] || 0)
-        return (
-          <div
-            key={valor}
-            className="grid grid-cols-[1.4fr_6.5rem_1fr] items-center gap-2 rounded-lg border border-ink-600 px-3 py-2"
-          >
-            <div className="min-w-0">
-              <p className="text-sm font-semibold tabular-nums">
-                <Money value={valor} />
-              </p>
-              <p className="text-[11px] text-mute">{tipo}</p>
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        {DENOMINACIONES.map(({ valor, tipo }) => {
+          const cantidad = Number(cantidades[valor] || 0)
+          const articulo = tipo === 'Billete' ? 'billete' : 'moneda'
+          const etiqueta = `${articulo} de ${formatGs(valor)}`
+          return (
+            <div key={valor} className="rounded-xl border border-ink-600 p-2.5" data-testid={`denominacion-${valor}`}>
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="min-w-0 text-sm font-semibold tabular-nums">
+                  <span className="whitespace-nowrap">
+                    <Money value={valor} />
+                  </span>
+                  <span className="ml-1 text-[11px] font-normal text-mute">{tipo}</span>
+                </p>
+                <p className="shrink-0 text-[11px] tabular-nums text-mute" data-testid={`subtotal-${valor}`}>
+                  <Money value={cantidad * valor} />
+                </p>
+              </div>
+              <div className="mt-2 flex items-stretch gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 w-11 shrink-0 px-0 text-lg"
+                  aria-label={`Quitar un ${etiqueta}`}
+                  disabled={cantidad <= 0}
+                  onClick={() => onCambiar(valor, normalizarCantidad(cantidad - 1))}
+                >
+                  −
+                </Button>
+                <Input
+                  id={`${id}-${valor}`}
+                  inputMode="numeric"
+                  maxLength={7}
+                  value={cantidades[valor] ?? ''}
+                  onChange={event =>
+                    onCambiar(valor, normalizarCantidad(event.target.value.replace(/\D/g, '')))
+                  }
+                  placeholder="0"
+                  aria-label={`Cantidad de ${tipo.toLowerCase()}s de ${formatGs(valor)}`}
+                  className="h-11 min-w-0 text-center tabular-nums"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 w-11 shrink-0 px-0 text-lg"
+                  aria-label={`Agregar un ${etiqueta}`}
+                  onClick={() => onCambiar(valor, normalizarCantidad(cantidad + 1))}
+                >
+                  +
+                </Button>
+              </div>
             </div>
-            <Input
-              id={`${id}-${valor}`}
-              inputMode="numeric"
-              maxLength={7}
-              value={cantidades[valor] ?? ''}
-              onChange={event =>
-                onCambiar(valor, event.target.value.replace(/\D/g, '').slice(0, 7))
-              }
-              placeholder="0"
-              aria-label={`Cantidad de ${tipo.toLowerCase()}s de ${formatGs(valor)}`}
-              className="h-9 text-center tabular-nums"
-            />
-            <p className="text-right text-sm tabular-nums text-mute">
-              <Money value={cantidad * valor} />
-            </p>
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
       <div className="flex items-center justify-between rounded-lg bg-fono/10 px-3 py-2 text-sm">
         <span className="font-semibold">Total del arqueo</span>
-        <strong className="tabular-nums">
+        <strong className="tabular-nums" data-testid={`total-${id}`}>
           <Money value={total} />
         </strong>
+      </div>
+    </div>
+  )
+}
+
+// Panel del cierre guiado (#311): elige el modo (rápido por total o detallado
+// por denominación), carga el conteo y muestra el resumen fijo —contado,
+// esperado y diferencia— antes de confirmar. Es el único lugar donde se cierra.
+function ConteoCierre({ id, quickId, modo, onModo, cantidades, onCantidad, totalRapido, onTotalRapido, esperado }) {
+  const resumen = resumenConteo({ modo, cantidades, totalRapido, esperado })
+  const colorDiferencia = !resumen.hayConteo ? 'text-mute' : resumen.diferencia === 0 ? 'text-ok' : 'text-warn'
+  return (
+    <div className="space-y-4">
+      <div role="group" aria-label="Modo de conteo" className="grid grid-cols-2 gap-1 rounded-xl border border-ink-600 p-1">
+        <button
+          type="button"
+          aria-pressed={modo === MODO_RAPIDO}
+          onClick={() => onModo(MODO_RAPIDO)}
+          className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${modo === MODO_RAPIDO ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}
+        >
+          Total rápido
+        </button>
+        <button
+          type="button"
+          aria-pressed={modo === MODO_DETALLADO}
+          onClick={() => onModo(MODO_DETALLADO)}
+          className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${modo === MODO_DETALLADO ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}
+        >
+          Por denominación
+        </button>
+      </div>
+      <p className="text-sm text-mute">
+        1. Contá el efectivo físico · 2. Compará con el esperado · 3. Confirmá el
+        cierre. Solo guaraníes: no incluyas dólares, transferencias ni tarjetas.
+      </p>
+      {modo === MODO_RAPIDO ? (
+        <div>
+          <Label htmlFor={quickId}>Total contado (Gs)</Label>
+          <MoneyInput
+            id={quickId}
+            value={totalRapido}
+            onValueChange={valor => onTotalRapido(valor === '' ? '' : formatGsInput(valor))}
+            placeholder="0"
+            className="h-12 text-lg tabular-nums"
+          />
+          <NumericKeypad
+            className="mt-2 grid grid-cols-3 gap-2"
+            ariaLabel="Teclado del total contado"
+            value={String(totalRapido ?? '').replace(/\D/g, '')}
+            onChange={valor => onTotalRapido(valor ? formatGsInput(valor) : '')}
+          />
+          <p className="mt-1.5 text-xs text-mute">Escribí el total del efectivo o cargalo con el teclado.</p>
+        </div>
+      ) : (
+        <ArqueoDenominaciones id={id} cantidades={cantidades} onCambiar={onCantidad} />
+      )}
+      <div
+        className="sticky bottom-0 z-10 -mx-4 border-t border-ink-600 bg-ink-800/95 px-4 pb-3 pt-3 backdrop-blur sm:-mx-5 sm:px-5"
+        data-testid="resumen-conteo"
+      >
+        <div className="grid grid-cols-3 gap-2 text-center text-sm">
+          <span className="text-mute">
+            Contado
+            <strong className="mt-0.5 block tabular-nums text-fore">
+              {resumen.hayConteo ? <Money value={resumen.contado} /> : '—'}
+            </strong>
+          </span>
+          <span className="text-mute">
+            Esperado
+            <strong className="mt-0.5 block tabular-nums text-fore">
+              <Money value={resumen.esperado} />
+            </strong>
+          </span>
+          <span className="text-mute">
+            Diferencia
+            <strong className={`mt-0.5 block tabular-nums ${colorDiferencia}`}>
+              {resumen.hayConteo ? <Money value={resumen.diferencia} /> : '—'}
+            </strong>
+          </span>
+        </div>
       </div>
     </div>
   )
@@ -298,7 +382,13 @@ export default function Caja() {
   const [saving, setSaving] = useState(false)
   const [cronologia, setCronologia] = useState(false)
   const [exportando, setExportando] = useState(false)
-  const [cierreOpen, setCierreOpen] = useState(false)
+  const [reporteOpen, setReporteOpen] = useState(false)
+  // #311: el cierre es guiado —modo rápido o por denominación— dentro de un
+  // cajón; la página ya no muestra el conteo abierto ni compite con otros
+  // formularios. `modoConteo` decide qué monto vale (rápido o detallado).
+  const [conteoOpen, setConteoOpen] = useState(false)
+  const [modoConteo, setModoConteo] = useState(MODO_RAPIDO)
+  const [bancoOpen, setBancoOpen] = useState(false)
   const [cobros, setCobros] = useState([])
   const [extractoTexto, setExtractoTexto] = useState('')
   const [extractoAnalizando, setExtractoAnalizando] = useState(false)
@@ -434,15 +524,14 @@ export default function Caja() {
     return getDemoCashExpected(turno || undefined, new Date(), sales)
   }, [esDemo, turno])
 
-  const hayArqueo = desgloseItems(arqueo).length > 0
-  const contado = hayArqueo ? totalArqueo(arqueo) : parseGsInput(counted)
-  // Con la caja abierta y sin arqueo no hay diferencia que mostrar: anticipar
-  // contado − esperado con el conteo vacío asusta con un número que no existe
-  // (el cierre todavía no se hizo). Igual criterio que «Ventas por caja».
-  const hayConteo = hayArqueo || String(counted ?? '').trim() !== ''
+  // #311: el monto que vale sale del modo activo del cierre guiado. El resumen
+  // fijo del cajón y la tarjeta de la página usan el mismo número.
+  const resumen = resumenConteo({ modo: modoConteo, cantidades: arqueo, totalRapido: counted, esperado: expected })
+  const contado = resumen.contado
+  const hayConteo = resumen.hayConteo
   const sinConteo = abierta && !hayConteo
-  const hayArqueoAjeno = desgloseItems(arqueoAjeno).length > 0
-  const contadoAjenoTotal = hayArqueoAjeno ? totalArqueo(arqueoAjeno) : parseGsInput(contadoAjeno)
+  const resumenAjeno = resumenConteo({ modo: modoConteo, cantidades: arqueoAjeno, totalRapido: contadoAjeno, esperado: expected })
+  const contadoAjenoTotal = resumenAjeno.contado
   const difference =
     turno?.status === 'CLOSED'
       ? Number(turno.countedPyg ?? 0) - Number(turno.expectedPyg ?? 0)
@@ -478,7 +567,7 @@ export default function Caja() {
         setCobros(cobrosDeAuditoria(data?.methods))
       }
     } catch { setCobros([]) }
-    setCierreOpen(true)
+    setReporteOpen(true)
   }
   async function abrir() {
     const errorInicial = errorMonto(parseGsInput(opening))
@@ -502,11 +591,12 @@ export default function Caja() {
     }
   }
   async function cerrar() {
+    if (!resumen.hayConteo) { setError('Cargá el total contado o el detalle por denominación.'); return }
     const errorContado = errorMonto(contado)
     if (errorContado) { setError(errorContado); return }
     setSaving(true)
     setError('')
-    const desglose = hayArqueo ? desglosePayload(arqueo) : null
+    const desglose = modoConteo === MODO_DETALLADO ? desglosePayload(arqueo) : null
     try {
       if (esDemo) closeDemoCash(contado, expected, notes, desglose)
       else
@@ -515,6 +605,8 @@ export default function Caja() {
           ...(desglose ? { countedBreakdown: desglose } : { countedPyg: parseGsInput(counted) }),
           notes,
         })
+      // Cierre guiado: al confirmar, el cajón se cierra y el conteo se limpia.
+      setConteoOpen(false)
       setCounted('')
       setArqueo({})
       setNotes('')
@@ -534,11 +626,12 @@ export default function Caja() {
   }
   async function cerrarTurnoAjeno() {
     if (!turnoAjeno) return
+    if (!resumenAjeno.hayConteo) { setError('Cargá el total contado o el detalle por denominación.'); return }
     const errorContado = errorMonto(contadoAjenoTotal)
     if (errorContado) { setError(errorContado); return }
     setSaving(true)
     setError('')
-    const desglose = hayArqueoAjeno ? desglosePayload(arqueoAjeno) : null
+    const desglose = modoConteo === MODO_DETALLADO ? desglosePayload(arqueoAjeno) : null
     try {
       await api.post(`/api/cash?branchId=${encodeURIComponent(sucursal?.id || '')}`, {
         action: 'close',
@@ -651,8 +744,8 @@ export default function Caja() {
           {error}
         </Aviso>
       )}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className={abierta ? 'border-ok/25 bg-gradient-to-br from-ok/10 to-transparent' : ''}>
+      <Card className="grid gap-4 sm:grid-cols-3" data-testid="caja-resumen">
+        <div>
           <Label>Estado</Label>
           <strong className={`flex items-center gap-2 ${abierta ? 'text-ok' : 'text-mute'}`}>
             <span className={`h-2 w-2 rounded-full ${abierta ? 'bg-ok' : 'bg-mute'}`} />
@@ -663,19 +756,15 @@ export default function Caja() {
               ? `${turno.status === 'OPEN' ? `Turno de ${nombreTurno(turno)}` : 'Último turno'} · ${fechaHora(turno.openedAt)}`
               : 'Sin apertura'}
           </p>
-        </Card>
-        <Card className={v2 ? 'v2-tile' : undefined}>
+        </div>
+        <div>
           <Label>Saldo esperado</Label>
           <strong className="text-xl tabular-nums">
             <Money value={expected} />
           </strong>
           <p className="mt-2 text-xs text-mute">Apertura + efectivo confirmado en Gs.</p>
-        </Card>
-        <Card
-          className={
-            sinConteo || difference === 0 ? '' : 'border-warn/25 bg-gradient-to-br from-warn/10 to-transparent'
-          }
-        >
+        </div>
+        <div>
           <Label>Diferencia</Label>
           <strong
             data-testid="caja-diferencia"
@@ -683,9 +772,9 @@ export default function Caja() {
           >
             {sinConteo ? '—' : <Money value={difference} />}
           </strong>
-          <p className="mt-2 text-xs text-mute">Se calcula al cierre</p>
-        </Card>
-      </div>
+          <p className="mt-2 text-xs text-mute">{sinConteo ? 'Se calcula al cierre' : 'Contado − esperado'}</p>
+        </div>
+      </Card>
       {finance && (
         <div className="grid gap-4 md:grid-cols-4">
           <Card className={v2 ? 'v2-tile' : undefined}>
@@ -868,100 +957,51 @@ export default function Caja() {
           </Button>
         </Card>
       ) : (
-        <Card>
-          <h3 className="font-bold">Cerrar caja</h3>
-          <p className="mt-1 text-sm text-mute">
-            Contá el efectivo físico por denominación o ingresá el total. No incluyas dólares,
-            transferencias ni tarjetas.
-          </p>
-          <div className="mt-5 space-y-5">
-            <ArqueoDenominaciones
-              id="arqueo"
-              cantidades={arqueo}
-              onCambiar={(valor, cantidad) =>
-                setArqueo(current => ({ ...current, [valor]: cantidad }))
-              }
-            />
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <Label htmlFor="counted">
-                  Total contado (Gs){hayArqueo ? ' · calculado del arqueo' : ''}
-                </Label>
-                <MoneyInput
-                  id="counted"
-                  value={hayArqueo ? contado : counted}
-                  readOnly={hayArqueo}
-                  onValueChange={value => setCounted(value === '' ? '' : formatGsInput(value))}
-                  placeholder="0"
-                  className="tabular-nums read-only:opacity-60"
-                />
-                <p className="mt-1.5 text-xs text-mute">
-                  {hayArqueo
-                    ? 'Se calcula sumando las denominaciones cargadas.'
-                    : 'Sin desglose: escribí el total contado.'}
-                </p>
-              </div>
-              <div>
-                <Label htmlFor="close-notes">Nota de cierre</Label>
-                <Input
-                  id="close-notes"
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  placeholder="Observación opcional"
-                />
-              </div>
-            </div>
-            <p
-              className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-3 py-2 text-sm ${
-                sinConteo ? 'bg-ink-700/40 text-mute' : contado - expected === 0 ? 'bg-ok/10 text-ok' : 'bg-warn/10 text-warn'
-              }`}
-            >
-              <span>
-                Contado{' '}
-                <strong className="tabular-nums">
-                  {hayConteo ? <Money value={contado} /> : '—'}
-                </strong>
-              </span>
-              <span>
-                Esperado{' '}
-                <strong className="tabular-nums">
+        <Card className="space-y-4" data-testid="cierre-caja-tarjeta">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="font-bold">Cerrar caja</h3>
+              <p className="mt-1 text-sm text-mute">
+                El cierre es guiado: contá el efectivo —total rápido o por denominación—, compará
+                con el esperado y confirmá. No incluyas dólares, transferencias ni tarjetas.
+              </p>
+              <p className="mt-2 text-xs text-mute">
+                Abierto {fechaHora(turno?.openedAt)} · esperado{' '}
+                <b className="text-fore">
                   <Money value={expected} />
-                </strong>
-              </span>
-              <span>
-                Diferencia{' '}
-                <strong className="tabular-nums">
-                  {hayConteo ? <Money value={contado - expected} /> : '—'}
-                </strong>
-              </span>
-            </p>
-            <Button
-              variant="success"
-              onClick={cerrar}
-              disabled={saving || (!hayArqueo && !counted)}
-            >
-              Cerrar caja · <Money value={contado} />
+                </b>
+              </p>
+            </div>
+            <Button type="button" onClick={() => { setError(''); setConteoOpen(true) }}>
+              Contar y cerrar
             </Button>
           </div>
         </Card>
       )}
       {puedeConciliar && (
-        <Card>
-          <details className="group">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
-              <span>
-                <h3 className="font-bold">Conciliación bancaria</h3>
-                <p className="mt-1 text-sm text-mute">
-                  Pegá el extracto del banco (CSV con fecha, monto y referencia/descripción) y
-                  confirmá las coincidencias contra los cobros confirmados del sistema.
+        <Card className="space-y-3" data-testid="conciliacion-bancaria">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="font-bold">Conciliación bancaria</h3>
+              <p className="mt-1 text-sm text-mute">
+                Importá el extracto del banco (CSV con fecha, monto y referencia/descripción) y
+                confirmá las coincidencias contra los cobros confirmados del sistema.
+              </p>
+              {extractoResultado && (
+                <p className="mt-1 text-xs text-mute">
+                  Último análisis: {extractoResultado.resumen.filas} movimiento(s) ·{' '}
+                  {conciliadasExtracto} conciliada(s) · {pendientesExtracto} pendiente(s).
                 </p>
-              </span>
-              <Icon
-                name="chevron"
-                className="h-4 w-4 shrink-0 text-mute transition group-open:rotate-180"
-              />
-            </summary>
-            <div className="mt-4 space-y-4">
+              )}
+            </div>
+            <Button type="button" variant="outline" onClick={() => setBancoOpen(true)}>
+              Importar extracto
+            </Button>
+          </div>
+        </Card>
+      )}
+      <Drawer open={bancoOpen} onClose={() => setBancoOpen(false)} title="Conciliación bancaria">
+        <div className="space-y-4">
               <div>
                 <Label htmlFor="extracto-csv">Extracto (CSV)</Label>
                 <Textarea
@@ -1090,9 +1130,7 @@ export default function Caja() {
                 </div>
               )}
             </div>
-          </details>
-        </Card>
-      )}
+      </Drawer>
       {otrosTurnos.length > 0 && (
         <Card>
           <h3 className="font-bold">Turnos abiertos en la sucursal</h3>
@@ -1161,73 +1199,105 @@ export default function Caja() {
           </Button>
         </Card>
       )}
-      <Modal
+      <Drawer
+        open={conteoOpen}
+        onClose={() => !saving && setConteoOpen(false)}
+        title="Cerrar caja"
+      >
+        <ConteoCierre
+          id="arqueo"
+          quickId="counted"
+          modo={modoConteo}
+          onModo={setModoConteo}
+          cantidades={arqueo}
+          onCantidad={(valor, cantidad) =>
+            setArqueo(current => ({ ...current, [valor]: cantidad }))
+          }
+          totalRapido={counted}
+          onTotalRapido={setCounted}
+          esperado={expected}
+        />
+        <div className="mt-4">
+          <Label htmlFor="close-notes">Nota de cierre (opcional)</Label>
+          <Input
+            id="close-notes"
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            placeholder="Observación opcional"
+          />
+        </div>
+        {error && (
+          <Aviso tono="error" className="mt-3">
+            {error}
+          </Aviso>
+        )}
+        <Button
+          type="button"
+          variant="success"
+          className="mt-4 w-full"
+          onClick={cerrar}
+          disabled={saving || !resumen.hayConteo}
+        >
+          {saving ? 'Cerrando…' : <>Cerrar caja · <Money value={contado} /></>}
+        </Button>
+      </Drawer>
+      <Drawer
         open={Boolean(turnoAjeno)}
-        onClose={() => setTurnoAjeno(null)}
+        onClose={() => !saving && setTurnoAjeno(null)}
         title={`Cerrar turno de ${turnoAjeno?.openedByName || 'otra persona'}`}
       >
-        <div className="space-y-4">
-          <p className="text-sm text-mute">
-            Turno abierto {fechaHora(turnoAjeno?.openedAt)} con fondo de{' '}
-            <Money value={turnoAjeno?.openingPyg} />. Contá el efectivo físico por denominación o
-            ingresá el total antes de cerrarlo.
-          </p>
-          <ArqueoDenominaciones
+        <p className="text-sm text-mute">
+          Turno abierto {fechaHora(turnoAjeno?.openedAt)} con fondo de{' '}
+          <Money value={turnoAjeno?.openingPyg} />.
+        </p>
+        <div className="mt-4">
+          <ConteoCierre
             id="arqueo-ajeno"
+            quickId="counted-ajeno"
+            modo={modoConteo}
+            onModo={setModoConteo}
             cantidades={arqueoAjeno}
-            onCambiar={(valor, cantidad) =>
+            onCantidad={(valor, cantidad) =>
               setArqueoAjeno(current => ({ ...current, [valor]: cantidad }))
             }
+            totalRapido={contadoAjeno}
+            onTotalRapido={setContadoAjeno}
+            esperado={expected}
           />
-          <div>
-            <Label htmlFor="counted-ajeno">
-              Total contado (Gs){hayArqueoAjeno ? ' · calculado del arqueo' : ''}
-            </Label>
-            <MoneyInput
-              id="counted-ajeno"
-              value={
-                hayArqueoAjeno ? contadoAjenoTotal : contadoAjeno
-              }
-              readOnly={hayArqueoAjeno}
-              onValueChange={value => setContadoAjeno(value === '' ? '' : formatGsInput(value))}
-              placeholder="0"
-              className="tabular-nums read-only:opacity-60"
-            />
-            <p className="mt-1.5 text-xs text-mute">
-              {hayArqueoAjeno
-                ? 'Se calcula sumando las denominaciones cargadas.'
-                : 'Sin desglose: escribí el total contado.'}
-            </p>
-          </div>
-          <div>
-            <Label htmlFor="close-ajeno-notes">Nota de cierre</Label>
-            <Input
-              id="close-ajeno-notes"
-              value={notasAjeno}
-              onChange={e => setNotasAjeno(e.target.value)}
-              placeholder="Observación opcional"
-            />
-          </div>
-          <div className={PIE_ACCIONES_REVERSO}>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setTurnoAjeno(null)}
-              disabled={saving}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              variant="success"
-              onClick={cerrarTurnoAjeno}
-              disabled={saving || (!hayArqueoAjeno && !contadoAjeno)}
-            >
-              Cerrar turno · <Money value={contadoAjenoTotal} />
-            </Button>
-          </div>
         </div>
-      </Modal>
+        <div className="mt-4">
+          <Label htmlFor="close-ajeno-notes">Nota de cierre (opcional)</Label>
+          <Input
+            id="close-ajeno-notes"
+            value={notasAjeno}
+            onChange={e => setNotasAjeno(e.target.value)}
+            placeholder="Observación opcional"
+          />
+        </div>
+        {error && (
+          <Aviso tono="error" className="mt-3">
+            {error}
+          </Aviso>
+        )}
+        <div className={cn(PIE_ACCIONES_REVERSO, 'mt-4')}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setTurnoAjeno(null)}
+            disabled={saving}
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            variant="success"
+            onClick={cerrarTurnoAjeno}
+            disabled={saving || !resumenAjeno.hayConteo}
+          >
+            Cerrar turno · <Money value={contadoAjenoTotal} />
+          </Button>
+        </div>
+      </Drawer>
       <Modal
         open={cronologia}
         onClose={() => setCronologia(false)}
@@ -1242,7 +1312,7 @@ export default function Caja() {
           />
         )}
       </Modal>
-      <Modal open={proveedorOpen} onClose={() => !proveedorBusy && setProveedorOpen(false)} title="Registrar compra de repuestos">
+      <Drawer open={proveedorOpen} onClose={() => !proveedorBusy && setProveedorOpen(false)} title="Registrar compra de repuestos">
         <form onSubmit={registrarCompraProveedor} className="space-y-3">
           <FormField label="Proveedor" htmlFor="prov-proveedor">
             <Input id="prov-proveedor" required maxLength={200} value={proveedorForm.supplierName} onChange={evento => setProveedorForm(actual => ({ ...actual, supplierName: evento.target.value }))} placeholder="Ej.: Depósito 2" />
@@ -1282,8 +1352,8 @@ export default function Caja() {
             <Button type="submit" disabled={proveedorBusy || !proveedorForm.supplierName.trim() || !proveedorForm.concept.trim() || !proveedorForm.amountPyg || (proveedorForm.condition === 'CREDITO' && !proveedorForm.dueAt)}>{proveedorBusy ? 'Guardando…' : 'Registrar compra'}</Button>
           </div>
         </form>
-      </Modal>
-      <Modal open={Boolean(proveedorAccion)} onClose={() => !proveedorBusy && setProveedorAccion(null)} title={proveedorAccion?.tipo === 'pagar-taller' ? 'Pagar repuesto del taller' : proveedorAccion?.tipo === 'pagar' ? 'Pagar al proveedor' : 'Registrar consumo'}>
+      </Drawer>
+      <Drawer open={Boolean(proveedorAccion)} onClose={() => !proveedorBusy && setProveedorAccion(null)} title={proveedorAccion?.tipo === 'pagar-taller' ? 'Pagar repuesto del taller' : proveedorAccion?.tipo === 'pagar' ? 'Pagar al proveedor' : 'Registrar consumo'}>
         <form onSubmit={confirmarAccionProveedor} className="space-y-3">
           <p className="text-sm text-mute">
             {proveedorAccion?.tipo === 'pagar-taller'
@@ -1312,10 +1382,10 @@ export default function Caja() {
             <Button type="submit" disabled={proveedorBusy || (proveedorAccion?.tipo !== 'pagar-taller' && !proveedorMonto)}>{proveedorBusy ? 'Guardando…' : proveedorAccion?.tipo === 'consumir' ? 'Registrar consumo' : 'Registrar pago'}</Button>
           </div>
         </form>
-      </Modal>
+      </Drawer>
       <ReportePreview
-        open={cierreOpen}
-        onClose={() => setCierreOpen(false)}
+        open={reporteOpen}
+        onClose={() => setReporteOpen(false)}
         titulo="Cierre de caja"
         construir={(format) => buildCierreCajaHtml(cierre, { format })}
         directo={({ ancho }) => imprimirDocumento(ticketCierreCaja(cierre, { ancho }), { tipo: 'cierre-caja' })}

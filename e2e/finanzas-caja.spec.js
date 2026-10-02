@@ -44,9 +44,24 @@ test.describe('finanzas · caja', () => {
     // #253: con la caja abierta y sin arqueo, la diferencia no anticipa un
     // número (se calcula al cierre); recién aparece con el conteo cargado.
     await expect(page.getByTestId('caja-diferencia')).toHaveText('—')
-    await page.locator('#counted').fill('1000')
+    // #311: el cierre es guiado en un cajón; el resumen fijo se actualiza en vivo.
+    await page.getByRole('button', { name: 'Contar y cerrar' }).click()
+    const cierre = page.getByRole('dialog', { name: 'Cerrar caja' })
+    await expect(cierre).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Total rápido' })).toHaveAttribute('aria-pressed', 'true')
+    await cierre.locator('#counted').fill('1000')
     await expect(page.getByTestId('caja-diferencia')).not.toHaveText('—')
-    await page.locator('#counted').fill('')
+    // El modo detallado suma denominaciones con los botones y muestra el total
+    // del arqueo; el «total rápido» queda fuera del camino.
+    await cierre.getByRole('button', { name: 'Por denominación' }).click()
+    await expect(cierre.locator('#counted')).toHaveCount(0)
+    await cierre.getByRole('button', { name: /Agregar un billete de Gs 100\.000/ }).click()
+    await expect(cierre.getByTestId('total-arqueo')).toHaveText(/100\.000/)
+    await expect(cierre.getByTestId('resumen-conteo')).toContainText('100.000')
+    // Vuelve al rápido para el cierre real: un solo monto manda.
+    await cierre.getByRole('button', { name: 'Total rápido' }).click()
+    await page.keyboard.press('Escape')
+    await expect(cierre).toHaveCount(0)
 
     // El cobro entra en "Auditoría de medios" (efectivo) y en la auditoría del rango.
     await page.getByText('Entradas por medio de pago').scrollIntoViewIfNeeded()
@@ -89,8 +104,10 @@ test.describe('finanzas · caja', () => {
       return Number(data?.session?.expectedPyg ?? data?.expectedPyg ?? 0)
     }, API)
     expect(esperado).toBeGreaterThan(0)
-    await page.locator('#counted').fill(String(esperado))
-    await page.getByRole('button', { name: /Cerrar caja/ }).click()
+    await page.getByRole('button', { name: 'Contar y cerrar' }).click()
+    const cierreFinal = page.getByRole('dialog', { name: 'Cerrar caja' })
+    await cierreFinal.locator('#counted').fill(String(esperado))
+    await cierreFinal.getByRole('button', { name: /Cerrar caja/ }).click()
     await expect(page.locator('strong').filter({ hasText: 'Cerrada' }).first()).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Abrir caja' })).toBeVisible()
 

@@ -441,9 +441,12 @@ test.describe('owner panel', () => {
     await expect(page.getByRole('heading', { name: /Abrir caja|Cerrar caja/ })).toBeVisible()
 
     // Re-runs may find the cash session still open from a previous run.
+    // #311: el cierre se hace en el cajón guiado.
     if (await page.getByRole('heading', { name: 'Cerrar caja' }).isVisible()) {
-      await page.locator('#counted').fill('0')
-      await page.getByRole('button', { name: /Cerrar caja/ }).click()
+      await page.getByRole('button', { name: 'Contar y cerrar' }).click()
+      const cierre = page.getByRole('dialog', { name: 'Cerrar caja' })
+      await cierre.locator('#counted').fill('0')
+      await cierre.getByRole('button', { name: /Cerrar caja/ }).click()
     }
     await expect(page.getByRole('heading', { name: 'Abrir caja' })).toBeVisible()
 
