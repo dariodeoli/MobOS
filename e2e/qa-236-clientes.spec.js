@@ -63,10 +63,15 @@ test('clientes: fila estilo Pedidos con resumen rápido y detalle completo', asy
   await expect(fila).toContainText('Gs 300.000')   // total gastado
   await expect(fila).toContainText('Gs 200.000')   // deuda (pendiente)
   await expect(fila).toContainText(/\d{1,2} [a-z]{3}/i) // última compra compacta
-  // Los tres accesos, con aria/tooltip.
+  // Los accesos: una acción visible (#313) y el resto en «…», con aria/tooltip.
   await expect(fila.getByRole('button', { name: `Resumen rápido de ${nombre}` })).toBeVisible()
-  await expect(fila.getByRole('button', { name: `Ver detalle completo de ${nombre}` })).toBeVisible()
-  await expect(fila.getByRole('button', { name: `Enviar WhatsApp a ${nombre}` })).toBeVisible()
+  await expect(fila.getByRole('button', { name: `Más acciones de ${nombre}` })).toBeVisible()
+  await fila.getByRole('button', { name: `Más acciones de ${nombre}` }).click()
+  await expect(page.getByRole('menuitem', { name: `Ver detalle completo de ${nombre}` })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: `Enviar WhatsApp a ${nombre}` })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: `Elegir plantilla de WhatsApp para ${nombre}` })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('menuitem', { name: `Ver detalle completo de ${nombre}` })).toHaveCount(0)
   // La selección por lote sigue disponible: el check se reintenta si la tabla
   // se re-renderiza al resolver la búsqueda (base fría del CI).
   const casilla = fila.getByRole('checkbox', { name: `Seleccionar a ${nombre}` })
@@ -89,8 +94,9 @@ test('clientes: fila estilo Pedidos con resumen rápido y detalle completo', asy
   await expect(popup.getByText('Gs 300.000').first()).toBeVisible()
   await expect(popup.getByText('Deuda')).toBeVisible()
   await expect(popup.getByText('Gs 200.000').first()).toBeVisible()
-  await expect(popup.getByText('Últimas compras')).toBeVisible()
-  await expect(popup.getByText(new RegExp(`QA236-${marca}`)).first()).toBeVisible()
+  // #313: la vista rápida no repite el detalle (sin compras ni notas).
+  await expect(popup.getByText('Últimas compras')).toHaveCount(0)
+  await expect(popup.getByText(new RegExp(`QA236-${marca}`))).toHaveCount(0)
   await expect(popup.getByText('Nota interna')).toHaveCount(0)
   await expect(popup.getByRole('button', { name: 'Editar' })).toBeVisible()
   await page.screenshot({ path: `${SALIDA}/03-despues-popup.png` })
@@ -103,8 +109,9 @@ test('clientes: fila estilo Pedidos con resumen rápido y detalle completo', asy
   await page.getByRole('button', { name: 'Cerrar', exact: true }).click()
   await expect(page.getByRole('tab', { name: /^Resumen/ })).toHaveCount(0)
 
-  // El ícono de detalle abre el perfil directo.
-  await fila.getByRole('button', { name: `Ver detalle completo de ${nombre}` }).click()
+  // El «…» → «Ver detalle completo» abre el perfil directo.
+  await fila.getByRole('button', { name: `Más acciones de ${nombre}` }).click()
+  await page.getByRole('menuitem', { name: `Ver detalle completo de ${nombre}` }).click()
   await expect(page.getByRole('tab', { name: /^Resumen/ })).toBeVisible({ timeout: 15000 })
   await page.getByRole('button', { name: 'Cerrar', exact: true }).click()
 
