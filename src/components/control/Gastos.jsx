@@ -5,11 +5,13 @@ import { isDemoRuntime } from '@/lib/demoMode'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { listGastos, addGasto } from '@/lib/storage'
 import { fechaClave, gs } from '@/utils/calculos'
-import { errorMonto, LIMITE_MONTO_GENERAL, parseGsInput } from '@/utils/moneda'
-import { Aviso, Badge, Button, Card, Drawer, EmptyState, IconAction, Input, Label, MoneyInput, Select } from '@/components/ui'
+import { parseGsInput } from '@/utils/moneda'
+import { Aviso, Badge, Button, Card, Drawer, EmptyState, FormField, IconAction, Input, Label, MoneyInput, Select } from '@/components/ui'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import ComboBuscador from '@/components/shared/ComboBuscador'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
+import useValidacionFormulario from '@/hooks/useValidacionFormulario'
+import { ETIQUETAS_GASTO, reglasGasto, valoresGasto } from '@/lib/validacionGlobal'
 import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 import { KIND_LABELS } from '@/lib/paymentAccounts'
@@ -64,6 +66,11 @@ export default function Gastos() {
     ? Number(parseGsInput(form.originalAmount)) || 0
     : Math.round((Number(form.originalAmount) || 0) * (Number(form.exchangeRatePyg) || 0))
   const requiereAutorizacion = form.kind === 'EXPENSE' && !puedeSinAutorizacion && montoPyg > limiteGastos
+  // #297: el botón queda deshabilitado con el motivo concreto y el submit
+  // vuelve a validar antes de tocar la base.
+  const validacion = useValidacionFormulario(valoresGasto(form), reglasGasto(form), ETIQUETAS_GASTO)
+  const faltaAutorizacion = requiereAutorizacion && !authGasto
+  const motivoBloqueo = validacion.motivo || (faltaAutorizacion ? 'Falta: la autorización de gerencia para este gasto.' : '')
   useEffect(() => { if (!requiereAutorizacion) setAuthGasto(null) }, [requiereAutorizacion])
 
   const load = useCallback(async () => {
@@ -101,14 +108,10 @@ export default function Gastos() {
 
   async function save(event) {
     event.preventDefault(); setMessage('')
+    // #297: submit inválido bloqueado; las mismas reglas del botón deshabilitado.
+    const resultado = validacion.intentar()
+    if (!resultado.valido) return
     const originalAmount = form.currency === 'PYG' ? parseGsInput(form.originalAmount) : form.originalAmount
-    if (!Number(originalAmount) || !form.description.trim()) { setMessage('Completá monto y descripción.'); return }
-    // #148 §9: el campo no trunca; el formulario valida contra el tope del
-    // contexto (general para gastos, también el convertido de moneda extrajera).
-    const errorLimite = form.currency === 'PYG'
-      ? errorMonto(originalAmount)
-      : (montoPyg > LIMITE_MONTO_GENERAL ? 'El monto convertido supera el máximo que el sistema puede guardar.' : '')
-    if (errorLimite) { setMessage(errorLimite); return }
     if (requiereAutorizacion && !authGasto) { setMessage('El gasto supera el límite sin autorización. Solicitá autorización a gerencia y esperá la aprobación.'); return }
     setBusy(true)
     try {
@@ -140,19 +143,27 @@ export default function Gastos() {
           <p className="mt-1 text-sm text-mute">Registrá la salida en un cajón y seguí en el libro: la cotización queda congelada al guardar y los cheques quedan pendientes hasta cobrarse o anularse.</p>
           {hayRecordado && <p className="mt-1 text-xs text-mute">Tipo, moneda y cuenta arrancan con tu última elección; podés cambiarlos.</p>}
         </div>
-        <Button type="button" onClick={() => { setMessage(''); setDrawerOpen(true) }}>Registrar movimiento</Button>
+        <Button type="button" onClick={() => { setMessage(''); validacion.limpiar(); setDrawerOpen(true) }}>Registrar movimiento</Button>
       </div>
       {message && <Aviso tono="error" className="p-3">{message}</Aviso>}
     </Card>
     <Drawer open={drawerOpen} onClose={() => !busy && setDrawerOpen(false)} title="Registrar salida, cheque o adelanto">
       <form onSubmit={save} className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-        <div><Label htmlFor="monto-gasto">Monto {form.currency === 'PYG' ? '(Gs)' : `(${form.currency})`}</Label><MoneyInput id="monto-gasto" required currency={form.currency} value={form.originalAmount} onValueChange={value => set('originalAmount', value)} placeholder={form.currency === 'PYG' ? '250.000' : '0,00'} /></div>
+        <FormField label={`Monto ${form.currency === 'PYG' ? '(Gs)' : `(${form.currency})`}`} htmlFor="monto-gasto" error={validacion.errorDe('monto')}>
+          <MoneyInput id="monto-gasto" currency={form.currency} value={form.originalAmount} onValueChange={value => set('originalAmount', value)} onBlur={validacion.alSalir('monto')} placeholder={form.currency === 'PYG' ? '250.000' : '0,00'} />
+        </FormField>
         <div><Label htmlFor="moneda-gasto">Moneda</Label><CurrencySelect id="moneda-gasto" title="Se recuerda tu última elección" value={form.currency} onChange={event => { const valor = event.target.value; setForm(current => ({ ...current, currency: valor, accountId: '', originalAmount: '', exchangeRatePyg: valor === 'PYG' ? '1' : current.exchangeRatePyg })); recordarUltimo(CLAVES_FIN.gastoMoneda, valor) }} /></div>
-        {form.currency !== 'PYG' && <div><Label htmlFor="cotizacion-congelada-en-gs">Cotización en Gs.</Label><MoneyInput id="cotizacion-congelada-en-gs" required currency="USD" symbol="Gs." value={form.exchangeRatePyg} onValueChange={value => set('exchangeRatePyg', value)} placeholder="7.500" /></div>}
+        {form.currency !== 'PYG' && (
+          <FormField label="Cotización en Gs." htmlFor="cotizacion-congelada-en-gs" error={validacion.errorDe('cotizacion')}>
+            <MoneyInput id="cotizacion-congelada-en-gs" currency="USD" symbol="Gs." value={form.exchangeRatePyg} onValueChange={value => set('exchangeRatePyg', value)} onBlur={validacion.alSalir('cotizacion')} placeholder="7.500" />
+          </FormField>
+        )}
         <div><Label htmlFor="tipo">Tipo</Label><Select id="tipo" title="Se recuerda tu última elección" value={form.kind} onChange={event => set('kind', event.target.value)}>{Object.entries(KINDS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></div>
         <div className="col-span-2"><Label htmlFor="cuenta-opcional">Cuenta (opcional)</Label><ComboBuscador id="cuenta-opcional" value={activeAccounts.find(account => account.id === form.accountId)?.name || ''} options={opcionesCuentas} onChange={() => set('accountId', '')} onSelect={opcion => set('accountId', opcion.value)} placeholder="Buscá por nombre, banco, titular o empresa" emptyLabel="Sin cuentas para esta moneda." /></div>
         {form.kind === 'CHEQUE' && <div><Label htmlFor="fecha-prevista-de-cobro">Fecha de cobro</Label><Input id="fecha-prevista-de-cobro" type="date" value={form.dueAt} onChange={event => set('dueAt', event.target.value)} /></div>}
-        <div className="col-span-2"><Label htmlFor="descripcion">Descripción</Label><Input id="descripcion" required value={form.description} onChange={event => set('description', event.target.value)} placeholder="Ej. Seguro de mercadería" /></div>
+        <FormField className="col-span-2" label="Descripción" htmlFor="descripcion" error={validacion.errorDe('descripcion')}>
+          <Input id="descripcion" value={form.description} onChange={event => set('description', event.target.value)} onBlur={validacion.alSalir('descripcion')} placeholder="Ej. Seguro de mercadería" />
+        </FormField>
         <div><Label htmlFor="contraparte">Contraparte</Label><Input id="contraparte" value={form.counterparty} onChange={event => set('counterparty', event.target.value)} placeholder="Proveedor o beneficiario" /></div>
         <div><Label htmlFor="referencia">Referencia</Label><Input id="referencia" value={form.reference} onChange={event => set('reference', event.target.value)} placeholder="N.º transferencia o cheque" /></div>
         {requiereAutorizacion && !esDemo && (
@@ -169,7 +180,10 @@ export default function Gastos() {
             bloqueado={busy}
           />
         )}
-        <div className="flex items-end"><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar movimiento'}</Button></div>
+        {validacion.mostrarResumen && !validacion.valido && (
+          <p role="alert" data-testid="gastos-motivos" className="col-span-full text-xs font-semibold text-bad">{validacion.motivo}</p>
+        )}
+        <div className="flex items-end"><Button type="submit" disabled={busy || !validacion.valido || faltaAutorizacion} title={motivoBloqueo || undefined}>{busy ? 'Guardando…' : 'Guardar movimiento'}</Button></div>
       </form>
     </Drawer>
     <Card className="overflow-hidden p-0"><div className="flex items-center justify-between border-b border-ink-600 p-4"><h3 className="font-bold">Libro financiero</h3><Badge color="red">Gastos: {gs(total)}</Badge></div>

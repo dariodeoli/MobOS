@@ -8,6 +8,7 @@ import { gs } from '@/utils/calculos'
 import { capitalizarPrimera } from '@/utils/texto'
 import { ENTREGA } from '@/lib/catalog'
 import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
+import { puedeCanjearGiftCard } from '@/lib/validacionGlobal'
 import PaymentAccountFields from '../PaymentAccountFields'
 import { updateAccountPayment } from '@/utils/pagoCuenta'
 import EncabezadoBloque from './EncabezadoBloque'
@@ -64,6 +65,17 @@ export default function PasoCobro({
   ].filter(Boolean).join(' · ')
   // #308: con el carrito vacío no se cobra (pagos/gift cards bloqueados).
   const sinProductos = cantTotal === 0
+  // #297: tampoco se carga un cobro cuando el total es Gs 0 (producto sin
+  // precio): no hay nada que pagar y el saldo quedaría en contra.
+  const sinTotal = totalGeneral <= 0
+  // #297: canjear necesita un total mayor a cero y saldo pendiente real.
+  const puedeCanjear = puedeCanjearGiftCard({ cantTotal, totalGeneral, pendiente })
+  const motivoGiftCard = sinProductos
+    ? 'Agregá productos a la venta para canjear gift cards.'
+    : totalGeneral <= 0
+      ? 'Cargá un producto con precio para canjear gift cards.'
+      : 'No queda saldo pendiente por cobrar en esta venta.'
+  const motivoPago = sinProductos ? 'Agregá productos a la venta para cargar pagos.' : 'Cargá un producto con precio para cargar pagos.'
   const etiquetaBoton = guardando
     ? 'Guardando venta…'
     : !valido
@@ -255,8 +267,8 @@ export default function PasoCobro({
             type="button"
             variant="outline"
             onClick={() => onAgregarPago()}
-            disabled={!cuentas || guardando || guardadoIncompleto || sinProductos}
-            title={sinProductos ? 'Agregá productos a la venta para cargar pagos.' : undefined}
+            disabled={!cuentas || guardando || guardadoIncompleto || sinProductos || sinTotal}
+            title={sinProductos || sinTotal ? motivoPago : undefined}
           >
             + Agregar pago
           </Button>
@@ -264,8 +276,8 @@ export default function PasoCobro({
             type="button"
             variant="outline"
             onClick={() => onAgregarGiftCard?.()}
-            disabled={!cuentas || guardando || guardadoIncompleto || sinProductos}
-            title={sinProductos ? 'Agregá productos a la venta para canjear gift cards.' : undefined}
+            disabled={!cuentas || guardando || guardadoIncompleto || !puedeCanjear}
+            title={!puedeCanjear ? motivoGiftCard : undefined}
           >
             + Canjear gift card
           </Button>
@@ -283,6 +295,11 @@ export default function PasoCobro({
         {sinProductos && (
           <p role="status" data-testid="cobro-sin-productos" className="text-xs text-mute">
             Agregá productos a la venta para cargar pagos o canjear gift cards.
+          </p>
+        )}
+        {cantTotal > 0 && totalGeneral <= 0 && (
+          <p role="status" data-testid="cobro-total-cero" className="text-xs text-mute">
+            Cargá un producto con precio para cobrar o canjear gift cards.
           </p>
         )}
         {!cuentas && !errorCuentas && (

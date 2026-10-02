@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, MenuDesplegable, Modal, Nota, SaveActions, Select, Skeleton, useResultado, useToast, useValidacionCampos } from '@/components/ui'
-import { obligatorio, patron } from 'owncoding-ui/utils'
+import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, MenuDesplegable, Modal, Nota, SaveActions, Select, Skeleton, useResultado, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
@@ -13,6 +12,8 @@ import { TIPOS_TICKET_PRUEBA, ticketPruebaTipo } from '@/lib/printing/tickets'
 import { ANCHOS_PRUEBA, COPIAS_MAX, CORTES_PRUEBA, memoriaPlantilla, normalizarPlantilla, plantillaDeImpresora } from '@/lib/printing/plantillaPrueba'
 import { ESTADO_IMPRESORA, ETIQUETA_ESTADO, colorTrabajo, etiquetaTrabajo, textoVerificacion } from '@/lib/printing/estadoImpresoras'
 import { colaDemo, historialDemo, storeDemo } from '@/lib/printing/demo'
+import useValidacionFormulario from '@/hooks/useValidacionFormulario'
+import { ETIQUETAS_IMPRESORA, reglasImpresora, valoresImpresora } from '@/lib/validacionGlobal'
 import { etiquetaTipoImpresion, memoriaDeImpresion, olvidarTipoDeImpresion } from '@/lib/printing/preferencias'
 import { presenciaDePuente } from '@/lib/printing/presenciaPuentes'
 import { datosTransporte, resumenTransporte } from '@/lib/printing/transporte'
@@ -545,7 +546,7 @@ export default function Impresoras() {
       ip: ip || '192.168.1.23',
       puerto: puerto || '9100',
       ancho: impresora.ancho,
-      copias: impresora.copias,
+      copias: impresora.copias || 1,
       corte: impresora.corte,
       densidad: impresora.densidad || 3,
       caracteres: impresora.caracteres,
@@ -1691,22 +1692,13 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
   const inicial = useRef(null)
   if (inicial.current === null) inicial.current = { ...formulario }
   const hayCambios = JSON.stringify(f) !== JSON.stringify(inicial.current)
-  // Errores junto al campo (#323): las reglas son las compartidas; al corregir
-  // el dato el mensaje se limpia solo.
-  const { validar: validarCampos, limpiar, errorDe } = useValidacionCampos({
-    nombre: [obligatorio('Poné un nombre visible para reconocer la impresora.')],
-    ...(f.conexion === 'cups'
-      ? { destinoUsb: [obligatorio('Elegí la cola CUPS.')] }
-      : {
-          ip: [obligatorio('Completá la IP de la impresora.'), patron(/^\d{1,3}(\.\d{1,3}){3}$/, 'Revisá la IP (ej. 192.168.1.23).')],
-          puerto: [obligatorio('Completá el puerto.'), patron(/^\d{1,5}$/, 'El puerto son números (ej. 9100).')],
-        }),
-  })
+  // #297: sin nombre y sin destino no hay guardado; el motivo viaja en el botón
+  // deshabilitado y el mensaje queda junto al campo al salir de él.
+  const control = useValidacionFormulario(valoresImpresora(f), reglasImpresora(f), ETIQUETAS_IMPRESORA)
 
   async function guardar({ probar = false } = {}) {
     if (guardando) return
-    const { valido } = validarCampos({ nombre: f.nombre, ip: f.ip, puerto: f.puerto, destinoUsb: f.destinoUsb })
-    if (!valido) return
+    if (!control.intentar().valido) return
     setGuardando(true)
     try {
       await onGuardar({ probar })
@@ -1735,8 +1727,8 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
         <div>
           <h4 className={ROTULO_SECCION}>Identificación</h4>
           <div className={cn('mt-2', GRILLA_DOS_COLUMNAS)}>
-            <FormField label="Nombre visible" htmlFor="imp-nombre" error={errorDe('nombre')}>
-              <Input id="imp-nombre" value={f.nombre} onChange={(event) => { set({ nombre: event.target.value }); limpiar('nombre') }} placeholder="Térmica mostrador" aria-invalid={Boolean(errorDe('nombre')) || undefined} />
+            <FormField label="Nombre visible" htmlFor="imp-nombre" error={control.errorDe('nombre')}>
+              <Input id="imp-nombre" value={f.nombre} onChange={(event) => set({ nombre: event.target.value })} onBlur={control.alSalir('nombre')} placeholder="Térmica mostrador" aria-invalid={Boolean(control.errorDe('nombre')) || undefined} />
             </FormField>
             <FormField label="Sucursal o ubicación" htmlFor="imp-ubicacion">
               <Input id="imp-ubicacion" value={f.ubicacion} onChange={(event) => set({ ubicacion: event.target.value })} placeholder="Mostrador ASU" />
@@ -1763,17 +1755,17 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
           </div>
           <div className={cn('mt-3', GRILLA_DOS_COLUMNAS)}>
             {f.conexion === 'cups' ? (
-              <FormField label="Cola CUPS local" htmlFor="imp-usb" hint="Una cola CUPS puede salir por red (socket://) o por USB físico (usb://); la URI real la informa el agente." error={errorDe('destinoUsb')}>
-                <Input id="imp-usb" list="impresoras-usb" value={f.destinoUsb} onChange={(event) => { set({ destinoUsb: event.target.value }); limpiar('destinoUsb') }} placeholder="ZKP8008" autoCapitalize="off" spellCheck={false} aria-invalid={Boolean(errorDe('destinoUsb')) || undefined} />
+              <FormField label="Cola CUPS local" htmlFor="imp-usb" error={control.errorDe('destinoUsb')} hint="Una cola CUPS puede salir por red (socket://) o por USB físico (usb://); la URI real la informa el agente.">
+                <Input id="imp-usb" list="impresoras-usb" value={f.destinoUsb} onChange={(event) => set({ destinoUsb: event.target.value })} onBlur={control.alSalir('destinoUsb')} placeholder="ZKP8008" autoCapitalize="off" spellCheck={false} aria-invalid={Boolean(control.errorDe('destinoUsb')) || undefined} />
                 <datalist id="impresoras-usb">{(estado?.impresoras?.usb || []).map((cola) => <option key={cola} value={cola} />)}</datalist>
               </FormField>
             ) : (
               <>
-                <FormField label="IP" htmlFor="imp-ip" error={errorDe('ip')}>
-                  <Input id="imp-ip" value={f.ip} onChange={(event) => { set({ ip: event.target.value }); limpiar('ip') }} placeholder="192.168.1.23" autoCapitalize="off" spellCheck={false} aria-invalid={Boolean(errorDe('ip')) || undefined} />
+                <FormField label="IP" htmlFor="imp-ip" error={control.errorDe('ip')}>
+                  <Input id="imp-ip" value={f.ip} onChange={(event) => set({ ip: event.target.value })} onBlur={control.alSalir('ip')} placeholder="192.168.1.23" autoCapitalize="off" spellCheck={false} aria-invalid={Boolean(control.errorDe('ip')) || undefined} />
                 </FormField>
-                <FormField label="Puerto" htmlFor="imp-puerto" error={errorDe('puerto')}>
-                  <Input id="imp-puerto" inputMode="numeric" value={f.puerto} onChange={(event) => { set({ puerto: event.target.value.replace(/\D/g, '') }); limpiar('puerto') }} placeholder="9100" aria-invalid={Boolean(errorDe('puerto')) || undefined} />
+                <FormField label="Puerto" htmlFor="imp-puerto" error={control.errorDe('puerto')}>
+                  <Input id="imp-puerto" inputMode="numeric" value={f.puerto} onChange={(event) => set({ puerto: event.target.value.replace(/\D/g, '') })} onBlur={control.alSalir('puerto')} placeholder="9100" aria-invalid={Boolean(control.errorDe('puerto')) || undefined} />
                 </FormField>
               </>
             )}
@@ -1800,8 +1792,8 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
                 <option value="80">80 mm</option>
               </Select>
             </FormField>
-            <FormField label="Copias" htmlFor="imp-copias">
-              <Input id="imp-copias" inputMode="numeric" maxLength={1} value={String(f.copias)} onChange={(event) => set({ copias: Number(event.target.value.replace(/\D/g, '').slice(0, 1) || '1') })} />
+            <FormField label="Copias" htmlFor="imp-copias" error={control.errorDe('copias')}>
+              <Input id="imp-copias" inputMode="numeric" maxLength={1} value={String(f.copias)} onChange={(event) => set({ copias: Number(event.target.value.replace(/\D/g, '').slice(0, 1) || '1') })} onBlur={control.alSalir('copias')} />
             </FormField>
             <FormField label="Densidad" htmlFor="imp-densidad">
               <Select id="imp-densidad" value={String(f.densidad)} onChange={(event) => set({ densidad: Number(event.target.value) })}>
@@ -1839,11 +1831,14 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
           <p className="mt-2 text-xs text-mute">Estado: <b className={estado?.disponible ? 'text-ok' : 'text-bad'}>{estado?.disponible ? `agente local conectado · v${estado.version || ''}` : 'esta computadora no tiene el agente local'}</b>{estado?.disponible ? ` · ${estado.host === '0.0.0.0' ? 'acceso: red local' : 'acceso: solo esta computadora'}` : ' · los trabajos se encolan al puente'}.</p>
         </div>
 
+        {control.mostrarResumen && !control.valido && (
+          <p role="alert" data-testid="impresora-motivos" className="text-xs font-semibold text-bad">{control.motivo}</p>
+        )}
         {/* Un solo primario (#323): guardar; la prueba sale como secundaria y
             el pie queda fijo fuera del scroll. */}
         <SaveActions pendiente={guardando}>
-          <Button type="button" variant="outline" disabled={guardando} onClick={() => guardar({ probar: true })}>Guardar y probar</Button>
-          <Button type="submit" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar impresora'}</Button>
+          <Button type="button" variant="outline" disabled={guardando || !control.valido} title={control.motivo || undefined} onClick={() => guardar({ probar: true })}>Guardar y probar</Button>
+          <Button type="submit" disabled={guardando || !control.valido} title={control.motivo || undefined}>{guardando ? 'Guardando…' : 'Guardar impresora'}</Button>
         </SaveActions>
       </form>
     </Modal>
