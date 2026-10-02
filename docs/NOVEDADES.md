@@ -11,6 +11,13 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.211 — 2026-10-02
+- **POS (#308/#309):** la venta pide **variante e IMEI exactos** (o «vender sin IMEI» explícito) y quedó ordenada como **una sola página de trabajo**: producto y búsqueda primero, cliente después, y carrito y cobro siempre a la vista; gift cards, analytics y ventas suspendidas viven en **«Más»**.
+- **Compras (#307):** proveedores coherentes en la demo, **alta rápida en cajón** con campos identificados, etiquetas con **una sola acción primaria** y menú secundario, y **copiar precios con vista previa** antes de aplicar.
+- **Finanzas (#311) e Inicio (#310):** el **cierre de caja es guiado** (modo rápido o por denominación, con diferencias claras) y **Inicio** quedó con indicadores compactos y el verde solo como acento.
+- **Clientes (#312) y Sistema visual (#320):** la **ficha del cliente** mantiene acciones y pestañas fijas al recorrer, y todas las páginas quedan con **un solo título y un solo pie** (la barra de módulo ya no repite el encabezado).
+- **Impresión (#319):** Dispositivos muestra la **presencia real de los puentes**, con acciones, diagnóstico y ruteo en un solo lugar.
+
 ## v1.0.210 — 2026-10-02
 - **Impresión (#318):** el **comprobante del pedido** se arma con los **datos reales de la venta** (empresa, cliente, número, artículos y total, también en las ventas viejas de la demo) y se muestra en un **modal con encabezado y pie fijos**: el papel se ve completo, sin cortes, y se imprime o comparte desde ahí.
 - **Taller y superficies por rol (#325):** recorrido completo de las pantallas por rol en **390 px**: taller, reparto, productos, cotizaciones y portales públicos quedaron **sin scroll horizontal, sin elementos cortados y con áreas táctiles de 44 px** en mobile (incluido el enlace del pie institucional).
