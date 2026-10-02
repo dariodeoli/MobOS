@@ -28,9 +28,15 @@ export function storeDemo() {
         branchId: 'suc-demo',
         url: '',
         token: '',
+        backend: true,
         online: true,
         predeterminado: true,
-        ultimaSenal: haceSegundos(12),
+        // Misma forma que el backend (lastSeenAt/version/platform): la tarjeta
+        // de Puentes y el Diagnóstico muestran la versión y el contacto reales
+        // sin quedar «sin registro» (#319).
+        lastSeenAt: haceSegundos(12),
+        version: '1.6.3',
+        plataforma: 'macOS',
       },
     ],
     sucursales: [{ id: 'suc-demo', nombre: 'Casa central ', activa: true, hasSales: true }],

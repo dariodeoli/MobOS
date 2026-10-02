@@ -127,6 +127,23 @@ export function shapePuente(puente: PrintBridge, ahora: Date = new Date()): Puen
   }
 }
 
+// La presencia se escribe como máximo una vez por ventana (para no golpear la
+// base en cada latido), pero la versión y la plataforma del agente tienen que
+// reflejarse apenas cambian: si no, la pantalla muestra una versión vieja
+// mientras el agente ya está actualizado (#319).
+export const LATIDO_PRESENCIA_MS = 20_000
+
+export function debeRefrescarPresencia(
+  puente: Pick<PrintBridge, 'lastSeenAt' | 'version' | 'platform'>,
+  { version, platform, ahora = new Date() }: { version?: string | null; platform?: string | null; ahora?: Date },
+): boolean {
+  if (!puente.lastSeenAt) return true
+  if (ahora.getTime() - puente.lastSeenAt.getTime() >= LATIDO_PRESENCIA_MS) return true
+  if (version && version !== puente.version) return true
+  if (platform && platform !== puente.platform) return true
+  return false
+}
+
 // Kill switch de impresión remota por empresa: solo `printRemote === false` la
 // apaga; cualquier configuración ausente o inválida la deja encendida.
 export function remoteEnabledDeTenant(settings: unknown): boolean {

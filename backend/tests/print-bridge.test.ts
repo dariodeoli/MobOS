@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import type { PrismaClient, PrintBridge, PrintJob, PrintJobState } from '@prisma/client'
 import {
+  LATIDO_PRESENCIA_MS,
   MAX_PUENTES_POR_EMPRESA,
   PAIRING_MAX_ATTEMPTS,
   PAIRING_TTL_MS,
@@ -8,6 +9,7 @@ import {
   codigoVinculacionVigente,
   compararHashToken,
   crearCodigoVinculacion,
+  debeRefrescarPresencia,
   generarTokenPuente,
   impresoraDesdeLegacy,
   normalizarCodigoVinculacion,
@@ -105,6 +107,15 @@ async function main() {
   assert.equal('pairingCodeHash' in publico, false, 'el shape público nunca expone el código')
   assert.equal(shapePuente(puenteA, ahora).online, false, 'sin latidos no está online')
   assert.equal(shapePuente({ ...puenteRevocado, lastSeenAt: ahora } as PrintBridge, ahora).online, false, 'un puente revocado nunca está online')
+
+  // ── Frescura de la presencia (#319) ──────────────────────────────────────
+  const conLatido = { lastSeenAt: ahora, version: '1.6.2', platform: 'macOS' }
+  assert.equal(debeRefrescarPresencia({ lastSeenAt: null, version: null, platform: null }, { version: '1.6.3', ahora }), true, 'el primer latido siempre escribe')
+  assert.equal(debeRefrescarPresencia(conLatido, { version: '1.6.2', platform: 'macOS', ahora: new Date(ahora.getTime() + 1000) }), false, 'dentro de la ventana y sin cambios no se reescribe')
+  assert.equal(debeRefrescarPresencia(conLatido, { version: '1.6.3', platform: 'macOS', ahora: new Date(ahora.getTime() + 1000) }), true, 'una versión nueva se refleja sin esperar la ventana')
+  assert.equal(debeRefrescarPresencia(conLatido, { version: '1.6.2', platform: 'linux', ahora: new Date(ahora.getTime() + 1000) }), true, 'una plataforma nueva se refleja sin esperar la ventana')
+  assert.equal(debeRefrescarPresencia(conLatido, { version: '1.6.2', platform: 'macOS', ahora: new Date(ahora.getTime() + LATIDO_PRESENCIA_MS) }), true, 'pasada la ventana la presencia se refresca')
+  assert.equal(debeRefrescarPresencia(conLatido, { version: '', platform: '', ahora: new Date(ahora.getTime() + 1000) }), false, 'un agente viejo sin versión no borra la reportada')
 
   // ── Kill switch por empresa ──────────────────────────────────────────────
   assert.equal(remoteEnabledDeTenant(undefined), true, 'sin configuración la impresión remota está encendida')
