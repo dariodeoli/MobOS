@@ -5,7 +5,7 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 22,
+    "totalChicos": 21,
     "chicos": [
       {
         "que": "button",
@@ -14,7 +14,7 @@
         "alto": 36,
         "dibujo": "165x36",
         "clase": "inline-flex select-none items-center justify-center gap-2 ro",
-        "veces": 12
+        "veces": 11
       },
       {
         "que": "button",
@@ -151,7 +151,7 @@
     "overflowH": 0,
     "totalCortados": 0,
     "cortados": [],
-    "totalChicos": 47,
+    "totalChicos": 13,
     "chicos": [
       {
         "que": "button",
@@ -160,7 +160,7 @@
         "alto": 36,
         "dibujo": "175x36",
         "clase": "inline-flex select-none items-center justify-center gap-2 ro",
-        "veces": 40
+        "veces": 6
       },
       {
         "que": "button",
