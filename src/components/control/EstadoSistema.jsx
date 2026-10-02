@@ -213,9 +213,12 @@ export default function EstadoSistema() {
           <div>
             <p className="text-sm text-mute">Los chequeos que se corren antes de publicar una versión, acá adentro. Si algo queda “a revisar”, la función asociada no está operativa.</p>
           </div>
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={copiar} disabled={cargando}><Icon name="copy" className="h-3.5 w-3.5" />Copiar informe</Button>
-            <Button type="button" variant="outline" onClick={consultar} disabled={cargando}><Icon name="refresh" className="h-3.5 w-3.5" />Actualizar</Button>
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={copiar} disabled={cargando} title={cargando ? 'Se habilita al terminar la comprobación en curso.' : 'Copia el informe de estado para soporte.'}><Icon name="copy" className="h-3.5 w-3.5" />Copiar informe</Button>
+              <Button type="button" variant="outline" onClick={consultar} disabled={cargando} title={cargando ? 'Se habilita al terminar la comprobación en curso.' : 'Vuelve a comprobar el estado del sistema.'}><Icon name="refresh" className="h-3.5 w-3.5" />Actualizar</Button>
+            </div>
+            {cargando && <p role="status" data-testid="sistema-comprobando" className="text-xs text-mute">Comprobando… los botones se habilitan al terminar.</p>}
           </div>
         </div>
 
@@ -379,7 +382,7 @@ export default function EstadoSistema() {
                 {impresorasEnCola.map((nombre) => <option key={nombre} value={nombre}>{nombre}</option>)}
               </Select>
             )}
-            <Button type="button" variant="outline" onClick={consultar} disabled={cargando}><Icon name="refresh" className="h-3.5 w-3.5" />Actualizar</Button>
+            <Button type="button" variant="outline" onClick={consultar} disabled={cargando} title={cargando ? 'Se habilita al terminar la comprobación en curso.' : 'Vuelve a comprobar la sincronización.'}><Icon name="refresh" className="h-3.5 w-3.5" />Actualizar</Button>
           </div>
         </div>
 

@@ -235,8 +235,11 @@ export default function App() {
   }
 
   const landingPreview = import.meta.env.DEV && window.location.pathname === '/landing-preview'
-  const landing = ['moboss.online', 'www.moboss.online'].includes(host) || landingPreview
-  const status = typeof window !== 'undefined' && window.location.pathname === '/status'
+  // #295: en dev/local la página pública de estado se previsualiza en
+  // `/status-preview` (el host real solo existe en producción).
+  const statusPreview = import.meta.env.DEV && window.location.pathname === '/status-preview'
+  const landing = ['moboss.online', 'www.moboss.online'].includes(host) || landingPreview || statusPreview
+  const status = typeof window !== 'undefined' && (window.location.pathname === '/status' || statusPreview)
   // Solo la app publicada redirige los enlaces viejos al subdominio canónico;
   // en dev/local se abre la página acá mismo (#197).
   const canonicoPedido = ['app.moboss.online', 'www.app.moboss.online'].includes(host)
