@@ -222,7 +222,7 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
                 aria-label={`Comprobante ${label}`}
                 title={label}
                 onClick={() => setNivel(id)}
-                className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fono/50 ${nivel === id ? 'border-fono/50 bg-fono/10 text-fono-light' : 'border-ink-500 text-mute hover:border-fono hover:text-fore'}`}
+                className={`inline-flex min-h-11 min-w-11 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold md:h-9 md:min-h-9 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fono/50 ${nivel === id ? 'border-fono/50 bg-fono/10 text-fono-light' : 'border-ink-500 text-mute hover:border-fono hover:text-fore'}`}
               >
                 <Icon name={icon} className="h-4 w-4" />
                 <span className="hidden sm:inline">{label}</span>
@@ -242,7 +242,7 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
                 aria-label={`Formato ${label}`}
                 title={label}
                 onClick={() => setFormato(id)}
-                className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fono/50 ${formato === id ? 'border-fono/50 bg-fono/10 text-fono-light' : 'border-ink-500 text-mute hover:border-fono hover:text-fore'}`}
+                className={`inline-flex min-h-11 min-w-11 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold md:h-9 md:min-h-9 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fono/50 ${formato === id ? 'border-fono/50 bg-fono/10 text-fono-light' : 'border-ink-500 text-mute hover:border-fono hover:text-fore'}`}
               >
                 <Icon name="receipt" className="h-4 w-4" />
                 {label}
