@@ -80,6 +80,14 @@ Adoptado en la ronda INV (#323, rama `slot/inventario`):
 | Documento de unidad | `src/components/inventory/DocumentoUnidadModal.jsx` | ✅ resultado canónico con `useResultado`; sin `dirty`: el único ajuste es el formato de la vista previa, efímero según §4 |
 | Rack de taller (imprimir en serie) | `src/components/inventory/TallerRack.jsx` | ✅ resultado canónico y pie fijo con `FormActions` |
 
+### PLT (plataforma) — adoptado en la pasada de plataforma (#323)
+
+| Modal | Ruta | Qué se hizo |
+| --- | --- | --- |
+| Horario de acceso | `src/components/control/Vendedores.jsx` | ✅ Labels «Días»/«Desde»/«Hasta» visibles; `dirty` al cerrar con cambios (la ventana descarta con confirmación); el error de rango queda adentro del diálogo (ya no en el Aviso de página) y el pie es `SaveActions` |
+| Sucursales (config) | `src/components/config/TiendasSucursales.jsx` | ✅ Error del nombre con `FormField` + reglas compartidas y al salir del campo; el botón queda deshabilitado con motivo; cambiar de sucursal o cancelar con cambios pide confirmación |
+| Destructivo (palabra + clave) | `src/components/config/DialogoDestructivo.jsx` | ✅ `dirty` al cerrar con algo escrito; error junto al campo de la palabra; pie `SaveActions` con un solo primario `danger` |
+
 ### Otros módulos (POS, taller, configuración)
 
 | Modal | Ruta | Qué falta |
@@ -88,11 +96,11 @@ Adoptado en la ronda INV (#323, rama `slot/inventario`):
 | Catálogo de servicios | `src/components/control/ServicioTecnico.jsx:721` | labels visibles (hoy `aria-label`); `dirty`; pie estándar |
 | Editor de plantilla de WhatsApp | `src/components/control/WhatsAppTemplates.jsx:201` | `dirty`; validación con reglas compartidas |
 | Listas de precios | `src/components/control/Precios.jsx:257` | ✅ Adoptado (FIN, #323) — labels visibles por ítem con `FormField`, `dirty` al cerrar y error de validación/guardado dentro del modal (ya no detrás del overlay) |
-| Horario de acceso | `src/components/control/Vendedores.jsx:554` | labels visibles en horas; `dirty`; error adentro |
+| Horario de acceso | `src/components/control/Vendedores.jsx:554` | ✅ Adoptado (PLT, #323) |
 | Rechazo de autorización | `src/components/control/Autorizaciones.jsx:616` | ✅ Adoptado (FIN, #323) — `dirty` al cerrar y motivo con `FormField error` (sin toast ni botón deshabilitado) |
 | Rechazar rendición | `src/components/delivery/StoreDelivery.jsx:212` | `dirty`; `FormField` |
-| Sucursales (config) | `src/components/config/TiendasSucursales.jsx` | `dirty`; errores por campo |
-| Destructivo (palabra + clave) | `src/components/config/DialogoDestructivo.jsx:16` | `dirty`; errores por campo |
+| Sucursales (config) | `src/components/config/TiendasSucursales.jsx` | ✅ Adoptado (PLT, #323) |
+| Destructivo (palabra + clave) | `src/components/config/DialogoDestructivo.jsx:16` | ✅ Adoptado (PLT, #323) |
 
 ## 4. Criterio de adopción
 
@@ -115,3 +123,6 @@ Adoptado en la ronda INV (#323, rama `slot/inventario`):
   `npm --prefix backend run test:unit`, `npm run db:check`, smoke e2e y la
   captura reproducible `MOBOS_CAPTURAS=docs/QA-323-modales npx playwright test
   e2e/qa-323-modales.spec.js -g capturas`.
+- Adopción PLT (#323): `MOBOS_323_CAPTURAS=docs/qa/323-plt-modales npx
+  playwright test e2e/qa-323-plt-modales.spec.js` (horario, sucursales y
+  destructivo).

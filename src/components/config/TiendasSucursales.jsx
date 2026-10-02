@@ -6,12 +6,13 @@
 // tienda activa; el alta/edición de sucursal usa el panel derecho del patrón de
 // Configuración. El archivado de la empresa queda en un único lugar de la
 // sección (con motivo y reautenticación), sin repetir el flujo acá.
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { obligatorio } from 'owncoding-ui'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import { getCompanyContext, sessionApi } from '@/lib/api/session'
-import { Aviso, Badge, Button, Card, EmptyState, FormField, Input, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
 import InstagramField, { normalizarInstagram } from '@/components/shared/InstagramField'
@@ -23,6 +24,22 @@ import { copiarValor } from '@/utils/portapapeles'
 import { cn } from '@/lib/utils'
 import { EstadoGuardado, useGuardadoCuenta } from '@/components/control/GuardadoCuenta'
 import DialogoDestructivo from '@/components/config/DialogoDestructivo'
+import useValidacionFormulario from '@/hooks/useValidacionFormulario'
+
+// #323: firma del formulario de sucursal para saber si hay cambios sin guardar.
+const firmaSucursal = (f) => JSON.stringify({
+  id: f?.id || null,
+  name: f?.name || '',
+  address: f?.address || '',
+  city: f?.city || '',
+  department: f?.department || '',
+  countryCode: f?.countryCode || '+595',
+  phone: f?.phone || '',
+  instagram: f?.instagram || '',
+})
+
+const ETIQUETAS_SUCURSAL = { nombre: 'el nombre' }
+const REGLAS_SUCURSAL = { nombre: [obligatorio('Completá el nombre de la sucursal.')] }
 
 export default function TiendasSucursales({ account }) {
   const toast = useToast()
@@ -35,6 +52,11 @@ export default function TiendasSucursales({ account }) {
   const [errorTiendas, setErrorTiendas] = useState('')
   const formVacio = () => ({ id: null, name: '', address: '', city: '', department: '', countryCode: '+595', phone: '', instagram: '' })
   const [form, setForm] = useState(formVacio)
+  // #323: cambios sin guardar y validación junto al campo.
+  const inicialSucursal = useRef(firmaSucursal(formVacio()))
+  const [descartar, setDescartar] = useState(null)
+  const control = useValidacionFormulario({ nombre: form?.name || '' }, REGLAS_SUCURSAL, ETIQUETAS_SUCURSAL)
+  const hayCambios = firmaSucursal(form) !== inicialSucursal.current
 
   const delContexto = getCompanyContext()?.stores || []
   const stores = Array.isArray(account?.stores) && account.stores.length ? account.stores : delContexto
@@ -60,17 +82,27 @@ export default function TiendasSucursales({ account }) {
     // El teléfono se guarda como string único: al abrir se separa en código de
     // país y número para editarlos con PhoneField.
     const telefono = parseTelefono(branch?.phone)
-    setForm(branch
+    const siguiente = branch
       ? { id: branch.id, name: branch.name, address: branch.address || '', city: branch.city || '', department: branch.department || '', countryCode: telefono.countryCode, phone: telefono.phone, instagram: normalizarInstagram(branch.instagram) }
-      : formVacio())
+      : formVacio()
+    setForm(siguiente)
+    inicialSucursal.current = firmaSucursal(siguiente)
+    control.limpiar()
     setErrorSucursales('')
     if (branch) irAlFormulario()
+  }
+
+  // #323: cambiar de sucursal (o empezar una nueva) con cambios sin guardar
+  // pide confirmación antes de descartarlos.
+  function pedirAbrir(branch) {
+    if (hayCambios && !busy) { setDescartar({ branch }); return }
+    abrir(branch)
   }
 
   async function guardar(event) {
     event.preventDefault()
     if (busy) return
-    if (!form?.name?.trim()) { guardado.setEstado({ ok: false, texto: 'Poné el nombre de la sucursal.' }); return }
+    if (!control.intentar().valido) return
     setBusy(true); setErrorSucursales('')
     try {
       const payload = {
@@ -86,7 +118,10 @@ export default function TiendasSucursales({ account }) {
         { etiqueta: 'la sucursal' },
       )
       if (resultado) {
-        setForm(formVacio())
+        const vacio = formVacio()
+        setForm(vacio)
+        inicialSucursal.current = firmaSucursal(vacio)
+        control.limpiar()
         toast.success(form.id ? 'Sucursal actualizada.' : 'Sucursal creada.')
         await cargar()
       }
@@ -165,7 +200,7 @@ export default function TiendasSucursales({ account }) {
           <h3 className="font-semibold">Sucursales</h3>
           <p className="mt-1 text-sm text-mute">Cada sucursal conserva su dirección, ciudad y datos de contacto.</p>
         </div>
-        {!esDemo && <Button type="button" onClick={() => { abrir(null); irAlFormulario() }}>+ Nueva sucursal</Button>}
+        {!esDemo && <Button type="button" onClick={() => { pedirAbrir(null); irAlFormulario() }}>+ Nueva sucursal</Button>}
       </div>
       {esDemo ? (
         <EmptyState
@@ -186,7 +221,7 @@ export default function TiendasSucursales({ account }) {
                 <Badge color={branch.isActive ? 'green' : 'slate'}>{branch.isActive ? 'Activa' : 'Inactiva'}</Badge>
               </div>
               <div className="mt-2 flex gap-3">
-                <button type="button" className="toque-44 text-xs font-semibold text-fono-light hover:underline" disabled={busy} onClick={() => abrir(branch)}>Editar</button>
+                <button type="button" className="toque-44 text-xs font-semibold text-fono-light hover:underline" disabled={busy} onClick={() => pedirAbrir(branch)}>Editar</button>
                 <button type="button" className="toque-44 text-xs font-semibold text-mute hover:underline" disabled={busy} onClick={() => alternar(branch)}>{branch.isActive ? 'Desactivar' : 'Reactivar'}</button>
               </div>
             </article>
@@ -217,8 +252,8 @@ export default function TiendasSucursales({ account }) {
         <p className="mt-1 text-sm text-mute">La ciudad completa el departamento automáticamente.</p>
       </div>
       <form onSubmit={guardar} className="space-y-3">
-        <FormField label="Nombre" htmlFor="sucursal-nombre">
-          <Input id="sucursal-nombre" required maxLength={100} disabled={busy} value={form?.name || ''} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} placeholder="Nombre de la sucursal" />
+        <FormField label="Nombre" htmlFor="sucursal-nombre" error={control.errorDe('nombre')}>
+          <Input id="sucursal-nombre" maxLength={100} disabled={busy} value={form?.name || ''} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} onBlur={control.alSalir('nombre')} placeholder="Nombre de la sucursal" aria-invalid={Boolean(control.errorDe('nombre')) || undefined} />
         </FormField>
         <div className={cn(GRILLA_DOS_COLUMNAS, 'lg:grid-cols-1')}>
           <FormField label="Teléfono (opcional)">
@@ -237,8 +272,8 @@ export default function TiendasSucursales({ account }) {
         {errorSucursales && <Aviso tono="error">{errorSucursales}</Aviso>}
         <EstadoGuardado testId="sucursal-estado" estado={guardado.estado} />
         <div className={PIE_ACCIONES}>
-          {form?.id && <Button type="button" variant="ghost" disabled={busy} onClick={() => abrir(null)}>Cancelar edición</Button>}
-          <Button type="submit" disabled={busy || !form?.name?.trim()}>{busy ? 'Guardando…' : form?.id ? 'Guardar cambios' : 'Crear sucursal'}</Button>
+          {form?.id && <Button type="button" variant="ghost" disabled={busy} onClick={() => pedirAbrir(null)}>Cancelar edición</Button>}
+          <Button type="submit" disabled={busy || !control.valido} title={control.motivo || undefined}>{busy ? 'Guardando…' : form?.id ? 'Guardar cambios' : 'Crear sucursal'}</Button>
         </div>
       </form>
       {guardado.panel}
@@ -258,6 +293,15 @@ export default function TiendasSucursales({ account }) {
           {bloqueSucursales}
         </Card>
       </PanelDerecho>
+      <ConfirmDialog
+        open={Boolean(descartar)}
+        onCancel={() => setDescartar(null)}
+        onConfirm={() => { const destino = descartar?.branch ?? null; setDescartar(null); abrir(destino) }}
+        title="¿Descartar los cambios de la sucursal?"
+        description="Lo que escribiste no se guardó. Si seguís, se pierde."
+        confirmLabel="Descartar cambios"
+        variant="danger"
+      />
       <DialogoDestructivo
         open={dialogo === 'abandonar'}
         title="¿Abandonar esta tienda?"

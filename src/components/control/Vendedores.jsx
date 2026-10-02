@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api/client'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { useSesion } from '@/lib/sesion'
 import { getVendedores, addVendedor, updateVendedor, deleteVendedor, listVentas, productosById, refrescar } from '@/lib/storage'
 import { totalesVendedor, ventasDelDia, comisionDeVentas, fechaClave, num, gs } from '@/utils/calculos'
-import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, FilaDato, FormField, Input, Label, Modal, MoneyInput, PinInput, Select } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, FilaDato, FormField, Input, Label, Modal, MoneyInput, PinInput, SaveActions, Select } from '@/components/ui'
 import Avatar from '@/components/shared/Avatar'
 import EmailField from '@/components/shared/EmailField'
 import Cronologia from '@/components/shared/Cronologia'
@@ -14,7 +14,7 @@ import { ROLE_LABELS, etiquetaRol } from '@/lib/roles'
 import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 import { CELDA_DATO } from '@/components/shared/tabla'
-import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 // PIN aleatorio de 4 a 6 dígitos (crypto): se muestra una sola vez al
 // asignarlo y nunca se guarda en claro.
 function pinAleatorio() {
@@ -38,6 +38,9 @@ function resumenHorario(usuario) {
   const dias = [...(primera.days || [])].sort((a, b) => a - b).map(dia => DIAS_CORTOS[dia]).join(' ')
   return `${dias || 'Sin días'} ${primera.start || ''}–${primera.end || ''}${ventanas.length > 1 ? ` +${ventanas.length - 1}` : ''}`
 }
+
+// Firma del horario para saber si hay cambios sin guardar (#323).
+const firmaHorario = (h) => JSON.stringify({ timezone: h?.timezone || 'America/Asuncion', windows: h?.windows || [] })
 
 // Meta diaria con separador de miles mientras se escribe; se guarda al salir.
 // Persiste en el backend (User.dailyGoalPyg) y en la demo queda local: en los
@@ -86,6 +89,8 @@ export default function Vendedores({ seccion = 'miembros' } = {}) {
   const [cambioRol, setCambioRol] = useState(null)
   const [conflicto, setConflicto] = useState(null)
   const [horario, setHorario] = useState(null)
+  const [horarioError, setHorarioError] = useState('')
+  const horarioInicial = useRef('')
   const [historialDe, setHistorialDe] = useState(null)
   const [confirmarRevocar, setConfirmarRevocar] = useState(null)
   const [modoInvitacion, setModoInvitacion] = useState('correo')
@@ -238,23 +243,32 @@ export default function Vendedores({ seccion = 'miembros' } = {}) {
   // Horario de acceso: el backend lo aplica al iniciar sesión (fuera de los
   // rangos, el integrante no puede entrar). Sin rangos queda libre.
   function abrirHorario(v) {
-    setHorario({
+    const siguiente = {
       userId: v.id,
       nombre: v.nombre,
       timezone: v.accessSchedule?.timezone || 'America/Asuncion',
       windows: (v.accessSchedule?.windows || []).map(fila => ({ days: [...(fila.days || [])], start: fila.start || '', end: fila.end || '' })),
-    })
+    }
+    horarioInicial.current = firmaHorario(siguiente)
+    setHorarioError('')
+    setHorario(siguiente)
   }
   async function guardarHorario(event) {
     event.preventDefault()
     if (!horario?.userId || busy) return
-    setBusy(true); setError('')
+    // #323: la validación queda adentro del diálogo, junto a los rangos.
+    const ventanaInvalida = (horario.windows || []).find(fila => !fila.days.length || !fila.start || !fila.end || fila.start === fila.end)
+    if (ventanaInvalida) {
+      setHorarioError('Cada rango necesita al menos un día y un horario válido: «Desde» y «Hasta» no pueden quedar vacíos ni ser iguales.')
+      return
+    }
+    setBusy(true); setHorarioError('')
     try {
       const windows = horario.windows.filter(fila => fila.days.length > 0 && fila.start && fila.end && fila.start !== fila.end)
       if (esDemo) updateVendedor(horario.userId, { accessSchedule: windows.length ? { timezone: horario.timezone || 'America/Asuncion', windows } : null })
       else await api.patch('/api/users', { id: horario.userId, accessSchedule: windows.length ? { timezone: horario.timezone || 'America/Asuncion', windows } : null })
       setHorario(null); await refreshTeam(); notifySuccess(windows.length ? 'Horario de acceso actualizado.' : 'Horario quitado: el acceso queda libre.')
-    } catch (cause) { setError(cause?.message || 'No se pudo guardar el horario.') } finally { setBusy(false) }
+    } catch (cause) { setHorarioError(cause?.message || 'No se pudo guardar el horario.') } finally { setBusy(false) }
   }
 
   async function eliminarUsuario() {
@@ -304,6 +318,7 @@ export default function Vendedores({ seccion = 'miembros' } = {}) {
   const integrantesDeTab = tabIntegrantes === 'inactivos' ? vendedores.filter(v => !v.activo) : vendedores.filter(v => v.activo)
   const activos = vendedores.filter(v => v.activo)
   const mesActual = fechaClave().slice(0, 7)
+  const hayCambiosHorario = horario ? firmaHorario(horario) !== horarioInicial.current : false
 
   // Formulario de alta del equipo: en escritorio vive en el panel derecho;
   // en móvil queda apilado y el botón de arriba lleva hasta él.
@@ -554,27 +569,37 @@ export default function Vendedores({ seccion = 'miembros' } = {}) {
         </div>
       </div>
     </Modal>
-    <Modal open={horario !== null} onClose={() => !busy && setHorario(null)} title={`Horario de acceso${horario?.nombre ? ` · ${horario.nombre}` : ''}`} size="formulario">
+    <Modal open={horario !== null} onClose={() => setHorario(null)} title={`Horario de acceso${horario?.nombre ? ` · ${horario.nombre}` : ''}`} size="formulario" dirty={hayCambiosHorario} busy={busy}>
       <form onSubmit={guardarHorario} className="space-y-3">
         <p className="text-sm text-mute">Fuera de estos rangos el integrante no puede ingresar al sistema. Sin rangos, el acceso queda libre.</p>
         <div className={GRILLA_DOS_COLUMNAS}>
           <div><Label htmlFor="horario-tz">Zona horaria</Label><Input id="horario-tz" value={horario?.timezone || 'America/Asuncion'} onChange={event => setHorario(current => ({ ...current, timezone: event.target.value }))} placeholder="America/Asuncion" /></div>
-          <div className="flex items-end"><Button type="button" variant="outline" onClick={() => setHorario(current => ({ ...current, windows: [...(current?.windows || []), { days: [1, 2, 3, 4, 5], start: '08:00', end: '18:00' }] }))}>+ Rango</Button></div>
+          <div className="flex items-end"><Button type="button" variant="outline" disabled={busy} onClick={() => setHorario(current => ({ ...current, windows: [...(current?.windows || []), { days: [1, 2, 3, 4, 5], start: '08:00', end: '18:00' }] }))}>+ Rango</Button></div>
         </div>
         {(horario?.windows || []).length === 0 && <p className="rounded-lg border border-ink-600 px-3 py-2 text-xs text-mute">Sin rangos cargados: el integrante puede ingresar cualquier día y hora.</p>}
         {(horario?.windows || []).map((fila, index) => (
-          <div key={index} className="grid gap-2 rounded-xl border border-ink-600 p-3 sm:grid-cols-[1fr_auto_auto_auto]">
-            <div className="flex flex-wrap gap-1">{['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'].map((dia, day) => {
-              const valor = day === 6 ? 0 : day + 1
-              const activo = fila.days.includes(valor)
-              return <button key={dia} type="button" aria-pressed={activo} aria-label={dia} className={`min-h-11 rounded-lg border px-2 py-1 text-xs transition md:min-h-0 ${activo ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute'}`} onClick={() => setHorario(current => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, days: fila2.days.includes(valor) ? fila2.days.filter(d => d !== valor) : [...fila2.days, valor] } : fila2) }))}>{dia}</button>
-            })}</div>
-            <Input type="time" value={fila.start} onChange={event => setHorario(current => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, start: event.target.value } : fila2) }))} aria-label="Desde" />
-            <Input type="time" value={fila.end} onChange={event => setHorario(current => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, end: event.target.value } : fila2) }))} aria-label="Hasta" />
-            <button type="button" className="self-center text-xs text-bad hover:underline" onClick={() => setHorario(current => ({ ...current, windows: current.windows.filter((_, itemIndex) => itemIndex !== index) }))}>Quitar</button>
+          <div key={index} className="grid gap-2 rounded-xl border border-ink-600 p-3 sm:grid-cols-[minmax(0,1fr)_6rem_6rem_auto] sm:items-end">
+            <div className="min-w-0">
+              <span className="block text-xs font-medium text-mute">Días</span>
+              <div className="mt-1 flex flex-wrap gap-1">{['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'].map((dia, day) => {
+                const valor = day === 6 ? 0 : day + 1
+                const activo = fila.days.includes(valor)
+                return <button key={dia} type="button" aria-pressed={activo} aria-label={dia} className={`min-h-11 rounded-lg border px-2 py-1 text-xs transition md:min-h-0 ${activo ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute'}`} onClick={() => setHorario(current => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, days: fila2.days.includes(valor) ? fila2.days.filter(d => d !== valor) : [...fila2.days, valor] } : fila2) }))}>{dia}</button>
+              })}</div>
+            </div>
+            <FormField label="Desde" htmlFor={`horario-desde-${index}`}>
+              <Input id={`horario-desde-${index}`} type="time" value={fila.start} onChange={event => setHorario(current => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, start: event.target.value } : fila2) }))} />
+            </FormField>
+            <FormField label="Hasta" htmlFor={`horario-hasta-${index}`}>
+              <Input id={`horario-hasta-${index}`} type="time" value={fila.end} onChange={event => setHorario(current => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, end: event.target.value } : fila2) }))} />
+            </FormField>
+            <button type="button" disabled={busy} className="min-h-11 self-center text-xs text-bad hover:underline disabled:opacity-50 md:min-h-0" onClick={() => setHorario(current => ({ ...current, windows: current.windows.filter((_, itemIndex) => itemIndex !== index) }))}>Quitar</button>
           </div>
         ))}
-        <div className={PIE_ACCIONES}><Button type="button" variant="ghost" disabled={busy} onClick={() => setHorario(null)}>Cancelar</Button><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar horario'}</Button></div>
+        {horarioError && <Aviso tono="error" className="p-3">{horarioError}</Aviso>}
+        <SaveActions pendiente={busy}>
+          <Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar horario'}</Button>
+        </SaveActions>
       </form>
     </Modal>
     <Modal open={historialDe !== null} onClose={() => setHistorialDe(null)} title={`Historial de ${historialDe?.nombre || 'funcionario'}`}>
