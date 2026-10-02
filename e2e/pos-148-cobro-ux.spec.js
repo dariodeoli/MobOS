@@ -176,7 +176,7 @@ test('mobile: el resumen «Total de esta venta» es sólido y queda debajo del b
   await fila.getByLabel('Monto original').fill('20000')
 
   const resumen = page.getByTestId('resumen-compra')
-  await expect(resumen).toContainText('Total de esta venta')
+  await expect(resumen).toContainText('Esta venta')
   await expect(resumen).toContainText('2 productos')
   await expect(resumen).toContainText('2 unidades')
   await expect(resumen).toContainText('Descuento − Gs 5.000')
@@ -187,12 +187,12 @@ test('mobile: el resumen «Total de esta venta» es sólido y queda debajo del b
   const alfa = estilo.fondo.startsWith('rgba') ? Number(estilo.fondo.match(/,\s*([\d.]+)\)/)?.[1] ?? 1) : 1
   expect(alfa).toBe(1)
 
-  // Orden pedido: «Crear pedido…» arriba, productos/importes abajo. Se mide al
-  // pie de la página para que el botón pegajoso esté en su lugar natural.
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
-  await page.waitForTimeout(300)
-  const boton = page.getByRole('button', { name: /^(Crear pedido|Confirmar venta)/ })
-  const cajaBoton = await boton.boundingBox()
-  const cajaResumen = await resumen.boundingBox()
-  expect(cajaBoton.y).toBeLessThan(cajaResumen.y)
+  // #309: en el celular el Total y la acción principal quedan fijos abajo (la
+  // franja dejó de repetir el total).
+  const barra = page.getByTestId('pos-barra-accion')
+  await expect(barra).toBeVisible()
+  await expect(barra.getByTestId('barra-total')).toHaveText('Gs 120.000')
+  expect(await barra.evaluate((el) => getComputedStyle(el).position)).toBe('fixed')
+  await expect(barra.getByRole('button', { name: /^(Crear pedido|Confirmar venta)/ })).toBeVisible()
+  await expect(resumen).not.toContainText('Gs 120.000')
 })

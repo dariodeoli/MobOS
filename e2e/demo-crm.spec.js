@@ -35,7 +35,7 @@ test('demo: la venta del POS actualiza la actividad y los agregados del cliente'
   const sugerencia = page.getByRole('button', { name: /Lucía Fernández/ }).first()
   await expect(sugerencia).toBeVisible()
   await sugerencia.click()
-  await expect(page.getByText('Cliente seleccionado')).toBeVisible()
+  await expect(page.getByTestId('cliente-elegido')).toBeVisible()
   await expect(page.getByText(/Crédito hasta/)).toBeVisible()
 
   const principal = page.getByRole('button', { name: /Confirmar venta|Crear pedido/ }).last()

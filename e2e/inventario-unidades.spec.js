@@ -310,7 +310,7 @@ test('vender todos deja el lote elegido en el POS con producto, cantidad e IMEI'
     await expect(linea).toContainText(seriales[0])
     await expect(linea).toContainText(seriales[1])
     // El precio de lista viajó en la línea: 2 × 3.000.000.
-    await expect(page.getByTestId('resumen-compra')).toContainText('6.000.000')
+    await expect(page.getByTestId('carrito-total')).toContainText('6.000.000')
   } finally {
     // El carrito queda persistido por empresa/sucursal: no debe contaminar otros specs.
     await page.evaluate(() => { Object.keys(localStorage).filter((clave) => clave.startsWith('mobos:pos-cart:v1')).forEach((clave) => localStorage.removeItem(clave)) }).catch(() => {})

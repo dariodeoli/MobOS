@@ -48,7 +48,8 @@ test('el borrador guardado registra quién lo creó y quién lo retomó, sin bor
 
   // 2) Gerencia ve el borrador con quién lo creó y lo retoma.
   await page.goto('/pos')
-  await page.getByRole('button', { name: 'Ventas suspendidas' }).click()
+  await page.getByTestId('pos-mas').click()
+  await page.getByRole('menuitem', { name: 'Ventas suspendidas' }).click()
   const lista = page.getByRole('dialog', { name: 'Ventas suspendidas' })
   const fila = lista.getByRole('article').filter({ hasText: etiqueta }).first()
   await expect(fila).toBeVisible()
@@ -60,7 +61,8 @@ test('el borrador guardado registra quién lo creó y quién lo retomó, sin bor
 
   // 3) El borrador NO se borra: queda en «Retomadas» con quién lo retomó y ya
   //    no aparece entre los pendientes.
-  await page.getByRole('button', { name: 'Ventas suspendidas' }).click()
+  await page.getByTestId('pos-mas').click()
+  await page.getByRole('menuitem', { name: 'Ventas suspendidas' }).click()
   const lista2 = page.getByRole('dialog', { name: 'Ventas suspendidas' })
   await lista2.getByRole('tab', { name: /Retomadas \(1\)/ }).click()
   const retomada = lista2.getByRole('article').filter({ hasText: etiqueta }).first()

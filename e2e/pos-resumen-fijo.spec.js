@@ -42,7 +42,9 @@ function medicion(page) {
       scrollY: Math.round(window.scrollY),
       caja: datos('resumen-compra'),
       columna: datos('resumen-columna'),
-      barra: datos('carrito-barra'),
+      // #309: la barra superior del celular se reemplazó por la barra fija del
+      // bloque de cobro (Total + acción principal).
+      accion: datos('pos-barra-accion'),
     }
   })
 }
@@ -86,7 +88,7 @@ test.describe('desktop', () => {
     const primera = await desplazar(page, 300)
     await esperarSticky(page, 'columna')
     await esperarArriba(page, 'caja')
-    expect(primera.barra, 'la barra compacta solo existe en pantallas angostas').toBeNull()
+    expect(primera.accion?.display, 'la barra de acción está oculta en pantallas anchas').toBe('none')
 
     const segunda = await desplazar(page, 700)
     await esperarArriba(page, 'caja')
@@ -103,7 +105,7 @@ test.describe('notebook 1152', () => {
     const primera = await desplazar(page, 300)
     await esperarSticky(page, 'columna')
     await esperarArriba(page, 'caja')
-    expect(primera.barra, 'la barra compacta solo existe en pantallas angostas').toBeNull()
+    expect(primera.accion?.display, 'la barra de acción está oculta en pantallas anchas').toBe('none')
 
     const segunda = await desplazar(page, 700)
     await esperarArriba(page, 'caja')
@@ -114,17 +116,20 @@ test.describe('notebook 1152', () => {
 test.describe('phone 390', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
-  test('la barra compacta con el total se mantiene fija al deslizar', async ({ page }) => {
+  test('el total y la acción principal quedan fijos abajo al deslizar (#309)', async ({ page }) => {
     await agregarProducto(page)
 
     const primera = await desplazar(page, 300)
-    await esperarSticky(page, 'barra')
-    await esperarArriba(page, 'barra')
-    expect(primera.barra.texto).toContain('Gs 45.000')
+    expect(primera.accion, 'la barra de acción existe en el celular').not.toBeNull()
+    expect(primera.accion.position).toBe('fixed')
+    expect(primera.accion.texto).toContain('Total')
+    expect(primera.accion.texto).toContain('Gs 45.000')
+    await expect(
+      page.getByTestId('pos-barra-accion').getByRole('button', { name: /Guardar pedido|Crear pedido|Confirmar venta/ }),
+    ).toBeVisible()
 
     const segunda = await desplazar(page, 900)
-    await esperarArriba(page, 'barra')
-    expect(segunda.barra.y).toBe(primera.barra.y)
-    expect(segunda.caja.position).toBe('static')
+    expect(segunda.accion.y).toBe(primera.accion.y)
+    expect(segunda.accion.position).toBe('fixed')
   })
 })

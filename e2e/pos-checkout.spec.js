@@ -244,7 +244,7 @@ test('POS clears the address country and the summary opens the cart', async ({ p
 
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
-  await expect(page.getByText('Total de esta venta')).toBeVisible()
+  await expect(page.getByTestId('carrito-total')).toBeVisible()
 
   await expect(page.getByText('Productos de esta venta')).toBeVisible()
 })
@@ -346,10 +346,12 @@ test('POS finds a customer by billing name, shows the selection and clears it', 
   await buscador.fill(razon)
   await page.getByRole('button', { name: new RegExp(name) }).click()
 
-  const seleccion = page.getByText('Cliente seleccionado')
+  const seleccion = page.getByTestId('cliente-elegido')
   await expect(seleccion).toBeVisible()
 
-  // La factura guardada en la ficha se propone de nuevo en esta venta.
+  // La factura guardada en la ficha se propone de nuevo en esta venta (los
+  // datos completos se editan desde el bloque colapsado, #309).
+  await seleccion.getByRole('button', { name: 'Editar datos' }).click()
   await page.getByText('Facturar a otro titular (opcional)').click()
   await expect(page.getByLabel('Nombre del titular de factura')).toHaveValue(razon)
   await expect(page.getByLabel('RUC del titular de factura')).toHaveValue('80012345-6')
@@ -440,11 +442,11 @@ test('POS muestra toda la venta en una sola pantalla, sin pasos numerados', asyn
     expect(await heading.textContent()).not.toMatch(/^\s*\d/)
   }
 
-  // El total vive en el resumen de la columna, visible desde el arranque.
-  await expect(page.getByText('Total de esta venta')).toBeVisible()
+  // El total vive en el carrito (una sola vez, #309), visible desde el arranque.
+  await expect(page.getByTestId('carrito-total')).toBeVisible()
 
   // Las acciones secundarias están arriba del bloque de cliente (en el encabezado).
-  const suspender = page.getByRole('button', { name: 'Ventas suspendidas' })
+  const suspender = page.getByTestId('pos-mas')
   const cliente = page.getByRole('heading', { name: 'Cliente', exact: true })
   const ySuspender = await suspender.evaluate(
     el => el.getBoundingClientRect().top + window.scrollY,
@@ -610,7 +612,8 @@ test('POS: el borrador se comparte con enlace público y checkout', async ({ pag
   await expect(page.getByText(/Venta suspendida/).first()).toBeVisible({ timeout: 15_000 })
 
   // Enlace público del borrador (se muestra una sola vez).
-  await page.getByRole('button', { name: 'Ventas suspendidas' }).click()
+  await page.getByTestId('pos-mas').click()
+  await page.getByRole('menuitem', { name: 'Ventas suspendidas' }).click()
   dialogo = page.getByRole('dialog')
   const fila = dialogo.getByRole('article').filter({ hasText: `Carrito ${marca}` }).first()
   await expect(fila).toBeVisible()
@@ -633,7 +636,8 @@ test('POS: el borrador se comparte con enlace público y checkout', async ({ pag
 // menciones @ en los comentarios internos del pedido.
 test('POS: analytics del día y menciones en comentarios', async ({ page }) => {
   await page.goto('/pos')
-  await page.getByRole('button', { name: 'Analytics' }).click()
+  await page.getByTestId('pos-mas').click()
+  await page.getByRole('menuitem', { name: 'Analytics' }).click()
   const panel = page.getByRole('dialog')
   await expect(panel.getByText('Ventas de hoy')).toBeVisible({ timeout: 15_000 })
   await expect(panel.getByText('Ticket promedio')).toBeVisible()

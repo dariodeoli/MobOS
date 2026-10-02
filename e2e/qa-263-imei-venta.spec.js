@@ -50,7 +50,8 @@ test('venta serializada: guía el IMEI, valida antes de enviar y cierra sin 400 
     expect(rechazos, `no debe salir un pedido incompleto: ${rechazos.join(' | ')}`).toEqual([])
     await expect(selector).toBeVisible()
     await page.screenshot({ path: 'test-results/qa-263/venta-bloqueada-con-guia.png' })
-    await selector.getByRole('button', { name: 'Listo' }).click()
+    await expect(selector.getByRole('button', { name: 'Listo' })).toBeDisabled()
+    await page.keyboard.press('Escape')
     // La venta serializada de punta a punta (elegir IMEI y cerrar) está cubierta
     // por `pos-checkout.spec.js` («POS vende un equipo serializado con su IMEI»).
   } finally {
