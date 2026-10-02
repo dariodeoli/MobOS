@@ -69,6 +69,33 @@ test('los compartidos de CMP adoptan resultados canónicos y cierre con cambios 
   assert.ok(cropper.includes('<FormActions>'), 'el recorte usa el pie fijo del diálogo')
 })
 
+test('los modales de INV adoptan etiquetas, error junto al campo y resultados (#323)', () => {
+  const inventario = leer('../components/control/Inventario.jsx')
+  assert.ok(inventario.includes('title="Carga rápida de unidad" size="formulario"'), 'el alta de unidad declara su tamaño estándar')
+  assert.ok(inventario.includes('dirty={Boolean(receive.productId'), 'el alta de unidad confirma al cerrar con cambios')
+  for (const campo of ['Sucursal', 'Ubicación', 'Condición', 'Batería', 'Importe']) {
+    assert.ok(inventario.includes(`FormField label="${campo}"`), `${campo} lleva etiqueta visible en el diálogo`)
+  }
+  assert.ok(inventario.includes('error={receiveError}'), 'el error del alta va junto al campo, adentro del diálogo')
+  assert.ok(!inventario.includes("setError('Indicá al menos un IMEI/serial.')"), 'el error no cae al Aviso general detrás del overlay')
+  assert.ok(inventario.includes('<SaveActions pendiente={busy}>'), 'el alta monta el pie estándar del diálogo')
+
+  const compras = leer('../components/control/Compras.jsx')
+  assert.ok(compras.includes('recepcionSucio'), 'recibir mercadería confirma al cerrar con cambios')
+  assert.ok(compras.includes('errorRecepcionDe(item)'), 'la cantidad inválida se muestra junto a su campo')
+  assert.ok(compras.includes('<SaveActions pendiente={busy}>'), 'recibir mercadería usa el pie estándar')
+
+  const recepcion = leer('../components/supply/Recepcion.jsx')
+  assert.ok(recepcion.includes('useResultado'), 'la incidencia usa resultados canónicos')
+  assert.ok(recepcion.includes('FormField label="Nota"'), 'la nota lleva etiqueta y error adentro del diálogo')
+  assert.ok(recepcion.includes('dirty={Boolean(incidencia)'), 'la incidencia confirma al cerrar con cambios')
+
+  const lista = leer('../components/supply/ListaCompraModal.jsx')
+  assert.ok(lista.includes('useResultado') && lista.includes("avisar.fallo('imprimir'"), 'la lista de compra imprime con resultados canónicos')
+  const etiquetas = leer('../components/supply/EtiquetasPreparacion.jsx')
+  assert.ok(etiquetas.includes('useResultado') && etiquetas.includes("avisar.fallo('imprimir'"), 'las etiquetas de preparación imprimen con resultados canónicos')
+})
+
 test('los modales de CRM/INV/PRN pendientes quedan documentados (#323)', () => {
   const doc = leer('../../docs/MODALES.md')
   for (const pendiente of ['SellerCustomers.jsx', 'Inventario.jsx', 'ServicioTecnico.jsx', 'Impresoras.jsx']) {

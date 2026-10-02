@@ -61,13 +61,15 @@ error junto al campo, etiquetas visibles y feedback canónico.
 
 ### INV (inventario y abastecimiento)
 
-| Modal | Ruta | Qué falta |
+Adoptado en la ronda INV (#323, rama `slot/inventario`):
+
+| Modal | Ruta | Qué se hizo |
 | --- | --- | --- |
-| Carga rápida de unidad («recibir unidad») | `src/components/control/Inventario.jsx:1509` | `size` explícito; `dirty` al cerrar con campos; label visible en Sucursal/Ubicación/Condición/Batería/Importe; el `Aviso` de error hoy queda **detrás del overlay** (moverlo adentro con `FormField error`) |
-| Recibir mercadería | `src/components/control/Compras.jsx:592` | `dirty`; errores por campo; un solo primario |
-| Incidencia de recepción | `src/components/supply/Recepcion.jsx:534` | `dirty`; error junto al campo y resultado canónico |
-| Lista de compra | `src/components/supply/ListaCompraModal.jsx:87` | toasts de imprimir con `useResultado` |
-| Etiquetas de preparación | `src/components/supply/EtiquetasPreparacion.jsx:75` | toasts de imprimir con `useResultado` |
+| Carga rápida de unidad («recibir unidad») | `src/components/control/Inventario.jsx` | `size="formulario"` explícito; `dirty` al cerrar con datos; labels visibles en Sucursal/Ubicación/Condición/Batería/Importe; el error va con `FormField` **adentro** del diálogo (antes quedaba detrás del overlay); pie `SaveActions` |
+| Recibir mercadería | `src/components/control/Compras.jsx` | `dirty` comparando con el pendiente precargado; error de cantidad junto a la línea con `FormField`; pie `SaveActions` |
+| Incidencia de recepción | `src/components/supply/Recepcion.jsx` | `dirty`; nota con `FormField error`; resultado canónico con `useResultado.guardado` |
+| Lista de compra | `src/components/supply/ListaCompraModal.jsx` | toasts de imprimir con `useResultado` |
+| Etiquetas de preparación | `src/components/supply/EtiquetasPreparacion.jsx` | toasts de imprimir con `useResultado` |
 
 ### PRN (impresión) — adoptado en la pasada de impresión (#323)
 

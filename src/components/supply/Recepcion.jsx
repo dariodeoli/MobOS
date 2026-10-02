@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, resources } from '@/lib/api'
-import { Badge, Button, Card, ConfirmDialog, EmptyState, Input, Modal, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import { Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, Modal, SaveActions, Select, Skeleton, Textarea, useResultado, useToast } from '@/components/ui'
 import CameraScan from '@/components/shared/CameraScan'
 import AttachmentList from '@/components/shared/AttachmentList'
 import Icon from '@/components/shared/Icon'
@@ -47,6 +47,7 @@ const fecha = (valor) => {
 
 export default function Recepcion() {
   const toast = useToast()
+  const avisar = useResultado()
   const navigate = useNavigate()
   const [llegadas, setLlegadas] = useState([])
   const [cargando, setCargando] = useState(true)
@@ -62,6 +63,7 @@ export default function Recepcion() {
   const [aviso, setAviso] = useState('')
   const [codigo, setCodigo] = useState('')
   const [incidencia, setIncidencia] = useState(null)
+  const [incidenciaError, setIncidenciaError] = useState('')
   const [nota, setNota] = useState('')
   const [confirmarTodo, setConfirmarTodo] = useState(false)
   const [confirmada, setConfirmada] = useState(null)
@@ -201,15 +203,16 @@ export default function Recepcion() {
   async function guardarIncidencia() {
     if (!incidencia || nota.trim().length < 3 || busy) return
     setBusy(true)
+    setIncidenciaError('')
     try {
       await resources.supplyReceptions.update({ id: recepcion.id, action: 'item', itemId: incidencia.itemId, resultado: incidencia.resultado, nota: nota.trim() })
       const datos = await resources.supplyReceptions.list({ id: recepcion.id })
       aplicar(datos?.recepcion ? { recepcion: datos.recepcion, resumen: datos.resumen } : datos)
-      toast.success('Incidencia registrada', `${ETIQUETA_RESULTADO[incidencia.resultado]} con nota.`)
+      avisar.guardado('La incidencia', `${ETIQUETA_RESULTADO[incidencia.resultado]} con nota.`)
       setIncidencia(null)
       setNota('')
     } catch (causa) {
-      toast.error('No se pudo registrar', causa?.message || 'Reintentá en un momento.')
+      setIncidenciaError(causa?.message || 'No se pudo registrar. Reintentá en un momento.')
     } finally {
       setBusy(false)
     }
@@ -478,7 +481,7 @@ export default function Recepcion() {
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge color={estado ? TONO_RESULTADO[estado] : 'slate'}>{estado ? ETIQUETA_RESULTADO[estado] : 'Pendiente'}</Badge>
                     {registro ? RESULTADOS.map(([id, label]) => (
-                      <Button key={id} type="button" variant="outline" onClick={() => { setIncidencia({ itemId: registro.id, resultado: id, serial }); setNota(registro.nota || '') }}>{label}</Button>
+                      <Button key={id} type="button" variant="outline" onClick={() => { setIncidencia({ itemId: registro.id, resultado: id, serial }); setIncidenciaError(''); setNota(registro.nota || '') }}>{label}</Button>
                     )) : (
                       <span className="text-xs text-mute">Escaneá su IMEI para marcar dañado o incorrecto; sin escanear queda faltante al confirmar.</span>
                     )}
@@ -496,7 +499,7 @@ export default function Recepcion() {
                 <p className="truncate font-mono text-sm font-semibold">{item.serial}</p>
                 <div className="flex items-center gap-2">
                   <Badge color="blue">Sobrante</Badge>
-                  <Button type="button" variant="outline" onClick={() => { setIncidencia({ itemId: item.id, resultado: 'SOBRANTE' }); setNota(item.nota || '') }}>{item.nota ? 'Editar nota' : 'Agregar nota'}</Button>
+                  <Button type="button" variant="outline" onClick={() => { setIncidencia({ itemId: item.id, resultado: 'SOBRANTE' }); setIncidenciaError(''); setNota(item.nota || '') }}>{item.nota ? 'Editar nota' : 'Agregar nota'}</Button>
                 </div>
               </div>
               {item.nota && <p className="mt-0.5 text-xs text-mute">{item.nota}</p>}
@@ -519,17 +522,19 @@ export default function Recepcion() {
           busy={busy}
         />
 
-        <Modal open={Boolean(incidencia)} onClose={() => !busy && setIncidencia(null)} title={`Incidencia: ${ETIQUETA_RESULTADO[incidencia?.resultado] || ''}`}>
-          <p className="mt-2 text-sm text-mute">{incidencia?.serial || 'La unidad'} · la nota queda auditada con la recepción. Podés adjuntar fotos (cámara o archivo).</p>
-          <label htmlFor="nota-incidencia" className="mt-4 block text-sm font-semibold">Nota</label>
-          <Input id="nota-incidencia" className="mt-2 w-full" value={nota} onChange={(evento) => setNota(evento.target.value)} placeholder="Qué pasó (mínimo 3 caracteres)" />
-          {incidencia?.itemId && (
-            <AttachmentList className="mt-5" entity="SUPPLY_RECEPTION" entityId={incidencia.itemId} puedeSubir titulo="Fotos de la incidencia (opcional)" />
-          )}
-          <div className="mt-4 flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setIncidencia(null)} disabled={busy}>Volver</Button>
-            <Button type="button" onClick={guardarIncidencia} disabled={nota.trim().length < 3 || busy}>{busy ? 'Guardando…' : 'Registrar'}</Button>
-          </div>
+        <Modal open={Boolean(incidencia)} onClose={() => !busy && setIncidencia(null)} title={`Incidencia: ${ETIQUETA_RESULTADO[incidencia?.resultado] || ''}`} dirty={Boolean(incidencia) && nota.trim() !== String(incidencia?.nota || '').trim()}>
+          <form onSubmit={(evento) => { evento.preventDefault(); guardarIncidencia() }} className="space-y-4">
+            <p className="text-sm text-mute">{incidencia?.serial || 'La unidad'} · la nota queda auditada con la recepción. Podés adjuntar fotos (cámara o archivo).</p>
+            <FormField label="Nota" htmlFor="nota-incidencia" error={incidenciaError} hint="Mínimo 3 caracteres.">
+              <Input id="nota-incidencia" value={nota} onChange={(evento) => { setIncidenciaError(''); setNota(evento.target.value) }} placeholder="Qué pasó" />
+            </FormField>
+            {incidencia?.itemId && (
+              <AttachmentList entity="SUPPLY_RECEPTION" entityId={incidencia.itemId} puedeSubir titulo="Fotos de la incidencia (opcional)" />
+            )}
+            <SaveActions pendiente={busy}>
+              <Button type="submit" disabled={nota.trim().length < 3 || busy}>{busy ? 'Guardando…' : 'Registrar'}</Button>
+            </SaveActions>
+          </form>
         </Modal>
       </div>
     )

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button, Modal, Select, useToast } from '@/components/ui'
+import { Button, Modal, Select, useResultado, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import VistaPreviaPapel from '@/components/shared/VistaPreviaPapel'
 import CompartirImagen from '@/components/shared/CompartirImagen'
@@ -38,6 +38,7 @@ function productosDeLaCompra(compra) {
 
 export default function ListaCompraModal({ compra, open, onClose }) {
   const toast = useToast()
+  const avisar = useResultado()
   const [formato, setFormato] = useState('a4')
   const [html, setHtml] = useState('')
   const [cargando, setCargando] = useState(false)
@@ -73,11 +74,11 @@ export default function ListaCompraModal({ compra, open, onClose }) {
         tipo: 'lista-compra',
         respaldo: () => printHtml(html),
       })
-      if (resultado?.dialogo) toast.info('Lista lista', 'Se abrió para imprimir o guardar en PDF.')
-      else if (resultado?.ok) toast.success('Lista enviada', `${datos.code} · ${datos.resumen.unidades} unidad(es).`)
-      else toast.error('No se pudo imprimir', resultado?.error || 'Revisá la impresora.')
+      if (resultado?.dialogo) avisar.impreso('La lista', 'Se abrió el diálogo para imprimir o guardar en PDF.')
+      else if (resultado?.ok) avisar.impreso('La lista', `${datos.code} · ${datos.resumen.unidades} unidad(es).`)
+      else avisar.fallo('imprimir', resultado?.error || 'Revisá la impresora.')
     } catch (causa) {
-      toast.error('No se pudo imprimir', causa?.message || 'Reintentá en un momento.')
+      avisar.fallo('imprimir', causa?.message || 'Reintentá en un momento.')
     } finally {
       setImprimiendo(false)
     }
