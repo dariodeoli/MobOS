@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Input } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { coincideExacto, etiquetaProveedor, filtrarProveedores, sugerenciasDeProveedores } from '@/lib/proveedores'
@@ -61,7 +61,11 @@ export default function SupplierCombobox({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, proveedores])
 
-  useEffect(() => {
+  // Limpieza sincrónica (layout effect): el modal desmonta el campo al guardar y
+  // el timer del blur debe cancelarse en el mismo commit. Con `useEffect` la
+  // limpieza pasiva puede demorarse bajo carga y el timer alcanzaba a reponer
+  // el proveedor sobre el formulario ya reseteado (#259).
+  useLayoutEffect(() => {
     const cerrarFuera = (event) => {
       if (event.target instanceof Node && raiz.current?.contains(event.target)) return
       setAbierto(false)
