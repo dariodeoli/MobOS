@@ -1,8 +1,10 @@
 // Reporte de flakiness del arnés e2e (#245).
 //
 // Deja `test-results/reporte-flaky.md|json` con los tests que fallaron o que
-// necesitaron más de un intento, para aislar el flake y corregir la raíz (no
-// hay reintentos: `retries: 0`). No cambia el resultado de la corrida.
+// necesitaron más de un intento, para aislar el flake y corregir la raíz. En CI
+// hay un único reintento global (#326) y cada reintento queda listado acá: lo
+// que falla dos veces sigue siendo un fallo real. No cambia el resultado de la
+// corrida.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { relative } from 'node:path'
 

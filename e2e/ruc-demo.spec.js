@@ -88,6 +88,8 @@ test('demo: la empresa privada extrae simulada y no pisa sin confirmar', async (
   await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
   await cerrarGuia(page)
   await page.goto('/configuracion/negocio')
+  // #299: los datos privados viven en la pestaña «Datos fiscales».
+  await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Datos fiscales', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Empresas/personas jurídicas (privado)' })).toBeVisible({ timeout: 20_000 })
   await page.getByRole('button', { name: 'Agregar empresa' }).click()
   const nombre = page.locator('#priv-legal-name')

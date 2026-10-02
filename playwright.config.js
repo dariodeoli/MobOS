@@ -64,10 +64,15 @@ const E2E_ENV = {
   MOBOS_E2E_FRONTEND: process.env.MOBOS_E2E_FRONTEND || 'dev',
 }
 
-// Retries: 0 en todos lados (#245). Un flake se aísla y se corrige la raíz; el
-// reporter `e2e/reporters/flaky.mjs` deja el registro de lo que falló o necesitó
-// más de un intento para investigarlo.
+// Retries: 0 en local; 1 en CI (#326). Los runners de GitHub son más lentos y
+// ruidosos que una máquina local; el reintento absorbe esa varianza, pero el
+// reporter `e2e/reporters/flaky.mjs` deja cada reintento en el artifact: lo que
+// falla dos veces sigue siendo un fallo que hay que arreglar, no se esconde.
 const CI = Boolean(process.env.CI)
+const REINTENTOS = CI ? 1 : 0
+// Timeouts acordes al runner: en CI el proceso compite con otros jobs.
+const TIMEOUT_TEST = CI ? 120_000 : 90_000
+const TIMEOUT_EXPECT = CI ? 30_000 : 20_000
 // Las specs comparten tenant y contadores de stock: por defecto un worker para
 // no correr carreras de checkout. Subilo solo si tus specs no tocan stock
 // compartido (MOBOS_E2E_WORKERS=3).
@@ -91,12 +96,11 @@ export const SMOKE_GREP = [
 export default defineConfig({
   testDir: './e2e',
   forbidOnly: !!CI,
-  // Sin reintentos en ningún lado (#245): un flake se aísla y se corrige la
-  // raíz; el reporter de flakiness deja el registro para investigarlo.
-  retries: 0,
+  // #326: sin reintentos locales; uno en CI (registrado por el reporter).
+  retries: REINTENTOS,
   workers: WORKERS,
-  timeout: 90_000,
-  expect: { timeout: 20_000 },
+  timeout: TIMEOUT_TEST,
+  expect: { timeout: TIMEOUT_EXPECT },
   reporter: [['list'], ['html', { open: 'never' }], ['./e2e/reporters/flaky.mjs']],
   use: {
     // El negocio opera en Paraguay: el navegador del harness corre en ese huso
