@@ -8,6 +8,7 @@ import Avatar from '@/components/shared/Avatar'
 import PanelDerecho from '@/components/shared/PanelDerecho'
 import { Aviso, Button, Card, ConfirmDialog, FormField, Input, Skeleton, useToast } from '@/components/ui'
 import { PreferenciasContenido } from '@/components/app/Preferencias'
+import { etiquetaRol } from '@/lib/roles'
 import { getAvatarDataUrl, olvidarAvatar } from '@/lib/userAvatar'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { fechaHora as fmtFecha } from '@/utils/fecha'
@@ -183,7 +184,7 @@ export default function MiCuenta({ preferencias, onCambiarPreferencias }) {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="font-semibold">{perfil?.name || 'Tu nombre'}</h3>
-                {sesion?.rol && <span className="rounded-md border border-ink-500 bg-ink-800 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-mute">{sesion.rol}</span>}
+                {sesion?.rol && <span className="rounded-md border border-ink-500 bg-ink-800 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-mute">{etiquetaRol(sesion.rol)}</span>}
               </div>
               {perfil?.email && <p className="mt-0.5 truncate text-sm text-mute">{perfil.email}</p>}
             </div>

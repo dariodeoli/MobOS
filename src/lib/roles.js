@@ -9,6 +9,25 @@ export const ROLE_LABELS = {
   REPARTIDOR: 'Repartidor',
 }
 
+// #299: el backend usa ADMIN/GERENTE/…; la sesión de la app expone `dueno`.
+// Un solo traductor para mostrar y comparar: la misma persona nunca se lee
+// DUEÑO · DUENO · dueno · ADMIN según la pantalla.
+const ALIAS_ROL = { DUENO: 'ADMIN', 'DUEÑO': 'ADMIN' }
+
+/** Código canónico del rol (ADMIN, GERENTE, …) a partir de cualquier variante. */
+export function codigoRol(valor) {
+  const texto = String(valor ?? '').trim()
+  if (!texto) return ''
+  const mayusculas = texto.toUpperCase()
+  return ALIAS_ROL[mayusculas] || mayusculas
+}
+
+/** Etiqueta visible del rol, igual en todas las pantallas. */
+export function etiquetaRol(valor) {
+  const codigo = codigoRol(valor)
+  return ROLE_LABELS[codigo] || codigo || '—'
+}
+
 export const ROLE_DESCRIPTIONS = {
   ADMIN: 'Dueño: acceso total al panel, incluidos inventario, finanzas, equipo y configuración.',
   GERENTE: 'Gerente: conduce la operación de la tienda; además de vender, gestiona pedidos, catálogo, cobros y descuentos.',

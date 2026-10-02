@@ -10,7 +10,7 @@ import Avatar from '@/components/shared/Avatar'
 import EmailField from '@/components/shared/EmailField'
 import Cronologia from '@/components/shared/Cronologia'
 import PanelDerecho from '@/components/shared/PanelDerecho'
-import { ROLE_LABELS } from '@/lib/roles'
+import { ROLE_LABELS, etiquetaRol } from '@/lib/roles'
 import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 import { CELDA_DATO } from '@/components/shared/tabla'
@@ -62,8 +62,10 @@ function MetaDiaria({ vendor, onGuardar }) {
   )
 }
 
-// Equipo: integrantes activos/inactivos, metas, invitaciones e historial.
-export default function Vendedores() {
+// Equipo: integrantes, metas, invitaciones e historial. #299: recibe la
+// pestaña activa (Miembros · Invitaciones · Permisos · Rendimiento) y renderiza
+// solo la tarea de esa pestaña.
+export default function Vendedores({ seccion = 'miembros' } = {}) {
   const navigate = useNavigate()
   const { esDemo, sesion } = useSesion()
   // Vista previa v2 (#241): las fichas del equipo van como tiles de consola y
@@ -369,12 +371,12 @@ export default function Vendedores() {
   return <div className="space-y-4" data-revision={revision}>
     {error && <Aviso tono="error" className="p-3">{error}</Aviso>}
     {message && <Aviso tono="ok" className="p-3">{message}</Aviso>}
-    <div className="flex flex-wrap items-center justify-end gap-2 lg:hidden">
+    {(seccion === 'miembros' || seccion === 'invitaciones') && <div className="flex flex-wrap items-center justify-end gap-2 lg:hidden">
       <Button onClick={() => { setConflicto(null); setInvitacion({ name: '', email: '', role: 'VENDEDOR' }); irAlFormulario() }}>+ Invitar persona</Button>
-    </div>
+    </div>}
 
-    <PanelDerecho id="equipo-form" panel={formularioSumar}>
-    <>
+    {(seccion === 'miembros' || seccion === 'invitaciones') && <PanelDerecho id="equipo-form" panel={formularioSumar}>
+    {seccion === 'miembros' && <>
     <Card>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
@@ -441,8 +443,11 @@ export default function Vendedores() {
         )}
       </div>
     </Card>
+    </>}
 
-    <Card data-testid="equipo-metas-comisiones">
+    </PanelDerecho>}
+
+    {seccion === 'rendimiento' && <Card data-testid="equipo-metas-comisiones">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="font-bold mb-1">Metas y comisiones</h2>
@@ -463,7 +468,7 @@ export default function Vendedores() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="min-w-0">
                     <div className="truncate text-[13px] font-bold">{v.nombre}</div>
-                    <div className={CELDA_DATO}>{ROLE_LABELS[v.role] || v.role}</div>
+                    <div className={CELDA_DATO}>{etiquetaRol(v.role)}</div>
                   </div>
                   <label className="flex items-center gap-2">
                     <span className="text-[10px] font-bold uppercase text-mute">Meta diaria</span>
@@ -494,10 +499,9 @@ export default function Vendedores() {
         <h3 className="font-bold mb-1">Historial mensual por vendedor</h3>
         <div className="mt-3 space-y-4">{meses.map(mes => { const filas = Object.entries(porMes[mes]).map(([vid, lista]) => ({ vid, nombre: nombreById[vid] || 'Sin vendedor', total: lista.reduce((a, x) => a + num(x.precio), 0), com: comisionDeVentas(lista, prods), cant: lista.length })).sort((a, b) => b.total - a.total); const abierto = abiertos.has(mes); return <div key={mes} className="overflow-hidden rounded-xl border border-ink-600"><button type="button" onClick={() => toggleMes(mes)} className="flex min-h-11 w-full items-center justify-between gap-2 bg-ink-700 px-4 text-left"><span className="font-bold text-sm capitalize">{abierto ? '▼' : '▶'} {mesLabel(mes)}</span><Badge color="blue">Vendido {gs(filas.reduce((a, f) => a + f.total, 0))}</Badge></button>{abierto && <div className="divide-y divide-ink-600 border-t border-ink-600">{filas.map(f => <div key={f.vid} className="flex items-center justify-between gap-2 px-3 py-2.5"><div><div className="text-[13px] font-semibold">{f.nombre}</div><div className="text-xs text-mute">{f.cant} ventas</div></div><div className="text-right"><div className="font-bold text-fono">{gs(f.total)}</div><div className="text-xs text-ok">Comisión {gs(f.com)}</div></div></div>)}</div>}</div> })}</div>
       </div>}
-    </Card>
-    </>
+    </Card>}
 
-    {!esDemo && <Card>
+    {seccion === 'invitaciones' && !esDemo && <Card>
       <h2 className="font-bold">Invitaciones</h2>
       {invitaciones.length > 0 ? (
         <div className="mt-4 space-y-2">{invitaciones.map(invite => {
@@ -508,7 +512,7 @@ export default function Vendedores() {
               <div className="flex flex-wrap items-center gap-2">
                 <strong className="truncate text-[13px]">{invite.name || invite.email}</strong>
                 <Badge color={color}>{label}</Badge>
-                <Badge>{ROLE_LABELS[invite.role] || invite.role}</Badge>
+                <Badge>{etiquetaRol(invite.role)}</Badge>
               </div>
               <p className={cn('mt-1', CELDA_DATO)}>{invite.email}</p>
               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-mute">
@@ -529,7 +533,6 @@ export default function Vendedores() {
       )}
     </Card>}
 
-    </PanelDerecho>
     <Modal open={permisosDe !== null} onClose={() => !permisosBusy && setPermisosDe(null)} title={`Permisos${permisosDe?.nombre ? ` · ${permisosDe.nombre}` : ''}`} size="formulario">
       <div className="space-y-3">
         <p className="text-sm text-mute">El rol define el máximo; acá podés recortarlo. Lo que desmarques se rechaza también en el servidor, no solo en la pantalla.</p>

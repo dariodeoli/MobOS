@@ -1,17 +1,15 @@
 # Configuración de MobOS — detalle campo por campo
 
 > Relevado el 25/09/2026 sobre `origin/main`. Ruta base `/configuracion/:seccion?` (solo dueño). Secciones y orden: `Mi cuenta` · `Organización` · `Equipo y acceso` · `Comercial` · `Seguridad y auditoría` · `Dispositivos` · `Sistema`. Los slugs viejos (`impresoras`, `negocio`, `identidad`…) redirigen a su sección.
-> El riel de secciones es **uno solo, siempre con texto** (#298; ya no se colapsa a iconos). Patrón transversal: chip «Guardado…» o error donde iría el botón; si el backend pide reautenticación (403) aparece «Confirmá tu contraseña para guardar» → «Contraseña de la empresa» + «Verificar y guardar» (autorización 10 min) y el guardado sigue solo. Aplica a numeración, seguro, límites, datos de tienda, sucursal, sesiones, exportación y permisos.
+> El riel de secciones es **uno solo, siempre con texto** (#298; ya no se colapsa a iconos). **Organización** se divide en secciones por tarea (Datos generales · Identidad visual · Sucursales y depósitos · Datos fiscales · Numeración · Zona de peligro) y **Equipo y acceso** en pestañas (Miembros · Invitaciones · Permisos · Rendimiento) (#299). Los roles se leen siempre con la misma etiqueta (`Dueño`, `Gerente`, …), sin importar el código interno (#299). Patrón transversal: chip «Guardado…» o error donde iría el botón; si el backend pide reautenticación (403) aparece «Confirmá tu contraseña para guardar» → «Contraseña de la empresa» + «Verificar y guardar» (autorización 10 min) y el guardado sigue solo. Aplica a numeración, seguro, límites, datos de tienda, sucursal, sesiones, exportación y permisos.
 
 ## 1. Equipo y acceso (`/configuracion/equipo`) — `control/Vendedores.jsx` + `control/RolesPermisos.jsx`
-- Encabezado: banners de aviso; «+ Invitar persona» (solo pantallas chicas).
-- **Integrantes** (#253): pestañas «Activos (n)»/«Inactivos (n)»; por integrante: nombre editable en línea, correo, sucursal (o «Sin sucursal»), badge Activo/Inactivo, selector de rol, «Historial», «Horario» (con el resumen cargado en el `title` o «Sin horario: acceso libre»), «PIN» (oculto en demo), «Permisos» (oculto en demo/ADMIN), «Desactivar»/«Volver a activar», **meta diaria como chip** con % de cumplimiento, métricas «Hoy», «Comisión hoy», «Mes». Vacíos propios.
-- **Metas y comisiones** (#253): una fila por integrante activo con «Meta diaria» editable, «Hoy», «Cumplimiento (%)», «Comisión hoy» y «Mes» (vendido + comisión del mes); incluye el «Historial mensual por vendedor» y el acceso «Reglas y liquidaciones →» (Finanzas → Comisiones).
-- **Sumar integrante**: modos «Invitar por correo» / «Agregar directamente» (demo oculta modos); formulario: «Nombre», «Correo (opcional)», «Rol», «PIN temporal (4 a 6 dígitos)» + «Agregar», o «Enviar invitación». Aviso de invitación activa con «Reenviar invitación» / «Revocar invitación».
-- **Historial mensual por vendedor** (si hay ventas): mes colapsable con «Vendido {total}»; filas con ventas y «Comisión {monto}».
-- **Comisiones** (sesión real + dueño): «Ir a Finanzas → Comisiones».
-- **Invitaciones** (sesión real): estado (Pendiente/Aceptada/Vencida/Revocada), rol, quién invitó y fechas; «Reenviar», «Invitar de nuevo» (vencidas), «Revocar».
-- **Modales**: Permisos (checkboxes recortables del rol; «Restaurar todo el rol»), Horario de acceso (zona horaria + rangos con días Lu–Do y horas; «+ Rango»), Historial, PIN (generar aleatorio / definir manual; el PIN no se vuelve a mostrar), confirmaciones de desactivar/rol/revocar.
+- **Pestañas (#299)**: «Miembros» · «Invitaciones» · «Permisos» · «Rendimiento». Cada una abre su tarea y no apila el resto.
+- **Miembros** (pestaña por defecto): integrantes activos/inactivos con nombre editable, correo, sucursal, badge Activo/Inactivo, selector de rol, «Historial», «Horario», «PIN» (oculto en demo), «Permisos» (oculto en demo/ADMIN), «Desactivar»/«Volver a activar», meta diaria como chip y métricas de hoy/mes; panel derecho «Sumar integrante» (Invitar por correo / Agregar directamente) con Nombre, Correo, Rol, PIN temporal.
+- **Invitaciones**: listado con estado (Pendiente/Aceptada/Vencida/Revocada), rol, quién invitó y fechas; «Reenviar», «Invitar de nuevo» (vencidas), «Revocar»; y las invitaciones personales pendientes del usuario.
+- **Permisos**: tiles por rol, acordeón «Qué puede hacer» / «Qué no puede» y **Matriz de capacidades** por dominio × rol (solo lectura).
+- **Rendimiento**: metas y comisiones por integrante activo («Hoy», «Cumplimiento (%)», «Comisión hoy», «Mes»), «Reglas y liquidaciones →» (Finanzas → Comisiones) e historial mensual por vendedor.
+- **Modales**: Permisos por integrante, Horario de acceso, Historial, PIN y confirmaciones de desactivar/rol/revocar.
 
 ## 2. Mi identidad (`/configuracion/identidad`) — `MiIdentidad` (Config.jsx)
 - Ficha «Identidad de la cuenta»: avatar, nombre, correo; lista con «Correo del dueño» e «ID del usuario» (cada uno con «Copiar»).
@@ -23,6 +21,7 @@
 - «Matriz de capacidades»: tabla por dominio (Panel, Ventas, Delivery, Catálogo y stock, Pagos, Servicio, Equipo y configuración) × rol (Dueño, Gerente, Vendedor, Cajera, Técnico, Repartidor) con ✓/×. Solo lectura.
 
 ## 4. Negocio (`/configuracion/negocio`) — Config.jsx + `DatosPrivados.jsx`
+- **Secciones (#299)**: «Datos generales» (datos de la tienda) · «Identidad visual» (logo) · «Sucursales y depósitos» (tiendas y sucursales; los depósitos se administran en Inventario → Ubicaciones) · «Datos fiscales» (empresas/personas jurídicas y titulares) · «Numeración» · «Zona de peligro» (archivar/eliminar + confirmar identidad).
 - **Identificador de pedidos**: «Prefijo» (2–3 letras A-Z), «Número inicial» (hasta 8 dígitos), «Guardar numeración»; nota «Los pedidos ya creados conservan su número…».
 - **Seguro y límites** (solo dueño): switch «Seguro de ventas» + «Porcentaje sobre el costo (%)» + «Guardar seguro»; y «Gasto sin autorización (Gs)», «Compra a crédito sin autorización (Gs)», «Bajo lista sin autorización (%)», «Fidelización: puntos por venta (%)», «Recargo por mora (% diario)» + «Guardar límites»; línea «Actual: …».
 - **Logo de la empresa** (solo dueño): PNG 1024×1024 transparente ≤1 MiB; «Copiar prompt»; «Modo claro» = «Logo oscuro, para fondos claros» y «Modo oscuro» = «Logo claro, para fondos oscuros», con preview real, «Subir/Reemplazar», «Quitar» y modal de confirmación.
