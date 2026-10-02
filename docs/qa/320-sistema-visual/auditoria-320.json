@@ -1,0 +1,398 @@
+[
+  {
+    "superficie": "pos",
+    "estado": "desktop",
+    "titulo": "POS",
+    "veces": 1
+  },
+  {
+    "superficie": "pos",
+    "estado": "mobile",
+    "titulo": "POS",
+    "veces": 1
+  },
+  {
+    "superficie": "pos",
+    "estado": "mobile-oscuro",
+    "titulo": "POS",
+    "veces": 1
+  },
+  {
+    "superficie": "pedidos",
+    "estado": "desktop",
+    "titulo": "Mis pedidos",
+    "veces": 1
+  },
+  {
+    "superficie": "pedidos",
+    "estado": "mobile",
+    "titulo": "Mis pedidos",
+    "veces": 1
+  },
+  {
+    "superficie": "pedidos",
+    "estado": "mobile-oscuro",
+    "titulo": "Mis pedidos",
+    "veces": 1
+  },
+  {
+    "superficie": "cotizaciones",
+    "estado": "desktop",
+    "titulo": "Cotizaciones",
+    "veces": 1
+  },
+  {
+    "superficie": "cotizaciones",
+    "estado": "mobile",
+    "titulo": "Cotizaciones",
+    "veces": 1
+  },
+  {
+    "superficie": "cotizaciones",
+    "estado": "mobile-oscuro",
+    "titulo": "Cotizaciones",
+    "veces": 1
+  },
+  {
+    "superficie": "clientes",
+    "estado": "desktop",
+    "titulo": "Clientes",
+    "veces": 1
+  },
+  {
+    "superficie": "clientes",
+    "estado": "mobile",
+    "titulo": "Clientes",
+    "veces": 1
+  },
+  {
+    "superficie": "clientes",
+    "estado": "mobile-oscuro",
+    "titulo": "Clientes",
+    "veces": 1
+  },
+  {
+    "superficie": "productos",
+    "estado": "desktop",
+    "titulo": "Productos",
+    "veces": 1
+  },
+  {
+    "superficie": "productos",
+    "estado": "mobile",
+    "titulo": "Productos",
+    "veces": 1
+  },
+  {
+    "superficie": "productos",
+    "estado": "mobile-oscuro",
+    "titulo": "Productos",
+    "veces": 1
+  },
+  {
+    "superficie": "promociones",
+    "estado": "desktop",
+    "titulo": "Promociones",
+    "veces": 1
+  },
+  {
+    "superficie": "promociones",
+    "estado": "mobile",
+    "titulo": "Promociones",
+    "veces": 1
+  },
+  {
+    "superficie": "promociones",
+    "estado": "mobile-oscuro",
+    "titulo": "Promociones",
+    "veces": 1
+  },
+  {
+    "superficie": "plantillas",
+    "estado": "desktop",
+    "titulo": "Plantillas de WhatsApp",
+    "veces": 1
+  },
+  {
+    "superficie": "plantillas",
+    "estado": "mobile",
+    "titulo": "Plantillas de WhatsApp",
+    "veces": 1
+  },
+  {
+    "superficie": "plantillas",
+    "estado": "mobile-oscuro",
+    "titulo": "Plantillas de WhatsApp",
+    "veces": 1
+  },
+  {
+    "superficie": "precios",
+    "estado": "desktop",
+    "titulo": "Precios",
+    "veces": 1
+  },
+  {
+    "superficie": "precios",
+    "estado": "mobile",
+    "titulo": "Precios",
+    "veces": 1
+  },
+  {
+    "superficie": "precios",
+    "estado": "mobile-oscuro",
+    "titulo": "Precios",
+    "veces": 1
+  },
+  {
+    "superficie": "inventario-unidades",
+    "estado": "desktop",
+    "titulo": "Unidades",
+    "veces": 1
+  },
+  {
+    "superficie": "inventario-unidades",
+    "estado": "mobile",
+    "titulo": "Unidades",
+    "veces": 1
+  },
+  {
+    "superficie": "inventario-unidades",
+    "estado": "mobile-oscuro",
+    "titulo": "Unidades",
+    "veces": 1
+  },
+  {
+    "superficie": "compras",
+    "estado": "desktop",
+    "titulo": "Compras",
+    "veces": 1
+  },
+  {
+    "superficie": "compras",
+    "estado": "mobile",
+    "titulo": "Compras",
+    "veces": 1
+  },
+  {
+    "superficie": "compras",
+    "estado": "mobile-oscuro",
+    "titulo": "Compras",
+    "veces": 1
+  },
+  {
+    "superficie": "delivery",
+    "estado": "desktop",
+    "titulo": "Delivery",
+    "veces": 1
+  },
+  {
+    "superficie": "delivery",
+    "estado": "mobile",
+    "titulo": "Delivery",
+    "veces": 1
+  },
+  {
+    "superficie": "delivery",
+    "estado": "mobile-oscuro",
+    "titulo": "Delivery",
+    "veces": 1
+  },
+  {
+    "superficie": "servicio",
+    "estado": "desktop",
+    "titulo": "Taller",
+    "veces": 1
+  },
+  {
+    "superficie": "servicio",
+    "estado": "mobile",
+    "titulo": "Taller",
+    "veces": 1
+  },
+  {
+    "superficie": "servicio",
+    "estado": "mobile-oscuro",
+    "titulo": "Taller",
+    "veces": 1
+  },
+  {
+    "superficie": "trade-in",
+    "estado": "desktop",
+    "titulo": "Trade-In",
+    "veces": 1
+  },
+  {
+    "superficie": "trade-in",
+    "estado": "mobile",
+    "titulo": "Trade-In",
+    "veces": 1
+  },
+  {
+    "superficie": "trade-in",
+    "estado": "mobile-oscuro",
+    "titulo": "Trade-In",
+    "veces": 1
+  },
+  {
+    "superficie": "autorizaciones",
+    "estado": "desktop",
+    "titulo": "Autorizaciones",
+    "veces": 1
+  },
+  {
+    "superficie": "autorizaciones",
+    "estado": "mobile",
+    "titulo": "Autorizaciones",
+    "veces": 1
+  },
+  {
+    "superficie": "autorizaciones",
+    "estado": "mobile-oscuro",
+    "titulo": "Autorizaciones",
+    "veces": 1
+  },
+  {
+    "superficie": "celulares",
+    "estado": "desktop",
+    "titulo": "Lista por modelo",
+    "veces": 1
+  },
+  {
+    "superficie": "celulares",
+    "estado": "mobile",
+    "titulo": "Lista por modelo",
+    "veces": 1
+  },
+  {
+    "superficie": "celulares",
+    "estado": "mobile-oscuro",
+    "titulo": "Lista por modelo",
+    "veces": 1
+  },
+  {
+    "superficie": "comparador",
+    "estado": "desktop",
+    "titulo": "Comparador",
+    "veces": 1
+  },
+  {
+    "superficie": "comparador",
+    "estado": "mobile",
+    "titulo": "Comparador",
+    "veces": 1
+  },
+  {
+    "superficie": "comparador",
+    "estado": "mobile-oscuro",
+    "titulo": "Comparador",
+    "veces": 1
+  },
+  {
+    "superficie": "inicio",
+    "estado": "desktop",
+    "titulo": "Inicio",
+    "veces": 1
+  },
+  {
+    "superficie": "inicio",
+    "estado": "mobile",
+    "titulo": "Inicio",
+    "veces": 1
+  },
+  {
+    "superficie": "inicio",
+    "estado": "mobile-oscuro",
+    "titulo": "Inicio",
+    "veces": 1
+  },
+  {
+    "superficie": "analisis-reportes",
+    "estado": "desktop",
+    "titulo": "Reportes",
+    "veces": 1
+  },
+  {
+    "superficie": "analisis-reportes",
+    "estado": "mobile",
+    "titulo": "Reportes",
+    "veces": 1
+  },
+  {
+    "superficie": "analisis-reportes",
+    "estado": "mobile-oscuro",
+    "titulo": "Reportes",
+    "veces": 1
+  },
+  {
+    "superficie": "finanzas-caja",
+    "estado": "desktop",
+    "titulo": "Caja",
+    "veces": 1
+  },
+  {
+    "superficie": "finanzas-caja",
+    "estado": "mobile",
+    "titulo": "Caja",
+    "veces": 1
+  },
+  {
+    "superficie": "finanzas-caja",
+    "estado": "mobile-oscuro",
+    "titulo": "Caja",
+    "veces": 1
+  },
+  {
+    "superficie": "configuracion-equipo",
+    "estado": "desktop",
+    "titulo": "Equipo y acceso",
+    "veces": 1
+  },
+  {
+    "superficie": "configuracion-equipo",
+    "estado": "mobile",
+    "titulo": "Equipo y acceso",
+    "veces": 1
+  },
+  {
+    "superficie": "configuracion-equipo",
+    "estado": "mobile-oscuro",
+    "titulo": "Equipo y acceso",
+    "veces": 1
+  },
+  {
+    "superficie": "mi-cuenta",
+    "estado": "desktop",
+    "titulo": "Mi cuenta",
+    "veces": 1
+  },
+  {
+    "superficie": "mi-cuenta",
+    "estado": "mobile",
+    "titulo": "Mi cuenta",
+    "veces": 1
+  },
+  {
+    "superficie": "mi-cuenta",
+    "estado": "mobile-oscuro",
+    "titulo": "Mi cuenta",
+    "veces": 1
+  },
+  {
+    "superficie": "ayuda",
+    "estado": "desktop",
+    "titulo": "Ayuda",
+    "veces": 1
+  },
+  {
+    "superficie": "ayuda",
+    "estado": "mobile",
+    "titulo": "Ayuda",
+    "veces": 1
+  },
+  {
+    "superficie": "ayuda",
+    "estado": "mobile-oscuro",
+    "titulo": "Ayuda",
+    "veces": 1
+  }
+]
