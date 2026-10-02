@@ -85,9 +85,9 @@ error junto al campo, etiquetas visibles y feedback canónico.
 | Nueva orden de servicio (taller) | `src/components/control/ServicioTecnico.jsx:611` | `dirty`; errores por campo (hoy `toast` único); label visible en el selector del catálogo |
 | Catálogo de servicios | `src/components/control/ServicioTecnico.jsx:721` | labels visibles (hoy `aria-label`); `dirty`; pie estándar |
 | Editor de plantilla de WhatsApp | `src/components/control/WhatsAppTemplates.jsx:201` | `dirty`; validación con reglas compartidas |
-| Listas de precios | `src/components/control/Precios.jsx:257` | labels visibles en ítems; `dirty`; el `Aviso` de error hoy queda **detrás del overlay** |
+| Listas de precios | `src/components/control/Precios.jsx:257` | ✅ Adoptado (FIN, #323) — labels visibles por ítem con `FormField`, `dirty` al cerrar y error de validación/guardado dentro del modal (ya no detrás del overlay) |
 | Horario de acceso | `src/components/control/Vendedores.jsx:554` | labels visibles en horas; `dirty`; error adentro |
-| Rechazo de autorización | `src/components/control/Autorizaciones.jsx:616` | `dirty`; motivo con `FormField error` (hoy toast + botón deshabilitado) |
+| Rechazo de autorización | `src/components/control/Autorizaciones.jsx:616` | ✅ Adoptado (FIN, #323) — `dirty` al cerrar y motivo con `FormField error` (sin toast ni botón deshabilitado) |
 | Rechazar rendición | `src/components/delivery/StoreDelivery.jsx:212` | `dirty`; `FormField` |
 | Sucursales (config) | `src/components/config/TiendasSucursales.jsx` | `dirty`; errores por campo |
 | Destructivo (palabra + clave) | `src/components/config/DialogoDestructivo.jsx:16` | `dirty`; errores por campo |

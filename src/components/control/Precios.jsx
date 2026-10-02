@@ -1,15 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { resources } from '@/lib/api'
 import { getProductos } from '@/lib/storage'
 import { num } from '@/utils/calculos'
-import { Aviso, Badge, Button, Card, EmptyState, IconAction, Input, Label, Modal, MoneyInput, Select, useToast } from '@/components/ui'
+import { obligatorio } from 'owncoding-ui/utils'
+import { Aviso, Badge, Button, Card, EmptyState, FormField, IconAction, Input, Modal, MoneyInput, SaveActions, Select, useResultado, useToast, useValidacionCampos } from '@/components/ui'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import Switch from '@/components/shared/Switch'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import BarraModulo from '@/components/shared/BarraModulo'
-import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 
 // Gestión de precios: listas por cliente (con ítems por producto o categoría y
 // descuento/recargo) y precios por cantidad. El POS resuelve con la prioridad
@@ -20,10 +21,16 @@ const tierVacio = () => ({ minQuantity: '', unitPricePyg: '' })
 export default function Precios() {
   const { sesion, esDemo } = useSesion()
   const toast = useToast()
+  const avisar = useResultado()
   const [listas, setListas] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [editor, setEditor] = useState(null) // { id?, name, isActive, items }
+  // #323: la base del formulario separa «cambios sin guardar» de la foto inicial
+  // (el cierre con cambios pide confirmación) y el error de guardado vive
+  // dentro del modal, no detrás del overlay.
+  const editorBase = useRef('')
+  const [errorLista, setErrorLista] = useState('')
   const [productoTier, setProductoTier] = useState('')
   const [filasTier, setFilasTier] = useState([])
   const [busy, setBusy] = useState(false)
@@ -90,36 +97,70 @@ export default function Precios() {
     } catch { /* la búsqueda del servidor es un extra */ }
   }
 
+  // #323: reglas por campo del formulario. Los ítems llevan su error junto al
+  // control (producto/categoría y porcentaje) con las reglas compartidas.
+  const reglasLista = useMemo(() => {
+    const reglas = { nombre: [obligatorio('Escribí el nombre de la lista.')] }
+    ;(editor?.items || []).forEach((item, index) => {
+      if (item.scope === 'PRODUCT') reglas[`item-${index}-producto`] = [obligatorio('Elegí el producto de cada ítem o quitalo.')]
+      else reglas[`item-${index}-categoria`] = [obligatorio('Elegí la categoría de cada ítem o quitalo.')]
+      reglas[`item-${index}-porcentaje`] = [(valor) => {
+        const numero = parsePercent(valor)
+        return numero === null || numero <= 0 || numero > 100
+          ? 'El porcentaje de cada ítem debe estar entre 0 y 100.'
+          : ''
+      }]
+    })
+    return reglas
+  }, [editor])
+  const { errorDe, validar, limpiar } = useValidacionCampos(reglasLista)
+  const editorDirty = Boolean(editor) && JSON.stringify(editor) !== editorBase.current
+
   function abrirLista(lista = null) {
     setError('')
-    setEditor(lista
+    setErrorLista('')
+    limpiar()
+    const siguiente = lista
       ? { id: lista.id, name: lista.name, isActive: lista.isActive !== false, items: (lista.items || []).map(item => ({ scope: item.scope === 'CATEGORY' ? 'CATEGORY' : 'PRODUCT', productId: item.productId || '', category: item.category || '', valuePct: formatPercent(Number(item.discountPct) || 0) })) }
-      : { id: null, name: '', isActive: true, items: [] })
+      : { id: null, name: '', isActive: true, items: [] }
+    editorBase.current = JSON.stringify(siguiente)
+    setEditor(siguiente)
   }
   const nombreProducto = (id) => productos.find(p => p.id === id)?.nombre || productos.find(p => p.id === id)?.name || 'Producto'
 
   async function guardarLista(event) {
     event.preventDefault()
     if (!editor || busy) return
-    const items = []
-    for (const item of editor.items) {
-      if (item.scope === 'PRODUCT' && !item.productId) return setError('Elegí el producto de cada ítem o quitalo.')
-      if (item.scope === 'CATEGORY' && !item.category) return setError('Elegí la categoría de cada ítem o quitalo.')
-      const valuePct = parsePercent(item.valuePct)
-      if (valuePct === null || valuePct <= 0 || valuePct > 100) return setError('El porcentaje de cada ítem debe estar entre 0 y 100.')
-      items.push({ scope: item.scope, productId: item.scope === 'PRODUCT' ? item.productId : null, category: item.scope === 'CATEGORY' ? item.category : null, discountPct: valuePct })
-    }
-    setBusy(true); setError('')
+    const valores = { nombre: editor.name.trim() }
+    editor.items.forEach((item, index) => {
+      if (item.scope === 'PRODUCT') valores[`item-${index}-producto`] = item.productId
+      else valores[`item-${index}-categoria`] = item.category
+      valores[`item-${index}-porcentaje`] = item.valuePct
+    })
+    if (!validar(valores).valido) return
+    const items = editor.items.map(item => ({
+      scope: item.scope,
+      productId: item.scope === 'PRODUCT' ? item.productId : null,
+      category: item.scope === 'CATEGORY' ? item.category : null,
+      discountPct: parsePercent(item.valuePct),
+    }))
+    setBusy(true); setError(''); setErrorLista('')
     try {
       const payload = { name: editor.name.trim(), isActive: editor.isActive, items }
       if (editor.id) await resources.priceLists.update({ id: editor.id, ...payload, replaceItems: true })
       else await resources.priceLists.create(payload)
       setEditor(null)
-      toast.success(editor.id ? 'Lista actualizada.' : 'Lista creada.')
+      avisar.guardado('Lista')
       await cargar()
     } catch (cause) {
-      setError(cause?.message || 'No se pudo guardar la lista.')
+      setErrorLista(cause?.message || 'No se pudo guardar la lista.')
     } finally { setBusy(false) }
+  }
+
+  // Cambio de un ítem: limpia el error del campo tocado y actualiza la fila.
+  function cambiarItem(index, cambios, camposError = []) {
+    for (const campo of camposError) limpiar(campo)
+    setEditor(current => ({ ...current, items: current.items.map((row, i) => i === index ? { ...row, ...cambios } : row) }))
   }
 
   async function alternarLista(lista) {
@@ -254,28 +295,52 @@ export default function Precios() {
       </form>}
     </Card>
 
-    <Modal open={editor !== null} onClose={() => !busy && setEditor(null)} title={editor?.id ? 'Editar lista de precios' : 'Nueva lista de precios'} size="amplio">
+    <Modal
+      open={editor !== null}
+      onClose={() => setEditor(null)}
+      dirty={editorDirty}
+      busy={busy}
+      title={editor?.id ? 'Editar lista de precios' : 'Nueva lista de precios'}
+      size="amplio"
+    >
       {editor && <form onSubmit={guardarLista} className="space-y-4">
         <div className={GRILLA_DOS_COLUMNAS}>
-          <div>
-            <Label htmlFor="lista-nombre">Nombre</Label><Input id="lista-nombre" required value={editor.name} onChange={event => setEditor(current => ({ ...current, name: event.target.value }))} placeholder="Mayorista VIP, Empresas…" />
-          </div>
+          <FormField label="Nombre" htmlFor="lista-nombre" error={errorDe('nombre')}>
+            <Input id="lista-nombre" value={editor.name} onChange={event => { limpiar('nombre'); setEditor(current => ({ ...current, name: event.target.value })) }} placeholder="Mayorista VIP, Empresas…" />
+          </FormField>
           <label className="flex items-center gap-2 self-end text-sm text-mute"><Switch checked={editor.isActive} onChange={event => setEditor(current => ({ ...current, isActive: event.target.checked }))} />Lista activa</label>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-3">
           <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Ítems</p>
-          {editor.items.map((item, index) => <div key={index} className="grid gap-2 rounded-xl border border-ink-600 p-2 sm:grid-cols-[7rem_minmax(10rem,1fr)_7rem_2.75rem] sm:items-center">
-            <Select aria-label="Tipo de ítem" value={item.scope} onChange={event => setEditor(current => ({ ...current, items: current.items.map((row, i) => i === index ? { ...itemVacio(), scope: event.target.value } : row) }))}><option value="PRODUCT">Producto</option><option value="CATEGORY">Categoría</option></Select>
-            {item.scope === 'PRODUCT'
-              ? <ProductCombobox products={productos} selectedId={item.productId} onQueryChange={buscarProductos} onSelect={product => setEditor(current => ({ ...current, items: current.items.map((row, i) => i === index ? { ...row, productId: product.id } : row) }))} placeholder="Producto…" />
-              : <Select aria-label="Categoría" value={item.category} onChange={event => setEditor(current => ({ ...current, items: current.items.map((row, i) => i === index ? { ...row, category: event.target.value } : row) }))}><option value="">Elegí categoría</option>{categorias.map(categoria => <option key={categoria} value={categoria}>{categoria}</option>)}</Select>}
-            <PercentField aria-label="Porcentaje" value={item.valuePct} onChange={value => setEditor(current => ({ ...current, items: current.items.map((row, i) => i === index ? { ...row, valuePct: value } : row) }))} />
-            <IconAction icon="trash" tone="bad" label="Quitar ítem" onClick={() => setEditor(current => ({ ...current, items: current.items.filter((_, i) => i !== index) }))} />
-          </div>)}
+          {editor.items.map((item, index) => (
+            <div key={index} className="grid gap-2 rounded-xl border border-ink-600 p-3 sm:grid-cols-[7rem_minmax(10rem,1fr)_8rem_2.75rem] sm:items-end">
+              <FormField label="Tipo" htmlFor={`item-${index}-tipo`}>
+                <Select id={`item-${index}-tipo`} value={item.scope} onChange={event => cambiarItem(index, { ...itemVacio(), scope: event.target.value }, [`item-${index}-producto`, `item-${index}-categoria`])}><option value="PRODUCT">Producto</option><option value="CATEGORY">Categoría</option></Select>
+              </FormField>
+              {item.scope === 'PRODUCT'
+                ? (
+                  <FormField label="Producto" descripcionId={`item-${index}-producto-descripcion`} error={errorDe(`item-${index}-producto`)}>
+                    <ProductCombobox products={productos} selectedId={item.productId} onQueryChange={buscarProductos} onSelect={product => cambiarItem(index, { productId: product.id }, [`item-${index}-producto`])} placeholder="Producto…" />
+                  </FormField>
+                )
+                : (
+                  <FormField label="Categoría" htmlFor={`item-${index}-categoria`} error={errorDe(`item-${index}-categoria`)}>
+                    <Select id={`item-${index}-categoria`} value={item.category} onChange={event => cambiarItem(index, { category: event.target.value }, [`item-${index}-categoria`])}><option value="">Elegí categoría</option>{categorias.map(categoria => <option key={categoria} value={categoria}>{categoria}</option>)}</Select>
+                  </FormField>
+                )}
+              <FormField label="Porcentaje" htmlFor={`item-${index}-porcentaje`} error={errorDe(`item-${index}-porcentaje`)}>
+                <PercentField id={`item-${index}-porcentaje`} value={item.valuePct} onChange={value => cambiarItem(index, { valuePct: value }, [`item-${index}-porcentaje`])} />
+              </FormField>
+              <IconAction icon="trash" tone="bad" label="Quitar ítem" onClick={() => { limpiar(); setEditor(current => ({ ...current, items: current.items.filter((_, i) => i !== index) })) }} />
+            </div>
+          ))}
           {!editor.items.length && <p className="text-sm text-mute">Sin ítems, la lista no cambia ningún precio.</p>}
-          <Button type="button" variant="outline" onClick={() => setEditor(current => ({ ...current, items: [...current.items, itemVacio()] }))}>+ Ítem</Button>
+          <Button type="button" variant="outline" onClick={() => { limpiar(); setEditor(current => ({ ...current, items: [...current.items, itemVacio()] })) }}>+ Ítem</Button>
         </div>
-        <div className={PIE_ACCIONES}><Button type="button" variant="ghost" onClick={() => setEditor(null)} disabled={busy}>Cancelar</Button><Button type="submit" disabled={busy || !editor.name.trim()}>{busy ? 'Guardando…' : 'Guardar lista'}</Button></div>
+        {errorLista && <Aviso tono="error">{errorLista}</Aviso>}
+        <SaveActions pendiente={busy}>
+          <Button type="submit" disabled={busy || !editor.name.trim()}>{busy ? 'Guardando…' : 'Guardar lista'}</Button>
+        </SaveActions>
       </form>}
     </Modal>
 

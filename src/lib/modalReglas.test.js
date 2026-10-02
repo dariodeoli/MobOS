@@ -76,3 +76,18 @@ test('los modales de CRM/INV/PRN pendientes quedan documentados (#323)', () => {
   }
   assert.ok(doc.includes('CRM') && doc.includes('INV') && doc.includes('PRN'))
 })
+
+test('los modales de FIN adoptan cierre con cambios y error junto al campo (#323)', () => {
+  const precios = leer('../components/control/Precios.jsx')
+  assert.ok(precios.includes('dirty={editorDirty}'), 'Precios confirma al cerrar con cambios')
+  assert.ok(precios.includes('useValidacionCampos') && precios.includes('errorDe('), 'Precios valida junto al campo')
+  assert.ok(precios.includes('<SaveActions'), 'el pie de Precios se monta en el pie fijo del diálogo')
+  assert.ok(!precios.includes("setError('Elegí el producto"), 'el error de ítem ya no va al Aviso de página (quedaba detrás del overlay)')
+  assert.ok(precios.includes('avisar.guardado('), 'el guardado avisa con el resultado canónico')
+
+  const autorizaciones = leer('../components/control/Autorizaciones.jsx')
+  assert.ok(autorizaciones.includes('dirty={Boolean(rejectTarget)'), 'el rechazo confirma al cerrar con motivo')
+  assert.ok(autorizaciones.includes("error={errorDe('motivo')}"), 'el motivo se valida junto al campo')
+  assert.ok(!autorizaciones.includes("toast.error('Motivo obligatorio'"), 'el motivo ya no usa toast')
+  assert.ok(!autorizaciones.includes('disabled={busy || !rejectNote.trim()}'), 'el motivo vacío no deshabilita el botón')
+})
