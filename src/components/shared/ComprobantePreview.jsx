@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Aviso, Button, ConfirmDialog, Modal, useToast } from '@/components/ui'
+import { Aviso, Button, ConfirmDialog, Modal, useResultado, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import CompartirImagen from '@/components/shared/CompartirImagen'
 import VistaPreviaPapel from '@/components/shared/VistaPreviaPapel'
@@ -33,6 +33,7 @@ import { ticketComprobante } from '@/lib/printing/tickets'
 // ve coincida con lo que sale impreso, sin franjas blancas a los costados.
 export default function ComprobantePreview({ order, open, onClose, formatos = FORMATOS_COMPROBANTE }) {
   const toast = useToast()
+  const avisar = useResultado()
   const inicial = (() => {
     const preferido = formatoPreferido()
     // #209: si no hay preferencia global, vale el último formato usado para
@@ -164,19 +165,19 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
     const resultado = await imprimirDocumento(ticketComprobante(order, { nivel, ancho, link, logo }), { tipo: 'comprobante', ref: referencia, reimprimir })
     setEnviando(false)
     if (resultado.duplicado) { setPreguntaDuplicado({ mensaje: resultado.error }); return }
-    if (!resultado.ok) { toast.error('No se pudo imprimir', resultado.error || 'Revisá la impresora.'); return }
+    if (!resultado.ok) { avisar.fallo('imprimir', resultado.error || 'Revisá la impresora.'); return }
     if (resultado.encolado) {
       // La cola local se confirma con «Ya salió el papel»; la del puente se
       // confirma desde Configuración → Impresoras (ahí está el número secreto).
       setJobEncColado(resultado.remoto ? null : (resultado.jobId || null))
       cargarPendientes()
-      toast.success(
-        resultado.remoto ? 'Comprobante encolado al puente' : 'Comprobante encolado',
-        resultado.remoto ? 'Lo imprime el puente cuando lo reclame.' : 'La impresora no respondió; el agente reintenta solo.',
+      avisar.impreso(
+        'Comprobante',
+        resultado.remoto ? 'Quedó en la cola del puente: lo imprime cuando lo reclame.' : 'La impresora no respondió; el agente reintenta solo.',
       )
     } else {
       setJobEncColado(null)
-      toast.success('Comprobante enviado a la impresora', '')
+      avisar.impreso('Comprobante')
     }
   }
 

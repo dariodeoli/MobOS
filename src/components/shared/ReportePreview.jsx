@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button, Modal, Select, useToast } from '@/components/ui'
+import { Button, Modal, Select, useResultado } from '@/components/ui'
 import { printHtml } from '@/utils/printHtml'
 import VistaPreviaPapel from '@/components/shared/VistaPreviaPapel'
 import { cargarImpresorasRemotas, configImpresora, estadoAgente, imprimirConDestino, impresoraPredeterminada, puedeCaerAlDialogo } from '@/lib/printing/agent'
@@ -13,7 +13,7 @@ export const FORMATOS_REPORTE = [['a4', 'A4'], ['thermal-80', '80 mm'], ['therma
 const anchoDeFormato = (formato) => (formato === 'thermal-80' ? 80 : formato === 'thermal-58' ? 58 : null)
 
 export default function ReportePreview({ open, onClose, titulo = 'Reporte', formatoInicial = 'a4', construir, directo }) {
-  const toast = useToast()
+  const avisar = useResultado()
   const [formato, setFormato] = useState(formatoInicial)
   const [html, setHtml] = useState('')
   const [cargando, setCargando] = useState(false)
@@ -55,12 +55,12 @@ export default function ReportePreview({ open, onClose, titulo = 'Reporte', form
       const config = configImpresora()
       const resultado = await directoRef.current({ ancho: anchoDeFormato(formato) || config.ancho, formato })
       if (resultado?.ok) {
-        if (resultado.encolado) toast.success('Reporte encolado', resultado.remoto ? 'Lo imprime el puente cuando lo reclame.' : 'La impresora no respondió; se reintenta solo.')
-        else toast.success('Reporte enviado a la impresora', '')
+        if (resultado.encolado) avisar.impreso('Reporte', resultado.remoto ? 'Quedó en la cola del puente: lo imprime cuando lo reclame.' : 'La impresora no respondió; se reintenta solo.')
+        else avisar.impreso('Reporte')
         return
       }
       if (puedeCaerAlDialogo(resultado)) { imprimir(); return }
-      toast.error('No se pudo imprimir', resultado?.error || 'Revisá la impresora.')
+      avisar.fallo('imprimir', resultado?.error || 'Revisá la impresora.')
     } finally {
       setEnviando(false)
     }

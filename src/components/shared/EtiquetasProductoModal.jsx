@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Input, Modal, useToast } from '@/components/ui'
+import { Button, FormActions, Input, Modal, useResultado } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
 import { gs } from '@/utils/calculos'
@@ -10,7 +10,6 @@ import { buildProductLabelsHtml } from '@/components/shared/OrderReceipt'
 import CompartirImagen from '@/components/shared/CompartirImagen'
 import { CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
-import { PIE_ACCIONES } from '@/components/shared/formulario'
 
 // Etiquetas de producto/góndola: se eligen productos (o un rango por búsqueda),
 // se define cuántas etiquetas por producto y salen por la térmica configurada
@@ -22,7 +21,7 @@ const precioDe = (product) => Number(product?.precioEtiqueta ?? product?.precioP
 const formatosPorAncho = (ancho) => (Number(ancho) === 80 ? 'thermal-80' : 'thermal-58')
 
 export default function EtiquetasProductoModal({ open, onClose, productos = [], seleccionInicial = [] }) {
-  const toast = useToast()
+  const avisar = useResultado()
   const [query, setQuery] = useState('')
   const [elegidos, setElegidos] = useState([])
   const [cantidades, setCantidades] = useState({})
@@ -68,12 +67,12 @@ export default function EtiquetasProductoModal({ open, onClose, productos = [], 
       const { ancho } = configImpresora()
       const resultado = await imprimirDocumento(ticketEtiquetasProducto(items, { ancho }), { tipo: 'etiquetas-producto' })
       if (resultado?.ok) {
-        if (resultado.encolado) toast.success('Etiquetas encoladas', resultado.remoto ? 'Las imprime el puente cuando las reclame.' : 'La impresora no respondió; se reintenta solo.')
-        else toast.success('Etiquetas enviadas', `${totalEtiquetas} etiqueta(s) de ${items.length} producto(s).`)
+        if (resultado.encolado) avisar.impreso('Etiquetas', resultado.remoto ? 'Quedaron en la cola del puente: las imprime cuando las reclame.' : 'La impresora no respondió; se reintenta solo.')
+        else avisar.impreso('Etiquetas', `${totalEtiquetas} etiqueta(s) de ${items.length} producto(s).`)
         return
       }
       if (puedeCaerAlDialogo(resultado)) { await conDialogo(); return }
-      toast.error('No se pudo imprimir', resultado?.error || 'Revisá la impresora.')
+      avisar.fallo('imprimir', resultado?.error || 'Revisá la impresora.')
     } finally {
       setEnviando(false)
     }
@@ -108,7 +107,7 @@ export default function EtiquetasProductoModal({ open, onClose, productos = [], 
           {!visibles.length && <p className="px-2 py-6 text-center text-sm text-mute">Ningún producto coincide con la búsqueda.</p>}
         </div>
         {items.length > 0 && <p className="text-xs text-mute">{items.length} producto(s) · {totalEtiquetas} etiqueta(s) en total.</p>}
-        <div className={PIE_ACCIONES}>
+        <FormActions>
           <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
           <CompartirImagen
             construirHtml={() => buildProductLabelsHtml(items, { format: formatosPorAncho(configImpresora().ancho) })}
@@ -120,7 +119,7 @@ export default function EtiquetasProductoModal({ open, onClose, productos = [], 
           />
           <Button type="button" variant="outline" disabled={!items.length || enviando} onClick={conDialogo}><Icon name="download" className="h-4 w-4" />Descargar PDF</Button>
           <Button type="button" disabled={!items.length || enviando} onClick={imprimir}><Icon name="printer" className="h-4 w-4" />{enviando ? 'Enviando…' : 'Imprimir etiquetas'}</Button>
-        </div>
+        </FormActions>
       </div>
     </Modal>
   )

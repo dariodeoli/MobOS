@@ -175,8 +175,10 @@ test('escapeHtml se define una sola vez (plantillas de impresión)', () => {
 test('las piezas de formulario salen de shared/formulario', () => {
   const formulario = readFileSync(join(RAIZ, 'components/shared/formulario.js'), 'utf8')
   for (const nombre of ['GRILLA_DOS_COLUMNAS', 'PIE_ACCIONES', 'PIE_ACCIONES_REVERSO']) {
-    assert.match(formulario, new RegExp(`export const ${nombre} =`), `falta ${nombre}`)
+    assert.match(formulario, new RegExp(`\\b${nombre}\\b`), `falta ${nombre}`)
   }
+  // #323: las piezas viven en la biblioteca y la app las re-exporta.
+  assert.match(formulario, /from 'owncoding-ui\/utils'/, 'las piezas salen de la biblioteca')
   const culpables = archivosFuente()
     .filter(({ ruta, contenido }) => !ruta.endsWith('components/shared/formulario.js') && /className="[^"]*(grid gap-3 sm:grid-cols-2|flex flex-wrap justify-end gap-2|flex flex-col-reverse gap-2 sm:flex-row sm:justify-end)/.test(contenido))
     .map(({ ruta }) => ruta)

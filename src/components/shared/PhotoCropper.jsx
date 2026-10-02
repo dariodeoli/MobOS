@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button, Modal } from '@/components/ui'
+import { Button, FormActions, Modal } from '@/components/ui'
 import { LADO_FOTO, escalaAjuste, recorteCuadrado, recortarArchivo } from '@/utils/recorte'
 
 // Recorte de foto antes de subir: al abrir la foto entra ENTERA (contain), sin
@@ -52,8 +52,11 @@ export default function PhotoCropper({ file, onCancel, onCropped, lado = LADO_FO
     } finally { setRecortando(false) }
   }
 
+  // El encuadre arranca centrado y sin zoom: apenas se mueve o se acerca,
+  // cerrar descarta trabajo y el objeto pide confirmación (#323).
+  const dirty = Boolean(file) && (zoom !== 1 || desplazamiento.x !== 0 || desplazamiento.y !== 0)
   return (
-    <Modal open={Boolean(file)} onClose={onCancel} title="Recortar foto" size="corto">
+    <Modal open={Boolean(file)} dirty={dirty} onClose={onCancel} title="Recortar foto" size="corto">
       <div className="space-y-3">
         <p className="text-sm text-mute">La foto entra completa: arrastrá para mover y usá el zoom para acercar (hasta 3×). El recorte queda cuadrado, como se ve en la app.</p>
         <div
@@ -83,10 +86,10 @@ export default function PhotoCropper({ file, onCancel, onCropped, lado = LADO_FO
           <input type="range" min="1" max="3" step="0.05" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="mt-1 w-full accent-fono" />
         </label>
         {error && <p role="alert" className="text-sm text-bad">{error}</p>}
-        <div className="flex justify-end gap-2">
+        <FormActions>
           <Button type="button" variant="ghost" onClick={onCancel} disabled={recortando}>Cancelar</Button>
           <Button type="button" onClick={confirmar} disabled={recortando || !tamano.ancho}>{recortando ? 'Recortando…' : 'Usar esta foto'}</Button>
-        </div>
+        </FormActions>
       </div>
     </Modal>
   )
