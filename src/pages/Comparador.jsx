@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { listCelulares, rankCelular, rankCapacidad, getComparadorImagenes } from '@/lib/storage'
 import { useLive } from '@/hooks/useLive'
 import { gs } from '@/utils/calculos'
 import { colorHex } from '@/utils/colores'
 import { cn } from '@/lib/utils'
-import { Select } from '@/components/ui'
+import { Button, Select } from '@/components/ui'
 import BarraModulo from '@/components/shared/BarraModulo'
 import Icon from '@/components/shared/Icon'
 
@@ -93,6 +94,7 @@ function Columna({ info, valor, onModelo, onColor, modelos }) {
 
 export default function Comparador() {
   useLive()
+  const navigate = useNavigate()
   const [condicion, setCondicion] = useState('Nuevo')
 
   const activos = useMemo(
@@ -187,6 +189,11 @@ export default function Comparador() {
             </button>
           ))}
         </div>
+        {/* #303: las fotos reales se cargan en el Centro de Control; el acceso
+            queda a mano desde la pantalla que las menciona. */}
+        <Button variant="outline" onClick={() => navigate('/centro-control?seccion=imagenes')} data-testid="ir-centro-control">
+          <Icon name="settings" className="h-4 w-4" />Centro de Control
+        </Button>
       </BarraModulo>
 
       <main className="mx-auto max-w-5xl space-y-5 p-4">
@@ -198,8 +205,11 @@ export default function Comparador() {
             <p className="text-sm">
               No hay modelos {condicion === 'Nuevo' ? 'nuevos' : 'semi-nuevos'} cargados.
               <br />
-              Cargalos desde el Centro de Control Celulares.
+              Cargalos en el Centro de Control Celulares y aparecen acá.
             </p>
+            <div className="mt-4 flex justify-center">
+              <Button variant="outline" onClick={() => navigate('/centro-control')}>Abrir Centro de Control</Button>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

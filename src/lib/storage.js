@@ -16,7 +16,7 @@ import { isDemoRuntime } from './demoMode'
 import { tomarNumeroPedidoDemo } from './demoTenant.js'
 import { marcarUnidadesVendidasDemo, listDemoUnits } from './demoInventory.js'
 import { guardarDemo } from './demoStorage.js'
-import { MEDIOS_PAGO } from './catalog'
+import { ESTADOS_CELULAR, LINEUP_NUEVO, LINEUP_SEMINUEVO, MEDIOS_PAGO } from './catalog'
 import { guardarSnapshotCatalogo, leerSnapshotCatalogo } from './offline/snapshot'
 import { skuDemo } from './demo/sku.js'
 import { ventasDemoLegacy } from './demo/ventas.js'
@@ -824,10 +824,25 @@ export function prepararDatosDemo() {
       ? venta
       : { ...venta, orderNumber: tomarNumeroPedidoDemo() })
   }
+  if (version < 8) {
+    // #303: la Lista por modelo y el Comparador también arrancan con el
+    // catálogo ficticio del demo; antes quedaban vacíos sin forma de cargarlos.
+    if (!cache.celulares.length) {
+      cache.celulares = IPHONES_DEMO.map((item, indice) => ({
+        id: `demo-celular-${indice + 1}`,
+        modelo: item.atributos.modelo,
+        capacidad: item.atributos.capacidad,
+        color: item.atributos.color,
+        estado: item.atributos.estado,
+        precio: item.precioVenta,
+        activo: true,
+      }))
+    }
+  }
   cache.config = {
     ...cache.config,
     nombreTienda: cache.config.nombreTienda || 'Aurora Móviles',
-    demoSeedVersion: 7,
+    demoSeedVersion: 8,
   }
   persistMirror()
   notify()
@@ -1037,6 +1052,66 @@ export function listCelulares() {
   return cache.celulares
 }
 
+// #303: administración de la lista por modelo desde el Centro de Control.
+// Es la capa local del demo (y del modo legacy): en una cuenta API la
+// pantalla muestra su aviso, porque todavía no hay endpoints de esta colección.
+const idCelular = () => `cel-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+
+export function addCelular(datos = {}) {
+  if (apiMode()) throw new Error('La lista por modelo se administra desde el Centro de Control y todavía no tiene API.')
+  const nuevo = {
+    id: idCelular(),
+    modelo: String(datos.modelo || '').trim(),
+    capacidad: String(datos.capacidad || '').trim(),
+    color: String(datos.color || '').trim(),
+    estado: ESTADOS_CELULAR.includes(datos.estado) ? datos.estado : ESTADOS_CELULAR[0],
+    precio: num(datos.precio),
+    activo: datos.activo !== false,
+  }
+  if (!nuevo.modelo || !nuevo.capacidad) throw new Error('Modelo y capacidad son obligatorios.')
+  entUpsert('celulares', nuevo)
+  return nuevo
+}
+
+export function updateCelular(id, cambios = {}) {
+  if (apiMode()) throw new Error('La lista por modelo se administra desde el Centro de Control y todavía no tiene API.')
+  const actual = cache.celulares.find(c => c.id === id)
+  if (!actual) return null
+  const actualizado = {
+    ...actual,
+    ...cambios,
+    ...(cambios.precio !== undefined ? { precio: num(cambios.precio) } : {}),
+    ...(cambios.estado !== undefined && !ESTADOS_CELULAR.includes(cambios.estado) ? { estado: actual.estado } : {}),
+  }
+  entUpsert('celulares', actualizado)
+  return actualizado
+}
+
+export function deleteCelular(id) {
+  if (apiMode()) throw new Error('La lista por modelo se administra desde el Centro de Control y todavía no tiene API.')
+  entDelete('celulares', id)
+}
+
+// Carga el lineup de iPhone (nuevos y semi-nuevos) sin precio: el propietario
+// lo completa. No duplica filas existentes por estado + modelo + capacidad.
+export function cargarLineupIphone() {
+  if (apiMode()) throw new Error('La lista por modelo se administra desde el Centro de Control y todavía no tiene API.')
+  const existentes = new Set(cache.celulares.map(c => `${c.estado}|${c.modelo}|${c.capacidad}`.toLowerCase()))
+  let agregados = 0
+  for (const [estado, lineup] of [['Nuevo', LINEUP_NUEVO], ['Seminuevo', LINEUP_SEMINUEVO]]) {
+    for (const [modelo, capacidades] of lineup) {
+      for (const capacidad of capacidades) {
+        const clave = `${estado}|${modelo}|${capacidad}`.toLowerCase()
+        if (existentes.has(clave)) continue
+        existentes.add(clave)
+        entUpsert('celulares', { id: idCelular(), modelo, capacidad, color: '', estado, precio: 0, activo: true })
+        agregados += 1
+      }
+    }
+  }
+  return agregados
+}
+
 // ── TRADE-IN ────────────────────────────────────────────────────────
 export function getTradein() {
   return { ...clone(TRADEIN_DEFAULT), ...cache.tradein }
@@ -1054,4 +1129,32 @@ export function getComparadorImagenes() {
     map[r.modelo][r.color] = r.img
   }
   return map
+}
+
+// Registros crudos (con id) para administrarlos desde el Centro de Control.
+export function listComparadorImagenes() {
+  return cache.comparadorImg || []
+}
+
+// #303: alta/borrado de fotos desde el Centro de Control. Cada foto es un
+// registro por modelo + color (guardar una no pisa las demás).
+export function setComparadorImagen(modelo, color, img) {
+  if (apiMode()) throw new Error('Las fotos del comparador se administran desde el Centro de Control y todavía no tienen API.')
+  const nombreModelo = String(modelo || '').trim()
+  const nombreColor = String(color || '').trim()
+  if (!nombreModelo || !nombreColor || !img) throw new Error('Elegí el modelo, el color y la foto.')
+  const actual = (cache.comparadorImg || []).find(r => r.modelo === nombreModelo && r.color === nombreColor)
+  const registro = {
+    id: actual?.id || `cmp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+    modelo: nombreModelo,
+    color: nombreColor,
+    img,
+  }
+  entUpsert('comparadorImg', registro)
+  return registro
+}
+
+export function deleteComparadorImagen(id) {
+  if (apiMode()) throw new Error('Las fotos del comparador se administran desde el Centro de Control y todavía no tienen API.')
+  entDelete('comparadorImg', id)
 }

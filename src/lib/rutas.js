@@ -40,6 +40,8 @@ export const RUTA_DE_VISTA = {
   'mi-cuenta': '/mi-cuenta',
   celulares: '/celulares',
   comparador: '/comparador',
+  // #303: administración de la lista por modelo y las fotos del comparador.
+  'centro-control': '/centro-control',
 }
 
 // URL canónica de una vista; null si el id no existe.
@@ -129,4 +131,5 @@ export const DESTINO_LEGADO = {
   imagenes: '/productos',
   celulares: '/celulares',
   comparador: '/comparador',
+  'centro-control': '/centro-control',
 }

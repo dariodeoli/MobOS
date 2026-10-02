@@ -118,6 +118,11 @@ export default function Celulares() {
         <Button variant="outline" onClick={() => navigate('/comparador')}>
           <Icon name="report" className="h-4 w-4" />Comparar
         </Button>
+        {/* #303: el Centro de Control es la fuente de esta lista y se llega
+            desde acá, además del menú y la búsqueda. */}
+        <Button variant="outline" onClick={() => navigate('/centro-control')} data-testid="ir-centro-control">
+          <Icon name="settings" className="h-4 w-4" />Centro de Control
+        </Button>
       </BarraModulo>
 
       <main className="mx-auto max-w-3xl space-y-4">
@@ -129,8 +134,11 @@ export default function Celulares() {
             <p className="text-sm">
               Todavía no hay precios cargados.
               <br />
-              El propietario los carga desde el Centro de Control Celulares.
+              Cargalos en el Centro de Control Celulares y aparecen acá.
             </p>
+            <div className="mt-4 flex justify-center">
+              <Button variant="outline" onClick={() => navigate('/centro-control')}>Abrir Centro de Control</Button>
+            </div>
           </Card>
         )}
 

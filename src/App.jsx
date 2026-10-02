@@ -367,6 +367,8 @@ export default function App() {
           <Route path="/pos/:vista/:orderId?" element={<AreaProtegida><PosRedirect /></AreaProtegida>} />
           <Route path="/celulares" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           <Route path="/comparador" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
+          {/* #303: Centro de Control (lista por modelo y fotos del comparador). */}
+          <Route path="/centro-control" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           <Route path="/tradein" element={<Navigate to="/trade-in" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
                     <Route path="/u/:serial" element={<InformePublico />} />
