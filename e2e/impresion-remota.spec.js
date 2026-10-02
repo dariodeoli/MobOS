@@ -334,6 +334,12 @@ test.describe('impresión remota: configuración', () => {
 // (el resumen del sistema usa lg:grid-cols-4 y también muestra nombres).
 const tarjetaDe = (page, texto) => page.locator('xpath=//div[contains(@class, "lg:grid-cols-2")]/div').filter({ hasText: texto })
 
+// #319: las acciones secundarias de la tarjeta viven en «…».
+const abrirAccion = async (tarjeta, opcion) => {
+  await tarjeta.getByRole('button', { name: /^Más acciones de/ }).click()
+  await tarjeta.getByRole('menuitem', { name: opcion }).click()
+}
+
 test.describe('impresión remota: cola con puente falso', () => {
   test('ADMIN vincula el puente y la prueba remota se confirma con el sufijo del papel', async ({ page }) => {
     // Nombre único por corrida: la validación de 4 dígitos puede repetirse entre
@@ -862,7 +868,7 @@ test.describe('impresión remota: cola con puente falso', () => {
     await expect(tarjeta).toBeVisible({ timeout: 20_000 })
     await tarjeta.getByRole('button', { name: 'Imprimir prueba' }).click()
     await page.getByRole('dialog').getByRole('button', { name: 'Imprimir prueba' }).click()
-    await expect(page.getByText('Prueba enviada por TCP')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText('Prueba enviada por TCP directo').first()).toBeVisible({ timeout: 15_000 })
     expect(locales).toBeGreaterThan(0)
     expect(remotos).toBe(0)
   })
@@ -1017,17 +1023,22 @@ test('el perfil TCP sin respuesta con respaldo CUPS se muestra como fallback y o
 
 test('el ticket corto es el predeterminado y la plantilla se guarda por impresora', async ({ page }) => {
   const capturados = []
-  const destino = 'lan:10.99.99.61:9100'
+  // Destino y nombre únicos por corrida: la base e2e se reutiliza y la
+  // plantilla guardada de una corrida anterior pisaría el arranque por defecto
+  // (el destino se busca por igualdad y reutiliza la impresora vieja).
+  const marca = Date.now()
+  const nombre = `ZKP8008 plantilla E2E ${marca}`
+  const destino = `lan:10.99.99.61:${9200 + (marca % 700)}`
   await page.goto('/configuracion/impresoras')
-  await asegurarImpresoraSuelta(page, { nombre: 'ZKP8008 plantilla E2E', destino })
+  await asegurarImpresoraSuelta(page, { nombre, destino })
   await agenteLocal(page, { capturados })
   await page.goto('/configuracion/impresoras')
-  const tarjeta = tarjetaDe(page, 'ZKP8008 plantilla E2E')
+  const tarjeta = tarjetaDe(page, nombre)
   await expect(tarjeta).toBeVisible({ timeout: 20_000 })
 
   // La ficha abre el editor de plantilla; el corto sale solo con el título y
   // la validación XXXX-X (modelo de la biblioteca).
-  await tarjeta.getByTestId('editar-plantilla').click()
+  await abrirAccion(tarjeta, 'Plantilla de la prueba')
   const dialogo = page.getByRole('dialog')
   const editor = dialogo.getByTestId('plantilla-prueba')
   await expect(editor).toBeVisible()
@@ -1050,7 +1061,7 @@ test('el ticket corto es el predeterminado y la plantilla se guarda por impresor
 
   // Reabrir: la plantilla quedó guardada en la impresora como predeterminada.
   await dialogo.getByRole('button', { name: 'Cancelar' }).click()
-  await tarjeta.getByTestId('editar-plantilla').click()
+  await abrirAccion(tarjeta, 'Plantilla de la prueba')
   const dialogo2 = page.getByRole('dialog')
   await expect(dialogo2.getByLabel('Tipo de prueba')).toHaveValue('corta')
   await expect(dialogo2.getByRole('button', { name: '58 mm' })).toHaveAttribute('aria-pressed', 'true')

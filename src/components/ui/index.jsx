@@ -41,6 +41,7 @@ export {
   IconAction,
   Input,
   Label,
+  MenuDesplegable,
   Modal,
   Money,
   Nota,
