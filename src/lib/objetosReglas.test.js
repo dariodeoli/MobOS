@@ -112,6 +112,27 @@ test('las descargas del navegador salen de utils/descargarArchivo', () => {
   }
 })
 
+test('el encabezado y el pie del panel viven una sola vez (#320)', () => {
+  // La identidad visible de la página es el h1 del shell: la barra de módulo
+  // no repite el título (solo contexto y acciones) y el pie institucional lo
+  // renderiza el shell, no cada pantalla.
+  const barra = readFileSync(join(RAIZ, 'components/shared/BarraModulo.jsx'), 'utf8')
+  assert.match(barra, /tituloVisible = false/, 'la barra no repite el título por defecto')
+  assert.match(barra, /aria-label=\{titulo\}/, 'la barra conserva el nombre accesible')
+  assert.match(barra, /\{tituloVisible && <h2/, 'el h2 visible solo existe para previews standalone')
+  for (const ruta of ['pages/preview/AprobacionOtpPreview.jsx', 'pages/preview/VarianteAgotadaPreview.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /tituloVisible/, `${ruta}: el preview sin shell conserva su título`)
+  }
+
+  const panel = ['components/control/', 'components/ventas/', 'components/delivery/', 'components/supply/', 'components/customers/', 'components/inventory/', 'pages/Celulares.jsx', 'pages/Comparador.jsx']
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => panel.some((prefijo) => ruta.startsWith(prefijo)) && contenido.includes("import ProductFooter from '@/components/app/ProductFooter'"))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [], 'el pie del panel lo renderiza solo el shell')
+  const shell = readFileSync(join(RAIZ, 'components/app/AppShell.jsx'), 'utf8')
+  assert.equal((shell.match(/<ProductFooter/g) || []).length, 1, 'el shell renderiza el pie una sola vez')
+})
+
 test('la vista lista/cuadrícula se recuerda con el hook compartido', () => {
   const culpables = archivosFuente()
     .filter(({ ruta, contenido }) => !ruta.endsWith('hooks/useVistaListaGrid.js') && /localStorage\.(getItem|setItem)\('mobos:[a-z-]*-vista'/.test(contenido))

@@ -50,8 +50,10 @@ test.describe('composición compacta', () => {
 
     const barra = page.getByTestId('barra-inventario')
     await expect(barra).toHaveCount(1)
-    // La identidad no se repite: el h1 es del shell y la barra usa h2.
-    await expect(barra.getByRole('heading', { level: 2, name: 'Inventario' })).toBeVisible()
+    // #320: la identidad visible es una sola (el h1 del shell); la barra no
+    // repite el título: agrupa contexto y acciones.
+    await expect(barra.getByRole('heading')).toHaveCount(0)
+    await expect(barra).toHaveAttribute('aria-label', 'Inventario')
     for (const accion of ['+ Recibir unidad', 'Reservar', 'Transferir']) {
       await expect(barra.getByRole('button', { name: accion, exact: true })).toBeVisible()
     }
@@ -81,7 +83,7 @@ test.describe('composición compacta', () => {
 
     const barra = page.getByTestId('barra-productos')
     await expect(barra).toHaveCount(1)
-    await expect(barra.getByRole('heading', { level: 2, name: 'Productos' })).toBeVisible()
+    await expect(barra.getByRole('heading')).toHaveCount(0)
     await expect(barra.getByRole('button', { name: 'Actualizar' })).toBeVisible()
 
     const resumen = page.getByTestId('resumen-productos')
@@ -101,7 +103,7 @@ test.describe('composición compacta', () => {
     await page.goto('/compras')
     await expect(page.getByTestId('barra-compras')).toBeVisible({ timeout: 20_000 })
     const barra = page.getByTestId('barra-compras')
-    await expect(barra.getByRole('heading', { level: 2, name: 'Compras' })).toBeVisible()
+    await expect(barra.getByRole('heading')).toHaveCount(0)
     for (const accion of ['Proveedores', 'Exportar CSV']) {
       await expect(barra.getByRole('button', { name: accion, exact: true })).toBeVisible()
     }
