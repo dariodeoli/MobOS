@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import Icon from '@/components/shared/Icon'
+import { cn } from '@/lib/utils'
 
 // #307: menú secundario para agrupar acciones que no son la primaria (las
 // etiquetas tienen una sola acción principal y el resto acá). Abre hacia
 // arriba: así el scroll de un modal no lo recorta. Cierra al elegir una acción,
 // al hacer clic afuera o con Escape.
-export default function MenuSecundario({ acciones = [], etiqueta = 'Más acciones', ariaLabel = 'Más acciones' }) {
+export default function MenuSecundario({ acciones = [], etiqueta = 'Más acciones', ariaLabel = 'Más acciones', direccion = 'arriba' }) {
   const [abierto, setAbierto] = useState(false)
   const raiz = useRef(null)
   useEffect(() => {
@@ -31,7 +32,7 @@ export default function MenuSecundario({ acciones = [], etiqueta = 'Más accione
         <Icon name="dots" className="h-4 w-4" />{etiqueta}
       </button>
       {abierto && (
-        <span role="menu" aria-label={ariaLabel} className="absolute bottom-full right-0 z-30 mb-1 w-56 rounded-xl border border-ink-500 bg-paper p-1 shadow-xl">
+        <span role="menu" aria-label={ariaLabel} className={cn('absolute right-0 z-30 w-56 rounded-xl border border-ink-500 bg-paper p-1 shadow-xl', direccion === 'abajo' ? 'top-full mt-1' : 'bottom-full mb-1')}>
           {acciones.map((accion, indice) => accion.separador
             ? <span key={`separador-${indice}`} className="my-1 block h-px bg-ink-600" />
             : (
