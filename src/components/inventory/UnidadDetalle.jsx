@@ -552,7 +552,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
         </section>
 
         {/* Consulta de IMEI (#193/#200): costo antes, confirmación explícita y fuente/hora */}
-        <section className="rounded-2xl border border-ink-600 p-4" data-testid="unidad-imei">
+        <section className="rounded-2xl border border-ink-600 p-4" data-testid="detalle-unidad-imei">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className={ROTULO_SECCION}>Consulta de IMEI</h3>
             <span className="flex items-center gap-2">{esDemo ? <Badge color="blue">Demo: simulado</Badge> : imeiModo === 'vivo' ? <Badge color="slate">Función paga</Badge> : <Badge color="blue">SIMULADO · Sin cobro</Badge>}{canManage && <Button type="button" variant="outline" className="px-2 text-xs" data-testid="imei-consultas-abrir" onClick={() => { setConsultasOpen(true); setConsultaError(''); setConsultasFilas([]) }}>Consultas IMEI</Button>}</span>

@@ -171,6 +171,8 @@ test('#297 · conteo físico sin escaneos: aplicar bloqueado en la UI y rechazad
   let conteoId = null
   await page.goto('/inventario/unidades')
   try {
+    // #305: navegación agrupada; Conteos vive en el grupo «Control».
+    await page.getByTestId('grupos-inventario').getByRole('button', { name: 'Control', exact: true }).click()
     await page.getByTestId('tabs-inventario').getByRole('button', { name: 'Conteos', exact: true }).click()
     await page.getByRole('button', { name: 'Nuevo conteo' }).click()
     const nuevo = page.getByRole('dialog', { name: 'Nuevo conteo' })

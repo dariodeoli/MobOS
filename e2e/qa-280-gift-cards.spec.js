@@ -18,7 +18,9 @@ async function api(page, path, options = {}) {
 
 // Emite una gift card desde el modal del POS y devuelve el código.
 async function emitirDesdePos(page, monto) {
-  await page.getByRole('button', { name: 'Gift cards' }).click()
+  // #309: Gift cards vive en el menú «Más» de la barra del POS.
+  await page.getByTestId('pos-mas').click()
+  await page.getByRole('menuitem', { name: 'Gift cards' }).click()
   const modal = page.getByTestId('gift-cards-modal')
   await expect(modal).toBeVisible()
   await page.getByLabel('Monto (₲)').fill(String(monto))
@@ -82,7 +84,9 @@ test('gift cards: emisión en el POS, canje en el cobro, saldo e historial (#280
 
   // 4) Historial en el POS: emisión y canje con el pedido y el saldo resultante.
   await page.goto('/pos')
-  await page.getByRole('button', { name: 'Gift cards' }).click()
+  // #309: Gift cards vive en el menú «Más» de la barra del POS.
+  await page.getByTestId('pos-mas').click()
+  await page.getByRole('menuitem', { name: 'Gift cards' }).click()
   const fila = page.getByTestId('gift-card-fila').filter({ hasText: codigo.slice(-4) }).first()
   await expect(fila).toContainText('Gs 55.000')
   await fila.getByRole('button').first().click()
@@ -131,8 +135,11 @@ test('demo: la gift card se emite y se canjea sin tocar el API (#280)', async ({
   // La tarjeta queda agotada con su historial, todo local (sin llamadas al API).
   // Se vuelve al POS por navegación SPA: la demo vive en memoria y un reload la reinicia.
   await page.locator('aside nav button[aria-label="POS"]').click()
-  await expect(page.getByRole('button', { name: 'Gift cards' })).toBeVisible()
-  await page.getByRole('button', { name: 'Gift cards' }).click()
+  // #309: Gift cards vive en el menú «Más» de la barra del POS.
+  await page.getByTestId('pos-mas').click()
+  const herramienta = page.getByRole('menuitem', { name: 'Gift cards' })
+  await expect(herramienta).toBeVisible()
+  await herramienta.click()
   const fila = page.getByTestId('gift-card-fila').filter({ hasText: codigo.slice(-4) }).first()
   await expect(fila).toContainText('Agotada')
   await fila.getByRole('button').first().click()

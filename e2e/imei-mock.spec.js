@@ -93,7 +93,7 @@ test('la ficha de la unidad muestra el costo, pide confirmación y deja el resul
     await campo.fill(imei)
     await campo.press('Enter')
     await page.getByTestId('inventario-fila').filter({ hasText: imei }).first().click()
-    const bloque = page.getByTestId('unidad-imei')
+    const bloque = page.getByTestId('detalle-unidad-imei')
     await expect(bloque).toBeVisible()
     await bloque.getByTestId('imei-precheck').click()
     await expect(bloque).toContainText('Apple Basic')
