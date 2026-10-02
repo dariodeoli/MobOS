@@ -13,8 +13,28 @@ test.describe('owner panel', () => {
   test('resumen shows the dashboard KPIs', async ({ page }) => {
     await page.goto('/resumen')
     await expect(page.getByRole('heading', { name: 'Inicio' })).toBeVisible()
-    await expect(page.getByText('Facturado', { exact: true })).toBeVisible()
-    await expect(page.getByText('Ventas', { exact: true })).toBeVisible()
+    for (const label of ['Facturado', 'Cobrado', 'Por cobrar', 'Margen', 'Ventas']) {
+      await expect(page.getByText(label, { exact: true }).first()).toBeVisible()
+    }
+  })
+
+  // #310: el resumen entra completo en el primer viewport y el verde es acento
+  // (borde, número o tendencia), nunca una superficie completa.
+  test('resumen: indicadores compactos en el primer viewport (#310)', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/resumen')
+    await expect(page.getByTestId('resumen-indicadores')).toBeVisible()
+    for (const id of ['indicador-facturado', 'indicador-cobrado', 'indicador-por-cobrar', 'indicador-margen']) {
+      const indicador = page.getByTestId(id)
+      await expect(indicador).toBeVisible()
+      const caja = await indicador.boundingBox()
+      expect(caja.y + caja.height, `${id} entra en el primer viewport`).toBeLessThanOrEqual(900)
+    }
+    // El verde ya no pinta una superficie: el borde de acento alcanza y el
+    // número de Cobrado usa el token ok.
+    await expect(page.getByTestId('indicador-facturado')).not.toHaveClass(/bg-gradient|from-fono-dark|via-fono/)
+    await expect(page.getByTestId('indicador-cobrado').locator('.text-ok').first()).toBeVisible()
+    await expect(page.getByTestId('accesos-rapidos')).toBeVisible()
   })
 
   // #171 (fase 2 de #145): la portada ejecutiva muestra los indicadores
