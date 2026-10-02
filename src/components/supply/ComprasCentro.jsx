@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { resources } from '@/lib/api'
-import { isDemoRuntime } from '@/lib/demoMode'
 import { getProductos } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { Badge, Button, Card, EmptyState, Input, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
@@ -25,9 +24,8 @@ const ESTADOS_FILTRO = ['TODAS', 'COMPRADA', 'PREPARANDO', 'EN_TRANSITO', 'RECIB
 
 export default function ComprasCentro() {
   const toast = useToast()
-  const esDemo = isDemoRuntime
   const [compras, setCompras] = useState([])
-  const [cargando, setCargando] = useState(!esDemo)
+  const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [estado, setEstado] = useState('TODAS')
   const [busqueda, setBusqueda] = useState('')
@@ -41,7 +39,6 @@ export default function ComprasCentro() {
   const [busy, setBusy] = useState(false)
 
   const cargar = useCallback(async () => {
-    if (esDemo) return
     setCargando(true)
     setError('')
     try {
@@ -52,7 +49,7 @@ export default function ComprasCentro() {
     } finally {
       setCargando(false)
     }
-  }, [esDemo, estado])
+  }, [estado])
 
   useEffect(() => { cargar() }, [cargar])
 
@@ -120,15 +117,6 @@ export default function ComprasCentro() {
     } finally {
       setBusy(false)
     }
-  }
-
-  if (esDemo) {
-    return (
-      <Card className="p-4 md:p-5">
-        <h2 className="font-semibold">Compras del Centro</h2>
-        <p className="mt-1 text-sm text-mute">El Centro de Abastecimiento trabaja con las compras de una cuenta real.</p>
-      </Card>
-    )
   }
 
   return (

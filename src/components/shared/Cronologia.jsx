@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Cronologia as ListaCronologia } from 'owncoding-ui'
 import { api } from '@/lib/api/client'
+import { isDemoRuntime } from '@/lib/demoMode'
+import { historialDemo } from '@/lib/demo/historial.js'
 
 // Adaptador (#268): la lista, los estados honestos (cargando/error/vacío) y la
 // cabecera de actualizar viven en la biblioteca; acá queda el fetch del
@@ -39,8 +41,10 @@ export default function Cronologia({ endpoint, active = true, vacio = 'Sin activ
     let vivo = true
     setCargando(true)
     setError('')
-    api
-      .get(endpoint)
+    // #324: en demo la cronología sale de los fixtures locales; fuera de demo
+    // va al endpoint real como siempre.
+    const pedido = isDemoRuntime ? Promise.resolve(historialDemo(endpoint)) : api.get(endpoint)
+    pedido
       .then((data) => {
         if (!vivo) return
         setEventos(Array.isArray(data?.events) ? data.events : [])

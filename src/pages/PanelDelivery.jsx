@@ -39,8 +39,9 @@ export default function PanelDelivery() {
   const [saliendo, setSaliendo] = useState(false)
   const vista = pathname.split('/')[2] || 'repartos'
   // Sin permiso de reparto la sesión no pertenece a este panel: vuelve a su
-  // lugar (la autoridad real la aplica el backend en cada endpoint).
-  const esRepartidor = esDemo ? false : usuario?.role === 'REPARTIDOR'
+  // lugar (la autoridad real la aplica el backend en cada endpoint). En demo el
+  // rol Repartidor también entra: sus pedidos salen de los fixtures (#324).
+  const esRepartidor = usuario?.role === 'REPARTIDOR'
 
   useEffect(() => {
     if (!esRepartidor) navigate('/ventas', { replace: true })

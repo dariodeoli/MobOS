@@ -57,9 +57,21 @@ Resultado de la corrida: **7/7 en verde**. Evidencia y capturas en
 
 ## Límites intencionales del demo
 
-- **Estado del sistema** y **Seguridad de la cuenta**: aviso de no disponible
-  (consultan servicios reales).
+- **Estado del sistema**: desde #324 muestra chequeos, sincronización y cola
+  ficticios (misma forma que los servicios reales); no sondea el servidor.
+- **Seguridad de la cuenta**: el historial de auditoría es ficticio (#324); las
+  sesiones, contraseñas y acciones sensibles reales no se simulan.
 - **Finanzas**: créditos, cuotas y comisiones quedan fuera del demo (necesitan
   el API real).
 - **Impresión**: se muestran impresoras/filas demo, sin sondeo real.
 - **IMEI real**: no se ofrece en el demo; solo la simulación.
+
+## Fixtures y coherencia (#324)
+
+`e2e/demo-fixtures.spec.js` verifica en navegador que las contradicciones de la
+auditoría quedaron resueltas (pedidos con artículos, transacciones con importe,
+comprobante de Aurora Móviles, proveedores unificados, cola 2 vs 2, roles
+coherentes) y que Abastecimiento, Precios, Análisis, Seguridad, Sistema, kardex,
+cotizaciones y los seis roles muestran datos. La guardia unitaria de coherencia
+vive en `src/lib/demo/coherencia.test.js`. Capturas por módulo y rol en
+`docs/qa/324-demo-fixtures/`.

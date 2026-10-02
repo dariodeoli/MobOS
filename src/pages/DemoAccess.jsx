@@ -4,22 +4,12 @@ import { ArrowRight, KeyRound, ShieldCheck } from 'lucide-react'
 import { useSesion } from '@/lib/sesion'
 import { publicUrls } from '@/lib/urls'
 import { PinInput } from '@/components/ui'
+import { PERFILES_DEMO, perfilDemoPorPin } from '@/lib/demo/equipo.js'
 import AuthLayout, { AuthPanel, AuthPanelHeader } from '@/components/auth/AuthLayout'
 
-const demoProfiles = [
-  {
-    name: 'Vendedor',
-    pin: '2001',
-    description: 'Ventas y clientes.',
-    permissions: 'Ventas, productos, stock disponible y seguimiento de clientes.',
-  },
-  {
-    name: 'Dueño',
-    pin: '3001',
-    description: 'Operación completa.',
-    permissions: 'Panel general, ventas, stock, caja, compras, garantías y usuarios.',
-  },
-]
+// #324: la entrada cubre los seis roles ficticios; cada tarjeta muestra la
+// persona del equipo demo que va a quedar en la sesión (misma fuente que Equipo).
+const demoProfiles = PERFILES_DEMO
 
 export default function DemoAccess() {
   const [pin, setPin] = useState('')
@@ -36,7 +26,7 @@ export default function DemoAccess() {
     checking.current = true
     setBusy(true)
     try {
-      await entrarDemo(profile.pin === '3001' ? 'ADMIN' : 'VENDEDOR')
+      await entrarDemo(profile.pin)
       // Recarga completa: el modo demo se resuelve al cargar la app (así una
       // entrada desde un redirect sin sesión también queda en modo demo).
       window.location.assign('/')
@@ -55,14 +45,14 @@ export default function DemoAccess() {
   useEffect(() => {
     if (pin.length !== 4 || checking.current) return
 
-    if (!demoProfiles.some((profile) => profile.pin === pin)) {
-      setError('PIN incorrecto. Probá 2001 para Vendedor o 3001 para Dueño.')
+    if (!perfilDemoPorPin(pin)) {
+      setError('PIN incorrecto. Probá 2001 (Vendedor) o 3001 (Dueño).')
       return
     }
 
     checking.current = true
     setBusy(true)
-    entrarDemo(pin === '3001' ? 'ADMIN' : 'VENDEDOR')
+    entrarDemo(pin)
       .then(() => window.location.assign('/'))
       .catch(() => {
         setError('No pudimos abrir la demo. Intentá nuevamente.')
@@ -88,22 +78,23 @@ export default function DemoAccess() {
           {demoProfiles.map((profile) => (
             <button
               type="button"
-              key={profile.name}
+              key={profile.rol}
               disabled={busy}
               onClick={() => abrirPerfil(profile)}
               className="w-full rounded-2xl border border-fore/10 bg-paper/70 p-4 text-left transition hover:border-fono-dark/60 hover:bg-fono-dark/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fono-dark disabled:opacity-60"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h2 className="text-sm font-bold text-fore">{profile.name}</h2>
+                  <h2 className="text-sm font-bold text-fore">{profile.nombre}</h2>
                   <p className="mt-1 text-xs leading-5 text-mute">{profile.description}</p>
+                  <p className="mt-0.5 text-[11px] text-mute">{profile.persona}</p>
                 </div>
                 <span className="shrink-0 rounded-lg bg-fono-dark/10 px-2 py-1 font-mono text-sm font-bold tracking-widest text-fono-dark">
                   {profile.pin}
                 </span>
               </div>
               <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-fono-dark">
-                {busy ? 'Abriendo…' : `Entrar como ${profile.name}`} <ArrowRight size={14} />
+                {busy ? 'Abriendo…' : `Entrar como ${profile.nombre}`} <ArrowRight size={14} />
               </span>
             </button>
           ))}
@@ -123,7 +114,7 @@ export default function DemoAccess() {
             ariaLabel="PIN del perfil"
           />
           <p id="demo-pin-status" role="status" className={`mt-2 min-h-4 text-center text-xs ${error ? 'text-bad' : 'text-mute'}`}>
-            {busy ? 'Abriendo tu tienda demo…' : error || '2001: Vendedor · 3001: Dueño. Con 4 dígitos entrás automáticamente.'}
+            {busy ? 'Abriendo tu tienda demo…' : error || '2001: Vendedor · 3001: Dueño · 2002: Gerente · 2004: Caja · 2005: Técnico · 2007: Delivery.'}
           </p>
         </div>
 

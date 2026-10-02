@@ -90,6 +90,10 @@ export function analiticaDePedidos(orders = [], { customerSince = null, ahora = 
   const primera = validos[0]?.createdAt || null
   const ultima = validos[count - 1]?.createdAt || null
   const diasComprando = primera && ultima ? Math.max(1, Math.round((new Date(ultima).getTime() - new Date(primera).getTime()) / 86400000)) : 0
+  // #324: con una sola compra el intervalo es 0 y la fórmula vieja inflaba el
+  // ritmo a 30/mes. La tasa se acota al total de compras históricas para no
+  // prometer más compras por mes de las que el cliente hizo nunca.
+  const tasaMensual = diasComprando ? count / (diasComprando / 30) : 0
   const mesesActivos = primera ? Math.max(1, (ahora.getTime() - new Date(primera).getTime()) / (30 * 86400000)) : 1
   const desde = customerSince ? new Date(customerSince) : null
   const antiguedadDias = desde && !Number.isNaN(desde.getTime()) ? Math.max(0, Math.round((ahora.getTime() - desde.getTime()) / 86400000)) : 0
@@ -99,7 +103,7 @@ export function analiticaDePedidos(orders = [], { customerSince = null, ahora = 
     avgTicketPyg: count ? Math.round(totalPyg / count) : 0,
     firstPurchaseAt: primera,
     lastPurchaseAt: ultima,
-    purchasesPerMonth: diasComprando ? Number((count / (diasComprando / 30)).toFixed(2)) : 0,
+    purchasesPerMonth: diasComprando ? Number(Math.min(count, tasaMensual).toFixed(2)) : 0,
     spendPerMonthPyg: Math.round(totalPyg / mesesActivos),
     frequencyDays: intervalos ? Math.round(sumaIntervalos / intervalos) : null,
     customerSince: desde,

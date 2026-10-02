@@ -104,18 +104,47 @@ test('al recargar el bloqueo no se pinta la foto anterior (placeholder hasta res
   expect(await subirAvatar(page, sesion.id, png.toString('base64'))).toBeLessThan(300)
   await olvidarCacheAvatar(page)
 
-  // Perfil viejo en el almacenamiento del dispositivo (la foto que NO debe verse).
+  // Perfil viejo en el almacenamiento del dispositivo (la foto que NO debe
+  // verse) y registro de todas las fotos que se pinten: la evidencia de que la
+  // vieja nunca apareció queda en `__avataresPintados`.
   await page.addInitScript(({ clave, foto }) => {
     try {
+      // La app invalida la caché al subir/quitar la foto (#284). Este spec
+      // cambia la foto por API, así que emula esa invalidación **en el
+      // documento nuevo**: si se limpiara solo antes de recargar, una descarga
+      // en vuelo de la app vieja puede repoblar localStorage después del clear
+      // (la carrera que hacía fallar el spec en CI).
+      for (const claveAvatar of Object.keys(localStorage)) {
+        if (claveAvatar.startsWith('mobos:avatar')) localStorage.removeItem(claveAvatar)
+      }
       const actual = JSON.parse(localStorage.getItem(clave) || '{}') || {}
       localStorage.setItem(clave, JSON.stringify({ ...actual, profile: { ...(actual.profile || {}), name: actual.profile?.name || 'Dueño', picture: foto } }))
     } catch { /* sin almacenamiento */ }
+    window.__avataresPintados = []
+    const registrar = () => {
+      for (const img of document.querySelectorAll('img[alt^="Foto de"]')) {
+        const src = img.currentSrc || img.getAttribute('src') || ''
+        if (src && !window.__avataresPintados.includes(src)) window.__avataresPintados.push(src)
+      }
+    }
+    try {
+      new MutationObserver(registrar).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] })
+    } catch { /* observer no disponible */ }
+    document.addEventListener('DOMContentLoaded', registrar)
+    document.addEventListener('load', (evento) => { if (evento.target?.tagName === 'IMG') registrar() }, true)
   }, { clave: CLAVE_CONTEXTO, foto: FOTO_VIEJA })
 
-  // La descarga del avatar se demora a propósito: durante la espera no puede
-  // haber ninguna foto pintada (antes se adelantaba la de Google/almacenada).
+  // La descarga del avatar queda retenida hasta que el test la libere: la
+  // ventana «placeholder hasta resolver» no depende de la velocidad del runner
+  // (en CI el chunk del panel puede tardar más que un delay fijo y la foto
+  // resolvía antes de mirar).
+  let liberarAvatar = () => {}
+  const avatarRetenido = new Promise((resolver) => { liberarAvatar = resolver })
+  let avisarSolicitud = () => {}
+  const avatarSolicitado = new Promise((resolver) => { avisarSolicitud = resolver })
   await page.route('**/api/users/*/avatar', async (ruta) => {
-    await new Promise((resolver) => setTimeout(resolver, 1500))
+    avisarSolicitud()
+    await avatarRetenido
     await ruta.continue()
   })
   await page.getByTestId('shell-bloquear').click()
@@ -124,11 +153,18 @@ test('al recargar el bloqueo no se pinta la foto anterior (placeholder hasta res
 
   const bloqueo = page.getByTestId('pantalla-bloqueada')
   await expect(bloqueo).toBeVisible({ timeout: 20_000 })
+  // La app ya pidió la foto y sigue sin respuesta: no puede haber ninguna.
+  await avatarSolicitado
   await expect(bloqueo.locator('img[alt^="Foto de"]')).toHaveCount(0)
   await page.screenshot({ path: join(DIR, 'bloqueo-reload-en-curso.jpg'), type: 'jpeg', quality: 74 })
 
-  // Cuando resuelve, entra la foto correcta (sin haber mostrado la anterior).
+  // La foto vieja del dispositivo no se pintó en ningún momento (contrato #271).
+  expect(await page.evaluate(() => window.__avataresPintados || [])).not.toContain(FOTO_VIEJA)
+
+  // Cuando se libera, entra la foto correcta y es la única que se pintó.
+  liberarAvatar()
   await expect(bloqueo.locator(`img[alt="Foto de ${nombre}"]`)).toBeVisible({ timeout: 20_000 })
+  expect(await page.evaluate(() => window.__avataresPintados || [])).toEqual([`data:image/png;base64,${png.toString('base64')}`])
   await page.screenshot({ path: join(DIR, 'bloqueo-reload-resuelto.jpg'), type: 'jpeg', quality: 74 })
 
   // La API del avatar ya respondió: la evidencia de cabeceras quedó en el test 1.

@@ -57,7 +57,7 @@ test('verificar una unidad deja usuario y fecha (sin datos reales)', () => {
   const unit = demo.listDemoUnits().find(item => item.status === 'AVAILABLE')
   const verificada = demo.verifyDemoUnit({ serial: unit.serial, locationId: 'demo-ubic-piso' })
   assert.equal(verificada.locationId, 'demo-ubic-piso')
-  assert.ok(['Hernán Acosta', 'Ana Giménez', 'Diego López', 'María Benítez', 'Jorge Villalba', 'Sofía Cáceres'].includes(verificada.lastVerifiedBy.name), 'la firma un usuario demo del equipo')
+  assert.ok(['Hernán Acosta', 'Ana Giménez', 'Diego López', 'María Benítez', 'Jorge Villalba', 'Sofía Cáceres', 'Marcos Aquino'].includes(verificada.lastVerifiedBy.name), 'la firma un usuario demo del equipo')
   assert.ok(verificada.verifiedAt)
   assert.ok(verificada.lastVerifiedAt, 'la demo espeja lastVerifiedAt (forma real)')
 })

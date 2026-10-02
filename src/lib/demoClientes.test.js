@@ -212,11 +212,12 @@ test('compartir y abrir el informe en la demo mueve la fila de sin ver a visto (
   assert.equal(embebido.viewChannel, 'EMBED')
   assert.ok(eventosInformeDemo('demo-cliente-ana').some((evento) => /certificado embebido/.test(evento.detail)))
   // Abrir un equipo del portal sin envío previo deja el canal vacío.
-  const segundoSerial = buscarClienteDemo('demo-cliente-ana').demoProfile.orders.flatMap((order) => (order.items || []).flatMap((item) => item.serials || []))[1]
-  assert.ok(segundoSerial, 'Ana tiene más de un equipo con serial')
-  const portal = registrarVistoInformeDemo('demo-cliente-ana', segundoSerial)
+  // (Lucía tiene más de un equipo con serial entre sus pedidos.)
+  const segundoSerial = buscarClienteDemo('demo-cliente-lucia').demoProfile.orders.flatMap((order) => (order.items || []).flatMap((item) => item.serials || []))[1]
+  assert.ok(segundoSerial, 'Lucía tiene más de un equipo con serial')
+  const portal = registrarVistoInformeDemo('demo-cliente-lucia', segundoSerial)
   assert.equal(portal.channel, null)
-  assert.ok(eventosInformeDemo('demo-cliente-ana').some((evento) => /Abierto desde el portal del cliente/.test(evento.detail)))
+  assert.ok(eventosInformeDemo('demo-cliente-lucia').some((evento) => /Abierto desde el portal del cliente/.test(evento.detail)))
 })
 
 test('el servicio técnico demo llega a la ficha, la cronología y el portal (#240 §4)', () => {

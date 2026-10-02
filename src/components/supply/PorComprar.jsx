@@ -3,7 +3,6 @@ import { resources } from '@/lib/api'
 import { contextoActual, getProductos } from '@/lib/storage'
 import { suppliersApi } from '@/lib/api/suppliers'
 import { leerProveedoresRecientes, recordarProveedorReciente } from '@/lib/proveedores'
-import { isDemoRuntime } from '@/lib/demoMode'
 import { Badge, Button, Card, EmptyState, Input, Modal, Money, MoneyInput, Select, Skeleton, Subtabs, useToast } from '@/components/ui'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import SupplierCombobox from '@/components/shared/SupplierCombobox'
@@ -76,11 +75,10 @@ const claveGrupo = (grupo) => `${grupo.productoId}::${grupo.condicion}::${grupo.
 
 export default function PorComprar() {
   const toast = useToast()
-  const esDemo = isDemoRuntime
   const [filas, setFilas] = useState([])
   const [totales, setTotales] = useState(null)
   const [contadores, setContadores] = useState(null)
-  const [cargando, setCargando] = useState(!esDemo)
+  const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [vista, setVista] = useState('pendientes')
   const [prioridad, setPrioridad] = useState('todas')
@@ -105,7 +103,6 @@ export default function PorComprar() {
   const [busy, setBusy] = useState(false)
 
   const cargar = useCallback(async () => {
-    if (esDemo) return
     setCargando(true)
     setError('')
     try {
@@ -123,18 +120,16 @@ export default function PorComprar() {
     } finally {
       setCargando(false)
     }
-  }, [esDemo, vista, prioridad, centro, sinAsignar])
+  }, [vista, prioridad, centro, sinAsignar])
 
   useEffect(() => { cargar() }, [cargar])
   useEffect(() => {
-    if (esDemo) return
     suppliersApi.list().then((filas) => setProveedores(Array.isArray(filas) ? filas : [])).catch(() => {})
-  }, [esDemo])
+  }, [])
   useEffect(() => { setSeleccion([]) }, [vista])
   useEffect(() => {
-    if (esDemo) return
     resources.users.list().then((filasUsuarios) => setCompradores((filasUsuarios || []).filter((u) => u.status !== 'INACTIVE'))).catch(() => setCompradores([]))
-  }, [esDemo])
+  }, [])
 
   // Centros vistos en la carga actual + los del plan (CDE · USA · Locales) para
   // el filtro y la asignación.
@@ -258,15 +253,6 @@ export default function PorComprar() {
     } finally {
       setBusy(false)
     }
-  }
-
-  if (esDemo) {
-    return (
-      <Card className="p-4 md:p-5">
-        <h2 className="font-semibold">Por comprar</h2>
-        <p className="mt-1 text-sm text-mute">El centro de abastecimiento trabaja con las ventas, reservas y stock de una cuenta real.</p>
-      </Card>
-    )
   }
 
   const enPendientes = vista === 'pendientes' || vista === 'asignadas'

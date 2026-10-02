@@ -912,7 +912,7 @@ export default function Impresoras() {
         alias: estado?.alias || null,
         cliente: estado?.cliente || null,
       },
-      cola: { pendientes: estado?.cola?.pendientes ?? 0, fallidos: estado?.cola?.fallidos ?? 0 },
+      cola: { pendientes: estado?.cola?.pendientes ?? resumenCola?.pendientes ?? 0, fallidos: estado?.cola?.fallidos ?? resumenCola?.fallidos ?? 0 },
       diagnostico,
     }
     descargarArchivo(`mobos-diagnostico-impresion-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(datos, null, 2), { tipo: 'application/json' })
@@ -921,6 +921,10 @@ export default function Impresoras() {
   const sesionActiva = (s) => Date.now() - new Date(s.lastSeenAt || 0).getTime() < 15 * 60 * 1000
   const pendientes = cola?.pendientes || []
   const fallidos = cola?.fallidos || []
+  // #324: la cabecera y el diagnóstico derivan del MISMO arreglo que la lista.
+  // Antes leían `cola.resumen` (que la cola demo no trae) y mostraban 0
+  // pendientes mientras el modal listaba 2.
+  const resumenCola = cola ? { pendientes: pendientes.length, fallidos: fallidos.length } : null
   // Cola remota del backend: en curso (pendiente/reclamado) y aceptados que
   // esperan la confirmación en papel.
   const remotosEnCurso = remotos.filter((job) => job.state === 'PENDIENTE' || job.state === 'RECLAMADO')

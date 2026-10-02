@@ -2,6 +2,9 @@ import { api, request, apiFetch, API_URL } from './client'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { getProductos } from '@/lib/storage'
 import { createDemoTransfer, createDemoUnit, demoStockAlerts, filtrarUnidadesDemo, listDemoBranches, listDemoLocations, listDemoReservations, listDemoTransfers, listDemoUnits, releaseDemoReservations, reserveDemoUnits, saveDemoLocation, updateDemoUnit, verifyDemoUnit } from '@/lib/demoInventory'
+import { createDemoPriceList, deactivateDemoPriceList, listDemoPriceLists, pricingDemo, updateDemoPriceList } from '@/lib/demo/precios.js'
+import { createDemoSupplyNeed, createDemoSupplyPurchase, createDemoSupplyReception, demoSupplyAlerts, demoSupplyPerformance, demoSupplyPurchaseLabels, demoSupplyReceptionDetail, demoSupplySerial, demoSupplyShipmentManifest, listDemoSupplyNeeds, listDemoSupplyPurchases, listDemoSupplyReceptions, listDemoSupplyShipments, updateDemoSupplyNeeds, updateDemoSupplyPurchase, updateDemoSupplyReception, updateDemoSupplyShipment } from '@/lib/demo/abastecimiento.js'
+import { EQUIPO_DEMO } from '@/lib/demo/iphones.js'
 import { anularGiftCardDemo, buscarGiftCardDemo, detalleGiftCardDemo, emitirGiftCardDemo, listarGiftCardsDemo } from '@/lib/giftCards'
 // El módulo de Inventario funciona igual en demo (#213): cuando hay sesión demo
 // los recursos leen el store session-only; con cuenta real van al API.
@@ -12,7 +15,7 @@ export { clearAccessToken, clearCompanyToken, clearSession, getAccessToken, getC
 
 export const resources = {
   customers: { list: (q = '') => api.get(`/api/customers?q=${encodeURIComponent(q)}`), create: data => api.post('/api/customers', data), update: (id, data) => api.patch(`/api/customers/${encodeURIComponent(id)}`, data), duplicates: (params = {}) => api.get(`/api/customers/duplicates?${new URLSearchParams(Object.entries(params).filter(([, valor]) => valor))}`), mergePreview: (id, withId) => api.get(`/api/customers/${encodeURIComponent(id)}/merge?with=${encodeURIComponent(withId)}`), merge: (id, data) => api.post(`/api/customers/${encodeURIComponent(id)}/merge`, data) },
-  products: { list: (q = '') => api.get(`/api/products?q=${encodeURIComponent(q)}`), create: data => api.post('/api/products', data) },
+  products: { list: demo((q = '') => api.get(`/api/products?q=${encodeURIComponent(q)}`), (q = '') => getProductos().filter((producto) => !q || String(producto.nombre || producto.name || '').toLowerCase().includes(String(q).toLowerCase()))), create: data => api.post('/api/products', data) },
   stock: { list: demo(() => api.get('/api/stock'), () => demoStockAlerts(getProductos())), adjust: demo(data => api.patch('/api/stock', data), () => ({})) },
   inventoryBranches: { list: demo(() => api.get('/api/inventory-branches'), () => listDemoBranches()) },
   branches: { list: () => api.get('/api/branches'), create: data => api.post('/api/branches', data), update: data => api.patch('/api/branches', data) },
@@ -23,7 +26,13 @@ export const resources = {
   tenants: { search: (q = '') => api.get(`/api/tenants?q=${encodeURIComponent(q)}`) },
   transfers: { list: demo(() => api.get('/api/transfers'), () => listDemoTransfers()), create: demo(data => api.post('/api/transfers', data), data => createDemoTransfer(data)), update: demo(data => api.patch('/api/transfers', data), data => data), accessToken: demo((id, regenerate = false) => api.post(`/api/transfers/${encodeURIComponent(id)}/access-token`, { regenerate }), () => ({ publicToken: 'demo-remito' })) },
   combos: { list: (all = false) => api.get('/api/combos' + (all ? '?all=1' : '')), create: data => api.post('/api/combos', data), update: data => api.patch('/api/combos', data) },
-  priceLists: { list: () => api.get('/api/price-lists'), create: data => api.post('/api/price-lists', data), update: (id, data) => api.patch(`/api/price-lists/${encodeURIComponent(id)}`, data), deactivate: id => api.delete(`/api/price-lists/${encodeURIComponent(id)}`), pricing: params => api.get(`/api/pricing?${new URLSearchParams(params)}`) },
+  priceLists: {
+    list: demo(() => api.get('/api/price-lists'), () => listDemoPriceLists()),
+    create: demo(data => api.post('/api/price-lists', data), data => createDemoPriceList(data)),
+    update: demo((id, data) => api.patch(`/api/price-lists/${encodeURIComponent(id)}`, data), (id, data) => updateDemoPriceList(id, data)),
+    deactivate: demo(id => api.delete(`/api/price-lists/${encodeURIComponent(id)}`), id => deactivateDemoPriceList(id)),
+    pricing: demo(params => api.get(`/api/pricing?${new URLSearchParams(params)}`), params => pricingDemo(params, getProductos())),
+  },
   quotes: { list: (status = '') => api.get(`/api/quotes${status ? `?status=${status}` : ''}`), create: data => api.post('/api/quotes', data), update: data => api.patch('/api/quotes', data), convert: id => api.post(`/api/quotes/${encodeURIComponent(id)}/convert`, {}), accessToken: (id, regenerate = false) => api.post(`/api/quotes/${encodeURIComponent(id)}/access-token`, { regenerate }), sendEmail: (id, data = {}) => api.post(`/api/quotes/${encodeURIComponent(id)}/email`, data), mensaje: id => api.get(`/api/quotes/${encodeURIComponent(id)}/message`), enviarMensaje: (id, canal) => api.post(`/api/quotes/${encodeURIComponent(id)}/message`, { canal }) },
   orders: { list: () => api.get('/api/orders'), create: data => api.post('/api/orders', data), get: id => api.get(`/api/orders/${encodeURIComponent(id)}`), updateDelivery: (id, data) => api.patch(`/api/orders/${encodeURIComponent(id)}`, data) },
   payments: { create: data => api.post('/api/payments', data) },
@@ -36,30 +45,30 @@ export const resources = {
     get: demo(id => api.get(`/api/gift-cards/${encodeURIComponent(id)}`), id => detalleGiftCardDemo(id)),
     cancel: demo(id => api.patch(`/api/gift-cards/${encodeURIComponent(id)}`, { action: 'cancel' }), id => anularGiftCardDemo(id)),
   },
-  users: { list: () => api.get('/api/users'), create: data => api.post('/api/users', data) },
+  users: { list: demo(() => api.get('/api/users'), () => EQUIPO_DEMO.map((persona) => ({ id: persona.id, name: persona.nombre, email: persona.email, role: persona.rol, status: persona.activo ? 'ACTIVE' : 'INACTIVE' }))), create: data => api.post('/api/users', data) },
   // Abastecimiento F1 (#250/#254): necesidades consolidadas de compra.
   supplyNeeds: {
     // El panel tiene botón «Actualizar»: se pide sin caché de GET para que el
     // refresco traiga el estado real de las necesidades.
-    list: (params = {}) => {
+    list: demo((params = {}) => {
       const query = new URLSearchParams(Object.entries(params).filter(([, valor]) => valor !== '' && valor != null).map(([clave, valor]) => [clave, String(valor)]))
       return api.get(`/api/supply/needs${query.toString() ? `?${query}` : ''}`, { cacheMs: 0 })
-    },
-    create: data => api.post('/api/supply/needs', data),
-    update: data => api.patch('/api/supply/needs', data),
+    }, (params = {}) => listDemoSupplyNeeds(params)),
+    create: demo(data => api.post('/api/supply/needs', data), data => createDemoSupplyNeed(data)),
+    update: demo(data => api.patch('/api/supply/needs', data), data => updateDemoSupplyNeeds(data)),
   },
   // F3 (#250 §7): preparación de la compra (IMEI por completar) — escaneo de a
   // uno (`scan`) o pegado múltiple (`serials`).
   supplyPurchases: {
-    list: (params = {}) => {
+    list: demo((params = {}) => {
       const query = new URLSearchParams(Object.entries(params).filter(([, valor]) => valor !== '' && valor != null).map(([clave, valor]) => [clave, String(valor)]))
       return api.get(`/api/supply/purchases${query.toString() ? `?${query}` : ''}`, { cacheMs: 0 })
-    },
+    }, (params = {}) => listDemoSupplyPurchases(params)),
     // #250 F2: compra desde el panel (cubre necesidades o reposición libre).
-    create: data => api.post('/api/supply/purchases', data),
-    update: data => api.patch('/api/supply/purchases', data),
+    create: demo(data => api.post('/api/supply/purchases', data), data => createDemoSupplyPurchase(data)),
+    update: demo(data => api.patch('/api/supply/purchases', data), data => updateDemoSupplyPurchase(data)),
     // F3 (#250 §11): etiquetas de la preparación (una por unidad comprada).
-    labels: id => api.get(`/api/supply/purchases/${encodeURIComponent(id)}/labels`, { cacheMs: 0 }),
+    labels: demo(id => api.get(`/api/supply/purchases/${encodeURIComponent(id)}/labels`, { cacheMs: 0 }), id => demoSupplyPurchaseLabels(id)),
   },
   // F3/F4 (#250): lotes (despachos) y su IMEI diferido — se completa antes de
   // despachar o en tránsito, de a uno (`scan`) o pegado (`serials`). El
@@ -67,41 +76,41 @@ export const resources = {
   // Ojo: una sola clave `supplyShipments` — bloques repetidos se pisaban entre
   // sí y dejaban `manifest` sin definir (el botón «Manifiesto» fallaba).
   supplyShipments: {
-    list: (params = {}) => {
+    list: demo((params = {}) => {
       const query = new URLSearchParams(Object.entries(params).filter(([, valor]) => valor !== '' && valor != null).map(([clave, valor]) => [clave, String(valor)]))
       return api.get(`/api/supply/shipments${query.toString() ? `?${query}` : ''}`, { cacheMs: 0 })
-    },
-    create: data => api.post('/api/supply/shipments', data),
-    update: data => api.patch('/api/supply/shipments', data),
-    manifest: id => api.get(`/api/supply/shipments/${encodeURIComponent(id)}/manifest`, { cacheMs: 0 }),
+    }, (params = {}) => listDemoSupplyShipments(params)),
+    create: demo(data => api.post('/api/supply/shipments', data), () => ({})),
+    update: demo(data => api.patch('/api/supply/shipments', data), data => updateDemoSupplyShipment(data)),
+    manifest: demo(id => api.get(`/api/supply/shipments/${encodeURIComponent(id)}/manifest`, { cacheMs: 0 }), id => demoSupplyShipmentManifest(id)),
   },
   // F5 (#250 §11): llegadas pendientes y recepción contra el manifiesto.
   supplyReceptions: {
-    list: (params = {}) => {
+    list: demo((params = {}) => {
       const query = new URLSearchParams(Object.entries(params).filter(([, valor]) => valor !== '' && valor != null).map(([clave, valor]) => [clave, String(valor)]))
       return api.get(`/api/supply/receptions${query.toString() ? `?${query}` : ''}`, { cacheMs: 0 })
-    },
-    create: data => api.post('/api/supply/receptions', data),
-    update: data => api.patch('/api/supply/receptions', data),
+    }, (params = {}) => (params.id || params.shipmentId ? demoSupplyReceptionDetail(params) : listDemoSupplyReceptions(params))),
+    create: demo(data => api.post('/api/supply/receptions', data), data => createDemoSupplyReception(data)),
+    update: demo(data => api.patch('/api/supply/receptions', data), data => updateDemoSupplyReception(data)),
   },
   // F6 (#250): rendimiento por proveedor, tiempos de tránsito y atrasos. El
   // panel tiene «Actualizar»: se piden sin caché de GET, como el resto.
   supplyPerformance: {
-    get: (params = {}) => {
+    get: demo((params = {}) => {
       const query = new URLSearchParams(Object.entries(params).filter(([, valor]) => valor !== '' && valor != null).map(([clave, valor]) => [clave, String(valor)]))
       return api.get(`/api/supply/performance${query.toString() ? `?${query}` : ''}`, { cacheMs: 0 })
-    },
+    }, (params = {}) => demoSupplyPerformance(params)),
   },
   supplyAlerts: {
-    get: (params = {}) => {
+    get: demo((params = {}) => {
       const query = new URLSearchParams(Object.entries(params).filter(([, valor]) => valor !== '' && valor != null).map(([clave, valor]) => [clave, String(valor)]))
       return api.get(`/api/supply/alerts${query.toString() ? `?${query}` : ''}`, { cacheMs: 0 })
-    },
+    }, () => demoSupplyAlerts()),
   },
   // F4 (#250): historial de una unidad en la cadena de abastecimiento
   // (necesidad → compra → lote → stock), para la ficha del inventario (#278).
   supplySerials: {
-    get: (serial) => api.get(`/api/supply/serials/${encodeURIComponent(serial)}`, { cacheMs: 0 }),
+    get: demo((serial) => api.get(`/api/supply/serials/${encodeURIComponent(serial)}`, { cacheMs: 0 }), serial => demoSupplySerial(serial)),
   },
   // #279 (A4): asignaciones futuras de unidades en tránsito (apartar para una
   // venta, liberar y consultar).

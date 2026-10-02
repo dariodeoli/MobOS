@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import { Aviso, Badge, Button, Input, Modal, Money, MoneyInput, Select, useToast } from '@/components/ui'
@@ -7,7 +7,8 @@ import { cn } from '@/lib/utils'
 import { codigoPedido } from '@/utils/pedido'
 import { montoTexto } from '@/utils/moneda'
 import { useSellerData, SellerFeedback } from '@/components/ventas/SellerData'
-import { deliveryFields, ENTREGA_LABELS, entregable, SIN_DATOS } from './datos'
+import { deliveryFields, ENTREGA_LABELS, entregable } from './datos'
+import { cambiarEstadoRepartoDemo, listDemoDeliveryOrdersDelRepartidor, registrarCobroRepartoDemo } from '@/lib/demo/delivery.js'
 
 const TONO_ESTADO = (fulfillment) => fulfillment === 'DELIVERED' ? 'green'
   : fulfillment === 'IN_TRANSIT' ? 'blue'
@@ -90,7 +91,9 @@ export default function DriverOrders() {
   const [referencia, setReferencia] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
-  const data = useSellerData(`/api/delivery/orders?estado=${estado}`, deliveryFields, SIN_DATOS, esDemo, { limit: 50 })
+  // #324: en demo los repartos salen de la fixture local (solo los asignados).
+  const demoRead = useCallback(() => listDemoDeliveryOrdersDelRepartidor({ estado }), [estado])
+  const data = useSellerData(`/api/delivery/orders?estado=${estado}`, deliveryFields, demoRead, esDemo, { limit: 50 })
   const [ocupado, setOcupado] = useState('')
 
   function abrirCobro(row) {
@@ -104,11 +107,15 @@ export default function DriverOrders() {
     if (montoNumero > cobro.pendiente) { setError(`El cobro supera el saldo (falta ${montoTexto(cobro.pendiente)}).`); return }
     setEnviando(true); setError('')
     try {
-      await api.post(`/api/delivery/orders/${encodeURIComponent(cobro.id)}/collections`, {
-        amountPyg: montoNumero,
-        method: metodo,
-        ...(referencia.trim() ? { reference: referencia.trim() } : {}),
-      }, { headers: { 'Idempotency-Key': `delivery-${cobro.id}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}` } })
+      if (esDemo) {
+        registrarCobroRepartoDemo(cobro.id, { amountPyg: montoNumero, method: metodo, reference: referencia.trim() })
+      } else {
+        await api.post(`/api/delivery/orders/${encodeURIComponent(cobro.id)}/collections`, {
+          amountPyg: montoNumero,
+          method: metodo,
+          ...(referencia.trim() ? { reference: referencia.trim() } : {}),
+        }, { headers: { 'Idempotency-Key': `delivery-${cobro.id}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}` } })
+      }
       toast.success('Cobro registrado', 'Queda pendiente de rendir en la tienda.')
       setCobro(null)
       data.refresh()
@@ -121,7 +128,8 @@ export default function DriverOrders() {
     if (ocupado) return
     setOcupado(row.id)
     try {
-      await api.post(`/api/delivery/orders/${encodeURIComponent(row.id)}/status`, { fulfillmentStatus })
+      if (esDemo) cambiarEstadoRepartoDemo(row.id, fulfillmentStatus)
+      else await api.post(`/api/delivery/orders/${encodeURIComponent(row.id)}/status`, { fulfillmentStatus })
       toast.success('Reparto actualizado', `${codigoPedido(row.number)}: ${ENTREGA_LABELS[fulfillmentStatus]}.`)
       data.refresh()
     } catch (cause) {

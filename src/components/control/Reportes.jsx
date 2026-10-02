@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useUrlState } from '@/hooks/useUrlState'
-import { isDemoRuntime } from '@/lib/demoMode'
 import { useSesion } from '@/lib/sesion'
 import { listVentas, listGastos, listAds, productosById } from '@/lib/storage'
 import { gs, variacion } from '@/utils/calculos'
@@ -59,12 +58,6 @@ export default function Reportes() {
   const pedidoRef = useRef(0)
 
   const cargar = useCallback(async () => {
-    // La demo es una copia aislada en el navegador, sin token ni datos reales.
-    // Se evita la llamada para no mostrar un error de red sin sentido.
-    if (isDemoRuntime) {
-      setCargando(false)
-      return
-    }
     const { desde, hasta } = rango
     if (!rangoValido(desde, hasta)) {
       setError('El rango de fechas no es válido.')
@@ -159,25 +152,6 @@ export default function Reportes() {
     const csv = filasCsv(encabezados, filas)
     // BOM para que Excel respete los acentos.
     descargarCsvCliente(nombreArchivoCsv({ desde: datos.from, hasta: datos.to, groupBy: grupo }), csv)
-  }
-
-  if (isDemoRuntime) {
-    return (
-      <Card>
-        <div className="flex items-start gap-3">
-          <Icon name="info" className="mt-0.5 h-5 w-5 text-fono" />
-          <div>
-            <div className="font-semibold text-fore">Reportes sobre datos reales</div>
-            <p className="mt-1 text-sm text-mute">
-              Este apartado lee las ventas, los cobros y los costos reales de tu tienda. La demo es una
-              copia aislada en este navegador y no se conecta a la base, así que acá no se muestran
-              cifras: preferimos no inventarlas. Al entrar con tu cuenta real vas a ver el período
-              completo con exportación a CSV.
-            </p>
-          </div>
-        </div>
-      </Card>
-    )
   }
 
   return (

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import BarraModulo from '@/components/shared/BarraModulo'
 import { api } from '@/lib/api/client'
@@ -9,7 +9,8 @@ import { fechaHoraCorta } from '@/utils/fecha'
 import { codigoPedido } from '@/utils/pedido'
 import { montoTexto } from '@/utils/moneda'
 import { useSellerData, SellerFeedback } from '@/components/ventas/SellerData'
-import { deliveryFields, settlementFields, ENTREGA_LABELS, MEDIO_LABELS, RENDICION_LABELS, SIN_DATOS } from './datos'
+import { deliveryFields, settlementFields, ENTREGA_LABELS, MEDIO_LABELS, RENDICION_LABELS } from './datos'
+import { asignarRepartoDemo, equipoDeRepartoDemo, listDemoDeliveryOrders, listDemoDeliverySettlements, verificarRendicionDemo } from '@/lib/demo/delivery.js'
 
 // Vista de la tienda para el reparto propio: asignar pedidos a un repartidor
 // (con la entrega con saldo autorizada desde acá) y verificar las rendiciones
@@ -31,7 +32,8 @@ function Asignaciones() {
   const { esDemo } = useSesion()
   const toast = useToast()
   const [asignado, setAsignado] = useState('sin-asignar')
-  const data = useSellerData(`/api/delivery/orders?estado=activos&asignado=${asignado}`, deliveryFields, SIN_DATOS, esDemo, { limit: 50 })
+  const demoRead = useCallback(() => listDemoDeliveryOrders({ estado: 'activos', asignado }), [asignado])
+  const data = useSellerData(`/api/delivery/orders?estado=activos&asignado=${asignado}`, deliveryFields, demoRead, esDemo, { limit: 50 })
   const [equipo, setEquipo] = useState([])
   const [seleccion, setSeleccion] = useState({})
   const [autorizar, setAutorizar] = useState({})
@@ -39,7 +41,7 @@ function Asignaciones() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (esDemo) { setEquipo([]); return }
+    if (esDemo) { setEquipo(equipoDeRepartoDemo()); return }
     api.get('/api/delivery/team').then(rows => setEquipo(Array.isArray(rows) ? rows : [])).catch(() => setEquipo([]))
   }, [esDemo])
 
@@ -48,7 +50,8 @@ function Asignaciones() {
     if (!repartidorId || ocupado) return
     setOcupado(row.id); setError('')
     try {
-      await api.post(`/api/orders/${encodeURIComponent(row.id)}/assignment`, {
+      if (esDemo) asignarRepartoDemo(row.id, repartidorId)
+      else await api.post(`/api/orders/${encodeURIComponent(row.id)}/assignment`, {
         assignedToId: repartidorId,
         ...(autorizar[row.id] ? { allowUnpaidDelivery: true } : {}),
       })
@@ -63,7 +66,8 @@ function Asignaciones() {
     if (ocupado) return
     setOcupado(row.id)
     try {
-      await api.post(`/api/orders/${encodeURIComponent(row.id)}/assignment`, { assignedToId: null })
+      if (esDemo) asignarRepartoDemo(row.id, null)
+      else await api.post(`/api/orders/${encodeURIComponent(row.id)}/assignment`, { assignedToId: null })
       toast.success('Reparto liberado', `${codigoPedido(row.number)} volvió a la tienda.`)
       data.refresh()
     } catch (cause) {
@@ -139,7 +143,8 @@ function Rendiciones() {
   const { esDemo } = useSesion()
   const toast = useToast()
   const [estado, setEstado] = useState('PENDING')
-  const data = useSellerData(`/api/delivery/settlements?estado=${estado}`, settlementFields, SIN_DATOS, esDemo, { limit: 60 })
+  const demoRead = useCallback(() => listDemoDeliverySettlements({ estado }), [estado])
+  const data = useSellerData(`/api/delivery/settlements?estado=${estado}`, settlementFields, demoRead, esDemo, { limit: 60 })
   const [confirmar, setConfirmar] = useState(null)
   const [rechazar, setRechazar] = useState(null)
   const [motivo, setMotivo] = useState('')
@@ -149,7 +154,8 @@ function Rendiciones() {
     if (ocupado) return
     setOcupado(true)
     try {
-      await api.post(`/api/delivery/settlements/${encodeURIComponent(fila.id)}/verify`, { state, ...(note.trim() ? { note: note.trim() } : {}) })
+      if (esDemo) verificarRendicionDemo(fila.id, state, note)
+      else await api.post(`/api/delivery/settlements/${encodeURIComponent(fila.id)}/verify`, { state, ...(note.trim() ? { note: note.trim() } : {}) })
       toast.success(state === 'VERIFIED' ? 'Rendición verificada' : 'Rendición rechazada', state === 'VERIFIED' ? 'Los cobros quedaron confirmados en el pedido y en caja.' : 'El repartidor puede volver a registrarlos.')
       setConfirmar(null); setRechazar(null); setMotivo('')
       data.refresh()

@@ -5,6 +5,7 @@
 // Los seriales son claramente de prueba (prefijo DEMO, nunca un IMEI real) y los
 // costos vienen en USD (con cotización) o en Gs, como en la app real.
 import { EQUIPO_DEMO, IMEIS_DEMO_FICTICIOS, IPHONES_DEMO, serialDemo } from './demo/iphones.js'
+import { PROVEEDORES_DEMO } from './demo/proveedores.js'
 import { guardarDemo, leerDemo } from './demoStorage.js'
 import { resumenInspection } from './phonecheck.js'
 import { formatGs } from '../utils/moneda.js'
@@ -26,11 +27,7 @@ const UBICACIONES = [
   { id: 'demo-ubic-vm-deposito', branchId: DEMO_BRANCH_2, name: 'Depósito Villa Morra', code: 'VM', color: '#38bdf8', isActive: true },
 ]
 
-const PROVEEDORES = [
-  { id: 'demo-prov-importadora', name: 'Importadora Tecnológica S.A. ', contact: 'Compras · +595 981 000 111', isActive: true },
-  { id: 'demo-prov-distribuidora', name: 'Distribuidora del Este ', contact: 'Ventas · +595 982 000 222', isActive: true },
-  { id: 'demo-prov-mayorista', name: 'Mayorista Apple PY ', contact: 'Pedidos · +595 983 000 333', isActive: true },
-]
+const PROVEEDORES = PROVEEDORES_DEMO
 
 const COTIZACION = 7300
 // Usuario demo que firma la verificación: mismo shape que el API ({ id, name }).

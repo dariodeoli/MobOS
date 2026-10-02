@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { isDemoRuntime, demoSessionActive, demoSessionRole, saveDemoSession, clearDemoSession } from './demoMode'
 import { EMPRESA_DEMO, SUCURSALES_DEMO } from './demo/empresa'
+import { perfilDemo } from './demo/equipo.js'
 import { combinarPerfil } from '@/lib/sesionPerfil'
 import { limpiarAvatarCache, precargarAvatar } from '@/lib/userAvatar'
 import { clearSession, getCompanyContext, sessionApi, resources } from '@/lib/api'
@@ -27,7 +28,7 @@ function adaptarUsuario(user) {
   return { ...user, id: user?.id, email: user?.email || null, user_metadata: { nombre: user?.name || user?.user_metadata?.nombre || user?.email || '' } }
 }
 function adaptarEmpresa(user, tenant) {
-  if (user.tenantId === 'mobos-demo') return { id: 'mobos-demo', nombre: EMPRESA_DEMO.razonSocial, slug: 'demo', email: null, rol: user.role === 'ADMIN' ? 'dueno' : 'VENDEDOR' }
+  if (user.tenantId === 'mobos-demo') return { id: 'mobos-demo', nombre: EMPRESA_DEMO.razonSocial, slug: 'demo', email: null, rol: user.role === 'ADMIN' ? 'dueno' : user.role }
   const context = getCompanyContext()
   // La identidad de /api/auth/me (tenant) manda sobre la copia local del login:
   // así una recarga no muestra "Mi tienda" cuando el servidor la conoce.
@@ -73,8 +74,11 @@ export function SesionProvider({ children }) {
     }
     setUsuario(user); setEmpresa(emp); setEmpresas([emp]); setSucursal(sucursalActiva); setSucursales(listaSucursales); setVendedores(getCompanyContext()?.sellers || []); setPerfilEmpresa(perfil !== undefined ? perfil : getCompanyContext()?.profile || null); setEstado('dentro')
   }, [])
-  const entrarDemo = useCallback(async (role = demoSessionRole()) => {
-    saveDemoSession(role); await activarSesion({ id: 'demo-user', email: 'demo@example.invalid', name: role === 'ADMIN' ? 'Hernán Acosta' : 'Diego López', hasAvatar: true, tenantId: 'mobos-demo', role, branchId: SUCURSALES_DEMO[0].id, branchName: SUCURSALES_DEMO[0].name }, { prepararLegacy: true, tenant: { name: EMPRESA_DEMO.razonSocial, slug: 'mobos-demo', email: EMPRESA_DEMO.email } }); prepararDatosDemo()
+  // #324: el acceso demo resuelve la persona real del equipo ficticio por rol o
+  // PIN. Así la sesión, el menú y la fila de Equipo dicen lo mismo.
+  const entrarDemo = useCallback(async (perfil = demoSessionRole()) => {
+    const usuario = perfilDemo(perfil)
+    saveDemoSession(usuario.rol); await activarSesion({ id: usuario.id, email: usuario.email, name: usuario.nombre, pin: usuario.pin, hasAvatar: true, tenantId: 'mobos-demo', role: usuario.rol, branchId: SUCURSALES_DEMO[0].id, branchName: SUCURSALES_DEMO[0].name }, { prepararLegacy: true, tenant: { name: EMPRESA_DEMO.razonSocial, slug: 'mobos-demo', email: EMPRESA_DEMO.email } }); prepararDatosDemo()
   }, [activarSesion])
   useEffect(() => {
     let vivo = true
