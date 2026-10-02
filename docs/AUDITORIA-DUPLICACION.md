@@ -316,6 +316,19 @@ Verificación del lote: `npm run lint` (0 errores), build FE, `npm test` (829),
 `test:e2e:smoke` (19) y biblioteca `owncoding-ui` build + **371 tests**
 (tag **v0.51.0**).
 
+### Lote 58 — Un solo encabezado y un solo pie por página (#320) (02-10)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `shared/BarraModulo` | Repetía el título visible de la página en un `h2` (Cotizaciones, Precios, Productos, Pedidos, Compras, Delivery, Plantillas, Lista por modelo, Comparador y demás): dos encabezados con la misma identidad a pocos píxeles | La identidad visible es el `h1` del shell; la barra **no repite el título**: agrupa contexto + acción principal + secundarias y los filtros van debajo. `titulo` es el nombre accesible (`aria-label`) y `tituloVisible` queda solo para las previews standalone (A3/A5). Misma regla que `SellerSection` desde #57 |
+| Pie institucional | `pages/Celulares.jsx` (Lista por modelo) y `pages/Comparador.jsx` montaban su propio `ProductFooter` dentro del shell: dos pies por página | El pie del panel lo renderiza solo `AppShell`; las pantallas no lo repiten (las públicas siguen standalone). Aserción de fuente en `objetosReglas.test.js` |
+| Reglas | — | `docs/PLANTILLA-OBJETOS.md` §3 (tarjetas de una sola capa, fila con borde/ícono/badge, primer viewport con datos), §5 bis (un solo encabezado y un solo pie) y §8 (referencia de sistema #320) |
+
+Verificación del lote: `npm run lint` (0 errores), builds FE/BE (con
+`BUILD_ID`), `prisma:validate`, `npm test` (869), `test:unit` del backend (138),
+`e2e-shards --check` (198/197/197) y e2e `qa-320-sistema-visual` (1/1, 22
+superficies × 3 estados) + `qa-256-composicion` (6/6) + `qa-278-cierre` (3/3).
+
 ### Lote 57 — Pie institucional: el objeto de la biblioteca y la regla (#291) (29-09)
 
 | Objeto | Antes (evidencia) | Después |
