@@ -234,4 +234,21 @@ header button::after {
   color: rgb(var(--c-fono-light));
 }
 
+/* ── Toasts que no bloquean (#323, integración) ────────────────────────
+   El pie fijo del modal estándar cae sobre la esquina donde aparece el
+   toast: la tarjeta se quedaba con el clic y, como el hover pausa su
+   cierre, el control de abajo era inalcanzable (la suite lo detectó en
+   «Crear orden» del taller). El aviso es informativo: solo su botón de
+   cerrar recibe punteros; el resto deja pasar el clic y el toast se
+   cierra igual por tiempo. `pointer-events-auto` es la marca del toast
+   de la biblioteca (Aviso usa role pero no esa clase). */
+[role="status"].pointer-events-auto,
+[role="alert"].pointer-events-auto {
+  pointer-events: none;
+}
+[role="status"].pointer-events-auto button,
+[role="alert"].pointer-events-auto button {
+  pointer-events: auto;
+}
+
 
