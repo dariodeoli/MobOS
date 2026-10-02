@@ -3,6 +3,7 @@ import { formatGs } from '../utils/moneda.js'
 import { codigoPedido } from '../utils/pedido.js'
 import { etiquetaServicio } from './estadosServicio.js'
 import { IMEIS_DEMO_FICTICIOS as AUR_SERIALES } from './demo/iphones.js'
+import { pedidosDemoDeCliente } from './demo/ventas.js'
 import { analiticaDePedidos } from './customerAggregates.js'
 // Datos ficticios del modo demo para Clientes (#189/#194). Nada de esto sale
 // del navegador: los seeds se muestran siempre y lo que se crea se guarda en
@@ -48,6 +49,25 @@ const pedido = ({ id, numero, total, pagado, pagos = [], estado = 'COMPLETED', d
     methodLabel: pago.methodLabel || MEDIO_DEMO[pago.method] || String(pago.method || ''),
     paidAt: haceDias(Math.max(0, Number(dias || 0) - indice * 5)),
   }))
+  // #324: cada línea lleva su importe. Sin `totalPyg` propio, el total del
+  // pedido se reparte por cantidad (la última línea toma el resto exacto), así
+  // los favoritos del perfil y los informes nunca muestran Gs 0.
+  const peso = items.reduce((suma, item) => suma + Math.max(1, Number(item.quantity) || 1), 0)
+  let repartido = 0
+  const itemsConTotales = items.map((item, indice) => {
+    const quantity = Math.max(1, Number(item.quantity) || 1)
+    const esUltima = indice === items.length - 1
+    const totalLinea = item.totalPyg !== undefined
+      ? Number(item.totalPyg)
+      : (esUltima && peso ? Math.max(0, Number(total) - repartido) : (peso ? Math.round((Number(total) * quantity) / peso) : 0))
+    repartido += totalLinea
+    return {
+      ...item,
+      quantity,
+      unitPricePyg: item.unitPricePyg !== undefined ? Number(item.unitPricePyg) : Math.round(totalLinea / quantity),
+      totalPyg: totalLinea,
+    }
+  })
   const cobrado = pagado !== undefined ? pagado : movimientos.reduce((suma, pago) => suma + pago.amountPyg, 0)
   return {
     id,
@@ -65,7 +85,7 @@ const pedido = ({ id, numero, total, pagado, pagos = [], estado = 'COMPLETED', d
     seller: usuarioDemo('Diego López'),
     serials: [],
     pagos: movimientos,
-    items,
+    items: itemsConTotales,
   }
 }
 
@@ -115,7 +135,7 @@ export const SEED_DEMO_CLIENTES = [
     demoProfile: {
       orders: [
         pedido({ id: 'demo-p-8', numero: 'MOB-0008', total: 3000000, pagado: 1500000, estado: 'PENDING', dias: 12, entrega: 'DELIVERY', estadoEntrega: 'IN_TRANSIT', pagos: [{ amountPyg: 1000000, method: 'CASH' }, { amountPyg: 500000, method: 'TRANSFER' }], items: [{ id: 'demo-i-8', description: 'iPhone 15 · 128 GB', quantity: 1, model: 'iPhone 15', category: 'Celulares', serials: ['356789012345678'] }] }),
-        pedido({ id: 'demo-p-5', numero: 'MOB-0005', total: 1800000, pagado: 1800000, dias: 45, pagos: [{ amountPyg: 800000, method: 'CARD' }, { amountPyg: 1000000, method: 'TRANSFER' }], items: [{ id: 'demo-i-5', description: 'Apple Watch SE', quantity: 1, model: 'Apple Watch SE', category: 'Apple Watch', serials: [] }] }),
+        pedido({ id: 'demo-p-5', numero: 'MOB-0005', total: 1800000, pagado: 1800000, dias: 45, pagos: [{ amountPyg: 800000, method: 'CARD' }, { amountPyg: 1000000, method: 'TRANSFER' }], items: [{ id: 'demo-i-5', description: 'Apple Watch SE', quantity: 1, model: 'Apple Watch SE', category: 'Apple Watch', serials: ['356789012345679'] }] }),
         pedido({ id: 'demo-p-2', numero: 'MOB-0002', total: 900000, pagado: 900000, dias: 95, pagos: [{ amountPyg: 200000, method: 'STORE_CREDIT' }, { amountPyg: 700000, method: 'CASH' }], items: [{ id: 'demo-i-2', description: 'AirPods 3', quantity: 1, model: 'AirPods 3', category: 'Accesorios', serials: [] }] }),
         pedido({ id: 'demo-p-31', numero: 'MOB-0031', total: 2400000, pagado: 2400000, estado: 'CANCELLED', dias: 200, items: [{ id: 'demo-i-31', description: 'iPhone 14 · 128 GB', quantity: 1, model: 'iPhone 14', category: 'Celulares', serials: [] }] }),
         pedido({ id: 'demo-p-12', numero: 'MOB-0012', total: 1200000, pagado: 1200000, dias: 400, pagos: [{ amountPyg: 1200000, method: 'PIX' }], items: [{ id: 'demo-i-12', description: 'iPad 10 · 64 GB', quantity: 1, model: 'iPad 10', category: 'Celulares', serials: [] }] }),
@@ -269,17 +289,20 @@ const clienteExtra = (id, nombres, documento, telefono, ciudad, opciones = {}) =
     billingIdentities: [],
   },
 })
-const pedidoDemo = (id, numero, total, pagado, dias, description, pagos = []) => pedido({ id, numero, total, pagado, dias, pagos, items: [{ id: `${id}-i`, description, quantity: 1, serials: [] }] })
 SEED_DEMO_CLIENTES.push(
-  clienteExtra('demo-cliente-maria', 'María González', '3.987.654', '0983111222', 'Asunción', { tags: ['frecuente'], credito: 1500000, dias: 15, seguro: true, notas: 'Cliente frecuente: siempre paga en fecha.', pedidos: [pedidoDemo('demo-p-9', 'MOB-0009', 6850000, 6850000, 5, 'iPhone 15 Pro · 256 GB', [{ amountPyg: 4000000, method: 'TRANSFER' }, { amountPyg: 2850000, method: 'CRYPTO' }])], garantias: [{ id: 'demo-g-3', serial: 'AUR000900000000', description: 'iPhone 15 Pro · 256 GB', status: 'RECEIVED', warrantyDays: 365, expiresAt: haceDias(-12), createdAt: haceDias(353), publicToken: 'demo-garantia-maria', coverage: 'Fallas de fábrica del equipo\nBatería con salud por debajo del 80%', exclusions: 'Daños por golpes o líquidos' }] }),
-  clienteExtra('demo-cliente-juan', 'Juan Pereira', '4.556.677', '0981222333', 'San Lorenzo', { tags: ['nuevo'], pedidos: [pedidoDemo('demo-p-10', 'MOB-0010', 4850000, 2000000, 9, 'iPhone 15 · 128 GB', [{ amountPyg: 2000000, method: 'TRANSFER' }])] }),
+  clienteExtra('demo-cliente-maria', 'María González', '3.987.654', '0983111222', 'Asunción', { tags: ['frecuente'], credito: 1500000, dias: 15, seguro: true, notas: 'Cliente frecuente: siempre paga en fecha.', garantias: [{ id: 'demo-g-3', serial: 'AUR000900000000', description: 'iPhone 15 Pro · 256 GB', status: 'RECEIVED', warrantyDays: 365, expiresAt: haceDias(-12), createdAt: haceDias(353), publicToken: 'demo-garantia-maria', coverage: 'Fallas de fábrica del equipo\nBatería con salud por debajo del 80%', exclusions: 'Daños por golpes o líquidos' }] }),
+  clienteExtra('demo-cliente-juan', 'Juan Pereira', '4.556.677', '0981222333', 'San Lorenzo', { tags: ['nuevo'] }),
   clienteExtra('demo-cliente-ana', 'Ana Villalba', '5.111.222', '0972555888', 'Fernando de la Mora', { tags: ['whatsapp'], seguro: true, notes: 'Prefiere contacto por WhatsApp.' }),
-  clienteExtra('demo-cliente-ramiro', 'Ramiro Cáceres', '4.222.333', '0985666999', 'Capiatá', { tags: ['reventa'], tier: 'WHOLESALE', credito: 8000000, dias: 30, facturaA: 'Ramiro Import', facturaDoc: '80098765-4', extraDirecciones: [{ label: 'Depósito', address: 'Ruta 1 Km 20' }], pedidos: [pedidoDemo('demo-p-11', 'MOB-0011', 12500000, 12500000, 30, 'iPhone 14 Pro · 256 GB × 3', [{ amountPyg: 7500000, method: 'TRANSFER' }, { amountPyg: 5000000, method: 'CARD' }])] }),
+  clienteExtra('demo-cliente-ramiro', 'Ramiro Cáceres', '4.222.333', '0985666999', 'Capiatá', { tags: ['reventa'], tier: 'WHOLESALE', credito: 8000000, dias: 30, facturaA: 'Ramiro Import', facturaDoc: '80098765-4', extraDirecciones: [{ label: 'Depósito', address: 'Ruta 1 Km 20' }] }),
   clienteExtra('demo-cliente-estela', 'Estela Ramírez', '3.222.111', '0987999111', 'Asunción', { tags: ['prioridad'], notes: 'Factura a nombre de la empresa del esposo.' }),
-  clienteExtra('demo-cliente-distribuidora-luque', 'Distribuidora Luque S.A.', '80077777-1', '0982111000', 'Luque', { tags: ['volumen', 'factura'], tier: 'WHOLESALE', credito: 15000000, dias: 30, facturaA: 'Distribuidora Luque S.A.', facturaDoc: '80077777-1', pedidos: [pedidoDemo('demo-p-12', 'MOB-0012', 9600000, 5000000, 14, 'iPhone 13 · 128 GB × 4', [{ amountPyg: 5000000, method: 'TRANSFER' }])] }),
+  clienteExtra('demo-cliente-distribuidora-luque', 'Distribuidora Luque S.A.', '80077777-1', '0982111000', 'Luque', { tags: ['volumen', 'factura'], tier: 'WHOLESALE', credito: 15000000, dias: 30, facturaA: 'Distribuidora Luque S.A.', facturaDoc: '80077777-1' }),
   clienteExtra('demo-cliente-fernando', 'Fernando Ortellado', '2.888.999', '0973111444', 'Mariano Roque Alonso', { tags: ['frecuente'], servicios: [{ id: 'demo-os-3', serviceNumber: 'OS-0005', device: 'iPhone 11 · 64 GB', serviceName: 'No enciende', serial: 'AUR002300000000', status: 'DIAGNOSTICO', receivedAt: haceDias(2), deliveredAt: null }], garantias: [{ id: 'demo-g-2', serial: 'AUR002300000000', description: 'iPhone 11 · 64 GB', status: 'RECEIVED', warrantyDays: 180, expiresAt: haceDias(-150), createdAt: haceDias(2), publicToken: 'demo-garantia-fernando', coverage: 'Fallas de fábrica del equipo\nBatería con salud por debajo del 80%', exclusions: 'Daños por golpes o líquidos\nIntervenciones de terceros' }] }),
   clienteExtra('demo-cliente-gloria', 'Gloria Martínez', '6.123.456', '0981222777', 'Lambaré', { tags: ['trade-in'], seguro: true, notes: 'Cambió de equipo con trade-in.' }),
-  clienteExtra('demo-cliente-hugo', 'Hugo Benítez', '4.999.888', '0986555222', 'Itauguá', { tags: ['moroso'], credito: 1000000, dias: 7, pedidos: [pedidoDemo('demo-p-13', 'MOB-0013', 2350000, 500000, 40, 'iPhone 12 · 128 GB', [{ amountPyg: 500000, method: 'CASH' }])] }),
+  clienteExtra('demo-cliente-hugo', 'Hugo Benítez', '4.999.888', '0986555222', 'Itauguá', { tags: ['moroso'], credito: 1000000, dias: 7 }),
+  // #324: clientes que solo existían en el flujo del POS legacy; ahora sus
+  // pedidos salen de las ventas canónicas (misma fuente que el comprobante).
+  clienteExtra('demo-cliente-carlos-benitez', 'Carlos Benítez', '3.111.222', '0971111222', 'Asunción', { tags: ['ocasional'], notas: 'Seña de una funda en dos medios.' }),
+  clienteExtra('demo-cliente-lucia-franco', 'Lucía Franco', '4.666.777', '0983666777', 'San Lorenzo', { tags: ['frecuente'], notas: 'Retira el pedido al confirmar el pago.' }),
 )
 
 
@@ -287,11 +310,11 @@ SEED_DEMO_CLIENTES.push(
 // distribuidas en meses/años, montos/estados distintos, productos y seriales).
 const historial = (cliente, cantidad, salto = 83, arranque = 24) => Array.from({ length: cantidad }, (_, i) => {
   const productos = [
-    ['iPhone 15 Pro · 256 GB', 6850000], ['iPhone 15 · 128 GB', 4850000], ['iPhone 14 · 128 GB', 3600000],
-    ['iPhone 13 · 128 GB', 3050000], ['iPhone 12 · 256 GB', 2750000], ['AirPods Pro 2 USB-C', 1850000],
-    ['Apple Watch SE', 1800000], ['Cargador USB-C 20W', 220000], ['Funda MagSafe', 180000],
+    ['iPhone 15 Pro · 256 GB', 6850000, 'iPhone 15 Pro', 'Celulares'], ['iPhone 15 · 128 GB', 4850000, 'iPhone 15', 'Celulares'], ['iPhone 14 · 128 GB', 3600000, 'iPhone 14', 'Celulares'],
+    ['iPhone 13 · 128 GB', 3050000, 'iPhone 13', 'Celulares'], ['iPhone 12 · 256 GB', 2750000, 'iPhone 12', 'Celulares'], ['AirPods Pro 2 USB-C', 1850000, 'AirPods Pro 2', 'Audio'],
+    ['Apple Watch SE', 1800000, 'Apple Watch SE', 'Apple Watch'], ['Cargador USB-C 20W', 220000, 'Cargador USB-C', 'Accesorios'], ['Funda MagSafe', 180000, 'Funda MagSafe', 'Accesorios'],
   ]
-  const [descripcion, precio] = productos[(cliente.length + i * 3) % productos.length]
+  const [descripcion, precio, modelo, categoria] = productos[(cliente.length + i * 3) % productos.length]
   const pagado = i % 4 === 0 ? Math.round(precio * 0.5) : precio
   return pedido({
     id: `${cliente}-p-${i + 1}`,
@@ -300,10 +323,18 @@ const historial = (cliente, cantidad, salto = 83, arranque = 24) => Array.from({
     pagado,
     estado: pagado >= precio ? (i % 3 === 0 ? 'READY_FOR_PICKUP' : 'COMPLETED') : 'PENDING',
     dias: arranque + i * salto,
-    items: [{ id: `${cliente}-i-${i + 1}`, description: descripcion, quantity: 1, serials: [AUR_SERIALES[(cliente.length + i) % AUR_SERIALES.length]] }],
+    items: [{ id: `${cliente}-i-${i + 1}`, description: descripcion, quantity: 1, model: modelo, category: categoria, serials: [AUR_SERIALES[(cliente.length + i) % AUR_SERIALES.length]] }],
   })
 })
 for (const cliente of SEED_DEMO_CLIENTES) {
+  // #324: si el cliente tiene ventas en la fuente canónica, sus pedidos son
+  // esos (los mismos que ve el POS y el comprobante). El resto conserva su
+  // historial propio para variar fechas, montos y productos.
+  const canonicos = pedidosDemoDeCliente(cliente.id)
+  if (canonicos.length) {
+    cliente.demoProfile.orders = canonicos
+    continue
+  }
   if (!cliente.demoProfile?.orders?.length) cliente.demoProfile.orders = historial(cliente.id, 3 + (cliente.id.length % 4))
 }
 

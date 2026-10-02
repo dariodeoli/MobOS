@@ -18,6 +18,8 @@ import { guardarDemo } from './demoStorage.js'
 import { MEDIOS_PAGO } from './catalog'
 import { guardarSnapshotCatalogo, leerSnapshotCatalogo } from './offline/snapshot'
 import { skuDemo } from './demo/sku.js'
+import { ventasDemoLegacy } from './demo/ventas.js'
+import { EMPRESA_DEMO, SUCURSALES_DEMO } from './demo/empresa.js'
 import {
   prod,
   PRODUCTOS_DEFAULT,
@@ -646,12 +648,6 @@ export function getVendedores() {
 export function prepararDatosDemo() {
   if (!isDemoRuntime || ctx.empresaId !== 'mobos-demo') return
   const version = num(cache.config.demoSeedVersion)
-  const hoy = new Date()
-  const fecha = dias => {
-    const d = new Date(hoy)
-    d.setDate(d.getDate() - dias)
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  }
   const producto = (id, nombre, categoria, precioVenta, precioCosto, stock, atributos = {}) => ({
     ...prod(nombre, categoria),
     id,
@@ -746,146 +742,18 @@ export function prepararDatosDemo() {
     if (!existente && !cache.productos.some(actual => actual.id === item.id))
       nuevosProductos.push(item)
   }
-  const ventas = [
-    {
-      id: 'demo-venta-hoy-full',
-      fecha: fecha(0),
-      creadoEn: `${fecha(0)}T10:15:00`,
-      cliente: 'María González',
-      clienteId: 'demo-cliente-maria',
-      productoId: 'demo-iphone-15-pro-256-titanio',
-      productoNombre: 'iPhone 15 Pro 256GB Titanio',
-      precio: 6850000,
-      precioCosto: 5300000,
-      comision: 50000,
-      vendedorId: 'demo-user',
-      medioPago: 'DINERO',
-      pagos: [
-        {
-          id: 'demo-pago-hoy-full',
-          medioPago: 'DINERO',
-          cuenta: '',
-          monto: 6850000,
-          fecha: `${fecha(0)}T10:15:00`,
-        },
-      ],
-      totalPagado: 6850000,
-      totalPendiente: 0,
-      estadoPago: 'Pagado',
-      entrega: 'Retiro en tienda',
-      montoDelivery: 0,
-      observacion: 'Venta de mostrador',
-    },
-    {
-      id: 'demo-venta-hoy-partial',
-      fecha: fecha(0),
-      creadoEn: `${fecha(0)}T11:20:00`,
-      cliente: 'Carlos Benítez',
-      productoId: 'demo-funda-magsafe-transparente',
-      productoNombre: 'Funda MagSafe Transparente',
-      precio: 180000,
-      precioCosto: 70000,
-      comision: 10000,
-      vendedorId: 'demo-user',
-      medioPago: 'DINERO',
-      pagos: [
-        {
-          id: 'demo-pago-hoy-partial-a',
-          medioPago: 'DINERO',
-          cuenta: '',
-          monto: 50000,
-          fecha: `${fecha(0)}T11:20:00`,
-        },
-        {
-          id: 'demo-pago-hoy-partial-b',
-          medioPago: 'UENO BANK',
-          cuenta: 'Caja · Guaraníes',
-          monto: 30000,
-          fecha: `${fecha(0)}T11:21:00`,
-        },
-      ],
-      totalPagado: 80000,
-      totalPendiente: 100000,
-      estadoPago: 'Parcial',
-      entrega: 'Retiro en tienda',
-      montoDelivery: 0,
-      observacion: 'Seña en dos medios',
-    },
-    {
-      id: 'demo-venta-ayer-pending',
-      fecha: fecha(1),
-      creadoEn: `${fecha(1)}T16:40:00`,
-      cliente: 'Lucía Franco',
-      clienteId: null,
-      productoId: 'demo-airpods-pro-2-usbc',
-      productoNombre: 'AirPods Pro 2 USB-C',
-      precio: 1850000,
-      precioCosto: 1300000,
-      comision: 30000,
-      vendedorId: 'demo-user',
-      medioPago: 'DINERO',
-      pagos: [],
-      totalPagado: 0,
-      totalPendiente: 1880000,
-      estadoPago: 'Pendiente',
-      entrega: 'Delivery',
-      montoDelivery: 30000,
-      observacion: 'Pendiente de cobro',
-    },
-  ]
-  // #213: pedidos demo extra con pagos divididos y medios variados. La tabla es
-  // [cliente, productoId, precio, entrega, montoDelivery, pagos, días].
-  // #213/#216: cada pedido demo conoce su cliente, como en la cuenta real.
-  const CLIENTE_ID_POR_NOMBRE = {
-    'María González': 'demo-cliente-maria', 'Juan Pereira': 'demo-cliente-juan', 'Ana Villalba': 'demo-cliente-ana',
-    'Ramiro Cáceres': 'demo-cliente-ramiro', 'Estela Ramírez': 'demo-cliente-estela', 'Fernando Ortellado': 'demo-cliente-fernando',
-    'Gloria Martínez': 'demo-cliente-gloria', 'Hugo Benítez': 'demo-cliente-hugo',
-    'Distribuidora Luque S.A. ': 'demo-cliente-distribuidora-luque', 'Lucía Fernández': 'demo-cliente-lucia',
-    'Distribuidora del Este S.A.': 'demo-cliente-distribuidora', 'Carlos Ramírez': 'demo-cliente-carlos',
-  }
-  const PAGOS_EXTRA = [
-    ['María González', 'demo-iphone-15-pro-max-256-titanio', 7250000, 'Retiro en tienda', 0, [['DINERO', '', 3000000], ['SALDO A FAVOR', 'Saldo a favor', 1000000], ['TRANSFERENCIA', 'Itaú · Cuenta corriente', 3250000]], 0],
-    ['Juan Pereira', 'demo-iphone-15-128-azul', 4850000, 'Delivery', 30000, [['DINERO', '', 2000000], ['TARJETA', 'ueno · Tarjeta', 2880000]], 1],
-    ['Ana Villalba', 'demo-iphone-14-256-azul', 3950000, 'Retiro en tienda', 0, [['PIX', 'Pix · Itaú', 3950000]], 1],
-    ['Ramiro Cáceres', 'demo-iphone-13-pro-max-256-grafito', 4450000, 'Retiro en tienda', 0, [['USDT - Cripto', 'USDT · Binance', 2225000], ['DINERO USD', 'Caja · Dólares', 2225000]], 2],
-    ['Estela Ramírez', 'demo-iphone-15-256-rosa', 5400000, 'Delivery', 30000, [['DINERO', '', 2000000], ['TRANSFERENCIA', 'Continental · Cuenta corriente', 3430000]], 2],
-    ['Distribuidora Luque S.A. ', 'demo-iphone-14-128-medianoche', 3600000, 'Retiro en tienda', 0, [['TRANSFERENCIA', 'Itaú · Cuenta corriente', 3600000]], 3],
-    ['Gloria Martínez', 'demo-iphone-13-128-blanco', 3050000, 'Retiro en tienda', 0, [['CANJE', 'Canje · Equipos', 1850000], ['DINERO', '', 1200000]], 3],
-    ['Fernando Ortellado', 'demo-iphone-15-pro-256-negro', 6750000, 'Delivery', 30000, [['DINERO', '', 3000000], ['POS UENO', 'ueno · Tarjeta', 3780000]], 4],
-    ['Hugo Benítez', 'demo-iphone-12-128-verde', 2350000, 'Retiro en tienda', 0, [], 5],
-    ['María González', 'demo-airpods-pro-2-usbc', 1850000, 'Retiro en tienda', 0, [['DINERO', '', 1850000]], 6],
-    ['Juan Pereira', 'demo-cargador-usbc-20w', 220000, 'Retiro en tienda', 0, [['DINERO', '', 100000], ['PIX', 'Pix · Itaú', 120000]], 7],
-    ['Ana Villalba', 'demo-funda-magsafe-transparente', 180000, 'Delivery', 20000, [['DINERO USD', 'Caja · Dólares', 200000]], 8],
-  ]
-  const vendedoresDemo = ['demo-user', 'demo-user-vendedor', 'demo-user-vendedora']
-  PAGOS_EXTRA.forEach(([cliente, productoId, precio, entrega, montoDelivery, pagos, dias], indice) => {
-    const lista = pagos.map(([medioPago, cuenta, monto], j) => ({ id: `demo-pago-extra-${indice}-${j}`, medioPago, cuenta, monto, fecha: `${fecha(dias)}T${String(10 + j).padStart(2, '0')}:30:00` }))
-    const totalPagado = lista.reduce((suma, pago) => suma + pago.monto, 0)
-    const total = precio + montoDelivery
-    ventas.push({
-      id: `demo-venta-extra-${indice + 1}`,
-      fecha: fecha(dias),
-      creadoEn: `${fecha(dias)}T10:30:00`,
-      cliente,
-      productoId,
-      productoNombre: (IPHONES_DEMO.find(item => item.id === productoId) || {}).nombre || 'Producto demo',
-      precio,
-      precioCosto: Math.round(precio * 0.78),
-      comision: Math.round(precio * 0.01),
-      clienteId: CLIENTE_ID_POR_NOMBRE[cliente] || null,
-      vendedorId: vendedoresDemo[indice % vendedoresDemo.length],
-      medioPago: lista[0]?.medioPago || '',
-      pagos: lista,
-      totalPagado,
-      totalPendiente: Math.max(0, total - totalPagado),
-      estadoPago: totalPagado === 0 ? 'Pendiente' : totalPagado >= total ? 'Pagado' : 'Parcial',
-      entrega,
-      montoDelivery,
-      observacion: 'Pedido con pagos variados',
+  // #324: las ventas demo salen de una sola fuente (`demo/ventas.js`), la misma
+  // que alimenta la ficha del cliente y el comprobante. Acá se resuelven los
+  // ids de producto contra el catálogo, se completa el costo/comisión reales y
+  // se conservan las ventas demo ya sembradas en esta pestaña.
+  const catalogoPorId = new Map([...cache.productos, ...nuevosProductos].map(item => [item.id, item]))
+  const ventasDemo = ventasDemoLegacy()
+    .map(item => {
+      const items = (item.items || []).map(linea => ({ ...linea, productoId: productoPorId.get(linea.productoId) || linea.productoId }))
+      const costo = items.reduce((suma, linea) => suma + (Number(catalogoPorId.get(linea.productoId)?.precioCosto) || Math.round(Number(linea.totalPyg || 0) * 0.78)), 0)
+      const comision = items.reduce((suma, linea) => suma + (Number(catalogoPorId.get(linea.productoId)?.comision) || Math.round(Number(linea.totalPyg || 0) * 0.01)), 0)
+      return { ...item, items, precioCosto: costo, comision }
     })
-  })
-  const ventasDemo = ventas
-    .map(item => ({ ...item, productoId: productoPorId.get(item.productoId) || item.productoId }))
     .filter(item => !cache.ventas.some(actual => actual.id === item.id))
   if (version < 5) {
     // Los celulares demo llevan sucursal y SKU: el inventario serializado y la
@@ -915,6 +783,31 @@ export function prepararDatosDemo() {
     cache.vendedores = [...cache.vendedores.filter(usuario => !idsEquipo.has(usuario.id)), ...EQUIPO_DEMO]
     // Idempotente por id: los pedidos nuevos entran una sola vez.
     cache.ventas = [...ventasDemo.filter(item => !cache.ventas.some(actual => actual.id === item.id)), ...cache.ventas]
+    // #324: Seguridad y auditoría también arranca con actividad ficticia: el
+    // alta de cada pedido (misma venta canónica) y una edición de cobro.
+    const idsAuditoria = new Set(cache.auditoria.map(entry => entry.id))
+    const auditoriaDemo = ventasDemo.map(venta => ({
+      id: `demo-aud-${venta.id}`,
+      creadoEn: venta.creadoEn,
+      accion: 'crear',
+      ventaId: venta.id,
+      actorId: venta.vendedorId,
+      actorNombre: venta.seller?.name || 'Equipo demo',
+      esPropietario: venta.vendedorId === 'demo-user',
+      resumen: { cliente: venta.cliente, producto: venta.productoNombre || '—', precio: num(venta.precio) },
+    }))
+    auditoriaDemo.push({
+      id: 'demo-aud-edicion-cobro',
+      creadoEn: new Date().toISOString(),
+      accion: 'editar',
+      ventaId: 'demo-venta-hoy-partial',
+      actorId: 'demo-user',
+      actorNombre: 'Hernán Acosta',
+      esPropietario: true,
+      resumen: { cliente: 'Carlos Benítez', producto: 'Funda MagSafe Transparente', precio: 180000 },
+      cambios: [{ campo: 'Estado de pago', de: 'Pendiente', a: 'Parcial' }],
+    })
+    cache.auditoria = [...cache.auditoria, ...auditoriaDemo.filter(entry => !idsAuditoria.has(entry.id))]
   }
   if (version < 6) {
     // #148 §6: el catálogo demo completa el SKU de todos los productos (los
@@ -988,6 +881,36 @@ export async function guardarOrdenApi(payload, opciones = {}) {
   notify()
   return order
 }
+// #324: la venta demo completa los datos que el comprobante y el detalle del
+// pedido necesitan (empresa, cliente, sucursal, línea y entrega). Sin esto el
+// papel salía con «MobOS», «Consumidor final» y «Sin artículos detallados».
+function enriquecerVentaDemo(venta, prod) {
+  venta.productoNombre = venta.productoNombre || prod?.nombre || ''
+  venta.tenant = venta.tenant || { id: EMPRESA_DEMO.id, name: EMPRESA_DEMO.razonSocial, ruc: EMPRESA_DEMO.ruc, address: EMPRESA_DEMO.direccion, phone: EMPRESA_DEMO.telefono, email: EMPRESA_DEMO.email }
+  venta.customer = venta.customer || { id: venta.clienteId || null, name: venta.cliente || 'Consumidor final', phone: venta.clienteTelefono || '', address: venta.clienteDireccion || '', countryCode: '+595' }
+  const sucursal = SUCURSALES_DEMO.find(s => s.id === ctx.sucursalId) || SUCURSALES_DEMO[0]
+  venta.branch = venta.branch || { id: sucursal.id, name: sucursal.name, address: sucursal.address, city: sucursal.city }
+  venta.deliveryType = venta.deliveryType || (String(venta.entrega || '').toLowerCase().includes('delivery') ? 'DELIVERY' : 'RETIRO')
+  venta.fulfillmentStatus = venta.fulfillmentStatus || (venta.deliveryType === 'DELIVERY' ? 'PROCESSING' : 'PICKED_UP')
+  venta.subtotalPyg = venta.subtotalPyg ?? num(venta.precio)
+  venta.totalPyg = venta.totalPyg ?? num(venta.precio) + num(venta.montoDelivery)
+  venta.seller = venta.seller || { id: venta.vendedorId || null, name: venta.vendedorNombre || 'Equipo demo' }
+  if (!Array.isArray(venta.items) || !venta.items.length) {
+    const seriales = venta.seriales || venta.serials || venta.imei || []
+    venta.items = [{
+      id: `${venta.id}-item-1`,
+      productoId: venta.productoId || null,
+      description: venta.productoNombre || prod?.nombre || 'Producto',
+      quantity: 1,
+      model: prod?.atributos?.modelo || '',
+      category: prod?.categoria || '',
+      unitPricePyg: num(venta.precio),
+      totalPyg: num(venta.precio),
+      serials: Array.isArray(seriales) ? seriales : [],
+    }]
+  }
+}
+
 export function addVenta(venta) {
   if (apiMode())
     throw new Error('Órdenes: creación API requiere la integración de FormularioVenta.')
@@ -1008,6 +931,7 @@ export function addVenta(venta) {
     medioPago: p.medioPago || MEDIOS_PAGO[0],
     cuenta: p.cuenta || '',
     monto: num(p.monto),
+    amountPyg: num(p.amountPyg ?? p.monto),
     fecha: p.fecha || new Date().toISOString(),
   }))
   nueva.totalPagado = nueva.pagos.reduce((s, p) => s + num(p.monto), 0)
@@ -1017,6 +941,7 @@ export function addVenta(venta) {
   )
   nueva.estadoPago =
     nueva.totalPendiente === 0 ? 'Pagado' : nueva.totalPagado > 0 ? 'Parcial' : 'Pendiente'
+  if (isDemoRuntime) enriquecerVentaDemo(nueva, prod)
   entUpsert('ventas', nueva)
   moverStock(nueva.productoId, -1)
   // #227: la venta demo también baja la unidad (SOLD + cronología), como el API real.

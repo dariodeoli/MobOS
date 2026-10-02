@@ -1,22 +1,28 @@
 import { getProductos, moverStock } from '@/lib/storage'
-import { leerDemo, guardarDemo } from './demoStorage.js'
+import { guardarDemo, leerDemo } from './demoStorage.js'
+import { DEMO_PURCHASES } from './demo/compras.js'
 
+// Compras demo (#324): la semilla pura vive en `demo/compras.js` (mismos
+// proveedores que Inventario y Abastecimiento); acá quedan la persistencia
+// session-only y las mutaciones de la pantalla Compras.
 const KEY = 'mobos:demo-purchases:v1'
-// #307: los proveedores del demo son los mismos que el modal de Proveedores
-// (`demoInventory`), para que Compras y el catálogo de proveedores no se
-// contradigan. Los ids coinciden con `demoInventory`.
-const seed = [
-  { id: 'demo-purchase-1', supplierId: 'demo-prov-importadora', supplierName: 'Importadora Tecnológica S.A. ', status: 'RECEIVED', createdAt: '2026-01-12T10:00:00.000Z', receivedAt: '2026-01-14T10:00:00.000Z', shippingPyg: 85000, customsPyg: 120000, insurancePyg: 0, taxesPyg: 0, otherCostsPyg: 0, currency: 'PYG', exchangeRatePyg: 1, creditEnabled: false, finalCostPyg: 637000, lines: [{ id: 'demo-line-1', productId: 'demo-funda-magsafe-transparente', productName: 'Funda MagSafe Transparente', quantity: 24, unitCostPyg: 18000, receivedQty: 24, baseTotalPyg: 432000, finalUnitCostPyg: 26542, finalTotalCostPyg: 637000 }] },
-  { id: 'demo-purchase-2', supplierId: 'demo-prov-distribuidora', supplierName: 'Distribuidora del Este ', status: 'DRAFT', createdAt: '2026-02-02T10:00:00.000Z', receivedAt: null, shippingPyg: 60000, customsPyg: 0, insurancePyg: 0, taxesPyg: 0, otherCostsPyg: 0, currency: 'PYG', exchangeRatePyg: 1, creditEnabled: false, finalCostPyg: 510000, lines: [{ id: 'demo-line-2', productId: 'demo-cargador-usbc-20w', productName: 'Cargador USB-C 20W', quantity: 50, unitCostPyg: 9000, receivedQty: 0, baseTotalPyg: 450000, finalUnitCostPyg: 10200, finalTotalCostPyg: 510000 }] },
-]
+// #324: la semilla pura vive en `demo/compras.js` (mismos proveedores que
+// Inventario y Abastecimiento); acá quedan la persistencia session-only y las
+// mutaciones de la pantalla Compras.
+const seed = DEMO_PURCHASES
 
 function read() {
-  try { return JSON.parse(leerDemo(KEY)) || seed } catch { return seed }
+  try {
+    const guardado = JSON.parse(leerDemo(KEY))
+    return Array.isArray(guardado) && guardado.length ? guardado : seed
+  } catch { return seed }
 }
 function write(items) { guardarDemo(KEY, JSON.stringify(items)); return items }
-export const DEMO_PURCHASES = seed
 export function loadDemoPurchases() { return read() }
-export function createDemoPurchase(purchase) { return write([purchase, ...read()]) }
+export function createDemoPurchase(purchase) {
+  const nuevo = { payments: [], paidPyg: 0, outstandingPyg: 0, ...purchase }
+  return write([nuevo, ...read()])
+}
 export function receiveDemoPurchase(id) {
   const items = read(); const purchase = items.find((item) => item.id === id)
   if (!purchase || purchase.status !== 'DRAFT') throw new Error('La compra ya fue recibida o no existe.')
