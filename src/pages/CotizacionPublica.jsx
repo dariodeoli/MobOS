@@ -6,6 +6,7 @@ import { API_URL } from '@/lib/api/client'
 import { varianteDeTema } from '@/lib/tenantLogo'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { demoCotizacionPayload } from '@/lib/demoCotizacion'
+import { aprobarYConvertirDemoCotizacion } from '@/lib/demoCotizacionConversion'
 import { gs } from '@/utils/calculos'
 import Icon from '@/components/shared/Icon'
 import { Aviso, Textarea } from '@/components/ui'
@@ -171,7 +172,17 @@ export default function CotizacionPublica() {
                 quote={quote}
                 token={token}
                 demo={demo}
-                onAprobada={(evidencia) => setQuote(current => current ? { ...current, status: 'CONVERTED', approval: evidencia } : current)}
+                onAprobada={(evidencia) => {
+                  // #314: en demo la aprobación genera el pedido en el navegador
+                  // (mismo camino que la cuenta real) y deja la evidencia con el
+                  // número de pedido para que coincida con Pedidos y la ficha.
+                  if (demo) {
+                    const aprobacion = aprobarYConvertirDemoCotizacion(token, evidencia)
+                    setQuote(current => current ? { ...current, status: 'CONVERTED', approval: aprobacion || evidencia } : current)
+                    return
+                  }
+                  setQuote(current => current ? { ...current, status: 'CONVERTED', approval: evidencia } : current)
+                }}
               />
             )}
 

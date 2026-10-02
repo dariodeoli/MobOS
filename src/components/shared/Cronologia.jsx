@@ -29,15 +29,17 @@ const TONOS = Object.fromEntries(Object.entries(EVENTOS).map(([tipo, valor]) => 
 // Lista de eventos de { events: [{ id, type, action, createdAt, user, detail }] }
 // más reciente primero, con carga bajo demanda: se pide al activarse, al
 // actualizar y al reintentar. Mismo formato que la cronología del cliente.
-export default function Cronologia({ endpoint, active = true, vacio = 'Sin actividad', descripcionVacio = 'Los movimientos aparecerán acá.' }) {
-  const [eventos, setEventos] = useState([])
+// `eventos` (opcional) saltea el fetch: la demo resuelve su historial local.
+export default function Cronologia({ endpoint, eventos: eventosLocales = null, active = true, vacio = 'Sin actividad', descripcionVacio = 'Los movimientos aparecerán acá.' }) {
+  const [eventosRemotos, setEventosRemotos] = useState([])
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState('')
   const [revision, setRevision] = useState(0)
   const recargar = () => setRevision((valor) => valor + 1)
+  const conLocales = Array.isArray(eventosLocales)
 
   useEffect(() => {
-    if (!active || !endpoint) return undefined
+    if (conLocales || !active || !endpoint) return undefined
     let vivo = true
     setCargando(true)
     setError('')
@@ -47,7 +49,7 @@ export default function Cronologia({ endpoint, active = true, vacio = 'Sin activ
     pedido
       .then((data) => {
         if (!vivo) return
-        setEventos(Array.isArray(data?.events) ? data.events : [])
+        setEventosRemotos(Array.isArray(data?.events) ? data.events : [])
         setCargando(false)
       })
       .catch((causa) => {
@@ -56,7 +58,9 @@ export default function Cronologia({ endpoint, active = true, vacio = 'Sin activ
         setCargando(false)
       })
     return () => { vivo = false }
-  }, [active, endpoint, revision])
+  }, [conLocales, active, endpoint, revision])
+
+  const eventos = conLocales ? eventosLocales : eventosRemotos
 
   const hitos = eventos.map((evento) => ({
     id: evento.id,

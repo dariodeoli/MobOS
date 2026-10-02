@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { qrDataUrl } from '@/lib/qr'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { getProductos } from '@/lib/storage'
 import { gs, num } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
-import { Aviso, Badge, Button, Input, Modal, MoneyInput, Textarea } from '@/components/ui'
+import { Aviso, Badge, Button, DocumentoImpresion, EmptyState, FormActions, FormField, Input, Modal, MoneyInput, Textarea } from '@/components/ui'
 import EmailField from '@/components/shared/EmailField'
 import CompartirPdf from '@/components/shared/CompartirPdf'
 import Icon from '@/components/shared/Icon'
@@ -27,8 +27,10 @@ import { mensajeCotizacion } from '@/lib/mensajeCotizacion'
 import { documentoAPdf, nombrePdfDocumento } from '@/lib/printing/pdfDocumento'
 import { compartirArchivo, puedeCompartirArchivo } from '@/lib/printing/compartirDocumento'
 import { descargarArchivo } from '@/utils/descargarArchivo'
+import { cotizacionUrlFor, estadoCotizacion } from '@/lib/cotizaciones'
+import { listDemoCotizaciones, historialDemoCotizacion, actualizarDemoCotizacion, crearDemoCotizacion } from '@/lib/demoCotizaciones'
+import { convertirDemoCotizacion } from '@/lib/demoCotizacionConversion'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
-import { listDemoQuotes } from '@/lib/demo/cotizaciones.js'
 import BarraModulo from '@/components/shared/BarraModulo'
 import { CELDA_ENCABEZADO, CELDA_IDENTIDAD_GRANDE, ROTULO_DATO } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
@@ -37,9 +39,13 @@ const STATUS = { DRAFT: ['Borrador', 'slate'], SENT: ['Enviada', 'blue'], ACCEPT
 const ABIERTAS = ['DRAFT', 'SENT', 'ACCEPTED']
 const FILTROS = [['todas', 'Todas'], ['abiertas', 'Abiertas'], ['DRAFT', 'Borrador'], ['SENT', 'Enviada'], ['ACCEPTED', 'Aceptada'], ['REJECTED', 'Rechazada'], ['CONVERTED', 'Convertida']]
 const identity = row => row
-// #324: el pipeline demo sale de la fixture canónica de cotizaciones.
-const demoQuotes = listDemoQuotes
+// #314: la demo recorre el pipeline con los fixtures canónicos de #324 y el
+// estado de la pestaña (enviar/aceptar/convertir) resuelto en memoria.
+const demoQuotes = () => listDemoCotizaciones()
 const emptyItem = (product = null) => ({ productId: product?.id || '', description: product?.nombre || '', quantity: '1', unitPricePyg: product && product.precioVenta > 0 ? String(product.precioVenta) : '' })
+const enlaceDemoCotizacion = (cotizacion) => cotizacion?.publicToken && typeof window !== 'undefined'
+  ? `${window.location.origin}${cotizacionUrlFor(cotizacion, { demo: true })}`
+  : ''
 
 // Tabla compacta: una fila por cotización, encabezados ordenables y las
 // acciones del estado en la misma línea. Misma grilla que Pedidos y Clientes.
@@ -61,9 +67,54 @@ const vencimiento = (row) => {
   return { texto: `en ${dias} día${dias === 1 ? '' : 's'}`, urgente: dias <= 2, titulo }
 }
 
+// #314: vista previa del documento (antes de guardar o enviar) con el objeto
+// de impresión de la biblioteca; no imprime, no genera PDF y no llama al API.
+function PreviaCotizacion({ open, onClose, cotizacion, emisor, etiquetaCerrar = 'Volver a editar' }) {
+  if (!cotizacion) return null
+  const items = (cotizacion.items || []).map((item, index) => ({
+    id: `${cotizacion.number || 'previa'}-${index}`,
+    cantidad: Number(item.quantity) || 0,
+    concepto: item.description || 'Ítem',
+    unitario: Number(item.unitPricePyg) || 0,
+    subtotal: Number(item.totalPyg ?? (Number(item.quantity) || 0) * (Number(item.unitPricePyg) || 0)),
+  }))
+  const subtotal = Number(cotizacion.subtotalPyg ?? items.reduce((suma, fila) => suma + fila.subtotal, 0))
+  const descuento = Number(cotizacion.discountPyg || 0)
+  return (
+    <Modal open={open} onClose={onClose} title="Vista previa de la cotización" size="completo">
+      <div className="space-y-3" data-testid="cotizacion-previa">
+        <p className="text-xs text-mute">Así se ve el documento que revisa y aprueba el cliente.</p>
+        <div className="overflow-x-auto rounded-xl border border-ink-600 bg-white">
+          <DocumentoImpresion
+            className="min-h-0"
+            titulo="Cotización"
+            numero={cotizacion.number || null}
+            etiquetaNumero="N.º"
+            emisor={emisor}
+            receptor={{ nombre: cotizacion.customerName || 'Consumidor final', documento: cotizacion.customer?.document || undefined, etiquetaDocumento: 'CI/RUC' }}
+            meta={[
+              ...(cotizacion.validUntil ? [{ etiqueta: 'Válida hasta', valor: fechaDia(cotizacion.validUntil) }] : []),
+              ...(cotizacion.sellerName ? [{ etiqueta: 'Vendedor', valor: cotizacion.sellerName }] : []),
+            ]}
+            detalle={items}
+            liquidacion={{ subtotal, descuento, total: Number(cotizacion.totalPyg ?? Math.max(0, subtotal - descuento)) }}
+            notas={cotizacion.notes || null}
+            moneda="PYG"
+            simbolo="Gs."
+          />
+        </div>
+        <FormActions>
+          <Button type="button" variant="outline" onClick={onClose}>{etiquetaCerrar}</Button>
+        </FormActions>
+      </div>
+    </Modal>
+  )
+}
+
 // Pipeline de ventas: cotizaciones con vencimiento que se convierten en pedido.
 export default function SellerQuotes() {
-  const { esDemo } = useSesion()
+  const { esDemo, empresa, sucursal, sesion } = useSesion()
+  const navigate = useNavigate()
   const productos = getProductos().filter(product => product.activo !== false)
   const [filtro, setFiltro] = useState('todas')
   // La búsqueda global abre el listado con ?q= aplicado.
@@ -105,6 +156,11 @@ export default function SellerQuotes() {
   const [fichaAbierta, setFichaAbierta] = useState(false)
   const clienteTimer = useRef(null)
   const [items, setItems] = useState([emptyItem()])
+  // #314: error adentro del modal (el Aviso de la página queda detrás del
+  // overlay) y vistas previas del documento (borrador y cotización guardada).
+  const [crearError, setCrearError] = useState('')
+  const [previaOpen, setPreviaOpen] = useState(false)
+  const [previaEnlaceOpen, setPreviaEnlaceOpen] = useState(false)
 
   // La demo no pagina contra la API: sus pocas filas se filtran en memoria.
   const rows = useMemo(() => esDemo ? data.rows
@@ -112,11 +168,37 @@ export default function SellerQuotes() {
     .filter(row => `${row.number} ${row.customerName}`.toLowerCase().includes(query.toLowerCase())) : data.rows, [data.rows, filtro, query, esDemo])
   const itemsValidos = items.filter(item => item.description.trim() && num(item.quantity) > 0 && num(item.unitPricePyg) >= 0)
   const total = itemsValidos.reduce((sum, item) => sum + num(item.quantity) * num(item.unitPricePyg), 0) - num(form.discountPyg)
+  // #314: datos del emisor y vista previa del borrador (sin guardar).
+  const emisor = useMemo(() => ({
+    nombre: empresa?.nombre || empresa?.name || 'Aurora Móviles',
+    direccion: sucursal?.direccion || sucursal?.address || '',
+    telefono: sucursal?.telefono || sucursal?.phone || '',
+    correo: empresa?.email || '',
+  }), [empresa, sucursal])
+  // #314: el buscador mantiene el alta rápida aunque no haya coincidencias.
+  const esConsumidorFinal = !form.customerId && form.customerName.trim().toLowerCase() === 'consumidor final'
+  const enlaceUrl = enlace ? (esDemo ? enlaceDemoCotizacion(enlace) : quoteUrlFor(enlace.publicToken)) : ''
+  const previaBorrador = {
+    number: null,
+    customerName: form.customerName.trim(),
+    customer: {},
+    validUntil: form.validUntil,
+    sellerName: sesion?.nombre || '',
+    notes: form.notes.trim(),
+    items: itemsValidos.map(item => ({ description: item.description.trim(), quantity: num(item.quantity), unitPricePyg: num(item.unitPricePyg), totalPyg: num(item.quantity) * num(item.unitPricePyg) })),
+    subtotalPyg: itemsValidos.reduce((suma, item) => suma + num(item.quantity) * num(item.unitPricePyg), 0),
+    discountPyg: num(form.discountPyg),
+    totalPyg: Math.max(0, total),
+  }
 
   async function accion(operacion, exito) {
     if (busy) return
     setBusy(true); setError(''); setNotice('')
-    try { await operacion(); setNotice(exito); await data.refresh() } catch (cause) { setError(cause?.message || 'No se pudo completar la acción.') } finally { setBusy(false) }
+    // El aviso detallado que arma la operación no se pisa con el genérico.
+    try { await operacion(); if (exito) setNotice(exito); await data.refresh() } catch (cause) { setError(cause?.message || 'No se pudo completar la acción.') } finally { setBusy(false) }
+  }
+  function abrirCrear() {
+    setCrearOpen(true); setError(''); setNotice(''); setCrearError('')
   }
   // Elegir un cliente existente deja la cotización ligada a su ficha: al
   // convertirla en pedido el cliente viaja con ella. El texto libre sigue
@@ -134,24 +216,58 @@ export default function SellerQuotes() {
 
   async function crear(event) {
     event.preventDefault()
-    if (!form.customerName.trim() || !itemsValidos.length) { setError('Indicá el cliente y al menos un ítem válido.'); return }
-    await accion(async () => {
-      await resources.quotes.create({
-        customerName: form.customerName.trim(),
-        ...(form.customerId ? { customerId: form.customerId } : {}),
-        validUntil: form.validUntil || undefined,
-        notes: form.notes.trim() || undefined,
-        discountPyg: num(form.discountPyg),
-        items: itemsValidos.map(item => ({ ...(item.productId ? { productId: item.productId } : {}), description: item.description.trim(), quantity: num(item.quantity), unitPricePyg: num(item.unitPricePyg) })),
-      })
+    if (busy) return
+    if (!form.customerName.trim() || !itemsValidos.length) { setCrearError('Indicá el cliente y al menos un ítem válido.'); return }
+    setBusy(true); setCrearError('')
+    const datos = {
+      customerName: form.customerName.trim(),
+      ...(form.customerId ? { customerId: form.customerId } : {}),
+      validUntil: form.validUntil || undefined,
+      notes: form.notes.trim() || undefined,
+      discountPyg: num(form.discountPyg),
+      items: itemsValidos.map(item => ({ ...(item.productId ? { productId: item.productId } : {}), description: item.description.trim(), quantity: num(item.quantity), unitPricePyg: num(item.unitPricePyg) })),
+    }
+    try {
+      // #314: en demo la cotización vive en el navegador y recorre el mismo
+      // pipeline (enviar → aceptar → convertir) que la cuenta real.
+      if (esDemo) crearDemoCotizacion({ ...datos, validUntil: datos.validUntil || null })
+      else await resources.quotes.create(datos)
       setForm({ customerName: '', customerId: '', validUntil: '', notes: '', discountPyg: '' }); setClientes([]); setItems([emptyItem()]); setCrearOpen(false)
-    }, 'Cotización creada. Podés enviarla y convertirla en pedido cuando el cliente acepte.')
+      setNotice('Cotización creada. Podés enviarla y convertirla en pedido cuando el cliente acepte.')
+      await data.refresh()
+    } catch (cause) {
+      setCrearError(cause?.message || 'No se pudo crear la cotización.')
+    } finally { setBusy(false) }
   }
-  const convertir = row => accion(async () => { const order = await resources.quotes.convert(row.id); setNotice(`Cotización ${row.number} convertida en el pedido ${codigoPedido(order.orderNumber)} (queda pendiente de cobro en Pedidos).`) }, 'Conversión completada.')
+  // Cambio de estado: en demo queda en el navegador con su evento de historial.
+  function cambiarEstado(row, status, mensaje, evento) {
+    return accion(async () => {
+      if (esDemo) actualizarDemoCotizacion(row.id, { status }, evento)
+      else await resources.quotes.update({ id: row.id, status })
+    }, mensaje)
+  }
+  const convertir = row => accion(async () => {
+    if (esDemo) {
+      const pedido = convertirDemoCotizacion(row.id, { vendedorId: sesion?.vendedorId, vendedorNombre: sesion?.nombre })
+      if (!pedido?.orderNumber) throw new Error('No se pudo convertir la cotización.')
+      setNotice(`Cotización ${row.number} convertida en el pedido ${codigoPedido(pedido.orderNumber)} (queda pendiente de cobro en Pedidos).`)
+      return
+    }
+    const order = await resources.quotes.convert(row.id)
+    setNotice(`Cotización ${row.number} convertida en el pedido ${codigoPedido(order.orderNumber)} (queda pendiente de cobro en Pedidos).`)
+  }, '')
 
   // Enlace/QR del cliente: el vendedor lo comparte y el cliente acepta o
   // rechaza desde su teléfono; regenerar invalida el enlace anterior.
   async function abrirEnlace(row) {
+    // #314: en demo el enlace es el token del fixture con `?demo=1`, sin API.
+    if (esDemo) {
+      setEnlace({ ...row, publicToken: row.publicToken || '' })
+      setQr(''); setEnlaceError(''); setEnlaceBusy(false)
+      const url = enlaceDemoCotizacion(row)
+      if (url) qrDataUrl(url).then(setQr).catch(() => {})
+      return
+    }
     const seq = ++enlaceSeq.current
     setEnlace({ ...row, publicToken: row.publicToken || '' }); setQr(''); setEnlaceError(''); setEnlaceBusy(true)
     try {
@@ -168,6 +284,7 @@ export default function SellerQuotes() {
   }
   async function regenerarEnlace() {
     if (!enlace || enlaceBusy) return
+    if (esDemo) { setNotice('En la demo el enlace no caduca: se mantiene el mismo token.'); return }
     const seq = ++enlaceSeq.current
     setEnlaceBusy(true); setEnlaceError('')
     try {
@@ -222,7 +339,7 @@ export default function SellerQuotes() {
   }
 
   async function copiarEnlace() {
-    const url = quoteUrlFor(enlace?.publicToken)
+    const url = esDemo ? enlaceDemoCotizacion(enlace) : quoteUrlFor(enlace?.publicToken)
     if (!url) return
     if (await copiarAlPortapapeles(url)) setNotice('Enlace copiado al portapapeles.'); else setEnlaceError('No se pudo copiar el enlace.')
   }
@@ -255,7 +372,7 @@ export default function SellerQuotes() {
     if (!enlace || enlaceBusy) return
     setEnlaceError('')
     try {
-      const url = quoteUrlFor(enlace.publicToken)
+      const url = esDemo ? enlaceDemoCotizacion(enlace) : quoteUrlFor(enlace.publicToken)
       const mensaje = mensajeCotizacion(enlace, { enlace: url })
       const blob = await documentoAPdf(await buildProformaHtml(enlace, { format: 'a4', enlace: url }), { formato: 'a4' })
       if (!blob?.size) throw new Error('No se pudo preparar el PDF.')
@@ -274,7 +391,11 @@ export default function SellerQuotes() {
         enviado = true
       }
       if (enviado) {
-        try { await resources.quotes.update({ id: enlace.id, status: 'SENT' }); data.refresh?.() } catch { /* el envío no se cae por el estado */ }
+        try {
+          if (esDemo) actualizarDemoCotizacion(enlace.id, { status: 'SENT' }, { action: 'Cotización enviada', detail: 'Compartida por WhatsApp' })
+          else await resources.quotes.update({ id: enlace.id, status: 'SENT' })
+          data.refresh?.()
+        } catch { /* el envío no se cae por el estado */ }
         setNotice((actual) => actual || 'Cotización enviada.')
       }
     } catch (cause) {
@@ -289,7 +410,8 @@ export default function SellerQuotes() {
       descripcion="Pipeline de ventas: cotizá, seguí el vencimiento y convertí en pedido cuando el cliente acepte."
       testId="barra-cotizaciones"
     >
-      {!esDemo && <Button type="button" onClick={() => { setCrearOpen(true); setError(''); setNotice('') }}>+ Nueva cotización</Button>}
+      {/* #314: crear también en demo: el pipeline completo es local. */}
+      <Button type="button" onClick={abrirCrear}>+ Nueva cotización</Button>
       <button type="button" onClick={data.refresh} disabled={data.loading} className="min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore md:min-h-0">Actualizar</button>
     </BarraModulo>
     <div className="flex flex-wrap items-center gap-2">
@@ -298,60 +420,86 @@ export default function SellerQuotes() {
     </div>
     {notice && <Aviso tono="ok">{notice}</Aviso>}
     {error && <Aviso tono="error">{error}</Aviso>}
-    <SellerFeedback {...data} empty={!rows.length} />
-    {!data.loading && !data.error && <div className="overflow-x-auto" data-testid="cotizaciones-tabla">
-      <div className={cn(GRID, 'px-3.5 pb-2 pt-1')}>
-        <span className={CELDA_ENCABEZADO}>Número</span>
-        <span className={CELDA_ENCABEZADO}>Cliente</span>
-        <span className={CELDA_ENCABEZADO}>Artículos</span>
-        <span className={CELDA_ENCABEZADO}>Vence</span>
-        <span className={CELDA_ENCABEZADO}>Estado</span>
-        <span className={cn('truncate text-right', ROTULO_DATO)}>Total</span>
-        <span className={cn('truncate text-right', ROTULO_DATO)}>Acciones</span>
+    <SellerFeedback {...data} empty={false} />
+    {!data.loading && !data.error && (rows.length ? (
+      <div className="overflow-x-auto" data-testid="cotizaciones-tabla">
+        <div className={cn(GRID, 'px-3.5 pb-2 pt-1')}>
+          <span className={CELDA_ENCABEZADO}>Número</span>
+          <span className={CELDA_ENCABEZADO}>Cliente</span>
+          <span className={CELDA_ENCABEZADO}>Artículos</span>
+          <span className={CELDA_ENCABEZADO}>Vence</span>
+          <span className={CELDA_ENCABEZADO}>Estado</span>
+          <span className={cn('truncate text-right', ROTULO_DATO)}>Total</span>
+          <span className={cn('truncate text-right', ROTULO_DATO)}>Acciones</span>
+        </div>
+        <div className="space-y-1">
+          {rows.map(row => {
+            // #314: una abierta con la validez cumplida se muestra vencida (y no
+            // se puede aceptar ni convertir).
+            const estado = esDemo ? estadoCotizacion(row) : row.status
+            const [label, tone] = STATUS[estado] || [estado || row.status, 'slate']
+            const cliente = row.customerName || row.customer?.name || 'Sin cliente'
+            const articulos = (row.items || []).map(item => `${item.quantity} × ${item.description}`).join(' · ')
+            const vence = vencimiento(row)
+            const abierta = ABIERTAS.includes(row.status) && estado !== 'EXPIRED'
+            return <div key={row.id} data-testid="cotizacion-fila" data-estado={estado} className={cn(GRID, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
+              <span className="truncate font-mono text-xs font-bold text-fono-light" title={row.number}>{row.number}</span>
+              <span className={CELDA_IDENTIDAD_GRANDE} title={cliente}>{cliente}</span>
+              <span className="truncate text-[11px] text-mute" title={articulos || undefined}>{articulos || '—'}</span>
+              <span className={cn('truncate text-[11px]', vence.urgente ? 'font-semibold text-warn' : 'text-mute')} title={vence.titulo}>{vence.texto}</span>
+              <Badge color={tone} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{label}</Badge>
+              <span className="truncate text-right text-sm font-bold tabular-nums text-fore">{gs(row.totalPyg)}</span>
+              <span className="flex flex-wrap items-center justify-end gap-1">
+                {row.order && <span className="truncate text-[11px] text-mute" title={`Pedido ${codigoPedido(row.order.orderNumber)}`}>Pedido {codigoPedido(row.order.orderNumber)}</span>}
+                {abierta && <>
+                  {row.status === 'DRAFT' && <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => cambiarEstado(row, 'SENT', 'Cotización marcada como enviada.', { action: 'Cotización enviada', detail: 'Marcada desde el listado' })}>Enviar</Button>}
+                  {row.status === 'SENT' && <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => cambiarEstado(row, 'ACCEPTED', 'Cotización aceptada.', { action: 'Aceptada por el cliente', detail: 'Registrada desde el listado' })}>Aceptar</Button>}
+                  {row.status === 'ACCEPTED' && <Button type="button" className="h-8 px-2 text-xs" title="Convertir en pedido" disabled={busy} onClick={() => convertir(row)}>Convertir</Button>}
+                  <button type="button" disabled={busy} className="h-8 rounded-lg border border-bad/30 px-2 text-xs font-semibold text-bad transition hover:bg-bad/10" onClick={() => cambiarEstado(row, 'CANCELLED', 'Cotización cancelada.', { action: 'Cotización cancelada', detail: 'Cancelada desde el listado' })}>Cancelar</button>
+                </>}
+                {!esDemo && <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => abrirCorreo(row)}>Correo</Button>}
+                <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => abrirEnlace(row)}>Enlace/QR</Button>
+                <Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setHistorial(row)}>Historial</Button>
+              </span>
+            </div>
+          })}
+        </div>
       </div>
-      <div className="space-y-1">
-        {rows.map(row => {
-          const [label, tone] = STATUS[row.status] || [row.status, 'slate']
-          const cliente = row.customerName || row.customer?.name || 'Sin cliente'
-          const articulos = (row.items || []).map(item => `${item.quantity} × ${item.description}`).join(' · ')
-          const vence = vencimiento(row)
-          const abierta = !esDemo && ABIERTAS.includes(row.status)
-          return <div key={row.id} data-testid="cotizacion-fila" className={cn(GRID, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
-            <span className="truncate font-mono text-xs font-bold text-fono-light" title={row.number}>{row.number}</span>
-            <span className={CELDA_IDENTIDAD_GRANDE} title={cliente}>{cliente}</span>
-            <span className="truncate text-[11px] text-mute" title={articulos || undefined}>{articulos || '—'}</span>
-            <span className={cn('truncate text-[11px]', vence.urgente ? 'font-semibold text-warn' : 'text-mute')} title={vence.titulo}>{vence.texto}</span>
-            <Badge color={tone} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{label}</Badge>
-            <span className="truncate text-right text-sm font-bold tabular-nums text-fore">{gs(row.totalPyg)}</span>
-            <span className="flex flex-wrap items-center justify-end gap-1">
-              {row.order && <span className="truncate text-[11px] text-mute" title={`Pedido ${codigoPedido(row.order.orderNumber)}`}>Pedido {codigoPedido(row.order.orderNumber)}</span>}
-              {abierta && <>
-                {row.status === 'DRAFT' && <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => accion(() => resources.quotes.update({ id: row.id, status: 'SENT' }), 'Cotización marcada como enviada.')}>Enviar</Button>}
-                {row.status === 'SENT' && <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => accion(() => resources.quotes.update({ id: row.id, status: 'ACCEPTED' }), 'Cotización aceptada.')}>Aceptar</Button>}
-                {row.status === 'ACCEPTED' && <Button type="button" className="h-8 px-2 text-xs" title="Convertir en pedido" disabled={busy} onClick={() => convertir(row)}>Convertir</Button>}
-                <button type="button" disabled={busy} className="h-8 rounded-lg border border-bad/30 px-2 text-xs font-semibold text-bad transition hover:bg-bad/10" onClick={() => accion(() => resources.quotes.update({ id: row.id, status: 'CANCELLED' }), 'Cotización cancelada.')}>Cancelar</button>
-              </>}
-              {!esDemo && <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => abrirCorreo(row)}>Correo</Button>}
-              {!esDemo && <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => abrirEnlace(row)}>Enlace/QR</Button>}
-              {!esDemo && <Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setHistorial(row)}>Historial</Button>}
-            </span>
-          </div>
-        })}
-      </div>
-    </div>}
-    {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="min-h-11 md:min-h-0 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más cotizaciones'}</button></div>}
-    <Modal open={crearOpen} onClose={() => !busy && setCrearOpen(false)} title="Nueva cotización" size="amplio">
-      <form onSubmit={crear} className="space-y-4">
+    ) : (
+      <EmptyState
+        icon="report"
+        title={query || filtro !== 'todas' ? 'No hay cotizaciones en esta vista.' : 'Todavía no hay cotizaciones.'}
+        description={query || filtro !== 'todas' ? 'Probá con otro número, cliente o ítem, o cambiá el filtro.' : 'Creá la primera y seguila hasta convertirla en pedido.'}
+        action={<Button type="button" onClick={abrirCrear}>+ Nueva cotización</Button>}
+      />
+    ))}
+    {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="min-h-11 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60 md:min-h-0">{data.cargandoMas ? 'Cargando…' : 'Cargar más cotizaciones'}</button></div>}
+    <Modal
+      open={crearOpen}
+      onClose={() => !busy && setCrearOpen(false)}
+      title="Nueva cotización"
+      size="amplio"
+      dirty={Boolean(form.customerName.trim() || form.notes.trim() || form.discountPyg || items.some(item => item.description.trim() || item.productId))}
+    >
+      <form id="cotizacion-form" onSubmit={crear} className="space-y-4" noValidate>
         <div className={GRILLA_DOS_COLUMNAS}>
-          <label className="block space-y-1.5 text-xs text-mute">Cliente
+          <FormField label="Cliente" htmlFor="cotizacion-cliente" hint="Buscá una ficha o escribí el nombre: el texto libre cotiza a alguien que todavía no es cliente.">
             <div className="relative">
-              <Input required maxLength={200} autoComplete="off" value={form.customerName} onChange={event => buscarCliente(event.target.value)} placeholder="Buscar por nombre, teléfono, CI/RUC o correo" />
+              <Input id="cotizacion-cliente" required maxLength={200} autoComplete="off" value={form.customerName} onChange={event => buscarCliente(event.target.value)} placeholder="Nombre, teléfono, CI/RUC o correo" />
               <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
-                {/* Consumidor final (#260): cotización sin ficha, sin inventar datos. */}
-                <button type="button" data-testid="cotizacion-consumidor-final" className="rounded-lg border border-ink-500 px-2 py-0.5 font-semibold text-mute transition hover:border-fono hover:text-fore" onClick={() => { setForm(current => ({ ...current, customerName: 'Consumidor final', customerId: '' })); setClientes([]) }}>Consumidor final</button>
+                {/* Consumidor final (#260/#314): opción explícita de cotizar sin ficha. */}
+                <button
+                  type="button"
+                  data-testid="cotizacion-consumidor-final"
+                  aria-pressed={esConsumidorFinal}
+                  className={cn('rounded-lg border px-2 py-0.5 font-semibold transition', esConsumidorFinal ? 'border-fono/50 bg-fono/10 text-fono-light' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}
+                  onClick={() => { setForm(current => ({ ...current, customerName: 'Consumidor final', customerId: '' })); setClientes([]) }}
+                >
+                  Cotizar a consumidor final (sin ficha)
+                </button>
                 {form.customerId ? <span className="text-fono-light">Cliente de la ficha: la cotización queda ligada a su perfil.</span> : <span className="text-mute">Sin ficha: se guarda solo el nombre.</span>}
               </div>
-              {!form.customerId && form.customerName.trim().length >= 2 && (
+              {!form.customerId && !esConsumidorFinal && form.customerName.trim().length >= 2 && (
                 <ul className="absolute z-10 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-ink-500 bg-ink-800 shadow-xl" data-testid="cotizacion-clientes">
                   {clientes.slice(0, 6).map(cliente => (
                     <li key={cliente.id}>
@@ -363,36 +511,68 @@ export default function SellerQuotes() {
                   ))}
                   {/* Alta rápida: mismo buscador/formulario del POS (#260). */}
                   <li>
-                    <button type="button" data-testid="cotizacion-crear-ficha" className="flex w-full items-center gap-2 border-t border-ink-600 px-3 py-2 text-left text-sm font-semibold text-fono-light transition hover:bg-ink-700" onClick={() => setFichaAbierta(true)}>
+                    <button type="button" data-testid="cotizacion-crear-ficha" className={cn('flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-fono-light transition hover:bg-ink-700', clientes.length > 0 && 'border-t border-ink-600')} onClick={() => setFichaAbierta(true)}>
                       <Icon name="plus" className="h-3.5 w-3.5" />Crear ficha «{form.customerName.trim()}»
                     </button>
                   </li>
                 </ul>
               )}
             </div>
-          </label>
-          <label className="block space-y-1.5 text-xs text-mute">Válida hasta<Input type="date" value={form.validUntil} onChange={event => setForm(current => ({ ...current, validUntil: event.target.value }))} /></label>
+          </FormField>
+          <FormField label="Válida hasta" htmlFor="cotizacion-valida" hint="Opcional: el portal la muestra vencida cuando pasa la fecha.">
+            <Input id="cotizacion-valida" type="date" value={form.validUntil} onChange={event => setForm(current => ({ ...current, validUntil: event.target.value }))} />
+          </FormField>
         </div>
-        <div className="space-y-2">
-          <p className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-mute">Ítems</p>
-          {items.map((item, index) => <div key={index} className="grid gap-2 rounded-xl border border-ink-600 p-2.5 sm:grid-cols-[1.3fr_70px_140px_auto]">
-            <span className="flex items-center gap-1">
-              <ProductCombobox key={item.productId || 'vacio'} className="flex-1" products={productos} selectedId={item.productId} onSelect={producto => setItems(list => list.map((row, i) => i === index ? emptyItem(producto) : row))} placeholder="Producto del catálogo (opcional)" />
-              {item.productId && <button type="button" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad" aria-label="Quitar producto del ítem" onClick={() => setItems(list => list.map((row, i) => i === index ? emptyItem() : row))}><Icon name="trash" className="h-4 w-4" /></button>}
-            </span>
-            <Input inputMode="numeric" value={item.quantity} onChange={event => setItems(list => list.map((row, i) => i === index ? { ...row, quantity: event.target.value.replace(/\D/g, '') } : row))} placeholder="Cant." />
-            <MoneyInput value={item.unitPricePyg} onValueChange={value => setItems(list => list.map((row, i) => i === index ? { ...row, unitPricePyg: value === '' ? '' : String(value) } : row))} placeholder="Precio unitario" />
-            <button type="button" className="grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad" onClick={() => setItems(list => list.length > 1 ? list.filter((_, i) => i !== index) : list)} aria-label="Quitar ítem"><Icon name="trash" className="h-4 w-4" /></button>
-            {!item.productId && <div className="sm:col-span-4"><Input maxLength={300} value={item.description} onChange={event => setItems(list => list.map((row, i) => i === index ? { ...row, description: event.target.value } : row))} placeholder="Descripción del ítem" /></div>}
-          </div>)}
+        <div className="space-y-3">
+          <p className={ROTULO_DATO}>Ítems</p>
+          {items.map((item, index) => (
+            <div key={index} className="grid gap-2 rounded-xl border border-ink-600 p-2.5 sm:grid-cols-[minmax(0,1.3fr)_92px_150px_2.75rem] sm:items-end">
+              <FormField label="Producto" hint={index === 0 ? 'Opcional: también podés cotizar un ítem libre.' : undefined}>
+                <span className="flex items-center gap-1">
+                  <ProductCombobox key={item.productId || 'vacio'} className="flex-1" products={productos} selectedId={item.productId} onSelect={producto => setItems(list => list.map((row, i) => i === index ? emptyItem(producto) : row))} placeholder="Buscar en el catálogo" />
+                  {item.productId && <button type="button" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad" aria-label="Quitar producto del ítem" onClick={() => setItems(list => list.map((row, i) => i === index ? emptyItem() : row))}><Icon name="trash" className="h-4 w-4" /></button>}
+                </span>
+              </FormField>
+              <FormField label="Cantidad">
+                <Input inputMode="numeric" value={item.quantity} onChange={event => setItems(list => list.map((row, i) => i === index ? { ...row, quantity: event.target.value.replace(/\D/g, '') } : row))} placeholder="1" aria-label="Cantidad del ítem" />
+              </FormField>
+              <FormField label="Precio unitario">
+                <MoneyInput value={item.unitPricePyg} onValueChange={value => setItems(list => list.map((row, i) => i === index ? { ...row, unitPricePyg: value === '' ? '' : String(value) } : row))} placeholder="0" aria-label="Precio unitario del ítem" />
+              </FormField>
+              {/* La fila inicial no se puede borrar: sin ítems no hay cotización. */}
+              <span className="flex h-11 items-center justify-end">
+                {items.length > 1 && <button type="button" className="grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad" onClick={() => setItems(list => list.filter((_, i) => i !== index))} aria-label="Quitar ítem"><Icon name="trash" className="h-4 w-4" /></button>}
+              </span>
+              {!item.productId && (
+                <div className="sm:col-span-4">
+                  <FormField label="Descripción">
+                    <Input maxLength={300} value={item.description} onChange={event => setItems(list => list.map((row, i) => i === index ? { ...row, description: event.target.value } : row))} placeholder="Descripción del ítem" aria-label="Descripción del ítem" />
+                  </FormField>
+                </div>
+              )}
+            </div>
+          ))}
           <Button type="button" variant="outline" onClick={() => setItems(list => [...list, emptyItem()])}>+ Agregar ítem</Button>
         </div>
         <div className={GRILLA_DOS_COLUMNAS}>
-          <label className="block space-y-1.5 text-xs text-mute">Descuento (Gs)<MoneyInput value={form.discountPyg} onValueChange={value => setForm(current => ({ ...current, discountPyg: value === '' ? '' : String(value) }))} placeholder="0" /></label>
-          <div className="rounded-xl border border-ink-600 bg-ink-800/60 px-3 py-2 text-sm">Total: <b className="tabular-nums text-fono-light">{gs(Math.max(0, total))}</b></div>
+          <FormField label="Descuento (Gs)">
+            <MoneyInput value={form.discountPyg} onValueChange={value => setForm(current => ({ ...current, discountPyg: value === '' ? '' : String(value) }))} placeholder="0" aria-label="Descuento de la cotización" />
+          </FormField>
+          <div className="flex items-end">
+            <div className="w-full rounded-xl border border-ink-600 bg-ink-800/60 px-3 py-2 text-sm" data-testid="cotizacion-total">Total: <b className="tabular-nums text-fono-light">{gs(Math.max(0, total))}</b></div>
+          </div>
         </div>
-        <label className="block space-y-1.5 text-xs text-mute">Notas<Textarea rows={2} maxLength={2000} value={form.notes} onChange={event => setForm(current => ({ ...current, notes: event.target.value }))} placeholder="Condiciones, validez, observaciones…" /></label>
-        <div className={PIE_ACCIONES}><Button type="button" variant="ghost" disabled={busy} onClick={() => setCrearOpen(false)}>Cancelar</Button><Button type="submit" disabled={busy || !form.customerName.trim() || !itemsValidos.length}>{busy ? 'Guardando…' : 'Crear cotización'}</Button></div>
+        <FormField label="Notas">
+          <Textarea rows={2} maxLength={2000} value={form.notes} onChange={event => setForm(current => ({ ...current, notes: event.target.value }))} placeholder="Condiciones, validez, observaciones…" aria-label="Notas de la cotización" />
+        </FormField>
+        {crearError && <Aviso tono="error" className="px-3 py-2 text-sm">{crearError}</Aviso>}
+        {/* #314: vista previa del documento antes de guardar (el pie del modal
+            queda fijo y un solo botón es primario). */}
+        <FormActions>
+          <Button type="button" variant="outline" disabled={busy} onClick={() => setPreviaOpen(true)}><Icon name="eye" className="h-4 w-4" />Vista previa</Button>
+          <Button type="button" variant="ghost" disabled={busy} onClick={() => setCrearOpen(false)}>Cancelar</Button>
+          <Button type="submit" form="cotizacion-form" disabled={busy || !form.customerName.trim() || !itemsValidos.length}>{busy ? 'Guardando…' : 'Crear cotización'}</Button>
+        </FormActions>
       </form>
     </Modal>
     <FichaClienteModal
@@ -401,8 +581,10 @@ export default function SellerQuotes() {
       onClose={() => setFichaAbierta(false)}
       onCreada={(ficha) => { setFichaAbierta(false); setForm(current => ({ ...current, customerId: ficha.id, customerName: ficha.name })); setClientes([]) }}
     />
-    <Modal open={historial !== null} onClose={() => setHistorial(null)} title={`Historial de ${historial?.number || 'cotización'}`}>
-      {historial && <Cronologia endpoint={`/api/quotes/${historial.id}/history`} active={historial !== null} vacio="Sin actividad" descripcionVacio="Los cambios de estado, la conversión en pedido y las notas de esta cotización aparecerán acá." />}
+    <Modal open={historial !== null} onClose={() => setHistorial(null)} title={`Historial de ${historial?.number || 'cotización'}`} size="amplio">
+      {historial && (esDemo
+        ? <Cronologia eventos={historialDemoCotizacion(historial.id)} vacio="Sin actividad" descripcionVacio="Los cambios de estado, el envío y la conversión en pedido de esta cotización demo aparecerán acá." />
+        : <Cronologia endpoint={`/api/quotes/${historial.id}/history`} active={historial !== null} vacio="Sin actividad" descripcionVacio="Los cambios de estado, la conversión en pedido y las notas de esta cotización aparecerán acá." />)}
     </Modal>
     <Modal open={enlace !== null} onClose={() => { setEnlace(null); setQr(''); setEnlaceError('') }} title={`Enlace de ${enlace?.number || 'la cotización'}`}>
       <div className="space-y-4 text-center">
@@ -413,19 +595,23 @@ export default function SellerQuotes() {
           : qr
             ? <img src={qr} alt="QR de la cotización" className="mx-auto h-44 w-44 rounded-xl bg-white p-2" />
             : null}
-        <p className="break-all rounded-lg border border-ink-600 bg-ink-900 px-3 py-2 text-[11px] text-mute">{quoteUrlFor(enlace?.publicToken) || '—'}</p>
+        <p className="break-all rounded-lg border border-ink-600 bg-ink-900 px-3 py-2 text-[11px] text-mute">{enlaceUrl || '—'}</p>
         {enlaceError && <Aviso tono="error">{enlaceError}</Aviso>}
         <div className="flex flex-wrap justify-center gap-2">
+          <Button type="button" variant="outline" disabled={enlaceBusy || !enlace} onClick={() => setPreviaEnlaceOpen(true)}><Icon name="eye" className="h-4 w-4" />Vista previa</Button>
+          {/* #314: en demo se puede recorrer el enlace como cliente sin salir
+              de la pestaña (la aprobación con código vuelve a la lista). */}
+          {esDemo && <Button type="button" variant="outline" disabled={enlaceBusy || !enlace} onClick={() => { const url = cotizacionUrlFor(enlace, { demo: true }); setEnlace(null); navigate(url) }} data-testid="cotizacion-ver-cliente"><Icon name="eye" className="h-4 w-4" />Ver como cliente</Button>}
           <Button type="button" variant="outline" disabled={!enlace?.publicToken} onClick={copiarEnlace}><Icon name="copy" className="h-4 w-4" />Copiar enlace</Button>
-          <Button type="button" variant="outline" disabled={enlaceBusy || !enlace} onClick={regenerarEnlace}><Icon name="refresh" className="h-4 w-4" />Regenerar</Button>
+          {!esDemo && <Button type="button" variant="outline" disabled={enlaceBusy || !enlace} onClick={regenerarEnlace}><Icon name="refresh" className="h-4 w-4" />Regenerar</Button>}
           <Button type="button" disabled={enlaceBusy || !enlace} onClick={imprimirEnlace}><Icon name="printer" className="h-4 w-4" />Imprimir</Button>
           <Button type="button" variant="outline" disabled={enlaceBusy || !enlace} onClick={imprimirProforma}><Icon name="printer" className="h-4 w-4" />Proforma</Button>
           <Button type="button" variant="success" disabled={enlaceBusy || !enlace} onClick={enviarWhatsApp} data-testid="cotizacion-whatsapp"><Icon name="send" className="h-4 w-4" />Enviar por WhatsApp</Button>
           <CompartirPdf
-            construirHtml={() => buildProformaHtml(enlace, { format: 'a4', enlace: quoteUrlFor(enlace?.publicToken) })}
+            construirHtml={() => buildProformaHtml(enlace, { format: 'a4', enlace: enlaceUrl })}
             nombre={`cotizacion-${enlace?.number || ''}`}
             titulo={`Cotización ${enlace?.number || ''}`}
-            texto={[`Cotización ${enlace?.number || ''}`, enlace?.customerName, quoteUrlFor(enlace?.publicToken)].filter(Boolean).join(' · ')}
+            texto={[`Cotización ${enlace?.number || ''}`, enlace?.customerName, enlaceUrl].filter(Boolean).join(' · ')}
             formato="a4"
             disabled={enlaceBusy || !enlace}
           />
@@ -449,5 +635,20 @@ export default function SellerQuotes() {
         </div>
       </div>}
     </Modal>
+    {/* #314: vista previa del borrador (antes de guardar) y de la cotización
+        guardada (antes de enviarla). */}
+    <PreviaCotizacion
+      open={previaOpen}
+      onClose={() => setPreviaOpen(false)}
+      cotizacion={previaBorrador}
+      emisor={emisor}
+    />
+    <PreviaCotizacion
+      open={previaEnlaceOpen}
+      onClose={() => setPreviaEnlaceOpen(false)}
+      cotizacion={enlace}
+      emisor={emisor}
+      etiquetaCerrar="Cerrar"
+    />
   </SellerSection>
 }
