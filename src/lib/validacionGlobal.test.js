@@ -106,6 +106,14 @@ test('#297 · impresora sin configuración no habilita el guardado', () => {
   const completa = { nombre: 'Mostrador', conexion: 'lan', destinoUsb: '', ip: '192.168.1.23', puerto: '9100', copias: 1 }
   assert.equal(validar(valoresImpresora(completa), reglasImpresora(completa)).valido, true)
 
+  // #336: la IP vuelve a validar formato (se podía guardar `999`).
+  const ipInvalida = { ...completa, ip: '999' }
+  assert.match(validar(valoresImpresora(ipInvalida), reglasImpresora(ipInvalida)).errores.ip, /Revisá la IP/)
+  const octetoExcedido = { ...completa, ip: '256.1.1.1' }
+  assert.match(validar(valoresImpresora(octetoExcedido), reglasImpresora(octetoExcedido)).errores.ip, /Revisá la IP/)
+  const ipLimite = { ...completa, ip: '255.255.255.255' }
+  assert.equal(validar(valoresImpresora(ipLimite), reglasImpresora(ipLimite)).valido, true)
+
   const puertoInvalido = { ...completa, puerto: '70000' }
   assert.match(validar(valoresImpresora(puertoInvalido), reglasImpresora(puertoInvalido)).errores.puerto, /1 y 65535/)
 

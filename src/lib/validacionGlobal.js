@@ -104,6 +104,11 @@ export function reglasPromocion(form) {
 // ── Impresoras (#297) ────────────────────────────────────────────────
 export const ETIQUETAS_IMPRESORA = { nombre: 'el nombre', destinoUsb: 'la cola CUPS', ip: 'la IP', puerto: 'el puerto', copias: 'las copias' }
 
+// IPv4 con octetos 0-255 (sin ceros a la izquierda). La regla viajaba en el
+// modal de #323 y se perdió al centralizar la validación en #297: sin ella se
+// podía guardar `lan:999:9100` (#336).
+const IPV4 = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/
+
 export function valoresImpresora(form) {
   return {
     nombre: String(form.nombre || '').trim(),
@@ -121,7 +126,7 @@ export function reglasImpresora(form) {
     ...(cups
       ? { destinoUsb: [obligatorio('Elegí la cola CUPS local.')] }
       : {
-          ip: [obligatorio('Completá la IP de la impresora.')],
+          ip: [obligatorio('Completá la IP de la impresora.'), patron(IPV4, 'Revisá la IP (ej. 192.168.1.23).')],
           puerto: [
             obligatorio('Completá el puerto.'),
             (valor) => {
