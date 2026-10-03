@@ -426,7 +426,11 @@ export default async function globalSetup() {
     // Si el prune falla, la suite sigue: el seed propio no depende de esto.
   }
   const alreadySeeded = await access(MARKER).then(() => true).catch(() => false)
-  const ctx = await pwRequest.newContext({ baseURL: API })
+  // #340: el `userAgent` del cliente HTTP del setup define el de la sesión
+  // sembrada. En CI Playwright corre sobre ubuntu y manda
+  // `(x64; ubuntu 24.04)`; `MOBOS_E2E_UA` permite reproducir localmente ese
+  // agente (o cualquier otro) sin depender del SO del runner.
+  const ctx = await pwRequest.newContext({ baseURL: API, userAgent: process.env.MOBOS_E2E_UA || undefined })
   try {
     if (alreadySeeded) {
       try {
