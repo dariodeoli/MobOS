@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.220 — 2026-10-03
+- **Impresión (#330):** el **QR de los tickets térmicos** sale con la corrección y el tamaño que exige la prueba física (corrección **H**, módulo **7**), tras un triage completo del camino del QR (vinculación, informes, destinos y comprobantes).
+- **Inventario (#331):** las **autorizaciones de stock** se ven y resuelven dentro de Inventario: bandeja con unidad/pedido, motivo, quién pide y antigüedad; aprobar/rechazar con el **motivo junto al campo**, historial corto y estado vacío claro.
+- **Inventario · vendedor (#332):** la sección queda con **dos vistas conmutables** — **Unidades** (IMEI/serial) y **Productos** (stock) — con los enlaces directos intactos y el switch de Unidades **solo para quien puede abrirlo**.
+- **Otros:** biblioteca interna actualizada (**owncoding-ui v0.63.1**, chequeo de IMEI reutilizable).
+
 ## v1.0.219 — 2026-10-03
 - **Taller (#315):** una sola jerarquía: la lista general queda con **filtros compactos** y cada reparación concentra sus **etapas, inspección y acciones** en un panel de detalle; las plantillas de WhatsApp salen con datos.
 - **Trade-In (#316):** el detalle deja de empujar la lista: vive en un **panel con encabezado real** (modelo, estado y valores) y el **valor de toma** se carga en un modal.
