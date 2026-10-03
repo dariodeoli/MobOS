@@ -76,7 +76,7 @@ test('la demo muestra en el POS el stock de las unidades del inventario (#257)',
   await expect(tarjeta()).toContainText('1 en stock', { timeout: 20_000 })
 
   // Se recibe una unidad desde Inventario (misma sesión, sin recargar el POS).
-  await page.getByRole('button', { name: 'Unidades', exact: true }).first().click()
+  await page.getByRole('button', { name: 'Unidades (IMEI)', exact: true }).first().click()
   await page.getByRole('button', { name: '+ Recibir unidad' }).click()
   const modal = page.getByRole('dialog')
   const combo = modal.getByRole('combobox').first()

@@ -1,0 +1,24 @@
+{
+  "base": "http://localhost:5217",
+  "fecha": "2026-10-03T05:22:47.371Z",
+  "variantes": [
+    {
+      "vista": "claro",
+      "urlUnidades": "/inventario/unidades",
+      "urlProductos": "/productos",
+      "menu": null
+    },
+    {
+      "vista": "oscuro",
+      "urlUnidades": "/inventario/unidades",
+      "urlProductos": "/productos",
+      "menu": null
+    },
+    {
+      "vista": "movil",
+      "urlUnidades": "/inventario/unidades",
+      "urlProductos": "/productos",
+      "menu": "Aurora Móviles S.A. × ACCIONES Buscar en toda la tienda Ctrl K Tema claro / oscuro Atajos de teclado Cerrar sesión INICIO Inicio VENDER POS Pedidos Cotizaciones"
+    }
+  ]
+}

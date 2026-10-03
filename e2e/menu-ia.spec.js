@@ -36,8 +36,9 @@ test('el dueño ve los ocho grupos de la IA con las herramientas dentro de su se
 
   // Inventario: catálogo, stock, compras, traslados y las herramientas de
   // precios (Precios, Lista por modelo y Comparador dejan de estar ocultos).
+  // #332: las dos vistas del inventario, emparejadas y evidentes.
   const inventario = grupos(page).nth(3)
-  for (const label of ['Productos', 'Unidades', 'Compras', 'Traslados y tránsito', 'Precios', 'Lista por modelo', 'Comparador']) {
+  for (const label of ['Productos (stock)', 'Unidades (IMEI)', 'Compras', 'Traslados y tránsito', 'Precios', 'Lista por modelo', 'Comparador']) {
     await expect(inventario.getByRole('button', { name: label, exact: true })).toBeVisible()
   }
 
