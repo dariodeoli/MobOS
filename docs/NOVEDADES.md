@@ -11,6 +11,9 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.221 — 2026-10-03
+- **Otros (#333):** las pruebas automáticas de la app se reparten por **duración real** y los tres bloques quedan parejos (~18 min); el límite de tiempo sube a 30 min para que el **CI deje de cortarse** por timeout.
+
 ## v1.0.220 — 2026-10-03
 - **Impresión (#330):** el **QR de los tickets térmicos** sale con la corrección y el tamaño que exige la prueba física (corrección **H**, módulo **7**), tras un triage completo del camino del QR (vinculación, informes, destinos y comprobantes).
 - **Inventario (#331):** las **autorizaciones de stock** se ven y resuelven dentro de Inventario: bandeja con unidad/pedido, motivo, quién pide y antigüedad; aprobar/rechazar con el **motivo junto al campo**, historial corto y estado vacío claro.
