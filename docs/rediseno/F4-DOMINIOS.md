@@ -158,6 +158,30 @@ Medición: **0 bajos de shell y 0 de contenido** en los cuatro combos, sin scrol
 horizontal en 390 (`e2e/qa-241-lote-c-tile.spec.js`, corrido ×3 en #329).
 
 
+## Inventario: bandeja de autorizaciones de stock (#331)
+
+Control → Autorizaciones suma la **bandeja de autorizaciones de stock** dentro
+de Inventario: los pedidos de retiro/ajuste de unidad (`STOCK_ADJUST`) y las
+transferencias entre sucursales (`TRANSFER`) pendientes, con la unidad o el
+producto afectado, el motivo, quién pidió y su antigüedad. El dueño o gerencia
+resuelve ahí mismo (aprobar o rechazar con motivo) reusando
+`/api/authorizations`, y la bandeja deja un **historial corto** de las últimas
+resueltas (con la marca «Usada» cuando la aprobación ya se consumió). El
+**contador** de pendientes viaja en el grupo Control y en la pestaña, así se ve
+desde cualquier vista del inventario; sin solicitudes queda el estado vacío.
+La semántica no cambia: aprobar no ejecuta nada por sí solo; lo autorizado se
+consume al ejecutarse desde `UnidadDetalle` (o el flujo de traslados) una sola
+vez.
+
+Capturas claro/oscuro en 1280 y 390:
+[claro 1280](c331-autorizaciones-stock-claro-desktop.png) ·
+[oscuro 1280](c331-autorizaciones-stock-oscuro-desktop.png) ·
+[claro 390](c331-autorizaciones-stock-claro-mobile.png) ·
+[oscuro 390](c331-autorizaciones-stock-oscuro-mobile.png).
+Medición: **0 bajos de shell** en los cuatro combos
+(`e2e/qa-331-autorizaciones-inventario.spec.js`).
+
+
 ## Pedidos: resumen y stepper de entrega (segunda pasada)
 
 La lista de pedidos suma el **resumen en tiles** —activos, por cobrar y en
