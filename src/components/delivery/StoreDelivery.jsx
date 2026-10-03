@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import BarraModulo from '@/components/shared/BarraModulo'
 import { api } from '@/lib/api/client'
-import { Aviso, Badge, Button, ConfirmDialog, Input, Modal, Money, Select, Textarea, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, ConfirmDialog, FormField, Input, Modal, Money, SaveActions, Select, Textarea, useToast, useValidacionCampos } from '@/components/ui'
+import { obligatorio, largoMinimo } from 'owncoding-ui/utils'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 import { fechaHoraCorta } from '@/utils/fecha'
@@ -149,6 +150,11 @@ function Rendiciones() {
   const [rechazar, setRechazar] = useState(null)
   const [motivo, setMotivo] = useState('')
   const [ocupado, setOcupado] = useState(false)
+  // #323: el motivo del rechazo se valida junto al campo y el cierre con texto
+  // cargado pide confirmación.
+  const { errorDe, validar, limpiar } = useValidacionCampos({
+    motivo: [obligatorio('Contale al repartidor por qué se rechaza.'), largoMinimo(3, 'Escribí al menos 3 caracteres.')],
+  })
 
   async function verificar(fila, state, note = '') {
     if (ocupado) return
@@ -197,7 +203,7 @@ function Rendiciones() {
             {fila.estado === 'PENDING' && (
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button type="button" disabled={ocupado} onClick={() => setConfirmar(fila)} data-testid="rendicion-verificar"><Icon name="check" className="h-4 w-4" />Verificar</Button>
-                <Button type="button" variant="outline" disabled={ocupado} onClick={() => { setMotivo(''); setRechazar(fila) }}>Rechazar</Button>
+                <Button type="button" variant="outline" disabled={ocupado} onClick={() => { limpiar(); setMotivo(''); setRechazar(fila) }}>Rechazar</Button>
               </div>
             )}
             {fila.verificadaPor && <p className="mt-2 text-xs text-mute">Verificada por {fila.verificadaPor}{fila.notaVerificacion ? ` · ${fila.notaVerificacion}` : ''}</p>}
@@ -215,14 +221,14 @@ function Rendiciones() {
         busy={ocupado}
       />
 
-      <Modal open={Boolean(rechazar)} onClose={() => !ocupado && setRechazar(null)} title="Rechazar la rendición" size="corto">
+      <Modal open={Boolean(rechazar)} onClose={() => !ocupado && setRechazar(null)} dirty={Boolean(rechazar) && motivo.trim() !== ''} busy={ocupado} title="Rechazar la rendición" size="corto">
         <p className="text-sm text-mute">Los cobros quedan sin efecto y el repartidor puede volver a registrarlos.</p>
-        <label htmlFor="rendicion-motivo" className="mt-4 block text-sm font-semibold">Motivo</label>
-        <Textarea id="rendicion-motivo" className="mt-2" rows={3} maxLength={500} value={motivo} onChange={event => setMotivo(event.target.value)} placeholder="Ej.: el efectivo entregado no coincide con lo rendido" />
-        <div className="mt-4 flex justify-end gap-2">
-          <Button type="button" variant="ghost" disabled={ocupado} onClick={() => setRechazar(null)}>Cancelar</Button>
-          <Button type="button" disabled={ocupado || motivo.trim().length < 3} onClick={() => verificar(rechazar, 'REJECTED', motivo)} data-testid="rendicion-rechazar">Rechazar</Button>
-        </div>
+        <FormField label="Motivo" htmlFor="rendicion-motivo" error={errorDe('motivo')} className="mt-4">
+          <Textarea id="rendicion-motivo" rows={3} maxLength={500} value={motivo} onChange={event => { limpiar('motivo'); setMotivo(event.target.value) }} placeholder="Ej.: el efectivo entregado no coincide con lo rendido" />
+        </FormField>
+        <SaveActions pendiente={ocupado} className="mt-4">
+          <Button type="button" disabled={ocupado} onClick={() => { if (validar({ motivo }).valido) verificar(rechazar, 'REJECTED', motivo) }} data-testid="rendicion-rechazar">Rechazar</Button>
+        </SaveActions>
       </Modal>
     </div>
   )
