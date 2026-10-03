@@ -1,0 +1,25 @@
+{
+  "issue": 335,
+  "fecha": "2026-10-03",
+  "viewportDefaultPlaywright": "1280x720",
+  "sintoma": "e2e/precios-listas.spec.js: locator.click de «+ Agregar pago» agota 90 s con «subtree intercepts pointer events» de section#pos-resumen-venta (carrito sticky).",
+  "diagnostico": {
+    "causa": "En el POS de escritorio el carrito (#pos-resumen-venta) es lg:sticky lg:top-24 y, con la línea desplegada, mide 565–634 px de alto. Al scrollear, queda pegado en top 96 px y tapa la sección «Cobro y entrega» que vive debajo en la misma columna; el scroll mínimo de Playwright centra el botón dentro del área tapada.",
+    "mediciones": {
+      "1280x720": { "carrito": { "top": 22, "bottom": 587, "height": 565 }, "boton": { "top": 342, "bottom": 378 }, "tapado": true, "elementFromPoint": "div interno de #pos-resumen-venta" },
+      "1280x900": { "carrito": { "top": 96, "bottom": 730, "height": 634 }, "boton": { "top": 509, "bottom": 545 }, "tapado": true },
+      "1280x1200": { "carrito": { "top": 96, "bottom": 799, "height": 703 }, "boton": { "top": 809, "bottom": 845 }, "tapado": false }
+    },
+    "spec": {
+      "carritoAlto": 611,
+      "1280x720": "carrito pegado 96+611=707; franja libre 707→720 = 13 px < botón 36 px: no existe posición totalmente visible debajo del carrito",
+      "1280x900": "objetivo 96+611+8=715; botón 715→751, totalmente visible y por debajo del carrito"
+    }
+  },
+  "fixSpec": "precios-listas fija viewport 1280x900 en la sección POS y posiciona «+ Agregar pago» justo debajo del carrito pegado antes del clic (con reintento). Evidencia reproducible: QA_335_CAPTURAS=docs/qa/335-precios-listas npx playwright test e2e/precios-listas.spec.js",
+  "pendientePOS": "Layout del POS a alturas cortas: el carrito sticky más alto que el espacio libre tapa «Cobro y entrega» (a 720p el botón no puede quedar visible debajo del carrito). El fix vive en src/components/ventas/venta/PasoCarrito.jsx (dominio POS).",
+  "capturas": [
+    "pos-cobro-tapado-1280x900.png — scroll mínimo: el carrito se superpone a «Cobro y entrega»",
+    "pos-cobro-visible-1280x900.png — botón posicionado debajo del carrito, clickeable"
+  ]
+}

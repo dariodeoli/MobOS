@@ -2,6 +2,10 @@
 // Precios (#251) crea una lista con ítem y un escalón, la ficha del cliente asigna la lista y
 // el POS vende aplicando el escalón (prioridad: escalón por cantidad > lista >
 // mayorista > minorista). Al final se limpia lo creado para no ensuciar el seed.
+//
+// Evidencia de #335 (layout sticky del POS a alturas cortas):
+//   QA_335_CAPTURAS=docs/qa/335-precios-listas npx playwright test e2e/precios-listas.spec.js
+import { mkdirSync } from 'node:fs'
 import { test, expect } from '@playwright/test'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
@@ -86,6 +90,12 @@ test('gestión de listas y venta con escalón aplica el precio por cantidad', as
   await page.keyboard.press('Escape')
 
   // ── Venta con escalón: 3 unidades al precio del escalón ─────────────────
+  // #335: con la línea desplegada, el carrito sticky del POS supera el espacio
+  // libre a 720p y tapa «+ Agregar pago» (el fix vive en POS:
+  // `src/components/ventas/venta/PasoCarrito.jsx`). Acá se fija un viewport
+  // con alto suficiente y se posiciona el botón justo debajo del carrito
+  // pegado antes del clic.
+  await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto('/pos')
   await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(nombreCliente)
@@ -97,7 +107,35 @@ test('gestión de listas y venta con escalón aplica el precio por cantidad', as
   await expect(page.getByLabel(`Precio de venta de ${nombreProducto}`)).toHaveValue('70.000')
 
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
-  await page.getByRole('button', { name: '+ Agregar pago' }).click()
+  // #335: el scroll mínimo de Playwright centra el botón debajo del carrito
+  // sticky. Se lo posiciona justo debajo del carrito pegado (totalmente
+  // visible, sin disparar otro scroll) y se reintenta por si el carrito cambia
+  // de alto. El layout a 720p quedó reportado al dominio POS.
+  const agregarPago = page.getByRole('button', { name: '+ Agregar pago' })
+  const posicionarAgregarPago = () => agregarPago.evaluate((el) => {
+    const carrito = document.getElementById('pos-resumen-venta')
+    if (!carrito) return
+    const pegado = parseFloat(getComputedStyle(carrito).top) || carrito.getBoundingClientRect().top
+    const cajaCarrito = carrito.getBoundingClientRect()
+    const cajaBoton = el.getBoundingClientRect()
+    const limite = pegado + cajaCarrito.height + 8
+    if (cajaBoton.top !== limite && limite + cajaBoton.height <= window.innerHeight) {
+      window.scrollBy(0, cajaBoton.top - limite)
+    }
+  })
+  const capturas335 = process.env.QA_335_CAPTURAS
+  if (capturas335) {
+    mkdirSync(capturas335, { recursive: true })
+    // Estado reportado: el scroll mínimo deja el botón debajo del carrito.
+    await agregarPago.scrollIntoViewIfNeeded()
+    await page.screenshot({ path: `${capturas335}/pos-cobro-tapado-1280x900.png` })
+  }
+  await posicionarAgregarPago()
+  if (capturas335) await page.screenshot({ path: `${capturas335}/pos-cobro-visible-1280x900.png` })
+  await expect(async () => {
+    await posicionarAgregarPago()
+    await agregarPago.click({ timeout: 3000 })
+  }).toPass({ timeout: 30_000 })
   await paymentsSection.getByLabel('Cuenta de cobro').first().click()
   await page.getByRole('option', { name: /Caja E2E/ }).click()
   await paymentsSection.getByLabel('Monto original').fill('210000')
