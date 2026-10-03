@@ -10,6 +10,8 @@
 // su **duración medida** por test (`e2e/tiempos.json`, extraída de los
 // playwright-report de CI); si un archivo no tiene medición se usa el promedio
 // de fallback. Sin `e2e/tiempos.json` vuelve al conteo de tests (compat).
+// Follow-up #333: 4 shards (el setup fijo por job pesa ~3 min y no entra en el
+// peso medido; `overheadMs` en tiempos.json se usa para estimar el job).
 // La guarda de `src/lib/ciHarness.test.js` exige que estén todos y balanceados.
 //
 // Uso:
@@ -24,7 +26,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 const RAIZ = dirname(dirname(fileURLToPath(import.meta.url)))
 const DISTRIBUCION = join(RAIZ, 'e2e/sharding.json')
 const TIEMPOS = join(RAIZ, 'e2e/tiempos.json')
-export const TOTAL_SHARDS = 3
+export const TOTAL_SHARDS = 4
 // El shard más cargado no puede superar 25% del promedio.
 export const TOLERANCIA = 1.25
 
@@ -77,7 +79,7 @@ export function calcularDistribucion(porArchivo, total = TOTAL_SHARDS, tiempos =
     destino.ms += pesoDe(archivo, tests, tiempos)
   }
   for (const shard of shards) shard.archivos.sort()
-  return { total, metrica: tiempos ? 'duracion' : 'tests', shards, generado: new Date().toISOString() }
+  return { total, metrica: tiempos ? 'duracion' : 'tests', overheadMs: tiempos?.overheadMs ?? null, shards, generado: new Date().toISOString() }
 }
 
 /** Problemas de una distribución; vacío = está bien (balance por el mismo peso). */
@@ -120,9 +122,11 @@ function main() {
     const distribucion = calcularDistribucion(porArchivo, TOTAL_SHARDS, tiempos)
     writeFileSync(DISTRIBUCION, `${JSON.stringify(distribucion, null, 2)}\n`)
     console.log(`Distribución escrita en ${DISTRIBUCION} (métrica: ${distribucion.metrica})`)
+    const overhead = tiempos?.overheadMs ?? 0
     for (const [indice, shard] of distribucion.shards.entries()) {
       const carga = tiempos ? `${Math.round(shard.ms / 1000)} s` : `${shard.ms} tests`
-      console.log(`  shard ${indice + 1}: ${shard.archivos.length} archivos · ${shard.tests} tests · ${carga}`)
+      const job = tiempos ? ` · job ~${Math.round((shard.ms + overhead) / 60000)} min` : ''
+      console.log(`  shard ${indice + 1}: ${shard.archivos.length} archivos · ${shard.tests} tests · ${carga}${job}`)
     }
     return
   }

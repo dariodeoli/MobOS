@@ -121,19 +121,19 @@ jobs:
         run: bash tests/integration-http.sh
 
   e2e:
-    # Shards en paralelo (#CI/#333): la suite completa tarda ~47 min en un
-    # runner; con 3 shards balanceados por duración (#333) cada job queda en
-    # ~18 min estimados con las duraciones medidas en CI. Cada shard tiene su
-    # propio runner, cluster de Postgres y WebServer (arnés aislado), así que
-    # no comparten nada.
-    name: E2E (${{ matrix.shard }}/3)
+    # Shards en paralelo (#CI/#333): la suite completa tarda ~48 min en un
+    # runner lento; con 4 shards balanceados por duración (#333) cada job queda
+    # en ~19 min de tests + ~3 min de setup ≈ 22 min. Cada shard tiene su propio
+    # runner, cluster de Postgres y WebServer (arnés aislado), así que no
+    # comparten nada.
+    name: E2E (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
-    # ~18 min estimados + margen para varianza del runner (~2-4x del job actual).
-    timeout-minutes: 30
+    # ~22 min estimados (tests + setup) + margen para la varianza del runner.
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -186,9 +186,9 @@ jobs:
           # compilación por ruta no hay requests cortadas durante el compile ni
           # timeouts por primeros hits lentos (flakiness de CI).
           MOBOS_E2E_BACKEND: prod
-        # Shards balanceados por duración medida (#333: e2e/tiempos.json →
-        # e2e/sharding.json; antes por cantidad y 1/2 morían al timeout).
-        # Nada de reintentos: un flake se aísla y se corrige la raíz (#245).
+        # Shards balanceados por duración medida + overhead de setup (#333:
+        # e2e/tiempos.json → e2e/sharding.json; matriz 1-4). Nada de
+        # reintentos: un flake se aísla y se corrige la raíz (#245).
         run: npx playwright test $(node scripts/e2e-shards.mjs --shard ${{ matrix.shard }})
       - name: Upload Playwright report (shard ${{ matrix.shard }})
         if: always()

@@ -16,7 +16,7 @@ test('el workflow no tiene cuarentena y los reintentos viven solo en CI (#245/#3
   const workflow = leer('.github/workflows/ci.yml')
   assert.doesNotMatch(workflow, /MOBOS_E2E_CUARENTENA/, 'la cuarentena se retiró (#245)')
   assert.match(workflow, /node scripts\/e2e-shards\.mjs --shard \${{ matrix\.shard }}/, 'los shards salen de la distribución versionada')
-  assert.match(workflow, /shard:\s*\[1,\s*2,\s*3\]/, 'falta la matriz de 3 shards')
+  assert.match(workflow, /shard:\s*\[1,\s*2,\s*3,\s*4\]/, 'falta la matriz de 4 shards')
   assert.match(workflow, /MOBOS_E2E_BACKEND:\s*prod/, 'el job E2E tiene que usar el backend prod')
   assert.match(workflow, /reporte-flaky/, 'los artifacts tienen que incluir el reporte de flakiness')
   const config = leer('playwright.config.js')
