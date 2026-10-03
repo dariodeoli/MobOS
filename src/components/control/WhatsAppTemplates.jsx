@@ -1,18 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { obligatorio, largoMaximo } from 'owncoding-ui/utils'
 import { api } from '@/lib/api/client'
 import { isDemoRuntime } from '@/lib/demoMode'
-import { Aviso, Badge, Button, Card, ConfirmDialog, FormField, Input, Modal, Select, Textarea, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, FormField, Input, Modal, SaveActions, Select, Textarea, useToast, useValidacionCampos } from '@/components/ui'
 import BarraModulo from '@/components/shared/BarraModulo'
 import Icon from '@/components/shared/Icon'
 import { CATEGORIAS_PLANTILLA, VARIABLES_POR_CONTEXTO, VALORES_EJEMPLO, renderPlantilla } from '@/lib/whatsappPlantillas'
 import { cn } from '@/lib/utils'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
-import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 // Tabla compacta: una fila por plantilla, con el mensaje recortado a una línea.
 const GRID_PLANTILLAS = 'grid min-w-[52rem] grid-cols-[minmax(10rem,1.1fr)_minmax(12rem,2fr)_6.5rem_9rem] items-center gap-x-2'
 
 const NOMBRE_CATEGORIA = Object.fromEntries(CATEGORIAS_PLANTILLA.map((item) => [item.clave, item.nombre]))
 const MAX_CUERPO = 1200
+
+// #323: reglas compartidas del editor de plantilla (mismas validaciones de
+// siempre, ahora con el error junto al campo).
+const REGLAS_EDITOR = {
+  nombre: [obligatorio('El nombre es obligatorio.'), largoMaximo(120, 'El nombre admite hasta 120 caracteres.')],
+  cuerpo: [obligatorio('El mensaje es obligatorio.'), largoMaximo(MAX_CUERPO, `El mensaje admite hasta ${MAX_CUERPO} caracteres.`)],
+}
 
 // Plantillas demo (#201): viven en memoria del módulo —nunca en la base ni en
 // localStorage— y se reinician al recargar. Los guardados no salen al API.
@@ -41,6 +49,11 @@ export default function WhatsAppTemplates() {
   const [editorError, setEditorError] = useState('')
   const [eliminar, setEliminar] = useState(null)
   const cuerpoRef = useRef(null)
+  // #323: la foto inicial separa «cambios sin guardar» (cierre con confirmación)
+  // y las reglas compartidas llevan el error junto al campo.
+  const editorBase = useRef('')
+  const { errorDe, validar, limpiar } = useValidacionCampos(REGLAS_EDITOR)
+  const editorDirty = Boolean(editor) && JSON.stringify(editor) !== editorBase.current
 
   const cargar = useCallback(async () => {
     setError('')
@@ -58,6 +71,8 @@ export default function WhatsAppTemplates() {
 
   function abrirEditor(plantilla) {
     setEditorError('')
+    limpiar()
+    editorBase.current = JSON.stringify(plantilla)
     setEditor(plantilla)
   }
 
@@ -82,10 +97,9 @@ export default function WhatsAppTemplates() {
   async function guardar(event) {
     event.preventDefault()
     if (busy || !editor) return
+    if (!validar({ nombre: editor.name, cuerpo: editor.body }).valido) return
     const nombre = editor.name.trim()
     const cuerpo = editor.body.trim()
-    if (!nombre || nombre.length > 120) { setEditorError('El nombre es obligatorio (hasta 120 caracteres).'); return }
-    if (!cuerpo || cuerpo.length > MAX_CUERPO) { setEditorError(`El mensaje es obligatorio (hasta ${MAX_CUERPO} caracteres).`); return }
     setBusy(true); setEditorError('')
     if (isDemoRuntime) {
       const actual = plantillasDemo || (plantillasDemo = plantillasDemoIniciales())
@@ -198,11 +212,18 @@ export default function WhatsAppTemplates() {
           </div>
         </div>
       )}
-      <Modal open={editor !== null} onClose={() => !busy && setEditor(null)} title={editor?.id ? 'Editar plantilla' : 'Nueva plantilla'} size="amplio">
+      <Modal
+        open={editor !== null}
+        onClose={() => setEditor(null)}
+        dirty={editorDirty}
+        busy={busy}
+        title={editor?.id ? 'Editar plantilla' : 'Nueva plantilla'}
+        size="amplio"
+      >
         <form onSubmit={guardar} className="space-y-3">
           <div className={GRILLA_DOS_COLUMNAS}>
-            <FormField label="Nombre" htmlFor="plantilla-nombre">
-              <Input id="plantilla-nombre" autoFocus maxLength={120} disabled={busy} value={editor?.name || ''} onChange={(event) => setEditor((current) => ({ ...current, name: event.target.value }))} placeholder="Ej. Pedido listo para retirar" />
+            <FormField label="Nombre" htmlFor="plantilla-nombre" error={errorDe('nombre')}>
+              <Input id="plantilla-nombre" autoFocus maxLength={120} disabled={busy} value={editor?.name || ''} onChange={(event) => { limpiar('nombre'); setEditor((current) => ({ ...current, name: event.target.value })) }} placeholder="Ej. Pedido listo para retirar" />
             </FormField>
             <FormField label="Categoría" htmlFor="plantilla-categoria">
               <Select id="plantilla-categoria" disabled={busy} value={editor?.category || 'ORDERS'} onChange={(event) => setEditor((current) => ({ ...current, category: event.target.value }))}>
@@ -211,21 +232,21 @@ export default function WhatsAppTemplates() {
             </FormField>
           </div>
           <div>
-            <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-              <span className="block text-[11px] font-medium uppercase tracking-wider text-mute">Mensaje</span>
-              <span className={cn('text-[11px] tabular-nums', (editor?.body?.length || 0) > MAX_CUERPO ? 'text-bad' : 'text-mute')}>{(editor?.body?.length || 0)}/{MAX_CUERPO}</span>
-            </div>
-            <Textarea
-              ref={cuerpoRef}
-              aria-label="Mensaje de la plantilla"
-              rows={4}
-              maxLength={MAX_CUERPO}
-              disabled={busy}
-              value={editor?.body || ''}
-              onChange={(event) => setEditor((current) => ({ ...current, body: event.target.value }))}
-              placeholder="Hola {{cliente}}, tu pedido {{pedido}} está listo."
-              className="w-full resize-none rounded-lg border border-ink-500 bg-ink-800 px-3.5 py-2.5 text-base text-fore outline-none transition placeholder:text-mute/60 focus:border-fono focus:ring-1 focus:ring-fono/40 md:text-sm"
-            />
+            <FormField label="Mensaje" htmlFor="plantilla-mensaje" error={errorDe('cuerpo')}>
+              <Textarea
+                ref={cuerpoRef}
+                id="plantilla-mensaje"
+                aria-label="Mensaje de la plantilla"
+                rows={4}
+                maxLength={MAX_CUERPO}
+                disabled={busy}
+                value={editor?.body || ''}
+                onChange={(event) => { limpiar('cuerpo'); setEditor((current) => ({ ...current, body: event.target.value })) }}
+                placeholder="Hola {{cliente}}, tu pedido {{pedido}} está listo."
+                className="w-full resize-none rounded-lg border border-ink-500 bg-ink-800 px-3.5 py-2.5 text-base text-fore outline-none transition placeholder:text-mute/60 focus:border-fono focus:ring-1 focus:ring-fono/40 md:text-sm"
+              />
+            </FormField>
+            <p className={cn('mt-1 text-right text-[11px] tabular-nums', (editor?.body?.length || 0) > MAX_CUERPO ? 'text-bad' : 'text-mute')}>{(editor?.body?.length || 0)}/{MAX_CUERPO}</p>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <span className={ROTULO_DATO}>Variables</span>
               {variables.map((variable) => (
@@ -244,7 +265,9 @@ export default function WhatsAppTemplates() {
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={busy} checked={editor?.isDefault === true} onChange={(event) => setEditor((current) => ({ ...current, isDefault: event.target.checked }))} />Predeterminada de {NOMBRE_CATEGORIA[editor?.category] || 'la categoría'}</label>
           </div>
           {editorError && <Aviso tono="error">{editorError}</Aviso>}
-          <div className={PIE_ACCIONES}><Button type="button" variant="ghost" disabled={busy} onClick={() => setEditor(null)}>Cancelar</Button><Button type="submit" disabled={busy || !editor?.name?.trim() || !editor?.body?.trim()}>{busy ? 'Guardando…' : editor?.id ? 'Guardar cambios' : 'Crear plantilla'}</Button></div>
+          <SaveActions pendiente={busy}>
+            <Button type="submit" disabled={busy}>{busy ? 'Guardando…' : editor?.id ? 'Guardar cambios' : 'Crear plantilla'}</Button>
+          </SaveActions>
         </form>
       </Modal>
       <ConfirmDialog
