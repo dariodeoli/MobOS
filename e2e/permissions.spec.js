@@ -17,8 +17,9 @@ test.describe('seller permissions', () => {
     for (const label of ['POS', 'Mis pedidos', 'Cotizaciones', 'Promociones', 'Plantillas', 'Productos', 'Precios', 'Delivery', 'Trade-In']) {
       await expect(sidebarNav.getByRole('button', { name: label, exact: true })).toBeVisible()
     }
-    // Módulos del dueño que el vendedor no ve.
-    for (const label of ['Inicio', 'Pedidos', 'Unidades', 'Compras', 'Traslados y tránsito', 'Lista por modelo', 'Comparador', 'Taller y garantías', 'Autorizaciones', 'Tablero de operaciones', 'Finanzas', 'Análisis', 'Configuración']) {
+    // Módulos del dueño que el vendedor no ve (#332: las vistas del
+    // inventario se emparejan por nombre; el vendedor solo ve «Productos»).
+    for (const label of ['Inicio', 'Pedidos', 'Unidades (IMEI)', 'Productos (stock)', 'Compras', 'Traslados y tránsito', 'Lista por modelo', 'Comparador', 'Taller y garantías', 'Autorizaciones', 'Tablero de operaciones', 'Finanzas', 'Análisis', 'Configuración']) {
       await expect(sidebarNav.getByRole('button', { name: label, exact: true })).toHaveCount(0)
     }
   })
