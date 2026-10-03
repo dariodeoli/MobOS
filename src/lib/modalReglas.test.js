@@ -139,4 +139,11 @@ test('los modales de FIN adoptan cierre con cambios y error junto al campo (#323
   assert.ok(autorizaciones.includes("error={errorDe('motivo')}"), 'el motivo se valida junto al campo')
   assert.ok(!autorizaciones.includes("toast.error('Motivo obligatorio'"), 'el motivo ya no usa toast')
   assert.ok(!autorizaciones.includes('disabled={busy || !rejectNote.trim()}'), 'el motivo vacío no deshabilita el botón')
+
+  const plantillas = leer('../components/control/WhatsAppTemplates.jsx')
+  assert.ok(plantillas.includes('dirty={editorDirty}'), 'el editor de plantilla confirma al cerrar con cambios')
+  assert.ok(plantillas.includes('useValidacionCampos(REGLAS_EDITOR)'), 'la plantilla valida con las reglas compartidas')
+  assert.ok(plantillas.includes('error={errorDe(\'nombre\')}') && plantillas.includes('error={errorDe(\'cuerpo\')}'), 'los errores van junto a los campos')
+  assert.ok(plantillas.includes('<SaveActions'), 'el pie de la plantilla se monta en el pie fijo del diálogo')
+  assert.ok(!plantillas.includes('<span className="block text-[11px] font-medium uppercase tracking-wider text-mute">Mensaje</span>'), 'el rótulo suelto de Mensaje ya es label')
 })

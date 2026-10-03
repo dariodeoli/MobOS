@@ -98,6 +98,34 @@ test.describe('modal estándar en FIN (#323)', () => {
     await expect(page.getByTestId('autorizacion-fila').filter({ hasText: nombre }).first().getByText('Pendiente')).toBeVisible()
   })
 
+  test('WhatsAppTemplates: el editor valida junto al campo y confirma al cerrar con cambios', async ({ page }) => {
+    await page.goto('/plantillas')
+    await expect(page.getByRole('heading', { name: 'Plantillas de WhatsApp' })).toBeVisible()
+    await page.getByRole('button', { name: /Nueva plantilla/ }).click()
+    const modal = page.getByRole('dialog', { name: 'Nueva plantilla' })
+    await expect(modal).toBeVisible()
+
+    // Labels visibles y error junto al campo al intentar crear vacío.
+    for (const etiqueta of ['Nombre', 'Categoría', 'Mensaje']) {
+      await expect(modal.locator('label').filter({ hasText: new RegExp(`^${etiqueta}$`) }).first()).toBeVisible()
+    }
+    await modal.getByRole('button', { name: 'Crear plantilla' }).click()
+    await expect(modal.getByText('El nombre es obligatorio.')).toBeVisible()
+    await expect(modal.getByText('El mensaje es obligatorio.')).toBeVisible()
+    await expect(modal).toBeVisible()
+
+    // Cerrar con cambios pide confirmación (dirty).
+    await modal.getByLabel('Nombre').fill('Plantilla QA 323')
+    await page.keyboard.press('Escape')
+    const confirmacion = page.getByRole('dialog', { name: '¿Descartar los cambios?' })
+    await expect(confirmacion).toBeVisible()
+    await confirmacion.getByRole('button', { name: 'Seguir editando' }).click()
+    await expect(modal).toBeVisible()
+    await page.keyboard.press('Escape')
+    await confirmacion.getByRole('button', { name: 'Descartar y cerrar' }).click()
+    await expect(modal).toHaveCount(0)
+  })
+
   test('capturas de los modales FIN (#323)', async ({ page }) => {
     test.setTimeout(180_000)
     const salida = process.env.MOBOS_CAPTURAS || 'test-results/qa-323-fin'
@@ -128,6 +156,16 @@ test.describe('modal estándar en FIN (#323)', () => {
         await page.screenshot({ path: `${salida}/autorizaciones-rechazo-${tema}-${vista}.png` })
         await page.keyboard.press('Escape')
         await expect(modal).toHaveCount(0)
+
+        // Plantillas: editor con los errores junto a los campos.
+        await page.goto('/plantillas')
+        await page.getByRole('button', { name: /Nueva plantilla/ }).click()
+        const editorPlantilla = page.getByRole('dialog', { name: 'Nueva plantilla' })
+        await editorPlantilla.getByRole('button', { name: 'Crear plantilla' }).click()
+        await expect(editorPlantilla.getByText('El nombre es obligatorio.')).toBeVisible()
+        await page.screenshot({ path: `${salida}/plantilla-editor-${tema}-${vista}.png` })
+        await page.keyboard.press('Escape')
+        await expect(editorPlantilla).toHaveCount(0)
       }
     }
   })
