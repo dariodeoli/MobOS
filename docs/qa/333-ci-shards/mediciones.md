@@ -1,7 +1,11 @@
-# #333 · CI E2E: timeout 30 min y shards balanceados por duración medida
+# #333 · CI E2E: shards balanceados por duración y timeout (30 → 40) con 4 shards
 
 Fecha: 03-10-2026 · Rama: `slot/plataforma` · Suite: 703 tests · CI de punta a
 punta: lo confirma el run de `main` post-integración (el integrador lo verifica).
+
+> **Estado final (follow-up v1.0.221):** 4 shards + `timeout-minutes: 40`,
+> ~1150 s de test por shard + ~3 min de setup (≈ 22 min de job en el runner
+> lento). Ver §5.
 
 ## 1. Problema
 
@@ -82,3 +86,45 @@ MOBOS_E2E_BACKEND=prod npx playwright test $(node scripts/e2e-shards.mjs --shard
 > La máquina local es más rápida que el runner de CI (~1.5× en el control
 > `demo-anonimo`: 44 s local vs 67 s CI), así que los tiempos locales sirven para
 > validar el **balance relativo**; la duración absoluta la confirma el CI.
+
+## 5. Follow-up v1.0.221: 4 shards y timeout 40
+
+El balanceo por duración funcionó (los tres shards llegaron parejos al límite),
+pero **no alcanzó el presupuesto**: run `37104804379` (v1.0.221):
+
+| Job | Resultado | Duración |
+| --- | --- | --- |
+| E2E 1/3 | `cancelled` por timeout | 1815 s |
+| E2E 2/3 | `failure` (specs de #334/#335) | 1721 s |
+| E2E 3/3 | `cancelled` por timeout | 1816 s |
+
+Datos del shard 2 completado: 275 tests (los 3 shards eran ~947 s estimados),
+report de Playwright **1572 s** y suma de tests **1534 s** → el mapa medido en
+una corrida anterior era **1.62× más rápido** que este runner. El setup fijo,
+medido como job − report, es **~150 s** (1721 − 1572) y no estaba en la cuenta.
+
+Acciones (mismo issue):
+
+- `e2e/tiempos.json`: mediciones previas **normalizadas ×1.619** (para que los
+  pesos de archivos medidos en corridas distintas sean comparables) y datos
+  nuevos del shard 2 de v1.0.221; se agrega `overheadMs = 180000` (3 min) y la
+  nota de normalización.
+- `scripts/e2e-shards.mjs`: `TOTAL_SHARDS = 4`; `--generar` imprime el job
+  estimado con el overhead.
+- `.github/workflows/ci.yml`: matriz `[1, 2, 3, 4]`, `timeout-minutes: 40` y
+  comentarios con la cuenta (tests + setup).
+- `src/lib/ciHarness.test.js`: la guarda exige la matriz de 4 shards.
+- `docs/CI-HARNESS.md` §1/§1.0.1 y `docs/ARRANQUE.md`: 4 shards y overhead.
+
+Nueva distribución (métrica duración):
+
+| Shard | Tests | Test estimado | Job estimado (test + 3 min) |
+| --- | --- | --- | --- |
+| 1 | 132 | ~1151 s | ~22 min |
+| 2 | 154 | ~1151 s | ~22 min |
+| 3 | 204 | ~1150 s | ~22 min |
+| 4 | 213 | ~1150 s | ~22 min |
+
+Con timeout 40 quedan ~18 min de margen sobre el peor runner observado. La
+validación final es el run de CI de `main` post-merge (fuera del alcance de
+#334/#335, que corren sus propios arreglos de specs).
