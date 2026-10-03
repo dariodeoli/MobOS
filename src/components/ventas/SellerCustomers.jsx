@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import Icon from '@/components/shared/Icon'
-import { Aviso, Button, Input, Modal, MoneyInput, Select, Textarea } from '@/components/ui'
+import { Aviso, Button, Input, Modal, MoneyInput, SaveActions, Select, Textarea, useResultado } from '@/components/ui'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import SearchField from '@/components/shared/SearchField'
 import PhoneField from '@/components/shared/PhoneField'
@@ -12,7 +12,7 @@ import ListGridToggle from '@/components/shared/ListGridToggle'
 import SegmentedField from '@/components/shared/SegmentedField'
 import BarraModulo from '@/components/shared/BarraModulo'
 import ResumenMetricas from '@/components/shared/ResumenMetricas'
-import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
+import { telefonoValido } from '@/utils/telefono'
 import { coincideCliente } from '@/utils/cliente'
 import { capitalizarPrimera } from '@/utils/texto'
 import { parseDelimited } from '@/utils/csv'
@@ -114,8 +114,9 @@ export default function SellerCustomers() {
   const [form, setForm] = useState(emptyCustomer)
   const [saving, setSaving] = useState(false)
   const savingRef = useRef(false)
-  const [message, setMessage] = useState('')
   const [saveError, setSaveError] = useState('')
+  const avisar = useResultado()
+  const crearSucio = JSON.stringify(form) !== JSON.stringify(emptyCustomer)
   const [profileCustomer, setProfileCustomer] = useState(null)
   // Resumen rápido (#236): el ojito abre el popup; el detalle completo abre el
   // perfil (CustomerProfile) en la pestaña pedida (resumen o datos al editar).
@@ -187,7 +188,6 @@ export default function SellerCustomers() {
       delete window.__mobosNewCustomer
       setForm(emptyCustomer)
       setSaveError('')
-      setMessage('')
       setCrearAbierto(true)
     }
     if (window.__mobosNewCustomer) onNewCustomer()
@@ -217,7 +217,6 @@ export default function SellerCustomers() {
   function abrirCrear() {
     setForm(emptyCustomer)
     setSaveError('')
-    setMessage('')
     setCrearAbierto(true)
   }
 
@@ -229,11 +228,13 @@ export default function SellerCustomers() {
     const secondName = form.secondName.trim()
     const nombre = [firstName, secondName].filter(Boolean).join(' ')
     if (savingRef.current || !nombre) return
+    // #323: el teléfono inválido frena el alta; el campo lo avisa al salir
+    // (PhoneField) y la ficha no cae al error general del modal.
+    const phones = form.phones.map((phone) => phone.trim()).filter(Boolean).slice(0, 5)
+    if (phones.some((phone) => !telefonoValido(phone, form.countryCode || '+595'))) return
     savingRef.current = true
-    setSaving(true); setMessage(''); setSaveError('')
+    setSaving(true); setSaveError('')
     try {
-      const phones = form.phones.map((phone) => phone.trim()).filter(Boolean).slice(0, 5)
-      if (phones.some((phone) => !telefonoValido(phone, form.countryCode || '+595'))) throw new Error(MENSAJE_TELEFONO)
       const addresses = form.addresses.filter((address) => address.address.trim()).map((address, index) => ({ label: address.label.trim() || `Dirección ${index + 1}`, address: address.address.trim(), ...(address.city.trim() ? { city: address.city.trim() } : {}), ...(address.department?.trim() ? { department: address.department.trim() } : {}), country: address.country?.trim() || 'Paraguay', isDefault: index === 0 }))
       if (esDemo) {
         const customer = { id: crypto.randomUUID(), name: nombre, firstName, secondName, createdAt: new Date().toISOString(), document: form.document.trim(), email: form.email.trim(), phone: phones[0] || '', phones, countryCode: form.countryCode || '+595', addresses, acceptsEmailMarketing: form.acceptsEmailMarketing, acceptsSmsMarketing: form.acceptsSmsMarketing, acceptsWhatsappMarketing: form.acceptsWhatsappMarketing, taxExempt: form.taxExempt, tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20) }
@@ -243,7 +244,7 @@ export default function SellerCustomers() {
         if (!saved?.id) throw new Error('Sin confirmación')
       }
       setForm(emptyCustomer); setSearch(''); setQuery(''); setCrearAbierto(false); data.refresh()
-      setMessage(esDemo ? 'Cliente de prueba guardado en este navegador.' : 'Cliente guardado.')
+      avisar.guardado(esDemo ? 'Cliente de prueba' : 'Cliente')
     } catch (cause) {
       setSaveError(cause?.message || 'No se pudo confirmar el guardado. Buscá el cliente antes de reintentar.')
     } finally { savingRef.current = false; setSaving(false) }
@@ -393,7 +394,7 @@ export default function SellerCustomers() {
         <div className={PIE_ACCIONES}><Button type="button" variant="ghost" disabled={importBusy} onClick={() => setImportAbierto(false)}>Cerrar</Button><Button type="submit" disabled={importBusy || !filasImportadas.length}>{importBusy ? 'Importando…' : 'Importar clientes'}</Button></div>
       </form>
     </Modal>
-    <Modal open={crearAbierto} onClose={() => !saving && setCrearAbierto(false)} title="Crear cliente" size="amplio">
+    <Modal open={crearAbierto} onClose={() => !saving && setCrearAbierto(false)} dirty={crearAbierto && crearSucio} title="Crear cliente" size="amplio">
       <form onSubmit={create} className="space-y-4">
         <div className={GRILLA_DOS_COLUMNAS}>
           <label className="block space-y-2"><span>Primer nombre</span><Input ref={nombreRef} required autoFocus maxLength={120} disabled={saving} value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} /></label>
@@ -423,8 +424,7 @@ export default function SellerCustomers() {
           <fieldset className="space-y-1.5"><legend className={ROTULO_SECCION}>Marketing (solo si acepta)</legend>{[['acceptsWhatsappMarketing', 'WhatsApp'], ['acceptsSmsMarketing', 'SMS'], ['acceptsEmailMarketing', 'Email']].map(([key, label]) => <label key={key} className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={saving} checked={form[key]} onChange={(event) => setForm({ ...form, [key]: event.target.checked })} />{label}</label>)}</fieldset>
           <div className="space-y-3"><label className="block space-y-2"><span>Tipo de cliente</span><Select disabled={saving} value={form.pricingTier} onChange={(event) => setForm({ ...form, pricingTier: event.target.value })}><option value="RETAIL">Cliente final</option><option value="WHOLESALE">Mayorista (precio mayorista en el POS)</option></Select></label><label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={saving} checked={form.taxExempt} onChange={(event) => setForm({ ...form, taxExempt: event.target.checked })} />Exento de impuestos</label><label className="block space-y-2"><span>Etiquetas <small className="text-mute">(separadas por coma)</small></span><Input maxLength={200} disabled={saving} value={form.tags} onChange={(event) => setForm({ ...form, tags: event.target.value })} placeholder="Ej: mayorista, prioridad" /></label></div>
         </div>
-        <div className={PIE_ACCIONES}><Button type="button" variant="ghost" disabled={saving} onClick={() => setCrearAbierto(false)}>Cancelar</Button><Button disabled={saving || !form.firstName.trim()}>{saving ? 'Guardando…' : 'Guardar cliente'}</Button></div>
-        {message && <p role="status" className="text-ok">{message}</p>}
+        <SaveActions pendiente={saving}><Button disabled={saving || !form.firstName.trim()}>{saving ? 'Guardando…' : 'Guardar cliente'}</Button></SaveActions>
         {saveError && <p role="alert" className="text-bad">{saveError}</p>}
       </form>
     </Modal>

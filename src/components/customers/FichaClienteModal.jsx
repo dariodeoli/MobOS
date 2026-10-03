@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Aviso, Button, Modal, useToast } from '@/components/ui'
+import { Aviso, Button, Modal, useToast, useValidacionCampos } from '@/components/ui'
+import { obligatorio } from 'owncoding-ui/utils'
 import { PIE_ACCIONES } from '@/components/shared/formulario'
 import CheckoutCustomer from '@/components/ventas/CheckoutCustomer'
 import { resources } from '@/lib/api'
@@ -13,6 +14,12 @@ export default function FichaClienteModal({ open, nombreInicial = '', onClose, o
   const [valor, setValor] = useState(clienteVacio())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  // #323: el nombre se valida junto al campo y cerrar con datos cargados pide
+  // confirmación antes de descartarlos.
+  const { errorDe, validar, limpiar } = useValidacionCampos({
+    nombre: [obligatorio('Escribí el nombre del cliente.')],
+  })
+  const sucio = Boolean(open) && !valor.id && JSON.stringify(valor) !== JSON.stringify(clienteVacio(nombreInicial))
 
   useEffect(() => {
     if (!open) return
@@ -23,6 +30,7 @@ export default function FichaClienteModal({ open, nombreInicial = '', onClose, o
 
   async function guardar() {
     if (busy) return
+    if (!validar({ nombre: valor.name }).valido) return
     if (valor.id) { onCreada?.({ id: valor.id, name: valor.name }); return }
     setBusy(true); setError('')
     try {
@@ -35,17 +43,17 @@ export default function FichaClienteModal({ open, nombreInicial = '', onClose, o
   }
 
   return (
-    <Modal open={open} onClose={() => !busy && onClose?.()} title="Crear ficha del cliente" size="amplio">
+    <Modal open={open} onClose={() => !busy && onClose?.()} dirty={sucio} busy={busy} title="Crear ficha del cliente" size="amplio">
       <div className="space-y-4" data-testid="ficha-cliente">
         <p className="text-sm text-mute">
           Buscá una ficha existente o cargá los datos para crear una nueva sin salir de la cotización. Si el teléfono o el CI/RUC ya existen, se reutiliza la ficha.
         </p>
-        <CheckoutCustomer value={valor} onChange={setValor} esDemo={false} />
+        <CheckoutCustomer value={valor} onChange={(siguiente) => { limpiar('nombre'); setValor(siguiente) }} esDemo={false} errorNombre={errorDe('nombre')} />
         {valor.id && valor.name && <Aviso tono="info" className="rounded-xl p-3 text-xs">Ya existe la ficha <b>{valor.name}</b>: se va a usar esa.</Aviso>}
         {error && <Aviso tono="error" className="rounded-xl p-3 text-sm">{error}</Aviso>}
         <div className={PIE_ACCIONES}>
           <Button type="button" variant="ghost" disabled={busy} onClick={onClose}>Cancelar</Button>
-          <Button type="button" disabled={busy || !String(valor.name || '').trim()} data-testid="ficha-cliente-guardar" onClick={guardar}>
+          <Button type="button" disabled={busy} data-testid="ficha-cliente-guardar" onClick={guardar}>
             {busy ? 'Guardando…' : valor.id ? 'Usar esta ficha' : 'Crear ficha'}
           </Button>
         </div>
