@@ -10,6 +10,7 @@
 import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { cerrarGuiaDemo } from './helpers/demo.js'
+import { VERSION_AGENTE_DEMO } from '../src/lib/printing/demo.js'
 
 const SALIDA = 'docs/qa/319-dispositivos'
 mkdirSync(SALIDA, { recursive: true })
@@ -89,9 +90,10 @@ test.describe('#319 dispositivos e impresión', () => {
     await expect(page.getByTestId('formatos-impresion')).toContainText('Ruteo de documentos')
     await page.screenshot({ path: `${SALIDA}/ruteo-oscuro.png` })
 
-    // Puentes: estado, versión y plataforma del mismo registro.
+    // Puentes: estado, versión y plataforma del mismo registro. La versión sale
+    // de la misma constante que la demo (#336): un bump del agente no rompe acá.
     await page.getByTestId('panel-puentes').click()
-    await expect(page.getByTestId('puentes-impresion')).toContainText('en línea · v1.6.3')
+    await expect(page.getByTestId('puentes-impresion')).toContainText(`en línea · v${VERSION_AGENTE_DEMO}`)
     await expect(page.getByTestId('puentes-impresion')).toContainText('macOS')
     await page.screenshot({ path: `${SALIDA}/puentes-oscuro.png` })
   })

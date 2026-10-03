@@ -11,6 +11,11 @@
 const haceMinutos = (minutos) => new Date(Date.now() - minutos * 60_000).toISOString()
 const haceSegundos = (segundos) => new Date(Date.now() - segundos * 1000).toISOString()
 
+// Versión del agente que simula la demo (#319). El bump del print-agent tiene
+// que actualizarla: `demo.test.js` la contrasta contra print-agent/package.json
+// y server.mjs, y el e2e de Dispositivos la usa en vez de copiarla.
+export const VERSION_AGENTE_DEMO = '1.7.4'
+
 // Store con la misma forma que la caché del agente (versión 2).
 export function storeDemo() {
   return {
@@ -35,7 +40,7 @@ export function storeDemo() {
         // de Puentes y el Diagnóstico muestran la versión y el contacto reales
         // sin quedar «sin registro» (#319).
         lastSeenAt: haceSegundos(12),
-        version: '1.7.4',
+        version: VERSION_AGENTE_DEMO,
         plataforma: 'macOS',
       },
     ],

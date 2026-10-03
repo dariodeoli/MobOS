@@ -46,19 +46,32 @@ test.describe('#323 modal estándar en impresión', () => {
     await expect(modal.getByLabel('IP')).toBeVisible()
     await expect(modal.getByLabel('Puerto')).toBeVisible()
 
-    // Sin nombre ni destino, el error va junto al campo (no en un toast).
-    await modal.getByRole('button', { name: 'Guardar impresora' }).click()
-    await expect(modal.getByText('Poné un nombre visible para reconocer la impresora.')).toBeVisible()
-    await expect(modal.getByText('Revisá la IP (ej. 192.168.1.23).')).toHaveCount(0)
-    await modal.getByLabel('Nombre visible').fill('Térmica QA 323')
-    await expect(modal.getByText('Poné un nombre visible para reconocer la impresora.')).toHaveCount(0)
+    // #297: sin datos válidos el primario queda bloqueado con el motivo; acá lo
+    // único que falta es el nombre (IP y puerto vienen sugeridos).
+    const guardar = modal.getByRole('button', { name: 'Guardar impresora' })
+    await expect(guardar).toBeDisabled()
+    await expect(guardar).toHaveAttribute('title', 'Falta: el nombre.')
 
-    // Un dato inválido también queda junto al campo y se limpia al corregir.
-    await modal.getByLabel('IP').fill('999')
-    await modal.getByRole('button', { name: 'Guardar impresora' }).click()
+    // El error va junto al campo al salir de él (no en un toast) y se limpia al
+    // completarlo.
+    const nombre = modal.getByLabel('Nombre visible')
+    await nombre.click()
+    await modal.getByLabel('IP').click()
+    await expect(modal.getByText('Poné un nombre visible para reconocer la impresora.')).toBeVisible()
+    await nombre.fill('Térmica QA 323')
+    await expect(modal.getByText('Poné un nombre visible para reconocer la impresora.')).toHaveCount(0)
+    await expect(guardar).toBeEnabled()
+
+    // Un dato con formato inválido también queda junto al campo y se limpia al
+    // corregirlo (la regla de IP volvió con #336).
+    const ip = modal.getByLabel('IP')
+    await ip.fill('999')
+    await modal.getByLabel('Puerto').click()
     await expect(modal.getByText('Revisá la IP (ej. 192.168.1.23).')).toBeVisible()
-    await modal.getByLabel('IP').fill('192.168.1.23')
+    await expect(guardar).toBeDisabled()
+    await ip.fill('192.168.1.23')
     await expect(modal.getByText('Revisá la IP (ej. 192.168.1.23).')).toHaveCount(0)
+    await expect(guardar).toBeEnabled()
 
     // Cierre con cambios: confirmación canónica; «Seguir editando» no descarta.
     await page.keyboard.press('Escape')
