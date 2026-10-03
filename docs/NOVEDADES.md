@@ -11,6 +11,9 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.224 — 2026-10-03
+- **Otros (#338):** las pruebas de borradores del POS y de la actualización Inventario→POS siguen los menús nuevos («Más» y «Productos (stock)»); se terminan los últimos falsos rojos del CI.
+
 ## v1.0.223 — 2026-10-03
 - **Impresión (#336):** la **IP de la impresora** vuelve a validarse al guardar (ej. 192.168.1.23): ya no se acepta una dirección mal formada.
 - **Mi cuenta (#340):** las sesiones de equipos **Linux** (incluido el entorno de CI) se reconocen por su distro en vez de figurar como «Sistema desconocido».
