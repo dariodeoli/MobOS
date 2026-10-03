@@ -11,6 +11,10 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.217 — 2026-10-03
+- **Inventario (#329):** en el celular la lista de equipos se prueba contra su **tarjeta móvil real** (IMEI completo y verificación) y en escritorio sigue el tile con **grado y candados**; se terminaron los falsos rojos de esa prueba en CI.
+- **Landing (#327):** en mobile/tablet el hero arranca **más cerca del header** (32 px) y el atajo desde el logo deja la pill **debajo del header**, sin que la tape; con capturas antes/después.
+
 ## v1.0.216 — 2026-10-02
 - **Impresión (#204):** el monitor de trabajos con problema identifica cada trabajo por su **referencia**, así se distingue de un vistazo cuál es en lugar de mostrarlos todos como «Comprobante»; un trabajo **incierto** se muestra honesto y no se cancela por error.
 - **Otros (#204):** menos falsos rojos en las pruebas: la prueba de la **caché sin backend** ya no depende de una carrera del refresco automático de 20 s.
