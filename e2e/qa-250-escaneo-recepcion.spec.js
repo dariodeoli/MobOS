@@ -201,13 +201,19 @@ test('F5 · recepción: escaneo contra el manifiesto, sobrante con nota y stock 
   await sobrante.getByRole('button', { name: 'Agregar nota' }).click()
   await page.getByLabel('Nota').fill('Llegó un equipo que no figuraba en el manifiesto (e2e)')
   await page.getByRole('dialog').getByRole('button', { name: 'Registrar' }).click()
-  await expect(page.getByText('Incidencia registrada')).toBeVisible()
+  await expect(page.getByText('La incidencia se guardó')).toBeVisible()
 
   // La incidencia acepta foto: se adjunta y queda listada en el diálogo.
   await sobrante.getByRole('button', { name: 'Editar nota' }).click()
   await page.getByRole('dialog').locator('input[type=file]').setInputFiles({ name: `sobrante-${sufijo()}.png`, mimeType: 'image/png', buffer: PNG_E2E })
   await expect(page.getByRole('dialog').getByText(/sobrante-\d+\.png/)).toBeVisible({ timeout: 15_000 })
-  await page.getByRole('dialog').getByRole('button', { name: 'Volver' }).click()
+  // El adjunto queda subido al instante y el Modal estándar pide confirmación
+  // al cerrar con cambios (#323): se descarta sin perder la incidencia ni la foto.
+  await page.getByRole('dialog').getByRole('button', { name: 'Cerrar' }).click()
+  const descarte = page.getByRole('dialog', { name: '¿Descartar los cambios?' })
+  await expect(descarte).toBeVisible()
+  await descarte.getByRole('button', { name: 'Descartar y cerrar' }).click()
+  await expect(descarte).toBeHidden()
 
   // Depósito destino (sugerido o elegido) y confirmación: B queda faltante.
   await page.getByLabel('Depósito destino').selectOption({ label: `Depósito E2E ${marca} (E${marca.slice(-4)})` })
@@ -354,7 +360,7 @@ test('F5 · incidencia con foto en una unidad escaneada (y freno en las pendient
   await page.screenshot({ path: join(DIR, 'recepcion-incidencia-foto-claro-mobile.png') })
   await page.setViewportSize({ width: 1280, height: 900 })
   await dialogo.getByRole('button', { name: 'Registrar' }).click()
-  await expect(page.getByText('Incidencia registrada')).toBeVisible()
+  await expect(page.getByText('La incidencia se guardó')).toBeVisible()
   // El chip del estado queda en la tarjeta junto a la nota y la foto.
   await expect(tarjetaA.locator('span').filter({ hasText: /^Dañado$/ }).first()).toBeVisible()
   await expect(tarjetaA.getByText('Pantalla rayada al abrir la caja (e2e)')).toBeVisible()
@@ -403,7 +409,7 @@ test('F3 · las etiquetas de la preparación salen por el agente (con pendientes
 
   // Impresión de la tira completa: un ticket con las dos unidades.
   await page.getByRole('button', { name: 'Imprimir etiquetas' }).click()
-  await expect(page.getByText('Etiquetas enviadas a la impresora.')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Las etiquetas se envió a la impresora')).toBeVisible({ timeout: 15_000 })
   expect(capturados).toHaveLength(1)
   expect(capturados[0].tipo).toBe('etiquetas-lote')
   const tira = textoDelTicket(capturados[0])
@@ -413,7 +419,7 @@ test('F3 · las etiquetas de la preparación salen por el agente (con pendientes
 
   // Reimpresión de una sola unidad (la que ya tiene IMEI).
   await listaEtiquetas.getByRole('button', { name: 'Reimprimir' }).first().click()
-  await expect(page.getByText('Etiqueta enviada a la impresora.')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('La etiqueta se envió a la impresora')).toBeVisible({ timeout: 15_000 })
   expect(capturados).toHaveLength(2)
   expect(capturados[1].tipo).toBe('etiquetas-lote')
   expect(textoDelTicket(capturados[1])).toContain(imeiA)
