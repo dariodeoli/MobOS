@@ -140,7 +140,10 @@ chip. El listado entrega la última verificación por serial en una sola consult
 (`verificacion` en `GET /api/inventory-units`, solo administración/gerencia, el
 mismo alcance que la ficha).
 
-Capturas del cierre (flag prendido, claro/oscuro en 1280 y 390):
+Capturas del cierre (flag prendido, claro/oscuro en 1280 y 390). Desde #304, a
+390 la página muestra la **tarjeta móvil** del listado (#304), así que esa
+captura evidencia el contrato móvil (IMEI completo y verificación, sin grado ni
+locks); el tile v2 con grado y chips de locks es de 1280:
 [claro 1280](c241f4c-inventario-tiles-on-claro-desktop.png) ·
 [oscuro 1280](c241f4c-inventario-tiles-on-oscuro-desktop.png) ·
 [claro 390](c241f4c-inventario-tiles-on-claro-mobile.png) ·
@@ -152,7 +155,7 @@ El **antes** (tile sin grado ni locks) son las capturas del lote:
 [claro 390](c241f4b-inventario-tiles-on-claro-mobile.png) ·
 [oscuro 390](c241f4b-inventario-tiles-on-oscuro-mobile.png).
 Medición: **0 bajos de shell y 0 de contenido** en los cuatro combos, sin scroll
-horizontal en 390 con la cuadrícula (`e2e/qa-241-lote-c-tile.spec.js`).
+horizontal en 390 (`e2e/qa-241-lote-c-tile.spec.js`, corrido ×3 en #329).
 
 
 ## Pedidos: resumen y stepper de entrega (segunda pasada)
