@@ -14,7 +14,10 @@ export function describirDispositivo(userAgent) {
   const esChromeOS = /CrOS/.test(ua)
   const esWindows = /Windows/.test(ua)
   const esMac = /Macintosh|Mac OS X|macOS|Darwin/.test(ua)
-  const esLinux = /Linux/.test(ua) && !esAndroid
+  // #340: no todos los agentes dicen «Linux». El cliente HTTP de Playwright en
+  // CI manda `(x64; ubuntu 24.04)` y quedaba como «Sistema desconocido». Las
+  // distros habituales cuentan como Linux; Android se excluye aparte.
+  const esLinux = /Linux|Ubuntu|Debian|Fedora|Red Hat|CentOS|Alpine/i.test(ua) && !esAndroid
 
   let navegador = 'Navegador'
   if (/Edg\//.test(ua)) navegador = 'Edge'
