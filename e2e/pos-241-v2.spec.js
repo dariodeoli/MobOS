@@ -188,7 +188,10 @@ for (const [vista, ancho, alto] of [['desktop', 1280, 900], ['mobile', 390, 844]
         await expect(page.getByText(/Venta suspendida/)).toBeVisible({ timeout: 15_000 })
         await expect(suspender).toBeHidden()
 
-        await page.getByRole('button', { name: 'Ventas suspendidas' }).click()
+        // #309: la lista de borradores vive en «Más» (barra del POS), no como
+        // botón suelto; se abre el menú de herramientas y se elige el ítem.
+        await page.getByTestId('pos-mas').click()
+        await page.getByRole('menuitem', { name: 'Ventas suspendidas' }).click()
         const suspendidas = page.getByRole('dialog', { name: 'Ventas suspendidas' })
         await expect(suspendidas.getByText(etiquetaDraft).first()).toBeVisible({ timeout: 10_000 })
         await page.screenshot({ path: `${SHOTS}/c241f3p5-${sufijo}-modal-suspendidas.png` })
