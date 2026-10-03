@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useUrlState } from '@/hooks/useUrlState'
-import { Aviso, Badge, Button, Card, Drawer, EmptyState, FormActions, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useDialogDirty, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, Drawer, EmptyState, FormActions, FormField, Input, Label, Modal, MoneyInput, SaveActions, Select, Skeleton, Textarea, useToast, useValidacionCampos } from '@/components/ui'
+import { obligatorio } from 'owncoding-ui/utils'
 import BarraLote from '@/components/shared/BarraLote'
 import BarraModulo from '@/components/shared/BarraModulo'
 import ResumenMetricas from '@/components/shared/ResumenMetricas'
@@ -181,10 +182,23 @@ export default function ServicioTecnico() {
   const tecnicos = useMemo(() => [...new Set(rows.map((row) => row.technicianName).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')), [rows])
   const filtrosActivos = [filtros.tecnico, filtros.tipo, filtros.desde, filtros.hasta].filter(Boolean).length
   const limpiarFiltros = () => setFiltros({ tecnico: '', tipo: '', desde: '', hasta: '' })
+  // Validación por campo (#323): el alta muestra el error junto al campo en
+  // vez de un único toast al pie.
+  const { errorDe: errorOrden, validar: validarOrden, limpiar: limpiarOrden } = useValidacionCampos({
+    customerName: [obligatorio('Escribí el nombre del cliente.')],
+    device: [obligatorio('Elegí el dispositivo.')],
+  })
   // Cierre con cambios (#323): el modal de la orden pide confirmación en vez de
-  // descartar el formulario en silencio.
+  // descartar el formulario en silencio. El catálogo hace lo mismo mientras
+  // haya un servicio a medio cargar o editado.
   const formSucio = Boolean(form) && Boolean(referenciaForm) && JSON.stringify(form) !== referenciaForm
-  useDialogDirty(formSucio)
+  const catalogoSucio = useMemo(() => {
+    const base = servicioEdit.id ? servicios.find((item) => item.id === servicioEdit.id) : null
+    const original = base
+      ? { name: base.name, deviceType: base.deviceType, precio: base.suggestedPricePyg ? String(base.suggestedPricePyg) : '' }
+      : { name: '', deviceType: 'iPhone', precio: '' }
+    return servicioEdit.name !== original.name || servicioEdit.deviceType !== original.deviceType || servicioEdit.precio !== original.precio
+  }, [servicioEdit, servicios])
 
   const ordenarPor = (key) => setOrden(current => current.key === key
     ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
@@ -240,7 +254,7 @@ export default function ServicioTecnico() {
   async function guardar(event) {
     event.preventDefault()
     if (busy) return
-    if (!form.customerName.trim() || !form.device.trim()) { toast.error('Cliente y dispositivo son obligatorios.'); return }
+    if (!validarOrden({ customerName: form.customerName, device: form.device }).valido) return
     setBusy(true)
     try {
       const desglose = {
@@ -644,7 +658,7 @@ export default function ServicioTecnico() {
               {DEVICE_TYPES.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}
             </Select>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={GRILLA_DOS_COLUMNAS}>
             <div><Label htmlFor="filtro-desde">Recibidas desde</Label><Input id="filtro-desde" type="date" value={filtros.desde} onChange={event => setFiltros(actual => ({ ...actual, desde: event.target.value }))} /></div>
             <div><Label htmlFor="filtro-hasta">Hasta</Label><Input id="filtro-hasta" type="date" value={filtros.hasta} onChange={event => setFiltros(actual => ({ ...actual, hasta: event.target.value }))} /></div>
           </div>
@@ -736,33 +750,37 @@ export default function ServicioTecnico() {
         })()}
       </Drawer>
 
-      <Modal open={Boolean(form)} onClose={busy || checklistOpen || catalogoOpen ? undefined : () => { setForm(null); setEditing(null) }} title={editing ? 'Editar orden de servicio' : 'Nueva orden de servicio'} size="amplio">
+      <Modal open={Boolean(form)} onClose={busy || checklistOpen || catalogoOpen ? undefined : () => { setForm(null); setEditing(null) }} dirty={formSucio} title={editing ? 'Editar orden de servicio' : 'Nueva orden de servicio'} size="amplio">
         {form && (
           <form onSubmit={guardar} className="space-y-3">
             <div className={GRILLA_DOS_COLUMNAS}>
-              <div className="relative">
-                <Label htmlFor="cliente">Cliente *</Label>
-                <Input id="cliente" aria-label="Cliente" value={form.customerName} onChange={set('customerName')} placeholder="Buscar cliente o escribir el nombre" autoCapitalize="words" />
-                {clientes.length > 0 && (
-                  <ul className="absolute z-30 mt-1 max-h-40 w-full overflow-auto rounded-xl border border-ink-500 bg-paper shadow-xl">
-                    {clientes.map(cliente => (
-                      <li key={cliente.id}>
-                        <button type="button" className="flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-ink-700" onClick={() => setForm(current => ({ ...current, customerName: cliente.name, customerId: cliente.id }))}>
-                          <span className="truncate font-medium text-fore">{cliente.name}</span>
-                          <span className="shrink-0 text-xs text-mute">{cliente.phone || cliente.document || ''}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <div className="rounded-xl border border-ink-600 bg-ink-800/30 p-3 sm:col-span-2" data-testid="recepcion-dispositivo">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Label>Dispositivo *</Label>
-                  <span className="text-[11px] text-mute">El modelo manda: capacidad y color se despliegan después.</span>
+              <FormField label="Cliente *" htmlFor="cliente" error={errorOrden('customerName')}>
+                <div className="relative">
+                  <Input id="cliente" aria-label="Cliente" value={form.customerName} onChange={(event) => { limpiarOrden('customerName'); set('customerName')(event) }} placeholder="Buscar cliente o escribir el nombre" autoCapitalize="words" />
+                  {clientes.length > 0 && (
+                    <ul className="absolute z-30 mt-1 max-h-40 w-full overflow-auto rounded-xl border border-ink-500 bg-paper shadow-xl">
+                      {clientes.map(cliente => (
+                        <li key={cliente.id}>
+                          <button type="button" className="flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-ink-700" onClick={() => { limpiarOrden('customerName'); setForm(current => ({ ...current, customerName: cliente.name, customerId: cliente.id })) }}>
+                            <span className="truncate font-medium text-fore">{cliente.name}</span>
+                            <span className="shrink-0 text-xs text-mute">{cliente.phone || cliente.document || ''}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
-                <div className="mt-1"><BuscadorDispositivo valor={dispositivo} onCambio={cambiarDispositivo} tipo="servicio" /></div>
-              </div>
+              </FormField>
+              <FormField
+                label="Dispositivo *"
+                hint="El modelo manda: capacidad y color se despliegan después."
+                error={errorOrden('device')}
+                className="rounded-xl border border-ink-600 bg-ink-800/30 p-3 sm:col-span-2"
+              >
+                <div className="mt-1" data-testid="recepcion-dispositivo">
+                  <BuscadorDispositivo valor={dispositivo} tipo="servicio" onCambio={(siguiente) => { limpiarOrden('device'); cambiarDispositivo(siguiente) }} />
+                </div>
+              </FormField>
               <div><Label htmlFor="tipo-de-dispositivo">Tipo de dispositivo</Label><Select id="tipo-de-dispositivo" aria-label="Tipo de dispositivo" value={form.deviceType} onChange={event => setForm(current => ({ ...current, deviceType: event.target.value, serviceName: '' }))}>{DEVICE_TYPES.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</Select></div>
               <div><Label htmlFor="imei-serial">IMEI / serial</Label><SerialField id="imei-serial" aria-label="IMEI o serial" value={form.serial} onChange={value => setForm(current => ({ ...current, serial: value }))} placeholder="Opcional" /></div>
               <div><Label htmlFor="tecnico">Técnico</Label><Input id="tecnico" aria-label="Técnico" value={form.technicianName} onChange={set('technicianName')} placeholder="Responsable del trabajo" autoCapitalize="words" /></div>
@@ -771,15 +789,19 @@ export default function ServicioTecnico() {
 
             <div className="rounded-xl border border-ink-600 bg-ink-800/30 p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <Label htmlFor="buscar-servicio">Servicio del catálogo</Label>
+                <p className="text-xs font-semibold uppercase tracking-wider text-mute">Servicios del taller</p>
                 <Button type="button" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setCatalogoOpen(true)}>Gestionar catálogo</Button>
               </div>
-              <div className="mt-1 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-                <SearchField id="buscar-servicio" ariaLabel="Buscar servicio" value={busquedaServicio} onChange={event => setBusquedaServicio(event.target.value)} placeholder="Buscar: display, batería…" />
-                <Select aria-label="Servicio del catálogo" value={form.serviceName} onChange={event => { const servicio = servicios.find(item => item.name === event.target.value); setForm(current => ({ ...current, serviceName: event.target.value, ...(servicio && servicio.suggestedPricePyg > 0 ? { pricePyg: String(servicio.suggestedPricePyg) } : {}) })) }}>
-                  <option value="">Sin servicio del catálogo</option>
-                  {serviciosDelTipo.map(servicio => <option key={servicio.id} value={servicio.name}>{servicio.name}{servicio.suggestedPricePyg > 0 ? ` · sugerido ${gs(servicio.suggestedPricePyg)}` : ''}</option>)}
-                </Select>
+              <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+                <FormField label="Buscar servicio" htmlFor="buscar-servicio">
+                  <SearchField id="buscar-servicio" ariaLabel="Buscar servicio" value={busquedaServicio} onChange={event => setBusquedaServicio(event.target.value)} placeholder="Buscar: display, batería…" />
+                </FormField>
+                <FormField label="Servicio del catálogo" htmlFor="servicio-catalogo">
+                  <Select id="servicio-catalogo" value={form.serviceName} onChange={event => { const servicio = servicios.find(item => item.name === event.target.value); setForm(current => ({ ...current, serviceName: event.target.value, ...(servicio && servicio.suggestedPricePyg > 0 ? { pricePyg: String(servicio.suggestedPricePyg) } : {}) })) }}>
+                    <option value="">Sin servicio del catálogo</option>
+                    {serviciosDelTipo.map(servicio => <option key={servicio.id} value={servicio.name}>{servicio.name}{servicio.suggestedPricePyg > 0 ? ` · sugerido ${gs(servicio.suggestedPricePyg)}` : ''}</option>)}
+                  </Select>
+                </FormField>
               </div>
               {serviciosDelTipo.length === 0 && <p className="mt-1 text-xs text-mute">{servicios.length === 0 ? 'El catálogo está vacío: usá "Cargar catálogo sugerido" o agregá servicios desde Gestionar catálogo.' : 'Ningún servicio de este tipo coincide con la búsqueda.'}</p>}
               <p className="mt-1 text-xs text-mute">El precio sugerido es opcional: al elegir el servicio se carga en el precio y lo podés cambiar a mano.</p>
@@ -842,24 +864,33 @@ export default function ServicioTecnico() {
             </div>
 
             <div><Label htmlFor="notas">Notas</Label><Textarea id="notas" rows={2} value={form.notes} onChange={set('notes')} placeholder="Observaciones, repuestos, estado físico" autoCapitalize="sentences" /></div>
-            <FormActions>
-              <Button type="button" variant="ghost" disabled={busy} onClick={() => { setForm(null); setEditing(null) }}>Cancelar</Button>
+            <SaveActions pendiente={busy}>
               <Button type="submit" disabled={busy}>{busy ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear orden'}</Button>
-            </FormActions>
+            </SaveActions>
           </form>
         )}
       </Modal>
 
-      <Modal open={catalogoOpen} onClose={() => setCatalogoOpen(false)} title="Catálogo de servicios" size="amplio">
+      <Modal open={catalogoOpen} onClose={() => setCatalogoOpen(false)} dirty={catalogoSucio} title="Catálogo de servicios" size="amplio">
         <div className="space-y-3">
           <p className="text-sm text-mute">Servicios por tipo de dispositivo con precio sugerido opcional. El precio de cada orden se puede cambiar a mano.</p>
-          <form onSubmit={guardarServicio} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_7rem_auto]">
-            <Input aria-label="Nombre del servicio" value={servicioEdit.name} onChange={event => setServicioEdit(current => ({ ...current, name: event.target.value }))} placeholder="Ej. Cambio de display" />
-            <Select aria-label="Tipo del servicio" value={servicioEdit.deviceType} onChange={event => setServicioEdit(current => ({ ...current, deviceType: event.target.value }))}>{DEVICE_TYPES.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</Select>
-            <MoneyInput aria-label="Precio sugerido" value={servicioEdit.precio} onValueChange={value => setServicioEdit(current => ({ ...current, precio: value === '' ? '' : String(value) }))} placeholder="Sugerido" />
-            <Button type="submit" disabled={catalogoBusy}>{servicioEdit.id ? 'Guardar' : 'Agregar'}</Button>
+          <form onSubmit={guardarServicio} className="space-y-3">
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_7rem]">
+              <FormField label="Nombre del servicio" htmlFor="catalogo-nombre">
+                <Input id="catalogo-nombre" value={servicioEdit.name} onChange={event => setServicioEdit(current => ({ ...current, name: event.target.value }))} placeholder="Ej. Cambio de display" />
+              </FormField>
+              <FormField label="Tipo" htmlFor="catalogo-tipo">
+                <Select id="catalogo-tipo" value={servicioEdit.deviceType} onChange={event => setServicioEdit(current => ({ ...current, deviceType: event.target.value }))}>{DEVICE_TYPES.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</Select>
+              </FormField>
+              <FormField label="Precio sugerido" htmlFor="catalogo-precio">
+                <MoneyInput id="catalogo-precio" value={servicioEdit.precio} onValueChange={value => setServicioEdit(current => ({ ...current, precio: value === '' ? '' : String(value) }))} placeholder="Sugerido" />
+              </FormField>
+            </div>
+            <FormActions>
+              {servicioEdit.id && <Button type="button" variant="ghost" onClick={() => setServicioEdit({ id: '', name: '', deviceType: 'iPhone', precio: '' })}>Cancelar edición</Button>}
+              <Button type="submit" disabled={catalogoBusy}>{servicioEdit.id ? 'Guardar' : 'Agregar'}</Button>
+            </FormActions>
           </form>
-          {servicioEdit.id && <button type="button" className="text-xs text-mute underline" onClick={() => setServicioEdit({ id: '', name: '', deviceType: 'iPhone', precio: '' })}>Cancelar edición</button>}
           <div className="max-h-72 space-y-1 overflow-y-auto" data-testid="catalogo-servicios">
             {servicios.map(servicio => (
               <div key={servicio.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 px-3 py-1.5 text-sm">
