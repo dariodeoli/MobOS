@@ -1,0 +1,405 @@
+[
+  {
+    "pantalla": "demo-pos",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": [],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "candado (header)",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Bloquear pantalla",
+            "ancho": 44,
+            "alto": 44,
+            "dibujo": "36x36"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "demo-pos",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": [],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "candado (header)",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Bloquear pantalla",
+            "ancho": 44,
+            "alto": 44,
+            "dibujo": "36x36"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "demo-pos",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": [],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "candado (header)",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Bloquear pantalla",
+            "ancho": 44,
+            "alto": 44,
+            "dibujo": "36x36"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "demo-pos",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 1,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Cómo funciona",
+        "ancho": 106,
+        "alto": 22,
+        "dibujo": "106x22",
+        "clase": "min-h-11 shrink-0 rounded-lg border border-warn/40 px-2 py-0.5 text-xs",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": [
+      {
+        "nombre": "candado (header)",
+        "dibujo": false,
+        "nodos": [
+          {
+            "texto": "Bloquear pantalla",
+            "ancho": 44,
+            "alto": 44,
+            "dibujo": "36x36"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pantalla": "demo-pedidos",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": [],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-pedidos",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": [],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-pedidos",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": [],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-pedidos",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 9,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Activos",
+        "ancho": 63,
+        "alto": 28,
+        "dibujo": "63x28",
+        "clase": "min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition md:",
+        "veces": 7
+      },
+      {
+        "que": "button",
+        "texto": "Cómo funciona",
+        "ancho": 106,
+        "alto": 22,
+        "dibujo": "106x22",
+        "clase": "min-h-11 shrink-0 rounded-lg border border-warn/40 px-2 py-0.5 text-xs",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Actualizar",
+        "ancho": 84,
+        "alto": 34,
+        "dibujo": "84x34",
+        "clase": "min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semib",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-clientes",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": [],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-clientes",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": [],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-clientes",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": [],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-clientes",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 2,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Cómo funciona",
+        "ancho": 106,
+        "alto": 22,
+        "dibujo": "106x22",
+        "clase": "min-h-11 shrink-0 rounded-lg border border-warn/40 px-2 py-0.5 text-xs",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "+ Crear cliente",
+        "ancho": 130,
+        "alto": 36,
+        "dibujo": "130x36",
+        "clase": "inline-flex select-none items-center justify-center gap-2 rounded-lg p",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-inventario",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": [],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-inventario",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": [],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-inventario",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": [],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-inventario",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 6,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Stock",
+        "ancho": 64,
+        "alto": 32,
+        "dibujo": "64x32",
+        "clase": "min-h-11 shrink-0 rounded-lg px-3 py-2 text-xs font-bold uppercase tra",
+        "veces": 3
+      },
+      {
+        "que": "button",
+        "texto": "Cómo funciona",
+        "ancho": 106,
+        "alto": 22,
+        "dibujo": "106x22",
+        "clase": "min-h-11 shrink-0 rounded-lg border border-warn/40 px-2 py-0.5 text-xs",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "+ Recibir unidad",
+        "ancho": 141,
+        "alto": 36,
+        "dibujo": "141x36",
+        "clase": "inline-flex select-none items-center justify-center gap-2 rounded-lg p",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "Más",
+        "ancho": 72,
+        "alto": 34,
+        "dibujo": "72x34",
+        "clase": "inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-ink",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-finanzas",
+    "ancho": 360,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": [],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-finanzas",
+    "ancho": 390,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": [],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-finanzas",
+    "ancho": 414,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 0,
+    "chicos": [],
+    "topbarChicos": [],
+    "clave": []
+  },
+  {
+    "pantalla": "demo-finanzas",
+    "ancho": 768,
+    "overflowH": 0,
+    "totalCortados": 0,
+    "cortados": [],
+    "totalChicos": 10,
+    "chicos": [
+      {
+        "que": "button",
+        "texto": "Caja",
+        "ancho": 53,
+        "alto": 36,
+        "dibujo": "53x36",
+        "clase": "min-h-11 rounded-xl px-3 py-2 text-sm font-medium transition bg-fono t",
+        "veces": 5
+      },
+      {
+        "que": "button",
+        "texto": "Contar y cerrar",
+        "ancho": 134,
+        "alto": 36,
+        "dibujo": "134x36",
+        "clase": "inline-flex select-none items-center justify-center gap-2 rounded-lg p",
+        "veces": 3
+      },
+      {
+        "que": "button",
+        "texto": "Cómo funciona",
+        "ancho": 106,
+        "alto": 22,
+        "dibujo": "106x22",
+        "clase": "min-h-11 shrink-0 rounded-lg border border-warn/40 px-2 py-0.5 text-xs",
+        "veces": 1
+      },
+      {
+        "que": "button",
+        "texto": "30 días",
+        "ancho": 123,
+        "alto": 36,
+        "dibujo": "123x36",
+        "clase": "inline-flex h-9 items-center gap-2 rounded-lg border border-ink-500 bg",
+        "veces": 1
+      }
+    ],
+    "topbarChicos": [],
+    "clave": []
+  }
+]
