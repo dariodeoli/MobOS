@@ -14,30 +14,35 @@ siendo los de siempre: `npm run test:e2e:smoke` y `npm run test:e2e`.
 | Frontend (lint + build) | `npm run lint` · `npm test` · `npm run build` | ~1m35 | 15 min |
 | Backend (typecheck + build) | `tsc --noEmit` · `test:unit` · `build` | ~1m40 | 12 min |
 | Integration | `backend/tests/integration-http.sh` (Postgres efímero) | ~3m10 | 15 min |
-| **E2E (3 shards)** | archivos de `e2e/sharding.json` sobre backend prod | **~947 s de test por shard** | 30 min |
+| **E2E (4 shards)** | archivos de `e2e/sharding.json` sobre backend prod | **~1150 s de test + ~3 min de setup por shard** | 40 min |
 
-El job E2E corre en **matriz de 3 shards** (`fail-fast: false`): cada shard tiene
+El job E2E corre en **matriz de 4 shards** (`fail-fast: false`): cada shard tiene
 su propio runner, cluster de Postgres, backend y frontend, así que no comparten
 estado. La distribución es **explícita y balanceada por duración medida**
 (`e2e/sharding.json`, generada con `node scripts/e2e-shards.mjs --generar`:
-947/947/948 s en la última regeneración); antes se balanceaba por cantidad y con
-la suite de 700+ tests los shards 1/2 morían a los 20 min (#333). El peso de cada
-archivo sale de `e2e/tiempos.json` (ms por test, extraídos de los
-`playwright-report` de CI); sin medición cae al promedio de fallback.
+1150-1151 s en la última regeneración). El peso de cada archivo sale de
+`e2e/tiempos.json` (ms por test, extraídos de los `playwright-report` de CI); sin
+medición cae al promedio de fallback. La cuenta del timeout incluye el **setup
+fijo por job** (`overheadMs` en `tiempos.json`, medido ~150 s): con 3 shards el
+job rozaba los 30 min aunque el balance diera parejo (#333 follow-up), por eso
+ahora son 4 y el timeout es 40 min.
 
 ### 1.0.1 Cómo refrescar `e2e/tiempos.json` (#333)
 
-`e2e/tiempos.json` guarda **ms por test** y por archivo. Fuente principal: los
-`playwright-report` de CI (el `report.json` viaja embebido en base64 dentro del
-`index.html` del artifact); se toma la última medición disponible por archivo.
-Para archivos sin reporte (specs nuevos) se corre el archivo local y se escala
-por el factor CI/local de un control conocido (p. ej. `demo-anonimo`). Después de
-refrescarlo: `node scripts/e2e-shards.mjs --generar` y `--check`. No es
-obligatorio en cada PR: sin medición, el archivo cae al fallback.
+`e2e/tiempos.json` guarda **ms por test** y por archivo, más el **overhead fijo**
+(`overheadMs`, ~150 s de setup del job) y la **normalización** aplicada cuando
+las mediciones vienen de corridas con distinta velocidad de runner. Fuente
+principal: los `playwright-report` de CI (el `report.json` viaja embebido en
+base64 dentro del `index.html` del artifact); se toma la última medición
+disponible por archivo. Para archivos sin reporte (specs nuevos) se corre el
+archivo local y se escala por el factor CI/local de un control conocido (p. ej.
+`demo-anonimo`). Después de refrescarlo: `node scripts/e2e-shards.mjs --generar`
+y `--check`. No es obligatorio en cada PR: sin medición, el archivo cae al
+fallback.
 
 ### 1.1 Workflow paso a paso (job E2E)
 
-Los tres shards corren la misma receta (timeout 30 min por job):
+Los cuatro shards corren la misma receta (timeout 40 min por job):
 
 | Paso | Qué hace |
 | --- | --- |
