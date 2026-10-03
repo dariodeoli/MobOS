@@ -116,13 +116,14 @@
         "qa-318-comprobante.spec.js",
         "qa-319-dispositivos.spec.js",
         "qa-323-fin-modales.spec.js",
+        "qa-328-demo-acceso.spec.js",
         "qa-fin-compacto.spec.js",
         "qa-fin-repuestos-taller.spec.js",
         "quote-approval-otp.spec.js",
         "repuestos-proveedores.spec.js",
         "servicio-tecnico.spec.js"
       ],
-      "tests": 228
+      "tests": 230
     },
     {
       "archivos": [
