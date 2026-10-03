@@ -11,6 +11,11 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.223 — 2026-10-03
+- **Impresión (#336):** la **IP de la impresora** vuelve a validarse al guardar (ej. 192.168.1.23): ya no se acepta una dirección mal formada.
+- **Mi cuenta (#340):** las sesiones de equipos **Linux** (incluido el entorno de CI) se reconocen por su distro en vez de figurar como «Sistema desconocido».
+- **Otros (#337/#339):** pruebas estabilizadas: la auditoría responsive ya no cuenta el contenido de menús cerrados, y la ficha móvil del inventario y los avisos de impresión usan el contrato vigente.
+
 ## v1.0.222 — 2026-10-03
 - **Clientes/POS (#334):** la **consulta de RUC** en la venta ya no pierde el resultado si el formulario se refresca mientras responde: la razón social queda disponible para confirmar.
 - **Otros (#333/#335):** las pruebas automáticas corren ahora en **4 bloques** con **40 minutos** de margen (antes dos morían por tiempo) y la prueba de listas de precios deja de trabarse con el carrito fijo del POS; el solapamiento a alturas cortas queda documentado para el dominio POS.
