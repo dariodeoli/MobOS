@@ -121,12 +121,15 @@ jobs:
         run: bash tests/integration-http.sh
 
   e2e:
-    # Shards en paralelo (#CI): la suite completa tarda ~20+ min en un runner;
-    # con 3 shards cada job baja a ~8-10 min. Cada shard tiene su propio runner,
-    # cluster de Postgres y WebServer (arnés aislado), así que no comparten nada.
+    # Shards en paralelo (#CI/#333): la suite completa tarda ~47 min en un
+    # runner; con 3 shards balanceados por duración (#333) cada job queda en
+    # ~18 min estimados con las duraciones medidas en CI. Cada shard tiene su
+    # propio runner, cluster de Postgres y WebServer (arnés aislado), así que
+    # no comparten nada.
     name: E2E (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # ~18 min estimados + margen para varianza del runner (~2-4x del job actual).
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -183,9 +186,9 @@ jobs:
           # compilación por ruta no hay requests cortadas durante el compile ni
           # timeouts por primeros hits lentos (flakiness de CI).
           MOBOS_E2E_BACKEND: prod
-        # Shards balanceados por archivo (e2e/sharding.json → 103/102/102):
-        # la heurística de Playwright dejaba 135/73/99. Nada de reintentos:
-        # un flake se aísla y se corrige la raíz (#245).
+        # Shards balanceados por duración medida (#333: e2e/tiempos.json →
+        # e2e/sharding.json; antes por cantidad y 1/2 morían al timeout).
+        # Nada de reintentos: un flake se aísla y se corrige la raíz (#245).
         run: npx playwright test $(node scripts/e2e-shards.mjs --shard ${{ matrix.shard }})
       - name: Upload Playwright report (shard ${{ matrix.shard }})
         if: always()
