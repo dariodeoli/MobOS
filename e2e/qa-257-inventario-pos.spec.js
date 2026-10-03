@@ -52,7 +52,9 @@ test('el producto creado en Inventario aparece en el POS al volver sin recargar 
 
   try {
     // 3) Volver al POS por navegación SPA (sin recargar la app).
-    await page.locator('aside nav button[aria-label="Productos"]').click()
+    // #332: el grupo Inventario del dueño rotula la vista «Productos (stock)»;
+    // el vendedor conserva «Productos»: el prefijo cubre a los dos.
+    await page.locator('aside nav').getByRole('button', { name: /^Productos/ }).click()
     await expect(page).toHaveURL(/\/productos$/)
     await page.locator('aside nav button[aria-label="POS"]').click()
     await expect(page).toHaveURL(/\/pos$/)
