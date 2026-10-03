@@ -11,6 +11,10 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.218 — 2026-10-03
+- **Finanzas (#323):** el editor de plantillas de WhatsApp adopta el **modal estándar**: el error aparece **junto al campo** (nombre y mensaje), avisa al cerrar con cambios y el pie queda con **una sola acción primaria**; mismas validaciones de negocio.
+- **Otros (#328):** la entrada a la demo queda en **cápsulas compactas** (2 en celular, 3 en escritorio) y en un móvil de 390×844 **entra sin scroll**, con toques de 44 px y el PIN siempre visible.
+
 ## v1.0.217 — 2026-10-03
 - **Inventario (#329):** en el celular la lista de equipos se prueba contra su **tarjeta móvil real** (IMEI completo y verificación) y en escritorio sigue el tile con **grado y candados**; se terminaron los falsos rojos de esa prueba en CI.
 - **Landing (#327):** en mobile/tablet el hero arranca **más cerca del header** (32 px) y el atajo desde el logo deja la pill **debajo del header**, sin que la tape; con capturas antes/después.
