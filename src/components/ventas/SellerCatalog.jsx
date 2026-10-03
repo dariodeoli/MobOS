@@ -215,8 +215,10 @@ export default function SellerCatalog() {
       descripcion="Catálogo de consulta y edición: precio, mayorista, stock y equipos por IMEI."
       testId="barra-productos"
     >
-      {/* #287: Productos ⇄ Unidades, el mismo objeto en dos vistas. */}
-      <VistaProductosUnidades vista="productos" q={search || busquedaDiferida} productoId={seleccion?.id || productoAbierto?.id || ''} />
+      {/* #287: Productos ⇄ Unidades, el mismo objeto en dos vistas.
+          #332: solo para quien puede abrir Unidades (dueño/gerencia): el
+          vendedor no tiene acceso a esa vista y el switch lo rebotaba al POS. */}
+      {esOwner && <VistaProductosUnidades vista="productos" q={search || busquedaDiferida} productoId={seleccion?.id || productoAbierto?.id || ''} />}
       <Button type="button" variant="outline" onClick={data.refresh} disabled={data.loading}>
         <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
       </Button>

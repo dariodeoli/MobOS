@@ -139,8 +139,12 @@ const OWNER_NAV = [
   {
     titulo: 'Inventario',
     items: [
-      ['productos', 'Productos', 'phone'],
-      ['unidades', 'Unidades', 'box'],
+      // #332: las dos vistas del inventario, emparejadas y evidentes: las
+      // unidades físicas por IMEI/serial y el catálogo normal por stock. La
+      // navegación entre vistas vive en el switch de cada pantalla
+      // (`VistaProductosUnidades`); en móvil el menú ofrece las dos entradas.
+      ['unidades', 'Unidades (IMEI)', 'box'],
+      ['productos', 'Productos (stock)', 'phone'],
       ['compras', 'Compras', 'store'],
       ['traslados', 'Traslados y tránsito', 'truck'],
       ['abastecimiento', 'Por comprar', 'box'],
