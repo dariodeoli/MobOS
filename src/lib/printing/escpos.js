@@ -28,6 +28,11 @@ const CORTES = {
   'avanza-parcial': [GS, 0x56, 0x42, 0x00],
 }
 
+// Nivel de corrección del QR (GS ( k fn 69): L, M, Q y H. El papel va con H
+// (docs/IMPRESION.md §1): la redundancia extra es la diferencia entre un código
+// que el teléfono lee a la primera y uno que no.
+const CORRECCIONES_QR = { L: 0x30, M: 0x31, Q: 0x32, H: 0x33 }
+
 export const VARIANTES_CORTE = Object.keys(CORTES)
 
 const bytesDeTexto = (texto) => {
@@ -144,9 +149,10 @@ export function crearTicket({ ancho = 80, margen = 2 } = {}) {
       partes.push(GS, 0x21, activo ? 0x11 : 0x00) // doble alto y ancho
       return api
     },
-    // QR nativo de la impresora (modelo 2). `tamano` va de 1 a 16; `etiqueta`
-    // imprime un rótulo centrado arriba del código.
-    qr(datos, { tamano = 6, etiqueta = '' } = {}) {
+    // QR nativo de la impresora (modelo 2). `tamano` va de 1 a 16, `correccion`
+    // es el nivel L/M/Q/H (por defecto H, el del papel) y `etiqueta` imprime un
+    // rótulo centrado arriba del código.
+    qr(datos, { tamano = 7, correccion = 'H', etiqueta = '' } = {}) {
       if (etiqueta) escribir(`${centrar(etiqueta)}\n`)
       espejoCentrado(`[QR] ${String(datos).slice(0, 48)}`)
       partes.push(ESC, 0x61, 0x01) // centrado
@@ -154,10 +160,11 @@ export function crearTicket({ ancho = 80, margen = 2 } = {}) {
       const parameterLength = contenido.length + 3
       const parameterLengthLow = parameterLength % 256
       const parameterLengthHigh = Math.floor(parameterLength / 256)
-      const modulo = Math.min(16, Math.max(1, Number(tamano) || 6))
+      const modulo = Math.min(16, Math.max(1, Number(tamano) || 7))
+      const nivel = CORRECCIONES_QR[String(correccion).toUpperCase()] ?? CORRECCIONES_QR.H
       partes.push(GS, 0x28, 0x6b, 4, 0, 0x31, 0x41, 0x32, 0x00) // modelo 2
       partes.push(GS, 0x28, 0x6b, 3, 0, 0x31, 0x43, modulo) // tamaño del módulo
-      partes.push(GS, 0x28, 0x6b, 3, 0, 0x31, 0x45, 0x31) // corrección M
+      partes.push(GS, 0x28, 0x6b, 3, 0, 0x31, 0x45, nivel) // corrección (H por defecto)
       partes.push(GS, 0x28, 0x6b, parameterLengthLow, parameterLengthHigh, 0x31, 0x50, 0x30, ...contenido) // guarda
       partes.push(GS, 0x28, 0x6b, 3, 0, 0x31, 0x51, 0x30) // imprime
       partes.push(ESC, 0x61, 0x00) // vuelve a la izquierda

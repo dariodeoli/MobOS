@@ -18,6 +18,22 @@ const indiceDeGuardadoQr = (bytes) => bytes.findIndex((byte, indice) => (
   && bytes[indice + 7] === 0x30
 ))
 
+const indiceDeCorreccionQr = (bytes) => bytes.findIndex((byte, indice) => (
+  byte === 0x1d
+  && bytes[indice + 1] === 0x28
+  && bytes[indice + 2] === 0x6b
+  && bytes[indice + 5] === 0x31
+  && bytes[indice + 6] === 0x45
+))
+
+const indiceDeModuloQr = (bytes) => bytes.findIndex((byte, indice) => (
+  byte === 0x1d
+  && bytes[indice + 1] === 0x28
+  && bytes[indice + 2] === 0x6b
+  && bytes[indice + 5] === 0x31
+  && bytes[indice + 6] === 0x43
+))
+
 test('el ancho útil es 32 columnas para 58 mm y 48 para 80 mm', () => {
   assert.equal(columnasDeAncho(58), 32)
   assert.equal(columnasDeAncho(80), 48)
@@ -88,6 +104,26 @@ test('el QR de más de 255 bytes emite el largo de parámetros como pL,pH', () =
   const inicioGuardado = indiceDeGuardadoQr(bytes)
   assert.notEqual(inicioGuardado, -1)
   assert.deepEqual(bytes.slice(inicioGuardado + 3, inicioGuardado + 5), [0, 1])
+})
+
+test('el QR del papel va con corrección H y módulo 7 por defecto (docs/IMPRESION §1)', () => {
+  const bytes = [...crearTicket().qr('MOBOS:123').bytes()]
+  const correccion = indiceDeCorreccionQr(bytes)
+  assert.notEqual(correccion, -1)
+  assert.deepEqual(bytes.slice(correccion, correccion + 8), [0x1d, 0x28, 0x6b, 3, 0, 0x31, 0x45, 0x33])
+  const modulo = indiceDeModuloQr(bytes)
+  assert.notEqual(modulo, -1)
+  assert.equal(bytes[modulo + 7], 7)
+})
+
+test('el nivel de corrección se puede bajar explícitamente y lo inválido cae a H', () => {
+  const enM = [...crearTicket().qr('MOBOS:123', { correccion: 'M' }).bytes()]
+  assert.equal(enM[indiceDeCorreccionQr(enM) + 7], 0x31)
+  const enQ = [...crearTicket().qr('MOBOS:123', { correccion: 'q', tamano: 6 }).bytes()]
+  assert.equal(enQ[indiceDeCorreccionQr(enQ) + 7], 0x32)
+  assert.equal(enQ[indiceDeModuloQr(enQ) + 7], 6)
+  const invalido = [...crearTicket().qr('MOBOS:123', { correccion: 'Z' }).bytes()]
+  assert.equal(invalido[indiceDeCorreccionQr(invalido) + 7], 0x33)
 })
 
 test('la validación imprimible y el corte quedan fuera del largo de guardado del QR', () => {
