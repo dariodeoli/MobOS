@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowRight, KeyRound, ShieldCheck } from 'lucide-react'
+import { KeyRound, ShieldCheck } from 'lucide-react'
 import { useSesion } from '@/lib/sesion'
 import { publicUrls } from '@/lib/urls'
 import { PinInput } from '@/components/ui'
 import { PERFILES_DEMO, perfilDemoPorPin } from '@/lib/demo/equipo.js'
 import AuthLayout, { AuthPanel, AuthPanelHeader } from '@/components/auth/AuthLayout'
 
-// #324: la entrada cubre los seis roles ficticios; cada tarjeta muestra la
+// #324: la entrada cubre los seis roles ficticios; cada cápsula muestra la
 // persona del equipo demo que va a quedar en la sesión (misma fuente que Equipo).
 const demoProfiles = PERFILES_DEMO
 
@@ -68,67 +68,65 @@ export default function DemoAccess() {
       titulo={<>Entrá al sistema.<br /><span className="text-fono-dark">Probá el flujo real.</span></>}
       subtitulo="Usá los mismos menús de MobOS con datos ficticios aislados. Nada se envía a una tienda real."
     >
-      <AuthPanel>
+      <AuthPanel className="p-4 sm:p-6 lg:p-7">
         <AuthPanelHeader volver={publicUrls.landing} volverLabel="Volver a la landing" subtitulo="Demo interactiva · datos ficticios" />
 
-        <h1 className="mb-1 text-2xl font-semibold sm:text-[1.7rem]">Elegí un perfil y entrá</h1>
-        <p className="mb-5 text-sm leading-6 text-mute">Todo queda guardado solo en este navegador.</p>
+        <h1 className="mb-1 text-xl font-semibold sm:text-2xl">Elegí un perfil y entrá</h1>
+        <p className="mb-3 text-xs leading-5 text-mute sm:mb-4 sm:text-sm">Todo queda guardado solo en este navegador.</p>
 
-        <div className="space-y-3">
+        {/* #328: cápsulas compactas en grilla (2 en móvil, 3 en escritorio) para
+            que la pantalla entre sin scroll en 390×844; el botón completo es el
+            target (≥44px) y el nombre accesible sigue siendo «Entrar como <Rol>». */}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {demoProfiles.map((profile) => (
             <button
               type="button"
               key={profile.rol}
               disabled={busy}
               onClick={() => abrirPerfil(profile)}
-              className="w-full rounded-2xl border border-fore/10 bg-paper/70 p-4 text-left transition hover:border-fono-dark/60 hover:bg-fono-dark/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fono-dark disabled:opacity-60"
+              aria-label={`Entrar como ${profile.nombre}`}
+              title={`${profile.description} ${profile.permissions}`}
+              className="min-h-11 rounded-xl border border-fore/10 bg-paper/70 p-2 text-left transition hover:border-fono-dark/60 hover:bg-fono-dark/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fono-dark disabled:opacity-60"
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h2 className="text-sm font-bold text-fore">{profile.nombre}</h2>
-                  <p className="mt-1 text-xs leading-5 text-mute">{profile.description}</p>
-                  <p className="mt-0.5 text-[11px] text-mute">{profile.persona}</p>
-                </div>
-                <span className="shrink-0 rounded-lg bg-fono-dark/10 px-2 py-1 font-mono text-sm font-bold tracking-widest text-fono-dark">
-                  {profile.pin}
-                </span>
-              </div>
-              <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-fono-dark">
-                {busy ? 'Abriendo…' : `Entrar como ${profile.nombre}`} <ArrowRight size={14} />
+              <span className="flex items-center justify-between gap-1">
+                <span className="truncate text-[13px] font-bold leading-5 text-fore">{profile.nombre}</span>
+                <span className="shrink-0 rounded-md bg-fono-dark/10 px-1.5 py-px font-mono text-[11px] font-bold tracking-widest text-fono-dark">{profile.pin}</span>
               </span>
+              <span className="mt-0.5 block text-[11px] font-medium leading-4 text-mute">{profile.description}</span>
+              <span className="block truncate text-[10px] leading-4 text-mute">{profile.persona}</span>
             </button>
           ))}
         </div>
 
         {/* Ingresar otro PIN: siempre visible, sin colapsar (#235). */}
-        <div className="mt-4 rounded-xl border border-fore/10 bg-paper/50 p-3">
-          <p className="inline-flex items-center gap-2 text-xs font-semibold text-mute">
-            <KeyRound size={14} className="text-fono-dark" /> Ingresar otro PIN
-          </p>
-          <label htmlFor="demo-pin" className="mt-3 block text-xs font-semibold text-mute">PIN del perfil</label>
+        <div className="mt-3 rounded-xl border border-fore/10 bg-paper/50 p-2.5">
+          <label htmlFor="demo-pin" className="inline-flex items-center gap-1.5 text-xs font-semibold text-mute">
+            <KeyRound size={13} className="text-fono-dark" /> Ingresar otro PIN
+          </label>
           <PinInput
             id="demo-pin"
             value={pin}
             onChange={(next) => { setError(''); setPin(next) }}
-            className="mt-2 disabled:opacity-50"
-            ariaLabel="PIN del perfil"
+            className="mt-1.5 h-12 w-40 disabled:opacity-50"
+            ariaLabel="Ingresar otro PIN"
           />
-          <p id="demo-pin-status" role="status" className={`mt-2 min-h-4 text-center text-xs ${error ? 'text-bad' : 'text-mute'}`}>
-            {busy ? 'Abriendo tu tienda demo…' : error || '2001: Vendedor · 3001: Dueño · 2002: Gerente · 2004: Caja · 2005: Técnico · 2007: Delivery.'}
+          <p id="demo-pin-status" role="status" className={`mt-1.5 min-h-4 text-center text-[11px] ${error ? 'text-bad' : 'text-mute'}`}>
+            {busy ? 'Abriendo tu tienda demo…' : error || 'Elegí una cápsula o ingresá el PIN de 4 dígitos.'}
           </p>
         </div>
 
-        <div className="mt-4 flex items-center gap-2 rounded-xl border border-fono-dark/20 bg-fono-dark/5 p-2.5 text-xs text-mute">
-          <ShieldCheck size={16} className="text-fono-dark" />
-          Sesión local · datos ficticios
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[11px] text-mute sm:text-xs">
+          <p className="inline-flex items-center gap-1.5">
+            <ShieldCheck size={14} className="text-fono-dark" />
+            Sesión local · datos ficticios
+          </p>
+          <p>
+            ¿Ya tenés tu tienda?{' '}
+            <Link to="/login" className="toque-44 font-semibold text-fono-dark hover:underline">
+              Ingresar con mi cuenta
+            </Link>
+          </p>
         </div>
-
-        <p className="mt-4 text-sm text-mute">
-          ¿Ya tenés tu tienda?{' '}
-          <Link to="/login" className="toque-44 font-semibold text-fono-dark hover:underline">
-            Ingresar con mi cuenta
-          </Link>
-        </p>
       </AuthPanel>
     </AuthLayout>
   )
