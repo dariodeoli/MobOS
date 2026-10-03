@@ -36,6 +36,7 @@ import { ticketEtiquetasUnidad, ticketEtiquetaUbicacion, ticketEtiquetaUnidad, t
 import { leerEtiqueta } from '@/lib/printing/qr'
 
 import UnidadDetalle from '@/components/inventory/UnidadDetalle'
+import BandejaAutorizaciones from '@/components/inventory/BandejaAutorizaciones'
 import DocumentoUnidadModal from '@/components/inventory/DocumentoUnidadModal'
 import EtiquetasProductoModal from '@/components/shared/EtiquetasProductoModal'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
@@ -51,6 +52,7 @@ import SerialTexto from '@/components/shared/SerialTexto'
 import GradoBadge from '@/components/shared/GradoBadge'
 import ChipsLocks from '@/components/shared/ChipsLocks'
 import { locksParaChips, resumenVerificacion } from '@/lib/phonecheck'
+import { demoAutorizacionesStock } from '@/lib/autorizacionesStock'
 import Avatar from '@/components/shared/Avatar'
 import SearchField from '@/components/shared/SearchField'
 import CurrencySelect from '@/components/shared/CurrencySelect'
@@ -595,19 +597,19 @@ function CameraScan({ onDetected, onClose, continuous = false }) {
   return <div className="space-y-3"><video ref={video} className="aspect-video w-full rounded-xl bg-black object-cover" muted playsInline /><p className="text-sm text-mute">{message}</p></div>
 }
 
-const INVENTARIO_TABS = ['unidades', 'taller', 'alertas', 'reservas', 'traslados', 'vendidos', 'transito', 'ubicaciones', 'compartido', 'eliminados', 'conteos']
+const INVENTARIO_TABS = ['unidades', 'taller', 'alertas', 'reservas', 'traslados', 'vendidos', 'transito', 'ubicaciones', 'compartido', 'eliminados', 'conteos', 'autorizaciones']
 // #305: la navegación agrupa las once vistas en tres bloques (Stock ·
 // Movimientos · Control). El grupo activo se deriva de la pestaña actual, así
 // los enlaces directos (/inventario/transito, etc.) siguen abriendo su vista.
 const GRUPOS_INVENTARIO = [
   { id: 'stock', label: 'Stock', tabs: ['unidades', 'reservas', 'ubicaciones', 'alertas'] },
   { id: 'movimientos', label: 'Movimientos', tabs: ['transito', 'traslados', 'vendidos', 'eliminados'] },
-  { id: 'control', label: 'Control', tabs: ['taller', 'conteos', 'compartido'] },
+  { id: 'control', label: 'Control', tabs: ['taller', 'conteos', 'compartido', 'autorizaciones'] },
 ]
 const TAB_LABEL = {
   unidades: 'Inventario', reservas: 'Reservas', ubicaciones: 'Ubicaciones', alertas: 'Alertas',
   transito: 'En tránsito', traslados: 'Traslados', vendidos: 'Vendidos', eliminados: 'Eliminados',
-  taller: 'Taller', conteos: 'Conteos', compartido: 'Compartido',
+  taller: 'Taller', conteos: 'Conteos', compartido: 'Compartido', autorizaciones: 'Autorizaciones',
 }
 const ESTADO_CONTEO = { DRAFT: ['Borrador', 'orange'], APPLIED: ['Aplicado', 'green'], CANCELLED: ['Cancelado', 'slate'] }
 
@@ -630,8 +632,11 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   const canViewAlerts = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE')
   const canManageLocations = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE')
   const canManageVisibility = Boolean(sesion?.esPropietario)
-  const [tab, setTab] = useState(tabProp && INVENTARIO_TABS.includes(tabProp) && (tabProp !== 'alertas' || canViewAlerts) ? tabProp : 'unidades'), [query, setQuery] = useState(qParam), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [orden, recordarOrden] = useUltimoUsado('inventario:orden', 'recientes'), [exportando, setExportando] = useState(false)
+  const [tab, setTab] = useState(tabProp && INVENTARIO_TABS.includes(tabProp) && (tabProp !== 'alertas' || canViewAlerts) && (tabProp !== 'autorizaciones' || canViewAlerts) ? tabProp : 'unidades'), [query, setQuery] = useState(qParam), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [orden, recordarOrden] = useUltimoUsado('inventario:orden', 'recientes'), [exportando, setExportando] = useState(false)
   const [stockAlerts, setStockAlerts] = useState({ alerts: [], outOfStock: [] })
+  // #331: autorizaciones de stock (retiro/ajuste y transferencia) para la
+  // bandeja de Control → Autorizaciones y su contador.
+  const [authStock, setAuthStock] = useState({ rows: [], loading: false, error: '' })
   const toast = useToast()
   const [seleccionados, setSeleccionados] = useState([])
   const [crearVariante, setCrearVariante] = useState(false)
@@ -785,6 +790,30 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
       setStockAlerts(payload || { alerts: [], outOfStock: [] })
     } catch (cause) { setAlertsError(cause?.message || 'No se pudieron cargar las alertas.') } finally { setAlertsLoading(false) }
   }, [inventarioOperativo, canViewAlerts, sucursal?.id])
+  // #331: bandeja de autorizaciones de stock. Solo la carga quien puede
+  // resolverlas (dueño/gerencia); el contador de Control y de la pestaña sale
+  // de estas filas. La resolución no cambia la semántica: la aprobada se
+  // consume al ejecutarse desde la ficha de la unidad.
+  const cargarAutorizacionesStock = useCallback(async () => {
+    if (!inventarioOperativo || !canViewAlerts) return
+    if (esDemo) { setAuthStock({ rows: demoAutorizacionesStock(), loading: false, error: '' }); return }
+    setAuthStock(actuales => ({ ...actuales, loading: true, error: '' }))
+    try {
+      const [ajustes, transferencias] = await Promise.all([
+        api.get('/api/authorizations?kind=STOCK_ADJUST'),
+        api.get('/api/authorizations?kind=TRANSFER'),
+      ])
+      setAuthStock({
+        rows: [...(Array.isArray(ajustes) ? ajustes : []), ...(Array.isArray(transferencias) ? transferencias : [])]
+          .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()),
+        loading: false,
+        error: '',
+      })
+    } catch (cause) {
+      setAuthStock(actuales => ({ ...actuales, loading: false, error: cause?.message || 'No se pudieron cargar las autorizaciones de stock.' }))
+    }
+  }, [inventarioOperativo, canViewAlerts, esDemo])
+  const pendientesStock = useMemo(() => authStock.rows.filter((row) => row.status === 'PENDING').length, [authStock.rows])
   // #247 (seguimiento): el primer pintado espera **solo** lo que la lista de
   // Unidades usa (las unidades y el catálogo local). El resto —depósitos,
   // proveedores, alertas y las pestañas de reservas/traslados/eliminados— se
@@ -820,11 +849,12 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
       resources.stockLocations.list().catch(() => []),
       suppliersApi.list().catch(() => []),
       cargarCotizacion(),
+      cargarAutorizacionesStock(),
     ])
     setRemovedUnits(nextRemoved); setReservations(nextReservations); setTransfers(nextTransfers); setLocations(nextLocations)
     setProveedores(Array.isArray(nextProveedores) ? nextProveedores : [])
     loadAlerts()
-  }, [inventarioOperativo, loadAlerts, cargarCotizacion])
+  }, [inventarioOperativo, loadAlerts, cargarCotizacion, cargarAutorizacionesStock])
   useEffect(() => {
     if (!inventarioOperativo) return undefined
     const agendado = window.requestIdleCallback
@@ -1372,14 +1402,15 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   function cambiarTab(next) {
     if (!tabValido(next)) return
     setTab(next)
-    // Conteos vive solo en esta pantalla: el slug no está en la whitelist del
-    // panel, así que no se navega y la URL conserva la pestaña anterior.
-    if (next !== 'conteos') onTabChange?.(next)
+    // Conteos y Autorizaciones viven solo en esta pantalla: el slug no está en
+    // la whitelist del panel (la navegación de pestañas la lleva POS en #332),
+    // así que no se navega y la URL conserva la pestaña anterior.
+    if (next !== 'conteos' && next !== 'autorizaciones') onTabChange?.(next)
   }
   // #305: grupo activo derivado de la pestaña (los enlaces directos siguen
   // funcionando) y sus vistas visibles.
   const grupos = useMemo(
-    () => GRUPOS_INVENTARIO.map((grupo) => ({ ...grupo, tabs: grupo.tabs.filter((id) => id !== 'alertas' || canViewAlerts) })),
+    () => GRUPOS_INVENTARIO.map((grupo) => ({ ...grupo, tabs: grupo.tabs.filter((id) => (id !== 'alertas' && id !== 'autorizaciones') || canViewAlerts) })),
     [canViewAlerts],
   )
   const grupoActivo = grupos.find((grupo) => grupo.tabs.includes(tab))?.id || grupos[0]?.id
@@ -1473,12 +1504,12 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
             abriendo su vista. */}
         <div data-testid="grupos-inventario" role="group" aria-label="Grupos de inventario" className="flex flex-wrap items-center gap-1">
           {grupos.map((grupo) => (
-            <button key={grupo.id} type="button" aria-pressed={grupoActivo === grupo.id} onClick={() => cambiarGrupo(grupo.id)} className={cn('min-h-11 shrink-0 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wider transition md:min-h-0', grupoActivo === grupo.id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:bg-ink-700 hover:text-fore')}>{grupo.label}</button>
+            <button key={grupo.id} type="button" aria-pressed={grupoActivo === grupo.id} onClick={() => cambiarGrupo(grupo.id)} className={cn('min-h-11 shrink-0 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wider transition md:min-h-0', grupoActivo === grupo.id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:bg-ink-700 hover:text-fore')}>{grupo.label}{grupo.id === 'control' && pendientesStock > 0 && <span aria-hidden="true" data-testid="inventario-grupo-control-pendientes" className="ml-1 rounded-full bg-warn/20 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-warn">{pendientesStock}</span>}</button>
           ))}
         </div>
         <div data-testid="tabs-inventario" className="mt-2 flex gap-1 overflow-x-auto rounded-lg border border-ink-600 bg-ink-800 p-1">
           {(grupos.find((grupo) => grupo.id === grupoActivo)?.tabs || []).map((clave) => (
-            <button key={clave} type="button" aria-pressed={tab === clave} onClick={() => cambiarTab(clave)} className={`min-h-11 shrink-0 rounded-md px-3 py-2 text-xs font-semibold md:min-h-0 ${tab === clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{TAB_LABEL[clave]}</button>
+            <button key={clave} type="button" aria-pressed={tab === clave} onClick={() => cambiarTab(clave)} className={`min-h-11 shrink-0 rounded-md px-3 py-2 text-xs font-semibold md:min-h-0 ${tab === clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{TAB_LABEL[clave]}{clave === 'autorizaciones' && pendientesStock > 0 && <span aria-hidden="true" data-testid="inventario-tab-autorizaciones-pendientes" className="ml-1 rounded-full bg-warn/20 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-warn">{pendientesStock}</span>}</button>
           ))}
         </div>{notice && <Aviso tono="ok" className="mt-3">{notice}</Aviso>}{error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
     <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
@@ -1508,6 +1539,26 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
             const certificados = lista.map(unit => datosCertificado(unit))
             return buildCertificadosHtml(certificados, { format: 'a4' }).then(html => printHtml(html))
           }}
+        />
+      </div>
+    )}
+    {tab === 'autorizaciones' && (
+      <div className="mt-4">
+        {/* #331: la bandeja de stock vive dentro de Inventario; resuelve con
+            los mismos endpoints y deja intacta la semántica de un solo uso. */}
+        <BandejaAutorizaciones
+          rows={authStock.rows}
+          loading={authStock.loading}
+          error={authStock.error}
+          unidades={[...units, ...removedUnits]}
+          productos={products}
+          sucursales={branches}
+          puedeResolver={canViewAlerts}
+          esPropietario={Boolean(sesion?.esPropietario)}
+          usuarioId={sesion?.vendedorId || ''}
+          esDemo={esDemo}
+          onReload={cargarAutorizacionesStock}
+          onDemoResolve={(id, cambios) => setAuthStock((actuales) => ({ ...actuales, rows: actuales.rows.map((row) => (row.id === id ? { ...row, ...cambios } : row)) }))}
         />
       </div>
     )}
