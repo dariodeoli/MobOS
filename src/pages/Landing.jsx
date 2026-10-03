@@ -200,10 +200,14 @@ export default function Landing() {
 
       <main>
         {/* 1 · Hero + captura real */}
-        <section id="inicio" className="relative isolate overflow-hidden">
+        {/* `scroll-mt-20`: con el header sticky, el salto a #inicio tiene que
+            dejar la pill por debajo del header (#327). */}
+        <section id="inicio" className="relative isolate scroll-mt-20 overflow-hidden">
           <i className="absolute left-[6%] top-8 -z-10 h-80 w-80 rounded-full bg-fono/10 blur-[110px]" />
           <i className="absolute right-[-8%] top-40 -z-10 h-96 w-96 rounded-full bg-fono-glow/20 blur-[120px]" />
-          <div className="mx-auto grid max-w-7xl gap-14 px-5 pb-20 pt-16 lg:grid-cols-[.92fr_1.08fr] lg:items-center lg:py-24">
+          {/* #327: en mobile/tablet el hero arranca más cerca del header
+              (el aire de 64 px quedaba despegado); el desktop sigue con py-24. */}
+          <div className="mx-auto grid max-w-7xl gap-14 px-5 pb-20 pt-8 lg:grid-cols-[.92fr_1.08fr] lg:items-center lg:py-24">
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <p className="inline-flex items-center gap-2 rounded-full border border-fono/25 bg-fono/[.08] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[.16em] text-fono-dark">
