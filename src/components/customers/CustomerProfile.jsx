@@ -43,12 +43,15 @@ import {
   Modal,
   MoneyInput,
   CeldaMoneda,
+  SaveActions,
   Select,
   Skeleton,
   Textarea,
   useToast,
+  useValidacionCampos,
   IconAction,
 } from '@/components/ui'
+import { obligatorio } from 'owncoding-ui/utils'
 import { GRILLA_DOS_COLUMNAS, GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
 const FOLLOW_UP_KINDS = {
   CALL: { label: 'Llamada', color: 'blue' },
@@ -526,6 +529,11 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   const [requestBusy, setRequestBusy] = useState(false)
   const [resolveTarget, setResolveTarget] = useState(null)
   const [resolveAction, setResolveAction] = useState('')
+  // #323: el motivo del rechazo se valida junto al campo (ya no por toast) y el
+  // cierre con texto cargado pide confirmación.
+  const { errorDe: errorResolve, validar: validarResolve, limpiar: limpiarResolve } = useValidacionCampos({
+    motivo: [obligatorio('Contale al vendedor por qué se rechaza.')],
+  })
   const [resolveForm, setResolveForm] = useState({ creditLimitPyg: '', creditDays: '', maxDiscountPyg: '', resolvedNote: '' })
   const [resolveBusy, setResolveBusy] = useState(false)
   const [identities, setIdentities] = useState([])
@@ -1031,10 +1039,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
 
   async function confirmarResolver() {
     if (demoBloqueado() || !resolveTarget || resolveBusy) return
-    if (resolveAction === 'reject' && !resolveForm.resolvedNote.trim()) {
-      toast.error('Motivo obligatorio', 'Contale al vendedor por qué se rechaza.')
-      return
-    }
+    if (resolveAction === 'reject' && !validarResolve({ motivo: resolveForm.resolvedNote }).valido) return
     const body = {
       id: resolveTarget.id,
       action: resolveAction,
@@ -2199,6 +2204,8 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
       <Modal
         open={Boolean(resolveTarget)}
         onClose={() => { if (!resolveBusy) setResolveTarget(null) }}
+        dirty={Boolean(resolveTarget) && resolveForm.resolvedNote.trim() !== ''}
+        busy={resolveBusy}
         title={resolveAction === 'approve' ? 'Aprobar solicitud' : 'Rechazar solicitud'} size="formulario">
         {resolveTarget && (
           <div className="space-y-4">
@@ -2242,27 +2249,26 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                 />
               </FormField>
             )}
-            <FormField label={resolveAction === 'reject' ? 'Motivo del rechazo' : 'Nota de la respuesta (opcional)'} htmlFor="profile-resolve-note">
+            <FormField label={resolveAction === 'reject' ? 'Motivo del rechazo' : 'Nota de la respuesta (opcional)'} htmlFor="profile-resolve-note" error={resolveAction === 'reject' ? errorResolve('motivo') : undefined}>
               <Textarea
                 id="profile-resolve-note"
                 rows={3}
                 maxLength={500}
                 value={resolveForm.resolvedNote}
-                onChange={(event) => setResolveForm((form) => ({ ...form, resolvedNote: event.target.value }))}
+                onChange={(event) => { limpiarResolve('motivo'); setResolveForm((form) => ({ ...form, resolvedNote: event.target.value })) }}
                 placeholder={resolveAction === 'reject' ? 'Explicá por qué no se autoriza…' : 'Condición acordada…'}
               />
             </FormField>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="ghost" onClick={() => setResolveTarget(null)} disabled={resolveBusy}>Cancelar</Button>
+            <SaveActions pendiente={resolveBusy}>
               <Button
                 type="button"
                 variant={resolveAction === 'reject' ? 'danger' : 'primary'}
                 onClick={confirmarResolver}
-                disabled={resolveBusy || (resolveAction === 'reject' && !resolveForm.resolvedNote.trim())}
+                disabled={resolveBusy}
               >
                 {resolveBusy ? 'Guardando…' : resolveAction === 'approve' ? 'Aprobar' : 'Rechazar'}
               </Button>
-            </div>
+            </SaveActions>
           </div>
         )}
       </Modal>

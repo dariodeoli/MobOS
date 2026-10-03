@@ -147,3 +147,52 @@ test('los modales de FIN adoptan cierre con cambios y error junto al campo (#323
   assert.ok(plantillas.includes('<SaveActions'), 'el pie de la plantilla se monta en el pie fijo del diálogo')
   assert.ok(!plantillas.includes('<span className="block text-[11px] font-medium uppercase tracking-wider text-mute">Mensaje</span>'), 'el rótulo suelto de Mensaje ya es label')
 })
+
+test('los modales de CRM adoptan cierre con cambios, error junto al campo y resultados (#323)', () => {
+  const seller = leer('../components/ventas/SellerCustomers.jsx')
+  assert.ok(seller.includes('dirty={crearAbierto && crearSucio}'), 'crear cliente confirma al cerrar con datos')
+  assert.ok(seller.includes('phones.some((phone) => !telefonoValido(phone'), 'el teléfono inválido frena el alta')
+  assert.ok(!seller.includes('throw new Error(MENSAJE_TELEFONO)'), 'el teléfono inválido ya no cae al error general')
+  assert.ok(seller.includes('<SaveActions pendiente={saving}>'), 'el alta usa el pie estándar')
+  assert.ok(seller.includes('avisar.guardado('), 'el alta avisa con el resultado canónico')
+
+  const ficha = leer('../components/customers/FichaClienteModal.jsx')
+  assert.ok(ficha.includes('dirty={sucio}'), 'la ficha del cliente confirma al cerrar con datos')
+  assert.ok(ficha.includes("errorNombre={errorDe('nombre')}"), 'el nombre muestra su error junto al campo')
+  assert.ok(!ficha.includes("disabled={busy || !String(valor.name || '').trim()}"), 'el nombre vacío no deshabilita el botón')
+
+  const delPedido = leer('../components/ventas/ClienteDelPedidoModal.jsx')
+  assert.ok(delPedido.includes('dirty={sucio}'), 'la ficha desde el pedido confirma al cerrar')
+  assert.ok(delPedido.includes("errorNombre={errorDe('nombre')}"), 'el nombre se valida junto al campo')
+
+  const perfil = leer('../components/customers/CustomerProfile.jsx')
+  assert.ok(perfil.includes('dirty={Boolean(resolveTarget)'), 'la resolución de la solicitud confirma al cerrar con motivo')
+  assert.ok(perfil.includes("error={resolveAction === 'reject' ? errorResolve('motivo')"), 'el motivo se valida junto al campo')
+  assert.ok(!perfil.includes("toast.error('Motivo obligatorio'"), 'el motivo ya no usa toast')
+  assert.ok(!perfil.includes('disabled={resolveBusy || (resolveAction'), 'el motivo vacío no deshabilita el botón')
+  assert.ok(perfil.includes('<SaveActions pendiente={resolveBusy}>'), 'la resolución usa el pie estándar')
+
+  const unificar = leer('../components/customers/UnificarClienteModal.jsx')
+  assert.ok(unificar.includes('dirty={tocado}'), 'unificar confirma al cerrar con un destino elegido')
+  assert.ok(unificar.includes('avisar.guardado(') && unificar.includes("avisar.fallo('guardar'"), 'los resultados de unificar son canónicos')
+
+  const marketing = leer('../components/customers/MarketingCampaigns.jsx')
+  assert.ok(marketing.includes("avisar.enviado('La campaña'"), 'la campaña se anuncia con el resultado de envío')
+  assert.ok(marketing.includes("avisar.copiado('El enlace'") && marketing.includes("avisar.fallo('copiar'"), 'copiar el enlace usa resultados canónicos')
+  const campanas = leer('../components/customers/CampanasClientes.jsx')
+  assert.ok(campanas.includes("avisar.enviado('El mensaje de WhatsApp'"), 'el envío de WhatsApp usa el resultado canónico')
+  assert.ok(campanas.includes("avisar.fallo('enviar'") && campanas.includes("avisar.fallo('guardar'"), 'los fallos de campaña son canónicos')
+
+  const delivery = leer('../components/delivery/StoreDelivery.jsx')
+  assert.ok(delivery.includes('dirty={Boolean(rechazar)'), 'rechazar la rendición confirma al cerrar con motivo')
+  assert.ok(delivery.includes("error={errorDe('motivo')}"), 'el motivo de la rendición va junto al campo')
+  assert.ok(delivery.includes('<SaveActions pendiente={ocupado}'), 'el rechazo usa el pie estándar')
+
+  const servicio = leer('../components/control/ServicioTecnico.jsx')
+  assert.ok(servicio.includes('dirty={formSucio}') && servicio.includes('dirty={catalogoSucio}'), 'la orden y el catálogo confirman al cerrar con cambios')
+  assert.ok(servicio.includes("error={errorOrden('customerName')}") && servicio.includes("error={errorOrden('device')}"), 'cliente y dispositivo muestran su error junto al campo')
+  assert.ok(servicio.includes('<FormField label="Servicio del catálogo"'), 'el selector del catálogo tiene label visible')
+  assert.ok(servicio.includes('<FormField label="Nombre del servicio"'), 'el catálogo tiene labels visibles')
+  assert.ok(servicio.includes('<SaveActions pendiente={busy}>'), 'la orden usa el pie estándar')
+  assert.ok(!servicio.includes('useDialogDirty(formSucio)'), 'el dirty de la orden va en el objeto del diálogo')
+})

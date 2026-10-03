@@ -52,7 +52,7 @@ test('unificar dos fichas: preview, principal, archivo con puntero y cronología
   await expect(page.getByTestId('merge-lado-b')).toContainText('Notas')
   await page.screenshot({ path: `${SHOTS}/03-preview-unificacion.png` })
   await page.getByRole('button', { name: 'Unificar clientes' }).click()
-  await expect(page.getByText('Clientes unificados')).toBeVisible({ timeout: 15000 })
+  await expect(page.getByText('La unificación se guardó')).toBeVisible({ timeout: 15000 })
 
   // La ficha principal quedó con el correo/tags del duplicado y su pedido.
   const tras = await api(page, `/api/customers/${encodeURIComponent(a.body.id)}`)
@@ -100,7 +100,7 @@ test('unificar desde la lista: seleccionar dos fichas y confirmar', async ({ pag
   await expect(page.getByTestId('merge-lado-b')).toBeVisible({ timeout: 15000 })
   await page.screenshot({ path: `${SHOTS}/07-unificar-desde-lista.png` })
   await page.getByRole('button', { name: 'Unificar clientes' }).click()
-  await expect(page.getByText('Clientes unificados')).toBeVisible({ timeout: 15000 })
+  await expect(page.getByText('La unificación se guardó')).toBeVisible({ timeout: 15000 })
 
   // Una de las dos quedó archivada con puntero a la otra (el orden de la lista
   // define cuál es la principal).

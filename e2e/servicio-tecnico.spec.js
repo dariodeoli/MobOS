@@ -74,9 +74,11 @@ test('el checklist se configura por tipo de dispositivo', async ({ page }) => {
   await config.getByRole('button', { name: 'Agregar' }).click()
   await expect(config.getByTestId('checklist-puntos').getByText(punto)).toBeVisible({ timeout: 15_000 })
   // Cerrar la configuración deja el formulario abierto con el punto nuevo.
+  // #315: la inspección es un solo control por punto (botón con su etiqueta);
+  // el número del dibujo es decorativo.
   await config.getByRole('button', { name: 'Cerrar' }).click()
   await expect(config).toHaveCount(0)
-  await expect(modal.getByText(punto)).toBeVisible({ timeout: 15_000 })
+  await expect(modal.getByRole('button', { name: punto, exact: true })).toBeVisible({ timeout: 15_000 })
 })
 
 // WhatsApp central (#134): el menú reutilizable sugiere la plantilla del estado

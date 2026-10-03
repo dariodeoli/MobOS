@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
-import { Aviso, Badge, Button, Modal, Skeleton, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Modal, Skeleton, useResultado } from '@/components/ui'
 import SearchField from '@/components/shared/SearchField'
 import Avatar from '@/components/shared/Avatar'
 import Icon from '@/components/shared/Icon'
@@ -81,18 +81,19 @@ function Lado({ clave, datos, principal, onPrincipal, titulo }) {
 }
 
 export default function UnificarClienteModal({ open, cliente, duplicado, onClose, onMerged }) {
-  const toast = useToast()
+  const avisar = useResultado()
   const [query, setQuery] = useState('')
   const [resultados, setResultados] = useState([])
   const [elegido, setElegido] = useState(null)
   const [preview, setPreview] = useState(null)
   const [principal, setPrincipal] = useState('a')
+  const [tocado, setTocado] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (!open) { setQuery(''); setResultados([]); setElegido(null); setPreview(null); return }
-    setQuery(duplicado?.name || ''); setResultados([]); setElegido(duplicado || null); setPreview(null); setPrincipal('a'); setError('')
+    setQuery(duplicado?.name || ''); setResultados([]); setElegido(duplicado || null); setPreview(null); setPrincipal('a'); setTocado(false); setError('')
   }, [open, duplicado])
 
   useEffect(() => {
@@ -123,15 +124,15 @@ export default function UnificarClienteModal({ open, cliente, duplicado, onClose
       const principalId = principal === 'a' ? cliente.id : elegido.id
       const duplicateId = principal === 'a' ? elegido.id : cliente.id
       await api.post(`/api/customers/${encodeURIComponent(cliente.id)}/merge`, { principalId, duplicateId })
-      toast.success('Clientes unificados', 'La ficha duplicada quedó archivada con puntero a la principal.')
+      avisar.guardado('La unificación', 'La ficha duplicada quedó archivada con puntero a la principal.')
       onMerged?.()
     } catch (cause) {
-      setError(cause?.message || 'No se pudieron unificar los clientes.')
+      avisar.fallo('guardar', cause?.message || 'No se pudieron unificar los clientes.')
     } finally { setBusy(false) }
   }
 
   return (
-    <Modal open={open} onClose={() => !busy && onClose?.()} title="Unificar cliente duplicado" size="amplio">
+    <Modal open={open} onClose={() => !busy && onClose?.()} dirty={tocado} title="Unificar cliente duplicado" size="amplio">
       <div className="space-y-4" data-testid="unificar-cliente">
         <p className="text-sm text-mute">
           Buscá la otra ficha de la misma persona (nombre, teléfono, CI/RUC o correo). Vas a ver qué se mueve antes de confirmar: el duplicado no se borra, queda archivado con un puntero.
@@ -147,7 +148,7 @@ export default function UnificarClienteModal({ open, cliente, duplicado, onClose
         {!elegido && resultados.length > 0 && (
           <div className="space-y-1" data-testid="unificar-resultados">
             {resultados.map((fila) => (
-              <button key={fila.id} type="button" onClick={() => setElegido(fila)} className="flex w-full items-center gap-3 rounded-xl border border-ink-600 p-3 text-left text-sm transition hover:border-fono">
+              <button key={fila.id} type="button" onClick={() => { setElegido(fila); setTocado(true) }} className="flex w-full items-center gap-3 rounded-xl border border-ink-600 p-3 text-left text-sm transition hover:border-fono">
                 <Avatar user={{ id: fila.id, name: fila.name }} size="lg" />
                 <Contacto perfil={fila} />
                 <Icon name="chevron" className="ml-auto h-4 w-4 shrink-0 text-mute" />
@@ -159,8 +160,8 @@ export default function UnificarClienteModal({ open, cliente, duplicado, onClose
         {elegido && preview && (
           <>
             <div className={GRILLA_DOS_COLUMNAS}>
-              <Lado clave="a" datos={preview.a} principal={principal} onPrincipal={setPrincipal} titulo="Esta ficha" />
-              <Lado clave="b" datos={{ ...preview.b, perfil: { ...preview.b?.perfil, name: elegido.name } }} principal={principal} onPrincipal={setPrincipal} titulo="Ficha duplicada" />
+              <Lado clave="a" datos={preview.a} principal={principal} onPrincipal={(clave) => { setPrincipal(clave); setTocado(true) }} titulo="Esta ficha" />
+              <Lado clave="b" datos={{ ...preview.b, perfil: { ...preview.b?.perfil, name: elegido.name } }} principal={principal} onPrincipal={(clave) => { setPrincipal(clave); setTocado(true) }} titulo="Ficha duplicada" />
             </div>
             {preview.conflictos?.length > 0 && (
               <Aviso tono="warn" className="rounded-xl p-3 text-xs">

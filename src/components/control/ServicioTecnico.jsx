@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useUrlState } from '@/hooks/useUrlState'
-import { Aviso, Badge, Button, Card, EmptyState, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, Drawer, EmptyState, FormActions, FormField, Input, Label, Modal, MoneyInput, SaveActions, Select, Skeleton, Textarea, useToast, useValidacionCampos } from '@/components/ui'
+import { obligatorio } from 'owncoding-ui/utils'
 import BarraLote from '@/components/shared/BarraLote'
 import BarraModulo from '@/components/shared/BarraModulo'
 import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import SearchField from '@/components/shared/SearchField'
-import EsquemaEquipo from '@/components/shared/EsquemaEquipo'
+import InspeccionEquipo from '@/components/shared/InspeccionEquipo'
 import PatronDesbloqueo from '@/components/shared/PatronDesbloqueo'
 import Icon from '@/components/shared/Icon'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
@@ -47,6 +48,20 @@ const utilidad = (row) => Number(row.pricePyg || 0) - Number(row.costPyg || 0)
 // Etiqueta corta para el botón de avance: la completa queda en el title.
 const SIGUIENTE_CORTO = { RECIBIDO: 'Recibido', DIAGNOSTICO: 'Diagnóstico', CON_TECNICO: 'Con técnico', ESPERANDO_REPUESTO: 'Repuesto', REPARADO: 'Reparado', LISTO: 'Listo', ENTREGADO: 'Entregado' }
 const numeroDe = (valor) => Number(String(valor || '').replace(/\D/g, '')) || 0
+// Tipo del checklist de una orden: el guardado o el que surge del modelo.
+const tipoDeFila = (row) => row.deviceType || tipoDeDispositivo(row.device) || 'Otros'
+// Variables de la plantilla de WhatsApp para una orden del taller (misma
+// fuente para la fila y el detalle, #134/#315).
+const contextoWhatsApp = (row) => ({
+  cliente: row.customerName || '',
+  nombre: (row.customerName || '').split(' ')[0] || '',
+  equipo: row.device || '',
+  producto: row.deviceType || row.device || '',
+  servicio: row.serviceName || row.reportedIssue || row.diagnosis || '',
+  estado: ESTADO_LABEL[row.status] || row.status || '',
+  total: Number(row.pricePyg || 0) > 0 ? gs(row.pricePyg) : '',
+  fecha: row.receivedAt ? new Date(row.receivedAt).toLocaleDateString('es-PY') : '',
+})
 
 // Tabla compacta: una fila por orden de servicio, encabezados ordenables y el
 // avance de estado en la misma línea.
@@ -90,6 +105,13 @@ export default function ServicioTecnico() {
   // Recepción del equipo con el buscador dependiente (#250): el modelo manda
   // y capacidad/color se despliegan después.
   const [dispositivo, setDispositivo] = useState({})
+  // #315: la lista general queda compacta y el detalle de cada reparación
+  // (etapas + inspección + acciones) vive en un panel; los filtros avanzados,
+  // en un panel lateral.
+  const [detalleId, setDetalleId] = useState(null)
+  const [filtros, setFiltros] = useState({ tecnico: '', tipo: '', desde: '', hasta: '' })
+  const [filtrosOpen, setFiltrosOpen] = useState(false)
+  const [referenciaForm, setReferenciaForm] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
@@ -156,7 +178,27 @@ export default function ServicioTecnico() {
   // Vista previa v2 (#241): el flujo suma un stepper y los importes suben un
   // escalón. Se apaga solo con el flag; sin él todo queda como estaba.
   const v2 = temaV2Activo()
-  const primerPasoFlujo = PASOS_FLUJO.findIndex(([, estados]) => estados.some((estado) => (conteos[estado] || 0) > 0))
+  const detalle = useMemo(() => rows.find((row) => row.id === detalleId) || null, [rows, detalleId])
+  const tecnicos = useMemo(() => [...new Set(rows.map((row) => row.technicianName).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')), [rows])
+  const filtrosActivos = [filtros.tecnico, filtros.tipo, filtros.desde, filtros.hasta].filter(Boolean).length
+  const limpiarFiltros = () => setFiltros({ tecnico: '', tipo: '', desde: '', hasta: '' })
+  // Validación por campo (#323): el alta muestra el error junto al campo en
+  // vez de un único toast al pie.
+  const { errorDe: errorOrden, validar: validarOrden, limpiar: limpiarOrden } = useValidacionCampos({
+    customerName: [obligatorio('Escribí el nombre del cliente.')],
+    device: [obligatorio('Elegí el dispositivo.')],
+  })
+  // Cierre con cambios (#323): el modal de la orden pide confirmación en vez de
+  // descartar el formulario en silencio. El catálogo hace lo mismo mientras
+  // haya un servicio a medio cargar o editado.
+  const formSucio = Boolean(form) && Boolean(referenciaForm) && JSON.stringify(form) !== referenciaForm
+  const catalogoSucio = useMemo(() => {
+    const base = servicioEdit.id ? servicios.find((item) => item.id === servicioEdit.id) : null
+    const original = base
+      ? { name: base.name, deviceType: base.deviceType, precio: base.suggestedPricePyg ? String(base.suggestedPricePyg) : '' }
+      : { name: '', deviceType: 'iPhone', precio: '' }
+    return servicioEdit.name !== original.name || servicioEdit.deviceType !== original.deviceType || servicioEdit.precio !== original.precio
+  }, [servicioEdit, servicios])
 
   const ordenarPor = (key) => setOrden(current => current.key === key
     ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
@@ -182,6 +224,16 @@ export default function ServicioTecnico() {
     const lista = rows
       .filter(row => filtro === 'activos' ? !['ENTREGADO', 'CANCELADO'].includes(row.status) : filtro === 'todos' ? true : row.status === filtro)
       .filter(row => !texto || [row.customerName, row.device, row.serial, row.reportedIssue, row.diagnosis, row.technicianName].filter(Boolean).join(' ').toLowerCase().includes(texto))
+      .filter(row => !filtros.tecnico || row.technicianName === filtros.tecnico)
+      .filter(row => !filtros.tipo || tipoDeFila(row) === filtros.tipo)
+      .filter(row => {
+        if (!filtros.desde && !filtros.hasta) return true
+        const dia = String(row.receivedAt || row.createdAt || '').slice(0, 10)
+        if (!dia) return false
+        if (filtros.desde && dia < filtros.desde) return false
+        if (filtros.hasta && dia > filtros.hasta) return false
+        return true
+      })
     if (orden.key === 'recientes') return lista
     const factor = orden.dir === 'asc' ? 1 : -1
     return [...lista].sort((a, b) => {
@@ -189,7 +241,7 @@ export default function ServicioTecnico() {
       if (typeof va === 'string' || typeof vb === 'string') return String(va).localeCompare(String(vb), 'es') * factor
       return (va - vb) * factor
     })
-  }, [rows, filtro, q, orden])
+  }, [rows, filtro, q, orden, filtros])
 
   // Análisis del taller sobre lo que se está viendo: facturación, costos
   // (repuesto + mano de obra + otros) y utilidad real del período filtrado.
@@ -202,7 +254,7 @@ export default function ServicioTecnico() {
   async function guardar(event) {
     event.preventDefault()
     if (busy) return
-    if (!form.customerName.trim() || !form.device.trim()) { toast.error('Cliente y dispositivo son obligatorios.'); return }
+    if (!validarOrden({ customerName: form.customerName, device: form.device }).valido) return
     setBusy(true)
     try {
       const desglose = {
@@ -462,7 +514,7 @@ export default function ServicioTecnico() {
   function editar(row) {
     setEditing(row)
     setDispositivo(partesDispositivo(row.device))
-    setForm({
+    const datos = {
       customerName: row.customerName || '', customerId: row.customerId || '', device: row.device || '', serial: row.serial || '',
       reportedIssue: row.reportedIssue || '', diagnosis: row.diagnosis || '', technicianName: row.technicianName || '',
       status: row.status || 'RECIBIDO', pricePyg: String(row.pricePyg || ''), costPyg: String(row.costPyg || ''),
@@ -472,7 +524,9 @@ export default function ServicioTecnico() {
       checklist: row.checklist && typeof row.checklist === 'object' && !Array.isArray(row.checklist) ? row.checklist : {},
       unlockCode: row.desbloqueo?.pin || '',
       unlockPattern: Array.isArray(row.desbloqueo?.patron) ? row.desbloqueo.patron : [],
-    })
+    }
+    setForm(datos)
+    setReferenciaForm(JSON.stringify(datos))
   }
 
   const set = (key) => (event) => setForm(current => ({ ...current, [key]: event.target.value }))
@@ -496,16 +550,19 @@ export default function ServicioTecnico() {
         <Button variant="outline" onClick={load} disabled={loading}>Actualizar</Button>
         {servicios.length === 0 && <Button variant="outline" onClick={cargarCatalogoSugerido}>Cargar catálogo sugerido</Button>}
         <Button variant="outline" onClick={() => setCatalogoOpen(true)}>Catálogo</Button>
-        <Button onClick={() => { setEditing(null); setForm({ ...FORM_VACIO }); setDispositivo({}) }}>+ Nueva orden</Button>
+        <Button onClick={() => { setEditing(null); const vacio = { ...FORM_VACIO }; setForm(vacio); setDispositivo({}); setReferenciaForm(JSON.stringify(vacio)) }}>+ Nueva orden</Button>
       </BarraModulo>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
-          {[['activos', `Activos (${conteos.activos})`], ...ESTADOS.map(([id, label]) => [id, `${label} (${conteos[id] || 0})`]), ['todos', 'Todos']].map(([key, label]) => (
-            <button key={key} type="button" onClick={() => setFiltro(key)} className={cn('min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition md:min-h-9', filtro === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>
-          ))}
-        </div>
         <div className="min-w-[200px] flex-1"><SearchField ariaLabel="Buscar órdenes de servicio" placeholder="Cliente, equipo, IMEI, falla o técnico" value={q} onChange={event => setQ(event.target.value)} /></div>
+        <div className="w-full sm:w-60">
+          <Select aria-label="Filtrar por etapa" value={filtro} onChange={event => setFiltro(event.target.value)}>
+            <option value="activos">Activas ({conteos.activos})</option>
+            {ESTADOS.map(([id, label]) => <option key={id} value={id}>{label} ({conteos[id] || 0})</option>)}
+            <option value="todos">Todas ({rows.length})</option>
+          </Select>
+        </div>
+        <Button variant="outline" className="min-h-11 md:min-h-0" aria-expanded={filtrosOpen} onClick={() => setFiltrosOpen(true)}>Filtros{filtrosActivos ? ` (${filtrosActivos})` : ''}</Button>
       </div>
 
       {error && <Aviso tono="error" className="p-3">{error}</Aviso>}
@@ -523,21 +580,9 @@ export default function ServicioTecnico() {
         />
       )}
       {v2 && !loading && visibles.length > 0 && (
-        <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" aria-label="Flujo del taller">
-          {PASOS_FLUJO.map(([paso, estados], indice) => {
-            const cantidad = estados.reduce((suma, estado) => suma + (conteos[estado] || 0), 0)
-            const activo = indice === primerPasoFlujo
-            return (
-              <li key={paso} className={cn('flex items-center gap-3 rounded-xl border p-3', activo ? 'border-info/40 bg-info/5' : 'border-ink-600')}>
-                <span className={cn('v2-numero grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold', activo ? 'oc-paso-activo' : 'bg-ink-700 text-mute')} aria-hidden>{indice + 1}</span>
-                <span className="min-w-0">
-                  <b className="block truncate text-sm">{paso}</b>
-                  <span className="text-xs text-mute">{cantidad} {cantidad === 1 ? 'equipo' : 'equipos'}</span>
-                </span>
-              </li>
-            )
-          })}
-        </ol>
+        <p className="text-xs text-mute" data-testid="taller-resumen-flujo">
+          {PASOS_FLUJO.map(([paso, estados]) => `${paso}: ${estados.reduce((suma, estado) => suma + (conteos[estado] || 0), 0)}`).join(' · ')}
+        </p>
       )}
       <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
         <Button variant="outline" className="h-8 px-2 text-xs" onClick={avanzarSeleccionadas}>Avanzar estado</Button>
@@ -560,7 +605,7 @@ export default function ServicioTecnico() {
             {visibles.map(row => {
               const ganancia = utilidad(row)
               const serial = String(row.serial || '')
-              return <div key={row.id} data-testid="servicio-fila" className={cn(GRID_SERVICIO, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
+              return <div key={row.id} data-testid="servicio-fila" onClick={(event) => { if (event.target.closest('button,a,input,label,select')) return; setDetalleId(row.id) }} className={cn(GRID_SERVICIO, 'cursor-pointer rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
                 <input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar la orden de ${row.device || 'servicio'}`} checked={seleccionados.includes(row.id)} onChange={() => alternar(row.id)} />
                 <span className="min-w-0">
                   <b className="block truncate text-sm" title={row.device}>{row.device || 'Equipo'}</b>
@@ -583,24 +628,11 @@ export default function ServicioTecnico() {
                       storageKey={ULTIMA_PLANTILLA_SERVICIO}
                       title={row.customerName}
                       preferKey={PLANTILLA_POR_ESTADO[row.status] || ''}
-                      contexto={{
-                        cliente: row.customerName || '',
-                        nombre: (row.customerName || '').split(' ')[0] || '',
-                        equipo: row.device || '',
-                        producto: row.deviceType || row.device || '',
-                        servicio: row.serviceName || row.reportedIssue || row.diagnosis || '',
-                        estado: ESTADO_LABEL[row.status] || row.status || '',
-                        total: Number(row.pricePyg || 0) > 0 ? gs(row.pricePyg) : '',
-                        fecha: row.receivedAt ? new Date(row.receivedAt).toLocaleDateString('es-PY') : '',
-                      }}
+                      contexto={contextoWhatsApp(row)}
                     />
                   )}
-                  {SIGUIENTE[row.status] && <Button variant="outline" className="h-8 whitespace-nowrap px-2 text-xs" title={`Pasar a ${ESTADO_LABEL[SIGUIENTE[row.status]]}`} onClick={() => avanzar(row)}>{SIGUIENTE_CORTO[SIGUIENTE[row.status]]}</Button>}
-                  <Button variant="ghost" className="h-8 px-2 text-xs" title="Imprimir recepción (2 copias)" aria-label={`Imprimir recepción de ${row.device || 'servicio'}`} onClick={() => imprimir(row, 'recepcion', 'a4')}><Icon name="receipt" className="h-3.5 w-3.5" /></Button>
-                  <Button variant="ghost" className="h-8 px-2 text-xs" title="Imprimir recepción 80 mm" aria-label={`Imprimir recepción 80 mm de ${row.device || 'servicio'}`} onClick={() => imprimir(row, 'recepcion', 'thermal')}><Icon name="download" className="h-3.5 w-3.5" /></Button>
-                  <Button variant="ghost" className="h-8 px-2 text-xs" title="Reporte técnico" aria-label={`Imprimir reporte técnico de ${row.device || 'servicio'}`} onClick={() => imprimir(row, 'reporte')}><Icon name="report" className="h-3.5 w-3.5" /></Button>
-                  <Button variant="ghost" className="h-8 px-2 text-xs" title="Enviar a la ticketera" aria-label={`Enviar a la ticketera la recepción de ${row.device || 'servicio'}`} onClick={() => imprimirAgente(row)}><Icon name="send" className="h-3.5 w-3.5" /></Button>
-                  <Button variant="ghost" className="h-8 px-2 text-xs" aria-label={`Editar orden de ${row.device || 'servicio'}`} onClick={() => editar(row)}><Icon name="edit" className="h-3.5 w-3.5" /></Button>
+                  {SIGUIENTE[row.status] && <Button variant="outline" className="h-8 whitespace-nowrap px-2 text-xs" title={`Pasar a ${ESTADO_LABEL[SIGUIENTE[row.status]]}`} onClick={(event) => { event.stopPropagation(); avanzar(row) }}>{SIGUIENTE_CORTO[SIGUIENTE[row.status]]}</Button>}
+                  <Button variant="outline" className="h-8 px-2 text-xs" title="Ver la reparación" aria-label={`Ver detalle de ${row.device || 'servicio'}`} onClick={(event) => { event.stopPropagation(); setDetalleId(row.id) }}><Icon name="eye" className="h-3.5 w-3.5" /></Button>
                 </span>
               </div>
             })}
@@ -608,33 +640,147 @@ export default function ServicioTecnico() {
         </div>
       )}
 
-      <Modal open={Boolean(form)} onClose={busy || checklistOpen || catalogoOpen ? undefined : () => { setForm(null); setEditing(null) }} title={editing ? 'Editar orden de servicio' : 'Nueva orden de servicio'} size="amplio">
+      {/* Filtros avanzados (#315): panel lateral, sin recargar la lista. */}
+      <Drawer open={filtrosOpen} onClose={() => setFiltrosOpen(false)} title="Filtros del taller" side="right">
+        <div className="space-y-4">
+          <p className="text-sm text-mute">Acotan la lista general. La etapa se elige en la barra; acá van técnico, tipo y fechas.</p>
+          <div>
+            <Label htmlFor="filtro-tecnico">Técnico</Label>
+            <Select id="filtro-tecnico" value={filtros.tecnico} onChange={event => setFiltros(actual => ({ ...actual, tecnico: event.target.value }))}>
+              <option value="">Todos los técnicos</option>
+              {tecnicos.map(nombre => <option key={nombre} value={nombre}>{nombre}</option>)}
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="filtro-tipo">Tipo de dispositivo</Label>
+            <Select id="filtro-tipo" value={filtros.tipo} onChange={event => setFiltros(actual => ({ ...actual, tipo: event.target.value }))}>
+              <option value="">Todos los tipos</option>
+              {DEVICE_TYPES.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}
+            </Select>
+          </div>
+          <div className={GRILLA_DOS_COLUMNAS}>
+            <div><Label htmlFor="filtro-desde">Recibidas desde</Label><Input id="filtro-desde" type="date" value={filtros.desde} onChange={event => setFiltros(actual => ({ ...actual, desde: event.target.value }))} /></div>
+            <div><Label htmlFor="filtro-hasta">Hasta</Label><Input id="filtro-hasta" type="date" value={filtros.hasta} onChange={event => setFiltros(actual => ({ ...actual, hasta: event.target.value }))} /></div>
+          </div>
+          <FormActions>
+            <Button type="button" variant="ghost" disabled={!filtrosActivos} onClick={limpiarFiltros}>Limpiar</Button>
+            <Button type="button" onClick={() => setFiltrosOpen(false)}>Aplicar filtros</Button>
+          </FormActions>
+        </div>
+      </Drawer>
+
+      {/* Detalle de la reparación (#315): etapas, inspección y acciones en un
+          solo nivel, sin perderse en la tabla. */}
+      <Drawer open={Boolean(detalle)} onClose={() => setDetalleId(null)} title={detalle ? `Reparación ${detalle.serviceNumber || ''}`.trim() : 'Reparación'} side="right">
+        {detalle && (() => {
+          const tipo = tipoDeFila(detalle)
+          const ganancia = utilidad(detalle)
+          const costoTrabajo = (Number(detalle.partsPyg || 0) + Number(detalle.laborPyg || 0) + Number(detalle.otherCostPyg || 0)) || Number(detalle.costPyg || 0)
+          const pasoActivo = PASOS_FLUJO.findIndex(([, estados]) => estados.includes(detalle.status))
+          return (
+            <div className="space-y-4" data-testid="taller-detalle">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-mute">{detalle.serviceNumber || 'Sin número'}</p>
+                  <h2 className="truncate text-lg font-semibold text-fore">{detalle.device || 'Equipo'}</h2>
+                  <p className="truncate text-sm text-mute">{detalle.customerName || 'Sin cliente'}{detalle.serial ? ` · ${detalle.serial}` : ''}</p>
+                </div>
+                <Badge color={ESTADO_TONE[detalle.status] || 'slate'} className="whitespace-nowrap">{ESTADO_LABEL[detalle.status] || detalle.status}</Badge>
+              </div>
+
+              <section aria-label="Etapas de la reparación">
+                <p className="text-xs font-semibold uppercase tracking-wider text-mute">Etapas de la reparación</p>
+                <ol className="mt-2 space-y-1.5" data-testid="taller-pasos">
+                  {PASOS_FLUJO.map(([paso], indice) => {
+                    const activo = indice === pasoActivo
+                    const hecho = pasoActivo >= 0 && indice < pasoActivo
+                    return (
+                      <li key={paso} data-paso={paso} data-activo={activo ? 'true' : 'false'} className={cn('flex items-center gap-3 rounded-xl border px-3 py-2', activo ? 'border-info/40 bg-info/5' : 'border-ink-600', hecho && 'opacity-70')}>
+                        <span className={cn('grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-bold', activo ? 'bg-info/20 text-info' : hecho ? 'bg-ok/15 text-ok' : 'bg-ink-700 text-mute')} aria-hidden>{hecho ? '✓' : indice + 1}</span>
+                        <span className="text-sm">{paso}</span>
+                        {activo && <span className="ml-auto text-[10px] font-bold uppercase tracking-wider text-info">Actual</span>}
+                      </li>
+                    )
+                  })}
+                </ol>
+              </section>
+
+              <section aria-label="Inspección de recepción">
+                <p className="text-xs font-semibold uppercase tracking-wider text-mute">Inspección de recepción ({tipo})</p>
+                <div className="mt-2"><InspeccionEquipo tipo={tipo} puntos={puntosDe(tipo)} marcados={detalle.checklist || {}} disabled /></div>
+              </section>
+
+              <section aria-label="Datos de la orden" className="grid gap-2 rounded-xl border border-ink-600 p-3 sm:grid-cols-2">
+                <p className="text-sm"><span className="text-mute">Técnico: </span>{detalle.technicianName || 'Sin asignar'}</p>
+                <p className="text-sm"><span className="text-mute">Recibido: </span>{fechaHora(detalle.receivedAt || detalle.createdAt) || '—'}</p>
+                <p className="text-sm sm:col-span-2"><span className="text-mute">Falla reportada: </span>{detalle.reportedIssue || 'Sin detalle'}</p>
+                <p className="text-sm sm:col-span-2"><span className="text-mute">Diagnóstico: </span>{detalle.diagnosis || 'Sin diagnóstico'}</p>
+                {detalle.notes && <p className="text-sm sm:col-span-2"><span className="text-mute">Notas: </span>{detalle.notes}</p>}
+              </section>
+
+              <section aria-label="Costos de la reparación" className="grid gap-2 rounded-xl border border-ink-600 p-3 sm:grid-cols-2">
+                <p className="text-sm"><span className="text-mute">Precio: </span><b className="tabular-nums">{gs(detalle.pricePyg || 0)}</b></p>
+                <p className="text-sm"><span className="text-mute">Costo del trabajo: </span><b className="tabular-nums text-warn">{gs(costoTrabajo)}</b></p>
+                <p className="text-sm"><span className="text-mute">Repuesto: </span>{gs(detalle.partsPyg || 0)}</p>
+                <p className="text-sm"><span className="text-mute">Mano de obra: </span>{gs(detalle.laborPyg || 0)}</p>
+                <p className={cn('text-sm font-semibold tabular-nums sm:col-span-2', ganancia >= 0 ? 'text-ok' : 'text-bad')}>Utilidad: {ganancia >= 0 ? '+' : ''}{gs(ganancia)}</p>
+              </section>
+
+              <FormActions>
+                {detalle.customerPhone && (
+                  <WhatsAppMenu
+                    telefono={detalle.customerPhone}
+                    countryCode={detalle.customerCountryCode || '+595'}
+                    category="SERVICE"
+                    storageKey={ULTIMA_PLANTILLA_SERVICIO}
+                    title={detalle.customerName}
+                    preferKey={PLANTILLA_POR_ESTADO[detalle.status] || ''}
+                    contexto={contextoWhatsApp(detalle)}
+                  />
+                )}
+                <Button type="button" variant="outline" title="Imprimir recepción (2 copias)" onClick={() => imprimir(detalle, 'recepcion', 'a4')}><Icon name="receipt" className="h-3.5 w-3.5" />Recepción</Button>
+                <Button type="button" variant="outline" title="Imprimir recepción 80 mm" onClick={() => imprimir(detalle, 'recepcion', 'thermal')}><Icon name="download" className="h-3.5 w-3.5" />80 mm</Button>
+                <Button type="button" variant="outline" title="Reporte técnico" onClick={() => imprimir(detalle, 'reporte')}><Icon name="report" className="h-3.5 w-3.5" />Reporte</Button>
+                <Button type="button" variant="outline" title="Enviar a la ticketera" onClick={() => imprimirAgente(detalle)}><Icon name="send" className="h-3.5 w-3.5" />Ticketera</Button>
+                <Button type="button" variant="outline" onClick={() => { setDetalleId(null); editar(detalle) }}><Icon name="edit" className="h-3.5 w-3.5" />Editar</Button>
+                {SIGUIENTE[detalle.status] && <Button type="button" onClick={() => avanzar(detalle)}>Pasar a {ESTADO_LABEL[SIGUIENTE[detalle.status]]}</Button>}
+              </FormActions>
+            </div>
+          )
+        })()}
+      </Drawer>
+
+      <Modal open={Boolean(form)} onClose={busy || checklistOpen || catalogoOpen ? undefined : () => { setForm(null); setEditing(null) }} dirty={formSucio} title={editing ? 'Editar orden de servicio' : 'Nueva orden de servicio'} size="amplio">
         {form && (
           <form onSubmit={guardar} className="space-y-3">
             <div className={GRILLA_DOS_COLUMNAS}>
-              <div className="relative">
-                <Label htmlFor="cliente">Cliente *</Label>
-                <Input id="cliente" aria-label="Cliente" value={form.customerName} onChange={set('customerName')} placeholder="Buscar cliente o escribir el nombre" autoCapitalize="words" />
-                {clientes.length > 0 && (
-                  <ul className="absolute z-30 mt-1 max-h-40 w-full overflow-auto rounded-xl border border-ink-500 bg-paper shadow-xl">
-                    {clientes.map(cliente => (
-                      <li key={cliente.id}>
-                        <button type="button" className="flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-ink-700" onClick={() => setForm(current => ({ ...current, customerName: cliente.name, customerId: cliente.id }))}>
-                          <span className="truncate font-medium text-fore">{cliente.name}</span>
-                          <span className="shrink-0 text-xs text-mute">{cliente.phone || cliente.document || ''}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <div className="rounded-xl border border-ink-600 bg-ink-800/30 p-3 sm:col-span-2" data-testid="recepcion-dispositivo">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Label>Dispositivo *</Label>
-                  <span className="text-[11px] text-mute">El modelo manda: capacidad y color se despliegan después.</span>
+              <FormField label="Cliente *" htmlFor="cliente" error={errorOrden('customerName')}>
+                <div className="relative">
+                  <Input id="cliente" aria-label="Cliente" value={form.customerName} onChange={(event) => { limpiarOrden('customerName'); set('customerName')(event) }} placeholder="Buscar cliente o escribir el nombre" autoCapitalize="words" />
+                  {clientes.length > 0 && (
+                    <ul className="absolute z-30 mt-1 max-h-40 w-full overflow-auto rounded-xl border border-ink-500 bg-paper shadow-xl">
+                      {clientes.map(cliente => (
+                        <li key={cliente.id}>
+                          <button type="button" className="flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-ink-700" onClick={() => { limpiarOrden('customerName'); setForm(current => ({ ...current, customerName: cliente.name, customerId: cliente.id })) }}>
+                            <span className="truncate font-medium text-fore">{cliente.name}</span>
+                            <span className="shrink-0 text-xs text-mute">{cliente.phone || cliente.document || ''}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
-                <div className="mt-1"><BuscadorDispositivo valor={dispositivo} onCambio={cambiarDispositivo} tipo="servicio" /></div>
-              </div>
+              </FormField>
+              <FormField
+                label="Dispositivo *"
+                hint="El modelo manda: capacidad y color se despliegan después."
+                error={errorOrden('device')}
+                className="rounded-xl border border-ink-600 bg-ink-800/30 p-3 sm:col-span-2"
+              >
+                <div className="mt-1" data-testid="recepcion-dispositivo">
+                  <BuscadorDispositivo valor={dispositivo} tipo="servicio" onCambio={(siguiente) => { limpiarOrden('device'); cambiarDispositivo(siguiente) }} />
+                </div>
+              </FormField>
               <div><Label htmlFor="tipo-de-dispositivo">Tipo de dispositivo</Label><Select id="tipo-de-dispositivo" aria-label="Tipo de dispositivo" value={form.deviceType} onChange={event => setForm(current => ({ ...current, deviceType: event.target.value, serviceName: '' }))}>{DEVICE_TYPES.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</Select></div>
               <div><Label htmlFor="imei-serial">IMEI / serial</Label><SerialField id="imei-serial" aria-label="IMEI o serial" value={form.serial} onChange={value => setForm(current => ({ ...current, serial: value }))} placeholder="Opcional" /></div>
               <div><Label htmlFor="tecnico">Técnico</Label><Input id="tecnico" aria-label="Técnico" value={form.technicianName} onChange={set('technicianName')} placeholder="Responsable del trabajo" autoCapitalize="words" /></div>
@@ -643,15 +789,19 @@ export default function ServicioTecnico() {
 
             <div className="rounded-xl border border-ink-600 bg-ink-800/30 p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <Label htmlFor="buscar-servicio">Servicio del catálogo</Label>
+                <p className="text-xs font-semibold uppercase tracking-wider text-mute">Servicios del taller</p>
                 <Button type="button" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setCatalogoOpen(true)}>Gestionar catálogo</Button>
               </div>
-              <div className="mt-1 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-                <SearchField id="buscar-servicio" ariaLabel="Buscar servicio" value={busquedaServicio} onChange={event => setBusquedaServicio(event.target.value)} placeholder="Buscar: display, batería…" />
-                <Select aria-label="Servicio del catálogo" value={form.serviceName} onChange={event => { const servicio = servicios.find(item => item.name === event.target.value); setForm(current => ({ ...current, serviceName: event.target.value, ...(servicio && servicio.suggestedPricePyg > 0 ? { pricePyg: String(servicio.suggestedPricePyg) } : {}) })) }}>
-                  <option value="">Sin servicio del catálogo</option>
-                  {serviciosDelTipo.map(servicio => <option key={servicio.id} value={servicio.name}>{servicio.name}{servicio.suggestedPricePyg > 0 ? ` · sugerido ${gs(servicio.suggestedPricePyg)}` : ''}</option>)}
-                </Select>
+              <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+                <FormField label="Buscar servicio" htmlFor="buscar-servicio">
+                  <SearchField id="buscar-servicio" ariaLabel="Buscar servicio" value={busquedaServicio} onChange={event => setBusquedaServicio(event.target.value)} placeholder="Buscar: display, batería…" />
+                </FormField>
+                <FormField label="Servicio del catálogo" htmlFor="servicio-catalogo">
+                  <Select id="servicio-catalogo" value={form.serviceName} onChange={event => { const servicio = servicios.find(item => item.name === event.target.value); setForm(current => ({ ...current, serviceName: event.target.value, ...(servicio && servicio.suggestedPricePyg > 0 ? { pricePyg: String(servicio.suggestedPricePyg) } : {}) })) }}>
+                    <option value="">Sin servicio del catálogo</option>
+                    {serviciosDelTipo.map(servicio => <option key={servicio.id} value={servicio.name}>{servicio.name}{servicio.suggestedPricePyg > 0 ? ` · sugerido ${gs(servicio.suggestedPricePyg)}` : ''}</option>)}
+                  </Select>
+                </FormField>
               </div>
               {serviciosDelTipo.length === 0 && <p className="mt-1 text-xs text-mute">{servicios.length === 0 ? 'El catálogo está vacío: usá "Cargar catálogo sugerido" o agregá servicios desde Gestionar catálogo.' : 'Ningún servicio de este tipo coincide con la búsqueda.'}</p>}
               <p className="mt-1 text-xs text-mute">El precio sugerido es opcional: al elegir el servicio se carga en el precio y lo podés cambiar a mano.</p>
@@ -662,13 +812,17 @@ export default function ServicioTecnico() {
 
             <div className="rounded-xl border border-ink-600 bg-ink-800/30 p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-mute">Checklist de recepción ({form.deviceType})</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-mute">Inspección de recepción ({form.deviceType})</p>
                 <Button type="button" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setChecklistOpen(true)}>Configurar</Button>
               </div>
-              <p className="mt-1 text-xs text-mute">Estado físico y pruebas al recibir el equipo. Los puntos se configuran por tipo de dispositivo.</p>
-              <div className="mt-3 flex flex-wrap items-start gap-3">
-                <EsquemaEquipo tipo={form.deviceType} marcados={form.checklist || {}} onToggle={(punto) => setForm(current => ({ ...current, checklist: { ...(current.checklist || {}), [punto]: !(current.checklist || {})[punto] } }))} />
-                <div className="min-w-[16rem] flex-1"><div className="grid gap-1.5 sm:grid-cols-3">{puntosDe(form.deviceType).map(punto => <label key={punto} className="flex items-center gap-2 text-xs text-mute"><input type="checkbox" className="h-4 w-4 accent-fono" checked={Boolean((form.checklist || {})[punto])} onChange={event => setForm(current => ({ ...current, checklist: { ...(current.checklist || {}), [punto]: event.target.checked } }))} />{punto}</label>)}</div></div>
+              <p className="mt-1 text-xs text-mute">Un solo bloque: tocá el dibujo o la lista. Los 8 primeros puntos son los del dibujo y el resto completa la inspección.</p>
+              <div className="mt-3">
+                <InspeccionEquipo
+                  tipo={form.deviceType}
+                  puntos={puntosDe(form.deviceType)}
+                  marcados={form.checklist || {}}
+                  onChange={(checklist) => setForm(current => ({ ...current, checklist }))}
+                />
               </div>
             </div>
 
@@ -710,24 +864,33 @@ export default function ServicioTecnico() {
             </div>
 
             <div><Label htmlFor="notas">Notas</Label><Textarea id="notas" rows={2} value={form.notes} onChange={set('notes')} placeholder="Observaciones, repuestos, estado físico" autoCapitalize="sentences" /></div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="ghost" disabled={busy} onClick={() => { setForm(null); setEditing(null) }}>Cancelar</Button>
+            <SaveActions pendiente={busy}>
               <Button type="submit" disabled={busy}>{busy ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear orden'}</Button>
-            </div>
+            </SaveActions>
           </form>
         )}
       </Modal>
 
-      <Modal open={catalogoOpen} onClose={() => setCatalogoOpen(false)} title="Catálogo de servicios" size="amplio">
+      <Modal open={catalogoOpen} onClose={() => setCatalogoOpen(false)} dirty={catalogoSucio} title="Catálogo de servicios" size="amplio">
         <div className="space-y-3">
           <p className="text-sm text-mute">Servicios por tipo de dispositivo con precio sugerido opcional. El precio de cada orden se puede cambiar a mano.</p>
-          <form onSubmit={guardarServicio} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_7rem_auto]">
-            <Input aria-label="Nombre del servicio" value={servicioEdit.name} onChange={event => setServicioEdit(current => ({ ...current, name: event.target.value }))} placeholder="Ej. Cambio de display" />
-            <Select aria-label="Tipo del servicio" value={servicioEdit.deviceType} onChange={event => setServicioEdit(current => ({ ...current, deviceType: event.target.value }))}>{DEVICE_TYPES.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</Select>
-            <MoneyInput aria-label="Precio sugerido" value={servicioEdit.precio} onValueChange={value => setServicioEdit(current => ({ ...current, precio: value === '' ? '' : String(value) }))} placeholder="Sugerido" />
-            <Button type="submit" disabled={catalogoBusy}>{servicioEdit.id ? 'Guardar' : 'Agregar'}</Button>
+          <form onSubmit={guardarServicio} className="space-y-3">
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_8rem_7rem]">
+              <FormField label="Nombre del servicio" htmlFor="catalogo-nombre">
+                <Input id="catalogo-nombre" value={servicioEdit.name} onChange={event => setServicioEdit(current => ({ ...current, name: event.target.value }))} placeholder="Ej. Cambio de display" />
+              </FormField>
+              <FormField label="Tipo" htmlFor="catalogo-tipo">
+                <Select id="catalogo-tipo" value={servicioEdit.deviceType} onChange={event => setServicioEdit(current => ({ ...current, deviceType: event.target.value }))}>{DEVICE_TYPES.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</Select>
+              </FormField>
+              <FormField label="Precio sugerido" htmlFor="catalogo-precio">
+                <MoneyInput id="catalogo-precio" value={servicioEdit.precio} onValueChange={value => setServicioEdit(current => ({ ...current, precio: value === '' ? '' : String(value) }))} placeholder="Sugerido" />
+              </FormField>
+            </div>
+            <FormActions>
+              {servicioEdit.id && <Button type="button" variant="ghost" onClick={() => setServicioEdit({ id: '', name: '', deviceType: 'iPhone', precio: '' })}>Cancelar edición</Button>}
+              <Button type="submit" disabled={catalogoBusy}>{servicioEdit.id ? 'Guardar' : 'Agregar'}</Button>
+            </FormActions>
           </form>
-          {servicioEdit.id && <button type="button" className="text-xs text-mute underline" onClick={() => setServicioEdit({ id: '', name: '', deviceType: 'iPhone', precio: '' })}>Cancelar edición</button>}
           <div className="max-h-72 space-y-1 overflow-y-auto" data-testid="catalogo-servicios">
             {servicios.map(servicio => (
               <div key={servicio.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 px-3 py-1.5 text-sm">

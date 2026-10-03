@@ -68,8 +68,15 @@ export default function WhatsAppMenu({
   useEffect(() => {
     if (!abierto) return undefined
     const cerrar = (event) => { if (!caja.current?.contains(event.target)) setAbierto(false) }
+    // Escape cierra el popover (además del clic afuera): sin esto, el menú
+    // quedaba abierto tapando los controles de la fila (#315).
+    const escapar = (event) => { if (event.key === 'Escape') setAbierto(false) }
     document.addEventListener('mousedown', cerrar)
-    return () => document.removeEventListener('mousedown', cerrar)
+    document.addEventListener('keydown', escapar)
+    return () => {
+      document.removeEventListener('mousedown', cerrar)
+      document.removeEventListener('keydown', escapar)
+    }
   }, [abierto])
 
   const activas = lista.filter((item) => item.isActive !== false && (!item.category || item.category === category))

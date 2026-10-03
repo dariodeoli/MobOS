@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Badge, Button, Card, Input, Label, MoneyInput, Select, Textarea } from '@/components/ui'
+import { Badge, Button, Card, Drawer, FormActions, Input, Label, Modal, MoneyInput, Select, Textarea } from '@/components/ui'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api'
 import { gs } from '@/utils/calculos'
@@ -95,7 +95,7 @@ function Device({ item, busy, onSave }) {
       ...(status === 'STOCK' ? { pricePyg, destination } : {}) })
   }
 
-  return <Card className="space-y-4">
+  return <div className="space-y-4" data-testid="tradein-detalle">
     <div className="flex flex-wrap items-start justify-between gap-2">
       <div><h3 className="font-semibold">{item.model}</h3><p className="break-all text-sm text-mute">Serial / IMEI: {item.serial}</p></div>
       <Badge color={item.status === 'STOCK' ? 'green' : 'slate'}>{TRADE_IN_STATUSES[item.status] || item.status}</Badge>
@@ -156,10 +156,12 @@ function Device({ item, busy, onSave }) {
         <label className="space-y-1 text-sm"><span>Accesorios recibidos</span><Input value={accessoriesText} placeholder="Caja, cable, cargador…" onChange={(event) => setAccessoriesText(event.target.value)} /></label>
         <label className="space-y-1 text-sm sm:col-span-2"><span>Enlaces de fotos</span><Textarea rows={2} value={photosText} placeholder="Una URL https:// por línea" onChange={(event) => setPhotosText(event.target.value)} /><span className="block text-xs text-mute">Los enlaces quedan en la trazabilidad. La carga directa de archivos se habilitará al configurar almacenamiento privado.</span></label>
         <label className="space-y-1 text-sm sm:col-span-2"><span>{status === 'SOLD_EXTERNAL' ? 'Comprador y destino (obligatorio)' : 'Notas del movimiento'}</span><Textarea rows={2} required={status === 'SOLD_EXTERNAL'} value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
-        <Button type="submit" disabled={blocked}>{busy ? 'Guardando…' : status === 'STOCK' ? 'Publicar y sumar 1 unidad' : 'Guardar movimiento'}</Button>
+        <FormActions>
+          <Button type="submit" disabled={blocked}>{busy ? 'Guardando…' : status === 'STOCK' ? 'Publicar y sumar 1 unidad' : 'Guardar movimiento'}</Button>
+        </FormActions>
       </fieldset>
     </form>}
-  </Card>
+  </div>
 }
 
 const GRID_VALORACIONES = 'grid min-w-[52rem] grid-cols-[minmax(11rem,1.4fr)_6rem_6.5rem_7rem_7rem_6rem_8rem] items-center gap-x-2'
@@ -251,19 +253,23 @@ function Valuaciones({ esDemo }) {
     {error && <p role="alert" className="rounded-lg bg-bad/10 p-3 text-sm text-bad">{error}</p>}
     {message && <p role="status" className="text-sm text-ok">{message}</p>}
     {!esDemo && <SearchField ariaLabel="Buscar valores por modelo" placeholder="Buscar por modelo…" value={query} onChange={(event) => setQuery(event.target.value)} />}
-    {form && <form onSubmit={guardar} className="space-y-4 rounded-lg border border-ink-600 p-4">
-      <h3 className="text-sm font-semibold">{editingId ? 'Editar valor de toma' : 'Nuevo valor de toma'}</h3>
-      <fieldset disabled={busy} className={GRILLA_DOS_COLUMNAS}>
-        <div><Label htmlFor="dv-model">Modelo</Label><Input id="dv-model" autoFocus required maxLength={150} value={form.model} onChange={(event) => change('model', event.target.value)} placeholder="Ej. iPhone 13" /></div>
-        <div><Label htmlFor="dv-storage">Capacidad (opcional)</Label><Input id="dv-storage" maxLength={60} value={form.storage} onChange={(event) => change('storage', event.target.value)} placeholder="Ej. 128GB" /></div>
-        <div><Label htmlFor="dv-condition">Condición</Label><Select id="dv-condition" value={form.condition} onChange={(event) => change('condition', event.target.value)}>{Object.entries(CONDICIONES_VALUACION).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></div>
-        <div><Label htmlFor="dv-base">Valor base (Gs)</Label><MoneyInput id="dv-base" required value={form.baseValuePyg} onValueChange={(value) => change('baseValuePyg', value)} placeholder="0" /></div>
-        <div><Label htmlFor="dv-max">Valor máximo (Gs, opcional)</Label><MoneyInput id="dv-max" value={form.maxValuePyg} onValueChange={(value) => change('maxValuePyg', value)} placeholder="Hasta" /></div>
-        <label className="flex items-center gap-2 self-end text-sm"><input type="checkbox" checked={form.isActive} onChange={(event) => change('isActive', event.target.checked)} />Valor activo</label>
-        <div className="sm:col-span-2"><Label htmlFor="dv-notes">Notas (opcional)</Label><Textarea id="dv-notes" rows={2} maxLength={2000} value={form.notes} onChange={(event) => change('notes', event.target.value)} placeholder="Aclaraciones para el equipo" /></div>
-      </fieldset>
-      <div className="flex flex-wrap gap-2"><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar valor'}</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => { setForm(null); setEditingId(null); setError('') }}>Cancelar</Button></div>
-    </form>}
+    <Modal open={Boolean(form)} onClose={busy ? undefined : () => { setForm(null); setEditingId(null); setError('') }} title={editingId ? 'Editar valor de toma' : 'Nuevo valor de toma'} size="formulario">
+      {form && <form onSubmit={guardar} className="space-y-4">
+        <fieldset disabled={busy} className={GRILLA_DOS_COLUMNAS}>
+          <div><Label htmlFor="dv-model">Modelo</Label><Input id="dv-model" autoFocus required maxLength={150} value={form.model} onChange={(event) => change('model', event.target.value)} placeholder="Ej. iPhone 13" /></div>
+          <div><Label htmlFor="dv-storage">Capacidad (opcional)</Label><Input id="dv-storage" maxLength={60} value={form.storage} onChange={(event) => change('storage', event.target.value)} placeholder="Ej. 128GB" /></div>
+          <div><Label htmlFor="dv-condition">Condición</Label><Select id="dv-condition" value={form.condition} onChange={(event) => change('condition', event.target.value)}>{Object.entries(CONDICIONES_VALUACION).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></div>
+          <div><Label htmlFor="dv-base">Valor base (Gs)</Label><MoneyInput id="dv-base" required value={form.baseValuePyg} onValueChange={(value) => change('baseValuePyg', value)} placeholder="0" /></div>
+          <div><Label htmlFor="dv-max">Valor máximo (Gs, opcional)</Label><MoneyInput id="dv-max" value={form.maxValuePyg} onValueChange={(value) => change('maxValuePyg', value)} placeholder="Hasta" /></div>
+          <label className="flex items-center gap-2 self-end text-sm"><input type="checkbox" checked={form.isActive} onChange={(event) => change('isActive', event.target.checked)} />Valor activo</label>
+          <div className="sm:col-span-2"><Label htmlFor="dv-notes">Notas (opcional)</Label><Textarea id="dv-notes" rows={2} maxLength={2000} value={form.notes} onChange={(event) => change('notes', event.target.value)} placeholder="Aclaraciones para el equipo" /></div>
+        </fieldset>
+        <FormActions>
+          <Button type="button" variant="ghost" disabled={busy} onClick={() => { setForm(null); setEditingId(null); setError('') }}>Cancelar</Button>
+          <Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar valor'}</Button>
+        </FormActions>
+      </form>}
+    </Modal>
     {!loading && !error && !visibles.length && <p className="text-sm text-mute">{rows.length ? 'Ningún valor coincide con la búsqueda.' : 'Todavía no hay valores cargados. Sin un valor cargado, el POS no sugiere nada.'}</p>}
     {visibles.length > 0 && <div className="overflow-x-auto" data-testid="valoraciones-tabla">
       <div className={cn(GRID_VALORACIONES, 'px-3.5 pb-2 pt-1')}>
@@ -345,6 +351,7 @@ export default function TradeInPipeline() {
   const search = query.trim().toLocaleLowerCase()
   const visible = items.filter((item) => (!filter || item.status === filter) &&
     [item.serial, item.model, item.orderId, item.orderNumber, item.customerName, item.sellerName, item.order?.orderNumber, item.order?.customer?.name].some((value) => String(value || '').toLocaleLowerCase().includes(search)))
+  const abiertoItem = items.find((item) => item.id === abierto) || null
 
   return <div className="space-y-4">
     {/* Composición compacta (#256): la identidad del módulo y la acción van en
@@ -376,11 +383,13 @@ export default function TradeInPipeline() {
         <span className={CELDA_ENCABEZADO}>Ingresó</span>
         <span />
       </div>
-      <div className="space-y-1">{visible.map((item) => <div key={`${item.id}:${item.status}:${item.updatedAt || ''}`}>
-        <FilaDevice item={item} abierto={abierto === item.id} onClick={() => setAbierto(current => current === item.id ? null : item.id)} />
-        {abierto === item.id && <div className="mt-1"><Device item={item} busy={busy || uncertain} onSave={save} /></div>}
-      </div>)}</div>
+      <div className="space-y-1">{visible.map((item) => <FilaDevice key={`${item.id}:${item.status}:${item.updatedAt || ''}`} item={item} abierto={abierto === item.id} onClick={() => setAbierto(current => current === item.id ? null : item.id)} />)}</div>
     </div>}
+    {/* #316: el detalle sale de la página y vive en un panel con encabezado
+        real (modelo, estado y valores); la edición no empuja la lista. */}
+    <Drawer open={Boolean(abiertoItem)} onClose={() => setAbierto(null)} title="Detalle del equipo" side="right">
+      {abiertoItem && <Device item={abiertoItem} busy={busy || uncertain} onSave={save} />}
+    </Drawer>
     <Valuaciones esDemo={esDemo} />
   </div>
 }

@@ -48,16 +48,16 @@ La adopción base (estructura del objeto) ya es global por el swap del kit. Lo
 que falta en cada modal es la parte de comportamiento: cierre con cambios,
 error junto al campo, etiquetas visibles y feedback canónico.
 
-### CRM
+### CRM — adoptado en la ronda CRM (#323)
 
-| Modal | Ruta | Qué falta |
+| Modal | Ruta | Qué se hizo |
 | --- | --- | --- |
-| Crear cliente | `src/components/ventas/SellerCustomers.jsx:396` | `dirty` al cerrar con datos; errores por campo (hoy un error general dentro del modal); el pie ya es uno solo |
-| Crear ficha del cliente | `src/components/customers/FichaClienteModal.jsx:38` | `dirty`; errores por campo (Aviso general) |
-| Crear ficha desde el pedido | `src/components/ventas/ClienteDelPedidoModal.jsx:42` | `dirty`; errores por campo |
-| Rechazar/aprobar solicitud (ficha) | `src/components/customers/CustomerProfile.jsx:2193` | `dirty`; motivo con error junto al campo (hoy `toast` + gating) |
-| Unificar cliente | `src/components/customers/UnificarClienteModal.jsx:134` | `dirty` si se elige destino; resultado canónico |
-| Campañas / plantillas del cliente | `src/components/customers/MarketingCampaigns.jsx`, `CampanasClientes.jsx` | toasts de enviar con `useResultado.enviado` |
+| Crear cliente | `src/components/ventas/SellerCustomers.jsx` | `dirty` al cerrar con datos; cada teléfono valida con reglas compartidas y muestra el error junto al campo; pie `SaveActions`; guardado con `useResultado.guardado` |
+| Crear ficha del cliente | `src/components/customers/FichaClienteModal.jsx` | `dirty`; el nombre se valida junto al campo (prop `errorNombre` del buscador del POS); el nombre vacío ya no deshabilita el botón |
+| Crear ficha desde el pedido | `src/components/ventas/ClienteDelPedidoModal.jsx` | `dirty`; nombre con error junto al campo; botón habilitado y validación al guardar |
+| Rechazar/aprobar solicitud (ficha) | `src/components/customers/CustomerProfile.jsx` | `dirty`; motivo con `FormField error` (sin toast ni gating); pie `SaveActions` |
+| Unificar cliente | `src/components/customers/UnificarClienteModal.jsx` | `dirty` al elegir destino o cambiar la principal; resultado canónico (`useResultado.guardado`) y fallo con `fallo('guardar')` |
+| Campañas / plantillas del cliente | `src/components/customers/MarketingCampaigns.jsx`, `CampanasClientes.jsx` | envíos con `useResultado.enviado`; copiar enlace con `copiado` y fallos con `fallo` |
 
 ### INV (inventario y abastecimiento)
 
@@ -92,13 +92,13 @@ Adoptado en la ronda INV (#323, rama `slot/inventario`):
 
 | Modal | Ruta | Qué falta |
 | --- | --- | --- |
-| Nueva orden de servicio (taller) | `src/components/control/ServicioTecnico.jsx:611` | `dirty`; errores por campo (hoy `toast` único); label visible en el selector del catálogo |
-| Catálogo de servicios | `src/components/control/ServicioTecnico.jsx:721` | labels visibles (hoy `aria-label`); `dirty`; pie estándar |
+| Nueva orden de servicio (taller) | `src/components/control/ServicioTecnico.jsx:739` | ✅ Adoptado (CRM, #323) — `dirty` al cerrar con cambios; cliente y dispositivo con `FormField error` (ya no toast único); label visible del selector del catálogo; pie `SaveActions` |
+| Catálogo de servicios | `src/components/control/ServicioTecnico.jsx:853` | ✅ Adoptado (CRM, #323) — labels visibles (nombre, tipo, precio), `dirty` y pie estándar |
 | Editor de plantilla de WhatsApp | `src/components/control/WhatsAppTemplates.jsx:201` | ✅ Adoptado (FIN, #323) — `dirty` al cerrar con cambios, validación con reglas compartidas junto al campo y labels visibles (Nombre · Categoría · Mensaje) |
 | Listas de precios | `src/components/control/Precios.jsx:257` | ✅ Adoptado (FIN, #323) — labels visibles por ítem con `FormField`, `dirty` al cerrar y error de validación/guardado dentro del modal (ya no detrás del overlay) |
 | Horario de acceso | `src/components/control/Vendedores.jsx:554` | ✅ Adoptado (PLT, #323) |
 | Rechazo de autorización | `src/components/control/Autorizaciones.jsx:616` | ✅ Adoptado (FIN, #323) — `dirty` al cerrar y motivo con `FormField error` (sin toast ni botón deshabilitado) |
-| Rechazar rendición | `src/components/delivery/StoreDelivery.jsx:212` | `dirty`; `FormField` |
+| Rechazar rendición | `src/components/delivery/StoreDelivery.jsx:212` | ✅ Adoptado (CRM, #323) — `dirty` y motivo con `FormField error` + reglas compartidas; pie `SaveActions` |
 | Sucursales (config) | `src/components/config/TiendasSucursales.jsx` | ✅ Adoptado (PLT, #323) |
 | Destructivo (palabra + clave) | `src/components/config/DialogoDestructivo.jsx:16` | ✅ Adoptado (PLT, #323) |
 
