@@ -119,7 +119,8 @@ test('#278 · lista de compra 80 mm impresa desde Compras del Centro', async ({ 
 
   // Impresión directa (agente simulado): el papel sale por el tipo `lista-compra`.
   await modal.getByTestId('lista-compra-imprimir').click()
-  await expect(page.getByText('Lista enviada')).toBeVisible({ timeout: 15_000 })
+  // #334/#339: el impreso avisa con el resultado canónico (avisar.impreso).
+  await expect(page.getByText('La lista se envió a la impresora')).toBeVisible({ timeout: 15_000 })
   expect(capturados).toHaveLength(1)
   expect(capturados[0].tipo).toBe('lista-compra')
   const papel = textoDelTicket(capturados[0])

@@ -64,7 +64,11 @@ async function consultarImei(page, serial) {
 
 async function abrirFicha(page, serial) {
   await page.goto('/inventario/unidades')
-  const fila = page.getByTestId('inventario-fila').filter({ hasText: serial }).first()
+  // #304/#339: a 390 el listado usa la tarjeta móvil (inventario-tarjeta-movil);
+  // desde 640 vuelve la fila de escritorio (inventario-fila). El locator sigue
+  // al viewport para abrir la ficha del mismo serial en la tarjeta que existe.
+  const esMovil = (page.viewportSize()?.width ?? 1280) < 640
+  const fila = page.getByTestId(esMovil ? 'inventario-tarjeta-movil' : 'inventario-fila').filter({ hasText: serial }).first()
   await expect(fila).toBeVisible({ timeout: 20_000 })
   await fila.locator('span[title^="Categoría:"]').click()
   const ficha = page.getByRole('dialog')
