@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api/client'
 import Icon from '@/components/shared/Icon'
-import { Aviso, Badge, Button, EmptyState, Select, Skeleton } from '@/components/ui'
+import { Aviso, Badge, Button, EmptyState, Select, Skeleton, useResultado } from '@/components/ui'
 import { renderPlantilla } from '@/lib/whatsappPlantillas'
 import { telefonoVisible, whatsappUrl } from '@/utils/telefono'
 import { fechaDia } from '@/utils/fecha'
@@ -35,10 +35,10 @@ export default function CampanasClientes({ templates = [], empresa, sucursal, ve
   const [error, setError] = useState('')
   const [seleccion, setSeleccion] = useState(() => new Set())
   const [plantillaId, setPlantillaId] = useState('')
-  const [aviso, setAviso] = useState('')
+  const avisar = useResultado()
 
   const cargar = useCallback(async () => {
-    setCargando(true); setError(''); setAviso(''); setSeleccion(new Set())
+    setCargando(true); setError(''); setSeleccion(new Set())
     try {
       setData(await api.get(`/api/customers/segments?segment=${segmento}`))
     } catch (cause) {
@@ -86,16 +86,16 @@ export default function CampanasClientes({ templates = [], empresa, sucursal, ve
     try {
       await api.post('/api/customers/segments', { customerIds: [row.id], segment: segmento })
     } catch {
-      setAviso(`Se abrió WhatsApp con ${row.name}, pero no se pudo guardar la marca de contacto.`)
+      avisar.fallo('guardar', `Se abrió WhatsApp con ${row.name}, pero no se pudo guardar la marca de contacto.`)
     }
   }
 
   async function enviar(row) {
-    if (!plantilla) { setAviso('Elegí una plantilla de WhatsApp.'); return }
+    if (!plantilla) { avisar.fallo('enviar', 'Elegí una plantilla de WhatsApp.'); return }
     const enlace = whatsappUrl(row.phone, renderPlantilla(plantilla.body, valores(row)).trim(), row.countryCode)
-    if (!enlace) { setAviso(`El teléfono de ${row.name} no es válido para WhatsApp.`); return }
-    setAviso('')
+    if (!enlace) { avisar.fallo('enviar', `El teléfono de ${row.name} no es válido para WhatsApp.`); return }
     window.open(enlace, '_blank', 'noopener,noreferrer')
+    avisar.enviado('El mensaje de WhatsApp', `Se abrió WhatsApp con ${row.name}.`)
     await marcarContactado(row)
   }
 
@@ -161,7 +161,6 @@ export default function CampanasClientes({ templates = [], empresa, sucursal, ve
         <span className="text-xs text-mute">{seleccionados.length ? `${seleccionados.length} seleccionados` : 'Se recorre todo el segmento si no seleccionás a nadie'} · quedan {elegibles.length} por contactar</span>
       </div>}
 
-      {aviso && <p role="alert" className="text-sm text-warn">{aviso}</p>}
-    </>}
+      </>}
   </section>
 }

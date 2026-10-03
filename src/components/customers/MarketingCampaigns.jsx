@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
-import { Aviso, Badge, Button, Card, EmptyState, Input, Modal, Select, Skeleton, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, EmptyState, Input, Modal, Select, Skeleton, useResultado } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { gs } from '@/utils/calculos'
 import { telefonoVisible } from '@/utils/telefono'
@@ -31,7 +31,7 @@ const fecha = (value) => {
 }
 
 export default function MarketingCampaigns({ open, onClose, onContacted }) {
-  const toast = useToast()
+  const avisar = useResultado()
   const [segmentos, setSegmentos] = useState(SEGMENTOS_FALLBACK)
   const [segmento, setSegmento] = useState('INACTIVE')
   const [dias, setDias] = useState('180')
@@ -103,7 +103,7 @@ export default function MarketingCampaigns({ open, onClose, onContacted }) {
         customerIds: seleccion,
       })
       setResultado(payload)
-      toast.success(`Campaña registrada: ${plural(payload?.recipients?.length || 0, 'mensaje listo', 'mensajes listos')}.`)
+      avisar.enviado('La campaña', `${plural(payload?.recipients?.length || 0, 'mensaje listo', 'mensajes listos')}.`)
       await cargarCampanas()
       onContacted?.()
     } catch (cause) { setError(cause?.message || 'No se pudo registrar la campaña.') } finally { setEnviando(false) }
@@ -182,7 +182,7 @@ export default function MarketingCampaigns({ open, onClose, onContacted }) {
               <div key={row.customerId} data-testid="marketing-destinatario" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-600 p-2.5">
                 <span className="min-w-0"><b className="text-sm">{row.name}</b><span className={cn('mt-0.5 block', CELDA_DATO)}>{row.phone ? telefonoVisible(row.phone, row.countryCode) : 'sin teléfono'} · enlace wa.me listo</span></span>
                 <span className="flex gap-2">
-                  <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold" onClick={async () => { if (await copiarAlPortapapeles(row.whatsappUrl)) toast.success('Enlace copiado.'); else toast.error('No se pudo copiar el enlace.') }}><Icon name="copy" className="mr-1 inline h-3 w-3" />Copiar enlace</button>
+                  <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold" onClick={async () => { if (await copiarAlPortapapeles(row.whatsappUrl)) avisar.copiado('El enlace'); else avisar.fallo('copiar', 'No se pudo copiar el enlace.') }}><Icon name="copy" className="mr-1 inline h-3 w-3" />Copiar enlace</button>
                   <a className="rounded-lg bg-ok px-3 py-1.5 text-xs font-semibold text-black" href={row.whatsappUrl} target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a>
                 </span>
               </div>
