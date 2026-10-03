@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.219 — 2026-10-03
+- **Taller (#315):** una sola jerarquía: la lista general queda con **filtros compactos** y cada reparación concentra sus **etapas, inspección y acciones** en un panel de detalle; las plantillas de WhatsApp salen con datos.
+- **Trade-In (#316):** el detalle deja de empujar la lista: vive en un **panel con encabezado real** (modelo, estado y valores) y el **valor de toma** se carga en un modal.
+- **Portal del cliente (#317):** en escritorio el portal usa **dos columnas** (resumen fijo como lateral y movimiento como columna principal); en móvil mantiene la lectura de siempre.
+- **Clientes · diálogos (#323):** altas de cliente, ficha, rechazo de solicitudes, unificación, campañas y rendición de delivery adoptan el **modal estándar**: **error junto al campo**, confirmación al cerrar con cambios y **resultado canónico** en pantalla.
+
 ## v1.0.218 — 2026-10-03
 - **Finanzas (#323):** el editor de plantillas de WhatsApp adopta el **modal estándar**: el error aparece **junto al campo** (nombre y mensaje), avisa al cerrar con cambios y el pie queda con **una sola acción primaria**; mismas validaciones de negocio.
 - **Otros (#328):** la entrada a la demo queda en **cápsulas compactas** (2 en celular, 3 en escritorio) y en un móvil de 390×844 **entra sin scroll**, con toques de 44 px y el PIN siempre visible.
