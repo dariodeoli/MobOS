@@ -11,6 +11,10 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.222 — 2026-10-03
+- **Clientes/POS (#334):** la **consulta de RUC** en la venta ya no pierde el resultado si el formulario se refresca mientras responde: la razón social queda disponible para confirmar.
+- **Otros (#333/#335):** las pruebas automáticas corren ahora en **4 bloques** con **40 minutos** de margen (antes dos morían por tiempo) y la prueba de listas de precios deja de trabarse con el carrito fijo del POS; el solapamiento a alturas cortas queda documentado para el dominio POS.
+
 ## v1.0.221 — 2026-10-03
 - **Otros (#333):** las pruebas automáticas de la app se reparten por **duración real** y los tres bloques quedan parejos (~18 min); el límite de tiempo sube a 30 min para que el **CI deje de cortarse** por timeout.
 
