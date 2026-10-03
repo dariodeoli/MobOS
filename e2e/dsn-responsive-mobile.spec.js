@@ -55,7 +55,12 @@ const PANTALLAS = [
 // auditan a 390 y se capturan. Con timeout corto: si el disparador no está, se
 // reporta y se sigue.
 const MODALES = {
-  pos: (page) => page.getByRole('button', { name: /Ventas suspendidas/ }).first().click({ timeout: 5_000 }),
+  // #337: las herramientas del POS viven en el <details> «Más» (#309): hay que
+  // abrirlo antes de buscar «Ventas suspendidas».
+  pos: async (page) => {
+    await page.getByTestId('pos-mas').click()
+    await page.getByRole('menuitem', { name: /Ventas suspendidas/ }).click({ timeout: 5_000 })
+  },
   inventario: (page) => page.getByRole('button', { name: /Recibir unidad/ }).first().click({ timeout: 5_000 }),
 }
 
@@ -97,7 +102,12 @@ const CLAVE = {
 async function auditar(page, claves = []) {
   return page.evaluate((claves) => {
     const vw = window.innerWidth
-    const visible = (el) => el.offsetParent !== null && el.getClientRects().length > 0 && !el.closest('[aria-hidden="true"]')
+    // #337: el contenido de un <details> cerrado conserva layout en Chromium
+    // (`content-visibility`) y puede quedar fuera del viewport; no es un target
+    // visible. El <summary> que abre el menú sí lo es. Caso real: el menú «Más»
+    // del POS (gift cards/analytics/suspendidas) hacía fallar la medición.
+    const enMenuCerrado = (el) => Boolean(el.closest('details:not([open])')) && !el.closest('summary')
+    const visible = (el) => el.offsetParent !== null && el.getClientRects().length > 0 && !el.closest('[aria-hidden="true"]') && !enMenuCerrado(el)
     const enScrollable = (el) => {
       for (let n = el.parentElement; n; n = n.parentElement) {
         const overflow = getComputedStyle(n).overflowX
@@ -369,6 +379,11 @@ test.describe('demo · POS y páginas clave', () => {
         const producto = page.getByRole('button', { name: /iPhone 15 Pro 256GB/ }).first()
         await expect(producto).toBeVisible({ timeout: 20_000 })
         await producto.click()
+        // #308/#337: la familia con más de una variante pide elegir el color
+        // exacto antes de sumarla; con una sola variante entra directo.
+        const variante = page.getByTestId('selector-variante')
+        const hayVariante = await variante.waitFor({ state: 'visible', timeout: 3_000 }).then(() => true, () => false)
+        if (hayVariante) await variante.getByTestId('variante-opcion').first().click()
         await expect(page.getByRole('button', { name: /^Ver detalle de iPhone 15 Pro/ }).first()).toBeVisible({ timeout: 20_000 })
       }],
       ['demo-pedidos', '/pedidos', (page) => page.getByTestId('pedido-fila').first()],
