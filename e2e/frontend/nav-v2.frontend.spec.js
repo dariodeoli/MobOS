@@ -1203,3 +1203,311 @@ for (const width of [320, 390, 1440]) {
     })
   }
 }
+
+// Bounded store Entregas checks. Existing 48 cases above are retained verbatim.
+const deliveryOutput = '/tmp/mobos-redesign-delivery-qa'
+
+for (const width of [320, 390, 1440]) {
+  for (const dark of [false, true]) {
+    test(`F3 rendered Entregas ${width}px ${dark ? 'dark' : 'light'}`, async ({ page }) => {
+      await mkdir(deliveryOutput, { recursive: true })
+      await page.setViewportSize({ width, height: 900 })
+      await enterDemo(page)
+      await setF3Theme(page, width, dark)
+      await page.goto('/delivery')
+      // The root is a labelled group; selectors stay scoped to the actual store screen.
+      const root = page.locator('[aria-label="Asignación de repartos"]')
+      const cards = root.getByTestId('reparto-admin-pedido')
+      await expect(cards).toHaveCount(2)
+      await expect(cards.first()).toContainText('Lucía Franco')
+      await expect(cards.first()).toContainText('Calle Lucía 145, Asunción, Capital')
+      await expect(cards.first()).toContainText('AirPods Pro 2 USB-C')
+      await expect(cards.first().getByTestId('asignar-reparto')).toBeDisabled()
+      await root.getByRole('button', { name: 'Asignados', exact: true }).click()
+      await expect(root.getByRole('button', { name: 'Asignados', exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
+      await expect(cards).toHaveCount(2)
+      await expect(cards.first()).toContainText('Juan Pereira')
+      await expect(cards.first()).toContainText('Av. Mcal. López 1234, Asunción, Capital')
+      await expect(cards.nth(1)).toContainText('Pre-pagado sin verificar')
+      await expect(cards.nth(1)).toContainText('Cobrado en la calle sin rendir')
+      await expect(cards.first().getByRole('button', { name: 'Reasignar' })).toBeVisible()
+      await expect(cards.first().getByRole('button', { name: 'Liberar' })).toBeVisible()
+      await root.getByRole('button', { name: 'Todos', exact: true }).click()
+      await expect(cards).toHaveCount(4)
+      const columns = await root
+        .locator('.entregas-f3-grid')
+        .evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length)
+      expect(columns).toBe(width === 1440 ? 2 : 1)
+      await noOverflow(page)
+      for (const control of await root
+        .locator('button, select, summary, .entregas-f3-consent')
+        .all()) {
+        if (!(await control.isVisible())) continue
+        const box = await control.boundingBox()
+        expect(box.height).toBeGreaterThanOrEqual(44)
+        expect(box.width).toBeGreaterThanOrEqual(44)
+      }
+      const summary = cards.first().locator('summary')
+      await summary.focus()
+      await page.keyboard.press('Enter')
+      await expect(
+        cards.first().getByRole('checkbox', { name: 'Autorizar entrega con saldo' }),
+      ).toBeVisible()
+      await page.keyboard.press('Tab')
+      await expect(cards.first().getByRole('checkbox')).toBeFocused()
+      await page.keyboard.press('Space')
+      await expect(cards.first().getByRole('checkbox')).toBeChecked()
+      await page.keyboard.press('Escape')
+      await expect(summary).toBeFocused()
+      await expect(cards.first().getByRole('checkbox')).toBeHidden()
+      await noOverflow(page)
+      await page.screenshot({
+        path: `${deliveryOutput}/${width}-${dark ? 'dark' : 'light'}-entregas.png`,
+        fullPage: true,
+      })
+      // Isolated browser-only stress values on the existing demo row, not business fixture edits.
+      await page.evaluate(async () => {
+        const { leerDemo, guardarDemo } = await import('/src/lib/demoStorage.js')
+        const state = JSON.parse(leerDemo('mobos:demo-delivery:v1'))
+        const row = state.orders.find(order => !order.assignedToId)
+        row.totalPyg = 100000000
+        row.delivery.pendingPyg = 100000000
+        row.customer.name = 'Nombre completo de prueba aislada para verificar lectura sin elipsis'
+        guardarDemo('mobos:demo-delivery:v1', JSON.stringify(state))
+      })
+      await root.getByRole('button', { name: 'Sin asignar', exact: true }).click()
+      await expect(cards.first()).toContainText(
+        'Nombre completo de prueba aislada para verificar lectura sin elipsis',
+      )
+      const amounts = cards.first().locator('.entregas-f3-amounts strong')
+      await expect(amounts).toHaveText(['Gs 100.000.000', 'Gs 100.000.000'])
+      for (const amount of await amounts.all()) {
+        expect(
+          await amount.evaluate(el => ({
+            fits: el.scrollWidth <= el.clientWidth,
+            font: parseFloat(getComputedStyle(el).fontSize),
+            ellipsis: getComputedStyle(el).textOverflow,
+          })),
+        ).toEqual({ fits: true, font: 16, ellipsis: 'clip' })
+      }
+      await noOverflow(page)
+      await page.screenshot({
+        path: `${deliveryOutput}/${width}-${dark ? 'dark' : 'light'}-100m.png`,
+        fullPage: true,
+      })
+      // Settlement entry and controls remain available; this is not a settlement redesign.
+      await page.getByRole('button', { name: 'Rendiciones', exact: true }).click()
+      await expect(page.getByTestId('rendicion-admin')).toHaveCount(1)
+      await expect(page.getByTestId('rendicion-verificar')).toBeVisible()
+      await expect(
+        page.getByTestId('rendicion-admin').getByRole('button', { name: 'Rechazar' }),
+      ).toBeVisible()
+      await noOverflow(page)
+    })
+  }
+}
+
+test('F3 Entregas demo assignment and release preserve existing workflow', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 })
+  await enterDemo(page)
+  await page.goto('/delivery')
+  const root = page.locator('[aria-label="Asignación de repartos"]')
+  const first = root.getByTestId('reparto-admin-pedido').first()
+  await first.getByRole('combobox').selectOption('demo-user-repartidor')
+  await expect(first.getByTestId('asignar-reparto')).toBeEnabled()
+  await first.getByTestId('asignar-reparto').click()
+  await expect(root.getByTestId('reparto-admin-pedido')).toHaveCount(1)
+  await root.getByRole('button', { name: 'Asignados', exact: true }).click()
+  const assigned = root.getByTestId('reparto-admin-pedido').filter({ hasText: 'Lucía Franco' })
+  await assigned.getByRole('button', { name: 'Reasignar' }).click()
+  await expect(assigned).toBeVisible()
+  await assigned.getByRole('button', { name: 'Liberar' }).click()
+  await expect(assigned).toHaveCount(0)
+  await root.getByRole('button', { name: 'Sin asignar', exact: true }).click()
+  await expect(root.getByTestId('reparto-admin-pedido')).toHaveCount(2)
+})
+
+for (const denied of [false, true]) {
+  test(`F3 Entregas API handler contract mocks ${denied ? 'denied' : 'accepted'} (no persistence proof)`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 900 })
+    const requests = []
+    const verificationRequests = []
+    let settlementState = 'PENDING'
+    // Explicit in-browser contract mocks only; no credentials, server or production records.
+    let assignedToId = null
+    const row = {
+      id: 'qa-delivery',
+      orderNumber: 'QA-DELIVERY',
+      totalPyg: 100000000,
+      customer: {
+        name: 'Cliente de contrato aislado',
+        addresses: [{ address: 'Dirección de contrato aislado' }],
+      },
+      items: [{ quantity: 1, description: 'Artículo de contrato aislado' }],
+      fulfillmentStatus: 'PROCESSING',
+      delivery: { pendingPyg: 100000000 },
+      payments: [],
+    }
+    await page.route(/https:\/\//, route => route.abort())
+    await page.route('**/api/**', async route => {
+      const url = new URL(route.request().url())
+      if (!url.pathname.startsWith('/api/')) return route.continue()
+      const path = url.pathname
+      let body = []
+      if (path === '/api/auth/me')
+        body = {
+          user: {
+            id: 'qa-user',
+            name: 'Usuario local',
+            role: 'ADMIN',
+            tenantId: 'qa-tenant',
+            branchId: 'qa-branch',
+            branchName: 'Sucursal local',
+          },
+          tenant: { id: 'qa-tenant', name: 'Tienda local' },
+        }
+      if (path === '/api/inventory/branches') body = [{ id: 'qa-branch', name: 'Sucursal local' }]
+      if (path === '/api/delivery/settlements')
+        body =
+          settlementState === url.searchParams.get('estado')
+            ? [
+                {
+                  id: 'qa-settlement',
+                  status: settlementState,
+                  totalPyg: 50000000,
+                  pendingPyg: 0,
+                  ordersCount: 1,
+                  deliveryUser: { name: 'Repartidor A' },
+                  createdAt: '2026-10-11T10:00:00Z',
+                  payments: [
+                    {
+                      id: 'qa-pending-payment',
+                      amountPyg: 50000000,
+                      status: 'PENDING',
+                      method: 'CASH',
+                      order: { orderNumber: 'QA-DELIVERY' },
+                    },
+                  ],
+                },
+              ]
+            : []
+      if (path === '/api/delivery/settlements/qa-settlement/verify') {
+        const payload = route.request().postDataJSON()
+        verificationRequests.push(payload)
+        settlementState = payload.state
+        body = { status: settlementState }
+      }
+      if (path === '/api/delivery/team')
+        body = [
+          { id: 'qa-driver-a', name: 'Repartidor A' },
+          { id: 'qa-driver-b', name: 'Repartidor B' },
+        ]
+      if (path === '/api/delivery/orders') {
+        const filter = url.searchParams.get('asignado')
+        body =
+          (filter === 'sin-asignar' && assignedToId) || (filter === 'asignados' && !assignedToId)
+            ? []
+            : [
+                {
+                  ...row,
+                  assignedToId,
+                  assignedTo: assignedToId
+                    ? {
+                        id: assignedToId,
+                        name: assignedToId === 'qa-driver-a' ? 'Repartidor A' : 'Repartidor B',
+                      }
+                    : null,
+                },
+              ]
+      }
+      if (path === '/api/orders/qa-delivery/assignment' && route.request().method() === 'POST') {
+        const payload = route.request().postDataJSON()
+        requests.push(payload)
+        if (denied)
+          return route.fulfill({
+            status: 403,
+            json: { message: 'Autorización denegada por contrato aislado' },
+          })
+        assignedToId = payload.assignedToId
+        body = { ...row, assignedToId }
+      }
+      await route.fulfill({ status: 200, json: body })
+    })
+    await page.goto('/delivery')
+    const root = page.locator('[aria-label="Asignación de repartos"]')
+    const card = root.getByTestId('reparto-admin-pedido')
+    await expect(card).toHaveCount(1)
+    await card.getByRole('combobox').selectOption('qa-driver-a')
+    await card.locator('summary').click()
+    await card.getByRole('checkbox', { name: 'Autorizar entrega con saldo' }).check()
+    await card.getByTestId('asignar-reparto').click()
+    await expect.poll(() => requests.length).toBe(1)
+    expect(requests[0]).toEqual({ assignedToId: 'qa-driver-a', allowUnpaidDelivery: true })
+    if (denied) {
+      await expect(page.getByText('Autorización denegada por contrato aislado')).toBeVisible()
+      await expect(card).toHaveCount(1)
+      await expect(card.getByTestId('asignar-reparto')).toBeEnabled()
+    } else {
+      await expect(card).toHaveCount(0)
+      await root.getByRole('button', { name: 'Asignados', exact: true }).click()
+      await expect(card).toHaveCount(1)
+      await card.getByRole('combobox').selectOption('qa-driver-b')
+      await card.getByRole('button', { name: 'Reasignar' }).click()
+      await expect.poll(() => requests.length).toBe(2)
+      expect(requests[1]).toEqual({ assignedToId: 'qa-driver-b', allowUnpaidDelivery: true })
+      await expect(card).toContainText('Repartidor B')
+      await card.getByRole('button', { name: 'Liberar' }).click()
+      await expect.poll(() => requests.length).toBe(3)
+      expect(requests[2]).toEqual({ assignedToId: null })
+      await expect(card).toHaveCount(0)
+      await root.getByRole('button', { name: 'Sin asignar', exact: true }).click()
+      await expect(card).toHaveCount(1)
+      // Remounting resets the UI checkbox, so an unchecked assignment omits the flag.
+      await page.reload()
+      await expect(card).toHaveCount(1)
+      await card.getByRole('combobox').selectOption('qa-driver-a')
+      await card.getByTestId('asignar-reparto').click()
+      await expect.poll(() => requests.length).toBe(4)
+      expect(requests[3]).toEqual({ assignedToId: 'qa-driver-a' })
+    }
+    if (!denied) {
+      await page.getByRole('button', { name: 'Rendiciones', exact: true }).click()
+      await expect(page.getByTestId('rendicion-admin')).toContainText('Pendiente')
+      await page.getByTestId('rendicion-verificar').click()
+      const dialog = page.getByRole('dialog', { name: '¿Verificar la rendición?' })
+      await expect(dialog).toBeVisible()
+      expect(verificationRequests).toEqual([])
+      await page.keyboard.press('Escape')
+      await expect(dialog).toBeHidden()
+      await page.getByTestId('rendicion-verificar').click()
+      await dialog.getByRole('button', { name: 'Verificar', exact: true }).click()
+      await expect.poll(() => verificationRequests.length).toBe(1)
+      expect(verificationRequests[0]).toEqual({ state: 'VERIFIED' })
+      await expect(page.getByTestId('rendicion-admin')).toHaveCount(0)
+      // Reset only the explicit contract mock, not application or backend records.
+      settlementState = 'PENDING'
+      // Reload also resets the API client's short GET cache for this new mock scenario.
+      await page.reload()
+      await page.getByRole('button', { name: 'Rendiciones', exact: true }).click()
+      await expect(page.getByTestId('rendicion-admin')).toHaveCount(1)
+      await page
+        .getByTestId('rendicion-admin')
+        .getByRole('button', { name: 'Rechazar', exact: true })
+        .click()
+      const reject = page.getByRole('dialog', { name: 'Rechazar la rendición', exact: true })
+      await reject.getByLabel('Motivo', { exact: true }).fill('Contrato aislado sin persistencia')
+      await reject.getByTestId('rendicion-rechazar').click()
+      await expect.poll(() => verificationRequests.length).toBe(2)
+      expect(verificationRequests[1]).toEqual({
+        state: 'REJECTED',
+        note: 'Contrato aislado sin persistencia',
+      })
+    }
+    await noOverflow(page)
+  })
+}
