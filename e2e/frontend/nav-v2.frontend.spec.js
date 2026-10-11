@@ -627,3 +627,193 @@ for (const outcome of ['confirmed', 'missing-id', 'rejected', 'tenant-change', '
     }
   })
 }
+
+// F2 uses the actual demo sources and the existing private cart harness. Catalog
+// prices, records and calculations are never replaced or rewritten by these tests.
+const f2Output = '/tmp/mobos-redesign-f2-qa'
+for (const width of widths) {
+  for (const dark of [false, true]) {
+    test(`F2 Inicio and normal POS amounts at ${width}px ${dark ? 'dark' : 'light'}`, async ({
+      page,
+    }) => {
+      await mkdir(f2Output, { recursive: true })
+      await page.setViewportSize({ width, height: 900 })
+      await enterDemo(page)
+      if (dark) {
+        await page.getByTestId(width < 1024 ? 'shell-perfil-mobile' : 'shell-perfil').click()
+        await page
+          .getByRole('dialog', { name: 'Perfil y preferencias' })
+          .getByRole('button', { name: 'Cambiar a tema oscuro', exact: true })
+          .click()
+        await page.keyboard.press('Escape')
+        await expect(page.locator('html')).toHaveClass(/dark/)
+      }
+      const expected = await page.evaluate(async () => {
+        const storage = await import('/src/lib/storage.js')
+        const { armarResumenDia } = await import('/src/utils/reporteResumen.js')
+        const { fechaClave, gs } = await import('/src/utils/calculos.js')
+        const summary = armarResumenDia({
+          ventas: storage.listVentas(),
+          gastos: storage.listGastos(),
+          prods: storage.productosById(),
+          vendedoresById: Object.fromEntries(
+            storage.getVendedores().map(seller => [seller.id, seller.nombre]),
+          ),
+          rango: { desde: fechaClave(), hasta: fechaClave() },
+        })
+        return ['total', 'cobrado', 'pendiente', 'ganancia'].map(key => gs(summary[key]))
+      })
+      const stripe = page.getByTestId('resumen-indicadores')
+      for (const [index, id] of ['facturado', 'cobrado', 'por-cobrar', 'margen'].entries()) {
+        const value = page.getByTestId(`indicador-${id}`).locator('.inicio-kpi-value')
+        await expect(value).toHaveText(expected[index])
+        const geometry = await value.evaluate(element => {
+          const range = document.createRange()
+          range.selectNodeContents(element)
+          const text = range.getBoundingClientRect()
+          const box = element.getBoundingClientRect()
+          return {
+            font: parseFloat(getComputedStyle(element).fontSize),
+            contained: text.right <= box.right + 1 && text.left >= box.left - 1,
+            shadow: getComputedStyle(element.parentElement).boxShadow,
+          }
+        })
+        expect(geometry.font).toBeGreaterThanOrEqual(22)
+        expect(geometry.contained).toBe(true)
+        expect(geometry.shadow).toBe('none')
+      }
+      const cells = await stripe
+        .locator('.inicio-kpi')
+        .evaluateAll(elements =>
+          elements.map(element => ({ x: element.offsetLeft, y: element.offsetTop })),
+        )
+      expect(new Set(cells.map(cell => cell.y)).size).toBe(width === 1440 ? 1 : 2)
+      await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+      await expect(page.getByTestId('accesos-rapidos')).toHaveCount(0)
+      const details = page.getByTestId('inicio-detalles')
+      await expect(details).not.toHaveAttribute('open')
+      await details.locator('summary').focus()
+      await page.keyboard.press('Enter')
+      await expect(details).toHaveAttribute('open', '')
+      for (const heading of ['Evolución', 'Stock bajo', 'Rendimiento por vendedor'])
+        await expect(details.getByRole('heading', { name: heading, exact: true })).toBeVisible()
+      await expect(details).toContainText('Ticket promedio')
+      await details.locator('summary').click()
+      await noOverflow(page)
+      await page.evaluate(() => {
+        document.activeElement?.blur()
+        window.scrollTo(0, 0)
+      })
+      await page.screenshot({
+        path: `${f2Output}/${width}-Inicio${dark ? '-dark' : ''}.png`,
+        fullPage: true,
+      })
+      await seedDemoCart(page, 100000000, 50000000)
+      const navigation =
+        width < 1024
+          ? page.getByTestId('shell-bottom-nav')
+          : page
+              .getByTestId('shell-lateral')
+              .getByRole('navigation', { name: 'Navegación principal', exact: true })
+      await navigation.getByRole('button', { name: 'Vender', exact: true }).click()
+      for (const [id, amount, minFont] of [
+        ['carrito-total', 100000000, 24],
+        ['cobro-total', 100000000, 20],
+        ['cobro-pagado', 50000000, 20],
+        ['cobro-pendiente', 50000000, 20],
+      ]) {
+        const root = page.getByTestId(id)
+        const value = id.startsWith('cobro-') ? root.locator('strong') : root
+        await assertMoneyFits(value, `Gs ${new Intl.NumberFormat('es-PY').format(amount)}`)
+        expect(
+          await value.evaluate(element => parseFloat(getComputedStyle(element).fontSize)),
+        ).toBeGreaterThanOrEqual(minFont)
+      }
+      const toolbar = page.getByTestId('barra-pos')
+      const more = await toolbar.getByTestId('pos-mas').boundingBox()
+      const suspend = await toolbar
+        .getByRole('button', { name: 'Suspender venta', exact: true })
+        .boundingBox()
+      expect(more.x + more.width <= suspend.x + 1 || more.y + more.height <= suspend.y + 1).toBe(
+        true,
+      )
+      const catalog = await page.getByTestId('pos-bloque-productos').boundingBox()
+      const cart = await page.getByTestId('pos-bloque-carrito').boundingBox()
+      const client = await page.getByTestId('pos-bloque-cliente').boundingBox()
+      expect(client.y).toBeLessThan(cart.y)
+      if (width === 1440) expect(catalog.x + catalog.width).toBeLessThanOrEqual(cart.x)
+      else {
+        const bar = await page.getByTestId('pos-barra-accion').boundingBox()
+        const nav = await navigation.boundingBox()
+        expect(bar.y + bar.height).toBeLessThanOrEqual(nav.y)
+      }
+      for (const id of [
+        'pos-bloque-productos',
+        'pos-bloque-cliente',
+        'pos-bloque-carrito',
+        'pos-cobro',
+      ]) {
+        expect(
+          await page.getByTestId(id).evaluate(element => getComputedStyle(element).boxShadow),
+        ).toBe('none')
+      }
+      await noOverflow(page)
+      await page.evaluate(() => {
+        document.activeElement?.blur()
+        window.scrollTo(0, 0)
+      })
+      await page.screenshot({
+        path: `${f2Output}/${width}-POS100m${dark ? '-dark' : ''}.png`,
+        fullPage: true,
+      })
+      await page
+        .getByTestId('pos-tiles-resumen')
+        .screenshot({ path: `${f2Output}/${width}-POS100m-summary${dark ? '-dark' : ''}.png` })
+    })
+  }
+}
+
+test('F2 actual catalog variant, existing customer and payment controls retain their handlers', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await enterDemo(page)
+  await page
+    .getByTestId('shell-lateral')
+    .getByRole('button', { name: 'Vender', exact: true })
+    .click()
+  const catalog = page.getByTestId('pos-bloque-productos')
+  const expectedCatalogCount = await page.evaluate(
+    async () => (await import('/src/lib/storage.js')).getProductos().length,
+  )
+  await expect(catalog).toContainText(`${expectedCatalogCount} disponibles`)
+  const family = catalog.locator('.pos-product-card').filter({ hasText: '2 variantes' }).first()
+  await family.click()
+  const options = page.getByTestId('variante-opcion')
+  await expect(options).toHaveCount(2)
+  await expect(page.getByTestId('pos-bloque-carrito')).toContainText('0 productos')
+  await options.first().click()
+  // Any serialized choice stays explicit; never synthesize a serial or bypass it.
+  const imeiDialog = page.getByRole('dialog', { name: 'Elegir IMEI de esta venta' })
+  if (await imeiDialog.isVisible()) {
+    await expect(imeiDialog.getByRole('button', { name: 'Listo', exact: true })).toBeDisabled()
+    await page.keyboard.press('Escape')
+  }
+  await expect(page.getByTestId('pos-bloque-carrito')).toContainText('1 producto')
+  const client = page.getByTestId('pos-bloque-cliente')
+  await client.getByPlaceholder('Buscar cliente o escribir un nombre nuevo').fill('María González')
+  await expect(client.getByRole('button', { name: 'Editar datos', exact: true })).toBeVisible()
+  await expect(page.getByTestId('pos-bloque-carrito')).toContainText('María González')
+  const payment = page.getByTestId('pos-bloque-pagos')
+  await payment.getByRole('button', { name: '+ Agregar pago', exact: true }).click()
+  await expect(payment.locator('input').filter({ visible: true }).first()).toBeVisible()
+  const note = page.getByTestId('pos-cobro').getByText('Agregar nota', { exact: true })
+  await note.click()
+  await page.locator('#observacion').fill('Prueba local sin envío')
+  await expect(page.locator('#observacion')).toHaveValue('Prueba local sin envío')
+  await page.getByTestId('pos-mas').click()
+  await expect(
+    page.getByRole('menuitem', { name: 'Ventas suspendidas', exact: true }),
+  ).toBeVisible()
+  // Submission/tenant/offline cases from #341 above remain unchanged and execute in the same suite.
+})

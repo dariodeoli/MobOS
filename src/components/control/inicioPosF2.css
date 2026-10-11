@@ -1,0 +1,144 @@
+/* F2 presentation only. Existing display tokens and monetary rules stay authoritative. */
+.inicio-kpi-stripe {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid rgb(var(--c-ink-600));
+  border-radius: 10px;
+  background: rgb(var(--c-ink));
+  overflow: hidden;
+}
+.inicio-kpi {
+  min-width: 0;
+  padding: 14px 8px;
+}
+.inicio-kpi:nth-child(even) {
+  border-left: 1px solid rgb(var(--c-ink-600));
+}
+.inicio-kpi:nth-child(n + 3) {
+  border-top: 1px solid rgb(var(--c-ink-600));
+}
+.inicio-kpi-value {
+  font-size: 22px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.inicio-disclosure > summary {
+  min-height: 44px;
+  padding: 12px 0;
+  cursor: pointer;
+  color: rgb(var(--c-fore));
+  font-weight: 500;
+}
+.inicio-disclosure > summary:focus-visible {
+  outline: 2px solid rgb(var(--c-fono));
+  outline-offset: 3px;
+}
+.inicio-f2 .v2-tile,
+.inicio-f2 [data-ui='card'] {
+  box-shadow: none;
+  background-image: none;
+}
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-productos'],
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-cliente'],
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-carrito'],
+.shell-nav-v2 .pos-f2 [data-testid='pos-cobro'],
+.shell-nav-v2 .pos-f2 [data-testid='resumen-compra'] {
+  background: rgb(var(--c-ink));
+  border-color: rgb(var(--c-ink-600));
+  border-radius: 10px;
+  box-shadow: none;
+}
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-carrito'] > div,
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-pagos'],
+.shell-nav-v2 .pos-f2 [data-testid='pos-tiles-resumen'] > span {
+  background: transparent;
+  border-color: rgb(var(--c-ink-600));
+  box-shadow: none;
+}
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-pagos'] {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+.shell-nav-v2 .pos-f2 [data-testid='pos-tiles-resumen'] > span {
+  padding: 8px 0;
+  border: 0;
+  border-radius: 0;
+}
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-productos'] h3,
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-cliente'] h3 {
+  color: rgb(var(--c-fore));
+}
+.shell-nav-v2 .pos-f2 .uppercase,
+.inicio-f2 .uppercase {
+  text-transform: none;
+  letter-spacing: normal;
+}
+.pos-product-card > span {
+  width: 100%;
+}
+.pos-product-card > span:first-child {
+  width: 48px;
+  background: rgb(var(--c-ink-700));
+  color: rgb(var(--c-mute));
+}
+.shell-nav-v2 .pos-f2 [data-testid='carrito-total'] {
+  font-size: 24px;
+}
+.shell-nav-v2 .pos-f2 [data-testid='pos-tiles-resumen'] strong {
+  font-size: 20px;
+}
+@media (min-width: 1280px) {
+  .inicio-kpi-stripe {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .inicio-kpi {
+    padding: 18px 20px;
+  }
+  .inicio-kpi + .inicio-kpi {
+    border-left: 1px solid rgb(var(--c-ink-600));
+    border-top: 0;
+  }
+  .inicio-kpi-value {
+    font-size: 26px;
+  }
+  .pos-product-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.inicio-f2 > div > div.rounded-2xl,
+.inicio-f2 details div.rounded-2xl {
+  box-shadow: none;
+  background-image: none;
+}
+.inicio-f2 .inicio-kpi-value {
+  color: rgb(var(--c-fore));
+}
+
+.shell-nav-v2 .inicio-f2 .shadow-card {
+  background: rgb(var(--c-ink));
+  box-shadow: none;
+  border-color: rgb(var(--c-ink-600));
+}
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-carrito'] h3,
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-pagos'] > div > div > p {
+  color: rgb(var(--c-fore));
+}
+
+.shell-nav-v2 .inicio-f2 .bg-blue-line {
+  background-image: none;
+  background-color: rgb(var(--c-fore));
+}
+.shell-nav-v2 .pos-f2 [data-testid^='pago-fila-'] {
+  background: transparent;
+  border-color: rgb(var(--c-ink-600));
+}
+
+/* The shell already owns the page title; the module toolbar only holds actions. */
+.shell-nav-v2 [data-testid='barra-pos'] > div:first-child {
+  display: none;
+}
+.shell-nav-v2 [data-testid='barra-pos'] {
+  justify-content: flex-end;
+}

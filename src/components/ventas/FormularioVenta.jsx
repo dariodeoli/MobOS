@@ -1,3 +1,4 @@
+import '../control/inicioPosF2.css'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
@@ -60,7 +61,7 @@ import { puedeCanjearGiftCard } from '@/lib/validacionGlobal'
 import { whatsappTrackingLink } from './PagosPedido'
 import { telefonoValido, MENSAJE_TELEFONO, whatsappUrl } from '@/utils/telefono'
 import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
-import PasoProductos from './venta/PasoProductos'
+import PasoProductos, { PosCustomer } from './venta/PasoProductos'
 import PasoCarrito from './venta/PasoCarrito'
 import PasoCobro from './venta/PasoCobro'
 import { orderDetailPath } from '@/lib/orderDetailNavigation'
@@ -1795,11 +1796,8 @@ export default function FormularioVenta({
             módulo, la fecha y las acciones juntas; el título sigue siendo un h2
             para los tests y lectores, sin el bloque grande duplicado. */}
         <BarraModulo
-          icono="receipt"
           titulo="Nueva venta"
-          descripcion="Cliente, productos y cobro en una sola página."
           testId="barra-pos"
-          contexto={<span className="ml-1 shrink-0 rounded-full border border-fono/20 bg-fono/5 px-3 py-1 text-xs font-semibold text-fore">Hoy: {fechaClave().split('-').reverse().join('/')}</span>}
         >
           {/* #309: las herramientas del POS (gift cards, analytics y ventas
               suspendidas) viven en «Más» para no llenar la barra del módulo.
@@ -1958,7 +1956,7 @@ export default function FormularioVenta({
           if (!(target instanceof HTMLElement)) return
           if (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON' || target.tagName === 'SELECT' || target.tagName === 'A') return
         }}
-        className="flex flex-col gap-4"
+        className="pos-f2 flex flex-col gap-4"
       >
         {errorVenta && (
           <div ref={avisoErrorRef}>
@@ -1972,8 +1970,10 @@ export default function FormularioVenta({
             pantallas angostas (ahí la barra superior es el acceso rápido). */}
         <div
           data-testid="resumen-columna"
-          className="order-last z-10 lg:order-first lg:sticky lg:top-24"
+          className="order-last"
         >
+          <details className="inicio-disclosure"><summary>Detalles de la venta y del día</summary>
+          <p className="mb-2 text-xs text-mute">Fecha: {fechaClave().split('-').reverse().join('/')}</p>
           <ResumenVenta
             items={items}
             unidades={cantTotal}
@@ -1981,10 +1981,11 @@ export default function FormularioVenta({
             montoDelivery={montoDeliveryEfectivo}
             dia={resumenDia}
           />
+          </details>
         </div>
 
         {/* Operación (cliente + buscador + productos) | carrito y cobro. */}
-        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
+        <div className="pos-layout grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(380px,440px)]">
           <div className="flex min-w-0 flex-col gap-4">
             <PasoProductos
               sesion={sesion}
@@ -2033,6 +2034,10 @@ export default function FormularioVenta({
 
           {/* Carrito fijo + cobro y entrega: la venta se lee y se cobra acá. */}
           <div className="flex min-w-0 flex-col gap-4">
+            <PosCustomer
+              sesion={sesion} esDemo={esDemo} customer={customer} setCustomer={setCustomer}
+              billingTo={billingTo} setBillingTo={setBillingTo} setF={setF}
+            />
             <PasoCarrito
               items={items}
               productos={productos}

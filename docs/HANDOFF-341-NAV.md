@@ -2,7 +2,7 @@
 
 Fecha: 2026-10-11. Rama: `codex/mobos-nav-v2`.
 Base y `origin/main`: `5b42ba81db8a740513dba1eda9bce91ef84fe697`, v1.0.224.
-Estado: implementación frontend sin commit; no publicación ni cierre de issue.
+Estado: checkpoint frontend verificado en commit local `a33817c2`; no push, publicación ni cierre de issue.
 
 ## Alcance y decisiones
 
@@ -139,7 +139,7 @@ Pendiente del padre/integrador: spot-check, pruebas autenticadas con backend cua
 - Verificador independiente: Node enfocado **15/15** y Playwright frontend **24/24**, sin cambios de código.
 - Confirmadas las agrupaciones aprobadas y **65 escenarios PYG renderizados** entre 320 y 1440 px, con montos completos y sin superposición del cobro con la navegación.
 - Confirmados los casos frontend de ID persistido, rechazo/ID ausente, cambio de empresa y cola offline. El servidor Vite propio se detuvo al finalizar.
-- Esto no acredita persistencia real del servidor, comportamiento en dispositivo físico ni presentación USD. Sin commit, push, integración o deploy.
+- Esto no acredita persistencia real del servidor, comportamiento en dispositivo físico ni presentación USD. Checkpoint local posterior: `a33817c2`; sin push, integración o deploy.
 
 - El menú principal mantiene cinco accesos claros y Stock se organiza en Inventario, Compras, Traslados y Precios.
 - Los reportes quedan en Finanzas; las promociones y mensajes, junto a Clientes en Ventas.

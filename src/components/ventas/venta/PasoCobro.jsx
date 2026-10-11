@@ -119,7 +119,7 @@ export default function PasoCobro({
     >
       <EncabezadoBloque
         titulo="Cobro y entrega"
-        descripcion="Dividí el cobro entre cuentas, elegí la entrega y guardá la venta."
+
       />
 
       {/* Venta a crédito con control de mora */}
@@ -201,8 +201,9 @@ export default function PasoCobro({
         </div>
       </div>
 
-      {/* Observación */}
-      <div>
+      {/* The existing note remains editable behind a keyboard-native disclosure. */}
+      <details className="inicio-disclosure">
+        <summary>Agregar nota</summary>
         <Label htmlFor="observacion">Observación</Label>
         <Textarea
           id="observacion"
@@ -214,7 +215,7 @@ export default function PasoCobro({
           placeholder="Notas, color, envío vía encomienda, etc."
           autoCapitalize="sentences"
         />
-      </div>
+      </details>
 
 {/* Medio de pago */}
       {cuentas?.length === 0 && (
@@ -237,9 +238,7 @@ export default function PasoCobro({
             <p className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-reserved">
               Pagos de esta venta
             </p>
-            <p className="text-[11px] text-mute">
-              Podés dividir el cobro entre efectivo, cuentas y transferencias.
-            </p>
+
           </div>
           {descuentoMedioPct > 0 && subtotal > 0 && (
             puedeDescontar ? (

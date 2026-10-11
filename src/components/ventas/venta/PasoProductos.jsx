@@ -7,8 +7,6 @@ import SelectorVariante from './SelectorVariante'
 import { gs, num } from '@/utils/calculos'
 import { useSesion } from '@/lib/sesion'
 import EncabezadoBloque from './EncabezadoBloque'
-import { CELDA_DATO } from '@/components/shared/tabla'
-import { cn } from '@/lib/utils'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 
 // La venta en una sola pantalla: para quién es y qué se vende. Primero el
@@ -16,13 +14,7 @@ import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 // define la lista de precios; con la ficha elegida el bloque se colapsa a una
 // línea (#309).
 export default function PasoProductos({
-  sesion,
   esDemo,
-  customer,
-  setCustomer,
-  billingTo,
-  setBillingTo,
-  setF,
   productos,
   nuevoProd,
   setNuevoProd,
@@ -45,16 +37,11 @@ export default function PasoProductos({
   noticeCombo,
   familiasVisibles,
   agregarProducto,
-  nombreLista = '',
   guardando,
   variantePara,
   onElegirVariante,
   onCerrarVariante,
 }) {
-  const { perfilEmpresa } = useSesion()
-  const nombreVendedor =
-    sesion?.rol === 'dueno' && perfilEmpresa?.name ? perfilEmpresa.name : sesion?.nombre
-
   return (
     <>
       {/* #281 · identidad de color: Productos = acento de marca (fono). */}
@@ -62,7 +49,7 @@ export default function PasoProductos({
         <EncabezadoBloque
           titulo="Productos"
           tono="text-fono-light"
-          descripcion="Buscá por nombre, modelo o variante y hacé clic para sumarlo a la venta."
+
           extra={<span className="shrink-0 text-xs font-medium text-fono-light">{productos.length} disponibles</span>}
         />
         {nuevoProd ? (
@@ -252,7 +239,7 @@ export default function PasoProductos({
               />
             </div>
             <div
-              className="grid max-h-72 gap-2 overflow-y-auto sm:grid-cols-2"
+              className="pos-product-grid grid grid-cols-2 gap-2"
               aria-label="Resultados de productos"
             >
               {!esDemo && combos.length > 0 && (
@@ -297,7 +284,7 @@ export default function PasoProductos({
                     key={fam.base}
                     disabled={guardando}
                     onClick={() => (fam.items.length > 1 ? onElegirVariante?.(fam) : agregarProducto(p))}
-                    className="flex min-h-20 items-center gap-3 rounded-xl border border-ink-600 p-3 text-left transition hover:border-fono focus-visible:outline focus-visible:outline-fono"
+                    className="pos-product-card flex min-h-20 flex-col items-start gap-2 rounded-xl border border-ink-600 p-3 text-left transition hover:border-fono focus-visible:outline focus-visible:outline-fono"
                   >
                     {p.imagen || p.imageUrl ? (
                       <img
@@ -312,12 +299,12 @@ export default function PasoProductos({
                       </span>
                     )}
                     <span className="min-w-0">
-                      <strong className="block truncate text-sm">{fam.base}</strong>
-                      <span className={cn('block', CELDA_DATO)}>
+                      <strong className="block text-sm">{fam.base}</strong>
+                      <span className="block text-sm font-semibold text-fore">
                         {fam.items.length > 1 ? fam.items.length + ' variantes · desde ' : ''}
                         {gs(Math.min(...fam.items.map(item => num(item.precioVenta))))}
                       </span>
-                      <span className="block truncate text-[11px] text-mute">
+                      <span className="block text-[11px] text-mute">
                         {[modelo, capacidad].filter(Boolean).join(' · ')}
                         {modelo || capacidad ? ' · ' : ''}
                         {stockFamilia > 0
@@ -340,35 +327,6 @@ export default function PasoProductos({
         )}
       </section>
 
-      {/* #281 · identidad de color: Cliente = azul (info). */}
-      <section data-testid="pos-bloque-cliente" className="rounded-2xl border border-info/35 bg-info/[.04] p-3.5">
-        <EncabezadoBloque
-          titulo="Cliente"
-          tono="text-info"
-          descripcion="Buscá la ficha por nombre, teléfono, CI o RUC; si no existe, se crea al confirmar."
-          extra={
-            <div className="shrink-0 text-right text-xs text-mute">
-              <span className="block">
-                Vendedor: <strong className="text-fore">{nombreVendedor || 'Ingresá con tu PIN'}</strong>
-              </span>
-              <span className="block text-[11px]">Asignado automáticamente a tu sesión.</span>
-            </div>
-          }
-        />
-        <CheckoutCustomer
-          colapsarFicha
-          esDemo={esDemo}
-          value={customer}
-          onChange={c => {
-            setCustomer(c)
-            setF(current => ({ ...current, cliente: c?.name ?? '' }))
-          }}
-          billingTo={billingTo}
-          onBillingChange={setBillingTo}
-          nombreLista={nombreLista}
-        />
-      </section>
-
       {/* #308: con más de una variante no se elige sola: selector obligatorio. */}
       <SelectorVariante
         abierto={Boolean(variantePara)}
@@ -377,5 +335,53 @@ export default function PasoProductos({
         onClose={() => onCerrarVariante?.()}
       />
     </>
+  )
+}
+
+export function PosCustomer({
+  sesion,
+  esDemo,
+  customer,
+  setCustomer,
+  billingTo,
+  setBillingTo,
+  setF,
+  nombreLista = '',
+}) {
+  const { perfilEmpresa } = useSesion()
+  const nombreVendedor =
+    sesion?.rol === 'dueno' && perfilEmpresa?.name ? perfilEmpresa.name : sesion?.nombre
+
+  return (
+    <section
+      data-testid="pos-bloque-cliente"
+      className="rounded-2xl border border-info/35 bg-info/[.04] p-3.5"
+    >
+      <EncabezadoBloque
+        titulo="Cliente"
+        tono="text-info"
+
+        extra={
+          <div className="shrink-0 text-right text-xs text-mute">
+            <span className="block">
+              Vendedor:{' '}
+              <strong className="text-fore">{nombreVendedor || 'Ingresá con tu PIN'}</strong>
+            </span>
+          </div>
+        }
+      />
+      <CheckoutCustomer
+        colapsarFicha
+        esDemo={esDemo}
+        value={customer}
+        onChange={c => {
+          setCustomer(c)
+          setF(current => ({ ...current, cliente: c?.name ?? '' }))
+        }}
+        billingTo={billingTo}
+        onBillingChange={setBillingTo}
+        nombreLista={nombreLista}
+      />
+    </section>
   )
 }
