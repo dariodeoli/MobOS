@@ -31,6 +31,7 @@ import PagosPedido from './PagosPedido'
 import { consultaDeMencion, insertarMencion, tramosDeMencion } from '@/utils/menciones'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { temaV2Activo } from '@/lib/temaV2'
+import './ventasF3.css'
 
 const FULFILLMENT = FULFILLMENT_LABELS
 // Pasos del flujo de entrega para la vista previa v2 (#241): agrupa los estados
@@ -404,8 +405,13 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
       {error && <Aviso tono="error" className="mb-4 rounded-xl">{error}</Aviso>}
       {(!loading || detail) && (
         <div className="space-y-3">
-          {/* Estado y cabecera */}
-          <section className="rounded-2xl border border-ink-600 bg-gradient-to-br from-ink-800 to-ink-800/40 p-4">
+          {/* Existing financial source, presented before secondary controls. */}
+          <section className="ventas-f3-detail-header">
+            <dl className="ventas-f3-detail-totals" data-testid="pedido-totales-f3">
+              <div><dt>Total</dt><dd className="ventas-f3-money">{gs(total)}</dd></div>
+              <div><dt>Pagado</dt><dd className="ventas-f3-money">{gs(paid)}</dd></div>
+              <div><dt>Saldo</dt><dd className="ventas-f3-money">{gs(pendiente)}</dd></div>
+            </dl>
             <div className="flex flex-wrap items-center gap-2">
               <Badge color={PAYMENT_TONE(estadoPago)}>{estadoPago}</Badge>
               <Badge color={tonoEntrega(order.fulfillmentStatus)}>{FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || 'Pendiente'}</Badge>
@@ -431,7 +437,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                     const activo = indice === actual
                     const hecho = actual > -1 && indice < actual
                     return (
-                      <li key={paso} aria-current={activo ? 'step' : undefined} className={cn('flex items-center gap-2.5 rounded-xl border p-2.5', activo ? 'border-info/40 bg-info/5' : 'border-ink-600')}>
+                      <li key={paso} aria-current={activo ? 'step' : undefined} className={cn('flex items-center gap-2.5 border-b py-2', activo ? 'border-info text-fore' : 'border-ink-600 text-mute')}>
                         <span className={cn('v2-numero grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-bold', activo ? 'oc-paso-activo' : hecho ? 'bg-ok/15 text-ok' : 'bg-ink-700 text-mute')} aria-hidden>{hecho ? '✓' : indice + 1}</span>
                         <span className="min-w-0 truncate text-xs font-semibold">{paso}</span>
                       </li>
@@ -446,10 +452,10 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             {row.publicToken && !esDemo && <p className="mt-1 truncate font-mono text-[10px] text-mute">Token público: {order.publicToken || row.publicToken}</p>}
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {!esDemo && !anulado && <Select aria-label="Estado de entrega" className="max-w-[190px]" value={order.fulfillmentStatus || 'PENDING'} disabled={busy} onChange={event => cambiarEntrega(event.target.value)}>{opcionesDeEntrega(order.deliveryType, order.fulfillmentStatus || 'PENDING').map(value => <option key={value} value={value}>{FULFILLMENT[value] || value}</option>)}</Select>}
-              {!esDemo && ['IN_TRANSIT', 'SHIPPED', 'READY_TO_SHIP', 'READY_FOR_PICKUP'].includes(order.fulfillmentStatus) && <Button variant={order.notifiedAt ? 'outline' : 'primary'} disabled={avisando} onClick={avisarPorWhatsApp}>{avisando ? 'Preparando…' : order.notifiedAt ? 'Avisar de nuevo' : 'Avisar por WhatsApp'}</Button>}
+              {!esDemo && ['IN_TRANSIT', 'SHIPPED', 'READY_TO_SHIP', 'READY_FOR_PICKUP'].includes(order.fulfillmentStatus) && <Button variant={order.notifiedAt || pendiente > 0 ? 'outline' : 'primary'} disabled={avisando} onClick={avisarPorWhatsApp}>{avisando ? 'Preparando…' : order.notifiedAt ? 'Avisar de nuevo' : 'Avisar por WhatsApp'}</Button>}
               {order.customer?.phone && <WhatsAppMenu telefono={order.customer.phone} countryCode={order.customer.countryCode} category="ORDERS" contexto={contextoWhatsApp} onSent={esDemo ? undefined : enviarPlantilla} plantillas={esDemo ? DEMO_MESSAGE_TEMPLATES : undefined} disabled={avisando || busy} title={order.customer?.name} />}
               {order.notifiedAt && <span className="rounded-full border border-ok/30 bg-ok/10 px-2.5 py-1 text-[11px] font-semibold text-ok">Avisado {relativeDate(order.notifiedAt)}</span>}
-              {!esDemo && !anulado && pendiente > 0 && <Button variant="outline" onClick={() => setCobroAbierto(true)}>Cobrar saldo · {gs(pendiente)}</Button>}
+              {!esDemo && !anulado && pendiente > 0 && <Button onClick={() => setCobroAbierto(true)}>Cobrar saldo · {gs(pendiente)}</Button>}
               <Button variant="outline" onClick={() => setComprobante(true)}>Imprimir comprobante</Button>
               <Button variant="outline" onClick={imprimirNotaEntrega}>Nota de entrega</Button>
               {!esDemo && !anulado && <Button variant="outline" onClick={abrirAnular}>Anular pedido</Button>}
@@ -459,7 +465,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
 
           {/* Acceso del cliente: un enlace privado por nivel de información */}
           {!esDemo && (
-            <section className="rounded-2xl border border-ink-600 p-4">
+            <section className="ventas-f3-detail-section p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className={cn('flex items-center gap-2', ROTULO_SECCION)}><Icon name="eye" className="h-3.5 w-3.5" /> Acceso del cliente</h3>
                 <button type="button" disabled={accesoBusy} onClick={regenerarAccesoQr} className="min-h-11 rounded-lg border border-ink-500 px-3 py-1.5 text-xs font-semibold text-mute transition hover:border-warn hover:text-warn disabled:opacity-60 md:min-h-0">Regenerar acceso QR</button>
@@ -491,7 +497,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
 
           {/* Etiquetas */}
           {!esDemo && (
-            <SeccionColapsable id={`pedido-${order.id}-etiquetas`} titulo="Etiquetas" icono="tag" resumen={tags.length ? `${tags.length} etiqueta${tags.length === 1 ? '' : 's'}` : 'Sin etiquetas'}>
+            <SeccionColapsable className="ventas-f3-detail-section" id={`pedido-${order.id}-etiquetas`} titulo="Etiquetas" icono="tag" resumen={tags.length ? `${tags.length} etiqueta${tags.length === 1 ? '' : 's'}` : 'Sin etiquetas'}>
               <div className="flex flex-wrap items-center gap-2">
                 {tags.map(tag => <button key={tag} type="button" onClick={() => guardarTags(tags.filter(item => item !== tag))} className="group inline-flex items-center gap-1 rounded-full border border-fono/25 bg-fono/10 px-2.5 py-1 text-xs text-fono-light" title="Quitar etiqueta">{tag}<span className="text-mute group-hover:text-bad">×</span></button>)}
                 <form onSubmit={event => { event.preventDefault(); const tag = tagInput.trim(); if (!tag || tags.includes(tag) || tags.length >= 20) return; guardarTags([...tags, tag]); setTagInput('') }} className="flex items-center gap-1">
@@ -503,14 +509,14 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
           )}
 
           {/* Artículos */}
-          <SeccionColapsable id={`pedido-${order.id}-articulos`} titulo="Artículos preparados" icono="box" resumen={items.length ? `${items.reduce((sum, item) => sum + Number(item.quantity || 1), 0)} artículo(s) · ${gs(total)}` : 'Sin artículos detallados'}>
+          <SeccionColapsable className="ventas-f3-detail-section" id={`pedido-${order.id}-articulos`} titulo="Artículos preparados" icono="box" resumen={items.length ? `${items.reduce((sum, item) => sum + Number(item.quantity || 1), 0)} artículo(s) · ${gs(total)}` : 'Sin artículos detallados'}>
             <div className="divide-y divide-ink-600/70">
               {items.map((item, index) => {
                 const serials = Array.isArray(item.serials) ? item.serials : []
                 return (
-                  <article key={item.id || index} className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                  <article key={item.id || index} className="ventas-f3-detail-item py-3 first:pt-0 last:pb-0">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{item.description}</p>
+                      <p className="ventas-f3-name">{item.description}</p>
                       <p className="mt-0.5 text-xs text-mute">{FULFILLMENT[order.fulfillmentStatus] || 'En tienda'} · {relativeDate(item.createdAt || order.createdAt || order.date)}</p>
                       {serials.length > 0 && <p className="mt-1 flex flex-wrap gap-1">{serials.map(serial => <span key={serial} className="rounded border border-fono/25 bg-fono/10 px-1.5 py-0.5 font-mono text-[10px] text-fono-light">IMEI {serial}</span>)}</p>}
                       {(item.costPending || Number(item.serialsPending || 0) > 0 || Number(item.stockPending || 0) > 0) && <p className="mt-1 flex flex-wrap gap-2 text-[11px] text-warn">{Number(item.serialsPending || 0) > 0 && <span>{item.serialsPending} sin IMEI (sobre pedido)</span>}{Number(item.stockPending || 0) > 0 && <span>{item.stockPending} sobre pedido</span>}{item.costPending && <span>costo pendiente</span>}</p>}
@@ -527,7 +533,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
           </SeccionColapsable>
 
           {/* Información de pago */}
-          <SeccionColapsable id={`pedido-${order.id}-pago`} titulo="Información de pago" icono="wallet" resumen={`${estadoPago} · total ${gs(total)}`}>
+          <SeccionColapsable className="ventas-f3-detail-section" id={`pedido-${order.id}-pago`} titulo="Información de pago" icono="wallet" resumen={`${estadoPago} · total ${gs(total)}`}>
             <div className="space-y-1.5 text-sm">
               <p className="flex justify-between"><span className="text-mute">Subtotal · {items.reduce((sum, item) => sum + Number(item.quantity || 1), 0)} artículos</span><span className="tabular-nums"><Money value={Number(order.subtotalPyg ?? total)} /></span></p>
               {Number(order.discountPyg || 0) > 0 && <p className="flex justify-between text-warn"><span>Descuento</span><span className="tabular-nums">− <Money value={order.discountPyg} /></span></p>}
@@ -547,7 +553,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
 
           {/* Comprobantes de pago: archivos adjuntos a cada cobro */}
           {payments.some(pago => (pago.proofs || []).length > 0) && (
-            <SeccionColapsable id={`pedido-${order.id}-comprobantes`} titulo="Comprobantes" icono="report" resumen={`${payments.reduce((sum, pago) => sum + (pago.proofs || []).length, 0)} archivo(s) de pago`}>
+            <SeccionColapsable className="ventas-f3-detail-section" id={`pedido-${order.id}-comprobantes`} titulo="Comprobantes" icono="report" resumen={`${payments.reduce((sum, pago) => sum + (pago.proofs || []).length, 0)} archivo(s) de pago`}>
               <div className="space-y-3">
                 {payments.filter(pago => (pago.proofs || []).length > 0).map(pago => (
                   <div key={pago.id}>
@@ -568,6 +574,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
 
           {/* Cliente */}
           <SeccionColapsable
+            className="ventas-f3-detail-section"
             id={`pedido-${order.id}-cliente`}
             titulo="Cliente"
             icono="user"
@@ -576,7 +583,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             <div className="flex items-start gap-3">
               <Avatar user={{ name: order.customer?.name || order.customer || 'Consumidor final' }} size="lg" />
               <div className="min-w-0">
-                <p className="truncate font-semibold">{order.customer?.name || order.customer || 'Consumidor final'}</p>
+                <p className="ventas-f3-name">{order.customer?.name || order.customer || 'Consumidor final'}</p>
                 <p className="mt-0.5 text-xs text-mute">{order.customer?.phone ? `${order.customer.countryCode || '+595'} ${order.customer.phone}` : 'Sin teléfono'}{order.customer?.email ? ` · ${order.customer.email}` : ''}</p>
                 {order.customer?.document && <p className="text-xs text-mute">CI/RUC {order.customer.document}</p>}
                 {customerOrderCount > 0 && <p className="mt-1 text-xs text-fono-light">{customerOrderCount} pedido{customerOrderCount === 1 ? '' : 's'}</p>}
@@ -640,7 +647,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
           />
 
           {/* Cronología */}
-          <SeccionColapsable id={`pedido-${order.id}-cronologia`} titulo="Cronología" icono="clock" resumen={events.length ? `${events.length} movimiento${events.length === 1 ? '' : 's'}` : 'Sin movimientos'}>
+          <SeccionColapsable className="ventas-f3-detail-section" id={`pedido-${order.id}-cronologia`} titulo="Cronología" icono="clock" resumen={events.length ? `${events.length} movimiento${events.length === 1 ? '' : 's'}` : 'Sin movimientos'}>
             {esDemo && <p className="text-sm text-mute">La cronología con comentarios y fotos está disponible con una cuenta real.</p>}
             {!esDemo && (
               <>
@@ -766,11 +773,11 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   // el aviso de quién más lo está viendo. En modo panel, el drawer de siempre.
   if (pagina) {
     return (
-      <div className="space-y-4">
+      <div className="ventas-f3 ventas-f3-detail space-y-4" data-testid="pedido-detalle-f3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
             <Button type="button" variant="ghost" onClick={onClose}><Icon name="back" className="h-3.5 w-3.5" />Volver a pedidos</Button>
-            <h1 className="font-mono text-sm font-bold text-fono-light">{codigoPedido(order.orderNumber || order.number) || 'Pedido'}</h1>
+            <h2 className="font-mono text-lg font-semibold text-fore">{codigoPedido(order.orderNumber || order.number) || 'Pedido'}</h2>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <PresenciaPedido pedidoId={order.id || row?.id} />
@@ -787,7 +794,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   }
 
   return (
-    <Drawer open onClose={onClose} title={codigoPedido(order.orderNumber || order.number) || 'Pedido'} className="w-full sm:max-w-2xl">
+    <Drawer open onClose={onClose} title={codigoPedido(order.orderNumber || order.number) || 'Pedido'} className="ventas-f3 ventas-f3-detail w-full sm:max-w-2xl">
       {cuerpo}
     </Drawer>
   )

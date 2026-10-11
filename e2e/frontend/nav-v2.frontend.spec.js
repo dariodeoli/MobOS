@@ -817,3 +817,389 @@ test('F2 actual catalog variant, existing customer and payment controls retain t
   ).toBeVisible()
   // Submission/tenant/offline cases from #341 above remain unchanged and execute in the same suite.
 })
+
+const f3Output = '/tmp/mobos-redesign-f3-qa'
+
+async function selectVentas(page, width, label) {
+  const context = page.getByTestId('shell-contexto')
+  if (width < 1024) await context.getByRole('combobox').selectOption(label.toLowerCase())
+  else await context.getByRole('button', { name: label, exact: true }).click()
+}
+
+async function setF3Theme(page, width, dark) {
+  if (!dark) return
+  await page.getByTestId(width < 1024 ? 'shell-perfil-mobile' : 'shell-perfil').click()
+  await page
+    .getByRole('dialog', { name: 'Perfil y preferencias' })
+    .getByRole('button', { name: 'Cambiar a tema oscuro', exact: true })
+    .click()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('html')).toHaveClass(/dark/)
+}
+
+for (const width of [320, 390, 1440]) {
+  for (const dark of [false, true]) {
+    test(`F3 rendered orders and quotes ${width}px ${dark ? 'dark' : 'light'}`, async ({
+      page,
+    }) => {
+      await mkdir(f3Output, { recursive: true })
+      await page.setViewportSize({ width, height: 900 })
+      await enterDemo(page)
+      await setF3Theme(page, width, dark)
+      await page
+        .getByTestId(width < 1024 ? 'shell-bottom-nav' : 'shell-lateral')
+        .getByRole('button', { name: 'Ventas', exact: true })
+        .click()
+      const orders = page.getByTestId('ventas-pedidos-f3')
+      await expect(orders).toBeVisible()
+      const all = orders.getByRole('button', { name: 'Todos', exact: true })
+      await all.click()
+      await expect(all).toHaveAttribute('aria-pressed', 'true')
+      const expected = await page.evaluate(async () => {
+        const storage = await import('/src/lib/storage.js')
+        const { orderFields } = await import('/src/components/ventas/SellerOrders.jsx')
+        const { gs } = await import('/src/utils/calculos.js')
+        return storage
+          .listVentas()
+          .map(orderFields)
+          .map(row => ({
+            id: row.id,
+            customer: row.customer,
+            products: row.products,
+            total: gs(row.total),
+          }))
+      })
+      await expect(page.getByTestId('pedido-fila')).toHaveCount(expected.length)
+      for (const row of expected) {
+        const card = page
+          .getByTestId('pedido-fila')
+          .filter({ hasText: row.customer })
+          .filter({ has: page.locator('.ventas-f3-order-total', { hasText: row.total }) })
+          .first()
+        await expect(card.locator('.ventas-f3-name')).toHaveText(row.customer)
+        await assertMoneyFits(card.locator('.ventas-f3-order-total'), row.total)
+      }
+      const list = page.getByTestId('pedidos-tabla')
+      expect(await list.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+      await noOverflow(page)
+      await page.screenshot({
+        path: `${f3Output}/${width}-Pedidos${dark ? '-dark' : ''}.png`,
+        fullPage: true,
+      })
+      await orders.getByRole('button', { name: 'Con saldo', exact: true }).click()
+      await expect(page.getByTestId('pedido-fila')).toHaveCount(
+        await page.evaluate(async () => {
+          const { listVentas } = await import('/src/lib/storage.js')
+          const { orderFields } = await import('/src/components/ventas/SellerOrders.jsx')
+          return listVentas()
+            .map(orderFields)
+            .filter(row => row.pending > 0 && row.status !== 'CANCELLED').length
+        }),
+      )
+      await all.click()
+      await orders.locator('.ventas-f3-extra-filters > summary').focus()
+      await page.keyboard.press('Enter')
+      await orders
+        .getByRole('combobox', { name: 'Más estados de pago', exact: true })
+        .selectOption('parciales')
+      await expect(page.getByTestId('pedido-fila')).toHaveCount(
+        await page.evaluate(async () => {
+          const { listVentas } = await import('/src/lib/storage.js')
+          const { orderFields } = await import('/src/components/ventas/SellerOrders.jsx')
+          return listVentas()
+            .map(orderFields)
+            .filter(
+              row =>
+                row.paymentStatus === 'Parcial' &&
+                !(row.creditDays > 0 && row.pending > 0) &&
+                row.status !== 'CANCELLED',
+            ).length
+        }),
+      )
+      await all.click()
+      await orders
+        .getByRole('combobox', { name: 'Ordenar pedidos', exact: true })
+        .selectOption('quantity')
+      await expect(
+        orders.getByRole('combobox', { name: 'Ordenar pedidos', exact: true }),
+      ).toHaveValue('quantity')
+      const search = orders.getByRole('textbox', { name: 'Buscar pedidos', exact: true })
+      await search.fill(expected[0].customer)
+      await expect(page.getByTestId('pedido-fila').first().locator('.ventas-f3-name')).toHaveText(
+        expected[0].customer,
+      )
+      const quick = page
+        .getByTestId('pedido-fila')
+        .first()
+        .getByRole('button', { name: /Vista rápida/ })
+      await quick.focus()
+      await page.keyboard.press('Enter')
+      const drawer = page.getByRole('dialog')
+      await expect(page.getByTestId('pedido-vista-rapida')).toBeVisible()
+      await expect
+        .poll(() => drawer.evaluate(element => element.contains(document.activeElement)))
+        .toBe(true)
+      await page.keyboard.press('Escape')
+      await expect(drawer).not.toBeVisible()
+      await expect(quick).toBeFocused()
+      await page.getByTestId('pedido-fila').first().focus()
+      await page.keyboard.press('Enter')
+      await expect(page).toHaveURL(/\/pedidos\/[^?]+/)
+      await expect(page.getByTestId('pedido-detalle-f3')).toBeVisible()
+      await page.getByRole('button', { name: /Artículos preparados/ }).click()
+      await expect(page.locator('.ventas-f3-detail-item').first()).toBeVisible()
+      const print = page.getByRole('button', { name: 'Imprimir comprobante', exact: true })
+      await print.click()
+      const receipt = page.getByRole('dialog', { name: 'Comprobante', exact: true })
+      await expect(receipt).toBeVisible()
+      await expect(
+        receipt.getByRole('button', { name: 'Descargar PDF', exact: true }),
+      ).toBeVisible()
+      await expect(
+        receipt.getByRole('button', { name: 'Imprimir con diálogo', exact: true }),
+      ).toBeVisible()
+      await page.keyboard.press('Escape')
+      await expect(receipt).not.toBeVisible()
+      await expect(print).toBeFocused()
+      await noOverflow(page)
+      await page.evaluate(() => scrollTo(0, 0))
+      await page.screenshot({
+        path: `${f3Output}/${width}-PedidoDetalle${dark ? '-dark' : ''}.png`,
+        fullPage: true,
+      })
+      await page.getByRole('button', { name: 'Volver a pedidos', exact: true }).click()
+      await expect(page).toHaveURL(/\/pedidos\?filtro=todos/)
+      await selectVentas(page, width, 'Cotizaciones')
+      const quotes = page.getByTestId('ventas-cotizaciones-f3')
+      await expect(quotes).toBeVisible()
+      const quoteData = await page.evaluate(async () => {
+        const { listDemoCotizaciones } = await import('/src/lib/demoCotizaciones.js')
+        const { gs } = await import('/src/utils/calculos.js')
+        return listDemoCotizaciones().map(row => ({
+          number: row.number,
+          name: row.customerName,
+          total: gs(row.totalPyg),
+          status: row.status,
+        }))
+      })
+      await expect(page.getByTestId('cotizacion-fila')).toHaveCount(quoteData.length)
+      for (const row of quoteData) {
+        const card = page.getByTestId('cotizacion-fila').filter({ hasText: row.number })
+        await expect(card.locator('.ventas-f3-name')).toHaveText(row.name)
+        await assertMoneyFits(card.locator('.ventas-f3-quote-total'), row.total)
+        if (['CONVERTED', 'REJECTED', 'EXPIRED', 'CANCELLED'].includes(row.status))
+          await expect(card.getByRole('button', { name: /Convertir|Enviar|Aceptar/ })).toHaveCount(
+            0,
+          )
+      }
+      expect(
+        await page
+          .getByTestId('cotizaciones-tabla')
+          .evaluate(element => element.scrollWidth <= element.clientWidth),
+      ).toBe(true)
+      await noOverflow(page)
+      await page.screenshot({
+        path: `${f3Output}/${width}-Cotizaciones${dark ? '-dark' : ''}.png`,
+        fullPage: true,
+      })
+      await quotes.getByRole('button', { name: 'Enviadas', exact: true }).click()
+      await expect(page.getByTestId('cotizacion-fila')).toHaveCount(
+        quoteData.filter(row => row.status === 'SENT').length,
+      )
+      await quotes.getByRole('button', { name: 'Todas', exact: true }).click()
+      await quotes
+        .getByRole('combobox', { name: 'Más estados de cotización', exact: true })
+        .selectOption('DRAFT')
+      await expect(page.getByTestId('cotizacion-fila')).toHaveCount(
+        quoteData.filter(row => row.status === 'DRAFT').length,
+      )
+      await quotes.getByRole('button', { name: 'Todas', exact: true }).click()
+      await quotes.getByRole('textbox', { name: 'Buscar cotizaciones', exact: true }).fill('iPhone')
+      for (const card of await page.getByTestId('cotizacion-fila').all())
+        await expect(card.locator('.ventas-f3-description')).toContainText(/iPhone/i)
+      await quotes
+        .getByRole('textbox', { name: 'Buscar cotizaciones', exact: true })
+        .fill('ZZ-no-existing-quote')
+      await expect(quotes).toContainText('No hay cotizaciones en esta vista.')
+      await quotes.getByRole('textbox', { name: 'Buscar cotizaciones', exact: true }).fill('')
+      const create = quotes.getByRole('button', { name: '+ Nueva cotización', exact: true })
+      await create.focus()
+      await page.keyboard.press('Enter')
+      const modal = page.getByRole('dialog', { name: 'Nueva cotización', exact: true })
+      await expect(modal).toBeVisible()
+      await expect
+        .poll(() => modal.evaluate(element => element.contains(document.activeElement)))
+        .toBe(true)
+      await page.keyboard.press('Tab')
+      await expect
+        .poll(() => modal.evaluate(element => element.contains(document.activeElement)))
+        .toBe(true)
+      await page.keyboard.press('Escape')
+      await expect(modal).not.toBeVisible()
+      await expect(create).toBeFocused()
+    })
+  }
+}
+
+test('F3 quote primary and secondary handlers, keyboard menu and dialogs remain reachable', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 900 })
+  await enterDemo(page)
+  await page.goto('/cotizaciones')
+  const draft = page.getByTestId('cotizacion-fila').filter({ hasText: 'COT-#0019' })
+  const more = draft.getByRole('button', { name: 'Más', exact: true })
+  await more.focus()
+  await page.keyboard.press('ArrowDown')
+  const menu = page.getByRole('menu', { name: 'Acciones de COT-#0019' })
+  await expect(menu.getByRole('menuitem', { name: 'Enlace/QR', exact: true })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(more).toBeFocused()
+  await more.click()
+  await menu.getByRole('menuitem', { name: 'Historial', exact: true }).click()
+  const history = page.getByRole('dialog', { name: 'Historial de COT-#0019' })
+  await expect(history).toBeVisible()
+  await expect
+    .poll(() => history.evaluate(element => element.contains(document.activeElement)))
+    .toBe(true)
+  await page.keyboard.press('Escape')
+  await expect(history).not.toBeVisible()
+  await expect(more).toBeFocused()
+  // Reopen with the keyboard and close with the dialog button: same persistent trigger.
+  await page.keyboard.press('ArrowDown')
+  await expect(menu.getByRole('menuitem', { name: 'Enlace/QR', exact: true })).toBeFocused()
+  await page.keyboard.press('ArrowDown')
+  await expect(menu.getByRole('menuitem', { name: 'Historial', exact: true })).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(history).toBeVisible()
+  await history.getByRole('button', { name: 'Cerrar', exact: true }).click()
+  await expect(history).not.toBeVisible()
+  await expect(more).toBeFocused()
+  await draft.getByRole('button', { name: 'Enviar', exact: true }).click()
+  await expect(draft).toHaveAttribute('data-estado', 'SENT')
+  await expect(draft.getByRole('button', { name: 'Enviar', exact: true })).toHaveCount(0)
+  await draft.getByRole('button', { name: 'Enlace/QR', exact: true }).click()
+  const link = page.getByRole('dialog', { name: 'Enlace de COT-#0019' })
+  await expect(link).toBeVisible()
+  for (const label of ['Copiar enlace', 'Imprimir', 'Proforma', 'Enviar por WhatsApp'])
+    await expect(link.getByRole('button', { name: label, exact: true })).toBeVisible()
+  await expect(link.getByTestId('compartir-pdf')).toBeVisible()
+  await expect(link.getByTestId('descargar-pdf')).toBeVisible()
+  await link.getByRole('button', { name: 'Vista previa', exact: true }).click()
+  const preview = page.getByRole('dialog', { name: 'Vista previa de la cotización' })
+  await expect(preview).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(preview).not.toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(link).not.toBeVisible()
+  await draft.getByRole('button', { name: 'Más', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Aceptar', exact: true }).click()
+  await expect(draft).toHaveAttribute('data-estado', 'ACCEPTED')
+  await draft.getByRole('button', { name: 'Convertir', exact: true }).click()
+  await expect(draft).toHaveAttribute('data-estado', 'CONVERTED')
+  await expect(draft.getByRole('button', { name: 'Convertir', exact: true })).toHaveCount(0)
+  await draft.getByRole('button', { name: 'Más', exact: true }).click()
+  await expect(page.getByRole('menuitem', { name: 'Cancelar', exact: true })).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  const sent = page.getByTestId('cotizacion-fila').filter({ hasText: 'COT-#0018' })
+  await sent.getByRole('button', { name: 'Más', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Cancelar', exact: true }).click()
+  await expect(sent).toHaveAttribute('data-estado', 'CANCELLED')
+  await noOverflow(page)
+})
+
+for (const width of [320, 390, 1440]) {
+  for (const dark of [false, true]) {
+    test(`F3 isolated 100m orders and quotes ${width}px ${dark ? 'dark' : 'light'}`, async ({
+      page,
+    }) => {
+      await mkdir(f3Output, { recursive: true })
+      await page.setViewportSize({ width, height: 900 })
+      await enterDemo(page)
+      await setF3Theme(page, width, dark)
+      // Ephemeral browser-only override of existing demo rows. No source/seed or server changes.
+      const fixture = await page.evaluate(async () => {
+        const storage = await import('/src/lib/storage.js')
+        const quotes = await import('/src/lib/demoCotizaciones.js')
+        const order = storage.listVentas().find(row => row.status !== 'CANCELLED')
+        const customer = 'Cliente de prueba con nombre completo para importes grandes'
+        const description = 'iPhone 15 Pro Max 512GB Titanio natural'
+        storage.updateVenta(order.id, {
+          cliente: customer,
+          customer: { name: customer },
+          totalPyg: 100000000,
+          subtotalPyg: 100000000,
+          pagos: [],
+          payments: [
+            { id: 'qa-f3-payment', status: 'CONFIRMED', amountPyg: 50000000, method: 'CASH' },
+          ],
+          items: [
+            {
+              id: 'qa-f3-item',
+              description,
+              quantity: 1,
+              totalPyg: 100000000,
+              unitPricePyg: 100000000,
+            },
+          ],
+        })
+        const quote = quotes.listDemoCotizaciones().find(row => row.status === 'DRAFT')
+        quotes.actualizarDemoCotizacion(quote.id, {
+          customerName: customer,
+          totalPyg: 100000000,
+          subtotalPyg: 100000000,
+          items: [{ description, quantity: 1, totalPyg: 100000000, unitPricePyg: 100000000 }],
+        })
+        return { id: order.id, quoteNumber: quote.number, customer, description }
+      })
+      await page
+        .getByTestId(width < 1024 ? 'shell-bottom-nav' : 'shell-lateral')
+        .getByRole('button', { name: 'Ventas', exact: true })
+        .click()
+      await page.getByRole('button', { name: 'Todos', exact: true }).click()
+      const order = page.getByTestId('pedido-fila').filter({ hasText: fixture.customer })
+      await assertMoneyFits(order.locator('.ventas-f3-order-total'), 'Gs 100.000.000')
+      await expect(order.locator('.ventas-f3-description')).toContainText(fixture.description)
+      await order.getByRole('button', { name: /Vista rápida/ }).click()
+      const quick = page.getByTestId('pedido-vista-rapida')
+      await expect(quick).toBeVisible()
+      const quickTotal = quick.locator('dd').filter({ hasText: /^Gs 100\.000\.000$/ })
+      await expect(quickTotal).toHaveText('Gs 100.000.000')
+      expect(await quickTotal.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(
+        true,
+      )
+      await page.keyboard.press('Escape')
+      await order.click()
+      await expect(page).toHaveURL(new RegExp(`/pedidos/${fixture.id}`))
+      for (const [index, value] of ['Gs 100.000.000', 'Gs 50.000.000', 'Gs 50.000.000'].entries())
+        await assertMoneyFits(page.getByTestId('pedido-totales-f3').locator('dd').nth(index), value)
+      await page.getByRole('button', { name: /Artículos preparados/ }).click()
+      await expect(page.locator('.ventas-f3-detail-item')).toContainText(fixture.description)
+      await page.getByRole('button', { name: /Información de pago/ }).click()
+      for (const close of await page
+        .getByRole('button', { name: 'Cerrar aviso', exact: true })
+        .all())
+        await close.click()
+      await page.evaluate(() => scrollTo(0, 0))
+      await expect(page.getByTestId('pedido-totales-f3')).toBeInViewport()
+      await page
+        .getByTestId('pedido-totales-f3')
+        .screenshot({ path: `${f3Output}/${width}-Pedido100m-totals${dark ? '-dark' : ''}.png` })
+      await page.evaluate(() => scrollTo(0, 0))
+      await noOverflow(page)
+      await page.screenshot({
+        path: `${f3Output}/${width}-Pedido100m${dark ? '-dark' : ''}.png`,
+        fullPage: true,
+      })
+      await selectVentas(page, width, 'Cotizaciones')
+      const quote = page.getByTestId('cotizacion-fila').filter({ hasText: fixture.quoteNumber })
+      await assertMoneyFits(quote.locator('.ventas-f3-quote-total'), 'Gs 100.000.000')
+      await expect(quote.locator('.ventas-f3-name')).toHaveText(fixture.customer)
+      await noOverflow(page)
+      await page.screenshot({
+        path: `${f3Output}/${width}-Cotizacion100m${dark ? '-dark' : ''}.png`,
+        fullPage: true,
+      })
+    })
+  }
+}

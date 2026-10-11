@@ -2,7 +2,7 @@
 
 Fecha: 2026-10-11. Worktree: `/Users/dariodeoli/Documents/GitHub/MobOS-nav-v2`.
 Rama: `codex/mobos-nav-v2`. Checkpoint de entrada verificado: `a33817c2` (#341, commit local). Árbol limpio al comenzar.
-Estado: parche frontend cohesivo **sin commit**. Sin fetch/rebase, main, push, PR, cierre de issue, integración, CI ni deploy. RDD apagado por instrucción; sin SDD, revisión nativa ni delegación recursiva.
+Estado actual: checkpoint F2 en commit **local `2f3be6a4`**, creado posteriormente por el padre; árbol limpio verificado al iniciar #343. La ejecución y corrección documentadas abajo no crearon commits. Sin push, PR, cierre de issue, integración, CI ni deploy. RDD apagado por instrucción; sin SDD, revisión nativa ni delegación recursiva.
 
 ## Alcance y decisiones
 
