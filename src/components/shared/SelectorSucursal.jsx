@@ -46,7 +46,7 @@ export default function SelectorSucursal({ className }) {
         )}
       >
         <Icon name="store" className="h-[15px] w-[15px]" />
-        <span className="hidden max-w-[110px] truncate sm:block sm:max-w-[180px]">{actual}</span>
+        <span className="max-w-[180px] truncate">{actual}</span>
       </div>
     )
   }

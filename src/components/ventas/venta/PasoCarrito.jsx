@@ -171,27 +171,27 @@ export default function PasoCarrito({
       )}
 
       <div className="border-t border-ink-600 bg-ink-700 px-3.5 py-2.5">
-        <div className="flex items-center justify-between text-xs text-mute">
+        <div className="pos-money-row flex flex-wrap items-center justify-between gap-x-2 text-xs text-mute">
           <span>Subtotal</span>
-          <span className="tabular-nums">{gs(totalCarrito)}</span>
+          <span className="pos-money-value tabular-nums">{gs(totalCarrito)}</span>
         </div>
         {descuentoTotal > 0 && (
-          <div className="flex items-center justify-between text-xs text-warn">
+          <div className="pos-money-row flex flex-wrap items-center justify-between gap-x-2 text-xs text-warn">
             <span>Descuento</span>
-            <span className="tabular-nums">− {gs(descuentoTotal)}</span>
+            <span className="pos-money-value tabular-nums">− {gs(descuentoTotal)}</span>
           </div>
         )}
         {Number(montoDelivery || 0) > 0 && (
-          <div className="flex items-center justify-between text-xs text-mute">
+          <div className="pos-money-row flex flex-wrap items-center justify-between gap-x-2 text-xs text-mute">
             <span>Envío</span>
-            <span className="tabular-nums">{gs(montoDelivery)}</span>
+            <span className="pos-money-value tabular-nums">{gs(montoDelivery)}</span>
           </div>
         )}
         {/* #309: el total vive acá (una sola vez, más destacado) y no se repite
             en el resumen del encabezado. */}
-        <div className="mt-1 flex items-baseline justify-between border-t border-fono/20 pt-1.5">
+        <div className="mt-1 flex flex-col items-start gap-1 border-t border-fono/20 pt-1.5">
           <span className="text-[11px] font-bold uppercase tracking-wider text-mute">Total</span>
-          <span data-testid="carrito-total" className="v2-numero text-3xl font-extrabold tracking-tight tabular-nums text-fore">
+          <span data-testid="carrito-total" className="pos-money-value v2-numero text-[clamp(1.25rem,5vw,1.75rem)] font-extrabold tracking-tight tabular-nums text-fore">
             {gs(totalGeneral ?? totalCarrito)}
           </span>
         </div>
@@ -199,14 +199,14 @@ export default function PasoCarrito({
             para leer el estado sin bajar al bloque de cobro. */}
         {conPagos && (
           <div className="mt-1.5 space-y-0.5 border-t border-ink-600/60 pt-1.5 text-[11px]">
-            <div className="flex items-center justify-between">
+            <div className="pos-money-row flex flex-wrap items-center justify-between gap-x-2">
               <span className="text-mute">Pagado</span>
-              <span className="tabular-nums font-semibold text-ok" data-testid="carrito-pagado">{gs(totalPagado)}</span>
+              <span className="pos-money-value tabular-nums font-semibold text-ok" data-testid="carrito-pagado">{gs(totalPagado)}</span>
             </div>
             {pendiente > 0 && (
-              <div className="flex items-center justify-between">
+              <div className="pos-money-row flex flex-wrap items-center justify-between gap-x-2">
                 <span className="text-warn">Pendiente</span>
-                <span className="tabular-nums font-semibold text-warn" data-testid="carrito-pendiente">{gs(pendiente)}</span>
+                <span className="pos-money-value tabular-nums font-semibold text-warn" data-testid="carrito-pendiente">{gs(pendiente)}</span>
               </div>
             )}
           </div>

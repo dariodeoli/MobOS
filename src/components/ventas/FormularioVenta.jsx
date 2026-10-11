@@ -63,6 +63,7 @@ import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
 import PasoProductos from './venta/PasoProductos'
 import PasoCarrito from './venta/PasoCarrito'
 import PasoCobro from './venta/PasoCobro'
+import { orderDetailPath } from '@/lib/orderDetailNavigation'
 import { CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
 import { PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
 
@@ -1128,6 +1129,7 @@ export default function FormularioVenta({
     guardadoEnCurso.current = true
     let ventaPersistida = false
     let completedOrder = null
+    const orderContext = contextoActual()
     // Payload de la venta tal como viajaría a la API: si la conexión se corta,
     // se encola este mismo objeto (con `offline: true`) sin perder nada.
     let payloadParaCola = null
@@ -1349,8 +1351,8 @@ export default function FormularioVenta({
         irAlDetalleRef.current = setTimeout(() => {
           irAlDetalleRef.current = null
           // Si el vendedor ya se movió a otra pantalla, no lo interrumpimos.
-          if (window.location.pathname !== '/pos') return
-          navigate(`/pedidos/${encodeURIComponent(pedidoId)}`)
+          const path = orderDetailPath(completedOrder, orderContext, contextoActual(), window.location.pathname)
+          if (path) navigate(path)
         }, MS_CONFIRMACION_ANTES_DEL_DETALLE)
       }
     } catch (error) {

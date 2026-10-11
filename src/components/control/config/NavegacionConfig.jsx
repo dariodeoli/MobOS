@@ -1,26 +1,23 @@
-import { NavegacionSeccion } from 'owncoding-ui'
+import SectionSelector from '@/components/app/SectionSelector'
 import { grupoConfig } from './gruposConfig'
 
-// Adaptador (#253): el riel de secciones (tira horizontal en mobile, centrado
-// del activo y descripción del grupo) vive en la biblioteca; acá queda el
-// catálogo de los 7 grupos.
-//
-// #298: una sola navegación de Configuración, **siempre con texto**. Se retiró
-// el colapso a solo iconos (la navegación sin rótulos no se entendía); el riel
-// conserva los testids y el deep link intactos.
 export default function NavegacionConfig({ value, onChange, items = [], children }) {
-  const grupos = items.map(([id, label]) => ({ id, label, ...(grupoConfig(id) || {}) }))
-
+  const group = grupoConfig(value)
   return (
-    <NavegacionSeccion
-      items={grupos}
-      value={value}
-      onChange={onChange}
-      ariaLabel="Secciones de Configuración"
-      testId="config-grupos"
-      testIdDescripcion="config-grupo-descripcion"
-    >
+    <>
+      <SectionSelector
+        items={items}
+        value={value}
+        onChange={onChange}
+        label="Secciones de Configuración"
+        testId="config-grupos"
+      />
+      {group?.descripcion && (
+        <p data-testid="config-grupo-descripcion" className="mb-4 text-sm text-mute">
+          {group.descripcion}
+        </p>
+      )}
       {children}
-    </NavegacionSeccion>
+    </>
   )
 }

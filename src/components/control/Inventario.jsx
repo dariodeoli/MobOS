@@ -1413,12 +1413,6 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
     () => GRUPOS_INVENTARIO.map((grupo) => ({ ...grupo, tabs: grupo.tabs.filter((id) => (id !== 'alertas' && id !== 'autorizaciones') || canViewAlerts) })),
     [canViewAlerts],
   )
-  const grupoActivo = grupos.find((grupo) => grupo.tabs.includes(tab))?.id || grupos[0]?.id
-  function cambiarGrupo(id) {
-    const grupo = grupos.find((item) => item.id === id)
-    if (!grupo || grupo.id === grupoActivo) return
-    cambiarTab(grupo.tabs[0])
-  }
   function requestReason(kind, unitOrUnits) {
     const units = Array.isArray(unitOrUnits) ? unitOrUnits : [unitOrUnits]
     const unit = units[0]
@@ -1502,15 +1496,10 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
         {/* #305: navegación agrupada Stock · Movimientos · Control; el grupo
             activo se deriva de la pestaña, así los enlaces directos siguen
             abriendo su vista. */}
-        <div data-testid="grupos-inventario" role="group" aria-label="Grupos de inventario" className="flex flex-wrap items-center gap-1">
-          {grupos.map((grupo) => (
-            <button key={grupo.id} type="button" aria-pressed={grupoActivo === grupo.id} onClick={() => cambiarGrupo(grupo.id)} className={cn('min-h-11 shrink-0 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wider transition md:min-h-0', grupoActivo === grupo.id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:bg-ink-700 hover:text-fore')}>{grupo.label}{grupo.id === 'control' && pendientesStock > 0 && <span aria-hidden="true" data-testid="inventario-grupo-control-pendientes" className="ml-1 rounded-full bg-warn/20 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-warn">{pendientesStock}</span>}</button>
-          ))}
-        </div>
-        <div data-testid="tabs-inventario" className="mt-2 flex gap-1 overflow-x-auto rounded-lg border border-ink-600 bg-ink-800 p-1">
-          {(grupos.find((grupo) => grupo.id === grupoActivo)?.tabs || []).map((clave) => (
-            <button key={clave} type="button" aria-pressed={tab === clave} onClick={() => cambiarTab(clave)} className={`min-h-11 shrink-0 rounded-md px-3 py-2 text-xs font-semibold md:min-h-0 ${tab === clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{TAB_LABEL[clave]}{clave === 'autorizaciones' && pendientesStock > 0 && <span aria-hidden="true" data-testid="inventario-tab-autorizaciones-pendientes" className="ml-1 rounded-full bg-warn/20 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-warn">{pendientesStock}</span>}</button>
-          ))}
+        <div data-testid="grupos-inventario" className="mb-2">
+          <Select data-testid="tabs-inventario" aria-label="Sección de inventario" value={tab} onChange={event => cambiarTab(event.target.value)} className="min-h-11 w-full lg:max-w-sm">
+            {grupos.map(grupo => <optgroup key={grupo.id} label={grupo.label}>{grupo.tabs.map(id => <option key={id} value={id}>{TAB_LABEL[id]}{id === 'autorizaciones' && pendientesStock > 0 ? ` (${pendientesStock} pendientes)` : ''}</option>)}</optgroup>)}
+          </Select>
         </div>{notice && <Aviso tono="ok" className="mt-3">{notice}</Aviso>}{error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
     <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
       <button type="button" disabled={busy} data-testid="vender-todos" title="Cargar la venta de todas las seleccionadas en el POS" onClick={venderTodos} className="min-h-11 rounded-lg border border-fono/50 bg-fono/10 px-2 py-1 text-xs md:min-h-0 font-semibold text-fono-light transition hover:bg-fono/20 disabled:opacity-50">Vender todos</button>

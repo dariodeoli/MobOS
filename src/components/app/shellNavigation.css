@@ -1,0 +1,91 @@
+/* Scoped to the authenticated shell; landing, portal and demo data are unchanged. */
+.shell-nav-v2 {
+  --c-paper: 246 247 246;
+  --c-ink: 255 255 255;
+  --c-ink-600: 228 231 228;
+  --c-ink-700: 240 242 240;
+  --c-fore: 14 17 22;
+  --c-mute: 90 100 112;
+  --shell-bottom-space: calc(56px + env(safe-area-inset-bottom, 0px));
+}
+.dark .shell-nav-v2 {
+  --c-paper: 11 13 16;
+  --c-ink: 19 22 27;
+  --c-ink-600: 47 53 64;
+  --c-ink-700: 24 28 34;
+  --c-fore: 242 244 247;
+  --c-mute: 163 172 184;
+}
+.shell-nav-v2 .shell-body {
+  padding-bottom: var(--shell-bottom-space);
+}
+.shell-nav-v2 button:focus-visible {
+  outline: 2px solid rgb(var(--c-fono));
+  outline-offset: 2px;
+}
+/* Primary action colors only; semantic green statuses and the logo stay intact. */
+.shell-nav-v2 button.bg-fono:not([role='switch']) {
+  background: rgb(var(--c-fore));
+  color: rgb(var(--c-ink));
+}
+.shell-nav-v2 button.bg-fono:not([role='switch']):hover {
+  opacity: 0.9;
+}
+@media (min-width: 1024px) {
+  .shell-nav-v2 .shell-body {
+    padding-bottom: 0;
+  }
+}
+@media (max-width: 1023px) {
+  .shell-nav-v2 [data-testid='sucursal-selector'],
+  .shell-nav-v2 [data-testid='sucursal-info'] {
+    max-width: 220px;
+    min-height: 44px;
+  }
+}
+/* A software keyboard must not compete with the fixed navigation for space. */
+@media (max-width: 1023px) and (max-height: 480px) {
+  .shell-nav-v2:has(input:focus, textarea:focus) .shell-bottom-nav {
+    display: none;
+  }
+}
+/* Neutral selected navigation, with green retained only on the active icon. */
+.shell-nav-v2.tema-v2 nav [aria-current='page'] {
+  color: rgb(var(--c-fore));
+  background: rgb(var(--c-ink-700));
+}
+.shell-nav-v2.tema-v2 .shell-bottom-nav [aria-current='page'],
+.shell-nav-v2.tema-v2 .shell-section-selector [aria-current='page'] {
+  background: transparent;
+  border-radius: 0;
+}
+@media (max-width: 1023px) {
+  /* Dialogs own focus and the viewport; background navigation cannot compete. */
+  body:has([role='dialog'][aria-modal='true']) .shell-nav-v2 .shell-bottom-nav,
+  body:has([role='dialog'][aria-modal='true']) .shell-nav-v2 [data-testid='pos-barra-accion'] {
+    display: none;
+  }
+  .shell-nav-v2:has(input:focus, textarea:focus) [data-testid='pos-barra-accion'] {
+    bottom: var(--shell-bottom-space);
+  }
+}
+@media (max-width: 1023px) and (max-height: 480px) {
+  .shell-nav-v2:has(input:focus, textarea:focus) [data-testid='pos-barra-accion'] {
+    position: static;
+  }
+}
+
+/* Money stays complete: no ellipsis, abbreviation, or broken digit strings. */
+.shell-nav-v2 .pos-money-value {
+  max-width: 100%;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.shell-nav-v2 [data-testid='pos-tiles-resumen'] > span {
+  min-width: 0;
+}
+@media (max-width: 1023px) {
+  .shell-nav-v2:has([data-testid='pos-barra-accion']) .shell-body {
+    padding-bottom: calc(var(--shell-bottom-space) + 148px);
+  }
+}

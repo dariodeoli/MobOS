@@ -22,11 +22,6 @@ const DELIVERY_NAV = [
   },
 ]
 
-const DELIVERY_BOTTOM = [
-  ['repartos', 'Repartos', 'truck'],
-  ['rendiciones', 'Rendir', 'receipt'],
-]
-
 const LABELS = { repartos: 'Mis repartos', rendiciones: 'Rendiciones' }
 
 export default function PanelDelivery() {
@@ -57,8 +52,6 @@ export default function PanelDelivery() {
       <AppShell
         title={LABELS[vista] || 'Mis repartos'}
         nav={DELIVERY_NAV}
-        bottomNav={DELIVERY_BOTTOM}
-        onOpenMenuLabel="Menú"
         active={vista}
         onNavigate={id => navigate(`/delivery/${id}`)}
         empresa={empresa}
