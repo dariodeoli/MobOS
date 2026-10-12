@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { runInNewContext } from 'node:vm'

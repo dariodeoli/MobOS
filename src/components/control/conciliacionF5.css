@@ -1,0 +1,228 @@
+/* F5 reconciliation only. Preserve shared shell, controls and financial engines. */
+.conciliacion-f5 {
+  container-type: inline-size;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.conciliacion-f5 > * {
+  min-width: 0;
+  box-shadow: none;
+}
+.conciliacion-f5-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border: 1px solid rgb(var(--c-ink-600));
+  border-radius: 10px;
+  background: rgb(var(--c-ink));
+}
+.conciliacion-f5-kpi {
+  min-width: 0;
+  padding: 12px;
+  border-bottom: 1px solid rgb(var(--c-ink-600));
+}
+.conciliacion-f5-kpi strong {
+  font-size: 22px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+.conciliacion-f5-kpi > p:first-child {
+  text-transform: none;
+  letter-spacing: normal;
+}
+.conciliacion-f5-progress {
+  grid-column: 1 / -1;
+  padding: 10px 12px;
+}
+.conciliacion-f5-progress > div:first-child {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.conciliacion-f5 .conciliacion-f5-header {
+  display: none;
+}
+.conciliacion-f5-payment,
+.conciliacion-f5-group,
+.conciliacion-f5-batch {
+  min-width: 0;
+  border-radius: 10px;
+  background: rgb(var(--c-ink));
+}
+.conciliacion-f5-payment-grid,
+.conciliacion-f5-group-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  align-items: center;
+}
+.conciliacion-f5-payment [data-label='Pedido / cliente'],
+.conciliacion-f5-payment [data-label='Cuenta / titular'],
+.conciliacion-f5-payment [data-label='Monto'],
+.conciliacion-f5-payment [data-label='Conciliación / pago'],
+.conciliacion-f5-payment [data-label='Acciones'],
+.conciliacion-f5-group [data-label] {
+  grid-column: 1 / -1;
+}
+.conciliacion-f5 [data-label] {
+  min-width: 0;
+}
+.conciliacion-f5 [data-label]::before {
+  content: attr(data-label);
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgb(var(--c-mute));
+}
+.conciliacion-f5-payment [data-label='Conciliación / pago']::before {
+  flex-basis: 100%;
+}
+.conciliacion-f5 .truncate {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+.conciliacion-f5 .conciliacion-f5-money,
+.conciliacion-f5-batch-money b {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.conciliacion-f5-batch-money {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  text-align: left;
+}
+.conciliacion-f5 button,
+.conciliacion-f5 select,
+.conciliacion-f5 input:not([type='checkbox']) {
+  min-height: 44px;
+  max-width: 100%;
+}
+.conciliacion-f5 button {
+  min-width: 44px;
+}
+.conciliacion-f5-payment > input[type='checkbox'] {
+  width: 44px;
+  height: 44px;
+}
+.conciliacion-f5 :is(button, select, input):focus-visible {
+  outline: 2px solid rgb(var(--c-fore));
+  outline-offset: 3px;
+}
+@container (min-width: 620px) {
+  .conciliacion-f5-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .conciliacion-f5-kpi:nth-child(odd) {
+    border-right: 1px solid rgb(var(--c-ink-600));
+  }
+  .conciliacion-f5-batch-money {
+    width: auto;
+    grid-template-columns: repeat(3, max-content);
+  }
+}
+@container (min-width: 1060px) {
+  .conciliacion-f5-summary {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .conciliacion-f5-kpi:not(:nth-child(4)) {
+    border-right: 1px solid rgb(var(--c-ink-600));
+  }
+  .conciliacion-f5-payment-grid {
+    grid-template-columns:
+      24px 52px minmax(0, 1.2fr) minmax(0, 1.2fr) 76px minmax(0, 1fr)
+      130px 110px 82px;
+    gap: 8px;
+  }
+  .conciliacion-f5-group-grid {
+    grid-template-columns: minmax(0, 1.4fr) 42px 132px 132px 140px minmax(0, 1fr);
+  }
+  .conciliacion-f5 .conciliacion-f5-header {
+    display: grid;
+    color: rgb(var(--c-mute));
+  }
+  .conciliacion-f5-header > span {
+    text-transform: none;
+    letter-spacing: normal;
+    overflow-wrap: anywhere;
+  }
+  .conciliacion-f5 [data-label] {
+    grid-column: auto;
+  }
+  .conciliacion-f5 [data-label]::before {
+    display: none;
+  }
+  .conciliacion-f5-payment > input[type='checkbox'] {
+    width: 20px;
+    height: 20px;
+  }
+  .conciliacion-f5-payment button {
+    min-height: 32px;
+  }
+}
+@container (max-width: 1059px) {
+  .conciliacion-f5-kpi {
+    padding-block: 6px;
+  }
+  .conciliacion-f5-payment [data-label]::before {
+    display: inline;
+    margin-right: 4px;
+    flex-basis: auto;
+  }
+  .conciliacion-f5-payment [data-label] > b {
+    display: inline;
+  }
+  .conciliacion-f5-batch-money > span {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+/* One bounded density correction; only this component owns these containers. */
+.conciliacion-f5-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+.conciliacion-f5-filters > * {
+  min-width: 0;
+}
+.conciliacion-f5-digits {
+  white-space: nowrap;
+}
+@container (max-width: 1059px) {
+  .conciliacion-f5-panel {
+    padding: 10px;
+  }
+  .conciliacion-f5-payment-grid {
+    gap: 6px;
+  }
+}
+@container (min-width: 300px) {
+  .conciliacion-f5-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container (min-width: 350px) and (max-width: 619px) {
+  .conciliacion-f5-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .conciliacion-f5-kpi:nth-child(odd) {
+    border-right: 1px solid rgb(var(--c-ink-600));
+  }
+  /* Reserve room for the full signed amount at the existing 22px type size. */
+  .conciliacion-f5-kpi {
+    padding-inline: 8px;
+  }
+  .conciliacion-f5-currency {
+    display: block;
+    font-size: 12px;
+    line-height: 1.25;
+  }
+}
+@container (min-width: 620px) {
+  .conciliacion-f5-filters {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

@@ -18,7 +18,7 @@ import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { CLAVES_FIN, filtrosConciliacionValidos, rangoDePreset } from '@/lib/finUltimoUsado'
 import { cn } from '@/lib/utils'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
-import { GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
+import './conciliacionF5.css'
 // Conciliación y trazabilidad (#144): ingresos por cuenta, medio y
 // procesadora; conciliación en lote de depósitos/transferencias recibidas
 // (esperado vs recibido + diferencia) y detalle pago por pago con acceso al
@@ -38,14 +38,11 @@ const fecha = (valor) => {
 }
 const rangoPorDefecto = () => ({ ...PRESETS.find((preset) => preset.id === '30d').calc(), preset: '30d' })
 
-const GRID_GRUPOS = 'grid min-w-[46rem] grid-cols-[minmax(0,1.5fr)_5rem_6.5rem_6.5rem_7rem_minmax(0,1fr)] items-center gap-x-2'
-// 60rem entra sin scroll a 1280 (viewport de desktop mínimo) y por debajo
-// scrollea dentro de su caja; columnas fijas medidas sobre el dato real.
-const GRID_ITEMS = 'grid min-w-[60rem] grid-cols-[1.5rem_5.5rem_minmax(0,1.3fr)_minmax(0,1.2fr)_7rem_minmax(0,0.9fr)_7rem_6.5rem_5rem] items-center gap-x-2'
+const GRID_GRUPOS = 'conciliacion-f5-group-grid'
+const GRID_ITEMS = 'conciliacion-f5-payment-grid'
 
 function Resumen({ resumen }) {
-  // Vista previa v2 (#241): tiles de consola, números grandes y el "x de y" de
-  // la conciliación (pagos conciliados sobre el total del período).
+  // Flat summary strip; values and progress retain their original source.
   const v2 = temaV2Activo()
   // Los contadores llegan con la carga: sin el resumen completo, los textos
   // mostraban "undefined" (hallazgo de la captura). Acá se normalizan a 0.
@@ -57,21 +54,37 @@ function Resumen({ resumen }) {
     { label: 'Diferencia de lotes', valor: n(resumen.differencePyg), sub: `${n(resumen.lotes)} lote(s) en el período`, tono: n(resumen.differencePyg) ? 'text-bad' : '' },
   ]
   return (
-    <div className={cn('lg:grid-cols-4', GRILLA_DOS_COLUMNAS_COMPACTA)}>
+    <div className="conciliacion-f5-summary" data-testid="conciliacion-resumen">
       {tarjetas.map((tarjeta) => (
-        <div key={tarjeta.label} className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile', tarjeta.tono === 'text-warn' && 'border-warn/40 bg-warn/5')}>
+        <div key={tarjeta.label} className="conciliacion-f5-kpi">
           <p className={ROTULO_DATO}>{tarjeta.label}</p>
-          <strong className={cn('mt-1 block tabular-nums', v2 && 'v2-numero text-2xl', tarjeta.tono)}>{gs(tarjeta.valor || 0)}</strong>
+          <strong
+            className={cn('mt-1 block tabular-nums', v2 && 'v2-numero text-2xl', tarjeta.tono)}
+          >
+            <span className="conciliacion-f5-currency">Gs </span>
+            <span className="conciliacion-f5-digits">{gs(tarjeta.valor || 0).slice(3)}</span>
+          </strong>
           <p className="mt-0.5 text-[11px] text-mute">{tarjeta.sub}</p>
         </div>
       ))}
       {v2 && n(resumen.count) > 0 && (
-        <div className="lg:col-span-4">
+        <div className="conciliacion-f5-progress">
           <div className="flex items-center justify-between text-[11px] text-mute">
-            <span>Conciliado {n(resumen.verifiedCount)} de {n(resumen.count)} pagos del período</span>
-            <span>{n(resumen.pendingCount) > 0 ? `Faltan ${n(resumen.pendingCount)}` : 'Al día'}</span>
+            <span>
+              Conciliado {n(resumen.verifiedCount)} de {n(resumen.count)} pagos del período
+            </span>
+            <span>
+              {n(resumen.pendingCount) > 0 ? `Faltan ${n(resumen.pendingCount)}` : 'Al día'}
+            </span>
           </div>
-          <BarraProgreso className="mt-1" valor={n(resumen.verifiedCount)} max={n(resumen.count)} tono={n(resumen.pendingCount) > 0 ? 'warn' : 'ok'} alto="sm" etiqueta={`Conciliación: ${n(resumen.verifiedCount)} de ${n(resumen.count)} pagos`} />
+          <BarraProgreso
+            className="mt-1"
+            valor={n(resumen.verifiedCount)}
+            max={n(resumen.count)}
+            tono={n(resumen.pendingCount) > 0 ? 'warn' : 'ok'}
+            alto="sm"
+            etiqueta={`Conciliación: ${n(resumen.verifiedCount)} de ${n(resumen.count)} pagos`}
+          />
         </div>
       )}
     </div>
@@ -79,41 +92,118 @@ function Resumen({ resumen }) {
 }
 
 function Grupos({ titulo, filas, activo, onFiltrar }) {
-  const [abierto, setAbierto] = useState(true)
+  const [abierto, setAbierto] = useState(false)
   if (!filas?.length) return null
   return (
-    <Card className="space-y-2">
+    <Card className="conciliacion-f5-panel space-y-2">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">{titulo}</h3>
-        <button type="button" aria-expanded={abierto} className="text-xs text-mute transition hover:text-fore" onClick={() => setAbierto((valor) => !valor)}>{abierto ? 'Ocultar' : 'Mostrar'}</button>
+        <button
+          type="button"
+          aria-expanded={abierto}
+          aria-controls="conciliacion-group-content"
+          aria-label={`${abierto ? 'Ocultar' : 'Mostrar'} ${titulo}`}
+          className="text-xs text-mute transition hover:text-fore"
+          onClick={() => setAbierto((valor) => !valor)}
+        >
+          {abierto ? 'Ocultar' : 'Mostrar'}
+        </button>
       </div>
-      {abierto && <div className="overflow-x-auto" data-testid="conciliacion-grupos">
-        <div className={cn(GRID_GRUPOS, 'px-3.5 pb-2 pt-1')}>
-          {['Cuenta / procesadora', 'Pagos', 'Conciliado', 'Por conciliar', 'Diferencia', 'Detalle'].map((columna) => <span key={columna} className={CELDA_ENCABEZADO}>{columna}</span>)}
-        </div>
-        <div className="space-y-1">
-          {filas.map((fila) => (
-            <button
-              key={fila.key}
-              type="button"
-              onClick={() => onFiltrar(fila)}
-              className={cn(GRID_GRUPOS, 'w-full rounded-xl border px-3.5 py-2 text-left transition hover:border-fono/40', activo(fila) ? 'border-fono/50 bg-fono/10' : 'border-ink-600 bg-ink-800/40')}
-            >
-              <span className="min-w-0">
-                <b className={cn('block', CELDA_IDENTIDAD)}>{fila.label}</b>
-                <span className="mt-0.5 block truncate text-[11px] text-mute">{[medioDe(fila.method), fila.processor, fila.secondary].filter(Boolean).join(' · ') || '—'}</span>
+      {abierto && (
+        <div id="conciliacion-group-content" data-testid="conciliacion-grupos">
+          <div className={cn(GRID_GRUPOS, 'conciliacion-f5-header px-3.5 pb-2 pt-1')}>
+            {[
+              'Cuenta / procesadora',
+              'Pagos',
+              'Conciliado',
+              'Por conciliar',
+              'Diferencia',
+              'Detalle',
+            ].map((columna) => (
+              <span key={columna} className={CELDA_ENCABEZADO}>
+                {columna}
               </span>
-              <span className="truncate text-xs tabular-nums text-mute">{fila.count}</span>
-              <span className="truncate text-xs tabular-nums text-ok">{gs(fila.verifiedPyg)}</span>
-              <span className="truncate text-xs tabular-nums text-warn">{gs(fila.unverifiedPyg)}</span>
-              <span className={cn('truncate text-xs tabular-nums', fila.differencePyg ? 'text-bad' : 'text-mute')}>{fila.differencePyg ? gs(fila.differencePyg) : '—'}</span>
-              <span className="truncate text-[11px] text-mute">{fila.pendingCount} por conciliar · {fila.verifiedCount} conciliados</span>
-            </button>
-          ))}
+            ))}
+          </div>
+          <div className="space-y-1">
+            {filas.map((fila) => (
+              <button
+                key={fila.key}
+                type="button"
+                onClick={() => onFiltrar(fila)}
+                className={cn(
+                  GRID_GRUPOS,
+                  'conciliacion-f5-group w-full border px-3.5 py-2 text-left transition hover:border-fono/40',
+                  activo(fila) ? 'border-fono/50 bg-fono/10' : 'border-ink-600 bg-ink-800/40',
+                )}
+              >
+                <span data-label="Cuenta / procesadora" className="min-w-0">
+                  <b className={cn('block', CELDA_IDENTIDAD)}>{fila.label}</b>
+                  <span className="mt-0.5 block truncate text-[11px] text-mute">
+                    {[medioDe(fila.method), fila.processor, fila.secondary]
+                      .filter(Boolean)
+                      .join(' · ') || '—'}
+                  </span>
+                </span>
+                <span data-label="Pagos" className="text-xs tabular-nums text-mute">
+                  {fila.count}
+                </span>
+                <span
+                  data-label="Conciliado"
+                  className="conciliacion-f5-money text-xs tabular-nums text-ok"
+                >
+                  {gs(fila.verifiedPyg)}
+                </span>
+                <span
+                  data-label="Por conciliar"
+                  className="conciliacion-f5-money text-xs tabular-nums text-warn"
+                >
+                  {gs(fila.unverifiedPyg)}
+                </span>
+                <span
+                  data-label="Diferencia"
+                  className={cn(
+                    'conciliacion-f5-money text-xs tabular-nums',
+                    fila.differencePyg ? 'text-bad' : 'text-mute',
+                  )}
+                >
+                  {fila.differencePyg ? gs(fila.differencePyg) : '—'}
+                </span>
+                <span data-label="Detalle" className="text-[11px] text-mute">
+                  {fila.pendingCount} por conciliar · {fila.verifiedCount} conciliados
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>}
+      )}
     </Card>
   )
+}
+
+// Presentation-only paging: selection and pending totals continue to use all filtered items.
+function useRenderedPayments(items) {
+  const [page, setPage] = useState(0)
+  const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 1100px)').matches)
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 1100px)')
+    const update = () => setCompact(media.matches)
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+  const size = compact ? 2 : 20
+  useEffect(() => {
+    setPage(0)
+  }, [items, size])
+  const pages = Math.max(1, Math.ceil(items.length / size))
+  const current = Math.min(page, pages - 1)
+  return {
+    current,
+    pages,
+    setPage,
+    start: current * size,
+    rows: items.slice(current * size, (current + 1) * size),
+  }
 }
 
 export default function Conciliacion() {
@@ -292,19 +382,21 @@ export default function Conciliacion() {
     } catch (cause) { setError(cause?.message || 'No se pudo abrir el pedido.') }
   }
 
+  // F5 presentation boundary; financial handlers above remain unchanged.
+  const rendered = useRenderedPayments(filtrados)
+
   return (
-    <div className="space-y-4">
-      <Card className="space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="font-bold">Conciliación y trazabilidad</h2>
-            <p className="mt-1 text-sm text-mute">Ingresos por cuenta, medio y procesadora. Conciliá en lote el depósito o la transferencia recibida contra los pagos que debería cubrir: esperado vs recibido, diferencia y detalle hasta el pedido.</p>
-            {esDemo && <p className="mt-1 text-xs text-fono-light">Demo: cobros y cuentas ficticios; los lotes conciliados se guardan en este navegador.</p>}
-          </div>
-          {/* #249 H3: mismo criterio táctil que Caja en mobile. */}
-          <RangoFechas valor={rango} onChange={cambiarRango} className="[&>button]:h-11 md:[&>button]:h-9" />
+    <div className="conciliacion-f5 space-y-3">
+      <Card className="conciliacion-f5-panel space-y-3">
+        <div>
+          <p className="text-sm text-mute">Comparación de pagos y depósitos: esperado, recibido y diferencia.</p>
+          {esDemo && <p className="mt-1 text-xs text-fono-light">Demo: cobros y cuentas ficticios; lotes solo en este navegador.</p>}
         </div>
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="conciliacion-f5-filters">
+          <div className="text-xs text-mute">
+            <p className="mb-1">Período</p>
+            <RangoFechas valor={rango} onChange={cambiarRango} className="[&>button]:h-11 md:[&>button]:h-9" />
+          </div>
           <label className="text-xs text-mute">Cuenta
             <Select className="mt-1" title="Se recuerda tu último filtro" value={filtros.accountId} onChange={(event) => cambiarFiltro('accountId', event.target.value)}>
               <option value="">Todas</option>
@@ -324,13 +416,16 @@ export default function Conciliacion() {
             </Select>
           </label>
         </div>
+        <p className="text-xs text-mute" data-testid="conciliacion-summary-scope">
+          Resumen {rango.desde}–{rango.hasta} · según cuenta, medio y procesadora. Esta consulta no envía sucursal; el estado no cambia el resumen.
+        </p>
         <Resumen resumen={data?.resumen || {}} />
         {error && <Aviso tono="error">{error}</Aviso>}
       </Card>
 
       <div className="flex flex-wrap items-center gap-2">
         {[['cuenta', 'Por cuenta'], ['medio', 'Por medio'], ['procesadora', 'Por procesadora']].map(([id, label]) => (
-          <button key={id} type="button" onClick={() => setVista(id)} className={cn('rounded-lg border px-3 py-1.5 text-xs font-semibold transition', vista === id ? 'border-fono/50 bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:text-fore')}>{label}</button>
+          <button key={id} type="button" aria-pressed={vista === id} onClick={() => setVista(id)} className={cn('rounded-lg border px-3 py-1.5 text-xs font-semibold transition', vista === id ? 'border-fono/50 bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:text-fore')}>{label}</button>
         ))}
         {recordados && hayRecorte && <span className="text-[11px] text-mute">Filtros de tu última visita</span>}
         {hayFiltros && <Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={limpiarFiltros}>Limpiar filtros</Button>}
@@ -340,23 +435,23 @@ export default function Conciliacion() {
       <Grupos titulo={vista === 'cuenta' ? 'Cuentas del período' : vista === 'medio' ? 'Medios del período' : 'Procesadoras del período'} filas={data?.[vista === 'cuenta' ? 'porCuenta' : vista === 'medio' ? 'porMedio' : 'porProcesadora'] || []} activo={activo} onFiltrar={filtrarPor} />
 
       {seleccionados.length > 0 && (
-        <Card className="space-y-3 border-fono/40">
+        <Card className="conciliacion-f5-panel space-y-3 border-fono/40">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-sm font-semibold">{seleccionados.length} pago(s) · esperado {gs(esperado)}</p>
-              <p className="text-xs text-mute">{[saldoCuenta ? (seleccionados[0].cuenta || 'Cuenta') : 'Sin cuenta', procesadoraLote].filter(Boolean).join(' · ')}</p>
+              <p className="conciliacion-f5-selected text-sm font-semibold">Selección para el lote: {seleccionados.length} pago(s) · esperado {gs(esperado)}</p>
+              <p className="text-xs text-mute">{[saldoCuenta ? (seleccionados[0].cuenta || 'Cuenta') : seleccionados.some((item) => (item.accountId || '') !== (seleccionados[0].accountId || '')) ? 'Varias cuentas: el lote requiere una sola cuenta' : 'Sin cuenta', procesadoraLote].filter(Boolean).join(' · ')}</p>
             </div>
             <Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={() => { setSeleccion([]); setRecibido(''); setNota('') }}>Quitar selección</Button>
           </div>
           <div className="grid gap-2 sm:grid-cols-3">
             <label className="text-xs text-mute">Monto recibido
-              <MoneyInput className="mt-1" value={recibido} onValueChange={setRecibido} />
+              <MoneyInput id="conciliacion-recibido" aria-label="Monto recibido" className="mt-1" value={recibido} onValueChange={setRecibido} />
             </label>
             <label className="text-xs text-mute">Diferencia
-              <p className={cn('mt-1 flex h-9 items-center rounded-lg border px-3 text-sm font-semibold tabular-nums', diferencia === 0 ? 'border-ink-600 text-mute' : 'border-bad/40 bg-bad/10 text-bad')}>{diferencia > 0 ? '+' : ''}{gs(diferencia)}</p>
+              <p className={cn('conciliacion-f5-money mt-1 flex min-h-9 items-center rounded-lg border px-3 text-sm font-semibold tabular-nums', diferencia === 0 ? 'border-ink-600 text-mute' : 'border-bad/40 bg-bad/10 text-bad')}>{diferencia > 0 ? '+' : ''}{gs(diferencia)}</p>
             </label>
             <label className="text-xs text-mute">Observación {diferencia !== 0 && <b className="text-warn">(obligatoria con diferencia)</b>}
-              <Input className="mt-1" maxLength={2000} value={nota} onChange={(event) => setNota(event.target.value)} placeholder="Ej. la procesadora retuvo la comisión del lote" />
+              <Input aria-label="Observación" aria-required={diferencia !== 0} className="mt-1" maxLength={2000} value={nota} onChange={(event) => setNota(event.target.value)} placeholder="Ej. la procesadora retuvo la comisión del lote" />
             </label>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -366,7 +461,9 @@ export default function Conciliacion() {
         </Card>
       )}
 
-      <Card className="space-y-2">
+      <Card className="conciliacion-f5-panel space-y-2">
+        <p className="text-xs text-mute" data-testid="conciliacion-list-scope">Lista: {filtrados.length} pago(s) · Estado: {ETIQUETAS[estado]?.label || 'Todos'} · Página: {filtrados.length ? rendered.start + 1 : 0}–{rendered.start + rendered.rows.length}. El estado solo filtra esta lista.</p>
+        <p className="text-xs text-mute">Selección masiva: reemplaza con pendientes de todas las páginas, sin reembolsados. Paginar conserva la selección.</p>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-semibold">Pagos del período</h3>
           <div className="flex flex-wrap items-center gap-2">
@@ -389,40 +486,41 @@ export default function Conciliacion() {
             action={hayRecorte ? <Button type="button" variant="outline" className="h-8 px-3 text-xs" onClick={limpiarFiltros}>Limpiar filtros</Button> : null}
           />
         )}
-        {!loading && filtrados.length > 0 && <div className="overflow-x-auto" data-testid="conciliacion-tabla">
-          <div className={cn(GRID_ITEMS, 'px-3.5 pb-2 pt-1')}>
+        {!loading && filtrados.length > 0 && <div data-testid="conciliacion-tabla">
+          <div className={cn(GRID_ITEMS, 'conciliacion-f5-header px-3.5 pb-2 pt-1')}>
             <span />
-            {['Fecha', 'Pedido / cliente', 'Cuenta / titular', 'Procesadora', 'Referencia', 'Monto', 'Estado', 'Acciones'].map((columna) => <span key={columna} className={CELDA_ENCABEZADO}>{columna}</span>)}
+            {['Fecha', 'Pedido / cliente', 'Cuenta / titular', 'Procesadora', 'Referencia', 'Monto', 'Conciliación / pago', 'Acciones'].map((columna) => <span key={columna} className={CELDA_ENCABEZADO}>{columna}</span>)}
           </div>
           <div className="space-y-1">
-            {filtrados.map((item) => {
+            {rendered.rows.map((item) => {
               const meta = ETIQUETAS[item.conciliacion.state] || ETIQUETAS.PENDING
               const seleccionable = item.status !== 'REFUNDED' && item.conciliacion.state !== 'VERIFIED'
               const marcado = seleccion.includes(item.id)
               return (
-                <div key={item.id} data-testid="conciliacion-fila" className={cn(GRID_ITEMS, 'rounded-xl border px-3.5 py-2', marcado ? 'border-fono/50 bg-fono/10' : 'border-ink-600 bg-ink-800/40')}>
+                <div key={item.id} data-testid="conciliacion-fila" className={cn(GRID_ITEMS, 'conciliacion-f5-payment border px-3.5 py-2', marcado ? 'border-fono/50 bg-fono/10' : 'border-ink-600 bg-ink-800/40')}>
                   <input type="checkbox" className="h-4 w-4 accent-fono" checked={marcado} disabled={!seleccionable} aria-label={`Conciliar pago ${item.orderNumber || item.id}`} onChange={() => alternar(item.id)} />
-                  <span className={CELDA_DATO} title={fechaCorta(item.fecha)}>{fecha(item.fecha)}</span>
-                  <span className="min-w-0">
+                  <span data-label="Fecha" className={CELDA_DATO} title={fechaCorta(item.fecha)}>{fecha(item.fecha)}</span>
+                  <span data-label="Pedido / cliente" className="min-w-0">
                     <b className="block truncate text-[13px]">{item.orderNumber || 'Cobro directo'}</b>
                     <span className="mt-0.5 block truncate text-[11px] text-mute">{[item.cliente, item.vendedor].filter(Boolean).join(' · ') || '—'}</span>
                   </span>
-                  <span className="min-w-0">
+                  <span data-label="Cuenta / titular" className="min-w-0">
                     <b className="block truncate text-[12px] font-medium">{item.cuenta}</b>
                     <span className="mt-0.5 block truncate text-[11px] text-mute">{[item.titular, item.banco].filter(Boolean).join(' · ') || medioDe(item.method)}</span>
                   </span>
-                  <span className={CELDA_DATO}>{item.procesadora || '—'}</span>
-                  <span className="min-w-0">
+                  <span data-label="Procesadora" className={CELDA_DATO}>{item.procesadora || '—'}</span>
+                  <span data-label="Referencia" className="min-w-0">
                     <span className={cn('block', CELDA_DATO)} title={item.reference}>{item.reference || '—'}</span>
                     {item.currency && item.currency !== 'PYG' && Number(item.originalAmount) > 0 && <span className="mt-0.5 block truncate text-[11px] text-mute">{formatMoney(item.originalAmount, item.currency)}</span>}
                     {item.settlesAt && <span className="mt-0.5 block truncate text-[11px] text-mute">acredita {fecha(item.settlesAt)}</span>}
                   </span>
-                  <span className="truncate text-xs font-semibold tabular-nums">{gs(item.montoPyg)}</span>
-                  <span className="flex flex-wrap items-center gap-1">
+                  <span data-label="Monto" className="conciliacion-f5-money text-xs font-semibold tabular-nums">{gs(item.montoPyg)}</span>
+                  <span data-label="Conciliación / pago" className="flex flex-wrap items-center gap-1">
                     <Badge color={meta.color} className="w-fit whitespace-nowrap">{meta.label}</Badge>
+                    <span className="text-[11px] text-mute">Pago: {item.status === 'REFUNDED' ? 'Reembolsado' : item.status === 'CONFIRMED' ? 'Confirmado' : item.status === 'PENDING' ? 'Pendiente' : item.status}</span>
                     {item.conciliacion.batchId && <span className="truncate text-[10px] text-mute" title="Forma parte de un lote conciliado">lote</span>}
                   </span>
-                  <span className="flex items-center gap-1.5">
+                  <span data-label="Acciones" className="flex items-center gap-1.5">
                     <Button type="button" variant="outline" className="h-11 px-3 text-xs md:h-8 md:px-2" disabled={!item.orderId} onClick={() => verPedido(item)}>Ver pedido</Button>
                   </span>
                 </div>
@@ -430,13 +528,19 @@ export default function Conciliacion() {
             })}
           </div>
         </div>}
+        {!loading && rendered.pages > 1 && <nav aria-label="Páginas de pagos" className="flex flex-wrap items-center justify-between gap-2">
+          <Button type="button" variant="outline" disabled={rendered.current === 0} onClick={() => rendered.setPage((page) => page - 1)}>Anterior</Button>
+          <span className="text-xs text-mute" role="status">Página {rendered.current + 1} de {rendered.pages}</span>
+          <Button type="button" variant="outline" disabled={rendered.current + 1 >= rendered.pages} onClick={() => rendered.setPage((page) => page + 1)}>Siguiente</Button>
+        </nav>}
       </Card>
 
-      <Card className="space-y-2">
+      <Card className="conciliacion-f5-panel space-y-2">
         <h3 className="text-sm font-semibold">Lotes conciliados</h3>
+        <p className="text-xs text-mute">Lotes del período y filtros; sin el estado ni la selección de la lista.</p>
         {!lotes.length && <EmptyState compact icon="receipt" title="Todavía no hay lotes en el período" description="Seleccioná los pagos de un depósito y concilialos juntos: el lote aparece acá con su diferencia." />}
         {lotes.map((lote) => (
-          <div key={lote.id} data-testid="conciliacion-lote" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2.5">
+          <div key={lote.id} data-testid="conciliacion-lote" className="conciliacion-f5-batch flex flex-wrap items-center justify-between gap-3 border border-ink-600 px-3.5 py-2.5">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <b className="text-[13px]">{lote.cuenta}</b>
@@ -445,7 +549,7 @@ export default function Conciliacion() {
               </div>
               <p className="mt-0.5 text-[11px] text-mute">{fechaCorta(lote.createdAt)} · {lote.pagos} pago(s) · {lote.creadoPor ? `por ${lote.creadoPor}` : ''}{lote.note ? ` · ${lote.note}` : ''}</p>
             </div>
-            <div className="flex flex-wrap items-center gap-4 text-right text-xs tabular-nums">
+            <div className="conciliacion-f5-batch-money flex flex-wrap items-center gap-4 text-right text-xs tabular-nums">
               <span className="text-mute">Esperado <b className="block text-fore">{gs(lote.expectedPyg)}</b></span>
               <span className="text-mute">Recibido <b className="block text-fore">{gs(lote.receivedPyg)}</b></span>
               <span className={cn('text-mute', lote.differencePyg ? 'text-bad' : '')}>Diferencia <b className="block">{lote.differencePyg ? gs(lote.differencePyg) : '—'}</b></span>

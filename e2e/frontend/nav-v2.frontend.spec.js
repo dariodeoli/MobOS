@@ -2653,3 +2653,660 @@ for (const width of [1440, 320]) {
     })
   }
 }
+// F5 reconciliation: append-only frontend evidence, isolated from real APIs/data.
+const reconciliationOutput = '/tmp/mobos-redesign-conciliacion-qa/renewed-continuation'
+const reconciliationWidths = [320, 360, 390, 430, 1440]
+
+async function reconciliationMetrics(page) {
+  return page
+    .locator(
+      '.conciliacion-f5 [data-label], .conciliacion-f5-kpi strong, .conciliacion-f5-selected, .conciliacion-f5-batch-money b',
+    )
+    .evaluateAll(nodes =>
+      nodes.map(node => ({
+        text: node.textContent,
+        width: node.clientWidth,
+        scroll: node.scrollWidth,
+        nowrap: getComputedStyle(node).whiteSpace,
+      })),
+    )
+}
+
+for (const width of reconciliationWidths) {
+  for (const dark of [false, true]) {
+    test(`F5 demo reconciliation ${width}px ${dark ? 'dark' : 'light'}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await enterDemo(page)
+      await page.goto('/finanzas/conciliacion')
+      await stockTheme(page, width, dark)
+      const root = page.locator('.conciliacion-f5')
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Conciliación')
+      await expect(root.getByRole('heading', { level: 2 })).toHaveCount(0)
+      await expect(
+        root.getByText('Demo: cobros y cuentas ficticios', { exact: false }),
+      ).toBeVisible()
+      await expect(root.getByTestId('conciliacion-fila').first()).toBeVisible()
+      const disclosure = root.locator('[aria-controls="conciliacion-group-content"]')
+      await expect(disclosure).toHaveAttribute('aria-expanded', 'false')
+      await disclosure.focus()
+      await expect(disclosure).toBeFocused()
+      expect(await disclosure.evaluate(node => getComputedStyle(node).outlineStyle)).not.toBe(
+        'none',
+      )
+      await page.keyboard.press('Enter')
+      await expect(root.getByTestId('conciliacion-grupos')).toBeVisible()
+      await expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+      await noOverflow(page)
+      for (const cell of await reconciliationMetrics(page))
+        expect(cell.scroll, cell.text).toBeLessThanOrEqual(cell.width + 1)
+      await page.keyboard.press('Space')
+      await expect(root.getByTestId('conciliacion-grupos')).toHaveCount(0)
+      if (width < 1060) {
+        for (const button of await root.locator('button').all()) {
+          if (!(await button.isVisible())) continue
+          const box = await button.boundingBox()
+          expect(box.height).toBeGreaterThanOrEqual(44)
+        }
+      }
+      const summary = await root.getByTestId('conciliacion-resumen').textContent()
+      await root.getByRole('combobox', { name: 'Estado', exact: true }).selectOption('VERIFIED')
+      await expect(root.getByTestId('conciliacion-resumen')).toHaveText(summary)
+      await expect(root.getByTestId('conciliacion-list-scope')).toContainText(
+        'El estado solo filtra esta lista',
+      )
+      await root.getByRole('combobox', { name: 'Estado', exact: true }).selectOption('')
+      await mkdir(reconciliationOutput, { recursive: true })
+      const { writeFile } = await import('node:fs/promises')
+      await writeFile(
+        `${reconciliationOutput}/demo-${width}-${dark ? 'dark' : 'light'}-metrics.json`,
+        JSON.stringify(
+          {
+            cells: await reconciliationMetrics(page),
+            geometry: await root.evaluate(node => ({
+              moduleHeight: node.scrollHeight,
+              documentHeight: document.documentElement.scrollHeight,
+              width: node.clientWidth,
+            })),
+          },
+          null,
+          2,
+        ),
+      )
+      if (width === 390)
+        expect(
+          await page.evaluate(() => document.documentElement.scrollHeight),
+        ).toBeLessThanOrEqual(2400)
+      await page.screenshot({
+        path: `${reconciliationOutput}/demo-${width}-${dark ? 'dark' : 'light'}.png`,
+        fullPage: true,
+      })
+    })
+  }
+}
+
+async function mockReconciliation(
+  page,
+  {
+    role = 'ADMIN',
+    empty = false,
+    delayed = false,
+    failed = false,
+    extra = false,
+    long = false,
+  } = {},
+) {
+  const state = { gets: [], mutations: [], release: null, fail: failed }
+  const gate = delayed
+    ? new Promise(resolve => {
+        state.release = resolve
+      })
+    : null
+  const item = {
+    id: 'qa-payment-a',
+    fecha: '2026-10-10T12:00:00Z',
+    method: 'TRANSFER',
+    status: 'CONFIRMED',
+    orderId: 'qa-order/a',
+    orderNumber: 'QA-0001',
+    cliente: long ? 'Cliente completo '.repeat(15) : 'Cliente completo de prueba',
+    vendedor: 'Responsable completo',
+    accountId: 'qa-account-a',
+    cuenta: long ? 'Cuenta completa '.repeat(12) : 'Cuenta completa de prueba',
+    titular: long ? 'Titular completo '.repeat(10) : 'Titular completo',
+    banco: 'Banco de prueba',
+    procesadora: 'Procesadora QA',
+    currency: 'PYG',
+    originalAmount: null,
+    montoPyg: 100000000,
+    reference: long ? 'REFERENCIA'.repeat(25) : 'Referencia completa de prueba',
+    settlesAt: '2026-10-11T12:00:00Z',
+    conciliacion: { state: 'PENDING', batchId: null },
+  }
+  const items = empty
+    ? []
+    : [
+        item,
+        {
+          ...item,
+          id: 'qa-payment-b',
+          orderId: null,
+          orderNumber: 'QA-0002',
+          accountId: 'qa-account-b',
+          cuenta: 'Otra cuenta completa',
+          montoPyg: -100000000,
+          conciliacion: { state: 'REJECTED', batchId: null },
+        },
+        {
+          ...item,
+          id: 'qa-payment-refund',
+          orderId: null,
+          orderNumber: 'QA-REFUND',
+          status: 'REFUNDED',
+          montoPyg: 0,
+        },
+        {
+          ...item,
+          id: 'qa-payment-verified',
+          orderId: null,
+          orderNumber: 'QA-VERIFIED',
+          conciliacion: { state: 'VERIFIED', batchId: 'qa-batch' },
+        },
+      ]
+  if (extra)
+    for (let index = 0; index < 21; index++)
+      items.push({
+        ...item,
+        id: `qa-extra-${index}`,
+        orderId: null,
+        orderNumber: `QA-EXTRA-${index}`,
+        montoPyg: 1,
+      })
+  const group = {
+    key: 'qa-account-a',
+    label: item.cuenta,
+    method: 'TRANSFER',
+    processor: item.procesadora,
+    secondary: item.titular,
+    count: 4,
+    verifiedCount: 1,
+    pendingCount: 2,
+    verifiedPyg: 100000000,
+    unverifiedPyg: 100000000,
+    differencePyg: -100000000,
+  }
+  // Stress values are isolated presentation records, not a financially coherent demo fixture.
+  const body = {
+    resumen: empty
+      ? {}
+      : {
+          count: 4,
+          confirmedPyg: 100000000,
+          verifiedPyg: 100000000,
+          unverifiedPyg: 100000000,
+          pendingPyg: 0,
+          differencePyg: -100000000,
+          verifiedCount: 1,
+          pendingCount: 2,
+          lotes: 1,
+        },
+    items,
+    porCuenta: empty
+      ? []
+      : [group, { ...group, key: 'qa-account-b', label: 'Otra cuenta completa' }],
+    porMedio: empty ? [] : [{ ...group, key: 'TRANSFER' }],
+    porProcesadora: empty ? [] : [{ ...group, key: item.procesadora, label: item.procesadora }],
+    lotes: empty
+      ? []
+      : [
+          {
+            id: 'qa-batch',
+            cuenta: item.cuenta,
+            procesadora: item.procesadora,
+            expectedPyg: 100000000,
+            receivedPyg: 0,
+            differencePyg: -100000000,
+            pagos: 1,
+            estado: 'DIFFERENCE',
+            createdAt: item.fecha,
+            note: 'Observación de prueba',
+            creadoPor: item.vendedor,
+          },
+        ],
+    truncado: false,
+  }
+  await page.route(/https:\/\//, route => route.abort())
+  await page.route('**/api/**', async route => {
+    const request = route.request()
+    const url = new URL(request.url())
+    if (!url.pathname.startsWith('/api/')) return route.continue()
+    if (request.method() !== 'GET') {
+      if (['/api/push/sincronizar', '/api/presence/heartbeat'].includes(url.pathname))
+        return route.fulfill({
+          status: 503,
+          json: { error: 'Unrelated background operation blocked' },
+        })
+      const payload = request.postDataJSON()
+      state.mutations.push({ path: url.pathname, payload })
+      if (url.pathname !== '/api/finance/reconciliation')
+        return route.fulfill({ status: 503, json: { error: 'Unexpected mutation blocked' } })
+      if (payload.paymentIds.includes('qa-payment-b'))
+        return route.fulfill({
+          status: 400,
+          json: { message: 'Los pagos del lote deben pertenecer a la misma cuenta.' },
+        })
+      items[0].conciliacion = { state: 'VERIFIED', batchId: 'qa-ack' }
+      body.lotes.unshift({
+        ...body.lotes[0],
+        id: 'qa-ack',
+        expectedPyg: 100000000,
+        receivedPyg: payload.receivedPyg,
+        differencePyg: payload.receivedPyg - 100000000,
+        note: payload.note,
+      })
+      return route.fulfill({ status: 200, json: { conciliados: 1, lote: body.lotes[0] } })
+    }
+    state.gets.push(url.pathname + url.search)
+    if (url.pathname === '/api/auth/me')
+      return route.fulfill({
+        json: {
+          user: {
+            id: 'qa-user',
+            name: 'Usuario local',
+            role,
+            tenantId: 'qa-tenant',
+            branchId: 'qa-branch',
+            branchName: 'Casa Central',
+          },
+          tenant: { id: 'qa-tenant', name: 'Tienda local' },
+        },
+      })
+    if (['/api/inventory-branches', '/api/inventory/branches'].includes(url.pathname))
+      return route.fulfill({ json: [{ id: 'qa-branch', name: 'Casa Central' }] })
+    if (url.pathname === '/api/finance/reconciliation') {
+      if (gate) await gate
+      return state.fail
+        ? route.fulfill({
+            status: 503,
+            json: { message: 'Conciliación no disponible en prueba' },
+          })
+        : route.fulfill({ json: body })
+    }
+    if (url.pathname.startsWith('/api/orders/'))
+      return route.fulfill({
+        json: {
+          id: item.orderId,
+          orderNumber: item.orderNumber,
+          createdAt: item.fecha,
+          status: 'CONFIRMED',
+          items: [],
+          payments: [],
+          totalPyg: 100000000,
+          customer: { name: item.cliente },
+        },
+      })
+    return route.fulfill({ json: [] })
+  })
+  await page.goto('/finanzas/conciliacion')
+  return state
+}
+
+for (const width of reconciliationWidths) {
+  for (const dark of [false, true]) {
+    test(`F5 isolated full signed money and selection ${width}px ${dark ? 'dark' : 'light'}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 })
+      const state = await mockReconciliation(page)
+      await stockTheme(page, width, dark)
+      const root = page.locator('.conciliacion-f5')
+      const rows = root.getByTestId('conciliacion-fila')
+      await expect(rows).toHaveCount(width < 1100 ? 2 : 4)
+      await expect(rows.nth(0).locator('[data-label="Monto"]')).toHaveText('Gs 100.000.000')
+      await expect(rows.nth(1).locator('[data-label="Monto"]')).toHaveText('Gs -100.000.000')
+      if (width < 1100) await root.getByRole('button', { name: 'Siguiente', exact: true }).click()
+      const refund = rows.filter({ hasText: 'QA-REFUND' })
+      const verified = rows.filter({ hasText: 'QA-VERIFIED' })
+      await expect(refund.getByRole('checkbox')).toBeDisabled()
+      await expect(verified.getByRole('checkbox')).toBeDisabled()
+      await expect(refund).toContainText('Pago: Reembolsado')
+      if (width < 1100) await root.getByRole('button', { name: 'Anterior', exact: true }).click()
+      await rows.first().getByRole('checkbox').check()
+      await expect(root.locator('.conciliacion-f5-selected')).toContainText('Gs 100.000.000')
+      await root.getByLabel('Monto recibido', { exact: true }).fill('200000000')
+      await expect(root.getByRole('button', { name: 'Conciliar lote', exact: true })).toBeDisabled()
+      await expect(root.getByText('+Gs 100.000.000', { exact: true })).toBeVisible()
+      await root.getByLabel('Monto recibido', { exact: true }).fill('0')
+      await expect(root.getByText('Gs -100.000.000', { exact: true }).last()).toBeVisible()
+      await root.getByRole('button', { name: 'Mostrar Cuentas del período' }).click()
+      for (const cell of await reconciliationMetrics(page))
+        expect(cell.scroll, cell.text).toBeLessThanOrEqual(cell.width + 1)
+      await noOverflow(page)
+      await page.screenshot({
+        path: `${reconciliationOutput}/isolated-all-${width}-${dark ? 'dark' : 'light'}.png`,
+        fullPage: true,
+      })
+      const summary = await root.getByTestId('conciliacion-resumen').textContent()
+      await root.getByRole('combobox', { name: 'Estado', exact: true }).selectOption('VERIFIED')
+      await expect(rows).toHaveCount(1)
+      await expect(root.getByTestId('conciliacion-resumen')).toHaveText(summary)
+      await expect(root.locator('.conciliacion-f5-selected')).toContainText('1 pago(s)')
+      expect(state.gets.filter(url => url.startsWith('/api/finance/reconciliation'))).toHaveLength(
+        1,
+      )
+      expect(state.mutations).toEqual([])
+      await mkdir(reconciliationOutput, { recursive: true })
+      const { writeFile } = await import('node:fs/promises')
+      await writeFile(
+        `${reconciliationOutput}/isolated-${width}-${dark ? 'dark' : 'light'}-metrics.json`,
+        JSON.stringify(
+          {
+            cells: await reconciliationMetrics(page),
+            geometry: await root.evaluate(node => ({
+              moduleHeight: node.scrollHeight,
+              documentHeight: document.documentElement.scrollHeight,
+              width: node.clientWidth,
+            })),
+          },
+          null,
+          2,
+        ),
+      )
+      await page.screenshot({
+        path: `${reconciliationOutput}/isolated-${width}-${dark ? 'dark' : 'light'}.png`,
+        fullPage: true,
+      })
+    })
+  }
+}
+
+for (const role of ['ADMIN', 'GERENTE', 'CAJERA']) {
+  test(`F5 mock contracts, difference, mixed-account rejection and order trace ${role}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 900 })
+    const state = await mockReconciliation(page, { role })
+    if (role !== 'ADMIN') {
+      // Existing owner-only shell boundary, not changed to match broader API capabilities.
+      await expect(page).toHaveURL(/\/pos/)
+      await expect(page.locator('.conciliacion-f5')).toHaveCount(0)
+      expect(state.gets.filter(url => url.startsWith('/api/finance/reconciliation'))).toEqual([])
+      expect(state.mutations).toEqual([])
+      return
+    }
+    const root = page.locator('.conciliacion-f5')
+    const rows = root.getByTestId('conciliacion-fila')
+    await expect(rows).toHaveCount(2)
+    const request = new URL(
+      state.gets.find(url => url.startsWith('/api/finance/reconciliation')),
+      'http://local',
+    )
+    expect([...request.searchParams.keys()].sort()).toEqual(['from', 'to'])
+    await root.getByRole('combobox', { name: 'Cuenta', exact: true }).selectOption('qa-account-a')
+    await root.getByRole('combobox', { name: 'Medio', exact: true }).selectOption('TRANSFER')
+    await root
+      .getByRole('combobox', { name: 'Procesadora', exact: true })
+      .selectOption('Procesadora QA')
+    await expect
+      .poll(() => state.gets.filter(url => url.startsWith('/api/finance/reconciliation')).length)
+      .toBe(4)
+    const scoped = new URL(
+      state.gets.filter(url => url.startsWith('/api/finance/reconciliation')).at(-1),
+      'http://local',
+    )
+    expect(Object.fromEntries(scoped.searchParams)).toEqual({
+      from: request.searchParams.get('from'),
+      to: request.searchParams.get('to'),
+      accountId: 'qa-account-a',
+      method: 'TRANSFER',
+      processor: 'Procesadora QA',
+    })
+    await root.getByRole('button', { name: 'Limpiar filtros', exact: true }).click()
+    await rows.nth(0).getByRole('checkbox').check()
+    await rows.nth(1).getByRole('checkbox').check()
+    await expect(root.locator('.conciliacion-f5-selected')).toContainText('2 pago(s)')
+    await root.getByRole('button', { name: 'Conciliar lote', exact: true }).click()
+    await expect(
+      root.getByText('Los pagos del lote deben pertenecer a la misma cuenta.', {
+        exact: true,
+      }),
+    ).toBeVisible()
+    expect(state.mutations[0]).toEqual({
+      path: '/api/finance/reconciliation',
+      payload: {
+        action: 'batch',
+        paymentIds: ['qa-payment-a', 'qa-payment-b'],
+        receivedPyg: 0,
+      },
+    })
+    await expect(root.locator('.conciliacion-f5-selected')).toContainText('2 pago(s)')
+    await rows.nth(1).getByRole('checkbox').uncheck()
+    await root.getByLabel('Monto recibido', { exact: true }).fill('90000000')
+    await expect(root.getByRole('button', { name: 'Conciliar lote', exact: true })).toBeDisabled()
+    await root.getByLabel('Observación', { exact: true }).fill('Diferencia de prueba')
+    await root.getByRole('button', { name: 'Conciliar lote', exact: true }).click()
+    await expect(root.locator('.conciliacion-f5-selected')).toHaveCount(0)
+    expect(state.mutations[1]).toEqual({
+      path: '/api/finance/reconciliation',
+      payload: {
+        action: 'batch',
+        paymentIds: ['qa-payment-a'],
+        receivedPyg: 90000000,
+        note: 'Diferencia de prueba',
+        accountId: 'qa-account-a',
+      },
+    })
+    await expect(root.getByTestId('conciliacion-lote').first()).toContainText(
+      'Diferencia de prueba',
+    )
+    await rows.first().getByRole('button', { name: 'Ver pedido' }).click()
+    await expect(page.getByText('Pagos · QA-0001', { exact: false })).toBeVisible()
+    expect(state.gets).toContain('/api/orders/qa-order%2Fa')
+    await page.keyboard.press('Escape')
+    await expect(page.getByText('Pagos · QA-0001', { exact: false })).not.toBeVisible()
+    await root.getByRole('button', { name: 'Seleccionar por conciliar' }).click()
+    await expect(root.locator('.conciliacion-f5-selected')).toContainText('1 pago(s)')
+    await expect(rows.nth(1).getByRole('checkbox')).toBeChecked()
+    expect(state.mutations).toHaveLength(2)
+    await noOverflow(page)
+  })
+}
+
+test('F5 loading, error and empty states reflow at 320px', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 })
+  const state = await mockReconciliation(page, { delayed: true, failed: true })
+  const root = page.locator('.conciliacion-f5')
+  await expect(root.locator('[role="status"]')).toBeVisible()
+  await expect(root.getByText('Sin pagos para estos filtros')).toHaveCount(0)
+  await noOverflow(page)
+  state.release()
+  await expect(root.getByText('Conciliación no disponible en prueba')).toBeVisible()
+  await noOverflow(page)
+  await page.unroute('**/api/**')
+  await mockReconciliation(page, { empty: true })
+  await expect(root.getByText('Sin pagos para estos filtros')).toBeVisible()
+  await expect(root.getByText('Todavía no hay lotes en el período')).toBeVisible()
+  await noOverflow(page)
+})
+
+for (const width of [390, 1440]) {
+  test(`F5 paging retains selection and bulk uses all filtered pending payments ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 })
+    const state = await mockReconciliation(page, { extra: true })
+    const root = page.locator('.conciliacion-f5')
+    const rows = root.getByTestId('conciliacion-fila')
+    await expect(rows).toHaveCount(width === 390 ? 2 : 20)
+    await rows.first().getByRole('checkbox').check()
+    const pager = root.getByRole('navigation', { name: 'Páginas de pagos' })
+    await pager.getByRole('button', { name: 'Siguiente' }).click()
+    if (width === 390) await pager.getByRole('button', { name: 'Siguiente' }).click()
+    await expect(root.locator('.conciliacion-f5-selected')).toContainText('1 pago(s)')
+    await rows.first().getByRole('checkbox').check()
+    await expect(root.locator('.conciliacion-f5-selected')).toContainText('2 pago(s)')
+    await pager.getByRole('button', { name: 'Anterior' }).click()
+    if (width === 390) await pager.getByRole('button', { name: 'Anterior' }).click()
+    await expect(rows.first().getByRole('checkbox')).toBeChecked()
+    await root.getByRole('button', { name: 'Seleccionar por conciliar' }).click()
+    await expect(root.locator('.conciliacion-f5-selected')).toContainText('23 pago(s)')
+    if (width === 390) await pager.getByRole('button', { name: 'Siguiente' }).click()
+    await expect(rows.filter({ hasText: 'QA-REFUND' }).getByRole('checkbox')).toBeDisabled()
+    await expect(rows.filter({ hasText: 'QA-VERIFIED' }).getByRole('checkbox')).toBeDisabled()
+    await root.getByRole('combobox', { name: 'Estado', exact: true }).selectOption('VERIFIED')
+    await expect(rows).toHaveCount(1)
+    await expect(root.locator('.conciliacion-f5-selected')).toContainText('23 pago(s)')
+    await expect(pager).toHaveCount(0)
+    await root.getByRole('combobox', { name: 'Estado', exact: true }).selectOption('')
+    await expect(pager).toContainText('Página 1')
+    expect(state.mutations).toEqual([])
+    await noOverflow(page)
+  })
+}
+
+test('F5 demo batch and mixed-account rejection stay local without API mutations', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 900 })
+  const writes = []
+  page.on('request', request => {
+    if (new URL(request.url()).pathname.startsWith('/api/finance/')) writes.push(request.url())
+  })
+  await enterDemo(page)
+  await page.goto('/finanzas/conciliacion')
+  const root = page.locator('.conciliacion-f5')
+  const rows = root.getByTestId('conciliacion-fila')
+  await expect(rows.first()).toBeVisible()
+  await root.getByRole('button', { name: 'Seleccionar por conciliar' }).click()
+  await root.getByRole('button', { name: 'Conciliar lote', exact: true }).click()
+  await expect(
+    root.getByText('Los pagos del lote deben pertenecer a la misma cuenta.', { exact: true }),
+  ).toBeVisible()
+  await root.getByRole('button', { name: 'Quitar selección' }).click()
+  await root.getByRole('combobox', { name: 'Medio', exact: true }).selectOption('CASH')
+  await rows.first().getByRole('checkbox').check()
+  await root.getByRole('button', { name: 'Conciliar lote', exact: true }).click()
+  await expect(page.getByText(/Lote conciliado \(demo\)/)).toBeVisible()
+  await expect(root.getByTestId('conciliacion-lote').first()).toBeVisible()
+  await expect(root.locator('.conciliacion-f5-selected')).toHaveCount(0)
+  expect(writes).toEqual([])
+  await rows.first().getByRole('button', { name: 'Ver pedido' }).click()
+  await expect(page.getByText(/Pagos ·/).first()).toBeVisible()
+  expect(writes).toEqual([])
+})
+
+for (const width of [320, 1440]) {
+  test(`F5 oversized identities reflow without loss at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    const state = await mockReconciliation(page, { long: true })
+    const root = page.locator('.conciliacion-f5')
+    const row = root.getByTestId('conciliacion-fila').first()
+    await expect(row.locator('[data-label="Referencia"]')).toContainText('REFERENCIA'.repeat(25))
+    await expect(row.locator('[data-label="Cuenta / titular"]')).toContainText(
+      'Cuenta completa '.repeat(12).trim(),
+    )
+    await root.getByRole('button', { name: 'Mostrar Cuentas del período' }).click()
+    const headers = root.locator('.conciliacion-f5-header')
+    if (width === 1440) await expect(headers.last()).toBeVisible()
+    else await expect(headers.last()).toBeHidden()
+    for (const cell of await reconciliationMetrics(page))
+      expect(cell.scroll, cell.text).toBeLessThanOrEqual(cell.width + 1)
+    expect(state.mutations).toEqual([])
+    await noOverflow(page)
+    await page.screenshot({
+      path: `${reconciliationOutput}/long-${width}.png`,
+      fullPage: true,
+    })
+  })
+}
+
+// Bounded correction: full document height, not the component-only height.
+for (const dark of [false, true]) {
+  test(`F5 final document height and readable 2x2 money at 390px ${dark ? 'dark' : 'light'}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await enterDemo(page)
+    await page.goto('/finanzas/conciliacion')
+    await stockTheme(page, 390, dark)
+    const root = page.locator('.conciliacion-f5')
+    await expect(root.getByTestId('conciliacion-fila')).toHaveCount(2)
+    await expect(root.locator('[aria-controls="conciliacion-group-content"]')).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+    await page.evaluate(() => scrollTo(0, 0))
+    const geometry = await page.evaluate(() => ({
+      height: document.documentElement.scrollHeight,
+      width: document.documentElement.scrollWidth,
+      viewport: innerWidth,
+    }))
+    await mkdir(reconciliationOutput, { recursive: true })
+    const { writeFile } = await import('node:fs/promises')
+    await writeFile(
+      `${reconciliationOutput}/document-390-${dark ? 'dark' : 'light'}.json`,
+      JSON.stringify(geometry, null, 2),
+    )
+    expect(geometry.height).toBeLessThanOrEqual(2400)
+    expect(geometry.width).toBe(390)
+    await page.screenshot({
+      path: `${reconciliationOutput}/document-390-${dark ? 'dark' : 'light'}.png`,
+      fullPage: true,
+    })
+    // Isolated signed stress records do not replace the demo economic fixture.
+    await page.unroute('**/api/**')
+    await page.evaluate(() => {
+      sessionStorage.clear()
+      localStorage.clear()
+    })
+    await mockReconciliation(page)
+    await stockTheme(page, 390, dark)
+    const kpis = root.locator('.conciliacion-f5-kpi')
+    await expect(kpis).toHaveCount(4)
+    const boxes = await kpis.evaluateAll(nodes =>
+      nodes.map(node => ({
+        top: node.getBoundingClientRect().top,
+        left: node.getBoundingClientRect().left,
+      })),
+    )
+    expect(boxes[0].top).toBe(boxes[1].top)
+    expect(boxes[2].top).toBe(boxes[3].top)
+    expect(boxes[2].top).toBeGreaterThan(boxes[0].top)
+    expect(boxes[1].left).toBeGreaterThan(boxes[0].left)
+    await expect(kpis.nth(0).locator('.conciliacion-f5-digits')).toHaveText('100.000.000')
+    await expect(kpis.nth(3).locator('.conciliacion-f5-digits')).toHaveText('-100.000.000')
+    await writeFile(
+      `${reconciliationOutput}/kpi-stress-390-${dark ? 'dark' : 'light'}-metrics.json`,
+      JSON.stringify(
+        await root.locator('.conciliacion-f5-digits').evaluateAll(nodes =>
+          nodes.map(node => ({
+            text: node.textContent,
+            font: parseFloat(getComputedStyle(node).fontSize),
+            width: node.getBoundingClientRect().width,
+            parent: node.parentElement.clientWidth,
+            scroll: node.parentElement.scrollWidth,
+          })),
+        ),
+        null,
+        2,
+      ),
+    )
+    for (const digit of await root.locator('.conciliacion-f5-digits').all()) {
+      const metric = await digit.evaluate(node => ({
+        font: parseFloat(getComputedStyle(node).fontSize),
+        width: node.getBoundingClientRect().width,
+        parent: node.parentElement.clientWidth,
+      }))
+      expect(metric.font).toBeGreaterThanOrEqual(20)
+      expect(metric.width).toBeLessThanOrEqual(metric.parent + 1)
+    }
+    for (const control of await root.locator('button, select').all()) {
+      if (!(await control.isVisible())) continue
+      expect((await control.boundingBox()).height).toBeGreaterThanOrEqual(44)
+    }
+    await noOverflow(page)
+    await page.screenshot({
+      path: `${reconciliationOutput}/kpi-stress-390-${dark ? 'dark' : 'light'}.png`,
+      fullPage: true,
+    })
+  })
+}
