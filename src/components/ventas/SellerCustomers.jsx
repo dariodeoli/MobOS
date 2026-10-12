@@ -65,6 +65,7 @@ import { customerMetadata, DEMO_CUSTOMER_TEMPLATES, readCustomerMetadata } from 
 import { whatsappUrl } from '@/utils/telefono'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
+import './clientesF3.css'
 const emptyCustomer = { firstName: '', secondName: '', document: '', email: '', phones: [''], addresses: [{ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay' }], acceptsEmailMarketing: false, acceptsSmsMarketing: false, acceptsWhatsappMarketing: false, taxExempt: false, tags: '', pricingTier: 'RETAIL', priceListId: '', creditLimitPyg: '', creditDays: '' }
 
 const FILTROS_CLIENTES = [['todos', 'Todos'], ['mayoristas', 'Mayoristas'], ['deuda', 'Con deuda'], ['credito', 'Con crédito']]
@@ -153,6 +154,8 @@ export default function SellerCustomers() {
   const [vista, cambiarVista] = useVistaListaGrid('clientes')
   const [orden, setOrden] = useUltimoUsado('clientes:orden', 'recientes')
   const [resumen, setResumen] = useState(null)
+  const [resumenRevision, setResumenRevision] = useState(0)
+  const [resumenCargando, setResumenCargando] = useState(true)
   const [filtro, setFiltro] = useUltimoUsado('clientes:filtro', 'todos')
   const [exportando, setExportando] = useState(false)
   const [exportError, setExportError] = useState('')
@@ -243,7 +246,7 @@ export default function SellerCustomers() {
         const saved = await api.post('/api/customers', { name: nombre, firstName, secondName, document: form.document.trim() || undefined, email: form.email.trim() || undefined, phone: phones[0] || undefined, countryCode: form.countryCode || '+595', addresses, notes: customerMetadata(phones), acceptsEmailMarketing: form.acceptsEmailMarketing, acceptsSmsMarketing: form.acceptsSmsMarketing, acceptsWhatsappMarketing: form.acceptsWhatsappMarketing, taxExempt: form.taxExempt, tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20), pricingTier: form.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL', ...(form.priceListId ? { priceListId: form.priceListId } : {}), ...(String(form.creditLimitPyg).trim() ? { creditLimitPyg: Number(String(form.creditLimitPyg).replace(/\D/g, '')) } : {}), ...(String(form.creditDays).trim() ? { creditDays: Number(String(form.creditDays).replace(/\D/g, '')) } : {}) })
         if (!saved?.id) throw new Error('Sin confirmación')
       }
-      setForm(emptyCustomer); setSearch(''); setQuery(''); setCrearAbierto(false); data.refresh()
+      setForm(emptyCustomer); setSearch(''); setQuery(''); setCrearAbierto(false); data.refresh(); setResumenRevision((value) => value + 1)
       avisar.guardado(esDemo ? 'Cliente de prueba' : 'Cliente')
     } catch (cause) {
       setSaveError(cause?.message || 'No se pudo confirmar el guardado. Buscá el cliente antes de reintentar.')
@@ -269,6 +272,7 @@ export default function SellerCustomers() {
       setImportResultado(resultado)
       setImportTexto('')
       data.refresh()
+      setResumenRevision((value) => value + 1)
     } catch (cause) { setImportError(cause?.message || 'No se pudo importar.') } finally { setImportBusy(false) }
   }
 
@@ -298,39 +302,85 @@ export default function SellerCustomers() {
   useEffect(() => {
     if (esDemo) return
     api.get('/api/follow-ups?due=today').then(setSeguimientos).catch(() => setSeguimientos([]))
-    api.get('/api/customers/summary').then(setResumen).catch(() => setResumen(null))
   }, [esDemo])
 
 
+  useEffect(() => {
+    if (esDemo) return undefined
+    const controller = new AbortController()
+    setResumen(null)
+    setResumenCargando(true)
+    // A fresh, abortable read cannot reuse an in-flight pre-mutation summary.
+    api.get('/api/customers/summary', { signal: controller.signal, cacheMs: 0 })
+      .then((value) => { if (!controller.signal.aborted) setResumen(value) })
+      .catch(() => { if (!controller.signal.aborted) setResumen(null) })
+      .finally(() => { if (!controller.signal.aborted) setResumenCargando(false) })
+    return () => controller.abort()
+  }, [esDemo, resumenRevision])
+
   return <SellerSection title="Clientes">
+    <div className="clientes-f3">
+    {puedeCampanas && <nav aria-label="Secciones de clientes" className="clientes-f3-secciones">
+      {[['clientes', 'Clientes'], ['campanas', 'Campañas']].map(([clave, label]) => <button key={clave} type="button" aria-pressed={seccion === clave} onClick={() => setSeccion(clave)}>{label}</button>)}
+    </nav>}
     {puedeCampanas && seccion === 'campanas' ? <CampanasClientes templates={plantillasClientes} empresa={empresa} sucursal={sucursal} vendedor={sesion?.nombre} /> : <>
+    {' '}
     <BarraModulo
-      icono="users"
       titulo="Clientes"
-      descripcion={esDemo ? 'Demo local: ingresá únicamente datos ficticios.' : 'Buscá al instante por nombre, apellido, teléfono, RUC/CI, correo, ciudad, direcciones, etiquetas o notas.'}
       testId="barra-clientes"
-      contexto={puedeCampanas ? <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
-        {[['clientes', 'Clientes'], ['campanas', 'Campañas']].map(([clave, label]) => <button key={clave} type="button" aria-pressed={seccion === clave} onClick={() => setSeccion(clave)} className={cn('inline-flex min-h-11 items-center rounded-lg px-3 py-1.5 text-xs font-semibold transition md:min-h-0', seccion === clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}
-      </div> : undefined}
+      className="clientes-f3-header"
+      descripcion={
+        esDemo
+          ? 'Demo local: solo datos ficticios.'
+          : 'Tus clientes, lo que compraron y lo que deben.'
+      }
     >
-      <Button type="button" onClick={abrirCrear}>+ Crear cliente</Button>
-      {!esDemo && <Button type="button" variant="outline" className="px-3 text-xs" disabled={exportando} onClick={exportar}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}
-      {!esDemo && <Button type="button" variant="outline" onClick={() => { setImportAbierto(true); setImportError(''); setImportResultado(null) }}>Importar</Button>}
+      <div className="clientes-f3-actions">
+        {!esDemo && (
+          <Button type="button" variant="outline" disabled={exportando} onClick={exportar}>
+            <Icon name="download" className="h-4 w-4" />
+            {exportando ? 'Exportando…' : 'Exportar CSV'}
+          </Button>
+        )}
+        {!esDemo && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setImportAbierto(true)
+              setImportError('')
+              setImportResultado(null)
+            }}
+          >
+            Importar
+          </Button>
+        )}
+        <Button type="button" onClick={abrirCrear}>
+          + Crear cliente
+        </Button>
+      </div>
     </BarraModulo>
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="clientes-f3-filters">
+      <div className="clientes-f3-search">
+        <SearchField
+          ariaLabel="Buscar clientes"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Nombre, teléfono, RUC/CI…"
+        />
+      </div>
       <SegmentedField
         value={filtro}
         onChange={setFiltro}
-        // Chips a 44 px de alto (#249 H3): el patrón compartido llega con
-        // DSN/CMP; acá se aplica al uso de Clientes sin tocar el objeto común.
-        className="[&>button]:min-h-11"
+        className="clientes-f3-chips"
         ariaLabel="Filtrar clientes"
         options={FILTROS_CLIENTES.map(([key, label]) => [key, label])}
       />
-      <div className="min-w-[220px] flex-1">
-        <SearchField ariaLabel="Buscar clientes" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nombre, teléfono, RUC/CI, correo, ciudad, notas…" />
-      </div>
-      <Select aria-label="Ordenar clientes" className="h-9 w-auto" value={orden} onChange={(event) => setOrden(event.target.value)}>
+      <Select
+        aria-label="Ordenar clientes en la tienda"
+        value={orden}
+        onChange={(event) => setOrden(event.target.value)}
+      >
         <option value="recientes">Recientes</option>
         <option value="nombre">Nombre</option>
         <option value="total">Total gastado</option>
@@ -338,19 +388,42 @@ export default function SellerCustomers() {
       <ListGridToggle value={vista} onChange={cambiarVista} />
     </div>
     {exportError && <p role="alert" className="text-sm text-bad">{exportError}</p>}
-    <ResumenMetricas
-      testId="resumen-clientes"
-      columnas={4}
-      items={[
-        { titulo: 'Clientes', valor: resumenMostrar?.total ?? rows.length, alcance: 'Tienda', nota: `${rows.length} en pantalla` },
-        { titulo: 'Mayoristas', valor: resumenMostrar?.wholesalers ?? '—', alcance: 'Tienda', nota: `${resumenMostrar?.retail ?? '—'} cliente final` },
-        { titulo: 'Con deuda', valor: resumenV2.conDeuda, alcance: 'En pantalla', tono: resumenV2.conDeuda > 0 ? 'text-warn' : 'text-ok' },
-        { titulo: 'Por cobrar', valor: gs(resumenV2.porCobrar), alcance: 'En pantalla', tono: resumenV2.porCobrar > 0 ? 'text-warn' : 'text-ok' },
-      ]}
-    />
+    {' '}
+    <div aria-busy={!esDemo && resumenCargando}>
+      <ResumenMetricas
+        testId="resumen-clientes"
+        columnas={4}
+        className="clientes-f3-summary"
+        items={[
+          {
+            titulo: 'Clientes',
+            valor: resumenMostrar?.total ?? '—',
+            alcance: esDemo ? 'En pantalla' : 'Tienda',
+            nota: `${rows.length} en pantalla`,
+          },
+          {
+            titulo: 'Mayoristas',
+            valor: resumenMostrar?.wholesalers ?? '—',
+            alcance: esDemo ? 'En pantalla' : 'Tienda',
+            nota: resumenMostrar
+              ? `${resumenMostrar.retail} cliente final`
+              : resumenCargando
+                ? 'Cargando…'
+                : 'No disponible',
+          },
+          { titulo: 'Con deuda', valor: resumenV2.conDeuda, alcance: 'En pantalla' },
+          { titulo: 'Por cobrar', valor: gs(resumenV2.porCobrar), alcance: 'En pantalla' },
+        ].map((item) => ({ ...item, tono: 'clientes-f3-value' }))}
+      />
+    </div>
+    {!esDemo && !resumenCargando && !resumen && (
+      <p role="status" className="text-sm text-mute">
+        Resumen de tienda no disponible. Los importes corresponden solo a los clientes en pantalla.
+      </p>
+    )}
     <SellerFeedback {...data} empty={!rows.length} />
     {seguimientos.length > 0 && (
-      <section className="rounded-xl border border-warn/25 bg-warn/5 p-3">
+      <section className="clientes-f3-followups rounded-xl border border-warn/25 bg-warn/5 p-3">
         <h3 className="text-xs font-bold uppercase tracking-wider text-warn">Seguimientos para hoy ({seguimientos.length})</h3>
         <div className="mt-2 space-y-2">{seguimientos.map((seguimiento) => (
           <article key={seguimiento.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-600 p-2.5">
@@ -363,9 +436,9 @@ export default function SellerCustomers() {
         ))}</div>
       </section>
     )}
-    {!data.loading && !data.error && vista === 'grid' && <ul className={GRILLA_DOS_COLUMNAS}>{ordenados.map((row) => <CustomerCommunicationCard key={row.id} customer={row} templates={plantillasClientes} onViewProfile={setProfileCustomer} />)}</ul>}
+    {!data.loading && !data.error && vista === 'grid' && <ul className={cn(GRILLA_DOS_COLUMNAS, 'clientes-f3-grid')}>{ordenados.map((row) => <CustomerCommunicationCard key={row.id} customer={row} templates={plantillasClientes} onViewProfile={setProfileCustomer} />)}</ul>}
     {!data.loading && !data.error && vista === 'list' && <ClientesTabla rows={ordenados} templates={plantillasClientes} onPerfil={(row) => { setProfileTab('resumen'); setProfileCustomer(row) }} onResumen={setResumenCliente} onUnificar={(a, b) => setParUnificar([a, b])} />}
-    {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="min-h-11 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60 md:min-h-0">{data.cargandoMas ? 'Cargando…' : 'Cargar más clientes'}</button></div>}
+    {!data.loading && !data.error && data.hayMas && <div className="clientes-f3-pagination flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="min-h-11 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60 md:min-h-0">{data.cargandoMas ? 'Cargando…' : 'Cargar más clientes'}</button></div>}
     <CustomerProfile customer={profileCustomer} open={Boolean(profileCustomer)} onClose={cerrarPerfil} tabInicial={profileTab} />
     {/* Unificar duplicados (#268) desde la selección de la lista: dos fichas. */}
     <UnificarClienteModal
@@ -429,5 +502,6 @@ export default function SellerCustomers() {
       </form>
     </Modal>
     </>}
+    </div>
   </SellerSection>
 }

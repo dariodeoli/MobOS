@@ -1511,3 +1511,361 @@ for (const denied of [false, true]) {
     await noOverflow(page)
   })
 }
+
+// F3 Clientes: isolated frontend contracts, never backend/persistence evidence.
+const clientesOutput = '/tmp/mobos-redesign-clientes-qa'
+const longCustomerName = 'Comercial San Miguel y Asociados Importaciones de Tecnología Paraguay'
+const clienteFixture = (index = 0) => ({
+  id: `qa-cliente-${index}`,
+  name: index === 0 ? longCustomerName : `Cliente local ${String(index).padStart(2, '0')}`,
+  phone: '0981123456',
+  countryCode: '+595',
+  email: 'qa@example.invalid',
+  pricingTier: index === 0 ? 'WHOLESALE' : 'RETAIL',
+  creditLimitPyg: index === 0 ? 100000000 : null,
+  stats: {
+    orders: 2,
+    totalSpentPyg: index === 0 ? 100000000 : 1000,
+    pendingPyg: index === 0 ? 100000000 : index === 50 ? 250000 : 0,
+    lastOrderAt: '2026-10-10T12:00:00Z',
+  },
+})
+
+async function mockClientes(
+  page,
+  { role = 'ADMIN', summaryFailure = false, paginated = false, rejected = false } = {},
+) {
+  const state = { queries: [], posts: [], exports: [], summaries: 0, total: 127 }
+  const fixtures = Array.from({ length: paginated ? 51 : 2 }, (_, index) => clienteFixture(index))
+  await page.route(/https:\/\//, (route) => route.abort())
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    if (!url.pathname.startsWith('/api/')) return route.continue()
+    const path = url.pathname
+    let body = []
+    if (path === '/api/auth/me')
+      body = {
+        user: {
+          id: 'qa-user',
+          name: 'Usuario local',
+          role,
+          tenantId: 'qa-tenant',
+          branchId: 'qa-branch',
+          branchName: 'Sucursal local',
+        },
+        tenant: { id: 'qa-tenant', name: 'Tienda local' },
+      }
+    if (path === '/api/inventory/branches') body = [{ id: 'qa-branch', name: 'Sucursal local' }]
+    if (path === '/api/customers/summary') {
+      state.summaries++
+      if (summaryFailure)
+        return route.fulfill({ status: 503, json: { message: 'Resumen aislado no disponible' } })
+      body = { total: state.total, wholesalers: 1, retail: state.total - 1 }
+    }
+    if (path === '/api/customers' && route.request().method() === 'GET') {
+      state.queries.push(Object.fromEntries(url.searchParams))
+      body = paginated
+        ? url.searchParams.has('cursor')
+          ? fixtures.slice(50)
+          : fixtures.slice(0, 50)
+        : fixtures
+    }
+    if (path === '/api/customers' && route.request().method() === 'POST') {
+      const payload = route.request().postDataJSON()
+      state.posts.push(payload)
+      if (rejected)
+        return route.fulfill({
+          status: 403,
+          json: { message: 'Alta denegada por contrato aislado' },
+        })
+      state.total++
+      body = payload.rows ? { created: 1, skipped: 0, total: 1 } : { id: 'qa-created' }
+    }
+    if (path === '/api/message-templates')
+      body = [
+        {
+          id: 'qa-template',
+          name: 'Saludo local',
+          category: 'CUSTOMERS',
+          body: 'Hola {{cliente}}',
+          isActive: true,
+        },
+      ]
+    if (path === '/api/customers/duplicates') body = { duplicados: [] }
+    if (path === '/api/customers/segments') body = { rows: [], total: 0 }
+    if (/^\/api\/customers\/qa-cliente-\d+$/.test(path)) {
+      const customer = fixtures.find((row) => row.id === path.split('/').pop())
+      body = {
+        customer,
+        orders: [],
+        payments: [],
+        devices: [],
+        notes: [],
+        followUps: [],
+        warranties: [],
+        services: [],
+        billingIdentities: [],
+        summary: {},
+      }
+    }
+    if (path.includes('/analytics')) body = { summary: {}, periods: [], products: [] }
+    if (path.includes('/timeline')) body = { rows: [], nextCursor: null }
+    if (path === '/api/exports/customers') {
+      state.exports.push(Object.fromEntries(url.searchParams))
+      return route.fulfill({
+        status: 200,
+        contentType: 'text/csv',
+        body: 'Nombre,Correo\nCliente,qa@example.invalid',
+      })
+    }
+    return route.fulfill({ status: 200, json: body })
+  })
+  await page.addInitScript(() => localStorage.setItem('mobos:clientes-vista', 'list'))
+  return state
+}
+
+for (const width of [320, 390, 768, 860, 861, 1440]) {
+  for (const dark of [false, true]) {
+    test(`F3 Clientes presentation, menus and profile at ${width}px ${dark ? 'dark' : 'light'}`, async ({
+      page,
+    }) => {
+      await mkdir(clientesOutput, { recursive: true })
+      await page.setViewportSize({ width, height: 900 })
+      await mockClientes(page)
+      await page.goto('/clientes')
+      await page.evaluate((dark) => document.documentElement.classList.toggle('dark', dark), dark)
+      const root = page.locator('.clientes-f3')
+      const row = root.getByTestId('cliente-fila').first()
+      await expect(row).toContainText(longCustomerName)
+      await expect(row).toContainText('100.000.000')
+      await expect(row).not.toContainText('qa@example.invalid')
+      await expect(root.getByTestId('resumen-clientes')).toContainText('127')
+      await expect(root.getByTestId('resumen-clientes')).toContainText('2 en pantalla')
+      await expect(root.getByTestId('barra-clientes').getByRole('button')).toHaveCount(3)
+      expect(
+        await row.locator('.clientes-f3-identity').evaluate((el) => ({
+          text: el.textContent,
+          ellipsis: getComputedStyle(el).textOverflow,
+          fits: el.scrollWidth <= el.clientWidth,
+        })),
+      ).toEqual({ text: longCustomerName, ellipsis: 'clip', fits: true })
+      for (const control of await root.locator('button:visible, select:visible').all()) {
+        const box = await control.boundingBox()
+        expect(box.height).toBeGreaterThanOrEqual(44)
+        expect(box.width).toBeGreaterThanOrEqual(44)
+      }
+      const money = row
+        .locator('span')
+        .filter({ hasText: /^Gs\.?\s*100\.000\.000$/ })
+        .last()
+      expect(
+        await money.evaluate((el) => ({
+          ellipsis: getComputedStyle(el).textOverflow,
+          fits: el.scrollWidth <= el.clientWidth,
+          font: parseFloat(getComputedStyle(el).fontSize),
+        })),
+      ).toEqual({ ellipsis: 'clip', fits: true, font: 14 })
+      await noOverflow(page)
+      await page.screenshot({
+        path: `${clientesOutput}/${width}-${dark ? 'dark' : 'light'}-clientes.png`,
+        fullPage: true,
+      })
+      const trigger = row.getByTestId('cliente-mas-acciones')
+      await trigger.focus()
+      await page.keyboard.press('ArrowDown')
+      const menu = row.getByRole('menu')
+      await expect(menu.getByRole('menuitem').first()).toBeFocused()
+      await page.keyboard.press('ArrowDown')
+      await expect(menu.getByRole('menuitem').nth(1)).toBeFocused()
+      await page.keyboard.press('End')
+      await expect(menu.getByRole('menuitem').last()).toBeFocused()
+      await page.keyboard.press('ArrowDown')
+      await expect(menu.getByRole('menuitem').first()).toBeFocused()
+      await page.keyboard.press('ArrowUp')
+      await expect(menu.getByRole('menuitem').last()).toBeFocused()
+      await page.keyboard.press('Enter')
+      const template = row.getByRole('dialog', { name: 'Plantillas de WhatsApp' })
+      await expect(template).toBeVisible()
+      await expect(template.getByRole('button').first()).toBeFocused()
+      await noOverflow(page)
+      await page.keyboard.press('Escape')
+      await expect(template).toBeHidden()
+      await expect(menu.getByRole('menuitem').last()).toBeFocused()
+      await page.keyboard.press('Home')
+      await expect(menu.getByRole('menuitem').first()).toBeFocused()
+      await page.keyboard.press('Escape')
+      await expect(menu).toBeHidden()
+      await expect(trigger).toBeFocused()
+      await trigger.click()
+      await menu.getByRole('menuitem').first().click()
+      const profile = page.getByRole('dialog', {
+        name: `Cliente: ${longCustomerName}`,
+        exact: true,
+      })
+      await expect(profile).toBeVisible()
+      await expect(profile.getByTestId('perfil-cabecera-fija')).toBeVisible()
+      await noOverflow(page)
+      await page.keyboard.press('Escape')
+      await expect(profile).toBeHidden()
+      await expect(trigger).toBeFocused()
+      await row.getByRole('button', { name: `Resumen rápido de ${longCustomerName}` }).click()
+      const quick = page.getByRole('dialog', { name: `Cliente: ${longCustomerName}`, exact: true })
+      await expect(quick.getByRole('button', { name: 'Editar', exact: true })).toBeVisible()
+      await expect(quick).toContainText('qa@example.invalid')
+      await page.keyboard.press('Escape')
+      await noOverflow(page)
+      await root.getByRole('button', { name: 'Ver como cuadrícula', exact: true }).click()
+      await expect(root.locator('.clientes-f3-grid > li')).toHaveCount(2)
+      await noOverflow(page)
+      await root.getByRole('button', { name: 'Ver como lista', exact: true }).click()
+      await expect(root.getByTestId('cliente-fila')).toHaveCount(2)
+    })
+  }
+}
+
+test('F3 Clientes cursor, tenant/page scopes, filters and export contracts', async ({ page }) => {
+  const state = await mockClientes(page, { paginated: true })
+  await page.goto('/clientes')
+  const root = page.locator('.clientes-f3')
+  await expect(root.getByTestId('cliente-fila')).toHaveCount(50)
+  await expect(root.getByTestId('resumen-clientes')).toContainText('127')
+  await expect(root.getByTestId('resumen-clientes')).toContainText('50 en pantalla')
+  expect(state.queries[0]).toEqual({ orden: 'actividad', limit: '50' })
+  await root.getByRole('button', { name: 'Cargar más clientes' }).click()
+  await expect(root.getByTestId('cliente-fila')).toHaveCount(51)
+  expect(state.queries.at(-1)).toEqual({ orden: 'actividad', limit: '50', cursor: 'qa-cliente-49' })
+  await expect(root.getByTestId('resumen-clientes')).toContainText('51 en pantalla')
+  const pageDebt = root.getByTestId('resumen-clientes').locator('> div').last()
+  await expect(pageDebt).toContainText('100.250.000')
+  await expect(pageDebt).toContainText('En pantalla')
+  await expect(root.getByRole('button', { name: 'Cargar más clientes' })).toHaveCount(0)
+  const queriesBefore = state.queries.length
+  await root.getByRole('button', { name: 'Ordenar cliente en pantalla', exact: true }).click()
+  expect(state.queries.length).toBe(queriesBefore)
+  await root.getByRole('combobox', { name: 'Ordenar clientes en la tienda' }).selectOption('total')
+  await expect.poll(() => state.queries.at(-1)?.orden).toBe('total')
+  await root.getByRole('button', { name: 'Con deuda', exact: true }).click()
+  await root.getByRole('textbox', { name: 'Buscar clientes' }).fill('Paraguay')
+  await expect.poll(() => state.queries.at(-1)?.q).toBe('Paraguay')
+  expect(state.queries.at(-1)).toEqual({
+    q: 'Paraguay',
+    filtro: 'deuda',
+    orden: 'total',
+    limit: '50',
+  })
+  await root
+    .getByTestId('barra-clientes')
+    .getByRole('button', { name: 'Exportar CSV', exact: true })
+    .click()
+  await expect.poll(() => state.exports.length).toBe(1)
+  expect(state.exports[0]).toEqual({ q: 'Paraguay', filtro: 'deuda' })
+  const first = root.getByTestId('cliente-fila').first()
+  await first.getByRole('checkbox').check()
+  const download = page.waitForEvent('download')
+  await root.getByRole('button', { name: 'Exportar CSV', exact: true }).last().click()
+  expect((await download).suggestedFilename()).toBe('mobos-clientes-seleccionados.csv')
+  await root.getByTestId('cliente-fila').nth(1).getByRole('checkbox').check()
+  await expect(root.getByTestId('unificar-seleccionados')).toBeVisible()
+  await noOverflow(page)
+})
+
+for (const role of ['ADMIN', 'GERENTE', 'VENDEDOR']) {
+  test(`F3 Clientes summary unavailable and campaigns return for ${role}`, async ({ page }) => {
+    const state = await mockClientes(page, { role, summaryFailure: true })
+    await page.goto('/clientes')
+    const root = page.locator('.clientes-f3')
+    await expect(root.getByTestId('resumen-clientes')).toContainText('—')
+    await expect(root.getByRole('status')).toContainText('Resumen de tienda no disponible')
+    const tenantCount = root.getByTestId('resumen-clientes').locator('> div').first()
+    await expect(tenantCount.locator('.clientes-f3-value')).toHaveText('—')
+    await expect(tenantCount).toContainText('Tienda · 2 en pantalla')
+    if (role === 'VENDEDOR')
+      await expect(root.getByRole('navigation', { name: 'Secciones de clientes' })).toHaveCount(0)
+    else {
+      const nav = root.getByRole('navigation', { name: 'Secciones de clientes' })
+      await nav.getByRole('button', { name: 'Campañas', exact: true }).click()
+      await expect(nav).toBeVisible()
+      await nav.getByRole('button', { name: 'Clientes', exact: true }).click()
+      await expect(root.getByTestId('cliente-fila')).toHaveCount(2)
+    }
+    expect(state.posts).toEqual([])
+  })
+}
+
+for (const rejected of [false, true]) {
+  test(`F3 Clientes create consent/credit and summary refresh ${rejected ? 'denied' : 'confirmed plus import'}`, async ({
+    page,
+  }) => {
+    const state = await mockClientes(page, { rejected, role: rejected ? 'VENDEDOR' : 'ADMIN' })
+    await page.goto('/clientes')
+    await expect(page.locator('.clientes-f3-value').first()).toHaveText('127')
+    const summariesBefore = state.summaries
+    await page.getByRole('button', { name: '+ Crear cliente', exact: true }).click()
+    const create = page.getByRole('dialog', { name: 'Crear cliente', exact: true })
+    await create.getByLabel('Primer nombre', { exact: true }).fill('Cliente')
+    await create.getByLabel('Segundo nombre', { exact: false }).fill('Aislado')
+    for (const label of ['WhatsApp', 'SMS', 'Email'])
+      await expect(create.getByRole('checkbox', { name: label, exact: true })).not.toBeChecked()
+    await create.getByRole('checkbox', { name: 'WhatsApp', exact: true }).check()
+    await create.getByRole('checkbox', { name: 'Email', exact: true }).check()
+    await create.getByLabel('Límite de crédito (Gs)').fill('100000000')
+    await create.getByLabel('Plazo de crédito (días)').fill('30')
+    await create.getByRole('textbox', { name: 'Teléfono', exact: true }).fill('12')
+    await create.getByRole('button', { name: 'Guardar cliente', exact: true }).click()
+    expect(state.posts).toEqual([])
+    await create.getByRole('textbox', { name: 'Teléfono', exact: true }).fill('0981123456')
+    await create.getByRole('button', { name: 'Guardar cliente', exact: true }).click()
+    await expect.poll(() => state.posts.length).toBe(1)
+    expect(state.posts[0]).toMatchObject({
+      name: 'Cliente Aislado',
+      acceptsEmailMarketing: true,
+      acceptsSmsMarketing: false,
+      acceptsWhatsappMarketing: true,
+      creditLimitPyg: 100000000,
+      creditDays: 30,
+    })
+    if (rejected) {
+      await expect(create).toContainText('Alta denegada por contrato aislado')
+      await expect(create).toBeVisible()
+      expect(state.summaries).toBe(summariesBefore)
+    } else {
+      await expect(create).toBeHidden()
+      await expect(page.locator('.clientes-f3-value').first()).toHaveText('128')
+      expect(state.summaries).toBe(summariesBefore + 1)
+      await page.getByRole('button', { name: 'Importar', exact: true }).click()
+      const importer = page.getByRole('dialog', { name: 'Importar clientes', exact: true })
+      await importer
+        .getByLabel('Filas del export a importar')
+        .fill(
+          'First Name,Last Name,Email,Phone\nImportado,Aislado,import@example.invalid,0981123456',
+        )
+      await importer.getByRole('button', { name: 'Importar clientes', exact: true }).click()
+      await expect(importer).toContainText('1 clientes creados')
+      await expect(page.locator('.clientes-f3-value').first()).toHaveText('129')
+      expect(state.summaries).toBe(summariesBefore + 2)
+      expect(state.posts[1].rows).toHaveLength(1)
+      expect(state.posts[1].rows[0]).not.toHaveProperty('acceptsWhatsappMarketing')
+    }
+  })
+}
+
+test('F3 Clientes demo deep link, quick summary Datos and campaign restriction', async ({
+  page,
+}) => {
+  await enterDemo(page)
+  await page.goto('/clientes?cliente=demo-cliente-lucia')
+  // Use the existing canonical seed id, not a new profile implementation.
+  const dialog = page.getByRole('dialog', { name: /^Cliente:/ })
+  await expect(dialog).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page).not.toHaveURL(/cliente=/)
+  const root = page.locator('.clientes-f3')
+  await expect(root.getByRole('navigation', { name: 'Secciones de clientes' })).toHaveCount(0)
+  await root
+    .getByTestId('cliente-fila')
+    .first()
+    .getByRole('button', { name: /^Resumen rápido de/ })
+    .click()
+  await dialog.getByRole('button', { name: 'Editar', exact: true }).click()
+  await expect(page.getByRole('tab', { name: /^Datos/ })).toHaveAttribute('aria-selected', 'true')
+})

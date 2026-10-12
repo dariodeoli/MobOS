@@ -21,7 +21,7 @@ import { ULTIMA_PLANTILLA_CLIENTES } from './customerMessaging'
 // (ficha completa, WhatsApp y plantilla) dentro del menú «…». En móvil la
 // lista se muestra como tarjetas. Se mantienen el orden por columnas, la
 // selección por lote y el WhatsApp con plantilla.
-const GRID = 'grid min-w-[62rem] grid-cols-[2.75rem_minmax(0,1.4fr)_minmax(0,0.6fr)_3rem_minmax(0,0.95fr)_minmax(0,0.85fr)_minmax(0,0.75fr)_8rem] items-center gap-x-2'
+const GRID = 'clientes-f3-row grid items-center gap-x-2'
 const ULTIMA_PLANTILLA = ULTIMA_PLANTILLA_CLIENTES
 
 const ciudadDe = (row) => row.addresses?.find(address => address.city)?.city || ''
@@ -33,40 +33,126 @@ const OPCION_MENU = 'flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left
 function MenuAccionesCliente({ row, telefono, templates, deuda, ultima, onPerfil, onResumen }) {
   const [abierto, setAbierto] = useState(false)
   const caja = useRef(null)
+  const trigger = useRef(null)
+  const menu = useRef(null)
+  const abrirPorFinal = useRef(false)
   useEffect(() => {
     if (!abierto) return undefined
-    const cerrar = (event) => { if (!caja.current?.contains(event.target)) setAbierto(false) }
-    const escape = (event) => { if (event.key === 'Escape') setAbierto(false) }
+    const cerrar = (event) => {
+      if (!caja.current?.contains(event.target)) setAbierto(false)
+    }
+    const items = menu.current?.querySelectorAll('[role=menuitem]:not(:disabled)')
+    items?.[abrirPorFinal.current ? items.length - 1 : 0]?.focus()
     document.addEventListener('mousedown', cerrar)
-    document.addEventListener('keydown', escape)
     return () => {
       document.removeEventListener('mousedown', cerrar)
-      document.removeEventListener('keydown', escape)
     }
   }, [abierto])
+  function cerrarMenu() {
+    trigger.current?.focus()
+    setAbierto(false)
+  }
+  function navegarMenu(event) {
+    // The template editor owns its inputs; only Escape returns to its opener.
+    const dialog =
+      event.target.closest('[role="dialog"]') || menu.current?.querySelector('[role="dialog"]')
+    if (dialog) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopPropagation()
+        const opener = dialog.parentElement.querySelector('[role="menuitem"][aria-expanded="true"]')
+        opener?.click()
+        opener?.focus()
+      }
+      return
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      event.stopPropagation()
+      cerrarMenu()
+      return
+    }
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
+    event.preventDefault()
+    const items = [...menu.current.querySelectorAll('[role="menuitem"]:not(:disabled)')]
+    const current = items.indexOf(document.activeElement)
+    const index =
+      event.key === 'Home'
+        ? 0
+        : event.key === 'End'
+          ? items.length - 1
+          : (current + (event.key === 'ArrowUp' ? -1 : 1) + items.length) % items.length
+    items[index]?.focus()
+  }
   return (
-    <span ref={caja} className="relative inline-flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
-      <IconAction icon="eye" tone="fono" size="touch" label={`Resumen rápido de ${row.name || 'cliente'}`} onClick={() => onResumen?.(row)} />
+    <span
+      ref={caja}
+      className="relative inline-flex items-center gap-1"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <IconAction
+        icon="eye"
+        tone="fono"
+        size="touch"
+        label={`Resumen rápido de ${row.name || 'cliente'}`}
+        onClick={() => onResumen?.(row)}
+      />
       <button
+        ref={trigger}
         type="button"
         data-testid="cliente-mas-acciones"
         aria-haspopup="menu"
         aria-expanded={abierto}
         aria-label={`Más acciones de ${row.name || 'cliente'}`}
         title="Más acciones"
-        onClick={() => setAbierto((valor) => !valor)}
+        onClick={() => {
+          abrirPorFinal.current = false
+          setAbierto((valor) => !valor)
+        }}
+        onKeyDown={(event) => {
+          if (['ArrowDown', 'ArrowUp'].includes(event.key)) {
+            event.preventDefault()
+            abrirPorFinal.current = event.key === 'ArrowUp'
+            setAbierto(true)
+          }
+        }}
         className="grid h-11 w-11 place-items-center rounded-lg border border-ink-500 text-base font-bold leading-none text-mute transition hover:border-fono hover:text-fore"
       >
-        <span aria-hidden="true" className="-mt-1.5">…</span>
+        <span aria-hidden="true" className="-mt-1.5">
+          …
+        </span>
       </button>
       {abierto && (
-        <div role="menu" aria-label={`Acciones de ${row.name || 'cliente'}`} className="absolute right-0 top-full z-40 mt-1 w-56 rounded-xl border border-ink-500 bg-ink-800 py-1 shadow-xl">
+        <div
+          ref={menu}
+          role="menu"
+          onKeyDownCapture={navegarMenu}
+          onBlur={(event) => {
+            if (event.relatedTarget && !caja.current?.contains(event.relatedTarget))
+              setAbierto(false)
+          }}
+          onClickCapture={(event) => {
+            const opener = event.target.closest('[role="menuitem"][aria-expanded]')
+            if (opener)
+              requestAnimationFrame(() => {
+                const dialog = opener.parentElement.querySelector('[role="dialog"]')
+                if (!dialog) return
+                dialog.tabIndex = -1
+                ;(dialog.querySelector('button:not(:disabled), textarea, select') || dialog).focus()
+              })
+          }}
+          aria-label={`Acciones de ${row.name || 'cliente'}`}
+          className="absolute right-0 top-full z-40 mt-1 w-56 rounded-xl border border-ink-500 bg-ink-800 py-1 shadow-xl"
+        >
           <button
             type="button"
             role="menuitem"
             aria-label={`Ver detalle completo de ${row.name || 'cliente'}`}
             className={OPCION_MENU}
-            onClick={() => { setAbierto(false); onPerfil?.(row) }}
+            onClick={() => {
+              cerrarMenu()
+              onPerfil?.(row)
+            }}
           >
             <Icon name="external" className="h-3.5 w-3.5 shrink-0 text-mute" />
             Ver ficha completa
@@ -95,7 +181,7 @@ function MenuAccionesCliente({ row, telefono, templates, deuda, ultima, onPerfil
 }
 
 const chipTipo = (row, v2) => (
-  <span className={cn('inline-block w-fit max-w-full shrink-0 truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold', v2 && 'v2-chip uppercase', row.wholesale ? 'border-warn/30 bg-warn/10 text-warn' : 'border-ink-500 bg-ink-700/40 text-mute')}>
+  <span className={cn('inline-block w-fit max-w-full shrink-0 truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold', v2 && 'v2-chip', row.wholesale ? 'border-warn/30 bg-warn/10 text-warn' : 'border-ink-500 bg-ink-700/40 text-mute')}>
     {row.wholesale ? 'Mayorista' : 'Cliente final'}
   </span>
 )
@@ -112,18 +198,18 @@ function TarjetaCliente({ row, templates, seleccionado, onAlternar, onPerfil, on
       data-testid="cliente-fila"
       data-id={row.id}
       onClick={() => onPerfil?.(row)}
-      className="cursor-pointer rounded-xl border border-fore/10 bg-ink-800/40 p-3 transition hover:border-fono/40 hover:bg-ink-700/50"
+      className="clientes-f3-card cursor-pointer p-3 transition"
     >
       <div className="flex items-start gap-2">
         <label className="-my-2 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center" onClick={(event) => event.stopPropagation()}>
           <input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar a ${row.name || 'cliente'}`} checked={seleccionado} onChange={onAlternar} />
         </label>
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
+          <div className="clientes-f3-card-identity">
             <div className="min-w-0">
-              <p className={cn('truncate', CELDA_IDENTIDAD_GRANDE)} title={row.name}>{row.name || 'Sin nombre'}</p>
-              <p className={cn('mt-0.5 truncate', CELDA_DATO)} title={[telefonoMostrado, row.email].filter(Boolean).join(' · ')}>
-                {telefonoMostrado || 'Sin teléfono'}{row.email ? ` · ${row.email}` : ''}
+              <p className={cn('clientes-f3-identity', CELDA_IDENTIDAD_GRANDE)} title={row.name}>{row.name || 'Sin nombre'}</p>
+              <p className={cn('clientes-f3-phone mt-0.5', CELDA_DATO)}>
+                {telefonoMostrado || 'Sin teléfono'}
               </p>
             </div>
             {chipTipo(row, v2)}
@@ -154,7 +240,7 @@ export default function ClientesTabla({ rows, templates, onPerfil, onResumen, on
   // Vista previa v2 (#241 lote B): números de consola y chips pill en la fila.
   const v2 = temaV2Activo()
   // #313: en móvil la lista se muestra como tarjetas (no tabla comprimida).
-  const angosta = usePantallaAngosta('(min-width: 768px)')
+  const angosta = usePantallaAngosta('(min-width: 1200px)')
   // Sin orden de columna, respeta el orden del servidor (actividad reciente).
   const [orden, setOrden] = useState(null)
   const toast = useToast()
@@ -164,7 +250,7 @@ export default function ClientesTabla({ rows, templates, onPerfil, onResumen, on
     ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
     : { key, dir: key === 'pedidos' || key === 'total' ? 'desc' : 'asc' })
   const encabezado = (key, label, extra = '') => (
-    <button type="button" onClick={() => ordenarPor(key)} className={cn('flex min-h-11 items-center gap-1 truncate text-left text-[10px] font-bold uppercase tracking-wider transition hover:text-fore md:min-h-0', orden?.key === key ? 'text-fono-light' : 'text-mute', extra)}>
+    <button type="button" aria-label={`Ordenar ${label.toLowerCase()} en pantalla`} onClick={() => ordenarPor(key)} className={cn('flex min-h-11 items-center gap-1 truncate text-left text-[10px] font-bold uppercase tracking-wider transition hover:text-fore md:min-h-0', orden?.key === key ? 'text-fono-light' : 'text-mute', extra)}>
       {label}<span className="shrink-0">{orden?.key === key ? (orden.dir === 'asc' ? '↑' : '↓') : ''}</span>
     </button>
   )
@@ -198,7 +284,7 @@ export default function ClientesTabla({ rows, templates, onPerfil, onResumen, on
   }
 
   return (
-    <div className="space-y-2">
+    <div className="clientes-f3-list">
       <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
         <button type="button" className="min-h-11 rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore md:min-h-0" onClick={copiarTelefonos}>Copiar teléfonos</button>
         <button type="button" className="min-h-11 rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore md:min-h-0" onClick={exportarSeleccionados}>Exportar CSV</button>
@@ -208,7 +294,7 @@ export default function ClientesTabla({ rows, templates, onPerfil, onResumen, on
         )}
       </BarraLote>
     {angosta ? (
-      <div className="space-y-2" data-testid="clientes-tabla">
+      <div className="clientes-f3-cards" data-testid="clientes-tabla">
         {/* Paridad con la tabla: el mismo selector de lote en las tarjetas. */}
         <label className="flex h-11 w-fit cursor-pointer items-center gap-2 px-1 text-xs text-mute" title="Seleccionar visibles">
           <input type="checkbox" className="h-4 w-4 accent-fono" aria-label="Seleccionar visibles" checked={filas.length > 0 && seleccionados.length === filas.length} onChange={() => setSeleccionados((actuales) => seleccionarTodos(filas, actuales))} />
@@ -228,7 +314,7 @@ export default function ClientesTabla({ rows, templates, onPerfil, onResumen, on
         ))}
       </div>
     ) : (
-    <div className="overflow-x-auto" data-testid="clientes-tabla">
+    <div className="clientes-f3-table" data-testid="clientes-tabla">
       <div className={cn(GRID, 'px-3.5 pb-2 pt-1')}>
         {/* Selección por lote: el cuadradito de 16 px vive en un área táctil de
             44 px (#249 H4); el clic de la fila queda como atajo aparte. */}
@@ -257,15 +343,15 @@ export default function ClientesTabla({ rows, templates, onPerfil, onResumen, on
               // El clic es un atajo (mouse/touch): los accesos accesibles por
               // teclado/lector son el ojito y el «…» con aria-label.
               onClick={() => onPerfil?.(row)}
-              className={cn(GRID, 'cursor-pointer rounded-xl border border-fore/10 bg-ink-800/40 px-3.5 py-3 transition hover:border-fono/40 hover:bg-ink-700/50')}
+              className={cn(GRID, 'cursor-pointer px-3.5 py-3 transition')}
             >
               <label className="flex h-11 w-11 -my-2 cursor-pointer items-center justify-center" onClick={(event) => event.stopPropagation()}>
                 <input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar a ${row.name || 'cliente'}`} checked={seleccionados.includes(row.id)} onChange={() => setSeleccionados((actuales) => alternarId(actuales, row.id))} />
               </label>
               <span className="min-w-0">
-                <span className={cn('block', CELDA_IDENTIDAD_GRANDE)} title={row.name}>{row.name || 'Sin nombre'}</span>
-                <span className={cn(CELDA_DATO, 'block')} title={[telefonoMostrado, row.email].filter(Boolean).join(' · ')}>
-                  {telefonoMostrado || 'Sin teléfono'}{row.email ? ` · ${row.email}` : ''}
+                <span className={cn('clientes-f3-identity block', CELDA_IDENTIDAD_GRANDE)} title={row.name}>{row.name || 'Sin nombre'}</span>
+                <span className={cn(CELDA_DATO, 'clientes-f3-phone block')}>
+                  {telefonoMostrado || 'Sin teléfono'}
                 </span>
               </span>
               {chipTipo(row, v2)}
