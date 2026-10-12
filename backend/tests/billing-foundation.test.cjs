@@ -9,7 +9,7 @@ const assert = require('node:assert/strict')
 const { createHmac } = require('node:crypto')
 const policy = () => require('../lib/billing/commercial-policy.ts')
 const enrollment = { tenantId: 'tenant-example', trialStartedAt: '2026-01-01T00:00:00.000Z', immutable: true }
-const principal = { source: 'verified-server-session', subject: 'owner-subject', authenticated: true, emailVerified: true, role: 'platform-owner' }
+const principal = { source: 'verified-server-session', subject: 'owner-subject', authenticated: true, emailVerified: true, email: 'dariodeoli@gmail.com' }
 const price = { priceId: 'approved-provider-price', currency: 'PYG', amount: 99000, interval: 'month' }
 
 test('approved proposals contain prices, not live catalog or quotas', () => {
@@ -38,14 +38,17 @@ test('trial requires immutable enrollment; exact 30-day boundary and explicit no
   assert.throws(() => quote({ ...input, enrollment: { ...enrollment, trialStartedAt: 'invalid' }, nowMs: end }))
   assert.throws(() => quote({ ...input, nowMs: Date.parse(enrollment.trialStartedAt) - 1 }))
 })
-test('coupons fail closed on editable emails and unverified principal evidence', () => {
+test('coupons authorize exact verified owner email independent of tenant role', () => {
   const { approveFirstMonthCoupon: approve } = policy()
-  const input = { principal, ownerSubjects: ['owner-subject'], price, provider: { firstInvoiceDiscount: true }, percent: 50 }
+  const input = { principal, price, provider: { firstInvoiceDiscount: true }, percent: 50 }
   assert.equal(approve(input).scope, 'first-paid-month')
-  for (const untrusted of [null, { ownerEmail: 'owner@example.test' }, { ...principal, authenticated: false }, { ...principal, emailVerified: false }, { ...principal, source: 'browser' }, { ...principal, role: 'tenant-owner' }]) {
+  for (const role of ['tenant-owner', 'employee', 'viewer', undefined]) {
+    assert.equal(approve({ ...input, principal: { ...principal, role } }).scope, 'first-paid-month')
+  }
+  assert.equal(approve({ ...input, principal: { ...principal, subject: 'another-authenticated-subject' } }).scope, 'first-paid-month')
+  for (const untrusted of [null, { ownerEmail: 'dariodeoli@gmail.com' }, { ...principal, authenticated: false }, { ...principal, emailVerified: false }, { ...principal, source: 'browser' }, { ...principal, email: 'foreign@example.test' }, { ...principal, email: 'Dariodeoli@gmail.com' }, { ...principal, email: 'dariodeoli@gmail.com ' }, { ...principal, subject: '' }, { ...principal, subject: '   ' }, { ...principal, subject: null }, { ...principal, source: 'client' }, { ...principal, email: undefined }]) {
     assert.throws(() => approve({ ...input, principal: untrusted }))
   }
-  assert.throws(() => approve({ ...input, ownerSubjects: [] }))
   assert.throws(() => approve({ ...input, provider: { firstInvoiceDiscount: false } }))
   assert.throws(() => approve({ ...input, provider: { discountedRecurringCatalog: true } }))
   assert.throws(() => approve({ ...input, price: { ...price, amount: 100000 } }))
@@ -54,7 +57,7 @@ test('coupons fail closed on editable emails and unverified principal evidence',
 })
 test('coupon applies only after trial first paid month, never stacks with founders', () => {
   const p = policy()
-  const coupon = p.approveFirstMonthCoupon({ principal, ownerSubjects: ['owner-subject'], price, provider: { firstInvoiceDiscount: true }, percent: 20 })
+  const coupon = p.approveFirstMonthCoupon({ principal, price, provider: { firstInvoiceDiscount: true }, percent: 20 })
   const input = { enrollment, nowMs: Date.parse('2026-01-31T00:00:00.000Z'), monthlyPyg: 99000, paidMonths: 0, coupon }
   assert.equal(p.quoteCommercialPolicy(input).duePyg, 79200)
   assert.equal(p.quoteCommercialPolicy({ ...input, paidMonths: 1 }).duePyg, 99000)

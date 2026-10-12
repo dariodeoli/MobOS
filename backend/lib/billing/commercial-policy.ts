@@ -10,7 +10,7 @@ const TRIAL_MS = 30 * 24 * 60 * 60 * 1000
 type Enrollment = { tenantId: string; trialStartedAt: string; immutable: true }
 type VerifiedPrincipal = {
   source: 'verified-server-session'; subject: string; authenticated: true
-  emailVerified: true; role: 'platform-owner'
+  emailVerified: true; email: string; role?: string // Role is metadata, never eligibility.
 }
 type ApprovedPrice = { priceId: string; currency: 'PYG'; amount: number; interval: 'month' }
 
@@ -25,16 +25,20 @@ export type FirstMonthCoupon = Readonly<{
   [couponEvidence]: true
 }>
 
-/** Caller must verify claims before invoking; tenant-editable owner email is never authority. */
+/**
+ * Eligibility is solely the exact canonical verified email, independent of tenant role.
+ * Caller must supply authenticated server-session claims; editable profile email is not authority.
+ * Stable auth subject is required evidence, not a subject allowlist or owner assignment.
+ */
 export function approveFirstMonthCoupon(input: {
-  principal: VerifiedPrincipal; ownerSubjects: readonly string[]; price: ApprovedPrice
+  principal: VerifiedPrincipal; price: ApprovedPrice
   provider: { firstInvoiceDiscount: true }; percent: number
 }): FirstMonthCoupon {
-  const { principal, ownerSubjects, price, provider, percent } = input
+  const { principal, price, provider, percent } = input
   if (!principal || principal.source !== 'verified-server-session' || principal.authenticated !== true
-    || principal.emailVerified !== true || principal.role !== 'platform-owner'
-    || !principal.subject || !Array.isArray(ownerSubjects) || !ownerSubjects.includes(principal.subject)) {
-    throw new Error('verified_platform_owner_required')
+    || principal.emailVerified !== true || principal.email !== 'dariodeoli@gmail.com'
+    || typeof principal.subject !== 'string' || !principal.subject.trim()) {
+    throw new Error('verified_owner_email_required')
   }
   if (!price || price.currency !== 'PYG' || price.interval !== 'month' || !price.priceId?.trim()) {
     throw new Error('approved_provider_price_required')
