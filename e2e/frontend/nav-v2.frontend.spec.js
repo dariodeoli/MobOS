@@ -1869,3 +1869,277 @@ test('F3 Clientes demo deep link, quick summary Datos and campaign restriction',
   await dialog.getByRole('button', { name: 'Editar', exact: true }).click()
   await expect(page.getByRole('tab', { name: /^Datos/ })).toHaveAttribute('aria-selected', 'true')
 })
+
+// F3 Taller: appended contracts only. Earlier 76 cases remain untouched.
+const tallerOutput = '/tmp/mobos-redesign-taller-qa'
+for (const width of [320, 390, 1440]) {
+  for (const dark of [false, true]) {
+    test(`F3 Taller rendered demo, keyboard and full amounts ${width}px ${dark ? 'dark' : 'light'}`, async ({
+      page,
+    }) => {
+      await mkdir(tallerOutput, { recursive: true })
+      await page.setViewportSize({ width, height: 900 })
+      await enterDemo(page)
+      await setF3Theme(page, width, dark)
+      await page.goto('/servicio')
+      const root = page.locator('.taller-f3')
+      await expect(root.getByTestId('servicio-fila')).toHaveCount(4)
+      await expect(root).toContainText('Distribuidora del Este S.A.')
+      await expect(root).toContainText('MacBook Air M2')
+      await expect(root.getByLabel('Filtrar por etapa').locator('option')).toHaveCount(10)
+      await expect(root.getByTestId('resumen-taller')).toContainText('En pantalla')
+      await noOverflow(page)
+      expect(
+        await root.getByTestId('servicio-tabla').evaluate(el => el.scrollWidth <= el.clientWidth),
+      ).toBe(true)
+      for (const button of await root.getByRole('button').all()) {
+        if (!(await button.isVisible())) continue
+        const box = await button.boundingBox()
+        expect(box.height).toBeGreaterThanOrEqual(44)
+        expect(box.width).toBeGreaterThanOrEqual(44)
+      }
+      await page.screenshot({
+        path: `${tallerOutput}/${width}-${dark ? 'dark' : 'light'}-list.png`,
+        fullPage: true,
+      })
+      const newOrder = root.getByRole('button', {
+        name: '+ Nueva orden',
+        exact: true,
+      })
+      await newOrder.focus()
+      await page.keyboard.press('Enter')
+      const form = page.getByRole('dialog', {
+        name: 'Nueva orden de servicio',
+        exact: true,
+      })
+      await expect(form).toBeVisible()
+      await page.keyboard.press('Escape')
+      await expect(form).toBeHidden()
+      await expect(newOrder).toBeFocused()
+      const trigger = root.getByRole('button', {
+        name: 'Ver detalle de MacBook Air M2',
+        exact: true,
+      })
+      await trigger.focus()
+      await page.keyboard.press('Enter')
+      const detail = page.getByTestId('taller-detalle')
+      await expect(detail).toContainText('Distribuidora del Este S.A.')
+      await expect(detail).toContainText('Esperando repuesto')
+      for (const name of [
+        'Recepción',
+        '80 mm',
+        'Reporte',
+        'Ticketera',
+        'Editar',
+        'Pasar a Reparado',
+      ]) {
+        const control = page
+          .getByRole('dialog', { name: 'Reparación OS-#0002', exact: true })
+          .getByRole('button', { name, exact: true })
+        await expect(control).toBeVisible()
+        await control.focus()
+        await expect(control).toBeFocused()
+        expect((await control.boundingBox()).height).toBeGreaterThanOrEqual(44)
+      }
+      await page.screenshot({
+        path: `${tallerOutput}/${width}-${dark ? 'dark' : 'light'}-detail.png`,
+        fullPage: true,
+      })
+      await page.keyboard.press('Escape')
+      await expect(trigger).toBeFocused()
+      await root.getByLabel('Buscar órdenes de servicio').fill('MacBook')
+      await expect(root.getByTestId('servicio-fila')).toHaveCount(1)
+      await root.getByLabel('Buscar órdenes de servicio').fill('')
+      await root.getByLabel('Ordenar órdenes en pantalla').selectOption('cliente')
+      await root.getByRole('button', { name: 'Invertir orden' }).click()
+      // Modify only the existing demo order in this page's in-memory storage.
+      await page.evaluate(async () => {
+        const { getDemoServicio, saveDemoServicio } = await import('/src/lib/demoServicio.js')
+        const data = getDemoServicio()
+        saveDemoServicio({
+          rows: data.rows.map(row =>
+            row.id === 'demo-os-2'
+              ? {
+                  ...row,
+                  customerName: 'Distribuidora del Este S.A. — nombre completo de prueba aislada',
+                  device: 'MacBook Air M2 · modelo completo de prueba aislada',
+                  pricePyg: 100000000,
+                }
+              : row,
+          ),
+        })
+      })
+      await root.getByRole('button', { name: 'Actualizar', exact: true }).click()
+      const bigRow = root.getByTestId('servicio-fila').filter({ hasText: 'modelo completo' })
+      await expect(bigRow).toContainText('nombre completo de prueba aislada')
+      const price = bigRow.locator('.taller-f3-money p').first().locator('b')
+      await assertMoneyFits(price, /100\.000\.000/)
+      await noOverflow(page)
+      await page.screenshot({
+        path: `${tallerOutput}/${width}-${dark ? 'dark' : 'light'}-100m.png`,
+        fullPage: true,
+      })
+      await bigRow.getByRole('button', { name: /^Ver detalle de/ }).click()
+      const largeDetail = page.getByTestId('taller-detalle')
+      await expect(largeDetail).toContainText('modelo completo de prueba aislada')
+      await assertMoneyFits(
+        largeDetail.getByRole('region', { name: 'Costos de la reparación' }).locator('b').first(),
+        /100\.000\.000/,
+      )
+      await noOverflow(page)
+      await page.keyboard.press('Escape')
+      await root.getByRole('button', { name: 'Filtros', exact: true }).click()
+      const filters = page.getByRole('dialog', {
+        name: 'Filtros del taller',
+        exact: true,
+      })
+      await filters.getByLabel('Tipo de dispositivo').selectOption('MacBook')
+      await filters.getByRole('button', { name: 'Aplicar filtros', exact: true }).click()
+      await expect(root.getByTestId('servicio-fila')).toHaveCount(1)
+      await root.getByRole('button', { name: 'Catálogo de servicios', exact: true }).click()
+      await expect(
+        page.getByRole('dialog', {
+          name: 'Catálogo de servicios',
+          exact: true,
+        }),
+      ).toBeVisible()
+      await page.keyboard.press('Escape')
+    })
+  }
+}
+
+async function mockTaller(page, scenario) {
+  const state = {
+    patches: [],
+    rows: [
+      {
+        id: 'qa-a',
+        device: 'Equipo A',
+        customerName: 'Cliente A',
+        status: 'RECIBIDO',
+        receivedAt: '2026-10-11T10:00:00Z',
+      },
+      {
+        id: 'qa-b',
+        device: 'Equipo B',
+        customerName: 'Cliente B',
+        status: 'DIAGNOSTICO',
+        receivedAt: '2026-10-10T10:00:00Z',
+      },
+      {
+        id: 'qa-terminal',
+        device: 'Equipo terminal',
+        customerName: 'Cliente terminal',
+        status: 'ENTREGADO',
+      },
+    ],
+  }
+  await page.route(/https:\/\//, route => route.abort())
+  await page.route('**/api/**', async route => {
+    const path = new URL(route.request().url()).pathname
+    if (!path.startsWith('/api/')) return route.continue()
+    let body = []
+    if (path === '/api/auth/me')
+      body = {
+        user: {
+          id: 'qa-user',
+          name: 'Usuario local',
+          role: 'ADMIN',
+          tenantId: 'qa-tenant',
+          branchId: 'qa-branch',
+          branchName: 'Sucursal local',
+        },
+        tenant: { id: 'qa-tenant', name: 'Tienda local' },
+      }
+    if (path === '/api/inventory/branches') body = [{ id: 'qa-branch', name: 'Sucursal local' }]
+    if (path === '/api/service-orders') {
+      if (route.request().method() === 'PATCH') {
+        const payload = route.request().postDataJSON()
+        state.patches.push(payload)
+        if (scenario === 'all-fail' || (scenario === 'mixed' && payload.id === 'qa-b'))
+          return route.fulfill({
+            status: 422,
+            json: { message: 'Mutación rechazada por mock aislado' },
+          })
+        state.rows = state.rows.map(row =>
+          row.id === payload.id ? { ...row, status: payload.status } : row,
+        )
+        body = { id: payload.id }
+      } else {
+        if (scenario === 'refresh-fail' && state.patches.length)
+          return route.fulfill({
+            status: 503,
+            json: { message: 'Lectura rechazada después del PATCH confirmado' },
+          })
+        body = state.rows
+      }
+    }
+    await route.fulfill({ status: 200, json: body })
+  })
+  await page.goto('/servicio')
+  await expect(page.locator('.taller-f3').getByTestId('servicio-fila')).toHaveCount(2)
+  return state
+}
+
+for (const scenario of ['mixed', 'all-fail', 'terminal', 'nonvisible', 'refresh-fail']) {
+  test(`F3 Taller bulk exact feedback ${scenario} (PATCH mocks, not persistence)`, async ({
+    page,
+  }) => {
+    const state = await mockTaller(page, scenario)
+    const root = page.locator('.taller-f3')
+    if (scenario === 'terminal') await root.getByLabel('Filtrar por etapa').selectOption('todos')
+    await root.getByLabel('Seleccionar la orden de Equipo A', { exact: true }).check()
+    if (['mixed', 'all-fail', 'nonvisible'].includes(scenario))
+      await root.getByLabel('Seleccionar la orden de Equipo B', { exact: true }).check()
+    if (scenario === 'terminal')
+      await root.getByLabel('Seleccionar la orden de Equipo terminal', { exact: true }).check()
+    if (scenario === 'nonvisible')
+      await root.getByLabel('Buscar órdenes de servicio').fill('Equipo A')
+    await root.getByRole('button', { name: 'Avanzar estado', exact: true }).click()
+    const feedback = root.getByTestId('taller-avance-feedback')
+    const expected = {
+      mixed: '1 orden avanzada. 1 falló; conserva la selección para reintentar.',
+      'all-fail': '0 órdenes avanzadas. 2 fallaron; conserva la selección para reintentar.',
+      terminal: '1 orden avanzada. 1 sin avanzar (fuera de la vista o sin estado siguiente).',
+      nonvisible: '1 orden avanzada. 1 sin avanzar (fuera de la vista o sin estado siguiente).',
+      'refresh-fail':
+        '1 orden avanzada. El cambio se guardó, pero no se pudo actualizar la lista. Actualiza antes de continuar.',
+    }
+    await expect(feedback).toHaveText(expected[scenario])
+    const expectedPatches = ['mixed', 'all-fail'].includes(scenario)
+      ? [
+          { id: 'qa-a', status: 'DIAGNOSTICO' },
+          { id: 'qa-b', status: 'CON_TECNICO' },
+        ]
+      : [{ id: 'qa-a', status: 'DIAGNOSTICO' }]
+    expect(state.patches).toEqual(expectedPatches)
+    if (scenario === 'nonvisible') await root.getByLabel('Buscar órdenes de servicio').fill('')
+    if (['mixed', 'all-fail', 'nonvisible'].includes(scenario))
+      await expect(
+        root.getByLabel('Seleccionar la orden de Equipo B', { exact: true }),
+      ).toBeChecked()
+    if (scenario === 'terminal')
+      await expect(
+        root.getByLabel('Seleccionar la orden de Equipo terminal', {
+          exact: true,
+        }),
+      ).toBeChecked()
+    if (scenario === 'all-fail')
+      await expect(
+        root.getByLabel('Seleccionar la orden de Equipo A', { exact: true }),
+      ).toBeChecked()
+    else
+      await expect(
+        root.getByLabel('Seleccionar la orden de Equipo A', { exact: true }),
+      ).not.toBeChecked()
+    if (scenario === 'refresh-fail')
+      await expect(root.getByTestId('servicio-fila').filter({ hasText: 'Equipo A' })).toContainText(
+        'Diagnóstico',
+      )
+    await mkdir(tallerOutput, { recursive: true })
+    await page.screenshot({
+      path: `${tallerOutput}/bulk-${scenario}.png`,
+      fullPage: true,
+    })
+  })
+}

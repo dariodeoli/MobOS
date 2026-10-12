@@ -26,9 +26,10 @@ import { gs } from '@/utils/calculos'
 import { coincideCliente } from '@/utils/cliente'
 import { cn } from '@/lib/utils'
 import SerialTexto from '@/components/shared/SerialTexto'
-import { CELDA_DATO, CELDA_ENCABEZADO } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { ESTADOS_SERVICIO as ESTADOS, ESTADO_SERVICIO_LABEL as ESTADO_LABEL, ESTADO_SERVICIO_TONO as ESTADO_TONE, SIGUIENTE_SERVICIO as SIGUIENTE } from '@/lib/estadosServicio'
+import { advanceService, advanceSelectedServices, serviceAdvanceFeedback } from '@/lib/tallerAvance'
+import './tallerF3.css'
 import { partesDispositivo, tipoDeDispositivo } from '@/lib/dispositivos'
 import { BuscadorDispositivo, etiquetaDispositivo } from 'owncoding-ui'
 // Plantilla sugerida del menú central por estado del pipeline (#134): al abrir
@@ -45,8 +46,6 @@ const FORM_VACIO = { customerName: '', customerId: '', deviceType: 'iPhone', ser
 const DEVICE_TYPES = ['iPhone', 'MacBook', 'AirPods', 'iPad', 'Apple Watch', 'Otros']
 const fecha = (value) => value ? new Date(value).toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '') : '—'
 const utilidad = (row) => Number(row.pricePyg || 0) - Number(row.costPyg || 0)
-// Etiqueta corta para el botón de avance: la completa queda en el title.
-const SIGUIENTE_CORTO = { RECIBIDO: 'Recibido', DIAGNOSTICO: 'Diagnóstico', CON_TECNICO: 'Con técnico', ESPERANDO_REPUESTO: 'Repuesto', REPARADO: 'Reparado', LISTO: 'Listo', ENTREGADO: 'Entregado' }
 const numeroDe = (valor) => Number(String(valor || '').replace(/\D/g, '')) || 0
 // Tipo del checklist de una orden: el guardado o el que surge del modelo.
 const tipoDeFila = (row) => row.deviceType || tipoDeDispositivo(row.device) || 'Otros'
@@ -63,9 +62,6 @@ const contextoWhatsApp = (row) => ({
   fecha: row.receivedAt ? new Date(row.receivedAt).toLocaleDateString('es-PY') : '',
 })
 
-// Tabla compacta: una fila por orden de servicio, encabezados ordenables y el
-// avance de estado en la misma línea.
-const GRID_SERVICIO = 'grid min-w-[65rem] grid-cols-[1.75rem_minmax(8rem,1.3fr)_minmax(6rem,1fr)_minmax(7rem,1.5fr)_5.5rem_5rem_5.5rem_5.5rem_6.5rem_8.5rem] items-center gap-x-2'
 // Última plantilla elegida para el taller: se recuerda entre órdenes.
 const ULTIMA_PLANTILLA_SERVICIO = 'mobos:plantilla:servicio'
 // Flujo del taller para la vista previa v2 (#241): agrupa los estados reales
@@ -92,6 +88,8 @@ export default function ServicioTecnico() {
   const [editing, setEditing] = useState(null)
   const [busy, setBusy] = useState(false)
   const [seleccionados, setSeleccionados] = useState([])
+  const [advanceBusy, setAdvanceBusy] = useState(false)
+  const [advanceFeedback, setAdvanceFeedback] = useState('')
   const [clientes, setClientes] = useState([])
   const [servicios, setServicios] = useState([])
   const [busquedaServicio, setBusquedaServicio] = useState('')
@@ -115,12 +113,14 @@ export default function ServicioTecnico() {
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
-    if (esDemo) { setRows(getDemoServicio().rows); setLoading(false); return }
+    if (esDemo) { setRows(getDemoServicio().rows); setLoading(false); return true }
     try {
-      const data = await api.get('/api/service-orders')
+      const data = await api.get('/api/service-orders', { cacheMs: 0 })
       setRows(Array.isArray(data) ? data : [])
+      return true
     } catch (cause) {
       setError(cause?.message || 'No se pudieron cargar las órdenes de servicio.')
+      return false
     } finally { setLoading(false) }
   }, [esDemo])
   useEffect(() => { load() }, [load])
@@ -203,11 +203,6 @@ export default function ServicioTecnico() {
   const ordenarPor = (key) => setOrden(current => current.key === key
     ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
     : { key, dir: ['recibido', 'precio', 'utilidad'].includes(key) ? 'desc' : 'asc' })
-  const encabezado = (key, label, extra = '') => (
-    <button type="button" onClick={() => ordenarPor(key)} className={cn('flex items-center gap-1 truncate text-left text-[10px] font-bold uppercase tracking-wider transition hover:text-fore', orden.key === key ? 'text-fono-light' : 'text-mute', extra)}>
-      {label}<span className="shrink-0">{orden.key === key ? (orden.dir === 'asc' ? '↑' : '↓') : ''}</span>
-    </button>
-  )
   const valorOrden = (row, key) => {
     if (key === 'equipo') return String(row.device || '')
     if (key === 'cliente') return String(row.customerName || '')
@@ -487,28 +482,62 @@ export default function ServicioTecnico() {
 
   const alternar = (id) => setSeleccionados((actuales) => alternarId(actuales, id))
   const seleccionarVisibles = () => setSeleccionados((actuales) => seleccionarTodos(visibles, actuales))
+  const advanceRow = row =>
+    advanceService(row, {
+      mutate: async payload => {
+        if (esDemo) {
+          saveDemoServicio({
+            rows: getDemoServicio().rows.map(actual =>
+              actual.id === payload.id ? { ...actual, status: payload.status } : actual,
+            ),
+          })
+        } else {
+          await api.patch('/api/service-orders', payload)
+        }
+        // Keep confirmed state locally even when the subsequent GET fails.
+        setRows(current =>
+          current.map(actual =>
+            actual.id === payload.id ? { ...actual, status: payload.status } : actual,
+          ),
+        )
+      },
+      refresh: load,
+    })
   const avanzarSeleccionadas = async () => {
-    const filas = visibles.filter((row) => seleccionados.includes(row.id) && SIGUIENTE[row.status])
-    if (!filas.length) { toast.error('Ninguna de las seleccionadas tiene un estado siguiente.'); return }
-    for (const row of filas) await avanzar(row)
-    setSeleccionados([])
-    toast.success(`${filas.length} ${filas.length === 1 ? 'orden avanzada' : 'órdenes avanzadas'}.`)
+    if (advanceBusy) return
+    setAdvanceBusy(true)
+    try {
+      const result = await advanceSelectedServices(seleccionados, visibles, advanceRow)
+      setSeleccionados(current => current.filter(id => !result.confirmedIds.includes(id)))
+      const feedback = serviceAdvanceFeedback(result)
+      setAdvanceFeedback(feedback)
+      if (result.failed || result.refreshFailed || !result.advanced) toast.error(feedback)
+      else toast.success(feedback)
+    } finally {
+      setAdvanceBusy(false)
+    }
   }
 
   async function avanzar(row) {
-    const siguiente = SIGUIENTE[row.status]
-    if (!siguiente) return
+    if (advanceBusy) return
+    setAdvanceBusy(true)
     try {
-      if (esDemo) {
-        saveDemoServicio({ rows: getDemoServicio().rows.map((actual) => actual.id === row.id ? { ...actual, status: siguiente } : actual) })
-        toast.success(`${row.device}: ${ESTADO_LABEL[siguiente]}.`)
-        await load()
-        return
-      }
-      await api.patch('/api/service-orders', { id: row.id, status: siguiente })
-      toast.success(`${row.device}: ${ESTADO_LABEL[siguiente]}.`)
-      await load()
-    } catch (cause) { toast.error(cause?.message || 'No se pudo avanzar el estado.') }
+      const result = await advanceRow(row)
+      const feedback =
+        result.outcome === 'advanced'
+          ? result.refreshFailed
+            ? 'El cambio se guardó, pero no se pudo actualizar la lista. Actualiza antes de continuar.'
+            : `${row.device}: ${ESTADO_LABEL[result.status]}.`
+          : result.outcome === 'failed'
+            ? result.error?.message || 'No se pudo avanzar el estado.'
+            : 'La orden no tiene un estado siguiente.'
+      setAdvanceFeedback(feedback)
+      if (result.outcome !== 'advanced' || result.refreshFailed) toast.error(feedback)
+      else toast.success(feedback)
+      return result
+    } finally {
+      setAdvanceBusy(false)
+    }
   }
 
   function editar(row) {
@@ -539,7 +568,7 @@ export default function ServicioTecnico() {
   const hayDesgloseForm = Boolean(form && (numeroDe(form.partsPyg) + numeroDe(form.laborPyg) + numeroDe(form.otherCostPyg)) > 0)
 
   return (
-    <Card className="space-y-4">
+    <Card className="taller-f3 space-y-4">
       {/* Composición compacta (#256): identidad y acciones en una sola barra. */}
       <BarraModulo
         icono="wrench"
@@ -547,94 +576,244 @@ export default function ServicioTecnico() {
         descripcion="Recepción, diagnóstico, reparación, costos y entrega de cada equipo."
         testId="barra-taller"
       >
-        <Button variant="outline" onClick={load} disabled={loading}>Actualizar</Button>
-        {servicios.length === 0 && <Button variant="outline" onClick={cargarCatalogoSugerido}>Cargar catálogo sugerido</Button>}
-        <Button variant="outline" onClick={() => setCatalogoOpen(true)}>Catálogo</Button>
-        <Button onClick={() => { setEditing(null); const vacio = { ...FORM_VACIO }; setForm(vacio); setDispositivo({}); setReferenciaForm(JSON.stringify(vacio)) }}>+ Nueva orden</Button>
+        <Button variant="outline" onClick={() => setCatalogoOpen(true)}>
+          Catálogo de servicios
+        </Button>
+        <Button
+          onClick={() => {
+            setEditing(null)
+            const vacio = { ...FORM_VACIO }
+            setForm(vacio)
+            setDispositivo({})
+            setReferenciaForm(JSON.stringify(vacio))
+          }}
+        >
+          + Nueva orden
+        </Button>
       </BarraModulo>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="min-w-[200px] flex-1"><SearchField ariaLabel="Buscar órdenes de servicio" placeholder="Cliente, equipo, IMEI, falla o técnico" value={q} onChange={event => setQ(event.target.value)} /></div>
+      <div className="taller-f3-tools flex flex-wrap items-center gap-2">
+        <Button variant="outline" onClick={load} disabled={loading || advanceBusy}>
+          Actualizar
+        </Button>
+        <div className="taller-f3-search min-w-0 flex-1">
+          <SearchField
+            ariaLabel="Buscar órdenes de servicio"
+            placeholder="Cliente, equipo, IMEI, falla o técnico"
+            value={q}
+            onChange={event => setQ(event.target.value)}
+          />
+        </div>
         <div className="w-full sm:w-60">
-          <Select aria-label="Filtrar por etapa" value={filtro} onChange={event => setFiltro(event.target.value)}>
+          <Select
+            aria-label="Filtrar por etapa"
+            value={filtro}
+            onChange={event => setFiltro(event.target.value)}
+          >
             <option value="activos">Activas ({conteos.activos})</option>
-            {ESTADOS.map(([id, label]) => <option key={id} value={id}>{label} ({conteos[id] || 0})</option>)}
+            {ESTADOS.map(([id, label]) => (
+              <option key={id} value={id}>
+                {label} ({conteos[id] || 0})
+              </option>
+            ))}
             <option value="todos">Todas ({rows.length})</option>
           </Select>
         </div>
-        <Button variant="outline" className="min-h-11 md:min-h-0" aria-expanded={filtrosOpen} onClick={() => setFiltrosOpen(true)}>Filtros{filtrosActivos ? ` (${filtrosActivos})` : ''}</Button>
+        <Button
+          variant="outline"
+          className="min-h-11 md:min-h-0"
+          aria-expanded={filtrosOpen}
+          onClick={() => setFiltrosOpen(true)}
+        >
+          Filtros{filtrosActivos ? ` (${filtrosActivos})` : ''}
+        </Button>
       </div>
 
-      {error && <Aviso tono="error" className="p-3">{error}</Aviso>}
-      {loading && <div className="space-y-2"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>}
-      {!loading && !visibles.length && <EmptyState icon="refresh" title={q ? 'Ninguna orden coincide con la búsqueda.' : 'Todavía no hay órdenes de servicio.'} description={q ? undefined : 'Cargá la primera orden para seguir el taller de punta a punta.'} /* El alta vive en el header: duplicarla acá rompía el nombre accesible único. */ />}
+      {advanceFeedback && (
+        <p
+          role="status"
+          aria-live="polite"
+          className="taller-f3-feedback"
+          data-testid="taller-avance-feedback"
+        >
+          {advanceFeedback}
+        </p>
+      )}
+      {error && (
+        <Aviso tono="error" className="p-3">
+          {error}
+        </Aviso>
+      )}
+      {loading && (
+        <div className="space-y-2">
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-14 w-full" />
+        </div>
+      )}
+      {!loading && !visibles.length && (
+        <EmptyState
+          icon="refresh"
+          title={
+            q ? 'Ninguna orden coincide con la búsqueda.' : 'Todavía no hay órdenes de servicio.'
+          }
+          description={
+            q ? undefined : 'Cargá la primera orden para seguir el taller de punta a punta.'
+          } /* El alta vive en el header: duplicarla acá rompía el nombre accesible único. */
+        />
+      )}
       {!loading && visibles.length > 0 && (
         <ResumenMetricas
           testId="resumen-taller"
           columnas={3}
           items={[
-            { titulo: 'Facturado', valor: gs(totales.facturado), alcance: 'En pantalla' },
-            { titulo: 'Costos', valor: gs(totales.costos), alcance: 'En pantalla', tono: 'text-warn' },
-            { titulo: 'Utilidad', valor: gs(totales.facturado - totales.costos), alcance: 'En pantalla', tono: totales.facturado - totales.costos >= 0 ? 'text-ok' : 'text-bad' },
+            {
+              titulo: 'Facturado',
+              valor: gs(totales.facturado),
+              alcance: 'En pantalla',
+            },
+            {
+              titulo: 'Costos',
+              valor: gs(totales.costos),
+              alcance: 'En pantalla',
+              tono: 'text-warn',
+            },
+            {
+              titulo: 'Utilidad',
+              valor: gs(totales.facturado - totales.costos),
+              alcance: 'En pantalla',
+              tono: totales.facturado - totales.costos >= 0 ? 'text-ok' : 'text-bad',
+            },
           ]}
         />
       )}
       {v2 && !loading && visibles.length > 0 && (
         <p className="text-xs text-mute" data-testid="taller-resumen-flujo">
-          {PASOS_FLUJO.map(([paso, estados]) => `${paso}: ${estados.reduce((suma, estado) => suma + (conteos[estado] || 0), 0)}`).join(' · ')}
+          {PASOS_FLUJO.map(
+            ([paso, estados]) =>
+              `${paso}: ${estados.reduce((suma, estado) => suma + (conteos[estado] || 0), 0)}`,
+          ).join(' · ')}
         </p>
       )}
       <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
-        <Button variant="outline" className="h-8 px-2 text-xs" onClick={avanzarSeleccionadas}>Avanzar estado</Button>
+        <Button
+          variant="outline"
+          className="h-8 px-2 text-xs"
+          disabled={advanceBusy || loading}
+          onClick={avanzarSeleccionadas}
+        >
+          Avanzar estado
+        </Button>
       </BarraLote>
       {!loading && visibles.length > 0 && (
-        <div className="overflow-x-auto" data-testid="servicio-tabla">
-          <div className={cn(GRID_SERVICIO, 'px-3.5 pb-2 pt-1')}>
-            <input type="checkbox" className="h-4 w-4 accent-fono" aria-label="Seleccionar visibles" title="Seleccionar visibles" checked={visibles.length > 0 && seleccionados.length === visibles.length} onChange={seleccionarVisibles} />
-            {encabezado('equipo', 'Equipo')}
-            {encabezado('cliente', 'Cliente')}
-            {encabezado('falla', 'Falla')}
-            {encabezado('tecnico', 'Técnico')}
-            {encabezado('recibido', 'Recibido')}
-            {encabezado('precio', 'Precio', 'justify-end')}
-            {encabezado('utilidad', 'Utilidad', 'justify-end')}
-            {encabezado('estado', 'Estado')}
-            <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span>
+        <div className="taller-f3-list" data-testid="servicio-tabla">
+          <div className="taller-f3-list-tools">
+            <label className="taller-f3-select">
+              <input
+                type="checkbox"
+                aria-label="Seleccionar visibles"
+                checked={visibles.every(row => seleccionados.includes(row.id))}
+                onChange={seleccionarVisibles}
+                disabled={advanceBusy}
+              />
+              Seleccionar visibles
+            </label>
+            <Select
+              aria-label="Ordenar órdenes en pantalla"
+              value={orden.key}
+              onChange={event => ordenarPor(event.target.value)}
+            >
+              <option value="equipo">Equipo</option>
+              <option value="cliente">Cliente</option>
+              <option value="falla">Falla</option>
+              <option value="tecnico">Técnico</option>
+              <option value="recibido">Recibido</option>
+              <option value="precio">Precio</option>
+              <option value="utilidad">Utilidad</option>
+              <option value="estado">Estado</option>
+            </Select>
+            <Button
+              variant="outline"
+              onClick={() => ordenarPor(orden.key)}
+              aria-label="Invertir orden"
+            >
+              {orden.dir === 'asc' ? 'Ascendente ↑' : 'Descendente ↓'}
+            </Button>
           </div>
-          <div className="space-y-1">
+          <div className="taller-f3-rows">
             {visibles.map(row => {
               const ganancia = utilidad(row)
-              const serial = String(row.serial || '')
-              return <div key={row.id} data-testid="servicio-fila" onClick={(event) => { if (event.target.closest('button,a,input,label,select')) return; setDetalleId(row.id) }} className={cn(GRID_SERVICIO, 'cursor-pointer rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
-                <input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar la orden de ${row.device || 'servicio'}`} checked={seleccionados.includes(row.id)} onChange={() => alternar(row.id)} />
-                <span className="min-w-0">
-                  <b className="block truncate text-sm" title={row.device}>{row.device || 'Equipo'}</b>
-                  {row.serviceNumber && <span className="mt-0.5 block truncate text-[10px] font-semibold text-fono-light tabular-nums">{row.serviceNumber}</span>}
-                  {serial && <SerialTexto serial={serial} className="mt-0.5 truncate text-[10px] text-mute" />}
-                </span>
-                <span className={CELDA_DATO} title={row.customerName}>{row.customerName || 'Sin cliente'}</span>
-                <span className={CELDA_DATO} title={row.reportedIssue || row.diagnosis || undefined}>{row.reportedIssue || row.diagnosis || 'Sin detalle'}</span>
-                <span className={CELDA_DATO}>{row.technicianName || 'Sin técnico'}</span>
-                <span className={CELDA_DATO}>{fecha(row.receivedAt)}</span>
-                <span className={cn('truncate text-right text-xs tabular-nums text-mute', v2 && 'v2-numero')}>{gs(row.pricePyg || 0)}</span>
-                <span className={cn('truncate text-right text-xs font-semibold tabular-nums', ganancia >= 0 ? 'text-ok' : 'text-bad', v2 && 'v2-numero')}>{ganancia >= 0 ? '+' : ''}{gs(ganancia)}</span>
-                <Badge color={ESTADO_TONE[row.status] || 'slate'} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{ESTADO_LABEL[row.status] || row.status}</Badge>
-                <span className="flex flex-wrap items-center justify-end gap-1">
-                  {row.customerPhone && (
-                    <WhatsAppMenu
-                      telefono={row.customerPhone}
-                      countryCode={row.customerCountryCode || '+595'}
-                      category="SERVICE"
-                      storageKey={ULTIMA_PLANTILLA_SERVICIO}
-                      title={row.customerName}
-                      preferKey={PLANTILLA_POR_ESTADO[row.status] || ''}
-                      contexto={contextoWhatsApp(row)}
+              return (
+                <article key={row.id} data-testid="servicio-fila" className="taller-f3-row">
+                  <label className="taller-f3-select">
+                    <input
+                      type="checkbox"
+                      aria-label={`Seleccionar la orden de ${row.device || 'servicio'}`}
+                      checked={seleccionados.includes(row.id)}
+                      onChange={() => alternar(row.id)}
+                      disabled={advanceBusy}
                     />
+                    {row.serviceNumber || 'Sin número'}
+                    {seleccionados.includes(row.id) ? ' · Seleccionada' : ''}
+                  </label>
+                  <Badge color={ESTADO_TONE[row.status] || 'slate'} className="w-fit">
+                    {ESTADO_LABEL[row.status] || row.status}
+                  </Badge>
+                  <button
+                    type="button"
+                    className="taller-f3-identity"
+                    aria-label={`Ver detalle de ${row.device || 'servicio'}`}
+                    onClick={() => setDetalleId(row.id)}
+                  >
+                    <b>{row.device || 'Equipo'}</b>
+                    <span>{row.customerName || 'Sin cliente'}</span>
+                  </button>
+                  <p className="taller-f3-issue">
+                    {row.reportedIssue || row.diagnosis || 'Sin detalle'}
+                  </p>
+                  <p className="taller-f3-meta">
+                    {row.technicianName || 'Sin técnico'} · {fecha(row.receivedAt)}
+                  </p>
+                  {row.serial && (
+                    <SerialTexto serial={String(row.serial)} className="text-xs text-mute" />
                   )}
-                  {SIGUIENTE[row.status] && <Button variant="outline" className="h-8 whitespace-nowrap px-2 text-xs" title={`Pasar a ${ESTADO_LABEL[SIGUIENTE[row.status]]}`} onClick={(event) => { event.stopPropagation(); avanzar(row) }}>{SIGUIENTE_CORTO[SIGUIENTE[row.status]]}</Button>}
-                  <Button variant="outline" className="h-8 px-2 text-xs" title="Ver la reparación" aria-label={`Ver detalle de ${row.device || 'servicio'}`} onClick={(event) => { event.stopPropagation(); setDetalleId(row.id) }}><Icon name="eye" className="h-3.5 w-3.5" /></Button>
-                </span>
-              </div>
+                  <div className="taller-f3-money">
+                    <p>
+                      Precio <b>{gs(row.pricePyg || 0)}</b>
+                    </p>
+                    <p>
+                      Utilidad{' '}
+                      <b className={ganancia >= 0 ? 'text-ok' : 'text-bad'}>
+                        {ganancia >= 0 ? '+' : ''}
+                        {gs(ganancia)}
+                      </b>
+                    </p>
+                  </div>
+                  <div className="taller-f3-actions">
+                    {row.customerPhone && (
+                      <WhatsAppMenu
+                        telefono={row.customerPhone}
+                        countryCode={row.customerCountryCode || '+595'}
+                        category="SERVICE"
+                        storageKey={ULTIMA_PLANTILLA_SERVICIO}
+                        title={row.customerName}
+                        preferKey={PLANTILLA_POR_ESTADO[row.status] || ''}
+                        contexto={contextoWhatsApp(row)}
+                      />
+                    )}
+                    {SIGUIENTE[row.status] && (
+                      <Button
+                        variant="outline"
+                        disabled={advanceBusy || loading}
+                        title={`Pasar a ${ESTADO_LABEL[SIGUIENTE[row.status]]}`}
+                        onClick={() => avanzar(row)}
+                      >
+                        Pasar a {ESTADO_LABEL[SIGUIENTE[row.status]]}
+                      </Button>
+                    )}
+                  </div>
+                </article>
+              )
             })}
           </div>
         </div>
@@ -678,12 +857,12 @@ export default function ServicioTecnico() {
           const costoTrabajo = (Number(detalle.partsPyg || 0) + Number(detalle.laborPyg || 0) + Number(detalle.otherCostPyg || 0)) || Number(detalle.costPyg || 0)
           const pasoActivo = PASOS_FLUJO.findIndex(([, estados]) => estados.includes(detalle.status))
           return (
-            <div className="space-y-4" data-testid="taller-detalle">
+            <div className="taller-f3-detail space-y-4" data-testid="taller-detalle">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-mute">{detalle.serviceNumber || 'Sin número'}</p>
-                  <h2 className="truncate text-lg font-semibold text-fore">{detalle.device || 'Equipo'}</h2>
-                  <p className="truncate text-sm text-mute">{detalle.customerName || 'Sin cliente'}{detalle.serial ? ` · ${detalle.serial}` : ''}</p>
+                  <h2 className="text-lg font-semibold text-fore">{detalle.device || 'Equipo'}</h2>
+                  <p className="text-sm text-mute">{detalle.customerName || 'Sin cliente'}{detalle.serial ? ` · ${detalle.serial}` : ''}</p>
                 </div>
                 <Badge color={ESTADO_TONE[detalle.status] || 'slate'} className="whitespace-nowrap">{ESTADO_LABEL[detalle.status] || detalle.status}</Badge>
               </div>
@@ -726,7 +905,7 @@ export default function ServicioTecnico() {
                 <p className={cn('text-sm font-semibold tabular-nums sm:col-span-2', ganancia >= 0 ? 'text-ok' : 'text-bad')}>Utilidad: {ganancia >= 0 ? '+' : ''}{gs(ganancia)}</p>
               </section>
 
-              <FormActions>
+              <FormActions className="taller-f3-detail-actions">
                 {detalle.customerPhone && (
                   <WhatsAppMenu
                     telefono={detalle.customerPhone}
@@ -743,7 +922,7 @@ export default function ServicioTecnico() {
                 <Button type="button" variant="outline" title="Reporte técnico" onClick={() => imprimir(detalle, 'reporte')}><Icon name="report" className="h-3.5 w-3.5" />Reporte</Button>
                 <Button type="button" variant="outline" title="Enviar a la ticketera" onClick={() => imprimirAgente(detalle)}><Icon name="send" className="h-3.5 w-3.5" />Ticketera</Button>
                 <Button type="button" variant="outline" onClick={() => { setDetalleId(null); editar(detalle) }}><Icon name="edit" className="h-3.5 w-3.5" />Editar</Button>
-                {SIGUIENTE[detalle.status] && <Button type="button" onClick={() => avanzar(detalle)}>Pasar a {ESTADO_LABEL[SIGUIENTE[detalle.status]]}</Button>}
+                {SIGUIENTE[detalle.status] && <Button type="button" disabled={advanceBusy || loading} onClick={() => avanzar(detalle)}>Pasar a {ESTADO_LABEL[SIGUIENTE[detalle.status]]}</Button>}
               </FormActions>
             </div>
           )
@@ -891,6 +1070,7 @@ export default function ServicioTecnico() {
               <Button type="submit" disabled={catalogoBusy}>{servicioEdit.id ? 'Guardar' : 'Agregar'}</Button>
             </FormActions>
           </form>
+          {servicios.length === 0 && <Button variant="outline" onClick={cargarCatalogoSugerido}>Cargar catálogo sugerido</Button>}
           <div className="max-h-72 space-y-1 overflow-y-auto" data-testid="catalogo-servicios">
             {servicios.map(servicio => (
               <div key={servicio.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 px-3 py-1.5 text-sm">
