@@ -1,3 +1,4 @@
+import { openShellDestination } from './helpers/shell-navigation.js'
 // Demo pública anónima (#192): /demo entra por perfiles sin login, el panel
 // funciona con datos ficticios sin tocar el API y sin sesión demo la navegación
 // directa vuelve a /demo (no a /login).
@@ -154,7 +155,7 @@ test('la demo entra sin login, navega con datos ficticios y no toca el API', asy
   await page.getByRole('button', { name: /Entrar como Vendedor/ }).click()
   await expect(page).toHaveURL(/\/pos$/)
   await cerrarGuia(page)
-  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
   // Banner visible de datos ficticios y encabezado con la marca (#223).
   await expect(page.getByText(/datos ficticios/).first()).toBeVisible()
   await expect(page.getByTestId('shell-tienda')).toHaveText('MobOS')
@@ -373,7 +374,7 @@ test('la demo no persiste nada: guardados, recarga, salida y base intacta', asyn
   await expect(page.getByText(codigo).first()).toBeVisible()
 
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente cierre POS ${marca}`)
   // Accesorio (stock simple): la venta serializada pide el IMEI exacto (#263).
   await page.getByPlaceholder('Buscar producto…').fill('Funda')
@@ -440,7 +441,7 @@ test('la marca de demo no se filtra al login real de la misma pestaña', async (
   await loginCompany(page)
   expect(await page.evaluate(() => sessionStorage.getItem('mobos:demo-session'))).toBeNull()
   await completeSellerPin(page)
-  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
   // La sesión real usa el API de verdad: ya no hay barrera de demo.
   expect(llamadas.length, 'el login real tiene que llamar al API').toBeGreaterThan(0)
 })
@@ -520,10 +521,7 @@ test('el último usado es el default y se puede cambiar (#209)', async ({ page }
   // enlace de vuelta). Para no perder lo recordado en la demo, la vuelta se
   // hace por el enlace y el regreso con el historial (navegación SPA).
   const irADocumentacion = async () => {
-    const nav = page.locator('aside nav')
-    const ayuda = nav.getByRole('button', { name: 'Ayuda', exact: true })
-    if (!(await ayuda.isVisible())) await nav.getByRole('button', { name: 'Configuración', exact: true }).first().click()
-    await ayuda.click()
+    await openShellDestination(page, 'Ayuda')
     await expect(page.getByRole('heading', { name: 'Ayuda', exact: true })).toBeVisible()
   }
 
@@ -534,7 +532,7 @@ test('el último usado es el default y se puede cambiar (#209)', async ({ page }
   // Elegir Vender se recuerda dentro de la sesión (navegación SPA).
   await filtroModulo.click()
   await expect(filtroModulo).toHaveAttribute('aria-pressed', 'true')
-  await page.locator('aside nav').getByRole('button', { name: 'Inicio', exact: true }).last().click()
+  await openShellDestination(page, 'Inicio')
   await expect(page.getByRole('heading', { name: 'Inicio' })).toBeVisible()
   await irADocumentacion()
   await expect(filtroModulo).toHaveAttribute('aria-pressed', 'true')

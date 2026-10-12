@@ -1,3 +1,4 @@
+import { openShellDestination } from './helpers/shell-navigation.js'
 // #194 (y #188): la demo de Finanzas funciona sin API real, con datos
 // ficticios visibles y sin "Falta sesión".
 import { test, expect } from '@playwright/test'
@@ -49,7 +50,7 @@ test.describe('demo de Finanzas', () => {
 
     // El demo vive en memoria de la pestaña (#204): se navega dentro de la app,
     // sin recargar, para ver el efecto del seguro en el margen.
-    await page.locator('aside nav button[aria-label="Análisis"]').click()
+    await openShellDestination(page, 'Análisis')
     await page.getByRole('tab', { name: 'Ganancias' }).click()
     await expect(page.getByText('Incluye seguro 25% (demo)')).toBeVisible()
     const conSeguro = (await page.getByTestId('ganancia-resultado').textContent())?.trim()

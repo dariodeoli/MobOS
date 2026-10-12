@@ -299,7 +299,7 @@ test('vender todos deja el lote elegido en el POS con producto, cantidad e IMEI'
       if (!page.url().includes('/pos')) {
         await page.getByTestId('vender-todos').click({ timeout: 5_000 })
       }
-      await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible({ timeout: 5_000 })
+      await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible({ timeout: 5_000 })
     }).toPass({ timeout: 30_000 })
     await expect(page).toHaveURL(/\/pos/)
     // La línea nace colapsada (#243): se despliega para ver cantidad e IMEI.
@@ -512,7 +512,7 @@ test('la solapa Alertas renderiza sin quedar en blanco', async ({ page }) => {
   const errores = []
   page.on('pageerror', (error) => errores.push(error.message))
   await page.goto('/inventario/alertas')
-  await expect(page.getByTestId('tabs-inventario').getByRole('button', { name: 'Alertas', exact: true })).toBeVisible()
+  await expect(page.getByTestId('tabs-inventario').getByRole('option', { name: 'Alertas', exact: true })).toBeAttached()
   await expect(page.getByText(/Sin alertas de reposición|Bajo el umbral de reposición|Unidades sin costo/).first()).toBeVisible({ timeout: 15_000 })
   expect(errores, `errores de página: ${errores.join(' | ')}`).toEqual([])
 })

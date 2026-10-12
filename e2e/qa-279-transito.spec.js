@@ -1,3 +1,4 @@
+import { selectInventorySection } from './helpers/shell-navigation.js'
 // #279 (A4) · Vender en tránsito: apartar una unidad que viaja desde el panel,
 // bloqueada para otras ventas, con el IMEI vinculado al recibir y el aviso en la
 // bandeja. `QA_279_ANTES=1` captura el «antes» (la fila en tránsito sin el
@@ -61,8 +62,7 @@ test('#279 · A4: se aparta una unidad en tránsito, queda bloqueada y al llegar
     // La unidad viaja: aparece en «En tránsito» de la sucursal destino.
     await page.goto('/inventario/unidades')
     // #305: En tránsito vive en el grupo Movimientos.
-    await page.getByTestId('grupos-inventario').getByRole('button', { name: 'Movimientos', exact: true }).click()
-    await page.getByRole('button', { name: 'En tránsito', exact: true }).click()
+    await selectInventorySection(page, 'transito')
     const fila = page.getByTestId('inventario-fila').filter({ hasText: serial }).first()
     await expect(fila).toBeVisible({ timeout: 20_000 })
     const listaTransito = page.getByTestId('inventario-tabla')
@@ -95,8 +95,7 @@ test('#279 · A4: se aparta una unidad en tránsito, queda bloqueada y al llegar
       expect(recepcion.status, JSON.stringify(recepcion.body)).toBe(200)
       await page.reload()
       // #305: la navegación está agrupada; para volver a Inventario se elige Stock.
-      await page.getByTestId('grupos-inventario').getByRole('button', { name: 'Stock', exact: true }).click()
-      await page.getByTestId('tabs-inventario').getByRole('button', { name: 'Inventario', exact: true }).click()
+      await selectInventorySection(page, 'unidades')
       const recibida = page.getByTestId('inventario-fila').filter({ hasText: serial }).first()
       await expect(recibida).toBeVisible({ timeout: 20_000 })
       await expect(recibida.getByText('Reservado')).toBeVisible()

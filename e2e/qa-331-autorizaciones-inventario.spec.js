@@ -1,3 +1,4 @@
+import { selectInventorySection } from './helpers/shell-navigation.js'
 // #331 · Inventario resuelve las autorizaciones de stock desde su propia
 // bandeja (Control → Autorizaciones): retiro/ajuste de unidad y transferencia.
 //
@@ -84,8 +85,7 @@ async function limpiar(page, datos) {
 // Abre Inventario → Control → Autorizaciones (la bandeja vive en la pestaña).
 async function abrirBandeja(page) {
   await page.goto('/inventario/unidades')
-  await page.getByTestId('grupos-inventario').getByRole('button', { name: /^Control/ }).click()
-  await page.getByTestId('tabs-inventario').getByRole('button', { name: /^Autorizaciones/ }).click()
+  await selectInventorySection(page, 'autorizaciones')
   const bandeja = page.getByTestId('inventario-autorizaciones')
   await expect(bandeja).toBeVisible({ timeout: 20_000 })
   return bandeja

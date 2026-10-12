@@ -1,3 +1,4 @@
+import { openShellProfile } from './shell-navigation.js'
 // UI login helpers for the seeded E2E tenant (real API, no demo mode).
 
 import { expect } from '@playwright/test'
@@ -34,7 +35,8 @@ export async function loginAsSeller(page, { sellerName, pin } = {}) {
 // Logout via the header button (aria-label "Cerrar sesión") and the
 // confirmation dialog; lands back on /login.
 export async function logout(page) {
-  await page.getByLabel('Cerrar sesión').click()
+  const profile = await openShellProfile(page)
+  await profile.getByRole('button', { name: 'Cerrar sesión', exact: true }).click()
   await page.getByRole('button', { name: 'Salir', exact: true }).click()
   await expect(page).toHaveURL(/\/login$/)
 }

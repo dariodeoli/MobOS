@@ -1,3 +1,4 @@
+import { shellCatalog, shellPrimary } from './helpers/shell-navigation.js'
 // QA #325 — Responsive móvil y roles secundarios (auditoría demo v1.0.209).
 //
 // Recorrido E2E de los puntos pendientes de la auditoría: detalle de cliente,
@@ -196,7 +197,7 @@ test('roles: cada uno entra por su puerta, con su menú y sus límites', async (
       sellerId: vendedor.id,
       pin: SEED.sellers[0].pin,
       destino: /\/pos$/,
-      titulo: /^(POS|Nueva venta)$/,
+      titulo: 'Vender',
       entradaListo: (p) => p.getByPlaceholder('Buscar producto…'),
       menu: ['POS', 'Mis pedidos', 'Clientes', 'Productos', 'Cotizaciones'],
       ocultos: ['Inicio', 'Finanzas', 'Configuración'],
@@ -213,7 +214,7 @@ test('roles: cada uno entra por su puerta, con su menú y sus límites', async (
       sellerId: gerente.id,
       pin: gerente.pin,
       destino: /\/pos$/,
-      titulo: /^(POS|Nueva venta)$/,
+      titulo: 'Vender',
       entradaListo: (p) => p.getByPlaceholder('Buscar producto…'),
       menu: ['POS', 'Mis pedidos', 'Clientes', 'Productos', 'Precios'],
       ocultos: ['Inicio', 'Finanzas', 'Configuración', 'Unidades'],
@@ -264,11 +265,14 @@ test('roles: cada uno entra por su puerta, con su menú y sus límites', async (
 
       // El menú lateral del rol: lo que ve y lo que no.
       await page.setViewportSize(DESKTOP)
+      await expect(await shellPrimary(page)).toBeVisible({ timeout: 20_000 })
+      const catalog = await shellCatalog(page)
+      expect(catalog.primary).toEqual(rol.id === 'tecnico' ? ['Taller'] : rol.id === 'delivery' ? ['Entregas'] : ['Vender', 'Ventas', 'Stock'])
       for (const item of rol.menu) {
-        await expect(page.locator('aside nav').getByRole('button', { name: item, exact: true }).first(), `${rol.id}: menú ${item}`).toBeVisible({ timeout: 20_000 })
+        expect(catalog.destinations, `${rol.id}: menú ${item}`).toContain(item === 'POS' ? 'Nueva venta' : item)
       }
       for (const item of rol.ocultos) {
-        await expect(page.locator('aside nav').getByRole('button', { name: item, exact: true }), `${rol.id}: no ve ${item}`).toHaveCount(0)
+        expect([...catalog.destinations, ...catalog.profile], `${rol.id}: no ve ${item}`).not.toContain(item === 'POS' ? 'Nueva venta' : item)
       }
 
       // Capturas y medición de la puerta de entrada del rol.

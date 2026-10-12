@@ -1,3 +1,4 @@
+import { openShellDestination } from './helpers/shell-navigation.js'
 // #314 — Cotizaciones: fixtures demo en distintas etapas, modal con etiquetas
 // claras y vista previa del documento antes de guardar/enviar.
 //
@@ -22,12 +23,12 @@ async function abrirDemo(page) {
 }
 
 async function irACotizaciones(page) {
-  await page.getByTestId('shell-lateral').getByRole('button', { name: 'Cotizaciones' }).first().click()
+  await openShellDestination(page, 'Cotizaciones')
   await page.getByTestId('cotizacion-fila').first().waitFor({ timeout: 20_000 })
 }
 
 async function irAPedidos(page) {
-  await page.getByTestId('shell-lateral').getByRole('button', { name: 'Mis pedidos' }).first().click()
+  await openShellDestination(page, 'Mis pedidos')
   await page.getByTestId('pedido-fila').first().waitFor({ timeout: 20_000 })
 }
 

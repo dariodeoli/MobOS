@@ -390,6 +390,9 @@ export default function AppShell({
             user={{ ...usuarioActual, name: nombreUsuario }}
             picture={esOwner ? perfilEmpresa?.picture : undefined}
           />
+          {empresa?.nombre && (
+            <p data-testid="shell-empresa" className="text-sm text-fore">{empresa.nombre}</p>
+          )}
           {onMiCuenta && (
             <button
               type="button"

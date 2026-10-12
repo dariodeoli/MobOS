@@ -1,3 +1,4 @@
+import { shellPrimary, openShellProfile } from './helpers/shell-navigation.js'
 // Pendientes del shell (#179): identidad de tienda desde el servidor, landing
 // del técnico y CTA del POS sin rebotes. Los flujos de reparto viven en
 // delivery.spec.js.
@@ -50,8 +51,8 @@ test('el técnico entra a su taller, sin CTA de POS y sin rebotes', async ({ pag
     await expect(page).toHaveURL(/\/servicio$/)
     await expect(page.locator('h1')).toHaveText('Taller')
     // Su nav no ofrece vender y el CTA del POS no aparece.
-    await expect(page.locator('aside nav').getByRole('button', { name: 'Taller y garantías', exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'POS', exact: true })).toHaveCount(0)
+    await expect((await shellPrimary(page)).getByRole('button', { name: 'Taller', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Vender', exact: true })).toHaveCount(0)
 
     // La URL del POS no es su lugar: vuelve al taller, sin quedar en /pos.
     await page.goto('/pos')
@@ -82,10 +83,9 @@ test('sin contexto local, la identidad de tienda sale del servidor', async ({ pa
   const pagina = await limpio.newPage()
   try {
     await pagina.goto('/')
-    await expect(pagina.getByTestId('shell-tienda')).toHaveText('MobOS')
-    await expect(pagina.getByTestId('shell-miga-tienda')).toHaveText('MobOS')
-    await pagina.getByRole('button', { name: 'Menú', exact: true }).click()
-    await expect(pagina.getByRole('dialog').getByRole('heading', { name: SEED.company.name })).toBeVisible()
+    await expect(pagina.getByTestId('shell-mobile-header').locator('strong')).toHaveText('MobOS')
+    const profile = await openShellProfile(pagina)
+    await expect(profile.getByTestId('shell-empresa')).toHaveText(SEED.company.name)
   } finally {
     await limpio.close()
   }

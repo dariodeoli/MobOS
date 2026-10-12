@@ -1,3 +1,4 @@
+import { openShellDestination, lockShell } from './helpers/shell-navigation.js'
 // #253 → Mi cuenta: la superficie personal de cualquier rol (perfil/foto,
 // nombre y correo, preferencias del dispositivo y sesiones propias), accesible
 // desde el avatar. El dueño la ve además como pestaña de Configuración; el
@@ -26,7 +27,7 @@ test('el dueño abre Mi cuenta desde el avatar y ve perfil, preferencias y sesio
   // Entrada liviana: el test necesita el shell, no la pantalla de clientes
   // (bajo carga, una pantalla pesada puede consumir el tiempo del test).
   await page.goto('/resumen')
-  await page.getByTestId('shell-perfil').click()
+  await openShellDestination(page, 'Mi perfil')
   await expect(page).toHaveURL(/\/configuracion\/mi-cuenta/)
 
   await expect(page.getByTestId('mi-cuenta-perfil')).toBeVisible({ timeout: 20000 })
@@ -59,7 +60,7 @@ test('el vendedor entra a su perfil personal desde el avatar', async ({ page }) 
   // Entrada liviana: el test necesita el shell, no la pantalla de clientes
   // (bajo carga, una pantalla pesada puede consumir el tiempo del test).
   await page.goto('/resumen')
-  await page.getByTestId('shell-perfil').click()
+  await openShellDestination(page, 'Mi perfil')
   await expect(page).toHaveURL(/\/mi-cuenta$/)
 
   const perfil = page.getByTestId('mi-cuenta-perfil')
@@ -85,7 +86,7 @@ test('demo: Mi cuenta se arma con los datos de la pestaña', async ({ browser })
   const cerrarGuia = page.getByRole('button', { name: 'Cerrar', exact: true })
   if (await cerrarGuia.count()) await cerrarGuia.first().click().catch(() => {})
   await page.waitForTimeout(300)
-  await page.getByTestId('shell-perfil').click()
+  await openShellDestination(page, 'Mi perfil')
   await expect(page.getByTestId('mi-cuenta-perfil')).toBeVisible({ timeout: 20000 })
   await expect(page.getByTestId('mi-cuenta-perfil').getByText('Hernán Acosta')).toBeVisible()
   await expect(page.getByTestId('mi-cuenta-sesiones').getByText('Sesión actual')).toBeVisible()
@@ -99,8 +100,7 @@ test('mobile: Mi cuenta entra desde el menú lateral', async ({ browser }) => {
   const page = await contexto.newPage()
 
   await page.goto('/clientes')
-  await page.getByRole('button', { name: 'Menú' }).first().click()
-  await page.getByRole('dialog').getByTestId('shell-perfil').click()
+  await openShellDestination(page, 'Mi perfil')
   await expect(page.getByTestId('mi-cuenta-perfil')).toBeVisible({ timeout: 20000 })
   await page.screenshot({ path: `${SHOTS}/04-mobile-mi-cuenta.png`, fullPage: true })
   await contexto.close()
@@ -214,7 +214,7 @@ test('al recargar el bloqueo no se pinta la foto anterior', async ({ page }) => 
     document.addEventListener('DOMContentLoaded', observar)
   })
 
-  await page.getByTestId('shell-bloquear').click()
+  await lockShell(page)
   await expect(page.getByTestId('pantalla-bloqueada')).toBeVisible()
   await page.reload()
 

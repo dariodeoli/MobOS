@@ -1,3 +1,4 @@
+import { openShellDestination, shellCatalog } from './helpers/shell-navigation.js'
 // #303 · Centro de Control: se llega desde el menú, la búsqueda global y los
 // enlaces contextuales de Lista por modelo y Comparador; desde ahí se cargan
 // los precios y las fotos que alimentan esas dos pantallas.
@@ -26,23 +27,22 @@ test('#303 · el Centro de Control se llega desde el menú, la búsqueda y las d
   await entrarDemo(page)
 
   // 1) Navegación: la entrada existe en el grupo Inventario.
-  const nav = page.locator('aside')
-  const entradaMenu = nav.getByRole('button', { name: 'Centro de Control', exact: true })
-  await expect(entradaMenu).toBeVisible()
-  await entradaMenu.click()
+  const catalog = await shellCatalog(page)
+  expect(catalog.destinations).toContain('Centro de Control')
+  await openShellDestination(page, 'Centro de Control')
   await expect(page).toHaveURL(/\/centro-control$/)
   await expect(page.getByTestId('barra-centro-control')).toBeVisible()
   await expect(page).toHaveTitle('Centro de Control · MobOS')
   await page.screenshot({ path: join(DIR, 'centro-celulares-1280-light.png') })
 
   // 2) Enlace contextual desde Lista por modelo.
-  await nav.getByRole('button', { name: 'Lista por modelo', exact: true }).click()
+  await openShellDestination(page, 'Lista por modelo')
   await expect(page).toHaveURL(/\/celulares$/)
   await page.getByTestId('ir-centro-control').click()
   await expect(page).toHaveURL(/\/centro-control$/)
 
   // 3) Enlace contextual desde Comparador: abre directo en Imágenes.
-  await nav.getByRole('button', { name: 'Comparador', exact: true }).click()
+  await openShellDestination(page, 'Comparador')
   await expect(page).toHaveURL(/\/comparador$/)
   await page.getByTestId('ir-centro-control').click()
   await expect(page).toHaveURL(/\/centro-control\?seccion=imagenes$/)
@@ -79,18 +79,18 @@ test('#303 · la lista cargada alimenta Lista por modelo y Comparador', async ({
   // Editar un precio desde el Centro de Control se refleja en la lista. La
   // navegación es interna: la demo descarta lo guardado al recargar la página.
   const nav = page.locator('aside')
-  await nav.getByRole('button', { name: 'Centro de Control', exact: true }).click()
+  await openShellDestination(page, 'Centro de Control')
   const fila = page.getByTestId('fila-celular').filter({ hasText: 'iPhone 12' }).first()
   await expect(fila).toBeVisible()
   await fila.getByRole('textbox').fill('2999000')
   await page.getByTestId('guardar-precios').click()
   await expect(page.getByText(/1 precio\(s\) guardados/).last()).toBeVisible()
-  await nav.getByRole('button', { name: 'Lista por modelo', exact: true }).click()
+  await openShellDestination(page, 'Lista por modelo')
   await expect(page.getByText('Gs 2.999.000').first()).toBeVisible()
 
   // El lineup agrega los modelos que faltan (sin precio); al completarlo,
   // aparecen en la lista que ve el cliente.
-  await nav.getByRole('button', { name: 'Centro de Control', exact: true }).click()
+  await openShellDestination(page, 'Centro de Control')
   await page.getByTestId('cargar-lineup').click()
   await expect(page.getByText(/modelo\(s\) del lineup iPhone/)).toBeVisible()
   const filaLineup = page.getByTestId('fila-celular').filter({ hasText: 'iPhone 17 Pro Max' }).first()
@@ -98,7 +98,7 @@ test('#303 · la lista cargada alimenta Lista por modelo y Comparador', async ({
   await filaLineup.getByRole('textbox').fill('9999000')
   await page.getByTestId('guardar-precios').click()
   await expect(page.getByText(/1 precio\(s\) guardados/).last()).toBeVisible()
-  await nav.getByRole('button', { name: 'Lista por modelo', exact: true }).click()
+  await openShellDestination(page, 'Lista por modelo')
   await expect(page.getByText('iPhone 17 Pro Max', { exact: true }).first()).toBeVisible()
   await expect(page.getByText('Gs 9.999.000').first()).toBeVisible()
 })
@@ -109,7 +109,7 @@ test('#303 · una foto subida reemplaza la maqueta en el Comparador', async ({ p
   await entrarDemo(page)
   const nav = page.locator('aside')
 
-  await nav.getByRole('button', { name: 'Centro de Control', exact: true }).click()
+  await openShellDestination(page, 'Centro de Control')
   await page.getByRole('tab', { name: 'Imágenes', exact: true }).click()
   await expect(page.getByTestId('centro-imagenes')).toBeVisible()
   await page.getByTestId('input-fotos').setInputFiles({ name: 'foto.png', mimeType: 'image/png', buffer: FOTO_PNG })
@@ -124,7 +124,7 @@ test('#303 · una foto subida reemplaza la maqueta en el Comparador', async ({ p
   await page.screenshot({ path: join(DIR, 'centro-fotos-1280-light.png') })
 
   // La primera columna es iPhone 15 Pro Max y toma el color de la foto subida.
-  await nav.getByRole('button', { name: 'Comparador', exact: true }).click()
+  await openShellDestination(page, 'Comparador')
   await page.getByRole('button', { name: 'Titanio', exact: true }).first().click()
   await expect(page.locator('main img[alt="iPhone 15 Pro Max Titanio"]:visible')).toBeVisible()
   await page.screenshot({ path: join(DIR, 'comparador-con-foto-1280-light.png') })

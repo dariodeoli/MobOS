@@ -1,3 +1,4 @@
+import { selectInventorySection } from './helpers/shell-navigation.js'
 // #237 — Modales con ancho estándar: capturas antes/después de los principales
 // y control del ancho renderizado por tamaño (corto 448 · formulario 576 ·
 // amplio 768 · completo 1024). QA237_FASE=antes|despues (por defecto despues):
@@ -43,8 +44,7 @@ test('Notificaciones (formulario)', async ({ page }) => {
 test('Nuevo conteo (formulario, antes sin ancho declarado)', async ({ page }) => {
   await page.goto('/inventario')
   // #305: la navegación está agrupada; Conteos vive en Control.
-  await page.getByTestId('grupos-inventario').getByRole('button', { name: 'Control', exact: true }).click()
-  await page.getByRole('button', { name: 'Conteos', exact: true }).click()
+    await selectInventorySection(page, 'conteos')
   await page.getByRole('button', { name: 'Nuevo conteo' }).click()
   await capturar(page, page.getByRole('dialog', { name: 'Nuevo conteo' }), 'nuevo-conteo', 'formulario')
 })

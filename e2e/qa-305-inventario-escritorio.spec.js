@@ -1,3 +1,4 @@
+import { selectInventorySection } from './helpers/shell-navigation.js'
 // #305 · Inventario escritorio: menos capas antes de la tabla, navegación
 // agrupada (Stock · Movimientos · Control) y tabla sin scroll horizontal ni
 // datos recortados (IMEI de 15 dígitos completo y verificación con fecha
@@ -46,18 +47,16 @@ test('#305 · una barra, navegación agrupada y tabla completa en escritorio', a
   await expect(page.getByTestId('resumen-inventario')).toHaveCount(0)
 
   // Navegación agrupada: solo las vistas del grupo activo.
-  const grupos = page.getByTestId('grupos-inventario')
   const tabs = page.getByTestId('tabs-inventario')
-  for (const grupo of ['Stock', 'Movimientos', 'Control']) {
-    await expect(grupos.getByRole('button', { name: grupo, exact: true })).toBeVisible()
+  for (const group of ['Stock', 'Movimientos', 'Control']) {
+    await expect(tabs.locator(`optgroup[label="${group}"]`)).toBeAttached()
   }
-  await expect(tabs.getByRole('button', { name: 'Reservas', exact: true })).toBeVisible()
-  await grupos.getByRole('button', { name: 'Movimientos', exact: true }).click()
-  await expect(tabs.getByRole('button', { name: 'En tránsito', exact: true })).toBeVisible()
-  await grupos.getByRole('button', { name: 'Control', exact: true }).click()
-  await expect(tabs.getByRole('button', { name: 'Conteos', exact: true })).toBeVisible()
-  await grupos.getByRole('button', { name: 'Stock', exact: true }).click()
-  await expect(tabs.getByRole('button', { name: 'Inventario', exact: true })).toBeVisible()
+  await expect(tabs.locator('optgroup[label="Stock"]').getByRole('option', { name: 'Reservas', exact: true })).toBeAttached()
+  await expect(tabs.locator('optgroup[label="Stock"]').getByRole('option', { name: 'En tránsito', exact: true })).toHaveCount(0)
+  await expect(tabs.locator('optgroup[label="Movimientos"]').getByRole('option', { name: 'En tránsito', exact: true })).toBeAttached()
+  await expect(tabs.locator('optgroup[label="Control"]').getByRole('option', { name: 'Conteos', exact: true })).toBeAttached()
+  for (const value of ['reservas', 'transito', 'conteos', 'unidades']) await selectInventorySection(page, value)
+
 
   // Unidad propia con IMEI real de 15 dígitos, verificada, para medir la fila.
   const producto = await apiPagina(page, `/api/products?q=${encodeURIComponent('E2E-IPHONE15')}`)
