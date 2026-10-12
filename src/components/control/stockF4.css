@@ -1,0 +1,235 @@
+/* Serialized list only: quantity stock, alternative tiles and detail stay untouched. */
+.stock-f4-list {
+  container-type: inline-size;
+  min-width: 0;
+  margin-inline: -12px;
+  width: calc(100% + 24px);
+}
+.stock-f4-grid {
+  display: grid;
+  grid-template-columns: 20px minmax(310px, 1fr) 108px 224px 90px 100px 124px 78px;
+  align-items: center;
+  column-gap: 6px;
+  min-width: 0;
+}
+.stock-f4-header {
+  background: rgb(var(--c-ink));
+  border-left-width: 3px;
+  min-height: 40px;
+}
+.stock-f4-row,
+.stock-f4-card {
+  background: rgb(var(--c-ink));
+  border-color: rgb(var(--c-ink-600));
+  border-left-width: 3px;
+  min-height: 48px;
+  border-radius: 10px;
+  overflow-wrap: anywhere;
+}
+.stock-f4-row > span {
+  min-width: 0;
+  font-size: 12px;
+}
+.stock-f4-row [data-testid='unidad-imei'] {
+  font-size: 11px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.stock-f4-row [data-testid='unidad-verificacion'] {
+  background: none;
+  border: none;
+  padding: 0;
+}
+.stock-f4-row [data-testid='unidad-verificacion'] > span {
+  flex-wrap: wrap;
+}
+.stock-f4-model b,
+.stock-f4-card b {
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.stock-f4-row > span:nth-child(5) .truncate,
+.stock-f4-row > span:nth-child(6) .truncate {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+.stock-f4-row > span:nth-child(6) {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+.stock-f4-row button {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+}
+.stock-f4-row > span:last-child {
+  flex-wrap: wrap;
+  gap: 2px;
+}
+.stock-f4-row > span:last-child > button:not([aria-label]) {
+  width: auto;
+  padding-inline: 4px;
+}
+.stock-f4-cost {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.stock-f4-menu [role='menuitem'] {
+  width: 100%;
+  height: auto;
+  min-height: 44px;
+  padding: 8px;
+}
+.stock-f4-row:focus-visible,
+.stock-f4-card:focus-visible,
+.stock-f4-row :focus-visible,
+.stock-f4-card :focus-visible {
+  outline: 2px solid rgb(var(--c-fono));
+  outline-offset: 2px;
+}
+.stock-f4-card {
+  padding: 12px;
+}
+.stock-f4-card > div:first-child {
+  flex-wrap: wrap;
+}
+.stock-f4-card > div:first-child > span:first-of-type {
+  flex: 1;
+}
+.stock-f4-card p {
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.stock-f4-card button,
+.stock-f4-select {
+  min-width: 44px;
+  min-height: 44px;
+}
+.stock-f4-select {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.stock-f4-card > div:last-child {
+  flex-wrap: wrap;
+}
+/* The list becomes natural cards before its real columns would collide. */
+@container (max-width: 1119px) {
+  .stock-f4-header {
+    display: none;
+  }
+  .stock-f4-row,
+  .stock-f4-skeleton {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 12px;
+  }
+  .stock-f4-row button,
+  .stock-f4-row label {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .stock-f4-row > span {
+    justify-content: flex-start;
+  }
+  .stock-f4-row > span:nth-child(7)::before {
+    content: 'Costo (USD)';
+    color: rgb(var(--c-mute));
+    margin-right: 8px;
+  }
+  .stock-f4-row [data-testid='unidad-imei'] {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+@media (pointer: coarse) {
+  .stock-f4-row button,
+  .stock-f4-row label {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+.stock-f4-row .stock-f4-model > span:first-child {
+  display: none;
+}
+.stock-f4-row > span:nth-child(7) {
+  position: relative;
+}
+.stock-f4-row > span:nth-child(7) > span:has(input) {
+  position: absolute;
+  z-index: 20;
+  right: 0;
+  padding: 8px;
+  background: rgb(var(--c-ink));
+  border: 1px solid rgb(var(--c-ink-600));
+  border-radius: 10px;
+}
+
+.stock-f4-row > span:nth-child(6) > span:first-child {
+  white-space: nowrap;
+  font-size: 11px;
+  padding-inline: 6px;
+  border-radius: 4px;
+  background: none;
+}
+
+.stock-f4-header,
+.stock-f4-row,
+.stock-f4-skeleton {
+  padding-inline: 8px;
+  border-left-width: 3px;
+}
+
+.stock-f4-model .stock-f4-battery {
+  display: inline;
+  border: none;
+  padding: 0;
+  font: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
+}
+.stock-f4-card > div:first-child > span:last-child {
+  background: none;
+  border-radius: 4px;
+}
+
+.stock-f4-card > div:first-child > span:first-of-type {
+  flex-basis: 100%;
+}
+.stock-f4-card > div:last-child > .stock-f4-cost {
+  flex-basis: 100%;
+}
+.stock-f4-card-actions {
+  width: 100%;
+  justify-content: flex-end;
+}
+.stock-f4-card-actions .stock-f4-select {
+  margin-right: auto;
+}
+
+.stock-f4-select-caption {
+  display: none;
+}
+@container (max-width: 1119px) {
+  .stock-f4-header:has(input) {
+    display: flex;
+  }
+  .stock-f4-header > span:not(:first-child) {
+    display: none;
+  }
+  .stock-f4-header label {
+    width: auto;
+    min-height: 44px;
+    gap: 8px;
+  }
+  .stock-f4-select-caption {
+    display: inline;
+    font-size: 12px;
+  }
+}

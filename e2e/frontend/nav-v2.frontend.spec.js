@@ -1775,7 +1775,9 @@ for (const role of ['ADMIN', 'GERENTE', 'VENDEDOR']) {
     await page.goto('/clientes')
     const root = page.locator('.clientes-f3')
     await expect(root.getByTestId('resumen-clientes')).toContainText('—')
-    await expect(root.getByRole('status')).toContainText('Resumen de tienda no disponible')
+    await expect(
+      root.getByRole('status').filter({ hasText: 'Resumen de tienda no disponible' }),
+    ).toContainText('Resumen de tienda no disponible')
     const tenantCount = root.getByTestId('resumen-clientes').locator('> div').first()
     await expect(tenantCount.locator('.clientes-f3-value')).toHaveText('—')
     await expect(tenantCount).toContainText('Tienda · 2 en pantalla')
@@ -2142,4 +2144,512 @@ for (const scenario of ['mixed', 'all-fail', 'terminal', 'nonvisible', 'refresh-
       fullPage: true,
     })
   })
+}
+
+// F4 serialized body: append-only coverage; all earlier 87 cases stay byte-identical.
+const stockOutput = '/tmp/mobos-redesign-stock-qa'
+const stockWidths = [320, 390, 430, 1280, 1440, 1920]
+
+async function stockTheme(page, width, dark) {
+  if (!dark) return
+  await page.getByTestId(width < 1024 ? 'shell-perfil-mobile' : 'shell-perfil').click()
+  await page
+    .getByRole('dialog', { name: 'Perfil y preferencias' })
+    .getByRole('button', { name: 'Cambiar a tema oscuro', exact: true })
+    .click()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('html')).toHaveClass(/dark/)
+}
+async function stockCellMetrics(page) {
+  return page.locator('.stock-f4-row, .stock-f4-card').evaluateAll((rows) =>
+    rows.map((row) => ({
+      width: row.clientWidth,
+      scroll: row.scrollWidth,
+      cells: [...row.children].map((cell) => ({
+        width: cell.clientWidth,
+        scroll: cell.scrollWidth,
+      })),
+      identity: [
+        ...row.querySelectorAll(
+          '[data-testid="unidad-modelo"], [data-testid="unidad-imei"], [data-testid="unidad-verificacion"]',
+        ),
+      ].map((cell) => {
+        const range = document.createRange()
+        range.selectNodeContents(
+          cell.querySelector('b') ||
+            (cell.dataset.testid === 'unidad-verificacion' ? cell.firstElementChild || cell : cell),
+        )
+        return {
+          text: cell.textContent.trim(),
+          width: cell.clientWidth,
+          scroll: cell.scrollWidth,
+          lines: new Set(
+            [...range.getClientRects()]
+              .filter((rect) => rect.width > 0)
+              .map((rect) => Math.round(rect.top)),
+          ).size,
+        }
+      }),
+    })),
+  )
+}
+for (const width of stockWidths) {
+  for (const dark of [false, true]) {
+    test(`F4 Stock demo complete identities ${width}px ${dark ? 'dark' : 'light'}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await enterDemo(page)
+      await stockTheme(page, width, dark)
+      await page
+        .getByTestId(width < 1024 ? 'shell-bottom-nav' : 'shell-lateral')
+        .getByRole('button', { name: 'Stock', exact: true })
+        .click()
+      const rows = page.getByTestId(width < 640 ? 'inventario-tarjeta-movil' : 'inventario-fila')
+      await expect(rows.first()).toBeVisible()
+      await noOverflow(page)
+      const metrics = await stockCellMetrics(page)
+      for (const row of metrics) {
+        expect(row.scroll).toBeLessThanOrEqual(row.width)
+        for (const cell of row.cells) expect(cell.scroll).toBeLessThanOrEqual(cell.width + 1)
+        for (const cell of row.identity) {
+          expect(cell.scroll).toBeLessThanOrEqual(cell.width + 1)
+          if (width >= 1440) expect(cell.lines, cell.text).toBe(1)
+        }
+      }
+      if (width >= 1440) {
+        const header = page.getByTestId('inventario-encabezado')
+        await expect(header).toBeVisible()
+        const positions = await header.evaluate((e) =>
+          [...e.children].map((c) => c.getBoundingClientRect().x),
+        )
+        const rowPositions = await rows
+          .first()
+          .evaluate((e) => [...e.children].map((c) => c.getBoundingClientRect().x))
+        positions.forEach((x, i) => expect(Math.abs(x - rowPositions[i])).toBeLessThanOrEqual(1))
+      }
+      if (width < 640) {
+        const targets = await rows
+          .first()
+          .locator('button, label')
+          .evaluateAll((es) =>
+            es.map((e) => ({
+              width: e.getBoundingClientRect().width,
+              height: e.getBoundingClientRect().height,
+            })),
+          )
+        for (const target of targets) {
+          expect(target.width).toBeGreaterThanOrEqual(44)
+          expect(target.height).toBeGreaterThanOrEqual(44)
+        }
+      }
+      if (width >= 640) {
+        const selectAll = page.getByLabel('Seleccionar visibles', { exact: true })
+        await selectAll.check()
+        expect(
+          await rows.getByRole('checkbox').evaluateAll((es) => es.every((e) => e.checked)),
+        ).toBe(true)
+        await selectAll.uncheck()
+        expect(
+          await rows.getByRole('checkbox').evaluateAll((es) => es.every((e) => !e.checked)),
+        ).toBe(true)
+      }
+      const first = rows.first()
+      await first.getByRole('checkbox').check()
+      await expect(first.getByRole('checkbox')).toBeChecked()
+      await first.getByRole('checkbox').uncheck()
+      const trigger = first.getByRole('button', { name: /^Acciones de/ })
+      await trigger.focus()
+      await page.keyboard.press('Enter')
+      const menu = first.getByRole('menu')
+      await expect(menu).toBeVisible()
+      await expect(menu.getByRole('menuitem').first()).toBeFocused()
+      await page.keyboard.press('End')
+      await expect(menu.getByRole('menuitem').last()).toBeFocused()
+      await page.keyboard.press('ArrowUp')
+      await page.keyboard.press('Home')
+      await expect(menu.getByRole('menuitem').first()).toBeFocused()
+      await page.keyboard.press('Escape')
+      await expect(menu).toBeHidden()
+      await expect(trigger).toBeFocused()
+      await first.focus()
+      await page.keyboard.press('Space')
+      await expect(page.getByRole('dialog').first()).toBeVisible()
+      await page.keyboard.press('Escape')
+      await expect(page.getByRole('dialog')).toHaveCount(0)
+      await expect(first).toBeFocused()
+      await mkdir(stockOutput, { recursive: true })
+      await page.screenshot({
+        path: `${stockOutput}/${width}-${dark ? 'dark' : 'light'}.png`,
+        fullPage: true,
+      })
+      await import('node:fs/promises').then((fs) =>
+        fs.writeFile(
+          `${stockOutput}/${width}-${dark ? 'dark' : 'light'}-metrics.json`,
+          JSON.stringify(metrics, null, 2),
+        ),
+      )
+    })
+  }
+}
+
+async function mockStock(
+  page,
+  { empty = false, delayed = false, noRate = false, long = false } = {},
+) {
+  const state = { mutations: [], release: null }
+  const gate = delayed
+    ? new Promise((resolve) => {
+        state.release = resolve
+      })
+    : null
+  const standard = {
+    id: 'qa-stock-a',
+    productId: 'qa-stock-product',
+    serial: '123456789012345',
+    product: {
+      id: 'qa-stock-product',
+      name: long ? 'Modelo excepcional '.repeat(20) : 'iPhone 15 Pro Max',
+      capacity: '256 GB',
+      color: 'Titanio',
+    },
+    batteryHealth: 94,
+    status: 'AVAILABLE',
+    condition: 'USED',
+    branchId: 'qa-branch',
+    branch: { id: 'qa-branch', name: long ? 'Sucursal completa '.repeat(10) : 'Casa Central' },
+    locationId: 'qa-location',
+    location: { id: 'qa-location', code: 'D1', name: 'Depósito 1' },
+    lastVerifiedAt: '2026-10-10T12:00:00Z',
+    lastVerifiedBy: { name: long ? 'Verificador completo '.repeat(15) : 'Hernán Acosta' },
+    costCurrency: 'PYG',
+    costPyg: 100000000,
+    originalCost: null,
+  }
+  const units = empty
+    ? []
+    : [
+        standard,
+        {
+          ...standard,
+          id: 'qa-stock-b',
+          serial: '223456789012345',
+          status: 'SOLD',
+          sale: { fulfillmentStatus: 'READY_FOR_PICKUP' },
+          costPyg: null,
+          originalCost: null,
+        },
+        {
+          ...standard,
+          id: 'qa-stock-c',
+          serial: '323456789012345',
+          status: 'IN_TRANSIT',
+          costCurrency: 'USD',
+          costPyg: 5248700,
+          originalCost: 719,
+          exchangeRatePyg: 7300,
+        },
+      ]
+  await page.route(/https:\/\//, (route) => route.abort())
+  await page.route('**/api/**', async (route) => {
+    const path = new URL(route.request().url()).pathname
+    if (!path.startsWith('/api/')) return route.continue()
+    if (route.request().method() !== 'GET') {
+      if (['/api/push/sincronizar', '/api/presence/heartbeat'].includes(path))
+        return route.fulfill({
+          status: 503,
+          json: { error: 'Unrelated background operation blocked' },
+        })
+      state.mutations.push({ path, payload: route.request().postDataJSON() })
+      return route.fulfill({ status: 200, json: { id: 'isolated-ack' } })
+    }
+    let body = []
+    if (path === '/api/auth/me')
+      body = {
+        user: {
+          id: 'qa-user',
+          name: 'Usuario local',
+          role: 'ADMIN',
+          tenantId: 'qa-tenant',
+          branchId: 'qa-branch',
+          branchName: 'Casa Central',
+        },
+        tenant: { id: 'qa-tenant', name: 'Tienda local' },
+      }
+    if (['/api/inventory-branches', '/api/inventory/branches'].includes(path))
+      body = [{ id: 'qa-branch', name: 'Casa Central' }]
+    if (path === '/api/fx') body = noRate ? {} : { referencialDiario: 7300 }
+    if (path === '/api/inventory-units') {
+      if (gate) await gate
+      body = units
+    }
+    await route.fulfill({ status: 200, json: body })
+  })
+  await page.goto('/inventario/unidades')
+  return state
+}
+for (const width of stockWidths) {
+  test(`F4 Stock isolated 15-digit identity and full Gs cost ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    const state = await mockStock(page)
+    const row = page
+      .getByTestId(width < 640 ? 'inventario-tarjeta-movil' : 'inventario-fila')
+      .filter({ hasText: '123456789012345' })
+    await expect(row).toBeVisible()
+    await expect(row.getByTestId('unidad-modelo')).toContainText(
+      /iPhone 15 Pro Max.*256 GB.*Titanio/,
+    )
+    await expect(row.getByTestId('unidad-imei')).toHaveText('123456789012345')
+    await expect(row.getByTestId('unidad-verificacion')).toContainText(
+      'OK Hernán Acosta · 10/10/2026',
+    )
+    if (width < 640) {
+      await expect(row).toContainText('Gs 100.000.000')
+      await expect(row).toContainText('Casa Central · Depósito 1 (D1)')
+    } else await expect(row).toContainText('13.698,63')
+    await noOverflow(page)
+    const metrics = await stockCellMetrics(page)
+    for (const item of metrics) {
+      for (const cell of item.cells) expect(cell.scroll).toBeLessThanOrEqual(cell.width + 1)
+      if (width >= 1440) for (const cell of item.identity) expect(cell.lines, cell.text).toBe(1)
+    }
+    expect(state.mutations).toEqual([])
+    await mkdir(stockOutput, { recursive: true })
+    await page.screenshot({ path: `${stockOutput}/isolated-${width}.png`, fullPage: true })
+  })
+}
+test('F4 Stock loading, empty, USD edit Escape and Sold/In-transit body regressions', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  let state = await mockStock(page, { delayed: true })
+  await expect(page.getByTestId('unidades-cargando')).toBeVisible()
+  await expect(page.getByTestId('unidades-vacio')).toHaveCount(0)
+  const columns = await page
+    .getByTestId('inventario-encabezado')
+    .evaluate((e) => getComputedStyle(e).gridTemplateColumns)
+  expect(
+    await page
+      .locator('.stock-f4-skeleton')
+      .first()
+      .evaluate((e) => getComputedStyle(e).gridTemplateColumns),
+  ).toBe(columns)
+  state.release()
+  const row = page.getByTestId('inventario-fila').filter({ hasText: '123456789012345' })
+  await expect(row).toBeVisible()
+  await row.getByRole('button', { name: 'Editar el costo de 123456789012345', exact: true }).click()
+  const input = row.getByRole('textbox', { name: 'Costo en USD de 123456789012345' })
+  await expect(input).toBeFocused()
+  await input.fill('700')
+  await page.keyboard.press('Escape')
+  await expect(input).toBeHidden()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  expect(state.mutations).toEqual([])
+  await page.goto('/inventario/vendidos')
+  await expect(
+    page.getByTestId('inventario-fila').filter({ hasText: '223456789012345' }),
+  ).toContainText('Sin costo')
+  await page.goto('/inventario/transito')
+  await expect(
+    page.getByTestId('inventario-fila').filter({ hasText: '323456789012345' }),
+  ).toContainText('719,00')
+  await expect(page.getByTestId('unidad-verificacion').first()).toContainText('Hernán Acosta')
+  await page.unroute('**/api/**')
+  state = await mockStock(page, { empty: true })
+  await expect(page.getByTestId('unidades-vacio')).toBeVisible()
+  await expect(page.getByTestId('inventario-fila')).toHaveCount(0)
+  expect(state.mutations).toEqual([])
+})
+for (const width of [320, 1440]) {
+  test(`F4 Stock oversized isolated names remain readable at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    const state = await mockStock(page, { long: true, noRate: true })
+    await expect(page.getByTestId('unidad-modelo').first()).toContainText(
+      'Modelo excepcional '.repeat(20).trim(),
+    )
+    await expect(page.getByTestId('unidad-verificacion').first()).toContainText(
+      'Verificador completo '.repeat(15).trim(),
+    )
+    await expect(page.locator('.stock-f4-card, .stock-f4-row').first()).toContainText(
+      'Gs 100.000.000',
+    )
+    await noOverflow(page)
+    for (const row of await stockCellMetrics(page))
+      for (const cell of row.cells) expect(cell.scroll).toBeLessThanOrEqual(cell.width + 1)
+    expect(state.mutations).toEqual([])
+  })
+}
+
+test('F4 Stock USD cost Enter keeps original mock-only payload and does not open detail', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const state = await mockStock(page)
+  const row = page.getByTestId('inventario-fila').filter({ hasText: '123456789012345' })
+  await expect(row).toContainText('13.698,63')
+  await row.getByRole('button', { name: 'Editar el costo de 123456789012345', exact: true }).click()
+  const input = row.getByRole('textbox', { name: 'Costo en USD de 123456789012345' })
+  await expect(input).toHaveValue('13698.63')
+  await input.fill('700')
+  await page.keyboard.press('Enter')
+  await expect
+    .poll(() => state.mutations)
+    .toEqual([
+      {
+        path: '/api/inventory-units',
+        payload: {
+          id: 'qa-stock-a',
+          action: 'details',
+          costCurrency: 'USD',
+          originalCost: 700,
+          exchangeRatePyg: 7300,
+        },
+      },
+    ])
+  await expect(input).toBeHidden()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+for (const width of [320, 1280]) {
+  test(`F4 Stock Sold and In-transit natural cards ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    const state = await mockStock(page)
+    await page.goto('/inventario/vendidos')
+    const sold = page.getByTestId('inventario-fila').filter({ hasText: '223456789012345' })
+    await expect(sold).toContainText('Listo p/ retirar')
+    await expect(sold).toContainText('Sin costo')
+    await expect(
+      sold.getByRole('button', { name: 'Imprimir comprobante rápido de 223456789012345' }),
+    ).toBeVisible()
+    await noOverflow(page)
+    await page.goto('/inventario/transito')
+    const transit = page.getByTestId('inventario-fila').filter({ hasText: '323456789012345' })
+    await expect(transit).toContainText('En tránsito')
+    await expect(transit.getByTestId('unidad-verificacion')).toContainText(
+      'OK Hernán Acosta · 10/10/2026',
+    )
+    const button = transit.getByRole('button', { name: 'Acciones de 323456789012345' })
+    await button.click()
+    await expect(transit.getByRole('menuitem', { name: 'Apartar para una venta' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(button).toBeFocused()
+    await noOverflow(page)
+    for (const row of await stockCellMetrics(page))
+      for (const cell of row.cells) expect(cell.scroll).toBeLessThanOrEqual(cell.width + 1)
+    for (const target of await transit
+      .locator('button')
+      .evaluateAll((es) => es.map((e) => e.getBoundingClientRect().toJSON()))) {
+      expect(target.width).toBeGreaterThanOrEqual(44)
+      expect(target.height).toBeGreaterThanOrEqual(44)
+    }
+    expect(state.mutations).toEqual([])
+  })
+}
+
+// Zero-display follow-up: append only; the preceding 111 cases are frozen.
+const stockZeroOutput = '/tmp/mobos-redesign-stock-zero-qa'
+for (const width of [1440, 320]) {
+  for (const noRate of [false, true]) {
+    test(`F4 Stock zero versus missing display ${width}px ${noRate ? 'without' : 'with'} FX`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 })
+      // All API data is isolated and every nonlocal request is blocked.
+      await page.route('**/*', route => {
+        const url = new URL(route.request().url())
+        return url.origin === 'http://127.0.0.1:5291' ? route.continue() : route.abort()
+      })
+      const state = await mockStock(page, { noRate })
+      const cases = [
+        { name: 'stored-pyg-zero', cost: { costPyg: 0 }, gs: 'Gs 0', usd: '0,00' },
+        {
+          name: 'original-pyg-zero',
+          cost: { costPyg: null, originalCost: 0, costCurrency: 'PYG' },
+          gs: 'Gs 0',
+          usd: '0,00',
+        },
+        {
+          name: 'original-pyg-string-zero',
+          cost: { originalCost: '0', costCurrency: 'PYG' },
+          gs: 'Gs 0',
+          usd: '0,00',
+        },
+        {
+          name: 'blank-pyg-original-zero',
+          cost: { costPyg: '', originalCost: 0, costCurrency: 'PYG' },
+          gs: 'Gs 0',
+          usd: '0,00',
+        },
+        {
+          name: 'original-usd-zero-rate',
+          cost: { costPyg: null, originalCost: 0, costCurrency: 'USD', exchangeRatePyg: 7300 },
+          gs: 'Gs 0',
+          usd: '0,00',
+        },
+        {
+          name: 'original-usd-zero-no-rate',
+          cost: { originalCost: 0, costCurrency: 'USD' },
+          gs: 'USD 0,00',
+          usd: '0,00',
+        },
+        { name: 'missing-original', cost: {}, missing: true },
+        { name: 'null-original', cost: { originalCost: null, costPyg: null }, missing: true },
+        { name: 'undefined-original', cost: { originalCost: undefined }, missing: true },
+        { name: 'blank-original', cost: { originalCost: '' }, missing: true },
+        { name: 'whitespace-original', cost: { originalCost: '  ' }, missing: true },
+        { name: 'negative-original', cost: { originalCost: -1 }, gs: '—', usd: '—' },
+        { name: 'invalid-original', cost: { originalCost: 'invalid' }, gs: '—', usd: '—' },
+        { name: 'negative-pyg', cost: { costPyg: -1 }, gs: '—', usd: '—' },
+        { name: 'invalid-pyg', cost: { costPyg: 'invalid' }, gs: '—', usd: '—' },
+        {
+          name: 'usd-missing-original-stored-pyg',
+          cost: { costPyg: 7300, originalCost: null, costCurrency: 'USD' },
+          gs: 'Gs 7.300',
+          usd: noRate ? 'Gs 7.300' : '1,00',
+        },
+      ]
+      const units = cases.map((item, index) => ({
+        id: `zero-${item.name}`,
+        productId: 'zero-product',
+        product: { id: 'zero-product', name: `Zero QA ${item.name}` },
+        serial: `990000000000${String(index).padStart(3, '0')}`,
+        status: 'AVAILABLE',
+        condition: 'USED',
+        branchId: 'qa-branch',
+        ...item.cost,
+      }))
+      await page.route(/\/api\/inventory-units(?:\?|$)/, route => {
+        expect(route.request().method()).toBe('GET')
+        return route.fulfill({ status: 200, json: units })
+      })
+      await page.reload()
+      const rows = page.getByTestId(width < 640 ? 'inventario-tarjeta-movil' : 'inventario-fila')
+      await expect(rows).toHaveCount(cases.length)
+      for (const [index, item] of cases.entries()) {
+        const row = rows.filter({ hasText: units[index].serial })
+        await expect(row).toBeVisible()
+        if (item.missing) {
+          await expect(row).toContainText('Sin costo')
+          await expect(row.locator('.stock-f4-cost')).toHaveCount(width < 640 ? 1 : 0)
+        } else {
+          const expected =
+            width < 640
+              ? item.gs
+              : noRate && item.cost.costCurrency !== 'USD' && item.usd === '0,00'
+                ? 'Gs 0'
+                : item.usd
+          await expect(row.locator('.stock-f4-cost')).toHaveText(expected)
+          await expect(row).not.toContainText('Sin costo')
+        }
+      }
+      await noOverflow(page)
+      for (const row of await stockCellMetrics(page))
+        for (const cell of row.cells) expect(cell.scroll).toBeLessThanOrEqual(cell.width + 1)
+      expect(state.mutations).toEqual([])
+      await mkdir(stockZeroOutput, { recursive: true })
+      await page.screenshot({
+        path: `${stockZeroOutput}/zero-${width}-${noRate ? 'no-fx' : 'fx'}.png`,
+        fullPage: true,
+      })
+    })
+  }
 }
