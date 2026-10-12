@@ -3,16 +3,16 @@
 // Pruebas de consolidación financiera: movimientos de caja unificados entre
 // /api/cash y /api/finance, payables de compras prorrateadas y rate limit de
 // RUC persistido en AuthAttempt.
-// Uso: node backend/tests/finance-consolidated.mjs BASE_URL ADMIN_TOKEN [DATABASE_URL] [PG_BIN] [BRANCH_ID]
+// Uso: node backend/tests/finance-consolidated.mjs BASE_URL ADMIN_TOKEN [DATABASE_URL] [PG_BIN] [BRANCH_ID] [RUC_PILOT_TOKEN]
 
 import { createHash, randomUUID } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 
-const [baseUrlArg, adminToken, databaseUrl, pgBin, branchId = 'branch-a-it'] = process.argv.slice(2)
+const [baseUrlArg, adminToken, databaseUrl, pgBin, branchId = 'branch-a-it', rucPilotToken] = process.argv.slice(2)
 
 if (!baseUrlArg || !adminToken) {
-  console.error('Uso: node backend/tests/finance-consolidated.mjs BASE_URL ADMIN_TOKEN [DATABASE_URL] [PG_BIN] [BRANCH_ID]')
+  console.error('Uso: node backend/tests/finance-consolidated.mjs BASE_URL ADMIN_TOKEN [DATABASE_URL] [PG_BIN] [BRANCH_ID] [RUC_PILOT_TOKEN]')
   process.exit(2)
 }
 
@@ -130,9 +130,16 @@ async function testPayables() {
 }
 
 async function testRucPersistent() {
-  const meResponse = await request('/api/auth/me')
+  if (!rucPilotToken) throw new Error('Dedicated synthetic RUC pilot token is required.')
+  // Match the dedicated pilot login's TEST-NET-1 client, not ordinary callers.
+  const pilotHeaders = { Authorization: 'Bearer ' + rucPilotToken, 'X-Forwarded-For': '192.0.2.44' }
+  const denied = await request('/api/ruc?ruc=80012345')
+  await expectStatus('non-pilot admin cannot use private RUC', denied, 403)
+  ok((await json(denied, 'non-pilot RUC')).details?.code === 'pilot_forbidden', 'non-pilot rejected before quota/provider')
+  const meResponse = await request('/api/auth/me', { headers: pilotHeaders })
   await expectStatus('obtener sesión para RUC', meResponse, 200)
   const me = await json(meResponse, 'obtener sesión para RUC')
+  ok(me.user.tenantId === 'tenant-ruc-pilot-it' && me.user.id === 'user-ruc-pilot-it', 'quota belongs to dedicated synthetic persisted pilot IDs')
   const accountId = me.user.tenantId + ':' + me.user.id
   const fingerprint = createHash('sha256').update('ruc:account:' + accountId).digest('hex')
   const limit = Number(process.env.RUC_ACCOUNT_HOURLY_LIMIT || 12)
@@ -147,14 +154,15 @@ async function testRucPersistent() {
     const ids = Array.from({ length: limit - current }, () => randomUUID())
     psql(['-c', ids.map((id) => 'INSERT INTO "AuthAttempt" ("id", "scope", "fingerprint", "createdAt") VALUES (\'' + id + '\', \'ruc:account\', \'' + fingerprint + '\', now() AT TIME ZONE \'UTC\')').join('; ')])
   }
-  const first = await request('/api/ruc?ruc=80012345')
+  const first = await request('/api/ruc?ruc=80012345', { headers: pilotHeaders })
   await expectStatus('RUC con cuota agotada sembrada en DB', first, 429)
   ok(first.headers.get('retry-after') !== null, 'RUC 429 incluye Retry-After')
-  const second = await request('/api/ruc?ruc=80012345')
+  ok((await json(first, 'pilot quota')).details?.code === 'account_rate_limited', 'pilot stopped by persisted quota before provider')
+  const second = await request('/api/ruc?ruc=80012345', { headers: pilotHeaders })
   await expectStatus('RUC sigue en 429 en la siguiente consulta', second, 429)
   const count = Number(fingerprintCount().trim())
   ok(count === limit, 'la cuota quedó registrada en AuthAttempt (' + count + ' intentos)')
-  return 4
+  return 7
 }
 
 async function main() {
