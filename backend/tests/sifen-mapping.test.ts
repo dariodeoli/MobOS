@@ -136,3 +136,20 @@ assert.equal(tipoContribuyenteDe('Comercial del Este S.R.L.'), 2)
 assert.equal(tipoContribuyenteDe('Juan Ramírez'), 1)
 
 console.log('sifen-mapping: receptor, ítems, IVA, descuento, crédito y faltantes OK')
+
+// Exact selected holder text must not become presentation or customer identity.
+const officialCustomerName = '  CUSTOMER OFFICIAL, S.A.  '
+const selectedHolderName = '  Separate Holder, S.A.  '
+const otherIdentity = { ...cliente, name: 'Legacy buyer', nameOfficial: officialCustomerName, displayName: 'Guessed Display', billingName: selectedHolderName, billingDocument: '80069563-1' }
+const separateHolder = mapearDocumentoFiscal({ orden, cliente: otherIdentity, config })
+assert.equal(separateHolder.receptor.razonSocial, selectedHolderName)
+const noSelectedHolder = mapearDocumentoFiscal({ orden, cliente: { ...otherIdentity, billingName: null, billingDocument: null }, config })
+assert.equal(noSelectedHolder.receptor.razonSocial, 'Legacy buyer', 'no association authorizes implicit customer official fallback')
+const frozenHolder = mapearDocumentoFiscal({ orden: { ...orden, billingName: selectedHolderName, billingDocument: '80069563-1' }, cliente: { ...otherIdentity, billingName: 'Later different holder' }, config })
+assert.equal(frozenHolder.receptor.razonSocial, selectedHolderName, 'explicit order holder snapshot outranks mutable current holder')
+const nameOnlyHolder = mapearDocumentoFiscal({ orden: { ...orden, billingName: selectedHolderName }, cliente: otherIdentity, config })
+assert.equal(nameOnlyHolder.receptor.documento, '0', 'do not borrow another identity document for a name-only order holder')
+console.log('sifen-mapping: exact independent holder and snapshot regressions OK')
+
+const documentOnlyHolder = mapearDocumentoFiscal({ orden: { ...orden, billingDocument: '80069563-1' }, cliente: otherIdentity, config })
+assert.equal(documentOnlyHolder.receptor.razonSocial, 'Sin Nombre', 'document-only snapshot does not infer another holder name')

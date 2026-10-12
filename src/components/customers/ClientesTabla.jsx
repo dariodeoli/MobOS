@@ -207,7 +207,7 @@ function TarjetaCliente({ row, templates, seleccionado, onAlternar, onPerfil, on
         <div className="min-w-0 flex-1">
           <div className="clientes-f3-card-identity">
             <div className="min-w-0">
-              <p className={cn('clientes-f3-identity', CELDA_IDENTIDAD_GRANDE)} title={row.name}>{row.name || 'Sin nombre'}</p>
+              <p className={cn('clientes-f3-identity', CELDA_IDENTIDAD_GRANDE)} title={row.displayName || row.name}>{row.displayName || row.name || 'Sin nombre'}</p>
               <p className={cn('clientes-f3-phone mt-0.5', CELDA_DATO)}>
                 {telefonoMostrado || 'Sin teléfono'}
               </p>
@@ -349,7 +349,7 @@ export default function ClientesTabla({ rows, templates, onPerfil, onResumen, on
                 <input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar a ${row.name || 'cliente'}`} checked={seleccionados.includes(row.id)} onChange={() => setSeleccionados((actuales) => alternarId(actuales, row.id))} />
               </label>
               <span className="min-w-0">
-                <span className={cn('clientes-f3-identity block', CELDA_IDENTIDAD_GRANDE)} title={row.name}>{row.name || 'Sin nombre'}</span>
+                <span className={cn('clientes-f3-identity block', CELDA_IDENTIDAD_GRANDE)} title={row.displayName || row.name}>{row.displayName || row.name || 'Sin nombre'}</span>
                 <span className={cn(CELDA_DATO, 'clientes-f3-phone block')}>
                   {telefonoMostrado || 'Sin teléfono'}
                 </span>

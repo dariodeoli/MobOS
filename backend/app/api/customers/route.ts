@@ -1,3 +1,4 @@
+import { customerIdentityInput, hasCustomerIdentity, officialNameInput, serializeCustomer } from '../../../lib/customer-identity'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
@@ -97,7 +98,7 @@ export async function GET(request: Request) {
   if (!ids.length) return json([])
   // Segunda consulta con el include de siempre; el orden lo fija la lista de
   // ids para conservar la paginación por cursor.
-  const data = await prisma.customer.findMany({ where: { id: { in: ids.map((row) => row.id) } }, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } })
+  const data = await prisma.customer.findMany({ where: { tenantId: tenant, id: { in: ids.map((row) => row.id) } }, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } })
   const porId = new Map(data.map((customer) => [customer.id, customer]))
   const ordenados = ids.flatMap((row) => { const customer = porId.get(row.id); return customer ? [customer] : [] })
   const stats = await prisma.order.groupBy({
@@ -140,7 +141,7 @@ export async function GET(request: Request) {
   const informesPorCliente = conteoPorCliente(informesSinVer)
   const sinVerDe = (customerId: string) => ({ mensajes: mensajesPorCliente.get(customerId) || 0, informes: informesPorCliente.get(customerId) || 0 })
   const statsPorCliente = new Map(stats.map((fila) => [fila.customerId, { orders: fila._count._all, totalSpentPyg: fila._sum.totalPyg ?? 0, lastOrderAt: fila._max.createdAt, pendingPyg: fila.customerId ? deudaPorCliente.get(fila.customerId) || 0 : 0, sinVer: fila.customerId ? sinVerDe(fila.customerId) : { mensajes: 0, informes: 0 } }]))
-  return json(ordenados.map((customer) => ({ ...customer, wholesale: esMayorista(customer), stats: statsPorCliente.get(customer.id) || { orders: 0, totalSpentPyg: 0, lastOrderAt: null, pendingPyg: 0, sinVer: sinVerDe(customer.id) } })))
+  return json(ordenados.map((customer) => ({ ...serializeCustomer(customer), wholesale: esMayorista(customer), stats: statsPorCliente.get(customer.id) || { orders: 0, totalSpentPyg: 0, lastOrderAt: null, pendingPyg: 0, sinVer: sinVerDe(customer.id) } })))
 }
 
 export async function POST(request: Request) {
@@ -148,6 +149,9 @@ export async function POST(request: Request) {
   if (!tenant || !session) return error('Falta sesión.', 401)
   try {
     const body = await request.json() as Record<string, unknown>
+    const identity = customerIdentityInput(body)
+    const identityRequest = hasCustomerIdentity(body) || Object.hasOwn(body, 'billingName') || Object.hasOwn(body, 'billingDocument')
+    if (Array.isArray(body.rows) && identityRequest) return error('La identidad fiscal debe guardarse en una ficha individual.')
     if (Array.isArray(body.rows)) return importarClientes(tenant, body.rows, session.user.id)
     const name = clean(body.name, 200)
     // Nombres desdoblados (#160): el nombre completo visible se compone del
@@ -176,10 +180,10 @@ export async function POST(request: Request) {
     const creditDays = body.creditDays === undefined || body.creditDays === '' || body.creditDays === null ? undefined : Number(body.creditDays)
     if (creditDays !== undefined && (!Number.isSafeInteger(creditDays) || creditDays < 0 || creditDays > 365)) return error('Plazo de crédito inválido (0 a 365 días).')
     const fields = {
-      name: nombreCompleto, firstName, secondName, phone, countryCode, email: clean(body.email, 200) || null, document,
+      ...identity, name: nombreCompleto, firstName, secondName, phone, countryCode, email: clean(body.email, 200) || null, document,
       // Solo se tocan cuando llegan: una ficha guardada no pierde sus datos de
       // facturación por un guardado que no los incluye.
-      ...(body.billingName === undefined ? {} : { billingName: clean(body.billingName, 200) || null }),
+      ...(body.billingName === undefined ? {} : { billingName: body.billingName === null ? null : officialNameInput(body.billingName) }),
       ...(body.billingDocument === undefined ? {} : { billingDocument: clean(body.billingDocument, 100) || null }),
       notes: clean(body.notes, 2000) || null,
       externalId: clean(body.externalId, 100) || null,
@@ -196,13 +200,17 @@ export async function POST(request: Request) {
       ...(creditDays !== undefined ? { creditDays } : {}),
     }
     const addresses = addressesInput(body.addresses)
-    const existing = document
+    const duplicateCriteria = [{ document }, { phone }, { externalId: fields.externalId }].filter(criterion => Object.values(criterion)[0])
+    const existing = identityRequest
+      ? duplicateCriteria.length ? await prisma.customer.findFirst({ where: { tenantId: tenant, OR: duplicateCriteria } }) : null
+      : document
       ? await prisma.customer.findFirst({ where: { tenantId: tenant, document } })
       : phone ? await prisma.customer.findFirst({ where: { tenantId: tenant, phone } }) : fields.externalId ? await prisma.customer.findFirst({ where: { tenantId: tenant, externalId: fields.externalId } }) : null
+    if (existing && identityRequest) return error('Ya existe una ficha con estos datos. Revise y edite esa ficha explícitamente.', 409)
     const data = existing
-      ? await prisma.customer.update({ where: { id: existing.id }, data: { ...fields, ...(addresses === undefined ? {} : { addresses: { deleteMany: {}, create: addresses } }) }, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } })
+      ? await prisma.customer.update({ where: { id: existing.id, tenantId: tenant }, data: { ...fields, ...(addresses === undefined ? {} : { addresses: { deleteMany: {}, create: addresses } }) }, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } })
       : await prisma.customer.create({ data: { tenantId: tenant, createdById: session.user.id, ...fields, ...(addresses ? { addresses: { create: addresses } } : {}) }, include: { addresses: true } })
-    return json(data, { status: existing ? 200 : 201 })
+    return json(serializeCustomer(data), { status: existing ? 200 : 201 })
   } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo guardar el cliente.') }
 }
 
@@ -211,6 +219,7 @@ export async function POST(request: Request) {
 async function importarClientes(tenant: string, rows: unknown, userId: string) {
   const entrada = Array.isArray(rows) ? rows.slice(0, 500) : []
   if (entrada.length === 0) return error('Enviá al menos una fila para importar.', 400)
+  if (entrada.some(row => row && typeof row === 'object' && (hasCustomerIdentity(row as Record<string, unknown>) || ['displayName', 'billingName', 'billingDocument'].some(key => Object.hasOwn(row, key))))) return error('La importación no admite identidad fiscal ni titulares de factura. Guárdelos en una ficha individual.', 400)
   const normalizadas = entrada.map((row, indice) => {
     const item = row && typeof row === 'object' ? row as Record<string, unknown> : {}
     const name = clean(item.name, 200)

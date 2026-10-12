@@ -11,7 +11,8 @@ const digest = text => createHash('sha256').update(text).digest('hex')
 const between = (text, start, end) => text.slice(text.indexOf(start), text.indexOf(end)).trim()
 
 test('Clientes preserves create/import/export payloads, validation and original form', () => {
-  // The only handler change is refreshing the summary after confirmed mutations.
+  // Intentional fiscal-identity additions are covered by customerIdentity tests.
+  // Keep fingerprints for unchanged import/export and reviewed create/profile blocks.
   const originalHandlers = seller
     .replace('; setResumenRevision((value) => value + 1)', '')
     .replace('      setResumenRevision((value) => value + 1)\n', '')
@@ -19,7 +20,7 @@ test('Clientes preserves create/import/export payloads, validation and original 
     [
       '  async function create(event)',
       '  async function exportar()',
-      '0db484be48042d976cd0d0daa61c61262246da1fda5cd27a4f4747806568bda0',
+      '576f43351ace32ecc98039b1e47b897132cfa1bde7c51ccf6efb31a49b70d7ca',
     ],
     [
       '  async function exportar()',
@@ -34,15 +35,15 @@ test('Clientes preserves create/import/export payloads, validation and original 
     [
       '    <Modal open={crearAbierto}',
       '    </>}',
-      '5acb609852761a32df46487d731890dc124b4009312f47bbb006fd7cad16589a',
+      '89bea545805bc6d12f2c6af605d4e98266828c83ce05cb502d0d2d8cac64768c',
     ],
   ])
     assert.equal(digest(between(originalHandlers, start, end)), expected)
 })
 
-test('Clientes leaves profile, quick summary and communication card engines unchanged', () => {
+test('Clientes preserves reviewed fiscal profile and unchanged summary/communication engines', () => {
   for (const [file, expected] of [
-    ['CustomerProfile.jsx', '5124d66f1f779f5c1ed017e0a66df9abe8fb7ae7ed2246b5a76080d1a33dc4b1'],
+    ['CustomerProfile.jsx', '1428ef73f92153b9f543f0265a23891bae5fd4eb980f38c6766603ca1ea56364'],
     ['ClienteResumenPopup.jsx', 'a12e1ed5afa6d281167d0f105f573f3eac7b9d3054e64371a3eb09193163c98a'],
     [
       'CustomerCommunicationCard.jsx',

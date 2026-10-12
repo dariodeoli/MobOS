@@ -22,6 +22,8 @@ import type { SifenConfig } from './config'
 export type OrdenFiscal = {
   id: string
   orderNumber: string
+  billingName?: string | null
+  billingDocument?: string | null
   createdAt: Date | string
   subtotalPyg: bigint | number
   discountPyg: bigint | number
@@ -159,8 +161,13 @@ export function mapearDocumentoFiscal({ orden, cliente, config, numeroDocumento,
   ])
 
   // ── Receptor ──────────────────────────────────────────────────────────
-  const razonSocial = String(cliente?.billingName || cliente?.name || 'Sin Nombre').trim() || 'Sin Nombre'
-  const documento = interpretarDocumento(cliente?.billingDocument || cliente?.document)
+  // An explicit order holder snapshot outranks a later current-holder change.
+  // Customer.nameOfficial has no selected-holder association: never inherit it
+  // (or displayName) into an independent invoice identity.
+  const orderHolder = Boolean(orden.billingName?.trim() || orden.billingDocument?.trim())
+  const holderName = orderHolder ? orden.billingName : cliente?.billingName
+  const razonSocial = holderName?.trim() ? holderName : orderHolder ? 'Sin Nombre' : String(cliente?.name || 'Sin Nombre').trim() || 'Sin Nombre'
+  const documento = interpretarDocumento(orderHolder ? orden.billingDocument : cliente?.billingDocument || cliente?.document)
   if (documento.inferido) faltantes.add('Confirmar en la ficha del cliente si el documento es RUC o cédula (se infirió por el formato).')
   const contribuyente = documento.tipo === TIPO_DOCUMENTO_RECEPTOR.RUC
   if (!cliente) faltantes.add('El pedido no tiene cliente: se emite a consumidor final innominado.')

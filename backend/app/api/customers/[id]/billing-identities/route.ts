@@ -1,3 +1,4 @@
+import { officialNameInput } from '../../../../../lib/customer-identity'
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
@@ -23,9 +24,9 @@ export async function GET(request: Request, { params }: RouteContext) {
   const customer = await findCustomer(tenant, customerId)
   if (!customer) return error('Cliente no encontrado.', 404)
   let identities = await prisma.customerBillingIdentity.findMany({ where: { tenantId: tenant, customerId }, orderBy: [{ uses: 'desc' }, { lastUsedAt: 'desc' }] })
-  const billingName = (customer.billingName || '').trim()
+  const billingName = customer.billingName || ''
   const billingDocument = (customer.billingDocument || '').trim()
-  if (billingName && billingDocument && !identities.some(row => row.document === billingDocument)) {
+  if (billingName.trim() && billingDocument && !identities.some(row => row.document === billingDocument)) {
     try {
       const created = await prisma.$transaction(async tx => {
         const identity = await tx.customerBillingIdentity.create({ data: { tenantId: tenant, customerId, name: billingName, document: billingDocument, createdById: session.user.id } })
@@ -45,7 +46,8 @@ export async function POST(request: Request, { params }: RouteContext) {
   const tenant = session.user.tenantId
   const customerId = (params.id || '').trim().slice(0, 128)
   const body = await request.json().catch(() => null) as Record<string, unknown> | null
-  const name = text(body?.name, 200)
+  let name: string
+  try { name = officialNameInput(body?.name) } catch (cause) { return error((cause as Error).message) }
   const document = text(body?.document, 100)
   if (!name || !document) return error('La razón social y el RUC son obligatorios.')
   if (!(await findCustomer(tenant, customerId))) return error('Cliente no encontrado.', 404)
@@ -75,7 +77,8 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   if (!existing) return error('Identidad no encontrada.', 404)
   const hasName = body?.name !== undefined
   const hasDocument = body?.document !== undefined
-  const name = hasName ? text(body?.name, 200) : existing.name
+  let name = existing.name
+  try { if (hasName) name = officialNameInput(body?.name) } catch (cause) { return error((cause as Error).message) }
   const document = hasDocument ? text(body?.document, 100) : existing.document
   if (!name || !document) return error('La razón social y el RUC son obligatorios.')
   const useAsCurrent = body?.useAsCurrent === true
@@ -86,7 +89,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         ? await tx.customerBillingIdentity.update({ where: { id: existing.id }, data: { ...(hasName ? { name } : {}), ...(hasDocument ? { document } : {}) } })
         : existing
       if (useAsCurrent) {
-        await tx.customer.update({ where: { id: customerId }, data: { billingName: identity.name, billingDocument: identity.document } })
+        await tx.customer.update({ where: { id: customerId, tenantId: tenant }, data: { billingName: identity.name, billingDocument: identity.document } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'CUSTOMER_BILLING_UPDATED', entity: 'Customer', entityId: customerId, metadata: { identityId: identity.id, billingName: identity.name, billingDocument: identity.document } } })
       }
       if (hasName || hasDocument) {

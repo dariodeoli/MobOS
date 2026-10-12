@@ -1,3 +1,4 @@
+import { acceptedCustomerIdentity, customerIdentityPayload, customerDisplayName } from '@/lib/customerIdentity'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
@@ -66,7 +67,7 @@ import { whatsappUrl } from '@/utils/telefono'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 import './clientesF3.css'
-const emptyCustomer = { firstName: '', secondName: '', document: '', email: '', phones: [''], addresses: [{ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay' }], acceptsEmailMarketing: false, acceptsSmsMarketing: false, acceptsWhatsappMarketing: false, taxExempt: false, tags: '', pricingTier: 'RETAIL', priceListId: '', creditLimitPyg: '', creditDays: '' }
+const emptyCustomer = { nameOfficial: undefined, identityKind: '', givenNames: '', surnames: '', personConfirmed: false, firstName: '', secondName: '', document: '', email: '', phones: [''], addresses: [{ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay' }], acceptsEmailMarketing: false, acceptsSmsMarketing: false, acceptsWhatsappMarketing: false, taxExempt: false, tags: '', pricingTier: 'RETAIL', priceListId: '', creditLimitPyg: '', creditDays: '' }
 
 const FILTROS_CLIENTES = [['todos', 'Todos'], ['mayoristas', 'Mayoristas'], ['deuda', 'Con deuda'], ['credito', 'Con crédito']]
 // Filtro local para la demo (sin API): espejo acotado del filtro del servidor.
@@ -92,7 +93,7 @@ export const customerFields = (row) => {
   const stats = statsBase
     ? { ...statsBase, sinVer: row.stats?.sinVer || { mensajes: (row.demoProfile?.notices || []).filter((aviso) => !aviso.firstViewedAt).length, informes: filasInformeDemo(row.id).filter((fila) => fila.sharedAt && !fila.firstViewedAt).length } }
     : undefined
-  return { id: row.id, name: row.name || '', firstName: row.firstName || '', secondName: row.secondName || '', createdAt: row.createdAt || '', document: row.document || '', email: row.email || '', phone, phones, countryCode: row.countryCode || '+595', billingName: row.billingName || '', billingDocument: row.billingDocument || '', notes: typeof row.notes === 'string' ? row.notes : '', address: addresses[0]?.address || '', addresses, externalId: row.externalId || '', acceptsEmailMarketing: row.acceptsEmailMarketing === true, acceptsSmsMarketing: row.acceptsSmsMarketing === true, acceptsWhatsappMarketing: row.acceptsWhatsappMarketing === true, taxExempt: row.taxExempt === true, tags: Array.isArray(row.tags) ? row.tags : [], pricingTier: row.pricingTier || 'RETAIL', creditLimitPyg: row.creditLimitPyg ?? null, creditDays: row.creditDays ?? null, insuranceEnabled: row.insuranceEnabled === true, insuranceRatePct: row.insuranceRatePct ?? null, wholesale: row.wholesale === true || row.pricingTier === 'WHOLESALE', stats, demoProfile: row.demoProfile || null }
+  return { id: row.id, name: row.name || '', nameOfficial: row.nameOfficial ?? null, identityKind: row.identityKind ?? null, givenNames: row.givenNames ?? null, surnames: row.surnames ?? null, displayName: customerDisplayName(row), firstName: row.firstName || '', secondName: row.secondName || '', createdAt: row.createdAt || '', document: row.document || '', email: row.email || '', phone, phones, countryCode: row.countryCode || '+595', billingName: row.billingName || '', billingDocument: row.billingDocument || '', notes: typeof row.notes === 'string' ? row.notes : '', address: addresses[0]?.address || '', addresses, externalId: row.externalId || '', acceptsEmailMarketing: row.acceptsEmailMarketing === true, acceptsSmsMarketing: row.acceptsSmsMarketing === true, acceptsWhatsappMarketing: row.acceptsWhatsappMarketing === true, taxExempt: row.taxExempt === true, tags: Array.isArray(row.tags) ? row.tags : [], pricingTier: row.pricingTier || 'RETAIL', creditLimitPyg: row.creditLimitPyg ?? null, creditDays: row.creditDays ?? null, insuranceEnabled: row.insuranceEnabled === true, insuranceRatePct: row.insuranceRatePct ?? null, wholesale: row.wholesale === true || row.pricingTier === 'WHOLESALE', stats, demoProfile: row.demoProfile || null }
 }
 export function readDemoCustomers() {
   // Seeds ficticios siempre visibles (#194) + lo creado en este navegador.
@@ -229,7 +230,7 @@ export default function SellerCustomers() {
     // primer y segundo nombre.
     const firstName = form.firstName.trim()
     const secondName = form.secondName.trim()
-    const nombre = [firstName, secondName].filter(Boolean).join(' ')
+    const nombre = [firstName, secondName].filter(Boolean).join(' ') || form.nameOfficial || ''
     if (savingRef.current || !nombre) return
     // #323: el teléfono inválido frena el alta; el campo lo avisa al salir
     // (PhoneField) y la ficha no cae al error general del modal.
@@ -238,12 +239,13 @@ export default function SellerCustomers() {
     savingRef.current = true
     setSaving(true); setSaveError('')
     try {
+      const identity = customerIdentityPayload(form)
       const addresses = form.addresses.filter((address) => address.address.trim()).map((address, index) => ({ label: address.label.trim() || `Dirección ${index + 1}`, address: address.address.trim(), ...(address.city.trim() ? { city: address.city.trim() } : {}), ...(address.department?.trim() ? { department: address.department.trim() } : {}), country: address.country?.trim() || 'Paraguay', isDefault: index === 0 }))
       if (esDemo) {
-        const customer = { id: crypto.randomUUID(), name: nombre, firstName, secondName, createdAt: new Date().toISOString(), document: form.document.trim(), email: form.email.trim(), phone: phones[0] || '', phones, countryCode: form.countryCode || '+595', addresses, acceptsEmailMarketing: form.acceptsEmailMarketing, acceptsSmsMarketing: form.acceptsSmsMarketing, acceptsWhatsappMarketing: form.acceptsWhatsappMarketing, taxExempt: form.taxExempt, tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20) }
+        const customer = { id: crypto.randomUUID(), name: nombre, firstName, secondName, ...identity, createdAt: new Date().toISOString(), document: form.document.trim(), email: form.email.trim(), phone: phones[0] || '', phones, countryCode: form.countryCode || '+595', addresses, acceptsEmailMarketing: form.acceptsEmailMarketing, acceptsSmsMarketing: form.acceptsSmsMarketing, acceptsWhatsappMarketing: form.acceptsWhatsappMarketing, taxExempt: form.taxExempt, tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20) }
         guardarClienteDemo(customer)
       } else {
-        const saved = await api.post('/api/customers', { name: nombre, firstName, secondName, document: form.document.trim() || undefined, email: form.email.trim() || undefined, phone: phones[0] || undefined, countryCode: form.countryCode || '+595', addresses, notes: customerMetadata(phones), acceptsEmailMarketing: form.acceptsEmailMarketing, acceptsSmsMarketing: form.acceptsSmsMarketing, acceptsWhatsappMarketing: form.acceptsWhatsappMarketing, taxExempt: form.taxExempt, tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20), pricingTier: form.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL', ...(form.priceListId ? { priceListId: form.priceListId } : {}), ...(String(form.creditLimitPyg).trim() ? { creditLimitPyg: Number(String(form.creditLimitPyg).replace(/\D/g, '')) } : {}), ...(String(form.creditDays).trim() ? { creditDays: Number(String(form.creditDays).replace(/\D/g, '')) } : {}) })
+        const saved = await api.post('/api/customers', { name: nombre, firstName, secondName, ...identity, document: form.document.trim() || undefined, email: form.email.trim() || undefined, phone: phones[0] || undefined, countryCode: form.countryCode || '+595', addresses, notes: customerMetadata(phones), acceptsEmailMarketing: form.acceptsEmailMarketing, acceptsSmsMarketing: form.acceptsSmsMarketing, acceptsWhatsappMarketing: form.acceptsWhatsappMarketing, taxExempt: form.taxExempt, tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20), pricingTier: form.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL', ...(form.priceListId ? { priceListId: form.priceListId } : {}), ...(String(form.creditLimitPyg).trim() ? { creditLimitPyg: Number(String(form.creditLimitPyg).replace(/\D/g, '')) } : {}), ...(String(form.creditDays).trim() ? { creditDays: Number(String(form.creditDays).replace(/\D/g, '')) } : {}) })
         if (!saved?.id) throw new Error('Sin confirmación')
       }
       setForm(emptyCustomer); setSearch(''); setQuery(''); setCrearAbierto(false); data.refresh(); setResumenRevision((value) => value + 1)
@@ -470,10 +472,22 @@ export default function SellerCustomers() {
     <Modal open={crearAbierto} onClose={() => !saving && setCrearAbierto(false)} dirty={crearAbierto && crearSucio} title="Crear cliente" size="amplio">
       <form onSubmit={create} className="space-y-4">
         <div className={GRILLA_DOS_COLUMNAS}>
-          <label className="block space-y-2"><span>Primer nombre</span><Input ref={nombreRef} required autoFocus maxLength={120} disabled={saving} value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} /></label>
+          <label className="block space-y-2"><span>Primer nombre</span><Input ref={nombreRef} required={!form.nameOfficial} autoFocus maxLength={120} disabled={saving} value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} /></label>
           <label className="block space-y-2"><span>Segundo nombre <small className="text-mute">(opcional)</small></span><Input maxLength={120} disabled={saving} value={form.secondName} onChange={(event) => setForm({ ...form, secondName: event.target.value })} /></label>
         </div>
-        <div className={GRILLA_DOS_COLUMNAS}><label className="block space-y-2"><span>RUC o CI <small className="text-mute">(opcional)</small></span><RucField id="cliente-documento" disabled={saving} value={form.document} onChange={(document) => setForm((actual) => ({ ...actual, document }))} onAplicar={(datos) => setForm((actual) => ({ ...actual, name: datos.name || actual.name, document: datos.fullRuc || actual.document }))} esDemo={esDemo} /></label><label className="block space-y-2"><span>Correo <small className="text-mute">(opcional)</small></span><EmailField maxLength={200} disabled={saving} value={form.email} onChange={value => setForm({ ...form, email: value })} placeholder="cliente@correo.com" /></label></div>
+        <div className={GRILLA_DOS_COLUMNAS}><label className="block space-y-2"><span>RUC o CI <small className="text-mute">(opcional)</small></span><RucField id="cliente-documento" disabled={saving} value={form.document} onChange={(document) => setForm((actual) => ({ ...actual, document, nameOfficial: undefined, identityKind: '', givenNames: '', surnames: '', personConfirmed: false }))} onAplicar={(datos) => setForm((actual) => acceptedCustomerIdentity(actual, datos))} esDemo={esDemo} /></label><label className="block space-y-2"><span>Correo <small className="text-mute">(opcional)</small></span><EmailField maxLength={200} disabled={saving} value={form.email} onChange={value => setForm({ ...form, email: value })} placeholder="cliente@correo.com" /></label></div>
+        {form.nameOfficial !== undefined && <p className="whitespace-pre-wrap rounded-xl border border-fore/10 p-3 text-sm"><b>Nombre fiscal aceptado:</b> {form.nameOfficial}</p>}
+        <label className="block space-y-2"><span>Tipo de identidad (revisión manual)</span><Select disabled={saving} value={form.identityKind} onChange={(event) => setForm({ ...form, identityKind: event.target.value, givenNames: '', surnames: '', personConfirmed: false })}><option value="">Sin confirmar</option><option value="COMPANY">Empresa</option><option value="PERSON">Persona: revisar nombres y apellidos</option></Select></label>
+        {form.identityKind === 'PERSON' && <fieldset className="space-y-3 rounded-xl border border-fore/10 p-3">
+          <legend>Nombres y apellidos revisados</legend>
+          <p className="text-sm text-mute">El proveedor no identifica personas ni separa apellidos. Complete y confirme estas partes manualmente; el nombre fiscal no cambia.</p>
+          <div className={GRILLA_DOS_COLUMNAS}>
+            <label className="block space-y-2"><span>Nombres</span><Input required maxLength={200} disabled={saving} value={form.givenNames} onChange={(event) => setForm({ ...form, givenNames: event.target.value, personConfirmed: false })} /></label>
+            <label className="block space-y-2"><span>Apellidos</span><Input required maxLength={200} disabled={saving} value={form.surnames} onChange={(event) => setForm({ ...form, surnames: event.target.value, personConfirmed: false })} /></label>
+          </div>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={saving} checked={form.personConfirmed} onChange={(event) => setForm({ ...form, personConfirmed: event.target.checked })} />Confirmo que es una persona y revisé sus nombres y apellidos.</label>
+          {form.personConfirmed && <p className="text-sm">Nombre visible: {customerDisplayName(form)}</p>}
+        </fieldset>}
         {/* Aviso de posible duplicado (#268): mismo teléfono, CI/RUC o correo. */}
         {!esDemo && posiblesDuplicados.length > 0 && (
           <Aviso tono="warn" className="rounded-xl p-3 text-xs" data-testid="posible-duplicado">
@@ -497,7 +511,7 @@ export default function SellerCustomers() {
           <fieldset className="space-y-1.5"><legend className={ROTULO_SECCION}>Marketing (solo si acepta)</legend>{[['acceptsWhatsappMarketing', 'WhatsApp'], ['acceptsSmsMarketing', 'SMS'], ['acceptsEmailMarketing', 'Email']].map(([key, label]) => <label key={key} className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={saving} checked={form[key]} onChange={(event) => setForm({ ...form, [key]: event.target.checked })} />{label}</label>)}</fieldset>
           <div className="space-y-3"><label className="block space-y-2"><span>Tipo de cliente</span><Select disabled={saving} value={form.pricingTier} onChange={(event) => setForm({ ...form, pricingTier: event.target.value })}><option value="RETAIL">Cliente final</option><option value="WHOLESALE">Mayorista (precio mayorista en el POS)</option></Select></label><label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={saving} checked={form.taxExempt} onChange={(event) => setForm({ ...form, taxExempt: event.target.checked })} />Exento de impuestos</label><label className="block space-y-2"><span>Etiquetas <small className="text-mute">(separadas por coma)</small></span><Input maxLength={200} disabled={saving} value={form.tags} onChange={(event) => setForm({ ...form, tags: event.target.value })} placeholder="Ej: mayorista, prioridad" /></label></div>
         </div>
-        <SaveActions pendiente={saving}><Button disabled={saving || !form.firstName.trim()}>{saving ? 'Guardando…' : 'Guardar cliente'}</Button></SaveActions>
+        <SaveActions pendiente={saving}><Button disabled={saving || (!form.firstName.trim() && !form.nameOfficial) || (form.identityKind === 'PERSON' && !form.personConfirmed)}>{saving ? 'Guardando…' : 'Guardar cliente'}</Button></SaveActions>
         {saveError && <p role="alert" className="text-bad">{saveError}</p>}
       </form>
     </Modal>
