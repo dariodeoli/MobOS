@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
 import { rutaDeVista } from '../../src/lib/rutas.js'
+import {
+  clickShellTab,
+  openShellDestination,
+  selectFinanceSection,
+} from '../helpers/shell-navigation.js'
 
 const output = '/tmp/mobos-nav-v2-qa'
 const widths = [320, 360, 390, 430, 1440]
@@ -43,13 +48,21 @@ for (const width of widths) {
       : page
           .getByTestId('shell-lateral')
           .getByRole('navigation', { name: 'Navegación principal', exact: true })
-    await expect(navigation.getByRole('button')).toHaveText([
-      'Inicio',
-      'Vender',
-      'Ventas',
-      'Stock',
-      'Finanzas',
-    ])
+    await expect(navigation.getByRole('button')).toHaveText(
+      mobile
+        ? ['Inicio', 'Vender', 'Ventas', 'Stock', 'Más']
+        : [
+            'Inicio',
+            'Vender',
+            'Ventas',
+            'Clientes',
+            'Taller',
+            'Stock',
+            'Compras',
+            'Finanzas',
+            'Análisis',
+          ],
+    )
     await expect(
       page.getByTestId(mobile ? 'shell-sucursal-mobile' : 'shell-sucursal-desktop'),
     ).toContainText(/Casa Central/)
@@ -83,11 +96,12 @@ for (const width of widths) {
     await navigation.getByRole('button', { name: 'Stock', exact: true }).click()
     await expect(page).toHaveURL(/\/stock\/unidades/)
     const context = page.getByTestId('shell-contexto')
-    if (mobile) await expect(context.getByRole('combobox')).toBeVisible()
-    await page.getByTestId('shell-subcontexto').getByRole('combobox').selectOption('productos')
+    // Tabs, never a native dropdown: Unidades · Productos · Traslados · Precios.
+    await expect(context.getByRole('combobox')).toHaveCount(0)
+    await expect(context.locator('[data-tab-id="unidades"]')).toHaveAttribute('aria-current', 'page')
+    await clickShellTab(page, 'shell-contexto', 'productos')
     await expect(page).toHaveURL(/\/productos/)
-    if (mobile) await context.getByRole('combobox').selectOption('compras')
-    else await context.getByRole('button', { name: 'Compras', exact: true }).click()
+    await openShellDestination(page, 'Compras')
     await expect(page).toHaveURL(/\/compras/)
     await noOverflow(page)
     await navigation.getByRole('button', { name: 'Vender', exact: true }).click()
@@ -146,17 +160,19 @@ for (const width of widths) {
 }
 
 for (const [role, landing, labels] of [
-  ['Vendedor', /\/pos/, ['Vender', 'Ventas', 'Stock']],
-  ['Gerente', /\/pos/, ['Vender', 'Ventas', 'Stock']],
-  ['Caja', /\/pos/, ['Vender', 'Ventas', 'Stock']],
-  ['Técnico', /\/servicio/, ['Taller']],
-  ['Delivery', /\/delivery\/repartos/, ['Entregas']],
+  ['Vendedor', /\/pos/, ['Vender', 'Ventas', 'Clientes', 'Stock']],
+  ['Gerente', /\/pos/, ['Vender', 'Ventas', 'Clientes', 'Stock']],
+  ['Caja', /\/pos/, ['Vender', 'Ventas', 'Clientes', 'Stock']],
+  // A single section needs no bottom bar.
+  ['Técnico', /\/servicio/, null],
+  ['Delivery', /\/delivery\/repartos/, null],
 ]) {
   test(`${role} has only permitted primary destinations and correct landing`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 900 })
     await enterDemo(page, role)
     await expect(page).toHaveURL(landing)
-    await expect(page.getByTestId('shell-bottom-nav').getByRole('button')).toHaveText(labels)
+    if (labels) await expect(page.getByTestId('shell-bottom-nav').getByRole('button')).toHaveText(labels)
+    else await expect(page.getByTestId('shell-bottom-nav')).toHaveCount(0)
     await noOverflow(page)
     await expect(page.locator('main')).toContainText(/\S/)
     await page.screenshot({ path: `${output}/role-${role}.png` })
@@ -184,7 +200,8 @@ test('owner profile invokes configuration, help, theme, shortcuts, lock and logo
   await openProfile()
   await profile.getByRole('button', { name: 'Configuración', exact: true }).click()
   await expect(page).toHaveURL(/\/configuracion\//)
-  await expect(page.getByTestId('config-grupos').getByRole('combobox')).toBeVisible()
+  await expect(page.getByTestId('config-grupos')).toBeVisible()
+  await expect(page.getByTestId('config-grupos').getByRole('combobox')).toHaveCount(0)
   await openProfile()
   await profile.getByRole('button', { name: 'Ayuda', exact: true }).click()
   await expect(page).toHaveURL(/\/ayuda\/ayuda/)
@@ -243,59 +260,88 @@ test('all contextual owner destinations remain offered and subsection URLs stay 
   await page.setViewportSize({ width: 390, height: 900 })
   await enterDemo(page)
   const navigation = page.getByTestId('shell-bottom-nav')
+  // Section → level 1 tab → catalog ids it renders (level 2 when several).
   const destinations = {
     Inicio: { resumen: ['resumen'], ops: ['ops'] },
     Ventas: {
-      pedidos: ['pedidos', 'autorizaciones'],
+      pedidos: ['pedidos'],
       cotizaciones: ['cotizaciones'],
-      entregas: ['repartos'],
-      taller: ['servicio', 'tradein-admin'],
-      clientes: ['clientes', 'promociones', 'plantillas'],
+      repartos: ['repartos'],
+      autorizaciones: ['autorizaciones'],
     },
+    Clientes: {
+      clientes: ['clientes'],
+      promociones: ['promociones'],
+      plantillas: ['plantillas'],
+    },
+    Taller: { servicio: ['servicio'], 'tradein-admin': ['tradein-admin'] },
     Stock: {
-      inventario: ['unidades', 'productos'],
-      compras: [
-        'compras',
-        'abastecimiento',
-        'compras-centro',
-        'preparacion',
-        'lotes',
-        'recepcion',
-        'metricas',
-      ],
+      unidades: ['unidades'],
+      productos: ['productos'],
       traslados: ['traslados'],
       precios: ['precios', 'celulares', 'comparador', 'centro-control'],
     },
-    Finanzas: { finanzas: ['finanzas'], analisis: ['analisis'] },
+    Compras: {
+      compras: ['compras'],
+      abastecimiento: ['abastecimiento'],
+      'compras-centro': ['compras-centro'],
+      preparacion: ['preparacion'],
+      lotes: ['lotes'],
+      recepcion: ['recepcion'],
+      metricas: ['metricas'],
+    },
+    Finanzas: {},
+    Análisis: {},
+  }
+  const enter = async label => {
+    const direct = navigation.getByRole('button', { name: label, exact: true })
+    if (await direct.count()) await direct.click()
+    else {
+      await page.getByTestId('shell-mas').click()
+      await page
+        .getByTestId('shell-mas-hoja')
+        .getByRole('button', { name: label, exact: true })
+        .click()
+    }
+  }
+  const routes = {
+    unidades: '/stock/unidades',
+    traslados: '/stock/traslados',
+    'tradein-admin': '/trade-in',
   }
   for (const [label, groups] of Object.entries(destinations)) {
-    await navigation.getByRole('button', { name: label, exact: true }).click()
-    const selector = page.getByTestId('shell-contexto').getByRole('combobox')
+    await enter(label)
+    const context = page.getByTestId('shell-contexto')
+    if (!Object.keys(groups).length) {
+      // One destination: no level 1 row; the page tabs stay on the page header.
+      await expect(context).toHaveCount(0)
+      continue
+    }
     expect(
-      await selector.locator('option').evaluateAll(options => options.map(option => option.value)),
+      await context.locator('[data-tab-id]').evaluateAll(tabs => tabs.map(tab => tab.dataset.tabId)),
     ).toEqual(Object.keys(groups))
+    await expect(context.locator('[aria-current="page"]')).toHaveCount(1)
     for (const [group, ids] of Object.entries(groups)) {
       if (group === 'ops') continue // standalone protected operational board requires backend
-      await selector.selectOption(group)
+      await clickShellTab(page, 'shell-contexto', group)
       for (const id of ids) {
-        if (ids.length > 1)
-          await page.getByTestId('shell-subcontexto').getByRole('combobox').selectOption(id)
-        const route =
-          {
-            unidades: '/stock/unidades',
-            traslados: '/stock/traslados',
-            analisis: '/analisis/reportes',
-            finanzas: '/finanzas/caja',
-          }[id] || rutaDeVista(id)
+        if (ids.length > 1) await clickShellTab(page, 'shell-subcontexto', id)
+        const route = routes[id] || rutaDeVista(id)
         await expect(page).toHaveURL(new RegExp(`${route}$`))
+        // aria-current marks the active tab on both levels.
+        await expect(
+          page.getByTestId('shell-contexto').locator(`[data-tab-id="${group}"]`),
+        ).toHaveAttribute('aria-current', 'page')
+        if (ids.length > 1)
+          await expect(
+            page.getByTestId('shell-subcontexto').locator(`[data-tab-id="${id}"]`),
+          ).toHaveAttribute('aria-current', 'page')
       }
     }
   }
-  await navigation.getByRole('button', { name: 'Finanzas', exact: true }).click()
+  await enter('Finanzas')
   await expect(page).toHaveURL(/\/finanzas\/caja/)
-  await page
-    .getByRole('combobox', { name: 'Secciones de Finanzas', exact: true })
-    .selectOption('conciliacion')
+  await selectFinanceSection(page, 'Conciliación')
   await expect(page).toHaveURL(/\/finanzas\/conciliacion/)
   await navigation.getByRole('button', { name: 'Stock', exact: true }).click()
   await page
@@ -823,8 +869,7 @@ const f3Output = '/tmp/mobos-redesign-f3-qa'
 
 async function selectVentas(page, width, label) {
   const context = page.getByTestId('shell-contexto')
-  if (width < 1024) await context.getByRole('combobox').selectOption(label.toLowerCase())
-  else await context.getByRole('button', { name: label, exact: true }).click()
+  await context.locator(`[data-tab-id="${label.toLowerCase()}"]`).click()
 }
 
 async function setF3Theme(page, width, dark) {

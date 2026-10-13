@@ -12,7 +12,6 @@ import { ROLE_LABELS } from '@/lib/roles'
 import { gs } from '@/utils/calculos'
 import Icon from '@/components/shared/Icon'
 import AppShell from '@/components/app/AppShell'
-import SectionSelector from '@/components/app/SectionSelector'
 import { ConfirmDialog, Modal, PinInput, Select, Skeleton, useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { rutaDeVista, vistaDeRuta } from '@/lib/rutas'
@@ -769,7 +768,16 @@ export default function PanelVendedor() {
         onAbrirNotificacion={(href) => navigate(href)}
         onSearch={() => setBusquedaAbierta(true)}
         onHelp={() => setAyudaAbierto(true)}
-
+        pageTabs={
+          esOwner && (subpadre === 'finanzas' || subpadre === 'analisis')
+            ? {
+                items: tabsRuta,
+                value: vista,
+                onChange: irASubtab,
+                label: `Secciones de ${MIGA_SUBPAGINA[subpadre]}`,
+              }
+            : undefined
+        }
       >
         {desfaseHoras > 0 && (
           <div className="flex items-center justify-center gap-2 bg-bad px-4 py-2.5 text-center text-sm font-medium">
@@ -779,7 +787,7 @@ export default function PanelVendedor() {
           </div>
         )}
 
-        <main className="flex-1 bg-gradient-to-b from-paper to-paper p-4 md:p-8">
+        <main className="flex-1 bg-gradient-to-b from-paper to-paper px-4 pb-4 pt-1 md:px-6 md:pb-8 lg:pt-4">
           <Suspense fallback={<VistaCargando />}>
           {posMontado && (
           <div key={`venta:${identidad}`} hidden={vista !== 'cargar'}>
@@ -842,7 +850,6 @@ export default function PanelVendedor() {
           {esOwner && vista === 'resumen' && <ResumenControl />}
           {esOwner && subpadre === 'analisis' && (
             <div>
-              <SectionSelector value={vista} onChange={irASubtab} items={tabsRuta} label="Secciones de Análisis" />
               {vista === 'reportes' && <Reportes />}
               {vista === 'ganancias' && <Ganancias />}
               {vista === 'ganadores' && <Ganadores />}
@@ -851,10 +858,6 @@ export default function PanelVendedor() {
           )}
           {esOwner && subpadre === 'finanzas' && (
             <div>
-              {/* #249 H3: en mobile las solapas del dominio llegan a 44 px
-                  táctiles (el alto por defecto del objeto compartido queda
-                  para DSN); en desktop conservan los 36 px. */}
-              <SectionSelector value={vista} onChange={irASubtab} items={tabsRuta} label="Secciones de Finanzas" />
               {vista === 'caja' && <Caja />}
               {vista === 'gastos' && <Gastos />}
               {vista === 'bancos' && <PaymentAccounts />}

@@ -14,10 +14,10 @@ async function entrarComoDueno(page) {
   await expect(page.locator('h1')).toHaveText('Inicio')
 }
 
-test('el dueño ve cinco secciones y conserva todas sus herramientas (#251)', async ({ page }) => {
+test('el dueño ve nueve secciones y conserva todas sus herramientas (#251)', async ({ page }) => {
   await entrarComoDueno(page)
   const catalog = await shellCatalog(page)
-  expect(catalog.primary).toEqual(['Inicio', 'Vender', 'Ventas', 'Stock', 'Finanzas'])
+  expect(catalog.primary).toEqual(['Inicio', 'Vender', 'Ventas', 'Clientes', 'Taller', 'Stock', 'Compras', 'Finanzas', 'Análisis'])
   for (const label of ['Nueva venta', 'Pedidos', 'Cotizaciones', 'Promociones', 'Plantillas', 'Clientes', 'Productos (stock)', 'Unidades (IMEI)', 'Compras', 'Traslados y tránsito', 'Precios', 'Lista por modelo', 'Comparador', 'Delivery', 'Taller y garantías', 'Trade-In', 'Autorizaciones', 'Tablero de operaciones']) {
     expect(catalog.destinations).toContain(label)
   }

@@ -324,7 +324,7 @@ function auditarConfiguracion(registro) {
   test('configuración: los 7 grupos a 360/390/414/768', async ({ page }) => {
     test.slow()
     mkdirSync(SHOTS, { recursive: true })
-    const clave = [{ nombre: 'grupos de Configuración', selector: '[data-testid="config-grupos"] select' }]
+    const clave = [{ nombre: 'grupos de Configuración', selector: '[data-testid="config-grupos"] [data-tab-id]' }]
     for (const [slug, label, listo] of GRUPOS_CONFIG_AUDIT) {
       for (const [ancho, alto] of ANCHOS) {
         await page.setViewportSize({ width: ancho, height: alto })

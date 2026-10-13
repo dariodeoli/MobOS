@@ -19,6 +19,9 @@
 .shell-nav-v2 .shell-body {
   padding-bottom: var(--shell-bottom-space);
 }
+.shell-nav-v2.shell-sin-nav .shell-body {
+  padding-bottom: 0;
+}
 .shell-nav-v2 button:focus-visible {
   outline: 2px solid rgb(var(--c-fono));
   outline-offset: 2px;
@@ -55,9 +58,19 @@
   background: rgb(var(--c-ink-700));
 }
 .shell-nav-v2.tema-v2 .shell-bottom-nav [aria-current='page'],
-.shell-nav-v2.tema-v2 .shell-section-selector [aria-current='page'] {
+.shell-nav-v2.tema-v2 .shell-section-tabs [aria-current='page'] {
   background: transparent;
   border-radius: 0;
+}
+/* Second level (segmented): the selected pill is the only filled element. */
+.shell-nav-v2.tema-v2 .shell-section-tabs[data-segmented] [aria-current='page'] {
+  background: rgb(var(--c-ink));
+  border-radius: 6px;
+}
+/* Config vertical rail: a filled row, like the sidebar. */
+.shell-nav-v2.tema-v2 .shell-section-tabs[data-vertical] [aria-current='page'] {
+  background: rgb(var(--c-ink-700));
+  border-radius: 8px;
 }
 @media (max-width: 1023px) {
   /* Dialogs own focus and the viewport; background navigation cannot compete. */

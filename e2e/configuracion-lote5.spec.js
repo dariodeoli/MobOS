@@ -88,15 +88,15 @@ test.describe('Configuración Lote 5', () => {
 test.describe('Configuración IA', () => {
   test('las siete secciones no duplican Dispositivos, Sistema ni Preferencias', async ({ page }) => {
     await page.goto('/configuracion/dispositivos')
-    await expect(page.getByTestId('config-grupos').locator('option[value]:not([value=""])')).toHaveCount(7)
+    await expect(page.getByTestId('config-grupos').locator('[data-tab-id]')).toHaveCount(7)
 
     // Dispositivos: impresoras y su diagnóstico local, sin el estado global.
-    await expect(page.getByTestId('config-grupos').locator('select')).toHaveValue('dispositivos')
+    await expect(page.getByTestId('config-grupos').locator('[data-tab-id="dispositivos"]')).toHaveAttribute('aria-current', 'page')
     await expect(page.getByTestId('paneles-impresion')).toBeVisible()
     await page.getByTestId('panel-diagnostico').click()
     await expect(page.getByRole('heading', { name: 'Diagnóstico de impresión (esta computadora)' })).toBeVisible()
     await expect(page.getByTestId('monitoreo-global')).toBeVisible()
-    await expect(page.getByTestId('config-grupos').locator('option', { hasText: 'Sistema' })).toBeAttached()
+    await expect(page.getByTestId('config-grupos').getByRole('button', { name: 'Sistema', exact: true })).toBeAttached()
 
     // Sistema: solo el monitoreo global (Estado del sistema).
     await selectConfigSection(page, 'Sistema')

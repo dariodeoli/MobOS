@@ -1215,11 +1215,11 @@ test('la sección y el contexto activos sobreviven a recargar y pueden cambiarse
   await expect(page).toHaveURL(/\/comparador$/)
   await page.reload()
   await expect((await shellPrimary(page)).getByRole('button', { name: 'Stock', exact: true })).toHaveAttribute('aria-current', 'page')
-  await expect(page.getByTestId('shell-subcontexto').getByRole('combobox')).toHaveValue('comparador')
+  await expect(page.getByTestId('shell-subcontexto').locator('[data-tab-id="comparador"]')).toHaveAttribute('aria-current', 'page')
   await openShellDestination(page, 'Lista por modelo')
   await expect(page).toHaveURL(/\/celulares$/)
   await page.reload()
-  await expect(page.getByTestId('shell-subcontexto').getByRole('combobox')).toHaveValue('celulares')
+  await expect(page.getByTestId('shell-subcontexto').locator('[data-tab-id="celulares"]')).toHaveAttribute('aria-current', 'page')
 })
 
 // Patrón #209: el último filtro usado queda como predeterminado al volver.

@@ -65,14 +65,14 @@ export default function PanelDelivery() {
           <button
             type="button"
             onClick={() => navigate('/delivery/rendiciones')}
-            className="inline-flex h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-[9px] bg-fono px-3.5 sm:h-[34px] sm:min-w-0 text-[13px] font-semibold text-onbrand transition hover:bg-fono-dark"
+            className="hidden h-[34px] shrink-0 items-center justify-center gap-2 rounded-[9px] bg-fono px-3.5 text-[13px] font-semibold text-onbrand transition hover:bg-fono-dark sm:inline-flex"
           >
             <Icon name="receipt" className="h-[15px] w-[15px]" />
-            <span className="hidden sm:inline">Rendir</span>
+            <span>Rendir</span>
           </button>
         )}
       >
-        <main className="flex-1 bg-gradient-to-b from-paper to-paper p-4 md:p-8">
+        <main className="flex-1 bg-gradient-to-b from-paper to-paper px-4 pb-4 pt-1 md:px-6 md:pb-8 lg:pt-4">
           <div className="mx-auto max-w-6xl space-y-5">
             <div>
               {/* La identidad de tienda y persona vive en el shell (Lote 1). */}

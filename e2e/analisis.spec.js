@@ -16,7 +16,7 @@ test.describe('análisis', () => {
   test('la vista extendida abre en Reportes y comparte el período con Ganancias', async ({ page }) => {
     await page.goto('/analisis')
     await expect(page).toHaveURL(/\/analisis\/reportes$/)
-    await expect(page.locator('select[aria-label="Secciones de Análisis"]')).toHaveValue('reportes')
+    await expect(page.getByRole('navigation', { name: 'Secciones de Análisis', exact: true }).locator('[data-tab-id="reportes"]')).toHaveAttribute('aria-current', 'page')
     await expect(page.getByText('Total del período')).toBeVisible()
 
     await selectAnalysisSection(page, 'Ganancias')

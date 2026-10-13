@@ -25,15 +25,15 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
     await page.goto('/configuracion/mi-cuenta')
     const nav = page.locator(NAV)
     await expect(nav).toBeVisible({ timeout: 20_000 })
-    // El riel con íconos se reemplazó por el selector nativo de secciones.
-    const selector = nav.locator('select')
-    await expect(selector.locator('option[value]:not([value=""])')).toHaveCount(GRUPOS.length)
+    // El riel con íconos se reemplazó por pestañas de sección (riel vertical en escritorio).
+    const tabs = nav.locator('[data-tab-id]')
+    await expect(tabs).toHaveCount(GRUPOS.length)
     for (const [slug, label] of GRUPOS) {
       await page.goto(`/configuracion/${slug}`)
       await expect(page.locator('h1')).toHaveText(label)
-      await expect(selector.locator('option[value]:not([value=""])')).toHaveCount(GRUPOS.length)
-      await expect(selector).toHaveValue(slug)
-      await expect(selector.locator('option:checked')).toHaveText(label)
+      await expect(tabs).toHaveCount(GRUPOS.length)
+      await expect(nav.locator(`[data-tab-id="${slug}"]`)).toHaveAttribute('aria-current', 'page')
+      await expect(nav.locator('[aria-current="page"]')).toHaveText(label)
     }
   })
 
@@ -78,7 +78,7 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
         await page.setViewportSize({ width: ancho, height: alto })
         for (const [slug, label] of GRUPOS) {
           await page.goto(`/configuracion/${slug}`)
-          await expect(page.locator(NAV).locator('select')).toHaveValue(slug, { timeout: 20_000 })
+          await expect(page.locator(NAV).locator(`[data-tab-id="${slug}"]`)).toHaveAttribute('aria-current', 'page', { timeout: 20_000 })
           await page.screenshot({ path: `${salida}/${slug}-${tema}-${vista}.png` })
         }
       }
@@ -89,8 +89,8 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.goto('/configuracion/mi-cuenta')
     const nav = page.locator(NAV)
-    await expect(nav.locator('select')).toBeVisible({ timeout: 20_000 })
-    await expect(nav.locator('option', { hasText: 'Organización' })).toBeAttached()
+    await expect(nav.locator('[data-tab-id]').first()).toBeVisible({ timeout: 20_000 })
+    await expect(nav.getByRole('button', { name: 'Organización', exact: true })).toBeAttached()
     // #298: se retiró el colapso a solo iconos; el riel conserva su ancho.
     await expect(page.getByTestId('config-grupos-toggle')).toHaveCount(0)
     const caja = await nav.boundingBox()
@@ -105,10 +105,10 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
       await page.addInitScript(({ m }) => { try { localStorage.setItem('mobos:theme', m) } catch { /* sin storage */ } }, { m: modo })
       await page.setViewportSize({ width: 1280, height: 900 })
       await page.goto('/configuracion/mi-cuenta')
-      await expect(page.locator(NAV).locator('select')).toBeVisible({ timeout: 20_000 })
+      await expect(page.locator(NAV).locator('[data-tab-id]').first()).toBeVisible({ timeout: 20_000 })
       await page.evaluate(() => { try { localStorage.removeItem('mobos:config-menu') } catch { /* sin storage */ } })
       await page.reload()
-      await expect(page.locator(NAV).locator('option', { hasText: 'Organización' })).toBeAttached()
+      await expect(page.locator(NAV).getByRole('button', { name: 'Organización', exact: true })).toBeAttached()
       await expect(page.getByTestId('config-grupos-toggle')).toHaveCount(0)
       await page.screenshot({ path: `${salida}/nav-texto-${tema}-desktop.jpg`, type: 'jpeg', quality: 78 })
 
@@ -116,7 +116,7 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
         // Mobile/tablet: la tira horizontal, siempre con rótulos.
         await page.setViewportSize({ width: 390, height: 844 })
         await page.goto('/configuracion/mi-cuenta')
-        await expect(page.locator(NAV).locator('select')).toBeVisible({ timeout: 20_000 })
+        await expect(page.locator(NAV).locator('[data-tab-id]').first()).toBeVisible({ timeout: 20_000 })
         await page.screenshot({ path: `${salida}/nav-horizontal-mobile-claro.jpg`, type: 'jpeg', quality: 78 })
       }
     }

@@ -628,7 +628,7 @@ test('el QR del informe sale de lib/qr y shared/CodigoQr (#240)', () => {
 // #298: una sola navegación, siempre con texto (sin colapso a iconos).
 test('Configuración usa selector accesible sin colapso ni tira horizontal móvil (#341)', () => {
   const riel = leerFuente(join(RAIZ, 'components/control/config/NavegacionConfig.jsx'), 'utf8')
-  assert.match(riel, /import SectionSelector from '@\/components\/app\/SectionSelector'/, 'el adaptador usa el selector compartido del shell')
+  assert.match(riel, /import SectionTabs from '@\/components\/app\/SectionTabs'/, 'el adaptador usa las pestañas compartidas del shell')
   assert.match(riel, /testId="config-grupos"/, 'conserva los testids de los specs')
   assert.ok(!riel.includes('role="tablist"'), 'el selector no simula un tablist')
   assert.ok(!/colapsado=|onToggle|useMenuConfigColapsado/.test(riel), 'la navegación no se colapsa a iconos (#298)')

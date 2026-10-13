@@ -10,7 +10,9 @@ import PresencePill from '@/components/app/PresencePill'
 import PanelNotificaciones from '@/components/app/PanelNotificaciones'
 import ComoFuncionaDemo from '@/components/app/ComoFuncionaDemo'
 import PanelColaOffline from '@/components/ventas/PanelColaOffline'
-import SectionSelector from '@/components/app/SectionSelector'
+import SectionTabs from '@/components/app/SectionTabs'
+import PageHeader from '@/components/app/PageHeader'
+import DemoBanner from '@/components/app/DemoBanner'
 import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { useColaOffline } from '@/hooks/useColaOffline'
@@ -21,7 +23,13 @@ import { useNotificaciones } from '@/hooks/useNotificaciones'
 import { useSesion } from '@/lib/sesion'
 import { APP_NAME } from '@/lib/brand'
 import { CELDA_DATO } from '@/components/shared/tabla'
-import { activeShellSection, shellNavigation, shellContextGroups } from '@/lib/shellNavigation'
+import {
+  activeShellSection,
+  shellBottomNav,
+  shellContextGroups,
+  shellNavigation,
+  shellSegments,
+} from '@/lib/shellNavigation'
 import './shellNavigation.css'
 
 function textoColaOffline({ pendientes = 0, conflictos = 0, enLinea = true } = {}) {
@@ -53,6 +61,8 @@ export default function AppShell({
   onSearch,
   onHelp,
   breadcrumb,
+  backTo,
+  pageTabs,
   perfilEmpresa,
   roleLabel = 'Vendedor',
   notificacionesActivas = false,
@@ -60,6 +70,7 @@ export default function AppShell({
 }) {
   const temaV2 = useTemaV2()
   const [profileOpen, setProfileOpen] = useState(false)
+  const [masOpen, setMasOpen] = useState(false)
   const [comoFunciona, setComoFunciona] = useState(false)
   // La guía de la demo se abre sola la primera vez por pestaña (#201).
   useEffect(() => {
@@ -111,6 +122,9 @@ export default function AppShell({
   const contextGroups = shellContextGroups(currentSection)
   const currentGroup = contextGroups.find(group => group.items.some(([id]) => id === active))
   const currentId = currentSection?.id
+  const segments = shellSegments(currentGroup)
+  const { bottom: bottomSections, more: moreSections } = shellBottomNav(sections)
+  const showBottomNav = sections.length > 1
   const profileDestinations = nav
     .flatMap(group => group.items)
     .filter(([id]) => id === 'equipo' || id === 'ayuda')
@@ -120,6 +134,7 @@ export default function AppShell({
   function navegar(id, opciones) {
     onNavigate?.(id, opciones)
     setProfileOpen(false)
+    setMasOpen(false)
   }
 
   const profileButton = (compact = false) => (
@@ -191,16 +206,6 @@ export default function AppShell({
       </button>
     )
   const angosta = usePantallaAngosta()
-  const botonComoFunciona = (
-    <button
-      type="button"
-      data-testid="demo-como-funciona"
-      onClick={() => setComoFunciona(true)}
-      className="min-h-11 shrink-0 px-2"
-    >
-      Cómo funciona
-    </button>
-  )
   const offlineButton = testid =>
     avisoCola && (
       <button
@@ -217,6 +222,57 @@ export default function AppShell({
       </button>
     )
 
+  const configDestination = profileDestinations.find(([id]) => id === 'equipo')
+  const helpDestination = profileDestinations.find(([id]) => id === 'ayuda')
+  const sectionButton = (section, { children: label, ...extra } = {}) => (
+    <button
+      key={section.id}
+      type="button"
+      aria-label={section.label}
+      title={section.label}
+      aria-current={currentId === section.id ? 'page' : undefined}
+      onClick={() => navegar(section.items[0][0])}
+      {...extra}
+    >
+      <Icon
+        name={section.icon}
+        className={cn('h-[18px] w-[18px] shrink-0', currentId === section.id && 'text-fono-light')}
+      />
+      {label}
+    </button>
+  )
+
+  const groupTabs = pageTabs ? null : contextGroups.length > 1 ? contextGroups : null
+  const tabsNode = pageTabs ? (
+    <SectionTabs
+      testId="shell-pestanas"
+      label={pageTabs.label}
+      items={pageTabs.items}
+      value={pageTabs.value}
+      onChange={pageTabs.onChange}
+    />
+  ) : groupTabs ? (
+    <SectionTabs
+      testId="shell-contexto"
+      label={`Secciones de ${currentSection.label}`}
+      items={groupTabs}
+      value={currentGroup?.id}
+      onChange={id => navegar(contextGroups.find(group => group.id === id).items[0][0])}
+    />
+  ) : null
+  const segmentsNode =
+    segments.length > 1 ? (
+      <SectionTabs
+        variant="segmented"
+        testId="shell-subcontexto"
+        label={`Vistas de ${currentGroup.label}`}
+        items={segments}
+        value={active}
+        onChange={navegar}
+        className="mt-2"
+      />
+    ) : null
+
   return (
     <div
       data-testid="shell"
@@ -224,6 +280,7 @@ export default function AppShell({
       className={cn(
         'shell-nav-v2 flex min-h-dvh flex-col bg-paper text-sm text-fore lg:flex-row',
         temaV2 && 'tema-v2',
+        !showBottomNav && 'shell-sin-nav',
       )}
     >
       <aside
@@ -253,38 +310,37 @@ export default function AppShell({
           )}
         </div>
         {searchButton()}
-        <nav aria-label="Navegación principal" className="flex flex-col gap-1">
-          {sections.map(section => (
-            <button
-              key={section.id}
-              type="button"
-              aria-label={section.label}
-              title={section.label}
-              aria-current={currentId === section.id ? 'page' : undefined}
-              onClick={() => navegar(section.items[0][0])}
-              className={cn(
-                'flex min-h-11 items-center gap-3 rounded-lg px-3 text-left text-mute hover:bg-ink-700 hover:text-fore',
+        <nav aria-label="Navegación principal" className="flex flex-col gap-1 overflow-y-auto">
+          {sections.map(section =>
+            sectionButton(section, {
+              className: cn(
+                'flex min-h-10 shrink-0 items-center gap-3 rounded-lg px-3 text-left text-mute hover:bg-ink-700 hover:text-fore',
                 currentId === section.id && 'bg-ink-700 font-semibold text-fore',
-              )}
-            >
-              <Icon
-                name={section.icon}
-                className={cn(
-                  'h-[18px] w-[18px] shrink-0',
-                  currentId === section.id && 'text-fono-light',
-                )}
-              />
-              {!collapsed && section.label}
-            </button>
-          ))}
+              ),
+              children: !collapsed && section.label,
+            }),
+          )}
         </nav>
-        <div className="mt-auto flex min-w-0 flex-col gap-2 border-t border-ink-600 pt-3">
-          <div data-testid="shell-sucursal-desktop">
+        <div className="mt-auto flex min-w-0 flex-col gap-1 border-t border-ink-600 pt-3">
+          <div data-testid="shell-sucursal-desktop" className="mb-1">
             <SelectorSucursal className="max-w-full" abrirArriba />
           </div>
           {alertsButton()}
           {offlineButton('shell-cola-offline')}
           <PresencePill />
+          {[configDestination, helpDestination].filter(Boolean).map(([id, label, icon]) => (
+            <button
+              key={id}
+              type="button"
+              data-testid={`shell-pie-${id}`}
+              title={label}
+              onClick={() => navegar(id)}
+              className="flex min-h-10 items-center gap-3 rounded-lg px-3 text-left text-mute hover:bg-ink-700 hover:text-fore"
+            >
+              <Icon name={icon || 'settings'} className="h-[18px] w-[18px] shrink-0" />
+              {!collapsed && label}
+            </button>
+          ))}
           {profileButton()}
         </div>
       </aside>
@@ -294,26 +350,14 @@ export default function AppShell({
           className="sticky top-0 z-20 border-b border-ink-600 bg-ink pt-safe lg:hidden"
         >
           <div className="flex h-14 min-w-0 items-center gap-1 px-3">
-            <img src="/mobos-icon.svg" alt="" className="h-7 w-7 shrink-0" />
-            <strong className="min-w-0 flex-1 truncate">{APP_NAME}</strong>
+            <img src="/mobos-icon.svg" alt="MobOS" className="h-7 w-7 shrink-0" />
+            <div data-testid="shell-sucursal-mobile" className="flex min-w-0 flex-1 items-center">
+              <SelectorSucursal className="max-w-full" />
+            </div>
+            {offlineButton('shell-cola-offline-pill')}
             {searchButton(true)}
             {alertsButton(true)}
             {profileButton(true)}
-          </div>
-          <div
-            data-testid="shell-sucursal-mobile"
-            className="flex min-w-0 items-center justify-between gap-2 border-t border-ink-600 px-3 py-1"
-          >
-            <SelectorSucursal className="max-w-full shrink-0" />
-            {/* #304: en móvil el aviso del demo comparte la fila de la sucursal
-                (una sola barra en vez de dos) y deja más lugar al trabajo. */}
-            {esDemo && angosta && (
-              <div role="status" className="flex min-w-0 flex-1 items-center justify-end gap-1 text-[11px] leading-[14px] text-mute">
-                <span className="line-clamp-2 min-w-0 text-right" title="Modo demo: datos ficticios, nada se guarda.">Demo: datos ficticios, nada se guarda.</span>
-                {botonComoFunciona}
-              </div>
-            )}
-            {offlineButton('shell-cola-offline-pill')}
           </div>
         </header>
         {!enLinea && (
@@ -321,82 +365,83 @@ export default function AppShell({
             Sin conexión: los datos pueden estar desactualizados. Se sincroniza al reconectar.
           </div>
         )}
-        {esDemo && !angosta && (
-          <div
-            role="status"
-            className="flex items-center justify-between gap-2 border-b border-ink-600 bg-ink px-4 py-1 text-xs text-mute"
-          >
-            <span>Modo demo: datos ficticios, no se guardan y se descartan al recargar.</span>
-            {botonComoFunciona}
-          </div>
-        )}
-        <div className="px-4 pt-3 md:px-8 md:pt-5">
-          <nav
-            data-testid="shell-breadcrumb"
-            aria-label="Sección actual"
-            className="text-xs text-mute"
-          >
-            {breadcrumbs.join(' / ')}
-          </nav>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h1 className="text-[26px] font-semibold tracking-tight">{title}</h1>
-            {headerActions}
-          </div>
-          {subtitle && <p className="text-sm text-mute">{subtitle}</p>}
-          {currentSection && (contextGroups.length > 1 || currentGroup?.items.length > 1) && (
-            <div className={cn('mt-2 lg:mt-3 lg:block', currentGroup?.items.length > 1 && 'grid grid-cols-2 gap-x-2')}>
-              <SectionSelector
-                testId="shell-contexto"
-                label={`Áreas de ${currentSection.label}`}
-                items={contextGroups}
-                value={currentGroup?.id}
-                onChange={id => navegar(contextGroups.find(group => group.id === id).items[0][0])}
-              />
-              {currentGroup?.items.length > 1 && (
-                <SectionSelector
-                  testId="shell-subcontexto"
-                  label={`Destinos de ${currentGroup.label}`}
-                  items={currentGroup.items}
-                  value={active}
-                  onChange={navegar}
-                  dropdownOnly
-                />
-              )}
-            </div>
-          )}
-        </div>
+        {esDemo && <DemoBanner angosta={angosta} onComoFunciona={() => setComoFunciona(true)} />}
+        <PageHeader
+          title={title}
+          subtitle={subtitle}
+          actions={headerActions}
+          backTo={backTo}
+          breadcrumb={breadcrumbs.join(' / ')}
+        >
+          {tabsNode}
+          {segmentsNode}
+        </PageHeader>
         {loading ? (
-          <main className="flex-1 p-4 md:p-8" aria-busy="true">
+          <main className="flex-1 px-4 pb-4 pt-1 md:px-6 lg:pt-4" aria-busy="true">
             <Skeleton className="h-40 w-full" />
           </main>
         ) : (
           children
         )}
       </div>
-      <nav
-        data-testid="shell-bottom-nav"
-        aria-label="Navegación principal móvil"
-        className="shell-bottom-nav fixed inset-x-0 bottom-0 z-30 flex border-t border-ink-600 bg-ink pb-safe lg:hidden"
-      >
-        {sections.map(section => (
-          <button
-            key={section.id}
-            type="button"
-            aria-current={currentId === section.id ? 'page' : undefined}
-            onClick={() => navegar(section.items[0][0])}
-            className={cn(
-              'flex min-h-[55px] min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 text-[10px] text-mute',
-              currentId === section.id && 'font-semibold text-fore',
-            )}
-          >
-            <Icon
-              name={section.icon}
-              className={cn('h-[18px] w-[18px]', currentId === section.id && 'text-fono-light')}
-            />
-            <span>{section.label}</span>
-          </button>
-        ))}
-      </nav>
+      {showBottomNav && (
+        <nav
+          data-testid="shell-bottom-nav"
+          aria-label="Navegación principal móvil"
+          className="shell-bottom-nav fixed inset-x-0 bottom-0 z-30 flex border-t border-ink-600 bg-ink pb-safe lg:hidden"
+        >
+          {bottomSections.map(section =>
+            sectionButton(section, {
+              className: cn(
+                'flex min-h-[55px] min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 text-[10px] text-mute',
+                currentId === section.id && 'font-semibold text-fore',
+              ),
+              children: <span>{section.label}</span>,
+            }),
+          )}
+          {moreSections.length > 0 && (
+            <button
+              type="button"
+              data-testid="shell-mas"
+              aria-label="Más"
+              aria-haspopup="dialog"
+              aria-current={moreSections.some(section => section.id === currentId) ? 'page' : undefined}
+              onClick={() => setMasOpen(true)}
+              className={cn(
+                'flex min-h-[55px] min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 text-[10px] text-mute',
+                moreSections.some(section => section.id === currentId) && 'font-semibold text-fore',
+              )}
+            >
+              <Icon name="dots" className="h-[18px] w-[18px]" />
+              <span>Más</span>
+            </button>
+          )}
+        </nav>
+      )}
+      <Modal open={masOpen} onClose={() => setMasOpen(false)} title="Más secciones" size="corto">
+        <div data-testid="shell-mas-hoja" className="flex flex-col gap-1">
+          {moreSections.map(section =>
+            sectionButton(section, {
+              className: cn(
+                'flex min-h-11 items-center gap-3 rounded-lg px-2 text-left hover:bg-ink-700',
+                currentId === section.id && 'bg-ink-700 font-semibold',
+              ),
+              children: section.label,
+            }),
+          )}
+          {[configDestination, helpDestination].filter(Boolean).map(([id, label, icon]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => navegar(id)}
+              className="flex min-h-11 items-center gap-3 rounded-lg px-2 text-left hover:bg-ink-700"
+            >
+              <Icon name={icon || 'settings'} className="h-[18px] w-[18px] shrink-0" />
+              {label}
+            </button>
+          ))}
+        </div>
+      </Modal>
       <Modal
         open={profileOpen}
         onClose={() => setProfileOpen(false)}

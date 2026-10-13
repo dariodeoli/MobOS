@@ -27,10 +27,15 @@ function archivosFuente() {
 }
 
 test('el shell dibuja un solo h1 y expone la miga de sección', () => {
+  // El h1 y la miga (solo para lectores de pantalla) viven en PageHeader, que
+  // el shell compone una sola vez.
   const codigo = leer(SHELL)
-  const h1 = codigo.match(/<h1\b/g) || []
-  assert.equal(h1.length, 1, 'el shell debe dibujar un solo h1: el título de la vista')
-  assert.match(codigo, /data-testid="shell-breadcrumb"/, 'la cabecera debe exponer la miga de sección')
+  const cabecera = leer('components/app/PageHeader.jsx')
+  const h1 = cabecera.match(/<h1\b/g) || []
+  assert.equal(h1.length, 1, 'la cabecera debe dibujar un solo h1: el título de la vista')
+  assert.equal((codigo.match(/<h1\b/g) || []).length, 0, 'el shell no dibuja otro h1')
+  assert.equal((codigo.match(/<PageHeader\b/g) || []).length, 1, 'el shell compone una sola cabecera')
+  assert.match(cabecera, /data-testid="shell-breadcrumb"[^>]*className="sr-only"/, 'la cabecera expone la miga de sección sin mostrarla')
 })
 
 test('las personas del shell se muestran con el objeto de identidad compartido', () => {

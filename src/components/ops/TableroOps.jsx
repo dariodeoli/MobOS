@@ -65,11 +65,11 @@ export default function TableroOps({
                 Datos reales{actualizado ? ` · ${horaDe(actualizado)}` : ''}
               </span>
               {onRefrescar && (
-                <Button type="button" variant="outline" className="h-8 px-3 text-xs" onClick={onRefrescar} data-testid="ops-refrescar">
+                <Button type="button" variant="outline" className="h-11 px-3 text-xs sm:h-8" onClick={onRefrescar} data-testid="ops-refrescar">
                   <Icon name="refresh" className="h-3.5 w-3.5" /> Actualizar
                 </Button>
               )}
-              <a href="/" className="text-xs font-semibold text-fono-light hover:underline">← Volver a la app</a>
+              <a href="/" className="inline-flex min-h-11 items-center text-xs font-semibold text-fono-light hover:underline">← Volver a la app</a>
             </div>
           )}
         </header>

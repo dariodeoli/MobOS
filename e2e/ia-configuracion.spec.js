@@ -49,7 +49,7 @@ test('Configuración tiene siete secciones y ninguna duplica contenido', async (
   await page.goto('/configuracion')
   // Sin hijo entra por la primera: Mi cuenta.
   await expect(page).toHaveURL(/\/configuracion\/mi-cuenta$/)
-  await expect(page.getByTestId('config-grupos').locator('option[value]:not([value=""])')).toHaveCount(SECCIONES.length)
+  await expect(page.getByTestId('config-grupos').locator('[data-tab-id]')).toHaveCount(SECCIONES.length)
 
   for (const [nombre, contenido, slug, testid] of SECCIONES) {
     await selectConfigSection(page, nombre)
@@ -60,7 +60,7 @@ test('Configuración tiene siete secciones y ninguna duplica contenido', async (
   }
 
   // Documentación ya no es una pestaña de Configuración: vive en Ayuda.
-  await expect(page.getByTestId('config-grupos').locator('option', { hasText: 'Documentación' })).toHaveCount(0)
+  await expect(page.getByTestId('config-grupos').getByRole('button', { name: 'Documentación' })).toHaveCount(0)
 
   // Sin duplicar: la foto es de Mi cuenta y el ID de tienda no se repite en
   // Datos de la tienda (el detalle de Tiendas es el único lugar donde se copia).
