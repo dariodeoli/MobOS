@@ -320,7 +320,7 @@ export default function Config({ seccion = 'organizacion' } = {}) {  const { ses
           {org === 'sucursales' && (
             <>
               <TiendasSucursales account={account} />
-              <p className="text-xs text-mute">Los depósitos y ubicaciones de cada sucursal se administran en <Link to="/inventario/ubicaciones" className="font-semibold text-fono-light hover:underline">Inventario → Ubicaciones</Link>.</p>
+              <p className="text-xs text-mute">Los depósitos y ubicaciones de cada sucursal se administran en <Link to="/stock/ubicaciones" className="font-semibold text-fono-light hover:underline">Inventario → Ubicaciones</Link>.</p>
             </>
           )}
           {org === 'numeracion' && <Card className="space-y-3">

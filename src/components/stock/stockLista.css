@@ -1,0 +1,58 @@
+/* Lista unificada de Stock (U3): grilla compartida por el encabezado y las filas.
+   Las columnas llegan por variables (--stock-cols / --stock-cols-compacta) para
+   que el encabezado y cada fila usen exactamente la misma plantilla. Cuando el
+   contenedor se angosta se oculta Proveedor (pasa a una línea bajo el modelo). */
+.stock-lista {
+  container: stock-lista / inline-size;
+  min-width: 0;
+}
+.stock-lista-grid {
+  display: grid;
+  grid-template-columns: var(--stock-cols);
+  column-gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+.stock-lista-encabezado {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgb(var(--c-ink));
+}
+/* Con el header del panel fijo (menos de 1024 px) el encabezado se ancla debajo. */
+@media (max-width: 1023px) {
+  .stock-lista-encabezado {
+    top: 3rem;
+  }
+}
+.stock-lista-fila {
+  min-height: 52px;
+  background: rgb(var(--c-ink));
+  overflow-wrap: anywhere;
+}
+.stock-lista-fila:focus-visible,
+.stock-lista-fila :focus-visible,
+.stock-tarjeta :focus-visible {
+  outline: 2px solid rgb(var(--c-fono));
+  outline-offset: 2px;
+}
+.stock-lista-prov-chico {
+  display: none;
+}
+@container stock-lista (max-width: 62rem) {
+  .stock-lista-grid {
+    grid-template-columns: var(--stock-cols-compacta);
+  }
+  .stock-lista-prov {
+    display: none;
+  }
+  .stock-lista-prov-chico {
+    display: block;
+  }
+}
+.stock-tarjeta summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}

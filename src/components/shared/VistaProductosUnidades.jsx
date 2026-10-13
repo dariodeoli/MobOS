@@ -14,7 +14,7 @@ export default function VistaProductosUnidades({ vista, q = '', productoId = '' 
     // El producto viaja en las dos direcciones: Unidades queda acotada a él y
     // Productos abre su ficha.
     if (productoId) params.set('producto', productoId)
-    const base = siguiente === 'unidades' ? '/inventario/unidades' : '/productos'
+    const base = siguiente === 'unidades' ? '/stock/unidades' : '/productos'
     return `${base}${params.toString() ? `?${params.toString()}` : ''}`
   }
   return (

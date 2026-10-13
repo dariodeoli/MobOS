@@ -151,6 +151,16 @@ function PosRedirect() {
   return <Navigate to={`${destino}${detalle}${search}${hash}`} replace />
 }
 
+// Stock absorbió Inventario: /inventario/<pestaña> redirige a /stock/<pestaña>
+// conservando la pestaña, el query y el hash (Resumen, Documentación, Config y
+// las notificaciones guardadas siguen abriendo su vista).
+function InventarioRedirect() {
+  const { seccion } = useParams()
+  const { search, hash } = useLocation()
+  const destino = seccion ? `/stock/${encodeURIComponent(seccion)}` : '/stock'
+  return <Navigate to={`${destino}${search}${hash}`} replace />
+}
+
 // El slug viejo /ventas (#116) sigue funcionando: redirige al POS conservando
 // el query y el hash.
 function VentasRedirect() {
@@ -350,7 +360,7 @@ export default function App() {
           <Route path="/inicio" element={<Navigate to="/resumen" replace />} />
           {/* Apartados con pestañas: cada subpágina es un slug hijo recuperable
               (/configuracion/negocio, /analisis/reportes, /finanzas/caja,
-              /inventario/unidades…). */}
+              /stock/unidades…). */}
           <Route path="/configuracion/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           {/* Ayuda (Documentación interna) sale del shell, no de Configuración:
               la ve todo el equipo (es la guía de la operación, no un ajuste). */}
@@ -361,7 +371,8 @@ export default function App() {
           <Route path="/mi-cuenta" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/analisis/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           <Route path="/finanzas/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
-          <Route path="/inventario/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
+          <Route path="/stock/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
+          <Route path="/inventario/:seccion?" element={<AreaProtegida owner><InventarioRedirect /></AreaProtegida>} />
           <Route path="/control/:tab?" element={<AreaProtegida owner><ControlRedirect /></AreaProtegida>} />
           {/* Enlaces guardados: /pos/<vista> y /tradein redirigen al slug nuevo. */}
           <Route path="/pos/:vista/:orderId?" element={<AreaProtegida><PosRedirect /></AreaProtegida>} />

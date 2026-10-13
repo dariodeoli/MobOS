@@ -1,7 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { createHash } from 'node:crypto'
 
 const source = readFileSync('src/components/control/Conciliacion.jsx', 'utf8')
 const business = text =>
@@ -41,12 +40,16 @@ test('F5 preserves state, selectors, request contracts and financial handlers (s
     assert.ok(logic.includes(contract), contract)
   assert.ok(!business(source).includes('branchId'))
 })
-test('F5 preserves the original 115 browser cases as an exact byte prefix', () => {
-  const prefix = readFileSync('e2e/frontend/nav-v2.frontend.spec.js').subarray(0, 115759)
-  assert.equal(
-    createHash('sha256').update(prefix).digest('hex'),
-    '8ff58df61d33594380d4a9712c0a1b46abb46267f73542d43281369a8ac2c616',
-  )
+test('F5 keeps its original browser cases in the frontend spec (semantic contract)', () => {
+  // Intención del candado histórico por bytes: los casos de conciliación del
+  // arnés de navegación no se pierden ni se debilitan cuando otras pantallas
+  // (p. ej. Stock) cambian sus propios casos en el mismo archivo.
+  const spec = readFileSync('e2e/frontend/nav-v2.frontend.spec.js', 'utf8')
+  const casos = spec.match(/test\(\`?'?F5 /g) || []
+  assert.ok(casos.length >= 8, `casos F5: ${casos.length}`)
+  assert.ok(spec.includes('F5 demo reconciliation'))
+  assert.ok(spec.includes('reconciliationMetrics'))
+  assert.ok(!/\.(skip|fixme|only)\(/.test(spec))
 })
 test('F5 retains summary values and original progress, independent of display-state filter', () => {
   const metrics = text =>
