@@ -435,8 +435,49 @@
   border-radius: 50%;
   background: var(--landing-accent);
 }
-.preview-stock > .preview-meta {
-  margin-top: 18px;
+.preview-stock > .preview-link {
+  margin-top: 14px;
+}
+.preview-chip {
+  display: inline-block;
+  margin: 0;
+  padding: 2px 8px;
+  border: 1px solid var(--landing-accent);
+  border-radius: 999px;
+  font-family: system-ui, sans-serif;
+  font-size: 10px;
+  line-height: 1.5;
+  letter-spacing: 0;
+  font-weight: 700;
+  color: var(--landing-accent);
+}
+.preview-serial dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+.preview-accessories {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--landing-line);
+}
+.preview-accessories ul {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+}
+.preview-accessories li {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.preview-accessories [data-qty] {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 .commercial-preview figcaption {
   padding: 12px 20px;
@@ -629,6 +670,89 @@
   }
   .commercial-preview:not(.commercial-preview--all) .preview-details dd {
     font-size: 13px;
+  }
+}
+/* Hero card: compact so the three moments fit the first viewport on laptops. */
+.landing-hero > .commercial-preview--all .preview-heading {
+  padding: 10px 18px;
+}
+.landing-hero > .commercial-preview--all .preview-moments > div {
+  padding: 14px 18px;
+}
+.landing-hero > .commercial-preview--all .preview-sale .preview-product {
+  padding-block: 10px;
+  gap: 18px;
+}
+.landing-hero > .commercial-preview--all .preview-phone {
+  width: 54px;
+  height: 92px;
+}
+.landing-hero > .commercial-preview--all .preview-product h3 {
+  font-size: 22px;
+  margin-block: 2px;
+}
+.landing-hero > .commercial-preview--all .preview-condition {
+  margin-top: 4px;
+}
+.landing-hero > .commercial-preview--all .preview-receipt > div {
+  padding-block: 3px;
+}
+.landing-hero > .commercial-preview--all .preview-receipt .preview-total {
+  padding-top: 8px;
+  margin-top: 4px;
+  font-size: 15px;
+}
+.landing-hero > .commercial-preview--all .preview-stock h3,
+.landing-hero > .commercial-preview--all .preview-payment h3 {
+  font-size: 15px;
+  margin-block: 8px;
+}
+.landing-hero > .commercial-preview--all .preview-details {
+  gap: 8px;
+}
+.landing-hero > .commercial-preview--all .preview-timeline {
+  margin-block: 10px;
+  gap: 4px;
+}
+.landing-hero > .commercial-preview--all figcaption {
+  padding: 8px 18px;
+}
+@media (min-width: 1024px) {
+  .landing-hero > .commercial-preview--all .preview-sale {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    column-gap: 24px;
+  }
+  .landing-hero > .commercial-preview--all .preview-sale .preview-step {
+    grid-column: 1 / -1;
+  }
+  .landing-hero > .commercial-preview--all .preview-details > div {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+  }
+  .landing-hero {
+    padding-bottom: 48px;
+  }
+  .landing-hero h1 {
+    margin: 20px 0 20px;
+  }
+  .landing-intro {
+    line-height: 1.7;
+  }
+  .landing-hero-actions {
+    margin-top: 24px;
+  }
+}
+@media (min-width: 1024px) and (max-height: 760px) {
+  .landing-hero > .commercial-preview--all .preview-sale .preview-product {
+    padding-block: 4px;
+  }
+  .landing-hero > .commercial-preview--all .preview-timeline {
+    display: none;
   }
 }
 .landing-pricing {
