@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { classifyStockKind } from '../lib/stock-kind'
 import { removalFields, restoreFields, removedInventoryUnitIds } from '../lib/inventory'
-import { linkSoldUnits, recomputeStock, UNLINK_SOLD } from '../lib/stock'
+import { linkSoldUnits, promoteToEquipo, recomputeStock, UNLINK_SOLD } from '../lib/stock'
 
 // U1 · Stock unificado: clasificador de tipo, baja real, vínculo de venta y
 // recomputo del contador. El backfill SQL de la migración se prueba contra
@@ -22,6 +22,25 @@ test('stock-kind: unidades con IMEI fuerzan EQUIPO; la categoría decide el rest
   assert.equal(classifyStockKind({ category: 'Farmacia' }), 'OTRO', '«mac» solo cuenta como palabra entera')
   assert.equal(classifyStockKind({ category: null }), 'OTRO')
   assert.equal(classifyStockKind(), 'OTRO')
+})
+
+test('stock-kind: alias de accesorios y servicios no se confunden con repuestos ni accesorios', () => {
+  assert.equal(classifyStockKind({ category: 'Power bank' }), 'ACCESORIO')
+  assert.equal(classifyStockKind({ category: 'Batería portátil' }), 'ACCESORIO')
+  assert.equal(classifyStockKind({ category: 'Correa Apple Watch' }), 'ACCESORIO')
+  assert.equal(classifyStockKind({ category: 'Soporte técnico' }), 'OTRO')
+  assert.equal(classifyStockKind({ category: 'Batería' }), 'REPUESTO')
+  assert.equal(classifyStockKind({ category: 'AirPods' }), 'EQUIPO')
+  assert.equal(classifyStockKind({ category: 'Audio' }), 'ACCESORIO')
+  assert.equal(classifyStockKind({ category: 'Pantalla' }), 'REPUESTO')
+  assert.equal(classifyStockKind({ category: 'Funda iPhone' }), 'ACCESORIO')
+})
+
+test('promoteToEquipo: pasa a EQUIPO solo los productos que aún no lo son, acotado por empresa', async () => {
+  const calls: any[] = []
+  const tx: any = { product: { updateMany: async (args: any) => { calls.push(args); return { count: 1 } } } }
+  await promoteToEquipo(tx, 'tenant-1', 'prod-1')
+  assert.deepEqual(calls[0], { where: { id: 'prod-1', tenantId: 'tenant-1', NOT: { stockKind: 'EQUIPO' } }, data: { stockKind: 'EQUIPO' } })
 })
 
 test('baja real: remove escribe los tres campos y restore los limpia', () => {

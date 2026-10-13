@@ -3,6 +3,9 @@
 -- Aditiva e idempotente: sin DROP, sin NOT NULL, cada backfill solo toca filas
 -- con el campo todavía en NULL (el contenedor corre `prisma migrate deploy` en
 -- cada arranque y un segundo paso no debe cambiar nada).
+-- Ops: los CREATE INDEX son simples (CONCURRENTLY no cabe en la transacción de
+-- Prisma) y toman un lock de escritura breve; aplicar en ventana tranquila en
+-- tenants muy grandes.
 
 -- ── Tipo de stock ──
 DO $$ BEGIN
@@ -47,7 +50,8 @@ UPDATE "Product" p
 SET "stockKind" = (
   CASE
     WHEN EXISTS (SELECT 1 FROM "InventoryUnit" u WHERE u."productId" = p."id") THEN 'EQUIPO'
-    WHEN translate(lower(btrim(coalesce(p."category", ''))), 'áéíóúüñ', 'aeiouun') ~ 'accesorio|cable|cargador|funda|vidrio|lamina|templado|adaptador|protector|soporte|audio|parlante|speaker|auricular|audifono|buds|earbuds' THEN 'ACCESORIO'
+    WHEN translate(lower(btrim(coalesce(p."category", ''))), 'áéíóúüñ', 'aeiouun') ~ 'soporte tecnico|servicio' THEN 'OTRO'
+    WHEN translate(lower(btrim(coalesce(p."category", ''))), 'áéíóúüñ', 'aeiouun') ~ 'accesorio|cable|cargador|funda|vidrio|lamina|templado|adaptador|protector|soporte|audio|parlante|speaker|auricular|audifono|buds|earbuds|power bank|powerbank|bateria portatil|bateria externa|correa|malla|banda|estuche|case' THEN 'ACCESORIO'
     WHEN translate(lower(btrim(coalesce(p."category", ''))), 'áéíóúüñ', 'aeiouun') ~ 'repuesto|pieza|pantalla|display|modulo|bateria' THEN 'REPUESTO'
     WHEN translate(lower(btrim(coalesce(p."category", ''))), 'áéíóúüñ', 'aeiouun') ~ 'iphone|mobile|celular|telefono|smartphone|macbook|imac|laptop|notebook|computadora|ipad|tablet|watch|reloj|airpods|\y(?:mac)\y' THEN 'EQUIPO'
     ELSE 'OTRO'
@@ -81,6 +85,7 @@ FROM (
   FROM "OrderItemSerial" s
   JOIN "OrderItem" i ON i."id" = s."orderItemId"
   JOIN "Order" o ON o."id" = i."orderId"
+  WHERE o."status" <> 'CANCELLED'
   ORDER BY o."tenantId", s."serial", o."createdAt" DESC, o."id" DESC
 ) v
 WHERE v."tenantId" = u."tenantId" AND v."serial" = u."serial"

@@ -27,6 +27,12 @@ export async function changeStock(tx: StockTx, input: {
   if (updated.count !== 1) throw new Error(input.message || (delta < 0 ? 'Stock insuficiente o producto fuera de la sucursal.' : 'No se pudo actualizar el stock.'))
 }
 
+// Un producto con unidades (IMEI/serial) es EQUIPO. Se llama en la misma
+// transacción que crea la InventoryUnit; no toca los que ya son EQUIPO.
+export async function promoteToEquipo(tx: StockTx, tenantId: string, productId: string) {
+  await tx.product.updateMany({ where: { id: productId, tenantId, NOT: { stockKind: 'EQUIPO' } }, data: { stockKind: 'EQUIPO' } })
+}
+
 // Recalcula el contador desde las unidades físicas (disponibles + reservadas)
 // que no estén dadas de baja (removedAt IS NULL). Se usa para reparar
 // diferencias detectadas por la verificación de consistencia.

@@ -9,7 +9,7 @@ import { itemsLista, normalizarInspectionItems, resumenInspection } from '../../
 import { LIMITE_MONTO_GENERAL, numeroOpcional } from '../../../lib/montos'
 import { serialKey } from '../../../lib/validation'
 import { revisarMinimoDeStock } from '../../../lib/supply-demand'
-import { changeStock } from '../../../lib/stock'
+import { changeStock, promoteToEquipo } from '../../../lib/stock'
 import { consumeAuthorization } from '../../../lib/authorizations'
 import { sucursalEfectiva } from '../../../lib/sucursal-efectiva'
 
@@ -191,6 +191,7 @@ export async function POST(request: Request) {
         units.push(await tx.inventoryUnit.create({ data: { tenantId: tenant, productId, branchId, locationId, serial, condition: product.condition, supplierId, ...data, ...costo } }))
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_RECEIVED', entity: 'InventoryUnit', entityId: units[units.length - 1].id, metadata: { serial, productId, branchId, locationId } } })
       }
+      await promoteToEquipo(tx, tenant, productId)
       await changeStock(tx, { tenantId: tenant, productId, delta: units.length })
       return units
     })

@@ -5,6 +5,7 @@ import { canAccessAny, requireSession } from '../../../lib/auth'
 import { skuUnico } from '../../../lib/sku'
 import { serialKey } from '../../../lib/validation'
 import { classifyStockKind } from '../../../lib/stock-kind'
+import { promoteToEquipo } from '../../../lib/stock'
 import { INVENTORY_UNIT_RECEIVED, liberarReservasVencidas } from '../../../lib/inventory'
 import { LIMITE_MONTO_GENERAL, numero, numeroOpcional } from '../../../lib/montos'
 import { sucursalEfectiva } from '../../../lib/sucursal-efectiva'
@@ -138,7 +139,7 @@ export async function PATCH(request: Request) {
         const details = unitDetails(b, { condition: product.condition, costPyg: numeroOpcional(product.costPyg) ?? undefined })
         const locationId = b.locationId === undefined ? undefined : typeof b.locationId === 'string' && b.locationId.trim() ? b.locationId.trim() : null
         if (locationId && (!product.branchId || !(await tx.stockLocation.findFirst({ where: { id: locationId, tenantId: tenant, branchId: product.branchId, isActive: true }, select: { id: true } })))) throw new Error('Ubicación no encontrada para esa sucursal.')
-        if (!existing) await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId: product.branchId, locationId: locationId ?? null, serial, ...details } })
+        if (!existing) await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId: product.branchId, locationId: locationId ?? null, serial, ...details } }).then(() => promoteToEquipo(tx, tenant, product.id))
         else await tx.inventoryUnit.update({ where: { tenantId_serial: { tenantId: tenant, serial } }, data: { ...details, ...(locationId !== undefined ? { locationId } : {}) } })
       }
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PRODUCT_UPDATED', entity: 'Product', entityId: product.id, metadata: { name: typeof b.name === 'string' && b.name.trim() ? b.name.trim() : product.name, pricePyg: price ?? numero(product.pricePyg), costPyg: cost ?? numeroOpcional(product.costPyg), condition: b.condition ?? product.condition, stock: stock ?? product.stock, stockBefore: product.stock, ...(typeof b.sku === 'string' && b.sku.trim() ? { sku: b.sku.trim() } : {}), ...(reorderPoint !== undefined ? { reorderPoint } : {}), ...(serial !== undefined ? { imei: serial } : {}) } } })
