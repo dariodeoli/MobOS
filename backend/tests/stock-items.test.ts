@@ -142,12 +142,13 @@ test('SQL estado: IN_TRANSIT explícito y un estado desconocido conserva su valo
 })
 
 test('mapeo y redacción: costo, proveedor y consignación nulos sin permiso; BigInt a número', () => {
-  const row = { id: 'u1', kind: 'unit', stockKind: 'EQUIPO', productId: 'p1', sku: 'S', model: '15 128 Negro', name: 'iPhone', serial: 'IMEI1', batteryHealth: 91, supplierId: 'sup', supplierName: 'Prov', costPyg: BigInt(4200000), status: 'disponible', quantity: 1, branchId: 'b', branchName: 'Sucursal', locationId: null, locationName: null, createdAt: new Date(), soldAt: null }
+  const row = { id: 'u1', kind: 'unit', stockKind: 'EQUIPO', productId: 'p1', sku: 'S', model: '15 128 Negro', name: 'iPhone', serial: 'IMEI1', batteryHealth: 91, supplierId: 'sup', supplierName: 'Prov', consignorName: 'Ana', costPyg: BigInt(4200000), status: 'disponible', quantity: 1, branchId: 'b', branchName: 'Sucursal', locationId: null, locationName: null, createdAt: new Date(), soldAt: null }
   assert.equal(mapStockRow(row, true).costPyg, 4200000)
   assert.equal(mapStockRow(row, true).supplierName, 'Prov')
   const oculto = mapStockRow(row, false)
-  assert.deepEqual([oculto.costPyg, oculto.supplierId, oculto.supplierName], [null, null, null])
-  assert.deepEqual(redactStockItem({ costPyg: 1, supplierId: 'a', supplierName: 'b', x: 1 }, false), { costPyg: null, supplierId: null, supplierName: null, x: 1 })
+  assert.equal(mapStockRow(row, true).consignorName, 'Ana')
+  assert.deepEqual([oculto.costPyg, oculto.supplierId, oculto.supplierName, oculto.consignorName], [null, null, null, null])
+  assert.deepEqual(redactStockItem({ costPyg: 1, supplierId: 'a', supplierName: 'b', consignorName: 'c', x: 1 }, false), { costPyg: null, supplierId: null, supplierName: null, consignorName: null, x: 1 })
 
   const unidad = { id: 'u', serial: 'IMEI', costPyg: BigInt(10), originalCost: '5', exchangeRatePyg: '7000', consignorPyg: BigInt(3), consignorName: 'Ana', consignorPhone: '0981', costCurrency: 'USD', supplierId: 's', supplierName: 'P', supplier: { id: 's' }, inspection: { grado: 'A', costoRepuestosPyg: 80000 }, status: 'AVAILABLE' }
   assert.equal(redactUnitCosts(unidad, true), unidad)
