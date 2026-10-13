@@ -317,7 +317,7 @@ const GRUPOS_CONFIG_AUDIT = [
   ['equipo', 'Equipo y acceso', (page) => page.getByTestId('integrante-fila').first()],
   ['comercial', 'Comercial', (page) => page.getByText('Seguro de ventas').first()],
   ['seguridad', 'Seguridad y auditoría', (page) => page.getByTestId('auditoria-actualizar')],
-  ['dispositivos', 'Dispositivos', (page) => page.getByText('Configurá y probá tus impresoras térmicas').first()],
+  ['dispositivos', 'Impresión y dispositivos', (page) => page.getByText('Configurá y probá tus impresoras térmicas').first()],
   ['sistema', 'Sistema', (page) => page.getByText('Sincronización').first()],
 ]
 

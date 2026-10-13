@@ -1,12 +1,13 @@
 import SectionTabs from '@/components/app/SectionTabs'
 import { grupoConfig } from './gruposConfig'
+import './configTouch.css'
 
 // Configuración: riel vertical a la izquierda desde lg y tira de pestañas con
 // scroll debajo de lg. Conserva el testid `config-grupos` y el nombre accesible.
 export default function NavegacionConfig({ value, onChange, items = [], children }) {
   const group = grupoConfig(value)
   return (
-    <div className="lg:grid lg:grid-cols-[208px_minmax(0,1fr)] lg:items-start lg:gap-6">
+    <div data-testid="config-pagina" className="config-pagina lg:grid lg:grid-cols-[208px_minmax(0,1fr)] lg:items-start lg:gap-6">
       <SectionTabs
         variant="vertical"
         items={items}

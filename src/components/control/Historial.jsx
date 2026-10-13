@@ -124,30 +124,33 @@ export default function Historial() {
         {items.length === 0 ? (
           <EmptyState compact icon="clock" title="Todavía no hay movimientos registrados." />
         ) : (
-          <div className="divide-y divide-ink-600">
+          <ul data-testid="historial-actividad" className="divide-y divide-ink-600">
             {items.map((m) => {
               const a = ACCION[m.accion] || { label: m.accion, color: 'slate', emoji: '•' }
               return (
-                <div key={m.id} className="p-2.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge color={a.color}>
-                          {a.emoji} {a.label}
-                        </Badge>
-                        <span className="text-[13px] font-bold">
-                          {m.actorNombre}
-                          {m.esPropietario && <span title="Dueño"></span>}
-                        </span>
-                      </div>
-                      <div className="text-xs text-mute mt-1 truncate">
-                        {m.resumen?.cliente || '—'} · {m.resumen?.producto || '—'} ·{' '}
-                        <span className="font-semibold text-fono">{gs(m.resumen?.precio)}</span>
-                      </div>
-                    </div>
-                    <div className="text-xs text-mute shrink-0 text-right">
+                <li key={m.id} className="p-3">
+                  {/* Móvil: autor y fecha arriba, detalle en su línea y el
+                      importe completo en la suya (#30). Desde sm el importe va
+                      a la derecha del detalle. */}
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <Badge color={a.color} className="w-fit">
+                      {a.emoji} {a.label}
+                    </Badge>
+                    <span className="text-[13px] font-bold">
+                      {m.actorNombre}
+                      {m.esPropietario && <span title="Dueño"></span>}
+                    </span>
+                    <time dateTime={m.creadoEn} className="text-xs text-mute sm:ml-auto">
                       {fechaHora(m.creadoEn)}
-                    </div>
+                    </time>
+                  </div>
+                  <div className="mt-1 sm:flex sm:items-baseline sm:justify-between sm:gap-3">
+                    <p className="min-w-0 break-words text-xs text-mute">
+                      {m.resumen?.cliente || '—'} · {m.resumen?.producto || '—'}
+                    </p>
+                    <p data-monto className="tabular-nums mt-0.5 whitespace-nowrap text-sm font-semibold text-fono sm:mt-0 sm:shrink-0">
+                      {gs(m.resumen?.precio)}
+                    </p>
                   </div>
 
                   {m.cambios?.length > 0 && (
@@ -161,10 +164,10 @@ export default function Historial() {
                       ))}
                     </div>
                   )}
-                </div>
+                </li>
               )
             })}
-          </div>
+          </ul>
         )}
       </Card>
     </div>

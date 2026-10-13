@@ -8,13 +8,13 @@ import { mkdirSync } from 'node:fs'
 import { auditarContraste, informar } from './helpers/contraste.js'
 
 const GRUPOS = [
-  ['mi-cuenta', 'Mi cuenta'],
   ['organizacion', 'Organización'],
   ['equipo', 'Equipo y acceso'],
+  ['dispositivos', 'Impresión y dispositivos'],
   ['comercial', 'Comercial'],
   ['seguridad', 'Seguridad y auditoría'],
-  ['dispositivos', 'Dispositivos'],
   ['sistema', 'Sistema'],
+  ['mi-cuenta', 'Mi cuenta'],
 ]
 
 const NAV = '[data-testid="config-grupos"]'

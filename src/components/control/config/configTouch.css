@@ -1,0 +1,19 @@
+/* Configuración: por debajo de lg todo control mide 44px (QA-A). Las clases
+   `md:min-h-*` de los componentes heredados compactan desde 768; este ámbito
+   las pisa solo dentro de Configuración, sin tocar el resto de la app. */
+@media (max-width: 1023.98px) {
+  .config-pagina :is(button, [role='tab'], [role='button'], summary):not([data-inline-link]) {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+  .config-pagina :is(input, select, textarea):not([type='checkbox'], [type='radio'], [type='file'], [type='hidden'], [type='range']) {
+    min-height: 2.75rem;
+  }
+  .config-pagina label:has(> input[type='checkbox'], > input[type='radio']) {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}

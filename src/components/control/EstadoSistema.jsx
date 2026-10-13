@@ -12,7 +12,6 @@ import { APP_VERSION } from '@/lib/brand'
 import { fechaHora as fmt } from '@/utils/fecha'
 import { configImpresora, estadoAgente } from '@/lib/printing/agent'
 import { colorTrabajo, etiquetaTrabajo } from '@/lib/printing/estadoImpresoras'
-import { CELDA_DATO } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 
@@ -52,7 +51,7 @@ function TarjetaSync({ titulo, tono = 'slate', principal, detalle }) {
       <p className="text-xs uppercase tracking-wider text-mute">{titulo}</p>
       <p className="mt-1 flex items-center gap-2 text-sm font-semibold">
         <Dot color={COLOR_TONO[tono] || 'slate'} />
-        <span className="truncate">{principal}</span>
+        <span className="break-words">{principal}</span>
       </p>
       {detalle && <p className="mt-1 text-xs text-mute">{detalle}</p>}
     </div>
@@ -245,7 +244,7 @@ export default function EstadoSistema() {
               <div key={chequeo.id} data-testid="sistema-chequeo" className="flex flex-wrap items-center justify-between gap-2 py-2">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">{chequeo.label}</p>
-                  <p className={cn('mt-0.5', CELDA_DATO)} title={chequeo.detalle}>{chequeo.detalle}</p>
+                  <p className="mt-0.5 break-words text-xs text-mute">{chequeo.detalle}</p>
                 </div>
                 <Badge color={BADGE[chequeo.estado] || 'slate'}>{TEXTO[chequeo.estado] || chequeo.estado}</Badge>
               </div>
@@ -266,7 +265,7 @@ export default function EstadoSistema() {
             <h3 className="flex items-center gap-2 text-sm font-semibold"><Icon name="pulse" className="h-4 w-4 text-mute" />Sincronización</h3>
             <p className="mt-1 text-sm text-mute">Monitoreo de la empresa: puentes e impresoras, cola de impresión, correo saliente, webhooks de AEX, errores recientes y reservas vencidas. Datos reales; se refresca con «Actualizar».</p>
             <p className="mt-1 text-xs text-mute" data-testid="monitoreo-vs-impresoras">
-              Para <b className="text-fore">agregar, probar o formatear</b> impresoras andá a <Link to="/configuracion/dispositivos" className="toque-44 font-semibold text-fono-light underline underline-offset-2">Dispositivos · Impresoras</Link>; acá solo se monitorea.
+              Para <b className="text-fore">agregar, probar o formatear</b> impresoras andá a <Link to="/configuracion/dispositivos" className="toque-44 font-semibold text-fono-light underline underline-offset-2">Impresión y dispositivos · Impresoras</Link>; acá solo se monitorea.
             </p>
           </div>
           {sincronizacion && <span className="text-xs text-mute">Generado {fmt(sincronizacion.generadoEn)}</span>}
@@ -323,7 +322,7 @@ export default function EstadoSistema() {
                   <ul className="mt-2 divide-y divide-ink-600/60">
                     {sincronizacion.aex.ultimos.map((evento) => (
                       <li key={evento.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 py-1.5 text-xs">
-                        <span className="truncate font-medium" title={evento.guia}>{evento.guia}</span>
+                        <span className="break-words font-medium" title={evento.guia}>{evento.guia}</span>
                         <span className="text-mute">{evento.estado || evento.tipoEvento || 'Evento'} · {fmt(evento.recibidoEn)}</span>
                       </li>
                     ))}
@@ -341,8 +340,8 @@ export default function EstadoSistema() {
                   <ul className="mt-2 divide-y divide-ink-600/60">
                     {sincronizacion.errores.ultimos.map((reporte) => (
                       <li key={reporte.id} className="py-1.5 text-xs">
-                        <p className="truncate font-medium" title={reporte.message}>{reporte.message}</p>
-                        <p className="mt-0.5 truncate text-mute">{reporte.kind === 'rejection' ? 'Promesa rechazada' : 'Error no manejado'} · {fmt(reporte.createdAt)}{reporte.url ? ` · ${reporte.url}` : ''}</p>
+                        <p className="break-words font-medium" title={reporte.message}>{reporte.message}</p>
+                        <p className="mt-0.5 break-words text-mute">{reporte.kind === 'rejection' ? 'Promesa rechazada' : 'Error no manejado'} · {fmt(reporte.createdAt)}{reporte.url ? ` · ${reporte.url}` : ''}</p>
                       </li>
                     ))}
                   </ul>
@@ -387,7 +386,7 @@ export default function EstadoSistema() {
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <h3 className="flex items-center gap-2 text-sm font-semibold"><Icon name="printer" className="h-4 w-4 text-mute" />Cola de impresión</h3>
-            <p className="mt-1 text-sm text-mute">Trabajos remotos de la empresa: qué son, quién los mandó y a qué impresora. Cancelar sirve para lo que quedó esperando (por ejemplo, el puente apagado); no toca lo que ya salió. La configuración y las pruebas de cada impresora viven en <b className="text-fore">Dispositivos → Impresoras</b>; acá se monitorea la cola global.</p>
+            <p className="mt-1 text-sm text-mute">Trabajos remotos de la empresa: qué son, quién los mandó y a qué impresora. Cancelar sirve para lo que quedó esperando (por ejemplo, el puente apagado); no toca lo que ya salió. La configuración y las pruebas de cada impresora viven en <b className="text-fore">Impresión y dispositivos → Impresoras</b>; acá se monitorea la cola global.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {impresorasEnCola.length > 1 && (
@@ -439,17 +438,19 @@ export default function EstadoSistema() {
               {enCola.map((trabajo) => (
                 <li key={trabajo.id} className="flex flex-wrap items-center gap-3 py-2">
                   {puedeCancelar && (
-                    <input
-                      type="checkbox"
-                      aria-label={`Seleccionar ${tipoTrabajo(trabajo.kind)}${trabajo.reference ? ` de ${trabajo.reference}` : ''}`}
-                      checked={seleccion.includes(trabajo.id)}
-                      onChange={() => alternar(trabajo.id)}
-                      className="h-4 w-4 accent-bad"
-                    />
+                    <label className="inline-flex min-h-11 min-w-11 items-center justify-center">
+                      <input
+                        type="checkbox"
+                        aria-label={`Seleccionar ${tipoTrabajo(trabajo.kind)}${trabajo.reference ? ` de ${trabajo.reference}` : ''}`}
+                        checked={seleccion.includes(trabajo.id)}
+                        onChange={() => alternar(trabajo.id)}
+                        className="h-4 w-4 accent-bad"
+                      />
+                    </label>
                   )}
                   <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
-                      <span className="truncate">{tipoTrabajo(trabajo.kind)}</span>
+                      <span className="break-words">{tipoTrabajo(trabajo.kind)}</span>
                       {trabajo.reference && <span className="text-xs font-normal text-mute">{trabajo.reference}</span>}
                       <Badge color={colorTrabajo(trabajo.state)}>{etiquetaTrabajo(trabajo.state)}</Badge>
                     </p>
@@ -459,14 +460,14 @@ export default function EstadoSistema() {
                         {trabajo.requestedByName || 'Sin usuario'}
                       </span>
                       <span aria-hidden="true">·</span>
-                      <span className="truncate" title={[trabajo.printerName || trabajo.destination, trabajo.bridgeName].filter(Boolean).join(' · ')}>
+                      <span className="break-words" title={[trabajo.printerName || trabajo.destination, trabajo.bridgeName].filter(Boolean).join(' · ')}>
                         {trabajo.printerName || trabajo.destination || 'sin impresora'}{trabajo.bridgeName ? ` · ${trabajo.bridgeName}` : ''}
                       </span>
                       <span aria-hidden="true">·</span>
                       <span>encolado {fmt(trabajo.enqueuedAt || trabajo.createdAt)}</span>
                       {Number(trabajo.attempts) > 0 && <span>· {trabajo.attempts} intento(s)</span>}
                     </p>
-                    {trabajo.error && <p className="mt-0.5 truncate text-xs text-bad" title={trabajo.error}>{trabajo.error}</p>}
+                    {trabajo.error && <p className="mt-0.5 break-words text-xs text-bad" title={trabajo.error}>{trabajo.error}</p>}
                   </div>
                   {puedeCancelar && trabajo.state === 'PENDIENTE' && (
                     <Button
@@ -490,7 +491,7 @@ export default function EstadoSistema() {
             <ul className="mt-2 divide-y divide-ink-600/60">
               {conProblema.map((trabajo) => (
                 <li key={trabajo.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 py-1.5 text-xs">
-                  <span className="truncate font-medium" title={trabajo.error || ''}>{tipoTrabajo(trabajo.kind)}{trabajo.reference ? ` · ${trabajo.reference}` : ''}</span>
+                  <span className="break-words font-medium" title={trabajo.error || ''}>{tipoTrabajo(trabajo.kind)}{trabajo.reference ? ` · ${trabajo.reference}` : ''}</span>
                   <span className="flex items-center gap-2 text-mute">
                     <Badge color={colorTrabajo(trabajo.state)}>{etiquetaTrabajo(trabajo.state)}</Badge>
                     <span>{trabajo.printerName || trabajo.destination || 'sin impresora'}</span>

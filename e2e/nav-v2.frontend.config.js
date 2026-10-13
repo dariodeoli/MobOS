@@ -10,6 +10,7 @@ export default defineConfig({
     'blocks-preview.frontend.spec.js',
     'ventas-layout.frontend.spec.js',
     'finanzas-layout.frontend.spec.js',
+    'config-layout.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,

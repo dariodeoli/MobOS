@@ -61,6 +61,7 @@ for (const width of widths) {
             'Compras',
             'Finanzas',
             'Análisis',
+            'Configuración',
           ],
     )
     await expect(

@@ -17,7 +17,7 @@ import { selectConfigSection } from './helpers/shell-navigation.js'
 const SALIDA = process.env.MOBOS_298_CAPTURAS || ''
 const NAV = '[data-testid="config-grupos"]'
 const TOGGLE = '[data-testid="config-grupos-toggle"]'
-const ETIQUETAS = ['Mi cuenta', 'Organización', 'Equipo y acceso', 'Comercial', 'Seguridad y auditoría', 'Dispositivos', 'Sistema']
+const ETIQUETAS = ['Organización', 'Equipo y acceso', 'Impresión y dispositivos', 'Comercial', 'Seguridad y auditoría', 'Sistema', 'Mi cuenta']
 
 async function capturar(page, nombre) {
   if (!SALIDA) return
