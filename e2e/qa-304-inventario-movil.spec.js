@@ -33,7 +33,7 @@ test('#304 · el primer producto entra en el primer viewport móvil', async ({ p
   mkdirSync(DIR, { recursive: true })
   await entrarDemo(page)
   // El banner del demo queda en una línea compacta en móvil (#304).
-  const banner = page.getByRole('status').filter({ hasText: /Demo: datos ficticios/ })
+  const banner = page.getByRole('status').filter({ hasText: /[Dd]emo: datos ficticios/ })
   await expect(banner).toBeVisible()
 
   for (const [etiqueta, ancho, alto] of VIEWPORTS) {
