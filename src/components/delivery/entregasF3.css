@@ -169,3 +169,61 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+
+/* U5a: same visual system for settlements and the driver panel. */
+.entregas-f3-meta {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgb(var(--c-mute));
+  overflow-wrap: anywhere;
+}
+
+.entregas-f3-total {
+  margin-top: 4px;
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.entregas-f3-summary {
+  border-color: rgb(var(--c-fono) / 0.35);
+}
+
+.entregas-f3-cobros {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid rgb(var(--c-ink-600));
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.entregas-f3-cobros li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 8px;
+}
+
+.entregas-f3-cobros strong {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.entregas-f3-tel {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: rgb(var(--c-fono-light));
+}
+
+.entregas-f3-tel:hover {
+  text-decoration: underline;
+}
+
+.entregas-f3-assignments [data-testid='pie-listado'] {
+  margin-top: 4px;
+}

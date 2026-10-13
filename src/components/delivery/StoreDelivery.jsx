@@ -6,7 +6,9 @@ import { api } from '@/lib/api/client'
 import { Aviso, Badge, Button, ConfirmDialog, FormField, Input, Modal, Money, SaveActions, Select, Textarea, useToast, useValidacionCampos } from '@/components/ui'
 import { obligatorio, largoMinimo } from 'owncoding-ui/utils'
 import Icon from '@/components/shared/Icon'
-import { cn } from '@/lib/utils'
+import ListaDensa from '@/components/shared/ListaDensa'
+import { usePaginaLista } from '@/components/shared/usePaginaLista'
+import { ChipsReparto } from './ChipsReparto'
 import { fechaHoraCorta } from '@/utils/fecha'
 import { codigoPedido } from '@/utils/pedido'
 import { montoTexto } from '@/utils/moneda'
@@ -20,36 +22,7 @@ import { asignarRepartoDemo, equipoDeRepartoDemo, listDemoDeliveryOrders, listDe
 
 const TONO_RENDICION = (estado) => estado === 'VERIFIED' ? 'green' : estado === 'REJECTED' ? 'red' : 'orange'
 
-function Tabs({ value, onChange, items, flat = false }) {
-  return (
-    <div
-      className={
-        flat
-          ? 'entregas-f3-chips'
-          : 'flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1'
-      }
-    >
-      {items.map(([id, label]) => (
-        <button
-          key={id}
-          type="button"
-          aria-pressed={value === id}
-          onClick={() => onChange(id)}
-          className={
-            flat
-              ? 'transition'
-              : cn(
-                  'rounded-lg px-3 py-1.5 text-xs font-semibold transition',
-                  value === id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore',
-                )
-          }
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  )
-}
+const Tabs = ChipsReparto
 
 function Asignaciones() {
   const { esDemo } = useSesion()
@@ -281,6 +254,7 @@ function Rendiciones() {
   const [estado, setEstado] = useState('PENDING')
   const demoRead = useCallback(() => listDemoDeliverySettlements({ estado }), [estado])
   const data = useSellerData(`/api/delivery/settlements?estado=${estado}`, settlementFields, demoRead, esDemo, { limit: 60 })
+  const pagina = usePaginaLista(data.rows, { tamano: 10, modo: 'mas' })
   const [confirmar, setConfirmar] = useState(null)
   const [rechazar, setRechazar] = useState(null)
   const [motivo, setMotivo] = useState('')
@@ -306,45 +280,49 @@ function Rendiciones() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Tabs value={estado} onChange={setEstado} items={[['PENDING', 'Pendientes'], ['VERIFIED', 'Verificadas'], ['REJECTED', 'Rechazadas'], ['', 'Todas']]} />
-        <button type="button" onClick={data.refresh} disabled={data.loading} className="ml-auto rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Actualizar</button>
+    <div className="entregas-f3-assignments" role="region" aria-label="Rendiciones de repartidores">
+      <div className="entregas-f3-filters">
+        <Tabs flat value={estado} onChange={setEstado} items={[['PENDING', 'Pendientes'], ['VERIFIED', 'Verificadas'], ['REJECTED', 'Rechazadas'], ['', 'Todas']]} />
+        <button type="button" onClick={data.refresh} disabled={data.loading} className="entregas-f3-refresh">Actualizar</button>
       </div>
       <SellerFeedback {...data} empty={!data.rows.length} />
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {data.rows.map(fila => (
-          <article key={fila.id} data-testid="rendicion-admin" data-rendicion={fila.id} className="rounded-2xl border border-fore/10 bg-ink-800/40 p-4">
+      <ListaDensa
+        lista={pagina}
+        claseFilas="entregas-f3-grid"
+        etiquetaPie="Más rendiciones"
+        unidad="rendiciones"
+        renderFila={fila => (
+          <article key={fila.id} data-testid="rendicion-admin" data-rendicion={fila.id} className="entregas-f3-order">
             <header className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-sm font-semibold">{fila.repartidor}</span>
               <Badge color={TONO_RENDICION(fila.estado)}>{RENDICION_LABELS[fila.estado] || fila.estado}</Badge>
             </header>
-            <p className="mt-1 text-xs text-mute">{fechaHoraCorta(fila.fecha)}{fila.sucursal ? ` · ${fila.sucursal}` : ''}</p>
-            <div className="mt-2 space-y-1">
-              <p className="flex items-baseline justify-between gap-3"><span className="text-xs text-mute">Rendido</span><span className="text-base font-bold tabular-nums"><Money value={fila.total} /></span></p>
-              <p className="flex items-baseline justify-between gap-3"><span className="text-xs text-mute">Saldo que queda</span><span className="text-sm tabular-nums"><Money value={fila.pendiente} /></span></p>
-              <p className="text-xs text-mute">{fila.pedidos} {fila.pedidos === 1 ? 'pedido' : 'pedidos'} · {fila.cobros.length} {fila.cobros.length === 1 ? 'cobro' : 'cobros'}</p>
-              {fila.nota && <p className="text-xs text-mute">Observación: {fila.nota}</p>}
+            <p className="entregas-f3-meta">{fechaHoraCorta(fila.fecha)}{fila.sucursal ? ` · ${fila.sucursal}` : ''}</p>
+            <div className="entregas-f3-amounts">
+              <span>Rendido <strong className="text-fore"><Money value={fila.total} /></strong></span>
+              <span>Saldo que queda <strong><Money value={fila.pendiente} /></strong></span>
             </div>
-            <ul className="mt-3 space-y-1 border-t border-fore/10 pt-2">
+            <p className="entregas-f3-meta">{fila.pedidos} {fila.pedidos === 1 ? 'pedido' : 'pedidos'} · {fila.cobros.length} {fila.cobros.length === 1 ? 'cobro' : 'cobros'}</p>
+            {fila.nota && <p className="entregas-f3-meta">Observación: {fila.nota}</p>}
+            <ul className="entregas-f3-cobros">
               {fila.cobros.map(cobro => (
-                <li key={cobro.id} className="flex flex-wrap items-baseline justify-between gap-2 text-xs">
+                <li key={cobro.id}>
                   <span className="font-mono text-mute">{codigoPedido(cobro.pedidoNumero || '—')}</span>
                   <span className="text-mute">{MEDIO_LABELS[cobro.metodo] || cobro.metodo}{cobro.referencia ? ` · ${cobro.referencia}` : ''}</span>
-                  <span className="font-semibold tabular-nums"><Money value={cobro.monto} /></span>
+                  <strong><Money value={cobro.monto} /></strong>
                 </li>
               ))}
             </ul>
             {fila.estado === 'PENDING' && (
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="entregas-f3-actions">
                 <Button type="button" disabled={ocupado} onClick={() => setConfirmar(fila)} data-testid="rendicion-verificar"><Icon name="check" className="h-4 w-4" />Verificar</Button>
                 <Button type="button" variant="outline" disabled={ocupado} onClick={() => { limpiar(); setMotivo(''); setRechazar(fila) }}>Rechazar</Button>
               </div>
             )}
-            {fila.verificadaPor && <p className="mt-2 text-xs text-mute">Verificada por {fila.verificadaPor}{fila.notaVerificacion ? ` · ${fila.notaVerificacion}` : ''}</p>}
+            {fila.verificadaPor && <p className="entregas-f3-meta">Verificada por {fila.verificadaPor}{fila.notaVerificacion ? ` · ${fila.notaVerificacion}` : ''}</p>}
           </article>
-        ))}
-      </div>
+        )}
+      />
 
       <ConfirmDialog
         open={Boolean(confirmar)}
