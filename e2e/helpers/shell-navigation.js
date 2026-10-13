@@ -21,6 +21,8 @@ export const SHELL_DESTINATIONS = {
   'Productos (stock)': ['Stock', 'productos', 'productos'],
   Productos: ['Stock', 'productos', 'productos'],
   'Traslados y tránsito': ['Stock', 'traslados', 'traslados'],
+  Traslados: ['Stock', 'traslados', 'traslados'],
+  Control: ['Stock', 'control', 'control'],
   Precios: ['Stock', 'precios', 'precios'],
   'Lista por modelo': ['Stock', 'precios', 'celulares'],
   Comparador: ['Stock', 'precios', 'comparador'],
@@ -56,6 +58,7 @@ const DESTINATION_LABEL = {
   unidades: 'Unidades (IMEI)',
   productos: 'Productos (stock)',
   traslados: 'Traslados y tránsito',
+  control: 'Control',
   precios: 'Precios',
   celulares: 'Lista por modelo',
   comparador: 'Comparador',
@@ -265,13 +268,27 @@ export async function shellCatalog(page) {
     profile: profileLabels.map(s => s.trim()),
   }
 }
-// U3: las secciones son pestañas (Unidades · Reservas · Movimientos · Control) y
-// las vistas de cada una van en una segunda fila; se elige la vista por su nombre.
+// Stock (rediseño 2A): las pestañas son del shell (Unidades · Productos ·
+// Traslados · Control · Precios) y las vistas de cada una un segundo nivel en la
+// barra de la pestaña (`subtabs-inventario`). Vendidos y Eliminados son opciones
+// del chip «Estado» de Unidades. Las doce vistas siguen alcanzables por clic.
 const ETIQUETA_VISTA = { unidades: 'Unidades', reservas: 'Reservas', ubicaciones: 'Ubicaciones', alertas: 'Alertas', transito: 'En tránsito', traslados: 'Traslados', vendidos: 'Vendidos', eliminados: 'Eliminados', taller: 'Taller', conteos: 'Conteos', compartido: 'Compartido', autorizaciones: 'Autorizaciones' }
-const SECCION_DE_VISTA = { unidades: 'Unidades', ubicaciones: 'Unidades', alertas: 'Unidades', reservas: 'Reservas', transito: 'Movimientos', traslados: 'Movimientos', vendidos: 'Movimientos', eliminados: 'Movimientos', taller: 'Control', conteos: 'Control', compartido: 'Control', autorizaciones: 'Control' }
+const GRUPO_DE_VISTA = { unidades: 'unidades', vendidos: 'unidades', eliminados: 'unidades', traslados: 'traslados', transito: 'traslados', conteos: 'control', alertas: 'control', autorizaciones: 'control', taller: 'control', ubicaciones: 'control', compartido: 'control', reservas: 'control' }
 export async function selectInventorySection(page, value) {
-  await page.getByTestId('tabs-inventario').getByRole('tab', { name: SECCION_DE_VISTA[value], exact: false }).first().click()
+  await clickShellTab(page, 'shell-contexto', GRUPO_DE_VISTA[value])
+  if (value === 'vendidos' || value === 'eliminados') {
+    // Desktop: chip «Estado» con su lista. Celular: hoja «Filtros».
+    await page.getByTestId('filtro-estado-abrir').or(page.getByTestId('filtros-abrir')).first().click()
+    await page.getByTestId(`filtro-estado-${value}`).click()
+    if (await page.getByTestId('filtros-hoja').count()) await page.keyboard.press('Escape')
+    await expect(page.getByTestId('inventario-lista')).toHaveAttribute('data-vista', value)
+    return
+  }
+  if (value === 'unidades') {
+    await expect(page.getByTestId('inventario-lista')).toHaveAttribute('data-vista', 'unidades')
+    return
+  }
   const vistas = page.getByTestId('subtabs-inventario')
-  if (await vistas.count()) await vistas.getByRole('tab', { name: ETIQUETA_VISTA[value] }).click()
-  await expect(page.getByTestId('grupos-inventario').getByRole('tab', { name: ETIQUETA_VISTA[value] }).first()).toHaveAttribute('aria-selected', 'true')
+  await vistas.getByRole('tab', { name: ETIQUETA_VISTA[value], exact: false }).first().click()
+  await expect(vistas.getByRole('tab', { name: new RegExp(`^${ETIQUETA_VISTA[value]}`) })).toHaveAttribute('aria-selected', 'true')
 }

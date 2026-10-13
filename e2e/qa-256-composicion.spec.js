@@ -59,8 +59,9 @@ test.describe('composición compacta', () => {
     // #320: la identidad visible es una sola (el h1 del shell); la barra no
     // repite el título: agrupa contexto y acciones.
     await expect(barra.getByRole('heading')).toHaveCount(0)
-    await expect(barra).toHaveAttribute('aria-label', 'Stock')
+    await expect(barra.getByRole('group', { name: 'Acciones de Stock' })).toHaveCount(1)
     // #305: buscador y filtros viven en la barra, con la acción primaria.
+    await expect(barra.getByTestId('filtros-stock')).toBeVisible()
     await expect(barra.getByLabel('Buscar en inventario')).toBeVisible()
     await expect(barra.getByRole('button', { name: '+ Recibir unidad', exact: true })).toBeVisible()
 
@@ -76,16 +77,17 @@ test.describe('composición compacta', () => {
     }
     await page.keyboard.press('Escape')
 
-    // #305/U3: navegación agrupada Unidades · Reservas · Movimientos · Control,
-    // con las vistas de cada sección en una segunda fila.
-    const tabs = page.getByTestId('tabs-inventario')
-    for (const seccion of ['Unidades', 'Reservas', 'Movimientos', 'Control']) {
-      await expect(tabs.getByRole('tab', { name: seccion })).toBeVisible()
+    // #305/U3 + rediseño 2A: navegación agrupada en pestañas del shell (Unidades ·
+    // Productos · Traslados · Control · Precios), con las vistas de cada pestaña
+    // como segundo nivel en su barra.
+    const contexto = page.getByTestId('shell-contexto')
+    for (const id of ['unidades', 'productos', 'traslados', 'control', 'precios']) {
+      await expect(contexto.locator(`[data-tab-id="${id}"]`)).toBeVisible()
     }
     await expect(page.getByTestId('subtabs-inventario').getByRole('tab', { name: 'En tránsito', exact: true })).toHaveCount(0)
-    await tabs.getByRole('tab', { name: 'Movimientos' }).click()
+    await contexto.locator('[data-tab-id="traslados"]').click()
     await expect(page.getByTestId('subtabs-inventario').getByRole('tab', { name: 'En tránsito', exact: true })).toBeVisible()
-    await tabs.getByRole('tab', { name: 'Control' }).click()
+    await contexto.locator('[data-tab-id="control"]').click()
     await expect(page.getByTestId('subtabs-inventario').getByRole('tab', { name: 'Conteos', exact: true })).toBeVisible()
     for (const value of ['reservas', 'transito', 'conteos', 'unidades']) await selectInventorySection(page, value)
 

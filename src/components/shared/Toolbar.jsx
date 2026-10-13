@@ -6,7 +6,8 @@ import { cn } from '@/lib/utils'
 // vista (L2 segmentado) · [hijos libres] · Más + acción principal a la derecha.
 // Un hueco vacío no deja contenedor. `lead` es la identidad compacta que aún
 // usa `BarraModulo`. `plano` quita caja y fondo (barra embebida en otra caja).
-export default function Toolbar({ label = 'Herramientas', search, filters, view, primary, more, lead, children, plano = false, className, testId = 'toolbar' }) {
+// `searchClassName` ajusta el ancho del hueco de búsqueda (placeholder largo).
+export default function Toolbar({ label = 'Herramientas', search, filters, view, primary, more, lead, children, plano = false, className, searchClassName, testId = 'toolbar' }) {
   const derecha = more || primary
   return (
     <div data-testid={testId} className="min-w-0">
@@ -19,7 +20,7 @@ export default function Toolbar({ label = 'Herramientas', search, filters, view,
         )}
       >
         {lead}
-        {search && <div data-slot="search" className="min-w-0 basis-full sm:min-w-[14rem] sm:flex-1 sm:basis-64">{search}</div>}
+        {search && <div data-slot="search" className={cn('min-w-0 basis-full sm:min-w-[14rem] sm:flex-1 sm:basis-64', searchClassName)}>{search}</div>}
         {filters && <div data-slot="filters" className="flex min-w-0 flex-wrap items-center gap-2">{filters}</div>}
         {view && <div data-slot="view" className="flex min-w-0 items-center">{view}</div>}
         {children}

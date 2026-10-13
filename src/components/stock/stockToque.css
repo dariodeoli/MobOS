@@ -1,0 +1,20 @@
+/* Áreas táctiles de 44 px debajo de lg (docs/PANTALLAS.md regla 1): las acciones
+   de ícono de las listas de Precios y Compras miden 28 px en escritorio y 44 px
+   en celular y tablet. El área es el propio botón (sin pseudo-elementos). */
+@media (max-width: 1023px) {
+  .acciones-toque button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Cuerpo de las vistas de Stock (Control, Traslados, listas): los botones de las
+   tarjetas y filas miden 44 px debajo de lg; en escritorio conservan su tamaño. */
+@media (max-width: 1023px) {
+  .stock-toque button {
+    min-height: 44px;
+  }
+  .stock-toque button:not([class*="w-full"]):not([data-tab-id]) {
+    min-width: 44px;
+  }
+}

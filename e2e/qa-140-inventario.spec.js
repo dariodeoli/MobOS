@@ -13,9 +13,9 @@ test('inventario post-.140: alertas, vendidos, transito/traslados y acciones mas
   await capturar('01-alertas')
 
   await page.goto('/inventario/vendidos')
-  const periodo = page.getByLabel('Período de vendidos')
-  await expect(periodo).toBeVisible()
-  await periodo.selectOption('todos')
+  // El período de Vendidos es un chip con su lista (rediseño 2A).
+  await page.getByTestId('filtro-periodo-abrir').click()
+  await page.getByTestId('filtro-periodo-todos').click()
   await expect(page.getByText(/vendidos$/).first()).toBeVisible()
   await capturar('02-vendidos')
 

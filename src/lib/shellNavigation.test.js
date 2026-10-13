@@ -32,7 +32,13 @@ test('owner gets nine primary destinations and every existing destination remain
   const reachable = sections
     .flatMap(section => section.items.map(([id]) => id))
     .concat(['equipo', 'ayuda'])
-  assert.deepEqual([...reachable].sort(), owner[0].items.map(([id]) => id).sort())
+  // «Control» (Stock) es una pestaña proyectada: agrupa vistas del inventario
+  // (conteos, alertas, taller…) que no son destinos del catálogo.
+  assert.deepEqual(
+    [...reachable].filter(id => id !== 'control').sort(),
+    owner[0].items.map(([id]) => id).sort(),
+  )
+  assert.ok(reachable.includes('control'), 'Control existe para quien tiene Unidades')
   assert.equal(new Set(reachable).size, reachable.length)
   // Every catalog id is a tab (level 1) or a segment (level 2) somewhere.
   const clickable = sections.flatMap(section =>
@@ -46,7 +52,7 @@ test('owner gets nine primary destinations and every existing destination remain
     for (const [id] of section.items) {
       assert.equal(activeShellSection(sections, id), section)
       assert.ok(
-        rutaDeVista(id) || ['unidades', 'traslados', 'ayuda'].includes(id),
+        rutaDeVista(id) || ['unidades', 'traslados', 'control', 'ayuda'].includes(id),
         `${id} retains route or existing subsection handler`,
       )
     }
@@ -171,8 +177,10 @@ test('AEX guide and grouped inventory selector remain available at every viewpor
   const guideForm = inventory.match(/<form onSubmit=\{guardarGuia\} className="([^"]+)"/)
   assert.ok(guideForm, 'the existing AEX guide form remains wired to guardarGuia')
   assert.equal(guideForm[1], 'flex flex-wrap items-center gap-1')
-  // U3: el selector agrupado pasó a dos filas de pestañas (secciones y vistas).
-  assert.match(inventory, /data-testid="tabs-inventario"[\s\S]*?ariaLabel="Secciones de stock"/)
+  // Rediseño 2A: las secciones (Unidades · Productos · Traslados · Control ·
+  // Precios) son pestañas del shell y las vistas de cada una un segundo nivel
+  // en la barra de la pestaña.
+  assert.match(inventory, /data-testid="grupos-inventario"[\s\S]*?data-testid="subtabs-inventario"[\s\S]*?ariaLabel=\{`Vistas de \$\{grupo\.label\}`\}/)
   assert.match(inventory, /data-testid="subtabs-inventario"/)
   assert.match(inventory, /id === 'autorizaciones' && pendientesStock > 0/)
   assert.ok(!inventory.includes('onClick={() => cambiarGrupo'))
@@ -201,7 +209,7 @@ test('approved presentation groups keep tabs per area and segments only where a 
     assert.deepEqual(
       stock.map(group => group.label),
       name === 'OWNER_NAV'
-        ? ['Unidades', 'Productos', 'Traslados', 'Precios']
+        ? ['Unidades', 'Productos', 'Traslados', 'Control', 'Precios']
         : ['Productos', 'Precios'],
     )
     // Only Precios (owner) groups several destinations; the rest are plain tabs.

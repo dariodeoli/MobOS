@@ -63,6 +63,7 @@ export const PRIMARY_SECTIONS = [
       ['unidades', 'Unidades', ['unidades', 'inventario']],
       ['productos', 'Productos', ['productos']],
       ['traslados', 'Traslados', ['traslados']],
+      ['control', 'Control', ['control']],
       ['precios', 'Precios', ['precios', 'celulares', 'comparador', 'centro-control']],
     ],
   },
@@ -108,9 +109,12 @@ export function shellNavigation(nav = []) {
     return [{ id: 'entregas', label: 'Entregas', icon: 'truck', items: destinations }]
   if (ids.has('servicio') && !ids.has('cargar'))
     return [{ id: 'taller', label: 'Taller', icon: 'wrench', items: destinations }]
+  // `control` (Stock) agrupa vistas del inventario que no son destinos del
+  // catálogo (conteos, alertas, taller…): existe solo donde existe Unidades.
+  const projected = ids.has('unidades') ? [...destinations, ['control', 'Control', 'check']] : destinations
   const sections = PRIMARY_SECTIONS.map(section => ({
     ...section,
-    items: section.destinations.flatMap(id => destinations.filter(([key]) => key === id)),
+    items: section.destinations.flatMap(id => projected.filter(([key]) => key === id)),
   })).filter(section => section.items.length)
   const mapped = new Set(sections.flatMap(section => section.items.map(([id]) => id)))
   const remaining = destinations.filter(
