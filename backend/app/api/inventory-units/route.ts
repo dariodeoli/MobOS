@@ -12,6 +12,7 @@ import { revisarMinimoDeStock } from '../../../lib/supply-demand'
 import { changeStock } from '../../../lib/stock'
 import { consumeAuthorization } from '../../../lib/authorizations'
 import { sucursalEfectiva } from '../../../lib/sucursal-efectiva'
+import { redactUnitCosts } from '../../../lib/stock-items'
 
 const canSeeBranch = (role: string, assigned: string | null, branchId: string | null) => !['VENDEDOR', 'CAJERA'].includes(role) || assigned === branchId
 const canManageBranch = (role: string, assigned: string | null, branchId: string) => role === 'ADMIN' || (role === 'GERENTE' && assigned === branchId)
@@ -147,13 +148,15 @@ export async function GET(request: Request) {
     }
   }
 
+  const canSeeCost = ['ADMIN', 'GERENTE'].includes(session.user.role)
   return json(units.map(unit => {
     const conVenta = unit.status === 'SOLD' && ventaPorSerial.has(unit.serial) ? { ...unit, sale: ventaPorSerial.get(unit.serial) } : unit
     const verificacion = verificacionPorSerial.get(unit.serial)
     const conVerificacion = verificacion ? { ...conVenta, verificacion } : conVenta
     // #279 (A4): una sola asignación viva por unidad, ya aplanada.
     const { transitAssignments, ...resto } = conVerificacion as typeof conVerificacion & { transitAssignments?: Array<Record<string, unknown>> }
-    return { ...resto, transitAssignment: transitAssignments?.[0] || null }
+    // Costos, proveedor y monto de consignación solo para administración y gerencia.
+    return redactUnitCosts({ ...resto, transitAssignment: transitAssignments?.[0] || null }, canSeeCost)
   }))
 }
 
