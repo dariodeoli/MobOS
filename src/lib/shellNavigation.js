@@ -87,6 +87,15 @@ export const PRIMARY_SECTIONS = [
     icon: 'trending',
     groups: [['analisis', null, ['analisis']]],
   },
+  // Configuración cierra el menú del dueño. El catálogo la llama `equipo` (el id
+  // que habilita el acceso); sus secciones viven en la propia página (riel
+  // vertical en escritorio, tira de pestañas en móvil), por eso es un solo grupo.
+  {
+    id: 'configuracion',
+    label: 'Configuración',
+    icon: 'settings',
+    groups: [['equipo', 'Configuración', ['equipo']]],
+  },
 ].map(section => ({ ...section, destinations: section.groups.flatMap(group => group[2]) }))
 
 // Shorter labels for the second level (the catalog label stays the source for

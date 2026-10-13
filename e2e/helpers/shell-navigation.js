@@ -34,6 +34,8 @@ export const SHELL_DESTINATIONS = {
   'Métricas de abastecimiento': ['Compras', 'metricas', 'metricas'],
   Finanzas: ['Finanzas', 'finanzas', 'finanzas'],
   Análisis: ['Análisis', 'analisis', 'analisis'],
+  // Último destino principal del dueño; sus secciones son el riel de la página.
+  Configuración: ['Configuración', 'equipo', 'equipo'],
   'Tablero de operaciones': ['Inicio', 'ops', 'ops'],
   'Mis repartos': ['Entregas', 'repartos', 'repartos'],
   Rendiciones: ['Entregas', 'rendiciones', 'rendiciones'],
@@ -160,7 +162,7 @@ export async function lockShell(page) {
   await profile.getByTestId('shell-bloquear').click()
 }
 export async function openShellDestination(page, label) {
-  if (['Configuración', 'Ayuda', 'Mi perfil'].includes(label)) {
+  if (['Ayuda', 'Mi perfil'].includes(label)) {
     const profile = await openShellProfile(page)
     await profile.getByRole('button', { name: label, exact: true }).click()
     return
@@ -210,6 +212,7 @@ const SINGLE_SECTION_LABEL = {
   Inicio: 'Inicio',
   Finanzas: 'Finanzas',
   Análisis: 'Análisis',
+  Configuración: 'Configuración',
   Taller: 'Taller y garantías',
 }
 // Read every permitted context through UI navigation, not direct routes.
@@ -224,7 +227,7 @@ export async function shellCatalog(page) {
     const sheet = page.getByTestId('shell-mas-hoja')
     const extra = (await sheet.getByRole('button').allTextContents()).map(s => s.trim())
     await page.keyboard.press('Escape')
-    sections.push(...extra.filter(s => !['Configuración', 'Ayuda'].includes(s)))
+    sections.push(...extra.filter(s => s !== 'Ayuda'))
   }
   const owner = sections.includes('Inicio')
   const destinations = new Set()

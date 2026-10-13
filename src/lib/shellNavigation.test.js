@@ -22,16 +22,27 @@ const catalog = name => {
   ]
 }
 
-test('owner gets nine primary destinations and every existing destination remains reachable', () => {
+test('owner gets ten primary destinations and every existing destination remains reachable', () => {
   const owner = catalog('OWNER_NAV')
   const sections = shellNavigation(owner)
   assert.deepEqual(
     sections.map(section => section.label),
-    ['Inicio', 'Vender', 'Ventas', 'Clientes', 'Taller', 'Stock', 'Compras', 'Finanzas', 'Análisis'],
+    [
+      'Inicio',
+      'Vender',
+      'Ventas',
+      'Clientes',
+      'Taller',
+      'Stock',
+      'Compras',
+      'Finanzas',
+      'Análisis',
+      'Configuración',
+    ],
   )
   const reachable = sections
     .flatMap(section => section.items.map(([id]) => id))
-    .concat(['equipo', 'ayuda'])
+    .concat(['ayuda'])
   assert.deepEqual([...reachable].sort(), owner[0].items.map(([id]) => id).sort())
   assert.equal(new Set(reachable).size, reachable.length)
   // Every catalog id is a tab (level 1) or a segment (level 2) somewhere.
@@ -58,6 +69,11 @@ test('owner gets nine primary destinations and every existing destination remain
   assert.equal(activeShellSection(sections, 'clientes').id, 'clientes')
   assert.equal(activeShellSection(sections, 'tradein-admin').id, 'taller')
   assert.equal(activeShellSection(sections, 'analisis').id, 'analisis')
+  // Configuración closes the owner menu (gear), after Análisis.
+  const config = sections.at(-1)
+  assert.equal(config.id, 'configuracion')
+  assert.equal(config.icon, 'settings')
+  assert.equal(activeShellSection(sections, 'equipo'), config)
 })
 
 test('owner mobile bottom bar is Inicio, Vender, Ventas, Stock and a Más sheet (D2)', () => {
@@ -69,7 +85,7 @@ test('owner mobile bottom bar is Inicio, Vender, Ventas, Stock and a Más sheet 
   )
   assert.deepEqual(
     more.map(section => section.label),
-    ['Clientes', 'Taller', 'Compras', 'Finanzas', 'Análisis'],
+    ['Clientes', 'Taller', 'Compras', 'Finanzas', 'Análisis', 'Configuración'],
   )
   assert.equal(bottom.length + more.length, sections.length)
 })

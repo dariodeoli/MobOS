@@ -222,7 +222,11 @@ export default function AppShell({
       </button>
     )
 
-  const configDestination = profileDestinations.find(([id]) => id === 'equipo')
+  // Configuración ya es un destino principal del menú cuando el catálogo la trae.
+  const configEsPrincipal = sections.some(section => section.id === 'configuracion')
+  const configDestination = configEsPrincipal
+    ? undefined
+    : profileDestinations.find(([id]) => id === 'equipo')
   const helpDestination = profileDestinations.find(([id]) => id === 'ayuda')
   const sectionButton = (section, { children: label, ...extra } = {}) => (
     <button
