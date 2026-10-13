@@ -7,8 +7,10 @@ import pg from 'pg'
 const [baseUrl, adminToken, sellerToken, cajeraToken, gerenteToken, sellerBToken, databaseUrl] = process.argv.slice(2)
 if (!baseUrl || !adminToken || !sellerToken || !cajeraToken || !gerenteToken || !sellerBToken || !databaseUrl) throw new Error('Uso: stock-items.mjs <baseUrl> <admin> <seller> <cajera> <gerente> <sellerB> <databaseUrl>')
 
+// IP propia: el arnés comparte el cupo de 120 pedidos/min de 127.0.0.1 entre todas las suites sin IP.
+const CLIENT_IP = '198.51.100.61'
 async function request(path, { method = 'GET', body, token = adminToken, tenant = 'tenant-a-it' } = {}) {
-  const response = await fetch(`${baseUrl}${path}`, { method, headers: { Authorization: `Bearer ${token}`, 'x-tenant-id': tenant, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) })
+  const response = await fetch(`${baseUrl}${path}`, { method, headers: { Authorization: `Bearer ${token}`, 'x-tenant-id': tenant, 'x-forwarded-for': CLIENT_IP, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) })
   return { response, payload: await response.json().catch(() => null) }
 }
 const db = new pg.Client({ connectionString: databaseUrl })

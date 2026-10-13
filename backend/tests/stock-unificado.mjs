@@ -7,8 +7,10 @@ import pg from 'pg'
 const [baseUrl, adminToken, databaseUrl] = process.argv.slice(2)
 if (!baseUrl || !adminToken || !databaseUrl) throw new Error('Uso: stock-unificado.mjs <baseUrl> <adminToken> <databaseUrl>')
 
+// IP propia: el arnés comparte el cupo de 120 pedidos/min de 127.0.0.1 entre todas las suites sin IP.
+const CLIENT_IP = '198.51.100.62'
 async function request(path, method = 'GET', body) {
-  const response = await fetch(`${baseUrl}${path}`, { method, headers: { Authorization: `Bearer ${adminToken}`, 'x-tenant-id': 'tenant-a-it', ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) })
+  const response = await fetch(`${baseUrl}${path}`, { method, headers: { Authorization: `Bearer ${adminToken}`, 'x-tenant-id': 'tenant-a-it', 'x-forwarded-for': CLIENT_IP, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) })
   const payload = await response.json().catch(() => null)
   return { response, payload }
 }
