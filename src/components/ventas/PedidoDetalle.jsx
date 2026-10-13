@@ -228,6 +228,9 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
     if (evento.type === 'audit' && evento.action === 'ORDER_FULFILLMENT_UPDATED') return { type: 'fulfillment', at: evento.at, metadata: evento.metadata }
     return null
   }).filter(Boolean), [events])
+  // Referencia estable: el comprobante reconstruye su HTML cuando cambia el
+  // documento, y un objeto nuevo en cada render lo dejaba en «Preparando…».
+  const ordenComprobante = useMemo(() => ({ ...order, timeline: timelineComprobante }), [order, timelineComprobante])
   const contextoWhatsApp = {
     cliente: order.customer?.name || 'cliente',
     nombre: order.customer?.name || 'cliente',
@@ -699,7 +702,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
           </SeccionColapsable>
         </div>
       )}
-      <ComprobantePreview order={{ ...order, timeline: timelineComprobante }} open={comprobante} onClose={() => setComprobante(false)}  formatos={FORMATOS_PEDIDO} />
+      <ComprobantePreview order={ordenComprobante} open={comprobante} onClose={() => setComprobante(false)}  formatos={FORMATOS_PEDIDO} />
       {cobroAbierto && (
         <PagosPedido
           venta={ventaDesdeApi(order)}
