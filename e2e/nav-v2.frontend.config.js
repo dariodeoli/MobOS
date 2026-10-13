@@ -3,7 +3,7 @@ import { defineConfig } from '@playwright/test'
 // Frontend demo only: intentionally no shared PG/backend global setup.
 export default defineConfig({
   testDir: './frontend',
-  testMatch: 'nav-v2.frontend.spec.js',
+  testMatch: ['nav-v2.frontend.spec.js', 'pos-layout.frontend.spec.js'],
   workers: 1,
   retries: 0,
   timeout: 60000,
