@@ -6,7 +6,6 @@ import Icon from '@/components/shared/Icon'
 import PersonaChip from '@/components/shared/PersonaChip'
 import SelectorSucursal from '@/components/shared/SelectorSucursal'
 import ThemeToggle from '@/components/app/ThemeToggle'
-import PresencePill from '@/components/app/PresencePill'
 import PanelNotificaciones from '@/components/app/PanelNotificaciones'
 import ComoFuncionaDemo from '@/components/app/ComoFuncionaDemo'
 import PanelColaOffline from '@/components/ventas/PanelColaOffline'
@@ -137,25 +136,27 @@ export default function AppShell({
     setMasOpen(false)
   }
 
+  const sinLeer = preferencias.notificaciones ? notificaciones.nuevas.length : 0
+  const estadoPresencia = enLinea ? 'en-linea' : 'offline'
   const profileButton = (compact = false) => (
     <button
       type="button"
       data-testid={compact ? 'shell-perfil-mobile' : 'shell-perfil'}
-      aria-label={`Abrir perfil de ${nombreUsuario}`}
+      aria-label={`Abrir perfil de ${nombreUsuario}${esOwner ? ' (Dueño)' : roleLabel ? ` (${roleLabel})` : ''}, ${enLinea ? 'en línea' : 'sin conexión'}`}
       aria-haspopup="dialog"
       aria-expanded={profileOpen}
       onClick={() => setProfileOpen(true)}
-      className="flex min-h-11 min-w-11 items-center gap-2 rounded-lg p-1.5 text-left hover:bg-ink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono"
+      className="flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-ink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono"
     >
       <PersonaChip
         user={{ ...usuarioActual, name: nombreUsuario }}
         picture={esOwner ? perfilEmpresa?.picture : undefined}
-        nombre={!compact && !collapsed}
+        nombre={false}
         size="md"
+        estado={estadoPresencia}
+        title={`${nombreUsuario} ${enLinea ? 'en línea' : 'sin conexión'}`}
+        puntoClassName={cn('h-2.5 w-2.5 ring-2', compact ? 'ring-ink' : 'ring-paper')}
       />
-      {!compact && !collapsed && (
-        <small className="text-mute">{esOwner ? 'Dueño' : roleLabel}</small>
-      )}
     </button>
   )
   const searchButton = (compact = false) =>
@@ -189,18 +190,18 @@ export default function AppShell({
           setNotificacionesAbiertas(true)
           notificaciones.marcarVistas()
         }}
-        aria-label={
-          notificaciones.nuevas.length
-            ? `Notificaciones (${notificaciones.nuevas.length} sin ver)`
-            : 'Notificaciones'
-        }
-        className="relative flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg text-mute hover:bg-ink-700"
+        aria-label={sinLeer ? `Notificaciones, ${sinLeer} sin leer` : 'Notificaciones'}
+        aria-haspopup="dialog"
+        className="relative flex min-h-11 min-w-11 items-center justify-center rounded-lg text-mute hover:bg-ink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono"
       >
         <Icon name="bell" className="h-[18px] w-[18px]" />
-        {!compact && !collapsed && <span>Notificaciones</span>}
-        {preferencias.notificaciones && notificaciones.nuevas.length > 0 && (
-          <span className="rounded-full bg-bad px-1 text-xs text-white">
-            {notificaciones.nuevas.length}
+        {sinLeer > 0 && (
+          <span
+            aria-hidden
+            data-testid="notificaciones-contador"
+            className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-bad px-1 text-[10px] font-semibold leading-none text-white"
+          >
+            {sinLeer}
           </span>
         )}
       </button>
@@ -325,9 +326,7 @@ export default function AppShell({
           <div data-testid="shell-sucursal-desktop" className="mb-1">
             <SelectorSucursal className="max-w-full" abrirArriba />
           </div>
-          {alertsButton()}
           {offlineButton('shell-cola-offline')}
-          <PresencePill />
           {[configDestination, helpDestination].filter(Boolean).map(([id, label, icon]) => (
             <button
               key={id}
@@ -341,7 +340,6 @@ export default function AppShell({
               {!collapsed && label}
             </button>
           ))}
-          {profileButton()}
         </div>
       </aside>
       <div className="shell-body flex min-w-0 flex-1 flex-col">
@@ -372,6 +370,12 @@ export default function AppShell({
           actions={headerActions}
           backTo={backTo}
           breadcrumb={breadcrumbs.join(' / ')}
+          utilities={
+            <>
+              {alertsButton()}
+              {profileButton()}
+            </>
+          }
         >
           {tabsNode}
           {segmentsNode}
