@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { useTemaV2 } from '@/lib/temaV2'
 import { Modal, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import PersonaChip from '@/components/shared/PersonaChip'
@@ -56,6 +57,7 @@ export default function AppShell({
   notificacionesActivas = false,
   onAbrirNotificacion,
 }) {
+  const temaV2 = useTemaV2()
   const [profileOpen, setProfileOpen] = useState(false)
   const [comoFunciona, setComoFunciona] = useState(false)
   // La guía de la demo se abre sola la primera vez por pestaña (#201).
@@ -206,8 +208,11 @@ export default function AppShell({
   return (
     <div
       data-testid="shell"
-      data-tema-v2="1"
-      className="shell-nav-v2 tema-v2 flex min-h-dvh flex-col bg-paper text-sm text-fore lg:flex-row"
+      data-tema-v2={temaV2 ? '1' : '0'}
+      className={cn(
+        'shell-nav-v2 flex min-h-dvh flex-col bg-paper text-sm text-fore lg:flex-row',
+        temaV2 && 'tema-v2',
+      )}
     >
       <aside
         data-testid="shell-lateral"
@@ -299,14 +304,18 @@ export default function AppShell({
         {esDemo && (
           <div
             role="status"
-            className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-600 bg-ink px-4 py-1 text-xs text-mute"
+            className="flex items-center justify-between gap-2 border-b border-ink-600 bg-ink px-4 py-1 text-xs text-mute"
           >
-            <span>Modo demo: datos ficticios, nada se guarda.</span>
+            {/* #304: en móvil el aviso es una línea compacta; el completo queda en escritorio. */}
+            <span className="hidden sm:inline">
+              Modo demo: datos ficticios, nada se guarda.
+            </span>
+            <span className="truncate sm:hidden">Demo: datos ficticios, nada se guarda.</span>
             <button
               type="button"
               data-testid="demo-como-funciona"
               onClick={() => setComoFunciona(true)}
-              className="min-h-8"
+              className="min-h-11 shrink-0 px-2"
             >
               Cómo funciona
             </button>
