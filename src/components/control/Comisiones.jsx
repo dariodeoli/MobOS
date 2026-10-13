@@ -317,12 +317,12 @@ export default function Comisiones() {
   )
 
   return (
-    <div className="finanzas-tactil space-y-4">
+    <div className="finanzas-tactil space-y-3">
       <div className={`${GRILLA_DOS_COLUMNAS} xl:grid-cols-4`} data-testid="comisiones-resumen">
-        <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="comisiones-reglas"><p className="text-xs text-mute">Reglas activas</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{reglas?.length ?? '—'}</strong></div>
-        <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="comisiones-liquidaciones"><p className="text-xs text-mute">Liquidaciones</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{liquidaciones?.length ?? '—'}</strong></div>
-        <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="comisiones-liquidado"><p className="text-xs text-mute">Total liquidado</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{gs(totalLiquidado)}</strong></div>
-        <div className={cn('rounded-xl border border-warn/30 bg-warn/5 p-3', v2 && 'v2-tile')} data-testid="comisiones-por-pagar"><p className="text-xs text-mute">Por pagar</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg', porPagar > 0 ? 'text-warn' : 'text-mute')}>{gs(porPagar)}</strong></div>
+        <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="comisiones-reglas"><p className="text-xs leading-4 text-mute">Reglas activas</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}>{reglas?.length ?? '—'}</strong></div>
+        <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="comisiones-liquidaciones"><p className="text-xs leading-4 text-mute">Liquidaciones</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}>{liquidaciones?.length ?? '—'}</strong></div>
+        <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="comisiones-liquidado"><p className="text-xs leading-4 text-mute">Total liquidado</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}>{gs(totalLiquidado)}</strong></div>
+        <div className={cn('rounded-xl border border-warn/30 bg-warn/5 px-3 py-2', v2 && 'v2-tile')} data-testid="comisiones-por-pagar"><p className="text-xs leading-4 text-mute">Por pagar</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl', porPagar > 0 ? 'text-warn' : 'text-mute')}>{gs(porPagar)}</strong></div>
       </div>
       <Card>
         <h2 className="font-bold mb-1">Comisiones</h2>

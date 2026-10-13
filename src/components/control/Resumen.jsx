@@ -90,7 +90,7 @@ function Indicador({ testId, etiqueta, valor, delta, sub, tono = 'neutro', progr
   return (
     <div className="inicio-kpi" data-testid={testId}>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium text-mute">{etiqueta}</span>
+        <span className="text-xs font-medium leading-4 text-mute">{etiqueta}</span>
         {typeof delta === 'number' && (
           <span
             className={cn(
@@ -103,19 +103,18 @@ function Indicador({ testId, etiqueta, valor, delta, sub, tono = 'neutro', progr
           </span>
         )}
       </div>
-      <div className={cn('inicio-kpi-value mt-1.5 font-semibold tracking-tight tabular-nums', v2 && 'v2-numero', color)}>
+      <div className={cn('inicio-kpi-value font-semibold tracking-tight tabular-nums', v2 && 'v2-numero', color)}>
         {valor}
       </div>
       {typeof progreso === 'number' && (
         <BarraProgreso
-          className="mt-2"
+          className="mt-1"
           valor={progreso}
           tono="ok"
           etiqueta={`Cobrado: ${Math.round(progreso)}%`}
         />
       )}
-      {sub && <p className="mt-1.5 text-xs text-mute">{sub}</p>}
-
+      {sub && <p className="text-xs leading-4 text-mute">{sub}</p>}
     </div>
   )
 }
@@ -129,10 +128,10 @@ function Metrica({ label, valor, delta, sub, tono = 'blue' }) {
   // tendencia va con el objeto de chips (pill y tinte AA). Sin el flag, igual.
   const v2 = temaV2Activo()
   return (
-    <Card className={cn('p-4', v2 && 'v2-tile')}>
-      <div className="text-[11px] font-medium uppercase tracking-wider text-mute">{label}</div>
-      <div className="mt-1.5 flex flex-wrap items-center gap-2">
-        <span className={cn('text-2xl font-semibold tracking-tight tabular-nums', v2 && 'v2-numero sm:text-3xl')}>{valor}</span>
+    <Card className={cn('px-3 py-1.5', v2 && 'v2-tile')}>
+      <div className="text-xs font-medium leading-4 text-mute">{label}</div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={cn('text-xl font-semibold leading-7 tracking-tight tabular-nums', v2 && 'v2-numero')}>{valor}</span>
         {typeof delta === 'number' ? (
           <span
             className={cn(
@@ -398,7 +397,7 @@ export default function Resumen() {
   }
 
   return (
-    <div className="inicio-f2 space-y-5">
+    <div className="inicio-f2 space-y-3">
 
       {/* ── Encabezado + período ─────────────────────────────────── */}
       <Toolbar
@@ -446,8 +445,8 @@ export default function Resumen() {
           tono={d.ganancia > 0 ? 'ok' : d.ganancia < 0 ? 'bad' : 'neutro'}
           sub={
             d.sinCosto.lineas > 0
-              ? `Ventas − costos − gastos · costo pendiente en ${d.sinCosto.lineas} ${d.sinCosto.lineas === 1 ? 'línea' : 'líneas'}`
-              : 'Ventas − costos − gastos del período'
+              ? `Ventas − costos − gastos · ${d.sinCosto.lineas} ${d.sinCosto.lineas === 1 ? 'línea' : 'líneas'} sin costo`
+              : 'Ventas − costos − gastos'
           }
         />
       </div>

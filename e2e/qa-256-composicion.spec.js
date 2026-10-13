@@ -105,8 +105,9 @@ test.describe('composición compacta', () => {
     const resumen = page.getByTestId('resumen-productos')
     await expect(resumen).toBeVisible()
     await expect(resumen.locator('> div')).toHaveCount(4)
-    // El catálogo se carga paginado: todas las métricas declaran su alcance.
-    await expect(resumen.getByText('En pantalla', { exact: true })).toHaveCount(4)
+    // El catálogo se carga paginado: todas las métricas comparten el alcance y
+    // la tira lo declara una sola vez.
+    await expect(resumen.getByText('En pantalla', { exact: true })).toHaveCount(1)
     await expect(resumen.getByText('Valor a costo')).toBeVisible()
 
     // Consulta agrupada: búsqueda + categoría + condición + vista.
@@ -130,7 +131,8 @@ test.describe('composición compacta', () => {
     const resumen = page.getByTestId('resumen-compras')
     if (await resumen.count()) {
       await expect(resumen.locator('> div')).toHaveCount(4)
-      await expect(resumen.getByText('En pantalla', { exact: true })).toHaveCount(4)
+      // Mismo alcance en todas las métricas: se declara una vez para la tira.
+      await expect(resumen.getByText('En pantalla', { exact: true })).toHaveCount(1)
     }
   })
 

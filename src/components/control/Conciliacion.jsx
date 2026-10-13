@@ -63,12 +63,12 @@ function Resumen({ resumen }) {
         <div key={tarjeta.label} className="conciliacion-f5-kpi">
           <p className={ROTULO_DATO}>{tarjeta.label}</p>
           <strong
-            className={cn('mt-1 block tabular-nums', v2 && 'v2-numero text-2xl', tarjeta.tono)}
+            className={cn('block tabular-nums', v2 && 'v2-numero', tarjeta.tono)}
           >
             <span className="conciliacion-f5-currency">{partesGs(tarjeta.valor || 0).signo}{partesGs(tarjeta.valor || 0).simbolo} </span>
             <span className="conciliacion-f5-digits">{partesGs(tarjeta.valor || 0).digitos}</span>
           </strong>
-          <p className="mt-0.5 text-[11px] text-mute">{tarjeta.sub}</p>
+          <p className="text-xs leading-4 text-mute">{tarjeta.sub}</p>
         </div>
       ))}
       {v2 && n(resumen.count) > 0 && (

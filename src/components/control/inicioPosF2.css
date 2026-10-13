@@ -9,7 +9,7 @@
 }
 .inicio-kpi {
   min-width: 0;
-  padding: 14px 8px;
+  padding: 8px 12px;
 }
 .inicio-kpi:nth-child(even) {
   border-left: 1px solid rgb(var(--c-ink-600));
@@ -18,8 +18,8 @@
   border-top: 1px solid rgb(var(--c-ink-600));
 }
 .inicio-kpi-value {
-  font-size: 22px;
-  line-height: 1.25;
+  font-size: 20px;
+  line-height: 28px;
   overflow-wrap: anywhere;
 }
 .inicio-disclosure > summary {
@@ -96,14 +96,11 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
   .inicio-kpi {
-    padding: 18px 20px;
+    padding: 8px 12px;
   }
   .inicio-kpi + .inicio-kpi {
     border-left: 1px solid rgb(var(--c-ink-600));
     border-top: 0;
-  }
-  .inicio-kpi-value {
-    font-size: 26px;
   }
 }
 @media (min-width: 1024px) {

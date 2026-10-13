@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { resources } from '@/lib/api'
 import { Badge, Button, Card, CeldaMoneda, DataTable, ErrorState, FilaDato, Select, Skeleton, Stat, Subtabs } from '@/components/ui'
+import StatGrid from '@/components/shared/StatGrid'
 import Icon from '@/components/shared/Icon'
-import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { gs } from '@/utils/calculos'
 import { resumenDeCompras, resumenDeRutaCde, tonoPuntualidad } from '@/lib/metricasAbastecimiento'
 
@@ -223,30 +223,30 @@ export default function MetricasAbastecimiento() {
         <div className="space-y-2"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div>
       ) : (
         <>
-          <div className={`${GRILLA_DOS_COLUMNAS} xl:grid-cols-4`} data-testid="metricas-resumen">
-            <Stat
+          <StatGrid columnas={4} testId="metricas-resumen">
+            <Stat compact
               label="Monto comprado"
               valor={gs(resumen.montoPyg)}
               sub={`${resumen.unidades} unidad${resumen.unidades === 1 ? '' : 'es'} en la ventana`}
             />
-            <Stat
+            <Stat compact
               label="Costo por unidad"
               valor={resumen.costoPromedioUnidadPyg == null ? '—' : gs(resumen.costoPromedioUnidadPyg)}
               sub="Promedio real, moneda convertida"
             />
-            <Stat
+            <Stat compact
               label="Atrasos ahora"
               valor={atrasosAhora}
               sub={`${atrasados.length} lote${atrasados.length === 1 ? '' : 's'} · ${vencidas.length} promesa${vencidas.length === 1 ? '' : 's'}`}
             />
-            <Stat
+            <Stat compact
               label="Ruta CDE"
               valor={rutaCde ? diasTexto(rutaCde.diasPromedio) : '—'}
               sub={rutaCde
                 ? `${rutaCde.lotes} lote${rutaCde.lotes === 1 ? '' : 's'} medidos${rutaCde.enTiempoPct == null ? '' : ` · ${rutaCde.enTiempoPct}% en fecha`}`
                 : 'Sin llegadas medidas en la ventana'}
             />
-          </div>
+          </StatGrid>
 
           <Subtabs value={seccion} onChange={setSeccion} className="mb-0 w-full" items={tablas} />
 

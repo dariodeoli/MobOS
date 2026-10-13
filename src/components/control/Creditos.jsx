@@ -73,7 +73,7 @@ export default function Creditos() {
 
   if (esDemo) return <Card><h2 className="font-bold">Créditos y mora</h2><p className="mt-2 text-sm text-mute">La demo no consume créditos reales. Ingresá con una cuenta real para ver el control de clientes a crédito.</p></Card>
   return (
-    <div className="finanzas-tactil space-y-4">
+    <div className="finanzas-tactil space-y-3">
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -91,11 +91,11 @@ export default function Creditos() {
             <Badge color="orange">Mostrando los primeros 200 clientes con deuda</Badge> Los totales de arriba incluyen a todos.
           </p>
         )}
-        <div className={`mt-4 ${GRILLA_DOS_COLUMNAS} xl:grid-cols-4`} data-testid="creditos-resumen">
-          <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="creditos-por-cobrar"><p className="text-xs text-mute">Total por cobrar</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}><Money value={totals.outstandingPyg} /></strong></div>
-          <div className={cn('rounded-xl border border-bad/25 bg-bad/5 p-3', v2 && 'v2-tile')} data-testid="creditos-en-mora"><p className="text-xs text-mute">En mora</p><strong className={cn('mt-1 block tabular-nums text-bad', v2 ? 'v2-numero text-2xl' : 'text-lg')}><Money value={totals.overduePyg} /></strong></div>
-          <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="creditos-clientes"><p className="text-xs text-mute">Clientes con deuda</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{totals.customersWithDebt}</strong></div>
-          <div className={cn('rounded-xl border border-bad/25 bg-bad/5 p-3', v2 && 'v2-tile')} data-testid="creditos-clientes-mora"><p className="text-xs text-mute">Clientes en mora</p><strong className={cn('mt-1 block tabular-nums text-bad', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{totals.overdueCustomers}</strong></div>
+        <div className={`mt-3 ${GRILLA_DOS_COLUMNAS} xl:grid-cols-4`} data-testid="creditos-resumen">
+          <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="creditos-por-cobrar"><p className="text-xs leading-4 text-mute">Total por cobrar</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}><Money value={totals.outstandingPyg} /></strong></div>
+          <div className={cn('rounded-xl border border-bad/25 bg-bad/5 px-3 py-2', v2 && 'v2-tile')} data-testid="creditos-en-mora"><p className="text-xs leading-4 text-mute">En mora</p><strong className={cn('block font-semibold leading-7 tabular-nums text-bad', v2 ? 'v2-numero text-xl' : 'text-xl')}><Money value={totals.overduePyg} /></strong></div>
+          <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="creditos-clientes"><p className="text-xs leading-4 text-mute">Clientes con deuda</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}>{totals.customersWithDebt}</strong></div>
+          <div className={cn('rounded-xl border border-bad/25 bg-bad/5 px-3 py-2', v2 && 'v2-tile')} data-testid="creditos-clientes-mora"><p className="text-xs leading-4 text-mute">Clientes en mora</p><strong className={cn('block font-semibold leading-7 tabular-nums text-bad', v2 ? 'v2-numero text-xl' : 'text-xl')}>{totals.overdueCustomers}</strong></div>
         </div>
       </Card>
       <Card>

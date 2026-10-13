@@ -407,6 +407,51 @@ test('Conciliación: no debug copy and full signed money', async ({ page }) => {
   }
 })
 
+// Density pass: Caja shows ONE compact KPI strip (estado, saldo esperado,
+// diferencia, por cobrar/pagar, margen, cheques), no long description line and
+// its first content block starts high on the page.
+test('Caja: tira de KPI compacta, 2 columnas en celular y contenido arriba', async ({ page }) => {
+  await mkdir(out, { recursive: true })
+  await enterDemo(page)
+  for (const [width, height] of [
+    [1440, 900],
+    [375, 812],
+  ]) {
+    await page.setViewportSize({ width, height })
+    await openFinanzas(page, 'Caja')
+    const strip = page.getByTestId('caja-resumen')
+    await expect(strip).toBeVisible()
+    const m = await strip.evaluate(node => {
+      const tiles = [...node.children].map(el => el.getBoundingClientRect())
+      // Primer bloque de contenido tras los KPI (en el diseño anterior, tras
+      // la tarjeta de estado y la grilla de 4 tarjetas).
+      const hermano = node.nextElementSibling
+      const next = (hermano?.textContent || '').includes('Por cobrar') && !hermano.hasAttribute('data-testid') ? hermano.nextElementSibling?.getBoundingClientRect() : hermano?.getBoundingClientRect()
+      return {
+        tiles: tiles.map(r => ({ x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) })),
+        stripBottom: Math.round(node.getBoundingClientRect().bottom),
+        nextTop: next ? Math.round(next.top) : null,
+        hscroll: document.documentElement.scrollWidth > window.innerWidth,
+      }
+    })
+    console.log(`MEDIDA Caja @${width}`, JSON.stringify(m))
+    expect(m.hscroll, `@${width}: sin scroll horizontal`).toBe(false)
+    expect(m.tiles.length, `@${width}: tiles`).toBeGreaterThanOrEqual(3)
+    expect(m.nextTop, `@${width}: hay contenido tras los KPI`).not.toBeNull()
+    if (width >= 1280) {
+      for (const t of m.tiles) expect(t.h, `@${width}: tile ≤ 76px`).toBeLessThanOrEqual(76)
+      if (m.nextTop !== null) expect(m.nextTop, `@${width}: primer contenido ≤ y=360`).toBeLessThanOrEqual(360)
+      await page.screenshot({ path: `${out}/densidad-caja-${width}.png` })
+    } else {
+      const columnas = new Set(m.tiles.map(t => t.x)).size
+      expect(columnas, `@${width}: KPI en 2 columnas`).toBe(2)
+    }
+    await expect(page.locator('main')).not.toContainText('Apertura física en Gs., saldos, pendientes')
+    await expect(page.getByTestId('caja-diferencia')).toBeVisible()
+    expect(await cutBoxes(page.locator('main'))).toEqual([])
+  }
+})
+
 test('no min-w-[] utility remains in the Finanzas screens (below md)', async () => {
   const { readFileSync } = await import('node:fs')
   for (const file of [
