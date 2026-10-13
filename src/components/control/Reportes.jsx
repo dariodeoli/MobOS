@@ -9,6 +9,7 @@ import { descargarCsvCliente } from '@/utils/descargarArchivo'
 import { gananciaDeRango, lineasDeGanancia, serieDeReporte } from '@/utils/ganancias'
 import { reporteMetricas } from '@/lib/metricas'
 import { Badge, Button, Card, CeldaMoneda, EmptyState, Select, Stat } from '@/components/ui'
+import StatGrid from '@/components/shared/StatGrid'
 import Icon from '@/components/shared/Icon'
 import RangoFechas, { PRESETS, rangoDeParams, paramsDeRango, etiquetaRango } from '@/components/shared/RangoFechas'
 import CalendarioGanancias, { LineaValor } from '@/components/shared/CalendarioGanancias'
@@ -249,11 +250,11 @@ export default function Reportes() {
 
       {datosComisiones && tipo === 'comisiones' && (
         <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Stat label="Ventas del período" valor={gs(datosComisiones.totals?.totalPyg || 0)} sub={`${etiquetaRango(rango)}`} />
-            <Stat label="Margen" valor={gs(datosComisiones.totals?.marginPyg || 0)} sub="Sobre ventas con costo congelado" />
-            <Stat label="Comisión total" valor={gs(datosComisiones.totals?.commissionPyg || 0)} sub="Según reglas vigentes" />
-          </div>
+          <StatGrid columnas={3}>
+            <Stat compact label="Ventas del período" valor={gs(datosComisiones.totals?.totalPyg || 0)} sub={`${etiquetaRango(rango)}`} />
+            <Stat compact label="Margen" valor={gs(datosComisiones.totals?.marginPyg || 0)} sub="Sobre ventas con costo congelado" />
+            <Stat compact className="col-span-2 md:col-span-1" label="Comisión total" valor={gs(datosComisiones.totals?.commissionPyg || 0)} sub="Según reglas vigentes" />
+          </StatGrid>
 
           {datosComisiones.truncated && <Badge color="red">El período supera el tope de ventas analizadas</Badge>}
 
@@ -315,21 +316,21 @@ export default function Reportes() {
 
       {totales && tipo !== 'comisiones' && (
         <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-4">
-            <Stat
+          <StatGrid columnas={4}>
+            <Stat compact
               className="border-fono/60"
               label="Total del período"
               valor={gs(totales.totalPyg)}
               sub={`${totales.orders} ventas · ${etiquetaRango(rango)}`}
             />
-            <Stat label="Cobrado" valor={gs(totales.collectedPyg)} sub={totales.pendingPyg > 0 ? `Saldo ${gs(totales.pendingPyg)}` : 'Sin saldo pendiente'} />
-            <Stat
+            <Stat compact label="Cobrado" valor={gs(totales.collectedPyg)} sub={totales.pendingPyg > 0 ? `Saldo ${gs(totales.pendingPyg)}` : 'Sin saldo pendiente'} />
+            <Stat compact
               label="Margen real"
               valor={gs(totales.netProfitPyg ?? totales.profitPyg)}
               sub={totales.netMarginPct === null ? 'Sin costos cargados' : `Margen neto ${formatPercent(totales.netMarginPct)}%`}
             />
-            <Stat label="Costo de mercadería" valor={gs(totales.costPyg)} sub={`${totales.units} unidades`} />
-          </div>
+            <Stat compact label="Costo de mercadería" valor={gs(totales.costPyg)} sub={`${totales.units} unidades`} />
+          </StatGrid>
 
           {datos.previous?.totals && (
             <div className="flex flex-wrap items-center gap-2">
@@ -364,11 +365,11 @@ export default function Reportes() {
             {datos.truncated && <Badge color="red">El período supera el tope de ventas analizadas</Badge>}
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <Stat label="Rotación del período" valor={datos.inventory?.sellThroughPct === null || datos.inventory?.sellThroughPct === undefined ? '—' : `${formatPercent(datos.inventory.sellThroughPct)}%`} sub={`${datos.inventory?.soldUnits ?? 0} unidades vendidas${datos.inventory?.daysOfStock === null || datos.inventory?.daysOfStock === undefined ? '' : ` · ${datos.inventory.daysOfStock} días de stock`}`} />
-            <Stat label="Stock actual" valor={`${datos.inventory?.onHandUnits ?? 0} u.`} sub={`Valorizado ${gs(datos.inventory?.stockValuePyg ?? 0)}${datos.inventory?.stockWithoutCost ? ` · ${datos.inventory.stockWithoutCost} sin costo` : ''}`} />
-            <Stat label="Faltantes" valor={`${datos.inventory?.shortages?.length ?? 0}`} sub={(datos.inventory?.shortages || []).slice(0, 2).map((p) => p.name).join(' · ') || 'Sin faltantes'} />
-          </div>
+          <StatGrid columnas={3}>
+            <Stat compact label="Rotación del período" valor={datos.inventory?.sellThroughPct === null || datos.inventory?.sellThroughPct === undefined ? '—' : `${formatPercent(datos.inventory.sellThroughPct)}%`} sub={`${datos.inventory?.soldUnits ?? 0} unidades vendidas${datos.inventory?.daysOfStock === null || datos.inventory?.daysOfStock === undefined ? '' : ` · ${datos.inventory.daysOfStock} días de stock`}`} />
+            <Stat compact label="Stock actual" valor={`${datos.inventory?.onHandUnits ?? 0} u.`} sub={`Valorizado ${gs(datos.inventory?.stockValuePyg ?? 0)}${datos.inventory?.stockWithoutCost ? ` · ${datos.inventory.stockWithoutCost} sin costo` : ''}`} />
+            <Stat compact className="col-span-2 md:col-span-1" label="Faltantes" valor={`${datos.inventory?.shortages?.length ?? 0}`} sub={(datos.inventory?.shortages || []).slice(0, 2).map((p) => p.name).join(' · ') || 'Sin faltantes'} />
+          </StatGrid>
 
           {grupos.length === 0 ? (
             <Card>

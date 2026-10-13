@@ -19,6 +19,7 @@ import {
   MoneyInput,
   Select,
   Skeleton,
+  Stat,
   Textarea,
 } from '@/components/ui'
 import NumericKeypad from '@/components/shared/NumericKeypad'
@@ -47,6 +48,7 @@ import { CELDA_DATO, CELDA_IDENTIDAD, CELDA_NUMERO } from '@/components/shared/t
 import ListaDensa from '@/components/shared/ListaDensa'
 import { usePaginaLista } from '@/components/shared/usePaginaLista'
 import StatusChip from '@/components/shared/StatusChip'
+import StatGrid from '@/components/shared/StatGrid'
 import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
@@ -391,6 +393,8 @@ function IdentidadTaller({ parte }) {
     </span>
   )
 }
+
+const DESCRIPCION_CAJA = 'Apertura física en Gs., saldos, pendientes, cheques y margen con costos congelados.'
 
 export default function Caja() {
   // Vista previa v2 (#241): las tarjetas neutras de la caja usan el tile de
@@ -778,81 +782,70 @@ export default function Caja() {
     </span>
   )
   return (
-    <div className="finanzas-tactil space-y-6">
-      <p className="text-sm text-mute">
-        Apertura física en Gs., saldos, pendientes, cheques y margen con costos congelados.
-      </p>
+    <div className="finanzas-tactil space-y-3">
       {error && (
         <Aviso tono="error" className="p-3">
           {error}
         </Aviso>
       )}
-      <Card className="grid gap-4 sm:grid-cols-3" data-testid="caja-resumen">
-        <div>
-          <Label>Estado</Label>
-          <strong className={`flex items-center gap-2 ${abierta ? 'text-ok' : 'text-mute'}`}>
-            <span className={`h-2 w-2 rounded-full ${abierta ? 'bg-ok' : 'bg-mute'}`} />
-            {abierta ? 'Abierta' : 'Cerrada'}
-          </strong>
-          <p className="mt-2 text-xs text-mute">
-            {turno?.openedAt
+      <StatGrid testId="caja-resumen" columnas={4}>
+        <Stat
+          compact
+          className="col-span-2"
+          label={
+            <span className="inline-flex items-center gap-1.5">
+              Estado
+              <span
+                role="img"
+                aria-label={DESCRIPCION_CAJA}
+                title={DESCRIPCION_CAJA}
+                className="inline-grid h-4 w-4 cursor-help place-items-center rounded-full border border-ink-600 text-[10px] font-semibold leading-none"
+              >
+                i
+              </span>
+            </span>
+          }
+          valor={<span className="flex h-7 items-center"><StatusChip tono={abierta ? 'ok' : 'neutral'} etiqueta={abierta ? 'Abierta' : 'Cerrada'} /></span>}
+          sub={
+            turno?.openedAt
               ? `${turno.status === 'OPEN' ? `Turno de ${nombreTurno(turno)}` : 'Último turno'} · ${fechaHora(turno.openedAt)}`
-              : 'Sin apertura'}
-          </p>
-        </div>
-        <div>
-          <Label>Saldo esperado</Label>
-          <strong className="text-xl tabular-nums">
-            <Money value={expected} />
-          </strong>
-          <p className="mt-2 text-xs text-mute">Apertura + efectivo confirmado en Gs.</p>
-        </div>
-        <div>
-          <Label>Diferencia</Label>
-          <strong
-            data-testid="caja-diferencia"
-            className={`text-xl tabular-nums ${sinConteo ? 'text-mute' : difference === 0 ? 'text-ok' : 'text-warn'}`}
-          >
-            {sinConteo ? '—' : <Money value={difference} />}
-          </strong>
-          <p className="mt-2 text-xs text-mute">{sinConteo ? 'Se calcula al cierre' : 'Contado − esperado'}</p>
-        </div>
-      </Card>
-      {finance && (
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card className={v2 ? 'v2-tile' : undefined}>
-            <Label>Por cobrar</Label>
-            <strong>
-              <Money value={finance.receivables?.totalPyg || 0} />
-            </strong>
-          </Card>
-          <Card className={v2 ? 'v2-tile' : undefined}>
-            <Label>Por pagar</Label>
-            <strong data-testid="caja-por-pagar">
-              <Money value={(finance.payables?.totalPyg || 0) + (proveedores?.totalPyg || 0) + (taller?.totalPyg || 0)} />
-            </strong>
-            {((proveedores?.totalPyg || 0) > 0 || (taller?.totalPyg || 0) > 0) && (
-              <p className="mt-1 text-xs text-mute">incluye repuestos a crédito, consumo y taller</p>
-            )}
-          </Card>
-          <Card className={v2 ? 'v2-tile' : undefined}>
-            <Label>Margen real</Label>
-            <strong>
-              <Money value={finance.margin?.profitPyg || 0} />
-            </strong>
-            <p className="mt-1 text-xs text-mute">
-              {finance.margin?.marginPct ?? '—'}% · seguro y extras incluidos
-            </p>
-          </Card>
-          <Card className={v2 ? 'v2-tile' : undefined}>
-            <Label>Cheques pendientes</Label>
-            <strong>
-              {finance.movements?.filter(m => m.kind === 'CHEQUE' && m.status === 'PENDING')
-                .length || 0}
-            </strong>
-          </Card>
-        </div>
-      )}
+              : 'Sin apertura'
+          }
+        />
+        <Stat compact label="Saldo esperado" valor={<Money value={expected} />} sub="Apertura + efectivo confirmado" />
+        <Stat
+          compact
+          label="Diferencia"
+          valor={
+            <span data-testid="caja-diferencia" className={sinConteo ? 'text-mute' : difference === 0 ? 'text-ok-text' : 'text-warn-text'}>
+              {sinConteo ? '—' : <Money value={difference} />}
+            </span>
+          }
+          sub={sinConteo ? 'Se calcula al cierre' : 'Contado − esperado'}
+        />
+        {finance && (
+          <>
+            <Stat compact label="Por cobrar" valor={<Money value={finance.receivables?.totalPyg || 0} />} />
+            <Stat
+              compact
+              label="Por pagar"
+              valor={<span data-testid="caja-por-pagar"><Money value={(finance.payables?.totalPyg || 0) + (proveedores?.totalPyg || 0) + (taller?.totalPyg || 0)} /></span>}
+              sub={(proveedores?.totalPyg || 0) > 0 || (taller?.totalPyg || 0) > 0 ? 'incluye repuestos y taller' : undefined}
+            />
+            <Stat
+              compact
+              label="Margen real"
+              valor={<Money value={finance.margin?.profitPyg || 0} />}
+              sub={`${finance.margin?.marginPct ?? '—'}% · seguro y extras incluidos`}
+            />
+            <Stat
+              compact
+              label="Cheques pendientes"
+              valor={finance.movements?.filter(m => m.kind === 'CHEQUE' && m.status === 'PENDING').length || 0}
+            />
+          </>
+        )}
+      </StatGrid>
       {proveedores && (
         <Card className="space-y-3" data-testid="proveedores-repuestos">
           <div className="flex flex-wrap items-start justify-between gap-2">

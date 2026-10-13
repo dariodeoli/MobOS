@@ -434,7 +434,7 @@ export default function SellerOrders() {
           }
         >
           <ChipsFiltro
-            className="basis-full"
+            className="min-w-0"
             etiqueta="Estado de los pedidos"
             opciones={FILTROS}
             mas={FILTROS_MAS}
@@ -463,24 +463,23 @@ export default function SellerOrders() {
               ]}
             />
           </div>
+          {v2 && rows.length > 0 && (
+            <ResumenMetricas
+              testId="resumen-pedidos"
+              className="ventas-f3-metrics ventas-f3-metrics-inline min-w-0 flex-1 basis-80"
+              items={[
+                { titulo: 'Activos', valor: resumen.activos, alcance: 'En pantalla' },
+                {
+                  titulo: 'Por cobrar',
+                  valor: gs(resumen.porCobrar),
+                  alcance: 'En pantalla',
+                  tono: resumen.porCobrar > 0 ? 'text-warn' : 'text-ok',
+                },
+                { titulo: 'En reparto', valor: resumen.enReparto, alcance: 'En pantalla' },
+              ]}
+            />
+          )}
         </Toolbar>
-        {v2 && rows.length > 0 && (
-          <ResumenMetricas
-            testId="resumen-pedidos"
-            className="ventas-f3-metrics"
-            columnas={3}
-            items={[
-              { titulo: 'Activos', valor: resumen.activos, alcance: 'En pantalla' },
-              {
-                titulo: 'Por cobrar',
-                valor: gs(resumen.porCobrar),
-                alcance: 'En pantalla',
-                tono: resumen.porCobrar > 0 ? 'text-warn' : 'text-ok',
-              },
-              { titulo: 'En reparto', valor: resumen.enReparto, alcance: 'En pantalla' },
-            ]}
-          />
-        )}
         <SellerFeedback {...data} empty={false} />
         {!data.loading && !data.error && !rows.length && (
           <EmptyState

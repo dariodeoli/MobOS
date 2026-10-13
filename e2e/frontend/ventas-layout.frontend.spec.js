@@ -160,6 +160,43 @@ test('Cotizaciones: "Más" es un botón de 44px y "Más estados" despliega chips
   await expect(more).toBeFocused()
 })
 
+test('Pedidos: totales en una tira compacta con el alcance una sola vez y lista arriba', async ({ page }) => {
+  await enterDemo(page)
+  for (const [width, height] of [
+    [1440, 900],
+    [375, 812],
+  ]) {
+    await page.setViewportSize({ width, height })
+    await openShellDestination(page, 'Pedidos')
+    await settle(page)
+    const strip = page.getByTestId('resumen-pedidos')
+    await expect(strip).toBeVisible()
+    const m = await strip.evaluate(node => {
+      const tiles = [...node.querySelectorAll(':scope > div')].map(el => el.getBoundingClientRect())
+      const lista = document.querySelector('[data-testid="pedidos-tabla"]')?.getBoundingClientRect()
+      return {
+        tiles: tiles.map(r => ({ x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) })),
+        stripH: Math.round(node.getBoundingClientRect().height),
+        listaTop: lista ? Math.round(lista.top) : null,
+        hscroll: document.documentElement.scrollWidth > window.innerWidth,
+      }
+    })
+    console.log(`MEDIDA Pedidos @${width}`, JSON.stringify(m))
+    if (width >= 1280) {
+      await mkdir(out, { recursive: true })
+      await page.screenshot({ path: `${out}/densidad-pedidos-${width}.png` })
+    }
+    expect(m.hscroll, `@${width}: sin scroll horizontal`).toBe(false)
+    await expect(strip.getByText('En pantalla', { exact: true })).toHaveCount(1)
+    if (width >= 1280) {
+      expect(m.stripH, `@${width}: tira ≤ 76px`).toBeLessThanOrEqual(76)
+      if (m.listaTop !== null) expect(m.listaTop, `@${width}: la lista empieza ≤ y=300`).toBeLessThanOrEqual(300)
+    } else {
+      expect(new Set(m.tiles.map(t => t.x)).size, `@${width}: KPI en 2 columnas`).toBeLessThanOrEqual(2)
+    }
+  }
+})
+
 test('Pedidos: un solo punto de entrada a los filtros y el orden, sin selects, en celular', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 })
   await enterDemo(page)

@@ -119,7 +119,7 @@ test('F5 compact layout preserves full digit strings and accessible request filt
 
 test('F5 renewed spacing correction retains readable type, touch targets and paging', () => {
   const css = readFileSync('src/components/control/conciliacionF5.css', 'utf8')
-  assert.match(css, /\.conciliacion-f5-kpi strong\s*\{\s*font-size: 22px;/)
+  assert.match(css, /\.conciliacion-f5-kpi strong\s*\{\s*font-size: 20px;/)
   assert.match(css, /\.conciliacion-f5-kpi\s*\{\s*padding-inline: 8px;/)
   assert.match(css, /\.conciliacion-f5-panel\s*\{\s*padding: 10px;/)
   assert.match(css, /\.conciliacion-f5-payment-grid\s*\{\s*gap: 6px;/)

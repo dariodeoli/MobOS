@@ -76,5 +76,8 @@ test('FieldRow: una caja con un borde, 44px, etiqueta arriba y error accesible',
 test('Stat tiene variante compact y StatGrid de 2 columnas en celular', () => {
   const ui = leer('../ui/index.jsx')
   assert.match(ui, /export function Stat\(\{[^}]*compact = false/)
-  assert.match(leer('./StatGrid.jsx'), /grid-cols-2 gap-2 md:grid-cols-4/)
+  const grilla = leer('./StatGrid.jsx')
+  assert.match(grilla, /grid grid-cols-2 gap-2/, '2 columnas en celular')
+  assert.match(grilla, /4: 'md:grid-cols-4'/, '4 columnas desde md por defecto')
+  assert.match(ui, /text-xl font-semibold leading-7 tabular-nums/, 'cifra compacta de 20px semibold tabular')
 })

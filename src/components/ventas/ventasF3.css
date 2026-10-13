@@ -108,13 +108,28 @@
   border-radius: 0;
   border-width: 0 0 1px;
   background: transparent;
+  gap: 0;
   text-align: left;
 }
 
+.ventas-f3 .ventas-f3-metrics-inline {
+  border-width: 0;
+}
+
+.ventas-f3-metrics > div,
+.ventas-f3-metrics > p {
+  background: transparent;
+}
+
 .ventas-f3-metrics > div {
-  flex: 1 1 180px;
-  padding: 8px 16px 12px 0;
+  flex: 1 1 160px;
+  padding: 6px 16px 6px 0;
   border: 0;
+}
+
+.ventas-f3-metrics > p {
+  align-self: center;
+  padding: 0 0 0 8px;
 }
 
 .ventas-f3-metrics p {
@@ -124,7 +139,6 @@
 
 .ventas-f3-metrics p:nth-child(2) {
   font-size: 20px;
-  white-space: nowrap;
 }
 
 .ventas-f3-metrics p span {

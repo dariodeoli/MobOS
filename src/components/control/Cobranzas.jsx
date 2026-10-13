@@ -94,7 +94,7 @@ export default function Cobranzas() {
   const montoDe = (filas) => filas.reduce((suma, fila) => suma + Number(fila.saldoPendientePyg || 0), 0)
 
   return (
-    <div className="finanzas-tactil space-y-4">
+    <div className="finanzas-tactil space-y-3">
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -104,11 +104,11 @@ export default function Cobranzas() {
           </div>
           <Button type="button" variant="outline" className="min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2" onClick={cargar}>Actualizar</Button>
         </div>
-        <div className={`mt-4 ${GRILLA_DOS_COLUMNAS} xl:grid-cols-4`} data-testid="cuotas-resumen">
-          <div className={cn('rounded-xl border border-warn/30 bg-warn/5 p-3', v2 && 'v2-tile')} data-testid="cuotas-pendiente"><p className="text-xs text-mute">Pendiente total</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{gs(resumen.pendientePyg)}</strong></div>
-          <div className={cn('rounded-xl border border-bad/25 bg-bad/5 p-3', v2 && 'v2-tile')} data-testid="cuotas-vencidas"><p className="text-xs text-mute">Vencidas</p><strong className={cn('mt-1 block tabular-nums text-bad', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{vencidas.length}</strong><span className="mt-0.5 block text-[11px] text-mute">{gs(montoDe(vencidas))}</span></div>
-          <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="cuotas-proximas"><p className="text-xs text-mute">Próximas</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{proximas.length}</strong><span className="mt-0.5 block text-[11px] text-mute">{gs(montoDe(proximas))}</span></div>
-          <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="cuotas-recargo"><p className="text-xs text-mute">Recargo por mora</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg', resumen.recargoPyg > 0 ? 'text-bad' : 'text-mute')}>{gs(resumen.recargoPyg)}</strong></div>
+        <div className={`mt-3 ${GRILLA_DOS_COLUMNAS} xl:grid-cols-4`} data-testid="cuotas-resumen">
+          <div className={cn('rounded-xl border border-warn/30 bg-warn/5 px-3 py-2', v2 && 'v2-tile')} data-testid="cuotas-pendiente"><p className="text-xs leading-4 text-mute">Pendiente total</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}>{gs(resumen.pendientePyg)}</strong></div>
+          <div className={cn('rounded-xl border border-bad/25 bg-bad/5 px-3 py-2', v2 && 'v2-tile')} data-testid="cuotas-vencidas"><p className="text-xs leading-4 text-mute">Vencidas</p><strong className={cn('block font-semibold leading-7 tabular-nums text-bad', v2 ? 'v2-numero text-xl' : 'text-xl')}>{vencidas.length}</strong><span className="block text-xs leading-4 text-mute">{gs(montoDe(vencidas))}</span></div>
+          <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="cuotas-proximas"><p className="text-xs leading-4 text-mute">Próximas</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}>{proximas.length}</strong><span className="block text-xs leading-4 text-mute">{gs(montoDe(proximas))}</span></div>
+          <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="cuotas-recargo"><p className="text-xs leading-4 text-mute">Recargo por mora</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl', resumen.recargoPyg > 0 ? 'text-bad' : 'text-mute')}>{gs(resumen.recargoPyg)}</strong></div>
         </div>
         {resumen.sinTelefono > 0 && <p className="mt-2 text-xs text-warn">{resumen.sinTelefono} cuota(s) sin teléfono: no se puede armar el enlace de WhatsApp.</p>}
         {aviso && <Aviso tono="ok" className="p-3 mt-3">{aviso}</Aviso>}
