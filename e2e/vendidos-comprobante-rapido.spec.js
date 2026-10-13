@@ -76,8 +76,7 @@ async function sembrarVendida(page, { marca, serial }) {
 }
 
 async function abrirFilaVendida(page, serial) {
-  await page.goto('/inventario/vendidos')
-  await page.getByLabel('Buscar en inventario').fill(serial)
+  await page.goto(`/stock/vendidos?q=${encodeURIComponent(serial)}`)
   const fila = page.getByTestId('inventario-fila').filter({ hasText: serial }).first()
   await expect(fila).toBeVisible({ timeout: 20_000 })
   return fila
@@ -93,8 +92,10 @@ test('el ícono de Vendidos imprime el comprobante rápido (80 mm) sin abrir la 
 
   const fila = await abrirFilaVendida(page, serial)
   await page.screenshot({ path: `${SALIDA}/01-fila-vendidos.jpg` })
-  const boton = fila.getByRole('button', { name: `Imprimir comprobante rápido de ${serial}` })
-  await expect(boton).toHaveAttribute('title', /comprobante rápido/i)
+  // Stock: el comprobante rápido es una acción del menú de la fila (sin abrir la ficha).
+  await fila.getByLabel(/^Acciones de/).click()
+  const boton = page.getByRole('menuitem', { name: 'Comprobante rápido' })
+  await expect(boton).toHaveAttribute('title', /comprobante/i)
   await boton.click()
   await expect(page.getByText(/enviada a la impresora/)).toBeVisible({ timeout: 30_000 })
   // El trabajo puede tardar en llegar al agente en CI: se espera antes de mirar.
@@ -125,7 +126,8 @@ test('sin agente ni impresora, el respaldo deja el PDF del comprobante en 80 mm'
   await sembrarVendida(page, { marca, serial })
 
   const fila = await abrirFilaVendida(page, serial)
-  await fila.getByRole('button', { name: `Imprimir comprobante rápido de ${serial}` }).click()
+  await fila.getByLabel(/^Acciones de/).click()
+  await page.getByRole('menuitem', { name: 'Comprobante rápido' }).click()
 
   // El respaldo abre el HTML imprimible en un iframe oculto (sin ventanas).
   const marco = page.locator('iframe[aria-hidden="true"]').last()

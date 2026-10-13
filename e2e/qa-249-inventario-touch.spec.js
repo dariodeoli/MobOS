@@ -1,6 +1,6 @@
 // #249: auditoría responsive mobile de Inventario.
-// Mide targets reales a 390 px (mobile: ≥44×44) y a 768 px (escritorio: fila
-// compacta ≤48 px, como pide #246). Capturas del antes/después en
+// Mide targets reales a 390 px (mobile: ≥44×44) y en escritorio (fila de Stock
+// de una línea: el botón de acciones de 44 px fija el alto, ≤60 px). Capturas del antes/después en
 // docs/qa/249-inventario-responsive/ (el "antes" sale de producción).
 //
 // #245 (hardening): esperas deterministas (cada medición espera a que el target
@@ -32,13 +32,14 @@ const exigirToque = async (locator, nombre) => {
 
 test('mobile 390: los targets de la tarjeta y la ficha llegan a 44', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/inventario/unidades')
+  await page.goto('/stock/unidades')
   // #304: en móvil el listado son tarjetas compactas (la tabla ancha no va).
   const tarjeta = page.getByTestId('inventario-tarjeta-movil').first()
   await expect(tarjeta).toBeVisible({ timeout: 20_000 })
   await expect(page.getByTestId('inventario-tabla')).toHaveCount(0)
 
-  await exigirToque(tarjeta.getByRole('button', { name: 'Ver', exact: true }), 'Ver de la tarjeta (H4)')
+  // Stock: la tarjeta entera abre la ficha (no hay botón «Ver» aparte).
+  await exigirToque(tarjeta.getByRole('button', { name: /^Ver detalles de/ }), 'tarjeta que abre la ficha (H4)')
   await exigirToque(tarjeta.getByLabel(/^Acciones de/), 'menú Acciones (H4)')
   // #245: el modelo tiene que verse siempre (antes colapsaba a 0 px con seriales largos).
   const nombre = await caja(tarjeta.locator('b').first())
@@ -50,7 +51,7 @@ test('mobile 390: los targets de la tarjeta y la ficha llegan a 44', async ({ pa
   await page.screenshot({ path: `${SALIDA}/01-mobile-lista.png`, fullPage: true })
 
   // Ficha con checklist en mobile: los estados del PhoneCheck a 44.
-  await tarjeta.getByRole('button', { name: 'Ver', exact: true }).click()
+  await tarjeta.getByRole('button', { name: /^Ver detalles de/ }).click()
   const ficha = page.getByRole('dialog')
   await expect(ficha).toBeVisible({ timeout: 20_000 })
   const checklist = ficha.getByTestId('unidad-phonecheck')
@@ -69,16 +70,17 @@ test('mobile 390: los targets de la tarjeta y la ficha llegan a 44', async ({ pa
 // (stockF4.css); la fila de una línea se audita con el shell ya expandido.
 test('escritorio 1440: la fila sigue compacta', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.goto('/inventario/unidades')
+  // Una unidad del seed con nombre corto: el alto de la fila no depende de datos de otros specs.
+  await page.goto('/stock/unidades?q=E2EE2EIPHONE15')
   const fila = page.getByTestId('inventario-fila').first()
   await expect(fila).toBeVisible({ timeout: 20_000 })
   const alto = (await caja(fila)).h
-  expect(alto, `fila ${alto} px > 48`).toBeLessThanOrEqual(48)
+  expect(alto, `fila ${alto} px > 60`).toBeLessThanOrEqual(60)
   const nombre = await caja(fila.locator('b').first())
   medidas['nombre del modelo'] = `${nombre.w}x${nombre.h}`
   expect(nombre.w, `nombre ${nombre.w} px < ${MINIMO_NOMBRE}`).toBeGreaterThanOrEqual(MINIMO_NOMBRE)
-  const lapiz = await caja(fila.getByLabel(/^Editar el costo de/))
-  expect(lapiz.h, 'el lápiz vuelve chico en escritorio').toBeLessThanOrEqual(36)
+  // El menú de acciones de la fila mantiene su zona táctil de 44 px.
+  await exigirToque(fila.getByLabel(/^Acciones de/), 'menú Acciones de la fila')
   mkdirSync(SALIDA, { recursive: true })
   await page.screenshot({ path: `${SALIDA}/03-escritorio-768.png`, fullPage: true })
 })

@@ -119,7 +119,7 @@ test('las etiquetas de las unidades seleccionadas salen en un solo trabajo direc
   await page.getByRole('checkbox', { name: new RegExp(`Seleccionar Equipo etiqueta ${marca}.*${serialA}`) }).first().check()
   await page.getByRole('checkbox', { name: new RegExp(`Seleccionar Equipo etiqueta ${marca}.*${serialB}`) }).first().check()
   await page.getByRole('button', { name: 'Imprimir etiquetas' }).click()
-  await expect(page.getByText('Etiqueta enviada a la impresora.')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('2 etiquetas enviadas a la impresora.')).toBeVisible({ timeout: 15_000 })
 
   expect(capturados).toHaveLength(1)
   expect(capturados[0].tipo).toBe('etiquetas-stock')

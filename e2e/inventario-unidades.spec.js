@@ -88,25 +88,32 @@ async function buscarUnidad(page, serial) {
   return page.getByTestId('inventario-fila').filter({ hasText: serial }).first()
 }
 
-test('la tabla muestra ubicación con color, condición y verificación compacta', async ({ page }) => {
+test('la fila de Stock muestra ubicación, batería y estado; condición y verificación viven en la ficha', async ({ page }) => {
   const datos = await preparar(page, marca())
   try {
     const fila = await buscarUnidad(page, datos.unidades[0].serial)
     await expect(fila).toBeVisible()
     await expect(fila.getByText(datos.locationName)).toBeVisible()
-    await expect(fila.getByLabel('Condición: Nuevo')).toBeVisible()
-    // #285: la verificación se muestra como «OK <iniciales> · dd/mm/aaaa».
-    await expect(fila.getByText(/Sin verificar|\d{2}\/\d{2}\/\d{4}/)).toBeVisible()
+    await expect(fila.getByText('81%')).toBeVisible()
+    await expect(fila.getByText('Disponible', { exact: true })).toBeVisible()
+    // La condición y la verificación ya no van en la fila: se leen en la ficha.
+    await fila.click()
+    const detalle = page.getByRole('dialog')
+    await expect(detalle.getByText('Nuevo').first()).toBeVisible()
+    await expect(detalle.getByText(/Sin verificar|Verificado/).first()).toBeVisible()
   } finally { await limpiar(page, datos) }
 })
 
-test('la verificación rápida registra usuario y fecha en la cronología', async ({ page }) => {
+test('la verificación desde el menú de la fila registra usuario y fecha en la cronología', async ({ page }) => {
   const datos = await preparar(page, marca())
   try {
     const fila = await buscarUnidad(page, datos.unidades[0].serial)
     await expect(fila).toBeVisible()
-    await fila.getByRole('button', { name: '✓ Verificar' }).click()
-    await expect(fila.getByText('Sin verificar')).toHaveCount(0, { timeout: 15_000 })
+    // La búsqueda es del servidor: se espera la lista ya acotada antes de abrir el menú.
+    await expect(page.getByTestId('inventario-fila')).toHaveCount(1)
+    await fila.getByLabel(/^Acciones de/).click()
+    await page.getByRole('menuitem', { name: 'Verificar', exact: true }).click()
+    await expect(page.getByText(/IMEI \d{4} verificado\./)).toBeVisible({ timeout: 15_000 })
 
     await fila.click()
     const detalle = page.getByRole('dialog')
@@ -531,7 +538,7 @@ test('el modo taller agrupa por estado y verifica e imprime en serie', async ({ 
     await expect(page.getByRole('heading', { name: 'Unidades' })).toBeVisible()
     await page.screenshot({ path: 'test-results/qa-240-taller/01-antes-inventario.jpg', type: 'jpeg', quality: 70 })
 
-    await page.goto('/inventario/taller')
+    await page.goto('/stock/taller')
     const rack = page.getByTestId('rack-taller')
     await expect(rack).toBeVisible()
     for (const columna of ['por-verificar', 'verificado', 'listo']) {

@@ -114,9 +114,10 @@ test('el dueño ve y aprueba una solicitud de stock desde Inventario (#331)', as
     await expect(fila).toContainText(SEED.sellers[0].name)
     await expect(fila).toContainText('Dar de baja')
 
-    // #331: el selector de secciones de Inventario refleja los pendientes en
-    // la opción Autorizaciones.
-    await expect(page.getByTestId('tabs-inventario').locator('option', { hasText: /\(\d+ pendientes\)/ })).toBeAttached()
+    // #331: las solapas de Stock reflejan los pendientes con un contador en
+    // Control y en la vista Autorizaciones.
+    await expect(page.getByTestId('tabs-inventario').getByRole('tab', { name: /Control/ })).toContainText(/\d+/)
+    await expect(page.getByTestId('subtabs-inventario').getByRole('tab', { name: /Autorizaciones/ })).toContainText(/\d+/)
 
     await fila.getByRole('button', { name: 'Aprobar' }).click()
     const modal = page.getByRole('dialog')
