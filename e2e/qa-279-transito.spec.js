@@ -75,7 +75,7 @@ test('#279 · A4: se aparta una unidad en tránsito, queda bloqueada y al llegar
     if (!ANTES) {
       // Apartado desde el menú de la fila, con el cliente buscado en la ficha.
       await fila.getByLabel(`Acciones de ${serial}`).click()
-      await page.getByRole('button', { name: 'Apartar para una venta', exact: true }).click()
+      await page.getByRole('menuitem', { name: 'Apartar para una venta', exact: true }).click()
       const modal = page.getByRole('dialog', { name: 'Apartar equipo en tránsito' })
       await expect(modal).toBeVisible()
       await modal.getByLabel('Cliente del apartado').fill('Cliente A4 E2E')

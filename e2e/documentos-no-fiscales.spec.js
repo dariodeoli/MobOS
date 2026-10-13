@@ -4,6 +4,7 @@
 // igual que en los e2e de impresión, y se inspeccionan los bytes enviados.
 
 import { test, expect } from '@playwright/test'
+import { clickRowAction } from './helpers/row-actions.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
@@ -148,7 +149,7 @@ test('la proforma de una cotización sale por el agente sin validez fiscal', asy
   await page.goto('/cotizaciones')
   const fila = page.getByTestId('cotizacion-fila').filter({ hasText: cotizacion.datos.number }).first()
   await expect(fila).toBeVisible({ timeout: 20_000 })
-  await fila.getByRole('button', { name: 'Enlace/QR' }).click()
+  await clickRowAction(page, fila, 'Enlace/QR')
   const dialogo = page.getByRole('dialog')
   await expect(dialogo.getByAltText('QR de la cotización')).toBeVisible({ timeout: 20_000 })
   await dialogo.getByRole('button', { name: 'Proforma' }).click()

@@ -86,6 +86,6 @@ test('#304 · Ver abre la ficha y Más agrupa las acciones de la tarjeta', async
   // Más: las acciones de siempre, incluida Verificar (la tarjeta no tiene botón inline).
   await tarjeta.getByLabel(/^Acciones de/).click()
   for (const accion of ['Vender', 'Reservar', 'Verificar', 'Dar de baja']) {
-    await expect(tarjeta.getByRole('button', { name: accion, exact: true })).toBeVisible()
+    await expect(tarjeta.getByRole('menuitem', { name: accion, exact: true })).toBeVisible()
   }
 })

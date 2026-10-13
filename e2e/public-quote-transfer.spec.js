@@ -5,6 +5,7 @@
 import { test, expect } from '@playwright/test'
 import { copyFileSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { clickRowAction } from './helpers/row-actions.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
@@ -43,7 +44,7 @@ test('la cotización pública se acepta una sola vez y el enlace se regenera', a
   // El modal interno muestra el QR y regenerar invalida el enlace anterior.
   await page.goto('/cotizaciones')
   const fila = page.getByTestId('cotizacion-fila').filter({ hasText: creada.body.number }).first()
-  await fila.getByRole('button', { name: 'Enlace/QR' }).click()
+  await clickRowAction(page, fila, 'Enlace/QR')
   await expect(page.getByAltText('QR de la cotización')).toBeVisible()
   await page.getByRole('button', { name: 'Regenerar' }).click()
   await expect(page.getByText('Enlace regenerado: el anterior dejó de funcionar.')).toBeVisible()
@@ -71,7 +72,7 @@ test('la cotización se descarga como PDF para compartir', async ({ page }) => {
   })
   await page.goto('/cotizaciones')
   const fila = page.getByTestId('cotizacion-fila').filter({ hasText: creada.body.number }).first()
-  await fila.getByRole('button', { name: 'Enlace/QR' }).click()
+  await clickRowAction(page, fila, 'Enlace/QR')
   const modal = page.getByRole('dialog', { name: `Enlace de ${creada.body.number}` })
   await expect(modal.getByTestId('compartir-pdf')).toBeVisible()
 
@@ -123,7 +124,7 @@ test('la cotización se envía por WhatsApp con el PDF y queda enviada', async (
 
   await page.goto('/cotizaciones')
   const fila = page.getByTestId('cotizacion-fila').filter({ hasText: creada.body.number }).first()
-  await fila.getByRole('button', { name: 'Enlace/QR' }).click()
+  await clickRowAction(page, fila, 'Enlace/QR')
   const modal = page.getByRole('dialog', { name: `Enlace de ${creada.body.number}` })
 
   const [descarga] = await Promise.all([
