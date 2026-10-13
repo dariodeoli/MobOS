@@ -27,11 +27,29 @@ export async function changeStock(tx: StockTx, input: {
   if (updated.count !== 1) throw new Error(input.message || (delta < 0 ? 'Stock insuficiente o producto fuera de la sucursal.' : 'No se pudo actualizar el stock.'))
 }
 
-// Recalcula el contador desde las unidades físicas (disponibles + reservadas).
-// Se usa para reparar diferencias detectadas por la verificación de consistencia.
+// Recalcula el contador desde las unidades físicas (disponibles + reservadas)
+// que no estén dadas de baja (removedAt IS NULL). Se usa para reparar
+// diferencias detectadas por la verificación de consistencia.
 export async function recomputeStock(tx: StockTx, tenantId: string, productId: string) {
-  const units = await tx.inventoryUnit.count({ where: { tenantId, productId, status: { in: ['AVAILABLE', 'RESERVED'] } } })
+  const units = await tx.inventoryUnit.count({ where: { tenantId, productId, removedAt: null, status: { in: ['AVAILABLE', 'RESERVED'] } } })
   const product = await tx.product.updateMany({ where: { id: productId, tenantId }, data: { stock: units } })
   if (product.count !== 1) throw new Error('No se pudo recalcular el stock.')
   return units
 }
+
+// Vínculo unidad -> línea de venta. Se llama dentro de la transacción de la
+// venta (o de la entrega del IMEI) con las líneas ya creadas: solo toca
+// unidades de la empresa que ya quedaron SOLD con esos seriales.
+export async function linkSoldUnits(tx: StockTx, tenantId: string, items: Array<{ id: string; serials: unknown }>, soldAt = new Date()) {
+  let linked = 0
+  for (const item of items) {
+    const serials = Array.isArray(item.serials) ? (item.serials as unknown[]).filter((serial): serial is string => typeof serial === 'string' && serial.trim().length > 0) : []
+    if (!serials.length) continue
+    const result = await tx.inventoryUnit.updateMany({ where: { tenantId, serial: { in: serials }, status: 'SOLD' }, data: { soldOrderItemId: item.id, soldAt } })
+    linked += result.count
+  }
+  return linked
+}
+
+// Al anular o devolver, la unidad deja de pertenecer a esa línea de venta.
+export const UNLINK_SOLD = { soldOrderItemId: null, soldAt: null } as const

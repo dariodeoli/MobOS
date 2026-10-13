@@ -245,6 +245,7 @@ export async function PATCH(request: Request) {
           branchId: recepcion.shipment.destinationBranchId,
           locationId: deposito.id,
           serial: item.serial,
+          purchaseLineId: linea.id,
           condition: linea.condition,
           costCurrency: costo.costCurrency as PaymentCurrency,
           costPyg: costo.costPyg,

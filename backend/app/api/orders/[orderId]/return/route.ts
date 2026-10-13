@@ -2,7 +2,7 @@ import { prisma } from '../../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { InputError, objectInput } from '../../../../../lib/payment-input'
-import { changeStock, recomputeStock } from '../../../../../lib/stock'
+import { changeStock, recomputeStock, UNLINK_SOLD } from '../../../../../lib/stock'
 import { canAccessOrder, canProcessOrderReturn, returnRequest } from '../../../../../lib/orders'
 import { numero } from '../../../../../lib/montos'
 
@@ -58,7 +58,7 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
           if (!item.productId) continue
           const serials = Array.isArray(item.serials) ? item.serials as string[] : []
           if (serials.length) {
-            const changed = await tx.inventoryUnit.updateMany({ where: { tenantId: tenant, productId: item.productId, serial: { in: serials }, status: 'SOLD' }, data: { status: nextStatus } })
+            const changed = await tx.inventoryUnit.updateMany({ where: { tenantId: tenant, productId: item.productId, serial: { in: serials }, status: 'SOLD' }, data: { status: nextStatus, ...UNLINK_SOLD } })
             restockedUnits += changed.count
             if (changed.count) await recomputeStock(tx, tenant, item.productId)
             continue

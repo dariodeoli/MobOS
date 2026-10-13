@@ -104,7 +104,7 @@ export async function PATCH(request: Request) {
         const duplicate = await tx.product.findFirst({ where: { tenantId, imei: { equals: current.serial, mode: 'insensitive' } } })
         if (duplicate) throw new InputError('Ya existe un producto con ese serial.', 409)
         const product = await tx.product.create({ data: { tenantId, branchId: current.branchId, sku: `TRADE-IN-${current.id}`, name: current.model,
-          imei: current.serial, condition: 'USED', stock: 1, pricePyg: Number(body.pricePyg), costPyg: costoEquipoPyg, destination: body.destination as ProductDestination } })
+          imei: current.serial, condition: 'USED', stockKind: 'EQUIPO', stock: 1, pricePyg: Number(body.pricePyg), costPyg: costoEquipoPyg, destination: body.destination as ProductDestination } })
         productId = product.id
       }
       const updated = await tx.tradeInDevice.update({ where: { id }, data: { status: next, notes, productId, ...(diagnosis !== undefined ? { diagnosis } : {}), ...(technicianName !== undefined ? { technicianName } : {}), ...(accessories !== undefined ? { accessories } : {}), ...(photos !== undefined ? { photos } : {}), ...(increment ? { repairCostPyg: { increment: Number(increment) } } : {}) }, include: includeRelations(admin) })
