@@ -42,6 +42,14 @@ export async function shellPrimary(page) {
     .getByRole('navigation', { name: 'Navegación principal', exact: true })
   return (await desktop.isVisible()) ? desktop : page.getByTestId('shell-bottom-nav')
 }
+// Click a primary section and wait until the shell marks it current: the
+// context/sub-context selectors render in that same pass, so reading them
+// earlier races the route change (count() does not auto-wait).
+async function enterShellSection(primary, section) {
+  const button = primary.getByRole('button', { name: section, exact: true })
+  await button.click()
+  await expect(button).toHaveAttribute('aria-current', 'page')
+}
 export async function openShellProfile(page) {
   const dialog = page.getByRole('dialog', { name: 'Perfil y preferencias', exact: true })
   if (!(await dialog.isVisible())) {
@@ -78,10 +86,12 @@ export async function openShellDestination(page, label) {
     target = ['Taller', 'servicio', 'servicio']
   if (!target) throw new Error(`Unknown shell journey: ${label}`)
   const [section, group, destination] = target
-  await primary.getByRole('button', { name: section, exact: true }).click()
+  await enterShellSection(primary, section)
   const context = page.getByTestId('shell-contexto')
   if (await context.count()) {
-    const select = context.getByRole('combobox')
+    // The group <select> is display:none from lg up (wrapping links take over),
+    // so a role query never sees it on desktop: read it as a plain element.
+    const select = context.locator('select')
     if (await select.isVisible()) await select.selectOption(group)
     else {
       const text = await select.locator(`option[value="${group}"]`).textContent()
@@ -100,9 +110,9 @@ export async function shellCatalog(page) {
   const sections = await primary.getByRole('button').allTextContents()
   const destinations = new Set()
   for (const section of sections.map(s => s.trim())) {
-    await primary.getByRole('button', { name: section, exact: true }).click()
+    await enterShellSection(primary, section)
     const context = page.getByTestId('shell-contexto')
-    const select = context.getByRole('combobox')
+    const select = context.locator('select')
     if (!(await select.count())) {
       destinations.add(
         section === 'Vender'
@@ -126,6 +136,8 @@ export async function shellCatalog(page) {
       }
       if (await select.isVisible()) await select.selectOption(group.value)
       else await context.getByRole('button', { name: group.label, exact: true }).click()
+      // The shell re-renders the sub-context in the pass that makes the group current.
+      await expect(select).toHaveValue(group.value)
       const sub = page.getByTestId('shell-subcontexto').getByRole('combobox')
       if (await sub.count()) {
         for (const text of await sub.locator('option').allTextContents()) destinations.add(text)

@@ -14,7 +14,7 @@ test.describe('owner panel', () => {
   test('resumen shows the dashboard KPIs', async ({ page }) => {
     await page.goto('/resumen')
     await expect(page.getByRole('heading', { name: 'Inicio' })).toBeVisible()
-    for (const label of ['Facturado', 'Cobrado', 'Por cobrar', 'Margen', 'Ventas']) {
+    for (const label of ['Vendido', 'Cobrado', 'Por cobrar', 'Ganancia', 'Ventas']) {
       await expect(page.getByText(label, { exact: true }).first()).toBeVisible()
     }
   })

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { openShellDestination } from './helpers/shell-navigation.js'
 import { readFileSync } from 'node:fs'
 import { codigoPedido } from '../src/utils/pedido.js'
 import { SEED } from './helpers/seed-data.js'
@@ -13,7 +14,7 @@ test('pedidos: la lista abre sin popups y el detalle se abre y cierra', async ({
   await page.goto('/pos')
   await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Mis pedidos' }).click()
+  await openShellDestination(page, 'Mis pedidos')
   await expect(page).toHaveURL(/\/pedidos$/)
   await expect(page.getByRole('heading', { name: 'Mis pedidos' })).toBeVisible()
   await expect(page.getByTestId("pedido-fila").first()).toBeVisible()

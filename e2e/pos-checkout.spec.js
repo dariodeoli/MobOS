@@ -183,8 +183,8 @@ test('pedidos: buscador global, orden por columna y filtros', async ({ page }) =
   await total.click()
   await expect(total).toContainText('↑')
 
-  // Filtros de cobro: "No pagados" oculta un pedido ya pagado.
-  await page.getByRole('button', { name: 'No pagados', exact: true }).click()
+  // Filtros de cobro: "Con saldo" (antes "No pagados") oculta un pedido ya pagado.
+  await page.getByRole('button', { name: 'Con saldo', exact: true }).click()
   await expect(filas.filter({ hasText: codigoVisible })).toHaveCount(0)
   await page.getByRole('button', { name: 'Todos', exact: true }).click()
   await expect(filas.filter({ hasText: codigoVisible }).first()).toBeVisible()

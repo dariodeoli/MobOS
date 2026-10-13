@@ -3,6 +3,7 @@
 // capacidad, precio, stock por sucursal y disponibilidad, más la identificación
 // por código del escáner (IMEI/serial, SKU, MOBOS:<serial>).
 import { test, expect } from '@playwright/test'
+import { openShellDestination } from './helpers/shell-navigation.js'
 import { SEED } from './helpers/seed-data.js'
 
 const API = SEED.api
@@ -156,8 +157,8 @@ test('el POS ve las unidades cargadas después, sin recargar (#257)', async ({ p
 
     // Al volver al POS (sin recargar) el stock ya es 1: la unidad es vendible.
     await page.waitForTimeout(2600)
-    await page.getByRole('button', { name: 'Pedidos', exact: true }).first().click()
-    await page.getByRole('button', { name: 'POS', exact: true }).first().click()
+    await openShellDestination(page, 'Pedidos')
+    await openShellDestination(page, 'POS')
     await expect(buscador).toBeVisible({ timeout: 20_000 })
     await buscador.fill(nombre)
     await expect(tarjeta()).toContainText('1 en stock', { timeout: 20_000 })

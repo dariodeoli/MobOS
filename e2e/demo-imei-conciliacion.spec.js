@@ -2,6 +2,7 @@
 // cuenta real, sin backend): la consulta simulada queda en el registro y
 // administración la concilia desde el modal, con la aclaración obligatoria.
 import { test, expect } from '@playwright/test'
+import { openShellDestination } from './helpers/shell-navigation.js'
 import { mkdirSync } from 'node:fs'
 import { serialDemo } from '../src/lib/demo/iphones.js'
 import { cerrarGuiaDemo } from './helpers/demo.js'
@@ -76,7 +77,7 @@ test('la demo muestra en el POS el stock de las unidades del inventario (#257)',
   await expect(tarjeta()).toContainText('1 en stock', { timeout: 20_000 })
 
   // Se recibe una unidad desde Inventario (misma sesión, sin recargar el POS).
-  await page.getByRole('button', { name: 'Unidades (IMEI)', exact: true }).first().click()
+  await openShellDestination(page, 'Unidades (IMEI)')
   await page.getByRole('button', { name: '+ Recibir unidad' }).click()
   const modal = page.getByRole('dialog')
   const combo = modal.getByRole('combobox').first()
@@ -89,7 +90,7 @@ test('la demo muestra en el POS el stock de las unidades del inventario (#257)',
   await expect(page.getByText(/1 unidad recibida/)).toBeVisible({ timeout: 20_000 })
 
   // Al volver al POS el stock ya es 2: la unidad nueva es vendible.
-  await page.getByRole('button', { name: 'POS', exact: true }).first().click()
+  await openShellDestination(page, 'POS')
   await expect(buscador()).toBeVisible({ timeout: 20_000 })
   await buscador().fill('iPhone 12 128GB')
   await expect(tarjeta()).toContainText('2 en stock', { timeout: 20_000 })
