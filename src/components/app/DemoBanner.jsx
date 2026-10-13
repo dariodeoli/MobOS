@@ -22,7 +22,7 @@ export default function DemoBanner({ angosta = false, onComoFunciona }) {
     }
     setOculto(true)
   }
-  const enlace = 'shrink-0 underline underline-offset-2 hover:text-fore'
+  const enlace = 'toque-44 shrink-0 underline underline-offset-2 hover:text-fore'
   return (
     <div
       role="status"

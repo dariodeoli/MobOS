@@ -25,7 +25,7 @@ export default function Toolbar({ label = 'Herramientas', search, filters, view,
         {view && <div data-slot="view" className="flex min-w-0 items-center">{view}</div>}
         {children}
         {derecha && (
-          <div data-slot="actions" className="ml-auto flex shrink-0 items-center gap-2">
+          <div data-slot="actions" className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-2">
             {more}
             {primary}
           </div>
