@@ -21,6 +21,7 @@ import { syncOrderItemSerials } from '../../../lib/order-serials'
 import { esCodigoDuplicado, nextOrderNumber } from '../../../lib/order-number'
 import { LIMITE_MONTO_GENERAL, LIMITE_MONTO_VENTAS, numero } from '../../../lib/montos'
 import { sucursalEfectiva } from '../../../lib/sucursal-efectiva'
+import { canSeeCost, redactOrderItemCosts } from '../../../lib/cost-visibility'
 
 // Detalle devuelto tanto al crear como al reutilizar una orden idempotente.
 const orderDetail = Prisma.validator<Prisma.OrderInclude>()({
@@ -180,7 +181,8 @@ export async function GET(request: Request) {
   // ids para conservar la paginación por cursor.
   const rows = await prisma.order.findMany({ where: { id: { in: ids.map((row) => row.id) } }, include: { items: true, payments: true, customer: true, seller: { select: { id: true, name: true } } } })
   const porId = new Map(rows.map((row) => [row.id, row]))
-  return json(ids.map((row) => porId.get(row.id)).filter(Boolean))
+  const verCosto = canSeeCost(session.user.role)
+  return json(ids.map((row) => porId.get(row.id)).filter(Boolean).map((order) => ({ ...order!, items: order!.items.map((item) => redactOrderItemCosts(item, verCosto)) })))
 }
 
 export async function POST(request: Request) {
