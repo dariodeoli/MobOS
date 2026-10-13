@@ -190,9 +190,9 @@ export default function PasoCarrito({
         )}
         {/* #309: el total vive acá (una sola vez, más destacado) y no se repite
             en el resumen del encabezado. */}
-        <div className="mt-1 flex items-baseline justify-between gap-2 border-t border-fono/20 pt-1.5">
+        <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-2 border-t border-fono/20 pt-1.5">
           <span className="text-[11px] font-bold uppercase tracking-wider text-mute">Total</span>
-          <span data-testid="carrito-total" className="pos-money-value v2-numero min-w-0 whitespace-nowrap text-[clamp(1.25rem,5vw,1.75rem)] font-extrabold tracking-tight tabular-nums text-fore">
+          <span data-testid="carrito-total" className="pos-money-value v2-numero whitespace-nowrap text-[clamp(1.25rem,5vw,1.75rem)] font-extrabold tracking-tight tabular-nums text-fore">
             {gs(totalGeneral ?? totalCarrito)}
           </span>
         </div>
