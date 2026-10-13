@@ -12,7 +12,7 @@ export default function SectionSelector({
   if (!items.length) return null
   const options = items.map(item => (Array.isArray(item) ? item : [item.id, item.label]))
   return (
-    <div data-testid={testId} className="shell-section-selector mb-4 min-w-0">
+    <div data-testid={testId} className="shell-section-selector mb-2 min-w-0 lg:mb-4">
       <Select
         aria-label={label}
         value={value || ''}
