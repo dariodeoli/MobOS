@@ -78,7 +78,7 @@ try {
   assert.equal(await stockDe(), 1)
 
   // Venta: la unidad queda enlazada a su línea; anular limpia el vínculo.
-  result = await request('/api/orders', 'POST', { items: [{ productId: product.id, description: product.name, quantity: 1, unitPricePyg: 1000000, serials: [normalized] }] })
+  result = await request('/api/orders', 'POST', { items: [{ productId: product.id, description: product.name, quantity: 1, unitPricePyg: 1000000, inventoryUnitSerials: [normalized] }] })
   assert.equal(result.response.status, 201, JSON.stringify(result.payload))
   const order = result.payload
   const linea = await one('SELECT id FROM "OrderItem" WHERE "orderId" = $1', [order.id])
