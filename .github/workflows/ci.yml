@@ -20,6 +20,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Unit tests compare redesign checkpoints with earlier commits (git show).
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -72,6 +75,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Unit tests compare redesign checkpoints with earlier commits (git show).
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
