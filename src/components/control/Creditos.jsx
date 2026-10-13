@@ -117,7 +117,7 @@ export default function Creditos() {
             { key: 'limite', dinero: true, header: 'Límite', ancho: 'minmax(8.5rem,0.8fr)', align: 'right', className: 'text-xs text-mute', cell: (row) => (row.creditLimitPyg ? <Money value={row.creditLimitPyg} /> : 'sin límite') },
             { key: 'uso', header: 'Uso', ancho: 'minmax(7rem,0.9fr)', className: 'overflow-visible', cell: (row) => <Uso row={row} /> },
             { key: 'pendiente', dinero: true, header: 'Pendiente', ancho: 'minmax(8.5rem,0.8fr)', align: 'right', className: 'text-[13px] font-semibold text-fore', cell: (row) => <Money value={row.outstandingPyg} /> },
-            { key: 'mora', dinero: true, header: 'En mora', ancho: 'minmax(8.5rem,0.9fr)', align: 'right', className: 'text-xs font-semibold', cell: (row) => <Mora row={row} /> },
+            { key: 'mora', dinero: true, header: 'En mora', ancho: 'minmax(11rem,0.9fr)', align: 'right', className: 'text-xs font-semibold', cell: (row) => <Mora row={row} /> },
           ]}
           renderCard={(row) => (
             <div className={cn('rounded-xl border bg-ink-800/40 p-3', v2 && 'v2-tile', TONE(row) === 'bad' ? 'border-bad/30 bg-bad/5' : TONE(row) === 'warn' ? 'border-warn/30 bg-warn/5' : 'border-ink-600')}>

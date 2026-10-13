@@ -203,7 +203,7 @@ export default function AuditoriaEfectivo() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <Identidad operacion={operacion} />
-                  <p className="mt-0.5 truncate text-[11px] text-mute">{fechaCorta(operacion.fecha)}{operacion.vendedor ? ` · ${operacion.vendedor}` : ''}</p>
+                  <p className="mt-0.5 truncate text-[11px] text-mute" title={`${fechaCorta(operacion.fecha)}${operacion.vendedor ? ` · ${operacion.vendedor}` : ''}`}>{fechaCorta(operacion.fecha)}{operacion.vendedor ? ` · ${operacion.vendedor}` : ''}</p>
                 </div>
                 <Monto operacion={operacion} className="shrink-0 text-[13px] font-semibold" />
               </div>

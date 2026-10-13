@@ -83,7 +83,7 @@ export default function Cobranzas() {
           <b className="text-[13px] tabular-nums text-fore" data-testid="cuota-saldo">{gs(row.saldoPendientePyg)}</b>
           <Button type="button" variant="outline" className="min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2" onClick={() => setDetalle(row)}>Ver mensaje</Button>
           {row.whatsappUrl
-            ? <button type="button" disabled={Boolean(enviando)} onClick={() => recordar(row)} className={cn('min-h-11 rounded-lg bg-ok px-3 py-2 text-xs font-semibold text-black transition disabled:opacity-50 lg:min-h-0')}>{enviando === row.id ? 'Registrando…' : row.avisadoEn ? 'Reenviar WhatsApp' : 'WhatsApp'}</button>
+            ? <button type="button" disabled={Boolean(enviando)} onClick={() => recordar(row)} className={cn('min-h-11 rounded-lg bg-ok px-3 py-2 text-xs font-semibold text-on-ok transition disabled:opacity-50 lg:min-h-0')}>{enviando === row.id ? 'Registrando…' : row.avisadoEn ? 'Reenviar WhatsApp' : 'WhatsApp'}</button>
             : <span className="text-xs text-mute">Sin WhatsApp</span>}
           <Button type="button" variant="outline" className="min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2" onClick={() => abrirPedido(row)}>Abrir pedido</Button>
         </div>

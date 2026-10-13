@@ -76,10 +76,13 @@ async function openReportes(page) {
 }
 
 // Every `.truncate`/tabular-nums box inside `root` must show its full text.
+// Texto de identidad con `title` (nombre, detalle) puede acortarse con elipsis
+// (docs/TABLAS.md §3): lo que nunca se corta son las cifras (Gs., cantidades).
 async function cutBoxes(root) {
   return root.evaluate(node =>
     [...node.querySelectorAll('.truncate, .tabular-nums')]
       .filter(el => el.getBoundingClientRect().width > 0)
+      .filter(el => !(el.hasAttribute('title') || el.querySelector('[title]')) || /Gs\.|₲|\d{1,3}(\.\d{3})+|%/.test(el.textContent || ''))
       .filter(el => el.scrollWidth > el.clientWidth + 1)
       .map(el => (el.textContent || '').trim().slice(0, 50)),
   )
