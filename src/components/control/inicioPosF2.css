@@ -174,3 +174,16 @@
   min-height: 44px;
   white-space: nowrap;
 }
+
+/* Debajo de lg todo control del Inicio se toca con el dedo: 44 px (QA-A). */
+@media (max-width: 1023px) {
+  .inicio-f2 button,
+  .inicio-f2 [role='button'],
+  .inicio-f2 select,
+  .inicio-f2 input:not([type='checkbox'], [type='radio']) {
+    min-height: 44px;
+  }
+  .inicio-f2 button {
+    min-width: 44px;
+  }
+}

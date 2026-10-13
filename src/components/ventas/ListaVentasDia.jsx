@@ -7,6 +7,7 @@ import MedioPago from '@/components/shared/MedioPago'
 import SearchField from '@/components/shared/SearchField'
 import SegmentedField from '@/components/shared/SegmentedField'
 import Icon from '@/components/shared/Icon'
+import StatusChip from '@/components/shared/StatusChip'
 import { Card, Badge, Dot, EmptyState, Modal, Button, Textarea, IconAction, ConfirmDialog } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api/client'
@@ -36,6 +37,10 @@ const FILTROS = [
 ]
 
 const POR_PAGINA = 12
+
+// Estado de cobro de una venta: una sola fuente para el chip de la tabla y el
+// de la tarjeta (StatusChip, tonos con contraste AA).
+const estadoCobro = (items) => (items[0].estadoPago === 'Pagado' ? 'PAGADO' : items.some(item => num(item.totalPagado) > 0) ? 'PARCIAL' : 'PENDIENTE')
 
 // Normaliza para buscar sin importar acentos ni mayúsculas.
 const norm = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
@@ -216,13 +221,7 @@ export default function ListaVentasDia({
                     </div>
                     <div className="shrink-0 text-right">
                       <div className="font-semibold">{gs(tot)}</div>
-                      <span className={cn('text-xs', pagado ? 'text-ok' : 'text-bad')}>
-                        {pagado
-                          ? 'Pagado'
-                          : g.items.some(item => num(item.totalPagado) > 0)
-                            ? 'Parcial'
-                            : 'Pendiente'}
-                      </span>
+                      <StatusChip estado={estadoCobro(g.items)} className="mt-1" />
                     </div>
                   </div>
                   {(g.items.some(item => Number(item.serialsPending || 0) > 0) || g.items.some(item => Number(item.stockPending || 0) > 0) || g.items.some(item => item.costPending === true)) && <div className="mt-1.5 flex flex-wrap gap-1.5 pl-4">
@@ -255,12 +254,12 @@ export default function ListaVentasDia({
               <colgroup>
                 <col className={mostrarVendedor ? 'w-[11%]' : 'w-[13%]'} />
                 <col className={mostrarVendedor ? 'w-[14%]' : 'w-[18%]'} />
-                <col className={mostrarVendedor ? 'w-[10%]' : 'w-[11%]'} />
-                <col className={mostrarVendedor ? 'w-[10%]' : 'w-[12%]'} />
+                <col className={mostrarVendedor ? 'w-[9%]' : 'w-[11%]'} />
+                <col className={mostrarVendedor ? 'w-[11%]' : 'w-[12%]'} />
+                <col className={mostrarVendedor ? 'w-[8%]' : 'w-[10%]'} />
                 <col className={mostrarVendedor ? 'w-[9%]' : 'w-[10%]'} />
-                <col className={mostrarVendedor ? 'w-[9%]' : 'w-[10%]'} />
-                {mostrarVendedor && <col className="w-[10%]" />}
-                <col className={mostrarVendedor ? 'w-[17%]' : 'w-[16%]'} />
+                {mostrarVendedor && <col className="w-[14%]" />}
+                <col className={mostrarVendedor ? 'w-[14%]' : 'w-[16%]'} />
                 <col className="w-[10%]" />
               </colgroup>
               <thead>
@@ -281,7 +280,6 @@ export default function ListaVentasDia({
                   g.items.map((v, idx) => {
                     const varios = g.items.length > 1
                     const tot = g.items.reduce((a, x) => a + num(x.precio), 0)
-                    const pagado = v.estadoPago === 'Pagado'
                     return (
                       <tr
                         key={v.id}
@@ -328,17 +326,7 @@ export default function ListaVentasDia({
                           })}
                         </td>
                         <td className="px-2.5 py-1.5">
-                          <span
-                            className={cn(
-                              'inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium',
-                              pagado
-                                ? 'border-ok/25 bg-ok/15 text-ok'
-                                : 'border-bad/25 bg-bad/15 text-bad',
-                            )}
-                          >
-                            <Dot color={pagado ? 'green' : 'red'} />
-                            {pagado ? 'Pagado' : num(v.totalPagado) > 0 ? 'Parcial' : 'Pendiente'}
-                          </span>
+                          <StatusChip estado={estadoCobro([v])} />
                         </td>
                         <td className="px-2.5 py-1.5 text-right font-semibold">{gs(v.precio)}</td>
                         {idx === 0 ? (
@@ -366,7 +354,7 @@ export default function ListaVentasDia({
                                 rowSpan={g.items.length}
                                 className="break-words px-2.5 py-1.5 align-top text-mute"
                               >
-                                <span className="block truncate" title={vendedoresById[v.vendedorId] || undefined}>{vendedoresById[v.vendedorId] || '—'}</span>
+                                <span className="block break-words" title={vendedoresById[v.vendedorId] || undefined}>{vendedoresById[v.vendedorId] || '—'}</span>
                               </td>
                             )}
                             <td
@@ -415,7 +403,7 @@ export default function ListaVentasDia({
               <button
                 onClick={() => setPagina(pag - 1)}
                 disabled={pag <= 1}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-ink-500 px-3 text-sm transition hover:border-fono disabled:opacity-30 disabled:hover:border-ink-500"
+                className="inline-flex h-11 items-center gap-1.5 rounded-lg border border-ink-500 px-3 text-sm lg:h-8 transition hover:border-fono disabled:opacity-30 disabled:hover:border-ink-500"
               >
                 <Icon name="back" className="h-4 w-4" />
                 Anterior
@@ -430,7 +418,7 @@ export default function ListaVentasDia({
                       <button
                         onClick={() => setPagina(n)}
                         className={cn(
-                          'h-8 min-w-8 rounded-lg px-2 text-sm transition',
+                          'h-11 min-w-11 rounded-lg px-2 text-sm transition lg:h-8 lg:min-w-8',
                           n === pag
                             ? 'bg-fono/20 font-medium text-fore ring-1 ring-fono/40'
                             : 'text-mute hover:bg-ink-700 hover:text-fore',
@@ -445,7 +433,7 @@ export default function ListaVentasDia({
               <button
                 onClick={() => setPagina(pag + 1)}
                 disabled={pag >= paginas}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-ink-500 px-3 text-sm transition hover:border-fono disabled:opacity-30 disabled:hover:border-ink-500"
+                className="inline-flex h-11 items-center gap-1.5 rounded-lg border border-ink-500 px-3 text-sm lg:h-8 transition hover:border-fono disabled:opacity-30 disabled:hover:border-ink-500"
               >
                 Siguiente
                 <Icon name="back" className="h-4 w-4 rotate-180" />
