@@ -223,7 +223,7 @@ const AYUDA = [
     ruta: '/finanzas/creditos',
   },
   {
-    modulo: 'Impresión', titulo: 'Impresoras y puentes', ubicacion: 'Configuración → Dispositivos → /configuracion/dispositivos',
+    modulo: 'Impresión', titulo: 'Impresoras y puentes', ubicacion: 'Configuración → Impresión y dispositivos → /configuracion/dispositivos',
     explicacion: 'Vinculá el puente de la sucursal, elegí la impresora predeterminada y probá la impresión. Los comprobantes salen por el puente de cada sucursal.',
     ruta: '/configuracion/dispositivos',
   },
