@@ -127,6 +127,20 @@ test('q: escapa comodines LIKE y normaliza IMEI', () => {
   assert.ok(page.values.some(value => value === '%35-12\\%\\_%'), 'crudo para SKU y nombre')
 })
 
+test('SQL vendido: solo pedidos COMPLETED y acotados a la sucursal forzada o filtrada', () => {
+  const forzada = sqlOf(buildStockItemsPageSql(filtersOf('status=vendido'), scope({ forcedBranchId: 'br-1' }), null)!)
+  assert.match(forzada, /o\."status"::text = 'COMPLETED'/)
+  assert.doesNotMatch(forzada, /<> 'CANCELLED'/)
+  assert.match(forzada, /o\."branchId" = \$\d+/)
+  assert.match(sqlOf(buildStockItemsPageSql(filtersOf('status=vendido&branchId=br-2'), scope(), null)!), /o\."branchId" = \$\d+/)
+  assert.doesNotMatch(sqlOf(buildStockItemsPageSql(filtersOf('status=vendido'), scope(), null)!), /o\."branchId"/)
+})
+
+test('SQL estado: IN_TRANSIT explícito y un estado desconocido conserva su valor', () => {
+  const sql = sqlOf(buildStockItemsPageSql(filtersOf('rowKind=unit'), scope(), null)!)
+  assert.match(sql, /WHEN u\."status" = 'IN_TRANSIT' THEN 'en_transito' ELSE u\."status"::text END/)
+})
+
 test('mapeo y redacción: costo, proveedor y consignación nulos sin permiso; BigInt a número', () => {
   const row = { id: 'u1', kind: 'unit', stockKind: 'EQUIPO', productId: 'p1', sku: 'S', model: '15 128 Negro', name: 'iPhone', serial: 'IMEI1', batteryHealth: 91, supplierId: 'sup', supplierName: 'Prov', costPyg: BigInt(4200000), status: 'disponible', quantity: 1, branchId: 'b', branchName: 'Sucursal', locationId: null, locationName: null, createdAt: new Date(), soldAt: null }
   assert.equal(mapStockRow(row, true).costPyg, 4200000)
@@ -135,10 +149,10 @@ test('mapeo y redacción: costo, proveedor y consignación nulos sin permiso; Bi
   assert.deepEqual([oculto.costPyg, oculto.supplierId, oculto.supplierName], [null, null, null])
   assert.deepEqual(redactStockItem({ costPyg: 1, supplierId: 'a', supplierName: 'b', x: 1 }, false), { costPyg: null, supplierId: null, supplierName: null, x: 1 })
 
-  const unidad = { id: 'u', serial: 'IMEI', costPyg: BigInt(10), originalCost: '5', exchangeRatePyg: '7000', consignorPyg: BigInt(3), consignorName: 'Ana', supplierId: 's', supplierName: 'P', supplier: { id: 's' }, inspection: { grado: 'A', costoRepuestosPyg: 80000 }, status: 'AVAILABLE' }
+  const unidad = { id: 'u', serial: 'IMEI', costPyg: BigInt(10), originalCost: '5', exchangeRatePyg: '7000', consignorPyg: BigInt(3), consignorName: 'Ana', consignorPhone: '0981', costCurrency: 'USD', supplierId: 's', supplierName: 'P', supplier: { id: 's' }, inspection: { grado: 'A', costoRepuestosPyg: 80000 }, status: 'AVAILABLE' }
   assert.equal(redactUnitCosts(unidad, true), unidad)
   const redacted = redactUnitCosts(unidad, false) as Record<string, any>
-  for (const field of ['costPyg', 'originalCost', 'exchangeRatePyg', 'consignorPyg', 'supplierId', 'supplierName']) assert.equal(redacted[field], null, field)
+  for (const field of ['costPyg', 'originalCost', 'exchangeRatePyg', 'consignorPyg', 'consignorName', 'consignorPhone', 'costCurrency', 'supplierId', 'supplierName']) assert.equal(redacted[field], null, field)
   assert.equal('supplier' in redacted, false)
   assert.equal(redacted.inspection.costoRepuestosPyg, null)
   assert.equal(redacted.inspection.grado, 'A')

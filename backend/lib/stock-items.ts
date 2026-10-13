@@ -155,7 +155,7 @@ function unitsBranch(filters: StockItemsFilters, scope: StockItemsScope, cursor:
   const t = scope.tenantId
   const sortKey = sortKeyFor(filters, Prisma.sql`u."createdAt"`)
   const unitStockKind = Prisma.sql`COALESCE(p."stockKind"::text, 'EQUIPO')`
-  const statusExpr = Prisma.sql`CASE WHEN u."removedAt" IS NOT NULL THEN 'eliminado' WHEN u."status" = 'AVAILABLE' THEN 'disponible' WHEN u."status" = 'RESERVED' THEN 'reservado' WHEN u."status" = 'SOLD' THEN 'vendido' WHEN u."status" = 'DEFECTIVE' THEN 'defectuoso' ELSE 'en_transito' END`
+  const statusExpr = Prisma.sql`CASE WHEN u."removedAt" IS NOT NULL THEN 'eliminado' WHEN u."status" = 'AVAILABLE' THEN 'disponible' WHEN u."status" = 'RESERVED' THEN 'reservado' WHEN u."status" = 'SOLD' THEN 'vendido' WHEN u."status" = 'DEFECTIVE' THEN 'defectuoso' WHEN u."status" = 'IN_TRANSIT' THEN 'en_transito' ELSE u."status"::text END`
   const where: Prisma.Sql[] = [Prisma.sql`u."tenantId" = ${t}`, Prisma.sql`p."tenantId" = ${t}`]
   // Estado: sobre columnas crudas para aprovechar los índices.
   if (filters.status === 'eliminado') {
@@ -240,7 +240,8 @@ function productsBranch(filters: StockItemsFilters, scope: StockItemsScope, curs
   }
   if (mode === 'page' && cursor) where.push(Prisma.sql`(${sortKey}, p."id") < (${cursor.sortKey}::timestamp, ${cursor.id})`)
   const whereSql = Prisma.join(where, ' AND ')
-  const soldRange: Prisma.Sql[] = [Prisma.sql`o."tenantId" = ${t}`, Prisma.sql`o."status"::text <> 'CANCELLED'`]
+  const soldRange: Prisma.Sql[] = [Prisma.sql`o."tenantId" = ${t}`, Prisma.sql`o."status"::text = 'COMPLETED'`]
+  if (branch) soldRange.push(Prisma.sql`o."branchId" = ${branch}`)
   if (filters.from) soldRange.push(Prisma.sql`o."createdAt" >= ${filters.from.toISOString()}::timestamp`)
   if (filters.toExclusive) soldRange.push(Prisma.sql`o."createdAt" < ${filters.toExclusive.toISOString()}::timestamp`)
   const soldJoin = vendido
@@ -331,18 +332,5 @@ export function paginateStockRows(rows: RawRow[], limit: number) {
   return { page, hasMore, nextCursor: hasMore && last?.sortKey ? encodeStockCursor({ sortKey: last.sortKey, id: String(last.id) }) : null }
 }
 
-// ── Redacción de GET /api/inventory-units ────────────────────────────────────
-const COST_FIELDS = ['costPyg', 'originalCost', 'exchangeRatePyg', 'consignorPyg', 'supplierId', 'supplierName'] as const
-
-/** Quita costos, proveedor y montos de consignación de una unidad para roles sin permiso. */
-export function redactUnitCosts<T extends Record<string, unknown>>(unit: T, canSeeCost: boolean): T {
-  if (canSeeCost) return unit
-  const copy: Record<string, unknown> = { ...unit }
-  for (const field of COST_FIELDS) if (field in copy) copy[field] = null
-  if ('supplier' in copy) delete copy.supplier
-  const inspection = copy.inspection
-  if (inspection && typeof inspection === 'object' && !Array.isArray(inspection) && 'costoRepuestosPyg' in inspection) {
-    copy.inspection = { ...(inspection as Record<string, unknown>), costoRepuestosPyg: null }
-  }
-  return copy as T
-}
+// Redacción de unidades: vive en cost-visibility (una sola regla para todas las rutas).
+export { redactUnitCosts } from './cost-visibility'
