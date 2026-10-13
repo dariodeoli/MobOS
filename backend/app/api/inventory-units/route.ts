@@ -3,13 +3,13 @@ import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { InventoryUnitStatus, PaymentCurrency, ProductCondition } from '@prisma/client'
-import { INVENTORY_REMOVED, INVENTORY_RESTORED, removedInventoryUnitIds } from '../../../lib/inventory'
+import { INVENTORY_REMOVED, INVENTORY_RESTORED, removalFields, restoreFields } from '../../../lib/inventory'
 import { normalizarCosto } from '../../../lib/costs'
 import { itemsLista, normalizarInspectionItems, resumenInspection } from '../../../lib/inspection'
 import { LIMITE_MONTO_GENERAL, numeroOpcional } from '../../../lib/montos'
 import { serialKey } from '../../../lib/validation'
 import { revisarMinimoDeStock } from '../../../lib/supply-demand'
-import { changeStock } from '../../../lib/stock'
+import { changeStock, promoteToEquipo } from '../../../lib/stock'
 import { consumeAuthorization } from '../../../lib/authorizations'
 import { sucursalEfectiva } from '../../../lib/sucursal-efectiva'
 
@@ -17,14 +17,6 @@ const canSeeBranch = (role: string, assigned: string | null, branchId: string | 
 const canManageBranch = (role: string, assigned: string | null, branchId: string) => role === 'ADMIN' || (role === 'GERENTE' && assigned === branchId)
 const text = (value: unknown, max = 500) => typeof value === 'string' ? value.trim().slice(0, max) || null : null
 const reason = (value: unknown) => typeof value === 'string' && value.trim().length >= 3 && value.trim().length <= 500 ? value.trim() : null
-
-async function removedIdsForTenant(tenant: string) {
-  const events = await prisma.auditLog.findMany({
-    where: { tenantId: tenant, entity: 'InventoryUnit', action: { in: [INVENTORY_REMOVED, INVENTORY_RESTORED] } },
-    select: { entityId: true, action: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 5000,
-  })
-  return removedInventoryUnitIds(events)
-}
 
 // Monto a pagar al consignador: entero en guaraníes o vacío para quitarlo.
 function consignarMonto(value: unknown) {
@@ -94,11 +86,11 @@ export async function GET(request: Request) {
   const productId = (params.get('productId') || '').trim().slice(0, 128)
   const status = params.get('status') || ''
   if (status && !Object.values(InventoryUnitStatus).includes(status as InventoryUnitStatus)) return error('Estado de unidad inválido.')
-  const removedIds = await removedIdsForTenant(tenant)
+  // La baja recuperable vive en InventoryUnit.removedAt (sin escanear la auditoría).
   const removalFilter = view === 'removed'
-    ? { id: { in: [...removedIds] } }
-    : view === 'active' && removedIds.size
-      ? { id: { notIn: [...removedIds] } }
+    ? { removedAt: { not: null } }
+    : view === 'active'
+      ? { removedAt: null }
       : {}
   const units = await prisma.inventoryUnit.findMany({
     // El `q` normalizado (serialKey) sirve para escanear IMEI/serial, pero borra
@@ -199,6 +191,7 @@ export async function POST(request: Request) {
         units.push(await tx.inventoryUnit.create({ data: { tenantId: tenant, productId, branchId, locationId, serial, condition: product.condition, supplierId, ...data, ...costo } }))
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_RECEIVED', entity: 'InventoryUnit', entityId: units[units.length - 1].id, metadata: { serial, productId, branchId, locationId } } })
       }
+      await promoteToEquipo(tx, tenant, productId)
       await changeStock(tx, { tenantId: tenant, productId, delta: units.length })
       return units
     })
@@ -266,11 +259,10 @@ export async function PATCH(request: Request) {
   }
   try {
     const updated = await prisma.$transaction(async tx => {
-      const before = await tx.inventoryUnit.findFirst({ where: { id, tenantId: tenant }, select: { id: true, branchId: true, status: true, serial: true, locationId: true, productId: true, costPyg: true, originalCost: true, costCurrency: true, exchangeRatePyg: true } })
+      const before = await tx.inventoryUnit.findFirst({ where: { id, tenantId: tenant }, select: { id: true, branchId: true, status: true, removedAt: true, serial: true, locationId: true, productId: true, costPyg: true, originalCost: true, costCurrency: true, exchangeRatePyg: true } })
       if (!before || !before.branchId) throw new Error('Unidad no encontrada.')
       if (!canManageBranch(session.user.role, session.user.branchId, before.branchId) && !stockAuthorization) throw new Error('No autorizado para esa sucursal.')
-      const removalEvents = await tx.auditLog.findMany({ where: { tenantId: tenant, entity: 'InventoryUnit', entityId: id, action: { in: [INVENTORY_REMOVED, INVENTORY_RESTORED] } }, select: { entityId: true, action: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] })
-      const removed = removedInventoryUnitIds(removalEvents).has(id)
+      const removed = before.removedAt !== null
       // Consumo dentro de la misma transacción: la autorización es de un solo
       // uso y dos retiros concurrentes no pueden compartirla.
       const consumirAutorizacion = async (extra: Record<string, unknown>) => {
@@ -295,7 +287,7 @@ export async function PATCH(request: Request) {
         await changeStock(tx, { tenantId: tenant, productId: before.productId, delta: -1, message: 'El stock cambió mientras se eliminaba la unidad.' })
         // #250 F1: la baja puede dejar el producto bajo el mínimo: se pide solo.
         await revisarMinimoDeStock(tx, { tenantId: tenant, userId: session.user.id, productId: before.productId, branchId: before.branchId })
-        const data = await tx.inventoryUnit.update({ where: { id }, data: { status: 'DEFECTIVE', reservedUntil: null, reservationCustomer: null, reservedById: null } })
+        const data = await tx.inventoryUnit.update({ where: { id }, data: { status: 'DEFECTIVE', reservedUntil: null, reservationCustomer: null, reservedById: null, ...removalFields(session.user.id, adjustmentReason) } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: INVENTORY_REMOVED, entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, reason: adjustmentReason, statusBefore: before.status, locationId: before.locationId, ...(stockAuthorization ? { authorizationId: stockAuthorization.id } : {}) } } })
         await consumirAutorizacion({ statusAfter: data.status })
         return data
@@ -304,7 +296,7 @@ export async function PATCH(request: Request) {
         if (session.user.role !== 'ADMIN') throw new Error('Solo un administrador general puede restaurar inventario eliminado.')
         if (!removed) throw new Error('La unidad no está en eliminados recuperables.')
         await changeStock(tx, { tenantId: tenant, productId: before.productId, delta: 1, message: 'No se pudo restaurar el stock de la unidad.' })
-        const data = await tx.inventoryUnit.update({ where: { id }, data: { status: 'AVAILABLE', reservedUntil: null, reservationCustomer: null, reservationCustomerId: null, reservedById: null } })
+        const data = await tx.inventoryUnit.update({ where: { id }, data: { status: 'AVAILABLE', reservedUntil: null, reservationCustomer: null, reservationCustomerId: null, reservedById: null, ...restoreFields() } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: INVENTORY_RESTORED, entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, reason: adjustmentReason, restoredTo: 'AVAILABLE', locationId: before.locationId } } })
         return data
       }

@@ -5,6 +5,7 @@ import { InputError } from '../../../lib/payment-input'
 import { serialKey } from '../../../lib/validation'
 import { changeStock } from '../../../lib/stock'
 import { revisarMinimoDeStock } from '../../../lib/supply-demand'
+import { classifyStockKind } from '../../../lib/stock-kind'
 import { authorizationValueOf, consumeAuthorization, usableAuthorization } from '../../../lib/authorizations'
 
 const INT_MAX = 2147483647
@@ -117,7 +118,7 @@ export async function POST(request: Request) {
           if (units.length !== line.serials.length) throw new Error(`Algún IMEI/serial no está disponible en ${source.name}.`)
         }
         let destination = await tx.product.findFirst({ where: { tenantId: tenant, branchId: destinationBranchId, sku: source.sku } })
-        if (!destination) destination = await tx.product.create({ data: { tenantId: tenant, branchId: destinationBranchId, sku: source.sku, name: source.name, category: source.category, condition: source.condition, pricePyg: source.pricePyg, costPyg: source.costPyg, stock: 0 } })
+        if (!destination) destination = await tx.product.create({ data: { tenantId: tenant, branchId: destinationBranchId, sku: source.sku, name: source.name, category: source.category, stockKind: source.stockKind ?? classifyStockKind({ category: source.category }), condition: source.condition, pricePyg: source.pricePyg, costPyg: source.costPyg, stock: 0 } })
         if (destination.stock > INT_MAX - line.quantity) throw new Error('El stock de destino supera el límite permitido.')
         await changeStock(tx, { tenantId: tenant, productId: source.id, delta: -line.quantity, branchId: sourceBranchId, message: 'El stock cambió mientras se procesaba la transferencia.' })
         // #250 F1: si el origen quedó bajo el punto de reposición, la reposición

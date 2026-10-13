@@ -15,7 +15,7 @@ import { armarComprobante } from '../../../lib/orders'
 import { enforceRateLimit } from '../../../lib/rate-limit'
 import { serialKey } from '../../../lib/validation'
 import { lineDiscount as lineDiscountFor, warrantyDaysFor, resolveUnitPrice, unitPricePygFallback, PricingError } from '../../../lib/pricing'
-import { changeStock } from '../../../lib/stock'
+import { changeStock, linkSoldUnits } from '../../../lib/stock'
 import { crearDemandas, demandasDePedido, revisarMinimoDeStock } from '../../../lib/supply-demand'
 import { syncOrderItemSerials } from '../../../lib/order-serials'
 import { esCodigoDuplicado, nextOrderNumber } from '../../../lib/order-number'
@@ -690,6 +690,8 @@ export async function POST(request: Request) {
       // Espejo indexado de seriales (aunque la venta no tenga sucursal).
       const serialItems = await tx.orderItem.findMany({ where: { orderId: order.id }, select: { id: true, serials: true } })
       await syncOrderItemSerials(tx, serialItems)
+      // Cada unidad vendida queda enlazada a su línea de venta (dentro de la misma transacción).
+      await linkSoldUnits(tx, tenant, serialItems, order.createdAt)
       return tx.order.findUniqueOrThrow({ where: { id: order.id }, include: orderDetail })
     })
     // El código corto se calcula dentro de la transacción. Si otra venta ganó

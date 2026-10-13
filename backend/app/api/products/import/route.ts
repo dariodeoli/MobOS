@@ -7,6 +7,7 @@ import { IMPORT_MAX_FILAS, analizarImportacion } from '../../../../lib/product-i
 import type { ImportMode } from '../../../../lib/product-import'
 import type { SessionContext } from '../../../../lib/auth'
 import { numero, numeroOpcional } from '../../../../lib/montos'
+import { classifyStockKind } from '../../../../lib/stock-kind'
 
 const ID_MAX = 128
 
@@ -68,6 +69,7 @@ async function importar(tenant: string, session: SessionContext, body: any) {
             sku: datos.sku,
             name: datos.name || datos.sku,
             category: datos.category,
+            stockKind: classifyStockKind({ category: datos.category }),
             model: datos.model,
             color: datos.color,
             capacity: datos.capacity,

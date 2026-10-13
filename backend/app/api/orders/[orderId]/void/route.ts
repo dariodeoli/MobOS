@@ -4,7 +4,7 @@ import { requireSession } from '../../../../../lib/auth'
 import { InputError, objectInput, textInput } from '../../../../../lib/payment-input'
 import { canAccessOrder, canProcessOrderReturn } from '../../../../../lib/orders'
 import { consumeAuthorization, usableAuthorization } from '../../../../../lib/authorizations'
-import { changeStock } from '../../../../../lib/stock'
+import { changeStock, UNLINK_SOLD } from '../../../../../lib/stock'
 
 // Anulación total de un pedido: marca el pedido como CANCELLED, restituye al
 // stock las unidades serializadas que ya estaban vendidas y deja auditoría con
@@ -47,7 +47,7 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
           const units = await tx.inventoryUnit.findMany({ where: { tenantId: tenant, productId: item.productId, serial: { in: serials } }, select: { id: true, branchId: true, status: true } })
           for (const unit of units) {
             if (unit.status !== 'SOLD') continue
-            await tx.inventoryUnit.update({ where: { id: unit.id }, data: { status: 'AVAILABLE', reservedUntil: null, reservationCustomer: null, reservedById: null } })
+            await tx.inventoryUnit.update({ where: { id: unit.id }, data: { status: 'AVAILABLE', reservedUntil: null, reservationCustomer: null, reservedById: null, ...UNLINK_SOLD } })
             await changeStock(tx, { tenantId: tenant, productId: item.productId, delta: 1, branchId: unit.branchId, includeBranchless: true, message: 'No se pudo reponer el stock de la unidad anulada.' })
             restoredUnits += 1
           }

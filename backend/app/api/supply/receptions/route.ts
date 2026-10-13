@@ -2,7 +2,7 @@ import { PaymentCurrency } from '@prisma/client'
 import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { canAccessAny, requireSession } from '../../../../lib/auth'
-import { changeStock } from '../../../../lib/stock'
+import { changeStock, promoteToEquipo } from '../../../../lib/stock'
 import { costoPorUnidad, estadoLoteRecepcion, normalizarSeriales, RESULTADOS_INCIDENCIA, RESULTADOS_RECEPCION, resumenRecepcion } from '../../../../lib/supply'
 import { numeroOpcional } from '../../../../lib/montos'
 
@@ -245,6 +245,7 @@ export async function PATCH(request: Request) {
           branchId: recepcion.shipment.destinationBranchId,
           locationId: deposito.id,
           serial: item.serial,
+          purchaseLineId: linea.id,
           condition: linea.condition,
           costCurrency: costo.costCurrency as PaymentCurrency,
           costPyg: costo.costPyg,
@@ -253,6 +254,7 @@ export async function PATCH(request: Request) {
         },
       })
       creadas.push(unidad.id)
+      await promoteToEquipo(tx, tenant, item.productId)
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_RECEIVED', entity: 'InventoryUnit', entityId: unidad.id, metadata: { serial: item.serial, productId: item.productId, branchId: recepcion.shipment.destinationBranchId, locationId: deposito.id, envio: recepcion.shipment.code } } })
       await tx.supplyShipmentItem.update({ where: { id: esperado.id }, data: { status: 'RECIBIDO' } })
     }
