@@ -268,7 +268,7 @@ export default function AppShell({
         </nav>
         <div className="mt-auto flex min-w-0 flex-col gap-2 border-t border-ink-600 pt-3">
           <div data-testid="shell-sucursal-desktop">
-            <SelectorSucursal className="max-w-full" />
+            <SelectorSucursal className="max-w-full" abrirArriba />
           </div>
           {alertsButton()}
           {offlineButton('shell-cola-offline')}
