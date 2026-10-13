@@ -45,7 +45,7 @@ test('el cierre imprime apertura, cobros por medio, movimientos de la sesión, e
   assert.ok(texto.includes('Contado'))
   assert.ok(texto.includes('Gs 780.000'), 'contado')
   assert.ok(texto.includes('DIFERENCIA'))
-  assert.ok(texto.includes('Gs -20.000'), 'diferencia')
+  assert.ok(texto.includes('-Gs 20.000'), 'diferencia')
   assert.ok(texto.includes('Responsable del arqueo:'), 'firma del arqueo')
   assert.ok(texto.includes('Control:'), 'firma de control')
   assert.ok(texto.includes('Aclaración:'), 'aclaración para escribir a mano')
@@ -63,7 +63,7 @@ test('el cierre imprime apertura, cobros por medio, movimientos de la sesión, e
 test('la diferencia se calcula igual que la pantalla aunque no venga explícita', () => {
   const cierre = armarCierreCaja({ cash: { status: 'CLOSED', openingPyg: 100, expectedPyg: 300, countedPyg: 280 } })
   assert.equal(cierre.diferencia, -20)
-  assert.ok(ticketCierreCaja(cierre, { ancho: 58 }).lineas().join('').includes('Gs -20'))
+  assert.ok(ticketCierreCaja(cierre, { ancho: 58 }).lineas().join('').includes('-Gs 20'))
 })
 
 test('los cobros locales se agrupan por medio y DINERO es Efectivo', () => {

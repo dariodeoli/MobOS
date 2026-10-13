@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 import PieListado from './PieListado'
-import { CONSULTA_MD, useMediaQuery } from './useMediaQuery'
+import { CONSULTA_LG, CONSULTA_MD, CONSULTA_XL, useMediaQuery } from './useMediaQuery'
 
 // Listado denso reutilizable (docs/TABLAS.md · docs/PANTALLAS.md regla 8).
 // Dos modos sobre el mismo contrato (`lista` = usePaginaLista):
@@ -15,12 +15,16 @@ import { CONSULTA_MD, useMediaQuery } from './useMediaQuery'
 // Sin `renderCard`, la tarjeta sale de las columnas: la primera es el título y
 // el resto «etiqueta: valor».
 // `obtenerClave(fila, índice)` da la key de React; `alAbrir(fila)` vuelve la
-// fila un botón accionable por teclado.
+// fila un botón accionable por teclado. `atributosFila(fila, índice)` devuelve
+// atributos extra para el contenedor de la fila o tarjeta (p. ej. `data-testid`).
+// `desde` = 'md' (defecto) | 'lg' | 'xl': el punto desde el cual se dibuja la tabla;
+// las tablas con controles dentro de la fila (inputs, selects) usan 'lg' para
+// que a 768 sigan siendo tarjetas y los controles no se pisen.
 export default function ListaDensa({
-  lista, encabezado = null, renderFila, columns, renderCard, obtenerClave, alAbrir, etiquetaTabla = 'Listado',
+  lista, encabezado = null, renderFila, columns, renderCard, obtenerClave, alAbrir, atributosFila, desde = 'md', etiquetaTabla = 'Listado',
   className, claseFilas = 'space-y-1', testId, etiquetaPie, unidad,
 }) {
-  const esMd = useMediaQuery(CONSULTA_MD, true)
+  const esMd = useMediaQuery({ md: CONSULTA_MD, lg: CONSULTA_LG, xl: CONSULTA_XL }[desde] || CONSULTA_MD, true)
   if (!lista || !lista.total) return null
   const filas = lista.filas.map((fila, indice) => ({ fila, indice: lista.inicio + indice }))
   const clave = (fila, indice) => (obtenerClave ? obtenerClave(fila, indice) : indice)
@@ -50,6 +54,7 @@ export default function ListaDensa({
               key={clave(fila, indice)}
               role="row"
               data-fila
+              {...(atributosFila ? atributosFila(fila, indice) : null)}
               style={{ gridTemplateColumns: plantilla }}
               tabIndex={alAbrir ? 0 : undefined}
               onClick={alAbrir ? () => alAbrir(fila) : undefined}
@@ -71,7 +76,7 @@ export default function ListaDensa({
     cuerpo = (
       <ul data-testid={testId} aria-label={etiquetaTabla} className="space-y-2">
         {filas.map(({ fila, indice }) => (
-          <li key={clave(fila, indice)} data-fila>
+          <li key={clave(fila, indice)} data-fila {...(atributosFila ? atributosFila(fila, indice) : null)}>
             {renderCard ? renderCard(fila, indice) : (
               <div
                 role={alAbrir ? 'button' : undefined}

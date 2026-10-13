@@ -11,7 +11,7 @@ Regla viva del rediseño, hermana de `docs/CAMPOS.md`, `docs/TABLAS.md` y `docs/
 5. **Dos niveles de navegación como máximo.** N1 `SectionTabs` del shell; N2 control segmentado dentro de la barra de herramientas. Nunca una tercera fila de pestañas.
 6. **Las pestañas nunca son un `select` nativo.** Por debajo de `lg`, tira horizontal de pestañas de 44 px con degradé en los bordes; en escritorio van en línea y el excedente pasa a un popover «Más» medido.
 7. **La barra de herramientas es de la pestaña** (`shared/Toolbar`): búsqueda · filtros · vista · acción principal · Más. Una pestaña sin configuración no dibuja barra. `BarraModulo` es solo un shim de compatibilidad.
-8. **Tablas y listados** (`shared/ListaDensa` con `columns` + `renderCard`). Desde `md`, tabla en grilla que entra en 1280 sin scroll horizontal. Por debajo de `md`, una tarjeta por fila (título, meta, importe, estado; acciones en Más). Nada de `min-w` + `overflow-x` bajo `md`. Pie `PieListado` con paginador de 44 px.
+8. **Tablas y listados** (`shared/ListaDensa` con `columns` + `renderCard`). Desde `md`, tabla en grilla que entra en 1280 sin scroll horizontal. Por debajo de `md`, una tarjeta por fila (título, meta, importe, estado; acciones en Más). Nada de `min-w` + `overflow-x` bajo `md`. Pie `PieListado` con paginador de 44 px. `desde` (`md` por defecto, `lg` o `xl`) mueve el corte de tabla a tarjeta: las filas con controles adentro (inputs, selects) o con muchas columnas usan `lg`/`xl`; `atributosFila` agrega `data-testid` a la fila o tarjeta.
 9. **Formularios.** Valores compuestos en una fila con un solo borde (`shared/FieldRow`: prefijo, input, botón final). Etiqueta arriba, 44 px, máximo 640 px en escritorio y dos columnas desde `lg`.
 10. **Un solo chip de estado** (`shared/StatusChip` leyendo `lib/estados.js`): tonos `ok`/`warn`/`bad`/`neutral`, contraste ≥ 4.5 en claro y oscuro, `w-fit`. Un estado se muestra una sola vez por fila.
 11. **Estados vacíos** con `EmptyState` de owncoding-ui: ícono, una frase y una acción. Sin textos de depuración.
@@ -25,6 +25,7 @@ Regla viva del rediseño, hermana de `docs/CAMPOS.md`, `docs/TABLAS.md` y `docs/
 | `ListaDensa` (+ `PieListado`, `usePaginaLista`) | `components/shared/` | 8 |
 | `FieldRow` | `components/shared/FieldRow.jsx` | 9 |
 | `StatusChip` + `estados.js` | `components/shared/`, `lib/` | 10 |
+| `EstadoSelect` (estado editable con forma de chip) | `components/shared/EstadoSelect.jsx` | 10 (un solo control, nunca badge + select) |
 | `Stat` `compact` + `StatGrid` | `components/ui/index.jsx`, `components/shared/StatGrid.jsx` | 1, 2 (2 columnas en celular) |
 
 ## Aceptación común (QA-A)

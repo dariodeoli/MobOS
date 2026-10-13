@@ -41,9 +41,19 @@ const USD_FORMATTER = new Intl.NumberFormat('es-PY', {
   maximumFractionDigits: 2,
 })
 
-export function formatGs(value) {
+// Un monto negativo lleva el signo ANTES del símbolo y pegado a él («-Gs 50.000»),
+// igual que los montos con signo explícito de las pantallas («+Gs 50.000»): el
+// espacio queda solo entre el símbolo y los dígitos, sin hueco entre el signo y
+// la cifra (antes «Gs -50.000» parecía «Gs - 50.000» en tipografías de número).
+export function partesGs(value) {
   const amount = Number(value)
-  return `Gs ${GS_FORMATTER.format(Number.isFinite(amount) ? Math.round(amount) : 0)}`
+  const redondeado = Number.isFinite(amount) ? Math.round(amount) : 0
+  return { signo: redondeado < 0 ? '-' : '', simbolo: 'Gs', digitos: GS_FORMATTER.format(Math.abs(redondeado)) }
+}
+
+export function formatGs(value) {
+  const { signo, simbolo, digitos } = partesGs(value)
+  return `${signo}${simbolo} ${digitos}`
 }
 
 // Presentación editable: conserva solo dígitos y agrega separadores de miles.
