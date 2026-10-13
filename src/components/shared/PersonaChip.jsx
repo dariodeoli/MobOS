@@ -28,6 +28,7 @@ export default function PersonaChip({
   className,
   textoClassName,
   avatarClassName,
+  puntoClassName,
   children,
 }) {
   const fuente = typeof user === 'string' ? { name: user } : (user || {})
@@ -46,7 +47,7 @@ export default function PersonaChip({
           size={size}
           className={avatarClassName}
         />
-        {presencia ? <i aria-hidden className={cn('absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ring-1 ring-paper', presencia.punto)} /> : null}
+        {presencia ? <i aria-hidden className={cn('absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ring-1 ring-paper', presencia.punto, puntoClassName)} /> : null}
       </span>
       {nombre ? <span className={cn('min-w-0', CELDA_IDENTIDAD_GRANDE, textoClassName)}>{visible}</span> : null}
       {children ? <span className={CELDA_DATO}>{children}</span> : null}

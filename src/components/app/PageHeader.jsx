@@ -4,9 +4,10 @@ import Icon from '@/components/shared/Icon'
 // primary action on the same row, then at most one row of section tabs
 // (`children`). No kicker and no visible breadcrumb: the breadcrumb stays in
 // the DOM as screen-reader text so assistive tech and specs still read the
-// current section. Mirrors the owncoding-ui PageHeader props (title,
+// current section. `utilities` (desktop only) sits at the end of the title row:
+// bell and profile avatar. Mirrors the owncoding-ui PageHeader props (title,
 // subtitle, actions, backTo) so it can be swapped for the package one.
-export default function PageHeader({ title, subtitle, actions, backTo, breadcrumb = '', children }) {
+export default function PageHeader({ title, subtitle, actions, backTo, breadcrumb = '', utilities, children }) {
   return (
     <div className="px-4 pt-1 md:px-6 lg:pt-3">
       <nav data-testid="shell-breadcrumb" aria-label="Sección actual" className="sr-only">
@@ -26,7 +27,12 @@ export default function PageHeader({ title, subtitle, actions, backTo, breadcrum
           )}
           <h1 className="min-w-0 text-[22px] font-semibold leading-7 tracking-tight">{title}</h1>
         </div>
-        {actions}
+        {(actions || utilities) && (
+          <div className="flex min-w-0 items-center gap-2">
+            {actions}
+            {utilities && <div className="-my-2 hidden items-center gap-1 lg:flex">{utilities}</div>}
+          </div>
+        )}
       </div>
       {subtitle && <p className="text-sm text-mute">{subtitle}</p>}
       {children && <div className="mt-0 lg:mt-1">{children}</div>}

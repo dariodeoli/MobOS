@@ -244,3 +244,79 @@ test('demo notice is one line, in flow, dismissible per session and keeps Cómo 
   const m = await measureLayout(page)
   expect(m.hscroll).toBe(false)
 })
+
+for (const dark of [false, true]) {
+  for (const [width, height] of [
+    [1440, 900],
+    [1280, 900],
+    [390, 844],
+    [375, 812],
+  ]) {
+    test(`bell with badge and online avatar live in the header, sidebar footer has neither (${width} ${dark ? 'dark' : 'light'})`, async ({
+      page,
+    }, testInfo) => {
+      await mkdir(out, { recursive: true })
+      const mobile = width < 1024
+      await page.setViewportSize({ width, height })
+      await enterDemo(page)
+      await setTheme(page, dark)
+      const bell = page.getByTestId(mobile ? 'notificaciones-aviso-mobile' : 'notificaciones-aviso')
+      const avatar = page.getByTestId(mobile ? 'shell-perfil-mobile' : 'shell-perfil')
+      await expect(bell).toBeVisible()
+      await expect(avatar).toBeVisible()
+      for (const el of [bell, avatar]) {
+        const b = await el.boundingBox()
+        expect(b.width, 'target w').toBeGreaterThanOrEqual(44)
+        expect(b.height, 'target h').toBeGreaterThanOrEqual(44)
+      }
+      await expect(avatar).toHaveAttribute('aria-label', /en línea$/)
+      await expect(avatar.getByTestId('persona-chip')).toHaveAttribute('title', /en línea$/)
+      // Badge count equals the unread count announced by the label.
+      const label = await bell.getAttribute('aria-label')
+      const badge = bell.getByTestId('notificaciones-contador')
+      if (await badge.count()) {
+        const n = (await badge.textContent()).trim()
+        expect(label).toBe(`Notificaciones, ${n} sin leer`)
+      } else {
+        expect(label).toBe('Notificaciones')
+      }
+      if (mobile) {
+        const header = await page.getByTestId('shell-mobile-header').boundingBox()
+        expect(header.height).toBeLessThanOrEqual(64)
+        const sw = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
+        expect(sw, 'no horizontal scroll').toBe(true)
+        await page.getByTestId('shell-mas').click()
+        await expect(page.getByTestId('shell-mas-hoja').getByText('Notificaciones')).toHaveCount(0)
+        await page.keyboard.press('Escape')
+      } else {
+        const side = page.getByTestId('shell-lateral')
+        await expect(side.getByText('Notificaciones')).toHaveCount(0)
+        await expect(side.getByText(/en línea/i)).toHaveCount(0)
+        await expect(side.getByTestId('shell-perfil')).toHaveCount(0)
+        // Same row as the H1.
+        const h1 = await page.locator('h1').boundingBox()
+        const bb = await bell.boundingBox()
+        expect(Math.abs(h1.y + h1.height / 2 - (bb.y + bb.height / 2))).toBeLessThanOrEqual(12)
+        await openShellDestination(page, 'Unidades')
+        await settle(page)
+        const tabs = await page.getByTestId('shell-contexto').boundingBox()
+        expect(tabs.y + tabs.height, 'tabs end').toBeLessThanOrEqual(110)
+        if (width === 1440 && !dark) await page.screenshot({ path: `${out}/header-1440.png`, clip: { x: 232, y: 0, width: 1208, height: 140 } })
+      }
+      // Esc closes both popovers and returns focus to the trigger.
+      await avatar.click()
+      await expect(page.getByRole('dialog', { name: 'Perfil y preferencias' })).toBeVisible()
+      await page.keyboard.press('Escape')
+      await expect(page.getByRole('dialog', { name: 'Perfil y preferencias' })).toBeHidden()
+      await expect(avatar).toBeFocused()
+      await bell.click()
+      await expect(page.getByTestId('notificaciones-panel')).toBeVisible()
+      await page.keyboard.press('Escape')
+      await expect(page.getByTestId('notificaciones-panel')).toHaveCount(0)
+      const m = await expectLayoutContract(page, `header ${width} ${dark ? 'dark' : 'light'}`)
+      for (const kind of ['small', 'lowContrast'])
+        for (const item of m[kind].filter(entry => entry.shell))
+          testInfo.annotations.push({ type: kind, description: `${width} ${item.what}` })
+    })
+  }
+}
