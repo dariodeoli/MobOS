@@ -177,7 +177,7 @@ export default function FiltrosStock({
                 {fechas}
               </div>
             ) : null}
-            <div className="flex items-center justify-between gap-2 border-t border-ink-600 pt-3">
+            <div className="sticky -bottom-4 z-10 -mx-4 -mb-4 flex items-center justify-between gap-2 border-t border-ink-600 bg-ink px-4 py-3 sm:-bottom-6 sm:-mx-6 sm:-mb-6 sm:px-6">
               {limpiar || <span />}
               <button type="button" onClick={() => setHoja(false)} className="min-h-11 rounded-lg bg-fono px-4 text-sm font-semibold text-onbrand">Listo</button>
             </div>
