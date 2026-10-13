@@ -59,7 +59,7 @@ export default function CalendarioGanancias({ datos, serieApi, titulo, nota, seg
   const detalle = sel ? aplicarSeguro(gananciaDelDia(sel, datos, serieApi), seguroPct) : null
 
   return (
-    <Card>
+    <Card className="px-3 lg:px-4">
       {(titulo || nota) && (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           {titulo && <h3 className="font-semibold">{titulo}</h3>}
@@ -68,11 +68,11 @@ export default function CalendarioGanancias({ datos, serieApi, titulo, nota, seg
       )}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
         {/* Calendario compacto */}
-        <div className="w-full max-w-[300px] shrink-0">
+        <div className="w-full max-w-[22rem] shrink-0 lg:max-w-[300px]">
           <div className="flex items-center justify-between mb-2">
             <button
               onClick={() => irMes(-1)}
-              className="h-7 w-7 rounded-lg text-mute hover:bg-ink-700 font-bold"
+              className="h-11 w-11 rounded-lg text-mute hover:bg-ink-700 font-bold lg:h-7 lg:w-7"
               aria-label="Mes anterior"
             >
               ‹
@@ -82,14 +82,14 @@ export default function CalendarioGanancias({ datos, serieApi, titulo, nota, seg
             </span>
             <button
               onClick={() => irMes(1)}
-              className="h-7 w-7 rounded-lg text-mute hover:bg-ink-700 font-bold"
+              className="h-11 w-11 rounded-lg text-mute hover:bg-ink-700 font-bold lg:h-7 lg:w-7"
               aria-label="Mes siguiente"
             >
               ›
             </button>
           </div>
 
-          <div className="grid grid-cols-7 gap-0.5 mb-0.5">
+          <div className="grid grid-cols-7 gap-0 lg:gap-0.5 mb-0.5">
             {DIAS_SEMANA.map((d) => (
               <div key={d} className="text-center text-[10px] font-bold text-mute">
                 {d}
@@ -97,7 +97,7 @@ export default function CalendarioGanancias({ datos, serieApi, titulo, nota, seg
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-0.5">
+          <div className="grid grid-cols-7 gap-0 lg:gap-0.5">
             {celdas.map((c, i) =>
               c == null ? (
                 <div key={`v${i}`} />
@@ -106,7 +106,7 @@ export default function CalendarioGanancias({ datos, serieApi, titulo, nota, seg
                   key={c.clave}
                   onClick={() => setSel(sel === c.clave ? null : c.clave)}
                   className={
-                    'h-9 rounded-md border text-xs font-bold flex items-center justify-center transition ' +
+                    'h-11 lg:h-9 rounded-md border text-xs font-bold flex items-center justify-center transition ' +
                     ESTILO_DIA[c.estado] +
                     (c.clave === claveHoy ? ' ring-2 ring-fono' : '') +
                     (c.clave === sel ? ' ring-2 ring-fono' : '')

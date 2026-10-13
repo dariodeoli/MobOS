@@ -7,17 +7,33 @@ import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { CLAVES_FIN, rangoDePreset } from '@/lib/finUltimoUsado'
 import { gs } from '@/utils/calculos'
 import { fechaCorta, fechaHoraCorta } from '@/utils/fecha'
-import { CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
+import { CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import RangoFechas, { PRESETS, rangoDeParams } from '@/components/shared/RangoFechas'
-import { Aviso, Badge, Card, EmptyState, Skeleton } from '@/components/ui'
+import { Aviso, Card, EmptyState, Skeleton } from '@/components/ui'
+import ListaDensa from '@/components/shared/ListaDensa'
+import { usePaginaLista } from '@/components/shared/usePaginaLista'
+import StatusChip from '@/components/shared/StatusChip'
 import { cn } from '@/lib/utils'
+import './finanzasTactil.css'
 
 // #148 §18: ventas por caja — corte por sesión del período con lo que pasó por
 // cada turno (pedidos y ventas del responsable, efectivo cobrado, esperado,
 // contado y diferencia). Complementa la auditoría de efectivo con la mirada
 // por caja que pedía la spec.
-const GRID = 'grid min-w-[54rem] grid-cols-[minmax(0,1.4fr)_6.5rem_5rem_7.5rem_7.5rem_7.5rem_7.5rem_6.5rem] items-center gap-x-2'
-const COLUMNAS = ['Caja', 'Estado', 'Pedidos', 'Ventas', 'Efectivo', 'Esperado', 'Contado', 'Diferencia']
+const claseDiferencia = (diferencia) => cn('font-semibold tabular-nums', diferencia === null ? 'text-mute' : diferencia === 0 ? 'text-ok' : 'text-bad')
+const textoDiferencia = (diferencia) => (diferencia === null ? '—' : gs(diferencia))
+const textoContado = (sesion) => (sesion.contadoPyg === null ? '—' : gs(sesion.contadoPyg))
+const detalleDe = (sesion) => `${sesion.status === 'OPEN' ? `Abierta ${fechaHoraCorta(sesion.openedAt)}` : `${fechaCorta(sesion.openedAt)} · cerró ${fechaHoraCorta(sesion.closedAt)}`}${sesion.notes ? ` · ${sesion.notes}` : ''}`
+
+function Identidad({ sesion }) {
+  return (
+    <span className="block min-w-0">
+      <b className={cn('block', CELDA_IDENTIDAD)} title={sesion.openedByName || 'Sin responsable'}>{sesion.openedByName || 'Sin responsable'}</b>
+      <span className="mt-0.5 block truncate text-[11px] text-mute" title={detalleDe(sesion)}>{detalleDe(sesion)}</span>
+    </span>
+  )
+}
+const chipDe = (sesion) => <StatusChip dominio="caja" estado={sesion.status === 'OPEN' ? 'OPEN' : 'CLOSED'} />
 const treintaDias = () => ({ ...PRESETS.find((preset) => preset.id === '30d').calc(), preset: '30d' })
 
 export default function VentasPorCaja() {
@@ -27,6 +43,7 @@ export default function VentasPorCaja() {
   const [sesiones, setSesiones] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  const lista = usePaginaLista(sesiones || [], { tamano: { compacto: 5, amplio: 15 } })
 
   const cambiarRango = useCallback((next) => {
     setRango(next)
@@ -56,7 +73,7 @@ export default function VentasPorCaja() {
   useEffect(() => { cargar() }, [cargar])
 
   return (
-    <Card className="space-y-3">
+    <Card className="finanzas-tactil space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h2 className="font-bold">Ventas por caja</h2>
@@ -73,39 +90,49 @@ export default function VentasPorCaja() {
         <EmptyState compact icon="wallet" title="Sin cajas en el período" description="Cuando abras un turno de caja va a aparecer acá con su corte." />
       )}
       {!cargando && sesiones?.length > 0 && (
-        <div className="overflow-x-auto" data-testid="ventas-por-caja-tabla">
-          <div className={cn(GRID, 'px-3.5 pb-2 pt-1')}>
-            {COLUMNAS.map((columna, indice) => (
-              <span key={columna} className={cn(CELDA_ENCABEZADO, indice >= 2 && 'text-right')}>{columna}</span>
-            ))}
-          </div>
-          <div className="space-y-1">
-            {sesiones.map((sesion) => {
-              const abierta = sesion.status === 'OPEN'
-              const diferencia = sesion.diferenciaPyg
-              return (
-                <div key={sesion.id} data-testid="ventas-por-caja-fila" className={cn(GRID, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2')}>
-                  <span className="min-w-0">
-                    <b className={cn('block', CELDA_IDENTIDAD)}>{sesion.openedByName || 'Sin responsable'}</b>
-                    <span className="mt-0.5 block truncate text-[11px] text-mute">
-                      {abierta ? `Abierta ${fechaHoraCorta(sesion.openedAt)}` : `${fechaCorta(sesion.openedAt)} · cerró ${fechaHoraCorta(sesion.closedAt)}`}
-                      {sesion.notes ? ` · ${sesion.notes}` : ''}
-                    </span>
-                  </span>
-                  <span className="justify-self-start"><Badge color={abierta ? 'green' : 'slate'}>{abierta ? 'Abierta' : 'Cerrada'}</Badge></span>
-                  <span className="truncate text-right text-xs tabular-nums text-mute">{sesion.pedidos}</span>
-                  <span className="truncate text-right text-xs tabular-nums text-mute">{gs(sesion.ventasPyg)}</span>
-                  <span className="truncate text-right text-xs tabular-nums text-fore">{gs(sesion.efectivoPyg)}</span>
-                  <span className="truncate text-right text-xs tabular-nums text-mute">{gs(sesion.esperadoPyg)}</span>
-                  <span className="truncate text-right text-xs tabular-nums text-mute">{sesion.contadoPyg === null ? '—' : gs(sesion.contadoPyg)}</span>
-                  <span className={cn('truncate text-right text-xs font-semibold tabular-nums', diferencia === null ? 'text-mute' : diferencia === 0 ? 'text-ok' : 'text-bad')}>
-                    {diferencia === null ? '—' : gs(diferencia)}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
+        <ListaDensa
+          lista={lista}
+          testId="ventas-por-caja-tabla"
+          etiquetaTabla="Ventas por caja"
+          etiquetaPie="Páginas de cajas"
+          unidad="cajas"
+          desde="xl"
+          obtenerClave={(sesion) => sesion.id}
+          atributosFila={() => ({ 'data-testid': 'ventas-por-caja-fila' })}
+          columns={[
+            { key: 'caja', header: 'Caja', ancho: 'minmax(0,1.4fr)', cell: (sesion) => <Identidad sesion={sesion} /> },
+            { key: 'estado', header: 'Estado', ancho: '5.5rem', cell: chipDe },
+            { key: 'pedidos', header: 'Pedidos', ancho: '4rem', align: 'right', className: 'text-xs text-mute', cell: (sesion) => sesion.pedidos },
+            { key: 'ventas', header: 'Ventas', ancho: '6.5rem', align: 'right', className: 'text-xs text-mute', cell: (sesion) => gs(sesion.ventasPyg) },
+            { key: 'efectivo', header: 'Efectivo', ancho: '6.5rem', align: 'right', className: 'text-xs text-fore', cell: (sesion) => gs(sesion.efectivoPyg) },
+            { key: 'esperado', header: 'Esperado', ancho: '6.5rem', align: 'right', className: 'text-xs text-mute', cell: (sesion) => gs(sesion.esperadoPyg) },
+            { key: 'contado', header: 'Contado', ancho: '6.5rem', align: 'right', className: 'text-xs text-mute', cell: textoContado },
+            { key: 'diferencia', header: 'Diferencia', ancho: '6.5rem', align: 'right', className: 'text-xs', cell: (sesion) => <span className={claseDiferencia(sesion.diferenciaPyg)}>{textoDiferencia(sesion.diferenciaPyg)}</span> },
+          ]}
+          renderCard={(sesion) => (
+            <div className="rounded-xl border border-ink-600 bg-ink-800/40 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1"><Identidad sesion={sesion} /></div>
+                {chipDe(sesion)}
+              </div>
+              <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[13px]">
+                {[
+                  ['Ventas', gs(sesion.ventasPyg), 'text-fore'],
+                  ['Efectivo', gs(sesion.efectivoPyg), 'text-fore'],
+                  ['Esperado', gs(sesion.esperadoPyg), 'text-mute'],
+                  ['Contado', textoContado(sesion), 'text-mute'],
+                  ['Diferencia', textoDiferencia(sesion.diferenciaPyg), claseDiferencia(sesion.diferenciaPyg)],
+                  ['Pedidos', sesion.pedidos, 'text-mute'],
+                ].map(([rotulo, valor, tono]) => (
+                  <div key={rotulo} className="min-w-0">
+                    <dt className="text-[11px] text-mute">{rotulo}</dt>
+                    <dd className={cn('break-words tabular-nums', tono)}>{valor}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
+        />
       )}
       {!cargando && !esDemo && sesiones?.length > 0 && (
         <p className="text-[11px] text-mute">Las cajas cerradas conservan el esperado auditado al cierre; la abierta se calcula en vivo.</p>

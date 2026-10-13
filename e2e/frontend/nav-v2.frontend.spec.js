@@ -3041,7 +3041,7 @@ for (const width of reconciliationWidths) {
       const rows = root.getByTestId('conciliacion-fila')
       await expect(rows).toHaveCount(width < 1100 ? 2 : 4)
       await expect(rows.nth(0).locator('[data-label="Monto"]')).toHaveText('Gs 100.000.000')
-      await expect(rows.nth(1).locator('[data-label="Monto"]')).toHaveText('Gs -100.000.000')
+      await expect(rows.nth(1).locator('[data-label="Monto"]')).toHaveText('-Gs 100.000.000')
       if (width < 1100) await root.getByRole('button', { name: 'Siguiente', exact: true }).click()
       const refund = rows.filter({ hasText: 'QA-REFUND' })
       const verified = rows.filter({ hasText: 'QA-VERIFIED' })
@@ -3055,7 +3055,7 @@ for (const width of reconciliationWidths) {
       await expect(root.getByRole('button', { name: 'Conciliar lote', exact: true })).toBeDisabled()
       await expect(root.getByText('+Gs 100.000.000', { exact: true })).toBeVisible()
       await root.getByLabel('Monto recibido', { exact: true }).fill('0')
-      await expect(root.getByText('Gs -100.000.000', { exact: true }).last()).toBeVisible()
+      await expect(root.getByText('-Gs 100.000.000', { exact: true }).last()).toBeVisible()
       await root.getByRole('button', { name: 'Mostrar Cuentas del período' }).click()
       for (const cell of await reconciliationMetrics(page))
         expect(cell.scroll, cell.text).toBeLessThanOrEqual(cell.width + 1)
@@ -3352,7 +3352,9 @@ for (const dark of [false, true]) {
     expect(boxes[2].top).toBeGreaterThan(boxes[0].top)
     expect(boxes[1].left).toBeGreaterThan(boxes[0].left)
     await expect(kpis.nth(0).locator('.conciliacion-f5-digits')).toHaveText('100.000.000')
-    await expect(kpis.nth(3).locator('.conciliacion-f5-digits')).toHaveText('-100.000.000')
+    // El signo va pegado al símbolo («-Gs 100.000.000»); los dígitos quedan enteros.
+    await expect(kpis.nth(3).locator('.conciliacion-f5-digits')).toHaveText('100.000.000')
+    await expect(kpis.nth(3).locator('strong')).toHaveText('-Gs 100.000.000')
     await writeFile(
       `${reconciliationOutput}/kpi-stress-390-${dark ? 'dark' : 'light'}-metrics.json`,
       JSON.stringify(

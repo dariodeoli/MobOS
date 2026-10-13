@@ -10,6 +10,8 @@ import { Aviso, Badge, Button, Card, EmptyState, Modal, useToast } from '@/compo
 import Icon from '@/components/shared/Icon'
 import PagosPedido from '@/components/ventas/PagosPedido'
 import { cn } from '@/lib/utils'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+import './finanzasTactil.css'
 import { temaV2Activo } from '@/lib/temaV2'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 
@@ -79,11 +81,11 @@ export default function Cobranzas() {
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <b className="text-[13px] tabular-nums text-fore" data-testid="cuota-saldo">{gs(row.saldoPendientePyg)}</b>
-          <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => setDetalle(row)}>Ver mensaje</Button>
+          <Button type="button" variant="outline" className="min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2" onClick={() => setDetalle(row)}>Ver mensaje</Button>
           {row.whatsappUrl
-            ? <button type="button" disabled={Boolean(enviando)} onClick={() => recordar(row)} className={cn('rounded-lg bg-ok px-3 py-2 text-xs font-semibold text-black transition disabled:opacity-50')}>{enviando === row.id ? 'Registrando…' : row.avisadoEn ? 'Reenviar WhatsApp' : 'WhatsApp'}</button>
+            ? <button type="button" disabled={Boolean(enviando)} onClick={() => recordar(row)} className={cn('min-h-11 rounded-lg bg-ok px-3 py-2 text-xs font-semibold text-on-ok transition disabled:opacity-50 lg:min-h-0')}>{enviando === row.id ? 'Registrando…' : row.avisadoEn ? 'Reenviar WhatsApp' : 'WhatsApp'}</button>
             : <span className="text-xs text-mute">Sin WhatsApp</span>}
-          <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => abrirPedido(row)}>Abrir pedido</Button>
+          <Button type="button" variant="outline" className="min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2" onClick={() => abrirPedido(row)}>Abrir pedido</Button>
         </div>
       </article>
     )
@@ -92,7 +94,7 @@ export default function Cobranzas() {
   const montoDe = (filas) => filas.reduce((suma, fila) => suma + Number(fila.saldoPendientePyg || 0), 0)
 
   return (
-    <div className="space-y-4">
+    <div className="finanzas-tactil space-y-4">
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -100,9 +102,9 @@ export default function Cobranzas() {
             <p className="mt-1 text-sm text-mute">Recordá las cuotas vencidas y próximas con la plantilla de <b className="text-fore">Cobranzas</b>. Cada cuota se avisa una sola vez por WhatsApp y queda en la cronología del cliente y del pedido. La plantilla se edita en <a className="text-fono-light underline" href="/plantillas">Plantillas de WhatsApp</a>.</p>
             <p className="mt-1 text-xs text-mute">{moraPct > 0 ? `Recargo por mora configurado: ${moraPct}% por día (tope 20%).` : 'Sin recargo por mora configurado: solo se informan los días de atraso.'}</p>
           </div>
-          <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={cargar}>Actualizar</Button>
+          <Button type="button" variant="outline" className="min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2" onClick={cargar}>Actualizar</Button>
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-4" data-testid="cuotas-resumen">
+        <div className={`mt-4 ${GRILLA_DOS_COLUMNAS} xl:grid-cols-4`} data-testid="cuotas-resumen">
           <div className={cn('rounded-xl border border-warn/30 bg-warn/5 p-3', v2 && 'v2-tile')} data-testid="cuotas-pendiente"><p className="text-xs text-mute">Pendiente total</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{gs(resumen.pendientePyg)}</strong></div>
           <div className={cn('rounded-xl border border-bad/25 bg-bad/5 p-3', v2 && 'v2-tile')} data-testid="cuotas-vencidas"><p className="text-xs text-mute">Vencidas</p><strong className={cn('mt-1 block tabular-nums text-bad', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{vencidas.length}</strong><span className="mt-0.5 block text-[11px] text-mute">{gs(montoDe(vencidas))}</span></div>
           <div className={cn('rounded-xl border border-ink-600 p-3', v2 && 'v2-tile')} data-testid="cuotas-proximas"><p className="text-xs text-mute">Próximas</p><strong className={cn('mt-1 block tabular-nums', v2 ? 'v2-numero text-2xl' : 'text-lg')}>{proximas.length}</strong><span className="mt-0.5 block text-[11px] text-mute">{gs(montoDe(proximas))}</span></div>
