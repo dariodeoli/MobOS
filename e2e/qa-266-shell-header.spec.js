@@ -22,14 +22,15 @@ test('el header bloquea con el candado y el chip lleva a Mi perfil', async ({ pa
   await expect(page.getByTestId('menu-acciones-lista')).toHaveCount(0)
   await expect(page.getByTestId('shell-mi-cuenta')).toHaveCount(0)
 
-  // El chip muestra el nombre completo de la sesión y la foto.
+  // El chip es la foto (o iniciales) con el estado en línea; el nombre completo
+  // vive en su etiqueta accesible y en el título del chip.
   const sesion = await page.evaluate(async (api) => {
     const respuesta = await fetch(`${api}/api/auth/me`, { credentials: 'include' })
     return (await respuesta.json())?.user || {}
   }, API)
   const nombre = String(sesion?.user_metadata?.nombre || sesion?.name || SEED.admin.name)
   const chip = page.getByTestId('shell-perfil')
-  await expect(chip).toContainText(nombre)
+  await expect(chip.getByTestId('persona-chip')).toHaveAttribute('title', new RegExp(nombre))
   await expect(chip).toHaveAttribute('aria-label', new RegExp(`Abrir perfil de ${nombre}`))
   await expect(chip.locator('[data-testid="persona-chip"] img, [data-testid="persona-chip"] span').first()).toBeVisible()
 

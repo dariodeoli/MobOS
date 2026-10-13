@@ -136,7 +136,7 @@ const MODULOS_OWNER = [
   ['/resumen', 'Inicio'],
   ['/analisis', 'Reportes'],
   ['/finanzas', 'Caja'],
-  ['/configuracion', 'Mi cuenta'],
+  ['/configuracion', 'Organización'],
   ['/configuracion/organizacion', 'Organización'],
   ['/configuracion/equipo', 'Equipo y acceso'],
   ['/configuracion/comercial', 'Comercial'],

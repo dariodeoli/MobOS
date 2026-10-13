@@ -41,7 +41,19 @@ test('clientes: acciones de fila, chips y lote con área táctil ≥44 px', asyn
   await expect(lista).toBeVisible({ timeout: 20000 })
 
   // H2 · acciones por fila (la primera fila con acciones cargadas).
-  const fila = page.getByTestId('cliente-fila').filter({ has: page.getByRole('button', { name: /Resumen rápido de/ }) }).first()
+  // La fila elegida tiene que ofrecer «Enviar WhatsApp»: sin teléfono el menú no lo muestra,
+  // y qué cliente queda primero depende de lo que crearon las specs anteriores.
+  const conAcciones = page.getByTestId('cliente-fila').filter({ has: page.getByRole('button', { name: /Resumen rápido de/ }) })
+  await expect(conAcciones.first()).toBeVisible({ timeout: 20000 })
+  let fila = conAcciones.first()
+  const candidatas = Math.min(await conAcciones.count(), 15)
+  for (let i = 0; i < candidatas; i++) {
+    const candidata = conAcciones.nth(i)
+    await candidata.getByRole('button', { name: /Más acciones de/ }).first().click()
+    const ofreceWhatsApp = await page.getByRole('menu', { name: /Acciones de/ }).first().getByRole('menuitem', { name: /Enviar WhatsApp a/ }).count()
+    await page.keyboard.press('Escape')
+    if (ofreceWhatsApp) { fila = candidata; break }
+  }
   await expect(fila).toBeVisible({ timeout: 20000 })
   await medir(page, 'Resumen rápido', fila.getByRole('button', { name: /Resumen rápido de/ }).first())
   await medir(page, 'Menú de acciones', fila.getByRole('button', { name: /Más acciones de/ }).first())

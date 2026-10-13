@@ -96,7 +96,8 @@ async function enterShellSection(page, primary, section) {
     return
   }
   const more = page.getByTestId('shell-mas')
-  if (await more.count()) {
+  // «Más» es de la barra inferior (móvil): en escritorio el menú lateral lista todo.
+  if (await more.count() && await more.isVisible()) {
     await more.click()
     await page
       .getByTestId('shell-mas-hoja')
@@ -185,7 +186,7 @@ export async function openShellDestination(page, label) {
   // Level 2 (segmented) exists only for groups with several destinations.
   const segments = page.getByTestId('shell-subcontexto')
   // Precios pone su segundo nivel en la barra de la vista (carga perezosa): esperar la fila.
-  if (group === 'precios') await segments.waitFor({ state: 'attached' })
+  if (group === 'precios') await segments.waitFor({ state: 'attached', timeout: 5000 }).catch(() => {})
   if (await segments.count()) await clickTab(segments, destination)
 }
 // In-page sections (Análisis, Finanzas, Configuración) are SectionTabs: tabs
@@ -215,6 +216,7 @@ export const selectConfigSection = (page, label) =>
 // Sections with one destination show no tabs: the catalog label is the section's.
 const SINGLE_SECTION_LABEL = {
   Inicio: 'Inicio',
+  Vender: 'Nueva venta',
   Finanzas: 'Finanzas',
   Análisis: 'Análisis',
   Configuración: 'Configuración',
@@ -227,7 +229,8 @@ export async function shellCatalog(page) {
     .map(s => s.trim())
     .filter(s => s && s !== 'Más')
   const more = page.getByTestId('shell-mas')
-  if (await more.count()) {
+  // «Más» es de la barra inferior (móvil): en escritorio el menú lateral lista todo.
+  if (await more.count() && await more.isVisible()) {
     await more.click()
     const sheet = page.getByTestId('shell-mas-hoja')
     const extra = (await sheet.getByRole('button').allTextContents()).map(s => s.trim())
@@ -257,7 +260,7 @@ export async function shellCatalog(page) {
       }
       await clickTab(context, group)
       const segments = page.getByTestId('shell-subcontexto')
-      if (group === 'precios') await segments.waitFor({ state: 'attached' })
+      if (group === 'precios') await segments.waitFor({ state: 'attached', timeout: 5000 }).catch(() => {})
       if (await segments.count()) for (const id of await tabIds(segments)) destinations.add(label(id))
       else
         destinations.add(

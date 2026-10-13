@@ -34,7 +34,8 @@ test('mobile 390: los targets de la tarjeta y la ficha llegan a 44', async ({ pa
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/stock/unidades')
   // #304: en móvil el listado son tarjetas compactas (la tabla ancha no va).
-  const tarjeta = page.getByTestId('inventario-tarjeta-movil').first()
+  // La lista de Stock es unificada (productos + unidades): la ficha con PhoneCheck es la de una unidad.
+  const tarjeta = page.locator('[data-testid="inventario-tarjeta-movil"][data-kind="unit"]').first()
   await expect(tarjeta).toBeVisible({ timeout: 20_000 })
   await expect(page.getByTestId('inventario-tabla')).toHaveCount(0)
 

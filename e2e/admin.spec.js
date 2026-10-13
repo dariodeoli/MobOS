@@ -346,7 +346,7 @@ test.describe('owner panel', () => {
     await page.goto('/servicio')
     // Sección unificada (#224): el taller es una de sus solapas.
     await expect(page.getByRole('heading', { name: 'Taller', level: 1 })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Servicio', exact: true })).toBeVisible()
+    await expect(page.getByRole('group', { name: 'Ver taller o garantías' }).getByRole('button', { name: 'Servicio', exact: true })).toBeVisible()
 
     const stamp = Date.now().toString(36)
     const cliente = `Taller ${stamp}`
@@ -502,7 +502,7 @@ test.describe('owner panel', () => {
     await expect(page.getByRole('heading', { name: 'Cerrar caja' })).toBeVisible()
     // La tabla nueva de Ventas por caja también muestra un badge "Abierta":
     // se escopa al estado de la sesión (el <strong> del encabezado de caja).
-    await expect(page.getByRole('strong').filter({ hasText: 'Abierta' })).toBeVisible()
+    await expect(page.getByTestId('caja-estado').filter({ hasText: 'Abierta' })).toBeVisible()
   })
 })
 
