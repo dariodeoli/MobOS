@@ -74,13 +74,16 @@
   text-transform: none;
   letter-spacing: normal;
 }
-.pos-product-card > span {
-  width: 100%;
+/* Catálogo denso: nombre en 2 líneas, precio y stock en una, sin tile de icono. */
+.pos-product-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
-.pos-product-card > span:first-child {
-  width: 48px;
-  background: rgb(var(--c-ink-700));
-  color: rgb(var(--c-mute));
+.pos-product-card {
+  min-height: 44px;
 }
 .shell-nav-v2 .pos-f2 [data-testid='carrito-total'] {
   font-size: 24px;
@@ -102,8 +105,10 @@
   .inicio-kpi-value {
     font-size: 26px;
   }
+}
+@media (min-width: 1024px) {
   .pos-product-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
 }
 
@@ -135,16 +140,37 @@
   border-color: rgb(var(--c-ink-600));
 }
 
-/* The shell already owns the page title; the module toolbar only holds actions. */
-.shell-nav-v2 [data-testid='barra-pos'] > div:first-child {
+/* The shell already owns the page title; the module toolbar only holds actions
+   and lives inside the Productos header (no band of its own). */
+[data-testid='barra-pos'] > div:first-child {
   display: none;
 }
-.shell-nav-v2 [data-testid='barra-pos'] {
+[data-testid='barra-pos'] {
   justify-content: flex-end;
 }
 /* With the title hidden the actions sit at the right edge on phones too, so the
    absolutely positioned "Más" menu (right-0) opens inside the viewport. */
-.shell-nav-v2 [data-testid='barra-pos'] > div:last-child {
+[data-testid='barra-pos'] > div:last-child {
   justify-content: flex-end;
   margin-left: auto;
+}
+[data-testid='barra-pos'] summary,
+[data-testid='barra-pos'] button {
+  min-height: 44px;
+}
+@media (min-width: 768px) {
+  [data-testid='barra-pos'] summary,
+  [data-testid='barra-pos'] button {
+    min-height: 36px;
+  }
+}
+
+/* Cliente: el resultado del RUC es una tarjeta compacta, no una columna alta. */
+[data-testid='pos-bloque-cliente'] [role='status'].rounded-xl {
+  gap: 4px 12px;
+  padding: 8px 10px;
+}
+[data-testid='pos-bloque-cliente'] [role='status'].rounded-xl > button {
+  min-height: 44px;
+  white-space: nowrap;
 }

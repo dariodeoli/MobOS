@@ -1789,72 +1789,72 @@ export default function FormularioVenta({
     return () => document.removeEventListener('keydown', onKey)
   })
 
-  return (
-    <Card className="p-4 md:p-5">
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-b border-ink-600 pb-4">
-        {/* Composición compacta (#256): una sola barra con la identidad del
-            módulo, la fecha y las acciones juntas; el título sigue siendo un h2
-            para los tests y lectores, sin el bloque grande duplicado. */}
-        <BarraModulo
-          titulo="Nueva venta"
-          testId="barra-pos"
-        >
-          {/* #309: las herramientas del POS (gift cards, analytics y ventas
-              suspendidas) viven en «Más» para no llenar la barra del módulo.
-              Suspender la venta en curso queda a mano, junto al carrito. */}
-          <details ref={refHerramientas} className="relative">
-            <summary data-testid="pos-mas" className="inline-flex h-11 cursor-pointer list-none select-none items-center gap-2 rounded-lg border border-ink-500 px-4 text-sm font-semibold transition hover:border-fono hover:bg-fono/10 md:h-9 [&::-webkit-details-marker]:hidden">
-              <Icon name="menu" className="h-4 w-4" />
-              Más
-            </summary>
-            <div
-              role="menu"
-              aria-label="Herramientas de la venta"
-              className="absolute left-0 z-30 mt-1 w-60 max-w-[calc(100vw-2rem)] rounded-xl sm:left-auto sm:right-0 border border-ink-600 bg-ink-800 p-1 shadow-xl"
-            >
-              <button
-                type="button"
-                role="menuitem"
-                className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-mute transition hover:bg-ink-700 hover:text-fore md:min-h-0"
-                onClick={() => { cerrarHerramientas(); setGiftCardsOpen(true) }}
-              >
-                <Icon name="card" className="h-4 w-4" />
-                Gift cards
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-mute transition hover:bg-ink-700 hover:text-fore md:min-h-0"
-                onClick={() => { cerrarHerramientas(); setAnalyticsOpen(true) }}
-              >
-                <Icon name="chart" className="h-4 w-4" />
-                Analytics
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-mute transition hover:bg-ink-700 hover:text-fore md:min-h-0"
-                onClick={() => { cerrarHerramientas(); abrirSuspendidas() }}
-              >
-                <Icon name="clock" className="h-4 w-4" />
-                Ventas suspendidas
-              </button>
-            </div>
-          </details>
-          {items.length > 0 && (
-            <Button
+  // Las herramientas del POS viven en el encabezado del bloque Productos: sin
+  // una franja propia sobre la grilla.
+  const barraPos = (
+      <BarraModulo
+        titulo="Nueva venta"
+        testId="barra-pos"
+        className="w-auto justify-end border-b-0 pb-0"
+      >
+        {/* #309: las herramientas del POS (gift cards, analytics y ventas
+            suspendidas) viven en «Más» para no llenar la barra del módulo.
+            Suspender la venta en curso queda a mano, junto al carrito. */}
+        <details ref={refHerramientas} className="relative">
+          <summary data-testid="pos-mas" className="inline-flex h-11 cursor-pointer list-none select-none items-center gap-2 rounded-lg border border-ink-500 px-4 text-sm font-semibold transition hover:border-fono hover:bg-fono/10 md:h-9 [&::-webkit-details-marker]:hidden">
+            <Icon name="menu" className="h-4 w-4" />
+            Más
+          </summary>
+          <div
+            role="menu"
+            aria-label="Herramientas de la venta"
+            className="absolute left-0 z-30 mt-1 w-60 max-w-[calc(100vw-2rem)] rounded-xl sm:left-auto sm:right-0 border border-ink-600 bg-ink-800 p-1 shadow-xl"
+          >
+            <button
               type="button"
-              variant="outline"
-              onClick={abrirSuspender}
-              disabled={guardando}
+              role="menuitem"
+              className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-mute transition hover:bg-ink-700 hover:text-fore md:min-h-0"
+              onClick={() => { cerrarHerramientas(); setGiftCardsOpen(true) }}
             >
-              <Icon name="save" className="h-4 w-4" />
-              Suspender venta
-            </Button>
-          )}
-        </BarraModulo>
-      </div>
+              <Icon name="card" className="h-4 w-4" />
+              Gift cards
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-mute transition hover:bg-ink-700 hover:text-fore md:min-h-0"
+              onClick={() => { cerrarHerramientas(); setAnalyticsOpen(true) }}
+            >
+              <Icon name="chart" className="h-4 w-4" />
+              Analytics
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-mute transition hover:bg-ink-700 hover:text-fore md:min-h-0"
+              onClick={() => { cerrarHerramientas(); abrirSuspendidas() }}
+            >
+              <Icon name="clock" className="h-4 w-4" />
+              Ventas suspendidas
+            </button>
+          </div>
+        </details>
+        {items.length > 0 && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={abrirSuspender}
+            disabled={guardando}
+          >
+            <Icon name="save" className="h-4 w-4" />
+            Suspender venta
+          </Button>
+        )}
+      </BarraModulo>
+  )
 
+  return (
+    <Card className="p-3 md:p-4">
       {ok && (
         <Aviso tono="ok" como="div" aria-live="polite" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl p-4">
           <span className="grid h-9 w-9 shrink-0 animate-pulse place-items-center rounded-full bg-ok/20">
@@ -1985,7 +1985,7 @@ export default function FormularioVenta({
         </div>
 
         {/* Operación (cliente + buscador + productos) | carrito y cobro. */}
-        <div className="pos-layout grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(380px,440px)]">
+        <div className="pos-layout grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,400px)]">
           <div className="flex min-w-0 flex-col gap-4">
             <PasoProductos
               sesion={sesion}
@@ -2021,6 +2021,7 @@ export default function FormularioVenta({
               variantePara={variantePara}
               onElegirVariante={(familia, opciones) => elegirVariante(familia, opciones)}
               onCerrarVariante={() => setVariantePara(null)}
+              acciones={barraPos}
             />
 
             {/* Atajos al pie de la operación (en pantallas angostas no se muestran). */}
