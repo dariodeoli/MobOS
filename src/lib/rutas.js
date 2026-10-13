@@ -16,7 +16,8 @@ export const RUTA_DE_VISTA = {
   plantillas: '/plantillas',
   cotizador: '/trade-in',
   'tradein-admin': '/trade-in',
-  inventario: '/inventario',
+  // Stock absorbió Inventario (/inventario/* redirige a /stock/*).
+  inventario: '/stock',
   compras: '/compras',
   // Abastecimiento F1 (#250/#254): panel «Por comprar».
   abastecimiento: '/abastecimiento',
@@ -83,7 +84,7 @@ export const DESTINO_LEGADO = {
   tradein: '/trade-in',
   // #251: el menú dice «Inicio»; /resumen sigue siendo la ruta canónica.
   inicio: '/resumen',
-  inventario: '/inventario',
+  inventario: '/stock',
   compras: '/compras',
   abastecimiento: '/abastecimiento',
   'compras-centro': '/compras-centro',
