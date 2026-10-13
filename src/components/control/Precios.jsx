@@ -236,11 +236,12 @@ export default function Precios() {
     <BarraModulo
       icono="tag"
       titulo="Precios"
-      descripcion="Listas por cliente y precios por cantidad. El POS resuelve el mejor precio; la lista asignada gana sobre mayorista y minorista."
+      descripcion="Listas por cliente y precios por cantidad."
       testId="barra-precios"
     >
       <Button type="button" onClick={() => abrirLista()} disabled={busy}>+ Nueva lista</Button>
     </BarraModulo>
+    <p className="text-sm text-mute">El POS resuelve el mejor precio; la lista asignada gana sobre mayorista y minorista.</p>
 
     <Card className="space-y-3">
       <div>

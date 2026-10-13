@@ -225,18 +225,20 @@ const TABS_INVENTARIO = [
 const SUBPAGINAS = {
   configuracion: {
     // `vista` es el id de navegación que habilita el acceso (OWNER_NAV);
-    // la pestaña por defecto sigue siendo la primera del listado (mi-cuenta).
+    // la pestaña por defecto es la primera del listado (organizacion).
     vista: 'equipo',
     tabs: [
-      // IA (#251): siete secciones, sin duplicar. Los slugs viejos
-      // redirigen a su sección nueva (REDIRECCIONES_CONFIG).
-      ['mi-cuenta', 'Mi cuenta'],
+      // IA (#251): siete secciones, sin duplicar, ordenadas por frecuencia de
+      // uso (negocio y equipo primero, la cuenta personal al final: se abre
+      // también desde el perfil). Los slugs viejos redirigen a su sección
+      // nueva (REDIRECCIONES_CONFIG).
       ['organizacion', 'Organización'],
       ['equipo', 'Equipo y acceso'],
+      ['dispositivos', 'Impresión y dispositivos'],
       ['comercial', 'Comercial'],
       ['seguridad', 'Seguridad y auditoría'],
-      ['dispositivos', 'Dispositivos'],
       ['sistema', 'Sistema'],
+      ['mi-cuenta', 'Mi cuenta'],
     ],
   },
   // Ayuda vive fuera de Configuración: se entra desde el shell (Documentación).
@@ -314,7 +316,7 @@ const LABELS = {
   organizacion: 'Organización',
   comercial: 'Comercial',
   seguridad: 'Seguridad y auditoría',
-  dispositivos: 'Dispositivos',
+  dispositivos: 'Impresión y dispositivos',
   sistema: 'Estado del sistema',
   reportes: 'Reportes',
   ganancias: 'Ganancias',

@@ -16,13 +16,13 @@ const capturar = (page, nombre) => page.screenshot({ path: join(DIR, `ia-config-
 // Sección nueva → contenido que la identifica: un encabezado propio o, cuando
 // la sección ordena su pantalla en paneles (#253 · Dispositivos), su navegación.
 const SECCIONES = [
-  ['Mi cuenta', 'Tu perfil', 'mi-cuenta'],
   ['Organización', 'Datos de la tienda', 'organizacion'],
   ['Equipo y acceso', 'Integrantes', 'equipo'],
+  ['Impresión y dispositivos', '', 'dispositivos', 'paneles-impresion'],
   ['Comercial', 'Seguro de ventas', 'comercial'],
   ['Seguridad y auditoría', 'Sesiones activas', 'seguridad'],
-  ['Dispositivos', '', 'dispositivos', 'paneles-impresion'],
   ['Sistema', 'Sincronización', 'sistema'],
+  ['Mi cuenta', 'Tu perfil', 'mi-cuenta'],
 ]
 
 test('las rutas viejas de Configuración entran por su sección nueva', async ({ page }) => {
@@ -47,8 +47,8 @@ test('las rutas viejas de Configuración entran por su sección nueva', async ({
 
 test('Configuración tiene siete secciones y ninguna duplica contenido', async ({ page }) => {
   await page.goto('/configuracion')
-  // Sin hijo entra por la primera: Mi cuenta.
-  await expect(page).toHaveURL(/\/configuracion\/mi-cuenta$/)
+  // Sin hijo entra por la primera (la más usada): Organización.
+  await expect(page).toHaveURL(/\/configuracion\/organizacion$/)
   await expect(page.getByTestId('config-grupos').locator('[data-tab-id]')).toHaveCount(SECCIONES.length)
 
   for (const [nombre, contenido, slug, testid] of SECCIONES) {

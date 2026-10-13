@@ -7,13 +7,13 @@ import { mkdirSync } from 'node:fs'
 import { selectConfigSection } from './helpers/shell-navigation.js'
 
 const SUBPAGINAS = [
-  ['mi-cuenta', 'Mi cuenta'],
   ['organizacion', 'Organización'],
   ['equipo', 'Equipo y acceso'],
+  ['dispositivos', 'Impresión y dispositivos'],
   ['comercial', 'Comercial'],
   ['seguridad', 'Seguridad y auditoría'],
-  ['dispositivos', 'Dispositivos'],
   ['sistema', 'Sistema'],
+  ['mi-cuenta', 'Mi cuenta'],
 ]
 
 const ANCHOS = [
@@ -141,7 +141,7 @@ test.describe('Configuración IA', () => {
 
     // Sistema: el monitoreo enlaza a configurar/probar, sin duplicar la config.
     await page.goto('/configuracion/sistema')
-    await expect(page.getByTestId('monitoreo-vs-impresoras')).toContainText('Dispositivos · Impresoras')
+    await expect(page.getByTestId('monitoreo-vs-impresoras')).toContainText('Impresión y dispositivos · Impresoras')
   })
 
   test('Documentación sale de Configuración: la ruta vieja redirige a Ayuda', async ({ page }) => {
