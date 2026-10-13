@@ -25,7 +25,7 @@ test('#332 · el dueño conmuta entre Unidades (IMEI) y Productos (stock), con d
 
   // Y volver a las unidades.
   await enProductos.getByRole('button', { name: 'Unidades' }).click()
-  await expect(page).toHaveURL(/\/inventario\/unidades$/)
+  await expect(page).toHaveURL(/\/stock\/unidades$/)
   await expect(page.getByTestId('inventario-fila').first()).toBeVisible({ timeout: 20_000 })
 
   // El menú ofrece las dos vistas, emparejadas y evidentes.

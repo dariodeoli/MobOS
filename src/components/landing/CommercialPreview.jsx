@@ -75,10 +75,30 @@ function Stock() {
         </div>
         <div className="preview-serial">
           <dt>IMEI sintético</dt>
-          <dd>{example.imei}</dd>
+          <dd>
+            {example.imei}
+            <span className="preview-chip">IMEI limpio · verificado</span>
+          </dd>
         </div>
       </dl>
-      <p className="preview-meta">Inventario → pedido {example.order}</p>
+      <div className="preview-accessories">
+        <p className="preview-meta">Accesorios con cantidad</p>
+        <ul>
+          <li>
+            <span>Fundas iPhone 15</span>
+            <span data-qty>12 disponibles</span>
+          </li>
+          <li>
+            <span>Cargador 20W</span>
+            <span data-qty>8 disponibles</span>
+          </li>
+          <li>
+            <span>Cable USB-C</span>
+            <span data-qty>20 disponibles</span>
+          </li>
+        </ul>
+      </div>
+      <p className="preview-meta preview-link">Inventario → pedido {example.order}</p>
     </div>
   )
 }

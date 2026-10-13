@@ -4,7 +4,7 @@ import { contextoActual, getProductos, modoDatosActual, refrescar, refrescarCata
 import { useSesion } from '@/lib/sesion'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { useToast } from '@/components/ui'
-import { etiquetaCondicionUnidad, nombreProducto, sinCostoUnitario } from '@/utils/inventario'
+import { etiquetaCondicionUnidad, nombreProducto, sigueEnInventario, sinCostoUnitario } from '@/utils/inventario'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { prepararVentaDesdeInventario } from '@/lib/posCart'
 import { descargarCsvCliente } from '@/utils/descargarArchivo'
@@ -185,7 +185,13 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     if (busy) return
     setBusy(true); setError(''); setNotice('')
     try {
-      avisarImpresion(await printQuickReceipt(unit), 'Comprobante')
+      // La lista de Stock no trae el pedido de la venta: se completa con la unidad real.
+      let completa = unit
+      if (!unit?.sale?.orderId && unit?.serial) {
+        const filas = await resources.inventoryUnits.list(unit.serial, 'active')
+        completa = filas.find((fila) => fila.id === unit.id) || unit
+      }
+      avisarImpresion(await printQuickReceipt(completa), 'Comprobante')
     } catch (cause) {
       setError(cause?.message || 'No se pudo imprimir el comprobante de la venta.')
     } finally {
@@ -385,6 +391,9 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   // #287: el buscador promete «IMEI, SKU o modelo» y la API ya busca por SKU; el
   // filtro local no lo miraba y las filas desaparecían al llegar por SKU.
   const filtroBusqueda = lista => { const q = query.trim().toLowerCase(); if (!q) return lista; return lista.filter(unit => [unit.serial, unit.product?.name, unit.product?.sku, unit.reservationCustomer, unit.notes, unit.supplierName].some(valor => String(valor || '').toLowerCase().includes(q))) }
+  // La unidad sigue acá mientras no haya salido del local: entran reservadas,
+  // en revisión y vendidas sin entregar (modo Taller y lotes sobre el inventario).
+  const disponibles = filtroBusqueda(units.filter(sigueEnInventario))
   const sinCostoUnits = units.filter(sinCostoUnitario)
   const enTransito = filtroBusqueda(units.filter(unit => unit.status === 'IN_TRANSIT'))
   // Traslado dueño del adjunto al recibir: la unidad en tránsito viene de una
@@ -1125,6 +1134,7 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     saveThreshold,
     availableProducts,
     filtroBusqueda,
+    disponibles,
     sinCostoUnits,
     enTransito,
     stock,

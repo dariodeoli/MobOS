@@ -63,16 +63,17 @@ async function consultarImei(page, serial) {
 }
 
 async function abrirFicha(page, serial) {
-  await page.goto('/inventario/unidades')
-  // #304/#339: a 390 el listado usa la tarjeta móvil (inventario-tarjeta-movil);
-  // desde 640 vuelve la fila de escritorio (inventario-fila). El locator sigue
+  // La lista de Stock pagina por cursor: se llega con el serial en la URL (?q=)
+  // para que la unidad entre en la primera página sin depender del orden.
+  await page.goto(`/stock/unidades?q=${encodeURIComponent(serial)}`)
+  // Stock: a 390 el listado usa la tarjeta móvil (inventario-tarjeta-movil);
+  // desde 768 vuelve la fila de escritorio (inventario-fila). El locator sigue
   // al viewport para abrir la ficha del mismo serial en la tarjeta que existe.
-  const esMovil = (page.viewportSize()?.width ?? 1280) < 640
+  const esMovil = (page.viewportSize()?.width ?? 1280) < 768
   const fila = page.getByTestId(esMovil ? 'inventario-tarjeta-movil' : 'inventario-fila').filter({ hasText: serial }).first()
   await expect(fila).toBeVisible({ timeout: 20_000 })
-  // En la fila de escritorio el ícono de categoría puede ocultarse (grilla
-  // compacta): se abre por el modelo, que siempre se ve.
-  await (esMovil ? fila.locator('span[title^="Categoría:"]') : fila.getByTestId('unidad-modelo')).click()
+  // Fila y tarjeta abren la ficha por el modelo, que siempre se ve.
+  await fila.getByTestId('unidad-modelo').click()
   const ficha = page.getByRole('dialog')
   await expect(ficha).toBeVisible({ timeout: 20_000 })
   await expect(ficha.getByTestId('unidad-phonecheck')).toBeVisible({ timeout: 20_000 })

@@ -94,7 +94,7 @@ export function accionesDeItem(item, ctx) {
   return [
     ficha,
     ...(item.status === 'vendido' ? [{ label: 'Comprobante rápido', tooltip: 'Imprimir el comprobante de la venta sin abrir la ficha', icon: 'receipt', run: () => imprimirComprobanteRapido(unit) }] : []),
-    ...(vendible ? [{ label: 'Vender', tooltip: 'Cargar la venta de esta unidad', icon: 'cart', run: () => sellUnit(unit) }] : []),
+    ...(vendible ? [{ label: item.status === 'reservado' ? 'Finalizar venta' : 'Vender', tooltip: item.status === 'reservado' ? 'Cerrar la venta de la unidad reservada' : 'Cargar la venta de esta unidad', icon: 'cart', run: () => sellUnit(unit) }] : []),
     ...(item.status === 'disponible' ? [{ label: 'Reservar', tooltip: 'Apartar la unidad para un cliente', icon: 'clock', run: () => openReserveFor(unit) }] : []),
     ...(item.status === 'reservado' ? [{ label: 'Liberar reserva', tooltip: 'Soltar la reserva y dejar la unidad disponible', icon: 'clock', run: () => releaseReservation(unit.serial) }] : []),
     ...(item.status !== 'vendido' ? [{ label: 'Verificar', tooltip: 'Registrar la verificación física ahora', icon: 'check', run: () => verify(unit) }] : []),

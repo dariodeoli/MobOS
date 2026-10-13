@@ -164,8 +164,8 @@ export default function Landing() {
               <span>el control.</span>
             </h1>
             <p className="landing-intro">
-              Del equipo que entra al dinero que cobras. Ventas, stock por IMEI y seguimiento de
-              pedidos, conectados en MobOS.
+              Del equipo que entra al dinero que cobras. Ventas, stock por IMEI, accesorios con
+              cantidad y seguimiento de pedidos, conectados en MobOS.
             </p>
             <div className="landing-hero-actions">
               <a className="landing-button" href={`${app}/demo`}>

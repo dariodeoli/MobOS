@@ -64,11 +64,11 @@ function FilasCargandoStock({ columnas, angosta }) {
           ? <Skeleton key={indice} className="h-24 w-full rounded-xl" />
           : (
             <div key={indice} className="stock-lista-grid rounded-lg border border-ink-600 px-2 py-2">
-              <Skeleton className="h-4 w-4 rounded" />
-              <Skeleton className="h-3 w-3/5" />
-              <Skeleton className="h-3 w-4/5" />
-              <Skeleton className="h-3 w-10" />
-              {columnas.completa.split(' ').slice(4).map((_, extra) => <Skeleton key={extra} className="h-3 w-16" />)}
+              <span className="flex items-center"><Skeleton className="h-4 w-4 rounded" /></span>
+              <span className="min-w-0"><Skeleton className="h-3 w-3/5" /></span>
+              <span className="min-w-0"><Skeleton className="h-3 w-4/5" /></span>
+              <span className="min-w-0"><Skeleton className="h-3 w-10" /></span>
+              {columnas.completa.split(' ').slice(4).map((_, extra) => <span key={extra} className="min-w-0"><Skeleton className="h-3 w-16" /></span>)}
             </div>
           )
       ))}
@@ -104,7 +104,7 @@ export default function ListaStock({ ctx, vista = 'unidades' }) {
   const todosMarcados = items.length > 0 && items.every((item) => seleccionados.includes(item.id))
 
   return (
-    <div className="stock-lista mt-4 space-y-3" data-testid="inventario-lista" data-vista={vista}>
+    <div className="stock-lista mt-2 space-y-2 md:mt-4 md:space-y-3" data-testid="inventario-lista" data-vista={vista}>
       <FiltrosStock
         filtros={filtros}
         vista={vista}
@@ -113,6 +113,7 @@ export default function ListaStock({ ctx, vista = 'unidades' }) {
         verProveedor={rolVeCosto}
         onCambio={cambiarFiltros}
         onLimpiar={limpiarFiltros}
+        compacto={angosta}
       />
       {stock.error ? (
         <Aviso tono="error" data-testid="stock-error">

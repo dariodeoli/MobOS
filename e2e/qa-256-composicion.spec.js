@@ -51,7 +51,7 @@ test.describe('composición compacta', () => {
   })
 
   test('Inventario: barra única con buscador, filtros y acciones agrupadas', async ({ page }) => {
-    await page.goto('/inventario/unidades')
+    await page.goto('/stock/unidades')
     await expect(page.getByTestId('inventario-fila').first()).toBeVisible({ timeout: 20_000 })
 
     const barra = page.getByTestId('barra-inventario')
@@ -59,10 +59,9 @@ test.describe('composición compacta', () => {
     // #320: la identidad visible es una sola (el h1 del shell); la barra no
     // repite el título: agrupa contexto y acciones.
     await expect(barra.getByRole('heading')).toHaveCount(0)
-    await expect(barra).toHaveAttribute('aria-label', 'Inventario')
+    await expect(barra).toHaveAttribute('aria-label', 'Stock')
     // #305: buscador y filtros viven en la barra, con la acción primaria.
     await expect(barra.getByLabel('Buscar en inventario')).toBeVisible()
-    await expect(barra.getByLabel('Orden del inventario')).toBeVisible()
     await expect(barra.getByRole('button', { name: '+ Recibir unidad', exact: true })).toBeVisible()
 
     // Las acciones secundarias ya no se apilan: viven en «Más».
@@ -77,15 +76,17 @@ test.describe('composición compacta', () => {
     }
     await page.keyboard.press('Escape')
 
-    // #305: navegación agrupada Stock · Movimientos · Control.
+    // #305/U3: navegación agrupada Unidades · Reservas · Movimientos · Control,
+    // con las vistas de cada sección en una segunda fila.
     const tabs = page.getByTestId('tabs-inventario')
-    for (const group of ['Stock', 'Movimientos', 'Control']) {
-      await expect(tabs.locator(`optgroup[label="${group}"]`)).toBeAttached()
+    for (const seccion of ['Unidades', 'Reservas', 'Movimientos', 'Control']) {
+      await expect(tabs.getByRole('tab', { name: seccion })).toBeVisible()
     }
-    await expect(tabs.locator('optgroup[label="Stock"]').getByRole('option', { name: 'Reservas', exact: true })).toBeAttached()
-    await expect(tabs.locator('optgroup[label="Stock"]').getByRole('option', { name: 'En tránsito', exact: true })).toHaveCount(0)
-    await expect(tabs.locator('optgroup[label="Movimientos"]').getByRole('option', { name: 'En tránsito', exact: true })).toBeAttached()
-    await expect(tabs.locator('optgroup[label="Control"]').getByRole('option', { name: 'Conteos', exact: true })).toBeAttached()
+    await expect(page.getByTestId('subtabs-inventario').getByRole('tab', { name: 'En tránsito', exact: true })).toHaveCount(0)
+    await tabs.getByRole('tab', { name: 'Movimientos' }).click()
+    await expect(page.getByTestId('subtabs-inventario').getByRole('tab', { name: 'En tránsito', exact: true })).toBeVisible()
+    await tabs.getByRole('tab', { name: 'Control' }).click()
+    await expect(page.getByTestId('subtabs-inventario').getByRole('tab', { name: 'Conteos', exact: true })).toBeVisible()
     for (const value of ['reservas', 'transito', 'conteos', 'unidades']) await selectInventorySection(page, value)
 
   })

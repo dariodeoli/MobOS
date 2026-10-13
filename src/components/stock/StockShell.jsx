@@ -46,7 +46,7 @@ export default function StockShell({ tab: tabProp, onTabChange } = {}) {
         expandir
         contexto={productoFiltro ? <span data-testid="inventario-filtro-producto" className="inline-flex min-w-0 max-w-[16rem] items-center gap-1.5 rounded-lg border border-fono/30 bg-fono/5 px-2 py-1 text-[11px] text-fono-light" title={`Unidades de ${productoFiltro.nombre}`}><Icon name="phone" className="h-3 w-3 shrink-0" /><span className="truncate font-semibold">{productoFiltro.nombre}</span><button type="button" aria-label="Quitar el filtro de producto" title="Ver todas las unidades" onClick={() => setSearchParams((actuales) => { const params = new URLSearchParams(actuales); params.delete('producto'); return params }, { replace: true })} className="toque-44 shrink-0 rounded px-1 text-mute transition hover:text-fore">×</button></span> : null}
       >
-        <form onSubmit={search} className="min-w-[10rem] max-w-sm flex-1">
+        <form onSubmit={search} className="min-w-[6.5rem] max-w-sm flex-1">
           <SearchField value={query} onChange={event => setQuery(event.target.value)} placeholder="Escanear IMEI, SKU o buscar modelo" ariaLabel="Buscar en inventario" className="w-full" />
         </form>
         {/* #287: Productos ⇄ Unidades, el mismo objeto en dos vistas.
@@ -71,7 +71,7 @@ export default function StockShell({ tab: tabProp, onTabChange } = {}) {
         />
       </BarraModulo>
 
-      <Card className="p-4 md:p-4">
+      <Card className="p-2 md:p-4">
         
         {/* U3: Unidades · Reservas · Movimientos · Control. La sección activa se
             deriva de la pestaña, así los enlaces directos (/stock/transito,
@@ -81,7 +81,7 @@ export default function StockShell({ tab: tabProp, onTabChange } = {}) {
           <div data-testid="tabs-inventario">
             <Subtabs
               ariaLabel="Secciones de stock"
-              className="!mb-0 !gap-1 !p-1"
+              className="!mb-0 !gap-1 !p-1 max-md:!flex-nowrap max-md:overflow-x-auto max-md:[&>button]:shrink-0 max-md:[&>button]:whitespace-nowrap"
               value={seccionActiva.id}
               onChange={irASeccion}
               items={secciones.map((seccion) => [seccion.id, seccion.label, seccion.id === 'control' && pendientesStock > 0 ? pendientesStock : undefined])}
@@ -91,7 +91,7 @@ export default function StockShell({ tab: tabProp, onTabChange } = {}) {
             <div data-testid="subtabs-inventario">
               <Subtabs
                 ariaLabel={`Vistas de ${seccionActiva.label}`}
-                className="!mb-0 !gap-1 !border-0 !bg-transparent !p-0"
+                className="!mb-0 !gap-1 !border-0 !bg-transparent !p-0 max-md:!flex-nowrap max-md:overflow-x-auto max-md:[&>button]:shrink-0 max-md:[&>button]:whitespace-nowrap"
                 value={tab}
                 onChange={cambiarTab}
                 items={seccionActiva.tabs.map((id) => [id, TAB_LABEL[id], id === 'autorizaciones' && pendientesStock > 0 ? pendientesStock : undefined])}
