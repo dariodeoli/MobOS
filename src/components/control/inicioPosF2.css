@@ -139,15 +139,15 @@
 
 /* The shell already owns the page title; the module toolbar only holds actions
    and lives inside the Productos header (no band of its own). */
-[data-testid='barra-pos'] > div:first-child {
+[data-testid='barra-pos-toolbar'] > [role='group'] > :first-child {
   display: none;
 }
-[data-testid='barra-pos'] {
+[data-testid='barra-pos-toolbar'] > [role='group'] {
   justify-content: flex-end;
 }
 /* With the title hidden the actions sit at the right edge on phones too, so the
    absolutely positioned "Más" menu (right-0) opens inside the viewport. */
-[data-testid='barra-pos'] > div:last-child {
+[data-testid='barra-pos-toolbar'] > [role='group'] > :last-child {
   justify-content: flex-end;
   margin-left: auto;
 }
