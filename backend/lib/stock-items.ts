@@ -240,7 +240,8 @@ function productsBranch(filters: StockItemsFilters, scope: StockItemsScope, curs
   }
   if (mode === 'page' && cursor) where.push(Prisma.sql`(${sortKey}, p."id") < (${cursor.sortKey}::timestamp, ${cursor.id})`)
   const whereSql = Prisma.join(where, ' AND ')
-  const soldRange: Prisma.Sql[] = [Prisma.sql`o."tenantId" = ${t}`, Prisma.sql`o."status"::text = 'COMPLETED'`]
+  const soldRange: Prisma.Sql[] = [Prisma.sql`o."tenantId" = ${t}`, Prisma.sql`o."status"::text IN ('COMPLETED', 'PENDING')`]
+  // Lista explícita (no «<> CANCELLED»): una venta a crédito o sin cobrar ya dejó la unidad en SOLD, así que cuenta igual que ella.
   if (branch) soldRange.push(Prisma.sql`o."branchId" = ${branch}`)
   if (filters.from) soldRange.push(Prisma.sql`o."createdAt" >= ${filters.from.toISOString()}::timestamp`)
   if (filters.toExclusive) soldRange.push(Prisma.sql`o."createdAt" < ${filters.toExclusive.toISOString()}::timestamp`)

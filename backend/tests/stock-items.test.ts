@@ -127,9 +127,9 @@ test('q: escapa comodines LIKE y normaliza IMEI', () => {
   assert.ok(page.values.some(value => value === '%35-12\\%\\_%'), 'crudo para SKU y nombre')
 })
 
-test('SQL vendido: solo pedidos COMPLETED y acotados a la sucursal forzada o filtrada', () => {
+test('SQL vendido: solo pedidos no cancelados (lista explícita) y acotados a la sucursal forzada o filtrada', () => {
   const forzada = sqlOf(buildStockItemsPageSql(filtersOf('status=vendido'), scope({ forcedBranchId: 'br-1' }), null)!)
-  assert.match(forzada, /o\."status"::text = 'COMPLETED'/)
+  assert.match(forzada, /o\."status"::text IN \('COMPLETED', 'PENDING'\)/)
   assert.doesNotMatch(forzada, /<> 'CANCELLED'/)
   assert.match(forzada, /o\."branchId" = \$\d+/)
   assert.match(sqlOf(buildStockItemsPageSql(filtersOf('status=vendido&branchId=br-2'), scope(), null)!), /o\."branchId" = \$\d+/)

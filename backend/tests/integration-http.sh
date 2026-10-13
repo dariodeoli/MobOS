@@ -343,6 +343,17 @@ if (!item || Number(item.unitCostPyg) !== Number(expected)) process.exit(1)
 NODE
 }
 
+assert_order_cost_hidden() {
+  node - "$1" "$2" <<'NODE'
+const fs = require('node:fs')
+const [file, orderNumber] = process.argv.slice(2)
+const rows = JSON.parse(fs.readFileSync(file, 'utf8'))
+const order = rows.find((item) => item.orderNumber === orderNumber)
+const item = order?.items?.[0]
+if (!item || item.unitCostPyg !== null || item.baseUnitCostPyg !== null) process.exit(1)
+NODE
+}
+
 assert_product_cost() {
   node - "$1" "$2" "$3" <<'NODE'
 const fs = require('node:fs')
@@ -350,6 +361,16 @@ const [file, productId, expected] = process.argv.slice(2)
 const rows = JSON.parse(fs.readFileSync(file, 'utf8'))
 const row = rows.find((item) => item.id === productId)
 if (!row || Number(row.costPyg) !== Number(expected)) process.exit(1)
+NODE
+}
+
+assert_product_cost_hidden() {
+  node - "$1" "$2" <<'NODE'
+const fs = require('node:fs')
+const [file, productId] = process.argv.slice(2)
+const rows = JSON.parse(fs.readFileSync(file, 'utf8'))
+const row = rows.find((item) => item.id === productId)
+if (!row || row.costPyg !== null) process.exit(1)
 NODE
 }
 
@@ -414,9 +435,9 @@ if [[ "$(json_field "$out" sellerId)" != "user-a-it" || "$(json_field "$out" ten
   exit 1
 fi
 out="$(response_file)"; request GET /api/orders 200 '' "$out" "$TOKEN_A" tenant-a-it
-assert_order_cost_snapshot "$out" IT-ORDER-001 70000 || { echo "La venta no congeló el costo del producto." >&2; exit 1; }
+assert_order_cost_hidden "$out" IT-ORDER-001 || { echo "El vendedor recibió el costo congelado de la venta." >&2; exit 1; }
 out="$(response_file)"; request GET /api/products 200 '' "$out" "$TOKEN_A" tenant-a-it
-assert_product_cost "$out" prod-a-order-it 70000 || { echo "El costo del producto no se devolvió en el catálogo." >&2; exit 1; }
+assert_product_cost_hidden "$out" prod-a-order-it || { echo "El vendedor recibió el costo del producto en el catálogo." >&2; exit 1; }
 echo "4b/13 Costo del producto y foto del costo en la venta OK..."
 
 echo "4c/13 Idempotencia de órdenes: misma clave reutiliza la orden sin descontar stock de nuevo..."
@@ -490,6 +511,10 @@ node "$BACKEND_ROOT/tests/new-modules.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKE
 out="$(response_file)"; ADMIN_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-admin-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
 out="$(response_file)"; CAJERA_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-cajera-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
 out="$(response_file)"; GERENTE_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-gerente-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
+out="$(response_file)"; request GET /api/orders 200 '' "$out" "$ADMIN_TOKEN" tenant-a-it
+assert_order_cost_snapshot "$out" IT-ORDER-001 70000 || { echo "La venta no congeló el costo del producto." >&2; exit 1; }
+out="$(response_file)"; request GET /api/products 200 '' "$out" "$ADMIN_TOKEN" tenant-a-it
+assert_product_cost "$out" prod-a-order-it 70000 || { echo "El costo del producto no se devolvió en el catálogo." >&2; exit 1; }
 node "$BACKEND_ROOT/tests/print-bridge-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL"
 # Auditoría central: rastro de impresoras, catálogo y promociones, búsqueda por
 # metadato, filtros de fecha/actor y exportación CSV con los mismos filtros.
