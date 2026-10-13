@@ -5,7 +5,6 @@ import { requireSession } from '../../../../lib/auth'
 import type { SessionContext } from '../../../../lib/auth'
 import { canAccessAny } from '../../../../lib/auth'
 import { csvResponse } from '../../../../lib/csv'
-import { INVENTORY_REMOVED, INVENTORY_RESTORED, removedInventoryUnitIds } from '../../../../lib/inventory'
 import { MAX_REPORT_ORDERS, aggregateCommissions, dayBounds, parseReportQuery } from '../../../../lib/reporting'
 import { numero, numeroOpcional } from '../../../../lib/montos'
 import { serialKey } from '../../../../lib/validation'
@@ -206,16 +205,9 @@ async function exportarUnidades(session: SessionContext, params: URLSearchParams
   if (!orderBy) throw new ExportError('Orden inválido.', 400)
   const encabezados = ['Producto', 'Capacidad', 'SKU', 'Serial', 'Condición', 'Estado', 'Sucursal', 'Ubicación', 'Proveedor', 'Costo (Gs)']
   const filtros = { q: raw, orden, branchId: branchId || undefined }
-  const eventos = await prisma.auditLog.findMany({
-    where: { tenantId: tenant, entity: 'InventoryUnit', action: { in: [INVENTORY_REMOVED, INVENTORY_RESTORED] } },
-    select: { entityId: true, action: true },
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    take: 5000,
-  })
-  const removidas = removedInventoryUnitIds(eventos)
-  const condiciones: Prisma.Sql[] = [Prisma.sql`u."tenantId" = ${tenant}`, UNIDAD_EN_PANTALLA]
+  // Las bajas recuperables viven en InventoryUnit.removedAt (ya no se deducen del historial).
+  const condiciones: Prisma.Sql[] = [Prisma.sql`u."tenantId" = ${tenant}`, Prisma.sql`u."removedAt" IS NULL`, UNIDAD_EN_PANTALLA]
   if (branchId) condiciones.push(Prisma.sql`u."branchId" = ${branchId}`)
-  if (removidas.size) condiciones.push(Prisma.sql`u."id" NOT IN (${Prisma.join([...removidas])})`)
   if (query) {
     const patron = `%${query}%`
     condiciones.push(Prisma.sql`(u."serial" ILIKE ${patron} OR p."sku" ILIKE ${patron} OR p."name" ILIKE ${`%${raw}%`})`)

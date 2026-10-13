@@ -43,6 +43,20 @@ export async function liberarReservasVencidas(tx: Prisma.TransactionClient, tena
   return vencidas.length
 }
 
+/**
+ * Campos de la baja recuperable. Se escriben en el mismo update (y la misma
+ * transacción) que el AuditLog INVENTORY_UNIT_REMOVED: el campo es la fuente
+ * de lectura y la auditoría sigue siendo el rastro.
+ */
+export function removalFields(userId: string | null, reason: string | null, at = new Date()) {
+  return { removedAt: at, removedById: userId, removedReason: reason }
+}
+
+/** Restaurar limpia la baja (el INVENTORY_UNIT_RESTORED queda en la auditoría). */
+export function restoreFields() {
+  return { removedAt: null, removedById: null, removedReason: null }
+}
+
 type InventoryAuditEvent = { entityId: string | null; action: string }
 
 /**
@@ -50,6 +64,8 @@ type InventoryAuditEvent = { entityId: string | null; action: string }
  * administrador pueda restaurarla. El último evento gana, por lo que el
  * historial de auditoría no se sobrescribe ni se puede ocultar con un PATCH.
  */
+// Conjunto de bajas derivado SOLO de la auditoría: lo usa el chequeo de
+// consistencia para compararlo contra InventoryUnit.removedAt.
 export function removedInventoryUnitIds(events: InventoryAuditEvent[]) {
   const resolved = new Set<string>()
   const removed = new Set<string>()
