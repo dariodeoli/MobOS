@@ -212,6 +212,25 @@ por área en el selector: `Impresión · trabajo`, `Impresión · puente` e
   el id corto del trabajo, el transporte, ancho/copias y el texto del error; no
   se muestra el JSON crudo del backend.
 
+### Permiso de Red local de macOS para el agente (#17)
+
+Causa más probable de `EHOSTUNREACH` cuando el agente corre por `launchd` y no
+por Terminal (la red está bien y desde Terminal sí imprime). Se concede una sola
+vez por Mac:
+
+1. **Ajustes del Sistema → Privacidad y seguridad → Red local**.
+2. Activar el interruptor de **node** (la entrada del binario que `/diagnostico`
+   muestra en «proceso»). Si todavía no aparece, correr una prueba de impresión
+   desde el agente y volver al panel.
+3. Reiniciar el servicio para que `launchd` tome el permiso:
+   `launchctl unload ~/Library/LaunchAgents/com.mobos.print.plist` y luego
+   `launchctl load ~/Library/LaunchAgents/com.mobos.print.plist`.
+4. Verificar en `/health`: `red.autotest.ok=true` y `red.tcp=true`.
+
+Detalle y diagnóstico por `errno`: `docs/IMPRESION-17-LAUNCHD.md` §3.2. La cola
+CUPS de respaldo (`MOBOS_LAN`) **no se crea todavía**: queda pendiente de
+decisión del dueño; el agente por `launchd` con este permiso es el camino.
+
 ### Prueba física pendiente (#17 launchd/CUPS y #96 USB)
 
 El paso a paso vive en **`docs/IMPRESION-PRUEBA-FISICA.md`** (incluye qué mirar
@@ -335,6 +354,27 @@ estado se verifica en `/health.usb`. Salidas esperadas para comparar el papel
   captura y valida el contenido (`docs/qa/220-etiquetas/`); el e2e
   `etiquetas-unidad.spec.js` cubre individual, seleccionadas y reimpresión por
   el camino directo.
+
+### Etiquetas de filas de Stock: lote y vista previa (U4a)
+
+`src/lib/printing/etiquetasStock.js` es el punto único para «imprimir las N
+filas seleccionadas»; la lista de Stock solo la llama.
+
+- `etiquetasDeFilasStock(filas, { ancho, base })` → `{ trabajos, total, items }`.
+  Fila con `serial` (o `unit`) = **una etiqueta de unidad** por fila. Fila de
+  accesorio `{ sku, name, pricePyg, copies }` = **`copies` etiquetas SKU +
+  precio** (por defecto 1, máximo 99; `qty` es stock, no copias). Una selección
+  mixta devuelve **dos trabajos** (unidades y accesorios), cada uno con su
+  `ticket` ESC/POS para el agente.
+- Selección vacía o sin filas imprimibles: no hay trabajo y se lanza
+  `EtiquetasStockError` («Seleccioná al menos una fila…»); mostrarlo tal cual.
+- **El costo nunca va en la etiqueta**: se arman objetos nuevos con los campos
+  de la etiqueta (precio de venta en guaraníes completos, igual que el resto de
+  los tickets) y un test lo verifica.
+- **Vista previa**: `vistaPreviaEtiquetasPdf(filas, { base })` genera un PDF A4
+  con una tarjeta por etiqueta usando `documentoAPdf` y **los mismos items** que
+  el trabajo ESC/POS, para revisar el diseño sin impresora. Es una referencia de
+  contenido, no de tamaño de papel ni de QR/barras reales.
 
 ### Informe de dispositivo (#240, épica PhoneCheck)
 
