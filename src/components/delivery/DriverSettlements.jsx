@@ -5,6 +5,9 @@ import { Aviso, Badge, Button, Modal, Money, Textarea, useToast } from '@/compon
 import Icon from '@/components/shared/Icon'
 import { fechaHoraCorta } from '@/utils/fecha'
 import { codigoPedido } from '@/utils/pedido'
+import ListaDensa from '@/components/shared/ListaDensa'
+import { usePaginaLista } from '@/components/shared/usePaginaLista'
+import './entregasF3.css'
 import { useSellerData, SellerFeedback } from '@/components/ventas/SellerData'
 import { deliveryFields, settlementFields, MEDIO_LABELS, RENDICION_LABELS } from './datos'
 import { crearRendicionDemo, listDemoDeliveryOrdersDelRepartidor, listDemoDeliverySettlementsDelRepartidor } from '@/lib/demo/delivery.js'
@@ -13,24 +16,24 @@ const TONO = (estado) => estado === 'VERIFIED' ? 'green' : estado === 'REJECTED'
 
 function ResumenRendicion({ fila }) {
   return (
-    <article data-testid="rendicion" className="rounded-2xl border border-fore/10 bg-ink-800/40 p-4">
+    <article data-testid="rendicion" className="entregas-f3-order">
       <header className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-semibold">{fechaHoraCorta(fila.fecha)}</span>
         <Badge color={TONO(fila.estado)}>{RENDICION_LABELS[fila.estado] || fila.estado}</Badge>
       </header>
-      <div className="mt-3 space-y-1">
-        <p className="flex items-baseline justify-between gap-3"><span className="text-xs text-mute">Rendido</span><span className="text-sm font-bold tabular-nums"><Money value={fila.total} /></span></p>
-        <p className="flex items-baseline justify-between gap-3"><span className="text-xs text-mute">Quedó pendiente en los pedidos</span><span className="text-sm tabular-nums"><Money value={fila.pendiente} /></span></p>
-        <p className="text-xs text-mute">{fila.pedidos} {fila.pedidos === 1 ? 'pedido' : 'pedidos'} · {fila.cobros.length} {fila.cobros.length === 1 ? 'cobro' : 'cobros'}</p>
-        {fila.nota && <p className="text-xs text-mute">Observación: {fila.nota}</p>}
-        {fila.verificadaPor && <p className="text-xs text-ok">Verificada por {fila.verificadaPor}{fila.notaVerificacion ? ` · ${fila.notaVerificacion}` : ''}</p>}
+      <div className="entregas-f3-amounts">
+        <span>Rendido <strong className="text-fore"><Money value={fila.total} /></strong></span>
+        <span>Quedó pendiente en los pedidos <strong><Money value={fila.pendiente} /></strong></span>
       </div>
-      <ul className="mt-3 space-y-1 border-t border-fore/10 pt-2">
+      <p className="entregas-f3-meta">{fila.pedidos} {fila.pedidos === 1 ? 'pedido' : 'pedidos'} · {fila.cobros.length} {fila.cobros.length === 1 ? 'cobro' : 'cobros'}</p>
+      {fila.nota && <p className="entregas-f3-meta">Observación: {fila.nota}</p>}
+      {fila.verificadaPor && <p className="entregas-f3-meta text-ok">Verificada por {fila.verificadaPor}{fila.notaVerificacion ? ` · ${fila.notaVerificacion}` : ''}</p>}
+      <ul className="entregas-f3-cobros">
         {fila.cobros.map(cobro => (
-          <li key={cobro.id} className="flex flex-wrap items-baseline justify-between gap-2 text-xs">
+          <li key={cobro.id}>
             <span className="font-mono text-mute">{codigoPedido(cobro.pedidoNumero || '—')}</span>
             <span className="text-mute">{MEDIO_LABELS[cobro.metodo] || cobro.metodo}{cobro.referencia ? ` · ${cobro.referencia}` : ''}</span>
-            <span className="font-semibold tabular-nums"><Money value={cobro.monto} /></span>
+            <strong><Money value={cobro.monto} /></strong>
           </li>
         ))}
       </ul>
@@ -46,6 +49,7 @@ export default function DriverSettlements() {
   const demoHistorial = useCallback(() => listDemoDeliverySettlementsDelRepartidor({}), [])
   const pedidos = useSellerData('/api/delivery/orders?estado=todos', deliveryFields, demoPedidos, esDemo, { limit: 100 })
   const historial = useSellerData('/api/delivery/settlements', settlementFields, demoHistorial, esDemo, { limit: 60 })
+  const pagina = usePaginaLista(historial.rows, { tamano: 10, modo: 'mas' })
   const [abierto, setAbierto] = useState(false)
   const [nota, setNota] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -72,26 +76,28 @@ export default function DriverSettlements() {
   }
 
   return (
-    <div className="space-y-4">
-      <section className="rounded-2xl border border-fono/25 bg-gradient-to-br from-fono/10 to-ink-800 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-mute">Para rendir en la tienda</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums" data-testid="rendicion-total"><Money value={totalPorRendir} /></p>
-            <p className="mt-1 text-xs text-mute">{porRendir.length} {porRendir.length === 1 ? 'cobro' : 'cobros'} de la calle · saldo pendiente en pedidos entregados: <Money value={saldoPendiente} /></p>
-          </div>
+    <div className="entregas-f3-assignments">
+      <section className="entregas-f3-order entregas-f3-summary" aria-label="Para rendir en la tienda">
+        <p className="entregas-f3-meta">Para rendir en la tienda</p>
+        <p className="entregas-f3-total" data-testid="rendicion-total"><Money value={totalPorRendir} /></p>
+        <p className="entregas-f3-meta">{porRendir.length} {porRendir.length === 1 ? 'cobro' : 'cobros'} de la calle · saldo pendiente en pedidos entregados: <Money value={saldoPendiente} /></p>
+        <div className="entregas-f3-actions">
           <Button type="button" disabled={!porRendir.length} onClick={() => { setError(''); setAbierto(true) }} data-testid="rendir-abrir">
             <Icon name="receipt" className="h-4 w-4" />Rendir
           </Button>
         </div>
       </section>
 
-      <div>
-        <h2 className="mb-2 text-sm font-semibold">Mis rendiciones</h2>
+      <div className="entregas-f3-assignments">
+        <h2 className="text-sm font-semibold">Mis rendiciones</h2>
         <SellerFeedback {...historial} empty={!historial.rows.length} />
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {historial.rows.map(fila => <ResumenRendicion key={fila.id} fila={fila} />)}
-        </div>
+        <ListaDensa
+          lista={pagina}
+          claseFilas="entregas-f3-grid"
+          etiquetaPie="Más rendiciones"
+          unidad="rendiciones"
+          renderFila={fila => <ResumenRendicion key={fila.id} fila={fila} />}
+        />
       </div>
 
       <Modal open={abierto} onClose={() => !enviando && setAbierto(false)} title="Rendir lo cobrado" size="formulario">

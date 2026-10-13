@@ -226,3 +226,72 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+
+/* Shared density block (ListaDensa): mobile card = 4 compact rows, desktop = one grid row. */
+.conciliacion-f5-meta {
+  display: contents;
+}
+@container (min-width: 1060px) {
+  .conciliacion-f5-payment > input[type='checkbox'] { order: 0; }
+  .conciliacion-f5-payment [data-label='Fecha'] { order: 1; }
+  .conciliacion-f5-payment [data-label='Pedido / cliente'] { order: 2; }
+  .conciliacion-f5-payment [data-label='Cuenta / titular'] { order: 3; }
+  .conciliacion-f5-payment [data-label='Procesadora'] { order: 4; }
+  .conciliacion-f5-payment [data-label='Referencia'] { order: 5; }
+  .conciliacion-f5-payment [data-label='Monto'] { order: 6; }
+  .conciliacion-f5-payment [data-label='Conciliación / pago'] { order: 7; }
+  .conciliacion-f5-payment [data-label='Acciones'] { order: 8; }
+}
+@container (max-width: 1059px) {
+  .conciliacion-f5-payment-grid.conciliacion-f5-payment {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    column-gap: 6px;
+    row-gap: 2px;
+    padding-block: 6px;
+  }
+  .conciliacion-f5-payment > input[type='checkbox'] {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    align-self: start;
+  }
+  .conciliacion-f5 .conciliacion-f5-payment [data-label='Pedido / cliente'] { grid-column: 2; grid-row: 1; }
+  .conciliacion-f5 .conciliacion-f5-payment [data-label='Monto'] {
+    grid-column: 3;
+    grid-row: 1;
+    text-align: right;
+    font-size: 13px;
+  }
+  .conciliacion-f5 .conciliacion-f5-payment [data-label='Cuenta / titular'] { grid-column: 2 / -1; grid-row: 2; }
+  .conciliacion-f5-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 12px;
+    grid-column: 2 / -1;
+    grid-row: 3;
+    min-width: 0;
+  }
+  .conciliacion-f5 .conciliacion-f5-payment [data-label='Conciliación / pago'] { grid-column: 2; grid-row: 4; }
+  .conciliacion-f5 .conciliacion-f5-payment [data-label='Acciones'] { grid-column: 3; grid-row: 4; }
+  .conciliacion-f5-payment [data-label='Pedido / cliente']::before,
+  .conciliacion-f5-payment [data-label='Monto']::before,
+  .conciliacion-f5-payment [data-label='Cuenta / titular']::before,
+  .conciliacion-f5-payment [data-label='Conciliación / pago']::before,
+  .conciliacion-f5-payment [data-label='Acciones']::before {
+    display: none;
+  }
+  .conciliacion-f5-meta > [data-label] {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 4px;
+  }
+  .conciliacion-f5-meta > [data-label]::before {
+    display: inline;
+    margin-right: 0;
+  }
+}
+/* Very narrow (320px): status and action each get a full row so nothing is squeezed. */
+@container (max-width: 339px) {
+  .conciliacion-f5 .conciliacion-f5-payment [data-label='Conciliación / pago'] { grid-column: 2 / -1; }
+  .conciliacion-f5 .conciliacion-f5-payment [data-label='Acciones'] { grid-column: 2 / -1; grid-row: 5; }
+}

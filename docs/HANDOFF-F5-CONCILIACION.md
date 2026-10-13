@@ -221,3 +221,11 @@ Latest executed report: `/tmp/mobos-frontend-syntax-fixed.md`. Native Vite JavaS
 This is isolated mocked/demo frontend evidence, not production authentication, tenant/backend/database/provider/fiscal persistence, real consumer storage, printing, deployment or release proof. No browser suite is rerun for this checkpoint. The separately authorized six-file local commit does not authorize push, main integration or deployment; backend schema-default drift remains outside F5 scope.
 
 Local checkpoint checks (2026-10-12): `npm test` exit 0, **1020/1020**, no failures/skips; `npm run lint` exit 0; `npm run build` exit 0 with the existing large-chunk warning; `git diff --check` exit 0. Commands used an isolated frontend environment with loopback `VITE_API_URL`; no backend/provider/database checks or browser rerun. Local verification logs: `/tmp/mobos-f5-checkpoint-OUMQ2Y`.
+
+## U5a — bloque compartido de densidad y paginación (rama codex/ui-u5-density)
+
+- Nuevo bloque reutilizable en `src/components/shared/`: `paginacion.js` (cálculo puro), `usePaginaLista.js` (modo `paginas` o `mas`, tamaño `{ compacto, amplio }`), `PieListado.jsx` («Mostrando X de Y» + Anterior/Siguiente o «Cargar más», botones de 44px) y `ListaDensa.jsx` (encabezado + filas + pie). Paginación solo del lado del cliente; ningún endpoint cambia. Pruebas: `paginacion.test.js`.
+- Conciliación usa el bloque (2 tarjetas por página en celular, 20 en escritorio, igual que antes). La tarjeta de celular pasó de 7 filas a 4 (pedido+monto, cuenta, fecha/procesadora/referencia, estado+acción); a 320px el estado y la acción ocupan cada uno una fila. Filtros, selección entre páginas, selección masiva, grupos, importes completos y «Ver pedido» sin cambios.
+- Altura del documento a 390px (medida con Playwright, demo): **2144px** claro y oscuro, antes 2344px; objetivo ≤ 2400.
+- `conciliacionF5.test.js`: las comparaciones byte a byte contra commits viejos (`git show`) se reemplazaron por contratos semánticos (requests, lote, selección, métricas); sigue el bloqueo del prefijo de 115 casos del spec.
+- Límites: el tamaño de página en celular sigue en 2 por no reescribir los casos existentes que paginan de a 2; subirlo a 3 es posible (la altura lo permite) pero exige actualizar esos casos. Prueba solo demo/mocks, sin backend real.
