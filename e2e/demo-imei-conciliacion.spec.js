@@ -19,11 +19,13 @@ test('la demo permite conciliar una consulta desde el registro', async ({ page }
   await cerrarGuiaDemo(page)
 
   // La consulta simulada de la demo queda registrada (estado verificado).
-  await page.goto('/inventario/unidades')
+  await page.goto('/stock/unidades')
   const campo = page.getByPlaceholder('Escanear IMEI, SKU o buscar modelo')
   await campo.fill(serial)
   await campo.press('Enter')
-  const fila = page.getByTestId('inventario-fila').first()
+  // La lista de Stock filtra en el servidor con la búsqueda diferida: se espera
+  // la fila del serial pedido, no la primera que aparezca antes de filtrar.
+  const fila = page.getByTestId('inventario-fila').filter({ hasText: serial }).first()
   await fila.waitFor({ state: 'visible', timeout: 15_000 })
   await fila.click()
   const ficha = page.getByRole('dialog')

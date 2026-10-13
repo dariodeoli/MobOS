@@ -72,7 +72,7 @@ test('#287 · de Producto a sus Unidades y vuelta, sin perder el contexto', asyn
     if (!ANTES) {
       // El detalle del producto ofrece ver sus unidades en Inventario.
       await detalle.getByRole('link', { name: /Ver unidades en Inventario/i }).click()
-      await expect(page).toHaveURL(/\/inventario\/unidades\?.*producto=/, { timeout: 15_000 })
+      await expect(page).toHaveURL(/\/stock\/unidades\?.*producto=/, { timeout: 15_000 })
       // La vista de Unidades queda acotada a ese producto (con su contexto).
       await expect(page.getByTestId('inventario-filtro-producto')).toContainText(datos.nombre)
       const filas = page.getByTestId('inventario-fila')

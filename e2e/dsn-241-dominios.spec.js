@@ -107,7 +107,7 @@ const IMEI_TABLERO = '490154203237518'
 const SERIALES_TABLERO = ['ZZTABLERO1', 'ZZTABLERO2']
 
 async function prepararTablero(page) {
-  await page.goto('/inventario/unidades')
+  await page.goto('/stock/unidades')
   await page.evaluate(async ({ api, marca, imei, seriales, branchId }) => {
     const pedir = (url, opciones = {}) => fetch(url, { credentials: 'include', ...opciones }).then((r) => r.json().catch(() => null))
     const json = { 'Content-Type': 'application/json' }
@@ -220,13 +220,11 @@ const PANTALLAS = [
     await expect(page.getByTestId('ops-equipo').first()).toBeVisible({ timeout: 30_000 })
   }],
   // Paso 4: el modo taller/rack (carriles por estación y acciones en serie).
-  ['taller', '/inventario/taller', (page) => page.getByTestId('rack-taller'), prepararTablero, async (page) => {
+  ['taller', '/stock/taller', (page) => page.getByTestId('rack-taller'), prepararTablero, async (page) => {
     await expect(page.getByTestId('rack-equipo').first()).toBeVisible({ timeout: 30_000 })
   }],
-  ['inventario-tiles', '/inventario/unidades', (page) => page.locator('[data-testid="inventario-tarjeta"], [data-testid="inventario-tarjeta-movil"]').first(), async (page) => {
-    // Tiles de equipo (lote C): la vista lista/cuadrícula se recuerda por pantalla.
-    await page.evaluate(() => { try { localStorage.setItem('mobos:inventario-vista', 'grid') } catch { /* sin storage */ } })
-  }],
+  // Stock (lista unificada): fila en escritorio, tarjeta compacta en móvil.
+  ['stock-unidades', '/stock/unidades', (page) => page.locator('[data-testid="inventario-fila"], [data-testid="inventario-tarjeta-movil"]').first()],
 ]
 
 // Raíces v2 de las pantallas: el panel usa `.tema-v2`; las vistas propias del
@@ -251,9 +249,9 @@ test('taller: la impresión en serie muestra el rollo real de las etiquetas', as
   mkdirSync(SHOTS, { recursive: true })
   await page.setViewportSize({ width: 1280, height: 1000 })
   await preparar(page, { modo: 'light', v2: true })
-  await page.goto('/inventario/taller')
+  await page.goto('/stock/taller')
   await prepararTablero(page)
-  await page.goto('/inventario/taller')
+  await page.goto('/stock/taller')
   const abrir = async () => {
     await page.getByTestId('rack-imprimir-serie').click()
     await expect(page.getByRole('dialog', { name: 'Imprimir en serie' })).toBeVisible()
