@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { leerFuente } from './fuenteStock.js'
+import { existsSync, readdirSync } from 'node:fs'
 import { join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
@@ -15,16 +16,16 @@ const RAIZ = fileURLToPath(new URL('..', import.meta.url))
 // un puente: las aserciones que miraban la implementación local leen la
 // biblioteca, que es la fuente canónica (docs/AUDITORIA-DUPLICACION.md).
 const LIB = fileURLToPath(new URL('../../node_modules/owncoding-ui/src/components', import.meta.url))
-const leerBiblioteca = (ruta) => readFileSync(join(LIB, ruta), 'utf8')
+const leerBiblioteca = (ruta) => leerFuente(join(LIB, ruta), 'utf8')
 
 function archivosFuente() {
   return readdirSync(RAIZ, { recursive: true })
     .filter((ruta) => /\.(jsx?|mjs)$/.test(ruta) && !/\.test\./.test(ruta))
-    .map((ruta) => ({ ruta: String(ruta).split(sep).join('/'), contenido: readFileSync(join(RAIZ, ruta), 'utf8') }))
+    .map((ruta) => ({ ruta: String(ruta).split(sep).join('/'), contenido: leerFuente(join(RAIZ, ruta), 'utf8') }))
 }
 
 test('los objetos de tabla viven en un solo módulo', () => {
-  const codigo = readFileSync(join(RAIZ, 'components/shared/tabla.js'), 'utf8')
+  const codigo = leerFuente(join(RAIZ, 'components/shared/tabla.js'), 'utf8')
   for (const nombre of ['ROTULO_DATO', 'CELDA_ENCABEZADO', 'ROTULO_SECCION']) {
     assert.match(codigo, new RegExp(`export const ${nombre} =`), `falta ${nombre}`)
   }
@@ -55,13 +56,13 @@ test('el aviso inline usa el objeto Aviso, no un párrafo con el borde copiado',
   assert.deepEqual(culpables, [])
   // El objeto existe y anuncia según el tono (vive en la biblioteca; el kit lo
   // re-exporta desde el lote 39).
-  assert.match(readFileSync(join(RAIZ, 'components/ui/index.jsx'), 'utf8'), /Aviso,/, 'el kit re-exporta Aviso')
+  assert.match(leerFuente(join(RAIZ, 'components/ui/index.jsx'), 'utf8'), /Aviso,/, 'el kit re-exporta Aviso')
   const ui = leerBiblioteca('ui.jsx')
   assert.match(ui, /export function Aviso\(/, 'falta el objeto Aviso')
   assert.match(ui, /tono === 'error' \? 'alert' : 'status'/, 'Aviso anuncia error con role="alert"')
   // Las pantallas que tenían el aviso copiado lo adoptan.
   for (const ruta of ['components/control/Inventario.jsx', 'pages/VerificarCorreo.jsx', 'components/delivery/StoreDelivery.jsx']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<Aviso\b/, `${ruta}: el aviso va con Aviso`)
+    assert.match(leerFuente(join(RAIZ, ruta), 'utf8'), /<Aviso\b/, `${ruta}: el aviso va con Aviso`)
   }
 })
 
@@ -79,10 +80,10 @@ test('las fechas de pantalla salen de utils/fecha (sin duplicar el formato)', ()
     ['pages/CuentaPublica.jsx', /import \{ fechaDia as fecha, fechaHora \} from '@\/utils\/fecha'/],
     ['components/control/Conciliacion.jsx', /import \{ fechaCorta \} from '@\/utils\/fecha'/],
   ]) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), patron, `${ruta}: falta el helper compartido`)
+    assert.match(leerFuente(join(RAIZ, ruta), 'utf8'), patron, `${ruta}: falta el helper compartido`)
   }
-  assert.match(readFileSync(join(LIB, 'Cronologia.jsx'), 'utf8'), /fechaHora/, 'la cronología formatea con el helper de la biblioteca')
-  assert.match(readFileSync(join(RAIZ, 'components/shared/Cronologia.jsx'), 'utf8'), /from 'owncoding-ui'/, 'el adaptador usa la biblioteca')
+  assert.match(leerFuente(join(LIB, 'Cronologia.jsx'), 'utf8'), /fechaHora/, 'la cronología formatea con el helper de la biblioteca')
+  assert.match(leerFuente(join(RAIZ, 'components/shared/Cronologia.jsx'), 'utf8'), /from 'owncoding-ui'/, 'el adaptador usa la biblioteca')
 })
 
 test('el portapapeles sale del objeto compartido', () => {
@@ -90,12 +91,12 @@ test('el portapapeles sale del objeto compartido', () => {
     .filter(({ ruta, contenido }) => !ruta.endsWith('utils/portapapeles.js') && contenido.includes('navigator.clipboard'))
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [])
-  const helper = readFileSync(join(RAIZ, 'utils/portapapeles.js'), 'utf8')
+  const helper = leerFuente(join(RAIZ, 'utils/portapapeles.js'), 'utf8')
   assert.match(helper, /export async function copiarAlPortapapeles/, 'falta copiarAlPortapapeles')
   assert.match(helper, /execCommand\('copy'\)/, 'el helper conserva el respaldo sin Clipboard API')
   // Las pantallas migradas lo importan en vez de copiar el bloque try/catch.
   for (const ruta of ['components/control/Config.jsx', 'components/control/Inventario.jsx', 'components/ventas/SellerQuotes.jsx']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /import \{[^}]*copiarAlPortapapeles[^}]*\} from '@\/utils\/portapapeles'/, `${ruta}: falta el objeto de portapapeles`)
+    assert.match(leerFuente(join(RAIZ, ruta), 'utf8'), /import \{[^}]*copiarAlPortapapeles[^}]*\} from '@\/utils\/portapapeles'/, `${ruta}: falta el objeto de portapapeles`)
   }
 })
 
@@ -104,11 +105,11 @@ test('las descargas del navegador salen de utils/descargarArchivo', () => {
     .filter(({ ruta, contenido }) => !ruta.endsWith('utils/descargarArchivo.js') && contenido.includes('createObjectURL(new Blob('))
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [])
-  const helper = readFileSync(join(RAIZ, 'utils/descargarArchivo.js'), 'utf8')
+  const helper = leerFuente(join(RAIZ, 'utils/descargarArchivo.js'), 'utf8')
   assert.match(helper, /export function descargarArchivo/, 'falta descargarArchivo')
   assert.match(helper, /export function descargarCsvCliente/, 'falta el atajo de CSV')
   for (const ruta of ['components/customers/ClientesTabla.jsx', 'components/control/Reportes.jsx', 'utils/descargarCsv.js']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /descargar(Archivo|CsvCliente)\(/, `${ruta}: la descarga va con el objeto compartido`)
+    assert.match(leerFuente(join(RAIZ, ruta), 'utf8'), /descargar(Archivo|CsvCliente)\(/, `${ruta}: la descarga va con el objeto compartido`)
   }
 })
 
@@ -116,12 +117,12 @@ test('el encabezado y el pie del panel viven una sola vez (#320)', () => {
   // La identidad visible de la página es el h1 del shell: la barra de módulo
   // no repite el título (solo contexto y acciones) y el pie institucional lo
   // renderiza el shell, no cada pantalla.
-  const barra = readFileSync(join(RAIZ, 'components/shared/BarraModulo.jsx'), 'utf8')
+  const barra = leerFuente(join(RAIZ, 'components/shared/BarraModulo.jsx'), 'utf8')
   assert.match(barra, /tituloVisible = false/, 'la barra no repite el título por defecto')
   assert.match(barra, /aria-label=\{titulo\}/, 'la barra conserva el nombre accesible')
   assert.match(barra, /\{tituloVisible && <h2/, 'el h2 visible solo existe para previews standalone')
   for (const ruta of ['pages/preview/AprobacionOtpPreview.jsx', 'pages/preview/VarianteAgotadaPreview.jsx']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /tituloVisible/, `${ruta}: el preview sin shell conserva su título`)
+    assert.match(leerFuente(join(RAIZ, ruta), 'utf8'), /tituloVisible/, `${ruta}: el preview sin shell conserva su título`)
   }
 
   const panel = ['components/control/', 'components/ventas/', 'components/delivery/', 'components/supply/', 'components/customers/', 'components/inventory/', 'pages/Celulares.jsx', 'pages/Comparador.jsx']
@@ -129,7 +130,7 @@ test('el encabezado y el pie del panel viven una sola vez (#320)', () => {
     .filter(({ ruta, contenido }) => panel.some((prefijo) => ruta.startsWith(prefijo)) && contenido.includes("import ProductFooter from '@/components/app/ProductFooter'"))
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [], 'el pie del panel lo renderiza solo el shell')
-  const shell = readFileSync(join(RAIZ, 'components/app/AppShell.jsx'), 'utf8')
+  const shell = leerFuente(join(RAIZ, 'components/app/AppShell.jsx'), 'utf8')
   assert.equal((shell.match(/<ProductFooter/g) || []).length, 0, 'el shell no repite el pie dentro de la aplicación (#341)')
 })
 
@@ -138,11 +139,11 @@ test('la vista lista/cuadrícula se recuerda con el hook compartido', () => {
     .filter(({ ruta, contenido }) => !ruta.endsWith('hooks/useVistaListaGrid.js') && /localStorage\.(getItem|setItem)\('mobos:[a-z-]*-vista'/.test(contenido))
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [])
-  const hook = readFileSync(join(RAIZ, 'hooks/useVistaListaGrid.js'), 'utf8')
+  const hook = leerFuente(join(RAIZ, 'hooks/useVistaListaGrid.js'), 'utf8')
   assert.match(hook, /export function useVistaListaGrid/, 'falta useVistaListaGrid')
   assert.match(hook, /mobos:\$\{clave\}-vista/, 'la clave persistida no cambia de forma')
   for (const ruta of ['components/control/Inventario.jsx', 'components/ventas/SellerCatalog.jsx', 'components/ventas/SellerCustomers.jsx']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /useVistaListaGrid\(/, `${ruta}: la vista va con el hook`)
+    assert.match(leerFuente(join(RAIZ, ruta), 'utf8'), /useVistaListaGrid\(/, `${ruta}: la vista va con el hook`)
   }
 })
 
@@ -152,7 +153,7 @@ test('el id de dispositivo se genera una sola vez en lib/deviceId', () => {
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [])
   for (const ruta of ['pages/Login.jsx', 'pages/AceptarInvitacion.jsx', 'components/control/Config.jsx']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /import \{ deviceId \} from '@\/lib\/deviceId'/, `${ruta}: falta deviceId`)
+    assert.match(leerFuente(join(RAIZ, ruta), 'utf8'), /import \{ deviceId \} from '@\/lib\/deviceId'/, `${ruta}: falta deviceId`)
   }
 })
 
@@ -163,12 +164,12 @@ test('los montos de pantalla salen de utils/moneda', () => {
     .filter(({ ruta, contenido }) => !ruta.endsWith('utils/moneda.js') && !ruta.endsWith('components/ui/index.jsx') && /US\$ \$\{[^}]*toLocaleString\('en-US'/.test(contenido))
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [])
-  const moneda = readFileSync(join(RAIZ, 'utils/moneda.js'), 'utf8')
+  const moneda = leerFuente(join(RAIZ, 'utils/moneda.js'), 'utf8')
   for (const nombre of ['montoGs', 'montoUsd', 'montoTexto']) {
     assert.match(moneda, new RegExp(`export function ${nombre}\\(`), `falta ${nombre}`)
   }
   for (const ruta of ['components/control/Inventario.jsx', 'components/inventory/UnidadDetalle.jsx', 'components/ventas/SellerCatalog.jsx']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /monto(Texto|Usd|Gs)\(/, `${ruta}: el monto va con el helper compartido`)
+    assert.match(leerFuente(join(RAIZ, ruta), 'utf8'), /monto(Texto|Usd|Gs)\(/, `${ruta}: el monto va con el helper compartido`)
   }
 })
 
@@ -178,7 +179,7 @@ test('los vacíos van con EmptyState, no con una caja propia', () => {
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [])
   for (const ruta of ['components/ventas/SellerData.jsx', 'components/ventas/SellerOrders.jsx', 'components/productos/KardexProducto.jsx', 'components/ventas/PanelColaOffline.jsx']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<EmptyState\b/, `${ruta}: el vacío va con EmptyState`)
+    assert.match(leerFuente(join(RAIZ, ruta), 'utf8'), /<EmptyState\b/, `${ruta}: el vacío va con EmptyState`)
   }
 })
 
@@ -187,14 +188,14 @@ test('escapeHtml se define una sola vez (plantillas de impresión)', () => {
     .filter(({ ruta, contenido }) => !ruta.endsWith('utils/printHtml.js') && /(function|const) escapeHtml/.test(contenido))
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [])
-  assert.match(readFileSync(join(RAIZ, 'utils/printHtml.js'), 'utf8'), /export function escapeHtml\(/, 'falta escapeHtml compartido')
+  assert.match(leerFuente(join(RAIZ, 'utils/printHtml.js'), 'utf8'), /export function escapeHtml\(/, 'falta escapeHtml compartido')
   for (const ruta of ['components/shared/OrderReceipt.jsx', 'components/shared/reporteEjecutivo.js', 'components/control/Comisiones.jsx']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /import \{ printHtml, escapeHtml \} from '@\/utils\/printHtml'/, `${ruta}: escapeHtml va del módulo compartido`)
+    assert.match(leerFuente(join(RAIZ, ruta), 'utf8'), /import \{ printHtml, escapeHtml \} from '@\/utils\/printHtml'/, `${ruta}: escapeHtml va del módulo compartido`)
   }
 })
 
 test('las piezas de formulario salen de shared/formulario', () => {
-  const formulario = readFileSync(join(RAIZ, 'components/shared/formulario.js'), 'utf8')
+  const formulario = leerFuente(join(RAIZ, 'components/shared/formulario.js'), 'utf8')
   for (const nombre of ['GRILLA_DOS_COLUMNAS', 'PIE_ACCIONES', 'PIE_ACCIONES_REVERSO']) {
     assert.match(formulario, new RegExp(`\\b${nombre}\\b`), `falta ${nombre}`)
   }
@@ -207,7 +208,7 @@ test('las piezas de formulario salen de shared/formulario', () => {
 })
 
 test('los impresos de servicio usan los helpers compartidos', () => {
-  const codigo = readFileSync(join(RAIZ, 'lib/servicioImpresion.js'), 'utf8')
+  const codigo = leerFuente(join(RAIZ, 'lib/servicioImpresion.js'), 'utf8')
   // Imports relativos: este módulo se testea con node --test (sin alias).
   assert.match(codigo, /from '\.\.\/utils\/printHtml\.js'/, 'el escapado va con escapeHtml')
   assert.match(codigo, /from '\.\.\/utils\/fecha\.js'/, 'la fecha va con fechaDia')
@@ -220,7 +221,7 @@ test('la celda de identidad y los textarea salen de los objetos', () => {
     .filter(({ ruta, contenido }) => !ruta.endsWith('components/shared/tabla.js') && /truncate text-(?:\[13px\]|sm) font-semibold/.test(contenido))
     .map(({ ruta }) => ruta)
   assert.deepEqual(identidad, [])
-  const tabla = readFileSync(join(RAIZ, 'components/shared/tabla.js'), 'utf8')
+  const tabla = leerFuente(join(RAIZ, 'components/shared/tabla.js'), 'utf8')
   for (const nombre of ['CELDA_IDENTIDAD', 'CELDA_IDENTIDAD_GRANDE']) {
     assert.match(tabla, new RegExp(`export const ${nombre} =`), `falta ${nombre}`)
   }
@@ -229,7 +230,7 @@ test('la celda de identidad y los textarea salen de los objetos', () => {
     .map(({ ruta }) => ruta)
   assert.deepEqual(textareas, [])
   for (const ruta of ['components/ventas/PedidoDetalle.jsx', 'pages/RemitoPublico.jsx', 'pages/CotizacionPublica.jsx', 'components/shared/WhatsAppMenu.jsx', 'components/control/WhatsAppTemplates.jsx']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<Textarea\b/, `${ruta}: el texto largo va con Textarea`)
+    assert.match(leerFuente(join(RAIZ, ruta), 'utf8'), /<Textarea\b/, `${ruta}: el texto largo va con Textarea`)
   }
 })
 
@@ -238,27 +239,27 @@ test('las celdas de dato y de número salen de shared/tabla', () => {
     .filter(({ ruta, contenido }) => !ruta.endsWith('components/shared/tabla.js') && (contenido.includes('className="truncate text-xs text-mute"') || contenido.includes('className="truncate text-xs text-mute ') || contenido.includes('className="text-right tabular-nums"')))
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [])
-  const tabla = readFileSync(join(RAIZ, 'components/shared/tabla.js'), 'utf8')
+  const tabla = leerFuente(join(RAIZ, 'components/shared/tabla.js'), 'utf8')
   for (const nombre of ['CELDA_DATO', 'CELDA_NUMERO']) {
     assert.match(tabla, new RegExp(`export const ${nombre} =`), `falta ${nombre}`)
   }
   for (const ruta of ['components/customers/ClientesTabla.jsx', 'components/control/Reportes.jsx']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /CELDA_(DATO|NUMERO)|CeldaMoneda/, `${ruta}: la celda va con el objeto compartido`)
+    assert.match(leerFuente(join(RAIZ, ruta), 'utf8'), /CELDA_(DATO|NUMERO)|CeldaMoneda/, `${ruta}: la celda va con el objeto compartido`)
   }
   // El dinero va con `CeldaMoneda` (el objeto de DSN), no con una clase.
   for (const ruta of ['components/customers/CustomerProfile.jsx', 'components/control/Reportes.jsx']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<CeldaMoneda\b/, `${ruta}: el monto va con CeldaMoneda`)
+    assert.match(leerFuente(join(RAIZ, ruta), 'utf8'), /<CeldaMoneda\b/, `${ruta}: el monto va con CeldaMoneda`)
   }
 })
 
 test('el interruptor tiene un solo objeto: Switch (#186)', () => {
-  const ui = readFileSync(join(RAIZ, 'components/ui/index.jsx'), 'utf8')
+  const ui = leerFuente(join(RAIZ, 'components/ui/index.jsx'), 'utf8')
   assert.ok(!/function Toggle\(/.test(ui), 'ui no debe exportar Toggle: el canónico es shared/Switch')
   const culpables = archivosFuente()
     .filter(({ contenido }) => /import \{[^}]*\bToggle\b[^}]*\} from '@\/components\/ui'/.test(contenido) || /<Toggle\b/.test(contenido))
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [])
-  const config = readFileSync(join(RAIZ, 'components/control/config/Comercial.jsx'), 'utf8')
+  const config = leerFuente(join(RAIZ, 'components/control/config/Comercial.jsx'), 'utf8')
   assert.match(config, /<Switch[\s\S]{0,80}seguro-toggle/, 'el grupo Comercial usa el interruptor canónico')
 })
 
@@ -273,15 +274,15 @@ test('los colores de pantalla salen de tokens (#176)', () => {
     'components/control/Inventario.jsx',
     'components/inventory/UnidadDetalle.jsx',
   ]) {
-    assert.doesNotMatch(readFileSync(join(RAIZ, ruta), 'utf8'), paletaDefault, `${ruta}: color de paleta default en vez de token`)
+    assert.doesNotMatch(leerFuente(join(RAIZ, ruta), 'utf8'), paletaDefault, `${ruta}: color de paleta default en vez de token`)
   }
-  assert.ok(!/#0c8876/.test(readFileSync(join(RAIZ, 'pages/RemitoPublico.jsx'), 'utf8')), 'RemitoPublico no usa el verde viejo')
-  assert.match(readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /border-reserved\/30 bg-reserved\/10/, 'la reserva usa el token reserved')
+  assert.ok(!/#0c8876/.test(leerFuente(join(RAIZ, 'pages/RemitoPublico.jsx'), 'utf8')), 'RemitoPublico no usa el verde viejo')
+  assert.match(leerFuente(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /border-reserved\/30 bg-reserved\/10/, 'la reserva usa el token reserved')
 })
 
 test('las barras de avance usan BarraProgreso', () => {
   for (const ruta of ['components/ventas/PagosPedido.jsx', 'components/control/Creditos.jsx', 'pages/GarantiaPublica.jsx']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<BarraProgreso\b/, `${ruta}: el avance va con BarraProgreso`)
+    assert.match(leerFuente(join(RAIZ, ruta), 'utf8'), /<BarraProgreso\b/, `${ruta}: el avance va con BarraProgreso`)
   }
   // Lote 10: ninguna pantalla arma la barra a mano (ancho por estilo inline).
   const culpables = archivosFuente()
@@ -289,12 +290,12 @@ test('las barras de avance usan BarraProgreso', () => {
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [])
   for (const ruta of ['components/ventas/AnalyticsPos.jsx', 'components/control/ImpresionGraficos.jsx', 'components/control/Resumen.jsx']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<BarraProgreso\b/, `${ruta}: el avance va con BarraProgreso`)
+    assert.match(leerFuente(join(RAIZ, ruta), 'utf8'), /<BarraProgreso\b/, `${ruta}: el avance va con BarraProgreso`)
   }
 })
 
 test('las notas warn y los estados con badge salen de los objetos compartidos (lote 10)', () => {
-  assert.match(readFileSync(join(RAIZ, 'components/ui/index.jsx'), 'utf8'), /Nota,/, 'el kit re-exporta Nota')
+  assert.match(leerFuente(join(RAIZ, 'components/ui/index.jsx'), 'utf8'), /Nota,/, 'el kit re-exporta Nota')
   const ui = leerBiblioteca('ui.jsx')
   assert.match(ui, /export function Nota\(/, 'falta el objeto Nota')
   assert.match(ui, /const NOTAS = \{/, 'los tonos de la nota viven en el objeto')
@@ -308,23 +309,23 @@ test('las notas warn y los estados con badge salen de los objetos compartidos (l
     .filter(({ ruta, contenido }) => !ruta.endsWith('lib/estadosPedido.js') && /const (ORDER_STATUS|FULFILLMENT_STATUS|WARRANTY_STATUS|ESTADO_GARANTIA) = \{/.test(contenido))
     .map(({ ruta }) => ruta)
   assert.deepEqual(conMapaPropio, [], 'los mapas con badge salen de lib/estadosPedido')
-  const estados = readFileSync(join(RAIZ, 'lib/estadosPedido.js'), 'utf8')
+  const estados = leerFuente(join(RAIZ, 'lib/estadosPedido.js'), 'utf8')
   for (const nombre of ['ESTADO_PEDIDO_BADGE', 'ESTADO_ENTREGA_BADGE', 'ESTADO_GARANTIA_BADGE']) {
     assert.match(estados, new RegExp(`export const ${nombre} =`), `falta ${nombre}`)
   }
-  assert.match(readFileSync(join(RAIZ, 'components/shared/EstadoBadge.jsx'), 'utf8'), /EstadoBadge as default/, 'EstadoBadge delega en la biblioteca (lote 35)')
+  assert.match(leerFuente(join(RAIZ, 'components/shared/EstadoBadge.jsx'), 'utf8'), /EstadoBadge as default/, 'EstadoBadge delega en la biblioteca (lote 35)')
   assert.match(leerBiblioteca('EstadoBadge.jsx'), /export default function EstadoBadge\(/, 'falta EstadoBadge en la biblioteca')
-  assert.match(readFileSync(join(RAIZ, 'components/customers/CustomerProfile.jsx'), 'utf8'), /<EstadoBadge\b/, 'la ficha usa EstadoBadge')
+  assert.match(leerFuente(join(RAIZ, 'components/customers/CustomerProfile.jsx'), 'utf8'), /<EstadoBadge\b/, 'la ficha usa EstadoBadge')
 })
 
 test('los montos dentro de frases usan el formateador compartido (lote 10)', () => {
   for (const ruta of ['components/control/Caja.jsx', 'components/delivery/DriverOrders.jsx', 'components/delivery/StoreDelivery.jsx']) {
-    const codigo = readFileSync(join(RAIZ, ruta), 'utf8')
+    const codigo = leerFuente(join(RAIZ, ruta), 'utf8')
     assert.ok(!codigo.includes("toLocaleString('es-PY')"), `${ruta}: el monto va con montoTexto/formatGs`)
   }
   // Los impresos arman HTML autónomo (el color literal viaja en el documento) y
   // `utils/colores.js` es el catálogo de colores de producto.
-  const HEX_PERMITIDOS = ['utils/colores.js', 'components/shared/OrderReceipt.jsx', 'components/shared/reporteEjecutivo.js', 'components/control/Comisiones.jsx', 'components/control/Inventario.jsx']
+  const HEX_PERMITIDOS = ['utils/colores.js', 'components/shared/OrderReceipt.jsx', 'components/shared/reporteEjecutivo.js', 'components/control/Comisiones.jsx', 'components/control/Inventario.jsx', 'components/stock/impresionStock.js']
   const hex = archivosFuente()
     .filter(({ ruta, contenido }) => !ruta.startsWith('lib/') && !HEX_PERMITIDOS.some((permitido) => ruta.endsWith(permitido)) && /#8b5cf6|#0c8876/.test(contenido))
     .map(({ ruta }) => ruta)
@@ -340,20 +341,20 @@ test('el enlace de WhatsApp se arma una sola vez en utils/telefono', () => {
     .filter(({ ruta, contenido }) => !ruta.endsWith('utils/telefono.js') && contenido.includes('https://wa.me/'))
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [])
-  assert.match(readFileSync(join(RAIZ, 'utils/telefono.js'), 'utf8'), /export function whatsappUrl\(/, 'falta whatsappUrl')
+  assert.match(leerFuente(join(RAIZ, 'utils/telefono.js'), 'utf8'), /export function whatsappUrl\(/, 'falta whatsappUrl')
   for (const ruta of ['components/ventas/PagosPedido.jsx', 'components/ventas/FormularioVenta.jsx', 'pages/GarantiaPublica.jsx', 'components/customers/CampanasClientes.jsx']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /whatsappUrl/, `${ruta}: el enlace va con whatsappUrl`)
+    assert.match(leerFuente(join(RAIZ, ruta), 'utf8'), /whatsappUrl/, `${ruta}: el enlace va con whatsappUrl`)
   }
 })
 
 test('los estados de pedido del cliente se definen una sola vez', () => {
-  const pagina = (ruta) => readFileSync(join(RAIZ, ruta), 'utf8')
+  const pagina = (ruta) => leerFuente(join(RAIZ, ruta), 'utf8')
   for (const ruta of ['pages/PortalCliente.jsx', 'pages/CuentaPublica.jsx', 'pages/PedidoPublico.jsx', 'pages/GarantiaPublica.jsx']) {
     const codigo = pagina(ruta)
     assert.doesNotMatch(codigo, /const (ESTADO_PEDIDO|ORDER_STATUS|FULFILLMENT|WARRANTY_STATUS) = \{/, `${ruta}: los estados salen de lib/estadosPedido`)
     assert.match(codigo, /from '@\/lib\/estadosPedido'/, `${ruta}: falta el módulo compartido`)
   }
-  const estados = readFileSync(join(RAIZ, 'lib/estadosPedido.js'), 'utf8')
+  const estados = leerFuente(join(RAIZ, 'lib/estadosPedido.js'), 'utf8')
   for (const nombre of ['ESTADO_PEDIDO', 'ESTADO_ENTREGA', 'ESTADO_GARANTIA', 'tonoPedido', 'tonoGarantia']) {
     assert.match(estados, new RegExp(`export const ${nombre} =`), `falta ${nombre}`)
   }
@@ -362,7 +363,7 @@ test('los estados de pedido del cliente se definen una sola vez', () => {
 // Lote 18: las etiquetas de entrega del listado, el POS y los impresos salen del
 // mapa con badge compartido; `constants.js` no las vuelve a copiar.
 test('las etiquetas de entrega salen del mapa con badge (lote 18)', async () => {
-  const constantes = readFileSync(join(RAIZ, 'lib/constants.js'), 'utf8')
+  const constantes = leerFuente(join(RAIZ, 'lib/constants.js'), 'utf8')
   assert.match(constantes, /import \{ ESTADO_ENTREGA_BADGE \} from '\.\/estadosPedido\.js'/, 'constants deriva del mapa compartido')
   assert.ok(!/PENDING: 'Pendiente'/.test(constantes), 'las etiquetas de entrega no se copian a mano')
 
@@ -373,7 +374,7 @@ test('las etiquetas de entrega salen del mapa con badge (lote 18)', async () => 
   }
   assert.equal(FULFILLMENT_LABELS.CANCELLED, 'Cancelado', 'el único estado sin badge se conserva')
 
-  const entrega = readFileSync(join(RAIZ, 'components/ventas/venta/entrega.js'), 'utf8')
+  const entrega = leerFuente(join(RAIZ, 'components/ventas/venta/entrega.js'), 'utf8')
   assert.match(entrega, /FULFILLMENT_LABELS/, 'el flujo de entrega usa las etiquetas compartidas')
 })
 
@@ -387,7 +388,7 @@ test('Aviso cubre warn y el aviso con estructura', () => {
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [])
   for (const ruta of ['pages/Login.jsx', 'components/ventas/SellerData.jsx', 'components/productos/KardexProducto.jsx', 'components/landing/ImeiVerificador.jsx']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<Aviso\b/, `${ruta}: el aviso va con Aviso`)
+    assert.match(leerFuente(join(RAIZ, ruta), 'utf8'), /<Aviso\b/, `${ruta}: el aviso va con Aviso`)
   }
 })
 
@@ -397,7 +398,7 @@ test('las cargas usan Skeleton en vez de bloques animate-pulse', () => {
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [])
   for (const ruta of ['components/ventas/SellerData.jsx', 'components/customerPortal/PortalUI.jsx', 'components/customers/CampanasClientes.jsx']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<Skeleton\b/, `${ruta}: la carga va con Skeleton`)
+    assert.match(leerFuente(join(RAIZ, ruta), 'utf8'), /<Skeleton\b/, `${ruta}: la carga va con Skeleton`)
   }
 })
 
@@ -408,10 +409,10 @@ test('los objetos de inspección del equipo salen de shared/ y lib/estadoEquipo 
   // Los cinco objetos son puentes de la biblioteca (ChipsLocks/MedidorBateria/
   // GradoBadge desde el lote 35; SemaforoItem/ChipEstado desde el lote 38).
   for (const nombre of ['SemaforoItem', 'ChipEstado', 'ChipsLocks', 'MedidorBateria', 'GradoBadge']) {
-    assert.match(readFileSync(join(RAIZ, 'components/shared', `${nombre}.jsx`), 'utf8'), new RegExp(`${nombre} as default`), `${nombre} delega en la biblioteca`)
+    assert.match(leerFuente(join(RAIZ, 'components/shared', `${nombre}.jsx`), 'utf8'), new RegExp(`${nombre} as default`), `${nombre} delega en la biblioteca`)
     assert.match(leerBiblioteca(`${nombre}.jsx`), /export default function /, `falta ${nombre} en la biblioteca`)
   }
-  const estado = readFileSync(join(RAIZ, 'lib/estadoEquipo.js'), 'utf8')
+  const estado = leerFuente(join(RAIZ, 'lib/estadoEquipo.js'), 'utf8')
   for (const nombre of ['ESTADOS_ITEM', 'LOCKS_DISPOSITIVO', 'ESTADOS_LOCK', 'GRADOS_CONDICION', 'tonoBateria', 'gradoCondicion']) {
     assert.match(estado, new RegExp(`export (const|function) ${nombre}`), `falta ${nombre}`)
   }
@@ -425,7 +426,7 @@ test('los objetos de inspección del equipo salen de shared/ y lib/estadoEquipo 
     .map(({ ruta }) => ruta)
   assert.deepEqual(sueltos, [], 'el % de batería va con MedidorBateria')
   for (const ruta of ['components/inventory/UnidadDetalle.jsx', 'components/control/Inventario.jsx', 'components/inventory/SerialUnitPicker.jsx']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<MedidorBateria\b/, `${ruta}: la batería va con MedidorBateria`)
+    assert.match(leerFuente(join(RAIZ, ruta), 'utf8'), /<MedidorBateria\b/, `${ruta}: la batería va con MedidorBateria`)
   }
 
   // Las etiquetas propias del checklist y del grado no se re-escriben por
@@ -439,12 +440,12 @@ test('los objetos de inspección del equipo salen de shared/ y lib/estadoEquipo 
 // #242: los glifos de categoría (mobile/laptop/tablet/watch/buds/cable) y el
 // mapa categoría→icono viven en un solo objeto; el POS y el catálogo los usan.
 test('los iconos de categoría salen del objeto compartido (#242)', () => {
-  assert.match(readFileSync(join(RAIZ, 'components/shared/IconoCategoria.jsx'), 'utf8'), /IconoCategoria as default/, 'el puente delega en la biblioteca (lote 35)')
+  assert.match(leerFuente(join(RAIZ, 'components/shared/IconoCategoria.jsx'), 'utf8'), /IconoCategoria as default/, 'el puente delega en la biblioteca (lote 35)')
   const objeto = leerBiblioteca('IconoCategoria.jsx')
   for (const glifo of ['mobile', 'laptop', 'tablet', 'watch', 'buds', 'cable']) {
     assert.match(objeto, new RegExp(`\\n  ${glifo}: 'M`), `falta el glifo ${glifo}`)
   }
-  const categorias = readFileSync(join(RAIZ, 'lib/categorias.js'), 'utf8')
+  const categorias = leerFuente(join(RAIZ, 'lib/categorias.js'), 'utf8')
   for (const nombre of ['CATEGORIAS_PRODUCTO', 'ICONO_CATEGORIA', 'normalizarCategoria', 'categoriaDe', 'iconoDeCategoria']) {
     assert.match(categorias, new RegExp(`export (const|function) ${nombre}`), `falta ${nombre}`)
   }
@@ -462,9 +463,9 @@ test('la vista previa del papel sale de shared/VistaPreviaPapel (#241)', () => {
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [], 'los anchos de papel viven en el objeto')
   for (const ruta of ['components/shared/ComprobantePreview.jsx', 'components/shared/ReportePreview.jsx']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<VistaPreviaPapel\b/, `${ruta}: usa la vista previa compartida`)
+    assert.match(leerFuente(join(RAIZ, ruta), 'utf8'), /<VistaPreviaPapel\b/, `${ruta}: usa la vista previa compartida`)
   }
-  assert.match(readFileSync(join(RAIZ, 'components/shared/VistaPreviaPapel.jsx'), 'utf8'), /VistaPreviaPapel as default/, 'el puente delega en la biblioteca (lote 35)')
+  assert.match(leerFuente(join(RAIZ, 'components/shared/VistaPreviaPapel.jsx'), 'utf8'), /VistaPreviaPapel as default/, 'el puente delega en la biblioteca (lote 35)')
   const objeto = leerBiblioteca('VistaPreviaPapel.jsx')
   assert.match(objeto, /export const ANCHOS_PAPEL =/)
   assert.match(objeto, /'thermal-80': 'max-w-\[302px\]'/)
@@ -479,22 +480,22 @@ test('el tono de la unidad vive en utils/inventario (#217)', () => {
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [], 'el tono de estado sale de utils/inventario')
   for (const ruta of ['components/control/Inventario.jsx', 'components/inventory/UnidadDetalle.jsx']) {
-    const codigo = readFileSync(join(RAIZ, ruta), 'utf8')
+    const codigo = leerFuente(join(RAIZ, ruta), 'utf8')
     assert.match(codigo, /from '@\/utils\/inventario'/, `${ruta}: importa las reglas compartidas`)
     assert.match(codigo, /estadoInventario\(unit\)\.tone/, `${ruta}: el badge usa el tono compartido`)
   }
-  const inventario = readFileSync(join(RAIZ, 'utils/inventario.js'), 'utf8')
+  const inventario = leerFuente(join(RAIZ, 'utils/inventario.js'), 'utf8')
   for (const nombre of ['tonoInventario', 'colorInventario', 'etiquetaCondicionUnidad', 'colorCondicionUnidad', 'puntoCondicionUnidad']) {
     assert.match(inventario, new RegExp(`export (const|function) ${nombre}`), `falta ${nombre}`)
   }
   // El mapa de condición vive en la biblioteca desde el lote 44.
   assert.match(inventario, /export \{ CONDICION_UNIDAD \}/, 'CONDICION_UNIDAD se re-exporta de la biblioteca')
-  assert.match(readFileSync(join(LIB, '..', 'utils', 'estadoEquipo.js'), 'utf8'), /export const CONDICION_UNIDAD =/, 'falta CONDICION_UNIDAD en la biblioteca')
+  assert.match(leerFuente(join(LIB, '..', 'utils', 'estadoEquipo.js'), 'utf8'), /export const CONDICION_UNIDAD =/, 'falta CONDICION_UNIDAD en la biblioteca')
 })
 
 // Lote 17: la página pública del informe usa los objetos y reglas compartidas.
 test('el informe público usa MedidorBateria y la condición compartida (#240)', () => {
-  const pagina = readFileSync(join(RAIZ, 'pages/InformePublico.jsx'), 'utf8')
+  const pagina = leerFuente(join(RAIZ, 'pages/InformePublico.jsx'), 'utf8')
   assert.match(pagina, /<MedidorBateria porcentaje=\{unit\.batteryHealth\}/)
   assert.match(pagina, /etiquetaCondicionUnidad\(unit\)/)
   assert.ok(!/const CONDICION = \{/.test(pagina), 'la condición sale de utils/inventario')
@@ -504,12 +505,12 @@ test('el informe público usa MedidorBateria y la condición compartida (#240)',
 // Ayuda: el cheat-sheet visual de atajos vive en un solo objeto; el diálogo
 // «?» del shell lo reutiliza y nadie vuelve a copiar la lista a mano.
 test('el cheat-sheet de atajos vive en app/CheatSheetAtajos (#241)', () => {
-  const hoja = readFileSync(join(RAIZ, 'components/app/CheatSheetAtajos.jsx'), 'utf8')
+  const hoja = leerFuente(join(RAIZ, 'components/app/CheatSheetAtajos.jsx'), 'utf8')
   for (const accion of ['Búsqueda global', 'Nueva venta', 'Buscar producto', 'Crear cliente', 'Cotizar equipo (Trade-In)', 'Guardar venta', 'Cerrar diálogos', 'Bloquear pantalla', 'Mi perfil']) {
     assert.match(hoja, new RegExp(accion.replace(/[()]/g, '\\$&')), `falta «${accion}» en el cheat-sheet`)
   }
   assert.match(hoja, /Fn\+F1/, 'la nota de Mac explica Fn+F1…F4')
-  const panel = readFileSync(join(RAIZ, 'pages/PanelVendedor.jsx'), 'utf8')
+  const panel = leerFuente(join(RAIZ, 'pages/PanelVendedor.jsx'), 'utf8')
   assert.match(panel, /import CheatSheetAtajos from '@\/components\/app\/CheatSheetAtajos'/, 'el panel importa el objeto')
   assert.match(panel, /<CheatSheetAtajos\b/, 'el diálogo de atajos usa el objeto compartido')
   assert.ok(!panel.includes("'Ctrl+K', 'Búsqueda global'"), 'la lista de atajos no se copia en el panel')
@@ -518,7 +519,7 @@ test('el cheat-sheet de atajos vive en app/CheatSheetAtajos (#241)', () => {
 // Lote 15 / paso 4 (#241): el rack del piloto delega el grado y la batería en
 // el objeto compartido `TileEquipo`, que compone GradoBadge y MedidorBateria.
 test('el modo taller usa el tile compartido para grado y batería (#240)', () => {
-  const rack = readFileSync(join(RAIZ, 'components/inventory/TallerRack.jsx'), 'utf8')
+  const rack = leerFuente(join(RAIZ, 'components/inventory/TallerRack.jsx'), 'utf8')
   assert.match(rack, /from 'owncoding-ui'/, 'los objetos del taller salen de la biblioteca')
   assert.match(rack, /<TileEquipo[\s\S]*?grado=\{grado\}[\s\S]*?bateria=\{bateria\}/)
   assert.ok(!rack.includes('COLOR_GRADO'), 'el color del grado sale del objeto')
@@ -531,18 +532,18 @@ test('el modo taller usa el tile compartido para grado y batería (#240)', () =>
 // dependiente de la biblioteca (modelo → capacidad/color) y el puente de
 // etiquetas vive en lib/dispositivos.
 test('la recepción usa el buscador dependiente de dispositivos (#240/#250)', () => {
-  const servicio = readFileSync(join(RAIZ, 'components/control/ServicioTecnico.jsx'), 'utf8')
+  const servicio = leerFuente(join(RAIZ, 'components/control/ServicioTecnico.jsx'), 'utf8')
   assert.match(servicio, /import \{ BuscadorDispositivo, etiquetaDispositivo \} from 'owncoding-ui'/)
   assert.match(servicio, /<BuscadorDispositivo[^>]*tipo="servicio"/)
   assert.match(servicio, /partesDispositivo\(row\.device\)/, 'al editar se reabre la etiqueta')
   assert.ok(!/<Input id="dispositivo"/.test(servicio), 'el campo de equipo ya no es texto libre suelto')
-  const garantias = readFileSync(join(RAIZ, 'components/control/Garantias.jsx'), 'utf8')
+  const garantias = leerFuente(join(RAIZ, 'components/control/Garantias.jsx'), 'utf8')
   assert.match(garantias, /<BuscadorDispositivo[^>]*tipo="accesorios"/)
   assert.match(garantias, /agregarRepuesto/, 'lo elegido se suma a la lista de repuestos')
-  const tablero = readFileSync(join(RAIZ, 'components/control/TableroServicioGarantias.jsx'), 'utf8')
+  const tablero = leerFuente(join(RAIZ, 'components/control/TableroServicioGarantias.jsx'), 'utf8')
   assert.match(tablero, /partesDispositivo\(fila\.equipo\)/)
   // La etiqueta se arma y se abre en un solo módulo.
-  const puente = readFileSync(join(RAIZ, 'lib/dispositivos.js'), 'utf8')
+  const puente = leerFuente(join(RAIZ, 'lib/dispositivos.js'), 'utf8')
   for (const nombre of ['partesDispositivo', 'varianteDispositivo', 'tipoDeDispositivo']) {
     assert.match(puente, new RegExp(`export function ${nombre}\\(`), `falta ${nombre}`)
   }
@@ -564,16 +565,16 @@ test('compartir documentos como imagen sale del objeto compartido (#240/#220)', 
     // la pantalla arma su propio menú secundario; las dos rutas viven en el
     // mismo módulo compartido.
     assert.match(
-      readFileSync(join(RAIZ, ruta), 'utf8'),
+      leerFuente(join(RAIZ, ruta), 'utf8'),
       /(import CompartirImagen from '@\/components\/shared\/CompartirImagen'|import \{[^}]*useCompartirImagen[^}]*\} from '@\/components\/shared\/CompartirImagen')/,
       `${ruta} comparte por el objeto`,
     )
   }
-  const modulo = readFileSync(join(RAIZ, 'lib/printing/compartirDocumento.js'), 'utf8')
+  const modulo = leerFuente(join(RAIZ, 'lib/printing/compartirDocumento.js'), 'utf8')
   for (const nombre of ['documentoAPng', 'compartirArchivo', 'copiarImagen', 'nombreImagenDocumento']) {
     assert.match(modulo, new RegExp(`export (async )?function ${nombre}\\(`), `falta ${nombre}`)
   }
-  const componente = readFileSync(join(RAIZ, 'components/shared/CompartirImagen.jsx'), 'utf8')
+  const componente = leerFuente(join(RAIZ, 'components/shared/CompartirImagen.jsx'), 'utf8')
   assert.ok(!/navigator\.|ClipboardItem/.test(componente), 'el navegador se toca solo en el módulo compartido')
   assert.ok(!/toPng/.test(componente), 'el rasterizado vive en el módulo, no en la pantalla')
 })
@@ -589,15 +590,15 @@ test('el PDF para compartir sale del objeto compartido (#250/POS)', () => {
     'components/supply/PrepararLote.jsx',
   ]
   for (const ruta of pantallas) {
-    const pantalla = readFileSync(join(RAIZ, ruta), 'utf8')
+    const pantalla = leerFuente(join(RAIZ, ruta), 'utf8')
     assert.match(pantalla, /import CompartirPdf from '@\/components\/shared\/CompartirPdf'/, `${ruta} comparte PDF por el objeto`)
     assert.match(pantalla, /<CompartirPdf\b/, `${ruta} usa el objeto`)
   }
-  const modulo = readFileSync(join(RAIZ, 'lib/printing/pdfDocumento.js'), 'utf8')
+  const modulo = leerFuente(join(RAIZ, 'lib/printing/pdfDocumento.js'), 'utf8')
   for (const nombre of ['documentoAPdf', 'pdfDeJpegPaginas', 'paginasDeImagen', 'nombrePdfDocumento']) {
     assert.match(modulo, new RegExp(`export (async )?function ${nombre}\\(`), `falta ${nombre}`)
   }
-  const componente = readFileSync(join(RAIZ, 'components/shared/CompartirPdf.jsx'), 'utf8')
+  const componente = leerFuente(join(RAIZ, 'components/shared/CompartirPdf.jsx'), 'utf8')
   assert.ok(!/navigator\.|toJpeg|createElement\('canvas'\)/.test(componente), 'el render y el navegador viven en el módulo')
 })
 
@@ -608,12 +609,12 @@ test('el QR del informe sale de lib/qr y shared/CodigoQr (#240)', () => {
     .filter(({ ruta, contenido }) => !ruta.endsWith('lib/qr.js') && /from 'qrcode'|QRCode\.toDataURL/.test(contenido))
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [], 'el QR se genera solo en lib/qr.js')
-  const qr = readFileSync(join(RAIZ, 'lib/qr.js'), 'utf8')
+  const qr = leerFuente(join(RAIZ, 'lib/qr.js'), 'utf8')
   assert.match(qr, /export async function qrDataUrl\(/)
   assert.match(qr, /export const QR_OPCIONES =/)
-  assert.match(readFileSync(join(RAIZ, 'components/shared/CodigoQr.jsx'), 'utf8'), /CodigoQr as default/, 'el puente delega en la biblioteca (lote 35)')
+  assert.match(leerFuente(join(RAIZ, 'components/shared/CodigoQr.jsx'), 'utf8'), /CodigoQr as default/, 'el puente delega en la biblioteca (lote 35)')
   assert.match(leerBiblioteca('CodigoQr.jsx'), /export default function CodigoQr\(/)
-  assert.match(readFileSync(join(RAIZ, 'components/shared/FichaCertificado.jsx'), 'utf8'), /FichaCertificado as default/, 'la ficha delega en la biblioteca (lote 40)')
+  assert.match(leerFuente(join(RAIZ, 'components/shared/FichaCertificado.jsx'), 'utf8'), /FichaCertificado as default/, 'la ficha delega en la biblioteca (lote 40)')
   const ficha = leerBiblioteca('FichaCertificado.jsx')
   for (const objeto of ['ChipEstado', 'ChipsLocks', 'CodigoQr', 'GradoBadge', 'MedidorBateria']) {
     assert.match(ficha, new RegExp(`<${objeto}\\b`), `la ficha de certificado compone ${objeto}`)
@@ -626,7 +627,7 @@ test('el QR del informe sale de lib/qr y shared/CodigoQr (#240)', () => {
 // Lote 54 (#267): el riel de Configuración delega el markup en la biblioteca.
 // #298: una sola navegación, siempre con texto (sin colapso a iconos).
 test('Configuración usa selector accesible sin colapso ni tira horizontal móvil (#341)', () => {
-  const riel = readFileSync(join(RAIZ, 'components/control/config/NavegacionConfig.jsx'), 'utf8')
+  const riel = leerFuente(join(RAIZ, 'components/control/config/NavegacionConfig.jsx'), 'utf8')
   assert.match(riel, /import SectionSelector from '@\/components\/app\/SectionSelector'/, 'el adaptador usa el selector compartido del shell')
   assert.match(riel, /testId="config-grupos"/, 'conserva los testids de los specs')
   assert.ok(!riel.includes('role="tablist"'), 'el selector no simula un tablist')
@@ -635,7 +636,7 @@ test('Configuración usa selector accesible sin colapso ni tira horizontal móvi
 })
 
 test('el buscador global usa PaletaComandos y no reimplementa la paleta (#241)', () => {
-  const buscador = readFileSync(join(RAIZ, 'components/app/GlobalSearch.jsx'), 'utf8')
+  const buscador = leerFuente(join(RAIZ, 'components/app/GlobalSearch.jsx'), 'utf8')
   assert.match(buscador, /import \{ PaletaComandos \} from 'owncoding-ui'/, 'la paleta sale de la biblioteca')
   assert.match(buscador, /<PaletaComandos[\s\S]*?buscar=\{buscar\}/, 'la consulta se provee por props')
   assert.match(buscador, /onElegir=\{\(resultado\) => onNavigate\(resultado\.datos\.vista, resultado\.datos\.params\)\}/)
@@ -648,7 +649,7 @@ test('el buscador global usa PaletaComandos y no reimplementa la paleta (#241)',
 // descripción) vive en un solo módulo y la pantalla la reutiliza con la
 // semántica de pestañas que ya cubren los e2e.
 test('los 7 grupos de Configuración viven en config/gruposConfig (#253)', () => {
-  const meta = readFileSync(join(RAIZ, 'components/control/config/gruposConfig.js'), 'utf8')
+  const meta = leerFuente(join(RAIZ, 'components/control/config/gruposConfig.js'), 'utf8')
   const esperados = {
     'mi-cuenta': 'user',
     'organizacion': 'store',
@@ -662,22 +663,22 @@ test('los 7 grupos de Configuración viven en config/gruposConfig (#253)', () =>
     assert.ok(meta.includes(`'${id}': { icono: '${icono}'`), `falta ${id} con icono ${icono}`)
   }
   // #253: el set de iconos vive en la biblioteca; Icon.jsx es un puente.
-  const puente = readFileSync(join(RAIZ, 'components/shared/Icon.jsx'), 'utf8')
+  const puente = leerFuente(join(RAIZ, 'components/shared/Icon.jsx'), 'utf8')
   assert.match(puente, /from 'owncoding-ui'/, 'Icon es el puente a la biblioteca')
-  const biblioteca = readFileSync(join(RAIZ, '../node_modules/owncoding-ui/dist/index.js'), 'utf8')
+  const biblioteca = leerFuente(join(RAIZ, '../node_modules/owncoding-ui/dist/index.js'), 'utf8')
   for (const icono of Object.values(esperados)) {
     assert.ok(biblioteca.includes(`${icono}:`), `el icono ${icono} no existe en la biblioteca`)
   }
-  const nav = readFileSync(join(RAIZ, 'components/control/config/NavegacionConfig.jsx'), 'utf8')
+  const nav = leerFuente(join(RAIZ, 'components/control/config/NavegacionConfig.jsx'), 'utf8')
   // Lote 54 (#267): el markup del riel vive en la biblioteca; la app aporta los
   // 7 grupos y los testids de los specs. #298: sin colapso a iconos.
-  const riel = readFileSync(join(LIB, 'NavegacionSeccion.jsx'), 'utf8')
+  const riel = leerFuente(join(LIB, 'NavegacionSeccion.jsx'), 'utf8')
   assert.match(riel, /role="tablist"/, 'la navegación conserva la semántica de pestañas')
   assert.match(riel, /aria-selected=\{esta\}/, 'la pestaña activa se anuncia')
   assert.match(riel, /aria-label=\{item\.label\}/, 'cada opción se anuncia con su rótulo')
   assert.ok(!/colapsado=|onToggle/.test(nav), 'el adaptador no habilita el colapso a iconos (#298)')
   assert.match(nav, /testId="config-grupos"/, 'el adaptador conserva los testids')
-  const panel = readFileSync(join(RAIZ, 'pages/PanelVendedor.jsx'), 'utf8')
+  const panel = leerFuente(join(RAIZ, 'pages/PanelVendedor.jsx'), 'utf8')
   assert.match(panel, /<NavegacionConfig value=\{vista\} onChange=\{irASubtab\} items=\{tabsConfig\}>/, 'Configuración usa la navegación de los 7 grupos')
   assert.ok(!/<Subtabs value=\{vista\} onChange=\{irASubtab\} items=\{tabsConfig\}/.test(panel), 'la lista plana no se repite en Configuración')
 })
@@ -686,11 +687,11 @@ test('los 7 grupos de Configuración viven en config/gruposConfig (#253)', () =>
 // el resumen de métricas con alcance son objetos compartidos: las pantallas no
 // vuelven a armar su propio encabezado grande ni mezclan totales sin alcance.
 test('la composición de módulo y el resumen de métricas son objetos (#256)', () => {
-  const barra = readFileSync(join(RAIZ, 'components/shared/BarraModulo.jsx'), 'utf8')
+  const barra = leerFuente(join(RAIZ, 'components/shared/BarraModulo.jsx'), 'utf8')
   assert.match(barra, /export default function BarraModulo\(/)
   assert.match(barra, /<h2/, 'la identidad del módulo va como h2 (el h1 es del shell)')
   assert.match(barra, /min-w-\[11rem\]/, 'el título no colapsa en mobile')
-  const resumen = readFileSync(join(RAIZ, 'components/shared/ResumenMetricas.jsx'), 'utf8')
+  const resumen = leerFuente(join(RAIZ, 'components/shared/ResumenMetricas.jsx'), 'utf8')
   assert.match(resumen, /export default function ResumenMetricas\(/)
   assert.match(resumen, /alcance/, 'cada tile declara su alcance')
   for (const [ruta, marca] of [
@@ -704,16 +705,16 @@ test('la composición de módulo y el resumen de métricas son objetos (#256)', 
     // #278 · FIN: Autorizaciones usa la barra compacta (identidad + acciones).
     ['components/control/Autorizaciones.jsx', /<BarraModulo[\s\S]*?testId="barra-autorizaciones"/],
   ]) {
-    const codigo = readFileSync(join(RAIZ, ruta), 'utf8')
+    const codigo = leerFuente(join(RAIZ, ruta), 'utf8')
     assert.match(codigo, marca, `${ruta}: usa la barra compartida`)
   }
-  assert.match(readFileSync(join(RAIZ, 'components/ventas/SellerCustomers.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-clientes"/, 'Clientes usa el resumen con alcance')
+  assert.match(leerFuente(join(RAIZ, 'components/ventas/SellerCustomers.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-clientes"/, 'Clientes usa el resumen con alcance')
   // #305: Inventario dejó de apilar el resumen de métricas antes de la tabla.
-  assert.doesNotMatch(readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /<ResumenMetricas/, 'Inventario ya no apila el resumen de métricas (#305)')
-  assert.match(readFileSync(join(RAIZ, 'components/ventas/SellerCatalog.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-productos"/, 'Productos usa el resumen con alcance')
-  assert.match(readFileSync(join(RAIZ, 'components/control/Compras.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-compras"/, 'Compras usa el resumen con alcance')
-  assert.match(readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /data-testid="grupos-inventario"/, 'la navegación de Inventario está agrupada (#305)')
-  assert.match(readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /data-testid="tabs-inventario"/, 'las secciones de Inventario viven en un selector agrupado (sin contadores repetidos)')
+  assert.doesNotMatch(leerFuente(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /<ResumenMetricas/, 'Inventario ya no apila el resumen de métricas (#305)')
+  assert.match(leerFuente(join(RAIZ, 'components/ventas/SellerCatalog.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-productos"/, 'Productos usa el resumen con alcance')
+  assert.match(leerFuente(join(RAIZ, 'components/control/Compras.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-compras"/, 'Compras usa el resumen con alcance')
+  assert.match(leerFuente(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /data-testid="grupos-inventario"/, 'la navegación de Inventario está agrupada (#305)')
+  assert.match(leerFuente(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /data-testid="tabs-inventario"/, 'las secciones de Inventario viven en un selector agrupado (sin contadores repetidos)')
 })
 
 // Diseño #279 (A3/A5): los previews usan los objetos compartidos (barra,
@@ -724,7 +725,7 @@ test('los previews de diseño de #279 usan los objetos compartidos', () => {
     ['pages/preview/AprobacionOtpPreview.jsx', 'a3-preview'],
     ['pages/preview/VarianteAgotadaPreview.jsx', 'a5-preview'],
   ]) {
-    const fuente = readFileSync(join(RAIZ, ruta), 'utf8')
+    const fuente = leerFuente(join(RAIZ, ruta), 'utf8')
     assert.match(fuente, /<BarraModulo/, `${ruta}: usa la barra compartida`)
     assert.match(fuente, /<PinInput/, `${ruta}: el código usa PinInput`)
     assert.match(fuente, /PIE_ACCIONES/, `${ruta}: el pie de acciones es el compartido`)
@@ -737,13 +738,13 @@ test('los previews de diseño de #279 usan los objetos compartidos', () => {
 // sucursal (la API ya acota por la venta/sesión) y el detalle de producto no
 // se queda en silencio cuando la carga falla.
 test('el selector de IMEI del POS no filtra unidades por sucursal y el detalle de producto no silencia errores (#286)', () => {
-  const picker = readFileSync(join(RAIZ, 'components/inventory/SerialUnitPicker.jsx'), 'utf8')
+  const picker = leerFuente(join(RAIZ, 'components/inventory/SerialUnitPicker.jsx'), 'utf8')
   assert.doesNotMatch(picker, /!\s*unit\.branchId/, 'el selector no descarta unidades sin sucursal')
   assert.match(picker, /unidadesElegibles\(/, 'el selector usa la elegibilidad compartida (utils/inventario)')
   assert.match(picker, /data-testid="picker-sin-sucursal"/, 'sin sucursal explica qué falta y cómo seguir')
   assert.match(picker, /picker-error/, 'los fallos de carga muestran un aviso del selector')
   assert.match(picker, /setError\(mensajeDeCarga\(cause\)\)/, 'los fallos pasan por el mensaje accionable (sin texto crudo del API)')
-  const detalle = readFileSync(join(RAIZ, 'components/productos/ProductoDetalle.jsx'), 'utf8')
+  const detalle = leerFuente(join(RAIZ, 'components/productos/ProductoDetalle.jsx'), 'utf8')
   assert.doesNotMatch(detalle, /catch\s*\{\s*setUnits\(\[\]\)\s*\}/, 'el detalle no silencia el fallo de unidades')
   assert.match(detalle, /productId: current\.id/, 'el detalle pide las unidades por producto (no por texto)')
 })
@@ -752,25 +753,25 @@ test('el selector de IMEI del POS no filtra unidades por sucursal y el detalle d
 // definición y vive en las dos vistas, y el paso producto → unidades (y
 // vuelta) está cableado en los dos detalles.
 test('Productos y Unidades comparten el switch y los enlaces de contexto (#287)', () => {
-  const switch_ = readFileSync(join(RAIZ, 'components/shared/VistaProductosUnidades.jsx'), 'utf8')
+  const switch_ = leerFuente(join(RAIZ, 'components/shared/VistaProductosUnidades.jsx'), 'utf8')
   assert.match(switch_, /data-testid="vista-productos-unidades"/, 'el switch tiene testid propio')
   assert.match(switch_, /SegmentedField/, 'usa el control compartido de la biblioteca')
   for (const ruta of ['components/ventas/SellerCatalog.jsx', 'components/control/Inventario.jsx']) {
-    const fuente = readFileSync(join(RAIZ, ruta), 'utf8')
+    const fuente = leerFuente(join(RAIZ, ruta), 'utf8')
     assert.match(fuente, /<VistaProductosUnidades/, `${ruta}: usa el switch compartido`)
   }
-  assert.match(readFileSync(join(RAIZ, 'components/productos/ProductoDetalle.jsx'), 'utf8'), /\/inventario\/unidades\?producto=/, 'la ficha del producto lleva a sus unidades')
-  assert.match(readFileSync(join(RAIZ, 'components/inventory/UnidadDetalle.jsx'), 'utf8'), /\/productos\?producto=/, 'la ficha de la unidad lleva a su producto')
-  assert.match(readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /inventario-filtro-producto/, 'la vista de Unidades muestra el producto que la acota')
+  assert.match(leerFuente(join(RAIZ, 'components/productos/ProductoDetalle.jsx'), 'utf8'), /\/inventario\/unidades\?producto=/, 'la ficha del producto lleva a sus unidades')
+  assert.match(leerFuente(join(RAIZ, 'components/inventory/UnidadDetalle.jsx'), 'utf8'), /\/productos\?producto=/, 'la ficha de la unidad lleva a su producto')
+  assert.match(leerFuente(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /inventario-filtro-producto/, 'la vista de Unidades muestra el producto que la acota')
 })
 
 // #279 (A4 · vender en tránsito): el panel aparta unidades que viajan, las
 // marca en la fila y el menú de acciones vuelve a responder (solo cierra afuera).
 test('el panel de Unidades aparta unidades en tránsito y el menú responde (#279)', () => {
-  const inventario = readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8')
+  const inventario = leerFuente(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8')
   assert.match(inventario, /data-testid="unidad-apartada"/, 'la fila marca la unidad apartada')
   assert.match(inventario, /Apartar para una venta/, 'el menú ofrece apartar la unidad que viaja')
   assert.match(inventario, /transitAssignments\.create\(/, 'el panel usa la API de asignaciones futuras')
   assert.match(inventario, /function MenuAcciones[\s\S]*?raiz\.current\?\.contains/, 'el menú de acciones solo cierra si el clic fue afuera')
-  assert.match(readFileSync(join(RAIZ, 'components/app/PanelNotificaciones.jsx'), 'utf8'), /TRANSITO: 'truck'/, 'la bandeja tiene el aviso de llegada del apartado')
+  assert.match(leerFuente(join(RAIZ, 'components/app/PanelNotificaciones.jsx'), 'utf8'), /TRANSITO: 'truck'/, 'la bandeja tiene el aviso de llegada del apartado')
 })

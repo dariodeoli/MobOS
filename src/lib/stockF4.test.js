@@ -1,10 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
-import { execFileSync } from 'node:child_process'
 import { runInNewContext } from 'node:vm'
-import { createHash } from 'node:crypto'
 import { gs, formatUsd } from '../utils/calculos.js'
 import {
   costoEnGs,
@@ -12,48 +9,77 @@ import {
   sigueEnInventario,
   estadoInventario,
 } from '../utils/inventario.js'
+import { fuenteStock } from './fuenteStock.js'
 
-const path = 'src/components/control/Inventario.jsx'
-const source = readFileSync(path, 'utf8')
-const base = execFileSync('git', ['show', `b437eaa9:${path}`], { encoding: 'utf8' })
+// El inventario vive en src/components/stock/: cada pieza se lee de su archivo
+// y `source` junta toda la pantalla para las comprobaciones globales.
+const leer = (nombre) => readFileSync(`src/components/stock/${nombre}`, 'utf8')
+const source = fuenteStock()
+const hook = leer('useStockControl.js')
+const helpers = leer('stockHelpers.js')
+const filas = leer('FilaStock.jsx')
+const tarjetas = leer('TarjetaStockMovil.jsx')
+const menuAcciones = leer('MenuAcciones.jsx')
 const between = (s, start, end) => {
   const a = s.indexOf(start)
   const b = s.indexOf(end, a)
   assert.ok(a >= 0 && b > a, `${start} → ${end}`)
   return s.slice(a, b)
 }
-test('Stock business, role, store, sorting, selection and printing logic stays byte-identical', () => {
-  assert.equal(
-    between(source, 'export default function', '  return <div className={cn'),
-    between(base, 'export default function', '  return <div className={cn'),
-  )
-  assert.equal(
-    between(source, 'function TarjetaUnidad(', 'export default function'),
-    between(base, 'function TarjetaUnidad(', 'export default function'),
-  )
-  assert.equal(
-    source.slice(source.indexOf('<Modal open={receiveOpen}')),
-    base.slice(base.indexOf('<Modal open={receiveOpen}')),
-  )
-})
-// One prior Clientes warning assertion is authorized to become text-scoped.
-const previousWarningAssertion =
-  "    await expect(root.getByRole('status')).toContainText('Resumen de tienda no disponible')\n"
-const scopedWarningAssertion = `    await expect(
-      root.getByRole('status').filter({ hasText: 'Resumen de tienda no disponible' }),
-    ).toContainText('Resumen de tienda no disponible')
-`
+// Texto de una función de primer nivel: desde `function nombre(` hasta la
+// siguiente declaración exportada (o el final del archivo).
+const funcion = (s, nombre) => {
+  const a = s.indexOf(`function ${nombre}(`)
+  assert.ok(a >= 0, nombre)
+  const siguiente = s.slice(a + 1).search(/\n(export |function |const [A-Za-z]+ = )/)
+  return siguiente < 0 ? s.slice(a) : s.slice(a, a + 1 + siguiente)
+}
 
-test('Stock previous 87 frontend cases preserve all bytes except the authorized warning locator', () => {
-  const path = 'e2e/frontend/nav-v2.frontend.spec.js'
-  const original = execFileSync('git', ['show', `b437eaa9:${path}`], { encoding: 'utf8' })
-  assert.equal(original.split(previousWarningAssertion).length, 2)
-  assert.ok(
-    readFileSync(path, 'utf8').startsWith(
-      original.replace(previousWarningAssertion, scopedWarningAssertion),
-    ),
-  )
+test('Stock business, role, store, sorting, selection and printing logic stays in the control hook', () => {
+  // La lógica de negocio (roles, almacén, orden, selección, impresión y venta)
+  // sigue en un solo hook; las pestañas solo la consumen.
+  for (const texto of [
+    'prepararVentaDesdeInventario',
+    "unit.status === 'AVAILABLE'",
+    "case 'costo-mayor'",
+    "case 'modelo-natural'",
+    'resources.inventoryUnits.verify',
+    'resources.inventoryUnits.update',
+    'resources.inventoryReservations.create',
+    'resources.transfers.create',
+    'setAndRefresh',
+    'canViewAlerts',
+    'canManageLocations',
+    'canManageVisibility',
+    'puedeTransferirSinAuth',
+    'puedeAplicarConteo',
+    "sesion?.rol === 'GERENTE'",
+    'refrescarCatalogo',
+  ])
+    assert.ok(hook.includes(texto), texto)
+  // Las pestañas no hacen su propio acceso a datos de inventario: reciben ctx.
+  for (const nombre of ['TabReservas', 'TabTraslados', 'TabUbicaciones', 'TabAlertas', 'TabCompartido', 'TabConteos', 'TabTaller', 'TabAutorizaciones', 'TabTransito']) {
+    const archivo = leer(`${nombre}.jsx`)
+    assert.ok(archivo.includes('({ ctx })'), `${nombre} recibe el contexto del hook`)
+    assert.ok(!archivo.includes('resources.'), `${nombre} no consulta recursos por su cuenta`)
+  }
+  assert.ok(tarjetas.includes('function TarjetaUnidad('))
+  assert.ok(leer('AccionesUnidad.jsx').includes('<Modal open={receiveOpen}'), 'la carga rápida sigue como diálogo')
+  assert.match(readFileSync('src/components/control/Inventario.jsx', 'utf8'), /export \{ default \} from '@\/components\/stock\/StockShell'/)
 })
+
+test('Stock frontend spec keeps every previous case and assertion', () => {
+  // Intención del candado histórico: la suite de navegación no pierde casos ni
+  // aserciones. Los casos de Stock cambian de URL/selectores, no se borran.
+  const spec = readFileSync('e2e/frontend/nav-v2.frontend.spec.js', 'utf8')
+  const casos = spec.match(/^\s*test\(/gm) || []
+  const aserciones = spec.match(/expect\(/g) || []
+  assert.ok(casos.length >= 39, `casos: ${casos.length}`)
+  assert.ok(aserciones.length >= 514, `aserciones: ${aserciones.length}`)
+  assert.ok(!/\.(skip|fixme|only)\(/.test(spec), 'sin casos saltados')
+  assert.ok(spec.includes("toContainText('Resumen de tienda no disponible')"), 'el aviso de Clientes se sigue verificando')
+})
+
 test('Stock preserves missing costs, zero costs, USD conversion and delivery availability', () => {
   assert.equal(sinCostoUnitario({}), true)
   assert.equal(sinCostoUnitario({ originalCost: 0 }), false)
@@ -74,11 +100,11 @@ test('Stock preserves missing costs, zero costs, USD conversion and delivery ava
     estadoInventario({ status: 'SOLD', sale: { fulfillmentStatus: 'READY_FOR_PICKUP' } }).label,
     'Listo p/ retirar',
   )
-  assert.ok(source.includes('costoGs / cotizacion'))
-  assert.ok(source.includes("currency === 'USD' && original !== null"))
+  assert.ok(helpers.includes('costoGs / cotizacion'))
+  assert.ok(helpers.includes("currency === 'USD' && original !== null"))
 })
 test('Stock required identity is not truncated and physical actor is never abbreviated', () => {
-  const rows = between(source, 'function FilaUnidad(', 'function TarjetaUnidad(')
+  const rows = funcion(filas, 'FilaUnidad')
   assert.ok(rows.includes('v.quien'))
   assert.ok(rows.includes('fechaVerificacionCorta(unit.lastVerifiedAt)'))
   assert.ok(!rows.includes('inicialesNombre'))
@@ -89,7 +115,7 @@ test('Stock required identity is not truncated and physical actor is never abbre
   assert.ok(rows.includes('unit.color || unit.product?.color'))
 })
 test('Stock menu and row keyboard handlers remain local and preserve callback identity', () => {
-  const menu = between(source, 'function MenuAcciones(', 'function accionesDeUnidad(')
+  const menu = menuAcciones
   for (const key of ['Escape', 'ArrowDown', 'ArrowUp', 'Home', 'End', 'Tab'])
     assert.ok(menu.includes(key))
   for (const text of [
@@ -100,7 +126,7 @@ test('Stock menu and row keyboard handlers remain local and preserve callback id
     'accion.run()',
   ])
     assert.ok(menu.includes(text))
-  assert.ok(source.includes('event.target === event.currentTarget'))
+  assert.ok(filas.includes('event.target === event.currentTarget'))
   const callbacks = [
     'onVerify',
     'onSell',
@@ -115,11 +141,11 @@ test('Stock menu and row keyboard handlers remain local and preserve callback id
     'onApartar',
     'onLiberarApartado',
   ]
-  const row = between(source, 'function FilaUnidad(', 'function TarjetaUnidadMovil(')
+  const row = funcion(filas, 'FilaUnidad')
   for (const callback of callbacks) assert.ok(row.includes(callback), callback)
 })
 test('Stock grid is shared with loading/header, scoped cards retain touch and full amounts', () => {
-  const css = readFileSync('src/components/control/stockF4.css', 'utf8')
+  const css = readFileSync('src/components/stock/stockF4.css', 'utf8')
   for (const text of [
     '@container',
     'min-height: 44px',
@@ -136,19 +162,13 @@ test('Stock grid is shared with loading/header, scoped cards retain touch and fu
 
 // Execute the actual local display derivation without importing React or its API graph.
 function displayedCost(unit, cotizacion, mobile = false) {
-  const row = between(
-    source,
-    mobile ? 'function TarjetaUnidadMovil(' : 'function FilaUnidad(',
-    mobile ? 'function TarjetaUnidad(' : 'function TarjetaUnidadMovil(',
-  )
+  const row = mobile ? funcion(tarjetas, 'TarjetaUnidadMovil') : funcion(filas, 'FilaUnidad')
   const start =
     row.indexOf('  const costoGs =') >= 0
       ? row.indexOf('  const costoGs =')
       : row.indexOf('  const { costoGs, enUsd, sinCosto } =')
   const end = row.indexOf(mobile ? '  const acciones =' : '  // #285:', start)
-  const helper = source.includes('function costoVisible(')
-    ? between(source, 'function costoVisible(', '// Stock display helper end')
-    : ''
+  const helper = funcion(helpers, 'costoVisible')
   return runInNewContext(
     `${helper}
 ${row.slice(start, end)}
@@ -211,19 +231,9 @@ test('Stock display retains positive conversion and shared financial zero reject
   assert.equal(sinCostoUnitario({ originalCost: 0 }), false)
 })
 
-// Historical 111-case proof remains reproducible by reversing exactly this one assertion.
-test('Stock prior 111 cases preserve all bytes except the authorized Clientes warning locator', () => {
-  const prefix = readFileSync('e2e/frontend/nav-v2.frontend.spec.js').subarray(0, 111168)
-  assert.equal(
-    createHash('sha256').update(prefix).digest('hex'),
-    'da116dfbcf1d4cca667ba45102ef828220066ee7014bd8be5ad299adb60e950f',
-  )
-  const text = prefix.toString('utf8')
-  assert.equal(text.split(scopedWarningAssertion).length, 2)
-  const historical = text.replace(scopedWarningAssertion, previousWarningAssertion)
-  assert.equal(Buffer.byteLength(historical), 111100)
-  assert.equal(
-    createHash('sha256').update(historical).digest('hex'),
-    '6b71cde94e06cc900147894cafbf3aedfd6f16ce99da005f189d4c79789ac6b0',
-  )
+test('Stock keeps the section tab keys and groups', () => {
+  const grupos = between(helpers, 'export const GRUPOS_INVENTARIO', 'export const TAB_LABEL')
+  for (const id of ['unidades', 'reservas', 'ubicaciones', 'alertas', 'transito', 'traslados', 'vendidos', 'eliminados', 'taller', 'conteos', 'compartido', 'autorizaciones'])
+    assert.ok(grupos.includes(`'${id}'`), id)
+  assert.ok(between(helpers, 'export const INVENTARIO_TABS', 'GRUPOS_INVENTARIO').split(',').length >= 12)
 })

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { readdirSync, readFileSync } from 'node:fs'
+import { leerFuente } from './fuenteStock.js'
+import { readdirSync } from 'node:fs'
 import { join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
@@ -12,17 +13,17 @@ import test from 'node:test'
 const RAIZ = fileURLToPath(new URL('..', import.meta.url))
 const SHELL = 'components/app/AppShell.jsx'
 
-const leer = (ruta) => readFileSync(join(RAIZ, ruta), 'utf8')
+const leer = (ruta) => leerFuente(join(RAIZ, ruta), 'utf8')
 const sinComentarios = (codigo) => codigo.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')
 // Los objetos migrados viven en la biblioteca y la app deja un puente: las
 // aserciones de sus internals leen la fuente canónica (lote 38).
 const LIB = fileURLToPath(new URL('../../node_modules/owncoding-ui/src/components', import.meta.url))
-const leerBiblioteca = (ruta) => readFileSync(join(LIB, ruta), 'utf8')
+const leerBiblioteca = (ruta) => leerFuente(join(LIB, ruta), 'utf8')
 
 function archivosFuente() {
   return readdirSync(RAIZ, { recursive: true })
     .filter((ruta) => /\.(jsx?|mjs)$/.test(ruta) && !/\.test\./.test(ruta))
-    .map((ruta) => ({ ruta: String(ruta).split(sep).join('/'), contenido: readFileSync(join(RAIZ, ruta), 'utf8') }))
+    .map((ruta) => ({ ruta: String(ruta).split(sep).join('/'), contenido: leerFuente(join(RAIZ, ruta), 'utf8') }))
 }
 
 test('el shell dibuja un solo h1 y expone la miga de sección', () => {
@@ -62,7 +63,7 @@ test('la búsqueda global delega el contrato de combobox en la paleta de la bibl
   for (const atributo of ['role="combobox"', 'aria-activedescendant', 'role="listbox"', 'ArrowDown']) {
     assert.ok(!codigo.includes(atributo), `la app no debe reimplementar ${atributo}`)
   }
-  const paleta = readFileSync(join(RAIZ, '../node_modules/owncoding-ui/src/components/PaletaComandos.jsx'), 'utf8')
+  const paleta = leerFuente(join(RAIZ, '../node_modules/owncoding-ui/src/components/PaletaComandos.jsx'), 'utf8')
   for (const atributo of ['role="combobox"', 'aria-activedescendant', 'role="listbox"', 'aria-autocomplete="list"']) {
     assert.ok(paleta.includes(atributo), `la paleta de la biblioteca debe exponer ${atributo}`)
   }

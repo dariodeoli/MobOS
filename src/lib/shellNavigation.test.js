@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { leerFuente } from './fuenteStock.js'
 import test from 'node:test'
 import { activeShellSection, shellNavigation, shellContextGroups } from './shellNavigation.js'
 import { DESTINO_LEGADO, rutaDeVista } from './rutas.js'
 
-const panel = readFileSync(new URL('../pages/PanelVendedor.jsx', import.meta.url), 'utf8')
+const panel = leerFuente(new URL('../pages/PanelVendedor.jsx', import.meta.url), 'utf8')
 const catalog = name => {
   const source = panel.split(`const ${name} = [`)[1].split('\n]\n')[0]
   return [
@@ -90,7 +90,7 @@ test('unknown shell catalogs preserve destinations and absent permissions produc
 })
 
 test('profile uses real handlers; mobile selectors and stacking remain explicit', () => {
-  const shell = readFileSync(new URL('../components/app/AppShell.jsx', import.meta.url), 'utf8')
+  const shell = leerFuente(new URL('../components/app/AppShell.jsx', import.meta.url), 'utf8')
   for (const handler of [
     'onMiCuenta()',
     'onHelp()',
@@ -102,14 +102,14 @@ test('profile uses real handlers; mobile selectors and stacking remain explicit'
   assert.match(shell, /id === 'equipo' \|\| id === 'ayuda'/)
   assert.ok(!shell.includes('ProductFooter'))
   assert.ok(!shell.includes('onOpenMenu'))
-  const selector = readFileSync(
+  const selector = leerFuente(
     new URL('../components/app/SectionSelector.jsx', import.meta.url),
     'utf8',
   )
   assert.match(selector, /<Select/)
   assert.match(selector, /lg:hidden/)
   assert.match(selector, /hidden flex-wrap/)
-  const css = readFileSync(
+  const css = leerFuente(
     new URL('../components/app/shellNavigation.css', import.meta.url),
     'utf8',
   )
@@ -118,7 +118,7 @@ test('profile uses real handlers; mobile selectors and stacking remain explicit'
 })
 
 test('AEX guide and grouped inventory selector remain available at every viewport', () => {
-  const inventory = readFileSync(
+  const inventory = leerFuente(
     new URL('../components/control/Inventario.jsx', import.meta.url),
     'utf8',
   )
