@@ -242,7 +242,7 @@ test('carrito ultra-colapsado: el descuento individual se ve sin desplegar (#148
 
     await papelera.click()
     await confirmar.getByRole('button', { name: 'Eliminar línea' }).click()
-    await expect(page.getByText('Todavía no agregaste productos.')).toBeVisible()
+    await expect(page.getByText('Tocá un producto o buscá para empezar.')).toBeVisible()
   } finally {
     await page.evaluate(async ({ api, productId }) => {
       await fetch(`${api}/api/products?id=${encodeURIComponent(productId)}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})

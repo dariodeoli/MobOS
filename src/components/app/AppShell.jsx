@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { useTemaV2 } from '@/lib/temaV2'
 import { Modal, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import PersonaChip from '@/components/shared/PersonaChip'
@@ -10,6 +11,7 @@ import PanelNotificaciones from '@/components/app/PanelNotificaciones'
 import ComoFuncionaDemo from '@/components/app/ComoFuncionaDemo'
 import PanelColaOffline from '@/components/ventas/PanelColaOffline'
 import SectionSelector from '@/components/app/SectionSelector'
+import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { useColaOffline } from '@/hooks/useColaOffline'
 import { sincronizarEventosWebPush, sincronizarWebPush } from '@/lib/webPush'
@@ -56,6 +58,7 @@ export default function AppShell({
   notificacionesActivas = false,
   onAbrirNotificacion,
 }) {
+  const temaV2 = useTemaV2()
   const [profileOpen, setProfileOpen] = useState(false)
   const [comoFunciona, setComoFunciona] = useState(false)
   // La guía de la demo se abre sola la primera vez por pestaña (#201).
@@ -187,6 +190,17 @@ export default function AppShell({
         )}
       </button>
     )
+  const angosta = usePantallaAngosta()
+  const botonComoFunciona = (
+    <button
+      type="button"
+      data-testid="demo-como-funciona"
+      onClick={() => setComoFunciona(true)}
+      className="min-h-11 shrink-0 px-2"
+    >
+      Cómo funciona
+    </button>
+  )
   const offlineButton = testid =>
     avisoCola && (
       <button
@@ -206,8 +220,11 @@ export default function AppShell({
   return (
     <div
       data-testid="shell"
-      data-tema-v2="1"
-      className="shell-nav-v2 tema-v2 flex min-h-dvh flex-col bg-paper text-sm text-fore lg:flex-row"
+      data-tema-v2={temaV2 ? '1' : '0'}
+      className={cn(
+        'shell-nav-v2 flex min-h-dvh flex-col bg-paper text-sm text-fore lg:flex-row',
+        temaV2 && 'tema-v2',
+      )}
     >
       <aside
         data-testid="shell-lateral"
@@ -263,7 +280,7 @@ export default function AppShell({
         </nav>
         <div className="mt-auto flex min-w-0 flex-col gap-2 border-t border-ink-600 pt-3">
           <div data-testid="shell-sucursal-desktop">
-            <SelectorSucursal className="max-w-full" />
+            <SelectorSucursal className="max-w-full" abrirArriba />
           </div>
           {alertsButton()}
           {offlineButton('shell-cola-offline')}
@@ -287,7 +304,15 @@ export default function AppShell({
             data-testid="shell-sucursal-mobile"
             className="flex min-w-0 items-center justify-between gap-2 border-t border-ink-600 px-3 py-1"
           >
-            <SelectorSucursal className="max-w-full" />
+            <SelectorSucursal className="max-w-full shrink-0" />
+            {/* #304: en móvil el aviso del demo comparte la fila de la sucursal
+                (una sola barra en vez de dos) y deja más lugar al trabajo. */}
+            {esDemo && angosta && (
+              <div role="status" className="flex min-w-0 flex-1 items-center justify-end gap-1 text-[11px] leading-[14px] text-mute">
+                <span className="line-clamp-2 min-w-0 text-right" title="Modo demo: datos ficticios, nada se guarda.">Demo: datos ficticios, nada se guarda.</span>
+                {botonComoFunciona}
+              </div>
+            )}
             {offlineButton('shell-cola-offline-pill')}
           </div>
         </header>
@@ -296,23 +321,16 @@ export default function AppShell({
             Sin conexión: los datos pueden estar desactualizados. Se sincroniza al reconectar.
           </div>
         )}
-        {esDemo && (
+        {esDemo && !angosta && (
           <div
             role="status"
-            className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-600 bg-ink px-4 py-1 text-xs text-mute"
+            className="flex items-center justify-between gap-2 border-b border-ink-600 bg-ink px-4 py-1 text-xs text-mute"
           >
-            <span>Demo: datos ficticios, nada se guarda.</span>
-            <button
-              type="button"
-              data-testid="demo-como-funciona"
-              onClick={() => setComoFunciona(true)}
-              className="min-h-8"
-            >
-              Cómo funciona
-            </button>
+            <span>Modo demo: datos ficticios, no se guardan y se descartan al recargar.</span>
+            {botonComoFunciona}
           </div>
         )}
-        <div className="px-4 pt-5 md:px-8">
+        <div className="px-4 pt-3 md:px-8 md:pt-5">
           <nav
             data-testid="shell-breadcrumb"
             aria-label="Sección actual"
@@ -326,7 +344,7 @@ export default function AppShell({
           </div>
           {subtitle && <p className="text-sm text-mute">{subtitle}</p>}
           {currentSection && (contextGroups.length > 1 || currentGroup?.items.length > 1) && (
-            <div className="mt-3">
+            <div className={cn('mt-2 lg:mt-3 lg:block', currentGroup?.items.length > 1 && 'grid grid-cols-2 gap-x-2')}>
               <SectionSelector
                 testId="shell-contexto"
                 label={`Áreas de ${currentSection.label}`}

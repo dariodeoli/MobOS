@@ -31,7 +31,7 @@ test.describe('finanzas · último usado', () => {
 
   test('Conciliación recuerda el estado, el medio y el período', async ({ page }) => {
     await page.goto('/finanzas/conciliacion')
-    await expect(page.getByRole('heading', { name: 'Conciliación y trazabilidad' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Conciliación', exact: true })).toBeVisible()
     await expect(page.getByLabel('Estado')).toBeVisible()
 
     // Período: preset distinto al default y se conserva al recargar.

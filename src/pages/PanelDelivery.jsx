@@ -65,7 +65,7 @@ export default function PanelDelivery() {
           <button
             type="button"
             onClick={() => navigate('/delivery/rendiciones')}
-            className="inline-flex h-[34px] shrink-0 items-center gap-2 rounded-[9px] bg-fono px-3.5 text-[13px] font-semibold text-onbrand transition hover:bg-fono-dark"
+            className="inline-flex h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-[9px] bg-fono px-3.5 sm:h-[34px] sm:min-w-0 text-[13px] font-semibold text-onbrand transition hover:bg-fono-dark"
           >
             <Icon name="receipt" className="h-[15px] w-[15px]" />
             <span className="hidden sm:inline">Rendir</span>

@@ -1,4 +1,5 @@
 import { shellCatalog, shellPrimary } from './helpers/shell-navigation.js'
+import { clickRowAction } from './helpers/row-actions.js'
 // QA #325 — Responsive móvil y roles secundarios (auditoría demo v1.0.209).
 //
 // Recorrido E2E de los puntos pendientes de la auditoría: detalle de cliente,
@@ -564,7 +565,7 @@ test('impresión y correos (comprobante · cotización · impresoras)', async ({
     accion: async (p) => {
       const fila = p.getByTestId('cotizacion-fila').filter({ hasText: cotizacion.body.number }).first()
       await expect(fila).toBeVisible({ timeout: 20_000 })
-      await fila.getByRole('button', { name: 'Correo' }).click()
+      await clickRowAction(p, fila, 'Correo')
       await expect(p.getByRole('dialog').getByRole('heading', { name: /por correo/ })).toBeVisible({ timeout: 20_000 })
       await expect(p.getByLabel('Correo del cliente')).toBeVisible()
     },
@@ -584,7 +585,7 @@ test('impresión y correos (comprobante · cotización · impresoras)', async ({
   await expect(page.getByTestId('cotizaciones-tabla')).toBeVisible({ timeout: 30_000 })
   const filaCorreo = page.getByTestId('cotizacion-fila').filter({ hasText: cotizacion.body.number }).first()
   await expect(filaCorreo).toBeVisible({ timeout: 20_000 })
-  await filaCorreo.getByRole('button', { name: 'Correo' }).click()
+  await clickRowAction(page, filaCorreo, 'Correo')
   const dialogoCorreo = page.getByRole('dialog')
   await expect(dialogoCorreo.getByRole('heading', { name: /por correo/ })).toBeVisible({ timeout: 20_000 })
   await dialogoCorreo.getByLabel('Correo del cliente').fill(`qa325-${marca.toLowerCase()}@ejemplo.invalid`)

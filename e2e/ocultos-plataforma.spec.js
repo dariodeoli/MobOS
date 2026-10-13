@@ -76,7 +76,10 @@ test.describe('ocultos de plataforma', () => {
     await page.reload()
     const aviso = page.getByTestId('shell-cola-offline')
     await expect(aviso).toBeVisible()
-    await expect(aviso).toContainText('POS sin conexión')
+    // El texto visible es corto («Sin conexión»); el nombre accesible lleva el
+    // estado completo del POS.
+    await expect(aviso).toContainText('Sin conexión')
+    await expect(aviso).toHaveAttribute('aria-label', /POS sin conexión/)
 
     await aviso.click()
     const detalle = page.getByRole('dialog')

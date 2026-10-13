@@ -37,10 +37,20 @@ export const SHELL_DESTINATIONS = {
   Rendiciones: ['Entregas', 'rendiciones', 'rendiciones'],
 }
 export async function shellPrimary(page) {
-  const desktop = page
-    .getByTestId('shell-lateral')
-    .getByRole('navigation', { name: 'Navegación principal', exact: true })
+  // The aside is always rendered (CSS hides it below lg): once it is attached
+  // the shell has mounted and the visibility check below is reliable.
+  const lateral = page.getByTestId('shell-lateral')
+  await lateral.waitFor({ state: 'attached' })
+  const desktop = lateral.getByRole('navigation', { name: 'Navegación principal', exact: true })
   return (await desktop.isVisible()) ? desktop : page.getByTestId('shell-bottom-nav')
+}
+// Click a primary section and wait until the shell marks it current: the
+// context/sub-context selectors render in that same pass, so reading them
+// earlier races the route change (count() does not auto-wait).
+async function enterShellSection(primary, section) {
+  const button = primary.getByRole('button', { name: section, exact: true })
+  await button.click()
+  await expect.poll(() => button.getAttribute('aria-current')).toBe('page')
 }
 export async function openShellProfile(page) {
   const dialog = page.getByRole('dialog', { name: 'Perfil y preferencias', exact: true })
@@ -78,10 +88,12 @@ export async function openShellDestination(page, label) {
     target = ['Taller', 'servicio', 'servicio']
   if (!target) throw new Error(`Unknown shell journey: ${label}`)
   const [section, group, destination] = target
-  await primary.getByRole('button', { name: section, exact: true }).click()
+  await enterShellSection(primary, section)
   const context = page.getByTestId('shell-contexto')
   if (await context.count()) {
-    const select = context.getByRole('combobox')
+    // The group <select> is display:none from lg up (wrapping links take over),
+    // so a role query never sees it on desktop: read it as a plain element.
+    const select = context.locator('select')
     if (await select.isVisible()) await select.selectOption(group)
     else {
       const text = await select.locator(`option[value="${group}"]`).textContent()
@@ -91,18 +103,42 @@ export async function openShellDestination(page, label) {
   const subcontext = page.getByTestId('shell-subcontexto').getByRole('combobox')
   if (await subcontext.count()) {
     await subcontext.selectOption(destination)
-    await expect(subcontext).toHaveValue(destination)
+    await expect.poll(() => subcontext.inputValue()).toBe(destination)
   }
 }
+// In-page sections (Análisis, Finanzas, Configuración) use SectionSelector: a
+// native <select> that stays visible for long lists (and below lg) and a row of
+// buttons marked aria-current for short lists on desktop. Both share the
+// aria-label, which replaces the old role=tab rows.
+export async function selectSectionOption(page, ariaLabel, label) {
+  const select = page.locator(`select[aria-label="${ariaLabel}"]`)
+  const nav = page.getByRole('navigation', { name: ariaLabel, exact: true })
+  // The selector mounts with the section: wait for it before choosing a branch.
+  await select.or(nav).first().waitFor({ state: 'attached' })
+  if (await select.isVisible()) {
+    await select.selectOption({ label })
+    await expect.poll(() => select.locator('option:checked').textContent()).toBe(label)
+  } else {
+    const link = nav.getByRole('button', { name: label, exact: true })
+    await link.click()
+    await expect(link).toHaveAttribute('aria-current', 'page')
+  }
+}
+export const selectAnalysisSection = (page, label) =>
+  selectSectionOption(page, 'Secciones de Análisis', label)
+export const selectFinanceSection = (page, label) =>
+  selectSectionOption(page, 'Secciones de Finanzas', label)
+export const selectConfigSection = (page, label) =>
+  selectSectionOption(page, 'Secciones de Configuración', label)
 // Read every permitted context through UI navigation, not direct routes.
 export async function shellCatalog(page) {
   const primary = await shellPrimary(page)
   const sections = await primary.getByRole('button').allTextContents()
   const destinations = new Set()
   for (const section of sections.map(s => s.trim())) {
-    await primary.getByRole('button', { name: section, exact: true }).click()
+    await enterShellSection(primary, section)
     const context = page.getByTestId('shell-contexto')
-    const select = context.getByRole('combobox')
+    const select = context.locator('select')
     if (!(await select.count())) {
       destinations.add(
         section === 'Vender'
@@ -126,6 +162,8 @@ export async function shellCatalog(page) {
       }
       if (await select.isVisible()) await select.selectOption(group.value)
       else await context.getByRole('button', { name: group.label, exact: true }).click()
+      // The shell re-renders the sub-context in the pass that makes the group current.
+      await expect.poll(() => select.inputValue()).toBe(group.value)
       const sub = page.getByTestId('shell-subcontexto').getByRole('combobox')
       if (await sub.count()) {
         for (const text of await sub.locator('option').allTextContents()) destinations.add(text)

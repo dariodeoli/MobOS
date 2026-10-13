@@ -9,6 +9,7 @@ import { openShellDestination } from './helpers/shell-navigation.js'
 // Capturas: MOBOS_CAPTURAS=docs/QA-314-cotizaciones npx playwright test e2e/qa-314-cotizaciones.spec.js
 import { test, expect } from '@playwright/test'
 import { cerrarGuiaDemo } from './helpers/demo.js'
+import { clickRowAction } from './helpers/row-actions.js'
 
 const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/QA-314-cotizaciones'
 
@@ -122,7 +123,7 @@ test('cotizaciones demo: de borrador a pedido y aprobación desde el portal', as
   await expect(fila).toHaveAttribute('data-estado', 'DRAFT')
   await fila.getByRole('button', { name: 'Enviar' }).click()
   await expect(fila).toHaveAttribute('data-estado', 'SENT', { timeout: 10_000 })
-  await fila.getByRole('button', { name: 'Aceptar' }).click()
+  await clickRowAction(page, fila, 'Aceptar')
   await expect(fila).toHaveAttribute('data-estado', 'ACCEPTED', { timeout: 10_000 })
   await fila.getByRole('button', { name: 'Convertir' }).click()
   await expect(fila).toHaveAttribute('data-estado', 'CONVERTED', { timeout: 10_000 })
@@ -141,7 +142,7 @@ test('cotizaciones demo: de borrador a pedido y aprobación desde el portal', as
   await irACotizaciones(page)
   const filaLucia = page.getByTestId('cotizacion-fila').filter({ hasText: 'Lucía Fernández' }).first()
   await expect(filaLucia).toHaveAttribute('data-estado', 'SENT')
-  await filaLucia.getByRole('button', { name: 'Enlace/QR' }).click()
+  await clickRowAction(page, filaLucia, 'Enlace/QR')
   const enlace = page.getByRole('dialog', { name: /Enlace de/ })
   await enlace.waitFor({ timeout: 10_000 })
   await expect(enlace.getByRole('img', { name: 'QR de la cotización' })).toBeVisible()
@@ -164,7 +165,7 @@ test('cotizaciones demo: de borrador a pedido y aprobación desde el portal', as
   await page.goBack()
   await irACotizaciones(page)
   await expect(filaLucia).toHaveAttribute('data-estado', 'CONVERTED', { timeout: 10_000 })
-  await filaLucia.getByRole('button', { name: 'Historial' }).click()
+  await clickRowAction(page, filaLucia, 'Historial')
   const historial = page.getByRole('dialog', { name: /Historial de/ })
   await expect(historial.getByText('Aprobada con código')).toBeVisible({ timeout: 10_000 })
   await expect(historial.getByText('Convertida en pedido').first()).toBeVisible()

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { openShellDestination } from './helpers/shell-navigation.js'
 import { readFileSync } from 'node:fs'
 import { codigoPedido } from '../src/utils/pedido.js'
 import { SEED } from './helpers/seed-data.js'
@@ -13,17 +14,18 @@ test('pedidos: la lista abre sin popups y el detalle se abre y cierra', async ({
   await page.goto('/pos')
   await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Mis pedidos' }).click()
+  await openShellDestination(page, 'Mis pedidos')
   await expect(page).toHaveURL(/\/pedidos$/)
   await expect(page.getByRole('heading', { name: 'Mis pedidos' })).toBeVisible()
   await expect(page.getByTestId("pedido-fila").first()).toBeVisible()
   await expect(page.getByRole("dialog")).toHaveCount(0)
 
-  // La grilla de cada fila tiene 11 celdas (la última, la vista rápida) y la
-  // fecha entra completa: nada descolgado ni cortado.
-  const celdas = page.getByTestId("pedido-fila").first().locator(":scope > div > *")
-  await expect(celdas).toHaveCount(11)
-  const fecha = celdas.nth(1)
+  // La grilla de cada fila tiene 7 celdas (código/fecha, cliente, entrega,
+  // pago, estado, total y, la última, la vista rápida) y la fecha entra
+  // completa: nada descolgado ni cortado.
+  const celdas = page.getByTestId("pedido-fila").first().locator(":scope > *")
+  await expect(celdas).toHaveCount(7)
+  const fecha = celdas.nth(0).locator("p")
   expect(await fecha.evaluate(elemento => elemento.scrollWidth <= elemento.clientWidth + 1)).toBeTruthy()
 
   await page.reload()

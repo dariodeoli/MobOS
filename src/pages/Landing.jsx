@@ -6,6 +6,7 @@ import CommercialPreview from '@/components/landing/CommercialPreview'
 import ProductFooter from '@/components/app/ProductFooter'
 import ThemeLogo from '@/components/app/ThemeLogo'
 import ThemeToggle from '@/components/app/ThemeToggle'
+import { temaV2Activo } from '@/lib/temaV2'
 import './Landing.css'
 
 const NAV = [
@@ -88,7 +89,7 @@ export default function Landing() {
   const [menu, setMenu] = useState(false)
   const { app } = publicUrls
   return (
-    <div className="mobos-commercial-landing">
+    <div className={temaV2Activo() ? 'mobos-commercial-landing tema-v2' : 'mobos-commercial-landing'}>
       <header className="landing-header">
         <div className="landing-nav landing-container">
           <a href="#inicio" aria-label="MobOS" className="landing-logo">

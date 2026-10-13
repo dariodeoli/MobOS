@@ -39,7 +39,7 @@ const PANTALLAS = [
   ['celulares', '/celulares', 'barra-celulares', (p) => p.getByTestId('barra-celulares')],
   ['comparador', '/comparador', 'barra-comparador', (p) => p.getByTestId('barra-comparador')],
   // Páginas administrativas sin barra de módulo: mismo criterio de título y pie.
-  ['inicio', '/resumen', null, (p) => p.getByTestId('accesos-rapidos')],
+  ['inicio', '/resumen', null, (p) => p.getByTestId('resumen-indicadores')],
   ['analisis-reportes', '/analisis/reportes', null, (p) => p.locator('[data-testid="reportes-abc-tabla"]').or(p.getByText('Cómo se calcula el resultado')).first()],
   ['finanzas-caja', '/finanzas/caja', null, (p) => p.getByText('Saldo esperado').first()],
   ['configuracion-equipo', '/configuracion/equipo', null, (p) => p.getByTestId('integrante-fila').first()],
@@ -76,8 +76,9 @@ test.describe('sistema visual (#320)', () => {
           .filter((el) => el.getClientRects().length > 0 && (el.textContent || '').trim() === texto).length, titulo)
         expect(veces, `${nombre} ${etiqueta}: «${titulo}» aparece ${veces} vez/veces`).toBe(1)
 
-        // El pie institucional lo renderiza el shell, una sola vez.
-        await expect(page.locator('footer.mobos-footer'), `${nombre} ${etiqueta}: un solo pie`).toHaveCount(1)
+        // #341: el shell no repite el pie institucional dentro de la app; el
+        // pie vive en las páginas públicas, así que acá no aparece ninguno.
+        await expect(page.locator('footer.mobos-footer'), `${nombre} ${etiqueta}: sin pie repetido`).toHaveCount(0)
 
         registro.push({ superficie: nombre, estado: etiqueta, titulo, veces })
         await page.screenshot({ path: join(SHOTS, `${nombre}-${etiqueta}.png`) })

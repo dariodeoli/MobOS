@@ -22,7 +22,9 @@ test.describe('composición compacta', () => {
     await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 }).first()).toBeVisible({ timeout: 20_000 })
     const barra = page.getByTestId('barra-pos')
     await expect(barra).toHaveCount(1)
-    await expect(barra.getByText(/Hoy: \d{2}\/\d{2}\/\d{4}/)).toBeVisible()
+    // La fecha ya no va en la barra (el shell pone el título): acompaña al
+    // resumen de la venta, dentro de «Detalles de la venta y del día».
+    await expect(page.getByText(/Fecha: \d{2}\/\d{2}\/\d{4}/)).toBeAttached()
     // #309: gift cards, analytics y ventas suspendidas viven en «Más» para no
     // llenar la barra; la principal de la venta sigue a mano.
     await barra.getByTestId('pos-mas').click()

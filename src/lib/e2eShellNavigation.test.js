@@ -42,22 +42,26 @@ test('E2E journey contracts identify real permitted primary/context destinations
 test('desktop journey uses primary and scoped context controls, never route shortcuts', async () => {
   const calls = []
   const primary = {
-    getByRole: (_, options) => ({ click: async () => calls.push(['primary', options.name]) }),
+    getByRole: (_, options) => ({
+      click: async () => calls.push(['primary', options.name]),
+      getAttribute: async () => 'page',
+    }),
   }
   const context = {
     count: async () => 1,
+    locator: () => ({
+      isVisible: async () => false,
+      locator: () => ({ textContent: async () => 'Clientes' }),
+    }),
     getByRole: (role, options) =>
       role === 'combobox'
-        ? {
-            isVisible: async () => false,
-            locator: () => ({ textContent: async () => 'Clientes' }),
-          }
+        ? {}
         : { click: async () => calls.push(['context', options.name]) },
   }
   const page = {
     getByTestId: id =>
       id === 'shell-lateral'
-        ? { getByRole: () => ({ ...primary, isVisible: async () => true }) }
+        ? { waitFor: async () => {}, getByRole: () => ({ ...primary, isVisible: async () => true }) }
         : id === 'shell-contexto'
           ? context
           : { getByRole: () => ({ count: async () => 0 }) },
@@ -75,15 +79,21 @@ test('mobile journey selects the real native area rather than a hidden desktop b
   const page = {
     getByTestId: id =>
       id === 'shell-lateral'
-        ? { getByRole: () => ({ isVisible: async () => false }) }
+        ? { waitFor: async () => {}, getByRole: () => ({ isVisible: async () => false }) }
         : id === 'shell-bottom-nav'
-          ? { getByRole: (_, options) => ({ click: async () => calls.push(options.name) }) }
+          ? {
+            getByRole: (_, options) => ({
+              click: async () => calls.push(options.name),
+              getAttribute: async () => 'page',
+            }),
+          }
           : id === 'shell-contexto'
             ? {
                 count: async () => 1,
-                getByRole: () => ({
+                locator: () => ({
                   isVisible: async () => true,
                   selectOption: async value => calls.push(value),
+                  inputValue: async () => 'clientes',
                 }),
               }
             : { getByRole: () => ({ count: async () => 0 }) },
@@ -93,7 +103,12 @@ test('mobile journey selects the real native area rather than a hidden desktop b
 })
 
 test('unknown journey fails closed without clicking a destination', async () => {
-  const page = { getByTestId: () => ({ getByRole: () => ({ isVisible: async () => true }) }) }
+  const page = {
+    getByTestId: () => ({
+      waitFor: async () => {},
+      getByRole: () => ({ isVisible: async () => true }),
+    }),
+  }
   await assert.rejects(openShellDestination(page, 'Unknown'), /Unknown shell journey/)
 })
 

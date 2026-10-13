@@ -114,7 +114,7 @@ async function vaciarCarrito(page) {
   const vaciar = page.getByRole('button', { name: 'Vaciar carrito' })
   if (await vaciar.isVisible().catch(() => false)) {
     await vaciar.click()
-    await expect(page.getByText('Todavía no agregaste productos.')).toBeVisible()
+    await expect(page.getByText('Tocá un producto o buscá para empezar.')).toBeVisible()
   }
 }
 

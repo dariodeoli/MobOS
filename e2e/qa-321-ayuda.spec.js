@@ -7,6 +7,7 @@
 import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { openShellProfile } from './helpers/shell-navigation.js'
 import { cerrarGuiaDemo } from './helpers/demo.js'
 
 const SHOTS = process.env.MOBOS_CAPTURAS || join('docs', 'qa', '321-ayuda-atajos')
@@ -40,7 +41,8 @@ test('la ayuda arranca por tareas y cada pregunta lleva a su pantalla', async ({
 
 test('los atajos separan teclas de controles, sin repeticiones', async ({ page }) => {
   await page.goto('/pos')
-  await page.getByRole('button', { name: 'Atajos de teclado' }).click()
+  const perfil = await openShellProfile(page)
+  await perfil.getByRole('button', { name: 'Atajos de teclado' }).click()
   const dialogo = page.getByRole('dialog', { name: 'Atajos de teclado' })
   await expect(dialogo).toBeVisible({ timeout: 20_000 })
 
@@ -79,7 +81,11 @@ test.describe('demo: notificaciones de ejemplo', () => {
     // con el panel abierto.
     await page.keyboard.press('Escape')
     await expect(panel).toHaveCount(0)
-    await page.getByRole('button', { name: 'Cambiar a tema oscuro' }).click()
+    // El control del tema vive en el perfil del shell.
+    const perfil = await openShellProfile(page)
+    await perfil.getByRole('button', { name: 'Cambiar a tema oscuro' }).click()
+    await page.keyboard.press('Escape')
+    await expect(perfil).toBeHidden()
     await page.getByTestId('notificaciones-aviso').click()
     await expect(panel).toBeVisible()
     await page.screenshot({ path: join(SHOTS, 'notificaciones-demo-oscuro.png') })
