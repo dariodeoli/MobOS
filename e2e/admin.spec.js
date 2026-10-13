@@ -61,10 +61,11 @@ test.describe('owner panel', () => {
     // lista pasa a la presentación compacta del shell.
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto(`/stock/unidades?q=${encodeURIComponent(SEED.products.iphone.imei)}`)
-    // El título de la página lo pone el panel (un solo h1); Stock aporta el subtítulo.
+    // El título de la página lo pone el panel (un solo h1); la descripción de la
+    // pestaña vive en el tooltip de ayuda de la barra (rediseño 2A, #17).
     await expect(page.getByRole('heading', { name: 'Unidades', level: 1 })).toBeVisible()
-    await expect(page.getByText('Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría.')).toBeVisible()
-    await expect(page.getByTestId('grupos-inventario').getByRole('tab', { name: 'Unidades', exact: true }).first()).toBeVisible()
+    await expect(page.getByTestId('barra-ayuda').first()).toHaveAttribute('title', 'Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría.')
+    await expect(page.getByTestId('shell-contexto').locator('[data-tab-id="unidades"]')).toHaveAttribute('aria-current', 'page')
     // La lista de Stock alinea el IMEI en su propia columna (Modelo · IMEI / serie ·
     // Batería · Proveedor · Costo · Estado).
     await expect(page.getByTestId('inventario-encabezado').getByText('IMEI / serie', { exact: true })).toBeVisible()

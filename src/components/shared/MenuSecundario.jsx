@@ -27,7 +27,7 @@ export default function MenuSecundario({ acciones = [], etiqueta = 'Más accione
         aria-haspopup="menu"
         aria-expanded={abierto}
         onClick={() => setAbierto((valor) => !valor)}
-        className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono/40 hover:text-fore md:min-h-0"
+        className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono/40 hover:text-fore lg:min-h-0"
       >
         <Icon name="dots" className="h-4 w-4" />{etiqueta}
       </button>
@@ -42,7 +42,7 @@ export default function MenuSecundario({ acciones = [], etiqueta = 'Más accione
                 role="menuitem"
                 disabled={accion.disabled}
                 onClick={() => { setAbierto(false); accion.onClick?.() }}
-                className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-fore transition hover:bg-ink-700 disabled:cursor-not-allowed disabled:opacity-40 md:min-h-0"
+                className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-fore transition hover:bg-ink-700 disabled:cursor-not-allowed disabled:opacity-40 lg:min-h-0"
               >
                 {accion.icon && <Icon name={accion.icon} className="h-4 w-4 shrink-0 text-mute" />}
                 <span className="min-w-0 flex-1 truncate">{accion.label}</span>

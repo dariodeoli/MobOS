@@ -8,14 +8,18 @@ import { Aviso, Badge, Button, Card, EmptyState, FormField, IconAction, Input, M
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import Switch from '@/components/shared/Switch'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
-import BarraModulo from '@/components/shared/BarraModulo'
+import Toolbar from '@/components/shared/Toolbar'
+import FieldRow from '@/components/shared/FieldRow'
+import '@/components/stock/stockToque.css'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+import Icon from '@/components/shared/Icon'
 
 // Gestión de precios: listas por cliente (con ítems por producto o categoría y
 // descuento/recargo) y precios por cantidad. El POS resuelve con la prioridad
 // escalón por cantidad > lista del cliente > mayorista > minorista > USD.
 const itemVacio = () => ({ scope: 'PRODUCT', productId: '', category: '', valuePct: '' })
 const tierVacio = () => ({ minQuantity: '', unitPricePyg: '' })
+const AYUDA_PRECIOS = 'Listas por cliente y precios por cantidad. El POS resuelve el mejor precio; la lista asignada gana sobre mayorista y minorista.'
 
 export default function Precios() {
   const { sesion, esDemo } = useSesion()
@@ -125,7 +129,13 @@ export default function Precios() {
     editorBase.current = JSON.stringify(siguiente)
     setEditor(siguiente)
   }
-  const nombreProducto = (id) => productos.find(p => p.id === id)?.nombre || productos.find(p => p.id === id)?.name || 'Producto'
+  const nombreProducto = (id) => productos.find(p => p.id === id)?.nombre || productos.find(p => p.id === id)?.name || ''
+  // Nombres reales de los primeros ítems (nunca «Producto, Producto»): si el
+  // catálogo todavía no los conoce se omiten y queda solo la cantidad.
+  const resumenItems = (items = []) => {
+    const nombres = items.map(item => item.productId ? nombreProducto(item.productId) : item.category).filter(Boolean)
+    return nombres.length ? `${nombres.slice(0, 3).join(', ')}${nombres.length > 3 || items.length > nombres.length ? '…' : ''}` : ''
+  }
 
   async function guardarLista(event) {
     event.preventDefault()
@@ -231,18 +241,17 @@ export default function Precios() {
   )
 
   return <div className="space-y-4">
-    {/* #278 · composición compacta (#256): una sola barra con la identidad y la
-        acción; las secciones quedan con su rótulo, sin encabezado duplicado. */}
-    <BarraModulo
-      icono="tag"
-      titulo="Precios"
-      descripcion="Listas por cliente y precios por cantidad."
+    {/* Una barra por pestaña (docs/PANTALLAS.md regla 7): la acción de la pestaña; la
+        descripción vive en el tooltip de ayuda, no como texto fijo. */}
+    <Toolbar
+      plano
       testId="barra-precios"
-    >
-      <Button type="button" onClick={() => abrirLista()} disabled={busy}>+ Nueva lista</Button>
-    </BarraModulo>
-    <p className="text-sm text-mute">El POS resuelve el mejor precio; la lista asignada gana sobre mayorista y minorista.</p>
+      label="Acciones de precios"
+      more={<span role="img" aria-label={AYUDA_PRECIOS} title={AYUDA_PRECIOS} className="hidden h-8 w-8 place-items-center text-mute sm:inline-grid"><Icon name="info" className="h-4 w-4" /></span>}
+      primary={<Button type="button" className="min-h-11 lg:min-h-0" onClick={() => abrirLista()} disabled={busy}>+ Nueva lista</Button>}
+    />
 
+    <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
     <Card className="space-y-3">
       <div>
         <h2 className="font-semibold">Listas de precios</h2>
@@ -253,13 +262,13 @@ export default function Precios() {
         {listas.map(lista => <div key={lista.id} data-testid="lista-precio-fila" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800/40 p-3">
           <div className="min-w-0">
             <p className="flex flex-wrap items-center gap-2 text-sm font-semibold"><span className="truncate">{lista.name}</span><Badge color={lista.isActive ? 'green' : 'slate'}>{lista.isActive ? 'Activa' : 'Inactiva'}</Badge></p>
-            <p className="mt-1 text-xs text-mute">{(lista.items || []).length} ítem{(lista.items || []).length === 1 ? '' : 's'}{(lista.items || []).length ? ` · ${(lista.items || []).slice(0, 3).map(item => item.productId ? nombreProducto(item.productId) : item.category).join(', ')}${(lista.items || []).length > 3 ? '…' : ''}` : ''}</p>
+            <p className="mt-1 text-xs text-mute">{(lista.items || []).length} ítem{(lista.items || []).length === 1 ? '' : 's'}{resumenItems(lista.items) ? ` · ${resumenItems(lista.items)}` : ''}</p>
           </div>
-          <span className="flex shrink-0 items-center gap-1">
-            {/* Gate responsive (#249/#253): a ≤414 px los targets van a 44 px. */}
-            <IconAction icon="edit" size="touch" label="Editar lista" onClick={() => abrirLista(lista)} />
-            <IconAction icon="refresh" size="touch" label={lista.isActive ? 'Desactivar lista' : 'Activar lista'} onClick={() => alternarLista(lista)} />
-            <IconAction icon="trash" size="touch" tone="bad" label="Eliminar lista" onClick={() => setABorrar(lista)} />
+          <span className="acciones-toque flex shrink-0 items-center gap-1">
+            {/* Debajo de lg los toques miden 44 px (acciones-toque), en escritorio 28. */}
+            <IconAction icon="edit" label="Editar lista" onClick={() => abrirLista(lista)} />
+            <IconAction icon="refresh" label={lista.isActive ? 'Desactivar lista' : 'Activar lista'} onClick={() => alternarLista(lista)} />
+            <IconAction icon="trash" tone="bad" label="Eliminar lista" onClick={() => setABorrar(lista)} />
           </span>
         </div>)}
       </div>}
@@ -270,12 +279,16 @@ export default function Precios() {
         <h2 className="font-semibold">Precios por cantidad</h2>
         <p className="mt-1 text-xs text-mute">Desde la cantidad mínima, el precio unitario de la línea es el del escalón. Cargá el escalón más alto y el resto se resuelve solo.</p>
       </div>
-      <div className="max-w-md"><p className="mb-1 text-xs text-mute">Producto</p><ProductCombobox products={productos} selectedId={productoTier} onQueryChange={buscarProductos} onSelect={product => setProductoTier(product.id)} placeholder="Elegí el producto…" /></div>
-      {productoTier && <form onSubmit={guardarTiers} className="space-y-2">
-        {filasTier.map((fila, index) => <div key={index} className="flex flex-wrap items-end gap-2">
-          <label className="text-xs text-mute">Desde<Input aria-label="Cantidad mínima" className="w-24" inputMode="numeric" value={fila.minQuantity} onChange={event => setFilasTier(filas => filas.map((row, i) => i === index ? { ...row, minQuantity: event.target.value.replace(/\D/g, '') } : row))} placeholder="3" /></label>
-          <label className="text-xs text-mute">Precio unitario<MoneyInput aria-label="Precio unitario del escalón" className="w-40" value={fila.unitPricePyg} onValueChange={value => setFilasTier(filas => filas.map((row, i) => i === index ? { ...row, unitPricePyg: value === '' ? '' : String(value) } : row))} placeholder="0" /></label>
-          <IconAction icon="trash" tone="bad" label="Quitar escalón" onClick={() => setFilasTier(filas => filas.filter((_, i) => i !== index))} />
+      <div className="max-w-[640px]"><p className="mb-1 text-xs text-mute">Producto</p><ProductCombobox products={productos} selectedId={productoTier} onQueryChange={buscarProductos} onSelect={product => setProductoTier(product.id)} placeholder="Elegí el producto…" /></div>
+      {productoTier && <form onSubmit={guardarTiers} className="space-y-3">
+        {filasTier.map((fila, index) => <div key={index} className="flex max-w-[640px] items-end gap-2">
+          <FieldRow label="Desde" htmlFor={`tier-${index}-min`} className="w-28 shrink-0">
+            <Input id={`tier-${index}-min`} aria-label="Cantidad mínima" inputMode="numeric" value={fila.minQuantity} onChange={event => setFilasTier(filas => filas.map((row, i) => i === index ? { ...row, minQuantity: event.target.value.replace(/\D/g, '') } : row))} placeholder="3" />
+          </FieldRow>
+          <FieldRow label="Precio unitario" htmlFor={`tier-${index}-precio`} className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1"><MoneyInput id={`tier-${index}-precio`} aria-label="Precio unitario del escalón" value={fila.unitPricePyg} onValueChange={value => setFilasTier(filas => filas.map((row, i) => i === index ? { ...row, unitPricePyg: value === '' ? '' : String(value) } : row))} placeholder="0" /></div>
+          </FieldRow>
+          <span className="acciones-toque shrink-0"><IconAction icon="trash" tone="bad" label="Quitar escalón" onClick={() => setFilasTier(filas => filas.filter((_, i) => i !== index))} /></span>
         </div>)}
         {!filasTier.length && <p className="text-sm text-mute">Sin escalones: el producto se vende con el precio de su lista o del tramo del cliente.</p>}
         <div className="flex flex-wrap items-center gap-2">
@@ -284,6 +297,7 @@ export default function Precios() {
         </div>
       </form>}
     </Card>
+    </div>
 
     <Modal
       open={editor !== null}
@@ -321,7 +335,7 @@ export default function Precios() {
               <FormField label="Porcentaje" htmlFor={`item-${index}-porcentaje`} error={errorDe(`item-${index}-porcentaje`)}>
                 <PercentField id={`item-${index}-porcentaje`} value={item.valuePct} onChange={value => cambiarItem(index, { valuePct: value }, [`item-${index}-porcentaje`])} />
               </FormField>
-              <IconAction icon="trash" tone="bad" label="Quitar ítem" onClick={() => { limpiar(); setEditor(current => ({ ...current, items: current.items.filter((_, i) => i !== index) })) }} />
+              <span className="acciones-toque"><IconAction icon="trash" tone="bad" label="Quitar ítem" onClick={() => { limpiar(); setEditor(current => ({ ...current, items: current.items.filter((_, i) => i !== index) })) }} /></span>
             </div>
           ))}
           {!editor.items.length && <p className="text-sm text-mute">Sin ítems, la lista no cambia ningún precio.</p>}

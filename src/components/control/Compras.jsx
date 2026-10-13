@@ -9,6 +9,7 @@ import { suppliersApi } from '@/lib/api/suppliers'
 import { leerProveedoresRecientes, recordarProveedorReciente } from '@/lib/proveedores'
 import SupplierCombobox from '@/components/shared/SupplierCombobox'
 import BarraModulo from '@/components/shared/BarraModulo'
+import '@/components/stock/stockToque.css'
 import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { loadDemoPurchases, createDemoPurchase, receiveDemoPurchase, updateDemoPurchaseCosts } from '@/lib/demoPurchases'
@@ -445,7 +446,7 @@ export default function Compras() {
     ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
     : { key, dir: ['fecha', 'vence', 'costo', 'saldo'].includes(key) ? 'desc' : 'asc' })
   const encabezado = (key, label, extra = '') => (
-    <button type="button" onClick={() => ordenarPor(key)} className={cn('flex items-center gap-1 truncate text-left text-[10px] font-bold uppercase tracking-wider transition hover:text-fore', orden.key === key ? 'text-fono-light' : 'text-mute', extra)}>
+    <button type="button" onClick={() => ordenarPor(key)} className={cn('flex min-h-11 items-center gap-1 truncate text-left text-[10px] font-bold uppercase tracking-wider transition hover:text-fore lg:min-h-0', orden.key === key ? 'text-fono-light' : 'text-mute', extra)}>
       {label}<span className="shrink-0">{orden.key === key ? (orden.dir === 'asc' ? '↑' : '↓') : ''}</span>
     </button>
   )
@@ -491,9 +492,9 @@ export default function Compras() {
       descripcion="Anticipos, crédito y costos finales auditables por equipo o lote."
       testId="barra-compras"
     >
-      <Button type="button" onClick={() => { setError(''); setMessage(''); control.limpiar(); setNuevaCompra(true) }}><Icon name="plus" className="h-4 w-4" />Nueva compra</Button>
-      {!demo && <Button type="button" variant="outline" onClick={exportar} disabled={exportando}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}
-      <Button type="button" variant="outline" onClick={() => setSuppliersOpen(true)}>Proveedores</Button>
+      <Button type="button" className="min-h-11 lg:min-h-0" onClick={() => { setError(''); setMessage(''); control.limpiar(); setNuevaCompra(true) }}><Icon name="plus" className="h-4 w-4" />Nueva compra</Button>
+      {!demo && <Button type="button" variant="outline" className="min-h-11 lg:min-h-0" onClick={exportar} disabled={exportando}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}
+      <Button type="button" variant="outline" className="min-h-11 lg:min-h-0" onClick={() => setSuppliersOpen(true)}>Proveedores</Button>
     </BarraModulo>
     <div className="flex flex-wrap items-center gap-2">
       <SearchField value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar proveedor, referencia o número…" ariaLabel="Buscar compras" className="min-w-0 max-w-md flex-1" />
@@ -621,7 +622,7 @@ export default function Compras() {
           testId="resumen-compras"
           columnas={4}
           items={[
-            { titulo: 'Compras', valor: filtradas.length, alcance: 'En pantalla' },
+            { titulo: 'Órdenes', valor: filtradas.length, alcance: 'En pantalla' },
             { titulo: 'Por recibir', valor: resumenCompras.pendientes, alcance: 'En pantalla', nota: 'unidades', tono: resumenCompras.pendientes > 0 ? 'text-warn' : 'text-ok' },
             { titulo: 'Comprado', valor: gs(resumenCompras.costo), alcance: 'En pantalla', nota: 'costo final' },
             { titulo: 'Saldo por pagar', valor: gs(resumenCompras.saldo), alcance: 'En pantalla', nota: 'anticipos y créditos', tono: resumenCompras.saldo > 0 ? 'text-warn' : 'text-ok' },
@@ -669,7 +670,7 @@ export default function Compras() {
                 <span className={cn('truncate text-xs', vencimiento.urgente ? 'font-semibold text-warn' : 'text-mute')} title={vencimiento.titulo}>{vencimiento.texto}</span>
                 <span className={cn('truncate text-right text-sm font-semibold tabular-nums text-fore', v2 && 'v2-numero')}>{gs(purchase.finalCostPyg ?? 0)}</span>
                 <span className={cn('truncate text-right text-sm font-semibold tabular-nums', v2 && 'v2-numero', saldo > 0 ? 'text-warn' : 'text-ok')}>{gs(saldo)}</span>
-                <span className="flex flex-wrap items-center justify-end gap-1">
+                <span className="acciones-toque flex flex-wrap items-center justify-end gap-1">
                   {!demo && <IconAction icon="receipt" label="Adjuntos de la compra" disabled={busy} onClick={event => { event.stopPropagation(); setAdjuntosDe(purchase) }} />}
                   {!demo && <IconAction icon="clock" label="Historial de la compra" disabled={busy} onClick={event => { event.stopPropagation(); setHistorialDe(purchase) }} />}
                   {(purchase.status === 'DRAFT' || purchase.status === 'PARTIAL') && <IconAction icon="download" tone="fono" label="Recibir mercadería" disabled={busy} onClick={event => { event.stopPropagation(); abrirRecepcion(purchase) }} />}

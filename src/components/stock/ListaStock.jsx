@@ -13,7 +13,6 @@ import { columnaCostoVisible, textoMostrandoStock, unidadDeItem } from '@/lib/st
 import { cn } from '@/lib/utils'
 import { CELDA_ENCABEZADO } from '@/components/shared/tabla'
 import { accionesDeItem } from './AccionesUnidad'
-import FiltrosStock from './FiltrosStock'
 import { FilaStock, columnasStock, estiloColumnas } from './FilaStock'
 import { TarjetaStockMovil } from './TarjetaStockMovil'
 import { hayFiltrosStock } from './stockFiltros'
@@ -78,8 +77,8 @@ function FilasCargandoStock({ columnas, angosta }) {
 
 export default function ListaStock({ ctx, vista = 'unidades' }) {
   const {
-    stock, filtros, cambiarFiltros, limpiarFiltros, seleccionados, setSeleccionados, busy, products,
-    branches, proveedores, rolVeCosto, abrirDetalleItem, requestReason, navigate, query,
+    stock, filtros, seleccionados, setSeleccionados, busy, products,
+    rolVeCosto, abrirDetalleItem, requestReason, navigate, query,
   } = ctx
   const angosta = usePantallaAngosta('(min-width: 768px)')
   const items = stock.items
@@ -104,17 +103,7 @@ export default function ListaStock({ ctx, vista = 'unidades' }) {
   const todosMarcados = items.length > 0 && items.every((item) => seleccionados.includes(item.id))
 
   return (
-    <div className="stock-lista mt-2 space-y-2 md:mt-4 md:space-y-3" data-testid="inventario-lista" data-vista={vista}>
-      <FiltrosStock
-        filtros={filtros}
-        vista={vista}
-        sucursales={branches}
-        proveedores={proveedores}
-        verProveedor={rolVeCosto}
-        onCambio={cambiarFiltros}
-        onLimpiar={limpiarFiltros}
-        compacto={angosta}
-      />
+    <div className="stock-lista space-y-2 md:space-y-3" data-testid="inventario-lista" data-vista={vista}>
       {stock.error ? (
         <Aviso tono="error" data-testid="stock-error">
           {stock.error}{' '}

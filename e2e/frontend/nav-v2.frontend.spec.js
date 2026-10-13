@@ -5,6 +5,7 @@ import {
   clickShellTab,
   openShellDestination,
   selectFinanceSection,
+  selectInventorySection,
 } from '../helpers/shell-navigation.js'
 
 const output = '/tmp/mobos-nav-v2-qa'
@@ -280,6 +281,7 @@ test('all contextual owner destinations remain offered and subsection URLs stay 
       unidades: ['unidades'],
       productos: ['productos'],
       traslados: ['traslados'],
+      control: ['control'],
       precios: ['precios', 'celulares', 'comparador', 'centro-control'],
     },
     Compras: {
@@ -308,6 +310,7 @@ test('all contextual owner destinations remain offered and subsection URLs stay 
   const routes = {
     unidades: '/stock/unidades',
     traslados: '/stock/traslados',
+    control: '/stock/conteos',
     'tradein-admin': '/trade-in',
   }
   for (const [label, groups] of Object.entries(destinations)) {
@@ -345,10 +348,8 @@ test('all contextual owner destinations remain offered and subsection URLs stay 
   await selectFinanceSection(page, 'Conciliación')
   await expect(page).toHaveURL(/\/finanzas\/conciliacion/)
   await navigation.getByRole('button', { name: 'Stock', exact: true }).click()
-  await page
-    .getByTestId('tabs-inventario')
-    .getByRole('tab', { name: 'Reservas', exact: true })
-    .click()
+  // Reservas es una vista de Control (segundo nivel de la pestaña del shell).
+  await selectInventorySection(page, 'reservas')
   await expect(page).toHaveURL(/\/stock\/reservas/)
   await page.getByTestId('shell-buscar-mobile').click()
   await expect(
@@ -2637,7 +2638,7 @@ for (const width of [1440, 320]) {
       // All API data is isolated and every nonlocal request is blocked.
       await page.route('**/*', route => {
         const url = new URL(route.request().url())
-        return url.origin === 'http://127.0.0.1:5291' ? route.continue() : route.abort()
+        return url.origin === `http://127.0.0.1:${process.env.MOBOS_QA_PORT || 5291}` ? route.continue() : route.abort()
       })
       const state = await mockStock(page, { noRate })
       const cases = [
@@ -3482,6 +3483,15 @@ async function masUnidadesDemo(page, cantidad = 90) {
     })
   }, cantidad)
 }
+async function abrirFiltroStock(page, grupo) {
+  // Celular: hoja «Filtros»; escritorio: el chip del grupo.
+  await page.getByTestId('filtros-abrir').or(page.getByTestId(`filtro-${grupo}-abrir`)).first().click()
+}
+async function elegirFiltroStock(page, grupo, id) {
+  await abrirFiltroStock(page, grupo)
+  await page.getByTestId(`filtro-${grupo}-${id}`).click()
+  if (await page.getByTestId('filtros-hoja').count()) await page.keyboard.press('Escape')
+}
 async function abrirStock(page, width) {
   await page
     .getByTestId(width < 1024 ? 'shell-bottom-nav' : 'shell-lateral')
@@ -3497,19 +3507,23 @@ test('U3 /inventario/* redirige a /stock/* y las doce vistas siguen abriendo', a
     transito: 'En tránsito', traslados: 'Traslados', vendidos: 'Vendidos', eliminados: 'Eliminados',
     taller: 'Taller', conteos: 'Conteos', compartido: 'Compartido', autorizaciones: 'Autorizaciones',
   }
-  const secciones = page.getByTestId('tabs-inventario')
+  // Rediseño 2A: las pestañas son del shell y no hay una segunda barra de
+  // secciones dentro de la pantalla.
+  const contexto = page.getByTestId('shell-contexto')
   await abrirStock(page, 1440)
   await expect(page).toHaveURL(/\/stock\/unidades$/)
-  for (const nombre of ['Unidades', 'Reservas', 'Movimientos', 'Control'])
-    await expect(secciones.getByRole('tab', { name: nombre })).toBeVisible()
+  for (const id of ['unidades', 'productos', 'traslados', 'control', 'precios'])
+    await expect(contexto.locator(`[data-tab-id="${id}"]`)).toBeVisible()
+  await expect(page.getByTestId('tabs-inventario')).toHaveCount(0)
+  const grupoDe = { unidades: 'unidades', vendidos: 'unidades', eliminados: 'unidades', traslados: 'traslados', transito: 'traslados' }
   for (const [id, etiqueta] of Object.entries(vistas)) {
-    const seccion = { unidades: 'Unidades', ubicaciones: 'Unidades', alertas: 'Unidades', reservas: 'Reservas' }[id] || (['transito', 'traslados', 'vendidos', 'eliminados'].includes(id) ? 'Movimientos' : 'Control')
-    await secciones.getByRole('tab', { name: seccion }).click()
-    const vista = page.getByTestId('subtabs-inventario')
-    if (await vista.count()) await vista.getByRole('tab', { name: etiqueta }).click()
-    // Conteos y Autorizaciones viven solo en esta pantalla: no cambian la URL.
-    if (!['conteos', 'autorizaciones'].includes(id)) await expect(page).toHaveURL(new RegExp(`/stock/${id}$`))
-    await expect(page.getByTestId('grupos-inventario').getByRole('tab', { name: etiqueta }).first()).toHaveAttribute('aria-selected', 'true')
+    await selectInventorySection(page, id)
+    // Autorizaciones vive solo en esta pantalla: no cambia la URL.
+    if (id !== 'autorizaciones') await expect(page).toHaveURL(new RegExp(`/stock/${id}$`))
+    await expect(contexto.locator(`[data-tab-id="${grupoDe[id] || 'control'}"]`)).toHaveAttribute('aria-current', 'page')
+    // Las vistas de segundo nivel marcan la activa; Unidades/Vendidos/Eliminados la muestran en el chip Estado.
+    if (!['unidades', 'vendidos', 'eliminados'].includes(id))
+      await expect(page.getByTestId('grupos-inventario').getByRole('tab', { name: new RegExp(`^${etiqueta}`) })).toHaveAttribute('aria-selected', 'true')
   }
   // Un enlace guardado a /inventario/<vista>?q=… conserva vista y búsqueda.
   await page.goto('/inventario/reservas?q=iphone')
@@ -3533,13 +3547,15 @@ for (const width of stockU3Widths) {
     await expect(page.getByTestId('stock-mostrando')).toHaveText(/^Mostrando 50 de 1\d\d$/)
     await page.getByRole('button', { name: 'Cargar más' }).click()
     await expect(page.getByTestId('stock-mostrando')).toHaveText(/^Mostrando 100 de 1\d\d$/)
-    // Filtros: el chip queda en la URL y la lista se acota.
-    await page.getByTestId('filtro-estado-reservado').click()
+    // Filtros: el chip queda en la URL y la lista se acota. Escritorio: un chip
+    // por filtro con su lista; celular: una hoja «Filtros» con los mismos grupos.
+    await elegirFiltroStock(page, 'estado', 'reservado')
     await expect(page).toHaveURL(/estado=reservado/)
     await expect(filas.first()).toContainText('Reservado')
-    await page.getByTestId('filtro-tipo-ACCESORIO').click()
+    await elegirFiltroStock(page, 'tipo', 'ACCESORIO')
     await expect(page).toHaveURL(/tipo=ACCESORIO/)
     await page.reload()
+    await abrirFiltroStock(page, 'estado')
     await expect(page.getByTestId('filtro-estado-reservado')).toHaveAttribute('aria-pressed', 'true')
     await page.getByTestId('filtros-limpiar').click()
     await expect(page).not.toHaveURL(/estado=|tipo=/)

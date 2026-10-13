@@ -1,22 +1,22 @@
-import { shellCatalog } from './helpers/shell-navigation.js'
+import { clickShellTab, shellCatalog } from './helpers/shell-navigation.js'
 // #332 · Inventario con dos vistas claras y conmutables: Unidades (IMEI/serial)
-// y Productos (stock). Reusa el switch de #287 en las dos pantallas, empareja
-// las entradas del menú y deja al vendedor su vista de Productos sin el desvío
-// a una vista que no puede abrir.
+// y Productos (stock). Rediseño 2A: son pestañas del shell (Unidades · Productos),
+// el switch de #287 queda en Productos; se empareja la navegación y se deja al
+// vendedor su vista de Productos sin el desvío a una vista que no puede abrir.
 import { test, expect } from '@playwright/test'
 import { loginAsSeller } from './helpers/login.js'
 
 test('#332 · el dueño conmuta entre Unidades (IMEI) y Productos (stock), con deep links intactos', async ({ page }) => {
-  // La vista de Unidades: unidades físicas con IMEI/serial y el switch.
+  // La vista de Unidades: unidades físicas con IMEI/serial; Unidades y Productos son pestañas del shell.
   await page.goto('/inventario/unidades')
   await expect(page.getByTestId('barra-inventario')).toBeVisible({ timeout: 20_000 })
   await expect(page.getByTestId('inventario-fila').first()).toBeVisible({ timeout: 20_000 })
-  const enUnidades = page.getByTestId('vista-productos-unidades')
-  await expect(enUnidades).toBeVisible()
-  await expect(enUnidades.getByRole('button', { name: 'Unidades' })).toHaveAttribute('aria-pressed', 'true')
+  const contexto = page.getByTestId('shell-contexto')
+  await expect(contexto.locator('[data-tab-id="unidades"]')).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByTestId('vista-productos-unidades')).toHaveCount(0)
 
   // Conmutar a la vista normal de Productos.
-  await enUnidades.getByRole('button', { name: 'Productos' }).click()
+  await clickShellTab(page, 'shell-contexto', 'productos')
   await expect(page).toHaveURL(/\/productos$/)
   await expect(page.getByTestId('barra-productos')).toBeVisible()
   await expect(page.getByTestId('producto-fila').first()).toBeVisible({ timeout: 20_000 })

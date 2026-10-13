@@ -10,7 +10,7 @@ import Icon from '@/components/shared/Icon'
 import { Badge, Button, Input } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { identificadorDeItem, modeloDeItem } from '@/lib/stockItems'
-import { BateriaStock, CostoStock, EstadoStock, fechaVentaStock } from './CeldasStock'
+import { BateriaStock, ConsignadoStock, CostoStock, EstadoStock, fechaVentaStock } from './CeldasStock'
 import { UNIDADES_GRID, accionesDeUnidad, costoVisible, fechaReserva, fechaVerificacionCorta, locationTone, rowTone, verifiedLabel } from './stockHelpers'
 import { MenuAcciones } from './MenuAcciones'
 
@@ -435,10 +435,15 @@ export function FilaStock({ item, vista = 'unidades', verCosto = false, seleccio
           {nombre}
           {variante ? <span className="font-normal text-mute"> · {variante}</span> : null}
         </b>
-        {ubicacion ? <span className="block truncate text-[11px] text-mute" title={ubicacion}>{ubicacion}</span> : null}
+        {ubicacion || item.consignorName ? (
+          <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-mute">
+            {ubicacion ? <span className="truncate" title={ubicacion}>{ubicacion}</span> : null}
+            <ConsignadoStock item={item} />
+          </span>
+        ) : null}
         {verCosto && item.supplierName ? <span className="stock-lista-prov-chico truncate text-[11px] text-mute" title={`Proveedor: ${item.supplierName}`}>Proveedor: {item.supplierName}</span> : null}
       </span>
-      <span data-testid="unidad-imei" className={cn('min-w-0 text-[11px] tabular-nums text-mute', item.kind === 'unit' && 'font-mono')} title={item.kind === 'product' ? `SKU ${identificador}` : `IMEI/serial ${identificador}`}>
+      <span data-testid="unidad-imei" className={cn('min-w-0 text-[11px] leading-tight tabular-nums text-mute [overflow-wrap:anywhere]', item.kind === 'unit' && 'font-mono')} title={item.kind === 'product' ? `SKU ${identificador}` : `IMEI/serial ${identificador}`}>
         {identificador || '—'}
       </span>
       <span className="flex items-center"><BateriaStock item={item} /></span>

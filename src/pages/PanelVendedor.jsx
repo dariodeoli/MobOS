@@ -13,7 +13,6 @@ import { gs } from '@/utils/calculos'
 import Icon from '@/components/shared/Icon'
 import AppShell from '@/components/app/AppShell'
 import { ConfirmDialog, Modal, PinInput, Select, Skeleton, useToast } from '@/components/ui'
-import { cn } from '@/lib/utils'
 import { rutaDeVista, vistaDeRuta } from '@/lib/rutas'
 import { flagsV2 } from '@/lib/flags'
 import PantallaBloqueada from '@/components/app/PantallaBloqueada'
@@ -24,6 +23,7 @@ import { usePrefetchSecciones } from '@/hooks/usePrefetchSecciones'
 import { useBloqueoInactividad } from '@/hooks/useBloqueoInactividad'
 import CheatSheetAtajos from '@/components/app/CheatSheetAtajos'
 import NavegacionConfig from '@/components/control/config/NavegacionConfig'
+import { grupoShellDeTab } from '@/components/stock/stockHelpers'
 
 // Vistas pesadas en lazy: su código se descarga recién cuando se navega a ellas.
 const VistaCargarVenta = lazy(() => import('@/components/ventas/VistaCargarVenta'))
@@ -406,9 +406,12 @@ export default function PanelVendedor() {
   const [vista, setVista] = useState(seccionRuta || routeVista || (subpadre ? tabsRuta[0][0] : 'cargar'))
   const tabsConfig = tabsRuta
   // En las subpáginas el título es la pestaña activa (la sección va en la miga).
-  const tituloVista = subpadre
-    ? (tabsRuta.find(([id]) => id === vista) || [null, LABELS[vista] || MIGA_SUBPAGINA[subpadre]])[1]
-    : LABELS[vista]
+  // Stock: la pestaña del shell (Unidades · Traslados · Control) es el título.
+  const tituloVista = subpadre === 'stock'
+    ? grupoShellDeTab(vista).label
+    : subpadre
+      ? (tabsRuta.find(([id]) => id === vista) || [null, LABELS[vista] || MIGA_SUBPAGINA[subpadre]])[1]
+      : LABELS[vista]
   const [tradeIn, setTradeIn] = useState(null)
   const identidad = `${usuario?.tenantId}:${usuario?.branchId}:${sesion?.vendedorId}:${usuario?.role}:${esDemo}`
   const [cambiarAbierto, setCambiarAbierto] = useState(false)
@@ -532,6 +535,8 @@ export default function PanelVendedor() {
     // en la IA de siete grupos); el resto del equipo entra a la vista personal
     // /mi-cuenta, que no pide permisos de administración.
     if (id === 'mi-cuenta' && !esOwner) { setVista('mi-cuenta'); navigate('/mi-cuenta'); return }
+    // «Control» (Stock) es una pestaña del shell que abre su primera vista.
+    if (id === 'control') return ir('inventario', { ...opciones, subtab: 'conteos' })
     // Un ítem del menú puede ser una pestaña de una sección (p. ej. «Unidades»
     // dentro de Inventario, #251): se abre la sección en esa pestaña. Ojo: las
     // vistas de sección (inventario, equipo, finanzas, análisis) también son
@@ -752,7 +757,7 @@ export default function PanelVendedor() {
         title={tituloVista}
         breadcrumb={subpadre ? [MIGA_SUBPAGINA[subpadre]] : undefined}
         nav={esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV}
-        active={subpadre ? (idsDelMenu.has(vista) ? vista : SUBPAGINAS[subpadre].vista) : vista}
+        active={subpadre === 'stock' ? grupoShellDeTab(vista).id : subpadre ? (idsDelMenu.has(vista) ? vista : SUBPAGINAS[subpadre].vista) : vista}
         onNavigate={ir}
         collapsed={sidebarCollapsed}
         onToggleCollapsed={toggleSidebar}
@@ -839,7 +844,6 @@ export default function PanelVendedor() {
           </div>
 
           {esOwner && subpadre === 'stock' && <Inventario tab={vista} onTabChange={irASubtab} />}
-          {(esOwner && (vista === 'compras' || vista === 'productos')) && <div className="mb-3 flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{[['compras', 'Compras'], ['productos', 'Productos']].map(([id, label]) => <button key={id} type="button" aria-pressed={vista === id} onClick={() => ir(id)} className={cn('min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition md:min-h-9', vista === id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>}
           {vista === 'plantillas' && <WhatsAppTemplates />}
           {!subpadre && vista === 'mi-cuenta' && <MiCuenta preferencias={preferencias} onCambiarPreferencias={cambiarPreferencias} />}
           {esOwner && vista === 'celulares' && <Celulares />}

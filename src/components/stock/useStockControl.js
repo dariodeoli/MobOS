@@ -898,10 +898,10 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   function cambiarTab(next) {
     if (!tabValido(next)) return
     setTab(next)
-    // Conteos y Autorizaciones viven solo en esta pantalla: el slug no está en
-    // la whitelist del panel (la navegación de pestañas la lleva POS en #332),
-    // así que no se navega y la URL conserva la pestaña anterior.
-    if (next !== 'conteos' && next !== 'autorizaciones') onTabChange?.(next)
+    // Autorizaciones vive solo en esta pantalla: su slug no está en la whitelist
+    // del panel (/autorizaciones es la bandeja de Ventas), así que no se navega
+    // y la URL conserva la vista anterior de Control (el shell sigue en Control).
+    if (next !== 'autorizaciones') onTabChange?.(next)
   }
   // #305: grupo activo derivado de la pestaña (los enlaces directos siguen
   // funcionando) y sus vistas visibles.
