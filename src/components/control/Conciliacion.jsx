@@ -18,6 +18,8 @@ import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { CLAVES_FIN, filtrosConciliacionValidos, rangoDePreset } from '@/lib/finUltimoUsado'
 import { cn } from '@/lib/utils'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
+import ListaDensa from '@/components/shared/ListaDensa'
+import { usePaginaLista } from '@/components/shared/usePaginaLista'
 import './conciliacionF5.css'
 // Conciliación y trazabilidad (#144): ingresos por cuenta, medio y
 // procesadora; conciliación en lote de depósitos/transferencias recibidas
@@ -179,31 +181,6 @@ function Grupos({ titulo, filas, activo, onFiltrar }) {
       )}
     </Card>
   )
-}
-
-// Presentation-only paging: selection and pending totals continue to use all filtered items.
-function useRenderedPayments(items) {
-  const [page, setPage] = useState(0)
-  const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 1100px)').matches)
-  useEffect(() => {
-    const media = window.matchMedia('(max-width: 1100px)')
-    const update = () => setCompact(media.matches)
-    media.addEventListener('change', update)
-    return () => media.removeEventListener('change', update)
-  }, [])
-  const size = compact ? 2 : 20
-  useEffect(() => {
-    setPage(0)
-  }, [items, size])
-  const pages = Math.max(1, Math.ceil(items.length / size))
-  const current = Math.min(page, pages - 1)
-  return {
-    current,
-    pages,
-    setPage,
-    start: current * size,
-    rows: items.slice(current * size, (current + 1) * size),
-  }
 }
 
 export default function Conciliacion() {
@@ -383,7 +360,8 @@ export default function Conciliacion() {
   }
 
   // F5 presentation boundary; financial handlers above remain unchanged.
-  const rendered = useRenderedPayments(filtrados)
+  // Paginación local compartida: la selección y los totales usan todos los filtrados.
+  const rendered = usePaginaLista(filtrados, { tamano: { compacto: 2, amplio: 20 } })
 
   return (
     <div className="conciliacion-f5 space-y-3">
@@ -462,7 +440,7 @@ export default function Conciliacion() {
       )}
 
       <Card className="conciliacion-f5-panel space-y-2">
-        <p className="text-xs text-mute" data-testid="conciliacion-list-scope">Lista: {filtrados.length} pago(s) · Estado: {ETIQUETAS[estado]?.label || 'Todos'} · Página: {filtrados.length ? rendered.start + 1 : 0}–{rendered.start + rendered.rows.length}. El estado solo filtra esta lista.</p>
+        <p className="text-xs text-mute" data-testid="conciliacion-list-scope">Lista: {filtrados.length} pago(s) · Estado: {ETIQUETAS[estado]?.label || 'Todos'} · Página: {filtrados.length ? rendered.inicio + 1 : 0}–{rendered.inicio + rendered.filas.length}. El estado solo filtra esta lista.</p>
         <p className="text-xs text-mute">Selección masiva: reemplaza con pendientes de todas las páginas, sin reembolsados. Paginar conserva la selección.</p>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-semibold">Pagos del período</h3>
@@ -486,53 +464,52 @@ export default function Conciliacion() {
             action={hayRecorte ? <Button type="button" variant="outline" className="h-8 px-3 text-xs" onClick={limpiarFiltros}>Limpiar filtros</Button> : null}
           />
         )}
-        {!loading && filtrados.length > 0 && <div data-testid="conciliacion-tabla">
-          <div className={cn(GRID_ITEMS, 'conciliacion-f5-header px-3.5 pb-2 pt-1')}>
+        {!loading && filtrados.length > 0 && <ListaDensa
+          lista={rendered}
+          testId="conciliacion-tabla"
+          etiquetaPie="Páginas de pagos"
+          unidad="pagos"
+          encabezado={<div className={cn(GRID_ITEMS, 'conciliacion-f5-header px-3.5 pb-2 pt-1')}>
             <span />
             {['Fecha', 'Pedido / cliente', 'Cuenta / titular', 'Procesadora', 'Referencia', 'Monto', 'Conciliación / pago', 'Acciones'].map((columna) => <span key={columna} className={CELDA_ENCABEZADO}>{columna}</span>)}
-          </div>
-          <div className="space-y-1">
-            {rendered.rows.map((item) => {
-              const meta = ETIQUETAS[item.conciliacion.state] || ETIQUETAS.PENDING
-              const seleccionable = item.status !== 'REFUNDED' && item.conciliacion.state !== 'VERIFIED'
-              const marcado = seleccion.includes(item.id)
-              return (
-                <div key={item.id} data-testid="conciliacion-fila" className={cn(GRID_ITEMS, 'conciliacion-f5-payment border px-3.5 py-2', marcado ? 'border-fono/50 bg-fono/10' : 'border-ink-600 bg-ink-800/40')}>
-                  <input type="checkbox" className="h-4 w-4 accent-fono" checked={marcado} disabled={!seleccionable} aria-label={`Conciliar pago ${item.orderNumber || item.id}`} onChange={() => alternar(item.id)} />
+          </div>}
+          renderFila={(item) => {
+            const meta = ETIQUETAS[item.conciliacion.state] || ETIQUETAS.PENDING
+            const seleccionable = item.status !== 'REFUNDED' && item.conciliacion.state !== 'VERIFIED'
+            const marcado = seleccion.includes(item.id)
+            return (
+              <div key={item.id} data-testid="conciliacion-fila" className={cn(GRID_ITEMS, 'conciliacion-f5-payment border px-3.5 py-2', marcado ? 'border-fono/50 bg-fono/10' : 'border-ink-600 bg-ink-800/40')}>
+                <input type="checkbox" className="h-4 w-4 accent-fono" checked={marcado} disabled={!seleccionable} aria-label={`Conciliar pago ${item.orderNumber || item.id}`} onChange={() => alternar(item.id)} />
+                <span className="conciliacion-f5-meta">
                   <span data-label="Fecha" className={CELDA_DATO} title={fechaCorta(item.fecha)}>{fecha(item.fecha)}</span>
-                  <span data-label="Pedido / cliente" className="min-w-0">
-                    <b className="block truncate text-[13px]">{item.orderNumber || 'Cobro directo'}</b>
-                    <span className="mt-0.5 block truncate text-[11px] text-mute">{[item.cliente, item.vendedor].filter(Boolean).join(' · ') || '—'}</span>
-                  </span>
-                  <span data-label="Cuenta / titular" className="min-w-0">
-                    <b className="block truncate text-[12px] font-medium">{item.cuenta}</b>
-                    <span className="mt-0.5 block truncate text-[11px] text-mute">{[item.titular, item.banco].filter(Boolean).join(' · ') || medioDe(item.method)}</span>
-                  </span>
                   <span data-label="Procesadora" className={CELDA_DATO}>{item.procesadora || '—'}</span>
                   <span data-label="Referencia" className="min-w-0">
                     <span className={cn('block', CELDA_DATO)} title={item.reference}>{item.reference || '—'}</span>
                     {item.currency && item.currency !== 'PYG' && Number(item.originalAmount) > 0 && <span className="mt-0.5 block truncate text-[11px] text-mute">{formatMoney(item.originalAmount, item.currency)}</span>}
                     {item.settlesAt && <span className="mt-0.5 block truncate text-[11px] text-mute">acredita {fecha(item.settlesAt)}</span>}
                   </span>
-                  <span data-label="Monto" className="conciliacion-f5-money text-xs font-semibold tabular-nums">{gs(item.montoPyg)}</span>
-                  <span data-label="Conciliación / pago" className="flex flex-wrap items-center gap-1">
-                    <Badge color={meta.color} className="w-fit whitespace-nowrap">{meta.label}</Badge>
-                    <span className="text-[11px] text-mute">Pago: {item.status === 'REFUNDED' ? 'Reembolsado' : item.status === 'CONFIRMED' ? 'Confirmado' : item.status === 'PENDING' ? 'Pendiente' : item.status}</span>
-                    {item.conciliacion.batchId && <span className="truncate text-[10px] text-mute" title="Forma parte de un lote conciliado">lote</span>}
-                  </span>
-                  <span data-label="Acciones" className="flex items-center gap-1.5">
-                    <Button type="button" variant="outline" className="h-11 px-3 text-xs md:h-8 md:px-2" disabled={!item.orderId} onClick={() => verPedido(item)}>Ver pedido</Button>
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        </div>}
-        {!loading && rendered.pages > 1 && <nav aria-label="Páginas de pagos" className="flex flex-wrap items-center justify-between gap-2">
-          <Button type="button" variant="outline" disabled={rendered.current === 0} onClick={() => rendered.setPage((page) => page - 1)}>Anterior</Button>
-          <span className="text-xs text-mute" role="status">Página {rendered.current + 1} de {rendered.pages}</span>
-          <Button type="button" variant="outline" disabled={rendered.current + 1 >= rendered.pages} onClick={() => rendered.setPage((page) => page + 1)}>Siguiente</Button>
-        </nav>}
+                </span>
+                <span data-label="Pedido / cliente" className="min-w-0">
+                  <b className="block truncate text-[13px]">{item.orderNumber || 'Cobro directo'}</b>
+                  <span className="mt-0.5 block truncate text-[11px] text-mute">{[item.cliente, item.vendedor].filter(Boolean).join(' · ') || '—'}</span>
+                </span>
+                <span data-label="Cuenta / titular" className="min-w-0">
+                  <b className="block truncate text-[12px] font-medium">{item.cuenta}</b>
+                  <span className="mt-0.5 block truncate text-[11px] text-mute">{[item.titular, item.banco].filter(Boolean).join(' · ') || medioDe(item.method)}</span>
+                </span>
+                <span data-label="Monto" className="conciliacion-f5-money text-xs font-semibold tabular-nums">{gs(item.montoPyg)}</span>
+                <span data-label="Conciliación / pago" className="flex flex-wrap items-center gap-1">
+                  <Badge color={meta.color} className="w-fit whitespace-nowrap">{meta.label}</Badge>
+                  <span className="text-[11px] text-mute">Pago: {item.status === 'REFUNDED' ? 'Reembolsado' : item.status === 'CONFIRMED' ? 'Confirmado' : item.status === 'PENDING' ? 'Pendiente' : item.status}</span>
+                  {item.conciliacion.batchId && <span className="truncate text-[10px] text-mute" title="Forma parte de un lote conciliado">lote</span>}
+                </span>
+                <span data-label="Acciones" className="flex items-center gap-1.5">
+                  <Button type="button" variant="outline" className="h-11 px-3 text-xs md:h-8 md:px-2" disabled={!item.orderId} onClick={() => verPedido(item)}>Ver pedido</Button>
+                </span>
+              </div>
+            )
+          }}
+        />}
       </Card>
 
       <Card className="conciliacion-f5-panel space-y-2">

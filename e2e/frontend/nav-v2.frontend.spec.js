@@ -2654,7 +2654,7 @@ for (const width of [1440, 320]) {
   }
 }
 // F5 reconciliation: append-only frontend evidence, isolated from real APIs/data.
-const reconciliationOutput = '/tmp/mobos-redesign-conciliacion-qa/renewed-continuation'
+const reconciliationOutput = `${process.env.MOBOS_QA_OUT || '/tmp/mobos-redesign-conciliacion-qa'}/renewed-continuation`
 const reconciliationWidths = [320, 360, 390, 430, 1440]
 
 async function reconciliationMetrics(page) {
@@ -3308,5 +3308,79 @@ for (const dark of [false, true]) {
       path: `${reconciliationOutput}/kpi-stress-390-${dark ? 'dark' : 'light'}.png`,
       fullPage: true,
     })
+  })
+}
+
+// U5a: Rendiciones (tienda) y panel del repartidor con el sistema visual F3.
+const u5Output = process.env.MOBOS_QA_OUT || '/tmp/mobos-redesign-u5-qa'
+async function u5Controls(root) {
+  for (const control of await root.locator('button, select, summary, a[href^="tel:"]').all()) {
+    if (!(await control.isVisible())) continue
+    const box = await control.boundingBox()
+    expect(box.height).toBeGreaterThanOrEqual(44)
+    expect(box.width).toBeGreaterThanOrEqual(44)
+  }
+}
+for (const [width, dark] of [[375, false], [375, true], [1440, false]]) {
+  test(`U5a store Rendiciones ${width}px ${dark ? 'dark' : 'light'}`, async ({ page }) => {
+    await mkdir(u5Output, { recursive: true })
+    await page.setViewportSize({ width, height: 900 })
+    await enterDemo(page)
+    await setF3Theme(page, width, dark)
+    await page.goto('/delivery')
+    await page.getByRole('button', { name: 'Rendiciones', exact: true }).click()
+    const root = page.locator('[aria-label="Rendiciones de repartidores"]')
+    const cards = root.getByTestId('rendicion-admin')
+    await expect(cards.first()).toBeVisible()
+    await expect(cards.first()).toContainText('Rendido')
+    await expect(cards.first()).toContainText('Gs')
+    expect(await cards.first().innerText()).not.toContain('…')
+    await expect(cards.first().getByTestId('rendicion-verificar')).toBeVisible()
+    await noOverflow(page)
+    await u5Controls(root)
+    // Esc cancela el rechazo sin enviar nada.
+    await cards.first().getByRole('button', { name: 'Rechazar', exact: true }).click()
+    const dialogo = page.getByRole('dialog', { name: 'Rechazar la rendición' })
+    await expect(dialogo).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(dialogo).toHaveCount(0)
+    await root.getByRole('button', { name: 'Todas', exact: true }).click()
+    await expect(root.getByRole('button', { name: 'Todas', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await noOverflow(page)
+    if (width === 375 && dark) await page.screenshot({ path: `${u5Output}/rendiciones-375-dark.png`, fullPage: true })
+  })
+  test(`U5a driver panel ${width}px ${dark ? 'dark' : 'light'}`, async ({ page }) => {
+    await mkdir(u5Output, { recursive: true })
+    await page.setViewportSize({ width, height: 900 })
+    await enterDemo(page, 'Delivery')
+    await setF3Theme(page, width, dark)
+    await page.waitForURL(/\/delivery/)
+    const orders = page.getByTestId('reparto-pedido')
+    await expect(orders.first()).toBeVisible()
+    await expect(orders.first()).toContainText('Total')
+    await expect(orders.first().getByRole('button', { name: 'Marcar entregado' })).toBeVisible()
+    await expect(orders.first().getByTestId('reparto-cobrar')).toBeVisible()
+    expect(await orders.first().innerText()).not.toContain('…')
+    await noOverflow(page)
+    await u5Controls(page.locator('main'))
+    // Cobro en la calle: el modal se cierra con Esc.
+    const cobro = page.getByRole('dialog', { name: 'Registrar cobro en la calle' })
+    // El listado se refresca solo: reintenta el clic si cayó durante un re-render.
+    await expect(async () => {
+      if (!(await cobro.isVisible())) await orders.first().getByTestId('reparto-cobrar').click()
+      await expect(cobro).toBeVisible({ timeout: 2000 })
+    }).toPass({ timeout: 30000 })
+    await page.keyboard.press('Escape')
+    await expect(cobro).toHaveCount(0)
+    // Navegación del router sin recargar (conserva sesión demo y tema).
+    await page.evaluate(() => {
+      history.pushState({}, '', '/delivery/rendiciones')
+      dispatchEvent(new PopStateEvent('popstate'))
+    })
+    await expect(page.getByTestId('rendicion-total')).toContainText('Gs')
+    await expect(page.getByTestId('rendicion').first()).toBeVisible()
+    await noOverflow(page)
+    await u5Controls(page.locator('main'))
+    if (width === 375 && !dark) await page.screenshot({ path: `${u5Output}/driver-375-light.png`, fullPage: true })
   })
 }
