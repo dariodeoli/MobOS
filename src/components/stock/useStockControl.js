@@ -185,7 +185,13 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     if (busy) return
     setBusy(true); setError(''); setNotice('')
     try {
-      avisarImpresion(await printQuickReceipt(unit), 'Comprobante')
+      // La lista de Stock no trae el pedido de la venta: se completa con la unidad real.
+      let completa = unit
+      if (!unit?.sale?.orderId && unit?.serial) {
+        const filas = await resources.inventoryUnits.list(unit.serial, 'active')
+        completa = filas.find((fila) => fila.id === unit.id) || unit
+      }
+      avisarImpresion(await printQuickReceipt(completa), 'Comprobante')
     } catch (cause) {
       setError(cause?.message || 'No se pudo imprimir el comprobante de la venta.')
     } finally {
