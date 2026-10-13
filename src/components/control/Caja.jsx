@@ -43,14 +43,19 @@ import { ticketCierreCaja } from '@/lib/printing/reportes'
 import { imprimirDocumento } from '@/lib/printing/agent'
 import { descargarCsv } from '@/utils/descargarCsv'
 import { parseDelimited } from '@/utils/csv'
-import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD, CELDA_NUMERO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_IDENTIDAD, CELDA_NUMERO } from '@/components/shared/tabla'
+import ListaDensa from '@/components/shared/ListaDensa'
+import { usePaginaLista } from '@/components/shared/usePaginaLista'
+import StatusChip from '@/components/shared/StatusChip'
 import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
+import './finanzasTactil.css'
 
-// Batch compacto v2: repuestos/proveedores y taller, en grillas densas.
-const GRID_PROVEEDORES = 'grid min-w-[52rem] grid-cols-[minmax(11rem,1.3fr)_minmax(13rem,1.4fr)_8rem_minmax(10rem,auto)] items-center gap-x-2'
-const GRID_TALLER = 'grid min-w-[50rem] grid-cols-[minmax(11rem,1.3fr)_minmax(13rem,1.3fr)_8rem_minmax(6.5rem,auto)] items-center gap-x-2'
+// Repuestos/proveedores y taller: listados responsivos (`ListaDensa`: tabla
+// desde lg, tarjeta debajo) con acciones de 44px bajo lg.
+const BOTON_FILA = 'min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2'
+const TONO_CONDICION = { CREDITO: 'warn', CONSIGNACION: 'neutral', CONTADO: 'neutral' }
 
 // Denominaciones del arqueo en guaraníes: las mismas que acepta el backend y
 // el total contado se deriva de acá cuando hay desglose. Viven en
@@ -362,6 +367,31 @@ function fechaPagoLocal(paidAt) {
   return new Date(instante - 180 * 60000).toISOString().slice(0, 10)
 }
 
+const detalleProveedor = (fila) => `${fila.concept} · comprado ${formatGs(fila.amountPyg)}${fila.dueAt ? ` · vence ${fechaHora(fila.dueAt)}` : ''}${fila.depositoPyg > 0 ? ` · en depósito ${formatGs(fila.depositoPyg)}` : ''}`
+const detalleTaller = (parte) => `${parte.code}${parte.supplierName ? ` · ${parte.supplierName}` : ''}${parte.dueAt ? ` · vence ${fechaHora(parte.dueAt)}` : ''}`
+
+function IdentidadProveedor({ fila }) {
+  return (
+    <span className="flex min-w-0 flex-wrap items-center gap-2">
+      <span className={CELDA_IDENTIDAD} title={fila.supplierName}>{fila.supplierName}</span>
+      <StatusChip tono={TONO_CONDICION[fila.condition] || 'neutral'} etiqueta={CONDICION_PROVEEDOR[fila.condition] || fila.condition} />
+      {fila.vencimiento === 'VENCIDA' && <StatusChip tono="bad" etiqueta="Vencida" />}
+      {fila.vencimiento === 'POR_VENCER' && <StatusChip tono="warn" etiqueta="Por vencer" />}
+    </span>
+  )
+}
+
+function IdentidadTaller({ parte }) {
+  return (
+    <span className="flex min-w-0 flex-wrap items-center gap-2">
+      <span className={CELDA_IDENTIDAD} title={parte.name}>{parte.name}</span>
+      <StatusChip tono={parte.paymentMode === 'CREDITO' ? 'warn' : 'neutral'} etiqueta={parte.paymentMode === 'CREDITO' ? 'Crédito' : 'Consignación'} />
+      {parte.vencimiento === 'VENCIDA' && <StatusChip tono="bad" etiqueta="Vencida" />}
+      {parte.vencimiento === 'POR_VENCER' && <StatusChip tono="warn" etiqueta="Por vencer" />}
+    </span>
+  )
+}
+
 export default function Caja() {
   // Vista previa v2 (#241): las tarjetas neutras de la caja usan el tile de
   // consola (los números ya llevan el tamaño grande del scope).
@@ -439,6 +469,8 @@ export default function Caja() {
   // Repuestos y proveedores (#250 · #83) y repuestos del taller (#250 · FIN).
   const proveedores = finance?.supplierPayables || null
   const taller = finance?.workshopParts || null
+  const listaProveedores = usePaginaLista(proveedores?.rows || [], { tamano: { compacto: 5, amplio: 15 } })
+  const listaTaller = usePaginaLista(taller?.rows || [], { tamano: { compacto: 5, amplio: 15 } })
   async function registrarCompraProveedor(evento) {
     evento.preventDefault()
     if (proveedorBusy) return
@@ -734,8 +766,19 @@ export default function Caja() {
         </div>
       </div>
     )
+  const accionesProveedor = (fila) => (
+    <span className="flex flex-wrap items-center justify-end gap-2">
+      {fila.pendientePyg > 0 && <Button type="button" variant="outline" className={BOTON_FILA} onClick={() => { setProveedorError(''); setProveedorAccion({ tipo: 'pagar', fila }); setProveedorMonto(''); setProveedorCuenta('') }}>Pagar</Button>}
+      {fila.depositoPyg > 0 && <Button type="button" variant="outline" className={BOTON_FILA} onClick={() => { setProveedorError(''); setProveedorAccion({ tipo: 'consumir', fila }); setProveedorMonto('') }}>Consumir</Button>}
+    </span>
+  )
+  const accionTaller = (parte) => (
+    <span className="flex flex-wrap items-center justify-end gap-2">
+      <Button type="button" variant="outline" className={BOTON_FILA} onClick={() => { setProveedorError(''); setProveedorAccion({ tipo: 'pagar-taller', fila: parte }); setProveedorMonto(''); setProveedorCuenta('') }}>Pagar</Button>
+    </span>
+  )
   return (
-    <div className="space-y-6">
+    <div className="finanzas-tactil space-y-6">
       <p className="text-sm text-mute">
         Apertura física en Gs., saldos, pendientes, cheques y margen con costos congelados.
       </p>
@@ -843,36 +886,32 @@ export default function Caja() {
           {proveedores.rows.length === 0 ? (
             <p className="text-sm text-mute">Sin compras de repuestos registradas.</p>
           ) : (
-            <div className="overflow-x-auto" data-testid="proveedores-tabla">
-              <div className={cn(GRID_PROVEEDORES, 'px-3.5 pb-2 pt-1')}>
-                <span className={CELDA_ENCABEZADO}>Proveedor</span>
-                <span className={CELDA_ENCABEZADO}>Concepto</span>
-                <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Pendiente</span>
-                <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span>
-              </div>
-              <div className="space-y-1">
-              {proveedores.rows.map(fila => (
-                <div key={fila.id} className={cn(GRID_PROVEEDORES, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2', v2 && 'v2-tile')} data-testid={`proveedor-${fila.id}`}>
-                  <span className="flex min-w-0 flex-wrap items-center gap-2">
-                    <span className={CELDA_IDENTIDAD} title={fila.supplierName}>{fila.supplierName}</span>
-                    <Badge color={fila.condition === 'CREDITO' ? 'orange' : fila.condition === 'CONSIGNACION' ? 'blue' : 'slate'}>{CONDICION_PROVEEDOR[fila.condition] || fila.condition}</Badge>
-                    {fila.vencimiento === 'VENCIDA' && <Badge color="red">Vencida</Badge>}
-                    {fila.vencimiento === 'POR_VENCER' && <Badge color="orange">Por vencer</Badge>}
-                  </span>
-                  <span className={cn(CELDA_DATO, 'tabular-nums')} title={`${fila.concept} · comprado ${formatGs(fila.amountPyg)}${fila.dueAt ? ` · vence ${fechaHora(fila.dueAt)}` : ''}${fila.depositoPyg > 0 ? ` · en depósito ${formatGs(fila.depositoPyg)}` : ''}`}>
-                    {fila.concept} · comprado {formatGs(fila.amountPyg)}
-                    {fila.dueAt ? ` · vence ${fechaHora(fila.dueAt)}` : ''}
-                    {fila.depositoPyg > 0 ? ` · en depósito ${formatGs(fila.depositoPyg)}` : ''}
-                  </span>
-                  <strong className={cn(CELDA_NUMERO, 'font-semibold text-fore')} data-testid={`proveedor-pendiente-${fila.id}`}><Money value={fila.pendientePyg} /></strong>
-                  <span className="flex flex-wrap items-center justify-end gap-2">
-                    {fila.pendientePyg > 0 && <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => { setProveedorError(''); setProveedorAccion({ tipo: 'pagar', fila }); setProveedorMonto(''); setProveedorCuenta('') }}>Pagar</Button>}
-                    {fila.depositoPyg > 0 && <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => { setProveedorError(''); setProveedorAccion({ tipo: 'consumir', fila }); setProveedorMonto('') }}>Consumir</Button>}
-                  </span>
+            <ListaDensa
+              lista={listaProveedores}
+              testId="proveedores-tabla"
+              etiquetaTabla="Compras de repuestos a proveedores"
+              etiquetaPie="Páginas de compras"
+              unidad="compras"
+              desde="lg"
+              obtenerClave={(fila) => fila.id}
+              atributosFila={(fila) => ({ 'data-testid': `proveedor-${fila.id}` })}
+              columns={[
+                { key: 'proveedor', header: 'Proveedor', ancho: 'minmax(0,1.3fr)', className: 'overflow-visible', cell: (fila) => <IdentidadProveedor fila={fila} /> },
+                { key: 'concepto', header: 'Concepto', ancho: 'minmax(0,1.5fr)', className: cn(CELDA_DATO, 'tabular-nums'), cell: (fila) => <span className="block whitespace-normal break-words leading-4" title={detalleProveedor(fila)}>{detalleProveedor(fila)}</span> },
+                { key: 'pendiente', dinero: true, header: 'Pendiente', ancho: 'minmax(8.5rem,0.6fr)', align: 'right', className: 'font-semibold text-fore', cell: (fila) => <strong data-testid={`proveedor-pendiente-${fila.id}`}><Money value={fila.pendientePyg} /></strong> },
+                { key: 'acciones', header: 'Acciones', ancho: '10rem', align: 'right', className: 'overflow-visible', cell: (fila) => accionesProveedor(fila) },
+              ]}
+              renderCard={(fila) => (
+                <div className={cn('rounded-xl border border-ink-600 bg-ink-800/40 p-3', v2 && 'v2-tile')}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1"><IdentidadProveedor fila={fila} /></div>
+                    <strong className={cn(CELDA_NUMERO, 'shrink-0 text-[13px] font-semibold text-fore')} data-testid={`proveedor-pendiente-${fila.id}`}><Money value={fila.pendientePyg} /></strong>
+                  </div>
+                  <p className="mt-1 break-words text-xs text-mute">{detalleProveedor(fila)}</p>
+                  <div className="mt-2 flex flex-wrap items-center justify-end gap-2">{accionesProveedor(fila)}</div>
                 </div>
-              ))}
-              </div>
-            </div>
+              )}
+            />
           )}
           {taller && taller.rows.length > 0 && (
             <div className="mt-4 space-y-3 border-t border-ink-600 pt-4" data-testid="taller-repuestos">
@@ -892,35 +931,32 @@ export default function Caja() {
                   </div>
                 </div>
               </div>
-              <div className="overflow-x-auto" data-testid="taller-tabla">
-                <div className={cn(GRID_TALLER, 'px-3.5 pb-2 pt-1')}>
-                  <span className={CELDA_ENCABEZADO}>Repuesto</span>
-                  <span className={CELDA_ENCABEZADO}>Detalle</span>
-                  <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Deuda</span>
-                  <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span>
-                </div>
-                <div className="space-y-1">
-                {taller.rows.map(parte => (
-                  <div key={parte.id} className={cn(GRID_TALLER, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2', v2 && 'v2-tile')} data-testid={`taller-parte-${parte.id}`}>
-                    <span className="flex min-w-0 flex-wrap items-center gap-2">
-                      <span className={CELDA_IDENTIDAD} title={parte.name}>{parte.name}</span>
-                      <Badge color={parte.paymentMode === 'CREDITO' ? 'orange' : 'blue'}>{parte.paymentMode === 'CREDITO' ? 'Crédito' : 'Consignación'}</Badge>
-                      {parte.vencimiento === 'VENCIDA' && <Badge color="red">Vencida</Badge>}
-                      {parte.vencimiento === 'POR_VENCER' && <Badge color="orange">Por vencer</Badge>}
-                    </span>
-                    <span className={cn(CELDA_DATO, 'tabular-nums')} title={`${parte.code}${parte.supplierName ? ` · ${parte.supplierName}` : ''}${parte.dueAt ? ` · vence ${fechaHora(parte.dueAt)}` : ''}`}>
-                      {parte.code}
-                      {parte.supplierName ? ` · ${parte.supplierName}` : ''}
-                      {parte.dueAt ? ` · vence ${fechaHora(parte.dueAt)}` : ''}
-                    </span>
-                    <strong className={cn(CELDA_NUMERO, 'font-semibold text-fore')} data-testid={`taller-deuda-${parte.id}`}><Money value={parte.deudaPyg} /></strong>
-                    <span className="flex flex-wrap items-center justify-end gap-2">
-                      <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => { setProveedorError(''); setProveedorAccion({ tipo: 'pagar-taller', fila: parte }); setProveedorMonto(''); setProveedorCuenta('') }}>Pagar</Button>
-                    </span>
+              <ListaDensa
+                lista={listaTaller}
+                testId="taller-tabla"
+                etiquetaTabla="Repuestos del taller"
+                etiquetaPie="Páginas de repuestos"
+                unidad="repuestos"
+                desde="lg"
+                obtenerClave={(parte) => parte.id}
+                atributosFila={(parte) => ({ 'data-testid': `taller-parte-${parte.id}` })}
+                columns={[
+                  { key: 'repuesto', header: 'Repuesto', ancho: 'minmax(0,1.3fr)', className: 'overflow-visible', cell: (parte) => <IdentidadTaller parte={parte} /> },
+                  { key: 'detalle', header: 'Detalle', ancho: 'minmax(0,1.4fr)', className: cn(CELDA_DATO, 'tabular-nums'), cell: (parte) => <span className="block whitespace-normal break-words leading-4" title={detalleTaller(parte)}>{detalleTaller(parte)}</span> },
+                  { key: 'deuda', dinero: true, header: 'Deuda', ancho: 'minmax(8.5rem,0.6fr)', align: 'right', className: 'font-semibold text-fore', cell: (parte) => <strong data-testid={`taller-deuda-${parte.id}`}><Money value={parte.deudaPyg} /></strong> },
+                  { key: 'acciones', header: 'Acciones', ancho: '7rem', align: 'right', className: 'overflow-visible', cell: (parte) => accionTaller(parte) },
+                ]}
+                renderCard={(parte) => (
+                  <div className={cn('rounded-xl border border-ink-600 bg-ink-800/40 p-3', v2 && 'v2-tile')}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1"><IdentidadTaller parte={parte} /></div>
+                      <strong className={cn(CELDA_NUMERO, 'shrink-0 text-[13px] font-semibold text-fore')} data-testid={`taller-deuda-${parte.id}`}><Money value={parte.deudaPyg} /></strong>
+                    </div>
+                    <p className="mt-1 break-words text-xs text-mute">{detalleTaller(parte)}</p>
+                    <div className="mt-2 flex flex-wrap items-center justify-end gap-2">{accionTaller(parte)}</div>
                   </div>
-                ))}
-                </div>
-              </div>
+                )}
+              />
             </div>
           )}
         </Card>
@@ -1108,7 +1144,7 @@ export default function Caja() {
                                 <Button
                                   type="button"
                                   variant="outline"
-                                  className="h-8 px-3 text-xs"
+                                  className="min-h-11 px-3 text-xs lg:min-h-0 lg:h-8"
                                   disabled={Boolean(conciliando)}
                                   onClick={() => conciliarPorExtracto(indice, match.paymentId)}
                                 >
@@ -1171,7 +1207,7 @@ export default function Caja() {
           <Button
             type="button"
             variant="outline"
-            className="min-h-11 w-full px-3 text-xs md:h-9 md:min-h-0"
+            className="min-h-11 w-full px-3 text-xs md:h-11 lg:h-9 lg:min-h-0"
             disabled={exportando}
             onClick={exportarMovimientos}
           >

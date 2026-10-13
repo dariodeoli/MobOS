@@ -18,3 +18,5 @@ export function useMediaQuery(consulta, porDefecto = false) {
 }
 
 export const CONSULTA_MD = '(min-width: 768px)'
+export const CONSULTA_LG = '(min-width: 1024px)'
+export const CONSULTA_XL = '(min-width: 1280px)'

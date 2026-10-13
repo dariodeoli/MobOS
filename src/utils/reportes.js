@@ -122,6 +122,15 @@ export function filasReporte(reporte, groupBy) {
   }
 }
 
+/** Todas las filas del reporte como texto (impresión: sin paginar). */
+export function filasImpresion(columnas, grupos, formatoMonto = String) {
+  return (grupos || []).map((g) => columnas.map((c) => {
+    const v = g?.[c.key]
+    if (v === null || v === undefined) return ''
+    return c.tipo === 'monto' ? formatoMonto(v) : String(v)
+  }))
+}
+
 export function nombreArchivoCsv({ desde, hasta, groupBy }) {
   const sufijo = (groupBy || 'product').replace(/[^a-z]/gi, '')
   return `mobos-reporte-${sufijo}-${desde || 'inicio'}-a-${hasta || 'hoy'}.csv`

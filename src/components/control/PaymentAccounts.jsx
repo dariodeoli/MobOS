@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { getPaymentAccounts, createPaymentAccount, updatePaymentAccount, KIND_LABELS } from '@/lib/paymentAccounts'
-import { Aviso, Badge, Button, Card, Drawer, EmptyState, Input, Label, Select } from '@/components/ui'
+import { Aviso, Button, Card, Drawer, EmptyState, Input, Label, Select } from '@/components/ui'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import Switch from '@/components/shared/Switch'
 import BancoCombobox from '@/components/shared/BancoCombobox'
@@ -15,11 +15,16 @@ import { getAccountHolders, getPrivateCompanies } from '@/lib/accountParties'
 import { monedasExcluidas } from '@/lib/paymentAccountsReglas'
 import { nombreCompleto, nombreSugeridoDeCuenta, opcionesDePartes } from '@/lib/accountNames'
 import { cn } from '@/lib/utils'
+import './finanzasTactil.css'
 import { temaV2Activo } from '@/lib/temaV2'
-import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
+import { CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
+import ListaDensa from '@/components/shared/ListaDensa'
+import { usePaginaLista } from '@/components/shared/usePaginaLista'
+import StatusChip from '@/components/shared/StatusChip'
 import { GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
-// Tabla compacta: una fila por cuenta, con comisión, acreditación y descuento.
-const GRID_CUENTAS = 'grid min-w-[54rem] grid-cols-[minmax(0,1.3fr)_7rem_5rem_6.5rem_6.5rem_6.5rem_minmax(0,1fr)_9rem] items-center gap-x-2'
+// Listado: una fila por cuenta (tabla desde xl, tarjeta debajo), con comisión,
+// acreditación y descuento. El banco o la procesadora se muestra UNA vez: logo
+// + nombre en la primera celda (nunca otra vez en «Datos»).
 
 const EMPTY = { name: '', bank: '', holder: '', accountNumber: '', document: '', processor: '', pixKey: '', reference: '', currencyLabel: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0, discountPct: 0, settlementDays: 0 }
 
@@ -68,16 +73,25 @@ function flagsFrom(values) {
 // Logo de la cuenta: el banco guardado, la procesadora o, cuando la cuenta
 // nace de una marca de medio de pago (#118), su nombre.
 function bancoConLogo(account) {
+  if (account.kind === 'CARD' && account.processor) return account.processor
   if (account.bank) return account.bank
   if (account.processor) return account.processor
   return marcaDeMedio(account.name) ? account.name : ''
 }
 
-// Datos que se muestran en la tabla según el medio (#142).
+// Banco o procesadora que acompaña al nombre de la cuenta (junto al logo). Si
+// el nombre ya lo contiene no se repite.
+function entidadDe(account) {
+  const entidad = (account.kind === 'CARD' ? account.processor || account.bank : account.bank || account.processor) || ''
+  if (!entidad) return ''
+  return String(account.name || '').toLowerCase().includes(entidad.toLowerCase()) ? '' : entidad
+}
+
+// Datos que se muestran en el listado según el medio (#142). El banco y la
+// procesadora salen: ya van en la primera celda.
 function datosDe(account) {
   const partes = {
-    TRANSFER: [account.bank, account.holder, account.document, account.accountNumber],
-    CARD: [account.processor],
+    TRANSFER: [account.holder, account.document, account.accountNumber],
     PIX: [account.holder, account.pixKey],
     CRYPTO: [account.holder, account.reference],
     TRADE_IN: [account.holder, account.reference],
@@ -118,6 +132,7 @@ function AccountManager() {
   const [companies, setCompanies] = useState([])
   const [nombreTocado, setNombreTocado] = useState(false)
   const nombreTocadoRef = useRef(false)
+  const lista = usePaginaLista(accounts, { tamano: { compacto: 10, amplio: 25 } })
 
   useEffect(() => {
     let cancelled = false
@@ -268,7 +283,7 @@ function AccountManager() {
   const opcionesTitulares = useMemo(() => opcionesDePartes(holders, companies), [holders, companies])
 
   return (
-    <Card className="space-y-4">
+    <Card className="finanzas-tactil space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm text-mute">Configurá los medios de pago. Desactivar conserva la cuenta y su historial.</p>
@@ -353,38 +368,78 @@ function AccountManager() {
         </form>
         </Drawer>
       )}
-      {!loading && !loadError && <div className="overflow-x-auto" data-testid="cuentas-tabla">
-        <div className={cn(GRID_CUENTAS, 'px-3.5 pb-2 pt-1')}>
-          <span className={CELDA_ENCABEZADO}>Cuenta</span>
-          <span className={CELDA_ENCABEZADO}>Tipo</span>
-          <span className={CELDA_ENCABEZADO}>Moneda</span>
-          <span className={CELDA_ENCABEZADO}>Comisión</span>
-          <span className={CELDA_ENCABEZADO}>Acredita</span>
-          <span className={CELDA_ENCABEZADO}>Descuento</span>
-          <span className={CELDA_ENCABEZADO}>Datos</span>
-          <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span>
-        </div>
-        <div className="space-y-1">
-        {accounts.map(account => {
-          const datos = datosDe(account)
+      {!loading && !loadError && accounts.length > 0 && (() => {
+        const identidad = (account) => {
           const banco = bancoConLogo(account)
-          const medioCuenta = medioDe(account.kind)
-          return <div key={account.id} data-testid="cuenta-fila" className={cn(GRID_CUENTAS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
-            <span className="min-w-0"><span className="flex min-w-0 items-center gap-1.5">{banco && <BancoLogo banco={banco} alto="h-4" soloCatalogo />}<b className={CELDA_IDENTIDAD} title={account.name}>{account.name}</b></span><Badge color={account.isActive ? 'green' : 'slate'} className="mt-0.5 w-fit whitespace-nowrap px-1.5 py-0 text-[10px]">{account.isActive ? 'Activa' : 'Inactiva'}</Badge></span>
-            <span className={CELDA_DATO}>{medioCuenta.label}</span>
-            <span className={CELDA_DATO}>{account.currencyLabel || (account.currency === 'PYG' ? 'Gs' : account.currency)}</span>
-            <span className="truncate text-xs tabular-nums text-mute">{porcentaje(account.feePercent)}</span>
-            <span className={CELDA_DATO}>{account.settlementDays > 0 ? `${account.settlementDays} día${account.settlementDays === 1 ? '' : 's'}` : 'Inmediata'}</span>
-            <span className="truncate text-xs tabular-nums text-mute">{porcentaje(account.discountPct)}</span>
-            <span className={CELDA_DATO} title={datos || undefined}>{datos || '—'}</span>
-            <span className="flex items-center justify-end gap-1.5">
-              <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy || !!form} aria-label={`Editar ${account.name}`} onClick={() => openForm(account)}>Editar</Button>
-              <Button type="button" variant="ghost" className="h-8 px-2 text-xs" disabled={busy || !!form} aria-label={`${account.isActive ? 'Desactivar' : 'Activar'} ${account.name}`} onClick={() => mutate(() => updatePaymentAccount(account.id, { isActive: !account.isActive }), account.isActive ? 'Cuenta desactivada. El historial se conserva.' : 'Cuenta activada.')}>{account.isActive ? 'Desactivar' : 'Activar'}</Button>
+          const entidad = entidadDe(account)
+          return (
+            <span className="block min-w-0">
+              <span className="flex min-w-0 items-center gap-1.5">
+                {banco && <BancoLogo banco={banco} alto="h-4" soloCatalogo />}
+                <b className={CELDA_IDENTIDAD} title={account.name}>{account.name}</b>
+              </span>
+              <span className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                <StatusChip dominio="cuenta" estado={account.isActive ? 'ACTIVA' : 'INACTIVA'} className="px-1.5 py-0 text-[10px]" />
+                {entidad && <span className="truncate text-[11px] text-mute" title={entidad}>{entidad}</span>}
+              </span>
             </span>
-          </div>
-        })}
-        </div>
-      </div>}
+          )
+        }
+        const acciones = (account) => (
+          <span className="flex flex-wrap items-center justify-end gap-1.5">
+            <Button type="button" variant="outline" className="min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2" disabled={busy || !!form} aria-label={`Editar ${account.name}`} onClick={() => openForm(account)}>Editar</Button>
+            <Button type="button" variant="ghost" className="min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2" disabled={busy || !!form} aria-label={`${account.isActive ? 'Desactivar' : 'Activar'} ${account.name}`} onClick={() => mutate(() => updatePaymentAccount(account.id, { isActive: !account.isActive }), account.isActive ? 'Cuenta desactivada. El historial se conserva.' : 'Cuenta activada.')}>{account.isActive ? 'Desactivar' : 'Activar'}</Button>
+          </span>
+        )
+        const monedaDe = (account) => account.currencyLabel || (account.currency === 'PYG' ? 'Gs' : account.currency)
+        const acreditaDe = (account) => (account.settlementDays > 0 ? `${account.settlementDays} día${account.settlementDays === 1 ? '' : 's'}` : 'Inmediata')
+        return (
+          <ListaDensa
+            lista={lista}
+            testId="cuentas-tabla"
+            etiquetaTabla="Cuentas de cobro"
+            etiquetaPie="Páginas de cuentas"
+            unidad="cuentas"
+            desde="xl"
+            obtenerClave={(account) => account.id}
+            atributosFila={(account) => ({ 'data-testid': 'cuenta-fila', 'data-banco': bancoConLogo(account) })}
+            columns={[
+              { key: 'cuenta', header: 'Cuenta', ancho: 'minmax(0,2.3fr)', cell: identidad },
+              { key: 'tipo', header: 'Tipo', ancho: '6rem', className: 'text-xs text-mute', cell: (account) => medioDe(account.kind).label },
+              { key: 'moneda', header: 'Moneda', ancho: '4rem', className: 'text-xs text-mute', cell: monedaDe },
+              { key: 'comision', header: 'Comisión', ancho: '5rem', className: 'text-xs text-mute tabular-nums', cell: (account) => porcentaje(account.feePercent) },
+              { key: 'acredita', header: 'Acredita', ancho: '5.5rem', className: 'text-xs text-mute', cell: acreditaDe },
+              { key: 'descuento', header: 'Descuento', ancho: '5.5rem', className: 'text-xs text-mute tabular-nums', cell: (account) => porcentaje(account.discountPct) },
+              { key: 'datos', header: 'Datos', ancho: 'minmax(0,1.4fr)', className: 'text-xs text-mute', cell: (account) => <span data-celda="datos" className="block whitespace-normal break-words leading-4" title={datosDe(account) || undefined}>{datosDe(account) || '—'}</span> },
+              { key: 'acciones', header: 'Acciones', ancho: '10.5rem', align: 'right', className: 'overflow-visible', cell: acciones },
+            ]}
+            renderCard={(account) => (
+              <div className="rounded-xl border border-ink-600 bg-ink-800/40 p-3">
+                {identidad(account)}
+                <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[13px]">
+                  {[
+                    ['Tipo', medioDe(account.kind).label],
+                    ['Moneda', monedaDe(account)],
+                    ['Comisión', porcentaje(account.feePercent)],
+                    ['Descuento', porcentaje(account.discountPct)],
+                    ['Acredita', acreditaDe(account)],
+                  ].map(([rotulo, valor]) => (
+                    <div key={rotulo} className="min-w-0">
+                      <dt className="text-[11px] text-mute">{rotulo}</dt>
+                      <dd className="break-words tabular-nums">{valor}</dd>
+                    </div>
+                  ))}
+                  <div className="col-span-2 min-w-0">
+                    <dt className="text-[11px] text-mute">Datos</dt>
+                    <dd className="break-words"><span data-celda="datos">{datosDe(account) || '—'}</span></dd>
+                  </div>
+                </dl>
+                <div className="mt-2 flex flex-wrap items-center justify-end gap-2">{acciones(account)}</div>
+              </div>
+            )}
+          />
+        )
+      })()}
     </Card>
   )
 }

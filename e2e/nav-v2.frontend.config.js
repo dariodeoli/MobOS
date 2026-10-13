@@ -9,6 +9,7 @@ export default defineConfig({
     'shell-layout.frontend.spec.js',
     'blocks-preview.frontend.spec.js',
     'ventas-layout.frontend.spec.js',
+    'finanzas-layout.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,

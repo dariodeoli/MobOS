@@ -37,6 +37,32 @@ export const ESTADOS = {
     CERRADO: { label: 'Cerrado', tono: 'neutral' },
     INACTIVO: { label: 'Inactivo', tono: 'neutral' },
   },
+  // Finanzas (unidad 2B): marcas de la auditoría de efectivo, turnos de caja,
+  // conciliación de pagos y cuentas de cobro.
+  auditoria: {
+    VERIFIED: { label: 'Verificado', tono: 'ok' },
+    PENDING: { label: 'Pendiente', tono: 'warn' },
+    DIFFERENCE: { label: 'Con diferencia', tono: 'bad' },
+  },
+  caja: {
+    OPEN: { label: 'Abierta', tono: 'ok' },
+    CLOSED: { label: 'Cerrada', tono: 'neutral' },
+  },
+  conciliacion: {
+    PENDING: { label: 'Por conciliar', tono: 'warn' },
+    VERIFIED: { label: 'Conciliado', tono: 'ok' },
+    REJECTED: { label: 'Rechazado', tono: 'bad' },
+    DIFFERENCE: { label: 'Con diferencia', tono: 'warn' },
+  },
+  liquidacion: {
+    DRAFT: { label: 'Borrador', tono: 'warn' },
+    PAID: { label: 'Pagada', tono: 'ok' },
+    CANCELLED: { label: 'Anulada', tono: 'neutral' },
+  },
+  cuenta: {
+    ACTIVA: { label: 'Activa', tono: 'ok' },
+    INACTIVA: { label: 'Inactiva', tono: 'neutral' },
+  },
 }
 
 const normalizar = (valor) => String(valor ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().replace(/[\s-]+/g, '_').toUpperCase()

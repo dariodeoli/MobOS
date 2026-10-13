@@ -1,0 +1,16 @@
+/* Finanzas (unidad 2B · docs/PANTALLAS.md regla 1): botones de 44px también
+   entre md y lg (768–1023). El `Button` de la biblioteca pasa a 36px desde
+   `md`; acá se sostiene en 44px hasta que aparece el escritorio. Inputs y
+   selects ya lo hacen por la regla global de `index.css`. Solo `min-height` y
+   `min-width`: no cambia anchos ni tipografía. */
+@media (max-width: 1023.98px) {
+  .finanzas-tactil button:not([data-inline-link]) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  /* Celdas del calendario: 7 columnas flexibles (≥ 40px a 360) con alto de 44px;
+     un ancho mínimo de 44px las haría desbordar. */
+  .finanzas-tactil button[data-dia-calendario] {
+    min-width: 0;
+  }
+}

@@ -8,17 +8,36 @@ import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
 import { fechaCorta, fechaHora } from '@/utils/fecha'
 import { cn } from '@/lib/utils'
-import { Aviso, Badge, Button, Card, EmptyState, Input, Select } from '@/components/ui'
-import { CELDA_DATO, CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
+import './finanzasTactil.css'
+import { Aviso, Button, Card, EmptyState, Input, Select } from '@/components/ui'
+import { ROTULO_DATO } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
+import ListaDensa from '@/components/shared/ListaDensa'
+import { usePaginaLista } from '@/components/shared/usePaginaLista'
+import Toolbar from '@/components/shared/Toolbar'
+import EstadoSelect from '@/components/shared/EstadoSelect'
 // Auditoría de efectivo (#161): efectivo inicial y recibido por sesión, cada
 // operación (pedido, cliente, fecha/hora, monto, vendedor y nota) con su marca
 // verificada/pendiente/con diferencia y observación, sobre un rango de fechas.
 
-const ESTADOS = {
-  VERIFIED: { label: 'Verificado', color: 'green' },
-  PENDING: { label: 'Pendiente', color: 'yellow' },
-  DIFFERENCE: { label: 'Con diferencia', color: 'red' },
+// Estados de la marca (etiqueta y tono en `lib/estados.js`, dominio `auditoria`).
+const ESTADOS_MARCA = ['VERIFIED', 'PENDING', 'DIFFERENCE']
+const claveDe = (operacion) => `${operacion.kind}:${operacion.id}`
+const tituloDe = (operacion) => (operacion.kind === 'PAYMENT' ? (operacion.pedido || 'Cobro en efectivo') : operacion.nota || 'Movimiento de caja')
+
+function Identidad({ operacion }) {
+  const detalle = [operacion.kind === 'PAYMENT' ? operacion.cliente : operacion.nota, operacion.notaAuditoria, operacion.auditadoPor ? `auditó ${operacion.auditadoPor}` : ''].filter(Boolean).join(' · ')
+  return (
+    <span className="block min-w-0">
+      <b className="block truncate text-[13px]" title={tituloDe(operacion)}>{tituloDe(operacion)}</b>
+      <span className="mt-0.5 block truncate text-[11px] text-mute" title={detalle || undefined}>{detalle || '—'}</span>
+    </span>
+  )
+}
+
+function Monto({ operacion, className }) {
+  const saliente = operacion.direction === 'OUT'
+  return <span className={cn('tabular-nums', saliente ? 'text-bad' : 'text-ok', className)}>{saliente ? '−' : '+'}{formatGs(operacion.montoPyg)}</span>
 }
 
 const diaISO = (fecha) => {
@@ -99,22 +118,57 @@ export default function AuditoriaEfectivo() {
 
   const resumen = data?.resumen || {}
   const operaciones = data?.operaciones || []
+  const lista = usePaginaLista(operaciones, { tamano: { compacto: 5, amplio: 15 } })
+
+  const cambiarBorrador = (operacion, cambio) => setBorradores(current => {
+    const clave = claveDe(operacion)
+    const actual = current[clave] || { status: operacion.status, note: operacion.notaAuditoria }
+    return { ...current, [clave]: { ...actual, ...cambio } }
+  })
+  const borradorDe = (operacion) => borradores[claveDe(operacion)] || { status: operacion.status, note: operacion.notaAuditoria }
+  const pendienteDeGuardar = (operacion) => {
+    const borrador = borradorDe(operacion)
+    return borrador.status !== operacion.status || (borrador.note || '') !== (operacion.notaAuditoria || '')
+  }
+  // Un solo control de estado por fila: el chip ES el selector editable.
+  const controlEstado = (operacion) => (
+    <EstadoSelect
+      dominio="auditoria"
+      opciones={ESTADOS_MARCA}
+      ariaLabel={`Estado de ${operacion.pedido || operacion.nota || 'la operación'}`}
+      value={borradorDe(operacion).status}
+      disabled={busy}
+      onChange={(event) => cambiarBorrador(operacion, { status: event.target.value })}
+    />
+  )
+  const campoObservacion = (operacion) => {
+    const borrador = borradorDe(operacion)
+    return <Input aria-label="Observación" className="h-11 min-w-0 text-xs lg:h-8" maxLength={500} placeholder={borrador.status === 'DIFFERENCE' ? 'Explicá la diferencia' : 'Observación (opcional)'} value={borrador.note || ''} disabled={busy} onChange={(event) => cambiarBorrador(operacion, { note: event.target.value })} />
+  }
+  const botonGuardar = (operacion) => (
+    <Button type="button" variant={pendienteDeGuardar(operacion) ? 'primary' : 'outline'} className="h-11 shrink-0 px-3 text-xs lg:h-8 lg:px-2" disabled={busy || !pendienteDeGuardar(operacion)} onClick={() => guardar(operacion)}>Guardar</Button>
+  )
 
   return (
-    <Card className="space-y-3">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h3 className="font-bold">Auditoría de efectivo</h3>
-          <p className="mt-1 text-sm text-mute">Compará cada monto físico con su comprobante: marcá verificado, pendiente o con diferencia y dejá la observación.</p>
-          {esDemo && <p className="mt-1 text-xs text-fono-light">Demo: cobros ficticios del rango; las marcas se guardan en este navegador.</p>}
-        </div>
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="text-xs text-mute">Desde<Input type="date" className="mt-1" value={desde} onChange={(event) => setDesde(event.target.value)} /></label>
-          <label className="text-xs text-mute">Hasta<Input type="date" className="mt-1" value={hasta} onChange={(event) => setHasta(event.target.value)} /></label>
-          {sucursales.length > 1 && <label className="text-xs text-mute">Sucursal<Select className="mt-1" value={sucursalId} onChange={(event) => setSucursalId(event.target.value)}><option value="">Todas</option>{sucursales.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</Select></label>}
-          <Button type="button" variant="outline" disabled={busy} onClick={cargar}>Auditar rango</Button>
-        </div>
+    <Card className="finanzas-tactil space-y-3">
+      <div>
+        <h3 className="font-bold">Auditoría de efectivo</h3>
+        <p className="mt-1 text-sm text-mute">Compará cada monto físico con su comprobante: marcá verificado, pendiente o con diferencia y dejá la observación.</p>
+        {esDemo && <p className="mt-1 text-xs text-fono-light">Demo: cobros ficticios del rango; las marcas se guardan en este navegador.</p>}
       </div>
+      <Toolbar
+        plano
+        label="Rango de la auditoría"
+        testId="auditoria-toolbar"
+        filters={(
+          <>
+            <label className="text-xs text-mute">Desde<Input type="date" className="mt-1" value={desde} onChange={(event) => setDesde(event.target.value)} /></label>
+            <label className="text-xs text-mute">Hasta<Input type="date" className="mt-1" value={hasta} onChange={(event) => setHasta(event.target.value)} /></label>
+            {sucursales.length > 1 && <label className="text-xs text-mute">Sucursal<Select className="mt-1" value={sucursalId} onChange={(event) => setSucursalId(event.target.value)}><option value="">Todas</option>{sucursales.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</Select></label>}
+          </>
+        )}
+        primary={<Button type="button" variant="outline" className="min-h-11 lg:min-h-0" disabled={busy} onClick={cargar}>Auditar rango</Button>}
+      />
       {error && <Aviso tono="error">{error}</Aviso>}
 
       <div className={cn('lg:grid-cols-4', GRILLA_DOS_COLUMNAS_COMPACTA)}>
@@ -124,39 +178,44 @@ export default function AuditoriaEfectivo() {
         <div className={cn('rounded-xl border p-3', (resumen.diferenciaPyg || 0) === 0 ? 'border-ink-600' : 'border-warn/40 bg-warn/10')}><p className={ROTULO_DATO}>Diferencias de cierre</p><strong className={cn('mt-1 block tabular-nums', (resumen.diferenciaPyg || 0) === 0 ? '' : 'text-warn')}>{formatGs(resumen.diferenciaPyg || 0)}</strong><p className="mt-0.5 text-[11px] text-mute">{resumen.verificadas || 0} verificadas · {resumen.pendientes || 0} pendientes · {resumen.conDiferencia || 0} con diferencia</p></div>
       </div>
 
-      <div className="overflow-x-auto" data-testid="auditoria-efectivo-tabla">
-        <div className="grid min-w-[52rem] grid-cols-[6.5rem_minmax(0,1fr)_8rem_7rem_11rem_minmax(0,1.1fr)] items-center gap-x-2 px-3.5 pb-2 pt-1">
-          {['Fecha', 'Operación', 'Vendedor', 'Monto', 'Estado', 'Observación'].map((titulo) => <span key={titulo} className={CELDA_ENCABEZADO}>{titulo}</span>)}
-        </div>
-        <div className="space-y-1">
-          {operaciones.map((operacion) => {
-            const clave = `${operacion.kind}:${operacion.id}`
-            const borrador = borradores[clave] || { status: operacion.status, note: operacion.notaAuditoria }
-            const estado = ESTADOS[operacion.status] || ESTADOS.PENDING
-            const pendienteDeGuardar = borrador.status !== operacion.status || (borrador.note || '') !== (operacion.notaAuditoria || '')
-            return <div key={clave} data-testid="auditoria-fila" className="grid min-w-[52rem] grid-cols-[6.5rem_minmax(0,1fr)_8rem_7rem_11rem_minmax(0,1.1fr)] items-center gap-x-2 rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2">
-              <span className={CELDA_DATO} title={fechaHora(operacion.fecha)}>{fechaCorta(operacion.fecha)}</span>
-              <span className="min-w-0">
-                <b className="block truncate text-[13px]">{operacion.kind === 'PAYMENT' ? (operacion.pedido || 'Cobro en efectivo') : operacion.nota || 'Movimiento de caja'}</b>
-                <span className="mt-0.5 block truncate text-[11px] text-mute">{[operacion.kind === 'PAYMENT' ? operacion.cliente : operacion.nota, operacion.notaAuditoria, operacion.auditadoPor ? `auditó ${operacion.auditadoPor}` : ''].filter(Boolean).join(' · ') || '—'}</span>
-              </span>
-              <span className={CELDA_DATO}>{operacion.vendedor || '—'}</span>
-              <span className={cn('truncate text-xs tabular-nums', operacion.direction === 'OUT' ? 'text-bad' : 'text-ok')}>{operacion.direction === 'OUT' ? '−' : '+'}{formatGs(operacion.montoPyg)}</span>
-              <span className="flex items-center gap-1.5">
-                <Badge color={estado.color} className="w-fit whitespace-nowrap">{estado.label}</Badge>
-                <Select aria-label={`Estado de ${operacion.pedido || operacion.nota || 'la operación'}`} className="h-11 w-[7.5rem] text-xs md:h-8" value={borrador.status} disabled={busy} onChange={(event) => setBorradores(current => ({ ...current, [clave]: { ...borrador, status: event.target.value } }))}>
-                  {Object.entries(ESTADOS).map(([value, meta]) => <option key={value} value={value}>{meta.label}</option>)}
-                </Select>
-              </span>
-              <span className="flex min-w-0 items-center gap-1.5">
-                <Input aria-label="Observación" className="h-11 min-w-0 flex-1 text-xs md:h-8" maxLength={500} placeholder={borrador.status === 'DIFFERENCE' ? 'Explicá la diferencia' : 'Observación (opcional)'} value={borrador.note || ''} disabled={busy} onChange={(event) => setBorradores(current => ({ ...current, [clave]: { ...borrador, note: event.target.value } }))} />
-                <Button type="button" variant={pendienteDeGuardar ? 'primary' : 'outline'} className="h-11 shrink-0 px-3 text-xs md:h-8 md:px-2" disabled={busy || !pendienteDeGuardar} onClick={() => guardar(operacion)}>Guardar</Button>
-              </span>
+      {!busy && !operaciones.length && <EmptyState compact icon="box" title="Sin efectivo cobrado ni movimientos en el rango" description="Probá con otro rango de fechas o esperá cobros en efectivo." />}
+      <ListaDensa
+        lista={lista}
+        testId="auditoria-efectivo-tabla"
+        etiquetaTabla="Operaciones en efectivo"
+        etiquetaPie="Páginas de operaciones"
+        unidad="operaciones"
+        desde="xl"
+        obtenerClave={(operacion) => claveDe(operacion)}
+        atributosFila={() => ({ 'data-testid': 'auditoria-fila' })}
+        columns={[
+          { key: 'fecha', header: 'Fecha', ancho: '5.5rem', cell: (operacion) => <span title={fechaHora(operacion.fecha)}>{fechaCorta(operacion.fecha)}</span>, className: 'text-xs text-mute' },
+          { key: 'operacion', header: 'Operación', ancho: 'minmax(0,1.2fr)', cell: (operacion) => <Identidad operacion={operacion} /> },
+          { key: 'vendedor', header: 'Vendedor', ancho: '6rem', cell: (operacion) => operacion.vendedor || '—', className: 'text-xs text-mute' },
+          { key: 'monto', header: 'Monto', ancho: '7.5rem', align: 'right', cell: (operacion) => <Monto operacion={operacion} /> },
+          { key: 'estado', header: 'Estado', ancho: '8.75rem', cell: (operacion) => controlEstado(operacion) },
+          { key: 'observacion', header: 'Observación', ancho: 'minmax(0,1.5fr)', cell: (operacion) => campoObservacion(operacion), className: 'overflow-visible' },
+          { key: 'guardar', header: 'Guardar', sr: true, ancho: '5rem', align: 'right', cell: (operacion) => botonGuardar(operacion), className: 'overflow-visible' },
+        ]}
+        renderCard={(operacion) => {
+          return (
+            <div className="space-y-2 rounded-xl border border-ink-600 bg-ink-800/40 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <Identidad operacion={operacion} />
+                  <p className="mt-0.5 truncate text-[11px] text-mute">{fechaCorta(operacion.fecha)}{operacion.vendedor ? ` · ${operacion.vendedor}` : ''}</p>
+                </div>
+                <Monto operacion={operacion} className="shrink-0 text-[13px] font-semibold" />
+              </div>
+              {controlEstado(operacion)}
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">{campoObservacion(operacion)}</div>
+                {botonGuardar(operacion)}
+              </div>
             </div>
-          })}
-          {!busy && !operaciones.length && <EmptyState compact icon="box" title="Sin efectivo cobrado ni movimientos en el rango" description="Probá con otro rango de fechas o esperá cobros en efectivo." />}
-        </div>
-      </div>
+          )
+        }}
+      />
     </Card>
   )
 }
