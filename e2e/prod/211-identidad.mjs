@@ -193,18 +193,18 @@ try {
     return `chips ${estado.chips}`
   })
 
-  await paso('píldora de presencia del topbar', async () => {
+  await paso('presencia en el avatar del perfil del topbar', async () => {
     await page.goto(`${APP}/pos/resumen`)
     await page.getByTestId('shell-bloquear').waitFor({ timeout: 25_000 })
     await cerrarGuiaDemo(page)
-    const pildora = page.getByRole('group', { name: 'Personas en línea' })
-    const visible = await pildora.count()
-    if (!visible) {
-      resultado.observaciones.push('La píldora de presencia no aparece en el demo anónimo (no hay otras personas en línea): no verificable sin dos sesiones reales.')
-      return 'sin personas en línea en el demo'
-    }
-    const chips = await page.locator('[data-testid="persona-chip"]').count()
-    afirmar(chips > 0, 'la píldora de presencia no usa el chip de identidad')
+    // La píldora de personas en línea se retiró: la presencia propia vive como
+    // punto sobre el avatar del perfil, que usa el chip de identidad compartido.
+    const perfil = page.getByTestId('shell-perfil')
+    afirmar((await perfil.count()) > 0, 'falta el botón de perfil del topbar')
+    const etiqueta = (await perfil.first().getAttribute('aria-label')) || ''
+    afirmar(/en línea|sin conexión/.test(etiqueta), `el perfil no informa la presencia: ${etiqueta}`)
+    const chips = await perfil.first().locator('[data-testid="persona-chip"]').count()
+    afirmar(chips > 0, 'el perfil del topbar no usa el chip de identidad')
     return `chips ${chips}`
   })
 
