@@ -421,7 +421,7 @@ export default function Comisiones() {
             atributosFila={() => ({ 'data-testid': 'liquidacion-comision' })}
             columns={[
               { key: 'vendedor', header: 'Vendedor', ancho: 'minmax(0,1.3fr)', cell: (item) => <b className={CELDA_IDENTIDAD} title={item.sellerName || 'Vendedor'}>{item.sellerName || 'Vendedor'}</b> },
-              { key: 'total', header: 'Total', ancho: '7.5rem', align: 'right', className: 'text-[13px] font-semibold text-fore', cell: (item) => gs(item.totalPyg || 0) },
+              { key: 'total', dinero: true, header: 'Total', ancho: '8.5rem', align: 'right', className: 'text-[13px] font-semibold text-fore', cell: (item) => gs(item.totalPyg || 0) },
               { key: 'periodo', header: 'Período', ancho: '10.5rem', className: 'text-xs text-mute tabular-nums', cell: (item) => <span title={tituloPeriodo(item)}>{item.periodFrom} al {item.periodTo}</span> },
               { key: 'comision', header: 'Comisión', ancho: '5.5rem', align: 'right', className: 'text-xs text-mute', cell: (item) => (item.commissionPct !== null && item.commissionPct !== undefined ? `${formatPercent(item.commissionPct)}%` : '—') },
               { key: 'estado', header: 'Estado', ancho: '6rem', cell: (item) => <StatusChip dominio="liquidacion" estado={item.status} /> },

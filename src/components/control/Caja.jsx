@@ -898,7 +898,7 @@ export default function Caja() {
               columns={[
                 { key: 'proveedor', header: 'Proveedor', ancho: 'minmax(0,1.3fr)', className: 'overflow-visible', cell: (fila) => <IdentidadProveedor fila={fila} /> },
                 { key: 'concepto', header: 'Concepto', ancho: 'minmax(0,1.5fr)', className: cn(CELDA_DATO, 'tabular-nums'), cell: (fila) => <span className="block whitespace-normal break-words leading-4" title={detalleProveedor(fila)}>{detalleProveedor(fila)}</span> },
-                { key: 'pendiente', header: 'Pendiente', ancho: 'minmax(6.5rem,0.6fr)', align: 'right', className: 'font-semibold text-fore', cell: (fila) => <strong data-testid={`proveedor-pendiente-${fila.id}`}><Money value={fila.pendientePyg} /></strong> },
+                { key: 'pendiente', dinero: true, header: 'Pendiente', ancho: 'minmax(8.5rem,0.6fr)', align: 'right', className: 'font-semibold text-fore', cell: (fila) => <strong data-testid={`proveedor-pendiente-${fila.id}`}><Money value={fila.pendientePyg} /></strong> },
                 { key: 'acciones', header: 'Acciones', ancho: '10rem', align: 'right', className: 'overflow-visible', cell: (fila) => accionesProveedor(fila) },
               ]}
               renderCard={(fila) => (
@@ -943,7 +943,7 @@ export default function Caja() {
                 columns={[
                   { key: 'repuesto', header: 'Repuesto', ancho: 'minmax(0,1.3fr)', className: 'overflow-visible', cell: (parte) => <IdentidadTaller parte={parte} /> },
                   { key: 'detalle', header: 'Detalle', ancho: 'minmax(0,1.4fr)', className: cn(CELDA_DATO, 'tabular-nums'), cell: (parte) => <span className="block whitespace-normal break-words leading-4" title={detalleTaller(parte)}>{detalleTaller(parte)}</span> },
-                  { key: 'deuda', header: 'Deuda', ancho: 'minmax(6.5rem,0.6fr)', align: 'right', className: 'font-semibold text-fore', cell: (parte) => <strong data-testid={`taller-deuda-${parte.id}`}><Money value={parte.deudaPyg} /></strong> },
+                  { key: 'deuda', dinero: true, header: 'Deuda', ancho: 'minmax(8.5rem,0.6fr)', align: 'right', className: 'font-semibold text-fore', cell: (parte) => <strong data-testid={`taller-deuda-${parte.id}`}><Money value={parte.deudaPyg} /></strong> },
                   { key: 'acciones', header: 'Acciones', ancho: '7rem', align: 'right', className: 'overflow-visible', cell: (parte) => accionTaller(parte) },
                 ]}
                 renderCard={(parte) => (

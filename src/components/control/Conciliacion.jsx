@@ -445,6 +445,7 @@ export default function Conciliacion() {
         <p className="text-xs text-mute" data-testid="conciliacion-list-scope">
           {filtrados.length === 1 ? '1 pago' : `${filtrados.length} pagos`}{estado ? ` · ${ETIQUETAS[estado]?.label || estado}` : ''}. El estado solo filtra esta lista.
         </p>
+        <p className="text-[11px] text-mute" data-testid="conciliacion-seleccion-nota">La selección se mantiene al cambiar de página.</p>
         <h3 className="text-sm font-semibold">Pagos del período</h3>
         <Toolbar
           plano

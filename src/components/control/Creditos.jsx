@@ -109,15 +109,15 @@ export default function Creditos() {
           unidad="clientes"
           desde="xl"
           obtenerClave={(row) => row.customerId}
-          atributosFila={() => ({ 'data-testid': 'credito-fila' })}
+          atributosFila={(row) => ({ 'data-testid': 'credito-fila', className: TONE(row) === 'bad' ? 'bg-bad/5' : TONE(row) === 'warn' ? 'bg-warn/5' : undefined })}
           columns={[
             { key: 'cliente', header: 'Cliente', ancho: 'minmax(0,1.4fr)', className: 'overflow-visible', cell: (row) => <Cliente row={row} /> },
             { key: 'pedidos', header: 'Pedidos', ancho: '4.5rem', align: 'right', className: 'text-xs text-mute', cell: (row) => row.pendingOrders },
             { key: 'vence', header: 'Vence', ancho: '5.5rem', className: 'text-xs text-mute', cell: (row) => fechaCorta(row.oldestDueAt) },
-            { key: 'limite', header: 'Límite', ancho: 'minmax(6.5rem,0.8fr)', align: 'right', className: 'text-xs text-mute', cell: (row) => (row.creditLimitPyg ? <Money value={row.creditLimitPyg} /> : 'sin límite') },
+            { key: 'limite', dinero: true, header: 'Límite', ancho: 'minmax(8.5rem,0.8fr)', align: 'right', className: 'text-xs text-mute', cell: (row) => (row.creditLimitPyg ? <Money value={row.creditLimitPyg} /> : 'sin límite') },
             { key: 'uso', header: 'Uso', ancho: 'minmax(7rem,0.9fr)', className: 'overflow-visible', cell: (row) => <Uso row={row} /> },
-            { key: 'pendiente', header: 'Pendiente', ancho: 'minmax(7rem,0.8fr)', align: 'right', className: 'text-[13px] font-semibold text-fore', cell: (row) => <Money value={row.outstandingPyg} /> },
-            { key: 'mora', header: 'En mora', ancho: 'minmax(8rem,0.9fr)', align: 'right', className: 'text-xs font-semibold', cell: (row) => <Mora row={row} /> },
+            { key: 'pendiente', dinero: true, header: 'Pendiente', ancho: 'minmax(8.5rem,0.8fr)', align: 'right', className: 'text-[13px] font-semibold text-fore', cell: (row) => <Money value={row.outstandingPyg} /> },
+            { key: 'mora', dinero: true, header: 'En mora', ancho: 'minmax(8.5rem,0.9fr)', align: 'right', className: 'text-xs font-semibold', cell: (row) => <Mora row={row} /> },
           ]}
           renderCard={(row) => (
             <div className={cn('rounded-xl border bg-ink-800/40 p-3', v2 && 'v2-tile', TONE(row) === 'bad' ? 'border-bad/30 bg-bad/5' : TONE(row) === 'warn' ? 'border-warn/30 bg-warn/5' : 'border-ink-600')}>

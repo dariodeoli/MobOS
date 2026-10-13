@@ -26,7 +26,7 @@ const claveDe = (operacion) => `${operacion.kind}:${operacion.id}`
 const tituloDe = (operacion) => (operacion.kind === 'PAYMENT' ? (operacion.pedido || 'Cobro en efectivo') : operacion.nota || 'Movimiento de caja')
 
 function Identidad({ operacion }) {
-  const detalle = [operacion.kind === 'PAYMENT' ? operacion.cliente : operacion.nota, operacion.auditadoPor ? `auditó ${operacion.auditadoPor}` : ''].filter(Boolean).join(' · ')
+  const detalle = [operacion.kind === 'PAYMENT' ? operacion.cliente : operacion.nota, operacion.notaAuditoria, operacion.auditadoPor ? `auditó ${operacion.auditadoPor}` : ''].filter(Boolean).join(' · ')
   return (
     <span className="block min-w-0">
       <b className="block truncate text-[13px]" title={tituloDe(operacion)}>{tituloDe(operacion)}</b>

@@ -13,6 +13,7 @@ import { expectLayoutContract } from './helpers/layoutContract.js'
 const out = process.env.MOBOS_QA_OUT || '/tmp/mobos-finanzas-qa'
 
 const WIDTHS = [
+  [360, 740],
   [375, 812],
   [768, 1024],
   [1280, 900],
@@ -122,7 +123,7 @@ const FILAS_CAJA = {
   proveedores: [
     { id: 'p1', supplierName: LARGO, concept: 'Pantallas OLED y baterías para reparación', condition: 'CREDITO', amountPyg: 12500000, pendientePyg: 12500000, depositoPyg: 0, dueAt: '2026-10-20T12:00:00Z', vencimiento: 'POR_VENCER' },
     { id: 'p2', supplierName: 'Insumos del Este', concept: 'Consignación de cargadores', condition: 'CONSIGNACION', amountPyg: 4300000, pendientePyg: 0, depositoPyg: 4300000, dueAt: null, vencimiento: null },
-    { id: 'p3', supplierName: 'Casa Repuestos', concept: 'Compra a crédito', condition: 'CREDITO', amountPyg: 98000000, pendientePyg: 98000000, depositoPyg: 0, dueAt: '2026-09-30T12:00:00Z', vencimiento: 'VENCIDA' },
+    { id: 'p3', supplierName: 'Casa Repuestos', concept: 'Compra a crédito', condition: 'CREDITO', amountPyg: 1000000000, pendientePyg: 1000000000, depositoPyg: 0, dueAt: '2026-09-30T12:00:00Z', vencimiento: 'VENCIDA' },
   ],
   taller: [
     { id: 't1', name: 'Pantalla iPhone 13 original con marco', code: 'REP-0001', supplierName: LARGO, paymentMode: 'CREDITO', deudaPyg: 1250000, dueAt: '2026-10-02T12:00:00Z', vencimiento: 'VENCIDA' },
@@ -170,7 +171,7 @@ async function mockSesionFinanzas(page, dark) {
         return route.fulfill({
           json: {
             sesiones: [
-              { id: 'c1', status: 'CLOSED', openedByName: 'Hernán Acosta de la Torre', openedAt: '2026-10-12T11:00:00Z', closedAt: '2026-10-12T21:00:00Z', notes: 'Cierre sin novedades', pedidos: 12, ventasPyg: 48590000, efectivoPyg: 6850000, esperadoPyg: 7350000, contadoPyg: 7300000, diferenciaPyg: -50000 },
+              { id: 'c1', status: 'CLOSED', openedByName: 'Hernán Acosta de la Torre', openedAt: '2026-10-12T11:00:00Z', closedAt: '2026-10-12T21:00:00Z', notes: 'Cierre sin novedades', pedidos: 12, ventasPyg: 1000000000, efectivoPyg: 1000000000, esperadoPyg: 1000000000, contadoPyg: 1000000000, diferenciaPyg: -1000000000 },
               { id: 'c2', status: 'OPEN', openedByName: 'Ana', openedAt: '2026-10-13T11:00:00Z', closedAt: null, notes: '', pedidos: 3, ventasPyg: 1250000, efectivoPyg: 250000, esperadoPyg: 750000, contadoPyg: null, diferenciaPyg: null },
             ],
           },
@@ -196,7 +197,7 @@ async function mockSesionFinanzas(page, dark) {
           truncado: false,
           totals: { outstandingPyg: 148500000, overduePyg: 98000000, customersWithDebt: 3, overdueCustomers: 1 },
           credits: [
-            { customerId: 'k1', name: 'Importadora y Distribuidora Aurora Móviles S.A.', pricingTier: 'WHOLESALE', pendingOrders: 4, oldestDueAt: '2026-09-20T12:00:00Z', creditLimitPyg: 200000000, limitUsagePct: 74, creditDays: 30, outstandingPyg: 148000000, overduePyg: 98000000, maxOverdueDays: 23 },
+            { customerId: 'k1', name: 'Importadora y Distribuidora Aurora Móviles S.A.', pricingTier: 'WHOLESALE', pendingOrders: 4, oldestDueAt: '2026-09-20T12:00:00Z', creditLimitPyg: 1000000000, limitUsagePct: 74, creditDays: 30, outstandingPyg: 1000000000, overduePyg: 1000000000, maxOverdueDays: 23 },
             { customerId: 'k2', name: 'María González', pricingTier: 'RETAIL', pendingOrders: 1, oldestDueAt: '2026-10-25T12:00:00Z', creditLimitPyg: 0, limitUsagePct: null, creditDays: 0, outstandingPyg: 500000, overduePyg: 0, maxOverdueDays: 0 },
           ],
         },
@@ -208,7 +209,7 @@ async function mockSesionFinanzas(page, dark) {
       return route.fulfill({
         json: [
           { id: 'l1', sellerName: 'Hernán Acosta de la Torre y Benítez', totalPyg: 1250000, periodFrom: '2026-10-01', periodTo: '2026-10-13', createdAt: '2026-10-13T12:00:00Z', status: 'DRAFT', commissionPct: 5 },
-          { id: 'l2', sellerName: 'Ana', totalPyg: 98000000, periodFrom: '2026-09-01', periodTo: '2026-09-30', createdAt: '2026-10-01T12:00:00Z', status: 'PAID', commissionPct: 3.5 },
+          { id: 'l2', sellerName: 'Ana', totalPyg: 1000000000, periodFrom: '2026-09-01', periodTo: '2026-09-30', createdAt: '2026-10-01T12:00:00Z', status: 'PAID', commissionPct: 3.5 },
         ],
       })
     if (ruta === '/api/collections/reminders')
@@ -251,6 +252,7 @@ for (const [width, height] of WIDTHS) {
           await expect(lista, `${tab}: ${id}`).toBeVisible()
           const scroll = await lista.evaluate(el => [el.scrollWidth, el.clientWidth])
           expect(scroll[0], `${tab} ${id} @${width}: scroll horizontal`).toBeLessThanOrEqual(scroll[1] + 1)
+          expect(await cutBoxes(lista), `${tab} ${id} @${width}: cifras cortadas`).toEqual([])
         }
       }
     })

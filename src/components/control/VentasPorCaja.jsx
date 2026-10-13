@@ -103,11 +103,11 @@ export default function VentasPorCaja() {
             { key: 'caja', header: 'Caja', ancho: 'minmax(0,1.4fr)', cell: (sesion) => <Identidad sesion={sesion} /> },
             { key: 'estado', header: 'Estado', ancho: '5.5rem', cell: chipDe },
             { key: 'pedidos', header: 'Pedidos', ancho: '4rem', align: 'right', className: 'text-xs text-mute', cell: (sesion) => sesion.pedidos },
-            { key: 'ventas', header: 'Ventas', ancho: '6.5rem', align: 'right', className: 'text-xs text-mute', cell: (sesion) => gs(sesion.ventasPyg) },
-            { key: 'efectivo', header: 'Efectivo', ancho: '6.5rem', align: 'right', className: 'text-xs text-fore', cell: (sesion) => gs(sesion.efectivoPyg) },
-            { key: 'esperado', header: 'Esperado', ancho: '6.5rem', align: 'right', className: 'text-xs text-mute', cell: (sesion) => gs(sesion.esperadoPyg) },
-            { key: 'contado', header: 'Contado', ancho: '6.5rem', align: 'right', className: 'text-xs text-mute', cell: textoContado },
-            { key: 'diferencia', header: 'Diferencia', ancho: '6.5rem', align: 'right', className: 'text-xs', cell: (sesion) => <span className={claseDiferencia(sesion.diferenciaPyg)}>{textoDiferencia(sesion.diferenciaPyg)}</span> },
+            { key: 'ventas', dinero: true, header: 'Ventas', ancho: '8.5rem', align: 'right', className: 'text-xs text-mute', cell: (sesion) => gs(sesion.ventasPyg) },
+            { key: 'efectivo', dinero: true, header: 'Efectivo', ancho: '8.5rem', align: 'right', className: 'text-xs text-fore', cell: (sesion) => gs(sesion.efectivoPyg) },
+            { key: 'esperado', dinero: true, header: 'Esperado', ancho: '8.5rem', align: 'right', className: 'text-xs text-mute', cell: (sesion) => gs(sesion.esperadoPyg) },
+            { key: 'contado', dinero: true, header: 'Contado', ancho: '8.5rem', align: 'right', className: 'text-xs text-mute', cell: textoContado },
+            { key: 'diferencia', dinero: true, header: 'Diferencia', ancho: '8.5rem', align: 'right', className: 'text-xs', cell: (sesion) => <span className={claseDiferencia(sesion.diferenciaPyg)}>{textoDiferencia(sesion.diferenciaPyg)}</span> },
           ]}
           renderCard={(sesion) => (
             <div className="rounded-xl border border-ink-600 bg-ink-800/40 p-3">

@@ -73,6 +73,7 @@ function flagsFrom(values) {
 // Logo de la cuenta: el banco guardado, la procesadora o, cuando la cuenta
 // nace de una marca de medio de pago (#118), su nombre.
 function bancoConLogo(account) {
+  if (account.kind === 'CARD' && account.processor) return account.processor
   if (account.bank) return account.bank
   if (account.processor) return account.processor
   return marcaDeMedio(account.name) ? account.name : ''
@@ -81,7 +82,7 @@ function bancoConLogo(account) {
 // Banco o procesadora que acompaña al nombre de la cuenta (junto al logo). Si
 // el nombre ya lo contiene no se repite.
 function entidadDe(account) {
-  const entidad = account.bank || account.processor || ''
+  const entidad = (account.kind === 'CARD' ? account.processor || account.bank : account.bank || account.processor) || ''
   if (!entidad) return ''
   return String(account.name || '').toLowerCase().includes(entidad.toLowerCase()) ? '' : entidad
 }

@@ -84,6 +84,8 @@ export async function measureLayout(page) {
               if (el.matches('input[type="checkbox"], input[type="radio"]') && el.closest('label'))
                 return false
               const r = el.getBoundingClientRect()
+              // Calendar day cells: 7 flexible columns, >= 40px wide, 44px tall.
+              if (el.hasAttribute('data-dia-calendario')) return r.width < 40 || r.height < 43.5
               return r.width < 43.5 || r.height < 43.5
             })
             .map(el => {

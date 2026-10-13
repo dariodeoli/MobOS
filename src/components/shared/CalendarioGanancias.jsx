@@ -104,6 +104,7 @@ export default function CalendarioGanancias({ datos, serieApi, titulo, nota, seg
               ) : (
                 <button
                   key={c.clave}
+                  data-dia-calendario
                   onClick={() => setSel(sel === c.clave ? null : c.clave)}
                   className={
                     'h-11 lg:h-9 rounded-md border text-xs font-bold flex items-center justify-center transition ' +

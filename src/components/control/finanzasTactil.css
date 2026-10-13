@@ -8,4 +8,9 @@
     min-height: 44px;
     min-width: 44px;
   }
+  /* Celdas del calendario: 7 columnas flexibles (≥ 40px a 360) con alto de 44px;
+     un ancho mínimo de 44px las haría desbordar. */
+  .finanzas-tactil button[data-dia-calendario] {
+    min-width: 0;
+  }
 }

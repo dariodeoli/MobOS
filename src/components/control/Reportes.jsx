@@ -22,6 +22,7 @@ import {
   esGrupoPorLinea,
   filasCsv,
   filasReporte,
+  filasImpresion,
   nombreArchivoCsv,
   rangoValido,
 } from '@/utils/reportes'
@@ -135,7 +136,8 @@ export default function Reportes() {
     key: c.key,
     header: c.label,
     align: c.tipo === 'texto' ? undefined : 'right',
-    ancho: c.tipo === 'texto' ? 'minmax(0,1.6fr)' : c.tipo === 'monto' ? 'minmax(6.25rem,1fr)' : 'minmax(4.5rem,0.6fr)',
+    dinero: c.tipo === 'monto',
+    ancho: c.tipo === 'texto' ? 'minmax(0,1.6fr)' : c.tipo === 'monto' ? 'minmax(8.5rem,1fr)' : 'minmax(4.5rem,0.6fr)',
     className: c.tipo === 'texto' ? 'font-medium text-fore' : 'text-xs text-mute',
     cell: (g) => (c.tipo === 'monto' ? gs(g[c.key]) : g[c.key]),
   }))
@@ -268,16 +270,17 @@ export default function Reportes() {
             <ListaDensa
               lista={listaVendedores}
               testId="reportes-comisiones-tabla"
+              className="print:hidden"
               etiquetaTabla="Comisiones por vendedor"
               etiquetaPie="Páginas de vendedores"
               unidad="vendedores"
               obtenerClave={(fila) => fila.sellerId}
               columns={[
                 { key: 'sellerName', header: 'Vendedor', ancho: 'minmax(0,1.6fr)', className: 'font-medium text-fore', cell: (fila) => fila.sellerName || 'Sin vendedor' },
-                { key: 'totalPyg', header: 'Ventas', align: 'right', ancho: 'minmax(6.25rem,1fr)', className: 'text-xs text-mute', cell: (fila) => gs(fila.totalPyg) },
-                { key: 'marginPyg', header: 'Margen', align: 'right', ancho: 'minmax(6.25rem,1fr)', className: 'text-xs text-mute', cell: (fila) => gs(fila.marginPyg) },
+                { key: 'totalPyg', dinero: true, header: 'Ventas', align: 'right', ancho: 'minmax(8.5rem,1fr)', className: 'text-xs text-mute', cell: (fila) => gs(fila.totalPyg) },
+                { key: 'marginPyg', dinero: true, header: 'Margen', align: 'right', ancho: 'minmax(8.5rem,1fr)', className: 'text-xs text-mute', cell: (fila) => gs(fila.marginPyg) },
                 { key: 'commissionPct', header: '% comisión', align: 'right', ancho: '6rem', className: 'text-xs text-mute', cell: (fila) => (fila.commissionPct === null ? '—' : `${formatPercent(fila.commissionPct)}%`) },
-                { key: 'commissionPyg', header: 'Comisión', align: 'right', ancho: 'minmax(6.25rem,1fr)', className: 'text-xs font-semibold text-fore', cell: (fila) => gs(fila.commissionPyg) },
+                { key: 'commissionPyg', dinero: true, header: 'Comisión', align: 'right', ancho: 'minmax(8.5rem,1fr)', className: 'text-xs font-semibold text-fore', cell: (fila) => gs(fila.commissionPyg) },
               ]}
               renderCard={(fila) => (
                 <Card className="p-3">
@@ -295,6 +298,13 @@ export default function Reportes() {
               )}
             />
           )}
+
+          <TablaImpresion
+            testId="reportes-comisiones-impresion"
+            titulo="Comisiones por vendedor (completo)"
+            encabezados={['Vendedor', 'Ventas', 'Margen', '% comisión', 'Comisión']}
+            filas={vendedores.map((f) => [f.sellerName || 'Sin vendedor', gs(f.totalPyg), gs(f.marginPyg), f.commissionPct === null ? '—' : `${formatPercent(f.commissionPct)}%`, gs(f.commissionPyg)])}
+          />
 
           <p className="text-xs text-mute">
             La comisión se calcula sobre el margen de cada venta usando las reglas vigentes; la regla por usuario prevalece
@@ -373,6 +383,7 @@ export default function Reportes() {
             <ListaDensa
               lista={listaGrupos}
               testId="reportes-tabla"
+              className="print:hidden"
               etiquetaTabla="Resultados del reporte"
               etiquetaPie="Páginas del reporte"
               unidad="filas"
@@ -398,8 +409,17 @@ export default function Reportes() {
             />
           )}
 
+          {grupos.length > 0 && (
+            <TablaImpresion
+              testId="reportes-impresion"
+              titulo="Resultados del reporte (completo)"
+              encabezados={columnas.map((c) => c.label)}
+              filas={filasImpresion(columnas, grupos, gs)}
+            />
+          )}
+
           {grupo === 'product' && grupos.length > 0 && (
-            <Card className="space-y-3">
+            <Card className="space-y-3 print:hidden">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="font-semibold">Curva ABC y antigüedad</h3>
                 <span className="text-xs text-mute">A: 80% acumulado · B: 95% · C: resto</span>
@@ -413,7 +433,7 @@ export default function Reportes() {
                 obtenerClave={(fila) => fila.key}
                 columns={[
                   { key: 'producto', header: 'Producto', ancho: 'minmax(0,1.6fr)', className: 'font-medium text-fore', cell: ({ g }) => g.label },
-                  { key: 'venta', header: 'Venta', align: 'right', ancho: 'minmax(6.25rem,1fr)', cell: ({ g }) => <CeldaMoneda valor={g.grossPyg} tono="mute" className="w-full" /> },
+                  { key: 'venta', dinero: true, header: 'Venta', align: 'right', ancho: 'minmax(8.5rem,1fr)', cell: ({ g }) => <CeldaMoneda valor={g.grossPyg} tono="mute" className="w-full" /> },
                   { key: 'acumulado', header: '% acum.', align: 'right', ancho: '5rem', className: cn('text-xs text-mute', CELDA_NUMERO), cell: ({ pct }) => `${pct.toFixed(1)}%` },
                   { key: 'clase', header: 'Clase', ancho: '4rem', cell: ({ clase }) => <StatusChip tono={clase === 'A' ? 'ok' : clase === 'B' ? 'warn' : 'neutral'} etiqueta={clase} /> },
                   { key: 'disponibles', header: 'Disponibles', align: 'right', ancho: '6rem', className: cn('text-xs text-mute', CELDA_NUMERO), cell: ({ g }) => g.availableUnits ?? 0 },
@@ -463,6 +483,23 @@ export default function Reportes() {
         </>
       )}
     </div>
+  )
+}
+
+// Impresión: el listado en pantalla está paginado; al imprimir se dibuja el
+// reporte completo (sin paginar) y se oculta el paginado.
+function TablaImpresion({ testId, titulo, encabezados, filas }) {
+  return (
+    <table data-testid={testId} aria-label={titulo} className="hidden w-full text-xs print:table">
+      <thead>
+        <tr>{encabezados.map((h) => <th key={h} className="border-b border-black px-1 py-1 text-left">{h}</th>)}</tr>
+      </thead>
+      <tbody>
+        {filas.map((fila, i) => (
+          <tr key={i} data-fila-impresion>{fila.map((celda, j) => <td key={j} className="border-b border-gray-300 px-1 py-0.5">{celda}</td>)}</tr>
+        ))}
+      </tbody>
+    </table>
   )
 }
 

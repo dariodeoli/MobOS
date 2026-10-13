@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { estadoInfo } from './estados.js'
 import { formatGs, partesGs } from '../utils/moneda.js'
+import { columnasReporte, filasImpresion } from '../utils/reportes.js'
 
 // Rediseño de Finanzas (unidad 2B): contratos de código que el navegador no
 // ve (la medición real vive en e2e/frontend/finanzas-layout.frontend.spec.js).
@@ -68,4 +69,22 @@ test('el formateador de guaraníes pone el signo pegado al símbolo', () => {
   assert.deepEqual(partesGs(-50000), { signo: '-', simbolo: 'Gs', digitos: '50.000' })
   assert.deepEqual(partesGs(1200), { signo: '', simbolo: 'Gs', digitos: '1.200' })
   assert.ok(!/Gs\s+-/.test(formatGs(-1)), 'nunca «Gs -»')
+})
+
+test('Reportes: la impresión recibe TODAS las filas (sin paginar) y oculta el listado paginado', () => {
+  const grupos = Array.from({ length: 57 }, (_, i) => ({ key: `p${i}`, label: `Producto ${i}`, units: i, grossPyg: 1000000000 + i, costPyg: 1, profitPyg: 2, salesWithoutCostPyg: 0 }))
+  const columnas = columnasReporte('product')
+  const filas = filasImpresion(columnas, grupos, (v) => `Gs ${v}`)
+  assert.equal(filas.length, 57, 'más filas que una página (8/20)')
+  assert.ok(filas.every((f) => f.length === columnas.length))
+  const codigo = leer('control/Reportes.jsx')
+  assert.match(codigo, /filas=\{filasImpresion\(columnas, grupos, gs\)\}/, 'la tabla de impresión recibe todos los grupos')
+  assert.match(codigo, /print:table/)
+  assert.ok((codigo.match(/className="print:hidden"/g) || []).length >= 2, 'los listados paginados no se imprimen')
+})
+
+test('las columnas de dinero de Finanzas no se recortan (dinero + piso en rem)', () => {
+  const lista = leer('shared/ListaDensa.jsx')
+  assert.match(lista, /c\.dinero \? 'whitespace-nowrap' : 'truncate'/)
+  for (const nombre of ['VentasPorCaja', 'Comisiones', 'Creditos', 'Caja', 'Reportes']) assert.match(leer(`control/${nombre}.jsx`), /dinero: true/, nombre)
 })
