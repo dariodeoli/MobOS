@@ -111,18 +111,21 @@ export function MoneyInput({ currency = 'PYG', symbol, value, onValueChange, cla
 }
 
 // ── Stat (local: delta sin flechas, pendiente con DSN) ──────────────
-export function Stat({ label, valor, delta, sub, destacado = false, className }) {
+// `compact`: tile para grillas de 2 columnas en celular (padding y cifra menores,
+// la cifra nunca se corta: break-words + tabular-nums).
+export function Stat({ label, valor, delta, sub, destacado = false, compact = false, className }) {
   const sube = typeof delta === 'number' && delta >= 0
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-xl border p-4',
+        'relative overflow-hidden rounded-xl border',
+        compact ? 'min-w-0 p-3 md:p-4' : 'p-4',
         destacado ? 'border-fono/30 bg-gradient-to-br from-fono-dark via-fono to-fono' : 'border-ink-600 bg-ink-800',
         className,
       )}
     >
       <div className={cn('text-[11px] font-medium uppercase tracking-wider', destacado ? 'text-onbrand/75' : 'text-mute')}>{label}</div>
-      <div className={cn('mt-1.5 text-2xl font-semibold tracking-tight tabular-nums md:text-3xl v2-numero', destacado ? 'text-onbrand' : 'text-fore')}>
+      <div className={cn('mt-1.5 font-semibold tracking-tight tabular-nums v2-numero', compact ? 'break-words text-lg md:text-3xl' : 'text-2xl md:text-3xl', destacado ? 'text-onbrand' : 'text-fore')}>
         {valor}
       </div>
       <div className="mt-1.5 flex items-center gap-2 text-xs">

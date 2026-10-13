@@ -4,6 +4,8 @@ Regla viva del proyecto, hermana de `docs/CAMPOS.md`. Antes de armar o tocar un 
 
 ## 1. La grilla
 
+> **Desde `md` es tabla en grilla; por debajo de `md` es una tarjeta por fila** (`shared/ListaDensa` con `columns` + `renderCard`, ver `docs/PANTALLAS.md` regla 8). No se arman tablas con `min-w` + `overflow-x-auto` por debajo de `md`: el scroll horizontal dentro de la caja quedó solo para los listados heredados que aún no migraron.
+
 Una sola constante `GRID` compartida por el encabezado y cada fila. Si el encabezado y la fila no usan la misma constante, las columnas se desalinean.
 
 ```js
@@ -12,8 +14,8 @@ const GRID = 'grid min-w-[60rem] grid-cols-[...] items-center gap-x-2'
 
 | Pieza | Regla |
 |---|---|
-| Contenedor | `overflow-x-auto` + `data-testid="<vista>-tabla"` en el wrapper |
-| `min-w` | Igual al ancho mínimo real de las columnas. En pantallas chicas la tabla scrollea **dentro** de su caja; en desktop (1280+) tiene que entrar sin scroll |
+| Contenedor | `data-testid="<vista>-tabla"` en el wrapper. `ListaDensa` con `columns` no scrollea: entra en 1280 con pistas `rem`/`minmax(0,Nfr)` (listados heredados: `overflow-x-auto`) |
+| `min-w` | Solo en listados heredados, igual al ancho mínimo real de las columnas. Con `ListaDensa` + `columns` no hay `min-w`: bajo `md` la fila pasa a tarjeta; desde 1280 la tabla entra sin scroll |
 | `gap-x-2` | 8 px. Con `gap-x-3` el ancho fijo se come el espacio de las columnas flexibles |
 | Alto de fila | `px-3.5 py-2`, una línea por fila. Solo la celda de identidad puede llevar dos líneas |
 | Sin tabla HTML | `<div>` con grid; la fila es `role="button"` + `tabIndex={0}` cuando abre un detalle |
@@ -59,6 +61,6 @@ Cuando el detalle no entra en una línea (líneas de una compra, cambios de un m
 
 ## 6. Verificación
 
-- Medir en el navegador: `scrollWidth === clientWidth` del contenedor a **1280 y 1440**.
+- Medir en el navegador: `scrollWidth === clientWidth` del contenedor a **1280 y 1440**, y a **375** que no haya tabla sino tarjetas (sin `min-w`).
 - Un test e2e por vista que afirme que no hay scroll horizontal (ver `e2e/admin.spec.js`).
 - Ojo con Playwright: los locators por texto son estrictos. Los datos de prueba no deben contener palabras que aparezcan en encabezados o botones (por eso los productos de prueba usan prefijo `ZZ`).

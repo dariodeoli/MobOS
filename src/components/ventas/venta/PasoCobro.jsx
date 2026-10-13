@@ -454,13 +454,13 @@ export default function PasoCobro({
         {/* #281 · tiles con identidad propia: Total (info) · Pagado (ok) ·
             Pendiente (warn), con la familia de texto AA de cada tono. */}
         <div data-testid="pos-tiles-resumen" className="pos-tiles grid grid-cols-1 gap-1.5 border-t border-reserved/20 pt-2 text-xs text-mute">
-          <span className="flex items-baseline justify-between gap-2 rounded-xl border border-info/35 bg-info/[.06] px-3 py-1.5 text-info" data-testid="cobro-total">
+          <span className="flex flex-wrap items-baseline justify-between gap-x-2 rounded-xl border border-info/35 bg-info/[.06] px-3 py-1.5 text-info" data-testid="cobro-total">
             <span className="inline-flex items-center gap-1"><Icon name="receipt" className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden="true" />Total</span>
             <strong className="pos-money-value v2-numero block whitespace-nowrap text-base tabular-nums text-fore">
               {gs(totalGeneral)}
             </strong>
           </span>
-          <span className="flex items-baseline justify-between gap-2 rounded-xl border border-ok/35 bg-ok/[.08] px-3 py-1.5 text-ok" data-testid="cobro-pagado">
+          <span className="flex flex-wrap items-baseline justify-between gap-x-2 rounded-xl border border-ok/35 bg-ok/[.08] px-3 py-1.5 text-ok" data-testid="cobro-pagado">
             <span className="inline-flex items-center gap-1"><Icon name="check" className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden="true" />Pagado</span>
             <strong className="pos-money-value v2-numero block whitespace-nowrap text-base tabular-nums text-ok">
               {gs(totalPagado)}
@@ -469,7 +469,7 @@ export default function PasoCobro({
           <span
             data-testid="cobro-pendiente"
             className={cn(
-              'flex items-baseline justify-between gap-2 rounded-xl border px-3 py-1.5',
+              'flex flex-wrap items-baseline justify-between gap-x-2 rounded-xl border px-3 py-1.5',
               pendiente ? 'border-warn/35 bg-warn/[.08] text-warn' : 'border-ok/25 bg-ok/[.04] text-ok',
             )}
           >
