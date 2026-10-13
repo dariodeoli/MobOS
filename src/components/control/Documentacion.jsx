@@ -17,7 +17,7 @@ const TAREAS = [
   {
     pregunta: '¿Cómo recibo una unidad?',
     pasos: 'Inventario → Unidades → «+ Recibir unidad»: cargá IMEI/serial, sucursal y depósito; queda en el stock con historial.',
-    ruta: '/inventario/unidades', accion: 'Recibir una unidad', icono: 'box',
+    ruta: '/stock/unidades', accion: 'Recibir una unidad', icono: 'box',
   },
   {
     pregunta: '¿Cómo cierro la caja?',
@@ -27,12 +27,12 @@ const TAREAS = [
   {
     pregunta: '¿Cómo traslado stock?',
     pasos: 'Inventario → Traslados: elegí origen, destino y unidades; el envío y la recepción quedan con ETA y responsable.',
-    ruta: '/inventario/traslados', accion: 'Preparar un traslado', icono: 'truck',
+    ruta: '/stock/traslados', accion: 'Preparar un traslado', icono: 'truck',
   },
   {
     pregunta: '¿Cómo consulto un IMEI?',
     pasos: 'Inventario → Unidades → ficha de la unidad → «Consultar IMEI»: blacklist, Find My, SIM lock y garantía, con confirmación y auditoría.',
-    ruta: '/inventario/unidades', accion: 'Consultar un IMEI', icono: 'shield',
+    ruta: '/stock/unidades', accion: 'Consultar un IMEI', icono: 'shield',
   },
 ]
 
@@ -183,9 +183,9 @@ const AYUDA = [
     ruta: '/configuracion/equipo',
   },
   {
-    modulo: 'Inventario', titulo: 'Unidades, stock y reservas', ubicacion: 'Inventario → /inventario/unidades',
+    modulo: 'Inventario', titulo: 'Unidades, stock y reservas', ubicacion: 'Inventario → /stock/unidades',
     explicacion: 'Cada equipo se sigue por IMEI/serial: ubicación, reservas, tránsito, verificaciones y cronología con fotos. Las alertas avisan cuando el stock baja del punto de reorden.',
-    ruta: '/inventario/unidades',
+    ruta: '/stock/unidades',
   },
   {
     modulo: 'Inventario', titulo: 'Kardex de un producto', ubicacion: 'Inventario → Productos → ficha → Kardex',

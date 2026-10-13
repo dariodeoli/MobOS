@@ -24,18 +24,10 @@ const imeiDeConsulta = (valor) => {
 }
 
 /** IMEI de 15 dígitos con dígito control (Luhn): el endpoint filtra por IMEI
- * solo cuando es válido, así que la ficha no consulta con seriales comunes. */
-export function imeiValido(valor) {
-  const imei = String(valor ?? '').replace(/\D/g, '')
-  if (imei.length !== 15) return false
-  let suma = 0
-  for (let i = 0; i < 15; i += 1) {
-    let digito = Number(imei[14 - i])
-    if (i % 2 === 1) { digito *= 2; if (digito > 9) digito -= 9 }
-    suma += digito
-  }
-  return suma % 10 === 0
-}
+ * solo cuando es válido, así que la ficha no consulta con seriales comunes.
+ * La regla vive en la biblioteca (`owncoding-ui`); `imeiEquivalencia.test.js`
+ * prueba que coincide con la regla local anterior. */
+export { imeiValido } from 'owncoding-ui/utils'
 
 const fechaTexto = (valor) => {
   const fecha = valor ? new Date(valor) : null

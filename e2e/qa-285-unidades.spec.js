@@ -1,5 +1,5 @@
-// #285 · Tabla de Unidades: estructura final en una línea
-// (Producto · IMEI · Verificación · Ubicación · Estado · Costo · Acciones).
+// #285 · Lista de Stock: estructura final en una línea
+// (Modelo · IMEI/serie · Batería · Proveedor · Costo · Estado · Acciones).
 //
 // Mide desbordes (scrollWidth/clienteWidth del contenedor), alto de fila y
 // ancho de cada columna en 1280/1440, claro y oscuro, y deja las capturas en
@@ -14,7 +14,8 @@ const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 const DIR = join('docs', 'qa', '285-unidades')
 const ANTES = Boolean(process.env.QA_285_ANTES)
 const PREFIJO = ANTES ? 'antes' : 'despues'
-const COLUMNAS = ['Seleccionar visibles', 'Producto', 'IMEI', 'Verificación', 'Ubicación', 'Estado', 'Costo (USD)', 'Acciones']
+// La primera celda es el checkbox de selección (sin texto visible); la última, las acciones (solo lector de pantalla).
+const COLUMNAS = ['', 'Modelo', 'IMEI / serie', 'Batería', 'Proveedor', 'Costo', 'Estado', 'Acciones']
 
 const apiPagina = (page, ruta, opciones = {}) => page.evaluate(async ({ api, ruta, opciones }) => {
   const respuesta = await fetch(`${api}${ruta}`, { credentials: 'include', headers: { 'Content-Type': 'application/json' }, ...opciones })
@@ -79,7 +80,7 @@ async function limpiar(page, datos) {
 test('#285 · estructura final en una línea: columnas, alto y sin scroll (1440/1600, claro/oscuro)', async ({ page }) => {
   mkdirSync(DIR, { recursive: true })
   await page.setViewportSize({ width: 1280, height: 900 })
-  await page.goto('/inventario/unidades')
+  await page.goto('/stock/unidades')
   const datos = await sembrar(page)
   const mediciones = {}
   try {
@@ -87,7 +88,7 @@ test('#285 · estructura final en una línea: columnas, alto y sin scroll (1440/
       for (const modo of ['light', 'dark']) {
         await tema(page, modo)
         await page.setViewportSize({ width: ancho, height: 900 })
-        await page.goto('/inventario/unidades')
+        await page.goto('/stock/unidades')
         await expect(page.getByTestId('inventario-fila').first()).toBeVisible({ timeout: 20_000 })
         const medida = await medir(page)
         mediciones[`${ancho}-${modo}`] = medida
@@ -95,9 +96,10 @@ test('#285 · estructura final en una línea: columnas, alto y sin scroll (1440/
           expect(medida.columnas.map((columna) => columna.titulo), 'columnas del encabezado').toEqual(COLUMNAS)
           expect(medida.scrollWidth, `${ancho}/${modo}: el contenedor no desborda`).toBeLessThanOrEqual(medida.clientWidth + 1)
           expect(medida.scrollPagina.scrollWidth, `${ancho}/${modo}: la página no desborda`).toBeLessThanOrEqual(medida.scrollPagina.clientWidth + 1)
-          expect(medida.filaAlto, `${ancho}/${modo}: la fila queda en una línea`).toBeLessThanOrEqual(56)
-          // Proveedor sale de la fila: el dato vive en el detalle.
-          await expect(page.getByTestId('inventario-encabezado').getByText('Proveedor')).toHaveCount(0)
+          // La fila de Stock lleva el botón de acciones de 44 px más el borde: 58 px.
+          expect(medida.filaAlto, `${ancho}/${modo}: la fila queda en una línea`).toBeLessThanOrEqual(60)
+          // El dueño ve Proveedor y Costo; el encabezado y la fila comparten grilla.
+          await expect(page.getByTestId('inventario-encabezado').getByText('Proveedor')).toBeVisible()
           await expect(page.getByTestId('inventario-fila').first()).toContainText('ZZ285')
         }
         await page.screenshot({ path: join(DIR, `${PREFIJO}-unidades-${ancho}-${modo}.png`) })
@@ -112,7 +114,7 @@ test('#285 · estructura final en una línea: columnas, alto y sin scroll (1440/
 test('#285 · mobile 390: tarjetas compactas, sin desborde y con el IMEI completo (#304)', async ({ page }) => {
   mkdirSync(DIR, { recursive: true })
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/inventario/unidades')
+  await page.goto('/stock/unidades')
   const tarjeta = page.getByTestId('inventario-tarjeta-movil').first()
   await expect(tarjeta).toBeVisible({ timeout: 20_000 })
   // #304: en móvil la tabla ancha se reemplaza por tarjetas compactas.

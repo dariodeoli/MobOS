@@ -81,7 +81,7 @@ for (const width of widths) {
     await expect(profile).not.toBeVisible()
     await expect(page.getByTestId(mobile ? 'shell-perfil-mobile' : 'shell-perfil')).toBeFocused()
     await navigation.getByRole('button', { name: 'Stock', exact: true }).click()
-    await expect(page).toHaveURL(/\/inventario\/unidades/)
+    await expect(page).toHaveURL(/\/stock\/unidades/)
     const context = page.getByTestId('shell-contexto')
     if (mobile) await expect(context.getByRole('combobox')).toBeVisible()
     await page.getByTestId('shell-subcontexto').getByRole('combobox').selectOption('productos')
@@ -282,8 +282,8 @@ test('all contextual owner destinations remain offered and subsection URLs stay 
           await page.getByTestId('shell-subcontexto').getByRole('combobox').selectOption(id)
         const route =
           {
-            unidades: '/inventario/unidades',
-            traslados: '/inventario/traslados',
+            unidades: '/stock/unidades',
+            traslados: '/stock/traslados',
             analisis: '/analisis/reportes',
             finanzas: '/finanzas/caja',
           }[id] || rutaDeVista(id)
@@ -299,9 +299,10 @@ test('all contextual owner destinations remain offered and subsection URLs stay 
   await expect(page).toHaveURL(/\/finanzas\/conciliacion/)
   await navigation.getByRole('button', { name: 'Stock', exact: true }).click()
   await page
-    .getByRole('combobox', { name: 'Sección de inventario', exact: true })
-    .selectOption('reservas')
-  await expect(page).toHaveURL(/\/inventario\/reservas/)
+    .getByTestId('tabs-inventario')
+    .getByRole('tab', { name: 'Reservas', exact: true })
+    .click()
+  await expect(page).toHaveURL(/\/stock\/reservas/)
   await page.getByTestId('shell-buscar-mobile').click()
   await expect(
     page.getByRole('combobox', { name: 'Buscar en toda la tienda', exact: true }),
@@ -2161,7 +2162,7 @@ async function stockTheme(page, width, dark) {
   await expect(page.locator('html')).toHaveClass(/dark/)
 }
 async function stockCellMetrics(page) {
-  return page.locator('.stock-f4-row, .stock-f4-card').evaluateAll((rows) =>
+  return page.locator('.stock-f4-row, .stock-f4-card, .stock-lista-fila, .stock-tarjeta').evaluateAll((rows) =>
     rows.map((row) => ({
       width: row.clientWidth,
       scroll: row.scrollWidth,
@@ -2272,12 +2273,14 @@ for (const width of stockWidths) {
       await page.keyboard.press('Escape')
       await expect(menu).toBeHidden()
       await expect(trigger).toBeFocused()
-      await first.focus()
+      // La fila es el botón en escritorio; en la tarjeta móvil lo es «Ver detalles».
+      const opener = width < 640 ? first.getByRole('button', { name: /^Ver detalles/ }) : first
+      await opener.focus()
       await page.keyboard.press('Space')
       await expect(page.getByRole('dialog').first()).toBeVisible()
       await page.keyboard.press('Escape')
       await expect(page.getByRole('dialog')).toHaveCount(0)
-      await expect(first).toBeFocused()
+      await expect(opener).toBeFocused()
       await mkdir(stockOutput, { recursive: true })
       await page.screenshot({
         path: `${stockOutput}/${width}-${dark ? 'dark' : 'light'}.png`,
@@ -2383,9 +2386,39 @@ async function mockStock(
       if (gate) await gate
       body = units
     }
+    if (path === '/api/stock/items') {
+      if (gate) await gate
+      const estados = { AVAILABLE: 'disponible', RESERVED: 'reservado', SOLD: 'vendido', DEFECTIVE: 'defectuoso', IN_TRANSIT: 'en_transito' }
+      const pedido = new URL(route.request().url()).searchParams.get('status')
+      const items = units
+        .map((unit) => ({
+          id: unit.id,
+          kind: 'unit',
+          stockKind: 'EQUIPO',
+          productId: unit.productId,
+          sku: '',
+          model: [unit.product?.capacity, unit.product?.color].filter(Boolean).join(' '),
+          name: unit.product?.name,
+          serial: unit.serial,
+          batteryHealth: unit.batteryHealth ?? null,
+          supplierId: null,
+          supplierName: null,
+          costPyg: unit.costPyg ?? null,
+          status: estados[unit.status],
+          quantity: 1,
+          branchId: unit.branchId,
+          branchName: unit.branch?.name ?? null,
+          locationId: unit.locationId ?? null,
+          locationName: unit.location?.name ?? null,
+          createdAt: '2026-10-01T10:00:00.000Z',
+          soldAt: unit.status === 'SOLD' ? '2026-10-12T15:00:00.000Z' : null,
+        }))
+        .filter((item) => !pedido || item.status === pedido)
+      body = { items, nextCursor: null, hasMore: false, limit: 50, totals: { total: items.length, byStatus: {}, byKind: {}, byRowKind: {} } }
+    }
     await route.fulfill({ status: 200, json: body })
   })
-  await page.goto('/inventario/unidades')
+  await page.goto('/stock/unidades')
   return state
 }
 for (const width of stockWidths) {
@@ -2400,13 +2433,12 @@ for (const width of stockWidths) {
       /iPhone 15 Pro Max.*256 GB.*Titanio/,
     )
     await expect(row.getByTestId('unidad-imei')).toHaveText('123456789012345')
-    await expect(row.getByTestId('unidad-verificacion')).toContainText(
-      'OK Hernán Acosta · 10/10/2026',
-    )
-    if (width < 640) {
-      await expect(row).toContainText('Gs 100.000.000')
-      await expect(row).toContainText('Casa Central · Depósito 1 (D1)')
-    } else await expect(row).toContainText('13.698,63')
+    // U3: la lista muestra batería, estado y el costo completo en guaraníes (en la
+    // tarjeta móvil el costo vive en el detalle plegado).
+    await expect(row).toContainText('94%')
+    await expect(row).toContainText('Disponible')
+    await expect(row).toContainText('Gs 100.000.000')
+    await expect(row).toContainText('Casa Central · Depósito 1')
     await noOverflow(page)
     const metrics = await stockCellMetrics(page)
     for (const item of metrics) {
@@ -2428,28 +2460,30 @@ test('F4 Stock loading, empty, USD edit Escape and Sold/In-transit body regressi
   const columns = await page
     .getByTestId('inventario-encabezado')
     .evaluate((e) => getComputedStyle(e).gridTemplateColumns)
-  expect(
-    await page
-      .locator('.stock-f4-skeleton')
-      .first()
-      .evaluate((e) => getComputedStyle(e).gridTemplateColumns),
-  ).toBe(columns)
   state.release()
   const row = page.getByTestId('inventario-fila').filter({ hasText: '123456789012345' })
   await expect(row).toBeVisible()
-  await row.getByRole('button', { name: 'Editar el costo de 123456789012345', exact: true }).click()
-  const input = row.getByRole('textbox', { name: 'Costo en USD de 123456789012345' })
-  await expect(input).toBeFocused()
-  await input.fill('700')
+  // Encabezado y filas comparten la misma grilla.
+  expect(await row.evaluate((e) => getComputedStyle(e).gridTemplateColumns)).toBe(columns)
+  // Escape cierra el menú de la fila y devuelve el foco a su botón; la ficha
+  // (un diálogo) también cierra con Escape. Ninguna de las dos escribe nada.
+  const accion = row.getByRole('button', { name: 'Acciones de 123456789012345', exact: true })
+  await accion.click()
+  await expect(row.getByRole('menu')).toBeVisible()
   await page.keyboard.press('Escape')
-  await expect(input).toBeHidden()
+  await expect(row.getByRole('menu')).toBeHidden()
+  await expect(accion).toBeFocused()
+  await row.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('dialog').first()).toBeVisible()
+  await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
   expect(state.mutations).toEqual([])
-  await page.goto('/inventario/vendidos')
+  await page.goto('/stock/vendidos')
   await expect(
     page.getByTestId('inventario-fila').filter({ hasText: '223456789012345' }),
   ).toContainText('Sin costo')
-  await page.goto('/inventario/transito')
+  await page.goto('/stock/transito')
   await expect(
     page.getByTestId('inventario-fila').filter({ hasText: '323456789012345' }),
   ).toContainText('719,00')
@@ -2467,10 +2501,7 @@ for (const width of [320, 1440]) {
     await expect(page.getByTestId('unidad-modelo').first()).toContainText(
       'Modelo excepcional '.repeat(20).trim(),
     )
-    await expect(page.getByTestId('unidad-verificacion').first()).toContainText(
-      'Verificador completo '.repeat(15).trim(),
-    )
-    await expect(page.locator('.stock-f4-card, .stock-f4-row').first()).toContainText(
+    await expect(page.locator('.stock-tarjeta, .stock-lista-fila').first()).toContainText(
       'Gs 100.000.000',
     )
     await noOverflow(page)
@@ -2485,11 +2516,14 @@ test('F4 Stock USD cost Enter keeps original mock-only payload and does not open
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   const state = await mockStock(page)
-  const row = page.getByTestId('inventario-fila').filter({ hasText: '123456789012345' })
-  await expect(row).toContainText('13.698,63')
-  await row.getByRole('button', { name: 'Editar el costo de 123456789012345', exact: true }).click()
-  const input = row.getByRole('textbox', { name: 'Costo en USD de 123456789012345' })
-  await expect(input).toHaveValue('13698.63')
+  // La edición rápida del costo en USD vive en la fila de En tránsito (la lista
+  // unificada abre la ficha para editar).
+  await page.goto('/stock/transito')
+  const row = page.getByTestId('inventario-fila').filter({ hasText: '323456789012345' })
+  await expect(row).toContainText('719,00')
+  await row.getByRole('button', { name: 'Editar el costo de 323456789012345', exact: true }).click()
+  const input = row.getByRole('textbox', { name: 'Costo en USD de 323456789012345' })
+  await expect(input).toHaveValue(/^719/)
   await input.fill('700')
   await page.keyboard.press('Enter')
   await expect
@@ -2498,7 +2532,7 @@ test('F4 Stock USD cost Enter keeps original mock-only payload and does not open
       {
         path: '/api/inventory-units',
         payload: {
-          id: 'qa-stock-a',
+          id: 'qa-stock-c',
           action: 'details',
           costCurrency: 'USD',
           originalCost: 700,
@@ -2513,15 +2547,17 @@ for (const width of [320, 1280]) {
   test(`F4 Stock Sold and In-transit natural cards ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
     const state = await mockStock(page)
-    await page.goto('/inventario/vendidos')
-    const sold = page.getByTestId('inventario-fila').filter({ hasText: '223456789012345' })
-    await expect(sold).toContainText('Listo p/ retirar')
+    await page.goto('/stock/vendidos')
+    const sold = page
+      .getByTestId(width < 640 ? 'inventario-tarjeta-movil' : 'inventario-fila')
+      .filter({ hasText: '223456789012345' })
+    await expect(sold).toContainText('Vendido')
     await expect(sold).toContainText('Sin costo')
-    await expect(
-      sold.getByRole('button', { name: 'Imprimir comprobante rápido de 223456789012345' }),
-    ).toBeVisible()
+    await sold.getByRole('button', { name: 'Acciones de 223456789012345' }).click()
+    await expect(sold.getByRole('menuitem', { name: 'Comprobante rápido' })).toBeVisible()
+    await page.keyboard.press('Escape')
     await noOverflow(page)
-    await page.goto('/inventario/transito')
+    await page.goto('/stock/transito')
     const transit = page.getByTestId('inventario-fila').filter({ hasText: '323456789012345' })
     await expect(transit).toContainText('En tránsito')
     await expect(transit.getByTestId('unidad-verificacion')).toContainText(
@@ -2612,7 +2648,7 @@ for (const width of [1440, 320]) {
         productId: 'zero-product',
         product: { id: 'zero-product', name: `Zero QA ${item.name}` },
         serial: `990000000000${String(index).padStart(3, '0')}`,
-        status: 'AVAILABLE',
+        status: 'IN_TRANSIT',
         condition: 'USED',
         branchId: 'qa-branch',
         ...item.cost,
@@ -2621,22 +2657,20 @@ for (const width of [1440, 320]) {
         expect(route.request().method()).toBe('GET')
         return route.fulfill({ status: 200, json: units })
       })
-      await page.reload()
-      const rows = page.getByTestId(width < 640 ? 'inventario-tarjeta-movil' : 'inventario-fila')
+      // La fila con edición rápida y conversión a USD vive en En tránsito.
+      await page.goto('/stock/transito')
+      // En tránsito conserva la fila con edición rápida en todos los anchos.
+      const rows = page.getByTestId('inventario-fila')
       await expect(rows).toHaveCount(cases.length)
       for (const [index, item] of cases.entries()) {
         const row = rows.filter({ hasText: units[index].serial })
         await expect(row).toBeVisible()
         if (item.missing) {
           await expect(row).toContainText('Sin costo')
-          await expect(row.locator('.stock-f4-cost')).toHaveCount(width < 640 ? 1 : 0)
+          await expect(row.locator('.stock-f4-cost')).toHaveCount(0)
         } else {
           const expected =
-            width < 640
-              ? item.gs
-              : noRate && item.cost.costCurrency !== 'USD' && item.usd === '0,00'
-                ? 'Gs 0'
-                : item.usd
+            noRate && item.cost.costCurrency !== 'USD' && item.usd === '0,00' ? 'Gs 0' : item.usd
           await expect(row.locator('.stock-f4-cost')).toHaveText(expected)
           await expect(row).not.toContainText('Sin costo')
         }
@@ -2654,7 +2688,7 @@ for (const width of [1440, 320]) {
   }
 }
 // F5 reconciliation: append-only frontend evidence, isolated from real APIs/data.
-const reconciliationOutput = '/tmp/mobos-redesign-conciliacion-qa/renewed-continuation'
+const reconciliationOutput = `${process.env.MOBOS_QA_OUT || '/tmp/mobos-redesign-conciliacion-qa'}/renewed-continuation`
 const reconciliationWidths = [320, 360, 390, 430, 1440]
 
 async function reconciliationMetrics(page) {
@@ -3310,3 +3344,183 @@ for (const dark of [false, true]) {
     })
   })
 }
+
+// U5a: Rendiciones (tienda) y panel del repartidor con el sistema visual F3.
+const u5Output = process.env.MOBOS_QA_OUT || '/tmp/mobos-redesign-u5-qa'
+async function u5Controls(root) {
+  for (const control of await root.locator('button, select, summary, a[href^="tel:"]').all()) {
+    if (!(await control.isVisible())) continue
+    const box = await control.boundingBox()
+    expect(box.height).toBeGreaterThanOrEqual(44)
+    expect(box.width).toBeGreaterThanOrEqual(44)
+  }
+}
+for (const [width, dark] of [[375, false], [375, true], [1440, false]]) {
+  test(`U5a store Rendiciones ${width}px ${dark ? 'dark' : 'light'}`, async ({ page }) => {
+    await mkdir(u5Output, { recursive: true })
+    await page.setViewportSize({ width, height: 900 })
+    await enterDemo(page)
+    await setF3Theme(page, width, dark)
+    await page.goto('/delivery')
+    await page.getByRole('button', { name: 'Rendiciones', exact: true }).click()
+    const root = page.locator('[aria-label="Rendiciones de repartidores"]')
+    const cards = root.getByTestId('rendicion-admin')
+    await expect(cards.first()).toBeVisible()
+    await expect(cards.first()).toContainText('Rendido')
+    await expect(cards.first()).toContainText('Gs')
+    expect(await cards.first().innerText()).not.toContain('…')
+    await expect(cards.first().getByTestId('rendicion-verificar')).toBeVisible()
+    await noOverflow(page)
+    await u5Controls(root)
+    // Esc cancela el rechazo sin enviar nada.
+    await cards.first().getByRole('button', { name: 'Rechazar', exact: true }).click()
+    const dialogo = page.getByRole('dialog', { name: 'Rechazar la rendición' })
+    await expect(dialogo).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(dialogo).toHaveCount(0)
+    await root.getByRole('button', { name: 'Todas', exact: true }).click()
+    await expect(root.getByRole('button', { name: 'Todas', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await noOverflow(page)
+    if (width === 375 && dark) await page.screenshot({ path: `${u5Output}/rendiciones-375-dark.png`, fullPage: true })
+  })
+  test(`U5a driver panel ${width}px ${dark ? 'dark' : 'light'}`, async ({ page }) => {
+    await mkdir(u5Output, { recursive: true })
+    await page.setViewportSize({ width, height: 900 })
+    await enterDemo(page, 'Delivery')
+    await setF3Theme(page, width, dark)
+    await page.waitForURL(/\/delivery/)
+    const orders = page.getByTestId('reparto-pedido')
+    await expect(orders.first()).toBeVisible()
+    await expect(orders.first()).toContainText('Total')
+    await expect(orders.first().getByRole('button', { name: 'Marcar entregado' })).toBeVisible()
+    await expect(orders.first().getByTestId('reparto-cobrar')).toBeVisible()
+    expect(await orders.first().innerText()).not.toContain('…')
+    await noOverflow(page)
+    await u5Controls(page.locator('main'))
+    // Cobro en la calle: el modal se cierra con Esc.
+    const cobro = page.getByRole('dialog', { name: 'Registrar cobro en la calle' })
+    // El listado se refresca solo: reintenta el clic si cayó durante un re-render.
+    await expect(async () => {
+      if (!(await cobro.isVisible())) await orders.first().getByTestId('reparto-cobrar').click()
+      await expect(cobro).toBeVisible({ timeout: 2000 })
+    }).toPass({ timeout: 30000 })
+    await page.keyboard.press('Escape')
+    await expect(cobro).toHaveCount(0)
+    // Navegación del router sin recargar (conserva sesión demo y tema).
+    await page.evaluate(() => {
+      history.pushState({}, '', '/delivery/rendiciones')
+      dispatchEvent(new PopStateEvent('popstate'))
+    })
+    await expect(page.getByTestId('rendicion-total')).toContainText('Gs')
+    await expect(page.getByTestId('rendicion').first()).toBeVisible()
+    await noOverflow(page)
+    await u5Controls(page.locator('main'))
+    if (width === 375 && !dark) await page.screenshot({ path: `${u5Output}/driver-375-light.png`, fullPage: true })
+  })
+}
+
+// U3: Stock absorbe Inventario (lista unificada, secciones, filtros en la URL y
+// etiquetas por selección). Todo corre sobre el demo, sin red.
+const stockU3Widths = [375, 1440]
+async function masUnidadesDemo(page, cantidad = 90) {
+  // El inventario demo vive en memoria de la pestaña: se amplía con el mismo
+  // módulo que usa la app y se navega dentro de la SPA (sin recargar).
+  await page.evaluate(async (n) => {
+    const demo = await import('/src/lib/demoInventory.js')
+    const base = demo.listDemoUnits()[0]
+    demo.createDemoUnit({
+      productId: base.productId,
+      serials: Array.from({ length: n }, (_, i) => `EXTRA${String(i).padStart(10, '0')}`),
+      costPyg: 5000000,
+    })
+  }, cantidad)
+}
+async function abrirStock(page, width) {
+  await page
+    .getByTestId(width < 1024 ? 'shell-bottom-nav' : 'shell-lateral')
+    .getByRole('button', { name: 'Stock', exact: true })
+    .click()
+}
+
+test('U3 /inventario/* redirige a /stock/* y las doce vistas siguen abriendo', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await enterDemo(page)
+  const vistas = {
+    unidades: 'Unidades', reservas: 'Reservas', ubicaciones: 'Ubicaciones', alertas: 'Alertas',
+    transito: 'En tránsito', traslados: 'Traslados', vendidos: 'Vendidos', eliminados: 'Eliminados',
+    taller: 'Taller', conteos: 'Conteos', compartido: 'Compartido', autorizaciones: 'Autorizaciones',
+  }
+  const secciones = page.getByTestId('tabs-inventario')
+  await abrirStock(page, 1440)
+  await expect(page).toHaveURL(/\/stock\/unidades$/)
+  for (const nombre of ['Unidades', 'Reservas', 'Movimientos', 'Control'])
+    await expect(secciones.getByRole('tab', { name: nombre })).toBeVisible()
+  for (const [id, etiqueta] of Object.entries(vistas)) {
+    const seccion = { unidades: 'Unidades', ubicaciones: 'Unidades', alertas: 'Unidades', reservas: 'Reservas' }[id] || (['transito', 'traslados', 'vendidos', 'eliminados'].includes(id) ? 'Movimientos' : 'Control')
+    await secciones.getByRole('tab', { name: seccion }).click()
+    const vista = page.getByTestId('subtabs-inventario')
+    if (await vista.count()) await vista.getByRole('tab', { name: etiqueta }).click()
+    // Conteos y Autorizaciones viven solo en esta pantalla: no cambian la URL.
+    if (!['conteos', 'autorizaciones'].includes(id)) await expect(page).toHaveURL(new RegExp(`/stock/${id}$`))
+    await expect(page.getByTestId('grupos-inventario').getByRole('tab', { name: etiqueta }).first()).toHaveAttribute('aria-selected', 'true')
+  }
+  // Un enlace guardado a /inventario/<vista>?q=… conserva vista y búsqueda.
+  await page.goto('/inventario/reservas?q=iphone')
+  await expect(page).toHaveURL(/\/stock\/reservas\?q=iphone$/)
+})
+
+for (const width of stockU3Widths) {
+  test(`U3 lista de Stock: columnas, filtros en la URL y Cargar más ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await enterDemo(page)
+    await masUnidadesDemo(page)
+    await abrirStock(page, width)
+    const tarjetas = width < 768
+    const filas = page.getByTestId(tarjetas ? 'inventario-tarjeta-movil' : 'inventario-fila')
+    await expect(filas.first()).toBeVisible()
+    if (!tarjetas) {
+      const encabezado = page.getByTestId('inventario-encabezado')
+      for (const columna of ['Modelo', 'IMEI / serie', 'Batería', 'Proveedor', 'Costo', 'Estado'])
+        await expect(encabezado).toContainText(columna, { ignoreCase: true })
+    }
+    await expect(page.getByTestId('stock-mostrando')).toHaveText(/^Mostrando 50 de 1\d\d$/)
+    await page.getByRole('button', { name: 'Cargar más' }).click()
+    await expect(page.getByTestId('stock-mostrando')).toHaveText(/^Mostrando 100 de 1\d\d$/)
+    // Filtros: el chip queda en la URL y la lista se acota.
+    await page.getByTestId('filtro-estado-reservado').click()
+    await expect(page).toHaveURL(/estado=reservado/)
+    await expect(filas.first()).toContainText('Reservado')
+    await page.getByTestId('filtro-tipo-ACCESORIO').click()
+    await expect(page).toHaveURL(/tipo=ACCESORIO/)
+    await page.reload()
+    await expect(page.getByTestId('filtro-estado-reservado')).toHaveAttribute('aria-pressed', 'true')
+    await page.getByTestId('filtros-limpiar').click()
+    await expect(page).not.toHaveURL(/estado=|tipo=/)
+    await noOverflow(page)
+    if (tarjetas) {
+      for (const target of await page
+        .getByTestId('inventario-tarjeta-movil')
+        .first()
+        .locator('button, label, summary')
+        .evaluateAll((es) => es.map((e) => e.getBoundingClientRect().toJSON()))) {
+        expect(target.width).toBeGreaterThanOrEqual(44)
+        expect(target.height).toBeGreaterThanOrEqual(44)
+      }
+    }
+  })
+}
+
+test('U3 selección: N filas elegidas ofrecen imprimir etiquetas y vista previa', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await enterDemo(page)
+  await abrirStock(page, 1440)
+  const filas = page.getByTestId('inventario-fila')
+  await expect(filas.first()).toBeVisible()
+  for (const indice of [0, 1, 2]) await filas.nth(indice).getByRole('checkbox').check()
+  await expect(page.getByTestId('imprimir-etiquetas')).toBeVisible()
+  await expect(page.getByTestId('etiquetas-vista-previa')).toBeVisible()
+  // En el demo la impresora no está disponible: el aviso lo dice sin inventar un éxito.
+  await page.getByTestId('imprimir-etiquetas').click()
+  await expect(page.getByText(/demostración|demo/i).first()).toBeVisible()
+  await page.keyboard.press('Escape')
+})

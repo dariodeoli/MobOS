@@ -303,7 +303,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
             <h3 className={ROTULO_SECCION}>Equipos por estado</h3>
             {units.length > 0 && (
               <Link
-                to={`/inventario/unidades?producto=${encodeURIComponent(current.id)}${current.sku ? `&q=${encodeURIComponent(current.sku)}` : ''}`}
+                to={`/stock/unidades?producto=${encodeURIComponent(current.id)}${current.sku ? `&q=${encodeURIComponent(current.sku)}` : ''}`}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-ink-600 px-2.5 py-1 text-[11px] font-semibold text-fono-light transition hover:border-fono/40"
                 title="Abrir estas unidades en Inventario"
               >

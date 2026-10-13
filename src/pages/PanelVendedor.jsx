@@ -244,7 +244,9 @@ const SUBPAGINAS = {
   ayuda: { vista: 'ayuda', tabs: [['ayuda', 'Ayuda']] },
   analisis: { vista: 'analisis', tabs: TABS_ANALISIS },
   finanzas: { vista: 'finanzas', tabs: TABS_FINANZAS },
-  inventario: { vista: 'inventario', tabs: TABS_INVENTARIO },
+  // Stock absorbió Inventario: la subpágina vive en /stock/<pestaña>; el id de
+  // vista (y su permiso) sigue siendo 'inventario'.
+  stock: { vista: 'inventario', tabs: TABS_INVENTARIO },
 }
 // El id del menú y el slug de la pestaña apuntan a la misma subpágina.
 const SUBPAGINA_DE_VISTA = Object.fromEntries(
@@ -252,7 +254,7 @@ const SUBPAGINA_DE_VISTA = Object.fromEntries(
 )
 // Migas del topbar: la subpágina es el camino; la pestaña activa va como título.
 const MIGA_SUBPAGINA = {
-  inventario: 'Inventario',
+  stock: 'Stock',
   analisis: 'Análisis',
   finanzas: 'Finanzas',
   configuracion: 'Configuración',
@@ -826,7 +828,7 @@ export default function PanelVendedor() {
             </div>
           </div>
 
-          {esOwner && subpadre === 'inventario' && <Inventario tab={vista} onTabChange={irASubtab} />}
+          {esOwner && subpadre === 'stock' && <Inventario tab={vista} onTabChange={irASubtab} />}
           {(esOwner && (vista === 'compras' || vista === 'productos')) && <div className="mb-3 flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{[['compras', 'Compras'], ['productos', 'Productos']].map(([id, label]) => <button key={id} type="button" aria-pressed={vista === id} onClick={() => ir(id)} className={cn('min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition md:min-h-9', vista === id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>}
           {vista === 'plantillas' && <WhatsAppTemplates />}
           {!subpadre && vista === 'mi-cuenta' && <MiCuenta preferencias={preferencias} onCambiarPreferencias={cambiarPreferencias} />}

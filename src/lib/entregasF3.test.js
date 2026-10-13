@@ -18,15 +18,29 @@ test('Entregas presentation preserves assignment/release handlers and settlement
     digest(assignment(source)),
     'd71499649aee2cfc2add441a067f4d96388dc3a176288b18eb9b287d1cd12128',
   )
-  const settlement = text =>
-    text.slice(
-      text.indexOf('function Rendiciones()'),
-      text.indexOf('export default function StoreDelivery'),
-    )
-  assert.equal(
-    digest(settlement(source)),
-    'db1cbf7daa0b9f95575d5f5fce3bdbfc593cce5003ea8f1456b823e4bba2c865',
+  // U5a: Rendiciones was redesigned (same F3 card system); the bytes are no longer frozen,
+  // so the verify/reject contract is asserted explicitly instead.
+  const settlement = source.slice(
+    source.indexOf('function Rendiciones()'),
+    source.indexOf('export default function StoreDelivery'),
   )
+  for (const contract of [
+    "api.post(`/api/delivery/settlements/${encodeURIComponent(fila.id)}/verify`",
+    'verificarRendicionDemo(fila.id, state, note)',
+    "verificar(confirmar, 'VERIFIED')",
+    "verificar(rechazar, 'REJECTED', motivo)",
+    'validar({ motivo }).valido',
+    'data-testid="rendicion-verificar"',
+    'data-testid="rendicion-rechazar"',
+    'data-testid="rendicion-admin"',
+    "fila.estado === 'PENDING'",
+    '<ConfirmDialog',
+    'dirty={Boolean(rechazar) && motivo.trim() !== \'\'}',
+    "['PENDING', 'Pendientes']",
+    "['REJECTED', 'Rechazadas']",
+    "usePaginaLista(data.rows",
+  ])
+    assert.ok(settlement.includes(contract), contract)
   for (const contract of [
     'allowUnpaidDelivery: true',
     "row.pendiente > 0 && row.fulfillment !== 'DELIVERED'",
@@ -62,4 +76,37 @@ test('Entregas renders existing address and scoped responsive full-value present
   assert.ok(css.includes('overflow-wrap: anywhere'))
   assert.ok(!css.includes('rendicion-admin'))
   assert.ok(!css.includes('truncate'))
+})
+
+test('Panel del repartidor y Rendiciones usan el sistema visual F3 sin perder acciones', () => {
+  const orders = readFileSync('src/components/delivery/DriverOrders.jsx', 'utf8')
+  const settlements = readFileSync('src/components/delivery/DriverSettlements.jsx', 'utf8')
+  for (const contract of [
+    "onEstado(row, 'IN_TRANSIT')",
+    "onEstado(row, 'DELIVERED')",
+    'data-testid="reparto-cobrar"',
+    'data-testid="reparto-cobro-confirmar"',
+    'data-testid="reparto-pedido"',
+    'data-testid="reparto-cliente"',
+    '/collections`',
+    "'Idempotency-Key'",
+    'className="entregas-f3-order"',
+    'usePaginaLista(data.rows',
+    "['activos', 'A entregar']",
+    "['entregados', 'Entregados']",
+  ])
+    assert.ok(orders.includes(contract), contract)
+  for (const contract of [
+    'data-testid="rendicion-total"',
+    'data-testid="rendir-abrir"',
+    'data-testid="rendir-confirmar"',
+    "api.post('/api/delivery/settlements'",
+    'crearRendicionDemo()',
+    'data-testid="rendicion"',
+    'className="entregas-f3-order"',
+    'usePaginaLista(historial.rows',
+  ])
+    assert.ok(settlements.includes(contract), contract)
+  const css = readFileSync('src/components/delivery/entregasF3.css', 'utf8')
+  assert.ok(css.includes('.entregas-f3-tel') && css.includes('min-height: 44px'))
 })

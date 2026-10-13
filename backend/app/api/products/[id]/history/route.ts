@@ -2,6 +2,7 @@ import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { numero } from '../../../../../lib/montos'
+import { canSeeCost, redactAuditMetadata } from '../../../../../lib/cost-visibility'
 
 type RouteContext = { params: { id: string } }
 
@@ -92,6 +93,7 @@ export async function GET(request: Request, { params }: RouteContext) {
         take: 300,
       })
     : []
+  const verCosto = canSeeCost(session.user.role)
   const serialById = new Map(units.map(unit => [unit.id, unit.serial]))
 
   const events: TimelineEvent[] = [
@@ -109,7 +111,7 @@ export async function GET(request: Request, { params }: RouteContext) {
       action: /PRICE/.test(audit.action) ? 'Precio actualizado' : audit.action.replace(/_/g, ' ').toLowerCase(),
       createdAt: audit.createdAt,
       user: audit.user,
-      detail: detalleMetadata(audit.metadata),
+      detail: detalleMetadata(redactAuditMetadata(audit.metadata, verCosto)),
     })),
     ...units.map(unit => ({
       id: `unit-${unit.id}`,
@@ -117,7 +119,7 @@ export async function GET(request: Request, { params }: RouteContext) {
       action: 'Unidad registrada',
       createdAt: unit.createdAt,
       user: null,
-      detail: `Serial ${unit.serial} · ${UNIT_STATUS[unit.status] || unit.status}${unit.supplierName ? ` · ${unit.supplierName}` : ''}${unit.costPyg ? ` · Gs ${gs(unit.costPyg)}` : ''}`,
+      detail: `Serial ${unit.serial} · ${UNIT_STATUS[unit.status] || unit.status}${verCosto && unit.supplierName ? ` · ${unit.supplierName}` : ''}${verCosto && unit.costPyg ? ` · Gs ${gs(unit.costPyg)}` : ''}`,
     })),
     ...unitAudits.map(audit => ({
       id: `unit-audit-${audit.id}`,
@@ -125,9 +127,10 @@ export async function GET(request: Request, { params }: RouteContext) {
       action: ACCIONES_UNIDAD[audit.action] || audit.action.replace(/_/g, ' ').toLowerCase(),
       createdAt: audit.createdAt,
       user: audit.user,
-      detail: `${serialById.get(audit.entityId || '') ? `Serial ${serialById.get(audit.entityId || '')} · ` : ''}${detalleMetadata(audit.metadata)}`,
+      detail: `${serialById.get(audit.entityId || '') ? `Serial ${serialById.get(audit.entityId || '')} · ` : ''}${detalleMetadata(redactAuditMetadata(audit.metadata, verCosto))}`,
     })),
-    ...purchaseLines.map(line => ({
+    // Las compras solo aportan proveedor y costos: se omiten para roles sin permiso.
+    ...(verCosto ? purchaseLines : []).map(line => ({
       id: `purchase-${line.id}`,
       type: 'purchase',
       action: line.purchase.status === 'RECEIVED' ? 'Compra recibida' : 'Compra registrada',

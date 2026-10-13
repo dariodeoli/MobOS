@@ -3,13 +3,13 @@
 // objeto estándar (header/cuerpo/pie, cierre con cambios, validación y
 // resultados) vive en la biblioteca; la app no conserva una copia local.
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { leerFuente } from './fuenteStock.js'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import { TAMANOS_MODAL } from '../components/shared/modal.js'
 import { usosDeModal } from '../../scripts/auditoria-modales.mjs'
 
-const leer = (ruta) => readFileSync(fileURLToPath(new URL(ruta, import.meta.url)), 'utf8')
+const leer = (ruta) => leerFuente(fileURLToPath(new URL(ruta, import.meta.url)), 'utf8')
 
 test('cada <Modal> usa un tamaño estándar y no declara max-w a mano', () => {
   const usos = usosDeModal()

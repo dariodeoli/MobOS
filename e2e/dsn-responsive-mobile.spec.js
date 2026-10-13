@@ -36,7 +36,7 @@ const PANTALLAS = [
     await producto.click()
     await expect(page.getByText('Productos de esta venta').first()).toBeVisible({ timeout: 15_000 })
   }],
-  ['inventario', '/inventario/unidades', (page) => filaInventario(page)],
+  ['inventario', '/stock/unidades', (page) => filaInventario(page)],
   ['pedidos', '/pedidos', (page) => page.getByRole('heading', { name: 'Mis pedidos' }), async (page) => {
     // La tabla llega con los datos: esperar la primera fila deja la medición
     // igual en todos los anchos.
@@ -79,8 +79,9 @@ const SUPERFICIES = [
     await page.getByTestId('pedido-fila').first().click()
     await expect(page.getByRole('button', { name: /Imprimir comprobante/ }).first()).toBeVisible({ timeout: 20_000 })
   }],
-  ['inventario-ficha', '/inventario/unidades', (page) => filaInventario(page), async (page) => {
-    await filaInventario(page).locator('span[title^="Categoría:"]').click()
+  ['inventario-ficha', '/stock/unidades', (page) => filaInventario(page), async (page) => {
+    // La fila y la tarjeta de Stock abren la ficha por el modelo.
+    await filaInventario(page).getByTestId('unidad-modelo').click()
     await expect(page.getByRole('dialog').first()).toBeVisible({ timeout: 20_000 })
   }],
   // El bloqueo va al final: la pantalla de PIN tapa la app hasta desbloquear.
@@ -390,7 +391,7 @@ test.describe('demo · POS y páginas clave', () => {
       }],
       ['demo-pedidos', '/pedidos', (page) => page.getByTestId('pedido-fila').first()],
       ['demo-clientes', '/clientes', (page) => page.getByTestId('cliente-fila').first()],
-      ['demo-inventario', '/inventario/unidades', (page) => filaInventario(page)],
+      ['demo-inventario', '/stock/unidades', (page) => filaInventario(page)],
       ['demo-finanzas', '/finanzas/caja', (page) => page.getByText('Saldo esperado').first()],
     ]
     const registro = []

@@ -1,7 +1,9 @@
 // #304 · Inventario móvil: trabajo primero, sin scroll infinito.
 // En 375–390 px el primer producto se ve sin desplazar, en tarjetas compactas
 // que no ocultan el IMEI ni piden scroll horizontal; la tabla ancha queda para
-// escritorio. Corre en el demo anónimo (banner reducido incluido).
+// escritorio. Stock unificado: tarjeta `inventario-tarjeta-movil` (modelo, IMEI,
+// batería y estado; la verificación vive en el menú y en la ficha).
+// Corre en el demo anónimo (banner reducido incluido).
 // Evidencia en docs/qa/304-inventario/.
 import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
@@ -38,8 +40,8 @@ test('#304 · el primer producto entra en el primer viewport móvil', async ({ p
 
   for (const [etiqueta, ancho, alto] of VIEWPORTS) {
     await page.setViewportSize({ width: ancho, height: alto })
-    await page.goto('/inventario/unidades')
-    const tarjeta = page.getByTestId('inventario-tarjeta-movil').first()
+    await page.goto('/stock/unidades')
+    const tarjeta = page.locator('[data-testid="inventario-tarjeta-movil"][data-kind="unit"]').first()
     await expect(tarjeta).toBeVisible({ timeout: 20_000 })
 
     // La tabla ancha no existe en móvil y la página no desborda.
@@ -52,14 +54,12 @@ test('#304 · el primer producto entra en el primer viewport móvil', async ({ p
     expect(caja.y, `${etiqueta}: la tarjeta arranca en y=${Math.round(caja.y)}`).toBeLessThan(alto)
     expect(caja.y + caja.height, `${etiqueta}: la tarjeta termina en ${Math.round(caja.y + caja.height)} con viewport ${alto}`).toBeLessThanOrEqual(alto)
 
-    // Datos de trabajo visibles: modelo, IMEI completo, verificación y estado.
+    // Datos de trabajo visibles: modelo, IMEI completo y estado.
     await expect(tarjeta.locator('b').first()).not.toBeEmpty()
-    const imei = await tarjeta.getByTestId('unidad-imei').evaluate((nodo) => ({ texto: (nodo.textContent || '').trim(), title: nodo.getAttribute('title') || '', scrollWidth: nodo.scrollWidth, clientWidth: nodo.clientWidth }))
+    const imei = await tarjeta.getByTestId('unidad-imei').evaluate((nodo) => ({ texto: (nodo.textContent || '').trim(), scrollWidth: nodo.scrollWidth, clientWidth: nodo.clientWidth }))
     expect(imei.texto.length, 'el IMEI viaja completo').toBeGreaterThan(8)
-    expect(imei.title).toContain(imei.texto)
     expect(imei.scrollWidth, 'el IMEI no se recorta').toBeLessThanOrEqual(imei.clientWidth + 1)
-    await expect(tarjeta.getByTestId('unidad-verificacion')).toBeVisible()
-    await expect(tarjeta.getByText(/^(Disponible|Reservado|Vendido|En revisión|En tránsito)$/).first()).toBeVisible()
+    await expect(tarjeta.getByText(/^(Disponible|Reservado|Vendido|Defectuoso|En revisión|En tránsito)$/).first()).toBeVisible()
 
     if (etiqueta === '375') await capturar(page, 'inventario-375-light.png', false)
     if (etiqueta === '390') {
@@ -69,15 +69,16 @@ test('#304 · el primer producto entra en el primer viewport móvil', async ({ p
   }
 })
 
-test('#304 · Ver abre la ficha y Más agrupa las acciones de la tarjeta', async ({ page }) => {
+test('#304 · la tarjeta abre la ficha y Más agrupa las acciones', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await entrarDemo(page)
-  await page.goto('/inventario/unidades')
-  const tarjeta = page.getByTestId('inventario-tarjeta-movil').first()
+  await page.goto('/stock/unidades')
+  // Una unidad disponible ofrece todas las acciones (la en tránsito no se vende).
+  const tarjeta = page.locator('[data-testid="inventario-tarjeta-movil"][data-kind="unit"][data-estado="disponible"]').first()
   await expect(tarjeta).toBeVisible({ timeout: 20_000 })
 
-  // Ver abre la ficha de la unidad (sin scroll horizontal).
-  await tarjeta.getByRole('button', { name: 'Ver', exact: true }).click()
+  // Tocar la tarjeta abre la ficha de la unidad (sin scroll horizontal).
+  await tarjeta.getByRole('button', { name: /^Ver detalles de/ }).click()
   const ficha = page.getByRole('dialog')
   await expect(ficha).toBeVisible({ timeout: 20_000 })
   await expect(ficha.getByText('Ficha del equipo')).toBeVisible({ timeout: 20_000 })
@@ -86,6 +87,6 @@ test('#304 · Ver abre la ficha y Más agrupa las acciones de la tarjeta', async
   // Más: las acciones de siempre, incluida Verificar (la tarjeta no tiene botón inline).
   await tarjeta.getByLabel(/^Acciones de/).click()
   for (const accion of ['Vender', 'Reservar', 'Verificar', 'Dar de baja']) {
-    await expect(tarjeta.getByRole('menuitem', { name: accion, exact: true })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: accion, exact: true })).toBeVisible()
   }
 })

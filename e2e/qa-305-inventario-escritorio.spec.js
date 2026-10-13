@@ -1,8 +1,8 @@
 import { selectInventorySection } from './helpers/shell-navigation.js'
-// #305 · Inventario escritorio: menos capas antes de la tabla, navegación
-// agrupada (Stock · Movimientos · Control) y tabla sin scroll horizontal ni
-// datos recortados (IMEI de 15 dígitos completo y verificación con fecha
-// completa). La garantía y los locks salen de la fila: viven en el detalle.
+// #305 · Stock escritorio: menos capas antes de la tabla, navegación agrupada
+// (Unidades · Reservas · Movimientos · Control) y tabla sin scroll horizontal ni
+// datos recortados (IMEI de 15 dígitos completo). La garantía, los locks y la
+// verificación salen de la fila: viven en la ficha y en el menú de acciones.
 //
 // Corre con la sesión admin del arnés. Evidencia en docs/qa/305-inventario/.
 import { test, expect } from '@playwright/test'
@@ -33,28 +33,24 @@ const medirDesborde = (locator) => locator.evaluate((nodo) => ({ scrollWidth: no
 test('#305 · una barra, navegación agrupada y tabla completa en escritorio', async ({ page }) => {
   mkdirSync(DIR, { recursive: true })
   await page.setViewportSize({ width: 1280, height: 900 })
-  await page.goto('/inventario/unidades')
+  await page.goto('/stock/unidades')
   await expect(page.getByTestId('inventario-fila').first()).toBeVisible({ timeout: 20_000 })
 
-  // Una sola barra antes de la tabla: buscador, orden y vista adentro; sin el
-  // resumen de métricas que apilaba capas (#305).
+  // Una sola barra antes de la tabla: buscador, vista Productos ⇄ Unidades y
+  // acción primaria; sin el resumen de métricas que apilaba capas (#305).
   const barra = page.getByTestId('barra-inventario')
   await expect(barra).toHaveCount(1)
   await expect(barra.getByLabel('Buscar en inventario')).toBeVisible()
-  await expect(barra.getByLabel('Orden del inventario')).toBeVisible()
   await expect(barra.getByRole('button', { name: '+ Recibir unidad', exact: true })).toBeVisible()
   await expect(barra.getByRole('button', { name: 'Más', exact: true })).toBeVisible()
   await expect(page.getByTestId('resumen-inventario')).toHaveCount(0)
 
-  // Navegación agrupada: solo las vistas del grupo activo.
+  // Navegación agrupada: secciones arriba y solo las vistas de la sección activa.
   const tabs = page.getByTestId('tabs-inventario')
-  for (const group of ['Stock', 'Movimientos', 'Control']) {
-    await expect(tabs.locator(`optgroup[label="${group}"]`)).toBeAttached()
+  for (const seccion of ['Unidades', 'Reservas', 'Movimientos', 'Control']) {
+    await expect(tabs.getByRole('tab', { name: seccion })).toBeVisible()
   }
-  await expect(tabs.locator('optgroup[label="Stock"]').getByRole('option', { name: 'Reservas', exact: true })).toBeAttached()
-  await expect(tabs.locator('optgroup[label="Stock"]').getByRole('option', { name: 'En tránsito', exact: true })).toHaveCount(0)
-  await expect(tabs.locator('optgroup[label="Movimientos"]').getByRole('option', { name: 'En tránsito', exact: true })).toBeAttached()
-  await expect(tabs.locator('optgroup[label="Control"]').getByRole('option', { name: 'Conteos', exact: true })).toBeAttached()
+  await expect(page.getByTestId('subtabs-inventario').getByRole('tab', { name: 'En tránsito', exact: true })).toHaveCount(0)
   for (const value of ['reservas', 'transito', 'conteos', 'unidades']) await selectInventorySection(page, value)
 
 
@@ -69,7 +65,7 @@ test('#305 · una barra, navegación agrupada y tabla completa en escritorio', a
   expect(verificacion.status, JSON.stringify(verificacion.body)).toBe(200)
 
   try {
-    await page.goto(`/inventario/unidades?q=${encodeURIComponent(serial)}`)
+    await page.goto(`/stock/unidades?q=${encodeURIComponent(serial)}`)
     const fila = page.getByTestId('inventario-fila').filter({ hasText: serial }).first()
     await expect(fila).toBeVisible({ timeout: 20_000 })
 
@@ -78,22 +74,18 @@ test('#305 · una barra, navegación agrupada y tabla completa en escritorio', a
     const anchoTabla = await medirDesborde(tabla)
     expect(anchoTabla.scrollWidth, `la tabla scrollea ${anchoTabla.scrollWidth - anchoTabla.clientWidth} px en 1280`).toBeLessThanOrEqual(anchoTabla.clientWidth + 1)
 
-    // IMEI completo y verificación con fecha completa, sin recortes.
+    // IMEI completo, sin recortes.
     const celdaImei = fila.getByTestId('unidad-imei')
-    const celdaVerificacion = fila.getByTestId('unidad-verificacion')
     await expect(celdaImei).toHaveText(serial)
-    await expect(celdaVerificacion).toContainText(/\d{2}\/\d{2}\/\d{4}/)
-    for (const [nombre, celda] of [['IMEI', celdaImei], ['verificación', celdaVerificacion]]) {
-      const medida = await medirDesborde(celda)
-      expect(medida.scrollWidth, `la celda de ${nombre} se recorta`).toBeLessThanOrEqual(medida.clientWidth + 1)
-    }
-    // La garantía salió de la tabla (vive en el detalle, botón de ojo).
+    const medida = await medirDesborde(celdaImei)
+    expect(medida.scrollWidth, 'la celda de IMEI se recorta').toBeLessThanOrEqual(medida.clientWidth + 1)
+    // La garantía salió de la tabla (vive en el detalle).
     await expect(fila.getByText(/^Garantía/)).toHaveCount(0)
 
-    // «Verificar» aparece una sola vez: el botón de la columna, no en el menú.
-    await expect(fila.getByLabel('✓ Verificar')).toBeVisible()
+    // «Verificar» vive en el menú de acciones de la fila (no hay botón inline).
+    await expect(fila.getByLabel('✓ Verificar')).toHaveCount(0)
     await fila.getByLabel(/^Acciones de/).click()
-    await expect(page.getByRole('button', { name: 'Verificar', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('menuitem', { name: 'Verificar', exact: true })).toBeVisible()
     await page.keyboard.press('Escape')
 
     await capturar(page, 'inventario-1280-light.png', false)
@@ -105,7 +97,7 @@ test('#305 · una barra, navegación agrupada y tabla completa en escritorio', a
 
   // Mobile: tarjetas compactas (#304), sin desborde de página.
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/inventario/unidades')
+  await page.goto('/stock/unidades')
   await expect(page.getByTestId('inventario-tarjeta-movil').first()).toBeVisible({ timeout: 20_000 })
   await capturar(page, 'inventario-390-light.png', false, false)
   const desborde = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)

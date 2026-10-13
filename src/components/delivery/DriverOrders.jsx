@@ -3,7 +3,10 @@ import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import { Aviso, Badge, Button, Input, Modal, Money, MoneyInput, Select, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
-import { cn } from '@/lib/utils'
+import ListaDensa from '@/components/shared/ListaDensa'
+import { usePaginaLista } from '@/components/shared/usePaginaLista'
+import { ChipsReparto } from './ChipsReparto'
+import './entregasF3.css'
 import { codigoPedido } from '@/utils/pedido'
 import { montoTexto } from '@/utils/moneda'
 import { useSellerData, SellerFeedback } from '@/components/ventas/SellerData'
@@ -17,19 +20,19 @@ const TONO_ESTADO = (fulfillment) => fulfillment === 'DELIVERED' ? 'green'
 
 function FilaMonto({ label, value, tono = '' }) {
   return (
-    <p className="flex items-baseline justify-between gap-3">
-      <span className="text-xs text-mute">{label}</span>
-      <span className={cn('text-sm font-semibold tabular-nums', tono)}><Money value={value} /></span>
-    </p>
+    <span>
+      {label}
+      <strong className={tono}><Money value={value} /></strong>
+    </span>
   )
 }
 
 function PedidoReparto({ row, onCobrar, onEstado, busy }) {
   const pendiente = row.pendiente > 0
   return (
-    <article data-testid="reparto-pedido" data-pedido={row.number} className="rounded-2xl border border-fore/10 bg-ink-800/40 p-4">
+    <article data-testid="reparto-pedido" data-pedido={row.number} className="entregas-f3-order">
       <header className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-mono text-sm font-bold text-fono-light">{codigoPedido(row.number)}</span>
+        <span className="font-mono text-sm font-semibold">{codigoPedido(row.number)}</span>
         <div className="flex flex-wrap items-center gap-2">
           {/* Pre-cobro: el total ya está cubierto en la calle, aunque la
               tienda todavía no verificó la rendición. */}
@@ -37,30 +40,28 @@ function PedidoReparto({ row, onCobrar, onEstado, busy }) {
           <Badge color={TONO_ESTADO(row.fulfillment)}>{ENTREGA_LABELS[row.fulfillment] || row.fulfillment}</Badge>
         </div>
       </header>
-      <div className="mt-3 space-y-1">
-        <p className="text-sm font-semibold" data-testid="reparto-cliente">{row.cliente}</p>
-        {row.direccion && (
-          <p className="flex items-start gap-1.5 text-xs text-mute">
-            <Icon name="store" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span>{row.direccion}{row.direccionNotas ? ` · ${row.direccionNotas}` : ''}</span>
-          </p>
-        )}
-        {row.telefono && (
-          <p className="flex items-center gap-1.5 text-xs">
-            <Icon name="phone" className="h-3.5 w-3.5 shrink-0 text-mute" />
-            <a href={`tel:+${row.telefono}`} className="toque-44 text-fono-light hover:underline">{row.telefonoVisible || `+${row.telefono}`}</a>
-          </p>
-        )}
-        {row.articulos.length > 0 && <p className="text-xs text-mute">{row.articulos.join(' · ')}</p>}
-        {row.deliveryNotes && <p className="text-xs text-mute">Entrega: {row.deliveryNotes}</p>}
-      </div>
-      <div className="mt-3 space-y-1 rounded-xl border border-fore/10 bg-ink-700/30 p-3">
+      <h2 className="entregas-f3-name" data-testid="reparto-cliente">{row.cliente}</h2>
+      {row.direccion && (
+        <p className="entregas-f3-address">
+          <span className="text-mute">Dirección: </span>
+          {row.direccion}{row.direccionNotas ? ` · ${row.direccionNotas}` : ''}
+        </p>
+      )}
+      {row.telefono && (
+        <p className="entregas-f3-address">
+          <Icon name="phone" className="mr-1.5 inline h-3.5 w-3.5 text-mute" />
+          <a href={`tel:+${row.telefono}`} className="entregas-f3-tel">{row.telefonoVisible || `+${row.telefono}`}</a>
+        </p>
+      )}
+      {row.articulos.length > 0 && <p className="entregas-f3-items">{row.articulos.join(' · ')}</p>}
+      {row.deliveryNotes && <p className="entregas-f3-items">Entrega: {row.deliveryNotes}</p>}
+      <div className="entregas-f3-amounts">
         <FilaMonto label="Total" value={row.total} />
         <FilaMonto label="Confirmado en tienda" value={row.confirmado} />
         {row.cobrado > 0 && <FilaMonto label="Cobrado en la calle (sin rendir)" value={row.cobrado} tono="text-warn" />}
         <FilaMonto label="Falta cobrar" value={row.pendiente} tono={pendiente ? 'text-bad' : 'text-ok'} />
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="entregas-f3-actions">
         {entregable(row.fulfillment) && (
           <Button type="button" variant="outline" disabled={busy} onClick={() => onEstado(row, 'IN_TRANSIT')}>
             <Icon name="truck" className="h-4 w-4" />En camino
@@ -94,6 +95,7 @@ export default function DriverOrders() {
   // #324: en demo los repartos salen de la fixture local (solo los asignados).
   const demoRead = useCallback(() => listDemoDeliveryOrdersDelRepartidor({ estado }), [estado])
   const data = useSellerData(`/api/delivery/orders?estado=${estado}`, deliveryFields, demoRead, esDemo, { limit: 50 })
+  const pagina = usePaginaLista(data.rows, { tamano: 10, modo: 'mas' })
   const [ocupado, setOcupado] = useState('')
 
   function abrirCobro(row) {
@@ -138,19 +140,19 @@ export default function DriverOrders() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
-          {[['activos', 'A entregar'], ['entregados', 'Entregados']].map(([id, label]) => (
-            <button key={id} type="button" onClick={() => setEstado(id)} className={cn('min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition md:min-h-0', estado === id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>
-          ))}
-        </div>
-        <button type="button" onClick={data.refresh} disabled={data.loading} className="ml-auto min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore md:min-h-0">Actualizar</button>
+    <div className="entregas-f3-assignments">
+      <div className="entregas-f3-filters">
+        <ChipsReparto flat value={estado} onChange={setEstado} items={[['activos', 'A entregar'], ['entregados', 'Entregados']]} />
+        <button type="button" onClick={data.refresh} disabled={data.loading} className="entregas-f3-refresh">Actualizar</button>
       </div>
       <SellerFeedback {...data} empty={!data.rows.length} />
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {data.rows.map(row => <PedidoReparto key={row.id} row={row} onCobrar={abrirCobro} onEstado={cambiarEstado} busy={ocupado === row.id} />)}
-      </div>
+      <ListaDensa
+        lista={pagina}
+        claseFilas="entregas-f3-grid"
+        etiquetaPie="Más repartos"
+        unidad="repartos"
+        renderFila={row => <PedidoReparto key={row.id} row={row} onCobrar={abrirCobro} onEstado={cambiarEstado} busy={ocupado === row.id} />}
+      />
 
       <Modal open={Boolean(cobro)} onClose={() => !enviando && setCobro(null)} title="Registrar cobro en la calle" size="corto">
         {cobro && (

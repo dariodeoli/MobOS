@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { leerFuente } from './fuenteStock.js'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
@@ -200,19 +200,19 @@ test('#297 · los formularios mutantes declaran sus reglas en la validación com
     'components/control/Inventario.jsx',
   ]
   for (const ruta of formularios) {
-    const codigo = readFileSync(join(SRC, ruta), 'utf8')
+    const codigo = leerFuente(join(SRC, ruta), 'utf8')
     assert.match(codigo, /useValidacionFormulario/, `${ruta} valida con el hook compartido`)
     assert.match(codigo, /disabled=\{[^}]*\.valido/, `${ruta} deshabilita la acción con el formulario incompleto`)
   }
   // POS: la gift card y los pagos no se cargan sin total por cobrar.
   for (const ruta of ['components/ventas/venta/PasoCobro.jsx', 'components/ventas/FormularioVenta.jsx']) {
-    const codigo = readFileSync(join(SRC, ruta), 'utf8')
+    const codigo = leerFuente(join(SRC, ruta), 'utf8')
     assert.match(codigo, /puedeCanjearGiftCard/, `${ruta} usa la regla de gift cards`)
   }
-  const inventario = readFileSync(join(SRC, 'components/control/Inventario.jsx'), 'utf8')
+  const inventario = leerFuente(join(SRC, 'components/control/Inventario.jsx'), 'utf8')
   assert.match(inventario, /conteoAplicable\(conteoDetalle\)/, 'el conteo documental exige líneas escaneadas')
   assert.match(inventario, /puedeTerminarConteo\(countSession\)/, 'el conteo rápido exige una lectura')
   // La API también rechaza el conteo vacío: no alcanza con esconder el botón.
-  const api = readFileSync(fileURLToPath(new URL('../../backend/app/api/inventory-counts/route.ts', import.meta.url)), 'utf8')
+  const api = leerFuente(fileURLToPath(new URL('../../backend/app/api/inventory-counts/route.ts', import.meta.url)), 'utf8')
   assert.match(api, /Escaneá al menos un equipo antes de aplicar el conteo/)
 })

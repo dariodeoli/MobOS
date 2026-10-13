@@ -7,7 +7,7 @@ import { InputError, objectInput, textInput } from '../../../../lib/payment-inpu
 import { canAccessOrder, validateFulfillmentTransition, canApproveOrderDiscount } from '../../../../lib/orders'
 import { consumeAuthorization, usableAuthorization } from '../../../../lib/authorizations'
 import { serialKey } from '../../../../lib/validation'
-import { changeStock } from '../../../../lib/stock'
+import { changeStock, linkSoldUnits, promoteToEquipo } from '../../../../lib/stock'
 import { numero } from '../../../../lib/montos'
 
 const orderInclude = Prisma.validator<Prisma.OrderInclude>()({
@@ -136,11 +136,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
             // Sobre pedido entregado: la unidad no existía en stock; se crea
             // directamente como vendida, sin mover existencias.
             await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: item.productId, branchId: existing.branchId, serial, condition: 'NEW', status: 'SOLD' } })
+            await promoteToEquipo(tx, tenant, item.productId)
           }
         }
         const saved = await tx.orderItem.update({ where: { id: item.id }, data: { serials: [...(Array.isArray(item.serials) ? item.serials : []), ...serials], serialsPending: { decrement: serials.length } } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_SERIALS_ATTACHED', entity: 'Order', entityId: existing.id, metadata: { itemId, serials } } })
         await syncOrderItemSerials(tx, [saved])
+        await linkSoldUnits(tx, tenant, [{ id: saved.id, serials }])
         return saved
       })
       const order = await prisma.order.findFirstOrThrow({ where: { id: orderId, tenantId: tenant }, include: orderInclude })

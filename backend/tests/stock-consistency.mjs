@@ -1,6 +1,8 @@
 // Verificación de consistencia del stock agregado por unidad física:
 //  - FALLA si Product.stock es MENOR que las unidades disponibles+reservadas
 //    (imposible: hay equipos sin respaldo de stock).
+//  - FALLA si InventoryUnit.removedAt no coincide con el último evento de
+//    baja/restauración de la auditoría (se informa, nunca se corrige solo).
 //  - INFORMA si stock es mayor (puede ser stock sin serie del mismo producto;
 //    se revisa a mano para no borrar mercadería legítima).
 // Uso: DATABASE_URL=... node tests/stock-consistency.mjs [--fix]
@@ -19,11 +21,11 @@ const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) })
 try {
   const deficits = await prisma.$queryRaw`
     SELECT p."id", p."tenantId", p."sku", p."name", p."stock",
-      (SELECT count(*) FROM "InventoryUnit" u WHERE u."productId" = p."id" AND u."status" IN ('AVAILABLE', 'RESERVED'))::int AS units
+      (SELECT count(*) FROM "InventoryUnit" u WHERE u."productId" = p."id" AND u."removedAt" IS NULL AND u."status" IN ('AVAILABLE', 'RESERVED'))::int AS units
     FROM "Product" p
     WHERE p."isActive" = true
       AND EXISTS (SELECT 1 FROM "InventoryUnit" u2 WHERE u2."productId" = p."id")
-      AND p."stock" < (SELECT count(*) FROM "InventoryUnit" u WHERE u."productId" = p."id" AND u."status" IN ('AVAILABLE', 'RESERVED'))
+      AND p."stock" < (SELECT count(*) FROM "InventoryUnit" u WHERE u."productId" = p."id" AND u."removedAt" IS NULL AND u."status" IN ('AVAILABLE', 'RESERVED'))
     ORDER BY p."tenantId", p."name"
     LIMIT 500`
   const surplus = await prisma.$queryRaw`
@@ -31,7 +33,7 @@ try {
     FROM "Product" p
     WHERE p."isActive" = true
       AND EXISTS (SELECT 1 FROM "InventoryUnit" u2 WHERE u2."productId" = p."id")
-      AND p."stock" > (SELECT count(*) FROM "InventoryUnit" u WHERE u."productId" = p."id" AND u."status" IN ('AVAILABLE', 'RESERVED'))`
+      AND p."stock" > (SELECT count(*) FROM "InventoryUnit" u WHERE u."productId" = p."id" AND u."removedAt" IS NULL AND u."status" IN ('AVAILABLE', 'RESERVED'))`
   // Espejo indexado de seriales: cada serial del JSON de la línea debe tener
   // su fila en OrderItemSerial (y ninguna fila suelta).
   const mirrorMismatch = await prisma.$queryRaw`
@@ -66,10 +68,28 @@ try {
     const mirrorTotal = await prisma.orderItemSerial.count()
     console.log(`order-item-serials: OK (${mirrorTotal} serial(es) indexado(s))`)
   }
+  // Baja real vs auditoría: el campo removedAt debe ser exactamente el conjunto
+  // de unidades cuyo último evento es INVENTORY_UNIT_REMOVED (historial completo).
+  const removedMismatch = await prisma.$queryRaw`
+    SELECT u."id", u."serial", (u."removedAt" IS NOT NULL) AS "campo", (e."action" = 'INVENTORY_UNIT_REMOVED') AS "auditoria"
+    FROM "InventoryUnit" u
+    LEFT JOIN (
+      SELECT DISTINCT ON ("tenantId", "entityId") "tenantId", "entityId", "action"
+      FROM "AuditLog"
+      WHERE "entity" = 'InventoryUnit' AND "action" IN ('INVENTORY_UNIT_REMOVED', 'INVENTORY_UNIT_RESTORED') AND "entityId" IS NOT NULL
+      ORDER BY "tenantId", "entityId", "createdAt" DESC, "id" DESC
+    ) e ON e."tenantId" = u."tenantId" AND e."entityId" = u."id"
+    WHERE (u."removedAt" IS NOT NULL) IS DISTINCT FROM COALESCE(e."action" = 'INVENTORY_UNIT_REMOVED', false)
+    LIMIT 500`
+  if (removedMismatch.length) {
+    for (const row of removedMismatch) console.log(`BAJA ${row.id} · ${row.serial}: removedAt=${row.campo ? 'sí' : 'no'} auditoría=${row.auditoria ? 'baja' : 'activa'}`)
+    console.log(`stock-consistency: ${removedMismatch.length} unidad(es) con removedAt distinto de la auditoría (revisar a mano; no se corrige solo).`)
+    process.exitCode = 1
+  } else console.log('stock-consistency: removedAt coincide con la auditoría')
   if (surplus[0]?.total > 0) console.log(`stock-consistency: ${surplus[0].total} producto(s) con stock mayor a las unidades (puede ser stock sin serie; revisar a mano).`)
   if (!deficits.length) {
     console.log('stock-consistency: OK (sin faltantes de stock)')
-    process.exit(0)
+    process.exit(process.exitCode || 0)
   }
   for (const row of deficits) console.log(`FALTA ${row.tenantId} · ${row.sku} · ${row.name}: stock=${row.stock} unidades=${row.units}`)
   if (!fix) {

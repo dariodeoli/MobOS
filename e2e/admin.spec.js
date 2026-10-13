@@ -60,15 +60,14 @@ test.describe('owner panel', () => {
     // La grilla completa (con su encabezado) aparece desde 1440 px: debajo, la
     // lista pasa a la presentación compacta del shell.
     await page.setViewportSize({ width: 1440, height: 900 })
-    await page.goto('/inventario/unidades')
-    // El título de la página lo pone el panel (un solo h1); Inventario aporta el subtítulo.
+    await page.goto(`/stock/unidades?q=${encodeURIComponent(SEED.products.iphone.imei)}`)
+    // El título de la página lo pone el panel (un solo h1); Stock aporta el subtítulo.
     await expect(page.getByRole('heading', { name: 'Unidades', level: 1 })).toBeVisible()
     await expect(page.getByText('Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría.')).toBeVisible()
-    await expect(page.getByTestId('tabs-inventario').getByRole('option', { name: 'Inventario', exact: true })).toBeAttached()
-    // La tabla compacta alinea el serial por columna (últimos 4 destacados) y
-    // la estructura final de #285 deja el IMEI como columna propia.
-    await expect(page.getByText('Verificación', { exact: true }).first()).toBeVisible()
-    await expect(page.getByText('IMEI', { exact: true }).first()).toBeVisible()
+    await expect(page.getByTestId('grupos-inventario').getByRole('tab', { name: 'Unidades', exact: true }).first()).toBeVisible()
+    // La lista de Stock alinea el IMEI en su propia columna (Modelo · IMEI / serie ·
+    // Batería · Proveedor · Costo · Estado).
+    await expect(page.getByTestId('inventario-encabezado').getByText('IMEI / serie', { exact: true })).toBeVisible()
     await expect(page.getByText(new RegExp(SEED.products.iphone.imei))).toBeVisible()
   })
 
@@ -98,7 +97,8 @@ test.describe('owner panel', () => {
       },
       { api: API, serial },
     )
-    await page.reload()
+    // La lista pagina por cursor: se busca el serial para tenerlo en pantalla.
+    await page.goto(`/stock/unidades?q=${encodeURIComponent(serial)}`)
 
     const fila = () => page.getByTestId('inventario-fila').filter({ hasText: serial }).first()
     await expect(fila()).toBeVisible()
@@ -118,10 +118,12 @@ test.describe('owner panel', () => {
     await modal.getByRole('button', { name: 'Reservar', exact: true }).click()
     await expect(page.getByText(/Reserva creada por 2 horas/)).toBeVisible()
 
-    // Sigue en Inventario, con su estado y el atajo para cerrar la venta.
+    // Sigue en Stock, con su estado y el atajo para cerrar la venta en el menú de la fila.
     const reservada = fila()
     await expect(reservada.getByText('Reservado')).toBeVisible()
-    await expect(reservada.getByRole('button', { name: 'Finalizar venta' })).toBeVisible()
+    await reservada.getByLabel(/^Acciones de/).click()
+    await expect(page.getByRole('menuitem', { name: 'Finalizar venta' })).toBeVisible()
+    await page.keyboard.press('Escape')
 
     // Se libera para dejar el stock como estaba.
     await page.evaluate(
@@ -678,7 +680,7 @@ test('autorizaciones → el dueño resuelve su propia solicitud', async ({ page 
 // en el listado y se limpia por API para no dejar el equipo del seed consignado.
 test('inventario: marca y quita la consignación de un equipo', async ({ page }) => {
   const tercero = `Tercero E2E ${Date.now()}`
-  await page.goto('/inventario')
+  await page.goto(`/stock/unidades?q=${encodeURIComponent(SEED.products.iphone.imei)}`)
   const fila = () => page.getByTestId('inventario-fila').filter({ hasText: SEED.products.iphone.imei }).first()
   await fila().click()
   const detalle = page.getByRole('dialog', { name: /iPhone/ })
@@ -700,7 +702,11 @@ test('inventario: marca y quita la consignación de un equipo', async ({ page })
     }, { api: API, serial: SEED.products.iphone.imei }), { timeout: 15000 })
     .toContain('Tercero E2E')
   await page.reload()
-  await expect(page.getByText('Consignado').first()).toBeVisible()
+  // La lista de Stock no lleva la etiqueta de consignación: el dato vive en la
+  // ficha, que vuelve a abrirse con el consignador guardado.
+  await fila().click()
+  await expect(page.getByRole('dialog', { name: /iPhone/ }).getByLabel('Consignador', { exact: true })).toHaveValue(tercero)
+  await page.keyboard.press('Escape')
 
   // Limpieza determinista por API.
   await page.evaluate(async ({ api, serial }) => {
@@ -716,7 +722,9 @@ test('inventario: marca y quita la consignación de un equipo', async ({ page })
     })
   }, { api: API, serial: SEED.products.iphone.imei })
   await page.reload()
-  await expect(page.getByText('Consignado')).toHaveCount(0)
+  await fila().click()
+  await expect(page.getByRole('dialog', { name: /iPhone/ }).getByLabel('Consignador', { exact: true })).toHaveValue('')
+  await page.keyboard.press('Escape')
 })
 
 // Mini CRM de clientes (#121): tabla compacta con búsqueda instantánea,

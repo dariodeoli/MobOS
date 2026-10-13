@@ -87,3 +87,11 @@ Retirar únicamente los hunks propios de presentación de `StoreDelivery.jsx`, e
 ## Independent final verification — 2026-10-11
 
 Independent read-only verification against checkpoint `514e7f65`: focused Node 25/25, full frontend Playwright 57/57 with zero retries, and diff whitespace check passed. Previous 48 browser cases remain an exact prefix. Assignment/reassignment/release payloads, unpaid-authorization condition and settlement body remain unchanged; scoped CSS does not affect other modules. No severe candidate-caused findings identified. Parent inspected desktop light and mobile dark screenshots and ran the two focused presentation contracts successfully. Verification is frontend demo/mocks only; server authorization, persistence, reconciliation, CI and production are not certified. No push, merge or deployment performed.
+
+## U5a — Rendiciones y panel del repartidor (rama codex/ui-u5-density)
+
+- Rendiciones de la tienda, «Mis repartos» y «Mis rendiciones» del repartidor usan ahora las mismas tarjetas, chips y acciones de 44px que Entregas (`entregasF3.css`; `ChipsReparto.jsx` compartido). Listas de a 10 con «Cargar más» y «Mostrando X de Y» (bloque `shared/ListaDensa`).
+- Sin cambios de acciones, permisos, endpoints ni testids: verificar/rechazar (motivo obligatorio, Esc cancela), En camino, Marcar entregado, Registrar cobro (Idempotency-Key) y Rendir.
+- `entregasF3.test.js`: el hash de bytes de Rendiciones se reemplazó por contratos explícitos (verify/reject, testids, confirmación); se agregó un contrato para el panel del repartidor.
+- Pruebas de navegador nuevas «U5a» (375 claro/oscuro y 1440): sin scroll horizontal, controles ≥44px, importes sin elipsis, Esc en rechazo y cobro.
+- Límites: demo/mocks; Asignaciones y la tabla de pedidos no se tocaron; el panel conserva el shell existente.

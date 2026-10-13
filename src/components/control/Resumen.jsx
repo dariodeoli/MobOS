@@ -39,7 +39,7 @@ const UMBRAL_STOCK_BAJO = 3
 // Pendientes de hoy: lo accionable del día, en una franja compacta arriba de
 // todo. Con todo al día se muestra el estado en verde en lugar de esconderse.
 const PENDIENTES_HOY = [
-  { clave: 'reservas', texto: 'Reservas por vencer (24 h)', ruta: '/inventario/reservas', tono: 'warn' },
+  { clave: 'reservas', texto: 'Reservas por vencer (24 h)', ruta: '/stock/reservas', tono: 'warn' },
   { clave: 'garantias', texto: 'Garantías vencidas sin entregar', ruta: '/garantias', tono: 'bad' },
   { clave: 'cuotas', texto: 'Cuotas vencidas por cobrar', ruta: '/finanzas/cuotas', tono: 'bad' },
 ]
@@ -468,7 +468,7 @@ export default function Resumen() {
           <h2 className="mb-3 font-semibold">Para resolver hoy</h2>
           <PendientesDeHoy pendientes={pendientesHoy} onIr={navigate} />
           {d.sinPagar > 0 && <Button variant="ghost" onClick={irAPendientes}>{d.sinPagar} {d.sinPagar === 1 ? 'venta' : 'ventas'} con saldo · Ver pendientes</Button>}
-          {lowStockProducts.length > 0 && <Button variant="ghost" onClick={() => navigate('/inventario/unidades')}>{lowStockProducts.length} productos con stock bajo · Ver inventario</Button>}
+          {lowStockProducts.length > 0 && <Button variant="ghost" onClick={() => navigate('/stock/unidades')}>{lowStockProducts.length} productos con stock bajo · Ver inventario</Button>}
           {!pendientesHoy && !d.sinPagar && !lowStockProducts.length && <p className="text-sm text-mute">Sin pendientes disponibles en esta vista.</p>}
         </Card>
         {/* ── Cómo te pagaron ─────────────────────────────────────── */}
@@ -622,7 +622,7 @@ export default function Resumen() {
               type="button"
               variant="ghost"
               className="h-auto px-2 py-1 text-xs font-medium"
-              onClick={() => navigate('/inventario/unidades')}
+              onClick={() => navigate('/stock/unidades')}
               title="Ver las alertas de stock en Inventario"
             >
               Ver alertas
@@ -650,7 +650,7 @@ export default function Resumen() {
                   </Badge>
                   <button
                     type="button"
-                    onClick={() => navigate('/inventario/unidades')}
+                    onClick={() => navigate('/stock/unidades')}
                     className="flex shrink-0 items-center gap-1 rounded-lg border border-ink-500 px-2 py-1 text-xs text-mute transition hover:border-fono hover:text-white"
                   >
                     Ver inventario
