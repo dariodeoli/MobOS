@@ -585,7 +585,7 @@ test('impresión y correos (comprobante · cotización · impresoras)', async ({
   await expect(page.getByTestId('cotizaciones-tabla')).toBeVisible({ timeout: 30_000 })
   const filaCorreo = page.getByTestId('cotizacion-fila').filter({ hasText: cotizacion.body.number }).first()
   await expect(filaCorreo).toBeVisible({ timeout: 20_000 })
-  await filaCorreo.getByRole('button', { name: 'Correo' }).click()
+  await clickRowAction(page, filaCorreo, 'Correo')
   const dialogoCorreo = page.getByRole('dialog')
   await expect(dialogoCorreo.getByRole('heading', { name: /por correo/ })).toBeVisible({ timeout: 20_000 })
   await dialogoCorreo.getByLabel('Correo del cliente').fill(`qa325-${marca.toLowerCase()}@ejemplo.invalid`)
