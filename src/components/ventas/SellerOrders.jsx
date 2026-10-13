@@ -359,7 +359,9 @@ export default function SellerOrders() {
   // página) el detalle se resuelve solo por su id interno contra la API. La
   // página es exclusiva: antes el detalle quedaba debajo del listado, fuera del
   // viewport, y parecía que el enlace no cargaba.
-  const seleccion = useMemo(() => (orderId ? rows.find((row) => row.id === orderId) || null : null), [orderId, rows])
+  // Se busca en todas las filas cargadas, no en las filtradas: un filtro o una
+  // búsqueda que cambian con el pedido abierto no deben cerrarlo.
+  const seleccion = useMemo(() => (orderId ? todas.find((row) => row.id === orderId) || null : null), [orderId, todas])
   const [pedidoPanel, setPedidoPanel] = useState(null)
   // Respaldo estable: sin el memo, cada render creaba un `{ id }` nuevo,
   // PedidoDetalle recargaba el pedido en loop y el modal del cliente perdía lo
