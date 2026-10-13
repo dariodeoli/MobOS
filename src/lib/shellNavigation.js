@@ -168,6 +168,13 @@ export function shellContextGroups(section) {
     .filter(group => group.items.length)
 }
 
+// Precios (Listas · Lista por modelo · Comparador · Centro de Control) pone su
+// segundo nivel dentro de la barra de herramientas de cada vista, no en el
+// encabezado de página (docs/PANTALLAS.md regla 7).
+export function segmentosEnToolbar(group) {
+  return Boolean(group?.items.some(([id]) => id === 'precios') && group.items.some(([id]) => id === 'celulares'))
+}
+
 // Level 2 (segmented) entries of a group with more than one destination.
 export function shellSegments(group) {
   if (!group || group.items.length < 2) return []

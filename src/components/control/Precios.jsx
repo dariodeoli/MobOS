@@ -9,6 +9,7 @@ import ProductCombobox from '@/components/shared/ProductCombobox'
 import Switch from '@/components/shared/Switch'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import Toolbar from '@/components/shared/Toolbar'
+import SegmentosToolbar from '@/components/app/SegmentosToolbar'
 import FieldRow from '@/components/shared/FieldRow'
 import '@/components/stock/stockToque.css'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
@@ -247,6 +248,7 @@ export default function Precios() {
       plano
       testId="barra-precios"
       label="Acciones de precios"
+      view={<SegmentosToolbar />}
       more={<span role="img" aria-label={AYUDA_PRECIOS} title={AYUDA_PRECIOS} className="hidden h-8 w-8 place-items-center text-mute sm:inline-grid"><Icon name="info" className="h-4 w-4" /></span>}
       primary={<Button type="button" className="min-h-11 lg:min-h-0" onClick={() => abrirLista()} disabled={busy}>+ Nueva lista</Button>}
     />

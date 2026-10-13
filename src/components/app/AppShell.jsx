@@ -11,6 +11,7 @@ import ComoFuncionaDemo from '@/components/app/ComoFuncionaDemo'
 import PanelColaOffline from '@/components/ventas/PanelColaOffline'
 import SectionTabs from '@/components/app/SectionTabs'
 import PageHeader from '@/components/app/PageHeader'
+import { SegmentosToolbarContext } from '@/components/app/SegmentosToolbar'
 import DemoBanner from '@/components/app/DemoBanner'
 import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
@@ -28,6 +29,7 @@ import {
   shellContextGroups,
   shellNavigation,
   shellSegments,
+  segmentosEnToolbar,
 } from '@/lib/shellNavigation'
 import './shellNavigation.css'
 
@@ -265,6 +267,7 @@ export default function AppShell({
       onChange={id => navegar(contextGroups.find(group => group.id === id).items[0][0])}
     />
   ) : null
+  const enToolbar = segmentosEnToolbar(currentGroup)
   const segmentsNode =
     segments.length > 1 ? (
       <SectionTabs
@@ -274,7 +277,7 @@ export default function AppShell({
         items={segments}
         value={active}
         onChange={navegar}
-        className="mt-2"
+        className={enToolbar ? undefined : 'mt-2'}
       />
     ) : null
 
@@ -382,15 +385,17 @@ export default function AppShell({
           }
         >
           {tabsNode}
-          {segmentsNode}
+          {!enToolbar && segmentsNode}
         </PageHeader>
-        {loading ? (
-          <main className="flex-1 px-4 pb-4 pt-1 md:px-6 lg:pt-4" aria-busy="true">
-            <Skeleton className="h-40 w-full" />
-          </main>
-        ) : (
-          children
-        )}
+        <SegmentosToolbarContext.Provider value={enToolbar ? segmentsNode : null}>
+          {loading ? (
+            <main className="flex-1 px-4 pb-4 pt-1 md:px-6 lg:pt-4" aria-busy="true">
+              <Skeleton className="h-40 w-full" />
+            </main>
+          ) : (
+            children
+          )}
+        </SegmentosToolbarContext.Provider>
       </div>
       {showBottomNav && (
         <nav

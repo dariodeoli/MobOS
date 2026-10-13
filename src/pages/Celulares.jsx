@@ -9,6 +9,7 @@ import Icon from '@/components/shared/Icon'
 import BarraModulo from '@/components/shared/BarraModulo'
 import { APP_NAME } from '@/lib/brand'
 import ThemeLogo from '@/components/app/ThemeLogo'
+import SegmentosToolbar from '@/components/app/SegmentosToolbar'
 
 // Agrupa por modelo (más nuevo arriba; capacidad ascendente dentro de cada uno).
 function agrupar(celulares) {
@@ -112,6 +113,7 @@ export default function Celulares() {
         descripcion="Precios de nuevos y semi-nuevos por modelo y capacidad, listos para compartir con el cliente."
         testId="barra-celulares"
       >
+        <SegmentosToolbar />
         <Button variant="success" onClick={exportar} disabled={!conPrecio.length || exportando}>
           <Icon name="share" className="h-4 w-4" />{exportando ? 'Generando…' : 'Compartir por WhatsApp'}
         </Button>

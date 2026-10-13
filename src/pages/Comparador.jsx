@@ -7,6 +7,7 @@ import { colorHex } from '@/utils/colores'
 import { cn } from '@/lib/utils'
 import { Button, Select } from '@/components/ui'
 import BarraModulo from '@/components/shared/BarraModulo'
+import SegmentosToolbar from '@/components/app/SegmentosToolbar'
 import Icon from '@/components/shared/Icon'
 
 const CONDICIONES = [
@@ -174,6 +175,7 @@ export default function Comparador() {
         descripcion="Hasta tres modelos lado a lado: capacidades, colores y precios reales del catálogo."
         testId="barra-comparador"
       >
+        <SegmentosToolbar />
         <div className="inline-flex rounded-xl border border-ink-600 bg-ink-800 p-1" role="group" aria-label="Condición de los modelos">
           {CONDICIONES.map(([key, label]) => (
             <button

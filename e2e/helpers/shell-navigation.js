@@ -184,6 +184,8 @@ export async function openShellDestination(page, label) {
   if (await context.count()) await clickTab(context, group)
   // Level 2 (segmented) exists only for groups with several destinations.
   const segments = page.getByTestId('shell-subcontexto')
+  // Precios pone su segundo nivel en la barra de la vista (carga perezosa): esperar la fila.
+  if (group === 'precios') await segments.waitFor({ state: 'attached' })
   if (await segments.count()) await clickTab(segments, destination)
 }
 // In-page sections (Análisis, Finanzas, Configuración) are SectionTabs: tabs
@@ -255,6 +257,7 @@ export async function shellCatalog(page) {
       }
       await clickTab(context, group)
       const segments = page.getByTestId('shell-subcontexto')
+      if (group === 'precios') await segments.waitFor({ state: 'attached' })
       if (await segments.count()) for (const id of await tabIds(segments)) destinations.add(label(id))
       else
         destinations.add(

@@ -5,6 +5,7 @@ import { procesarImagenComparador } from '@/utils/imagen'
 import { useLive } from '@/hooks/useLive'
 import { Badge, Button, Card, ConfirmDialog, EmptyState, IconAction, Input, Label, Select, Subtabs, useToast } from '@/components/ui'
 import BarraModulo from '@/components/shared/BarraModulo'
+import SegmentosToolbar from '@/components/app/SegmentosToolbar'
 import Icon from '@/components/shared/Icon'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 
@@ -34,7 +35,9 @@ function SinApi() {
         titulo="Centro de Control"
         descripcion="Cargá la lista de precios por modelo y las fotos reales del comparador."
         testId="barra-centro-control"
-      />
+      >
+        <SegmentosToolbar />
+      </BarraModulo>
       <Card className="mx-auto max-w-2xl p-5" data-testid="centro-control-sin-api">
         <span className="grid h-10 w-10 place-items-center rounded-xl bg-fono/10 text-fono-light">
           <Icon name="info" className="h-5 w-5" />
@@ -355,7 +358,9 @@ export default function CentroControl() {
         titulo="Centro de Control"
         descripcion="La lista de precios por modelo y las fotos reales que alimentan Lista por modelo y Comparador."
         testId="barra-centro-control"
-      />
+      >
+        <SegmentosToolbar />
+      </BarraModulo>
       <Subtabs
         value={seccion}
         onChange={(id) => setParams(id === 'imagenes' ? { seccion: 'imagenes' } : {}, { replace: true })}
