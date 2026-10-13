@@ -384,9 +384,10 @@ export function FilaUnidad({
 export function columnasStock({ verCosto, vista }) {
   const extra = vista === 'vendidos' ? ['8.5rem'] : vista === 'eliminados' ? ['minmax(8rem,1fr)'] : []
   const acciones = vista === 'eliminados' ? '11.5rem' : '2.75rem'
-  const base = ['2.75rem', 'minmax(7.5rem,1.7fr)', 'minmax(8.5rem,1fr)', '4.5rem']
+  // Anchos mínimos medidos para que la grilla compacta entre en 768 px (tablet) sin recortar Acciones.
+  const base = ['2.75rem', 'minmax(6rem,1.7fr)', 'minmax(7.25rem,1fr)', '4.5rem']
   const completa = [...base, ...(verCosto ? ['minmax(5.5rem,0.9fr)', '7.75rem'] : []), '8.25rem', ...extra, acciones]
-  const compacta = [...base, ...(verCosto ? ['7.75rem'] : []), '8.25rem', ...extra, acciones]
+  const compacta = [...base, ...(verCosto ? ['6.5rem'] : []), '8.25rem', ...extra, acciones]
   return { completa: completa.join(' '), compacta: compacta.join(' ') }
 }
 

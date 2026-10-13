@@ -104,7 +104,7 @@ export default function ListaStock({ ctx, vista = 'unidades' }) {
   const todosMarcados = items.length > 0 && items.every((item) => seleccionados.includes(item.id))
 
   return (
-    <div className="stock-lista mt-4 space-y-3" data-testid="inventario-lista" data-vista={vista}>
+    <div className="stock-lista mt-2 space-y-2 md:mt-4 md:space-y-3" data-testid="inventario-lista" data-vista={vista}>
       <FiltrosStock
         filtros={filtros}
         vista={vista}
@@ -113,6 +113,7 @@ export default function ListaStock({ ctx, vista = 'unidades' }) {
         verProveedor={rolVeCosto}
         onCambio={cambiarFiltros}
         onLimpiar={limpiarFiltros}
+        compacto={angosta}
       />
       {stock.error ? (
         <Aviso tono="error" data-testid="stock-error">

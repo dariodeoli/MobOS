@@ -296,7 +296,7 @@ export function TarjetaStockMovil({ item, vista = 'unidades', verCosto = false, 
             <EstadoStock item={item} />
             <BateriaStock item={item} />
           </span>
-          {ubicacion ? <span className="mt-1 block text-[11px] text-mute">{ubicacion}</span> : null}
+          {ubicacion ? <span className="mt-1 block truncate text-[11px] text-mute" title={ubicacion}>{ubicacion}</span> : null}
           {vista === 'vendidos' ? <span className="mt-1 block text-[11px] text-mute">Vendido el {fechaVentaStock(item)}</span> : null}
           {vista === 'eliminados' ? <span className="mt-1 block text-[11px] text-mute">Conserva su historial de auditoría</span> : null}
         </button>
