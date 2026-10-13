@@ -23,7 +23,8 @@ export function tipoDeCategoria(categoria) {
 function itemDeUnidad(unit, eliminada) {
   const producto = unit.product || {}
   const nombre = String(producto.name || producto.nombre || '').trim()
-  const variante = [nombre, producto.capacity].filter(Boolean).join(' ')
+  const capacidad = String(producto.capacity || '').trim()
+  const variante = capacidad && !sinAcentos(nombre).includes(sinAcentos(capacidad)) ? `${nombre} ${capacidad}` : nombre
   return {
     id: unit.id,
     kind: 'unit',

@@ -15,9 +15,15 @@
 }
 .stock-lista-encabezado {
   position: sticky;
-  top: 3rem;
+  top: 0;
   z-index: 10;
   background: rgb(var(--c-ink));
+}
+/* Con el header del panel fijo (menos de 1024 px) el encabezado se ancla debajo. */
+@media (max-width: 1023px) {
+  .stock-lista-encabezado {
+    top: 3rem;
+  }
 }
 .stock-lista-fila {
   min-height: 52px;

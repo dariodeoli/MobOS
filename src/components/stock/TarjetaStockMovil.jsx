@@ -285,7 +285,7 @@ export function TarjetaStockMovil({ item, vista = 'unidades', verCosto = false, 
           aria-label={`Ver detalles de ${nombre} ${identificador}`.trim()}
           className="min-h-11 min-w-0 flex-1 rounded-lg px-1 py-1 text-left"
         >
-          <b className="block text-[13px] leading-tight">
+          <b data-testid="unidad-modelo" className="block text-[13px] leading-tight">
             {nombre}
             {variante ? <span className="font-normal text-mute"> · {variante}</span> : null}
           </b>

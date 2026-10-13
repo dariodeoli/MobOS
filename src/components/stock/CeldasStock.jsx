@@ -1,6 +1,7 @@
 // Celdas compartidas de la lista unificada de Stock (fila de escritorio y
 // tarjeta móvil): estado, batería, costo y fecha de venta. Presentación pura.
-import { CeldaMoneda, ChipEstado } from '@/components/ui'
+import { CeldaMoneda } from '@/components/ui'
+import ChipEstado from '@/components/shared/ChipEstado'
 import MedidorBateria from '@/components/shared/MedidorBateria'
 import { fechaHora } from '@/utils/fecha'
 import { etiquetaEstadoStock, textoEstadoItem, tonoEstadoStock } from '@/lib/stockItems'

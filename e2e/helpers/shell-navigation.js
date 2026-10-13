@@ -151,8 +151,13 @@ export async function shellCatalog(page) {
     profile: profileLabels.map(s => s.trim()),
   }
 }
+// U3: las secciones son pestañas (Unidades · Reservas · Movimientos · Control) y
+// las vistas de cada una van en una segunda fila; se elige la vista por su nombre.
+const ETIQUETA_VISTA = { unidades: 'Unidades', reservas: 'Reservas', ubicaciones: 'Ubicaciones', alertas: 'Alertas', transito: 'En tránsito', traslados: 'Traslados', vendidos: 'Vendidos', eliminados: 'Eliminados', taller: 'Taller', conteos: 'Conteos', compartido: 'Compartido', autorizaciones: 'Autorizaciones' }
+const SECCION_DE_VISTA = { unidades: 'Unidades', ubicaciones: 'Unidades', alertas: 'Unidades', reservas: 'Reservas', transito: 'Movimientos', traslados: 'Movimientos', vendidos: 'Movimientos', eliminados: 'Movimientos', taller: 'Control', conteos: 'Control', compartido: 'Control', autorizaciones: 'Control' }
 export async function selectInventorySection(page, value) {
-  const select = page.getByTestId('tabs-inventario')
-  await select.selectOption(value)
-  await expect(select).toHaveValue(value)
+  await page.getByTestId('tabs-inventario').getByRole('tab', { name: SECCION_DE_VISTA[value], exact: false }).first().click()
+  const vistas = page.getByTestId('subtabs-inventario')
+  if (await vistas.count()) await vistas.getByRole('tab', { name: ETIQUETA_VISTA[value] }).click()
+  await expect(page.getByTestId('grupos-inventario').getByRole('tab', { name: ETIQUETA_VISTA[value] }).first()).toHaveAttribute('aria-selected', 'true')
 }

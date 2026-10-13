@@ -57,7 +57,7 @@ test.describe('owner panel', () => {
     // El título de la página lo pone el panel (un solo h1); Inventario aporta el subtítulo.
     await expect(page.getByRole('heading', { name: 'Unidades', level: 1 })).toBeVisible()
     await expect(page.getByText('Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría.')).toBeVisible()
-    await expect(page.getByTestId('tabs-inventario').getByRole('option', { name: 'Inventario', exact: true })).toBeAttached()
+    await expect(page.getByTestId('grupos-inventario').getByRole('tab', { name: 'Unidades', exact: true }).first()).toBeVisible()
     // La tabla compacta alinea el serial por columna (últimos 4 destacados) y
     // la estructura final de #285 deja el IMEI como columna propia.
     await expect(page.getByText('Verificación', { exact: true }).first()).toBeVisible()

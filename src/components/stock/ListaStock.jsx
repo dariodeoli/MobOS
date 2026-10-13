@@ -48,10 +48,10 @@ function EncabezadoStock({ verCosto, vista, todosMarcados, onMarcarTodos, hayFil
       <span className={CELDA_ENCABEZADO}>Batería</span>
       {verCosto ? <span className={cn(CELDA_ENCABEZADO, 'stock-lista-prov')}>Proveedor</span> : null}
       {verCosto ? <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Costo</span> : null}
-      <span className={CELDA_ENCABEZADO}>Estado</span>
+      <span className={cn(CELDA_ENCABEZADO, 'pl-1')}>Estado</span>
       {vista === 'vendidos' ? <span className={CELDA_ENCABEZADO}>Vendido</span> : null}
       {vista === 'eliminados' ? <span className={CELDA_ENCABEZADO}>Nota</span> : null}
-      <span className="sr-only">Acciones</span>
+      <span aria-hidden="false"><span className="sr-only">Acciones</span></span>
     </div>
   )
 }

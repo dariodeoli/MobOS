@@ -442,10 +442,10 @@ export function FilaStock({ item, vista = 'unidades', verCosto = false, seleccio
       </span>
       <span className="flex items-center"><BateriaStock item={item} /></span>
       {verCosto ? (
-        <span className="stock-lista-prov min-w-0 truncate text-xs text-mute" title={item.supplierName || 'Sin proveedor'}>{item.supplierName || '—'}</span>
+        <span className="stock-lista-prov min-w-0 text-xs text-mute [overflow-wrap:anywhere]" title={item.supplierName || 'Sin proveedor'}>{item.supplierName || '—'}</span>
       ) : null}
       {verCosto ? <span className="flex items-center justify-end text-right"><CostoStock item={item} /></span> : null}
-      <span className="flex items-center"><EstadoStock item={item} /></span>
+      <span className="flex items-center pl-1"><EstadoStock item={item} /></span>
       {vista === 'vendidos' ? <span className="text-xs text-mute" title={`Vendido el ${fechaVentaStock(item)}`}>{fechaVentaStock(item)}</span> : null}
       {vista === 'eliminados' ? <span className="truncate text-[11px] text-mute">Conserva su historial de auditoría</span> : null}
       <span className="flex items-center justify-end gap-1" onClick={(event) => event.stopPropagation()}>
