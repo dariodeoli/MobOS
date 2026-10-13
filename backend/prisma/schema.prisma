@@ -485,7 +485,18 @@ enum UserStatus {
   SUSPENDED
 }
 
+// Tipo de stock del producto: decide si se gestiona por unidad (EQUIPO, con
+// IMEI) o por cantidad. Nullable hasta que el backfill lo completa; la
+// clasificación vive en backend/lib/stock-kind.ts.
+enum StockKind {
+  EQUIPO
+  ACCESORIO
+  REPUESTO
+  OTRO
+}
+
 model Product {
+  stockKind     StockKind?
   tradeInDevice TradeInDevice?
   destination   ProductDestination @default(NORMAL)
   purchaseLines PurchaseLine[]
@@ -534,6 +545,7 @@ model Product {
 
   @@unique([tenantId, branchId, sku])
   @@index([tenantId, branchId])
+  @@index([tenantId, branchId, stockKind])
   @@index([tenantId, imei])
   // Búsqueda difusa por nombre (pg_trgm, GIN): ILIKE '%texto%' sin escanear.
   @@index([name(ops: raw("gin_trgm_ops"))], map: "Product_name_trgm_idx", type: Gin)
@@ -650,11 +662,29 @@ model InventoryUnit {
   verifiedByCode      String?
   lastVerifiedBy      User?             @relation("InventoryUnitVerifier", fields: [lastVerifiedById], references: [id], onDelete: SetNull)
   status              InventoryUnitStatus @default(AVAILABLE)
+  // Baja recuperable real (antes solo derivada del AuditLog): removedAt != null
+  // significa «eliminada»; restaurar limpia los tres campos. La auditoría sigue
+  // escribiéndose en la misma transacción.
+  removedAt           DateTime?
+  removedById         String?
+  removedReason       String?
+  // Línea de venta que consumió la unidad (SOLD) y cuándo; se limpia al anular
+  // o devolver. Evita escanear OrderItemSerial por serial.
+  soldOrderItemId     String?
+  soldOrderItem       OrderItem?          @relation("OrderItemSoldUnits", fields: [soldOrderItemId], references: [id], onDelete: SetNull)
+  soldAt              DateTime?
+  // Línea de compra de abastecimiento de la que vino (solo si es inequívoca).
+  purchaseLineId      String?
+  purchaseLine        SupplyPurchaseLine? @relation("SupplyPurchaseLineUnits", fields: [purchaseLineId], references: [id], onDelete: SetNull)
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
 
   @@unique([tenantId, serial])
   @@index([tenantId, productId, status])
+  @@index([tenantId, removedAt])
+  @@index([tenantId, soldAt])
+  @@index([soldOrderItemId])
+  @@index([purchaseLineId])
   @@index([serial(ops: raw("gin_trgm_ops"))], map: "InventoryUnit_serial_trgm_idx", type: Gin)
   @@index([tenantId, branchId, status])
   @@index([tenantId, status, reservedUntil])
@@ -1609,6 +1639,7 @@ model OrderItem {
   serials              Json           @default("[]")
   // Equipos vendidos sobre pedido sin IMEI: se completan al entregar.
   serialsPending       Int            @default(0)
+  soldUnits            InventoryUnit[] @relation("OrderItemSoldUnits")
   // Unidades sobre pedido de productos sin serial (sin stock al vender): no
   // descuentan stock y se entregan cuando llegue el pedido (#148 §11).
   stockPending         Int            @default(0)
@@ -2677,6 +2708,7 @@ model SupplyPurchaseLine {
   originalUnitCost Decimal?    @db.Decimal(14, 2)
   createdAt   DateTime         @default(now())
   serials     SupplyPurchaseSerial[]
+  inventoryUnits InventoryUnit[] @relation("SupplyPurchaseLineUnits")
 
   @@index([tenantId, purchaseId])
   @@index([tenantId, needId])
