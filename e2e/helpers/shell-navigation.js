@@ -1,6 +1,8 @@
 import { expect } from '@playwright/test'
 
 // Explicit journey contracts, independent of application authorization catalogs.
+// Each entry is [primary section, context group (level 1 tab id), destination
+// (level 2 / catalog id)]. Tabs are driven by click through `data-tab-id`.
 export const SHELL_DESTINATIONS = {
   Inicio: ['Inicio', 'resumen', 'resumen'],
   POS: ['Vender', 'cargar', 'cargar'],
@@ -8,33 +10,66 @@ export const SHELL_DESTINATIONS = {
   Pedidos: ['Ventas', 'pedidos', 'pedidos'],
   'Mis pedidos': ['Ventas', 'pedidos', 'pedidos'],
   Cotizaciones: ['Ventas', 'cotizaciones', 'cotizaciones'],
-  Clientes: ['Ventas', 'clientes', 'clientes'],
-  Promociones: ['Ventas', 'clientes', 'promociones'],
-  Plantillas: ['Ventas', 'clientes', 'plantillas'],
-  Delivery: ['Ventas', 'entregas', 'repartos'],
-  'Taller y garantías': ['Ventas', 'taller', 'servicio'],
-  Autorizaciones: ['Ventas', 'pedidos', 'autorizaciones'],
-  'Unidades (IMEI)': ['Stock', 'inventario', 'unidades'],
-  Unidades: ['Stock', 'inventario', 'unidades'],
-  'Productos (stock)': ['Stock', 'inventario', 'productos'],
-  Productos: ['Stock', 'inventario', 'productos'],
-  Compras: ['Stock', 'compras', 'compras'],
-  'Por comprar': ['Stock', 'compras', 'abastecimiento'],
-  'Compras del Centro': ['Stock', 'compras', 'compras-centro'],
-  'Preparar compra': ['Stock', 'compras', 'preparacion'],
-  'Preparar lote': ['Stock', 'compras', 'lotes'],
-  Recepción: ['Stock', 'compras', 'recepcion'],
-  'Métricas de abastecimiento': ['Stock', 'compras', 'metricas'],
+  Delivery: ['Ventas', 'repartos', 'repartos'],
+  Autorizaciones: ['Ventas', 'autorizaciones', 'autorizaciones'],
+  Clientes: ['Clientes', 'clientes', 'clientes'],
+  Promociones: ['Clientes', 'promociones', 'promociones'],
+  Plantillas: ['Clientes', 'plantillas', 'plantillas'],
+  'Taller y garantías': ['Taller', 'servicio', 'servicio'],
+  'Unidades (IMEI)': ['Stock', 'unidades', 'unidades'],
+  Unidades: ['Stock', 'unidades', 'unidades'],
+  'Productos (stock)': ['Stock', 'productos', 'productos'],
+  Productos: ['Stock', 'productos', 'productos'],
   'Traslados y tránsito': ['Stock', 'traslados', 'traslados'],
   Precios: ['Stock', 'precios', 'precios'],
   'Lista por modelo': ['Stock', 'precios', 'celulares'],
   Comparador: ['Stock', 'precios', 'comparador'],
   'Centro de Control': ['Stock', 'precios', 'centro-control'],
+  Compras: ['Compras', 'compras', 'compras'],
+  'Por comprar': ['Compras', 'abastecimiento', 'abastecimiento'],
+  'Compras del Centro': ['Compras', 'compras-centro', 'compras-centro'],
+  'Preparar compra': ['Compras', 'preparacion', 'preparacion'],
+  'Preparar lote': ['Compras', 'lotes', 'lotes'],
+  Recepción: ['Compras', 'recepcion', 'recepcion'],
+  'Métricas de abastecimiento': ['Compras', 'metricas', 'metricas'],
   Finanzas: ['Finanzas', 'finanzas', 'finanzas'],
-  Análisis: ['Finanzas', 'analisis', 'analisis'],
+  Análisis: ['Análisis', 'analisis', 'analisis'],
   'Tablero de operaciones': ['Inicio', 'ops', 'ops'],
   'Mis repartos': ['Entregas', 'repartos', 'repartos'],
   Rendiciones: ['Entregas', 'rendiciones', 'rendiciones'],
+}
+// Catalog-style label of every destination id (what the old menu called it).
+const DESTINATION_LABEL = {
+  resumen: 'Inicio',
+  ops: 'Tablero de operaciones',
+  cargar: 'Nueva venta',
+  cotizador: 'Trade-In',
+  pedidos: 'Pedidos',
+  cotizaciones: 'Cotizaciones',
+  repartos: 'Delivery',
+  autorizaciones: 'Autorizaciones',
+  clientes: 'Clientes',
+  promociones: 'Promociones',
+  plantillas: 'Plantillas',
+  servicio: 'Taller y garantías',
+  'tradein-admin': 'Trade-In',
+  unidades: 'Unidades (IMEI)',
+  productos: 'Productos (stock)',
+  traslados: 'Traslados y tránsito',
+  precios: 'Precios',
+  celulares: 'Lista por modelo',
+  comparador: 'Comparador',
+  'centro-control': 'Centro de Control',
+  compras: 'Compras',
+  abastecimiento: 'Por comprar',
+  'compras-centro': 'Compras del Centro',
+  preparacion: 'Preparar compra',
+  lotes: 'Preparar lote',
+  recepcion: 'Recepción',
+  metricas: 'Métricas de abastecimiento',
+  finanzas: 'Finanzas',
+  analisis: 'Análisis',
+  rendiciones: 'Rendiciones',
 }
 export async function shellPrimary(page) {
   // The aside is always rendered (CSS hides it below lg): once it is attached
@@ -45,12 +80,67 @@ export async function shellPrimary(page) {
   return (await desktop.isVisible()) ? desktop : page.getByTestId('shell-bottom-nav')
 }
 // Click a primary section and wait until the shell marks it current: the
-// context/sub-context selectors render in that same pass, so reading them
-// earlier races the route change (count() does not auto-wait).
-async function enterShellSection(primary, section) {
+// context tabs render in that same pass, so reading them earlier races the
+// route change. Sections that live in the mobile "Más" sheet are reached
+// through it; single-section roles have no primary navigation at all.
+async function enterShellSection(page, primary, section) {
   const button = primary.getByRole('button', { name: section, exact: true })
-  await button.click()
-  await expect.poll(() => button.getAttribute('aria-current')).toBe('page')
+  if (await button.count()) {
+    await button.click()
+    await expect.poll(() => button.getAttribute('aria-current')).toBe('page')
+    return
+  }
+  const more = page.getByTestId('shell-mas')
+  if (await more.count()) {
+    await more.click()
+    await page
+      .getByTestId('shell-mas-hoja')
+      .getByRole('button', { name: section, exact: true })
+      .click()
+    await expect.poll(() => more.getAttribute('aria-current')).toBe('page')
+  }
+}
+// Click a tab of a SectionTabs container by its id. A tab that does not fit on
+// desktop lives in the "Más" popover. Returns false when the container does
+// not offer that id (e.g. the section has a single destination).
+async function clickTab(container, id) {
+  const tab = container.locator(`[data-tab-id="${id}"]`)
+  if (await tab.count()) await tab.click()
+  else {
+    const more = container.locator('[data-tab-more]')
+    if (!(await more.count())) return false
+    await more.click()
+    const item = container.locator(`[role="menuitem"][data-tab-id="${id}"]`)
+    if (!(await item.count())) {
+      await more.click()
+      return false
+    }
+    await item.click()
+  }
+  if (id !== 'ops')
+    await expect
+      .poll(() => container.locator(`[data-tab-id="${id}"][aria-current="page"]`).count())
+      .toBe(1)
+  return true
+}
+// Every tab id of a container, including the ones inside the "Más" popover.
+async function tabIds(container) {
+  const read = () =>
+    container.locator('[data-tab-id]').evaluateAll(nodes => nodes.map(n => n.dataset.tabId))
+  const ids = await read()
+  const more = container.locator('[data-tab-more]')
+  if (await more.count()) {
+    await more.click()
+    ids.push(...(await read()).filter(id => !ids.includes(id)))
+    await more.click()
+  }
+  return ids
+}
+// Click a tab of a shell tab row (`shell-contexto`, `shell-subcontexto`) by id.
+export async function clickShellTab(page, containerTestId, id) {
+  const container = page.getByTestId(containerTestId)
+  await container.waitFor({ state: 'attached' })
+  if (!(await clickTab(container, id))) throw new Error(`Tab ${id} not offered in ${containerTestId}`)
 }
 export async function openShellProfile(page) {
   const dialog = page.getByRole('dialog', { name: 'Perfil y preferencias', exact: true })
@@ -79,50 +169,35 @@ export async function openShellDestination(page, label) {
   let target = SHELL_DESTINATIONS[label]
   if (label === 'Trade-In')
     target = (await primary.getByRole('button', { name: 'Inicio', exact: true }).count())
-      ? ['Ventas', 'taller', 'tradein-admin']
+      ? ['Taller', 'tradein-admin', 'tradein-admin']
       : ['Vender', 'cotizador', 'cotizador']
-  if (
-    label === 'Taller y garantías' &&
-    (await primary.getByRole('button', { name: 'Taller', exact: true }).count())
-  )
-    target = ['Taller', 'servicio', 'servicio']
   if (!target) throw new Error(`Unknown shell journey: ${label}`)
   const [section, group, destination] = target
-  await enterShellSection(primary, section)
+  await enterShellSection(page, primary, section)
+  // Level 1 tabs exist only when the section has more than one group.
   const context = page.getByTestId('shell-contexto')
-  if (await context.count()) {
-    // The group <select> is display:none from lg up (wrapping links take over),
-    // so a role query never sees it on desktop: read it as a plain element.
-    const select = context.locator('select')
-    if (await select.isVisible()) await select.selectOption(group)
-    else {
-      const text = await select.locator(`option[value="${group}"]`).textContent()
-      await context.getByRole('button', { name: text, exact: true }).click()
-    }
-  }
-  const subcontext = page.getByTestId('shell-subcontexto').getByRole('combobox')
-  if (await subcontext.count()) {
-    await subcontext.selectOption(destination)
-    await expect.poll(() => subcontext.inputValue()).toBe(destination)
-  }
+  if (await context.count()) await clickTab(context, group)
+  // Level 2 (segmented) exists only for groups with several destinations.
+  const segments = page.getByTestId('shell-subcontexto')
+  if (await segments.count()) await clickTab(segments, destination)
 }
-// In-page sections (Análisis, Finanzas, Configuración) use SectionSelector: a
-// native <select> that stays visible for long lists (and below lg) and a row of
-// buttons marked aria-current for short lists on desktop. Both share the
-// aria-label, which replaces the old role=tab rows.
+// In-page sections (Análisis, Finanzas, Configuración) are SectionTabs: tabs
+// below lg / inline with a "Más" popover on desktop, a vertical rail for
+// Configuración on desktop. All share the aria-label of the old selectors.
 export async function selectSectionOption(page, ariaLabel, label) {
-  const select = page.locator(`select[aria-label="${ariaLabel}"]`)
   const nav = page.getByRole('navigation', { name: ariaLabel, exact: true })
-  // The selector mounts with the section: wait for it before choosing a branch.
-  await select.or(nav).first().waitFor({ state: 'attached' })
-  if (await select.isVisible()) {
-    await select.selectOption({ label })
-    await expect.poll(() => select.locator('option:checked').textContent()).toBe(label)
-  } else {
-    const link = nav.getByRole('button', { name: label, exact: true })
-    await link.click()
-    await expect(link).toHaveAttribute('aria-current', 'page')
+  // The tabs mount with the section: wait for them before choosing a branch.
+  await nav.waitFor({ state: 'attached' })
+  const tab = nav.getByRole('button', { name: label, exact: true })
+  if (await tab.count()) await tab.click()
+  else {
+    await nav.locator('[data-tab-more]').click()
+    await nav.getByRole('menuitem', { name: label, exact: true }).click()
   }
+  await expect(nav.getByRole('button', { name: label, exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  )
 }
 export const selectAnalysisSection = (page, label) =>
   selectSectionOption(page, 'Secciones de Análisis', label)
@@ -130,61 +205,62 @@ export const selectFinanceSection = (page, label) =>
   selectSectionOption(page, 'Secciones de Finanzas', label)
 export const selectConfigSection = (page, label) =>
   selectSectionOption(page, 'Secciones de Configuración', label)
+// Sections with one destination show no tabs: the catalog label is the section's.
+const SINGLE_SECTION_LABEL = {
+  Inicio: 'Inicio',
+  Finanzas: 'Finanzas',
+  Análisis: 'Análisis',
+  Taller: 'Taller y garantías',
+}
 // Read every permitted context through UI navigation, not direct routes.
 export async function shellCatalog(page) {
   const primary = await shellPrimary(page)
-  const sections = await primary.getByRole('button').allTextContents()
+  const sections = (await primary.getByRole('button').allTextContents())
+    .map(s => s.trim())
+    .filter(s => s && s !== 'Más')
+  const more = page.getByTestId('shell-mas')
+  if (await more.count()) {
+    await more.click()
+    const sheet = page.getByTestId('shell-mas-hoja')
+    const extra = (await sheet.getByRole('button').allTextContents()).map(s => s.trim())
+    await page.keyboard.press('Escape')
+    sections.push(...extra.filter(s => !['Configuración', 'Ayuda'].includes(s)))
+  }
+  const owner = sections.includes('Inicio')
   const destinations = new Set()
-  for (const section of sections.map(s => s.trim())) {
-    await enterShellSection(primary, section)
+  const label = id =>
+    id === 'pedidos' && !owner
+      ? 'Mis pedidos'
+      : id === 'productos' && !owner
+        ? 'Productos'
+        : DESTINATION_LABEL[id] || id
+  for (const section of sections) {
+    await enterShellSection(page, primary, section)
     const context = page.getByTestId('shell-contexto')
-    const select = context.locator('select')
-    if (!(await select.count())) {
-      destinations.add(
-        section === 'Vender'
-          ? 'Nueva venta'
-          : section === 'Taller'
-            ? 'Taller y garantías'
-            : section,
-      )
+    if (!(await context.count())) {
+      destinations.add(SINGLE_SECTION_LABEL[section] || section)
       continue
     }
-    const groups = await select
-      .locator('option')
-      .evaluateAll(options =>
-        options.filter(o => o.value).map(o => ({ value: o.value, label: o.textContent })),
-      )
-    for (const group of groups) {
-      // Single-destination labels are read without leaving the shell (e.g. /ops).
-      if (group.value === 'ops') {
-        destinations.add(group.label)
+    for (const group of await tabIds(context)) {
+      // Standalone destinations are named without leaving the shell (e.g. /ops).
+      if (group === 'ops') {
+        destinations.add(label(group))
         continue
       }
-      if (await select.isVisible()) await select.selectOption(group.value)
-      else await context.getByRole('button', { name: group.label, exact: true }).click()
-      // The shell re-renders the sub-context in the pass that makes the group current.
-      await expect.poll(() => select.inputValue()).toBe(group.value)
-      const sub = page.getByTestId('shell-subcontexto').getByRole('combobox')
-      if (await sub.count()) {
-        for (const text of await sub.locator('option').allTextContents()) destinations.add(text)
-      } else {
-        const owner = sections.includes('Inicio')
-        const singleLabels = {
-          inventario: 'Productos',
-          pedidos: owner ? 'Pedidos' : 'Mis pedidos',
-          entregas: 'Delivery',
-          traslados: 'Traslados y tránsito',
-          taller: 'Taller y garantías',
-        }
-        destinations.add(singleLabels[group.value] || group.label)
-      }
+      await clickTab(context, group)
+      const segments = page.getByTestId('shell-subcontexto')
+      if (await segments.count()) for (const id of await tabIds(segments)) destinations.add(label(id))
+      else
+        destinations.add(
+          section === 'Entregas' && group === 'repartos' ? 'Mis repartos' : label(group),
+        )
     }
   }
   const profile = await openShellProfile(page)
   const profileLabels = await profile.getByRole('button').allTextContents()
   await page.keyboard.press('Escape')
   return {
-    primary: sections.map(s => s.trim()),
+    primary: sections,
     destinations: [...destinations],
     profile: profileLabels.map(s => s.trim()),
   }
