@@ -121,6 +121,7 @@ export default function Ops() {
       cargando={cargando && !actualizado}
       error={error || avisos.join(' ')}
       actualizado={actualizado}
+      demo={demoSessionActive()}
       onRefrescar={cargar}
     />
   )

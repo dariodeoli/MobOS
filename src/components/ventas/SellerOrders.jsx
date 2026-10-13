@@ -7,14 +7,15 @@ import { listVentas, productosById } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { codigoPedido, fechaLegible } from '@/utils/pedido'
 import { normalizarBusqueda } from '@/utils/cliente'
-import { Button, Drawer, EmptyState, Select } from '@/components/ui'
+import { Button, Drawer, EmptyState, MenuDesplegable } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import SerialTexto from '@/components/shared/SerialTexto'
 import { ultimos4 } from '@/utils/serial'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import SearchField from '@/components/shared/SearchField'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
-import BarraModulo from '@/components/shared/BarraModulo'
+import Toolbar from '@/components/shared/Toolbar'
+import ChipsFiltro from './ChipsFiltro'
 import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import PedidoDetalle from './PedidoDetalle'
 import Icon from '@/components/shared/Icon'
@@ -77,6 +78,13 @@ const PAGO_ORDEN = { Pagado: 0, Parcial: 1, 'A crédito': 2, Pendiente: 3 }
 const ESTADO_ORDEN = { PENDING: 0, PROCESSING: 1, READY_TO_SHIP: 2, SHIPPED: 3, IN_TRANSIT: 4, READY_FOR_PICKUP: 5, PARTIAL: 6, NOT_DELIVERED: 7, PICKED_UP: 8, DELIVERED: 9, CANCELLED: 10 }
 const FILTROS = [
   ['activos', 'Activos'], ['nopagados', 'Con saldo'], ['credito', 'A crédito'], ['archivados', 'Archivados'], ['todos', 'Todos'],
+]
+// Estados de pago poco frecuentes: el chip «Más estados» los despliega.
+const FILTROS_MAS = [['pendientes', 'Pendientes'], ['parciales', 'Parciales']]
+// Campos por los que se ordena el listado (menú «Ordenar»).
+const CAMPOS_ORDEN = [
+  ['date', 'Fecha'], ['number', 'Pedido'], ['customer', 'Cliente'], ['products', 'Artículos'], ['quantity', 'Cantidad'],
+  ['delivery', 'Entrega'], ['payment', 'Pago'], ['fulfillment', 'Estado'], ['total', 'Total'],
 ]
 
 // Shared desktop columns; narrow views render cards without a minimum table width.
@@ -396,87 +404,66 @@ export default function SellerOrders() {
   return (
     <div className="ventas-f3" data-testid="ventas-pedidos-f3">
       <SellerSection title="Pedidos">
-        <BarraModulo
-          titulo="Pedidos"
-          descripcion="Todas las ventas, con su cobro y su entrega."
-          className="ventas-f3-toolbar"
+        <Toolbar
+          label="Acciones de Pedidos"
           testId="barra-pedidos"
+          className="ventas-f3-toolbar"
+          plano
+          search={
+            <SearchField
+              ariaLabel="Buscar pedidos"
+              placeholder="Pedido, cliente, RUC, producto o IMEI"
+              value={query}
+              onChange={event => setQuery(event.target.value)}
+            />
+          }
+          more={
+            <button
+              type="button"
+              onClick={data.refresh}
+              disabled={data.loading}
+              className="min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore lg:min-h-9"
+            >
+              Actualizar
+            </button>
+          }
+          primary={
+            <Button type="button" onClick={() => navigate('/pos')}>
+              Nueva venta
+            </Button>
+          }
         >
-          <Button type="button" onClick={() => navigate('/pos')}>
-            Nueva venta
-          </Button>
-          <button
-            type="button"
-            onClick={data.refresh}
-            disabled={data.loading}
-            className="min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore md:min-h-0"
-          >
-            Actualizar
-          </button>
-        </BarraModulo>
-        <div className="ventas-f3-filters">
-          <SearchField
-            ariaLabel="Buscar pedidos"
-            placeholder="Pedido, cliente, RUC, producto o IMEI"
-            value={query}
-            onChange={event => setQuery(event.target.value)}
+          <ChipsFiltro
+            className="basis-full"
+            etiqueta="Estado de los pedidos"
+            opciones={FILTROS}
+            mas={FILTROS_MAS}
+            valor={filtro}
+            onChange={setFiltro}
           />
-          <div className="ventas-f3-chips" role="group" aria-label="Estado de los pedidos">
-            {FILTROS.map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                aria-pressed={filtro === key}
-                onClick={() => setFiltro(key)}
-              >
-                {label}
-              </button>
-            ))}
+          <div data-testid="pedidos-orden" data-orden={orden.key} data-dir={orden.dir}>
+            <MenuDesplegable
+              alineacion="left"
+              ariaLabel="Ordenar pedidos"
+              trigger={
+                <span className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-ink-500 px-3 text-xs font-semibold text-mute lg:min-h-9">
+                  Ordenar
+                  <Icon name="chevron" className="h-3.5 w-3.5" />
+                </span>
+              }
+              items={[
+                ...CAMPOS_ORDEN.map(([key, label]) => ({
+                  id: key,
+                  label,
+                  extra: orden.key === key ? <span aria-hidden="true">{orden.dir === 'asc' ? '↑' : '↓'}</span> : null,
+                  onClick: () => (orden.key === key ? null : ordenarPor(key)),
+                })),
+                { separador: true },
+                { id: 'invertir', label: orden.dir === 'asc' ? 'Invertir: de mayor a menor' : 'Invertir: de menor a mayor', onClick: () => ordenarPor(orden.key) },
+              ]}
+            />
           </div>
-          <details className="ventas-f3-extra-filters">
-            <summary>Más filtros y orden</summary>
-            <div className="flex flex-wrap gap-2 pt-2">
-              <Select
-                aria-label="Más estados de pago"
-                value={['pendientes', 'parciales'].includes(filtro) ? filtro : ''}
-                onChange={event => setFiltro(event.target.value || 'activos')}
-              >
-                <option value="">Estado de pago</option>
-                <option value="pendientes">Pendientes</option>
-                <option value="parciales">Parciales</option>
-              </Select>
-              <Select
-                aria-label="Ordenar pedidos"
-                value={orden.key}
-                onChange={event => ordenarPor(event.target.value)}
-              >
-                {[
-                  ['date', 'Fecha'],
-                  ['number', 'Pedido'],
-                  ['customer', 'Cliente'],
-                  ['products', 'Artículos'],
-                  ['quantity', 'Cantidad'],
-                  ['delivery', 'Entrega'],
-                  ['payment', 'Pago'],
-                  ['fulfillment', 'Estado'],
-                  ['total', 'Total'],
-                ].map(([key, label]) => (
-                  <option key={key} value={key}>
-                    {label}
-                  </option>
-                ))}
-              </Select>
-              <Button
-                type="button"
-                variant="outline"
-                aria-label="Invertir orden de pedidos"
-                onClick={() => ordenarPor(orden.key)}
-              >
-                {orden.dir === 'asc' ? 'Ascendente ↑' : 'Descendente ↓'}
-              </Button>
-            </div>
-          </details>
-        </div>
+        </Toolbar>
         {v2 && rows.length > 0 && (
           <ResumenMetricas
             testId="resumen-pedidos"
