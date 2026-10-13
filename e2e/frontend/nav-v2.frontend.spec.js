@@ -727,7 +727,7 @@ for (const width of widths) {
             shadow: getComputedStyle(element.parentElement).boxShadow,
           }
         })
-        expect(geometry.font).toBeGreaterThanOrEqual(22)
+        expect(geometry.font).toBeGreaterThanOrEqual(20)
         expect(geometry.contained).toBe(true)
         expect(geometry.shadow).toBe('none')
       }

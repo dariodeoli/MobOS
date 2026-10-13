@@ -1,6 +1,10 @@
 import { defineConfig } from '@playwright/test'
 
 // Frontend demo only: intentionally no shared PG/backend global setup.
+// Vite propio por puerto (MOBOS_QA_PORT, 5291 por defecto). VITE_API_URL apunta al mismo
+// origen para que los casos de sesión simulada arranquen siempre igual, sin .env.
+const port = Number(process.env.MOBOS_QA_PORT || 5291)
+
 export default defineConfig({
   testDir: './frontend',
   testMatch: [
@@ -19,5 +23,13 @@ export default defineConfig({
   expect: { timeout: Number(process.env.MOBOS_QA_EXPECT_TIMEOUT || 5000) },
   outputDir: `${process.env.MOBOS_QA_OUT || '/tmp/mobos-nav-v2-qa'}/results`,
   reporter: [['list']],
-  use: { baseURL: `http://127.0.0.1:${process.env.MOBOS_QA_PORT || 5291}`, timezoneId: 'America/Asuncion', headless: true },
+  webServer: {
+    command: `npm run dev -- --host 127.0.0.1 --port ${port} --strictPort`,
+    cwd: '..',
+    url: `http://127.0.0.1:${port}`,
+    env: { VITE_API_URL: `http://127.0.0.1:${port}` },
+    reuseExistingServer: true,
+    timeout: 120000,
+  },
+  use: { baseURL: `http://127.0.0.1:${port}`, timezoneId: 'America/Asuncion', headless: true },
 })
