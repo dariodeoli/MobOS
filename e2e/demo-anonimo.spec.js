@@ -1,4 +1,4 @@
-import { openShellDestination } from './helpers/shell-navigation.js'
+import { openShellDestination, openShellProfile } from './helpers/shell-navigation.js'
 // Demo pública anónima (#192): /demo entra por perfiles sin login, el panel
 // funciona con datos ficticios sin tocar el API y sin sesión demo la navegación
 // directa vuelve a /demo (no a /login).
@@ -104,7 +104,7 @@ async function recorrerModulos(page, modulos) {
 }
 
 const MODULOS_VENDEDOR = [
-  ['/pos', 'POS'],
+  ['/pos', 'Vender'],
   ['/pedidos', 'Mis pedidos'],
   ['/delivery', 'Delivery'],
   ['/clientes', 'Clientes'],
@@ -117,7 +117,7 @@ const MODULOS_VENDEDOR = [
 ]
 
 const MODULOS_OWNER = [
-  ['/pos', 'POS'],
+  ['/pos', 'Vender'],
   ['/pedidos', 'Mis pedidos'],
   ['/delivery', 'Delivery'],
   ['/clientes', 'Clientes'],
@@ -244,7 +244,7 @@ test('dueño: recorrido demo con datos ficticios y capturas opcionales', async (
     ['/finanzas/caja', /Caja/i, '04-caja'],
     ['/finanzas/conciliacion', /Conciliaci/i, '05-conciliacion'],
     ['/analisis/ganancias', /Ganancias/i, '06-ganancias'],
-    ['/servicio-tecnico', /Servicio|Taller|Órdenes/i, '07-servicio'],
+    ['/servicio', /Servicio|Taller|Órdenes/i, '07-servicio'],
     ['/configuracion/dispositivos', /Dispositivos|Impresi/i, '08-impresoras'],
   ]
   for (const [ruta, texto, nombre] of pantallas) {
@@ -419,9 +419,10 @@ test('la demo no persiste nada: guardados, recarga, salida y base intacta', asyn
   await page.goto('/pos')
   await expect(page.locator('#pos-resumen-venta').getByText('0 productos')).toBeVisible()
 
-  // Salir limpia la marca de demo de la pestaña (el cierre vive en la barra
-  // superior; el menú de tres puntos ya no lo duplica, #228).
-  await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).first().click()
+  // Salir limpia la marca de demo de la pestaña (el cierre vive en el perfil
+  // del shell; el menú de tres puntos ya no lo duplica, #228).
+  const perfil = await openShellProfile(page)
+  await perfil.getByRole('button', { name: 'Cerrar sesión', exact: true }).click()
   await page.getByRole('button', { name: 'Salir', exact: true }).click()
   await expect(page).toHaveURL(/\/login$/)
   const trasSalir = await instantaneaNavegador(page)
@@ -615,7 +616,7 @@ test('demo: el borrador del POS se suspende, se lista, se retoma y se descarta',
   await suspender.getByLabel('Etiqueta (opcional)').fill('Borrador demo QA')
   await suspender.getByRole('button', { name: 'Suspender venta' }).click()
   await expect(page.getByText(/Venta suspendida en la demo/)).toBeVisible()
-  await expect(page.getByText('Todavía no agregaste productos.')).toBeVisible()
+  await expect(page.getByText('Tocá un producto o buscá para empezar.')).toBeVisible()
 
   // La lista muestra etiqueta, cliente y vendedor del borrador.
   await page.getByTestId('pos-mas').click()

@@ -112,13 +112,14 @@ export async function openShellDestination(page, label) {
 // aria-label, which replaces the old role=tab rows.
 export async function selectSectionOption(page, ariaLabel, label) {
   const select = page.locator(`select[aria-label="${ariaLabel}"]`)
+  const nav = page.getByRole('navigation', { name: ariaLabel, exact: true })
+  // The selector mounts with the section: wait for it before choosing a branch.
+  await select.or(nav).first().waitFor({ state: 'attached' })
   if (await select.isVisible()) {
     await select.selectOption({ label })
     await expect.poll(() => select.locator('option:checked').textContent()).toBe(label)
   } else {
-    const link = page
-      .getByRole('navigation', { name: ariaLabel, exact: true })
-      .getByRole('button', { name: label, exact: true })
+    const link = nav.getByRole('button', { name: label, exact: true })
     await link.click()
     await expect(link).toHaveAttribute('aria-current', 'page')
   }

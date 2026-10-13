@@ -18,10 +18,17 @@ test('la orden se carga con costos desglosados y la utilidad se calcula sola', a
   // catálogo vacío; se espera a que «Actualizar» quede habilitado (fin de la
   // carga) para que no desaparezca entre la comprobación y el clic.
   await expect(page.getByRole('button', { name: 'Actualizar' }).first()).toBeEnabled()
-  const cargarCatalogo = page.getByRole('button', { name: 'Cargar catálogo sugerido' }).first()
-  if (await cargarCatalogo.isVisible().catch(() => false)) {
-    await cargarCatalogo.click()
+  // El botón del sugerido vive en el diálogo «Catálogo de servicios».
+  await page.getByRole('button', { name: 'Catálogo de servicios', exact: true }).click()
+  const catalogo = page.getByRole('dialog', { name: 'Catálogo de servicios' })
+  await expect(catalogo).toBeVisible()
+  // El catálogo puede estar vacío: se carga el sugerido solo en ese caso.
+  if (await catalogo.getByText('Sin servicios en el catálogo.').isVisible()) {
+    await catalogo.getByRole('button', { name: 'Cargar catálogo sugerido' }).first().click()
+    await expect(catalogo.getByTestId('catalogo-servicios')).toContainText(/display/i)
   }
+  await page.keyboard.press('Escape')
+  await expect(catalogo).toBeHidden()
 
   await page.getByRole('button', { name: '+ Nueva orden' }).click()
   const modal = page.getByRole('dialog', { name: 'Nueva orden de servicio' })
@@ -52,7 +59,7 @@ test('la orden se carga con costos desglosados y la utilidad se calcula sola', a
   await expect(fila.getByText('+Gs 100.000')).toBeVisible()
 
   // Avance del pipeline: Recibido → Diagnóstico.
-  await fila.getByRole('button', { name: 'Diagnóstico', exact: true }).click()
+  await fila.getByRole('button', { name: 'Pasar a Diagnóstico' }).click()
   await expect(page.getByTestId('servicio-fila').filter({ hasText: marca }).first().getByText('Diagnóstico', { exact: true })).toBeVisible({ timeout: 15_000 })
 
   // Limpieza: la orden de prueba queda cancelada.

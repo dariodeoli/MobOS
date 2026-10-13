@@ -81,7 +81,15 @@ test('producto y búsqueda van antes que el cliente, y la ficha elegida queda en
   const cliente = await posicionDe(page, 'pos-bloque-cliente')
   expect(productos, 'el bloque de productos existe').not.toBeNull()
   expect(cliente, 'el bloque de cliente existe').not.toBeNull()
-  expect(productos.y).toBeLessThan(cliente.y)
+  // El shell nuevo puede poner ambos bloques en la misma fila: no queda
+  // más abajo el catálogo y, en el documento, sigue primero.
+  expect(productos.y).toBeLessThanOrEqual(cliente.y)
+  const productosPrimero = await page.evaluate(() => {
+    const a = document.querySelector('[data-testid="pos-bloque-productos"]')
+    const b = document.querySelector('[data-testid="pos-bloque-cliente"]')
+    return Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+  })
+  expect(productosPrimero, 'el catálogo precede al cliente en el documento').toBe(true)
 
   // Búsqueda y cliente siguen a mano (el buscador se ve antes en la página).
   await expect(page.getByPlaceholder('Buscar producto…')).toBeVisible()

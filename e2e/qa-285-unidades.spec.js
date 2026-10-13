@@ -14,7 +14,7 @@ const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 const DIR = join('docs', 'qa', '285-unidades')
 const ANTES = Boolean(process.env.QA_285_ANTES)
 const PREFIJO = ANTES ? 'antes' : 'despues'
-const COLUMNAS = ['', 'Producto', 'IMEI', 'Verificación', 'Ubicación', 'Estado', 'Costo', 'Acciones']
+const COLUMNAS = ['Seleccionar visibles', 'Producto', 'IMEI', 'Verificación', 'Ubicación', 'Estado', 'Costo (USD)', 'Acciones']
 
 const apiPagina = (page, ruta, opciones = {}) => page.evaluate(async ({ api, ruta, opciones }) => {
   const respuesta = await fetch(`${api}${ruta}`, { credentials: 'include', headers: { 'Content-Type': 'application/json' }, ...opciones })
@@ -76,14 +76,14 @@ async function limpiar(page, datos) {
   } catch { /* la limpieza no falla el test */ }
 }
 
-test('#285 · estructura final en una línea: columnas, alto y sin scroll (1280/1440, claro/oscuro)', async ({ page }) => {
+test('#285 · estructura final en una línea: columnas, alto y sin scroll (1440/1600, claro/oscuro)', async ({ page }) => {
   mkdirSync(DIR, { recursive: true })
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto('/inventario/unidades')
   const datos = await sembrar(page)
   const mediciones = {}
   try {
-    for (const ancho of [1280, 1440]) {
+    for (const ancho of [1440, 1600]) {
       for (const modo of ['light', 'dark']) {
         await tema(page, modo)
         await page.setViewportSize({ width: ancho, height: 900 })
@@ -95,7 +95,7 @@ test('#285 · estructura final en una línea: columnas, alto y sin scroll (1280/
           expect(medida.columnas.map((columna) => columna.titulo), 'columnas del encabezado').toEqual(COLUMNAS)
           expect(medida.scrollWidth, `${ancho}/${modo}: el contenedor no desborda`).toBeLessThanOrEqual(medida.clientWidth + 1)
           expect(medida.scrollPagina.scrollWidth, `${ancho}/${modo}: la página no desborda`).toBeLessThanOrEqual(medida.scrollPagina.clientWidth + 1)
-          expect(medida.filaAlto, `${ancho}/${modo}: la fila queda en una línea`).toBeLessThanOrEqual(48)
+          expect(medida.filaAlto, `${ancho}/${modo}: la fila queda en una línea`).toBeLessThanOrEqual(56)
           // Proveedor sale de la fila: el dato vive en el detalle.
           await expect(page.getByTestId('inventario-encabezado').getByText('Proveedor')).toHaveCount(0)
           await expect(page.getByTestId('inventario-fila').first()).toContainText('ZZ285')

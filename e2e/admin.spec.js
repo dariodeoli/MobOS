@@ -1,4 +1,4 @@
-import { openShellDestination, shellCatalog, shellPrimary, openShellProfile } from './helpers/shell-navigation.js'
+import { openShellDestination, shellCatalog, shellPrimary, openShellProfile, selectConfigSection } from './helpers/shell-navigation.js'
 // Owner views (admin storageState): resumen KPIs, inventario unit intake,
 // equipo → Vendedores roster + creation, and finanzas → Caja opening.
 
@@ -35,7 +35,9 @@ test.describe('owner panel', () => {
     // número de Cobrado usa el token ok.
     await expect(page.getByTestId('indicador-facturado')).not.toHaveClass(/bg-gradient|from-fono-dark|via-fono/)
     await expect(page.getByTestId('indicador-cobrado').locator('.text-ok').first()).toBeVisible()
-    await expect(page.getByTestId('accesos-rapidos')).toBeVisible()
+    // Los accesos rápidos ahora son las secciones primarias del shell: Vender
+    // y el resto quedan a un clic desde la portada.
+    await expect(page.getByTestId('shell-lateral').getByRole('button', { name: 'Vender', exact: true })).toBeVisible()
   })
 
   // #171 (fase 2 de #145): la portada ejecutiva muestra los indicadores
@@ -43,6 +45,8 @@ test.describe('owner panel', () => {
   // cobros por procesadora y conciliación).
   test('resumen: indicadores unificados de la portada ejecutiva', async ({ page }) => {
     await page.goto('/resumen')
+    // Los indicadores del servidor viven en «Métricas, evolución y stock».
+    await page.getByTestId('inicio-detalles').locator('summary').click()
     await expect(page.getByRole('heading', { name: 'Top productos' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Stock valorizado' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Cobros por procesadora' })).toBeVisible()
@@ -53,6 +57,9 @@ test.describe('owner panel', () => {
   // the inventory units load from the API. The seeded serialized product
   // (iPhone 15 E2E Serial) owns one InventoryUnit, listed with its IMEI.
   test('inventario lists the seeded serialized unit with its IMEI', async ({ page }) => {
+    // La grilla completa (con su encabezado) aparece desde 1440 px: debajo, la
+    // lista pasa a la presentación compacta del shell.
+    await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/inventario/unidades')
     // El título de la página lo pone el panel (un solo h1); Inventario aporta el subtítulo.
     await expect(page.getByRole('heading', { name: 'Unidades', level: 1 })).toBeVisible()
@@ -353,7 +360,7 @@ test.describe('owner panel', () => {
     await expect(page.getByText(cliente)).toBeVisible()
 
     // Recepción → diagnóstico con el botón de avance del pipeline.
-    await page.getByRole('button', { name: 'Diagnóstico', exact: true }).first().click()
+    await page.getByRole('button', { name: 'Pasar a Diagnóstico' }).first().click()
     await expect(
       page
         .getByText('Orden de servicio actualizada.')
@@ -1010,7 +1017,10 @@ test('clientes → el vendedor ve la ficha pero no configura el seguro', async (
   await ficha.getByRole('tab', { name: /^Datos/ }).click()
   await expect(ficha.getByRole('switch', { name: 'Seguro del cliente activo' })).toBeDisabled()
 
-  // El menú del vendedor no ofrece Garantías y servicio.
+  // El menú del vendedor no ofrece Garantías y servicio (con la ficha cerrada:
+  // el diálogo cubre el shell).
+  await vendedor.keyboard.press('Escape')
+  await expect(ficha).toBeHidden()
   const sellerCatalog = await shellCatalog(vendedor)
   expect(sellerCatalog.destinations).toContain('Clientes')
   expect(sellerCatalog.destinations).not.toContain('Garantías y servicio')
@@ -1299,12 +1309,12 @@ test('el header usa el candado y lo destructivo vive en Configuración (#228/#26
   {
     await openShellDestination(page, 'Configuración')
   }
-  await page.locator('main').getByRole('tab', { name: 'Mi cuenta', exact: true }).click()
+  await selectConfigSection(page, 'Mi cuenta')
   await expect(page.locator('#pref-bloqueo')).toBeVisible()
   await page.screenshot({ path: 'test-results/qa-228/03-preferencias.jpg', type: 'jpeg', quality: 70 })
 
   // Eliminar empresa: Configuración → Organización, con reauth + palabra ELIMINAR.
-  await page.locator('main').getByRole('tab', { name: 'Organización', exact: true }).click()
+  await selectConfigSection(page, 'Organización')
   // #299: archivar/eliminar y la verificación de identidad están en Zona de peligro.
   await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Zona de peligro', exact: true }).click()
   await expect(page.getByText('Eliminar empresa definitivamente')).toBeVisible()

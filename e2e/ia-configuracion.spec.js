@@ -52,7 +52,7 @@ test('Configuración tiene siete secciones y ninguna duplica contenido', async (
   await expect(page.getByTestId('config-grupos').locator('option[value]:not([value=""])')).toHaveCount(SECCIONES.length)
 
   for (const [nombre, contenido, slug, testid] of SECCIONES) {
-    await page.locator('main').getByRole('tab', { name: nombre, exact: true }).click()
+    await selectConfigSection(page, nombre)
     await expect(page).toHaveURL(new RegExp(`/configuracion/${slug}$`))
     if (contenido) await expect(page.getByRole('heading', { name: contenido }).first()).toBeVisible()
     if (testid) await expect(page.getByTestId(testid)).toBeVisible()

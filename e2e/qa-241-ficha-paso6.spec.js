@@ -70,7 +70,9 @@ async function abrirFicha(page, serial) {
   const esMovil = (page.viewportSize()?.width ?? 1280) < 640
   const fila = page.getByTestId(esMovil ? 'inventario-tarjeta-movil' : 'inventario-fila').filter({ hasText: serial }).first()
   await expect(fila).toBeVisible({ timeout: 20_000 })
-  await fila.locator('span[title^="Categoría:"]').click()
+  // En la fila de escritorio el ícono de categoría puede ocultarse (grilla
+  // compacta): se abre por el modelo, que siempre se ve.
+  await (esMovil ? fila.locator('span[title^="Categoría:"]') : fila.getByTestId('unidad-modelo')).click()
   const ficha = page.getByRole('dialog')
   await expect(ficha).toBeVisible({ timeout: 20_000 })
   await expect(ficha.getByTestId('unidad-phonecheck')).toBeVisible({ timeout: 20_000 })

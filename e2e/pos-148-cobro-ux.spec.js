@@ -132,39 +132,45 @@ for (const [vista, ancho, alto] of [['mobile', 390, 844], ['desktop', 1280, 900]
   })
 }
 
-test('el botón principal crece, ordena etiqueta/importe y avisa por color (#148 §5/§11)', async ({ page }) => {
+test('el botón principal crece, ordena etiqueta/importe y mantiene un color neutro en todos los estados (#148 §5/§11 · #341)', async ({ page }) => {
   await armarVenta(page, { clienteNombre: cliente(), productos: [SEED.products.cable.name, SEED.products.funda.name] })
   const fila = await agregarPago(page)
   await elegirCuenta(page, fila, 'Caja E2E')
   await fila.getByLabel('Monto original').fill('20000')
 
-  // Parcial: naranja de atención (--c-warn del tema) y más alto que el botón
-  // estándar (44/48), con la etiqueta arriba y productos/importe abajo.
+  // Parcial: más alto que el botón estándar (44/48), con la etiqueta arriba y
+  // productos/importe abajo. El color es el neutro de la acción primaria en
+  // todos los estados (#341): el estado se lee en la etiqueta y el resumen.
+  const colorBoton = (b) => b.evaluate((el) => getComputedStyle(el).backgroundColor)
   const boton = page.getByRole('button', { name: /^Crear pedido/ })
   await expect(boton).toBeVisible()
   const caja = await boton.boundingBox()
   expect(Math.round(caja.height)).toBeGreaterThanOrEqual(52)
-  const naranja = await colorTema(page, '--c-warn')
-  await expect.poll(() => boton.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(`rgb(${naranja})`)
-  const renglones = await boton.evaluate((el) => Array.from(el.querySelectorAll('span > span')).map((span) => ({ texto: span.textContent, y: Math.round(span.getBoundingClientRect().y) })))
-  expect(renglones.length).toBe(2)
-  expect(renglones[0].texto).toBe('Crear pedido')
-  expect(renglones[1].texto).toMatch(/2 productos · Gs 125\.000/)
-  expect(renglones[0].y).toBeLessThan(renglones[1].y)
+  const neutro = await colorBoton(boton)
+  for (const variable of ['--c-warn', '--c-ok', '--c-bad']) {
+    expect(neutro, `el parcial no usa ${variable}`).not.toBe(`rgb(${await colorTema(page, variable)})`)
+  }
+  // Etiqueta arriba; debajo, el detalle en dos líneas (productos e importe).
+  const etiquetaBoton = boton.locator('span.font-bold')
+  const detalleBoton = boton.locator('span.tabular-nums').first()
+  await expect(etiquetaBoton).toHaveText('Crear pedido')
+  await expect(detalleBoton).toContainText('2 productos')
+  await expect(detalleBoton).toContainText(/Gs 125\.000/)
+  const yEtiqueta = (await etiquetaBoton.boundingBox()).y
+  const yDetalle = (await detalleBoton.boundingBox()).y
+  expect(yEtiqueta).toBeLessThan(yDetalle)
 
-  // Completo: verde de venta confirmada.
+  // Completo: mismo color neutro, ahora con la etiqueta «Confirmar venta».
   await fila.getByLabel('Monto original').fill('125000')
   const confirmar = page.getByRole('button', { name: /^Confirmar venta/ })
   await expect(confirmar).toBeVisible()
-  const verde = await colorTema(page, '--c-ok')
-  await expect.poll(() => confirmar.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(`rgb(${verde})`)
+  expect(await colorBoton(confirmar)).toBe(neutro)
 
-  // Sin pago: rojo de pendiente.
+  // Sin pago: sigue el mismo neutro (la etiqueta avisa que queda pendiente).
   await fila.getByRole('button', { name: 'Eliminar pago 1' }).click()
   const sinPago = page.getByRole('button', { name: /^Crear pedido sin pago/ })
   await expect(sinPago).toBeVisible()
-  const rojo = await colorTema(page, '--c-bad')
-  await expect.poll(() => sinPago.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(`rgb(${rojo})`)
+  expect(await colorBoton(sinPago)).toBe(neutro)
 })
 
 test('mobile: el resumen «Total de esta venta» es sólido y queda debajo del botón (#148 §5/§11)', async ({ page }) => {

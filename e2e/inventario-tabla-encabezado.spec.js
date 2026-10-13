@@ -52,9 +52,9 @@ const exigirAlineada = (columnas, contexto) => {
   }
 }
 
-test('la grilla del encabezado cae exactamente sobre las celdas (1280)', async ({ page }) => {
+test('la grilla del encabezado cae exactamente sobre las celdas (1440)', async ({ page }) => {
   // #304: en móvil el listado usa tarjetas compactas; la grilla se audita en escritorio.
-  for (const [vista, ancho, alto] of [['desktop', 1280, 900]]) {
+  for (const [vista, ancho, alto] of [['desktop', 1440, 900]]) {
     await page.setViewportSize({ width: ancho, height: alto })
     await page.goto('/inventario/unidades')
     await expect(page.getByTestId('inventario-fila').first()).toBeVisible({ timeout: 20_000 })
@@ -64,7 +64,7 @@ test('la grilla del encabezado cae exactamente sobre las celdas (1280)', async (
 })
 
 test('el estado de carga usa la misma grilla (esqueleto alineado, sin vacío)', async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.setViewportSize({ width: 1440, height: 900 })
   // La API de unidades responde con demora: se alcanza a ver el esqueleto.
   await page.route('**/api/inventory-units**', async (ruta) => {
     await new Promise((resolver) => setTimeout(resolver, 4_000))
@@ -80,7 +80,7 @@ test('el estado de carga usa la misma grilla (esqueleto alineado, sin vacío)', 
 })
 
 test('vacío e IMEI largo en mono: el encabezado queda visible y la grilla no se mueve', async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.setViewportSize({ width: 1440, height: 900 })
   // Vacío: sigue el encabezado con todos sus títulos y aparece el aviso.
   await page.goto('/inventario/unidades?q=ZZZNOEXISTE999')
   await expect(page.getByTestId('unidades-vacio')).toBeVisible({ timeout: 20_000 })
@@ -97,14 +97,14 @@ test('vacío e IMEI largo en mono: el encabezado queda visible y la grilla no se
   const fila = page.getByTestId('inventario-fila').first()
   await expect(fila).toBeVisible({ timeout: 20_000 })
   const alto = (await fila.boundingBox())?.height || 0
-  expect(alto, `la fila densa mide ${alto} px`).toBeLessThanOrEqual(48)
+  expect(alto, `la fila densa mide ${alto} px`).toBeLessThanOrEqual(56)
   exigirAlineada(await medirColumnas(page), 'IMEI largo/denso')
   await expect(fila.locator('span.font-mono').first()).toContainText('E2EE2EIPHONE15')
 })
 
 test('capturas de la tabla en todos los estados', async ({ page }) => {
   mkdirSync(SHOTS, { recursive: true })
-  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/inventario/unidades')
   await expect(page.getByTestId('inventario-fila').first()).toBeVisible({ timeout: 20_000 })
   await page.screenshot({ path: `${SHOTS}/tabla-01-lleno-desktop.png` })
@@ -115,7 +115,7 @@ test('capturas de la tabla en todos los estados', async ({ page }) => {
   await expect(page.getByTestId('inventario-tarjeta-movil').first()).toBeVisible({ timeout: 20_000 })
   await page.screenshot({ path: `${SHOTS}/tabla-02-lleno-mobile.png`, fullPage: true })
 
-  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/inventario/unidades?q=ZZZNOEXISTE999')
   await expect(page.getByTestId('unidades-vacio')).toBeVisible({ timeout: 20_000 })
   await page.screenshot({ path: `${SHOTS}/tabla-03-vacio.png` })

@@ -132,7 +132,7 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await expect(page.getByText(codigoPedido(creada.orderNumber)).first()).toBeVisible()
   await page.getByRole('button', { name: 'Volver al POS' }).click()
   await expect(page).toHaveURL(/\/pos$/)
-  await expect(page.getByText('Todavía no agregaste productos.')).toBeVisible()
+  await expect(page.getByText('Tocá un producto o buscá para empezar.')).toBeVisible()
 
   // La venta aparece en el listado del vendedor. La columna Cliente muestra
   // nombre + primer apellido, así que el nombre completo no se ve en la tabla.
@@ -143,8 +143,10 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
     .filter({ hasText: codigoPedido(creada.orderNumber) })
     .first()
   await expect(sale).toBeVisible()
-  await expect(sale).toContainText('×1')
-  await expect(sale).toContainText('Cliente Checkout')
+  // La fila resume los artículos sin repetir la cantidad (#313): el nombre
+  // del producto viaja en la fila.
+  await expect(sale).toContainText(SEED.products.cable.name)
+  await expect(sale).toContainText(customerName)
   await expect(sale.getByText('Pagado', { exact: true })).toBeVisible()
 
   // Clic en la fila: abre la página del pedido por su id interno.
@@ -314,7 +316,7 @@ test('POS: la linea del carrito arranca ultra-colapsada y el detalle se desplieg
   // Sin descuento ni IMEI, la papelera quita la línea sin preguntar.
   await papelera.click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await expect(page.getByText('Todavía no agregaste productos.')).toBeVisible()
+  await expect(page.getByText('Tocá un producto o buscá para empezar.')).toBeVisible()
 })
 
 // Cliente: búsqueda por razón social de facturación, selección con marca
@@ -742,7 +744,7 @@ test('POS: el producto escaneado pide confirmación antes de entrar a la venta',
   await expect(dialogo.getByText('Producto escaneado')).toBeVisible()
   await expect(dialogo.getByText(SEED.products.cable.name)).toBeVisible()
   await dialogo.getByRole('button', { name: 'Cancelar' }).click()
-  await expect(page.getByText('Todavía no agregaste productos.')).toBeVisible()
+  await expect(page.getByText('Tocá un producto o buscá para empezar.')).toBeVisible()
 
   await page.getByPlaceholder('Buscar producto…').fill('')
   await page.getByPlaceholder('Buscar producto…').fill(`MOBOS:PROD:${SEED.products.cable.sku}`)
