@@ -43,7 +43,7 @@ async function seedCart(page) {
 const inter = (a, b) => a.x < b.x + b.width - 1 && b.x < a.x + a.width - 1 && a.y < b.y + b.height - 1 && b.y < a.y + a.height - 1
 
 async function assertNoOverlap(page, label) {
-  const ids = ['pos-bloque-carrito', 'pos-cobro']
+  const ids = ['pos-bloque-carrito', 'pos-cobro', 'pos-columna-venta', 'pos-bloque-cliente', 'pos-bloque-productos']
   for (const scrollY of [0, 300, 700]) {
     await page.evaluate(y => window.scrollTo(0, y), scrollY)
     await page.waitForTimeout(100)
@@ -52,20 +52,33 @@ async function assertNoOverlap(page, label) {
     const probes = {
       cart: boxes['pos-bloque-carrito'],
       cobro: boxes['pos-cobro'],
+      cliente: boxes['pos-bloque-cliente'],
+      productos: boxes['pos-bloque-productos'],
       entrega: await page.locator('#entrega').boundingBox(),
       monto: await page.locator('#monto-entrega').boundingBox(),
       pagos: await page.getByTestId('pos-bloque-pagos').boundingBox(),
       agregar: await page.getByRole('button', { name: '+ Agregar pago' }).boundingBox(),
       gift: await page.getByRole('button', { name: '+ Canjear gift card' }).boundingBox(),
-      subtotal: await page.getByTestId('carrito-total').boundingBox(),
+      total: await page.getByTestId('carrito-total').boundingBox(),
       tiles: await page.getByTestId('pos-tiles-resumen').boundingBox(),
+    }
+    const col = boxes['pos-columna-venta']
+    if (col && (await page.viewportSize()).width >= 1024) {
+      for (const id of ['pos-bloque-cliente', 'pos-bloque-productos'])
+        expect(inter(col, boxes[id]), `${label} scroll ${scrollY}: la columna de venta solapa ${id}`).toBe(false)
+      // Pegada: su borde superior queda en pantalla mientras haya fila donde
+      // seguir al catálogo; al llegar al final de la fila queda apoyada ahí.
+      const grid = await page.locator('.pos-layout').boundingBox()
+      const alFinal = Math.abs(col.y + col.height - (grid.y + grid.height)) <= 2
+      expect(col.y >= -1 || alFinal, `${label} scroll ${scrollY}: columna pegada (y=${col.y})`).toBe(true)
+      expect(col.y, `${label} scroll ${scrollY}: columna no se despega hacia abajo`).toBeLessThan(200)
     }
     const names = Object.keys(probes)
     for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) {
       const a = probes[names[i]], b = probes[names[j]]
       const nested = (x, y) => x.x >= y.x - 1 && x.y >= y.y - 1 && x.x + x.width <= y.x + y.width + 1 && x.y + x.height <= y.y + y.height + 1
       if (nested(a, b) || nested(b, a)) continue
-      expect(inter(a, b), `${label} scroll ${scrollY}: ${names[i]} solapa ${names[j]}`).toBe(false)
+      expect(inter(a, b), `${label} scroll ${scrollY}: ${names[i]} solapa ${names[j]} ${JSON.stringify([a, b])}`).toBe(false)
     }
   }
   await page.evaluate(() => window.scrollTo(0, 0))
@@ -81,6 +94,37 @@ for (const width of [1280, 1440, 1920, 390]) {
     const total = page.getByTestId('carrito-total')
     expect(await total.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
     await expect(total).toContainText('Gs 180.000')
+  })
+}
+
+for (const width of [1280, 1440, 1920]) {
+  test(`escritorio ${width}: cliente arriba del catálogo, carrito + cobro a la derecha, Cobrar sin deslizar y un solo Total`, async ({ page }) => {
+    await mkdir(out, { recursive: true })
+    await enterPos(page, width, 900, false, true)
+    const cliente = await page.getByTestId('pos-bloque-cliente').boundingBox()
+    const productos = await page.getByTestId('pos-bloque-productos').boundingBox()
+    const columna = await page.getByTestId('pos-columna-venta').boundingBox()
+    const carrito = await page.getByTestId('pos-bloque-carrito').boundingBox()
+    const cobro = await page.getByTestId('pos-cobro').boundingBox()
+    // Izquierda: cliente → productos (mismo ancho y misma x); derecha: carrito → cobro.
+    expect(Math.abs(cliente.x - productos.x)).toBeLessThan(2)
+    expect(Math.abs(cliente.width - productos.width)).toBeLessThan(2)
+    expect(cliente.y + cliente.height).toBeLessThanOrEqual(productos.y + 1)
+    expect(cliente.x + cliente.width).toBeLessThanOrEqual(columna.x + 1)
+    expect(productos.x + productos.width).toBeLessThanOrEqual(columna.x + 1)
+    expect(carrito.y + carrito.height).toBeLessThanOrEqual(cobro.y + 1)
+    expect(Math.abs(carrito.y - cliente.y)).toBeLessThan(40)
+    // «Cobrar» (submit) alcanzable sin deslizar la página.
+    const cobrar = page.getByTestId('pos-cobro').locator('button[type="submit"]').first()
+    const b = await cobrar.boundingBox()
+    expect(b.y + b.height, 'Cobrar dentro de la pantalla').toBeLessThanOrEqual(900)
+    expect(b.height).toBeGreaterThanOrEqual(44)
+    // Un solo Total visible: en el pie del carrito, no repetido en el cobro.
+    await expect(page.getByTestId('carrito-total')).toHaveCount(1)
+    await expect(page.getByTestId('cobro-total')).toHaveCount(1)
+    await expect(page.getByTestId('pos-cobro').getByTestId('carrito-total')).toHaveCount(0)
+    await expect(page.getByTestId('pos-tiles-resumen')).not.toContainText('Total')
+    if (width === 1440) await page.screenshot({ path: `${out}/pos-layout-1440.png` })
   })
 }
 

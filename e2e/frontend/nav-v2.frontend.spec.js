@@ -741,7 +741,11 @@ for (const width of widths) {
       const catalog = await page.getByTestId('pos-bloque-productos').boundingBox()
       const cart = await page.getByTestId('pos-bloque-carrito').boundingBox()
       const client = await page.getByTestId('pos-bloque-cliente').boundingBox()
-      expect(client.y).toBeLessThan(cart.y)
+      // Cliente arriba del catálogo (columna izquierda) y carrito al costado.
+      if (width >= 1024) {
+        expect(client.y + client.height).toBeLessThanOrEqual(catalog.y + 1)
+        expect(client.x + client.width).toBeLessThanOrEqual(cart.x + 1)
+      } else expect(client.y).toBeLessThan(cart.y)
       if (width === 1440) expect(catalog.x + catalog.width).toBeLessThanOrEqual(cart.x)
       else {
         const bar = await page.getByTestId('pos-barra-accion').boundingBox()

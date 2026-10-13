@@ -248,6 +248,33 @@ function ResumenVenta({ items, unidades, montoDescuento, montoDelivery, dia }) {
   )
 }
 
+// Columna lateral del POS en escritorio: queda pegada arriba (sticky) y su alto
+// máximo es lo que entra en pantalla desde donde está hasta el borde inferior,
+// así «Cobrar» se alcanza sin deslizar la página.
+function useColumnaPegada(ref) {
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof window === 'undefined') return undefined
+    const escritorio = window.matchMedia('(min-width: 1024px)')
+    let raf = 0
+    const medir = () => {
+      raf = 0
+      if (!escritorio.matches) { el.style.removeProperty('--pos-col-max'); return }
+      const arriba = Math.max(16, el.getBoundingClientRect().top)
+      el.style.setProperty('--pos-col-max', `${Math.max(320, Math.floor(window.innerHeight - arriba - 16))}px`)
+    }
+    const pedir = () => { if (!raf) raf = requestAnimationFrame(medir) }
+    medir()
+    window.addEventListener('scroll', pedir, { passive: true })
+    window.addEventListener('resize', pedir)
+    return () => {
+      window.removeEventListener('scroll', pedir)
+      window.removeEventListener('resize', pedir)
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [ref])
+}
+
 export default function FormularioVenta({
   onGuardado,
   onCarrito,
@@ -257,6 +284,8 @@ export default function FormularioVenta({
 }) {
   const { sesion, esDemo, empresa, sucursal } = useSesion()
   const navigate = useNavigate()
+  const columnaVentaRef = useRef(null)
+  useColumnaPegada(columnaVentaRef)
   const puedeDescontar = esDemo || ['dueno', 'GERENTE'].includes(sesion?.rol)
   const productos = getProductos().filter(p => p.activo)
   const familias = agruparProductos(productos)
@@ -1987,6 +2016,11 @@ export default function FormularioVenta({
         {/* Operación (cliente + buscador + productos) | carrito y cobro. */}
         <div className="pos-layout grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,400px)]">
           <div className="flex min-w-0 flex-col gap-4">
+            {/* Cliente compacto arriba del catálogo: define la lista de precios. */}
+            <PosCustomer
+              sesion={sesion} esDemo={esDemo} customer={customer} setCustomer={setCustomer}
+              billingTo={billingTo} setBillingTo={setBillingTo} setF={setF}
+            />
             <PasoProductos
               sesion={sesion}
               esDemo={esDemo}
@@ -2033,12 +2067,14 @@ export default function FormularioVenta({
             </div>
           </div>
 
-          {/* Carrito fijo + cobro y entrega: la venta se lee y se cobra acá. */}
-          <div className="flex min-w-0 flex-col gap-4">
-            <PosCustomer
-              sesion={sesion} esDemo={esDemo} customer={customer} setCustomer={setCustomer}
-              billingTo={billingTo} setBillingTo={setBillingTo} setF={setF}
-            />
+          {/* Columna de la venta (carrito + cobro y entrega): pegada como un solo
+              bloque al deslizar el catálogo; si es más alta que la pantalla se
+              desplaza por dentro y «Cobrar» queda fijo al pie. */}
+          <div
+            ref={columnaVentaRef}
+            data-testid="pos-columna-venta"
+            className="pos-columna-venta flex min-w-0 flex-col gap-4 [&>*]:shrink-0"
+          >
             <PasoCarrito
               items={items}
               productos={productos}

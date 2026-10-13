@@ -188,13 +188,13 @@ export default function PasoCarrito({
             <span className="pos-money-value tabular-nums">{gs(montoDelivery)}</span>
           </div>
         )}
-        {/* #309: el total vive acá (una sola vez, más destacado) y no se repite
-            en el resumen del encabezado. */}
-        <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-2 border-t border-fono/20 pt-1.5">
+        {/* El Total vive acá, una sola vez: `cobro-total` envuelve la fila y
+            `carrito-total` es el importe (ambos alcanzables en un solo lugar). */}
+        <div data-testid="cobro-total" className="mt-1 flex flex-wrap items-baseline justify-between gap-x-2 border-t border-fono/20 pt-1.5">
           <span className="text-[11px] font-bold uppercase tracking-wider text-mute">Total</span>
-          <span data-testid="carrito-total" className="pos-money-value v2-numero whitespace-nowrap text-[clamp(1.25rem,5vw,1.75rem)] font-extrabold tracking-tight tabular-nums text-fore">
+          <strong data-testid="carrito-total" className="pos-money-value v2-numero whitespace-nowrap text-[clamp(1.25rem,5vw,1.75rem)] font-extrabold tracking-tight tabular-nums text-fore">
             {gs(totalGeneral ?? totalCarrito)}
-          </span>
+          </strong>
         </div>
         {/* Al pie de la épica (#148 §5): lo pagado y lo pendiente de la venta,
             para leer el estado sin bajar al bloque de cobro. */}
