@@ -805,7 +805,7 @@ export default function Caja() {
               </span>
             </span>
           }
-          valor={<span className="flex h-7 items-center"><StatusChip tono={abierta ? 'ok' : 'neutral'} etiqueta={abierta ? 'Abierta' : 'Cerrada'} /></span>}
+          valor={<span data-testid="caja-estado" className="flex h-7 items-center"><StatusChip tono={abierta ? 'ok' : 'neutral'} etiqueta={abierta ? 'Abierta' : 'Cerrada'} /></span>}
           sub={
             turno?.openedAt
               ? `${turno.status === 'OPEN' ? `Turno de ${nombreTurno(turno)}` : 'Último turno'} · ${fechaHora(turno.openedAt)}`
