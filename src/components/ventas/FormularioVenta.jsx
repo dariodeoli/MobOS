@@ -1810,7 +1810,7 @@ export default function FormularioVenta({
             <div
               role="menu"
               aria-label="Herramientas de la venta"
-              className="absolute right-0 z-30 mt-1 w-60 rounded-xl border border-ink-600 bg-ink-800 p-1 shadow-xl"
+              className="absolute left-0 z-30 mt-1 w-60 max-w-[calc(100vw-2rem)] rounded-xl sm:left-auto sm:right-0 border border-ink-600 bg-ink-800 p-1 shadow-xl"
             >
               <button
                 type="button"
