@@ -4,6 +4,7 @@
 
 import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
+import { selectConfigSection } from './helpers/shell-navigation.js'
 
 const SUBPAGINAS = [
   ['mi-cuenta', 'Mi cuenta'],
@@ -87,23 +88,23 @@ test.describe('Configuración Lote 5', () => {
 test.describe('Configuración IA', () => {
   test('las siete secciones no duplican Dispositivos, Sistema ni Preferencias', async ({ page }) => {
     await page.goto('/configuracion/dispositivos')
-    await expect(page.locator('main').getByRole('tab')).toHaveCount(7)
+    await expect(page.getByTestId('config-grupos').locator('option[value]:not([value=""])')).toHaveCount(7)
 
     // Dispositivos: impresoras y su diagnóstico local, sin el estado global.
-    await expect(page.getByRole('tab', { name: 'Dispositivos', exact: true })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByTestId('config-grupos').locator('select')).toHaveValue('dispositivos')
     await expect(page.getByTestId('paneles-impresion')).toBeVisible()
     await page.getByTestId('panel-diagnostico').click()
     await expect(page.getByRole('heading', { name: 'Diagnóstico de impresión (esta computadora)' })).toBeVisible()
     await expect(page.getByTestId('monitoreo-global')).toBeVisible()
-    await expect(page.getByRole('tab', { name: 'Sistema', exact: true })).toBeVisible()
+    await expect(page.getByTestId('config-grupos').locator('option', { hasText: 'Sistema' })).toBeAttached()
 
     // Sistema: solo el monitoreo global (Estado del sistema).
-    await page.locator('main').getByRole('tab', { name: 'Sistema', exact: true }).click()
+    await selectConfigSection(page, 'Sistema')
     await expect(page).toHaveURL(/\/configuracion\/sistema$/)
     await expect(page.getByRole('heading', { name: 'Sincronización' })).toBeVisible()
 
     // Las preferencias del dispositivo viven en Mi cuenta, una sola vez.
-    await page.locator('main').getByRole('tab', { name: 'Mi cuenta', exact: true }).click()
+    await selectConfigSection(page, 'Mi cuenta')
     await expect(page.locator('#pref-bloqueo')).toBeVisible()
   })
 
@@ -162,7 +163,7 @@ test.describe('Configuración IA', () => {
         await page.addInitScript(({ m }) => { try { localStorage.setItem('mobos:theme', m) } catch { /* sin storage */ } }, { m: modo })
         await page.setViewportSize({ width: ancho, height: alto })
         await page.goto('/configuracion/dispositivos')
-        await expect(page.getByRole('tab', { name: 'Dispositivos', exact: true })).toBeVisible({ timeout: 20_000 })
+        await expect(page.getByTestId('config-grupos')).toBeVisible({ timeout: 20_000 })
         await page.screenshot({ path: `${salida}/config-secciones-${tema}-${vista}.png` })
         await page.goto('/ayuda/ayuda')
         await expect(page.getByTestId('documentacion')).toBeVisible({ timeout: 20_000 })

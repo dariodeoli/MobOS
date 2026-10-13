@@ -6,6 +6,7 @@
 import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { selectConfigSection } from './helpers/shell-navigation.js'
 
 const DIR = process.env.QA_IA_CAPTURAS || join('test-results', 'qa-ia-config')
 mkdirSync(DIR, { recursive: true })
@@ -48,7 +49,7 @@ test('Configuración tiene siete secciones y ninguna duplica contenido', async (
   await page.goto('/configuracion')
   // Sin hijo entra por la primera: Mi cuenta.
   await expect(page).toHaveURL(/\/configuracion\/mi-cuenta$/)
-  await expect(page.locator('main').getByRole('tab')).toHaveCount(SECCIONES.length)
+  await expect(page.getByTestId('config-grupos').locator('option[value]:not([value=""])')).toHaveCount(SECCIONES.length)
 
   for (const [nombre, contenido, slug, testid] of SECCIONES) {
     await page.locator('main').getByRole('tab', { name: nombre, exact: true }).click()
@@ -59,11 +60,11 @@ test('Configuración tiene siete secciones y ninguna duplica contenido', async (
   }
 
   // Documentación ya no es una pestaña de Configuración: vive en Ayuda.
-  await expect(page.locator('main').getByRole('tab', { name: 'Documentación', exact: true })).toHaveCount(0)
+  await expect(page.getByTestId('config-grupos').locator('option', { hasText: 'Documentación' })).toHaveCount(0)
 
   // Sin duplicar: la foto es de Mi cuenta y el ID de tienda no se repite en
   // Datos de la tienda (el detalle de Tiendas es el único lugar donde se copia).
-  await page.locator('main').getByRole('tab', { name: 'Organización', exact: true }).click()
+  await selectConfigSection(page, 'Organización')
   await expect(page.getByRole('heading', { name: 'Datos de la tienda', exact: true })).toHaveCount(1)
   await expect(page.getByText('Mi foto')).toHaveCount(0)
   await expect(page.getByText('ID de la tienda', { exact: true })).toHaveCount(0)
@@ -93,7 +94,7 @@ test('Configuración tiene siete secciones y ninguna duplica contenido', async (
   await org.getByRole('tab', { name: 'Zona de peligro', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Archivar tienda' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Archivar empresa' })).toHaveCount(1)
-  await page.locator('main').getByRole('tab', { name: 'Mi cuenta', exact: true }).click()
+  await selectConfigSection(page, 'Mi cuenta')
   await expect(page.getByText('Mi foto')).toHaveCount(1)
 })
 

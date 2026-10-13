@@ -21,18 +21,19 @@ const NAV = '[data-testid="config-grupos"]'
 const DESCRIPCION = '[data-testid="config-grupo-descripcion"]'
 
 test.describe('Configuración · estructura de los 7 grupos', () => {
-  test('la navegación interna muestra los 7 grupos con icono y respeta el enlace directo', async ({ page }) => {
+  test('la navegación interna muestra los 7 grupos y respeta el enlace directo', async ({ page }) => {
     await page.goto('/configuracion/mi-cuenta')
     const nav = page.locator(NAV)
     await expect(nav).toBeVisible({ timeout: 20_000 })
-    await expect(nav.getByRole('tab')).toHaveCount(GRUPOS.length)
+    // El riel con íconos se reemplazó por el selector nativo de secciones.
+    const selector = nav.locator('select')
+    await expect(selector.locator('option[value]:not([value=""])')).toHaveCount(GRUPOS.length)
     for (const [slug, label] of GRUPOS) {
       await page.goto(`/configuracion/${slug}`)
       await expect(page.locator('h1')).toHaveText(label)
-      await expect(nav.getByRole('tab')).toHaveCount(GRUPOS.length)
-      const activo = nav.getByRole('tab', { name: label, exact: true })
-      await expect(activo).toHaveAttribute('aria-selected', 'true')
-      await expect(activo.locator('svg')).toHaveCount(1)
+      await expect(selector.locator('option[value]:not([value=""])')).toHaveCount(GRUPOS.length)
+      await expect(selector).toHaveValue(slug)
+      await expect(selector.locator('option:checked')).toHaveText(label)
     }
   })
 
@@ -77,7 +78,7 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
         await page.setViewportSize({ width: ancho, height: alto })
         for (const [slug, label] of GRUPOS) {
           await page.goto(`/configuracion/${slug}`)
-          await expect(page.getByRole('tab', { name: label, exact: true }).first()).toBeVisible({ timeout: 20_000 })
+          await expect(page.locator(NAV).locator('select')).toHaveValue(slug, { timeout: 20_000 })
           await page.screenshot({ path: `${salida}/${slug}-${tema}-${vista}.png` })
         }
       }
@@ -88,11 +89,12 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.goto('/configuracion/mi-cuenta')
     const nav = page.locator(NAV)
-    await expect(nav.getByText('Organización', { exact: true })).toBeVisible({ timeout: 20_000 })
+    await expect(nav.locator('select')).toBeVisible({ timeout: 20_000 })
+    await expect(nav.locator('option', { hasText: 'Organización' })).toBeAttached()
     // #298: se retiró el colapso a solo iconos; el riel conserva su ancho.
     await expect(page.getByTestId('config-grupos-toggle')).toHaveCount(0)
     const caja = await nav.boundingBox()
-    expect(caja.width, 'el riel conserva el ancho con texto').toBeGreaterThan(200)
+    expect(caja.width, 'el selector conserva el ancho con texto').toBeGreaterThan(200)
   })
 
   test('capturas de la navegación con texto', async ({ page }) => {
@@ -103,10 +105,10 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
       await page.addInitScript(({ m }) => { try { localStorage.setItem('mobos:theme', m) } catch { /* sin storage */ } }, { m: modo })
       await page.setViewportSize({ width: 1280, height: 900 })
       await page.goto('/configuracion/mi-cuenta')
-      await expect(page.getByRole('tab', { name: 'Mi cuenta', exact: true }).first()).toBeVisible({ timeout: 20_000 })
+      await expect(page.locator(NAV).locator('select')).toBeVisible({ timeout: 20_000 })
       await page.evaluate(() => { try { localStorage.removeItem('mobos:config-menu') } catch { /* sin storage */ } })
       await page.reload()
-      await expect(page.locator(NAV).getByText('Organización', { exact: true })).toBeVisible()
+      await expect(page.locator(NAV).locator('option', { hasText: 'Organización' })).toBeAttached()
       await expect(page.getByTestId('config-grupos-toggle')).toHaveCount(0)
       await page.screenshot({ path: `${salida}/nav-texto-${tema}-desktop.jpg`, type: 'jpeg', quality: 78 })
 
@@ -114,7 +116,7 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
         // Mobile/tablet: la tira horizontal, siempre con rótulos.
         await page.setViewportSize({ width: 390, height: 844 })
         await page.goto('/configuracion/mi-cuenta')
-        await expect(page.getByRole('tab', { name: 'Mi cuenta', exact: true }).first()).toBeVisible({ timeout: 20_000 })
+        await expect(page.locator(NAV).locator('select')).toBeVisible({ timeout: 20_000 })
         await page.screenshot({ path: `${salida}/nav-horizontal-mobile-claro.jpg`, type: 'jpeg', quality: 78 })
       }
     }

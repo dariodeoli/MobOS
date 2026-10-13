@@ -1,4 +1,4 @@
-import { openShellDestination } from './helpers/shell-navigation.js'
+import { openShellDestination, selectAnalysisSection } from './helpers/shell-navigation.js'
 // Verificación post-deploy de Finanzas en el demo público anónimo (#196/#185).
 //
 // Corre contra la base de Playwright (local en CI) o contra un deploy real con
@@ -111,7 +111,7 @@ test.describe('demo anónimo · Finanzas', () => {
       await expect(page.getByText('Seguro guardado en este navegador (demo).')).toBeVisible()
       // El demo vive en memoria de la pestaña (#204): navegación dentro de la app.
       await openShellDestination(page, 'Análisis')
-      await page.getByRole('tab', { name: 'Ganancias' }).click()
+      await selectAnalysisSection(page, 'Ganancias')
       await expect(page.getByText('Incluye seguro 25% (demo)')).toBeVisible()
     } else {
       const notaSeguro = await page.getByText(/no se guardan los límites ni el seguro/)

@@ -12,6 +12,7 @@ import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { SEED } from './helpers/seed-data.js'
+import { selectConfigSection } from './helpers/shell-navigation.js'
 
 const SALIDA = process.env.MOBOS_298_CAPTURAS || ''
 const NAV = '[data-testid="config-grupos"]'
@@ -47,24 +48,26 @@ test('#298 · una sola navegación de Configuración, siempre con texto', async 
   const nav = page.locator(NAV)
   await expect(nav).toBeVisible({ timeout: 20_000 })
 
-  // Sin toggle de colapso y con los siete rótulos a la vista.
+  // Sin toggle de colapso y con los siete rótulos como opciones del selector
+  // de secciones (SectionSelector: lista nativa, siempre con texto).
   await expect(page.locator(TOGGLE)).toHaveCount(0)
-  for (const etiqueta of ETIQUETAS) await expect(nav.getByText(etiqueta, { exact: true })).toBeVisible()
+  const selector = nav.locator('select')
+  await expect(selector).toBeVisible()
+  expect(await selector.locator('option').allTextContents()).toEqual(ETIQUETAS)
 
   // Deep link intacto y navegación entre secciones.
   await page.goto('/configuracion/seguridad')
-  await expect(page.locator(NAV).getByRole('tab', { name: 'Seguridad y auditoría' })).toHaveAttribute('aria-selected', 'true')
-  await page.locator(NAV).getByRole('tab', { name: 'Organización' }).click()
+  await expect(page.locator(NAV).locator('select')).toHaveValue('seguridad')
+  await selectConfigSection(page, 'Organización')
   await expect(page).toHaveURL(/\/configuracion\/organizacion$/)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
   await capturar(page, '01-navegacion-escritorio')
 
-  // Mobile: tira horizontal, rótulos visibles y sin desborde.
+  // Mobile: el mismo selector nativo, con el rótulo actual y sin desborde.
   await page.setViewportSize({ width: 390, height: 844 })
   await page.reload()
-  for (const etiqueta of ['Mi cuenta', 'Organización', 'Seguridad y auditoría']) {
-    await expect(page.locator(NAV).getByText(etiqueta, { exact: true })).toBeVisible()
-  }
+  await expect(page.locator(NAV).locator('select')).toBeVisible()
+  await expect(page.locator(NAV).locator('option:checked')).toHaveText('Organización')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
   await capturar(page, '02-navegacion-mobile')
 })
