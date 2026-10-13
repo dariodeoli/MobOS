@@ -5,7 +5,7 @@ import { mkdir } from 'node:fs/promises'
 // denso y sin scroll horizontal. Demo frontend-only (sin backend).
 const out = process.env.MOBOS_QA_OUT || '/tmp/mobos-pos-layout-qa'
 
-async function enterPos(page, width, height = 900, dark = false, conCarrito = false) {
+async function enterPos(page, width, height = 900, dark = false, conCarrito = false, inflar = 0) {
   await page.setViewportSize({ width, height })
   await page.emulateMedia({ colorScheme: dark ? 'dark' : 'light' })
   await page.route('**/api/**', route =>
@@ -18,11 +18,23 @@ async function enterPos(page, width, height = 900, dark = false, conCarrito = fa
   await page.getByRole('button', { name: 'Entrar como Dueño', exact: true }).click()
   await expect(page.getByTestId('shell')).toBeVisible()
   if (conCarrito) await seedCart(page)
+  if (inflar) await inflarCatalogo(page, inflar)
   const nav = width < 1024
     ? page.getByTestId('shell-bottom-nav')
     : page.getByTestId('shell-lateral').getByRole('navigation', { name: 'Navegación principal', exact: true })
   await nav.getByRole('button', { name: 'Vender', exact: true }).click()
   await expect(page.getByTestId('pos-bloque-productos')).toBeVisible()
+}
+
+// Catálogo grande: clona productos del demo con nombres propios (inventario real).
+async function inflarCatalogo(page, cantidad) {
+  await expect.poll(() => page.evaluate(async () => (await import('/src/lib/storage.js')).getProductos().length)).toBeGreaterThan(0)
+  await page.evaluate(async n => {
+    const { getProductos } = await import('/src/lib/storage.js')
+    const lista = getProductos()
+    const base = lista[0]
+    for (let i = 0; i < n; i++) lista.push({ ...base, id: `qa-extra-${i}`, sku: `QA-EXTRA-${i}`, nombre: `Zeta Extra ${String(i).padStart(3, '0')}`, stock: i % 3 === 0 ? 0 : 5, activo: true })
+  }, cantidad)
 }
 
 async function seedCart(page) {
@@ -169,4 +181,53 @@ test('POS oscuro a 1440 sin solapes', async ({ page }) => {
   await assertNoOverlap(page, 'dark')
   await page.getByTestId('pos-cobro').scrollIntoViewIfNeeded()
   await page.screenshot({ path: `${out}/1440-pos-cobro.png` })
+})
+
+test('catálogo paginado: 4 filas al abrir, «Ver más productos» agrega, la búsqueda recorre todo el catálogo', async ({ page }) => {
+  await mkdir(out, { recursive: true })
+  await enterPos(page, 1440, 900, false, false, 100)
+  const cards = page.locator('.pos-product-card')
+  const contador = page.getByTestId('pos-catalogo-contador')
+  await expect.poll(() => cards.count()).toBeGreaterThan(0)
+  const filas = async () => new Set(await cards.evaluateAll(els => els.map(e => Math.round(e.getBoundingClientRect().y)))).size
+  const columnas = await page.locator('.pos-product-grid').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length)
+  expect(await filas()).toBeLessThanOrEqual(4)
+  expect(await cards.count()).toBeLessThanOrEqual(columnas * 4)
+  // Sin carrito, la página no se alarga con el inventario.
+  expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(900 * 1.5)
+  const total = Number((await contador.innerText()).match(/de (\d+)/)[1])
+  const antes = await cards.count()
+  expect(await contador.innerText()).toBe(`Mostrando ${antes} de ${total}`)
+  const verMas = page.getByTestId('pos-catalogo-ver-mas')
+  expect(total).toBeGreaterThan(antes)
+  {
+    expect((await verMas.boundingBox()).height).toBeGreaterThanOrEqual(44)
+    await verMas.click()
+    await expect.poll(() => cards.count()).toBeGreaterThan(antes)
+    const despues = await cards.count()
+    await expect(contador).toHaveText(`Mostrando ${despues} de ${total}`)
+  }
+  // Búsqueda: un producto que no está en la primera página aparece igual.
+  const visibles = await page.locator('.pos-product-name').allInnerTexts()
+  const fuera = await page.evaluate(async (vistos) => {
+    const { getProductos } = await import('/src/lib/storage.js')
+    const { agruparProductos } = await import('/src/utils/colores.js')
+    return agruparProductos(getProductos().filter(p => p.activo)).map(f => f.base).filter(b => !vistos.includes(b)).pop() || null
+  }, visibles)
+  expect(fuera).not.toBeNull()
+  {
+    await page.getByPlaceholder('Buscar producto…').fill(fuera)
+    await expect(page.locator('.pos-product-name', { hasText: fuera }).first()).toBeVisible()
+  }
+  await page.screenshot({ path: `${out}/1440-pos-paginado.png` })
+})
+
+test('catálogo paginado a 375px: 8 productos, sin scroll horizontal y botón de 44px', async ({ page }) => {
+  await enterPos(page, 375, 800, false, false, 100)
+  const cards = page.locator('.pos-product-card')
+  await expect.poll(() => cards.count()).toBeGreaterThan(0)
+  expect(await cards.count()).toBeLessThanOrEqual(8)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375)
+  const verMas = page.getByTestId('pos-catalogo-ver-mas')
+  expect((await verMas.boundingBox()).height).toBeGreaterThanOrEqual(44)
 })

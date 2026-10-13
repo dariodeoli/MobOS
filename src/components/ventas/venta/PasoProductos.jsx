@@ -1,4 +1,7 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Aviso, Button, Input, MoneyInput, Select } from '@/components/ui'
+import { usePaginaLista } from '@/components/shared/usePaginaLista'
+import { textoMostrando } from '@/components/shared/paginacion'
 import Icon from '@/components/shared/Icon'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import CheckoutCustomer from '../CheckoutCustomer'
@@ -7,6 +10,29 @@ import { gs, num } from '@/utils/calculos'
 import { useSesion } from '@/lib/sesion'
 import EncabezadoBloque from './EncabezadoBloque'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+
+const FILAS_INICIALES = 4
+
+// Columnas reales de la grilla (auto-fill/breakpoints): la primera página
+// llena FILAS_INICIALES filas completas en cualquier ancho.
+function useColumnasGrilla(ref) {
+  const [columnas, setColumnas] = useState(2)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof window === 'undefined') return undefined
+    const medir = () => {
+      const plantilla = window.getComputedStyle(el).gridTemplateColumns || ''
+      const n = plantilla.split(' ').filter(Boolean).length
+      if (n > 0) setColumnas(n)
+    }
+    medir()
+    if (typeof ResizeObserver !== 'function') return undefined
+    const obs = new ResizeObserver(medir)
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [ref])
+  return columnas
+}
 
 // La venta en una sola pantalla: para quién es y qué se vende. Primero el
 // catálogo (buscar/escanear y agregar con un clic) y después el cliente, que
@@ -42,6 +68,23 @@ export default function PasoProductos({
   onCerrarVariante,
   acciones = null,
 }) {
+  const grillaRef = useRef(null)
+  const columnas = useColumnasGrilla(grillaRef)
+  // Con stock primero (lo vendible a mano); el resto conserva el orden del
+  // catálogo. La búsqueda ya filtra el catálogo completo: solo se pagina lo
+  // que se dibuja.
+  const clave = familiasVisibles
+    .map(fam => `${fam.base}${fam.items.some(item => num(item.stock) > 0) ? '+' : '-'}`)
+    .join('|')
+  const bases = useMemo(() => {
+    const conStock = familiasVisibles.filter(fam => fam.items.some(item => num(item.stock) > 0))
+    const sinStock = familiasVisibles.filter(fam => !fam.items.some(item => num(item.stock) > 0))
+    return [...conStock, ...sinStock].map(fam => fam.base)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clave])
+  const pagina = usePaginaLista(bases, { tamano: columnas * FILAS_INICIALES, modo: 'mas' })
+  const porBase = new Map(familiasVisibles.map(fam => [fam.base, fam]))
+  const familiasPagina = pagina.filas.map(base => porBase.get(base)).filter(Boolean)
   return (
     <>
       {/* #281 · identidad de color: Productos = acento de marca (fono). */}
@@ -244,6 +287,7 @@ export default function PasoProductos({
               )}
             </div>
             <div
+              ref={grillaRef}
               className="pos-product-grid grid grid-cols-2 gap-2 sm:grid-cols-3"
               aria-label="Resultados de productos"
             >
@@ -273,7 +317,7 @@ export default function PasoProductos({
                   {noticeCombo}
                 </Aviso>
               )}
-              {familiasVisibles.map(fam => {
+              {familiasPagina.map(fam => {
                 const p = fam.items[0]
                 // Stock y datos de la ficha para elegir sin adivinar.
                 const stockFamilia = fam.items.reduce((suma, item) => suma + num(item.stock), 0)
@@ -329,6 +373,27 @@ export default function PasoProductos({
                 </p>
               )}
             </div>
+            {pagina.total > 0 && (
+              <div
+                className="mt-2 flex flex-wrap items-center justify-between gap-2"
+                data-testid="pos-catalogo-pie"
+              >
+                <p className="text-xs text-mute" role="status" data-testid="pos-catalogo-contador">
+                  {textoMostrando(pagina.mostrados, pagina.total)}
+                </p>
+                {pagina.hayMas && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-11 px-4 text-xs"
+                    data-testid="pos-catalogo-ver-mas"
+                    onClick={pagina.cargarMas}
+                  >
+                    Ver más productos
+                  </Button>
+                )}
+              </div>
+            )}
           </>
         )}
       </section>
