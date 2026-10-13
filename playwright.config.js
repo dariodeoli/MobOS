@@ -107,6 +107,11 @@ export default defineConfig({
     // (en CI el default es UTC y el día de Ganancias/Reportes no coincidía).
     timezoneId: 'America/Asuncion',
     baseURL: `http://localhost:${WEB_PORT}`,
+    // Sin esto un click/fill sobre un elemento que no existe espera hasta el
+    // timeout del test completo (2 min en CI) y, con el reintento, un único
+    // selector roto consume 4 min del shard. Con el mismo tope que los expect
+    // falla en ~30 s y deja el motivo a la vista.
+    actionTimeout: TIMEOUT_EXPECT,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
