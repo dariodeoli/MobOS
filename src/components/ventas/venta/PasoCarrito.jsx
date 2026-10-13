@@ -58,15 +58,16 @@ export default function PasoCarrito({
       className={cn(
         // #281 · identidad de color: carrito = verde de venta (ok).
         'scroll-mt-32 overflow-hidden rounded-2xl border border-ok/35 bg-ok/[.04] shadow-card',
-        // #309: en escritorio el carrito queda fijo a la derecha mientras se
-        // recorre el catálogo (el cobro sigue debajo, en la misma columna).
-        'lg:sticky lg:top-24',
+        // El carrito NO es sticky: el cobro va debajo en la misma columna y un
+        // bloque pegado se montaba sobre él al scrollear. El botón Cobrar queda
+        // fijo al pie (PasoCobro).
         // Lenguaje v2 (#241, paso 5): el carrito completo detrás del flag.
         temaV2Activo() && 'tema-v2',
       )}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ok/20 bg-ok/[.06] px-3.5 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ok/20 bg-ok/[.06] px-3 py-2">
         <EncabezadoBloque
+          compacto
           titulo="Productos de esta venta"
           tono="text-ok"
           descripcion={[cliente ? `Cliente: ${cliente}` : 'Consumidor final', vendedor, f?.entrega].filter(Boolean).join(' · ')}
@@ -189,9 +190,9 @@ export default function PasoCarrito({
         )}
         {/* #309: el total vive acá (una sola vez, más destacado) y no se repite
             en el resumen del encabezado. */}
-        <div className="mt-1 flex flex-col items-start gap-1 border-t border-fono/20 pt-1.5">
+        <div className="mt-1 flex items-baseline justify-between gap-2 border-t border-fono/20 pt-1.5">
           <span className="text-[11px] font-bold uppercase tracking-wider text-mute">Total</span>
-          <span data-testid="carrito-total" className="pos-money-value v2-numero text-[clamp(1.25rem,5vw,1.75rem)] font-extrabold tracking-tight tabular-nums text-fore">
+          <span data-testid="carrito-total" className="pos-money-value v2-numero min-w-0 whitespace-nowrap text-[clamp(1.25rem,5vw,1.75rem)] font-extrabold tracking-tight tabular-nums text-fore">
             {gs(totalGeneral ?? totalCarrito)}
           </span>
         </div>
