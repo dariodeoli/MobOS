@@ -4,6 +4,7 @@ import { error } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
 import type { SessionContext } from '../../../../lib/auth'
 import { canAccessAny } from '../../../../lib/auth'
+import { canSeeCost, dropCostColumns } from '../../../../lib/cost-visibility'
 import { csvResponse } from '../../../../lib/csv'
 import { MAX_REPORT_ORDERS, aggregateCommissions, dayBounds, parseReportQuery } from '../../../../lib/reporting'
 import { numero, numeroOpcional } from '../../../../lib/montos'
@@ -251,7 +252,9 @@ async function exportarUnidades(session: SessionContext, params: URLSearchParams
       costo,
     ]
   })
-  return { encabezados, filas, filtros, nombre: 'mobos-inventario-unidades.csv' }
+  // Proveedor y costo solo para administración y gerencia.
+  const visible = dropCostColumns(encabezados, filas, ['Proveedor', 'Costo (Gs)'], canSeeCost(session.user.role))
+  return { encabezados: visible.headers, filas: visible.rows, filtros, nombre: 'mobos-inventario-unidades.csv' }
 }
 
 /* ── Compras ────────────────────────────────────────────────────────── */

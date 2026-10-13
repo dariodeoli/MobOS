@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
+import { canSeeCost as puedeVerCosto } from '../../../../lib/cost-visibility'
 import { sucursalEfectiva } from '../../../../lib/sucursal-efectiva'
 import { buildStockItemsPageSql, buildStockItemsTotalsSql, buildStockTotals, mapStockRow, paginateStockRows, parseStockItemsQuery } from '../../../../lib/stock-items'
 
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
   if (!tenant || !session) return error('Falta sesión.', 401)
   const role = session.user.role
   const restricted = ['VENDEDOR', 'CAJERA'].includes(role)
-  const canSeeCost = ['ADMIN', 'GERENTE'].includes(role)
+  const canSeeCost = puedeVerCosto(role)
 
   const parsed = parseStockItemsQuery(new URL(request.url).searchParams)
   if ('error' in parsed) return error(parsed.error)
