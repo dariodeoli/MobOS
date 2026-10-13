@@ -6,8 +6,8 @@ import { useSesion } from '@/lib/sesion'
 import { listVentas, productosById } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { codigoPedido, fechaLegible } from '@/utils/pedido'
-import { normalizarBusqueda, nombreCortoCliente } from '@/utils/cliente'
-import { Button, Drawer, EmptyState } from '@/components/ui'
+import { normalizarBusqueda } from '@/utils/cliente'
+import { Button, Drawer, EmptyState, Select } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import SerialTexto from '@/components/shared/SerialTexto'
 import { ultimos4 } from '@/utils/serial'
@@ -19,8 +19,7 @@ import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import PedidoDetalle from './PedidoDetalle'
 import Icon from '@/components/shared/Icon'
 import { FULFILLMENT_LABELS as FULFILLMENT } from '@/lib/constants'
-import { CELDA_DATO, CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
-import { temaV2Activo } from '@/lib/temaV2'
+import './ventasF3.css'
 
 export const orderFields = (row) => {
   const pagos = row.payments || row.pagos || []
@@ -73,23 +72,15 @@ export const orderFields = (row) => {
 }
 // Etiquetas compartidas: incluyen los estados nuevos de entrega (enviado,
 // retirado, parcial, no entregado).
-const ENTREGA = { 'Retiro en tienda': 'Retiro', 'Retiro en otra sucursal': 'Retiro en otra sucursal', Delivery: 'Delivery', Encomienda: 'Encomienda', 'Envío entre sucursales': 'Envío entre sucursales' }
+const ENTREGA = { RETIRO: 'Retiro', DELIVERY: 'Delivery', 'Retiro en tienda': 'Retiro', 'Retiro en otra sucursal': 'Retiro en otra sucursal', Delivery: 'Delivery', Encomienda: 'Encomienda', 'Envío entre sucursales': 'Envío entre sucursales' }
 const PAGO_ORDEN = { Pagado: 0, Parcial: 1, 'A crédito': 2, Pendiente: 3 }
 const ESTADO_ORDEN = { PENDING: 0, PROCESSING: 1, READY_TO_SHIP: 2, SHIPPED: 3, IN_TRANSIT: 4, READY_FOR_PICKUP: 5, PARTIAL: 6, NOT_DELIVERED: 7, PICKED_UP: 8, DELIVERED: 9, CANCELLED: 10 }
 const FILTROS = [
-  ['activos', 'Activos'], ['nopagados', 'No pagados'], ['pendientes', 'Pendientes'],
-  ['parciales', 'Parciales'], ['credito', 'A crédito'], ['archivados', 'Archivados'], ['todos', 'Todos'],
+  ['activos', 'Activos'], ['nopagados', 'Con saldo'], ['credito', 'A crédito'], ['archivados', 'Archivados'], ['todos', 'Todos'],
 ]
 
-// Grid compartido por encabezado y filas: mismas columnas, mismo ancho.
-// Los anchos compactos (pedido, fecha, cant., entrega, pago, estado) liberan
-// espacio para cliente, artículos y serial; el total conserva su ancho porque
-// los importes necesitan lugar. La grilla sigue siendo fija: un badge corto no
-// corre la columna siguiente.
-// Anchuras fijas lo más compactas posible (fecha, cantidad, entrega, pago y
-// estado) para que la tabla entre sin scroll en pantallas de ~1024 px; el
-// scroll queda solo como respaldo en anchos muy chicos (< 46rem).
-const GRID = 'grid min-w-[46rem] grid-cols-[4.25rem_6.25rem_minmax(0,1.15fr)_minmax(0,1.6fr)_minmax(0,0.85fr)_2.25rem_3.75rem_3.75rem_4.75rem_6.5rem_1.75rem] items-center gap-x-1.5'
+// Shared desktop columns; narrow views render cards without a minimum table width.
+const GRID = 'ventas-f3-order-grid'
 
 // Vista previa de artículos: hasta dos descripciones completas (con capacidad)
 // en una sola línea compacta y "+N" cuando el pedido trae más productos.
@@ -113,19 +104,19 @@ const estaCancelado = (row) => row.status === 'CANCELLED'
 
 function BadgePago({ row, v2 }) {
   const estado = estaCancelado(row) ? row.paymentStatus : pagoDe(row)
-  const tono = estado === 'Pagado' ? 'border-ok/25 bg-ok/10 text-ok'
-    : estado === 'Parcial' ? 'border-warn/25 bg-warn/10 text-warn'
+  const tono = estado === 'Pagado' ? 'border-ok/25 bg-ok/10 text-ok-text'
+    : estado === 'Parcial' ? 'border-warn/25 bg-warn/10 text-warn-text'
       : estado === 'A crédito' ? 'border-reserved/40 bg-reserved/10 text-reserved'
-        : 'border-bad/25 bg-bad/10 text-bad'
+        : 'border-bad/25 text-bad-text'
   return <span className={cn('w-fit justify-self-start whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[10px] font-bold', v2 && 'v2-chip', tono)}>{estado || 'Pendiente'}</span>
 }
 
 function BadgeEstado({ row, v2 }) {
-  if (estaCancelado(row)) return <span className={cn('w-fit justify-self-start whitespace-nowrap rounded-md border border-bad/30 bg-bad/10 px-1.5 py-0.5 text-[10px] font-bold text-bad', v2 && 'v2-chip')}>Cancelado</span>
-  const tono = ['DELIVERED', 'PICKED_UP'].includes(row.fulfillmentStatus) ? 'border-ok/25 bg-ok/10 text-ok'
+  if (estaCancelado(row)) return <span className={cn('w-fit justify-self-start whitespace-nowrap rounded-md border border-bad/30 px-1.5 py-0.5 text-[10px] font-bold text-bad-text', v2 && 'v2-chip')}>Cancelado</span>
+  const tono = ['DELIVERED', 'PICKED_UP'].includes(row.fulfillmentStatus) ? 'border-ok/25 bg-ok/10 text-ok-text'
     : ['READY_TO_SHIP', 'SHIPPED', 'IN_TRANSIT'].includes(row.fulfillmentStatus) ? 'border-info/25 bg-info/10 text-info'
-      : ['READY_FOR_PICKUP', 'PARTIAL'].includes(row.fulfillmentStatus) ? 'border-warn/25 bg-warn/10 text-warn'
-        : row.fulfillmentStatus === 'NOT_DELIVERED' ? 'border-bad/30 bg-bad/10 text-bad'
+      : ['READY_FOR_PICKUP', 'PARTIAL'].includes(row.fulfillmentStatus) ? 'border-warn/25 bg-warn/10 text-warn-text'
+        : row.fulfillmentStatus === 'NOT_DELIVERED' ? 'border-bad/30 text-bad-text'
           : 'border-ink-500 bg-ink-700/40 text-mute'
   return <span className={cn('w-fit justify-self-start whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[10px] font-bold', v2 && 'v2-chip', tono)}>{FULFILLMENT[row.fulfillmentStatus] || row.fulfillmentStatus || 'Preparando'}</span>
 }
@@ -156,112 +147,61 @@ const ACENTO_PAGO = (row) => {
 
 function FilaPedido({ row, onClick, onAcciones, v2, angosta = false }) {
   const cancelado = estaCancelado(row)
-  const tachado = cancelado ? 'line-through decoration-bad/70' : ''
-  const ultimo = row.seriales.length ? String(row.seriales[row.seriales.length - 1]) : ''
   const articulos = vistaArticulos(row)
   const total = Number.isFinite(Number(row.total)) ? gs(row.total) : '—'
   const codigo = codigoPedido(row.number) || 'Pedido'
-  const accionVistaRapida = onAcciones && (
-    <button
-      type="button"
-      onClick={(event) => { event.stopPropagation(); onAcciones() }}
-      title="Vista rápida (panel)"
-      aria-label={`Vista rápida de ${codigoPedido(row.number) || 'sin número'}`}
-      className="grid h-11 w-11 place-items-center rounded-lg border border-ink-500 text-mute transition hover:border-fono hover:text-fore md:h-7 md:w-7"
-    >
-      <Icon name="eye" className="h-3.5 w-3.5" />
-    </button>
-  )
   return (
     <div
       role="button"
       tabIndex={0}
       data-testid="pedido-fila"
-      aria-label={`Abrir pedido ${codigoPedido(row.number) || 'sin número'}`}
+      aria-label={`Abrir pedido ${codigo}`}
       onClick={onClick}
-      onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick?.() } }}
-      className={cn(
-        'w-full min-h-11 rounded-xl border border-l-4 border-fore/10 bg-ink-800/40 px-2.5 py-1.5 text-left transition hover:border-fono/40 hover:bg-ink-700/50',
-        ACENTO_PAGO(row),
-        estaCompletado(row) && !cancelado && 'opacity-70 hover:opacity-100',
-      )}
+      onKeyDown={event => {
+        if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault()
+          onClick?.()
+        }
+      }}
+      className={cn('ventas-f3-order-row', !angosta && GRID, ACENTO_PAGO(row))}
     >
-      {angosta ? (
-        // #313 · móvil: tarjeta en una sola columna (nada de tabla comprimida).
-        <div>
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className={cn('truncate font-mono text-xs font-bold text-fono-light', tachado)}>{codigo}</span>
-                {row.isSpecialOrder && (
-                  <span className={cn('shrink-0 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-warn', v2 && 'v2-chip')}>Especial</span>
-                )}
-                {row.offlineSyncedAt && (
-                  <span className={cn('shrink-0 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-warn', v2 && 'v2-chip')}>Offline</span>
-                )}
-              </div>
-              <p className={cn('mt-1', CELDA_IDENTIDAD, tachado)} title={row.customer}>{nombreCortoCliente(row.customer)}</p>
-              <p className={cn('mt-0.5', CELDA_DATO, tachado)} title={articulos.completo || undefined}>
-                {articulos.texto || 'Sin artículos'}
-                {articulos.extra > 0 && <span className="ml-1 font-semibold text-fono-light">+{articulos.extra}</span>}
-              </p>
-              <p className={cn('mt-1 text-[11px] text-mute', tachado)}>
-                {fechaLegible(row.date)} · {ENTREGA[row.deliveryType] || row.deliveryType || 'Retiro'} · ×{row.quantity || 1}
-              </p>
-            </div>
-            <div className="flex shrink-0 flex-col items-end gap-1.5">
-              <span className="truncate text-sm font-bold tabular-nums text-fore">{total}</span>
-              <BadgePago row={row} v2={v2} />
-              <BadgeEstado row={row} v2={v2} />
-            </div>
-          </div>
-          <div className="mt-1.5 flex items-center justify-between gap-2">
-            <span className="min-w-0 truncate">{ultimo && <CeldaSerial serial={ultimo} />}</span>
-            {accionVistaRapida}
-          </div>
-        </div>
-      ) : (
-        <div className={GRID}>
-          <span className={cn('truncate font-mono text-xs font-bold text-fono-light', tachado)} title={row.number}>{codigo}</span>
-          <span className={cn(CELDA_DATO, tachado)}>{fechaLegible(row.date)}</span>
-          <span className="flex min-w-0 items-center gap-1">
-            <span className={cn(CELDA_IDENTIDAD, tachado)} title={row.customer}>{nombreCortoCliente(row.customer)}</span>
-            {row.isSpecialOrder && (
-              <span
-                className={cn('shrink-0 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-warn', v2 && 'v2-chip')}
-                title={row.expectedAt && !Number.isNaN(Date.parse(row.expectedAt)) ? `Pedido especial · esperado ${new Date(row.expectedAt).toLocaleDateString('es-PY')}` : 'Pedido especial'}
-              >
-                Especial
-              </span>
-            )}
-            {row.offlineSyncedAt && (
-              <span
-                className={cn('shrink-0 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-warn', v2 && 'v2-chip')}
-                title={`Venta cargada sin conexión el ${new Date(row.offlineSyncedAt).toLocaleString('es-PY')}: revisá el stock`}
-              >
-                Offline
-              </span>
-            )}
-          </span>
-          <span className={cn(CELDA_DATO, tachado)} title={articulos.completo || undefined}>
-            {articulos.texto || '—'}
-            {articulos.extra > 0 && <span className="ml-1 font-semibold text-fono-light">+{articulos.extra}</span>}
-          </span>
-          <CeldaSerial serial={ultimo} />
-          <span className={cn('text-xs font-semibold tabular-nums', tachado)}>×{row.quantity || 1}</span>
-          <span className={cn(CELDA_DATO, tachado)}>{ENTREGA[row.deliveryType] || row.deliveryType || 'Retiro'}</span>
-          <BadgePago row={row} v2={v2} />
-          <BadgeEstado row={row} v2={v2} />
-          {/* La info financiera no se tacha ni en los pedidos cancelados: el
-              importe sigue siendo el dato que se necesita ver. */}
-          <span className="truncate text-right text-[13px] font-bold tabular-nums text-fore">
-            {total}
-          </span>
-          {/* Vista rápida: es la última columna de la grilla, así queda alineada
-              con su encabezado y no pisa el total. */}
-          <span className="grid place-items-center">{accionVistaRapida}</span>
-        </div>
-      )}
+      <div className="ventas-f3-order-code">
+        <span className={cn('font-mono text-xs font-semibold', cancelado && 'line-through')}>
+          {codigo}
+        </span>
+        <p className="text-xs text-mute">{fechaLegible(row.date)}</p>
+        {row.isSpecialOrder && <span className="text-xs text-warn-text">Especial</span>}
+        {row.offlineSyncedAt && <span className="text-xs text-warn-text">Offline</span>}
+      </div>
+      <div className="ventas-f3-order-identity">
+        <p className="ventas-f3-name">{row.customer}</p>
+        <p className="ventas-f3-description" title={articulos.completo || undefined}>
+          {articulos.texto || 'Sin artículos'}
+          {articulos.extra > 0 ? ` +${articulos.extra}` : ''}
+        </p>
+      </div>
+      <span className="ventas-f3-delivery text-xs text-mute">
+        {ENTREGA[row.deliveryType] || row.deliveryType || 'Retiro'}
+      </span>
+      <span className="ventas-f3-payment">
+        <BadgePago row={row} v2={v2} />
+      </span>
+      <span className="ventas-f3-state">
+        <BadgeEstado row={row} v2={v2} />
+      </span>
+      <span className="ventas-f3-money ventas-f3-order-total">{total}</span>
+      <button
+        type="button"
+        onClick={event => {
+          event.stopPropagation()
+          onAcciones?.()
+        }}
+        aria-label={`Vista rápida de ${codigo}`}
+        title="Vista rápida"
+        className="ventas-f3-quick grid h-11 w-11 place-items-center rounded-lg border border-ink-600 text-mute hover:text-fore"
+      >
+        <Icon name="eye" className="h-4 w-4" />
+      </button>
     </div>
   )
 }
@@ -271,7 +211,7 @@ function FilaResumen({ etiqueta, children, tono = '' }) {
   return (
     <div className="flex items-baseline justify-between gap-3 text-sm">
       <dt className="shrink-0 text-mute">{etiqueta}</dt>
-      <dd className={cn('min-w-0 truncate text-right font-semibold tabular-nums', tono)}>{children}</dd>
+      <dd className={cn('min-w-0 text-right font-semibold tabular-nums break-words', tono)}>{children}</dd>
     </div>
   )
 }
@@ -285,22 +225,24 @@ function VistaRapidaPedido({ row, onClose, onAbrir }) {
   const pagado = Number(row.paid || 0)
   const pendiente = Number(row.pending || 0)
   return (
-    <Drawer open onClose={onClose} title={codigoPedido(row.number) || 'Pedido'} className="w-full sm:max-w-md">
+    <Drawer open onClose={onClose} title={codigoPedido(row.number) || 'Pedido'} className="ventas-f3 w-full sm:max-w-md">
       <div className="space-y-4" data-testid="pedido-vista-rapida">
         <div className="flex flex-wrap items-center gap-2">
           <BadgePago row={row} v2 />
           <BadgeEstado row={row} v2 />
         </div>
-        <dl className="space-y-2 rounded-xl border border-ink-600 bg-ink-800/40 p-3">
-          <FilaResumen etiqueta="Cliente">{nombreCortoCliente(row.customer)}</FilaResumen>
+        <dl className="ventas-f3-summary space-y-2">
+          <FilaResumen etiqueta="Cliente">{row.customer}</FilaResumen>
           <FilaResumen etiqueta="Fecha">{fechaLegible(row.date)}</FilaResumen>
           <FilaResumen etiqueta="Artículos">
             {articulos.texto || 'Sin artículos'}{articulos.extra > 0 ? ` +${articulos.extra}` : ''}
           </FilaResumen>
+          <FilaResumen etiqueta="Cantidad">{row.quantity || 1}</FilaResumen>
+          {row.seriales?.length > 0 && <FilaResumen etiqueta="Serial/IMEI"><CeldaSerial serial={row.seriales[row.seriales.length - 1]} /></FilaResumen>}
           <FilaResumen etiqueta="Entrega">{ENTREGA[row.deliveryType] || row.deliveryType || 'Retiro'}</FilaResumen>
           {row.sellerName && <FilaResumen etiqueta="Vendedor">{row.sellerName}</FilaResumen>}
         </dl>
-        <dl className="space-y-2 rounded-xl border border-ink-600 bg-ink-800/40 p-3">
+        <dl className="ventas-f3-summary space-y-2">
           <FilaResumen etiqueta="Total">{Number.isFinite(total) ? gs(total) : '—'}</FilaResumen>
           <FilaResumen etiqueta="Pagado" tono="text-ok">{gs(pagado)}</FilaResumen>
           <FilaResumen etiqueta="Saldo" tono={pendiente > 0 ? 'text-warn' : ''}>{gs(pendiente)}</FilaResumen>
@@ -390,11 +332,10 @@ export default function SellerOrders() {
     })
   }, [todas, filtro, query, orden, esDemo])
 
-  // Vista previa v2 (#241): resumen de la lista en tiles (activos, por cobrar y
-  // en reparto) con los números de consola. Se apaga solo con el flag.
-  const v2 = temaV2Activo()
+  // F3 is visible without a flag; values retain the existing loaded-row scope.
+  const v2 = true
   // #313: en móvil la lista se muestra como tarjetas (no tabla comprimida).
-  const angosta = usePantallaAngosta('(min-width: 768px)')
+  const angosta = usePantallaAngosta('(min-width: 1200px)')
   const resumen = useMemo(() => rows.reduce((acumulado, row) => {
     const activo = !estaCompletado(row) && !estaCancelado(row)
     const enReparto = ['READY_TO_SHIP', 'SHIPPED', 'IN_TRANSIT'].includes(row.fulfillmentStatus)
@@ -422,7 +363,7 @@ export default function SellerOrders() {
 
   const ordenarPor = (key) => setOrden((current) => current.key === key ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: key === 'date' || key === 'total' || key === 'quantity' ? 'desc' : 'asc' })
   const encabezado = (key, label, extra = '') => (
-    <button type="button" onClick={() => ordenarPor(key)} className={cn('flex items-center gap-1 truncate text-left text-[10px] font-bold uppercase tracking-wider transition hover:text-fore', orden.key === key ? 'text-fono-light' : 'text-mute', extra)}>
+    <button type="button" onClick={() => ordenarPor(key)} className={cn('flex min-h-11 items-center gap-1 text-left text-xs font-medium transition hover:text-fore', orden.key === key ? 'text-fono-light' : 'text-mute', extra)}>
       {label}
       <span className="shrink-0">{orden.key === key ? (orden.dir === 'asc' ? '↑' : '↓') : ''}</span>
     </button>
@@ -452,61 +393,180 @@ export default function SellerOrders() {
     </SellerSection>
   }
 
-  return <SellerSection title="Pedidos">
-    <BarraModulo
-      icono="box"
-      titulo="Pedidos"
-      descripcion="Una fila por pedido, alineada y ordenable: entrá para ver artículos, IMEIs, cliente y cronología."
-      testId="barra-pedidos"
-    >
-      <button type="button" onClick={data.refresh} disabled={data.loading} className="min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore md:min-h-0">Actualizar</button>
-    </BarraModulo>
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{FILTROS.map(([key, label]) => <button key={key} type="button" onClick={() => setFiltro(key)} className={cn('min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition md:min-h-0', filtro === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>
-      <div className="min-w-[220px] flex-1"><SearchField ariaLabel="Buscar pedidos" placeholder="Pedido, cliente, RUC, teléfono, producto, IMEI o monto" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
-    </div>
-    {v2 && rows.length > 0 && (
-      <ResumenMetricas
-        testId="resumen-pedidos"
-        columnas={3}
-        items={[
-          { titulo: 'Activos', valor: resumen.activos, alcance: 'En pantalla' },
-          { titulo: 'Por cobrar', valor: gs(resumen.porCobrar), alcance: 'En pantalla', tono: resumen.porCobrar > 0 ? 'text-warn' : 'text-ok' },
-          { titulo: 'En reparto', valor: resumen.enReparto, alcance: 'En pantalla' },
-        ]}
-      />
-    )}
-    <SellerFeedback {...data} empty={!rows.length} />
-    {!data.loading && !data.error && (angosta ? (
-      // #313 · móvil: una tarjeta por pedido, sin tabla comprimida.
-      <div className="space-y-2" data-testid="pedidos-tabla">
-        {rows.map((row) => <FilaPedido key={row.id} row={row} v2={v2} angosta onClick={() => abrirPedido(row)} onAcciones={() => setPedidoPanel(row)} />)}
-      </div>
-    ) : (
-      <div className="overflow-x-auto" data-testid="pedidos-tabla">
-        <div className={cn(GRID, 'px-2.5 pb-0.5 pt-1')}>
-          {encabezado('number', 'Pedido')}
-          {encabezado('date', 'Fecha')}
-          {encabezado('customer', 'Cliente')}
-          {encabezado('products', 'Artículos')}
-          <span className={ROTULO_DATO}>Serial/IMEI</span>
-          {encabezado('quantity', 'Cant.')}
-          {encabezado('delivery', 'Entrega')}
-          {encabezado('payment', 'Pago')}
-          {encabezado('fulfillment', 'Estado')}
-          {encabezado('total', 'Total', 'justify-end')}
-          <span aria-hidden="true" />
+  return (
+    <div className="ventas-f3" data-testid="ventas-pedidos-f3">
+      <SellerSection title="Pedidos">
+        <BarraModulo
+          titulo="Pedidos"
+          descripcion="Todas las ventas, con su cobro y su entrega."
+          className="ventas-f3-toolbar"
+          testId="barra-pedidos"
+        >
+          <Button type="button" onClick={() => navigate('/pos')}>
+            Nueva venta
+          </Button>
+          <button
+            type="button"
+            onClick={data.refresh}
+            disabled={data.loading}
+            className="min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore md:min-h-0"
+          >
+            Actualizar
+          </button>
+        </BarraModulo>
+        <div className="ventas-f3-filters">
+          <SearchField
+            ariaLabel="Buscar pedidos"
+            placeholder="Pedido, cliente, RUC, producto o IMEI"
+            value={query}
+            onChange={event => setQuery(event.target.value)}
+          />
+          <div className="ventas-f3-chips" role="group" aria-label="Estado de los pedidos">
+            {FILTROS.map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={filtro === key}
+                onClick={() => setFiltro(key)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <details className="ventas-f3-extra-filters">
+            <summary>Más filtros y orden</summary>
+            <div className="flex flex-wrap gap-2 pt-2">
+              <Select
+                aria-label="Más estados de pago"
+                value={['pendientes', 'parciales'].includes(filtro) ? filtro : ''}
+                onChange={event => setFiltro(event.target.value || 'activos')}
+              >
+                <option value="">Estado de pago</option>
+                <option value="pendientes">Pendientes</option>
+                <option value="parciales">Parciales</option>
+              </Select>
+              <Select
+                aria-label="Ordenar pedidos"
+                value={orden.key}
+                onChange={event => ordenarPor(event.target.value)}
+              >
+                {[
+                  ['date', 'Fecha'],
+                  ['number', 'Pedido'],
+                  ['customer', 'Cliente'],
+                  ['products', 'Artículos'],
+                  ['quantity', 'Cantidad'],
+                  ['delivery', 'Entrega'],
+                  ['payment', 'Pago'],
+                  ['fulfillment', 'Estado'],
+                  ['total', 'Total'],
+                ].map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                aria-label="Invertir orden de pedidos"
+                onClick={() => ordenarPor(orden.key)}
+              >
+                {orden.dir === 'asc' ? 'Ascendente ↑' : 'Descendente ↓'}
+              </Button>
+            </div>
+          </details>
         </div>
-        <div className="space-y-1">{rows.map((row) => <FilaPedido key={row.id} row={row} v2={v2} onClick={() => abrirPedido(row)} onAcciones={() => setPedidoPanel(row)} />)}</div>
-      </div>
-    ))}
-    {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="min-h-11 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60 md:min-h-0">{data.cargandoMas ? 'Cargando…' : 'Cargar más pedidos'}</button></div>}
-    {pedidoPanel && !detalleAbierto && (
-      <VistaRapidaPedido
-        row={pedidoPanel}
-        onClose={() => setPedidoPanel(null)}
-        onAbrir={() => { const seleccionado = pedidoPanel; setPedidoPanel(null); abrirPedido(seleccionado) }}
-      />
-    )}
-  </SellerSection>
+        {v2 && rows.length > 0 && (
+          <ResumenMetricas
+            testId="resumen-pedidos"
+            className="ventas-f3-metrics"
+            columnas={3}
+            items={[
+              { titulo: 'Activos', valor: resumen.activos, alcance: 'En pantalla' },
+              {
+                titulo: 'Por cobrar',
+                valor: gs(resumen.porCobrar),
+                alcance: 'En pantalla',
+                tono: resumen.porCobrar > 0 ? 'text-warn' : 'text-ok',
+              },
+              { titulo: 'En reparto', valor: resumen.enReparto, alcance: 'En pantalla' },
+            ]}
+          />
+        )}
+        <SellerFeedback {...data} empty={false} />
+        {!data.loading && !data.error && !rows.length && (
+          <EmptyState
+            icon="box"
+            title="No hay pedidos en esta vista."
+            description="Las ventas del POS aparecen aquí. Prueba otra búsqueda o cambia el filtro."
+            action={<Button onClick={() => navigate('/pos')}>Nueva venta</Button>}
+          />
+        )}
+        {!data.loading &&
+          !data.error &&
+          (angosta ? (
+            // #313 · móvil: una tarjeta por pedido, sin tabla comprimida.
+            <div className="ventas-f3-list" data-testid="pedidos-tabla">
+              {rows.map(row => (
+                <FilaPedido
+                  key={row.id}
+                  row={row}
+                  v2={v2}
+                  angosta
+                  onClick={() => abrirPedido(row)}
+                  onAcciones={() => setPedidoPanel(row)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="ventas-f3-list" data-testid="pedidos-tabla">
+              <div className={cn(GRID, 'ventas-f3-list-header')}>
+                {encabezado('number', 'Pedido / fecha')}
+                {encabezado('customer', 'Cliente / artículos')}
+                {encabezado('delivery', 'Entrega')}
+                {encabezado('payment', 'Pago')}
+                {encabezado('fulfillment', 'Estado')}
+                {encabezado('total', 'Total', 'justify-end')}
+                <span aria-hidden="true" />
+              </div>
+              <div>
+                {rows.map(row => (
+                  <FilaPedido
+                    key={row.id}
+                    row={row}
+                    v2={v2}
+                    onClick={() => abrirPedido(row)}
+                    onAcciones={() => setPedidoPanel(row)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        {!data.loading && !data.error && data.hayMas && (
+          <div className="flex justify-center pt-1">
+            <button
+              type="button"
+              disabled={data.cargandoMas}
+              onClick={data.cargarMas}
+              className="min-h-11 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60 md:min-h-0"
+            >
+              {data.cargandoMas ? 'Cargando…' : 'Cargar más pedidos'}
+            </button>
+          </div>
+        )}
+        {pedidoPanel && !detalleAbierto && (
+          <VistaRapidaPedido
+            row={pedidoPanel}
+            onClose={() => setPedidoPanel(null)}
+            onAbrir={() => {
+              const seleccionado = pedidoPanel
+              setPedidoPanel(null)
+              abrirPedido(seleccionado)
+            }}
+          />
+        )}
+      </SellerSection>
+    </div>
+  )
 }

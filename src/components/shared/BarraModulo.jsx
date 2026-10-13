@@ -15,7 +15,7 @@ export default function BarraModulo({ icono, titulo, descripcion, contexto, chil
       aria-label={titulo}
       className={cn('flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-ink-600 pb-3', className)}
     >
-      <div className={cn('flex items-center gap-2.5', expandir ? 'min-w-0 sm:min-w-[11rem] max-w-[14rem] shrink' : 'min-w-0 sm:min-w-[11rem] flex-1')}>
+      <div className={cn('items-center gap-2.5', !contexto && 'hidden sm:flex', contexto && 'flex', expandir ? 'min-w-0 sm:min-w-[11rem] max-w-[14rem] shrink' : 'min-w-0 sm:min-w-[11rem] flex-1')}>
         {icono && (
           <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-fono/10 text-fono-light">
             <Icon name={icono} className="h-[18px] w-[18px]" />

@@ -65,7 +65,7 @@ test('con más de una variante hay que elegir antes de agregar (#308)', async ({
     const selector = page.getByTestId('selector-variante')
     await expect(selector).toBeVisible()
     await expect(selector.getByTestId('variante-opcion')).toHaveCount(2)
-    await expect(page.getByText('Todavía no agregaste productos.')).toBeVisible()
+    await expect(page.getByText('Tocá un producto o buscá para empezar.')).toBeVisible()
 
     // Elegir la variante exacta la suma con su color.
     await selector.getByTestId('variante-opcion').filter({ hasText: 'Azul' }).click()

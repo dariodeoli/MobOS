@@ -63,7 +63,7 @@ test.describe('ocultos de plataforma', () => {
   // (c) El modo offline del POS se ve en el shell/menú y abre la cola.
   test('el shell avisa el modo offline del POS y abre la cola', async ({ page }) => {
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
     // Con conexión y sin pendientes, el aviso no ocupa lugar.
     await expect(page.getByTestId('shell-cola-offline')).toHaveCount(0)
 
@@ -76,7 +76,10 @@ test.describe('ocultos de plataforma', () => {
     await page.reload()
     const aviso = page.getByTestId('shell-cola-offline')
     await expect(aviso).toBeVisible()
-    await expect(aviso).toContainText('POS sin conexión')
+    // El texto visible es corto («Sin conexión»); el nombre accesible lleva el
+    // estado completo del POS.
+    await expect(aviso).toContainText('Sin conexión')
+    await expect(aviso).toHaveAttribute('aria-label', /POS sin conexión/)
 
     await aviso.click()
     const detalle = page.getByRole('dialog')
@@ -130,7 +133,7 @@ test.describe('ocultos de plataforma', () => {
     await page.addInitScript(() => { try { localStorage.setItem('mobos:theme', 'light') } catch { /* sin storage */ } })
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
     // Los módulos perezosos del POS (SellerTools) tienen que estar cargados
     // antes de simular la desconexión: si el import dinámico queda en vuelo, la
     // pantalla queda en blanco (el aviso no es lo que se prueba).
@@ -138,7 +141,7 @@ test.describe('ocultos de plataforma', () => {
       .waitForResponse((respuesta) => /SellerTools(\.[^/]*)?\.jsx?/.test(respuesta.url()) && respuesta.ok(), { timeout: 30_000 })
       .catch(() => null)
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
     await moduloDiferido
     // `context.setOffline` puede no disparar el evento `offline` bajo carga y
     // bloquea también los assets locales: se simula el estado real del navegador.
@@ -146,8 +149,8 @@ test.describe('ocultos de plataforma', () => {
     await page.reload()
     await expect(page.getByTestId('shell-cola-offline-pill')).toBeVisible()
     await page.screenshot({ path: `${salida}/offline-badge-mobile.png` })
-    await page.getByRole('button', { name: 'Menú', exact: true }).click()
-    await expect(page.getByTestId('shell-cola-offline-menu')).toBeVisible()
+    await page.getByTestId('shell-cola-offline-pill').click()
+    await expect(page.getByRole('dialog', { name: 'Ventas sin conexión', exact: true })).toBeVisible()
     await page.screenshot({ path: `${salida}/offline-badge-menu-mobile.png` })
     await page.addInitScript(() => { try { Object.defineProperty(navigator, 'onLine', { get: () => true, configurable: true }) } catch { /* sin soporte */ } })
     await page.reload()

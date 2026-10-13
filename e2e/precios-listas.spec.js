@@ -97,7 +97,7 @@ test('gestión de listas y venta con escalón aplica el precio por cantidad', as
   // pegado antes del clic.
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(nombreCliente)
   await page.getByPlaceholder('Buscar producto…').fill(nombreProducto)
   await page.getByRole('button', { name: new RegExp(nombreProducto) }).first().click()

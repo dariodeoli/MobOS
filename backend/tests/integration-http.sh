@@ -99,6 +99,12 @@ INSERT INTO "Tenant" ("id", "name", "slug", "email", "passwordHash", "updatedAt"
   ('tenant-b-it', 'Tenant B Integration', 'tenant-b-it', 'company-b-it@example.invalid', :'password_hash', CURRENT_TIMESTAMP),
   ('tenant-c-it', 'Tenant C Integration', 'tenant-c-it', 'company-c-it@example.invalid', :'password_hash', CURRENT_TIMESTAMP);
 
+-- Synthetic private pilot identity, confined to this temporary database (#344).
+INSERT INTO "Tenant" ("id", "name", "slug", "email", "emailVerifiedAt", "passwordHash", "updatedAt") VALUES
+  ('tenant-ruc-pilot-it', 'Synthetic RUC Pilot', 'tenant-ruc-pilot-it', 'dariodeoli@gmail.com', CURRENT_TIMESTAMP, :'password_hash', CURRENT_TIMESTAMP);
+INSERT INTO "User" ("id", "tenantId", "name", "email", "pinHash", "role", "status", "updatedAt") VALUES
+  ('user-ruc-pilot-it', 'tenant-ruc-pilot-it', 'Synthetic RUC Pilot Owner', 'dariodeoli@gmail.com', :'pin_hash', 'ADMIN', 'ACTIVE', CURRENT_TIMESTAMP);
+
 INSERT INTO "Branch" ("id", "tenantId", "name", "updatedAt") VALUES
   ('branch-a-it', 'tenant-a-it', 'Sucursal A', CURRENT_TIMESTAMP),
   ('branch-a2-it', 'tenant-a-it', 'Sucursal A2', CURRENT_TIMESTAMP),
@@ -142,6 +148,9 @@ SQL
   cd "$BACKEND_ROOT"
   # exec: SERVER_PID queda como el proceso next real, para que el cleanup
   # pueda terminarlo sin dejar servidores huérfanos en el puerto temporal.
+  RUC_PILOT_USER_ID=user-ruc-pilot-it RUC_PILOT_TENANT_ID=tenant-ruc-pilot-it \
+  RUC_PILOT_OWNER_EMAIL=dariodeoli@gmail.com RUC_API_KEY='' RUC_SUN_API_KEY='' \
+  RUC_ACCOUNT_HOURLY_LIMIT=12 RUC_INSTALLATION_MONTHLY_LIMIT=90 \
   NODE_ENV=test MOBOS_APP_URL=https://app.moboss.online MOBOS_TRUST_PROXY=true DATABASE_URL="$DATABASE_URL" \
     MOBOS_MAINTENANCE_TOKEN="it-maintenance-token" \
     MOBOS_EMAIL_OUTBOX_ACTIVE_KEY_ID="it-v1" \
@@ -235,8 +244,10 @@ request_key() {
 # seguir verificando los límites entre sesión de empresa y sesión de vendedor.
 auth_cookie() {
   local method="$1" path="$2" expected="$3" body="$4" output="$5" token="$6" cookie_name="$7"
+  local forwarded_ip="${8:-}"
   local headers="$RUN_ROOT/headers.$RANDOM"
   local -a args=(--silent --show-error --request "$method" --output "$output" --dump-header "$headers" --write-out '%{http_code}')
+  if [[ -n "$forwarded_ip" ]]; then args+=(--header "X-Forwarded-For: $forwarded_ip"); fi
   if [[ -n "$token" ]]; then args+=(--header "Authorization: Bearer $token"); fi
   if [[ -n "$body" ]]; then args+=(--header 'Content-Type: application/json' --data "$body"); fi
   local status
@@ -493,10 +504,14 @@ PRIVATE_ORDER_ID="$(json_field "$out" id)"
 PRIVATE_PAYMENT_ID="$(node -e 'const fs=require("fs");console.log(JSON.parse(fs.readFileSync(process.argv[1],"utf8")).payments[0].id)' "$out")"
 SELLER_PRIVACY_SELLER_ID="user-a-it" SELLER_PRIVACY_OTHER_ORDER_ID="$PRIVATE_ORDER_ID" SELLER_PRIVACY_OTHER_PAYMENT_ID="$PRIVATE_PAYMENT_ID" node "$BACKEND_ROOT/tests/seller-privacy.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKEN_A" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/new-modules-functional.mjs" "$BASE_URL" "$ADMIN_TOKEN"
-node "$BACKEND_ROOT/tests/finance-consolidated.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN"
+# Authenticate only the dedicated synthetic owner; ordinary admins remain outside the pilot.
+# TEST-NET-1 address separates the pilot from the normal loopback auth quota.
+out="$(response_file)"; RUC_COMPANY_TOKEN="$(auth_cookie POST /api/auth/login 200 '{"email":"dariodeoli@gmail.com","password":"company-password-it","deviceId":"device-ruc-pilot-it"}' "$out" '' mobos_company_session 192.0.2.44)"
+out="$(response_file)"; RUC_PILOT_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-ruc-pilot-it","pin":"2468"}' "$out" "$RUC_COMPANY_TOKEN" mobos_seller_session 192.0.2.44)"
+node "$BACKEND_ROOT/tests/finance-consolidated.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN" branch-a-it "$RUC_PILOT_TOKEN"
 # Segunda corrida: sin re-siembra, la cuota RUC agotada sigue devolviendo 429
 # porque vive en AuthAttempt de la base, no en memoria del proceso.
-node "$BACKEND_ROOT/tests/finance-consolidated.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN"
+node "$BACKEND_ROOT/tests/finance-consolidated.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN" branch-a-it "$RUC_PILOT_TOKEN"
 node "$BACKEND_ROOT/tests/accounts-tradein.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A"
 node "$BACKEND_ROOT/tests/inventory-transfers.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/unit-repairs.mjs" "$BASE_URL" "$ADMIN_TOKEN"

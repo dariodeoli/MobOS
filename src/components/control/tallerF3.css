@@ -1,0 +1,170 @@
+/* Scoped repair-list presentation; shared navigation and other workshop views stay unchanged. */
+.taller-f3,
+.taller-f3-detail {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.taller-f3 button,
+.taller-f3 select,
+.taller-f3 input:not([type='checkbox']),
+.taller-f3-detail-actions button {
+  min-height: 44px;
+}
+.taller-f3 button,
+.taller-f3-detail-actions button {
+  min-width: 44px;
+}
+.taller-f3 button:focus-visible,
+.taller-f3 input:focus-visible,
+.taller-f3-detail-actions button:focus-visible {
+  outline: 2px solid rgb(var(--c-fono));
+  outline-offset: 3px;
+}
+.taller-f3 [data-testid='barra-taller'] {
+  background: none;
+}
+.taller-f3 [data-testid='barra-taller'] > div:first-child > span {
+  display: none;
+}
+.taller-f3-tools > div {
+  min-width: 0;
+}
+.taller-f3-list-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+}
+.taller-f3-list-tools select {
+  width: auto;
+  max-width: 100%;
+}
+.taller-f3-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.taller-f3-select input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.taller-f3-rows {
+  display: grid;
+  gap: 16px;
+}
+.taller-f3-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 8px;
+  border-top: 1px solid rgb(var(--c-ink-600));
+  padding: 12px 0;
+  min-width: 0;
+}
+.taller-f3-identity {
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.taller-f3-identity b,
+.taller-f3-identity span {
+  display: block;
+}
+.taller-f3-identity b {
+  font-size: 16px;
+}
+.taller-f3-identity span {
+  font-size: 14px;
+  margin-top: 4px;
+}
+.taller-f3-issue {
+  font-size: 14px;
+}
+.taller-f3-meta {
+  font-size: 12px;
+  color: rgb(var(--c-mute));
+}
+.taller-f3-money {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  font-size: 12px;
+}
+.taller-f3-money b {
+  display: block;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.taller-f3-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.taller-f3-actions button {
+  white-space: normal;
+  height: auto;
+}
+.taller-f3-feedback {
+  padding: 12px;
+  border: 1px solid rgb(var(--c-ink-600));
+  border-radius: 10px;
+  font-size: 14px;
+}
+.taller-f3 [data-testid='resumen-taller'] {
+  box-shadow: none;
+  background: none;
+}
+.taller-f3 [data-testid='resumen-taller'] .truncate {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+.taller-f3-detail h2,
+.taller-f3-detail p {
+  overflow-wrap: anywhere;
+}
+@media (min-width: 1100px) {
+  .taller-f3-rows {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 32px;
+  }
+}
+@media (max-width: 600px) {
+  .taller-f3 [data-testid='resumen-taller'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .taller-f3 [data-testid='barra-taller'] > div:last-child {
+    width: 100%;
+  }
+}
+
+.taller-f3 [data-testid='resumen-taller'] p {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.taller-f3-detail-actions {
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.taller-f3-detail-actions button {
+  height: auto;
+  white-space: normal;
+}
+.taller-f3-detail [aria-label='Costos de la reparación'] b {
+  white-space: nowrap;
+}
+
+.taller-f3-tools .taller-f3-search {
+  flex: 1 1 260px;
+}
+.taller-f3 [data-testid='resumen-taller'] span {
+  text-transform: none;
+  letter-spacing: normal;
+}

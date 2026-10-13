@@ -4,6 +4,7 @@
 import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { selectAnalysisSection } from './helpers/shell-navigation.js'
 
 // Capturas: `QA_GANADORES_CAPTURAS` (default test-results/qa-ganadores) — se
 // versionan en docs/qa/finanzas-ganadores/.
@@ -15,10 +16,10 @@ test.describe('análisis', () => {
   test('la vista extendida abre en Reportes y comparte el período con Ganancias', async ({ page }) => {
     await page.goto('/analisis')
     await expect(page).toHaveURL(/\/analisis\/reportes$/)
-    await expect(page.getByRole('tab', { name: 'Reportes' })).toHaveAttribute('aria-selected', 'true')
+    await expect(page.locator('select[aria-label="Secciones de Análisis"]')).toHaveValue('reportes')
     await expect(page.getByText('Total del período')).toBeVisible()
 
-    await page.getByRole('tab', { name: 'Ganancias' }).click()
+    await selectAnalysisSection(page, 'Ganancias')
     await expect(page).toHaveURL(/\/analisis\/ganancias$/)
     await expect(page.getByRole('heading', { name: 'Cómo se calcula' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Mes', exact: true })).toBeVisible()
@@ -29,7 +30,7 @@ test.describe('análisis', () => {
     await expect(page.getByRole('heading', { name: 'Productos ganadores' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Semana' })).toBeVisible()
 
-    await page.getByRole('tab', { name: 'Asistente' }).click()
+    await selectAnalysisSection(page, 'Asistente')
     await expect(page).toHaveURL(/\/analisis\/asistente$/)
     await expect(page.getByRole('heading', { name: 'Asistente de ganancias' })).toBeVisible()
   })

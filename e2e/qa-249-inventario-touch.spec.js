@@ -44,7 +44,7 @@ test('mobile 390: los targets de la tarjeta y la ficha llegan a 44', async ({ pa
   const nombre = await caja(tarjeta.locator('b').first())
   medidas['nombre del modelo'] = `${nombre.w}x${nombre.h}`
   expect(nombre.w, `nombre ${nombre.w} px < ${MINIMO_NOMBRE}`).toBeGreaterThanOrEqual(MINIMO_NOMBRE)
-  await exigirToque(page.getByTestId('tabs-inventario').getByRole('button', { name: 'Inventario', exact: true }), 'solapa Inventario (H3)')
+  await exigirToque(page.getByTestId('tabs-inventario'), 'solapa Inventario (H3)')
   await exigirToque(page.getByLabel('Buscar en inventario'), 'buscador')
   mkdirSync(SALIDA, { recursive: true })
   await page.screenshot({ path: `${SALIDA}/01-mobile-lista.png`, fullPage: true })
@@ -65,8 +65,10 @@ test('mobile 390: los targets de la tarjeta y la ficha llegan a 44', async ({ pa
   writeFileSync(`${SALIDA}/medidas-mobile.json`, `${JSON.stringify(medidas, null, 2)}\n`)
 })
 
-test('escritorio 768: la fila sigue compacta', async ({ page }) => {
-  await page.setViewportSize({ width: 768, height: 1024 })
+// Por debajo de 1120 px de contenedor la lista pasa a tarjetas naturales
+// (stockF4.css); la fila de una línea se audita con el shell ya expandido.
+test('escritorio 1440: la fila sigue compacta', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/inventario/unidades')
   const fila = page.getByTestId('inventario-fila').first()
   await expect(fila).toBeVisible({ timeout: 20_000 })

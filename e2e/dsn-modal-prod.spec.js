@@ -9,13 +9,13 @@ test('modales principales en producción (después)', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto(`${APP}/demo`)
   await page.getByRole('button', { name: /Entrar como Dueño/i }).click()
-  await expect(page.getByTestId('shell-bloquear')).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByTestId('shell-perfil')).toBeVisible({ timeout: 30_000 })
   const guia = page.getByRole('dialog', { name: 'Cómo funciona la demo' })
   if (await guia.count()) await guia.getByRole('button', { name: 'Cerrar' }).click().catch(() => {})
 
   // 1) POS · Analytics
   await page.goto(`${APP}/pos`)
-  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible({ timeout: 25_000 })
+  await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible({ timeout: 25_000 })
   await page.getByRole('button', { name: 'Analytics' }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
   const anchoAnalytics = await page.getByRole('dialog').evaluate((el) => Math.round(el.getBoundingClientRect().width))

@@ -1,3 +1,4 @@
+import { openShellDestination, openShellProfile } from './helpers/shell-navigation.js'
 // Demo pública anónima (#192): /demo entra por perfiles sin login, el panel
 // funciona con datos ficticios sin tocar el API y sin sesión demo la navegación
 // directa vuelve a /demo (no a /login).
@@ -103,7 +104,7 @@ async function recorrerModulos(page, modulos) {
 }
 
 const MODULOS_VENDEDOR = [
-  ['/pos', 'POS'],
+  ['/pos', 'Vender'],
   ['/pedidos', 'Mis pedidos'],
   ['/delivery', 'Delivery'],
   ['/clientes', 'Clientes'],
@@ -116,7 +117,7 @@ const MODULOS_VENDEDOR = [
 ]
 
 const MODULOS_OWNER = [
-  ['/pos', 'POS'],
+  ['/pos', 'Vender'],
   ['/pedidos', 'Mis pedidos'],
   ['/delivery', 'Delivery'],
   ['/clientes', 'Clientes'],
@@ -154,7 +155,7 @@ test('la demo entra sin login, navega con datos ficticios y no toca el API', asy
   await page.getByRole('button', { name: /Entrar como Vendedor/ }).click()
   await expect(page).toHaveURL(/\/pos$/)
   await cerrarGuia(page)
-  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
   // Banner visible de datos ficticios y encabezado con la marca (#223).
   await expect(page.getByText(/datos ficticios/).first()).toBeVisible()
   await expect(page.getByTestId('shell-tienda')).toHaveText('MobOS')
@@ -243,7 +244,7 @@ test('dueño: recorrido demo con datos ficticios y capturas opcionales', async (
     ['/finanzas/caja', /Caja/i, '04-caja'],
     ['/finanzas/conciliacion', /Conciliaci/i, '05-conciliacion'],
     ['/analisis/ganancias', /Ganancias/i, '06-ganancias'],
-    ['/servicio-tecnico', /Servicio|Taller|Órdenes/i, '07-servicio'],
+    ['/servicio', /Servicio|Taller|Órdenes/i, '07-servicio'],
     ['/configuracion/dispositivos', /Dispositivos|Impresi/i, '08-impresoras'],
   ]
   for (const [ruta, texto, nombre] of pantallas) {
@@ -373,7 +374,7 @@ test('la demo no persiste nada: guardados, recarga, salida y base intacta', asyn
   await expect(page.getByText(codigo).first()).toBeVisible()
 
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente cierre POS ${marca}`)
   // Accesorio (stock simple): la venta serializada pide el IMEI exacto (#263).
   await page.getByPlaceholder('Buscar producto…').fill('Funda')
@@ -418,9 +419,10 @@ test('la demo no persiste nada: guardados, recarga, salida y base intacta', asyn
   await page.goto('/pos')
   await expect(page.locator('#pos-resumen-venta').getByText('0 productos')).toBeVisible()
 
-  // Salir limpia la marca de demo de la pestaña (el cierre vive en la barra
-  // superior; el menú de tres puntos ya no lo duplica, #228).
-  await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).first().click()
+  // Salir limpia la marca de demo de la pestaña (el cierre vive en el perfil
+  // del shell; el menú de tres puntos ya no lo duplica, #228).
+  const perfil = await openShellProfile(page)
+  await perfil.getByRole('button', { name: 'Cerrar sesión', exact: true }).click()
   await page.getByRole('button', { name: 'Salir', exact: true }).click()
   await expect(page).toHaveURL(/\/login$/)
   const trasSalir = await instantaneaNavegador(page)
@@ -440,7 +442,7 @@ test('la marca de demo no se filtra al login real de la misma pestaña', async (
   await loginCompany(page)
   expect(await page.evaluate(() => sessionStorage.getItem('mobos:demo-session'))).toBeNull()
   await completeSellerPin(page)
-  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
   // La sesión real usa el API de verdad: ya no hay barrera de demo.
   expect(llamadas.length, 'el login real tiene que llamar al API').toBeGreaterThan(0)
 })
@@ -520,10 +522,7 @@ test('el último usado es el default y se puede cambiar (#209)', async ({ page }
   // enlace de vuelta). Para no perder lo recordado en la demo, la vuelta se
   // hace por el enlace y el regreso con el historial (navegación SPA).
   const irADocumentacion = async () => {
-    const nav = page.locator('aside nav')
-    const ayuda = nav.getByRole('button', { name: 'Ayuda', exact: true })
-    if (!(await ayuda.isVisible())) await nav.getByRole('button', { name: 'Configuración', exact: true }).first().click()
-    await ayuda.click()
+    await openShellDestination(page, 'Ayuda')
     await expect(page.getByRole('heading', { name: 'Ayuda', exact: true })).toBeVisible()
   }
 
@@ -534,7 +533,7 @@ test('el último usado es el default y se puede cambiar (#209)', async ({ page }
   // Elegir Vender se recuerda dentro de la sesión (navegación SPA).
   await filtroModulo.click()
   await expect(filtroModulo).toHaveAttribute('aria-pressed', 'true')
-  await page.locator('aside nav').getByRole('button', { name: 'Inicio', exact: true }).last().click()
+  await openShellDestination(page, 'Inicio')
   await expect(page.getByRole('heading', { name: 'Inicio' })).toBeVisible()
   await irADocumentacion()
   await expect(filtroModulo).toHaveAttribute('aria-pressed', 'true')
@@ -617,7 +616,7 @@ test('demo: el borrador del POS se suspende, se lista, se retoma y se descarta',
   await suspender.getByLabel('Etiqueta (opcional)').fill('Borrador demo QA')
   await suspender.getByRole('button', { name: 'Suspender venta' }).click()
   await expect(page.getByText(/Venta suspendida en la demo/)).toBeVisible()
-  await expect(page.getByText('Todavía no agregaste productos.')).toBeVisible()
+  await expect(page.getByText('Tocá un producto o buscá para empezar.')).toBeVisible()
 
   // La lista muestra etiqueta, cliente y vendedor del borrador.
   await page.getByTestId('pos-mas').click()

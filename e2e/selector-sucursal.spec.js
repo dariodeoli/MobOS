@@ -27,13 +27,13 @@ test.describe('selector de sucursal', () => {
     })
     await page.goto('/pos')
 
-    const info = page.getByTestId('sucursal-info')
+    const info = page.locator('[data-testid="sucursal-info"]:visible')
     await expect(info).toBeVisible()
     await expect(info).toContainText('Sucursal Única E2E')
     // Sin apariencia de botón ni menú: nada que abrir.
     await expect(info).not.toHaveAttribute('role', 'button')
     await expect(info).not.toHaveAttribute('aria-haspopup', /.*/)
-    await expect(page.getByTestId('sucursal-selector')).toHaveCount(0)
+    await expect(page.locator('[data-testid="sucursal-selector"]:visible')).toHaveCount(0)
   })
 
   test('con varias sucursales el menú abre y cambia la activa', async ({ page }) => {
@@ -43,7 +43,7 @@ test.describe('selector de sucursal', () => {
     expect(creada.status).toBe(201)
 
     await page.reload()
-    const selector = page.getByTestId('sucursal-selector')
+    const selector = page.locator('[data-testid="sucursal-selector"]:visible')
     await expect(selector).toBeVisible()
     await expect(selector).toHaveAttribute('aria-haspopup', 'menu')
     await expect(selector).toHaveAttribute('aria-expanded', 'false')
@@ -63,6 +63,6 @@ test.describe('selector de sucursal', () => {
 
     // La sucursal elegida es el «último usado»: sobrevive a la recarga (#209).
     await page.reload()
-    await expect(page.getByTestId('sucursal-selector')).toContainText(nombre)
+    await expect(page.locator('[data-testid="sucursal-selector"]:visible')).toContainText(nombre)
   })
 })

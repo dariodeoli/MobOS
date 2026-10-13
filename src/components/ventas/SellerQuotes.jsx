@@ -6,7 +6,7 @@ import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { getProductos } from '@/lib/storage'
 import { gs, num } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
-import { Aviso, Badge, Button, DocumentoImpresion, EmptyState, FormActions, FormField, Input, Modal, MoneyInput, Textarea } from '@/components/ui'
+import { Aviso, Badge, Button, DocumentoImpresion, EmptyState, FormActions, FormField, Input, Modal, MoneyInput, Textarea, MenuDesplegable, Select } from '@/components/ui'
 import EmailField from '@/components/shared/EmailField'
 import CompartirPdf from '@/components/shared/CompartirPdf'
 import Icon from '@/components/shared/Icon'
@@ -32,12 +32,14 @@ import { listDemoCotizaciones, historialDemoCotizacion, actualizarDemoCotizacion
 import { convertirDemoCotizacion } from '@/lib/demoCotizacionConversion'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import BarraModulo from '@/components/shared/BarraModulo'
-import { CELDA_ENCABEZADO, CELDA_IDENTIDAD_GRANDE, ROTULO_DATO } from '@/components/shared/tabla'
+import { ROTULO_DATO } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
+import { quoteActions } from '@/lib/ventasF3'
+import './ventasF3.css'
 const STATUS = { DRAFT: ['Borrador', 'slate'], SENT: ['Enviada', 'blue'], ACCEPTED: ['Aceptada', 'orange'], REJECTED: ['Rechazada', 'red'], CONVERTED: ['Convertida', 'green'], EXPIRED: ['Vencida', 'red'], CANCELLED: ['Cancelada', 'slate'] }
 // Chips de estado resueltos en el servidor (mismo patrón que Pedidos).
 const ABIERTAS = ['DRAFT', 'SENT', 'ACCEPTED']
-const FILTROS = [['todas', 'Todas'], ['abiertas', 'Abiertas'], ['DRAFT', 'Borrador'], ['SENT', 'Enviada'], ['ACCEPTED', 'Aceptada'], ['REJECTED', 'Rechazada'], ['CONVERTED', 'Convertida']]
+const FILTROS = [['abiertas', 'Abiertas'], ['SENT', 'Enviadas'], ['ACCEPTED', 'Aceptadas'], ['REJECTED', 'Rechazadas'], ['CONVERTED', 'Convertidas'], ['todas', 'Todas']]
 const identity = row => row
 // #314: la demo recorre el pipeline con los fixtures canónicos de #324 y el
 // estado de la pestaña (enviar/aceptar/convertir) resuelto en memoria.
@@ -49,7 +51,7 @@ const enlaceDemoCotizacion = (cotizacion) => cotizacion?.publicToken && typeof w
 
 // Tabla compacta: una fila por cotización, encabezados ordenables y las
 // acciones del estado en la misma línea. Misma grilla que Pedidos y Clientes.
-const GRID = 'grid min-w-[55rem] grid-cols-[5.5rem_minmax(7rem,1fr)_minmax(8rem,1.3fr)_6.5rem_6rem_7.5rem_10rem] items-center gap-x-2'
+const GRID = 'ventas-f3-quote-grid'
 const fechaCorta = (value) => {
   const date = new Date(value)
   if (!value || Number.isNaN(date.getTime())) return ''
@@ -81,7 +83,7 @@ function PreviaCotizacion({ open, onClose, cotizacion, emisor, etiquetaCerrar = 
   const subtotal = Number(cotizacion.subtotalPyg ?? items.reduce((suma, fila) => suma + fila.subtotal, 0))
   const descuento = Number(cotizacion.discountPyg || 0)
   return (
-    <Modal open={open} onClose={onClose} title="Vista previa de la cotización" size="completo">
+    <Modal className="ventas-f3 ventas-f3-dialog" open={open} onClose={onClose} title="Vista previa de la cotización" size="completo">
       <div className="space-y-3" data-testid="cotizacion-previa">
         <p className="text-xs text-mute">Así se ve el documento que revisa y aprueba el cliente.</p>
         <div className="overflow-x-auto rounded-xl border border-ink-600 bg-white">
@@ -165,7 +167,7 @@ export default function SellerQuotes() {
   // La demo no pagina contra la API: sus pocas filas se filtran en memoria.
   const rows = useMemo(() => esDemo ? data.rows
     .filter(row => filtro === 'todas' || (filtro === 'abiertas' ? ABIERTAS.includes(row.status) : row.status === filtro))
-    .filter(row => `${row.number} ${row.customerName}`.toLowerCase().includes(query.toLowerCase())) : data.rows, [data.rows, filtro, query, esDemo])
+    .filter(row => `${row.number} ${row.customerName || row.customer?.name || ''} ${(row.items || []).map(item => item.description).join(' ')}`.toLowerCase().includes(query.toLowerCase())) : data.rows, [data.rows, filtro, query, esDemo])
   const itemsValidos = items.filter(item => item.description.trim() && num(item.quantity) > 0 && num(item.unitPricePyg) >= 0)
   const total = itemsValidos.reduce((sum, item) => sum + num(item.quantity) * num(item.unitPricePyg), 0) - num(form.discountPyg)
   // #314: datos del emisor y vista previa del borrador (sin guardar).
@@ -403,78 +405,236 @@ export default function SellerQuotes() {
     }
   }
 
-  return <SellerSection title="Cotizaciones">
-    <BarraModulo
-      icono="report"
-      titulo="Cotizaciones"
-      descripcion="Pipeline de ventas: cotizá, seguí el vencimiento y convertí en pedido cuando el cliente acepte."
-      testId="barra-cotizaciones"
-    >
-      {/* #314: crear también en demo: el pipeline completo es local. */}
-      <Button type="button" onClick={abrirCrear}>+ Nueva cotización</Button>
-      <button type="button" onClick={data.refresh} disabled={data.loading} className="min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore md:min-h-0">Actualizar</button>
-    </BarraModulo>
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{FILTROS.map(([key, label]) => <button key={key} type="button" onClick={() => setFiltro(key)} className={cn('min-h-11 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition md:min-h-0', filtro === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>
-      <div className="min-w-[200px] flex-1"><SearchField ariaLabel="Buscar cotizaciones" placeholder="Número, cliente o ítem" value={query} onChange={event => setQuery(event.target.value)} /></div>
-    </div>
-    {notice && <Aviso tono="ok">{notice}</Aviso>}
-    {error && <Aviso tono="error">{error}</Aviso>}
-    <SellerFeedback {...data} empty={false} />
-    {!data.loading && !data.error && (rows.length ? (
-      <div className="overflow-x-auto" data-testid="cotizaciones-tabla">
-        <div className={cn(GRID, 'px-3.5 pb-2 pt-1')}>
-          <span className={CELDA_ENCABEZADO}>Número</span>
-          <span className={CELDA_ENCABEZADO}>Cliente</span>
-          <span className={CELDA_ENCABEZADO}>Artículos</span>
-          <span className={CELDA_ENCABEZADO}>Vence</span>
-          <span className={CELDA_ENCABEZADO}>Estado</span>
-          <span className={cn('truncate text-right', ROTULO_DATO)}>Total</span>
-          <span className={cn('truncate text-right', ROTULO_DATO)}>Acciones</span>
+  return (
+    <div className="ventas-f3" data-testid="ventas-cotizaciones-f3">
+      <SellerSection title="Cotizaciones">
+        <BarraModulo
+          titulo="Cotizaciones"
+          descripcion="Precios y condiciones para compartir con el cliente."
+          className="ventas-f3-toolbar"
+          testId="barra-cotizaciones"
+        >
+          {/* #314: crear también en demo: el pipeline completo es local. */}
+          <Button type="button" onClick={abrirCrear}>
+            + Nueva cotización
+          </Button>
+          <button
+            type="button"
+            onClick={data.refresh}
+            disabled={data.loading}
+            className="min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore md:min-h-0"
+          >
+            Actualizar
+          </button>
+        </BarraModulo>
+        <div className="ventas-f3-filters">
+          <SearchField
+            ariaLabel="Buscar cotizaciones"
+            placeholder="Número, cliente o artículo"
+            value={query}
+            onChange={event => setQuery(event.target.value)}
+          />
+          <div className="ventas-f3-chips" role="group" aria-label="Estado de las cotizaciones">
+            {FILTROS.map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={filtro === key}
+                onClick={() => setFiltro(key)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <Select
+            aria-label="Más estados de cotización"
+            value={['DRAFT', 'EXPIRED', 'CANCELLED'].includes(filtro) ? filtro : ''}
+            onChange={event => setFiltro(event.target.value || 'todas')}
+          >
+            <option value="">Más estados</option>
+            <option value="DRAFT">Borradores</option>
+            <option value="EXPIRED">Vencidas</option>
+            <option value="CANCELLED">Canceladas</option>
+          </Select>
         </div>
-        <div className="space-y-1">
-          {rows.map(row => {
-            // #314: una abierta con la validez cumplida se muestra vencida (y no
-            // se puede aceptar ni convertir).
-            const estado = esDemo ? estadoCotizacion(row) : row.status
-            const [label, tone] = STATUS[estado] || [estado || row.status, 'slate']
-            const cliente = row.customerName || row.customer?.name || 'Sin cliente'
-            const articulos = (row.items || []).map(item => `${item.quantity} × ${item.description}`).join(' · ')
-            const vence = vencimiento(row)
-            const abierta = ABIERTAS.includes(row.status) && estado !== 'EXPIRED'
-            return <div key={row.id} data-testid="cotizacion-fila" data-estado={estado} className={cn(GRID, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
-              <span className="truncate font-mono text-xs font-bold text-fono-light" title={row.number}>{row.number}</span>
-              <span className={CELDA_IDENTIDAD_GRANDE} title={cliente}>{cliente}</span>
-              <span className="truncate text-[11px] text-mute" title={articulos || undefined}>{articulos || '—'}</span>
-              <span className={cn('truncate text-[11px]', vence.urgente ? 'font-semibold text-warn' : 'text-mute')} title={vence.titulo}>{vence.texto}</span>
-              <Badge color={tone} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{label}</Badge>
-              <span className="truncate text-right text-sm font-bold tabular-nums text-fore">{gs(row.totalPyg)}</span>
-              <span className="flex flex-wrap items-center justify-end gap-1">
-                {row.order && <span className="truncate text-[11px] text-mute" title={`Pedido ${codigoPedido(row.order.orderNumber)}`}>Pedido {codigoPedido(row.order.orderNumber)}</span>}
-                {abierta && <>
-                  {row.status === 'DRAFT' && <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => cambiarEstado(row, 'SENT', 'Cotización marcada como enviada.', { action: 'Cotización enviada', detail: 'Marcada desde el listado' })}>Enviar</Button>}
-                  {row.status === 'SENT' && <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => cambiarEstado(row, 'ACCEPTED', 'Cotización aceptada.', { action: 'Aceptada por el cliente', detail: 'Registrada desde el listado' })}>Aceptar</Button>}
-                  {row.status === 'ACCEPTED' && <Button type="button" className="h-8 px-2 text-xs" title="Convertir en pedido" disabled={busy} onClick={() => convertir(row)}>Convertir</Button>}
-                  <button type="button" disabled={busy} className="h-8 rounded-lg border border-bad/30 px-2 text-xs font-semibold text-bad transition hover:bg-bad/10" onClick={() => cambiarEstado(row, 'CANCELLED', 'Cotización cancelada.', { action: 'Cotización cancelada', detail: 'Cancelada desde el listado' })}>Cancelar</button>
-                </>}
-                {!esDemo && <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => abrirCorreo(row)}>Correo</Button>}
-                <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => abrirEnlace(row)}>Enlace/QR</Button>
-                <Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setHistorial(row)}>Historial</Button>
-              </span>
+        {notice && <Aviso tono="ok">{notice}</Aviso>}
+        {error && <Aviso tono="error">{error}</Aviso>}
+        <SellerFeedback {...data} empty={false} />
+        {!data.loading &&
+          !data.error &&
+          (rows.length ? (
+            <div className="ventas-f3-list" data-testid="cotizaciones-tabla">
+              <div className={cn(GRID, 'ventas-f3-list-header')} aria-hidden="true">
+                <span>Número</span>
+                <span>Cliente / artículos</span>
+                <span>Vence</span>
+                <span>Estado</span>
+                <span className="text-right">Total</span>
+                <span className="text-right">Acciones</span>
+              </div>
+              {rows.map(row => {
+                const estado = esDemo ? estadoCotizacion(row) : row.status
+                const [label, tone] = STATUS[estado] || [estado || row.status, 'slate']
+                const cliente = row.customerName || row.customer?.name || 'Sin cliente'
+                const articulos = (row.items || [])
+                  .map(item => `${item.quantity} × ${item.description}`)
+                  .join(' · ')
+                const vence = vencimiento(row)
+                const actions = quoteActions(row, estado)
+                const extras = [
+                  ...(actions.accept
+                    ? [
+                        {
+                          label: 'Aceptar',
+                          disabled: busy,
+                          onClick: () =>
+                            cambiarEstado(row, 'ACCEPTED', 'Cotización aceptada.', {
+                              action: 'Aceptada por el cliente',
+                              detail: 'Registrada desde el listado',
+                            }),
+                        },
+                      ]
+                    : []),
+                  ...(!esDemo ? [{ label: 'Correo', onClick: () => abrirCorreo(row) }] : []),
+                  { label: 'Enlace/QR', onClick: () => abrirEnlace(row) },
+                  { label: 'Historial', onClick: () => setHistorial(row) },
+                  ...(actions.cancel
+                    ? [
+                        {
+                          label: 'Cancelar',
+                          peligro: true,
+                          disabled: busy,
+                          onClick: () =>
+                            cambiarEstado(row, 'CANCELLED', 'Cotización cancelada.', {
+                              action: 'Cotización cancelada',
+                              detail: 'Cancelada desde el listado',
+                            }),
+                        },
+                      ]
+                    : []),
+                ]
+                return (
+                  <div
+                    key={row.id}
+                    data-testid="cotizacion-fila"
+                    data-estado={estado}
+                    className={cn(GRID, 'ventas-f3-quote-row')}
+                  >
+                    <span className="ventas-f3-quote-code font-mono text-xs font-semibold">
+                      {row.number}
+                    </span>
+                    <div className="ventas-f3-quote-identity">
+                      <p className="ventas-f3-name">{cliente}</p>
+                      <p className="ventas-f3-description">{articulos || 'Sin artículos'}</p>
+                    </div>
+                    <span
+                      className={cn(
+                        'ventas-f3-quote-expiry text-xs',
+                        vence.urgente ? 'font-semibold text-warn-text' : 'text-mute',
+                      )}
+                      title={vence.titulo}
+                    >
+                      {vence.texto}
+                    </span>
+                    <span className="ventas-f3-quote-state">
+                      <Badge color={tone}>{label}</Badge>
+                    </span>
+                    <span className="ventas-f3-money ventas-f3-quote-total">
+                      {gs(row.totalPyg)}
+                    </span>
+                    <div
+                      className="ventas-f3-quote-actions"
+                      onClickCapture={event => {
+                        // Capture a persistent return target before the menu item unmounts.
+                        // The menu's deferred focus cannot establish the modal's opener.
+                        if (event.target.closest('[role="menuitem"]')) {
+                          event.currentTarget.querySelector('button[aria-haspopup="menu"]')?.focus()
+                        }
+                      }}
+                    >
+                      {row.order && (
+                        <span className="text-xs text-mute">
+                          Pedido {codigoPedido(row.order.orderNumber)}
+                        </span>
+                      )}
+                      {actions.send && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={busy}
+                          onClick={() =>
+                            cambiarEstado(row, 'SENT', 'Cotización marcada como enviada.', {
+                              action: 'Cotización enviada',
+                              detail: 'Marcada desde el listado',
+                            })
+                          }
+                        >
+                          Enviar
+                        </Button>
+                      )}
+                      {actions.convert && (
+                        <Button
+                          type="button"
+                          disabled={busy}
+                          title="Convertir en pedido"
+                          onClick={() => convertir(row)}
+                        >
+                          Convertir
+                        </Button>
+                      )}
+                      {actions.link && (
+                        <Button type="button" variant="outline" onClick={() => abrirEnlace(row)}>
+                          Enlace/QR
+                        </Button>
+                      )}
+                      <MenuDesplegable
+                        trigger={
+                          <>
+                            <span>Más</span>
+                          </>
+                        }
+                        ariaLabel={`Acciones de ${row.number}`}
+                        items={extras}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
             </div>
-          })}
-        </div>
-      </div>
-    ) : (
-      <EmptyState
-        icon="report"
-        title={query || filtro !== 'todas' ? 'No hay cotizaciones en esta vista.' : 'Todavía no hay cotizaciones.'}
-        description={query || filtro !== 'todas' ? 'Probá con otro número, cliente o ítem, o cambiá el filtro.' : 'Creá la primera y seguila hasta convertirla en pedido.'}
-        action={<Button type="button" onClick={abrirCrear}>+ Nueva cotización</Button>}
-      />
-    ))}
-    {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="min-h-11 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60 md:min-h-0">{data.cargandoMas ? 'Cargando…' : 'Cargar más cotizaciones'}</button></div>}
+          ) : (
+            <EmptyState
+              icon="report"
+              title={
+                query || filtro !== 'todas'
+                  ? 'No hay cotizaciones en esta vista.'
+                  : 'Todavía no hay cotizaciones.'
+              }
+              description={
+                query || filtro !== 'todas'
+                  ? 'Prueba otro número, cliente o artículo, o cambia el filtro.'
+                  : 'Compartí precios por enlace y convertí la cotización en pedido cuando el cliente acepte.'
+              }
+              action={
+                <Button type="button" onClick={abrirCrear}>
+                  + Nueva cotización
+                </Button>
+              }
+            />
+          ))}
+        {!data.loading && !data.error && data.hayMas && (
+          <div className="flex justify-center pt-1">
+            <button
+              type="button"
+              disabled={data.cargandoMas}
+              onClick={data.cargarMas}
+              className="min-h-11 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60 md:min-h-0"
+            >
+              {data.cargandoMas ? 'Cargando…' : 'Cargar más cotizaciones'}
+            </button>
+          </div>
+        )}
     <Modal
+      className="ventas-f3 ventas-f3-dialog"
       open={crearOpen}
       onClose={() => !busy && setCrearOpen(false)}
       title="Nueva cotización"
@@ -581,12 +741,12 @@ export default function SellerQuotes() {
       onClose={() => setFichaAbierta(false)}
       onCreada={(ficha) => { setFichaAbierta(false); setForm(current => ({ ...current, customerId: ficha.id, customerName: ficha.name })); setClientes([]) }}
     />
-    <Modal open={historial !== null} onClose={() => setHistorial(null)} title={`Historial de ${historial?.number || 'cotización'}`} size="amplio">
+    <Modal className="ventas-f3 ventas-f3-dialog" open={historial !== null} onClose={() => setHistorial(null)} title={`Historial de ${historial?.number || 'cotización'}`} size="amplio">
       {historial && (esDemo
         ? <Cronologia eventos={historialDemoCotizacion(historial.id)} vacio="Sin actividad" descripcionVacio="Los cambios de estado, el envío y la conversión en pedido de esta cotización demo aparecerán acá." />
         : <Cronologia endpoint={`/api/quotes/${historial.id}/history`} active={historial !== null} vacio="Sin actividad" descripcionVacio="Los cambios de estado, la conversión en pedido y las notas de esta cotización aparecerán acá." />)}
     </Modal>
-    <Modal open={enlace !== null} onClose={() => { setEnlace(null); setQr(''); setEnlaceError('') }} title={`Enlace de ${enlace?.number || 'la cotización'}`}>
+    <Modal className="ventas-f3 ventas-f3-dialog" open={enlace !== null} onClose={() => { setEnlace(null); setQr(''); setEnlaceError('') }} title={`Enlace de ${enlace?.number || 'la cotización'}`}>
       <div className="space-y-4 text-center">
         <p className="text-sm text-mute">Compartí este enlace o QR con el cliente: revisa la <b>versión congelada</b> del presupuesto y la aprueba con un código enviado a su correo o teléfono. Recién al aprobar se genera el pedido.</p>
         {Number(enlace?.version) > 0 && <p data-testid="enlace-version" className="text-[11px] uppercase tracking-wider text-mute">Versión {enlace.version} congelada</p>}
@@ -618,7 +778,7 @@ export default function SellerQuotes() {
         </div>
       </div>
     </Modal>
-    <Modal open={correo !== null} onClose={() => { if (!correoBusy) { setCorreo(null); setCorreoError(''); setCorreoAviso('') } }} title={`Enviar ${correo?.number || 'la cotización'} por correo`}>
+    <Modal className="ventas-f3 ventas-f3-dialog" open={correo !== null} onClose={() => { if (!correoBusy) { setCorreo(null); setCorreoError(''); setCorreoAviso('') } }} title={`Enviar ${correo?.number || 'la cotización'} por correo`}>
       {correo && <div className="space-y-4">
         <p className="text-sm text-mute">{correo.customerId ? `El cliente recibe el detalle y el enlace para aceptarla o rechazarla, y el envío queda en el historial de la cotización y en su ficha.` : 'La cotización no está ligada a una ficha de cliente: indicá a qué correo enviarla (queda registrado en el historial).'}</p>
         {correo.customerId && !String(correo.customer?.email || '').trim() && <Aviso tono="warn">Este cliente todavía no tiene correo guardado: lo guardamos en su ficha al enviar.</Aviso>}
@@ -650,5 +810,6 @@ export default function SellerQuotes() {
       emisor={emisor}
       etiquetaCerrar="Cerrar"
     />
-  </SellerSection>
+  </SellerSection></div>
+  )
 }

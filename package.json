@@ -1,7 +1,7 @@
 {
   "name": "mobos",
   "private": true,
-  "version": "1.0.224",
+  "version": "1.0.225",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,7 @@
     "lint": "eslint src scripts print-agent",
     "lint:fix": "eslint src scripts --fix",
     "db:check": "node scripts/check-db-schema.mjs",
-    "test": "node --test \"src/**/*.test.js\" \"print-agent/**/*.test.mjs\"",
+    "test": "node --test \"src/**/*.test.js\" \"print-agent/**/*.test.mjs\" scripts/release.test.mjs",
     "audit:logs": "node scripts/audit-logs.mjs",
     "rotacion:tokens": "node scripts/checklist-rotacion-tokens.mjs",
     "emails:prueba": "node scripts/emails-prueba.mjs",
@@ -22,10 +22,13 @@
     "format": "prettier --write \"src/**/*.{js,jsx,css}\" \"scripts/**/*.mjs\"",
     "release:prepare": "node scripts/release.mjs",
     "release:smoke": "node scripts/smoke.mjs",
-    "release:publish": "node scripts/release.mjs --publish --deploy",
+    "release:publish": "node scripts/release.mjs --publish --deploy --deploy-current",
     "test:e2e": "playwright test",
     "test:print-agent": "npm --prefix print-agent test",
-    "test:e2e:smoke": "playwright test --grep 'seller logs in with company credentials|registers the sale and lists it in pedidos|clic en la fila abre el pedido por su id interno|owner-only nav items|resumen shows the dashboard KPIs|lists the seeded serialized unit|returns the minimal public payload|has no horizontal overflow'"
+    "test:e2e:smoke": "playwright test --grep 'seller logs in with company credentials|registers the sale and lists it in pedidos|clic en la fila abre el pedido por su id interno|owner-only nav items|resumen shows the dashboard KPIs|lists the seeded serialized unit|returns the minimal public payload|has no horizontal overflow'",
+    "release:prepare-version": "node scripts/release.mjs --prepare-version",
+    "release:build-current": "node scripts/release.mjs --build-current",
+    "test:release": "node --test scripts/release.test.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",

@@ -130,7 +130,7 @@ test('el encabezado y el pie del panel viven una sola vez (#320)', () => {
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [], 'el pie del panel lo renderiza solo el shell')
   const shell = readFileSync(join(RAIZ, 'components/app/AppShell.jsx'), 'utf8')
-  assert.equal((shell.match(/<ProductFooter/g) || []).length, 1, 'el shell renderiza el pie una sola vez')
+  assert.equal((shell.match(/<ProductFooter/g) || []).length, 0, 'el shell no repite el pie dentro de la aplicación (#341)')
 })
 
 test('la vista lista/cuadrícula se recuerda con el hook compartido', () => {
@@ -625,11 +625,11 @@ test('el QR del informe sale de lib/qr y shared/CodigoQr (#240)', () => {
 // (los 8 grupos en paralelo). La lista, el teclado y el debounce no se repiten.
 // Lote 54 (#267): el riel de Configuración delega el markup en la biblioteca.
 // #298: una sola navegación, siempre con texto (sin colapso a iconos).
-test('el riel de Configuración usa NavegacionSeccion y no se colapsa (#267/#298)', () => {
+test('Configuración usa selector accesible sin colapso ni tira horizontal móvil (#341)', () => {
   const riel = readFileSync(join(RAIZ, 'components/control/config/NavegacionConfig.jsx'), 'utf8')
-  assert.match(riel, /import \{ NavegacionSeccion \} from 'owncoding-ui'/, 'el riel sale de la biblioteca')
+  assert.match(riel, /import SectionSelector from '@\/components\/app\/SectionSelector'/, 'el adaptador usa el selector compartido del shell')
   assert.match(riel, /testId="config-grupos"/, 'conserva los testids de los specs')
-  assert.ok(!riel.includes('role="tablist"'), 'el markup del riel vive en la biblioteca')
+  assert.ok(!riel.includes('role="tablist"'), 'el selector no simula un tablist')
   assert.ok(!/colapsado=|onToggle|useMenuConfigColapsado/.test(riel), 'la navegación no se colapsa a iconos (#298)')
   assert.ok(!existsSync(join(RAIZ, 'lib/menuConfig.js')), 'la preferencia de colapso ya no existe (#298)')
 })
@@ -713,7 +713,7 @@ test('la composición de módulo y el resumen de métricas son objetos (#256)', 
   assert.match(readFileSync(join(RAIZ, 'components/ventas/SellerCatalog.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-productos"/, 'Productos usa el resumen con alcance')
   assert.match(readFileSync(join(RAIZ, 'components/control/Compras.jsx'), 'utf8'), /<ResumenMetricas[\s\S]*?testId="resumen-compras"/, 'Compras usa el resumen con alcance')
   assert.match(readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /data-testid="grupos-inventario"/, 'la navegación de Inventario está agrupada (#305)')
-  assert.match(readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /data-testid="tabs-inventario"/, 'las solapas de Inventario viven en un contenedor propio (sin contadores repetidos)')
+  assert.match(readFileSync(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /data-testid="tabs-inventario"/, 'las secciones de Inventario viven en un selector agrupado (sin contadores repetidos)')
 })
 
 // Diseño #279 (A3/A5): los previews usan los objetos compartidos (barra,

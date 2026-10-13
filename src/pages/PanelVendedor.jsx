@@ -5,15 +5,15 @@ import { useLive } from '@/hooks/useLive'
 import { useAutoRefrescar } from '@/hooks/useAutoRefrescar'
 import { useReloj } from '@/hooks/useReloj'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
-import { listVentas, hidratarFinanzas, refrescarCatalogo } from '@/lib/storage'
+import { hidratarFinanzas, refrescarCatalogo } from '@/lib/storage'
 import { sessionApi } from '@/lib/api'
 import { EQUIPO_DEMO } from '@/lib/demo/iphones'
 import { ROLE_LABELS } from '@/lib/roles'
-import { ventasDelDia, fechaClave, num, gs } from '@/utils/calculos'
-import SelectorSucursal from '@/components/shared/SelectorSucursal'
+import { gs } from '@/utils/calculos'
 import Icon from '@/components/shared/Icon'
 import AppShell from '@/components/app/AppShell'
-import { ConfirmDialog, Modal, PinInput, Select, Skeleton, Subtabs, useToast } from '@/components/ui'
+import SectionSelector from '@/components/app/SectionSelector'
+import { ConfirmDialog, Modal, PinInput, Select, Skeleton, useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { rutaDeVista, vistaDeRuta } from '@/lib/rutas'
 import { flagsV2 } from '@/lib/flags'
@@ -85,7 +85,7 @@ const SELLER_NAV = [
   {
     titulo: 'Vender',
     items: [
-      ['cargar', 'POS', 'receipt'],
+      ['cargar', 'Nueva venta', 'receipt'],
       ['pedidos', 'Mis pedidos', 'box'],
       ['cotizaciones', 'Cotizaciones', 'report'],
       ['promociones', 'Promociones', 'store'],
@@ -125,7 +125,7 @@ const OWNER_NAV = [
   {
     titulo: 'Vender',
     items: [
-      ['cargar', 'POS', 'receipt'],
+      ['cargar', 'Nueva venta', 'receipt'],
       ['pedidos', 'Pedidos', 'box'],
       ['cotizaciones', 'Cotizaciones', 'report'],
       ['promociones', 'Promociones', 'store'],
@@ -190,23 +190,6 @@ const TECNICO_NAV = [
     titulo: 'Operación',
     items: [['servicio', 'Taller y garantías', 'wrench']],
   },
-]
-
-// Accesos directos de la barra inferior en móvil/tablet.
-const SELLER_BOTTOM = [
-  ['cargar', 'Vender', 'receipt'],
-  ['pedidos', 'Pedidos', 'box'],
-  ['repartos', 'Delivery', 'truck'],
-  ['clientes', 'Clientes', 'users'],
-  ['productos', 'Productos', 'phone'],
-  ['cotizaciones', 'Cotizaciones', 'report'],
-]
-
-const OWNER_BOTTOM = [
-  ['resumen', 'Inicio', 'chart'],
-  ['cargar', 'Vender', 'receipt'],
-  ['pedidos', 'Pedidos', 'box'],
-  ['inventario', 'Inventario', 'box'],
 ]
 
 // Cada apartado con pestañas vive en /<padre>/<slug> (slug hijo en la URL).
@@ -320,7 +303,7 @@ const LABELS = {
   cotizaciones: 'Cotizaciones',
   plantillas: 'Plantillas de WhatsApp',
   cotizador: 'Trade-In',
-  cargar: 'POS',
+  cargar: 'Vender',
   resumen: 'Inicio',
   ops: 'Tablero de operaciones',
   analisis: 'Análisis',
@@ -363,21 +346,6 @@ const LABELS = {
   'tradein-admin': 'Trade-In',
   servicio: 'Taller',
 }
-
-const MESES = [
-  'enero',
-  'febrero',
-  'marzo',
-  'abril',
-  'mayo',
-  'junio',
-  'julio',
-  'agosto',
-  'septiembre',
-  'octubre',
-  'noviembre',
-  'diciembre',
-]
 
 // Marca de pantalla bloqueada: en sessionStorage para que el bloqueo no se
 // pierda al recargar y se descarte al cerrar la pestaña (#204).
@@ -606,14 +574,6 @@ export default function PanelVendedor() {
     recordarSidebar(current => !current)
   }
 
-  const hoy = fechaClave()
-  const delDia = esOwner ? ventasDelDia(listVentas(), hoy) : []
-  const totalHoy = delDia.reduce((a, v) => a + num(v.precio), 0)
-  const activos = new Set(delDia.map(v => v.vendedorId).filter(Boolean)).size
-  const [, m, dd] = hoy.split('-')
-  const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
-  const diaSem = DIAS[new Date(`${hoy}T12:00:00`).getDay()]
-  const fechaLarga = `${diaSem}, ${Number(dd)} de ${MESES[Number(m) - 1]}`
   const opcionesVendedor = useMemo(
     () => (esDemo
       ? EQUIPO_DEMO
@@ -789,8 +749,6 @@ export default function PanelVendedor() {
         title={tituloVista}
         breadcrumb={subpadre ? [MIGA_SUBPAGINA[subpadre]] : undefined}
         nav={esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV}
-        bottomNav={esOwner ? OWNER_BOTTOM : esTecnico ? [] : SELLER_BOTTOM}
-        onOpenMenuLabel="Menú"
         active={subpadre ? (idsDelMenu.has(vista) ? vista : SUBPAGINAS[subpadre].vista) : vista}
         onNavigate={ir}
         collapsed={sidebarCollapsed}
@@ -809,42 +767,7 @@ export default function PanelVendedor() {
         onAbrirNotificacion={(href) => navigate(href)}
         onSearch={() => setBusquedaAbierta(true)}
         onHelp={() => setAyudaAbierto(true)}
-        sidebarStats={
-          esOwner && (
-            <>
-              <div className="mt-1 text-[22px] font-semibold tracking-tight text-fono-light tabular-nums">
-                {gs(totalHoy)}
-              </div>
-              <div className="mt-1 text-[11.5px] text-fore/60">
-                {delDia.length} ventas · {activos} {activos === 1 ? 'vendedor' : 'vendedores'}
-              </div>
-            </>
-          )
-        }
-        headerActions={
-          <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
-            <SelectorSucursal className="max-sm:max-w-[7.5rem]" />
-            <div className="hidden h-[34px] items-center gap-2 rounded-[9px] border border-fono/30 bg-ink-800 px-3 text-[12.5px] text-mute xl:flex">
-              <Icon name="calendar" className="h-[15px] w-[15px]" />
-              <span className="whitespace-nowrap">{fechaLarga}</span>
-            </div>
-            {vista !== 'cargar' && accesibles.includes('cargar') && (
-              <button
-                type="button"
-                onClick={() => {
-                  setVista('cargar')
-                  navigate('/pos')
-                }}
-                className="inline-flex h-[34px] shrink-0 items-center gap-2 rounded-[9px] bg-fono px-3.5 text-[13px] font-semibold text-onbrand transition hover:bg-fono-dark"
-                title="POS"
-                aria-label="POS"
-              >
-                <Icon name="plus" className="h-[15px] w-[15px]" />
-                <span className="hidden sm:inline">POS</span>
-              </button>
-            )}
-          </div>
-        }
+
       >
         {desfaseHoras > 0 && (
           <div className="flex items-center justify-center gap-2 bg-bad px-4 py-2.5 text-center text-sm font-medium">
@@ -917,7 +840,7 @@ export default function PanelVendedor() {
           {esOwner && vista === 'resumen' && <ResumenControl />}
           {esOwner && subpadre === 'analisis' && (
             <div>
-              <Subtabs value={vista} onChange={irASubtab} items={tabsRuta} />
+              <SectionSelector value={vista} onChange={irASubtab} items={tabsRuta} label="Secciones de Análisis" />
               {vista === 'reportes' && <Reportes />}
               {vista === 'ganancias' && <Ganancias />}
               {vista === 'ganadores' && <Ganadores />}
@@ -929,7 +852,7 @@ export default function PanelVendedor() {
               {/* #249 H3: en mobile las solapas del dominio llegan a 44 px
                   táctiles (el alto por defecto del objeto compartido queda
                   para DSN); en desktop conservan los 36 px. */}
-              <Subtabs value={vista} onChange={irASubtab} items={tabsRuta} className="[&>button]:min-h-11 md:[&>button]:min-h-9" />
+              <SectionSelector value={vista} onChange={irASubtab} items={tabsRuta} label="Secciones de Finanzas" />
               {vista === 'caja' && <Caja />}
               {vista === 'gastos' && <Gastos />}
               {vista === 'bancos' && <PaymentAccounts />}

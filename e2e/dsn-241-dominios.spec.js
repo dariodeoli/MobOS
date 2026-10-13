@@ -205,6 +205,8 @@ const PANTALLAS = [
   // pantalla antes de devolver el locator.
   ['roles', '/configuracion/roles', async (page) => {
     await page.getByTestId('equipo-pantalla').getByRole('tab', { name: 'Permisos', exact: true }).click()
+    // La solapa activa anima su color: se mide con las transiciones terminadas.
+    await page.evaluate(() => Promise.all(document.getAnimations().map((animacion) => animacion.finished.catch(() => {}))))
     return page.getByText('Matriz de capacidades')
   }],
   // Públicas (lote G): la página del pedido y la vista previa de la landing.

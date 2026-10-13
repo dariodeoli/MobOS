@@ -155,7 +155,6 @@ test('no aparecen copias locales nuevas de objetos publicados en la biblioteca (
 
 test('los adaptadores delegan la UI en la biblioteca (#253)', () => {
   const adaptadores = {
-    RucField: { propio: /consultarRucDemo/, prohibido: /<Input\b/ },
     CityAutocomplete: { propio: /api\.get\(`\/api\/geo\/cities/, prohibido: /<Input\b|<ul\b/ },
     SerialField: { propio: /leerEtiqueta/, prohibido: /<Input\b/ },
     Cronologia: { propio: /api\s*\n?\s*\.get\(endpoint\)/, prohibido: /<Skeleton\b|<EmptyState\b|<ol\b/ },
@@ -166,6 +165,31 @@ test('los adaptadores delegan la UI en la biblioteca (#253)', () => {
     assert.match(codigo, reglas.propio, `${nombre} conserva su lógica de datos`)
     assert.ok(!reglas.prohibido.test(codigo), `${nombre} no reimplementa la UI`)
   }
+})
+
+test('RucField composes shared primitives with internal lookup and explicit acceptance', () => {
+  const source = readFileSync(join(RAIZ, 'components/shared/RucField.jsx'), 'utf8')
+  assert.match(source, /import \{ BotonDentroCampo \} from 'owncoding-ui'/)
+  assert.match(source, /import \{ Badge, Input \} from '@\/components\/ui'/)
+  assert.match(source, /<Input\b/)
+  assert.match(source, /<BotonDentroCampo\b/)
+  assert.doesNotMatch(source, /<input\b|RucField as CampoRuc/)
+  assert.match(source, /lookupDemoRuc\(identity, consultarRucDemo\)/)
+  assert.match(source, /admitRucResponse\(await api\.get\(`\/api\/ruc\?ruc=/)
+  assert.match(source, /signal: request\.signal, cacheMs: 0, cache: 'no-store'/)
+  assert.match(source, /if \(!request\.isCurrent\(scope\.current\)\) return/)
+  const extractStart = source.indexOf('async function extract()')
+  const applyStart = source.indexOf('function apply()')
+  assert.ok(extractStart >= 0 && applyStart > extractStart)
+  const extraction = source.slice(extractStart, applyStart)
+  assert.doesNotMatch(extraction, /onAplicar|onDatos|accept\?\./)
+  const acceptance = source.slice(applyStart, source.indexOf('return (', applyStart))
+  assert.match(acceptance, /suggestion\?\.request\.isCurrent\(scope\.current\)/)
+  assert.match(acceptance, /const accept = onAplicar \|\| onDatos/)
+  assert.match(acceptance, /accept\?\.\(result\)/)
+  assert.match(source, /suggestion\.result\.nameOfficial/)
+  assert.match(source, /onClick=\{apply\}/)
+  assert.match(source, /onClick=\{invalidate\}>Descartar/)
 })
 
 test('los objetos de Abastecimiento F1 (#250/#254) están publicados', () => {

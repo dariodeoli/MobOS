@@ -5,6 +5,7 @@
 import { test, expect } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { clickRowAction } from './helpers/row-actions.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 const DIR = process.env.QA_250_CAPTURAS || join('test-results', 'qa-250-cotizacion-correo')
@@ -39,7 +40,7 @@ test('la cotización se envía por correo y la UI pide el que falta', async ({ p
   await expect(page.getByTestId('cotizaciones-tabla')).toBeVisible({ timeout: 20_000 })
   const fila = page.getByTestId('cotizacion-fila').filter({ hasText: cotizacion.body.number }).first()
   await expect(fila).toBeVisible({ timeout: 20_000 })
-  await fila.getByRole('button', { name: 'Correo' }).click()
+  await clickRowAction(page, fila, 'Correo')
 
   // Sin correo guardado: la UI lo pide y muestra el enlace que recibirá.
   const dialogo = page.getByRole('dialog')

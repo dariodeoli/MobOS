@@ -1096,9 +1096,9 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   async function guardarIdentidad(event) {
     event.preventDefault()
     if (demoBloqueado() || !identityForm || identityBusy) return
-    const name = identityForm.name.trim()
+    const name = identityForm.name
     const document = identityForm.document.trim()
-    if (!name || !document) {
+    if (!name.trim() || !document) {
       toast.error('Datos incompletos', 'La razón social y el RUC son obligatorios.')
       return
     }
@@ -2282,7 +2282,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
             <FormField label="Razón social" htmlFor="profile-identity-name">
               <Input
                 id="profile-identity-name"
-                maxLength={200}
+                maxLength={2000}
                 value={identityForm.name}
                 onChange={(event) => setIdentityForm((form) => ({ ...form, name: event.target.value }))}
                 placeholder="Empresa S.A."
@@ -2293,7 +2293,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                 id="profile-identity-document"
                 value={identityForm.document}
                 onChange={(document) => setIdentityForm((form) => ({ ...form, document }))}
-                onAplicar={(datos) => setIdentityForm((form) => ({ ...form, name: datos.name || form.name, document: datos.fullRuc || form.document }))}
+                onAplicar={(datos) => setIdentityForm((form) => ({ ...form, name: datos.nameOfficial ?? datos.name ?? form.name, document: datos.fullRuc || form.document }))}
                 esDemo={esDemo}
               />
             </FormField>

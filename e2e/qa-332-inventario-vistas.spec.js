@@ -1,3 +1,4 @@
+import { shellCatalog } from './helpers/shell-navigation.js'
 // #332 · Inventario con dos vistas claras y conmutables: Unidades (IMEI/serial)
 // y Productos (stock). Reusa el switch de #287 en las dos pantallas, empareja
 // las entradas del menú y deja al vendedor su vista de Productos sin el desvío
@@ -28,9 +29,9 @@ test('#332 · el dueño conmuta entre Unidades (IMEI) y Productos (stock), con d
   await expect(page.getByTestId('inventario-fila').first()).toBeVisible({ timeout: 20_000 })
 
   // El menú ofrece las dos vistas, emparejadas y evidentes.
-  const nav = page.locator('aside nav')
-  await expect(nav.getByRole('button', { name: 'Unidades (IMEI)', exact: true })).toBeVisible()
-  await expect(nav.getByRole('button', { name: 'Productos (stock)', exact: true })).toBeVisible()
+  const catalog = await shellCatalog(page)
+  expect(catalog.destinations).toContain('Unidades (IMEI)')
+  expect(catalog.destinations).toContain('Productos (stock)')
 })
 
 test('#332 · el vendedor conserva Productos sin el switch de Unidades y sin acceso a esa vista', async ({ browser }) => {

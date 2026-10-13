@@ -1,3 +1,4 @@
+import { officialNameInput } from '../../../lib/customer-identity'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
@@ -237,7 +238,9 @@ export async function POST(request: Request) {
   if (body.billingTo !== undefined) {
     const input = objectInput(body.billingTo)
     if (Object.keys(input).some(key => !['name', 'document'].includes(key))) throw new InputError('billingTo contiene campos no admitidos.')
-    billingName = input.name === undefined || input.name === '' ? undefined : textInput(input.name, 'Titular de factura', 200)
+    if (input.name !== undefined) {
+      try { billingName = officialNameInput(input.name) } catch (cause) { throw new InputError((cause as Error).message) }
+    }
     billingDocument = input.document === undefined || input.document === '' ? undefined : textInput(input.document, 'RUC de factura', 100)
     if (!billingName && !billingDocument) throw new InputError('El titular de factura necesita nombre o RUC.')
   }
@@ -344,22 +347,25 @@ export async function POST(request: Request) {
       // La factura a otro titular queda en la ficha del cliente: la próxima
       // venta la propone y la búsqueda puede encontrar por esa razón social.
       if (customerId && (billingName || billingDocument)) {
-        await tx.customer.update({ where: { id: customerId }, data: { ...(billingName ? { billingName } : {}), ...(billingDocument ? { billingDocument } : {}) } })
-        if (billingName) {
-          const identidad = await tx.customerBillingIdentity.findFirst({ where: { customerId, name: billingName, document: billingDocument || null }, select: { id: true } })
-          if (identidad) await tx.customerBillingIdentity.update({ where: { id: identidad.id }, data: { uses: { increment: 1 }, lastUsedAt: new Date() } })
-          else await tx.customerBillingIdentity.create({ data: { tenantId: tenant, customerId, name: billingName, document: billingDocument || null, uses: 1 } })
+        // Omitted fields stay untouched, but must not attach a new name/document
+        // to the other half of a previously selected, different holder.
+        if (billingName === undefined || billingDocument === undefined) {
+          const current = await tx.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { billingName: true, billingDocument: true } })
+          if ((billingName !== undefined && billingDocument === undefined && current?.billingDocument && current.billingName !== billingName)
+            || (billingDocument !== undefined && billingName === undefined && current?.billingName && current.billingDocument !== billingDocument)) throw new InputError('Para cambiar el titular, confirme su nombre y RUC juntos. Los datos omitidos no se reemplazan.', 409)
         }
-      }
-      // Identidad de facturación reutilizable: se guarda para poder volver a
-      // facturar a ese titular sin tipearlo de nuevo. Con datos incompletos no
-      // se guarda (no se rompe la venta).
-      if (customerId && billingName && billingDocument) {
-        await tx.customerBillingIdentity.upsert({
-          where: { tenantId_customerId_document: { tenantId: tenant, customerId, document: billingDocument } },
-          update: { name: billingName },
-          create: { tenantId: tenant, customerId, name: billingName, document: billingDocument, createdById: session.user.id },
-        })
+        if (billingName) {
+          // Explicitly selected holders are separate identities. Checkout may reuse,
+          // but must not rewrite a saved holder's exact name for the same document.
+          const identidad = await tx.customerBillingIdentity.findFirst({
+            where: { tenantId: tenant, customerId, document: billingDocument || null, ...(billingDocument ? {} : { name: billingName }) },
+            select: { id: true, name: true },
+          })
+          if (identidad && identidad.name !== billingName) throw new InputError('El titular guardado para ese RUC tiene otro nombre. Revise y edite la identidad de facturación antes de vender.', 409)
+          if (identidad) await tx.customerBillingIdentity.update({ where: { id: identidad.id, tenantId: tenant, customerId }, data: { uses: { increment: 1 }, lastUsedAt: new Date() } })
+          else await tx.customerBillingIdentity.create({ data: { tenantId: tenant, customerId, name: billingName, document: billingDocument || null, uses: 1, lastUsedAt: new Date(), createdById: session.user.id } })
+        }
+        await tx.customer.update({ where: { id: customerId, tenantId: tenant }, data: { ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }) } })
       }
       // #250 F1: la demanda que deja la venta (sobre pedido / offline) y los
       // productos a revisar por punto de reposición se juntan acá.

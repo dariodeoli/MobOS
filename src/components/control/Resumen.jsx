@@ -1,3 +1,4 @@
+import './inicioPosF2.css'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -34,16 +35,6 @@ import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE, ROTULO_DATO } from '@/components/sh
 import { GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
 // Products at or below this stock count are flagged in the low-stock widget.
 const UMBRAL_STOCK_BAJO = 3
-
-// Quick actions shown next to the period selector. They reuse the same routes
-// PanelVendedor uses from its sidebar (`/<vista>`).
-const ACCIONES = [
-  { label: 'Cargar venta', ruta: '/ventas', icon: 'plus' },
-  { label: 'Nueva compra', ruta: '/compras', icon: 'store' },
-  // Finanzas opens on the "Caja" subtab by default in PanelVendedor.
-  { label: 'Abrir caja', ruta: '/finanzas/caja', icon: 'wallet' },
-  { label: 'Ver pedidos', ruta: '/pedidos', icon: 'box' },
-]
 
 // Pendientes de hoy: lo accionable del día, en una franja compacta arriba de
 // todo. Con todo al día se muestra el estado en verde en lugar de esconderse.
@@ -106,30 +97,27 @@ function PendientesDeHoy({ pendientes, onIr }) {
 // Indicador compacto del resumen (#310): cuatro métricas en el primer
 // viewport. La superficie es neutra (Card); el verde queda como acento —borde,
 // número o tendencia— y nunca como fondo completo.
-function Indicador({ testId, etiqueta, valor, delta, sub, tono = 'neutro', destacado = false, progreso, accion }) {
+function Indicador({ testId, etiqueta, valor, delta, sub, tono = 'neutro', progreso }) {
   const v2 = temaV2Activo()
   const sube = typeof delta === 'number' && delta >= 0
   const color = { ok: 'text-ok', warn: 'text-warn', bad: 'text-bad', neutro: 'text-fore' }[tono] || 'text-fore'
   return (
-    <Card
-      className={cn('flex h-full flex-col p-3 sm:p-4', v2 && 'v2-tile', destacado && 'border-fono/40')}
-      data-testid={testId}
-    >
+    <div className="inicio-kpi" data-testid={testId}>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-mute">{etiqueta}</span>
+        <span className="text-sm font-medium text-mute">{etiqueta}</span>
         {typeof delta === 'number' && (
           <span
             className={cn(
               'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium',
               v2 && 'v2-chip',
-              sube ? 'bg-ok/15 text-ok' : 'bg-bad/15 text-bad',
+              sube ? 'text-ok' : 'text-bad',
             )}
           >
             {sube ? '↑' : '↓'} {Math.abs(delta).toFixed(1)}%
           </span>
         )}
       </div>
-      <div className={cn('mt-1.5 text-xl font-semibold tracking-tight tabular-nums sm:text-2xl', v2 && 'v2-numero', color)}>
+      <div className={cn('inicio-kpi-value mt-1.5 font-semibold tracking-tight tabular-nums', v2 && 'v2-numero', color)}>
         {valor}
       </div>
       {typeof progreso === 'number' && (
@@ -141,44 +129,8 @@ function Indicador({ testId, etiqueta, valor, delta, sub, tono = 'neutro', desta
         />
       )}
       {sub && <p className="mt-1.5 text-xs text-mute">{sub}</p>}
-      {accion && (
-        <button
-          type="button"
-          onClick={accion.onClick}
-          className="mt-2 flex w-fit items-center gap-1 text-xs font-medium text-fono-light transition hover:text-fore"
-        >
-          {accion.label}
-          <Icon name="chevron" className="h-3 w-3 rotate-180" />
-        </button>
-      )}
-    </Card>
-  )
-}
 
-// Accesos rápidos del resumen: franja compacta debajo de los indicadores (el
-// panel lateral que compartía el hero con la tarjeta verde ya no compite).
-function AccesosRapidos({ onIr, onImprimir }) {
-  return (
-    <Card className="flex flex-wrap items-center gap-2 p-3" data-testid="accesos-rapidos">
-      <span className="px-1 text-[11px] font-medium uppercase tracking-wider text-mute">Accesos rápidos</span>
-      <div className="grid min-w-[16rem] flex-1 grid-cols-2 gap-2 sm:grid-cols-4">
-        {ACCIONES.map((accion) => (
-          <button
-            key={accion.label}
-            type="button"
-            onClick={() => onIr(accion.ruta)}
-            className="flex min-w-0 items-center gap-2 rounded-lg border border-ink-600 bg-ink-800/60 px-2.5 py-2 text-left text-[13px] font-medium text-fore transition hover:border-fono/50"
-          >
-            <Icon name={accion.icon} className="h-4 w-4 shrink-0 text-fono-light" />
-            <span className="min-w-0 flex-1 truncate">{accion.label}</span>
-          </button>
-        ))}
-      </div>
-      <Button variant="outline" className="h-9 px-3 text-xs font-medium" onClick={onImprimir}>
-        <Icon name="printer" className="h-4 w-4" />
-        Imprimir resumen
-      </Button>
-    </Card>
+    </div>
   )
 }
 
@@ -446,10 +398,10 @@ export default function Resumen() {
 
   // Low-stock products, worst first. Computed per render (no memo) so that
   // in-place stock mutations coming from API-mode sales are picked up at once.
-  const stockBajo = catalogo
+  const lowStockProducts = catalogo
     .filter(p => num(p.stock) <= UMBRAL_STOCK_BAJO)
     .sort((a, b) => num(a.stock) - num(b.stock))
-    .slice(0, 8)
+  const stockBajo = lowStockProducts.slice(0, 8)
 
   const pctCobrado = d.total > 0 ? (d.cobrado / d.total) * 100 : 0
 
@@ -460,29 +412,28 @@ export default function Resumen() {
   }
 
   return (
-    <div className="space-y-5">
-      <PendientesDeHoy pendientes={pendientesHoy} onIr={navigate} />
+    <div className="inicio-f2 space-y-5">
 
       {/* ── Encabezado + período ─────────────────────────────────── */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <p className="min-w-0 text-sm text-mute">
-          Acá ves el movimiento de la tienda en el período elegido.
+          Cómo va la tienda en el período elegido.
         </p>
         <div className="flex flex-wrap items-center gap-2">
           {metricas?.truncado && <Badge color="orange">El período supera el tope de ventas analizadas</Badge>}
           <RangoFechas valor={rango} onChange={cambiarRango} />
+          <Button variant="outline" onClick={() => setResumenOpen(true)}>Imprimir resumen</Button>
         </div>
       </div>
 
       {/* ── Resumen del período (#310): cuatro indicadores compactos ── */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4" data-testid="resumen-indicadores">
+      <div className="inicio-kpi-stripe" aria-label="Resumen del período" data-testid="resumen-indicadores">
         <Indicador
           testId="indicador-facturado"
-          etiqueta="Facturado"
+          etiqueta="Vendido"
           valor={gs(d.total)}
           delta={variacion(d.total, d.totalAnt)}
-          sub={`${etiquetaRango(rango)} · anterior ${gs(d.totalAnt)}`}
-          destacado
+          sub={`${d.ventas} ventas · anterior ${gs(d.totalAnt)}`}
         />
         <Indicador
           testId="indicador-cobrado"
@@ -498,11 +449,10 @@ export default function Resumen() {
           valor={gs(d.pendiente)}
           tono={d.pendiente > 0 ? 'warn' : 'neutro'}
           sub={`${d.sinPagar} ${d.sinPagar === 1 ? 'venta pendiente' : 'ventas pendientes'} de cobro`}
-          accion={d.sinPagar > 0 ? { label: 'Ver pendientes', onClick: irAPendientes } : null}
         />
         <Indicador
           testId="indicador-margen"
-          etiqueta="Margen"
+          etiqueta="Ganancia"
           valor={gs(d.ganancia)}
           tono={d.ganancia > 0 ? 'ok' : d.ganancia < 0 ? 'bad' : 'neutro'}
           sub={
@@ -513,7 +463,37 @@ export default function Resumen() {
         />
       </div>
 
-      <AccesosRapidos onIr={navigate} onImprimir={() => setResumenOpen(true)} />
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <Card>
+          <h2 className="mb-3 font-semibold">Para resolver hoy</h2>
+          <PendientesDeHoy pendientes={pendientesHoy} onIr={navigate} />
+          {d.sinPagar > 0 && <Button variant="ghost" onClick={irAPendientes}>{d.sinPagar} {d.sinPagar === 1 ? 'venta' : 'ventas'} con saldo · Ver pendientes</Button>}
+          {lowStockProducts.length > 0 && <Button variant="ghost" onClick={() => navigate('/inventario/unidades')}>{lowStockProducts.length} productos con stock bajo · Ver inventario</Button>}
+          {!pendientesHoy && !d.sinPagar && !lowStockProducts.length && <p className="text-sm text-mute">Sin pendientes disponibles en esta vista.</p>}
+        </Card>
+        {/* ── Cómo te pagaron ─────────────────────────────────────── */}
+        <Card>
+          <h2 className="mb-4 font-medium">Cómo te pagaron</h2>
+          {d.medios.length === 0 ? (
+            <EmptyState compact icon="box" title="Sin datos" />
+          ) : (
+            <div className="space-y-3">
+              {d.medios.map(m => (
+                <div key={m.medio}>
+                  <div className="mb-1.5 flex items-center justify-between gap-2">
+                    <MedioPago medio={m.medio} alto="h-4" />
+                    <span className="text-sm font-medium">{gs(m.monto)}</span>
+                  </div>
+                  <BarraProgreso valor={m.monto} max={base.total} relleno="bg-blue-line" pista="bg-ink-600" etiqueta={`${m.medio}: ${gs(m.monto)}`} />
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+      <details data-testid="inicio-detalles" className="inicio-disclosure">
+        <summary>Métricas, evolución y stock</summary>
+        <div className="space-y-4 pt-4">
 
       {/* ── Métricas del período ─────────────────────────────────── */}
       <div className="grid gap-4 sm:grid-cols-3">
@@ -614,25 +594,7 @@ export default function Resumen() {
           )}
         </Card>
 
-        {/* ── Medios de pago ─────────────────────────────────────── */}
-        <Card>
-          <h2 className="mb-4 font-medium">Medios de pago</h2>
-          {d.medios.length === 0 ? (
-            <EmptyState compact icon="box" title="Sin datos" />
-          ) : (
-            <div className="space-y-3">
-              {d.medios.map(m => (
-                <div key={m.medio}>
-                  <div className="mb-1.5 flex items-center justify-between gap-2">
-                    <MedioPago medio={m.medio} alto="h-4" />
-                    <span className="text-sm font-medium">{gs(m.monto)}</span>
-                  </div>
-                  <BarraProgreso valor={m.monto} max={base.total} relleno="bg-blue-line" pista="bg-ink-600" etiqueta={`${m.medio}: ${gs(m.monto)}`} />
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+
       </div>
 
       {/* ── Indicadores unificados del servidor (#171, fase 2 de #145) ── */}
@@ -738,6 +700,9 @@ export default function Resumen() {
           </div>
         )}
       </Card>
+
+        </div>
+      </details>
 
       {/* ── Detalle de ventas ────────────────────────────────────── */}
       <div ref={listaRef} className="scroll-mt-24">

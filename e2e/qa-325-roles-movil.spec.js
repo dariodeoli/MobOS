@@ -1,3 +1,5 @@
+import { shellCatalog, shellPrimary } from './helpers/shell-navigation.js'
+import { clickRowAction } from './helpers/row-actions.js'
 // QA #325 — Responsive móvil y roles secundarios (auditoría demo v1.0.209).
 //
 // Recorrido E2E de los puntos pendientes de la auditoría: detalle de cliente,
@@ -196,7 +198,7 @@ test('roles: cada uno entra por su puerta, con su menú y sus límites', async (
       sellerId: vendedor.id,
       pin: SEED.sellers[0].pin,
       destino: /\/pos$/,
-      titulo: /^(POS|Nueva venta)$/,
+      titulo: 'Vender',
       entradaListo: (p) => p.getByPlaceholder('Buscar producto…'),
       menu: ['POS', 'Mis pedidos', 'Clientes', 'Productos', 'Cotizaciones'],
       ocultos: ['Inicio', 'Finanzas', 'Configuración'],
@@ -213,7 +215,7 @@ test('roles: cada uno entra por su puerta, con su menú y sus límites', async (
       sellerId: gerente.id,
       pin: gerente.pin,
       destino: /\/pos$/,
-      titulo: /^(POS|Nueva venta)$/,
+      titulo: 'Vender',
       entradaListo: (p) => p.getByPlaceholder('Buscar producto…'),
       menu: ['POS', 'Mis pedidos', 'Clientes', 'Productos', 'Precios'],
       ocultos: ['Inicio', 'Finanzas', 'Configuración', 'Unidades'],
@@ -264,11 +266,14 @@ test('roles: cada uno entra por su puerta, con su menú y sus límites', async (
 
       // El menú lateral del rol: lo que ve y lo que no.
       await page.setViewportSize(DESKTOP)
+      await expect(await shellPrimary(page)).toBeVisible({ timeout: 20_000 })
+      const catalog = await shellCatalog(page)
+      expect(catalog.primary).toEqual(rol.id === 'tecnico' ? ['Taller'] : rol.id === 'delivery' ? ['Entregas'] : ['Vender', 'Ventas', 'Stock'])
       for (const item of rol.menu) {
-        await expect(page.locator('aside nav').getByRole('button', { name: item, exact: true }).first(), `${rol.id}: menú ${item}`).toBeVisible({ timeout: 20_000 })
+        expect(catalog.destinations, `${rol.id}: menú ${item}`).toContain(item === 'POS' ? 'Nueva venta' : item)
       }
       for (const item of rol.ocultos) {
-        await expect(page.locator('aside nav').getByRole('button', { name: item, exact: true }), `${rol.id}: no ve ${item}`).toHaveCount(0)
+        expect([...catalog.destinations, ...catalog.profile], `${rol.id}: no ve ${item}`).not.toContain(item === 'POS' ? 'Nueva venta' : item)
       }
 
       // Capturas y medición de la puerta de entrada del rol.
@@ -560,7 +565,7 @@ test('impresión y correos (comprobante · cotización · impresoras)', async ({
     accion: async (p) => {
       const fila = p.getByTestId('cotizacion-fila').filter({ hasText: cotizacion.body.number }).first()
       await expect(fila).toBeVisible({ timeout: 20_000 })
-      await fila.getByRole('button', { name: 'Correo' }).click()
+      await clickRowAction(p, fila, 'Correo')
       await expect(p.getByRole('dialog').getByRole('heading', { name: /por correo/ })).toBeVisible({ timeout: 20_000 })
       await expect(p.getByLabel('Correo del cliente')).toBeVisible()
     },
@@ -580,7 +585,7 @@ test('impresión y correos (comprobante · cotización · impresoras)', async ({
   await expect(page.getByTestId('cotizaciones-tabla')).toBeVisible({ timeout: 30_000 })
   const filaCorreo = page.getByTestId('cotizacion-fila').filter({ hasText: cotizacion.body.number }).first()
   await expect(filaCorreo).toBeVisible({ timeout: 20_000 })
-  await filaCorreo.getByRole('button', { name: 'Correo' }).click()
+  await clickRowAction(page, filaCorreo, 'Correo')
   const dialogoCorreo = page.getByRole('dialog')
   await expect(dialogoCorreo.getByRole('heading', { name: /por correo/ })).toBeVisible({ timeout: 20_000 })
   await dialogoCorreo.getByLabel('Correo del cliente').fill(`qa325-${marca.toLowerCase()}@ejemplo.invalid`)

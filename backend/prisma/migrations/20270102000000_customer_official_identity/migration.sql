@@ -1,0 +1,5 @@
+ALTER TABLE "Customer"
+  ADD COLUMN IF NOT EXISTS "nameOfficial" TEXT,
+  ADD COLUMN IF NOT EXISTS "identityKind" TEXT,
+  ADD COLUMN IF NOT EXISTS "givenNames" TEXT,
+  ADD COLUMN IF NOT EXISTS "surnames" TEXT;

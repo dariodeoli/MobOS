@@ -1,3 +1,4 @@
+import { selectInventorySection } from './helpers/shell-navigation.js'
 // #331 · Inventario resuelve las autorizaciones de stock desde su propia
 // bandeja (Control → Autorizaciones): retiro/ajuste de unidad y transferencia.
 //
@@ -84,8 +85,7 @@ async function limpiar(page, datos) {
 // Abre Inventario → Control → Autorizaciones (la bandeja vive en la pestaña).
 async function abrirBandeja(page) {
   await page.goto('/inventario/unidades')
-  await page.getByTestId('grupos-inventario').getByRole('button', { name: /^Control/ }).click()
-  await page.getByTestId('tabs-inventario').getByRole('button', { name: /^Autorizaciones/ }).click()
+  await selectInventorySection(page, 'autorizaciones')
   const bandeja = page.getByTestId('inventario-autorizaciones')
   await expect(bandeja).toBeVisible({ timeout: 20_000 })
   return bandeja
@@ -114,8 +114,9 @@ test('el dueño ve y aprueba una solicitud de stock desde Inventario (#331)', as
     await expect(fila).toContainText(SEED.sellers[0].name)
     await expect(fila).toContainText('Dar de baja')
 
-    // #331: el contador del grupo Control (y de la pestaña) refleja pendientes.
-    await expect(page.getByTestId('inventario-grupo-control-pendientes')).toBeVisible()
+    // #331: el selector de secciones de Inventario refleja los pendientes en
+    // la opción Autorizaciones.
+    await expect(page.getByTestId('tabs-inventario').locator('option', { hasText: /\(\d+ pendientes\)/ })).toBeAttached()
 
     await fila.getByRole('button', { name: 'Aprobar' }).click()
     const modal = page.getByRole('dialog')

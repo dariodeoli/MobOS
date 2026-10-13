@@ -1,3 +1,4 @@
+import { openShellDestination, shellCatalog } from './helpers/shell-navigation.js'
 // Delivery propio de punta a punta: login aparte del repartidor, pedidos
 // asignados con dirección y teléfono, pre-cobro en la calle y rendición que la
 // tienda verifica. El seed (global-setup) crea el usuario REPARTIDOR y el
@@ -20,10 +21,11 @@ test.describe('delivery', () => {
     await entrarConPin(page, SEED.repartidor.pin, /\/delivery\/repartos$/)
 
     // Navegación propia: sin panel de venta.
-    const nav = page.locator('aside nav')
-    await expect(nav.getByRole('button', { name: 'Mis repartos', exact: true })).toBeVisible()
-    await expect(nav.getByRole('button', { name: 'Rendiciones', exact: true })).toBeVisible()
-    await expect(nav.getByRole('button', { name: 'POS', exact: true })).toHaveCount(0)
+    const catalog = await shellCatalog(page)
+    expect(catalog.primary).toEqual(['Entregas'])
+    expect(catalog.destinations).toContain('Mis repartos')
+    expect(catalog.destinations).toContain('Rendiciones')
+    expect(catalog.destinations).not.toContain('Nueva venta')
 
     // El panel de venta no es su lugar: la URL vuelve al reparto.
     await page.goto('/pos')
@@ -52,7 +54,7 @@ test.describe('delivery', () => {
     await expect(tarjeta).toContainText('Gs 44.000')
 
     // Rendición: queda pendiente de verificación en la tienda.
-    await nav.getByRole('button', { name: 'Rendiciones', exact: true }).click()
+    await openShellDestination(page, 'Rendiciones')
     await expect(page.getByTestId('rendicion-total')).toContainText('Gs 1.000')
     await page.getByTestId('rendir-abrir').click()
     await page.getByTestId('rendir-confirmar').click()
@@ -86,7 +88,7 @@ test.describe('delivery', () => {
     await expect(page.getByTestId('rendicion-total')).toContainText('Gs 0')
     const verificada = page.locator('[data-testid="rendicion"]').first()
     await expect(verificada).toContainText('Verificada')
-    await nav.getByRole('button', { name: 'Mis repartos', exact: true }).click()
+    await openShellDestination(page, 'Mis repartos')
     await expect(tarjeta).toContainText('Confirmado en tienda')
     await expect(tarjeta).toContainText('Gs 1.000')
 

@@ -155,7 +155,7 @@ test.describe('dueño', () => {
 
       // Al cambiar la sucursal activa a la 2, el detalle no puede seguir
       // mostrando equipos de la 1: explica que no hay unidades en la activa.
-      await page.getByTestId('sucursal-selector').click()
+      await page.locator('[data-testid="sucursal-selector"]:visible').click()
       const sucursal2 = await apiPagina(adminPage, '/api/inventory-branches').then((r) => (r.body || []).find((fila) => fila.id === SEED.branch2Id))
       await page.getByTestId('sucursal-menu').getByRole('menuitemradio', { name: new RegExp(sucursal2?.name || 'Sucursal E2E Dos') }).click()
       await page.getByTestId('producto-fila').filter({ hasText: nombre }).first().click()
@@ -167,7 +167,7 @@ test.describe('dueño', () => {
       await detalle2.getByRole('button', { name: 'Cerrar' }).click()
 
       // Y al volver a la sucursal de la unidad, reaparece.
-      await page.getByTestId('sucursal-selector').click()
+      await page.locator('[data-testid="sucursal-selector"]:visible').click()
       await page.getByTestId('sucursal-menu').getByRole('menuitemradio', { name: /Sucursal E2E(?! Dos)/ }).click()
       await page.getByTestId('producto-fila').filter({ hasText: nombre }).first().click()
       const detalle3 = page.getByRole('dialog')

@@ -213,18 +213,18 @@ test('finanzas: horas en 24 h, vacíos y estados con etiquetas (#205)', () => {
   assert.ok(!/<button[^>]*>[^<]*<Icon/.test(leer('components/control/Comisiones.jsx')), 'las acciones de ícono de Comisiones van con IconAction (aria-label)')
 })
 
-test('la landing: identidad por tema, capturas reales y verificador de IMEI honesto (#202 · #322)', () => {
+test('la landing: identidad por tema, vistas ilustrativas y verificador de IMEI honesto (#202 · #322)', () => {
   const landing = leer('pages/Landing.jsx')
   assert.match(landing, /ThemeLogo/, 'la landing usa el logo que sigue al tema (#163)')
   assert.match(landing, /ThemeToggle/, 'la landing permite cambiar de tema')
   assert.match(landing, /ImeiVerificador/, 'la landing integra el verificador de IMEI')
-  // #322: capturas reales del producto (demo) en el hero y en el portal, y el
-  // recorrido reorganizado en tres pilares + flujo + precio.
-  assert.match(landing, /\/landing\/panel\.png/, 'el hero muestra una captura real del panel')
-  assert.match(landing, /\/landing\/portal\.png/, 'el portal del cliente muestra una captura real')
-  assert.ok(!landing.includes('CapturaModulo'), 'las capturas son reales, no maquetas')
-  for (const texto of ['Vender', 'Controlar', 'Cerrar la operación', 'Proveedor', 'Posventa', 'USD 10 por mes']) {
-    assert.ok(landing.includes(texto), `la landing presenta ${texto}`)
+  // The approved commercial presentation replaces screenshots, not business contracts.
+  assert.match(landing, /CommercialPreview/, 'the landing uses the shared illustrative presentation')
+  const preview = leer('components/landing/CommercialPreview.jsx')
+  assert.match(preview, /Vista ilustrativa · datos de ejemplo/, 'the presentation is honestly labelled')
+  assert.doesNotMatch(landing, /\/landing\/(panel|portal)\.png|Captura real/, 'illustrations are not described as product captures')
+  for (const text of ['vender', 'controlar', 'cerrar', 'Proveedor', 'posventa', 'Planes pendientes de confirmación']) {
+    assert.ok(landing.includes(text), `the landing preserves ${text}`)
   }
   // Menú móvil y pie legal (#322).
   assert.match(landing, /menu-movil/, 'la landing tiene menú móvil')

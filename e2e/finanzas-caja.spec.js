@@ -135,7 +135,7 @@ test.describe('finanzas · caja', () => {
     await expect(page.getByTestId('auditoria-fila').filter({ hasText: numero })).toBeVisible()
 
     const controles = [
-      ['solapa de finanzas', page.getByRole('tab', { name: 'Caja', exact: true })],
+      ['solapa de finanzas', page.getByRole('combobox', { name: 'Secciones de Finanzas' })],
       ['selector de período', page.getByRole('button', { name: /30 días|7 días|Hoy|Ayer|Este mes|Mes pasado|Trimestre|Este año/ }).first()],
       ['fila · Guardar', page.getByTestId('auditoria-fila').first().getByRole('button', { name: 'Guardar' })],
       ['fila · casilla Coincide', page.locator('label:has-text("Coincide")').first()],
@@ -153,7 +153,7 @@ test.describe('finanzas · caja', () => {
       await fs.mkdir('docs/qa/249-finanzas', { recursive: true })
       await fs.writeFile(`docs/qa/249-finanzas/mediciones-${fase}.json`, JSON.stringify({ fecha: new Date().toISOString(), ancho: 390, mediciones }, null, 2))
       await page.screenshot({ path: `docs/qa/249-finanzas/caja-390-${fase}.png`, fullPage: true })
-      await page.getByRole('tab', { name: 'Caja', exact: true }).locator('..').screenshot({ path: `docs/qa/249-finanzas/subtabs-390-${fase}.png` })
+      await page.getByRole('combobox', { name: 'Secciones de Finanzas' }).locator('..').screenshot({ path: `docs/qa/249-finanzas/subtabs-390-${fase}.png` })
       await page.getByTestId('auditoria-efectivo-tabla').screenshot({ path: `docs/qa/249-finanzas/auditoria-390-${fase}.png` })
       await page.locator('article:has-text("Coincide")').first().screenshot({ path: `docs/qa/249-finanzas/medios-390-${fase}.png` })
     }

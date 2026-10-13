@@ -20,6 +20,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Unit tests compare redesign checkpoints with earlier commits (git show).
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -72,6 +75,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Unit tests compare redesign checkpoints with earlier commits (git show).
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -180,7 +186,7 @@ jobs:
         env:
           DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/mobos
         run: npm run build
-      - name: Run E2E suite (shard ${{ matrix.shard }}/3)
+      - name: Run E2E suite (shard ${{ matrix.shard }}/4)
         env:
           # El harness arranca el backend con `next start` sobre este build: sin
           # compilación por ruta no hay requests cortadas durante el compile ni
@@ -201,3 +207,20 @@ jobs:
             test-results/reporte-flaky.json
           if-no-files-found: ignore
           retention-days: 14
+
+  e2e-aggregate:
+    name: E2E (Playwright + self-hosted backend/Postgres)
+    needs: e2e
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require all E2E shards to succeed
+        env:
+          E2E_RESULT: ${{ needs.e2e.result }}
+        run: |
+          if [ "$E2E_RESULT" != "success" ]; then
+            echo "E2E matrix did not succeed: ${E2E_RESULT:-unknown}"
+            exit 1
+          fi
+          echo "All four E2E shards succeeded."

@@ -38,7 +38,7 @@ test.describe('finanzas · conciliación', () => {
     const numero = pago.orden.orderNumber
 
     await page.goto('/finanzas/conciliacion?rango=hoy')
-    await expect(page.getByRole('heading', { name: 'Conciliación y trazabilidad' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Conciliación', exact: true })).toBeVisible()
 
     // Filtro por procesadora: aparece Bancard con el pago recién creado.
     await page.getByLabel('Procesadora').selectOption({ label: 'Bancard' })
@@ -48,6 +48,9 @@ test.describe('finanzas · conciliación', () => {
     await expect(fila.getByText('Por conciliar')).toBeVisible()
 
     // Lote 6-C (#169): en desktop (1280) las tablas entran sin scroll horizontal.
+    // Los grupos arrancan plegados: se abren para medir su tabla.
+    const mostrar = page.getByRole('button', { name: /^Mostrar / })
+    while (await mostrar.count()) await mostrar.first().click()
     for (const testid of ['conciliacion-grupos', 'conciliacion-tabla']) {
       const medida = await page.getByTestId(testid).evaluate((nodo) => ({ scrollWidth: nodo.scrollWidth, clientWidth: nodo.clientWidth }))
       expect(medida.scrollWidth, `${testid} no debe pedir scroll horizontal`).toBeLessThanOrEqual(medida.clientWidth + 1)

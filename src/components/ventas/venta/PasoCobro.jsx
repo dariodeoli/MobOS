@@ -85,32 +85,25 @@ export default function PasoCobro({
         : sinPago
           ? (venderACredito ? 'Crear pedido a crédito' : 'Crear pedido sin pago')
           : 'Crear pedido'
-  const clasesBoton = cn(
-    // Cabecera en su renglón y productos/importe abajo: el botón no parte el
-    // importe en dos líneas (#148 §5/§11). Más alto y con más aire que el
-    // botón estándar.
-    'h-auto min-h-14 min-w-0 px-5 py-3 shadow-lg shadow-fono/10',
-    // AA (#241): sobre ok/bad/warn el texto sigue el tema (blanco sobre el
-    // verde/rojo/ámbar oscuro del claro; negro sobre los tonos claros del
-    // oscuro).
-    pagoCompleto && 'text-white dark:text-black',
-    sinPago && 'text-white dark:text-black',
-    // Parcial (#148 §5/§11): naranja de atención, no el azul primario.
-    !pagoCompleto && !sinPago && 'bg-warn text-white dark:text-black hover:brightness-110',
-  )
+  // Primary action remains neutral in every payment state (#341); status
+  // meaning is preserved in the label and the payment summary.
+  const clasesBoton = 'h-auto min-h-14 min-w-0 px-5 py-3'
   // Un solo botón para los dos lugares (escritorio y barra fija del celular).
   function BotonGuardar({ className }) {
     return (
       <Button
         type="submit"
-        variant={pagoCompleto ? 'success' : sinPago ? 'danger' : 'primary'}
+        variant="primary"
         className={cn(clasesBoton, className)}
         disabled={!valido || guardando || !cuentas || Boolean(errorCuentas) || guardadoIncompleto}
         title={motivos[0] || undefined}
       >
-        <span className="flex flex-col items-center gap-0.5 leading-tight">
+        <span className="flex min-w-0 flex-col items-center gap-0.5 leading-tight">
           <span className="text-[15px] font-bold">{etiquetaBoton}</span>
-          {detalleBoton && <span className="text-xs font-semibold tabular-nums opacity-95 whitespace-nowrap">{detalleBoton}</span>}
+          {detalleBoton && <span className="flex flex-col items-center text-xs font-semibold tabular-nums opacity-95">
+            {cantTotal > 1 && <span>{cantTotal} productos</span>}
+            {totalGeneral > 0 && <span className="pos-money-value">{gs(totalGeneral)}</span>}
+          </span>}
         </span>
       </Button>
     )
@@ -126,7 +119,7 @@ export default function PasoCobro({
     >
       <EncabezadoBloque
         titulo="Cobro y entrega"
-        descripcion="Dividí el cobro entre cuentas, elegí la entrega y guardá la venta."
+
       />
 
       {/* Venta a crédito con control de mora */}
@@ -208,8 +201,9 @@ export default function PasoCobro({
         </div>
       </div>
 
-      {/* Observación */}
-      <div>
+      {/* The existing note remains editable behind a keyboard-native disclosure. */}
+      <details className="inicio-disclosure">
+        <summary>Agregar nota</summary>
         <Label htmlFor="observacion">Observación</Label>
         <Textarea
           id="observacion"
@@ -221,7 +215,7 @@ export default function PasoCobro({
           placeholder="Notas, color, envío vía encomienda, etc."
           autoCapitalize="sentences"
         />
-      </div>
+      </details>
 
 {/* Medio de pago */}
       {cuentas?.length === 0 && (
@@ -244,9 +238,7 @@ export default function PasoCobro({
             <p className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-reserved">
               Pagos de esta venta
             </p>
-            <p className="text-[11px] text-mute">
-              Podés dividir el cobro entre efectivo, cuentas y transferencias.
-            </p>
+
           </div>
           {descuentoMedioPct > 0 && subtotal > 0 && (
             puedeDescontar ? (
@@ -467,16 +459,16 @@ export default function PasoCobro({
         ))}
         {/* #281 · tiles con identidad propia: Total (info) · Pagado (ok) ·
             Pendiente (warn), con la familia de texto AA de cada tono. */}
-        <div data-testid="pos-tiles-resumen" className="grid grid-cols-3 gap-2 border-t border-reserved/20 pt-3 text-xs text-mute">
+        <div data-testid="pos-tiles-resumen" className="grid grid-cols-1 gap-2 border-t border-reserved/20 pt-3 text-xs text-mute">
           <span className="rounded-xl border border-info/35 bg-info/[.06] px-3 py-2 text-info" data-testid="cobro-total">
             <Icon name="receipt" className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden="true" />Total
-            <strong className="v2-numero mt-0.5 block text-base tabular-nums text-fore">
+            <strong className="pos-money-value v2-numero mt-0.5 block text-base tabular-nums text-fore">
               {gs(totalGeneral)}
             </strong>
           </span>
           <span className="rounded-xl border border-ok/35 bg-ok/[.08] px-3 py-2 text-ok" data-testid="cobro-pagado">
             <Icon name="check" className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden="true" />Pagado
-            <strong className="v2-numero mt-0.5 block text-base tabular-nums text-ok">
+            <strong className="pos-money-value v2-numero mt-0.5 block text-base tabular-nums text-ok">
               {gs(totalPagado)}
             </strong>
           </span>
@@ -490,7 +482,7 @@ export default function PasoCobro({
             <Icon name={pendiente ? 'alert' : 'check'} className="mr-1 inline h-3 w-3 align-[-1px]" aria-hidden="true" />Pendiente
             <strong
               className={cn(
-                'v2-numero mt-0.5 block text-base tabular-nums',
+                'pos-money-value v2-numero mt-0.5 block text-base tabular-nums',
                 pendiente ? 'text-warn' : 'text-ok',
               )}
             >
@@ -567,12 +559,12 @@ export default function PasoCobro({
           shell (#309). El botón es el mismo submit del formulario. */}
       <div
         data-testid="pos-barra-accion"
-        className="fixed inset-x-0 bottom-[calc(54px+env(safe-area-inset-bottom))] z-30 border-t border-ink-600 bg-ink-800/95 px-3 py-2 shadow-[0_-8px_24px_rgba(0,0,0,.18)] backdrop-blur lg:hidden"
+        className="fixed inset-x-0 bottom-[calc(56px+env(safe-area-inset-bottom))] z-30 border-t border-ink-600 bg-ink-800/95 px-3 py-2 shadow-[0_-8px_24px_rgba(0,0,0,.18)] backdrop-blur lg:hidden"
       >
-        <div className="flex items-center gap-2">
-          <div className="min-w-0 flex-1">
+        <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
+          <div className="col-span-2 min-w-0">
             <span className="block text-[10px] font-bold uppercase tracking-wider text-mute">Total</span>
-            <b data-testid="barra-total" className="v2-numero block truncate text-lg font-extrabold tabular-nums text-fore">
+            <b data-testid="barra-total" className="pos-money-value v2-numero block text-lg font-extrabold tabular-nums text-fore">
               {gs(totalGeneral)}
             </b>
           </div>
@@ -586,7 +578,7 @@ export default function PasoCobro({
             <Icon name="cart" className="h-4 w-4" />
             Carrito{cantTotal > 0 ? ` (${cantTotal})` : ''}
           </Button>
-          <BotonGuardar className="shrink-0" />
+          <BotonGuardar className="w-full px-2" />
         </div>
       </div>
     </section>

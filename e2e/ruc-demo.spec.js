@@ -31,13 +31,13 @@ test('demo: el extractor de RUC simula el resultado y espera confirmación', asy
   const guia = page.getByRole('dialog', { name: 'Cómo funciona la demo' })
   if (await guia.count()) await expect(guia.getByText('RUC simulado')).toBeVisible()
   await cerrarGuia(page)
-  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
 
   const cliente = page.getByLabel('Nombre, teléfono, CI o RUC del cliente')
   await cliente.fill('Cliente Demo QA234')
   await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
   const ruc = page.getByLabel('CI o RUC del cliente', { exact: true })
-  await ruc.fill('80012345-6')
+  await ruc.fill('80012345-0')
   const raiz = ruc.locator('xpath=../..')
   const boton = raiz.getByRole('button', { name: /Extraer los datos del RUC|Consultando/ })
   await expect(boton).toBeVisible()
@@ -54,13 +54,13 @@ test('demo: el extractor de RUC simula el resultado y espera confirmación', asy
 
   // Sin confirmación no se pisa nada.
   await expect(cliente).toHaveValue('Cliente Demo QA234')
-  await expect(ruc).toHaveValue('80012345-6')
+  await expect(ruc).toHaveValue('80012345-0')
 
   // Con "Usar estos datos" entra la razón social simulada (el RUC ya estaba).
   await raiz.getByRole('button', { name: 'Usar estos datos' }).click()
   await expect(raiz.getByText('Simulada en demo')).toBeHidden()
   await expect(cliente).toHaveValue(nombreSimulado)
-  await expect(ruc).toHaveValue('80012345-6')
+  await expect(ruc).toHaveValue('80012345-0')
 
   expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
 })
@@ -69,10 +69,12 @@ test('demo: un RUC inválido se rechaza con el mensaje del proveedor', async ({ 
   await page.goto('/demo')
   await page.getByRole('button', { name: /Entrar como Vendedor/ }).click()
   await cerrarGuia(page)
-  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
   await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
   const ruc = page.getByLabel('CI o RUC del cliente', { exact: true })
-  await ruc.fill('123')
+  // Un guion con dígito verificador incorrecto (el válido de 80012345 es 0) se
+  // rechaza con el aviso del campo, sin consultar a nadie.
+  await ruc.fill('80012345-6')
   const raiz = ruc.locator('xpath=../..')
   await raiz.getByRole('button', { name: 'Extraer los datos del RUC' }).click()
   await expect(raiz.getByRole('alert')).toHaveText(/RUC/)
@@ -95,7 +97,7 @@ test('demo: la empresa privada extrae simulada y no pisa sin confirmar', async (
   const nombre = page.locator('#priv-legal-name')
   await nombre.fill('EMPRESA CARGADA A MANO')
   const ruc = page.locator('#priv-ruc')
-  await ruc.fill('80012345-6')
+  await ruc.fill('80012345-0')
   const raiz = ruc.locator('xpath=../..')
   await raiz.getByRole('button', { name: /Extraer los datos del RUC|Consultando/ }).click()
   await expect(raiz.getByText('Simulada en demo')).toBeVisible()

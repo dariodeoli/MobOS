@@ -1,3 +1,4 @@
+import { openShellDestination, shellCatalog, shellPrimary, openShellProfile, selectConfigSection } from './helpers/shell-navigation.js'
 // Owner views (admin storageState): resumen KPIs, inventario unit intake,
 // equipo → Vendedores roster + creation, and finanzas → Caja opening.
 
@@ -13,7 +14,7 @@ test.describe('owner panel', () => {
   test('resumen shows the dashboard KPIs', async ({ page }) => {
     await page.goto('/resumen')
     await expect(page.getByRole('heading', { name: 'Inicio' })).toBeVisible()
-    for (const label of ['Facturado', 'Cobrado', 'Por cobrar', 'Margen', 'Ventas']) {
+    for (const label of ['Vendido', 'Cobrado', 'Por cobrar', 'Ganancia', 'Ventas']) {
       await expect(page.getByText(label, { exact: true }).first()).toBeVisible()
     }
   })
@@ -34,7 +35,9 @@ test.describe('owner panel', () => {
     // número de Cobrado usa el token ok.
     await expect(page.getByTestId('indicador-facturado')).not.toHaveClass(/bg-gradient|from-fono-dark|via-fono/)
     await expect(page.getByTestId('indicador-cobrado').locator('.text-ok').first()).toBeVisible()
-    await expect(page.getByTestId('accesos-rapidos')).toBeVisible()
+    // Los accesos rápidos ahora son las secciones primarias del shell: Vender
+    // y el resto quedan a un clic desde la portada.
+    await expect(page.getByTestId('shell-lateral').getByRole('button', { name: 'Vender', exact: true })).toBeVisible()
   })
 
   // #171 (fase 2 de #145): la portada ejecutiva muestra los indicadores
@@ -42,6 +45,8 @@ test.describe('owner panel', () => {
   // cobros por procesadora y conciliación).
   test('resumen: indicadores unificados de la portada ejecutiva', async ({ page }) => {
     await page.goto('/resumen')
+    // Los indicadores del servidor viven en «Métricas, evolución y stock».
+    await page.getByTestId('inicio-detalles').locator('summary').click()
     await expect(page.getByRole('heading', { name: 'Top productos' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Stock valorizado' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Cobros por procesadora' })).toBeVisible()
@@ -52,11 +57,14 @@ test.describe('owner panel', () => {
   // the inventory units load from the API. The seeded serialized product
   // (iPhone 15 E2E Serial) owns one InventoryUnit, listed with its IMEI.
   test('inventario lists the seeded serialized unit with its IMEI', async ({ page }) => {
+    // La grilla completa (con su encabezado) aparece desde 1440 px: debajo, la
+    // lista pasa a la presentación compacta del shell.
+    await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/inventario/unidades')
     // El título de la página lo pone el panel (un solo h1); Inventario aporta el subtítulo.
     await expect(page.getByRole('heading', { name: 'Unidades', level: 1 })).toBeVisible()
     await expect(page.getByText('Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría.')).toBeVisible()
-    await expect(page.getByTestId('tabs-inventario').getByRole('button', { name: 'Inventario', exact: true })).toBeVisible()
+    await expect(page.getByTestId('tabs-inventario').getByRole('option', { name: 'Inventario', exact: true })).toBeAttached()
     // La tabla compacta alinea el serial por columna (últimos 4 destacados) y
     // la estructura final de #285 deja el IMEI como columna propia.
     await expect(page.getByText('Verificación', { exact: true }).first()).toBeVisible()
@@ -352,7 +360,7 @@ test.describe('owner panel', () => {
     await expect(page.getByText(cliente)).toBeVisible()
 
     // Recepción → diagnóstico con el botón de avance del pipeline.
-    await page.getByRole('button', { name: 'Diagnóstico', exact: true }).first().click()
+    await page.getByRole('button', { name: 'Pasar a Diagnóstico' }).first().click()
     await expect(
       page
         .getByText('Orden de servicio actualizada.')
@@ -1009,10 +1017,13 @@ test('clientes → el vendedor ve la ficha pero no configura el seguro', async (
   await ficha.getByRole('tab', { name: /^Datos/ }).click()
   await expect(ficha.getByRole('switch', { name: 'Seguro del cliente activo' })).toBeDisabled()
 
-  // El menú del vendedor no ofrece Garantías y servicio.
-  const sidebarNav = vendedor.locator('aside nav')
-  await expect(sidebarNav.getByRole('button', { name: 'Clientes', exact: true }).last()).toBeVisible()
-  await expect(sidebarNav.getByRole('button', { name: 'Garantías y servicio', exact: true })).toHaveCount(0)
+  // El menú del vendedor no ofrece Garantías y servicio (con la ficha cerrada:
+  // el diálogo cubre el shell).
+  await vendedor.keyboard.press('Escape')
+  await expect(ficha).toBeHidden()
+  const sellerCatalog = await shellCatalog(vendedor)
+  expect(sellerCatalog.destinations).toContain('Clientes')
+  expect(sellerCatalog.destinations).not.toContain('Garantías y servicio')
   await contexto.close()
 })
 
@@ -1197,24 +1208,18 @@ test('IMEI: comprobante adjunto al cliente y visible en su portal', async ({ pag
   await page.screenshot({ path: '/tmp/qa203-portal.png' })
 })
 
-test('recuerda el menú plegado y los grupos del shell (#209)', async ({ page }) => {
+test('la sección y el contexto activos sobreviven a recargar y pueden cambiarse (#209)', async ({ page }) => {
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
-
-  // Cerrar el grupo Operación y plegar el menú: son «último usado».
-  await page.getByTitle('Ocultar Operación').click()
-  await expect(page.getByTitle('Mostrar Operación')).toBeVisible()
-  await page.getByRole('button', { name: 'Colapsar menú' }).click()
-  await expect(page.getByRole('button', { name: 'Expandir menú' })).toBeVisible()
-
-  // Sobreviven a la recarga; el valor sigue siendo cambiable en un clic.
+  await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
+  await openShellDestination(page, 'Comparador')
+  await expect(page).toHaveURL(/\/comparador$/)
   await page.reload()
-  await expect(page.getByRole('button', { name: 'Expandir menú' })).toBeVisible()
-  await page.getByRole('button', { name: 'Expandir menú' }).click()
-  await expect(page.getByRole('button', { name: 'Colapsar menú' })).toBeVisible()
-  await expect(page.getByTitle('Mostrar Operación')).toBeVisible()
-  await page.getByTitle('Mostrar Operación').click()
-  await expect(page.getByTitle('Ocultar Operación')).toBeVisible()
+  await expect((await shellPrimary(page)).getByRole('button', { name: 'Stock', exact: true })).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByTestId('shell-subcontexto').getByRole('combobox')).toHaveValue('comparador')
+  await openShellDestination(page, 'Lista por modelo')
+  await expect(page).toHaveURL(/\/celulares$/)
+  await page.reload()
+  await expect(page.getByTestId('shell-subcontexto').getByRole('combobox')).toHaveValue('celulares')
 })
 
 // Patrón #209: el último filtro usado queda como predeterminado al volver.
@@ -1286,31 +1291,30 @@ test('el header usa el candado y lo destructivo vive en Configuración (#228/#26
   await page.locator('#seller-pin').pressSequentially(SEED.admin.pin)
   await expect(page).toHaveURL(/\/resumen$/)
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
 
   // #266: el menú de tres puntos se retiró; el bloqueo vive en el header y los
   // accesos siguen en el menú principal.
   await expect(page.getByTestId('menu-acciones')).toHaveCount(0)
+  await openShellProfile(page)
   await expect(page.getByTestId('shell-bloquear')).toBeVisible()
-  const navPrincipal = page.locator('aside nav')
+  await page.keyboard.press('Escape')
+  const catalog = await shellCatalog(page)
   for (const item of ['Configuración', 'Clientes', 'Análisis', 'Finanzas']) {
-    await expect(navPrincipal.getByRole('button', { name: item, exact: true }).first()).toBeAttached()
+    expect([...catalog.destinations, ...catalog.profile]).toContain(item)
   }
   await page.screenshot({ path: 'test-results/qa-228/02-despues.jpg', type: 'jpeg', quality: 70 })
 
   // Preferencias del dispositivo: Configuración → Mi cuenta (sección #IA).
   {
-    const nav = page.locator('aside nav')
-    const item = nav.getByRole('button', { name: 'Configuración', exact: true })
-    if (!(await item.last().isVisible())) await item.first().click()
-    await item.last().click()
+    await openShellDestination(page, 'Configuración')
   }
-  await page.locator('main').getByRole('tab', { name: 'Mi cuenta', exact: true }).click()
+  await selectConfigSection(page, 'Mi cuenta')
   await expect(page.locator('#pref-bloqueo')).toBeVisible()
   await page.screenshot({ path: 'test-results/qa-228/03-preferencias.jpg', type: 'jpeg', quality: 70 })
 
   // Eliminar empresa: Configuración → Organización, con reauth + palabra ELIMINAR.
-  await page.locator('main').getByRole('tab', { name: 'Organización', exact: true }).click()
+  await selectConfigSection(page, 'Organización')
   // #299: archivar/eliminar y la verificación de identidad están en Zona de peligro.
   await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Zona de peligro', exact: true }).click()
   await expect(page.getByText('Eliminar empresa definitivamente')).toBeVisible()

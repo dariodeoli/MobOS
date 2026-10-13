@@ -33,7 +33,7 @@ test('#304 · el primer producto entra en el primer viewport móvil', async ({ p
   mkdirSync(DIR, { recursive: true })
   await entrarDemo(page)
   // El banner del demo queda en una línea compacta en móvil (#304).
-  const banner = page.getByRole('status').filter({ hasText: /Demo: datos ficticios/ })
+  const banner = page.getByRole('status').filter({ hasText: /[Dd]emo: datos ficticios/ })
   await expect(banner).toBeVisible()
 
   for (const [etiqueta, ancho, alto] of VIEWPORTS) {
@@ -86,6 +86,6 @@ test('#304 · Ver abre la ficha y Más agrupa las acciones de la tarjeta', async
   // Más: las acciones de siempre, incluida Verificar (la tarjeta no tiene botón inline).
   await tarjeta.getByLabel(/^Acciones de/).click()
   for (const accion of ['Vender', 'Reservar', 'Verificar', 'Dar de baja']) {
-    await expect(tarjeta.getByRole('button', { name: accion, exact: true })).toBeVisible()
+    await expect(tarjeta.getByRole('menuitem', { name: accion, exact: true })).toBeVisible()
   }
 })

@@ -129,7 +129,7 @@ export default function FilaVenta({
       data-estado={estadoFila}
       className={cn('mobos-aparece border-l-2 px-3 py-2', ACENTO[estadoFila])}
     >
-      <div className="flex items-center gap-2.5">
+      <div className="flex flex-wrap items-center gap-2.5">
         {imagen ? (
           <img src={imagen} alt="" loading="lazy" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
         ) : (
@@ -197,9 +197,9 @@ export default function FilaVenta({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           <div className="text-right">
-            <span className="v2-numero block text-sm font-extrabold tabular-nums text-fono-light">{gs(total)}</span>
+            <span className="pos-money-value v2-numero block text-sm font-extrabold tabular-nums text-fono-light">{gs(total)}</span>
           </div>
           <button
             type="button"

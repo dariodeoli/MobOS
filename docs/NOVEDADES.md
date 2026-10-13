@@ -11,6 +11,16 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.225 — 2026-10-12
+
+Versión preparada en rama para revisión y verificación; publicación pendiente.
+
+- **Navegación:** cinco secciones principales compactas y contextos adaptados al móvil mantienen a mano las herramientas de cada rol.
+- **Inventario:** la identidad completa del equipo se presenta en una línea, con marca, modelo, variante y estado; las vistas de stock se eligen desde un selector agrupado.
+- **Clientes y facturación:** la consulta de RUC queda reservada al dueño y conserva la revisión del cliente, separada de la identidad del titular fiscal.
+- **Pedidos:** los accesos redirigen automáticamente al pedido correspondiente, conservando el recorrido de venta y su detalle.
+- **Finanzas:** los importes de hasta 100 millones mantienen su lectura y controles en pantallas pequeñas; el perfil reúne usuario, empresa y bloqueo inmediato.
+
 ## v1.0.224 — 2026-10-03
 - **Otros (#338):** las pruebas de borradores del POS y de la actualización Inventario→POS siguen los menús nuevos («Más» y «Productos (stock)»); se terminan los últimos falsos rojos del CI.
 

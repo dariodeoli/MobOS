@@ -1,3 +1,4 @@
+import { lockShell } from './helpers/shell-navigation.js'
 // #271 · La foto de perfil anterior no debe aparecer al recargar (ni al
 // cambiarla o quitarla): la URL del avatar es estable, así que el navegador
 // servía la vieja hasta 60 s. Se verifica la revalidación (ETag + no-cache) en
@@ -147,7 +148,7 @@ test('al recargar el bloqueo no se pinta la foto anterior (placeholder hasta res
     await avatarRetenido
     await ruta.continue()
   })
-  await page.getByTestId('shell-bloquear').click()
+  await lockShell(page)
   await expect(page.getByTestId('pantalla-bloqueada')).toBeVisible()
   await page.reload()
 

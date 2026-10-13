@@ -1,3 +1,4 @@
+import { selectInventorySection } from './helpers/shell-navigation.js'
 // #297 · Validación global: sin datos válidos no hay acción habilitada.
 //
 // Cubre los hallazgos de la auditoría v1.0.209 que seguían abiertos:
@@ -172,8 +173,7 @@ test('#297 · conteo físico sin escaneos: aplicar bloqueado en la UI y rechazad
   await page.goto('/inventario/unidades')
   try {
     // #305: navegación agrupada; Conteos vive en el grupo «Control».
-    await page.getByTestId('grupos-inventario').getByRole('button', { name: 'Control', exact: true }).click()
-    await page.getByTestId('tabs-inventario').getByRole('button', { name: 'Conteos', exact: true }).click()
+    await selectInventorySection(page, 'conteos')
     await page.getByRole('button', { name: 'Nuevo conteo' }).click()
     const nuevo = page.getByRole('dialog', { name: 'Nuevo conteo' })
     await nuevo.locator('#conteo-nota').fill(nota)

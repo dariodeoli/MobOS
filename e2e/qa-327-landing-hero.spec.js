@@ -75,3 +75,41 @@ test('el hero se captura en claro y oscuro sin que el header tape la pill', asyn
     await page.screenshot({ path: join(SHOTS, `hero-ancla-${nombre}-390.png`) })
   }
 })
+
+// Frontend-only: run with an isolated config without backend/global setup.
+test('landing eyebrow stays close to the header on mobile and desktop', async ({ page, baseURL }) => {
+  await page.context().route('**/*', (route) => {
+    const url = new URL(route.request().url())
+    return url.origin === new URL(baseURL).origin && !/^\/api(?:\/|$)/.test(url.pathname)
+      ? route.continue()
+      : route.abort()
+  })
+
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/landing-preview')
+    await expect(page.locator('#inicio p').first()).toBeVisible()
+    await page.evaluate(() => document.fonts.ready)
+    const geometry = await page.evaluate(() => {
+      const header = document.querySelector('header').getBoundingClientRect()
+      const pill = document.querySelector('#inicio p').getBoundingClientRect()
+      return {
+        gap: pill.top - header.bottom,
+        headerTop: header.top,
+        scrollWidth: document.documentElement.scrollWidth,
+      }
+    })
+    const [min, max] = width < 1024 ? [24, 32] : [32, 48]
+    expect(geometry.gap, `header-to-eyebrow gap at ${width}px`).toBeGreaterThanOrEqual(min)
+    expect(geometry.gap, `header-to-eyebrow gap at ${width}px`).toBeLessThanOrEqual(max)
+    expect(geometry.headerTop).toBe(0)
+    expect(geometry.scrollWidth).toBe(width)
+    const controls = width < 1024
+      ? page.locator('header button')
+      : page.locator('header a').filter({ hasText: /^(Ingresar|Probar demo)$/ })
+    for (const control of await controls.all()) {
+      const box = await control.boundingBox()
+      expect(box.height).toBeGreaterThanOrEqual(44)
+    }
+  }
+})

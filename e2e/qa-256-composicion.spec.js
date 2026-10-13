@@ -1,3 +1,4 @@
+import { selectInventorySection } from './helpers/shell-navigation.js'
 // #256 · Composición compacta: POS y Clientes usan la barra de módulo única
 // (identidad + contexto + acciones) y el resumen con alcance explícito. Sin
 // encabezados duplicados, sin botones aislados y sin desbordes en mobile.
@@ -18,10 +19,12 @@ async function api(page, path, options = {}) {
 test.describe('composición compacta', () => {
   test('POS: una sola barra de módulo con el título y las acciones', async ({ page }) => {
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 }).first()).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 }).first()).toBeVisible({ timeout: 20_000 })
     const barra = page.getByTestId('barra-pos')
     await expect(barra).toHaveCount(1)
-    await expect(barra.getByText(/Hoy: \d{2}\/\d{2}\/\d{4}/)).toBeVisible()
+    // La fecha ya no va en la barra (el shell pone el título): acompaña al
+    // resumen de la venta, dentro de «Detalles de la venta y del día».
+    await expect(page.getByText(/Fecha: \d{2}\/\d{2}\/\d{4}/)).toBeAttached()
     // #309: gift cards, analytics y ventas suspendidas viven en «Más» para no
     // llenar la barra; la principal de la venta sigue a mano.
     await barra.getByTestId('pos-mas').click()
@@ -75,16 +78,16 @@ test.describe('composición compacta', () => {
     await page.keyboard.press('Escape')
 
     // #305: navegación agrupada Stock · Movimientos · Control.
-    const grupos = page.getByTestId('grupos-inventario')
-    for (const grupo of ['Stock', 'Movimientos', 'Control']) {
-      await expect(grupos.getByRole('button', { name: grupo, exact: true })).toBeVisible()
-    }
     const tabs = page.getByTestId('tabs-inventario')
-    await expect(tabs.getByRole('button', { name: 'Inventario', exact: true })).toBeVisible()
-    await expect(tabs.getByRole('button', { name: 'Reservas', exact: true })).toBeVisible()
-    await expect(tabs.getByRole('button', { name: 'En tránsito', exact: true })).toHaveCount(0)
-    await grupos.getByRole('button', { name: 'Movimientos', exact: true }).click()
-    await expect(tabs.getByRole('button', { name: 'En tránsito', exact: true })).toBeVisible()
+    for (const group of ['Stock', 'Movimientos', 'Control']) {
+      await expect(tabs.locator(`optgroup[label="${group}"]`)).toBeAttached()
+    }
+    await expect(tabs.locator('optgroup[label="Stock"]').getByRole('option', { name: 'Reservas', exact: true })).toBeAttached()
+    await expect(tabs.locator('optgroup[label="Stock"]').getByRole('option', { name: 'En tránsito', exact: true })).toHaveCount(0)
+    await expect(tabs.locator('optgroup[label="Movimientos"]').getByRole('option', { name: 'En tránsito', exact: true })).toBeAttached()
+    await expect(tabs.locator('optgroup[label="Control"]').getByRole('option', { name: 'Conteos', exact: true })).toBeAttached()
+    for (const value of ['reservas', 'transito', 'conteos', 'unidades']) await selectInventorySection(page, value)
+
   })
 
   test('Productos: barra única, métricas con alcance y controles agrupados', async ({ page }) => {

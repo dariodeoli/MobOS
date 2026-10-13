@@ -1,3 +1,4 @@
+import { openShellDestination, selectAnalysisSection } from './helpers/shell-navigation.js'
 // #194 (y #188): la demo de Finanzas funciona sin API real, con datos
 // ficticios visibles y sin "Falta sesión".
 import { test, expect } from '@playwright/test'
@@ -49,8 +50,8 @@ test.describe('demo de Finanzas', () => {
 
     // El demo vive en memoria de la pestaña (#204): se navega dentro de la app,
     // sin recargar, para ver el efecto del seguro en el margen.
-    await page.locator('aside nav button[aria-label="Análisis"]').click()
-    await page.getByRole('tab', { name: 'Ganancias' }).click()
+    await openShellDestination(page, 'Análisis')
+    await selectAnalysisSection(page, 'Ganancias')
     await expect(page.getByText('Incluye seguro 25% (demo)')).toBeVisible()
     const conSeguro = (await page.getByTestId('ganancia-resultado').textContent())?.trim()
     expect(conSeguro).not.toBe(sinSeguro)
@@ -98,7 +99,7 @@ test.describe('demo de Finanzas', () => {
     await entrarDemo(page)
     await page.goto('/finanzas/conciliacion')
 
-    await expect(page.getByRole('heading', { name: 'Conciliación y trazabilidad' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Conciliación', exact: true })).toBeVisible()
     await expect(page.getByText('Demo: cobros y cuentas ficticios')).toBeVisible()
     const filas = page.getByTestId('conciliacion-fila')
     await expect(filas.first()).toBeVisible()

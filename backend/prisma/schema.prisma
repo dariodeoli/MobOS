@@ -834,6 +834,11 @@ model Customer {
   tenantId    String
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name        String
+  // Exact fiscal name and explicitly reviewed person parts; no legacy backfill.
+  nameOfficial String?
+  identityKind String?
+  givenNames   String?
+  surnames     String?
   // Nombres desdoblados (#160): `name` sigue siendo el nombre completo visible
   // y la búsqueda; estas partes permiten el trato y el saludo.
   firstName   String?

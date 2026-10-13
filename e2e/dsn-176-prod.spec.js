@@ -11,7 +11,7 @@ const captura = (page, nombre) => page.screenshot({ path: `${SHOTS}/cprod-${nomb
 async function entrarDemoDueno(page) {
   await page.goto(`${APP}/demo`)
   await page.getByRole('button', { name: /Entrar como Dueño/i }).click()
-  await expect(page.getByTestId('shell-bloquear')).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByTestId('shell-perfil')).toBeVisible({ timeout: 30_000 })
   const guia = page.getByRole('dialog', { name: 'Cómo funciona la demo' })
   if (await guia.count()) await guia.getByRole('button', { name: 'Cerrar' }).click().catch(() => {})
 }
@@ -47,7 +47,7 @@ test('producción: paleta AA en el POS (claro/oscuro) y vistas del shell', async
   for (const modo of ['light', 'dark']) {
     await tema(page, modo)
     await page.goto(`${APP}/pos`)
-    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible({ timeout: 25_000 })
+    await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible({ timeout: 25_000 })
     const buscador = page.getByPlaceholder('Buscar producto…')
     await buscador.fill('iPhone')
     const producto = page.getByRole('button', { name: /iPhone|Equipo/i }).first()

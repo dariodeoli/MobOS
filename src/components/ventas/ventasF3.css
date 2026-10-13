@@ -1,0 +1,351 @@
+/* Bounded F3 presentation. All rules require an orders/quotes root or dialog. */
+.ventas-f3 {
+  min-width: 0;
+}
+
+.ventas-f3 .ventas-f3-toolbar {
+  align-items: flex-start;
+}
+
+.ventas-f3 .ventas-f3-toolbar p {
+  display: block;
+  white-space: normal;
+  font-size: 13px;
+}
+
+.ventas-f3 .ventas-f3-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+
+.ventas-f3-filters > :first-child {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.ventas-f3 .ventas-f3-filters select {
+  width: auto;
+  max-width: 100%;
+}
+
+.ventas-f3 .ventas-f3-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+}
+
+.ventas-f3-chips button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid rgb(var(--c-ink-600));
+  border-radius: var(--ds-radius-md, 10px);
+  font-size: 13px;
+  color: rgb(var(--c-mute));
+  background: rgb(var(--c-ink));
+}
+
+.ventas-f3-chips button[aria-pressed='true'] {
+  color: rgb(var(--c-ink));
+  background: rgb(var(--c-fore));
+  border-color: rgb(var(--c-fore));
+}
+
+.ventas-f3 button:focus-visible,
+.ventas-f3 [role='button']:focus-visible {
+  outline: 2px solid rgb(var(--c-fono));
+  outline-offset: 2px;
+}
+
+.ventas-f3 .ventas-f3-list {
+  border: 1px solid rgb(var(--c-ink-600));
+  border-radius: 10px;
+  background: rgb(var(--c-ink));
+}
+
+.ventas-f3 .ventas-f3-list-header {
+  padding: 8px 16px;
+  font-size: 12px;
+  color: rgb(var(--c-mute));
+}
+
+.ventas-f3 .ventas-f3-order-grid {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr) 5rem 5rem 6rem minmax(9rem, max-content) 44px;
+  align-items: center;
+  gap: 12px;
+}
+
+.ventas-f3 .ventas-f3-order-row,
+.ventas-f3 .ventas-f3-quote-row {
+  min-width: 0;
+  padding: 16px;
+  border-top: 1px solid rgb(var(--c-ink-600));
+}
+
+.ventas-f3 .ventas-f3-order-row {
+  cursor: pointer;
+  border-left-width: 3px;
+}
+
+.ventas-f3 .ventas-f3-order-row:hover {
+  background: rgb(var(--c-ink-800));
+}
+
+.ventas-f3-name,
+.ventas-f3-description {
+  overflow-wrap: anywhere;
+  white-space: normal;
+  min-width: 0;
+}
+
+.ventas-f3-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ventas-f3-description {
+  margin-top: 4px;
+  font-size: 13px;
+  color: rgb(var(--c-mute));
+}
+
+.ventas-f3 .ventas-f3-money {
+  white-space: nowrap;
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.ventas-f3 .ventas-f3-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  border-radius: 0;
+  border-width: 0 0 1px;
+  background: transparent;
+  text-align: left;
+}
+
+.ventas-f3-metrics > div {
+  flex: 1 1 180px;
+  padding: 8px 16px 12px 0;
+  border: 0;
+}
+
+.ventas-f3-metrics p {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.ventas-f3-metrics p:nth-child(2) {
+  font-size: 20px;
+  white-space: nowrap;
+}
+
+.ventas-f3-metrics p span {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.ventas-f3 .ventas-f3-summary {
+  padding: 12px 0;
+  border-bottom: 1px solid rgb(var(--c-ink-600));
+}
+
+.ventas-f3 .ventas-f3-summary > div {
+  flex-wrap: wrap;
+}
+
+.ventas-f3-summary dd {
+  flex: 1 1 160px;
+}
+
+.ventas-f3 .ventas-f3-quote-grid {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr) 6rem 6rem minmax(9rem, max-content) 12rem;
+  gap: 12px;
+  align-items: center;
+}
+
+.ventas-f3 .ventas-f3-quote-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ventas-f3 .ventas-f3-detail-header,
+.ventas-f3 .ventas-f3-detail-section {
+  border: 1px solid rgb(var(--c-ink-600));
+  background: rgb(var(--c-ink));
+  border-radius: 10px;
+}
+
+.ventas-f3 .ventas-f3-detail-header {
+  padding: 16px;
+}
+
+.ventas-f3 .ventas-f3-detail-section > button > span > span {
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.ventas-f3-detail-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgb(var(--c-ink-600));
+}
+
+.ventas-f3-detail-totals dt {
+  color: rgb(var(--c-mute));
+  font-size: 13px;
+}
+
+.ventas-f3 .ventas-f3-detail-totals dd {
+  font-size: 22px;
+  text-align: left;
+}
+
+.ventas-f3-detail-item {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ventas-f3-detail-item > div:first-child {
+  flex: 1 1 180px;
+}
+
+.ventas-f3-detail-item > div:last-child {
+  flex: 1 1 180px;
+}
+
+.ventas-f3-detail-section .flex.justify-between {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 1199px) {
+  .ventas-f3 .ventas-f3-order-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    gap: 8px;
+  }
+
+  .ventas-f3-order-identity {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .ventas-f3-order-total {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    text-align: left !important;
+  }
+  .ventas-f3-order-code {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .ventas-f3-delivery {
+    grid-column: 1;
+    grid-row: 4;
+  }
+  .ventas-f3-payment {
+    grid-column: 1;
+    grid-row: 5;
+  }
+  .ventas-f3-state {
+    grid-column: 1;
+    grid-row: 6;
+  }
+  .ventas-f3-quick {
+    grid-column: 2;
+    grid-row: 5 / 7;
+  }
+
+  .ventas-f3 .ventas-f3-quote-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .ventas-f3 .ventas-f3-list-header {
+    display: none;
+  }
+
+  .ventas-f3-quote-identity {
+    grid-row: 1;
+  }
+  .ventas-f3-quote-total {
+    grid-row: 2;
+    text-align: left !important;
+  }
+  .ventas-f3-quote-code {
+    grid-row: 3;
+  }
+  .ventas-f3-quote-actions {
+    justify-content: flex-start !important;
+  }
+}
+
+.ventas-f3 .v2-chip[class*='bg-bad/'] {
+  background: transparent;
+  color: rgb(var(--c-bad-text));
+}
+
+.ventas-f3-extra-filters > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: rgb(var(--c-mute));
+  font-size: 13px;
+}
+
+.ventas-f3-extra-filters > summary:focus-visible {
+  outline: 2px solid rgb(var(--c-fono));
+  outline-offset: 2px;
+}
+
+@media (max-width: 639px) {
+  .ventas-f3 .ventas-f3-toolbar > div:first-child {
+    flex-basis: 100%;
+  }
+
+  .ventas-f3 .ventas-f3-toolbar > div:last-child {
+    width: 100%;
+  }
+
+  .ventas-f3 .ventas-f3-quote-grid {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .ventas-f3-quote-identity,
+  .ventas-f3-quote-total,
+  .ventas-f3-quote-actions {
+    grid-column: 1 / -1;
+  }
+
+  .ventas-f3-quote-code {
+    grid-column: 1;
+  }
+  .ventas-f3-quote-expiry {
+    grid-column: 2;
+    grid-row: 3;
+  }
+  .ventas-f3-quote-state {
+    grid-column: 1 / -1;
+  }
+}
+
+.ventas-f3 .uppercase {
+  text-transform: none;
+  letter-spacing: normal;
+}

@@ -1,3 +1,4 @@
+import { openShellDestination } from './helpers/shell-navigation.js'
 // Auth flows against the real API (fresh context, no storageState).
 // The seeded company and sellers come from global-setup.
 
@@ -22,7 +23,7 @@ test.describe('login', () => {
     await completeSellerPin(page, { sellerName: SEED.sellers[0].name, pin: SEED.sellers[0].pin })
 
     // Seller role redirects to the checkout view (the POS composition).
-    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
     await expect(page.getByPlaceholder('Buscar producto…')).toBeVisible()
   })
 
@@ -98,7 +99,7 @@ test('demo: la ficha del cliente abre sin sesión y no consulta el API', async (
   await page.waitForURL((url) => !url.pathname.startsWith('/demo'))
   // La guía de la demo se abre sola la primera vez por pestaña (#201).
   await cerrarGuiaDemo(page)
-  await page.locator('aside nav, nav').first().locator('button[aria-label="Clientes"]').click()
+  await openShellDestination(page, 'Clientes')
   await expect(page.getByRole('button', { name: '+ Crear cliente' })).toBeVisible()
 
   const marca = `DEMOQA${Date.now().toString(36).toUpperCase()}`
@@ -163,7 +164,7 @@ test('demo: ficha con deuda, cronología, seguro, portal y servicio', async ({ p
   await page.waitForURL((url) => !url.pathname.startsWith('/demo'))
   // La guía de la demo se abre sola la primera vez por pestaña (#201).
   await cerrarGuiaDemo(page)
-  await page.locator('aside nav, nav').first().locator('button[aria-label="Clientes"]').click()
+  await openShellDestination(page, 'Clientes')
 
   await page.getByLabel('Buscar clientes').fill('Lucía')
   const fila = page.getByTestId('cliente-fila').filter({ hasText: 'Lucía Fernández' }).first()

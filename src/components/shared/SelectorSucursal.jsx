@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 // Con una sola empresa y una sola sucursal no hay nada que elegir: se pinta
 // como dato informativo, sin botón ni menú. Con más de una opción el control
 // abre un menú real (no un <select> muerto).
-export default function SelectorSucursal({ className }) {
+export default function SelectorSucursal({ className, abrirArriba = false }) {
   const { empresa, empresas, sucursal, sucursales, cambiarSucursal, cambiarEmpresa } = useSesion()
   const [abierto, setAbierto] = useState(false)
   const ref = useRef(null)
@@ -46,7 +46,7 @@ export default function SelectorSucursal({ className }) {
         )}
       >
         <Icon name="store" className="h-[15px] w-[15px]" />
-        <span className="hidden max-w-[110px] truncate sm:block sm:max-w-[180px]">{actual}</span>
+        <span className="max-w-[180px] truncate">{actual}</span>
       </div>
     )
   }
@@ -85,7 +85,7 @@ export default function SelectorSucursal({ className }) {
           data-testid="sucursal-menu"
           role="menu"
           aria-label="Cambiar tienda o sucursal"
-          className="absolute right-0 top-[calc(100%+6px)] z-40 max-h-[70dvh] min-w-[190px] max-w-[260px] overflow-y-auto overflow-x-hidden rounded-xl border border-ink-500 bg-ink-800 py-1 shadow-xl"
+          className={cn('absolute z-40 max-h-[70dvh]', abrirArriba ? 'bottom-[calc(100%+6px)] left-0' : 'right-0 top-[calc(100%+6px)]', 'min-w-[190px] max-w-[260px] overflow-y-auto overflow-x-hidden rounded-xl border border-ink-500 bg-ink-800 py-1 shadow-xl')}
         >
           {variasEmpresas && (
             <div role="group" aria-label="Empresa">

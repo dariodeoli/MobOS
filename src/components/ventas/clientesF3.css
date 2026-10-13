@@ -1,0 +1,285 @@
+/* Bounded Clientes presentation. Existing profile/shared components are untouched. */
+.clientes-f3 {
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+}
+.clientes-f3-header,
+.clientes-f3-actions,
+.clientes-f3-filters,
+.clientes-f3-secciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.clientes-f3-header {
+  justify-content: space-between;
+}
+.clientes-f3-header > div:first-child {
+  flex: 1 1 220px;
+}
+.clientes-f3-secciones {
+  border-bottom: 1px solid rgb(var(--c-ink-600));
+}
+.clientes-f3-secciones button {
+  padding: 8px 12px;
+  color: rgb(var(--c-mute));
+  border-bottom: 2px solid transparent;
+}
+.clientes-f3-secciones button[aria-pressed='true'] {
+  color: rgb(var(--c-fore));
+  border-bottom-color: currentColor;
+}
+.clientes-f3
+  > :is(
+    .clientes-f3-header,
+    .clientes-f3-secciones,
+    .clientes-f3-filters,
+    .clientes-f3-list,
+    .clientes-f3-grid,
+    .clientes-f3-pagination,
+    .clientes-f3-followups
+  )
+  :is(button, select, input:not([type='checkbox']), a[aria-label]) {
+  min-height: 44px;
+}
+.clientes-f3
+  > :is(
+    .clientes-f3-header,
+    .clientes-f3-secciones,
+    .clientes-f3-filters,
+    .clientes-f3-list,
+    .clientes-f3-grid,
+    .clientes-f3-pagination,
+    .clientes-f3-followups
+  )
+  :is(button, a[aria-label]) {
+  min-width: 44px;
+}
+.clientes-f3
+  > :is(
+    .clientes-f3-header,
+    .clientes-f3-secciones,
+    .clientes-f3-filters,
+    .clientes-f3-list,
+    .clientes-f3-grid,
+    .clientes-f3-pagination,
+    .clientes-f3-followups
+  )
+  :is(button, a, input, select):focus-visible {
+  outline: 2px solid rgb(var(--c-fono));
+  outline-offset: 2px;
+}
+.clientes-f3-search {
+  min-width: 0;
+  flex: 1 1 240px;
+}
+.clientes-f3-filters > select {
+  width: auto;
+  max-width: 100%;
+}
+.clientes-f3-chips {
+  flex-wrap: wrap;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+}
+.clientes-f3-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid rgb(var(--c-ink-600));
+  border-radius: 10px;
+  background: rgb(var(--c-ink));
+}
+.clientes-f3-summary > div {
+  min-width: 0;
+  padding: 12px;
+  border-bottom: 1px solid rgb(var(--c-ink-600));
+}
+.clientes-f3-summary > div:nth-child(odd) {
+  border-right: 1px solid rgb(var(--c-ink-600));
+}
+.clientes-f3-summary > div:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+.clientes-f3-summary > div > p:first-child {
+  font-size: 13px;
+  color: rgb(var(--c-mute));
+}
+.clientes-f3-value {
+  margin: 4px 0;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.clientes-f3-list {
+  min-width: 0;
+}
+.clientes-f3-card,
+.clientes-f3-table [data-testid='cliente-fila'] {
+  border-bottom: 1px solid rgb(var(--c-ink-600));
+  background: rgb(var(--c-ink));
+}
+.clientes-f3-card:hover,
+.clientes-f3-table [data-testid='cliente-fila']:hover {
+  background: rgb(var(--c-ink-700));
+}
+.clientes-f3-card {
+  border-radius: 0;
+}
+.clientes-f3 .clientes-f3-identity,
+.clientes-f3 .clientes-f3-phone {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+.clientes-f3 [data-testid='cliente-fila'] :is(dd, span.v2-numero) {
+  font-family: inherit;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.clientes-f3 [data-testid='cliente-fila'] [role='menu'] {
+  box-shadow: none;
+  border-radius: 10px;
+}
+.clientes-f3 [data-testid='cliente-fila'] [role='dialog'] {
+  width: min(320px, calc(100vw - 48px));
+}
+.clientes-f3-row {
+  grid-template-columns:
+    44px minmax(0, 1.5fr) 90px 60px minmax(130px, 1fr) 95px minmax(130px, 1fr)
+    92px;
+}
+.clientes-f3-table {
+  min-width: 0;
+}
+.clientes-f3-table > .clientes-f3-row button {
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+}
+.clientes-f3-grid > li {
+  background: rgb(var(--c-ink));
+  border-color: rgb(var(--c-ink-600));
+  border-radius: 10px;
+  box-shadow: none;
+}
+.clientes-f3-grid h2 {
+  overflow-wrap: anywhere;
+}
+.clientes-f3-grid a[aria-label] {
+  height: 44px;
+  width: 44px;
+}
+@media (max-width: 389px) {
+  .clientes-f3-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .clientes-f3-summary > div:nth-child(n) {
+    border-right: 0;
+    border-bottom: 1px solid rgb(var(--c-ink-600));
+  }
+  .clientes-f3-summary > div:last-child {
+    border-bottom: 0;
+  }
+  .clientes-f3-card dl > div {
+    flex-wrap: wrap;
+    gap: 0 8px;
+  }
+  .clientes-f3-card dl dd {
+    margin-left: auto;
+  }
+}
+@media (min-width: 861px) {
+  .clientes-f3-summary {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .clientes-f3-summary > div:nth-child(n) {
+    border-bottom: 0;
+    border-right: 1px solid rgb(var(--c-ink-600));
+  }
+  .clientes-f3-summary > div:last-child {
+    border-right: 0;
+  }
+}
+
+.clientes-f3-chips > button {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  width: auto;
+  color: rgb(var(--c-mute));
+  background: transparent;
+}
+.clientes-f3-chips > button > span {
+  overflow: visible;
+  text-overflow: clip;
+}
+.clientes-f3-chips > button[aria-pressed='true'] {
+  color: rgb(var(--c-fore));
+  background: rgb(var(--c-ink-700));
+}
+.clientes-f3-card-identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px 12px;
+}
+.clientes-f3-card-identity > div {
+  flex: 1 1 180px;
+}
+.clientes-f3 .clientes-f3-card p.v2-numero {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.clientes-f3-secciones button[aria-pressed='true'] {
+  background: transparent;
+  border-radius: 0;
+}
+@media (max-width: 767px) {
+  .clientes-f3-actions button.bg-fono {
+    order: -1;
+  }
+}
+
+.clientes-f3-table > .clientes-f3-row > span {
+  text-transform: none;
+  letter-spacing: normal;
+}
+.clientes-f3 [data-testid='cliente-fila'] .v2-chip {
+  background: transparent;
+  color: rgb(var(--c-fore));
+  border-color: rgb(var(--c-ink-600));
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.clientes-f3-header {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.clientes-f3-header > div:first-child p {
+  display: block;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  font-size: 14px;
+}
+.clientes-f3-summary {
+  text-align: left;
+}
+.clientes-f3-summary :is(p, span) {
+  text-transform: none;
+  letter-spacing: normal;
+}
+.clientes-f3-summary .clientes-f3-value {
+  font-size: 16px;
+  font-family: inherit;
+}

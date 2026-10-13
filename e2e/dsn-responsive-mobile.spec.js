@@ -1,3 +1,4 @@
+import { openShellProfile, lockShell } from './helpers/shell-navigation.js'
 // Auditoría responsive mobile (pedido de Dario, #249): POS + pantallas clave a
 // 360/390/414 px y tablet (768). Mide scroll horizontal, elementos cortados y
 // targets por debajo de 44 px, audita el modal principal y deja capturas por
@@ -23,7 +24,7 @@ try {
 } catch { /* sin setup: el listado no lo necesita */ }
 
 const PANTALLAS = [
-  ['pos', '/pos', (page) => page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 }), async (page, ancho) => {
+  ['pos', '/pos', (page) => page.getByRole('heading', { name: 'Vender', exact: true, level: 1 }), async (page, ancho) => {
     // Carrito con una línea en el ancho de referencia del celular: es el estado
     // que más se usa en el mostrador (en los otros anchos se audita el inicio).
     if (ancho !== 390) return
@@ -68,8 +69,9 @@ const MODALES = {
 // (menú de tres puntos desplegado, bloqueo/PIN, detalle de pedido y ficha de
 // unidad con checklist). Se auditan a 390 (ancho de referencia del celular).
 const SUPERFICIES = [
-  ['pos-header', '/pos', (page) => page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 }), async (page) => {
+  ['pos-header', '/pos', (page) => page.getByRole('heading', { name: 'Vender', exact: true, level: 1 }), async (page) => {
     // #266: el header muestra el candado de bloquear (el menú de tres puntos ya no existe).
+    await openShellProfile(page)
     await expect(page.getByTestId('shell-bloquear')).toBeVisible()
     await expect(page.getByTestId('menu-acciones')).toHaveCount(0)
   }],
@@ -82,8 +84,8 @@ const SUPERFICIES = [
     await expect(page.getByRole('dialog').first()).toBeVisible({ timeout: 20_000 })
   }],
   // El bloqueo va al final: la pantalla de PIN tapa la app hasta desbloquear.
-  ['pos-bloqueo', '/pos', (page) => page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 }), async (page) => {
-    await page.getByTestId('shell-bloquear').click()
+  ['pos-bloqueo', '/pos', (page) => page.getByRole('heading', { name: 'Vender', exact: true, level: 1 }), async (page) => {
+    await lockShell(page)
     await expect(page.locator('#lock-pin')).toBeVisible({ timeout: 15_000 })
   }],
 ]
@@ -322,7 +324,7 @@ function auditarConfiguracion(registro) {
   test('configuración: los 7 grupos a 360/390/414/768', async ({ page }) => {
     test.slow()
     mkdirSync(SHOTS, { recursive: true })
-    const clave = [{ nombre: 'grupos de Configuración', selector: '[data-testid="config-grupos"] [role="tab"]' }]
+    const clave = [{ nombre: 'grupos de Configuración', selector: '[data-testid="config-grupos"] select' }]
     for (const [slug, label, listo] of GRUPOS_CONFIG_AUDIT) {
       for (const [ancho, alto] of ANCHOS) {
         await page.setViewportSize({ width: ancho, height: alto })
@@ -371,9 +373,9 @@ test.describe('demo · POS y páginas clave', () => {
     mkdirSync(SHOTS, { recursive: true })
     await entrarDemoDueno(page)
 
-    const claveDemo = [{ nombre: 'candado (header)', selector: '[data-testid="shell-bloquear"]' }]
+    const claveDemo = [{ nombre: 'perfil (header)', selector: '[data-testid="shell-perfil-mobile"]' }]
     const pantallas = [
-      ['demo-pos', '/pos', (page) => page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 }), async (page, ancho) => {
+      ['demo-pos', '/pos', (page) => page.getByRole('heading', { name: 'Vender', exact: true, level: 1 }), async (page, ancho) => {
         if (ancho !== 390) return
         await page.getByPlaceholder('Buscar producto…').fill('iPhone 15 Pro')
         const producto = page.getByRole('button', { name: /iPhone 15 Pro 256GB/ }).first()
@@ -414,7 +416,8 @@ test.describe('demo · POS y páginas clave', () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await entrarDemoDueno(page)
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible({ timeout: 30_000 })
+    await openShellProfile(page)
     await expect(page.getByTestId('shell-bloquear')).toBeVisible()
     await expect(page.getByTestId('menu-acciones')).toHaveCount(0)
     const medicion = await auditar(page, CLAVE['pos-header'])

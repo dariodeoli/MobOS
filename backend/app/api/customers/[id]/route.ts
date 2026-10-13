@@ -1,3 +1,4 @@
+import { customerIdentityInput, serializeCustomer } from '../../../../lib/customer-identity'
 import { prisma } from '../../../../lib/prisma'
 import { error, json } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
@@ -121,7 +122,7 @@ export async function GET(request: Request, { params }: RouteContext) {
   ])
 
   return json({
-    customer,
+    customer: serializeCustomer(customer),
     orders: orderRows,
     debtPyg,
     warranties,
@@ -146,7 +147,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   try {
     const body = objectInput(await request.json())
     const gestionaCredito = ['ADMIN', 'GERENTE'].includes(session.user.role)
-    const data: Record<string, unknown> = {}
+    const data: Record<string, unknown> = { ...customerIdentityInput(body) }
     if (body.name !== undefined) data.name = textInput(body.name, 'Nombre', 200)
     // Nombres desdoblados (#160): al tocar cualquiera de las partes se
     // recompone el nombre completo visible.
@@ -208,9 +209,9 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       data.addresses = { deleteMany: {}, create: addressesInput(body.addresses) ?? [] }
     }
     if (!Object.keys(data).length) throw new InputError('No enviaste cambios.')
-    const updated = await prisma.customer.update({ where: { id: existing.id }, data, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } })
+    const updated = await prisma.customer.update({ where: { id: existing.id, tenantId: session.user.tenantId }, data, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } })
     await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'CUSTOMER_UPDATED', entity: 'Customer', entityId: updated.id, metadata: { fields: Object.keys(data) } } })
-    return json(updated)
+    return json(serializeCustomer(updated))
   } catch (cause) {
     return error(cause instanceof Error ? cause.message : 'No se pudo actualizar el cliente.', 400)
   }

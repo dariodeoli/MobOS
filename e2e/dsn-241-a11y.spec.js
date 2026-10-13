@@ -1,3 +1,4 @@
+import { openShellProfile } from './helpers/shell-navigation.js'
 // #241 (F4 · accesibilidad): el shell v2 cumple AA en claro y oscuro.
 //
 // Mide contraste REAL en el navegador (no de tokens): recorre los textos
@@ -42,7 +43,7 @@ test.describe('shell v2 · contraste AA', () => {
         expect(shell.bajos, `AA en el shell (${vista} ${tema})`).toEqual([])
 
         if (vista === 'mobile') {
-          await page.getByRole('button', { name: 'Menú', exact: true }).click()
+          await openShellProfile(page)
           const menu = page.locator('[role="dialog"][aria-modal="true"]')
           await expect(menu).toBeVisible()
           const dentro = await auditarContraste(page, [...SHELL, '[role="dialog"][aria-modal="true"]'], CONTEXTO)

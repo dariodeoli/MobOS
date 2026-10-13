@@ -1,3 +1,4 @@
+import { shellCatalog } from './helpers/shell-navigation.js'
 // Role-based navigation: what a seller can and cannot see inside the panel.
 // Reads the actual nav logic of PanelVendedor.jsx (SELLER_NAV vs OWNER_NAV),
 // SoloPropietario in App.jsx, and the single-redirect vista guard.
@@ -9,18 +10,18 @@ const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 test.describe('seller permissions', () => {
   test('owner-only nav items are not visible to a seller', async ({ page }) => {
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
 
-    const sidebarNav = page.locator('aside nav')
+    const catalog = await shellCatalog(page)
     // Menú del vendedor (IA #251): cuatro grupos y solo sus módulos.
-    await expect(sidebarNav.locator('button[aria-expanded]')).toHaveText(['Vender', 'Clientes', 'Inventario', 'Operación'])
+    expect(catalog.primary).toEqual(['Vender', 'Ventas', 'Stock'])
     for (const label of ['POS', 'Mis pedidos', 'Cotizaciones', 'Promociones', 'Plantillas', 'Productos', 'Precios', 'Delivery', 'Trade-In']) {
-      await expect(sidebarNav.getByRole('button', { name: label, exact: true })).toBeVisible()
+      expect(catalog.destinations).toContain(label === 'POS' ? 'Nueva venta' : label)
     }
     // Módulos del dueño que el vendedor no ve (#332: las vistas del
     // inventario se emparejan por nombre; el vendedor solo ve «Productos»).
     for (const label of ['Inicio', 'Pedidos', 'Unidades (IMEI)', 'Productos (stock)', 'Compras', 'Traslados y tránsito', 'Lista por modelo', 'Comparador', 'Taller y garantías', 'Autorizaciones', 'Tablero de operaciones', 'Finanzas', 'Análisis', 'Configuración']) {
-      await expect(sidebarNav.getByRole('button', { name: label, exact: true })).toHaveCount(0)
+      expect([...catalog.destinations, ...catalog.profile]).not.toContain(label)
     }
   })
 
@@ -28,7 +29,7 @@ test.describe('seller permissions', () => {
   // puede verla ni por la API.
   test('la auditoría no está disponible para un vendedor', async ({ page }) => {
     await page.goto('/pos')
-    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
     // La API exige el mismo origen de la app, así que la petición sale con el
     // Origin de la página (como en el navegador).
     const respuesta = await page.request.get(`${API}/api/audit`, { headers: { origin: new URL(page.url()).origin } })
@@ -42,7 +43,7 @@ test.describe('seller permissions', () => {
     // seller on /pos.
     await page.goto('/control/finanzas')
     await expect(page).toHaveURL(/\/pos$/)
-    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
   })
 
   // Marketing (cobranzas por WhatsApp, segmentos y campañas) es de
@@ -68,7 +69,7 @@ test.describe('seller permissions', () => {
 
     // Single clean redirect, no loop: the URL leaves the owner view.
     await expect(page).toHaveURL(/\/pos$/)
-    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
 
     // The owner content is never mounted for a seller.
     await expect(page.getByPlaceholder('Escanear IMEI, SKU o buscar modelo')).toHaveCount(0)
@@ -78,7 +79,7 @@ test.describe('seller permissions', () => {
   test('las URLs viejas /pos/* y /tradein redirigen a los slugs nuevos', async ({ page }) => {
     await page.goto('/pos/cargar')
     await expect(page).toHaveURL(/\/pos$/)
-    await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
 
     await page.goto('/pos/pedidos')
     await expect(page).toHaveURL(/\/pedidos$/)

@@ -1,3 +1,4 @@
+import './entregasF3.css'
 import { useCallback, useEffect, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import BarraModulo from '@/components/shared/BarraModulo'
@@ -19,11 +20,32 @@ import { asignarRepartoDemo, equipoDeRepartoDemo, listDemoDeliveryOrders, listDe
 
 const TONO_RENDICION = (estado) => estado === 'VERIFIED' ? 'green' : estado === 'REJECTED' ? 'red' : 'orange'
 
-function Tabs({ value, onChange, items }) {
+function Tabs({ value, onChange, items, flat = false }) {
   return (
-    <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
+    <div
+      className={
+        flat
+          ? 'entregas-f3-chips'
+          : 'flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1'
+      }
+    >
       {items.map(([id, label]) => (
-        <button key={id} type="button" aria-pressed={value === id} onClick={() => onChange(id)} className={cn('rounded-lg px-3 py-1.5 text-xs font-semibold transition', value === id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>
+        <button
+          key={id}
+          type="button"
+          aria-pressed={value === id}
+          onClick={() => onChange(id)}
+          className={
+            flat
+              ? 'transition'
+              : cn(
+                  'rounded-lg px-3 py-1.5 text-xs font-semibold transition',
+                  value === id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore',
+                )
+          }
+        >
+          {label}
+        </button>
       ))}
     </div>
   )
@@ -77,60 +99,173 @@ function Asignaciones() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Tabs value={asignado} onChange={setAsignado} items={[['sin-asignar', 'Sin asignar'], ['asignados', 'Asignados'], ['todos', 'Todos']]} />
-        <button type="button" onClick={data.refresh} disabled={data.loading} className="ml-auto rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Actualizar</button>
+    <div className="entregas-f3-assignments" role="region" aria-label="Asignación de repartos">
+      <div className="entregas-f3-filters">
+        <Tabs
+          flat
+          value={asignado}
+          onChange={setAsignado}
+          items={[
+            ['sin-asignar', 'Sin asignar'],
+            ['asignados', 'Asignados'],
+            ['todos', 'Todos'],
+          ]}
+        />
+        <button
+          type="button"
+          onClick={data.refresh}
+          disabled={data.loading}
+          className="entregas-f3-refresh"
+        >
+          Actualizar
+        </button>
       </div>
       {!esDemo && equipo.length === 0 && (
-        <p className="rounded-xl border border-warn/25 bg-warn/10 px-3 py-2 text-sm text-warn">
-          Todavía no hay repartidores. Creá un integrante con el rol Repartidor en Configuración → Equipo.
+        <p className="entregas-f3-notice">
+          Todavía no hay repartidores. Creá un integrante con el rol Repartidor en Configuración →
+          Equipo.
         </p>
       )}
       {error && <Aviso tono="error">{error}</Aviso>}
       <SellerFeedback {...data} empty={!data.rows.length} />
-      <div className="space-y-3">
+      <div className="entregas-f3-grid">
         {data.rows.map(row => (
-          <article key={row.id} data-testid="reparto-admin-pedido" data-pedido={row.number} className="rounded-2xl border border-fore/10 bg-ink-800/40 p-4">
+          <article
+            key={row.id}
+            data-testid="reparto-admin-pedido"
+            data-pedido={row.number}
+            className="entregas-f3-order"
+          >
             <header className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-mono text-sm font-bold text-fono-light">{codigoPedido(row.number)}</span>
+              <span className="font-mono text-sm font-semibold">{codigoPedido(row.number)}</span>
               <div className="flex flex-wrap items-center gap-2">
                 {row.repartidor && <Badge color="blue">{row.repartidor}</Badge>}
-                {row.sinRendir > 0 && row.pendiente === 0 && <Badge color="orange">Pre-pagado sin verificar</Badge>}
-                <Badge color={row.fulfillment === 'DELIVERED' ? 'green' : 'slate'}>{ENTREGA_LABELS[row.fulfillment] || row.fulfillment}</Badge>
+                {row.sinRendir > 0 && row.pendiente === 0 && (
+                  <Badge color="orange">Pre-pagado sin verificar</Badge>
+                )}
+                <Badge color={row.fulfillment === 'DELIVERED' ? 'green' : 'slate'}>
+                  {ENTREGA_LABELS[row.fulfillment] || row.fulfillment}
+                </Badge>
               </div>
             </header>
-            <p className="mt-2 text-sm font-semibold">{row.cliente}</p>
-            <p className="text-xs text-mute">{row.articulos.join(' · ') || 'Sin artículos'}</p>
-            <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-mute">
-              <span>Total <strong className="text-fore"><Money value={row.total} /></strong></span>
-              <span>Falta cobrar <strong className={row.pendiente ? 'text-bad' : 'text-ok'}><Money value={row.pendiente} /></strong></span>
-              {row.sinRendir > 0 && <span>Cobrado en la calle sin rendir <strong className="text-warn"><Money value={row.sinRendir} /></strong></span>}
+            <h2 className="entregas-f3-name">{row.cliente}</h2>
+            <p className="entregas-f3-address">
+              <span className="text-mute">
+                Dirección{row.direccionEtiqueta ? ` · ${row.direccionEtiqueta}` : ''}:{' '}
+              </span>
+              {row.direccion || 'Sin dirección registrada'}
+            </p>
+            {row.direccionNotas && <p className="text-sm text-mute">{row.direccionNotas}</p>}
+            <p className="entregas-f3-items">{row.articulos.join(' · ') || 'Sin artículos'}</p>
+            <div className="entregas-f3-amounts">
+              <span>
+                Total{' '}
+                <strong className="text-fore">
+                  <Money value={row.total} />
+                </strong>
+              </span>
+              <span>
+                Falta cobrar{' '}
+                <strong className={row.pendiente ? 'text-bad' : 'text-ok'}>
+                  <Money value={row.pendiente} />
+                </strong>
+              </span>
+              {row.sinRendir > 0 && (
+                <span>
+                  Cobrado en la calle sin rendir{' '}
+                  <strong className="text-warn">
+                    <Money value={row.sinRendir} />
+                  </strong>
+                </span>
+              )}
             </div>
-            <div className="mt-3 flex flex-wrap items-end gap-2">
+            <div className="entregas-f3-actions">
               {row.repartidorId ? (
                 <>
-                  <Select aria-label={`Repartidor de ${codigoPedido(row.number)}`} className="w-full max-w-[220px]" value={row.repartidorId} onChange={event => setSeleccion(actual => ({ ...actual, [row.id]: event.target.value }))}>
+                  <Select
+                    aria-label={`Repartidor de ${codigoPedido(row.number)}`}
+                    className="entregas-f3-driver"
+                    value={row.repartidorId}
+                    onChange={event =>
+                      setSeleccion(actual => ({ ...actual, [row.id]: event.target.value }))
+                    }
+                  >
                     <option value={row.repartidorId}>{row.repartidor}</option>
-                    {equipo.filter(persona => persona.id !== row.repartidorId).map(persona => <option key={persona.id} value={persona.id}>{persona.name}</option>)}
+                    {equipo
+                      .filter(persona => persona.id !== row.repartidorId)
+                      .map(persona => (
+                        <option key={persona.id} value={persona.id}>
+                          {persona.name}
+                        </option>
+                      ))}
                   </Select>
-                  <Button type="button" variant="outline" disabled={ocupado === row.id} onClick={() => asignar(row)}>Reasignar</Button>
-                  <Button type="button" variant="ghost" disabled={ocupado === row.id} onClick={() => liberar(row)}>Liberar</Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={ocupado === row.id}
+                    onClick={() => asignar(row)}
+                  >
+                    Reasignar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={ocupado === row.id}
+                    onClick={() => liberar(row)}
+                  >
+                    Liberar
+                  </Button>
                 </>
               ) : (
                 <>
-                  <Select aria-label={`Repartidor de ${codigoPedido(row.number)}`} className="w-full max-w-[220px]" value={seleccion[row.id] || ''} onChange={event => setSeleccion(actual => ({ ...actual, [row.id]: event.target.value }))}>
+                  <Select
+                    aria-label={`Repartidor de ${codigoPedido(row.number)}`}
+                    className="entregas-f3-driver"
+                    value={seleccion[row.id] || ''}
+                    onChange={event =>
+                      setSeleccion(actual => ({ ...actual, [row.id]: event.target.value }))
+                    }
+                  >
                     <option value="">Elegí el repartidor</option>
-                    {equipo.map(persona => <option key={persona.id} value={persona.id}>{persona.name}</option>)}
+                    {equipo.map(persona => (
+                      <option key={persona.id} value={persona.id}>
+                        {persona.name}
+                      </option>
+                    ))}
                   </Select>
-                  <Button type="button" disabled={!seleccion[row.id] || ocupado === row.id} onClick={() => asignar(row)} data-testid="asignar-reparto">Asignar</Button>
+                  <Button
+                    type="button"
+                    disabled={!seleccion[row.id] || ocupado === row.id}
+                    onClick={() => asignar(row)}
+                    data-testid="asignar-reparto"
+                  >
+                    Asignar
+                  </Button>
                 </>
               )}
               {row.pendiente > 0 && row.fulfillment !== 'DELIVERED' && (
-                <label className="flex items-center gap-2 text-xs text-mute">
-                  <Input type="checkbox" className="h-4 w-4" checked={Boolean(autorizar[row.id])} onChange={event => setAutorizar(actual => ({ ...actual, [row.id]: event.target.checked }))} />
-                  Autorizar entrega con saldo
-                </label>
+                <details
+                  className="entregas-f3-authorization"
+                  onKeyDown={event => {
+                    if (event.key === 'Escape') {
+                      event.currentTarget.open = false
+                      event.currentTarget.querySelector('summary')?.focus()
+                    }
+                  }}
+                >
+                  <summary>Autorización{autorizar[row.id] ? ' · seleccionada' : ''}</summary>
+                  <label className="entregas-f3-consent">
+                    <Input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={Boolean(autorizar[row.id])}
+                      onChange={event =>
+                        setAutorizar(actual => ({ ...actual, [row.id]: event.target.checked }))
+                      }
+                    />
+                    Autorizar entrega con saldo
+                  </label>
+                </details>
               )}
             </div>
           </article>
@@ -240,11 +375,20 @@ export default function StoreDelivery() {
     <section className="space-y-5">
       <BarraModulo
         icono="truck"
-        titulo="Delivery"
+        titulo="Entregas"
         descripcion="Asigná cada pedido a un repartidor y verificá lo que rinde al volver: el cobro de la calle recién queda confirmado acá."
         testId="barra-delivery"
+        className="entregas-f3-toolbar"
       />
-      <Tabs value={tab} onChange={setTab} items={[['repartos', 'Repartos'], ['rendiciones', 'Rendiciones']]} />
+      <Tabs
+        flat
+        value={tab}
+        onChange={setTab}
+        items={[
+          ['repartos', 'Repartos'],
+          ['rendiciones', 'Rendiciones'],
+        ]}
+      />
       {tab === 'repartos' ? <Asignaciones /> : <Rendiciones />}
     </section>
   )

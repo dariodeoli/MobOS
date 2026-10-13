@@ -1,3 +1,4 @@
+import { openShellDestination } from './helpers/shell-navigation.js'
 // #280 · Gift cards reales: emisión con código desde el POS, saldo, canje en el
 // cobro, historial por tarjeta y auditoría. Incluye la paridad de la demo.
 import { test, expect } from '@playwright/test'
@@ -45,7 +46,7 @@ test('gift cards: emisión en el POS, canje en el cobro, saldo e historial (#280
   const venta = SEED.products.cable.pricePyg
 
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(cliente)
 
   // 1) Emisión: el código se muestra una sola vez y la tarjeta queda en la lista.
@@ -111,7 +112,7 @@ test('demo: la gift card se emite y se canjea sin tocar el API (#280)', async ({
   await page.waitForURL((url) => !url.pathname.startsWith('/demo'), { timeout: 30_000 })
   await cerrarGuiaDemo(page)
   await page.goto('/pos')
-  await expect(page.getByRole('heading', { name: /^(POS|Nueva venta)$/, level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vender', exact: true, level: 1 })).toBeVisible()
   await cerrarGuiaDemo(page)
 
   // Producto del catálogo demo con el precio exacto de la gift card emitida.
@@ -134,7 +135,7 @@ test('demo: la gift card se emite y se canjea sin tocar el API (#280)', async ({
 
   // La tarjeta queda agotada con su historial, todo local (sin llamadas al API).
   // Se vuelve al POS por navegación SPA: la demo vive en memoria y un reload la reinicia.
-  await page.locator('aside nav button[aria-label="POS"]').click()
+  await openShellDestination(page, 'POS')
   // #309: Gift cards vive en el menú «Más» de la barra del POS.
   await page.getByTestId('pos-mas').click()
   const herramienta = page.getByRole('menuitem', { name: 'Gift cards' })
