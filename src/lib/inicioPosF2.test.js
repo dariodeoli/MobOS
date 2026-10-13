@@ -71,13 +71,17 @@ test('F2 catalog/customer split keeps real collection, variants and form submiss
     'setVenderACredito={setVenderACredito}',
   ])
     assert.ok(form.includes(contract), contract)
-  assert.ok(form.indexOf('<PosCustomer') < form.indexOf('<PasoCarrito'))
+  assert.ok(form.indexOf('<PosCustomer') < form.indexOf('<PasoProductos'), 'cliente arriba del catálogo')
+  assert.ok(form.indexOf('<PasoProductos') < form.indexOf('<PasoCarrito'), 'carrito en la columna derecha')
+  // El Total vive una sola vez (en el carrito): ambos testids en la misma fila.
+  const cart = read('components/ventas/venta/PasoCarrito.jsx')
+  assert.ok(cart.includes('data-testid="cobro-total"') && cart.includes('data-testid="carrito-total"'))
+  assert.ok(!payment.includes('data-testid="cobro-total"'), 'el cobro no repite el Total')
   for (const contract of [
     '<SelectorMedioPago',
     'onAgregarPago()',
     'onAgregarGiftCard?.()',
     'onConsultarGiftCard',
-    'data-testid="cobro-total"',
     'data-testid="cobro-pagado"',
     'data-testid="cobro-pendiente"',
     '<summary>Agregar nota</summary>',

@@ -8,9 +8,9 @@
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
 
-// Alto del encabezado fijo del shell (h-20). Nada del resumen puede quedar por
-// debajo suyo.
-const ALTO_ENCABEZADO = 80
+// Desde lg el shell no tiene barra superior (la navegación es lateral): la
+// columna pegada solo tiene que quedar dentro de la pantalla.
+const ALTO_ENCABEZADO = 0
 const MARGEN_SUPERIOR_MAX = 180
 
 async function agregarProducto(page) {
@@ -42,9 +42,10 @@ function medicion(page) {
       scrollY: Math.round(window.scrollY),
       caja: datos('resumen-compra'),
       columna: datos('resumen-columna'),
-      // El carrito es la columna que queda fija; el resumen del día vive en
+      // La columna carrito + cobro es la que queda fija; el resumen del día vive en
       // un desplegable ("Detalles de la venta y del día").
       carrito: datos('pos-bloque-carrito'),
+      columna_venta: datos('pos-columna-venta'),
       // #309: la barra superior del celular se reemplazó por la barra fija del
       // bloque de cobro (Total + acción principal).
       accion: datos('pos-barra-accion'),
@@ -89,15 +90,15 @@ test.describe('desktop', () => {
     await agregarProducto(page)
 
     const primera = await desplazar(page, 300)
-    await esperarSticky(page, 'carrito')
-    await esperarArriba(page, 'carrito')
+    await esperarSticky(page, 'columna_venta')
+    await esperarArriba(page, 'columna_venta')
     expect(primera.accion?.display, 'la barra de acción está oculta en pantallas anchas').toBe('none')
 
     const segunda = await desplazar(page, 700)
-    await esperarArriba(page, 'carrito')
-    // Ya pegado al borde (top-24), seguir deslizando no lo mueve.
+    await esperarArriba(page, 'columna_venta')
+    // Ya pegada al borde superior, seguir deslizando no lo mueve.
     const tercera = await desplazar(page, 1000)
-    expect(tercera.carrito.y).toBe(segunda.carrito.y)
+    expect(tercera.columna_venta.y).toBe(segunda.columna_venta.y)
   })
 })
 
@@ -108,15 +109,15 @@ test.describe('notebook 1152', () => {
     await agregarProducto(page)
 
     const primera = await desplazar(page, 300)
-    await esperarSticky(page, 'carrito')
-    await esperarArriba(page, 'carrito')
+    await esperarSticky(page, 'columna_venta')
+    await esperarArriba(page, 'columna_venta')
     expect(primera.accion?.display, 'la barra de acción está oculta en pantallas anchas').toBe('none')
 
     const segunda = await desplazar(page, 700)
-    await esperarArriba(page, 'carrito')
-    // Ya pegado al borde (top-24), seguir deslizando no lo mueve.
+    await esperarArriba(page, 'columna_venta')
+    // Ya pegada al borde superior, seguir deslizando no lo mueve.
     const tercera = await desplazar(page, 1000)
-    expect(tercera.carrito.y).toBe(segunda.carrito.y)
+    expect(tercera.columna_venta.y).toBe(segunda.columna_venta.y)
   })
 })
 
