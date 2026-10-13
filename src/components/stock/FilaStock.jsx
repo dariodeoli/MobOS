@@ -7,7 +7,10 @@ import IconoCategoria from '@/components/shared/IconoCategoria'
 import MedidorBateria from '@/components/shared/MedidorBateria'
 import { fechaHora } from '@/utils/fecha'
 import Icon from '@/components/shared/Icon'
-import { Badge, Input } from '@/components/ui'
+import { Badge, Button, Input } from '@/components/ui'
+import { cn } from '@/lib/utils'
+import { identificadorDeItem, modeloDeItem } from '@/lib/stockItems'
+import { BateriaStock, CostoStock, EstadoStock, fechaVentaStock } from './CeldasStock'
 import { UNIDADES_GRID, accionesDeUnidad, costoVisible, fechaReserva, fechaVerificacionCorta, locationTone, rowTone, verifiedLabel } from './stockHelpers'
 import { MenuAcciones } from './MenuAcciones'
 
@@ -372,3 +375,87 @@ export function FilaUnidad({
     </div>
   )
 }
+
+// ── Lista unificada de Stock (U3) ───────────────────────────────────────────
+// Una fila = una unidad serializada (IMEI) o un producto sin unidades
+// (accesorio con cantidad). Columnas: Modelo · IMEI/serie · Batería · Proveedor ·
+// Costo · Estado; Vendidos suma «Vendido» y Eliminados una nota. Proveedor y
+// Costo solo existen si el rol los ve (la API devuelve null para el resto).
+export function columnasStock({ verCosto, vista }) {
+  const extra = vista === 'vendidos' ? ['8.5rem'] : vista === 'eliminados' ? ['minmax(8rem,1fr)'] : []
+  const acciones = vista === 'eliminados' ? '11.5rem' : '2.75rem'
+  const base = ['2.75rem', 'minmax(7.5rem,1.7fr)', 'minmax(8.5rem,1fr)', '4.5rem']
+  const completa = [...base, ...(verCosto ? ['minmax(5.5rem,0.9fr)', '7.75rem'] : []), '8.25rem', ...extra, acciones]
+  const compacta = [...base, ...(verCosto ? ['7.75rem'] : []), '8.25rem', ...extra, acciones]
+  return { completa: completa.join(' '), compacta: compacta.join(' ') }
+}
+
+export function estiloColumnas(columnas) {
+  return { '--stock-cols': columnas.completa, '--stock-cols-compacta': columnas.compacta }
+}
+
+export function FilaStock({ item, vista = 'unidades', verCosto = false, seleccionado = false, onAlternar, onAbrir, acciones = [], onRestaurar, busy = false }) {
+  const { nombre, variante } = modeloDeItem(item)
+  const identificador = identificadorDeItem(item)
+  const ubicacion = [item.branchName, item.locationName].filter(Boolean).join(' · ')
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      data-testid="inventario-fila"
+      data-kind={item.kind}
+      data-estado={item.status}
+      aria-label={`Ver detalles de ${nombre} ${identificador}`.trim()}
+      onClick={onAbrir}
+      onKeyDown={(event) => {
+        if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) {
+          event.preventDefault()
+          onAbrir?.()
+        }
+      }}
+      className={cn(
+        'stock-lista-grid stock-lista-fila cursor-pointer rounded-lg border px-2 py-1.5 transition hover:border-fono/40',
+        seleccionado ? 'border-fono/50 bg-fono/5' : 'border-ink-600',
+      )}
+    >
+      <span className="flex items-center" onClick={(event) => event.stopPropagation()}>
+        <label className="flex h-11 w-11 items-center justify-center">
+          <input
+            type="checkbox"
+            className="h-4 min-h-0 w-4 accent-fono"
+            aria-label={`Seleccionar ${nombre} ${identificador}`.trim()}
+            checked={seleccionado}
+            onChange={() => onAlternar?.()}
+          />
+        </label>
+      </span>
+      <span data-testid="unidad-modelo" className="min-w-0">
+        <b className="block min-w-0 text-[13px] leading-tight" title={`${nombre}${variante ? ` · ${variante}` : ''}`}>
+          {nombre}
+          {variante ? <span className="font-normal text-mute"> · {variante}</span> : null}
+        </b>
+        {ubicacion ? <span className="block truncate text-[11px] text-mute" title={ubicacion}>{ubicacion}</span> : null}
+        {verCosto && item.supplierName ? <span className="stock-lista-prov-chico truncate text-[11px] text-mute" title={`Proveedor: ${item.supplierName}`}>Proveedor: {item.supplierName}</span> : null}
+      </span>
+      <span data-testid="unidad-imei" className={cn('min-w-0 text-[11px] tabular-nums text-mute', item.kind === 'unit' && 'font-mono')} title={item.kind === 'product' ? `SKU ${identificador}` : `IMEI/serial ${identificador}`}>
+        {identificador || '—'}
+      </span>
+      <span className="flex items-center"><BateriaStock item={item} /></span>
+      {verCosto ? (
+        <span className="stock-lista-prov min-w-0 truncate text-xs text-mute" title={item.supplierName || 'Sin proveedor'}>{item.supplierName || '—'}</span>
+      ) : null}
+      {verCosto ? <span className="flex items-center justify-end text-right"><CostoStock item={item} /></span> : null}
+      <span className="flex items-center"><EstadoStock item={item} /></span>
+      {vista === 'vendidos' ? <span className="text-xs text-mute" title={`Vendido el ${fechaVentaStock(item)}`}>{fechaVentaStock(item)}</span> : null}
+      {vista === 'eliminados' ? <span className="truncate text-[11px] text-mute">Conserva su historial de auditoría</span> : null}
+      <span className="flex items-center justify-end gap-1" onClick={(event) => event.stopPropagation()}>
+        {vista === 'eliminados' && onRestaurar ? (
+          <Button type="button" className="min-h-11 px-3 text-xs" disabled={busy} onClick={onRestaurar}>Restaurar</Button>
+        ) : null}
+        <MenuAcciones unit={{ serial: identificador || nombre }} busy={busy} acciones={acciones} />
+      </span>
+    </div>
+  )
+}
+
+export default FilaStock

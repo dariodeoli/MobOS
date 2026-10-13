@@ -65,7 +65,7 @@ export function MenuAcciones({ unit, busy, acciones }) {
         aria-label={`Acciones de ${unit.serial}`}
         title="Más acciones"
         onClick={() => setAbierto((valor) => !valor)}
-        className="grid h-11 w-11 md:h-7 md:w-7 place-items-center rounded-lg border border-ink-600 text-mute transition hover:border-fono/40 hover:text-fore"
+        className="grid h-11 w-11 place-items-center rounded-lg border border-ink-600 text-mute transition hover:border-fono/40 hover:text-fore"
       >
         <Icon name="dots" className="h-3.5 w-3.5" />
       </button>

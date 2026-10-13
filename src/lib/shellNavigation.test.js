@@ -125,11 +125,9 @@ test('AEX guide and grouped inventory selector remain available at every viewpor
   const guideForm = inventory.match(/<form onSubmit=\{guardarGuia\} className="([^"]+)"/)
   assert.ok(guideForm, 'the existing AEX guide form remains wired to guardarGuia')
   assert.equal(guideForm[1], 'flex flex-wrap items-center gap-1')
-  assert.match(
-    inventory,
-    /<Select data-testid="tabs-inventario" aria-label="Sección de inventario"/,
-  )
-  assert.match(inventory, /<optgroup key=\{grupo.id\} label=\{grupo.label\}/)
+  // U3: el selector agrupado pasó a dos filas de pestañas (secciones y vistas).
+  assert.match(inventory, /data-testid="tabs-inventario"[\s\S]*?ariaLabel="Secciones de stock"/)
+  assert.match(inventory, /data-testid="subtabs-inventario"/)
   assert.match(inventory, /id === 'autorizaciones' && pendientesStock > 0/)
   assert.ok(!inventory.includes('onClick={() => cambiarGrupo'))
 })

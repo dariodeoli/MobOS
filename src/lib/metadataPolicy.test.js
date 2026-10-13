@@ -121,6 +121,7 @@ test('tabbed sections keep their own child slug in the URL and the title', () =>
     '/finanzas/cuotas': 'Cuotas',
     '/finanzas/comisiones': 'Comisiones',
     '/inventario/unidades': 'Unidades',
+    '/stock/unidades': 'Unidades',
     '/inventario/transito': 'En tránsito',
   }
   for (const [pathname, label] of Object.entries(rutas)) {

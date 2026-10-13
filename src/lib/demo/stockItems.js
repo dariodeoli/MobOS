@@ -106,7 +106,9 @@ export function listarStockItemsDemo(consulta, { units = [], removed = [], produ
   const productoId = params.get('productId') || ''
   const q = params.get('q') || ''
   const desde = params.get('from') ? tiempo(params.get('from')) : null
-  const hasta = params.get('to') ? tiempo(params.get('to')) + 86400000 : null
+  // Igual que la API: una fecha sola incluye todo ese día; un instante, hasta ese instante.
+  const hastaTexto = params.get('to') || ''
+  const hasta = hastaTexto ? tiempo(hastaTexto) + (/^\d{4}-\d{2}-\d{2}$/.test(hastaTexto) ? 86400000 : 1) : null
   const pedido = Number(params.get('limit'))
   const limit = Number.isFinite(pedido) && pedido >= 1 ? Math.min(LIMITE_MAXIMO, Math.floor(pedido)) : LIMITE_DEFECTO
 

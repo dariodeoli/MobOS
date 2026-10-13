@@ -1,4 +1,5 @@
 import test from 'node:test'
+import { Buffer } from 'node:buffer'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
@@ -41,8 +42,6 @@ test('Stock business, role, store, sorting, selection and printing logic stays i
   for (const texto of [
     'prepararVentaDesdeInventario',
     "unit.status === 'AVAILABLE'",
-    "case 'costo-mayor'",
-    "case 'modelo-natural'",
     'resources.inventoryUnits.verify',
     'resources.inventoryUnits.update',
     'resources.inventoryReservations.create',
@@ -65,6 +64,7 @@ test('Stock business, role, store, sorting, selection and printing logic stays i
   }
   assert.ok(tarjetas.includes('function TarjetaUnidad('))
   assert.ok(leer('AccionesUnidad.jsx').includes('<Modal open={receiveOpen}'), 'la carga rápida sigue como diálogo')
+  assert.ok(Buffer.byteLength(readFileSync('src/components/control/Inventario.jsx', 'utf8')) < 400, 'Inventario.jsx es solo un re-export')
   assert.match(readFileSync('src/components/control/Inventario.jsx', 'utf8'), /export \{ default \} from '@\/components\/stock\/StockShell'/)
 })
 

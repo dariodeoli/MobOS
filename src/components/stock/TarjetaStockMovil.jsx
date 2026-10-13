@@ -4,7 +4,9 @@ import { formatUsd } from '@/utils/moneda'
 import { cn } from '@/lib/utils'
 import { etiquetaDeCategoria } from '@/lib/categorias'
 import IconoCategoria from '@/components/shared/IconoCategoria'
-import { Badge } from '@/components/ui'
+import { Badge, Button } from '@/components/ui'
+import { identificadorDeItem, modeloDeItem } from '@/lib/stockItems'
+import { BateriaStock, CostoStock, EstadoStock, fechaVentaStock } from './CeldasStock'
 import MedidorBateria from '@/components/shared/MedidorBateria'
 import { fechaHora } from '@/utils/fecha'
 import { temaV2Activo } from '@/lib/temaV2'
@@ -251,3 +253,75 @@ export function TarjetaUnidad({ unit, onClick }) {
     {unit.reservationCustomer ? <span className="mt-1 truncate text-[11px] font-semibold text-reserved">Atajado por {unit.reservationCustomer}</span> : null}
   </button>
 }
+
+// ── Lista unificada de Stock (U3): tarjeta de celular ───────────────────────
+// Modelo, IMEI/serie, batería y estado a la vista; proveedor y costo (solo si
+// el rol los ve) quedan en un detalle plegado. Todos los destinos táctiles
+// miden 44 px y el IMEI va completo, sin recortar.
+export function TarjetaStockMovil({ item, vista = 'unidades', verCosto = false, seleccionado = false, onAlternar, onAbrir, acciones = [], onRestaurar, busy = false }) {
+  const { nombre, variante } = modeloDeItem(item)
+  const identificador = identificadorDeItem(item)
+  const ubicacion = [item.branchName, item.locationName].filter(Boolean).join(' · ')
+  return (
+    <article
+      data-testid="inventario-tarjeta-movil"
+      data-kind={item.kind}
+      data-estado={item.status}
+      className={cn('stock-tarjeta rounded-xl border p-2 transition', seleccionado ? 'border-fono/50 bg-fono/5' : 'border-ink-600 bg-ink')}
+    >
+      <div className="flex items-start gap-1">
+        <label className="flex h-11 w-11 shrink-0 items-center justify-center">
+          <input
+            type="checkbox"
+            className="h-4 min-h-0 w-4 accent-fono"
+            aria-label={`Seleccionar ${nombre} ${identificador}`.trim()}
+            checked={seleccionado}
+            onChange={() => onAlternar?.()}
+          />
+        </label>
+        <button
+          type="button"
+          onClick={onAbrir}
+          aria-label={`Ver detalles de ${nombre} ${identificador}`.trim()}
+          className="min-h-11 min-w-0 flex-1 rounded-lg px-1 py-1 text-left"
+        >
+          <b className="block text-[13px] leading-tight">
+            {nombre}
+            {variante ? <span className="font-normal text-mute"> · {variante}</span> : null}
+          </b>
+          <span data-testid="unidad-imei" className={cn('mt-0.5 block break-all text-[11px] tabular-nums text-mute', item.kind === 'unit' && 'font-mono')}>
+            {identificador || '—'}
+          </span>
+          <span className="mt-1 flex flex-wrap items-center gap-2">
+            <EstadoStock item={item} />
+            <BateriaStock item={item} />
+          </span>
+          {ubicacion ? <span className="mt-1 block text-[11px] text-mute">{ubicacion}</span> : null}
+          {vista === 'vendidos' ? <span className="mt-1 block text-[11px] text-mute">Vendido el {fechaVentaStock(item)}</span> : null}
+          {vista === 'eliminados' ? <span className="mt-1 block text-[11px] text-mute">Conserva su historial de auditoría</span> : null}
+        </button>
+        <span className="flex shrink-0 items-center">
+          <MenuAcciones unit={{ serial: identificador || nombre }} busy={busy} acciones={acciones} />
+        </span>
+      </div>
+      {vista === 'eliminados' && onRestaurar ? (
+        <div className="mt-1 flex justify-end">
+          <Button type="button" className="min-h-11 px-3 text-xs" disabled={busy} onClick={onRestaurar}>Restaurar</Button>
+        </div>
+      ) : null}
+      {verCosto ? (
+        <details className="mt-1 border-t border-ink-600/60 px-1">
+          <summary className="text-xs font-medium text-mute">Proveedor y costo</summary>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 pb-2 text-xs">
+            <dt className="text-mute">Proveedor</dt>
+            <dd className="text-right">{item.supplierName || '—'}</dd>
+            <dt className="text-mute">Costo</dt>
+            <dd className="text-right"><CostoStock item={item} /></dd>
+          </dl>
+        </details>
+      ) : null}
+    </article>
+  )
+}
+
+export default TarjetaStockMovil

@@ -4,7 +4,7 @@ import { contextoActual, getProductos, modoDatosActual, refrescar, refrescarCata
 import { useSesion } from '@/lib/sesion'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { useToast } from '@/components/ui'
-import { costoEnGs, etiquetaCondicionUnidad, nombreProducto, sigueEnInventario, sinCostoUnitario } from '@/utils/inventario'
+import { etiquetaCondicionUnidad, nombreProducto, sinCostoUnitario } from '@/utils/inventario'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { prepararVentaDesdeInventario } from '@/lib/posCart'
 import { descargarCsvCliente } from '@/utils/descargarArchivo'
@@ -25,8 +25,12 @@ import { ultimos4 } from '@/utils/serial'
 import { transferReceiveUrlFor } from '@/components/shared/OrderReceipt'
 import { qrDataUrl } from '@/lib/qr'
 import { gs } from '@/utils/calculos'
-import { GRUPOS_INVENTARIO, INVENTARIO_TABS, MOTIVOS_BAJA, MOTIVOS_REVISION, fechaVerificacion, normalizeScan } from './stockHelpers'
-import { printQuickReceipt } from './impresionStock'
+import { GRUPOS_INVENTARIO, INVENTARIO_TABS, MOTIVOS_BAJA, MOTIVOS_REVISION, TABS_CON_UNIDADES, TABS_LISTA_STOCK, fechaVerificacion, normalizeScan } from './stockHelpers'
+import { imprimirEtiquetasStock, printQuickReceipt } from './impresionStock'
+import { useStockItems } from './useStockItems'
+import { conFiltroStock, leerFiltrosStock, rangoDePeriodo, sinFiltrosStock } from './stockFiltros'
+import { EtiquetasStockError, vistaPreviaEtiquetasPdf } from '@/lib/printing/etiquetasStock'
+import { filasEtiquetasDeItems, unidadDeItem } from '@/lib/stockItems'
 
 export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   // La búsqueda global abre Unidades con ?q=<serial> ya aplicado y #287 suma
@@ -36,7 +40,7 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   const productoParam = searchParams.get('producto') || ''
   const [products, setProducts] = useState([]), [units, setUnits] = useState([]), [removedUnits, setRemovedUnits] = useState([]), [reservations, setReservations] = useState([]), [transfers, setTransfers] = useState([]), [locations, setLocations] = useState([]), [cargandoUnidades, setCargandoUnidades] = useState(true)
   const apiMode = modoDatosActual() === 'api'
-  const { sesion, sucursal, sucursales, esDemo } = useSesion()
+  const { sesion, usuario, sucursal, sucursales, esDemo } = useSesion()
   // Las sucursales ya vienen hidratadas en la sesión (el selector del shell las
   // consulta una sola vez): se reusan para los modales en lugar de repetir la
   // consulta en cada carga del inventario (#247).
@@ -47,6 +51,8 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   const canViewAlerts = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE')
   const canManageLocations = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE')
   const canManageVisibility = Boolean(sesion?.esPropietario)
+  // Costo y proveedor: la API los devuelve null a quien no los ve (VENDEDOR/CAJERA).
+  const rolVeCosto = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE' || usuario?.role === 'ADMIN' || usuario?.role === 'GERENTE')
   const [tab, setTab] = useState(tabProp && INVENTARIO_TABS.includes(tabProp) && (tabProp !== 'alertas' || canViewAlerts) && (tabProp !== 'autorizaciones' || canViewAlerts) ? tabProp : 'unidades'), [query, setQuery] = useState(qParam), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [orden, recordarOrden] = useUltimoUsado('inventario:orden', 'recientes'), [exportando, setExportando] = useState(false)
   const [stockAlerts, setStockAlerts] = useState({ alerts: [], outOfStock: [] })
   // #331: autorizaciones de stock (retiro/ajuste y transferencia) para la
@@ -57,7 +63,15 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   const [crearVariante, setCrearVariante] = useState(false)
   const [modeloNuevo, setModeloNuevo] = useState('')
   const [gondolaOpen, setGondolaOpen] = useState(false)
-  const unidadesElegidas = () => units.filter((unit) => seleccionados.includes(unit.id))
+  // Las filas elegidas salen de la lista de Stock (paginada por cursor) y, en las
+  // pestañas con unidades completas, de `units`; el serial y el estado son los
+  // mismos que usan los diálogos y la ficha.
+  const itemsElegidos = () => stock.items.filter((item) => seleccionados.includes(item.id))
+  const unidadesElegidas = () => {
+    const deLista = itemsElegidos().filter((item) => item.kind === 'unit').map((item) => unidadDeItem(item, products))
+    const vistas = new Set(deLista.map((unit) => unit.id))
+    return [...deLista, ...units.filter((unit) => seleccionados.includes(unit.id) && !vistas.has(unit.id))]
+  }
   async function copiarImeis() {
     const texto = unidadesElegidas().map((unit) => `${nombreProducto(unit.product || {})} · IMEI ${unit.serial || ''}`).join('\n')
     if (await copiarAlPortapapeles(texto)) toast.success(`${unidadesElegidas().length} IMEI(s) copiados.`); else toast.error('No se pudieron copiar los IMEIs.')
@@ -105,7 +119,6 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   const [informeDe, setInformeDe] = useState(null)
   const [certificadoDe, setCertificadoDe] = useState(null)
   const [constanciaDe, setConstanciaDe] = useState(null)
-  const [vistaUnidades, cambiarVistaUnidades] = useVistaListaGrid('inventario')
   const [vistaUbicaciones, cambiarVistaUbicaciones] = useVistaListaGrid('ubicaciones', 'grid')
   // #304: debajo de `sm` el listado usa tarjetas compactas (no la tabla ancha).
   const esMovil = usePantallaAngosta('(min-width: 640px)')
@@ -121,8 +134,6 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   const [arrivalUnit, setArrivalUnit] = useState(null), [arrivalLocationId, setArrivalLocationId] = useState('')
   // #218: recepción de un lote completo (transferencia) con depósito destino.
   const [receiveBatch, setReceiveBatch] = useState(null)
-  // #217/#215: Vendidos con filtros hoy/ayer/rango y fecha/hora de la venta.
-  const [filtroVendidos, setFiltroVendidos] = useState({ periodo: 'todos', desde: '', hasta: '' })
   // Conteo físico rápido con cámara: escanea cada equipo y contrasta contra stock.
   const [countOpen, setCountOpen] = useState(false)
   const [countSession, setCountSession] = useState(null) // { scanning, found: Map, unknown: [], duplicates: [], flash }
@@ -234,15 +245,33 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   // proveedores, alertas y las pestañas de reservas/traslados/eliminados— se
   // hidrata en cuanto el hilo queda libre (o al abrir esa pestaña), así la
   // pantalla deja de pagar seis consultas antes de mostrar la primera fila.
-  const refresh = useCallback(async (search) => {
+  // Las unidades completas (ficha, verificación, tránsito, conteo…) las piden solo
+  // las pestañas que las usan; Unidades, Vendidos y Eliminados salen de
+  // GET /api/stock/items y no esperan esta carga.
+  const [unidadesPedidas, setUnidadesPedidas] = useState(false)
+  const unidadesNecesarias = unidadesPedidas || TABS_CON_UNIDADES.includes(tab)
+  const unidadesCargadas = useRef(false)
+  const recargarStockRef = useRef(null)
+  const detalleRef = useRef(null)
+  const refresh = useCallback(async (search, { lista = true } = {}) => {
     if (!inventarioOperativo) { setCargandoUnidades(false); return }
     setBusy(true); setError('')
+    if (unidadesNecesarias && !unidadesCargadas.current) setCargandoUnidades(true)
     try {
-      // #287: la vista puede venir acotada a un producto (desde su ficha).
-      const nextUnits = await resources.inventoryUnits.list(search, 'active', { ...(productoParam ? { productId: productoParam } : {}) })
-      setUnits(nextUnits); setProducts(getProductos())
+      const tareas = []
+      if (unidadesNecesarias) {
+        // #287: la vista puede venir acotada a un producto (desde su ficha).
+        tareas.push(resources.inventoryUnits.list(search, 'active', { ...(productoParam ? { productId: productoParam } : {}) }).then((siguientes) => { setUnits(siguientes); unidadesCargadas.current = true }))
+      } else if (detalleRef.current?.serial) {
+        // La ficha abierta se mantiene al día sin cargar todo el inventario.
+        const { id, serial } = detalleRef.current
+        tareas.push(resources.inventoryUnits.list(serial, 'active').then((filas) => { const fresca = filas.find((fila) => fila.id === id); if (fresca) setDetalleUnidad((actual) => (actual && actual.id === id ? fresca : actual)) }))
+      }
+      if (lista) tareas.push(recargarStockRef.current?.())
+      setProducts(getProductos())
+      await Promise.all(tareas)
     } catch (cause) { setError(cause?.message || 'No se pudo actualizar el inventario.') } finally { setBusy(false); setCargandoUnidades(false) }
-  }, [inventarioOperativo, productoParam])
+  }, [inventarioOperativo, productoParam, unidadesNecesarias])
   // La cotización del día ya no bloquea el arranque (#247): entra con los
   // secundarios y, si alguien guarda un costo antes de que llegue, se pide en
   // el momento (ver `guardarCostoRapido`).
@@ -281,20 +310,36 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     }
   }, [inventarioOperativo, cargarSecundarios])
   const busquedaDiferida = useBusquedaDiferida(query)
-  useEffect(() => { refresh(busquedaDiferida) }, [refresh, busquedaDiferida])
-  // La búsqueda de la pestaña Eliminados filtra su propio listado.
-  useEffect(() => {
-    if (!inventarioOperativo || tab !== 'eliminados' || !secundariosListos.current) return
-    resources.inventoryUnits.list(busquedaDiferida, 'removed').then(setRemovedUnits).catch(() => {})
-  }, [tab, busquedaDiferida, inventarioOperativo])
+  // Filtros de la lista de Stock: viven en la URL (?tipo=&estado=&sucursal=&proveedor=).
+  const filtros = useMemo(() => leerFiltrosStock(searchParams), [searchParams])
+  const esListaStock = TABS_LISTA_STOCK.includes(tab)
+  const filtrosApi = useMemo(() => {
+    const rango = tab === 'vendidos' ? rangoDePeriodo(filtros) : { desde: '', hasta: '' }
+    return {
+      tipo: filtros.tipo,
+      estado: tab === 'vendidos' ? 'vendido' : tab === 'eliminados' ? 'eliminado' : filtros.estado,
+      sucursal: filtros.sucursal,
+      proveedor: rolVeCosto ? filtros.proveedor : '',
+      producto: filtros.producto,
+      q: busquedaDiferida,
+      desde: rango.desde,
+      hasta: rango.hasta,
+    }
+  }, [tab, filtros, rolVeCosto, busquedaDiferida])
+  const stock = useStockItems({ activo: inventarioOperativo && esListaStock, filtros: filtrosApi })
+  recargarStockRef.current = stock.recargar
+  const cambiarFiltros = useCallback((cambios) => setSearchParams((actuales) => conFiltroStock(actuales, cambios), { replace: true }), [setSearchParams])
+  const limpiarFiltros = useCallback(() => setSearchParams((actuales) => sinFiltrosStock(actuales), { replace: true }), [setSearchParams])
+  useEffect(() => { refresh(busquedaDiferida, { lista: false }) }, [refresh, busquedaDiferida])
   useEffect(() => { if (qParam) setQuery(qParam) }, [qParam])
   // #287: el producto que acota la vista (nombre para el contexto de la barra).
   const productoFiltro = useMemo(() => {
     if (!productoParam) return null
-    const deUnidad = units.find((unit) => unit.productId === productoParam)?.product
+    const deLista = stock.items.find((item) => item.productId === productoParam)
+    const deUnidad = units.find((unit) => unit.productId === productoParam)?.product || (deLista ? { name: deLista.name } : undefined)
     const delCatalogo = getProductos().find((fila) => fila.id === productoParam)
     return { id: productoParam, nombre: deUnidad?.name || delCatalogo?.nombre || delCatalogo?.name || 'Producto' }
-  }, [productoParam, units])
+  }, [productoParam, units, stock.items])
   useEffect(() => {
     if (!detalleUnidad) return
     // El refresco puede correr con el detalle ya cerrado (current null): sin el
@@ -340,26 +385,7 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   // #287: el buscador promete «IMEI, SKU o modelo» y la API ya busca por SKU; el
   // filtro local no lo miraba y las filas desaparecían al llegar por SKU.
   const filtroBusqueda = lista => { const q = query.trim().toLowerCase(); if (!q) return lista; return lista.filter(unit => [unit.serial, unit.product?.name, unit.product?.sku, unit.reservationCustomer, unit.notes, unit.supplierName].some(valor => String(valor || '').toLowerCase().includes(q))) }
-  const modeloNatural = unit => { const numero = String(unit.product?.model || unit.product?.name || '').match(/(\d{2})/); return numero ? Number(numero[1]) : 0 }
-  const ordenarUnidades = lista => { const nombre = unit => String(unit.product?.name || '').toLowerCase(); switch (orden) { case 'modelo-az': return [...lista].sort((a, b) => nombre(a).localeCompare(nombre(b))); case 'modelo-za': return [...lista].sort((a, b) => nombre(b).localeCompare(nombre(a))); case 'nuevos': return [...lista].sort((a, b) => (a.condition === 'NEW' ? -1 : 1) - (b.condition === 'NEW' ? -1 : 1) || nombre(a).localeCompare(nombre(b))); case 'semis': return [...lista].sort((a, b) => (a.condition !== 'NEW' ? -1 : 1) - (b.condition !== 'NEW' ? -1 : 1) || nombre(a).localeCompare(nombre(b))); case 'mezclado': return [...lista].sort((a, b) => nombre(a).localeCompare(nombre(b))); case 'modelo-natural': return [...lista].sort((a, b) => modeloNatural(b) - modeloNatural(a) || nombre(a).localeCompare(nombre(b))); case 'costo-mayor': return [...lista].sort((a, b) => (costoEnGs(b) ?? 0) - (costoEnGs(a) ?? 0)); case 'costo-menor': return [...lista].sort((a, b) => (costoEnGs(a) ?? 0) - (costoEnGs(b) ?? 0)); default: return lista } }
-  // Inventario: la unidad sigue acá mientras no haya salido del local. Por eso
-  // entran reservadas, en revisión y vendidas sin entregar.
-  const disponibles = ordenarUnidades(filtroBusqueda(units.filter(sigueEnInventario)))
   const sinCostoUnits = units.filter(sinCostoUnitario)
-  const vendidos = filtroBusqueda(units.filter(unit => unit.status === 'SOLD'))
-  const fechaDeVenta = unit => unit.sale?.soldAt || unit.sale?.createdAt || unit.updatedAt || null
-  const vendidosFiltrados = vendidos.filter(unit => {
-    if (filtroVendidos.periodo === 'todos') return true
-    const fecha = fechaDeVenta(unit)
-    if (!fecha) return false
-    const dia = new Date(fecha)
-    const mismoDia = otro => dia.toDateString() === otro.toDateString()
-    if (filtroVendidos.periodo === 'hoy') return mismoDia(new Date())
-    if (filtroVendidos.periodo === 'ayer') return mismoDia(new Date(Date.now() - 86400000))
-    const desde = filtroVendidos.desde ? new Date(`${filtroVendidos.desde}T00:00:00`) : null
-    const hasta = filtroVendidos.hasta ? new Date(`${filtroVendidos.hasta}T23:59:59`) : null
-    return (!desde || dia >= desde) && (!hasta || dia <= hasta)
-  })
   const enTransito = filtroBusqueda(units.filter(unit => unit.status === 'IN_TRANSIT'))
   // Traslado dueño del adjunto al recibir: la unidad en tránsito viene de una
   // línea de transferencia que la incluye entre sus IMEI.
@@ -453,7 +479,7 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     } catch { /* la venta sigue disponible sin preselección */ }
     window.location.assign('/ventas')
   }
-  function startCount() { setCountSession({ scanning: true, found: new Map(), unknown: [], duplicates: [], flash: null }); setCountOpen(true) }
+  function startCount() { setUnidadesPedidas(true); setCountSession({ scanning: true, found: new Map(), unknown: [], duplicates: [], flash: null }); setCountOpen(true) }
   function countScan(raw) {
     const serial = normalizeScan(raw)
     if (!serial) return
@@ -814,6 +840,52 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
       setReceivedStock(received); setGrants(mine)
     } catch (cause) { setError(cause?.message || 'No se pudo actualizar el permiso.') } finally { setBusy(false) }
   }
+  detalleRef.current = detalleUnidad
+  // Abre la ficha de una fila de la lista: la unidad completa se pide por su
+  // serial (la lista no trae toda la ficha) y se mantiene al día en cada refresco.
+  async function abrirDetalleItem(item) {
+    if (!item || item.kind !== 'unit') return
+    const local = units.find((unit) => unit.id === item.id)
+    if (local) { setDetalleUnidad(local); return }
+    setError('')
+    try {
+      const filas = await resources.inventoryUnits.list(item.serial, item.status === 'eliminado' ? 'removed' : 'active')
+      const unidad = filas.find((fila) => fila.id === item.id)
+      if (unidad) setDetalleUnidad(unidad)
+      else setError('No se pudo abrir la ficha de la unidad. Actualizá la lista e intentá de nuevo.')
+    } catch (cause) {
+      console.error('[stock] no se pudo abrir la ficha', cause)
+      setError(cause?.message || 'No se pudo abrir la ficha de la unidad.')
+    }
+  }
+  // U4b: imprime (o previsualiza) las etiquetas de las filas elegidas con la
+  // misma función pura que arma el trabajo de impresora y el PDF. Los mensajes
+  // de EtiquetasStockError se muestran tal cual.
+  async function imprimirEtiquetasSeleccion(items = itemsElegidos(), { vistaPrevia = false } = {}) {
+    if (busy) return
+    setBusy(true); setError(''); setNotice('')
+    try {
+      const filas = filasEtiquetasDeItems(items, products)
+      if (vistaPrevia) {
+        const { pdf, html, total } = await vistaPreviaEtiquetasPdf(filas)
+        const url = URL.createObjectURL(pdf || new Blob([html], { type: 'text/html' }))
+        const abierta = window.open(url, '_blank', 'noopener,noreferrer')
+        setTimeout(() => URL.revokeObjectURL(url), 60000)
+        if (abierta) setNotice(`Vista previa de ${total} ${total === 1 ? 'etiqueta' : 'etiquetas'}.`)
+        else setError('El navegador bloqueó la vista previa. Permití las ventanas emergentes para este sitio.')
+        return
+      }
+      const { total, resultados } = await imprimirEtiquetasStock(filas)
+      const fallido = resultados.find(({ resultado }) => !resultado?.ok) || resultados.find(({ resultado }) => resultado?.encolado)
+      if (fallido) avisarImpresion(fallido.resultado, 'Etiquetas', 'f')
+      else setNotice(`${total} ${total === 1 ? 'etiqueta enviada' : 'etiquetas enviadas'} a la impresora.`)
+    } catch (cause) {
+      if (cause instanceof EtiquetasStockError) setError(cause.message)
+      else { console.error('[stock] etiquetas', cause); setError(cause?.message || 'No se pudieron preparar las etiquetas.') }
+    } finally {
+      setBusy(false)
+    }
+  }
   function cambiarTab(next) {
     if (!tabValido(next)) return
     setTab(next)
@@ -944,8 +1016,6 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     setCertificadoDe,
     constanciaDe,
     setConstanciaDe,
-    vistaUnidades,
-    cambiarVistaUnidades,
     vistaUbicaciones,
     cambiarVistaUbicaciones,
     esMovil,
@@ -979,8 +1049,6 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     setArrivalLocationId,
     receiveBatch,
     setReceiveBatch,
-    filtroVendidos,
-    setFiltroVendidos,
     countOpen,
     setCountOpen,
     countSession,
@@ -1057,14 +1125,18 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     saveThreshold,
     availableProducts,
     filtroBusqueda,
-    modeloNatural,
-    ordenarUnidades,
-    disponibles,
     sinCostoUnits,
-    vendidos,
-    fechaDeVenta,
-    vendidosFiltrados,
     enTransito,
+    stock,
+    filtros,
+    cambiarFiltros,
+    limpiarFiltros,
+    rolVeCosto,
+    esListaStock,
+    itemsElegidos,
+    setUnidadesPedidas,
+    abrirDetalleItem,
+    imprimirEtiquetasSeleccion,
     transferDeArrival,
     locationsFor,
     grantedIds,

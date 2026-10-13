@@ -760,7 +760,7 @@ test('Productos y Unidades comparten el switch y los enlaces de contexto (#287)'
     const fuente = leerFuente(join(RAIZ, ruta), 'utf8')
     assert.match(fuente, /<VistaProductosUnidades/, `${ruta}: usa el switch compartido`)
   }
-  assert.match(leerFuente(join(RAIZ, 'components/productos/ProductoDetalle.jsx'), 'utf8'), /\/inventario\/unidades\?producto=/, 'la ficha del producto lleva a sus unidades')
+  assert.match(leerFuente(join(RAIZ, 'components/productos/ProductoDetalle.jsx'), 'utf8'), /\/stock\/unidades\?producto=/, 'la ficha del producto lleva a sus unidades')
   assert.match(leerFuente(join(RAIZ, 'components/inventory/UnidadDetalle.jsx'), 'utf8'), /\/productos\?producto=/, 'la ficha de la unidad lleva a su producto')
   assert.match(leerFuente(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /inventario-filtro-producto/, 'la vista de Unidades muestra el producto que la acota')
 })

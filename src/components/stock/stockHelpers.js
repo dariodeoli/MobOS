@@ -164,17 +164,41 @@ export const normalizeScan = (value = '') => {
 }
 export const safe = (value = '') => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]))
 export const INVENTARIO_TABS = ['unidades', 'taller', 'alertas', 'reservas', 'traslados', 'vendidos', 'transito', 'ubicaciones', 'compartido', 'eliminados', 'conteos', 'autorizaciones']
-// #305: la navegación agrupa las once vistas en tres bloques (Stock ·
-// Movimientos · Control). El grupo activo se deriva de la pestaña actual, así
-// los enlaces directos (/inventario/transito, etc.) siguen abriendo su vista.
+// #305: la navegación agrupa las vistas en tres bloques (Stock · Movimientos ·
+// Control). El grupo activo se deriva de la pestaña actual, así los enlaces
+// directos (/stock/transito, y /inventario/transito por redirección) siguen
+// abriendo su vista.
 export const GRUPOS_INVENTARIO = [
   { id: 'stock', label: 'Stock', tabs: ['unidades', 'reservas', 'ubicaciones', 'alertas'] },
   { id: 'movimientos', label: 'Movimientos', tabs: ['transito', 'traslados', 'vendidos', 'eliminados'] },
   { id: 'control', label: 'Control', tabs: ['taller', 'conteos', 'compartido', 'autorizaciones'] },
 ]
 export const TAB_LABEL = {
-  unidades: 'Inventario', reservas: 'Reservas', ubicaciones: 'Ubicaciones', alertas: 'Alertas',
+  unidades: 'Unidades', reservas: 'Reservas', ubicaciones: 'Ubicaciones', alertas: 'Alertas',
   transito: 'En tránsito', traslados: 'Traslados', vendidos: 'Vendidos', eliminados: 'Eliminados',
   taller: 'Taller', conteos: 'Conteos', compartido: 'Compartido', autorizaciones: 'Autorizaciones',
 }
 export const ESTADO_CONTEO = { DRAFT: ['Borrador', 'orange'], APPLIED: ['Aplicado', 'green'], CANCELLED: ['Cancelado', 'slate'] }
+
+// U3: pestañas servidas por la lista unificada (GET /api/stock/items, con cursor).
+export const TABS_LISTA_STOCK = ['unidades', 'vendidos', 'eliminados']
+// Pestañas que todavía necesitan el inventario completo (ficha, tránsito, conteo…).
+export const TABS_CON_UNIDADES = ['taller', 'alertas', 'transito', 'traslados', 'conteos', 'autorizaciones']
+
+// U3: la barra muestra Unidades · Reservas · Movimientos · Control. Cada sección
+// agrupa sus vistas (Unidades suma Ubicaciones y Alertas; Movimientos y Control
+// conservan las suyas), así las doce pestañas siguen alcanzables.
+export function seccionesDeStock(grupos = GRUPOS_INVENTARIO) {
+  const secciones = []
+  for (const grupo of grupos) {
+    if (grupo.id === 'stock') {
+      const resto = grupo.tabs.filter((id) => id !== 'reservas')
+      if (resto.length) secciones.push({ id: 'unidades', label: 'Unidades', tabs: resto })
+      if (grupo.tabs.includes('reservas')) secciones.push({ id: 'reservas', label: 'Reservas', tabs: ['reservas'] })
+    } else if (grupo.tabs.length) {
+      secciones.push({ id: grupo.id, label: grupo.label, tabs: grupo.tabs })
+    }
+  }
+  return secciones
+}
+export const seccionDeTab = (secciones, tab) => secciones.find((seccion) => seccion.tabs.includes(tab)) || secciones[0]

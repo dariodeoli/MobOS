@@ -25,6 +25,7 @@ import DocumentoUnidadModal from '@/components/inventory/DocumentoUnidadModal'
 import { CameraScan } from './CameraScan'
 import { FORMATOS_ETIQUETA_AEX, MOTIVOS_BAJA, MOTIVOS_REVISION, normalizeScan } from './stockHelpers'
 import { printLabel } from './impresionStock'
+import { unidadDeItem } from '@/lib/stockItems'
 
 export default function AccionesUnidad({ ctx }) {
   const { scannerOpen, setScannerOpen, setQuery, refresh, countOpen, setCountOpen, setCountSession, countSession, startCount, countScan, countMissing, copyMissing, threshold, setThreshold, saveThreshold, thresholdValue, setThresholdValue, busy, envioAex, setEnvioAex, confirmarEnvio, tracking, setTracking, etiquetaAex, setEtiquetaAex, imprimirEtiquetaAex, receiveOpen, setReceiveOpen, setReceiveError, receive, receiveUnit, availableProducts, setReceive, locations, setModeloNuevo, setCrearVariante, crearVariante, products, modeloNuevo, setProducts, receiveError, branches, locationsFor, proveedores, recientesProveedores, setRecientesProveedores, cotizacion, reserveOpen, setReserveOpen, createReservation, reserve, buscarClienteReserva, reserveMatches, setReserve, setReserveMatches, transferOpen, setTransferOpen, createTransfer, controlTransferencia, transfer, setTransfer, puedeTransferirSinAuth, transferSerials, setTransferAuth, remitoQr, setRemitoQr, setRemitoQrImg, setRemitoQrError, remitoQrBusy, remitoQrImg, remitoQrError, copiarRemitoQr, regenerarRemitoQr, etaPara, setEtaPara, guardarEtaLote, receiveBatch, setReceiveBatch, confirmarRecepcionLote, detalleUnidad, canViewAlerts, setDetalleUnidad, sellUnit, openReserveFor, verify, abrirLlegada, avisarImpresion, setInformeDe, setCertificadoDe, setConstanciaDe, releaseReservation, requestReason, moveLocation, reasonAction, setReasonAction, applyReason, reasonKind, setReasonKind, reason, setReason, apartarPara, setApartarPara, guardarApartado, apartado, buscarClienteApartado, apartadoMatches, setApartado, setApartadoMatches, arrivalUnit, setArrivalUnit, setArrivalLocationId, receiveArrival, arrivalLocationId, transferDeArrival, gondolaOpen, setGondolaOpen, informeDe, certificadoDe, constanciaDe } = ctx
@@ -65,4 +66,40 @@ export default function AccionesUnidad({ ctx }) {
     <DocumentoUnidadModal unit={constanciaDe} tipo="constancia" open={Boolean(constanciaDe)} onClose={() => setConstanciaDe(null)} />
     </>
   )
+}
+
+// Acciones del menú «⋯» de una fila de la lista de Stock (recibir, editar, dar de
+// baja, reservar e imprimir). Recibe el contexto del hook de control: las
+// acciones reutilizan los mismos manejadores que la ficha de la unidad, así que
+// los permisos y las auditorías no cambian. Los accesorios solo abren su ficha
+// de producto o imprimen su etiqueta.
+export function accionesDeItem(item, ctx) {
+  const { products, abrirDetalleItem, sellUnit, openReserveFor, releaseReservation, verify, imprimirEtiquetasSeleccion, requestReason, imprimirComprobanteRapido, navigate } = ctx
+  const etiqueta = { label: 'Imprimir etiqueta', tooltip: 'Imprimir la etiqueta de esta fila', icon: 'printer', run: () => imprimirEtiquetasSeleccion([item]) }
+  if (item.kind === 'product') {
+    return [
+      { label: 'Ver producto', tooltip: 'Abrir la ficha del producto', icon: 'box', run: () => navigate(`/productos?producto=${encodeURIComponent(item.productId)}`) },
+      etiqueta,
+    ]
+  }
+  const unit = unidadDeItem(item, products)
+  const ficha = { label: 'Ver y editar', tooltip: 'Abrir la ficha de la unidad: datos, costo, ubicación e historial', icon: 'info', run: () => abrirDetalleItem(item) }
+  if (item.status === 'eliminado') {
+    return [
+      { label: 'Restaurar', tooltip: 'Devolver la unidad al stock disponible', icon: 'refresh', run: () => requestReason('restore', unit) },
+      ficha,
+    ]
+  }
+  const vendible = item.status === 'disponible' || item.status === 'reservado'
+  return [
+    ficha,
+    ...(item.status === 'vendido' ? [{ label: 'Comprobante rápido', tooltip: 'Imprimir el comprobante de la venta sin abrir la ficha', icon: 'receipt', run: () => imprimirComprobanteRapido(unit) }] : []),
+    ...(vendible ? [{ label: 'Vender', tooltip: 'Cargar la venta de esta unidad', icon: 'cart', run: () => sellUnit(unit) }] : []),
+    ...(item.status === 'disponible' ? [{ label: 'Reservar', tooltip: 'Apartar la unidad para un cliente', icon: 'clock', run: () => openReserveFor(unit) }] : []),
+    ...(item.status === 'reservado' ? [{ label: 'Liberar reserva', tooltip: 'Soltar la reserva y dejar la unidad disponible', icon: 'clock', run: () => releaseReservation(unit.serial) }] : []),
+    ...(item.status !== 'vendido' ? [{ label: 'Verificar', tooltip: 'Registrar la verificación física ahora', icon: 'check', run: () => verify(unit) }] : []),
+    etiqueta,
+    { label: item.status === 'defectuoso' ? 'Habilitar unidad' : 'Enviar a revisión', tooltip: 'Cambiar el estado con un motivo (queda auditado)', icon: 'alert', run: () => requestReason('adjust', unit) },
+    { label: 'Dar de baja', tooltip: 'Sacar la unidad del stock (queda en Eliminados)', icon: 'trash', run: () => requestReason('remove', unit) },
+  ]
 }
