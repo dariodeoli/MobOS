@@ -1,7 +1,7 @@
 import './entregasF3.css'
 import { useCallback, useEffect, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
-import BarraModulo from '@/components/shared/BarraModulo'
+import Toolbar from '@/components/shared/Toolbar'
 import { api } from '@/lib/api/client'
 import { Aviso, Badge, Button, ConfirmDialog, FormField, Input, Modal, Money, SaveActions, Select, Textarea, useToast, useValidacionCampos } from '@/components/ui'
 import { obligatorio, largoMinimo } from 'owncoding-ui/utils'
@@ -351,12 +351,16 @@ export default function StoreDelivery() {
   const [tab, setTab] = useState('repartos')
   return (
     <section className="space-y-5">
-      <BarraModulo
-        icono="truck"
-        titulo="Entregas"
-        descripcion="Asigná cada pedido a un repartidor y verificá lo que rinde al volver: el cobro de la calle recién queda confirmado acá."
+      <Toolbar
+        plano
+        label="Acciones de Entregas"
         testId="barra-delivery"
         className="entregas-f3-toolbar"
+        lead={
+          <p className="min-w-0 flex-1 basis-64 text-sm text-mute">
+            Asigná cada pedido a un repartidor y verificá lo que rinde al volver: el cobro de la calle recién queda confirmado acá.
+          </p>
+        }
       />
       <Tabs
         flat

@@ -943,11 +943,9 @@ for (const width of [320, 390, 1440]) {
         }),
       )
       await all.click()
-      await orders.locator('.ventas-f3-extra-filters > summary').focus()
-      await page.keyboard.press('Enter')
-      await orders
-        .getByRole('combobox', { name: 'Más estados de pago', exact: true })
-        .selectOption('parciales')
+      // «Más estados» despliega los chips de pago poco frecuentes (sin select nativo).
+      await orders.getByRole('button', { name: 'Más estados', exact: true }).click()
+      await orders.getByRole('button', { name: 'Parciales', exact: true }).click()
       await expect(page.getByTestId('pedido-fila')).toHaveCount(
         await page.evaluate(async () => {
           const { listVentas } = await import('/src/lib/storage.js')
@@ -963,12 +961,10 @@ for (const width of [320, 390, 1440]) {
         }),
       )
       await all.click()
-      await orders
-        .getByRole('combobox', { name: 'Ordenar pedidos', exact: true })
-        .selectOption('quantity')
-      await expect(
-        orders.getByRole('combobox', { name: 'Ordenar pedidos', exact: true }),
-      ).toHaveValue('quantity')
+      // El orden vive en el menú «Ordenar» (reemplaza al select nativo).
+      await orders.getByRole('button', { name: 'Ordenar', exact: true }).click()
+      await page.getByRole('menuitem', { name: 'Cantidad', exact: true }).click()
+      await expect(orders.getByTestId('pedidos-orden')).toHaveAttribute('data-orden', 'quantity')
       const search = orders.getByRole('textbox', { name: 'Buscar pedidos', exact: true })
       await search.fill(expected[0].customer)
       await expect(page.getByTestId('pedido-fila').first().locator('.ventas-f3-name')).toHaveText(
@@ -1053,9 +1049,8 @@ for (const width of [320, 390, 1440]) {
         quoteData.filter(row => row.status === 'SENT').length,
       )
       await quotes.getByRole('button', { name: 'Todas', exact: true }).click()
-      await quotes
-        .getByRole('combobox', { name: 'Más estados de cotización', exact: true })
-        .selectOption('DRAFT')
+      await quotes.getByRole('button', { name: 'Más estados', exact: true }).click()
+      await quotes.getByRole('button', { name: 'Borradores', exact: true }).click()
       await expect(page.getByTestId('cotizacion-fila')).toHaveCount(
         quoteData.filter(row => row.status === 'DRAFT').length,
       )
