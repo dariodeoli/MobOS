@@ -301,7 +301,7 @@ export default function AppShell({
             role="status"
             className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-600 bg-ink px-4 py-1 text-xs text-mute"
           >
-            <span>Demo: datos ficticios, nada se guarda.</span>
+            <span>Modo demo: datos ficticios, nada se guarda.</span>
             <button
               type="button"
               data-testid="demo-como-funciona"
