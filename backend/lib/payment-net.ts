@@ -23,6 +23,14 @@ export const DRAWER_PAYMENT_WHERE: Prisma.PaymentWhereInput = { OR: [{ correctio
 /** SQL: la fila `alias` no es reversión ni fue revertida. */
 export const sqlCountable = (alias = 'p') => Prisma.raw(`${alias}."reversalOfId" IS NULL AND NOT EXISTS (SELECT 1 FROM "Payment" rv WHERE rv."reversalOfId" = ${alias}."id")`)
 
+/**
+ * SQL de conteo para la auditoría del cajón: una corrección sin impacto en caja
+ * (turno cerrado) deja el original en su lugar y saca reversión y pagos nuevos
+ * (con sqlDrawer); por eso el original solo deja de contar si lo revirtió una
+ * corrección con impacto en caja.
+ */
+export const sqlCountableDrawer = (alias = 'p') => Prisma.raw(`${alias}."reversalOfId" IS NULL AND NOT EXISTS (SELECT 1 FROM "Payment" rv LEFT JOIN "PaymentCorrection" rc ON rc."id" = rv."correctionId" WHERE rv."reversalOfId" = ${alias}."id" AND COALESCE(rc."drawerImpact", true))`)
+
 /** SQL: la fila `alias` cuenta para el efectivo del turno (no es de una corrección sin impacto en caja). */
 export const sqlDrawer = (alias = 'p') => Prisma.raw(`NOT EXISTS (SELECT 1 FROM "PaymentCorrection" pcx WHERE pcx."id" = ${alias}."correctionId" AND pcx."drawerImpact" = false)`)
 
@@ -52,5 +60,13 @@ export async function dayCorrections(db: QueryDb, tenantId: string, branchId: st
     id: row.id, orderId: row.orderId, orderNumber: row.orderNumber, reason: row.reason, createdAt: row.createdAt,
     originSessionClosed: row.originSessionClosed, drawerImpact: row.drawerImpact, cashDeltaPyg: Number(row.cash ?? 0n), before: row.before, after: row.after,
   }))
-  return { count: items.length, cashDeltaPyg: items.reduce((sum, item) => sum + item.cashDeltaPyg, 0), items }
+  // Totales del período completo en SQL: la lista se corta en 200 filas, los totales no.
+  const totales = await db.$queryRaw<Array<{ count: bigint; cash: bigint | null }>>`
+    SELECT COUNT(*)::bigint AS "count",
+           COALESCE(SUM((SELECT COALESCE(SUM(p."amountPyg"), 0) FROM "Payment" p
+             WHERE p."correctionId" = c."id" AND p."method" = 'CASH' AND p."status" = 'CONFIRMED')), 0)::bigint AS "cash"
+    FROM "PaymentCorrection" c JOIN "Order" o ON o."id" = c."orderId"
+    WHERE c."tenantId" = ${tenantId} AND o."branchId" = ${branchId} AND c."drawerImpact" = false
+      AND c."createdAt" >= ${start} AND c."createdAt" < ${end}`
+  return { count: Number(totales[0]?.count ?? 0n), cashDeltaPyg: Number(totales[0]?.cash ?? 0n), items }
 }

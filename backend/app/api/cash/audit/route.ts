@@ -2,7 +2,7 @@ import { prisma } from '../../../../lib/prisma'
 import { requireSession } from '../../../../lib/auth'
 import { error, json, tenantId } from '../../../../lib/http'
 import { ensureStoreBranch } from '../../../../lib/store-branch'
-import { dayCorrections, sqlCountable, sqlDrawer } from '../../../../lib/payment-net'
+import { dayCorrections, sqlCountableDrawer, sqlDrawer } from '../../../../lib/payment-net'
 
 const ROLES = ['ADMIN', 'GERENTE', 'CAJERA']
 const METHODS = ['CASH', 'TRANSFER', 'CARD', 'PIX', 'CRYPTO', 'CREDIT', 'TRADE_IN'] as const
@@ -30,11 +30,11 @@ export async function GET(request: Request) {
   endDay.setDate(endDay.getDate() + 1)
   if (Number.isNaN(start.getTime())) return error('Fecha inválida. Usá YYYY-MM-DD.', 400)
   const rows: Array<{ method: string; status: string; total: bigint; count: bigint }> = await prisma.$queryRaw`
-    SELECT p."method"::text AS method, p."status"::text AS status, COALESCE(SUM(p."amountPyg"), 0)::bigint AS total, (COUNT(*) FILTER (WHERE ${sqlCountable('p')}))::bigint AS count
+    SELECT p."method"::text AS method, p."status"::text AS status, COALESCE(SUM(p."amountPyg"), 0)::bigint AS total, (COUNT(*) FILTER (WHERE ${sqlCountableDrawer('p')}))::bigint AS count
     FROM "Payment" p JOIN "Order" o ON o."id" = p."orderId" AND o."tenantId" = p."tenantId"
     WHERE p."tenantId" = ${tenant} AND o."branchId" = ${branchId}
       AND p."paidAt" >= ${start} AND p."paidAt" < ${endDay}
-      AND (p."method" <> 'CASH' OR ${sqlDrawer('p')})
+      AND ${sqlDrawer('p')}
     GROUP BY p."method", p."status"`
   const methods = METHODS.map(method => {
     const entries = rows.filter(row => row.method === method)

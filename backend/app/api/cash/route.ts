@@ -7,7 +7,7 @@ import { ensureStoreBranch } from '../../../lib/store-branch'
 import { CASH_MOVEMENT_KINDS, createCashMovement } from '../../../lib/cash-movements'
 import { FINANCE_CURRENCIES, frozenAmountPyg } from '../../../lib/finance'
 import { LIMITE_MONTO_GENERAL } from '../../../lib/montos'
-import { dayCorrections, sqlCountable, sqlDrawer } from '../../../lib/payment-net'
+import { dayCorrections, sqlCountableDrawer, sqlDrawer } from '../../../lib/payment-net'
 
 type QueryDb = Pick<typeof prisma, '$queryRaw'> | Pick<Prisma.TransactionClient, '$queryRaw'>
 const int = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0 && Number(value) <= LIMITE_MONTO_GENERAL
@@ -104,7 +104,7 @@ async function sesionesResumen(tenant: string, branchId: string, start: Date, en
     FROM "CashSession" s
     JOIN "User" u ON u."id" = s."openedById"
     LEFT JOIN LATERAL (
-      SELECT SUM(p."amountPyg") AS "efectivoPyg", COUNT(*) FILTER (WHERE ${sqlCountable('p')}) AS "pagos"
+      SELECT SUM(p."amountPyg") AS "efectivoPyg", COUNT(*) FILTER (WHERE ${sqlCountableDrawer('p')}) AS "pagos"
       FROM "Payment" p JOIN "Order" o ON o."id" = p."orderId"
       WHERE p."tenantId" = s."tenantId" AND p."method" = 'CASH' AND p."status" = 'CONFIRMED'
         AND ${sqlDrawer('p')}
