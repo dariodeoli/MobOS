@@ -7,6 +7,8 @@ import { getProductos } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { montoUsd } from '@/utils/moneda'
 import { categoriaMeta } from '@/lib/categoriasProducto'
+import { chipsAccesorio, filtrarPorAccesorio, textoCompatibilidad } from '@/lib/categoriasAccesorio'
+import FotoProducto from '@/components/shared/FotoProducto'
 import { Badge, Button, Modal, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
@@ -33,6 +35,7 @@ const demoProducts = () => getProductos().filter((row) => row.activo !== false)
 
 const CONDITION = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
 const CONDITION_TONE = { NEW: 'green', USED: 'orange', REFURBISHED: 'slate' }
+const fotoDe = (row) => row?.thumbUrl || row?.imagenes?.[0] || row?.imagen || null
 const precio = (row) => Number(row?.pricePyg ?? row?.precioVenta ?? 0)
 const mayorista = (row) => Number(row?.wholesalePricePyg ?? 0)
 const usd = (row) => Number(row?.priceUsd ?? 0)
@@ -56,7 +59,7 @@ function FilaProducto({ row, onClick, seleccionado = false, onAlternar }) {
       <span className="flex items-center" onClick={(event) => event.stopPropagation()}>
         <input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar ${row.name || 'producto'}`} checked={seleccionado} onChange={() => onAlternar?.()} />
       </span>
-      <span className={CELDA_IDENTIDAD_GRANDE} title={row.name}><span className="mr-1.5 inline-grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-ink-600 bg-ink-800 align-middle text-mute" title={`Categoría: ${categoriaMeta(row).label}`}><Icon name={categoriaMeta(row).icon} className="h-3.5 w-3.5" /></span>{row.name}</span>
+      <span className={CELDA_IDENTIDAD_GRANDE} title={row.name}><FotoProducto src={fotoDe(row)} size={28} icono={categoriaMeta(row).icon} className="mr-1.5 align-middle" />{row.name}{textoCompatibilidad(row) && <span className="ml-1.5 text-[11px] font-normal text-mute">{textoCompatibilidad(row)}</span>}</span>
       <span className="truncate text-[11px] text-mute" title={row.category || undefined}>{categoriaMeta(row).label}</span>
       <Badge color={CONDITION_TONE[row.condition] || 'slate'} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{CONDITION[row.condition] || 'Nuevo'}</Badge>
       <span className="truncate font-mono text-[11px] text-mute" title={row.sku || undefined}>{row.sku || 'Sin SKU'}</span>
@@ -74,10 +77,12 @@ function TarjetaProducto({ row, onClick }) {
   return (
     <button type="button" onClick={onClick} className="group flex w-full flex-col rounded-2xl border border-fore/10 bg-ink-800/40 p-4 text-left transition hover:border-fono/40 hover:bg-ink-700/50">
       <span className="flex items-start justify-between gap-2">
-        <b className="min-w-0 truncate text-sm">{row.name}</b>
+        <FotoProducto src={fotoDe(row)} size={40} icono={categoriaMeta(row).icon} />
+        <b className="min-w-0 flex-1 truncate text-sm">{row.name}</b>
         <Badge color={CONDITION_TONE[row.condition] || 'slate'}>{CONDITION[row.condition] || 'Nuevo'}</Badge>
       </span>
       <span className="mt-1 block truncate font-mono text-[11px] text-mute">{row.sku || 'Sin SKU'}{row.category ? ` · ${row.category}` : ''}</span>
+      {textoCompatibilidad(row) && <span className="mt-0.5 block truncate text-[11px] text-mute">{textoCompatibilidad(row)}</span>}
       <span className="mt-3 text-xl font-bold tabular-nums text-fono-light">{precio(row) > 0 ? gs(precio(row)) : '—'}</span>
       {mayorista(row) > 0 && <span className="mt-0.5 text-[11px] text-mute">Mayorista {gs(mayorista(row))}</span>}
       {usd(row) > 0 && <span className="mt-0.5 text-[11px] text-mute">US$ {usd(row).toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>}
@@ -106,6 +111,7 @@ export default function SellerCatalog() {
   const busquedaDiferida = useBusquedaDiferida(query)
   const [categoria, setCategoria] = useState('todas')
   const [condicion, setCondicion] = useState('todas')
+  const [accesorio, setAccesorio] = useState('todas')
   const [soloStock, setSoloStock] = useState(false)
   const [orden, setOrden] = useState({ key: 'recientes', dir: 'asc' })
   const [vista, cambiarVista] = useVistaListaGrid('productos')
@@ -127,7 +133,9 @@ export default function SellerCatalog() {
       .filter((row) => categoria === 'todas' || row.category === categoria)
       .filter((row) => condicion === 'todas' || row.condition === condicion)
       .filter((row) => !soloStock || Number(row.stock ?? 0) > 0)
-  }, [data.rows, search, categoria, condicion, soloStock, esDemo])
+      .filter((row) => filtrarPorAccesorio([row], accesorio).length > 0)
+  }, [data.rows, search, categoria, condicion, soloStock, esDemo, accesorio])
+  const chipsAcc = useMemo(() => chipsAccesorio(data.rows), [data.rows])
   const categorias = useMemo(() => [...new Set(data.rows.map(row => row.category).filter(Boolean))].sort(), [data.rows])
   const ordenarPor = (key) => setOrden(current => current.key === key
     ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
@@ -257,6 +265,15 @@ export default function SellerCatalog() {
       <Select aria-label="Filtrar por condición" className="w-auto" value={condicion} onChange={(event) => setCondicion(event.target.value)}><option value="todas">Nueva y seminueva</option><option value="NEW">Nuevos</option><option value="USED">Seminuevos</option><option value="REFURBISHED">Reacondicionados</option></Select>
       <button type="button" onClick={() => setSoloStock(value => !value)} className={cn('min-h-11 rounded-lg border px-3 py-2 text-xs font-semibold transition md:min-h-9', soloStock ? 'border-ok/40 bg-ok/10 text-ok' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}>Con stock</button>
       <ListGridToggle value={vista} onChange={cambiarVista} />
+    {chipsAcc.length > 0 && (
+      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrar por tipo de accesorio" data-testid="chips-accesorio">
+        {[{ clave: 'todas', label: 'Todos', icon: 'grid' }, ...chipsAcc].map((chip) => (
+          <button key={chip.clave} type="button" aria-pressed={accesorio === chip.clave} onClick={() => setAccesorio(chip.clave)} className={cn('inline-flex min-h-11 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition md:min-h-8', accesorio === chip.clave ? 'border-fono/50 bg-fono/15 text-fono-light' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}>
+            <Icon name={chip.icon} className="h-3.5 w-3.5" />{chip.label}{chip.cantidad != null && <span className="tabular-nums opacity-70">{chip.cantidad}</span>}
+          </button>
+        ))}
+      </div>
+    )}
     </div>
     <SellerFeedback {...data} empty={!rows.length} />
     <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>

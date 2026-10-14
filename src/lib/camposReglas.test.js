@@ -92,7 +92,9 @@ test('las subidas de archivos pasan por el objeto compartido', () => {
   // El control nativo del navegador muestra "No file chosen" en inglés: la
   // unica aparicion de un input de archivo debe ser la del objeto compartido,
   // que lo esconde y ofrece un boton propio en espanol.
-  const permitidos = new Set(['components/shared/AttachmentInput.jsx'])
+  // La galería de fotos de producto (#404) necesita varios archivos, cámara y
+  // soltar archivos: el input también está oculto y con botones en español.
+  const permitidos = new Set(['components/shared/AttachmentInput.jsx', 'components/productos/GaleriaFotosProducto.jsx'])
   const culpables = archivosFuente()
     .filter((archivo) => /type="file"/.test(archivo.contenido) && !permitidos.has(archivo.ruta))
     .map((archivo) => archivo.ruta)

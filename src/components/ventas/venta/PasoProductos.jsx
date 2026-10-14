@@ -10,6 +10,10 @@ import { gs, num } from '@/utils/calculos'
 import { useSesion } from '@/lib/sesion'
 import EncabezadoBloque from './EncabezadoBloque'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+import GaleriaFotosProducto from '@/components/productos/GaleriaFotosProducto'
+import FotoProducto from '@/components/shared/FotoProducto'
+import { CATEGORIAS_ACCESORIO, CLAVES_ACCESORIO, categoriaAccesorioDe, textoCompatibilidad } from '@/lib/categoriasAccesorio'
+import { cn } from '@/lib/utils'
 
 const FILAS_INICIALES = 4
 
@@ -57,6 +61,9 @@ export default function PasoProductos({
   creandoProd,
   cancelarNuevoProd,
   setBusquedaProducto,
+  accesorio = 'todas',
+  setAccesorio,
+  onFotosNuevas = null,
   combos,
   agregarCombo,
   noticeCombo,
@@ -158,6 +165,19 @@ export default function PasoProductos({
                 </div>
               </div>
               <label className="block text-xs text-mute">
+                Tipo de accesorio
+                <Select
+                  className="mt-1"
+                  value={nuevoDetalles.accesorio || ''}
+                  onChange={e => setNuevoDetalles(d => ({ ...d, accesorio: e.target.value }))}
+                >
+                  <option value="">No es accesorio</option>
+                  {CLAVES_ACCESORIO.map(clave => (
+                    <option key={clave} value={clave}>{CATEGORIAS_ACCESORIO[clave].singular}</option>
+                  ))}
+                </Select>
+              </label>
+              <label className="block text-xs text-mute">
                 Precio de venta (Gs) *
                 <MoneyInput
                   className="mt-1"
@@ -191,6 +211,7 @@ export default function PasoProductos({
                 />
               </label>
             </div>
+            {!esDemo && onFotosNuevas && <GaleriaFotosProducto onChange={onFotosNuevas} />}
             <div>
               <div className="mb-1 text-[11px] font-bold uppercase text-mute">
                 Colores (opcional)
@@ -288,6 +309,21 @@ export default function PasoProductos({
                 </button>
               )}
             </div>
+            {setAccesorio && (
+              <div className="-mx-1 mb-2 flex gap-1.5 overflow-x-auto px-1" role="group" aria-label="Filtrar por tipo de accesorio" data-testid="pos-chips-accesorio">
+                {[['todas', { label: 'Todos', icon: 'grid' }], ...CLAVES_ACCESORIO.map(clave => [clave, CATEGORIAS_ACCESORIO[clave]])].map(([clave, meta]) => (
+                  <button
+                    key={clave}
+                    type="button"
+                    aria-pressed={accesorio === clave}
+                    onClick={() => setAccesorio(clave)}
+                    className={cn('inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition md:min-h-8', accesorio === clave ? 'border-fono/50 bg-fono/15 text-fono-light' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}
+                  >
+                    <Icon name={meta.icon} className="h-3.5 w-3.5" />{meta.label}
+                  </button>
+                ))}
+              </div>
+            )}
             <div
               ref={grillaRef}
               className="pos-product-grid grid grid-cols-2 gap-2 sm:grid-cols-3"
@@ -327,6 +363,8 @@ export default function PasoProductos({
                 // como parte de la vista del producto; elegirlas es el paso
                 // siguiente al agregarlo.
                 const unidadesFamilia = fam.items.reduce((suma, item) => suma + num(item.unitsCount), 0)
+                // #404: con foto, el stock se abrevia a la cifra para que la columna angosta no haga crecer la tarjeta.
+                const fotoFamilia = p.thumbUrl || p.imagen || p.imageUrl || p.imagenes?.[0] || ''
                 return (
                   <button
                     type="button"
@@ -335,31 +373,33 @@ export default function PasoProductos({
                     onClick={() => (fam.items.length > 1 ? onElegirVariante?.(fam) : agregarProducto(p))}
                     className="pos-product-card flex min-h-11 min-w-0 flex-col items-stretch gap-1 rounded-xl border border-ink-600 p-2.5 text-left transition hover:border-fono focus-visible:outline focus-visible:outline-fono"
                   >
-                    <span className="flex min-w-0 items-start gap-2">
-                      {p.imagen || p.imageUrl ? (
-                        <img
-                          src={p.imagen || p.imageUrl}
-                          alt=""
-                          loading="lazy"
-                          className="h-8 w-8 shrink-0 rounded-md object-cover"
+                    <span className="flex min-w-0 items-stretch gap-2">
+                      {fotoFamilia ? (
+                        <FotoProducto
+                          src={fotoFamilia}
+                          size={40}
+                          icono={CATEGORIAS_ACCESORIO[categoriaAccesorioDe(p)]?.icon || 'image'}
+                          className="self-center"
                         />
                       ) : null}
-                      <strong className="pos-product-name min-w-0 text-[13px] font-semibold leading-snug">{fam.base}</strong>
-                    </span>
-                    <span className="flex flex-wrap items-baseline justify-between gap-x-2">
-                      <span className="whitespace-nowrap text-sm font-bold tabular-nums text-fore" title={fam.items.length > 1 ? `${fam.items.length} variantes: elegí la exacta al agregar` : undefined}>
-                        {fam.items.length > 1 ? <span className="mr-1 text-[11px] font-medium text-mute">desde</span> : null}
-                        {gs(Math.min(...fam.items.map(item => num(item.precioVenta))))}
+                      <span className="flex min-w-0 flex-1 flex-col gap-1">
+                        <strong className="pos-product-name min-w-0 text-[13px] font-semibold leading-snug">{fam.base}{textoCompatibilidad(p) && <span className="ml-1 text-[11px] font-normal text-mute" data-testid="pos-compat">{textoCompatibilidad(p)}</span>}</strong>
+                        <span className="flex flex-wrap items-baseline justify-between gap-x-2">
+                          <span className="whitespace-nowrap text-sm font-bold tabular-nums text-fore" title={fam.items.length > 1 ? `${fam.items.length} variantes: elegí la exacta al agregar` : undefined}>
+                            {fam.items.length > 1 ? <span className="mr-1 text-[11px] font-medium text-mute">desde</span> : null}
+                            {gs(Math.min(...fam.items.map(item => num(item.precioVenta))))}
+                          </span>
+                          {stockFamilia > 0
+                            ? <b className="whitespace-nowrap text-[11px] font-semibold text-ok" title={unidadesFamilia > 0 ? `${unidadesFamilia} ${unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI` : `${stockFamilia} en stock`}>{fotoFamilia ? stockFamilia : `${stockFamilia} en stock${fam.items.length > 1 ? ` · ${fam.items.length} variantes` : ''}`}</b>
+                            : <b className="whitespace-nowrap text-[11px] font-semibold text-bad" title="Agotado">{fotoFamilia ? '0' : 'Agotado'}</b>}
+                        </span>
+                        {unidadesFamilia > 0 && (
+                          <span className="block truncate text-[11px] text-mute">
+                            {unidadesFamilia} {unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI
+                          </span>
+                        )}
                       </span>
-                      {stockFamilia > 0
-                        ? <b className="whitespace-nowrap text-[11px] font-semibold text-ok" title={unidadesFamilia > 0 ? `${unidadesFamilia} ${unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI` : undefined}>{stockFamilia} en stock{fam.items.length > 1 ? ` · ${fam.items.length} variantes` : ''}</b>
-                        : <b className="whitespace-nowrap text-[11px] font-semibold text-bad">Agotado</b>}
                     </span>
-                    {unidadesFamilia > 0 && (
-                      <span className="block truncate text-[11px] text-mute">
-                        {unidadesFamilia} {unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI
-                      </span>
-                    )}
                   </button>
                 )
               })}

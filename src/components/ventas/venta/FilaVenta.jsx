@@ -1,3 +1,4 @@
+import FotoProducto from '@/components/shared/FotoProducto'
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Badge, ConfirmDialog, Input, MoneyInput, Select } from '@/components/ui'
@@ -39,7 +40,7 @@ export default function FilaVenta({
 
   // Imagen/modelo/capacidad/stock de la ficha viva del producto (el nombre, el
   // precio y los seriales vienen congelados en la línea).
-  const imagen = producto?.imageUrl || producto?.imagen || ''
+  const imagen = producto?.thumbUrl || producto?.imageUrl || producto?.imagen || producto?.imagenes?.[0] || ''
   const modelo = producto?.model || producto?.modelo || ''
   const capacidad = producto?.capacity || producto?.capacidad || ''
   const stock = Number(producto?.stock)
@@ -131,7 +132,7 @@ export default function FilaVenta({
     >
       <div className="flex flex-wrap items-center gap-2.5">
         {imagen ? (
-          <img src={imagen} alt="" loading="lazy" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+          <FotoProducto src={imagen} size={40} />
         ) : (
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-fono/10 text-fono-light">
             <IconoCategoria categoria={producto?.category || producto?.categoria || producto?.name || producto?.nombre || ''} className="h-5 w-5" />

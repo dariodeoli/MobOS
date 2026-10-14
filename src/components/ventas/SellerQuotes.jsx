@@ -1,3 +1,4 @@
+import FotoProducto from '@/components/shared/FotoProducto'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { qrDataUrl } from '@/lib/qr'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -677,6 +678,7 @@ export default function SellerQuotes() {
             <div key={index} className="grid gap-2 rounded-xl border border-ink-600 p-2.5 sm:grid-cols-[minmax(0,1.3fr)_92px_150px_2.75rem] sm:items-end">
               <FormField label="Producto" hint={index === 0 ? 'Opcional: también podés cotizar un ítem libre.' : undefined}>
                 <span className="flex items-center gap-1">
+                  {(() => { const fila = item.productId ? productos.find(p => p.id === item.productId) : null; const foto = fila?.thumbUrl || fila?.imagenes?.[0]; return foto ? <FotoProducto src={foto} size={36} /> : null })()}
                   <ProductCombobox key={item.productId || 'vacio'} className="flex-1" products={productos} selectedId={item.productId} onSelect={producto => setItems(list => list.map((row, i) => i === index ? emptyItem(producto) : row))} placeholder="Buscar en el catálogo" />
                   {item.productId && <button type="button" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad" aria-label="Quitar producto del ítem" onClick={() => setItems(list => list.map((row, i) => i === index ? emptyItem() : row))}><Icon name="trash" className="h-4 w-4" /></button>}
                 </span>

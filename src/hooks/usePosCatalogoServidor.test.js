@@ -9,7 +9,8 @@ const formulario = readFileSync(new URL('../components/ventas/FormularioVenta.js
 const paso = readFileSync(new URL('../components/ventas/venta/PasoProductos.jsx', import.meta.url), 'utf8')
 
 test('el recurso products.page pide /api/products con page, pageSize y q', () => {
-  assert.match(api, /page: \(\{ q = '', page = 1, pageSize = 16 \} = \{\}/)
+  assert.match(api, /page: \(\{ q = '', page = 1, pageSize = 16, accessoryCategory = '' \} = \{\}/)
+  assert.match(api, /accessoryCategory \? \{ accessoryCategory \} : \{\}/)
   assert.match(api, /\/api\/products\?\$\{new URLSearchParams\(\{ page: String\(page\), pageSize: String\(pageSize\)/)
 })
 
