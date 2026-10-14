@@ -29,7 +29,7 @@ export default function AuthLayout({
         <ThemeToggle />
       </div>
       <div aria-hidden="true" className="auth-landing-glow pointer-events-none absolute -left-40 -top-40 h-96 w-96 rounded-full blur-3xl" />
-      <div className={cn('auth-shell-grid mx-auto grid w-full max-w-[1380px] flex-1 items-center gap-12 px-5 py-6 lg:grid-cols-[minmax(0,1fr)_520px] lg:px-12', className)}>
+      <div className={cn('auth-shell-grid mx-auto grid w-full max-w-[1380px] flex-1 items-center gap-12 px-5 py-3 sm:py-6 lg:grid-cols-[minmax(0,1fr)_520px] lg:px-12', className)}>
         <section className="hidden lg:block">
           <ThemeLogo className="h-12 w-auto" />
           <p className="mt-10 text-xs font-bold uppercase tracking-[.2em] text-fono-dark">{eyebrow}</p>

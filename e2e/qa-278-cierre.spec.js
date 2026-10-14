@@ -58,8 +58,12 @@ async function agenteFalso(page, capturados) {
 const textoDelTicket = (capturado) => Buffer.from(String(capturado?.data || ''), 'base64').toString('latin1')
 
 const sinDesborde = async (page) => {
-  const medida = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, ventana: window.innerWidth }))
-  expect(medida.scroll, JSON.stringify(medida)).toBeLessThanOrEqual(medida.ventana + 1)
+  // Tras setViewportSize el layout se reacomoda en el siguiente frame: se mide
+  // el estado asentado (poll), no el instante del resize. El límite no cambia.
+  await expect.poll(
+    () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
+    { message: 'desborde horizontal (scrollWidth - innerWidth)' },
+  ).toBeLessThanOrEqual(1)
 }
 
 // 1) Lista de compra 80 mm: el impreso de §11 se adopta desde el panel. La
