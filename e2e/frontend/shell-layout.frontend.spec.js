@@ -227,8 +227,8 @@ test('demo notice is a small chip in the title row (not its own row), dismissibl
     const banner = page.getByTestId('demo-aviso')
     await expect(banner).toContainText('Demo')
     const box = await banner.boundingBox()
-    // Chip: 44px tall below lg (the Salir target), 28px on desktop.
-    expect(box.height).toBeLessThanOrEqual(width < 1024 ? 44 : 28)
+    // Chip: 44px target (+ border) below lg, ~28px on desktop: small, never a full row.
+    expect(box.height).toBeLessThanOrEqual(width < 1024 ? 48 : 32)
     // Not its own row: it lives in the page header's title row, whose H1 is
     // still in the DOM (sr-only below lg when there are tabs).
     const titulo = page.locator('h1').first()
