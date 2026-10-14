@@ -10,14 +10,14 @@ import { formatMoney, errorMonto, partesGs } from '@/utils/moneda'
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import { fechaCorta } from '@/utils/fecha'
 import RangoFechas, { PRESETS, rangoDeParams, paramsDeRango } from '@/components/shared/RangoFechas'
-import { Aviso, BarraProgreso, Badge, Button, Card, EmptyState, Input, MoneyInput, Select, Skeleton, useToast } from '@/components/ui'
-import { temaV2Activo } from '@/lib/temaV2'
+import { Aviso, Badge, Button, Card, EmptyState, Input, MoneyInput, Select, Skeleton, Stat, useToast } from '@/components/ui'
+import StatGrid from '@/components/shared/StatGrid'
 import PagosPedido from '@/components/ventas/PagosPedido'
 import { leerUltimo, recordarUltimo } from '@/lib/ultimoUsado'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { CLAVES_FIN, filtrosConciliacionValidos, rangoDePreset } from '@/lib/finUltimoUsado'
 import { cn } from '@/lib/utils'
-import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import ListaDensa from '@/components/shared/ListaDensa'
 import Toolbar from '@/components/shared/Toolbar'
 import { usePaginaLista } from '@/components/shared/usePaginaLista'
@@ -45,53 +45,26 @@ const rangoPorDefecto = () => ({ ...PRESETS.find((preset) => preset.id === '30d'
 const GRID_GRUPOS = 'conciliacion-f5-group-grid'
 const GRID_ITEMS = 'conciliacion-f5-payment-grid'
 
-function Resumen({ resumen }) {
-  // Flat summary strip; values and progress retain their original source.
-  const v2 = temaV2Activo()
-  // Los contadores llegan con la carga: sin el resumen completo, los textos
-  // mostraban "undefined" (hallazgo de la captura). Acá se normalizan a 0.
+function Resumen({ resumen, alcance }) {
+  // #388: tira de UNA línea («etiqueta + cifra»), sin subtextos que repiten el
+  // conteo. El alcance (período, filtros, sin sucursal) va como tooltip/descripción
+  // de la tira en vez de un párrafo propio; el nombre accesible es corto para no
+  // chocar con los filtros «Estado»/«Procesadora» al buscarlos por etiqueta; el avance es una celda más.
   const n = (valor) => Number(valor || 0)
-  const tarjetas = [
-    { label: 'Ingresos conciliables', valor: n(resumen.confirmedPyg), sub: `${n(resumen.count)} pago(s) · ${gs(n(resumen.pendingPyg))} por conciliar`, tono: '' },
-    { label: 'Conciliado', valor: n(resumen.verifiedPyg), sub: `${n(resumen.verifiedCount)} pago(s) conciliado(s)`, tono: 'text-ok' },
-    { label: 'Por conciliar', valor: n(resumen.unverifiedPyg), sub: `${n(resumen.pendingCount)} pago(s) por conciliar`, tono: n(resumen.unverifiedPyg) > 0 ? 'text-warn' : '' },
-    { label: 'Diferencia de lotes', valor: n(resumen.differencePyg), sub: `${n(resumen.lotes)} lote(s) en el período`, tono: n(resumen.differencePyg) ? 'text-bad' : '' },
-  ]
+  const gsCompleto = (valor) => {
+    const { signo, simbolo, digitos } = partesGs(valor || 0)
+    return `${signo}${simbolo} ${digitos}`
+  }
   return (
-    <div className="conciliacion-f5-summary" data-testid="conciliacion-resumen">
-      {tarjetas.map((tarjeta) => (
-        <div key={tarjeta.label} className="conciliacion-f5-kpi">
-          <p className={ROTULO_DATO}>{tarjeta.label}</p>
-          <strong
-            className={cn('block tabular-nums', v2 && 'v2-numero', tarjeta.tono)}
-          >
-            <span className="conciliacion-f5-currency">{partesGs(tarjeta.valor || 0).signo}{partesGs(tarjeta.valor || 0).simbolo} </span>
-            <span className="conciliacion-f5-digits">{partesGs(tarjeta.valor || 0).digitos}</span>
-          </strong>
-          <p className="text-xs leading-4 text-mute">{tarjeta.sub}</p>
-        </div>
-      ))}
-      {v2 && n(resumen.count) > 0 && (
-        <div className="conciliacion-f5-progress">
-          <div className="flex items-center justify-between text-[11px] text-mute">
-            <span>
-              Conciliado {n(resumen.verifiedCount)} de {n(resumen.count)} pagos del período
-            </span>
-            <span>
-              {n(resumen.pendingCount) > 0 ? `Faltan ${n(resumen.pendingCount)}` : 'Al día'}
-            </span>
-          </div>
-          <BarraProgreso
-            className="mt-1"
-            valor={n(resumen.verifiedCount)}
-            max={n(resumen.count)}
-            tono={n(resumen.pendingCount) > 0 ? 'warn' : 'ok'}
-            alto="sm"
-            etiqueta={`Conciliación: ${n(resumen.verifiedCount)} de ${n(resumen.count)} pagos`}
-          />
-        </div>
+    <StatGrid testId="conciliacion-resumen" etiqueta="Resumen de conciliación" title={alcance}>
+      <Stat compact label="Ingresos conciliables" valor={gsCompleto(n(resumen.confirmedPyg))} sub={`${n(resumen.count)} pago(s)`} />
+      <Stat compact label="Conciliado" valor={gsCompleto(n(resumen.verifiedPyg))} valorClassName="text-ok" />
+      <Stat compact label="Por conciliar" valor={gsCompleto(n(resumen.unverifiedPyg))} valorClassName={n(resumen.unverifiedPyg) > 0 ? 'text-warn' : ''} />
+      <Stat compact label="Diferencia de lotes" valor={gsCompleto(n(resumen.differencePyg))} valorClassName={n(resumen.differencePyg) ? 'text-bad' : ''} sub={n(resumen.lotes) ? `${n(resumen.lotes)} lote(s)` : undefined} />
+      {n(resumen.count) > 0 && (
+        <Stat compact testId="conciliacion-avance" label="Avance" valor={`${n(resumen.verifiedCount)} de ${n(resumen.count)}`} sub={n(resumen.pendingCount) > 0 ? `Faltan ${n(resumen.pendingCount)}` : 'Al día'} valorClassName={n(resumen.pendingCount) > 0 ? 'text-warn' : 'text-ok'} />
       )}
-    </div>
+    </StatGrid>
   )
 }
 
@@ -368,38 +341,37 @@ export default function Conciliacion() {
   return (
     <div className="conciliacion-f5 finanzas-tactil space-y-3">
       <Card className="conciliacion-f5-panel space-y-3">
-        <div>
-          <p className="text-sm text-mute">Comparación de pagos y depósitos: esperado, recibido y diferencia.</p>
-          {esDemo && <p className="mt-1 text-xs text-fono-light">Demo: cobros y cuentas ficticios; lotes solo en este navegador.</p>}
-        </div>
-        <div className="conciliacion-f5-filters">
-          <div className="text-xs text-mute">
-            <p className="mb-1">Período</p>
-            <RangoFechas valor={rango} onChange={cambiarRango} className="[&>button]:h-11 md:[&>button]:h-9" />
-          </div>
-          <label className="text-xs text-mute">Cuenta
-            <Select className="mt-1" title="Se recuerda tu último filtro" value={filtros.accountId} onChange={(event) => cambiarFiltro('accountId', event.target.value)}>
-              <option value="">Todas</option>
-              {(data?.porCuenta || []).filter((fila) => !fila.key.startsWith('metodo:')).map((fila) => <option key={fila.key} value={fila.key}>{fila.label}</option>)}
-            </Select>
-          </label>
-          <label className="text-xs text-mute">Medio
-            <Select className="mt-1" title="Se recuerda tu último filtro" value={filtros.method} onChange={(event) => cambiarFiltro('method', event.target.value)}>
-              <option value="">Todos</option>
-              {(data?.porMedio || []).map((fila) => <option key={fila.key} value={fila.key}>{medioDe(fila.key)}</option>)}
-            </Select>
-          </label>
-          <label className="text-xs text-mute">Procesadora
-            <Select className="mt-1" title="Se recuerda tu último filtro" value={filtros.processor} onChange={(event) => cambiarFiltro('processor', event.target.value)}>
-              <option value="">Todas</option>
-              {(data?.porProcesadora || []).map((fila) => <option key={fila.key} value={fila.key}>{fila.label}</option>)}
-            </Select>
-          </label>
-        </div>
-        <p className="text-xs text-mute" data-testid="conciliacion-summary-scope">
-          Resumen {rango.desde}–{rango.hasta} · según cuenta, medio y procesadora. Esta consulta no envía sucursal; el estado no cambia el resumen.
-        </p>
-        <Resumen resumen={data?.resumen || {}} />
+        <Toolbar
+          plano
+          lista
+          scrollFiltros={false}
+          etiquetaBoton="Filtrar conciliación"
+          etiquetaOrden="Filtrar por"
+          label="Filtros del período"
+          testId="conciliacion-filtros"
+          filters={<RangoFechas valor={rango} onChange={cambiarRango} className="[&>button]:h-11 md:[&>button]:h-9" />}
+          sort={(
+            <>
+              <Select className="w-auto max-w-[14rem]" aria-label="Cuenta" title="Se recuerda tu último filtro" value={filtros.accountId} onChange={(event) => cambiarFiltro('accountId', event.target.value)}>
+                <option value="">Todas las cuentas</option>
+                {(data?.porCuenta || []).filter((fila) => !fila.key.startsWith('metodo:')).map((fila) => <option key={fila.key} value={fila.key}>{fila.label}</option>)}
+              </Select>
+              <Select className="w-auto max-w-[14rem]" aria-label="Medio" title="Se recuerda tu último filtro" value={filtros.method} onChange={(event) => cambiarFiltro('method', event.target.value)}>
+                <option value="">Todos los medios</option>
+                {(data?.porMedio || []).map((fila) => <option key={fila.key} value={fila.key}>{medioDe(fila.key)}</option>)}
+              </Select>
+              <Select className="w-auto max-w-[14rem]" aria-label="Procesadora" title="Se recuerda tu último filtro" value={filtros.processor} onChange={(event) => cambiarFiltro('processor', event.target.value)}>
+                <option value="">Todas las procesadoras</option>
+                {(data?.porProcesadora || []).map((fila) => <option key={fila.key} value={fila.key}>{fila.label}</option>)}
+              </Select>
+            </>
+          )}
+          more={esDemo ? <span data-testid="conciliacion-demo" className="inline-flex min-h-7 max-w-full items-center truncate rounded-full border border-ink-600 bg-ink-800 px-2.5 text-xs text-mute">Demo: cobros y cuentas ficticios; lotes solo en este navegador.</span> : undefined}
+        />
+        <Resumen
+          resumen={data?.resumen || {}}
+          alcance={`Resumen ${rango.desde}–${rango.hasta} · según cuenta, medio y procesadora. Esta consulta no envía sucursal; el estado no cambia el resumen.`}
+        />
         {error && <Aviso tono="error">{error}</Aviso>}
       </Card>
 
@@ -445,8 +417,6 @@ export default function Conciliacion() {
         <p className="text-xs text-mute" data-testid="conciliacion-list-scope">
           {filtrados.length === 1 ? '1 pago' : `${filtrados.length} pagos`}{estado ? ` · ${ETIQUETAS[estado]?.label || estado}` : ''}. El estado solo filtra esta lista.
         </p>
-        <p className="text-[11px] text-mute" data-testid="conciliacion-seleccion-nota">La selección se mantiene al cambiar de página.</p>
-        <h3 className="text-sm font-semibold">Pagos del período</h3>
         <Toolbar
           plano
           label="Filtros de pagos"

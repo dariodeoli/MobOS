@@ -1,4 +1,5 @@
 import { prisma } from '../../../../../lib/prisma'
+import { canSeeSupplierName, redactAuditMetadata } from '../../../../../lib/cost-visibility'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import {
@@ -185,7 +186,7 @@ export async function GET(request: Request, { params }: RouteContext) {
 
   const events = [
     ...auditEvents.map(event => {
-      const { label, detail } = detalleDeEvento(event.action, event.metadata, locaciones)
+      const { label, detail } = detalleDeEvento(event.action, redactAuditMetadata(event.metadata, true, canSeeSupplierName(session.user.role)), locaciones)
       return {
         id: event.id,
         type: 'audit' as const,

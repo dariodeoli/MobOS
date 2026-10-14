@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PresenciaPedido from './PresenciaPedido'
 import RecordHeader from '@/components/app/RecordHeader'
-import { Aviso, Badge, Button, ConfirmDialog, Drawer, Input, Modal, Money, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, ConfirmDialog, Input, Modal, Money, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { descargarArchivo } from '@/utils/descargarArchivo'
 import Icon from '@/components/shared/Icon'
@@ -802,8 +803,8 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   }
 
   return (
-    <Drawer open onClose={onClose} title={codigoPedido(order.orderNumber || order.number) || 'Pedido'} className="ventas-f3 ventas-f3-detail w-full sm:max-w-2xl">
+    <VentanaDetalle open onClose={onClose} title={codigoPedido(order.orderNumber || order.number) || 'Pedido'} className="ventas-f3 ventas-f3-detail" size="lg">
       {cuerpo}
-    </Drawer>
+    </VentanaDetalle>
   )
 }

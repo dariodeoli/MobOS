@@ -3,6 +3,7 @@ import { error, json } from '../../../../../lib/http'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'
 import { buscarPorTokenPublico, hashTokenPublico } from '../../../../../lib/public-token'
 import { seguimientoDeEntrega } from '../../../../../lib/orders'
+import { COUNTABLE_PAYMENT_WHERE } from '../../../../../lib/payment-net'
 
 // Vitrina pública del cliente: una página de solo lectura por token donde ve
 // sus pedidos, su saldo a favor, sus puntos de fidelización y —si el enlace es
@@ -66,7 +67,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
         status: true,
         fulfillmentStatus: true,
         deliveryType: true,
-        payments: { where: { status: 'CONFIRMED' }, select: { amountPyg: true } },
+        payments: { where: { status: 'CONFIRMED', ...COUNTABLE_PAYMENT_WHERE }, select: { amountPyg: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: MAX_PEDIDOS,

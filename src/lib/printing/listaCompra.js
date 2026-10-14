@@ -8,6 +8,8 @@
 // nombre del producto ni la prioridad/origen de la necesidad: quien imprime
 // pasa `productos` (catálogo) y `necesidades` (el panel las tiene a mano). El
 // contrato y el pedido a INV están en docs/LISTA-COMPRA.md.
+import { siglaProveedor } from './ventaPapel.js'
+
 const texto = (valor) => String(valor ?? '').trim()
 
 export const PRIORIDADES_LISTA = Object.freeze({ BAJA: 'Baja', NORMAL: 'Normal', ALTA: 'Alta', URGENTE: 'Urgente' })
@@ -126,7 +128,7 @@ export function datosListaCompra(compra = {}, { productos = [], necesidades = []
     titulo: 'Lista de compra',
     code: texto(compra?.code),
     estado: ESTADOS_LISTA[estadoCompra] || estadoCompra,
-    proveedor: texto(compra?.supplierName || compra?.supplier?.name),
+    proveedor: siglaProveedor(compra?.supplierName || compra?.supplier?.name, compra?.supplierCode || compra?.supplier?.code),
     referencia: texto(compra?.reference),
     comprador: texto(comprador || compra?.createdBy?.name || compra?.buyerName),
     origen: texto(origen),

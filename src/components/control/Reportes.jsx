@@ -206,11 +206,15 @@ export default function Reportes() {
       <Card className="p-3">
         <Toolbar
           plano
+          lista
+          scrollFiltros={false}
+          etiquetaBoton="Tipo y agrupación"
+          etiquetaOrden="Reporte"
           label="Controles del reporte"
           testId="reportes-toolbar"
-          filters={(
+          filters={<RangoFechas valor={rango} onChange={cambiarRango} className="[&>button]:h-11 lg:[&>button]:h-9" />}
+          sort={(
             <>
-              <RangoFechas valor={rango} onChange={cambiarRango} className="[&>button]:h-11 lg:[&>button]:h-9" />
               <Select aria-label="Tipo de reporte" value={tipo} onChange={(e) => setTipo(e.target.value)} className="h-11 w-auto lg:h-9">
                 <option value="ventas">Ventas</option>
                 {puedeComisiones && <option value="comisiones">Comisiones por vendedor</option>}
@@ -224,22 +228,24 @@ export default function Reportes() {
                   ))}
                 </Select>
               )}
-              <Button variant="outline" className={BOTON_CONTROL} onClick={cargar} disabled={cargando}>
-                <Icon name="refresh" className={cargando ? 'animate-spin' : ''} />
-                {cargando ? 'Cargando…' : 'Actualizar'}
-              </Button>
             </>
           )}
           more={(
-            <Button variant="outline" className={BOTON_CONTROL} onClick={() => window.print()} disabled={!datos || !grupos.length}>
-              <Icon name="report" />
-              Imprimir
-            </Button>
+            <>
+              <Button variant="outline" title="Actualizar" className={cn(BOTON_CONTROL, 'max-sm:px-0')} onClick={cargar} disabled={cargando}>
+                <Icon name="refresh" className={cargando ? 'animate-spin' : ''} />
+                <span className="max-sm:sr-only">{cargando ? 'Cargando…' : 'Actualizar'}</span>
+              </Button>
+              <Button variant="outline" title="Imprimir" className={cn(BOTON_CONTROL, 'max-sm:px-0')} onClick={() => window.print()} disabled={!datos || !grupos.length}>
+                <Icon name="report" />
+                <span className="max-sm:sr-only">Imprimir</span>
+              </Button>
+            </>
           )}
           primary={(
-            <Button variant="outline" className={BOTON_CONTROL} onClick={exportar} disabled={exportando || (!datos && !datosComisiones)}>
+            <Button variant="outline" title="Exportar CSV" className={cn(BOTON_CONTROL, 'max-sm:px-0')} onClick={exportar} disabled={exportando || (!datos && !datosComisiones)}>
               <Icon name="download" />
-              {exportando ? 'Exportando…' : 'Exportar CSV'}
+              <span className="max-sm:sr-only">{exportando ? 'Exportando…' : 'Exportar CSV'}</span>
             </Button>
           )}
         />

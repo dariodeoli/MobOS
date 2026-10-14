@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button, Modal, Select, useResultado, useToast } from '@/components/ui'
+import { Button, Select, useResultado, useToast } from '@/components/ui'
+import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import Icon from '@/components/shared/Icon'
 import VistaPreviaPapel from '@/components/shared/VistaPreviaPapel'
 import CompartirImagen from '@/components/shared/CompartirImagen'
@@ -85,7 +86,7 @@ export default function ListaCompraModal({ compra, open, onClose }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={`Lista de compra · ${compra?.code || ''}`} size="amplio">
+    <VentanaDetalle open={open} onClose={onClose} title={`Lista de compra · ${compra?.code || ''}`} size="lg">
       <div className="space-y-3">
         <div className="flex flex-wrap items-end gap-3">
           <label className="block space-y-1 text-xs text-mute">
@@ -121,6 +122,6 @@ export default function ListaCompraModal({ compra, open, onClose }) {
         </p>
         <VistaPreviaPapel formato={formato} contenido={html} titulo="Vista previa de la lista de compra" />
       </div>
-    </Modal>
+    </VentanaDetalle>
   )
 }

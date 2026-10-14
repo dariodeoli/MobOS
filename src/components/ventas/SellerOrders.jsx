@@ -7,7 +7,8 @@ import { listVentas, productosById } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { codigoPedido, fechaLegible } from '@/utils/pedido'
 import { normalizarBusqueda } from '@/utils/cliente'
-import { Button, Drawer, EmptyState, MenuDesplegable } from '@/components/ui'
+import { Button, EmptyState, MenuDesplegable } from '@/components/ui'
+import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import { cn } from '@/lib/utils'
 import SerialTexto from '@/components/shared/SerialTexto'
 import { ultimos4 } from '@/utils/serial'
@@ -233,7 +234,7 @@ function VistaRapidaPedido({ row, onClose, onAbrir }) {
   const pagado = Number(row.paid || 0)
   const pendiente = Number(row.pending || 0)
   return (
-    <Drawer open onClose={onClose} title={codigoPedido(row.number) || 'Pedido'} className="ventas-f3 w-full sm:max-w-md">
+    <VentanaDetalle open onClose={onClose} title={codigoPedido(row.number) || 'Pedido'} className="ventas-f3">
       <div className="space-y-4" data-testid="pedido-vista-rapida">
         <div className="flex flex-wrap items-center gap-2">
           <BadgePago row={row} v2 />
@@ -259,7 +260,7 @@ function VistaRapidaPedido({ row, onClose, onAbrir }) {
           <Button type="button" onClick={onAbrir}>Ver pedido completo</Button>
         </div>
       </div>
-    </Drawer>
+    </VentanaDetalle>
   )
 }
 
@@ -408,6 +409,7 @@ export default function SellerOrders() {
       <SellerSection title="Pedidos">
         <Toolbar
           label="Acciones de Pedidos"
+          lista
           testId="barra-pedidos"
           className="ventas-f3-toolbar"
           plano
@@ -419,69 +421,61 @@ export default function SellerOrders() {
               onChange={event => setQuery(event.target.value)}
             />
           }
-          more={
-            <button
-              type="button"
-              onClick={data.refresh}
-              disabled={data.loading}
-              className="min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore lg:min-h-9"
-            >
-              Actualizar
-            </button>
+          filters={
+            <ChipsFiltro
+              className="min-w-0"
+              etiqueta="Estado de los pedidos"
+              opciones={FILTROS}
+              mas={FILTROS_MAS}
+              valor={filtro}
+              onChange={setFiltro}
+            />
+          }
+          sort={
+            <div data-testid="pedidos-orden" data-orden={orden.key} data-dir={orden.dir}>
+              <MenuDesplegable
+                alineacion="left"
+                ariaLabel="Ordenar pedidos"
+                trigger={
+                  <span className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-ink-500 px-3 text-xs font-semibold text-mute lg:min-h-9">
+                    Ordenar
+                    <Icon name="chevron" className="h-3.5 w-3.5" />
+                  </span>
+                }
+                items={[
+                  ...CAMPOS_ORDEN.map(([key, label]) => ({
+                    id: key,
+                    label,
+                    extra: orden.key === key ? <span aria-hidden="true">{orden.dir === 'asc' ? '↑' : '↓'}</span> : null,
+                    onClick: () => (orden.key === key ? null : ordenarPor(key)),
+                  })),
+                  { separador: true },
+                  { id: 'invertir', label: orden.dir === 'asc' ? 'Invertir: de mayor a menor' : 'Invertir: de menor a mayor', onClick: () => ordenarPor(orden.key) },
+                ]}
+              />
+            </div>
           }
           primary={
             <Button type="button" onClick={() => navigate('/pos')}>
               Nueva venta
             </Button>
           }
-        >
-          <ChipsFiltro
-            className="min-w-0"
-            etiqueta="Estado de los pedidos"
-            opciones={FILTROS}
-            mas={FILTROS_MAS}
-            valor={filtro}
-            onChange={setFiltro}
+        />
+        {v2 && rows.length > 0 && (
+          <ResumenMetricas
+            testId="resumen-pedidos"
+            items={[
+              { titulo: 'Activos', valor: resumen.activos, alcance: 'En pantalla' },
+              {
+                titulo: 'Por cobrar',
+                valor: gs(resumen.porCobrar),
+                alcance: 'En pantalla',
+                tono: resumen.porCobrar > 0 ? 'text-warn' : 'text-ok',
+              },
+              { titulo: 'En reparto', valor: resumen.enReparto, alcance: 'En pantalla' },
+            ]}
           />
-          <div data-testid="pedidos-orden" data-orden={orden.key} data-dir={orden.dir}>
-            <MenuDesplegable
-              alineacion="left"
-              ariaLabel="Ordenar pedidos"
-              trigger={
-                <span className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-ink-500 px-3 text-xs font-semibold text-mute lg:min-h-9">
-                  Ordenar
-                  <Icon name="chevron" className="h-3.5 w-3.5" />
-                </span>
-              }
-              items={[
-                ...CAMPOS_ORDEN.map(([key, label]) => ({
-                  id: key,
-                  label,
-                  extra: orden.key === key ? <span aria-hidden="true">{orden.dir === 'asc' ? '↑' : '↓'}</span> : null,
-                  onClick: () => (orden.key === key ? null : ordenarPor(key)),
-                })),
-                { separador: true },
-                { id: 'invertir', label: orden.dir === 'asc' ? 'Invertir: de mayor a menor' : 'Invertir: de menor a mayor', onClick: () => ordenarPor(orden.key) },
-              ]}
-            />
-          </div>
-          {v2 && rows.length > 0 && (
-            <ResumenMetricas
-              testId="resumen-pedidos"
-              className="ventas-f3-metrics ventas-f3-metrics-inline min-w-0 flex-1 basis-80"
-              items={[
-                { titulo: 'Activos', valor: resumen.activos, alcance: 'En pantalla' },
-                {
-                  titulo: 'Por cobrar',
-                  valor: gs(resumen.porCobrar),
-                  alcance: 'En pantalla',
-                  tono: resumen.porCobrar > 0 ? 'text-warn' : 'text-ok',
-                },
-                { titulo: 'En reparto', valor: resumen.enReparto, alcance: 'En pantalla' },
-              ]}
-            />
-          )}
-        </Toolbar>
+        )}
         <SellerFeedback {...data} empty={false} />
         {!data.loading && !data.error && !rows.length && (
           <EmptyState
