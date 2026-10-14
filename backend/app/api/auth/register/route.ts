@@ -7,6 +7,7 @@ import { COOKIE_COMPANY, sessionCookieOptions } from '../../../../lib/google-oau
 import { issueEmailVerification } from '../../../../lib/email-actions'
 import { logEmailOutcome } from '../../../../lib/email'
 import { validarClave } from '../../../../lib/validation'
+import { accountForTenantPassword } from '../../../../lib/membership'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -37,6 +38,8 @@ export async function POST(request: Request) {
       if (existing) throw new Error('EMAIL_EXISTS')
       const tenant = await tx.tenant.create({ data: { name: companyName, email, passwordHash, slug: `tienda-${randomBytes(16).toString('hex')}`, settings: { onboarding: { adminPinPending: true } } } })
       const admin = await tx.user.create({ data: { tenantId: tenant.id, name: 'Administrador', email, pinHash, role: 'ADMIN' } })
+      // Multi-empresa (#377): cuenta + pertenencia OWNER en la misma transacción.
+      await accountForTenantPassword(tx, { id: tenant.id, email })
       await tx.auditLog.create({ data: { tenantId: tenant.id, userId: admin.id, action: 'COMPANY_REGISTERED', entity: 'Tenant', entityId: tenant.id, metadata: authRequestMetadata(request) } })
       return tenant.id
     })

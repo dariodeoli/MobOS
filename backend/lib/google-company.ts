@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
 import { hashToken, requiresAdminPinSetup } from './auth'
+import { accountForGoogle, ensureMembership, hasActiveMembership, syncGoogleMemberships } from './membership'
 import { AuthFlowError, GoogleIdentity } from './google-oauth'
 
 export type GoogleStore = { id: string; name: string; slug: string }
@@ -26,6 +27,15 @@ export async function googleStores(subject: string): Promise<GoogleStore[]> {
   return accesses.map(access => ({ id: access.tenant.id, name: access.tenant.name, slug: access.tenant.slug }))
 }
 
+/** Cuenta Google con sus pertenencias al día; devuelve el id solo si la pertenencia a esa tienda sigue activa. */
+async function googleAccountFor(identity: GoogleIdentity, tenantId: string) {
+  return prisma.$transaction(async tx => {
+    const account = await accountForGoogle(tx, identity.sub)
+    await syncGoogleMemberships(tx, account.id, identity.sub, identity.email)
+    return (await hasActiveMembership(tx, account.id, tenantId)) ? account.id : null
+  })
+}
+
 export async function googleCompany(identity: GoogleIdentity, body: any): Promise<GoogleCompanyResult> {
   if (body?.action === 'create') {
     const input = onboardingInput(body)
@@ -45,6 +55,10 @@ export async function googleCompany(identity: GoogleIdentity, body: any): Promis
         const admin = await tx.user.create({ data: { tenantId: created.id, name: identity.name?.slice(0, 100) || 'Administrador', email: identity.email, pinHash, role: 'ADMIN' } })
         await tx.googleIdentity.upsert({ where: { subject: identity.sub }, update: { name: identity.name || null, picture: identity.picture || null }, create: { subject: identity.sub, name: identity.name || null, picture: identity.picture || null } })
         await tx.googleStoreAccess.create({ data: { subject: identity.sub, tenantId: created.id, owner: true } })
+        // Doble escritura (#377): la cuenta se identifica por el subject de Google,
+        // nunca por correo; el perfil vinculado es el ADMIN recién creado.
+        const account = await accountForGoogle(tx, identity.sub)
+        await ensureMembership(tx, { accountId: account.id, tenantId: created.id, userId: admin.id, role: 'OWNER' })
         await tx.auditLog.create({ data: { tenantId: created.id, userId: admin.id, action: 'GOOGLE_STORE_OWNER_CREATED', entity: 'GoogleStoreAccess', metadata: {} } })
         return created
       })
@@ -57,15 +71,23 @@ export async function googleCompany(identity: GoogleIdentity, body: any): Promis
     const stores = await googleStores(identity.sub)
     const token = randomBytes(32).toString('hex')
     const expiresAt = new Date(Date.now() + 7 * 86400_000)
-    await prisma.session.create({ data: { tenantId: tenant.id, level: 'COMPANY', tokenHash: hashToken(token), deviceId: `google:${randomBytes(16).toString('hex')}`, expiresAt } })
+    const accountId = await googleAccountFor(identity, tenant.id)
+    await prisma.session.create({ data: { tenantId: tenant.id, accountId, level: 'COMPANY', tokenHash: hashToken(token), deviceId: `google:${randomBytes(16).toString('hex')}`, expiresAt } })
     return { token, tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug }, stores, onboardingRequired: requiresAdminPinSetup(tenant.settings), expiresAt, newlyCreated: true }
   }
 
-  const accesses = await prisma.googleStoreAccess.findMany({
+  // Pertenencias al día (doble escritura) y sin las tiendas que la persona dejó.
+  await prisma.$transaction(async tx => {
+    const account = await accountForGoogle(tx, identity.sub)
+    await syncGoogleMemberships(tx, account.id, identity.sub, identity.email)
+  })
+  const revoked = await prisma.tenantMembership.findMany({ where: { account: { googleSubject: identity.sub }, revokedAt: { not: null } }, select: { tenantId: true } })
+  const revokedIds = new Set(revoked.map(row => row.tenantId))
+  const accesses = (await prisma.googleStoreAccess.findMany({
     where: { subject: identity.sub },
     include: { tenant: { select: { id: true, name: true, slug: true, settings: true } } },
     orderBy: { createdAt: 'asc' },
-  })
+  })).filter(access => !revokedIds.has(access.tenantId))
   let tenant = accesses.length === 1 ? accesses[0].tenant : null
   if (typeof body?.storeId === 'string' && body.storeId) {
     const chosen = accesses.find(access => access.tenantId === body.storeId)
@@ -93,6 +115,7 @@ export async function googleCompany(identity: GoogleIdentity, body: any): Promis
   if (archivadaAcceso?.archivedAt) throw new AuthFlowError('tenant_archived', 'Esta tienda está archivada. Escribinos para restaurarla.', 403)
   const token = randomBytes(32).toString('hex')
   const expiresAt = new Date(Date.now() + 7 * 86400_000)
-  await prisma.session.create({ data: { tenantId: tenant.id, level: 'COMPANY', tokenHash: hashToken(token), deviceId: `google:${randomBytes(16).toString('hex')}`, expiresAt } })
+  const accountId = await googleAccountFor(identity, tenant.id)
+  await prisma.session.create({ data: { tenantId: tenant.id, accountId, level: 'COMPANY', tokenHash: hashToken(token), deviceId: `google:${randomBytes(16).toString('hex')}`, expiresAt } })
   return { token, tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug }, stores: accesses.map(access => ({ id: access.tenant.id, name: access.tenant.name, slug: access.tenant.slug })), onboardingRequired: requiresAdminPinSetup(tenant.settings), expiresAt, newlyCreated: false }
 }

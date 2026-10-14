@@ -65,7 +65,7 @@ export default function Login() {
     // contraseña) se salta el correo y la contraseña: solo falta el PIN.
     const contexto = getCompanyContext()
     if (contexto?.cookieSession && contexto.tenant && (contexto.sellers || []).length) {
-      showCompany({ tenant: contexto.tenant, sellers: contexto.sellers, stores: contexto.stores || [] })
+      showCompany({ tenant: contexto.tenant, sellers: contexto.sellers, stores: contexto.stores || [], onboardingRequired: Boolean(contexto.onboardingRequired) })
     }
   }, [])
 
