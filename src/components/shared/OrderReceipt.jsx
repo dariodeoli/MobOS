@@ -324,7 +324,7 @@ const firmas = (bloques = [], { observaciones = false, lineasObservaciones = 2, 
 const header = (title, when, logo = '', marca = '', extra = {}) => {
   const lineas = (extra.lineas || []).filter(Boolean).map(linea => `<div class="sub">${escapeHtml(linea)}</div>`).join('')
   const identidad = extra.razon ? `<div class="rz">${escapeHtml(extra.razon)}</div>` : (!logo ? `<b>${escapeHtml(marca || APP_NAME)}</b>` : '')
-  return `<div class="brand"><div class="emp">${logo ? `<img class="logo" src="${logo}" alt="">` : ''}${identidad}${lineas}</div><div class="doc"><div class="tipo">${escapeHtml(title)}</div>${extra.numero ? `<div class="num">${escapeHtml(extra.numero)}</div>` : ''}${when ? `<div class="cuando">${escapeHtml(when)}</div>` : ''}</div></div>`
+  return `<div class="brand"><div class="emp">${logo ? `<img class="logo" src="${logo}" alt="">` : ''}${identidad}${lineas}</div><div class="doc"><h1 class="tipo">${escapeHtml(title)}</h1>${extra.numero ? `<div class="num">${escapeHtml(extra.numero)}</div>` : ''}${when ? `<div class="cuando">${escapeHtml(when)}</div>` : ''}</div></div>`
 }
 const footer = () => `<footer>Conservá este comprobante para cambios y garantía. Documento generado por ${escapeHtml(APP_NAME)}.</footer>`
 
@@ -467,7 +467,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
   const fila = (rotulo, valor, clase = '') => `<tr${clase ? ` class="${clase}"` : ''}><td>${escapeHtml(rotulo)}</td><td class="num">${valor}</td></tr>`
   const columnas = termico ? '' : '<thead><tr><th>Producto</th><th class="cant">Cant.</th><th class="num">Precio</th><th class="num">Total</th></tr></thead>'
 
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ${escapeHtml(order.orderNumber || order.codigo || '')}</title><style>${styles(format, acento)}</style></head><body>
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ${escapeHtml(order.orderNumber || order.codigo || '')}</title><style>${styles(format, acento)}</style></head><body class="${termico ? `rollo t${thermalWidth(format)}` : 'hoja a4'}">
     ${header('Comprobante de compra', cuando, logo, empresa, { razon: empresa || APP_NAME, numero: order.orderNumber || order.codigo || 'Pedido', lineas: lineasEmpresa })}
     <div class="cols">${clienteCard}${pedidoCard}</div>
     <table>${columnas}<tbody>${itemsRows || `<tr><td colspan="${termico ? 2 : 4}" class="muted">Sin artículos detallados.</td></tr>`}</tbody></table>
