@@ -6,7 +6,7 @@ import { gs } from '@/utils/calculos'
 import SerialField from '@/components/shared/SerialField'
 import { api } from '@/lib/api/client'
 import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
-import { decimal, FOREIGN } from '@/utils/pagoCuenta'
+import { cambiarCuentaPago, FOREIGN } from '@/utils/pagoCuenta'
 import { useEffect, useRef, useState } from 'react'
 import Icon from '@/components/shared/Icon'
 
@@ -36,28 +36,32 @@ export default function PaymentAccountFields({ payment, accounts, onChange, pend
     if (account?.currency !== 'USD' || Number(payment.exchangeRatePyg) > 0) return undefined
     let vivo = true
     cotizacionReferencial().then((rate) => {
-      if (vivo && rate > 0) onChangeRef.current({ exchangeRatePyg: String(rate), automatico: true })
+      if (vivo && rate > 0) {
+        const proponer = proponerAlLlegarCotizacion.current && String(montoRef.current || '') === '' && pendienteRef.current > 0
+        proponerAlLlegarCotizacion.current = false
+        onChangeRef.current({
+          exchangeRatePyg: String(rate),
+          automatico: true,
+          ...(proponer ? { originalAmount: (pendienteRef.current / rate).toFixed(2).replace('.', ',') } : {}),
+        })
+      }
     })
     return () => { vivo = false }
   }, [account?.currency, payment.exchangeRatePyg])
   const [cambiando, setCambiando] = useState(false)
+  const proponerAlLlegarCotizacion = useRef(false)
+  const pendienteRef = useRef(pendientePyg)
+  const montoRef = useRef(payment.originalAmount)
+  useEffect(() => { pendienteRef.current = pendientePyg; montoRef.current = payment.originalAmount })
   const extranjera = FOREIGN(account?.currency)
   function elegir(accountId) {
     // Al elegir la cuenta se propone el saldo que falta, en la moneda de la
     // cuenta (así «dividir el pago» sale con un clic). Si ya había un monto
     // en la misma moneda (cambio de cuenta en el lugar), se conserva.
-    const elegida = accounts.find((a) => a.id === accountId)
-    const esPyg = !elegida || elegida.currency === 'PYG'
-    const rate = esPyg ? 1 : decimal(payment.exchangeRatePyg)
-    const mismaMoneda = account && elegida && account.currency === elegida.currency
-    const conservar = mismaMoneda && String(payment.originalAmount || '') !== ''
-    const propuesto = conservar
-      ? payment.originalAmount
-      : pendientePyg > 0 && rate > 0
-        ? (esPyg ? String(Math.round(pendientePyg)) : (pendientePyg / rate).toFixed(2).replace('.', ','))
-        : ''
+    const { cambio, proponerAlLlegarCotizacion: proponer } = cambiarCuentaPago(payment, accounts, accountId, pendientePyg)
+    proponerAlLlegarCotizacion.current = proponer
     setCambiando(false)
-    onChange({ accountId, originalAmount: propuesto, exchangeRatePyg: payment.exchangeRatePyg, tradeIn: undefined })
+    onChange(cambio)
   }
   // `grid-cols-1` explícito: en mobile la pista implícita es `auto` y el texto
   // largo de la cápsula ensancharía la tarjeta (el `w-full` del monto quedaba
