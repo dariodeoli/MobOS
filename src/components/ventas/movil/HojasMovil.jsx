@@ -144,6 +144,8 @@ export function HojaNota({ open, onClose, f, setF }) {
 export function HojaSinStock({ open, onClose, pendientes, permiso, onVenderIgual, onElegirUnidad }) {
   const { sinStock, conImei, puedeVenderIgual } = clasificarPendientes(pendientes, permiso)
   const total = pendientes.length
+  // Equipos con IMEI y ninguna unidad disponible: no hay nada que elegir ni vender.
+  const sinUnidades = conImei.filter(p => !(p.unidades > 0))
   return (
     <BottomSheet
       open={open}
@@ -158,7 +160,7 @@ export function HojaSinStock({ open, onClose, pendientes, permiso, onVenderIgual
             </Button>
           )}
           <Button type="button" variant="outline" data-testid="sin-stock-volver" className="min-h-12 w-full" onClick={onClose}>
-            Volver al carrito
+            Volver
           </Button>
         </div>
       }
@@ -169,7 +171,9 @@ export function HojaSinStock({ open, onClose, pendientes, permiso, onVenderIgual
             <p className="truncate text-sm font-bold">{p.nombre}</p>
             <p className="text-xs text-mute">
               {p.motivo === 'imei'
-                ? 'Equipo con IMEI: elegí la unidad exacta antes de cobrar.'
+                ? p.unidades > 0
+                  ? 'Equipo con IMEI: elegí la unidad exacta antes de cobrar.'
+                  : 'No hay unidades disponibles de este equipo. Quitalo del carrito para cobrar.'
                 : `Pedís más de lo que hay${p.stock != null ? ` (stock ${p.stock})` : ''}.`}
             </p>
             {p.motivo === 'imei' && p.unidades > 0 && (
@@ -180,11 +184,8 @@ export function HojaSinStock({ open, onClose, pendientes, permiso, onVenderIgual
           </li>
         ))}
       </ul>
-      {conImei.length > 0 && (
+      {conImei.length > sinUnidades.length && (
         <p className="mt-3 text-xs text-mute">Los equipos con IMEI no se pueden vender sin elegir la unidad.</p>
-      )}
-      {sinStock.length > 0 && !permiso && (
-        <p className="mt-3 text-xs text-mute">Vender sin stock necesita permiso de gerencia. Podés quitar el artículo o pedirle a un gerente que lo autorice.</p>
       )}
     </BottomSheet>
   )
@@ -205,7 +206,7 @@ export function HojaExito({ open, onClose, titulo, total, vuelto, whatsapp, onIm
       <div className="space-y-4">
         <div className="space-y-2 rounded-2xl border border-ok/35 bg-ok/[.06] px-4 py-6 text-center">
           <CheckAnimado size={48} className="mx-auto" />
-          <p className="text-lg font-extrabold">{titulo}</p>
+          {titulo && <p className="text-lg font-extrabold">{titulo}</p>}
           {total > 0 && <p className="v2-numero text-2xl font-extrabold tabular-nums" data-testid="exito-total">{gs(total)}</p>}
           {esDemo && <p className="text-xs font-semibold text-mute">Modo demo: la venta queda guardada solo en este navegador.</p>}
         </div>

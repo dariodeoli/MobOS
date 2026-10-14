@@ -4,11 +4,14 @@ import {
   clasificarPendientes,
   cuentasRapidas,
   etiquetaConfirmar,
+  montoDeFila,
   montoDeTeclado,
   pagoDeMedio,
+  pagoReal,
   puedeVenderIgual,
   textoArticulos,
   tituloPago,
+  vueltoDePagos,
   vueltoEfectivo,
 } from './posMovil.js'
 
@@ -81,4 +84,43 @@ test('el botón de guardar dice qué se crea según lo cobrado', () => {
   assert.equal(etiquetaConfirmar({ ...base, venderACredito: true }), 'Crear pedido a crédito')
   assert.equal(etiquetaConfirmar({ ...base, valido: false }), 'Guardar pedido')
   assert.equal(etiquetaConfirmar({ ...base, guardando: true }), 'Guardando venta…')
+})
+
+test('el vuelto sale de los pagos en efectivo y se acumula, aunque otro pago cierre la venta', () => {
+  const efectivo = pagoDeMedio(cuentas[0], 60000, 100000)
+  const tarjeta = pagoDeMedio(cuentas[1], 40000)
+  assert.equal(efectivo.recibido, 100000)
+  assert.equal(vueltoDePagos([efectivo, tarjeta]), 40000)
+  assert.equal(vueltoDePagos([tarjeta, efectivo]), 40000)
+  // Dos efectivos suman sus vueltos.
+  assert.equal(vueltoDePagos([efectivo, pagoDeMedio(cuentas[0], 10000, 20000)]), 50000)
+})
+
+test('sin efectivo, sin pagos o con el pago quitado no hay vuelto', () => {
+  const efectivo = pagoDeMedio(cuentas[0], 60000, 100000)
+  assert.equal(vueltoDePagos([pagoDeMedio(cuentas[1], 100000)]), 0)
+  assert.equal(vueltoDePagos([]), 0)
+  assert.equal(vueltoDePagos(undefined), 0)
+  assert.equal(vueltoDePagos([pagoDeMedio(cuentas[1], 60000)]), 0) // el efectivo se quitó
+  assert.equal(pagoDeMedio(cuentas[0], 60000, 60000).recibido, 60000)
+  assert.equal(vueltoDePagos([pagoDeMedio(cuentas[0], 60000, 60000)]), 0)
+  // «No pagado» no entrega vuelto y un monto editado invalida el vuelto viejo.
+  assert.equal(vueltoDePagos([{ ...efectivo, noPagado: true }]), 0)
+  assert.equal(vueltoDePagos([{ ...efectivo, monto: '70000' }]), 0)
+})
+
+test('una fila vacía (USD sin cotización ni importe) no cuenta como pago', () => {
+  assert.equal(pagoReal({ accountId: 'x', monto: '' }), false)
+  assert.equal(pagoReal({ monto: '0' }), false)
+  assert.equal(pagoReal(undefined), false)
+  assert.equal(pagoReal({ monto: '60.000' }), true)
+  assert.equal(montoDeFila({ monto: '60.000' }), 60000)
+  assert.equal(montoDeFila({}), 0)
+})
+
+test('«Vender igual» ya no depende de un permiso extra: mismas reglas que «Sobre pedido»', () => {
+  assert.equal(puedeVenderIgual({ permiso: true, motivo: 'stock' }), true)
+  assert.equal(puedeVenderIgual({ permiso: true, motivo: 'imei' }), false)
+  const c = clasificarPendientes([{ motivo: 'stock' }, { motivo: 'imei', unidades: 0 }], true)
+  assert.equal(c.puedeVenderIgual, false)
 })

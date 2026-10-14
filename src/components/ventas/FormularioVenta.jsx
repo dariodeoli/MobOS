@@ -75,6 +75,7 @@ import { useMediaQuery } from '@/components/shared/useMediaQuery'
 import { AccionesInicio, BarraCarrito } from './movil/InicioMovil'
 import { HojaCarrito, HojaCliente, HojaEnvio, HojaExito, HojaNota, HojaSinStock } from './movil/HojasMovil'
 import CobroMovil from './movil/CobroMovil'
+import { vueltoDePagos } from './movil/posMovil'
 import { CONSULTA_MOVIL, etiquetaConfirmar } from './movil/posMovil'
 
 // Recuerda el último vendedor elegido en esta compu, para no re-seleccionarlo
@@ -304,7 +305,8 @@ export default function FormularioVenta({
   const esMovilRef = useRef(esMovil)
   esMovilRef.current = esMovil
   const [hoja, setHoja] = useState(null) // carrito | cliente | envio | nota | sinstock | cobro | exito
-  const [vueltoMovil, setVueltoMovil] = useState(0)
+  // Vuelto de la venta recién confirmada (se congela al guardar; los pagos se vacían).
+  const [vueltoExito, setVueltoExito] = useState(0)
   const puedeDescontar = esDemo || ['dueno', 'GERENTE'].includes(sesion?.rol)
   const productos = getProductos().filter(p => p.activo)
   const familias = agruparProductos(productos)
@@ -1397,6 +1399,7 @@ export default function FormularioVenta({
       setItems([])
       setDescuento('')
       setAuthDescuento(null)
+      setVueltoExito(vueltoDePagos(pagos))
       setPagos([])
       setPagaAlRecibir(false)
       setVenderACredito(false)
@@ -1440,6 +1443,7 @@ export default function FormularioVenta({
           setItems([])
           setDescuento('')
           setAuthDescuento(null)
+          setVueltoExito(0)
           setPagos([])
           setPagaAlRecibir(false)
           setVenderACredito(false)
@@ -1585,6 +1589,7 @@ export default function FormularioVenta({
     setItems([])
     setDescuento('')
     setPagos([])
+    setVueltoExito(0)
     setPagaAlRecibir(false)
     setAuthDescuento(null)
     setAuthPrecio(null)
@@ -1906,7 +1911,8 @@ export default function FormularioVenta({
     elementosPos[nombre] = elemento
     return esMovil ? null : elemento
   }
-  const puedeVenderSinStock = esDemo || puedeGestionarSuspendidas
+  // Mismo criterio que «Sobre pedido» del cobro de escritorio: cualquier vendedor.
+  const puedeVenderSinStock = true
   const pendientesMovil = pendientesVenta.map(p => ({
     ...p,
     stock: num(productos.find(prod => prod.id === items.find(it => it.key === p.key)?.productoId)?.stock),
@@ -2056,6 +2062,8 @@ export default function FormularioVenta({
           const target = event.target
           if (!(target instanceof HTMLElement)) return
           if (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON' || target.tagName === 'SELECT' || target.tagName === 'A') return
+          // Celular: Enter en un campo nunca guarda la venta; solo el botón explícito.
+          if (esMovilRef.current && target.tagName === 'INPUT') event.preventDefault()
         }}
         className="pos-f2 flex flex-col gap-4"
       >
@@ -2280,22 +2288,19 @@ export default function FormularioVenta({
                 motivos={motivosBloqueo}
                 errorVenta={errorVenta}
                 etiquetaConfirmar={etiquetaConfirmarMovil}
-                detalleConfirmar={totalGeneral > 0 ? gs(totalGeneral) : ''}
-                onVuelto={setVueltoMovil}
-                vuelto={vueltoMovil}
                 completo={totalGeneral > 0 && totalPagado >= totalGeneral}
                 masContenido={elementosPos.cobro && cloneElement(elementosPos.cobro, { modoMovil: true })}
               />
             )}
             <HojaExito
               open={hoja === 'exito' && Boolean(lastOrder)}
-              onClose={() => { setHoja(null); setVueltoMovil(0) }}
-              titulo={lastOrder?.orderNumber ? `Pedido ${codigoPedido(lastOrder.orderNumber)} creado` : 'Venta registrada'}
+              onClose={() => { setHoja(null); setVueltoExito(0) }}
+              titulo={lastOrder?.orderNumber ? `Pedido ${codigoPedido(lastOrder.orderNumber)} creado` : ''}
               total={Number(lastOrder?.totalPyg) || 0}
-              vuelto={vueltoMovil}
+              vuelto={vueltoExito}
               whatsapp={lastOrder ? whatsappTrackingLink(lastOrder) : ''}
               onImprimir={() => { toast.info('Comprobante abierto', 'Revisalo y confirmá la impresión.'); setComprobante(true) }}
-              onVerPedido={() => { setHoja(null); navigate(`/pedidos/${encodeURIComponent(lastOrder.id)}`) }}
+              onVerPedido={() => { setHoja(null); setVueltoExito(0); navigate(`/pedidos/${encodeURIComponent(lastOrder.id)}`) }}
               esDemo={esDemo}
             />
           </>

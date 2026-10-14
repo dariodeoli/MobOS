@@ -46,6 +46,9 @@ const captura = async (page, path) => {
   await page.screenshot({ path })
 }
 
+// El cobro ignora toques en los 350 ms siguientes a un cambio de paso (doble toque).
+const pausaPaso = page => page.waitForTimeout(420)
+
 const sinScrollHorizontal = async (page, ancho) =>
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(ancho)
 
@@ -113,6 +116,7 @@ for (const width of [360, 390]) {
     await cobro.getByTestId('teclado-aceptar').click()
     await cobro.getByTestId('medio-demo-transfer-itau').click()
     await expect(cobro.getByTestId('cobro-cuenta')).toContainText('Marcar como pagado')
+    await pausaPaso(page)
     await cobro.getByTestId('cuenta-marcar-pagado').click()
 
     // Segundo pago: saldo y efectivo con «Otro monto» → vuelto.
@@ -121,9 +125,11 @@ for (const width of [360, 390]) {
     await expect(cobro.getByTestId('cobro-total-grande')).toContainText(`Gs ${saldo.toLocaleString('es-PY')}`)
     await cobro.getByTestId('medio-demo-cash-pyg').click()
     await expect(cobro.getByTestId('cobro-recibido')).toBeVisible()
+    await pausaPaso(page)
     await cobro.getByTestId('recibido-otro').click()
     const recibido = Math.ceil(saldo / 100000) * 100000 + 100000
     for (const d of String(recibido)) await cobro.getByRole('button', { name: `Agregar ${d}`, exact: true }).click()
+    await pausaPaso(page)
     await cobro.getByTestId('teclado-aceptar').click()
 
     // Confirmación: banner verde de vuelto.
@@ -131,6 +137,7 @@ for (const width of [360, 390]) {
     await expect(cobro.getByTestId('cobro-vuelto')).toContainText(`Vuelto: Gs ${vuelto.toLocaleString('es-PY')}`)
     await expect(cobro.getByTestId('confirmar-pagado')).toContainText(`Gs ${prod.precio.toLocaleString('es-PY')}`)
     await sinScrollHorizontal(page, width)
+    await pausaPaso(page)
     await cobro.getByTestId('cobro-confirmar-venta').click()
 
     // Confirmación posterior: vuelto, recibo y «Listo».
@@ -161,6 +168,7 @@ test('celular 390: Esc cierra la hoja y el cobro en efectivo exacto no genera vu
   await page.getByTestId('carrito-cobrar').click()
   const cobro = page.getByTestId('cobro-movil')
   await cobro.getByTestId('medio-demo-cash-pyg').click()
+  await pausaPaso(page)
   await cobro.getByTestId('recibido-exacto').click()
   await expect(cobro.getByTestId('cobro-confirmar')).toBeVisible()
   await expect(cobro.getByTestId('cobro-vuelto')).toHaveCount(0)
@@ -216,7 +224,7 @@ test('celular 390: producto sin stock → hoja «El artículo no tiene stock» y
   const hoja = page.getByTestId('hoja-sin-stock')
   await expect(hoja).toBeVisible()
   await expect(hoja.getByRole('heading', { name: 'El artículo no tiene stock' })).toBeVisible()
-  await expect(hoja.getByTestId('sin-stock-volver')).toBeVisible()
+  await expect(hoja.getByTestId('sin-stock-volver')).toHaveText('Volver')
   await hoja.getByTestId('sin-stock-vender-igual').click()
   await expect(page.getByTestId('cobro-movil')).toBeVisible()
 })
@@ -247,6 +255,155 @@ test('celular 390: «Agregar cliente» abre la ficha en una hoja y el mosaico mu
   await hoja.getByRole('button', { name: 'Listo' }).click()
   await expect(hoja).toHaveCount(0)
   await expect(page.getByTestId('accion-cliente')).toContainText('Cliente')
+})
+
+// Abre el cobro con un producto simple y devuelve el cobro y el precio.
+async function abrirCobro(page, width = 390) {
+  await enterPos(page, width)
+  const prod = await productoSimple(page)
+  expect(prod, 'el demo tiene un producto simple con stock').not.toBeNull()
+  await agregar(page, prod.nombre)
+  await page.getByTestId('pos-barra-carrito-abrir').click()
+  await page.getByTestId('carrito-cobrar').click()
+  const cobro = page.getByTestId('cobro-movil')
+  await expect(cobro).toBeVisible()
+  return { cobro, prod }
+}
+
+async function teclear(cobro, monto) {
+  for (const d of String(monto)) await cobro.getByRole('button', { name: `Agregar ${d}`, exact: true }).click()
+}
+
+test('celular 390: efectivo con vuelto + transferencia por el resto conserva el vuelto hasta la hoja de éxito', async ({ page }) => {
+  const { cobro, prod } = await abrirCobro(page)
+  const efectivo = Math.floor(prod.precio * 0.6 / 1000) * 1000
+  const recibido = Math.ceil(efectivo / 100000) * 100000 + 100000
+  const vuelto = recibido - efectivo
+  // Efectivo por un monto parcial, recibiendo más.
+  await cobro.getByTestId('cobro-dividir').click()
+  await teclear(cobro, efectivo)
+  await cobro.getByTestId('teclado-aceptar').click()
+  await cobro.getByTestId('medio-demo-cash-pyg').click()
+  await pausaPaso(page)
+  await cobro.getByTestId('recibido-otro').click()
+  await teclear(cobro, recibido)
+  await pausaPaso(page)
+  await cobro.getByTestId('teclado-aceptar').click()
+  // Resto por transferencia: el pago nuevo no pisa el vuelto del efectivo.
+  await expect(cobro.getByRole('heading', { name: 'Segundo pago' })).toBeVisible()
+  await cobro.getByTestId('medio-demo-transfer-itau').click()
+  await pausaPaso(page)
+  await cobro.getByTestId('cuenta-marcar-pagado').click()
+  await expect(cobro.getByTestId('cobro-vuelto')).toContainText(`Gs ${vuelto.toLocaleString('es-PY')}`)
+  // Total una sola vez y un solo importe en la confirmación.
+  await expect(cobro.getByTestId('cobro-confirmar-venta')).not.toContainText('Gs')
+  await pausaPaso(page)
+  await cobro.getByTestId('cobro-confirmar-venta').click()
+  const exito = page.getByTestId('hoja-exito')
+  await expect(exito.getByTestId('exito-vuelto')).toContainText(`Gs ${vuelto.toLocaleString('es-PY')}`)
+})
+
+test('celular 390: doble toque en «Efectivo» y en la cuenta no registra un pago sin querer', async ({ page }) => {
+  const { cobro, prod } = await abrirCobro(page)
+  // Doble toque rápido en «Efectivo»: el segundo cae sobre «monto exacto» y se ignora.
+  await pausaPaso(page)
+  const efectivo = await cobro.getByTestId('medio-demo-cash-pyg').boundingBox()
+  await page.mouse.click(efectivo.x + efectivo.width / 2, efectivo.y + efectivo.height / 2)
+  await page.mouse.click(efectivo.x + efectivo.width / 2, efectivo.y + efectivo.height / 2)
+  await expect(cobro.getByTestId('cobro-recibido')).toBeVisible()
+  await expect(cobro.getByTestId('cobro-confirmar')).toHaveCount(0)
+  await expect(cobro.getByTestId('cobro-cancelar-division')).toHaveCount(0)
+  // Un toque deliberado, pasado el antirrebote, sí cobra.
+  await pausaPaso(page)
+  await cobro.getByTestId('recibido-exacto').click()
+  await expect(cobro.getByTestId('cobro-confirmar')).toBeVisible()
+  // «Cancelar división» y doble toque en la cuenta + «Marcar como pagado».
+  await pausaPaso(page)
+  await cobro.getByTestId('cobro-cancelar-division').click()
+  await cobro.getByTestId('medio-demo-transfer-itau').click()
+  await expect(cobro.getByTestId('cobro-cuenta')).toBeVisible()
+  await pausaPaso(page)
+  const marcar = await cobro.getByTestId('cuenta-marcar-pagado').boundingBox()
+  await page.mouse.click(marcar.x + marcar.width / 2, marcar.y + marcar.height / 2)
+  await page.mouse.click(marcar.x + marcar.width / 2, marcar.y + marcar.height / 2)
+  await expect(cobro.getByTestId('cobro-confirmar')).toBeVisible()
+  // El segundo toque cayó sobre «Confirmar venta» y no guardó la venta.
+  await expect(page.getByTestId('hoja-exito')).toHaveCount(0)
+  await expect(cobro.getByTestId('cobro-confirmar-venta')).toBeEnabled()
+  expect(prod.precio).toBeGreaterThan(0)
+})
+
+test('celular 390: «Cancelar» en la cuenta conserva el monto parcial tipeado y «Efectivo» no repite el importe', async ({ page }) => {
+  const { cobro, prod } = await abrirCobro(page)
+  const parcial = Math.floor(prod.precio * 0.4 / 1000) * 1000
+  await cobro.getByTestId('cobro-dividir').click()
+  await teclear(cobro, parcial)
+  await cobro.getByTestId('teclado-aceptar').click()
+  await cobro.getByTestId('medio-demo-transfer-itau').click()
+  await pausaPaso(page)
+  await cobro.getByTestId('cuenta-cancelar').click()
+  await expect(cobro.getByTestId('cobro-total-grande')).toContainText(`Gs ${parcial.toLocaleString('es-PY')}`)
+  // Pantalla de efectivo: el importe aparece una vez en el título y una en el botón.
+  await cobro.getByTestId('medio-demo-cash-pyg').click()
+  await expect(cobro.getByTestId('cobro-recibido')).not.toContainText('Pago:')
+})
+
+test('celular 390: una fila vacía de «Otros medios» no esconde «Paga al recibir» ni cambia el título', async ({ page }) => {
+  const { cobro } = await abrirCobro(page)
+  await cobro.getByTestId('medio-otros').click()
+  await cobro.getByRole('button', { name: '+ Agregar pago' }).click()
+  const fila = cobro.getByTestId('pago-fila-0')
+  await expect(fila).toBeVisible()
+  await fila.getByRole('combobox', { name: 'Cuenta de cobro' }).click()
+  await page.getByRole('option', { name: /Dólares/ }).click()
+  await cobro.getByRole('button', { name: 'Volver', exact: true }).click()
+  await expect(cobro.getByRole('heading', { name: 'Cobro', exact: true })).toBeVisible()
+  await expect(cobro.getByTestId('medio-paga-al-recibir')).toBeVisible()
+  await expect(cobro.getByTestId('cobro-cancelar-division')).toHaveCount(0)
+})
+
+test('celular 390: Enter en un campo de «Otros medios» no guarda la venta', async ({ page }) => {
+  const { cobro } = await abrirCobro(page)
+  await cobro.getByTestId('medio-otros').click()
+  await cobro.getByRole('button', { name: '+ Agregar pago' }).click()
+  const fila = cobro.getByTestId('pago-fila-0')
+  await fila.getByRole('combobox', { name: 'Cuenta de cobro' }).click()
+  await page.getByRole('option', { name: /Dólares/ }).click()
+  const campo = fila.getByRole('textbox', { name: 'Monto original' })
+  await campo.fill('10')
+  await page.keyboard.press('Enter')
+  await expect(page.getByTestId('hoja-exito')).toHaveCount(0)
+  await expect(cobro).toBeVisible()
+})
+
+test('celular 390: el vuelto de una venta no reaparece en la siguiente venta sin efectivo', async ({ page }) => {
+  const { cobro, prod } = await abrirCobro(page)
+  await cobro.getByTestId('medio-demo-cash-pyg').click()
+  await pausaPaso(page)
+  await cobro.getByTestId('recibido-otro').click()
+  await teclear(cobro, Math.ceil(prod.precio / 100000) * 100000 + 100000)
+  await pausaPaso(page)
+  await cobro.getByTestId('teclado-aceptar').click()
+  await expect(cobro.getByTestId('cobro-vuelto')).toBeVisible()
+  await pausaPaso(page)
+  await cobro.getByTestId('cobro-confirmar-venta').click()
+  const exito = page.getByTestId('hoja-exito')
+  await expect(exito.getByTestId('exito-vuelto')).toBeVisible()
+  await exito.getByTestId('exito-listo').click()
+  // Segunda venta pagada solo por transferencia: sin banner de vuelto en ningún paso.
+  await agregar(page, prod.nombre)
+  await page.getByTestId('pos-barra-carrito-abrir').click()
+  await page.getByTestId('carrito-cobrar').click()
+  const cobro2 = page.getByTestId('cobro-movil')
+  await cobro2.getByTestId('medio-demo-transfer-itau').click()
+  await pausaPaso(page)
+  await cobro2.getByTestId('cuenta-marcar-pagado').click()
+  await expect(cobro2.getByTestId('cobro-confirmar')).toBeVisible()
+  await expect(cobro2.getByTestId('cobro-vuelto')).toHaveCount(0)
+  await pausaPaso(page)
+  await cobro2.getByTestId('cobro-confirmar-venta').click()
+  await expect(page.getByTestId('hoja-exito')).toBeVisible()
+  await expect(page.getByTestId('exito-vuelto')).toHaveCount(0)
 })
 
 test('escritorio 1440 no cambia: columnas 50/50 y sin barra ni hojas del celular', async ({ page }) => {

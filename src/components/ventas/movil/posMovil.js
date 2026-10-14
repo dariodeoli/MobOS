@@ -34,11 +34,32 @@ export const mediosLegacy = () => MEDIOS_PAGO.map(nombre => ({ id: nombre, name:
 
 // Fila de pago lista para `setPagos`, con la misma forma que arma el cobro de
 // escritorio (cuenta + monto en guaraníes). `monto` entra en guaraníes enteros.
-export function pagoDeMedio(medio, monto) {
+// `recibido` (solo efectivo) queda en la fila para derivar el vuelto de cada
+// pago: así el vuelto total siempre sale de los pagos que de verdad existen.
+export function pagoDeMedio(medio, monto, recibido = 0) {
   const importe = String(Math.max(0, Math.round(Number(monto) || 0)))
-  if (medio.legacy) return { medioPago: medio.name, cuenta: '', monto: importe }
+  const extra = recibido > 0 ? { recibido: Math.round(Number(recibido) || 0), montoRecibido: Math.round(Number(monto) || 0) } : {}
+  if (medio.legacy) return { medioPago: medio.name, cuenta: '', monto: importe, ...extra }
   const base = { medioPago: MEDIOS_PAGO[0], cuenta: '', monto: '', accountId: '', originalAmount: '', exchangeRatePyg: '' }
-  return updateAccountPayment(base, { accountId: medio.id, originalAmount: importe }, [medio])
+  return { ...updateAccountPayment(base, { accountId: medio.id, originalAmount: importe }, [medio]), ...extra }
+}
+
+// Monto en guaraníes de una fila de pago (texto con o sin puntos).
+export const montoDeFila = fila => Number(String(fila?.monto ?? '').replace(/\D/g, '')) || 0
+
+// Fila «real»: tiene monto. Una fila vacía (p. ej. USD/BRL abierto en «Otros
+// medios» sin cotización ni importe) no cuenta como pago para ninguna decisión.
+export const pagoReal = fila => montoDeFila(fila) > 0
+
+// Vuelto total: suma del vuelto de cada pago en efectivo vigente. Si el monto de
+// la fila cambió después de cobrarla, ese vuelto ya no es válido y se descarta.
+export function vueltoDePagos(pagos) {
+  return (pagos || []).reduce((suma, fila) => {
+    if (!fila || fila.noPagado || !(fila.recibido > 0)) return suma
+    const monto = montoDeFila(fila)
+    if (monto !== fila.montoRecibido) return suma
+    return suma + Math.max(0, fila.recibido - monto)
+  }, 0)
 }
 
 // Vuelto de un pago en efectivo: lo recibido menos lo que se aplica a la venta.

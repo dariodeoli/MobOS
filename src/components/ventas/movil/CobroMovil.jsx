@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Aviso, Button } from '@/components/ui'
 import BottomSheet from '@/components/shared/BottomSheet'
 import NumericKeypad from '@/components/shared/NumericKeypad'
@@ -10,11 +10,17 @@ import {
   cuentasRapidas,
   esEfectivo,
   mediosLegacy,
+  montoDeFila,
   montoDeTeclado,
   pagoDeMedio,
+  pagoReal,
   tituloPago,
-  vueltoEfectivo,
+  vueltoDePagos,
 } from './posMovil'
+
+// Tras cambiar de paso, un segundo toque en el mismo lugar cae sobre otro botón
+// (p. ej. «monto exacto» bajo «Efectivo»). Se ignora ese toque doble.
+const MS_ANTIREBOTE = 350
 
 // Cobro paso a paso del celular (#429), modelo Shopify POS: total grande,
 // medios a ancho completo, teclado de monto propio (Cancelar / Aceptar), pago
@@ -89,15 +95,12 @@ export default function CobroMovil({
   motivos,
   errorVenta,
   etiquetaConfirmar,
-  detalleConfirmar,
-  onVuelto,
-  vuelto,
   completo,
   masContenido = null,
 }) {
   const sinTotal = totalGeneral <= 0 || cantTotal === 0
   // Con el cobro ya completo (pagos cargados) se abre en la confirmación.
-  const inicial = () => (pagos.length > 0 && pendiente === 0) || pagaAlRecibir || venderACredito ? 'confirmar' : 'medios'
+  const inicial = () => (pagos.some(pagoReal) && pendiente === 0) || pagaAlRecibir || venderACredito ? 'confirmar' : 'medios'
   const [paso, setPaso] = useState(inicial)
   const [medio, setMedio] = useState(null)
   // Monto de ESTE pago (null = todo el saldo). Se cambia con el teclado.
@@ -105,57 +108,75 @@ export default function CobroMovil({
   const [digitos, setDigitos] = useState('')
   const [teclado, setTeclado] = useState('pago') // 'pago' | 'recibido'
   const [parcialAbierto, setParcialAbierto] = useState(false)
+  const cambioDePaso = useRef(0)
 
+  // Filas vacías (p. ej. USD/BRL sin cotización ni importe) no son pagos.
+  const reales = pagos.filter(pagoReal)
+  const vuelto = vueltoDePagos(pagos)
   const saldo = pendiente
   const aPagar = Math.min(montoPago ?? saldo, saldo)
   const rapidas = usaCuentas ? cuentasRapidas(cuentas) : mediosLegacy()
-  const etiquetaSaldo = pagos.length === 0 ? 'Total' : 'Saldo'
+  const etiquetaSaldo = reales.length === 0 ? 'Total' : 'Saldo'
+
+  function irA(siguiente) {
+    cambioDePaso.current = Date.now()
+    setPaso(siguiente)
+  }
+  const tocoRapido = () => Date.now() - cambioDePaso.current < MS_ANTIREBOTE
+  // Acción de un botón que aparece bajo el dedo al cambiar de paso: ignora el rebote.
+  const sinRebote = accion => () => { if (!tocoRapido()) accion() }
 
   // Si cambia el estado desde afuera (pagos borrados), la pantalla se acomoda.
   useEffect(() => {
     if (!open) return
-    if (paso === 'confirmar' && pagos.length === 0 && !pagaAlRecibir && !venderACredito) setPaso('medios')
-  }, [open, paso, pagos.length, pagaAlRecibir, venderACredito])
+    if (paso === 'confirmar' && reales.length === 0 && !pagaAlRecibir && !venderACredito) irA('medios')
+  }, [open, paso, reales.length, pagaAlRecibir, venderACredito])
 
   if (!open) return null
 
+  // Cancelar un paso no borra el monto parcial ya elegido para este pago.
   const volverAMedios = () => {
     setMedio(null)
-    setMontoPago(null)
     setDigitos('')
-    setPaso('medios')
+    irA('medios')
   }
 
   function abrirTeclado(para, inicio) {
     setTeclado(para)
     setDigitos(inicio > 0 ? String(inicio) : '')
-    setPaso('teclado')
+    irA('teclado')
   }
 
   function elegirMedio(elegido) {
     setMedio(elegido)
-    if (esEfectivo(elegido)) setPaso('recibido')
-    else setPaso('cuenta')
+    if (esEfectivo(elegido)) irA('recibido')
+    else irA('cuenta')
   }
 
   // Agrega la fila al cobro y decide el siguiente paso: más pagos o confirmar.
   function agregarPago(elegido, monto, recibidoEfectivo = 0) {
-    setPagos(lista => [...lista, pagoDeMedio(elegido, monto)])
-    onVuelto?.(recibidoEfectivo > 0 ? vueltoEfectivo(recibidoEfectivo, monto) : 0)
+    if (tocoRapido()) return
+    setPagos(lista => [...lista.filter(pagoReal), pagoDeMedio(elegido, monto, recibidoEfectivo)])
     setMedio(null)
     setMontoPago(null)
     setDigitos('')
-    setPaso(saldo - monto > 0 ? 'medios' : 'confirmar')
+    irA(saldo - monto > 0 ? 'medios' : 'confirmar')
   }
 
   function cancelarDivision() {
     setPagos([])
-    onVuelto?.(0)
+    setMontoPago(null)
+    volverAMedios()
+  }
+
+  // Al salir de «Otros medios» se descartan las filas vacías que quedaron abiertas.
+  function salirDeMas() {
+    setPagos(lista => (lista.every(pagoReal) ? lista : lista.filter(pagoReal)))
     volverAMedios()
   }
 
   let titulo = 'Cobro'
-  if (paso === 'medios') titulo = pagos.length === 0 ? 'Cobro' : tituloPago(pagos.length)
+  if (paso === 'medios') titulo = reales.length === 0 ? 'Cobro' : tituloPago(reales.length)
   if (paso === 'teclado') titulo = teclado === 'recibido' ? 'Monto recibido' : 'Monto del pago'
   if (paso === 'recibido') titulo = 'Efectivo'
   if (paso === 'cuenta') titulo = `Aceptar pago con ${medio?.name || ''}`
@@ -163,7 +184,7 @@ export default function CobroMovil({
   if (paso === 'mas') titulo = 'Otros medios y entrega'
 
   const accion =
-    pagos.length > 0 && (paso === 'medios' || paso === 'confirmar') ? (
+    reales.length > 0 && (paso === 'medios' || paso === 'confirmar') ? (
       <button
         type="button"
         data-testid="cobro-cancelar-division"
@@ -174,7 +195,7 @@ export default function CobroMovil({
         Cancelar división
       </button>
     ) : paso === 'mas' ? (
-      <button type="button" onClick={volverAMedios} className="min-h-11 rounded-lg px-2 text-sm font-semibold text-fono-light">
+      <button type="button" onClick={salirDeMas} className="min-h-11 rounded-lg px-2 text-sm font-semibold text-fono-light">
         Volver
       </button>
     ) : null
@@ -204,7 +225,7 @@ export default function CobroMovil({
               {montoPago != null && montoPago < saldo && (
                 <p className="text-center text-sm text-mute">Saldo: <b className="tabular-nums text-fore">{gs(saldo)}</b></p>
               )}
-              {pagos.length > 0 && (
+              {reales.length > 0 && (
                 <p className="text-center text-xs text-mute">
                   Total <b data-testid="cobro-total-venta" className="whitespace-nowrap tabular-nums text-fore">{gs(totalGeneral)}</b>
                   {' · '}Pagado <b data-testid="cobro-pagado-venta" className="whitespace-nowrap tabular-nums text-ok">{gs(totalPagado)}</b>
@@ -217,7 +238,7 @@ export default function CobroMovil({
                 onClick={() => abrirTeclado('pago', 0)}
                 className="mx-auto flex min-h-11 items-center gap-1.5 rounded-full border border-fono/40 px-4 text-sm font-semibold text-fono-light disabled:opacity-40"
               >
-                {pagos.length === 0 ? 'Pagar otro monto' : 'Cambiar monto'}
+                {reales.length === 0 ? 'Pagar otro monto' : 'Cambiar monto'}
                 <Icon name="chevron" className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -248,24 +269,24 @@ export default function CobroMovil({
                     onClick={() => elegirMedio(m)}
                   />
                 ))}
-                {pagos.length === 0 && Number(customer?.creditLimitPyg || 0) > 0 && (
+                {reales.length === 0 && Number(customer?.creditLimitPyg || 0) > 0 && (
                   <BotonMedio
                     testId="medio-credito"
                     icono="clock"
                     titulo="Vender a crédito"
                     detalle={`Límite ${gs(Number(customer.creditLimitPyg))}`}
                     disabled={sinTotal || guardando}
-                    onClick={() => { setVenderACredito(true); setPaso('confirmar') }}
+                    onClick={() => { setPagos(l => l.filter(pagoReal)); setVenderACredito(true); irA('confirmar') }}
                   />
                 )}
-                {pagos.length === 0 && (
+                {reales.length === 0 && (
                   <BotonMedio
                     testId="medio-paga-al-recibir"
                     icono="truck"
                     titulo="Paga al recibir"
                     detalle="El pedido queda pendiente y se cobra después"
                     disabled={sinTotal || guardando}
-                    onClick={() => { setPagaAlRecibir(true); setPaso('confirmar') }}
+                    onClick={() => { setPagos(l => l.filter(pagoReal)); setPagaAlRecibir(true); irA('confirmar') }}
                   />
                 )}
                 <BotonMedio
@@ -274,12 +295,12 @@ export default function CobroMovil({
                   titulo="Otros medios y entrega"
                   detalle="Dólares, canje, gift card, envío y nota"
                   disabled={guardando}
-                  onClick={() => setPaso('mas')}
+                  onClick={() => irA('mas')}
                 />
               </div>
             )}
 
-            {pagos.length > 0 && saldo > 0 && (
+            {reales.length > 0 && saldo > 0 && (
               <button
                 type="button"
                 data-testid="cobro-pago-parcial"
@@ -313,7 +334,7 @@ export default function CobroMovil({
               <p role="status" className="text-center text-sm font-semibold text-warn">El pago no puede superar el saldo de {gs(saldo)}.</p>
             )}
             <div className="grid grid-cols-2 gap-2 pt-1">
-              <Button type="button" variant="outline" className="min-h-14 text-base" onClick={() => (teclado === 'recibido' ? setPaso('recibido') : volverAMedios())}>
+              <Button type="button" variant="outline" className="min-h-14 text-base" onClick={() => (teclado === 'recibido' ? irA('recibido') : volverAMedios())}>
                 Cancelar
               </Button>
               <Button
@@ -332,7 +353,7 @@ export default function CobroMovil({
                   }
                   setMontoPago(monto >= saldo ? null : monto)
                   setDigitos('')
-                  setPaso('medios')
+                  irA('medios')
                 }}
               >
                 Aceptar
@@ -345,7 +366,6 @@ export default function CobroMovil({
           <div className="space-y-4" data-testid="cobro-recibido">
             <div className="space-y-1 rounded-2xl border border-ink-600 bg-ink-800 px-4 py-5">
               <Importe etiqueta="Monto recibido" valor={gs(aPagar)} testId="recibido-exacto-valor" />
-              <p className="text-center text-sm text-mute">Pago: <b className="tabular-nums text-fore">{gs(aPagar)}</b></p>
             </div>
             <Button
               type="button"
@@ -353,18 +373,18 @@ export default function CobroMovil({
               className="min-h-14 w-full text-base"
               onClick={() => agregarPago(medio, aPagar, aPagar)}
             >
-              {gs(aPagar)} · monto exacto
+              Monto exacto
             </Button>
             <Button
               type="button"
               variant="outline"
               data-testid="recibido-otro"
               className="min-h-14 w-full text-base"
-              onClick={() => abrirTeclado('recibido', 0)}
+              onClick={sinRebote(() => abrirTeclado('recibido', 0))}
             >
               Otro monto
             </Button>
-            <Button type="button" variant="ghost" className="min-h-11 w-full" onClick={volverAMedios}>
+            <Button type="button" variant="ghost" className="min-h-11 w-full" onClick={sinRebote(volverAMedios)}>
               Cancelar
             </Button>
           </div>
@@ -387,7 +407,7 @@ export default function CobroMovil({
             >
               Marcar como pagado
             </Button>
-            <Button type="button" variant="ghost" data-testid="cuenta-cancelar" className="min-h-14 w-full text-base font-bold text-bad-text" onClick={volverAMedios}>
+            <Button type="button" variant="ghost" data-testid="cuenta-cancelar" className="min-h-14 w-full text-base font-bold text-bad-text" onClick={sinRebote(volverAMedios)}>
               Cancelar
             </Button>
           </div>
@@ -407,12 +427,15 @@ export default function CobroMovil({
               </div>
               {pagaAlRecibir && <p className="text-mute">Paga al recibir: el pedido queda pendiente y se cobra desde Pedidos.</p>}
               {venderACredito && !pagaAlRecibir && <p className="text-mute">Venta a crédito del cliente.</p>}
-              {pagos.map((p, i) => (
+              {pagos.map((p, i) => (pagoReal(p) ? (
                 <div key={i} className="flex items-baseline justify-between gap-2 border-t border-ink-600 pt-2" data-testid={`confirmar-pago-${i}`}>
-                  <span className="min-w-0 truncate text-mute">{p.giftCardCode !== undefined ? 'Gift card' : p.cuenta || p.medioPago || `Pago ${i + 1}`}</span>
-                  <b className="whitespace-nowrap tabular-nums">{gs(Number(String(p.monto || '').replace(/\D/g, '')) || 0)}</b>
+                  <span className="min-w-0 truncate text-mute">
+                    {p.giftCardCode !== undefined ? 'Gift card' : p.cuenta || p.medioPago || `Pago ${i + 1}`}
+                    {p.noPagado ? ' · no pagado' : ''}
+                  </span>
+                  <b className={cn('whitespace-nowrap tabular-nums', p.noPagado && 'text-warn')}>{gs(montoDeFila(p))}</b>
                 </div>
-              ))}
+              ) : null))}
               <div className="flex items-baseline justify-between gap-2 border-t border-ink-600 pt-2">
                 <span className="text-mute">Pagado</span>
                 <b className="whitespace-nowrap tabular-nums text-ok" data-testid="confirmar-pagado">{gs(totalPagado)}</b>
@@ -434,18 +457,16 @@ export default function CobroMovil({
               data-testid="cobro-confirmar-venta"
               className="h-auto min-h-14 w-full px-5 py-3 text-base"
               disabled={!valido || guardando || !cuentas || Boolean(errorCuentas) || guardadoIncompleto}
+              onClick={event => { if (tocoRapido()) event.preventDefault() }}
             >
-              <span className="flex min-w-0 flex-col items-center leading-tight">
-                <span className="font-bold">{etiquetaConfirmar}</span>
-                {detalleConfirmar && <span className="text-xs font-semibold tabular-nums opacity-95">{detalleConfirmar}</span>}
-              </span>
+              <span className="font-bold">{etiquetaConfirmar}</span>
             </Button>
             {!completo && !pagaAlRecibir && !venderACredito && pendiente > 0 && (
               <Button type="button" variant="outline" className="min-h-12 w-full" onClick={volverAMedios}>
                 Seguir cobrando el saldo
               </Button>
             )}
-            {(pagaAlRecibir || venderACredito) && pagos.length === 0 && (
+            {(pagaAlRecibir || venderACredito) && reales.length === 0 && (
               <Button
                 type="button"
                 variant="ghost"
@@ -474,7 +495,7 @@ export default function CobroMovil({
                 type="button"
                 data-testid="parcial-confirmar"
                 className="min-h-14 w-full text-base"
-                onClick={() => { setParcialAbierto(false); setPaso('confirmar') }}
+                onClick={() => { setParcialAbierto(false); irA('confirmar') }}
               >
                 Marcar como pago parcial
               </Button>
