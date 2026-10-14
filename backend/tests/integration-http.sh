@@ -536,6 +536,14 @@ out="$(response_file)"; request PUT /api/tenant/cost-visibility 200 '{"sellerSee
 out="$(response_file)"; request GET /api/products 200 '' "$out" "$TOKEN_A" tenant-a-it
 assert_product_cost_hidden "$out" prod-a-order-it || { echo "Apagado el permiso, el vendedor volvió a ver el costo." >&2; exit 1; }
 echo "4c/13 Permiso de costos para vendedores (encendido/apagado, solo dueño) OK..."
+out="$(response_file)"; request PUT /api/tenant/preferences 403 '{"orders":{"autoArchivePrepared":true}}' "$out" "$TOKEN_A" tenant-a-it
+out="$(response_file)"; request PUT /api/tenant/preferences 400 '{"orders":{"autoArchivePrepared":"si"}}' "$out" "$ADMIN_TOKEN" ''
+out="$(response_file)"; request PUT /api/tenant/preferences 200 '{"orders":{"autoArchivePrepared":true},"portal":{"showStoreCredit":false}}' "$out" "$ADMIN_TOKEN" ''
+out="$(response_file)"; request GET /api/tenant/preferences 200 '' "$out" "$TOKEN_A" tenant-a-it
+node -e 'const p=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")); if(p.orders.autoArchivePrepared!==true||p.portal.showStoreCredit!==false) process.exit(1)' "$out" || { echo "Las preferencias del negocio no se guardaron." >&2; exit 1; }
+out="$(response_file)"; request GET "/api/orders?filtro=activos" 200 '' "$out" "$TOKEN_A" tenant-a-it
+out="$(response_file)"; request PUT /api/tenant/preferences 200 '{"orders":{"autoArchivePrepared":false},"portal":{"showStoreCredit":true}}' "$out" "$ADMIN_TOKEN" ''
+echo "4c/13 Preferencias del negocio (archivar preparados, saldo en portal; solo dueño) OK..."
 out="$(response_file)"; CAJERA_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-cajera-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
 out="$(response_file)"; GERENTE_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-gerente-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
 out="$(response_file)"; request GET /api/orders 200 '' "$out" "$ADMIN_TOKEN" tenant-a-it

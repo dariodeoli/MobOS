@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
+import { loadTenantPreferences, PREPARED_FULFILLMENT } from '../../../lib/tenant-preferences'
 import { InputError, normalizePayment, objectInput, receiveTradeIn, textInput } from '../../../lib/payment-input'
 import { consumirGiftCard } from '../../../lib/gift-cards'
 import { resolveInsuranceRate } from '../../../lib/insurance'
@@ -110,7 +111,13 @@ export async function GET(request: Request) {
   // "A crédito" tiene prioridad sobre Pagado/Parcial/Pendiente: plazo vigente y
   // saldo pendiente real (los pagos posteriores pueden cancelar el crédito).
   const esCredito = Prisma.sql`(COALESCE(o."creditDays", 0) > 0 AND o."totalPyg" - ${confirmado} > 0)`
-  const esCompletado = Prisma.sql`(o."archivedAt" IS NOT NULL OR (${esPagado} AND o."fulfillmentStatus" = 'DELIVERED'))`
+  // #422 · Con «archivar automáticamente» encendido, el pedido preparado y
+  // pagado también sale de la lista activa y queda en Archivados (no se toca
+  // la fila: apagar el ajuste lo devuelve a Activos).
+  const { orders: ajustesPedidos } = await loadTenantPreferences(tenant)
+  const preparados = Prisma.join(PREPARED_FULFILLMENT.map(estado => Prisma.sql`${estado}`))
+  const esPreparadoPagado = ajustesPedidos.autoArchivePrepared ? Prisma.sql` OR (${esPagado} AND o."fulfillmentStatus"::text IN (${preparados}))` : Prisma.empty
+  const esCompletado = Prisma.sql`(o."archivedAt" IS NOT NULL OR (${esPagado} AND o."fulfillmentStatus" = 'DELIVERED')${esPreparadoPagado})`
   const esCancelado = Prisma.sql`(o."status" = 'CANCELLED')`
   if (filtro === 'activos') condiciones.push(Prisma.sql`NOT ${esCompletado} AND NOT ${esCancelado}`)
   else if (filtro === 'archivados') condiciones.push(esCompletado)
