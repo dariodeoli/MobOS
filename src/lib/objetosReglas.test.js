@@ -754,11 +754,11 @@ test('el selector de IMEI del POS no filtra unidades por sucursal y el detalle d
 // #287 (Productos y Unidades = el mismo objeto): el switch comparte la
 // definición y vive en las dos vistas, y el paso producto → unidades (y
 // vuelta) está cableado en los dos detalles.
-test('Productos y Unidades comparten el switch y los enlaces de contexto (#287)', () => {
-  const switch_ = leerFuente(join(RAIZ, 'components/shared/VistaProductosUnidades.jsx'), 'utf8')
-  assert.match(switch_, /data-testid="vista-productos-unidades"/, 'el switch tiene testid propio')
-  assert.match(switch_, /SegmentedField/, 'usa el control compartido de la biblioteca')
-  assert.match(leerFuente(join(RAIZ, 'components/ventas/SellerCatalog.jsx'), 'utf8'), /<VistaProductosUnidades/, 'Productos usa el switch compartido')
+test('Productos y Unidades se alternan por las pestañas del shell y los enlaces de contexto (#287, #396)', () => {
+  // #396: el switch Productos|Unidades dentro de la pantalla era un duplicado de las
+  // pestañas del shell; Productos ya no lo monta ni queda el componente huérfano.
+  assert.doesNotMatch(leerFuente(join(RAIZ, 'components/ventas/SellerCatalog.jsx'), 'utf8'), /VistaProductosUnidades/, 'Productos no repite el switch de las pestañas')
+  assert.equal(existsSync(join(RAIZ, 'components/shared/VistaProductosUnidades.jsx')), false, 'el switch duplicado se eliminó')
   // Rediseño 2A: en Stock, Unidades y Productos son pestañas del shell; el paso a
   // Productos con el contexto puesto (búsqueda y producto) es el enlace del chip.
   assert.match(leerFuente(join(RAIZ, 'components/control/Inventario.jsx'), 'utf8'), /Ver en Productos/, 'Unidades lleva a Productos conservando el contexto')

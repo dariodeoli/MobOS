@@ -416,3 +416,26 @@ test('Precios y Compras: acciones de 44px debajo de lg (#20)', async ({ page }) 
     }
   }
 })
+
+// Productos (#396): sin el switch Productos|Unidades repetido (ya son pestañas del
+// shell), tarjetas en celular y tabla en escritorio, sin scroll horizontal.
+for (const [width, esperaTabla] of [
+  [375, false],
+  [1440, true],
+]) {
+  test(`Productos: ${esperaTabla ? 'tabla' : 'tarjetas'} sin switch repetido a ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await enterDemo(page)
+    await openShellDestination(page, 'Productos')
+    await settle(page)
+    await expect(page.getByTestId('barra-productos')).toBeVisible()
+    await expect(page.getByTestId('vista-productos-unidades')).toHaveCount(0)
+    await expect(page.getByTestId('catalogo-tabla')).toHaveCount(esperaTabla ? 1 : 0)
+    if (!esperaTabla) {
+      const tarjeta = page.getByRole('button', { name: /en stock/ }).first()
+      await expect(tarjeta).toBeVisible()
+      expect((await tarjeta.boundingBox()).height, 'tarjeta tocable').toBeGreaterThanOrEqual(44)
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), 'scroll horizontal').toBe(false)
+  })
+}
