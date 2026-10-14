@@ -111,3 +111,38 @@ test('demo: la empresa privada extrae simulada y no pisa sin confirmar', async (
   await expect(nombre).toHaveValue(razonSimulada)
   expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
 })
+
+// Demo: una CI sin guion también extrae simulada y "Usar estos datos" completa
+// el formulario; la ciudad del mismo formulario sugiere ciudades de Paraguay
+// (catálogo de la biblioteca, sin API) y completa el departamento.
+test('demo: CI en Clientes extrae simulada y la ciudad autocompleta con departamento', async ({ page }) => {
+  const llamadas = []
+  page.on('request', (req) => { if (esLlamadaApi(req.url())) llamadas.push(req.url()) })
+
+  await page.goto('/demo')
+  await page.getByRole('button', { name: /Entrar como Vendedor/ }).click()
+  await cerrarGuia(page)
+  await page.goto('/clientes')
+  await page.getByRole('button', { name: '+ Crear cliente' }).click()
+  const ruc = page.locator('#cliente-documento')
+  await ruc.fill('1234567')
+  const raiz = ruc.locator('xpath=../..')
+  await raiz.getByRole('button', { name: /Extraer los datos del RUC|Consultando/ }).click()
+  await expect(raiz.getByText('Simulada en demo')).toBeVisible()
+  await expect(raiz.getByText('RUC 1234567-9')).toBeVisible()
+  const nombreSimulado = (await raiz.locator('b').first().innerText()).trim()
+  await raiz.getByRole('button', { name: 'Usar estos datos' }).click()
+  await expect(raiz.getByText('Simulada en demo')).toBeHidden()
+  // La razón social queda como nombre fiscal del formulario y el RUC se completa con su DV.
+  await expect(ruc).toHaveValue('1234567-9')
+  expect(nombreSimulado).toMatch(/S\.A\.|S\.R\.L\.|LTDA\./)
+
+  const ciudad = page.getByPlaceholder('Ej: Asunción, Ciudad del Este…').or(page.getByPlaceholder('Ciudad')).first()
+  await ciudad.fill('Ciudad del')
+  const opcion = page.getByRole('option', { name: /Ciudad del Este/ })
+  await expect(opcion).toBeVisible()
+  await opcion.click()
+  await expect(ciudad).toHaveValue('Ciudad del Este')
+  await expect(page.getByText('Departamento: Alto Paraná')).toBeVisible()
+  expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
+})
