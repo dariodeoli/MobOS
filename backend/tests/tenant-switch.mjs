@@ -189,6 +189,20 @@ companyToken = regreso.set[COMPANY]
 sellerToken = (await call('/api/auth/pin', { method: 'POST', token: companyToken, body: { sellerId: 'mt-a-admin', pin: '2468' } })).set[SELLER]
 assert.ok(sellerToken)
 
+// ── Perfil vinculado borrado (userId NULL): el cambio aterriza en la pantalla de PIN, sin error ──
+sql(`UPDATE "TenantMembership" SET "userId" = NULL WHERE "id" = 'mt-mem-m'`)
+const sinPerfil = await call('/api/auth/switch-tenant', { method: 'POST', cookies: { [COMPANY]: companyToken, [SELLER]: sellerToken }, body: { tenantId: 'mt-m-it' } })
+assert.equal(sinPerfil.status, 200, JSON.stringify(sinPerfil.body))
+assert.equal(sinPerfil.body.user, null)
+assert.equal(sinPerfil.set[SELLER], '')
+assert.equal(sinPerfil.body.sellers.length, 2)
+assert.equal((await call('/api/auth/tenants', { token: sinPerfil.set[COMPANY] })).status, 200, 'la lista sigue funcionando con userId nulo')
+const deVuelta = await call('/api/auth/switch-tenant', { method: 'POST', cookies: { [COMPANY]: sinPerfil.set[COMPANY] }, body: { tenantId: 'mt-a-it' } })
+assert.equal(deVuelta.status, 200)
+companyToken = deVuelta.set[COMPANY]
+sellerToken = (await call('/api/auth/pin', { method: 'POST', token: companyToken, body: { sellerId: 'mt-a-admin', pin: '2468' } })).set[SELLER]
+assert.ok(sellerToken)
+
 // ── Test 8b: alta de empresa propia con límite 429 ──
 const alta = await call('/api/auth/companies', { method: 'POST', cookies: { [COMPANY]: companyToken, [SELLER]: sellerToken }, body: { companyName: `MT Nueva ${stamp}` } })
 assert.equal(alta.status, 201, JSON.stringify(alta.body))
