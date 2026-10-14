@@ -4,7 +4,7 @@ import { prisma } from '../../../lib/prisma'
 import { effectivePermissions, normalizeAccessSchedule, requireSession, USER_ROLES } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
 import { pinValido } from '../../../lib/pin'
-import { revokeMembershipsForUser } from '../../../lib/membership'
+import { restoreMembershipsForUser, revokeMembershipsForUser } from '../../../lib/membership'
 import { LIMITE_MONTO_GENERAL } from '../../../lib/montos'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -117,12 +117,16 @@ export async function PATCH(request: Request) {
     if (!resetPin && body.pin !== undefined) return error('Confirmá resetPin para cambiar el PIN.', 400)
     if (resetPin && await pinDuplicado(tenantId, body.pin, id)) return error('Ese PIN ya lo usa otro usuario de la empresa. Elegí otro.', 409)
     const changedSensitive = resetPin || current.role !== nextRole || current.status !== nextStatus || current.branchId !== branchId || JSON.stringify(current.permissions) !== JSON.stringify(permissions) || JSON.stringify(current.accessSchedule) !== JSON.stringify(accessSchedule)
+    let membershipsRestored = 0
     const updated = await prisma.$transaction(async tx => {
+      membershipsRestored = 0
       const user = await tx.user.update({ where: { id }, data: { name, email, role: nextRole, status: nextStatus, branchId, permissions: permissions ?? Prisma.JsonNull, accessSchedule: accessSchedule ?? Prisma.JsonNull, dailyGoalPyg, ...(resetPin ? { pinHash: await bcrypt.hash(body.pin, 12), pinLength: String(body.pin).length, failedLoginAttempts: 0, lockedUntil: null } : {}) }, select: userSelect })
       if (changedSensitive) await tx.session.updateMany({ where: { userId: id, revokedAt: null }, data: { revokedAt: new Date() } })
-      // Baja del perfil: su pertenencia multi-empresa se revoca (reactivar no la revive).
+      // Baja del perfil: su pertenencia multi-empresa se revoca con motivo
+      // USER_DEACTIVATED; reactivar el perfil reactiva solo esas pertenencias.
       if (nextStatus !== 'ACTIVE' && current.status === 'ACTIVE') await revokeMembershipsForUser(tx, tenantId, id)
-      await tx.auditLog.create({ data: { tenantId, userId: access.session.user.id, action: resetPin ? 'USER_PIN_RESET' : nextStatus !== 'ACTIVE' && current.status === 'ACTIVE' ? 'USER_DEACTIVATED' : 'USER_UPDATED', entity: 'User', entityId: id, metadata: { before: snapshot(current), after: snapshot(user), sessionsRevoked: changedSensitive } } })
+      if (nextStatus === 'ACTIVE' && current.status !== 'ACTIVE') membershipsRestored = await restoreMembershipsForUser(tx, tenantId, id)
+      await tx.auditLog.create({ data: { tenantId, userId: access.session.user.id, action: resetPin ? 'USER_PIN_RESET' : nextStatus !== 'ACTIVE' && current.status === 'ACTIVE' ? 'USER_DEACTIVATED' : 'USER_UPDATED', entity: 'User', entityId: id, metadata: { before: snapshot(current), after: snapshot(user), sessionsRevoked: changedSensitive, membershipsRestored } } })
       return user
     })
     return json(serializeUser(updated))

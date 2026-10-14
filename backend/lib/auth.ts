@@ -504,10 +504,13 @@ export type AccountContext = {
 }
 
 /**
- * Sesión de cuenta para cambiar/listar/crear empresas. Acepta la sesión de
- * empresa y/o la de vendedor (cookies del mismo origen o un Bearer); todas las
- * vigentes tienen que ser de la misma empresa y cuenta, y la pertenencia seguir
- * activa. El tenant sale SOLO de la sesión.
+ * Sesión de cuenta para cambiar/listar/crear empresas. Exige una sesión de
+ * VENDEDOR vigente (cookie del mismo origen o Bearer) cuyo perfil sea el
+ * vinculado a la pertenencia activa de la cuenta en esa empresa: la sesión de
+ * empresa sola (contraseña compartida del equipo) o la de un compañero con su
+ * PIN nunca bastan. Las sesiones de empresa presentadas se suman para
+ * revocarlas al cambiar, pero tienen que ser de la misma empresa y cuenta. El
+ * tenant sale SOLO de la sesión.
  */
 export async function requireAccountContext(request: Request): Promise<AccountContext | null> {
   const authorization = request.headers.get('authorization')
@@ -521,15 +524,33 @@ export async function requireAccountContext(request: Request): Promise<AccountCo
   if (!tokens.length) return null
   const now = new Date()
   const found = await prisma.session.findMany({ where: { tokenHash: { in: tokens.map(hashToken) } }, include: { user: true } })
-  const valid = found.filter(session => !session.revokedAt && session.expiresAt > now && (session.level === 'COMPANY' || (!!session.user && isSessionUsable({ ...session, user: session.user }, now))))
+  const valid = found.filter(session => !session.revokedAt && session.expiresAt > now && (session.level === 'COMPANY' || (!!session.user && isSessionUsable({ ...session, user: session.user }, now) && isAccessAllowed(session.user.accessSchedule, now))))
   if (!valid.length) return null
   const tenantId = valid[0].tenantId
   if (valid.some(session => session.tenantId !== tenantId)) return null
-  const accountIds = [...new Set(valid.map(session => session.accountId).filter((id): id is string => !!id))]
-  if (accountIds.length !== 1) return null
-  const accountId = accountIds[0]
-  if (!(await hasActiveMembership(prisma, accountId, tenantId))) return null
-  const seller = valid.find(session => session.level === 'SELLER' && session.userId)
-  const base = valid.find(session => session.level === 'COMPANY') ?? valid[0]
-  return { accountId, tenantId, deviceId: base.deviceId, userAgent: base.userAgent ?? null, sessionIds: valid.map(session => session.id), sellerUserId: seller?.userId ?? null }
+  // Solo una sesión de vendedor que lleva la cuenta puede actuar como la cuenta.
+  const sellers = valid.filter(session => session.level === 'SELLER' && !!session.userId && !!session.accountId)
+  if (sellers.length !== 1) return null
+  const seller = sellers[0]
+  const accountId = seller.accountId as string
+  // Toda sesión de empresa presentada tiene que ser de esa misma cuenta.
+  if (valid.some(session => session.level === 'COMPANY' && session.accountId !== accountId)) return null
+  const membership = await prisma.tenantMembership.findFirst({ where: { accountId, tenantId, revokedAt: null }, select: { userId: true } })
+  if (!membership?.userId || membership.userId !== seller.userId) return null
+  const base = valid.find(session => session.level === 'COMPANY') ?? seller
+  return { accountId, tenantId, deviceId: base.deviceId, userAgent: base.userAgent ?? null, sessionIds: valid.map(session => session.id), sellerUserId: seller.userId }
+}
+
+/**
+ * Sesión de empresa de la cuenta para el alta de PIN de una empresa que creó
+ * esa misma cuenta (createCompany): lleva la cuenta, su pertenencia sigue activa
+ * y es OWNER con perfil vinculado. Una sesión de empresa sin cuenta (contraseña
+ * compartida) o de otra cuenta no pasa.
+ */
+export async function requireOwnerCompanySession(request: Request) {
+  const session = await companySession(request)
+  if (!session?.accountId) return null
+  const membership = await prisma.tenantMembership.findFirst({ where: { accountId: session.accountId, tenantId: session.tenantId, revokedAt: null, role: 'OWNER', userId: { not: null } }, select: { userId: true } })
+  if (!membership?.userId) return null
+  return { session, userId: membership.userId }
 }

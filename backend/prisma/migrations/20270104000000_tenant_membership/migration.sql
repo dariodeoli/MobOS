@@ -24,12 +24,14 @@ CREATE TABLE IF NOT EXISTS "TenantMembership" (
   "userId" TEXT,
   "role" "MembershipRole" NOT NULL DEFAULT 'MEMBER',
   "revokedAt" TIMESTAMP(3),
+  "revokedReason" TEXT,
   "lastUsedAt" TIMESTAMP(3),
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "TenantMembership_pkey" PRIMARY KEY ("id")
 );
 
+ALTER TABLE "TenantMembership" ADD COLUMN IF NOT EXISTS "revokedReason" TEXT;
 ALTER TABLE "Session" ADD COLUMN IF NOT EXISTS "accountId" TEXT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS "Account_email_key" ON "Account"("email");
@@ -54,9 +56,13 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
--- Session es una tabla caliente: el FK entra NOT VALID (sin escanear ni bloquear
--- por mucho tiempo en el arranque) y se valida aparte. Re-ejecutable: VALIDATE
--- sobre un FK ya válido no hace nada.
+-- Session es una tabla caliente. El FK entra NOT VALID para que ADD CONSTRAINT
+-- no escanee la tabla, y VALIDATE toma solo SHARE UPDATE EXCLUSIVE (no bloquea
+-- lecturas ni escrituras). OJO: Prisma corre todo el archivo en una sola
+-- transacción, así que el lock breve de ADD CONSTRAINT se mantiene hasta el
+-- commit, también durante el VALIDATE: no es "sin bloquear". Con la tabla
+-- Session chica del arranque es aceptable; si crece, mover el VALIDATE a una
+-- migración propia. Re-ejecutable: VALIDATE sobre un FK ya válido no hace nada.
 DO $$ BEGIN
   ALTER TABLE "Session" ADD CONSTRAINT "Session_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "Account"("id") ON DELETE SET NULL ON UPDATE CASCADE NOT VALID;
 EXCEPTION WHEN duplicate_object THEN NULL;
@@ -84,28 +90,33 @@ FROM (
 ON CONFLICT DO NOTHING;
 
 -- 3) Membresías desde GoogleStoreAccess (owner -> OWNER, el resto -> ADMIN).
---    userId: el ADMIN activo más antiguo de ESA empresa, si no el ADMIN más antiguo.
+--    userId: SOLO el perfil que esa operación creó (el ADMIN activo que quedó
+--    marcado con GOOGLE_STORE_OWNER_CREATED, y únicamente para el dueño). Sin
+--    esa prueba queda NULL y la persona pasa por la pantalla de PIN: nunca se
+--    adivina un perfil por antigüedad.
 INSERT INTO "TenantMembership" ("id", "accountId", "tenantId", "userId", "role", "createdAt", "updatedAt")
 SELECT 'mem_' || md5('acc_g_' || md5(a."subject") || a."tenantId"),
        'acc_g_' || md5(a."subject"),
        a."tenantId",
-       (SELECT u."id" FROM "User" u
-         WHERE u."tenantId" = a."tenantId" AND u."role" = 'ADMIN'
-         ORDER BY (u."status" = 'ACTIVE') DESC, u."createdAt" ASC, u."id" ASC LIMIT 1),
+       CASE WHEN a."owner" THEN (SELECT u."id" FROM "User" u
+         WHERE u."tenantId" = a."tenantId" AND u."role" = 'ADMIN' AND u."status" = 'ACTIVE'
+           AND u."id" IN (SELECT l."userId" FROM "AuditLog" l WHERE l."tenantId" = a."tenantId" AND l."action" = 'GOOGLE_STORE_OWNER_CREATED')
+         ORDER BY u."createdAt" ASC, u."id" ASC LIMIT 1) END,
        CASE WHEN a."owner" THEN 'OWNER'::"MembershipRole" ELSE 'ADMIN'::"MembershipRole" END,
        CURRENT_TIMESTAMP AT TIME ZONE 'UTC', CURRENT_TIMESTAMP AT TIME ZONE 'UTC'
 FROM "GoogleStoreAccess" a
 ON CONFLICT DO NOTHING;
 
--- 4) Membresía OWNER para el correo/contraseña de cada empresa. userId: ADMIN
---    activo más antiguo con el mismo correo, si no el ADMIN más antiguo.
+-- 4) Membresía OWNER para el correo/contraseña de cada empresa. userId: el ADMIN
+--    activo más antiguo con el MISMO correo; sin coincidencia queda NULL (pantalla
+--    de PIN), nunca "el ADMIN más antiguo".
 INSERT INTO "TenantMembership" ("id", "accountId", "tenantId", "userId", "role", "createdAt", "updatedAt")
 SELECT 'mem_' || md5('acc_e_' || md5(lower(t."email")) || t."id"),
        'acc_e_' || md5(lower(t."email")),
        t."id",
        (SELECT u."id" FROM "User" u
-         WHERE u."tenantId" = t."id" AND u."role" = 'ADMIN'
-         ORDER BY (lower(u."email") = lower(t."email")) DESC NULLS LAST, (u."status" = 'ACTIVE') DESC, u."createdAt" ASC, u."id" ASC LIMIT 1),
+         WHERE u."tenantId" = t."id" AND u."role" = 'ADMIN' AND u."status" = 'ACTIVE' AND lower(u."email") = lower(t."email")
+         ORDER BY u."createdAt" ASC, u."id" ASC LIMIT 1),
        'OWNER'::"MembershipRole",
        CURRENT_TIMESTAMP AT TIME ZONE 'UTC', CURRENT_TIMESTAMP AT TIME ZONE 'UTC'
 FROM "Tenant" t

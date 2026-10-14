@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   if (!ctx) return error('Sesión inválida o sin cuenta vinculada.', 401)
   const [tenants, current] = await Promise.all([
     listTenantsForAccount(ctx.accountId, ctx.tenantId),
-    prisma.tenantMembership.findUnique({ where: { accountId_tenantId: { accountId: ctx.accountId, tenantId: ctx.tenantId } }, select: { role: true } }),
+    prisma.tenantMembership.findUnique({ where: { accountId_tenantId: { accountId: ctx.accountId, tenantId: ctx.tenantId } }, select: { role: true, user: { select: { role: true, status: true } } } }),
   ])
-  return json({ tenants, canCreate: canCreateCompany(current?.role) }, { headers: { 'Cache-Control': 'no-store' } })
+  return json({ tenants, canCreate: canCreateCompany(current?.role, current?.user) }, { headers: { 'Cache-Control': 'no-store' } })
 }
