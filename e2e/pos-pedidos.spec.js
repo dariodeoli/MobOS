@@ -97,19 +97,22 @@ test('pedidos: el comprobante ofrece 80 mm, A4 y 58 mm con diseño propio', asyn
   // Los tres modelos: rápido identifica empresa y sucursal; el detallado imprime
   // la cronología del pedido.
   await nivel.getByRole('radio', { name: 'Comprobante Rápido' }).click()
-  await expect(frame).toHaveAttribute('srcdoc', /Empresa/, { timeout: 15000 })
+  await expect(frame).toHaveAttribute('srcdoc', /class="rz">Tienda E2E<\/div><div class="sub">Sucursal E2E/, { timeout: 15000 })
   await nivel.getByRole('radio', { name: 'Comprobante Detallado' }).click()
   await expect(frame).toHaveAttribute('srcdoc', /Cronología/, { timeout: 15000 })
 
   // 58 mm: una columna, total destacado y alto dinámico (no el A4 encogido).
+  // #402: comparte plantilla con A4/80 mm; el marcador del cuerpo (`rollo t58`)
+  // y el `@page` con alto automático lo distinguen de los otros formatos.
   await formato.getByRole('radio', { name: 'Formato 58 mm' }).click()
-  await expect(frame).toHaveAttribute('srcdoc', /@page\{size:58mm auto;margin:3mm\}/, { timeout: 15000 })
-  await expect(frame).toHaveAttribute('srcdoc', /class="t58"/)
-  await expect(frame).toHaveAttribute('srcdoc', /class="row total"/)
-  await expect(frame).toHaveAttribute('srcdoc', /nofiscal/)
+  await expect(frame).toHaveAttribute('srcdoc', /@page\{size:58mm auto;margin:[^}]+\}/, { timeout: 15000 })
+  await expect(frame).toHaveAttribute('srcdoc', /<body class="rollo t58">/)
+  await expect(frame).toHaveAttribute('srcdoc', /<tr class="total">/)
+  await expect(frame).toHaveAttribute('srcdoc', /Documento no fiscal/)
 
   await formato.getByRole('radio', { name: 'Formato A4' }).click()
-  await expect(frame).toHaveAttribute('srcdoc', /@page\{size:A4;margin:18mm 16mm\}/, { timeout: 15000 })
+  await expect(frame).toHaveAttribute('srcdoc', /@page\{size:A4;margin:[^}]+\}/, { timeout: 15000 })
+  await expect(frame).toHaveAttribute('srcdoc', /<body class="hoja a4">/)
 })
 
 // Comprobante como imagen en MobOS (#240/#220, coordinado con POS): desde el

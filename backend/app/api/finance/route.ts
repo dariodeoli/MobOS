@@ -11,6 +11,7 @@ import { deudaRepuesto, resumenRepuestos } from '../../../lib/workshop-parts'
 import { createCashMovement } from '../../../lib/cash-movements'
 import { DEFAULT_EXPENSE_LIMIT_PYG, authorizedAmountOf, consumeAuthorization, usableAuthorization } from '../../../lib/authorizations'
 import { numero } from '../../../lib/montos'
+import { signedOriginalAmount } from '../../../lib/payment-net'
 
 const ROLES = ['ADMIN', 'GERENTE', 'CAJERA'] as const
 const WRITE_ROLES = ['ADMIN', 'GERENTE', 'CAJERA'] as const
@@ -55,8 +56,8 @@ export async function GET(request: Request) {
     prisma.paymentAccount.findMany({ where: { tenantId }, select: { id: true, name: true, currency: true, kind: true, feePercent: true, isActive: true } }),
     prisma.order.findMany({ where: { tenantId, ...branchFilter, status: { not: 'CANCELLED' } }, select: { id: true, totalPyg: true, discountPyg: true, payments: { select: { amountPyg: true, status: true } }, items: { select: { quantity: true, totalPyg: true, unitCostPyg: true, insurancePyg: true, extraCostPyg: true } } }, take: 5000 }),
     prisma.purchaseOrder.findMany({ where: { tenantId, ...branchFilter }, select: { id: true, supplierId: true, supplierName: true, lines: { select: { quantity: true, unitCostPyg: true, finalTotalCostPyg: true } }, payments: { select: { amountPyg: true, accountId: true, originalAmount: true } } }, take: 5000 }),
-    prisma.payment.findMany({ where: { tenantId, status: 'CONFIRMED', order: branchFilter }, select: { accountId: true, originalAmount: true, amountPyg: true, currency: true } }),
-    prisma.paymentReconciliation.findMany({ where: { tenantId, state: 'PENDING' }, select: { id: true, paymentId: true, createdAt: true, payment: { select: { amountPyg: true, currency: true, originalAmount: true, order: { select: { branchId: true, orderNumber: true } } } } }, take: 100 }),
+    prisma.payment.findMany({ where: { tenantId, status: 'CONFIRMED', order: branchFilter }, select: { accountId: true, originalAmount: true, amountPyg: true, currency: true, reversalOfId: true } }),
+    prisma.paymentReconciliation.findMany({ where: { tenantId, state: 'PENDING', payment: { reversalOfId: null, reversal: { is: null } } }, select: { id: true, paymentId: true, createdAt: true, payment: { select: { amountPyg: true, currency: true, originalAmount: true, order: { select: { branchId: true, orderNumber: true } } } } }, take: 100 }),
     // Cuenta a pagar al proveedor por repuestos/insumos (#250 · #83): contado,
     // crédito con vencimiento y consignación (que recién impacta al consumirse).
     prisma.supplierPayable.findMany({ where: { tenantId, ...branchFilter }, select: { id: true, supplierId: true, supplierName: true, concept: true, condition: true, amountPyg: true, paidPyg: true, consumedPyg: true, dueAt: true, reference: true, createdAt: true, supplyPurchaseId: true }, orderBy: [{ dueAt: 'asc' }, { createdAt: 'desc' }], take: 2000 }),
@@ -127,7 +128,7 @@ export async function GET(request: Request) {
   }
   const balances = new Map(accounts.map(account => [account.id, { ...account, balance: 0 }]))
   for (const movement of movements) if (movement.status === 'CLEARED' && movement.accountId && balances.has(movement.accountId)) balances.get(movement.accountId)!.balance += (movement.direction === 'IN' ? 1 : -1) * Number(movement.originalAmount)
-  for (const payment of salePayments) if (payment.accountId && balances.has(payment.accountId)) balances.get(payment.accountId)!.balance += Number(payment.originalAmount ?? payment.amountPyg)
+  for (const payment of salePayments) if (payment.accountId && balances.has(payment.accountId)) balances.get(payment.accountId)!.balance += signedOriginalAmount(payment)
   for (const purchase of purchases) for (const payment of purchase.payments) if (payment.accountId && balances.has(payment.accountId)) balances.get(payment.accountId)!.balance -= Number(payment.originalAmount ?? payment.amountPyg)
   // Repuestos del taller (#250 · FIN): deuda real (crédito y consignación
   // consumida) con vencimiento, para el KPI de «por pagar» y su pago desde Caja.

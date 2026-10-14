@@ -69,7 +69,8 @@ async function pagarEnPos(page, { cliente, producto, pagos }) {
         await expect(fila.getByText(`Equivalente: ${pago.equivalente}`)).toBeVisible({ timeout: 3000 })
       }).toPass({ timeout: 20_000 })
     } else if (pago.equivalente) {
-      await expect(fila.getByText(`Equivalente: ${pago.equivalente}`)).toBeVisible()
+      // #391: las cuentas en guaraníes no muestran «Equivalente».
+      await expect(fila.getByText(/^Equivalente/)).toHaveCount(0)
     }
   }
   await expect(page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ })).toBeVisible()
@@ -333,8 +334,7 @@ test('retiro en tienda no cobra el envío aunque haya un monto cargado (#187)', 
     // Retiro: el monto se limpia y la venta vuelve al subtotal.
     await page.locator('#entrega').selectOption('Retiro en tienda')
     const monto = page.locator('#monto-entrega')
-    await expect(monto).toBeDisabled()
-    await expect(monto).toHaveValue('')
+    await expect(monto).toHaveCount(0) // #391: el monto solo aparece con Delivery/encomienda
     await expect(carrito).not.toContainText('Entrega +')
     await expect(page.getByTestId('carrito-total')).toContainText('Gs 100.000')
   } finally {

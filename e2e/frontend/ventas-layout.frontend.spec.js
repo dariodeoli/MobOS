@@ -160,7 +160,7 @@ test('Cotizaciones: "Más" es un botón de 44px y "Más estados" despliega chips
   await expect(more).toBeFocused()
 })
 
-test('Pedidos: totales en una tira compacta con el alcance una sola vez y lista arriba', async ({ page }) => {
+test('Pedidos: barra de UNA fila en escritorio, totales en una tira de una línea con el alcance una sola vez y lista arriba', async ({ page }) => {
   await enterDemo(page)
   for (const [width, height] of [
     [1440, 900],
@@ -183,18 +183,52 @@ test('Pedidos: totales en una tira compacta con el alcance una sola vez y lista 
     })
     console.log(`MEDIDA Pedidos @${width}`, JSON.stringify(m))
     if (width >= 1280) {
+      // #388: buscador · chips · orden · acción principal en UNA sola fila.
+      const filas = await page.getByTestId('barra-pedidos').evaluate(node => {
+        const ys = [...node.querySelectorAll('input, button')]
+          .filter(el => el.getBoundingClientRect().width > 0)
+          .map(el => Math.round(el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2))
+        return new Set(ys.map(y => Math.round(y / 12))).size
+      })
+      expect(filas, `@${width}: barra de herramientas en una fila`).toBe(1)
+      await expect(page.getByTestId('barra-pedidos').getByRole('button', { name: 'Actualizar', exact: true })).toHaveCount(0)
+    }
+    if (width >= 1280) {
       await mkdir(out, { recursive: true })
       await page.screenshot({ path: `${out}/densidad-pedidos-${width}.png` })
     }
     expect(m.hscroll, `@${width}: sin scroll horizontal`).toBe(false)
     await expect(strip.getByText('En pantalla', { exact: true })).toHaveCount(1)
     if (width >= 1280) {
-      expect(m.stripH, `@${width}: tira ≤ 76px`).toBeLessThanOrEqual(76)
       if (m.listaTop !== null) expect(m.listaTop, `@${width}: la lista empieza ≤ y=300`).toBeLessThanOrEqual(300)
-    } else {
-      expect(new Set(m.tiles.map(t => t.x)).size, `@${width}: KPI en 2 columnas`).toBeLessThanOrEqual(2)
     }
+    // Una línea: ≤ 64px de alto y todas las métricas en la misma fila (en celular la tira se desplaza).
+    expect(m.stripH, `@${width}: tira ≤ 64px`).toBeLessThanOrEqual(64)
+    expect(new Set(m.tiles.map(t => t.y)).size, `@${width}: KPI en una sola fila`).toBe(1)
   }
+})
+
+test('Clientes: barra de herramientas en UNA fila a 1440 y KPI de una línea (#388)', async ({ page }) => {
+  await enterDemo(page)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await openShellDestination(page, 'Clientes')
+  await settle(page)
+  const barra = page.getByTestId('barra-clientes')
+  await expect(barra).toBeVisible()
+  const m = await barra.evaluate(node => {
+    const ys = [...node.querySelectorAll('input, button, select')]
+      .filter(el => el.getBoundingClientRect().width > 0)
+      .map(el => Math.round(el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2))
+    const search = node.querySelector('[data-slot="search"]').getBoundingClientRect()
+    return { filas: new Set(ys.map(y => Math.round(y / 12))).size, searchW: Math.round(search.width) }
+  })
+  expect(m.filas, 'buscador · chips · orden · vista · acción en una fila').toBe(1)
+  expect(m.searchW, 'buscador 320–420px').toBeGreaterThanOrEqual(320)
+  expect(m.searchW, 'buscador 320–420px').toBeLessThanOrEqual(421)
+  const strip = await page.getByTestId('resumen-clientes').boundingBox()
+  expect(strip.height, 'KPI ≤ 64px').toBeLessThanOrEqual(64)
+  // El aviso de la demo no es una fila propia ni un párrafo en la barra.
+  await expect(barra.getByText('Demo local')).toHaveCount(0)
 })
 
 test('Pedidos: un solo punto de entrada a los filtros y el orden, sin selects, en celular', async ({ page }) => {
@@ -215,6 +249,10 @@ test('Pedidos: un solo punto de entrada a los filtros y el orden, sin selects, e
   })
   await expect(page.getByTestId('pedido-fila')).toHaveCount(parciales)
   await orders.getByRole('button', { name: 'Todos', exact: true }).click()
+  // Orden y vista viven detrás de UN botón de 44px («Ordenar / Vista»).
+  const alternar = orders.getByRole('button', { name: 'Ordenar / Vista', exact: true })
+  expect((await alternar.boundingBox()).height).toBeGreaterThanOrEqual(44)
+  await alternar.click()
   const sort = orders.getByTestId('pedidos-orden')
   await sort.getByRole('button', { name: 'Ordenar', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Cantidad', exact: true }).click()

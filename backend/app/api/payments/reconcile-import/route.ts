@@ -4,6 +4,7 @@ import { canAccessAny, requireSession } from '../../../../lib/auth'
 import { enforceRateLimit } from '../../../../lib/rate-limit'
 import { InputError, objectInput } from '../../../../lib/payment-input'
 import { LIMITE_MONTO_VENTAS, numero } from '../../../../lib/montos'
+import { COUNTABLE_PAYMENT_WHERE } from '../../../../lib/payment-net'
 
 // Conciliación bancaria por CSV: el cliente ya parseó el extracto y acá se
 // cruzan las filas contra los cobros confirmados del tenant. No modifica nada:
@@ -125,6 +126,7 @@ export async function POST(request: Request) {
     where: {
       tenantId: tenant,
       status: 'CONFIRMED',
+      ...COUNTABLE_PAYMENT_WHERE,
       amountPyg: { in: [...new Set(filas.map(fila => fila.amountPyg))] },
       paidAt: { gte: desde, lt: hasta },
       OR: [{ reconciliation: null }, { reconciliation: { is: { state: { not: 'VERIFIED' } } } }],

@@ -14,6 +14,7 @@
 // §12). Sin enlace, el papel imprime el código del envío en barras y el texto
 // «Escaneá para abrir el panel de la compra.».
 import { CONDICIONES_STOCK } from './etiquetaUnidad.js'
+import { siglaProveedor } from './ventaPapel.js'
 
 export const RESULTADOS_RECEPCION = ['RECIBIDO', 'FALTANTE', 'SOBRANTE', 'DANADO', 'INCORRECTO']
 
@@ -183,7 +184,7 @@ export function datosComprobanteRecepcion(recepcion = {}, { productos = [], emis
     titulo: 'Comprobante de recepción',
     compra: texto(purchase.code),
     envio: texto(shipment.code),
-    proveedor: texto(proveedor || purchase.supplierName),
+    proveedor: siglaProveedor(proveedor || purchase.supplierName, purchase.supplierCode || purchase.supplier?.code),
     origen: texto(shipment.origin),
     destino: texto(shipment.destinationBranch?.name),
     metodo: METODOS_ENVIO[texto(shipment.method).toUpperCase()] || texto(shipment.method),

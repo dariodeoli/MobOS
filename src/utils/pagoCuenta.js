@@ -47,3 +47,27 @@ export function updateAccountPayment(payment, change, accounts) {
   const amount = Math.round(original * rate)
   return { ...next, medioPago: account?.name || '', cuenta: account?.name || '', monto: account && original > 0 && rate > 0 && Number.isSafeInteger(amount) ? String(amount) : '' }
 }
+
+// Cambio (o primera elección) de la cuenta de un pago. Devuelve el cambio a
+// aplicar y si falta proponer el monto cuando llegue la cotización automática.
+// Otra moneda → la cotización de la cuenta anterior se descarta (USD 7300 no es
+// la de BRL); PYG no lleva cotización. Misma moneda con monto cargado → se
+// conserva el monto.
+export function cambiarCuentaPago(payment, accounts, accountId, pendientePyg = 0) {
+  const actual = accounts.find((a) => a.id === payment.accountId)
+  const elegida = accounts.find((a) => a.id === accountId)
+  const esPyg = !elegida || elegida.currency === 'PYG'
+  const cambioMoneda = Boolean(actual) && (elegida?.currency || 'PYG') !== actual.currency
+  const exchangeRatePyg = esPyg || cambioMoneda ? '' : payment.exchangeRatePyg
+  const rate = esPyg ? 1 : decimal(exchangeRatePyg)
+  const conservar = Boolean(actual) && !cambioMoneda && String(payment.originalAmount || '') !== ''
+  const originalAmount = conservar
+    ? payment.originalAmount
+    : pendientePyg > 0 && rate > 0
+      ? (esPyg ? String(Math.round(pendientePyg)) : (pendientePyg / rate).toFixed(2).replace('.', ','))
+      : ''
+  return {
+    cambio: { accountId, originalAmount, exchangeRatePyg, tradeIn: undefined },
+    proponerAlLlegarCotizacion: cambioMoneda && !esPyg && originalAmount === '',
+  }
+}

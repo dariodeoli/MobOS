@@ -30,7 +30,7 @@ try {
   for (const fila of cierres) {
     fallos.push(`caja ${fila.id}: cierre incoherente (estado ${fila.status}, contado ${fila.countedPyg}, esperado ${fila.expectedPyg}, cerrada ${fila.closedAt ? 'sí' : 'no'})`)
   }
-  // ── Caja: el esperado de un turno cerrado se reconstruye desde la apertura,
+  // ── Caja: el esperado de un turno cerrado se reconstruye desde la apertura (sin los pagos de correcciones de turnos ya cerrados, #393),
   //    los cobros en efectivo del responsable y sus movimientos de caja ──
   const turnos = await prisma.$queryRaw`
     SELECT s."id", s."tenantId", s."branchId", s."openedById", s."openingPyg", s."expectedPyg", s."openedAt", s."closedAt",
@@ -40,6 +40,7 @@ try {
           AND COALESCE(p."currency"::text, 'PYG') = 'PYG' AND o."branchId" = s."branchId"
           AND p."paidAt" >= s."openedAt" AND p."paidAt" <= COALESCE(s."closedAt", now())
           AND (p."userId" = s."openedById" OR p."createdById" = s."openedById")
+          AND NOT EXISTS (SELECT 1 FROM "PaymentCorrection" pc WHERE pc."id" = p."correctionId" AND pc."drawerImpact" = false)
       ), 0)::int AS cobros,
       COALESCE((
         SELECT SUM(CASE WHEN m."direction" = 'IN' THEN m."amountPyg" ELSE -m."amountPyg" END)::int

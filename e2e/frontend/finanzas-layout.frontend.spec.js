@@ -413,7 +413,7 @@ test('Conciliación: no debug copy and full signed money', async ({ page }) => {
 // Density pass: Caja shows ONE compact KPI strip (estado, saldo esperado,
 // diferencia, por cobrar/pagar, margen, cheques), no long description line and
 // its first content block starts high on the page.
-test('Caja: tira de KPI compacta, 2 columnas en celular y contenido arriba', async ({ page }) => {
+test('Caja: tira de KPI de una línea (≤ 64px, con scroll propio en celular) y contenido arriba', async ({ page }) => {
   await mkdir(out, { recursive: true })
   await enterDemo(page)
   for (const [width, height] of [
@@ -442,13 +442,13 @@ test('Caja: tira de KPI compacta, 2 columnas en celular y contenido arriba', asy
     expect(m.tiles.length, `@${width}: tiles`).toBeGreaterThanOrEqual(3)
     expect(m.nextTop, `@${width}: hay contenido tras los KPI`).not.toBeNull()
     if (width >= 1280) {
-      for (const t of m.tiles) expect(t.h, `@${width}: tile ≤ 76px`).toBeLessThanOrEqual(76)
       if (m.nextTop !== null) expect(m.nextTop, `@${width}: primer contenido ≤ y=360`).toBeLessThanOrEqual(360)
       await page.screenshot({ path: `${out}/densidad-caja-${width}.png` })
-    } else {
-      const columnas = new Set(m.tiles.map(t => t.x)).size
-      expect(columnas, `@${width}: KPI en 2 columnas`).toBe(2)
     }
+    // #388: una sola línea de KPI (etiqueta + cifra), ≤ 64px; en celular la
+    // tira se desplaza dentro de su caja, nunca apila 2×2 ni ensancha la página.
+    expect(new Set(m.tiles.map(t => t.y)).size, `@${width}: KPI en una sola fila`).toBe(1)
+    for (const t of m.tiles) expect(t.h, `@${width}: tile ≤ 64px`).toBeLessThanOrEqual(64)
     await expect(page.locator('main')).not.toContainText('Apertura física en Gs., saldos, pendientes')
     await expect(page.getByTestId('caja-diferencia')).toBeVisible()
     expect(await cutBoxes(page.locator('main'))).toEqual([])

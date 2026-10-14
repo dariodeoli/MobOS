@@ -6,8 +6,9 @@ import { gs } from '@/utils/calculos'
 import SerialField from '@/components/shared/SerialField'
 import { api } from '@/lib/api/client'
 import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
-import { decimal, FOREIGN } from '@/utils/pagoCuenta'
-import { useEffect, useRef } from 'react'
+import { cambiarCuentaPago, FOREIGN } from '@/utils/pagoCuenta'
+import { useEffect, useRef, useState } from 'react'
+import Icon from '@/components/shared/Icon'
 
 // Cotización referencial del dólar (misma fuente que Pagos): se pide una sola
 // vez y se reutiliza; si el servicio no responde, la cotización queda manual.
@@ -35,49 +36,72 @@ export default function PaymentAccountFields({ payment, accounts, onChange, pend
     if (account?.currency !== 'USD' || Number(payment.exchangeRatePyg) > 0) return undefined
     let vivo = true
     cotizacionReferencial().then((rate) => {
-      if (vivo && rate > 0) onChangeRef.current({ exchangeRatePyg: String(rate), automatico: true })
+      if (vivo && rate > 0) {
+        const proponer = proponerAlLlegarCotizacion.current && String(montoRef.current || '') === '' && pendienteRef.current > 0
+        proponerAlLlegarCotizacion.current = false
+        onChangeRef.current({
+          exchangeRatePyg: String(rate),
+          automatico: true,
+          ...(proponer ? { originalAmount: (pendienteRef.current / rate).toFixed(2).replace('.', ',') } : {}),
+        })
+      }
     })
     return () => { vivo = false }
   }, [account?.currency, payment.exchangeRatePyg])
+  const [cambiando, setCambiando] = useState(false)
+  const proponerAlLlegarCotizacion = useRef(false)
+  const pendienteRef = useRef(pendientePyg)
+  const montoRef = useRef(payment.originalAmount)
+  useEffect(() => { pendienteRef.current = pendientePyg; montoRef.current = payment.originalAmount })
+  const extranjera = FOREIGN(account?.currency)
+  function elegir(accountId) {
+    // Al elegir la cuenta se propone el saldo que falta, en la moneda de la
+    // cuenta (así «dividir el pago» sale con un clic). Si ya había un monto
+    // en la misma moneda (cambio de cuenta en el lugar), se conserva.
+    const { cambio, proponerAlLlegarCotizacion: proponer } = cambiarCuentaPago(payment, accounts, accountId, pendientePyg)
+    proponerAlLlegarCotizacion.current = proponer
+    setCambiando(false)
+    onChange(cambio)
+  }
   // `grid-cols-1` explícito: en mobile la pista implícita es `auto` y el texto
   // largo de la cápsula ensancharía la tarjeta (el `w-full` del monto quedaba
   // clipeado). Con minmax(0,1fr) todo se ajusta al ancho disponible.
-  return <div className="grid grid-cols-1 gap-3 rounded-2xl border border-ink-600 bg-ink-800/40 p-3 sm:grid-cols-2 sm:col-span-3">
+  return <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:col-span-full">
     <div className="sm:col-span-2">
-      {account ? (
-        <>
-          {/* #283: elegida la cuenta, el selector desaparece y queda solo la
-              cápsula con sus datos; cambiar de cuenta = eliminar el pago y
-              agregar otro (no se edita en el lugar). */}
-          <CapsulaCuentaCobro account={account} />
-          <p className="mt-1.5 text-[11px] text-mute" data-testid="cuenta-cambiar-ayuda">
-            Para cambiar de cuenta, eliminá este pago y agregá otro.
-          </p>
-        </>
+      {account && !cambiando ? (
+        /* #391: la cuenta elegida es una fila compacta; cambiarla es en el
+           lugar (sin eliminar el pago) y sus datos van detrás de «Ver datos
+           para el cliente». */
+        <CapsulaCuentaCobro
+          account={account}
+          acciones={
+            <button
+              type="button"
+              data-testid="cuenta-cambiar"
+              className="toque-44 grid h-11 w-11 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore md:h-8 md:w-8"
+              title="Cambiar cuenta"
+              aria-label="Cambiar cuenta"
+              onClick={() => setCambiando(true)}
+            >
+              <Icon name="edit" className="h-4 w-4" />
+            </button>
+          }
+        />
       ) : (
         <>
           <Label htmlFor="cuenta-de-cobro">Cuenta de cobro</Label>
           <CuentaCobroCombobox
             value={payment.accountId || ''}
             accounts={accounts}
-            onChange={(accountId) => {
-              // Al elegir la cuenta se propone el saldo que falta, en la moneda
-              // de la cuenta (así «dividir el pago» sale con un clic).
-              const elegida = accounts.find((a) => a.id === accountId)
-              const esPyg = !elegida || elegida.currency === 'PYG'
-              const rate = esPyg ? 1 : decimal(payment.exchangeRatePyg)
-              const propuesto = pendientePyg > 0 && rate > 0
-                ? (esPyg ? String(Math.round(pendientePyg)) : (pendientePyg / rate).toFixed(2).replace('.', ','))
-                : ''
-              onChange({ accountId, originalAmount: propuesto, exchangeRatePyg: payment.exchangeRatePyg, tradeIn: undefined })
-            }}
+            onChange={elegir}
           />
         </>
       )}
     </div>
-    <div className="sm:col-span-2"><Label htmlFor="monto-original">Monto original ({account?.currency || 'moneda de la cuenta'})</Label><MoneyInput id="monto-original" aria-label="Monto original" className="w-full" disabled={!account} max={LIMITE_MONTO_VENTAS} currency={account?.currency || 'PYG'} value={payment.originalAmount} onValueChange={(v) => onChange({ originalAmount: account?.currency === 'PYG' ? (v === '' ? '' : String(v)) : v })} placeholder={FOREIGN(account?.currency) ? '0,00' : '0'} /></div>
-    {FOREIGN(account?.currency) && <div className="sm:col-span-2"><Label htmlFor="cotizacion-manual">Cotización (₲ por {account.currency}){account.currency === 'USD' ? ' · automática, editable' : ''}</Label><MoneyInput id="cotizacion-manual" aria-label={`Cotización manual ${account.currency} a PYG`} currency="USD" symbol="Gs." value={payment.exchangeRatePyg || ''} onValueChange={(v) => onChange({ exchangeRatePyg: v })} placeholder="Ingresar cotización" /></div>}
-    <p className="rounded-lg border border-fono/20 bg-fono/5 px-3 py-2 text-sm sm:col-span-2">Equivalente: <b className="tabular-nums text-fore">{gs(Number(payment.monto) || 0)}</b></p>
+    <div><Label htmlFor="monto-original">Monto original ({account?.currency || 'moneda de la cuenta'})</Label><MoneyInput id="monto-original" aria-label="Monto original" className="w-full" disabled={!account} max={LIMITE_MONTO_VENTAS} currency={account?.currency || 'PYG'} value={payment.originalAmount} onValueChange={(v) => onChange({ originalAmount: account?.currency === 'PYG' ? (v === '' ? '' : String(v)) : v })} placeholder={extranjera ? '0,00' : '0'} /></div>
+    {extranjera && <div><Label htmlFor="cotizacion-manual">Cotización (₲ por {account.currency}){account.currency === 'USD' ? ' · automática, editable' : ''}</Label><MoneyInput id="cotizacion-manual" aria-label={`Cotización manual ${account.currency} a PYG`} currency="USD" symbol="Gs." value={payment.exchangeRatePyg || ''} onValueChange={(v) => onChange({ exchangeRatePyg: v })} placeholder="Ingresar cotización" /></div>}
+    {/* El equivalente solo aporta cuando la cuenta no es en guaraníes. */}
+    {extranjera && <p className="rounded-lg border border-fono/20 bg-fono/5 px-3 py-1.5 text-sm sm:col-span-2">Equivalente: <b className="tabular-nums text-fore">{gs(Number(payment.monto) || 0)}</b></p>}
     {account?.kind === 'TRADE_IN' && <>
       <div><Label htmlFor="serial-imei-del-canje">Serial / IMEI del canje *</Label><SerialField id="serial-imei-del-canje" aria-label="Serial del canje" value={payment.tradeIn?.serial || ''} onChange={(value) => onChange({ tradeIn: { ...payment.tradeIn, serial: value } })} /></div>
       <div><Label htmlFor="modelo-del-canje">Modelo del canje *</Label><Input id="modelo-del-canje" aria-label="Modelo del canje" value={payment.tradeIn?.model || ''} onChange={(e) => onChange({ tradeIn: { ...payment.tradeIn, model: e.target.value } })} /></div>

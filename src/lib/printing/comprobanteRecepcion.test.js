@@ -60,7 +60,7 @@ test('el comprobante concilia esperado vs recibido por línea con incidencias', 
 
   assert.equal(datos.compra, 'COM-CDE-0048')
   assert.equal(datos.envio, 'ENV-CDE-ASU-0021')
-  assert.equal(datos.proveedor, 'Mayorista Apple PY')
+  assert.equal(datos.proveedor, 'MAP', 'el papel imprime la sigla del proveedor, nunca su nombre real (#400)')
   assert.equal(datos.origen, 'CDE')
   assert.equal(datos.destino, 'Casa Central')
   assert.equal(datos.metodo, 'Bus')
