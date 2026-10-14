@@ -165,5 +165,8 @@ try {
 
   console.log(`unit-code: OK (${checks} comprobaciones)`)
 } finally {
+  // Las unidades por SQL directo no tocan el stock agregado: se retiran para no
+  // dejar descuadre en el chequeo de consistencia de stock.
+  await db.query(`DELETE FROM "InventoryUnit" WHERE "id" LIKE 'raw-%'`)
   await db.end()
 }
