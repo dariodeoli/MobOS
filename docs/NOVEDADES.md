@@ -11,12 +11,16 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
-## v1.0.226 — (pendiente)
+## v1.0.226 — 2026-10-14
 
-Rediseño de toda la aplicación; el integrador completa la fecha al publicar.
+Rediseño de toda la aplicación y varias empresas bajo una misma cuenta.
 
-- **Navegación:** el menú tiene las mismas secciones para todos los roles, cada pantalla muestra un solo título y una sola fila de pestañas; la campana de avisos y tu perfil quedan arriba a la derecha, con tu estado en línea sobre la foto.
-- **Vender:** el catálogo muestra más productos a la vista, el cliente va arriba, y el carrito y el cobro quedan juntos en una columna con un solo Total; las herramientas del punto de venta (gift cards, analytics, ventas suspendidas) siguen a mano en «Más».
+- **Varias empresas:** un dueño puede tener más de una empresa y cambiar entre ellas desde el encabezado; cada empresa tiene su propio plan, y crear una nueva lleva directo a definir su PIN.
+- **Navegación:** el menú tiene las mismas secciones para todos los roles, cada pantalla muestra un solo título y una sola fila de pestañas; la campana de avisos, la sucursal y el modo claro/oscuro quedan arriba a la derecha, y el menú plegado queda como una columna de íconos.
+- **Vender:** el catálogo muestra más productos a la vista y carga por páginas aunque haya miles; las pestañas muestran cuántos hay en cada una, el cliente va arriba, y el carrito y el cobro quedan juntos con un solo Total, Pagado y Pendiente; gift cards y ventas suspendidas quedan al lado de Suspender venta.
+- **Inicio y Análisis:** gráficos nuevos de ventas, reportes y productos ganadores; el pago confirmado, la entrega y la cuota cobrada se celebran con una animación breve.
+- **Acceso:** login y entrada a la demo rediseñados; los códigos se cargan en casillas, se pueden pegar completos y se validan al instante.
+- **Permisos:** el dueño decide si vendedores y caja ven costos (por defecto sí), en Configuración › Permisos; cuando está apagado, los costos no aparecen en ninguna pantalla ni en los pedidos.
 - **Finanzas:** Caja, Cuotas, Créditos y Comisiones muestran los importes completos, aun los de mil millones, sin cortes ni desplazamiento lateral en el celular; el botón de WhatsApp de Cuotas se lee bien con luz.
 - **Inicio y Ventas:** las cifras del día caben en una tira compacta, «Para resolver hoy» queda alineado y un pedido abierto ya no se cierra solo si cambia el filtro o la búsqueda.
 - **Stock:** Unidades, Productos, Traslados, Control y Precios se eligen como pestañas; en Precios, las vistas Listas, Lista por modelo, Comparador y Centro de Control quedan en la barra de herramientas de cada pantalla.
