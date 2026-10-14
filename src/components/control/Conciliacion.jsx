@@ -45,20 +45,24 @@ const rangoPorDefecto = () => ({ ...PRESETS.find((preset) => preset.id === '30d'
 const GRID_GRUPOS = 'conciliacion-f5-group-grid'
 const GRID_ITEMS = 'conciliacion-f5-payment-grid'
 
-function Resumen({ resumen }) {
+function Resumen({ resumen, alcance }) {
   // #388: tira de UNA línea («etiqueta + cifra»), sin subtextos que repiten el
-  // conteo; el avance conciliado/total va como una celda más.
+  // conteo. El alcance (período, filtros, sin sucursal) va como nombre accesible
+  // y tooltip de la tira en vez de un párrafo propio; el avance es una celda más.
   const n = (valor) => Number(valor || 0)
   const gsCompleto = (valor) => {
     const { signo, simbolo, digitos } = partesGs(valor || 0)
     return `${signo}${simbolo} ${digitos}`
   }
   return (
-    <StatGrid testId="conciliacion-resumen">
+    <StatGrid testId="conciliacion-resumen" etiqueta={alcance} title={alcance}>
       <Stat compact label="Ingresos conciliables" valor={gsCompleto(n(resumen.confirmedPyg))} sub={`${n(resumen.count)} pago(s)`} />
       <Stat compact label="Conciliado" valor={gsCompleto(n(resumen.verifiedPyg))} valorClassName="text-ok" />
       <Stat compact label="Por conciliar" valor={gsCompleto(n(resumen.unverifiedPyg))} valorClassName={n(resumen.unverifiedPyg) > 0 ? 'text-warn' : ''} />
       <Stat compact label="Diferencia de lotes" valor={gsCompleto(n(resumen.differencePyg))} valorClassName={n(resumen.differencePyg) ? 'text-bad' : ''} sub={n(resumen.lotes) ? `${n(resumen.lotes)} lote(s)` : undefined} />
+      {n(resumen.count) > 0 && (
+        <Stat compact testId="conciliacion-avance" label="Avance" valor={`${n(resumen.verifiedCount)} de ${n(resumen.count)}`} sub={n(resumen.pendingCount) > 0 ? `Faltan ${n(resumen.pendingCount)}` : 'Al día'} valorClassName={n(resumen.pendingCount) > 0 ? 'text-warn' : 'text-ok'} />
+      )}
     </StatGrid>
   )
 }
@@ -363,7 +367,10 @@ export default function Conciliacion() {
           )}
           more={esDemo ? <span data-testid="conciliacion-demo" title="Demo: cobros y cuentas ficticios; lotes solo en este navegador." className="inline-flex min-h-7 items-center rounded-full border border-ink-600 bg-ink-800 px-2.5 text-xs text-mute max-sm:hidden">Demo</span> : undefined}
         />
-        <Resumen resumen={data?.resumen || {}} />
+        <Resumen
+          resumen={data?.resumen || {}}
+          alcance={`Resumen ${rango.desde}–${rango.hasta} · según cuenta, medio y procesadora. Esta consulta no envía sucursal; el estado no cambia el resumen.`}
+        />
         {error && <Aviso tono="error">{error}</Aviso>}
       </Card>
 

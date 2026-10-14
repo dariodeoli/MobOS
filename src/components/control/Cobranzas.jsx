@@ -6,11 +6,11 @@ import { agruparCuotas, diasDeAtraso, resumenCuotas } from '@/lib/cobranzas'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { telefonoVisible } from '@/utils/telefono'
 import { fechaDia as fecha } from '@/utils/fecha'
-import { Aviso, Badge, Button, Card, EmptyState, Modal, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, EmptyState, Modal, Stat, useToast } from '@/components/ui'
+import StatGrid from '@/components/shared/StatGrid'
 import Icon from '@/components/shared/Icon'
 import PagosPedido from '@/components/ventas/PagosPedido'
 import { cn } from '@/lib/utils'
-import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import './finanzasTactil.css'
 import { temaV2Activo } from '@/lib/temaV2'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
@@ -99,17 +99,17 @@ export default function Cobranzas() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="font-bold">Cobranzas por WhatsApp</h2>
-            <p className="mt-1 text-sm text-mute">Recordá las cuotas vencidas y próximas con la plantilla de <b className="text-fore">Cobranzas</b>. Cada cuota se avisa una sola vez por WhatsApp y queda en la cronología del cliente y del pedido. La plantilla se edita en <a className="text-fono-light underline" href="/plantillas">Plantillas de WhatsApp</a>.</p>
+            <p className="mt-1 text-xs text-mute">Plantilla de cobranzas: <a className="text-fono-light underline" href="/plantillas">Plantillas de WhatsApp</a>. Cada cuota se avisa una sola vez.</p>
             <p className="mt-1 text-xs text-mute">{moraPct > 0 ? `Recargo por mora configurado: ${moraPct}% por día (tope 20%).` : 'Sin recargo por mora configurado: solo se informan los días de atraso.'}</p>
           </div>
           <Button type="button" variant="outline" className="min-h-11 px-3 text-xs lg:min-h-0 lg:h-8 lg:px-2" onClick={cargar}>Actualizar</Button>
         </div>
-        <div className={`mt-3 ${GRILLA_DOS_COLUMNAS} xl:grid-cols-4`} data-testid="cuotas-resumen">
-          <div className={cn('rounded-xl border border-warn/30 bg-warn/5 px-3 py-2', v2 && 'v2-tile')} data-testid="cuotas-pendiente"><p className="text-xs leading-4 text-mute">Pendiente total</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}>{gs(resumen.pendientePyg)}</strong></div>
-          <div className={cn('rounded-xl border border-bad/25 bg-bad/5 px-3 py-2', v2 && 'v2-tile')} data-testid="cuotas-vencidas"><p className="text-xs leading-4 text-mute">Vencidas</p><strong className={cn('block font-semibold leading-7 tabular-nums text-bad', v2 ? 'v2-numero text-xl' : 'text-xl')}>{vencidas.length}</strong><span className="block text-xs leading-4 text-mute">{gs(montoDe(vencidas))}</span></div>
-          <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="cuotas-proximas"><p className="text-xs leading-4 text-mute">Próximas</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}>{proximas.length}</strong><span className="block text-xs leading-4 text-mute">{gs(montoDe(proximas))}</span></div>
-          <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="cuotas-recargo"><p className="text-xs leading-4 text-mute">Recargo por mora</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl', resumen.recargoPyg > 0 ? 'text-bad' : 'text-mute')}>{gs(resumen.recargoPyg)}</strong></div>
-        </div>
+        <StatGrid testId="cuotas-resumen" className="mt-3">
+          <Stat compact testId="cuotas-pendiente" label="Pendiente total" valor={gs(resumen.pendientePyg)} valorClassName="text-warn" />
+          <Stat compact testId="cuotas-vencidas" label="Vencidas" valor={vencidas.length} valorClassName="text-bad" sub={gs(montoDe(vencidas))} />
+          <Stat compact testId="cuotas-proximas" label="Próximas" valor={proximas.length} sub={gs(montoDe(proximas))} />
+          <Stat compact testId="cuotas-recargo" label="Recargo por mora" valor={gs(resumen.recargoPyg)} valorClassName={resumen.recargoPyg > 0 ? 'text-bad' : 'text-mute'} />
+        </StatGrid>
         {resumen.sinTelefono > 0 && <p className="mt-2 text-xs text-warn">{resumen.sinTelefono} cuota(s) sin teléfono: no se puede armar el enlace de WhatsApp.</p>}
         {aviso && <Aviso tono="ok" className="p-3 mt-3">{aviso}</Aviso>}
         {error && <Aviso tono="error" className="p-3 mt-3">{error}</Aviso>}
