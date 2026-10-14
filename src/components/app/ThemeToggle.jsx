@@ -37,12 +37,20 @@ function MoonIcon() {
   )
 }
 
-export default function ThemeToggle() {
+export default function ThemeToggle({ className = '', 'data-testid': testId }) {
   const [dark, setDark] = useState(temaOscuro)
 
   useEffect(() => {
     aplicarTema(dark)
   }, [dark])
+
+  // Hay más de un interruptor a la vez (encabezado y perfil): el cambio de uno
+  // se refleja en el otro siguiendo la clase real del documento.
+  useEffect(() => {
+    const observer = new MutationObserver(() => setDark(temaOscuro()))
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
 
   function toggle() {
     const next = !dark
@@ -57,7 +65,8 @@ export default function ThemeToggle() {
       onClick={toggle}
       // #249/#289: en mobile el objetivo táctil mide 44×44; desde sm se
       // conserva la densidad de escritorio (36) del resto de la barra.
-      className="px-2.5 max-sm:min-w-11"
+      className={`px-2.5 max-sm:min-w-11 ${className}`}
+      data-testid={testId}
       title={dark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
       aria-label={dark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
       aria-pressed={dark}

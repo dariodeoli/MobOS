@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 // tocar la estructura: identidad de color suave y consistente entre temas.
 export default function EncabezadoBloque({ titulo, descripcion, extra, tono = '', compacto = false }) {
   return (
-    <div className={cn('flex flex-wrap items-center justify-between gap-x-3 gap-y-2', compacto ? 'mb-2' : 'mb-3')}>
+    <div data-bloque-cab className={cn('flex flex-wrap items-center justify-between gap-x-3 gap-y-2', compacto ? 'mb-2' : 'mb-3')}>
       <div className="min-w-0">
         <h3 className={cn('text-sm font-bold tracking-tight', tono)}>{titulo}</h3>
         {descripcion && <p className="mt-0.5 text-xs text-mute">{descripcion}</p>}
