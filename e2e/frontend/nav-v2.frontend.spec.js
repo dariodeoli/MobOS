@@ -987,6 +987,7 @@ for (const width of [320, 390, 1440]) {
       )
       await all.click()
       // El orden vive en el menú «Ordenar» (reemplaza al select nativo).
+      await abrirOrdenVista(orders)
       await orders.getByRole('button', { name: 'Ordenar', exact: true }).click()
       await page.getByRole('menuitem', { name: 'Cantidad', exact: true }).click()
       await expect(orders.getByTestId('pedidos-orden')).toHaveAttribute('data-orden', 'quantity')
