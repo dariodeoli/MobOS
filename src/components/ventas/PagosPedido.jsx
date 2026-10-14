@@ -24,6 +24,9 @@ import { ticketReciboInterno } from '@/lib/printing/tickets'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+import CorregirPagoModal from './CorregirPagoModal'
+import { metodoDeMedio } from '@/lib/demoConciliacion'
+import { esDeCorreccion, esReversion, evaluarCorreccionPago, reversionesPorOriginal } from '@/utils/correccionPago'
 
 // Enlace de WhatsApp para compartir el seguimiento público del pedido. Usa la
 // plantilla predeterminada de Pedidos cuando existe (con {seguimiento}) y si no
@@ -103,6 +106,37 @@ export default function PagosPedido({ venta, onClose }) {
   const [cuotaPago, setCuotaPago] = useState(null)
   // Saldo a favor del cliente (nota de crédito interna) para poder cobrar con él.
   const [saldoFavor, setSaldoFavor] = useState(null)
+  // Corrección del medio de pago (#393): pago abierto en el modal, ajuste del
+  // negocio para caja/vendedores y motivos (cronología) para el tooltip.
+  const [corrigiendo, setCorrigiendo] = useState(null)
+  const [personalPuede, setPersonalPuede] = useState(true)
+  const [motivos, setMotivos] = useState({})
+  const reversiones = useMemo(() => reversionesPorOriginal(payments), [payments])
+  const hayCorrecciones = payments.some(p => p.correctionId)
+  useEffect(() => {
+    if (esDemo || ['ADMIN', 'GERENTE'].includes(usuario?.role)) return undefined
+    let vigente = true
+    api.get('/api/tenant/payment-correction-policy').then(data => { if (vigente && data) setPersonalPuede(data.staffCorrectsPayments !== false) }).catch(() => {})
+    return () => { vigente = false }
+  }, [esDemo, usuario?.role])
+  useEffect(() => {
+    if (esDemo || !hayCorrecciones) return undefined
+    let vigente = true
+    api.get(`/api/orders/${encodeURIComponent(order.id)}/history`).then(data => {
+      if (!vigente) return
+      const mapa = {}
+      for (const evento of data?.events || []) if (evento.action === 'ORDER_PAYMENT_CORRECTED' && evento.metadata?.correctionId) mapa[evento.metadata.correctionId] = evento.metadata.reason
+      setMotivos(mapa)
+    }).catch(() => {})
+    return () => { vigente = false }
+  }, [esDemo, hayCorrecciones, order.id, payments.length])
+  async function pagoCorregido({ demo }) {
+    if (demo) updateVenta(order.id, demo)
+    else try { await refrescar() } catch { setNeedsRefresh(true) }
+    setOrder(listVentas().find(v => v.id === order.id) || order)
+    setCorrigiendo(null)
+    setNotice('Pago corregido. El original quedó revertido y registrado con su motivo.')
+  }
   const tienePlanCuotas = payments.some(p => p.status === 'PENDING' && p.dueAt)
 
   // Elegir una cuota prepara el cobro: monto fijo de la cuota y aviso visible.
@@ -409,28 +443,45 @@ export default function PagosPedido({ venta, onClose }) {
         const conciliacion = reconciliations[p.id]?.state || p.reconciliationState
         const concTone = conciliacion === 'VERIFIED' ? 'green' : conciliacion === 'REJECTED' ? 'red' : 'orange'
         const concLabel = conciliacion === 'VERIFIED' ? 'Conciliada' : conciliacion === 'REJECTED' ? 'Rechazada' : 'Por conciliar'
-        return <article key={p.id} className="rounded-2xl border border-ink-600 p-4">
+        const reversion = reversiones.get(p.id)
+        const revertido = !!reversion
+        const esRev = esReversion(p)
+        const deCorreccion = esDeCorreccion(p)
+        const motivoCorreccion = p.correctionReason || motivos[p.correctionId]
+        const nuevoDeLaCorreccion = revertido ? payments.find(x => x.correctionId === reversion.correctionId && !x.reversalOfId) : null
+        const permiso = evaluarCorreccionPago({ pago: esDemo && !p.method ? { ...p, method: metodoDeMedio(p.medioPago) } : p, pagos: payments, pedido: order, usuario, personalPuede, conciliacion, esDemo })
+        const inerte = revertido || esRev
+        return <article key={p.id} id={`pago-${p.id}`} className={`rounded-2xl border p-4 ${inerte ? 'border-ink-600/60 bg-ink-800/30' : 'border-ink-600'}`}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <strong className="text-base tabular-nums">{gs(p.monto)}</strong>
+            <strong className={`text-base tabular-nums ${revertido ? 'text-mute line-through' : ''}`}>{gs(p.monto)}</strong>
             <Badge color="slate">{ETIQUETAS_MEDIO_PAGO[p.medioPago] || p.medioPago}</Badge>
-            <Badge color={concTone}>{concLabel}</Badge>
+            {revertido && <Badge color="red">Revertido</Badge>}
+            {esRev && <Badge color="red"><span title={motivoCorreccion ? `Motivo: ${motivoCorreccion}` : undefined}>Reversión</span></Badge>}
+            {deCorreccion && <Badge color="blue"><span title={motivoCorreccion ? `Motivo: ${motivoCorreccion}` : 'Pago nacido de una corrección'}>Corrección</span></Badge>}
+            {!inerte && <Badge color={concTone}>{concLabel}</Badge>}
             {p.dueAt && <Badge color="orange">Vence {new Date(p.dueAt).toLocaleDateString('es-PY')}</Badge>}
             {p.status === 'PENDING' && p.dueAt && canReconcile && <button type="button" className="rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light" onClick={() => cobrarCuota(p)}>Cobrar cuota</button>}
           </div>
-          {p.status === undefined || p.status === 'CONFIRMED' ? <button type="button" className="rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light" onClick={() => imprimirReciboInterno(p)}>Recibo interno</button> : null}
+          <div className="flex flex-wrap items-center gap-2">
+            {nuevoDeLaCorreccion && <button type="button" className="rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light" onClick={() => document.getElementById(`pago-${nuevoDeLaCorreccion.id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })}>Ver corrección</button>}
+            {permiso.puede && !inerte && <button type="button" className="min-h-8 rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light" onClick={() => { setError(''); setNotice(''); setCorrigiendo(p) }}>Corregir</button>}
+            {!inerte && (p.status === undefined || p.status === 'CONFIRMED') ? <button type="button" className="rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light" onClick={() => imprimirReciboInterno(p)}>Recibo interno</button> : null}
+          </div>
         </div>
         <p className="mt-1 text-xs text-mute">{new Date(p.fecha || p.paidAt || p.createdAt).toLocaleString('es-PY')} · {p.cuenta || p.reference || 'Sin referencia'}{p.settlesAt ? ` · se acredita el ${new Date(p.settlesAt).toLocaleDateString('es-PY')}` : ''}</p>
         {p.accountSnapshot && <p className="mt-1 text-xs text-fono-light">{p.accountSnapshot.name} · {p.accountSnapshot.bank} · {p.accountSnapshot.accountNumber} · {p.currency} {p.originalAmount} · cotización {p.exchangeRatePyg}</p>}
         {(proofs[p.id] || []).map(file => <button key={file.id} className="mt-2 block text-sm text-fono-light underline" onClick={() => download(p.id, file)}>{file.name || file.fileName || 'Descargar comprobante'}</button>)}
-        <label className="mt-2 block text-xs text-mute">Adjuntar comprobante · JPG, PNG, WebP o PDF · hasta 5 MB<AttachmentInput disabled={busy} className="mt-2 block w-full text-xs" onSelect={file => upload(p.id, file)} onError={setError} /></label>
-        {canReconcile && <div className="mt-3 border-t border-fore/10 pt-3"><Input aria-label={`Comentario de conciliación ${p.id}`} placeholder="Comentario interno de conciliación" maxLength={2000} value={notes[p.id] || ''} onChange={e => setNotes(prev => ({ ...prev, [p.id]: e.target.value }))} /><div className="mt-2 flex gap-2"><Button disabled={busy} onClick={() => reconcile(p.id, 'VERIFIED')}>Verificar</Button><button disabled={busy} className="rounded-lg border border-bad/30 px-3 text-sm text-bad" onClick={() => reconcile(p.id, 'REJECTED')}>Rechazar</button></div></div>}
+        {motivoCorreccion && (esRev || deCorreccion) && <p className="mt-1 text-xs text-mute">Motivo: {motivoCorreccion}</p>}
+        {!inerte && <label className="mt-2 block text-xs text-mute">Adjuntar comprobante · JPG, PNG, WebP o PDF · hasta 5 MB<AttachmentInput disabled={busy} className="mt-2 block w-full text-xs" onSelect={file => upload(p.id, file)} onError={setError} /></label>}
+        {canReconcile && !inerte && <div className="mt-3 border-t border-fore/10 pt-3"><Input aria-label={`Comentario de conciliación ${p.id}`} placeholder="Comentario interno de conciliación" maxLength={2000} value={notes[p.id] || ''} onChange={e => setNotes(prev => ({ ...prev, [p.id]: e.target.value }))} /><div className="mt-2 flex gap-2"><Button disabled={busy} onClick={() => reconcile(p.id, 'VERIFIED')}>Verificar</Button><button disabled={busy} className="rounded-lg border border-bad/30 px-3 text-sm text-bad" onClick={() => reconcile(p.id, 'REJECTED')}>Rechazar</button></div></div>}
         {(p.reconciliationHistory || []).map((entry, index) => <p key={index} className="mt-2 text-xs text-mute">{entry.user} · {new Date(entry.at).toLocaleString('es-PY')} · {entry.state}: {entry.note}</p>)}
         {reconciliations[p.id]?.note && <p className="mt-2 text-xs text-mute">{reconciliations[p.id].note}</p>}
       </article>})}
     </div>
     {error && <p role="alert" className="mt-4 text-sm text-bad">{error}</p>}
     {notice && <p role="status" data-testid="pago-aviso" className="mobos-chip-cambia mt-4 flex items-center gap-2 text-sm text-ok"><CheckAnimado size={24} className="shrink-0" />{notice}</p>}
+    {corrigiendo && <CorregirPagoModal pago={corrigiendo} pedido={order} usuario={usuario} cuentas={accounts} esDemo={esDemo} onClose={() => setCorrigiendo(null)} onCorregido={pagoCorregido} />}
     {esDemo && <p className="mt-4 text-xs text-mute">Demo: pagos y archivos se guardan sólo en este navegador.</p>}
   </Modal>
 }
