@@ -744,9 +744,13 @@ for (const width of widths) {
       await details.locator('summary').focus()
       await page.keyboard.press('Enter')
       await expect(details).toHaveAttribute('open', '')
-      for (const heading of ['Evolución', 'Stock bajo', 'Rendimiento por vendedor'])
+      for (const heading of ['Stock bajo', 'Rendimiento por vendedor'])
         await expect(details.getByRole('heading', { name: heading, exact: true })).toBeVisible()
-      await expect(details).toContainText('Ticket promedio')
+      // #376: ticket, evolución, medios de pago y top productos salieron del
+      // desplegable y viven a la vista con sus gráficos.
+      for (const heading of ['Ventas por día', 'Cómo te pagaron', 'Top productos'])
+        await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible()
+      await expect(page.getByTestId('indicador-ticket')).toContainText('Ticket promedio')
       await details.locator('summary').click()
       await noOverflow(page)
       await page.evaluate(() => {

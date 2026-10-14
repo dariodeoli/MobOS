@@ -3,12 +3,13 @@ import { useSearchParams } from 'react-router-dom'
 import { useUrlState } from '@/hooks/useUrlState'
 import { useSesion } from '@/lib/sesion'
 import { listVentas, listGastos, listAds, productosById } from '@/lib/storage'
-import { gs, variacion } from '@/utils/calculos'
+import { gs } from '@/utils/calculos'
 import { fechaHora } from '@/utils/fecha'
 import { descargarCsvCliente } from '@/utils/descargarArchivo'
 import { gananciaDeRango, lineasDeGanancia, serieDeReporte } from '@/utils/ganancias'
 import { reporteMetricas } from '@/lib/metricas'
 import { Badge, Button, Card, CeldaMoneda, EmptyState, Select, Stat } from '@/components/ui'
+import { ChipDelta, GraficoArea, GraficoBarras, TarjetaGrafico, serieContinua, variacionPct } from '@/components/shared/graficos'
 import StatGrid from '@/components/shared/StatGrid'
 import Icon from '@/components/shared/Icon'
 import RangoFechas, { PRESETS, rangoDeParams, paramsDeRango, etiquetaRango } from '@/components/shared/RangoFechas'
@@ -129,6 +130,24 @@ export default function Reportes() {
     prodsById: productosById(),
   }
   const gananciaPeriodo = tipo === 'comisiones' || !totales ? null : gananciaDeRango(rango, datosGanancia, totales)
+  // Gráficos (#376): la serie diaria sale del mismo reporte por día que usa el
+  // calendario; las barras, de los grupos que ya muestra la tabla.
+  const serieDias = useMemo(() => {
+    if (!serieGanancia?.porDia || !rangoValido(rango.desde, rango.hasta)) return []
+    const porFecha = {}
+    for (const [clave, g] of serieGanancia.porDia) porFecha[clave] = Number(g.totalPyg) || 0
+    return serieContinua(rango, porFecha)
+  }, [serieGanancia, rango])
+  const porLineaGrupo = esGrupoPorLinea(grupo)
+  const tituloBarras = `Top ${(GRUPOS.find((g) => g.id === grupo)?.plural || 'grupos').toLowerCase()}`
+  const itemsBarras = useMemo(
+    () => (grupo === 'day' ? [] : grupos
+      .map((g) => ({ clave: g.key, etiqueta: g.label, valor: Number(porLineaGrupo ? g.grossPyg : g.totalPyg) || 0, sub: g.units !== undefined ? `${g.units} u.` : undefined }))
+      .filter((i) => i.valor > 0)
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 8)),
+    [grupos, grupo, porLineaGrupo],
+  )
   const columnas = columnasReporte(grupo)
   const porLinea = esGrupoPorLinea(grupo)
   // Columnas del listado: mismos encabezados y alineación que antes. Texto
@@ -333,23 +352,21 @@ export default function Reportes() {
           </StatGrid>
 
           {datos.previous?.totals && (
-            <div className="flex flex-wrap items-center gap-2">
-              {(() => {
-                const previo = datos.previous.totals
-                return [
-                  ['Ventas', totales.totalPyg, previo.totalPyg],
-                  ['Cobrado', totales.collectedPyg, previo.collectedPyg],
-                  ['Pedidos', totales.orders, previo.orders],
-                ].map(([label, actual, anterior]) => {
-                  const delta = variacion(actual, anterior)
-                  if (delta === null) return null
-                  return (
-                    <Badge key={label} color={delta >= 0 ? 'green' : 'red'}>
-                      {label} {delta >= 0 ? '↑' : '↓'} {Math.abs(delta).toFixed(1)}% vs período anterior
-                    </Badge>
-                  )
-                })
-              })()}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2" data-testid="reportes-variaciones">
+              {[
+                ['Ventas', totales.totalPyg, datos.previous.totals.totalPyg],
+                ['Cobrado', totales.collectedPyg, datos.previous.totals.collectedPyg],
+                ['Pedidos', totales.orders, datos.previous.totals.orders],
+              ].map(([label, actual, anterior]) => {
+                const delta = variacionPct(actual, anterior)
+                if (delta === null) return null
+                return (
+                  <span key={label} className="inline-flex items-center gap-1.5 text-sm text-mute">
+                    {label}
+                    <ChipDelta valor={delta} comparado="vs período anterior" />
+                  </span>
+                )
+              })}
             </div>
           )}
 
@@ -370,6 +387,21 @@ export default function Reportes() {
             <Stat compact label="Stock actual" valor={`${datos.inventory?.onHandUnits ?? 0} u.`} sub={`Valorizado ${gs(datos.inventory?.stockValuePyg ?? 0)}${datos.inventory?.stockWithoutCost ? ` · ${datos.inventory.stockWithoutCost} sin costo` : ''}`} />
             <Stat compact className="col-span-2 md:col-span-1" label="Faltantes" valor={`${datos.inventory?.shortages?.length ?? 0}`} sub={(datos.inventory?.shortages || []).slice(0, 2).map((p) => p.name).join(' · ') || 'Sin faltantes'} />
           </StatGrid>
+
+          {(serieDias.length > 1 || itemsBarras.length > 0) && (
+            <div className="grid grid-cols-1 gap-4 print:hidden min-[1200px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+              {serieDias.length > 1 && (
+                <TarjetaGrafico testId="reportes-grafico-dias" titulo="Ventas por día" detalle={etiquetaRango(rango)}>
+                  <GraficoArea serie={serieDias} titulo={`Ventas por día, ${etiquetaRango(rango)}`} etiquetaSerie="Ventas" />
+                </TarjetaGrafico>
+              )}
+              {itemsBarras.length > 0 && (
+                <TarjetaGrafico testId="reportes-grafico-grupos" titulo={tituloBarras} detalle={grupo === 'product' || grupo === 'category' ? 'Venta por línea' : 'Total del período'}>
+                  <GraficoBarras items={itemsBarras} etiqueta={tituloBarras} />
+                </TarjetaGrafico>
+              )}
+            </div>
+          )}
 
           {grupos.length === 0 ? (
             <Card>

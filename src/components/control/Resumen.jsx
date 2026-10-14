@@ -7,7 +7,7 @@ import { isDemoRuntime } from '@/lib/demoMode'
 import { listVentas, getVendedores, productosById, getProductos, listGastos } from '@/lib/storage'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
-import { metricasEjecutivas } from '@/lib/metricas'
+import { metricasEjecutivas, reporteMetricas } from '@/lib/metricas'
 import { num, gs, variacion } from '@/utils/calculos'
 import { armarResumenDia } from '@/utils/reporteResumen'
 import ListaVentasDia from '@/components/ventas/ListaVentasDia'
@@ -26,7 +26,6 @@ import { buildResumenDiaHtml } from '@/components/shared/OrderReceipt'
 import { buildResumenEjecutivoHtml } from '@/components/shared/reporteEjecutivo'
 import { ticketResumenDia } from '@/lib/printing/reportes'
 import { imprimirDocumento } from '@/lib/printing/agent'
-import MedioPago from '@/components/shared/MedioPago'
 import Icon from '@/components/shared/Icon'
 import Toolbar from '@/components/shared/Toolbar'
 import StatusChip from '@/components/shared/StatusChip'
@@ -35,6 +34,23 @@ import { cn } from '@/lib/utils'
 import { temaV2Activo } from '@/lib/temaV2'
 import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE, ROTULO_DATO } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
+import SegmentedField from '@/components/shared/SegmentedField'
+import {
+  ChipDelta,
+  GraficoArea,
+  GraficoBarras,
+  GraficoDona,
+  KpiTile,
+  TarjetaGrafico,
+  etiquetaFecha,
+  nombreMedio,
+  serieContinua,
+  tendenciaDiaria,
+  unidadesDeVenta,
+  valoresDe,
+  variacionPct,
+  ventanaDias,
+} from '@/components/shared/graficos'
 // Products at or below this stock count are flagged in the low-stock widget.
 const UMBRAL_STOCK_BAJO = 3
 
@@ -80,45 +96,6 @@ function PendientesDeHoy({ pendientes, onIr }) {
   )
 }
 
-// Indicador compacto del resumen (#310): cuatro métricas en el primer
-// viewport. La superficie es neutra (Card); el verde queda como acento —borde,
-// número o tendencia— y nunca como fondo completo.
-function Indicador({ testId, etiqueta, valor, delta, sub, tono = 'neutro', progreso }) {
-  const v2 = temaV2Activo()
-  const sube = typeof delta === 'number' && delta >= 0
-  const color = { ok: 'text-ok', warn: 'text-warn', bad: 'text-bad', neutro: 'text-fore' }[tono] || 'text-fore'
-  return (
-    <div className="inicio-kpi" data-testid={testId}>
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium leading-4 text-mute">{etiqueta}</span>
-        {typeof delta === 'number' && (
-          <span
-            className={cn(
-              'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium',
-              v2 && 'v2-chip',
-              sube ? 'text-ok' : 'text-bad',
-            )}
-          >
-            {sube ? '↑' : '↓'} {Math.abs(delta).toFixed(1)}%
-          </span>
-        )}
-      </div>
-      <div className={cn('inicio-kpi-value font-semibold tracking-tight tabular-nums', v2 && 'v2-numero', color)}>
-        {valor}
-      </div>
-      {typeof progreso === 'number' && (
-        <BarraProgreso
-          className="mt-1"
-          valor={progreso}
-          tono="ok"
-          etiqueta={`Cobrado: ${Math.round(progreso)}%`}
-        />
-      )}
-      {sub && <p className="text-xs leading-4 text-mute">{sub}</p>}
-    </div>
-  )
-}
-
 // Métrica secundaria: mismo lenguaje que las tarjetas, un escalón abajo del
 // facturado (que vive en el hero).
 function Metrica({ label, valor, delta, sub, tono = 'blue' }) {
@@ -153,44 +130,40 @@ function Metrica({ label, valor, delta, sub, tono = 'blue' }) {
 
 const TONO_ABC = { A: 'green', B: 'orange', C: 'slate' }
 
-// Top productos con la curva ABC que manda el servidor (#171): la portada y
-// el Análisis comparten la misma clasificación.
+// Top productos por venta como barras. Con sesión real la clase ABC y la curva
+// las manda el servidor (#171); en la demo y sin red salen de las ventas
+// locales, sin curva (no se inventa una clasificación).
 function CardTopProductos({ top, curva }) {
-  const total = curva.A.monto + curva.B.monto + curva.C.monto
+  const total = curva ? curva.A.monto + curva.B.monto + curva.C.monto : 0
   const concentracionA = total > 0 ? Math.round((curva.A.monto / total) * 100) : 0
+  const items = top.slice(0, 6).map((producto) => ({
+    clave: producto.id,
+    etiqueta: producto.nombre,
+    valor: producto.monto,
+    sub: `${producto.cantidad} u.`,
+    extra: producto.clase ? <Badge color={TONO_ABC[producto.clase]} className="w-fit shrink-0 px-1.5 py-0 text-[10px]">{producto.clase}</Badge> : null,
+  }))
   return (
-    <Card className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-medium">Top productos</h2>
-        <span className="text-xs text-mute">Curva ABC por venta</span>
-      </div>
-      {top.length === 0 ? (
+    <TarjetaGrafico titulo="Top productos" detalle={curva ? 'Por venta · curva ABC' : 'Por venta del período'} testId="inicio-top-productos">
+      {items.length === 0 ? (
         <EmptyState compact icon="box" title="Sin ventas en este período" />
       ) : (
         <>
-          <div className="space-y-1.5">
-            {top.slice(0, 6).map((producto, indice) => (
-              <div key={producto.id} className="flex items-center gap-2.5">
-                <span className="w-4 text-right text-xs text-mute">{indice + 1}</span>
-                <Badge color={TONO_ABC[producto.clase]} className="w-fit shrink-0 px-1.5 py-0 text-[10px]">{producto.clase}</Badge>
-                <span className="min-w-0 flex-1 truncate text-sm">{producto.nombre}</span>
-                <span className="w-12 shrink-0 text-right text-xs text-mute">{producto.cantidad} u.</span>
-                <span className="w-24 shrink-0 text-right text-sm font-semibold tabular-nums sm:w-28">{gs(producto.monto)}</span>
-              </div>
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-ink-600 pt-2 text-[11px] text-mute">
-            {['A', 'B', 'C'].map((clase) => (
-              <span key={clase} className="inline-flex items-center gap-1.5">
-                <Badge color={TONO_ABC[clase]} className="px-1.5 py-0 text-[10px]">{clase}</Badge>
-                {curva[clase].productos} prod. · {gs(curva[clase].monto)}
-              </span>
-            ))}
-            <span className="text-mute">A concentra {concentracionA}% de la venta</span>
-          </div>
+          <GraficoBarras items={items} etiqueta="Top productos por venta" unico />
+          {curva && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-ink-600 pt-2 text-xs text-mute">
+              {['A', 'B', 'C'].map((clase) => (
+                <span key={clase} className="inline-flex items-center gap-1.5">
+                  <Badge color={TONO_ABC[clase]} className="px-1.5 py-0 text-[10px]">{clase}</Badge>
+                  {curva[clase].productos} prod. · {gs(curva[clase].monto)}
+                </span>
+              ))}
+              <span className="text-mute">A concentra {concentracionA}% de la venta</span>
+            </div>
+          )}
         </>
       )}
-    </Card>
+    </TarjetaGrafico>
   )
 }
 
@@ -378,7 +351,6 @@ export default function Resumen() {
     [base, metricas],
   )
 
-  const maxSerie = Math.max(...d.serie.map(([, v]) => v), 1)
   const maxVend = Math.max(...d.ranking.map(r => r.total), 1)
 
   // Low-stock products, worst first. Computed per render (no memo) so that
@@ -389,6 +361,49 @@ export default function Resumen() {
   const stockBajo = lowStockProducts.slice(0, 8)
 
   const pctCobrado = d.total > 0 ? (d.cobrado / d.total) * 100 : 0
+
+  // ── Gráficos (#376): todo sale de las ventas, gastos y métricas que la
+  // pantalla ya tiene. La ventana (14/30 días) termina en el fin del período.
+  const [diasGrafico, setDiasGrafico] = useState('14')
+  const dias = Number(diasGrafico)
+  const ventana = useMemo(() => ventanaDias(rango.hasta, dias), [rango.hasta, dias])
+  const tendLocal = useMemo(() => tendenciaDiaria({ ventas, gastos, prods }, ventana.actual), [ventas, gastos, prods, ventana])
+  const previaLocal = useMemo(() => tendenciaDiaria({ ventas, gastos, prods }, ventana.anterior), [ventas, gastos, prods, ventana])
+  // Con sesión real la serie de ventas viene del servidor (sin tope de caché).
+  const [serieServidor, setSerieServidor] = useState(null)
+  useEffect(() => {
+    if (isDemoRuntime) { setSerieServidor(null); return }
+    let vigente = true
+    const mapa = (datos) => Object.fromEntries((Array.isArray(datos?.groups) ? datos.groups : []).map((g) => [g.key, Number(g.totalPyg) || 0]))
+    Promise.all([
+      reporteMetricas({ rango: ventana.actual, branchId: sucursal?.id, groupBy: 'day' }),
+      reporteMetricas({ rango: ventana.anterior, branchId: sucursal?.id, groupBy: 'day' }),
+    ])
+      .then(([actual, previa]) => { if (vigente) setSerieServidor({ ventana, actual: mapa(actual), previa: mapa(previa) }) })
+      .catch(() => { if (vigente) setSerieServidor(null) })
+    return () => { vigente = false }
+  }, [ventana, sucursal?.id])
+  const usaServidor = serieServidor?.ventana === ventana
+  const serieVentas = usaServidor ? serieContinua(ventana.actual, serieServidor.actual) : tendLocal.total
+  const serieVentasPrevia = usaServidor ? serieContinua(ventana.anterior, serieServidor.previa) : previaLocal.total
+  const totalVentana = serieVentas.reduce((suma, p) => suma + p.valor, 0)
+  const totalVentanaPrevia = serieVentasPrevia.reduce((suma, p) => suma + p.valor, 0)
+  // Sin ventas en la ventana anterior no hay base: no se dibuja la comparación.
+  const hayPrevia = totalVentanaPrevia > 0
+  const cola = (serie) => valoresDe(serie).slice(-14)
+
+  const unidades = metricas ? metricas.unidades : base.act.reduce((suma, v) => suma + unidadesDeVenta(v), 0)
+  const unidadesAnt = metricas
+    ? metricas.unidadesAnterior
+    : ventas.filter((v) => v.fecha >= base.prev.desde && v.fecha <= base.prev.hasta).reduce((suma, v) => suma + unidadesDeVenta(v), 0)
+  const comparado = (() => {
+    const n = Math.round((new Date(`${rango.hasta}T12:00:00`) - new Date(`${rango.desde}T12:00:00`)) / 86400000) + 1
+    return n === 1 ? 'vs ayer' : n === 7 ? 'vs semana pasada' : 'vs período anterior'
+  })()
+  const topProductos = metricas
+    ? metricas.topProductos
+    : [...base.topProductos].sort((a, b) => b.montoPyg - a.montoPyg).map((p) => ({ id: p.nombre, nombre: p.nombre, cantidad: p.cantidad, monto: p.montoPyg }))
+  const itemsMedios = d.medios.map((m) => ({ clave: m.medio, etiqueta: nombreMedio(m.medio), valor: m.monto }))
 
   // Applies the "Pendientes" filter on the sales list and brings it into view.
   function irAPendientes() {
@@ -414,35 +429,44 @@ export default function Resumen() {
         more={<Button variant="outline" className="md:h-11 lg:h-9" onClick={() => setResumenOpen(true)}>Imprimir resumen</Button>}
       />
 
-      {/* ── Resumen del período (#310): cuatro indicadores compactos ── */}
+      {/* ── Resumen del período (#310, #376): indicadores con tendencia ── */}
       <div className="inicio-kpi-stripe" aria-label="Resumen del período" data-testid="resumen-indicadores">
-        <Indicador
+        <KpiTile
           testId="indicador-facturado"
           etiqueta="Vendido"
           valor={gs(d.total)}
           delta={variacion(d.total, d.totalAnt)}
+          comparado={comparado}
+          serie={cola(serieVentas)}
+          etiquetaSerie="Ventas por día, últimos 14 días"
           sub={`${d.ventas} ventas · anterior ${gs(d.totalAnt)}`}
         />
-        <Indicador
+        <KpiTile
           testId="indicador-cobrado"
           etiqueta="Cobrado"
           valor={gs(d.cobrado)}
           progreso={pctCobrado}
           tono="ok"
+          serie={cola(tendLocal.cobrado)}
+          etiquetaSerie="Cobrado por día, últimos 14 días"
           sub={`${d.pagadas} ${d.pagadas === 1 ? 'pagada' : 'pagadas'} · ${Math.round(pctCobrado)}% del facturado`}
         />
-        <Indicador
+        <KpiTile
           testId="indicador-por-cobrar"
           etiqueta="Por cobrar"
           valor={gs(d.pendiente)}
           tono={d.pendiente > 0 ? 'warn' : 'neutro'}
+          serie={cola(tendLocal.pendiente)}
+          etiquetaSerie="Saldo por cobrar generado por día, últimos 14 días"
           sub={`${d.sinPagar} ${d.sinPagar === 1 ? 'venta pendiente' : 'ventas pendientes'} de cobro`}
         />
-        <Indicador
+        <KpiTile
           testId="indicador-margen"
           etiqueta="Ganancia"
           valor={gs(d.ganancia)}
           tono={d.ganancia > 0 ? 'ok' : d.ganancia < 0 ? 'bad' : 'neutro'}
+          serie={cola(tendLocal.ganancia)}
+          etiquetaSerie="Ganancia por día, últimos 14 días"
           sub={
             d.sinCosto.lineas > 0
               ? `Ventas − costos − gastos · ${d.sinCosto.lineas} ${d.sinCosto.lineas === 1 ? 'línea' : 'líneas'} sin costo`
@@ -450,34 +474,73 @@ export default function Resumen() {
           }
         />
       </div>
+      <div className="inicio-kpi-stripe inicio-kpi-stripe--dos" aria-label="Ticket y unidades del período" data-testid="resumen-indicadores-extra">
+        <KpiTile
+          testId="indicador-ticket"
+          etiqueta="Ticket promedio"
+          valor={gs(d.ticket)}
+          delta={variacion(d.ticket, d.ticketAnt)}
+          comparado={comparado}
+          serie={cola(tendLocal.ticket)}
+          etiquetaSerie="Ticket promedio por día, últimos 14 días"
+          sub={`Por venta en ${etiquetaRango(rango).toLowerCase()}`}
+        />
+        <KpiTile
+          testId="indicador-unidades"
+          etiqueta="Unidades vendidas"
+          valor={`${unidades} u.`}
+          delta={variacionPct(unidades, unidadesAnt)}
+          comparado={comparado}
+          serie={cola(tendLocal.unidades)}
+          etiquetaSerie="Unidades vendidas por día, últimos 14 días"
+          sub={`${d.ventas} ${d.ventas === 1 ? 'venta' : 'ventas'} en el período`}
+        />
+      </div>
 
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-        <Card>
-          <h2 className="mb-1 font-semibold">Para resolver hoy</h2>
-          <PendientesDeHoy pendientes={pendientesHoy} onIr={navigate} />
-          {d.sinPagar > 0 && <Button variant="ghost" className={CLASE_FILA_PENDIENTE} onClick={irAPendientes}>{d.sinPagar} {d.sinPagar === 1 ? 'venta' : 'ventas'} con saldo · Ver pendientes</Button>}
-          {lowStockProducts.length > 0 && <Button variant="ghost" className={CLASE_FILA_PENDIENTE} onClick={() => navigate('/stock/unidades')}>{lowStockProducts.length} productos con stock bajo · Ver inventario</Button>}
-          {!pendientesHoy && !d.sinPagar && !lowStockProducts.length && <p className="text-sm text-mute">Sin pendientes disponibles en esta vista.</p>}
-        </Card>
-        {/* ── Cómo te pagaron ─────────────────────────────────────── */}
-        <Card>
-          <h2 className="mb-4 font-medium">Cómo te pagaron</h2>
-          {d.medios.length === 0 ? (
-            <EmptyState compact icon="box" title="Sin datos" />
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <TarjetaGrafico
+          testId="inicio-grafico-ventas"
+          titulo="Ventas por día"
+          detalle={`${etiquetaFecha(ventana.actual.desde)} al ${etiquetaFecha(ventana.actual.hasta)}${hayPrevia ? ` · línea punteada: ${dias} días anteriores` : ''}`}
+          acciones={<SegmentedField value={diasGrafico} onChange={setDiasGrafico} ariaLabel="Días del gráfico de ventas" options={[['14', '14 días'], ['30', '30 días']]} />}
+        >
+          {totalVentana === 0 ? (
+            <EmptyState compact icon="box" title="Sin ventas en estos días" />
           ) : (
-            <div className="space-y-3">
-              {d.medios.map(m => (
-                <div key={m.medio}>
-                  <div className="mb-1.5 flex items-center justify-between gap-2">
-                    <MedioPago medio={m.medio} alto="h-4" conNombre />
-                    <span className="text-sm font-medium">{gs(m.monto)}</span>
-                  </div>
-                  <BarraProgreso valor={m.monto} max={base.total} relleno="bg-blue-line" pista="bg-ink-600" etiqueta={`${m.medio}: ${gs(m.monto)}`} />
-                </div>
-              ))}
-            </div>
+            <>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="text-2xl font-semibold leading-8 tracking-tight tabular-nums text-fore">{gs(totalVentana)}</span>
+                <ChipDelta valor={variacionPct(totalVentana, totalVentanaPrevia)} comparado={`vs ${dias} días anteriores`} />
+              </div>
+              <GraficoArea
+                serie={serieVentas}
+                previa={hayPrevia ? serieVentasPrevia : null}
+                titulo={`Ventas por día, últimos ${dias} días`}
+                etiquetaSerie={`Últimos ${dias} días`}
+                etiquetaPrevia={`${dias} días anteriores`}
+              />
+            </>
           )}
-        </Card>
+        </TarjetaGrafico>
+        <TarjetaGrafico titulo="Cómo te pagaron" detalle={etiquetaRango(rango)} testId="inicio-medios-pago">
+          {itemsMedios.length === 0 ? (
+            <EmptyState compact icon="box" title="Sin ventas en este período" />
+          ) : (
+            <GraficoDona items={itemsMedios} etiqueta="Medios de pago" />
+          )}
+        </TarjetaGrafico>
+      </div>
+
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <CardTopProductos top={topProductos} curva={metricas?.curva || null} />
+        <TarjetaGrafico titulo="Para resolver hoy" testId="inicio-pendientes">
+          <div>
+            <PendientesDeHoy pendientes={pendientesHoy} onIr={navigate} />
+            {d.sinPagar > 0 && <Button variant="ghost" className={CLASE_FILA_PENDIENTE} onClick={irAPendientes}>{d.sinPagar} {d.sinPagar === 1 ? 'venta' : 'ventas'} con saldo · Ver pendientes</Button>}
+            {lowStockProducts.length > 0 && <Button variant="ghost" className={CLASE_FILA_PENDIENTE} onClick={() => navigate('/stock/unidades')}>{lowStockProducts.length} productos con stock bajo · Ver inventario</Button>}
+            {!pendientesHoy && !d.sinPagar && !lowStockProducts.length && <p className="text-sm text-mute">Sin pendientes disponibles en esta vista.</p>}
+          </div>
+        </TarjetaGrafico>
       </div>
       <details data-testid="inicio-detalles" className="inicio-disclosure">
         <summary>Métricas, evolución y stock</summary>
@@ -485,18 +548,6 @@ export default function Resumen() {
 
       {/* ── Métricas del período ─────────────────────────────────── */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <Metrica
-          label="Ventas"
-          valor={d.ventas}
-          tono="blue"
-          sub={`${d.pagadas} pagadas · ${d.sinPagar} pendientes`}
-        />
-        <Metrica
-          label="Ticket promedio"
-          valor={gs(d.ticket)}
-          delta={variacion(d.ticket, d.ticketAnt)}
-          sub={`Por venta en ${etiquetaRango(rango).toLowerCase()}`}
-        />
         <Metrica
           label="Comisiones"
           valor={gs(d.comision)}
@@ -552,45 +603,9 @@ export default function Resumen() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 gap-4 min-[1200px]:grid-cols-3">
-        {/* ── Evolución diaria ───────────────────────────────────── */}
-        <Card className="min-[1200px]:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-medium">Evolución</h2>
-            <Badge color="blue">{d.serie.length} días con ventas</Badge>
-          </div>
-          {d.serie.length === 0 ? (
-            <EmptyState compact icon="box" title="Sin ventas en este período" />
-          ) : (
-            <div className="flex h-44 items-end gap-1.5">
-              {d.serie.map(([f, v]) => (
-                <div
-                  key={f}
-                  className="group relative flex h-full flex-1 flex-col items-center justify-end gap-1.5"
-                >
-                  <div className="pointer-events-none absolute -top-8 z-10 hidden whitespace-nowrap rounded-md border border-ink-500 bg-paper px-2 py-1 text-xs group-hover:block">
-                    {gs(v)}
-                  </div>
-                  <div
-                    className="w-full rounded-t bg-blue-line opacity-80 transition group-hover:opacity-100"
-                    style={{ height: `${Math.max((v / maxSerie) * 100, 3)}%` }}
-                  />
-                  <span className="text-[10px] text-mute">{f.slice(8)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-
-
-      </div>
-
       {/* ── Indicadores unificados del servidor (#171, fase 2 de #145) ── */}
       {metricas && (
-        <div className="grid grid-cols-1 gap-4 min-[1200px]:grid-cols-2">
-          <CardTopProductos top={metricas.topProductos} curva={metricas.curva} />
-          <CardStock inventario={metricas.inventario} />
-        </div>
+        <CardStock inventario={metricas.inventario} />
       )}
       {metricas && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
