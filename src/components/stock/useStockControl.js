@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { contextoActual, getProductos, modoDatosActual, refrescar, refrescarCatalogo, updateProducto } from '@/lib/storage'
 import { useSesion } from '@/lib/sesion'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
+import { vistaUnidadesValida } from '@/lib/planilla'
 import { useToast } from '@/components/ui'
 import { etiquetaCondicionUnidad, nombreProducto, sigueEnInventario, sinCostoUnitario } from '@/utils/inventario'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
@@ -53,6 +54,8 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
   const canManageVisibility = Boolean(sesion?.esPropietario)
   // Costo y proveedor: la API los devuelve null a quien no los ve (VENDEDOR/CAJERA).
   const rolVeCosto = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE' || usuario?.role === 'ADMIN' || usuario?.role === 'GERENTE')
+  // #400: Tarjetas o Planilla en Unidades; se recuerda por usuario (storage con try/catch en `ultimoUsado`).
+  const [vistaUnidades, recordarVistaUnidades] = useUltimoUsado(`inventario:vista-unidades:${usuario?.id || sesion?.usuarioId || 'anon'}`, 'tarjetas', { valido: vistaUnidadesValida })
   const [tab, setTab] = useState(tabProp && INVENTARIO_TABS.includes(tabProp) && (tabProp !== 'alertas' || canViewAlerts) && (tabProp !== 'autorizaciones' || canViewAlerts) ? tabProp : 'unidades'), [query, setQuery] = useState(qParam), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [orden, recordarOrden] = useUltimoUsado('inventario:orden', 'recientes'), [exportando, setExportando] = useState(false)
   const [stockAlerts, setStockAlerts] = useState({ alerts: [], outOfStock: [] })
   // #331: autorizaciones de stock (retiro/ajuste y transferencia) para la
@@ -990,6 +993,8 @@ export function useStockControl({ tab: tabProp, onTabChange } = {}) {
     setNotice,
     orden,
     recordarOrden,
+    vistaUnidades,
+    recordarVistaUnidades,
     exportando,
     setExportando,
     stockAlerts,

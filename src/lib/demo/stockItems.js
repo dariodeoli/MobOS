@@ -38,7 +38,20 @@ function itemDeUnidad(unit, eliminada) {
     batteryHealth: unit.batteryHealth ?? null,
     supplierId: unit.supplier?.id || null,
     supplierName: unit.supplierName || unit.supplier?.name || null,
+    supplierCode: unit.supplier?.code || (unit.supplierName ? 'S/S' : null),
+    supplierIcon: unit.supplier?.icon || null,
+    supplierColor: unit.supplier?.color || null,
     consignorName: unit.consignorName || null,
+    batteryCycles: unit.batteryCycles ?? null,
+    warrantyUntil: unit.warrantyUntil || null,
+    notes: unit.notes || null,
+    reservedUntil: unit.reservedUntil || null,
+    reservationCustomer: unit.reservationCustomer || null,
+    verifiedBy: unit.verifiedByCode || unit.lastVerifiedBy?.name || null,
+    lastVerifiedAt: unit.lastVerifiedAt || null,
+    locationCode: unit.location?.code || null,
+    locationIcon: unit.location?.icon || null,
+    locationColor: unit.location?.color || null,
     costPyg: costoEnGs(unit),
     status: eliminada ? 'eliminado' : ESTADO_DE_UNIDAD[unit.status] || 'en_transito',
     quantity: 1,
@@ -67,7 +80,20 @@ function itemDeProducto(producto, sucursales) {
     batteryHealth: null,
     supplierId: null,
     supplierName: null,
+    supplierCode: null,
+    supplierIcon: null,
+    supplierColor: null,
     consignorName: null,
+    batteryCycles: null,
+    warrantyUntil: null,
+    notes: null,
+    reservedUntil: null,
+    reservationCustomer: null,
+    verifiedBy: null,
+    lastVerifiedAt: null,
+    locationCode: null,
+    locationIcon: null,
+    locationColor: null,
     costPyg: Number(producto.precioCosto) > 0 ? Number(producto.precioCosto) : null,
     status: 'disponible',
     quantity: stock,
@@ -83,7 +109,7 @@ function itemDeProducto(producto, sucursales) {
 const coincideTexto = (item, q) => {
   const buscar = sinAcentos(q).trim()
   if (!buscar) return true
-  return [item.serial, item.sku, item.name, item.model].some((valor) => sinAcentos(valor).includes(buscar))
+  return [item.serial, item.sku, item.name, item.model, item.notes, item.supplierCode].some((valor) => sinAcentos(valor).includes(buscar))
 }
 
 const tiempo = (valor) => {
