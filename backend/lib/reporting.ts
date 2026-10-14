@@ -1,3 +1,5 @@
+import { countFlags } from './payment-net-pure'
+
 // Lógica pura de reportes de MobOS: no toca la base de datos para poder
 // probarse aislada (ver tests/reporting.test.ts) y reutilizarse desde la ruta.
 //
@@ -48,7 +50,7 @@ export type OrderItemLike = {
   totalPyg: bigint | number
 }
 
-export type PaymentLike = { status?: string | null; amountPyg: bigint | number; method?: string | null; accountName?: string | null; accountId?: string | null; processor?: string | null }
+export type PaymentLike = { id?: string | null; reversalOfId?: string | null; status?: string | null; amountPyg: bigint | number; method?: string | null; accountName?: string | null; accountId?: string | null; processor?: string | null }
 
 export type OrderLike = {
   id: string
@@ -233,6 +235,24 @@ function porcentaje(value: unknown): number | null {
   const number = typeof value === 'number' ? value : Number(value)
   if (!Number.isFinite(number) || number < 0 || number > 100) return null
   return Math.round(number * 100) / 100
+}
+
+// Entero con signo para pagos: la reversión de una corrección de pago (#393) es
+// negativa y tiene que restar, no descartarse como inválida.
+function enteroFirmado(value: unknown): number | null {
+  const number = typeof value === 'number' ? value : Number(value)
+  if (!Number.isSafeInteger(number) || Math.abs(number) > MAX_MONTO) return null
+  return number
+}
+
+// Suma sin el piso en cero: un acumulador de pagos puede bajar de cero un
+// instante si la reversión se procesa antes que su original; solo importa el total.
+function sumaFirmada(actual: number, delta: number): number {
+  const total = actual + delta
+  if (!Number.isSafeInteger(total) || Math.abs(total) > MAX_MONTO) {
+    throw new ReportInputError('Los importes del período exceden el rango permitido.')
+  }
+  return total
 }
 
 function suma(actual: number, delta: number): number {
@@ -518,13 +538,15 @@ function analizarOrden(orden: OrderLike): HechoOrden {
   let comision = 0
   for (const pago of payments) {
     if ((pago.status ?? 'CONFIRMED') !== 'CONFIRMED') continue
-    const monto = entero(pago.amountPyg) ?? 0
-    cobrado = suma(cobrado, monto)
+    const monto = enteroFirmado(pago.amountPyg) ?? 0
+    cobrado = sumaFirmada(cobrado, monto)
     // La comisión se congela en `feePyg` desde la cuenta de pago. Si la venta
     // es histórica y no conserva esa foto, no se estima para no alterar margen.
-    const fee = entero((pago as PaymentLike & { feePyg?: number | null }).feePyg ?? 0) ?? 0
-    comision = suma(comision, fee)
+    const fee = enteroFirmado((pago as PaymentLike & { feePyg?: number | null }).feePyg ?? 0) ?? 0
+    comision = sumaFirmada(comision, fee)
   }
+  cobrado = suma(0, cobrado)
+  comision = suma(0, comision)
 
   return { orden, items, ...costos, cobrado, comision }
 }
@@ -589,24 +611,28 @@ export function aggregateReport(
       if (accountName) return { key: (pago.accountId || accountName).trim().toLowerCase(), label: accountName }
       return method ? { key: `metodo:${method.toLowerCase()}`, label: method } : { key: 'sin-metodo', label: 'Sin método' }
     }
-    const acumularPago = (acumulador: Acumulador, pago: PaymentLike) => {
-      const monto = entero(pago.amountPyg) ?? 0
+    // Correcciones de pago (#393): el monto netea por su signo (la reversión es
+    // negativa); el CONTEO excluye la reversión y el original revertido.
+    const acumularPago = (acumulador: Acumulador, pago: PaymentLike, cuenta: boolean) => {
+      const monto = enteroFirmado(pago.amountPyg) ?? 0
       if (pago.status === 'REFUNDED') {
         acumulador.refundedPyg = suma(acumulador.refundedPyg, monto)
         return
       }
-      acumulador.orderIds.add(`pago:${acumulador.key}:${acumulador.orderIds.size}`)
-      acumulador.units = suma(acumulador.units, 1)
-      acumulador.grossPyg = suma(acumulador.grossPyg, monto)
-      acumulador.totalPyg = suma(acumulador.totalPyg, monto)
-      acumulador.collectedPyg = suma(acumulador.collectedPyg, monto)
+      if (cuenta) {
+        acumulador.orderIds.add(`pago:${acumulador.key}:${acumulador.orderIds.size}`)
+        acumulador.units = suma(acumulador.units, 1)
+      }
+      acumulador.grossPyg = sumaFirmada(acumulador.grossPyg, monto)
+      acumulador.totalPyg = sumaFirmada(acumulador.totalPyg, monto)
+      acumulador.collectedPyg = sumaFirmada(acumulador.collectedPyg, monto)
     }
     for (const orden of orders) {
       if (orden.status === 'CANCELLED') continue
-      for (const pago of Array.isArray(orden.payments) ? orden.payments : []) {
+      for (const pago of countFlags(Array.isArray(orden.payments) ? orden.payments : [])) {
         const { key, label } = claveDePago(pago)
-        acumularPago(obtener(grupos, key, label), pago)
-        acumularPago(totales, pago)
+        acumularPago(obtener(grupos, key, label), pago, pago.countable)
+        acumularPago(totales, pago, pago.countable)
       }
     }
     const resultado = [...grupos.values()].map(cerrar)

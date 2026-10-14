@@ -25,6 +25,12 @@
   background: rgb(var(--c-ink));
 }
 
+@media (min-width: 1024px) {
+  .ventas-f3-chips > button {
+    min-height: 36px;
+  }
+}
+
 .ventas-f3-chips > button[data-chip-mas] {
   border-style: dashed;
 }
@@ -100,50 +106,6 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   text-align: right;
-}
-
-.ventas-f3 .ventas-f3-metrics {
-  display: flex;
-  flex-wrap: wrap;
-  border-radius: 0;
-  border-width: 0 0 1px;
-  background: transparent;
-  gap: 0;
-  text-align: left;
-}
-
-.ventas-f3 .ventas-f3-metrics-inline {
-  border-width: 0;
-}
-
-.ventas-f3-metrics > div,
-.ventas-f3-metrics > p {
-  background: transparent;
-}
-
-.ventas-f3-metrics > div {
-  flex: 1 1 160px;
-  padding: 6px 16px 6px 0;
-  border: 0;
-}
-
-.ventas-f3-metrics > p {
-  align-self: center;
-  padding: 0 0 0 8px;
-}
-
-.ventas-f3-metrics p {
-  text-transform: none;
-  letter-spacing: normal;
-}
-
-.ventas-f3-metrics p:nth-child(2) {
-  font-size: 20px;
-}
-
-.ventas-f3-metrics p span {
-  text-transform: none;
-  letter-spacing: normal;
 }
 
 .ventas-f3 .ventas-f3-summary {

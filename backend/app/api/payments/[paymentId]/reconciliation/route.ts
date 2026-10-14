@@ -45,6 +45,9 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   const reconciliation = await prisma.$transaction(async tx => {
     const row = await lockPaymentRow(tx, session.user.tenantId, payment.id)
     if (!row) return null
+    // Original corregido y su reversión salen de la conciliación (#393).
+    const par = await tx.payment.findFirst({ where: { tenantId: session.user.tenantId, OR: [{ id: payment.id, reversalOfId: { not: null } }, { reversalOfId: payment.id }] }, select: { id: true } })
+    if (par) return 'CORREGIDO' as const
     const result = await tx.paymentReconciliation.upsert({
       where: { paymentId: payment.id },
       create: { tenantId: session.user.tenantId, paymentId: payment.id, state: body.state as 'VERIFIED' | 'REJECTED', note, verifiedById: session.user.id },
@@ -60,5 +63,6 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     return result
   })
   if (!reconciliation) return error('Pago no encontrado.', 404)
+  if (reconciliation === 'CORREGIDO') return error('Este pago fue corregido: conciliá el pago nuevo.', 409)
   return json(reconciliation)
 }

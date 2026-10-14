@@ -16,6 +16,7 @@ Regla viva del rediseño, hermana de `docs/CAMPOS.md`, `docs/TABLAS.md` y `docs/
 10. **Un solo chip de estado** (`shared/StatusChip` leyendo `lib/estados.js`): tonos `ok`/`warn`/`bad`/`neutral`, contraste ≥ 4.5 en claro y oscuro, `w-fit`. Un estado se muestra una sola vez por fila.
 11. **Estados vacíos** con `EmptyState` de owncoding-ui: ícono, una frase y una acción. Sin textos de depuración.
 12. **Cromo móvil ≤ 64 px.** Solo la barra de la app queda fija (56 + zona segura) con la sucursal adentro; el aviso demo y «Cómo funciona» pasan a un aviso de una línea, descartable y dentro del flujo; navegación inferior de 56.
+13. **Detalles y vistas previas = ventana centrada, nunca panel lateral** (#386). Un solo componente, `shared/VentanaDetalle` (compone el `Modal` de owncoding-ui): centrada en escritorio con tamaño `sm|md|lg|xl`, encabezado fijo con X roja de 44 px, pantalla completa con margen seguro en celular; Esc y clic afuera cierran salvo `busy`/`dirty`. No usar `<Drawer`.
 
 ## Bloques compartidos
 
