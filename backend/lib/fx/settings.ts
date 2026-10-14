@@ -3,23 +3,27 @@ import type { FxPurpose, FxQuote, FxSide } from './types'
 
 // Ajuste por empresa en Tenant.settings.fx: fuente y lado (compra|venta) para
 // los cobros en moneda extranjera (sales) y para los costos (costs). Ausente =
-// Cambios Chaco · venta.
+// Cambios Chaco · compra para cobros (lo que la casa paga por los dólares que
+// entrega el cliente) y Cambios Chaco · venta para costos (lo que cuesta
+// conseguir los dólares para pagarle al proveedor).
 export type FxRule = { source: string; side: FxSide }
 export type FxSettings = { sales: FxRule; costs: FxRule }
 
+const DEFAULT_SIDE_BY_PURPOSE: Record<FxPurpose, FxSide> = { sales: 'compra', costs: DEFAULT_FX_SIDE }
+
 const asObject = (value: unknown): Record<string, unknown> | null => (value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null)
 
-function ruleFrom(value: unknown): FxRule {
+function ruleFrom(value: unknown, purpose: FxPurpose): FxRule {
   const raw = asObject(value)
   return {
     source: raw && isFxSource(raw.source) ? raw.source : DEFAULT_FX_SOURCE,
-    side: raw && isFxSide(raw.side) ? raw.side : DEFAULT_FX_SIDE,
+    side: raw && isFxSide(raw.side) ? raw.side : DEFAULT_SIDE_BY_PURPOSE[purpose],
   }
 }
 
 export function fxSettingsFrom(settings: unknown): FxSettings {
   const fx = asObject(asObject(settings)?.fx)
-  return { sales: ruleFrom(fx?.sales), costs: ruleFrom(fx?.costs) }
+  return { sales: ruleFrom(fx?.sales, 'sales'), costs: ruleFrom(fx?.costs, 'costs') }
 }
 
 /** Valida el cuerpo del PUT; devuelve el ajuste normalizado o el mensaje de error. */

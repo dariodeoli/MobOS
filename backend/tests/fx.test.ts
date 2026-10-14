@@ -39,10 +39,11 @@ test('melizecheTimestamp: hora de Asunción a ISO; formatos raros dan null', () 
   for (const bad of ['ayer', '', null, 5, '2026-13-45 99:99:99']) assert.equal(melizecheTimestamp(bad), null)
 })
 
-test('fxSettingsFrom: por defecto Cambios Chaco · venta; valores inválidos vuelven al defecto', () => {
-  const base = { source: 'cambioschaco', side: 'venta' }
+test('fxSettingsFrom: por defecto Cambios Chaco · compra para cobros y · venta para costos; valores inválidos vuelven al defecto', () => {
+  const sales = { source: 'cambioschaco', side: 'compra' }
+  const costs = { source: 'cambioschaco', side: 'venta' }
   for (const settings of [undefined, null, {}, [], 'x', { fx: null }, { fx: { sales: { source: 'inventada', side: 'otro' } } }]) {
-    assert.deepEqual(fxSettingsFrom(settings), { sales: base, costs: base }, JSON.stringify(settings))
+    assert.deepEqual(fxSettingsFrom(settings), { sales, costs }, JSON.stringify(settings))
   }
   assert.deepEqual(fxSettingsFrom({ fx: { sales: { source: 'bcp', side: 'compra' }, costs: { source: 'familiar', side: 'venta' } } }), { sales: { source: 'bcp', side: 'compra' }, costs: { source: 'familiar', side: 'venta' } })
 })
