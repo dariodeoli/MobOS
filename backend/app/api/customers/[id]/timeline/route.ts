@@ -3,6 +3,7 @@ import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { detalleAperturaInforme, serialEnmascarado } from '../../../../../lib/device-report'
 import { etiquetaServicio } from '../../../../../lib/service-order'
+import { COUNTABLE_PAYMENT_WHERE } from '../../../../../lib/payment-net'
 
 type RouteContext = { params: { id: string } }
 
@@ -157,7 +158,7 @@ export async function GET(request: Request, { params }: RouteContext) {
         id: true, orderNumber: true, totalPyg: true, status: true, fulfillmentStatus: true, createdAt: true,
         seller: { select: { id: true, name: true } },
         items: { select: { serials: true } },
-        payments: { where: { status: 'CONFIRMED' }, select: { id: true, amountPyg: true, method: true, paidAt: true, createdAt: true }, orderBy: { createdAt: 'desc' } },
+        payments: { where: { status: 'CONFIRMED', ...COUNTABLE_PAYMENT_WHERE }, select: { id: true, amountPyg: true, method: true, paidAt: true, createdAt: true }, orderBy: { createdAt: 'desc' } },
       },
       orderBy: { createdAt: 'desc' },
       take: 300,
