@@ -1,6 +1,7 @@
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
+import { parseHexColor, parseSupplierDisplayMode, parseSupplierIcon } from '../../../lib/unit-code'
 
 const text = (value: unknown, max: number, required = false) => {
   if (value === undefined || value === null || value === '') return required ? null : null
@@ -14,6 +15,16 @@ const laxPhone = (value: string) => /^[0-9+()\-.\s]{5,40}$/.test(value)
 const laxEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)
 
 const SUPPLIER_FIELDS = { name: 160, code: 32, document: 48, phone: 40, address: 200, city: 120, department: 120, email: 160, contactName: 160, paymentTerms: 120, notes: 1000 }
+
+// Identidad visual del proveedor (ícono, color, modo de visualización): se valida
+// aparte de los textos libres. Devuelve null si algún valor es inválido.
+function visualFields(body: Record<string, unknown>): Record<string, string | null> | null {
+  const out: Record<string, string | null> = {}
+  if (body.icon !== undefined) { const icon = parseSupplierIcon(body.icon); if (icon === undefined) return null; out.icon = icon }
+  if (body.color !== undefined) { const color = parseHexColor(body.color); if (color === undefined) return null; out.color = color }
+  if (body.displayMode !== undefined) { const mode = parseSupplierDisplayMode(body.displayMode); if (!mode) return null; out.displayMode = mode }
+  return out
+}
 
 async function context(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
@@ -55,7 +66,9 @@ export async function POST(request: Request) {
   if (fields.phone && !laxPhone(fields.phone)) return error('Teléfono inválido.')
   if (fields.email && !laxEmail(fields.email)) return error('Email inválido.')
   if (fields.code && await prisma.supplier.findFirst({ where: { tenantId: auth.tenant, code: fields.code }, select: { id: true } })) return error('Ya existe un proveedor con esa abreviatura.', 409)
-  const data: Record<string, string | null> = {}
+  const visual = visualFields(body)
+  if (!visual) return error('Ícono, color o modo de visualización inválido.')
+  const data: Record<string, string | null> = { ...visual }
   for (const [key, value] of Object.entries(fields)) if (value !== undefined) data[key] = value
   try {
     const supplier = await prisma.supplier.create({ data: { tenantId: auth.tenant, name, ...data } })
@@ -75,6 +88,9 @@ export async function PATCH(request: Request) {
   for (const [key, max] of Object.entries(SUPPLIER_FIELDS)) {
     if (body[key] !== undefined) { const value = text(body[key], max, key === 'name'); if (value === undefined || (key === 'name' && !value)) return error('Datos de proveedor inválidos.'); if (value && key === 'phone' && !laxPhone(value)) return error('Teléfono inválido.'); if (value && key === 'email' && !laxEmail(value)) return error('Email inválido.'); data[key] = value }
   }
+  const visual = visualFields(body)
+  if (!visual) return error('Ícono, color o modo de visualización inválido.')
+  Object.assign(data, visual)
   if (body.isActive !== undefined) { if (typeof body.isActive !== 'boolean') return error('Estado inválido.'); data.isActive = body.isActive }
   try {
     const updated = await prisma.supplier.update({ where: { id: supplier.id }, data })
