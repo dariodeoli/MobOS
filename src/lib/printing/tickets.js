@@ -6,6 +6,8 @@ import { ETIQUETAS_MEDIO_PAGO } from '../constants.js'
 import { CHECKLISTS } from '../servicioChecklist.js'
 import { datosDeCodigo, formatoDeCodigo, ETIQUETA_FORMATO } from './codigos.js'
 import { bloqueFirma, crearTicket } from './escpos.js'
+import { encabezadoTicket, pieTicket } from './encabezadoTicket.js'
+import { datosEncabezado } from './empresaImpresion.js'
 import { contextoEtiquetaUnidad, datosEtiquetaUnidad } from './etiquetaUnidad.js'
 import { contextoEtiquetaLote, datosEtiquetaLote } from './etiquetaLote.js'
 import { estadoGarantia, fechaVerificacionInforme } from './informeDispositivo.js'
@@ -105,19 +107,17 @@ export function ticketComprobante(entrada, { nivel = 'completo', ancho = 80, lin
   if (desglose.mostrarSubtotal) t.par('Subtotal', gs(desglose.subtotal))
   if (desglose.descuento) t.par('Descuento', `- ${gs(desglose.descuento)}`)
   if (desglose.envio) t.par('Entrega', gs(desglose.envio))
-  // Total en caja (#426): rótulo «TOTAL DEL PEDIDO» entre dos reglas dobles.
   t.linea('=')
-  importeGrande(t, 'TOTAL DEL PEDIDO', gs(total))
-  t.linea('=')
-  // Redondeo de efectivo: solo si la venta lo trae; el efectivo recibido y el
-  // vuelto salen con él.
+  importeGrande(t, 'TOTAL', gs(total))
+  // Redondeo de efectivo (#426): filas normales bajo el total, como Pagado y
+  // Saldo; solo si la venta lo trae.
   if (desglose.mostrarRedondeo) {
     t.par('Redondeo en efectivo', `${desglose.redondeo < 0 ? '- ' : ''}${gs(Math.abs(desglose.redondeo))}`)
-    t.negrita().par('Total ajustado', gs(desglose.totalAjustado)).negrita(false)
+    t.par('Total ajustado', gs(desglose.totalAjustado))
   }
   if (desglose.mostrarEfectivo) {
     t.par('Efectivo recibido', gs(desglose.efectivoRecibido))
-    if (desglose.vuelto > 0) t.negrita().par('Vuelto', gs(desglose.vuelto)).negrita(false)
+    if (desglose.vuelto > 0) t.par('Vuelto', gs(desglose.vuelto))
   }
   if (desglose.mostrarPagado) t.par('Pagado', gs(pagado))
   if (pendiente > 0) {
@@ -328,7 +328,7 @@ export function ticketEtiquetasLote(etiquetas = [], { ancho = 80, compra = null 
 export function ticketRemito(transfer, { ancho = 80 } = {}) {
   const t = crearTicket({ ancho }).iniciar()
   const lineas = Array.isArray(transfer.lines) ? transfer.lines : []
-  t.centrado(APP_NAME).negrita().centrado('Remito de traslado').negrita(false)
+  encabezadoTicket(t, 'Remito de traslado', { cerrar: false })
   t.centrado(`${transfer.sourceBranch?.name || 'Origen'} → ${transfer.destinationBranch?.name || 'Destino'}`)
   t.centrado(fecha(transfer.createdAt))
   t.linea()
@@ -349,7 +349,7 @@ export function ticketRemito(transfer, { ancho = 80 } = {}) {
 // Comprobante de reserva: IMEI apartado, sucursal y vencimiento.
 export function ticketReserva(reservation, { ancho = 80 } = {}) {
   const t = crearTicket({ ancho }).iniciar()
-  t.centrado(APP_NAME).negrita().centrado('Comprobante de reserva').negrita(false)
+  encabezadoTicket(t, 'Comprobante de reserva', { cerrar: false })
   t.centrado(reservation.reservedUntil ? `Vence ${fecha(reservation.reservedUntil)}` : '')
   t.linea()
   t.par('Cliente', reservation.reservationCustomer || reservation.customerName || '—')
@@ -398,7 +398,7 @@ export function ticketPruebaTipo(tipo, {
     marca,
     incluyeFecha,
     corte,
-    nombreApp: APP_NAME,
+    nombreApp: datosEncabezado().razon || APP_NAME,
     qr: (datos) => qrPrueba(datos, base),
   })
 }
@@ -443,7 +443,7 @@ export function ticketNotaEntrega(order, { ancho = 80 } = {}) {
   const empresa = order.tenant?.name || order.empresaNombre || ''
   const sucursal = order.branch || null
   const cliente = order.customer || null
-  t.centrado(empresa || APP_NAME).negrita().centrado('Nota de entrega').negrita(false)
+  encabezadoTicket(t, 'Nota de entrega', { cerrar: false, empresa: empresa })
   t.centrado(`${order.orderNumber || order.codigo || 'Pedido'} · ${fecha(order.createdAt || order.creadoEn || order.fecha)}`)
   t.linea()
   if (sucursal?.name) t.texto(sucursal.name)
@@ -465,7 +465,7 @@ export function ticketNotaEntrega(order, { ancho = 80 } = {}) {
   t.texto('Recibí conforme la mercadería detallada.')
   bloqueFirma(t, ['Recibí conforme'], { ancho, observaciones: true })
   t.linea()
-  t.centrado(LEYENDA_NO_FISCAL)
+  pieTicket(t, { leyenda: LEYENDA_NO_FISCAL, regla: false })
   return t.avanza(2).corte()
 }
 
@@ -475,7 +475,7 @@ export function ticketNotaEntrega(order, { ancho = 80 } = {}) {
 export function ticketRemision(transfer, { ancho = 80 } = {}) {
   const t = crearTicket({ ancho }).iniciar()
   const lineas = Array.isArray(transfer.lines) ? transfer.lines : []
-  t.centrado(APP_NAME).negrita().centrado('Remisión interna').negrita(false)
+  encabezadoTicket(t, 'Remisión interna', { cerrar: false })
   t.centrado(`${transfer.sourceBranch?.name || 'Origen'} -> ${transfer.destinationBranch?.name || 'Destino'}`)
   t.centrado(fecha(transfer.createdAt))
   t.linea()
@@ -495,7 +495,7 @@ export function ticketRemision(transfer, { ancho = 80 } = {}) {
   if (transfer.destinationLocation?.name) t.texto(`Destino en depósito: ${transfer.destinationLocation.name}`)
   bloqueFirma(t, ['Entregué (despacho)', 'Recibí conforme (recepción)'], { ancho, observaciones: true })
   t.linea()
-  t.centrado(LEYENDA_NO_FISCAL)
+  pieTicket(t, { leyenda: LEYENDA_NO_FISCAL, regla: false })
   return t.avanza(2).corte()
 }
 
@@ -511,7 +511,7 @@ export function ticketComprobanteRecepcion(datos = {}, { ancho = 80 } = {}) {
     if (valor === '' || valor === null || valor === undefined) return
     if (estrecho) { t.texto(etiqueta); t.par('  ', String(valor)) } else t.par(etiqueta, valor)
   }
-  t.centrado(datos.emisor || APP_NAME).negrita().centrado('COMPROBANTE DE RECEPCIÓN').negrita(false)
+  encabezadoTicket(t, 'COMPROBANTE DE RECEPCIÓN', { cerrar: false, empresa: datos.emisor })
   const referencia = [datos.envio, datos.compra].filter(Boolean).join(' · ')
   if (referencia) t.centrado(referencia)
   if (datos.fecha) t.centrado(datos.fecha)
@@ -562,7 +562,7 @@ export function ticketComprobanteRecepcion(datos = {}, { ancho = 80 } = {}) {
     t.centrado('Escaneá para abrir el panel de la compra.')
   }
   bloqueFirma(t, ['Recibí conforme (depósito)'], { ancho, observaciones: true })
-  t.centrado(LEYENDA_NO_FISCAL)
+  pieTicket(t, { leyenda: LEYENDA_NO_FISCAL, regla: false })
   return t.avanza(2).corte()
 }
 
@@ -577,7 +577,7 @@ export function ticketListaCompra(datos = {}, { ancho = 80 } = {}) {
     if (valor === '' || valor === null || valor === undefined) return
     if (estrecho) { t.texto(etiqueta); t.par('  ', String(valor)) } else t.par(etiqueta, valor)
   }
-  t.centrado(datos.emisor || APP_NAME).negrita().centrado('LISTA DE COMPRA').negrita(false)
+  encabezadoTicket(t, 'LISTA DE COMPRA', { cerrar: false, empresa: datos.emisor })
   if (datos.code) t.centrado(datos.code)
   // La flecha del recorrido no viaja en CP850: el rollo usa `->`.
   if (datos.recorrido) t.centrado(String(datos.recorrido).replace(' → ', ' -> '))
@@ -622,7 +622,7 @@ export function ticketListaCompra(datos = {}, { ancho = 80 } = {}) {
     t.centrado('Escaneá para abrir el panel de la compra.')
   }
   bloqueFirma(t, ['Compró / control'], { ancho, observaciones: false })
-  t.centrado(LEYENDA_NO_FISCAL)
+  pieTicket(t, { leyenda: LEYENDA_NO_FISCAL, regla: false })
   return t.avanza(2).corte()
 }
 
@@ -637,9 +637,8 @@ export function ticketManifiesto(datos = {}, { ancho = 80 } = {}) {
     if (valor === '' || valor === null || valor === undefined) return
     if (estrecho) { t.texto(etiqueta); t.par('  ', String(valor)) } else t.par(etiqueta, valor)
   }
-  t.centrado(datos.emisor || APP_NAME)
+  encabezadoTicket(t, 'MANIFIESTO DE ENVÍO', { cerrar: false, empresa: datos.emisor || null })
   t.negrita().doble().centrado(datos.code || 'ENVÍO').doble(false).negrita(false)
-  t.centrado('MANIFIESTO DE ENVÍO')
   // La flecha del recorrido no viaja en CP850: el rollo usa `->`.
   if (datos.recorrido) t.centrado(String(datos.recorrido).replace(' → ', ' -> '))
   if (datos.fechaEmision) t.centrado(datos.fechaEmision)
@@ -679,7 +678,7 @@ export function ticketManifiesto(datos = {}, { ancho = 80 } = {}) {
     t.centrado('Escaneá para abrir el manifiesto del lote.')
   }
   bloqueFirma(t, ['Despachó / responsable', 'Recibió el transportista'], { ancho, observaciones: true })
-  t.centrado(LEYENDA_NO_FISCAL)
+  pieTicket(t, { leyenda: LEYENDA_NO_FISCAL, regla: false })
   return t.avanza(2).corte()
 }
 
@@ -693,10 +692,7 @@ export function ticketReciboInterno(payment = {}, order = {}, { ancho = 80 } = {
   const cuando = payment.paidAt || payment.createdAt || payment.fecha || new Date().toISOString()
   const pedido = order.orderNumber || order.codigo || 'Pedido'
   const numero = payment.receiptNumber || payment.number || `${pedido}-${String(payment.id || '').slice(-4).toUpperCase() || 'R'}`
-  t.centrado(APP_NAME).negrita().centrado('Recibo interno').negrita(false)
-  t.centrado(`N.º ${numero}`)
-  t.centrado(fecha(cuando))
-  t.linea()
+  encabezadoTicket(t, 'Recibo interno', { numero, fecha: cuando })
   t.par('Recibí de', order.customer?.name || order.cliente || 'Consumidor final')
   t.texto(`Concepto: cobro del pedido ${pedido}`)
   t.linea()
@@ -707,7 +703,7 @@ export function ticketReciboInterno(payment = {}, order = {}, { ancho = 80 } = {
   t.avanza(1)
   bloqueFirma(t, ['Entregué / cobré', 'Recibí conforme'], { ancho, observaciones: true })
   t.linea()
-  t.centrado(LEYENDA_NO_FISCAL)
+  pieTicket(t, { leyenda: LEYENDA_NO_FISCAL, regla: false })
   return t.avanza(2).corte()
 }
 
@@ -717,10 +713,7 @@ export function ticketProforma(quote = {}, { ancho = 80 } = {}) {
   const t = crearTicket({ ancho }).iniciar()
   const items = Array.isArray(quote.items) ? quote.items : []
   const empresa = quote.tenant?.name || quote.companyName || ''
-  t.centrado(empresa || APP_NAME).negrita().centrado('Factura proforma').negrita(false)
-  t.centrado(`Presupuesto ${quote.number || ''}`)
-  t.centrado(fecha(quote.createdAt))
-  t.linea()
+  encabezadoTicket(t, 'Factura proforma', { numero: quote.number || '', fecha: quote.createdAt, empresa })
   t.par('Cliente', quote.customer?.name || quote.customerName || 'Consumidor final')
   if (quote.customer?.document) t.par('Documento', quote.customer.document)
   if (quote.validUntil) t.par('Validez', `hasta ${fecha(quote.validUntil)}`)
@@ -740,7 +733,7 @@ export function ticketProforma(quote = {}, { ancho = 80 } = {}) {
   if (quote.notes) { t.linea(); t.texto(quote.notes) }
   bloqueFirma(t, ['Aceptación del cliente'], { ancho, observaciones: true })
   t.linea()
-  t.centrado(LEYENDA_NO_FISCAL)
+  pieTicket(t, { leyenda: LEYENDA_NO_FISCAL, regla: false })
   return t.avanza(2).corte()
 }
 
@@ -751,7 +744,7 @@ export function ticketLiquidacionComision(settlement = {}, { ancho = 80, link = 
   const t = crearTicket({ ancho }).iniciar()
   const lines = Array.isArray(settlement.lines) ? settlement.lines : []
   const estado = settlement.status === 'PAID' ? `Pagada${settlement.paidAt ? ` · ${fecha(settlement.paidAt)}` : ''}` : settlement.status === 'CANCELLED' ? 'ANULADA' : 'Borrador'
-  t.centrado(APP_NAME).negrita().centrado('Liquidación de comisiones').negrita(false)
+  encabezadoTicket(t, 'Liquidación de comisiones', { cerrar: false })
   t.centrado(`N.º ${String(settlement.id || '').slice(-6).toUpperCase() || '—'}`)
   t.centrado(fecha(settlement.createdAt || new Date().toISOString()))
   t.linea()
@@ -777,7 +770,7 @@ export function ticketLiquidacionComision(settlement = {}, { ancho = 80, link = 
   t.texto('Recibí conforme: _______________________')
   t.texto('Aclaración: ____________________________')
   t.linea()
-  t.centrado(LEYENDA_NO_FISCAL)
+  pieTicket(t, { leyenda: LEYENDA_NO_FISCAL, regla: false })
   return t.avanza(2).corte()
 }
 
@@ -788,7 +781,7 @@ export function ticketRecepcionServicio(order, { ancho = 80 } = {}) {
   const tipo = order.deviceType || 'iPhone'
   const marcados = order.checklist && typeof order.checklist === 'object' ? order.checklist : {}
   const puntos = CHECKLISTS[tipo] || CHECKLISTS.Otros
-  t.centrado(APP_NAME).negrita().centrado('Recepción de servicio').negrita(false)
+  encabezadoTicket(t, 'Recepción de servicio', { cerrar: false })
   t.centrado(`Orden ${order.serviceNumber || '—'}`)
   t.centrado(fecha(order.receivedAt || order.createdAt))
   t.linea()
@@ -825,7 +818,7 @@ export function ticketCertificado(datos = {}, { ancho = 80 } = {}) {
     datos.bateria?.porcentaje ? `${datos.bateria.porcentaje}%` : '',
     datos.bateria?.ciclos ? `${datos.bateria.ciclos} ciclos` : '',
   ].filter(Boolean).join(' · ')
-  t.centrado(APP_NAME).negrita().centrado((datos.titulo || 'CERTIFICADO DE INSPECCIÓN').toUpperCase()).negrita(false)
+  encabezadoTicket(t, (datos.titulo || 'CERTIFICADO DE INSPECCIÓN').toUpperCase(), { cerrar: false })
   if (datos.sucursal) t.centrado(datos.sucursal)
   t.linea()
   t.negrita().centrado('GRADO').negrita(false)
@@ -882,7 +875,7 @@ export function ticketCertificado(datos = {}, { ancho = 80 } = {}) {
   t.avanza(1)
   t.par('Firma / control', '________________')
   t.centrado(datos.esConstancia ? 'Constancia de preparación · documento informativo' : 'Constancia de inspección · documento informativo')
-  t.centrado(`Generado por ${APP_NAME}${datos.emisor ? ` para ${datos.emisor}` : ''} · ${datos.fechaEmision || ''}`)
+  pieTicket(t, { leyenda: '', empresa: datos.emisor || null, regla: false })
   return t.avanza(2).corte()
 }
 
@@ -899,7 +892,7 @@ export function ticketInformeDispositivo(datos = {}, { ancho = 80 } = {}) {
     if (!valor) return
     if (estrecho) { t.texto(etiqueta); t.par('  ', String(valor)) } else t.par(etiqueta, valor)
   }
-  t.centrado(APP_NAME).negrita().centrado('INFORME DE DISPOSITIVO').negrita(false)
+  encabezadoTicket(t, 'INFORME DE DISPOSITIVO', { cerrar: false })
   if (datos.sucursal) t.centrado(datos.sucursal)
   t.centrado(`Emitido ${datos.fechaEmision || ''}`)
   t.linea()
@@ -955,7 +948,7 @@ export function ticketInformeDispositivo(datos = {}, { ancho = 80 } = {}) {
   if (datos.enlace) t.centrado(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el informe público.')
   t.linea()
   t.centrado('Documento informativo · no válido como factura')
-  t.centrado(`Generado por ${APP_NAME}${datos.emisor ? ` para ${datos.emisor}` : ''}`)
+  pieTicket(t, { leyenda: '', empresa: datos.emisor || null, regla: false })
   return t.avanza(2).corte()
 }
 
@@ -965,7 +958,7 @@ export function ticketInformeDispositivo(datos = {}, { ancho = 80 } = {}) {
 export function ticketVerificacionImei(resumen, { ancho = 80 } = {}) {
   const t = crearTicket({ ancho }).iniciar()
   const fechaTexto = resumen?.fecha ? new Date(resumen.fecha).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : ''
-  t.centrado(APP_NAME).negrita().centrado('Verificación de IMEI').negrita(false)
+  encabezadoTicket(t, 'Verificación de IMEI', { cerrar: false })
   if (resumen?.simulado) t.centrado('(simulada)')
   t.linea()
   t.par('IMEI', resumen?.imei || '—')

@@ -12,7 +12,7 @@ import { contextoEtiquetaLote, datosEtiquetaLote } from '@/lib/printing/etiqueta
 import { estadoGarantia, fechaVerificacionInforme } from '@/lib/printing/informeDispositivo'
 import { estadoChecklist, estadoControl, fechaCortaDocumento, fechaHoraDocumento } from '@/lib/printing/certificado'
 import { documentoComprobante } from '@/lib/printing/ventaComprobante'
-import { estilosOperacion } from '@/lib/printing/operacionHtml'
+import { datosEncabezado } from '@/lib/printing/empresaImpresion'
 import { ACENTO_POR_DEFECTO, acentoDeEmpresa, desgloseVenta, garantiaDeVenta, serialesDeItem } from '@/lib/printing/ventaPapel'
 import JsBarcode from 'jsbarcode'
 import { api } from '@/lib/api/client'
@@ -289,8 +289,9 @@ export const styles = (format, acento = ACENTO_POR_DEFECTO) => {
   .observaciones .label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--gris)}
   .observaciones .linea{border-bottom:1px dotted #9aa4ad;height:11mm}
   footer{margin-top:12px;border-top:1px solid var(--linea);padding-top:8px;font-size:9.5px;color:var(--gris);text-align:center}
-  ${estilosOperacion(Boolean(width))}
-  @media print{body{margin:0;color:#000}.caja-total,.tarjeta{border-color:#000}.muted,.brand .cuando,footer,.small,.card .label,th{color:#222}.card,table,td,th,footer,.brand,.nofiscal,.firma,.observaciones,.firma .campos,.observaciones .linea,.pie-doc{border-color:#000}.brand .tipo,.firma .rol{color:#000}.tag{border-color:#000}td{border-bottom-color:#999}}
+  .totals.venta tr.total td{font-weight:800;font-size:${totalSize};border-top:2px solid var(--tinta);padding-top:7px;line-height:1.15}
+  .card .totals{width:100%}
+  @media print{body{margin:0;color:#000}.muted,.brand .cuando,footer,.small,.card .label,th{color:#222}.card,table,td,th,footer,.brand,.nofiscal,.firma,.observaciones,.firma .campos,.observaciones .linea,.pie-doc{border-color:#000}.brand .tipo,.firma .rol{color:#000}.tag{border-color:#000}td{border-bottom-color:#999}}
 `
 }
 
@@ -324,11 +325,21 @@ const firmas = (bloques = [], { observaciones = false, lineasObservaciones = 2, 
 // destacado. `extra`: `razon`, `lineas` (RUC, dirección, contacto) y `numero`.
 // Sin datos de la empresa, el bloque se reduce al logo o a la marca de la app.
 export const header = (title, when, logo = '', marca = '', extra = {}) => {
-  const lineas = (extra.lineas || []).filter(Boolean).map(linea => `<div class="sub">${escapeHtml(linea)}</div>`).join('')
-  const identidad = extra.razon ? `<div class="rz">${escapeHtml(extra.razon)}</div>` : (!logo ? `<b>${escapeHtml(marca || APP_NAME)}</b>` : '')
+  // Empresa: la que pasa el builder manda; si no, la de la sesión (#426), para
+  // que TODO impreso lleve logo, razón social, RUC, dirección y contacto.
+  const base = datosEncabezado()
+  const razon = extra.razon ?? base.razon
+  const lineasEmpresa = extra.lineas ?? base.lineas
+  const lineas = (lineasEmpresa || []).filter(Boolean).map(linea => `<div class="sub">${escapeHtml(linea)}</div>`).join('')
+  const identidad = razon ? `<div class="rz">${escapeHtml(razon)}</div>` : (!logo ? `<b>${escapeHtml(marca || APP_NAME)}</b>` : '')
   return `<div class="brand"><div class="emp">${logo ? `<img class="logo" src="${logo}" alt="">` : ''}${identidad}${lineas}</div><div class="doc"><h1 class="tipo">${escapeHtml(title)}</h1>${extra.numero ? `<div class="num">${escapeHtml(extra.numero)}</div>` : ''}${when ? `<div class="cuando">${escapeHtml(when)}</div>` : ''}</div></div>`
 }
-const footer = () => `<footer>Conservá este comprobante para cambios y garantía. Documento generado por ${escapeHtml(APP_NAME)}.</footer>`
+// Pie compartido: la leyenda propia del documento y «Generado por MobOS para
+// <empresa>» (la empresa sale de la sesión).
+export const footer = (leyenda = 'Conservá este comprobante para cambios y garantía.', empresa = '') => {
+  const nombre = String(empresa || '').trim() || datosEncabezado().razon
+  return `<footer>${escapeHtml(leyenda)} Generado por ${escapeHtml(APP_NAME)}${nombre ? ` para ${escapeHtml(nombre.replace(/\.$/, ''))}` : ''}.</footer>`
+}
 
 // Niveles de comprobante y formatos físicos, independientes entre sí.
 // Modelos de comprobante: cada uno suma una capa de información sobre el
@@ -480,13 +491,11 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
       ${desglose.mostrarSubtotal ? fila('Subtotal', escapeHtml(gs(desglose.subtotal))) : ''}
       ${desglose.descuento ? fila('Descuento', `− ${escapeHtml(gs(desglose.descuento))}`) : ''}
       ${desglose.envio ? fila('Entrega', escapeHtml(gs(desglose.envio))) : ''}
-    </table>
-    <div class="caja-total"><span class="rot">Total del pedido</span><span class="imp">${escapeHtml(gs(total))}</span></div>
-    <table class="totals venta">
+      ${fila('Total', escapeHtml(gs(total)), 'total')}
       ${desglose.mostrarRedondeo ? fila('Redondeo en efectivo', `${desglose.redondeo < 0 ? '− ' : ''}${escapeHtml(gs(Math.abs(desglose.redondeo)))}`) : ''}
-      ${desglose.mostrarRedondeo ? fila('Total ajustado', `<strong>${escapeHtml(gs(desglose.totalAjustado))}</strong>`) : ''}
+      ${desglose.mostrarRedondeo ? fila('Total ajustado', escapeHtml(gs(desglose.totalAjustado))) : ''}
       ${desglose.mostrarEfectivo ? fila('Efectivo recibido', escapeHtml(gs(desglose.efectivoRecibido))) : ''}
-      ${desglose.mostrarEfectivo && desglose.vuelto > 0 ? fila('Vuelto', `<strong>${escapeHtml(gs(desglose.vuelto))}</strong>`) : ''}
+      ${desglose.mostrarEfectivo && desglose.vuelto > 0 ? fila('Vuelto', escapeHtml(gs(desglose.vuelto))) : ''}
       ${desglose.mostrarPagado ? fila('Pagado', escapeHtml(gs(paid))) : ''}
       ${pendiente > 0 ? fila('Saldo pendiente', escapeHtml(gs(pendiente)), 'saldo') : ''}
       ${!modelo.pagos && metodoPago ? fila('Método', escapeHtml(metodoPago)) : ''}
@@ -498,7 +507,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
       <div class="condiciones"><strong>Garantía y condiciones</strong>${escapeHtml(garantiaDeVenta(order))}<br>Documento no fiscal · No válido como factura.</div>
       ${link ? `<div class="qrbox">${qr ? `<img class="qr" src="${qr}" alt="QR del comprobante">` : ''}<div class="small">${escapeHtml(textoQr)}${termico ? `: ${escapeHtml(link)}` : ''}</div></div>` : ''}
     </div>
-    <footer>Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa.replace(/\.$/, ''))}` : ''}.</footer>
+    ${footer('', empresa)}
   </body></html>`
 }
 
@@ -516,7 +525,7 @@ export async function printPaymentReceipt(payment, order, { format = 'a4' } = {}
   const fecha = payment.fecha || payment.paidAt || payment.createdAt || new Date().toISOString()
   const logo = await getLogoDataUrl()
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo de pago</title><style>${styles(format)}</style></head><body>
-    ${header('Recibo de pago', `${order?.orderNumber || order?.codigo || 'Pedido'} · ${new Date(fecha).toLocaleString('es-PY')}`, logo)}
+    ${header('Recibo de pago', new Date(fecha).toLocaleString('es-PY'), logo, '', { numero: order?.orderNumber || order?.codigo || 'Pedido' })}
     <div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(order?.customer?.name || order?.cliente || 'Consumidor final')}</strong></div></div>
     <table class="totals">
       <tr><td>Método</td><td class="num">${escapeHtml(metodo)}</td></tr>
@@ -549,7 +558,7 @@ export async function printQuoteReceipt(quote, { format = 'a4', token = '' } = {
   const contactoCliente = `<div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(cliente)}</strong>${quote.customer?.document ? ` · ${escapeHtml(quote.customer.document)}` : ''}${quote.customer?.phone ? `<br>${escapeHtml(quote.customer.countryCode || '')} ${escapeHtml(quote.customer.phone)}` : ''}</div></div>`
   const descuento = Number(quote.discountPyg || 0)
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Cotización ${escapeHtml(quote.number || '')}</title><style>${styles(format)}</style></head><body>
-    ${header('Cotización', `${quote.number || 'Cotización'} · ${quote.createdAt ? new Date(quote.createdAt).toLocaleString('es-PY') : ''}`, logo)}
+    ${header('Cotización', quote.createdAt ? new Date(quote.createdAt).toLocaleString('es-PY') : '', logo, '', { numero: quote.number || '' })}
     ${empresaCard}
     ${contactoCliente}
     <table><thead><tr><th>Producto</th><th class="num">Precio</th><th class="num">Total</th></tr></thead><tbody>${itemsRows}</tbody></table>
@@ -562,7 +571,7 @@ export async function printQuoteReceipt(quote, { format = 'a4', token = '' } = {
     <p><span class="tag">${escapeHtml(QUOTE_STATUS[quote.status] || quote.status || '')}</span></p>
     ${quote.notes ? `<p class="muted">${escapeHtml(quote.notes)}</p>` : ''}
     ${enlace ? `${qr ? `<img class="qr" src="${qr}" alt="QR de la cotización">` : ''}<p class="small">Aceptá o rechazá esta cotización: ${escapeHtml(enlace)}</p>` : ''}
-    <footer>Documento no fiscal. Cotización generada por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
+    ${footer('Documento no fiscal.', empresa)}
   </body></html>`
   return printHtml(html)
 }
@@ -603,7 +612,7 @@ export async function buildDeliveryNoteHtml(order, { format = 'a4' } = {}) {
   const clienteCard = `<div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(cliente?.name || order.cliente || 'Consumidor final')}</strong>${cliente?.document ? ` · ${escapeHtml(cliente.document)}` : ''}${cliente?.phone ? `<br>${escapeHtml(`${cliente.countryCode || ''} ${cliente.phone}`.trim())}` : ''}${direccion ? `<br>${escapeHtml(direccion)}` : ''}</div></div>`
   const entregaNotas = order.deliveryType || order.deliveryNotes ? `<p class="muted">Entrega: ${escapeHtml(order.deliveryType || '—')}${order.deliveryNotes ? ` · ${escapeHtml(order.deliveryNotes)}` : ''}</p>` : ''
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Nota de entrega ${escapeHtml(order.orderNumber || order.codigo || '')}</title><style>${styles(format)}</style></head><body>
-    ${header('Nota de entrega', `${order.orderNumber || order.codigo || 'Pedido'} · ${when ? new Date(when).toLocaleString('es-PY') : ''}`, logo)}
+    ${header('Nota de entrega', when ? new Date(when).toLocaleString('es-PY') : '', logo, '', { numero: order.orderNumber || order.codigo || 'Pedido' })}
     ${avisoNoFiscal()}
     ${empresaCard}
     ${clienteCard}
@@ -612,7 +621,7 @@ export async function buildDeliveryNoteHtml(order, { format = 'a4' } = {}) {
     ${entregaNotas}
     <p class="muted">Recibí conforme la mercadería detallada en este documento.</p>
     ${firmas([{ rol: 'Recibí conforme (firma)' }], { observaciones: true, estrecho: Boolean(thermalWidth(format)) })}
-    <footer>Documento no fiscal. Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
+    ${footer('Documento no fiscal.', empresa)}
   </body></html>`
 }
 
@@ -642,7 +651,7 @@ export async function buildRemisionHtml(transfer, { format = 'a4' } = {}) {
     ${transfer.notes ? `<p class="muted">${escapeHtml(transfer.notes)}</p>` : ''}
     <p class="muted">Controlá el contenido contra esta remisión al recibir.</p>
     ${firmas([{ rol: 'Entregué (despacho)' }, { rol: 'Recibí conforme (recepción)' }], { observaciones: true, estrecho: Boolean(thermalWidth(format)) })}
-    <footer>Documento no fiscal. Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
+    ${footer('Documento no fiscal.', empresa)}
   </body></html>`
 }
 
@@ -663,7 +672,7 @@ export async function buildInternalReceiptHtml(payment = {}, order = {}, { forma
   const empresa = order?.tenant?.name || order?.empresaNombre || ''
   const cliente = order?.customer?.name || order?.cliente || 'Consumidor final'
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo interno ${escapeHtml(numero)}</title><style>${styles(format)}</style></head><body>
-    ${header('Recibo interno', `N.º ${numero} · ${new Date(when).toLocaleString('es-PY')}`, logo)}
+    ${header('Recibo interno', new Date(when).toLocaleString('es-PY'), logo, '', { numero })}
     ${avisoNoFiscal()}
     <div class="card"><div class="label">Recibí de</div><div><strong>${escapeHtml(cliente)}</strong><br>Concepto: cobro del pedido ${escapeHtml(pedido)}</div></div>
     <table class="totals">
@@ -673,7 +682,7 @@ export async function buildInternalReceiptHtml(payment = {}, order = {}, { forma
       <tr><td>Monto cobrado</td><td class="num">${escapeHtml(gs(monto))}</td></tr>
     </table>
     ${firmas([{ rol: 'Entregué / cobré' }, { rol: 'Recibí conforme' }], { observaciones: true, estrecho: Boolean(thermalWidth(format)) })}
-    <footer>Documento no fiscal. Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
+    ${footer('Documento no fiscal.', empresa)}
   </body></html>`
 }
 
@@ -708,7 +717,7 @@ export async function buildProformaHtml(quote, { format = 'a4', enlace = '' } = 
       h1{font-size:18px}body{font-size:11.5px;line-height:1.4}p{margin:3px 0}footer{margin-top:7px;padding-top:5px}
       .firmas{margin:16px 0 4px}` : ''}
   </style></head><body>
-    ${header('Factura proforma', `Presupuesto ${quote.number || ''} · ${quote.createdAt ? new Date(quote.createdAt).toLocaleString('es-PY') : ''}`, logo)}
+    ${header('Factura proforma', quote.createdAt ? new Date(quote.createdAt).toLocaleString('es-PY') : '', logo, '', { numero: quote.number || '' })}
     ${avisoNoFiscal()}
     ${empresaCard}
     ${clienteCard}
@@ -723,7 +732,7 @@ export async function buildProformaHtml(quote, { format = 'a4', enlace = '' } = 
     <p class="muted">Presupuesto sin validez fiscal: no reemplaza a la factura.</p>
     ${enlace ? `<div class="card"><div class="label">Aceptación en línea</div><div class="qr-fila">${qr ? `<img class="qr" src="${qr}" alt="QR de la cotización">` : ''}<p class="small">Escaneá o abrí el enlace para aceptar o rechazar la cotización:<br>${escapeHtml(enlace)}</p></div></div>` : ''}
     ${firmas([{ rol: 'Aceptación del cliente' }], { observaciones: format !== 'a4', estrecho: Boolean(thermalWidth(format)) })}
-    <footer>Documento no fiscal. Proforma generada por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
+    ${footer('Documento no fiscal.', empresa)}
   </body></html>`
 }
 
@@ -762,7 +771,7 @@ export async function buildCierreCajaHtml(cierre = {}, { format = 'a4' } = {}) {
     <h2 style="font-size:13px;margin:14px 0 4px">Movimientos de la sesión (${movimientos.length})</h2>
     <table><thead><tr><th>Movimiento</th><th class="num">Fecha</th><th class="num">Monto</th></tr></thead><tbody>${movimientosRows || '<tr><td class="muted">Sin movimientos registrados.</td><td class="num"></td><td class="num"></td></tr>'}</tbody></table>
     ${firma}
-    <footer>Documento de control interno. No es comprobante fiscal. Generado por ${escapeHtml(APP_NAME)}.</footer>
+    ${footer('Documento de control interno. No es comprobante fiscal.')}
   </body></html>`
 }
 
@@ -796,7 +805,7 @@ export async function buildResumenDiaHtml(resumen = {}, { format = 'a4' } = {}) 
     <h2 style="font-size:13px;margin:14px 0 4px">Medios de pago</h2>
     <table><thead><tr><th>Medio</th><th class="num">Monto</th></tr></thead><tbody>${mediosRows || '<tr><td class="muted">Sin datos.</td><td class="num"></td></tr>'}</tbody></table>
     ${firmas([{ rol: 'Responsable' }, { rol: 'Control' }], { observaciones: true, estrecho: Boolean(thermalWidth(format)) })}
-    <footer>Documento de control interno. No es comprobante fiscal. Generado por ${escapeHtml(APP_NAME)}.</footer>
+    ${footer('Documento de control interno. No es comprobante fiscal.')}
   </body></html>`
 }
 
@@ -881,7 +890,7 @@ export async function buildInformeDispositivoHtml(datos = {}, { format = 'a4' } 
     <div class="card"><div class="label">Inspección física</div>${inspeccionHtml}</div>
     <div class="card"><div class="label">Garantía de la tienda</div>${fila('Estado', garantia.etiqueta)}${fila('Vence el', garantia.hasta)}</div>
     ${format !== 'a4' && datos.enlace ? `<div class="card"><div class="label">Informe público</div>${qr ? `<img class="qr" src="${qr}" alt="QR del informe">` : ''}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el informe público.')}</p></div>` : ''}
-    <footer>Documento informativo. Generado por ${escapeHtml(APP_NAME)}${datos.emisor ? ` para ${escapeHtml(datos.emisor)}` : ''} · ${escapeHtml(datos.fechaEmision || '')}</footer>
+    ${footer('Documento informativo.', datos.emisor)}
   </body></html>`
 }
 
@@ -968,7 +977,7 @@ export async function buildCertificadoHtml(datos = {}, { format = 'a4' } = {}) {
       ${fila('Fuente', datos.fuente?.proveedor ? `${datos.fuente.proveedor}${datos.fuente.fecha ? ` · ${fechaCortaDocumento(datos.fuente.fecha)}` : ''}` : '')}
     </div>
     ${datos.enlace ? `<div class="card"><div class="label">Informe público</div><div class="qr-fila">${qr ? `<img class="qr" src="${qr}" alt="QR del informe">` : ''}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el informe público.')}</p></div>${barras}</div>` : ''}
-    <footer>Firma / control: ______________ · Constancia de inspección. Generado por ${escapeHtml(APP_NAME)}${datos.emisor ? ` para ${escapeHtml(datos.emisor)}` : ''} · ${escapeHtml(datos.fechaEmision || '')}</footer>
+    ${footer('Firma / control: ______________ · Constancia de inspección.', datos.emisor)}
   </body></html>`
 }
 
@@ -1050,7 +1059,7 @@ export async function buildListaCompraHtml(datos = {}, { format = 'a4' } = {}) {
       h1{font-size:18px}body{font-size:11.5px;line-height:1.35}p{margin:2px 0}footer{margin-top:6px;padding-top:4px}` : ''}
     @media print{.fila-informe>span:first-child{color:#000}}
   </style></head><body>
-    ${header(datos.titulo || 'Lista de compra', [datos.code, datos.recorrido].filter(Boolean).join(' · ') || datos.fecha || '', logo)}
+    ${header(datos.titulo || 'Lista de compra', [datos.recorrido, datos.fecha].filter(Boolean).join(' · '), logo, '', { numero: datos.code || '' })}
     ${avisoNoFiscal()}
     <div class="card"><div class="label">Compra</div><div>
       ${fila('Estado', datos.estado)}
@@ -1069,7 +1078,7 @@ export async function buildListaCompraHtml(datos = {}, { format = 'a4' } = {}) {
     </table></div>
     ${datos.enlace || barras ? `<div class="card"><div class="label">Panel de la compra</div>${qr ? `<img class="qr" src="${qr}" alt="QR del panel">` : ''}${barras}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el panel de la compra.')}</p></div>` : ''}
     ${firmas([{ rol: 'Compró / control' }], { observaciones: !a4, estrecho: Boolean(thermalWidth(format)) })}
-    <footer>Documento de control interno. No es comprobante fiscal. Generado por ${escapeHtml(APP_NAME)}${datos.emisor ? ` para ${escapeHtml(datos.emisor)}` : ''} · ${escapeHtml(datos.fecha || '')}</footer>
+    ${footer('Documento de control interno. No es comprobante fiscal.', datos.emisor)}
   </body></html>`
 }
 
@@ -1142,7 +1151,7 @@ export async function buildManifiestoHtml(datos = {}, { format = 'a4' } = {}) {
     </table></div>
     ${datos.enlace || barras ? `<div class="card"><div class="label">Recepción del lote</div>${qr ? `<img class="qr" src="${qr}" alt="QR del lote">` : ''}${barras}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el manifiesto del lote.')}</p></div>` : ''}
     ${firmas([{ rol: 'Despachó / responsable' }, { rol: 'Recibió el transportista' }], { observaciones: !a4, estrecho: Boolean(thermalWidth(format)) })}
-    <footer>Documento de control interno. Generado por ${escapeHtml(APP_NAME)}${datos.emisor ? ` para ${escapeHtml(datos.emisor)}` : ''} · ${escapeHtml(datos.fechaEmision || '')}</footer>
+    ${footer('Documento de control interno.', datos.emisor)}
   </body></html>`
 }
 
@@ -1230,7 +1239,7 @@ export async function buildComprobanteRecepcionHtml(datos = {}, { format = 'a4' 
       .firmas{margin:14px 0 3px}` : ''}
     @media print{.fila-informe>span:first-child{color:#000}}
   </style></head><body>
-    ${header(datos.titulo || 'Comprobante de recepción', [datos.envio, datos.compra].filter(Boolean).join(' · ') || datos.fechaEmision || '', logo)}
+    ${header(datos.titulo || 'Comprobante de recepción', [datos.compra, datos.fechaEmision].filter(Boolean).join(' · '), logo, '', { numero: datos.envio || '' })}
     ${avisoNoFiscal()}
     ${cabecera}
     <div class="card"><div class="label">Esperado vs recibido</div>${tablaLineas}<table class="totals totales-recepcion">
@@ -1243,7 +1252,7 @@ export async function buildComprobanteRecepcionHtml(datos = {}, { format = 'a4' 
     </table></div>
     ${incidencias.length ? `<div class="card"><div class="label">Incidencias (${incidencias.length})</div>${tablaIncidencias}</div>` : ''}
     ${firmas([{ rol: 'Recibí conforme (depósito)' }, { rol: 'Control de stock' }], { observaciones: !a4, estrecho: Boolean(thermalWidth(format)) })}
-    <footer>Documento de control interno. No es comprobante fiscal. Generado por ${escapeHtml(APP_NAME)}${datos.emisor ? ` para ${escapeHtml(datos.emisor)}` : ''} · ${escapeHtml(datos.fechaEmision || '')}</footer>
+    ${footer('Documento de control interno. No es comprobante fiscal.', datos.emisor)}
   </body></html>`
 }
 

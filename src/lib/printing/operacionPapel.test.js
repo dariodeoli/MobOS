@@ -32,11 +32,13 @@ test('devolución: artículos en negativo, medio de reembolso y total en caja', 
   const t = texto(ticketDevolucion(doc, { ancho: 80 }))
   assert.match(t, /DEVOLUCIÓN/)
   assert.match(t, /-Gs 4\.500\.000/)
-  assert.match(t, /TOTAL REEMBOLSADO[\s\S]*-Gs 4\.850\.000/)
+  assert.match(t, /Total reembolsado\s+-Gs 4\.850\.000|Total reembolsado\n\s+-Gs 4\.850\.000/)
   assert.match(t, /Tarjeta \/ POS\s+-Gs 4\.850\.000/)
   const html = cuerpoDevolucionHtml(doc)
-  assert.match(html, /caja-total/)
+  assert.ok(!html.includes('caja-total'), 'sin cajas: el total es la línea gruesa')
+  assert.match(html, /class="total"/)
   assert.match(html, /Total reembolsado/)
+  assert.match(html, /CLIENTE|Cliente/)
   assert.match(html, /− Gs 4\.850\.000/)
 })
 
@@ -56,15 +58,15 @@ test('cambio: devueltos negativos, nuevos, subtotales y A cobrar / A devolver', 
   assert.equal(cobrar.totalCambioPyg, 700000)
   assert.equal(cobrar.medio, 'Efectivo')
   const t = texto(ticketCambio(cobrar, { ancho: 80 }))
-  for (const parte of ['DEVUELTOS', 'NUEVOS', 'Subtotal devueltos', 'Subtotal nuevos', 'TOTAL DE CAMBIOS', 'A COBRAR', 'Gs 700.000', 'Medio de pago']) assert.ok(t.includes(parte), parte)
+  for (const parte of ['DEVUELTOS', 'NUEVOS', 'Subtotal devueltos', 'Subtotal nuevos', 'Total a cobrar', 'Gs 700.000', 'Pago']) assert.ok(t.includes(parte), parte)
   assert.ok(t.includes('-Gs 4.500.000'))
   const devolver = documentoCambio(pedido, { devueltos: [pedido.items[0]], nuevos: [pedido.items[1]], modo: 'CREDIT' })
   assert.equal(devolver.direccion, 'devolver')
   assert.equal(devolver.rotuloTotal, 'A devolver')
   assert.equal(devolver.totalCambioPyg, 4150000)
   assert.equal(devolver.medio, 'Saldo a favor')
-  assert.match(cuerpoCambioHtml(devolver), /A devolver[\s\S]*Gs 4\.150\.000/)
-  assert.match(texto(ticketCambio(devolver, { ancho: 58 })), /Medio de reembolso/)
+  assert.match(cuerpoCambioHtml(devolver), /Total a devolver[\s\S]*Gs 4\.150\.000/)
+  assert.match(texto(ticketCambio(devolver, { ancho: 58 })), /Reembolso[\s\S]*Saldo a favor/)
 })
 
 test('recibo de regalo: sin precios, cliente, pagos ni IMEI; con política de cambios', () => {
@@ -99,7 +101,7 @@ test('tarjeta de regalo: monto grande, código enmascarado, QR y vigencia', () =
   assert.ok(t.includes('[QR] GC-ABCD-EFGH-JK12'), 'QR del código')
   assert.ok(t.includes('**** **** **** JK12'))
   assert.ok(!t.includes('ABCD EFGH'), 'el código completo no sale en texto')
-  assert.ok(t.includes('Gs 500.000') && t.includes('Válida hasta'))
+  assert.ok(t.includes('Gs 500.000') && t.includes('Vigencia'))
   const html = cuerpoTarjetaRegaloHtml(doc, { qrSrc: 'data:image/png;base64,AAAA' })
   assert.match(html, /class="qr"/)
   assert.match(html, /•••• •••• •••• JK12/)
@@ -124,17 +126,42 @@ test('58 mm: ninguna línea excede 32 columnas y los importes grandes no se reco
   assert.ok(texto(tickets[3]).includes('Gs 99.999.999'))
 })
 
-test('venta: total en caja y, con redondeo de efectivo, ajustado, recibido y vuelto', () => {
+test('venta: total en línea gruesa y, con redondeo de efectivo, ajustado, recibido y vuelto', () => {
   const venta = { ...pedido, totalPyg: 1000000, items: [{ description: 'Cargador', quantity: 1, unitPricePyg: 1000000, totalPyg: 1000000 }], payments: [{ status: 'CONFIRMED', method: 'CASH', amountPyg: 999000 }], cashRoundingPyg: -1000, cashReceivedPyg: 1000000 }
   const d = desgloseVenta(venta)
   assert.equal(d.totalAjustado, 999000)
   assert.equal(d.vuelto, 1000)
   const t = texto(ticketComprobante(venta, { nivel: 'completo', ancho: 80 }))
-  for (const parte of ['TOTAL DEL PEDIDO', 'Redondeo en efectivo', 'Total ajustado', 'Efectivo recibido', 'Vuelto']) assert.ok(t.includes(parte), parte)
+  for (const parte of ['TOTAL', 'Redondeo en efectivo', 'Total ajustado', 'Efectivo recibido', 'Vuelto']) assert.ok(t.includes(parte), parte)
   assert.match(t, /Vuelto\s+Gs 1\.000/)
   assert.ok(!t.includes('SALDO PENDIENTE'), 'lo pagado cubre el total ajustado: no queda saldo')
   const sinRedondeo = texto(ticketComprobante({ ...pedido }, { nivel: 'completo', ancho: 58 }))
-  assert.ok(sinRedondeo.includes('TOTAL DEL PEDIDO'))
+  assert.ok(sinRedondeo.includes('TOTAL'))
   assert.ok(!sinRedondeo.includes('Redondeo') && !sinRedondeo.includes('Vuelto'))
   sinLineasLargas(ticketComprobante(venta, { nivel: 'completo', ancho: 58 }), 32)
+})
+
+test('todos los papeles de operación comparten el encabezado de la venta: empresa, RUC, dirección, tipo y número', async () => {
+  const { fijarEmpresaImpresion } = await import('./empresaImpresion.js')
+  fijarEmpresaImpresion({ tenant: { name: 'Móvil Center S.A.', ruc: '80012345-6', address: 'Av. España 1234', city: 'Asunción', phone: '0971 555 010' }, branch: { name: 'Shopping del Sol' } })
+  try {
+    const sinTenant = { orderNumber: 'MOB-7', items: pedido.items, payments: pedido.payments }
+    const docs = [
+      ticketDevolucion(documentoDevolucion(sinTenant, { refundPyg: 100 }), { ancho: 80 }),
+      ticketCambio(documentoCambio(sinTenant, { nuevos }), { ancho: 80 }),
+      ticketRegalo(documentoRegalo(sinTenant), { ancho: 80 }),
+      ticketTarjetaRegalo(documentoTarjetaRegalo({ codeLast4: '1234', amountPyg: 1 }), { ancho: 80 }),
+    ]
+    for (const ticket of docs) {
+      const t = texto(ticket)
+      assert.ok(t.includes('Móvil Center S.A.') && t.includes('RUC 80012345-6') && t.includes('Av. España 1234'), 'razón social, RUC y dirección')
+      assert.ok(t.includes('Shopping del Sol'), 'sucursal')
+      assert.ok(t.replace(/\s+/g, ' ').includes('Generado por MobOS para Móvil Center S.A.'), 'pie compartido')
+    }
+    assert.ok(texto(docs[0]).includes('MOB-7'))
+    const t = texto(ticketComprobante({ orderNumber: 'MOB-7', items: [], payments: [], totalPyg: 0 }, { nivel: 'rapido', ancho: 80 }))
+    assert.ok(t.includes('COMPROBANTE DE COMPRA'))
+  } finally {
+    fijarEmpresaImpresion({ tenant: null, branch: null })
+  }
 })

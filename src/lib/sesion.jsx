@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { isDemoRuntime, demoSessionActive, demoSessionRole, saveDemoSession, clearDemoSession } from './demoMode'
 import { EMPRESA_DEMO, SUCURSALES_DEMO } from './demo/empresa'
+import { fijarEmpresaImpresion } from './printing/empresaImpresion'
 import { perfilDemo } from './demo/equipo.js'
 import { combinarPerfil } from '@/lib/sesionPerfil'
 import { limpiarAvatarCache, precargarAvatar } from '@/lib/userAvatar'
@@ -73,6 +74,9 @@ export function SesionProvider({ children }) {
         // Sin catálogo de sucursales la sesión sigue siendo válida.
       }
     }
+    // Identidad del papel (#426): razón social, RUC, dirección y contacto salen
+    // de la empresa de la sesión (el demo usa la ficticia).
+    fijarEmpresaImpresion({ tenant: emp.id === 'mobos-demo' ? { ...EMPRESA_DEMO, name: EMPRESA_DEMO.razonSocial } : { ...(tenant || {}), name: tenant?.name || emp.nombre } })
     setUsuario(user); setEmpresa(emp); setEmpresas([emp]); setSucursal(sucursalActiva); setSucursales(listaSucursales); setVendedores(getCompanyContext()?.sellers || []); setPerfilEmpresa(perfil !== undefined ? perfil : getCompanyContext()?.profile || null); setEstado('dentro')
   }, [])
   // #324: el acceso demo resuelve la persona real del equipo ficticio por rol o
@@ -118,6 +122,7 @@ export function SesionProvider({ children }) {
   // En render (no en effect) para que los componentes que leen configImpresora()
   // vean el tenant/sucursal correctos desde su primer render.
   usarTenantImpresoras(usuario?.tenantId)
+  useEffect(() => { fijarEmpresaImpresion({ branch: sucursal }) }, [sucursal])
   usarSucursalImpresoras(sucursal?.id)
   async function entrarEmpresa(credentials) { const result = await sessionApi.loginCompany(credentials); setEmpresa(result.tenant ? { id: result.tenant.id, nombre: result.tenant.name, rol: null } : null); setEmpresas(result.tenant ? [result.tenant] : []); setVendedores(result.sellers || []); return result }
   async function entrarVendedor(credentials) { const result = await sessionApi.loginSeller(credentials); const contexto = await sessionApi.me().catch(() => null); await activarSesion(contexto?.user || result.user, { tenant: contexto?.tenant, perfil: combinarPerfil(contexto?.ownerProfile, getCompanyContext()?.profile || null) }); return result }

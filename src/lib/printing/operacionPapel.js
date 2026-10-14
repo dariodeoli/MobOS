@@ -62,6 +62,7 @@ function cabecera(orden = {}, extra = {}) {
     cliente: orden.customer?.name || '',
     pedido: orden.orderNumber || orden.codigo || '',
     tenant: orden.tenant || null,
+    branch: orden.branch || null,
     ...extra,
   }
 }
@@ -162,6 +163,7 @@ export function documentoTarjetaRegalo(tarjeta = {}, contexto = {}) {
     empresa: texto(contexto.empresa?.name || contexto.empresa?.nombre || (typeof contexto.empresa === 'string' ? contexto.empresa : '')),
     ruc: texto(contexto.empresa?.ruc),
     tenant: contexto.empresa && typeof contexto.empresa === 'object' ? contexto.empresa : null,
+    branch: contexto.sucursal && typeof contexto.sucursal === 'object' ? contexto.sucursal : null,
     sucursal: texto(contexto.sucursal?.name || contexto.sucursal?.nombre),
     montoPyg: numero(tarjeta.amountPyg ?? tarjeta.balancePyg),
     codigoEnmascarado: codigoEnmascarado(tarjeta),

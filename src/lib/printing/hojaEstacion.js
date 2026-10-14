@@ -1,6 +1,8 @@
 import { escapeHtml } from '../../utils/printHtml.js'
 import { estadoInventario } from '../../utils/inventario.js'
 import { bateriaDe, gradoDe } from '../tallerRack.js'
+import { APP_NAME } from '../brand.js'
+import { datosEncabezado } from './empresaImpresion.js'
 
 // Hoja de estación del modo taller (#240 §4): lista imprimible de los equipos
 // de un carril/estación para trabajar en el depósito (modelo, IMEI, estado,
@@ -42,14 +44,14 @@ function hojaDeEstacion({ estacion = 'Taller', unidades = [] } = {}, { fecha } =
     </tr>`
   }).join('')
   const fechaTexto = fechaLarga(fecha)
+  const empresa = datosEncabezado()
 
   return `<section class="hoja">
-<div class="brand"><b>MobOS · Modo taller</b><span>${escapeHtml(estacion)}</span></div>
-<h1>Equipos en preparación</h1>
-<p class="meta">${unidades.length} equipo(s)${fechaTexto ? ` · ${escapeHtml(fechaTexto)}` : ''}</p>
+<div class="brand"><div class="emp"><div class="rz">${escapeHtml(empresa.razon || APP_NAME)}</div>${empresa.lineas.map((linea) => `<div class="sub">${escapeHtml(linea)}</div>`).join('')}</div><div class="doc"><div class="tipo">Hoja de estación</div><div class="num">${escapeHtml(estacion)}</div>${fechaTexto ? `<div class="cuando">${escapeHtml(fechaTexto)}</div>` : ''}</div></div>
+<p class="meta">${unidades.length} equipo(s) en preparación</p>
 <table><thead><tr><th>#</th><th>Modelo</th><th>IMEI / serial</th><th>Estado</th><th>Ubicación</th></tr></thead><tbody>${filas || '<tr><td colspan="5">Sin equipos en esta estación.</td></tr>'}</tbody>
 <tfoot><tr><td colspan="5">Total: ${unidades.length} equipo(s) · Marcá cada uno al verificarlo.</td></tr></tfoot></table>
-<footer><span>Hoja de estación generada por MobOS</span><span>Firma / control: ______________</span></footer>
+<footer><span>Generado por ${escapeHtml(APP_NAME)}${empresa.razon ? ` para ${escapeHtml(empresa.razon)}` : ''}</span><span>Firma / control: ______________</span></footer>
 </section>`
 }
 
@@ -62,10 +64,13 @@ function documentoDeHojas(grupos, { fecha } = {}) {
 body{margin:0;font:12px/1.45 ui-sans-serif,system-ui,sans-serif;color:#10161f}
 .hoja{page-break-after:always}
 .hoja:last-child{page-break-after:auto}
-.brand{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #0c8876;padding-bottom:6px}
-.brand b{font-size:15px;letter-spacing:-.01em}
-.brand span{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:#0c8876;font-weight:800}
-h1{font-size:18px;margin:10px 0 2px}
+.brand{display:flex;justify-content:space-between;gap:18px;border-bottom:2px solid #0c8876;padding-bottom:10px;margin-bottom:14px}
+.brand .rz{font-size:15px;font-weight:800;line-height:1.25}
+.brand .sub{font-size:10.5px;color:#3b424a;line-height:1.45}
+.brand .doc{text-align:right}
+.brand .tipo{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#0c8876}
+.brand .num{font-size:22px;font-weight:800;letter-spacing:-.01em;line-height:1.2;margin-top:2px}
+.brand .cuando{font-size:10.5px;color:#666d75;margin-top:2px}
 .meta{color:#5b6570;font-size:11px;margin-bottom:12px}
 table{width:100%;border-collapse:collapse}
 th{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:#5b6570;text-align:left;border-bottom:1px solid #cfd6dd;padding:5px 6px}
