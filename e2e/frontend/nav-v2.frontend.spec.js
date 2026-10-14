@@ -1947,6 +1947,16 @@ test('F3 Clientes demo deep link, quick summary Datos and campaign restriction',
 })
 
 // F3 Taller: appended contracts only. Earlier 76 cases remain untouched.
+// #396: Ordenar y Filtros van detrás de «Ordenar / Filtros» en celular; Actualizar,
+// Catálogo y la selección viven en el menú «⋯».
+async function abrirOrdenFiltrosTaller(page, root, width) {
+  if (width >= 640) return
+  await root.getByRole('button', { name: 'Ordenar / Filtros', exact: true }).click()
+}
+async function abrirMasAccionesTaller(page, root, accion) {
+  await root.getByRole('button', { name: 'Más acciones', exact: true }).click()
+  await page.getByRole('menuitem', { name: accion, exact: true }).click()
+}
 const tallerOutput = '/tmp/mobos-redesign-taller-qa'
 for (const width of [320, 390, 1440]) {
   for (const dark of [false, true]) {
@@ -1962,7 +1972,12 @@ for (const width of [320, 390, 1440]) {
       await expect(root.getByTestId('servicio-fila')).toHaveCount(4)
       await expect(root).toContainText('Distribuidora del Este S.A.')
       await expect(root).toContainText('MacBook Air M2')
-      await expect(root.getByLabel('Filtrar por etapa').locator('option')).toHaveCount(10)
+      // #396: las etapas son chips filtrables con su conteo, no un select.
+      const etapas = root.getByRole('group', { name: 'Filtrar por etapa', exact: true })
+      await expect(etapas.getByRole('button', { name: /^Activas \d+$/ })).toHaveAttribute('aria-pressed', 'true')
+      await expect(etapas.getByRole('button', { name: /^Todas \d+$/ })).toBeVisible()
+      // Las casillas de selección existen solo en modo selección.
+      await expect(root.getByRole('checkbox')).toHaveCount(0)
       await expect(root.getByTestId('resumen-taller')).toContainText('En pantalla')
       await noOverflow(page)
       expect(
@@ -2026,8 +2041,12 @@ for (const width of [320, 390, 1440]) {
       await root.getByLabel('Buscar órdenes de servicio').fill('MacBook')
       await expect(root.getByTestId('servicio-fila')).toHaveCount(1)
       await root.getByLabel('Buscar órdenes de servicio').fill('')
-      await root.getByLabel('Ordenar órdenes en pantalla').selectOption('cliente')
-      await root.getByRole('button', { name: 'Invertir orden' }).click()
+      await abrirOrdenFiltrosTaller(page, root, width)
+      await root.getByRole('button', { name: 'Ordenar', exact: true }).click()
+      await page.getByRole('menuitem', { name: 'Cliente', exact: true }).click()
+      await expect(root.getByTestId('taller-orden')).toHaveAttribute('data-orden', 'cliente')
+      await root.getByRole('button', { name: 'Ordenar', exact: true }).click()
+      await page.getByRole('menuitem', { name: /^Invertir/ }).click()
       // Modify only the existing demo order in this page's in-memory storage.
       await page.evaluate(async () => {
         const { getDemoServicio, saveDemoServicio } = await import('/src/lib/demoServicio.js')
@@ -2045,7 +2064,7 @@ for (const width of [320, 390, 1440]) {
           ),
         })
       })
-      await root.getByRole('button', { name: 'Actualizar', exact: true }).click()
+      await abrirMasAccionesTaller(page, root, 'Actualizar')
       const bigRow = root.getByTestId('servicio-fila').filter({ hasText: 'modelo completo' })
       await expect(bigRow).toContainText('nombre completo de prueba aislada')
       const price = bigRow.locator('.taller-f3-money p').first().locator('b')
@@ -2064,6 +2083,7 @@ for (const width of [320, 390, 1440]) {
       )
       await noOverflow(page)
       await page.keyboard.press('Escape')
+      await abrirOrdenFiltrosTaller(page, root, width)
       await root.getByRole('button', { name: 'Filtros', exact: true }).click()
       const filters = page.getByRole('dialog', {
         name: 'Filtros del taller',
@@ -2072,7 +2092,7 @@ for (const width of [320, 390, 1440]) {
       await filters.getByLabel('Tipo de dispositivo').selectOption('MacBook')
       await filters.getByRole('button', { name: 'Aplicar filtros', exact: true }).click()
       await expect(root.getByTestId('servicio-fila')).toHaveCount(1)
-      await root.getByRole('button', { name: 'Catálogo de servicios', exact: true }).click()
+      await abrirMasAccionesTaller(page, root, 'Catálogo de servicios')
       await expect(
         page.getByRole('dialog', {
           name: 'Catálogo de servicios',
@@ -2163,7 +2183,8 @@ for (const scenario of ['mixed', 'all-fail', 'terminal', 'nonvisible', 'refresh-
   }) => {
     const state = await mockTaller(page, scenario)
     const root = page.locator('.taller-f3')
-    if (scenario === 'terminal') await root.getByLabel('Filtrar por etapa').selectOption('todos')
+    await abrirMasAccionesTaller(page, root, 'Seleccionar órdenes')
+    if (scenario === 'terminal') await root.getByRole('button', { name: /^Todas \d+$/ }).click()
     await root.getByLabel('Seleccionar la orden de Equipo A', { exact: true }).check()
     if (['mixed', 'all-fail', 'nonvisible'].includes(scenario))
       await root.getByLabel('Seleccionar la orden de Equipo B', { exact: true }).check()
