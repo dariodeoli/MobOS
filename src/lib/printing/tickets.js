@@ -12,11 +12,25 @@ import { estadoGarantia, fechaVerificacionInforme } from './informeDispositivo.j
 import { AVISO_BLACKLIST, estadoChecklistCorto, estadoControl, fechaHoraDocumento } from './certificado.js'
 import { baseDeApp, qrProducto, qrPrueba } from './qr.js'
 import { documentoComprobante } from './ventaComprobante.js'
+import { desgloseVenta, garantiaDeVenta, serialesDeItem } from './ventaPapel.js'
 import { TIPOS_PRUEBA, paginaDePrueba } from 'owncoding-ui'
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
 
 const fecha = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '')
+
+// Importe destacado en doble ancho. El doble ancho entra en la mitad de las
+// columnas: si rótulo e importe no caben juntos, el rótulo va arriba, y si ni el
+// importe entra se imprime en tamaño normal (nunca recortado ni con puntos).
+function importeGrande(t, rotulo, monto) {
+  const mitad = Math.floor(t.columnas / 2)
+  if (rotulo && rotulo.length + monto.length + 1 > mitad) {
+    t.negrita().texto(rotulo).negrita(false)
+    rotulo = ''
+  }
+  if (monto.length > mitad) { t.negrita().par(rotulo, monto).negrita(false); return }
+  t.negrita().doble().par(rotulo, monto).doble(false).negrita(false)
+}
 
 // Comprobante de compra. `link` es el enlace del nivel (se imprime como QR) y
 // `logo` el raster monocromo de la empresa (GS v 0) para el encabezado.
@@ -27,40 +41,40 @@ export function ticketComprobante(entrada, { nivel = 'completo', ancho = 80, lin
   const order = documentoComprobante(entrada, contexto)
   const t = crearTicket({ ancho }).iniciar()
   const items = Array.isArray(order.items) ? order.items : []
-  const payments = Array.isArray(order.payments) ? order.payments : order.pagos || []
-  const pagos = payments.filter((pago) => pago.status === 'CONFIRMED' || pago.status === undefined)
-  const pagado = pagos.reduce((suma, pago) => suma + Number(pago.amountPyg ?? pago.monto ?? 0), 0)
-  const total = Number(order.totalPyg ?? order.total ?? 0)
-  const pendiente = Math.max(0, total - Number(pagado || order.totalPagado || 0))
+  const desglose = desgloseVenta(order)
+  const { total, pagado, saldo: pendiente, confirmados: pagos } = desglose
   const itemsCount = items.reduce((suma, item) => suma + Number(item.quantity || 1), 0)
   const completo = nivel !== 'rapido'
   const detallado = nivel === 'detallado'
   const empresa = order.tenant?.name || order.empresaNombre || ''
   const sucursal = order.branch || null
   const cliente = order.customer || null
+  const cuando = fecha(order.createdAt || order.creadoEn || order.fecha)
 
+  // Encabezado: logo, razón social, RUC, sucursal y contacto en un bloque; el
+  // tipo de documento y el número van debajo, destacados.
   if (logo?.ancho && logo?.alto && logo.bytes) {
     t.imagenRaster(logo.bytes, { ancho: logo.ancho, alto: logo.alto })
     t.avanza(1)
   }
-  t.centrado([empresa || APP_NAME, sucursal?.name].filter(Boolean).join(' · ')).negrita().centrado('Comprobante de compra').negrita(false)
-  t.centrado(`${order.orderNumber || order.codigo || 'Pedido'} · ${fecha(order.createdAt || order.creadoEn || order.fecha)}`)
+  t.negrita().centrado(empresa || APP_NAME).negrita(false)
+  if (order.tenant?.ruc) t.centrado(`RUC ${order.tenant.ruc}`)
+  if (completo) {
+    const direccionEmpresa = [order.tenant?.address, order.tenant?.city, order.tenant?.department].filter(Boolean).join(', ')
+    if (direccionEmpresa) t.centrado(direccionEmpresa)
+  }
+  const direccionSucursal = completo ? [sucursal?.address, sucursal?.city].filter(Boolean).join(', ') : ''
+  if (sucursal?.name) t.centrado(sucursal.name)
+  if (direccionSucursal) t.centrado(direccionSucursal)
+  const contacto = [sucursal?.phone || order.tenant?.phone].filter(Boolean).join(' ')
+  if (contacto) t.centrado(`Tel. ${contacto}`)
+  t.linea('=')
+  t.negrita().centrado('COMPROBANTE DE COMPRA').negrita(false)
+  t.doble().centrado(order.orderNumber || order.codigo || 'Pedido').doble(false)
+  t.centrado([cuando, completo && order.seller?.name ? `Vendedor: ${order.seller.name}` : ''].filter(Boolean).join(' · '))
   t.linea()
 
-  if (completo && (empresa || sucursal)) {
-    t.texto(empresa || APP_NAME)
-    if (order.tenant?.ruc) t.texto(`RUC ${order.tenant.ruc}`)
-    const direccionEmpresa = [order.tenant?.address, order.tenant?.city, order.tenant?.department].filter(Boolean).join(', ')
-    if (direccionEmpresa) t.texto(direccionEmpresa)
-    if (order.tenant?.phone) t.texto(order.tenant.phone)
-    if (sucursal?.name) t.texto(sucursal.name)
-    const direccion = [sucursal?.address, sucursal?.city, sucursal?.department].filter(Boolean).join(', ')
-    if (direccion) t.texto(direccion)
-    if (sucursal?.phone) t.texto(sucursal.phone)
-    if (order.seller?.name) t.texto(`Vendedor: ${order.seller.name}`)
-    t.linea()
-  }
-
+  // Cliente.
   t.par('Cliente', cliente?.name || order.cliente || 'Consumidor final')
   if (completo && cliente?.document) t.par('Documento', cliente.document)
   if (completo && cliente?.phone) t.par('Teléfono', `${cliente.countryCode || ''} ${cliente.phone}`.trim())
@@ -68,31 +82,36 @@ export function ticketComprobante(entrada, { nivel = 'completo', ancho = 80, lin
   if (order.billingName) t.par('Factura a', `${order.billingName}${order.billingDocument ? ` · ${order.billingDocument}` : ''}`)
   t.linea()
 
+  // Detalle: nombre, cantidad × unitario a la izquierda y total a la derecha;
+  // IMEI/serie completo debajo del producto.
+  t.par('Detalle', 'Importe')
   for (const item of items) {
     const cantidad = Number(item.quantity || 1)
     const unitario = Number(item.unitPricePyg ?? item.precio ?? 0)
     const lineaTotal = Number(item.totalPyg ?? cantidad * unitario)
-    t.texto(item.description || item.nombre || 'Producto')
-    t.par(`  ${cantidad} × ${gs(unitario)}`, gs(lineaTotal))
+    t.negrita().texto(item.description || item.nombre || 'Producto').negrita(false)
+    t.par(`  ${cantidad} x ${gs(unitario)}`, gs(lineaTotal))
+    for (const serie of serialesDeItem(item)) t.texto(`  IMEI/Serie ${serie}`)
   }
   t.linea()
 
+  // Totales: subtotal, descuento y envío solo cuando aplican; el total grande.
   t.par('Total de ítems', String(itemsCount))
-  t.par('Subtotal', gs(order.subtotalPyg ?? total))
-  const descuento = Number(order.discountPyg || order.descuento || 0)
-  if (descuento) t.par('Descuento', `- ${gs(descuento)}`)
-  const entrega = Number(order.deliveryPyg || order.montoDelivery || 0)
-  if (entrega) t.par('Entrega', gs(entrega))
-  t.doble().par('TOTAL', gs(total)).doble(false)
-  t.par('Pagado', gs(pagado || order.totalPagado || 0))
+  if (desglose.mostrarSubtotal) t.par('Subtotal', gs(desglose.subtotal))
+  if (desglose.descuento) t.par('Descuento', `- ${gs(desglose.descuento)}`)
+  if (desglose.envio) t.par('Entrega', gs(desglose.envio))
+  t.linea('=')
+  importeGrande(t, 'TOTAL', gs(total))
+  if (desglose.mostrarPagado) t.par('Pagado', gs(pagado))
   if (pendiente > 0) {
     t.negrita().texto('SALDO PENDIENTE').negrita(false)
-    t.negrita().doble().par('', gs(pendiente)).doble(false).negrita(false)
+    importeGrande(t, '', gs(pendiente))
   }
 
+  // Pago: el medio y la referencia (la cronología solo en el detallado).
   if (completo && pagos.length) {
     t.linea()
-    t.texto('Pagos')
+    t.texto('Pago')
     for (const pago of pagos) {
       const metodo = ETIQUETAS_MEDIO_PAGO[pago.method] || pago.medioPago || 'Pago'
       const referencia = pago.reference || pago.cuenta || pago.accountSnapshot?.name || ''
@@ -123,7 +142,9 @@ export function ticketComprobante(entrada, { nivel = 'completo', ancho = 80, lin
     }
   }
 
+  // Garantía y estado, luego el QR del pedido.
   t.linea()
+  if (completo) t.texto(garantiaDeVenta(order))
   t.centrado(FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || order.deliveryType || order.entrega || 'En preparación')
   if (link) {
     t.avanza(1)

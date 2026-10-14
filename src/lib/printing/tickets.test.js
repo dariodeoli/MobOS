@@ -172,6 +172,53 @@ test('un comprobante sin saldo no imprime la línea de saldo', () => {
 })
 
 
+// #402: diseño premium del ticket de venta.
+const PEDIDO_PREMIUM = {
+  orderNumber: 'MOB-#0042',
+  createdAt: new Date('2026-09-19T12:00:00Z').toISOString(),
+  tenant: { name: 'Tienda Demo S.A.', ruc: '80012345-6', address: 'Av. España 1234', city: 'Asunción', phone: '0981 123 456' },
+  branch: { name: 'Sucursal Central' },
+  seller: { name: 'Ana' },
+  customer: { name: 'Juan Pérez', document: '1234567' },
+  items: [{ description: 'iPhone 13 128GB', quantity: 1, unitPricePyg: 3500000, totalPyg: 3500000, serials: ['356938035643809'], unitCostPyg: 2800000 }],
+  subtotalPyg: 3500000,
+  totalPyg: 3500000,
+  payments: [{ status: 'CONFIRMED', method: 'CASH', amountPyg: 3500000 }],
+}
+
+test('el comprobante térmico ordena encabezado, cliente, detalle con IMEI, total grande y QR (#402)', () => {
+  for (const ancho of [58, 80]) {
+    const ticket = ticketComprobante(PEDIDO_PREMIUM, { nivel: 'completo', ancho, link: 'https://app.moboss.online/p/abc' })
+    const texto = ticket.lineas().join('')
+    assert.ok(texto.includes('RUC 80012345-6'), `RUC en ${ancho}`)
+    assert.ok(texto.includes('MOB-#0042'), `número destacado en ${ancho}`)
+    assert.ok(texto.includes('IMEI/Serie 356938035643809'), `IMEI completo en ${ancho}`)
+    assert.match(texto, /TOTAL\s+Gs 3\.500\.000|TOTAL\n\s+Gs 3\.500\.000/, `total completo en ${ancho}`)
+    assert.ok(texto.indexOf('Cliente') < texto.indexOf('iPhone 13') && texto.indexOf('TOTAL') < texto.indexOf('[QR]'), `orden cliente, detalle, total, QR en ${ancho}`)
+    assert.ok(texto.includes('Garantía'), `garantía en ${ancho}`)
+    assert.ok(!texto.includes('2.800.000') && !texto.includes('2800000'), `nunca imprime el costo en ${ancho}`)
+    assert.ok(!texto.includes('Subtotal') && !texto.includes('Descuento') && !texto.includes('Pagado'), `sin subtotal/descuento/pagado cuando no aplican en ${ancho}`)
+    assert.ok(ticket.corteEnviado(), `corta en ${ancho}`)
+    const columnas = ancho === 58 ? 32 : 48
+    for (const linea of texto.split('\n')) assert.ok(linea.length <= columnas, `línea dentro de ${columnas} columnas: ${linea}`)
+  }
+})
+
+test('el comprobante muestra subtotal, descuento, envío, pagado y saldo solo cuando aplican (#402)', () => {
+  const texto = ticketComprobante({
+    ...PEDIDO_PREMIUM,
+    discountPyg: 100000,
+    deliveryPyg: 50000,
+    totalPyg: 3450000,
+    payments: [{ status: 'CONFIRMED', method: 'CASH', amountPyg: 1000000 }],
+  }, { nivel: 'completo', ancho: 58 }).lineas().join('')
+  assert.ok(texto.includes('Subtotal'))
+  assert.match(texto, /Descuento\s+- Gs 100\.000/)
+  assert.match(texto, /Entrega\s+Gs 50\.000/)
+  assert.match(texto, /Pagado\s+Gs 1\.000\.000/)
+  assert.match(texto, /SALDO PENDIENTE\n\s+Gs 2\.450\.000/, 'el saldo completo cabe en 58 mm')
+})
+
 const PEDIDO = {
   orderNumber: 'MOB-#0042',
   createdAt: new Date('2026-09-19T12:00:00Z').toISOString(),
