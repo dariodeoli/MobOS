@@ -198,8 +198,9 @@ export async function GET(request: Request) {
             ? pago.accountSnapshot as Record<string, unknown> : null
           const feePercent = snapshot && (typeof snapshot.feePercent === 'number' || typeof snapshot.feePercent === 'string')
             ? Number(snapshot.feePercent) : 0
+          // Simétrico en el signo: la reversión de una corrección (monto negativo) devuelve exactamente la comisión del original (#393).
           const feePyg = Number.isFinite(feePercent) && feePercent > 0
-            ? Math.round((numero(pago.amountPyg) * feePercent) / 100) : 0
+            ? Math.sign(numero(pago.amountPyg)) * Math.round((Math.abs(numero(pago.amountPyg)) * feePercent) / 100) : 0
           return {
             id: pago.id, reversalOfId: pago.reversalOfId, status: pago.status, amountPyg: pago.amountPyg, feePyg, method: pago.method ?? null,
             accountName: snapshot && typeof snapshot.name === 'string' ? snapshot.name : null,

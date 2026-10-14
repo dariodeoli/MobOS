@@ -204,19 +204,8 @@ assert.equal(sql(`SELECT "originSessionClosed" FROM "PaymentCorrection" WHERE "i
 // Σ CONFIRMED por pedido y base consistente (sin reversiones huérfanas).
 assert.equal(Number(sql(`SELECT COUNT(*) FROM "Payment" r WHERE r."reversalOfId" IS NOT NULL AND (r."amountPyg" >= 0 OR NOT EXISTS (SELECT 1 FROM "Payment" o WHERE o."id" = r."reversalOfId" AND o."amountPyg" = -r."amountPyg"))`)), 0)
 
-// Limpieza: las reversiones (montos negativos) todavía no las netean los reportes
-// (#393-B) y contaminarían la verificación independiente de reportes que corre
-// después. Se borran solo los datos de esta corrida (pedidos, correcciones y
-// turnos propios); PC_KEEP_DATA=1 los conserva para inspeccionarlos.
-if (process.env.PC_KEEP_DATA !== '1') {
-  const lista = (ids) => ids.map((id) => `'${id}'`).join(',')
-  sql(`BEGIN;
-    DELETE FROM "PaymentCorrection" WHERE "orderId" IN (${lista(pedidos)});
-    DELETE FROM "Order" WHERE "id" IN (${lista(pedidos)});
-    DELETE FROM "CashSession" WHERE "id" IN (${lista(turnos)});
-    UPDATE "Product" SET "stock" = 50 WHERE "id" = '${producto.id}';
-    COMMIT;`)
-  assert.equal(Number(sql(`SELECT COUNT(*) FROM "Payment" WHERE "orderId" IN (${lista(pedidos)})`)), 0)
-}
+// Los datos de esta corrida se conservan a propósito (#393-B): los reportes, la caja y
+// la verificación independiente de reportes que corren después tienen que netear
+// las reversiones con datos reales de correcciones presentes.
 
 console.log(`Correcciones de pago (#393-A): ${checks} checks OK · dividido ${dividido.payments.map((pago) => `${pago.method} ${pago.amountPyg}`).join(' + ')} · turno cerrado drawerImpact=${tardia.correction.drawerImpact}`)

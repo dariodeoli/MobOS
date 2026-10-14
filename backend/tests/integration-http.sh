@@ -650,6 +650,9 @@ node "$BACKEND_ROOT/tests/delivery.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$
 echo "Corrección del medio de pago: reversión + pagos nuevos, permisos, idempotencia y turno (#393)..."
 PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/payment-corrections.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$REPARTIDOR_TOKEN" "$TOKEN_A" "$CHECKOUT_SELLER_B" "$DATABASE_URL"
 
+echo "Corrección del medio de pago: caja, reportes y conciliación netean sin doble conteo (#393-B)..."
+PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/payment-corrections-consumers.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$CAJERA_TOKEN" "$DATABASE_URL"
+
 echo "Reportes por producto, categoría, vendedor y día..."
 REPORTS_TO="$(node -e 'process.stdout.write(new Date().toISOString().slice(0,10))')"
 REPORTS_FROM="$(node -e 'process.stdout.write(new Date(Date.now() - 29 * 86400000).toISOString().slice(0,10))')"
