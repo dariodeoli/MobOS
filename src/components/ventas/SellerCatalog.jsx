@@ -72,7 +72,7 @@ function FilaProducto({ row, onClick, seleccionado = false, onAlternar }) {
 function TarjetaProducto({ row, onClick }) {
   const stock = Number(row.stock ?? 0)
   return (
-    <button type="button" onClick={onClick} className="group flex w-full flex-col rounded-2xl border border-fore/10 bg-ink-800/40 p-3 text-left md:p-4 transition hover:border-fono/40 hover:bg-ink-700/50">
+    <button type="button" data-testid="producto-fila" onClick={onClick} className="group flex w-full flex-col rounded-2xl border border-fore/10 bg-ink-800/40 p-3 text-left md:p-4 transition hover:border-fono/40 hover:bg-ink-700/50">
       <span className="flex items-start justify-between gap-2">
         <b className="min-w-0 truncate text-sm">{row.name}</b>
         <Badge color={CONDITION_TONE[row.condition] || 'slate'}>{CONDITION[row.condition] || 'Nuevo'}</Badge>
