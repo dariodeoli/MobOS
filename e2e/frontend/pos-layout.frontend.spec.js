@@ -99,7 +99,7 @@ async function assertNoOverlap(page, label) {
   await page.evaluate(() => window.scrollTo(0, 0))
 }
 
-for (const width of [1280, 1440, 1920, 390]) {
+for (const width of [1280, 1440, 1920]) {
   test(`POS sin solapes ni scroll horizontal a ${width}px`, async ({ page }) => {
     await mkdir(out, { recursive: true })
     await enterPos(page, width, 900, false, true)
@@ -260,18 +260,24 @@ test('escritorio 1440: columnas 50/50, catálogo de 3 columnas y primer contenid
   await page.screenshot({ path: `${out}/after-1440.png` })
 })
 
-test('celular 390: resumen del carrito y «Crear pedido» siempre visibles en la barra inferior', async ({ page }) => {
+test('celular 390: resumen del carrito y acción «Cobrar» siempre a mano (hoja del carrito, #429)', async ({ page }) => {
   await mkdir(out, { recursive: true })
   await enterPos(page, 390, 800, false, true)
-  const barra = page.getByTestId('pos-barra-accion')
+  // <768 px el POS es el de celular: barra del carrito sobre la navegación con el total completo.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+  const barra = page.getByTestId('pos-barra-carrito')
   await expect(barra).toBeVisible()
   await expect(barra.getByTestId('barra-total')).toContainText('Gs 180.000')
-  const boton = barra.locator('button[type="submit"]')
-  await expect(boton).toBeVisible()
-  const b = await boton.boundingBox()
+  const caja = await barra.boundingBox()
+  expect(caja.y + caja.height).toBeLessThanOrEqual(800)
+  expect(caja.height).toBeGreaterThanOrEqual(44)
+  await barra.getByTestId('pos-barra-carrito-abrir').click()
+  const cobrar = page.getByTestId('carrito-cobrar')
+  await expect(cobrar).toBeVisible()
+  const b = await cobrar.boundingBox()
   expect(b.y + b.height).toBeLessThanOrEqual(800)
   expect(b.height).toBeGreaterThanOrEqual(44)
-  await page.screenshot({ path: `${out}/after-390.png` })
+  await expect(page.getByTestId('carrito-total')).toContainText('Gs 180.000')
 })
 
 test('cliente elegido: la tarjeta reemplaza al buscador y quitarlo devuelve el buscador con foco', async ({ page }) => {

@@ -223,11 +223,13 @@ test('owner profile invokes configuration, help, theme, shortcuts, lock and logo
   await profile.getByRole('button', { name: 'Atajos de teclado', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Atajos de teclado' })).toBeVisible()
   await page.keyboard.press('Escape')
+  // #429: en celular la acción primaria fija es la barra del carrito (con productos).
+  await seedDemoCart(page, 180000)
   await page
     .getByTestId('shell-bottom-nav')
     .getByRole('button', { name: 'Vender', exact: true })
     .click()
-  await expect(page.getByTestId('pos-barra-accion')).toBeVisible()
+  await expect(page.getByTestId('pos-barra-carrito')).toBeVisible()
   await openProfile()
   const toggle = profile.getByRole('button', { name: 'Cambiar a tema oscuro', exact: true })
   await toggle.click()
@@ -237,7 +239,7 @@ test('owner profile invokes configuration, help, theme, shortcuts, lock and logo
     .poll(() =>
       page.evaluate(() => {
         const button = document.querySelector(
-          '[data-testid="pos-barra-accion"] button[type="submit"]',
+          '[data-testid="pos-barra-carrito"] button',
         )
         return button && getComputedStyle(button).backgroundColor
       }),
@@ -251,7 +253,7 @@ test('owner profile invokes configuration, help, theme, shortcuts, lock and logo
     .poll(() =>
       page.evaluate(() => {
         const button = document.querySelector(
-          '[data-testid="pos-barra-accion"] button[type="submit"]',
+          '[data-testid="pos-barra-carrito"] button',
         )
         return button && getComputedStyle(button).backgroundColor
       }),
@@ -404,6 +406,22 @@ async function seedDemoCart(page, amount, paid = 0) {
   )
 }
 
+// #429: debajo de 768 px el POS es el de celular (barra del carrito + hojas).
+const esMovil = page => page.viewportSize().width < 768
+async function abrirCobroMovil(page) {
+  await page.getByTestId('pos-barra-carrito-abrir').click()
+  await page.getByTestId('carrito-cobrar').click()
+  await expect(page.getByTestId('cobro-movil')).toBeVisible()
+}
+// «Crear pedido sin pago» en celular: Cobrar → «Paga al recibir» → confirmar.
+async function crearPedidoSinPagoMovil(page) {
+  await abrirCobroMovil(page)
+  await page.getByTestId('medio-paga-al-recibir').click()
+  const confirmar = page.getByTestId('cobro-confirmar-venta')
+  await expect(confirmar).toBeEnabled()
+  await confirmar.click()
+}
+
 async function assertMoneyFits(locator, expected) {
   await expect(locator).toHaveText(expected)
   const proof = await locator.evaluate(element => {
@@ -452,12 +470,25 @@ for (const width of widths) {
                 .getByRole('navigation', { name: 'Navegación principal', exact: true })
         await seedDemoCart(page, amount, paid)
         await navigation.getByRole('button', { name: 'Vender', exact: true }).click()
-        const values = [
-          ['carrito-total', amount],
-          ['cobro-total', amount],
-          ['cobro-pagado', paid],
-          ['cobro-pendiente', amount - paid],
-        ]
+        const values = esMovil(page)
+          ? [
+              ['carrito-total', amount],
+              ['cobro-total', amount],
+            ]
+          : [
+              ['carrito-total', amount],
+              ['cobro-total', amount],
+              ['cobro-pagado', paid],
+              ['cobro-pendiente', amount - paid],
+            ]
+        if (esMovil(page)) {
+          // Celular: la barra del carrito siempre a la vista; carrito y cobro en hojas.
+          await assertMoneyFits(page.getByTestId('barra-total'), format(amount))
+          const barra = await page.getByTestId('pos-barra-carrito').boundingBox()
+          const navBox = await navigation.boundingBox()
+          expect(barra.y + barra.height).toBeLessThanOrEqual(navBox.y)
+          await page.getByTestId('pos-barra-carrito-abrir').click()
+        }
         for (const [testId, value] of values) {
           const root = page.getByTestId(testId)
           await assertMoneyFits(
@@ -468,7 +499,17 @@ for (const width of widths) {
         // #355: el pie del carrito no repite Pagado/Pendiente.
         await expect(page.getByTestId('carrito-pagado')).toHaveCount(0)
         await expect(page.getByTestId('carrito-pendiente')).toHaveCount(0)
-        if (width < 1024) {
+        if (esMovil(page)) {
+          // El cobro paso a paso muestra el saldo (o la confirmación) completo y en una línea.
+          await page.getByTestId('carrito-cobrar').click()
+          if (paid > 0 && paid >= amount) {
+            await assertMoneyFits(page.getByTestId('confirmar-total'), format(amount))
+            await assertMoneyFits(page.getByTestId('confirmar-pagado'), format(paid))
+          } else {
+            await assertMoneyFits(page.getByTestId('cobro-total-grande'), format(amount - paid))
+            if (paid) await assertMoneyFits(page.getByTestId('cobro-pagado-venta'), format(paid))
+          }
+        } else if (width < 1024) {
           await assertMoneyFits(page.getByTestId('barra-total'), format(amount))
           const bar = await page.getByTestId('pos-barra-accion').boundingBox()
           const nav = await navigation.boundingBox()
@@ -488,7 +529,7 @@ for (const width of widths) {
           await assertMoneyFits(value, await value.innerText())
         }
         await noOverflow(page)
-        if (amount >= 100000000 && paid === amount / 2) {
+        if (!esMovil(page) && amount >= 100000000 && paid === amount / 2) {
           await page.screenshot({ path: `${output}/large-${width}-${amount}.png`, fullPage: true })
           await page
             .getByTestId('pos-bloque-carrito')
@@ -518,12 +559,11 @@ for (const changeTenant of [false, true]) {
       .getByTestId('shell-bottom-nav')
       .getByRole('button', { name: 'Vender', exact: true })
       .click()
-    const submit = page
-      .getByTestId('pos-barra-accion')
-      .getByRole('button', { name: /Crear pedido sin pago/ })
-    await expect(submit).toBeEnabled()
-    await submit.click()
+    await crearPedidoSinPagoMovil(page)
     await expect(page.getByRole('button', { name: 'Ver pedido', exact: true })).toBeVisible()
+    // #429: en celular la confirmación es una hoja con recibo y «Listo»: no salta sola al detalle.
+    await page.waitForTimeout(1800)
+    await expect(page).toHaveURL(/\/pos$/)
     if (changeTenant) {
       await page.evaluate(async () => {
         const storage = await import('/src/lib/storage.js')
@@ -536,6 +576,7 @@ for (const changeTenant of [false, true]) {
       await page.waitForTimeout(1800)
       await expect(page).toHaveURL(/\/pos$/)
     } else {
+      await page.getByRole('button', { name: 'Ver pedido', exact: true }).click()
       await expect(page).toHaveURL(/\/pedidos\/[^/]+$/)
       await expect(page.locator('main')).toContainText('Prueba frontend local')
     }
@@ -628,7 +669,7 @@ async function enterApiFixture(page, outcome) {
   )
   await page.goto('/pos')
   await expect(page.getByTestId('shell')).toBeVisible()
-  await expect(page.getByTestId('carrito-total')).toHaveText('Gs 180.000')
+  await expect(page.getByTestId(esMovil(page) ? 'barra-total' : 'carrito-total')).toHaveText('Gs 180.000')
   return { order, submitted: () => submitted }
 }
 
@@ -636,11 +677,7 @@ for (const outcome of ['confirmed', 'missing-id', 'rejected', 'tenant-change', '
   test(`API-mode order detail admission: ${outcome}`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 900 })
     const fixture = await enterApiFixture(page, outcome)
-    const submit = page
-      .getByTestId('pos-barra-accion')
-      .getByRole('button', { name: /Crear pedido sin pago/ })
-    await expect(submit).toBeEnabled()
-    await submit.click()
+    await crearPedidoSinPagoMovil(page)
     await expect.poll(fixture.submitted).toBeGreaterThan(0)
     if (outcome === 'confirmed' || outcome === 'tenant-change') {
       await expect(page.getByRole('button', { name: 'Ver pedido', exact: true })).toBeVisible()
@@ -656,6 +693,8 @@ for (const outcome of ['confirmed', 'missing-id', 'rejected', 'tenant-change', '
         await page.waitForTimeout(1800)
         await expect(page).toHaveURL(/\/pos$/)
       } else {
+        // #429: la hoja de recibo no navega sola; «Ver pedido» abre el detalle interno.
+        await page.getByRole('button', { name: 'Ver pedido', exact: true }).click()
         await expect(page).toHaveURL(new RegExp(`/pedidos/${fixture.order.id}$`))
         expect(page.url()).not.toContain(fixture.order.orderNumber)
       }
@@ -680,7 +719,8 @@ for (const outcome of ['confirmed', 'missing-id', 'rejected', 'tenant-change', '
             ? 'Pedido rechazado por prueba local'
             : 'El backend no devolvió una orden confirmada.',
         )
-        await expect(page.getByTestId('carrito-total')).toHaveText('Gs 180.000')
+        // El carrito sigue intacto (la barra del celular conserva el total).
+        await expect(page.getByTestId('barra-total')).toHaveText('Gs 180.000')
       }
       await expect(page.getByRole('button', { name: 'Ver pedido', exact: true })).toHaveCount(0)
       await page.waitForTimeout(1800)
@@ -781,6 +821,18 @@ for (const width of widths) {
               .getByTestId('shell-lateral')
               .getByRole('navigation', { name: 'Navegación principal', exact: true })
       await navigation.getByRole('button', { name: 'Vender', exact: true }).click()
+      if (esMovil(page)) {
+        // #429: celular = barra del carrito + hojas. Importes completos y en una línea.
+        await assertMoneyFits(page.getByTestId('barra-total'), 'Gs 100.000.000')
+        await page.getByTestId('pos-barra-carrito-abrir').click()
+        await assertMoneyFits(page.getByTestId('carrito-total'), 'Gs 100.000.000')
+        await assertMoneyFits(page.getByTestId('cobro-total').locator('strong'), 'Gs 100.000.000')
+        await page.getByTestId('carrito-cobrar').click()
+        await assertMoneyFits(page.getByTestId('cobro-total-grande'), 'Gs 50.000.000')
+        await assertMoneyFits(page.getByTestId('cobro-pagado-venta'), 'Gs 50.000.000')
+        await noOverflow(page)
+        return
+      }
       for (const [id, amount, minFont] of [
         ['carrito-total', 100000000, 24],
         ['cobro-total', 100000000, 20],
