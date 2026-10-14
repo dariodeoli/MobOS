@@ -83,7 +83,9 @@ test('la etiqueta de una unidad sale directo por el agente con el contenido #220
   await fila.click()
 
   const ficha = page.getByRole('dialog')
-  await ficha.getByRole('button', { name: 'Etiqueta', exact: true }).click()
+  // #400: la etiqueta vive en «Más acciones» de la ficha.
+  await ficha.getByRole('button', { name: 'Más acciones' }).click()
+  await page.getByRole('menuitem', { name: 'Etiqueta', exact: true }).click()
   await expect(page.getByText('Etiqueta enviada a la impresora.')).toBeVisible({ timeout: 15_000 })
 
   expect(capturados).toHaveLength(1)

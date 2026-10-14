@@ -66,6 +66,8 @@ function unidad(producto, indice) {
   const costoPyg = enUsd ? null : Math.round(Number(producto.precioCosto) * 0.94 / 1000) * 1000
   const base = {
     id: `demo-unit-${indice}`,
+    // #400: código interno MOV-0001 (solo se muestra en la ficha, bloque «Interno»).
+    internalCode: `MOV-${String(indice).padStart(4, '0')}`,
     serial: IMEIS_DEMO_FICTICIOS[indice - 1] || serialDemo(indice),
     status: estado,
     condition: condicion,

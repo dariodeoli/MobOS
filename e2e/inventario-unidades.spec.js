@@ -429,10 +429,13 @@ test('el costo se puede dejar pendiente y completar desde el detalle', async ({ 
     const detalle = page.getByRole('dialog')
     const costo = detalle.getByTestId('unidad-costo')
     await expect(costo.getByText('Pendiente', { exact: true })).toBeVisible()
+    // #400: el costo se edita en línea con el lápiz del campo.
+    await costo.getByRole('button', { name: 'Editar costo' }).click()
     await costo.getByLabel('Monto del costo', { exact: true }).fill('1.500.000')
     await costo.getByTestId('unidad-costo-guardar').click()
     await expect(page.getByText('Costo guardado.')).toBeVisible({ timeout: 15_000 })
-    await expect(costo.getByText('Cargado', { exact: true })).toBeVisible()
+    await expect(costo.getByText('Pendiente', { exact: true })).toHaveCount(0)
+    await expect(costo.getByText(/1\.500\.000/)).toBeVisible()
     // La cronología deja el evento del costo con su valor.
     const cronologia = detalle.getByTestId('unidad-cronologia')
     await expect(cronologia.getByText('Costo del equipo')).toBeVisible()
@@ -454,7 +457,11 @@ test('el motivo de baja recuerda el último usado', async ({ page }) => {
   const abrirBaja = async (detalle) => {
     const baja = page.getByRole('dialog', { name: 'Dar de baja' })
     await expect(async () => {
-      if (!(await baja.isVisible())) await detalle.getByRole('button', { name: 'Dar de baja' }).click()
+      if (!(await baja.isVisible())) {
+        // #400: «Dar de baja» vive en «Más acciones» de la ficha.
+        await detalle.getByRole('button', { name: 'Más acciones' }).click()
+        await page.getByRole('menuitem', { name: 'Dar de baja' }).click()
+      }
       await expect(baja).toBeVisible({ timeout: 1000 })
     }).toPass({ timeout: 15000 })
     return baja

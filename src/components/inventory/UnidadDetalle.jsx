@@ -9,6 +9,8 @@ import Icon from '@/components/shared/Icon'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import Avatar from '@/components/shared/Avatar'
+import MedidorBateria from '@/components/shared/MedidorBateria'
+import { proveedorParaFicha } from '@/lib/proveedorIdentidad'
 import MenuSecundario from '@/components/shared/MenuSecundario'
 import { CampoFicha, InsigniaProveedor, TarjetaFicha } from '@/components/inventory/FichaUnidadBloques'
 import CurrencySelect from '@/components/shared/CurrencySelect'
@@ -437,15 +439,12 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   const reparaciones = events.filter(evento => evento.type === 'repair')
 
   const sigla = unit.location?.code || unit.location?.name || ''
-  const estado = estadoInventario(unit)
   const ciclos = unit.batteryCycles ?? unit.inspection?.bateriaCiclos ?? null
   const garantia = unit.warrantyUntil ? new Date(unit.warrantyUntil) : null
   const garantiaTexto = garantia ? garantia.toLocaleDateString('es-PY', { month: 'short', year: 'numeric', timeZone: 'UTC' }) : ''
   // Nombre real del proveedor: solo administración/gerencia (#400). El resto
   // recibe la sigla; nunca se muestra `supplierName` a otros roles aunque llegue.
-  const proveedorSigla = unit.supplier?.code || (!puedeConciliar ? unit.supplierName : '') || ''
-  const proveedorNombre = puedeConciliar ? (unit.supplier?.name || unit.supplierName || '') : ''
-  const proveedorCompleto = unit.supplier?.displayMode === 'COMPLETO' && proveedorNombre
+  const { sigla: proveedorSigla, nombre: proveedorNombre, completo: proveedorCompleto } = proveedorParaFicha(unit, puedeConciliar)
   // Costo: solo si hay dato visible o quien gestiona puede completarlo (la API lo redacta según permiso).
   const muestraCosto = canManage || !sinCostoUnitario(unit)
   const indice = unidades.findIndex(item => item.id === unit.id)
@@ -469,7 +468,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               <Badge color={colorCondicionUnidad(unit)} data-testid="unidad-condicion">{etiquetaCondicionUnidad(unit)}</Badge>
-              <Badge data-testid="unidad-estado" color={estado.tone}>{estado.label}</Badge>
+              <Badge data-testid="unidad-estado" color={estadoInventario(unit).tone}>{estadoInventario(unit).label}</Badge>
               {sigla && <Badge color="slate" data-testid="unidad-ubicacion-chip" title={unit.location?.name ? `Ubicación: ${unit.location.name}` : undefined}><Icon name="pin" className="mr-1 inline h-3 w-3" />{sigla}</Badge>}
               {unit.reservationCustomer && <Badge color="orange">Atajado por {unit.reservationCustomer}</Badge>}
             </div>
@@ -517,7 +516,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
                   onAbrir={() => setBateria({ pct: String(unit.batteryHealth ?? ''), ciclos: String(ciclos ?? '') })}
                   onGuardar={() => guardarDetalles({ batteryHealth: bateria.pct === '' ? null : Number(bateria.pct), batteryCycles: bateria.ciclos === '' ? null : Number(bateria.ciclos) }, 'Batería guardada.')}
                   editor={<div className="grid grid-cols-2 gap-2"><Input aria-label="Batería %" inputMode="numeric" maxLength={3} placeholder="%" value={bateria.pct} onChange={event => setBateria(actual => ({ ...actual, pct: event.target.value.replace(/\D/g, '') }))} /><Input aria-label="Ciclos de carga" inputMode="numeric" maxLength={4} placeholder="Ciclos" value={bateria.ciclos} onChange={event => setBateria(actual => ({ ...actual, ciclos: event.target.value.replace(/\D/g, '') }))} /></div>}>
-                  {unit.batteryHealth != null ? `${unit.batteryHealth}%` : '—'}{ciclos != null ? <span className="ml-1.5 text-xs font-normal text-mute">{ciclos} ciclos</span> : null}
+                  <MedidorBateria porcentaje={unit.batteryHealth} ciclos={ciclos} variante="chip" className="text-sm" />{ciclos != null ? <span className="ml-1.5 text-xs font-normal text-mute">{ciclos} ciclos</span> : null}
                 </CampoFicha>
                 <CampoFicha etiqueta="Ingresó a stock">
                   {ingreso ? ingreso.toLocaleDateString('es-PY') : '—'}{diasEnStock != null ? <span className="ml-1.5 text-xs font-normal text-mute">{diasEnStock} {diasEnStock === 1 ? 'día' : 'días'}</span> : null}
@@ -563,9 +562,9 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
 
             {/* Consignación de terceros: plegada; el resumen alcanza para el día a día */}
             <details className="group rounded-2xl border border-ink-600 p-4" data-testid="unidad-consignacion">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
+              <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-x-2 gap-y-1 [&::-webkit-details-marker]:hidden">
                 <span className={ROTULO_SECCION}>Consignación de terceros</span>
-                <span className="flex min-w-0 items-center gap-2 text-xs text-mute"><span className="truncate">{unit.consignorName ? `${unit.consignorName}${unit.consignorPyg ? ` · a pagar ${money(unit.consignorPyg, 'PYG')}` : ''}` : 'Sin consignación'}</span><Icon name="chevron" className="h-4 w-4 shrink-0 transition group-open:rotate-180" /></span>
+                <span className="flex min-w-0 items-center gap-2 text-xs text-mute"><span className="min-w-0 break-words">{unit.consignorName ? `${unit.consignorName}${unit.consignorPyg ? ` · a pagar ${money(unit.consignorPyg, 'PYG')}` : ''}` : 'Sin consignación'}</span><Icon name="chevron" className="h-4 w-4 shrink-0 transition group-open:rotate-180" /></span>
               </summary>
               <p className="mt-3 text-xs text-mute">Si el equipo no es de la tienda, cargá quién lo dejó y cuánto hay que pagarle al venderse. Al venderlo, ese monto se le paga al consignador y suma al costo real (ganancia y seguro).</p>
               <div className="mt-2 grid gap-2 sm:grid-cols-3">

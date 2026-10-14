@@ -13,3 +13,15 @@ export function iconoProveedor(valor) {
   const clave = String(valor || '').trim().toUpperCase()
   return ICONOS_PROVEEDOR.includes(clave) ? clave.toLowerCase() : ''
 }
+
+/**
+ * Lo que la ficha de unidad muestra del proveedor. El nombre real solo llega
+ * a la pantalla si `veNombre` (administración/gerencia); para el resto sale la
+ * sigla, o «S/S» si el proveedor no tiene — nunca `supplierName` ni `supplier.name`.
+ */
+export function proveedorParaFicha(unit = {}, veNombre = false) {
+  const relacion = unit?.supplier || null
+  const nombre = veNombre ? String(relacion?.name || unit?.supplierName || '') : ''
+  const sigla = String(relacion?.code || '').trim() || (!veNombre && (relacion || unit?.supplierName) ? 'S/S' : '')
+  return { sigla, nombre, completo: Boolean(nombre) && relacion?.displayMode === 'COMPLETO' }
+}
