@@ -27,6 +27,18 @@ export function serialesDeItem(item = {}) {
   return salida
 }
 
+// Proveedor en sigla (#400/#402): ningún papel imprime el nombre real del
+// proveedor. Se usa la abreviatura cargada (`code`/`abbreviation`); si el dato
+// no la trae, las iniciales del nombre (máx. 4), siempre en mayúsculas.
+export function siglaProveedor(nombre = '', codigo = '') {
+  const propia = texto(codigo)
+  if (propia) return propia.toUpperCase()
+  const palabras = texto(nombre).split(/\s+/).filter((palabra) => /[\p{L}\p{N}]/u.test(palabra))
+  if (!palabras.length) return ''
+  if (palabras.length === 1) return palabras[0].replace(/[^\p{L}\p{N}]/gu, '').slice(0, 4).toUpperCase()
+  return palabras.map((palabra) => palabra.replace(/[^\p{L}\p{N}]/gu, '').charAt(0)).join('').slice(0, 4).toUpperCase()
+}
+
 // Color de acento de la marca de la empresa: solo un hex válido; si no hay, el
 // de la app. Es el único color de los papeles (el resto es gris).
 export const ACENTO_POR_DEFECTO = '#0c8876'
