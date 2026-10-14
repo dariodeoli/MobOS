@@ -6,7 +6,7 @@
 // Monto original); the legacy method-only fallback only renders when the
 // tenant has no payment accounts and is not exercised here.
 
-import { test, expect } from '@playwright/test'
+import { test, expect } from './helpers/seller-test.js'
 import { SEED } from './helpers/seed-data.js'
 import { codigoPedido } from '../src/utils/pedido.js'
 

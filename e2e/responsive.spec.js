@@ -1,7 +1,7 @@
 // Responsive smoke: no horizontal overflow and the main POS surface stays
 // reachable on phone, tablet and desktop viewports.
 
-import { test, expect } from '@playwright/test'
+import { test, expect } from './helpers/seller-test.js'
 import { expectNoHorizontalOverflow } from './helpers/assertions.js'
 
 const viewports = [

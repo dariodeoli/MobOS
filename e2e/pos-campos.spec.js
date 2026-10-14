@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './helpers/seller-test.js'
 
 // Regresión: escribir el correo o el teléfono del cliente en la carga de venta
 // no debe romper la pantalla. El error de teléfono aparece recién al salir del

@@ -1,7 +1,7 @@
 // Huecos de #173 en dominio POS: fulfillment por método y borradores con
 // enlace público (sin auth, con Checkout). Cubre lo que pos-qa-173 no toca.
 
-import { test, expect } from '@playwright/test'
+import { test, expect } from './helpers/seller-test.js'
 import { SEED } from './helpers/seed-data.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`

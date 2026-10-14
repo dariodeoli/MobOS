@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './helpers/seller-test.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 

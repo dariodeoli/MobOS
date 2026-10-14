@@ -3,7 +3,7 @@ import { lockShell } from './helpers/shell-navigation.js'
 // pantalla y el PIN personal la desbloquea solo (sin Enter); la inactividad
 // bloquea con el tiempo configurado en Preferencias.
 
-import { test, expect } from '@playwright/test'
+import { test, expect } from './helpers/seller-test.js'
 import { SEED } from './helpers/seed-data.js'
 
 // Imagen mínima válida para simular la foto del usuario y el logo de la tienda.

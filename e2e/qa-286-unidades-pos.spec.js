@@ -10,7 +10,7 @@
 //  3. los fallos del API se mostraban crudos — ahora hay mensaje accionable.
 //
 // Capturas: docs/qa/286-unidades-pos/ (claro/oscuro).
-import { test, expect } from '@playwright/test'
+import { test, expect } from './helpers/seller-test.js'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { SEED } from './helpers/seed-data.js'

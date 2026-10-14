@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './helpers/seller-test.js'
 import { openShellDestination } from './helpers/shell-navigation.js'
 import { readFileSync } from 'node:fs'
 import { codigoPedido } from '../src/utils/pedido.js'
