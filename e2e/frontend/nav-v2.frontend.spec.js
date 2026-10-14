@@ -453,9 +453,9 @@ for (const width of widths) {
             format(value),
           )
         }
-        if (paid) await assertMoneyFits(page.getByTestId('carrito-pagado'), format(paid))
-        if (paid > 0 && amount > paid)
-          await assertMoneyFits(page.getByTestId('carrito-pendiente'), format(amount - paid))
+        // #355: el pie del carrito no repite Pagado/Pendiente.
+        await expect(page.getByTestId('carrito-pagado')).toHaveCount(0)
+        await expect(page.getByTestId('carrito-pendiente')).toHaveCount(0)
         if (width < 1024) {
           await assertMoneyFits(page.getByTestId('barra-total'), format(amount))
           const bar = await page.getByTestId('pos-barra-accion').boundingBox()

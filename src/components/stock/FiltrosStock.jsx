@@ -175,7 +175,7 @@ export default function FiltrosStock({
           )}
         >
           <Icon name="filter" className="h-4 w-4" />
-          Filtros{cantidad ? ` · ${cantidad}` : ''}
+          <span className="max-sm:sr-only">Filtros</span>{cantidad ? <span aria-hidden="true">{`· ${cantidad}`}</span> : ''}
         </button>
         <Modal open={hoja} onClose={() => setHoja(false)} title="Filtros" size="corto">
           <div data-testid="filtros-hoja" className="space-y-4">

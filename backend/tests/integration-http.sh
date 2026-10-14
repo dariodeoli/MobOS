@@ -185,6 +185,11 @@ response_file() {
   mktemp "$RUN_ROOT/response.XXXXXX"
 }
 
+# #365: IP de cliente por defecto distinta por suite (cada "N/13"). Con
+# MOBOS_TRUST_PROXY=true el rate limit es por IP; sin este encabezado todas las
+# solicitudes compartirían un mismo balde. Los casos que envían su propio
+# x-forwarded-for (curl directo) lo conservan.
+IT_CLIENT_IP="203.0.113.10"
 request() {
   local method="$1"
   local path="$2"
@@ -193,7 +198,7 @@ request() {
   local output="$5"
   local token="${6:-}"
   local tenant="${7:-tenant-a-it}"
-  local -a args=(--silent --show-error --request "$method" --output "$output" --write-out '%{http_code}')
+  local -a args=(--silent --show-error --request "$method" --output "$output" --write-out '%{http_code}' --header "x-forwarded-for: $IT_CLIENT_IP")
   if [[ -n "$tenant" ]]; then
     args+=(--header "x-tenant-id: $tenant")
   fi
@@ -414,10 +419,12 @@ request_status() {
 }
 
 echo "1/13 HTTP sin token devuelve 401..."
+IT_CLIENT_IP="203.0.113.21"
 out="$(response_file)"; request GET /api/products 401 '' "$out" '' tenant-a-it
 out="$(response_file)"; request GET /api/orders 401 '' "$out" '' tenant-a-it
 
 echo "2/13 Login de empresa y companyToken sin acceso a datos..."
+IT_CLIENT_IP="203.0.113.22"
 out="$(response_file)"; COMPANY_TOKEN_A="$(auth_cookie POST /api/auth/login 200 '{"email":"company-a-it@example.invalid","password":"company-password-it","deviceId":"device-a-it","branchId":"branch-a-it"}' "$out" '' mobos_company_session)"
 assert_login_tenant "$out" || { echo "Login no devolvió el tenant esperado." >&2; exit 1; }
 out="$(response_file)"; request GET /api/products 401 '' "$out" "$COMPANY_TOKEN_A" ''
@@ -425,12 +432,14 @@ out="$(response_file)"; request GET /api/orders 401 '' "$out" "$COMPANY_TOKEN_A"
 out="$(response_file)"; request GET /api/auth/me 401 '' "$out" "$COMPANY_TOKEN_A" ''
 
 echo "3/13 PIN bcrypt, vendedor ajeno y aislamiento por sesión..."
+IT_CLIENT_IP="203.0.113.23"
 out="$(response_file)"; request POST /api/auth/pin 401 '{"sellerId":"user-b-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''
 out="$(response_file)"; TOKEN_A="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-a-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
 out="$(response_file)"; request GET /api/products 200 '' "$out" "$TOKEN_A" tenant-b-it
 assert_products_for_tenant "$out" || { echo "El header de otra empresa alteró el tenant de la sesión." >&2; exit 1; }
 
 echo "4/13 Orden fuerza seller autenticado..."
+IT_CLIENT_IP="203.0.113.24"
 out="$(response_file)"
 request POST /api/orders 201 '{"sellerId":"user-a-2-it","branchId":"branch-a-it","orderNumber":"IT-ORDER-001","items":[{"productId":"prod-a-order-it","description":"Synthetic Product A Order","quantity":1,"unitPricePyg":100000}]}' "$out" "$TOKEN_A" tenant-b-it
 if [[ "$(json_field "$out" sellerId)" != "user-a-it" || "$(json_field "$out" tenantId)" != "tenant-a-it" ]]; then
@@ -463,22 +472,26 @@ out="$(response_file)"; request GET /api/stock 200 '' "$out" "$TOKEN_A" tenant-a
 assert_stock "$out" prod-a-order-it 7 || { echo "El replay idempotente descontó stock de nuevo." >&2; exit 1; }
 
 echo "5/13 Orden de misma empresa en sucursal ajena se rechaza..."
+IT_CLIENT_IP="203.0.113.25"
 out="$(response_file)"
 request POST /api/orders 409 '{"sellerId":"user-a-it","branchId":"branch-a2-it","orderNumber":"IT-CROSS-BRANCH-001","items":[{"productId":"prod-a-crossbranch-it","description":"Synthetic Product A Cross Branch","quantity":1,"unitPricePyg":100000}]}' "$out" "$TOKEN_A" tenant-a-it
 
 echo "6/13 Stock insuficiente revierte toda la transacción..."
+IT_CLIENT_IP="203.0.113.26"
 out="$(response_file)"
 request POST /api/orders 409 '{"sellerId":"user-a-it","branchId":"branch-a-it","orderNumber":"IT-ROLLBACK-001","items":[{"productId":"prod-a-rollback-it","description":"Synthetic Product A Rollback","quantity":3,"unitPricePyg":100000}]}' "$out" "$TOKEN_A" tenant-a-it
 out="$(response_file)"; request GET /api/stock 200 '' "$out" "$TOKEN_A" tenant-a-it
 assert_stock "$out" prod-a-rollback-it 2 || { echo "El stock cambió a pesar del rollback." >&2; exit 1; }
 
 echo "7/13 Sobrepago rechaza y revierte stock..."
+IT_CLIENT_IP="203.0.113.27"
 out="$(response_file)"
 request POST /api/orders 409 '{"sellerId":"user-a-it","branchId":"branch-a-it","orderNumber":"IT-OVERPAY-001","items":[{"productId":"prod-a-overpay-it","description":"Synthetic Product A Overpay","quantity":1,"unitPricePyg":100000}],"payment":{"method":"CASH","amountPyg":100001}}' "$out" "$TOKEN_A" tenant-a-it
 out="$(response_file)"; request GET /api/stock 200 '' "$out" "$TOKEN_A" tenant-a-it
 assert_stock "$out" prod-a-overpay-it 5 || { echo "El stock cambió después de rechazar el sobrepago." >&2; exit 1; }
 
 echo "8/13 Pago pendiente no confirma la orden..."
+IT_CLIENT_IP="203.0.113.28"
 out="$(response_file)"
 request POST /api/orders 201 '{"orderNumber":"IT-PENDING-001","items":[{"productId":"prod-a-pending-it","description":"Synthetic Product A Pending","quantity":1,"unitPricePyg":100000}]}' "$out" "$TOKEN_A" tenant-a-it
 PENDING_ORDER_ID="$(json_field "$out" id)"
@@ -493,6 +506,7 @@ echo "8b/13 Trazabilidad: usuario del pago, comprobantes del pedido y READY_TO_S
 node "$BACKEND_ROOT/tests/order-traceability.mjs" "$BASE_URL" "$TOKEN_A" "$PENDING_ORDER_ID" "$PAYMENT_PROOF_ID"
 
 echo "9/13 Pagos concurrentes no permiten sobrepagar..."
+IT_CLIENT_IP="203.0.113.29"
 out="$(response_file)"
 request POST /api/orders 201 '{"orderNumber":"IT-CONCURRENT-001","items":[{"productId":"prod-a-concurrent-it","description":"Synthetic Product A Concurrent","quantity":1,"unitPricePyg":100000}]}' "$out" "$TOKEN_A" tenant-a-it
 CONCURRENT_ORDER_ID="$(json_field "$out" id)"
@@ -718,6 +732,7 @@ out="$(response_file)"; request GET /api/users/user-a-2-it/history 403 '' "$out"
 out="$(response_file)"; request GET /api/user-invitations 403 '' "$out" "$TOKEN_A" ''
 
 echo "10/13 Límite de reportes de error por IP: 429 con Retry-After..."
+IT_CLIENT_IP="203.0.113.30"
 # MOBOS_TRUST_PROXY=true habilita la resolución de IP desde x-forwarded-for
 # (como en producción detrás del Hub). Solo estas solicitudes envían el
 # encabezado, de modo que los demás tests siguen sin límite por IP.
@@ -741,6 +756,7 @@ NODE
 if [[ "$?" != "0" ]]; then echo "GET /api/errors no listó los reportes sin stack y con requestId del middleware." >&2; exit 1; fi
 
 echo "11/13 Restauración de backup en cluster nuevo..."
+IT_CLIENT_IP="203.0.113.31"
 node "$BACKEND_ROOT/tests/backup-restore.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$PG_BIN" "$DATABASE_URL" "$RUN_ROOT/backups"
 
 echo "Centro de Abastecimiento F1: necesidades manuales y consolidación «Por comprar» (#250)..."
@@ -777,6 +793,7 @@ echo "Centro de Abastecimiento: repuestos del taller con tenencia y pago (#250).
 node "$BACKEND_ROOT/tests/supply-workshop-parts.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 
 echo "12/13 Bloqueo de login empresarial después de cinco intentos..."
+IT_CLIENT_IP="203.0.113.32"
 out="$(response_file)"; request POST /api/auth/pin 200 '{"sellerId":"user-lock-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''
 for _ in 1 2 3 4 5; do
   out="$(response_file)"; request POST /api/auth/login 401 '{"email":"company-a-it@example.invalid","password":"wrong-company-password","deviceId":"device-lock-it"}' "$out" '' ''
@@ -789,6 +806,7 @@ fi
 out="$(response_file)"; request POST /api/auth/login 401 '{"email":"company-a-it@example.invalid","password":"company-password-it","deviceId":"device-lock-it"}' "$out" '' ''
 
 echo "13/13 Logout invalida companyToken y accessToken..."
+IT_CLIENT_IP="203.0.113.33"
 out="$(response_file)"; request POST /api/auth/logout 200 '' "$out" "$TOKEN_A" ''
 out="$(response_file)"; request GET /api/products 401 '' "$out" "$TOKEN_A" ''
 out="$(response_file)"; request POST /api/auth/logout 200 '' "$out" "$COMPANY_TOKEN_A" ''

@@ -21,7 +21,7 @@ import { syncOrderItemSerials } from '../../../lib/order-serials'
 import { esCodigoDuplicado, nextOrderNumber } from '../../../lib/order-number'
 import { LIMITE_MONTO_GENERAL, LIMITE_MONTO_VENTAS, numero } from '../../../lib/montos'
 import { sucursalEfectiva } from '../../../lib/sucursal-efectiva'
-import { canSeeCostForSession, redactOrderItemCosts } from '../../../lib/cost-visibility'
+import { canSeeCostForSession, redactOrderCosts } from '../../../lib/cost-visibility'
 
 // Detalle devuelto tanto al crear como al reutilizar una orden idempotente.
 const orderDetail = Prisma.validator<Prisma.OrderInclude>()({
@@ -182,7 +182,7 @@ export async function GET(request: Request) {
   const rows = await prisma.order.findMany({ where: { id: { in: ids.map((row) => row.id) } }, include: { items: true, payments: true, customer: true, seller: { select: { id: true, name: true } } } })
   const porId = new Map(rows.map((row) => [row.id, row]))
   const verCosto = await canSeeCostForSession(session)
-  return json(ids.map((row) => porId.get(row.id)).filter(Boolean).map((order) => ({ ...order!, items: order!.items.map((item) => redactOrderItemCosts(item, verCosto)) })))
+  return json(ids.map((row) => porId.get(row.id)).filter(Boolean).map((order) => redactOrderCosts(order!, verCosto)))
 }
 
 export async function POST(request: Request) {
@@ -201,7 +201,7 @@ export async function POST(request: Request) {
   // volver a descontar stock ni duplicar pagos.
   if (idempotencyKey) {
     const previous = await prisma.order.findUnique({ where: { tenantId_idempotencyKey: { tenantId: tenant, idempotencyKey } }, include: orderDetail })
-    if (previous) return json(previous)
+    if (previous) return json(redactOrderCosts(previous, await canSeeCostForSession(session)))
   }
   let payload: unknown
   try { payload = await request.json() } catch { throw new InputError('JSON inválido.') }
@@ -707,14 +707,14 @@ export async function POST(request: Request) {
     }
     // El enlace de seguimiento viaja en la respuesta de creación (y queda como
     // enlace de nivel rápido del pedido, listable y rotable desde el panel).
-    return json({ ...result, publicToken }, { status: 201 })
+    return json({ ...redactOrderCosts(result, await canSeeCostForSession(session)), publicToken }, { status: 201 })
   } catch (e) {
     // Dos reintentos concurrentes con la misma clave: el segundo choca con el
     // índice único; se devuelve entonces la orden que ganó la carrera.
     if (idempotencyKey && (e as { code?: string })?.code === 'P2002') {
       try {
         const previous = await prisma.order.findUnique({ where: { tenantId_idempotencyKey: { tenantId: tenant, idempotencyKey } }, include: orderDetail })
-        if (previous) return json(previous)
+        if (previous) return json(redactOrderCosts(previous, await canSeeCostForSession(session)))
       } catch { /* cae al error genérico */ }
     }
     // Un error de precios es de datos (4xx) y se muestra tal cual: la venta no

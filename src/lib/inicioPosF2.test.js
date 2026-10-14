@@ -79,6 +79,8 @@ test('F2 catalog/customer split keeps real collection, variants and form submiss
   const cart = read('components/ventas/venta/PasoCarrito.jsx')
   assert.ok(cart.includes('data-testid="cobro-total"') && cart.includes('data-testid="carrito-total"'))
   assert.ok(!payment.includes('data-testid="cobro-total"'), 'el cobro no repite el Total')
+  // #355: Pagado/Pendiente viven una sola vez, en los tiles del cobro.
+  assert.ok(!cart.includes('carrito-pagado') && !cart.includes('carrito-pendiente'), 'el carrito no repite Pagado/Pendiente')
   for (const contract of [
     '<SelectorMedioPago',
     'onAgregarPago()',

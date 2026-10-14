@@ -2046,9 +2046,6 @@ export default function FormularioVenta({
               precioDe={precioDe}
               totalCarrito={totalCarrito}
               totalGeneral={totalGeneral}
-              totalPagado={totalPagado}
-              pendiente={pendiente}
-              conPagos={pagos.length > 0}
               montoDelivery={montoDeliveryEfectivo}
               quitarItem={quitarItem}
               editarItem={editarItem}

@@ -9,6 +9,7 @@ import { consumeAuthorization, usableAuthorization } from '../../../../lib/autho
 import { serialKey } from '../../../../lib/validation'
 import { changeStock, linkSoldUnits, promoteToEquipo } from '../../../../lib/stock'
 import { numero } from '../../../../lib/montos'
+import { canSeeCostForSession, redactOrderCosts } from '../../../../lib/cost-visibility'
 
 const orderInclude = Prisma.validator<Prisma.OrderInclude>()({
   items: true,
@@ -32,7 +33,7 @@ export async function GET(request: Request, context: { params: Promise<{ orderId
   const { orderId } = await context.params
   const order = await prisma.order.findFirst({ where: { id: orderId, tenantId: tenant }, include: orderInclude })
   if (!order || !canAccessOrder(session.user, order)) return error('Pedido no encontrado.', 404)
-  return json(order)
+  return json(redactOrderCosts(order, (await canSeeCostForSession(session))))
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ orderId: string }> }) {
@@ -70,7 +71,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
           await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: customerId ? 'ORDER_CUSTOMER_CHANGED' : 'ORDER_CUSTOMER_REMOVED', entity: 'Order', entityId: existing.id, metadata: { previousCustomerId: existing.customerId, previousCustomerName: existing.customer?.name || null, customerId, customerName: customer?.name || null } } })
           return order
         })
-        return json(updated)
+        return json(redactOrderCosts(updated, (await canSeeCostForSession(session))))
       }
       // Ficha desde el pedido ocasional en un clic: reusa la deduplicación del
       // alta (documento > teléfono > nombre) y vincula el pedido.
@@ -104,7 +105,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
           await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: archivedAt ? 'ORDER_ARCHIVED' : 'ORDER_UNARCHIVED', entity: 'Order', entityId: existing.id, metadata: {} } })
           return updated
         })
-        return json(order)
+        return json(redactOrderCosts(order, (await canSeeCostForSession(session))))
       }
       if (body.action === 'markNotified') {
         const order = await prisma.$transaction(async tx => {
@@ -112,7 +113,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
           await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_NOTIFIED_WHATSAPP', entity: 'Order', entityId: existing.id, metadata: { fulfillmentStatus: existing.fulfillmentStatus } } })
           return updated
         })
-        return json(order)
+        return json(redactOrderCosts(order, (await canSeeCostForSession(session))))
       }
       if (body.action !== 'attachSerials') throw new InputError('Acción de pedido inválida.')
       const itemId = textInput(body.itemId, 'Línea de pedido', 200)
@@ -146,7 +147,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
         return saved
       })
       const order = await prisma.order.findFirstOrThrow({ where: { id: orderId, tenantId: tenant }, include: orderInclude })
-      return json(order)
+      return json(redactOrderCosts(order, (await canSeeCostForSession(session))))
     }
 
     // ── Etiquetas del pedido ──
@@ -158,7 +159,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_TAGS_UPDATED', entity: 'Order', entityId: existing.id, metadata: { tags } } })
         return updated
       })
-      return json(order)
+      return json(redactOrderCosts(order, (await canSeeCostForSession(session))))
     }
 
     // ── Factura a otro titular y comentario ──
@@ -172,7 +173,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_BILLING_UPDATED', entity: 'Order', entityId: existing.id, metadata: { billingName: updated.billingName, hasDocument: Boolean(updated.billingDocument) } } })
         return updated
       })
-      return json(order)
+      return json(redactOrderCosts(order, (await canSeeCostForSession(session))))
     }
 
     const deliveryType = body.deliveryType === undefined ? undefined : textInput(body.deliveryType, 'Tipo de entrega', 100)
@@ -219,6 +220,6 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_FULFILLMENT_UPDATED', entity: 'Order', entityId: updated.id, metadata: { previous: existing.fulfillmentStatus, current: updated.fulfillmentStatus, deliveryType: updated.deliveryType, ...(deliveryAuthorization ? { authorizationId: deliveryAuthorization.id, pendingPyg: pendingDeliveryPyg } : {}) } } })
       return updated
     })
-    return json(order)
+    return json(redactOrderCosts(order, (await canSeeCostForSession(session))))
   } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo actualizar el pedido.', cause instanceof InputError ? cause.status : 400) }
 }
