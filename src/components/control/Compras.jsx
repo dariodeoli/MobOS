@@ -15,7 +15,8 @@ import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { loadDemoPurchases, createDemoPurchase, receiveDemoPurchase, updateDemoPurchaseCosts } from '@/lib/demoPurchases'
 import { gs } from '@/utils/calculos'
-import { Aviso, Badge, BarraProgreso, Button, Drawer, EmptyState, FormField, IconAction, Input, Label, Modal, MoneyInput, SaveActions, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import { Aviso, Badge, BarraProgreso, Button, EmptyState, FormField, IconAction, Input, Label, Modal, MoneyInput, SaveActions, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import { useSesion } from '@/lib/sesion'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import SearchField from '@/components/shared/SearchField'
@@ -503,7 +504,7 @@ export default function Compras() {
     {message && <Aviso tono="ok">{message}</Aviso>}
     {error && !nuevaCompra && <Aviso tono="error">{error}</Aviso>}
     {/* #307: el alta vive en un drawer y cada campo lleva su etiqueta. */}
-    <Drawer open={nuevaCompra} onClose={() => setNuevaCompra(false)} title="Nueva compra" className="w-full sm:max-w-2xl">
+    <VentanaDetalle open={nuevaCompra} onClose={() => setNuevaCompra(false)} title="Nueva compra" size="lg">
       <form onSubmit={create} className="space-y-4">
         <div className={GRILLA_DOS_COLUMNAS_COMPACTA}>
           <div>
@@ -616,7 +617,7 @@ export default function Compras() {
         <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800 px-3 py-2 text-sm text-mute shadow-lg shadow-black/10"><span>Total final estimado: <strong className="text-fore">{gs(estimatedTotal)}</strong></span><span className="flex items-center gap-2"><Button type="button" variant="ghost" disabled={busy} onClick={() => setNuevaCompra(false)}>Cancelar</Button><Button type="submit" disabled={busy || !control.valido} title={control.motivo || undefined}>Crear pedido</Button></span></div>
       </form>
       {error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
-    </Drawer>
+    </VentanaDetalle>
     <div className="space-y-3">
       {v2 && filtradas.length > 0 && (
         <ResumenMetricas
