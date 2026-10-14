@@ -263,7 +263,7 @@ const styles = (format, acento = ACENTO_POR_DEFECTO) => {
   .totals tr:last-child td{font-weight:700;font-size:${width ? '13px' : '14px'};border-top:1px solid var(--tinta);padding-top:6px}
   .totals.venta tr:last-child td{font-weight:400;font-size:inherit;border-top:0;padding-top:3px}
   .totals tr.total td{font-weight:800;font-size:${totalSize};border-top:2px solid var(--tinta);padding-top:7px;line-height:1.15}
-  .totals tr.saldo td{font-weight:800;font-size:${width ? '14px' : '15px'};border-top:1px solid var(--tinta);padding-top:5px}
+  .totals tr.saldo td{font-weight:800;font-size:${width ? '12px' : '15px'};border-top:1px solid var(--tinta);padding-top:5px}
   .pagos td{border:0;padding:2px 0}
   .it td{border-bottom:0;padding-bottom:0}
   .tag{display:inline-block;border:1px solid var(--tinta);border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700;color:var(--tinta)}
@@ -488,7 +488,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
       <div class="condiciones"><strong>Garantía y condiciones</strong>${escapeHtml(garantiaDeVenta(order))}<br>Documento no fiscal · No válido como factura.</div>
       ${link ? `<div class="qrbox">${qr ? `<img class="qr" src="${qr}" alt="QR del comprobante">` : ''}<div class="small">${escapeHtml(textoQr)}${termico ? `: ${escapeHtml(link)}` : ''}</div></div>` : ''}
     </div>
-    <footer>Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
+    <footer>Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa.replace(/\.$/, ''))}` : ''}.</footer>
   </body></html>`
 }
 

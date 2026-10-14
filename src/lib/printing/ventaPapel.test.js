@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { ACENTO_POR_DEFECTO, acentoDeEmpresa, desgloseVenta, garantiaDeVenta, serialesDeItem } from './ventaPapel.js'
+import { ACENTO_POR_DEFECTO, acentoDeEmpresa, desgloseVenta, garantiaDeVenta, serialesDeItem, siglaProveedor } from './ventaPapel.js'
+
+test('el proveedor sale como sigla: la cargada o las iniciales, nunca el nombre real', () => {
+  assert.equal(siglaProveedor('Mayorista Apple PY', 'mel'), 'MEL')
+  assert.equal(siglaProveedor('Mayorista Apple PY'), 'MAP')
+  assert.equal(siglaProveedor('Miami'), 'MIAM')
+  assert.equal(siglaProveedor(''), '')
+})
 
 test('los seriales salen del pedido o de los campos legacy, sin repetir', () => {
   assert.deepEqual(serialesDeItem({ serials: ['3569', '3569', ' '], imei: '3570' }), ['3569', '3570'])
