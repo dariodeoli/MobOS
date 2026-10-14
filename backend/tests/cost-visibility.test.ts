@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { canSeeCost, dropCostColumns, redactAuditMetadata, redactOrderItemCosts, redactProductCosts, redactUnitCosts } from '../lib/cost-visibility'
+import { canSeeCost, dropCostColumns, redactAuditMetadata, redactOrderCosts, redactOrderItemCosts, redactProductCosts, redactUnitCosts } from '../lib/cost-visibility'
 
 // Una sola regla de visibilidad de costos para todas las rutas.
 
@@ -54,4 +54,17 @@ test('dropCostColumns (exportación de unidades): quita Proveedor y Costo salvo 
   const rows = [['iPhone', 'IMEI1', 'Prov', 4200000]]
   for (const role of ['ADMIN', 'GERENTE']) assert.deepEqual(dropCostColumns(headers, rows, ['Proveedor', 'Costo (Gs)'], canSeeCost(role)), { headers, rows })
   for (const role of ['VENDEDOR', 'CAJERA']) assert.deepEqual(dropCostColumns(headers, rows, ['Proveedor', 'Costo (Gs)'], canSeeCost(role)), { headers: ['Producto', 'Serial'], rows: [['iPhone', 'IMEI1']] })
+})
+
+test('redactOrderCosts: oculta costo en líneas y en la copia congelada del comprobante', () => {
+  const pedido = { id: 'o1', items: [{ id: 'i1', unitCostPyg: 10, baseUnitCostPyg: 9, totalPyg: 50 }], receiptSnapshot: { version: 1, datos: { items: [{ unitCostPyg: 10, totalPyg: 50 }] } } }
+  assert.equal(redactOrderCosts(pedido, canSeeCost('ADMIN')), pedido)
+  for (const role of ['VENDEDOR', 'CAJERA']) {
+    const out = redactOrderCosts(pedido, canSeeCost(role)) as Record<string, any>
+    assert.equal(out.items[0].unitCostPyg, null)
+    assert.equal(out.items[0].baseUnitCostPyg, null)
+    assert.equal(out.items[0].totalPyg, 50)
+    assert.equal(out.receiptSnapshot.datos.items[0].unitCostPyg, null)
+  }
+  assert.equal(pedido.items[0].unitCostPyg, 10)
 })

@@ -39,6 +39,21 @@ export function redactOrderItemCosts<T extends Record<string, unknown>>(item: T,
   return copy as T
 }
 
+/**
+ * Pedido completo sin costos: líneas vivas y copia congelada del comprobante
+ * (receiptSnapshot.datos.items). Usar en toda ruta que devuelva un pedido con ítems.
+ */
+export function redactOrderCosts<T extends Record<string, any>>(order: T, canSee: boolean): T {
+  if (canSee || !order) return order
+  const copy: Record<string, any> = { ...order }
+  if (Array.isArray(copy.items)) copy.items = copy.items.map((item: Record<string, unknown>) => redactOrderItemCosts(item, false))
+  const snapshot = copy.receiptSnapshot
+  if (snapshot && typeof snapshot === 'object' && snapshot.datos && Array.isArray(snapshot.datos.items)) {
+    copy.receiptSnapshot = { ...snapshot, datos: { ...snapshot.datos, items: snapshot.datos.items.map((item: Record<string, unknown>) => redactOrderItemCosts(item, false)) } }
+  }
+  return copy as T
+}
+
 const COST_KEY = /cost|costo|supplier|proveedor|consignor|exchangeRate/i
 
 /** Metadata de auditoría sin claves de costo/proveedor (recursivo en objetos y listas). */
