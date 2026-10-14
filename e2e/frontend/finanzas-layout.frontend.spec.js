@@ -471,3 +471,40 @@ test('no min-w-[] utility remains in the Finanzas screens (below md)', async () 
       /min-w-\[/,
     )
 })
+
+// Cuotas (#396): en celular las tarjetas de cuota nunca son más anchas que su lista
+// (importe y acciones se apilan con flex-wrap en vez de salirse a x=425).
+for (const [width, height] of [
+  [360, 740],
+  [390, 844],
+]) {
+  test(`Cuotas: ninguna tarjeta desborda su lista a ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height })
+    await mockSesionFinanzas(page, false)
+    await page.goto('/finanzas/cuotas')
+    await settle(page)
+    const filas = page.getByTestId('cuota-fila')
+    await expect(filas.first()).toBeVisible()
+    const medidas = await page.evaluate(() =>
+      [...document.querySelectorAll('[data-testid="cuota-fila"]')].map(fila => {
+        const lista = fila.parentElement.getBoundingClientRect()
+        const caja = fila.getBoundingClientRect()
+        const derechos = [...fila.querySelectorAll('button, b, span, a')].map(el => el.getBoundingClientRect().right)
+        return {
+          filaAncho: Math.round(caja.width),
+          listaAncho: Math.round(lista.width),
+          derecha: Math.round(caja.right),
+          maxHijo: Math.round(Math.max(...derechos)),
+          vw: window.innerWidth,
+        }
+      }),
+    )
+    expect(medidas.length).toBeGreaterThan(0)
+    for (const m of medidas) {
+      expect(m.filaAncho, `tarjeta vs lista @${width}`).toBeLessThanOrEqual(m.listaAncho)
+      expect(m.maxHijo, `contenido dentro de la ventana @${width}`).toBeLessThanOrEqual(m.vw)
+      expect(m.maxHijo, `contenido dentro de la tarjeta @${width}`).toBeLessThanOrEqual(m.derecha)
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), 'scroll horizontal').toBe(false)
+  })
+}
