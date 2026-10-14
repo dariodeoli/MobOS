@@ -2,7 +2,8 @@ import assert from 'node:assert/strict'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import test from 'node:test'
-import { correoDuenoPlataforma, decidirAcceso } from '../lib/superadmin/acceso-reglas'
+import { correoDuenoPlataforma, decidirAcceso, motivoDenegacion } from '../lib/superadmin/acceso-reglas'
+import { correoCambioReseteaVerificacion } from '../lib/tenant-email'
 import { diaLocal, diasDelRango, inicioDiaLocal, inicioMesLocal, normalizarPeriodo, rangoDePeriodo, rellenarSerie, variacionPct } from '../lib/superadmin/rangos'
 
 const RAIZ = resolve(__dirname, '..')
@@ -16,26 +17,34 @@ function archivos(dir: string, nombre: RegExp): string[] {
 
 // ── Acceso ────────────────────────────────────────────────────────────────
 const DUENO = 'dueno@ejemplo.test'
-const usuario = { status: 'ACTIVE', email: 'Dueno@Ejemplo.test' }
-const google = { email: DUENO, googleSubject: 'g-1' }
+const usuario = { status: 'ACTIVE' }
+const cuenta = { googleSubject: 'g-1' }
+const identidad = { subject: 'g-1', email: 'Dueno@Ejemplo.test' }
 
-test('acceso: dueño activo con cuenta de Google pasa; el correo se compara exacto sin importar mayúsculas', () => {
-  assert.equal(decidirAcceso({ correoDueno: DUENO, usuario, cuenta: google, empresa: null }), true)
+test('acceso: dueño activo cuya identidad de Google (verificada) trae su correo pasa; se compara sin importar mayúsculas', () => {
+  assert.equal(decidirAcceso({ correoDueno: DUENO, usuario, cuenta, identidad }), true)
 })
 
-test('acceso: la empresa con correo del dueño verificado también habilita (sin Google)', () => {
-  assert.equal(decidirAcceso({ correoDueno: DUENO, usuario, cuenta: null, empresa: { email: DUENO, emailVerifiedAt: new Date() } }), true)
-  assert.equal(decidirAcceso({ correoDueno: DUENO, usuario, cuenta: null, empresa: { email: DUENO, emailVerifiedAt: null } }), false, 'sin verificar no pasa')
+test('acceso: toda falla niega y devuelve un motivo sin datos personales', () => {
+  const base = { correoDueno: DUENO, usuario, cuenta, identidad }
+  assert.equal(motivoDenegacion({ ...base, correoDueno: '' }), 'sin_configuracion')
+  assert.equal(motivoDenegacion({ ...base, usuario: { status: 'SUSPENDED' } }), 'usuario_inactivo')
+  assert.equal(motivoDenegacion({ ...base, usuario: null }), 'usuario_inactivo')
+  assert.equal(motivoDenegacion({ ...base, cuenta: null }), 'sin_cuenta_google')
+  assert.equal(motivoDenegacion({ ...base, cuenta: { googleSubject: null } }), 'sin_cuenta_google')
+  assert.equal(motivoDenegacion({ ...base, identidad: null }), 'identidad_no_coincide')
+  assert.equal(motivoDenegacion({ ...base, identidad: { subject: 'g-otro', email: DUENO } }), 'identidad_no_coincide')
+  assert.equal(motivoDenegacion({ ...base, identidad: { subject: 'g-1', email: 'otro@ejemplo.test' } }), 'correo_distinto')
+  assert.equal(motivoDenegacion({ ...base, identidad: { subject: 'g-1', email: null } }), 'correo_distinto')
 })
 
-test('acceso: toda falla niega (sin entorno, inactivo, otro correo, cuenta ajena, correo sin verificar)', () => {
-  assert.equal(decidirAcceso({ correoDueno: '', usuario, cuenta: google, empresa: null }), false)
-  assert.equal(decidirAcceso({ correoDueno: DUENO, usuario: { ...usuario, status: 'SUSPENDED' }, cuenta: google, empresa: null }), false)
-  assert.equal(decidirAcceso({ correoDueno: DUENO, usuario: { ...usuario, email: 'otro@ejemplo.test' }, cuenta: google, empresa: null }), false)
-  assert.equal(decidirAcceso({ correoDueno: DUENO, usuario, cuenta: { email: 'otro@ejemplo.test', googleSubject: 'g-2' }, empresa: null }), false)
-  assert.equal(decidirAcceso({ correoDueno: DUENO, usuario, cuenta: { email: DUENO, googleSubject: null }, empresa: null }), false)
-  assert.equal(decidirAcceso({ correoDueno: DUENO, usuario: null, cuenta: google, empresa: null }), false)
-  assert.equal(decidirAcceso({ correoDueno: DUENO, usuario: { status: 'ACTIVE', email: null }, cuenta: google, empresa: null }), false)
+test('acceso: Tenant.email / User.email (editables por la empresa) no son prueba: la regla no los recibe ni los lee', () => {
+  const reglas = readFileSync(join(RAIZ, 'lib/superadmin/acceso-reglas.ts'), 'utf8')
+  const codigo = reglas.replace(/\/\/.*$/gm, '')
+  assert.doesNotMatch(codigo, /emailVerifiedAt|empresa|tenant/i)
+  const guard = readFileSync(join(RAIZ, 'lib/superadmin/acceso.ts'), 'utf8')
+  assert.doesNotMatch(guard, /prisma\.tenant\./, 'el guard no consulta Tenant')
+  assert.match(guard, /prisma\.googleIdentity\.findUnique/)
 })
 
 test('acceso: el correo del dueño sale solo del entorno y se valida', () => {
@@ -49,22 +58,40 @@ test('acceso: TODA ruta de /api/superadmin exporta sus handlers con conAdministr
   assert.ok(rutas.length >= 5, 'se esperan las rutas del panel')
   for (const ruta of rutas) {
     const fuente = readFileSync(ruta, 'utf8')
-    const metodos = fuente.match(/export\s+(?:async\s+function|const|let|var)\s+(GET|POST|PUT|PATCH|DELETE)\b/g) ?? []
+    const metodos = fuente.match(/export\s+(?:async\s+function|const|let|var)\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\b/g) ?? []
     assert.ok(metodos.length > 0, `${ruta}: sin handlers`)
-    const envueltos = fuente.match(/export\s+const\s+(GET|POST|PUT|PATCH|DELETE)\s*=\s*conAdministradorPlataforma\(/g) ?? []
+    const envueltos = fuente.match(/export\s+const\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s*=\s*conAdministradorPlataforma\(/g) ?? []
     assert.equal(envueltos.length, metodos.length, `${ruta}: todo handler debe usar conAdministradorPlataforma`)
-    assert.doesNotMatch(fuente, /export\s+(?:async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE)/, `${ruta}: sin handlers sueltos`)
-    assert.doesNotMatch(fuente, /export\s+const\s+(?!GET|POST|PUT|PATCH|DELETE|dynamic|runtime|revalidate)\w+/, `${ruta}: no exportar símbolos que no sean handlers de Next`)
+    assert.doesNotMatch(fuente, /export\s+(?:async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)/, `${ruta}: sin handlers sueltos`)
+    assert.doesNotMatch(fuente, /export\s+const\s+(?!GET\b|POST\b|PUT\b|PATCH\b|DELETE\b|HEAD\b|OPTIONS\b|dynamic\b|runtime\b|revalidate\b)\w+/, `${ruta}: no exportar símbolos que no sean handlers de Next`)
   }
 })
 
-test('acceso: el guard relee al usuario en la base y no hay correos fijos en el panel', () => {
+test('acceso: el guard limita intentos antes de consultar, relee la base, loguea denegaciones sin PII y no hay correos fijos', () => {
   const guard = readFileSync(join(RAIZ, 'lib/superadmin/acceso.ts'), 'utf8')
   assert.match(guard, /prisma\.user\.findUnique/)
-  assert.match(guard, /prisma\.tenant\.findUnique/)
+  assert.ok(guard.indexOf('enforceRateLimit(') < guard.indexOf('requerirAdministradorPlataforma(request)'), 'el límite va antes del guard')
+  assert.match(guard, /superadmin_acceso_denegado/)
+  assert.doesNotMatch(guard, /logInfo\([^)]*(email|correo)/i)
   for (const archivo of archivos(join(RAIZ, 'lib/superadmin'), /\.ts$/)) {
     assert.doesNotMatch(readFileSync(archivo, 'utf8'), /[\w.+-]+@(?:gmail|hotmail|outlook)\.\w+/i, `${archivo}: correo fijo`)
   }
+})
+
+test('verificación de correo: cambiar el correo de la empresa la deja sin verificar (y la ruta lo aplica)', () => {
+  assert.equal(correoCambioReseteaVerificacion('a@x.test', 'b@x.test'), true)
+  assert.equal(correoCambioReseteaVerificacion('a@x.test', ' A@X.test '), false)
+  assert.equal(correoCambioReseteaVerificacion(null, 'b@x.test'), true)
+  const ruta = readFileSync(join(RAIZ, 'app/api/account/route.ts'), 'utf8')
+  assert.match(ruta, /correoCambioReseteaVerificacion\(current\.email, nextEmail\) \? \{ emailVerifiedAt: null \}/)
+})
+
+test('google: la identidad guarda el correo verificado en cada login (único origen de GoogleIdentity.email)', () => {
+  const company = readFileSync(join(RAIZ, 'lib/google-company.ts'), 'utf8')
+  assert.doesNotMatch(company, /googleIdentity\.upsert/, 'todo upsert pasa por recordGoogleIdentity')
+  assert.ok((company.match(/recordGoogleIdentity\(/g) ?? []).length >= 3)
+  const escritores = archivos(RAIZ, /\.ts$/).filter(f => !f.includes('node_modules') && !f.includes('.next') && /googleIdentity\.(upsert|update|create)/.test(readFileSync(f, 'utf8')))
+  assert.deepEqual(escritores.map(f => f.slice(RAIZ.length + 1)), ['lib/membership.ts'])
 })
 
 // ── Demo ──────────────────────────────────────────────────────────────────

@@ -73,6 +73,12 @@ export async function accountForGoogle(tx: Prisma.TransactionClient, subject: st
   return tx.account.upsert({ where: { googleSubject: subject }, update: {}, create: { googleSubject: subject } })
 }
 
+/** Identidad de Google al día: nombre, foto y correo VERIFICADO por Google (único origen de `GoogleIdentity.email`). */
+export async function recordGoogleIdentity(tx: Prisma.TransactionClient, identity: { sub: string; email: string; name: string; picture: string }) {
+  const data = { name: identity.name || null, picture: identity.picture || null, email: identity.email.trim().toLowerCase() }
+  await tx.googleIdentity.upsert({ where: { subject: identity.sub }, update: data, create: { subject: identity.sub, ...data } })
+}
+
 /** Doble escritura: cada GoogleStoreAccess tiene su pertenencia (sin revivir las revocadas). */
 export async function syncGoogleMemberships(tx: Prisma.TransactionClient, accountId: string, subject: string, email: string | null) {
   const accesses = await tx.googleStoreAccess.findMany({ where: { subject }, select: { tenantId: true, owner: true } })
