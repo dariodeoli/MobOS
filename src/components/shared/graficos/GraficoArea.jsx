@@ -100,11 +100,11 @@ export default function GraficoArea({
           {geo.escala.ticks.map((t) => (
             <g key={t}>
               <line x1={MARGEN.izq} x2={MARGEN.izq + geo.w} y1={geo.y(t)} y2={geo.y(t)} className="graf-eje" strokeWidth="1" strokeDasharray={t === 0 ? undefined : '3 4'} />
-              <text x={MARGEN.izq - 8} y={geo.y(t) + 4} textAnchor="end" fontSize="11" className="graf-tinta-mute">{abreviar(t)}</text>
+              <text x={MARGEN.izq - 8} y={geo.y(t) + 4} textAnchor="end" fontSize="12" className="graf-tinta-mute">{abreviar(t)}</text>
             </g>
           ))}
           {indicesEtiqueta.map((i) => (
-            <text key={serie[i].fecha} x={geo.x(i)} y={alto - 6} textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'} fontSize="11" className="graf-tinta-mute">{etiquetaFecha(serie[i].fecha)}</text>
+            <text key={serie[i].fecha} x={geo.x(i)} y={alto - 6} textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'} fontSize="12" className="graf-tinta-mute">{etiquetaFecha(serie[i].fecha)}</text>
           ))}
           {puntosPrevia && (
             <path d={rutaLinea(puntosPrevia)} fill="none" stroke="var(--g-previo)" strokeWidth="1.5" strokeDasharray="4 4" strokeLinejoin="round" strokeLinecap="round" />
