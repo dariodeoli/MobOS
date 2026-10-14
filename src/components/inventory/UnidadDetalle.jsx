@@ -20,7 +20,8 @@ import { getDemoServicio } from '@/lib/demoServicio'
 import { COSMETICOS, estadoInspeccion, INSPECCION_ESTADOS, INSPECCION_ITEMS, resumenVerificacion } from '@/lib/phonecheck'
 import { resources } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
-import { cotizacionReferencia } from '@/lib/fx'
+import { cotizacionFx } from '@/lib/fx'
+import { etiquetaOrigen as etiquetaCotizacionOrigen, origenAutomatico, origenManual } from '@/utils/cotizacion'
 import { gs } from '@/utils/calculos'
 import { montoTexto } from '@/utils/moneda'
 import { colorCondicionUnidad, estadoInventario, etiquetaCondicionUnidad, sinCostoUnitario } from '@/utils/inventario'
@@ -107,6 +108,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   // guaraníes lo calcula el backend.
   const costoInicial = () => ({ currency: unit.costCurrency || 'PYG', monto: unit.originalCost !== null && unit.originalCost !== undefined ? String(unit.originalCost) : unit.costPyg !== null && unit.costPyg !== undefined ? String(unit.costPyg) : '', rate: unit.exchangeRatePyg !== null && unit.exchangeRatePyg !== undefined ? String(unit.exchangeRatePyg) : '' })
   const [costo, setCosto] = useState(costoInicial)
+  const [origenCotizacion, setOrigenCotizacion] = useState(null)
   const [guardandoCosto, setGuardandoCosto] = useState(false)
   // #240 PhoneCheck
   const [inspeccion, setInspeccion] = useState(() => ({ items: unit.inspection?.items || {}, cosmetico: unit.inspection?.cosmetico || '', nota: unit.inspection?.nota || '', bateriaPct: unit.inspection?.bateriaPct ?? (unit.batteryHealth ?? ''), bateriaCiclos: unit.inspection?.bateriaCiclos ?? '', repuestosNoOem: unit.inspection?.repuestosNoOem || '', costoRepuestosPyg: unit.inspection?.costoRepuestosPyg ?? '', repuestosNoOemNota: unit.inspection?.repuestosNoOemNota || '' }))
@@ -211,8 +213,12 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   async function cambiarMonedaCosto(moneda) {
     setCosto(current => ({ ...current, currency: moneda }))
     if (moneda !== 'PYG' && !String(costo.rate || '').trim()) {
-      const sugerida = await cotizacionReferencia()
-      if (sugerida) setCosto(current => (String(current.rate || '').trim() ? current : { ...current, rate: String(sugerida) }))
+      const info = await cotizacionFx({ purpose: 'costs', currency: moneda })
+      // Nunca pisa una cotización que la persona escribió mientras la consulta estaba en vuelo.
+      if (info) {
+        setCosto(current => (String(current.rate || '').trim() ? current : { ...current, rate: String(info.rate) }))
+        setOrigenCotizacion(actual => (actual ? actual : origenAutomatico(info)))
+      }
     }
   }
 
@@ -542,7 +548,8 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
           {costo.currency !== 'PYG' && (
             <div className="mt-2">
               <Label htmlFor="unidad-costo-cotizacion">Cotización del {costo.currency} en Gs.</Label>
-              <MoneyInput id="unidad-costo-cotizacion" aria-label="Cotización" currency="USD" symbol="Gs." value={costo.rate} onValueChange={value => setCosto(current => ({ ...current, rate: value === '' ? '' : String(value) }))} placeholder="Ej. 7500" />
+              <MoneyInput id="unidad-costo-cotizacion" aria-label="Cotización" currency="USD" symbol="Gs." value={costo.rate} onValueChange={value => { setCosto(current => ({ ...current, rate: value === '' ? '' : String(value) })); setOrigenCotizacion(value === '' ? null : origenManual(sesion?.nombre)) }} placeholder="Ej. 7500" />
+              {origenCotizacion && <p className={`mt-1 text-xs ${origenCotizacion.stale ? 'text-warn' : 'text-mute'}`} data-testid="cotizacion-origen">{etiquetaCotizacionOrigen(origenCotizacion)}</p>}
             </div>
           )}
           {costo.currency !== 'PYG' && costo.monto !== '' && Number(costo.rate) > 0 && <p className="mt-2 text-xs text-mute">Costo en Gs: <b className="text-fore">{gs(Number(costo.monto) * Number(costo.rate))}</b></p>}

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { whatsappUrl } from '@/utils/telefono'
 import { ESTADO_GARANTIA } from '@/lib/estadosPedido'
 import { codigoPedido } from '@/utils/pedido'
 import Icon from '@/components/shared/Icon'
@@ -9,6 +8,7 @@ import { isDemoRuntime } from '@/lib/demoMode'
 import { demoGarantiaPayload } from '@/lib/demoGarantia'
 import { Aviso, BarraProgreso } from '@/components/ui'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
+import { BotonWhatsApp } from '@/components/publico/KitPublico'
 import ProductFooter from '@/components/app/ProductFooter'
 
 
@@ -47,10 +47,16 @@ export default function GarantiaPublica() {
   return (
     <main className="min-h-screen bg-ink-950 px-4 py-10 text-fore">
       <div className="mx-auto max-w-xl">
-        <header className="mb-8 text-center">
-          <p className="text-xs font-bold uppercase tracking-[.2em] text-fono-light">Garantía oficial</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight">{warranty?.productName || 'Tu equipo'}</h1>
+        <header className="mb-5 rounded-2xl border border-ink-600 bg-ink-900 p-4 text-center" data-testid="cabecera-tienda">
+          {warranty?.store?.name && <p className="text-sm font-bold [overflow-wrap:anywhere]">{warranty.store.name}</p>}
+          <p className="mt-1 text-xs font-bold uppercase tracking-[.16em] text-fono-light">Garantía oficial</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight [overflow-wrap:anywhere] sm:text-3xl">{warranty?.productName || 'Tu equipo'}</h1>
           {warranty?.orderNumber && <p className="mt-1 text-sm text-mute">Compra {codigoPedido(warranty.orderNumber)}</p>}
+          {warranty && (
+            <p data-testid="estado-garantia" className={`mx-auto mt-3 inline-flex min-h-11 items-center rounded-xl border px-4 text-base font-bold ${days === 0 ? 'border-bad/40 bg-bad/10 text-bad' : days != null && days <= 15 ? 'border-warn/40 bg-warn/10 text-warn' : 'border-ok/40 bg-ok/10 text-ok'}`}>
+              {days === 0 ? 'Garantía vencida' : 'Garantía vigente'}
+            </p>
+          )}
         </header>
         {error && <Aviso tono="error" className="px-4 py-3 text-sm rounded-xl text-center">{error}</Aviso>}
         {warranty && (
@@ -66,7 +72,7 @@ export default function GarantiaPublica() {
                 {pct !== null && (
                   <div className="w-28">
                     <BarraProgreso valor={pct} tono={days === 0 ? 'bad' : days <= 15 ? 'warn' : 'ok'} etiqueta="Cobertura de la garantía" className="h-2 bg-ink-700" />
-                    <p className="mt-1 text-right text-[10px] text-mute">{pct}% del período</p>
+                    <p className="mt-1 text-right text-xs text-mute">{pct}% del período</p>
                   </div>
                 )}
               </div>
@@ -93,15 +99,10 @@ export default function GarantiaPublica() {
                 ))}
               </ul>
             </section>
-            {warranty.store?.name && (
+            {(warranty.store?.city || warranty.store?.phone) && (
               <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5 text-center text-sm">
-                <p className="font-bold">{warranty.store.name}</p>
-                {warranty.store.city && <p className="mt-1 text-mute">{warranty.store.city}</p>}
-                {warranty.store.phone && (
-                  <a className="mt-3 inline-block rounded-lg bg-ok px-4 py-2 font-semibold text-black" href={whatsappUrl(warranty.store.phone)} target="_blank" rel="noreferrer">
-                    Contactar por WhatsApp
-                  </a>
-                )}
+                {warranty.store.city && <p className="text-mute">{warranty.store.city}</p>}
+                <BotonWhatsApp telefono={warranty.store.phone} mensaje={`Hola, consulto por la garantía de ${warranty.productName || 'mi equipo'}.`} etiqueta="Contactar por WhatsApp" className="mt-3 w-full sm:w-auto" />
               </section>
             )}
           </div>

@@ -7,11 +7,12 @@ import { fechaHora } from '@/utils/fecha'
 import { codigoPedido, totalesPedido } from '@/utils/pedido'
 import { varianteDeTema } from '@/lib/tenantLogo'
 import SeccionColapsable from '@/components/shared/SeccionColapsable'
-import { Aviso, CeldaMoneda, FilaDato } from '@/components/ui'
-import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } from '@/components/shared/tabla'
+import { Aviso, CeldaMoneda } from '@/components/ui'
+import { CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } from '@/components/shared/tabla'
 import { ESTADO_ENTREGA, ESTADO_GARANTIA, ESTADO_PEDIDO } from '@/lib/estadosPedido'
 import { temaV2Activo } from '@/lib/temaV2'
 import ProductFooter from '@/components/app/ProductFooter'
+import { BOTON_PUBLICO, BotonCopiar, BotonWhatsApp, CabeceraTienda, LineaTiempo, ResumenTotales } from '@/components/publico/KitPublico'
 
 const LEVELS = { rapido: 'Comprobante rápido', completo: 'Comprobante completo', detallado: 'Comprobante detallado' }
 const PASOS = ['PROCESSING', 'IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP', 'DELIVERED']
@@ -20,10 +21,9 @@ export default function PedidoPublico() {
   const { token } = useParams()
   const [order, setOrder] = useState(null)
   const [error, setError] = useState('')
-  const [logoOk, setLogoOk] = useState(true)
   useEffect(() => {
     let active = true
-    setError(''); setOrder(null); setLogoOk(true)
+    setError(''); setOrder(null)
     fetch(`${API_URL}/api/orders/public/${encodeURIComponent(token || '')}`)
       .then(async response => { const payload = await response.json().catch(() => null); if (!response.ok) throw new Error(payload?.message || payload?.error || 'Pedido no encontrado.'); if (active) setOrder(payload) })
       .catch(cause => { if (active) setError(cause?.message || 'No se pudo cargar el pedido.') })
@@ -69,79 +69,48 @@ export default function PedidoPublico() {
         {error && <Aviso tono="error" className="px-4 py-3 text-sm rounded-xl text-center">{error}</Aviso>}
         {order && (
           <>
-            {/* Encabezado: tienda, código y estado de un vistazo. */}
-            <header className="rounded-2xl border border-ink-600 bg-ink-900 px-4 py-3">
-              <div className="flex items-center gap-3">
-                {logoOk && (
-                  <>
-                    {/* Pantalla: la variante sigue al fondo activo (#163). Papel:
-                        siempre la variante para fondo claro. */}
-                    <img
-                      src={`${API_URL}/api/orders/public/${encodeURIComponent(token || '')}/logo?variant=${varianteDeTema()}`}
-                      alt={`Logo de ${order.company?.name}`}
-                      onError={() => setLogoOk(false)}
-                      className="h-10 w-auto max-w-[120px] shrink-0 object-contain print:hidden"
-                    />
-                    <img
-                      src={`${API_URL}/api/orders/public/${encodeURIComponent(token || '')}/logo?variant=light`}
-                      alt=""
-                      className="hidden h-10 w-auto max-w-[120px] shrink-0 object-contain print:block"
-                    />
-                  </>
-                )}
-                <div className="min-w-0 flex-1">
-                  {order.company?.name && <p className="truncate text-sm font-bold">{order.company.name}</p>}
-                  {order.branch && (
-                    <p className={CELDA_DATO}>
-                      {order.branch.name}
-                      {[order.branch.address, order.branch.city, order.branch.department].filter(Boolean).length ? ` · ${[order.branch.address, order.branch.city, order.branch.department].filter(Boolean).join(', ')}` : ''}
-                      {order.branch.phone ? ` · ${order.branch.phone}` : ''}
-                      {order.branch.instagram ? ` · @${order.branch.instagram}` : ''}
-                    </p>
-                  )}
-                </div>
-                <span className={`shrink-0 rounded-lg border px-2.5 py-1 text-xs font-bold ${tonoEntrega}`}>{etiquetaEntrega}</span>
-              </div>
-              <div className="mt-3 flex flex-wrap items-end justify-between gap-2 border-t border-ink-600/70 pt-3">
-                <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-[.2em] text-fono-light">{encabezadoSeguimiento}</p>
+            {/* Encabezado: logo y tienda; debajo, el estado como protagonista. */}
+            <CabeceraTienda
+              logo={`${API_URL}/api/orders/public/${encodeURIComponent(token || '')}/logo?variant=${varianteDeTema()}`}
+              logoClaro={`${API_URL}/api/orders/public/${encodeURIComponent(token || '')}/logo?variant=light`}
+              empresa={order.company?.name}
+              detalle={order.branch ? [order.branch.name, [order.branch.address, order.branch.city, order.branch.department].filter(Boolean).join(', '), order.branch.phone, order.branch.instagram ? `@${order.branch.instagram}` : ''].filter(Boolean).join(' · ') : ''}
+            >
+              <div className="mt-3 border-t border-ink-600/70 pt-3">
+                <p className="text-xs font-bold uppercase tracking-[.16em] text-fono-light">{encabezadoSeguimiento}</p>
+                <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
                   <h1 className="text-2xl font-bold tracking-tight">{codigoPedido(order.orderNumber) || 'Pedido'}</h1>
-                  <p className="text-xs text-mute">
-                    {order.customerName ? `Hola, ${order.customerName}` : 'Tu pedido'}
-                    {order.level ? ` · ${LEVELS[order.level] || order.level}` : ''}
-                  </p>
+                  <span data-testid="estado-pedido" className={`rounded-lg border px-3 py-1.5 text-sm font-bold ${tonoEntrega}`}>{etiquetaEntrega}</span>
                 </div>
-                <div className="text-right text-sm">
-                  <p className="text-mute">Saldo pendiente</p>
-                  <p className={`text-lg font-bold tabular-nums ${pendiente > 0 ? 'text-warn' : 'text-ok'}`}>{gs(pendiente)}</p>
-                </div>
+                <p className="mt-1 text-sm text-mute">
+                  {order.customerName ? `Hola, ${order.customerName}` : 'Tu pedido'}
+                  {order.level ? ` · ${LEVELS[order.level] || order.level}` : ''}
+                </p>
               </div>
-            </header>
+            </CabeceraTienda>
 
-            {/* Pedido: estado de la entrega y totales. Lo esencial, siempre visible. */}
+            {/* Estado: línea de tiempo del seguimiento y totales. */}
             <section className="rounded-2xl border border-ink-600 bg-ink-900 p-4">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                 <h2 className={ROTULO_SECCION}>Estado del pedido</h2>
-                <span className="text-[11px] text-mute">{ESTADO_PEDIDO[order.status] || order.status} · actualizado {fechaHora(order.updatedAt)}</span>
+                <span className="text-xs text-mute">{ESTADO_PEDIDO[order.status] || order.status} · actualizado {fechaHora(order.updatedAt)}</span>
               </div>
-              <div className="mt-3 grid gap-1.5" style={{ gridTemplateColumns: `repeat(${pasosSeguimiento.length}, minmax(0, 1fr))` }}>
-                {pasosSeguimiento.map(paso => (
-                  <div key={paso.key} className="text-center">
-                    <div className={`h-1.5 rounded-full ${paso.hecho ? 'bg-fono-light' : 'bg-ink-600'} ${paso.actual ? 'ring-2 ring-fono/40' : ''}`} />
-                    <p className={`mt-1.5 text-[9px] font-semibold leading-tight sm:text-[10px] ${paso.hecho ? 'text-fore' : 'text-mute'}`}>{paso.label}</p>
-                    {paso.at && <p className="text-[9px] text-mute">{fechaHora(paso.at)}</p>}
-                  </div>
-                ))}
+              <div className="mt-3">
+                <LineaTiempo pasos={pasosSeguimiento} formatoFecha={fechaHora} etiqueta="Seguimiento de la entrega" />
               </div>
-              <dl className="mt-4 space-y-1.5 border-t border-ink-600/70 pt-3 text-sm">
-                <FilaDato etiqueta="Total" etiquetaComo="dt" valorComo="dd" valor={gs(total)} />
-                <FilaDato etiqueta="Pagado" etiquetaComo="dt" valorComo="dd" valor={gs(pagado)} tono="ok" />
-                <FilaDato etiqueta="Pendiente" etiquetaComo="dt" valorComo="dd" valor={gs(pendiente)} tono={pendiente > 0 ? 'warn' : 'ok'} />
-                {Number(order.discountPyg || 0) > 0 && <FilaDato etiqueta="Descuento" etiquetaComo="dt" valorComo="dd" valor={`− ${gs(order.discountPyg)}`} tono="warn" />}
-                {Number(order.deliveryPyg || 0) > 0 && <FilaDato etiqueta="Entrega" etiquetaComo="dt" valorComo="dd" valor={gs(order.deliveryPyg)} />}
-              </dl>
+              <div className="mt-4 border-t border-ink-600/70 pt-3">
+                <ResumenTotales
+                  filas={[
+                    ...(Number(order.discountPyg || 0) > 0 ? [{ etiqueta: 'Descuento', valor: `− ${gs(order.discountPyg)}`, tono: 'warn' }] : []),
+                    ...(Number(order.deliveryPyg || 0) > 0 ? [{ etiqueta: 'Entrega', valor: gs(order.deliveryPyg) }] : []),
+                    { etiqueta: 'Pagado', valor: gs(pagado), tono: 'ok' },
+                  ]}
+                  total={total}
+                  pendiente={pendiente}
+                />
+              </div>
               {order.seller && (
-                <p className="mt-3 text-[11px] text-mute">Atendido por <b className="text-fore">{primerNombre(order.seller)}</b></p>
+                <p className="mt-3 text-xs text-mute">Atendido por <b className="text-fore">{primerNombre(order.seller)}</b></p>
               )}
               {aCredito && (
                 <div className="mt-3 rounded-xl border border-bad/40 bg-bad/10 p-3 text-sm text-bad">
@@ -153,6 +122,11 @@ export default function PedidoPublico() {
                   </p>
                 </div>
               )}
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row" data-testid="acciones-pedido">
+                <BotonWhatsApp telefono={order.branch?.phone} mensaje={`Hola, consulto por mi pedido ${codigoPedido(order.orderNumber)}.`} className="sm:flex-1" />
+                <button type="button" onClick={() => window.print()} className={`${BOTON_PUBLICO} border-ink-500 bg-ink-800 text-fore hover:border-fono sm:flex-1 print:hidden`}>Descargar PDF</button>
+                <BotonCopiar valor={typeof window !== 'undefined' ? window.location.href : ''} etiqueta="Copiar enlace" className="sm:flex-1 print:hidden" />
+              </div>
             </section>
 
             <SeccionColapsable
@@ -272,7 +246,7 @@ export default function PedidoPublico() {
               </SeccionColapsable>
             )}
 
-            <p className="pt-1 text-center text-[11px] text-mute">
+            <p className="pt-1 text-center text-xs text-mute">
               Documento no fiscal · Generado por MobOS para {order.company?.name || 'la tienda'}
             </p>
           </>

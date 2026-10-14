@@ -2,6 +2,8 @@
 // fila al editarla. Sin JSX ni React para poder testear la regla de la
 // cotización (la automática del servicio nunca pisa la escrita a mano, #173-A).
 
+import { origenParaServidor } from './cotizacion.js'
+
 export const FOREIGN = (currency) => currency === 'USD' || currency === 'BRL'
 
 export const decimal = (value) => {
@@ -30,7 +32,9 @@ export function accountPayment(payment, accounts) {
     conditionNotes: (payment.tradeIn?.conditionNotes || '').trim(),
   } : undefined
   if (tradeIn && (!tradeIn.serial || !tradeIn.model || !tradeIn.conditionNotes)) throw new Error('El canje requiere serial, modelo y condición del equipo recibido.')
-  return { accountId: account.id, originalAmount, exchangeRatePyg, amountPyg, method: account.kind, status: 'CONFIRMED', ...(tradeIn ? { tradeIn } : {}) }
+  // #401: el origen (fuente o manual) viaja informativo; el valor que cuenta es exchangeRatePyg.
+  const exchangeRateOrigin = FOREIGN(account.currency) ? origenParaServidor(payment.rateOrigin) : undefined
+  return { accountId: account.id, originalAmount, exchangeRatePyg, amountPyg, method: account.kind, status: 'CONFIRMED', ...(tradeIn ? { tradeIn } : {}), ...(exchangeRateOrigin ? { exchangeRateOrigin } : {}) }
 }
 
 // El campo legacy monto siempre representa guaraníes, incluso al ingresar USD/BRL.
@@ -39,7 +43,7 @@ export function accountPayment(payment, accounts) {
 // que el vendedor la escriba a mano.
 export function updateAccountPayment(payment, change, accounts) {
   const { automatico, ...cambios } = change
-  if (automatico && Number(payment.exchangeRatePyg) > 0) return payment
+  if (automatico && (Number(payment.exchangeRatePyg) > 0 || payment.rateOrigin?.manual)) return payment
   const next = { ...payment, ...cambios }
   const account = accounts.find((a) => a.id === next.accountId && a.isActive)
   const original = decimal(next.originalAmount)
@@ -67,7 +71,7 @@ export function cambiarCuentaPago(payment, accounts, accountId, pendientePyg = 0
       ? (esPyg ? String(Math.round(pendientePyg)) : (pendientePyg / rate).toFixed(2).replace('.', ','))
       : ''
   return {
-    cambio: { accountId, originalAmount, exchangeRatePyg, tradeIn: undefined },
+    cambio: { accountId, originalAmount, exchangeRatePyg, tradeIn: undefined, ...(exchangeRatePyg === '' ? { rateOrigin: undefined } : {}) },
     proponerAlLlegarCotizacion: cambioMoneda && !esPyg && originalAmount === '',
   }
 }

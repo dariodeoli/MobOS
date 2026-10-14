@@ -16,10 +16,12 @@ test('la orden se carga con costos desglosados y la utilidad se calcula sola', a
   // El catálogo puede estar vacío: se carga el sugerido desde el propio panel.
   // #245: la barra arranca cargando y el botón del sugerido solo existe con el
   // catálogo vacío; se espera a que «Actualizar» quede habilitado (fin de la
-  // carga) para que no desaparezca entre la comprobación y el clic.
-  await expect(page.getByRole('button', { name: 'Actualizar' }).first()).toBeEnabled()
+  // carga) para que no desaparezca entre la comprobación y el clic. #396:
+  // Actualizar y Catálogo viven en el menú «Más acciones».
+  await page.getByRole('button', { name: 'Más acciones', exact: true }).click()
+  await expect(page.getByRole('menuitem', { name: 'Actualizar', exact: true })).toBeEnabled()
   // El botón del sugerido vive en el diálogo «Catálogo de servicios».
-  await page.getByRole('button', { name: 'Catálogo de servicios', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Catálogo de servicios', exact: true }).click()
   const catalogo = page.getByRole('dialog', { name: 'Catálogo de servicios' })
   await expect(catalogo).toBeVisible()
   // El catálogo puede estar vacío: se carga el sugerido solo en ese caso.

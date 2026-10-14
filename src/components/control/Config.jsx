@@ -538,13 +538,10 @@ function IdentidadCuenta({ onReauthValid, onGuardado, tenant }) {
 
       {editando && (
         <form onSubmit={guardar} className="space-y-3" data-testid="datos-tienda-form">
-          {/* #298: formulario en 2 columnas; la dirección va a ancho completo. */}
+          {/* #298/#389: 2 columnas con los campos cortos juntos (nombre|RUC, teléfono|correo, ciudad|dirección). */}
           <div className={GRILLA_DOS_COLUMNAS}>
             <FormField label="Nombre de la tienda" htmlFor="edit-nombre">
               <Input id="edit-nombre" disabled={busy} value={form?.name || ''} onChange={event => editar({ name: event.target.value })} placeholder="Nombre de la tienda" />
-            </FormField>
-            <FormField label="Correo de la empresa" htmlFor="edit-correo">
-              <EmailField id="edit-correo" disabled={busy} value={form?.email || ''} onChange={value => editar({ email: value })} placeholder="Correo de la empresa" />
             </FormField>
             <FormField label="RUC" htmlFor="edit-ruc">
               <RucField id="edit-ruc" value={form?.ruc || ''} onChange={ruc => editar({ ruc })} onAplicar={(datos) => { tocado.current = true; setForm(current => ({ ...current, name: datos.name || current.name, ruc: datos.fullRuc || current.ruc })) }} disabled={busy} esDemo={esDemo} placeholder="RUC del negocio (opcional)" autoComplete="off" />
@@ -552,10 +549,13 @@ function IdentidadCuenta({ onReauthValid, onGuardado, tenant }) {
             <FormField label="Teléfono">
               <PhoneField disabled={busy} countryCode={form?.countryCode || '+595'} phone={form?.phone || ''} onCountryCodeChange={countryCode => editar({ countryCode })} onChange={phone => editar({ phone })} placeholder="Teléfono del negocio" />
             </FormField>
+            <FormField label="Correo de la empresa" htmlFor="edit-correo">
+              <EmailField id="edit-correo" disabled={busy} value={form?.email || ''} onChange={value => editar({ email: value })} placeholder="Correo de la empresa" />
+            </FormField>
             <FormField label="Ciudad" hint={form?.department ? `Departamento: ${form.department}` : undefined}>
               <CityAutocomplete disabled={busy} value={form?.city || ''} onSelect={(city, department) => editar({ city, department })} placeholder="Ciudad del negocio" />
             </FormField>
-            <FormField className="sm:col-span-2" label="Dirección" htmlFor="edit-direccion">
+            <FormField label="Dirección" htmlFor="edit-direccion">
               <Input id="edit-direccion" maxLength={400} disabled={busy} value={form?.address || ''} onChange={event => editar({ address: event.target.value })} placeholder="Dirección del negocio (para el comprobante)" />
             </FormField>
           </div>

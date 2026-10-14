@@ -15,6 +15,7 @@ import { ABIERTAS, ESTADO_COTIZACION as ESTADO, TONO_COTIZACION as TONO } from '
 import CompartirPdf from '@/components/shared/CompartirPdf'
 import AprobacionPresupuesto from '@/components/shared/AprobacionPresupuesto'
 import { buildProformaHtml } from '@/components/shared/OrderReceipt'
+import { BotonWhatsApp, CabeceraTienda, ResumenTotales } from '@/components/publico/KitPublico'
 import ProductFooter from '@/components/app/ProductFooter'
 
 
@@ -29,7 +30,6 @@ export default function CotizacionPublica() {
   const [rechazando, setRechazando] = useState(false)
   const [motivo, setMotivo] = useState('')
   const [qr, setQr] = useState('')
-  const [logoOk, setLogoOk] = useState(true)
   // Cotización demo (#240 → portal): el enlace de la cuenta viaja con
   // `?demo=1` para resolverla con los datos del navegador, igual que la
   // garantía y el informe.
@@ -88,31 +88,25 @@ export default function CotizacionPublica() {
   return (
     <main className="min-h-screen bg-ink-950 px-4 py-10 text-fore">
       <div className="mx-auto max-w-xl">
-        <header className="mb-8 text-center">
-          <p className="text-xs font-bold uppercase tracking-[.2em] text-fono-light">Cotización</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight">{quote?.number || 'Cotización'}</h1>
-          {quote?.customerName && <p className="mt-1 text-sm text-mute">Para {quote.customerName}</p>}
-          {quote?.validUntil && <p className="mt-2 text-[11px] uppercase tracking-wider text-mute">Válida hasta {new Date(quote.validUntil).toLocaleDateString('es-PY')}</p>}
-        </header>
-
         {error && <Aviso tono="error" className="px-4 py-3 text-sm rounded-xl text-center">{error}</Aviso>}
 
         {quote && (
           <div className="space-y-4">
-            <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5 text-center">
-              {logoOk && quote.company?.logo && <img src={logoUrl} alt="" className="mx-auto mb-3 h-16 max-w-[12rem] object-contain" onError={() => setLogoOk(false)} />}
-              {quote.company?.name && <p className="text-sm font-bold">{quote.company.name}</p>}
-              {quote.branch && (
-                <p className="mt-1 text-xs text-mute">
-                  {quote.branch.name}
-                  {[quote.branch.address, quote.branch.city, quote.branch.department].filter(Boolean).length ? ` · ${[quote.branch.address, quote.branch.city, quote.branch.department].filter(Boolean).join(', ')}` : ''}
-                  {quote.branch.phone ? ` · ${quote.branch.phone}` : ''}
-                  {quote.branch.instagram ? ` · @${quote.branch.instagram}` : ''}
-                </p>
-              )}
-              <span className={`mt-4 inline-block rounded-lg border px-3 py-1 text-xs font-bold ${TONO[estado] || 'border-warn/30 bg-warn/10 text-warn'}`}>{ESTADO[estado] || estado}</span>
+            <CabeceraTienda
+              logo={quote.company?.logo ? logoUrl : ''}
+              empresa={quote.company?.name}
+              detalle={quote.branch ? [quote.branch.name, [quote.branch.address, quote.branch.city, quote.branch.department].filter(Boolean).join(', '), quote.branch.phone, quote.branch.instagram ? `@${quote.branch.instagram}` : ''].filter(Boolean).join(' · ') : ''}
+            >
+              <div className="mt-3 border-t border-ink-600/70 pt-3">
+                <p className="text-xs font-bold uppercase tracking-[.16em] text-fono-light">Cotización</p>
+                <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                  <h1 className="text-2xl font-bold tracking-tight">{quote.number || 'Cotización'}</h1>
+                  <span data-testid="estado-cotizacion" className={`rounded-lg border px-3 py-1.5 text-sm font-bold ${TONO[estado] || 'border-warn/30 bg-warn/10 text-warn'}`}>{ESTADO[estado] || estado}</span>
+                </div>
+                {quote.customerName && <p className="mt-1 text-sm text-mute">Para {quote.customerName}</p>}
+                {quote.validUntil && <p className="mt-1 text-sm text-mute">Válida hasta {new Date(quote.validUntil).toLocaleDateString('es-PY')}</p>}
               {quote.version && (
-                <p data-testid="aprobacion-version" className="mt-2 text-[11px] uppercase tracking-wider text-mute">
+                <p data-testid="aprobacion-version" className="mt-2 text-xs uppercase tracking-wider text-mute">
                   Versión {quote.version.number} · congelada {new Date(quote.version.frozenAt).toLocaleString('es-PY')}
                 </p>
               )}
@@ -122,7 +116,9 @@ export default function CotizacionPublica() {
                   {quote.resolution.note ? ` · Motivo: ${quote.resolution.note}` : ''}{quote.resolution.destination ? ` · ${quote.resolution.destination}` : ''}{quote.orderNumber ? ` · Pedido ${codigoPedido(quote.orderNumber)}` : ''}
                 </p>
               )}
-            </section>
+              </div>
+              <BotonWhatsApp telefono={quote.branch?.phone} mensaje={`Hola, consulto por la cotización ${quote.number || ''}.`} className="mt-3 w-full sm:w-auto" />
+            </CabeceraTienda>
 
             <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5">
               <h2 className="font-semibold">Productos</h2>
@@ -140,10 +136,14 @@ export default function CotizacionPublica() {
                   </div>
                 ))}
               </div>
-              <div className="mt-4 space-y-2 border-t border-ink-700 pt-4 text-sm">
-                <div className="flex items-center justify-between"><span className="text-mute">Subtotal</span><b className="tabular-nums">{gs(quote.subtotalPyg)}</b></div>
-                {Number(quote.discountPyg || 0) > 0 && <div className="flex items-center justify-between"><span className="text-mute">Descuento</span><b className="tabular-nums text-warn">− {gs(quote.discountPyg)}</b></div>}
-                <div className="flex items-center justify-between text-base"><span className="font-semibold">Total</span><b className="tabular-nums text-fono-light">{gs(quote.totalPyg)}</b></div>
+              <div className="mt-4 border-t border-ink-700 pt-4">
+                <ResumenTotales
+                  filas={[
+                    { etiqueta: 'Subtotal', valor: gs(quote.subtotalPyg) },
+                    ...(Number(quote.discountPyg || 0) > 0 ? [{ etiqueta: 'Descuento', valor: `− ${gs(quote.discountPyg)}`, tono: 'warn' }] : []),
+                  ]}
+                  total={Number(quote.totalPyg)}
+                />
               </div>
             </section>
 
@@ -224,11 +224,11 @@ export default function CotizacionPublica() {
               <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5 text-center">
                 <h2 className="font-semibold">Enlace de esta cotización</h2>
                 <img src={qr} alt="QR de la cotización" className="mx-auto mt-3 h-40 w-40 rounded-xl bg-white p-2" />
-                <p className="mt-2 break-all text-[11px] text-mute">{typeof window !== 'undefined' ? window.location.href : ''}</p>
+                <p className="mt-2 break-all text-xs text-mute">{typeof window !== 'undefined' ? window.location.href : ''}</p>
               </section>
             )}
 
-            <p className="pt-2 text-center text-[11px] text-mute">Documento no fiscal · Generado por MobOS para {quote.company?.name || 'la tienda'}</p>
+            <p className="pt-2 text-center text-xs text-mute">Documento no fiscal · Generado por MobOS para {quote.company?.name || 'la tienda'}</p>
           </div>
         )}
       </div>
