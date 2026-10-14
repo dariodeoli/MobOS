@@ -63,11 +63,12 @@ test.describe('#318 comprobante con datos reales', () => {
     expect(texto).toContain(VENTA.producto)
     expect(texto).toContain(VENTA.total)
     expect(texto).toContain(VENTA.numero)
-    expect(texto).toMatch(/Total de\s*ítems\s*1/)
+    expect(texto).toMatch(/Cantidad de\s*ítems\s*1/)
     expect(texto).not.toContain('Consumidor final')
     // La empresa del comprobante es la de la sesión (la venta), no la marca de
-    // la app ni un texto vacío.
-    expect(texto).toMatch(/EMPRESA\s+Aurora Móviles S\.A\./)
+    // la app ni un texto vacío: el encabezado del comprobante abre con la razón
+    // social y la sucursal (diseño #402, sin rótulo «Empresa»).
+    expect(texto).toMatch(/^Aurora Móviles S\.A\.\s+Casa Central/)
 
     // El papel se dimensiona a su contenido: nada queda cortado dentro del
     // iframe.
