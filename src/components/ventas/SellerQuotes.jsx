@@ -415,6 +415,7 @@ export default function SellerQuotes() {
       <SellerSection title="Cotizaciones">
         <Toolbar
           label="Acciones de Cotizaciones"
+          lista
           testId="barra-cotizaciones"
           className="ventas-f3-toolbar"
           plano
@@ -426,15 +427,15 @@ export default function SellerQuotes() {
               onChange={event => setQuery(event.target.value)}
             />
           }
-          more={
-            <button
-              type="button"
-              onClick={data.refresh}
-              disabled={data.loading}
-              className="min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore lg:min-h-9"
-            >
-              Actualizar
-            </button>
+          filters={
+            <ChipsFiltro
+              className="min-w-0"
+              etiqueta="Estado de las cotizaciones"
+              opciones={FILTROS}
+              mas={FILTROS_MAS}
+              valor={filtro}
+              onChange={setFiltro}
+            />
           }
           primary={
             // #314: crear también en demo: el pipeline completo es local.
@@ -442,16 +443,7 @@ export default function SellerQuotes() {
               + Nueva cotización
             </Button>
           }
-        >
-          <ChipsFiltro
-            className="basis-full"
-            etiqueta="Estado de las cotizaciones"
-            opciones={FILTROS}
-            mas={FILTROS_MAS}
-            valor={filtro}
-            onChange={setFiltro}
-          />
-        </Toolbar>
+        />
         {notice && <Aviso tono="ok">{notice}</Aviso>}
         {error && <Aviso tono="error">{error}</Aviso>}
         <SellerFeedback {...data} empty={false} />

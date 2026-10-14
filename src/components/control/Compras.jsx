@@ -9,7 +9,7 @@ import { purchasesApi } from '@/lib/api/purchases'
 import { suppliersApi } from '@/lib/api/suppliers'
 import { leerProveedoresRecientes, recordarProveedorReciente } from '@/lib/proveedores'
 import SupplierCombobox from '@/components/shared/SupplierCombobox'
-import BarraModulo from '@/components/shared/BarraModulo'
+import Toolbar from '@/components/shared/Toolbar'
 import '@/components/stock/stockToque.css'
 import ResumenMetricas from '@/components/shared/ResumenMetricas'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
@@ -487,20 +487,31 @@ export default function Compras() {
   }, { pendientes: 0, costo: 0, saldo: 0 }), [filtradas])
 
   return <div className="space-y-4">
-    {/* #256: barra de módulo única (identidad + acciones juntas). */}
-    <BarraModulo
-      icono="store"
-      titulo="Compras"
-      descripcion="Anticipos, crédito y costos finales auditables por equipo o lote."
+    {/* #388: una sola barra (buscador · acciones); la descripción explicativa se quitó. */}
+    <Toolbar
+      plano
+      lista
       testId="barra-compras"
-    >
-      <Button type="button" className="min-h-11 lg:min-h-0" onClick={() => { setError(''); setMessage(''); control.limpiar(); setNuevaCompra(true) }}><Icon name="plus" className="h-4 w-4" />Nueva compra</Button>
-      {!demo && <Button type="button" variant="outline" className="min-h-11 lg:min-h-0" onClick={exportar} disabled={exportando}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}
-      <Button type="button" variant="outline" className="min-h-11 lg:min-h-0" onClick={() => setSuppliersOpen(true)}>Proveedores</Button>
-    </BarraModulo>
-    <div className="flex flex-wrap items-center gap-2">
-      <SearchField value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar proveedor, referencia o número…" ariaLabel="Buscar compras" className="min-w-0 max-w-md flex-1" />
-    </div>
+      label="Compras"
+      search={<SearchField value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar proveedor, referencia o número…" ariaLabel="Buscar compras" />}
+      more={
+        <>
+          {!demo && (
+            <Button type="button" variant="outline" title="Exportar CSV" className="max-sm:px-0" onClick={exportar} disabled={exportando}>
+              <Icon name="download" className="h-4 w-4" /><span className="max-sm:sr-only">Exportar CSV</span>
+            </Button>
+          )}
+          <Button type="button" variant="outline" title="Proveedores" className="max-sm:px-0" onClick={() => setSuppliersOpen(true)}>
+            <Icon name="users" className="h-4 w-4" /><span className="max-sm:sr-only">Proveedores</span>
+          </Button>
+        </>
+      }
+      primary={
+        <Button type="button" title="Nueva compra" className="max-sm:px-0" onClick={() => { setError(''); setMessage(''); control.limpiar(); setNuevaCompra(true) }}>
+          <Icon name="plus" className="h-4 w-4" /><span className="max-sm:sr-only">Nueva compra</span>
+        </Button>
+      }
+    />
     {message && <Aviso tono="ok">{message}</Aviso>}
     {error && !nuevaCompra && <Aviso tono="error">{error}</Aviso>}
     {/* #307: el alta vive en un drawer y cada campo lleva su etiqueta. */}
@@ -622,12 +633,11 @@ export default function Compras() {
       {v2 && filtradas.length > 0 && (
         <ResumenMetricas
           testId="resumen-compras"
-          columnas={4}
           items={[
             { titulo: 'Órdenes', valor: filtradas.length, alcance: 'En pantalla' },
             { titulo: 'Por recibir', valor: resumenCompras.pendientes, alcance: 'En pantalla', nota: 'unidades', tono: resumenCompras.pendientes > 0 ? 'text-warn' : 'text-ok' },
-            { titulo: 'Comprado', valor: gs(resumenCompras.costo), alcance: 'En pantalla', nota: 'costo final' },
-            { titulo: 'Saldo por pagar', valor: gs(resumenCompras.saldo), alcance: 'En pantalla', nota: 'anticipos y créditos', tono: resumenCompras.saldo > 0 ? 'text-warn' : 'text-ok' },
+            { titulo: 'Comprado', valor: gs(resumenCompras.costo), alcance: 'En pantalla' },
+            { titulo: 'Saldo por pagar', valor: gs(resumenCompras.saldo), alcance: 'En pantalla', tono: resumenCompras.saldo > 0 ? 'text-warn' : 'text-ok' },
           ]}
         />
       )}

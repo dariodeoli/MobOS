@@ -58,7 +58,7 @@ function ContextoProducto({ ctx }) {
 }
 
 function BarraUnidades({ ctx, elegirEstado, limpiar }) {
-  const angosta = usePantallaAngosta('(min-width: 768px)')
+  const angosta = usePantallaAngosta('(min-width: 1024px)')
   const { tab, filtros, cambiarFiltros, branches, proveedores, rolVeCosto, abrirReceive, setScannerOpen, startCount, setGondolaOpen, setReserveOpen, setTransferOpen, exportando, busy, exportarUnidades, orden, recordarOrden } = ctx
   return (
     <Toolbar
