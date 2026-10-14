@@ -69,7 +69,7 @@ function filasDelDia() {
     WHERE p."tenantId"='${TENANT}' AND o."branchId"='${rama}' AND p."paidAt" >= '${inicioDia}' AND p."paidAt" < '${finDia}'`.replace(/\s+/g, ' '))
   return crudo.split('\n').filter(Boolean).map((linea) => {
     const [id, method, status, amount, reversalOfId, drawerImpact] = linea.split('|')
-    return { id, method, status, amount: Number(amount), reversalOfId, sinCajon: drawerImpact === 'f' }
+    return { id, method, status, amount: Number(amount), reversalOfId, sinCajon: drawerImpact === 'false' }
   })
 }
 function auditoriaEsperada() {
