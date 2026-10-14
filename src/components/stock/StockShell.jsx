@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { Aviso, Card } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { temaV2Activo } from '@/lib/temaV2'
+import { claveBadge, publicarBadgePestana } from '@/lib/badgesPestanas'
 import BarraLote from '@/components/shared/BarraLote'
 import { seccionDeTab, seccionesDeStock } from './stockHelpers'
 import { useStockControl } from './useStockControl'
@@ -23,6 +24,14 @@ import TabConteos from './TabConteos'
 export default function StockShell({ tab: tabProp, onTabChange } = {}) {
   const ctx = useStockControl({ tab: tabProp, onTabChange })
   const { inventarioOperativo, setReserveOpen, tab, busy, cambiarTab, cambiarFiltros, limpiarFiltros, grupos, notice, error, seleccionados, setSeleccionados, venderTodos, unidadesElegidas, verify, setReserve, requestReason, copiarImeis, exportarUnidadesSeleccionadas, imprimirEtiquetasSeleccion } = ctx
+  // #357: el contador de autorizaciones pendientes también se ve en la pestaña
+  // «Control» del shell; se retira al salir de Stock para no dejar uno viejo.
+  const pendientesStock = ctx.pendientesStock
+  useEffect(() => {
+    const clave = claveBadge('stock', 'control')
+    publicarBadgePestana(clave, pendientesStock)
+    return () => publicarBadgePestana(clave, 0)
+  }, [pendientesStock])
   const secciones = useMemo(() => seccionesDeStock(grupos || []), [grupos])
   const grupoActivo = seccionDeTab(secciones, tab) || { id: 'unidades', label: 'Unidades', tabs: ['unidades'] }
   // «Vendidos» y «Eliminados» son opciones del chip Estado: cambian de vista. Si se
