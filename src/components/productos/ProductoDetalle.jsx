@@ -42,7 +42,8 @@ const nombre = (row) => row?.name || row?.nombre || ''
 const categoria = (row) => row?.category || row?.categoria || ''
 const precio = (row) => Number(row?.pricePyg ?? row?.precioVenta ?? 0)
 const mayorista = (row) => Number(row?.wholesalePricePyg ?? 0)
-const costo = (row) => Number(row?.costPyg ?? row?.precioCosto ?? 0)
+const costoRaw = (row) => row?.costPyg ?? row?.precioCosto ?? null
+const costo = (row) => Number(costoRaw(row) ?? 0)
 const esCompraRecibida = (action) => /recibida/i.test(String(action || ''))
 
 // Detalle premium de un producto: resumen operativo, stock por estado, equipos
@@ -138,6 +139,8 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
   }, [units])
 
   const costoUnitario = costo(current)
+  // #352: sin permiso de costo el backend manda null; no se muestra Gs 0 ni «Costo pendiente».
+  const costoOculto = costoRaw(current) === null && !canManage
   const margen = precio(current) - costoUnitario
   const margenPct = precio(current) > 0 ? (margen / precio(current)) * 100 : null
   const valorStock = costoUnitario * Number(stockMostrado || 0)
@@ -289,8 +292,8 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
             )}
             <div className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
               <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Stock</p><p className="mt-1 text-lg font-bold tabular-nums">{stockMostrado}</p></div>
-              <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Valor de stock</p><p className="mt-1 font-semibold">{costoUnitario > 0 ? <Money value={valorStock} /> : 'Costo pendiente'}</p></div>
-              <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Margen por unidad</p><p className="mt-1 font-semibold">{costoUnitario > 0 && precio(current) > 0 ? <><Money value={margen} /> <span className="text-xs font-normal text-mute">{formatPercent(margenPct)}%</span></> : 'Cargá costo y precio'}</p></div>
+              {!costoOculto && <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Valor de stock</p><p className="mt-1 font-semibold">{costoUnitario > 0 ? <Money value={valorStock} /> : 'Costo pendiente'}</p></div>}
+              {!costoOculto && <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Margen por unidad</p><p className="mt-1 font-semibold">{costoUnitario > 0 && precio(current) > 0 ? <><Money value={margen} /> <span className="text-xs font-normal text-mute">{formatPercent(margenPct)}%</span></> : 'Cargá costo y precio'}</p></div>}
               <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Reposición</p><p className="mt-1 font-semibold">{current?.reorderPoint ?? '—'}</p></div>
             </div>
           </div>

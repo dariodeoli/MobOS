@@ -83,3 +83,20 @@ test('venta: linkSoldUnits enlaza la línea y la fecha, acotado por empresa y SO
 test('anulación/devolución: UNLINK_SOLD limpia el vínculo de venta', () => {
   assert.deepEqual({ ...UNLINK_SOLD }, { soldOrderItemId: null, soldAt: null })
 })
+
+test('classifyStockKind (#360): los alias son palabra entera, no subcadena', () => {
+  assert.equal(classifyStockKind({ category: 'Showcase' }), 'OTRO', '«case» dentro de showcase no es accesorio')
+  assert.equal(classifyStockKind({ category: 'Bandada' }), 'OTRO', '«banda» dentro de bandada no es accesorio')
+  assert.equal(classifyStockKind({ category: 'Casero' }), 'OTRO')
+  assert.equal(classifyStockKind({ category: 'Supermercado' }), 'OTRO')
+  // Plurales y compuestos habituales siguen clasificando.
+  assert.equal(classifyStockKind({ category: 'Fundas' }), 'ACCESORIO')
+  assert.equal(classifyStockKind({ category: 'Cargadores' }), 'ACCESORIO')
+  assert.equal(classifyStockKind({ category: 'Auriculares' }), 'ACCESORIO')
+  assert.equal(classifyStockKind({ category: 'Cases y bandas' }), 'ACCESORIO')
+  assert.equal(classifyStockKind({ category: 'Celulares' }), 'EQUIPO')
+  assert.equal(classifyStockKind({ category: 'Relojes' }), 'EQUIPO')
+  assert.equal(classifyStockKind({ category: 'Smartwatch' }), 'EQUIPO')
+  assert.equal(classifyStockKind({ category: 'iPhone15' }), 'EQUIPO')
+  assert.equal(classifyStockKind({ category: 'Baterías' }), 'REPUESTO')
+})

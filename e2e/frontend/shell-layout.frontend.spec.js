@@ -252,7 +252,7 @@ for (const dark of [false, true]) {
     [390, 844],
     [375, 812],
   ]) {
-    test(`bell with badge and online avatar live in the header, sidebar footer has neither (${width} ${dark ? 'dark' : 'light'})`, async ({
+    test(`bell, branch and theme toggle live in the header; online avatar lives at the sidebar bottom above Ayuda (${width} ${dark ? 'dark' : 'light'})`, async ({
       page,
     }, testInfo) => {
       await mkdir(out, { recursive: true })
@@ -292,7 +292,34 @@ for (const dark of [false, true]) {
         const side = page.getByTestId('shell-lateral')
         await expect(side.getByText('Notificaciones')).toHaveCount(0)
         await expect(side.getByText(/en línea/i)).toHaveCount(0)
-        await expect(side.getByTestId('shell-perfil')).toHaveCount(0)
+        // The user (photo + name + small role) sits at the sidebar bottom, above Ayuda.
+        await expect(side.getByTestId('shell-perfil')).toBeVisible()
+        await expect(side.getByTestId('shell-perfil')).toContainText(/Dueño|Vendedor|Administrador|\S/)
+        const perfilBox = await avatar.boundingBox()
+        const ayudaBox = await side.getByTestId('shell-pie-ayuda').boundingBox()
+        expect(perfilBox.y + perfilBox.height, 'user above Ayuda').toBeLessThanOrEqual(ayudaBox.y + 1)
+        // Header: branch + bell + theme toggle, 44px targets, in that order.
+        const sucursal = page.getByTestId('shell-sucursal-desktop')
+        const tema = page.getByTestId('shell-tema')
+        await expect(page.getByTestId('shell-lateral').getByTestId('shell-sucursal-desktop')).toHaveCount(0)
+        const [sb, bb2, tb] = await Promise.all([sucursal, bell, tema].map(el => el.boundingBox()))
+        expect(sb.x + sb.width, 'branch before bell').toBeLessThanOrEqual(bb2.x + 1)
+        expect(bb2.x + bb2.width, 'bell before theme').toBeLessThanOrEqual(tb.x + 1)
+        for (const b of [bb2, tb]) {
+          expect(b.width).toBeGreaterThanOrEqual(44)
+          expect(b.height).toBeGreaterThanOrEqual(44)
+        }
+        await tema.click()
+        await expect(page.locator('html')).toHaveClass(dark ? /^(?!.*dark)/ : /dark/)
+        await tema.click()
+        // Compact nav: every section row is 36px with no band taller than 24px, and no scrolling at 1440x900.
+        const nav = side.getByRole('navigation', { name: 'Navegación principal' })
+        const gaps = await nav.locator('button').evaluateAll(nodes => {
+          const rects = nodes.map(n => n.getBoundingClientRect())
+          return rects.slice(1).map((r, i) => r.top - rects[i].bottom)
+        })
+        expect(Math.max(...gaps), 'banda vacía entre ítems').toBeLessThanOrEqual(24)
+        expect(await nav.evaluate(el => el.scrollHeight <= el.clientHeight), 'nav sin scroll').toBe(true)
         // Same row as the H1.
         const h1 = await page.locator('h1').boundingBox()
         const bb = await bell.boundingBox()
@@ -317,6 +344,54 @@ for (const dark of [false, true]) {
       for (const kind of ['small', 'lowContrast'])
         for (const item of m[kind].filter(entry => entry.shell))
           testInfo.annotations.push({ type: kind, description: `${width} ${item.what}` })
+    })
+  }
+}
+
+// Menú plegado: columna de solo íconos. Secciones, pie, sucursal y píldora
+// offline se pliegan juntos; las etiquetas pasan a tooltip y aria-label.
+for (const dark of [false, true]) {
+  for (const [width, height] of [
+    [1280, 900],
+    [1440, 900],
+  ]) {
+    test(`menú plegado ${width} ${dark ? 'dark' : 'light'}: todo en una columna de íconos con etiquetas accesibles`, async ({ page }) => {
+      await page.setViewportSize({ width, height })
+      await enterDemo(page, 'Dueño')
+      await setTheme(page, dark)
+      const side = page.getByTestId('shell-lateral')
+      const expandido = (await side.boundingBox()).width
+      await side.getByRole('button', { name: 'Colapsar menú' }).click()
+      await expect(side.getByRole('button', { name: 'Expandir menú' })).toBeVisible()
+      await page.waitForTimeout(150)
+      const box = await side.boundingBox()
+      expect(box.width, 'columna plegada más angosta').toBeLessThan(expandido / 2)
+      expect(box.width, 'columna de íconos').toBeLessThanOrEqual(72)
+      // Sin textos visibles: ni secciones, ni pie, ni sucursal, ni tienda.
+      await expect(side.getByTestId('shell-tienda')).toHaveCount(0)
+      await expect(side.getByText('Buscar…')).toHaveCount(0)
+      // La sucursal vive en el encabezado, no en la columna plegada.
+      await expect(side.getByTestId('sucursal-info').or(side.getByTestId('sucursal-selector'))).toHaveCount(0)
+      await expect(page.getByTestId('shell-sucursal-desktop')).toBeVisible()
+      const botones = side.getByRole('button')
+      const total = await botones.count()
+      expect(total).toBeGreaterThan(4)
+      for (let i = 0; i < total; i += 1) {
+        const boton = botones.nth(i)
+        const b = await boton.boundingBox()
+        const nombre = await boton.getAttribute('aria-label')
+        expect(nombre, `botón ${i} con aria-label`).toBeTruthy()
+        expect(b.width, `${nombre} ancho`).toBeGreaterThanOrEqual(44)
+        expect(b.height, `${nombre} alto`).toBeGreaterThanOrEqual(44)
+        expect(b.x + b.width, `${nombre} dentro de la columna`).toBeLessThanOrEqual(box.x + box.width + 0.5)
+        expect(await boton.innerText(), `${nombre} sin texto visible`).toBe('')
+      }
+      const sinTitle = await side.locator('[data-testid^="shell-pie-"], nav button').evaluateAll(els => els.filter(el => !el.getAttribute('title')).length)
+      expect(sinTitle, 'tooltips en secciones y pie').toBe(0)
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'sin scroll horizontal').toBe(true)
+      await side.getByRole('button', { name: 'Expandir menú' }).click()
+      await expect(side.getByTestId('shell-tienda')).toBeVisible()
+      expect((await side.boundingBox()).width).toBeCloseTo(expandido, 0)
     })
   }
 }

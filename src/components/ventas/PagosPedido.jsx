@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import CheckAnimado from '@/components/shared/CheckAnimado'
 import { Aviso, Badge, BarraProgreso, Button, Input, Modal, MoneyInput, Select } from '@/components/ui'
 import { useSesion } from '@/lib/sesion'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
@@ -429,7 +430,7 @@ export default function PagosPedido({ venta, onClose }) {
       </article>})}
     </div>
     {error && <p role="alert" className="mt-4 text-sm text-bad">{error}</p>}
-    {notice && <p role="status" className="mt-4 text-sm text-fono-light">{notice}</p>}
+    {notice && <p role="status" data-testid="pago-aviso" className="mobos-chip-cambia mt-4 flex items-center gap-2 text-sm text-ok"><CheckAnimado size={24} className="shrink-0" />{notice}</p>}
     {esDemo && <p className="mt-4 text-xs text-mute">Demo: pagos y archivos se guardan sólo en este navegador.</p>}
   </Modal>
 }

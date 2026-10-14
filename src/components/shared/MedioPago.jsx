@@ -191,17 +191,26 @@ export function marcaDeMedio(medio) {
 
 /**
  * Muestra el logo del medio de pago. Si no se reconoce la marca, cae a un
- * texto simple para no romper la fila.
+ * texto simple para no romper la fila. Con `conNombre` el nombre del medio va
+ * siempre al lado del logo (resúmenes donde el logo solo no alcanza para
+ * distinguir «Efectivo» de «Transferencia»).
  */
-export default function MedioPago({ medio, className, alto = 'h-5' }) {
+export default function MedioPago({ medio, className, alto = 'h-5', conNombre = false }) {
   const clave = marcaDeMedio(medio)
   if (!clave) {
     return <span className={cn('text-sm text-mute', className)}>{medio || '—'}</span>
   }
   const Logo = MARCAS_MEDIO_PAGO[clave]
-  return (
-    <span className={cn('inline-flex items-center', alto, className)} title={medio}>
+  const logo = (
+    <span className={cn('inline-flex shrink-0 items-center', alto, !conNombre && className)} title={medio}>
       <Logo />
+    </span>
+  )
+  if (!conNombre) return logo
+  return (
+    <span className={cn('inline-flex min-w-0 items-center gap-2', className)}>
+      {logo}
+      <span className="truncate text-sm text-fore">{medio}</span>
     </span>
   )
 }

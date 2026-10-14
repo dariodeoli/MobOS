@@ -103,6 +103,7 @@ export function normalizarMetricas({ dia, productos, procesadoras, cuentas, conc
     pedidosPagados: numero(totals.paidOrders ?? pedidos),
     pedidosPendientes: numero(totals.pendingOrders),
     unidades: numero(totals.units),
+    unidadesAnterior: previous.units === undefined || previous.units === null ? null : numero(previous.units),
     ticket: ticketPromedio(total, pedidos),
     ticketAnterior: ticketPromedio(previous.totalPyg, previous.orders),
     serie: (Array.isArray(dia?.groups) ? dia.groups : []).map((grupo) => [grupo.key, numero(grupo.totalPyg)]),

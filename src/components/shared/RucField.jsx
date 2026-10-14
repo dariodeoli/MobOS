@@ -3,7 +3,7 @@ import { BotonDentroCampo } from 'owncoding-ui'
 import { Badge, Input } from '@/components/ui'
 import { api } from '@/lib/api/client'
 import { consultarRucDemo } from '@/lib/demoRuc'
-import { isDemoRuntime } from '@/lib/demoMode'
+import { demoSessionActive, isDemoRuntime } from '@/lib/demoMode'
 import { admitRucResponse, createRucRequestGuard, formatRucInput, lookupDemoRuc, parseRucInput } from './rucLookup.js'
 
 const useClientLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect
@@ -24,7 +24,9 @@ export default function RucField({
   if (!guard.current) guard.current = createRucRequestGuard()
   const scope = useRef(null)
   const query = formatRucInput(value)
-  const demo = esDemo || isDemoRuntime
+  // La sesión demo se relee: `isDemoRuntime` se fija al cargar el módulo y no
+  // ve una sesión demo iniciada después sin recargar.
+  const demo = esDemo || isDemoRuntime || demoSessionActive()
   scope.current = { query, demo, disabled, lookupDisabled: consultarDisabled, visible: mostrarExtractor }
 
   function invalidate() {

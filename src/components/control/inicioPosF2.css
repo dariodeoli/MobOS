@@ -103,6 +103,11 @@
     border-top: 0;
   }
 }
+@media (min-width: 1280px) {
+  .inicio-kpi-stripe.inicio-kpi-stripe--dos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 @media (min-width: 1024px) {
   .pos-product-grid {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -205,4 +210,54 @@
   .inicio-f2 button {
     min-width: 44px;
   }
+}
+
+/* Bloques diferenciados (encabezado con banda tintada). Cada bloque declara su
+   color con --bloque (terna RGB de un token); el título conserva el color de
+   texto principal para sostener contraste >= 4.5 en claro y oscuro. */
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-cliente'] { --bloque: var(--c-info); }
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-productos'] { --bloque: var(--c-fono); }
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-carrito'] { --bloque: var(--c-ok); }
+.shell-nav-v2 .pos-f2 [data-testid='pos-cobro'] { --bloque: var(--c-fore); }
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-cliente'],
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-productos'],
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-carrito'],
+.shell-nav-v2 .pos-f2 [data-testid='pos-cobro'] {
+  border-top: 3px solid rgb(var(--bloque));
+}
+.shell-nav-v2 .pos-f2 section[data-testid^='pos-'] > [data-bloque-cab] {
+  margin: -12px -12px 12px;
+  padding: 8px 12px;
+  background: rgb(var(--bloque) / 0.1);
+  border-bottom: 1px solid rgb(var(--bloque) / 0.25);
+  border-radius: 7px 7px 0 0;
+}
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-carrito'] > div:first-child {
+  background: rgb(var(--bloque) / 0.1);
+  border-bottom-color: rgb(var(--bloque) / 0.25);
+}
+.shell-nav-v2 .pos-f2 [data-testid='pos-bloque-carrito'] h3,
+.shell-nav-v2 .pos-f2 [data-testid='pos-cobro'] h3 {
+  color: rgb(var(--c-fore));
+}
+
+/* Mismo patrón de encabezado en tarjetas de Inicio, Análisis y Finanzas. */
+.shell-nav-v2 .graf-card > header,
+.shell-nav-v2 .inicio-f2 .rounded-xl.border > div:first-child:has(h2) {
+  margin: -16px -16px 0;
+  padding: 10px 16px;
+  background: rgb(var(--c-ink-700));
+  border-bottom: 1px solid rgb(var(--c-ink-600));
+  border-radius: 9px 9px 0 0;
+}
+.shell-nav-v2 .inicio-f2 .rounded-xl.border > div:first-child:has(h2) {
+  margin-bottom: 12px;
+}
+.shell-nav-v2 .inicio-kpi-stripe {
+  border-top: 3px solid rgb(var(--c-fono));
+}
+/* Stock: la barra de filtros y la lista son bloques distintos. */
+.shell-nav-v2 .stock-lista-encabezado {
+  background: rgb(var(--c-ink-700));
+  border-color: rgb(var(--c-ink-600));
 }

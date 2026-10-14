@@ -205,6 +205,8 @@ export default function SellerCatalog() {
 
   const enStock = data.rows.filter((fila) => Number(fila.stock) > 0).length
   const agotados = data.rows.length - enStock
+  // #352: con costo null (permiso apagado) no se muestra «Valor a costo» en Gs 0.
+  const hayCosto = data.rows.some((fila) => (fila.costPyg ?? fila.precioCosto) != null)
   const valorCosto = data.rows.reduce((suma, fila) => suma + Number(fila.costPyg ?? fila.precioCosto ?? 0) * Number(fila.stock || 0), 0)
 
   return <SellerSection title="Productos">
@@ -234,7 +236,7 @@ export default function SellerCatalog() {
         { titulo: 'Productos', valor: data.rows.length, alcance: 'En pantalla', nota: `${rows.length} visibles` },
         { titulo: 'En stock', valor: enStock, alcance: 'En pantalla' },
         { titulo: 'Agotados', valor: agotados, alcance: 'En pantalla', tono: agotados > 0 ? 'text-warn' : 'text-ok' },
-        { titulo: 'Valor a costo', valor: gs(valorCosto), alcance: 'En pantalla' },
+        ...(hayCosto ? [{ titulo: 'Valor a costo', valor: gs(valorCosto), alcance: 'En pantalla' }] : []),
       ]}
     />
 
