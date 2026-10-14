@@ -269,8 +269,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
           <div className="flex items-center justify-between"><h4 className={TITULO_SECCION}>Direcciones</h4><Button type="button" variant="outline" onClick={addAddress}>+ Dirección</Button></div>
           {!value.addresses?.length && <p className="text-xs text-mute">Sin dirección cargada. Podés continuar con retiro en tienda.</p>}
           {(value.addresses || []).map((address, index) => (
-            <div key={index} data-testid="direccion-tarjeta" className="relative space-y-3 rounded-xl border border-ink-600 p-3 md:pr-12">
-              <div className="flex justify-end md:absolute md:right-2 md:top-2"><IconAction icon="trash" tone="bad" label="Quitar dirección" onClick={() => pedirQuitarDireccion(index)} /></div>
+            <div key={index} data-testid="direccion-tarjeta" className="space-y-3 rounded-xl border border-ink-600 p-3">
               <GrillaCampos>
                 <Campo ancho="etiqueta" rotulo="Etiqueta"><Input autoCapitalize="words" value={address.label || ''} onChange={event => setAddress(index, 'label', capitalizarPrimera(event.target.value))} placeholder="Casa, trabajo…" /></Campo>
                 <Campo como="div" ancho="pais" rotulo="País"><CountrySelect value={address.country ?? 'Paraguay'} onChange={country => setAddress(index, 'country', country)} /></Campo>
@@ -279,10 +278,13 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
                   {address.department && address.department.trim().toLowerCase() !== String(address.city || '').trim().toLowerCase() && <span className="block truncate px-1 pt-1 text-[11px] text-fono-light">{address.department}</span>}
                 </Campo>
               </GrillaCampos>
-              <GrillaCampos>
+              <div className="flex flex-col gap-2 md:flex-row md:items-end">
+              <GrillaCampos className="min-w-0 flex-1">
                 <Campo ancho="flexible" rotulo="Dirección"><Input autoCapitalize="sentences" value={address.address || ''} onChange={event => setAddress(index, 'address', capitalizarPrimera(event.target.value))} placeholder="Calle, número y referencia" /></Campo>
                 <Campo ancho="flexible" rotulo="Notas"><Input autoCapitalize="sentences" value={address.notes || ''} onChange={event => setAddress(index, 'notes', capitalizarPrimera(event.target.value))} placeholder="Horario, piso, referencia" /></Campo>
               </GrillaCampos>
+              <div className="self-end"><IconAction icon="trash" tone="bad" label="Quitar dirección" onClick={() => pedirQuitarDireccion(index)} /></div>
+              </div>
             </div>
           ))}
         </section>
