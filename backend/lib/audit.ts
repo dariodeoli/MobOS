@@ -15,6 +15,8 @@ export const ACCIONES_AUDITORIA: Record<string, string> = {
   CREDIT_INSTALLMENT_PAID: 'Cuota cobrada',
   PAYMENT_CONFIRMED: 'Cobro confirmado',
   PAYMENT_REJECTED: 'Cobro rechazado',
+  ORDER_PAYMENT_CORRECTED: 'Medio de pago corregido',
+  TENANT_PAYMENT_CORRECTION_POLICY_UPDATED: 'Permiso de corregir pagos',
   ORDER_ARCHIVED: 'Pedido archivado',
   ORDER_UNARCHIVED: 'Pedido desarchivado',
   ORDER_NOTIFIED_WHATSAPP: 'Aviso al cliente por WhatsApp',

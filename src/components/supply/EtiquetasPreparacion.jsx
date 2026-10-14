@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Button, Modal, Skeleton, useResultado } from '@/components/ui'
+import { Button, Skeleton, useResultado } from '@/components/ui'
+import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import Icon from '@/components/shared/Icon'
 import { useCompartirImagen } from '@/components/shared/CompartirImagen'
 import MenuSecundario from '@/components/shared/MenuSecundario'
@@ -83,7 +84,7 @@ export default function EtiquetasPreparacion({ open, onClose, compra }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Etiquetas de la preparación" size="amplio">
+    <VentanaDetalle open={open} onClose={onClose} title="Etiquetas de la preparación" size="lg">
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-mute">
@@ -138,6 +139,6 @@ export default function EtiquetasPreparacion({ open, onClose, compra }) {
           </Button>
         </div>
       </div>
-    </Modal>
+    </VentanaDetalle>
   )
 }

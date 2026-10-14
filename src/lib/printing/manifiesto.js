@@ -10,6 +10,7 @@
 // nunca un QR muerto); el backend ya arma `/envio/<publicToken>`, pendiente de
 // la página pública (docs/MANIFIESTO.md).
 import { CONDICIONES_STOCK } from './etiquetaUnidad.js'
+import { siglaProveedor } from './ventaPapel.js'
 
 const texto = (valor) => String(valor ?? '').trim()
 
@@ -72,7 +73,7 @@ export function datosManifiesto(manifiesto = {}, { emisor = '', enlace = '', aho
     guia: texto(manifiesto.guia),
     responsable: texto(manifiesto.responsable),
     compra: texto(manifiesto.compra),
-    proveedor: texto(manifiesto.proveedor),
+    proveedor: siglaProveedor(manifiesto.proveedor, manifiesto.proveedorCodigo),
     salida: texto(manifiesto.salida),
     salidaTexto: fechaHora(manifiesto.salida, true),
     eta: texto(manifiesto.eta),

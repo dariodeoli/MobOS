@@ -5,6 +5,7 @@ import { InputError, objectInput, textInput } from '../../../../../lib/payment-i
 import { canAccessOrder, canProcessOrderReturn } from '../../../../../lib/orders'
 import { consumeAuthorization, usableAuthorization } from '../../../../../lib/authorizations'
 import { changeStock, UNLINK_SOLD } from '../../../../../lib/stock'
+import { countablePayments } from '../../../../../lib/payment-net'
 
 // Anulación total de un pedido: marca el pedido como CANCELLED, restituye al
 // stock las unidades serializadas que ya estaban vendidas y deja auditoría con
@@ -33,6 +34,8 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
       voidAuthorization = { id: usableAuthorization(authorization, { userId: session.user.id, kinds: ['ORDER_VOID'], label: 'anulación' }).id }
     }
     const result = await prisma.$transaction(async tx => {
+      // Misma cerradura que la corrección de pagos (#393).
+      await tx.$queryRaw`SELECT "id" FROM "Order" WHERE "id" = ${orderId} AND "tenantId" = ${tenant} FOR UPDATE`
       const order = await tx.order.findFirst({ where: { id: orderId, tenantId: tenant }, include: { items: true, payments: true } })
       if (!order || !canAccessOrder(session.user, order)) throw new InputError('Pedido no encontrado.', 404)
       if (order.status === 'CANCELLED') throw new InputError('Este pedido ya fue anulado o cancelado.', 409)
@@ -71,12 +74,12 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
           restoredUnits,
           // Los pagos no se borran ni se reembolsan (decisión del pedido):
           // quedan intactos y el saldo pendiente desaparece al pasar a CANCELLED.
-          paymentsKept: order.payments.length,
+          paymentsKept: countablePayments(order.payments).length,
           refundedPyg: 0,
           pendingDebt: 0,
         },
       } })
-      return { id: updated.id, orderNumber: updated.orderNumber, status: updated.status, restoredUnits, refundedPyg: 0, paymentsKept: order.payments.length }
+      return { id: updated.id, orderNumber: updated.orderNumber, status: updated.status, restoredUnits, refundedPyg: 0, paymentsKept: countablePayments(order.payments).length }
     })
     return json(result)
   } catch (cause) {

@@ -4,6 +4,7 @@ import { error, json, tenantId } from '../../../../lib/http'
 import { ensureStoreBranch } from '../../../../lib/store-branch'
 import { InputError, objectInput, textInput } from '../../../../lib/payment-input'
 import { numero, numeroOpcional } from '../../../../lib/montos'
+import { DRAWER_PAYMENT_WHERE, dayCorrections } from '../../../../lib/payment-net'
 
 // Auditoría de efectivo (#161): lista las operaciones de caja de un rango
 // (cobros en efectivo y movimientos) con su marca de verificación, y permite
@@ -49,7 +50,7 @@ export async function GET(request: Request) {
         orderBy: { openedAt: 'desc' },
       }),
       prisma.payment.findMany({
-        where: { tenantId: tenant, method: 'CASH', status: 'CONFIRMED', paidAt: { gte: start, lt: end }, order: { branchId } },
+        where: { tenantId: tenant, method: 'CASH', status: 'CONFIRMED', paidAt: { gte: start, lt: end }, order: { branchId }, AND: [DRAWER_PAYMENT_WHERE] },
         select: {
           id: true, amountPyg: true, paidAt: true, reference: true,
           order: { select: { orderNumber: true, customer: { select: { name: true } }, seller: { select: { name: true } } } },
@@ -93,12 +94,14 @@ export async function GET(request: Request) {
       return { ...operacion, status: marca?.status || 'PENDING', notaAuditoria: marca?.note || '', auditadoPor: marca?.auditedBy?.name || '', auditadoAt: marca?.auditedAt || null }
     }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
 
+    const corrections = await dayCorrections(prisma, tenant, branchId, start, end)
     const aperturaPyg = sesiones.reduce((suma, sesion) => suma + numero(sesion.openingPyg), 0)
     const esperadoPyg = sesiones.reduce((suma, sesion) => suma + numero(sesion.expectedPyg), 0)
     const diferenciaPyg = sesiones.reduce((suma, sesion) => suma + (sesion.countedPyg === null ? 0 : numero(sesion.countedPyg) - numero(sesion.expectedPyg)), 0)
     const recibidoPyg = operaciones.filter((operacion) => operacion.direction === 'IN').reduce((suma, operacion) => suma + operacion.montoPyg, 0)
     return json({
       rango: { from, to, branchId },
+      corrections,
       resumen: {
         aperturaPyg,
         esperadoPyg,

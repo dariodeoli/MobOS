@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { fechaHora, paraInputFechaHora } from '@/utils/fecha'
 import { serialEnmascarado } from '@/utils/serial'
 import { qrDataUrl } from '@/lib/qr'
-import { Aviso, Badge, Button, Drawer, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import Icon from '@/components/shared/Icon'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import AttachmentInput from '@/components/shared/AttachmentInput'
@@ -425,7 +426,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   const reparaciones = events.filter(evento => evento.type === 'repair')
 
   return (
-    <Drawer open onClose={onClose} title={unit.product?.name || 'Unidad'} className={cn('w-full sm:max-w-xl', temaV2Activo() && 'tema-v2')}>
+    <VentanaDetalle open onClose={onClose} title={unit.product?.name || 'Unidad'} size="lg" className={cn(temaV2Activo() && 'tema-v2')}>
       <div className="space-y-5">
         {/* Encabezado */}
         <section className="rounded-2xl border border-ink-600 bg-gradient-to-br from-ink-800 to-ink-800/40 p-4">
@@ -826,6 +827,6 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
           </div>
         </div>
       </Modal>
-    </Drawer>
+    </VentanaDetalle>
   )
 }

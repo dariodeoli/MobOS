@@ -7,7 +7,8 @@ import { listVentas, productosById } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { codigoPedido, fechaLegible } from '@/utils/pedido'
 import { normalizarBusqueda } from '@/utils/cliente'
-import { Button, Drawer, EmptyState, MenuDesplegable } from '@/components/ui'
+import { Button, EmptyState, MenuDesplegable } from '@/components/ui'
+import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import { cn } from '@/lib/utils'
 import SerialTexto from '@/components/shared/SerialTexto'
 import { ultimos4 } from '@/utils/serial'
@@ -233,7 +234,7 @@ function VistaRapidaPedido({ row, onClose, onAbrir }) {
   const pagado = Number(row.paid || 0)
   const pendiente = Number(row.pending || 0)
   return (
-    <Drawer open onClose={onClose} title={codigoPedido(row.number) || 'Pedido'} className="ventas-f3 w-full sm:max-w-md">
+    <VentanaDetalle open onClose={onClose} title={codigoPedido(row.number) || 'Pedido'} className="ventas-f3">
       <div className="space-y-4" data-testid="pedido-vista-rapida">
         <div className="flex flex-wrap items-center gap-2">
           <BadgePago row={row} v2 />
@@ -259,7 +260,7 @@ function VistaRapidaPedido({ row, onClose, onAbrir }) {
           <Button type="button" onClick={onAbrir}>Ver pedido completo</Button>
         </div>
       </div>
-    </Drawer>
+    </VentanaDetalle>
   )
 }
 
