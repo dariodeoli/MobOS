@@ -13,6 +13,7 @@ import { formatGs } from '@/utils/moneda'
 import { validarEnteroNoNegativo, validarPorcentajeDecimal, validarPorcentajeEntero } from '@/utils/limitesEmpresa'
 import { mensajeDeGuardado } from '@/utils/guardadoCuenta'
 import { cn } from '@/lib/utils'
+import CotizacionFuente from './CotizacionFuente'
 
 // Grupo Comercial de Configuración (#253): seguro de ventas, límites y
 // autorizaciones, fidelización y mora, y las listas de precios con sus precios
@@ -203,6 +204,8 @@ export default function Comercial({ account, onTenantChange, onReauth }) {
           {guardadoLimites.panel}
         </Card>
       </form>
+
+      <CotizacionFuente onReauth={onReauth} />
 
       <Suspense fallback={null}>
         <Precios />

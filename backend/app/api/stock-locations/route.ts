@@ -1,6 +1,7 @@
 import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
+import { parseLocationIcon } from '../../../lib/unit-code'
 
 const text = (value: unknown, max = 120) => typeof value === 'string' && value.trim().length > 0 && value.trim().length <= max ? value.trim() : null
 const privileged = (role: string) => role === 'ADMIN' || role === 'GERENTE'
@@ -30,12 +31,14 @@ export async function POST(request: Request) {
     const branchId = text(body.branchId, 128), name = text(body.name), code = body.code === undefined || body.code === null || body.code === '' ? null : text(body.code, 32)?.toUpperCase()
     const color = body.color === undefined || body.color === null || body.color === '' ? null : String(body.color).trim().toLowerCase()
     if (color && !/^#[0-9a-f]{6}$/.test(color)) return error('El color debe ser un hex #rrggbb.')
+    const icon = body.icon === undefined ? null : parseLocationIcon(body.icon)
+    if (icon === undefined) return error('Ícono de ubicación inválido.')
     if (!branchId || !name || (body.code && !code)) return error('Sucursal, nombre y código válido son obligatorios cuando se informa un código.')
     if (!canManageBranch(session.user.role, session.user.branchId, branchId)) return error('No autorizado para esa sucursal.', 403)
     const location = await prisma.$transaction(async tx => {
       const branch = await tx.branch.findFirst({ where: { id: branchId, tenantId: session.user.tenantId, isActive: true }, select: { id: true } })
       if (!branch) throw new Error('Sucursal no encontrada.')
-      const created = await tx.stockLocation.create({ data: { tenantId: session.user.tenantId, branchId, name, code, color } })
+      const created = await tx.stockLocation.create({ data: { tenantId: session.user.tenantId, branchId, name, code, color, icon } })
       await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'STOCK_LOCATION_CREATED', entity: 'StockLocation', entityId: created.id, metadata: { branchId, name, code } } })
       return created
     })
@@ -57,14 +60,17 @@ export async function PATCH(request: Request) {
     const code = body.code === undefined ? undefined : body.code === null || body.code === '' ? null : text(body.code, 32)?.toUpperCase()
     const color = body.color === undefined ? undefined : body.color === null || body.color === '' ? null : String(body.color).trim().toLowerCase()
     if ((body.name !== undefined && !name) || (body.code !== undefined && body.code && !code) || (color && !/^#[0-9a-f]{6}$/.test(color)) || (body.isActive !== undefined && typeof body.isActive !== 'boolean')) return error('Datos de ubicación inválidos.')
-    const changes: { name?: string; code?: string | null; color?: string | null; isActive?: boolean } = {}
+    const icon = body.icon === undefined ? undefined : parseLocationIcon(body.icon)
+    if (body.icon !== undefined && icon === undefined) return error('Ícono de ubicación inválido.')
+    const changes: { name?: string; code?: string | null; color?: string | null; icon?: string | null; isActive?: boolean } = {}
+    if (icon !== undefined) changes.icon = icon
     if (name) changes.name = name
     if (code !== undefined) changes.code = code
     if (color !== undefined) changes.color = color
     if (typeof body.isActive === 'boolean') changes.isActive = body.isActive
     const updated = await prisma.$transaction(async tx => {
       const location = await tx.stockLocation.update({ where: { id }, data: changes })
-      await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'STOCK_LOCATION_UPDATED', entity: 'StockLocation', entityId: id, metadata: { before: { name: before.name, code: before.code, isActive: before.isActive }, after: { name: location.name, code: location.code, isActive: location.isActive } } } })
+      await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'STOCK_LOCATION_UPDATED', entity: 'StockLocation', entityId: id, metadata: { before: { name: before.name, code: before.code, icon: before.icon, isActive: before.isActive }, after: { name: location.name, code: location.code, icon: location.icon, isActive: location.isActive } } } })
       return location
     })
     return json(updated)

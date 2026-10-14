@@ -4,6 +4,7 @@ import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { listAuditoria } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { Card, Badge, Input, EmptyState } from '@/components/ui'
+import { ANCHO_CAMPO } from '@/components/shared/anchoCampos'
 import Icon from '@/components/shared/Icon'
 
 const ACCION = {
@@ -76,7 +77,7 @@ export default function Historial() {
           Cada vez que alguien carga, edita o elimina una venta queda registrado acá con su autor,
           fecha y hora. Es automático y no se puede modificar ni borrar.
         </p>
-        <div className="relative mb-3">
+        <div className={`relative mb-3 w-full ${ANCHO_CAMPO.busqueda}`}>
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-mute">
             <Icon name="search" className="h-4 w-4" />
           </span>

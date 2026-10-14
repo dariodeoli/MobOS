@@ -1,15 +1,16 @@
 import { Label } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { ANCHO_CAMPO } from './anchoCampos'
 
 // Campo compuesto en UNA fila con UN borde (docs/PANTALLAS.md regla 9 ·
 // docs/CAMPOS.md): `prefijo` (código de país, «Gs.») + input + `final` (botón
 // de acción) comparten la caja; la etiqueta va arriba y la fila mide 44px.
 // El input hijo se pasa sin borde propio: la caja pinta el borde, el foco y el
 // error. Máximo 640px en escritorio (lo resuelve `className` del contenedor).
-export default function FieldRow({ label, htmlFor, prefijo, final, hint, error, children, className, testId }) {
+export default function FieldRow({ ancho, label, htmlFor, prefijo, final, hint, error, children, className, testId }) {
   const idAyuda = htmlFor ? `${htmlFor}-ayuda` : undefined
   return (
-    <div data-testid={testId} className={cn('w-full min-w-0 max-w-[640px]', className)}>
+    <div data-testid={testId} className={cn('w-full min-w-0', ANCHO_CAMPO[ancho] || 'max-w-[640px]', className)}>
       {label && <Label htmlFor={htmlFor}>{label}</Label>}
       <div
         data-slot="fieldrow"

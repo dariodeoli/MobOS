@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Select, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import { ANCHO_CAMPO } from '@/components/shared/anchoCampos'
 import { BLOQUEOS_MINUTOS } from '@/lib/preferencias'
 import { activarWebPush, desactivarWebPush, estadoWebPush, webPushSoportado } from '@/lib/webPush'
 import { api } from '@/lib/api'
@@ -24,7 +25,7 @@ export function PreferenciasContenido({ preferencias, onCambiar }) {
         <p className="mt-1 text-xs text-mute">La pantalla se bloquea sola después de este tiempo sin actividad.</p>
         <Select
           id="pref-bloqueo"
-          className="mt-2 w-full"
+          className={`mt-2 w-full ${ANCHO_CAMPO.selector}`}
           value={String(preferencias.bloqueoMinutos)}
           onChange={event => onCambiar({ bloqueoMinutos: Number(event.target.value) })}
         >
