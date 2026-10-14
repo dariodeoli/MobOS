@@ -34,8 +34,8 @@ const DESTINOS = ['STOCK', 'OTRA_SUCURSAL', 'DEVOLVER', 'FALTA_IMEI', 'TECNICO']
 const MAX_PASTE = 400_000
 const MAX_ROWS = 1500
 const KEY_RE = /^[A-Za-z0-9_-]{8,100}$/
-// Códigos del parser/conciliación que se vuelven a calcular al editar una línea.
-const REGENERATED = new Set(['DUPLICADO_EN_LOTE', 'FALTA_IMEI', 'IMEI_EXCEL', 'IMEI_INVALIDO'])
+// Códigos del parser que la validación contra la base vuelve a calcular siempre.
+const REGENERATED = new Set(['DUPLICADO_EN_LOTE'])
 
 // ------------------------------------------------------------------- acceso
 
@@ -500,6 +500,8 @@ export async function patchLine(actor: ArrivalActor, arrivalId: string, body: Re
     data.serial = serial || null
     if (serial) { const check = classifySerialInput(serial); data.serialKind = check.kind === 'IMEI' ? 'IMEI' : 'SERIE' } else data.serialKind = 'NINGUNO'
     drop.add('IMEI_EXCEL'); drop.add('IMEI_INVALIDO'); drop.add('FALTA_IMEI')
+    // Con serie cargada, una fila «Falta IMEI» pasa a ingresar al stock.
+    if (serial && line.destination === 'FALTA_IMEI' && !('destination' in body)) data.destination = 'STOCK'
   }
   if ('destination' in body) {
     if (!(DESTINOS as readonly string[]).includes(String(body.destination))) throw new InputError('Destino inválido.')
@@ -545,7 +547,7 @@ async function technicianLocation(tx: Prisma.TransactionClient, ctx: TxCtx) {
   const where = { tenantId: ctx.actor.tenantId, branchId: ctx.arrival.branchId, isActive: true }
   const found = await tx.stockLocation.findFirst({ where: { ...where, icon: 'TALLER' }, orderBy: { createdAt: 'asc' }, select: { id: true } })
     ?? await tx.stockLocation.findFirst({ where: { ...where, name: 'Técnico' }, select: { id: true } })
-  ctx.techLocationId = found?.id ?? (await tx.stockLocation.create({ data: { tenantId: ctx.actor.tenantId, branchId: ctx.arrival.branchId, name: 'Técnico', code: 'TEC', icon: 'TALLER' }, select: { id: true } })).id
+  ctx.techLocationId = found?.id ?? (await tx.stockLocation.create({ data: { tenantId: ctx.actor.tenantId, branchId: ctx.arrival.branchId, name: 'Técnico', icon: 'TALLER' }, select: { id: true } })).id
   return ctx.techLocationId
 }
 

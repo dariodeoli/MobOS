@@ -37,7 +37,7 @@ function imeiValido(base14) {
 const marca = Date.now()
 const tag = marca.toString(36).toUpperCase()
 let contador = 0
-const nuevoImei = () => imeiValido(`35${String(marca).slice(-8)}${String(100000 + contador++)}`.slice(0, 14))
+const nuevoImei = () => imeiValido(`35${String(marca).slice(-6)}${String(contador++).padStart(6, '0')}`)
 const letras = (n, largo = 3) => Array.from({ length: largo }, (_, i) => String.fromCharCode(65 + Math.floor(n / 26 ** i) % 26)).join('')
 const siglas = Object.fromEntries(['HH', 'MTR', 'SB', 'GTA', 'NIS'].map((k, i) => [k, `${k[0]}${letras(marca % 17576 + i * 7, 3)}`.slice(0, 4)]))
 const RAMA = 'branch-a-it'
@@ -71,6 +71,8 @@ try {
     payment: { method: 'CASH', amountPyg: 1000000 },
   }, 201)
   await db.query(`UPDATE "Order" SET "orderNumber" = 'ARR-#32056' WHERE id = $1`, [pedido.id])
+  // Se vendió sin saber el costo (el caso real de «sobre pedido»): el costo llega con la llegada.
+  await db.query('UPDATE "OrderItem" SET "costPending" = true, "unitCostPyg" = NULL, "baseUnitCostPyg" = NULL WHERE "orderId" = $1', [pedido.id])
   const lineaPedido = await one('SELECT id, "serialsPending", "costPending" FROM "OrderItem" WHERE "orderId" = $1', [pedido.id])
   assert.equal(lineaPedido.serialsPending, 1, 'la venta quedó esperando su IMEI')
   assert.equal(lineaPedido.costPending, true)
@@ -224,7 +226,8 @@ try {
   assert.equal(uD.status, 'RESERVED'); assert.equal(uD.reservationCustomerId, inara.id)
   assert.equal(await stockDe(pS26.id), 1)
   // Devolver: sin unidad (la fila no tenía compra, queda solo la nota).
-  const lineaDev = await one('SELECT * FROM "StockArrivalLine" WHERE id = $1', [devuelta.id])
+  const devueltaFinal = reparseado.lines.find(l => l.destination === 'DEVOLVER')
+  const lineaDev = await one('SELECT * FROM "StockArrivalLine" WHERE id = $1', [devueltaFinal.id])
   assert.equal(lineaDev.unitId, null); assert.equal(await stockDe(p16.id), 0)
   assert.equal((await one('SELECT COUNT(*)::int AS n FROM "InventoryUnit" WHERE "productId" = $1', [p16.id])).n, 0)
   assert.ok((await one(`SELECT COUNT(*)::int AS n FROM "AuditLog" WHERE "tenantId" = 'tenant-a-it' AND action = 'STOCK_ARRIVAL_CONFIRMED' AND "entityId" = $1`, [llegada.id])).n === 1)
@@ -244,7 +247,7 @@ try {
   assert.equal(await stockDe(p18.id), 1)
   // Confirmada: ya no se edita ni se vuelve a pegar.
   await req(`/api/supply/arrivals/${llegada.id}/parse`, 'POST', { text: pegado }, 409)
-  await req(`/api/supply/arrivals/${llegada.id}/lines`, 'PATCH', { lineId: devuelta.id, note: 'x' }, 409)
+  await req(`/api/supply/arrivals/${llegada.id}/lines`, 'PATCH', { lineId: devueltaFinal.id, note: 'x' }, 409)
 
   // ── Visibilidad: gerencia ve nombre y costos; no hay camino para vendedores ──
   const detalle = await req(`/api/supply/arrivals/${llegada.id}`, 'GET', undefined, 200, gerente)
@@ -256,7 +259,7 @@ try {
 
   // ── Segunda llegada: devolver con cuenta a pagar, otra sucursal, técnico, falta IMEI, duplicado ──
   const compraDev = await req('/api/supply/purchases', 'POST', {
-    supplierName: `Proveedor HH ${tag}`, currency: 'USD', exchangeRatePyg: COTIZACION, paymentCondition: 'CREDITO',
+    supplierName: `Proveedor HH ${tag}`, currency: 'USD', exchangeRatePyg: COTIZACION, paymentCondition: 'CREDITO', dueAt: '2026-12-30',
     lines: [{ productId: p16.id, quantity: 1, originalUnitCost: 820 }],
   }, 201)
   const payable = await one(`SELECT id, notes FROM "SupplierPayable" WHERE "supplyPurchaseId" = $1`, [compraDev.id])
