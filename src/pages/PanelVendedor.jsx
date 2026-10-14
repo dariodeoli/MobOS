@@ -799,7 +799,6 @@ export default function PanelVendedor() {
                 ir(destinoVista, opciones)
               }}
               empresa={empresa}
-              logo={perfilEmpresa?.picture}
               esOwner={esOwner}
             />
           ) : undefined

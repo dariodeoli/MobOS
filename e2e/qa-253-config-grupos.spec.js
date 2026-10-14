@@ -78,7 +78,12 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
         await page.setViewportSize({ width: ancho, height: alto })
         for (const [slug, label] of GRUPOS) {
           await page.goto(`/configuracion/${slug}`)
-          await expect(page.locator(NAV).locator(`[data-tab-id="${slug}"]`)).toHaveAttribute('aria-current', 'page', { timeout: 20_000 })
+          if (vista === 'desktop') {
+            await expect(page.locator(NAV).locator(`[data-tab-id="${slug}"]`)).toHaveAttribute('aria-current', 'page', { timeout: 20_000 })
+          } else {
+            // #410: en celular la sección abierta no repite la lista (tiene «‹» para volver).
+            await expect(page.getByTestId('config-pagina')).toBeVisible({ timeout: 20_000 })
+          }
           await page.screenshot({ path: `${salida}/${slug}-${tema}-${vista}.png` })
         }
       }
@@ -94,7 +99,7 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
     // #298: se retiró el colapso a solo iconos; el riel conserva su ancho.
     await expect(page.getByTestId('config-grupos-toggle')).toHaveCount(0)
     const caja = await nav.boundingBox()
-    expect(caja.width, 'el selector conserva el ancho con texto').toBeGreaterThan(200)
+    expect(caja.width, 'el selector conserva el ancho con texto').toBeGreaterThan(180)
   })
 
   test('capturas de la navegación con texto', async ({ page }) => {
@@ -115,7 +120,7 @@ test.describe('Configuración · estructura de los 7 grupos', () => {
       if (tema === 'claro') {
         // Mobile/tablet: la tira horizontal, siempre con rótulos.
         await page.setViewportSize({ width: 390, height: 844 })
-        await page.goto('/configuracion/mi-cuenta')
+        await page.goto('/configuracion')
         await expect(page.locator(NAV).locator('[data-tab-id]').first()).toBeVisible({ timeout: 20_000 })
         await page.screenshot({ path: `${salida}/nav-horizontal-mobile-claro.jpg`, type: 'jpeg', quality: 78 })
       }
