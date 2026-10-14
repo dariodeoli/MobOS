@@ -538,7 +538,7 @@ assert_product_cost_hidden "$out" prod-a-order-it || { echo "Apagado el permiso,
 echo "4c/13 Permiso de costos para vendedores (encendido/apagado, solo dueño) OK..."
 # Fuente de cotización por empresa (#401): lectura para cualquier sesión, cambio solo del dueño, con auditoría.
 out="$(response_file)"; request GET /api/tenant/fx-settings 200 '' "$out" "$TOKEN_A" tenant-a-it
-node -e "const r=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));if(r.sales.source!=='cambioschaco'||r.sales.side!=='venta'||r.costs.source!=='cambioschaco'||!r.sources.length)process.exit(1)" "$out" || { echo "La cotización no arrancó en Cambios Chaco · venta." >&2; exit 1; }
+node -e "const r=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));if(r.sales.source!=='cambioschaco'||r.sales.side!=='compra'||r.costs.source!=='cambioschaco'||r.costs.side!=='venta'||!r.sources.length)process.exit(1)" "$out" || { echo "La cotización no arrancó en Cambios Chaco (cobros: compra, costos: venta).">&2; exit 1; }
 FX_BODY='{"sales":{"source":"bcp","side":"compra"},"costs":{"source":"cambioschaco","side":"venta"}}'
 out="$(response_file)"; request PUT /api/tenant/fx-settings 403 "$FX_BODY" "$out" "$TOKEN_A" tenant-a-it
 out="$(response_file)"; request PUT /api/tenant/fx-settings 400 '{"sales":{"source":"inventada","side":"venta"},"costs":{"source":"bcp","side":"venta"}}' "$out" "$ADMIN_TOKEN" ''
