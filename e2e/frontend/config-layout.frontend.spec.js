@@ -159,7 +159,7 @@ test('Configuración is the last owner destination: visible, reachable by click,
   const sheet = page.getByTestId('shell-mas-hoja')
   await expect(sheet.getByRole('button', { name: 'Configuración', exact: true })).toHaveCount(1)
   await sheet.getByRole('button', { name: 'Configuración', exact: true }).click()
-  await expect(page).toHaveURL(/\/configuracion\//)
+  await expect(page).toHaveURL(/\/configuracion(\/|$)/)
   await expect(page.getByTestId('shell-mas')).toHaveAttribute('aria-current', 'page')
 })
 

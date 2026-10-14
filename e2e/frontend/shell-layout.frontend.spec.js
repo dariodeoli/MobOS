@@ -193,7 +193,7 @@ test('mobile owner bottom bar is Inicio, Vender, Ventas, Stock and Más; the she
   expect(Math.min(...sizes)).toBeGreaterThanOrEqual(44)
 })
 
-test('Configuración: vertical rail on desktop, tab strip on mobile, same testid', async ({ page }) => {
+test('Configuración: second column with the sections on desktop, icon list on mobile, same testid', async ({ page }) => {
   await mkdir(out, { recursive: true })
   await page.setViewportSize({ width: 1440, height: 900 })
   await enterDemo(page)
@@ -206,12 +206,14 @@ test('Configuración: vertical rail on desktop, tab strip on mobile, same testid
     .evaluateAll(nodes => nodes.map(n => Math.round(n.getBoundingClientRect().x)))
   expect(new Set(xs).size, 'one column').toBe(1)
   await page.screenshot({ path: `${out}/1440-owner-config.png` })
+  // Mobile: the sections are a list with icons (own screen), one per row.
   await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/configuracion')
   await settle(page)
-  const strip = await rail.locator('[data-tab-id]').evaluateAll(nodes =>
+  const lista = await rail.locator('[data-tab-id]').evaluateAll(nodes =>
     nodes.map(n => Math.round(n.getBoundingClientRect().y)),
   )
-  expect(new Set(strip).size, 'one row').toBe(1)
+  expect(new Set(lista).size, 'one row each').toBe(7)
   await expect(rail.getByRole('combobox')).toHaveCount(0)
 })
 
@@ -319,7 +321,8 @@ for (const dark of [false, true]) {
         await tema.click()
         // Compact nav: every section row is 36px with no band taller than 24px, and no scrolling at 1440x900.
         const nav = side.getByRole('navigation', { name: 'Navegación principal' })
-        const gaps = await nav.locator('button').evaluateAll(nodes => {
+        // Configuración va abajo, separada con su divisor (#410): se mide aparte.
+        const gaps = await nav.locator('button:not([data-testid="shell-config-pie"] button)').evaluateAll(nodes => {
           const rects = nodes.map(n => n.getBoundingClientRect())
           return rects.slice(1).map((r, i) => r.top - rects[i].bottom)
         })

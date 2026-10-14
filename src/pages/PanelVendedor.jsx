@@ -24,6 +24,10 @@ import { usePrefetchSecciones } from '@/hooks/usePrefetchSecciones'
 import { useBloqueoInactividad } from '@/hooks/useBloqueoInactividad'
 import CheatSheetAtajos from '@/components/app/CheatSheetAtajos'
 import NavegacionConfig from '@/components/control/config/NavegacionConfig'
+import MenuConfiguracion from '@/components/control/config/MenuConfiguracion'
+import ResaltarAjuste from '@/components/control/config/ResaltarAjuste'
+import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
+import { destinoAjuste } from '@/lib/configIndice'
 import { grupoShellDeTab } from '@/components/stock/stockHelpers'
 
 // Vistas pesadas en lazy: su código se descarga recién cuando se navega a ellas.
@@ -389,7 +393,10 @@ export default function PanelVendedor() {
     sucursal,
   } = useSesion()
   const navigate = useNavigate()
-  const { pathname } = useLocation()
+  const { pathname, search: busquedaUrl } = useLocation()
+  const angosta = usePantallaAngosta()
+  // Dónde estaba el usuario antes de entrar a Configuración, para «‹ Configuración».
+  const rutaPrevia = useRef('')
   const { seccion: routeSeccion } = useParams()
   // Las subpáginas con pestañas viven en /<padre>/<hijo>: el primer tramo de la
   // URL es el padre y el slug hijo define la pestaña activa.
@@ -413,6 +420,16 @@ export default function PanelVendedor() {
     : subpadre
       ? (tabsRuta.find(([id]) => id === vista) || [null, LABELS[vista] || MIGA_SUBPAGINA[subpadre]])[1]
       : LABELS[vista]
+  const listaConfigMovil = subpadre === 'configuracion' && angosta && !seccionRuta
+  const tituloPantalla = listaConfigMovil ? MIGA_SUBPAGINA.configuracion : tituloVista
+  useEffect(() => {
+    if (slugRuta !== 'configuracion') rutaPrevia.current = `${pathname}${busquedaUrl}`
+  }, [slugRuta, pathname, busquedaUrl])
+  function salirDeConfiguracion() {
+    const destino = rutaPrevia.current
+    if (destino && !destino.startsWith('/configuracion')) navigate(destino)
+    else ir('resumen')
+  }
   const [tradeIn, setTradeIn] = useState(null)
   const identidad = `${usuario?.tenantId}:${usuario?.branchId}:${sesion?.vendedorId}:${usuario?.role}:${esDemo}`
   const [cambiarAbierto, setCambiarAbierto] = useState(false)
@@ -493,8 +510,10 @@ export default function PanelVendedor() {
   // este efecto los devolvería a la primera pestaña.
   useEffect(() => {
     if (!subpadre || seccionRuta || REDIRECCIONES_CONFIG[routeSeccion]) return
+    // Celular: /configuracion es la lista de secciones, no entra a la primera.
+    if (subpadre === 'configuracion' && angosta && !routeSeccion) return
     navigate(`/${subpadre}/${tabsRuta[0][0]}`, { replace: true })
-  }, [subpadre, seccionRuta, tabsRuta, routeSeccion, navigate])
+  }, [subpadre, seccionRuta, tabsRuta, routeSeccion, navigate, angosta])
   // El repartidor tiene su propio panel (/delivery/repartos): el panel de venta
   // no es su lugar y el backend tampoco lo autoriza a vender.
   useEffect(() => {
@@ -535,7 +554,11 @@ export default function PanelVendedor() {
     // Mi cuenta (#253): el dueño la ve como pestaña de Configuración (su lugar
     // en la IA de siete grupos); el resto del equipo entra a la vista personal
     // /mi-cuenta, que no pide permisos de administración.
-    if (id === 'mi-cuenta' && !esOwner) { setVista('mi-cuenta'); navigate('/mi-cuenta'); return }
+    if (id === 'mi-cuenta' && !esOwner) {
+      setVista('mi-cuenta')
+      navigate(opciones.ajuste ? `/mi-cuenta?ajuste=${encodeURIComponent(opciones.ajuste)}` : '/mi-cuenta')
+      return
+    }
     // «Control» (Stock) es una pestaña del shell que abre su primera vista.
     if (id === 'control') return ir('inventario', { ...opciones, subtab: 'conteos' })
     // Un ítem del menú puede ser una pestaña de una sección (p. ej. «Unidades»
@@ -555,12 +578,18 @@ export default function PanelVendedor() {
     const consulta = []
     if (opciones.q) consulta.push(`q=${encodeURIComponent(opciones.q)}`)
     if (opciones.clienteId) consulta.push(`cliente=${encodeURIComponent(opciones.clienteId)}`)
+    if (opciones.ajuste) consulta.push(`ajuste=${encodeURIComponent(opciones.ajuste)}`)
     const sufijo = consulta.length ? `?${consulta.join('&')}` : ''
     const destino = SUBPAGINA_DE_VISTA[id]
     if (destino) {
       const tabs = tabsDeSubpagina(destino, esDemo)
       const primera = opciones.subtab && tabs.some(([key]) => key === opciones.subtab) ? opciones.subtab : tabs[0][0]
       setVista(primera)
+      // Celular (#410): entrar a Configuración abre la lista de secciones.
+      if (destino === 'configuracion' && angosta && !opciones.subtab) {
+        navigate('/configuracion')
+        return
+      }
       navigate(`/${destino}/${primera}${sufijo}`)
       return
     }
@@ -755,8 +784,26 @@ export default function PanelVendedor() {
   return (
     <>
       <AppShell
-        title={tituloVista}
+        title={tituloPantalla}
         breadcrumb={subpadre ? [MIGA_SUBPAGINA[subpadre]] : undefined}
+        backTo={esOwner && subpadre === 'configuracion' && angosta && seccionRuta ? () => navigate('/configuracion') : undefined}
+        configMenu={
+          esOwner && subpadre === 'configuracion' ? (
+            <MenuConfiguracion
+              items={tabsConfig}
+              value={vista}
+              onChange={irASubtab}
+              onBack={salirDeConfiguracion}
+              onElegirAjuste={entrada => {
+                const { vista: destinoVista, opciones } = destinoAjuste(entrada, { esOwner })
+                ir(destinoVista, opciones)
+              }}
+              empresa={empresa}
+              logo={perfilEmpresa?.picture}
+              esOwner={esOwner}
+            />
+          ) : undefined
+        }
         nav={esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV}
         active={subpadre === 'stock' ? grupoShellDeTab(vista).id : subpadre ? (idsDelMenu.has(vista) ? vista : SUBPAGINAS[subpadre].vista) : vista}
         onNavigate={ir}
@@ -885,7 +932,7 @@ export default function PanelVendedor() {
           {/* F6 (#250): rendimiento de proveedores, tiempos de tránsito y atrasos. */}
           {esOwner && vista === 'metricas' && <MetricasAbastecimiento />}
           {esOwner && subpadre === 'configuracion' && (
-            <NavegacionConfig value={vista} onChange={irASubtab} items={tabsConfig}>
+            <NavegacionConfig value={vista} onChange={irASubtab} items={tabsConfig} seccionAbierta={!angosta || Boolean(seccionRuta)}>
               {vista === 'mi-cuenta' && <MiCuenta preferencias={preferencias} onCambiarPreferencias={cambiarPreferencias} />}
               {vista === 'organizacion' && <Config seccion="organizacion" />}
               {vista === 'equipo' && <Equipo />}
@@ -1037,6 +1084,7 @@ export default function PanelVendedor() {
         busy={saliendo}
       />
 
+      <ResaltarAjuste />
       {busquedaAbierta && (
         <Suspense fallback={null}>
           <GlobalSearch
@@ -1044,6 +1092,7 @@ export default function PanelVendedor() {
             onClose={() => setBusquedaAbierta(false)}
             onNavigate={ir}
             vistas={accesibles}
+            esOwner={esOwner}
           />
         </Suspense>
       )}
