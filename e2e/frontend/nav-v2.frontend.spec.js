@@ -34,7 +34,7 @@ async function enterDemo(page, role = 'Dueño') {
 // Debajo de 640px cuenta, medio y procesadora viven detrás de UN botón de la
 // barra (#388): se abre solo si está visible (en escritorio los selects están en línea).
 async function abrirFiltrosConciliacion(root) {
-  const alternar = root.getByRole('button', { name: 'Cuenta, medio y procesadora', exact: true })
+  const alternar = root.getByRole('button', { name: 'Filtrar conciliación', exact: true })
   if ((await alternar.count()) && (await alternar.isVisible()) && (await alternar.getAttribute('aria-expanded')) !== 'true') await alternar.click()
 }
 async function abrirOrdenVista(root) {

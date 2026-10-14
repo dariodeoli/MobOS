@@ -19,7 +19,8 @@ async function entrarDemo(page) {
   await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
   await page.waitForURL((url) => !url.pathname.startsWith('/demo'))
   await cerrarGuiaDemo(page)
-  await expect(page.getByText('Modo demo', { exact: false }).first()).toBeVisible()
+  // El aviso de la demo es un chip en la fila del título (#388), con «Demo» siempre a la vista.
+  await expect(page.getByTestId('demo-aviso')).toContainText('Demo')
 }
 
 async function capturar(page, nombre, oscuro) {
