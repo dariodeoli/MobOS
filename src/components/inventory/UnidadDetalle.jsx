@@ -867,7 +867,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
               {proveedorSigla || proveedorNombre
                 ? (
                   <div className="space-y-1">
-                    <InsigniaProveedor sigla={proveedorSigla || proveedorNombre.slice(0, 3)} color={unit.supplier?.color} nombre={proveedorNombre} />
+                    <InsigniaProveedor sigla={proveedorSigla || proveedorNombre.slice(0, 3)} color={unit.supplier?.color} icono={unit.supplier?.icon} nombre={proveedorNombre} />
                     {proveedorNombre && <p className={cn('truncate text-sm', proveedorCompleto ? 'font-semibold' : 'text-xs text-mute')} data-testid="unidad-proveedor-nombre">{proveedorNombre}</p>}
                   </div>
                 )

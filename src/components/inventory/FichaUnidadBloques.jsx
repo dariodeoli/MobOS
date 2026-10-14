@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Icon from '@/components/shared/Icon'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
+import { COLORES_PROVEEDOR, iconoProveedor } from '@/lib/proveedorIdentidad'
 
 // Piezas de la ficha de unidad (#400, unidad I). Estructura tipo Shopify:
 // tarjetas con rótulo, valores en grilla densa y edición en línea por campo
@@ -62,24 +63,22 @@ export function CampoFicha({ etiqueta, children, editor, onAbrir, onGuardar, pue
   )
 }
 
-const TONOS_PROVEEDOR = ['#2563eb', '#7c3aed', '#0d9488', '#c2410c', '#be185d', '#4d7c0f', '#0369a1', '#a16207']
-
 // Color estable por sigla cuando el proveedor todavía no eligió uno.
 function colorPorDefecto(sigla = '') {
   let suma = 0
   for (const caracter of String(sigla)) suma += caracter.charCodeAt(0)
-  return TONOS_PROVEEDOR[suma % TONOS_PROVEEDOR.length]
+  return COLORES_PROVEEDOR[suma % COLORES_PROVEEDOR.length]
 }
 
 // Insignia local del proveedor (monograma con color + sigla). La planilla de
 // Unidades tendrá su `ProveedorBadge` compartido: cuando exista, esta pieza se
 // reemplaza por esa (#400, handoff de unificación).
-export function InsigniaProveedor({ sigla, color, nombre, className }) {
+export function InsigniaProveedor({ sigla, color, icono, nombre, className }) {
   const texto = String(sigla || 'S/S')
   const fondo = /^#[0-9a-f]{6}$/i.test(color || '') ? color : colorPorDefecto(texto)
   return (
     <span className={cn('inline-flex max-w-full items-center gap-1.5 align-middle', className)} data-testid="proveedor-insignia">
-      <span aria-hidden="true" className="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-md px-1 text-[10px] font-bold uppercase leading-none text-white" style={{ backgroundColor: fondo }}>{texto.slice(0, 2)}</span>
+      <span aria-hidden="true" className="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-md px-1 text-[10px] font-bold uppercase leading-none text-white" style={{ backgroundColor: fondo }}>{iconoProveedor(icono) ? <Icon name={iconoProveedor(icono)} className="h-3.5 w-3.5" /> : texto.slice(0, 2)}</span>
       <span className="truncate font-mono text-xs font-semibold" title={nombre || undefined}>{texto}</span>
     </span>
   )

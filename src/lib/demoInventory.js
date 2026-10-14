@@ -336,7 +336,7 @@ export function listDemoSuppliers(q = '') {
 // #307: el alta/edición de proveedores del demo guarda los campos del mismo
 // formulario que la cuenta real (teléfono, código, ciudad…), no solo el
 // nombre; así el modal de Proveedores no se contradice con lo que se cargó.
-const CAMPOS_PROVEEDOR = ['name', 'contact', 'code', 'document', 'phone', 'email', 'address', 'city', 'department', 'contactName', 'paymentTerms', 'notes']
+const CAMPOS_PROVEEDOR = ['name', 'contact', 'code', 'document', 'phone', 'email', 'address', 'city', 'department', 'contactName', 'paymentTerms', 'notes', 'icon', 'color', 'displayMode']
 
 export function saveDemoSupplier(data = {}) {
   const state = read()
