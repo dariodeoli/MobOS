@@ -1,13 +1,17 @@
 // Adaptador de migración (#253): el autocompletado vive en la biblioteca
-// (`owncoding-ui/CityAutocomplete`); acá queda el endpoint real y el modo demo
-// (sin sugerencias y sin resolver departamento, como antes).
+// (`owncoding-ui/CityAutocomplete`) con su catálogo de ciudades de Paraguay
+// (resuelve el departamento sin red). Acá queda solo el endpoint real; en la
+// demo (prop `esDemo` o sesión demo) se usa el catálogo de la biblioteca, así
+// que el campo sugiere ciudades y departamento sin llamar al API. El valor
+// guardado sigue siendo el nombre de la ciudad (string).
 import { CityAutocomplete as CampoCiudad } from 'owncoding-ui'
 import { api } from '@/lib/api/client'
+import { demoSessionActive, isDemoRuntime } from '@/lib/demoMode'
 
-export default function CityAutocomplete({ esDemo = false, onSelect, ...props }) {
-  const buscar = esDemo
-    ? async () => []
-    : (texto) => api.get(`/api/geo/cities?q=${encodeURIComponent(texto)}`)
-  const elegir = esDemo ? (ciudad) => onSelect?.(ciudad, '') : onSelect
-  return <CampoCiudad buscar={buscar} onSelect={elegir} {...props} />
+// Referencia estable: la biblioteca invalida la búsqueda si cambia `buscar`.
+const buscarEnApi = (texto) => api.get(`/api/geo/cities?q=${encodeURIComponent(texto)}`)
+
+export default function CityAutocomplete({ esDemo = false, ...props }) {
+  const demo = esDemo || isDemoRuntime || demoSessionActive()
+  return <CampoCiudad buscar={demo ? undefined : buscarEnApi} {...props} />
 }

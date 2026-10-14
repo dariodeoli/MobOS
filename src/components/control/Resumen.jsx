@@ -469,7 +469,7 @@ export default function Resumen() {
               {d.medios.map(m => (
                 <div key={m.medio}>
                   <div className="mb-1.5 flex items-center justify-between gap-2">
-                    <MedioPago medio={m.medio} alto="h-4" />
+                    <MedioPago medio={m.medio} alto="h-4" conNombre />
                     <span className="text-sm font-medium">{gs(m.monto)}</span>
                   </div>
                   <BarraProgreso valor={m.monto} max={base.total} relleno="bg-blue-line" pista="bg-ink-600" etiqueta={`${m.medio}: ${gs(m.monto)}`} />
