@@ -7,6 +7,7 @@ import Icon from '@/components/shared/Icon'
 import { Aviso, Textarea } from '@/components/ui'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import ProductFooter from '@/components/app/ProductFooter'
+import WhatsAppSucursal from '@/components/app/WhatsAppSucursal'
 
 
 // Remito público de traslado: el destino abre el QR impreso, controla los
@@ -183,6 +184,7 @@ export default function RemitoPublico() {
           </div>
         )}
       </div>
+      <WhatsAppSucursal contacto={remito?.contacto} />
       <ProductFooter />
     </main>
   )

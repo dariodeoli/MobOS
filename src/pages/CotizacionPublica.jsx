@@ -16,6 +16,7 @@ import CompartirPdf from '@/components/shared/CompartirPdf'
 import AprobacionPresupuesto from '@/components/shared/AprobacionPresupuesto'
 import { buildProformaHtml } from '@/components/shared/OrderReceipt'
 import ProductFooter from '@/components/app/ProductFooter'
+import WhatsAppSucursal from '@/components/app/WhatsAppSucursal'
 
 
 // Cotización pública: el cliente abre el QR o el enlace, revisa el detalle y
@@ -232,6 +233,7 @@ export default function CotizacionPublica() {
           </div>
         )}
       </div>
+      <WhatsAppSucursal contacto={quote?.contacto} />
       <ProductFooter />
     </main>
   )
