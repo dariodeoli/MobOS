@@ -107,7 +107,3 @@ sigue verificando mientras no se emita un enlace nuevo. Reglas del patrón
 > Prueba reproducible: `node backend/tests/commission-settlement-public.mjs`
 > (base descartable; emisión, verificación, 429, rotación, permisos,
 > aislamiento y backfill legacy).
-
-## 8. Segundo factor del panel de plataforma (/superadmin)
-
-Después de la identidad de Google, el dueño ingresa su **PIN personal** (el mismo `User.pinHash` de la app, 4 a 6 dígitos). No hay token nuevo: la verificación vive en la sesión (`Session.superadminVerifiedAt`, reloj de Postgres, vigencia 12 h) y muere con ella. Intentos por **usuario** (no por IP): 5 por 15 min y luego bloqueo de 15 min, contados antes de comparar y con la fila bloqueada (`SuperadminPinGuard`). Sin PIN vigente, toda ruta de datos responde 404; solo `access` (avisa `pinRequerido` tras validar al dueño) y `pin` lo omiten.

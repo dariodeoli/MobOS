@@ -2,8 +2,7 @@ import assert from 'node:assert/strict'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import test from 'node:test'
-import { PIN_BLOQUEO_MS, PIN_INTENTOS_MAX, PIN_VENTANA_MS, reservarIntento, type EstadoGuardia } from '../lib/superadmin/pin-reglas'
-import { correoDuenoPlataforma,decidirAcceso, motivoDenegacion } from '../lib/superadmin/acceso-reglas'
+import { correoDuenoPlataforma, decidirAcceso, motivoDenegacion } from '../lib/superadmin/acceso-reglas'
 import { correoCambioReseteaVerificacion } from '../lib/tenant-email'
 import { diaLocal, diasDelRango, inicioDiaLocal, inicioMesLocal, normalizarPeriodo, rangoDePeriodo, rellenarSerie, variacionPct } from '../lib/superadmin/rangos'
 
@@ -95,72 +94,6 @@ test('google: la identidad guarda el correo verificado en cada login (único ori
   assert.deepEqual(escritores.map(f => f.slice(RAIZ.length + 1)), ['lib/membership.ts'])
 })
 
-// ── Segundo factor (PIN) ──────────────────────────────────────────────────
-test('pin: toda ruta exige el PIN salvo access y pin, que solo corren tras comprobar al dueño', () => {
-  const base = join(RAIZ, 'app/api/superadmin')
-  const rutas = archivos(base, /^route\.ts$/)
-  const sinPin = rutas.filter(r => /\{\s*sinPin:\s*true\s*\}/.test(readFileSync(r, 'utf8'))).map(r => r.slice(base.length + 1))
-  assert.deepEqual(sinPin.sort(), ['access/route.ts', 'pin/route.ts'])
-  const guard = readFileSync(join(RAIZ, 'lib/superadmin/acceso.ts'), 'utf8')
-  assert.match(guard, /if \(!opciones\.sinPin\)[\s\S]*pinVigente\(dueno\.sessionId\)/, 'el guard exige el PIN de la sesión')
-  assert.ok(guard.indexOf('requerirAdministradorPlataforma(request)') < guard.indexOf('pinVigente(dueno.sessionId)'), 'primero el dueño, después el PIN')
-  assert.match(guard, /pin_requerido/)
-  const acceso = readFileSync(join(RAIZ, 'app/api/superadmin/access/route.ts'), 'utf8')
-  assert.match(acceso, /pinRequerido/)
-  assert.match(acceso, /conAdministradorPlataforma\(/, 'el aviso de PIN requerido va detrás del chequeo del dueño')
-})
-
-test('pin: la vigencia es de 12 h, vive en la sesión (no en una cookie suelta) y usa el reloj de Postgres', () => {
-  const pin = readFileSync(join(RAIZ, 'lib/superadmin/pin.ts'), 'utf8')
-  assert.match(pin, /"superadminVerifiedAt" > \(now\(\) AT TIME ZONE 'UTC'\)/)
-  assert.match(pin, /FROM "Session" WHERE "id" = \$\{sessionId\} AND "revokedAt" IS NULL/, 'atado a la sesión viva')
-  assert.match(pin, /UPDATE "Session" SET "superadminVerifiedAt" = \(now\(\) AT TIME ZONE 'UTC'\) WHERE "id" = \$\{sessionId\}/)
-  assert.doesNotMatch(pin, /Date\.now\(\)|new Date\(\)/, 'ni la vigencia ni el bloqueo usan el reloj de Node')
-  assert.match(pin, /bcrypt\.compare/)
-  assert.match(pin, /pinHash/, 'reutiliza el PIN personal del usuario')
-  assert.ok(pin.indexOf('FOR UPDATE') < pin.indexOf('bcrypt.compare'), 'el intento se cuenta antes de verificar')
-  assert.match(readFileSync(join(RAIZ, 'lib/superadmin/pin-reglas.ts'), 'utf8'), /PIN_VIGENCIA_HORAS = 12/)
-  assert.doesNotMatch(readFileSync(join(RAIZ, 'app/api/superadmin/pin/route.ts'), 'utf8'), /Set-Cookie|cookies\(/i)
-})
-
-test('pin: 5 intentos por ventana de 15 min y luego 15 min de bloqueo, contados por usuario', () => {
-  const t0 = new Date('2026-10-14T15:00:00Z')
-  let estado: EstadoGuardia | null = null
-  for (let i = 1; i <= PIN_INTENTOS_MAX; i++) {
-    const r = reservarIntento(estado, new Date(t0.getTime() + i * 1000))
-    assert.equal(r.permitido, true, `intento ${i}`)
-    if (!r.permitido) return
-    assert.equal(r.siguiente.failures, i)
-    assert.equal(r.restantes, PIN_INTENTOS_MAX - i)
-    estado = r.siguiente
-  }
-  assert.ok(estado?.lockedUntil, 'el quinto intento deja bloqueado')
-  const bloqueado = reservarIntento(estado, new Date(t0.getTime() + 60_000))
-  assert.equal(bloqueado.permitido, false)
-  if (!bloqueado.permitido) assert.ok(bloqueado.segundos > 0 && bloqueado.segundos <= PIN_BLOQUEO_MS / 1000)
-  // Sigue negando durante todo el bloqueo, aunque pase la ventana de 15 min desde el primer intento.
-  assert.equal(reservarIntento(estado, new Date(t0.getTime() + PIN_BLOQUEO_MS - 1000)).permitido, false)
-  // Vencido el bloqueo, el conteo arranca de nuevo.
-  const despues = reservarIntento(estado, new Date(t0.getTime() + PIN_BLOQUEO_MS + 10_000))
-  assert.equal(despues.permitido, true)
-  if (despues.permitido) assert.equal(despues.siguiente.failures, 1)
-})
-
-test('pin: fuera de la ventana el conteo se reinicia', () => {
-  const t0 = new Date('2026-10-14T15:00:00Z')
-  const viejo: EstadoGuardia = { failures: 4, windowStartedAt: t0, lockedUntil: null }
-  const r = reservarIntento(viejo, new Date(t0.getTime() + PIN_VENTANA_MS))
-  assert.equal(r.permitido && r.siguiente.failures, 1)
-  const dentro = reservarIntento(viejo, new Date(t0.getTime() + PIN_VENTANA_MS - 1))
-  assert.equal(dentro.permitido && dentro.siguiente.failures, 5)
-})
-
-test('pin: el conteo es por usuario y no por IP (cambiar de red no lo reinicia)', () => {
-  const pin = readFileSync(join(RAIZ, 'lib/superadmin/pin.ts'), 'utf8')
-  assert.doesNotMatch(pin, /trustedClientIp|enforceRateLimit|x-forwarded-for/i)
-  assert.match(pin, /WHERE "userId" = \$\{userId\} FOR UPDATE/)
-})
-
 // ── Demo ──────────────────────────────────────────────────────────────────
 test('demo: toda consulta SQL del panel usa filtroSinDemo (o filtroSoloDemo para el contador aparte)', () => {
   const fuente = readFileSync(join(RAIZ, 'lib/superadmin/consultas.ts'), 'utf8')
@@ -241,7 +174,7 @@ test('series: los días sin datos valen 0 y se agrupan por día', () => {
 })
 
 test('módulos puros: ninguno importa la base de datos', () => {
-  for (const archivo of ['rangos.ts', 'acceso-reglas.ts', 'pin-reglas.ts']) {
+  for (const archivo of ['rangos.ts', 'acceso-reglas.ts']) {
     assert.doesNotMatch(readFileSync(join(RAIZ, 'lib/superadmin', archivo), 'utf8'), /from\s+['"][^'"]*(prisma|auth)['"]|@prisma\/client/, `${archivo} debe ser puro`)
   }
 })

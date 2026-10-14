@@ -19,7 +19,6 @@ export default function CodigoSegmentado({
   id,
   autoFocus = false,
   disabled = false,
-  enmascarar = false,
   mensajeError = 'El código no es válido.',
   mensajeIncompleto,
   className,
@@ -89,10 +88,10 @@ export default function CodigoSegmentado({
                   key={i}
                   ref={(el) => { refs.current[i] = el }}
                   id={i === 0 ? id : undefined}
-                  type={enmascarar ? 'password' : 'text'}
+                  type="text"
                   inputMode={numerico ? 'numeric' : 'text'}
                   pattern={numerico ? '[0-9]*' : undefined}
-                  autoComplete={enmascarar ? 'off' : i === 0 ? 'one-time-code' : 'off'}
+                  autoComplete={i === 0 ? 'one-time-code' : 'off'}
                   autoCapitalize="characters"
                   autoCorrect="off"
                   spellCheck={false}

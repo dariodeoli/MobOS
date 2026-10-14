@@ -3,10 +3,9 @@ import { prisma } from '../prisma'
 import { requireSession } from '../auth'
 import { logError, logInfo } from '../log'
 import { enforceRateLimit } from '../rate-limit'
-import { pinVigente } from './pin'
 import { correoDuenoPlataforma, motivoDenegacion, type MotivoDenegado } from './acceso-reglas'
 
-export type DuenoPlataforma = { userId: string; tenantId: string; sessionId: string }
+export type DuenoPlataforma = { userId: string; tenantId: string }
 
 /**
  * Relee usuario, cuenta e identidad de Google en la base (no confía en lo que
@@ -33,7 +32,7 @@ export async function requerirAdministradorPlataforma(request: Request): Promise
       logInfo('superadmin_acceso_denegado', { motivo: motivo ?? 'sin_empresa' })
       return null
     }
-    return { userId: sesion.user.id, tenantId, sessionId: sesion.sessionId }
+    return { userId: sesion.user.id, tenantId }
   } catch (error) {
     logError('superadmin_guard_error', { reason: error instanceof Error ? error.message : String(error) })
     return null
@@ -50,13 +49,8 @@ type Contexto = { params: Record<string, string> }
  * Envuelve un handler de /api/superadmin/*: sin acceso responde 404 sin revelar
  * que el panel existe (también al exceder el límite de intentos); con acceso,
  * ejecuta el handler. Todo handler del panel se exporta con este envoltorio.
- *
- * Segundo factor: además de ser el dueño (Google), la SESIÓN debe haber
- * ingresado el PIN en las últimas 12 h; si no, responde igual que sin acceso
- * (404). Solo `{ sinPin: true }` (ruta de acceso y de ingreso del PIN) lo omite,
- * y recién después de comprobar que es el dueño.
  */
-export function conAdministradorPlataforma(handler: (request: Request, dueno: DuenoPlataforma, contexto: Contexto) => Promise<Response>, opciones: { sinPin?: boolean } = {}) {
+export function conAdministradorPlataforma(handler: (request: Request, dueno: DuenoPlataforma, contexto: Contexto) => Promise<Response>) {
   return async (request: Request, contexto: Contexto): Promise<Response> => {
     // El límite va ANTES de consultar la base y responde igual que una ruta inexistente.
     if (enforceRateLimit(request, 'superadmin', 120, 60_000)) {
@@ -65,14 +59,6 @@ export function conAdministradorPlataforma(handler: (request: Request, dueno: Du
     }
     const dueno = await requerirAdministradorPlataforma(request)
     if (!dueno) return noEncontrado()
-    if (!opciones.sinPin) {
-      let vigente = false
-      try { vigente = await pinVigente(dueno.sessionId) } catch (error) { logError('superadmin_pin_error', { reason: error instanceof Error ? error.message : String(error) }) }
-      if (!vigente) {
-        logInfo('superadmin_acceso_denegado', { motivo: 'pin_requerido' })
-        return noEncontrado()
-      }
-    }
     try {
       return await handler(request, dueno, contexto)
     } catch (error) {

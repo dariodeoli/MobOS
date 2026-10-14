@@ -52,25 +52,14 @@ const TRAFICO = {
 const EMPRESAS = Array.from({ length: 30 }, (_, i) => ({ id: `t${i}`, name: `Tienda ${i + 1}`, slug: `tienda-${i}`, email: `t${i}@ejemplo.test`, createdAt: '2026-09-01T12:00:00Z', archivedAt: null, usuarios: 3, pedidos: 10 + i, ultimaActividad: '2026-10-13T20:00:00Z' }))
 const USUARIOS = Array.from({ length: 30 }, (_, i) => ({ id: `u${i}`, name: `Persona ${i + 1}`, email: `p${i}@ejemplo.test`, role: i % 2 ? 'VENDEDOR' : 'ADMIN', status: 'ACTIVE', createdAt: '2026-09-01T12:00:00Z', lastAccessAt: '2026-10-13T20:00:00Z', empresaId: 't1', empresa: 'Tienda 1' }))
 
-async function montar(page, { acceso = true, pin = false } = {}) {
+async function montar(page, { acceso = true } = {}) {
   const pedidos = []
-  let verificado = !pin
-  let fallos = 0
   await page.route(/https:\/\//, route => route.abort())
   await page.route('**/api/**', async route => {
     const { pathname, searchParams } = new URL(route.request().url())
     // El glob también atrapa módulos de Vite (/src/lib/api/…): solo se simula /api/.
     if (!pathname.startsWith('/api/')) return route.continue()
     pedidos.push(`${pathname}?${searchParams}`)
-    if (pathname === '/api/superadmin/pin') {
-      const { pin: enviado } = route.request().postDataJSON()
-      if (fallos >= 3) return route.fulfill({ status: 429, headers: { 'retry-after': '900' }, json: { message: 'Demasiados intentos. Esperá unos minutos para volver a probar.', code: 'PIN_BLOQUEADO', segundos: 900 } })
-      if (enviado === '1234') { verificado = true; return route.fulfill({ status: 200, json: { ok: true } }) }
-      fallos += 1
-      return route.fulfill({ status: 422, json: { message: 'PIN incorrecto.', code: 'PIN_INCORRECTO', restantes: 3 - fallos } })
-    }
-    if (pathname.startsWith('/api/superadmin/') && !verificado && pathname !== '/api/superadmin/access') return route.fulfill({ status: 404, json: { message: 'No encontrado.' } })
-    if (pathname === '/api/superadmin/access' && acceso && !verificado) return route.fulfill({ status: 200, json: { ok: true, pinRequerido: true, pinLargo: 4 } })
     if (pathname === '/api/superadmin/access') return acceso ? route.fulfill({ status: 200, json: { ok: true } }) : route.fulfill({ status: 404, json: { message: 'No encontrado.' } })
     if (pathname === '/api/superadmin/resumen') return route.fulfill({ status: 200, json: RESUMEN })
     if (pathname === '/api/superadmin/trafico') return route.fulfill({ status: 200, json: TRAFICO })
@@ -96,52 +85,6 @@ test('sin acceso, /superadmin vuelve al inicio sin mostrar el panel', async ({ p
   await page.goto('/superadmin/usuarios')
   await expect.poll(() => new URL(page.url()).pathname).not.toMatch(/^\/superadmin/)
 })
-
-for (const [ancho, alto] of [[390, 844], [1440, 900]]) {
-  test(`${ancho}: pide el PIN, rechaza el incorrecto, acepta pegado y bloquea tras varios errores`, async ({ page }) => {
-    await mkdir(out, { recursive: true })
-    await page.setViewportSize({ width: ancho, height: alto })
-    const pedidos = await montar(page, { pin: true })
-    await page.goto('/superadmin')
-    await expect(page.getByTestId('superadmin-pin')).toBeVisible()
-    await expect(page.getByTestId('superadmin-shell')).toHaveCount(0)
-    expect(pedidos.some(p => /superadmin\/(resumen|empresas|usuarios|trafico)/.test(p)), 'sin PIN no se pide ningún dato').toBe(false)
-    for (let i = 0; i < 4; i++) expect((await page.getByTestId(`codigo-celda-${i}`).boundingBox()).height).toBeGreaterThanOrEqual(44)
-    await expect(page.getByTestId('codigo-celda-0')).toHaveAttribute('type', 'password')
-    const m = await sinScroll(page)
-    expect(m.scroll, 'pin: scroll horizontal').toBeLessThanOrEqual(m.ancho)
-    await page.screenshot({ path: `${out}/pin-${ancho}.png` })
-
-    // Incorrecto: valida al completar el cuarto dígito, avisa y vuelve a vaciar.
-    await page.keyboard.type('9999')
-    await expect(page.getByTestId('superadmin-pin-error')).toContainText('PIN incorrecto. Te quedan 2 intentos.')
-    await expect(page.getByTestId('codigo-celda-0')).toHaveValue('')
-    // Correcto pegando el código entero.
-    await page.getByTestId('codigo-celda-0').focus()
-    await page.evaluate(() => {
-      const celda = document.querySelector('[data-testid="codigo-celda-0"]')
-      const dt = new DataTransfer(); dt.setData('text', '1234')
-      celda.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }))
-    })
-    await expect(page.getByTestId('superadmin-shell')).toBeVisible()
-    await expect(page.getByTestId('kpi-empresas-valor')).toHaveText('42')
-  })
-
-  test(`${ancho}: tras varios PIN incorrectos muestra el bloqueo`, async ({ page }) => {
-    await page.setViewportSize({ width: ancho, height: alto })
-    await montar(page, { pin: true })
-    await page.goto('/superadmin')
-    for (let i = 0; i < 3; i++) {
-      await page.getByTestId('codigo-celda-0').focus()
-      await page.keyboard.type('0000')
-      await expect(page.getByTestId('superadmin-pin-error')).toContainText(i < 2 ? 'PIN incorrecto' : 'PIN incorrecto. Te quedan 0 intentos.')
-    }
-    await page.getByTestId('codigo-celda-0').focus()
-    await page.keyboard.type('1234')
-    await expect(page.getByTestId('superadmin-pin-error')).toContainText('Demasiados intentos')
-    await expect(page.getByTestId('superadmin-shell')).toHaveCount(0)
-  })
-}
 
 for (const [ancho, alto, oscuro] of [[1440, 900, false], [390, 844, true], [360, 780, false]]) {
   test(`${ancho} ${oscuro ? 'oscuro' : 'claro'}: resumen, empresas y usuarios sin scroll horizontal`, async ({ page }) => {
