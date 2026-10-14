@@ -6,8 +6,9 @@ import { ETIQUETAS_MEDIO_PAGO } from '../constants.js'
 import { CHECKLISTS } from '../servicioChecklist.js'
 import { datosDeCodigo, formatoDeCodigo, ETIQUETA_FORMATO } from './codigos.js'
 import { bloqueFirma, crearTicket } from './escpos.js'
-import { encabezadoTicket, pieTicket } from './encabezadoTicket.js'
-import { datosEncabezado } from './empresaImpresion.js'
+import { encabezadoTicket, MARGEN_SUPERIOR, pieTicket } from './encabezadoTicket.js'
+import { CONDICIONES, clienteTicket, pieDocumentoTicket } from './bloquesDocumento.js'
+import { logoImpresion } from './empresaImpresion.js'
 import { contextoEtiquetaUnidad, datosEtiquetaUnidad } from './etiquetaUnidad.js'
 import { contextoEtiquetaLote, datosEtiquetaLote } from './etiquetaLote.js'
 import { estadoGarantia, fechaVerificacionInforme } from './informeDispositivo.js'
@@ -42,6 +43,8 @@ export function importeGrande(t, rotulo, monto) {
 export function ticketComprobante(entrada, { nivel = 'completo', ancho = 80, link = '', logo = null, contexto } = {}) {
   const order = documentoComprobante(entrada, contexto)
   const t = crearTicket({ ancho }).iniciar()
+  t.avanza(MARGEN_SUPERIOR)
+  logo = logo ?? logoImpresion(t.columnas)
   const items = Array.isArray(order.items) ? order.items : []
   const desglose = desgloseVenta(order)
   const { total, pagado, saldo: pendiente, confirmados: pagos } = desglose
@@ -383,7 +386,7 @@ export function ticketPruebaTipo(tipo, {
   corte = 'completo',
   base = baseDeApp(),
 } = {}) {
-  return paginaDePrueba({
+  const pagina = paginaDePrueba({
     tipo,
     ancho,
     impresora,
@@ -398,9 +401,21 @@ export function ticketPruebaTipo(tipo, {
     marca,
     incluyeFecha,
     corte,
-    nombreApp: datosEncabezado().razon || APP_NAME,
+    // La empresa ya va en el encabezado compartido: acá solo la marca de la app.
+    nombreApp: APP_NAME,
     qr: (datos) => qrPrueba(datos, base),
   })
+  // El cuerpo de la prueba es de la biblioteca; el encabezado de la empresa
+  // (logo, razón social, RUC, dirección, sucursal y contacto) es el mismo de
+  // todo ticket y va antes: se arma acá y se antepone a los bytes.
+  const cabecera = crearTicket({ ancho }).iniciar()
+  encabezadoTicket(cabecera, 'PRUEBA DE IMPRESIÓN')
+  const binario = (bytes) => Array.from(bytes, (byte) => String.fromCharCode(byte)).join('')
+  return {
+    ...pagina,
+    base64: () => btoa(binario(cabecera.bytes()) + atob(pagina.base64())),
+    lineas: () => [...cabecera.lineas(), ...pagina.lineas()],
+  }
 }
 
 // Compatibilidad con el flujo anterior: la prueba clásica de caracteres.
@@ -552,6 +567,7 @@ export function ticketComprobanteRecepcion(datos = {}, { ancho = 80 } = {}) {
   if (datos.resumen?.sobrantes) par('Sobrantes', datos.resumen.sobrantes)
   if (datos.resumen?.danados) par('Dañados', datos.resumen.danados)
   if (datos.resumen?.incorrectos) par('Incorrectos', datos.resumen.incorrectos)
+  pieDocumentoTicket(t, { condiciones: CONDICIONES.recepcion, aviso: '' })
   t.linea()
 
   if (datos.enlace) {
@@ -613,6 +629,7 @@ export function ticketListaCompra(datos = {}, { ancho = 80 } = {}) {
   par('Con IMEI', resumen.conImei)
   if (resumen.pendientes) par('IMEI pendientes', resumen.pendientes)
   if (resumen.urgentes) par('Líneas urgentes/altas', resumen.urgentes)
+  pieDocumentoTicket(t, { condiciones: CONDICIONES.lista, aviso: '' })
   t.linea()
   if (datos.enlace) {
     t.qr(datos.enlace, { tamano: 7, etiqueta: 'PANEL DE LA COMPRA' })
@@ -669,6 +686,7 @@ export function ticketManifiesto(datos = {}, { ancho = 80 } = {}) {
   par('Con IMEI', resumen.conImei)
   if (resumen.pendientes) par('IMEI pendientes', resumen.pendientes)
   if (datos.notas) t.texto(`Notas: ${datos.notas}`)
+  pieDocumentoTicket(t, { condiciones: CONDICIONES.manifiesto, aviso: '' })
   t.linea()
   if (datos.enlace) {
     t.qr(datos.enlace, { tamano: 7, etiqueta: 'RECEPCIÓN DEL LOTE' })
@@ -785,7 +803,7 @@ export function ticketRecepcionServicio(order, { ancho = 80 } = {}) {
   t.centrado(`Orden ${order.serviceNumber || '—'}`)
   t.centrado(fecha(order.receivedAt || order.createdAt))
   t.linea()
-  t.par('Cliente', order.customerName || '—')
+  clienteTicket(t, order.customer || { name: order.customerName || '—', phone: order.customerPhone, document: order.customerDocument, email: order.customerEmail })
   t.par('Equipo', order.device || '—')
   if (order.serial) t.par('Serie', order.serial)
   const desbloqueo = [order.unlockCode, Array.isArray(order.unlockPattern) && order.unlockPattern.length ? `patrón ${order.unlockPattern.join('-')}` : ''].filter(Boolean).join(' · ')
@@ -799,6 +817,8 @@ export function ticketRecepcionServicio(order, { ancho = 80 } = {}) {
   t.linea()
   t.texto('VERIFIQUE EL DISEÑO ANTES DE FIRMAR.')
   t.texto('Firma del cliente: ______________________')
+  pieDocumentoTicket(t, { condiciones: 'Presentá este comprobante para retirar el equipo. El presupuesto se confirma antes de reparar.' })
+  pieTicket(t, { leyenda: '' })
   return t.avanza(2).corte()
 }
 
@@ -867,8 +887,7 @@ export function ticketCertificado(datos = {}, { ancho = 80 } = {}) {
 
   par('Verificado por', datos.verificadoPor)
   par('Verificado el', fecha)
-  if (datos.enlace) t.qr(datos.enlace, { tamano: 7, etiqueta: 'INFORME PÚBLICO' })
-  if (datos.enlace) t.centrado(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el informe público.')
+  pieDocumentoTicket(t, { condiciones: CONDICIONES.certificado, aviso: '', enlace: datos.enlacePublico ? datos.enlace : '', qr: datos.enlace || '' })
   if (datos.codigo) t.barcode(datos.codigoBarras || datos.codigo, { etiqueta: 'CÓDIGO INTERNO' })
   t.linea()
   t.texto(datos.aviso || AVISO_BLACKLIST)
@@ -944,8 +963,7 @@ export function ticketInformeDispositivo(datos = {}, { ancho = 80 } = {}) {
   par('Vence el', garantia.hasta)
   t.linea()
 
-  if (datos.enlace) t.qr(datos.enlace, { tamano: 7, etiqueta: 'INFORME DEL DISPOSITIVO' })
-  if (datos.enlace) t.centrado(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el informe público.')
+  pieDocumentoTicket(t, { condiciones: CONDICIONES.informe, aviso: '', enlace: datos.enlacePublico ? datos.enlace : '', qr: datos.enlace || '' })
   t.linea()
   t.centrado('Documento informativo · no válido como factura')
   pieTicket(t, { leyenda: '', empresa: datos.emisor || null, regla: false })

@@ -3,7 +3,10 @@
 // sucursal y contacto; tipo de documento, número grande y fecha; y al final
 // «Generado por MobOS para <empresa>». Lo usan todos los tickets.
 import { APP_NAME } from '../brand.js'
-import { datosEncabezado } from './empresaImpresion.js'
+import { datosEncabezado, logoImpresion } from './empresaImpresion.js'
+
+// Líneas en blanco antes del encabezado de todo ticket.
+export const MARGEN_SUPERIOR = 4
 
 const fechaHora = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '')
 
@@ -11,11 +14,19 @@ const fechaHora = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { 
  * @param {object} t Ticket de `crearTicket`.
  * @param {string} titulo Tipo de documento (se imprime tal cual).
  * @param {object} [opciones] `numero`, `fecha` y `empresa` ({ tenant, branch } o
- *   un nombre) que manda sobre la empresa de la sesión.
+ *   un nombre) que manda sobre la empresa de la sesión; `logo` (raster) manda
+ *   sobre el de la sesión.
  */
-export function encabezadoTicket(t, titulo, { numero = '', fecha = '', empresa = null, cerrar = true } = {}) {
+export function encabezadoTicket(t, titulo, { numero = '', fecha = '', empresa = null, cerrar = true, logo = undefined } = {}) {
   const fuente = typeof empresa === 'string' ? { tenant: { name: empresa } } : (empresa || {})
   const datos = datosEncabezado(fuente)
+  // Aire arriba: el encabezado no queda pegado al corte del ticket anterior.
+  t.avanza(MARGEN_SUPERIOR)
+  const marca = logo === undefined ? logoImpresion(t.columnas) : logo
+  if (marca?.ancho && marca?.alto && marca.bytes) {
+    t.imagenRaster(marca.bytes, { ancho: marca.ancho, alto: marca.alto })
+    t.avanza(1)
+  }
   t.negrita().centrado(datos.razon || APP_NAME).negrita(false)
   for (const linea of datos.lineas) t.centrado(linea)
   t.linea('=')

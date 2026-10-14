@@ -5,6 +5,8 @@ import Icon from '@/components/shared/Icon'
 import VistaPreviaPapel from '@/components/shared/VistaPreviaPapel'
 import CompartirImagen from '@/components/shared/CompartirImagen'
 import CompartirPdf from '@/components/shared/CompartirPdf'
+import useFormato58 from '@/hooks/useFormato58'
+import { formatoPermitido, formatosVisibles } from '@/lib/printing/preferencias'
 import { FORMATOS_COMPROBANTE, buildListaCompraHtml } from '@/components/shared/OrderReceipt'
 import { datosListaCompra } from '@/lib/printing/listaCompra'
 import { ticketListaCompra } from '@/lib/printing/tickets'
@@ -40,7 +42,9 @@ function productosDeLaCompra(compra) {
 export default function ListaCompraModal({ compra, open, onClose }) {
   const toast = useToast()
   const avisar = useResultado()
-  const [formato, setFormato] = useState('a4')
+  const con58 = useFormato58()
+  const [formatoElegido, setFormato] = useState('a4')
+  const formato = formatoPermitido(formatoElegido, { activo: con58 })
   const [html, setHtml] = useState('')
   const [cargando, setCargando] = useState(false)
   const [imprimiendo, setImprimiendo] = useState(false)
@@ -92,7 +96,7 @@ export default function ListaCompraModal({ compra, open, onClose }) {
           <label className="block space-y-1 text-xs text-mute">
             <span>Formato</span>
             <Select aria-label="Formato de la lista" className="w-auto" value={formato} onChange={(evento) => setFormato(evento.target.value)}>
-              {FORMATOS_COMPROBANTE.map(([id, etiqueta]) => <option key={id} value={id}>{etiqueta}</option>)}
+              {formatosVisibles(FORMATOS_COMPROBANTE, { activo: con58 }).map(([id, etiqueta]) => <option key={id} value={id}>{etiqueta}</option>)}
             </Select>
           </label>
           <span className="flex flex-1 flex-wrap items-center justify-end gap-2">

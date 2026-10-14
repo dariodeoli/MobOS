@@ -51,6 +51,8 @@ function lineaPapel(item = {}, signo = 1) {
 }
 
 // Cabecera común: empresa, sucursal, número de pedido de origen y fecha.
+export const politicaDeCambio = (orden = {}) => texto(orden.tenant?.exchangePolicy || orden.tenant?.returnPolicy || orden.exchangePolicy) || POLITICA_CAMBIO_POR_DEFECTO
+
 function cabecera(orden = {}, extra = {}) {
   return {
     empresa: orden.tenant?.name || orden.empresaNombre || '',
@@ -60,7 +62,13 @@ function cabecera(orden = {}, extra = {}) {
     sucursalDireccion: [orden.branch?.address, orden.branch?.city].filter(Boolean).join(', '),
     telefono: orden.branch?.phone || orden.tenant?.phone || '',
     cliente: orden.customer?.name || '',
+    // Cliente completo (nombre, documento, teléfono, correo) y datos del pedido
+    // de origen: los mismos bloques CLIENTE / PEDIDO del comprobante de venta.
+    clienteDatos: orden.customer || null,
+    orden: { fulfillmentStatus: orden.fulfillmentStatus || '', seller: orden.seller || null },
     pedido: orden.orderNumber || orden.codigo || '',
+    politica: politicaDeCambio(orden),
+    enlace: texto(extra.enlace),
     tenant: orden.tenant || null,
     branch: orden.branch || null,
     ...extra,
@@ -72,7 +80,7 @@ function cabecera(orden = {}, extra = {}) {
  * (por medio) cierra el papel. `reembolsos` = [{ method, amountPyg }]; si no se
  * informan, se arma uno con `refundPyg` y el medio del cobro original.
  */
-export function documentoDevolucion(entrada = {}, { items = null, reembolsos = null, refundPyg = null, refundMode = '', motivo = '', fecha = '' } = {}) {
+export function documentoDevolucion(entrada = {}, { items = null, reembolsos = null, refundPyg = null, refundMode = '', motivo = '', fecha = '', enlace = '' } = {}) {
   const orden = documentoComprobante(entrada)
   const origen = Array.isArray(items) && items.length ? items : orden.items
   const lineas = origen.map((item) => lineaPapel(item, -1))
@@ -89,7 +97,7 @@ export function documentoDevolucion(entrada = {}, { items = null, reembolsos = n
   return {
     tipo: 'devolucion',
     titulo: 'DEVOLUCIÓN',
-    ...cabecera(orden, { fecha: fecha || orden.createdAt || orden.creadoEn || '' }),
+    ...cabecera(orden, { fecha: fecha || orden.createdAt || orden.creadoEn || '', enlace }),
     items: lineas,
     motivo: texto(motivo),
     totalReembolsoPyg: -Math.abs(total),
@@ -102,7 +110,7 @@ export function documentoDevolucion(entrada = {}, { items = null, reembolsos = n
  * el «Total de cambios»: A cobrar (nuevos > devueltos) o A devolver, con el
  * medio de pago o de reembolso.
  */
-export function documentoCambio(entrada = {}, { devueltos = null, nuevos = [], medio = '', modo = '', fecha = '', motivo = '' } = {}) {
+export function documentoCambio(entrada = {}, { devueltos = null, nuevos = [], medio = '', modo = '', fecha = '', motivo = '', enlace = '' } = {}) {
   const orden = documentoComprobante(entrada)
   const origen = Array.isArray(devueltos) && devueltos.length ? devueltos : orden.items
   const lineasDevueltas = origen.map((item) => lineaPapel(item, -1))
@@ -115,7 +123,7 @@ export function documentoCambio(entrada = {}, { devueltos = null, nuevos = [], m
   return {
     tipo: 'cambio',
     titulo: 'CAMBIO',
-    ...cabecera(orden, { fecha: fecha || orden.createdAt || orden.creadoEn || '' }),
+    ...cabecera(orden, { fecha: fecha || orden.createdAt || orden.creadoEn || '', enlace }),
     devueltos: lineasDevueltas,
     nuevos: lineasNuevas,
     subtotalDevueltosPyg: subtotalDevueltos,
@@ -133,18 +141,17 @@ export function documentoCambio(entrada = {}, { devueltos = null, nuevos = [], m
  * ni IMEI. Lleva el número de pedido (para buscar el cambio), la tienda y la
  * nota de cambios.
  */
-export function documentoRegalo(entrada = {}) {
+export function documentoRegalo(entrada = {}, { enlace = '' } = {}) {
   const orden = documentoComprobante(entrada)
-  const politica = texto(orden.tenant?.exchangePolicy || orden.tenant?.returnPolicy || orden.exchangePolicy) || POLITICA_CAMBIO_POR_DEFECTO
   return {
     tipo: 'regalo',
     titulo: 'RECIBO DE REGALO',
-    ...cabecera(orden, { fecha: orden.createdAt || orden.creadoEn || '', cliente: '' }),
+    // El recibo de regalo se entrega a un tercero: sin datos del comprador.
+    ...cabecera(orden, { fecha: orden.createdAt || orden.creadoEn || '', cliente: '', clienteDatos: null, enlace, orden: {} }),
     items: orden.items.map((item) => ({
       description: texto(item.description) || 'Producto',
       quantity: Math.abs(numero(item.quantity)) || 1,
     })),
-    politica,
   }
 }
 

@@ -7,6 +7,14 @@ const texto = (valor) => String(valor ?? '').trim()
 
 let actual = { tenant: null, branch: null }
 
+// Logo en bits para la térmica, uno por ancho de rollo (80 y 58 mm): lo carga la
+// sesión una sola vez y lo usa el encabezado de TODOS los tickets (#426).
+let logos = { 80: null, 58: null }
+export function fijarLogoImpresion({ 80: ochenta = null, 58: cincuentaYOcho = null } = {}) {
+  logos = { 80: ochenta, 58: cincuentaYOcho }
+}
+export const logoImpresion = (columnas = 48) => (Number(columnas) >= 48 ? logos[80] : logos[58])
+
 // Normaliza las dos formas de los datos (API: name/address/phone; sesión y demo:
 // nombre/direccion/telefono).
 export function normalizarTenant(tenant = null) {

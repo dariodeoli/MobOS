@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import { isDemoRuntime, demoSessionActive, demoSessionRole, saveDemoSession, clearDemoSession } from './demoMode'
 import { EMPRESA_DEMO, SUCURSALES_DEMO } from './demo/empresa'
 import { fijarEmpresaImpresion } from './printing/empresaImpresion'
+import { cargarLogoImpresion } from './printing/logoImpresion'
 import { perfilDemo } from './demo/equipo.js'
 import { combinarPerfil } from '@/lib/sesionPerfil'
 import { limpiarAvatarCache, precargarAvatar } from '@/lib/userAvatar'
@@ -77,6 +78,8 @@ export function SesionProvider({ children }) {
     // Identidad del papel (#426): razón social, RUC, dirección y contacto salen
     // de la empresa de la sesión (el demo usa la ficticia).
     fijarEmpresaImpresion({ tenant: emp.id === 'mobos-demo' ? { ...EMPRESA_DEMO, name: EMPRESA_DEMO.razonSocial } : { ...(tenant || {}), name: tenant?.name || emp.nombre } })
+    // El logo de la empresa viaja en todos los tickets: se prepara en segundo plano.
+    cargarLogoImpresion()
     setUsuario(user); setEmpresa(emp); setEmpresas([emp]); setSucursal(sucursalActiva); setSucursales(listaSucursales); setVendedores(getCompanyContext()?.sellers || []); setPerfilEmpresa(perfil !== undefined ? perfil : getCompanyContext()?.profile || null); setEstado('dentro')
   }, [])
   // #324: el acceso demo resuelve la persona real del equipo ficticio por rol o

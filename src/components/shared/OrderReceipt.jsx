@@ -12,6 +12,7 @@ import { contextoEtiquetaLote, datosEtiquetaLote } from '@/lib/printing/etiqueta
 import { estadoGarantia, fechaVerificacionInforme } from '@/lib/printing/informeDispositivo'
 import { estadoChecklist, estadoControl, fechaCortaDocumento, fechaHoraDocumento } from '@/lib/printing/certificado'
 import { documentoComprobante } from '@/lib/printing/ventaComprobante'
+import { CONDICIONES, pieDocumentoHtml } from '@/lib/printing/bloquesDocumento'
 import { datosEncabezado } from '@/lib/printing/empresaImpresion'
 import { ACENTO_POR_DEFECTO, acentoDeEmpresa, desgloseVenta, garantiaDeVenta, serialesDeItem } from '@/lib/printing/ventaPapel'
 import JsBarcode from 'jsbarcode'
@@ -222,7 +223,8 @@ export const styles = (format, acento = ACENTO_POR_DEFECTO) => {
   // las térmicas centran la columna en el rollo con padding parejo (el papel
   // suele ser más ancho que el área imprimible real).
   const page = width ? `${width}mm auto` : 'A4'
-  const margin = width ? '5mm 4mm' : '16mm 16mm'
+  // El rollo deja aire arriba y abajo: el encabezado no queda pegado al corte.
+  const margin = width ? '6mm 4mm 8mm' : '16mm 16mm'
   const bodyMax = width ? `${width - 8}mm` : '178mm'
   const baseFont = width ? '10px/1.45' : '12px/1.5'
   const h1Size = width ? '15px' : '20px'
@@ -232,19 +234,23 @@ export const styles = (format, acento = ACENTO_POR_DEFECTO) => {
   :root{--tinta:#111418;--tinta-2:#3b424a;--gris:#666d75;--linea:#d9dde1;--suave:#f3f4f6;--acento:${acento}}
   @page{size:${page};margin:${margin}}
   *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  body{font:${baseFont} ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;margin:0 auto;color:var(--tinta);max-width:${bodyMax};padding:${width ? '1mm 0 6mm' : '0 0 4mm'};font-variant-numeric:tabular-nums}
+  body{font:${baseFont} ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;margin:0 auto;color:var(--tinta);max-width:${bodyMax};padding:${width ? '10mm 0 8mm' : '4mm 0 4mm'};font-variant-numeric:tabular-nums}
   /* Encabezado: empresa a la izquierda, tipo de documento y número a la derecha
      (en el rollo, apilado y centrado). */
   .brand{display:flex;flex-direction:${width ? 'column' : 'row'};align-items:${width ? 'center' : 'flex-start'};justify-content:space-between;gap:${width ? '6px' : '18px'};border-bottom:2px solid var(--acento);padding-bottom:${width ? '6px' : '10px'};margin-bottom:${width ? '8px' : '14px'};text-align:${width ? 'center' : 'left'}}
   .brand .emp{min-width:0}
   .brand b{display:block;font-size:${width ? '12px' : '15px'};color:var(--tinta);font-weight:800;letter-spacing:.02em}
-  .brand .rz{font-size:${width ? '12px' : '15px'};font-weight:800;line-height:1.25}
+  /* La razón social nunca se corta: pasa a dos líneas y, si es larga, achica la fuente. */
+  .brand .rz{font-size:${width ? '12px' : '15px'};font-weight:800;line-height:1.25;overflow-wrap:anywhere;word-break:break-word;max-width:100%}
+  .brand .rz.larga{font-size:${width ? '10.5px' : '13px'}}
+  .brand .rz.muy-larga{font-size:${width ? '9.5px' : '11.5px'}}
+  .brand .sub{overflow-wrap:anywhere}
   .brand .sub{font-size:${width ? '9px' : '10.5px'};color:var(--tinta-2);line-height:1.45}
   .brand .doc{text-align:${width ? 'center' : 'right'};flex:none}
   .brand .tipo{font-size:${width ? '10px' : '11px'};font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--acento)}
   .brand .num{font-size:${width ? '17px' : '22px'};font-weight:800;letter-spacing:-.01em;line-height:1.2;margin-top:2px}
   .brand .cuando{font-size:${width ? '9px' : '10.5px'};color:var(--gris);margin-top:2px}
-  .brand img.logo{display:block;height:${width ? (width === 80 ? '14mm' : '12mm') : '15mm'};max-width:${width ? `${width - 20}mm` : '60mm'};object-fit:contain;margin:0 ${width ? 'auto' : '0'} 5px}
+  .brand img.logo{display:block;height:${width ? (width === 80 ? '14mm' : '12mm') : '15mm'};max-width:min(100%,${width ? `${width - 20}mm` : '60mm'});object-fit:contain;margin:0 ${width ? 'auto' : '0'} 5px}
   h1{font-size:${h1Size};margin:0 0 2px;letter-spacing:-.01em}
   .muted{color:var(--gris)}
   .meta{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px;margin:6px 0 0}
@@ -331,7 +337,8 @@ export const header = (title, when, logo = '', marca = '', extra = {}) => {
   const razon = extra.razon ?? base.razon
   const lineasEmpresa = extra.lineas ?? base.lineas
   const lineas = (lineasEmpresa || []).filter(Boolean).map(linea => `<div class="sub">${escapeHtml(linea)}</div>`).join('')
-  const identidad = razon ? `<div class="rz">${escapeHtml(razon)}</div>` : (!logo ? `<b>${escapeHtml(marca || APP_NAME)}</b>` : '')
+  const claseRz = razon && razon.length > 38 ? 'rz muy-larga' : razon && razon.length > 24 ? 'rz larga' : 'rz'
+  const identidad = razon ? `<div class="${claseRz}">${escapeHtml(razon)}</div>` : (!logo ? `<b>${escapeHtml(marca || APP_NAME)}</b>` : '')
   return `<div class="brand"><div class="emp">${logo ? `<img class="logo" src="${logo}" alt="">` : ''}${identidad}${lineas}</div><div class="doc"><h1 class="tipo">${escapeHtml(title)}</h1>${extra.numero ? `<div class="num">${escapeHtml(extra.numero)}</div>` : ''}${when ? `<div class="cuando">${escapeHtml(when)}</div>` : ''}</div></div>`
 }
 // Pie compartido: la leyenda propia del documento y «Generado por MobOS para
@@ -886,10 +893,9 @@ export async function buildInformeDispositivoHtml(datos = {}, { format = 'a4' } 
       ${fila('Proveedor', datos.proveedor)}
     </div></div>
     <div class="card"><div class="label">Verificación IMEI</div>${verificacion}</div>
-    ${format === 'a4' && datos.enlace ? `<div class="card"><div class="label">Informe público</div><div class="qr-fila">${qr ? `<img class="qr" src="${qr}" alt="QR del informe">` : ''}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el informe público.')}</p></div></div>` : ''}
     <div class="card"><div class="label">Inspección física</div>${inspeccionHtml}</div>
     <div class="card"><div class="label">Garantía de la tienda</div>${fila('Estado', garantia.etiqueta)}${fila('Vence el', garantia.hasta)}</div>
-    ${format !== 'a4' && datos.enlace ? `<div class="card"><div class="label">Informe público</div>${qr ? `<img class="qr" src="${qr}" alt="QR del informe">` : ''}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el informe público.')}</p></div>` : ''}
+    ${pieDocumentoHtml({ condiciones: CONDICIONES.informe, qrSrc: qr, enlace: datos.enlacePublico ? datos.enlace : '', tieneQr: Boolean(datos.enlace), termico: format !== 'a4', aviso: '' })}
     ${footer('Documento informativo.', datos.emisor)}
   </body></html>`
 }
@@ -976,7 +982,7 @@ export async function buildCertificadoHtml(datos = {}, { format = 'a4' } = {}) {
       ${fila('Verificado el', fechaHoraDocumento(datos.verificado))}
       ${fila('Fuente', datos.fuente?.proveedor ? `${datos.fuente.proveedor}${datos.fuente.fecha ? ` · ${fechaCortaDocumento(datos.fuente.fecha)}` : ''}` : '')}
     </div>
-    ${datos.enlace ? `<div class="card"><div class="label">Informe público</div><div class="qr-fila">${qr ? `<img class="qr" src="${qr}" alt="QR del informe">` : ''}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el informe público.')}</p></div>${barras}</div>` : ''}
+    ${pieDocumentoHtml({ condiciones: CONDICIONES.certificado, qrSrc: qr, enlace: datos.enlacePublico ? datos.enlace : '', tieneQr: Boolean(datos.enlace), termico: format !== 'a4', aviso: '' })}${barras}
     ${footer('Firma / control: ______________ · Constancia de inspección.', datos.emisor)}
   </body></html>`
 }
@@ -1076,6 +1082,7 @@ export async function buildListaCompraHtml(datos = {}, { format = 'a4' } = {}) {
       ${resumen.pendientes ? `<tr class="saldo"><td>IMEI pendientes</td><td class="num">${escapeHtml(String(resumen.pendientes))}</td></tr>` : ''}
       ${resumen.urgentes ? `<tr><td>Líneas urgentes/altas</td><td class="num">${escapeHtml(String(resumen.urgentes))}</td></tr>` : ''}
     </table></div>
+    ${pieDocumentoHtml({ condiciones: CONDICIONES.lista, tieneQr: false, aviso: '' })}
     ${datos.enlace || barras ? `<div class="card"><div class="label">Panel de la compra</div>${qr ? `<img class="qr" src="${qr}" alt="QR del panel">` : ''}${barras}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el panel de la compra.')}</p></div>` : ''}
     ${firmas([{ rol: 'Compró / control' }], { observaciones: !a4, estrecho: Boolean(thermalWidth(format)) })}
     ${footer('Documento de control interno. No es comprobante fiscal.', datos.emisor)}
@@ -1149,6 +1156,7 @@ export async function buildManifiestoHtml(datos = {}, { format = 'a4' } = {}) {
       <tr><td>Con IMEI</td><td class="num">${escapeHtml(String(resumen.conImei ?? 0))}</td></tr>
       ${resumen.pendientes ? `<tr class="saldo"><td>Sin IMEI (se completa en recepción)</td><td class="num">${escapeHtml(String(resumen.pendientes))}</td></tr>` : ''}
     </table></div>
+    ${pieDocumentoHtml({ condiciones: CONDICIONES.manifiesto, tieneQr: false, aviso: '' })}
     ${datos.enlace || barras ? `<div class="card"><div class="label">Recepción del lote</div>${qr ? `<img class="qr" src="${qr}" alt="QR del lote">` : ''}${barras}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el manifiesto del lote.')}</p></div>` : ''}
     ${firmas([{ rol: 'Despachó / responsable' }, { rol: 'Recibió el transportista' }], { observaciones: !a4, estrecho: Boolean(thermalWidth(format)) })}
     ${footer('Documento de control interno.', datos.emisor)}
@@ -1251,6 +1259,7 @@ export async function buildComprobanteRecepcionHtml(datos = {}, { format = 'a4' 
       ${resumen.incorrectos ? `<tr><td>Incorrectos</td><td class="num">${escapeHtml(String(resumen.incorrectos))}</td></tr>` : ''}
     </table></div>
     ${incidencias.length ? `<div class="card"><div class="label">Incidencias (${incidencias.length})</div>${tablaIncidencias}</div>` : ''}
+    ${pieDocumentoHtml({ condiciones: CONDICIONES.recepcion, tieneQr: false, aviso: '' })}
     ${firmas([{ rol: 'Recibí conforme (depósito)' }, { rol: 'Control de stock' }], { observaciones: !a4, estrecho: Boolean(thermalWidth(format)) })}
     ${footer('Documento de control interno. No es comprobante fiscal.', datos.emisor)}
   </body></html>`

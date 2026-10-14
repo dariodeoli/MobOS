@@ -3,13 +3,15 @@
 // Tras encolar o un resultado incierto no se abre nada: el reintento del
 // agente podría duplicar el papel.
 import { api } from '@/lib/api'
+import { formatoPermitido } from '@/lib/printing/preferencias'
 import { configImpresora } from '@/lib/printing/agent'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { documentoCambio, documentoDevolucion, documentoRegalo, documentoTarjetaRegalo } from '@/lib/printing/operacionPapel'
 import { ticketCambio, ticketDevolucion, ticketRegalo, ticketTarjetaRegalo } from '@/lib/printing/ticketsOperacion'
 import { printCambio, printDevolucion, printReciboRegalo, printTarjetaRegalo } from './OperacionReceipt'
+import { trackingUrlFor } from './OrderReceipt'
 
-const formatoDe = (ancho) => (ancho === 58 ? 'thermal-58' : 'thermal-80')
+const formatoDe = (ancho) => formatoPermitido(ancho === 58 ? 'thermal-58' : 'thermal-80')
 
 export function textoResultado(resultado, nombre) {
   if (resultado?.ok) return resultado.encolado ? `${nombre} encolado: la impresora no respondió y se reintenta sola.` : `${nombre} enviado a la impresora.`
@@ -18,7 +20,7 @@ export function textoResultado(resultado, nombre) {
 
 export async function imprimirDevolucion(orden, datos = {}) {
   const { ancho } = configImpresora()
-  return imprimirDocumentoNoFiscal(ticketDevolucion(documentoDevolucion(orden, datos), { ancho }), {
+  return imprimirDocumentoNoFiscal(ticketDevolucion(documentoDevolucion(orden, { ...datos, enlace: trackingUrlFor(orden) }), { ancho }), {
     tipo: 'devolucion',
     respaldo: () => printDevolucion(orden, { format: formatoDe(ancho), datos }),
   })
@@ -26,7 +28,7 @@ export async function imprimirDevolucion(orden, datos = {}) {
 
 export async function imprimirCambio(orden, datos = {}) {
   const { ancho } = configImpresora()
-  return imprimirDocumentoNoFiscal(ticketCambio(documentoCambio(orden, datos), { ancho }), {
+  return imprimirDocumentoNoFiscal(ticketCambio(documentoCambio(orden, { ...datos, enlace: trackingUrlFor(orden) }), { ancho }), {
     tipo: 'cambio',
     respaldo: () => printCambio(orden, { format: formatoDe(ancho), datos }),
   })
@@ -34,7 +36,7 @@ export async function imprimirCambio(orden, datos = {}) {
 
 export async function imprimirReciboRegalo(orden) {
   const { ancho } = configImpresora()
-  return imprimirDocumentoNoFiscal(ticketRegalo(documentoRegalo(orden), { ancho }), {
+  return imprimirDocumentoNoFiscal(ticketRegalo(documentoRegalo(orden, { enlace: trackingUrlFor(orden) }), { ancho }), {
     tipo: 'recibo-regalo',
     respaldo: () => printReciboRegalo(orden, { format: formatoDe(ancho) }),
   })

@@ -7,16 +7,10 @@ import { gs } from '../../utils/calculos.js'
 import { crearTicket } from './escpos.js'
 import { encabezadoTicket, pieTicket } from './encabezadoTicket.js'
 import { importeGrande } from './tickets.js'
+import { clienteTicket, parSeguro, pedidoTicket, pieDocumentoTicket } from './bloquesDocumento.js'
 
 // Importe con signo visible: los negativos llevan «-» pegado (-Gs 1.500.000).
 export const importeConSigno = (monto) => (Number(monto) < 0 ? `-${gs(Math.abs(monto))}` : gs(monto))
-
-// Par «rótulo … importe» que nunca se recorta: si no entra en una línea, el
-// importe baja a la siguiente alineado a la derecha.
-function parSeguro(t, izquierda, derecha) {
-  if (String(izquierda).length + String(derecha).length + 1 <= t.columnas) t.par(izquierda, derecha)
-  else { t.texto(izquierda); t.par('', derecha) }
-}
 
 const empresaDe = (doc) => ({ tenant: doc.tenant, branch: doc.branch })
 
@@ -34,16 +28,19 @@ function totalGrande(t, rotulo, monto) {
   importeGrande(t, rotulo, monto)
 }
 
-function cliente(t, doc) {
-  if (doc.cliente) parSeguro(t, 'Cliente', doc.cliente)
+// CLIENTE completo y PEDIDO, como en el comprobante de venta.
+function bloquesCliente(t, doc, extra = []) {
+  clienteTicket(t, doc.clienteDatos || doc.cliente)
+  pedidoTicket(t, doc.orden || {}, extra)
 }
+
+// GARANTÍA Y CONDICIONES (política de cambios) y el QR con el enlace público.
+const pieOperacion = (t, doc) => pieDocumentoTicket(t, { condiciones: doc.politica, enlace: doc.enlace })
 
 export function ticketDevolucion(doc, { ancho = 80 } = {}) {
   const t = crearTicket({ ancho }).iniciar()
   encabezadoTicket(t, doc.titulo, { numero: doc.pedido, fecha: doc.fecha, empresa: empresaDe(doc) })
-  cliente(t, doc)
-  if (doc.motivo) t.texto(`Motivo: ${doc.motivo}`)
-  t.linea()
+  bloquesCliente(t, doc, [doc.motivo ? `Motivo: ${doc.motivo}` : ''])
   t.par('Detalle', 'Importe')
   for (const item of doc.items) lineaItem(t, item)
   t.linea()
@@ -51,6 +48,7 @@ export function ticketDevolucion(doc, { ancho = 80 } = {}) {
   t.linea()
   t.texto('Reembolso')
   for (const metodo of doc.metodos) parSeguro(t, metodo.label, importeConSigno(metodo.amountPyg))
+  pieOperacion(t, doc)
   pieTicket(t, { empresa: empresaDe(doc) })
   return t.avanza(2).corte()
 }
@@ -58,9 +56,7 @@ export function ticketDevolucion(doc, { ancho = 80 } = {}) {
 export function ticketCambio(doc, { ancho = 80 } = {}) {
   const t = crearTicket({ ancho }).iniciar()
   encabezadoTicket(t, doc.titulo, { numero: doc.pedido, fecha: doc.fecha, empresa: empresaDe(doc) })
-  cliente(t, doc)
-  if (doc.motivo) t.texto(`Motivo: ${doc.motivo}`)
-  t.linea()
+  bloquesCliente(t, doc, [doc.motivo ? `Motivo: ${doc.motivo}` : ''])
   t.texto('DEVUELTOS')
   for (const item of doc.devueltos) lineaItem(t, item)
   parSeguro(t, 'Subtotal devueltos', importeConSigno(doc.subtotalDevueltosPyg))
@@ -75,6 +71,7 @@ export function ticketCambio(doc, { ancho = 80 } = {}) {
     t.texto(doc.direccion === 'cobrar' ? 'Pago' : 'Reembolso')
     parSeguro(t, doc.medio, gs(doc.totalCambioPyg))
   }
+  pieOperacion(t, doc)
   pieTicket(t, { empresa: empresaDe(doc) })
   return t.avanza(2).corte()
 }
@@ -90,9 +87,7 @@ export function ticketRegalo(doc, { ancho = 80 } = {}) {
     if (nombre.length + cantidad.length + 1 <= t.columnas) t.par(nombre, cantidad)
     else { t.texto(nombre); t.par('', cantidad) }
   }
-  t.linea()
-  t.texto('Cambios')
-  t.texto(doc.politica)
+  pieOperacion(t, doc)
   pieTicket(t, { empresa: empresaDe(doc) })
   return t.avanza(2).corte()
 }
@@ -103,12 +98,7 @@ export function ticketTarjetaRegalo(doc, { ancho = 80 } = {}) {
   t.par('Código', doc.codigoEnmascaradoTicket)
   t.par('Vigencia', doc.vigencia.replace('Válida hasta el ', ''))
   totalGrande(t, 'Saldo', gs(doc.montoPyg))
-  if (doc.qr) {
-    t.avanza(1)
-    t.qr(doc.qr, { tamano: ancho >= 80 ? 7 : 6, etiqueta: 'Escaneá para canjear' })
-  }
-  t.avanza(1)
-  t.texto('Guardá esta tarjeta: quien tenga el código puede usar el saldo.')
+  pieDocumentoTicket(t, { condiciones: 'Guardá esta tarjeta: quien tenga el código puede usar el saldo. Se canjea en el cobro de la tienda.', qr: doc.qr, rotuloQr: 'Escaneá para canjear' })
   pieTicket(t, { empresa: empresaDe(doc) })
   return t.avanza(2).corte()
 }

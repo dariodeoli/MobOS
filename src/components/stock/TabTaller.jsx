@@ -1,5 +1,6 @@
 import TallerRack from '@/components/inventory/TallerRack'
 import { printHtml } from '@/utils/printHtml'
+import { getLogoDataUrl } from '@/lib/tenantLogo'
 import { buildStationSheetHtml, buildStationSheetsHtml } from '@/lib/printing/hojaEstacion'
 import { datosCertificado } from '@/lib/printing/certificado'
 import { buildCertificadosHtml } from '@/components/shared/OrderReceipt'
@@ -17,8 +18,8 @@ export default function TabTaller({ ctx }) {
           onVerificarLote={verificarLote}
           onEtiqueta={(unit) => printLabel(unit).then(avisarImpresion)}
           onEtiquetasLote={(lista) => printLabels(lista)}
-          onHoja={(lista, titulo) => (esDemo ? IMPRESION_DEMO : printHtml(buildStationSheetHtml(lista, { estacion: titulo })))}
-          onHojasPorEstacion={(grupos) => (esDemo ? IMPRESION_DEMO : printHtml(buildStationSheetsHtml(grupos)))}
+          onHoja={(lista, titulo) => (esDemo ? IMPRESION_DEMO : getLogoDataUrl().then((logo) => printHtml(buildStationSheetHtml(lista, { estacion: titulo, logo }))))}
+          onHojasPorEstacion={(grupos) => (esDemo ? IMPRESION_DEMO : getLogoDataUrl().then((logo) => printHtml(buildStationSheetsHtml(grupos, { logo }))))}
           onCertificados={(lista) => {
             if (esDemo) return IMPRESION_DEMO
             const certificados = lista.map(unit => datosCertificado(unit))

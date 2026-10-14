@@ -22,7 +22,8 @@ import { cargarImpresorasRemotas, configImpresora, confirmarJob, esIdBackend, es
 import { printingApi } from '@/lib/api/printing'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { encolarComprobanteDemo } from '@/lib/printing/demo'
-import { formatoDeTipo, recordarFormatoDeTipo } from '@/lib/printing/preferencias'
+import { formatoDeTipo, formatosVisibles, recordarFormatoDeTipo } from '@/lib/printing/preferencias'
+import useFormato58 from '@/hooks/useFormato58'
 import { ticketComprobante } from '@/lib/printing/tickets'
 import { documentoDeVenta } from '@/lib/printing/ventaComprobanteLocal'
 import { imprimirReciboRegalo } from './imprimirOperacion'
@@ -40,8 +41,11 @@ import { useSesion } from '@/lib/sesion'
 // y total— también para las ventas legacy del demo; el modal mantiene header y
 // pie fijos con el cuerpo desplazable, y el papel se dimensiona a su contenido
 // para que el comprobante no quede cortado.
-export default function ComprobantePreview({ order, open, onClose, formatos = FORMATOS_COMPROBANTE }) {
+export default function ComprobantePreview({ order, open, onClose, formatos: formatosOfrecidos = FORMATOS_COMPROBANTE }) {
   const toast = useToast()
+  // El 58 mm solo se ofrece si se enciende en Configuración › Impresión y dispositivos.
+  const con58 = useFormato58()
+  const formatos = useMemo(() => formatosVisibles(formatosOfrecidos, { activo: con58 }), [formatosOfrecidos, con58])
   const avisar = useResultado()
   const { empresa, sucursal, sesion } = useSesion()
   const contexto = useMemo(

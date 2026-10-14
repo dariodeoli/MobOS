@@ -1,4 +1,5 @@
 import { configImpresora, imprimirConDialogo, imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
+import { formatoPermitido } from '@/lib/printing/preferencias'
 import { accessUrlFor, buildProductLabelsHtml, buildUnitLabelsHtml, printOrderReceipt, printRemisionReceipt, tokenDeNivel } from '@/components/shared/OrderReceipt'
 import { ticketComprobante, ticketEtiquetaUbicacion, ticketEtiquetaUnidad, ticketEtiquetasUnidad, ticketRemision } from '@/lib/printing/tickets'
 import { qrDataUrl } from '@/lib/qr'
@@ -52,7 +53,7 @@ export async function printQuickReceipt(unit) {
   const venta = unit?.sale
   if (!venta?.orderId) return { ok: false, motivo: 'sin-pedido', error: 'La unidad no tiene un pedido asociado.' }
   const { ancho } = configImpresora()
-  const formato = ancho === 58 ? 'thermal-58' : 'thermal-80'
+  const formato = formatoPermitido(ancho === 58 ? 'thermal-58' : 'thermal-80')
   const orden = await api.get(`/api/orders/${encodeURIComponent(venta.orderId)}`)
   // El QR del nivel rápido: mismo token de impresión que emite el comprobante.
   const token = await tokenDeNivel(orden.id, 'rapido')
