@@ -17,7 +17,7 @@ import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { useVistaListaGrid } from '@/hooks/useVistaListaGrid'
 import ProductoDetalle from '@/components/productos/ProductoDetalle'
-import VistaProductosUnidades from '@/components/shared/VistaProductosUnidades'
+import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import ListGridToggle from '@/components/shared/ListGridToggle'
 import ComboManager from '@/components/productos/ComboManager'
 import ImportarProductos from '@/components/productos/ImportarProductos'
@@ -26,7 +26,7 @@ import EtiquetasProductoModal from '@/components/shared/EtiquetasProductoModal'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
 import { useToast } from '@/components/ui'
 import { CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
-import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
+import { PIE_ACCIONES } from '@/components/shared/formulario'
 
 export const productFields = (row) => ({ ...row, id: row.id, name: row.name || row.nombre || '', sku: row.sku || '', price: row.pricePyg ?? row.precioVenta, stock: row.stock })
 const demoProducts = () => getProductos().filter((row) => row.activo !== false)
@@ -72,13 +72,13 @@ function FilaProducto({ row, onClick, seleccionado = false, onAlternar }) {
 function TarjetaProducto({ row, onClick }) {
   const stock = Number(row.stock ?? 0)
   return (
-    <button type="button" onClick={onClick} className="group flex w-full flex-col rounded-2xl border border-fore/10 bg-ink-800/40 p-4 text-left transition hover:border-fono/40 hover:bg-ink-700/50">
+    <button type="button" data-testid="producto-fila" onClick={onClick} className="group flex w-full flex-col rounded-2xl border border-fore/10 bg-ink-800/40 p-3 text-left md:p-4 transition hover:border-fono/40 hover:bg-ink-700/50">
       <span className="flex items-start justify-between gap-2">
         <b className="min-w-0 truncate text-sm">{row.name}</b>
         <Badge color={CONDITION_TONE[row.condition] || 'slate'}>{CONDITION[row.condition] || 'Nuevo'}</Badge>
       </span>
       <span className="mt-1 block truncate font-mono text-[11px] text-mute">{row.sku || 'Sin SKU'}{row.category ? ` · ${row.category}` : ''}</span>
-      <span className="mt-3 text-xl font-bold tabular-nums text-fono-light">{precio(row) > 0 ? gs(precio(row)) : '—'}</span>
+      <span className="mt-2 text-lg font-bold tabular-nums text-fono-light md:mt-3 md:text-xl">{precio(row) > 0 ? gs(precio(row)) : '—'}</span>
       {mayorista(row) > 0 && <span className="mt-0.5 text-[11px] text-mute">Mayorista {gs(mayorista(row))}</span>}
       {usd(row) > 0 && <span className="mt-0.5 text-[11px] text-mute">US$ {usd(row).toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>}
       <span className="mt-3 flex items-center justify-between">
@@ -101,14 +101,15 @@ export default function SellerCatalog() {
   const productoUrl = searchParams.get('producto') || ''
   const [query, setQuery] = useState(qUrl)
   const [search, setSearch] = useState(qUrl)
-  // Producto que abrió esta vista (contexto del switch hacia Unidades).
-  const [productoAbierto, setProductoAbierto] = useState(null)
   const busquedaDiferida = useBusquedaDiferida(query)
   const [categoria, setCategoria] = useState('todas')
   const [condicion, setCondicion] = useState('todas')
   const [soloStock, setSoloStock] = useState(false)
   const [orden, setOrden] = useState({ key: 'recientes', dir: 'asc' })
-  const [vista, cambiarVista] = useVistaListaGrid('productos')
+  const [vistaElegida, cambiarVista] = useVistaListaGrid('productos')
+  // #396: bajo 768 px el catálogo son tarjetas (no una tabla de 61rem con scroll).
+  const movil = usePantallaAngosta('(min-width: 768px)')
+  const vista = movil ? 'grid' : vistaElegida
   const [seleccion, setSeleccion] = useState(null)
   // #307: copiar precios muestra antes lo que se va a copiar.
   const [previewPrecios, setPreviewPrecios] = useState(false)
@@ -165,7 +166,6 @@ export default function SellerCatalog() {
     const fila = data.rows.find((row) => row.id === productoUrl)
     if (!fila) return
     setSeleccion(fila)
-    setProductoAbierto(fila)
     setSearchParams((actuales) => {
       const params = new URLSearchParams(actuales)
       params.delete('producto')
@@ -217,10 +217,8 @@ export default function SellerCatalog() {
       descripcion="Catálogo de consulta y edición: precio, mayorista, stock y equipos por IMEI."
       testId="barra-productos"
     >
-      {/* #287: Productos ⇄ Unidades, el mismo objeto en dos vistas.
-          #332: solo para quien puede abrir Unidades (dueño/gerencia): el
-          vendedor no tiene acceso a esa vista y el switch lo rebotaba al POS. */}
-      {esOwner && <VistaProductosUnidades vista="productos" q={search || busquedaDiferida} productoId={seleccion?.id || productoAbierto?.id || ''} />}
+      {/* #396: Productos ⇄ Unidades ya son pestañas del shell; el switch
+          repetido en la barra se sacó (el contexto viaja por los enlaces de las fichas). */}
       <Button type="button" variant="outline" onClick={data.refresh} disabled={data.loading}>
         <Icon name="refresh" className="h-3.5 w-3.5" />Actualizar
       </Button>
@@ -231,7 +229,6 @@ export default function SellerCatalog() {
     {/* #256: métricas con alcance explícito (lo cargado no se mezcla). */}
     <ResumenMetricas
       testId="resumen-productos"
-      columnas={4}
       items={[
         { titulo: 'Productos', valor: data.rows.length, alcance: 'En pantalla', nota: `${rows.length} visibles` },
         { titulo: 'En stock', valor: enStock, alcance: 'En pantalla' },
@@ -256,7 +253,7 @@ export default function SellerCatalog() {
       <Select aria-label="Filtrar por categoría" className="w-auto" value={categoria} onChange={(event) => setCategoria(event.target.value)}><option value="todas">Todas las categorías</option>{categorias.map(item => <option key={item} value={item}>{item}</option>)}</Select>
       <Select aria-label="Filtrar por condición" className="w-auto" value={condicion} onChange={(event) => setCondicion(event.target.value)}><option value="todas">Nueva y seminueva</option><option value="NEW">Nuevos</option><option value="USED">Seminuevos</option><option value="REFURBISHED">Reacondicionados</option></Select>
       <button type="button" onClick={() => setSoloStock(value => !value)} className={cn('min-h-11 rounded-lg border px-3 py-2 text-xs font-semibold transition md:min-h-9', soloStock ? 'border-ok/40 bg-ok/10 text-ok' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}>Con stock</button>
-      <ListGridToggle value={vista} onChange={cambiarVista} />
+      {!movil && <ListGridToggle value={vista} onChange={cambiarVista} />}
     </div>
     <SellerFeedback {...data} empty={!rows.length} />
     <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
@@ -278,7 +275,7 @@ export default function SellerCatalog() {
       </div>
       <div className="space-y-1">{ordenadas.map((row) => <FilaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} seleccionado={seleccionados.includes(row.id)} onAlternar={() => setSeleccionados((actuales) => alternarId(actuales, row.id))} />)}</div>
     </div>}
-    {!data.loading && !data.error && vista === 'grid' && <div className={cn('min-[1200px]:grid-cols-3', GRILLA_DOS_COLUMNAS)}>{rows.map((row) => <TarjetaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>}
+    {!data.loading && !data.error && vista === 'grid' && <div className={cn('grid grid-cols-1 gap-2 md:grid-cols-2 min-[1200px]:grid-cols-3', movil && 'gap-2')}>{rows.map((row) => <TarjetaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>}
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="min-h-11 md:min-h-0 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más productos'}</button></div>}
     <ComboManager open={combosOpen} onClose={() => setCombosOpen(false)} />
     <EtiquetasProductoModal open={etiquetasOpen} onClose={() => setEtiquetasOpen(false)} productos={rows} seleccionInicial={seleccionados} />

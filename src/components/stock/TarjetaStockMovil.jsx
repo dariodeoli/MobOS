@@ -256,7 +256,7 @@ export function TarjetaUnidad({ unit, onClick }) {
 
 // ── Lista unificada de Stock (U3): tarjeta de celular ───────────────────────
 // Modelo, IMEI/serie, batería y estado a la vista; proveedor y costo (solo si
-// el rol los ve) quedan en un detalle plegado. Todos los destinos táctiles
+// el rol los ve) van en la fila del estado y bajo el modelo, sin detalle plegado (#396). Todos los destinos táctiles
 // miden 44 px y el IMEI va completo, sin recortar.
 export function TarjetaStockMovil({ item, vista = 'unidades', verCosto = false, seleccionado = false, onAlternar, onAbrir, acciones = [], onRestaurar, busy = false }) {
   const { nombre, variante } = modeloDeItem(item)
@@ -296,7 +296,9 @@ export function TarjetaStockMovil({ item, vista = 'unidades', verCosto = false, 
             <EstadoStock item={item} />
             <BateriaStock item={item} />
             <ConsignadoStock item={item} />
+            {verCosto ? <span data-testid="unidad-costo" className="ml-auto text-xs tabular-nums text-mute" title="Costo"><CostoStock item={item} /></span> : null}
           </span>
+          {verCosto && item.supplierName ? <span className="mt-1 block truncate text-[11px] text-mute" title={`Proveedor: ${item.supplierName}`}>Proveedor: {item.supplierName}</span> : null}
           {ubicacion ? <span className="mt-1 block truncate text-[11px] text-mute" title={ubicacion}>{ubicacion}</span> : null}
           {vista === 'vendidos' ? <span className="mt-1 block text-[11px] text-mute">Vendido el {fechaVentaStock(item)}</span> : null}
           {vista === 'eliminados' ? <span className="mt-1 block text-[11px] text-mute">Conserva su historial de auditoría</span> : null}
@@ -309,17 +311,6 @@ export function TarjetaStockMovil({ item, vista = 'unidades', verCosto = false, 
         <div className="mt-1 flex justify-end">
           <Button type="button" className="min-h-11 px-3 text-xs" disabled={busy} onClick={onRestaurar}>Restaurar</Button>
         </div>
-      ) : null}
-      {verCosto ? (
-        <details className="mt-1 border-t border-ink-600/60 px-1">
-          <summary className="text-xs font-medium text-mute">Proveedor y costo</summary>
-          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 pb-2 text-xs">
-            <dt className="text-mute">Proveedor</dt>
-            <dd className="text-right">{item.supplierName || '—'}</dd>
-            <dt className="text-mute">Costo</dt>
-            <dd className="text-right"><CostoStock item={item} /></dd>
-          </dl>
-        </details>
       ) : null}
     </article>
   )

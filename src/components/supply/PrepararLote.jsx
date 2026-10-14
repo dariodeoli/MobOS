@@ -142,8 +142,7 @@ export default function PrepararLote() {
       <Card className="p-4 md:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="font-semibold">Preparar lote</h2>
-            <p className="mt-1 text-sm text-mute">
+            <p className="text-sm text-mute">
               Lotes con IMEI por completar: se cargan antes de despachar o en tránsito, escaneando de a uno (lector
               Bluetooth/USB o cámara) o pegando varios. La recepción (F5) también puede completarlos.
             </p>
