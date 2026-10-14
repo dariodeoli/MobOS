@@ -355,6 +355,11 @@ export default function PasoProductos({
                         ? <b className="whitespace-nowrap text-[11px] font-semibold text-ok" title={unidadesFamilia > 0 ? `${unidadesFamilia} ${unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI` : undefined}>{stockFamilia} en stock{fam.items.length > 1 ? ` · ${fam.items.length} variantes` : ''}</b>
                         : <b className="whitespace-nowrap text-[11px] font-semibold text-bad">Agotado</b>}
                     </span>
+                    {unidadesFamilia > 0 && (
+                      <span className="block truncate text-[11px] text-mute">
+                        {unidadesFamilia} {unidadesFamilia === 1 ? 'unidad' : 'unidades'} con IMEI
+                      </span>
+                    )}
                   </button>
                 )
               })}

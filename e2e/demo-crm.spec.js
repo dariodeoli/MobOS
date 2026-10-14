@@ -37,7 +37,8 @@ test('demo: la venta del POS actualiza la actividad y los agregados del cliente'
   await expect(sugerencia).toBeVisible()
   await sugerencia.click()
   await expect(page.getByTestId('cliente-elegido')).toBeVisible()
-  await expect(page.getByText(/Crédito hasta/)).toBeVisible()
+  // #390: con estadísticas la tarjeta muestra el crédito disponible; sin ellas, el límite.
+  await expect(page.getByTestId('cliente-chips').getByText(/Crédito (disponible|hasta)/)).toBeVisible()
 
   const principal = page.getByRole('button', { name: /Confirmar venta|Crear pedido/ }).last()
   const etiqueta = (await principal.innerText()).replace(/\s+/g, ' ')
