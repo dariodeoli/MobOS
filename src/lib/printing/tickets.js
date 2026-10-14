@@ -22,7 +22,7 @@ const fecha = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { date
 // Importe destacado en doble ancho. El doble ancho entra en la mitad de las
 // columnas: si rótulo e importe no caben juntos, el rótulo va arriba, y si ni el
 // importe entra se imprime en tamaño normal (nunca recortado ni con puntos).
-function importeGrande(t, rotulo, monto) {
+export function importeGrande(t, rotulo, monto) {
   const mitad = Math.floor(t.columnas / 2)
   if (rotulo && rotulo.length + monto.length + 1 > mitad) {
     t.negrita().texto(rotulo).negrita(false)
@@ -105,8 +105,20 @@ export function ticketComprobante(entrada, { nivel = 'completo', ancho = 80, lin
   if (desglose.mostrarSubtotal) t.par('Subtotal', gs(desglose.subtotal))
   if (desglose.descuento) t.par('Descuento', `- ${gs(desglose.descuento)}`)
   if (desglose.envio) t.par('Entrega', gs(desglose.envio))
+  // Total en caja (#426): rótulo «TOTAL DEL PEDIDO» entre dos reglas dobles.
   t.linea('=')
-  importeGrande(t, 'TOTAL', gs(total))
+  importeGrande(t, 'TOTAL DEL PEDIDO', gs(total))
+  t.linea('=')
+  // Redondeo de efectivo: solo si la venta lo trae; el efectivo recibido y el
+  // vuelto salen con él.
+  if (desglose.mostrarRedondeo) {
+    t.par('Redondeo en efectivo', `${desglose.redondeo < 0 ? '- ' : ''}${gs(Math.abs(desglose.redondeo))}`)
+    t.negrita().par('Total ajustado', gs(desglose.totalAjustado)).negrita(false)
+  }
+  if (desglose.mostrarEfectivo) {
+    t.par('Efectivo recibido', gs(desglose.efectivoRecibido))
+    if (desglose.vuelto > 0) t.negrita().par('Vuelto', gs(desglose.vuelto)).negrita(false)
+  }
   if (desglose.mostrarPagado) t.par('Pagado', gs(pagado))
   if (pendiente > 0) {
     t.negrita().texto('SALDO PENDIENTE').negrita(false)

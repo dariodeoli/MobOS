@@ -12,6 +12,7 @@ import { contextoEtiquetaLote, datosEtiquetaLote } from '@/lib/printing/etiqueta
 import { estadoGarantia, fechaVerificacionInforme } from '@/lib/printing/informeDispositivo'
 import { estadoChecklist, estadoControl, fechaCortaDocumento, fechaHoraDocumento } from '@/lib/printing/certificado'
 import { documentoComprobante } from '@/lib/printing/ventaComprobante'
+import { estilosOperacion } from '@/lib/printing/operacionHtml'
 import { ACENTO_POR_DEFECTO, acentoDeEmpresa, desgloseVenta, garantiaDeVenta, serialesDeItem } from '@/lib/printing/ventaPapel'
 import JsBarcode from 'jsbarcode'
 import { api } from '@/lib/api/client'
@@ -215,7 +216,7 @@ const thermalWidth = (format) => THERMAL_WIDTHS[format] || 0
 // tipográfica, grises neutros y un único acento (el color de la marca de la
 // empresa). Legible en blanco y negro: el acento solo marca la regla del
 // encabezado y el tipo de documento; nada depende del color para entenderse.
-const styles = (format, acento = ACENTO_POR_DEFECTO) => {
+export const styles = (format, acento = ACENTO_POR_DEFECTO) => {
   const width = thermalWidth(format)
   // Cada formato reserva su propio margen: A4 respira a los lados y arriba/abajo;
   // las térmicas centran la columna en el rollo con padding parejo (el papel
@@ -288,7 +289,8 @@ const styles = (format, acento = ACENTO_POR_DEFECTO) => {
   .observaciones .label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--gris)}
   .observaciones .linea{border-bottom:1px dotted #9aa4ad;height:11mm}
   footer{margin-top:12px;border-top:1px solid var(--linea);padding-top:8px;font-size:9.5px;color:var(--gris);text-align:center}
-  @media print{body{margin:0;color:#000}.muted,.brand .cuando,footer,.small,.card .label,th{color:#222}.card,table,td,th,footer,.brand,.nofiscal,.firma,.observaciones,.firma .campos,.observaciones .linea,.pie-doc{border-color:#000}.brand .tipo,.firma .rol{color:#000}.tag{border-color:#000}td{border-bottom-color:#999}}
+  ${estilosOperacion(Boolean(width))}
+  @media print{body{margin:0;color:#000}.caja-total,.tarjeta{border-color:#000}.muted,.brand .cuando,footer,.small,.card .label,th{color:#222}.card,table,td,th,footer,.brand,.nofiscal,.firma,.observaciones,.firma .campos,.observaciones .linea,.pie-doc{border-color:#000}.brand .tipo,.firma .rol{color:#000}.tag{border-color:#000}td{border-bottom-color:#999}}
 `
 }
 
@@ -321,7 +323,7 @@ const firmas = (bloques = [], { observaciones = false, lineasObservaciones = 2, 
 // RUC, sucursal y contacto) y, a la derecha, el tipo de documento con el número
 // destacado. `extra`: `razon`, `lineas` (RUC, dirección, contacto) y `numero`.
 // Sin datos de la empresa, el bloque se reduce al logo o a la marca de la app.
-const header = (title, when, logo = '', marca = '', extra = {}) => {
+export const header = (title, when, logo = '', marca = '', extra = {}) => {
   const lineas = (extra.lineas || []).filter(Boolean).map(linea => `<div class="sub">${escapeHtml(linea)}</div>`).join('')
   const identidad = extra.razon ? `<div class="rz">${escapeHtml(extra.razon)}</div>` : (!logo ? `<b>${escapeHtml(marca || APP_NAME)}</b>` : '')
   return `<div class="brand"><div class="emp">${logo ? `<img class="logo" src="${logo}" alt="">` : ''}${identidad}${lineas}</div><div class="doc"><h1 class="tipo">${escapeHtml(title)}</h1>${extra.numero ? `<div class="num">${escapeHtml(extra.numero)}</div>` : ''}${when ? `<div class="cuando">${escapeHtml(when)}</div>` : ''}</div></div>`
@@ -476,7 +478,13 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
       ${desglose.mostrarSubtotal ? fila('Subtotal', escapeHtml(gs(desglose.subtotal))) : ''}
       ${desglose.descuento ? fila('Descuento', `− ${escapeHtml(gs(desglose.descuento))}`) : ''}
       ${desglose.envio ? fila('Entrega', escapeHtml(gs(desglose.envio))) : ''}
-      ${fila('Total', escapeHtml(gs(total)), 'total')}
+    </table>
+    <div class="caja-total"><span class="rot">Total del pedido</span><span class="imp">${escapeHtml(gs(total))}</span></div>
+    <table class="totals venta">
+      ${desglose.mostrarRedondeo ? fila('Redondeo en efectivo', `${desglose.redondeo < 0 ? '− ' : ''}${escapeHtml(gs(Math.abs(desglose.redondeo)))}`) : ''}
+      ${desglose.mostrarRedondeo ? fila('Total ajustado', `<strong>${escapeHtml(gs(desglose.totalAjustado))}</strong>`) : ''}
+      ${desglose.mostrarEfectivo ? fila('Efectivo recibido', escapeHtml(gs(desglose.efectivoRecibido))) : ''}
+      ${desglose.mostrarEfectivo && desglose.vuelto > 0 ? fila('Vuelto', `<strong>${escapeHtml(gs(desglose.vuelto))}</strong>`) : ''}
       ${desglose.mostrarPagado ? fila('Pagado', escapeHtml(gs(paid))) : ''}
       ${pendiente > 0 ? fila('Saldo pendiente', escapeHtml(gs(pendiente)), 'saldo') : ''}
       ${!modelo.pagos && metodoPago ? fila('Método', escapeHtml(metodoPago)) : ''}
