@@ -39,7 +39,7 @@ function extrasDeCuenta(account) {
   return partes
 }
 
-export default function CapsulaCuentaCobro({ account, className }) {
+export default function CapsulaCuentaCobro({ account, className, acciones = null }) {
   if (!account) return null
   const medio = KIND_LABELS[account.kind] || account.kind
   const moneda = account.currencyLabel || SIMBOLO[account.currency] || account.currency
@@ -47,25 +47,33 @@ export default function CapsulaCuentaCobro({ account, className }) {
   const extras = extrasDeCuenta(account)
   const conLogo = Boolean(account.bank) && Boolean(logoDeBanco(account.bank))
 
+  // #391: una fila compacta (logo sin solaparse con el texto, moneda y medio) y
+  // los datos para pasarle al cliente detrás de «Ver datos para el cliente».
   return (
     <div
       data-testid="cuenta-capsula"
-      className={cn('rounded-xl border border-fono/25 bg-fono/5 px-3 py-2', className)}
+      className={cn('rounded-xl border border-fono/25 bg-fono/5 px-3 py-1.5', className)}
     >
-      <div className="flex items-start gap-2.5">
-        <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-ink-600 bg-ink-800">
+      <div className="flex items-center gap-2.5">
+        <span className="grid h-8 min-w-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-ink-600 bg-ink-800 px-1">
           {conLogo
             ? <BancoLogo banco={account.bank} alto="h-4" />
             : <Icon name={ICONO_MEDIO[account.kind] || 'wallet'} className="h-4 w-4 text-fono-light" />}
         </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <b className="truncate text-sm text-fore" data-testid="cuenta-capsula-nombre">{account.name}</b>
-            <span className="rounded border border-ink-500 px-1.5 py-0.5 text-[10px] font-bold text-mute">{moneda}</span>
-            <span className="rounded border border-ink-500 px-1.5 py-0.5 text-[10px] font-bold text-mute">{medio}</span>
-          </div>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5">
+          <b className="min-w-0 truncate text-sm text-fore" data-testid="cuenta-capsula-nombre">{account.name}</b>
+          <span className="rounded border border-ink-500 px-1.5 py-0.5 text-[10px] font-bold text-mute">{moneda}</span>
+          <span className="rounded border border-ink-500 px-1.5 py-0.5 text-[10px] font-bold text-mute">{medio}</span>
+        </div>
+        {acciones}
+      </div>
+      {(filas.length > 0 || extras.length > 0) && (
+        <details className="mt-0.5">
+          <summary className="inline-flex min-h-11 cursor-pointer items-center text-xs font-semibold text-fono-light hover:underline md:min-h-7">
+            Ver datos para el cliente
+          </summary>
           {filas.length > 0 && (
-            <dl data-testid="cuenta-capsula-datos" className="mt-1.5 space-y-0.5">
+            <dl data-testid="cuenta-capsula-datos" className="space-y-0.5 pb-1">
               {filas.map(([etiqueta, valor]) => (
                 <div key={etiqueta} className="flex items-baseline justify-between gap-3">
                   <dt className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-mute">{etiqueta}</dt>
@@ -74,9 +82,9 @@ export default function CapsulaCuentaCobro({ account, className }) {
               ))}
             </dl>
           )}
-          {extras.length > 0 && <p className="mt-1 text-[11px] text-mute">{extras.join(' · ')}</p>}
-        </div>
-      </div>
+          {extras.length > 0 && <p className="pb-1 text-[11px] text-mute">{extras.join(' · ')}</p>}
+        </details>
+      )}
     </div>
   )
 }
