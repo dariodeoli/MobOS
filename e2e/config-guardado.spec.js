@@ -33,11 +33,17 @@ async function abrirNegocio(page) {
   await entrarComoDueno(page)
   // #IA: Negocio pasó a Organización (la ruta vieja redirige igual).
   await page.goto('/configuracion/organizacion')
-  await expect(page.locator('#cuenta-form')).toBeVisible()
-  // #298: la tarjeta arranca en lectura; «Editar» abre el formulario.
-  await page.getByTestId('datos-tienda-editar').click()
-  // El formulario se hidrata con la cuenta: se espera a que llegue.
-  await expect(page.locator('#edit-nombre')).not.toHaveValue('', { timeout: 20_000 })
+  // #422: Datos generales son filas; cada una abre su formulario en una ventana.
+  await expect(page.getByTestId('general-pantalla')).toBeVisible()
+}
+
+// Abre la fila (comercial · contacto · direccion) y espera la ventana con el formulario.
+async function abrirFila(page, fila) {
+  await page.getByTestId(`fila-${fila}`).click()
+  const ventana = page.getByTestId('cuenta-form-ventana')
+  await expect(ventana).toBeVisible()
+  await expect(ventana.getByTestId('datos-tienda-form')).toBeVisible()
+  return ventana
 }
 
 // Acción sensible sin reautenticación vigente: el formulario pide la contraseña
@@ -55,45 +61,65 @@ async function confirmarPassword(page, id) {
   await panel.getByRole('button', { name: 'Verificar y guardar' }).click()
 }
 
-test('Datos de la tienda: Editar, Guardar persiste y la tarjeta lo refleja', async ({ page }) => {
+test('Datos de la tienda: cada fila abre su formulario, Guardar persiste y la fila lo refleja', async ({ page }) => {
   await abrirNegocio(page)
-  const form = page.locator('#cuenta-form')
-  const original = {
-    direccion: await page.locator('#edit-direccion').inputValue(),
-    ruc: await page.locator('#edit-ruc').inputValue(),
-    telefono: await form.getByLabel('Teléfono').inputValue(),
-  }
-  await capturar(form, 'datos-tienda')
-  await page.locator('#edit-direccion').fill('Av. Mcal. López 1234, Asunción')
+  // Información comercial (RUC), contacto (teléfono) y dirección: tres filas, el mismo formulario.
+  let ventana = await abrirFila(page, 'comercial')
+  const original = { ruc: await page.locator('#edit-ruc').inputValue() }
+  await capturar(ventana, 'datos-tienda')
   await page.locator('#edit-ruc').fill('80012345-6')
-  await form.getByLabel('Teléfono').fill('981 000 111')
   // Enter guarda: el pie de acciones es el submit del formulario.
-  await page.locator('#edit-direccion').press('Enter')
+  await page.locator('#edit-nombre').press('Enter')
   await page.waitForTimeout(700)
   await capturar(page, 'datos-tienda-enter')
   await confirmarPassword(page, 'datos-tienda')
-  // #298: al guardar, la tarjeta vuelve a lectura y el dato queda visible.
-  await expect(form.getByTestId('datos-tienda-lectura').getByText('80012345-6', { exact: true })).toBeVisible({ timeout: 15_000 })
-  await expect(form.getByTestId('datos-tienda-lectura').getByText('Av. Mcal. López 1234, Asunción', { exact: true })).toBeVisible()
-  await capturar(form, 'datos-tienda-guardado')
+  // Al guardar la ventana se cierra y la fila refleja el dato.
+  await expect(page.getByTestId('cuenta-form-ventana')).toHaveCount(0, { timeout: 15_000 })
+  await expect(page.getByTestId('fila-comercial')).toContainText('80012345-6')
+
+  ventana = await abrirFila(page, 'contacto')
+  original.telefono = await ventana.getByLabel('Teléfono').inputValue()
+  await ventana.getByLabel('Teléfono').fill('981 000 111')
+  await ventana.getByRole('button', { name: 'Guardar cambios' }).click()
+  await confirmarPassword(page, 'datos-tienda')
+  await expect(page.getByTestId('cuenta-form-ventana')).toHaveCount(0, { timeout: 15_000 })
+  await expect(page.getByTestId('fila-contacto')).toContainText(/981 ?000 ?111/)
+
+  ventana = await abrirFila(page, 'direccion')
+  original.direccion = await page.locator('#edit-direccion').inputValue()
+  await page.locator('#edit-direccion').fill('Av. Mcal. López 1234, Asunción')
+  await ventana.getByRole('button', { name: 'Guardar cambios' }).click()
+  await confirmarPassword(page, 'datos-tienda')
+  await expect(page.getByTestId('cuenta-form-ventana')).toHaveCount(0, { timeout: 15_000 })
+  await expect(page.getByTestId('fila-direccion')).toContainText('Av. Mcal. López 1234, Asunción')
+  await capturar(page.getByTestId('datos-tienda-grupo'), 'datos-tienda-guardado')
+
   await page.reload()
-  await expect(form.getByTestId('datos-tienda-lectura').getByText('80012345-6', { exact: true })).toBeVisible({ timeout: 20_000 })
-  await expect(form.getByTestId('datos-tienda-lectura').getByText(/981 000 111/)).toBeVisible()
+  await expect(page.getByTestId('fila-comercial')).toContainText('80012345-6', { timeout: 20_000 })
+  await expect(page.getByTestId('fila-contacto')).toContainText(/981 ?000 ?111/)
+
   // Restaura los valores originales (la tienda la comparte toda la suite).
-  await page.getByTestId('datos-tienda-editar').click()
-  await page.locator('#edit-direccion').fill(original.direccion)
+  await abrirFila(page, 'comercial')
   await page.locator('#edit-ruc').fill(original.ruc)
-  await form.getByLabel('Teléfono').fill(original.telefono)
   await page.getByRole('button', { name: 'Guardar cambios' }).click()
   await confirmarPassword(page, 'datos-tienda')
-  // La dirección original del seed puede estar vacía: en ese caso la tarjeta
-  // muestra «—». Se verifica que volvió a lectura y el valor quedó restaurado.
-  await expect(form.getByTestId('datos-tienda-lectura')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByTestId('cuenta-form-ventana')).toHaveCount(0, { timeout: 15_000 })
+  ventana = await abrirFila(page, 'contacto')
+  await ventana.getByLabel('Teléfono').fill(original.telefono)
+  await page.getByRole('button', { name: 'Guardar cambios' }).click()
+  await confirmarPassword(page, 'datos-tienda')
+  await expect(page.getByTestId('cuenta-form-ventana')).toHaveCount(0, { timeout: 15_000 })
+  await abrirFila(page, 'direccion')
+  await page.locator('#edit-direccion').fill(original.direccion)
+  await page.getByRole('button', { name: 'Guardar cambios' }).click()
+  await confirmarPassword(page, 'datos-tienda')
+  await expect(page.getByTestId('cuenta-form-ventana')).toHaveCount(0, { timeout: 15_000 })
   if (original.direccion) {
-    await expect(form.getByTestId('datos-tienda-lectura').getByText(original.direccion, { exact: true })).toBeVisible()
+    await expect(page.getByTestId('fila-direccion')).toContainText(original.direccion)
   } else {
+    // Dirección original vacía: la fila vuelve a su descripción por defecto.
     await page.reload()
-    await expect(form.getByTestId('datos-tienda-lectura').getByText('—').first()).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByTestId('fila-direccion')).toContainText('Aparece en comprobantes', { timeout: 20_000 })
   }
 })
 

@@ -7,12 +7,12 @@ import UsuariosTabla from './config/UsuariosTabla'
 import { pestanasConIconos } from './config/pestanasConIconos'
 
 // Equipo y acceso (#299, #422): una sola pantalla con pestañas por tarea.
-// Usuarios (tabla con estado, rol y seguridad) · Miembros (la ficha de cada
-// persona) · Invitaciones · Permisos · Rendimiento. Cada pestaña muestra su
+// Miembros (la ficha de cada persona, entrada por defecto) · Usuarios (tabla
+// con estado, rol y seguridad) · Invitaciones · Permisos · Rendimiento. Cada pestaña muestra su
 // tarea y nada más.
 const SECCIONES = [
-  ['usuarios', 'Usuarios'],
   ['miembros', 'Miembros'],
+  ['usuarios', 'Usuarios'],
   ['invitaciones', 'Invitaciones'],
   ['permisos', 'Permisos'],
   ['rendimiento', 'Rendimiento'],
@@ -21,7 +21,7 @@ const SECCIONES = [
 const ICONOS = { usuarios: 'users', miembros: 'user', invitaciones: 'mail', permisos: 'shield', rendimiento: 'trending' }
 
 export default function Equipo() {
-  const [vista, setVista] = useState('usuarios')
+  const [vista, setVista] = useState('miembros')
   return (
     <div className="space-y-3" data-testid="equipo-pantalla">
       <Subtabs value={vista} onChange={setVista} items={pestanasConIconos(SECCIONES, ICONOS)} ariaLabel="Secciones de Equipo y acceso" className="[&>button]:min-h-11 md:[&>button]:min-h-9" />

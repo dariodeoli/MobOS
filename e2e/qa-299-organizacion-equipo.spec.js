@@ -26,6 +26,9 @@ const ORG = [
   ['Sucursales y depósitos', 'Tiendas'],
   ['Datos fiscales', 'Empresas/personas jurídicas (privado)'],
   ['Numeración', 'Identificador de pedidos'],
+  ['Portal de clientes', 'Cuentas de cliente'],
+  ['Notificaciones', 'Correo del remitente'],
+  ['Plan y facturación', 'Uso actual'],
   ['Zona de peligro', 'Archivar empresa'],
 ]
 

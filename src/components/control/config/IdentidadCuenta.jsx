@@ -163,6 +163,9 @@ export default function IdentidadCuenta({ onReauthValid, onGuardado, tenant, mod
           </div>
           <EstadoGuardado testId="datos-tienda-estado" estado={guardado.estado} />
           {error && <Aviso tono="error">{error}</Aviso>}
+          {enVentana && !hayCambios && (
+            <div className="flex justify-end"><Button type="button" variant="ghost" onClick={cancelar} disabled={busy}>Cancelar</Button></div>
+          )}
           {hayCambios && (
             <div data-testid="datos-tienda-barra" className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800 px-3 py-2 shadow-lg shadow-black/10">
               <span className="text-xs text-mute">Tenés cambios sin guardar.</span>

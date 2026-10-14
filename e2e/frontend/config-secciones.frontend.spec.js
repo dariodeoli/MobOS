@@ -104,6 +104,7 @@ test('Usuarios: tabla con estado, rol, filtros y exportación; Roles y Seguridad
   await openShellDestination(page, 'Configuración')
   await page.getByTestId('config-grupos').locator('[data-tab-id="equipo"]').click()
   const equipo = page.getByTestId('equipo-pantalla')
+  await equipo.getByRole('tab', { name: 'Usuarios', exact: true }).click()
   await expect(equipo.getByRole('tab', { name: 'Usuarios', exact: true })).toHaveAttribute('aria-selected', 'true')
   const tabla = page.getByTestId('usuarios-tabla')
   await expect(tabla).toBeVisible()
