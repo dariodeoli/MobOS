@@ -556,6 +556,9 @@ node "$BACKEND_ROOT/tests/customer-portal.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKE
 echo "Clientes: unificación de duplicados con preview, puntero y cronología (#268)..."
 node "$BACKEND_ROOT/tests/customer-merge.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 
+echo "Multi-empresa: cambio de empresa, listado, alta, revocación y seguridad 1-8 (#377)..."
+node "$BACKEND_ROOT/tests/tenant-switch.mjs" "$BASE_URL" "$DATABASE_URL" "$PG_BIN"
+
 echo "Pedidos: cliente ocasional, crear/cambiar/quitar ficha con auditoría (#149)..."
 node "$BACKEND_ROOT/tests/orders-customer.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 

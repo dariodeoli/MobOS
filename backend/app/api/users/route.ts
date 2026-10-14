@@ -4,6 +4,7 @@ import { prisma } from '../../../lib/prisma'
 import { effectivePermissions, normalizeAccessSchedule, requireSession, USER_ROLES } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
 import { pinValido } from '../../../lib/pin'
+import { revokeMembershipsForUser } from '../../../lib/membership'
 import { LIMITE_MONTO_GENERAL } from '../../../lib/montos'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -119,6 +120,8 @@ export async function PATCH(request: Request) {
     const updated = await prisma.$transaction(async tx => {
       const user = await tx.user.update({ where: { id }, data: { name, email, role: nextRole, status: nextStatus, branchId, permissions: permissions ?? Prisma.JsonNull, accessSchedule: accessSchedule ?? Prisma.JsonNull, dailyGoalPyg, ...(resetPin ? { pinHash: await bcrypt.hash(body.pin, 12), pinLength: String(body.pin).length, failedLoginAttempts: 0, lockedUntil: null } : {}) }, select: userSelect })
       if (changedSensitive) await tx.session.updateMany({ where: { userId: id, revokedAt: null }, data: { revokedAt: new Date() } })
+      // Baja del perfil: su pertenencia multi-empresa se revoca (reactivar no la revive).
+      if (nextStatus !== 'ACTIVE' && current.status === 'ACTIVE') await revokeMembershipsForUser(tx, tenantId, id)
       await tx.auditLog.create({ data: { tenantId, userId: access.session.user.id, action: resetPin ? 'USER_PIN_RESET' : nextStatus !== 'ACTIVE' && current.status === 'ACTIVE' ? 'USER_DEACTIVATED' : 'USER_UPDATED', entity: 'User', entityId: id, metadata: { before: snapshot(current), after: snapshot(user), sessionsRevoked: changedSensitive } } })
       return user
     })

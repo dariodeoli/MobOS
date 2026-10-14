@@ -3,6 +3,7 @@ import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
 import { requireSession, AuthRateLimitError, enforceAuthRateLimit } from '../../../lib/auth'
 import { googleStores } from '../../../lib/google-company'
+import { listTenantsForAccount, revokeAllMembershipsOfAccount, revokeMembershipsForUser } from '../../../lib/membership'
 import { formatOrderNumber, maxOrderSequence } from '../../../lib/order-number'
 import { recoveryDeadline } from '../../../lib/tenant-archive'
 import { purgeTenantData, type TenantPurgeCounts } from '../../../lib/tenant-purge'
@@ -54,8 +55,11 @@ export async function GET(request: Request) {
     prisma.session.findUnique({ where: { id: session.sessionId }, select: { reauthenticatedAt: true } }),
   ])
   if (!tenant) return error('Empresa no encontrada.', 404)
-  // Para el dueño Google: todas las tiendas de su persona, con la actual marcada.
-  const stores = ownerAccess ? (await googleStores(ownerAccess.subject)).map(store => ({ ...store, current: store.id === session.user.tenantId })) : null
+  // Multi-empresa (#377): las empresas salen de las pertenencias activas de la
+  // cuenta. Las sesiones sin cuenta vinculada conservan el listado Google previo.
+  const stores = session.accountId
+    ? await listTenantsForAccount(session.accountId, session.user.tenantId)
+    : ownerAccess ? (await googleStores(ownerAccess.subject)).map(store => ({ ...store, current: store.id === session.user.tenantId })) : null
   // El contrato del frontend sigue siendo `tenant.logo` (la variante clara manda);
   // `logos` es el detalle por variante y no se expone suelto.
   const { logos, ...restoTenant } = tenant
@@ -250,6 +254,9 @@ export async function PATCH(request: Request) {
       try {
         await prisma.$transaction(async tx => {
           await tx.session.updateMany({ where: { userId: session.user.id, revokedAt: null }, data: { revokedAt: now } })
+          // Antes de borrar el perfil: el FK dejaría la pertenencia con userId null y activa.
+          await revokeMembershipsForUser(tx, session.user.tenantId, session.user.id, now)
+          if (session.accountId) await tx.tenantMembership.updateMany({ where: { accountId: session.accountId, tenantId: session.user.tenantId, revokedAt: null }, data: { revokedAt: now } })
           await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'LEAVE_STORE', entity: 'User', entityId: session.user.id, metadata: { userDeleted: true, googleAccessRevoked: isGoogleOwner } } })
           await tx.user.delete({ where: { id: session.user.id } })
           userDeleted = true
@@ -262,6 +269,8 @@ export async function PATCH(request: Request) {
       if (!userDeleted) {
         await prisma.$transaction(async tx => {
           await tx.session.updateMany({ where: { userId: session.user.id, revokedAt: null }, data: { revokedAt: now } })
+          await revokeMembershipsForUser(tx, session.user.tenantId, session.user.id, now)
+          if (session.accountId) await tx.tenantMembership.updateMany({ where: { accountId: session.accountId, tenantId: session.user.tenantId, revokedAt: null }, data: { revokedAt: now } })
           await tx.user.update({ where: { id: session.user.id }, data: { status: 'INACTIVE' } })
           await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'LEAVE_STORE', entity: 'User', entityId: session.user.id, metadata: { userDeleted: false, googleAccessRevoked: isGoogleOwner } } })
         })
@@ -286,6 +295,9 @@ export async function PATCH(request: Request) {
       await prisma.$transaction(async (tx) => {
         await tx.user.update({ where: { id: session.user.id }, data: { status: 'INACTIVE' } })
         for (const tienda of tiendas) await tx.session.updateMany({ where: { tenantId: tienda.tenantId, revokedAt: null }, data: { revokedAt: new Date() } })
+        // Cierre de la cuenta: se apagan todas sus pertenencias (la Google y la de la sesión).
+        const cuentas = await tx.account.findMany({ where: { OR: [{ googleSubject: accesoDueno.subject }, ...(session.accountId ? [{ id: session.accountId }] : [])] }, select: { id: true } })
+        for (const cuenta of cuentas) await revokeAllMembershipsOfAccount(tx, cuenta.id)
         await tx.googleStoreAccess.deleteMany({ where: { subject: accesoDueno.subject } })
         await tx.googleIdentity.deleteMany({ where: { subject: accesoDueno.subject } })
         await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'ACCOUNT_CLOSED', entity: 'User', entityId: session.user.id, metadata: { tiendas: tiendas.length } } })
