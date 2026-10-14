@@ -1,59 +1,58 @@
-import { describe, expect, it } from 'vitest'
-import { INDICE_CONFIG, buscarAjustes, destinoAjuste, migasAjuste, normalizarTexto } from './configIndice'
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { INDICE_CONFIG, buscarAjustes, destinoAjuste, migasAjuste, normalizarTexto } from './configIndice.js'
 
 const ids = (consulta, opciones = { esOwner: true }) => buscarAjustes(consulta, opciones).map(e => e.id)
 
-describe('índice de ajustes (#410)', () => {
-  it('normaliza acentos y mayúsculas', () => {
-    expect(normalizarTexto('  Cotización DÓLAR ')).toBe('cotizacion dolar')
-  })
+test('normaliza acentos y mayúsculas', () => {
+  assert.equal(normalizarTexto('  Cotización DÓLAR '), 'cotizacion dolar')
+})
 
-  it('encuentra los ajustes pedidos por sus sinónimos', () => {
-    expect(ids('impresora')).toContain('impresoras')
-    expect(ids('ticket')).toContain('ticket')
-    expect(ids('etiquetas')).toContain('etiquetas')
-    expect(ids('costos vendedor')[0]).toBe('costos-vendedor')
-    expect(ids('dolar')).toContain('cotizacion-dolar')
-    expect(ids('COTIZACION')).toContain('cotizacion-dolar')
-    expect(ids('ruc')).toContain('datos-fiscales')
-    expect(ids('timbrado')).toContain('datos-fiscales')
-    expect(ids('numeracion')).toContain('numeracion')
-    expect(ids('contraseña')).toContain('contrasena-reauth')
-    expect(ids('sesiones')).toContain('sesiones')
-    expect(ids('deposito')).toContain('ubicaciones-deposito')
-    expect(ids('colores')).toContain('logo-colores')
-    expect(ids('sucursal')).toContain('sucursales')
-    expect(ids('facturacion')).toContain('plan-facturacion')
-    expect(ids('whatsapp')).toContain('whatsapp-plantillas')
-    expect(ids('invitar')).toContain('equipo-invitar')
-  })
+test('encuentra los ajustes pedidos por sus sinónimos', () => {
+  assert.ok(ids('impresora').includes('impresoras'))
+  assert.ok(ids('ticket').includes('ticket'))
+  assert.ok(ids('etiquetas').includes('etiquetas'))
+  assert.equal(ids('costos vendedor')[0], 'costos-vendedor')
+  assert.ok(ids('dolar').includes('cotizacion-dolar'))
+  assert.ok(ids('COTIZACION').includes('cotizacion-dolar'))
+  assert.ok(ids('ruc').includes('datos-fiscales'))
+  assert.ok(ids('timbrado').includes('datos-fiscales'))
+  assert.ok(ids('numeracion').includes('numeracion'))
+  assert.ok(ids('contraseña').includes('contrasena-reauth'))
+  assert.ok(ids('sesiones').includes('sesiones'))
+  assert.ok(ids('deposito').includes('ubicaciones-deposito'))
+  assert.ok(ids('colores').includes('logo-colores'))
+  assert.ok(ids('sucursal').includes('sucursales'))
+  assert.ok(ids('facturacion').includes('plan-facturacion'))
+  assert.ok(ids('whatsapp').includes('whatsapp-plantillas'))
+  assert.ok(ids('invitar').includes('equipo-invitar'))
+})
 
-  it('acepta coincidencia parcial', () => {
-    expect(ids('impres')).toContain('impresoras')
-    expect(ids('cotiz')).toContain('cotizacion-dolar')
-  })
+test('acepta coincidencia parcial', () => {
+  assert.ok(ids('impres').includes('impresoras'))
+  assert.ok(ids('cotiz').includes('cotizacion-dolar'))
+})
 
-  it('un rol sin administración solo ve lo personal', () => {
-    const vendedor = { esOwner: false }
-    expect(ids('impresora', vendedor)).toEqual([])
-    expect(ids('costos', vendedor)).toEqual([])
-    expect(ids('ruc', vendedor)).toEqual([])
-    expect(ids('sesiones', vendedor)).toEqual(['sesiones'])
-  })
+test('un rol sin administración solo ve lo personal', () => {
+  const vendedor = { esOwner: false }
+  assert.deepEqual(ids('impresora', vendedor), [])
+  assert.deepEqual(ids('costos', vendedor), [])
+  assert.deepEqual(ids('ruc', vendedor), [])
+  assert.deepEqual(ids('sesiones', vendedor), ['sesiones'])
+})
 
-  it('arma el camino y el destino', () => {
-    const impresoras = INDICE_CONFIG.find(e => e.id === 'impresoras')
-    expect(migasAjuste(impresoras)).toEqual(['Configuración', 'Impresión y dispositivos'])
-    expect(destinoAjuste(impresoras, { esOwner: true })).toEqual({
-      vista: 'equipo',
-      opciones: { subtab: 'dispositivos', ajuste: 'impresoras' },
-    })
-    const sesiones = INDICE_CONFIG.find(e => e.id === 'sesiones')
-    expect(destinoAjuste(sesiones, { esOwner: false }).vista).toBe('mi-cuenta')
+test('arma el camino y el destino', () => {
+  const impresoras = INDICE_CONFIG.find(e => e.id === 'impresoras')
+  assert.deepEqual(migasAjuste(impresoras), ['Configuración', 'Impresión y dispositivos'])
+  assert.deepEqual(destinoAjuste(impresoras, { esOwner: true }), {
+    vista: 'equipo',
+    opciones: { subtab: 'dispositivos', ajuste: 'impresoras' },
   })
+  const sesiones = INDICE_CONFIG.find(e => e.id === 'sesiones')
+  assert.equal(destinoAjuste(sesiones, { esOwner: false }).vista, 'mi-cuenta')
+})
 
-  it('los ids son únicos y cada entrada tiene roles', () => {
-    expect(new Set(INDICE_CONFIG.map(e => e.id)).size).toBe(INDICE_CONFIG.length)
-    for (const e of INDICE_CONFIG) expect(e.roles.length).toBeGreaterThan(0)
-  })
+test('los ids son únicos y cada entrada tiene roles', () => {
+  assert.equal(new Set(INDICE_CONFIG.map(e => e.id)).size, INDICE_CONFIG.length)
+  for (const e of INDICE_CONFIG) assert.ok(e.roles.length > 0)
 })
