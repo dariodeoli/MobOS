@@ -593,8 +593,6 @@ echo "Abastecimiento: variante agotada → alternativas con OTP del cliente (#27
 node "$BACKEND_ROOT/tests/supply-alternatives.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/orders-credit-discounts.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL"
 node "$BACKEND_ROOT/tests/mobos-1.2.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
-echo "Proveedor con sigla: el nombre real nunca llega a vendedor ni caja (#400)..."
-node "$BACKEND_ROOT/tests/supplier-sigla-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$DATABASE_URL"
 node "$BACKEND_ROOT/tests/price-lists.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 echo "Combos: la línea del pedido recuerda el combo (validación por empresa)..."
 node "$BACKEND_ROOT/tests/order-combos.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
@@ -796,6 +794,10 @@ node "$BACKEND_ROOT/tests/stock-notices.mjs" "$BASE_URL" "$TOKEN_A" "$ADMIN_TOKE
 
 echo "Centro de Abastecimiento: repuestos del taller con tenencia y pago (#250)..."
 node "$BACKEND_ROOT/tests/supply-workshop-parts.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
+
+# Después de las suites de repuestos (cuentan los suyos) y antes del logout de las sesiones.
+echo "Proveedor con sigla: el nombre real nunca llega a vendedor ni caja (#400)..."
+node "$BACKEND_ROOT/tests/supplier-sigla-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$DATABASE_URL"
 
 echo "12/13 Bloqueo de login empresarial después de cinco intentos..."
 IT_CLIENT_IP="203.0.113.32"

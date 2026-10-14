@@ -61,7 +61,7 @@ try {
   r = await request('/api/purchases', { method: 'PATCH', body: { id: compra.id, action: 'return', reason: `Falla ${tag}`, lines: [{ lineId: compra.lines[0].id, quantity: 1 }] } })
   assert.ok([200, 201, 400, 409].includes(r.status), r.raw)
 
-  r = await request('/api/finance', { method: 'POST', body: { action: 'supplierPayable', supplierName: NOMBRE, supplierId: proveedor.id, concept: `Repuestos ${tag}`, condition: 'CREDITO', amountPyg: 500000, dueAt: '2099-01-10T00:00:00.000Z' } })
+  r = await request('/api/finance', { method: 'POST', body: { action: 'supplierPayable', supplierName: NOMBRE, supplierId: proveedor.id, concept: `Repuestos ${tag}`, condition: 'CREDITO', amountPyg: 500000, dueAt: '2099-01-10T00:00:00.000Z' }, token: gerenteToken })
   assert.equal(r.status, 201, r.raw)
   r = await request('/api/workshop/parts', { method: 'POST', body: { name: `Pantalla ${tag}`, ownership: 'PROVEEDOR', paymentMode: 'CREDITO', supplierId: proveedor.id, quantity: 2, unitCostPyg: 80000, dueAt: '2099-02-01T00:00:00.000Z', branchId: BRANCH, notes: `Pedido a ${NOMBRE}` } })
   assert.equal(r.status, 201, r.raw)
