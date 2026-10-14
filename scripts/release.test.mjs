@@ -651,3 +651,29 @@ test('injected command with production normalization accepts ordinary unstaged n
   assert.equal(runRelease(['--prepare-version'], s.options).version, '1.0.226')
   assert.equal(s.sends, 0)
 })
+
+test('build context gate runs before builds and blocks them when too heavy', () => {
+  const s = fixture()
+  let calls = 0
+  runRelease(['--build-current'], {
+    ...s.options,
+    verificarContexto: () => {
+      calls += 1
+      assert.ok(!s.commands.some(c => c[0] === 'npm'))
+    },
+  })
+  assert.equal(calls, 1)
+  const heavy = fixture()
+  assert.throws(
+    () =>
+      runRelease(['--build-current'], {
+        ...heavy.options,
+        verificarContexto: () => {
+          throw new Error('Build context too heavy')
+        },
+      }),
+    /too heavy/,
+  )
+  assert.ok(!heavy.commands.some(c => c[0] === 'npm'))
+  assert.deepEqual(heavy.writes, [])
+})

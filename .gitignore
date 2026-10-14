@@ -40,3 +40,17 @@ npm-debug.log*
 
 # Registro local de skills (lo genera sdd-init)
 .atl/
+
+# Evidencia de QA (capturas/videos/PDF): pesa cientos de MB y no se commitea.
+# Los informes .md/.json y el README se siguen versionando. Para salida nueva
+# usá MOBOS_QA_OUT o test-results/.
+/docs/qa/**/*.png
+/docs/qa/**/*.jpg
+/docs/qa/**/*.jpeg
+/docs/qa/**/*.webp
+/docs/qa/**/*.gif
+/docs/qa/**/*.webm
+/docs/qa/**/*.mp4
+/docs/qa/**/*.pdf
+/docs/qa/**/*.har
+/docs/qa/**/*.zip
