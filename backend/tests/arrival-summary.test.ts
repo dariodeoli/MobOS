@@ -50,6 +50,11 @@ test('serie: IMEI Luhn, serie alfanumérica y rechazo del IMEI perdido por Excel
   assert.deepEqual(classifySerialInput('490154203237518'), { kind: 'IMEI', value: '490154203237518' })
   assert.equal(classifySerialInput('490154203237519').kind, 'INVALIDO')
   assert.equal(classifySerialInput('352793000000000').kind, 'INVALIDO')
+  // «El IMEI es correcto»: termina en 000 pero pasa Luhn -> se acepta solo si se confirma.
+  assert.equal(classifySerialInput('352793100006000').kind, 'INVALIDO')
+  assert.deepEqual(classifySerialInput('352793100006000', { allowTrailingZeros: true }), { kind: 'IMEI', value: '352793100006000' })
+  assert.equal(classifySerialInput('352793000000000', { allowTrailingZeros: true }).kind, 'INVALIDO')
+  assert.equal(classifySerialInput('3,52793E+14', { allowTrailingZeros: true }).kind, 'INVALIDO')
   assert.deepEqual(classifySerialInput('sltw kf47rwl'), { kind: 'SERIE', value: 'SLTWKF47RWL' })
   assert.equal(classifySerialInput('12345').kind, 'INVALIDO')
 })

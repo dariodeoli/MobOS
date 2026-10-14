@@ -8,7 +8,7 @@ type RouteContext = { params: Promise<{ lineId: string }> }
 export async function PATCH(request: Request, { params }: RouteContext) {
   const actor = await arrivalActor(request)
   if (actor instanceof Response) return actor
-  let body: { serial?: unknown }
+  let body: { serial?: unknown; confirmSerial?: unknown }
   try { body = await request.json() } catch { return error('JSON inválido.') }
-  try { return json(await completeMissingSerial(actor, String((await params).lineId || ''), body?.serial)) } catch (cause) { return arrivalErrorResponse(cause, 'arrivals.serial') }
+  try { return json(await completeMissingSerial(actor, String((await params).lineId || ''), body?.serial, body?.confirmSerial === true)) } catch (cause) { return arrivalErrorResponse(cause, 'arrivals.serial') }
 }
