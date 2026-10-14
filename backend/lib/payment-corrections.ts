@@ -134,6 +134,9 @@ export async function applyPaymentCorrection(tx: Prisma.TransactionClient, input
   // activa del negocio, medio derivado de la cuenta, PYG a cotización 1).
   const prepared = []
   for (const [index, row] of rows.entries()) {
+    const account = await tx.paymentAccount.findFirst({ where: { id: row.accountId, tenantId, isActive: true }, select: { currency: true, kind: true } })
+    if (!account) throw new InputError(`La cuenta del pago ${index + 1} no existe o está inactiva.`, 409)
+    if (account.currency !== 'PYG') throw new InputError(`El pago ${index + 1} debe ser en guaraníes.`, 422)
     const normalized = await normalizePayment(tx, tenantId, { accountId: row.accountId, originalAmount: row.amountPyg, status: row.toDriver ? 'PENDING' : 'CONFIRMED' })
     if (normalized.currency && normalized.currency !== 'PYG') throw new InputError(`El pago ${index + 1} debe ser en guaraníes.`, 422)
     if ((UNSUPPORTED_METHODS as readonly string[]).includes(normalized.method)) throw new InputError(`El pago ${index + 1} usa un medio que no admite correcciones (${normalized.method}).`, 422)
@@ -165,7 +168,8 @@ export async function applyPaymentCorrection(tx: Prisma.TransactionClient, input
       tenantId, orderId: order.id, correctionId: correction.id, reversalOfId: original.id,
       method: original.method, status: 'CONFIRMED', amountPyg: -originalPyg,
       accountId: original.accountId, ...(original.accountSnapshot ? { accountSnapshot: original.accountSnapshot as Prisma.InputJsonObject } : {}),
-      currency: original.currency, originalAmount: original.originalAmount ? original.originalAmount.neg() : null, exchangeRatePyg: original.exchangeRatePyg,
+      // originalAmount queda positivo: el CHECK Payment_account_snapshot_check lo exige con cuenta; el signo vive en amountPyg.
+      currency: original.currency, originalAmount: original.originalAmount, exchangeRatePyg: original.exchangeRatePyg,
       reference: original.reference, userId: original.userId, createdById: original.createdById,
       idempotencyKey: `${idempotencyKey}${REVERSAL_SUFFIX}`, paidAt: now,
     },
