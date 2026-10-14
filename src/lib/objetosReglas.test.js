@@ -698,9 +698,9 @@ test('la composición de módulo y el resumen de métricas son objetos (#256)', 
     ['components/ventas/SellerCustomers.jsx', /<Toolbar[\s\S]*?testId="barra-clientes"/],
     ['components/ventas/FormularioVenta.jsx', /<BarraModulo[\s\S]*?testId="barra-pos"/],
     ['components/ventas/SellerCatalog.jsx', /<BarraModulo[\s\S]*?testId="barra-productos"/],
-    ['components/control/Compras.jsx', /<BarraModulo[\s\S]*?testId="barra-compras"/],
+    ['components/control/Compras.jsx', /<Toolbar[\s\S]*?testId="barra-compras"/],
     // #278: el pipeline Trade-In del dueño completa los compactos de #256.
-    ['components/control/TradeInPipeline.jsx', /<BarraModulo[\s\S]*?testId="barra-tradein"/],
+    ['components/control/TradeInPipeline.jsx', /<Toolbar[\s\S]*?testId="barra-tradein"/],
     // #278 · FIN: Autorizaciones usa la barra compacta (identidad + acciones).
     ['components/control/Autorizaciones.jsx', /<BarraModulo[\s\S]*?testId="barra-autorizaciones"/],
   ]) {
