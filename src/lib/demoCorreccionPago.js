@@ -1,4 +1,4 @@
-import { errorCorreccion } from '@/utils/correccionPago'
+import { errorCorreccion } from '../utils/correccionPago.js'
 
 // Corrección de pagos ficticia de la demo (#393): arma, sobre las filas de pago
 // del pedido demo, lo mismo que el endpoint real — el original queda intacto

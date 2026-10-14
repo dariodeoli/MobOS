@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import { corregirPagoDemo } from '@/lib/demoCorreccionPago'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { gs } from '@/utils/calculos'
+import { PIE_ACCIONES } from '@/components/shared/formulario'
 import { cuerpoCorreccion, errorCorreccion, MOTIVO_MAX, puedeDejarAlRepartidor, restanteCorreccion } from '@/utils/correccionPago'
 
 // Corregir el medio de un pago ya cobrado (#393). El original nunca se edita:
@@ -106,7 +107,7 @@ export default function CorregirPagoModal({ pago, pedido, usuario, cuentas = [],
       </section>
 
       {error && <p role="alert" className="text-sm text-bad">{error}</p>}
-      <div className="flex flex-wrap justify-end gap-2">
+      <div className={PIE_ACCIONES}>
         <Button type="button" variant="outline" disabled={busy} onClick={onClose}>Cancelar</Button>
         <Button type="submit" disabled={busy || !listo} title={problema || undefined}>{busy ? 'Corrigiendo…' : 'Corregir pago'}</Button>
       </div>

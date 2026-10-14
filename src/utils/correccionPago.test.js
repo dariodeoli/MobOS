@@ -1,75 +1,82 @@
-import { describe, expect, it } from 'vitest'
-import { corregirPagoDemo } from '@/lib/demoCorreccionPago'
-import { cuerpoCorreccion, errorCorreccion, evaluarCorreccionPago, puedeDejarAlRepartidor, restanteCorreccion, reversionesPorOriginal } from './correccionPago'
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { corregirPagoDemo } from '../lib/demoCorreccionPago.js'
+import { cuerpoCorreccion, errorCorreccion, evaluarCorreccionPago, puedeDejarAlRepartidor, restanteCorreccion, reversionesPorOriginal } from './correccionPago.js'
 
 const pago = { id: 'p1', method: 'TRANSFER', status: 'CONFIRMED', amountPyg: 100000, currency: 'PYG', userId: 'u1' }
 const admin = { id: 'a', role: 'ADMIN' }
 const cuentas = [{ id: 'c1', kind: 'CASH', name: 'Caja', currency: 'PYG' }, { id: 't1', kind: 'TRANSFER', name: 'Itaú', currency: 'PYG' }]
+const puede = (args) => evaluarCorreccionPago(args).puede
 
-describe('evaluarCorreccionPago', () => {
-  it('permite a gerencia y bloquea reversiones, correcciones, ya corregidos y repartidor', () => {
-    expect(evaluarCorreccionPago({ pago, pagos: [pago], pedido: {}, usuario: admin }).puede).toBe(true)
-    expect(evaluarCorreccionPago({ pago: { ...pago, reversalOfId: 'x' }, usuario: admin }).puede).toBe(false)
-    expect(evaluarCorreccionPago({ pago: { ...pago, correctionId: 'x' }, usuario: admin }).puede).toBe(false)
-    expect(evaluarCorreccionPago({ pago, pagos: [pago, { id: 'r', reversalOfId: 'p1' }], usuario: admin }).puede).toBe(false)
-    expect(evaluarCorreccionPago({ pago: { ...pago, deliveryUserId: 'd' }, usuario: admin }).puede).toBe(false)
-  })
-  it('bloquea medios fuera de alcance, no PYG y pedido anulado', () => {
-    for (const method of ['GIFT_CARD', 'TRADE_IN', 'STORE_CREDIT']) expect(evaluarCorreccionPago({ pago: { ...pago, method }, usuario: admin }).puede).toBe(false)
-    expect(evaluarCorreccionPago({ pago: { ...pago, currency: 'USD' }, usuario: admin }).puede).toBe(false)
-    expect(evaluarCorreccionPago({ pago, pedido: { status: 'CANCELLED' }, usuario: admin }).puede).toBe(false)
-  })
-  it('el personal solo corrige lo propio y si el dueño lo habilita; verificado solo ADMIN', () => {
-    const cajera = { id: 'u1', role: 'CAJERA' }
-    expect(evaluarCorreccionPago({ pago, usuario: cajera }).puede).toBe(true)
-    expect(evaluarCorreccionPago({ pago, usuario: { id: 'u2', role: 'VENDEDOR' } }).puede).toBe(false)
-    expect(evaluarCorreccionPago({ pago, usuario: cajera, personalPuede: false }).puede).toBe(false)
-    expect(evaluarCorreccionPago({ pago, usuario: { id: 'g', role: 'GERENTE' }, conciliacion: 'VERIFIED' }).puede).toBe(false)
-    expect(evaluarCorreccionPago({ pago, usuario: admin, conciliacion: 'VERIFIED' }).puede).toBe(true)
-    expect(evaluarCorreccionPago({ pago, usuario: { id: 'x', role: 'REPARTIDOR' } }).puede).toBe(false)
-  })
-  it('efectivo al repartidor solo gerencia con repartidor asignado', () => {
-    expect(puedeDejarAlRepartidor(admin, { assignedToId: 'd' })).toBe(true)
-    expect(puedeDejarAlRepartidor(admin, {})).toBe(false)
-    expect(puedeDejarAlRepartidor({ role: 'CAJERA' }, { assignedToId: 'd' })).toBe(false)
-  })
+test('gerencia corrige; reversiones, correcciones, ya corregidos y cobros del repartidor no (#393)', () => {
+  assert.equal(puede({ pago, pagos: [pago], pedido: {}, usuario: admin }), true)
+  assert.equal(puede({ pago: { ...pago, reversalOfId: 'x' }, usuario: admin }), false)
+  assert.equal(puede({ pago: { ...pago, correctionId: 'x' }, usuario: admin }), false)
+  assert.equal(puede({ pago, pagos: [pago, { id: 'r', reversalOfId: 'p1' }], usuario: admin }), false)
+  assert.equal(puede({ pago: { ...pago, deliveryUserId: 'd' }, usuario: admin }), false)
 })
 
-describe('reparto y cuerpo', () => {
+test('medios fuera de alcance, no PYG y pedido anulado no se corrigen (#393)', () => {
+  for (const method of ['GIFT_CARD', 'TRADE_IN', 'STORE_CREDIT']) assert.equal(puede({ pago: { ...pago, method }, usuario: admin }), false)
+  assert.equal(puede({ pago: { ...pago, currency: 'USD' }, usuario: admin }), false)
+  assert.equal(puede({ pago, pedido: { status: 'CANCELLED' }, usuario: admin }), false)
+})
+
+test('el personal solo corrige lo propio y si el dueño lo habilita; verificado solo ADMIN (#393)', () => {
+  const cajera = { id: 'u1', role: 'CAJERA' }
+  assert.equal(puede({ pago, usuario: cajera }), true)
+  assert.equal(puede({ pago, usuario: { id: 'u2', role: 'VENDEDOR' } }), false)
+  assert.equal(puede({ pago, usuario: cajera, personalPuede: false }), false)
+  assert.equal(puede({ pago, usuario: { id: 'g', role: 'GERENTE' }, conciliacion: 'VERIFIED' }), false)
+  assert.equal(puede({ pago, usuario: admin, conciliacion: 'VERIFIED' }), true)
+  assert.equal(puede({ pago, usuario: { id: 'x', role: 'REPARTIDOR' } }), false)
+})
+
+test('efectivo al repartidor solo gerencia con repartidor asignado (#393)', () => {
+  assert.equal(puedeDejarAlRepartidor(admin, { assignedToId: 'd' }), true)
+  assert.equal(puedeDejarAlRepartidor({ role: 'GERENTE' }, { assignedToId: 'd' }), true)
+  assert.equal(puedeDejarAlRepartidor(admin, {}), false)
+  assert.equal(puedeDejarAlRepartidor({ role: 'CAJERA' }, { assignedToId: 'd' }), false)
+  assert.equal(puedeDejarAlRepartidor({ role: 'VENDEDOR' }, { assignedToId: 'd' }), false)
+})
+
+test('el resto, la suma exacta y el motivo habilitan el envío (#393)', () => {
   const filas = [{ accountId: 'c1', amount: 40000 }, { accountId: 't1', amount: 60000, toDriver: false }]
-  it('calcula el resto y exige suma exacta y motivo', () => {
-    expect(restanteCorreccion(pago, [{ amount: 30000 }])).toBe(70000)
-    expect(errorCorreccion({ original: pago, filas, motivo: 'se cobró en caja' })).toBeNull()
-    expect(errorCorreccion({ original: pago, filas, motivo: ' a ' })).toMatch(/motivo/)
-    expect(errorCorreccion({ original: pago, filas: [{ accountId: 'c1', amount: 99999 }], motivo: 'abc' })).toMatch(/sumar exactamente/)
-    expect(errorCorreccion({ original: pago, filas: [{ accountId: '', amount: 100000 }], motivo: 'abc' })).toMatch(/cuenta/)
-  })
-  it('arma el cuerpo del endpoint', () => {
-    expect(cuerpoCorreccion({ motivo: ' motivo ', filas: [{ accountId: 'c1', amount: 100000, toDriver: true }] })).toEqual({ reason: 'motivo', payments: [{ accountId: 'c1', amount: 100000, toDriver: true }] })
-  })
-  it('mapea reversiones por original', () => {
-    expect(reversionesPorOriginal([pago, { id: 'r', reversalOfId: 'p1' }]).get('p1').id).toBe('r')
-  })
+  assert.equal(restanteCorreccion(pago, [{ amount: 30000 }]), 70000)
+  assert.equal(errorCorreccion({ original: pago, filas, motivo: 'se cobró en caja' }), null)
+  assert.match(errorCorreccion({ original: pago, filas, motivo: ' a ' }), /motivo/)
+  assert.match(errorCorreccion({ original: pago, filas: [{ accountId: 'c1', amount: 99999 }], motivo: 'abc' }), /sumar exactamente/)
+  assert.match(errorCorreccion({ original: pago, filas: [{ accountId: '', amount: 100000 }], motivo: 'abc' }), /cuenta/)
 })
 
-describe('corregirPagoDemo', () => {
-  const pedido = { id: 'o1', pagos: [{ ...pago, monto: 100000, accountId: 't1' }], totalPagado: 100000, totalPendiente: 0, assignedToId: 'd' }
-  it('revierte el original y crea los nuevos con el motivo', () => {
-    const r = corregirPagoDemo({ pedido, original: pedido.pagos[0], motivo: 'fue efectivo', filas: [{ accountId: 'c1', amount: 100000 }], cuentas })
-    expect(r.pagos).toHaveLength(3)
-    expect(r.pagos[1]).toMatchObject({ reversalOfId: 'p1', amountPyg: -100000 })
-    expect(r.pagos[2]).toMatchObject({ method: 'CASH', correctionReason: 'fue efectivo', status: 'CONFIRMED' })
-    expect(r.totalPagado).toBe(100000)
-  })
-  it('efectivo al repartidor queda pendiente y reabre el saldo', () => {
-    const r = corregirPagoDemo({ pedido, original: pedido.pagos[0], motivo: 'lo tiene el repartidor', filas: [{ accountId: 'c1', amount: 100000, toDriver: true }], cuentas, repartidor: true })
-    expect(r.pagos[2]).toMatchObject({ status: 'PENDING', deliveryUserId: 'd' })
-    expect(r.totalPendiente).toBe(100000)
-  })
-  it('rechaza suma distinta, mismo medio y doble corrección', () => {
-    expect(() => corregirPagoDemo({ pedido, original: pedido.pagos[0], motivo: 'abc', filas: [{ accountId: 'c1', amount: 5 }], cuentas })).toThrow(/sumar/)
-    expect(() => corregirPagoDemo({ pedido, original: pedido.pagos[0], motivo: 'abc', filas: [{ accountId: 't1', amount: 100000 }], cuentas })).toThrow(/igual al original/)
-    const ya = { ...pedido, pagos: [...pedido.pagos, { id: 'r', reversalOfId: 'p1' }] }
-    expect(() => corregirPagoDemo({ pedido: ya, original: pedido.pagos[0], motivo: 'abc', filas: [{ accountId: 'c1', amount: 100000 }], cuentas })).toThrow(/ya fue corregido/)
-  })
+test('arma el cuerpo del endpoint y mapea reversiones (#393)', () => {
+  assert.deepEqual(cuerpoCorreccion({ motivo: ' motivo ', filas: [{ accountId: 'c1', amount: 100000, toDriver: true }] }), { reason: 'motivo', payments: [{ accountId: 'c1', amount: 100000, toDriver: true }] })
+  assert.equal(reversionesPorOriginal([pago, { id: 'r', reversalOfId: 'p1' }]).get('p1').id, 'r')
+})
+
+const pedido = { id: 'o1', pagos: [{ ...pago, monto: 100000, accountId: 't1' }], totalPagado: 100000, totalPendiente: 0, assignedToId: 'd' }
+
+test('demo: revierte el original y crea los pagos nuevos con el motivo (#393)', () => {
+  const r = corregirPagoDemo({ pedido, original: pedido.pagos[0], motivo: 'fue efectivo', filas: [{ accountId: 'c1', amount: 100000 }], cuentas })
+  assert.equal(r.pagos.length, 3)
+  assert.equal(r.pagos[1].reversalOfId, 'p1')
+  assert.equal(r.pagos[1].amountPyg, -100000)
+  assert.equal(r.pagos[2].method, 'CASH')
+  assert.equal(r.pagos[2].correctionReason, 'fue efectivo')
+  assert.equal(r.totalPagado, 100000)
+})
+
+test('demo: efectivo al repartidor queda pendiente y reabre el saldo (#393)', () => {
+  const r = corregirPagoDemo({ pedido, original: pedido.pagos[0], motivo: 'lo tiene el repartidor', filas: [{ accountId: 'c1', amount: 100000, toDriver: true }], cuentas, repartidor: true })
+  assert.equal(r.pagos[2].status, 'PENDING')
+  assert.equal(r.pagos[2].deliveryUserId, 'd')
+  assert.equal(r.totalPendiente, 100000)
+})
+
+test('demo: rechaza suma distinta, mismo medio y doble corrección (#393)', () => {
+  const original = pedido.pagos[0]
+  assert.throws(() => corregirPagoDemo({ pedido, original, motivo: 'abc', filas: [{ accountId: 'c1', amount: 5 }], cuentas }), /sumar/)
+  assert.throws(() => corregirPagoDemo({ pedido, original, motivo: 'abc', filas: [{ accountId: 't1', amount: 100000 }], cuentas }), /igual al original/)
+  const ya = { ...pedido, pagos: [...pedido.pagos, { id: 'r', reversalOfId: 'p1' }] }
+  assert.throws(() => corregirPagoDemo({ pedido: ya, original, motivo: 'abc', filas: [{ accountId: 'c1', amount: 100000 }], cuentas }), /ya fue corregido/)
 })
