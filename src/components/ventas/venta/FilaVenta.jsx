@@ -147,10 +147,9 @@ export default function FilaVenta({
             {agotado && <Badge color="red">Agotado</Badge>}
             {item.soldWithoutInsurance && <Badge color="slate">Sin seguro</Badge>}
           </div>
-          {/* Segunda línea: el IMEI (se toca para elegir/cambiar) y la papelera,
-              visible también colapsada (#243): si la línea tiene descuento,
-              cupón o IMEI elegido, pide confirmación antes de eliminarla. */}
-          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          {/* IMEI en línea con el nombre (se toca para elegir/cambiar), cupón y
+              descuento de la línea: una sola fila compacta que envuelve. */}
+          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 empty:hidden">
             {(item.requiereSerie || tieneImei) && (
             <button
               type="button"
@@ -183,17 +182,6 @@ export default function FilaVenta({
                 − {gs(descuentoLinea)}
               </span>
             )}
-            <span className="ml-auto" />
-            <button
-              type="button"
-              className="toque-44 grid h-11 w-11 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad disabled:opacity-50 md:h-7 md:w-7"
-              title="Eliminar línea"
-              aria-label={`Eliminar ${item.nombre}`}
-              disabled={guardando}
-              onClick={pedirQuitar}
-            >
-              <Icon name="trash" className="h-3.5 w-3.5" />
-            </button>
           </div>
         </div>
 
@@ -210,6 +198,16 @@ export default function FilaVenta({
             onClick={() => setAbierta(value => !value)}
           >
             <Icon name="back" className={cn('h-4 w-4 transition', abierta ? 'rotate-90' : '-rotate-90')} />
+          </button>
+          <button
+            type="button"
+            className="toque-44 grid h-11 w-11 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad disabled:opacity-50 md:h-8 md:w-8"
+            title="Eliminar línea"
+            aria-label={`Eliminar ${item.nombre}`}
+            disabled={guardando}
+            onClick={pedirQuitar}
+          >
+            <Icon name="trash" className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>

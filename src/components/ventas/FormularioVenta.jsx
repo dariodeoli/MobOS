@@ -1,4 +1,5 @@
 import '../control/inicioPosF2.css'
+import './posCobro.css'
 import CheckAnimado from '@/components/shared/CheckAnimado'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -1838,20 +1839,20 @@ export default function FormularioVenta({
           <Button
             type="button"
             variant="outline"
+            className="pos-accion-icono"
             onClick={abrirSuspender}
             disabled={guardando}
+            title="Suspender venta"
+            aria-label="Suspender venta"
           >
             <Icon name="save" className="h-4 w-4" />
-            Suspender venta
           </Button>
         )}
-        <Button type="button" variant="outline" data-testid="pos-suspendidas" onClick={abrirSuspendidas}>
+        <Button type="button" variant="outline" className="pos-accion-icono" data-testid="pos-suspendidas" onClick={abrirSuspendidas} title="Ventas suspendidas" aria-label="Ventas suspendidas">
           <Icon name="clock" className="h-4 w-4" />
-          Ventas suspendidas
         </Button>
-        <Button type="button" variant="outline" data-testid="pos-gift-cards" onClick={() => setGiftCardsOpen(true)}>
+        <Button type="button" variant="outline" className="pos-accion-icono" data-testid="pos-gift-cards" onClick={() => setGiftCardsOpen(true)} title="Gift cards" aria-label="Gift cards">
           <Icon name="card" className="h-4 w-4" />
-          Gift cards
         </Button>
       </BarraModulo>
   )
@@ -1986,7 +1987,7 @@ export default function FormularioVenta({
         </div>
 
         {/* Operación (cliente + buscador + productos) | carrito y cobro. */}
-        <div className="pos-layout grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,400px)]">
+        <div className="pos-layout grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,11fr)_minmax(0,9fr)] xl:grid-cols-2">
           <div className="flex min-w-0 flex-col gap-4">
             {/* Cliente compacto arriba del catálogo: define la lista de precios. */}
             <PosCustomer
@@ -2073,10 +2074,6 @@ export default function FormularioVenta({
               productoBajoId={productoBajoId}
               onAuthPrecio={setAuthPrecio}
               tieneCupon={tieneCupon}
-              f={f}
-              setF={setF}
-              cliente={customer?.name || f.cliente}
-              vendedor={sesion?.nombre}
             />
 
             <PasoCobro
