@@ -568,6 +568,8 @@ node "$BACKEND_ROOT/tests/accounts-tradein.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOK
 node "$BACKEND_ROOT/tests/inventory-transfers.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/unit-repairs.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/stock-unificado.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL"
+# #400 (A): código interno de unidad (trigger), ciclos/garantía, íconos y sigla.
+node "$BACKEND_ROOT/tests/unit-code.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$GERENTE_TOKEN" "$DATABASE_URL"
 
 echo "Sucursal efectiva: un vendedor sin sucursal ve catálogo, unidades y vende (#286)..."
 node "$BACKEND_ROOT/tests/sucursal-efectiva.mjs" "$BASE_URL" "$DATABASE_URL" "$PG_BIN"
