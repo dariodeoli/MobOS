@@ -11,6 +11,7 @@ import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
 import MenuSecundario from '@/components/shared/MenuSecundario'
 import Toolbar from '@/components/shared/Toolbar'
+import { cn } from '@/lib/utils'
 import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import { TAB_LABEL } from './stockHelpers'
 import FiltrosStock from './FiltrosStock'
@@ -63,9 +64,10 @@ function BarraUnidades({ ctx, elegirEstado, limpiar }) {
     <Toolbar
       plano
       testId="barra-inventario"
+      className="max-sm:flex-nowrap max-sm:gap-x-2"
       label="Acciones de Stock"
-      searchClassName="sm:min-w-[19rem]"
-      search={<Buscador ctx={ctx} placeholder="Escanear IMEI, SKU o buscar modelo" />}
+      searchClassName="max-sm:flex-1 max-sm:basis-0 sm:min-w-[19rem]"
+      search={<Buscador ctx={ctx} placeholder={angosta ? 'IMEI o modelo' : 'Escanear IMEI, SKU o buscar modelo'} />}
       filters={(
         <>
           <ContextoProducto ctx={ctx} />
@@ -84,12 +86,18 @@ function BarraUnidades({ ctx, elegirEstado, limpiar }) {
           />
         </>
       )}
-      primary={<Button className={TOQUE} onClick={abrirReceive}>+ Recibir unidad</Button>}
+      primary={(
+        <Button className={cn(TOQUE, 'max-sm:min-w-11 max-sm:px-0')} onClick={abrirReceive}>
+          <span aria-hidden="true" className="text-xl leading-none sm:hidden">+</span>
+          <span className="max-sm:sr-only">+ Recibir unidad</span>
+        </Button>
+      )}
       more={(
         <>
           <Ayuda texto={AYUDA_UNIDADES} />
           <MenuSecundario
             direccion="abajo"
+            soloIconoMovil
             etiqueta="Más"
             ariaLabel="Más acciones de inventario"
             acciones={[

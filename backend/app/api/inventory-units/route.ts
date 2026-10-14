@@ -12,7 +12,7 @@ import { revisarMinimoDeStock } from '../../../lib/supply-demand'
 import { changeStock, promoteToEquipo } from '../../../lib/stock'
 import { consumeAuthorization } from '../../../lib/authorizations'
 import { sucursalEfectiva } from '../../../lib/sucursal-efectiva'
-import { canSeeCost as puedeVerCosto, redactUnitCosts } from '../../../lib/cost-visibility'
+import { canSeeCostForSession, redactUnitCosts } from '../../../lib/cost-visibility'
 
 const canSeeBranch = (role: string, assigned: string | null, branchId: string | null) => !['VENDEDOR', 'CAJERA'].includes(role) || assigned === branchId
 const canManageBranch = (role: string, assigned: string | null, branchId: string) => role === 'ADMIN' || (role === 'GERENTE' && assigned === branchId)
@@ -148,7 +148,7 @@ export async function GET(request: Request) {
     }
   }
 
-  const canSeeCost = puedeVerCosto(session.user.role)
+  const canSeeCost = await canSeeCostForSession(session)
   return json(units.map(unit => {
     const conVenta = unit.status === 'SOLD' && ventaPorSerial.has(unit.serial) ? { ...unit, sale: ventaPorSerial.get(unit.serial) } : unit
     const verificacion = verificacionPorSerial.get(unit.serial)
@@ -230,7 +230,7 @@ export async function PATCH(request: Request) {
     const costoRepuestos = inspeccion.costoRepuestosPyg === undefined || inspeccion.costoRepuestosPyg === '' || inspeccion.costoRepuestosPyg === null ? null : Number(inspeccion.costoRepuestosPyg)
     if (costoRepuestos !== null && (!Number.isSafeInteger(costoRepuestos) || costoRepuestos < 0 || costoRepuestos > LIMITE_MONTO_GENERAL)) return error(`El costo de repuestos debe ser un entero entre 0 y ${LIMITE_MONTO_GENERAL.toLocaleString('es-PY')}.`)
     const actualizada = await prisma.inventoryUnit.update({ where: { id }, data: { inspection: { ...inspeccion, items, itemsLista: itemsLista(items), puntaje, grado, costoRepuestosPyg: costoRepuestos, inspeccionadoAt: new Date().toISOString(), inspeccionadoPor: session.user.name } as any } })
-    return json(redactUnitCosts(actualizada, puedeVerCosto(session.user.role)))
+    return json(redactUnitCosts(actualizada, await canSeeCostForSession(session)))
   }
 
   const adjustmentReason = reason(body.reason)
@@ -330,6 +330,6 @@ export async function PATCH(request: Request) {
       await consumirAutorizacion({ statusAfter: data.status })
       return data
     })
-    return json(redactUnitCosts(updated, puedeVerCosto(session.user.role)))
+    return json(redactUnitCosts(updated, await canSeeCostForSession(session)))
   } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo actualizar la unidad.', 409) }
 }

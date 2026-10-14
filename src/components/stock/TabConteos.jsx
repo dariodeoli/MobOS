@@ -1,5 +1,6 @@
 import { Aviso, Badge, Button, ConfirmDialog, EmptyState, Input, Label, Modal, Select, Skeleton, Textarea } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import RecordHeader from '@/components/app/RecordHeader'
 import { cn } from '@/lib/utils'
 import { CELDA_DATO, ROTULO_SECCION } from '@/components/shared/tabla'
 import SerialTexto from '@/components/shared/SerialTexto'
@@ -24,13 +25,14 @@ export default function TabConteos({ ctx }) {
             const borrador = conteoDetalle.status === 'DRAFT'
             const [estadoLabel, estadoTone] = ESTADO_CONTEO[conteoDetalle.status] || ['Conteo', 'slate']
             return <div className="space-y-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={cerrarConteo}><Icon name="back" className="h-4 w-4" />Volver</Button>
-                <Badge color={estadoTone}>{estadoLabel}</Badge>
-                <b className="min-w-0 truncate text-sm">{conteoDetalle.branch?.name || 'Sucursal'}</b>
-                <span className="text-xs text-mute">Iniciado {fechaReserva(conteoDetalle.createdAt)}{conteoDetalle.appliedAt ? ` · Aplicado ${fechaReserva(conteoDetalle.appliedAt)}` : ''}</span>
-                {conteoDetalle.note && <span className={cn('min-w-0', CELDA_DATO)}>· {conteoDetalle.note}</span>}
-              </div>
+              {/* #358: encabezado compacto del registro (como el detalle de pedido): volver · sucursal · estado · fechas. */}
+              <RecordHeader
+                backLabel="Conteos"
+                onBack={cerrarConteo}
+                title={conteoDetalle.branch?.name || 'Sucursal'}
+                chip={<Badge color={estadoTone}>{estadoLabel}</Badge>}
+                meta={`Iniciado ${fechaReserva(conteoDetalle.createdAt)}${conteoDetalle.appliedAt ? ` · Aplicado ${fechaReserva(conteoDetalle.appliedAt)}` : ''}${conteoDetalle.note ? ` · ${conteoDetalle.note}` : ''}`}
+              />
               <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
                 {[['Esperados', s.expected, 'text-fore'], ['Contados', s.counted, 'text-ok'], ['Faltantes', s.missing, 'text-warn'], ['Inesperados', s.unexpected, 'text-bad']].map(([label, value, tone]) => <div key={label} className="rounded-xl border border-ink-600 p-3"><p className={`text-xl font-bold ${tone}`}>{value}</p><p className="text-[11px] text-mute">{label}</p></div>)}
               </div>

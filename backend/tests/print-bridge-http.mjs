@@ -413,7 +413,7 @@ assert.equal(resultado.payload.defaultPrinterId, impresoraJobs.id, 'la impresora
 assert.equal(resultado.payload.impresora, 'lan:10.0.0.11:9100', 'el destino predeterminado replica el sync legacy')
 assert.equal(resultado.payload.version, '1.6.0', 'la versión reportada en el pairing se conserva')
 assert.equal(resultado.payload.lanCups, 'MobOS_LAN', 'la cola CUPS por defecto viaja en la config')
-psql(`UPDATE "Tenant" SET settings = '{"printRemote": false}'::jsonb WHERE "id" = 'tenant-a-it';`)
+psql(`UPDATE "Tenant" SET settings = settings || '{"printRemote": false}'::jsonb WHERE "id" = 'tenant-a-it';`)
 resultado = await request('/api/print/jobs', { method: 'POST', body: { destination: 'lan:10.0.0.11:9100', payload: 'QUJDRA==' } })
 assert.equal(resultado.status, 409, 'el kill switch corta el encolado')
 resultado = await agente('/api/print/bridge/claim', { token: tokenJobs, body: {} })
@@ -423,7 +423,7 @@ assert.equal(resultado.payload.remoteEnabled, false, 'el puente ve la bandera ap
 assert.equal(resultado.payload.printers.length, 0, 'sin remoto la config del puente queda vacía')
 resultado = await request('/api/print/printers')
 assert.equal(resultado.payload.remoteEnabled, false, 'la app ve la bandera apagada')
-psql(`UPDATE "Tenant" SET settings = '{}'::jsonb WHERE "id" = 'tenant-a-it';`)
+psql(`UPDATE "Tenant" SET settings = settings - 'printRemote' WHERE "id" = 'tenant-a-it';`)
 resultado = await agente('/api/print/bridge/config', { method: 'GET', token: tokenJobs })
 assert.equal(resultado.payload.remoteEnabled, true, 'sin settings el remoto vuelve a estar encendido')
 

@@ -279,13 +279,16 @@ export default function TallerRack({
                       data-serial={unit.serial}
                       className={cn('flex items-start gap-2 transition', seleccionado && 'rounded-2xl ring-2 ring-fono/50')}
                     >
-                      <input
-                        type="checkbox"
-                        className="mt-4 ml-1 shrink-0"
-                        checked={seleccionado}
-                        onChange={() => alternar(unit.id)}
-                        aria-label={`Seleccionar ${unit.serial}`}
-                      />
+                      {/* #359: etiqueta envolvente = zona táctil de 44 px alrededor del checkbox. */}
+                      <label className="flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center self-start">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 shrink-0"
+                          checked={seleccionado}
+                          onChange={() => alternar(unit.id)}
+                          aria-label={`Seleccionar ${unit.serial}`}
+                        />
+                      </label>
                       <div className="min-w-0 flex-1">
                         <TileEquipo
                           modelo={nombreUnidad(unit)}

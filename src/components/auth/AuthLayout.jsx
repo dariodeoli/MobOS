@@ -3,6 +3,14 @@ import ThemeLogo from '@/components/app/ThemeLogo'
 import ProductFooter from '@/components/app/ProductFooter'
 import { publicUrls } from '@/lib/urls'
 import { cn } from '@/lib/utils'
+import { Boxes, CircleCheckBig, Smartphone, WalletCards } from 'lucide-react'
+
+// Propuesta de valor del lado izquierdo (escritorio): mismas ideas que la landing.
+const VALORES = [
+  { icono: Smartphone, titulo: 'Vendé con IMEI y garantía', texto: 'Cada equipo queda con su serie, su historial y su comprobante.' },
+  { icono: WalletCards, titulo: 'Caja y cuotas al día', texto: 'Cobros, créditos y saldos de clientes en guaraníes, sin planillas.' },
+  { icono: Boxes, titulo: 'Stock por sucursal', texto: 'Sabé qué hay en cada local antes de prometer una entrega.' },
+]
 
 // Cáscara compartida de las pantallas sin sesión (#282): /login, /demo y las
 // recuperaciones usan el mismo panel, encabezado, tipografía y pie, con la
@@ -16,11 +24,11 @@ export default function AuthLayout({
   className,
 }) {
   return (
-    <main className="relative flex min-h-dvh flex-col overflow-x-hidden bg-paper text-fore">
+    <main className="auth-landing relative flex min-h-dvh flex-col overflow-x-hidden text-fore">
       <div className="absolute right-4 top-4 z-20">
         <ThemeToggle />
       </div>
-      <div className="pointer-events-none absolute -left-40 -top-40 h-96 w-96 rounded-full bg-fono/15 blur-3xl" />
+      <div aria-hidden="true" className="auth-landing-glow pointer-events-none absolute -left-40 -top-40 h-96 w-96 rounded-full blur-3xl" />
       <div className={cn('auth-shell-grid mx-auto grid w-full max-w-[1380px] flex-1 items-center gap-12 px-5 py-6 lg:grid-cols-[minmax(0,1fr)_520px] lg:px-12', className)}>
         <section className="hidden lg:block">
           <ThemeLogo className="h-12 w-auto" />
@@ -29,6 +37,24 @@ export default function AuthLayout({
             {titulo || <>Vendé rápido.<br /><span className="text-fono-dark">Controlá mejor.</span></>}
           </h1>
           <p className="mt-5 max-w-lg text-base leading-7 text-mute xl:text-lg xl:leading-8">{subtitulo}</p>
+          <ul className="mt-8 max-w-lg space-y-4" aria-label="Qué incluye MobOS">
+            {VALORES.map(({ icono: Icono, titulo: t, texto }) => (
+              <li key={t} className="flex gap-3">
+                <span className="auth-landing-icono grid h-11 w-11 shrink-0 place-items-center rounded-xl"><Icono size={20} aria-hidden="true" /></span>
+                <span className="min-w-0"><b className="block text-[15px]">{t}</b><span className="block text-sm leading-6 text-mute">{texto}</span></span>
+              </li>
+            ))}
+          </ul>
+          <div className="auth-landing-visual mt-8 max-w-lg rounded-2xl p-4" aria-hidden="true">
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <span className="font-bold tracking-[.12em] text-mute">VENTA · EJEMPLO</span>
+              <span className="auth-landing-chip inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold"><CircleCheckBig size={13} />Pago confirmado</span>
+            </div>
+            <div className="mt-3 flex items-end justify-between gap-3">
+              <div><p className="text-sm font-semibold">iPhone 15 · 128 GB</p><p className="mt-0.5 font-mono text-xs text-mute">IMEI •••• •••• ••• 0000</p></div>
+              <p className="text-lg font-bold tabular-nums">Gs 5.280.000</p>
+            </div>
+          </div>
         </section>
         {children}
       </div>
@@ -40,7 +66,7 @@ export default function AuthLayout({
 /** Panel de acceso: la tarjeta única que comparten login y demo. */
 export function AuthPanel({ children, className }) {
   return (
-    <section className={cn('login-panel mx-auto w-full max-w-[560px] rounded-[2rem] border border-fore/10 bg-ink/95 p-5 shadow-2xl shadow-fono/5 sm:p-6 lg:p-7', className)}>
+    <section className={cn('login-panel auth-landing-panel mx-auto w-full max-w-[560px] rounded-[2rem] border p-5 shadow-2xl shadow-fono/5 sm:p-6 lg:p-7', className)}>
       {children}
     </section>
   )
@@ -50,7 +76,7 @@ export function AuthPanel({ children, className }) {
 export function AuthPanelHeader({ volver = publicUrls.landing, volverLabel = 'Volver al inicio', subtitulo = 'Sistema de ventas para tiendas' }) {
   return (
     <>
-      <a href={volver} className="toque-44 mb-4 inline-flex items-center gap-2 text-sm font-semibold text-fono-dark transition hover:text-fore lg:mb-3">← {volverLabel}</a>
+      <a href={volver} className="mb-2 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-fono-dark transition hover:text-fore lg:mb-3">← {volverLabel}</a>
       <ThemeLogo className="mb-1 w-48" />
       <p className="mb-5 text-sm text-mute lg:mb-4">{subtitulo}</p>
     </>

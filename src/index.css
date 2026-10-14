@@ -252,3 +252,49 @@ header button::after {
 }
 
 
+
+/* ── Confirmaciones animadas (#371) ───────────────────────────────────
+   Check que se dibuja (pago confirmado, cuota cobrada), pulso de aro y
+   transición de paso/chip en la línea de entrega. 300–600 ms; con
+   prefers-reduced-motion no hay movimiento: el estado final se ve igual. */
+@keyframes mobos-check-aro { 0% { stroke-dashoffset: 76; opacity: .3; } 100% { stroke-dashoffset: 0; opacity: 1; } }
+@keyframes mobos-check-trazo { 0% { stroke-dashoffset: 24; } 100% { stroke-dashoffset: 0; } }
+@keyframes mobos-pulso-ok { 0% { box-shadow: 0 0 0 0 rgb(var(--c-ok) / .45); } 100% { box-shadow: 0 0 0 12px rgb(var(--c-ok) / 0); } }
+@keyframes mobos-paso-entra { 0% { transform: scale(.6); opacity: .2; } 60% { transform: scale(1.18); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes mobos-chip-cambia { 0% { transform: translateY(5px) scale(.94); opacity: 0; } 100% { transform: none; opacity: 1; } }
+.mobos-check { display: inline-grid; place-items: center; border-radius: 9999px; animation: mobos-pulso-ok .6s ease-out .25s 1 both; }
+.mobos-check .mobos-check-aro { stroke-dasharray: 76; animation: mobos-check-aro .4s ease-out both; }
+.mobos-check .mobos-check-trazo { stroke-dasharray: 24; animation: mobos-check-trazo .3s ease-out .3s both; }
+.mobos-paso-entra { animation: mobos-paso-entra .45s cubic-bezier(.2,.8,.3,1) both; }
+.mobos-chip-cambia { animation: mobos-chip-cambia .3s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .mobos-check, .mobos-check .mobos-check-aro, .mobos-check .mobos-check-trazo,
+  .mobos-paso-entra, .mobos-chip-cambia { animation: none !important; }
+}
+
+/* ── Código segmentado (#372) ─────────────────────────────────────────── */
+.codigo-seg-celda { transition: border-color .15s ease, background-color .15s ease, transform .15s ease; }
+.codigo-seg-celda:focus { transform: translateY(-1px); }
+@keyframes codigo-seg-error { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+.codigo-seg[data-invalido="true"] { animation: codigo-seg-error .3s ease-in-out 1; }
+@media (prefers-reduced-motion: reduce) {
+  .codigo-seg-celda { transition: none; }
+  .codigo-seg-celda:focus { transform: none; }
+  .codigo-seg[data-invalido="true"] { animation: none; }
+}
+
+/* ── Acceso (#373): mismos tokens de la landing para login, demo y recuperaciones ── */
+.auth-landing {
+  --landing-paper: #f7f6f1; --landing-ink: #172b24; --landing-muted: #52655b;
+  --landing-line: #d5ded6; --landing-surface: #fffefa; --landing-accent: #006e47;
+  background: var(--landing-paper);
+}
+.dark .auth-landing {
+  --landing-paper: #101c17; --landing-ink: #f5f6ee; --landing-muted: #b1c3b8;
+  --landing-line: #35493e; --landing-surface: #1b2c23; --landing-accent: #05f19c;
+}
+.auth-landing-glow { background: rgb(5 241 156 / .14); }
+.auth-landing-panel { background: var(--landing-surface); border-color: var(--landing-line); }
+.auth-landing-icono { background: color-mix(in srgb, var(--landing-accent) 12%, transparent); color: var(--landing-accent); }
+.auth-landing-visual { background: var(--landing-surface); border: 1px solid var(--landing-line); box-shadow: 0 18px 40px -28px rgb(23 43 36 / .45); }
+.auth-landing-chip { background: color-mix(in srgb, var(--landing-accent) 14%, transparent); color: var(--landing-accent); }

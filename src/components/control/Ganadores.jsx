@@ -7,9 +7,8 @@ import { reporteMetricas } from '@/lib/metricas'
 import { topProductos } from '@/lib/metricasNucleo'
 import PeriodoTabs from '@/components/shared/PeriodoTabs'
 import { formatPercent } from '@/components/shared/PercentField'
-import { Card, Badge, EmptyState } from '@/components/ui'
-
-const MEDALLA = ['', '', '']
+import { EmptyState } from '@/components/ui'
+import { GraficoBarras, TarjetaGrafico } from '@/components/shared/graficos'
 
 // Ganadores (#171, fase 2 de #145): los productos salen del mismo backend de
 // métricas que Resumen y Reportes (cantidades reales por línea, sin el tope de
@@ -42,47 +41,30 @@ export default function Ganadores() {
   return (
     <div className="space-y-4">
       <PeriodoTabs periodo={periodo} setPeriodo={setPeriodo} />
-      <Card data-testid="ganadores">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-bold">Productos ganadores</h2>
-          <span className="text-xs text-mute">
-            {hayCostos ? 'Ordenado por ganancia del período' : 'Sin costos cargados: ordenado por venta'}
-          </span>
-        </div>
+      <TarjetaGrafico
+        testId="ganadores"
+        titulo="Productos ganadores"
+        detalle={hayCostos ? 'Ordenado por ganancia del período' : 'Sin costos cargados: ordenado por venta'}
+      >
         {top.length === 0 ? (
           <EmptyState compact icon="box" title="Todavía no hay ventas en este período." />
         ) : (
-          <div className="space-y-2">
-            {top.map((p, i) => {
+          <GraficoBarras
+            etiqueta="Productos ganadores"
+            testIdItem="ganadores-fila"
+            items={top.map((p) => {
               const conGanancia = p.ganancia !== null && p.ganancia !== undefined
-              return (
-                <div
-                  key={p.id}
-                  data-testid="ganadores-fila"
-                  className="flex items-center gap-3 rounded-xl border border-ink-600 p-3"
-                >
-                  <div className="text-xl w-7 text-center">{MEDALLA[i] || `#${i + 1}`}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-sm truncate">{p.nombre}</div>
-                    <div className="text-xs text-mute">
-                      {p.cantidad} unidad{p.cantidad === 1 ? '' : 'es'} vendida{p.cantidad === 1 ? '' : 's'} · venta {gs(p.monto)}
-                      {conGanancia && p.margenPct !== null ? ` · margen ${formatPercent(p.margenPct)}%` : ''}
-                    </div>
-                  </div>
-                  {conGanancia ? (
-                    <div className="shrink-0 text-right">
-                      <div className={`text-sm font-bold ${p.ganancia >= 0 ? 'text-ok' : 'text-bad'}`}>{gs(p.ganancia)}</div>
-                      <div className="text-[10px] uppercase tracking-wide text-mute">Ganancia</div>
-                    </div>
-                  ) : (
-                    <Badge color="blue">{gs(p.monto)}</Badge>
-                  )}
-                </div>
-              )
+              return {
+                clave: p.id,
+                etiqueta: p.nombre,
+                valor: conGanancia ? p.ganancia : p.monto,
+                extra: <span className="shrink-0 text-xs text-mute">{conGanancia ? 'Ganancia' : 'Venta'}</span>,
+                sub: `${p.cantidad} u. · venta ${gs(p.monto)}${conGanancia && p.margenPct !== null ? ` · margen ${formatPercent(p.margenPct)}%` : ''}`,
+              }
             })}
-          </div>
+          />
         )}
-      </Card>
+      </TarjetaGrafico>
     </div>
   )
 }

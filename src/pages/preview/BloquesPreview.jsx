@@ -9,6 +9,9 @@ import FieldRow from '@/components/shared/FieldRow'
 import StatusChip from '@/components/shared/StatusChip'
 import { usePaginaLista } from '@/components/shared/usePaginaLista'
 import StatGrid from '@/components/shared/StatGrid'
+import CodigoSegmentado from '@/components/shared/CodigoSegmentado'
+import CheckAnimado from '@/components/shared/CheckAnimado'
+import { imeiValido } from '@/lib/codigoSegmentado'
 import { Button, Input, Stat } from '@/components/ui'
 import { formatGs } from '@/utils/moneda'
 
@@ -27,6 +30,19 @@ const COLUMNAS = [
   { key: 'estado', header: 'Estado', ancho: '8.5rem', cell: (f) => <StatusChip dominio="pedido" estado={f.estado} /> },
   { key: 'acc', header: 'Acciones', sr: true, ancho: '5rem', align: 'right', cell: () => <Button type="button" variant="outline" className="min-h-9 px-3 text-xs">Ver</Button> },
 ]
+
+function CodigosPreview() {
+  const [puente, setPuente] = useState('')
+  const [imei, setImei] = useState('')
+  return (
+    <section aria-label="Códigos" className="space-y-3" data-testid="prev-codigos">
+      <h2 className="text-base font-semibold">CodigoSegmentado y CheckAnimado</h2>
+      <div data-testid="prev-puente"><CodigoSegmentado id="prev-puente-0" ariaLabel="Código de vinculación" grupos={[5, 5]} alfabeto="letras" value={puente} onChange={setPuente} /><output data-testid="prev-puente-valor">{puente}</output></div>
+      <div data-testid="prev-imei"><CodigoSegmentado ariaLabel="IMEI" grupos={[2, 6, 6, 1]} alfabeto="numerico" validar={imeiValido} mensajeError="El IMEI no es válido." value={imei} onChange={setImei} /></div>
+      <CheckAnimado />
+    </section>
+  )
+}
 
 export default function BloquesPreview() {
   const [busqueda, setBusqueda] = useState('')
@@ -84,6 +100,7 @@ export default function BloquesPreview() {
           <StatusChip dominio="pedido" estado="PENDING" />
         </div>
       </section>
+      <CodigosPreview />
     </main>
   )
 }

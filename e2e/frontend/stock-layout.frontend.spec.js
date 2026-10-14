@@ -196,8 +196,8 @@ test('Unidades: una barra con el buscador completo, sin descripción ni franja v
   expect(c.hscroll).toBe(false)
   expect(c.campoLibre, 'el placeholder entra completo en celular').toBeGreaterThanOrEqual(c.placeholderAncho)
   // El plan pide ≤168; con el app bar, el encabezado y las pestañas del shell
-  // (~150) la barra de dos filas deja la primera tarjeta cerca de y=270 en demo.
-  expect(c.primeraTop, 'primera tarjeta').toBeLessThanOrEqual(280)
+  // (~154) y una barra de una fila (#356) la primera tarjeta queda en y=214; bajar de ahí exige tocar el shell.
+  expect(c.primeraTop, "primera tarjeta").toBeLessThanOrEqual(216)
   expect(c.barraTop, 'la barra empieza pegada a las pestañas').toBeLessThanOrEqual(168)
   await page.screenshot({ path: `${out}/stock-375.png` })
   await page.getByTestId('filtros-abrir').click()

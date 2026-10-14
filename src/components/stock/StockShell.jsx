@@ -43,7 +43,7 @@ export default function StockShell({ tab: tabProp, onTabChange } = {}) {
   return <div className={cn('space-y-3', temaV2Activo() && 'tema-v2')}>
       {/* Una sola barra por pestaña del shell (Unidades · Traslados · Control): sin
           segunda fila de pestañas ni caja extra antes de la lista. */}
-      <BarraStock ctx={ctx} grupo={grupoActivo} elegirEstado={elegirEstado} limpiar={limpiarFiltrosEstado} />
+      {!(tab === 'conteos' && ctx.conteoId) && <BarraStock ctx={ctx} grupo={grupoActivo} elegirEstado={elegirEstado} limpiar={limpiarFiltrosEstado} />}
       {notice && <Aviso tono="ok">{notice}</Aviso>}{error && <Aviso tono="error">{error}</Aviso>}
     <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
       <button type="button" disabled={busy} data-testid="vender-todos" title="Cargar la venta de todas las seleccionadas en el POS" onClick={venderTodos} className="min-h-11 rounded-lg border border-fono/50 bg-fono/10 px-2 py-1 text-xs md:min-h-0 font-semibold text-fono-light transition hover:bg-fono/20 disabled:opacity-50">Vender todos</button>

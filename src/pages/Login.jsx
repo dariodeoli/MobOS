@@ -233,7 +233,7 @@ export default function Login() {
     <AuthLayout>
       <AuthPanel>
         {verificandoSesion && (
-          <p role="status" className="mb-3 flex items-center gap-2 text-xs text-mute">
+          <p role="status" className="mb-3 flex items-center gap-2 text-xs text-mute motion-reduce:[&>span]:animate-none">
             <span aria-hidden="true" className="h-2 w-2 animate-pulse rounded-full bg-fono" />Verificando tu sesión…
           </p>
         )}
@@ -309,7 +309,7 @@ export default function Login() {
             />
           </div>
           {/* Llevamos el correo ya escrito para no volver a tipearlo en recuperación. */}
-          <div className="-mt-1 flex flex-wrap items-center justify-between gap-2 text-xs"><Link to={`/restablecer-contrasena${f.correo?.trim() ? `?email=${encodeURIComponent(f.correo.trim())}` : ''}`} className="text-mute hover:text-fore">¿Olvidaste tu contraseña? Recuperar</Link><Link to={`/recuperar-empresa${f.correo?.trim() ? `?email=${encodeURIComponent(f.correo.trim())}` : ''}`} className="text-mute hover:text-fore">¿Archivaste tu empresa? Recuperala</Link></div>
+          <div className="-mt-1 flex flex-wrap items-center justify-between gap-x-3 text-xs"><Link to={`/restablecer-contrasena${f.correo?.trim() ? `?email=${encodeURIComponent(f.correo.trim())}` : ''}`} className="inline-flex min-h-11 items-center text-mute hover:text-fore">¿Olvidaste tu contraseña? Recuperar</Link><Link to={`/recuperar-empresa${f.correo?.trim() ? `?email=${encodeURIComponent(f.correo.trim())}` : ''}`} className="inline-flex min-h-11 items-center text-mute hover:text-fore">¿Archivaste tu empresa? Recuperala</Link></div>
           </>}
 
           {error && (
@@ -325,12 +325,13 @@ export default function Login() {
             </Aviso>
           )}
 
-          {etapa !== 'tienda' && <Button type="submit" className="h-14 w-full rounded-xl text-base" disabled={cargando || (modo === 'entrar' && etapa === 'vendedor')}>
-            {cargando ? 'Un momento…' : crear ? 'Crear mi tienda' : etapa === 'setup' ? 'Activar mi tienda' : 'Continuar'}
+          {etapa !== 'tienda' && <Button type="submit" className="h-14 w-full rounded-xl text-base md:h-12 md:min-h-12" disabled={cargando || (modo === 'entrar' && etapa === 'vendedor')}>
+            {cargando && <span aria-hidden="true" className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />}{cargando ? 'Un momento…' : crear ? 'Crear mi tienda' : etapa === 'setup' ? 'Activar mi tienda' : 'Continuar'}
           </Button>}
-          {(crear || etapa === 'empresa') && <p className="pt-3 text-center text-sm text-mute">
-            {crear ? <>¿Ya tenés una tienda? <button type="button" onClick={() => cambiarModo('entrar')} className="font-semibold text-fono-dark hover:text-fore hover:underline">Entrá a tu cuenta</button></> : <>¿Sos nuevo en MobOS? <button type="button" onClick={() => cambiarModo('crear')} className="font-semibold text-fono-dark hover:text-fore hover:underline">Creá tu tienda</button></>}
+          {(crear || etapa === 'empresa') && <p className="pt-1 text-center text-sm text-mute">
+            {crear ? <>¿Ya tenés una tienda? <button type="button" onClick={() => cambiarModo('entrar')} className="inline-flex min-h-11 items-center font-semibold text-fono-dark hover:text-fore hover:underline">Entrá a tu cuenta</button></> : <>¿Sos nuevo en MobOS? <button type="button" onClick={() => cambiarModo('crear')} className="inline-flex min-h-11 items-center font-semibold text-fono-dark hover:text-fore hover:underline">Creá tu tienda</button></>}
           </p>}
+          {!crear && etapa === 'empresa' && <p className="text-center text-sm text-mute">¿Querés verlo primero? <Link to="/demo" data-testid="login-probar-demo" className="inline-flex min-h-11 items-center font-semibold text-fono-dark hover:text-fore hover:underline">Probar la demo</Link></p>}
         </form>
       </AuthPanel>
     </AuthLayout>
