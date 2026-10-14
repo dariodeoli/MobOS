@@ -415,6 +415,7 @@ export default function SellerQuotes() {
       <SellerSection title="Cotizaciones">
         <Toolbar
           label="Acciones de Cotizaciones"
+          lista
           testId="barra-cotizaciones"
           className="ventas-f3-toolbar"
           plano

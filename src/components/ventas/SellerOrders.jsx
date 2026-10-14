@@ -409,6 +409,7 @@ export default function SellerOrders() {
       <SellerSection title="Pedidos">
         <Toolbar
           label="Acciones de Pedidos"
+          lista
           testId="barra-pedidos"
           className="ventas-f3-toolbar"
           plano

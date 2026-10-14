@@ -329,6 +329,7 @@ export default function SellerCustomers() {
     {' '}
     <Toolbar
       plano
+      lista
       label="Acciones de Clientes"
       testId="barra-clientes"
       search={
@@ -359,7 +360,7 @@ export default function SellerCustomers() {
           <option value="total">Total gastado</option>
         </Select>
       }
-      view={<ListGridToggle value={vista} onChange={cambiarVista} />}
+      display={<ListGridToggle value={vista} onChange={cambiarVista} />}
       more={!esDemo && (
         <>
           <Button type="button" variant="outline" title="Exportar CSV" disabled={exportando} onClick={exportar} className="max-2xl:min-w-11 max-2xl:px-0">
