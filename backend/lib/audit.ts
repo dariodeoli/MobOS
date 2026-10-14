@@ -126,6 +126,7 @@ export const ACCIONES_AUDITORIA: Record<string, string> = {
   BRANCH_UPDATED: 'Sucursal editada',
   BRANCH_AUTO_ASSIGNED: 'Sucursal asignada',
   TENANT_ORDER_NUMBERING: 'Numeración de pedidos',
+  TENANT_FX_SETTINGS_UPDATED: 'Fuente de cotización',
   SESSION_REVOKED: 'Sesión revocada',
   COMPANY_SIGNED_IN: 'Ingreso de la empresa',
   SELLER_PIN_VERIFIED: 'PIN verificado',

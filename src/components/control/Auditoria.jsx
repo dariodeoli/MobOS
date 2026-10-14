@@ -117,6 +117,7 @@ const ACCIONES = {
   USER_INVITATION_REVOKED: ['Invitación revocada', 'red'],
   TENANT_PROFILE_UPDATED: ['Perfil de la tienda', 'slate'],
   TENANT_ORDER_NUMBERING: ['Numeración de pedidos', 'slate'],
+  TENANT_FX_SETTINGS_UPDATED: ['Fuente de cotización', 'slate'],
   SESSION_REVOKED: ['Sesión revocada', 'red'],
   COMPANY_SIGNED_IN: ['Ingreso de la empresa', 'slate'],
   SELLER_PIN_VERIFIED: ['PIN verificado', 'slate'],

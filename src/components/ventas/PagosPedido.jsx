@@ -5,6 +5,8 @@ import { useSesion } from '@/lib/sesion'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { descargarArchivo } from '@/utils/descargarArchivo'
 import { api, apiFetch } from '@/lib/api'
+import { cotizacionFx } from '@/lib/fx'
+import { etiquetaOrigen, origenAutomatico, origenManual, origenParaServidor } from '@/utils/cotizacion'
 import { listVentas, updateVenta, refrescar } from '@/lib/storage'
 import { listDemoProofs, saveDemoProof } from '@/lib/demoProofs'
 import { gs, num } from '@/utils/calculos'
@@ -70,7 +72,7 @@ export default function PagosPedido({ venta, onClose }) {
   const [accounts, setAccounts] = useState([])
   const [accountId, setAccountId] = useState('')
   const [rate, setRate] = useState('')
-  const [fx, setFx] = useState(null)
+  const [rateOrigin, setRateOrigin] = useState(null)
   const [fxLoading, setFxLoading] = useState(false)
   const [asPending, setAsPending] = useState(false)
   const [device, setDevice] = useState({ serial: '', model: '', conditionNotes: '' })
@@ -237,9 +239,9 @@ export default function PagosPedido({ venta, onClose }) {
     if (busy || fxLoading) return
     setFxLoading(true); setError('')
     try {
-      const result = await api.get('/api/fx')
-      setFx(result)
-      if (result.referencialDiario) setRate(String(result.referencialDiario))
+      const info = await cotizacionFx({ purpose: 'sales', currency: account?.currency || 'USD', forzar: true })
+      if (!info) throw new Error('No se pudo obtener la cotización. Cargala manualmente.')
+      setRate(String(info.rate)); setRateOrigin(origenAutomatico(info))
     } catch (cause) { setError(cause?.message || 'No se pudo obtener la cotización. Cargala manualmente.') } finally { setFxLoading(false) }
   }
 
@@ -262,7 +264,7 @@ export default function PagosPedido({ venta, onClose }) {
     try {
       const tradeIn = account?.kind === 'TRADE_IN' ? device : undefined
       if (tradeIn && (!device.serial.trim() || !device.model.trim() || !device.conditionNotes.trim())) throw new Error('Completá IMEI/serial, modelo y estado del teléfono recibido.')
-      const details = account ? { accountId, originalAmount, exchangeRatePyg, currency: account.currency, accountSnapshot: { ...account }, tradeIn } : {}
+      const details = account ? { accountId, originalAmount, exchangeRatePyg, currency: account.currency, accountSnapshot: { ...account }, tradeIn, ...(FOREIGN(account.currency) && origenParaServidor(rateOrigin) ? { exchangeRateOrigin: origenParaServidor(rateOrigin) } : {}) } : {}
       if (esDemo) {
         if (cuotaPago) {
           const updatedPayments = payments.map(p => p.id !== cuotaPago.id ? p : { ...p, status: 'CONFIRMED', fecha: new Date().toISOString() })
@@ -428,9 +430,9 @@ export default function PagosPedido({ venta, onClose }) {
           <button type="button" className="mt-2 text-mute underline" onClick={() => { setCuotaPago(null); setAmount('') }}>Cancelar y cobrar libre</button>
         </div>
       )}
-      <label className="block text-xs text-mute">Cuenta de destino<Select aria-label="Cuenta de destino" className="mt-1" value={accountId} onChange={e => { setAccountId(e.target.value); setAmount(''); setRate(''); setAsPending(false) }}><option value="">Método manual sin cuenta</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.name} · {a.currency} · {a.accountNumber || a.kind}</option>)}</Select></label>
+      <label className="block text-xs text-mute">Cuenta de destino<Select aria-label="Cuenta de destino" className="mt-1" value={accountId} onChange={e => { setAccountId(e.target.value); setAmount(''); setRate(''); setRateOrigin(null); setAsPending(false) }}><option value="">Método manual sin cuenta</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.name} · {a.currency} · {a.accountNumber || a.kind}</option>)}</Select></label>
       <label className="block text-xs text-mute">Monto en {FOREIGN(account?.currency) ? account.currency : 'guaraníes'}<MoneyInput aria-label="Monto del pago" currency={FOREIGN(account?.currency) ? account.currency : 'PYG'} value={amount} onValueChange={v => setAmount(v === '' ? '' : String(v))} placeholder={FOREIGN(account?.currency) ? '10,50' : 'Gs 0'} />{!FOREIGN(account?.currency) && <NumericKeypad value={String(amount || '').replace(/\D/g, '')} onChange={v => setAmount(formatGsInput(v))} />}</label>
-      {FOREIGN(account?.currency) && <div><label className="block text-xs text-mute">Cotización: Gs por {account.currency}<MoneyInput currency="USD" symbol="Gs." value={rate} onValueChange={setRate} placeholder="7500" /></label><button type="button" disabled={fxLoading || busy} onClick={fetchFx} className="mt-1 rounded-lg border border-fono/40 px-2 py-1 text-[11px] font-semibold text-fono-light disabled:opacity-40">{fxLoading ? 'Consultando BCP…' : 'Usar cotización BCP'}</button>{fx?.referencialDiario && <span className="ml-2 text-[11px] text-mute">BCP {fx.referencialDiario} · {fx.updated}</span>}</div>}
+      {FOREIGN(account?.currency) && <div><label className="block text-xs text-mute">Cotización: Gs por {account.currency}<MoneyInput currency="USD" symbol="Gs." value={rate} onValueChange={(v) => { setRate(v); setRateOrigin(v === '' || v == null ? null : origenManual(sesion?.nombre)) }} placeholder="7500" /></label><button type="button" disabled={fxLoading || busy} onClick={fetchFx} className="mt-1 rounded-lg border border-fono/40 px-2 py-1 text-[11px] font-semibold text-fono-light disabled:opacity-40">{fxLoading ? 'Consultando…' : 'Usar cotización del día'}</button>{rateOrigin && <span className={`ml-2 text-[11px] ${rateOrigin.stale ? 'text-warn' : 'text-mute'}`} data-testid="cotizacion-origen">{etiquetaOrigen(rateOrigin)}</span>}</div>}
       {account && !cuotaPago && <label className="flex items-center gap-2 text-xs text-mute"><input type="checkbox" checked={asPending} onChange={e => setAsPending(e.target.checked)} /> Queda pendiente (ej. Pix recibido en cuenta personal, se confirma al pasar a la empresa)</label>}
       {account?.kind === 'TRADE_IN' && <div className="space-y-2"><SerialField aria-label="IMEI o serial" placeholder="IMEI / serial" value={device.serial} onChange={value => setDevice(d => ({ ...d, serial: value }))} /><Input aria-label="Modelo recibido" placeholder="Modelo recibido" value={device.model} onChange={e => setDevice(d => ({ ...d, model: e.target.value }))} /><Input placeholder="Estado y observaciones" value={device.conditionNotes} onChange={e => setDevice(d => ({ ...d, conditionNotes: e.target.value }))} /></div>}
       {!account && <label className="block text-xs text-mute">Método<Select className="mt-1" value={method} onChange={e => setMethod(e.target.value)}>{METODOS_PAGO.map(key => <option key={key} value={key}>{key === 'STORE_CREDIT' ? `Saldo a favor${saldoFavor?.availablePyg ? ` (${gs(saldoFavor.availablePyg)})` : ''}` : ETIQUETAS_MEDIO_PAGO[key]}</option>)}</Select></label>}

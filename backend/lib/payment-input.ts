@@ -41,6 +41,19 @@ export function accountSnapshot(account: PaymentAccount): Prisma.InputJsonObject
     feePercent: account.feePercent.toString(), discountPct: account.discountPct.toString(), settlementDays: account.settlementDays }
 }
 
+// Origen de la cotización (#401): automática de una fuente o escrita a mano. Se
+// guarda en la foto del pago como dato informativo; el valor que cuenta sigue
+// siendo exchangeRatePyg. Un pago ya registrado nunca se recalcula.
+export function rateOriginSnapshot(value: unknown): { rateOrigin?: Prisma.InputJsonObject } {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const raw = value as Record<string, unknown>
+  const at = typeof raw.at === 'string' && !Number.isNaN(Date.parse(raw.at)) ? new Date(raw.at).toISOString() : null
+  if (raw.manual === true) return { rateOrigin: { manual: true, at } }
+  const source = typeof raw.source === 'string' && /^[a-z]{2,30}$/.test(raw.source) ? raw.source : null
+  const side = raw.side === 'compra' || raw.side === 'venta' ? raw.side : null
+  return source && side ? { rateOrigin: { manual: false, source, side, at } } : {}
+}
+
 // On an idempotent replay, use the immutable snapshot: later account edits must not change the original operation.
 export async function normalizePayment(tx: Prisma.TransactionClient, tenantId: string, value: unknown, previous?: Payment): Promise<NormalizedPayment> {
   const input = objectInput(value)
@@ -59,7 +72,7 @@ export async function normalizePayment(tx: Prisma.TransactionClient, tenantId: s
       await tx.$queryRaw`SELECT "id" FROM "PaymentAccount" WHERE "id" = ${accountId} AND "tenantId" = ${tenantId} FOR SHARE`
       const account = await tx.paymentAccount.findFirst({ where: { id: accountId, tenantId, isActive: true } })
       if (!account) throw new InputError('Cuenta de pago no encontrada o inactiva.', 409)
-      snapshot = accountSnapshot(account)
+      snapshot = { ...accountSnapshot(account), ...rateOriginSnapshot(input.exchangeRateOrigin) }
     }
     const currency = snapshot.currency as 'PYG' | 'USD' | 'BRL' | 'EUR' | 'USDT'
     const method = snapshot.kind as PaymentMethod

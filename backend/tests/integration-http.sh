@@ -536,6 +536,16 @@ out="$(response_file)"; request PUT /api/tenant/cost-visibility 200 '{"sellerSee
 out="$(response_file)"; request GET /api/products 200 '' "$out" "$TOKEN_A" tenant-a-it
 assert_product_cost_hidden "$out" prod-a-order-it || { echo "Apagado el permiso, el vendedor volvió a ver el costo." >&2; exit 1; }
 echo "4c/13 Permiso de costos para vendedores (encendido/apagado, solo dueño) OK..."
+# Fuente de cotización por empresa (#401): lectura para cualquier sesión, cambio solo del dueño, con auditoría.
+out="$(response_file)"; request GET /api/tenant/fx-settings 200 '' "$out" "$TOKEN_A" tenant-a-it
+node -e "const r=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));if(r.sales.source!=='cambioschaco'||r.sales.side!=='compra'||r.costs.source!=='cambioschaco'||r.costs.side!=='venta'||!r.sources.length)process.exit(1)" "$out" || { echo "La cotización no arrancó en Cambios Chaco (cobros: compra, costos: venta).">&2; exit 1; }
+FX_BODY='{"sales":{"source":"bcp","side":"compra"},"costs":{"source":"cambioschaco","side":"venta"}}'
+out="$(response_file)"; request PUT /api/tenant/fx-settings 403 "$FX_BODY" "$out" "$TOKEN_A" tenant-a-it
+out="$(response_file)"; request PUT /api/tenant/fx-settings 400 '{"sales":{"source":"inventada","side":"venta"},"costs":{"source":"bcp","side":"venta"}}' "$out" "$ADMIN_TOKEN" ''
+out="$(response_file)"; request PUT /api/tenant/fx-settings 200 "$FX_BODY" "$out" "$ADMIN_TOKEN" ''
+out="$(response_file)"; request GET /api/tenant/fx-settings 200 '' "$out" "$TOKEN_A" tenant-a-it
+node -e "const r=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'));if(r.sales.source!=='bcp'||r.sales.side!=='compra'||r.costs.source!=='cambioschaco')process.exit(1)" "$out" || { echo "La fuente de cotización guardada no se leyó." >&2; exit 1; }
+echo "4c/13 bis Fuente de cotización por empresa (solo dueño) OK..."
 out="$(response_file)"; CAJERA_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-cajera-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
 out="$(response_file)"; GERENTE_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-gerente-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
 out="$(response_file)"; request GET /api/orders 200 '' "$out" "$ADMIN_TOKEN" tenant-a-it
