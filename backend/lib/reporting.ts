@@ -1,3 +1,5 @@
+import { countFlags } from './payment-net-pure'
+
 // Lógica pura de reportes de MobOS: no toca la base de datos para poder
 // probarse aislada (ver tests/reporting.test.ts) y reutilizarse desde la ruta.
 //
@@ -48,7 +50,7 @@ export type OrderItemLike = {
   totalPyg: bigint | number
 }
 
-export type PaymentLike = { status?: string | null; amountPyg: bigint | number; method?: string | null; accountName?: string | null; accountId?: string | null; processor?: string | null }
+export type PaymentLike = { id?: string | null; reversalOfId?: string | null; status?: string | null; amountPyg: bigint | number; method?: string | null; accountName?: string | null; accountId?: string | null; processor?: string | null }
 
 export type OrderLike = {
   id: string
@@ -589,24 +591,28 @@ export function aggregateReport(
       if (accountName) return { key: (pago.accountId || accountName).trim().toLowerCase(), label: accountName }
       return method ? { key: `metodo:${method.toLowerCase()}`, label: method } : { key: 'sin-metodo', label: 'Sin método' }
     }
-    const acumularPago = (acumulador: Acumulador, pago: PaymentLike) => {
+    // Correcciones de pago (#393): el monto netea por su signo (la reversión es
+    // negativa); el CONTEO excluye la reversión y el original revertido.
+    const acumularPago = (acumulador: Acumulador, pago: PaymentLike, cuenta: boolean) => {
       const monto = entero(pago.amountPyg) ?? 0
       if (pago.status === 'REFUNDED') {
         acumulador.refundedPyg = suma(acumulador.refundedPyg, monto)
         return
       }
-      acumulador.orderIds.add(`pago:${acumulador.key}:${acumulador.orderIds.size}`)
-      acumulador.units = suma(acumulador.units, 1)
+      if (cuenta) {
+        acumulador.orderIds.add(`pago:${acumulador.key}:${acumulador.orderIds.size}`)
+        acumulador.units = suma(acumulador.units, 1)
+      }
       acumulador.grossPyg = suma(acumulador.grossPyg, monto)
       acumulador.totalPyg = suma(acumulador.totalPyg, monto)
       acumulador.collectedPyg = suma(acumulador.collectedPyg, monto)
     }
     for (const orden of orders) {
       if (orden.status === 'CANCELLED') continue
-      for (const pago of Array.isArray(orden.payments) ? orden.payments : []) {
+      for (const pago of countFlags(Array.isArray(orden.payments) ? orden.payments : [])) {
         const { key, label } = claveDePago(pago)
-        acumularPago(obtener(grupos, key, label), pago)
-        acumularPago(totales, pago)
+        acumularPago(obtener(grupos, key, label), pago, pago.countable)
+        acumularPago(totales, pago, pago.countable)
       }
     }
     const resultado = [...grupos.values()].map(cerrar)

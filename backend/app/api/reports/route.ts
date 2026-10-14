@@ -67,7 +67,7 @@ export async function GET(request: Request) {
             product: { select: { name: true, category: true } },
           },
         },
-        payments: { select: { status: true, amountPyg: true, method: true, accountSnapshot: true } },
+        payments: { select: { id: true, reversalOfId: true, status: true, amountPyg: true, method: true, accountSnapshot: true } },
         seller: { select: { id: true, name: true, role: true } },
       },
       orderBy: { createdAt: 'asc' },
@@ -201,7 +201,7 @@ export async function GET(request: Request) {
           const feePyg = Number.isFinite(feePercent) && feePercent > 0
             ? Math.round((numero(pago.amountPyg) * feePercent) / 100) : 0
           return {
-            status: pago.status, amountPyg: pago.amountPyg, feePyg, method: pago.method ?? null,
+            id: pago.id, reversalOfId: pago.reversalOfId, status: pago.status, amountPyg: pago.amountPyg, feePyg, method: pago.method ?? null,
             accountName: snapshot && typeof snapshot.name === 'string' ? snapshot.name : null,
             accountId: snapshot && typeof snapshot.id === 'string' ? snapshot.id : null,
             processor: snapshot && typeof snapshot.processor === 'string' ? snapshot.processor : null,
@@ -236,7 +236,7 @@ export async function GET(request: Request) {
       sellerId: orden.sellerId, sellerName: orden.seller?.name ?? null, customerId: orden.customerId ?? null, customerName: orden.customer?.name ?? null,
       branchId: orden.branchId ?? null, branchName: orden.branch?.name ?? null, createdAt: orden.createdAt,
       items: orden.items.map((item) => ({ productId: item.productId, description: item.description, productName: null, category: null, quantity: item.quantity, unitCostPyg: item.unitCostPyg, totalPyg: item.totalPyg })),
-      payments: orden.payments.map((pago) => ({ status: pago.status, amountPyg: pago.amountPyg })),
+      payments: orden.payments.map((pago) => ({ id: pago.id, reversalOfId: pago.reversalOfId, status: pago.status, amountPyg: pago.amountPyg })),
     })), { groupBy, offsetMinutes, paymentsBy })
 
     const productStock = await prisma.product.findMany({
