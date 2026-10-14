@@ -34,9 +34,10 @@ import {
 } from '@/lib/shellNavigation'
 import './shellNavigation.css'
 
-function textoColaOffline({ pendientes = 0, conflictos = 0, enLinea = true } = {}) {
+function textoColaOffline({ pendientes = 0, conflictos = 0, otraEmpresa = 0, enLinea = true } = {}) {
   if (conflictos > 0) return `${conflictos} venta${conflictos === 1 ? '' : 's'} con conflicto`
   if (pendientes > 0) return `${pendientes} venta${pendientes === 1 ? '' : 's'} sin enviar`
+  if (otraEmpresa > 0) return `${otraEmpresa} venta${otraEmpresa === 1 ? '' : 's'} pendiente${otraEmpresa === 1 ? '' : 's'} en otra empresa`
   if (!enLinea) return 'POS sin conexión'
   return ''
 }

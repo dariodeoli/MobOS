@@ -13,6 +13,12 @@
 // - `enviada`: el backend confirmó la orden (se conserva como historial acotado).
 // - `conflicto`: el backend la rechazó (dato inválido, permiso, precio, etc.) o
 //   quedó vieja sin conexión: necesita una persona; no se reintenta sola.
+//
+// Multi-empresa (#377): cada venta queda marcada con la empresa (`tenantId`) y la
+// persona (`userId`) activas al encolarla. El envío usa la sesión de la empresa
+// actual, así que SOLO se envían las ventas de esa empresa: las de otras quedan
+// intactas como «Pendiente en otra empresa» hasta volver a ella. Las ventas
+// viejas, sin empresa, adoptan la empresa activa en la primera carga.
 
 export const ESTADO_PENDIENTE = 'pendiente'
 export const ESTADO_ENVIADA = 'enviada'
@@ -70,6 +76,14 @@ export const ETIQUETA_CONFLICTO = {
   otro: 'Otro',
 }
 
+export const ETIQUETA_OTRA_EMPRESA = 'Pendiente en otra empresa'
+
+// Una venta es de otra empresa solo si tiene empresa y es distinta de la activa.
+// Sin empresa activa o sin marca (venta vieja) nunca se considera ajena.
+export function esDeOtraEmpresa(item, tenantId) {
+  return Boolean(item?.tenantId && tenantId && item.tenantId !== tenantId)
+}
+
 const totalDe = (item) => Number(item?.resumen?.total) || 0
 const resumenDe = (item) => item?.resumen || null
 
@@ -80,10 +94,49 @@ export function crearColaDeVentas({
   maxCola = MAX_COLA,
   maxHistorial = MAX_HISTORIAL,
   diasExpiracion = DIAS_EXPIRACION,
+  // Empresa y persona activas: { tenantId, userId }. Se lee en cada operación
+  // (nunca se guarda) porque la persona puede cambiar de empresa en cualquier momento.
+  contexto = () => ({ tenantId: null, userId: null }),
 }) {
+  const activa = () => {
+    const actual = contexto() || {}
+    return { tenantId: actual.tenantId || null, userId: actual.userId || null }
+  }
+  const ordenar = (items) => [...items].sort((a, b) => Number(a.creadoEn || 0) - Number(b.creadoEn || 0))
+  const vivo = (item) => item.estado !== ESTADO_ENVIADA
+
+  // Las ventas viejas (sin empresa) pasan a la empresa activa la primera vez que
+  // se carga la cola. Solo se escribe `tenantId`; nada se borra ni se reenvía a
+  // otra empresa. Sin empresa activa no se adopta nada.
+  async function adoptarVentasViejas() {
+    const { tenantId } = activa()
+    if (!tenantId) return 0
+    const viejas = (await store.listar()).filter((item) => !item.tenantId)
+    for (const item of viejas) await store.guardar({ ...item, tenantId, adoptadaPorEmpresa: true })
+    return viejas.length
+  }
+
   async function listar() {
-    const items = await store.listar()
-    return [...items].sort((a, b) => Number(a.creadoEn || 0) - Number(b.creadoEn || 0))
+    await adoptarVentasViejas()
+    return ordenar(await store.listar())
+  }
+
+  // Ventas de la empresa activa (incluye las viejas sin marca hasta que se adopten).
+  async function listarDeEmpresaActual() {
+    const { tenantId } = activa()
+    return (await listar()).filter((item) => !esDeOtraEmpresa(item, tenantId))
+  }
+
+  // Ventas sin enviar de otras empresas: se conservan y se avisan, no se envían.
+  async function ventasPendientesDeOtraEmpresa() {
+    const { tenantId } = activa()
+    return (await listar()).filter((item) => vivo(item) && esDeOtraEmpresa(item, tenantId))
+  }
+
+  // ¿Hay ventas sin enviar en la empresa activa? El selector de empresa lo usa
+  // para advertir antes de cambiar.
+  async function hayPendientesEnEmpresaActual() {
+    return (await listarDeEmpresaActual()).some(vivo)
   }
 
   // Encola una venta que no se pudo enviar. El payload viaja tal cual (con
@@ -91,8 +144,10 @@ export function crearColaDeVentas({
   async function encolar({ payload, idempotencyKey, resumen }) {
     if (!payload || typeof payload !== 'object') throw new Error('La venta a encolar es obligatoria.')
     if (!idempotencyKey) throw new Error('La venta a encolar necesita su Idempotency-Key.')
+    const { tenantId, userId } = activa()
+    if (!tenantId) throw new Error('No hay una empresa activa: iniciá sesión antes de dejar la venta en la cola.')
     const items = await listar()
-    const vivas = items.filter((item) => item.estado !== ESTADO_ENVIADA).length
+    const vivas = items.filter(vivo).length
     if (vivas >= maxCola) {
       throw new Error(`Hay ${vivas} ventas sin sincronizar (límite ${maxCola}). Conectate para sincronizarlas antes de seguir vendiendo sin conexión.`)
     }
@@ -100,6 +155,8 @@ export function crearColaDeVentas({
     const item = {
       id: `cola-${creadoEn.toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
       idempotencyKey,
+      tenantId,
+      userId,
       payload,
       resumen: resumenDe({ resumen }) || null,
       estado: ESTADO_PENDIENTE,
@@ -115,14 +172,14 @@ export function crearColaDeVentas({
   }
 
   async function pendientes() {
-    return (await listar()).filter((item) => item.estado === ESTADO_PENDIENTE)
+    return (await listarDeEmpresaActual()).filter((item) => item.estado === ESTADO_PENDIENTE)
   }
 
   // Las ventas que esperaron más de `diasExpiracion` sin poder sincronizarse
   // pasan a conflicto "vencida": siguen visibles (no se pierden) y se resuelven
   // a mano.
   async function expirarVencidas() {
-    const vencidas = (await listar()).filter(
+    const vencidas = (await store.listar()).filter(
       (item) => item.estado === ESTADO_PENDIENTE && Number(item.expiraEn || 0) > 0 && Number(item.expiraEn) <= ahora(),
     )
     for (const item of vencidas) {
@@ -139,10 +196,15 @@ export function crearColaDeVentas({
   // Sincroniza la cola: envía los pendientes en orden de creación. Un error de
   // red deja el ítem pendiente (se reintenta al reconectar); cualquier otra
   // respuesta lo marca como conflicto clasificado para que lo revise una persona.
+  // Solo envía las ventas de la empresa activa y vuelve a comprobarla antes de
+  // cada envío: si la persona cambió de empresa a mitad de la sincronización,
+  // corta sin enviar nada a la sesión equivocada.
   async function sincronizar() {
     await expirarVencidas()
     const items = await pendientes()
     for (const item of items) {
+      const { tenantId } = activa()
+      if (!tenantId || item.tenantId !== tenantId) break
       try {
         const orden = await enviar(item)
         await store.guardar({ ...item, estado: ESTADO_ENVIADA, error: '', tipo: '', sincronizadaEn: ahora(), ordenId: orden?.id || null })
@@ -162,15 +224,21 @@ export function crearColaDeVentas({
   // Un conflicto se puede reintentar a mano (por ejemplo si el dato se corrigió
   // o el permiso ya está): vuelve a pendiente sin perder el payload.
   async function reintentar(id) {
-    const item = (await store.listar()).find((row) => row.id === id)
+    const item = (await listar()).find((row) => row.id === id)
     if (!item) return null
     const siguiente = { ...item, estado: ESTADO_PENDIENTE, intentos: 0, error: '', tipo: '', expiraEn: ahora() + diasExpiracion * DIA_MS }
     await store.guardar(siguiente)
     return siguiente
   }
 
+  // Solo se descartan ventas de la empresa activa: una venta de otra empresa no
+  // se ve ni se decide desde esta, y nunca se pierde por error.
   async function descartar(id) {
+    const { tenantId } = activa()
+    const item = (await listar()).find((row) => row.id === id)
+    if (!item || esDeOtraEmpresa(item, tenantId)) return false
     await store.borrar(id)
+    return true
   }
 
   // Limpieza: el historial de enviadas se conserva acotado (diagnóstico) y los
@@ -185,25 +253,41 @@ export function crearColaDeVentas({
     return resumen()
   }
 
+  // Los contadores son de la empresa activa; `otraEmpresa` cuenta aparte lo que
+  // quedó sin enviar en las demás.
   async function resumen() {
-    const items = await listar()
+    const { tenantId } = activa()
+    const todas = await listar()
+    const items = todas.filter((item) => !esDeOtraEmpresa(item, tenantId))
     return {
       pendientes: items.filter((item) => item.estado === ESTADO_PENDIENTE).length,
       conflictos: items.filter((item) => item.estado === ESTADO_CONFLICTO).length,
       enviadas: items.filter((item) => item.estado === ESTADO_ENVIADA).length,
       ultimaSync: items.reduce((max, item) => Math.max(max, Number(item.sincronizadaEn || 0)), 0) || null,
       total: items.length,
+      otraEmpresa: todas.filter((item) => vivo(item) && esDeOtraEmpresa(item, tenantId)).length,
     }
   }
 
   // Reporte del modo offline (#168): qué se vendió sin conexión, cuánto tardó en
   // sincronizarse y con qué éxito.
   async function reporte() {
-    const items = await listar()
-    return metricasDeCola(items, { ahora: ahora() })
+    return metricasDeCola(await listarDeEmpresaActual(), { ahora: ahora() })
   }
 
-  return { encolar, listar, pendientes, sincronizar, reintentar, descartar, limpiar, resumen, reporte }
+  return {
+    encolar,
+    listar,
+    pendientes,
+    sincronizar,
+    reintentar,
+    descartar,
+    limpiar,
+    resumen,
+    reporte,
+    ventasPendientesDeOtraEmpresa,
+    hayPendientesEnEmpresaActual,
+  }
 }
 
 // Métricas puras de la cola (también para la UI). `ahora` permite testear el

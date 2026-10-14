@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Modal, Button, ConfirmDialog, Badge, EmptyState } from '@/components/ui'
 import { useColaOffline } from '@/hooks/useColaOffline'
-import { ETIQUETA_CONFLICTO } from '@/lib/offline/queue'
+import { ETIQUETA_CONFLICTO, ETIQUETA_OTRA_EMPRESA, esDeOtraEmpresa } from '@/lib/offline/queue'
+import { contextoActual } from '@/lib/storage'
 import { descartarVenta, reintentarVenta } from '@/lib/offline/ventas'
 import { gs } from '@/utils/calculos'
 import Icon from '@/components/shared/Icon'
@@ -35,6 +36,7 @@ export default function PanelColaOffline({ open, onClose }) {
   const { items, reporte, sincronizando, sincronizar, enLinea, refrescar } = useColaOffline()
   const [descartar, setDescartar] = useState(null)
   const [busy, setBusy] = useState(false)
+  const empresaActiva = contextoActual().empresaId
 
   async function confirmarDescarte() {
     if (!descartar || busy) return
@@ -81,12 +83,14 @@ export default function PanelColaOffline({ open, onClose }) {
             Ventas ({items.length})
           </div>
           <div className="max-h-80 divide-y divide-ink-600 overflow-y-auto">
-            {items.map((item) => (
+            {items.map((item) => {
+              const ajena = item.estado !== 'enviada' && esDeOtraEmpresa(item, empresaActiva)
+              return (
               <div key={item.id} className="flex flex-wrap items-start justify-between gap-2 px-3.5 py-2.5 text-sm">
                 <div className="min-w-0">
                   <p className="flex flex-wrap items-center gap-2">
-                    <Badge color={ESTADO_TONO[item.estado] || 'slate'}>
-                      {item.estado === 'conflicto' ? `Conflicto · ${ETIQUETA_CONFLICTO[item.tipo] || 'Otro'}` : item.estado === 'enviada' ? 'Sincronizada' : 'Pendiente'}
+                    <Badge color={ajena ? 'slate' : ESTADO_TONO[item.estado] || 'slate'}>
+                      {ajena ? ETIQUETA_OTRA_EMPRESA : item.estado === 'conflicto' ? `Conflicto · ${ETIQUETA_CONFLICTO[item.tipo] || 'Otro'}` : item.estado === 'enviada' ? 'Sincronizada' : 'Pendiente'}
                     </Badge>
                     <span className="norma-none truncate font-medium">{item.resumen?.cliente || 'Sin cliente'}</span>
                     <span className="tabular-nums text-mute">{gs(item.resumen?.total || 0)}</span>
@@ -100,7 +104,7 @@ export default function PanelColaOffline({ open, onClose }) {
                   {item.error && <p className={cn('mt-0.5 text-[11px]', item.estado === 'conflicto' ? 'text-bad' : 'text-mute')}>{item.error}</p>}
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
-                  {item.estado !== 'enviada' && (
+                  {item.estado !== 'enviada' && !ajena && (
                     <>
                       <button
                         type="button"
@@ -122,7 +126,8 @@ export default function PanelColaOffline({ open, onClose }) {
                   )}
                 </div>
               </div>
-            ))}
+              )
+            })}
             {!items.length && <EmptyState compact icon="box" title="No hay ventas sin conexión." />}
           </div>
         </div>

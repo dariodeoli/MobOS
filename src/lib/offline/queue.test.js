@@ -8,6 +8,7 @@ import {
   ESTADO_CONFLICTO,
   ESTADO_ENVIADA,
   ESTADO_PENDIENTE,
+  esDeOtraEmpresa,
 } from './queue.js'
 
 function storeEnMemoria() {
@@ -20,6 +21,9 @@ function storeEnMemoria() {
   }
 }
 
+// Empresa activa de los tests: cambia con `activa.tenantId` para simular un cambio.
+const empresaA = () => ({ tenantId: 'emp-a', userId: 'usr-a' })
+
 const venta = (n) => ({
   payload: { offline: true, items: [{ description: `Producto ${n}`, quantity: 1, unitPricePyg: 1000 }] },
   idempotencyKey: `pos-offline-${n}`,
@@ -28,7 +32,7 @@ const venta = (n) => ({
 
 test('encola la venta con su clave de idempotencia y la lista en orden', async () => {
   let reloj = 1000
-  const cola = crearColaDeVentas({ store: storeEnMemoria(), enviar: async () => ({}), ahora: () => (reloj += 1) })
+  const cola = crearColaDeVentas({ contexto: empresaA, store: storeEnMemoria(), enviar: async () => ({}), ahora: () => (reloj += 1) })
   await cola.encolar(venta(1))
   await cola.encolar(venta(2))
   const items = await cola.listar()
@@ -45,6 +49,7 @@ test('sincroniza reutilizando la clave y deja el historial de enviadas', async (
   const store = storeEnMemoria()
   const enviadas = []
   const cola = crearColaDeVentas({
+    contexto: empresaA,
     store,
     ahora: (() => { let t = 10; return () => (t += 5) })(),
     enviar: async (item) => { enviadas.push(item.idempotencyKey); return { id: `orden-${item.idempotencyKey}` } },
@@ -65,6 +70,7 @@ test('un corte de red deja la venta pendiente y reintenta después', async () =>
   const store = storeEnMemoria()
   let sinRed = true
   const cola = crearColaDeVentas({
+    contexto: empresaA,
     store,
     enviar: async () => {
       if (sinRed) throw Object.assign(new Error('No se pudo conectar con la API.'), { code: 'NETWORK_ERROR', status: 0 })
@@ -88,6 +94,7 @@ test('un rechazo del servidor queda como conflicto y no se reintenta solo', asyn
   const store = storeEnMemoria()
   let llamadas = 0
   const cola = crearColaDeVentas({
+    contexto: empresaA,
     store,
     enviar: async () => {
       llamadas += 1
@@ -112,6 +119,7 @@ test('sin red no sigue con el resto de la cola y el historial queda acotado', as
   const store = storeEnMemoria()
   let llamadas = 0
   const cola = crearColaDeVentas({
+    contexto: empresaA,
     store,
     maxHistorial: 2,
     enviar: async () => {
@@ -126,7 +134,7 @@ test('sin red no sigue con el resto de la cola y el historial queda acotado', as
 
   // Con el envío sano, el historial de enviadas se acota a maxHistorial.
   const store2 = storeEnMemoria()
-  const cola2 = crearColaDeVentas({ store: store2, maxHistorial: 2, enviar: async () => ({ id: 'x' }) })
+  const cola2 = crearColaDeVentas({ contexto: empresaA, store: store2, maxHistorial: 2, enviar: async () => ({ id: 'x' }) })
   for (let i = 1; i <= 4; i += 1) await cola2.encolar(venta(i))
   const resumen = await cola2.sincronizar()
   assert.equal(resumen.enviadas, 2, 'solo se conservan las últimas enviadas')
@@ -154,7 +162,7 @@ test('clasifica el motivo del conflicto para poder resolverlo', () => {
 
 test('la cola rechaza más ventas que el límite configurado', async () => {
   const store = storeEnMemoria()
-  const cola = crearColaDeVentas({ store, enviar: async () => ({}), maxCola: 2 })
+  const cola = crearColaDeVentas({ contexto: empresaA, store, enviar: async () => ({}), maxCola: 2 })
   await cola.encolar(venta(1))
   await cola.encolar(venta(2))
   await assert.rejects(() => cola.encolar(venta(3)), /límite 2/)
@@ -168,7 +176,7 @@ test('la cola rechaza más ventas que el límite configurado', async () => {
 test('una venta que esperó demasiado pasa a conflicto vencido (no se pierde)', async () => {
   const store = storeEnMemoria()
   let reloj = 1000
-  const cola = crearColaDeVentas({ store, enviar: async () => ({ id: 'x' }), ahora: () => reloj, diasExpiracion: 7 })
+  const cola = crearColaDeVentas({ contexto: empresaA, store, enviar: async () => ({ id: 'x' }), ahora: () => reloj, diasExpiracion: 7 })
   await cola.encolar(venta(1))
   reloj += 8 * 86400000 // pasan 8 días sin conexión
   const resumen = await cola.limpiar()
@@ -188,6 +196,7 @@ test('el reporte mide lo vendido offline, el tiempo de sync y la tasa de éxito'
   const store = storeEnMemoria()
   let reloj = 0
   const cola = crearColaDeVentas({
+    contexto: empresaA,
     store,
     ahora: () => reloj,
     enviar: async (item) => {
@@ -223,4 +232,153 @@ test('las métricas también reportan la espera de lo pendiente', () => {
   assert.equal(metricas.intentos, 3)
   assert.equal(metricas.esperaPromedioMs, 4500)
   assert.equal(metricas.tasaExito, 100)
+})
+
+// ── Multi-empresa (#377) ──
+function colaMultiEmpresa({ tenantId = 'emp-a', userId = 'usr-a', enviar } = {}) {
+  const store = storeEnMemoria()
+  const activa = { tenantId, userId }
+  const enviadas = []
+  const cola = crearColaDeVentas({
+    store,
+    contexto: () => ({ ...activa }),
+    enviar: enviar || (async (item) => { enviadas.push({ key: item.idempotencyKey, tenantId: item.tenantId, sesion: activa.tenantId }); return { id: `orden-${item.idempotencyKey}` } }),
+  })
+  return { store, activa, enviadas, cola }
+}
+
+test('marca cada venta con la empresa y la persona activas al encolar', async () => {
+  const { cola, activa } = colaMultiEmpresa()
+  const a = await cola.encolar(venta(1))
+  activa.tenantId = 'emp-b'
+  activa.userId = 'usr-b'
+  const b = await cola.encolar(venta(2))
+  assert.deepEqual([a.tenantId, a.userId], ['emp-a', 'usr-a'])
+  assert.deepEqual([b.tenantId, b.userId], ['emp-b', 'usr-b'])
+  const guardadas = await cola.listar()
+  assert.deepEqual(guardadas.map((item) => item.tenantId), ['emp-a', 'emp-b'], 'la marca queda guardada, no solo devuelta')
+})
+
+test('no encola sin empresa activa (no hay a quién atribuir la venta)', async () => {
+  const { cola, store } = colaMultiEmpresa({ tenantId: null, userId: null })
+  await assert.rejects(() => cola.encolar(venta(1)), /empresa activa/)
+  assert.equal(store.filas.size, 0)
+})
+
+test('solo envía las ventas de la empresa activa y deja las demás intactas', async () => {
+  const { cola, activa, enviadas, store } = colaMultiEmpresa()
+  await cola.encolar(venta(1))
+  activa.tenantId = 'emp-b'
+  await cola.encolar(venta(2))
+  const antes = JSON.stringify([...store.filas.values()].filter((item) => item.tenantId === 'emp-a'))
+
+  const resumenB = await cola.sincronizar()
+  assert.deepEqual(enviadas, [{ key: 'pos-offline-2', tenantId: 'emp-b', sesion: 'emp-b' }], 'solo viaja la de B, con la sesión de B')
+  assert.equal(resumenB.enviadas, 1)
+  assert.equal(resumenB.pendientes, 0, 'los contadores son de la empresa activa')
+  assert.equal(resumenB.otraEmpresa, 1, 'lo de A se informa aparte')
+  assert.equal(JSON.stringify([...store.filas.values()].filter((item) => item.tenantId === 'emp-a')), antes, 'la venta de A no se tocó')
+
+  activa.tenantId = 'emp-a'
+  await cola.sincronizar()
+  assert.deepEqual(enviadas.map((fila) => [fila.key, fila.sesion]), [['pos-offline-2', 'emp-b'], ['pos-offline-1', 'emp-a']], 'al volver a A se envía con la sesión de A')
+})
+
+test('nunca envía a la empresa equivocada aunque se cambie a mitad de la sincronización', async () => {
+  const llamadas = []
+  const { cola, activa } = colaMultiEmpresa({
+    enviar: async (item) => {
+      llamadas.push(item.idempotencyKey)
+      activa.tenantId = 'emp-b' // la persona cambia de empresa mientras se envía la primera
+      return { id: 'ok' }
+    },
+  })
+  await cola.encolar(venta(1))
+  await cola.encolar(venta(2))
+  await cola.sincronizar()
+  assert.deepEqual(llamadas, ['pos-offline-1'], 'la segunda de A no sale con la sesión de B')
+  activa.tenantId = 'emp-a'
+  assert.equal((await cola.resumen()).pendientes, 1, 'la segunda sigue pendiente en A')
+})
+
+test('las ventas de otra empresa se listan como pendientes y exponen los helpers del selector', async () => {
+  const { cola, activa } = colaMultiEmpresa()
+  assert.equal(await cola.hayPendientesEnEmpresaActual(), false)
+  assert.deepEqual(await cola.ventasPendientesDeOtraEmpresa(), [])
+  await cola.encolar(venta(1))
+  assert.equal(await cola.hayPendientesEnEmpresaActual(), true)
+  assert.equal((await cola.ventasPendientesDeOtraEmpresa()).length, 0)
+
+  activa.tenantId = 'emp-b'
+  assert.equal(await cola.hayPendientesEnEmpresaActual(), false, 'en B no hay nada propio pendiente')
+  const ajenas = await cola.ventasPendientesDeOtraEmpresa()
+  assert.deepEqual(ajenas.map((item) => item.idempotencyKey), ['pos-offline-1'])
+  assert.equal(esDeOtraEmpresa(ajenas[0], activa.tenantId), true)
+  assert.equal(esDeOtraEmpresa(ajenas[0], 'emp-a'), false)
+  assert.equal((await cola.resumen()).otraEmpresa, 1)
+  assert.equal((await cola.reporte()).total, 0, 'el reporte es de la empresa activa')
+})
+
+test('una venta con conflicto de otra empresa también cuenta como pendiente ajena', async () => {
+  const { cola, activa } = colaMultiEmpresa({ enviar: async () => { throw Object.assign(new Error('Stock insuficiente'), { status: 409 }) } })
+  await cola.encolar(venta(1))
+  await cola.sincronizar()
+  activa.tenantId = 'emp-b'
+  assert.equal((await cola.ventasPendientesDeOtraEmpresa()).length, 1)
+})
+
+test('las ventas viejas sin empresa adoptan la empresa activa en la primera carga', async () => {
+  const { cola, store, activa, enviadas } = colaMultiEmpresa({ tenantId: 'emp-b' })
+  store.filas.set('cola-vieja', { id: 'cola-vieja', idempotencyKey: 'pos-offline-vieja', payload: { offline: true }, resumen: { total: 500 }, estado: ESTADO_PENDIENTE, intentos: 0, creadoEn: 1, expiraEn: Date.now() + 86400000 })
+  const [adoptada] = await cola.listar()
+  assert.equal(adoptada.tenantId, 'emp-b')
+  assert.equal(store.filas.get('cola-vieja').tenantId, 'emp-b', 'la adopción queda guardada')
+  assert.equal(store.filas.get('cola-vieja').idempotencyKey, 'pos-offline-vieja', 'el resto de la venta no cambia')
+
+  // Ya adoptada, otra empresa no la reclama.
+  activa.tenantId = 'emp-a'
+  await cola.listar()
+  assert.equal(store.filas.get('cola-vieja').tenantId, 'emp-b')
+  await cola.sincronizar()
+  assert.equal(enviadas.length, 0, 'A no envía la venta adoptada por B')
+})
+
+test('sin empresa activa no adopta ni envía nada', async () => {
+  const { cola, store, activa, enviadas } = colaMultiEmpresa({ tenantId: null, userId: null })
+  store.filas.set('cola-vieja', { id: 'cola-vieja', idempotencyKey: 'k', payload: {}, estado: ESTADO_PENDIENTE, creadoEn: 1, expiraEn: Date.now() + 86400000 })
+  await cola.listar()
+  await cola.sincronizar()
+  assert.equal(store.filas.get('cola-vieja').tenantId, undefined)
+  assert.equal(enviadas.length, 0)
+  activa.tenantId = 'emp-a'
+  await cola.sincronizar()
+  assert.equal(enviadas.length, 1, 'con empresa activa la venta vieja sale con su sesión')
+})
+
+test('nada se borra al cambiar de empresa, sincronizar o limpiar; descartar solo aplica a la activa', async () => {
+  const { cola, activa, store } = colaMultiEmpresa()
+  const deA = await cola.encolar(venta(1))
+  activa.tenantId = 'emp-b'
+  await cola.encolar(venta(2))
+  await cola.sincronizar()
+  await cola.limpiar()
+  assert.ok(store.filas.has(deA.id), 'la pendiente de A sigue en la cola')
+  assert.equal(await cola.descartar(deA.id), false, 'B no puede descartar una venta de A')
+  assert.ok(store.filas.has(deA.id))
+  activa.tenantId = 'emp-a'
+  assert.equal(await cola.descartar(deA.id), true, 'A sí puede descartar la suya')
+  assert.ok(!store.filas.has(deA.id))
+})
+
+test('una venta de otra empresa que vence pasa a conflicto vencido pero no se pierde', async () => {
+  let reloj = 1000
+  const store = storeEnMemoria()
+  const activa = { tenantId: 'emp-a', userId: 'usr-a' }
+  const cola = crearColaDeVentas({ store, contexto: () => ({ ...activa }), enviar: async () => ({ id: 'x' }), ahora: () => reloj, diasExpiracion: 7 })
+  const item = await cola.encolar(venta(1))
+  activa.tenantId = 'emp-b'
+  reloj += 8 * 86400000
+  await cola.limpiar()
+  assert.equal(store.filas.get(item.id).estado, ESTADO_CONFLICTO)
+  assert.equal(store.filas.get(item.id).tenantId, 'emp-a')
 })

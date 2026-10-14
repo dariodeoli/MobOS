@@ -3,7 +3,7 @@ import { listarCola, reporteCola, resumenCola, sincronizarCola, suscribirCola } 
 import { isDemoRuntime } from '@/lib/demoMode'
 import { useOnlineStatus } from './useOnlineStatus'
 
-const VACIO = { pendientes: 0, conflictos: 0, enviadas: 0, ultimaSync: null, total: 0 }
+const VACIO = { pendientes: 0, conflictos: 0, enviadas: 0, ultimaSync: null, total: 0, otraEmpresa: 0 }
 
 // Estado de la cola de ventas offline para el POS. Al volver la conexión (y al
 // montar la pantalla, para vaciar lo que quedó de una sesión anterior) intenta
