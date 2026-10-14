@@ -37,7 +37,8 @@ function imeiValido(base14) {
 const marca = Date.now()
 const tag = marca.toString(36).toUpperCase()
 let contador = 0
-const nuevoImei = () => imeiValido(`35${String(marca).slice(-6)}${String(contador++).padStart(6, '0')}`)
+// El parser rechaza como «perdido por Excel» un IMEI que termina en 000: se evita ese azar.
+const nuevoImei = () => { let valor; do { valor = imeiValido(`35${String(marca).slice(-6)}${String(contador++).padStart(6, '0')}`) } while (/0{3}$/.test(valor)); return valor }
 const letras = (n, largo = 3) => Array.from({ length: largo }, (_, i) => String.fromCharCode(65 + Math.floor(n / 26 ** i) % 26)).join('')
 const siglas = Object.fromEntries(['HH', 'MTR', 'SB', 'GTA', 'NIS'].map((k, i) => [k, `${k[0]}${letras(marca % 17576 + i * 7, 3)}`.slice(0, 4)]))
 const RAMA = 'branch-a-it'
