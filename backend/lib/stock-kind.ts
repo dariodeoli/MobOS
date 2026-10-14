@@ -1,6 +1,8 @@
 // Clasificador de tipo de stock (Product.stockKind). Es la misma regla que usa
 // el backfill de la migración 20270103000000_stock_unificado (ILIKE sobre la
-// categoría normalizada); si cambia una, cambia la otra. Los alias salen de
+// categoría normalizada, ya aplicada en producción: esa subcadena no se reescribe).
+// #360: acá el alias debe ser palabra (con plural simple), no subcadena: «showcase»
+// o «bandada» ya no caen como accesorio. Los alias salen de
 // src/lib/categorias.js y src/lib/categoriasProducto.js.
 export type StockKind = 'EQUIPO' | 'ACCESORIO' | 'REPUESTO' | 'OTRO'
 
@@ -11,9 +13,7 @@ const ACCESORIO = ['accesorio', 'cable', 'cargador', 'funda', 'vidrio', 'lamina'
 // Servicios no son stock físico: «Soporte técnico» no es el accesorio «soporte».
 const OTRO = ['soporte tecnico', 'servicio']
 const REPUESTO = ['repuesto', 'pieza', 'pantalla', 'display', 'modulo', 'bateria']
-const EQUIPO = ['iphone', 'mobile', 'celular', 'telefono', 'smartphone', 'macbook', 'imac', 'laptop', 'notebook', 'computadora', 'ipad', 'tablet', 'watch', 'reloj', 'airpods']
-// «mac» suelto solo cuenta como palabra entera (no «farmacia»).
-const EQUIPO_PALABRA = ['mac']
+const EQUIPO = ['iphone', 'mobile', 'celular', 'telefono', 'smartphone', 'macbook', 'imac', 'laptop', 'notebook', 'computadora', 'ipad', 'tablet', 'watch', 'smartwatch', 'reloj', 'airpods', 'mac']
 
 const sinAcentos = (texto: unknown) => String(texto ?? '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ')
 
@@ -22,14 +22,17 @@ export const STOCK_KIND_PATTERNS = {
   OTRO: OTRO.join('|'),
   ACCESORIO: ACCESORIO.join('|'),
   REPUESTO: REPUESTO.join('|'),
-  EQUIPO: `${EQUIPO.join('|')}|\\y(?:${EQUIPO_PALABRA.join('|')})\\y`,
+  EQUIPO: EQUIPO.join('|'),
 } as const
 
+// Palabra entera (letras a ambos lados no cuentan; los números sí separan: «iPhone15»)
+// con plural simple: fundas, cargadores, relojes, auriculares.
+const palabra = (alias: readonly string[]) => new RegExp(`(?<![a-z])(?:${alias.join('|')})(?:e?s)?(?![a-z])`)
 const regex = {
-  OTRO: new RegExp(OTRO.join('|')),
-  ACCESORIO: new RegExp(ACCESORIO.join('|')),
-  REPUESTO: new RegExp(REPUESTO.join('|')),
-  EQUIPO: new RegExp(`${EQUIPO.join('|')}|\\b(?:${EQUIPO_PALABRA.join('|')})\\b`),
+  OTRO: palabra(OTRO),
+  ACCESORIO: palabra(ACCESORIO),
+  REPUESTO: palabra(REPUESTO),
+  EQUIPO: palabra(EQUIPO),
 }
 
 /** Clasifica por categoría; `hasUnits` (tiene IMEI/unidades) fuerza EQUIPO. */
