@@ -4,6 +4,7 @@ import { Activity, ArrowLeft, Building2, LayoutDashboard, Users } from 'lucide-r
 import { api } from '@/lib/api'
 import ThemeToggle from '@/components/app/ThemeToggle'
 import ThemeLogo from '@/components/app/ThemeLogo'
+import PinPantalla from './PinPantalla'
 import { PERIODOS, periodoValido } from '@/lib/superadmin/formato'
 import { cn } from '@/lib/utils'
 
@@ -36,19 +37,28 @@ function Enlace({ seccion, movil = false }) {
 // al inicio sin mostrar nada (no revela que el panel existe).
 export default function SuperadminLayout() {
   const [acceso, setAcceso] = useState('verificando')
+  const [pinLargo, setPinLargo] = useState(4)
   const [params, setParams] = useSearchParams()
   const { pathname } = useLocation()
   const periodo = periodoValido(params.get('p'))
 
   useEffect(() => {
     let vivo = true
-    api.get('/api/superadmin/access', { cacheMs: 0 })
-      .then(() => { if (vivo) setAcceso('ok') })
+    const confirmar = () => api.get('/api/superadmin/access', { cacheMs: 0 })
+      .then(r => {
+        if (!vivo) return
+        if (r?.pinRequerido) { setPinLargo(r.pinLargo || 4); setAcceso('pin') } else setAcceso('ok')
+      })
       .catch(() => { if (vivo) setAcceso('denegado') })
-    return () => { vivo = false }
+    confirmar()
+    // La verificación del PIN dura 12 h: al volver a la pestaña se revalida.
+    const alVolver = () => { if (document.visibilityState === 'visible') confirmar() }
+    document.addEventListener('visibilitychange', alVolver)
+    return () => { vivo = false; document.removeEventListener('visibilitychange', alVolver) }
   }, [])
 
   if (acceso === 'denegado') return <Navigate to="/" replace />
+  if (acceso === 'pin') return <PinPantalla largo={pinLargo} onVerificado={() => setAcceso('ok')} />
   if (acceso !== 'ok') return <div className="min-h-dvh bg-paper" aria-hidden="true" />
 
   const enResumen = pathname.replace(/\/$/, '') === '/superadmin'

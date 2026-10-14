@@ -157,6 +157,15 @@ model Tenant {
   transitAssignments         TransitAssignment[]
 }
 
+// Intentos de PIN del panel de plataforma, por usuario (no por IP: cambiar de
+// red no reinicia el conteo). Cada intento se cuenta ANTES de verificar.
+model SuperadminPinGuard {
+  userId          String    @id
+  failures        Int       @default(0)
+  windowStartedAt DateTime
+  lockedUntil     DateTime?
+}
+
 // Identidad de la PERSONA (cuenta Google). No pertenece a ninguna tienda:
 // la relación persona ↔ tienda vive en GoogleStoreAccess.
 model GoogleIdentity {
@@ -519,6 +528,9 @@ model Session {
   revokedAt  DateTime?
   // Reautenticación sensible de corta duración para exportar, revocar o archivar.
   reauthenticatedAt DateTime?
+  // Segundo factor del panel de plataforma: momento (reloj de Postgres) en que
+  // el dueño ingresó su PIN en ESTA sesión. Vive y muere con la sesión.
+  superadminVerifiedAt DateTime?
   createdAt  DateTime     @default(now())
   lastSeenAt DateTime     @default(now())
 

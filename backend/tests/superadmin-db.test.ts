@@ -84,3 +84,52 @@ test('tráfico y demo: el endpoint guarda eventos válidos y la agregación los 
   assert.equal(vacio.demo.conversion.porcentaje, null, 'sin base no hay porcentaje')
   await prisma.$disconnect()
 })
+
+test('segundo factor: PIN incorrecto, bloqueo por usuario, vigencia de 12 h y atado a la sesión', { skip: !activo }, async () => {
+  const bcrypt = require('bcryptjs')
+  const { prisma } = require('../lib/prisma.ts')
+  const { verificarPinDueno, pinVigente } = require('../lib/superadmin/pin.ts')
+  const sufijo = Date.now().toString(36)
+  const tenant = await prisma.tenant.create({ data: { name: `Pin ${sufijo}`, slug: `pin-${sufijo}` } })
+  const usuario = await prisma.user.create({ data: { tenantId: tenant.id, name: 'Dueño', pinHash: await bcrypt.hash('4821', 4), pinLength: 4, role: 'ADMIN' } })
+  const otro = await prisma.user.create({ data: { tenantId: tenant.id, name: 'Otro', pinHash: await bcrypt.hash('4821', 4), pinLength: 4, role: 'ADMIN' } })
+  const sesion = async (userId: string, n: string) => prisma.session.create({ data: { tenantId: tenant.id, userId, level: 'SELLER', deviceId: `d-${sufijo}-${n}`, tokenHash: `h-${sufijo}-${n}`, expiresAt: new Date(Date.now() + 86_400_000) } })
+  const s1 = await sesion(usuario.id, '1'), s2 = await sesion(usuario.id, '2'), sOtro = await sesion(otro.id, '3')
+
+  assert.equal(await pinVigente(s1.id), false, 'sin PIN no hay vigencia')
+  assert.deepEqual(await verificarPinDueno(usuario.id, s1.id, '0000'), { estado: 'incorrecto', restantes: 4 })
+  assert.deepEqual(await verificarPinDueno(usuario.id, s1.id, 'abcd'), { estado: 'incorrecto', restantes: 3 })
+  assert.deepEqual(await verificarPinDueno(usuario.id, s1.id, undefined), { estado: 'incorrecto', restantes: 2 })
+  assert.equal(await pinVigente(s1.id), false)
+  // Correcto: marca SOLO esa sesión y reinicia el conteo.
+  assert.deepEqual(await verificarPinDueno(usuario.id, s1.id, '4821'), { estado: 'ok' })
+  assert.equal(await pinVigente(s1.id), true)
+  assert.equal(await pinVigente(s2.id), false, 'otra sesión del mismo usuario no hereda el PIN')
+  assert.equal(await pinVigente(sOtro.id), false, 'otro usuario tampoco')
+  assert.equal(Number((await prisma.$queryRaw`SELECT count(*) AS n FROM "SuperadminPinGuard" WHERE "userId" = ${usuario.id}`)[0].n), 0)
+
+  // Vigencia: a las 12 h vence, medida con el reloj de la base.
+  await prisma.$executeRaw`UPDATE "Session" SET "superadminVerifiedAt" = (now() AT TIME ZONE 'UTC') - interval '11 hours 59 minutes' WHERE "id" = ${s1.id}`
+  assert.equal(await pinVigente(s1.id), true)
+  await prisma.$executeRaw`UPDATE "Session" SET "superadminVerifiedAt" = (now() AT TIME ZONE 'UTC') - interval '12 hours 1 minute' WHERE "id" = ${s1.id}`
+  assert.equal(await pinVigente(s1.id), false, 'vencido')
+  await prisma.session.update({ where: { id: s2.id }, data: { revokedAt: new Date() } })
+  await prisma.$executeRaw`UPDATE "Session" SET "superadminVerifiedAt" = (now() AT TIME ZONE 'UTC') WHERE "id" = ${s2.id}`
+  assert.equal(await pinVigente(s2.id), false, 'sesión revocada')
+
+  // Bloqueo: 5 fallos y ni el PIN correcto entra; otro usuario no se afecta.
+  for (let i = 0; i < 4; i++) await verificarPinDueno(usuario.id, s1.id, '1111')
+  assert.equal((await verificarPinDueno(usuario.id, s1.id, '1111')).estado, 'bloqueado')
+  assert.equal((await verificarPinDueno(usuario.id, s1.id, '4821')).estado, 'bloqueado', 'bloqueado aunque el PIN sea el correcto')
+  assert.equal(await pinVigente(s1.id), false)
+  assert.deepEqual(await verificarPinDueno(otro.id, sOtro.id, '4821'), { estado: 'ok' })
+  // Intentos en paralelo: nunca se verifican más de 5.
+  await prisma.$executeRaw`DELETE FROM "SuperadminPinGuard" WHERE "userId" = ${usuario.id}`
+  const paralelo = await Promise.all(Array.from({ length: 12 }, () => verificarPinDueno(usuario.id, s1.id, '2222')))
+  assert.equal(paralelo.filter((r: any) => r.estado === 'incorrecto').length, 4)
+  assert.equal(paralelo.filter((r: any) => r.estado === 'bloqueado').length, 8)
+  // Vencido el bloqueo, vuelve a permitir.
+  await prisma.$executeRaw`UPDATE "SuperadminPinGuard" SET "lockedUntil" = (now() AT TIME ZONE 'UTC') - interval '1 second' WHERE "userId" = ${usuario.id}`
+  assert.deepEqual(await verificarPinDueno(usuario.id, s1.id, '4821'), { estado: 'ok' })
+  await prisma.$disconnect()
+})
