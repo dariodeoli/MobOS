@@ -62,6 +62,7 @@ export default function PasoCobro({
   onSobrePedido,
   onTransito,
   onIrAlCarrito,
+  modoMovil = false,
 }) {
   // El botón principal dice qué se está por crear según lo cobrado: verde si
   // está pago, naranja si es parcial y rojo si queda pendiente/a crédito.
@@ -570,7 +571,7 @@ export default function PasoCobro({
         </p>
       )}
       {/* Escritorio: la acción vive al pie del bloque de cobro. */}
-      <div className="sticky bottom-0 z-10 -mx-3 -mb-3 hidden items-center gap-3 rounded-b-2xl border-t border-ink-600 bg-ink-800 px-3 pb-3 pt-2 lg:flex">
+      <div className={cn('sticky bottom-0 z-10 -mx-3 -mb-3 items-center gap-3 rounded-b-2xl border-t border-ink-600 bg-ink-800 px-3 pb-3 pt-2', modoMovil ? 'flex' : 'hidden lg:flex')}>
         <BotonGuardar className="flex-1" />
         {ok && (
           <span
@@ -585,8 +586,10 @@ export default function PasoCobro({
 
       {/* Celular: Total y acción principal fijos abajo, arriba de la barra del
           shell (#309). El botón es el mismo submit del formulario. */}
+      {/* En el celular nuevo (#429) el carrito y el cobro viven en hojas: sin barra fija. */}
       <div
         data-testid="pos-barra-accion"
+        hidden={modoMovil}
         className="fixed inset-x-0 bottom-[calc(56px+env(safe-area-inset-bottom))] z-30 border-t border-ink-600 bg-ink-800/95 px-3 py-2 shadow-[0_-8px_24px_rgba(0,0,0,.18)] backdrop-blur lg:hidden"
       >
         <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-2">

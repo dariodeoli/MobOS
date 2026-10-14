@@ -822,6 +822,8 @@ export default function PanelVendedor() {
               tradeInDraft={tradeIn?.identidad === identidad ? tradeIn : null}
               onTradeInConsumed={() => setTradeIn(null)}
               activo={vista === 'cargar'}
+              onBloquear={pedirBloqueo}
+              onIr={ir}
             />
           </div>
           )}
