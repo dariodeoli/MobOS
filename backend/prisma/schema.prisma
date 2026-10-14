@@ -141,6 +141,7 @@ model Tenant {
   cashAuditMarks          CashAuditMark[]
 
   @@index([archivedAt])
+  @@index([createdAt])
   supplyNeeds                 SupplyNeed[]
   supplyAlternatives          SupplyAlternative[]
   supplyPurchases             SupplyPurchase[]
@@ -426,6 +427,7 @@ model User {
   @@index([tenantId])
   @@index([branchId])
   @@index([tenantId, status, lockedUntil])
+  @@index([createdAt])
   supplyNeedsAssigned           SupplyNeed[] @relation("SupplyNeedAssignee")
   supplyNeedsCreated            SupplyNeed[] @relation("SupplyNeedAuthor")
   supplyPurchasesCreated        SupplyPurchase[] @relation("SupplyPurchaseAuthor")
@@ -1495,6 +1497,7 @@ model Order {
   @@index([tenantId, status])
   @@index([tenantId, createdAt])
   @@index([tenantId, archivedAt])
+  @@index([createdAt])
   @@index([branchId])
   // Búsqueda difusa por número de pedido (pg_trgm, GIN): ILIKE '%texto%'.
   @@index([orderNumber(ops: raw("gin_trgm_ops"))], map: "Order_orderNumber_trgm_idx", type: Gin)
@@ -3422,6 +3425,7 @@ model UsageSession {
 
   @@id([tenantId, userId, sessionKey])
   @@index([tenantId, lastSeenAt(sort: Desc)])
+  @@index([lastSeenAt])
 }
 
 // Puente de impresión: una computadora con el agente instalado. El token del

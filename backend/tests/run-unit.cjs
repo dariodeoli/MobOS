@@ -76,6 +76,7 @@ require('./cost-visibility.test.ts')
 require('./payment-corrections.test.ts')
 require('./payment-net.test.ts')
 require('./membership.test.ts')
+require('./superadmin.test.ts')
 // Al final: este test comparte proceso con aex-label, que borra claves para
 // probar el camino sin configuración.
 require('./aex-ship.test.ts')
