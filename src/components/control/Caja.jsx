@@ -10,7 +10,6 @@ import {
   Badge,
   Button,
   Card,
-  Drawer,
   FormField,
   Input,
   Label,
@@ -22,6 +21,7 @@ import {
   Stat,
   Textarea,
 } from '@/components/ui'
+import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import NumericKeypad from '@/components/shared/NumericKeypad'
 import AuditoriaMedios from './AuditoriaMedios'
 import AuditoriaEfectivo from './AuditoriaEfectivo'
@@ -1029,7 +1029,7 @@ export default function Caja() {
           </div>
         </Card>
       )}
-      <Drawer open={bancoOpen} onClose={() => setBancoOpen(false)} title="Conciliación bancaria">
+      <VentanaDetalle open={bancoOpen} onClose={() => setBancoOpen(false)} title="Conciliación bancaria" size="lg">
         <div className="space-y-4">
               <div>
                 <Label htmlFor="extracto-csv">Extracto (CSV)</Label>
@@ -1159,7 +1159,7 @@ export default function Caja() {
                 </div>
               )}
             </div>
-      </Drawer>
+      </VentanaDetalle>
       {otrosTurnos.length > 0 && (
         <Card>
           <h3 className="font-bold">Turnos abiertos en la sucursal</h3>
@@ -1228,7 +1228,7 @@ export default function Caja() {
           </Button>
         </Card>
       )}
-      <Drawer
+      <VentanaDetalle
         open={conteoOpen}
         onClose={() => !saving && setConteoOpen(false)}
         title="Cerrar caja"
@@ -1269,8 +1269,8 @@ export default function Caja() {
         >
           {saving ? 'Cerrando…' : <>Cerrar caja · <Money value={contado} /></>}
         </Button>
-      </Drawer>
-      <Drawer
+      </VentanaDetalle>
+      <VentanaDetalle
         open={Boolean(turnoAjeno)}
         onClose={() => !saving && setTurnoAjeno(null)}
         title={`Cerrar turno de ${turnoAjeno?.openedByName || 'otra persona'}`}
@@ -1326,7 +1326,7 @@ export default function Caja() {
             Cerrar turno · <Money value={contadoAjenoTotal} />
           </Button>
         </div>
-      </Drawer>
+      </VentanaDetalle>
       <Modal
         open={cronologia}
         onClose={() => setCronologia(false)}
@@ -1341,7 +1341,7 @@ export default function Caja() {
           />
         )}
       </Modal>
-      <Drawer open={proveedorOpen} onClose={() => !proveedorBusy && setProveedorOpen(false)} title="Registrar compra de repuestos">
+      <VentanaDetalle open={proveedorOpen} onClose={() => !proveedorBusy && setProveedorOpen(false)} title="Registrar compra de repuestos">
         <form onSubmit={registrarCompraProveedor} className="space-y-3">
           <FormField label="Proveedor" htmlFor="prov-proveedor">
             <Input id="prov-proveedor" required maxLength={200} value={proveedorForm.supplierName} onChange={evento => setProveedorForm(actual => ({ ...actual, supplierName: evento.target.value }))} placeholder="Ej.: Depósito 2" />
@@ -1381,8 +1381,8 @@ export default function Caja() {
             <Button type="submit" disabled={proveedorBusy || !proveedorForm.supplierName.trim() || !proveedorForm.concept.trim() || !proveedorForm.amountPyg || (proveedorForm.condition === 'CREDITO' && !proveedorForm.dueAt)}>{proveedorBusy ? 'Guardando…' : 'Registrar compra'}</Button>
           </div>
         </form>
-      </Drawer>
-      <Drawer open={Boolean(proveedorAccion)} onClose={() => !proveedorBusy && setProveedorAccion(null)} title={proveedorAccion?.tipo === 'pagar-taller' ? 'Pagar repuesto del taller' : proveedorAccion?.tipo === 'pagar' ? 'Pagar al proveedor' : 'Registrar consumo'}>
+      </VentanaDetalle>
+      <VentanaDetalle open={Boolean(proveedorAccion)} onClose={() => !proveedorBusy && setProveedorAccion(null)} title={proveedorAccion?.tipo === 'pagar-taller' ? 'Pagar repuesto del taller' : proveedorAccion?.tipo === 'pagar' ? 'Pagar al proveedor' : 'Registrar consumo'}>
         <form onSubmit={confirmarAccionProveedor} className="space-y-3">
           <p className="text-sm text-mute">
             {proveedorAccion?.tipo === 'pagar-taller'
@@ -1411,7 +1411,7 @@ export default function Caja() {
             <Button type="submit" disabled={proveedorBusy || (proveedorAccion?.tipo !== 'pagar-taller' && !proveedorMonto)}>{proveedorBusy ? 'Guardando…' : proveedorAccion?.tipo === 'consumir' ? 'Registrar consumo' : 'Registrar pago'}</Button>
           </div>
         </form>
-      </Drawer>
+      </VentanaDetalle>
       <ReportePreview
         open={reporteOpen}
         onClose={() => setReporteOpen(false)}

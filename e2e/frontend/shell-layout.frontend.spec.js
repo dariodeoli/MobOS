@@ -215,7 +215,7 @@ test('Configuración: vertical rail on desktop, tab strip on mobile, same testid
   await expect(rail.getByRole('combobox')).toHaveCount(0)
 })
 
-test('demo notice is one line, in flow, dismissible per session and keeps Cómo funciona', async ({
+test('demo notice is a small chip in the title row (not its own row), dismissible per session and keeps Cómo funciona', async ({
   page,
 }) => {
   for (const [width, height] of [
@@ -225,10 +225,15 @@ test('demo notice is one line, in flow, dismissible per session and keeps Cómo 
     await page.setViewportSize({ width, height })
     await enterDemo(page)
     const banner = page.getByTestId('demo-aviso')
-    await expect(banner).toContainText(/[Dd]emo: datos ficticios/)
-    if (width > 1024) await expect(banner).toContainText('Modo demo')
+    await expect(banner).toContainText('Demo')
     const box = await banner.boundingBox()
-    expect(box.height).toBeLessThanOrEqual(28)
+    // Chip: 44px target (+ border) below lg, ~28px on desktop: small, never a full row.
+    expect(box.height).toBeLessThanOrEqual(width < 1024 ? 48 : 32)
+    // Not its own row: it lives in the page header's title row, whose H1 is
+    // still in the DOM (sr-only below lg when there are tabs).
+    const titulo = page.locator('h1').first()
+    const tituloBox = await titulo.boundingBox()
+    if (width >= 1024) expect(Math.abs(box.y + box.height / 2 - (tituloBox.y + tituloBox.height / 2))).toBeLessThan(24)
     expect(await banner.evaluate(el => getComputedStyle(el).position)).toBe('static')
     await expect(page.getByTestId('demo-como-funciona')).toBeVisible()
     await page.getByTestId('demo-como-funciona').click()

@@ -7,7 +7,12 @@ import Icon from '@/components/shared/Icon'
 // current section. `utilities` (desktop only) sits at the end of the title row:
 // bell and profile avatar. Mirrors the owncoding-ui PageHeader props (title,
 // subtitle, actions, backTo) so it can be swapped for the package one.
-export default function PageHeader({ title, subtitle, actions, backTo, breadcrumb = '', utilities, children, record = false, recordRef }) {
+export default function PageHeader({ title, subtitle, actions, aviso, backTo, breadcrumb = '', utilities, children, record = false, recordRef }) {
+  // #356: en celular, con pestañas debajo, el H1 y el subtítulo son redundantes
+  // (la pestaña activa ya nombra la pantalla): el H1 queda como sr-only para
+  // lectores de pantalla y se recupera ~32px. Las acciones siguen visibles.
+  const conPestanas = Boolean(children)
+  const filaMovilVacia = conPestanas && !backTo && !actions && !aviso
   return (
     <div className="px-4 pt-1 md:px-6 lg:pt-3">
       <nav data-testid="shell-breadcrumb" aria-label="Sección actual" className="sr-only">
@@ -19,7 +24,7 @@ export default function PageHeader({ title, subtitle, actions, backTo, breadcrum
         {record && utilities && <div className="-my-2 hidden items-center gap-1 lg:flex">{utilities}</div>}
       </div>
       {!record && (
-      <div className="flex min-h-7 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+      <div className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-1 ${filaMovilVacia ? 'max-lg:min-h-0 lg:min-h-7' : 'min-h-7'}`}>
         <div className="flex min-w-0 items-center gap-2">
           {backTo && (
             <button
@@ -31,17 +36,18 @@ export default function PageHeader({ title, subtitle, actions, backTo, breadcrum
               <Icon name="back" className="h-4 w-4" />
             </button>
           )}
-          <h1 className="min-w-0 text-[22px] font-semibold leading-7 tracking-tight">{title}</h1>
+          <h1 className={`min-w-0 text-[22px] font-semibold leading-7 tracking-tight ${conPestanas ? 'max-lg:sr-only' : ''}`}>{title}</h1>
         </div>
-        {(actions || utilities) && (
+        {(actions || utilities || aviso) && (
           <div className="flex min-w-0 items-center gap-2">
+            {aviso}
             {actions}
             {utilities && <div className="-my-2 hidden items-center gap-1 lg:flex">{utilities}</div>}
           </div>
         )}
       </div>
       )}
-      {!record && subtitle && <p className="text-sm text-mute">{subtitle}</p>}
+      {!record && subtitle && <p className={`text-sm text-mute ${conPestanas ? 'max-lg:hidden' : ''}`}>{subtitle}</p>}
       {!record && children && <div className="mt-0 lg:mt-1">{children}</div>}
     </div>
   )

@@ -6,6 +6,8 @@ import assert from 'node:assert/strict'
 import { leerFuente } from './fuenteStock.js'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
+import { readdirSync } from 'node:fs'
+import { join, sep } from 'node:path'
 import { TAMANOS_MODAL } from '../components/shared/modal.js'
 import { usosDeModal } from '../../scripts/auditoria-modales.mjs'
 
@@ -195,4 +197,27 @@ test('los modales de CRM adoptan cierre con cambios, error junto al campo y resu
   assert.ok(servicio.includes('<FormField label="Nombre del servicio"'), 'el catálogo tiene labels visibles')
   assert.ok(servicio.includes('<SaveActions pendiente={busy}>'), 'la orden usa el pie estándar')
   assert.ok(!servicio.includes('useDialogDirty(formSucio)'), 'el dirty de la orden va en el objeto del diálogo')
+})
+
+test('detalles y vistas previas son una ventana centrada, nunca un panel lateral (#386)', () => {
+  const ventana = leer('../components/shared/VentanaDetalle.jsx')
+  assert.ok(ventana.includes("import { Modal } from '@/components/ui'"), 'VentanaDetalle compone el Modal del kit')
+  assert.ok(!ventana.includes('function Drawer('), 'la app no define su propio Drawer')
+  const css = leer('../index.css')
+  assert.ok(css.includes('.ventana-detalle') && css.includes('min-width: 44px; min-height: 44px'), 'la X de cierre mide 44 px')
+  assert.ok(css.includes('background: rgb(var(--c-bad))'), 'la X de cierre es roja (token bad)')
+  const carpeta = fileURLToPath(new URL('../components', import.meta.url))
+  const culpables = []
+  const recorrer = (dir) => {
+    for (const entrada of readdirSync(dir, { withFileTypes: true })) {
+      const ruta = join(dir, entrada.name)
+      if (entrada.isDirectory()) recorrer(ruta)
+      else if (/\.jsx$/.test(entrada.name) && !ruta.includes(`${sep}ui${sep}`) && /<Drawer\b/.test(leer(ruta))) culpables.push(ruta)
+    }
+  }
+  recorrer(carpeta)
+  assert.deepEqual(culpables, [], 'ninguna pantalla abre un <Drawer (panel lateral)')
+  for (const ruta of ['control/Compras', 'control/PaymentAccounts', 'control/ServicioTecnico', 'control/Gastos', 'control/Caja', 'control/TradeInPipeline', 'inventory/UnidadDetalle', 'ventas/SellerOrders', 'ventas/PedidoDetalle', 'productos/ProductoDetalle', 'shared/ReportePreview', 'shared/ComprobantePreview', 'shared/EtiquetasProductoModal']) {
+    assert.ok(leer(`../components/${ruta}.jsx`).includes('<VentanaDetalle'), `${ruta} abre VentanaDetalle`)
+  }
 })

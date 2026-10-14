@@ -1,6 +1,7 @@
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
+import { countablePayments } from '../../../../../lib/payment-net'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -27,7 +28,7 @@ export async function GET(request: Request, context: RouteContext) {
     where: { tenantId: session.user.tenantId, customerId: customer.id },
     select: {
       id: true, orderNumber: true, totalPyg: true, status: true, createdAt: true,
-      payments: { select: { id: true, amountPyg: true, method: true, status: true, paidAt: true, createdAt: true, userId: true } },
+      payments: { select: { id: true, reversalOfId: true, amountPyg: true, method: true, status: true, paidAt: true, createdAt: true, userId: true } },
     },
     orderBy: { createdAt: 'desc' },
   })
@@ -79,7 +80,7 @@ export async function GET(request: Request, context: RouteContext) {
       type: 'order', at: order.createdAt, id: `order-${order.id}`, actor: null,
       detail: `Pedido ${order.orderNumber || ''}`.trim(), amountPyg: order.totalPyg, orderNumber: order.orderNumber,
     })),
-    ...orders.flatMap(order => order.payments.filter(payment => payment.status === 'CONFIRMED').map(payment => ({
+    ...orders.flatMap(order => countablePayments(order.payments).filter(payment => payment.status === 'CONFIRMED').map(payment => ({
       type: 'payment', at: payment.paidAt || payment.createdAt, id: `payment-${payment.id}`,
       actor: payment.userId ? nombrePorUsuario.get(payment.userId) || null : null, actorId: payment.userId || null,
       detail: 'Pago recibido', amountPyg: payment.amountPyg, method: payment.method, orderNumber: order.orderNumber,

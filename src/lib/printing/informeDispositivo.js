@@ -12,6 +12,7 @@ import { qrUnidad } from './qr.js'
 import { identificadorDe, modeloDe } from './etiquetaUnidad.js'
 import { enmascararImei, imeiValido, resumenImei } from '../imeiComprobante.js'
 import { datosChecklist } from './certificado.js'
+import { siglaProveedor } from './ventaPapel.js'
 
 export const CONDICIONES_INFORME = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
 
@@ -76,7 +77,7 @@ export function datosInformeDispositivo(unit = {}, { consulta = null, informe = 
     garantia: unit.warrantyUntil || unit.garantiaHasta || null,
     ubicacion: [String(unit.location?.code || '').trim(), String(unit.location?.name || '').trim()].filter(Boolean).join(' · '),
     sucursal: String(unit.branch?.name || '').trim(),
-    proveedor: String(unit.supplierName || unit.supplier?.name || '').trim(),
+    proveedor: siglaProveedor(unit.supplierName || unit.supplier?.name, unit.supplierCode || unit.supplier?.code),
     emisor: String(emisor || '').trim(),
     // `enlacePublico` distingue la ruta pública de DSN del fallback `/u/<serial>`
     // (que expone el serial): el papel solo imprime la URL cuando es pública.

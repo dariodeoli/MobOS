@@ -35,8 +35,11 @@ test('#304 · el primer producto entra en el primer viewport móvil', async ({ p
   mkdirSync(DIR, { recursive: true })
   await entrarDemo(page)
   // El banner del demo queda en una línea compacta en móvil (#304).
-  const banner = page.getByRole('status').filter({ hasText: /[Dd]emo: datos ficticios/ })
+  // Desde #388 es un chip en la fila del título (no una fila propia).
+  const banner = page.getByTestId('demo-aviso')
   await expect(banner).toBeVisible()
+  await expect(banner).toContainText('Demo')
+  expect((await banner.boundingBox()).height, 'el aviso del demo es un chip compacto').toBeLessThanOrEqual(48)
 
   for (const [etiqueta, ancho, alto] of VIEWPORTS) {
     await page.setViewportSize({ width: ancho, height: alto })

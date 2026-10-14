@@ -7,6 +7,7 @@ import { etiquetaServicio } from '../../../../lib/service-order'
 import { etiquetaPago } from '../../../../lib/payments'
 import { seguimientoDeEntrega } from '../../../../lib/orders'
 import { numero } from '../../../../lib/montos'
+import { COUNTABLE_PAYMENT_WHERE } from '../../../../lib/payment-net'
 
 // Resumen de cuenta público del cliente. El token es aleatorio y no
 // enumerable, y el nivel acota lo que se muestra:
@@ -98,7 +99,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
   // Pagos (#240 → portal): lo que el cliente ya pagó, con su medio y fecha, y
   // el total confirmado de toda su historia.
   const pagos = await prisma.payment.findMany({
-    where: { tenantId: portal.tenantId, status: 'CONFIRMED', order: { customerId: portal.customerId, archivedAt: null } },
+    where: { tenantId: portal.tenantId, status: 'CONFIRMED', ...COUNTABLE_PAYMENT_WHERE, order: { customerId: portal.customerId, archivedAt: null } },
     select: { amountPyg: true, method: true, paidAt: true, order: { select: { orderNumber: true } } },
     orderBy: { paidAt: 'desc' },
     take: 8,
@@ -147,7 +148,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
         // Detalle del pedido (#240 → portal): qué se compró y qué se pagó,
         // sin costos ni datos internos (los precios son los del cliente).
         items: { select: { description: true, quantity: true, totalPyg: true } },
-        payments: { where: { status: 'CONFIRMED' }, select: { amountPyg: true, method: true, paidAt: true }, orderBy: { paidAt: 'asc' } },
+        payments: { where: { status: 'CONFIRMED', ...COUNTABLE_PAYMENT_WHERE }, select: { amountPyg: true, method: true, paidAt: true }, orderBy: { paidAt: 'asc' } },
       },
       orderBy: { createdAt: 'desc' },
       take: 10,
@@ -159,7 +160,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
       WHERE o."tenantId" = ${portal.tenantId} AND o."customerId" = ${portal.customerId} AND o."status" <> 'CANCELLED'`,
     prisma.order.findMany({
       where: { tenantId: portal.tenantId, customerId: portal.customerId, status: { not: 'CANCELLED' }, dueAt: { not: null } },
-      select: { orderNumber: true, dueAt: true, totalPyg: true, payments: { where: { status: 'CONFIRMED' }, select: { amountPyg: true } } },
+      select: { orderNumber: true, dueAt: true, totalPyg: true, payments: { where: { status: 'CONFIRMED', ...COUNTABLE_PAYMENT_WHERE }, select: { amountPyg: true } } },
       orderBy: { dueAt: 'asc' },
       take: 50,
     }),
