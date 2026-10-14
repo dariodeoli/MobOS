@@ -83,7 +83,6 @@ function hallazgos(linea, todas, productos) {
   if (linea.destination === 'FALTA_IMEI') aviso('FALTA_IMEI', 'Sin IMEI/serie: ingresa bloqueada hasta cargarlo')
   if (linea.destination === 'OTRA_SUCURSAL' && !linea.destinationBranchId) error('SUCURSAL_DESTINO_FALTA', 'Elegí la sucursal de destino')
   if (linea.originalCost == null) aviso('COSTO_FALTA', 'Falta el costo')
-  if (linea.match === 'SOBRANTE') aviso('SOBRANTE', 'No estaba pedido: ingresa como sobrante')
   if (linea.customerHint && !linea.customerId && !linea.orderId) aviso('CLIENTE_NO_ENCONTRADO', `No se encontró el cliente «${linea.customerHint}»`)
   return issues
 }

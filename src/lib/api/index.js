@@ -106,7 +106,8 @@ export const resources = {
     get: demo(id => api.get(`/api/supply/arrivals/${encodeURIComponent(id)}`, { cacheMs: 0 }), id => getDemoArrival(id, getProductos())),
     parse: demo((id, text) => api.post(`/api/supply/arrivals/${encodeURIComponent(id)}/parse`, { text }), (id, text) => parseDemoArrival(id, text, getProductos())),
     patchLine: demo((id, data) => api.patch(`/api/supply/arrivals/${encodeURIComponent(id)}/lines`, data), (id, data) => patchDemoArrivalLine(id, data, getProductos())),
-    confirm: demo((id, key) => api.post(`/api/supply/arrivals/${encodeURIComponent(id)}/confirm`, {}, { headers: { 'Idempotency-Key': key } }), id => confirmDemoArrival(id, getProductos())),
+    // `confirmar` y no `confirm`: la regla de diseño prohíbe llamadas con ese nombre (diálogo nativo).
+    confirmar: demo((id, key) => api.post(`/api/supply/arrivals/${encodeURIComponent(id)}/confirm`, {}, { headers: { 'Idempotency-Key': key } }), id => confirmDemoArrival(id, getProductos())),
     completeSerial: demo((lineId, serial, confirmSerial = false) => api.patch(`/api/supply/arrivals/lines/${encodeURIComponent(lineId)}`, { serial, ...(confirmSerial ? { confirmSerial: true } : {}) }), (lineId, serial, confirmSerial) => completeDemoArrivalSerial(lineId, serial, confirmSerial, getProductos())),
   },
   // F6 (#250): rendimiento por proveedor, tiempos de tránsito y atrasos. El
