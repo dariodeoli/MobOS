@@ -61,7 +61,7 @@ function documentoDeHojas(grupos, { fecha, logo = '' } = {}) {
   const hojas = grupos.map((grupo) => hojaDeEstacion(grupo, { fecha, logo })).join('')
   const titulo = grupos.length === 1 ? `Hoja de estación · ${grupos[0].estacion}` : `Hojas de estación (${grupos.length})`
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(titulo)}</title><style>
-@page{size:A4;margin:14mm}
+@page{size:A4;margin:18mm 14mm 14mm}
 *{box-sizing:border-box}
 body{margin:0;font:12px/1.45 ui-sans-serif,system-ui,sans-serif;color:#10161f}
 .hoja{page-break-after:always}

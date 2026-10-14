@@ -65,7 +65,7 @@ export async function buildResumenEjecutivoHtml(resumen = {}) {
   const kpi = (label, valor, nota, destacado = false) => `<div class="kpi${destacado ? ' destacado' : ''}"><span class="l">${escapeHtml(label)}</span><span class="v">${escapeHtml(valor)}</span>${nota ? `<span class="n">${nota}</span>` : ''}</div>`
 
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Resumen ejecutivo</title><style>
-@page { size: A4 portrait; margin: 10mm; }
+@page { size: A4 portrait; margin: 18mm 10mm 10mm; }
 * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 html, body { margin: 0; padding: 0; }
 body { font: 9.5px/1.35 -apple-system, 'Segoe UI', system-ui, sans-serif; color: #111; }

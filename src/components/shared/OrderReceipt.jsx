@@ -44,7 +44,7 @@ export async function printTransferReceipt(transfer, { format = 'a4' } = {}) {
   let qr = ''
   try { if (enlace) qr = await qrDataUrl(enlace, { ancho: 200 }) } catch { /* el enlace queda impreso igual */ }
   const recepcion = enlace ? `${qr ? `<img class="qr" src="${qr}" alt="QR de recepción">` : ''}<p class="small">Confirmá la recepción escaneando el QR o desde ${escapeHtml(enlace)}</p>` : ''
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Remito de traslado</title><style>@page{size:${thermal ? '80mm auto' : 'A4'};margin:${thermal ? '4mm' : '16mm'}}body{font:${thermal ? '10px' : '13px'} system-ui,sans-serif;margin:0;color:#111;max-width:${thermal ? '72mm' : '760px'}}h1{font-size:${thermal ? '15px' : '20px'};margin:0 0 4px}.muted{color:#555}.row{display:flex;justify-content:space-between;gap:12px;margin:8px 0}.items{margin:14px 0;border-top:1px dashed #999}.item{padding:8px 0;border-bottom:1px dashed #999}.serials{font-size:9px;line-height:1.5;color:#333;margin-top:4px}.qr{display:block;width:${thermal ? '32mm' : '42mm'};height:${thermal ? '32mm' : '42mm'};margin:12px auto 4px}.small{font-size:10px;word-break:break-all;text-align:center;color:#555}@media print{body{margin:0}}</style></head><body><h1>Remito de traslado</h1><p class="muted">${escapeHtml(transfer.sourceBranch?.name || 'Origen')} → ${escapeHtml(transfer.destinationBranch?.name || 'Destino')} · ${transfer.createdAt ? new Date(transfer.createdAt).toLocaleString('es-PY') : ''}</p><div class="items">${lineas}</div>${transfer.aexGuide ? `<div class="row"><span>Guía AEX</span><span>${escapeHtml(transfer.aexGuide)}</span></div>` : ''}${(transfer.dispatchedBy?.name || transfer.createdBy?.name) ? `<div class="row"><span>Despachado por</span><span>${escapeHtml(transfer.dispatchedBy?.name || transfer.createdBy.name)}</span></div>` : ''}${transfer.eta ? `<div class="row"><span>ETA</span><span>${escapeHtml(new Date(transfer.eta).toLocaleDateString('es-PY'))}</span></div>` : ''}${transfer.receivedAt ? `<div class="row"><span>Recibido</span><span>${escapeHtml(new Date(transfer.receivedAt).toLocaleString('es-PY'))}${transfer.receivedBy?.name ? ` · ${escapeHtml(transfer.receivedBy.name)}` : ''}${transfer.receivedNote ? ` · ${escapeHtml(transfer.receivedNote)}` : ''}</span></div>` : ''}${transfer.notes ? `<p class="muted">${escapeHtml(transfer.notes)}</p>` : ''}${recepcion}</body></html>`
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Remito de traslado</title><style>@page{size:${thermal ? '80mm auto' : 'A4'};margin:${thermal ? '10mm 4mm 6mm' : '18mm 16mm 16mm'}}body{font:${thermal ? '10px' : '13px'} system-ui,sans-serif;margin:0;color:#111;max-width:${thermal ? '72mm' : '760px'}}h1{font-size:${thermal ? '15px' : '20px'};margin:0 0 4px}.muted{color:#555}.row{display:flex;justify-content:space-between;gap:12px;margin:8px 0}.items{margin:14px 0;border-top:1px dashed #999}.item{padding:8px 0;border-bottom:1px dashed #999}.serials{font-size:9px;line-height:1.5;color:#333;margin-top:4px}.qr{display:block;width:${thermal ? '32mm' : '42mm'};height:${thermal ? '32mm' : '42mm'};margin:12px auto 4px}.small{font-size:10px;word-break:break-all;text-align:center;color:#555}@media print{body{margin:0}}</style></head><body><h1>Remito de traslado</h1><p class="muted">${escapeHtml(transfer.sourceBranch?.name || 'Origen')} → ${escapeHtml(transfer.destinationBranch?.name || 'Destino')} · ${transfer.createdAt ? new Date(transfer.createdAt).toLocaleString('es-PY') : ''}</p><div class="items">${lineas}</div>${transfer.aexGuide ? `<div class="row"><span>Guía AEX</span><span>${escapeHtml(transfer.aexGuide)}</span></div>` : ''}${(transfer.dispatchedBy?.name || transfer.createdBy?.name) ? `<div class="row"><span>Despachado por</span><span>${escapeHtml(transfer.dispatchedBy?.name || transfer.createdBy.name)}</span></div>` : ''}${transfer.eta ? `<div class="row"><span>ETA</span><span>${escapeHtml(new Date(transfer.eta).toLocaleDateString('es-PY'))}</span></div>` : ''}${transfer.receivedAt ? `<div class="row"><span>Recibido</span><span>${escapeHtml(new Date(transfer.receivedAt).toLocaleString('es-PY'))}${transfer.receivedBy?.name ? ` · ${escapeHtml(transfer.receivedBy.name)}` : ''}${transfer.receivedNote ? ` · ${escapeHtml(transfer.receivedNote)}` : ''}</span></div>` : ''}${transfer.notes ? `<p class="muted">${escapeHtml(transfer.notes)}</p>` : ''}${recepcion}</body></html>`
   return printHtml(html)
 }
 
@@ -224,7 +224,7 @@ export const styles = (format, acento = ACENTO_POR_DEFECTO) => {
   // suele ser más ancho que el área imprimible real).
   const page = width ? `${width}mm auto` : 'A4'
   // El rollo deja aire arriba y abajo: el encabezado no queda pegado al corte.
-  const margin = width ? '6mm 4mm 8mm' : '16mm 16mm'
+  const margin = width ? '6mm 4mm 8mm' : '18mm 16mm 16mm'
   const bodyMax = width ? `${width - 8}mm` : '178mm'
   const baseFont = width ? '10px/1.45' : '12px/1.5'
   const h1Size = width ? '15px' : '20px'
@@ -719,7 +719,7 @@ export async function buildProformaHtml(quote, { format = 'a4', enlace = '' } = 
     .qr-fila{display:flex;align-items:center;gap:10px}.qr-fila .qr{width:24mm;margin:0;flex:0 0 auto}.qr-fila .small{text-align:left;margin:0}
     /* A4 compacto (como el resto de los impresos): la cotización entra en una
        hoja aunque sume el QR de aceptación y las firmas. */
-    ${format === 'a4' ? `@page{margin:12mm 14mm}.card{padding:7px 9px;margin:6px 0}.card .label{margin-bottom:2px}
+    ${format === 'a4' ? `@page{margin:18mm 14mm 12mm}.card{padding:7px 9px;margin:6px 0}.card .label{margin-bottom:2px}
       .nofiscal{margin:7px 0;padding:5px 8px;font-size:10px}.brand{padding-bottom:6px;margin-bottom:7px}
       h1{font-size:18px}body{font-size:11.5px;line-height:1.4}p{margin:3px 0}footer{margin-top:7px;padding-top:5px}
       .firmas{margin:16px 0 4px}` : ''}
@@ -877,7 +877,7 @@ export async function buildInformeDispositivoHtml(datos = {}, { format = 'a4' } 
     .qr-fila{display:flex;align-items:center;gap:10px}
     .qr-fila .qr{width:22mm;margin:0;flex:0 0 auto}
     .qr-fila .small{text-align:left;margin:0}
-    ${format === 'a4' ? `@page{margin:12mm 14mm}.card{padding:7px 9px;margin:6px 0}.card .label{margin-bottom:2px}
+    ${format === 'a4' ? `@page{margin:18mm 14mm 12mm}.card{padding:7px 9px;margin:6px 0}.card .label{margin-bottom:2px}
       .nofiscal{margin:7px 0;padding:5px 8px;font-size:10px}.brand{padding-bottom:6px;margin-bottom:7px}
       h1{font-size:18px}body{font-size:11.5px;line-height:1.4}p{margin:3px 0}footer{margin-top:7px;padding-top:5px}` : ''}
     @media print{.fila-informe>span:first-child{color:#000}}
@@ -953,7 +953,7 @@ export async function buildCertificadoHtml(datos = {}, { format = 'a4' } = {}) {
     .card{page-break-inside:avoid}
     .qr{display:block;width:24mm;height:auto;margin:5px auto 2px}
     .barcode{margin-top:2px}.barcode svg{width:100%;height:auto;max-height:12mm}
-    ${format === 'a4' ? `@page{margin:12mm 14mm}.card{padding:7px 9px;margin:6px 0}.card .label{margin-bottom:2px}
+    ${format === 'a4' ? `@page{margin:18mm 14mm 12mm}.card{padding:7px 9px;margin:6px 0}.card .label{margin-bottom:2px}
       .nofiscal{margin:7px 0;padding:5px 8px;font-size:10px}.brand{padding-bottom:6px;margin-bottom:7px}
       h1{font-size:18px}body{font-size:11.5px;line-height:1.4}p{margin:3px 0}footer{margin-top:7px;padding-top:5px}` : ''}
     @media print{.fila-informe>span:first-child{color:#000}}
@@ -1060,7 +1060,7 @@ export async function buildListaCompraHtml(datos = {}, { format = 'a4' } = {}) {
     .linea-lista .marca-prioridad{color:#a33;font-weight:700}
     .barcode{margin-top:2px}.barcode svg{width:100%;height:auto;max-height:12mm}
     .card{page-break-inside:avoid}
-    ${a4 ? `@page{margin:12mm 14mm}.card{padding:6px 9px;margin:5px 0}.card .label{margin-bottom:2px}
+    ${a4 ? `@page{margin:18mm 14mm 12mm}.card{padding:6px 9px;margin:5px 0}.card .label{margin-bottom:2px}
       .nofiscal{margin:6px 0;padding:4px 8px;font-size:10px}.brand{padding-bottom:5px;margin-bottom:6px}
       h1{font-size:18px}body{font-size:11.5px;line-height:1.35}p{margin:2px 0}footer{margin-top:6px;padding-top:4px}` : ''}
     @media print{.fila-informe>span:first-child{color:#000}}
@@ -1130,7 +1130,7 @@ export async function buildManifiestoHtml(datos = {}, { format = 'a4' } = {}) {
     .codigo-grande{font-size:${a4 ? '26px' : '20px'};font-weight:900;letter-spacing:.06em;font-variant-numeric:tabular-nums}
     .barcode{margin-top:2px}.barcode svg{width:100%;height:auto;max-height:12mm}
     .card{page-break-inside:avoid}
-    ${a4 ? `@page{margin:12mm 14mm}.card{padding:6px 9px;margin:5px 0}.card .label{margin-bottom:2px}
+    ${a4 ? `@page{margin:18mm 14mm 12mm}.card{padding:6px 9px;margin:5px 0}.card .label{margin-bottom:2px}
       .nofiscal{margin:6px 0;padding:4px 8px;font-size:10px}.brand{padding-bottom:5px;margin-bottom:6px}
       h1{font-size:18px}body{font-size:11.5px;line-height:1.35}p{margin:2px 0}footer{margin-top:6px;padding-top:4px}` : ''}
     @media print{.fila-informe>span:first-child{color:#000}}
@@ -1241,7 +1241,7 @@ export async function buildComprobanteRecepcionHtml(datos = {}, { format = 'a4' 
     .totales-recepcion{margin-top:4px;border-top:1px solid #0f1720}
     .totales-recepcion td{border:0;padding:1px 0}
     .totales-recepcion tr.saldo td{font-weight:800}
-    ${a4 ? `@page{margin:12mm 14mm}.card{padding:6px 9px;margin:4px 0}.card .label{margin-bottom:2px}
+    ${a4 ? `@page{margin:18mm 14mm 12mm}.card{padding:6px 9px;margin:4px 0}.card .label{margin-bottom:2px}
       .nofiscal{margin:6px 0;padding:4px 8px;font-size:10px}.brand{padding-bottom:5px;margin-bottom:6px}
       h1{font-size:18px}body{font-size:11.5px;line-height:1.35}p{margin:2px 0}footer{margin-top:6px;padding-top:4px}
       .firmas{margin:14px 0 3px}` : ''}
