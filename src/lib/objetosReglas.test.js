@@ -628,8 +628,10 @@ test('el QR del informe sale de lib/qr y shared/CodigoQr (#240)', () => {
 // #298: una sola navegación, siempre con texto (sin colapso a iconos).
 test('Configuración usa selector accesible sin colapso ni tira horizontal móvil (#341)', () => {
   const riel = leerFuente(join(RAIZ, 'components/control/config/NavegacionConfig.jsx'), 'utf8')
-  assert.match(riel, /import SectionTabs from '@\/components\/app\/SectionTabs'/, 'el adaptador usa las pestañas compartidas del shell')
-  assert.match(riel, /testId="config-grupos"/, 'conserva los testids de los specs')
+  // #410: el menú de secciones vive en el shell (segunda columna); el adaptador
+  // deja el contenido y, en celular, la lista de secciones.
+  assert.match(leerFuente(join(RAIZ, 'components/control/config/MenuConfiguracion.jsx'), 'utf8'), /data-testid="config-grupos"/, 'el menú de Configuración conserva el testid de los specs')
+  assert.match(riel, /data-testid="config-grupos"/, 'conserva los testids de los specs')
   assert.ok(!riel.includes('role="tablist"'), 'el selector no simula un tablist')
   assert.ok(!/colapsado=|onToggle|useMenuConfigColapsado/.test(riel), 'la navegación no se colapsa a iconos (#298)')
   assert.ok(!existsSync(join(RAIZ, 'lib/menuConfig.js')), 'la preferencia de colapso ya no existe (#298)')
@@ -677,9 +679,9 @@ test('los 7 grupos de Configuración viven en config/gruposConfig (#253)', () =>
   assert.match(riel, /aria-selected=\{esta\}/, 'la pestaña activa se anuncia')
   assert.match(riel, /aria-label=\{item\.label\}/, 'cada opción se anuncia con su rótulo')
   assert.ok(!/colapsado=|onToggle/.test(nav), 'el adaptador no habilita el colapso a iconos (#298)')
-  assert.match(nav, /testId="config-grupos"/, 'el adaptador conserva los testids')
+  assert.match(nav, /data-testid="config-grupos"/, 'el adaptador conserva los testids')
   const panel = leerFuente(join(RAIZ, 'pages/PanelVendedor.jsx'), 'utf8')
-  assert.match(panel, /<NavegacionConfig value=\{vista\} onChange=\{irASubtab\} items=\{tabsConfig\}>/, 'Configuración usa la navegación de los 7 grupos')
+  assert.match(panel, /<NavegacionConfig value=\{vista\} onChange=\{irASubtab\} items=\{tabsConfig\}/, 'Configuración usa la navegación de los 7 grupos')
   assert.ok(!/<Subtabs value=\{vista\} onChange=\{irASubtab\} items=\{tabsConfig\}/.test(panel), 'la lista plana no se repite en Configuración')
 })
 

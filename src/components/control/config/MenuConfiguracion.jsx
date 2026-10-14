@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import Icon from '@/components/shared/Icon'
 import { buscarAjustes, migasAjuste } from '@/lib/configIndice'
+import { CELDA_DATO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import { grupoConfig } from './gruposConfig'
 
 // #410 · Menú de Configuración (segunda columna del shell en escritorio):
@@ -109,7 +110,7 @@ export default function MenuConfiguracion({ items = [], value, onChange, onBack,
               className="flex min-h-11 w-full flex-col justify-center rounded-lg px-2.5 text-left hover:bg-ink-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono"
             >
               <span className="truncate text-sm font-medium text-fore">{entrada.label}</span>
-              <span className="truncate text-xs text-mute">{migasAjuste(entrada).slice(1).join(' › ')}</span>
+              <span className={cn('block', CELDA_DATO)}>{migasAjuste(entrada).slice(1).join(' › ')}</span>
             </button>
           ))}
         </div>
@@ -124,8 +125,8 @@ export default function MenuConfiguracion({ items = [], value, onChange, onBack,
               </span>
             )}
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-semibold leading-4 text-fore">{nombre}</span>
-              <span className="block truncate text-xs leading-4 text-mute">Tu empresa</span>
+              <span className={cn('block leading-4 text-fore', CELDA_IDENTIDAD)}>{nombre}</span>
+              <span className={cn('block leading-4', CELDA_DATO)}>Tu empresa</span>
             </span>
           </div>
           <nav aria-label="Secciones de Configuración" data-testid="config-grupos" data-menu-lateral className="flex flex-col gap-0.5">

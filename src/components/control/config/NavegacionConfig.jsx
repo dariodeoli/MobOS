@@ -1,4 +1,6 @@
 import Icon from '@/components/shared/Icon'
+import { cn } from '@/lib/utils'
+import { CELDA_DATO } from '@/components/shared/tabla'
 import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import { grupoConfig } from './gruposConfig'
 import './configTouch.css'
@@ -30,7 +32,7 @@ export default function NavegacionConfig({ value, onChange, items = [], seccionA
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium text-fore">{label}</span>
                 {grupoConfig(id)?.descripcion && (
-                  <span className="block truncate text-xs text-mute">{grupoConfig(id).descripcion}</span>
+                  <span className={cn('block', CELDA_DATO)}>{grupoConfig(id).descripcion}</span>
                 )}
               </span>
               <Icon name="chevron" className="h-4 w-4 shrink-0 -rotate-90 text-mute" />
