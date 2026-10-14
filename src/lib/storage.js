@@ -73,6 +73,23 @@ export const modoDatosActual = () => fuenteDatos
 const apiMode = () => fuenteDatos === 'api'
 export const contextoActual = () => ({ ...ctx })
 
+// Última sesión del dispositivo (#377): empresa y desde cuándo. La cola offline la
+// usa para atribuir ventas viejas sin empresa; se actualiza solo cuando CAMBIA la
+// empresa activa. El cambio de empresa también avisa a los componentes vivos.
+const ULTIMA_SESION_KEY = 'mobos:ultima-sesion-empresa'
+export const EVENTO_CAMBIO_EMPRESA = 'mobos:empresa-cambio'
+export function ultimaSesionEmpresa() {
+  try {
+    const dato = JSON.parse(globalThis.localStorage?.getItem(ULTIMA_SESION_KEY) || 'null')
+    return dato && typeof dato.tenantId === 'string' ? { tenantId: dato.tenantId, desde: Number(dato.desde) || 0 } : null
+  } catch { return null }
+}
+function registrarCambioDeEmpresa(empresaId) {
+  if (!empresaId || isDemoRuntime) return
+  try { globalThis.localStorage?.setItem(ULTIMA_SESION_KEY, JSON.stringify({ tenantId: empresaId, desde: Date.now() })) } catch { /* sin almacenamiento: la cola pide confirmación */ }
+  try { globalThis.window?.dispatchEvent?.(new Event(EVENTO_CAMBIO_EMPRESA)) } catch { /* sin window (tests) */ }
+}
+
 // El espejo local se guarda por empresa. Si fuera uno solo, al cambiar de
 // tienda verías por un instante los datos de la anterior.
 const MIRROR_BASE = 'fono:cache:v3'
@@ -493,6 +510,7 @@ const SUC_KEY = 'fono:sucursal'
 export async function setContexto({ empresaId, sucursalId, userId, rol, fuente = 'legacy' }) {
   apiHydrationVersion += 1
   const cambioEmpresa = ctx.empresaId !== empresaId
+  if (cambioEmpresa) registrarCambioDeEmpresa(empresaId)
   if (fuente === 'api' && (ctx.userId !== userId || ctx.rol !== rol || cambioEmpresa)) vaciarCache()
   ctx.empresaId = empresaId || null
   ctx.sucursalId = sucursalId || null

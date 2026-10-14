@@ -18,6 +18,7 @@ export default defineConfig({
     'stock-layout.frontend.spec.js',
     'graficos.frontend.spec.js',
     'login-codigos.frontend.spec.js',
+    'multiempresa.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,

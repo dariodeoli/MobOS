@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useColaOffline } from '@/hooks/useColaOffline'
 import PanelColaOffline from './PanelColaOffline'
 import Icon from '@/components/shared/Icon'
+import { ETIQUETA_OTRA_EMPRESA } from '@/lib/offline/queue'
 import { cn } from '@/lib/utils'
 
 const hora = (ms) =>
@@ -12,9 +13,9 @@ const hora = (ms) =>
 // métricas del modo offline a un clic. No ocupa lugar cuando no hay nada
 // pendiente (el modo online no cambia).
 export default function ColaOffline() {
-  const { pendientes, conflictos, ultimaSync, sincronizando, sincronizar, enLinea } = useColaOffline()
+  const { pendientes, conflictos, otraEmpresa, ultimaSync, sincronizando, sincronizar, enLinea } = useColaOffline()
   const [detalle, setDetalle] = useState(false)
-  if (!pendientes && !conflictos) return null
+  if (!pendientes && !conflictos && !otraEmpresa) return null
   const conProblema = conflictos > 0
   return (
     <>
@@ -32,6 +33,11 @@ export default function ColaOffline() {
             ? `${pendientes} venta${pendientes === 1 ? '' : 's'} sin sincronizar`
             : 'Sin ventas pendientes'}
         </span>
+        {otraEmpresa > 0 && (
+          <span className="font-semibold" data-testid="cola-otra-empresa">
+            {otraEmpresa} {otraEmpresa === 1 ? 'venta' : 'ventas'} · {ETIQUETA_OTRA_EMPRESA}
+          </span>
+        )}
         {conflictos > 0 && (
           <span className="font-semibold">
             {conflictos} con conflicto (revisar en el detalle)

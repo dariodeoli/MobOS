@@ -5,6 +5,7 @@ import { perfilDemo } from './demo/equipo.js'
 import { combinarPerfil } from '@/lib/sesionPerfil'
 import { limpiarAvatarCache, precargarAvatar } from '@/lib/userAvatar'
 import { clearSession, getCompanyContext, sessionApi, resources } from '@/lib/api'
+import { consumirPinTrasCambio } from '@/lib/api/session'
 import { setActor, setContexto, prepararDatosDemo } from '@/lib/storage'
 import { leerUltimo, recordarUltimo } from '@/lib/ultimoUsado'
 import { usarTenantImpresoras, usarSucursalImpresoras } from '@/lib/printing/agent'
@@ -102,10 +103,10 @@ export function SesionProvider({ children }) {
         const result = await sessionApi.me()
         if (!vivo) return
         if (result?.user) await activarSesion(result.user, { tenant: result.tenant, perfil: combinarPerfil(result.ownerProfile, getCompanyContext()?.profile || null) })
-        else { clearSession(); setEstado('fuera') }
+        else { if (!consumirPinTrasCambio()) clearSession(); setEstado('fuera') }
       } catch (error) {
         if (!vivo) return
-        if (error?.status === 401) { clearSession(); setEstado('fuera') }
+        if (error?.status === 401) { if (!consumirPinTrasCambio()) clearSession(); setEstado('fuera') }
         else if (intentos < 4) { intentos += 1; setTimeout(() => { if (vivo) validar() }, 3000) }
         else { console.error('[sesion] no se pudo validar la sesión real:', error); setEstado('fuera') }
       }

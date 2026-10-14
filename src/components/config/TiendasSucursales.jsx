@@ -17,6 +17,7 @@ import Icon from '@/components/shared/Icon'
 import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
 import InstagramField, { normalizarInstagram } from '@/components/shared/InstagramField'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
+import { DialogosEmpresa, MENSAJE_SIN_CUENTA, useCambioEmpresa } from '@/components/shared/SelectorEmpresa'
 import PanelDerecho from '@/components/shared/PanelDerecho'
 import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES } from '@/components/shared/formulario'
 import { CELDA_DATO } from '@/components/shared/tabla'
@@ -45,6 +46,7 @@ export default function TiendasSucursales({ account }) {
   const toast = useToast()
   const { salir, esDemo } = useSesion()
   const guardado = useGuardadoCuenta({ id: 'sucursal' })
+  const cambioEmpresa = useCambioEmpresa()
   const [branches, setBranches] = useState(null)
   const [errorSucursales, setErrorSucursales] = useState('')
   const [busy, setBusy] = useState(false)
@@ -139,9 +141,14 @@ export default function TiendasSucursales({ account }) {
     } finally { setBusy(false) }
   }
 
+  // #377: crear otra tienda ya no reinicia el acceso con Google; abre el alta
+  // de empresa de la misma cuenta y pasa a ella.
+  // Sin la cuenta vinculada (dueño que no entró con su PIN) no hay lista ni alta
+  // directa: el camino de Google sigue disponible como respaldo.
   async function crearOtra() {
     setErrorTiendas('')
-    try { await sessionApi.startGoogle(true) } catch (cause) { setErrorTiendas(cause?.message || 'No se pudo abrir el acceso con Google.') }
+    if (!cambioEmpresa.sinCuenta) { cambioEmpresa.pedirCrear(); return }
+    try { await sessionApi.startGoogle(true) } catch (cause) { setErrorTiendas(cause?.message || 'No se pudo iniciar el alta con Google.') }
   }
 
   async function abandonar() {
@@ -164,6 +171,7 @@ export default function TiendasSucursales({ account }) {
         </div>
         {!esDemo && <Button type="button" variant="outline" onClick={crearOtra}><Icon name="plus" className="h-3.5 w-3.5" />Crear otra tienda</Button>}
       </div>
+      {cambioEmpresa.sinCuenta && !esDemo && <Aviso tono="info" data-testid="tiendas-sin-cuenta">{MENSAJE_SIN_CUENTA} Mientras tanto podés crear otra tienda con Google.</Aviso>}
       {errorTiendas && !dialogo && <Aviso tono="error">{errorTiendas}</Aviso>}
       {esDemo ? (
         <p className="text-sm text-mute">La demo opera en una tienda ficticia: crear otra tienda o abandonar la actual se hace con una cuenta real.</p>
@@ -282,6 +290,7 @@ export default function TiendasSucursales({ account }) {
 
   return (
     <>
+      <DialogosEmpresa control={cambioEmpresa} />
       <PanelDerecho id="sucursal-form" panel={formularioSucursal}>
         <Card className="space-y-4" data-testid="tiendas-sucursales">
           <div>

@@ -5,6 +5,7 @@ import { Modal, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import PersonaChip from '@/components/shared/PersonaChip'
 import SelectorSucursal from '@/components/shared/SelectorSucursal'
+import SelectorEmpresa, { DialogosEmpresa, useCambioEmpresa } from '@/components/shared/SelectorEmpresa'
 import ThemeToggle from '@/components/app/ThemeToggle'
 import PanelNotificaciones from '@/components/app/PanelNotificaciones'
 import ComoFuncionaDemo from '@/components/app/ComoFuncionaDemo'
@@ -35,9 +36,11 @@ import {
 } from '@/lib/shellNavigation'
 import './shellNavigation.css'
 
-function textoColaOffline({ pendientes = 0, conflictos = 0, enLinea = true } = {}) {
+function textoColaOffline({ pendientes = 0, sinEmpresa = 0, conflictos = 0, otraEmpresa = 0, enLinea = true } = {}) {
+  if (sinEmpresa > 0) return `${sinEmpresa} venta${sinEmpresa === 1 ? '' : 's'} sin empresa por confirmar`
   if (conflictos > 0) return `${conflictos} venta${conflictos === 1 ? '' : 's'} con conflicto`
   if (pendientes > 0) return `${pendientes} venta${pendientes === 1 ? '' : 's'} sin enviar`
+  if (otraEmpresa > 0) return `${otraEmpresa} venta${otraEmpresa === 1 ? '' : 's'} pendiente${otraEmpresa === 1 ? '' : 's'} en otra empresa`
   if (!enLinea) return 'POS sin conexión'
   return ''
 }
@@ -112,6 +115,7 @@ export default function AppShell({
   // (escritorio) y en la barra (móvil), y la abre con su detalle. Solo lectura:
   // el POS sigue siendo quien sincroniza.
   const colaOffline = useColaOffline({ autoSincronizar: false })
+  const cambioEmpresa = useCambioEmpresa()
   const [colaAbierta, setColaAbierta] = useState(false)
   const avisoCola = textoColaOffline(colaOffline)
   const avisoColaCorto =
@@ -414,6 +418,7 @@ export default function AppShell({
           recordRef={setRecordSlot}
           utilities={
             <>
+              <SelectorEmpresa control={cambioEmpresa} className="shrink-0" />
               <div data-testid="shell-sucursal-desktop" className="flex min-h-11 items-center">
                 <SelectorSucursal />
               </div>
@@ -509,6 +514,12 @@ export default function AppShell({
           {empresa?.nombre && (
             <p data-testid="shell-empresa" className="text-sm text-fore">{empresa.nombre}</p>
           )}
+          {cambioEmpresa.visible && (
+            <div data-testid="shell-empresas-movil" className="flex flex-col gap-1 py-1">
+              <p className="text-[10px] font-bold uppercase tracking-[.14em] text-mute">Cambiar de empresa</p>
+              <SelectorEmpresa control={cambioEmpresa} variante="lista" alElegir={() => setProfileOpen(false)} />
+            </div>
+          )}
           {onMiCuenta && (
             <button
               type="button"
@@ -598,6 +609,7 @@ export default function AppShell({
           />
         </>
       )}
+      <DialogosEmpresa control={cambioEmpresa} />
     </div>
   )
 }
