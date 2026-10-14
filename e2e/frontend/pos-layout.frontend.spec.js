@@ -164,17 +164,19 @@ test('catálogo denso: ≥12 productos sobre el pliegue a 1440x900 y una sola fr
   await page.screenshot({ path: `${out}/1440-pos-light.png` })
 })
 
-test('teléfono: código y número en una sola fila, RUC aparte y a ancho completo', async ({ page }) => {
+test('teléfono: código y número en una sola fila, RUC aparte y por contenido (#389)', async ({ page }) => {
   await enterPos(page, 1440, 900)
   await page.getByTestId('pos-bloque-cliente').getByText('Datos de contacto, RUC/CI y direcciones').click()
   const code = await page.getByRole('combobox', { name: 'Código de país' }).or(page.getByRole('button', { name: /Código de país/ })).first().boundingBox()
   const num = await page.getByLabel('Teléfono del cliente').boundingBox()
   expect(Math.abs((code.y + code.height / 2) - (num.y + num.height / 2))).toBeLessThan(6)
   expect(num.x).toBeGreaterThanOrEqual(code.x + code.width - 1)
-  const panel = await page.getByTestId('pos-bloque-cliente').boundingBox()
-  expect(num.x + num.width).toBeGreaterThan(panel.x + panel.width * 0.8)
-  const ruc = await page.getByLabel('CI o RUC del cliente').last().boundingBox()
-  expect(ruc.width).toBeGreaterThan(panel.width * 0.7)
+  // #389: los datos cortos ya no ocupan todo el ancho (docs/CAMPOS.md §2.1):
+  // el teléfono con su código mide <= 20rem y el CI/RUC <= 16rem, en su propia fila.
+  expect(num.x + num.width - code.x).toBeLessThanOrEqual(320 + 1.5)
+  const ruc = await page.getByLabel('CI o RUC del cliente', { exact: true }).boundingBox()
+  expect(ruc.width).toBeLessThanOrEqual(256 + 1.5)
+  expect(ruc.y + ruc.height).toBeLessThanOrEqual(code.y)
   await page.screenshot({ path: `${out}/1440-cliente.png` })
 })
 

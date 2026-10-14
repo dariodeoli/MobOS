@@ -47,7 +47,7 @@ try {
   assert.equal(page.totals.byKind.ACCESORIO, 1)
   const unidad = page.items.find(row => row.kind === 'unit' && row.serial === unidadesDb[1].serial)
   assert.ok(unidad, 'la unidad aparece')
-  assert.deepEqual(Object.keys(unidad).sort(), ['batteryHealth', 'branchId', 'branchName', 'condition', 'consignorName', 'costPyg', 'createdAt', 'id', 'kind', 'locationId', 'locationName', 'model', 'name', 'productId', 'quantity', 'serial', 'sku', 'soldAt', 'status', 'stockKind', 'supplierId', 'supplierName'])
+  assert.deepEqual(Object.keys(unidad).sort(), ['batteryHealth', 'branchId', 'branchName', 'condition', 'consignorName', 'costPyg', 'createdAt', 'id', 'kind', 'locationId', 'locationName', 'model', 'name', 'productId', 'quantity', 'serial', 'sku', 'soldAt', 'status', 'stockKind', 'supplierCode', 'supplierId', 'supplierName'])
   assert.equal(unidad.status, 'disponible'); assert.equal(unidad.quantity, 1); assert.equal(unidad.stockKind, 'EQUIPO')
   assert.equal(unidad.costPyg, 2100000); assert.equal(unidad.supplierName, `Proveedor ${tag}`); assert.equal(unidad.batteryHealth, 88)
   assert.match(unidad.model, /U2 128GB Negro/)
@@ -119,20 +119,31 @@ try {
   for (const [nombre, token, veCosto] of [['admin', adminToken, true], ['gerente', gerenteToken, true], ['vendedor', sellerToken, false], ['cajera', cajeraToken, false]]) {
     const listado = await ok(`q=${tag}&limit=200`, token)
     assert.ok(listado.items.length >= 1, `${nombre} ve filas de su sucursal`)
+    if (!veCosto) assert.ok(listado.items.some(row => row.supplierName === 'S/S'), `${nombre}: las unidades con proveedor muestran la sigla`)
     for (const row of listado.items) {
       if (veCosto) assert.notEqual(row.costPyg, null, `${nombre} ve costo (${row.kind})`)
-      else assert.deepEqual([row.costPyg, row.supplierId, row.supplierName], [null, null, null], `${nombre} no ve costo/proveedor`)
+      else {
+        // #400: sin costo no hay costo ni id de proveedor; el nombre real nunca sale: solo la sigla («S/S» si no tiene).
+        assert.deepEqual([row.costPyg, row.supplierId], [null, null], `${nombre} no ve costo/proveedor`)
+        assert.ok([null, 'S/S'].includes(row.supplierName), `${nombre} solo ve la sigla del proveedor`)
+      }
     }
     assert.equal((await list(`status=eliminado&q=${tag}`, token)).payload.totals.total, nombre === 'admin' ? 1 : 0, `${nombre}: eliminado solo ADMIN`)
     const unidadesApi = await request(`/api/inventory-units?branchId=${BRANCH}&q=${encodeURIComponent(tag)}`, { token })
     assert.equal(unidadesApi.response.status, 200)
     const filaApi = unidadesApi.payload.find(row => row.serial === u2.serial.toUpperCase().replace(/[\s-]+/g, ''))
     assert.ok(filaApi, `${nombre}: el selector sigue encontrando la unidad`)
-    for (const campo of ['costPyg', 'originalCost', 'consignorPyg', 'supplierId', 'supplierName']) {
+    for (const campo of ['costPyg', 'originalCost', 'consignorPyg']) {
       if (veCosto) assert.notEqual(filaApi[campo], undefined, campo)
       else assert.equal(filaApi[campo], null, `${nombre}: ${campo} oculto`)
     }
-    assert.equal('supplier' in filaApi, veCosto)
+    // #400: el proveedor viaja siempre, pero solo ADMIN/GERENTE reciben el nombre; el resto, el badge con la sigla.
+    assert.notEqual(filaApi.supplierId, null, `${nombre}: el id del proveedor es opaco`)
+    if (veCosto) assert.ok(filaApi.supplier.name, `${nombre}: ve el nombre`)
+    else {
+      assert.equal(filaApi.supplierName, 'S/S')
+      assert.deepEqual(Object.keys(filaApi.supplier).sort(), ['code', 'id'], `${nombre}: solo el badge`)
+    }
     if (veCosto) { assert.ok(Number(filaApi.costPyg) > 0); assert.ok(Number(filaApi.consignorPyg) > 0) }
   }
   assert.equal((await list(`supplierId=cualquiera`, sellerToken)).response.status, 403, 'el filtro por proveedor tampoco se filtra al vendedor')

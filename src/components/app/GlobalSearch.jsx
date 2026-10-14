@@ -86,6 +86,14 @@ const proyectarCompra = row => ({
   navegar: { q: row.supplierName || row.supplierReference || '' },
 })
 
+// #400: quien no ve el nombre real (vendedor, caja) busca y ve solo la sigla.
+const proyectarInsigniaProveedor = row => ({
+  id: row.id,
+  titulo: row.code || 'S/S',
+  subtitulo: 'Proveedor',
+  navegar: { q: row.code || '' },
+})
+
 const proyectarProveedor = row => ({
   id: row.id,
   titulo: row.name || `Proveedor ${row.id}`,
@@ -210,7 +218,13 @@ export default function GlobalSearch({ open, onClose, onNavigate, vistas }) {
         .then(filas => filas.slice(0, MAX_POR_GRUPO).map(proyectarCompra)),
       proveedores: api
         .get(`/api/suppliers?q=${encodeURIComponent(q)}`)
-        .then(filas => filas.slice(0, MAX_POR_GRUPO).map(proyectarProveedor)),
+        .then(filas => filas.slice(0, MAX_POR_GRUPO).map(proyectarProveedor))
+        .catch(causa => {
+          if (causa?.status !== 403) throw causa
+          return api
+            .get('/api/suppliers/badges')
+            .then(filas => filas.filter(fila => incluye(fila.code, q)).slice(0, MAX_POR_GRUPO).map(proyectarInsigniaProveedor))
+        }),
       unidades: api
         .get(`/api/inventory-units?q=${encodeURIComponent(q)}`)
         .then(filas => filas.slice(0, MAX_POR_GRUPO).map(proyectarUnidad)),
