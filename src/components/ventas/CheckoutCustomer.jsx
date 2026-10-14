@@ -16,6 +16,7 @@ import { useSesion } from '@/lib/sesion'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import { cn } from '@/lib/utils'
 import { fechaLegible } from '@/utils/pedido'
+import { avisoClienteBloqueado } from '@/utils/cobroPos'
 import ClienteResumenPopup from '@/components/customers/ClienteResumenPopup'
 
 // Los clientes demo no traen `stats`: se arman con su historial de ejemplo.
@@ -193,6 +194,11 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
           {stats ? <span className="text-mute">{stats.orders ?? 0} {Number(stats.orders) === 1 ? 'pedido' : 'pedidos'}{stats.lastOrderAt ? ` · última compra ${fechaLegible(stats.lastOrderAt)}` : ''}</span> : null}
           {facturarAOtro && (billingTo?.name || billingTo?.document) ? <span className="text-mute">Factura a {billingTo?.name || billingTo?.document}</span> : null}
         </div>
+        {value.blocked ? (
+          <p role="alert" data-testid="cliente-bloqueado" className="mt-1 flex items-center gap-1 font-bold text-bad-text">
+            <Icon name="alert" className="h-3.5 w-3.5" aria-hidden="true" />{avisoClienteBloqueado(value)}
+          </p>
+        ) : null}
         {avisos.length > 0 ? (
           <p role="status" data-testid="cliente-avisos" className="mt-1 flex flex-wrap items-center gap-x-3 font-semibold text-warn">
             {avisos.map(aviso => <span key={aviso} className="inline-flex items-center gap-1"><Icon name="alert" className="h-3.5 w-3.5" aria-hidden="true" />{aviso}</span>)}

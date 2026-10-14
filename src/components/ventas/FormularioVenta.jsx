@@ -29,7 +29,7 @@ import { normalizarNombre } from '@/utils/nombre'
 import { codigoPedido } from '@/utils/pedido'
 import { esErrorDeRed } from '@/lib/offline/queue'
 import { fechaClave, num, gs } from '@/utils/calculos'
-import { montoEnvioEfectivo, pagaAlRecibirVigente } from '@/utils/cobroPos'
+import { datosEncomienda, montoEnvioEfectivo, pagaAlRecibirVigente, recordarEmpresa } from '@/utils/cobroPos'
 import { mensajeMontosFueraDeRango, montosFueraDeRango } from '@/utils/limitesVenta'
 import { allocateCheckout } from '@/utils/checkout'
 import { tradeInDraftPayment } from '@/utils/tradeInCheckout'
@@ -96,6 +96,9 @@ const VACIO = vendedorId => ({
   medioPago: MEDIOS_PAGO[0],
   entrega: ENTREGA[0],
   montoDelivery: '',
+  encEmpresa: '',
+  encSucursal: '',
+  encDireccionId: '',
   observacion: '',
   specialOrder: false,
   expectedAt: '',
@@ -1057,6 +1060,8 @@ export default function FormularioVenta({
             `La autorización de precio no alcanza para esta venta (excedente bajo lista ${gs(excedenteBajoLista)}, máx ${gs(Number(authPrecio.maxDiscountPyg || 0))}). Solicitá una nueva.`,
           )
       }
+      if (venderACredito && customer.blocked)
+        throw new Error(`Cliente bloqueado${customer.blockedReason ? `: ${customer.blockedReason}` : ''}. No se puede vender a crédito.`)
       if (venderACredito && Number(customer.creditLimitPyg || 0) <= 0)
         throw new Error('El cliente no tiene límite de crédito habilitado. Configuralo en Clientes.')
       if (esDemo) validateDemoPromotionItems(orderItems, productos, gsNum(descuento))
@@ -1236,6 +1241,9 @@ export default function FormularioVenta({
             // La API rechaza observaciones vacías: se omiten en vez de mandar ''.
             ...(f.observacion?.trim() ? { deliveryNotes: f.observacion } : {}),
             deliveryType: f.entrega,
+            // «Paga al recibir» (#399): la marca viaja solo si estaba activa al enviar.
+            ...(pagaAlRecibirVigente(pagaAlRecibir, pagos) ? { paymentOnDelivery: true } : {}),
+            ...datosEncomienda(f.entrega, f, customer.addresses),
             // Factura a otro titular: solo viaja si se completó nombre o RUC.
             ...(billingTo.name.trim() || billingTo.document.trim()
               ? {
@@ -1261,6 +1269,7 @@ export default function FormularioVenta({
           throw new Error(order?.error || 'No se recibió confirmación de la orden.')
         ventaPersistida = true
         completedOrder = order
+        if (f.entrega === 'Encomienda') recordarEmpresa(f.encEmpresa)
       } else {
         const validation = await validateDemoTradeIns(payments)
         if (validation === false || validation?.error || validation?.ok === false)
