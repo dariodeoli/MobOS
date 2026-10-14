@@ -142,6 +142,9 @@ INSERT INTO "Product" ("id", "tenantId", "branchId", "sku", "name", "category", 
   ('prod-b-it', 'tenant-b-it', 'branch-b-it', 'SKU-B-IT', 'Synthetic Product B', 'Test', 100000, 7, true, CURRENT_TIMESTAMP);
 
 UPDATE "Product" SET "costPyg" = 70000 WHERE "id" = 'prod-a-order-it';
+-- Los chequeos de redacción parten con el permiso de costos de vendedores apagado
+-- (el default productivo es encendido; se prueba aparte más abajo).
+UPDATE "Tenant" SET "settings" = '{"permissions":{"sellerSeesCosts":false}}'::jsonb WHERE "id" IN ('tenant-a-it', 'tenant-b-it');
 SQL
 
 (
@@ -509,6 +512,16 @@ assert_confirmed_payment_total "$out" IT-CONCURRENT-001 60000 || { echo "Los pag
 
 node "$BACKEND_ROOT/tests/new-modules.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKEN_A"
 out="$(response_file)"; ADMIN_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-admin-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
+out="$(response_file)"; request PUT /api/tenant/cost-visibility 403 '{"sellerSeesCosts":true}' "$out" "$TOKEN_A" tenant-a-it
+out="$(response_file)"; request PUT /api/tenant/cost-visibility 200 '{"sellerSeesCosts":true}' "$out" "$ADMIN_TOKEN" ''
+out="$(response_file)"; request GET /api/products 200 '' "$out" "$TOKEN_A" tenant-a-it
+assert_product_cost "$out" prod-a-order-it 70000 || { echo "Con el permiso encendido el vendedor no vio el costo del producto." >&2; exit 1; }
+out="$(response_file)"; request GET /api/orders 200 '' "$out" "$TOKEN_A" tenant-a-it
+assert_order_cost_snapshot "$out" IT-ORDER-001 70000 || { echo "Con el permiso encendido el vendedor no vio el costo de la venta." >&2; exit 1; }
+out="$(response_file)"; request PUT /api/tenant/cost-visibility 200 '{"sellerSeesCosts":false}' "$out" "$ADMIN_TOKEN" ''
+out="$(response_file)"; request GET /api/products 200 '' "$out" "$TOKEN_A" tenant-a-it
+assert_product_cost_hidden "$out" prod-a-order-it || { echo "Apagado el permiso, el vendedor volvió a ver el costo." >&2; exit 1; }
+echo "4c/13 Permiso de costos para vendedores (encendido/apagado, solo dueño) OK..."
 out="$(response_file)"; CAJERA_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-cajera-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
 out="$(response_file)"; GERENTE_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-gerente-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
 out="$(response_file)"; request GET /api/orders 200 '' "$out" "$ADMIN_TOKEN" tenant-a-it
