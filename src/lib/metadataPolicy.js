@@ -26,6 +26,7 @@ const protectedSections = {
   '/clientes': 'Clientes',
   '/productos': 'Productos',
   '/promociones': 'Promociones',
+  '/campanas': 'Campañas',
   '/precios': 'Precios',
   '/cotizaciones': 'Cotizaciones',
   '/plantillas': 'Plantillas de WhatsApp',

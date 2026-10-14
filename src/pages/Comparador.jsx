@@ -169,13 +169,7 @@ export default function Comparador() {
     <div className="space-y-4">
       {/* #278 · composición compacta (#256): la identidad y el switch de
           condición viven en una sola barra, sin encabezado suelto. */}
-      <BarraModulo
-        icono="report"
-        titulo="Comparador"
-        descripcion="Hasta tres modelos lado a lado: capacidades, colores y precios reales del catálogo."
-        testId="barra-comparador"
-      >
-        <SegmentosToolbar />
+      <BarraModulo titulo="Comparador" testId="barra-comparador" segmentos={<SegmentosToolbar />}>
         <div className="inline-flex rounded-xl border border-ink-600 bg-ink-800 p-1" role="group" aria-label="Condición de los modelos">
           {CONDICIONES.map(([key, label]) => (
             <button
@@ -191,11 +185,6 @@ export default function Comparador() {
             </button>
           ))}
         </div>
-        {/* #303: las fotos reales se cargan en el Centro de Control; el acceso
-            queda a mano desde la pantalla que las menciona. */}
-        <Button variant="outline" onClick={() => navigate('/centro-control?seccion=imagenes')} data-testid="ir-centro-control">
-          <Icon name="settings" className="h-4 w-4" />Centro de Control
-        </Button>
       </BarraModulo>
 
       <main className="mx-auto max-w-5xl space-y-5 p-4">

@@ -35,16 +35,19 @@ test('#303 · el Centro de Control se llega desde el menú, la búsqueda y las d
   await expect(page).toHaveTitle('Centro de Control · MobOS')
   await page.screenshot({ path: join(DIR, 'centro-celulares-1280-light.png') })
 
-  // 2) Enlace contextual desde Lista por modelo.
+  // 2) Desde Lista por modelo se llega por la sub-navegación (no hay botón duplicado).
   await openShellDestination(page, 'Lista por modelo')
   await expect(page).toHaveURL(/\/celulares$/)
-  await page.getByTestId('ir-centro-control').click()
+  await expect(page.getByTestId('ir-centro-control')).toHaveCount(0)
+  await page.locator('[data-testid="shell-subcontexto"] [data-tab-id="centro-control"], [data-slot="view"] [data-tab-id="centro-control"]').first().click()
   await expect(page).toHaveURL(/\/centro-control$/)
 
-  // 3) Enlace contextual desde Comparador: abre directo en Imágenes.
+  // 3) Desde Comparador, por la sub-navegación, y luego la sección Imágenes.
   await openShellDestination(page, 'Comparador')
   await expect(page).toHaveURL(/\/comparador$/)
-  await page.getByTestId('ir-centro-control').click()
+  await page.locator('[data-slot="view"] [data-tab-id="centro-control"]').first().click()
+  await expect(page).toHaveURL(/\/centro-control$/)
+  await page.getByRole('button', { name: 'Imágenes' }).click()
   await expect(page).toHaveURL(/\/centro-control\?seccion=imagenes$/)
   await expect(page.getByTestId('centro-imagenes')).toBeVisible()
   await page.screenshot({ path: join(DIR, 'centro-imagenes-1280-light.png') })

@@ -51,6 +51,7 @@ const MetricasAbastecimiento = lazy(() => import('@/components/supply/MetricasAb
 // #247: las secciones del panel se cargan por sección (el chunk del panel baja
 // fuerte); el `Suspense` que las envuelve ya existía para las que eran lazy.
 const SellerCustomers = lazy(() => import('@/components/ventas/SellerCustomers'))
+const CampanasVista = lazy(() => import('@/components/ventas/SellerCustomers').then(m => ({ default: m.CampanasVista })))
 const SellerCatalog = lazy(() => import('@/components/ventas/SellerCatalog'))
 const SellerOrders = lazy(() => import('@/components/ventas/SellerOrders'))
 const StoreDelivery = lazy(() => import('@/components/delivery/StoreDelivery'))
@@ -94,7 +95,10 @@ const SELLER_NAV = [
   },
   {
     titulo: 'Clientes',
-    items: [['clientes', 'Clientes', 'users']],
+    items: [
+      ['clientes', 'Clientes', 'users'],
+      ['campanas', 'Campañas', 'send'],
+    ],
   },
   {
     titulo: 'Inventario',
@@ -134,7 +138,10 @@ const OWNER_NAV = [
   },
   {
     titulo: 'Clientes',
-    items: [['clientes', 'Clientes', 'users']],
+    items: [
+      ['clientes', 'Clientes', 'users'],
+      ['campanas', 'Campañas', 'send'],
+    ],
   },
   {
     titulo: 'Inventario',
@@ -293,6 +300,7 @@ const SUBPAGINA_DE_TAB = Object.fromEntries(
 
 const LABELS = {
   clientes: 'Clientes',
+  campanas: 'Campañas',
   pedidos: 'Mis pedidos',
   repartos: 'Delivery',
   productos: 'Productos',
@@ -442,19 +450,23 @@ export default function PanelVendedor() {
 
   // Ids visibles en el menú según el rol: deciden qué ítem resalta cuando la
   // vista es una pestaña de sección a la que se entra desde el menú (#251).
-  const idsDelMenu = useMemo(() => {
-    const nav = esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV
-    return new Set(nav.flatMap(group => group.items.map(([id]) => id)))
-  }, [esOwner, esTecnico])
+  // Campañas de recompra: solo administración/gerencia y solo con datos reales.
+  const puedeCampanas = !esDemo && ['ADMIN', 'GERENTE'].includes(usuario?.role)
+  const navActual = useMemo(() => {
+    const base = esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV
+    if (puedeCampanas) return base
+    return base.map(group => ({ ...group, items: group.items.filter(([id]) => id !== 'campanas') }))
+  }, [esOwner, esTecnico, puedeCampanas])
+  const idsDelMenu = useMemo(() => new Set(navActual.flatMap(group => group.items.map(([id]) => id))), [navActual])
   const accesibles = useMemo(() => {
-    const base = (esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV).flatMap(group => group.items).map(([id]) => id)
+    const base = navActual.flatMap(group => group.items).map(([id]) => id)
     // Tres vistas no son ítems del menú pero su ruta tiene que ser válida:
     // 'inventario' (la sección; sus ítems de menú son sus pestañas y las
     // pantallas de catálogo) y 'garantias' (pestaña de «Taller» desde #224:
     // los enlaces viejos siguen abriendo la sección). 'mi-cuenta' (#253) es
     // personal: cualquier rol entra a su perfil desde el avatar.
     return esOwner ? [...base, 'inventario', 'garantias', 'mi-cuenta'] : [...base, 'mi-cuenta']
-  }, [esOwner, esTecnico])
+  }, [esOwner, navActual])
   // Un slug plano de pestaña (p. ej. /precios, que también es pestaña de
   // Configuración) se canoniza a /<padre>/<hijo> cuando el rol la tiene.
   useEffect(() => {
@@ -757,7 +769,7 @@ export default function PanelVendedor() {
       <AppShell
         title={tituloVista}
         breadcrumb={subpadre ? [MIGA_SUBPAGINA[subpadre]] : undefined}
-        nav={esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV}
+        nav={navActual}
         active={subpadre === 'stock' ? grupoShellDeTab(vista).id : subpadre ? (idsDelMenu.has(vista) ? vista : SUBPAGINAS[subpadre].vista) : vista}
         onNavigate={ir}
         collapsed={sidebarCollapsed}
@@ -828,6 +840,7 @@ export default function PanelVendedor() {
 
           <div key={identidad}>
             {vista === 'clientes' && <SellerCustomers />}
+            {vista === 'campanas' && <CampanasVista />}
             {vista === 'productos' && <SellerCatalog />}
             {vista === 'pedidos' && <SellerOrders />}
             {vista === 'repartos' && <StoreDelivery />}

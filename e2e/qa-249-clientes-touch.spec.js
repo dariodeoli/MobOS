@@ -70,7 +70,7 @@ test('clientes: acciones de fila, chips y lote con área táctil ≥44 px', asyn
   // H3 · chips de filtro y solapas.
   await medir(page, 'Chip Todos', page.getByRole('button', { name: 'Todos', exact: true }).first())
   await medir(page, 'Chip Con deuda', page.getByRole('button', { name: 'Con deuda', exact: true }).first())
-  await medir(page, 'Solapa Campañas', page.locator('button[aria-pressed]', { hasText: 'Campañas' }).first())
+  await medir(page, 'Solapa Campañas', page.locator('[data-testid="shell-pestanas"], [data-testid="shell-contexto"]').locator('[data-tab-id="campanas"]').first())
 
   // H4 · selección por lote: el cuadrado de 16 px vive en un área de 44.
   const etiqueta = page.locator('label:has(input[aria-label^="Seleccionar a "])').first()

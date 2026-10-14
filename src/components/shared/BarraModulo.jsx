@@ -9,10 +9,11 @@ import { cn } from '@/lib/utils'
 // migran a `Toolbar` con huecos (search/filters/view/primary/more) por tab.
 // El título visible de la página es UNO solo: el `h1` del shell (topbar); esta
 // barra NO lo repite. `titulo` queda como nombre accesible de la sección y
-// `tituloVisible` existe solo para previews standalone que no pasan por el
+// `segmentos` (segundo nivel de Precios) ocupa el hueco inicial en lugar de la identidad: la
+// sub-navegación no se mueve entre vistas. `tituloVisible` existe solo para previews standalone que no pasan por el
 // shell. `expandir` da el modo agrupado de #305 (identidad compacta + controles
 // y acciones en la misma fila).
-export default function BarraModulo({ icono, titulo, descripcion, contexto, children, className, testId = 'barra-modulo', tituloVisible = false, expandir = false }) {
+export default function BarraModulo({ icono, titulo, descripcion, contexto, children, className, testId = 'barra-modulo', tituloVisible = false, expandir = false, segmentos }) {
   const identidad = (
     <div className={cn('items-center gap-2.5', !contexto && 'hidden sm:flex', contexto && 'flex', expandir ? 'min-w-0 sm:min-w-[11rem] max-w-[14rem] shrink' : 'min-w-0 sm:min-w-[11rem] flex-1')}>
       {icono && (
@@ -40,8 +41,8 @@ export default function BarraModulo({ icono, titulo, descripcion, contexto, chil
       aria-label={titulo}
       className={cn('min-w-0 border-b border-ink-600 pb-3', className)}
     >
-      <Toolbar plano label={`Acciones de ${titulo || 'la sección'}`} lead={identidad} testId={`${testId}-toolbar`}>
-        {children && <div className={cn('flex flex-wrap items-center gap-2 sm:justify-end', expandir && 'min-w-0 flex-1 basis-full sm:basis-auto')}>{children}</div>}
+      <Toolbar plano label={`Acciones de ${titulo || 'la sección'}`} lead={segmentos ? <div data-slot="view" className="flex min-w-0 items-center">{segmentos}</div> : identidad} testId={`${testId}-toolbar`}>
+        {children && <div className={cn('flex flex-wrap items-center gap-2 sm:justify-end', segmentos && 'ml-auto', expandir && 'min-w-0 flex-1 basis-full sm:basis-auto')}>{children}</div>}
       </Toolbar>
     </section>
   )

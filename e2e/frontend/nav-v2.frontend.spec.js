@@ -1855,13 +1855,15 @@ for (const role of ['ADMIN', 'GERENTE', 'VENDEDOR']) {
     await expect(tenantCount.locator('.clientes-f3-value')).toHaveText('—')
     await expect(tenantCount).toContainText('2 en pantalla')
     await expect(tenantCount).toContainText('Tienda')
-    if (role === 'VENDEDOR')
-      await expect(root.getByRole('navigation', { name: 'Secciones de clientes' })).toHaveCount(0)
+    const tabs = page.getByTestId('shell-contexto')
+    if (role === 'VENDEDOR') await expect(tabs.locator('[data-tab-id="campanas"]')).toHaveCount(0)
     else {
-      const nav = root.getByRole('navigation', { name: 'Secciones de clientes' })
-      await nav.getByRole('button', { name: 'Campañas', exact: true }).click()
-      await expect(nav).toBeVisible()
-      await nav.getByRole('button', { name: 'Clientes', exact: true }).click()
+      // Una sola fila: Clientes · Campañas · Promociones · Plantillas, sin «Clientes» repetido.
+      await expect(tabs.locator('[data-tab-id]')).toHaveText(['Clientes', 'Campañas', 'Promociones', 'Plantillas'])
+      await expect(tabs.locator('[data-tab-id] svg[data-tab-icon]')).toHaveCount(4)
+      await tabs.locator('[data-tab-id="campanas"]').click()
+      await expect(page).toHaveURL(/\/campanas$/)
+      await tabs.locator('[data-tab-id="clientes"]').click()
       await expect(root.getByTestId('cliente-fila')).toHaveCount(2)
     }
     expect(state.posts).toEqual([])
@@ -1936,7 +1938,7 @@ test('F3 Clientes demo deep link, quick summary Datos and campaign restriction',
   await page.keyboard.press('Escape')
   await expect(page).not.toHaveURL(/cliente=/)
   const root = page.locator('.clientes-f3')
-  await expect(root.getByRole('navigation', { name: 'Secciones de clientes' })).toHaveCount(0)
+  await expect(page.locator('[data-tab-id="campanas"]')).toHaveCount(0)
   await root
     .getByTestId('cliente-fila')
     .first()
