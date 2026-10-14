@@ -25,6 +25,7 @@ import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import CorregirPagoModal from './CorregirPagoModal'
+import { metodoDeMedio } from '@/lib/demoConciliacion'
 import { esDeCorreccion, esReversion, evaluarCorreccionPago, reversionesPorOriginal } from '@/utils/correccionPago'
 
 // Enlace de WhatsApp para compartir el seguimiento público del pedido. Usa la
@@ -448,7 +449,7 @@ export default function PagosPedido({ venta, onClose }) {
         const deCorreccion = esDeCorreccion(p)
         const motivoCorreccion = p.correctionReason || motivos[p.correctionId]
         const nuevoDeLaCorreccion = revertido ? payments.find(x => x.correctionId === reversion.correctionId && !x.reversalOfId) : null
-        const permiso = evaluarCorreccionPago({ pago: p, pagos: payments, pedido: order, usuario, personalPuede, conciliacion, esDemo })
+        const permiso = evaluarCorreccionPago({ pago: esDemo && !p.method ? { ...p, method: metodoDeMedio(p.medioPago) } : p, pagos: payments, pedido: order, usuario, personalPuede, conciliacion, esDemo })
         const inerte = revertido || esRev
         return <article key={p.id} id={`pago-${p.id}`} className={`rounded-2xl border p-4 ${inerte ? 'border-ink-600/60 bg-ink-800/30' : 'border-ink-600'}`}>
         <div className="flex flex-wrap items-center justify-between gap-2">
