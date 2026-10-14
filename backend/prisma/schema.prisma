@@ -1815,9 +1815,9 @@ model Payment {
   // corrección agrega una reversión (monto negativo, reversalOfId = original) y
   // pagos nuevos; todas las filas comparten correctionId.
   correctionId    String?
-  correction      PaymentCorrection? @relation("PaymentCorrectionRows", fields: [correctionId], references: [id], onDelete: SetNull)
+  correction      PaymentCorrection? @relation("PaymentCorrectionRows", fields: [correctionId], references: [id], onDelete: NoAction)
   reversalOfId    String?          @unique
-  reversalOf      Payment?         @relation("PaymentReversal", fields: [reversalOfId], references: [id], onDelete: SetNull)
+  reversalOf      Payment?         @relation("PaymentReversal", fields: [reversalOfId], references: [id], onDelete: NoAction)
   reversal        Payment?         @relation("PaymentReversal")
   createdAt       DateTime         @default(now())
 
@@ -1850,6 +1850,8 @@ model PaymentCorrection {
   createdById         String?
   createdBy           User?    @relation("PaymentCorrectionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   idempotencyKey      String
+  // sha256 del cuerpo (pago, motivo, pagos nuevos): misma clave con otro cuerpo = 409.
+  requestHash         String?
   before              Json
   after               Json
   originSessionClosed Boolean  @default(false)

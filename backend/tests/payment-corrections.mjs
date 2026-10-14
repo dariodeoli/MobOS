@@ -187,6 +187,43 @@ assert.equal(alRepartidor.payments[0].deliveryUserId, 'user-repartidor-it')
 assert.equal(confirmado(siete.order.id), 0, 'el efectivo del repartidor no cuenta hasta su rendición')
 assert.equal(estadoPedido(siete.order.id), 'PENDING', 'el pedido vuelve a pendiente, coherente con la deuda')
 
+// Deuda del cliente tras dejar el efectivo con el repartidor: igual que un pre-cobro
+// común de calle (PENDING con repartidor), el pedido vuelve a figurar por cobrar
+// por el monto completo hasta que la rendición se verifique.
+const porCobrar = async () => (await ok('/api/finance', admin)).receivables.rows.find((fila) => fila.id === siete.order.id)
+assert.equal((await porCobrar())?.pendingPyg, 250000, 'el efectivo con el repartidor es deuda pendiente del pedido')
+// Quien no es administración/gerencia no puede dejar efectivo con el repartidor (403),
+// aunque el pago sea suyo y de su turno abierto.
+const siete2 = await pedidoPagado(cajera, 70000, transferencia, 'TRANSFER')
+await ok(`/api/orders/${siete2.order.id}/assignment`, admin, 'POST', { assignedToId: 'user-repartidor-it' })
+await corregir(cajera, siete2.order.id, siete2.payment.id, { reason: 'Pagó en mano al repartidor', payments: [{ accountId: efectivo.id, amount: 70000, toDriver: true }] }, clave('staff-drv'), 403)
+assert.equal(confirmado(siete2.order.id), 70000)
+await corregir(gerente, siete2.order.id, siete2.payment.id, { reason: 'Pagó en mano al repartidor', payments: [{ accountId: efectivo.id, amount: 70000, toDriver: true }] })
+
+// La rendición del repartidor cierra la deuda; ese cobro de calle ya no se corrige (422).
+const rendicion = await ok('/api/delivery/settlements', repartidor, 'POST', { note: 'Rendición con corrección' }, 201)
+await ok(`/api/delivery/settlements/${rendicion.id}/verify`, cajera, 'POST', { state: 'VERIFIED' })
+assert.equal(await porCobrar(), undefined, 'verificada la rendición, la deuda del pedido desaparece')
+assert.equal(estadoPedido(siete.order.id), 'COMPLETED')
+const cobroCalle = sql(`SELECT "id" FROM "Payment" WHERE "orderId"='${siete.order.id}' AND "deliverySettlementId" IS NOT NULL AND "status"='CONFIRMED' AND "reversalOfId" IS NULL`)
+assert.ok(cobroCalle, 'el cobro de calle quedó confirmado en la rendición')
+const bloqueado = await corregir(admin, siete.order.id, cobroCalle, { reason: 'Cambiar cobro de calle', payments: [{ accountId: transferencia.id, amount: 250000 }] }, clave('calle'), 422)
+assert.match(JSON.stringify(bloqueado.payload), /repartidor/)
+assert.equal(confirmado(siete.order.id), 250000)
+
+// Idempotencia con cuerpo: la misma clave con otro motivo u otros pagos es 409.
+const diez = await pedidoPagado(cajera, 80000, efectivo, 'CASH')
+const claveDiez = clave('cuerpo')
+const cuerpoDiez = { reason: 'Era transferencia', payments: [{ accountId: transferencia.id, amount: 80000 }] }
+const primeraDiez = (await corregir(cajera, diez.order.id, diez.payment.id, cuerpoDiez, claveDiez)).payload
+assert.equal((await corregir(cajera, diez.order.id, diez.payment.id, cuerpoDiez, claveDiez, 200)).payload.correction.id, primeraDiez.correction.id)
+await corregir(cajera, diez.order.id, diez.payment.id, { ...cuerpoDiez, reason: 'Otro motivo distinto' }, claveDiez, 409)
+await corregir(cajera, diez.order.id, diez.payment.id, { reason: 'Era transferencia', payments: [{ accountId: transferencia.id, amount: 30000 }, { accountId: efectivo.id, amount: 50000 }] }, claveDiez, 409)
+assert.equal(Number(sql(`SELECT COUNT(*) FROM "PaymentCorrection" WHERE "orderId"='${diez.order.id}'`)), 1)
+// Un pago que nació de una corrección se corrige desde el original, con un mensaje claro.
+const yaCorreccion = await corregir(admin, diez.order.id, primeraDiez.payments[0].id, { reason: 'Volver a efectivo', payments: [{ accountId: efectivo.id, amount: 80000 }] }, clave('nuevo2'), 409)
+assert.match(JSON.stringify(yaCorreccion.payload), /Ya es una corrección/)
+
 // ── 5. Turno cerrado: la caja ya no corrige; administración sí, sin tocar el cierre ──
 const ocho = await pedidoPagado(cajera, 120000, efectivo, 'CASH')
 const cierre = await ok(`/api/cash?branchId=${rama}`, cajera, 'POST', { action: 'close', countedPyg: 0 })

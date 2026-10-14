@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { InputError, normalizePayment, objectInput, textInput } from './payment-input'
 import { canAccessOrder } from './orders'
@@ -47,11 +48,13 @@ export function assertSplitMatches(originalPyg: number, rows: Array<{ amountPyg:
   }
 }
 
-type OriginalLike = { method: string; status: string; amountPyg: bigint | number; currency: string | null; dueAt: Date | null; reversalOfId: string | null; correctionId: string | null }
+type OriginalLike = { method: string; status: string; amountPyg: bigint | number; currency: string | null; dueAt: Date | null; reversalOfId: string | null; correctionId: string | null; deliveryUserId?: string | null; deliverySettlementId?: string | null }
 
 /** Motivo por el que v1 no admite corregir este pago (422) o ya no corresponde (409). */
 export function correctionBlock(original: OriginalLike, hasReversal: boolean): { status: 409 | 422; message: string } | null {
-  if (original.reversalOfId || original.correctionId || hasReversal) return { status: 409, message: 'Este pago ya fue corregido.' }
+  if (original.reversalOfId || original.correctionId) return { status: 409, message: 'Ya es una corrección: corregí el pago original desde el historial del pedido.' }
+  if (hasReversal) return { status: 409, message: 'Este pago ya fue corregido.' }
+  if (original.deliveryUserId || original.deliverySettlementId) return { status: 422, message: 'Los cobros del repartidor no se pueden corregir todavía: se concilian con su rendición.' }
   if (original.status !== 'CONFIRMED') return { status: 409, message: 'Solo se corrigen pagos confirmados.' }
   if ((UNSUPPORTED_METHODS as readonly string[]).includes(original.method)) return { status: 422, message: 'Este medio de pago no se puede corregir todavía (trade-in, saldo a favor, gift card, crédito o cripto).' }
   if (original.dueAt) return { status: 422, message: 'Las cuotas no se pueden corregir.' }
@@ -84,6 +87,7 @@ export async function applyPaymentCorrection(tx: Prisma.TransactionClient, input
   tenantId: string; actor: Actor; orderId: string; paymentId: string; idempotencyKey: string; reason: string; rows: CorrectionRowInput[]
 }): Promise<PaymentCorrectionResult> {
   const { tenantId, actor, orderId, paymentId, idempotencyKey, reason, rows } = input
+  const requestHash = createHash('sha256').update(JSON.stringify({ paymentId, reason, rows: rows.map(row => [row.accountId, row.amountPyg, row.toDriver]) })).digest('hex')
   const locked = await tx.$queryRaw<Array<{ id: string; branchId: string | null; sellerId: string; status: string; totalPyg: bigint | number; assignedToId: string | null; orderNumber: string }>>`
     SELECT "id", "branchId", "sellerId", "status"::text AS "status", "totalPyg", "assignedToId", "orderNumber" FROM "Order" WHERE "id" = ${orderId} AND "tenantId" = ${tenantId} FOR UPDATE`
   const order = locked[0]
@@ -97,6 +101,8 @@ export async function applyPaymentCorrection(tx: Prisma.TransactionClient, input
   if (previous) {
     const sameTarget = previous.orderId === order.id && (previous.before as { paymentId?: string } | null)?.paymentId === original.id
     if (!sameTarget) throw new InputError('El identificador ya pertenece a otra corrección.', 409)
+    // Misma clave con otro cuerpo no es un reintento: se rechaza en vez de devolver la corrección vieja.
+    if (previous.requestHash && previous.requestHash !== requestHash) throw new InputError('El identificador ya se usó con otro motivo o con otros pagos nuevos.', 409)
     const rowsOfCorrection = await tx.payment.findMany({ where: { tenantId, correctionId: previous.id }, orderBy: { createdAt: 'asc' } })
     const reversal = rowsOfCorrection.find(row => row.reversalOfId === original.id)
     if (!reversal) throw new InputError('La corrección previa está incompleta.', 409)
@@ -141,6 +147,7 @@ export async function applyPaymentCorrection(tx: Prisma.TransactionClient, input
     if (normalized.currency && normalized.currency !== 'PYG') throw new InputError(`El pago ${index + 1} debe ser en guaraníes.`, 422)
     if ((UNSUPPORTED_METHODS as readonly string[]).includes(normalized.method)) throw new InputError(`El pago ${index + 1} usa un medio que no admite correcciones (${normalized.method}).`, 422)
     if (row.toDriver) {
+      if (!['ADMIN', 'GERENTE'].includes(actor.role)) throw new InputError('Solo administración o gerencia puede dejar efectivo en poder del repartidor.', 403)
       if (normalized.method !== 'CASH') throw new InputError('Solo el efectivo puede quedar en poder del repartidor.', 422)
       if (!order.assignedToId) throw new InputError('El pedido no tiene repartidor asignado para recibir ese efectivo.', 422)
     }
@@ -161,7 +168,7 @@ export async function applyPaymentCorrection(tx: Prisma.TransactionClient, input
   const now = new Date()
 
   const correction = await tx.paymentCorrection.create({
-    data: { tenantId, branchId: order.branchId, orderId: order.id, reason, createdById: actor.id, idempotencyKey, before, after, ...flags },
+    data: { tenantId, branchId: order.branchId, orderId: order.id, reason, createdById: actor.id, idempotencyKey, requestHash, before, after, ...flags },
   })
   const reversal = await tx.payment.create({
     data: {
