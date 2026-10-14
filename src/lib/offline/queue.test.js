@@ -327,32 +327,85 @@ test('una venta con conflicto de otra empresa también cuenta como pendiente aje
   assert.equal((await cola.ventasPendientesDeOtraEmpresa()).length, 1)
 })
 
-test('las ventas viejas sin empresa adoptan la empresa activa en la primera carga', async () => {
-  const { cola, store, activa, enviadas } = colaMultiEmpresa({ tenantId: 'emp-b' })
-  store.filas.set('cola-vieja', { id: 'cola-vieja', idempotencyKey: 'pos-offline-vieja', payload: { offline: true }, resumen: { total: 500 }, estado: ESTADO_PENDIENTE, intentos: 0, creadoEn: 1, expiraEn: Date.now() + 86400000 })
-  const [adoptada] = await cola.listar()
-  assert.equal(adoptada.tenantId, 'emp-b')
-  assert.equal(store.filas.get('cola-vieja').tenantId, 'emp-b', 'la adopción queda guardada')
-  assert.equal(store.filas.get('cola-vieja').idempotencyKey, 'pos-offline-vieja', 'el resto de la venta no cambia')
+// Ventas viejas (de antes de guardar la empresa): sin marca.
+const vieja = (id, creadoEn) => ({ id, idempotencyKey: `pos-offline-${id}`, payload: { offline: true }, resumen: { total: 500 }, estado: ESTADO_PENDIENTE, intentos: 0, creadoEn, expiraEn: Date.now() + 86400000 })
 
-  // Ya adoptada, otra empresa no la reclama.
-  activa.tenantId = 'emp-a'
+test('una venta vieja adopta la empresa de la última sesión solo si se encoló durante ella', async () => {
+  const store = storeEnMemoria()
+  const activa = { tenantId: 'emp-b', userId: 'usr-b' }
+  const enviadas = []
+  const cola = crearColaDeVentas({
+    store,
+    contexto: () => ({ ...activa }),
+    ultimaSesion: () => ({ tenantId: 'emp-a', desde: 1000 }),
+    enviar: async (item) => { enviadas.push({ id: item.id, tenantId: item.tenantId }); return {} },
+  })
+  store.filas.set('durante', vieja('durante', 2000))
+  store.filas.set('antes', vieja('antes', 500))
   await cola.listar()
-  assert.equal(store.filas.get('cola-vieja').tenantId, 'emp-b')
+  assert.equal(store.filas.get('durante').tenantId, 'emp-a', 'se encoló durante la sesión de A: es de A, no de la empresa activa B')
+  assert.equal(store.filas.get('durante').idempotencyKey, 'pos-offline-durante', 'el resto de la venta no cambia')
+  assert.equal(store.filas.get('antes').tenantId, undefined, 'si no se sabe, queda sin empresa')
+  assert.equal(store.filas.get('antes').sinEmpresa, true)
   await cola.sincronizar()
-  assert.equal(enviadas.length, 0, 'A no envía la venta adoptada por B')
+  assert.deepEqual(enviadas, [], 'B no envía la de A ni la que no se sabe de quién es')
+  assert.equal((await cola.resumen()).sinEmpresa, 1)
+  assert.equal((await cola.resumen()).otraEmpresa, 1)
 })
 
-test('sin empresa activa no adopta ni envía nada', async () => {
-  const { cola, store, activa, enviadas } = colaMultiEmpresa({ tenantId: null, userId: null })
-  store.filas.set('cola-vieja', { id: 'cola-vieja', idempotencyKey: 'k', payload: {}, estado: ESTADO_PENDIENTE, creadoEn: 1, expiraEn: Date.now() + 86400000 })
+test('sin última sesión conocida la venta vieja queda sin empresa y solo sale tras confirmarla', async () => {
+  const { cola, store, activa, enviadas } = colaMultiEmpresa({ tenantId: 'emp-b' })
+  store.filas.set('cola-vieja', vieja('cola-vieja', 1))
+  await cola.sincronizar()
+  assert.equal(enviadas.length, 0, 'sin confirmación no se envía a ninguna empresa')
+  assert.equal(store.filas.get('cola-vieja').sinEmpresa, true)
+  assert.equal((await cola.resumen()).pendientes, 0, 'no cuenta como pendiente de B')
+  assert.equal(await cola.reintentar('cola-vieja'), null, 'tampoco se reactiva sin confirmar')
+  const confirmada = await cola.confirmarEmpresa('cola-vieja')
+  assert.equal(confirmada.tenantId, 'emp-b')
+  assert.equal(confirmada.adoptadaPorEmpresa, 'manual')
+  await cola.sincronizar()
+  assert.deepEqual(enviadas.map((fila) => [fila.key, fila.tenantId, fila.sesion]), [['pos-offline-cola-vieja', 'emp-b', 'emp-b']])
+  assert.equal(await cola.confirmarEmpresa('cola-vieja'), null, 'una venta que ya tiene empresa no se reasigna')
+  activa.tenantId = null
+  store.filas.set('otra', vieja('otra', 2))
+  assert.equal(await cola.confirmarEmpresa('otra'), null, 'sin empresa activa no se confirma nada')
+})
+
+test('sin empresa activa no encola ni envía nada', async () => {
+  const { cola, store, enviadas } = colaMultiEmpresa({ tenantId: null, userId: null })
+  store.filas.set('cola-vieja', vieja('cola-vieja', 1))
   await cola.listar()
   await cola.sincronizar()
   assert.equal(store.filas.get('cola-vieja').tenantId, undefined)
   assert.equal(enviadas.length, 0)
+})
+
+test('reintentar rechaza ventas de otra empresa igual que descartar', async () => {
+  const { cola, activa, store } = colaMultiEmpresa()
+  const deA = await cola.encolar(venta(1))
+  store.filas.set(deA.id, { ...store.filas.get(deA.id), estado: ESTADO_CONFLICTO, tipo: 'otro', error: 'x' })
+  activa.tenantId = 'emp-b'
+  assert.equal(await cola.reintentar(deA.id), null)
+  assert.equal(store.filas.get(deA.id).estado, ESTADO_CONFLICTO, 'la venta de A sigue en conflicto')
+  assert.equal(await cola.descartar(deA.id), false)
   activa.tenantId = 'emp-a'
-  await cola.sincronizar()
-  assert.equal(enviadas.length, 1, 'con empresa activa la venta vieja sale con su sesión')
+  const reactivada = await cola.reintentar(deA.id)
+  assert.equal(reactivada.estado, ESTADO_PENDIENTE)
+})
+
+test('el límite de la cola cuenta solo las ventas de la empresa activa', async () => {
+  const store = storeEnMemoria()
+  const activa = { tenantId: 'emp-a', userId: 'usr-a' }
+  const cola = crearColaDeVentas({ store, contexto: () => ({ ...activa }), enviar: async () => ({}), maxCola: 2 })
+  await cola.encolar(venta(1))
+  await cola.encolar(venta(2))
+  await assert.rejects(() => cola.encolar(venta(3)), /límite 2/)
+  activa.tenantId = 'emp-b'
+  await cola.encolar(venta(4))
+  await cola.encolar(venta(5))
+  await assert.rejects(() => cola.encolar(venta(6)), /límite 2/)
+  assert.equal(store.filas.size, 4)
 })
 
 test('nada se borra al cambiar de empresa, sincronizar o limpiar; descartar solo aplica a la activa', async () => {

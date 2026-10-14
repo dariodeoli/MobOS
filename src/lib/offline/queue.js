@@ -18,7 +18,9 @@
 // persona (`userId`) activas al encolarla. El envío usa la sesión de la empresa
 // actual, así que SOLO se envían las ventas de esa empresa: las de otras quedan
 // intactas como «Pendiente en otra empresa» hasta volver a ella. Las ventas
-// viejas, sin empresa, adoptan la empresa activa en la primera carga.
+// viejas, sin empresa, adoptan la empresa de la ÚLTIMA sesión de este
+// dispositivo solo si se encolaron durante ella; si no se sabe, quedan «sin
+// empresa» y no se envían hasta que una persona lo confirme en el panel.
 
 export const ESTADO_PENDIENTE = 'pendiente'
 export const ESTADO_ENVIADA = 'enviada'
@@ -77,6 +79,12 @@ export const ETIQUETA_CONFLICTO = {
 }
 
 export const ETIQUETA_OTRA_EMPRESA = 'Pendiente en otra empresa'
+export const ETIQUETA_SIN_EMPRESA = 'Sin empresa: confirmar'
+
+// Una venta vieja que nadie pudo atribuir a una empresa.
+export function esSinEmpresa(item) {
+  return Boolean(item) && !item.tenantId
+}
 
 // Una venta es de otra empresa solo si tiene empresa y es distinta de la activa.
 // Sin empresa activa o sin marca (venta vieja) nunca se considera ajena.
@@ -97,6 +105,9 @@ export function crearColaDeVentas({
   // Empresa y persona activas: { tenantId, userId }. Se lee en cada operación
   // (nunca se guarda) porque la persona puede cambiar de empresa en cualquier momento.
   contexto = () => ({ tenantId: null, userId: null }),
+  // Última sesión conocida del dispositivo: { tenantId, desde } o null. Una venta
+  // vieja solo se atribuye a esa empresa si se encoló desde que empezó.
+  ultimaSesion = () => null,
 }) {
   const activa = () => {
     const actual = contexto() || {}
@@ -105,15 +116,24 @@ export function crearColaDeVentas({
   const ordenar = (items) => [...items].sort((a, b) => Number(a.creadoEn || 0) - Number(b.creadoEn || 0))
   const vivo = (item) => item.estado !== ESTADO_ENVIADA
 
-  // Las ventas viejas (sin empresa) pasan a la empresa activa la primera vez que
-  // se carga la cola. Solo se escribe `tenantId`; nada se borra ni se reenvía a
-  // otra empresa. Sin empresa activa no se adopta nada.
+  // Las ventas viejas (sin empresa) se atribuyen a la empresa de la última sesión
+  // del dispositivo solo si se encolaron durante ella. Si no se sabe, se marcan
+  // «sin empresa»: se conservan, se muestran y NO se envían hasta confirmarlas.
+  // Nunca se adopta la empresa activa por defecto: podría ser otra distinta.
   async function adoptarVentasViejas() {
-    const { tenantId } = activa()
-    if (!tenantId) return 0
-    const viejas = (await store.listar()).filter((item) => !item.tenantId)
-    for (const item of viejas) await store.guardar({ ...item, tenantId, adoptadaPorEmpresa: true })
-    return viejas.length
+    const viejas = (await store.listar()).filter(esSinEmpresa)
+    const ultima = ultimaSesion() || null
+    let cambiadas = 0
+    for (const item of viejas) {
+      if (ultima?.tenantId && Number(item.creadoEn || 0) >= Number(ultima.desde || 0)) {
+        await store.guardar({ ...item, tenantId: ultima.tenantId, sinEmpresa: false, adoptadaPorEmpresa: 'ultima-sesion' })
+        cambiadas += 1
+      } else if (!item.sinEmpresa) {
+        await store.guardar({ ...item, sinEmpresa: true })
+        cambiadas += 1
+      }
+    }
+    return cambiadas
   }
 
   async function listar() {
@@ -146,8 +166,8 @@ export function crearColaDeVentas({
     if (!idempotencyKey) throw new Error('La venta a encolar necesita su Idempotency-Key.')
     const { tenantId, userId } = activa()
     if (!tenantId) throw new Error('No hay una empresa activa: iniciá sesión antes de dejar la venta en la cola.')
-    const items = await listar()
-    const vivas = items.filter(vivo).length
+    // El límite cuenta solo las ventas sin enviar de la empresa activa.
+    const vivas = (await listar()).filter((item) => vivo(item) && item.tenantId === tenantId).length
     if (vivas >= maxCola) {
       throw new Error(`Hay ${vivas} ventas sin sincronizar (límite ${maxCola}). Conectate para sincronizarlas antes de seguir vendiendo sin conexión.`)
     }
@@ -171,8 +191,11 @@ export function crearColaDeVentas({
     return item
   }
 
+  // Solo las pendientes ya atribuidas a la empresa activa: las «sin empresa»
+  // esperan confirmación y no se envían.
   async function pendientes() {
-    return (await listarDeEmpresaActual()).filter((item) => item.estado === ESTADO_PENDIENTE)
+    const { tenantId } = activa()
+    return (await listar()).filter((item) => item.estado === ESTADO_PENDIENTE && Boolean(tenantId) && item.tenantId === tenantId)
   }
 
   // Las ventas que esperaron más de `diasExpiracion` sin poder sincronizarse
@@ -204,7 +227,7 @@ export function crearColaDeVentas({
     const items = await pendientes()
     for (const item of items) {
       const { tenantId } = activa()
-      if (!tenantId || item.tenantId !== tenantId) break
+      if (!tenantId || item.tenantId !== tenantId) break // nunca a la sesión de otra empresa
       try {
         const orden = await enviar(item)
         await store.guardar({ ...item, estado: ESTADO_ENVIADA, error: '', tipo: '', sincronizadaEn: ahora(), ordenId: orden?.id || null })
@@ -223,9 +246,12 @@ export function crearColaDeVentas({
 
   // Un conflicto se puede reintentar a mano (por ejemplo si el dato se corrigió
   // o el permiso ya está): vuelve a pendiente sin perder el payload.
+  // Igual que descartar: una venta de otra empresa, o sin empresa confirmada, no
+  // se reactiva desde acá.
   async function reintentar(id) {
+    const { tenantId } = activa()
     const item = (await listar()).find((row) => row.id === id)
-    if (!item) return null
+    if (!item || esDeOtraEmpresa(item, tenantId) || esSinEmpresa(item)) return null
     const siguiente = { ...item, estado: ESTADO_PENDIENTE, intentos: 0, error: '', tipo: '', expiraEn: ahora() + diasExpiracion * DIA_MS }
     await store.guardar(siguiente)
     return siguiente
@@ -239,6 +265,18 @@ export function crearColaDeVentas({
     if (!item || esDeOtraEmpresa(item, tenantId)) return false
     await store.borrar(id)
     return true
+  }
+
+  // Confirmación manual de una venta vieja sin empresa: pasa a la empresa activa
+  // y recién entonces puede enviarse. Las que ya tienen empresa no se tocan.
+  async function confirmarEmpresa(id) {
+    const { tenantId } = activa()
+    if (!tenantId) return null
+    const item = (await listar()).find((row) => row.id === id)
+    if (!item || !esSinEmpresa(item)) return null
+    const siguiente = { ...item, tenantId, sinEmpresa: false, adoptadaPorEmpresa: 'manual' }
+    await store.guardar(siguiente)
+    return siguiente
   }
 
   // Limpieza: el historial de enviadas se conserva acotado (diagnóstico) y los
@@ -259,8 +297,10 @@ export function crearColaDeVentas({
     const { tenantId } = activa()
     const todas = await listar()
     const items = todas.filter((item) => !esDeOtraEmpresa(item, tenantId))
+    const sinEmpresa = items.filter((item) => vivo(item) && esSinEmpresa(item)).length
     return {
-      pendientes: items.filter((item) => item.estado === ESTADO_PENDIENTE).length,
+      pendientes: items.filter((item) => item.estado === ESTADO_PENDIENTE && !esSinEmpresa(item)).length,
+      sinEmpresa,
       conflictos: items.filter((item) => item.estado === ESTADO_CONFLICTO).length,
       enviadas: items.filter((item) => item.estado === ESTADO_ENVIADA).length,
       ultimaSync: items.reduce((max, item) => Math.max(max, Number(item.sincronizadaEn || 0)), 0) || null,
@@ -282,6 +322,7 @@ export function crearColaDeVentas({
     sincronizar,
     reintentar,
     descartar,
+    confirmarEmpresa,
     limpiar,
     resumen,
     reporte,

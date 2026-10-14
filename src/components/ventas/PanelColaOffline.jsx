@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Modal, Button, ConfirmDialog, Badge, EmptyState } from '@/components/ui'
 import { useColaOffline } from '@/hooks/useColaOffline'
-import { ETIQUETA_CONFLICTO, ETIQUETA_OTRA_EMPRESA, esDeOtraEmpresa } from '@/lib/offline/queue'
+import { ETIQUETA_CONFLICTO, ETIQUETA_OTRA_EMPRESA, ETIQUETA_SIN_EMPRESA, esDeOtraEmpresa, esSinEmpresa } from '@/lib/offline/queue'
 import { contextoActual } from '@/lib/storage'
-import { descartarVenta, reintentarVenta } from '@/lib/offline/ventas'
+import { confirmarVentaSinEmpresa, descartarVenta, reintentarVenta } from '@/lib/offline/ventas'
 import { gs } from '@/utils/calculos'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
@@ -85,12 +85,13 @@ export default function PanelColaOffline({ open, onClose }) {
           <div className="max-h-80 divide-y divide-ink-600 overflow-y-auto">
             {items.map((item) => {
               const ajena = item.estado !== 'enviada' && esDeOtraEmpresa(item, empresaActiva)
+              const sinEmpresa = item.estado !== 'enviada' && esSinEmpresa(item)
               return (
               <div key={item.id} className="flex flex-wrap items-start justify-between gap-2 px-3.5 py-2.5 text-sm">
                 <div className="min-w-0">
                   <p className="flex flex-wrap items-center gap-2">
-                    <Badge color={ajena ? 'slate' : ESTADO_TONO[item.estado] || 'slate'}>
-                      {ajena ? ETIQUETA_OTRA_EMPRESA : item.estado === 'conflicto' ? `Conflicto · ${ETIQUETA_CONFLICTO[item.tipo] || 'Otro'}` : item.estado === 'enviada' ? 'Sincronizada' : 'Pendiente'}
+                    <Badge color={ajena ? 'slate' : sinEmpresa ? 'orange' : ESTADO_TONO[item.estado] || 'slate'}>
+                      {ajena ? ETIQUETA_OTRA_EMPRESA : sinEmpresa ? ETIQUETA_SIN_EMPRESA : item.estado === 'conflicto' ? `Conflicto · ${ETIQUETA_CONFLICTO[item.tipo] || 'Otro'}` : item.estado === 'enviada' ? 'Sincronizada' : 'Pendiente'}
                     </Badge>
                     <span className="norma-none truncate font-medium">{item.resumen?.cliente || 'Sin cliente'}</span>
                     <span className="tabular-nums text-mute">{gs(item.resumen?.total || 0)}</span>
@@ -106,6 +107,16 @@ export default function PanelColaOffline({ open, onClose }) {
                 <div className="flex shrink-0 items-center gap-1.5">
                   {item.estado !== 'enviada' && !ajena && (
                     <>
+                      {sinEmpresa ? (
+                        <button
+                          type="button"
+                          onClick={async () => { await confirmarVentaSinEmpresa(item.id); refrescar() }}
+                          className="min-h-11 rounded-lg border border-ink-500 px-2.5 py-1 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore"
+                          title="Esta venta se cargó antes de que la cola guardara la empresa. Confirmá que es de la empresa actual para poder enviarla."
+                        >
+                          Es de esta empresa
+                        </button>
+                      ) : (
                       <button
                         type="button"
                         onClick={async () => { await reintentarVenta(item.id); refrescar() }}
@@ -113,6 +124,7 @@ export default function PanelColaOffline({ open, onClose }) {
                       >
                         Reintentar
                       </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => setDescartar(item)}

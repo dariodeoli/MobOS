@@ -2,7 +2,7 @@
 // IndexedDB y el envío real de la orden (mismo POST y misma Idempotency-Key que
 // el modo online). Expone un aviso a los suscriptores para que el indicador se
 // actualice solo cuando algo cambia.
-import { contextoActual, guardarOrdenApi } from '@/lib/storage'
+import { contextoActual, guardarOrdenApi, ultimaSesionEmpresa } from '@/lib/storage'
 import { crearColaDeVentas } from './queue'
 import { crearStoreDeCola } from './idb'
 
@@ -19,7 +19,10 @@ export function colaDeVentas() {
         const actual = contextoActual()
         return { tenantId: actual.empresaId, userId: actual.userId }
       },
-      enviar: (item) => guardarOrdenApi(item.payload, { idempotencyKey: item.idempotencyKey }),
+      ultimaSesion: ultimaSesionEmpresa,
+      // La venta viaja con la empresa donde se cargó: el servidor la rechaza (409)
+      // si la sesión es de otra, aunque el cliente se equivoque.
+      enviar: (item) => guardarOrdenApi({ ...item.payload, queuedTenantId: item.tenantId }, { idempotencyKey: item.idempotencyKey }),
     })
   }
   return cola
@@ -71,6 +74,13 @@ export async function sincronizarCola() {
 
 export async function reintentarVenta(id) {
   const item = await colaDeVentas().reintentar(id)
+  avisar(await colaDeVentas().resumen())
+  return item
+}
+
+// Confirma que una venta vieja sin empresa pertenece a la empresa activa.
+export async function confirmarVentaSinEmpresa(id) {
+  const item = await colaDeVentas().confirmarEmpresa(id)
   avisar(await colaDeVentas().resumen())
   return item
 }
