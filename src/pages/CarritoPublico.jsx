@@ -123,8 +123,8 @@ export default function CarritoPublico() {
               </button>
             )}
 
-            <p className="pt-1 text-center text-[11px] text-mute">{carrito.conditions}</p>
-            <p className="text-center text-[11px] text-mute">Documento no fiscal · Generado por MobOS</p>
+            <p className="pt-1 text-center text-xs text-mute">{carrito.conditions}</p>
+            <p className="text-center text-xs text-mute">Documento no fiscal · Generado por MobOS</p>
           </div>
         )}
       </div>

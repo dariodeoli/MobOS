@@ -14,7 +14,7 @@ export function PortalEncabezado({ eyebrow = 'Mi cuenta', titulo, saludo, logoUr
       {logoUrl && (
         <img src={logoUrl} alt={logoAlt || 'Logo de la tienda'} onError={onLogoError} className="mx-auto mb-3 h-12 w-auto max-w-[170px] object-contain sm:mb-4 sm:h-14" />
       )}
-      <p className="text-[11px] font-bold uppercase tracking-[.2em] text-fono-light">{eyebrow}</p>
+      <p className="text-xs font-bold uppercase tracking-[.2em] text-fono-light">{eyebrow}</p>
       <h1 className="mt-1.5 text-2xl font-bold tracking-tight sm:text-3xl">{titulo}</h1>
       {saludo && <p className="mt-1 text-sm text-mute">{saludo}</p>}
     </header>
@@ -44,7 +44,7 @@ export function PortalEstado({ tono = 'info', children, className }) {
     info: 'border-fono/25 bg-fono/10 text-fono-light',
     neutro: 'border-ink-500 bg-ink-800 text-mute',
   }
-  return <span className={cn('shrink-0 whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[11px] font-semibold', TONOS[tono] || TONOS.info, className)}>{children}</span>
+  return <span className={cn('shrink-0 whitespace-nowrap rounded-md border px-1.5 py-0.5 text-xs font-semibold', TONOS[tono] || TONOS.info, className)}>{children}</span>
 }
 
 export function PortalCargando({ texto = 'Cargando tu cuenta…' }) {
@@ -69,7 +69,7 @@ export function PortalFallo({ mensaje, ayuda = 'Pedile un enlace nuevo a la tien
 
 export function PortalPie({ tienda, actualizado }) {
   return (
-    <p className="pt-1 text-center text-[11px] text-mute">
+    <p className="pt-1 text-center text-xs text-mute">
       {actualizado ? `Actualizado ${actualizado} · ` : ''}Documento no fiscal · Generado por MobOS para {tienda || 'la tienda'}
     </p>
   )

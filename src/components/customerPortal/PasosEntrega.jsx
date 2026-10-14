@@ -8,13 +8,13 @@ export default function PasosEntrega({ tracking, className = '', ...props }) {
   if (pasos.length < 2) return null
   return (
     <div className={className} {...props}>
-      {tracking?.encabezado && <p className="text-[11px] font-semibold uppercase tracking-wider text-mute">{tracking.encabezado}</p>}
+      {tracking?.encabezado && <p className="text-xs font-semibold uppercase tracking-wider text-mute">{tracking.encabezado}</p>}
       <div className="mt-2 grid gap-1.5" style={{ gridTemplateColumns: `repeat(${pasos.length}, minmax(0, 1fr))` }}>
         {pasos.map((paso) => (
           <div key={paso.key} className="text-center">
             <div className={`h-1.5 rounded-full ${paso.hecho ? 'bg-fono-light' : 'bg-ink-600'} ${paso.actual ? 'ring-2 ring-fono/40' : ''}`} />
-            <p className={`mt-1.5 text-[9px] font-semibold leading-tight sm:text-[10px] ${paso.hecho ? 'text-fore' : 'text-mute'}`}>{paso.label}</p>
-            {paso.at && <p className="text-[9px] text-mute">{fechaHora(paso.at)}</p>}
+            <p className={`mt-1.5 text-xs font-semibold leading-tight sm:text-xs ${paso.hecho ? 'text-fore' : 'text-mute'}`}>{paso.label}</p>
+            {paso.at && <p className="text-xs text-mute">{fechaHora(paso.at)}</p>}
           </div>
         ))}
       </div>
