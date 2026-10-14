@@ -47,7 +47,7 @@ try {
   assert.equal(page.totals.byKind.ACCESORIO, 1)
   const unidad = page.items.find(row => row.kind === 'unit' && row.serial === unidadesDb[1].serial)
   assert.ok(unidad, 'la unidad aparece')
-  assert.deepEqual(Object.keys(unidad).sort(), ['batteryHealth', 'branchId', 'branchName', 'costPyg', 'createdAt', 'id', 'kind', 'locationId', 'locationName', 'model', 'name', 'productId', 'quantity', 'serial', 'sku', 'soldAt', 'status', 'stockKind', 'supplierId', 'supplierName'])
+  assert.deepEqual(Object.keys(unidad).sort(), ['batteryHealth', 'branchId', 'branchName', 'consignorName', 'costPyg', 'createdAt', 'id', 'kind', 'locationId', 'locationName', 'model', 'name', 'productId', 'quantity', 'serial', 'sku', 'soldAt', 'status', 'stockKind', 'supplierId', 'supplierName'])
   assert.equal(unidad.status, 'disponible'); assert.equal(unidad.quantity, 1); assert.equal(unidad.stockKind, 'EQUIPO')
   assert.equal(unidad.costPyg, 2100000); assert.equal(unidad.supplierName, `Proveedor ${tag}`); assert.equal(unidad.batteryHealth, 88)
   assert.match(unidad.model, /U2 128GB Negro/)
