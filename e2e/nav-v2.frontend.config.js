@@ -19,6 +19,7 @@ export default defineConfig({
     'graficos.frontend.spec.js',
     'login-codigos.frontend.spec.js',
     'multiempresa.frontend.spec.js',
+    'corregir-pago.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,
