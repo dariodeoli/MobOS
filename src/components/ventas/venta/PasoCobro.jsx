@@ -1,4 +1,6 @@
 import { Aviso, Button, Input, Label, MoneyInput, Nota, Select, Textarea } from '@/components/ui'
+import CodigoSegmentado from '@/components/shared/CodigoSegmentado'
+import { formatearCodigo, limpiarCodigo } from '@/lib/codigoSegmentado'
 import Icon from '@/components/shared/Icon'
 import SelectorMedioPago from '@/components/shared/SelectorMedioPago'
 import NumericKeypad from '@/components/shared/NumericKeypad'
@@ -16,6 +18,9 @@ import EncabezadoBloque from './EncabezadoBloque'
 // Cómo se paga y cómo se entrega, en la misma pantalla que el resto de la
 // venta. Cierra con el botón que guarda, pegado al pie para no perderse al
 // completar los pagos.
+// El estado guarda «GC-XXXX-XXXX-XXXX» (lo que consulta la API); las celdas muestran el cuerpo.
+const cuerpoGiftCard = (codigo) => limpiarCodigo(codigo, 'crockford', 'GC')
+
 export default function PasoCobro({
   customer,
   venderACredito,
@@ -360,14 +365,16 @@ export default function PasoCobro({
                 <div className="sm:col-span-2">
                   <Label htmlFor={`gift-card-${i}`}>Código de gift card</Label>
                   <div className="flex flex-wrap items-end gap-2">
-                    <Input
+                    <CodigoSegmentado
                       id={`gift-card-${i}`}
-                      aria-label={`Código de gift card del pago ${i + 1}`}
-                      className="min-w-[12rem] flex-1 font-mono uppercase"
-                      value={p.giftCardCode}
-                      placeholder="GC-XXXX-XXXX-XXXX"
-                      autoComplete="off"
-                      onChange={event => setPagos(a => a.map((x, j) => (j === i ? { ...x, giftCardCode: event.target.value.toUpperCase(), giftCard: null, monto: '' } : x)))}
+                      ariaLabel={`Código de gift card del pago ${i + 1}`}
+                      grupos={[4, 4, 4]}
+                      alfabeto="crockford"
+                      prefijo="GC"
+                      className="min-w-[12rem] flex-1"
+                      mensajeIncompleto="Pegá el código completo o escribilo; avanza solo."
+                      value={cuerpoGiftCard(p.giftCardCode)}
+                      onChange={(cuerpo) => setPagos(a => a.map((x, j) => (j === i ? { ...x, giftCardCode: cuerpo ? formatearCodigo(cuerpo, [4, 4, 4], '-', 'GC') : '', giftCard: null, monto: '' } : x)))}
                     />
                     <Button type="button" variant="outline" disabled={guardando} onClick={() => onConsultarGiftCard?.(i)}>Consultar saldo</Button>
                   </div>

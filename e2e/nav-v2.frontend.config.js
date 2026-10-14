@@ -17,6 +17,7 @@ export default defineConfig({
     'config-layout.frontend.spec.js',
     'stock-layout.frontend.spec.js',
     'graficos.frontend.spec.js',
+    'login-codigos.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,

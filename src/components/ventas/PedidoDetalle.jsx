@@ -418,7 +418,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             </dl>
             <div className="flex flex-wrap items-center gap-2">
               <Badge color={PAYMENT_TONE(estadoPago)}>{estadoPago}</Badge>
-              <Badge color={tonoEntrega(order.fulfillmentStatus)}>{FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || 'Pendiente'}</Badge>
+              <Badge key={order.fulfillmentStatus || 'PENDING'} className="mobos-chip-cambia" color={tonoEntrega(order.fulfillmentStatus)}>{FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || 'Pendiente'}</Badge>
               {archivado && <Badge color="slate">Archivado</Badge>}
               {order.isSpecialOrder && (
                 <Badge color="orange">
@@ -441,8 +441,8 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                     const activo = indice === actual
                     const hecho = actual > -1 && indice < actual
                     return (
-                      <li key={paso} aria-current={activo ? 'step' : undefined} className={cn('flex items-center gap-2.5 border-b py-2', activo ? 'border-info text-fore' : 'border-ink-600 text-mute')}>
-                        <span className={cn('v2-numero grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-bold', activo ? 'oc-paso-activo' : hecho ? 'bg-ok/15 text-ok' : 'bg-ink-700 text-mute')} aria-hidden>{hecho ? '✓' : indice + 1}</span>
+                      <li key={`${paso}-${activo ? 'a' : hecho ? 'h' : 'p'}`} aria-current={activo ? 'step' : undefined} className={cn('flex items-center gap-2.5 border-b py-2 transition-colors duration-300', activo ? 'border-info text-fore' : 'border-ink-600 text-mute')}>
+                        <span data-testid={activo ? 'paso-activo' : undefined} className={cn('v2-numero grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-bold', activo && 'mobos-paso-entra', activo ? 'oc-paso-activo' : hecho ? 'bg-ok/15 text-ok' : 'bg-ink-700 text-mute')} aria-hidden>{hecho ? '✓' : indice + 1}</span>
                         <span className="min-w-0 truncate text-xs font-semibold">{paso}</span>
                       </li>
                     )
