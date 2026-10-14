@@ -77,7 +77,6 @@ export function desgloseVenta(order = {}) {
   const descuento = numero(order.discountPyg ?? order.descuento)
   const envio = numero(order.deliveryPyg ?? order.montoDelivery)
   const subtotal = numero(order.subtotalPyg) || total
-  const saldo = Math.max(0, total - pagado)
   // Redondeo de efectivo (#426): solo cuando la venta lo trae. El «Total
   // ajustado» es lo que se cobra en efectivo; con el efectivo recibido se
   // imprime el vuelto (el dato del pedido manda; si falta, se deriva).
@@ -85,6 +84,8 @@ export function desgloseVenta(order = {}) {
   const totalAjustado = total + redondeo
   const recibido = numero(order.cashReceivedPyg ?? order.efectivoRecibidoPyg ?? order.efectivoRecibido)
   const vueltoCrudo = order.changePyg ?? order.vueltoPyg ?? order.vuelto
+  // Con redondeo de efectivo el saldo se mide contra el total ajustado.
+  const saldo = Math.max(0, totalAjustado - pagado)
   const vuelto = vueltoCrudo !== undefined && vueltoCrudo !== null && vueltoCrudo !== ''
     ? numero(vueltoCrudo)
     : recibido > totalAjustado ? recibido - totalAjustado : 0

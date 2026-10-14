@@ -132,6 +132,7 @@ test('venta: total en caja y, con redondeo de efectivo, ajustado, recibido y vue
   const t = texto(ticketComprobante(venta, { nivel: 'completo', ancho: 80 }))
   for (const parte of ['TOTAL DEL PEDIDO', 'Redondeo en efectivo', 'Total ajustado', 'Efectivo recibido', 'Vuelto']) assert.ok(t.includes(parte), parte)
   assert.match(t, /Vuelto\s+Gs 1\.000/)
+  assert.ok(!t.includes('SALDO PENDIENTE'), 'lo pagado cubre el total ajustado: no queda saldo')
   const sinRedondeo = texto(ticketComprobante({ ...pedido }, { nivel: 'completo', ancho: 58 }))
   assert.ok(sinRedondeo.includes('TOTAL DEL PEDIDO'))
   assert.ok(!sinRedondeo.includes('Redondeo') && !sinRedondeo.includes('Vuelto'))

@@ -37,7 +37,7 @@ function encabezado(t, doc, titulo) {
 // debajo (los negativos conservan el signo).
 function lineaItem(t, item) {
   t.negrita().texto(item.description).negrita(false)
-  const detalle = `  ${item.quantity} x ${importeConSigno(item.unitPricePyg)}`
+  const detalle = `  ${item.quantity} x ${gs(Math.abs(item.unitPricePyg))}`
   parSeguro(t, detalle, importeConSigno(item.totalPyg))
   for (const serie of item.seriales || []) t.texto(`  IMEI/Serie ${serie}`)
 }

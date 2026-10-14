@@ -396,7 +396,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
   const items = Array.isArray(order.items) ? order.items : []
   const payments = Array.isArray(order.payments) ? order.payments : order.pagos || []
   const pagosConfirmados = payments.filter(payment => payment.status === 'CONFIRMED' || payment.status === undefined)
-  const { total, pagado: paid, pendiente } = totalesPedido(order)
+  const { total, pagado: paid, pendiente: pendienteBruto } = totalesPedido(order)
   const when = order.createdAt || order.creadoEn || order.fecha
   const link = token ? accessUrlFor(token) : trackingUrlFor(order)
   let qr = ''
@@ -412,6 +412,8 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
 
   const termico = Boolean(thermalWidth(format))
   const desglose = desgloseVenta(order)
+  // Con redondeo de efectivo lo pendiente se mide contra el total ajustado.
+  const pendiente = desglose.mostrarRedondeo ? desglose.saldo : pendienteBruto
   const acento = acentoDeEmpresa(order.tenant)
   const nombreItem = (item) => escapeHtml(item.description || item.nombre || 'Producto')
   const seriales = (item) => serialesDeItem(item).map(serie => `<span class="imei">IMEI/Serie ${escapeHtml(serie)}</span>`).join('')

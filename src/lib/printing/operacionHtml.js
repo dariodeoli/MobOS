@@ -28,8 +28,8 @@ function tablaItems(items, termico) {
   const filas = items.map((item) => {
     const detalle = `<strong>${esc(item.description)}</strong>${(item.seriales || []).map((serie) => `<span class="imei">IMEI/Serie ${esc(serie)}</span>`).join('')}`
     return termico
-      ? `<tr class="it"><td colspan="2">${detalle}</td></tr><tr><td class="muted">${esc(String(item.quantity))} × ${esc(signo(item.unitPricePyg))}</td><td class="num neg">${esc(signo(item.totalPyg))}</td></tr>`
-      : `<tr><td>${detalle}</td><td class="cant">${esc(String(item.quantity))}</td><td class="num neg">${esc(signo(item.unitPricePyg))}</td><td class="num neg"><strong>${esc(signo(item.totalPyg))}</strong></td></tr>`
+      ? `<tr class="it"><td colspan="2">${detalle}</td></tr><tr><td class="muted">${esc(String(item.quantity))} × ${esc(gs(Math.abs(item.unitPricePyg)))}</td><td class="num neg">${esc(signo(item.totalPyg))}</td></tr>`
+      : `<tr><td>${detalle}</td><td class="cant">${esc(String(item.quantity))}</td><td class="num">${esc(gs(Math.abs(item.unitPricePyg)))}</td><td class="num neg"><strong>${esc(signo(item.totalPyg))}</strong></td></tr>`
   }).join('')
   const columnas = termico ? '' : '<thead><tr><th>Producto</th><th class="cant">Cant.</th><th class="num">Precio</th><th class="num">Total</th></tr></thead>'
   return `<table>${columnas}<tbody>${filas || `<tr><td colspan="${termico ? 2 : 4}" class="muted">Sin artículos.</td></tr>`}</tbody></table>`
