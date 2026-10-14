@@ -25,12 +25,13 @@ test.describe('composición compacta', () => {
     // La fecha ya no va en la barra (el shell pone el título): acompaña al
     // resumen de la venta, dentro de «Detalles de la venta y del día».
     await expect(page.getByText(/Fecha: \d{2}\/\d{2}\/\d{4}/)).toBeAttached()
-    // #309: gift cards, analytics y ventas suspendidas viven en «Más» para no
-    // llenar la barra; la principal de la venta sigue a mano.
-    await barra.getByTestId('pos-mas').click()
-    for (const accion of ['Analytics', 'Ventas suspendidas']) {
-      await expect(page.getByRole('menuitem', { name: accion, exact: true })).toBeVisible()
+    // Ventas suspendidas y Gift cards son botones de la barra; Analytics y
+    // «Más» ya no existen en el POS.
+    for (const accion of ['Ventas suspendidas', 'Gift cards']) {
+      await expect(barra.getByRole('button', { name: accion, exact: true })).toBeVisible()
     }
+    await expect(barra.getByRole('button', { name: 'Analytics', exact: true })).toHaveCount(0)
+    await expect(barra.getByTestId('pos-mas')).toHaveCount(0)
   })
 
   test('Clientes: resumen con alcance explícito y acciones en la barra', async ({ page }) => {

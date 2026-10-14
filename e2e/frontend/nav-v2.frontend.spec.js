@@ -779,13 +779,17 @@ for (const width of widths) {
         ).toBeGreaterThanOrEqual(minFont)
       }
       const toolbar = page.getByTestId('barra-pos')
-      const more = await toolbar.getByTestId('pos-mas').boundingBox()
+      const more = await toolbar.getByTestId('pos-suspendidas').boundingBox()
       const suspend = await toolbar
         .getByRole('button', { name: 'Suspender venta', exact: true })
         .boundingBox()
-      expect(more.x + more.width <= suspend.x + 1 || more.y + more.height <= suspend.y + 1).toBe(
-        true,
-      )
+      // Suspender venta va primero; «Ventas suspendidas» no se solapa con él.
+      expect(
+        suspend.x + suspend.width <= more.x + 1 ||
+          suspend.y + suspend.height <= more.y + 1 ||
+          more.x + more.width <= suspend.x + 1 ||
+          more.y + more.height <= suspend.y + 1,
+      ).toBe(true)
       const catalog = await page.getByTestId('pos-bloque-productos').boundingBox()
       const cart = await page.getByTestId('pos-bloque-carrito').boundingBox()
       const client = await page.getByTestId('pos-bloque-cliente').boundingBox()
@@ -864,10 +868,9 @@ test('F2 actual catalog variant, existing customer and payment controls retain t
   await note.click()
   await page.locator('#observacion').fill('Prueba local sin envío')
   await expect(page.locator('#observacion')).toHaveValue('Prueba local sin envío')
-  await page.getByTestId('pos-mas').click()
-  await expect(
-    page.getByRole('menuitem', { name: 'Ventas suspendidas', exact: true }),
-  ).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Ventas suspendidas', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Gift cards', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Analytics', exact: true })).toHaveCount(0)
   // Submission/tenant/offline cases from #341 above remain unchanged and execute in the same suite.
 })
 

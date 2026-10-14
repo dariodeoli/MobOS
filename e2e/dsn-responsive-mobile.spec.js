@@ -56,12 +56,8 @@ const PANTALLAS = [
 // auditan a 390 y se capturan. Con timeout corto: si el disparador no está, se
 // reporta y se sigue.
 const MODALES = {
-  // #337: las herramientas del POS viven en el <details> «Más» (#309): hay que
-  // abrirlo antes de buscar «Ventas suspendidas».
-  pos: async (page) => {
-    await page.getByTestId('pos-mas').click()
-    await page.getByRole('menuitem', { name: /Ventas suspendidas/ }).click({ timeout: 5_000 })
-  },
+  // «Ventas suspendidas» es un botón directo de la barra del POS.
+  pos: (page) => page.getByRole('button', { name: /Ventas suspendidas/ }).click({ timeout: 5_000 }),
   inventario: (page) => page.getByRole('button', { name: /Recibir unidad/ }).first().click({ timeout: 5_000 }),
 }
 

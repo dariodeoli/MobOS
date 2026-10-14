@@ -448,7 +448,7 @@ test('POS muestra toda la venta en una sola pantalla, sin pasos numerados', asyn
   await expect(page.getByTestId('carrito-total')).toBeVisible()
 
   // Las acciones secundarias están arriba del bloque de cliente (en el encabezado).
-  const suspender = page.getByTestId('pos-mas')
+  const suspender = page.getByTestId('pos-gift-cards')
   const cliente = page.getByRole('heading', { name: 'Cliente', exact: true })
   const ySuspender = await suspender.evaluate(
     el => el.getBoundingClientRect().top + window.scrollY,
@@ -614,8 +614,7 @@ test('POS: el borrador se comparte con enlace público y checkout', async ({ pag
   await expect(page.getByText(/Venta suspendida/).first()).toBeVisible({ timeout: 15_000 })
 
   // Enlace público del borrador (se muestra una sola vez).
-  await page.getByTestId('pos-mas').click()
-  await page.getByRole('menuitem', { name: 'Ventas suspendidas' }).click()
+  await page.getByTestId('pos-suspendidas').click()
   dialogo = page.getByRole('dialog')
   const fila = dialogo.getByRole('article').filter({ hasText: `Carrito ${marca}` }).first()
   await expect(fila).toBeVisible()
@@ -638,21 +637,9 @@ test('POS: el borrador se comparte con enlace público y checkout', async ({ pag
 // menciones @ en los comentarios internos del pedido.
 test('POS: analytics del día y menciones en comentarios', async ({ page }) => {
   await page.goto('/pos')
-  await page.getByTestId('pos-mas').click()
-  await page.getByRole('menuitem', { name: 'Analytics' }).click()
-  const panel = page.getByRole('dialog')
-  await expect(panel.getByText('Ventas de hoy')).toBeVisible({ timeout: 15_000 })
-  await expect(panel.getByText('Ticket promedio')).toBeVisible()
-  await expect(panel.getByText('Items por pedido')).toBeVisible()
-  await expect(panel.getByText('Ubicación', { exact: false })).toHaveCount(0)
-  await expect(panel.getByText('Top productos')).toBeVisible()
-  // Período de los desgloses, cobros netos (por tipo, cuenta y sucursal) y efectivo.
-  await panel.getByRole('tab', { name: '7 días' }).click()
-  await expect(panel.getByText('Cobros netos por cuenta')).toBeVisible()
-  await expect(panel.getByText('Cobros netos por sucursal')).toBeVisible()
-  await expect(panel.getByText('Efectivo').first()).toBeVisible()
-  await expect(panel.getByText('Ventas netas')).toBeVisible()
-  await panel.getByText('Cerrar', { exact: true }).click()
+  // Analytics ya no tiene entrada en el POS (vive en Inicio/Análisis).
+  await expect(page.getByRole('button', { name: 'Analytics' })).toHaveCount(0)
+  await expect(page.getByTestId('pos-mas')).toHaveCount(0)
 
   // Comentario con mención: se elige del autocompletado y queda resaltada.
   await page.goto('/pedidos')
