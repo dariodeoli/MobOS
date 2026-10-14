@@ -14,7 +14,8 @@ const FUENTES_INICIALES = [
   { id: 'cambioschaco', label: 'Cambios Chaco' },
   { id: 'bcp', label: 'BCP' },
 ]
-const POR_DEFECTO = { source: 'cambioschaco', side: 'venta' }
+const POR_DEFECTO_COBROS = { source: 'cambioschaco', side: 'compra' }
+const POR_DEFECTO_COSTOS = { source: 'cambioschaco', side: 'venta' }
 
 function Fila({ titulo, ayuda, valor, onChange, fuentes, disabled, prefijo }) {
   return (
@@ -43,8 +44,8 @@ function Fila({ titulo, ayuda, valor, onChange, fuentes, disabled, prefijo }) {
 export default function CotizacionFuente({ onReauth }) {
   const { sesion, esDemo } = useSesion() || {}
   const esDueno = Boolean(sesion?.esPropietario)
-  const [ventas, setVentas] = useState(POR_DEFECTO)
-  const [costos, setCostos] = useState(POR_DEFECTO)
+  const [ventas, setVentas] = useState(POR_DEFECTO_COBROS)
+  const [costos, setCostos] = useState(POR_DEFECTO_COSTOS)
   const [fuentes, setFuentes] = useState(FUENTES_INICIALES)
   const [busy, setBusy] = useState(false)
   const guardado = useGuardadoCuenta({ id: 'cotizacion', onReauth })
