@@ -7,6 +7,7 @@ import { ensureStoreBranch } from '../../../lib/store-branch'
 import { CASH_MOVEMENT_KINDS, createCashMovement } from '../../../lib/cash-movements'
 import { FINANCE_CURRENCIES, frozenAmountPyg } from '../../../lib/finance'
 import { LIMITE_MONTO_GENERAL } from '../../../lib/montos'
+import { dayCorrections, sqlCountable, sqlDrawer } from '../../../lib/payment-net'
 
 type QueryDb = Pick<typeof prisma, '$queryRaw'> | Pick<Prisma.TransactionClient, '$queryRaw'>
 const int = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0 && Number(value) <= LIMITE_MONTO_GENERAL
@@ -50,6 +51,7 @@ async function expected(db: QueryDb, tenantId: string, branchId: string, openedA
     SELECT COALESCE(SUM(p."amountPyg"), 0)::bigint AS total
     FROM "Payment" p JOIN "Order" o ON o."id" = p."orderId"
     WHERE p."tenantId" = ${tenantId} AND p."method" = 'CASH' AND p."status" = 'CONFIRMED'
+      AND ${sqlDrawer('p')}
       AND COALESCE(p."currency"::text, 'PYG') = 'PYG'
       AND o."tenantId" = ${tenantId} AND o."branchId" = ${branchId}
       AND p."paidAt" >= ${openedAt} AND p."paidAt" <= ${until}
@@ -102,9 +104,10 @@ async function sesionesResumen(tenant: string, branchId: string, start: Date, en
     FROM "CashSession" s
     JOIN "User" u ON u."id" = s."openedById"
     LEFT JOIN LATERAL (
-      SELECT SUM(p."amountPyg") AS "efectivoPyg", COUNT(*) AS "pagos"
+      SELECT SUM(p."amountPyg") AS "efectivoPyg", COUNT(*) FILTER (WHERE ${sqlCountable('p')}) AS "pagos"
       FROM "Payment" p JOIN "Order" o ON o."id" = p."orderId"
       WHERE p."tenantId" = s."tenantId" AND p."method" = 'CASH' AND p."status" = 'CONFIRMED'
+        AND ${sqlDrawer('p')}
         AND COALESCE(p."currency"::text, 'PYG') = 'PYG'
         AND o."tenantId" = s."tenantId" AND o."branchId" = s."branchId"
         AND p."paidAt" >= s."openedAt" AND p."paidAt" < COALESCE(s."closedAt", ${ahora})
@@ -168,7 +171,8 @@ export async function GET(request: Request) {
     const rango = rangoDeSesiones(params)
     if (!rango) return error('El rango de fechas es inválido.', 400)
     const sesiones = await sesionesResumen(tenant, ctx.branchId, rango.start, rango.end)
-    return json({ sesiones, rango: { from: rango.from, to: rango.to, branchId: ctx.branchId } })
+    const corrections = await dayCorrections(prisma, tenant, ctx.branchId, rango.start, rango.end)
+    return json({ sesiones, corrections, rango: { from: rango.from, to: rango.to, branchId: ctx.branchId } })
   }
   // El turno del usuario manda: si tiene una caja abierta se muestra esa; si
   // no, se muestra la última sesión (para consultar el último cierre).
@@ -180,14 +184,20 @@ export async function GET(request: Request) {
     WHERE s."tenantId" = ${tenant} AND s."branchId" = ${ctx.branchId} AND s."status" = 'OPEN'
     ORDER BY s."openedAt" ASC`
   const movements = await prisma.cashMovement.findMany({ where: { tenantId: tenant, ...(ctx.session.user.role === 'ADMIN' ? {} : { branchId: ctx.branchId }) }, orderBy: { createdAt: 'desc' }, take: 100, include: { account: { select: { id: true, name: true, currency: true } } } })
-  if (!row[0]) return json({ session: null, openSessions, movements })
+  // «Ajustes por corrección» del día de la sucursal: correcciones de pagos de un
+  // turno ya cerrado que no se aplican al cajón (#393). Informativo.
+  const diaHoy = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10)
+  const inicioDia = new Date(`${diaHoy}T00:00:00${OFFSET_PY}`)
+  const finDia = new Date(inicioDia.getTime() + 86400000)
+  const corrections = await dayCorrections(prisma, tenant, ctx.branchId, inicioDia, finDia)
+  if (!row[0]) return json({ session: null, openSessions, movements, corrections })
   const session = row[0]
   if (session.status === 'OPEN') {
     const expectedPyg = Number(session.openingPyg) + await expected(prisma, tenant, ctx.branchId, new Date(String(session.openedAt)), new Date(), String(session.openedById))
     if (!int(expectedPyg)) return error('El total esperado excede el rango permitido.', 422)
     session.expectedPyg = expectedPyg
   }
-  return json({ ...session, session, openSessions, movements })
+  return json({ ...session, session, openSessions, movements, corrections })
 }
 
 export async function POST(request: Request) {

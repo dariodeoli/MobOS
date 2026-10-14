@@ -5,6 +5,7 @@ import { error, json } from '../../../../lib/http'
 import { ensureStoreBranch } from '../../../../lib/store-branch'
 import { InputError, objectInput } from '../../../../lib/payment-input'
 import { LIMITE_MONTO_GENERAL, numero } from '../../../../lib/montos'
+import { COUNTABLE_PAYMENT_WHERE } from '../../../../lib/payment-net'
 import { normalizeReconciliationNote } from '../../payments/_lib'
 import {
   METHOD_LABELS,
@@ -92,6 +93,8 @@ export async function GET(request: Request) {
           tenantId,
           method: { in: [...RECONCILIATION_METHODS] as PaymentMethod[] },
           status: { in: ['CONFIRMED', 'PENDING', 'REFUNDED'] },
+          // Original + reversión de una corrección salen juntos de la conciliación (#393).
+          ...COUNTABLE_PAYMENT_WHERE,
           ...(accountId ? { accountId } : {}),
           ...(method ? { method: method as PaymentMethod } : {}),
           ...(ctx.branchId ? { order: { branchId: ctx.branchId } } : {}),
@@ -207,6 +210,8 @@ export async function POST(request: Request) {
         SELECT "id", "orderId", "status"::text AS "status", "amountPyg", "method"::text AS "method", "accountId", "paidAt", "createdAt", "deliveryUserId", "deliverySettlementId"
         FROM "Payment" WHERE "id" IN (${Prisma.join(paymentIds)}) AND "tenantId" = ${tenantId} FOR UPDATE`
       if (rows.length !== paymentIds.length) throw new InputError('Algún pago del lote no existe en la empresa.', 404)
+      const corregido = await tx.payment.findFirst({ where: { tenantId, OR: [{ id: { in: paymentIds }, reversalOfId: { not: null } }, { reversalOfId: { in: paymentIds } }] }, select: { id: true } })
+      if (corregido) throw new InputError('El lote incluye un pago corregido o su reversión: conciliá el pago nuevo.', 409)
       for (const row of rows) {
         if (!['CONFIRMED', 'PENDING'].includes(row.status)) throw new InputError('Solo se concilian pagos confirmados o pendientes.')
         if (!(RECONCILIATION_METHODS as readonly string[]).includes(row.method)) throw new InputError('El lote incluye un medio que no se concilia.')
