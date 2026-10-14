@@ -4,6 +4,7 @@ import type { Prisma, PrismaClient } from '@prisma/client'
 import { prisma } from './prisma'
 import { pinValido } from './pin'
 import { COOKIE_COMPANY, COOKIE_SELLER, readCookie, sameOrigin } from './google-oauth'
+import { accountForTenantPassword, hasActiveMembership } from './membership'
 
 const MAX_FAILED_ATTEMPTS = 5
 const LOCKOUT_MINUTES = 15
@@ -38,6 +39,8 @@ export type AuthUser = {
 export type SessionContext = {
   sessionId: string
   user: AuthUser
+  // Cuenta (multi-empresa) de la sesión; null en sesiones sin cuenta vinculada.
+  accountId?: string | null
 }
 
 type LoginInput = { email?: unknown; password?: unknown; deviceId?: unknown; branchId?: unknown }
@@ -250,20 +253,20 @@ function newToken() {
   return randomBytes(32).toString('hex')
 }
 
-async function createSession(
+export async function createSession(
   tx: any,
   tenantId: string,
   userId: string | null,
   level: 'COMPANY' | 'SELLER',
   deviceId: string,
   branchId: string | null = null,
-  { userAgent = null }: { userAgent?: string | null } = {},
+  { userAgent = null, accountId = null }: { userAgent?: string | null; accountId?: string | null } = {},
 ) {
   const tienda = await tx.tenant.findUnique({ where: { id: tenantId }, select: { archivedAt: true } })
   if (tienda?.archivedAt) throw new ArchivedTenantError()
   const accessToken = newToken()
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000)
-  const session = await tx.session.create({ data: { tenantId, userId, level, deviceId, branchId, tokenHash: hashToken(accessToken), expiresAt, userAgent: userAgent ? String(userAgent).slice(0, 240) : null } })
+  const session = await tx.session.create({ data: { tenantId, userId, accountId, level, deviceId, branchId, tokenHash: hashToken(accessToken), expiresAt, userAgent: userAgent ? String(userAgent).slice(0, 240) : null } })
   return { accessToken, expiresAt, sessionId: session.id }
 }
 
@@ -323,7 +326,10 @@ export async function authenticateCompany(input: LoginInput, request?: Request) 
       select: { id: true, name: true, branchId: true, pinLength: true },
       orderBy: { name: 'asc' },
     })
-    const session = await createSession(tx, tenant.id, null, 'COMPANY', deviceId, branchId, { userAgent: auditMetadata.userAgent })
+    // Multi-empresa (#377): la contraseña de la empresa prueba su control; la
+    // cuenta se busca/crea sin heredar cuentas ajenas por coincidir el correo.
+    const accountId = await accountForTenantPassword(tx, { id: tenant.id, email: tenant.email })
+    const session = await createSession(tx, tenant.id, null, 'COMPANY', deviceId, branchId, { userAgent: auditMetadata.userAgent, accountId })
     await tx.auditLog.create({ data: { tenantId: tenant.id, action: 'COMPANY_SIGNED_IN', entity: 'Session', entityId: session.sessionId, metadata: { branchId, ...auditMetadata } } })
     return { ...session, tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug }, sellers, onboardingRequired: requiresAdminPinSetup(tenant.settings), scope: 'device:company' as const }
   })
@@ -336,6 +342,8 @@ async function companySession(request: Request) {
   if (!match && (!cookie || !sameOrigin(request))) return null
   const session = await prisma.session.findUnique({ where: { tokenHash: hashToken(match ? match[1] : cookie) } })
   if (!session || session.level !== 'COMPANY' || session.revokedAt || session.expiresAt <= new Date()) return null
+  // Una pertenencia revocada apaga la sesión de la cuenta en esa empresa.
+  if (session.accountId && !(await hasActiveMembership(prisma, session.accountId, session.tenantId))) return null
   return session
 }
 
@@ -431,7 +439,10 @@ export async function authenticateSeller(request: Request, input: PinInput) {
       return null
     }
     await tx.user.update({ where: { id: user.id }, data: { failedLoginAttempts: 0, lockedUntil: null, lastAccessAt: now } })
-    const session = await createSession(tx, parent.tenantId, user.id, 'SELLER', parent.deviceId, parent.branchId, { userAgent: auditMetadata.userAgent })
+    // La sesión de vendedor lleva la cuenta solo cuando el vendedor ES el perfil
+    // vinculado a esa cuenta; un compañero con su PIN no hereda la cuenta del equipo.
+    const linked = parent.accountId ? await tx.tenantMembership.findFirst({ where: { accountId: parent.accountId, tenantId: parent.tenantId, revokedAt: null, userId: user.id }, select: { id: true } }) : null
+    const session = await createSession(tx, parent.tenantId, user.id, 'SELLER', parent.deviceId, parent.branchId, { userAgent: auditMetadata.userAgent, accountId: linked ? parent.accountId : null })
     await tx.auditLog.create({ data: { tenantId: parent.tenantId, userId: user.id, action: 'SELLER_PIN_VERIFIED', entity: 'Session', entityId: session.sessionId, metadata: { branchId: parent.branchId, ...auditMetadata } } })
     return { ...session, user: sessionUser(user) }
   })
@@ -459,8 +470,9 @@ export async function requireSession(request: Request): Promise<SessionContext |
     })
     return null
   }
+  if (session.accountId && !(await hasActiveMembership(prisma, session.accountId, session.tenantId))) return null
   await prisma.session.update({ where: { id: session.id }, data: { lastSeenAt: now } })
-  return { sessionId: session.id, user: sessionUser(session.user) }
+  return { sessionId: session.id, user: sessionUser(session.user), accountId: session.accountId }
 }
 
 export async function revokeSession(request: Request) {
@@ -479,4 +491,45 @@ export async function revokeSession(request: Request) {
     }
   })
   return true
+}
+
+export type AccountContext = {
+  accountId: string
+  tenantId: string
+  deviceId: string
+  userAgent: string | null
+  sessionIds: string[]
+  // Perfil del vendedor actual (sesión de vendedor vigente), si lo hay.
+  sellerUserId: string | null
+}
+
+/**
+ * Sesión de cuenta para cambiar/listar/crear empresas. Acepta la sesión de
+ * empresa y/o la de vendedor (cookies del mismo origen o un Bearer); todas las
+ * vigentes tienen que ser de la misma empresa y cuenta, y la pertenencia seguir
+ * activa. El tenant sale SOLO de la sesión.
+ */
+export async function requireAccountContext(request: Request): Promise<AccountContext | null> {
+  const authorization = request.headers.get('authorization')
+  const match = authorization?.match(/^Bearer\s+(.+)$/i)
+  let tokens: string[]
+  if (match) tokens = [match[1]]
+  else {
+    if (!sameOrigin(request)) return null
+    tokens = [readCookie(request, COOKIE_COMPANY), readCookie(request, COOKIE_SELLER)].filter(Boolean)
+  }
+  if (!tokens.length) return null
+  const now = new Date()
+  const found = await prisma.session.findMany({ where: { tokenHash: { in: tokens.map(hashToken) } }, include: { user: true } })
+  const valid = found.filter(session => !session.revokedAt && session.expiresAt > now && (session.level === 'COMPANY' || (!!session.user && isSessionUsable({ ...session, user: session.user }, now))))
+  if (!valid.length) return null
+  const tenantId = valid[0].tenantId
+  if (valid.some(session => session.tenantId !== tenantId)) return null
+  const accountIds = [...new Set(valid.map(session => session.accountId).filter((id): id is string => !!id))]
+  if (accountIds.length !== 1) return null
+  const accountId = accountIds[0]
+  if (!(await hasActiveMembership(prisma, accountId, tenantId))) return null
+  const seller = valid.find(session => session.level === 'SELLER' && session.userId)
+  const base = valid.find(session => session.level === 'COMPANY') ?? valid[0]
+  return { accountId, tenantId, deviceId: base.deviceId, userAgent: base.userAgent ?? null, sessionIds: valid.map(session => session.id), sellerUserId: seller?.userId ?? null }
 }

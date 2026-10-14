@@ -55,7 +55,7 @@ function configuredAppOrigin() {
 function applyResponseHeaders(response: NextResponse, origin: string, requestId: string) {
   if (origin && ((MOBOS_ALLOWED_APP_ORIGINS as readonly string[]).includes(origin) || origin === configuredAppOrigin())) response.headers.set('Access-Control-Allow-Origin', origin)
   response.headers.set('Access-Control-Allow-Methods', 'GET,POST,PATCH,PUT,DELETE,OPTIONS')
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-tenant-id, Idempotency-Key')
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Idempotency-Key')
   response.headers.set('Vary', 'Origin')
   response.headers.set('Access-Control-Allow-Credentials', 'true')
   // Defensa en profundidad para toda respuesta del API. La autorización vive
