@@ -107,3 +107,31 @@ sigue verificando mientras no se emita un enlace nuevo. Reglas del patrón
 > Prueba reproducible: `node backend/tests/commission-settlement-public.mjs`
 > (base descartable; emisión, verificación, 429, rotación, permisos,
 > aislamiento y backfill legacy).
+
+## 7. Tokens de color de la planilla de Unidades (#400)
+
+Nota: este apartado es de **tokens de diseño** (colores), no de tokens de acceso;
+vive acá por pedido del issue #400. Los define `src/index.css` (`:root` y
+`html.dark`) como tripletes RGB, igual que la paleta `--c-*`, y los consume solo
+`src/components/stock/planilla.css`. Nunca colores sueltos en la fila.
+
+| Token | Claro | Oscuro | Uso |
+| --- | --- | --- | --- |
+| `--cond-new-bg` / `--cond-new-bd` | 220 243 229 / 134 196 155 | 22 58 38 / 52 120 80 | Fondo y borde de la fila **Nuevo** (verde) |
+| `--cond-used-bg` / `--cond-used-bd` | 254 240 190 / 224 186 80 | 66 52 14 / 140 110 30 | Fondo y borde de **Semi nuevo** (amarillo; incluye reacondicionado) |
+| `--cond-fg-2` | 51 65 85 | 203 213 225 | Texto secundario dentro de la fila (batería, ingreso) |
+| `--cond-warn` / `--cond-bad` | 120 53 15 / 153 27 27 | 253 230 138 / 254 202 202 | Garantía por vencer / expirada y chips de aviso |
+
+- **Variante por ubicación**: la fila mezcla el **12 %** del color propio de la
+  ubicación (`StockLocation.color`) con el fondo de su familia
+  (`color-mix`). Así dos depósitos distintos dan dos tonos de amarillo (o de
+  verde) sin salir de la familia de la condición. Sin color propio, el tono base.
+- **El estado va aparte**: reservado («Atajando · Edgar · vence 18/10»),
+  préstamo, vendido, en tránsito y defectuoso son un chip con fondo sólido
+  (`--c-ink`) y borde del tono; nunca cambian el fondo de la fila.
+- **Contraste ≥ 4.5:1**: texto principal (`--c-fore`), `--cond-fg-2`,
+  `--cond-warn` y `--cond-bad` se midieron sobre cada fondo mezclado con negro,
+  blanco y colores saturados al 12 %. Mínimos: claro 5.4 (bad) y 6.5 (fg-2);
+  oscuro 5.7 (fg-2) y 5.8 (bad). Si se cambia un valor, repetir esa medición.
+- **No es solo color**: cada fila lleva «Nuevo»/«Semi nuevo» como texto para
+  lectores de pantalla y en el tooltip del modelo (`data-condicion` en el DOM).
