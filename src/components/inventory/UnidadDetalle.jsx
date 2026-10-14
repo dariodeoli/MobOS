@@ -9,7 +9,8 @@ import Icon from '@/components/shared/Icon'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import Avatar from '@/components/shared/Avatar'
-import MedidorBateria from '@/components/shared/MedidorBateria'
+import MenuSecundario from '@/components/shared/MenuSecundario'
+import { CampoFicha, InsigniaProveedor, TarjetaFicha } from '@/components/inventory/FichaUnidadBloques'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import JsBarcode from 'jsbarcode'
@@ -66,7 +67,7 @@ function FotoMini({ unitId, commentId, photo }) {
 
 // Detalle premium de una unidad de inventario: ficha completa, acciones y
 // cronología con comentarios y fotos (misma experiencia que los pedidos).
-export default function UnidadDetalle({ unit, busy, canManage, locations = [], onClose, onChanged, onSell, onReserve, onVerify, onArrive, onLabel, onInforme, onCertificado, onConstancia, onRelease, onAdjust, onRemove, onMove }) {
+export default function UnidadDetalle({ unit, busy, canManage, locations = [], onClose, onChanged, onSell, onReserve, onVerify, onArrive, onLabel, onInforme, onCertificado, onConstancia, onRelease, onAdjust, onRemove, onMove, unidades = [], onNavegar }) {
   const toast = useToast()
   const { esDemo, sesion } = useSesion()
   // #233: la conciliación de una consulta IMEI es una acción auditada de
@@ -98,6 +99,12 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   const [stockMotivo, setStockMotivo] = useState('')
   const [stockError, setStockError] = useState('')
   const [stockBusy, setStockBusy] = useState(false)
+  // Edición en línea por campo (#400): borradores de cada editor y guardado común.
+  const [bateria, setBateria] = useState({ pct: '', ciclos: '' })
+  const [compra, setCompra] = useState('')
+  const [garantiaMes, setGarantiaMes] = useState('')
+  const [ubicacion, setUbicacion] = useState('')
+  const [guardandoCampo, setGuardandoCampo] = useState(false)
   const [consignador, setConsignador] = useState(unit.consignorName || '')
   const [consignadorTel, setConsignadorTel] = useState(unit.consignorPhone || '')
   const [consignadorMonto, setConsignadorMonto] = useState(unit.consignorPyg === null || unit.consignorPyg === undefined ? '' : String(unit.consignorPyg))
@@ -205,7 +212,17 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
       await api.patch('/api/inventory-units', { id: unit.id, action: 'details', notes: nota.trim() })
       toast.success('Nota guardada.')
       onChanged?.()
-    } catch (cause) { toast.error(cause?.message || 'No se pudo guardar la nota.') } finally { setGuardandoNota(false) }
+    } catch (cause) { toast.error(cause?.message || 'No se pudo guardar la nota.'); throw cause } finally { setGuardandoNota(false) }
+  }
+
+  async function guardarDetalles(parche, exito) {
+    if (guardandoCampo) return
+    setGuardandoCampo(true)
+    try {
+      await api.patch('/api/inventory-units', { id: unit.id, action: 'details', ...parche })
+      toast.success(exito)
+      onChanged?.()
+    } catch (cause) { toast.error(cause?.message || 'No se pudo guardar el cambio.'); throw cause } finally { setGuardandoCampo(false) }
   }
 
   async function cambiarMonedaCosto(moneda) {
@@ -227,7 +244,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
       await api.patch('/api/inventory-units', { id: unit.id, action: 'details', costCurrency: monto ? costo.currency : 'PYG', ...payload })
       toast.success(monto ? 'Costo guardado.' : 'Costo quitado: queda pendiente.')
       await load(); onChanged?.()
-    } catch (cause) { toast.error(cause?.message || 'No se pudo guardar el costo.') } finally { setGuardandoCosto(false) }
+    } catch (cause) { toast.error(cause?.message || 'No se pudo guardar el costo.'); throw cause } finally { setGuardandoCosto(false) }
   }
 
   async function subirEvidenciaRepuestos() {
@@ -419,19 +436,54 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   // órdenes; acá se usan para ofrecer el vínculo de costo con la unidad.
   const reparaciones = events.filter(evento => evento.type === 'repair')
 
+  const sigla = unit.location?.code || unit.location?.name || ''
+  const estado = estadoInventario(unit)
+  const ciclos = unit.batteryCycles ?? unit.inspection?.bateriaCiclos ?? null
+  const garantia = unit.warrantyUntil ? new Date(unit.warrantyUntil) : null
+  const garantiaTexto = garantia ? garantia.toLocaleDateString('es-PY', { month: 'short', year: 'numeric', timeZone: 'UTC' }) : ''
+  // Nombre real del proveedor: solo administración/gerencia (#400). El resto
+  // recibe la sigla; nunca se muestra `supplierName` a otros roles aunque llegue.
+  const proveedorSigla = unit.supplier?.code || (!puedeConciliar ? unit.supplierName : '') || ''
+  const proveedorNombre = puedeConciliar ? (unit.supplier?.name || unit.supplierName || '') : ''
+  const proveedorCompleto = unit.supplier?.displayMode === 'COMPLETO' && proveedorNombre
+  // Costo: solo si hay dato visible o quien gestiona puede completarlo (la API lo redacta según permiso).
+  const muestraCosto = canManage || !sinCostoUnitario(unit)
+  const indice = unidades.findIndex(item => item.id === unit.id)
+  const anterior = indice > 0 ? unidades[indice - 1] : null
+  const siguiente = indice >= 0 && indice < unidades.length - 1 ? unidades[indice + 1] : null
+  const acciones = [
+    { label: 'Etiqueta', icon: 'printer', onClick: () => onLabel(unit) },
+    { label: 'Informe', icon: 'report', onClick: () => onInforme?.(unit) },
+    { label: 'Certificado', icon: 'shield', onClick: () => onCertificado?.(unit) },
+    { label: 'Constancia', icon: 'receipt', onClick: () => onConstancia?.(unit) },
+    { separador: true },
+    { label: unit.status === 'DEFECTIVE' ? 'Habilitar' : 'Enviar a revisión', icon: 'alert', disabled: busy || ['SOLD', 'RESERVED', 'IN_TRANSIT'].includes(unit.status), onClick: () => ejecutar(() => onAdjust(unit)) },
+    { label: 'Dar de baja', icon: 'trash', disabled: busy || unit.status !== 'AVAILABLE', onClick: () => ejecutar(() => onRemove(unit)) },
+  ]
+
   return (
-    <VentanaDetalle open onClose={onClose} title={unit.product?.name || 'Unidad'} size="lg" className={cn(temaV2Activo() && 'tema-v2')}>
-      <div className="space-y-5">
-        {/* Encabezado */}
-        <section className="rounded-2xl border border-ink-600 bg-gradient-to-br from-ink-800 to-ink-800/40 p-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge data-testid="unidad-estado" color={estadoInventario(unit).tone}>{estadoInventario(unit).label}</Badge>
-            <Badge color={colorCondicionUnidad(unit)}>{etiquetaCondicionUnidad(unit)}</Badge>
-            {unit.reservationCustomer && <Badge color="orange">Atajado por {unit.reservationCustomer}</Badge>}
+    <VentanaDetalle open onClose={onClose} title={unit.product?.name || 'Unidad'} size="xl" className={cn(temaV2Activo() && 'tema-v2')}>
+      <div className="space-y-4" data-testid="unidad-ficha">
+        {/* Encabezado compacto: chips, IMEI con copiar y acciones */}
+        <header className="rounded-2xl border border-ink-600 bg-gradient-to-br from-ink-800 to-ink-800/40 p-4" data-testid="unidad-encabezado">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <Badge color={colorCondicionUnidad(unit)} data-testid="unidad-condicion">{etiquetaCondicionUnidad(unit)}</Badge>
+              <Badge data-testid="unidad-estado" color={estado.tone}>{estado.label}</Badge>
+              {sigla && <Badge color="slate" data-testid="unidad-ubicacion-chip" title={unit.location?.name ? `Ubicación: ${unit.location.name}` : undefined}><Icon name="pin" className="mr-1 inline h-3 w-3" />{sigla}</Badge>}
+              {unit.reservationCustomer && <Badge color="orange">Atajado por {unit.reservationCustomer}</Badge>}
+            </div>
+            {(onNavegar && (anterior || siguiente)) && (
+              <div className="flex items-center gap-1" role="group" aria-label="Navegar entre unidades">
+                <button type="button" disabled={!anterior} onClick={() => onNavegar(anterior)} aria-label="Unidad anterior" title="Unidad anterior" className="toque-44 rounded-lg border border-ink-600 p-1.5 text-mute transition hover:border-fono/40 hover:text-fore disabled:opacity-30"><Icon name="arrowLeft" className="h-4 w-4" /></button>
+                <button type="button" disabled={!siguiente} onClick={() => onNavegar(siguiente)} aria-label="Unidad siguiente" title="Unidad siguiente" className="toque-44 rounded-lg border border-ink-600 p-1.5 text-mute transition hover:border-fono/40 hover:text-fore disabled:opacity-30"><Icon name="arrowRight" className="h-4 w-4" /></button>
+              </div>
+            )}
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="font-mono text-sm font-bold tracking-wide">{unit.serial}</span>
-            <button type="button" className="toque-44 rounded-md p-1 text-mute transition hover:bg-fore/5 hover:text-fore" title="Copiar IMEI/serial" aria-label="Copiar IMEI/serial" onClick={() => { copiarAlPortapapeles(unit.serial); toast.success('IMEI copiado.') }}><Icon name="copy" className="h-3.5 w-3.5" /></button>
+          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-mute">IMEI</span>
+            <span className="font-mono text-sm font-bold tracking-wide" data-testid="unidad-imei">{unit.serial}</span>
+            <button type="button" className="toque-44 rounded-md p-1 text-mute transition hover:bg-fore/5 hover:text-fore" title="Copiar IMEI/serial" aria-label="Copiar IMEI/serial" data-testid="unidad-imei-copiar" onClick={() => { copiarAlPortapapeles(unit.serial); toast.success('IMEI copiado.') }}><Icon name="copy" className="h-3.5 w-3.5" /></button>
             {/* #287: la unidad y su producto son el mismo objeto: se pasa a la
                 ficha del producto sin cambiar de mundo mental. */}
             {!esDemo && (unit.productId || unit.product?.id) && (
@@ -443,51 +495,88 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
                 <Icon name="phone" className="h-3.5 w-3.5" />Ver producto
               </Link>
             )}
+            {unit.product?.sku && <span className="text-[11px] text-mute">{unit.product.sku}</span>}
           </div>
-          <p className="mt-1 text-xs text-mute">{unit.branch?.name || 'Sucursal'}{unit.location?.name ? ` · ${unit.location.name}` : ''}{unit.product?.sku ? ` · ${unit.product.sku}` : ''}</p>
-          {verificador && unit.lastVerifiedAt && (
-            <p className="mt-2 flex items-center gap-1.5 text-[11px] text-mute" title={`Verificó ${verificador.name}`}><Avatar user={verificador} size="sm" /><span>Verificado por {verificador.name} · {relativeDate(unit.lastVerifiedAt)}{unit.verificationCount > 1 ? ` · ${unit.verificationCount} veces` : ''}</span></p>
-          )}
-          {!unit.lastVerifiedAt && <p className="mt-2 text-[11px] text-mute">Sin verificación física registrada.</p>}
-        </section>
+          <div className="mt-3 flex flex-wrap items-center gap-2" data-testid="unidad-acciones">
+            {unit.status === 'AVAILABLE' && <Button disabled={busy} title="Cargar la venta de esta unidad" onClick={() => ejecutar(() => onSell(unit))}>Vender</Button>}
+            {unit.status === 'AVAILABLE' && <Button variant="outline" disabled={busy} title="Apartar la unidad para un cliente" onClick={() => ejecutar(() => onReserve(unit))}>Reservar</Button>}
+            {unit.status === 'IN_TRANSIT' && <Button disabled={busy} title="Confirmar la llegada de la unidad a esta sucursal" onClick={() => ejecutar(() => onArrive(unit))}>Recibir en sucursal</Button>}
+            {unit.status === 'RESERVED' && <Button disabled={busy} title="Cerrar la venta de la unidad reservada" onClick={() => ejecutar(() => onSell(unit))}>Finalizar venta</Button>}
+            {unit.status === 'RESERVED' && <Button variant="outline" disabled={busy} title="Soltar la reserva y dejar la unidad disponible" onClick={() => ejecutar(() => onRelease(unit.serial))}>Liberar reserva</Button>}
+            {unit.status !== 'SOLD' && <Button variant="outline" disabled={busy} title="Registrar la verificación física ahora" onClick={() => ejecutar(() => onVerify(unit))}>✓ Verificado</Button>}
+            <MenuSecundario acciones={acciones} direccion="abajo" />
+          </div>
+        </header>
 
-        {/* Datos */}
-        <section className="rounded-2xl border border-ink-600 p-4">
-          <h3 className={ROTULO_SECCION}>Ficha del equipo</h3>
-          <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-xl bg-ink-800/60 p-3" title="Depósito o sucursal donde está la unidad"><p className="text-xs text-mute">Ubicación</p>
-              {canManage
-                ? <Select aria-label="Ubicación de la unidad" className="mt-1" value={unit.locationId || ''} disabled={busy} onChange={event => ejecutar(() => onMove?.(unit, event.target.value || null))}>
-                    <option value="">Sin ubicación</option>
-                    {locations.filter(location => location.branchId === unit.branchId && location.isActive).map(location => <option key={location.id} value={location.id}>{location.name}</option>)}
-                  </Select>
-                : <p className="mt-1 font-semibold">{unit.location?.name || '—'}</p>}
-            </div>
-            <div className="rounded-xl bg-ink-800/60 p-3" title="Salud de la batería informada al recibir la unidad"><MedidorBateria porcentaje={unit.batteryHealth} /></div>
-            <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Proveedor</p><p className="mt-1 font-semibold">{unit.supplier?.name || unit.supplierName || '—'}{unit.supplier?.name && unit.supplier?.code ? ' (' + unit.supplier.code + ')' : ''}</p></div>
-            <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Costo</p><p className="mt-1 font-semibold">{sinCostoUnitario(unit) ? <span className="text-warn">Pendiente</span> : money(unit.originalCost, unit.costCurrency)}{!sinCostoUnitario(unit) && unit.costPyg ? ` · ${money(unit.costPyg, 'PYG')}` : ''}</p></div>
-            <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Ingresó a stock</p><p className="mt-1 font-semibold">{ingreso ? ingreso.toLocaleDateString('es-PY') : '—'}{diasEnStock != null ? <span className="ml-2 text-xs font-normal text-mute">{diasEnStock} {diasEnStock === 1 ? 'día' : 'días'} en stock</span> : null}</p></div>
-            <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Compra</p><p className="mt-1 font-semibold">{unit.purchasedAt ? new Date(unit.purchasedAt).toLocaleDateString('es-PY') : '—'}</p></div>
-            {/* #305: la garantía vive en la ficha (no en la tabla). */}
-            <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Garantía</p><p className="mt-1 font-semibold">{unit.warrantyUntil ? <>{new Date(unit.warrantyUntil).toLocaleDateString('es-PY')} · {new Date(unit.warrantyUntil).getTime() < Date.now() ? <span className="text-bad">vencida</span> : <span className="text-ok">vigente</span>}</> : 'Sin garantía registrada'}</p></div>
-            {unit.reservedUntil && <div className="col-span-2 rounded-xl border border-reserved/30 bg-reserved/10 p-3 text-sm"><p className="text-xs text-mute">Reserva</p><p className="mt-1 font-semibold">{unit.reservationCustomer || 'Cliente'} · vence {new Date(unit.reservedUntil).toLocaleString('es-PY')}</p></div>}
-            <div className="col-span-2 rounded-xl border border-fono/25 bg-fono/5 p-3 text-sm">
-              <p className="text-xs text-mute">Consignación de terceros</p>
-              <p className="mt-1 text-xs text-mute">Si el equipo no es de la tienda, cargá quién lo dejó y cuánto hay que pagarle al venderse.</p>
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] lg:items-start" data-testid="unidad-layout">
+          <div className="min-w-0 space-y-4" data-testid="unidad-principal">
+            {/* Datos: grilla densa de 2–3 columnas con edición por campo */}
+            <TarjetaFicha titulo="Ficha del equipo">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3 xl:grid-cols-3">
+                <CampoFicha etiqueta="Batería" ayuda="Salud de la batería informada al recibir la unidad y ciclos de carga" puedeEditar={canManage} guardando={guardandoCampo} testId="unidad-bateria"
+                  onAbrir={() => setBateria({ pct: String(unit.batteryHealth ?? ''), ciclos: String(ciclos ?? '') })}
+                  onGuardar={() => guardarDetalles({ batteryHealth: bateria.pct === '' ? null : Number(bateria.pct), batteryCycles: bateria.ciclos === '' ? null : Number(bateria.ciclos) }, 'Batería guardada.')}
+                  editor={<div className="grid grid-cols-2 gap-2"><Input aria-label="Batería %" inputMode="numeric" maxLength={3} placeholder="%" value={bateria.pct} onChange={event => setBateria(actual => ({ ...actual, pct: event.target.value.replace(/\D/g, '') }))} /><Input aria-label="Ciclos de carga" inputMode="numeric" maxLength={4} placeholder="Ciclos" value={bateria.ciclos} onChange={event => setBateria(actual => ({ ...actual, ciclos: event.target.value.replace(/\D/g, '') }))} /></div>}>
+                  {unit.batteryHealth != null ? `${unit.batteryHealth}%` : '—'}{ciclos != null ? <span className="ml-1.5 text-xs font-normal text-mute">{ciclos} ciclos</span> : null}
+                </CampoFicha>
+                <CampoFicha etiqueta="Ingresó a stock">
+                  {ingreso ? ingreso.toLocaleDateString('es-PY') : '—'}{diasEnStock != null ? <span className="ml-1.5 text-xs font-normal text-mute">{diasEnStock} {diasEnStock === 1 ? 'día' : 'días'}</span> : null}
+                </CampoFicha>
+                <CampoFicha etiqueta="Compra" puedeEditar={canManage} guardando={guardandoCampo} testId="unidad-compra"
+                  onAbrir={() => setCompra(unit.purchasedAt ? new Date(unit.purchasedAt).toISOString().slice(0, 10) : '')}
+                  onGuardar={() => guardarDetalles({ purchasedAt: compra || null }, 'Fecha de compra guardada.')}
+                  editor={<Input type="date" aria-label="Fecha de compra" value={compra} onChange={event => setCompra(event.target.value)} />}>
+                  {unit.purchasedAt ? new Date(unit.purchasedAt).toLocaleDateString('es-PY') : '—'}
+                </CampoFicha>
+                {muestraCosto && (
+                  <CampoFicha etiqueta="Costo" puedeEditar guardando={guardandoCosto} testId="unidad-costo"
+                    onAbrir={() => setCosto(costoInicial())}
+                    onGuardar={guardarCosto}
+                    editor={<div className="space-y-2">
+                      <p className="text-[11px] text-mute">En guaraníes (sin decimales) o en otra moneda con la cotización del día. Vacío = pendiente; alimenta el costo de la venta y la ganancia.</p>
+                      <div className="grid gap-2 sm:grid-cols-[8rem_minmax(0,1fr)]">
+                        <CurrencySelect aria-label="Moneda del costo" value={costo.currency} onChange={event => cambiarMonedaCosto(event.target.value)} />
+                        <MoneyInput aria-label="Monto del costo" currency={costo.currency} value={costo.monto} onValueChange={value => setCosto(current => ({ ...current, monto: value === '' ? '' : String(value) }))} placeholder="Monto (vacío = pendiente)" />
+                      </div>
+                      {costo.currency !== 'PYG' && (
+                        <div>
+                          <Label htmlFor="unidad-costo-cotizacion">Cotización del {costo.currency} en Gs.</Label>
+                          <MoneyInput id="unidad-costo-cotizacion" aria-label="Cotización" currency="USD" symbol="Gs." value={costo.rate} onValueChange={value => setCosto(current => ({ ...current, rate: value === '' ? '' : String(value) }))} placeholder="Ej. 7500" />
+                        </div>
+                      )}
+                      {costo.currency !== 'PYG' && costo.monto !== '' && Number(costo.rate) > 0 && <p className="text-xs text-mute">Costo en Gs: <b className="text-fore">{gs(Number(costo.monto) * Number(costo.rate))}</b></p>}
+                    </div>}>
+                    {sinCostoUnitario(unit) ? <span className="text-warn">Pendiente</span> : money(unit.originalCost, unit.costCurrency)}{!sinCostoUnitario(unit) && unit.costPyg && unit.costCurrency !== 'PYG' ? <span className="ml-1.5 text-xs font-normal text-mute">{money(unit.costPyg, 'PYG')}</span> : null}
+                  </CampoFicha>
+                )}
+                {unit.reservedUntil && (
+                  <CampoFicha etiqueta="Reserva" ancho><span className="text-reserved">{unit.reservationCustomer || 'Cliente'} · vence {new Date(unit.reservedUntil).toLocaleString('es-PY')}</span></CampoFicha>
+                )}
+                <CampoFicha etiqueta="Nota interna" ancho puedeEditar guardando={guardandoNota} testId="unidad-nota"
+                  onAbrir={() => setNota(unit.notes || '')}
+                  onGuardar={guardarNota}
+                  editor={<Input aria-label="Nota interna de la unidad" maxLength={500} value={nota} onChange={event => setNota(event.target.value)} placeholder="Raya lateral, caja dañada, accesorio faltante…" />}>
+                  {unit.notes ? <span className="font-normal text-fore/90">{unit.notes}</span> : <span className="font-normal text-mute">Sin nota</span>}
+                </CampoFicha>
+              </div>
+            </TarjetaFicha>
+
+            {/* Consignación de terceros: plegada; el resumen alcanza para el día a día */}
+            <details className="group rounded-2xl border border-ink-600 p-4" data-testid="unidad-consignacion">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
+                <span className={ROTULO_SECCION}>Consignación de terceros</span>
+                <span className="flex min-w-0 items-center gap-2 text-xs text-mute"><span className="truncate">{unit.consignorName ? `${unit.consignorName}${unit.consignorPyg ? ` · a pagar ${money(unit.consignorPyg, 'PYG')}` : ''}` : 'Sin consignación'}</span><Icon name="chevron" className="h-4 w-4 shrink-0 transition group-open:rotate-180" /></span>
+              </summary>
+              <p className="mt-3 text-xs text-mute">Si el equipo no es de la tienda, cargá quién lo dejó y cuánto hay que pagarle al venderse. Al venderlo, ese monto se le paga al consignador y suma al costo real (ganancia y seguro).</p>
               <div className="mt-2 grid gap-2 sm:grid-cols-3">
                 <Input aria-label="Consignador" maxLength={160} value={consignador} onChange={event => setConsignador(event.target.value)} placeholder="Nombre de quien lo dejó" className="min-h-9" autoCapitalize="words" />
                 <Input aria-label="Teléfono del consignador" maxLength={40} value={consignadorTel} onChange={event => setConsignadorTel(event.target.value)} placeholder="Teléfono" className="min-h-9" autoCapitalize="none" />
                 <MoneyInput aria-label="Monto a pagar al consignador" title="Al venderse se le paga al consignador y suma al costo real del equipo para la ganancia y el seguro" value={consignadorMonto} onValueChange={value => setConsignadorMonto(value === '' ? '' : String(value))} placeholder="A pagar (Gs)" className="min-h-9" />
               </div>
-              <p className="mt-1 text-[11px] text-mute">Al vender el equipo, este monto se le paga al consignador y suma al costo real (ganancia y seguro).</p>
-              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs text-mute">{unit.consignorName ? `En consignación de ${unit.consignorName}${unit.consignorPyg ? ` · a pagar ${money(unit.consignorPyg, 'PYG')}` : ''}` : 'Sin consignación'}</span>
+              <div className="mt-2 flex justify-end">
                 <Button type="button" variant="outline" disabled={guardandoConsignacion || (consignador.trim() === (unit.consignorName || '') && consignadorTel.trim() === (unit.consignorPhone || '') && consignadorMonto.trim() === (unit.consignorPyg === null || unit.consignorPyg === undefined ? '' : String(unit.consignorPyg)))} onClick={guardarConsignacion}>{guardandoConsignacion ? 'Guardando…' : 'Guardar consignación'}</Button>
               </div>
-            </div>
-            <div className="col-span-2 rounded-xl bg-ink-800/60 p-3 text-sm"><p className="text-xs text-mute">Nota interna</p><div className="mt-1.5 flex flex-wrap items-center gap-2"><Input aria-label="Nota interna de la unidad" maxLength={500} value={nota} onChange={event => setNota(event.target.value)} placeholder="Raya lateral, caja dañada, accesorio faltante…" className="min-h-9 min-w-[12rem] flex-1" /><Button type="button" variant="outline" disabled={guardandoNota || nota.trim() === (unit.notes || "")} onClick={guardarNota}>{guardandoNota ? "Guardando…" : "Guardar nota"}</Button></div></div>
-          </div>
-        </section>
+            </details>
 
         {/* #278: de dónde salió el equipo — necesidad → compra → lote → stock.
             Lo que guarda el Centro de Abastecimiento tiene que poder mostrarse. */}
@@ -527,30 +616,6 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
             )}
           </section>
         )}
-
-        {/* Costo del equipo: se puede completar después de recibirlo */}
-        <section className="rounded-2xl border border-ink-600 p-4" data-testid="unidad-costo">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className={ROTULO_SECCION}>Costo del equipo</h3>
-            {sinCostoUnitario(unit) ? <Badge color="orange">Pendiente</Badge> : <Badge color="green">Cargado</Badge>}
-          </div>
-          <p className="mt-1 text-xs text-mute">En guaraníes (sin decimales) o en otra moneda con la cotización del día. Si todavía no lo sabés, dejalo vacío: queda pendiente y lo completás después. El dato alimenta el costo de la venta y la ganancia.</p>
-          <div className="mt-2 grid gap-2 sm:grid-cols-[8rem_minmax(0,1fr)]">
-            <CurrencySelect aria-label="Moneda del costo" value={costo.currency} onChange={event => cambiarMonedaCosto(event.target.value)} />
-            <MoneyInput aria-label="Monto del costo" currency={costo.currency} value={costo.monto} onValueChange={value => setCosto(current => ({ ...current, monto: value === '' ? '' : String(value) }))} placeholder="Monto (vacío = pendiente)" />
-          </div>
-          {costo.currency !== 'PYG' && (
-            <div className="mt-2">
-              <Label htmlFor="unidad-costo-cotizacion">Cotización del {costo.currency} en Gs.</Label>
-              <MoneyInput id="unidad-costo-cotizacion" aria-label="Cotización" currency="USD" symbol="Gs." value={costo.rate} onValueChange={value => setCosto(current => ({ ...current, rate: value === '' ? '' : String(value) }))} placeholder="Ej. 7500" />
-            </div>
-          )}
-          {costo.currency !== 'PYG' && costo.monto !== '' && Number(costo.rate) > 0 && <p className="mt-2 text-xs text-mute">Costo en Gs: <b className="text-fore">{gs(Number(costo.monto) * Number(costo.rate))}</b></p>}
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs text-mute">{sinCostoUnitario(unit) ? 'Todavía sin costo.' : `Actual: ${money(unit.originalCost, unit.costCurrency)}${unit.costPyg !== null && unit.costPyg !== undefined ? ` · ${money(unit.costPyg, 'PYG')}` : ''}`}</span>
-            <Button type="button" variant="outline" disabled={guardandoCosto} onClick={guardarCosto} data-testid="unidad-costo-guardar">{guardandoCosto ? 'Guardando…' : 'Guardar costo'}</Button>
-          </div>
-        </section>
 
         {/* Consulta de IMEI (#193/#200): costo antes, confirmación explícita y fuente/hora */}
         <section className="rounded-2xl border border-ink-600 p-4" data-testid="detalle-unidad-imei">
@@ -723,25 +788,6 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
           <p className="mt-2 font-mono text-[11px] text-mute">{unit.serial}</p>
         </section>
 
-        {/* Acciones */}
-        <section className="rounded-2xl border border-ink-600 p-4">
-          <h3 className={ROTULO_SECCION}>Acciones</h3>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {unit.status === 'AVAILABLE' && <Button disabled={busy} title="Cargar la venta de esta unidad" onClick={() => ejecutar(() => onSell(unit))}>Vender</Button>}
-            {unit.status === 'AVAILABLE' && <Button variant="outline" disabled={busy} title="Apartar la unidad para un cliente" onClick={() => ejecutar(() => onReserve(unit))}>Reservar</Button>}
-            {unit.status === 'IN_TRANSIT' && <Button disabled={busy} title="Confirmar la llegada de la unidad a esta sucursal" onClick={() => ejecutar(() => onArrive(unit))}>Recibir en sucursal</Button>}
-            {unit.status === 'RESERVED' && <Button disabled={busy} title="Cerrar la venta de la unidad reservada" onClick={() => ejecutar(() => onSell(unit))}>Finalizar venta</Button>}
-            {unit.status === 'RESERVED' && <Button variant="outline" disabled={busy} title="Soltar la reserva y dejar la unidad disponible" onClick={() => ejecutar(() => onRelease(unit.serial))}>Liberar reserva</Button>}
-            {unit.status !== 'SOLD' && <Button variant="outline" disabled={busy} title="Registrar la verificación física ahora" onClick={() => ejecutar(() => onVerify(unit))}>✓ Verificado</Button>}
-            <Button variant="outline" title="Imprimir la etiqueta de esta unidad" onClick={() => onLabel(unit)}>Etiqueta</Button>
-            <Button variant="outline" title="Imprimir el informe del dispositivo (80 mm o A4) con el QR al informe público" onClick={() => onInforme?.(unit)}>Informe</Button>
-            <Button variant="outline" title="Imprimir el certificado de la inspección (grado, puntaje y checklist) con el QR al informe público" onClick={() => onCertificado?.(unit)}>Certificado</Button>
-            <Button variant="outline" title="Imprimir la constancia de preparación (formateo y desvinculación) firmada, con el QR al informe público" onClick={() => onConstancia?.(unit)}>Constancia</Button>
-            <Button variant="outline" disabled={busy || ['SOLD', 'RESERVED', 'IN_TRANSIT'].includes(unit.status)} title={unit.status === 'DEFECTIVE' ? 'Devolver la unidad al stock disponible' : 'Marcar la unidad en revisión con un motivo'} onClick={() => ejecutar(() => onAdjust(unit))}>{unit.status === 'DEFECTIVE' ? 'Habilitar' : 'Enviar a revisión'}</Button>
-            <Button variant="outline" disabled={busy || unit.status !== 'AVAILABLE'} title="Sacar la unidad del stock (queda en Eliminados)" onClick={() => ejecutar(() => onRemove(unit))}>Dar de baja</Button>
-          </div>
-        </section>
-
         {/* Retiro/ajuste con autorización para roles que no gestionan inventario */}
         {!canManage && !['SOLD', 'RESERVED', 'IN_TRANSIT'].includes(unit.status) && (
           <section className="rounded-2xl border border-ink-600 p-4">
@@ -800,6 +846,68 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
             </>
           )}
         </section>
+          </div>
+
+          {/* Columna derecha (≤340 px): dónde está, de quién es, garantía y datos internos */}
+          <aside className="min-w-0 space-y-4" data-testid="unidad-lateral" aria-label="Ubicación, proveedor, garantía e información interna">
+            <TarjetaFicha titulo="Ubicación">
+              <CampoFicha etiqueta="Depósito" ayuda="Depósito o sucursal donde está la unidad" puedeEditar={canManage} guardando={busy} testId="unidad-ubicacion"
+                onAbrir={() => setUbicacion(unit.locationId || '')}
+                onGuardar={async () => { await onMove?.(unit, ubicacion || null); onChanged?.() }}
+                editor={<Select aria-label="Ubicación de la unidad" value={ubicacion} disabled={busy} onChange={event => setUbicacion(event.target.value)}>
+                  <option value="">Sin ubicación</option>
+                  {locations.filter(location => location.branchId === unit.branchId && location.isActive).map(location => <option key={location.id} value={location.id}>{location.name}</option>)}
+                </Select>}>
+                {unit.location?.name || 'Sin ubicación'}
+                <span className="block text-xs font-normal text-mute">{unit.branch?.name || 'Sucursal'}</span>
+              </CampoFicha>
+            </TarjetaFicha>
+
+            <TarjetaFicha titulo="Proveedor" data-testid="unidad-proveedor">
+              {proveedorSigla || proveedorNombre
+                ? (
+                  <div className="space-y-1">
+                    <InsigniaProveedor sigla={proveedorSigla || proveedorNombre.slice(0, 3)} color={unit.supplier?.color} nombre={proveedorNombre} />
+                    {proveedorNombre && <p className={cn('truncate text-sm', proveedorCompleto ? 'font-semibold' : 'text-xs text-mute')} data-testid="unidad-proveedor-nombre">{proveedorNombre}</p>}
+                  </div>
+                )
+                : <p className="text-sm text-mute">Sin proveedor</p>}
+            </TarjetaFicha>
+
+            <TarjetaFicha titulo="Garantía">
+              <CampoFicha etiqueta="Vence" puedeEditar={canManage} guardando={guardandoCampo} testId="unidad-garantia"
+                onAbrir={() => setGarantiaMes(garantia ? garantia.toISOString().slice(0, 7) : '')}
+                onGuardar={() => guardarDetalles({ warrantyUntil: garantiaMes || null }, garantiaMes ? 'Garantía guardada.' : 'Garantía quitada.')}
+                editor={<Input type="month" aria-label="Mes de vencimiento de la garantía" value={garantiaMes} onChange={event => setGarantiaMes(event.target.value)} />}>
+                {garantia ? <>{garantiaTexto} · {garantia.getTime() < Date.now() ? <span className="text-bad">vencida</span> : <span className="text-ok">vigente</span>}</> : <span className="font-normal text-mute">Sin garantía registrada</span>}
+              </CampoFicha>
+            </TarjetaFicha>
+
+            {/* Interno: nunca va a etiquetas ni a comprobantes del cliente */}
+            <TarjetaFicha titulo="Interno" data-testid="unidad-interno" className="bg-ink-800/30">
+              <dl className="space-y-3 text-sm">
+                <div>
+                  <dt className="text-xs text-mute">Código interno</dt>
+                  <dd className="mt-0.5 font-mono font-semibold" data-testid="unidad-codigo-interno">{unit.internalCode || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-mute">Verificado por</dt>
+                  <dd className="mt-0.5">
+                    {verificador && unit.lastVerifiedAt
+                      ? <span className="flex items-center gap-1.5 text-xs" title={`Verificó ${verificador.name}`}><Avatar user={verificador} size="sm" /><span>{verificador.name} · {relativeDate(unit.lastVerifiedAt)}{unit.verificationCount > 1 ? ` · ${unit.verificationCount} veces` : ''}</span></span>
+                      : <span className="text-xs text-mute">Sin verificación física registrada.</span>}
+                  </dd>
+                </div>
+                {canManage && (
+                  <div>
+                    <dt className="text-xs text-mute">Historial</dt>
+                    <dd className="mt-0.5"><button type="button" className="text-xs font-semibold text-fono-light underline-offset-2 hover:underline" onClick={() => document.querySelector('[data-testid="unidad-cronologia"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Ver cronología{events.length ? ` (${events.length})` : ''}</button></dd>
+                  </div>
+                )}
+              </dl>
+            </TarjetaFicha>
+          </aside>
+        </div>
       </div>
 
       <Modal
