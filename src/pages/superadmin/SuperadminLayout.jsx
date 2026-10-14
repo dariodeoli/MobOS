@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate, NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Building2, LayoutDashboard, Users } from 'lucide-react'
+import { Activity, ArrowLeft, Building2, LayoutDashboard, Users } from 'lucide-react'
 import { api } from '@/lib/api'
 import ThemeToggle from '@/components/app/ThemeToggle'
 import ThemeLogo from '@/components/app/ThemeLogo'
@@ -11,13 +11,14 @@ const SECCIONES = [
   { to: '/superadmin', etiqueta: 'Resumen', Icono: LayoutDashboard, fin: true },
   { to: '/superadmin/empresas', etiqueta: 'Empresas', Icono: Building2 },
   { to: '/superadmin/usuarios', etiqueta: 'Usuarios', Icono: Users },
+  { to: '/superadmin/trafico', etiqueta: 'Tráfico y demo', corta: 'Tráfico', id: 'trafico', Icono: Activity, periodo: true },
 ]
 
 function Enlace({ seccion, movil = false }) {
   const { Icono } = seccion
   return (
     <NavLink
-      to={seccion.to} end={seccion.fin} data-testid={`nav-${seccion.etiqueta.toLowerCase()}`}
+      to={seccion.to} end={seccion.fin} data-testid={`nav-${seccion.id || seccion.etiqueta.toLowerCase()}`}
       className={({ isActive }) => cn(
         'inline-flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono',
         movil ? 'flex-1 flex-col justify-center gap-0.5 px-1 text-xs' : '',
@@ -25,7 +26,7 @@ function Enlace({ seccion, movil = false }) {
       )}
     >
       <Icono className="h-5 w-5 shrink-0" aria-hidden="true" />
-      {seccion.etiqueta}
+      {movil && seccion.corta ? seccion.corta : seccion.etiqueta}
     </NavLink>
   )
 }
@@ -51,6 +52,7 @@ export default function SuperadminLayout() {
   if (acceso !== 'ok') return <div className="min-h-dvh bg-paper" aria-hidden="true" />
 
   const enResumen = pathname.replace(/\/$/, '') === '/superadmin'
+  const conPeriodo = enResumen || pathname.startsWith('/superadmin/trafico')
   const titulo = SECCIONES.find(s => (s.fin ? enResumen : pathname.startsWith(s.to)))?.etiqueta || 'Resumen'
   const elegir = id => { const siguiente = new URLSearchParams(params); siguiente.set('p', id); setParams(siguiente, { replace: true }) }
 
@@ -78,7 +80,7 @@ export default function SuperadminLayout() {
           </div>
           <h1 className="min-w-0 text-lg font-semibold lg:text-xl" data-testid="superadmin-titulo">{titulo}</h1>
           <div className="ml-auto flex items-center gap-2 lg:hidden"><a href="/" aria-label="Volver a la app" className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-mute hover:bg-ink-700"><ArrowLeft className="h-5 w-5" /></a><ThemeToggle /></div>
-          {enResumen && (
+          {conPeriodo && (
             <div role="group" aria-label="Período" className="flex w-full flex-wrap gap-1.5 lg:w-auto">
               {PERIODOS.map(p => (
                 <button

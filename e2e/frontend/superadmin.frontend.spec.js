@@ -30,7 +30,26 @@ const RESUMEN = {
   totales: { empresasActivas: 40, usuarios: 150, usuariosHabilitados: 140 },
   demo: { empresas: 1, usuarios: 6, pedidos: 30 },
 }
-const EMPRESAS = Array.from({ length: 30 }, (_, i) => ({ id: `t${i}`, name: `Tienda ${i + 1}`, slug: `tienda-${i}`, email: `t${i}@ejemplo.test`, createdAt: '2026-09-01T12:00:00Z', archivedAt: null, ruc: null, usuarios: 3, pedidos: 10 + i, ultimaActividad: '2026-10-13T20:00:00Z' }))
+const rank = (...pares) => pares.map(([clave, n]) => ({ clave, n, porcentaje: Math.round((n / pares.reduce((a, [, x]) => a + x, 0)) * 1000) / 10 }))
+const TRAFICO = {
+  periodo: '30',
+  landing: {
+    sinDatos: false,
+    kpis: [kpi('visitas', 'Visitas a la landing', 320, 250), kpi('visitantes', 'Visitantes únicos', 210, 190), { ...kpi('tiempo', 'Tiempo en la página', 83, 70), unidad: 'segundos' }],
+    scroll: { promedioPct: 61, buckets: [25, 50, 75, 100].map((pct, i) => ({ pct, n: 90 - i * 20, porcentaje: 90 - i * 20 })), fuente: 'Sitio · scrollPct máximo por visita.' },
+    paginas: rank(['/', 280], ['/status', 40]), fuentes: rank(['directo', 150], ['facebook', 100], ['google.com', 70]), dispositivos: rank(['mobile', 220], ['desktop', 100]),
+    notas: { paginas: 'Sitio · pageview por ruta.', fuentes: 'Sitio · utm_source o referente.', dispositivos: 'Sitio · tipo de dispositivo.' },
+  },
+  demo: {
+    sinDatos: false,
+    kpis: [kpi('demos', 'Demos iniciadas', 60, 40), { ...kpi('duracionDemo', 'Duración media de la demo', 245, 200), unidad: 'segundos' }],
+    visitantes: { actual: 50, previo: 30, variacion: 66.7 },
+    roles: rank(['ADMIN', 25], ['VENDEDOR', 20], ['TECNICO', 8]), modulos: rank(['pos', 90], ['pedidos', 40], ['stock', 22]),
+    conversion: { visitantes: 50, convertidos: 6, porcentaje: 12 },
+    notas: { roles: 'Demo · demo_start por rol.', modulos: 'Demo · demo_view por módulo.', conversion: 'Demo · clic en Crear cuenta tras iniciar la demo.' },
+  },
+}
+const EMPRESAS = Array.from({ length: 30 }, (_, i) => ({ id: `t${i}`, name: `Tienda ${i + 1}`, slug: `tienda-${i}`, email: `t${i}@ejemplo.test`, createdAt: '2026-09-01T12:00:00Z', archivedAt: null, usuarios: 3, pedidos: 10 + i, ultimaActividad: '2026-10-13T20:00:00Z' }))
 const USUARIOS = Array.from({ length: 30 }, (_, i) => ({ id: `u${i}`, name: `Persona ${i + 1}`, email: `p${i}@ejemplo.test`, role: i % 2 ? 'VENDEDOR' : 'ADMIN', status: 'ACTIVE', createdAt: '2026-09-01T12:00:00Z', lastAccessAt: '2026-10-13T20:00:00Z', empresaId: 't1', empresa: 'Tienda 1' }))
 
 async function montar(page, { acceso = true } = {}) {
@@ -43,6 +62,7 @@ async function montar(page, { acceso = true } = {}) {
     pedidos.push(`${pathname}?${searchParams}`)
     if (pathname === '/api/superadmin/access') return acceso ? route.fulfill({ status: 200, json: { ok: true } }) : route.fulfill({ status: 404, json: { message: 'No encontrado.' } })
     if (pathname === '/api/superadmin/resumen') return route.fulfill({ status: 200, json: RESUMEN })
+    if (pathname === '/api/superadmin/trafico') return route.fulfill({ status: 200, json: TRAFICO })
     if (pathname === '/api/superadmin/empresas') return route.fulfill({ status: 200, json: { items: EMPRESAS, total: 61, pagina: Number(searchParams.get('pagina') || 1), porPagina: 30 } })
     if (pathname === '/api/superadmin/usuarios') return route.fulfill({ status: 200, json: { items: USUARIOS, total: 30, pagina: 1, porPagina: 30 } })
     if (pathname.startsWith('/api/superadmin/empresas/')) return route.fulfill({ status: 200, json: { ...EMPRESAS[0], emailVerifiedAt: '2026-09-01T12:00:00Z', usuariosActivos: 3, sucursales: 1, pedidos30: 12, ventas30: 12_345_678, equipo: [{ id: 'u1', name: 'Dueño Uno', role: 'ADMIN', status: 'ACTIVE' }] } })
@@ -113,6 +133,22 @@ for (const [ancho, alto, oscuro] of [[1440, 900, false], [390, 844, true], [360,
     await page.keyboard.press('Escape')
     await expect(dialogo).toHaveCount(0)
 
+    // Tráfico y demo.
+    await page.getByTestId('nav-trafico').filter({ visible: true }).click()
+    await expect(page.getByTestId('superadmin-trafico')).toBeVisible()
+    await expect(page.getByTestId('kpi-tiempo-valor')).toHaveText('1 min 23 s')
+    await expect(page.getByTestId('kpi-duracionDemo-valor')).toHaveText('4 min 05 s')
+    await expect(page.getByTestId('trafico-roles')).toContainText('Dueño')
+    await expect(page.getByTestId('trafico-modulos')).toContainText('pos')
+    await expect(page.getByTestId('trafico-conversion')).toContainText('12 %')
+    await expect(page.getByTestId('trafico-fuentes')).toContainText('Directo')
+    await expect(page.getByTestId('trafico-dispositivos')).toContainText('Celular')
+    await expect(page.getByTestId('trafico-scroll')).toContainText('Llegaron al 50 %')
+    await expect(page.getByTestId('periodo-30')).toBeVisible()
+    m = await sinScroll(page)
+    expect(m.scroll, 'tráfico: scroll horizontal').toBeLessThanOrEqual(m.ancho)
+    await page.screenshot({ path: `${out}/trafico-${ancho}-${oscuro ? 'oscuro' : 'claro'}.png`, fullPage: true })
+
     // Usuarios.
     await page.getByTestId('nav-usuarios').filter({ visible: true }).click()
     await expect(page.getByTestId('lista-usuarios')).toBeVisible()
@@ -131,4 +167,25 @@ test('la búsqueda y los filtros llegan al API como parámetros (sin cargar todo
   await page.getByTestId('lista-buscar').fill('alfa')
   await page.getByTestId('filtro-estado').selectOption('archivadas')
   await expect.poll(() => pedidos.some(p => p.startsWith('/api/superadmin/empresas?') && p.includes('q=alfa') && p.includes('estado=archivadas'))).toBe(true)
+})
+
+test('la landing manda un pageview anónimo y respeta «No rastrear»', async ({ page }) => {
+  const enviados = []
+  await page.route('**/api/public/track', async route => { enviados.push(route.request().postData()); return route.fulfill({ status: 204 }) })
+  await page.route('**/api/**', route => (new URL(route.request().url()).pathname.startsWith('/api/public/track') ? route.fallback() : new URL(route.request().url()).pathname.startsWith('/api/') ? route.fulfill({ status: 401, json: {} }) : route.continue()))
+  await page.goto('/landing-preview')
+  await expect.poll(() => enviados.length).toBeGreaterThan(0)
+  const evento = JSON.parse(enviados[0])
+  expect(evento).toMatchObject({ kind: 'landing', name: 'pageview', path: '/landing-preview' })
+  expect(evento.visitorId).toMatch(/^[a-f0-9]{32}$/)
+  expect(Object.keys(evento).sort()).toEqual(['kind', 'name', 'path', 'referrer', 'utmSource', 'visitorId'].filter(k => k in evento).sort())
+})
+
+test('con DNT activado no se envía nada', async ({ page }) => {
+  const enviados = []
+  await page.addInitScript(() => Object.defineProperty(navigator, 'doNotTrack', { value: '1' }))
+  await page.route('**/api/public/track', route => { enviados.push(1); return route.fulfill({ status: 204 }) })
+  await page.goto('/landing-preview')
+  await page.waitForTimeout(1500)
+  expect(enviados).toHaveLength(0)
 })

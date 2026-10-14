@@ -12,6 +12,7 @@ import { applyPageMetadata } from '@/lib/seo'
 import { isDemoRuntime } from '@/lib/demoMode'
 import DemoAccess from '@/pages/DemoAccess'
 import { DESTINO_LEGADO } from '@/lib/rutas'
+import TraficoSitio from '@/components/app/TraficoSitio'
 
 // Rutas secundarias en lazy: su código baja solo cuando se navega a ellas.
 const Landing = lazy(() => import('@/pages/Landing'))
@@ -53,6 +54,7 @@ const SuperadminLayout = lazy(() => import('@/pages/superadmin/SuperadminLayout'
 const SuperadminResumen = lazy(() => import('@/pages/superadmin/Resumen'))
 const SuperadminEmpresas = lazy(() => import('@/pages/superadmin/Empresas'))
 const SuperadminUsuarios = lazy(() => import('@/pages/superadmin/Usuarios'))
+const SuperadminTrafico = lazy(() => import('@/pages/superadmin/Trafico'))
 
 // El usuario existe pero nadie lo sumó todavía a una tienda. Pasa cuando el
 // dueño crea la cuenta y aún no la asignó a su empresa.
@@ -268,7 +270,7 @@ export default function App() {
   // Solo la app publicada redirige los enlaces viejos al subdominio canónico;
   // en dev/local se abre la página acá mismo (#197).
   const canonicoPedido = ['app.moboss.online', 'www.app.moboss.online'].includes(host)
-  if (landing) return <><MetadatosPagina publicPage /><Suspense fallback={<PaginaCargando />}>{status ? <Status /> : legal ? <LegalPublica /> : <Landing />}</Suspense></>
+  if (landing) return <><MetadatosPagina publicPage /><TraficoSitio kind="landing" /><Suspense fallback={<PaginaCargando />}>{status ? <Status /> : legal ? <LegalPublica /> : <Landing />}</Suspense></>
 
   const clientPortalPreview = import.meta.env.DEV && window.location.pathname === '/clientes-preview'
   const clientPortal = ['clientes.moboss.online', 'www.clientes.moboss.online'].includes(host) || clientPortalPreview
@@ -299,6 +301,7 @@ export default function App() {
     <SesionProvider>
       <ToastProvider demo={isDemoRuntime}>
         <MetadatosPagina />
+        <TraficoSitio kind="demo" />
         <AvisoVersion />
         <Suspense fallback={<PaginaCargando />}>
         <Routes>
@@ -331,6 +334,7 @@ export default function App() {
             <Route index element={<SuperadminResumen />} />
             <Route path="empresas" element={<SuperadminEmpresas />} />
             <Route path="usuarios" element={<SuperadminUsuarios />} />
+            <Route path="trafico" element={<SuperadminTrafico />} />
             <Route path="*" element={<Navigate to="/superadmin" replace />} />
           </Route>
           <Route

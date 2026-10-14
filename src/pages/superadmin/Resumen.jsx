@@ -2,22 +2,23 @@ import { useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { formatGs } from '@/utils/moneda'
-import { formatDelta, formatNumero } from '@/lib/superadmin/formato'
+import { formatDelta, formatDuracion, formatNumero } from '@/lib/superadmin/formato'
 import { cn } from '@/lib/utils'
 import { LineaDoble, Sparkline } from './Graficos'
 
 const plural = (n, uno, varios) => `${formatNumero(n)} ${n === 1 ? uno : varios}`
 const TONO = { sube: 'text-ok-text', baja: 'text-bad-text', neutro: 'text-mute' }
 
-function valorKpi(kpi, valor) {
+export function valorKpi(kpi, valor) {
+  if (kpi.unidad === 'segundos') return formatDuracion(valor)
   return kpi.unidad === 'pyg' ? formatGs(valor) : formatNumero(valor)
 }
 
-function sinDatos(kpi) {
+export function sinDatos(kpi) {
   return kpi.actual === 0 && kpi.previo === 0 && kpi.serie.every(p => p.valor === 0)
 }
 
-function TarjetaKpi({ kpi }) {
+export function TarjetaKpi({ kpi }) {
   const vacio = sinDatos(kpi)
   const delta = formatDelta(kpi.variacion)
   return (

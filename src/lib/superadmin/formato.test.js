@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { consultaLista, diaCorto, formatDelta, periodoValido, puntosSparkline, totalPaginas } from './formato.js'
+import { consultaLista, diaCorto, formatDelta, formatDuracion, periodoValido, puntosSparkline, totalPaginas } from './formato.js'
 
 test('formatDelta: signo, coma decimal y «sin base» cuando el período anterior es 0', () => {
   assert.deepEqual(formatDelta(12.5), { texto: '+12,5 %', tono: 'sube' })
@@ -26,4 +26,12 @@ test('periodoValido cae al default; diaCorto y paginación', () => {
   assert.equal(totalPaginas(0), 1)
   assert.equal(totalPaginas(61), 3)
   assert.equal(consultaLista({ q: 'a b', estado: '', pagina: 2 }), 'q=a+b&pagina=2')
+})
+
+test('formatDuracion: segundos y minutos; inválidos con guion', () => {
+  assert.equal(formatDuracion(45), '45 s')
+  assert.equal(formatDuracion(125), '2 min 05 s')
+  assert.equal(formatDuracion(null), '0 s')
+  assert.equal(formatDuracion(-1), '—')
+  assert.equal(formatDuracion('x'), '—')
 })

@@ -163,6 +163,10 @@ model GoogleIdentity {
   subject String  @id
   name    String?
   picture String?
+  // Correo verificado por Google (email_verified) del último acceso. Solo lo
+  // escribe el login de Google: ninguna empresa puede editarlo. Es la única
+  // prueba de identidad que acepta el panel de plataforma.
+  email   String?
   stores  GoogleStoreAccess[]
 }
 
@@ -3851,4 +3855,26 @@ model StockArrivalLine {
   @@unique([arrivalId, rowIndex])
   @@index([tenantId, serial])
   @@index([tenantId, destination, unitId])
+}
+
+// Tráfico propio del sitio público y de la demo (panel de plataforma). Sin
+// datos personales: id de visitante anónimo, ruta sin query y campos acotados.
+model SiteEvent {
+  id          String   @id
+  createdAt   DateTime @default(now())
+  kind        String
+  name        String
+  visitorId   String
+  path        String?
+  referrer    String?
+  utmSource   String?
+  device      String
+  role        String?
+  module      String?
+  durationSec Int?
+  scrollPct   Int?
+
+  @@index([createdAt])
+  @@index([kind, name, createdAt])
+  @@index([visitorId])
 }

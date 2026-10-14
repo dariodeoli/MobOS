@@ -9,9 +9,9 @@ import { ZONA, rangoDePeriodo, rellenarSerie, sumaSerie, variacionPct, type Peri
 // - Los días se agrupan en la zona horaria de Paraguay.
 export const PAGINA = 30
 
-type FilaDia = { dia: string; valor: bigint | number }
-const num = (valor: unknown) => Number(valor ?? 0)
-const diaSql = (columna: string) => Prisma.sql`to_char((${Prisma.raw(columna)} AT TIME ZONE 'UTC') AT TIME ZONE ${ZONA}, 'YYYY-MM-DD')`
+export type FilaDia = { dia: string; valor: bigint | number }
+export const num = (valor: unknown) => Number(valor ?? 0)
+export const diaSql = (columna: string) => Prisma.sql`to_char((${Prisma.raw(columna)} AT TIME ZONE 'UTC') AT TIME ZONE ${ZONA}, 'YYYY-MM-DD')`
 
 export type Kpi = {
   clave: string
@@ -21,11 +21,11 @@ export type Kpi = {
   variacion: number | null
   serie: PuntoSerie[]
   seriePrevia: PuntoSerie[]
-  unidad: 'cantidad' | 'pyg'
+  unidad: 'cantidad' | 'pyg' | 'segundos'
   fuente: string
 }
 
-function kpi(base: { clave: string; etiqueta: string; unidad: 'cantidad' | 'pyg'; fuente: string }, filas: FilaDia[], dias: string[], diasPrevios: string[]): Kpi {
+export function kpi(base: { clave: string; etiqueta: string; unidad: 'cantidad' | 'pyg'; fuente: string }, filas: FilaDia[], dias: string[], diasPrevios: string[]): Kpi {
   const todas = filas.map(f => ({ dia: String(f.dia), valor: num(f.valor) }))
   const actualSerie = rellenarSerie(todas, dias)
   const previaSerie = rellenarSerie(todas, diasPrevios)
@@ -153,7 +153,7 @@ export async function listarEmpresas(p: ParamsLista, ahora = new Date()) {
   const condiciones: Prisma.Sql[] = [Prisma.sql`TRUE`]
   if (p.q) {
     const patron = patronBusqueda(p.q)
-    condiciones.push(Prisma.sql`(t."name" ILIKE ${patron} OR t."email" ILIKE ${patron} OR t."slug" ILIKE ${patron} OR t."ruc" ILIKE ${patron})`)
+    condiciones.push(Prisma.sql`(t."name" ILIKE ${patron} OR t."email" ILIKE ${patron} OR t."slug" ILIKE ${patron})`)
   }
   if (p.estado === 'activas') condiciones.push(Prisma.sql`t."archivedAt" IS NULL`)
   else if (p.estado === 'archivadas') condiciones.push(Prisma.sql`t."archivedAt" IS NOT NULL`)
@@ -167,7 +167,7 @@ export async function listarEmpresas(p: ParamsLista, ahora = new Date()) {
     LEFT JOIN (SELECT "tenantId", MAX("lastSeenAt") AS ultima FROM "UsageSession" GROUP BY 1) a ON a."tenantId" = t."id"`
   const [filas, total] = await Promise.all([
     prisma.$queryRaw<any[]>(Prisma.sql`
-      SELECT t."id", t."name", t."slug", t."email", t."createdAt", t."archivedAt", t."ruc",
+      SELECT t."id", t."name", t."slug", t."email", t."createdAt", t."archivedAt",
              COALESCE(u.n, 0)::int AS usuarios, COALESCE(o.n, 0)::int AS pedidos, a.ultima AS "ultimaActividad"
       ${union}
       WHERE ${filtroSinDemo('t')} AND ${donde}
@@ -182,7 +182,7 @@ export async function detalleEmpresa(id: string, ahora = new Date()) {
   const hace30 = new Date(ahora.getTime() - 30 * 86_400_000)
   const [empresa, equipo] = await Promise.all([
     prisma.$queryRaw<any[]>(Prisma.sql`
-      SELECT t."id", t."name", t."slug", t."email", t."emailVerifiedAt", t."ruc", t."city", t."department", t."phone", t."createdAt", t."archivedAt",
+      SELECT t."id", t."name", t."slug", t."email", t."emailVerifiedAt", t."city", t."department", t."createdAt", t."archivedAt",
         (SELECT COUNT(*)::int FROM "User" u WHERE u."tenantId" = t."id") AS usuarios,
         (SELECT COUNT(*)::int FROM "User" u WHERE u."tenantId" = t."id" AND u."status" = 'ACTIVE') AS "usuariosActivos",
         (SELECT COUNT(*)::int FROM "Branch" b WHERE b."tenantId" = t."id") AS sucursales,

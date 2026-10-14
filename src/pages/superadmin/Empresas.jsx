@@ -21,7 +21,7 @@ function DetalleEmpresa({ id }) {
     <div className="flex flex-col gap-4" data-testid="detalle-empresa">
       <Datos filas={[
         ['Empresa', datos.name], ['Identificador', datos.slug], ['Correo', datos.email], ['Correo verificado', datos.emailVerifiedAt ? fechaHora(datos.emailVerifiedAt) : 'No'],
-        ['RUC', datos.ruc], ['Ciudad', [datos.city, datos.department].filter(Boolean).join(', ')], ['Teléfono', datos.phone], ['Alta', fechaHora(datos.createdAt)],
+        ['Ciudad', [datos.city, datos.department].filter(Boolean).join(', ')], ['Alta', fechaHora(datos.createdAt)],
         ['Estado', datos.archivedAt ? `Archivada el ${soloFecha(datos.archivedAt)}` : 'Activa'], ['Última actividad', fechaHora(datos.ultimaActividad)],
         ['Usuarios', `${formatNumero(datos.usuariosActivos)} activos de ${formatNumero(datos.usuarios)}`], ['Sucursales', formatNumero(datos.sucursales)],
         ['Pedidos (total)', formatNumero(datos.pedidos)], ['Pedidos últimos 30 días', formatNumero(datos.pedidos30)], ['Ventas últimos 30 días', formatGs(datos.ventas30)],
@@ -44,7 +44,7 @@ function DetalleEmpresa({ id }) {
 export default function Empresas() {
   return (
     <ListaPlataforma
-      nombre="empresas" ruta={RUTA} columnas={COLUMNAS} placeholder="Buscar por nombre, correo, RUC o identificador"
+      nombre="empresas" ruta={RUTA} columnas={COLUMNAS} placeholder="Buscar por nombre, correo o identificador"
       detalleTitulo="Detalle de la empresa" DetalleContenido={DetalleEmpresa}
       filtros={[{ clave: 'estado', titulo: 'Estado', opciones: [['', 'Todas'], ['activas', 'Activas'], ['inactivas', 'Sin actividad 30 días'], ['archivadas', 'Archivadas']] }]}
       ordenes={[['alta', 'Alta'], ['nombre', 'Nombre'], ['usuarios', 'Usuarios'], ['pedidos', 'Pedidos'], ['actividad', 'Actividad']]}

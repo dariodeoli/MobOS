@@ -20,6 +20,14 @@ export function formatNumero(valor) {
   return Number.isFinite(n) ? NUMERO.format(n) : '—'
 }
 
+/** Segundos como «45 s» o «2 min 05 s». */
+export function formatDuracion(segundos) {
+  const n = Math.round(Number(segundos))
+  if (!Number.isFinite(n) || n < 0) return '—'
+  if (n < 60) return `${n} s`
+  return `${Math.floor(n / 60)} min ${String(n % 60).padStart(2, '0')} s`
+}
+
 /** Variación vs el período anterior: «+12,5 %», «−3 %» o «sin base» si el anterior es 0. */
 export function formatDelta(delta) {
   if (delta === null || delta === undefined || !Number.isFinite(Number(delta))) return { texto: 'sin base previa', tono: 'neutro' }
