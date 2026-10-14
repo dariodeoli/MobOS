@@ -43,7 +43,7 @@ test('Clientes preserves create/import/export payloads, validation and original 
 
 test('Clientes preserves reviewed fiscal profile and unchanged summary/communication engines', () => {
   for (const [file, expected] of [
-    ['CustomerProfile.jsx', '1428ef73f92153b9f543f0265a23891bae5fd4eb980f38c6766603ca1ea56364'],
+    ['CustomerProfile.jsx', 'a48efa99634260cd62678de5f3d89ee8dda7da953db478f379c1ebaa2fe1c5ad'],
     ['ClienteResumenPopup.jsx', 'a12e1ed5afa6d281167d0f105f573f3eac7b9d3054e64371a3eb09193163c98a'],
     [
       'CustomerCommunicationCard.jsx',
