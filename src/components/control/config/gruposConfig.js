@@ -4,8 +4,8 @@
 // vive el detalle que hace que cada grupo se reconozca de un vistazo.
 // No duplicar esta lista en pantallas ni en docs.
 export const GRUPOS_CONFIG = {
-  'organizacion': { icono: 'store', descripcion: 'Datos de la tienda, identidad visual, titulares y sucursales.' },
-  'equipo': { icono: 'users', descripcion: 'Integrantes, invitaciones, roles, horarios y comisiones.' },
+  'organizacion': { icono: 'store', descripcion: 'Datos generales, identidad visual, sucursales, portal de clientes, notificaciones y plan.' },
+  'equipo': { icono: 'users', descripcion: 'Usuarios, invitaciones, roles, horarios y comisiones.' },
   'dispositivos': { icono: 'printer', descripcion: 'Impresoras, puentes de impresión, etiquetas, tickets y diagnóstico.' },
   'comercial': { icono: 'tag', descripcion: 'Listas de precios, seguro de ventas, límites y fidelización.' },
   'seguridad': { icono: 'shield', descripcion: 'Sesiones, acciones sensibles, exportación y auditoría.' },
