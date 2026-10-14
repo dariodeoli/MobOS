@@ -153,9 +153,9 @@ test('catálogo denso: ≥12 productos sobre el pliegue a 1440x900 y una sola fr
   const boxes = await cards.evaluateAll(els => els.map(e => { const r = e.getBoundingClientRect(); return { y: r.y, b: r.bottom, h: r.height, w: r.width } }))
   expect(boxes.filter(b => b.b <= 900).length).toBeGreaterThanOrEqual(12)
   for (const b of boxes) expect(b.h).toBeGreaterThanOrEqual(44)
-  // «Más» vive en el encabezado de Productos, no en una franja aparte.
+  // Las acciones (Ventas suspendidas · Gift cards) viven en el encabezado de Productos, no en una franja aparte.
   const head = await page.getByTestId('pos-bloque-productos').boundingBox()
-  const mas = await page.getByTestId('pos-mas').boundingBox()
+  const mas = await page.getByTestId('pos-suspendidas').boundingBox()
   expect(mas.y).toBeGreaterThanOrEqual(head.y)
   expect(mas.y + mas.height).toBeLessThanOrEqual(head.y + 70)
   await page.screenshot({ path: `${out}/1440-pos-light.png` })

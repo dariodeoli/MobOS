@@ -54,7 +54,6 @@ import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 import { accountPayment } from '@/utils/pagoCuenta'
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import ColaOffline from './ColaOffline'
-import AnalyticsPos from './AnalyticsPos'
 import GiftCardsPos from './venta/GiftCardsPos'
 import { buscarGiftCardDemo, canjearGiftCardDemo, normalizarCodigoGiftCard } from '@/lib/giftCards'
 import { puedeCanjearGiftCard } from '@/lib/validacionGlobal'
@@ -375,8 +374,6 @@ export default function FormularioVenta({
   const [cargandoSuspendidas, setCargandoSuspendidas] = useState(false)
   const [errorSuspendidas, setErrorSuspendidas] = useState('')
   // #309: menú «Más» del encabezado (cierra al elegir una herramienta).
-  const refHerramientas = useRef(null)
-  const cerrarHerramientas = () => { if (refHerramientas.current) refHerramientas.current.open = false }
   const toast = useToast()
   // #308: familia con más de una variante esperando elección explícita.
   const [variantePara, setVariantePara] = useState(null)
@@ -391,7 +388,6 @@ export default function FormularioVenta({
   // Enlace público del borrador recién generado (se muestra una sola vez).
   const [enlacePublico, setEnlacePublico] = useState(null)
   const [avisoEnlace, setAvisoEnlace] = useState('')
-  const [analyticsOpen, setAnalyticsOpen] = useState(false)
   // Producto leído por el escáner: se muestra y se agrega recién al confirmar
   // (evita sumar al carrito por una lectura accidental).
   const [escaneado, setEscaneado] = useState(null)
@@ -1826,48 +1822,6 @@ export default function FormularioVenta({
         testId="barra-pos"
         className="w-auto justify-end border-b-0 pb-0"
       >
-        {/* #309: las herramientas del POS (gift cards, analytics y ventas
-            suspendidas) viven en «Más» para no llenar la barra del módulo.
-            Suspender la venta en curso queda a mano, junto al carrito. */}
-        <details ref={refHerramientas} className="relative">
-          <summary data-testid="pos-mas" className="inline-flex h-11 cursor-pointer list-none select-none items-center gap-2 rounded-lg border border-ink-500 px-4 text-sm font-semibold transition hover:border-fono hover:bg-fono/10 md:h-9 [&::-webkit-details-marker]:hidden">
-            <Icon name="menu" className="h-4 w-4" />
-            Más
-          </summary>
-          <div
-            role="menu"
-            aria-label="Herramientas de la venta"
-            className="absolute right-0 z-30 mt-1 w-60 max-w-[calc(100vw-2rem)] rounded-xl border border-ink-600 bg-ink-800 p-1 shadow-xl"
-          >
-            <button
-              type="button"
-              role="menuitem"
-              className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-mute transition hover:bg-ink-700 hover:text-fore md:min-h-0"
-              onClick={() => { cerrarHerramientas(); setGiftCardsOpen(true) }}
-            >
-              <Icon name="card" className="h-4 w-4" />
-              Gift cards
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-mute transition hover:bg-ink-700 hover:text-fore md:min-h-0"
-              onClick={() => { cerrarHerramientas(); setAnalyticsOpen(true) }}
-            >
-              <Icon name="chart" className="h-4 w-4" />
-              Analytics
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-mute transition hover:bg-ink-700 hover:text-fore md:min-h-0"
-              onClick={() => { cerrarHerramientas(); abrirSuspendidas() }}
-            >
-              <Icon name="clock" className="h-4 w-4" />
-              Ventas suspendidas
-            </button>
-          </div>
-        </details>
         {items.length > 0 && (
           <Button
             type="button"
@@ -1879,6 +1833,14 @@ export default function FormularioVenta({
             Suspender venta
           </Button>
         )}
+        <Button type="button" variant="outline" data-testid="pos-suspendidas" onClick={abrirSuspendidas}>
+          <Icon name="clock" className="h-4 w-4" />
+          Ventas suspendidas
+        </Button>
+        <Button type="button" variant="outline" data-testid="pos-gift-cards" onClick={() => setGiftCardsOpen(true)}>
+          <Icon name="card" className="h-4 w-4" />
+          Gift cards
+        </Button>
       </BarraModulo>
   )
 
@@ -2450,7 +2412,6 @@ export default function FormularioVenta({
         busy={descartando}
       />
 
-      <AnalyticsPos open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} />
       <GiftCardsPos
         open={giftCardsOpen}
         onClose={() => setGiftCardsOpen(false)}

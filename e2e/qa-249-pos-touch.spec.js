@@ -109,8 +109,7 @@ test('mobile 390: los modales de la venta son usables (targets de 44)', async ({
   await expect(page.getByText(/Venta suspendida/)).toBeVisible({ timeout: 15_000 })
 
   // Ventas suspendidas (la lista del borrador recién creado).
-  await page.getByTestId('pos-mas').click()
-  await page.getByRole('menuitem', { name: 'Ventas suspendidas' }).click()
+  await page.getByTestId('pos-suspendidas').click()
   const suspendidas = page.getByRole('dialog', { name: 'Ventas suspendidas' })
   await expect(suspendidas.getByRole('button', { name: 'Recuperar' }).first()).toBeVisible()
   await toque(suspendidas.getByRole('button', { name: 'Enlace público' }), 'suspendidas · enlace')

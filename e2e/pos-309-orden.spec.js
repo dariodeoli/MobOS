@@ -4,7 +4,7 @@
 // - Carrito fijo en la columna derecha (escritorio) y Total + acción principal
 //   fijos abajo (celular).
 // - El total no se repite: vive una sola vez, en el carrito.
-// - Gift cards, Analytics y Ventas suspendidas viven en «Más».
+// - Gift cards y Ventas suspendidas son botones de la barra (sin «Más» ni Analytics).
 // - Feedback visible al guardar/imprimir/enviar.
 // - Soporte: una línea sobre pedido puede quedar «en tránsito» (reserva
 //   anticipada del lote que ingresa; la conciliación la hace Inventario).
@@ -162,27 +162,22 @@ test('celular: el Total y la acción principal quedan fijos abajo (#309)', async
   }
 })
 
-test('gift cards, analytics y ventas suspendidas viven en «Más» (#309)', async ({ page }) => {
+test('gift cards y ventas suspendidas son botones de la barra; Analytics ya no está en el POS (#309)', async ({ page }) => {
   await page.goto('/pos')
   await expect(page.getByRole('region', { name: 'Nueva venta' })).toBeVisible()
 
-  // No están sueltas en la barra del módulo.
-  for (const label of ['Gift cards', 'Analytics', 'Ventas suspendidas']) {
-    await expect(page.getByRole('button', { name: label, exact: true })).toHaveCount(0)
+  // «Más» ya no existe y Analytics no tiene entrada en el POS.
+  await expect(page.getByTestId('pos-mas')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Analytics', exact: true })).toHaveCount(0)
+  for (const label of ['Gift cards', 'Ventas suspendidas']) {
+    await expect(page.getByRole('button', { name: label, exact: true })).toBeVisible()
   }
 
-  await page.getByTestId('pos-mas').click()
-  const menu = page.getByRole('menu', { name: 'Herramientas de la venta' })
-  for (const label of ['Gift cards', 'Analytics', 'Ventas suspendidas']) {
-    await expect(menu.getByRole('menuitem', { name: label, exact: true })).toBeVisible()
-  }
-
-  await menu.getByRole('menuitem', { name: 'Gift cards' }).click()
+  await page.getByRole('button', { name: 'Gift cards', exact: true }).click()
   await expect(page.getByRole('dialog').filter({ hasText: /Gift card/i }).first()).toBeVisible()
   await page.keyboard.press('Escape')
 
-  await page.getByTestId('pos-mas').click()
-  await page.getByRole('menu', { name: 'Herramientas de la venta' }).getByRole('menuitem', { name: 'Ventas suspendidas' }).click()
+  await page.getByRole('button', { name: 'Ventas suspendidas', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Ventas suspendidas' })).toBeVisible()
 })
 
