@@ -6,6 +6,7 @@ import { useSesion } from '@/lib/sesion'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import {
   getProductos,
+  modoDatosActual,
   productosById,
   addProducto,
   addProductoApi,
@@ -62,6 +63,7 @@ import { whatsappTrackingLink } from './PagosPedido'
 import { telefonoValido, MENSAJE_TELEFONO, whatsappUrl } from '@/utils/telefono'
 import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
 import PasoProductos, { PosCustomer } from './venta/PasoProductos'
+import { usePosCatalogoServidor } from '@/hooks/usePosCatalogoServidor'
 import PasoCarrito from './venta/PasoCarrito'
 import PasoCobro from './venta/PasoCobro'
 import { orderDetailPath } from '@/lib/orderDetailNavigation'
@@ -320,6 +322,9 @@ export default function FormularioVenta({
   const [combos, setCombos] = useState([])
   const [noticeCombo, setNoticeCombo] = useState('')
   const [busquedaProducto, setBusquedaProducto] = useState('')
+  // #354: en cuenta real el catálogo del POS se pagina y busca en el servidor;
+  // sin conexión (o en demo) sigue el catálogo completo del espejo local.
+  const catalogoServidor = usePosCatalogoServidor({ q: busquedaProducto, habilitado: !esDemo && modoDatosActual() === 'api' })
   // Fila de la venta cuyo selector de IMEI está abierto.
   const [imeiPara, setImeiPara] = useState(null)
   const [unidadesDeImei, setUnidadesDeImei] = useState(0)
@@ -844,6 +849,12 @@ export default function FormularioVenta({
       text.toLocaleLowerCase().includes(query),
     )
   })
+  // Página del servidor: se agrupa en familias, pero cada familia se completa
+  // con sus variantes del espejo local para que el selector no quede a medias
+  // cuando una familia cruza el límite de página.
+  const familiasServidor = catalogoServidor.activo
+    ? agruparProductos(catalogoServidor.items.filter(p => p.activo)).map(fam => familias.find(f => f.base === fam.base) ?? fam)
+    : null
 
   function agregarColor() {
     const c = colorInput.trim()
@@ -2010,7 +2021,8 @@ export default function FormularioVenta({
               combos={combos}
               agregarCombo={agregarCombo}
               noticeCombo={noticeCombo}
-              familiasVisibles={familiasVisibles}
+              familiasVisibles={familiasServidor ?? familiasVisibles}
+              catalogoServidor={catalogoServidor.activo ? catalogoServidor : null}
               agregarProducto={agregarProducto}
               guardando={guardando}
               variantePara={variantePara}

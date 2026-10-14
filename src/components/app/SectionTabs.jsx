@@ -2,15 +2,19 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { usePantallaAngosta } from '@/hooks/usePantallaAngosta'
 import Icon from '@/components/shared/Icon'
+import { infoBadge, nombreConBadge } from './sectionTabsBadge'
 
 // Section tabs, never a native dropdown.
 //  - below lg: one horizontal scroll strip of 44px tabs with an edge fade;
 //  - from lg: tabs inline, the ones that do not fit move to a measured "Más" popover;
 //  - `variant="segmented"` is the second level: a compact pill group inside the page.
+// Items are `{ id, label, badge?, badgeLabel? }` or `[id, label, badge?]`. `badge` is a
+// count shown next to the label (hidden at 0) with an accessible name such as
+// "3 pendientes" (`badgeLabel` is the plural noun, default "pendientes").
 // Items are `{ id, label }` or `[id, label]`. Every tab carries `data-tab-id`
 // and the active one `aria-current="page"` so specs click tabs by id.
 const normalize = items =>
-  items.map(item => (Array.isArray(item) ? { id: item[0], label: item[1] } : item))
+  items.map(item => (Array.isArray(item) ? { id: item[0], label: item[1], badge: item[2] } : item))
 
 const TAB_BASE =
   'relative flex shrink-0 items-center whitespace-nowrap border-b-2 px-3 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-fono'
@@ -21,6 +25,25 @@ const tabClass = (activo, extra) =>
     activo ? 'border-fore font-semibold text-fore' : 'border-transparent text-mute hover:text-fore',
     extra,
   )
+
+// Label plus count pill. The pill is decorative (aria-hidden): the button
+// carries the full accessible name through aria-label.
+function TabLabel({ item }) {
+  const info = infoBadge(item)
+  if (!info) return item.label
+  return (
+    <>
+      {item.label}
+      <span
+        aria-hidden="true"
+        data-tab-badge
+        className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-fono px-1.5 text-[11px] font-bold leading-none tabular-nums text-white"
+      >
+        {info.texto}
+      </span>
+    </>
+  )
+}
 
 function MoreMenu({ items, value, onChange, label, activeInside }) {
   const [open, setOpen] = useState(false)
@@ -67,6 +90,7 @@ function MoreMenu({ items, value, onChange, label, activeInside }) {
               type="button"
               role="menuitem"
               data-tab-id={item.id}
+              aria-label={nombreConBadge(item)}
               aria-current={value === item.id ? 'page' : undefined}
               onClick={() => {
                 setOpen(false)
@@ -77,7 +101,7 @@ function MoreMenu({ items, value, onChange, label, activeInside }) {
                 value === item.id ? 'font-semibold text-fore' : 'text-mute',
               )}
             >
-              {item.label}
+              <TabLabel item={item} />
             </button>
           ))}
         </div>
@@ -88,7 +112,7 @@ function MoreMenu({ items, value, onChange, label, activeInside }) {
 
 function useVisibleCount(containerRef, measureRef, items, value, enabled) {
   const [count, setCount] = useState(items.length)
-  const signature = items.map(item => `${item.id}:${item.label}`).join('|')
+  const signature = items.map(item => `${item.id}:${item.label}:${infoBadge(item)?.texto || ''}`).join('|')
   useLayoutEffect(() => {
     if (!enabled) {
       setCount(items.length)
@@ -182,6 +206,7 @@ export default function SectionTabs({
             key={item.id}
             type="button"
             data-tab-id={item.id}
+            aria-label={nombreConBadge(item)}
             aria-current={value === item.id ? 'page' : undefined}
             onClick={() => onChange(item.id)}
             className={cn(
@@ -189,7 +214,7 @@ export default function SectionTabs({
               value === item.id ? 'bg-ink-700 font-semibold text-fore' : 'text-mute hover:text-fore',
             )}
           >
-            {item.label}
+            <TabLabel item={item} />
           </button>
         ))}
       </nav>
@@ -213,6 +238,7 @@ export default function SectionTabs({
               key={item.id}
               type="button"
               data-tab-id={item.id}
+              aria-label={nombreConBadge(item)}
               aria-current={value === item.id ? 'page' : undefined}
               onClick={() => onChange(item.id)}
               className={cn(
@@ -222,7 +248,7 @@ export default function SectionTabs({
                   : 'text-mute hover:text-fore',
               )}
             >
-              {item.label}
+              <TabLabel item={item} />
             </button>
           ))}
         </div>
@@ -259,11 +285,12 @@ export default function SectionTabs({
                 key={item.id}
                 type="button"
                 data-tab-id={item.id}
+                aria-label={nombreConBadge(item)}
                 aria-current={value === item.id ? 'page' : undefined}
                 onClick={() => onChange(item.id)}
                 className={tabClass(value === item.id)}
               >
-                {item.label}
+                <TabLabel item={item} />
               </button>
             ))}
             {hidden.length > 0 && (
@@ -287,11 +314,12 @@ export default function SectionTabs({
                   key={item.id}
                   type="button"
                   data-tab-id={item.id}
+                  aria-label={nombreConBadge(item)}
                   aria-current={value === item.id ? 'page' : undefined}
                   onClick={() => onChange(item.id)}
                   className={tabClass(value === item.id)}
                 >
-                  {item.label}
+                  <TabLabel item={item} />
                 </button>
               ))}
             </div>
@@ -318,7 +346,7 @@ export default function SectionTabs({
           >
             {list.map(item => (
               <span key={item.id} data-measure-tab className={cn(TAB_BASE, 'px-3 text-sm font-semibold')}>
-                {item.label}
+                <TabLabel item={item} />
               </span>
             ))}
             <span data-measure-more className={cn(TAB_BASE, 'gap-1 px-3 text-sm')}>
