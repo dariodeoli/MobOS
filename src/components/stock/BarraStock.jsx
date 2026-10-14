@@ -58,7 +58,7 @@ function ContextoProducto({ ctx }) {
 
 function BarraUnidades({ ctx, elegirEstado, limpiar }) {
   const angosta = usePantallaAngosta('(min-width: 768px)')
-  const { tab, filtros, cambiarFiltros, branches, proveedores, rolVeCosto, abrirReceive, setScannerOpen, startCount, setGondolaOpen, setReserveOpen, setTransferOpen, exportando, busy, exportarUnidades } = ctx
+  const { tab, filtros, cambiarFiltros, branches, proveedores, rolVeCosto, abrirReceive, setScannerOpen, startCount, setGondolaOpen, setReserveOpen, setTransferOpen, exportando, busy, exportarUnidades, orden, recordarOrden } = ctx
   return (
     <Toolbar
       plano
@@ -79,6 +79,8 @@ function BarraUnidades({ ctx, elegirEstado, limpiar }) {
             onEstado={elegirEstado}
             onLimpiar={limpiar}
             compacto={angosta}
+            orden={orden}
+            onOrden={recordarOrden}
           />
         </>
       )}

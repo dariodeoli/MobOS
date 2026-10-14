@@ -8,11 +8,11 @@
 // «Vendidos» y «Eliminados» son opciones de Estado: cambian de vista (pestaña)
 // en vez de filtrar, y el chip las muestra como activas.
 import { useEffect, useId, useRef, useState } from 'react'
-import { Input, Modal } from '@/components/ui'
+import { Input, Modal, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 import { ROTULO_DATO } from '@/components/shared/tabla'
-import { ESTADOS_STOCK, TIPOS_STOCK } from '@/lib/stockItems'
+import { ESTADOS_STOCK, TIPOS_STOCK, ordenesStockVisibles } from '@/lib/stockItems'
 import { hayFiltrosStock } from './stockFiltros'
 
 const PERIODOS = [['', 'Todos'], ['hoy', 'Hoy'], ['ayer', 'Ayer'], ['rango', 'Rango']]
@@ -110,6 +110,8 @@ export default function FiltrosStock({
   onEstado,
   onLimpiar,
   compacto = false,
+  orden = 'recientes',
+  onOrden,
 }) {
   const [hoja, setHoja] = useState(false)
   const nombreDe = (lista) => lista.map((fila) => [fila.id, fila.name || fila.nombre])
@@ -134,6 +136,19 @@ export default function FiltrosStock({
   ) : null
   const hayPuestos = hayFiltrosStock(filtros) || Boolean(periodoTexto) || vista !== 'unidades'
   const cantidad = grupos.filter((grupo) => grupo.valor).length + (periodoTexto ? 1 : 0)
+  // Orden de la lista (se recuerda): «Costo» solo si el rol ve costos.
+  const selectorOrden = onOrden ? (
+    <Select
+      value={orden}
+      onChange={(evento) => onOrden(evento.target.value)}
+      className="min-h-11 w-full min-w-0 text-xs lg:min-h-9 lg:w-[9.5rem]"
+      aria-label="Orden del inventario"
+      title="Se recuerda tu último orden"
+      data-testid="stock-orden"
+    >
+      {ordenesStockVisibles(verProveedor).map(([id, texto]) => <option key={id} value={id}>{texto}</option>)}
+    </Select>
+  ) : null
   const limpiar = hayPuestos ? (
     <button
       type="button"
@@ -170,6 +185,12 @@ export default function FiltrosStock({
                 <Opciones etiqueta={grupo.etiqueta} testId={grupo.id} valor={grupo.valor} opciones={grupo.opciones} onElegir={grupo.elegir} />
               </div>
             ))}
+            {selectorOrden ? (
+              <div className="space-y-1.5">
+                <p className={ROTULO_DATO}>Orden</p>
+                {selectorOrden}
+              </div>
+            ) : null}
             {vista === 'vendidos' ? (
               <div className="space-y-1.5">
                 <p className={ROTULO_DATO}>Período</p>
@@ -203,6 +224,7 @@ export default function FiltrosStock({
           )}
         </ChipFiltro>
       ) : null}
+      {selectorOrden}
       {limpiar}
     </div>
   )
