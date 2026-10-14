@@ -1939,10 +1939,10 @@ export default function FormularioVenta({
     { id: 'envio', icono: 'truck', titulo: 'Agregar envío', detalle: f.entrega && f.entrega !== ENTREGA[0] ? f.entrega : '', onClick: () => setHoja('envio') },
     { id: 'cotizacion', icono: 'report', titulo: 'Crear cotización', disabled: !onIr, onClick: () => onIr?.('cotizaciones') },
     ...(items.length > 0 ? [{ id: 'suspender', icono: 'save', titulo: 'Suspender venta', onClick: abrirSuspender, disabled: guardando }] : []),
-    { id: 'suspendidas', icono: 'clock', titulo: 'Ventas suspendidas', onClick: abrirSuspendidas },
+    { id: 'suspendidas', testId: 'pos-suspendidas', icono: 'clock', titulo: 'Ventas suspendidas', onClick: abrirSuspendidas },
     { id: 'bloquear', icono: 'lock', titulo: 'Bloquear', disabled: !onBloquear, onClick: () => onBloquear?.() },
     { id: 'nota', icono: 'edit', titulo: 'Agregar nota', detalle: f.observacion ? 'Con nota' : '', onClick: () => setHoja('nota') },
-    { id: 'giftcards', icono: 'card', titulo: 'Gift cards', onClick: () => setGiftCardsOpen(true) },
+    { id: 'giftcards', testId: 'pos-gift-cards', icono: 'card', titulo: 'Gift cards', onClick: () => setGiftCardsOpen(true) },
   ]
   // Si el carrito queda vacío (venta guardada, cola sin conexión o vaciado),
   // las hojas del carrito y del cobro se cierran. Va antes del efecto de abajo
@@ -2225,7 +2225,7 @@ export default function FormularioVenta({
         {/* POS en celular (#429): mismos elementos de arriba (capturados con
             `pos`), repartidos en acciones, barra del carrito y hojas. */}
         {esMovil && (
-          <div data-testid="pos-movil" className="flex flex-col gap-3 pb-[calc(56px+5rem+env(safe-area-inset-bottom,0px))]">
+          <div data-testid="pos-movil" role="region" aria-label="Nueva venta" className="flex flex-col gap-3 pb-[calc(56px+5rem+env(safe-area-inset-bottom,0px))]">
             <AccionesInicio acciones={accionesMovil} />
             {elementosPos.productos && cloneElement(elementosPos.productos, { acciones: null })}
           </div>

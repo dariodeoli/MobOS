@@ -9,11 +9,11 @@ import { textoArticulos } from './posMovil'
 export function AccionesInicio({ acciones }) {
   return (
     <div data-testid="pos-acciones-movil" className="grid grid-cols-2 gap-2">
-      {acciones.map(({ id, icono, titulo, detalle, onClick, disabled, destacado }) => (
+      {acciones.map(({ id, testId, icono, titulo, detalle, onClick, disabled, destacado }) => (
         <button
           key={id}
           type="button"
-          data-testid={`accion-${id}`}
+          data-testid={testId || `accion-${id}`}
           onClick={onClick}
           disabled={disabled}
           className={cn(
