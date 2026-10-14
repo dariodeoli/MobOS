@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync, readdirSync, lstatSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { verificarContextos } from './verificar-contexto-build.mjs'
 
 export const REQUIRED_CHECKS = [
   'Frontend (lint + build)',
@@ -115,6 +116,19 @@ export function runRelease(args, options = {}) {
         fail('Release command failed; inspect privately. No deployment retry was attempted.')
       }
     })
+  // Gate del contexto de build: corre antes de compilar. Con `command` inyectado
+  // (tests) no toca el disco salvo que se pase `verificarContexto`.
+  const verificarContexto =
+    options.verificarContexto ||
+    (options.command
+      ? () => {}
+      : () => {
+          const malos = verificarContextos(root).filter(r => r.errores.length)
+          requireGate(
+            malos.length === 0,
+            `Build context too heavy (${malos.map(r => `${r.nombre}: ${r.errores[0]}`).join('; ')}). Run node scripts/verificar-contexto-build.mjs.`,
+          )
+        })
   const request = options.request || globalThis.fetch
   const treeHash =
     options.treeHash ||
@@ -309,6 +323,7 @@ export function runRelease(args, options = {}) {
   if (args.includes('--build-current')) {
     requireGate(args.length === 1, 'Build-current cannot be combined with other modes.')
     const state = identity()
+    verificarContexto()
     command('npm', ['run', 'build'])
     command('npm', ['--prefix', 'backend', 'run', 'build'])
     requireGate(
@@ -359,6 +374,7 @@ export function runRelease(args, options = {}) {
   }
   if (prepared) git('add', ...FILES, 'docs/NOVEDADES.md')
   else {
+    verificarContexto()
     command('npm', ['run', 'build'])
     command('npm', ['--prefix', 'backend', 'run', 'build'])
   }

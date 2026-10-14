@@ -1,0 +1,43 @@
+# Contexto de build raíz (frontend Vite). Solo viaja lo que `vite build` usa:
+# index.html, src/, public/, configs, package*.json, version.json y .env.production.
+# Guardado por scripts/verificar-contexto-build.mjs y src/lib/contextoBuild.test.js.
+
+# VCS, CI y herramientas de agentes
+.git
+.github
+.githooks
+.claude
+.atl
+.vscode
+.idea
+
+# Dependencias y salidas generadas
+node_modules
+**/node_modules
+dist
+dist-ssr
+backend/.next
+coverage
+playwright-report
+test-results
+blob-report
+playwright
+
+# Documentación, diseño, specs y E2E: no los usa ningún build
+docs
+design
+openspec
+e2e
+tests
+
+# Evidencia y capturas pesadas
+**/*.har
+**/*.har.gz
+**/*.zip
+**/qa-evidence
+**/*.log
+
+# Credenciales locales (.env.production es público y tracked: se conserva)
+.env
+.env.local
+.env.*.local
