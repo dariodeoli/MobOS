@@ -5,7 +5,7 @@ const CLAVE = 'mobos:demo-aviso-oculto'
 
 // Aviso de la demo en una sola línea y dentro del flujo (no fijo): se puede
 // ocultar por sesión. Los dos controles son enlaces de texto en línea.
-export default function DemoBanner({ angosta = false, onComoFunciona }) {
+export default function DemoBanner({ angosta = false, onComoFunciona, onSalir }) {
   const [oculto, setOculto] = useState(() => {
     try {
       return sessionStorage.getItem(CLAVE) === '1'
@@ -38,6 +38,16 @@ export default function DemoBanner({ angosta = false, onComoFunciona }) {
           : 'Modo demo: datos ficticios, no se guardan y se descartan al recargar.'}
       </span>
       <span className="flex shrink-0 items-center gap-3">
+        {onSalir && (
+          <button
+            type="button"
+            data-testid="demo-salir"
+            onClick={onSalir}
+            className="inline-flex min-h-11 items-center rounded-lg bg-bad px-3 text-xs font-semibold text-onbrand hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-bad"
+          >
+            {angosta ? 'Salir' : 'Salir de la demo'}
+          </button>
+        )}
         <button
           type="button"
           data-testid="demo-como-funciona"
