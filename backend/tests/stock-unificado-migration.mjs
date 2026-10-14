@@ -23,8 +23,10 @@ if (!server) {
 }
 const migrationsDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'prisma', 'migrations')
 const NEW = '20270103000000_stock_unificado'
-const names = readdirSync(migrationsDir, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name).sort()
-if (names[names.length - 1] !== NEW) throw new Error(`La migración ${NEW} debe ser la última (hay ${names[names.length - 1]}).`)
+const todas = readdirSync(migrationsDir, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name).sort()
+if (!todas.includes(NEW)) throw new Error(`No existe la migración ${NEW}.`)
+// La prueba cubre la cadena hasta U1; las migraciones posteriores tienen su propia prueba.
+const names = todas.slice(0, todas.indexOf(NEW) + 1)
 const sql = name => readFileSync(path.join(migrationsDir, name, 'migration.sql'), 'utf8')
 
 const stamp = Date.now().toString(36)
