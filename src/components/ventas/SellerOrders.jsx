@@ -41,6 +41,7 @@ export const orderFields = (row) => {
   return {
     id: row.id, sellerId: row.sellerId ?? row.vendedorId,
     sellerName: row.seller?.name || row.vendedor || '',
+    branchName: row.branch?.name || row.sucursal || '',
     // #313: al listado solo viaja un código humano (orderNumber/codigo de la
     // orden). Antes caía al id interno y la fila mostraba «demo-ven…».
     number: row.orderNumber || row.codigo || '',
@@ -111,13 +112,46 @@ const pagoDe = (row) => (row.creditDays > 0 && row.pending > 0 ? 'A crédito' : 
 const estaCompletado = (row) => Boolean(row.archivedAt) || (row.paymentStatus === 'Pagado' && row.fulfillmentStatus === 'DELIVERED')
 const estaCancelado = (row) => row.status === 'CANCELLED'
 
+const PERIODOS = [['hoy', 'Hoy'], ['7d', '7 días'], ['30d', '30 días']]
+const PREPARADOS = ['READY_TO_SHIP', 'READY_FOR_PICKUP', 'SHIPPED', 'IN_TRANSIT', 'PARTIAL', 'DELIVERED', 'PICKED_UP']
+const ENTREGADOS = ['DELIVERED', 'PICKED_UP']
+
+// KPI de la tira: cuenta lo cargado en pantalla dentro del período y arma una
+// serie por tramo (hora en «Hoy», día en 7/30 días) para la mini-tendencia.
+export function kpisPedidos(rows, periodo, ahora = new Date()) {
+  const inicioHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate()).getTime()
+  const horas = periodo === 'hoy'
+  const tramos = horas ? Math.max(2, ahora.getHours() + 1) : periodo === '7d' ? 7 : 30
+  const tamano = horas ? 3600000 : 86400000
+  const desde = horas ? inicioHoy : inicioHoy - (tramos - 1) * 86400000
+  const definiciones = [
+    ['pedidos', row => !estaCancelado(row), () => 1],
+    ['articulos', row => !estaCancelado(row), row => Number(row.quantity || 0)],
+    ['devoluciones', estaCancelado, () => 1],
+    ['preparados', row => !estaCancelado(row) && PREPARADOS.includes(row.fulfillmentStatus), () => 1],
+    ['entregados', row => !estaCancelado(row) && ENTREGADOS.includes(row.fulfillmentStatus), () => 1],
+  ]
+  const salida = Object.fromEntries(definiciones.map(([clave]) => [clave, { total: 0, serie: Array(tramos).fill(0) }]))
+  for (const row of rows) {
+    const t = new Date(row.date || 0).getTime()
+    if (!Number.isFinite(t) || t < desde || t > ahora.getTime()) continue
+    const indice = Math.min(tramos - 1, Math.floor((t - desde) / tamano))
+    for (const [clave, cuenta, peso] of definiciones) {
+      if (!cuenta(row)) continue
+      salida[clave].total += peso(row)
+      salida[clave].serie[indice] += peso(row)
+    }
+  }
+  return salida
+}
+
 function BadgePago({ row, v2 }) {
   const estado = estaCancelado(row) ? row.paymentStatus : pagoDe(row)
   const tono = estado === 'Pagado' ? 'border-ok/25 bg-ok/10 text-ok-text'
     : estado === 'Parcial' ? 'border-warn/25 bg-warn/10 text-warn-text'
       : estado === 'A crédito' ? 'border-reserved/40 bg-reserved/10 text-reserved'
         : 'border-bad/25 text-bad-text'
-  return <span className={cn('w-fit justify-self-start whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[10px] font-bold', v2 && 'v2-chip', tono)}>{estado || 'Pendiente'}</span>
+  return <span className={cn('w-fit justify-self-start whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[10px] font-bold', v2 && 'v2-chip', tono)}>{(estado === 'Pendiente' ? 'Pago pendiente' : estado) || 'Pago pendiente'}</span>
 }
 
 function BadgeEstado({ row, v2 }) {
@@ -159,6 +193,7 @@ function FilaPedido({ row, onClick, onAcciones, v2, angosta = false }) {
   const articulos = vistaArticulos(row)
   const total = Number.isFinite(Number(row.total)) ? gs(row.total) : '—'
   const codigo = codigoPedido(row.number) || 'Pedido'
+  const entrega = ENTREGA[row.deliveryType] || row.deliveryType || 'Retiro'
   return (
     <div
       role="button"
@@ -178,10 +213,10 @@ function FilaPedido({ row, onClick, onAcciones, v2, angosta = false }) {
         <span className={cn('font-mono text-xs font-semibold', cancelado && 'line-through')}>
           {codigo}
         </span>
-        <p className="text-xs text-mute">{fechaLegible(row.date)}</p>
-        {row.isSpecialOrder && <span className="text-xs text-warn-text">Especial</span>}
-        {row.offlineSyncedAt && <span className="text-xs text-warn-text">Offline</span>}
+        {row.isSpecialOrder && <span className="ml-1.5 text-xs text-warn-text">Especial</span>}
+        {row.offlineSyncedAt && <span className="ml-1.5 text-xs text-warn-text">Offline</span>}
       </div>
+      <span className="ventas-f3-order-date text-xs text-mute">{fechaLegible(row.date)}</span>
       <div className="ventas-f3-order-identity">
         <p className="ventas-f3-name">{row.customer}</p>
         <p className="ventas-f3-description" title={articulos.completo || undefined}>
@@ -189,8 +224,8 @@ function FilaPedido({ row, onClick, onAcciones, v2, angosta = false }) {
           {articulos.extra > 0 ? ` +${articulos.extra}` : ''}
         </p>
       </div>
-      <span className="ventas-f3-delivery text-xs text-mute">
-        {ENTREGA[row.deliveryType] || row.deliveryType || 'Retiro'}
+      <span className="ventas-f3-delivery text-xs text-mute" title={row.branchName ? `${row.branchName} · ${entrega}` : entrega}>
+        {row.branchName ? <><span className="block truncate text-fore">{row.branchName}</span><span className="block truncate">{entrega}</span></> : entrega}
       </span>
       <span className="ventas-f3-payment">
         <BadgePago row={row} v2={v2} />
@@ -207,7 +242,7 @@ function FilaPedido({ row, onClick, onAcciones, v2, angosta = false }) {
         }}
         aria-label={`Vista rápida de ${codigo}`}
         title="Vista rápida"
-        className="ventas-f3-quick grid h-11 w-11 place-items-center rounded-lg border border-ink-600 text-mute hover:text-fore"
+        className="ventas-f3-quick grid h-11 w-11 place-items-center rounded-lg border border-ink-600 text-mute hover:text-fore lg:h-9 lg:w-9"
       >
         <Icon name="eye" className="h-4 w-4" />
       </button>
@@ -345,15 +380,8 @@ export default function SellerOrders() {
   const v2 = true
   // #313: en móvil la lista se muestra como tarjetas (no tabla comprimida).
   const angosta = usePantallaAngosta('(min-width: 1200px)')
-  const resumen = useMemo(() => rows.reduce((acumulado, row) => {
-    const activo = !estaCompletado(row) && !estaCancelado(row)
-    const enReparto = ['READY_TO_SHIP', 'SHIPPED', 'IN_TRANSIT'].includes(row.fulfillmentStatus)
-    return {
-      activos: acumulado.activos + (activo ? 1 : 0),
-      porCobrar: acumulado.porCobrar + Number(row.pending || 0),
-      enReparto: acumulado.enReparto + (enReparto && activo ? 1 : 0),
-    }
-  }, { activos: 0, porCobrar: 0, enReparto: 0 }), [rows])
+  const [periodo, setPeriodo] = useUrlState('periodo', 'hoy')
+  const kpis = useMemo(() => kpisPedidos(rows, PERIODOS.some(([id]) => id === periodo) ? periodo : 'hoy'), [rows, periodo])
 
   // El pedido abierto sale de la fila ya cargada (pintado instantáneo); si se
   // entra por URL directa (recarga, enlace compartido, pedido fuera de la
@@ -381,10 +409,14 @@ export default function SellerOrders() {
   )
 
   if (detalleAbierto) {
+    // Anterior / siguiente según el orden y los filtros del listado.
+    const indice = rows.findIndex((row) => row.id === detalleAbierto.id)
+    const vecino = (delta) => (indice > -1 ? rows[indice + delta] || null : null)
     return <PedidoDetalle
       key={detalleAbierto.id}
       pagina
       row={detalleAbierto}
+      navegacion={{ anterior: vecino(-1), siguiente: vecino(1), onIr: abrirPedido }}
       esDemo={esDemo}
       customerOrderCount={detalleAbierto.customerId ? porCliente[detalleAbierto.customerId] || 0 : 0}
       onClose={cerrarPedido}
@@ -464,15 +496,25 @@ export default function SellerOrders() {
         {v2 && rows.length > 0 && (
           <ResumenMetricas
             testId="resumen-pedidos"
+            lead={
+              <MenuDesplegable
+                alineacion="left"
+                ariaLabel="Período de los indicadores"
+                trigger={
+                  <span data-testid="kpi-periodo" className="inline-flex min-h-11 items-center gap-1 rounded-lg px-1.5 text-xs font-semibold text-fore lg:min-h-9">
+                    {PERIODOS.find(([id]) => id === periodo)?.[1] || 'Hoy'}
+                    <Icon name="chevron" className="h-3.5 w-3.5" />
+                  </span>
+                }
+                items={PERIODOS.map(([id, label]) => ({ id, label, extra: periodo === id ? <span aria-hidden="true">✓</span> : null, onClick: () => setPeriodo(id) }))}
+              />
+            }
             items={[
-              { titulo: 'Activos', valor: resumen.activos, alcance: 'En pantalla' },
-              {
-                titulo: 'Por cobrar',
-                valor: gs(resumen.porCobrar),
-                alcance: 'En pantalla',
-                tono: resumen.porCobrar > 0 ? 'text-warn' : 'text-ok',
-              },
-              { titulo: 'En reparto', valor: resumen.enReparto, alcance: 'En pantalla' },
+              { titulo: 'Pedidos', valor: kpis.pedidos.total, alcance: 'En pantalla', grafico: kpis.pedidos.serie },
+              { titulo: 'Artículos', valor: kpis.articulos.total, alcance: 'En pantalla', grafico: kpis.articulos.serie },
+              { titulo: 'Devoluciones', valor: kpis.devoluciones.total, alcance: 'En pantalla', grafico: kpis.devoluciones.serie },
+              { titulo: 'Preparados', valor: kpis.preparados.total, alcance: 'En pantalla', grafico: kpis.preparados.serie },
+              { titulo: 'Entregados', valor: kpis.entregados.total, alcance: 'En pantalla', grafico: kpis.entregados.serie },
             ]}
           />
         )}
@@ -504,9 +546,10 @@ export default function SellerOrders() {
           ) : (
             <div className="ventas-f3-list" data-testid="pedidos-tabla">
               <div className={cn(GRID, 'ventas-f3-list-header')}>
-                {encabezado('number', 'Pedido / fecha')}
+                {encabezado('number', 'Pedido')}
+                {encabezado('date', 'Fecha')}
                 {encabezado('customer', 'Cliente / artículos')}
-                {encabezado('delivery', 'Entrega')}
+                {encabezado('delivery', 'Canal')}
                 {encabezado('payment', 'Pago')}
                 {encabezado('fulfillment', 'Estado')}
                 {encabezado('total', 'Total', 'justify-end')}
@@ -525,16 +568,19 @@ export default function SellerOrders() {
               </div>
             </div>
           ))}
-        {!data.loading && !data.error && data.hayMas && (
-          <div className="flex justify-center pt-1">
-            <button
-              type="button"
-              disabled={data.cargandoMas}
-              onClick={data.cargarMas}
-              className="min-h-11 rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60 md:min-h-0"
-            >
-              {data.cargandoMas ? 'Cargando…' : 'Cargar más pedidos'}
-            </button>
+        {!data.loading && !data.error && rows.length > 0 && (
+          <div className="flex items-center justify-between gap-3 px-1 text-xs text-mute" data-testid="pedidos-paginacion">
+            <span>{rows.length} pedido{rows.length === 1 ? '' : 's'}{data.hayMas ? ' cargados' : ''}</span>
+            {data.hayMas && (
+              <button
+                type="button"
+                disabled={data.cargandoMas}
+                onClick={data.cargarMas}
+                className="min-h-11 rounded-lg border border-ink-500 px-3 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60 lg:min-h-9"
+              >
+                {data.cargandoMas ? 'Cargando…' : 'Cargar más'}
+              </button>
+            )}
           </div>
         )}
         {pedidoPanel && !detalleAbierto && (
