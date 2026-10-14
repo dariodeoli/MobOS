@@ -10,15 +10,27 @@ import { useEffect, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { sessionApi } from '@/lib/api/session'
 import { hayPendientesEnEmpresaActual, sincronizarCola } from '@/lib/offline/ventas'
-import { Aviso, Badge, Button, FormField, Input, Modal } from '@/components/ui'
+import { Aviso, Badge, Button, FormField, Input, Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 
 const ROLES = { OWNER: 'Dueño', ADMIN: 'Admin', MEMBER: 'Miembro' }
 const etiquetaRol = (rol) => ROLES[rol] || null
 
+export const MENSAJE_SIN_CUENTA = 'Para cambiar o crear empresas, ingresá con tu PIN de dueño.'
+
+// Mensaje claro para el error de un cambio directo (401/403 sin cuenta vinculada,
+// 409 carrera de dos cambios a la vez); el resto conserva el texto del servidor.
+export function mensajeErrorCambio(cause) {
+  if (cause?.status === 401 || cause?.status === 403) return 'No se pudo cambiar de empresa. Ingresá con tu PIN de dueño e intentá de nuevo.'
+  if (cause?.status === 409 || cause?.code === 'TENANT_SWITCH_RACE') return 'Otro cambio está en curso, intentá de nuevo.'
+  return cause?.message || 'No se pudo cambiar de empresa. Probá de nuevo.'
+}
+
 export function useCambioEmpresa() {
   const { esDemo, empresa } = useSesion()
+  const toast = useToast()
+  const [sinCuenta, setSinCuenta] = useState(false)
   const [datos, setDatos] = useState({ tenants: [], canCreate: false })
   const [dialogo, setDialogo] = useState(null) // { tipo: 'pendientes', destino } | { tipo: 'crear' }
   const [ocupado, setOcupado] = useState(false)
@@ -27,11 +39,15 @@ export function useCambioEmpresa() {
   const empresaId = empresa?.id
 
   useEffect(() => {
-    if (esDemo || !empresaId) { setDatos({ tenants: [], canCreate: false }); return undefined }
+    if (esDemo || !empresaId) { setDatos({ tenants: [], canCreate: false }); setSinCuenta(false); return undefined }
     let vivo = true
     sessionApi.listTenants()
-      .then((respuesta) => { if (vivo) setDatos({ tenants: Array.isArray(respuesta?.tenants) ? respuesta.tenants : [], canCreate: Boolean(respuesta?.canCreate) }) })
-      .catch((cause) => { console.error('[empresas] no se pudo cargar la lista de empresas:', cause) })
+      .then((respuesta) => { if (vivo) { setSinCuenta(false); setDatos({ tenants: Array.isArray(respuesta?.tenants) ? respuesta.tenants : [], canCreate: Boolean(respuesta?.canCreate) }) } })
+      .catch((cause) => {
+        console.error('[empresas] no se pudo cargar la lista de empresas:', cause)
+        // Dueño sin sesión de vendedor vinculada a la cuenta: no es un fallo mudo.
+        if (vivo && (cause?.status === 401 || cause?.status === 403)) setSinCuenta(true)
+      })
     return () => { vivo = false }
   }, [esDemo, empresaId])
 
@@ -50,7 +66,10 @@ export function useCambioEmpresa() {
       // Recarga completa: descarta toda la memoria de la empresa anterior.
       window.location.assign('/')
     } catch (cause) {
-      setError(cause?.message || 'No se pudo cambiar de empresa. Probá de nuevo.')
+      const mensaje = mensajeErrorCambio(cause)
+      console.error('[empresas] no se pudo cambiar de empresa:', cause)
+      setError(mensaje)
+      toast.error(mensaje)
       setOcupado(false)
     }
   }
@@ -101,7 +120,7 @@ export function useCambioEmpresa() {
     }
   }
 
-  return { visible, tenants: datos.tenants, canCreate: datos.canCreate, actualId, dialogo, ocupado, error, nombre, setNombre, cerrar, pedirCambio, pedirCrear, crear, ejecutarCambio, sincronizarYCambiar }
+  return { sinCuenta, visible, tenants: datos.tenants, canCreate: datos.canCreate, actualId, dialogo, ocupado, error, nombre, setNombre, cerrar, pedirCambio, pedirCrear, crear, ejecutarCambio, sincronizarYCambiar }
 }
 
 function Opcion({ item, actual, onElegir }) {

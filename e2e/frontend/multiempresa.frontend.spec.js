@@ -11,8 +11,8 @@ const EMPRESAS = {
   'tenant-b': { id: 'tenant-b', name: 'Tienda Beta', slug: 'beta', role: 'ADMIN' },
 }
 
-async function montar(page, { tenants = ['tenant-a', 'tenant-b'], canCreate = true, sinSellerEnDestino = false } = {}) {
-  const estado = { actual: tenants[0], creadas: [], switches: [], user: true }
+async function montar(page, { tenants = ['tenant-a', 'tenant-b'], canCreate = true, sinSellerEnDestino = false, onboardingEnDestino = false, errorCambio = null, errorLista = null } = {}) {
+  const estado = { actual: tenants[0], creadas: [], switches: [], user: true, onboardings: [], pines: [] }
   const usuarioDe = (id) => ({
     id: `user-${id}`,
     name: `Dueño ${EMPRESAS[id].name}`,
@@ -32,6 +32,7 @@ async function montar(page, { tenants = ['tenant-a', 'tenant-b'], canCreate = tr
       return route.fulfill({ status: 200, json: { user: usuarioDe(estado.actual), tenant: { id: estado.actual, name: EMPRESAS[estado.actual].name } } })
     }
     if (path === '/api/auth/tenants') {
+      if (errorLista) return route.fulfill({ status: errorLista, json: { message: 'Sin cuenta vinculada' } })
       return route.fulfill({
         status: 200,
         json: { tenants: tenants.map((id) => ({ ...EMPRESAS[id], current: id === estado.actual })), canCreate },
@@ -40,12 +41,22 @@ async function montar(page, { tenants = ['tenant-a', 'tenant-b'], canCreate = tr
     if (path === '/api/auth/switch-tenant' && metodo === 'POST') {
       const { tenantId } = request.postDataJSON()
       estado.switches.push(tenantId)
+      if (errorCambio) return route.fulfill({ status: errorCambio.status, json: { message: errorCambio.message, code: errorCambio.code } })
       estado.actual = tenantId
       estado.user = !sinSellerEnDestino
       return route.fulfill({
         status: 200,
-        json: { tenant: EMPRESAS[tenantId], sellers: [{ id: 'seller-1', name: 'Vendedor Beta' }], user: sinSellerEnDestino ? null : usuarioDe(tenantId), scope: 'company' },
+        json: { tenant: EMPRESAS[tenantId], sellers: [{ id: 'seller-1', name: 'Vendedor Beta' }], user: sinSellerEnDestino ? null : usuarioDe(tenantId), onboardingRequired: onboardingEnDestino, scope: 'company' },
       })
+    }
+    if (path === '/api/auth/onboarding' && metodo === 'POST') {
+      estado.onboardings.push(request.postDataJSON().pin)
+      return route.fulfill({ status: 200, json: { admin: { id: 'seller-1' } } })
+    }
+    if (path === '/api/auth/pin' && metodo === 'POST') {
+      estado.pines.push(request.postDataJSON())
+      estado.user = true
+      return route.fulfill({ status: 200, json: { user: usuarioDe(estado.actual), tenant: EMPRESAS[estado.actual] } })
     }
     if (path === '/api/auth/companies' && metodo === 'POST') {
       const { companyName } = request.postDataJSON()
@@ -231,4 +242,59 @@ test('si el destino no tiene sesión de vendedor, tras la recarga queda el PIN',
   await expect.poll(() => estado.switches).toEqual(['tenant-b'])
   await expect(page).toHaveURL(/\/login/)
   await expect(page.locator('#seller-pin')).toBeVisible()
+})
+
+test('empresa nueva sin perfil: tras la recarga queda «Elegí tu PIN» y activarla abre la sesión de vendedor', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 780 })
+  const estado = await montar(page, { sinSellerEnDestino: true, onboardingEnDestino: true })
+  await page.goto('/')
+  await page.getByTestId('shell-perfil-mobile').click()
+  await page.getByTestId('empresa-opcion-tenant-b').click()
+  await expect.poll(() => estado.switches).toEqual(['tenant-b'])
+  await expect(page).toHaveURL(/\/login/)
+  await expect(page.getByRole('heading', { name: 'Elegí tu PIN de administrador' })).toBeVisible()
+  await expect(page.locator('#seller-pin')).toHaveCount(0)
+  const m = await medirAncho(page)
+  expect(m.scroll, 'scroll horizontal').toBeLessThanOrEqual(m.ancho)
+  await page.locator('#setup-pin').focus()
+  await page.keyboard.type('4821')
+  await page.getByRole('button', { name: 'Activar mi tienda' }).click()
+  await expect.poll(() => estado.onboardings).toEqual(['4821'])
+  await expect.poll(() => estado.pines.length).toBe(1)
+  expect(estado.pines[0].sellerId).toBe('seller-1')
+  await expect(page.getByTestId('shell')).toBeVisible()
+  const contexto = await page.evaluate(() => JSON.parse(localStorage.getItem('owncoding_hub_company_context')))
+  expect(contexto.onboardingRequired).toBe(false)
+})
+
+for (const [status, code, mensaje] of [
+  [401, 'UNAUTHORIZED', 'Ingresá con tu PIN de dueño e intentá de nuevo.'],
+  [403, 'FORBIDDEN', 'Ingresá con tu PIN de dueño e intentá de nuevo.'],
+  [409, 'TENANT_SWITCH_RACE', 'Otro cambio está en curso, intentá de nuevo.'],
+]) {
+  test(`el cambio directo que falla con ${status} avisa con un mensaje claro y no recarga`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 812 })
+    const estado = await montar(page, { errorCambio: { status, code, message: 'Error del servidor' } })
+    await page.goto('/')
+    await page.evaluate(() => { window.__sinRecarga = true })
+    await page.getByTestId('shell-perfil-mobile').click()
+    await page.getByTestId('empresa-opcion-tenant-b').click()
+    await expect.poll(() => estado.switches).toEqual(['tenant-b'])
+    await expect(page.getByText(mensaje)).toBeVisible()
+    expect(await page.evaluate(() => window.__sinRecarga)).toBe(true)
+  })
+}
+
+test('dueño sin cuenta vinculada: Configuración → Tiendas explica qué hacer y deja la alta con Google', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 780 })
+  await montar(page, { errorLista: 403 })
+  await page.goto('/configuracion/organizacion')
+  await page.getByTestId('organizacion-secciones').getByRole('tab', { name: 'Sucursales y depósitos', exact: true }).click()
+  const aviso = page.getByTestId('tiendas-sin-cuenta')
+  await expect(aviso).toBeVisible()
+  await expect(aviso).toContainText('Para cambiar o crear empresas, ingresá con tu PIN de dueño')
+  await expect(page.getByRole('button', { name: /Crear otra tienda/ })).toBeVisible()
+  await expect(page.getByTestId('empresa-selector')).toHaveCount(0)
+  const m = await medirAncho(page)
+  expect(m.scroll, 'scroll horizontal').toBeLessThanOrEqual(m.ancho)
 })

@@ -51,7 +51,7 @@ function aplicarSesionDeEmpresa(session) {
   if (!session?.tenant) throw new Error('El servidor no pudo abrir la sesión de la empresa.')
   clearCompanyToken()
   try { sessionStorage.removeItem(HANDOFF_VENTA_KEY) } catch {}
-  setCompanyContext({ tenant: session.tenant, scope: session.scope, sellers: session.sellers || [], cookieSession: true })
+  setCompanyContext({ tenant: session.tenant, scope: session.scope, sellers: session.sellers || [], onboardingRequired: Boolean(session.onboardingRequired), cookieSession: true })
   try { if (session.user) sessionStorage.removeItem(PIN_TRAS_CAMBIO_KEY); else sessionStorage.setItem(PIN_TRAS_CAMBIO_KEY, '1') } catch {}
   return session
 }
@@ -107,7 +107,13 @@ export const sessionApi = {
   listTenants: () => api.get('/api/auth/tenants'),
   switchTenant: async (tenantId) => aplicarSesionDeEmpresa(await api.post('/api/auth/switch-tenant', { tenantId })),
   createCompany: async (companyName) => aplicarSesionDeEmpresa(await api.post('/api/auth/companies', { companyName })),
-  completeOnboarding: (details) => api.post('/api/auth/onboarding', details),
+  completeOnboarding: async (details) => {
+    const result = await api.post('/api/auth/onboarding', details)
+    // El PIN ya está elegido: una recarga no vuelve a pedir la activación.
+    const contexto = getCompanyContext()
+    if (contexto?.onboardingRequired) setCompanyContext({ ...contexto, onboardingRequired: false })
+    return result
+  },
   loginSeller: async (credentials) => {
     // La autenticación principal (empresa/Google) la exige el servidor: el PIN
     // solo abre la sesión de operador si la cookie de empresa sigue viva y es
