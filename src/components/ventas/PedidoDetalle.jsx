@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PresenciaPedido from './PresenciaPedido'
+import RecordHeader from '@/components/app/RecordHeader'
 import { Aviso, Badge, Button, ConfirmDialog, Drawer, Input, Modal, Money, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { descargarArchivo } from '@/utils/descargarArchivo'
@@ -777,20 +778,24 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   if (pagina) {
     return (
       <div className="ventas-f3 ventas-f3-detail space-y-4" data-testid="pedido-detalle-f3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-3">
-            <Button type="button" variant="ghost" onClick={onClose}><Icon name="back" className="h-3.5 w-3.5" />Volver a pedidos</Button>
-            <h2 className="font-mono text-lg font-semibold text-fore">{codigoPedido(order.orderNumber || order.number) || 'Pedido'}</h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <PresenciaPedido pedidoId={order.id || row?.id} />
-            {/* #275: después de confirmar la venta la app aterriza acá; desde el
-                detalle se vuelve al POS a cargar la próxima (carrito vacío). */}
-            <Button type="button" variant="outline" data-testid="volver-al-pos" onClick={() => navigate('/pos')}>
-              <Icon name="receipt" className="h-3.5 w-3.5" />Volver al POS
-            </Button>
-          </div>
-        </div>
+        <RecordHeader
+          backLabel="Pedidos"
+          onBack={onClose}
+          title={codigoPedido(order.orderNumber || order.number) || 'Pedido'}
+          mono
+          chip={<Badge color={anulado ? 'red' : tonoEntrega(order.fulfillmentStatus)}>{anulado ? 'Anulado' : FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || 'Pendiente'}</Badge>}
+          meta={[order.customer?.name || order.customer || 'Consumidor final', order.createdAt || order.date ? new Date(order.createdAt || order.date).toLocaleDateString('es-PY') : ''].filter(Boolean).join(' · ')}
+          actions={
+            <>
+              <PresenciaPedido pedidoId={order.id || row?.id} />
+              {/* #275: después de confirmar la venta la app aterriza acá; desde el
+                  detalle se vuelve al POS a cargar la próxima (carrito vacío). */}
+              <Button type="button" variant="outline" data-testid="volver-al-pos" aria-label="Volver al POS" onClick={() => navigate('/pos')}>
+                <Icon name="receipt" className="h-3.5 w-3.5" /><span className="hidden sm:inline">Volver al POS</span>
+              </Button>
+            </>
+          }
+        />
         {cuerpo}
       </div>
     )

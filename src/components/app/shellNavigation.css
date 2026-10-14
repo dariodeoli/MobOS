@@ -102,3 +102,8 @@
     padding-bottom: calc(var(--shell-bottom-space) + 148px);
   }
 }
+
+/* Detail pages (RecordHeader): the content starts right under the record row. */
+.shell-nav-v2 .shell-body[data-registro='1'] > main {
+  padding-top: 0.5rem;
+}
