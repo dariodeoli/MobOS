@@ -274,6 +274,7 @@ test('celular 390: resumen del carrito y acción «Cobrar» siempre a mano (hoja
   await barra.getByTestId('pos-barra-carrito-abrir').click()
   const cobrar = page.getByTestId('carrito-cobrar')
   await expect(cobrar).toBeVisible()
+  await page.waitForTimeout(450) // la hoja entra deslizándose
   const b = await cobrar.boundingBox()
   expect(b.y + b.height).toBeLessThanOrEqual(800)
   expect(b.height).toBeGreaterThanOrEqual(44)
