@@ -44,6 +44,7 @@ const ACCIONES = {
   ORDER_FULFILLMENT_UPDATED: ['Estado de entrega', 'blue'],
   SALE_SUSPENDED: ['Venta suspendida', 'orange'],
   SALE_SUSPENDED_DISCARDED: ['Venta suspendida descartada', 'slate'],
+  ORDER_PAYMENT_CORRECTED: ['Medio de pago corregido', 'orange'],
   ORDER_RETURN_RECORDED: ['Devolución registrada', 'red'],
   ORDER_EXCHANGE_RECORDED: ['Cambio registrado', 'orange'],
   ORDER_COMMENTED: ['Comentario en el pedido', 'slate'],
