@@ -22,9 +22,12 @@ import { cn } from '@/lib/utils'
 // En celular los huecos se reordenan con `order` negativo para no depender de
 // que los `children` libres (orden 0) vayan primero. Sin `lista` la barra se
 // comporta como antes (pestañas de Stock, Inicio…) y `sort`/`display` quedan en
-// línea. `view` es siempre el segundo nivel segmentado (navegación), nunca el
+// línea. `scrollFiltros={false}` deja que los filtros con popover (rango de
+// fechas) envuelvan en vez de desplazarse (el scroll recortaría el popover).
+// `etiquetaBoton` / `etiquetaOrden` renombran el botón y el rótulo del panel
+// cuando `sort` aloja filtros (p. ej. «Filtros»). `view` es siempre el segundo nivel segmentado (navegación), nunca el
 // conmutador lista/cuadrícula.
-export default function Toolbar({ label = 'Herramientas', search, filters, sort, display, view, primary, more, lead, children, plano = false, lista = false, className, searchClassName, testId = 'toolbar' }) {
+export default function Toolbar({ label = 'Herramientas', search, filters, sort, display, view, primary, more, lead, children, plano = false, lista = false, scrollFiltros = true, etiquetaBoton = 'Ordenar / Vista', etiquetaOrden = 'Ordenar', className, searchClassName, testId = 'toolbar' }) {
   const derecha = more || primary
   const ordenVista = lista && Boolean(sort || display)
   const [abierto, setAbierto] = useState(false)
@@ -41,8 +44,8 @@ export default function Toolbar({ label = 'Herramientas', search, filters, sort,
     return () => { document.removeEventListener('mousedown', cerrarFuera); document.removeEventListener('keydown', cerrarEscape) }
   }, [abierto])
   const huecoOrden = sort && (
-    <div data-slot="sort" className={cn('min-w-0', lista && 'sm:shrink-0 sm:[&_select]:w-auto')}>
-      {ordenVista && <span className="mb-1 block text-xs font-medium text-mute sm:hidden">Ordenar</span>}
+    <div data-slot="sort" className={cn('min-w-0', lista && 'sm:flex sm:shrink-0 sm:flex-wrap sm:items-center sm:gap-2 sm:[&_select]:w-auto', ordenVista && 'max-sm:flex max-sm:flex-col max-sm:gap-2')}>
+      {ordenVista && <span className="block text-xs font-medium text-mute sm:hidden">{etiquetaOrden}</span>}
       {sort}
     </div>
   )
@@ -84,12 +87,13 @@ export default function Toolbar({ label = 'Herramientas', search, filters, sort,
             data-slot="filters"
             className={cn(
               'flex min-w-0 items-center gap-2',
-              lista
+              lista && !scrollFiltros && 'flex-wrap max-sm:order-[-2] max-sm:basis-full',
+              lista && scrollFiltros
                 ? cn(
                     'sm:flex-wrap max-sm:order-[-2] max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:py-0.5 max-sm:[scrollbar-width:none] max-sm:[&::-webkit-scrollbar]:hidden max-sm:[&>*]:flex-nowrap max-sm:[&>*]:shrink-0 max-sm:[&_button]:shrink-0',
                     ordenVista ? 'max-sm:flex-1 max-sm:basis-[calc(100%-3.75rem)]' : 'max-sm:basis-full',
                   )
-                : 'flex-wrap',
+                : !lista && 'flex-wrap',
             )}
           >
             {filters}
@@ -100,8 +104,8 @@ export default function Toolbar({ label = 'Herramientas', search, filters, sort,
             <button
               type="button"
               data-slot="sort-view-toggle"
-              aria-label="Ordenar / Vista"
-              title="Ordenar / Vista"
+              aria-label={etiquetaBoton}
+              title={etiquetaBoton}
               aria-haspopup="true"
               aria-expanded={abierto}
               onClick={() => setAbierto((valor) => !valor)}

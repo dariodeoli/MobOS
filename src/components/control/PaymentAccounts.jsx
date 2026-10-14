@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { getPaymentAccounts, createPaymentAccount, updatePaymentAccount, KIND_LABELS } from '@/lib/paymentAccounts'
-import { Aviso, Button, Card, EmptyState, Input, Label, Select } from '@/components/ui'
+import { Aviso, Button, Card, EmptyState, Input, Label, Select, Stat } from '@/components/ui'
+import StatGrid from '@/components/shared/StatGrid'
+import Toolbar from '@/components/shared/Toolbar'
 import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import Switch from '@/components/shared/Switch'
@@ -22,7 +24,6 @@ import { CELDA_IDENTIDAD, ROTULO_DATO } from '@/components/shared/tabla'
 import ListaDensa from '@/components/shared/ListaDensa'
 import { usePaginaLista } from '@/components/shared/usePaginaLista'
 import StatusChip from '@/components/shared/StatusChip'
-import { GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
 // Listado: una fila por cuenta (tabla desde xl, tarjeta debajo), con comisión,
 // acreditación y descuento. El banco o la procesadora se muestra UNA vez: logo
 // + nombre en la primera celda (nunca otra vez en «Datos»).
@@ -162,9 +163,9 @@ function AccountManager() {
     const monedas = [...new Set(activas.map(cuenta => cuenta.currencyLabel || cuenta.currency).filter(Boolean))]
     const inactivas = accounts.length - activas.length
     return [
-      { label: 'Cuentas activas', valor: activas.length, sub: `de ${accounts.length} cuenta(s)`, tono: '' },
-      { label: 'Inactivas', valor: inactivas, sub: inactivas ? 'no se ofrecen al cobrar' : 'todas disponibles', tono: inactivas ? 'text-warn' : '' },
-      { label: 'Monedas', valor: monedas.length, sub: monedas.join(' · ') || '—', tono: '' },
+      { label: 'Cuentas activas', valor: activas.length, sub: `de ${accounts.length}`, tono: '' },
+      { label: 'Inactivas', valor: inactivas, tono: inactivas ? 'text-warn' : '' },
+      { label: 'Monedas', valor: monedas.length, sub: monedas.join(' · ') || undefined, tono: '' },
     ]
   }, [accounts])
 
@@ -285,31 +286,31 @@ function AccountManager() {
 
   return (
     <Card className="finanzas-tactil space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-sm text-mute">Configurá los medios de pago. Desactivar conserva la cuenta y su historial.</p>
-        </div>
-        <Button type="button" disabled={busy || loading || !!loadError || !!form} onClick={() => openForm()}>Añadir cuenta</Button>
-      </div>
+      {/* #388: una barra (plantillas rápidas · demo · Añadir cuenta) y tira de KPI de una línea. */}
+      <Toolbar
+        plano
+        lista
+        label="Acciones de cuentas de cobro"
+        testId="barra-cuentas"
+        filters={!loading && !loadError && !form ? (
+          <div role="group" aria-label="Plantillas rápidas" className="flex items-center gap-2">
+            {TEMPLATES.map(template => <Button key={template.name} type="button" variant="outline" disabled={busy} onClick={() => openForm(template)}>+ {template.name}</Button>)}
+          </div>
+        ) : undefined}
+        more={isDemoRuntime ? <span data-testid="cuentas-demo" title="Demo: cuentas ficticias guardadas en este navegador. No ingreses datos bancarios reales." className="inline-flex min-h-7 items-center rounded-full border border-warn/40 bg-warn/5 px-2.5 text-xs text-warn">Demo: sin datos reales</span> : undefined}
+        primary={<Button type="button" disabled={busy || loading || !!loadError || !!form} onClick={() => openForm()}>Añadir cuenta</Button>}
+      />
       {v2 && accounts.length > 0 && (
-        <div className={cn('lg:grid-cols-3', GRILLA_DOS_COLUMNAS_COMPACTA)}>
+        <StatGrid testId="cuentas-resumen">
           {resumenCuentas.map((tarjeta) => (
-            <div key={tarjeta.label} className={cn('rounded-xl border border-ink-600 p-3', 'v2-tile', tarjeta.tono === 'text-warn' && 'border-warn/40 bg-warn/5')}>
-              <p className={ROTULO_DATO}>{tarjeta.label}</p>
-              <strong className={cn('mt-1 block tabular-nums v2-numero text-2xl', tarjeta.tono)}>{tarjeta.valor}</strong>
-              <p className="mt-0.5 text-[11px] text-mute">{tarjeta.sub}</p>
-            </div>
+            <Stat key={tarjeta.label} compact label={tarjeta.label} valor={tarjeta.valor} sub={tarjeta.sub} valorClassName={tarjeta.tono} />
           ))}
-        </div>
+        </StatGrid>
       )}
-      {isDemoRuntime && <p className="text-sm text-mute">Demo: cuentas ficticias guardadas en este navegador. No ingreses datos bancarios reales.</p>}
       {loading && <p role="status" className="text-sm text-mute">Cargando cuentas…</p>}
       {loadError && <div role="alert" className="space-y-2 text-sm text-bad"><p>{loadError}</p><Button type="button" variant="outline" onClick={() => setReload(value => value + 1)}>Reintentar</Button></div>}
       {message && <Aviso tono={message.ok ? 'ok' : 'error'}>{message.text}</Aviso>}
       {!loading && !loadError && accounts.length === 0 && <EmptyState icon="wallet" title="Todavía no hay cuentas de cobro" description="Añadí una cuenta o elegí una plantilla para empezar a registrar cobros." action={<Button type="button" onClick={() => openForm()}>Añadir cuenta</Button>} />}
-      {!loading && !loadError && !form && <div className="flex flex-wrap gap-2" aria-label="Plantillas rápidas">
-        {TEMPLATES.map(template => <Button key={template.name} type="button" variant="outline" disabled={busy} onClick={() => openForm(template)}>+ {template.name}</Button>)}
-      </div>}
       {form && (
         <VentanaDetalle
           open

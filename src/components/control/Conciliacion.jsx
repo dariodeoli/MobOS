@@ -339,11 +339,14 @@ export default function Conciliacion() {
         <Toolbar
           plano
           lista
+          scrollFiltros={false}
+          etiquetaBoton="Cuenta, medio y procesadora"
+          etiquetaOrden="Filtrar por"
           label="Filtros del período"
           testId="conciliacion-filtros"
-          filters={(
+          filters={<RangoFechas valor={rango} onChange={cambiarRango} className="[&>button]:h-11 md:[&>button]:h-9" />}
+          sort={(
             <>
-              <RangoFechas valor={rango} onChange={cambiarRango} className="[&>button]:h-11 md:[&>button]:h-9" />
               <Select className="w-auto" aria-label="Cuenta" title="Se recuerda tu último filtro" value={filtros.accountId} onChange={(event) => cambiarFiltro('accountId', event.target.value)}>
                 <option value="">Todas las cuentas</option>
                 {(data?.porCuenta || []).filter((fila) => !fila.key.startsWith('metodo:')).map((fila) => <option key={fila.key} value={fila.key}>{fila.label}</option>)}
