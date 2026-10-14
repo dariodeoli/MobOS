@@ -4,6 +4,7 @@ import { enforceRateLimit } from '../../../../../lib/rate-limit'
 import { buscarPorTokenPublico, hashTokenPublico } from '../../../../../lib/public-token'
 import { seguimientoDeEntrega } from '../../../../../lib/orders'
 import { COUNTABLE_PAYMENT_WHERE } from '../../../../../lib/payment-net'
+import { contactoPublicoDePortal } from '../../../../../lib/public-contact'
 
 // Vitrina pública del cliente: una página de solo lectura por token donde ve
 // sus pedidos, su saldo a favor, sus puntos de fidelización y —si el enlace es
@@ -113,6 +114,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
       // interna sigue prohibida en el portal.
       ...(portal.customer?.publicNote ? { notaPublica: portal.customer.publicNote } : {}),
     },
+    contacto: await contactoPublicoDePortal(prisma, portal.tenantId, portal.customerId),
     saldoFavorPyg: Number(saldoFavor._sum.remainingPyg || 0),
     // 1 punto = 1 Gs. canjeable; la empresa lo apaga con loyaltyPct = 0.
     puntosPyg: Number(portal.customer?.loyaltyPointsPyg || 0),

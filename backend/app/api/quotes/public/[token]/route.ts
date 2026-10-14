@@ -4,6 +4,7 @@ import { enforceRateLimit } from '../../../../../lib/rate-limit'
 import { numero } from '../../../../../lib/montos'
 import { OTP_MAX_ATTEMPTS, congelarVersionDeCotizacion, enmascararEmail, enmascararTelefono } from '../../../../../lib/quote-approval'
 import { canalesOtpDisponibles } from '../../../../../lib/otp-transport'
+import { contactoPublicoSucursal } from '../../../../../lib/public-contact'
 
 // Vista pública de la cotización para el cliente: número, empresa/sucursal,
 // ítems con precios, descuento, total, validez y estado. Nunca expone costos,
@@ -95,6 +96,7 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
       phone: quote.branch.phone,
       instagram: quote.branch.instagram,
     } : null,
+    contacto: contactoPublicoSucursal(quote.branch),
     customerName: quote.customerName,
     customer: quote.customer ? { name: quote.customer.name, document: quote.customer.document } : null,
     seller: quote.seller?.name || null,

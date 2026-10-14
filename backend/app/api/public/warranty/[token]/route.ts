@@ -2,6 +2,7 @@ import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'
 import { buscarPorTokenPublico } from '../../../../../lib/public-token'
+import { contactoPublicoSucursal } from '../../../../../lib/public-contact'
 
 // Página pública de garantía: el token opaco del QR muestra modelo, días
 // restantes, cobertura y exclusiones. Nunca expone costos, teléfonos,
@@ -47,6 +48,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     coverage: warranty.coverage,
     exclusions: warranty.exclusions,
     store: { name: warranty.branch?.name || null, phone: warranty.branch?.phone || null, city: warranty.branch?.city || null },
+    contacto: contactoPublicoSucursal(warranty.branch),
     orderNumber: warranty.orderItem?.order?.orderNumber || null,
     purchasedAt: warranty.orderItem?.order?.createdAt || warranty.createdAt,
   })

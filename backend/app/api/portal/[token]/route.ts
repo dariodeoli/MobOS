@@ -8,6 +8,7 @@ import { etiquetaPago } from '../../../../lib/payments'
 import { seguimientoDeEntrega } from '../../../../lib/orders'
 import { numero } from '../../../../lib/montos'
 import { COUNTABLE_PAYMENT_WHERE } from '../../../../lib/payment-net'
+import { contactoPublicoDePortal } from '../../../../lib/public-contact'
 
 // Resumen de cuenta público del cliente. El token es aleatorio y no
 // enumerable, y el nivel acota lo que se muestra:
@@ -218,6 +219,8 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
       // interna sigue prohibida en el portal.
       ...(portal.customer?.publicNote ? { publicNote: portal.customer.publicNote } : {}),
     },
+    // Contacto de la sucursal para «Escribir por WhatsApp» (nunca teléfonos del cliente).
+    contacto: await contactoPublicoDePortal(prisma, portal.tenantId, portal.customerId),
     balancePyg: numero(saldo[0]?.pending),
     // Tus beneficios (#240 → portal): saldo a favor (1 punto = 1 Gs. canjeable).
     saldoFavorPyg: numero(saldoFavor._sum.remainingPyg),
