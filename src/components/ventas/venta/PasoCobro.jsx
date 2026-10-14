@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Aviso, Button, Input, Label, MoneyInput, Nota, Select, Textarea } from '@/components/ui'
+import { createPortal } from 'react-dom'
+import { Aviso, Button, ConfirmDialog, Input, Label, MoneyInput, Nota, Select, Textarea } from '@/components/ui'
 import CodigoSegmentado from '@/components/shared/CodigoSegmentado'
 import { formatearCodigo, limpiarCodigo } from '@/lib/codigoSegmentado'
 import Icon from '@/components/shared/Icon'
@@ -8,6 +9,7 @@ import NumericKeypad from '@/components/shared/NumericKeypad'
 import { cn } from '@/lib/utils'
 import { temaV2Activo } from '@/lib/temaV2'
 import { gs } from '@/utils/calculos'
+import { pagaAlRecibirVigente } from '@/utils/cobroPos'
 import { capitalizarPrimera } from '@/utils/texto'
 import { ENTREGA } from '@/lib/catalog'
 import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
@@ -24,6 +26,8 @@ const cuerpoGiftCard = (codigo) => limpiarCodigo(codigo, 'crockford', 'GC')
 
 export default function PasoCobro({
   customer,
+  pagaAlRecibir: pagaAlRecibirActivo = false,
+  setPagaAlRecibir,
   venderACredito,
   setVenderACredito,
   creditoDias,
@@ -63,7 +67,8 @@ export default function PasoCobro({
   // está pago, naranja si es parcial y rojo si queda pendiente/a crédito.
   // «Paga al recibir» (#390): no se pide el medio todavía; el pedido queda
   // pendiente y se cobra después desde la lista de pedidos.
-  const [pagaAlRecibir, setPagaAlRecibir] = useState(false)
+  const pagaAlRecibir = pagaAlRecibirVigente(pagaAlRecibirActivo, pagos)
+  const [confirmarPaga, setConfirmarPaga] = useState(false)
   const pagoCompleto = totalGeneral > 0 && totalPagado >= totalGeneral
   const sinPago = totalPagado <= 0
   // Segundo renglón del botón: productos e importe (#148 §5/§11).
@@ -253,9 +258,9 @@ export default function PasoCobro({
               checked={pagaAlRecibir}
               disabled={guardando}
               onChange={e => {
+                // Con pagos cargados (gift card consultada, canje) no se descartan en silencio.
+                if (e.target.checked && pagos.length > 0) { setConfirmarPaga(true); return }
                 setPagaAlRecibir(e.target.checked)
-                // Sin cobro ahora: se descartan los pagos cargados.
-                if (e.target.checked) setPagos([])
               }}
             />
             Paga al recibir
@@ -604,6 +609,19 @@ export default function PasoCobro({
           <BotonGuardar className="w-full px-2" />
         </div>
       </div>
+      {createPortal(<ConfirmDialog
+        open={confirmarPaga}
+        onCancel={() => setConfirmarPaga(false)}
+        onConfirm={() => {
+          setConfirmarPaga(false)
+          setPagos([])
+          setPagaAlRecibir(true)
+        }}
+        title="¿Descartar los pagos cargados?"
+        description={`Hay ${pagos.length} ${pagos.length === 1 ? 'pago cargado' : 'pagos cargados'} (${gs(totalPagado)}). Con «Paga al recibir» se descartan, incluidos gift cards consultadas y canjes, y el pedido queda pendiente.`}
+        confirmLabel="Descartar pagos"
+        variant="danger"
+      />, document.body)}
     </section>
   )
 }
