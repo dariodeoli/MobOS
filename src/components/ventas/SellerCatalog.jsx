@@ -231,7 +231,7 @@ export default function SellerCatalog() {
     {/* #256: métricas con alcance explícito (lo cargado no se mezcla). */}
     <ResumenMetricas
       testId="resumen-productos"
-      columnas={hayCosto ? 4 : 3}
+      columnas={4}
       items={[
         { titulo: 'Productos', valor: data.rows.length, alcance: 'En pantalla', nota: `${rows.length} visibles` },
         { titulo: 'En stock', valor: enStock, alcance: 'En pantalla' },
