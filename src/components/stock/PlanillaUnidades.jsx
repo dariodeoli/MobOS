@@ -15,7 +15,7 @@ import { useMemo, useRef, useState } from 'react'
 import Icon from '@/components/shared/Icon'
 import ProveedorBadge from '@/components/shared/ProveedorBadge'
 import UbicacionBadge from '@/components/shared/UbicacionBadge'
-import { CELDA_ENCABEZADO } from '@/components/shared/tabla'
+import { CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 import {
   agruparPorModelo, colorUbicacion, estadoPlanilla, etiquetaCondicion, familiaCondicion, fechaCorta,
@@ -29,8 +29,8 @@ import { MenuAcciones } from './MenuAcciones'
 /** Columnas de la grilla de escritorio; `compacta` oculta Ingreso y Garantía (bajo 64 rem). */
 export function columnasPlanilla({ verCosto }) {
   const costo = verCosto ? ['6.25rem'] : []
-  const completa = ['1.75rem', 'minmax(12rem,1.7fr)', '6.5rem', '8.5rem', '4.25rem', '4.75rem', ...costo, '4.75rem', 'minmax(7rem,1.2fr)', 'minmax(4.5rem,12.5rem)', '1.75rem']
-  const compacta = ['1.75rem', 'minmax(10rem,1.6fr)', '8.5rem', '4.25rem', '4.75rem', ...costo, 'minmax(6rem,1.2fr)', 'minmax(4.5rem,11rem)', '1.75rem']
+  const completa = ['1.75rem', 'minmax(15rem,2.3fr)', '6.5rem', '8.5rem', '4.25rem', '4.75rem', ...costo, '4.75rem', 'minmax(6rem,1fr)', 'minmax(4.5rem,12.5rem)', '1.75rem']
+  const compacta = ['1.75rem', 'minmax(13rem,2fr)', '8.5rem', '4.25rem', '4.75rem', ...costo, 'minmax(5rem,1fr)', 'minmax(4.5rem,11rem)', '1.75rem']
   return { '--pl-cols': completa.join(' '), '--pl-cols-compacta': compacta.join(' ') }
 }
 
@@ -105,7 +105,8 @@ function NotaEditable({ item, puedeEditar, onGuardar }) {
 function FilaPlanilla({ item, verCosto, rolVeCosto, seleccionado, onAlternar, onAbrir, acciones, busy, onGuardarNota }) {
   const ahora = useMemo(() => new Date(), [])
   const modelo = modeloPlanilla(item)
-  const bateria = textoBateria(item)
+  const bateria = textoBateria(item, { corto: true })
+  const bateriaLarga = textoBateria(item)
   const estado = estadoPlanilla(item, ahora)
   const garantia = garantiaPlanilla(item.warrantyUntil, ahora)
   const quien = quienVerifico(item)
@@ -135,15 +136,15 @@ function FilaPlanilla({ item, verCosto, rolVeCosto, seleccionado, onAlternar, on
           <input type="checkbox" className="h-4 min-h-0 w-4 accent-fono" aria-label={`Seleccionar ${modelo} ${imei}`.trim()} checked={seleccionado} onChange={onAlternar} />
         </label>
       </span>
-      <span data-testid="unidad-modelo" className="pl-celda flex items-baseline gap-1.5" title={[modelo, etiquetaCondicion(item), bateria].filter(Boolean).join(' · ')}>
-        <b className="truncate text-[13px] font-semibold">{modelo}</b>
+      <span data-testid="unidad-modelo" className="pl-celda flex items-baseline gap-1.5" title={[modelo, etiquetaCondicion(item), bateriaLarga].filter(Boolean).join(' · ')}>
+        <b className={CELDA_IDENTIDAD}>{modelo}</b>
         {bateria ? <span className="pl-sec shrink-0 text-[11px]" data-testid="planilla-bateria">{bateria}</span> : null}
         <span className="sr-only">{`, ${etiquetaCondicion(item)}`}</span>
       </span>
       <span className="pl-c-ingreso pl-celda pl-sec" data-testid="planilla-ingreso" title={tituloIngreso}>
         {fechaCorta(item.createdAt, ahora) || '—'}{esUnidad ? ` · ${quien || '—'}` : ''}
       </span>
-      <span data-testid="unidad-imei" className={cn('pl-celda text-[11px] tabular-nums', esUnidad && 'font-mono')} title={esUnidad ? `IMEI/serial ${imei}` : `SKU ${imei}`}>
+      <span data-testid="unidad-imei" className={cn('pl-celda text-[11px]', esUnidad && 'font-mono tabular-nums')} title={esUnidad ? `IMEI/serial ${imei}` : `SKU ${imei}`}>
         {imei || '—'}
       </span>
       <span className="pl-celda">
@@ -157,7 +158,7 @@ function FilaPlanilla({ item, verCosto, rolVeCosto, seleccionado, onAlternar, on
           : <span className="pl-sec">—</span>}
       </span>
       {verCosto ? <span className="flex items-center justify-end text-right">{esUnidad ? <CostoStock item={item} /> : <span className="pl-sec">—</span>}</span> : null}
-      <span className="pl-c-garantia pl-celda pl-garantia" data-tono={garantia.tono} data-testid="planilla-garantia" title={garantia.detalle}>
+      <span className="pl-c-garantia pl-celda pl-garantia pl-2" data-tono={garantia.tono} data-testid="planilla-garantia" title={garantia.detalle}>
         {garantia.texto || <span className="pl-sec">—</span>}
       </span>
       <span className="pl-celda">
@@ -199,7 +200,7 @@ function FilaMovil({ item, onAbrir }) {
       }}
     >
       <span className="flex min-w-0 items-center justify-between gap-2">
-        <b data-testid="unidad-modelo" className="min-w-0 truncate text-[13px] font-semibold" title={`${modelo} · ${etiquetaCondicion(item)}`}>
+        <b data-testid="unidad-modelo" className={cn('min-w-0', CELDA_IDENTIDAD)} title={`${modelo} · ${etiquetaCondicion(item)}`}>
           {modelo}<span className="sr-only">{`, ${etiquetaCondicion(item)}`}</span>
         </b>
         {item.kind === 'product' ? <span className="pl-sec shrink-0 text-[11px]">{textoEstadoItem(item)}</span> : <ChipEstadoPlanilla estado={estado} />}

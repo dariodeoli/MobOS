@@ -59,10 +59,10 @@ function VistaUnidades({ valor, onCambiar }) {
           data-testid={`vista-unidades-${id}`}
           title={`Ver las unidades como ${etiqueta.toLowerCase()}`}
           onClick={() => onCambiar(id)}
-          className={cn('inline-flex min-h-11 items-center gap-1 rounded-md px-2.5 text-xs font-semibold transition lg:min-h-8', valor === id ? 'bg-fono/15 text-fore' : 'text-mute hover:text-fore')}
+          className={cn('inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-md px-2.5 text-xs font-semibold transition lg:min-h-8 lg:min-w-9', valor === id ? 'bg-fono/15 text-fore' : 'text-mute hover:text-fore')}
         >
           <Icon name={icono} className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          {etiqueta}
+          <span className="sr-only 2xl:not-sr-only">{etiqueta}</span>
         </button>
       ))}
     </div>
