@@ -13,6 +13,8 @@ const between = (text, start, end) => text.slice(text.indexOf(start), text.index
 test('Clientes preserves create/import/export payloads, validation and original form', () => {
   // Intentional fiscal-identity additions are covered by customerIdentity tests.
   // Keep fingerprints for unchanged import/export and reviewed create/profile blocks.
+  // #389: the create modal markup (Identidad/Contacto/Direcciones, CountrySelect, widths)
+  // was restructured on purpose; the create/export/import handlers keep their fingerprints.
   const originalHandlers = seller
     .replace('; setResumenRevision((value) => value + 1)', '')
     .replace('      setResumenRevision((value) => value + 1)\n', '')
@@ -35,7 +37,7 @@ test('Clientes preserves create/import/export payloads, validation and original 
     [
       '    <Modal open={crearAbierto}',
       '    </>}',
-      '89bea545805bc6d12f2c6af605d4e98266828c83ce05cb502d0d2d8cac64768c',
+      'c09a990549c6c4401e6d6c13312d19853fd67b42914c069f977e89468c9c21ad',
     ],
   ])
     assert.equal(digest(between(originalHandlers, start, end)), expected)
