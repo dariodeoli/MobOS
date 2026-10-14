@@ -1,4 +1,4 @@
-// Prueba de la migración 20270105000000_unit_sheet_fields (#400, unidad A)
+// Prueba de la migración 20270107000000_unit_sheet_fields (#400, unidad A)
 // contra Postgres real: backfill del correlativo por fecha de ingreso
 // (incluye eliminadas, por empresa), ciclos desde la inspección, siembra de
 // TenantSequence, trigger, idempotencia al re-aplicar y base vacía.
@@ -16,7 +16,7 @@ if (!server) {
   process.exit(2)
 }
 const migrationsDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'prisma', 'migrations')
-const NEW = '20270105000000_unit_sheet_fields'
+const NEW = '20270107000000_unit_sheet_fields'
 const todas = readdirSync(migrationsDir, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name).sort()
 if (!todas.includes(NEW)) throw new Error(`No existe la migración ${NEW}.`)
 const names = todas.slice(0, todas.indexOf(NEW) + 1)
