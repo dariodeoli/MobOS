@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Badge, Button, Card, Drawer, FormActions, Input, Label, Modal, MoneyInput, Select, Textarea } from '@/components/ui'
+import { Badge, Button, Card, FormActions, Input, Label, Modal, MoneyInput, Select, Textarea } from '@/components/ui'
+import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api'
 import { gs } from '@/utils/calculos'
@@ -387,9 +388,9 @@ export default function TradeInPipeline() {
     </div>}
     {/* #316: el detalle sale de la página y vive en un panel con encabezado
         real (modelo, estado y valores); la edición no empuja la lista. */}
-    <Drawer open={Boolean(abiertoItem)} onClose={() => setAbierto(null)} title="Detalle del equipo" side="right">
+    <VentanaDetalle open={Boolean(abiertoItem)} onClose={() => setAbierto(null)} title="Detalle del equipo">
       {abiertoItem && <Device item={abiertoItem} busy={busy || uncertain} onSave={save} />}
-    </Drawer>
+    </VentanaDetalle>
     <Valuaciones esDemo={esDemo} />
   </div>
 }

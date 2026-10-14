@@ -7,6 +7,7 @@ import { getProductos } from '@/lib/storage'
 import { gs, num } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
 import { Aviso, Button, DocumentoImpresion, EmptyState, FormActions, FormField, Input, Modal, MoneyInput, Textarea, MenuDesplegable } from '@/components/ui'
+import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import EmailField from '@/components/shared/EmailField'
 import CompartirPdf from '@/components/shared/CompartirPdf'
 import Icon from '@/components/shared/Icon'
@@ -87,7 +88,7 @@ function PreviaCotizacion({ open, onClose, cotizacion, emisor, etiquetaCerrar = 
   const subtotal = Number(cotizacion.subtotalPyg ?? items.reduce((suma, fila) => suma + fila.subtotal, 0))
   const descuento = Number(cotizacion.discountPyg || 0)
   return (
-    <Modal className="ventas-f3 ventas-f3-dialog" open={open} onClose={onClose} title="Vista previa de la cotización" size="completo">
+    <VentanaDetalle className="ventas-f3 ventas-f3-dialog" open={open} onClose={onClose} title="Vista previa de la cotización" size="xl">
       <div className="space-y-3" data-testid="cotizacion-previa">
         <p className="text-xs text-mute">Así se ve el documento que revisa y aprueba el cliente.</p>
         <div className="overflow-x-auto rounded-xl border border-ink-600 bg-white">
@@ -113,7 +114,7 @@ function PreviaCotizacion({ open, onClose, cotizacion, emisor, etiquetaCerrar = 
           <Button type="button" variant="outline" onClick={onClose}>{etiquetaCerrar}</Button>
         </FormActions>
       </div>
-    </Modal>
+    </VentanaDetalle>
   )
 }
 

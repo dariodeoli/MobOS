@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { getPaymentAccounts, createPaymentAccount, updatePaymentAccount, KIND_LABELS } from '@/lib/paymentAccounts'
-import { Aviso, Button, Card, Drawer, EmptyState, Input, Label, Select } from '@/components/ui'
+import { Aviso, Button, Card, EmptyState, Input, Label, Select } from '@/components/ui'
+import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import Switch from '@/components/shared/Switch'
 import BancoCombobox from '@/components/shared/BancoCombobox'
@@ -310,7 +311,7 @@ function AccountManager() {
         {TEMPLATES.map(template => <Button key={template.name} type="button" variant="outline" disabled={busy} onClick={() => openForm(template)}>+ {template.name}</Button>)}
       </div>}
       {form && (
-        <Drawer
+        <VentanaDetalle
           open
           onClose={() => !busy && cerrarForm()}
           title={editingId ? 'Editar cuenta' : 'Nueva cuenta'}
@@ -366,7 +367,7 @@ function AccountManager() {
         </fieldset>
         <div className="flex flex-wrap gap-2"><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar cuenta'}</Button><Button type="button" variant="ghost" disabled={busy} onClick={cerrarForm}>Cancelar</Button></div>
         </form>
-        </Drawer>
+        </VentanaDetalle>
       )}
       {!loading && !loadError && accounts.length > 0 && (() => {
         const identidad = (account) => {
