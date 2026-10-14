@@ -155,6 +155,7 @@ SQL
   RUC_PILOT_OWNER_EMAIL=dariodeoli@gmail.com RUC_API_KEY='' RUC_SUN_API_KEY='' \
   RUC_ACCOUNT_HOURLY_LIMIT=12 RUC_INSTALLATION_MONTHLY_LIMIT=90 \
   NODE_ENV=test MOBOS_APP_URL=https://app.moboss.online MOBOS_TRUST_PROXY=true DATABASE_URL="$DATABASE_URL" \
+    MOBOS_STORAGE_DIR="$RUN_ROOT/storage" \
     MOBOS_MAINTENANCE_TOKEN="it-maintenance-token" \
     MOBOS_EMAIL_OUTBOX_ACTIVE_KEY_ID="it-v1" \
     MOBOS_EMAIL_OUTBOX_ENCRYPTION_KEYS_JSON='{"it-v1":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}' \
@@ -620,6 +621,8 @@ echo "Conciliación por cuenta/procesadora: lote recibido vs esperado, diferenci
 node "$BACKEND_ROOT/tests/reconciliation-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 node "$BACKEND_ROOT/tests/purchases-suppliers.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 node "$BACKEND_ROOT/tests/attachments.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL" "$PG_BIN"
+echo "Fotos de producto: alta por magic bytes, orden, principal, baja lógica y aislamiento por empresa (#404)..."
+node "$BACKEND_ROOT/tests/product-images.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$ADMIN_TOKEN_C" "$RUN_ROOT/storage"
 node "$BACKEND_ROOT/tests/history-timelines.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A"
 echo "Seguimiento del informe compartido: envío, visto/no visto y apertura desde el portal..."
 node "$BACKEND_ROOT/tests/device-report-tracking.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL" "$PG_BIN"
