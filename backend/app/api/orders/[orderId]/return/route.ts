@@ -19,6 +19,8 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
     const { orderId } = await context.params
     const requestData = returnRequest(objectInput(await request.json()))
     const result = await prisma.$transaction(async tx => {
+      // Misma cerradura que la corrección de pagos (#393): no calcular lo cobrado mientras otra transacción lo reescribe.
+      await tx.$queryRaw`SELECT "id" FROM "Order" WHERE "id" = ${orderId} AND "tenantId" = ${tenant} FOR UPDATE`
       const order = await tx.order.findFirst({ where: { id: orderId, tenantId: tenant }, include: { payments: true, items: true } })
       if (!order || !canAccessOrder(session.user, order)) throw new InputError('Pedido no encontrado.', 404)
       if (order.status === 'CANCELLED') throw new InputError('Este pedido ya fue devuelto o cancelado.', 409)

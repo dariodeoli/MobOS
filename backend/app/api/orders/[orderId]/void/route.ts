@@ -34,6 +34,8 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
       voidAuthorization = { id: usableAuthorization(authorization, { userId: session.user.id, kinds: ['ORDER_VOID'], label: 'anulación' }).id }
     }
     const result = await prisma.$transaction(async tx => {
+      // Misma cerradura que la corrección de pagos (#393).
+      await tx.$queryRaw`SELECT "id" FROM "Order" WHERE "id" = ${orderId} AND "tenantId" = ${tenant} FOR UPDATE`
       const order = await tx.order.findFirst({ where: { id: orderId, tenantId: tenant }, include: { items: true, payments: true } })
       if (!order || !canAccessOrder(session.user, order)) throw new InputError('Pedido no encontrado.', 404)
       if (order.status === 'CANCELLED') throw new InputError('Este pedido ya fue anulado o cancelado.', 409)
