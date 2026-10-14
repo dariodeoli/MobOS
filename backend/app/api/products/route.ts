@@ -11,11 +11,16 @@ import { LIMITE_MONTO_GENERAL, numero, numeroOpcional } from '../../../lib/monto
 import { sucursalEfectiva } from '../../../lib/sucursal-efectiva'
 import { canSeeCostForSession, redactProductCosts } from '../../../lib/cost-visibility'
 import { catalogMeta, catalogSearchFilter, parseCatalogPage } from '../../../lib/product-catalog'
+import { parseAccessoryCategory, parseCompatibleModels } from '../../../lib/product-accessories'
+import { PRIMARY_IMAGE_INCLUDE, primaryImageFields } from '../../../lib/product-images'
 
 // Variante estructurada: texto libre acotado; vacío se guarda como null.
 const variantField = (value: unknown, max: number) => typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null
 
 
+
+// #287 + #404: unidades vendibles y foto principal (solo el id; las URLs se arman aparte).
+const PRODUCT_LIST_INCLUDE = { _count: { select: { inventoryUnits: { where: { status: 'AVAILABLE' as const } } } }, images: PRIMARY_IMAGE_INCLUDE }
 
 const unitDetails = (body: any, fallback: { condition: string; costPyg?: number }) => {
   const raw = body.unit || body
@@ -58,10 +63,10 @@ export async function GET(request: Request) {
     const { page, pageSize, skip } = parseCatalogPage(p)
     const [total, rows] = await Promise.all([
       prisma.product.count({ where }),
-      prisma.product.findMany({ where, orderBy: [{ name: 'asc' }, { id: 'asc' }], take: pageSize, skip, include: { _count: { select: { inventoryUnits: { where: { status: 'AVAILABLE' } } } } } }),
+      prisma.product.findMany({ where, orderBy: [{ name: 'asc' }, { id: 'asc' }], take: pageSize, skip, include: PRODUCT_LIST_INCLUDE }),
     ])
     const verCostoPagina = await canSeeCostForSession(session)
-    return json({ items: rows.map(({ _count, ...producto }) => redactProductCosts({ ...producto, unitsCount: _count?.inventoryUnits ?? 0 }, verCostoPagina)), ...catalogMeta(total, page, pageSize) })
+    return json({ items: rows.map(({ _count, images, ...producto }) => redactProductCosts({ ...producto, unitsCount: _count?.inventoryUnits ?? 0, ...primaryImageFields(producto.id, images) }, verCostoPagina)), ...catalogMeta(total, page, pageSize) })
   }
   const data = await prisma.product.findMany({
     where,
@@ -70,10 +75,10 @@ export async function GET(request: Request) {
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     // #287: el producto y sus unidades son el mismo objeto en dos vistas: la
     // lista dice cuántas unidades físicas (vendibles) tiene cada variante.
-    include: { _count: { select: { inventoryUnits: { where: { status: 'AVAILABLE' } } } } },
+    include: PRODUCT_LIST_INCLUDE,
   })
   const verCosto = await canSeeCostForSession(session)
-  return json(data.map(({ _count, ...producto }) => redactProductCosts({ ...producto, unitsCount: _count?.inventoryUnits ?? 0 }, verCosto)))
+  return json(data.map(({ _count, images, ...producto }) => redactProductCosts({ ...producto, unitsCount: _count?.inventoryUnits ?? 0, ...primaryImageFields(producto.id, images) }, verCosto)))
 }
 
 export async function POST(request: Request) {
@@ -97,6 +102,8 @@ export async function POST(request: Request) {
   if (cost !== undefined && (!Number.isSafeInteger(cost) || cost < 0 || cost > LIMITE_MONTO_GENERAL)) return error('El costo debe ser un entero válido.')
   if (insuranceRate !== undefined && (!Number.isFinite(insuranceRate) || insuranceRate < 0 || insuranceRate > 100)) return error('El seguro debe ser un porcentaje entre 0 y 100.')
   if (reorderPoint !== undefined && reorderPoint !== null && (!Number.isSafeInteger(reorderPoint) || reorderPoint < 0 || reorderPoint > 2147483647)) return error('El umbral de reposición debe ser un entero válido.')
+  let accessoryCategory: ReturnType<typeof parseAccessoryCategory>; let compatibleModels: ReturnType<typeof parseCompatibleModels>
+  try { accessoryCategory = parseAccessoryCategory(b.accessoryCategory); compatibleModels = parseCompatibleModels(b.compatibleModels) } catch (e) { return error(e instanceof Error ? e.message : 'Datos de accesorio inválidos.') }
   const requestedBranchId: string | null = b.branchId || session.user.branchId || null
   const branchId = requestedBranchId ?? await sucursalEfectiva(session)
   if (branchId && !(await prisma.branch.findFirst({ where: { id: branchId, tenantId: tenant, isActive: true }, select: { id: true } }))) return error('Sucursal no encontrada.', 404)
@@ -109,7 +116,7 @@ export async function POST(request: Request) {
     const data = await prisma.$transaction(async tx => {
       if (serial && await tx.inventoryUnit.findFirst({ where: { tenantId: tenant, serial }, select: { id: true } })) throw new Error('Ese IMEI/serial ya existe.')
       if (locationId && !(await tx.stockLocation.findFirst({ where: { id: locationId, tenantId: tenant, branchId: branchId ?? '', isActive: true }, select: { id: true } }))) throw new Error('Ubicación no encontrada para esa sucursal.')
-      const product = await tx.product.create({ data: { tenantId: tenant, sku: await skuUnico(tx, tenant, branchId, b.sku.trim()), name: b.name.trim(), category: b.category, stockKind: classifyStockKind({ category: b.category, hasUnits: Boolean(serial) }), model: variantField(b.model, 80), color: variantField(b.color, 60), capacity: variantField(b.capacity, 20), imei: serial || null, condition: b.condition || 'NEW', pricePyg: price, ...(wholesalePricePyg !== null ? { wholesalePricePyg } : {}), priceUsd, warrantyDays, warrantyCoverage, warrantyExclusions, costPyg: cost, insuranceRate, stock, branchId, ...(reorderPoint !== undefined ? { reorderPoint } : {}) } })
+      const product = await tx.product.create({ data: { tenantId: tenant, sku: await skuUnico(tx, tenant, branchId, b.sku.trim()), name: b.name.trim(), category: b.category, stockKind: classifyStockKind({ category: b.category, hasUnits: Boolean(serial) }), model: variantField(b.model, 80), color: variantField(b.color, 60), capacity: variantField(b.capacity, 20), imei: serial || null, condition: b.condition || 'NEW', pricePyg: price, ...(wholesalePricePyg !== null ? { wholesalePricePyg } : {}), priceUsd, warrantyDays, warrantyCoverage, warrantyExclusions, costPyg: cost, insuranceRate, stock, branchId, ...(reorderPoint !== undefined ? { reorderPoint } : {}), ...(accessoryCategory !== undefined ? { accessoryCategory } : {}), ...(compatibleModels !== undefined ? { compatibleModels } : {}) } })
       if (serial) {
         const unit = await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId, locationId, serial, ...unitDetails(b, { condition: product.condition, costPyg: cost }) } })
         // La unidad serializada deja su alta en la cronología desde el primer día.
@@ -135,6 +142,8 @@ export async function PATCH(request: Request) {
   if (cost !== undefined && cost !== null && (!Number.isSafeInteger(cost) || cost < 0 || cost > LIMITE_MONTO_GENERAL)) return error('El costo debe ser un entero válido.')
   if (insuranceRate !== undefined && insuranceRate !== null && (!Number.isFinite(insuranceRate) || insuranceRate < 0 || insuranceRate > 100)) return error('El seguro debe ser un porcentaje entre 0 y 100.')
   if (reorderPoint !== undefined && reorderPoint !== null && (!Number.isSafeInteger(reorderPoint) || reorderPoint < 0 || reorderPoint > 2147483647)) return error('El umbral de reposición debe ser un entero válido.')
+  let accessoryCategory: ReturnType<typeof parseAccessoryCategory>; let compatibleModels: ReturnType<typeof parseCompatibleModels>
+  try { accessoryCategory = parseAccessoryCategory(b.accessoryCategory); compatibleModels = parseCompatibleModels(b.compatibleModels) } catch (e) { return error(e instanceof Error ? e.message : 'Datos de accesorio inválidos.') }
   const product = await prisma.product.findFirst({ where: { id: b.id, tenantId: tenant, isActive: true } })
   if (!product) return error('Producto no encontrado.', 404)
   const userBranchId = session.user.branchId ?? await sucursalEfectiva(session)
@@ -159,7 +168,7 @@ export async function PATCH(request: Request) {
         else await tx.inventoryUnit.update({ where: { tenantId_serial: { tenantId: tenant, serial } }, data: { ...details, ...(locationId !== undefined ? { locationId } : {}) } })
       }
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PRODUCT_UPDATED', entity: 'Product', entityId: product.id, metadata: { name: typeof b.name === 'string' && b.name.trim() ? b.name.trim() : product.name, pricePyg: price ?? numero(product.pricePyg), costPyg: cost ?? numeroOpcional(product.costPyg), condition: b.condition ?? product.condition, stock: stock ?? product.stock, stockBefore: product.stock, ...(typeof b.sku === 'string' && b.sku.trim() ? { sku: b.sku.trim() } : {}), ...(reorderPoint !== undefined ? { reorderPoint } : {}), ...(serial !== undefined ? { imei: serial } : {}) } } })
-      return tx.product.update({ where: { id: product.id }, data: { ...(typeof b.name === 'string' && b.name.trim() ? { name: b.name.trim() } : {}), ...(typeof b.sku === 'string' && b.sku.trim() ? { sku: b.sku.trim() } : {}), ...(price !== undefined ? { pricePyg: price } : {}), ...(b.wholesalePricePyg !== undefined ? { wholesalePricePyg: b.wholesalePricePyg === null || b.wholesalePricePyg === '' ? null : Number(b.wholesalePricePyg) } : {}), ...(b.priceUsd !== undefined ? { priceUsd: b.priceUsd === null || b.priceUsd === '' ? null : Number(b.priceUsd) } : {}), ...(b.warrantyDays !== undefined ? { warrantyDays: b.warrantyDays === null || b.warrantyDays === '' ? null : Number(b.warrantyDays) } : {}), ...(b.warrantyCoverage !== undefined ? { warrantyCoverage: typeof b.warrantyCoverage === 'string' && b.warrantyCoverage.trim() ? b.warrantyCoverage.trim().slice(0, 1000) : null } : {}), ...(b.warrantyExclusions !== undefined ? { warrantyExclusions: typeof b.warrantyExclusions === 'string' && b.warrantyExclusions.trim() ? b.warrantyExclusions.trim().slice(0, 1000) : null } : {}), ...(cost !== undefined ? { costPyg: cost } : {}), ...(insuranceRate !== undefined ? { insuranceRate } : {}), ...(stock !== undefined ? { stock } : {}), ...(reorderPoint !== undefined ? { reorderPoint } : {}), ...(b.category !== undefined ? { category: b.category || null, stockKind: classifyStockKind({ category: b.category || null, hasUnits: Boolean(serial) || Boolean(product.imei) || (await tx.inventoryUnit.count({ where: { tenantId: tenant, productId: product.id } })) > 0 }) } : {}), ...(b.model !== undefined ? { model: variantField(b.model, 80) } : {}), ...(b.color !== undefined ? { color: variantField(b.color, 60) } : {}), ...(b.capacity !== undefined ? { capacity: variantField(b.capacity, 20) } : {}), ...(serial !== undefined ? { imei: serial } : {}), ...(b.condition !== undefined ? { condition: b.condition } : {}) } })
+      return tx.product.update({ where: { id: product.id }, data: { ...(typeof b.name === 'string' && b.name.trim() ? { name: b.name.trim() } : {}), ...(typeof b.sku === 'string' && b.sku.trim() ? { sku: b.sku.trim() } : {}), ...(price !== undefined ? { pricePyg: price } : {}), ...(b.wholesalePricePyg !== undefined ? { wholesalePricePyg: b.wholesalePricePyg === null || b.wholesalePricePyg === '' ? null : Number(b.wholesalePricePyg) } : {}), ...(b.priceUsd !== undefined ? { priceUsd: b.priceUsd === null || b.priceUsd === '' ? null : Number(b.priceUsd) } : {}), ...(b.warrantyDays !== undefined ? { warrantyDays: b.warrantyDays === null || b.warrantyDays === '' ? null : Number(b.warrantyDays) } : {}), ...(b.warrantyCoverage !== undefined ? { warrantyCoverage: typeof b.warrantyCoverage === 'string' && b.warrantyCoverage.trim() ? b.warrantyCoverage.trim().slice(0, 1000) : null } : {}), ...(b.warrantyExclusions !== undefined ? { warrantyExclusions: typeof b.warrantyExclusions === 'string' && b.warrantyExclusions.trim() ? b.warrantyExclusions.trim().slice(0, 1000) : null } : {}), ...(cost !== undefined ? { costPyg: cost } : {}), ...(insuranceRate !== undefined ? { insuranceRate } : {}), ...(stock !== undefined ? { stock } : {}), ...(reorderPoint !== undefined ? { reorderPoint } : {}), ...(b.category !== undefined ? { category: b.category || null, stockKind: classifyStockKind({ category: b.category || null, hasUnits: Boolean(serial) || Boolean(product.imei) || (await tx.inventoryUnit.count({ where: { tenantId: tenant, productId: product.id } })) > 0 }) } : {}), ...(accessoryCategory !== undefined ? { accessoryCategory } : {}), ...(compatibleModels !== undefined ? { compatibleModels } : {}), ...(b.model !== undefined ? { model: variantField(b.model, 80) } : {}), ...(b.color !== undefined ? { color: variantField(b.color, 60) } : {}), ...(b.capacity !== undefined ? { capacity: variantField(b.capacity, 20) } : {}), ...(serial !== undefined ? { imei: serial } : {}), ...(b.condition !== undefined ? { condition: b.condition } : {}) } })
     })
     return json(data)
   } catch (e) { return error(e instanceof Error ? e.message : 'No se pudo actualizar el producto.', 409) }
