@@ -593,6 +593,8 @@ echo "Abastecimiento: variante agotada → alternativas con OTP del cliente (#27
 node "$BACKEND_ROOT/tests/supply-alternatives.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/orders-credit-discounts.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL"
 node "$BACKEND_ROOT/tests/mobos-1.2.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
+echo "Proveedor con sigla: el nombre real nunca llega a vendedor ni caja (#400)..."
+node "$BACKEND_ROOT/tests/supplier-sigla-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$DATABASE_URL"
 node "$BACKEND_ROOT/tests/price-lists.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 echo "Combos: la línea del pedido recuerda el combo (validación por empresa)..."
 node "$BACKEND_ROOT/tests/order-combos.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
