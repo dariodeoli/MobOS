@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
-import { canSeeCostForSession } from '../../../../lib/cost-visibility'
+import { canSeeCostForSession, canSeeSupplierName } from '../../../../lib/cost-visibility'
 import { sucursalEfectiva } from '../../../../lib/sucursal-efectiva'
 import { buildStockItemsPageSql, buildStockItemsTotalsSql, buildStockTotals, mapStockRow, paginateStockRows, parseStockItemsQuery } from '../../../../lib/stock-items'
 
@@ -18,12 +18,13 @@ export async function GET(request: Request) {
   const role = session.user.role
   const restricted = ['VENDEDOR', 'CAJERA'].includes(role)
   const canSeeCost = await canSeeCostForSession(session)
+  const canSeeSupplier = canSeeSupplierName(role)
 
   const parsed = parseStockItemsQuery(new URL(request.url).searchParams)
   if ('error' in parsed) return error(parsed.error)
   const { filters, cursor } = parsed
   // El filtro por proveedor revelaría a qué proveedor pertenece cada unidad.
-  if (filters.supplierId && !canSeeCost) return error('No autorizado.', 403)
+  if (filters.supplierId && !(canSeeCost && canSeeSupplier)) return error('No autorizado.', 403)
 
   // VENDEDOR/CAJERA quedan acotados a su sucursal efectiva (#286), igual que en Unidades.
   const effective = restricted ? await sucursalEfectiva(session) : null
@@ -31,7 +32,7 @@ export async function GET(request: Request) {
   const empty = { items: [], nextCursor: null, hasMore: false, limit: filters.limit, totals: { total: 0, byStatus: {}, byKind: {}, byRowKind: {} } }
   if (restricted && !effective) return json(empty)
 
-  const scope = { tenantId: tenant, forcedBranchId: restricted ? effective : null, canSeeCost, canSeeRemoved: role === 'ADMIN' }
+  const scope = { tenantId: tenant, forcedBranchId: restricted ? effective : null, canSeeCost, canSeeSupplier, canSeeRemoved: role === 'ADMIN' }
   const pageSql = buildStockItemsPageSql(filters, scope, cursor)
   const totalsSql = buildStockItemsTotalsSql(filters, scope)
   if (!pageSql || !totalsSql) return json(empty)
@@ -41,5 +42,5 @@ export async function GET(request: Request) {
     prisma.$queryRaw<TotalRow[]>(totalsSql as Prisma.Sql),
   ])
   const { page, hasMore, nextCursor } = paginateStockRows(rows, filters.limit)
-  return json({ items: page.map(row => mapStockRow(row, canSeeCost)), nextCursor, hasMore, limit: filters.limit, totals: buildStockTotals(totalRows) })
+  return json({ items: page.map(row => mapStockRow(row, canSeeCost, canSeeSupplier)), nextCursor, hasMore, limit: filters.limit, totals: buildStockTotals(totalRows) })
 }

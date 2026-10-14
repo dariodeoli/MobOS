@@ -44,7 +44,8 @@ export function datosEtiquetaUnidad(unit = {}, { base = '' } = {}) {
     condicion: CONDICIONES_STOCK[unit.condition] || String(unit.condition || ''),
     bateria: Number(unit.batteryHealth) > 0 ? `Batería ${Number(unit.batteryHealth)}%` : '',
     ubicacion: [String(ubicacion?.code || '').trim(), String(ubicacion?.name || '').trim()].filter(Boolean).join(' · '),
-    proveedor: String(unit.supplierName || '').trim(),
+    // #400: la etiqueta lleva solo la sigla del proveedor, nunca su nombre.
+    proveedor: String(unit.supplier?.code || unit.supplierCode || '').trim(),
     serial,
     identificador: identificadorDe(serial),
     codigo: serial ? `MOBOS:${serial}` : '',

@@ -801,6 +801,10 @@ node "$BACKEND_ROOT/tests/stock-notices.mjs" "$BASE_URL" "$TOKEN_A" "$ADMIN_TOKE
 echo "Centro de Abastecimiento: repuestos del taller con tenencia y pago (#250)..."
 node "$BACKEND_ROOT/tests/supply-workshop-parts.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 
+# Después de las suites de repuestos (cuentan los suyos) y antes del logout de las sesiones.
+echo "Proveedor con sigla: el nombre real nunca llega a vendedor ni caja (#400)..."
+node "$BACKEND_ROOT/tests/supplier-sigla-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$DATABASE_URL"
+
 echo "12/13 Bloqueo de login empresarial después de cinco intentos..."
 IT_CLIENT_IP="203.0.113.32"
 out="$(response_file)"; request POST /api/auth/pin 200 '{"sellerId":"user-lock-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''
