@@ -15,7 +15,7 @@ Cuando Dario (o cualquier agente) diga **rdi**, «regla de inputs», «textfield
 
 1. Leer el doc de reglas del proyecto — en MobOS es `docs/CAMPOS.md` (fuente única) — y aplicarlo tal cual.
 2. Si el proyecto todavía no tiene ese doc, partir de la plantilla portable `docs/PLANTILLA-CAMPOS.md` y ajustar país/moneda base.
-3. Antes de escribir un `Input` a mano, buscar el componente compartido que ya cubre el caso: `PhoneField`, `EmailField`, `InstagramField`/`SocialUserField`, `CityAutocomplete`, `MoneyInput`, `PercentField`, `PinInput`, `PasswordInput`, `ProductCombobox`, `SerialField`/`SerialUnitPicker`, `NumericKeypad`, `SelectorMedioPago`, `PaymentAccountFields`, `CurrencySelect`, `AttachmentInput`.
+3. Antes de escribir un `Input` a mano, buscar el componente compartido que ya cubre el caso: `PhoneField`, `EmailField`, `InstagramField`/`SocialUserField`, `CityAutocomplete`, `CountrySelect`, `GrillaCampos`/`Campo`, `MoneyInput`, `PercentField`, `PinInput`, `PasswordInput`, `ProductCombobox`, `SerialField`/`SerialUnitPicker`, `NumericKeypad`, `SelectorMedioPago`, `PaymentAccountFields`, `CurrencySelect`, `AttachmentInput`.
 4. Si el caso no existe todavía: crear el componente en `src/components/shared/` siguiendo las reglas y adoptarlo en TODOS los lugares donde ya se escribe ese dato a mano (no dejar copias).
 5. Mantener el doc de reglas actualizado en el mismo cambio cuando la regla nueva lo amerite.
 
@@ -30,6 +30,8 @@ Cuando Dario (o cualquier agente) diga **rdi**, «regla de inputs», «textfield
 - Porcentajes → `PercentField` (coma decimal, 0–100 con hasta 2 decimales).
 - PIN → `PinInput`; contraseña → `PasswordInput`; dígitos puros → `inputMode="numeric"` + limpieza `\D`.
 - Adjuntos → JPG/PNG/WebP/PDF ≤5 MiB, validado en cliente y servidor.
+- Ancho por contenido: lo fija el componente compartido (escala `ANCHO_CAMPO`, docs/CAMPOS.md §2.1): teléfono 20rem, CI/RUC 16rem, correo 22rem, ciudad 18rem, país 14rem; ningún dato corto a ancho completo en >=768 px y a todo el ancho en celular. Los campos cortos comparten fila con `GrillaCampos`.
+- País → `CountrySelect` (Paraguay y los 7 países habituales primero; el resto se busca).
 - Nunca crear un input nuevo si la app ya tiene el componente.
 
 ## Verificación antes de cerrar
