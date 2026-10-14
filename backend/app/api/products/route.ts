@@ -9,7 +9,7 @@ import { promoteToEquipo } from '../../../lib/stock'
 import { INVENTORY_UNIT_RECEIVED, liberarReservasVencidas } from '../../../lib/inventory'
 import { LIMITE_MONTO_GENERAL, numero, numeroOpcional } from '../../../lib/montos'
 import { sucursalEfectiva } from '../../../lib/sucursal-efectiva'
-import { canSeeCost, redactProductCosts } from '../../../lib/cost-visibility'
+import { canSeeCostForSession, redactProductCosts } from '../../../lib/cost-visibility'
 
 // Variante estructurada: texto libre acotado; vacío se guarda como null.
 const variantField = (value: unknown, max: number) => typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null
@@ -58,7 +58,7 @@ export async function GET(request: Request) {
     // lista dice cuántas unidades físicas (vendibles) tiene cada variante.
     include: { _count: { select: { inventoryUnits: { where: { status: 'AVAILABLE' } } } } },
   })
-  const verCosto = canSeeCost(session.user.role)
+  const verCosto = await canSeeCostForSession(session)
   return json(data.map(({ _count, ...producto }) => redactProductCosts({ ...producto, unitsCount: _count?.inventoryUnits ?? 0 }, verCosto)))
 }
 

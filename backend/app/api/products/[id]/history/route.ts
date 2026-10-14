@@ -2,7 +2,7 @@ import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { numero } from '../../../../../lib/montos'
-import { canSeeCost, redactAuditMetadata } from '../../../../../lib/cost-visibility'
+import { canSeeCostForSession, redactAuditMetadata } from '../../../../../lib/cost-visibility'
 
 type RouteContext = { params: { id: string } }
 
@@ -93,7 +93,7 @@ export async function GET(request: Request, { params }: RouteContext) {
         take: 300,
       })
     : []
-  const verCosto = canSeeCost(session.user.role)
+  const verCosto = await canSeeCostForSession(session)
   const serialById = new Map(units.map(unit => [unit.id, unit.serial]))
 
   const events: TimelineEvent[] = [

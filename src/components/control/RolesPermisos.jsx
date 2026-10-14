@@ -1,4 +1,8 @@
+import { useEffect, useState } from 'react'
 import { Badge, Card } from '@/components/ui'
+import Switch from '@/components/shared/Switch'
+import { useSesion } from '@/lib/sesion'
+import { api } from '@/lib/api/client'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 import { temaV2Activo } from '@/lib/temaV2'
@@ -164,12 +168,64 @@ function Matriz() {
   )
 }
 
+// Ajuste del negocio: vendedores y caja ven costos y proveedor (por defecto sí).
+// Todos los roles lo leen del backend; solo el dueño ve el interruptor.
+export function PermisoCostos() {
+  const { sesion, esDemo } = useSesion() || {}
+  const esDueno = Boolean(sesion?.esPropietario)
+  const [activo, setActivo] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [falla, setFalla] = useState('')
+
+  useEffect(() => {
+    if (!esDueno || esDemo) return undefined
+    let vivo = true
+    api.get('/api/tenant/cost-visibility')
+      .then(datos => { if (vivo) setActivo(datos?.sellerSeesCosts !== false) })
+      .catch(causa => { console.error('[permisos] no se pudo leer el permiso de costos:', causa) })
+    return () => { vivo = false }
+  }, [esDueno, esDemo])
+
+  if (!esDueno) return null
+
+  async function cambiar(valor) {
+    const anterior = activo
+    setActivo(valor); setBusy(true); setFalla('')
+    try {
+      if (!esDemo) await api.put('/api/tenant/cost-visibility', { sellerSeesCosts: valor })
+    } catch (causa) {
+      console.error('[permisos] no se pudo guardar el permiso de costos:', causa)
+      setActivo(anterior)
+      setFalla('No se pudo guardar el cambio. Probá de nuevo.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Card>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="font-bold">Costos y proveedor</h3>
+          <p className="mt-1 text-sm text-mute">
+            Si lo apagás, vendedores y caja dejan de ver el costo, el proveedor y la consignación en stock, catálogo, ventas y exportaciones. Dueño y gerencia siempre los ven.
+          </p>
+        </div>
+        <Switch id="vendedores-ven-costos" checked={activo} disabled={busy} onChange={(evento) => cambiar(evento.target.checked)} ariaLabel="Vendedores y caja pueden ver costos y proveedor" />
+      </div>
+      <p className="mt-2 text-sm font-semibold">Vendedores y caja pueden ver costos y proveedor</p>
+      {falla && <p role="alert" className="mt-2 text-sm text-danger">{falla}</p>}
+    </Card>
+  )
+}
+
 export default function RolesPermisos() {
   // Vista previa v2 (#241): los roles se resumen en tiles con su acceso por
   // dominio; la ficha y la matriz siguen igual. Sin el flag, nada cambia.
   const v2 = temaV2Activo()
   return (
     <div className="space-y-4">
+      <PermisoCostos />
       <Card>
         <p className="text-sm text-mute">
           Qué puede hacer y ver cada rol del equipo. El Dueño conserva todos los permisos y los
