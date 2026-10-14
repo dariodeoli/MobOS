@@ -205,6 +205,9 @@ jobs:
             playwright-report/
             test-results/reporte-flaky.md
             test-results/reporte-flaky.json
+            test-results/**/test-failed-*.png
+            test-results/**/error-context.md
+            test-results/**/trace.zip
           if-no-files-found: ignore
           retention-days: 14
 
