@@ -16,6 +16,7 @@ export default defineConfig({
     'finanzas-layout.frontend.spec.js',
     'config-layout.frontend.spec.js',
     'stock-layout.frontend.spec.js',
+    'login-codigos.frontend.spec.js',
   ],
   workers: 1,
   retries: 0,

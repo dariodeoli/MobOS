@@ -91,6 +91,13 @@ export default function ImeiVerificador() {
   }
 
   const verificado = consulta?.estado === 'verificado'
+  // Validación instantánea (#372): cuenta los dígitos y avisa apenas el IMEI de 15 no cierra.
+  const digitosImei = imei.replace(/\D/g, '')
+  const estadoImei = !digitosImei ? { tono: 'mute', texto: '' }
+    : digitosImei.length < 15 ? { tono: 'mute', texto: `Faltan ${15 - digitosImei.length} dígitos (${digitosImei.length} de 15).` }
+    : digitosImei.length > 15 ? { tono: 'bad', texto: 'Un IMEI tiene 15 dígitos: sobran caracteres.' }
+    : validarImeiDemo(digitosImei).ok ? { tono: 'ok', texto: 'IMEI con formato válido.' }
+    : { tono: 'bad', texto: 'El IMEI no es válido. Revisá los dígitos.' }
 
   return (
     <div className="grid gap-8 lg:grid-cols-[.95fr_1.05fr] lg:items-start">
@@ -143,7 +150,8 @@ export default function ImeiVerificador() {
               inputMode="numeric"
               autoComplete="off"
               spellCheck={false}
-              aria-describedby="imei-ayuda"
+              aria-describedby="imei-ayuda imei-estado"
+              aria-invalid={estadoImei.tono === 'bad' || undefined}
               placeholder="15 dígitos"
               className="font-mono tracking-wider"
             />
@@ -151,6 +159,7 @@ export default function ImeiVerificador() {
               {fase === 'escaneando' ? 'Verificando…' : 'Verificar IMEI'}
             </Button>
           </div>
+          <p id="imei-estado" role="status" data-testid="imei-estado" className={`mt-1.5 min-h-4 text-xs ${estadoImei.tono === 'bad' ? 'text-bad' : estadoImei.tono === 'ok' ? 'text-ok' : 'text-mute'}`}>{estadoImei.texto}</p>
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
             <p id="imei-ayuda" className="text-[11px] text-mute">Ejemplo precargado · {IMEI_EJEMPLO}</p>
             <div className="flex flex-wrap gap-3 text-[11px]">

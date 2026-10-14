@@ -60,7 +60,8 @@ test('gift cards: emisión en el POS, canje en el cobro, saldo e historial (#280
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
   await expect(page.getByText('Productos de esta venta')).toBeVisible()
   await page.getByRole('button', { name: '+ Canjear gift card' }).click()
-  await page.getByLabel(/Código de gift card/).fill(codigo)
+  // Código segmentado (#372): pegar/escribir el código completo en la primera celda llena las 12.
+  await page.getByTestId('codigo-celda-0').fill(codigo)
   await page.getByRole('button', { name: 'Consultar saldo' }).click()
   await expect(page.getByText(/Saldo disponible: Gs 100\.000/)).toBeVisible()
   await expect(page.getByLabel(/Monto a canjear de la gift card/)).toHaveValue('45.000')
@@ -125,7 +126,8 @@ test('demo: la gift card se emite y se canjea sin tocar el API (#280)', async ({
   await page.getByRole('button', { name: new RegExp(productoDemo) }).first().click()
   await expect(page.getByText('Productos de esta venta')).toBeVisible()
   await page.getByRole('button', { name: '+ Canjear gift card' }).click()
-  await page.getByLabel(/Código de gift card/).fill(codigo)
+  // Código segmentado (#372): pegar/escribir el código completo en la primera celda llena las 12.
+  await page.getByTestId('codigo-celda-0').fill(codigo)
   await page.getByRole('button', { name: 'Consultar saldo' }).click()
   await expect(page.getByText(/Saldo disponible: Gs 150\.000/)).toBeVisible()
   await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
