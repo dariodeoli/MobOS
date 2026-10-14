@@ -383,7 +383,7 @@ async function hydrateApi() {
 
 // El costo del producto vive en la API como `costPyg`. Sin este mapeo la
 // ganancia se mostraba igual a las ventas (costo 0) cuando la sesión es real.
-function mapProductoApi(p) {
+export function mapProductoApi(p) {
   return {
     ...p,
     nombre: p.name,

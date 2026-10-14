@@ -61,6 +61,7 @@ export default function PasoProductos({
   agregarCombo,
   noticeCombo,
   familiasVisibles,
+  catalogoServidor = null,
   agregarProducto,
   guardando,
   variantePara,
@@ -84,7 +85,8 @@ export default function PasoProductos({
   }, [clave])
   const pagina = usePaginaLista(bases, { tamano: columnas * FILAS_INICIALES, modo: 'mas' })
   const porBase = new Map(familiasVisibles.map(fam => [fam.base, fam]))
-  const familiasPagina = pagina.filas.map(base => porBase.get(base)).filter(Boolean)
+  // #354: con el catálogo paginado en el servidor la página ya viene cortada.
+  const familiasPagina = catalogoServidor ? familiasVisibles : pagina.filas.map(base => porBase.get(base)).filter(Boolean)
   return (
     <>
       {/* #281 · identidad de color: Productos = acento de marca (fono). */}
@@ -95,7 +97,7 @@ export default function PasoProductos({
           tono="text-fono-light"
           extra={
             <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-x-3 gap-y-2">
-              <span className="shrink-0 text-xs font-medium text-fono-light">{productos.length} disponibles</span>
+              <span className="shrink-0 text-xs font-medium text-fono-light">{catalogoServidor ? catalogoServidor.total : productos.length} disponibles</span>
               {acciones}
             </div>
           }
@@ -373,7 +375,43 @@ export default function PasoProductos({
                 </p>
               )}
             </div>
-            {pagina.total > 0 && (
+            {catalogoServidor && (
+              <div
+                className="mt-2 flex flex-wrap items-center justify-between gap-2"
+                data-testid="pos-catalogo-pie"
+              >
+                <p className="text-xs text-mute" role="status" data-testid="pos-catalogo-contador">
+                  {catalogoServidor.total
+                    ? `Página ${catalogoServidor.pagina} de ${catalogoServidor.paginas} · ${catalogoServidor.total} productos`
+                    : 'Sin resultados'}
+                </p>
+                {catalogoServidor.paginas > 1 && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-11 min-w-11 px-4 text-xs"
+                      data-testid="pos-catalogo-anterior"
+                      disabled={catalogoServidor.pagina <= 1}
+                      onClick={catalogoServidor.anterior}
+                    >
+                      Anterior
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-11 min-w-11 px-4 text-xs"
+                      data-testid="pos-catalogo-siguiente"
+                      disabled={catalogoServidor.pagina >= catalogoServidor.paginas}
+                      onClick={catalogoServidor.siguiente}
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+            {!catalogoServidor && pagina.total > 0 && (
               <div
                 className="mt-2 flex flex-wrap items-center justify-between gap-2"
                 data-testid="pos-catalogo-pie"
