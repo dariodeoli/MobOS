@@ -2,7 +2,7 @@ import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { numero } from '../../../../../lib/montos'
-import { canSeeCostForSession, redactAuditMetadata } from '../../../../../lib/cost-visibility'
+import { canSeeCostForSession, canSeeSupplierName, loadSupplierDirectory, redactAuditMetadata, scrubSupplierNames, supplierCodeFor } from '../../../../../lib/cost-visibility'
 
 type RouteContext = { params: { id: string } }
 
@@ -70,7 +70,7 @@ export async function GET(request: Request, { params }: RouteContext) {
     }),
     prisma.inventoryUnit.findMany({
       where: { tenantId: tenant, productId: product.id },
-      select: { id: true, serial: true, status: true, supplierName: true, costPyg: true, createdAt: true },
+      select: { id: true, serial: true, status: true, supplierId: true, supplierName: true, costPyg: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
       take: 100,
     }),
@@ -78,7 +78,7 @@ export async function GET(request: Request, { params }: RouteContext) {
       where: { productId: product.id, purchase: { tenantId: tenant } },
       select: {
         id: true, quantity: true, unitCostPyg: true, finalUnitCostPyg: true, finalTotalCostPyg: true, lotReference: true,
-        purchase: { select: { id: true, supplierName: true, status: true, createdAt: true, receivedAt: true, createdBy: { select: { id: true, name: true } } } },
+        purchase: { select: { id: true, supplierId: true, supplierName: true, status: true, createdAt: true, receivedAt: true, createdBy: { select: { id: true, name: true } } } },
       },
       orderBy: { purchase: { createdAt: 'desc' } },
       take: 100,
@@ -94,6 +94,9 @@ export async function GET(request: Request, { params }: RouteContext) {
       })
     : []
   const verCosto = await canSeeCostForSession(session)
+  const verProveedor = canSeeSupplierName(session.user.role)
+  const directorio = verProveedor ? null : await loadSupplierDirectory(tenant)
+  const proveedor = (nombre: string | null, supplierId: string | null) => directorio ? supplierCodeFor(directorio, supplierId) : nombre
   const serialById = new Map(units.map(unit => [unit.id, unit.serial]))
 
   const events: TimelineEvent[] = [
@@ -111,7 +114,7 @@ export async function GET(request: Request, { params }: RouteContext) {
       action: /PRICE/.test(audit.action) ? 'Precio actualizado' : audit.action.replace(/_/g, ' ').toLowerCase(),
       createdAt: audit.createdAt,
       user: audit.user,
-      detail: detalleMetadata(redactAuditMetadata(audit.metadata, verCosto)),
+      detail: detalleMetadata(redactAuditMetadata(audit.metadata, verCosto, verProveedor)),
     })),
     ...units.map(unit => ({
       id: `unit-${unit.id}`,
@@ -119,7 +122,7 @@ export async function GET(request: Request, { params }: RouteContext) {
       action: 'Unidad registrada',
       createdAt: unit.createdAt,
       user: null,
-      detail: `Serial ${unit.serial} · ${UNIT_STATUS[unit.status] || unit.status}${verCosto && unit.supplierName ? ` · ${unit.supplierName}` : ''}${verCosto && unit.costPyg ? ` · Gs ${gs(unit.costPyg)}` : ''}`,
+      detail: `Serial ${unit.serial} · ${UNIT_STATUS[unit.status] || unit.status}${unit.supplierName || unit.supplierId ? ` · ${proveedor(unit.supplierName, unit.supplierId)}` : ''}${verCosto && unit.costPyg ? ` · Gs ${gs(unit.costPyg)}` : ''}`,
     })),
     ...unitAudits.map(audit => ({
       id: `unit-audit-${audit.id}`,
@@ -127,7 +130,7 @@ export async function GET(request: Request, { params }: RouteContext) {
       action: ACCIONES_UNIDAD[audit.action] || audit.action.replace(/_/g, ' ').toLowerCase(),
       createdAt: audit.createdAt,
       user: audit.user,
-      detail: `${serialById.get(audit.entityId || '') ? `Serial ${serialById.get(audit.entityId || '')} · ` : ''}${detalleMetadata(redactAuditMetadata(audit.metadata, verCosto))}`,
+      detail: `${serialById.get(audit.entityId || '') ? `Serial ${serialById.get(audit.entityId || '')} · ` : ''}${detalleMetadata(redactAuditMetadata(audit.metadata, verCosto, verProveedor))}`,
     })),
     // Las compras solo aportan proveedor y costos: se omiten para roles sin permiso.
     ...(verCosto ? purchaseLines : []).map(line => ({
@@ -136,9 +139,10 @@ export async function GET(request: Request, { params }: RouteContext) {
       action: line.purchase.status === 'RECEIVED' ? 'Compra recibida' : 'Compra registrada',
       createdAt: line.purchase.receivedAt || line.purchase.createdAt,
       user: line.purchase.createdBy,
-      detail: `${line.purchase.supplierName} · ${line.quantity} unid. · Gs ${gs(line.finalTotalCostPyg || line.quantity * numero(line.finalUnitCostPyg || line.unitCostPyg))}${line.lotReference ? ` · lote ${line.lotReference}` : ''} · ${line.purchase.status === 'RECEIVED' ? 'Recibida' : 'Borrador'}`,
+      detail: `${proveedor(line.purchase.supplierName, line.purchase.supplierId)} · ${line.quantity} unid. · Gs ${gs(line.finalTotalCostPyg || line.quantity * numero(line.finalUnitCostPyg || line.unitCostPyg))}${line.lotReference ? ` · lote ${line.lotReference}` : ''} · ${line.purchase.status === 'RECEIVED' ? 'Recibida' : 'Borrador'}`,
     })),
   ]
   events.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  return json({ events: events.slice(0, 300) })
+  const visibles = directorio ? scrubSupplierNames(events, directorio) : events
+  return json({ events: visibles.slice(0, 300) })
 }

@@ -398,7 +398,8 @@ test('el taller imprime las hojas por estación y los certificados en serie', as
   const certificados = marcoCert.contentFrame()
   await expect(certificados.locator('section.certificado')).toHaveCount(2, { timeout: 20_000 })
   const textoCert = await certificados.locator('body').innerText()
-  expect(textoCert).toContain('Certificado')
+  // innerText respeta el `text-transform: uppercase` del tipo de documento (#402).
+  expect(textoCert).toMatch(/certificado/i)
   await page.screenshot({ path: `${SALIDA}/13-certificados-serie.jpg`, type: 'jpeg', quality: 75 })
 })
 

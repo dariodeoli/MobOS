@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { qrDataUrl } from '@/lib/qr'
 import { api, API_URL } from '@/lib/api/client'
-import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, IconAction, Input, Modal, Skeleton, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, IconAction, Input, Modal, Skeleton, Stat, useToast } from '@/components/ui'
+import StatGrid from '@/components/shared/StatGrid'
 import Icon from '@/components/shared/Icon'
 import ComboBuscador from '@/components/shared/ComboBuscador'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
@@ -18,7 +19,7 @@ import { CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import ListaDensa from '@/components/shared/ListaDensa'
 import { usePaginaLista } from '@/components/shared/usePaginaLista'
 import StatusChip from '@/components/shared/StatusChip'
-import { PIE_ACCIONES, GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+import { PIE_ACCIONES } from '@/components/shared/formulario'
 import { temaV2Activo } from '@/lib/temaV2'
 import { cn } from '@/lib/utils'
 import './finanzasTactil.css'
@@ -318,12 +319,12 @@ export default function Comisiones() {
 
   return (
     <div className="finanzas-tactil space-y-3">
-      <div className={`${GRILLA_DOS_COLUMNAS} xl:grid-cols-4`} data-testid="comisiones-resumen">
-        <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="comisiones-reglas"><p className="text-xs leading-4 text-mute">Reglas activas</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}>{reglas?.length ?? '—'}</strong></div>
-        <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="comisiones-liquidaciones"><p className="text-xs leading-4 text-mute">Liquidaciones</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}>{liquidaciones?.length ?? '—'}</strong></div>
-        <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="comisiones-liquidado"><p className="text-xs leading-4 text-mute">Total liquidado</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}>{gs(totalLiquidado)}</strong></div>
-        <div className={cn('rounded-xl border border-warn/30 bg-warn/5 px-3 py-2', v2 && 'v2-tile')} data-testid="comisiones-por-pagar"><p className="text-xs leading-4 text-mute">Por pagar</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl', porPagar > 0 ? 'text-warn' : 'text-mute')}>{gs(porPagar)}</strong></div>
-      </div>
+      <StatGrid testId="comisiones-resumen">
+        <Stat compact testId="comisiones-reglas" label="Reglas activas" valor={reglas?.length ?? '—'} />
+        <Stat compact testId="comisiones-liquidaciones" label="Liquidaciones" valor={liquidaciones?.length ?? '—'} />
+        <Stat compact testId="comisiones-liquidado" label="Total liquidado" valor={gs(totalLiquidado)} />
+        <Stat compact testId="comisiones-por-pagar" label="Por pagar" valor={gs(porPagar)} valorClassName={porPagar > 0 ? 'text-warn' : 'text-mute'} />
+      </StatGrid>
       <Card>
         <h2 className="font-bold mb-1">Comisiones</h2>
         <p className="text-sm text-mute mb-4">

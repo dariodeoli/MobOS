@@ -10,6 +10,7 @@
 import { test, expect } from '@playwright/test'
 import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { siglaProveedor } from '../src/lib/printing/ventaPapel.js'
 import { SEED } from './helpers/seed-data.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
@@ -114,7 +115,10 @@ test('#278 · lista de compra 80 mm impresa desde Compras del Centro', async ({ 
   await expect(marco.getByText(compra.body.code).first()).toBeVisible()
   await expect(marco.getByText('Prioridad Alta · Carga manual · Reposición libre').first()).toBeVisible()
   await expect(marco.getByText(`CDE → ${SEED.branchName}`).first()).toBeVisible()
-  await expect(marco.getByText(`Proveedor 278 ${marca}`).first()).toBeVisible()
+  // #400/#402: ningún papel imprime el nombre real del proveedor, solo su sigla.
+  const sigla = siglaProveedor(`Proveedor 278 ${marca}`)
+  await expect(marco.getByText(sigla, { exact: true }).first()).toBeVisible()
+  await expect(marco.getByText(`Proveedor 278 ${marca}`)).toHaveCount(0)
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.screenshot({ path: join(DIR, 'lista-compra-modal-claro-desktop.png') })
   await page.setViewportSize({ width: 390, height: 844 })
@@ -130,7 +134,8 @@ test('#278 · lista de compra 80 mm impresa desde Compras del Centro', async ({ 
   const papel = textoDelTicket(capturados[0])
   expect(papel).toContain('LISTA DE COMPRA')
   expect(papel).toContain(compra.body.code)
-  expect(papel).toContain(`Proveedor 278 ${marca}`)
+  expect(papel).toContain(sigla)
+  expect(papel).not.toContain(`Proveedor 278 ${marca}`)
   expect(papel).toContain(producto.body.name)
   // El rollo viaja en CP850 (acentos y el separador «·» cambian) y las líneas
   // envuelven solas: se compara por patrón, no por literales acentuados.

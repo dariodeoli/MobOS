@@ -12,7 +12,8 @@ import { revisarMinimoDeStock } from '../../../lib/supply-demand'
 import { changeStock, promoteToEquipo } from '../../../lib/stock'
 import { consumeAuthorization } from '../../../lib/authorizations'
 import { sucursalEfectiva } from '../../../lib/sucursal-efectiva'
-import { canSeeCostForSession, redactUnitCosts } from '../../../lib/cost-visibility'
+import { canSeeCostForSession, canSeeSupplierName, redactUnitCosts } from '../../../lib/cost-visibility'
+import { formatUnitCode, parseBatteryCycles, parseUnitCode, parseWarrantyUntil, resolveUnitCodePrefix } from '../../../lib/unit-code'
 
 const canSeeBranch = (role: string, assigned: string | null, branchId: string | null) => !['VENDEDOR', 'CAJERA'].includes(role) || assigned === branchId
 const canManageBranch = (role: string, assigned: string | null, branchId: string) => role === 'ADMIN' || (role === 'GERENTE' && assigned === branchId)
@@ -44,6 +45,10 @@ function unitData(body: any) {
   if (condition === null) throw new Error('Condición de unidad inválida.')
   const batteryHealth = body.batteryHealth === undefined || body.batteryHealth === '' || body.batteryHealth === null ? undefined : Number(body.batteryHealth)
   if (batteryHealth !== undefined && (!Number.isSafeInteger(batteryHealth) || batteryHealth < 0 || batteryHealth > 100)) throw new Error('La batería debe estar entre 0 y 100%.')
+  const batteryCycles = body.batteryCycles === undefined ? undefined : parseBatteryCycles(body.batteryCycles)
+  if (batteryCycles === undefined && body.batteryCycles !== undefined) throw new Error('Los ciclos de batería deben ser un entero entre 0 y 5000.')
+  const warrantyUntil = body.warrantyUntil === undefined ? undefined : parseWarrantyUntil(body.warrantyUntil)
+  if (warrantyUntil === undefined && body.warrantyUntil !== undefined) throw new Error('La garantía debe ser un mes válido (AAAA-MM).')
   const purchasedAt = body.purchasedAt === undefined || body.purchasedAt === '' || body.purchasedAt === null ? undefined : new Date(body.purchasedAt)
   if (purchasedAt && Number.isNaN(purchasedAt.getTime())) throw new Error('Fecha de compra inválida.')
   // La moneda se valida acá porque `normalizarCosto` cae a PYG si no la conoce.
@@ -52,6 +57,8 @@ function unitData(body: any) {
   return {
     ...(condition !== undefined ? { condition } : {}),
     ...(batteryHealth !== undefined ? { batteryHealth } : {}),
+    ...(batteryCycles !== undefined ? { batteryCycles } : {}),
+    ...(warrantyUntil !== undefined ? { warrantyUntil } : {}),
     // El costo lo valida y normaliza `normalizarCosto` (backend/lib/costs.ts).
     ...(purchasedAt !== undefined ? { purchasedAt } : {}),
     ...(body.supplierName !== undefined ? { supplierName: text(body.supplierName, 160) } : {}),
@@ -81,6 +88,8 @@ export async function GET(request: Request) {
   if (view === 'removed' && session.user.role !== 'ADMIN') return json([])
   const raw = (params.get('q') || '').replace(/^MOBOS:/i, '')
   const query = raw ? serialKey(raw) : ''
+  // Código interno (MOV-0042): se busca por el correlativo de la empresa.
+  const unitCode = raw ? parseUnitCode(raw) : null
   // #263: el selector de IMEI del POS pide las unidades de UN producto en SU
   // sucursal; sin estos filtros dependía de la búsqueda por texto y podía
   // quedarse sin unidades para elegir.
@@ -98,8 +107,8 @@ export async function GET(request: Request) {
     // guiones: un SKU como «E2E-IPHONE15» no matcheaba por `sku`. Se conserva el
     // match normalizado y se suma el crudo (búsqueda por SKU en Inventario y
     // detección de unidades serializadas del POS).
-    where: { tenantId: tenant, ...removalFilter, ...(branchId ? { branchId } : branchEfectiva ? { branchId: branchEfectiva } : {}), ...(productId ? { productId } : {}), ...(status ? { status: status as InventoryUnitStatus } : {}), ...(query ? { OR: [{ serial: { contains: query, mode: 'insensitive' } }, { product: { OR: [{ sku: { contains: raw, mode: 'insensitive' } }, { sku: { contains: query, mode: 'insensitive' } }, { name: { contains: raw, mode: 'insensitive' } }] } }] } : {}) },
-    include: { product: { select: { id: true, name: true, sku: true, pricePyg: true, capacity: true, model: true, color: true } }, branch: { select: { id: true, name: true } }, location: { select: { id: true, name: true, code: true } }, lastVerifiedBy: { select: { id: true, name: true } }, ...(['ADMIN', 'GERENTE'].includes(session.user.role) ? { supplier: { select: { id: true, name: true, code: true } } } : {}),
+    where: { tenantId: tenant, ...removalFilter, ...(branchId ? { branchId } : branchEfectiva ? { branchId: branchEfectiva } : {}), ...(productId ? { productId } : {}), ...(status ? { status: status as InventoryUnitStatus } : {}), ...(query ? { OR: [{ serial: { contains: query, mode: 'insensitive' } }, ...(unitCode ? [{ internalSeq: unitCode.seq }] : []), { product: { OR: [{ sku: { contains: raw, mode: 'insensitive' } }, { sku: { contains: query, mode: 'insensitive' } }, { name: { contains: raw, mode: 'insensitive' } }] } }] } : {}) },
+    include: { product: { select: { id: true, name: true, sku: true, pricePyg: true, capacity: true, model: true, color: true } }, branch: { select: { id: true, name: true } }, location: { select: { id: true, name: true, code: true } }, lastVerifiedBy: { select: { id: true, name: true } }, supplier: { select: ['ADMIN', 'GERENTE'].includes(session.user.role) ? { id: true, name: true, code: true } : { id: true, code: true } },
       // #279 (A4): la asignación futura viva (si la hay) viaja con la unidad
       // para que la lista muestre para quién está apartada.
       transitAssignments: { where: { status: { not: 'LIBERADA' } }, orderBy: { createdAt: 'desc' }, take: 1, select: { id: true, status: true, customerName: true, customerId: true, sellerId: true, orderId: true, orderItemId: true, linkedAt: true, notes: true, seller: { select: { id: true, name: true } }, order: { select: { id: true, orderNumber: true } } } },
@@ -149,6 +158,9 @@ export async function GET(request: Request) {
   }
 
   const canSeeCost = await canSeeCostForSession(session)
+  // Código interno: solo en la ficha/info interna (nunca en lista de Stock ni etiquetas).
+  const unitCodePrefix = resolveUnitCodePrefix(await prisma.tenant.findUnique({ where: { id: tenant }, select: { unitCodePrefix: true, orderPrefix: true, name: true } }))
+  const canSeeSupplier = canSeeSupplierName(session.user.role)
   return json(units.map(unit => {
     const conVenta = unit.status === 'SOLD' && ventaPorSerial.has(unit.serial) ? { ...unit, sale: ventaPorSerial.get(unit.serial) } : unit
     const verificacion = verificacionPorSerial.get(unit.serial)
@@ -156,7 +168,7 @@ export async function GET(request: Request) {
     // #279 (A4): una sola asignación viva por unidad, ya aplanada.
     const { transitAssignments, ...resto } = conVerificacion as typeof conVerificacion & { transitAssignments?: Array<Record<string, unknown>> }
     // Costos, proveedor y monto de consignación solo para administración y gerencia.
-    return redactUnitCosts({ ...resto, transitAssignment: transitAssignments?.[0] || null }, canSeeCost)
+    return redactUnitCosts({ ...resto, internalCode: formatUnitCode(unitCodePrefix, unit.internalSeq), transitAssignment: transitAssignments?.[0] || null }, canSeeCost, canSeeSupplier)
   }))
 }
 
@@ -230,7 +242,7 @@ export async function PATCH(request: Request) {
     const costoRepuestos = inspeccion.costoRepuestosPyg === undefined || inspeccion.costoRepuestosPyg === '' || inspeccion.costoRepuestosPyg === null ? null : Number(inspeccion.costoRepuestosPyg)
     if (costoRepuestos !== null && (!Number.isSafeInteger(costoRepuestos) || costoRepuestos < 0 || costoRepuestos > LIMITE_MONTO_GENERAL)) return error(`El costo de repuestos debe ser un entero entre 0 y ${LIMITE_MONTO_GENERAL.toLocaleString('es-PY')}.`)
     const actualizada = await prisma.inventoryUnit.update({ where: { id }, data: { inspection: { ...inspeccion, items, itemsLista: itemsLista(items), puntaje, grado, costoRepuestosPyg: costoRepuestos, inspeccionadoAt: new Date().toISOString(), inspeccionadoPor: session.user.name } as any } })
-    return json(redactUnitCosts(actualizada, await canSeeCostForSession(session)))
+    return json(redactUnitCosts(actualizada, await canSeeCostForSession(session), canSeeSupplierName(session.user.role)))
   }
 
   const adjustmentReason = reason(body.reason)
@@ -330,6 +342,6 @@ export async function PATCH(request: Request) {
       await consumirAutorizacion({ statusAfter: data.status })
       return data
     })
-    return json(redactUnitCosts(updated, await canSeeCostForSession(session)))
+    return json(redactUnitCosts(updated, await canSeeCostForSession(session), canSeeSupplierName(session.user.role)))
   } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo actualizar la unidad.', 409) }
 }

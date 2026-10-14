@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { canAccessAny, requireSession } from '../../../lib/auth'
+import { canSeeSupplierName, loadSupplierDirectory, redactSupplierNames, supplierCodeFor } from '../../../lib/cost-visibility'
 import { InputError } from '../../../lib/payment-input'
 import { applyPurchaseLineOverrides, distributePurchaseCosts, purchaseTotals } from '../../../lib/purchases'
 import { changeStock } from '../../../lib/stock'
@@ -43,10 +44,17 @@ export async function GET(request: Request) {
     // Patrón LIKE literal: % y _ del texto buscado no actúan como comodines.
     params.push(`%${q.replace(/[\\%_]/g, '\\$&')}%`)
     const pos = `$${params.length}`
-    searchSql = ` AND (po."supplierName" ILIKE ${pos} OR COALESCE(po."supplierReference", '') ILIKE ${pos} OR po."id" ILIKE ${pos} OR EXISTS (SELECT 1 FROM "Supplier" s WHERE s."id" = po."supplierId" AND (s."name" ILIKE ${pos} OR COALESCE(s."code", '') ILIKE ${pos})))`
+    // Buscar por nombre revelaría el proveedor por tanteo: sin permiso solo se busca por sigla (#400).
+    searchSql = canSeeSupplierName(session.user.role)
+      ? ` AND (po."supplierName" ILIKE ${pos} OR COALESCE(po."supplierReference", '') ILIKE ${pos} OR po."id" ILIKE ${pos} OR EXISTS (SELECT 1 FROM "Supplier" s WHERE s."id" = po."supplierId" AND (s."name" ILIKE ${pos} OR COALESCE(s."code", '') ILIKE ${pos})))`
+      : ` AND (COALESCE(po."supplierReference", '') ILIKE ${pos} OR po."id" ILIKE ${pos} OR EXISTS (SELECT 1 FROM "Supplier" s WHERE s."id" = po."supplierId" AND COALESCE(s."code", '') ILIKE ${pos}))`
   }
   const rows = await prisma.$queryRawUnsafe<any[]>(`SELECT po.*, COALESCE(json_agg(DISTINCT jsonb_build_object('id', pl."id", 'productId', pl."productId", 'productName', p."name", 'quantity', pl."quantity", 'receivedQty', pl."receivedQty", 'returnedQty', COALESCE((SELECT SUM(prl."quantity")::int FROM "PurchaseReturnLine" prl JOIN "PurchaseReturn" pr ON pr."id" = prl."returnId" WHERE prl."purchaseLineId" = pl."id"), 0), 'unitCostPyg', pl."unitCostPyg", 'lotReference', pl."lotReference", 'baseTotalPyg', pl."baseTotalPyg", 'allocatedShippingPyg', pl."allocatedShippingPyg", 'allocatedCustomsPyg', pl."allocatedCustomsPyg", 'allocatedInsurancePyg', pl."allocatedInsurancePyg", 'allocatedTaxesPyg', pl."allocatedTaxesPyg", 'allocatedOtherCostsPyg', pl."allocatedOtherCostsPyg", 'allocatedExtraCostPyg', pl."allocatedExtraCostPyg", 'finalTotalCostPyg', pl."finalTotalCostPyg", 'finalUnitCostPyg', pl."finalUnitCostPyg")) FILTER (WHERE pl."id" IS NOT NULL), '[]') AS lines, COALESCE(json_agg(DISTINCT jsonb_build_object('id', pp."id", 'amountPyg', pp."amountPyg", 'currency', pp."currency", 'originalAmount', pp."originalAmount", 'reference', pp."reference", 'kind', pp."kind", 'paidAt', pp."paidAt")) FILTER (WHERE pp."id" IS NOT NULL), '[]') AS payments FROM "PurchaseOrder" po LEFT JOIN "PurchaseLine" pl ON pl."purchaseId" = po."id" LEFT JOIN "Product" p ON p."id" = pl."productId" LEFT JOIN "PurchasePayment" pp ON pp."purchaseId" = po."id" WHERE po."tenantId" = $1${branchSql}${searchSql} GROUP BY po."id" ORDER BY po."createdAt" DESC LIMIT 100`, ...params)
-  return json(rows.map(row => ({ ...row, ...purchaseTotals(row.lines || [], row.payments || []) })))
+  const salida = rows.map(row => ({ ...row, ...purchaseTotals(row.lines || [], row.payments || []) }))
+  // Quien no ve el nombre del proveedor (p. ej. CAJERA) recibe solo la sigla (#400).
+  if (canSeeSupplierName(session.user.role)) return json(salida)
+  const directorio = await loadSupplierDirectory(tenant)
+  return json(redactSupplierNames(salida.map(row => ({ ...row, supplierName: supplierCodeFor(directorio, row.supplierId) })), directorio))
 }
 
 export async function POST(request: Request) {

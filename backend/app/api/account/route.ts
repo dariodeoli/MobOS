@@ -9,6 +9,7 @@ import { formatOrderNumber, maxOrderSequence } from '../../../lib/order-number'
 import { recoveryDeadline } from '../../../lib/tenant-archive'
 import { purgeTenantData, type TenantPurgeCounts } from '../../../lib/tenant-purge'
 import { LIMITE_MONTO_GENERAL } from '../../../lib/montos'
+import { formatUnitCode, normalizeUnitCodePrefix, resolveUnitCodePrefix } from '../../../lib/unit-code'
 
 const REAUTH_WINDOW_MS = 10 * 60 * 1000
 const ADMIN_ROLE = 'ADMIN'
@@ -50,7 +51,7 @@ export async function GET(request: Request) {
   const { session } = context
   const now = new Date()
   const [tenant, sessions, ownerAccess, current] = await Promise.all([
-    prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, name: true, email: true, slug: true, archivedAt: true, archivedReason: true, recoverableUntil: true, createdAt: true, orderPrefix: true, orderNextNumber: true, expenseLimitPyg: true, purchaseCreditLimitPyg: true, belowListPct: true, loyaltyPct: true, insurancePct: true, collectionLateFeeBpPerDay: true, address: true, city: true, department: true, phone: true, ruc: true, logos: { select: { variant: true, updatedAt: true, mimeType: true } } } }),
+    prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, name: true, email: true, slug: true, archivedAt: true, archivedReason: true, recoverableUntil: true, createdAt: true, orderPrefix: true, orderNextNumber: true, unitCodePrefix: true, expenseLimitPyg: true, purchaseCreditLimitPyg: true, belowListPct: true, loyaltyPct: true, insurancePct: true, collectionLateFeeBpPerDay: true, address: true, city: true, department: true, phone: true, ruc: true, logos: { select: { variant: true, updatedAt: true, mimeType: true } } } }),
     prisma.session.findMany({ where: { tenantId: session.user.tenantId, revokedAt: null, expiresAt: { gt: now } }, orderBy: { lastSeenAt: 'desc' }, take: 50, select: { id: true, level: true, deviceId: true, userAgent: true, branchId: true, createdAt: true, lastSeenAt: true, expiresAt: true, user: { select: { name: true, email: true, role: true } } } }),
     prisma.googleStoreAccess.findFirst({ where: { tenantId: session.user.tenantId, owner: true }, select: { subject: true } }),
     prisma.session.findUnique({ where: { id: session.sessionId }, select: { reauthenticatedAt: true } }),
@@ -71,7 +72,7 @@ export async function GET(request: Request) {
   const reauthValidUntil = current?.reauthenticatedAt && now.getTime() - current.reauthenticatedAt.getTime() < REAUTH_WINDOW_MS
     ? new Date(current.reauthenticatedAt.getTime() + REAUTH_WINDOW_MS)
     : null
-  return json({ tenant: { ...restoTenant, logo, logos }, currentSessionId: session.sessionId, reauthValidUntil, sessions, stores })
+  return json({ tenant: { ...restoTenant, unitCodePrefixEffective: resolveUnitCodePrefix(restoTenant), logo, logos }, currentSessionId: session.sessionId, reauthValidUntil, sessions, stores })
 }
 
 export async function POST(request: Request) {
@@ -142,6 +143,21 @@ export async function PATCH(request: Request) {
         return siguiente
       })
       return json({ ok: true, prefix, nextNumber, preview: orderNumber })
+    }
+    if (action === 'unitCodePrefix') {
+      // Sigla del código interno de unidades (MOV-0001): 2–4 letras. Vacío
+      // vuelve al valor por defecto (prefijo de pedidos o iniciales).
+      const raw = body.prefix === null || body.prefix === '' ? null : input(body.prefix, 'Sigla', 2, 4).toUpperCase()
+      const prefix = raw === null ? null : normalizeUnitCodePrefix(raw)
+      if (raw !== null && !prefix) return error('La sigla debe tener entre 2 y 4 letras (A–Z).', 400)
+      const resultado = await prisma.$transaction(async tx => {
+        const before = await tx.tenant.findUnique({ where: { id: session.user.tenantId }, select: { unitCodePrefix: true, orderPrefix: true, name: true } })
+        const tenant = await tx.tenant.update({ where: { id: session.user.tenantId }, data: { unitCodePrefix: prefix }, select: { unitCodePrefix: true, orderPrefix: true, name: true } })
+        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_UNIT_CODE_PREFIX_UPDATED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { before: before?.unitCodePrefix ?? null, after: prefix } } })
+        return tenant
+      })
+      const efectivo = resolveUnitCodePrefix(resultado)
+      return json({ ok: true, unitCodePrefix: resultado.unitCodePrefix, effective: efectivo, preview: formatUnitCode(efectivo, 1) })
     }
     if (action === 'updateLimits') {
       // Umbrales de autorización por empresa: gasto y compra a crédito sin

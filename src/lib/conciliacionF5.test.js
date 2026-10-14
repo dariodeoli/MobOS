@@ -52,18 +52,19 @@ test('F5 keeps its original browser cases in the frontend spec (semantic contrac
   assert.ok(!/\.(skip|fixme|only)\(/.test(spec))
 })
 test('F5 retains summary values and original progress, independent of display-state filter', () => {
-  const metrics = text =>
-    text.slice(text.indexOf('  const tarjetas ='), text.indexOf('\n  return ('))
-  const cards = metrics(source)
+  // #388: la tira de KPI es de una línea (Stat compact en StatGrid); los valores
+  // y el avance conciliado/total siguen saliendo de los mismos campos.
+  const tira = source.slice(source.indexOf('function Resumen('), source.indexOf('function Grupos('))
   for (const contract of [
-    "label: 'Ingresos conciliables', valor: n(resumen.confirmedPyg)",
-    "label: 'Conciliado', valor: n(resumen.verifiedPyg)",
-    "label: 'Por conciliar', valor: n(resumen.unverifiedPyg)",
-    "label: 'Diferencia de lotes', valor: n(resumen.differencePyg)",
+    'label="Ingresos conciliables" valor={gsCompleto(n(resumen.confirmedPyg))}',
+    'label="Conciliado" valor={gsCompleto(n(resumen.verifiedPyg))}',
+    'label="Por conciliar" valor={gsCompleto(n(resumen.unverifiedPyg))}',
+    'label="Diferencia de lotes" valor={gsCompleto(n(resumen.differencePyg))}',
+    'label="Avance" valor={`${n(resumen.verifiedCount)} de ${n(resumen.count)}`}',
+    "n(resumen.pendingCount) > 0 ? `Faltan ${n(resumen.pendingCount)}` : 'Al día'",
   ])
-    assert.ok(cards.includes(contract), contract)
+    assert.ok(tira.includes(contract), contract)
   assert.ok(source.includes('resumen={data?.resumen || {}}'))
-  assert.match(source, /valor=\{n\(resumen.verifiedCount\)\}\s+max=\{n\(resumen.count\)\}/)
   assert.ok(source.includes('Esta consulta no envía sucursal'))
   assert.ok(source.includes('El estado solo filtra esta lista'))
 })
@@ -105,22 +106,25 @@ test('F5 Stock test keeps its explicit Buffer import (no git dependency)', () =>
   assert.ok(stock.includes("import { Buffer } from 'node:buffer'"))
 })
 test('F5 compact layout preserves full digit strings and accessible request filters', () => {
-  const css = readFileSync('src/components/control/conciliacionF5.css', 'utf8')
-  assert.ok(css.includes('(min-width: 350px) and (max-width: 619px)'))
-  assert.ok(css.includes('.conciliacion-f5-digits'))
+  const ui = readFileSync('src/components/ui/index.jsx', 'utf8')
+  // La cifra completa nunca se corta: la celda de la tira no envuelve ni recorta.
+  assert.ok(ui.includes('whitespace-nowrap'))
+  assert.ok(ui.includes('tabular-nums'))
   // El símbolo y los dígitos salen del formateador compartido (`partesGs`): el
-  // signo va pegado al símbolo y la cifra completa queda en su propio tramo.
-  assert.ok(source.includes('partesGs(tarjeta.valor || 0).digitos'))
-  assert.ok(source.includes('partesGs(tarjeta.valor || 0).signo'))
+  // signo va pegado al símbolo y la cifra completa queda en un solo tramo.
+  assert.ok(source.includes('partesGs(valor || 0)'))
+  assert.ok(source.includes('`${signo}${simbolo} ${digitos}`'))
   assert.ok(source.includes('según cuenta, medio y procesadora'))
   assert.ok(source.includes('el estado no cambia el resumen'))
   assert.ok(source.includes('tamano: { compacto: 2, amplio: 20 }'))
+  for (const nombre of ['Cuenta', 'Medio', 'Procesadora', 'Estado']) assert.ok(source.includes(`aria-label="${nombre}"`), nombre)
 })
 
 test('F5 renewed spacing correction retains readable type, touch targets and paging', () => {
   const css = readFileSync('src/components/control/conciliacionF5.css', 'utf8')
-  assert.match(css, /\.conciliacion-f5-kpi strong\s*\{\s*font-size: 20px;/)
-  assert.match(css, /\.conciliacion-f5-kpi\s*\{\s*padding-inline: 8px;/)
+  const ui = readFileSync('src/components/ui/index.jsx', 'utf8')
+  assert.match(ui, /text-base font-semibold leading-6 tabular-nums/, 'cifra de KPI de 16px semibold')
+  assert.match(ui, /text-xs font-medium leading-4/, 'etiqueta de KPI de 12px')
   assert.match(css, /\.conciliacion-f5-panel\s*\{\s*padding: 10px;/)
   assert.match(css, /\.conciliacion-f5-payment-grid\s*\{\s*gap: 6px;/)
   assert.ok(css.includes('min-height: 44px'))

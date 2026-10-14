@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useUrlState } from '@/hooks/useUrlState'
-import { Aviso, Badge, Button, Card, Drawer, EmptyState, FormActions, FormField, Input, Label, Modal, MoneyInput, SaveActions, Select, Skeleton, Textarea, useToast, useValidacionCampos } from '@/components/ui'
+import { Aviso, Badge, Button, Card, EmptyState, FormActions, FormField, Input, Label, Modal, MoneyInput, SaveActions, Select, Skeleton, Textarea, useToast, useValidacionCampos } from '@/components/ui'
+import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import { obligatorio } from 'owncoding-ui/utils'
 import BarraLote from '@/components/shared/BarraLote'
 import Toolbar from '@/components/shared/Toolbar'
@@ -827,7 +828,7 @@ export default function ServicioTecnico() {
       )}
 
       {/* Filtros avanzados (#315): panel lateral, sin recargar la lista. */}
-      <Drawer open={filtrosOpen} onClose={() => setFiltrosOpen(false)} title="Filtros del taller" side="right">
+      <VentanaDetalle open={filtrosOpen} onClose={() => setFiltrosOpen(false)} title="Filtros del taller">
         <div className="space-y-4">
           <p className="text-sm text-mute">Acotan la lista general. La etapa se elige en la barra; acá van técnico, tipo y fechas.</p>
           <div>
@@ -853,11 +854,11 @@ export default function ServicioTecnico() {
             <Button type="button" onClick={() => setFiltrosOpen(false)}>Aplicar filtros</Button>
           </FormActions>
         </div>
-      </Drawer>
+      </VentanaDetalle>
 
       {/* Detalle de la reparación (#315): etapas, inspección y acciones en un
           solo nivel, sin perderse en la tabla. */}
-      <Drawer open={Boolean(detalle)} onClose={() => setDetalleId(null)} title={detalle ? `Reparación ${detalle.serviceNumber || ''}`.trim() : 'Reparación'} side="right">
+      <VentanaDetalle open={Boolean(detalle)} onClose={() => setDetalleId(null)} title={detalle ? `Reparación ${detalle.serviceNumber || ''}`.trim() : 'Reparación'}>
         {detalle && (() => {
           const tipo = tipoDeFila(detalle)
           const ganancia = utilidad(detalle)
@@ -934,7 +935,7 @@ export default function ServicioTecnico() {
             </div>
           )
         })()}
-      </Drawer>
+      </VentanaDetalle>
 
       <Modal open={Boolean(form)} onClose={busy || checklistOpen || catalogoOpen ? undefined : () => { setForm(null); setEditing(null) }} dirty={formSucio} title={editing ? 'Editar orden de servicio' : 'Nueva orden de servicio'} size="amplio">
         {form && (

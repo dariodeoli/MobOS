@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Badge, Button, Card, Drawer, FormActions, Input, Label, Modal, MoneyInput, Select, Textarea } from '@/components/ui'
+import { Badge, Button, Card, FormActions, Input, Label, Modal, MoneyInput, Select, Textarea } from '@/components/ui'
+import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api'
 import { gs } from '@/utils/calculos'
@@ -7,7 +8,7 @@ import { normalizarModelo } from '@/utils/tradeInCheckout'
 import { cn } from '@/lib/utils'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
-import BarraModulo from '@/components/shared/BarraModulo'
+import Toolbar from '@/components/shared/Toolbar'
 import { codigoPedido } from '@/utils/pedido'
 import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import {
@@ -354,18 +355,22 @@ export default function TradeInPipeline() {
   const abiertoItem = items.find((item) => item.id === abierto) || null
 
   return <div className="space-y-4">
-    {/* Composición compacta (#256): la identidad del módulo y la acción van en
-        una sola barra; el h1 de la página sigue siendo el del shell. */}
-    <BarraModulo
-      icono="refresh"
-      titulo="Equipos recibidos como pago"
-      descripcion="Recepción, revisión, reparación y destino de cada equipo."
+    {/* #388: una sola barra (buscador · estado · acciones); el aviso de la demo
+        es un chip con tooltip, no una fila ni un párrafo explicativo. */}
+    <Toolbar
+      plano
+      lista
       testId="barra-tradein"
-    >
-      <Button type="button" variant="outline" className="px-3 text-xs" disabled={busy} onClick={load}>Actualizar</Button>
-    </BarraModulo>
-    {esDemo && <p className="text-sm text-mute">Demo local: registrá equipos sintéticos desde una venta demo. La recepción no suma stock ni crea clientes reales.</p>}
-    <div className={GRILLA_DOS_COLUMNAS}><SearchField ariaLabel="Buscar equipos" placeholder="Serial, modelo, venta o referencia…" value={query} onChange={(event) => setQuery(event.target.value)} /><Select aria-label="Filtrar estado" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="">Todos los estados ({items.length})</option>{Object.entries(TRADE_IN_STATUSES).map(([value, text]) => <option key={value} value={value}>{text} ({items.filter((item) => item.status === value).length})</option>)}</Select></div>
+      label="Equipos recibidos como pago"
+      search={<SearchField ariaLabel="Buscar equipos" placeholder="Serial, modelo, venta o referencia…" value={query} onChange={(event) => setQuery(event.target.value)} />}
+      filters={<Select aria-label="Filtrar estado" className="w-auto" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="">Todos los estados ({items.length})</option>{Object.entries(TRADE_IN_STATUSES).map(([value, text]) => <option key={value} value={value}>{text} ({items.filter((item) => item.status === value).length})</option>)}</Select>}
+      more={
+        <>
+          {esDemo && <span data-testid="tradein-demo" title="Demo local: registrá equipos sintéticos desde una venta demo. La recepción no suma stock ni crea clientes reales." className="inline-flex min-h-7 items-center rounded-full border border-ink-600 bg-ink-800 px-2.5 text-xs text-mute max-sm:hidden">Demo local</span>}
+          <Button type="button" variant="outline" title="Actualizar" className="px-3 text-xs" disabled={busy} onClick={load}>Actualizar</Button>
+        </>
+      }
+    />
     {error && <p role="alert" className="rounded-lg bg-bad/10 p-3 text-sm text-bad">{error}</p>}
     {uncertain && <p className="text-sm text-mute">Actualizá la lista para verificar el estado antes de otro movimiento.</p>}
     {message && <p role="status" className="text-sm text-ok">{message}</p>}
@@ -387,9 +392,9 @@ export default function TradeInPipeline() {
     </div>}
     {/* #316: el detalle sale de la página y vive en un panel con encabezado
         real (modelo, estado y valores); la edición no empuja la lista. */}
-    <Drawer open={Boolean(abiertoItem)} onClose={() => setAbierto(null)} title="Detalle del equipo" side="right">
+    <VentanaDetalle open={Boolean(abiertoItem)} onClose={() => setAbierto(null)} title="Detalle del equipo">
       {abiertoItem && <Device item={abiertoItem} busy={busy || uncertain} onSave={save} />}
-    </Drawer>
+    </VentanaDetalle>
     <Valuaciones esDemo={esDemo} />
   </div>
 }

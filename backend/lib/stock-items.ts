@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client'
 import { isStockKind, type StockKind } from './stock-kind'
 import { serialKey } from './validation'
+import { parseUnitCode } from './unit-code'
 
 // U2 · Lista unificada de Stock: unidades serializadas (una fila por IMEI) más
 // productos sin unidades (una fila por producto) en una sola consulta con
@@ -39,6 +40,8 @@ export type StockItemsScope = {
   // Sucursal impuesta por el rol (VENDEDOR/CAJERA); null = sin restricción.
   forcedBranchId: string | null
   canSeeCost: boolean
+  // Nombre real del proveedor: solo ADMIN/GERENTE (#400). El resto recibe la sigla.
+  canSeeSupplier: boolean
   canSeeRemoved: boolean
 }
 
@@ -57,7 +60,9 @@ export type StockItem = {
   condition: string | null
   batteryHealth: number | null
   supplierId: string | null
+  // Nombre real para gerencia; para el resto, la sigla («S/S» si no tiene).
   supplierName: string | null
+  supplierCode: string | null
   consignorName: string | null
   costPyg: number | null
   status: StockItemStatus
@@ -180,7 +185,9 @@ function unitsBranch(filters: StockItemsFilters, scope: StockItemsScope, cursor:
     const normalized = serialKey(raw)
     const rawLike = `%${likeEscape(raw)}%`
     const serialLike = `%${likeEscape(normalized || raw)}%`
-    where.push(Prisma.sql`(u."serial" ILIKE ${serialLike} OR p."sku" ILIKE ${rawLike} OR p."sku" ILIKE ${serialLike} OR p."name" ILIKE ${rawLike})`)
+    // Código interno (MOV-0042): coincide por el correlativo de la empresa.
+    const unitCode = parseUnitCode(raw)
+    where.push(Prisma.sql`(u."serial" ILIKE ${serialLike} OR p."sku" ILIKE ${rawLike} OR p."sku" ILIKE ${serialLike} OR p."name" ILIKE ${rawLike}${unitCode ? Prisma.sql` OR u."internalSeq" = ${unitCode.seq}` : Prisma.empty})`)
   }
   if (filters.from) where.push(Prisma.sql`${sortKey} >= ${filters.from.toISOString()}::timestamp`)
   if (filters.toExclusive) where.push(Prisma.sql`${sortKey} < ${filters.toExclusive.toISOString()}::timestamp`)
@@ -196,7 +203,8 @@ function unitsBranch(filters: StockItemsFilters, scope: StockItemsScope, cursor:
       NULLIF(btrim(concat_ws(' ', p."model", p."capacity", p."color")), '') AS "model", p."name" AS "name",
       u."serial" AS "serial", u."condition"::text AS "condition", u."batteryHealth" AS "batteryHealth",
       ${cost ? Prisma.sql`u."supplierId"` : Prisma.sql`NULL::text`} AS "supplierId",
-      ${cost ? Prisma.sql`COALESCE(s."name", u."supplierName")` : Prisma.sql`NULL::text`} AS "supplierName",
+      ${scope.canSeeSupplier ? Prisma.sql`COALESCE(s."name", u."supplierName")` : Prisma.sql`NULL::text`} AS "supplierName",
+      CASE WHEN u."supplierId" IS NULL AND u."supplierName" IS NULL THEN NULL ELSE COALESCE(NULLIF(btrim(s."code"), ''), 'S/S') END AS "supplierCode",
       ${cost ? Prisma.sql`u."consignorName"` : Prisma.sql`NULL::text`} AS "consignorName",
       ${cost ? Prisma.sql`u."costPyg"` : Prisma.sql`NULL::bigint`} AS "costPyg",
       ${statusExpr} AS "status", 1 AS "quantity",
@@ -206,7 +214,7 @@ function unitsBranch(filters: StockItemsFilters, scope: StockItemsScope, cursor:
     JOIN "Product" p ON p."id" = u."productId"
     LEFT JOIN "Branch" b ON b."id" = u."branchId"
     LEFT JOIN "StockLocation" l ON l."id" = u."locationId"
-    ${cost ? Prisma.sql`LEFT JOIN "Supplier" s ON s."id" = u."supplierId"` : Prisma.empty}
+    LEFT JOIN "Supplier" s ON s."id" = u."supplierId"
     WHERE ${whereSql}
     ORDER BY "sortKey" DESC, "id" DESC LIMIT ${filters.limit + 1})`
 }
@@ -262,7 +270,7 @@ function productsBranch(filters: StockItemsFilters, scope: StockItemsScope, curs
   }
   return Prisma.sql`(SELECT 'product'::text AS "kind", p."id" AS "id", ${productStockKind} AS "stockKind", p."id" AS "productId", p."sku" AS "sku",
       NULLIF(btrim(concat_ws(' ', p."model", p."capacity", p."color")), '') AS "model", p."name" AS "name",
-      NULL::text AS "serial", NULL::text AS "condition", NULL::int AS "batteryHealth", NULL::text AS "supplierId", NULL::text AS "supplierName", NULL::text AS "consignorName",
+      NULL::text AS "serial", NULL::text AS "condition", NULL::int AS "batteryHealth", NULL::text AS "supplierId", NULL::text AS "supplierName", NULL::text AS "supplierCode", NULL::text AS "consignorName",
       ${scope.canSeeCost ? Prisma.sql`p."costPyg"` : Prisma.sql`NULL::bigint`} AS "costPyg",
       ${statusExpr}::text AS "status", ${vendido ? Prisma.sql`sold."qty"` : Prisma.sql`GREATEST(p."stock", 0)`}::int AS "quantity",
       p."branchId" AS "branchId", b."name" AS "branchName", NULL::text AS "locationId", NULL::text AS "locationName",
@@ -296,23 +304,29 @@ type RawRow = Record<string, unknown> & { sortKey?: Date | string }
 
 const toNumber = (value: unknown) => value === null || value === undefined ? null : Number(value)
 
-/** Última barrera: sin permiso de costos no sale costo, proveedor ni consignación. */
-export function redactStockItem<T extends { costPyg: unknown; supplierId: unknown; supplierName: unknown; consignorName?: unknown }>(item: T, canSeeCost: boolean): T {
-  return canSeeCost ? item : { ...item, costPyg: null, supplierId: null, supplierName: null, consignorName: null }
+/**
+ * Última barrera: sin permiso de costos no sale costo, id de proveedor ni consignación;
+ * sin permiso de ver el nombre del proveedor solo sale su sigla (#400).
+ */
+export function redactStockItem<T extends { costPyg: unknown; supplierId: unknown; supplierName: unknown; supplierCode?: unknown; consignorName?: unknown }>(item: T, canSeeCost: boolean, canSeeSupplier: boolean): T {
+  const out: Record<string, unknown> = { ...item }
+  if (!canSeeCost) Object.assign(out, { costPyg: null, supplierId: null, consignorName: null })
+  if (!canSeeSupplier) out.supplierName = typeof item.supplierCode === 'string' ? item.supplierCode : null
+  return out as T
 }
 
-export function mapStockRow(row: RawRow, canSeeCost: boolean): StockItem {
+export function mapStockRow(row: RawRow, canSeeCost: boolean, canSeeSupplier: boolean): StockItem {
   return redactStockItem({
     id: String(row.id), kind: row.kind as StockRowKind, stockKind: row.stockKind as StockKind, productId: String(row.productId),
     sku: String(row.sku ?? ''), model: String(row.model ?? ''), name: String(row.name ?? ''),
     serial: (row.serial as string | null) ?? null, condition: (row.condition as string | null) ?? null, batteryHealth: toNumber(row.batteryHealth),
-    supplierId: (row.supplierId as string | null) ?? null, supplierName: (row.supplierName as string | null) ?? null,
+    supplierId: (row.supplierId as string | null) ?? null, supplierName: (row.supplierName as string | null) ?? null, supplierCode: (row.supplierCode as string | null) ?? null,
     consignorName: (row.consignorName as string | null) ?? null,
     costPyg: toNumber(row.costPyg), status: row.status as StockItemStatus, quantity: Number(row.quantity),
     branchId: (row.branchId as string | null) ?? null, branchName: (row.branchName as string | null) ?? null,
     locationId: (row.locationId as string | null) ?? null, locationName: (row.locationName as string | null) ?? null,
     createdAt: row.createdAt as Date | string, soldAt: (row.soldAt as Date | string | null) ?? null,
-  }, canSeeCost)
+  }, canSeeCost, canSeeSupplier)
 }
 
 export function buildStockTotals(rows: Array<{ kind: string; stockKind: string; status: string; count: number }>) {

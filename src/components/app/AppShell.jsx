@@ -407,11 +407,11 @@ export default function AppShell({
             Sin conexión: los datos pueden estar desactualizados. Se sincroniza al reconectar.
           </div>
         )}
-        {esDemo && <DemoBanner angosta={angosta} onComoFunciona={() => setComoFunciona(true)} onSalir={onLogout} />}
         <PageHeader
           title={title}
           subtitle={subtitle}
           actions={headerActions}
+          aviso={esDemo ? <DemoBanner angosta={angosta} onComoFunciona={() => setComoFunciona(true)} onSalir={onLogout} /> : null}
           backTo={backTo}
           breadcrumb={breadcrumbs.join(' / ')}
           record={recordActivo}

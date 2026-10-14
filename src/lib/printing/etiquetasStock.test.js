@@ -71,3 +71,16 @@ test('vista previa y ESC/POS comparten los mismos items', async () => {
 test('la vista previa vacía también falla con el error claro', async () => {
   await assert.rejects(vistaPreviaEtiquetasPdf([]), EtiquetasStockError)
 })
+
+test('#400: la etiqueta de unidad imprime la sigla del proveedor y jamás su nombre', () => {
+  const fila = { ...unidad('354444444444444'), supplierName: 'Mayorista Secreto Norte', supplier: { id: 's1', name: 'Mayorista Secreto Norte', code: 'MSN' } }
+  const { trabajos } = etiquetasDeFilasStock([fila], { base: BASE })
+  const texto = textoDe(trabajos)
+  assert.match(texto, /MSN/)
+  assert.doesNotMatch(texto, /Mayorista|Secreto/)
+  // Fila del listado unificado: llega la sigla en supplierCode, no el nombre.
+  const deListado = { ...unidad('355555555555555'), supplierName: 'Mayorista Secreto Norte', supplierCode: 'S/S' }
+  const impreso = textoDe(etiquetasDeFilasStock([deListado], { base: BASE }).trabajos)
+  assert.match(impreso, /S\/S/)
+  assert.doesNotMatch(impreso, /Mayorista|Secreto/)
+})

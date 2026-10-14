@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client'
+import { canSeeSupplierName, loadSupplierDirectory, redactSupplierNames } from '../../../lib/cost-visibility'
 import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
@@ -116,6 +117,12 @@ function normalizeSubjectResolution(kind: string, raw: unknown, requestedValue: 
   return { maxDiscountPyg: amount }
 }
 
+// El nombre real del proveedor (metadata de la solicitud) solo lo ve administración
+// o gerencia; el resto lo recibe como sigla (#400).
+async function paraRol<T>(session: { user: { role: string; tenantId: string } }, payload: T): Promise<T> {
+  return canSeeSupplierName(session.user.role) ? payload : redactSupplierNames(payload, await loadSupplierDirectory(session.user.tenantId))
+}
+
 export async function GET(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
@@ -142,7 +149,7 @@ export async function GET(request: Request) {
   // Pendientes primero: son las que requieren decisión.
   const pending = rows.filter(row => row.status === 'PENDING')
   const rest = rows.filter(row => row.status !== 'PENDING')
-  return json([...pending, ...rest])
+  return json(await paraRol(session, [...pending, ...rest]))
 }
 
 export async function POST(request: Request) {
@@ -339,7 +346,7 @@ export async function POST(request: Request) {
       } })
       return authorization
     })
-    return json(created, { status: 201 })
+    return json(await paraRol(session, created), { status: 201 })
   } catch (cause) {
     if ((cause as { code?: string })?.code === 'P2002') return error('Ya hay una solicitud pendiente de este tipo.', 409)
     return error(cause instanceof Error ? cause.message : 'No se pudo registrar la solicitud.')
@@ -446,7 +453,7 @@ export async function PATCH(request: Request) {
       } })
       return authorization
     })
-    return json(updated)
+    return json(await paraRol(session, updated))
   } catch (cause) {
     return error(cause instanceof Error ? cause.message : 'No se pudo resolver la solicitud.')
   }

@@ -7,6 +7,7 @@ import { getProductos } from '@/lib/storage'
 import { gs, num } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
 import { Aviso, Button, DocumentoImpresion, EmptyState, FormActions, FormField, Input, Modal, MoneyInput, Textarea, MenuDesplegable } from '@/components/ui'
+import VentanaDetalle from '@/components/shared/VentanaDetalle'
 import EmailField from '@/components/shared/EmailField'
 import CompartirPdf from '@/components/shared/CompartirPdf'
 import Icon from '@/components/shared/Icon'
@@ -87,7 +88,7 @@ function PreviaCotizacion({ open, onClose, cotizacion, emisor, etiquetaCerrar = 
   const subtotal = Number(cotizacion.subtotalPyg ?? items.reduce((suma, fila) => suma + fila.subtotal, 0))
   const descuento = Number(cotizacion.discountPyg || 0)
   return (
-    <Modal className="ventas-f3 ventas-f3-dialog" open={open} onClose={onClose} title="Vista previa de la cotización" size="completo">
+    <VentanaDetalle className="ventas-f3 ventas-f3-dialog" open={open} onClose={onClose} title="Vista previa de la cotización" size="xl">
       <div className="space-y-3" data-testid="cotizacion-previa">
         <p className="text-xs text-mute">Así se ve el documento que revisa y aprueba el cliente.</p>
         <div className="overflow-x-auto rounded-xl border border-ink-600 bg-white">
@@ -113,7 +114,7 @@ function PreviaCotizacion({ open, onClose, cotizacion, emisor, etiquetaCerrar = 
           <Button type="button" variant="outline" onClick={onClose}>{etiquetaCerrar}</Button>
         </FormActions>
       </div>
-    </Modal>
+    </VentanaDetalle>
   )
 }
 
@@ -414,6 +415,7 @@ export default function SellerQuotes() {
       <SellerSection title="Cotizaciones">
         <Toolbar
           label="Acciones de Cotizaciones"
+          lista
           testId="barra-cotizaciones"
           className="ventas-f3-toolbar"
           plano
@@ -425,15 +427,15 @@ export default function SellerQuotes() {
               onChange={event => setQuery(event.target.value)}
             />
           }
-          more={
-            <button
-              type="button"
-              onClick={data.refresh}
-              disabled={data.loading}
-              className="min-h-11 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore lg:min-h-9"
-            >
-              Actualizar
-            </button>
+          filters={
+            <ChipsFiltro
+              className="min-w-0"
+              etiqueta="Estado de las cotizaciones"
+              opciones={FILTROS}
+              mas={FILTROS_MAS}
+              valor={filtro}
+              onChange={setFiltro}
+            />
           }
           primary={
             // #314: crear también en demo: el pipeline completo es local.
@@ -441,16 +443,7 @@ export default function SellerQuotes() {
               + Nueva cotización
             </Button>
           }
-        >
-          <ChipsFiltro
-            className="basis-full"
-            etiqueta="Estado de las cotizaciones"
-            opciones={FILTROS}
-            mas={FILTROS_MAS}
-            valor={filtro}
-            onChange={setFiltro}
-          />
-        </Toolbar>
+        />
         {notice && <Aviso tono="ok">{notice}</Aviso>}
         {error && <Aviso tono="error">{error}</Aviso>}
         <SellerFeedback {...data} empty={false} />

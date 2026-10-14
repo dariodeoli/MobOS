@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
-import { Aviso, BarraProgreso, Badge, Button, Card, EmptyState, Money, Skeleton } from '@/components/ui'
+import { Aviso, BarraProgreso, Badge, Button, Card, EmptyState, Money, Skeleton, Stat } from '@/components/ui'
+import StatGrid from '@/components/shared/StatGrid'
 import { cn } from '@/lib/utils'
 import { temaV2Activo } from '@/lib/temaV2'
 import { CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import ListaDensa from '@/components/shared/ListaDensa'
 import { usePaginaLista } from '@/components/shared/usePaginaLista'
 import StatusChip from '@/components/shared/StatusChip'
-import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 import './finanzasTactil.css'
 // Listado: una fila por cliente (tabla desde xl, tarjeta debajo), con el uso del límite.
 const fechaCorta = (value) => {
@@ -78,7 +78,6 @@ export default function Creditos() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-bold">Créditos y días de mora</h2>
-            <p className="mt-1 text-sm text-mute">Pendiente por cliente, límite configurado y atraso en días. Los vencimientos se cargan desde cada venta a crédito.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {data?.truncado && <Badge color="orange">Primeros 200 clientes</Badge>}
@@ -91,12 +90,12 @@ export default function Creditos() {
             <Badge color="orange">Mostrando los primeros 200 clientes con deuda</Badge> Los totales de arriba incluyen a todos.
           </p>
         )}
-        <div className={`mt-3 ${GRILLA_DOS_COLUMNAS} xl:grid-cols-4`} data-testid="creditos-resumen">
-          <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="creditos-por-cobrar"><p className="text-xs leading-4 text-mute">Total por cobrar</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}><Money value={totals.outstandingPyg} /></strong></div>
-          <div className={cn('rounded-xl border border-bad/25 bg-bad/5 px-3 py-2', v2 && 'v2-tile')} data-testid="creditos-en-mora"><p className="text-xs leading-4 text-mute">En mora</p><strong className={cn('block font-semibold leading-7 tabular-nums text-bad', v2 ? 'v2-numero text-xl' : 'text-xl')}><Money value={totals.overduePyg} /></strong></div>
-          <div className={cn('rounded-xl border border-ink-600 px-3 py-2', v2 && 'v2-tile')} data-testid="creditos-clientes"><p className="text-xs leading-4 text-mute">Clientes con deuda</p><strong className={cn('block font-semibold leading-7 tabular-nums', v2 ? 'v2-numero text-xl' : 'text-xl')}>{totals.customersWithDebt}</strong></div>
-          <div className={cn('rounded-xl border border-bad/25 bg-bad/5 px-3 py-2', v2 && 'v2-tile')} data-testid="creditos-clientes-mora"><p className="text-xs leading-4 text-mute">Clientes en mora</p><strong className={cn('block font-semibold leading-7 tabular-nums text-bad', v2 ? 'v2-numero text-xl' : 'text-xl')}>{totals.overdueCustomers}</strong></div>
-        </div>
+        <StatGrid testId="creditos-resumen" className="mt-3">
+          <Stat compact testId="creditos-por-cobrar" label="Total por cobrar" valor={<Money value={totals.outstandingPyg} />} />
+          <Stat compact testId="creditos-en-mora" label="En mora" valor={<Money value={totals.overduePyg} />} valorClassName="text-bad" />
+          <Stat compact testId="creditos-clientes" label="Clientes con deuda" valor={totals.customersWithDebt} />
+          <Stat compact testId="creditos-clientes-mora" label="Clientes en mora" valor={totals.overdueCustomers} valorClassName="text-bad" />
+        </StatGrid>
       </Card>
       <Card>
         {busy && !data && <div className="space-y-2"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>}

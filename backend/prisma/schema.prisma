@@ -43,6 +43,10 @@ model Tenant {
   // Identificador comercial visible de los pedidos: "MOB #310840".
   orderPrefix         String?
   orderNextNumber     Int?
+  // Sigla del código interno de unidades (MOV-0001): 2–4 letras mayúsculas.
+  // Sin valor se usa orderPrefix y, si tampoco hay, las iniciales del nombre.
+  unitCodePrefix      String?
+  tenantSequences     TenantSequence[]
   // Umbrales de autorización: gasto y compra a crédito sin autorización de
   // gerencia para los roles operativos. Null usa el default de la aplicación.
   expenseLimitPyg        BigInt?
@@ -78,6 +82,7 @@ model Tenant {
   orders                  Order[]
   orderAccessTokens       OrderAccessToken[]
   payments                Payment[]
+  paymentCorrections      PaymentCorrection[]
   paymentProofs           PaymentProof[]
   paymentReconciliations  PaymentReconciliation[]
   reconciliationBatches   ReconciliationBatch[]
@@ -398,6 +403,7 @@ model User {
   customerNotices  CustomerNotice[]
   customersCreated Customer[]      @relation("CustomerCreatedBy")
   paymentsCreated Payment[]        @relation("PaymentCreatedBy")
+  paymentCorrections PaymentCorrection[] @relation("PaymentCorrectionCreatedBy")
   customerAuthorizationsRequested CustomerAuthorization[] @relation("CustomerAuthorizationRequestedBy")
   customerAuthorizationsResolved  CustomerAuthorization[] @relation("CustomerAuthorizationResolvedBy")
   commissionRules  CommissionRule[]
@@ -685,6 +691,13 @@ model InventoryUnit {
   // Esto evita crear un producto distinto por cada IMEI.
   condition           ProductCondition    @default(NEW)
   batteryHealth       Int?
+  // Ciclos de carga de la batería (antes solo en inspection.bateriaCiclos).
+  batteryCycles       Int?
+  // Fin de la garantía: siempre el primer día del mes (UTC).
+  warrantyUntil       DateTime?
+  // Correlativo interno por empresa (MOV-0001): lo asigna el trigger
+  // InventoryUnit_assign_internal_seq; nunca se reutiliza.
+  internalSeq         Int?
   supplierName        String?
   purchasedAt         DateTime?
   costPyg             BigInt?
@@ -729,6 +742,7 @@ model InventoryUnit {
   updatedAt           DateTime            @updatedAt
 
   @@unique([tenantId, serial])
+  @@unique([tenantId, internalSeq])
   @@index([tenantId, productId, status])
   @@index([tenantId, removedAt])
   @@index([tenantId, soldAt])
@@ -763,6 +777,8 @@ model StockLocation {
   name           String
   code           String?
   color       String?
+  // Ícono de un set fijo (lib/location-icons.ts): DEPOSITO, VITRINA, etc.
+  icon           String?
   isActive       Boolean         @default(true)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -1461,6 +1477,7 @@ model Order {
 
   items    OrderItem[]
   payments Payment[]
+  paymentCorrections PaymentCorrection[]
   comments OrderComment[]
   quotes   Quote[]
   quoteApprovals QuoteApproval[]
@@ -1808,6 +1825,14 @@ model Payment {
   collectedAt     DateTime?
   deliverySettlementId String?
   deliverySettlement   DeliverySettlement? @relation(fields: [deliverySettlementId], references: [id], onDelete: SetNull)
+  // Corrección de medio de pago (#393): el pago original nunca se edita. La
+  // corrección agrega una reversión (monto negativo, reversalOfId = original) y
+  // pagos nuevos; todas las filas comparten correctionId.
+  correctionId    String?
+  correction      PaymentCorrection? @relation("PaymentCorrectionRows", fields: [correctionId], references: [id], onDelete: NoAction)
+  reversalOfId    String?          @unique
+  reversalOf      Payment?         @relation("PaymentReversal", fields: [reversalOfId], references: [id], onDelete: NoAction)
+  reversal        Payment?         @relation("PaymentReversal")
   createdAt       DateTime         @default(now())
 
   proofs         PaymentProof[]
@@ -1820,6 +1845,37 @@ model Payment {
   @@index([orderId])
   @@index([deliveryUserId, deliverySettlementId])
   @@index([deliverySettlementId])
+  @@index([correctionId])
+}
+
+// Corrección del medio de pago de una venta (#393). before/after guardan el
+// pago original y los pagos nuevos; originSessionClosed indica si el pago salió
+// de un turno de caja ya cerrado y drawerImpact si la corrección toca el
+// efectivo del turno vigente (false = solo reportes, el cierre guardado no se
+// modifica).
+model PaymentCorrection {
+  id                  String   @id @default(cuid())
+  tenantId            String
+  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId            String?
+  orderId             String
+  order               Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  reason              String
+  createdById         String?
+  createdBy           User?    @relation("PaymentCorrectionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  idempotencyKey      String
+  // sha256 del cuerpo (pago, motivo, pagos nuevos): misma clave con otro cuerpo = 409.
+  requestHash         String?
+  before              Json
+  after               Json
+  originSessionClosed Boolean  @default(false)
+  drawerImpact        Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  payments            Payment[] @relation("PaymentCorrectionRows")
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, orderId])
+  @@index([tenantId, createdAt])
 }
 
 model PaymentProof {
@@ -2999,6 +3055,11 @@ model Supplier {
   name         String
   // Abreviatura visible para vendedores en stock; el nombre real solo lo ve administración.
   code         String?
+  // Reconocimiento rápido: ícono de un set fijo, color y cómo se muestra
+  // (ABREVIADO por defecto | COMPLETO).
+  icon         String?
+  color        String?
+  displayMode  String         @default("ABREVIADO")
   document     String?
   phone        String?
   address      String?
@@ -3669,4 +3730,16 @@ model UserBranchUsage {
 
   @@unique([userId, branchId])
   @@index([tenantId, userId, usedAt])
+}
+
+// Contadores transaccionales por empresa y clave ('unit' = código interno de
+// unidades, 'arrival' = ingresos). `next` es el próximo número a entregar.
+// Una fila por (empresa, clave): no bloquea la fila del Tenant.
+model TenantSequence {
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  key      String
+  next     BigInt @default(1)
+
+  @@id([tenantId, key])
 }
