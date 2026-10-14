@@ -198,6 +198,7 @@ test('el comprobante térmico ordena encabezado, cliente, detalle con IMEI, tota
     assert.ok(texto.includes('Garantía'), `garantía en ${ancho}`)
     assert.ok(!texto.includes('2.800.000') && !texto.includes('2800000'), `nunca imprime el costo en ${ancho}`)
     assert.ok(!texto.includes('Subtotal') && !texto.includes('Descuento') && !texto.includes('Pagado'), `sin subtotal/descuento/pagado cuando no aplican en ${ancho}`)
+    for (const monto of texto.match(/Gs [\d.]+/g) || []) assert.match(monto, /^Gs \d{1,3}(\.\d{3})*$/, `monto completo, sin recortar, en ${ancho}: ${monto}`)
     assert.ok(ticket.corteEnviado(), `corta en ${ancho}`)
     const columnas = ancho === 58 ? 32 : 48
     for (const linea of texto.split('\n')) assert.ok(linea.length <= columnas, `línea dentro de ${columnas} columnas: ${linea}`)

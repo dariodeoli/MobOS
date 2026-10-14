@@ -71,7 +71,8 @@ export function ticketComprobante(entrada, { nivel = 'completo', ancho = 80, lin
   t.linea('=')
   t.negrita().centrado('COMPROBANTE DE COMPRA').negrita(false)
   t.doble().centrado(order.orderNumber || order.codigo || 'Pedido').doble(false)
-  t.centrado([cuando, completo && order.seller?.name ? `Vendedor: ${order.seller.name}` : ''].filter(Boolean).join(' · '))
+  if (cuando) t.centrado(cuando)
+  if (completo && order.seller?.name) t.centrado(`Vendedor: ${order.seller.name}`)
   t.linea()
 
   // Cliente.
@@ -90,7 +91,11 @@ export function ticketComprobante(entrada, { nivel = 'completo', ancho = 80, lin
     const unitario = Number(item.unitPricePyg ?? item.precio ?? 0)
     const lineaTotal = Number(item.totalPyg ?? cantidad * unitario)
     t.negrita().texto(item.description || item.nombre || 'Producto').negrita(false)
-    t.par(`  ${cantidad} x ${gs(unitario)}`, gs(lineaTotal))
+    // «cantidad x unitario … total» en una línea; si no entra completo (58 mm
+    // con importes grandes), el total baja a su propia línea y nunca se recorta.
+    const detalleLinea = `  ${cantidad} x ${gs(unitario)}`
+    if (detalleLinea.length + gs(lineaTotal).length + 1 <= t.columnas) t.par(detalleLinea, gs(lineaTotal))
+    else { t.texto(detalleLinea); t.par('', gs(lineaTotal)) }
     for (const serie of serialesDeItem(item)) t.texto(`  IMEI/Serie ${serie}`)
   }
   t.linea()
@@ -153,7 +158,7 @@ export function ticketComprobante(entrada, { nivel = 'completo', ancho = 80, lin
     t.texto(link)
   }
   t.linea()
-  t.centrado(`Documento no fiscal. Conservá este comprobante para cambios y garantía. Generado por ${APP_NAME}${empresa ? ` para ${empresa}` : ''}.`)
+  t.centrado(`Documento no fiscal. Conservá este comprobante para cambios y garantía. Generado por ${APP_NAME}${empresa ? ` para ${empresa.replace(/\.$/, '')}` : ''}.`)
   return t.avanza(2).corte()
 }
 
