@@ -55,6 +55,9 @@ const vista = await publico(`/api/public/supply/alternatives/${token}`)
 assert.equal(vista.alternative.version, 2)
 assert.equal(vista.alternative.requiereOtp, true)
 assert.equal(vista.versions.length, 2, 'el cliente ve el historial de versiones')
+// #412: la nota interna (motivos de decisión del vendedor) nunca viaja al cliente.
+assert.ok(!('notes' in vista.alternative), 'el payload público no trae notes')
+assert.ok(!JSON.stringify(vista).includes('Lo llamamos'), 'la nota interna no aparece en el payload público')
 // OTP incorrecto: no aprueba y suma intento.
 await publico(`/api/public/supply/alternatives/${token}`, 'POST', { decision: 'ACEPTAR', otp: '000001' }, 400)
 // OTP correcto: acepta y **libera** la necesidad.

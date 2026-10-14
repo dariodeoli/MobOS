@@ -85,7 +85,6 @@ export default function AlternativaPublica() {
           </div>
           <p className="text-sm">{alternativa.optionSummary}{alternativa.reason ? ` · Motivo: ${alternativa.reason}` : ''}</p>
           {alternativa.newEta && <p className="text-sm text-mute">Nueva fecha estimada: {new Date(alternativa.newEta).toLocaleDateString('es-PY')}</p>}
-          {alternativa.notes && <p className="rounded-lg bg-ink-800/60 p-2 text-xs text-mute">{alternativa.notes}</p>}
 
           {!alternativa.resuelta && (
             <>
