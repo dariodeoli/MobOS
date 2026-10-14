@@ -1,11 +1,53 @@
 // Visibilidad de costos: una sola regla y un solo juego de redactores para todas
 // las rutas. Costo, proveedor y consignación son datos de administración y
-// gerencia; VENDEDOR/CAJERA (y cualquier otro rol) nunca los reciben.
+// gerencia; VENDEDOR/CAJERA los ven mientras el dueño lo permita (Configuración →
+// Equipo y acceso, por defecto sí); cualquier otro rol nunca los recibe.
 
 const COST_ROLES = ['ADMIN', 'GERENTE']
+const SELLER_ROLES = ['VENDEDOR', 'CAJERA']
 
-export function canSeeCost(role: string | null | undefined): boolean {
-  return !!role && COST_ROLES.includes(role)
+/** Ajuste del negocio (Tenant.settings.permissions.sellerSeesCosts). Ausente = true. */
+export function sellerSeesCostsFrom(settings: unknown): boolean {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return true
+  const permissions = (settings as Record<string, unknown>).permissions
+  if (!permissions || typeof permissions !== 'object' || Array.isArray(permissions)) return true
+  return (permissions as Record<string, unknown>).sellerSeesCosts !== false
+}
+
+/**
+ * ADMIN/GERENTE siempre ven costos. VENDEDOR/CAJERA siguen el ajuste del
+ * negocio (por defecto sí). Cualquier otro rol nunca.
+ */
+export function canSeeCost(role: string | null | undefined, settings?: unknown): boolean {
+  if (!role) return false
+  if (COST_ROLES.includes(role)) return true
+  if (SELLER_ROLES.includes(role)) return sellerSeesCostsFrom(settings)
+  return false
+}
+
+const SETTINGS_TTL_MS = 5000
+const settingsCache = new Map<string, { at: number; sellerSeesCosts: boolean }>()
+
+export function invalidateCostVisibility(tenantId: string) {
+  settingsCache.delete(tenantId)
+}
+
+/** Lee el ajuste del negocio (caché corta por proceso; se invalida al guardar). */
+export async function sellerSeesCosts(tenantId: string): Promise<boolean> {
+  const hit = settingsCache.get(tenantId)
+  if (hit && Date.now() - hit.at < SETTINGS_TTL_MS) return hit.sellerSeesCosts
+  const { prisma } = await import('./prisma')
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } })
+  const value = sellerSeesCostsFrom(tenant?.settings)
+  settingsCache.set(tenantId, { at: Date.now(), sellerSeesCosts: value })
+  return value
+}
+
+/** Atajo para las rutas: resuelve el permiso de costos de la sesión. */
+export async function canSeeCostForSession(session: { user: { role: string; tenantId: string } }): Promise<boolean> {
+  const role = session.user.role
+  if (!SELLER_ROLES.includes(role)) return canSeeCost(role)
+  return canSeeCost(role, { permissions: { sellerSeesCosts: await sellerSeesCosts(session.user.tenantId) } })
 }
 
 const UNIT_COST_FIELDS = ['costPyg', 'originalCost', 'exchangeRatePyg', 'consignorPyg', 'consignorName', 'consignorPhone', 'costCurrency', 'supplierId', 'supplierName'] as const
