@@ -176,6 +176,7 @@ export default function AppShell({
         className={cn(
           'flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg text-mute hover:bg-ink-700',
           !compact && 'w-full border border-ink-600 px-2',
+          !compact && collapsed && 'px-0',
         )}
       >
         <Icon name="search" className="h-4 w-4 shrink-0" />
@@ -213,19 +214,30 @@ export default function AppShell({
       </button>
     )
   const angosta = usePantallaAngosta()
-  const offlineButton = testid =>
+  const offlineButton = (testid, { compacto = false } = {}) =>
     avisoCola && (
       <button
         type="button"
         data-testid={testid}
         aria-label={avisoCola}
+        title={avisoCola}
         onClick={() => setColaAbierta(true)}
         className={cn(
-          'min-h-11 rounded-lg border px-2 text-xs',
+          'relative min-h-11 rounded-lg border px-2 text-xs',
+          compacto && 'flex min-w-11 items-center justify-center px-0',
           colaUrgente ? 'border-bad text-bad' : 'border-warn text-warn',
         )}
       >
-        {avisoColaCorto}
+        {compacto ? (
+          <>
+            <Icon name={colaUrgente || colaOffline.pendientes === 0 ? 'alert' : 'upload'} className="h-[18px] w-[18px]" />
+            {colaOffline.pendientes + colaOffline.conflictos > 0 && (
+              <span aria-hidden className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-warn px-1 text-[10px] font-semibold leading-none text-white">
+                {colaOffline.pendientes + colaOffline.conflictos}
+              </span>
+            )}
+          </>
+        ) : avisoColaCorto}
       </button>
     )
 
@@ -299,10 +311,10 @@ export default function AppShell({
         data-testid="shell-lateral"
         className={cn(
           'hidden w-[232px] shrink-0 flex-col gap-3 border-r border-ink-600 bg-ink p-3 lg:sticky lg:top-0 lg:flex lg:h-dvh',
-          collapsed && 'lg:w-[160px]',
+          collapsed && 'lg:w-[76px] lg:items-center lg:px-3',
         )}
       >
-        <div className="flex min-h-11 items-center gap-2">
+        <div className={cn('flex min-h-11 items-center gap-2', collapsed && 'flex-col')}>
           <img src="/mobos-icon.svg" alt="" className="h-8 w-8 shrink-0" />
           {!collapsed && (
             <div className="min-w-0 flex-1">
@@ -315,37 +327,44 @@ export default function AppShell({
               type="button"
               aria-label={collapsed ? 'Expandir menú' : 'Colapsar menú'}
               onClick={onToggleCollapsed}
-              className="min-h-11 min-w-11"
+              aria-expanded={!collapsed}
+              title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
+              className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-mute hover:bg-ink-700"
             >
-              <Icon name="chevron" className="h-4 w-4" />
+              <Icon name="chevron" className={cn('h-4 w-4 transition-transform', collapsed ? '-rotate-90' : 'rotate-90')} />
             </button>
           )}
         </div>
         {searchButton()}
-        <nav aria-label="Navegación principal" className="flex flex-col gap-1 overflow-y-auto">
+        <nav aria-label="Navegación principal" className={cn('flex flex-col gap-1 overflow-y-auto', collapsed && 'w-full')}>
           {sections.map(section =>
             sectionButton(section, {
               className: cn(
-                'flex min-h-10 shrink-0 items-center gap-3 rounded-lg px-3 text-left text-mute hover:bg-ink-700 hover:text-fore',
+                'flex min-h-11 shrink-0 items-center gap-3 rounded-lg px-3 text-left text-mute hover:bg-ink-700 hover:text-fore',
+                collapsed && 'justify-center px-0',
                 currentId === section.id && 'bg-ink-700 font-semibold text-fore',
               ),
               children: !collapsed && section.label,
             }),
           )}
         </nav>
-        <div className="mt-auto flex min-w-0 flex-col gap-1 border-t border-ink-600 pt-3">
+        <div className={cn('mt-auto flex min-w-0 flex-col gap-1 border-t border-ink-600 pt-3', collapsed && 'w-full items-center')}>
           <div data-testid="shell-sucursal-desktop" className="mb-1">
-            <SelectorSucursal className="max-w-full" abrirArriba />
+            <SelectorSucursal className="max-w-full" abrirArriba compacto={collapsed} />
           </div>
-          {offlineButton('shell-cola-offline')}
+          {offlineButton('shell-cola-offline', { compacto: collapsed })}
           {[configDestination, helpDestination].filter(Boolean).map(([id, label, icon]) => (
             <button
               key={id}
               type="button"
               data-testid={`shell-pie-${id}`}
               title={label}
+              aria-label={label}
               onClick={() => navegar(id)}
-              className="flex min-h-10 items-center gap-3 rounded-lg px-3 text-left text-mute hover:bg-ink-700 hover:text-fore"
+              className={cn(
+                'flex min-h-11 items-center gap-3 rounded-lg px-3 text-left text-mute hover:bg-ink-700 hover:text-fore',
+                collapsed && 'min-w-11 justify-center px-0',
+              )}
             >
               <Icon name={icon || 'settings'} className="h-[18px] w-[18px] shrink-0" />
               {!collapsed && label}

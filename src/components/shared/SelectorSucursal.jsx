@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 // Con una sola empresa y una sola sucursal no hay nada que elegir: se pinta
 // como dato informativo, sin botón ni menú. Con más de una opción el control
 // abre un menú real (no un <select> muerto).
-export default function SelectorSucursal({ className, abrirArriba = false }) {
+export default function SelectorSucursal({ className, abrirArriba = false, compacto = false }) {
   const { empresa, empresas, sucursal, sucursales, cambiarSucursal, cambiarEmpresa } = useSesion()
   const [abierto, setAbierto] = useState(false)
   const ref = useRef(null)
@@ -40,13 +40,17 @@ export default function SelectorSucursal({ className, abrirArriba = false }) {
     return (
       <div
         data-testid="sucursal-info"
+        title={compacto ? actual : undefined}
+        aria-label={compacto ? `Sucursal: ${actual}` : undefined}
+        role={compacto ? 'img' : undefined}
         className={cn(
           'flex h-[34px] items-center gap-2 rounded-[9px] border border-fono/30 bg-ink-800 px-3 text-[12.5px] text-mute',
+          compacto && 'h-11 w-11 justify-center px-0',
           className,
         )}
       >
         <Icon name="store" className="h-[15px] w-[15px]" />
-        <span className="max-w-[180px] truncate">{actual}</span>
+        {!compacto && <span className="max-w-[180px] truncate">{actual}</span>}
       </div>
     )
   }
@@ -71,13 +75,16 @@ export default function SelectorSucursal({ className, abrirArriba = false }) {
         aria-haspopup="menu"
         aria-expanded={abierto}
         aria-label={`Tienda o sucursal: ${actual}`}
-        title="Tienda o sucursal"
+        title={compacto ? `Tienda o sucursal: ${actual}` : 'Tienda o sucursal'}
         onClick={() => setAbierto((valor) => !valor)}
-        className="flex h-[34px] min-w-0 max-w-[160px] cursor-pointer items-center gap-2 rounded-[9px] border border-fono/30 bg-ink-800 px-2.5 text-[12.5px] text-fore outline-none transition hover:border-fono/60 focus:border-fono"
+        className={cn(
+          'flex h-[34px] min-w-0 max-w-[160px] cursor-pointer items-center gap-2 rounded-[9px] border border-fono/30 bg-ink-800 px-2.5 text-[12.5px] text-fore outline-none transition hover:border-fono/60 focus:border-fono',
+          compacto && 'h-11 w-11 justify-center px-0',
+        )}
       >
         <Icon name="store" className="h-[15px] w-[15px] shrink-0 text-mute" />
-        <span className={cn('truncate', sucursal ? '' : 'text-mute')}>{sucursal ? actual : 'Elegí sucursal'}</span>
-        <Icon name="chevron" className={cn('h-3.5 w-3.5 shrink-0 text-mute transition-transform', abierto && 'rotate-180')} />
+        {!compacto && <span className={cn('truncate', sucursal ? '' : 'text-mute')}>{sucursal ? actual : 'Elegí sucursal'}</span>}
+        {!compacto && <Icon name="chevron" className={cn('h-3.5 w-3.5 shrink-0 text-mute transition-transform', abierto && 'rotate-180')} />}
       </button>
 
       {abierto && (
