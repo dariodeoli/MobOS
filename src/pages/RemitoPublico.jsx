@@ -6,6 +6,7 @@ import AttachmentInput from '@/components/shared/AttachmentInput'
 import Icon from '@/components/shared/Icon'
 import { Aviso, Textarea } from '@/components/ui'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
+import { LineaTiempo } from '@/components/publico/KitPublico'
 import ProductFooter from '@/components/app/ProductFooter'
 
 
@@ -90,17 +91,17 @@ export default function RemitoPublico() {
         {remito && (
           <div className="mt-4 space-y-4">
             <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className={ROTULO_SECCION}>Estado</p>
-                  <p className={`mt-1 font-bold ${recibido ? 'text-ok' : 'text-warn'}`}>{recibido ? 'Recibido' : 'En camino'}</p>
-                </div>
-                {recibido && (
-                  <p className="text-right text-xs text-mute">
-                    {remito.receivedAt ? new Date(remito.receivedAt).toLocaleString('es-PY') : ''}
-                    {remito.receivedBy ? ` · ${remito.receivedBy}` : ''}
-                  </p>
-                )}
+              <p className={ROTULO_SECCION}>Estado</p>
+              <p data-testid="estado-remito" className={`mt-1 text-lg font-bold ${recibido ? 'text-ok' : 'text-warn'}`}>{recibido ? 'Recibido' : 'En camino'}</p>
+              <div className="mt-3">
+                <LineaTiempo
+                  etiqueta="Seguimiento del remito"
+                  formatoFecha={fecha => new Date(fecha).toLocaleString('es-PY')}
+                  pasos={[
+                    { key: 'enviado', label: 'Enviado', hecho: true, actual: !recibido, at: remito.createdAt },
+                    { key: 'recibido', label: remito.receivedBy ? `Recibido por ${remito.receivedBy}` : 'Recibido', hecho: recibido, actual: recibido, at: recibido ? remito.receivedAt : null },
+                  ]}
+                />
               </div>
               {remito.aexGuide && <p className="mt-3 font-mono text-xs text-fono-light">Guía AEX: {remito.aexGuide}</p>}
               {remito.notes && <p className="mt-3 text-sm text-mute">{remito.notes}</p>}
@@ -115,8 +116,8 @@ export default function RemitoPublico() {
                   if (!seriales.length) {
                     const clave = `line-${line.id || index}`
                     return (
-                      <label key={clave} className="flex items-center gap-3 rounded-xl bg-ink-800/60 px-3 py-2.5 text-sm">
-                        <input type="checkbox" className="h-4 w-4 accent-fono" checked={Boolean(confirmados[clave])} disabled={recibido} onChange={event => setConfirmados(current => ({ ...current, [clave]: event.target.checked }))} />
+                      <label key={clave} className="flex min-h-11 items-center gap-3 rounded-xl bg-ink-800/60 px-3 py-2.5 text-sm">
+                        <input type="checkbox" className="h-5 w-5 shrink-0 accent-fono" checked={Boolean(confirmados[clave])} disabled={recibido} onChange={event => setConfirmados(current => ({ ...current, [clave]: event.target.checked }))} />
                         <span className="min-w-0 flex-1">{line.productName} × {line.quantity}</span>
                       </label>
                     )
@@ -126,8 +127,8 @@ export default function RemitoPublico() {
                       <p className="font-semibold">{line.productName} × {line.quantity}</p>
                       <div className="mt-2 space-y-1.5">
                         {seriales.map(serial => (
-                          <label key={serial} className="flex items-center gap-3">
-                            <input type="checkbox" className="h-4 w-4 accent-fono" checked={Boolean(confirmados[serial])} disabled={recibido} onChange={event => setConfirmados(current => ({ ...current, [serial]: event.target.checked }))} />
+                          <label key={serial} className="flex min-h-11 items-center gap-3">
+                            <input type="checkbox" className="h-5 w-5 shrink-0 accent-fono" checked={Boolean(confirmados[serial])} disabled={recibido} onChange={event => setConfirmados(current => ({ ...current, [serial]: event.target.checked }))} />
                             <span className="font-mono text-xs text-mute">{serial}</span>
                           </label>
                         ))}
@@ -154,10 +155,10 @@ export default function RemitoPublico() {
                         ? <a href={urlFoto(photo.id)} target="_blank" rel="noreferrer"><img src={urlFoto(photo.id)} alt={photo.fileName} className="h-14 w-14 rounded-lg object-cover" /></a>
                         : <Icon name="receipt" className="h-5 w-5 shrink-0 text-mute" />}
                       <span className="min-w-0 flex-1">
-                        <b className="block truncate text-[13px]">{photo.fileName}</b>
-                        <span className="text-[11px] text-mute">{pesoArchivo(photo.sizeBytes)} · {photo.createdAt ? new Date(photo.createdAt).toLocaleString('es-PY') : ''}</span>
+                        <b className="block truncate text-sm">{photo.fileName}</b>
+                        <span className="text-xs text-mute">{pesoArchivo(photo.sizeBytes)} · {photo.createdAt ? new Date(photo.createdAt).toLocaleString('es-PY') : ''}</span>
                       </span>
-                      <a className="shrink-0 rounded-lg border border-ink-500 px-3 py-1.5 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore" href={urlFoto(photo.id)} target="_blank" rel="noreferrer">Ver</a>
+                      <a className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-ink-500 px-3 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore" href={urlFoto(photo.id)} target="_blank" rel="noreferrer">Ver</a>
                     </li>
                   ))}
                 </ul>
@@ -173,13 +174,13 @@ export default function RemitoPublico() {
                 <label className="block text-xs text-mute">Nota de recepción (opcional)
                   <Textarea rows={2} maxLength={500} value={nota} onChange={event => setNota(event.target.value)} className="mt-1.5 rounded-xl px-3 py-2 text-sm" placeholder="Ej: llegó completo, caja golpeada, falta un cargador…" />
                 </label>
-                <button type="button" disabled={busy || pendientes.length > 0} onClick={recibir} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-ok px-5 py-2.5 text-sm font-bold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
+                <button type="button" disabled={busy || pendientes.length > 0} onClick={recibir} className="mt-3 inline-flex w-full items-center justify-center gap-2 min-h-11 rounded-xl bg-ok px-5 py-2.5 text-sm font-bold text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
                   <Icon name="check" className="h-4 w-4" />{busy ? 'Registrando…' : 'Confirmar recepción'}
                 </button>
               </section>
             )}
 
-            <p className="pt-2 text-center text-[11px] text-mute">Documento no fiscal · Generado por MobOS</p>
+            <p className="pt-2 text-center text-xs text-mute">Documento no fiscal · Generado por MobOS</p>
           </div>
         )}
       </div>

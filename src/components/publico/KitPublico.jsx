@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { gs } from '@/utils/calculos'
 import { whatsappUrl } from '@/utils/telefono'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
+import { FilaDato } from '@/components/ui'
 
 // Piezas compartidas por las páginas públicas para clientes (#403). Mismo
 // lenguaje que el comprobante premium (OrderReceipt): encabezado con logo y
@@ -72,12 +74,9 @@ export function BotonWhatsApp({ telefono, codigoPais, mensaje, etiqueta = 'Escri
 export function BotonCopiar({ valor, etiqueta = 'Copiar', className }) {
   const [copiado, setCopiado] = useState(false)
   async function copiar() {
-    try {
-      await navigator.clipboard.writeText(String(valor ?? ''))
+    if (await copiarAlPortapapeles(String(valor ?? ''))) {
       setCopiado(true)
       setTimeout(() => setCopiado(false), 2000)
-    } catch (error) {
-      console.error('No se pudo copiar al portapapeles.', error)
     }
   }
   return (
@@ -90,16 +89,12 @@ export function BotonCopiar({ valor, etiqueta = 'Copiar', className }) {
 // Totales: importes alineados a la derecha en guaraníes completos y el Total
 // grande al final (igual que el comprobante). `filas`: [{ etiqueta, valor, tono }].
 export function ResumenTotales({ filas = [], total, etiquetaTotal = 'Total', pendiente }) {
-  const TONOS = { ok: 'text-ok', warn: 'text-warn', bad: 'text-bad' }
   return (
     <div data-testid="resumen-totales">
       {filas.length > 0 && (
         <dl className="space-y-1.5 text-sm">
           {filas.map(fila => (
-            <div key={fila.etiqueta} className="flex items-baseline justify-between gap-3">
-              <dt className="text-mute">{fila.etiqueta}</dt>
-              <dd className={cn('text-right font-semibold tabular-nums', TONOS[fila.tono])}>{fila.valor}</dd>
-            </div>
+            <FilaDato key={fila.etiqueta} etiqueta={fila.etiqueta} etiquetaComo="dt" valorComo="dd" valor={fila.valor} tono={fila.tono} />
           ))}
         </dl>
       )}

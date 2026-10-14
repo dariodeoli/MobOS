@@ -1,3 +1,4 @@
+import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { Badge, Skeleton } from '@/components/ui'
@@ -113,7 +114,7 @@ export default function InformePublico() {
   return (
     <main className={`${marco} space-y-4 pt-8`}>
       <header className="text-center">
-        <p className="text-[11px] font-bold uppercase tracking-[.2em] text-fono-light">Informe de dispositivo</p>
+        <p className="text-xs font-bold uppercase tracking-[.2em] text-fono-light">Informe de dispositivo</p>
         <h1 className="mt-1 text-2xl font-bold">{store.name}</h1>
         {store.branch && <p className="text-sm text-mute">{store.branch}</p>}
       </header>
@@ -167,19 +168,19 @@ export default function InformePublico() {
       {(sale || warranty || check) && (
         <section className={GRILLA_DOS_COLUMNAS}>
           {sale && <div className="rounded-2xl border border-ink-600 bg-ink-800/40 p-4 text-sm">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Compra</p>
+            <p className={ROTULO_SECCION}>Compra</p>
             <div className="mt-1">{dato('Pedido', sale.orderNumber || '—')}{dato('Fecha', sale.date ? fechaCorta(sale.date) : '—')}{sale.branch && dato('Sucursal', sale.branch)}</div>
           </div>}
           {warranty && <div className="rounded-2xl border border-ok/30 bg-ok/5 p-4 text-sm">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Garantía</p>
+            <p className={ROTULO_SECCION}>Garantía</p>
             <div className="mt-1">{dato('Estado', warranty.status)}{warranty.expiresAt && dato('Vence', fechaCorta(warranty.expiresAt))}</div>
           </div>}
           {check && <div className="rounded-2xl border border-ink-600 bg-ink-800/40 p-4 text-sm">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Consulta de IMEI</p>
+            <p className={ROTULO_SECCION}>Consulta de IMEI</p>
             <div className="mt-1">{dato('Fuente', check.provider)}{dato('Resultado', check.status)}{dato('Fecha', check.date ? fechaCorta(check.date) : '—')}</div>
             {/* #240: controles del dispositivo (iCloud/MDM/ESN/carrier) con semáforo. */}
             {unit.controles?.length ? <div className="mt-2 flex flex-wrap gap-1.5">
-              {unit.controles.map((control) => <span key={control.clave} className={`rounded-lg border px-2 py-1 text-[10px] font-semibold ${control.ok ? 'border-ok/40 text-ok' : 'border-bad/40 text-bad'}`} title={`${control.label}: ${control.valor}`}>{control.label}: {control.valor}</span>)}
+              {unit.controles.map((control) => <span key={control.clave} className={`rounded-lg border px-2 py-1 text-xs font-semibold ${control.ok ? 'border-ok/40 text-ok' : 'border-bad/40 text-bad'}`} title={`${control.label}: ${control.valor}`}>{control.label}: {control.valor}</span>)}
             </div> : null}
           </div>}
         </section>
@@ -187,7 +188,7 @@ export default function InformePublico() {
 
       {/* #240: checklist de la inspección con semáforo (notas solo de lo no-OK). */}
       {unit.checklist?.items?.length ? <section className="rounded-2xl border border-ink-600 bg-ink-800/40 p-4 text-sm">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Checklist de inspección</p>
+        <p className={ROTULO_SECCION}>Checklist de inspección</p>
         <p className="mt-1 text-xs text-mute">
           {unit.checklist.aprobados} de {unit.checklist.evaluados} conformes
           {unit.checklist.puntaje !== null && unit.checklist.puntaje !== undefined ? ` · ${unit.checklist.puntaje}/100` : ''}
@@ -202,7 +203,7 @@ export default function InformePublico() {
 
       {/* #240: repuestos no-OEM detectados en la inspección (sin datos personales). */}
       {unit.repuestosNoOem && <section className="rounded-2xl border border-ink-600 bg-ink-800/40 p-4 text-sm">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Repuestos no-OEM</p>
+        <p className={ROTULO_SECCION}>Repuestos no-OEM</p>
         <p className="mt-1 font-semibold text-fore">{unit.repuestosNoOem}</p>
         {unit.repuestosNoOemNota && <p className="mt-1 text-xs text-mute">{unit.repuestosNoOemNota}</p>}
       </section>}

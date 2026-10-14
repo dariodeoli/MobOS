@@ -80,7 +80,7 @@ export default function PortalCliente() {
                 arriba, con la misma lectura de siempre. */}
             <div className="space-y-3 sm:space-y-4 lg:sticky lg:top-6">
               <section className={`rounded-2xl border p-4 text-center sm:p-5 ${saldoFavor > 0 ? 'border-ok/30 bg-ok/5' : 'border-ink-600 bg-ink-900'}`}>
-                <p className="flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-wider text-mute">
+                <p className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider text-mute">
                   <Icon name="wallet" className="h-3.5 w-3.5" aria-hidden="true" /> Saldo a favor
                 </p>
                 {saldoFavor > 0 ? (
@@ -102,7 +102,7 @@ export default function PortalCliente() {
 
               {puntos > 0 && (
                 <PortalSeccion className="border-fono/25 bg-fono/5 text-center">
-                  <p className="flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-wider text-mute">
+                  <p className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider text-mute">
                     <Icon name="sparkles" className="h-3.5 w-3.5" aria-hidden="true" /> Puntos de fidelización
                   </p>
                   <p className="mt-1.5 text-2xl font-bold tabular-nums tracking-tight text-fono-light">{gs(puntos)}</p>
@@ -160,7 +160,7 @@ export default function PortalCliente() {
                             <span className="min-w-0 truncate">{garantia.producto || 'Equipo'}</span>
                             <PortalEstado tono={tonoGarantia(garantia.estado)}>{ESTADO_GARANTIA[garantia.estado] || garantia.estado}</PortalEstado>
                           </div>
-                          <p className="mt-1 font-mono text-[11px] text-mute">{garantia.serial}</p>
+                          <p className="mt-1 font-mono text-xs text-mute">{garantia.serial}</p>
                           <p className="mt-0.5 text-xs text-mute">{garantia.venceAt ? `Vence ${fecha(garantia.venceAt)}` : 'Sin vencimiento registrado'}</p>
                         </div>
                       ))}

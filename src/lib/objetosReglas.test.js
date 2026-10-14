@@ -342,7 +342,7 @@ test('el enlace de WhatsApp se arma una sola vez en utils/telefono', () => {
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [])
   assert.match(leerFuente(join(RAIZ, 'utils/telefono.js'), 'utf8'), /export function whatsappUrl\(/, 'falta whatsappUrl')
-  for (const ruta of ['components/ventas/PagosPedido.jsx', 'components/ventas/FormularioVenta.jsx', 'pages/GarantiaPublica.jsx', 'components/customers/CampanasClientes.jsx']) {
+  for (const ruta of ['components/ventas/PagosPedido.jsx', 'components/ventas/FormularioVenta.jsx', 'components/publico/KitPublico.jsx', 'components/customers/CampanasClientes.jsx']) {
     assert.match(leerFuente(join(RAIZ, ruta), 'utf8'), /whatsappUrl/, `${ruta}: el enlace va con whatsappUrl`)
   }
 })
