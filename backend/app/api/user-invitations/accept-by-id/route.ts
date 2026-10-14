@@ -4,6 +4,7 @@ import { authRequestMetadata, effectivePermissions, requireSession } from '../..
 import { error, json } from '../../../../lib/http'
 import { pinValido } from '../../../../lib/pin'
 import { prisma } from '../../../../lib/prisma'
+import { ensureMembership, MembershipError } from '../../../../lib/membership'
 
 // Aceptación autenticada por id de invitación (sin token crudo). El usuario
 // sigue logueado en SU tenant: acá solo se crea el User en el tenant
@@ -40,12 +41,16 @@ export async function POST(request: Request) {
       await tx.emailOutbox.updateMany({ where: { aggregateType: 'UserInvitation', aggregateId: invitation.id, sentAt: null }, data: { cancelledAt: now, lockedAt: null, recipient: '', payload: '' } })
       if (invitation.branchId && !await tx.branch.findFirst({ where: { id: invitation.branchId, tenantId: invitation.tenantId, isActive: true }, select: { id: true } })) throw new Error('INVITATION_UNAVAILABLE')
       const user = await tx.user.create({ data: { tenantId: invitation.tenantId, email: invitation.email, name: invitation.name, role: invitation.role, branchId: invitation.branchId, permissions: invitation.permissions ?? undefined, pinHash, pinLength: pin.length } })
+      // Multi-empresa (#377): con una sesión de cuenta, la invitación suma una
+      // pertenencia MEMBER (nunca eleva un rol existente ni revive una revocada).
+      if (session.accountId) await ensureMembership(tx, { accountId: session.accountId, tenantId: invitation.tenantId, userId: user.id, role: 'MEMBER' })
       await tx.auditLog.create({ data: { tenantId: invitation.tenantId, userId: user.id, action: 'USER_INVITATION_ACCEPTED', entity: 'UserInvitation', entityId: invitation.id, metadata: { ...authRequestMetadata(request) } } })
       return user
     })
     return json({ ok: true, user: { id: created.id, tenantId: created.tenantId, name: created.name, role: created.role, branchId: created.branchId, permissions: effectivePermissions(created.role, created.permissions) }, message: 'Invitación aceptada.' }, { status: 201, headers: { 'Cache-Control': 'no-store' } })
   } catch (cause) {
     if (cause instanceof Error && cause.message === 'ALREADY_MEMBER') return error(ALREADY_MEMBER_MESSAGE, 409)
+    if (cause instanceof MembershipError) return error(INVALID_MESSAGE, 410)
     if (cause instanceof Prisma.PrismaClientKnownRequestError && cause.code === 'P2002') return error(ALREADY_MEMBER_MESSAGE, 409)
     return error(INVALID_MESSAGE, 410)
   }

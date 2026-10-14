@@ -212,6 +212,10 @@ export async function POST(request: Request) {
   // el pedido queda señalado para revisión. El modo online no la envía.
   if (body.offline !== undefined && typeof body.offline !== 'boolean') throw new InputError('offline debe ser verdadero o falso.')
   const offlineSale = body.offline === true
+  // Multi-empresa (#377): una venta de la cola offline viaja con la empresa donde
+  // se cargó. Si la sesión es de otra, se rechaza: nunca se vende en la empresa
+  // equivocada tras un cambio. (`tenantId` suelto en el cuerpo se sigue ignorando.)
+  if (body.queuedTenantId !== undefined && (typeof body.queuedTenantId !== 'string' || body.queuedTenantId !== tenant)) return error('Esta venta se cargó en otra empresa. Volvé a esa empresa para enviarla.', 409, { code: 'TENANT_MISMATCH' })
   let stockFaltante = 0
   let sinImeiOffline = 0
   // Se permite customerId + customer para actualizar los datos de contacto de
