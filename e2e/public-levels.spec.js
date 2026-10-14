@@ -2,7 +2,7 @@
 // (rápido | completo | detallado), es no enumerable y se puede regenerar
 // invalidando el anterior. El token histórico sigue funcionando como rápido.
 
-import { test, expect } from '@playwright/test'
+import { test, expect } from './helpers/seller-test.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 

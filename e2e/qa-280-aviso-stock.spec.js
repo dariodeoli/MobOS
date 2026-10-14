@@ -5,7 +5,7 @@
 //
 // El inventario lo mueve un contexto de administración (INV); el aviso se
 // verifica en la sesión del vendedor (POS). Capturas: docs/qa/280-aviso-stock/.
-import { test, expect } from '@playwright/test'
+import { test, expect } from './helpers/seller-test.js'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { SEED } from './helpers/seed-data.js'

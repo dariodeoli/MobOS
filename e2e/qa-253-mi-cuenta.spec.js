@@ -3,7 +3,7 @@ import { openShellDestination, lockShell } from './helpers/shell-navigation.js'
 // nombre y correo, preferencias del dispositivo y sesiones propias), accesible
 // desde el avatar. El dueño la ve además como pestaña de Configuración; el
 // resto del equipo entra a /mi-cuenta (sin permisos de administración).
-import { test, expect } from '@playwright/test'
+import { test, expect } from './helpers/seller-test.js'
 import { pngSolido } from './helpers/png.js'
 
 const SHOTS = process.env.MOBOS_CAPTURAS || 'test-results/QA-253-mi-cuenta'

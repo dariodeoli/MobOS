@@ -39,6 +39,17 @@ const SNAPSHOT = () => `/tmp/mobos-e2e-snapshot-${PG_DB()}.dump`
 const SNAPSHOT_META = () => `/tmp/mobos-e2e-snapshot-${PG_DB()}.json`
 const API = SEED.api
 
+// Todas las escrituras directas a la base salen por acá: el destino sale de
+// las mismas variables MOBOS_E2E_* que usan playwright.config.js y
+// e2e/bin/start-backend.sh (aislamiento por worktree, #364).
+function psql(sql) {
+  execFileSync(`${PG_BIN}/psql`, [
+    '-h', '127.0.0.1', '-p', PG_PORT(), '-U', 'postgres', '-d', PG_DB(),
+    '-v', 'ON_ERROR_STOP=1',
+    '-c', sql,
+  ], { stdio: 'ignore' })
+}
+
 const bearer = (token) => ({ Authorization: `Bearer ${token}` })
 
 function cookieValue(setCookie, name) {
@@ -119,17 +130,12 @@ function guardarSnapshot() {
 async function ensureBranch() {
   // The API has no branch-creation endpoint in this phase, so the harness
   // inserts the two test branches directly (idempotent, fixed ids).
-  execFileSync(`${PG_BIN}/psql`, [
-    '-h', '127.0.0.1', '-p', process.env.MOBOS_E2E_PGPORT || '5439', '-U', 'postgres', '-d', process.env.MOBOS_E2E_DB || 'mobos_e2e',
-    '-v', 'ON_ERROR_STOP=1',
-    '-c',
-    `INSERT INTO "Branch" ("id", "tenantId", "name", "updatedAt")
+  psql(`INSERT INTO "Branch" ("id", "tenantId", "name", "updatedAt")
      SELECT branch."id", t."id", branch."name", CURRENT_TIMESTAMP
      FROM "Tenant" t
      CROSS JOIN (VALUES ('${SEED.branchId}', '${SEED.branchName}'), ('${SEED.branch2Id}', '${SEED.branch2Name}')) AS branch("id", "name")
      WHERE t."email" = '${SEED.company.email}'
-     ON CONFLICT ("id") DO NOTHING;`,
-  ], { stdio: 'ignore' })
+     ON CONFLICT ("id") DO NOTHING;`)
 }
 
 // Invitaciones visibles en Configuración → Equipo (issue #54). Se recrean en
@@ -149,11 +155,7 @@ async function ensureInvitations() {
      WHERE t."email" = '${SEED.company.email}' AND EXISTS (SELECT 1 FROM "User" u WHERE u."tenantId" = t."id" AND u."role" = 'ADMIN');`
   ).join(' ')
   try {
-    execFileSync(`${PG_BIN}/psql`, [
-      '-h', '127.0.0.1', '-p', process.env.MOBOS_E2E_PGPORT || '5439', '-U', 'postgres', '-d', process.env.MOBOS_E2E_DB || 'mobos_e2e',
-      '-v', 'ON_ERROR_STOP=1',
-      '-c', `DELETE FROM "UserInvitation" WHERE "id" IN (${idList}); ${inserts}`,
-    ], { stdio: 'ignore' })
+    psql(`DELETE FROM "UserInvitation" WHERE "id" IN (${idList}); ${inserts}`)
   } catch (error) {
     console.warn('[e2e] no se pudieron sembrar las invitaciones:', error?.message || error)
   }
@@ -203,18 +205,10 @@ async function ensureDeliveryOrder(ctx, sellerToken, adminToken) {
   // El repartidor de prueba ve UN solo pedido (el sembrado): lo que quedó
   // asignado de corridas anteriores se desasigna para que la suite sea
   // determinista (delivery.spec afirma "y solo ese").
-  execFileSync(`${PG_BIN}/psql`, [
-    '-h', '127.0.0.1', '-p', process.env.MOBOS_E2E_PGPORT || '5439', '-U', 'postgres', '-d', process.env.MOBOS_E2E_DB || 'mobos_e2e',
-    '-v', 'ON_ERROR_STOP=1',
-    '-c', `UPDATE "Order" SET "assignedToId" = NULL WHERE "assignedToId" = (SELECT "id" FROM "User" WHERE "email" = '${SEED.repartidor.email}') AND "orderNumber" <> '${SEED.deliveryOrderNumber}';`,
-  ], { stdio: 'ignore' })
+  psql(`UPDATE "Order" SET "assignedToId" = NULL WHERE "assignedToId" = (SELECT "id" FROM "User" WHERE "email" = '${SEED.repartidor.email}') AND "orderNumber" <> '${SEED.deliveryOrderNumber}';`)
   const existente = (await state.json()).find((row) => row.orderNumber === SEED.deliveryOrderNumber)
   if (existente) {
-    execFileSync(`${PG_BIN}/psql`, [
-      '-h', '127.0.0.1', '-p', process.env.MOBOS_E2E_PGPORT || '5439', '-U', 'postgres', '-d', process.env.MOBOS_E2E_DB || 'mobos_e2e',
-      '-v', 'ON_ERROR_STOP=1',
-      '-c', `DELETE FROM "DeliverySettlement" WHERE "deliveryUserId" = (SELECT "id" FROM "User" WHERE "email" = '${SEED.repartidor.email}'); UPDATE "Order" SET "fulfillmentStatus" = 'PROCESSING', "status" = 'PENDING', "assignedToId" = '${SEED.repartidor.id}' WHERE "orderNumber" = '${SEED.deliveryOrderNumber}'; DELETE FROM "Payment" WHERE "orderId" = (SELECT "id" FROM "Order" WHERE "orderNumber" = '${SEED.deliveryOrderNumber}');`,
-    ], { stdio: 'ignore' })
+    psql(`DELETE FROM "DeliverySettlement" WHERE "deliveryUserId" = (SELECT "id" FROM "User" WHERE "email" = '${SEED.repartidor.email}'); UPDATE "Order" SET "fulfillmentStatus" = 'PROCESSING', "status" = 'PENDING', "assignedToId" = '${SEED.repartidor.id}' WHERE "orderNumber" = '${SEED.deliveryOrderNumber}'; DELETE FROM "Payment" WHERE "orderId" = (SELECT "id" FROM "Order" WHERE "orderNumber" = '${SEED.deliveryOrderNumber}');`)
     return
   }
   const created = await ctx.post('/api/orders', {
@@ -394,10 +388,7 @@ export default async function globalSetup() {
   // La base persistente es compartida entre worktrees: otra sesión puede
   // cambiar la contraseña de la empresa seed. Se re-afirma en cada corrida.
   try {
-    execFileSync(`${PG_BIN}/psql`, [
-      '-h', '127.0.0.1', '-p', '5439', '-U', 'postgres', '-d', 'mobos_e2e',
-      '-c', `UPDATE "Tenant" SET "passwordHash" = '$2b$12$IOfxzCWNHr64ronQliOU/uiiEFczir16Epz.VIPdI.F1diPIhRNhm', "failedLoginAttempts" = 0, "lockedUntil" = NULL WHERE "email" = '${SEED.company.email}' AND "passwordHash" IS NOT NULL;`,
-    ], { stdio: 'ignore' })
+    psql(`UPDATE "Tenant" SET "passwordHash" = '$2b$12$IOfxzCWNHr64ronQliOU/uiiEFczir16Epz.VIPdI.F1diPIhRNhm', "failedLoginAttempts" = 0, "lockedUntil" = NULL WHERE "email" = '${SEED.company.email}' AND "passwordHash" IS NOT NULL;`)
   } catch {
     // Sin base no hay nada que restaurar; el seed completo lo resuelve.
   }
@@ -407,10 +398,7 @@ export default async function globalSetup() {
   // Se marcan INACTIVE (no se borran: conservan auditoría y FKs). Los
   // vendedores del seed se reconocen por su email y quedan excluidos.
   try {
-    execFileSync(`${PG_BIN}/psql`, [
-      '-h', '127.0.0.1', '-p', process.env.MOBOS_E2E_PGPORT || '5439', '-U', 'postgres', '-d', process.env.MOBOS_E2E_DB || 'mobos_e2e',
-      '-c', `UPDATE "User" SET status = 'INACTIVE' WHERE (name LIKE 'Vendedor E2E%' OR name LIKE 'Integrante E2E%') AND email IS NULL;`,
-    ], { stdio: 'ignore' })
+    psql(`UPDATE "User" SET status = 'INACTIVE' WHERE (name LIKE 'Vendedor E2E%' OR name LIKE 'Integrante E2E%') AND email IS NULL;`)
   } catch {
     // Si el prune falla, la suite sigue: el seed propio no depende de esto.
   }
@@ -418,10 +406,7 @@ export default async function globalSetup() {
   // por empresa (20 activos) hacía fallar la creación con 429 en la corrida
   // siguiente (visto sin retries, #245). Se revocan todos antes de sembrar.
   try {
-    execFileSync(`${PG_BIN}/psql`, [
-      '-h', '127.0.0.1', '-p', process.env.MOBOS_E2E_PGPORT || '5439', '-U', 'postgres', '-d', process.env.MOBOS_E2E_DB || 'mobos_e2e',
-      '-c', `UPDATE "PrintBridge" SET "revokedAt" = CURRENT_TIMESTAMP WHERE "revokedAt" IS NULL AND "tenantId" = (SELECT "id" FROM "Tenant" WHERE "email" = '${SEED.company.email}' LIMIT 1);`,
-    ], { stdio: 'ignore' })
+    psql(`UPDATE "PrintBridge" SET "revokedAt" = CURRENT_TIMESTAMP WHERE "revokedAt" IS NULL AND "tenantId" = (SELECT "id" FROM "Tenant" WHERE "email" = '${SEED.company.email}' LIMIT 1);`)
   } catch {
     // Si el prune falla, la suite sigue: el seed propio no depende de esto.
   }

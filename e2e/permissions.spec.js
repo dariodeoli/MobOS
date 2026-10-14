@@ -3,7 +3,7 @@ import { shellCatalog } from './helpers/shell-navigation.js'
 // Reads the actual nav logic of PanelVendedor.jsx (SELLER_NAV vs OWNER_NAV),
 // SoloPropietario in App.jsx, and the single-redirect vista guard.
 
-import { test, expect } from '@playwright/test'
+import { test, expect } from './helpers/seller-test.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 

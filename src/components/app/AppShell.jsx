@@ -11,6 +11,7 @@ import PanelNotificaciones from '@/components/app/PanelNotificaciones'
 import ComoFuncionaDemo from '@/components/app/ComoFuncionaDemo'
 import PanelColaOffline from '@/components/ventas/PanelColaOffline'
 import SectionTabs from '@/components/app/SectionTabs'
+import { claveBadge, useBadgesPestanas } from '@/lib/badgesPestanas'
 import PageHeader from '@/components/app/PageHeader'
 import { RecordSlotContext } from '@/components/app/RecordHeader'
 import { SegmentosToolbarContext } from '@/components/app/SegmentosToolbar'
@@ -129,6 +130,7 @@ export default function AppShell({
   const sections = shellNavigation(nav)
   const currentSection = activeShellSection(sections, active)
   const contextGroups = shellContextGroups(currentSection)
+  const badgesPestanas = useBadgesPestanas()
   const currentGroup = contextGroups.find(group => group.items.some(([id]) => id === active))
   const currentId = currentSection?.id
   const segments = shellSegments(currentGroup)
@@ -292,7 +294,7 @@ export default function AppShell({
     <SectionTabs
       testId="shell-contexto"
       label={`Secciones de ${currentSection.label}`}
-      items={groupTabs}
+      items={groupTabs.map(group => ({ ...group, badge: badgesPestanas[claveBadge(currentSection.id, group.id)], badgeLabel: 'pendientes' }))}
       value={currentGroup?.id}
       onChange={id => navegar(contextGroups.find(group => group.id === id).items[0][0])}
     />
