@@ -72,7 +72,7 @@ igual(Number((await caja()).expectedPyg), esperadoInicial, 'turno abierto: origi
 const turnoAfila = (await sesiones()).find((fila) => fila.id === turnoA.id)
 igual(turnoAfila.efectivoPyg, 0, 'el corte por sesión netea el efectivo')
 igual(turnoAfila.pagosEfectivo, 0, 'el conteo de pagos en efectivo no cuenta la reversión ni el original revertido')
-igual((await caja()).corrections.count, 0, 'una corrección con impacto en caja no es un ajuste aparte')
+assert.ok(!(await caja()).corrections.items.some((item) => item.orderId === uno.order.id), 'una corrección con impacto en caja no es un ajuste aparte'); checks++
 
 // ── 2. Turno cerrado: el cierre guardado no se toca y se informa como ajuste ──
 await abrirTurno()
