@@ -54,10 +54,14 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
+-- Session es una tabla caliente: el FK entra NOT VALID (sin escanear ni bloquear
+-- por mucho tiempo en el arranque) y se valida aparte. Re-ejecutable: VALIDATE
+-- sobre un FK ya válido no hace nada.
 DO $$ BEGIN
-  ALTER TABLE "Session" ADD CONSTRAINT "Session_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "Account"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  ALTER TABLE "Session" ADD CONSTRAINT "Session_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "Account"("id") ON DELETE SET NULL ON UPDATE CASCADE NOT VALID;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+ALTER TABLE "Session" VALIDATE CONSTRAINT "Session_accountId_fkey";
 
 -- ── Backfill determinista ──
 -- 1) Una cuenta por identidad de Google.
