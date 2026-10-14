@@ -2,11 +2,13 @@
 // público. Se ejecuta desde backend/tests/run-unit.cjs.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { BUCKETS_SCROLL, bucketScroll, clasificarDispositivo, esBot, normalizarReferente, normalizarRuta, porcentaje, pideNoSerMedido, promedio, validarEvento } from '../lib/site-events'
+import { BUCKETS_SCROLL, bucketScroll, clasificarDispositivo, esBot, leerCuerpoAcotado, normalizarModulo, normalizarReferente, normalizarRuta, porcentaje, pideNoSerMedido, promedio, purgarEventosViejos, resetPurgaParaPruebas, validarEvento } from '../lib/site-events'
+import { globalCapExceeded, resetRateLimitsForTests } from '../lib/rate-limit'
 
 process.env.MOBOS_TRUST_PROXY = 'true'
 process.env.MOBOS_TRACK_MINUTE_MAX = '3'
 process.env.MOBOS_TRACK_DAILY_MAX = '5'
+process.env.MOBOS_TRACK_GLOBAL_MINUTE_MAX = '3'
 const { POST } = require('../app/api/public/track/route.ts')
 
 const UA_PC = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'
@@ -50,7 +52,7 @@ test('helpers: scroll por escalones, ruta segura, referente sin ruta, bots, DNT,
   assert.deepEqual([0, 10, 25, 49, 50, 76, 100, 250].map(bucketScroll), [0, 0, 25, 25, 50, 75, 100, 100])
   assert.equal(bucketScroll('x'), null)
   assert.deepEqual([...BUCKETS_SCROLL], [0, 25, 50, 75, 100])
-  assert.equal(normalizarRuta('/demo/ventas?a=b'), '/demo/ventas')
+  assert.equal(normalizarRuta('/demo/ventas?a=b'), '/demo')
   assert.equal(normalizarRuta('javascript:alert(1)'), null)
   assert.equal(normalizarRuta('/<script>'), null)
   assert.equal(normalizarReferente('https://l.facebook.com/l.php?u=secreto'), 'l.facebook.com')
@@ -93,4 +95,81 @@ test('endpoint: límite por minuto y cupo diario por IP (429 con Retry-After), c
   assert.deepEqual(estados, [204, 204, 204, 429, 429, 429])
   assert.ok(retry > 0)
   assert.equal((await enviar('203.0.113.51', '{')).status, 204)
+})
+
+test('cardinalidad: ruta y módulo de lista cerrada, utm acotado', () => {
+  assert.equal(normalizarRuta('/'), '/')
+  assert.equal(normalizarRuta('/pos/abc123/9?x=1'), '/pos')
+  assert.equal(normalizarRuta('/privacidad'), '/privacidad')
+  assert.equal(normalizarRuta('/ruta-inventada-' + 'x'.repeat(50)), 'otras')
+  assert.equal(normalizarRuta('/u/serial-123'), 'otras')
+  assert.equal(normalizarModulo('pos'), 'pos')
+  assert.equal(normalizarModulo('modulo-raro-123'), 'otras')
+  assert.equal(normalizarModulo(''), null)
+  assert.equal(validarEvento({ ...valido, path: '/zzz/' + Math.random() }, UA_PC)!.path, 'otras')
+  assert.equal(validarEvento({ ...valido, utmSource: 'a.b' }, UA_PC)!.utmSource, null)
+  assert.equal(validarEvento({ ...valido, utmSource: 'x'.repeat(41) }, UA_PC)!.utmSource, 'x'.repeat(40), 'se trunca a 40')
+  assert.equal(validarEvento({ ...valido, utmSource: 'Meta_ads-1' }, UA_PC)!.utmSource, 'meta_ads-1')
+  assert.equal(validarEvento({ name: 'demo_view', kind: 'demo', visitorId: ID, module: 'inventado' }, UA_PC)!.module, 'otras')
+  assert.equal(normalizarReferente('https://' + 'a'.repeat(90) + '.com/'), null)
+})
+
+test('leerCuerpoAcotado: corta por stream aunque no haya content-length (chunked)', async () => {
+  const chunk = new TextEncoder().encode('x'.repeat(1000))
+  let enviados = 0
+  const stream = new ReadableStream<Uint8Array>({ pull(c) { enviados += 1; if (enviados > 50) c.close(); else c.enqueue(chunk) } })
+  const req = new Request('https://api.example.test/x', { method: 'POST', body: stream, duplex: 'half' } as RequestInit)
+  assert.equal(req.headers.get('content-length'), null)
+  assert.equal(await leerCuerpoAcotado(req), null)
+  assert.ok(enviados < 10, 'no se consume todo el stream')
+  assert.equal(await leerCuerpoAcotado(new Request('https://api.example.test/x', { method: 'POST', body: 'hola' })), 'hola')
+  const r = await enviar('198.51.100.77', '', { 'content-length': '' })
+  assert.equal(r.status, 204)
+  const grande = new Request('https://api.example.test/api/public/track', { method: 'POST', headers: { 'user-agent': UA_PC, 'x-forwarded-for': '198.51.100.78' }, body: new ReadableStream<Uint8Array>({ start(c) { c.enqueue(new TextEncoder().encode('x'.repeat(3000))); c.close() } }), duplex: 'half' } as RequestInit)
+  assert.equal((await POST(grande)).status, 413)
+})
+
+test('sin IP de confianza: tope global por proceso, 204 sin insertar', async () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { prisma } = require('../lib/prisma')
+  const original = prisma.siteEvent.create
+  let insertados = 0
+  prisma.siteEvent.create = async () => { insertados += 1; return {} }
+  const originalDelete = prisma.siteEvent.deleteMany
+  prisma.siteEvent.deleteMany = async () => ({ count: 0 })
+  const proxy = process.env.MOBOS_TRUST_PROXY
+  delete process.env.MOBOS_TRUST_PROXY
+  resetRateLimitsForTests()
+  try {
+    const estados: number[] = []
+    for (let i = 0; i < 6; i += 1) estados.push((await enviar('198.51.100.90', JSON.stringify(valido))).status)
+    assert.deepEqual(estados, [204, 204, 204, 204, 204, 204], 'nunca rompe la landing')
+    assert.equal(insertados, 3, 'solo caben 3 por minuto en todo el proceso')
+    // Con IP de confianza el tope global no aplica (rige el límite por IP).
+    process.env.MOBOS_TRUST_PROXY = 'true'
+    await enviar('198.51.100.91', JSON.stringify(valido))
+    assert.equal(insertados, 4)
+  } finally {
+    prisma.siteEvent.create = original
+    prisma.siteEvent.deleteMany = originalDelete
+    if (proxy === undefined) delete process.env.MOBOS_TRUST_PROXY
+    else process.env.MOBOS_TRUST_PROXY = proxy
+    resetRateLimitsForTests()
+  }
+  assert.equal(globalCapExceeded('otra', 1, 1000), false)
+  assert.equal(globalCapExceeded('otra', 1, 1000), true)
+  resetRateLimitsForTests()
+})
+
+test('retención: borra eventos de más de 90 días como mucho una vez por día', async () => {
+  resetPurgaParaPruebas()
+  const llamadas: Date[] = []
+  const db = { siteEvent: { deleteMany: async (a: { where: { createdAt: { lt: Date } } }) => { llamadas.push(a.where.createdAt.lt); return { count: 7 } } } }
+  const t0 = Date.UTC(2027, 0, 20)
+  assert.equal(await purgarEventosViejos(db, t0), 7)
+  assert.equal(llamadas[0].getTime(), t0 - 90 * 86_400_000)
+  assert.equal(await purgarEventosViejos(db, t0 + 3_600_000), null, 'ya corrió hoy')
+  assert.equal(await purgarEventosViejos(db, t0 + 25 * 3_600_000), 7)
+  assert.equal(llamadas.length, 2)
+  resetPurgaParaPruebas()
 })

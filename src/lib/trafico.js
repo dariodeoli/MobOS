@@ -6,16 +6,25 @@
 const CLAVE_VISITANTE = 'mobos:vid'
 
 // ── Puro (probado en trafico.test.js) ──────────────────────────────────────
+// Módulos conocidos de la demo (el servidor valida contra la misma lista:
+// backend/lib/site-events.ts → MODULOS_DEMO; lo demás se mide como «otras»).
+export const MODULOS_DEMO = [
+  'inicio', 'pos', 'ventas', 'pedidos', 'delivery', 'clientes', 'productos', 'promociones', 'precios', 'abastecimiento',
+  'compras-centro', 'preparacion', 'preparar-lote', 'recepcion', 'metricas', 'cotizaciones', 'plantillas', 'trade-in',
+  'compras', 'servicio', 'garantias', 'autorizaciones', 'resumen', 'configuracion', 'ayuda', 'mi-cuenta', 'analisis',
+  'finanzas', 'stock', 'inventario', 'control', 'celulares', 'comparador', 'centro-control', 'tradein',
+]
+
 export function moduloDeRuta(pathname) {
   const segmento = String(pathname || '').split(/[?#]/)[0].split('/').filter(Boolean)[0] || 'inicio'
-  const limpio = segmento.toLowerCase().replace(/[^a-z0-9-]/g, '')
-  return limpio.slice(0, 40) || 'inicio'
+  const limpio = segmento.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40)
+  return MODULOS_DEMO.includes(limpio) ? limpio : 'otras'
 }
 
 export function utmDeBusqueda(search) {
   try {
     const valor = new URLSearchParams(search || '').get('utm_source')
-    const limpio = (valor || '').trim().toLowerCase().replace(/[^a-z0-9_.-]/g, '').slice(0, 40)
+    const limpio = (valor || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40)
     return limpio || null
   } catch { return null }
 }

@@ -10,6 +10,21 @@ export const DISPOSITIVOS = ['mobile', 'tablet', 'desktop'] as const
 export const MAX_CUERPO_BYTES = 2048
 export const MAX_DURACION_SEG = 4 * 3600
 export const BUCKETS_SCROLL = [0, 25, 50, 75, 100] as const
+export const RETENCION_DIAS = 90
+export const OTRAS = 'otras'
+
+// Listas cerradas (acotan la cardinalidad de la tabla: lo que no está acá se
+// guarda como «otras»). Mantener alineadas con las rutas de src/App.jsx.
+// Rutas públicas de la landing + primer tramo de cada pantalla de la demo.
+export const MODULOS_DEMO = [
+  'inicio', 'pos', 'ventas', 'pedidos', 'delivery', 'clientes', 'productos', 'promociones', 'precios', 'abastecimiento',
+  'compras-centro', 'preparacion', 'preparar-lote', 'recepcion', 'metricas', 'cotizaciones', 'plantillas', 'trade-in',
+  'compras', 'servicio', 'garantias', 'autorizaciones', 'resumen', 'configuracion', 'ayuda', 'mi-cuenta', 'analisis',
+  'finanzas', 'stock', 'inventario', 'control', 'celulares', 'comparador', 'centro-control', 'tradein',
+] as const
+export const RUTAS_LANDING = ['status', 'privacidad', 'terminos', 'login', 'demo', 'registro', 'registrarse', 'crear-cuenta'] as const
+const TRAMOS_PERMITIDOS: ReadonlySet<string> = new Set<string>([...RUTAS_LANDING, ...MODULOS_DEMO.filter(m => m !== 'inicio')])
+const MODULOS_SET: ReadonlySet<string> = new Set<string>(MODULOS_DEMO)
 
 export type EventoSitio = {
   kind: (typeof TIPOS_PERMITIDOS)[number]
@@ -57,7 +72,7 @@ export function normalizarReferente(valor: unknown): string | null {
   if (typeof valor !== 'string' || !valor.trim()) return null
   try {
     const host = new URL(valor.trim()).hostname.toLowerCase().replace(/^www\./, '')
-    return /^[a-z0-9.-]{1,80}$/.test(host) ? host : null
+    return host.length <= 80 && /^[a-z0-9.-]+$/.test(host) ? host : null
   } catch {
     return null
   }
@@ -69,11 +84,25 @@ function textoCorto(valor: unknown, patron: RegExp, max: number): string | null 
   return limpio && patron.test(limpio) ? limpio : null
 }
 
-/** Ruta sin query ni hash; null si no es una ruta segura. */
+/**
+ * Ruta sin query ni hash, reducida a su primer tramo si es conocido
+ * («/pos/abc/123» → «/pos»); cualquier otra ruta segura → «otras».
+ * null si no es una ruta bien formada.
+ */
 export function normalizarRuta(valor: unknown): string | null {
   if (typeof valor !== 'string') return null
   const ruta = valor.split(/[?#]/)[0].slice(0, 120)
-  return /^\/[A-Za-z0-9/_\-.]*$/.test(ruta) ? ruta : null
+  if (!/^\/[A-Za-z0-9/_\-.]*$/.test(ruta)) return null
+  const tramo = ruta.split('/').filter(Boolean)[0]?.toLowerCase()
+  if (!tramo) return '/'
+  return TRAMOS_PERMITIDOS.has(tramo) ? `/${tramo}` : OTRAS
+}
+
+/** Módulo de la demo: solo los conocidos; el resto → «otras». */
+export function normalizarModulo(valor: unknown): string | null {
+  if (typeof valor !== 'string' || !valor.trim()) return null
+  const m = valor.trim().toLowerCase().slice(0, 40)
+  return MODULOS_SET.has(m) ? m : OTRAS
 }
 
 function entero(valor: unknown, max: number): number | null {
@@ -97,10 +126,10 @@ export function validarEvento(cuerpo: unknown, userAgent: string | null | undefi
     visitorId: b.visitorId,
     path: normalizarRuta(b.path),
     referrer: normalizarReferente(b.referrer),
-    utmSource: textoCorto(b.utmSource, /^[a-z0-9_.\-]+$/, 40),
+    utmSource: textoCorto(b.utmSource, /^[a-z0-9_-]{1,40}$/, 40),
     device: clasificarDispositivo(userAgent),
     role: rol,
-    module: textoCorto(b.module, /^[a-z0-9\-]+$/, 40),
+    module: normalizarModulo(b.module),
     durationSec: nombre === 'engage' || nombre === 'demo_end' ? entero(b.durationSec, MAX_DURACION_SEG) : null,
     scrollPct: nombre === 'engage' ? bucketScroll(b.scrollPct) : null,
   }
@@ -114,4 +143,44 @@ export function promedio(valores: ReadonlyArray<number | null | undefined>): num
 /** Porcentaje con un decimal; null si el total es 0 (nunca inventa un 0 %). */
 export function porcentaje(parte: number, total: number): number | null {
   return total > 0 ? Math.round((parte / total) * 1000) / 10 : null
+}
+
+/**
+ * Lee el cuerpo por stream con tope duro (no confía en content-length: una
+ * petición chunked no lo trae). null = se pasó del tope (se corta la lectura).
+ */
+export async function leerCuerpoAcotado(request: Pick<Request, 'body'>, maxBytes = MAX_CUERPO_BYTES): Promise<string | null> {
+  const stream = request.body
+  if (!stream) return ''
+  const reader = stream.getReader()
+  const partes: Uint8Array[] = []
+  let total = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.byteLength
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => {})
+      return null
+    }
+    partes.push(value)
+  }
+  return new TextDecoder().decode(Buffer.concat(partes))
+}
+
+// Retención: se purgan los eventos con más de RETENCION_DIAS, como mucho una
+// vez por día por proceso (perezoso, lo dispara el propio endpoint).
+let ultimaPurga = 0
+export function resetPurgaParaPruebas() {
+  ultimaPurga = 0
+}
+
+export async function purgarEventosViejos(
+  db: { siteEvent: { deleteMany: (args: { where: { createdAt: { lt: Date } } }) => Promise<{ count: number }> } },
+  ahora = Date.now(),
+): Promise<number | null> {
+  if (ahora - ultimaPurga < 24 * 60 * 60 * 1000) return null
+  ultimaPurga = ahora
+  const { count } = await db.siteEvent.deleteMany({ where: { createdAt: { lt: new Date(ahora - RETENCION_DIAS * 24 * 60 * 60 * 1000) } } })
+  return count
 }
