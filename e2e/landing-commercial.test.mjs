@@ -56,8 +56,8 @@ test('commercial landing: responsive presentation and public contracts', async (
           )
         }
         const copy = (await page.locator('body').innerText()).replace(/\s+/g, ' ')
-        assert.ok(copy.includes('Planes pendientes de confirmación.'))
-        assert.ok(!/USD 10|30 días|50 %|cupón|checkout/.test(copy))
+        assert.ok(copy.includes('Hoy MobOS es gratis.'))
+        assert.ok(!/USD|por mes|Planes pendientes|30 días|50 %|cupón|checkout/.test(copy))
         assert.equal(
           await page.getByRole('link', { name: 'Ver el portal de la demo' }).getAttribute('href'),
           'https://app.moboss.online/cuenta/demo-demo-cliente-lucia-rapido',

@@ -22,7 +22,7 @@ const CONTENIDO = {
     titulo: 'Términos',
     intro: 'Condiciones básicas del servicio.',
     bloques: [
-      ['Servicio', 'MobOS es un sistema de gestión para tiendas, ofrecido por suscripción (USD 10 por mes, sin permanencia) con actualizaciones y soporte incluidos.'],
+      ['Servicio', 'MobOS es un sistema de gestión para tiendas, gratuito por ahora, con actualizaciones y soporte incluidos. Si en el futuro se introducen planes de pago, se anunciarán con anticipación y nunca se cobrará sin la aceptación explícita del cliente.'],
       ['Tu responsabilidad', 'Cada tienda responde por los datos que carga y por el uso que hace su equipo; las credenciales y los PIN son personales.'],
       ['Documentos', 'Los comprobantes y reportes de MobOS son documentos no fiscales: no reemplazan la facturación electrónica de tu país.'],
       ['Disponibilidad', 'El estado de los servicios se publica en moboss.online/status. Podés dejar el servicio cuando quieras y exportar tus datos.'],
