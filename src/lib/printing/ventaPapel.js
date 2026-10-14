@@ -32,7 +32,12 @@ export function serialesDeItem(item = {}) {
 export const ACENTO_POR_DEFECTO = '#0c8876'
 export function acentoDeEmpresa(tenant = null) {
   const crudo = texto(tenant?.brandColor || tenant?.primaryColor || tenant?.colorMarca)
-  return /^#[0-9a-f]{6}$/i.test(crudo) ? crudo.toLowerCase() : ACENTO_POR_DEFECTO
+  if (!/^#[0-9a-f]{6}$/i.test(crudo)) return ACENTO_POR_DEFECTO
+  // Un acento muy claro no se lee sobre papel blanco ni en escala de grises:
+  // en ese caso se usa el de la app.
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(crudo.slice(i, i + 2), 16))
+  const luminancia = 0.299 * r + 0.587 * g + 0.114 * b
+  return luminancia > 150 ? ACENTO_POR_DEFECTO : crudo.toLowerCase()
 }
 
 // Garantía resumida: los días de las líneas (o del pedido) y, si no hay dato,
