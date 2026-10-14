@@ -36,6 +36,7 @@
 .clientes-f3
   > :is(
     .clientes-f3-header,
+    [data-testid='barra-clientes'],
     .clientes-f3-secciones,
     .clientes-f3-filters,
     .clientes-f3-list,
@@ -49,6 +50,7 @@
 .clientes-f3
   > :is(
     .clientes-f3-header,
+    [data-testid='barra-clientes'],
     .clientes-f3-secciones,
     .clientes-f3-filters,
     .clientes-f3-list,
@@ -62,6 +64,7 @@
 .clientes-f3
   > :is(
     .clientes-f3-header,
+    [data-testid='barra-clientes'],
     .clientes-f3-secciones,
     .clientes-f3-filters,
     .clientes-f3-list,

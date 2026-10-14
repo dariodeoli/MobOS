@@ -351,21 +351,21 @@ export default function Conciliacion() {
           filters={<RangoFechas valor={rango} onChange={cambiarRango} className="[&>button]:h-11 md:[&>button]:h-9" />}
           sort={(
             <>
-              <Select className="w-auto" aria-label="Cuenta" title="Se recuerda tu último filtro" value={filtros.accountId} onChange={(event) => cambiarFiltro('accountId', event.target.value)}>
+              <Select className="w-auto max-w-[14rem]" aria-label="Cuenta" title="Se recuerda tu último filtro" value={filtros.accountId} onChange={(event) => cambiarFiltro('accountId', event.target.value)}>
                 <option value="">Todas las cuentas</option>
                 {(data?.porCuenta || []).filter((fila) => !fila.key.startsWith('metodo:')).map((fila) => <option key={fila.key} value={fila.key}>{fila.label}</option>)}
               </Select>
-              <Select className="w-auto" aria-label="Medio" title="Se recuerda tu último filtro" value={filtros.method} onChange={(event) => cambiarFiltro('method', event.target.value)}>
+              <Select className="w-auto max-w-[14rem]" aria-label="Medio" title="Se recuerda tu último filtro" value={filtros.method} onChange={(event) => cambiarFiltro('method', event.target.value)}>
                 <option value="">Todos los medios</option>
                 {(data?.porMedio || []).map((fila) => <option key={fila.key} value={fila.key}>{medioDe(fila.key)}</option>)}
               </Select>
-              <Select className="w-auto" aria-label="Procesadora" title="Se recuerda tu último filtro" value={filtros.processor} onChange={(event) => cambiarFiltro('processor', event.target.value)}>
+              <Select className="w-auto max-w-[14rem]" aria-label="Procesadora" title="Se recuerda tu último filtro" value={filtros.processor} onChange={(event) => cambiarFiltro('processor', event.target.value)}>
                 <option value="">Todas las procesadoras</option>
                 {(data?.porProcesadora || []).map((fila) => <option key={fila.key} value={fila.key}>{fila.label}</option>)}
               </Select>
             </>
           )}
-          more={esDemo ? <span data-testid="conciliacion-demo" title="Demo: cobros y cuentas ficticios; lotes solo en este navegador." className="inline-flex min-h-7 items-center rounded-full border border-ink-600 bg-ink-800 px-2.5 text-xs text-mute max-sm:hidden">Demo</span> : undefined}
+          more={esDemo ? <span data-testid="conciliacion-demo" className="inline-flex min-h-7 max-w-full items-center truncate rounded-full border border-ink-600 bg-ink-800 px-2.5 text-xs text-mute">Demo: cobros y cuentas ficticios; lotes solo en este navegador.</span> : undefined}
         />
         <Resumen
           resumen={data?.resumen || {}}

@@ -29,6 +29,18 @@ async function enterDemo(page, role = 'Dueño') {
   await expect(page.getByTestId('shell')).toBeVisible()
 }
 
+// Debajo de 640px el orden y la vista (lista/cuadrícula) viven detrás de UN botón
+// «Ordenar / Vista» (#388): se abre solo si está visible (en escritorio no existe).
+// Debajo de 640px cuenta, medio y procesadora viven detrás de UN botón de la
+// barra (#388): se abre solo si está visible (en escritorio los selects están en línea).
+async function abrirFiltrosConciliacion(root) {
+  const alternar = root.getByRole('button', { name: 'Cuenta, medio y procesadora', exact: true })
+  if ((await alternar.count()) && (await alternar.isVisible()) && (await alternar.getAttribute('aria-expanded')) !== 'true') await alternar.click()
+}
+async function abrirOrdenVista(root) {
+  const alternar = root.getByRole('button', { name: 'Ordenar / Vista', exact: true })
+  if ((await alternar.count()) && (await alternar.isVisible()) && (await alternar.getAttribute('aria-expanded')) !== 'true') await alternar.click()
+}
 async function noOverflow(page) {
   expect(
     await page.evaluate(() => ({
@@ -1771,9 +1783,11 @@ for (const width of [320, 390, 768, 860, 861, 1440]) {
       await expect(quick).toContainText('qa@example.invalid')
       await page.keyboard.press('Escape')
       await noOverflow(page)
+      await abrirOrdenVista(root)
       await root.getByRole('button', { name: 'Ver como cuadrícula', exact: true }).click()
       await expect(root.locator('.clientes-f3-grid > li')).toHaveCount(2)
       await noOverflow(page)
+      await abrirOrdenVista(root)
       await root.getByRole('button', { name: 'Ver como lista', exact: true }).click()
       await expect(root.getByTestId('cliente-fila')).toHaveCount(2)
     })
@@ -1799,6 +1813,7 @@ test('F3 Clientes cursor, tenant/page scopes, filters and export contracts', asy
   const queriesBefore = state.queries.length
   await root.getByRole('button', { name: 'Ordenar cliente en pantalla', exact: true }).click()
   expect(state.queries.length).toBe(queriesBefore)
+  await abrirOrdenVista(root)
   await root.getByRole('combobox', { name: 'Ordenar clientes en la tienda' }).selectOption('total')
   await expect.poll(() => state.queries.at(-1)?.orden).toBe('total')
   await root.getByRole('button', { name: 'Con deuda', exact: true }).click()
@@ -1837,7 +1852,8 @@ for (const role of ['ADMIN', 'GERENTE', 'VENDEDOR']) {
     ).toContainText('Resumen de tienda no disponible')
     const tenantCount = root.getByTestId('resumen-clientes').locator('> div').first()
     await expect(tenantCount.locator('.clientes-f3-value')).toHaveText('—')
-    await expect(tenantCount).toContainText('Tienda · 2 en pantalla')
+    await expect(tenantCount).toContainText('2 en pantalla')
+    await expect(tenantCount).toContainText('Tienda')
     if (role === 'VENDEDOR')
       await expect(root.getByRole('navigation', { name: 'Secciones de clientes' })).toHaveCount(0)
     else {
@@ -3131,6 +3147,7 @@ for (const role of ['ADMIN', 'GERENTE', 'CAJERA']) {
       'http://local',
     )
     expect([...request.searchParams.keys()].sort()).toEqual(['from', 'to'])
+    await abrirFiltrosConciliacion(root)
     await root.getByRole('combobox', { name: 'Cuenta', exact: true }).selectOption('qa-account-a')
     await root.getByRole('combobox', { name: 'Medio', exact: true }).selectOption('TRANSFER')
     await root
@@ -3150,6 +3167,7 @@ for (const role of ['ADMIN', 'GERENTE', 'CAJERA']) {
       method: 'TRANSFER',
       processor: 'Procesadora QA',
     })
+    await page.keyboard.press('Escape')
     await root.getByRole('button', { name: 'Limpiar filtros', exact: true }).click()
     await rows.nth(0).getByRole('checkbox').check()
     await rows.nth(1).getByRole('checkbox').check()
@@ -3272,6 +3290,7 @@ test('F5 demo batch and mixed-account rejection stay local without API mutations
     root.getByText('Los pagos del lote deben pertenecer a la misma cuenta.', { exact: true }),
   ).toBeVisible()
   await root.getByRole('button', { name: 'Quitar selección' }).click()
+  await abrirFiltrosConciliacion(root)
   await root.getByRole('combobox', { name: 'Medio', exact: true }).selectOption('CASH')
   await rows.first().getByRole('checkbox').check()
   await root.getByRole('button', { name: 'Conciliar lote', exact: true }).click()
@@ -3311,7 +3330,7 @@ for (const width of [320, 1440]) {
 
 // Bounded correction: full document height, not the component-only height.
 for (const dark of [false, true]) {
-  test(`F5 final document height and readable 2x2 money at 390px ${dark ? 'dark' : 'light'}`, async ({
+  test(`F5 final document height and readable one-line KPI strip money at 390px ${dark ? 'dark' : 'light'}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 })
@@ -3350,46 +3369,32 @@ for (const dark of [false, true]) {
     })
     await mockReconciliation(page)
     await stockTheme(page, 390, dark)
-    const kpis = root.locator('.conciliacion-f5-kpi')
-    await expect(kpis).toHaveCount(4)
+    // #388: la tira de KPI es de UNA línea (≤ 64px) y las cifras salen completas.
+    const kpis = root.getByTestId('conciliacion-resumen').locator('> div')
+    await expect(kpis.first()).toBeVisible()
+    expect(await kpis.count()).toBeGreaterThanOrEqual(4)
     const boxes = await kpis.evaluateAll(nodes =>
       nodes.map(node => ({
         top: node.getBoundingClientRect().top,
+        height: node.getBoundingClientRect().height,
         left: node.getBoundingClientRect().left,
       })),
     )
-    expect(boxes[0].top).toBe(boxes[1].top)
-    expect(boxes[2].top).toBe(boxes[3].top)
-    expect(boxes[2].top).toBeGreaterThan(boxes[0].top)
+    for (const box of boxes) {
+      expect(box.top).toBe(boxes[0].top)
+      expect(box.height).toBeLessThanOrEqual(64)
+    }
     expect(boxes[1].left).toBeGreaterThan(boxes[0].left)
-    await expect(kpis.nth(0).locator('.conciliacion-f5-digits')).toHaveText('100.000.000')
     // El signo va pegado al símbolo («-Gs 100.000.000»); los dígitos quedan enteros.
-    await expect(kpis.nth(3).locator('.conciliacion-f5-digits')).toHaveText('100.000.000')
-    await expect(kpis.nth(3).locator('strong')).toHaveText('-Gs 100.000.000')
-    await writeFile(
-      `${reconciliationOutput}/kpi-stress-390-${dark ? 'dark' : 'light'}-metrics.json`,
-      JSON.stringify(
-        await root.locator('.conciliacion-f5-digits').evaluateAll(nodes =>
-          nodes.map(node => ({
-            text: node.textContent,
-            font: parseFloat(getComputedStyle(node).fontSize),
-            width: node.getBoundingClientRect().width,
-            parent: node.parentElement.clientWidth,
-            scroll: node.parentElement.scrollWidth,
-          })),
-        ),
-        null,
-        2,
-      ),
-    )
-    for (const digit of await root.locator('.conciliacion-f5-digits').all()) {
-      const metric = await digit.evaluate(node => ({
+    await expect(kpis.nth(0).locator('.tabular-nums').first()).toHaveText('Gs 100.000.000')
+    await expect(kpis.nth(3).locator('.tabular-nums').first()).toHaveText('-Gs 100.000.000')
+    for (const cifra of await root.getByTestId('conciliacion-resumen').locator('.tabular-nums').all()) {
+      const metric = await cifra.evaluate(node => ({
         font: parseFloat(getComputedStyle(node).fontSize),
-        width: node.getBoundingClientRect().width,
-        parent: node.parentElement.clientWidth,
+        cut: node.scrollWidth > node.clientWidth + 1,
       }))
-      expect(metric.font).toBeGreaterThanOrEqual(20)
-      expect(metric.width).toBeLessThanOrEqual(metric.parent + 1)
+      expect(metric.font).toBeGreaterThanOrEqual(16)
+      expect(metric.cut).toBe(false)
     }
     for (const control of await root.locator('button, select').all()) {
       if (!(await control.isVisible())) continue
