@@ -13,6 +13,7 @@ model Tenant {
   branchUsages        UserBranchUsage[]
   usageSessions       UsageSession[]
   googleStoreAccesses GoogleStoreAccess[]
+  memberships         TenantMembership[]
   promotions          Promotion[]
   logos                 TenantLogo[]
   paymentAccounts     PaymentAccount[]
@@ -172,6 +173,46 @@ model GoogleStoreAccess {
   @@index([tenantId])
 }
 
+// Multi-empresa (#377): la PERSONA que entra a una o varias empresas. Se
+// identifica por correo (en minúsculas) o por sujeto de Google; ambos son únicos
+// y opcionales. La relación persona ↔ empresa vive en TenantMembership.
+model Account {
+  id            String             @id @default(cuid())
+  email         String?            @unique
+  googleSubject String?            @unique
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  memberships   TenantMembership[]
+  sessions      Session[]
+}
+
+enum MembershipRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+// Pertenencia de una cuenta a una empresa. userId es el perfil (User) de esa
+// persona dentro de ESA empresa; nunca de otra. revokedAt apaga el acceso.
+model TenantMembership {
+  id         String         @id @default(cuid())
+  accountId  String
+  account    Account        @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  tenantId   String
+  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  role       MembershipRole @default(MEMBER)
+  revokedAt  DateTime?
+  lastUsedAt DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@unique([accountId, tenantId])
+  @@index([tenantId])
+  @@index([userId])
+}
+
 // Tokens de recuperación de contraseña de la empresa. Solo se almacena su
 // hash y cada uso invalida todos los tokens anteriores de la misma empresa.
 model PasswordResetToken {
@@ -296,6 +337,7 @@ model Branch {
 }
 
 model User {
+  memberships         TenantMembership[]
   presenceTabs        PresenceTab[]
   webPushSubscriptions WebPushSubscription[]
   webPushEnvios      WebPushEnvio[]
@@ -446,6 +488,9 @@ model Session {
   tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   userId     String?
   user       User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Multi-empresa (#377): cuenta que abrió la sesión. Null en sesiones previas.
+  accountId  String?
+  account    Account?     @relation(fields: [accountId], references: [id], onDelete: SetNull)
   level      SessionLevel @default(COMPANY)
   deviceId   String
   // #300: agente de usuario del dispositivo que abrió la sesión. Permite
@@ -463,6 +508,7 @@ model Session {
   @@index([tenantId, userId])
   @@index([expiresAt])
   @@index([tenantId, reauthenticatedAt])
+  @@index([accountId])
 }
 
 enum SessionLevel {
