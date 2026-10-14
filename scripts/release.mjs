@@ -107,7 +107,8 @@ export function runRelease(args, options = {}) {
         const output = execFileSync(bin, tokens, {
           cwd: root,
           encoding: 'utf8',
-          timeout: 180000,
+          // Builds en una máquina cargada pueden tardar más de 3 min (13-10-2026: 6 min).
+          timeout: Number(env.MOBOS_RELEASE_CMD_TIMEOUT_MS) || 900000,
           maxBuffer: 16 * 1024 * 1024,
           stdio: ['ignore', 'pipe', 'pipe'],
         })
