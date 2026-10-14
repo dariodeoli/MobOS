@@ -695,7 +695,7 @@ test('la composición de módulo y el resumen de métricas son objetos (#256)', 
   assert.match(resumen, /export default function ResumenMetricas\(/)
   assert.match(resumen, /alcance/, 'cada tile declara su alcance')
   for (const [ruta, marca] of [
-    ['components/ventas/SellerCustomers.jsx', /<BarraModulo[\s\S]*?testId="barra-clientes"/],
+    ['components/ventas/SellerCustomers.jsx', /<Toolbar[\s\S]*?testId="barra-clientes"/],
     ['components/ventas/FormularioVenta.jsx', /<BarraModulo[\s\S]*?testId="barra-pos"/],
     ['components/ventas/SellerCatalog.jsx', /<BarraModulo[\s\S]*?testId="barra-productos"/],
     ['components/control/Compras.jsx', /<BarraModulo[\s\S]*?testId="barra-compras"/],

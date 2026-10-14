@@ -39,7 +39,7 @@ export default function DemoBanner({ angosta = false, onComoFunciona, onSalir })
             type="button"
             data-testid="demo-salir"
             onClick={onSalir}
-            className="inline-flex min-h-11 items-center rounded-full bg-bad px-3 text-xs font-semibold text-onbrand hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-bad lg:min-h-7"
+            className="inline-flex min-h-11 min-w-14 items-center justify-center rounded-full bg-bad px-3 text-xs font-semibold text-onbrand hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-bad lg:min-h-7"
           >
             {angosta ? 'Salir' : 'Salir de la demo'}
           </button>

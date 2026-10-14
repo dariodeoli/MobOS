@@ -1697,7 +1697,8 @@ for (const width of [320, 390, 768, 860, 861, 1440]) {
       await expect(row).not.toContainText('qa@example.invalid')
       await expect(root.getByTestId('resumen-clientes')).toContainText('127')
       await expect(root.getByTestId('resumen-clientes')).toContainText('2 en pantalla')
-      await expect(root.getByTestId('barra-clientes').getByRole('button')).toHaveCount(3)
+      // Una sola barra: las acciones (Exportar, Importar, Crear) viven en su hueco.
+      await expect(root.getByTestId('barra-clientes').locator('[data-slot="actions"]').getByRole('button')).toHaveCount(3)
       expect(
         await row.locator('.clientes-f3-identity').evaluate((el) => ({
           text: el.textContent,

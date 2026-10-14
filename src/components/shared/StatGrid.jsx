@@ -1,18 +1,18 @@
 import { cn } from '@/lib/utils'
 
-// Tira de KPI compacta (docs/PANTALLAS.md reglas 1-2): 2 columnas en celular,
-// 3-6 desde md/xl según `columnas`, gap 8-12px, sin celdas vacías (quien arma
-// la tira reparte los tiles con `col-span` para cerrar la última fila).
-const COLUMNAS = {
-  3: 'md:grid-cols-3',
-  4: 'md:grid-cols-4',
-  5: 'md:grid-cols-3 xl:grid-cols-5',
-  6: 'md:grid-cols-3 xl:grid-cols-6',
-}
-
-export default function StatGrid({ children, columnas = 4, testId, className }) {
+// Tira de KPI de UNA línea (#388, docs/PANTALLAS.md reglas 1-2): cada `Stat
+// compact` es «etiqueta + cifra» en línea, ≤ 64px de alto. En escritorio los
+// tiles se reparten el ancho; en celular la tira se desplaza horizontalmente en
+// vez de apilarse en 2×2. `columnas` se conserva solo por compatibilidad.
+export default function StatGrid({ children, testId, className }) {
   return (
-    <div data-testid={testId} className={cn('grid grid-cols-2 gap-2 md:gap-3', COLUMNAS[columnas] || COLUMNAS[4], className)}>
+    <div
+      data-testid={testId}
+      role="group"
+      aria-label="Resumen"
+      tabIndex={0}
+      className={cn('flex min-w-0 items-stretch overflow-x-auto rounded-xl border border-ink-600 bg-ink-800 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', className)}
+    >
       {children}
     </div>
   )
