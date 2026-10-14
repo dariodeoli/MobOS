@@ -12,6 +12,7 @@ import { contextoEtiquetaLote, datosEtiquetaLote } from '@/lib/printing/etiqueta
 import { estadoGarantia, fechaVerificacionInforme } from '@/lib/printing/informeDispositivo'
 import { estadoChecklist, estadoControl, fechaCortaDocumento, fechaHoraDocumento } from '@/lib/printing/certificado'
 import { documentoComprobante } from '@/lib/printing/ventaComprobante'
+import { ACENTO_POR_DEFECTO, acentoDeEmpresa, desgloseVenta, garantiaDeVenta, serialesDeItem } from '@/lib/printing/ventaPapel'
 import JsBarcode from 'jsbarcode'
 import { api } from '@/lib/api/client'
 import { getLogoDataUrl } from '@/lib/tenantLogo'
@@ -210,55 +211,84 @@ export const transferReceiveUrlFor = (token) => {
 
 const THERMAL_WIDTHS = { 'thermal-80': 80, 'thermal-58': 58, 'thermal-55': 55, thermal: 58 }
 const thermalWidth = (format) => THERMAL_WIDTHS[format] || 0
-const styles = (format) => {
+// Sistema de estilos compartido de todas las hojas (#402): una escala
+// tipográfica, grises neutros y un único acento (el color de la marca de la
+// empresa). Legible en blanco y negro: el acento solo marca la regla del
+// encabezado y el tipo de documento; nada depende del color para entenderse.
+const styles = (format, acento = ACENTO_POR_DEFECTO) => {
   const width = thermalWidth(format)
   // Cada formato reserva su propio margen: A4 respira a los lados y arriba/abajo;
   // las térmicas centran la columna en el rollo con padding parejo (el papel
   // suele ser más ancho que el área imprimible real).
   const page = width ? `${width}mm auto` : 'A4'
-  const margin = width ? '5mm 4mm' : '18mm 16mm'
+  const margin = width ? '5mm 4mm' : '16mm 16mm'
   const bodyMax = width ? `${width - 8}mm` : '178mm'
-  const baseFont = width ? '10px/1.45' : '13px/1.6'
-  const brandSize = width ? '12px' : '13px'
+  const baseFont = width ? '10px/1.45' : '12px/1.5'
   const h1Size = width ? '15px' : '20px'
-  const totalSize = width ? '14px' : '16px'
-  const qrSize = width ? `${width === 80 ? 42 : 32}mm` : '42mm'
+  const totalSize = width ? '16px' : '20px'
+  const qrSize = width ? `${width === 80 ? 38 : 32}mm` : '30mm'
   return `
+  :root{--tinta:#111418;--tinta-2:#3b424a;--gris:#666d75;--linea:#d9dde1;--suave:#f3f4f6;--acento:${acento}}
   @page{size:${page};margin:${margin}}
   *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  body{font:${baseFont} ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;margin:0 auto;color:#0f1720;max-width:${bodyMax};padding:${width ? '1mm 0 6mm' : '0 0 4mm'}}
-  .brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:2px solid #0c8876;padding-bottom:8px;margin-bottom:14px}
-  .brand b{font-size:${brandSize};color:#0c8876;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
-  .brand span{font-size:10px;color:#66707a;text-transform:uppercase;letter-spacing:.12em}
+  body{font:${baseFont} ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;margin:0 auto;color:var(--tinta);max-width:${bodyMax};padding:${width ? '1mm 0 6mm' : '0 0 4mm'};font-variant-numeric:tabular-nums}
+  /* Encabezado: empresa a la izquierda, tipo de documento y número a la derecha
+     (en el rollo, apilado y centrado). */
+  .brand{display:flex;flex-direction:${width ? 'column' : 'row'};align-items:${width ? 'center' : 'flex-start'};justify-content:space-between;gap:${width ? '6px' : '18px'};border-bottom:2px solid var(--acento);padding-bottom:${width ? '6px' : '10px'};margin-bottom:${width ? '8px' : '14px'};text-align:${width ? 'center' : 'left'}}
+  .brand .emp{min-width:0}
+  .brand b{display:block;font-size:${width ? '12px' : '15px'};color:var(--tinta);font-weight:800;letter-spacing:.02em}
+  .brand .rz{font-size:${width ? '12px' : '15px'};font-weight:800;line-height:1.25}
+  .brand .sub{font-size:${width ? '9px' : '10.5px'};color:var(--tinta-2);line-height:1.45}
+  .brand .doc{text-align:${width ? 'center' : 'right'};flex:none}
+  .brand .tipo{font-size:${width ? '10px' : '11px'};font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--acento)}
+  .brand .num{font-size:${width ? '17px' : '22px'};font-weight:800;letter-spacing:-.01em;line-height:1.2;margin-top:2px}
+  .brand .cuando{font-size:${width ? '9px' : '10.5px'};color:var(--gris);margin-top:2px}
+  .brand img.logo{display:block;height:${width ? (width === 80 ? '14mm' : '12mm') : '15mm'};max-width:${width ? `${width - 20}mm` : '60mm'};object-fit:contain;margin:0 ${width ? 'auto' : '0'} 5px}
   h1{font-size:${h1Size};margin:0 0 2px;letter-spacing:-.01em}
-  .muted{color:#66707a}
+  .muted{color:var(--gris)}
   .meta{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px;margin:6px 0 0}
-  .card{border:1px solid #e3e8ec;border-radius:10px;padding:10px 12px;margin:10px 0}
-  .card .label{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:#66707a;margin-bottom:4px}
+  /* Secciones: rótulo en versalitas y filete fino, sin cajas redondeadas. */
+  .card{border:0;border-top:1px solid var(--linea);border-radius:0;padding:8px 0 4px;margin:8px 0}
+  .card .label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--gris);margin-bottom:4px}
+  .cols{display:grid;grid-template-columns:${width ? '1fr' : '1fr 1fr'};gap:0 ${width ? '0' : '24px'}}
   table{width:100%;border-collapse:collapse;margin:8px 0}
-  th{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:#66707a;text-align:left;font-weight:600}
-  td,th{padding:6px 0;border-bottom:1px dashed #d5dbe0;vertical-align:top}
-  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  th{font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:var(--gris);text-align:left;font-weight:700;border-bottom:1.5px solid var(--tinta)}
+  td,th{padding:6px 0;border-bottom:1px solid var(--linea);vertical-align:top}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  td.cant,th.cant{text-align:center;white-space:nowrap;width:${width ? 'auto' : '12mm'}}
+  /* IMEI/serie bajo el producto, monoespaciado para leerlo sin errores. */
+  .imei{display:block;font:${width ? '9px' : '10.5px'} ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--tinta-2);letter-spacing:.03em;margin-top:1px}
+  .totals{width:${width ? '100%' : '62%'};margin-left:auto}
   .totals td{border:0;padding:3px 0}
-  .totals tr:last-child td{font-weight:700;font-size:${totalSize};border-top:1px solid #0f1720;padding-top:6px}
-  .totals tr.saldo td{font-weight:800;font-size:${totalSize};color:#000;border-top:1px solid #0f1720;padding-top:6px}
-  .tag{display:inline-block;border:1px solid #0c8876;border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700;color:#0c8876}
-  .brand img.logo{display:block;height:${width ? (width === 80 ? '14mm' : '12mm') : '16mm'};max-width:${width ? `${width - 20}mm` : '70mm'};object-fit:contain;margin:0 auto 4px}
+  .totals tr:last-child td{font-weight:700;font-size:${width ? '13px' : '14px'};border-top:1px solid var(--tinta);padding-top:6px}
+  .totals.venta tr:last-child td{font-weight:400;font-size:inherit;border-top:0;padding-top:3px}
+  .totals tr.total td{font-weight:800;font-size:${totalSize};border-top:2px solid var(--tinta);padding-top:7px;line-height:1.15}
+  .totals tr.saldo td{font-weight:800;font-size:${width ? '12px' : '15px'};border-top:1px solid var(--tinta);padding-top:5px}
+  .pagos td{border:0;padding:2px 0}
+  .it td{border-bottom:0;padding-bottom:0}
+  .tag{display:inline-block;border:1px solid var(--tinta);border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700;color:var(--tinta)}
   .qr{display:block;width:${qrSize};height:${qrSize};margin:10px auto 6px}
-  .small{font-size:10px;word-break:break-all;text-align:center}
-  .nofiscal{border:2px solid #0f1720;padding:6px 8px;text-align:center;font-weight:800;letter-spacing:.05em;font-size:${width ? '10px' : '11px'};margin:12px 0}
+  .small{font-size:9px;word-break:break-all;text-align:center;color:var(--gris)}
+  /* Pie: condiciones y garantía a la izquierda, QR a la derecha (A4). */
+  .pie-doc{display:flex;flex-direction:${width ? 'column' : 'row'};align-items:${width ? 'center' : 'flex-end'};justify-content:space-between;gap:14px;border-top:1px solid var(--linea);margin-top:12px;padding-top:10px;break-inside:avoid}
+  .pie-doc .condiciones{font-size:10px;color:var(--tinta-2);line-height:1.5;flex:1}
+  .pie-doc .condiciones strong{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.14em;color:var(--gris);margin-bottom:2px}
+  .pie-doc .qrbox{text-align:center;flex:none}
+  .pie-doc .qr{margin:0 auto 3px;width:${width ? qrSize : '28mm'};height:${width ? qrSize : '28mm'}}
+  .pie-doc .small{max-width:${width ? '100%' : '34mm'}}
+  .nofiscal{border:1px solid var(--tinta);padding:5px 8px;text-align:center;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:${width ? '9px' : '10px'};margin:12px 0}
   .firmas{display:flex;flex-wrap:wrap;gap:${width ? '12px 0' : '22px 26px'};margin:24px 0 6px;font-size:11px}
   /* Espacio real para firmar a mano (#206): 18 mm libres arriba de la línea.
      Los campos de aclaración, CI y fecha quedan debajo, con aire. En el rollo
      cada firma ocupa la columna completa (rol + campos en líneas cortas). */
-  .firma{flex:1 1 ${width ? '100%' : '44%'};min-width:${width ? '0' : '72mm'};border-top:1px solid #0f1720;padding-top:18mm}
-  .firma .rol{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#66707a;margin-bottom:3mm}
-  .firma .campos{color:#333;padding:2mm 0;border-bottom:1px dotted #9aa4ad}
-  .observaciones{margin:14px 0 8px;border:1px solid #e3e8ec;border-radius:10px;padding:10px 12px}
-  .observaciones .label{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:#66707a}
+  .firma{flex:1 1 ${width ? '100%' : '44%'};min-width:${width ? '0' : '72mm'};border-top:1px solid var(--tinta);padding-top:18mm}
+  .firma .rol{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gris);margin-bottom:3mm}
+  .firma .campos{color:var(--tinta-2);padding:2mm 0;border-bottom:1px dotted #9aa4ad}
+  .observaciones{margin:14px 0 8px;border:1px solid var(--linea);border-radius:6px;padding:10px 12px}
+  .observaciones .label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--gris)}
   .observaciones .linea{border-bottom:1px dotted #9aa4ad;height:11mm}
-  footer{margin-top:14px;border-top:1px solid #e3e8ec;padding-top:8px;font-size:10px;color:#66707a;text-align:center}
-  @media print{body{margin:0;color:#000}.muted{color:#222}.card,table,td,th,footer,.brand,.nofiscal,.firma,.observaciones,.firma .campos,.observaciones .linea{border-color:#000}.brand b,.tag,.firma .rol{color:#000}.tag{border-color:#000}}
+  footer{margin-top:12px;border-top:1px solid var(--linea);padding-top:8px;font-size:9.5px;color:var(--gris);text-align:center}
+  @media print{body{margin:0;color:#000}.muted,.brand .cuando,footer,.small,.card .label,th{color:#222}.card,table,td,th,footer,.brand,.nofiscal,.firma,.observaciones,.firma .campos,.observaciones .linea,.pie-doc{border-color:#000}.brand .tipo,.firma .rol{color:#000}.tag{border-color:#000}td{border-bottom-color:#999}}
 `
 }
 
@@ -287,7 +317,15 @@ const firmas = (bloques = [], { observaciones = false, lineasObservaciones = 2, 
 }
 
 
-const header = (title, when, logo = '', marca = '') => `<div class="brand">${logo ? `<img class="logo" src="${logo}" alt="">` : `<b>${escapeHtml(marca || APP_NAME)}</b>`}<span>${escapeHtml(title)}</span></div><h1>${escapeHtml(title)}</h1><p class="muted">${escapeHtml(when)}</p>`
+// Encabezado de toda hoja: bloque de la empresa (logo o nombre, razón social,
+// RUC, sucursal y contacto) y, a la derecha, el tipo de documento con el número
+// destacado. `extra`: `razon`, `lineas` (RUC, dirección, contacto) y `numero`.
+// Sin datos de la empresa, el bloque se reduce al logo o a la marca de la app.
+const header = (title, when, logo = '', marca = '', extra = {}) => {
+  const lineas = (extra.lineas || []).filter(Boolean).map(linea => `<div class="sub">${escapeHtml(linea)}</div>`).join('')
+  const identidad = extra.razon ? `<div class="rz">${escapeHtml(extra.razon)}</div>` : (!logo ? `<b>${escapeHtml(marca || APP_NAME)}</b>` : '')
+  return `<div class="brand"><div class="emp">${logo ? `<img class="logo" src="${logo}" alt="">` : ''}${identidad}${lineas}</div><div class="doc"><h1 class="tipo">${escapeHtml(title)}</h1>${extra.numero ? `<div class="num">${escapeHtml(extra.numero)}</div>` : ''}${when ? `<div class="cuando">${escapeHtml(when)}</div>` : ''}</div></div>`
+}
 const footer = () => `<footer>Conservá este comprobante para cambios y garantía. Documento generado por ${escapeHtml(APP_NAME)}.</footer>`
 
 // Niveles de comprobante y formatos físicos, independientes entre sí.
@@ -370,141 +408,87 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
   const detallado = modelo.cronologia
   const textoEvento = (evento) => evento.type === 'created' ? 'Pedido creado' : evento.type === 'payment' ? `Pago ${gs(evento.amountPyg || 0)}${evento.methodLabel ? ` · ${evento.methodLabel}` : ''}` : `Entrega: ${ESTADO_ENTREGA[evento.metadata?.current] || evento.metadata?.current || 'actualizada'}`
 
-  const documento = order.billingName ? `<div class="card"><div class="label">Factura a</div><div>${escapeHtml(order.billingName)}${order.billingDocument ? ` · RUC ${escapeHtml(order.billingDocument)}` : ''}</div></div>` : ''
+  const termico = Boolean(thermalWidth(format))
+  const desglose = desgloseVenta(order)
+  const acento = acentoDeEmpresa(order.tenant)
+  const nombreItem = (item) => escapeHtml(item.description || item.nombre || 'Producto')
+  const seriales = (item) => serialesDeItem(item).map(serie => `<span class="imei">IMEI/Serie ${escapeHtml(serie)}</span>`).join('')
   const itemsRows = items.map(item => {
     const { ahorro } = ahorroDeLinea(item)
-    return `<tr><td>${escapeHtml(item.description || item.nombre || 'Producto')}${ahorro > 0 ? `<br><span class="muted">descuento − ${escapeHtml(gs(ahorro))}</span>` : ''}</td><td class="num">${escapeHtml(item.quantity || 1)} × ${escapeHtml(gs(item.unitPricePyg ?? item.precio ?? 0))}</td><td class="num">${escapeHtml(gs(item.totalPyg ?? (item.quantity || 1) * (item.unitPricePyg ?? item.precio ?? 0)))}</td></tr>`
+    const cantidad = Number(item.quantity || 1)
+    const unitario = Number(item.unitPricePyg ?? item.precio ?? 0)
+    const lineaTotal = Number(item.totalPyg ?? cantidad * unitario)
+    const detalle = `${nombreItem(item)}${ahorro > 0 ? `<span class="muted"> · descuento − ${escapeHtml(gs(ahorro))}</span>` : ''}${seriales(item)}`
+    // Rollo: nombre arriba y «cantidad × unitario … total» debajo. Hoja: columnas.
+    return termico
+      ? `<tr class="it"><td colspan="2"><strong>${detalle}</strong></td></tr><tr><td class="muted">${escapeHtml(String(cantidad))} × ${escapeHtml(gs(unitario))}</td><td class="num">${escapeHtml(gs(lineaTotal))}</td></tr>`
+      : `<tr><td><strong>${detalle}</strong></td><td class="cant">${escapeHtml(String(cantidad))}</td><td class="num">${escapeHtml(gs(unitario))}</td><td class="num"><strong>${escapeHtml(gs(lineaTotal))}</strong></td></tr>`
   }).join('')
-  const contactoCliente = modelo.clienteContacto && cliente
-    ? `<div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(cliente.name || order.cliente || 'Consumidor final')}</strong>${cliente.document ? ` · ${escapeHtml(cliente.document)}` : ''}${cliente.phone ? `<br>${escapeHtml(cliente.countryCode || '')} ${escapeHtml(cliente.phone)}` : ''}${cliente.email ? `<br>${escapeHtml(cliente.email)}` : ''}${(cliente.addresses || []).map(address => `<br>${escapeHtml([address.address, address.city, address.department, address.country].filter(Boolean).join(', '))}`).join('')}</div></div>`
-    : `<div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(cliente?.name || order.cliente || 'Consumidor final')}</strong></div></div>`
+  const direccionCliente = (cliente?.addresses || []).slice(0, 1).map(address => [address.address, address.city, address.department].filter(Boolean).join(', ')).filter(Boolean)
+  const lineasCliente = [
+    modelo.clienteContacto && cliente?.document ? `Documento ${cliente.document}` : '',
+    modelo.clienteContacto && cliente?.phone ? `${cliente.countryCode || ''} ${cliente.phone}`.trim() : '',
+    modelo.clienteContacto && cliente?.email ? cliente.email : '',
+    ...(modelo.clienteContacto ? direccionCliente : []),
+  ].filter(Boolean)
+  const clienteCard = `<div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(cliente?.name || order.cliente || 'Consumidor final')}</strong>${lineasCliente.map(linea => `<br>${escapeHtml(linea)}`).join('')}</div></div>`
+  const estadoPedido = ESTADO_ENTREGA[order.fulfillmentStatus] || order.fulfillmentStatus || order.deliveryType || order.entrega || 'En preparación'
+  const lineasPedido = [
+    order.billingName ? `Factura a: ${order.billingName}${order.billingDocument ? ` · RUC ${order.billingDocument}` : ''}` : '',
+    modelo.pagos && order.seller?.name ? `Vendedor: ${order.seller.name}` : '',
+    modelo.pagos && (order.deliveryType || order.deliveryNotes) ? `Entrega: ${order.deliveryType || '—'}${order.deliveryNotes ? ` · ${order.deliveryNotes}` : ''}` : '',
+  ].filter(Boolean)
+  const pedidoCard = `<div class="card"><div class="label">Pedido</div><div><strong>${escapeHtml(estadoPedido)}</strong>${lineasPedido.map(linea => `<br>${escapeHtml(linea)}`).join('')}</div></div>`
+  // Encabezado: razón social, RUC, sucursal y contacto en un solo bloque.
   const empresaTenant = order.tenant || null
+  const completaEmpresa = modelo.empresa === 'completa'
   const empresaDireccion = [empresaTenant?.address, empresaTenant?.city, empresaTenant?.department].filter(Boolean).join(', ')
-  const sucursalTexto = [sucursal?.name, sucursal?.address, sucursal?.city, sucursal?.department].filter(Boolean).join(' · ')
-  const redes = modelo.redes ? [empresaTenant?.email, sucursal?.instagram ? `@${sucursal.instagram}` : ''].filter(Boolean).join(' · ') : ''
-  // El comprobante rápido también identifica a la empresa y la sucursal que
-  // vendió; el completo agrega dirección, RUC, contacto y redes.
-  const empresaCard = modelo.empresa === 'completa'
-    ? `<div class="card"><div class="label">Empresa</div><div>${escapeHtml(empresa || APP_NAME)}${empresaTenant?.ruc ? ` · RUC ${escapeHtml(empresaTenant.ruc)}` : ''}${empresaDireccion ? `<br>${escapeHtml(empresaDireccion)}` : ''}${empresaTenant?.phone ? `<br>${escapeHtml(empresaTenant.phone)}` : ''}${sucursal?.name || sucursal?.address || sucursal?.city ? `<br>${escapeHtml(sucursalTexto)}` : ''}${sucursal?.phone ? `<br>${escapeHtml(sucursal.phone)}` : ''}${order.seller?.name ? `<br>Vendedor: ${escapeHtml(order.seller.name)}` : ''}${redes ? `<br>${escapeHtml(redes)}` : ''}</div></div>`
-    : modelo.empresa === 'compacta'
-      ? `<div class="card"><div class="label">Empresa</div><div>${escapeHtml([empresa || APP_NAME, sucursal?.name].filter(Boolean).join(' · '))}</div></div>`
-      : ''
-  const metodoPago = [...new Set(pagosConfirmados.map(payment => ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago'))].join(' · ')
+  const sucursalTexto = [sucursal?.name, completaEmpresa ? sucursal?.address : '', completaEmpresa ? sucursal?.city : ''].filter(Boolean).join(' · ')
+  const contacto = [sucursal?.phone || empresaTenant?.phone, completaEmpresa ? empresaTenant?.email : '', completaEmpresa && modelo.redes && sucursal?.instagram ? `@${sucursal.instagram}` : ''].filter(Boolean).join(' · ')
+  const lineasEmpresa = [
+    empresaTenant?.ruc ? `RUC ${empresaTenant.ruc}` : '',
+    completaEmpresa ? empresaDireccion : '',
+    sucursalTexto,
+    contacto,
+  ]
+  const cuando = when ? new Date(when).toLocaleString('es-PY') : ''
+  const metodoPago = [...new Set(desglose.confirmados.map(payment => ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago'))].join(' · ')
   const pagosRows = modelo.pagos && pagosConfirmados.length
-    ? `<div class="card"><div class="label">Pagos</div><table class="totals">${pagosConfirmados.map(payment => `<tr><td>${escapeHtml(ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago')}${completo && (payment.reference || payment.cuenta || payment.accountSnapshot?.name) ? ` · ${escapeHtml(payment.reference || payment.cuenta || payment.accountSnapshot.name)}` : ''}${detallado && (payment.paidAt || payment.createdAt) ? `<br><span class="muted">${escapeHtml(new Date(payment.paidAt || payment.createdAt).toLocaleString('es-PY'))}</span>` : ''}</td><td class="num">${escapeHtml(gs(payment.amountPyg ?? payment.monto ?? 0))}</td></tr>`).join('')}</table></div>`
+    ? `<div class="card"><div class="label">Pago</div><table class="pagos">${pagosConfirmados.map(payment => `<tr><td>${escapeHtml(ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago')}${completo && (payment.reference || payment.cuenta || payment.accountSnapshot?.name) ? ` · ${escapeHtml(payment.reference || payment.cuenta || payment.accountSnapshot.name)}` : ''}${detallado && (payment.paidAt || payment.createdAt) ? `<br><span class="muted">${escapeHtml(new Date(payment.paidAt || payment.createdAt).toLocaleString('es-PY'))}</span>` : ''}</td><td class="num">${escapeHtml(gs(payment.amountPyg ?? payment.monto ?? 0))}</td></tr>`).join('')}</table></div>`
     : ''
   const credito = modelo.credito && Number(order.creditDays || 0) > 0
     ? `<p><span class="tag">A crédito · ${escapeHtml(String(order.creditDays))} días${order.dueAt ? ` · vence ${escapeHtml(new Date(order.dueAt).toLocaleDateString('es-PY'))}` : ''}</span></p>`
     : ''
   const cronologia = modelo.cronologia && Array.isArray(order.timeline) && order.timeline.length
-    ? `<div class="card"><div class="label">Cronología</div><table class="totals">${order.timeline.map(evento => `<tr><td>${escapeHtml(textoEvento(evento))}</td><td class="num">${escapeHtml(new Date(evento.at).toLocaleString('es-PY'))}</td></tr>`).join('')}</table></div>`
-    : ''
-  const entregaNotas = completo && (order.deliveryType || order.deliveryNotes)
-    ? `<p class="muted">Entrega: ${escapeHtml(order.deliveryType || '—')}${order.deliveryNotes ? ` · ${escapeHtml(order.deliveryNotes)}` : ''}</p>`
+    ? `<div class="card"><div class="label">Cronología</div><table class="pagos">${order.timeline.map(evento => `<tr><td>${escapeHtml(textoEvento(evento))}</td><td class="num">${escapeHtml(new Date(evento.at).toLocaleString('es-PY'))}</td></tr>`).join('')}</table></div>`
     : ''
   const logo = await getLogoDataUrl()
+  const textoQr = level === 'rapido' ? 'Seguimiento' : level === 'completo' ? 'Comprobante y seguimiento' : 'Comprobante detallado'
+  const fila = (rotulo, valor, clase = '') => `<tr${clase ? ` class="${clase}"` : ''}><td>${escapeHtml(rotulo)}</td><td class="num">${valor}</td></tr>`
+  const columnas = termico ? '' : '<thead><tr><th>Producto</th><th class="cant">Cant.</th><th class="num">Precio</th><th class="num">Total</th></tr></thead>'
 
-  // ── Rollo de 58 mm: diseño vertical propio ──────────────────────────────
-  // Una sola columna, productos uno debajo del otro con cantidad × precio,
-  // total destacado, QR escaneable y alto dinámico (`size:58mm auto`). No es el
-  // A4 encogido: la jerarquía y los tamaños están pensados para el papel.
-  if (format === 'thermal-58' || format === 'thermal-55') {
-    const lineas = items.map(item => {
-      const { ahorro } = ahorroDeLinea(item)
-      const cantidad = Number(item.quantity || 1)
-      const unitario = Number(item.unitPricePyg ?? item.precio ?? 0)
-      const lineaTotal = Number(item.totalPyg ?? cantidad * unitario)
-      return `<div class="item"><div class="name">${escapeHtml(item.description || item.nombre || 'Producto')}</div><div class="row"><span>${escapeHtml(String(cantidad))} × ${escapeHtml(gs(unitario))}</span><span>${escapeHtml(gs(lineaTotal))}</span></div>${ahorro > 0 ? `<div class="row muted"><span>descuento</span><span>− ${escapeHtml(gs(ahorro))}</span></div>` : ''}</div>`
-    }).join('')
-    const pagos58 = modelo.pagos && pagosConfirmados.length
-      ? `<div class="sep"></div><div>Pagos</div>${pagosConfirmados.map(payment => `<div class="row"><span>${escapeHtml(ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago')}${payment.reference || payment.accountSnapshot?.name ? ` · ${escapeHtml(payment.reference || payment.accountSnapshot.name)}` : ''}</span><span>${escapeHtml(gs(payment.amountPyg ?? payment.monto ?? 0))}</span></div>`).join('')}`
-      : ''
-    const credito58 = modelo.credito && Number(order.creditDays || 0) > 0
-      ? `<div class="row"><span>A crédito</span><span>${escapeHtml(String(order.creditDays))} días${order.dueAt ? ` · vence ${escapeHtml(new Date(order.dueAt).toLocaleDateString('es-PY'))}` : ''}</span></div>`
-      : ''
-    const cronologia58 = modelo.cronologia && Array.isArray(order.timeline) && order.timeline.length
-      ? `<div class="sep"></div><div>Cronología</div>${order.timeline.map(evento => `<div class="row"><span>${escapeHtml(textoEvento(evento))}</span><span class="muted">${escapeHtml(new Date(evento.at).toLocaleDateString('es-PY'))}</span></div>`).join('')}`
-      : ''
-    return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ${escapeHtml(order.orderNumber || order.codigo || '')}</title><style>
-  @page{size:58mm auto;margin:3mm}
-  *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  body{font:11px/1.4 ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;color:#000;width:52mm;margin:0 auto;padding:0 0 4mm}
-  .center{text-align:center}
-  .muted{color:#333}
-  .row{display:flex;justify-content:space-between;gap:6px}
-  .sep{border-top:1px dashed #000;margin:6px 0}
-  h1{font-size:14px;margin:2px 0;text-align:center}
-  .brand{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;text-align:center;margin-top:2px}
-  .brand img{display:block;height:12mm;max-width:44mm;object-fit:contain;margin:0 auto 3px}
-  .item{margin:5px 0}
-  .item .name{font-weight:700}
-  .total{border-top:2px solid #000;margin-top:5px;padding-top:4px;align-items:baseline}
-  .total span:first-child{font-weight:800}
-  .total span:last-child{font-size:18px;font-weight:800}
-  .qr{display:block;width:34mm;height:34mm;margin:6px auto 3px}
-  .small{font-size:9px;word-break:break-all;text-align:center}
-  .nofiscal{border:2px solid #000;text-align:center;font-weight:800;font-size:10px;padding:4px;margin:6px 0}
-  @media print{body{margin:0}}
-  </style></head><body class="t58">
-    ${logo ? `<div class="brand"><img src="${logo}" alt=""></div>` : ''}
-    <div class="brand">${escapeHtml(empresa || APP_NAME)}</div>
-    ${sucursal?.name ? `<div class="center">${escapeHtml(sucursal.name)}</div>` : ''}
-    <h1>Comprobante de compra</h1>
-    <div class="center">${escapeHtml(order.orderNumber || order.codigo || 'Pedido')}</div>
-    <div class="center muted">${when ? escapeHtml(new Date(when).toLocaleString('es-PY')) : ''}</div>
-    <div class="sep"></div>
-    <div class="row"><span>Cliente</span><span>${escapeHtml(cliente?.name || order.cliente || 'Consumidor final')}</span></div>
-    ${modelo.clienteContacto && cliente?.document ? `<div class="row"><span>Documento</span><span>${escapeHtml(cliente.document)}</span></div>` : ''}
-    ${modelo.clienteContacto && cliente?.phone ? `<div class="row"><span>Teléfono</span><span>${escapeHtml(`${cliente.countryCode || ''} ${cliente.phone}`.trim())}</span></div>` : ''}
-    ${modelo.clienteContacto && cliente?.email ? `<div class="small">${escapeHtml(cliente.email)}</div>` : ''}
-    ${order.billingName ? `<div class="row"><span>Factura a</span><span>${escapeHtml(order.billingName)}${order.billingDocument ? ` · ${escapeHtml(order.billingDocument)}` : ''}</span></div>` : ''}
-    ${modelo.empresa === 'completa' && (empresaTenant?.ruc || empresaDireccion || order.seller?.name || redes) ? `<div class="sep"></div><div class="muted">${[empresaTenant?.ruc ? `RUC ${empresaTenant.ruc}` : '', empresaDireccion, order.seller?.name ? `Vendedor: ${order.seller.name}` : '', sucursal?.phone, redes].filter(Boolean).map(escapeHtml).join('<br>')}</div>` : ''}
-    <div class="sep"></div>
-    ${lineas || '<div class="item">Sin artículos detallados.</div>'}
-    <div class="sep"></div>
-    <div class="row"><span>Subtotal</span><span>${escapeHtml(gs(order.subtotalPyg ?? total))}</span></div>
-    ${Number(order.discountPyg || order.descuento || 0) ? `<div class="row"><span>Descuento</span><span>− ${escapeHtml(gs(order.discountPyg || order.descuento))}</span></div>` : ''}
-    ${Number(order.deliveryPyg || order.montoDelivery || 0) ? `<div class="row"><span>Entrega</span><span>${escapeHtml(gs(order.deliveryPyg || order.montoDelivery))}</span></div>` : ''}
-    <div class="row"><span>Ítems</span><span>${escapeHtml(String(itemsCount))}</span></div>
-    <div class="row"><span>Pagado</span><span>${escapeHtml(gs(paid))}</span></div>
-    ${pendiente > 0 ? `<div class="row"><span>Saldo pendiente</span><span>${escapeHtml(gs(pendiente))}</span></div>` : ''}
-    <div class="row total"><span>TOTAL</span><span>${escapeHtml(gs(total))}</span></div>
-    ${!modelo.pagos && metodoPago ? `<div class="row"><span>Método</span><span>${escapeHtml(metodoPago)}</span></div>` : ''}
-    ${credito58}
-    ${pagos58}
-    ${completo && (order.deliveryType || order.deliveryNotes) ? `<div class="sep"></div><div class="muted">Entrega: ${escapeHtml(order.deliveryType || '—')}${order.deliveryNotes ? ` · ${escapeHtml(order.deliveryNotes)}` : ''}</div>` : ''}
-    ${cronologia58}
-    <div class="sep"></div>
-    <div class="center">${escapeHtml(ESTADO_ENTREGA[order.fulfillmentStatus] || order.fulfillmentStatus || order.deliveryType || order.entrega || 'En preparación')}</div>
-    ${link ? `${qr ? `<img class="qr" src="${qr}" alt="QR del comprobante">` : ''}<div class="small">${level === 'rapido' ? 'Seguimiento' : level === 'completo' ? 'Comprobante y seguimiento' : 'Comprobante detallado'}: ${escapeHtml(link)}</div>` : ''}
-    <div class="nofiscal">Documento no fiscal · No válido como factura</div>
-    <div class="small">Conservá este comprobante para cambios y garantía. Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</div>
-  </body></html>`
-  }
-
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ${escapeHtml(order.orderNumber || order.codigo || '')}</title><style>${styles(format)}</style></head><body>
-    ${header('Comprobante de compra', `${order.orderNumber || order.codigo || 'Pedido'} · ${when ? new Date(when).toLocaleString('es-PY') : ''}`, logo, empresa)}
-    ${empresaCard}
-    ${contactoCliente}
-    ${documento}
-    <table><thead><tr><th>Producto</th><th class="num">Precio</th><th class="num">Total</th></tr></thead><tbody>${itemsRows}</tbody></table>
-    <table class="totals">
-      <tr><td>Subtotal</td><td class="num">${escapeHtml(gs(order.subtotalPyg ?? total))}</td></tr>
-      ${Number(order.discountPyg || order.descuento || 0) ? `<tr><td>Descuento</td><td class="num">− ${escapeHtml(gs(order.discountPyg || order.descuento))}</td></tr>` : ''}
-      ${Number(order.deliveryPyg || order.montoDelivery || 0) ? `<tr><td>Entrega</td><td class="num">${escapeHtml(gs(order.deliveryPyg || order.montoDelivery))}</td></tr>` : ''}
-      <tr><td>Total de ítems</td><td class="num">${escapeHtml(String(itemsCount))}</td></tr>
-      <tr><td>Total</td><td class="num">${escapeHtml(gs(total))}</td></tr>
-      <tr><td>Pagado</td><td class="num">${escapeHtml(gs(paid))}</td></tr>
-      ${pendiente > 0 ? `<tr class="saldo"><td>Saldo pendiente</td><td class="num">${escapeHtml(gs(pendiente))}</td></tr>` : ''}
-      ${!modelo.pagos && metodoPago ? `<tr><td>Método</td><td class="num">${escapeHtml(metodoPago)}</td></tr>` : ''}
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ${escapeHtml(order.orderNumber || order.codigo || '')}</title><style>${styles(format, acento)}</style></head><body class="${termico ? `rollo t${thermalWidth(format)}` : 'hoja a4'}">
+    ${header('Comprobante de compra', cuando, logo, empresa, { razon: empresa || APP_NAME, numero: order.orderNumber || order.codigo || 'Pedido', lineas: lineasEmpresa })}
+    <div class="cols">${clienteCard}${pedidoCard}</div>
+    <table>${columnas}<tbody>${itemsRows || `<tr><td colspan="${termico ? 2 : 4}" class="muted">Sin artículos detallados.</td></tr>`}</tbody></table>
+    <table class="totals venta">
+      ${fila('Cantidad de ítems', escapeHtml(String(itemsCount)))}
+      ${desglose.mostrarSubtotal ? fila('Subtotal', escapeHtml(gs(desglose.subtotal))) : ''}
+      ${desglose.descuento ? fila('Descuento', `− ${escapeHtml(gs(desglose.descuento))}`) : ''}
+      ${desglose.envio ? fila('Entrega', escapeHtml(gs(desglose.envio))) : ''}
+      ${fila('Total', escapeHtml(gs(total)), 'total')}
+      ${desglose.mostrarPagado ? fila('Pagado', escapeHtml(gs(paid))) : ''}
+      ${pendiente > 0 ? fila('Saldo pendiente', escapeHtml(gs(pendiente)), 'saldo') : ''}
+      ${!modelo.pagos && metodoPago ? fila('Método', escapeHtml(metodoPago)) : ''}
     </table>
     ${pagosRows}
     ${credito}
-    ${entregaNotas}
-    <p><span class="tag">${escapeHtml(ESTADO_ENTREGA[order.fulfillmentStatus] || order.fulfillmentStatus || order.deliveryType || order.entrega || 'En preparación')}</span></p>
     ${cronologia}
-    ${link ? `${qr ? `<img class="qr" src="${qr}" alt="QR del comprobante">` : ''}<p class="small">${level === 'rapido' ? 'Seguimiento' : level === 'completo' ? 'Comprobante y seguimiento' : 'Comprobante detallado'}: ${escapeHtml(link)}</p>` : ''}
-    <footer>Documento no fiscal. Conservá este comprobante para cambios y garantía. Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
+    <div class="pie-doc">
+      <div class="condiciones"><strong>Garantía y condiciones</strong>${escapeHtml(garantiaDeVenta(order))}<br>Documento no fiscal · No válido como factura.</div>
+      ${link ? `<div class="qrbox">${qr ? `<img class="qr" src="${qr}" alt="QR del comprobante">` : ''}<div class="small">${escapeHtml(textoQr)}${termico ? `: ${escapeHtml(link)}` : ''}</div></div>` : ''}
+    </div>
+    <footer>Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa.replace(/\.$/, ''))}` : ''}.</footer>
   </body></html>`
 }
 

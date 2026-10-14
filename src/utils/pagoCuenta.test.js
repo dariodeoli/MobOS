@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { accountPayment, updateAccountPayment } from './pagoCuenta.js'
+import { accountPayment, updateAccountPayment, cambiarCuentaPago } from './pagoCuenta.js'
 
 const CUENTAS = [
   { id: 'usd', name: 'Cuenta USD', currency: 'USD', kind: 'CASH', isActive: true },
@@ -65,4 +65,23 @@ test('accountPayment exige serial, modelo y condición en el canje', () => {
   )
   assert.equal(pago.method, 'TRADE_IN')
   assert.deepEqual(pago.tradeIn, { serial: '356789102345678', model: 'iPhone 12', conditionNotes: 'Buen estado' })
+})
+
+test('cambiar de cuenta a otra moneda descarta la cotización anterior (#390)', () => {
+  const cuentas = [...CUENTAS, { id: 'brl', name: 'Cuenta BRL', currency: 'BRL', kind: 'CASH', isActive: true }, { id: 'usd2', name: 'USD 2', currency: 'USD', kind: 'CASH', isActive: true }]
+  const pagoUsd = { accountId: 'usd', originalAmount: '10', exchangeRatePyg: '7300' }
+  const aBrl = cambiarCuentaPago(pagoUsd, cuentas, 'brl', 100000)
+  assert.equal(aBrl.cambio.exchangeRatePyg, '')
+  assert.equal(aBrl.cambio.originalAmount, '')
+  assert.equal(aBrl.proponerAlLlegarCotizacion, true)
+  const aPyg = cambiarCuentaPago(pagoUsd, cuentas, 'pyg', 100000)
+  assert.equal(aPyg.cambio.exchangeRatePyg, '')
+  assert.equal(aPyg.cambio.originalAmount, '100000')
+  // Misma moneda con monto: se conservan monto y cotización.
+  const misma = cambiarCuentaPago(pagoUsd, cuentas, 'usd2', 100000)
+  assert.equal(misma.cambio.exchangeRatePyg, '7300')
+  assert.equal(misma.cambio.originalAmount, '10')
+  // Primera elección: propone el saldo en la moneda de la cuenta.
+  const primera = cambiarCuentaPago({ accountId: '', originalAmount: '', exchangeRatePyg: '7300' }, cuentas, 'usd', 73000)
+  assert.equal(primera.cambio.originalAmount, '10,00')
 })

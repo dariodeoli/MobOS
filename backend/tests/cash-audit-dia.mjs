@@ -49,13 +49,17 @@ assert.ok(pagoId, 'el cobro quedó registrado')
 sql(`UPDATE "Payment" SET "paidAt" = '${hoy}T03:30:00.000Z' WHERE "id" = '${pagoId}';`)
 assert.equal(sql(`SELECT COUNT(*) FROM "Payment" WHERE "id" = '${pagoId}' AND "paidAt" = '${hoy}T03:30:00.000Z'`), '1', 'el cobro quedó a las 00:30 de Paraguay')
 
-// Expectativa independiente: misma semántica de día paraguayo (-03).
+// Expectativa independiente: misma semántica de día paraguayo (-03). Desde #393-B
+// el efectivo del día no incluye los pagos de correcciones de turnos ya cerrados
+// (drawerImpact=false: se informan como «Ajustes por corrección») y el conteo no
+// incluye las reversiones ni los originales revertidos.
+const sinAjusteDeCaja = `NOT EXISTS (SELECT 1 FROM "PaymentCorrection" pc WHERE pc."id" = p."correctionId" AND pc."drawerImpact" = false)`
 function esperadoDe(dia) {
   const desde = inicioParaguay(dia)
   const hasta = new Date(Date.parse(desde) + 86400000).toISOString()
   const [confirmado, cantidad, reembolsado] = sql(`SELECT
-    COALESCE(SUM(p."amountPyg") FILTER (WHERE p."status" = 'CONFIRMED'), 0),
-    COUNT(*) FILTER (WHERE p."status" = 'CONFIRMED'),
+    COALESCE(SUM(p."amountPyg") FILTER (WHERE p."status" = 'CONFIRMED' AND ${sinAjusteDeCaja}), 0),
+    COUNT(*) FILTER (WHERE p."status" = 'CONFIRMED' AND ${sinAjusteDeCaja} AND p."reversalOfId" IS NULL AND NOT EXISTS (SELECT 1 FROM "Payment" rv LEFT JOIN "PaymentCorrection" rc ON rc."id" = rv."correctionId" WHERE rv."reversalOfId" = p."id" AND COALESCE(rc."drawerImpact", true))),
     COALESCE(SUM(p."amountPyg") FILTER (WHERE p."status" = 'REFUNDED'), 0)
     FROM "Payment" p JOIN "Order" o ON o."id" = p."orderId" AND o."tenantId" = p."tenantId"
     WHERE p."tenantId" = '${TENANT}' AND o."branchId" = '${rama}' AND p."method" = 'CASH'
