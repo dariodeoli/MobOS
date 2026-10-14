@@ -200,16 +200,25 @@ await corregir(cajera, siete2.order.id, siete2.payment.id, { reason: 'Pagó en m
 assert.equal(confirmado(siete2.order.id), 70000)
 await corregir(gerente, siete2.order.id, siete2.payment.id, { reason: 'Pagó en mano al repartidor', payments: [{ accountId: efectivo.id, amount: 70000, toDriver: true }] })
 
-// La rendición del repartidor cierra la deuda; ese cobro de calle ya no se corrige (422).
+// Cobro de calle común: el repartidor cobra el saldo de un pedido y lo rinde. Ese
+// cobro (con repartidor/rendición) no se corrige en v1 (422); pertenece a la rendición.
+const calle = await ok('/api/orders', cajera, 'POST', {
+  items: [{ productId: producto.id, description: producto.name, quantity: 1, unitPricePyg: 90000 }],
+  payments: [{ accountId: efectivo.id, originalAmount: '10000', exchangeRatePyg: '1', amountPyg: 10000, method: 'CASH', status: 'CONFIRMED' }],
+}, 201)
+pedidos.push(calle.id)
+await ok(`/api/orders/${calle.id}/assignment`, admin, 'POST', { assignedToId: 'user-repartidor-it' })
+const precobro = await ok(`/api/delivery/orders/${calle.id}/collections`, repartidor, 'POST', { amountPyg: 80000, method: 'CASH' }, 201)
+await corregir(admin, calle.id, precobro.id, { reason: 'Cambiar cobro de calle', payments: [{ accountId: transferencia.id, amount: 80000 }] }, clave('calle-pend'), 409)
+
+// La rendición del repartidor cierra la deuda (también la del efectivo dejado por corrección).
 const rendicion = await ok('/api/delivery/settlements', repartidor, 'POST', { note: 'Rendición con corrección' }, 201)
 await ok(`/api/delivery/settlements/${rendicion.id}/verify`, cajera, 'POST', { state: 'VERIFIED' })
 assert.equal(await porCobrar(), undefined, 'verificada la rendición, la deuda del pedido desaparece')
 assert.equal(estadoPedido(siete.order.id), 'COMPLETED')
-const cobroCalle = sql(`SELECT "id" FROM "Payment" WHERE "orderId"='${siete.order.id}' AND "deliverySettlementId" IS NOT NULL AND "status"='CONFIRMED' AND "reversalOfId" IS NULL`)
-assert.ok(cobroCalle, 'el cobro de calle quedó confirmado en la rendición')
-const bloqueado = await corregir(admin, siete.order.id, cobroCalle, { reason: 'Cambiar cobro de calle', payments: [{ accountId: transferencia.id, amount: 250000 }] }, clave('calle'), 422)
+const bloqueado = await corregir(admin, calle.id, precobro.id, { reason: 'Cambiar cobro de calle', payments: [{ accountId: transferencia.id, amount: 80000 }] }, clave('calle'), 422)
 assert.match(JSON.stringify(bloqueado.payload), /repartidor/)
-assert.equal(confirmado(siete.order.id), 250000)
+assert.equal(confirmado(calle.id), 90000)
 
 // Idempotencia con cuerpo: la misma clave con otro motivo u otros pagos es 409.
 const diez = await pedidoPagado(cajera, 80000, efectivo, 'CASH')
