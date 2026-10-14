@@ -208,6 +208,29 @@ test('Pedidos: barra de UNA fila en escritorio, totales en una tira de una líne
   }
 })
 
+test('Clientes: barra de herramientas en UNA fila a 1440 y KPI de una línea (#388)', async ({ page }) => {
+  await enterDemo(page)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await openShellDestination(page, 'Clientes')
+  await settle(page)
+  const barra = page.getByTestId('barra-clientes')
+  await expect(barra).toBeVisible()
+  const m = await barra.evaluate(node => {
+    const ys = [...node.querySelectorAll('input, button, select')]
+      .filter(el => el.getBoundingClientRect().width > 0)
+      .map(el => Math.round(el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2))
+    const search = node.querySelector('[data-slot="search"]').getBoundingClientRect()
+    return { filas: new Set(ys.map(y => Math.round(y / 12))).size, searchW: Math.round(search.width) }
+  })
+  expect(m.filas, 'buscador · chips · orden · vista · acción en una fila').toBe(1)
+  expect(m.searchW, 'buscador 320–420px').toBeGreaterThanOrEqual(320)
+  expect(m.searchW, 'buscador 320–420px').toBeLessThanOrEqual(421)
+  const strip = await page.getByTestId('resumen-clientes').boundingBox()
+  expect(strip.height, 'KPI ≤ 64px').toBeLessThanOrEqual(64)
+  // El aviso de la demo no es una fila propia ni un párrafo en la barra.
+  await expect(barra.getByText('Demo local')).toHaveCount(0)
+})
+
 test('Pedidos: un solo punto de entrada a los filtros y el orden, sin selects, en celular', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 })
   await enterDemo(page)
