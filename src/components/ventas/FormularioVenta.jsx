@@ -1,4 +1,5 @@
 import '../control/inicioPosF2.css'
+import CheckAnimado from '@/components/shared/CheckAnimado'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
@@ -1848,9 +1849,7 @@ export default function FormularioVenta({
     <Card className="p-3 md:p-4">
       {ok && (
         <Aviso tono="ok" como="div" aria-live="polite" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl p-4">
-          <span className="grid h-9 w-9 shrink-0 animate-pulse place-items-center rounded-full bg-ok/20">
-            <Icon name="check" className="h-4 w-4" />
-          </span>
+          <CheckAnimado size={36} className="shrink-0" />
           <span className="min-w-0">
             <b className="block">
               {lastOrder?.orderNumber ? `Pedido ${codigoPedido(lastOrder.orderNumber)} creado` : 'Venta registrada'}
