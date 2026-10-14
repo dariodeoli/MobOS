@@ -251,6 +251,18 @@ export async function POST(request: Request) {
     if (!billingName && !billingDocument) throw new InputError('El titular de factura necesita nombre o RUC.')
   }
   const orderNotes = body.notes === undefined || body.notes === null || body.notes === '' ? null : textInput(body.notes, 'Comentario', 2000)
+  // «Paga al recibir» (#399): pedido sin pago que se cobra después. Un pago
+  // cargado contradice la marca, así que se rechaza.
+  if (body.paymentOnDelivery !== undefined && typeof body.paymentOnDelivery !== 'boolean') throw new InputError('paymentOnDelivery debe ser verdadero o falso.')
+  const paymentOnDelivery = body.paymentOnDelivery === true
+  if (paymentOnDelivery && payments.length) throw new InputError('«Paga al recibir» no admite pagos cargados.')
+  // Encomienda (#399): empresa, sucursal de destino y dirección del cliente.
+  const opt = (value: unknown, field: string, max: number) => value === undefined || value === null || value === '' ? null : textInput(value, field, max)
+  const shippingCarrier = opt(body.shippingCarrier, 'Empresa de encomienda', 120)
+  const shippingBranch = opt(body.shippingBranch, 'Sucursal de destino', 200)
+  const shippingAddressId = opt(body.shippingAddressId, 'Dirección de envío', 200)
+  const esEncomienda = /encomienda|transportadora/i.test(String(body.deliveryType ?? ''))
+  if (!esEncomienda && (shippingCarrier || shippingBranch || shippingAddressId)) throw new InputError('Empresa, sucursal y dirección de envío solo aplican a «Envío por encomienda».')
   const discount = body.discountPyg ?? 0; const delivery = body.deliveryPyg ?? 0
   if (!safeMonto(discount) || !safeMonto(delivery)) return error('Descuento y delivery inválidos.')
   // Descuento fuera de política: el vendedor necesita una autorización DISCOUNT
@@ -571,6 +583,25 @@ export async function POST(request: Request) {
           throw new InputError(`La autorización de precio no alcanza para esta venta (excedente bajo lista Gs ${excedenteBajoLista.toLocaleString('es-PY')}, máx Gs ${priceAuth.maxDiscountPyg.toLocaleString('es-PY')}). Solicitá una nueva.`, 403)
         }
       }
+      // Cliente bloqueado (#399): no se le vende a crédito (422). Contado y
+      // «paga al recibir» se permiten, pero queda registrado en la auditoría.
+      const aCredito = body.creditDays !== undefined || body.dueAt !== undefined
+      let blockedSale: string | null = null
+      if (customerId) {
+        const estado = await tx.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { blocked: true, blockedReason: true } })
+        if (estado?.blocked) {
+          if (aCredito) throw new InputError(`Cliente bloqueado${estado.blockedReason ? `: ${estado.blockedReason}` : ''}. No se puede vender a crédito.`, 422)
+          blockedSale = estado.blockedReason || ''
+        }
+      }
+      // Dirección de encomienda: debe ser del cliente de la venta; se guarda
+      // también el texto para que el comprobante no cambie si la editan.
+      let shippingAddress: string | null = null
+      if (shippingAddressId) {
+        const direccion = customerId ? await tx.customerAddress.findFirst({ where: { id: shippingAddressId, customerId, customer: { tenantId: tenant } }, select: { address: true, city: true, department: true } }) : null
+        if (!direccion) throw new InputError('La dirección de envío no pertenece al cliente.')
+        shippingAddress = [direccion.address, direccion.city, direccion.department].filter(Boolean).join(', ').slice(0, 600)
+      }
       // Venta a crédito: plazo y límite del cliente (control de mora).
       let dueAt: Date | null = null; let creditDays: number | null = null; let creditLimit: number | null = null
       if (body.creditDays !== undefined || body.dueAt !== undefined) {
@@ -605,7 +636,8 @@ export async function POST(request: Request) {
       // transaccional del tenant; un número explícito del cliente manda.
       const orderNumber = typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : await nextOrderNumber(tx, tenant)
 
-      const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}), ...(offlineSale ? { offlineSyncedAt: new Date() } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
+      const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(paymentOnDelivery ? { paymentOnDelivery: true } : {}), ...(esEncomienda ? { shippingCarrier, shippingBranch, shippingAddressId, shippingAddress } : {}), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}), ...(offlineSale ? { offlineSyncedAt: new Date() } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
+      if (blockedSale !== null) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_BLOCKED_CUSTOMER_SALE', entity: 'Order', entityId: order.id, metadata: { customerId, reason: blockedSale || null, paymentOnDelivery, totalPyg: total } } })
       // El enlace de seguimiento se emite como token de nivel rápido del pedido:
       // el panel puede volver a copiarlo y «Regenerar acceso QR» lo rota (#178).
       // La demanda se persiste con el pedido ya creado: el dedupeKey y el
