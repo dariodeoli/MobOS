@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 // etiquetas tienen una sola acción principal y el resto acá). Abre hacia
 // arriba: así el scroll de un modal no lo recorta. Cierra al elegir una acción,
 // al hacer clic afuera o con Escape.
-export default function MenuSecundario({ acciones = [], etiqueta = 'Más acciones', ariaLabel = 'Más acciones', direccion = 'arriba' }) {
+export default function MenuSecundario({ acciones = [], etiqueta = 'Más acciones', ariaLabel = 'Más acciones', direccion = 'arriba', soloIconoMovil = false }) {
   const [abierto, setAbierto] = useState(false)
   const raiz = useRef(null)
   useEffect(() => {
@@ -27,9 +27,10 @@ export default function MenuSecundario({ acciones = [], etiqueta = 'Más accione
         aria-haspopup="menu"
         aria-expanded={abierto}
         onClick={() => setAbierto((valor) => !valor)}
-        className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono/40 hover:text-fore lg:min-h-0"
+        className={cn('inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono/40 hover:text-fore lg:min-h-0', soloIconoMovil && 'max-sm:min-w-11 max-sm:justify-center max-sm:px-0')}
       >
-        <Icon name="dots" className="h-4 w-4" />{etiqueta}
+        <Icon name="dots" className="h-4 w-4" />
+        {soloIconoMovil ? <span className="max-sm:sr-only">{etiqueta}</span> : etiqueta}
       </button>
       {abierto && (
         <span role="menu" aria-label={ariaLabel} className={cn('absolute right-0 z-30 w-56 rounded-xl border border-ink-500 bg-paper p-1 shadow-xl', direccion === 'abajo' ? 'top-full mt-1' : 'bottom-full mb-1')}>
