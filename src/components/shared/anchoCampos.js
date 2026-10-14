@@ -9,10 +9,13 @@ export const ANCHO_CAMPO = Object.freeze({
   ciudad: 'md:max-w-[20rem]', // ~24 caracteres
   pais: 'md:max-w-[16rem]', // ~18 caracteres
   etiqueta: 'md:max-w-[12rem]', // nombre de dirección: Casa, oficina…
+  nombre: 'md:max-w-[24rem]', // nombre de persona o comercio (~30 caracteres)
+  busqueda: 'md:max-w-[28rem]', // buscador de una lista o catálogo
+  selector: 'md:max-w-[16rem]', // Select de opciones cortas (bloqueo, rol, estado)
   corto: 'md:max-w-[8rem]', // código postal, número corto (8-10 caracteres)
 })
 
 // Máximos en píxeles (rem de 16px) para los tests de layout.
 export const ANCHO_CAMPO_PX = Object.freeze({
-  telefono: 352, etiqueta: 192, documento: 288, correo: 416, ciudad: 320, pais: 256, corto: 128,
+  telefono: 352, etiqueta: 192, nombre: 384, busqueda: 448, selector: 256, documento: 288, correo: 416, ciudad: 320, pais: 256, corto: 128,
 })

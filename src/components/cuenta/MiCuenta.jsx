@@ -208,6 +208,7 @@ export default function MiCuenta({ preferencias, onCambiarPreferencias }) {
           <form onSubmit={guardarNombre} data-testid="mi-cuenta-form" className="space-y-3">
             <FieldRow
               label="Nombre"
+              ancho="nombre"
               htmlFor="mi-cuenta-nombre"
               final={<Button type="submit" variant="ghost" disabled={guardandoNombre || nombre.trim().length < 2 || nombre.trim() === (perfil?.name || '')}>{guardandoNombre ? 'Guardando…' : 'Guardar nombre'}</Button>}
             >

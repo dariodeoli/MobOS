@@ -8,6 +8,7 @@ import { totalesVendedor, ventasDelDia, comisionDeVentas, fechaClave, num, gs } 
 import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, FilaDato, FormField, Input, Label, Modal, MoneyInput, PinInput, SaveActions, Select } from '@/components/ui'
 import Avatar from '@/components/shared/Avatar'
 import EmailField from '@/components/shared/EmailField'
+import { ANCHO_CAMPO } from '@/components/shared/anchoCampos'
 import Cronologia from '@/components/shared/Cronologia'
 import PanelDerecho from '@/components/shared/PanelDerecho'
 import { ROLE_LABELS, etiquetaRol } from '@/lib/roles'
@@ -351,17 +352,17 @@ export default function Vendedores({ seccion = 'miembros' } = {}) {
       {esDemo || modoInvitacion === 'directo' ? (
         <form onSubmit={crearDirecto} className="space-y-3">
           <FormField label="Nombre" htmlFor="direct-name">
-            <Input id="direct-name" value={directo.name} onChange={event => setDirecto({ ...directo, name: event.target.value })} required />
+            <Input id="direct-name" className={ANCHO_CAMPO.nombre} value={directo.name} onChange={event => setDirecto({ ...directo, name: event.target.value })} required />
           </FormField>
           {!esDemo && <>
             <FormField label="Correo (opcional)" htmlFor="direct-email">
               <EmailField id="direct-email" value={directo.email} onChange={value => setDirecto({ ...directo, email: value })} />
             </FormField>
             <FormField label="Rol" htmlFor="direct-role">
-              <Select id="direct-role" value={directo.role} onChange={event => setDirecto({ ...directo, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select>
+              <Select id="direct-role" className={ANCHO_CAMPO.selector} value={directo.role} onChange={event => setDirecto({ ...directo, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select>
             </FormField>
             <FormField label="PIN temporal (4 a 6 dígitos)" htmlFor="direct-pin">
-              <Input id="direct-pin" inputMode="numeric" maxLength={6} value={directo.pin} onChange={event => setDirecto({ ...directo, pin: event.target.value.replace(/\D/g, '').slice(0, 6) })} required />
+              <Input id="direct-pin" className={ANCHO_CAMPO.corto} inputMode="numeric" maxLength={6} value={directo.pin} onChange={event => setDirecto({ ...directo, pin: event.target.value.replace(/\D/g, '').slice(0, 6) })} required />
             </FormField>
           </>}
           <Button type="submit" className="w-full" disabled={busy}>Agregar</Button>
@@ -369,13 +370,13 @@ export default function Vendedores({ seccion = 'miembros' } = {}) {
       ) : (
         <form onSubmit={invitar} className="space-y-3">
           <FormField label="Nombre" htmlFor="invite-name">
-            <Input id="invite-name" value={invitacion.name} onChange={event => setInvitacion({ ...invitacion, name: event.target.value })} onBlur={() => !invitacion.name.trim() && setError('Ingresá el nombre del integrante.')} required />
+            <Input id="invite-name" className={ANCHO_CAMPO.nombre} value={invitacion.name} onChange={event => setInvitacion({ ...invitacion, name: event.target.value })} onBlur={() => !invitacion.name.trim() && setError('Ingresá el nombre del integrante.')} required />
           </FormField>
           <FormField label="Correo" htmlFor="invite-email">
             <EmailField id="invite-email" value={invitacion.email} onChange={value => setInvitacion({ ...invitacion, email: value })} required />
           </FormField>
           <FormField label="Rol" htmlFor="invite-role">
-            <Select id="invite-role" value={invitacion.role} onChange={event => setInvitacion({ ...invitacion, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select>
+            <Select id="invite-role" className={ANCHO_CAMPO.selector} value={invitacion.role} onChange={event => setInvitacion({ ...invitacion, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select>
           </FormField>
           <Button type="submit" className="w-full" disabled={busy}>Enviar invitación</Button>
         </form>
