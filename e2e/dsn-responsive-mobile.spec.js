@@ -28,12 +28,16 @@ const PANTALLAS = [
     // Carrito con una línea en el ancho de referencia del celular: es el estado
     // que más se usa en el mostrador (en los otros anchos se audita el inicio).
     if (ancho !== 390) return
+    // #429: en celular el cliente y el carrito viven en hojas (acción «Agregar cliente» y barra del carrito).
+    await page.getByTestId('accion-cliente').click()
     await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente QA ${Date.now().toString(36)}`)
+    await page.getByTestId('hoja-cliente').getByRole('button', { name: 'Listo' }).click()
     const buscar = page.getByPlaceholder('Buscar producto…')
     await buscar.fill('Cable')
     const producto = page.getByRole('button', { name: /Cable USB-C E2E/ }).first()
     await expect(producto).toBeVisible({ timeout: 15_000 })
     await producto.click()
+    await page.getByTestId('pos-barra-carrito-abrir').click()
     await expect(page.getByText('Productos de esta venta').first()).toBeVisible({ timeout: 15_000 })
   }],
   ['inventario', '/stock/unidades', (page) => filaInventario(page)],
@@ -383,6 +387,8 @@ test.describe('demo · POS y páginas clave', () => {
         const variante = page.getByTestId('selector-variante')
         const hayVariante = await variante.waitFor({ state: 'visible', timeout: 3_000 }).then(() => true, () => false)
         if (hayVariante) await variante.getByTestId('variante-opcion').first().click()
+        // #429: el carrito vive en la hoja que abre la barra del celular.
+        await page.getByTestId('pos-barra-carrito-abrir').click()
         await expect(page.getByRole('button', { name: /^Ver detalle de iPhone 15 Pro/ }).first()).toBeVisible({ timeout: 20_000 })
       }],
       ['demo-pedidos', '/pedidos', (page) => page.getByTestId('pedido-fila').first()],
